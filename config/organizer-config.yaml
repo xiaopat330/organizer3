@@ -1,0 +1,245 @@
+organizer:
+
+  mappings:
+    - mount:
+        id: qnap
+        path: '\\qnap2\jav'
+    - mount:
+        id: javA_path
+        path: '\\pandora\jav_A'
+    - mount:
+        id: javBG_path
+        path: '\\pandora\jav_BG'
+    - mount:
+        id: javHJ_path
+        path: '\\pandora\jav_HJ'
+    - mount:
+        id: javaK_path
+        path: '\\pandora\jav_K'
+    - mount:
+        id: javaN_path
+        path: '\\pandora\jav_N'
+    - mount:
+        id: javaM_path
+        path: '\\pandora\jav_M'
+    - mount:
+        id: javaMA_path
+        path: '\\pandora\jav_MA'
+    - mount:
+        id: javaOR_path
+        path: '\\pandora\jav_OR'
+    - mount:
+        id: javaTZ_path
+        path: '\\pandora\jav_TZ'
+    - mount:
+        id: javaS_path
+        path: '\\pandora\jav_S'
+    - mount:
+        id: jav_unsorted
+        path: '\\pandora\jav_unsorted'
+    - mount:
+        id: jav_classic
+        path: '\\qnap2\JAV\classic'
+    - mount:
+        id: jav_collections
+        path: '\\PANDORA\jav_collections'
+    - mount:
+        id: test
+        path: 'D:\test'
+
+  volumes:
+    - id: test
+      mount: test
+      structure: conventional
+    - id: qnap
+      mount: qnap
+      structure: conventional
+    - id: a
+      mount: javA_path
+      structure: conventional
+    - id: bg
+      mount: javBG_path
+      structure: conventional
+    - id: hj
+      mount: javHJ_path
+      structure: conventional
+    - id: k
+      mount: javaK_path
+      structure: conventional
+    - id: n
+      mount: javaN_path
+      structure: conventional
+    - id: ma
+      mount: javaMA_path
+      structure: conventional
+    - id: m
+      mount: javaM_path
+      structure: conventional
+    - id: r
+      mount: javaOR_path
+      structure: conventional
+    - id: s
+      mount: javaS_path
+      structure: conventional
+    - id: tz
+      mount: javaTZ_path
+      structure: conventional
+    - id: unsorted
+      mount: jav_unsorted
+      structure: queue
+    - id: classic
+      mount: jav_classic
+      structure: queue
+    - id: collections
+      mount: jav_collections
+      structure: collections
+
+  structures:
+    - id: conventional
+      commands:
+        - command: organize
+          action: organizeLibrary
+        - command: moveConverted
+          action: moveConvertedFiles
+        - command: sortActresses
+          action: sortActressesLibrary
+        - command: sortTitles
+          action: distributeQueuedTitlesLibrary
+        - command: normalizeTitles
+          action: normalizeTitlesLibrary
+      structure:
+        unstructured:
+          partitions:
+            - id: archive
+              path: archive
+              strategy: doNothing
+            - id: attention
+              path: attention
+              strategy: doNothing
+            - id: converted
+              path: converted
+              strategy: doNothing
+            - id: duplicates
+              path: duplicates
+              strategy: doNothing
+            - id: favorites
+              path: favorites
+              strategy: doNothing
+            - id: queue
+              path: queue
+              strategy: doNothing
+            - id: recent
+              path: recent
+              strategy: doNothing
+            - id: minor
+              path: minor
+              strategy: doNothing
+        structured:
+          path: stars
+          partitions:
+            - id: favorites
+              path: favorites
+              strategy: doNothing
+            - id: minor
+              path: minor
+              strategy: doNothing
+            - id: library
+              path: library
+              strategy: doNothing
+            - id: popular
+              path: popular
+              strategy: doNothing
+            - id: superstar
+              path: superstar
+              strategy: doNothing
+            - id: goddess
+              path: goddess
+              strategy: doNothing
+            - id: archive
+              path: archive
+              strategy: libraryArchive
+    - id: queue
+      commands:
+        - command: organize
+          action: organizeUnsorted
+        - command: normalize
+          action: normalizeUnsorted
+        - command: restructure
+          action: organizeOrphanVideos
+      structure:
+        unstructured:
+          partitions:
+            - id: queue
+              path: fresh
+              strategy: unsortedStrategy
+    - id: collections
+      commands:
+        - command: organize
+          action: organizeCollections
+        - command: moveConverted
+          action: moveConvertedFiles
+      structure:
+        unstructured:
+          partitions:
+            - id: archive
+              path: archive
+              strategy: doNothing
+            - id: converted
+              path: converted
+              strategy: doNothing
+            - id: duos
+              path: duos
+              strategy: doNothing
+            - id: favorites
+              path: favorites
+              strategy: doNothing
+            - id: new
+              path: new
+              strategy: doNothing
+            - id: omnibus
+              path: omnibus
+              strategy: doNothing
+            - id: recent
+              path: recent
+              strategy: doNothing
+
+  strategies:
+    - id: doNothing
+      handler: com.organizer.config.strategies.DummyHandler
+    - id: volumeQueue
+      handler: com.organizer.config.strategies.DummyHandler
+    - id: volumeConverted
+      handler: com.organizer.config.strategies.DummyHandler
+    - id: libraryArchive
+      handler: com.organizer.config.strategies.DummyHandler
+    - id: volumeArchive
+      handler: com.organizer.config.strategies.DummyHandler
+
+  actions:
+    - id: organizeUnsorted
+      description: organize unsorted files
+      handler: com.organizer.action.sequences.DummyActionSequence
+    - id: organizeCollections
+      handler: com.organizer.action.sequences.OrganizeCollectionsSequence
+      description: organize collections
+    - id: organizeLibrary
+      handler: com.organizer.action.sequences.OrganizeLibrarySequence
+      description: organizes a standard library volume
+    - id: moveConvertedFiles
+      handler: com.organizer.action.sequences.RestoreConvertedFileLocationsSequence
+      description: moves files from converted back to original locations if possible
+    - id: normalizeUnsorted
+      handler: com.organizer.action.sequences.NormalizerSequence
+      description: cleans ups and normalizes video files
+    - id: organizeOrphanVideos
+      handler: com.organizer.action.sequences.OrganizeOrphanVideoSequence
+      description: organizes orphaned videos into Titles
+    - id: sortActressesLibrary
+      handler: com.organizer.action.sequences.library.SortActressesSequence
+      description: sorts actress folders based on popularity
+    - id: distributeQueuedTitlesLibrary
+      handler: com.organizer.action.sequences.library.DistributeQueuedTitlesSequence
+      description: distributes Titles in queue, archive and recent folders into Actress folders
+    - id: normalizeTitlesLibrary
+      handler: com.organizer.action.sequences.library.NormalizeTitlesSequence
+      description: normalizes Titles, moving video folders into proper container folder (eg video)

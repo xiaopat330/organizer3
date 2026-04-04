@@ -1,0 +1,1598 @@
+alias:
+
+  - name: Rina Ayana
+    aliases:
+      - Akari Nanahara
+
+  - name: Kanako Iioka
+    aliases:
+      - Kana Morisawa
+
+  - name: Yume Takeda
+    aliases:
+      - Mahiro Ichiki
+
+  - name: Rena Fukiishi
+    aliases:
+      - Misato Masaki
+
+  - name: Himari Hanazawa
+    aliases:
+      - Himari Kinoshita
+
+  - name: Rin Ogawa
+    aliases:
+      - Rin Okae
+
+  - name: Haruka Kitayama
+    aliases:
+      - Miwa Suzaki
+
+  - name: Aya Sazanami
+    aliases:
+      - Haruka Suzumiya
+      - Aya Konami
+
+  - name: Mai Hanakari
+    aliases:
+      - Mai Kagari
+
+  - name: Hibiki Otsuki
+    aliases:
+      - Eri Ando
+
+  - name: Seiran Igarashi
+    aliases:
+      - Ranran
+
+  - name: Kaede Nishiyama
+    aliases:
+      - Mafuyu Yukina
+
+  - name: Sumire Mizukawa
+    aliases:
+      - Miri Mizuki
+
+  - name: Arisu Nanase
+    aliases:
+      - Ami Ichishima
+
+  - name: Sachika Akimoto
+    aliases:
+      - Tae Kurumi
+
+  - name: Rika Tsubaki
+    aliases:
+      - Hina Oshima
+
+  - name: Rin Momoi
+    aliases:
+      - Hikari Mangetsu
+      - Rina Hatsume
+      - Kana Aoi
+      - Rina Nimi
+
+  - name: Miro Momosaki
+    aliases:
+      - Miro Nanasaki
+
+  - name: Ranka
+    aliases:
+      - Kana Sakuro
+
+  - name: Yurika Aoi
+    aliases:
+      - Airi Ichimatsu
+      - Airi Hata
+
+  - name: Erika Ozaki
+    aliases:
+      - Sakura Yoda
+
+  - name: Sara Uruki
+    aliases:
+      - Sarara Uruki
+
+  - name: Nako Hoshi
+    aliases:
+      - Azu Amatsuki
+
+  - name: Leila Fuji
+    aliases:
+      - Aino Tsubaki
+      - Yume Isumi
+
+  - name: Arisa Seina
+    aliases:
+      - Alice Otsu
+      - Arisu Mizushima
+
+  - name: Mei Itsukaichi
+    aliases:
+      - Ayumi Manaka
+
+  - name: Tsukasa Nagano
+    aliases:
+      - Manami Kudo
+      - Hibiki Tsukasa
+
+  - name: Arina Hashimoto
+    aliases:
+      - Arina Arata
+
+  - name: Akari Neo
+    aliases:
+      - Ami Kojima
+
+  - name: Honami Akagi
+    aliases:
+      - Ami Utada
+
+  - name: Kiho Kanematsu
+    aliases:
+      - Satomi Kaneko
+
+  - name: Kokoro Utano
+    aliases:
+      - Kokoro Asano
+
+  - name: Alice Hana
+    aliases:
+      - Arisu Yusa
+
+  - name: Meguri
+    aliases:
+      - Megu Fujiura
+
+  - name: Ryo Ayumi
+    aliases:
+      - Ayumi Miura
+
+  - name: Ayano Kato
+    aliases:
+      - Mizuho Yamashiro
+      - Azusa Kashiwagi
+
+  - name: Maki Hojo
+    aliases:
+      - Sayuri Shiraishi
+
+  - name: Haruka Sanada
+    aliases:
+      - Mayuka Yao
+
+  - name: Miho Tsuno
+    aliases:
+      - Chiharu Arimura
+
+  - name: Machi Ikuno
+    aliases:
+      - Machi Ikuta
+
+  - name: Eren Fujisaku
+    aliases:
+      - Eren Fujisaki
+      - Azusa Tani
+
+  - name: An Mitsumi
+    aliases:
+      - Ranran Fuji
+
+  - name: Shuri Yamamoto
+    aliases:
+      - Yumi Maeda
+      - Riho Fujimori
+      - Haruka Mirai
+
+  - name: Yume Ayakawa
+    aliases:
+      - Fuwari Hino
+
+  - name: Mei Tsukumo
+    aliases:
+      - Nanao Takizawa
+
+  - name: Kana Yume
+    aliases:
+      - Jun Mizukawa
+
+  - name: Yui Tenma
+    aliases:
+      - Sora Kamikawa
+
+  - name: Jun Kakei
+    aliases:
+      - Mei Washio
+
+  - name: Yume Nikaido
+    aliases:
+      - Ai Hongo
+
+  - name: Mirei Shinonome
+    aliases:
+      - Mirei Uno
+
+  - name: Nanami Ogura
+    aliases:
+      - Nanami Kodama
+
+  - name: Sumire Kurokawa
+    aliases:
+      - Natsume Inagawa
+      - Natsu Nishita
+
+  - name: Yuri Honma
+    aliases:
+      - Tsukasa Aiuchi
+
+  - name: Yuna Kitano
+    aliases:
+      - Shion Saikai
+
+  - name: Ai Kisaragi
+    aliases:
+      - Eri Sasaki
+      - Erina Kase
+
+  - name: Haruka Nogi
+    aliases:
+      - Nozomi Hinata
+      - Harua Narumiya
+
+  - name: Hina Nanase
+    aliases:
+      - Hina Nanami
+
+  - name: Arisa Takarada
+    aliases:
+      - Hazuki Wakamiya
+      - Mizuki Hayakawa
+
+  - name: Maron Natsuki
+    aliases:
+      - Eru Natsuya
+
+  - name: Aka Asuka
+    aliases:
+      - Hikaru Nagi
+
+  - name: Ren Ichinose
+    aliases:
+      - Niko Ayuna
+
+  - name: Asami Nagase
+    aliases:
+      - Mami Nagase
+
+  - name: Akane Fujisaku
+    aliases:
+      - Rio Tokiwa
+
+  - name: Futaba Kurimiya
+    aliases:
+      - Yuhi Shitara
+
+  - name: Kurumi Kashiwagi
+    aliases:
+      - Miu Onose
+      - Maria Nagai
+      - Nanoka Igawa
+
+  - name: Chitose Saegusa
+    aliases:
+      - Chitose Yuki
+      - Chitose Yura
+
+  - name: Sena Asami
+    aliases:
+      - Rei Aino
+      - Yurara Sasamoto
+
+  - name: Miki Shiraishi
+    aliases:
+      - Ai Kayama
+
+  - name: Mei Misaka
+    aliases:
+      - Fuka Shirosaki
+
+  - name: Mirei Morishita
+    aliases:
+      - Kaho Aizawa
+
+  - name: Rui Hitzuki
+    aliases:
+      - Rui Otogoto
+
+  - name: Rara Kudo
+    aliases:
+      - Haru Ito
+
+  - name: Ten Ayase
+    aliases:
+      - Aogi Ayase
+
+  - name: Meisa Kawakita
+    aliases:
+      - Miyu Otori
+      - Minami Sawakita
+
+  - name: Yumika Saeki
+    aliases:
+      - Yui Ito
+      - Emika Sakuragi
+
+  - name: Aoi
+    aliases:
+      - Yuko Ono
+
+  - name: Chiharu Nogi
+    aliases:
+      - Aya Minami
+
+  - name: Mei Iwasa
+    aliases:
+      - Hikari Kisaki
+      - Akari Satsuki
+      - Yukari Nakanatsu
+
+  - name: Maika Nizumi
+    aliases:
+      - Karin Arami
+
+  - name: Momo Aoki
+    aliases:
+      - Serena Tsutsumi
+      - Serina Asahi
+
+  - name: Hono Wakana
+    aliases:
+      - Hono Wakamiya
+
+  - name: Momoka Kato
+    aliases:
+      - Nonoka Sato
+
+  - name: Arisa Hanyu
+    aliases:
+      - Hinata Komine
+
+  - name: Arisu Miyuki
+    aliases:
+      - Runa Tsukino
+      - Rika Shimazaki
+      - Aki Suzuki
+      - Alice Miyuki
+
+  - name: Akari Aizawa
+    aliases:
+      - Ai Kiyama
+      - Sakura Ayase
+
+  - name: Mirai Hanamori
+    aliases:
+      - Misuzu Mifune
+      - Mikari Ichimiya
+
+  - name: Hinata Tachibana
+    aliases:
+      - Hinata Kitsunai
+
+  - name: Kana Momonogi
+    aliases:
+      - Masa Matsushima
+
+  - name: Ayumi Shinoda
+    aliases:
+      - Miwako Ikeda
+
+  - name: Miu Arioka
+    aliases:
+      - Mikuru Shiiba
+
+  - name: Yuka Tachibana
+    aliases:
+      - Michiru Manaka
+      - Satomi Mioka
+
+  - name: Toa Hijiri
+    aliases:
+      - Ayase Tsuyuri
+
+  - name: Natsuna Hayama
+    aliases:
+      - Mitsuba Kikukawa
+      - Hayama Natsuna
+
+  - name: Kaoru Natsuki
+    aliases:
+      - Tsubaki Kato
+
+  - name: Reina Tachibana
+    aliases:
+      - Suzume Habatake
+
+  - name: Miyuki Sakura
+    aliases:
+      - Nanako Miyuki
+
+  - name: Kanata Toumi
+    aliases:
+      - Kaede Hasumi
+
+  - name: Rana Aizawa
+    aliases:
+      - Asako Takanashi
+
+  - name: Miki Ichinose
+    aliases:
+      - Miku Ohara
+
+  - name: Koharu Shizuki
+    aliases:
+      - Chiharu Sakurai
+
+  - name: Yurika Natsumi
+    aliases:
+      - Kana Natsumi
+
+  - name: Mako Nakano
+    aliases:
+      - Reina Hirokwawa
+      - Nami Togawa
+
+  - name: Kokomi Hoshinaka
+    aliases:
+      - Ai Otobara
+
+  - name: Kana Abe
+    aliases:
+      - Kana Imai
+
+  - name: Kana Hiragi
+    aliases:
+      - Momoka Sawaki
+
+  - name: Sayaka Nito
+    aliases:
+      - Naho Kaku
+
+  - name: Mami Mashiro
+    aliases:
+      - Mami Zenba
+
+  - name: Mihina Nagai
+    aliases:
+      - Hina Azumi
+
+  - name: Hikari Tomoe
+    aliases:
+      - Hikari Takito
+
+  - name: Haruka Katsuragi
+    aliases:
+      - Ami Inamori
+
+  - name: Nanami Ozora
+    aliases:
+      - Hinami Meguro
+
+  - name: Elena Takeda
+    aliases:
+      - Mirai Natsume
+      - Rio Sakamoto
+
+  - name: Mikana Mii
+    aliases:
+      - Tsubaki Hanai
+      - Iroha Minami
+
+  - name: Misuzu Otowa
+    aliases:
+      - Miho Wakabayashi
+
+  - name: Saya Usui
+    aliases:
+      - Saki Minagawa
+
+  - name: Yuka Aota
+    aliases:
+      - Sana Mizuse
+
+  - name: Karen Yanagi
+    aliases:
+      - Reika Takeda
+
+  - name: Rin Amamiya
+    aliases:
+      - Megumi Madoka
+      - Miku Tanaka
+      - Natsumi Isumi
+
+  - name: Nagi Matsumiya
+    aliases:
+      - Nagi Airo
+
+  - name: Hana Kano
+    aliases:
+      - Shizuka Kano
+
+  - name: Shion Fujimoto
+    aliases:
+      - Erika Natsukawa
+      - You Natsukawa
+
+  - name: Yu Kiriyama
+    aliases:
+      - Yuri Kirika
+
+  - name: Riho Takahashi
+    aliases:
+      - Riho Shirahashi
+
+  - name: Mona Amemiya
+    aliases:
+      - Mina Aise
+
+  - name: Sawa Sasaki
+    aliases:
+      - Yui Mayuzumi
+      - Mika Osaki
+
+  - name: Kaho Yukishiro
+    aliases:
+      - Miho Yukishiro
+
+  - name: Rea Maruishi
+    aliases:
+      - Rea Marumo
+
+  - name: Asuka Momose
+    aliases:
+      - Misao Oguri
+
+  - name: Toko Namiki
+    aliases:
+      - Toko Yoshinaga
+      - Namiki Toko
+
+  - name: Megumi Maki
+    aliases:
+      - Anna Kishi
+      - Minami Shirakawa
+
+  - name: Nao Masaki
+    aliases:
+      - Momo Kaede
+      - Natsuki Ando
+
+  - name: Hikage Hinata
+    aliases:
+      - Yaya Kohaku
+
+  - name: Sara Ito
+    aliases:
+      - Suzuka Asai
+
+  - name: Hotaru Mori
+    aliases:
+      - Hotaru Umino
+
+  - name: Yuka Osawa
+    aliases:
+      - Yuka Oosawa
+      - Eri Akira
+      - Eri Arai
+
+  - name: Mizuki Tennen
+    aliases:
+      - Kanon Amane
+
+  - name: Nana Asahi
+    aliases:
+      - Ikumi Kuroki
+
+  - name: Rei Akane
+    aliases:
+      - Urara Nikaido
+
+  - name: Yui Yamashita
+    aliases:
+      - Nanase Otoha
+      - Nanase Hazuki
+
+  - name: Kanon Tachinbana
+    aliases:
+      - Ririko Shiina
+      - Satomi Sugihara
+
+  - name: Ren Hinami
+    aliases:
+      - Ren Akabuchi
+
+  - name: Sara Saijo
+    aliases:
+      - Yura Kayama
+
+  - name: Hinano Kikuchi
+    aliases:
+      - Nono Maeda
+
+  - name: Yu Shiraishi
+    aliases:
+      - Nana Imamiya
+
+  - name: Anju Akane
+    aliases:
+      - Mirei Otowa
+
+  - name: Harura Mori
+    aliases:
+      - Kirijo Saya
+      - Miho Sasamoto
+
+  - name: Mio Kimijima
+    aliases:
+      - Yura Hitomi
+      - Kaede Kyomoto
+
+  - name: Seta Kanae
+    aliases:
+      - Kasumi Matsuoka
+
+  - name: Ryo Yuri
+    aliases:
+      - Shiki Shirato
+
+  - name: Mizuki Ogata
+    aliases:
+      - Suzu Azuma
+      - Reiko Natsume
+
+  - name: Nozomi Hatsuki
+    aliases:
+      - Masami Inoue
+      - Nozomi Haneda
+
+  - name: Kana Tsuruta
+    aliases:
+      - Miku Ishida
+
+  - name: Reina Aoi
+    aliases:
+      - Reina Nishimura
+
+  - name: Ameri Hoshi
+    aliases:
+      - Rika Amemura
+
+  - name: Rei Mizuna
+    aliases:
+      - Rei Mitsuna
+
+  - name: Shihori Inamori
+    aliases:
+      - Miho Ashina
+
+  - name: Ria Kotone
+    aliases:
+      - Yurina
+      - Rion Ichijo
+      - Rion Ichijou
+
+  - name: Ayu Sakurai
+    aliases:
+      - Aya Fukui
+
+  - name: Chika Arimura
+    aliases:
+      - Chika Murata
+
+  - name: Ao Akagi
+    aliases:
+      - Azumi Kinoshita
+
+  - name: Azusa Ito
+    aliases:
+      - Azusa Kirihara
+
+  - name: Ria Kashi
+    aliases:
+      - Sayaka Miyabi
+
+  - name: Yu Shinosaki
+    aliases:
+      - Mana Kawahara
+
+  - name: Yuzu Kitagawa
+    aliases:
+      - Sana Ueda
+
+  - name: Miku Akari
+    aliases:
+      - Rei Reiwa
+      - Rin Yuka
+
+  - name: Rina Fujimoto
+    aliases:
+      - Elena Takimoto
+      - Lina Fujimoto
+
+  - name: Yuri Himeno
+    aliases:
+      - Miho Ichiki
+      - Anna Okina
+
+  - name: Riko Honda
+    aliases:
+      - Sawa Nakazato
+
+  - name: Tia
+    aliases:
+      - Meisa Kurokawa
+      - Arisu Asama
+
+  - name: Chihiro Hara
+    aliases:
+      - Reira Aisaki
+
+  - name: Anri Kizuki
+    aliases:
+      - Yu Amaki
+
+  - name: Urumi Yurisaki
+    aliases:
+      - Riana Fuji
+
+  - name: Yui Kimikawa
+    aliases:
+      - Reina Kashima
+
+  - name: Kanon Kimiro
+    aliases:
+      - Kana Kimiro
+      - Mizuki Suda
+      - Honoka Suzumi
+
+  - name: Kokomi Nonomiya
+    aliases:
+      - Kanon Kawase
+      - Miyu Hoshisaki
+      - Miu Otoha
+      - Hitomi Miyano
+
+  - name: Mayu Sato
+    aliases:
+      - Maki Tomino
+      - Ayu Sato
+
+  - name: Tsubasa Ayumi
+    aliases:
+      - Ami Hanamiya
+
+  - name: Marin Minami
+    aliases:
+      - Seara Hoshino
+
+  - name: Marika Hase
+    aliases:
+      - Marika
+      - Hase Marika
+
+  - name: Mika Osawa
+    aliases:
+      - Mariko Hirota
+
+  - name: Itsuka Saya
+    aliases:
+      - Natsuru Kanase
+
+  - name: Sally
+    aliases:
+      - Arisa Yuiki
+      - Erena Nakamura
+
+  - name: Yuri Asada
+    aliases:
+      - Yuri Fukada
+
+  - name: Emiri Momoka
+    aliases:
+      - Emi Hoshifuji
+      - Aino
+
+  - name: Kokomi Naruse
+    aliases:
+      - Kokomi
+
+  - name: Natsumi Mitsu
+    aliases:
+      - Nana Aida
+
+  - name: Yuria Sonoda
+    aliases:
+      - Erika Kitagawa
+
+  - name: Fuka Nanasaki
+    aliases:
+      - Karin Itsuki
+
+  - name: Miho Asahina
+    aliases:
+      - Shihori Inamori
+
+  - name: Nami Nishima
+    aliases:
+      - Kaya Yonekura
+
+  - name: Yuria Satomi
+    aliases:
+      - Aya Koizumi
+
+  - name: Misaki Honda
+    aliases:
+      - Tsubasa Yuzuki
+
+  - name: Ruri Tachibana
+    aliases:
+      - Rino Shirosaki
+
+  - name: Reiko Sawamura
+    aliases:
+      - Honami Takasaka
+      - Masumi Takasaka
+
+  - name: Meisa Asagiri
+    aliases:
+      - Hitomi Kisaragi
+
+  - name: Kanade Tomose
+    aliases:
+      - Yo Egawa
+
+  - name: Mei Miura
+    aliases:
+      - Megu Kamijo
+
+  - name: Sayaka Minami
+    aliases:
+      - Hirari Hanakawa
+      - Risa Arisawa
+
+  - name: Natsuki Iijima
+    aliases:
+      - Haru Sakuraba
+      - Anzuki
+
+  - name: Noa
+    aliases:
+      - Noa Torigoe
+      - Meiko Nakao
+      - Hinata Aoyagi
+
+  - name: Yu Sakura
+    aliases:
+      - Yukari Kinoshita
+      - Rina Kawase
+      - Mai Uchiyama
+
+  - name: Yuna Hoshizaki
+    aliases:
+      - Yuki Maeda
+      - Kotone Aizawa
+
+  - name: Satomi Nomiya
+    aliases:
+      - Misato Nonomiya
+
+  - name: Mitsuki Akai
+    aliases:
+      - Honoka Orihara
+
+  - name: An Sasakura
+    aliases:
+      - Haru Okawa
+
+  - name: Risa Murakami
+    aliases:
+      - Sarina Takeuchi
+
+  - name: Naho Asakura
+    aliases:
+      - Minaki Saotome
+
+  - name: Hotaru Akane
+    aliases:
+      - Anna Akitsuki
+
+  - name: Rin Hiragi
+    aliases:
+      - Rei
+      - Rei Ganaha
+
+  - name: Takako Kitahara
+    aliases:
+      - Yu Aihara
+
+  - name: Arisu Shiina
+    aliases:
+      - Uta Sachino
+      - Sachi Kawakami
+      - Hikari Mizushima
+
+  - name: Marin Aihara
+    aliases:
+      - Mari Aihara
+      - Anri Sawakita
+      - Eimi Hashimoto
+
+  - name: Miyuki Kato
+    aliases:
+      - Ayu Hanashiro
+
+  - name: Asuka Aida
+    aliases:
+      - Yuika Takashima
+
+  - name: Miu Mizuno
+    aliases:
+      - Mao Sonohara
+      - Iku Natsumi
+
+  - name: Saki Hatsumi
+    aliases:
+      - Shizuku
+
+  - name: Yu Kawakami
+    aliases:
+      - Shizuku Morino
+
+  - name: Mai Miori
+    aliases:
+      - Rei Asamiya
+
+  - name: Yuni Katsuragi
+    aliases:
+      - Rina Ishikawa
+
+  - name: Sayaka Narumi
+    aliases:
+      - Yui Nina
+
+  - name: Madoka Hitomi
+    aliases:
+      - Ririka Hoshikawa
+      - Rinka Momose
+
+  - name: Nanako Tsukishima
+    aliases:
+      - Eririka Katagiri
+
+  - name: Haruka Motoyama
+    aliases:
+      - Hiyori Kojima
+
+  - name: Kyoko Hanamiya
+    aliases:
+      - Chiaki Mitani
+
+  - name: Chigusa Hara
+    aliases:
+      - Akari Ozaki
+      - Yume Kyono
+
+  - name: Kanon Yano
+    aliases:
+      - Konoha Narumi
+
+  - name: Yuka Kojima
+    aliases:
+      - Reika Hoshiumi
+
+  - name: Yu Aso
+    aliases:
+      - Yuri Arima
+
+  - name: Eri Natsume
+    aliases:
+      - Arina Sakita
+
+  - name: Rena Aoi
+    aliases:
+      - Rena Kuroi
+      - Megumi Takagi
+
+  - name: Arisa Nakano
+    aliases:
+      - Arisa
+      - Ayame Dan
+      - Maki Okuri
+      - Emi Someya
+      - Mio Sakura
+
+  - name: Rina Ito
+    aliases:
+      - Sakura Tachibana
+
+  - name: Yui Kawagoe
+    aliases:
+      - Suzu Nariumi
+      - Yui Kawasaki
+      - Suzu Asakura
+
+  - name: Rei Ando
+    aliases:
+      - Himari Seto
+
+  - name: Shiori Ayase
+    aliases:
+      - Aya Kazuki
+
+  - name: Hitomi Hoshino
+    aliases:
+      - Hitomi Yamabuki
+
+  - name: Ryo Shinohara
+    aliases:
+      - Kana Miura
+      - Rena Aihara
+
+  - name: Nozomi Mikimoto
+    aliases:
+      - Miki Yamase
+
+  - name: Anna Kirishima
+    aliases:
+      - Misato Saeki
+
+  - name: Rion
+    aliases:
+      - Shion Utsunomiya
+      - Rara Anzai
+
+  - name: Hikaru Shiina
+    aliases:
+      - Runa Hanekawa
+
+  - name: Umi Hinata
+    aliases:
+      - Rika Komiyama
+      - Yuri Sato
+
+  - name: Ren Ayase
+    aliases:
+      - Ren Otsuka
+      - Ren Fukusaki
+      - Ren Matsushima
+
+  - name: Marie Shiraishi
+    aliases:
+      - Marie Todo
+      - Kanon Mochizuki
+
+  - name: Kyoka Mizusawa
+    aliases:
+      - Mitsuka Koizumi
+
+  - name: Rikka Imei
+    aliases:
+      - Mashiro Takatsubaki
+
+  - name: Hibiki Sarukagi
+    aliases:
+      - Mikan Kururugi
+
+  - name: Miyako Nanjo
+    aliases:
+      - Maina Ayase
+
+  - name: Rurucha
+    aliases:
+      - Ruru Arisu
+
+  - name: Eri Mine
+    aliases:
+      - Yurika Takashi
+
+  - name: Rion Hiragi
+    aliases:
+      - Miyu Hirose
+
+  - name: Mari Ueto
+    aliases:
+      - Mari Koharu
+
+  - name: Uni Shiokawa
+    aliases:
+      - Futaba Otani
+
+  - name: Haruka Ikeuchi
+    aliases:
+      - Ena Yuzuriha
+
+  - name: Misaki Oishi
+    aliases:
+      - Mizuho Adachi
+
+  - name: Ren Azumi
+    aliases:
+      - Ren Hasumi
+      - Ren Haruna
+
+  - name: Rina Aizawa
+    aliases:
+      - Misaki Hatori
+
+  - name: Sarina Kurokawa
+    aliases:
+      - Sarina Momonaga
+
+  - name: Aya Ibuki
+    aliases:
+      - Maika Tsukishima
+
+  - name: Mako Kono
+    aliases:
+      - Mako Konno
+      - Wakana Yuzuki
+
+  - name: Mei Yukimoto
+    aliases:
+      - Karen Hazuki
+
+  - name: Mayu Yuki
+    aliases:
+      - Iroha Kira
+
+  - name: Ayumi Araki
+    aliases:
+      - Tsubasa Okina
+      - Mirai Hoshi
+      - Tsubasa Kawamura
+      - Sara Sakurai
+
+  - name: Kana Hirosaki
+    aliases:
+      - Sayuri Shimatani
+
+  - name: Miyu Kotohara
+    aliases:
+      - Ryo Arimori
+
+  - name: Rio Kitajima
+    aliases:
+      - Erina Kurosawa
+
+  - name: Sayaka Enomoto
+    aliases:
+      - Aya Kikuchi
+
+  - name: Ryoko Azumi
+    aliases:
+      - Itsuki Ayuhara
+      - Hana Kurosawayuki
+      - Yukari Matsuzawa
+
+  - name: Sakura Kirishima
+    aliases:
+      - Asuka Kukuroba
+
+  - name: Mizuki Sanada
+    aliases:
+      - Miki Sanada
+      - Sana Sanada
+      - Honoka Kadowaki
+
+  - name: Yua Kisaki
+    aliases:
+      - Anna Nagasawa
+      - Rika Mizuhara
+      - Yuko Kizaki
+
+  - name: Mio Shiraishi
+    aliases:
+      - Jiyu Kanade
+
+  - name: Megumi Osawa
+    aliases:
+      - Yuina Mitsuki
+
+  - name: Akane Shiki
+    aliases:
+      - Kaede Okui
+
+  - name: Mei Kurose
+    aliases:
+      - Mei Kazama
+
+  - name: Remi Sasaki
+    aliases:
+      - Ren Mukai
+
+  - name: Rika Natsuzora
+    aliases:
+      - Ruru Haruno
+
+  - name: Yuna Mashiro
+    aliases:
+      - Aiyu Anzai
+      - Kirari Hoshizora
+
+  - name: Nagomi
+    aliases:
+      - Kana Amatsuki
+
+  - name: Sena Maikawa
+    aliases:
+      - Kai Kawase
+      - Hibari Hiriji
+      - Hiriji Maihara
+
+  - name: Misuzu Tachibana
+    aliases:
+      - Hotaru Yukino
+
+  - name: Yui Aoba
+    aliases:
+      - Noa Hiragi
+      - Rui Saeki
+      - Hinata Natsume
+      - Rina Narita
+
+  - name: Rie Fujita
+    aliases:
+      - Miki Tori
+
+  - name: Towa Mitsui
+    aliases:
+      - Ran Aibu
+
+  - name: Sena Nagakura
+    aliases:
+      - Yume Fukada
+
+  - name: Hina Kurumi
+    aliases:
+      - Sana Anju
+
+  - name: Natsumi Horiguchi
+    aliases:
+      - Honoka Onda
+      - Nanami Hirose
+
+  - name: Nana Minami
+    aliases:
+      - Hina Makimura
+
+  - name: Momoko Azuki
+    aliases:
+      - Azuki
+
+  - name: Arisu Chigasaki
+    aliases:
+      - Sara Yurikawa
+
+  - name: Hitomi Aihara
+    aliases:
+      - Yuri Shirai
+      - Rei Hitomi
+
+  - name: Reia Mizuki
+    aliases:
+      - Leia Mizuki
+      - Ren Mizuki
+
+  - name: Kyo Akane
+    aliases:
+      - Ema Yumekawa
+
+  - name: Noa Kido
+    aliases:
+      - Miho Asai
+
+  - name: Seri Hoshi
+    aliases:
+      - Seri Kizuki
+
+  - name: Sana Aso
+    aliases:
+      - Akubi Asakara
+
+  - name: Waka Ninomiya
+    aliases:
+      - Chinatsu Nomi
+
+  - name: Yuzu Shirasaki
+    aliases:
+      - Ichika Arisa
+
+  - name: Sakura Momoka
+    aliases:
+      - Hina Sakurazaki
+
+  - name: Aika Suzuki
+    aliases:
+      - Airu Oshima
+      - An Kitajima
+
+  - name: Sayo Arimoto
+    aliases:
+      - Sayo Motoki
+
+  - name: Airi Sato
+    aliases:
+      - Ai Abe
+
+  - name: Mari Kusano
+    aliases:
+      - Iori Kanata
+
+  - name: Kotone Suzumiya
+    aliases:
+      - Aoi Shirosaki
+      - Minami Kashi
+
+  - name: Yuri Isumi
+    aliases:
+      - Ema Shiba
+
+  - name: Momoka Ogawa
+    aliases:
+      - Aya Tsukishima
+
+  - name: Haruka Aizawa
+    aliases:
+      - Kotone Kuroki
+      - Saki Nakayama
+
+  - name: Haruna Hotsuki
+    aliases:
+      - Kana Himeno
+
+  - name: Chiara Ayase
+    aliases:
+      - Seshiru Kurosaki
+
+  - name: Rin Yuzunoki
+    aliases:
+      - Sara Yamamoto
+      - Rin Yuzuki
+
+  - name: Narumi Kimura
+    aliases:
+      - Sumire Seto
+      - Sumire Kijima
+
+  - name: Rei Chinatsu
+    aliases:
+      - Nozomi Nakase
+
+  - name: Mion Usami
+    aliases:
+      - Yume Utsutsu
+
+  - name: An Hanazawa
+    aliases:
+      - Kokoha Komine
+      - Miyuki Ojima
+      - Marika Naruse
+
+  - name: Yui Shinkawa
+    aliases:
+      - Erina Sakuragi
+
+  - name: Mari Nakamura
+    aliases:
+      - Seira Mizushiro
+
+  - name: Makana
+    aliases:
+      - Mako Yanagawa
+
+  - name: Laura Aoyama
+    aliases:
+      - Rola Ayama
+      - Ria Mitsuki
+
+  - name: Mio Fujisawa
+    aliases:
+      - Mio Fujika
+      - Hitomi Katase
+
+  - name: Kana Kamiyama
+    aliases:
+      - Mio Hayami
+
+  - name: Makina Kataoka
+    aliases:
+      - Tamaki Nakaoka
+
+  - name: Ayaka Seki
+    aliases:
+      - Tomomi Taniyama
+      - Tomoka Nomi
+
+  - name: Mia Kashiwagi
+    aliases:
+      - Mao Umino
+      - Anna Sakura
+
+  - name: Mihono Sakaguchi
+    aliases:
+      - Miho Sakasaki
+
+  - name: Mirai
+    aliases:
+      - Kurumi
+
+  - name: Eri Hayashi
+    aliases:
+      - Yaya Koduki
+
+  - name: Yuki Fuwari
+    aliases:
+      - Nana Wakui
+
+  - name: Nao Tachibana
+    aliases:
+      - Kairi Uehara
+
+  - name: Miku Aoki
+    aliases:
+      - Kozue Hirayama
+
+  - name: Nanami Shirase
+    aliases:
+      - Mei Haruki
+
+  - name: Ayako Kato
+    aliases:
+      - Kanari Tsubaki
+
+  - name: Mitsuki Kamiya
+    aliases:
+      - Mitsuki Maya
+      - Mitsuki Aya
+
+  - name: Rina Otomi
+    aliases:
+      - Yuka Kawami
+      - Tomomi Sakasai
+
+  - name: Haruka Ichinose
+    aliases:
+      - Haruka Namiki
+
+  - name: Sumire
+    aliases:
+      - Momo Yurino
+
+  - name: Maiki Kawanami
+    aliases:
+      - Iori Hayakawa
+
+  - name: Aya Kiriya
+    aliases:
+      - Yua Hidaka
+
+  - name: Yukina
+    aliases:
+      - Aya Ueno
+
+  - name: Yui
+    aliases:
+      - Emiru Yukimi
+      - Emiri Tsukishima
+
+  - name: Yuka Natsukawa
+    aliases:
+      - Mion Hazuki
+
+  - name: Shizuku Hasegawa
+    aliases:
+      - Tsugumi Ichikawa
+
+  - name: Rei Kimura
+    aliases:
+      - Rina Fujiki
+
+
+######################################################################
+# UNRESOLVED ENTRIES
+# These entries have been moved here because they could not be
+# automatically resolved. Review and fix manually.
+######################################################################
+
+# CIRCULAR REFERENCE: Both "Fuwari Domoto" and "Ui Suzukaze" list each other as aliases.
+# One must be the canonical and the other the alias. Decide which.
+#
+#  - name: Fuwari Domoto
+#    aliases:
+#      - Ui Suzukaze
+#
+#  - name: Ui Suzukaze
+#    aliases:
+#      - Fuwari Domoto
+
+# CIRCULAR REFERENCE: Both "Mao Mizusawa" and "Maomi Nagasawa" list each other as aliases.
+# One must be the canonical and the other the alias. Decide which.
+#
+#  - name: Mao Mizusawa
+#    aliases:
+#      - Maomi Nagasawa
+#
+#  - name: Maomi Nagasawa
+#    aliases:
+#      - Mao Mizusawa
+
+# CIRCULAR REFERENCE: Both "Megumi Shino" and "Shino Aoi" list each other as aliases.
+# One must be the canonical and the other the alias. Decide which.
+#
+#  - name: Megumi Shino
+#    aliases:
+#      - Shino Aoi
+#
+#  - name: Shino Aoi
+#    aliases:
+#      - Megumi Shino
+
+# CIRCULAR REFERENCE: Both "Mitsuki Hirose" and "Yura Hinata" list each other as aliases.
+# One must be the canonical and the other the alias. Decide which.
+#
+#  - name: Mitsuki Hirose
+#    aliases:
+#      - Yura Hinata
+#
+#  - name: Yura Hinata
+#    aliases:
+#      - Mitsuki Hirose
+
+# CIRCULAR REFERENCE: Both "Nana Misaki" and "Sora Eren" list each other as aliases.
+# One must be the canonical and the other the alias. Decide which.
+#
+#  - name: Nana Misaki
+#    aliases:
+#      - Sora Eren
+#
+#  - name: Sora Eren
+#    aliases:
+#      - Nana Misaki
+
+# AMBIGUOUS: "Haruki Kato" appears as both a canonical name and as an alias
+# of "Ayu Sakurai". If they are the same person, merge into Ayu Sakurai.
+# "Haruki Katou" has also been removed from Ayu Sakurai aliases pending resolution.
+#
+#  - name: Haruki Kato
+#    aliases:
+#      - Haruki
+#      - Ema Kisaki
+#  (Ayu Sakurai also had aliases: Haruki Kato, Haruki Katou)
+
+# AMBIGUOUS: "Karin Itsuki" appears as alias under both "Fuka Nanasaki"
+# and "Tsugumi Muto". One entry is incorrect. "Tsugumi Muto" is commented
+# out below pending resolution; "Fuka Nanasaki" retains the alias.
+#
+#  - name: Tsugumi Muto
+#    aliases:
+#      - Karin Itsuki
+
+# TYPO: "Kana Tsurata" appears to be a misspelling of canonical "Kana Tsuruta".
+# Both entries had the same alias. Removed the typo entry.
+#
+#  - name: Kana Tsurata
+#    aliases:
+#      - Miku Ishida
+
+# CIRCULAR + TYPO: "Mituba Kikukawa" (typo of "Mitsuba Kikukawa") listed
+# "Natsuna Hayama" as alias, while "Natsuna Hayama" lists "Mitsuba Kikukawa"
+# as alias. Kept "Natsuna Hayama" as canonical; this entry removed.
+#
+#  - name: Mituba Kikukawa
+#    aliases:
+#      - Natsuna Hayama
+
+# GARBLED: The following alias under "Sena Nagakura" appears corrupted.
+# Removed from the entry; review to determine the correct name.
+#
+#  Canonical: Sena Nagakura
+#  Garbled alias: Sayana SaFAzukkuragi

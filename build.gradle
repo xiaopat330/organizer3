@@ -1,0 +1,55 @@
+plugins {
+    id 'java'
+    id 'application'
+}
+
+group = project.group
+version = project.version
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(21)
+    }
+}
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    // Interactive shell (JLine3)
+    implementation "org.jline:jline-terminal:${jlineVersion}"
+    implementation "org.jline:jline-reader:${jlineVersion}"
+    implementation "org.jline:jline-builtins:${jlineVersion}"
+
+    // Command parsing
+    implementation "info.picocli:picocli:${picocliVersion}"
+    annotationProcessor "info.picocli:picocli-codegen:${picocliVersion}"
+
+    // YAML config
+    implementation "com.fasterxml.jackson.core:jackson-databind:${jacksonVersion}"
+    implementation "com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:${jacksonVersion}"
+
+    // Database
+    implementation "org.xerial:sqlite-jdbc:${sqliteVersion}"
+    implementation "org.jdbi:jdbi3-core:${jdbiVersion}"
+    implementation "org.jdbi:jdbi3-sqlobject:${jdbiVersion}"
+
+    // Logging
+    implementation "org.slf4j:slf4j-api:${slf4jVersion}"
+    implementation "ch.qos.logback:logback-classic:${logbackVersion}"
+
+    // Testing
+    testImplementation "org.junit.jupiter:junit-jupiter:${junitVersion}"
+    testImplementation "org.mockito:mockito-core:${mockitoVersion}"
+    testImplementation "org.mockito:mockito-junit-jupiter:${mockitoVersion}"
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+
+application {
+    mainClass = 'com.pyoung.organizer3.Application'
+}
+
+test {
+    useJUnitPlatform()
+}

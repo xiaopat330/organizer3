@@ -1,0 +1,18 @@
+# Build output
+build/
+.gradle/
+
+# IDE
+.idea/
+*.iml
+.vscode/
+
+# Backup files
+*.bak
+*.orig
+
+# Logs
+logs/
+
+# OS
+.DS_Store
