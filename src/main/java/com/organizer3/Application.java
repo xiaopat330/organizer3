@@ -1,11 +1,11 @@
-package com.pyoung.organizer3;
+package com.organizer3;
 
-import com.pyoung.organizer3.command.Command;
-import com.pyoung.organizer3.command.HelloCommand;
-import com.pyoung.organizer3.command.HelpCommand;
-import com.pyoung.organizer3.command.ShutdownCommand;
-import com.pyoung.organizer3.shell.OrganizerShell;
-import com.pyoung.organizer3.shell.SessionContext;
+import com.organizer3.command.Command;
+import com.organizer3.command.HelloCommand;
+import com.organizer3.command.HelpCommand;
+import com.organizer3.command.ShutdownCommand;
+import com.organizer3.shell.OrganizerShell;
+import com.organizer3.shell.SessionContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

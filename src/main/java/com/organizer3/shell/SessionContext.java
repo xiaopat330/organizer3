@@ -1,4 +1,4 @@
-package com.pyoung.organizer3.shell;
+package com.organizer3.shell;
 
 /**
  * Holds mutable session state for the current interactive session.

@@ -1,6 +1,6 @@
-package com.pyoung.organizer3.shell;
+package com.organizer3.shell;
 
-import com.pyoung.organizer3.command.Command;
+import com.organizer3.command.Command;
 import org.jline.reader.EndOfFileException;
 import org.jline.reader.LineReader;
 import org.jline.reader.LineReaderBuilder;

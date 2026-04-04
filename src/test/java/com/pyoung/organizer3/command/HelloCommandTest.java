@@ -1,6 +1,7 @@
 package com.pyoung.organizer3.command;
 
-import com.pyoung.organizer3.shell.SessionContext;
+import com.organizer3.command.HelloCommand;
+import com.organizer3.shell.SessionContext;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 

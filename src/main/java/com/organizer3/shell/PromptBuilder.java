@@ -1,4 +1,4 @@
-package com.pyoung.organizer3.shell;
+package com.organizer3.shell;
 
 /**
  * Builds the interactive prompt string from current session state.
