@@ -3,12 +3,18 @@ package com.organizer3.command;
 import com.organizer3.shell.SessionContext;
 
 import java.io.PrintWriter;
+import java.util.List;
 
 public class ShutdownCommand implements Command {
 
     @Override
     public String name() {
         return "shutdown";
+    }
+
+    @Override
+    public List<String> aliases() {
+        return List.of("quit", "exit");
     }
 
     @Override

@@ -5,7 +5,6 @@ import com.organizer3.config.volume.VolumeConfig;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
-import java.nio.file.Path;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -13,10 +12,10 @@ import static org.junit.jupiter.api.Assertions.*;
 class AppConfigTest {
 
     private static final VolumeConfig VOLUME_A = new VolumeConfig(
-            "a", "//pandora/jav_A", Path.of("/Volumes/jav_A"), "conventional", "pandora", "patrick");
+            "a", "//pandora/jav_A", "conventional", "pandora");
 
     private static OrganizerConfig cfg(VolumeConfig... vols) {
-        return new OrganizerConfig(List.of(vols), List.of(), List.of());
+        return new OrganizerConfig(List.of(), List.of(vols), List.of(), List.of());
     }
 
     @AfterEach
@@ -48,7 +47,7 @@ class AppConfigTest {
     @Test
     void reset_allowsReinitializationWithNewConfig() {
         VolumeConfig volumeB = new VolumeConfig(
-                "b", "//pandora/jav_B", Path.of("/Volumes/jav_B"), "conventional", "pandora", "patrick");
+                "b", "//pandora/jav_B", "conventional", "pandora");
 
         AppConfig.initialize(cfg(VOLUME_A));
         AppConfig.reset();
@@ -61,7 +60,7 @@ class AppConfigTest {
     void initializeForTest_replacesExistingInstance() {
         AppConfig.initialize(cfg(VOLUME_A));
         VolumeConfig volumeB = new VolumeConfig(
-                "b", "//pandora/jav_B", Path.of("/Volumes/jav_B"), "conventional", "pandora", "patrick");
+                "b", "//pandora/jav_B", "conventional", "pandora");
 
         AppConfig.initializeForTest(cfg(volumeB));
 

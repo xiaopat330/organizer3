@@ -1,4 +1,4 @@
-package com.organizer;
+package com.organizer3.utils;
 
 public enum VideoFileExtensions {
     asf, wma, wmv, wm, //Windows Media formats

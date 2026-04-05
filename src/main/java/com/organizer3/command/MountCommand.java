@@ -2,38 +2,34 @@ package com.organizer3.command;
 
 import com.organizer3.config.AppConfig;
 import com.organizer3.config.volume.OrganizerConfig;
+import com.organizer3.config.volume.ServerConfig;
 import com.organizer3.config.volume.VolumeConfig;
-import com.organizer3.mount.CredentialLookup;
-import com.organizer3.mount.CredentialNotFoundException;
-import com.organizer3.mount.MountException;
-import com.organizer3.mount.SmbMounter;
 import com.organizer3.shell.SessionContext;
+import com.organizer3.smb.SmbConnectionException;
+import com.organizer3.smb.SmbConnector;
+import com.organizer3.smb.VolumeConnection;
 import com.organizer3.sync.IndexLoader;
 import com.organizer3.sync.VolumeIndex;
 
 import java.io.PrintWriter;
 
 /**
- * Mounts an SMB volume and activates it as the current session context.
+ * Connects to an SMB volume and activates it as the current session context.
  *
  * <p>Usage: {@code mount <volume-id>}
  *
- * <p>Mount is idempotent — calling it on an already-mounted volume simply reactivates it
- * as the session context without re-running {@code mount_smbfs}.
+ * <p>Mount is idempotent — calling it on the already-connected volume simply reactivates it
+ * as the session context without reconnecting.
  *
- * <p>Volume config is read from {@link AppConfig#get()#volumes()} — no config injected
- * into the constructor.
+ * <p>When switching volumes, the previous connection is closed before opening the new one.
  */
 public class MountCommand implements Command {
 
-    private final CredentialLookup credentialLookup;
-    private final SmbMounter smbMounter;
+    private final SmbConnector smbConnector;
     private final IndexLoader indexLoader;
 
-    public MountCommand(CredentialLookup credentialLookup, SmbMounter smbMounter,
-                        IndexLoader indexLoader) {
-        this.credentialLookup = credentialLookup;
-        this.smbMounter = smbMounter;
+    public MountCommand(SmbConnector smbConnector, IndexLoader indexLoader) {
+        this.smbConnector = smbConnector;
         this.indexLoader = indexLoader;
     }
 
@@ -44,7 +40,7 @@ public class MountCommand implements Command {
 
     @Override
     public String description() {
-        return "Mount a volume and activate it as the current context. Usage: mount <id>";
+        return "Connect to a volume and activate it as the current context. Usage: mount <id>";
     }
 
     @Override
@@ -66,34 +62,36 @@ public class MountCommand implements Command {
             return;
         }
 
-        if (smbMounter.isMounted(volume.mountPoint())) {
-            out.println("Volume '" + volumeId + "' already mounted at " + volume.mountPoint());
-            ctx.setMountedVolume(volume);
+        // Already connected to this volume — just reactivate
+        if (volumeId.equals(ctx.getMountedVolumeId()) && ctx.isConnected()) {
+            out.println("Volume '" + volumeId + "' already connected.");
             return;
         }
 
-        out.println("Mounting " + volume.smbPath() + " -> " + volume.mountPoint() + " ...");
+        // Close existing connection before switching volumes
+        VolumeConnection existing = ctx.getActiveConnection();
+        if (existing != null) {
+            existing.close();
+            ctx.setActiveConnection(null);
+        }
 
-        String password;
+        ServerConfig server = config.findServerById(volume.server()).orElseThrow(() ->
+                new IllegalStateException("No server config found for id: " + volume.server()));
+
+        out.println("Connecting to " + volume.smbPath() + " ...");
+
+        VolumeConnection connection;
         try {
-            password = credentialLookup.getPassword(volume.credentialsKey(), volume.username());
-        } catch (CredentialNotFoundException e) {
-            out.println("Error: " + e.getMessage());
-            out.println("Add credentials with: security add-internet-password -s "
-                    + volume.credentialsKey() + " -a " + volume.username() + " -w");
+            connection = smbConnector.connect(volume, server);
+        } catch (SmbConnectionException e) {
+            out.println("Connection failed: " + e.getMessage());
             return;
         }
 
-        try {
-            smbMounter.mount(volume, password);
-        } catch (MountException e) {
-            out.println("Mount failed: " + e.getMessage());
-            return;
-        }
-
+        ctx.setActiveConnection(connection);
         ctx.setMountedVolume(volume);
         loadIndex(volumeId, ctx, out);
-        out.println("Mounted. Volume '" + volumeId + "' is now active.");
+        out.println("Connected. Volume '" + volumeId + "' is now active.");
     }
 
     private void loadIndex(String volumeId, SessionContext ctx, PrintWriter out) {

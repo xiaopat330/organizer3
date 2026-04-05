@@ -40,11 +40,11 @@ public class FullSyncOperation extends AbstractSyncOperation {
         titleRepo.deleteByVolume(volume.id());
 
         int count = 0;
-        Path mountPoint = volume.mountPoint();
+        Path root = Path.of("/");
 
         // Unstructured partitions
         for (PartitionDef partition : structure.unstructuredPartitions()) {
-            Path partRoot = mountPoint.resolve(partition.path());
+            Path partRoot = root.resolve(partition.path());
             out.println("  Scanning " + partition.id() + "/ ...");
             count += scanUnstructuredPartition(partRoot, partition.id(),
                     volume.id(), null, fs, out);
@@ -53,12 +53,18 @@ public class FullSyncOperation extends AbstractSyncOperation {
         // Structured partition (stars/)
         StructuredPartitionDef stars = structure.structuredPartition();
         if (stars != null) {
-            Path starsRoot = mountPoint.resolve(stars.path());
-            for (PartitionDef sub : stars.partitions()) {
-                Path tierRoot = starsRoot.resolve(sub.path());
-                out.println("  Scanning stars/" + sub.id() + "/ ...");
-                count += scanStarPartition(tierRoot, "stars/" + sub.id(),
-                        volume.id(), toActressTier(sub.id()), fs, out);
+            Path starsRoot = root.resolve(stars.path());
+            if (stars.partitions() == null || stars.partitions().isEmpty()) {
+                // Flat layout: actress folders sit directly under stars/
+                out.println("  Scanning stars/ ...");
+                count += scanFlatStarsPartition(starsRoot, volume.id(), fs, out);
+            } else {
+                for (PartitionDef sub : stars.partitions()) {
+                    Path tierRoot = starsRoot.resolve(sub.path());
+                    out.println("  Scanning stars/" + sub.id() + "/ ...");
+                    count += scanStarPartition(tierRoot, "stars/" + sub.id(),
+                            volume.id(), toActressTier(sub.id()), fs, out);
+                }
             }
         }
 

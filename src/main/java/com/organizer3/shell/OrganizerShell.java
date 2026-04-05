@@ -14,8 +14,6 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.util.List;
 import java.util.Map;
-import java.util.function.Function;
-import java.util.stream.Collectors;
 
 /**
  * The interactive REPL shell.
@@ -33,8 +31,11 @@ public class OrganizerShell {
     public OrganizerShell(SessionContext session, List<Command> commands) {
         this.session = session;
         this.promptBuilder = new PromptBuilder();
-        this.commands = commands.stream()
-                .collect(Collectors.toMap(Command::name, Function.identity()));
+        this.commands = new java.util.HashMap<>();
+        for (Command cmd : commands) {
+            this.commands.put(cmd.name(), cmd);
+            cmd.aliases().forEach(alias -> this.commands.put(alias, cmd));
+        }
     }
 
     public void run() {

@@ -35,6 +35,9 @@ dependencies {
     implementation "org.jdbi:jdbi3-core:${jdbiVersion}"
     implementation "org.jdbi:jdbi3-sqlobject:${jdbiVersion}"
 
+    // SMB client
+    implementation "com.hierynomus:smbj:${smbjVersion}"
+
     // Utilities
     implementation "org.apache.commons:commons-lang3:${commonsLang3Version}"
     implementation "commons-io:commons-io:${commonsIoVersion}"

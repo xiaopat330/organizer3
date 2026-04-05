@@ -3,6 +3,7 @@ package com.organizer3.command;
 import com.organizer3.shell.SessionContext;
 
 import java.io.PrintWriter;
+import java.util.List;
 
 /**
  * A single interactive shell command.
@@ -15,4 +16,8 @@ public interface Command {
     String name();
     String description();
     void execute(String[] args, SessionContext ctx, PrintWriter out);
+
+    default List<String> aliases() {
+        return List.of();
+    }
 }

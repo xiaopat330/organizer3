@@ -4,21 +4,20 @@ import lombok.Getter;
 import lombok.NonNull;
 import lombok.Setter;
 
-import java.nio.file.Path;
 import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 
-import static com.organizer.Utils.format;
+import static com.organizer3.utils.Utils.format;
 
 /**
- * A Volume is a physical storage unit — a drive or network share. It has a short ID (e.g. "a", "bg", "hj"),
- * a mount path, and a structure type that determines its folder layout and available commands.
+ * A Volume is a physical storage unit — a drive or network share. It has a short ID (e.g. "a", "bg", "hj")
+ * and a structure type that determines its folder layout and available commands.
  * It is the top-level container in the content hierarchy:
  *
  * <pre>
- * Volume  (e.g. vol-a → /Volumes/ShareA)
+ * Volume  (e.g. "a" → //pandora/jav_A)
  *   └── Partition  (e.g. "stars/popular", "queue", "archive")
  *         └── Actress folder  (structured partitions only)
  *               └── Title folder
@@ -33,9 +32,6 @@ public final class Volume {
     private final String id;
 
     @Getter
-    private final Path mountPath;
-
-    @Getter
     private final String structureType;
 
     @Getter
@@ -45,9 +41,8 @@ public final class Volume {
     @Getter @Setter
     private LocalDateTime lastSyncedAt;
 
-    public Volume(@NonNull String id, @NonNull Path mountPath, @NonNull String structureType) {
+    public Volume(@NonNull String id, @NonNull String structureType) {
         this.id = id;
-        this.mountPath = mountPath;
         this.structureType = structureType;
     }
 
@@ -57,6 +52,6 @@ public final class Volume {
 
     @Override
     public String toString() {
-        return format("[id:\"{0}\" path:\"{1}\"]", id, mountPath);
+        return format("[id:\"{0}\"]", id);
     }
 }

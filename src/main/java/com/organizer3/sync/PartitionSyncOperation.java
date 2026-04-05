@@ -41,11 +41,11 @@ public class PartitionSyncOperation extends AbstractSyncOperation {
         ensureVolumeRecord(volume);
 
         int count = 0;
-        Path mountPoint = volume.mountPoint();
+        Path root = Path.of("/");
 
         for (String partitionId : partitionIds) {
             PartitionDef partition = requirePartitionDef(structure, partitionId);
-            Path partRoot = mountPoint.resolve(partition.path());
+            Path partRoot = root.resolve(partition.path());
             out.println("  Scanning " + partitionId + "/ ...");
 
             // Clear only this partition's records before re-scanning

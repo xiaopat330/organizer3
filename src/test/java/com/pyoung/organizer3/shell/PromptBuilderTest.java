@@ -6,7 +6,6 @@ import com.organizer3.shell.SessionContext;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-import java.nio.file.Path;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
@@ -28,7 +27,7 @@ class PromptBuilderTest {
 
     @Test
     void promptIncludesVolumeIdWhenMounted() {
-        session.setMountedVolume(new VolumeConfig("a", "//pandora/jav_A", Path.of("/Volumes/jav_A"), "conventional", "pandora", "patrick"));
+        session.setMountedVolume(new VolumeConfig("a", "//pandora/jav_A", "conventional", "pandora"));
         assertEquals("organizer:vol-a [*DRYRUN*] > ", promptBuilder.build(session));
     }
 
@@ -40,7 +39,7 @@ class PromptBuilderTest {
 
     @Test
     void armedModeWithMountedVolume() {
-        session.setMountedVolume(new VolumeConfig("bg", "//pandora/jav_BG", Path.of("/Volumes/jav_BG"), "conventional", "pandora", "patrick"));
+        session.setMountedVolume(new VolumeConfig("bg", "//pandora/jav_BG", "conventional", "pandora"));
         session.setDryRun(false);
         assertEquals("organizer:vol-bg > ", promptBuilder.build(session));
     }

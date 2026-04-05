@@ -1,101 +1,82 @@
+servers:
+  - id: pandora
+    username: patrick_young@hotmail.com
+    password: "!Xiaobeibei328!"
+
+  - id: qnap2
+    username: pyoung
+    password: xiaobeibei328
+
 volumes:
   - id: a
     smbPath: //pandora/jav_A
-    mountPoint: /Volumes/jav_A
     structureType: conventional
-    credentialsKey: pandora.local
-    username: patrick_young@hotmail.com
+    server: pandora
 
   - id: bg
     smbPath: //pandora/jav_BG
-    mountPoint: /Volumes/jav_BG
     structureType: conventional
-    credentialsKey: pandora.local
-    username: patrick_young@hotmail.com
+    server: pandora
 
   - id: hj
     smbPath: //pandora/jav_HJ
-    mountPoint: /Volumes/jav_HJ
     structureType: conventional
-    credentialsKey: pandora.local
-    username: patrick_young@hotmail.com
+    server: pandora
 
   - id: k
     smbPath: //pandora/jav_K
-    mountPoint: /Volumes/jav_K
     structureType: conventional
-    credentialsKey: pandora.local
-    username: patrick_young@hotmail.com
+    server: pandora
 
   - id: m
     smbPath: //pandora/jav_M
-    mountPoint: /Volumes/jav_M
     structureType: conventional
-    credentialsKey: pandora.local
-    username: patrick_young@hotmail.com
+    server: pandora
 
   - id: ma
     smbPath: //pandora/jav_MA
-    mountPoint: /Volumes/jav_MA
     structureType: conventional
-    credentialsKey: pandora.local
-    username: patrick_young@hotmail.com
+    server: pandora
 
   - id: n
     smbPath: //pandora/jav_N
-    mountPoint: /Volumes/jav_N
     structureType: conventional
-    credentialsKey: pandora.local
-    username: patrick_young@hotmail.com
+    server: pandora
 
   - id: r
     smbPath: //pandora/jav_OR
-    mountPoint: /Volumes/jav_OR
     structureType: conventional
-    credentialsKey: pandora.local
-    username: patrick_young@hotmail.com
+    server: pandora
 
   - id: s
     smbPath: //pandora/jav_S
-    mountPoint: /Volumes/jav_S
     structureType: conventional
-    credentialsKey: pandora.local
-    username: patrick_young@hotmail.com
+    server: pandora
 
   - id: tz
     smbPath: //pandora/jav_TZ
-    mountPoint: /Volumes/jav_TZ
     structureType: conventional
-    credentialsKey: pandora.local
-    username: patrick_young@hotmail.com
+    server: pandora
 
   - id: unsorted
     smbPath: //pandora/jav_unsorted
-    mountPoint: /Volumes/jav_unsorted
     structureType: queue
-    credentialsKey: pandora.local
-    username: patrick_young@hotmail.com
+    server: pandora
 
   - id: qnap
     smbPath: //qnap2/jav
-    mountPoint: /Volumes/jav
-    structureType: conventional
-    credentialsKey: QNAP2._smb._tcp.local
-    username: pyoung
+    structureType: stars-flat
+    server: qnap2
 
   - id: classic
     smbPath: //qnap2/JAV/classic
-    mountPoint: /Volumes/classic
     structureType: queue
-    credentialsKey: QNAP2._smb._tcp.local
-    username: pyoung
+    server: qnap2
 
   - id: collections
     smbPath: //pandora/jav_collections
-    mountPoint: /Volumes/jav_collections
     structureType: collections
-    credentialsKey: pandora.local
-    username: patrick_young@hotmail.com
+    server: pandora
 
 structures:
   - id: conventional
@@ -123,6 +104,12 @@ structures:
     unstructuredPartitions:
       - { id: queue, path: fresh }
 
+  - id: stars-flat
+    unstructuredPartitions: []
+    structuredPartition:
+      path: stars
+      partitions: []
+
   - id: collections
     unstructuredPartitions:
       - { id: archive,   path: archive   }
@@ -139,6 +126,11 @@ syncConfig:
       - term: sync-queue
         operation: partition
         partitions: [queue]
+      - term: sync-all
+        operation: full
+
+  - structureType: stars-flat
+    commands:
       - term: sync-all
         operation: full
 

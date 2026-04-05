@@ -10,12 +10,17 @@ import java.util.Optional;
  * Root of the {@code organizer-config.yaml} config tree.
  */
 public record OrganizerConfig(
+        @JsonProperty("servers")    List<ServerConfig> servers,
         @JsonProperty("volumes")    List<VolumeConfig> volumes,
         @JsonProperty("structures") List<VolumeStructureDef> structures,
         @JsonProperty("syncConfig") List<StructureSyncConfig> syncConfig
 ) {
     public Optional<VolumeConfig> findById(String id) {
         return volumes.stream().filter(v -> v.id().equals(id)).findFirst();
+    }
+
+    public Optional<ServerConfig> findServerById(String id) {
+        return servers.stream().filter(s -> s.id().equals(id)).findFirst();
     }
 
     public Optional<VolumeStructureDef> findStructureById(String structureType) {

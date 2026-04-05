@@ -1,6 +1,7 @@
 package com.organizer3.shell;
 
 import com.organizer3.config.volume.VolumeConfig;
+import com.organizer3.smb.VolumeConnection;
 import com.organizer3.sync.VolumeIndex;
 
 /**
@@ -13,6 +14,7 @@ import com.organizer3.sync.VolumeIndex;
 public class SessionContext {
     private boolean dryRun = true;
     private VolumeConfig mountedVolume = null;
+    private VolumeConnection activeConnection = null;
     private VolumeIndex index = null;
     private boolean running = true;
 
@@ -37,6 +39,18 @@ public class SessionContext {
         this.mountedVolume = volume;
     }
 
+    public VolumeConnection getActiveConnection() {
+        return activeConnection;
+    }
+
+    public void setActiveConnection(VolumeConnection connection) {
+        this.activeConnection = connection;
+    }
+
+    public boolean isConnected() {
+        return activeConnection != null && activeConnection.isConnected();
+    }
+
     public VolumeIndex getIndex() {
         return index;
     }
@@ -50,6 +64,10 @@ public class SessionContext {
     }
 
     public void shutdown() {
+        if (activeConnection != null) {
+            activeConnection.close();
+            activeConnection = null;
+        }
         this.running = false;
     }
 }

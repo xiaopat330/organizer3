@@ -11,6 +11,7 @@ import com.organizer3.config.volume.VolumeConfig;
 import com.organizer3.config.volume.VolumeStructureDef;
 import com.organizer3.filesystem.VolumeFileSystem;
 import com.organizer3.shell.SessionContext;
+import com.organizer3.smb.VolumeConnection;
 import com.organizer3.sync.SyncOperation;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -19,7 +20,6 @@ import org.junit.jupiter.api.Test;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.io.StringWriter;
-import java.nio.file.Path;
 import java.util.List;
 import java.util.Set;
 
@@ -29,12 +29,10 @@ import static org.mockito.Mockito.*;
 class SyncCommandTest {
 
     private static final VolumeConfig CONVENTIONAL_VOL = new VolumeConfig(
-            "a", "//pandora/jav_A", Path.of("/Volumes/jav_A"),
-            "conventional", "pandora", "patrick");
+            "a", "//pandora/jav_A", "conventional", "pandora");
 
     private static final VolumeConfig QUEUE_VOL = new VolumeConfig(
-            "unsorted", "//pandora/jav_unsorted", Path.of("/Volumes/jav_unsorted"),
-            "queue", "pandora", "patrick");
+            "unsorted", "//pandora/jav_unsorted", "queue", "pandora");
 
     private static final VolumeStructureDef CONVENTIONAL_STRUCTURE = new VolumeStructureDef(
             "conventional",
@@ -46,10 +44,12 @@ class SyncCommandTest {
     private SessionContext ctx;
     private StringWriter output;
     private PrintWriter out;
+    private VolumeConnection connection;
 
     @BeforeEach
     void setUp() {
         AppConfig.initializeForTest(new OrganizerConfig(
+                List.of(),
                 List.of(CONVENTIONAL_VOL, QUEUE_VOL),
                 List.of(CONVENTIONAL_STRUCTURE,
                         new VolumeStructureDef("queue",
@@ -65,6 +65,9 @@ class SyncCommandTest {
                 )
         ));
         operation = mock(SyncOperation.class);
+        connection = mock(VolumeConnection.class);
+        when(connection.isConnected()).thenReturn(true);
+        when(connection.fileSystem()).thenReturn(mock(VolumeFileSystem.class));
         ctx = new SessionContext();
         output = new StringWriter();
         out = new PrintWriter(output);
@@ -85,8 +88,21 @@ class SyncCommandTest {
     }
 
     @Test
+    void volumeMountedButNotConnected_printsError() {
+        ctx.setMountedVolume(CONVENTIONAL_VOL);
+        // no active connection set
+        SyncCommand cmd = new SyncCommand("sync-all", Set.of("conventional"), operation);
+
+        cmd.execute(new String[]{"sync-all"}, ctx, out);
+
+        assertTrue(output.toString().contains("not connected"));
+        verifyNoInteractions(operation);
+    }
+
+    @Test
     void wrongStructureType_printsError() {
         ctx.setMountedVolume(QUEUE_VOL);
+        ctx.setActiveConnection(connection);
         SyncCommand cmd = new SyncCommand("sync-queue", Set.of("conventional"), operation);
 
         cmd.execute(new String[]{"sync-queue"}, ctx, out);
@@ -98,6 +114,7 @@ class SyncCommandTest {
     @Test
     void correctStructureType_delegatesToOperation() throws IOException {
         ctx.setMountedVolume(CONVENTIONAL_VOL);
+        ctx.setActiveConnection(connection);
         SyncCommand cmd = new SyncCommand("sync-all", Set.of("conventional"), operation);
 
         cmd.execute(new String[]{"sync-all"}, ctx, out);
@@ -109,6 +126,7 @@ class SyncCommandTest {
     @Test
     void operationThrowsIOException_printsError() throws IOException {
         ctx.setMountedVolume(CONVENTIONAL_VOL);
+        ctx.setActiveConnection(connection);
         SyncCommand cmd = new SyncCommand("sync-all", Set.of("conventional"), operation);
         doThrow(new IOException("disk read error"))
                 .when(operation).execute(any(), any(), any(), any(), any());

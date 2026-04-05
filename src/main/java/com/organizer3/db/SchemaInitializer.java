@@ -5,12 +5,22 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Creates the DB schema on first run. Safe to call on every startup — all statements use
- * {@code CREATE TABLE IF NOT EXISTS}, so re-runs are no-ops.
+ * Creates and migrates the DB schema on startup.
+ *
+ * <p>Uses {@code PRAGMA user_version} as a schema version counter. Each migration step
+ * is applied exactly once and increments the version. New installs start at version 0
+ * and all migrations run in order.
+ *
+ * <p>Current versions:
+ * <ul>
+ *   <li>0 → 1: initial schema (with {@code mount_path} on volumes)
+ *   <li>1 → 2: drop {@code mount_path} from volumes
+ * </ul>
  */
 public class SchemaInitializer {
 
     private static final Logger log = LoggerFactory.getLogger(SchemaInitializer.class);
+    private static final int CURRENT_VERSION = 2;
 
     private final Jdbi jdbi;
 
@@ -20,11 +30,36 @@ public class SchemaInitializer {
 
     public void initialize() {
         log.info("Initializing database schema");
+        int version = getVersion();
+        log.info("Schema version: {}", version);
+
+        if (version < 1) migrate1();
+        if (version < 2) migrate2();
+
+        log.info("Schema initialization complete (version {})", CURRENT_VERSION);
+    }
+
+    private int getVersion() {
+        return jdbi.withHandle(h ->
+                h.createQuery("PRAGMA user_version")
+                        .mapTo(Integer.class)
+                        .one()
+        );
+    }
+
+    private void setVersion(int version) {
+        // PRAGMA user_version doesn't support bind parameters
+        jdbi.useHandle(h -> h.execute("PRAGMA user_version = " + version));
+    }
+
+    /** Initial schema — volumes table includes mount_path. */
+    private void migrate1() {
+        log.info("Applying migration 1: create initial schema");
         jdbi.useHandle(h -> {
             h.execute("""
                     CREATE TABLE IF NOT EXISTS volumes (
                         id              TEXT PRIMARY KEY,
-                        mount_path      TEXT NOT NULL,
+                        mount_path      TEXT,
                         structure_type  TEXT NOT NULL,
                         last_synced_at  TEXT
                     )""");
@@ -81,6 +116,27 @@ public class SchemaInitializer {
             h.execute("CREATE INDEX IF NOT EXISTS idx_titles_code ON titles(code)");
             h.execute("CREATE INDEX IF NOT EXISTS idx_videos_title ON videos(title_id)");
         });
-        log.info("Schema initialization complete");
+        setVersion(1);
+    }
+
+    /** Drop mount_path from volumes — no longer needed with direct smbj connections. */
+    private void migrate2() {
+        log.info("Applying migration 2: drop mount_path from volumes");
+        jdbi.useHandle(h -> {
+            // SQLite requires recreating the table to drop a column
+            h.execute("""
+                    CREATE TABLE IF NOT EXISTS volumes_new (
+                        id              TEXT PRIMARY KEY,
+                        structure_type  TEXT NOT NULL,
+                        last_synced_at  TEXT
+                    )""");
+            h.execute("""
+                    INSERT INTO volumes_new (id, structure_type, last_synced_at)
+                    SELECT id, structure_type, last_synced_at FROM volumes
+                    """);
+            h.execute("DROP TABLE volumes");
+            h.execute("ALTER TABLE volumes_new RENAME TO volumes");
+        });
+        setVersion(2);
     }
 }

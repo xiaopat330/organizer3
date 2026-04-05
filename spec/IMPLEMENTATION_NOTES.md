@@ -132,6 +132,68 @@ A repository layer sits between domain logic and SQLite. Domain code never calls
 
 ---
 
+## Volume Structure Types
+
+Each volume has a `structureType` (from `organizer-config.yaml`) that determines its folder layout. Structure definitions live in the `structures` section of config, keyed by `id`.
+
+### Conventional Structure
+
+The most complex structure. Has two kinds of partitions:
+
+**Unstructured partitions** — top-level folders whose immediate children are title folders:
+```
+<volume root>/
+  queue/          archive/    attention/    converted/
+  duplicates/     favorites/  recent/       minor/
+```
+
+**Structured partition** — the `stars/` tree, organized by actress tier, then actress name:
+```
+<volume root>/
+  stars/
+    library/           # tier sub-partition
+      Actress Name/    # actress folder — folder name is the actress name
+        ABP-123/       # title folder
+          video.mkv    # video files directly here ...
+          video/       # ... or inside an optional video/ subdirectory
+            video.mkv
+    minor/             # same pattern for all tier sub-partitions
+    popular/
+    superstar/
+    goddess/
+    favorites/         # user-curated — not a title-count tier, defaults to LIBRARY in DB
+    archive/           # archived — same note as favorites
+```
+
+Tier sub-partitions under `stars/` that map to `Actress.Tier` enum values: `library → LIBRARY`, `minor → MINOR`, `popular → POPULAR`, `superstar → SUPERSTAR`, `goddess → GODDESS`. The special sub-partitions `favorites` and `archive` do not map to a tier — actresses found there are stored with tier `LIBRARY` in the DB.
+
+### Queue Structure
+
+Minimal: a single unstructured partition called `fresh/` on disk (logical id `queue`):
+```
+<volume root>/
+  fresh/
+    ABP-123/    # title folder
+```
+
+### Collections Structure
+
+All unstructured partitions, no `stars/` tree. Sync not yet implemented.
+
+---
+
+## Partition ID vs Path
+
+`PartitionDef` has two fields:
+- `id` — logical name used in config references and stored as `partition_id` in the DB (e.g., `"queue"`)
+- `path` — actual folder name on disk relative to the partition root (e.g., `"fresh"` for the queue volume's queue partition)
+
+These diverge in the queue volume type (`id=queue`, `path=fresh`). They happen to be the same in conventional volumes. Always use `id` when writing to the DB; resolve to `path` when accessing the filesystem.
+
+For titles inside the structured partition, `partition_id` in the DB is `"stars/<tier-id>"` (e.g., `"stars/popular"`), not just the tier name.
+
+---
+
 ## Data Layer Architecture
 
 The DB is a **persistent cache of the filesystem**. The in-memory index (built at mount time) is a **session-level cache of the DB**.
@@ -143,6 +205,67 @@ Filesystem  <--sync-->  Database  <--mount-->  In-memory index  <--commands-->  
 - `mount` loads from DB into memory. Assumes DB is current.
 - `sync` walks the filesystem, reconciles against DB, updates records.
 - All operational commands work against the in-memory index.
+
+---
+
+## Sync Design
+
+### Sync Commands are Config-Driven
+
+Available sync terms and their scope are defined entirely in the `syncConfig` section of `organizer-config.yaml`, not hardcoded. A `SyncCommandDef` binds a user-facing term (e.g., `sync-queue`) to a `SyncOperationType` (`FULL` or `PARTITION`) and an optional list of partition ids to scan. One `SyncCommand` instance is registered per term at startup.
+
+Current binding:
+| Structure type  | Term        | Operation | Scope                         |
+|-----------------|-------------|-----------|-------------------------------|
+| conventional    | `sync-queue`| PARTITION | `queue` partition only        |
+| conventional    | `sync-all`  | FULL      | entire volume                 |
+| queue           | `sync`      | FULL      | entire volume                 |
+| queue           | `sync-all`  | FULL      | same as `sync` (alias)        |
+| collections     | *(none)*    | —         | deferred, not yet implemented |
+
+To add a new sync term for a structure type, add an entry under `syncConfig` in the YAML. No Java changes needed.
+
+### Sync Scope and DB Clearing
+
+- **`FullSyncOperation`**: deletes all `videos` then all `titles` for the volume (FK order), then re-scans everything.
+- **`PartitionSyncOperation`**: for each named partition, deletes only that partition's videos (via join) and titles, then re-scans that partition. The rest of the volume's DB records are untouched.
+
+Sync always reads the real filesystem regardless of dry-run mode — it is read-only from the filesystem's perspective. All writes go to the DB.
+
+### What Sync Produces
+
+For each title folder found:
+- A `Title` record: `code` and `baseCode` parsed from the folder name, `volume_id`, `partition_id`, `actress_id` (null for unstructured), `path`, `last_seen_at = today`
+- `Video` records for each media file inside the title folder (checked directly and inside an optional `video/` subdirectory)
+
+For each actress folder found in the `stars/` tree:
+- Resolves against DB via `ActressRepository.resolveByName()` (checks canonical name and aliases)
+- Creates a new `Actress` record if not found, using the folder name as canonical name and the tier from the sub-partition mapping
+
+After all scanning, `last_synced_at` is stamped on the volume record and the `VolumeIndex` is rebuilt from DB and set on `SessionContext`.
+
+### Title Code Parsing
+
+`TitleCodeParser` extracts a JAV code from a folder name using pattern `[A-Za-z][A-Za-z0-9]{0,9}-\d{2,6}`:
+- `code` = normalized label (uppercased) + `-` + original digits + any `_SUFFIX` immediately following (e.g., `_U`, `_4K`)
+- `baseCode` = `LABEL-NNNNN` (5-digit zero-padded number, no suffix) — used for cross-volume matching
+- Falls back to the raw folder name for both fields if no pattern matches
+
+### Video File Discovery
+
+Within a title folder, video files are collected from two locations:
+1. Directly inside the title folder
+2. Inside an optional `video/` subdirectory
+
+Recognized video extensions (from `MediaExtensions`): `mkv mp4 avi mov wmv mpg mpeg m4v m2ts ts rmvb divx asf wma wm`
+
+### In-Memory Index
+
+`VolumeIndex` holds titles and actresses for the active volume. `IndexLoader` builds it from DB:
+- `titles` = all `Title` records for the volume
+- `actresses` = all `Actress` records referenced by those titles (via non-null `actress_id`)
+
+The index is set on `SessionContext` after every `mount` and every `sync`. Commands that need volume data read from the index rather than querying the DB per call. A cold volume (no DB records yet) gets an empty index; `mount` warns the user to run sync.
 
 ---
 

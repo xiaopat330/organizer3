@@ -2,12 +2,12 @@ package com.organizer3.command;
 
 import com.organizer3.config.AppConfig;
 import com.organizer3.config.volume.OrganizerConfig;
+import com.organizer3.config.volume.ServerConfig;
 import com.organizer3.config.volume.VolumeConfig;
-import com.organizer3.mount.CredentialLookup;
-import com.organizer3.mount.CredentialNotFoundException;
-import com.organizer3.mount.MountException;
-import com.organizer3.mount.SmbMounter;
 import com.organizer3.shell.SessionContext;
+import com.organizer3.smb.SmbConnectionException;
+import com.organizer3.smb.SmbConnector;
+import com.organizer3.smb.VolumeConnection;
 import com.organizer3.sync.IndexLoader;
 import com.organizer3.sync.VolumeIndex;
 import org.junit.jupiter.api.AfterEach;
@@ -16,7 +16,6 @@ import org.junit.jupiter.api.Test;
 
 import java.io.PrintWriter;
 import java.io.StringWriter;
-import java.nio.file.Path;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -24,11 +23,12 @@ import static org.mockito.Mockito.*;
 
 class MountCommandTest {
 
+    private static final ServerConfig SERVER = new ServerConfig("pandora", "patrick", "secret");
     private static final VolumeConfig VOLUME_A = new VolumeConfig(
-            "a", "//pandora/jav_A", Path.of("/Volumes/jav_A"), "conventional", "pandora", "patrick");
+            "a", "//pandora/jav_A", "conventional", "pandora");
 
-    private CredentialLookup credentialLookup;
-    private SmbMounter smbMounter;
+    private SmbConnector smbConnector;
+    private VolumeConnection connection;
     private SessionContext ctx;
     private StringWriter output;
     private PrintWriter out;
@@ -36,15 +36,17 @@ class MountCommandTest {
 
     @BeforeEach
     void setUp() {
-        AppConfig.initializeForTest(new OrganizerConfig(List.of(VOLUME_A), List.of(), List.of()));
-        credentialLookup = mock(CredentialLookup.class);
-        smbMounter = mock(SmbMounter.class);
+        AppConfig.initializeForTest(new OrganizerConfig(
+                List.of(SERVER), List.of(VOLUME_A), List.of(), List.of()));
+        smbConnector = mock(SmbConnector.class);
+        connection = mock(VolumeConnection.class);
+        when(connection.isConnected()).thenReturn(true);
         IndexLoader indexLoader = mock(IndexLoader.class);
         when(indexLoader.load(any())).thenReturn(VolumeIndex.empty("a"));
         ctx = new SessionContext();
         output = new StringWriter();
         out = new PrintWriter(output);
-        command = new MountCommand(credentialLookup, smbMounter, indexLoader);
+        command = new MountCommand(smbConnector, indexLoader);
     }
 
     @AfterEach
@@ -53,7 +55,7 @@ class MountCommandTest {
     }
 
     @Test
-    void name_isMounted() {
+    void name_isMount() {
         assertEquals("mount", command.name());
     }
 
@@ -81,61 +83,63 @@ class MountCommandTest {
     }
 
     @Test
-    void alreadyMounted_setsContextWithoutCallingMountSmbfs() {
-        when(smbMounter.isMounted(VOLUME_A.mountPoint())).thenReturn(true);
+    void alreadyConnected_skipsReconnect() {
+        ctx.setMountedVolume(VOLUME_A);
+        ctx.setActiveConnection(connection);
 
         command.execute(new String[]{"mount", "a"}, ctx, out);
 
-        assertEquals(VOLUME_A, ctx.getMountedVolume());
-        verify(smbMounter, never()).mount(any(), any());
-        verify(credentialLookup, never()).getPassword(any(), any());
-        assertTrue(output.toString().contains("already mounted"));
+        verifyNoInteractions(smbConnector);
+        assertTrue(output.toString().contains("already connected"));
     }
 
     @Test
-    void successfulMount_setsContextAndPrintsConfirmation() {
-        when(smbMounter.isMounted(VOLUME_A.mountPoint())).thenReturn(false);
-        when(credentialLookup.getPassword("pandora", "patrick")).thenReturn("secret");
+    void successfulConnect_setsContextAndPrintsConfirmation() throws Exception {
+        when(smbConnector.connect(VOLUME_A, SERVER)).thenReturn(connection);
 
         command.execute(new String[]{"mount", "a"}, ctx, out);
 
-        verify(smbMounter).mount(VOLUME_A, "secret");
+        verify(smbConnector).connect(VOLUME_A, SERVER);
         assertEquals(VOLUME_A, ctx.getMountedVolume());
-        assertTrue(output.toString().contains("Mounted"));
+        assertEquals(connection, ctx.getActiveConnection());
+        assertTrue(output.toString().contains("Connected"));
     }
 
     @Test
-    void credentialNotFound_printsHelpfulMessage() {
-        when(smbMounter.isMounted(VOLUME_A.mountPoint())).thenReturn(false);
-        when(credentialLookup.getPassword("pandora", "patrick"))
-                .thenThrow(new CredentialNotFoundException("pandora", "patrick"));
+    void connectionFails_printsErrorAndDoesNotSetContext() throws Exception {
+        when(smbConnector.connect(any(), any()))
+                .thenThrow(new SmbConnectionException("server unreachable"));
 
         command.execute(new String[]{"mount", "a"}, ctx, out);
 
         assertNull(ctx.getMountedVolume());
-        verify(smbMounter, never()).mount(any(), any());
-        String log = output.toString();
-        assertTrue(log.contains("Error:"));
-        assertTrue(log.contains("security add-internet-password"));
-    }
-
-    @Test
-    void mountFails_printsErrorAndDoesNotSetContext() {
-        when(smbMounter.isMounted(VOLUME_A.mountPoint())).thenReturn(false);
-        when(credentialLookup.getPassword("pandora", "patrick")).thenReturn("secret");
-        doThrow(new MountException("server unreachable")).when(smbMounter).mount(any(), any());
-
-        command.execute(new String[]{"mount", "a"}, ctx, out);
-
-        assertNull(ctx.getMountedVolume());
-        assertTrue(output.toString().contains("Mount failed"));
+        assertNull(ctx.getActiveConnection());
+        assertTrue(output.toString().contains("Connection failed"));
         assertTrue(output.toString().contains("server unreachable"));
     }
 
     @Test
-    void successfulMount_updatesPromptViaContext() {
-        when(smbMounter.isMounted(VOLUME_A.mountPoint())).thenReturn(false);
-        when(credentialLookup.getPassword("pandora", "patrick")).thenReturn("secret");
+    void switchingVolumes_closesExistingConnection() throws Exception {
+        ServerConfig otherServer = new ServerConfig("other", "u", "p");
+        VolumeConnection oldConnection = mock(VolumeConnection.class);
+        when(oldConnection.isConnected()).thenReturn(true);
+        ctx.setActiveConnection(oldConnection);
+        ctx.setMountedVolume(new VolumeConfig("other", "//other/share", "queue", "other"));
+        AppConfig.reset();
+        AppConfig.initializeForTest(new OrganizerConfig(
+                List.of(SERVER, otherServer), List.of(VOLUME_A), List.of(), List.of()));
+
+        when(smbConnector.connect(VOLUME_A, SERVER)).thenReturn(connection);
+
+        command.execute(new String[]{"mount", "a"}, ctx, out);
+
+        verify(oldConnection).close();
+        assertEquals(connection, ctx.getActiveConnection());
+    }
+
+    @Test
+    void successfulConnect_updatesPromptViaContext() throws Exception {
+        when(smbConnector.connect(VOLUME_A, SERVER)).thenReturn(connection);
 
         command.execute(new String[]{"mount", "a"}, ctx, out);
 

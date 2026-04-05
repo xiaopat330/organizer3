@@ -56,7 +56,7 @@ abstract class AbstractSyncOperation implements SyncOperation {
      */
     protected void ensureVolumeRecord(com.organizer3.config.volume.VolumeConfig volume) {
         if (volumeRepo.findById(volume.id()).isEmpty()) {
-            volumeRepo.save(new Volume(volume.id(), volume.mountPoint(), volume.structureType()));
+            volumeRepo.save(new Volume(volume.id(), volume.structureType()));
         }
     }
 
@@ -77,6 +77,32 @@ abstract class AbstractSyncOperation implements SyncOperation {
             if (fs.isDirectory(child)) {
                 saveTitleAndVideos(child, volumeId, partitionId, actressId, fs);
                 count++;
+            }
+        }
+        return count;
+    }
+
+    /**
+     * Scans a flat {@code stars/} folder where actress folders sit directly under {@code starsRoot}
+     * (no tier sub-folders). All actresses are stored with tier {@code LIBRARY}.
+     * Returns the number of titles saved.
+     */
+    protected int scanFlatStarsPartition(Path starsRoot, String volumeId,
+                                         VolumeFileSystem fs, PrintWriter out) throws IOException {
+        if (!fs.exists(starsRoot)) {
+            out.println("  [skip] " + starsRoot + " — not found");
+            return 0;
+        }
+        int count = 0;
+        for (Path actressFolder : fs.listDirectory(starsRoot)) {
+            if (!fs.isDirectory(actressFolder)) continue;
+            String actressName = actressFolder.getFileName().toString();
+            Actress actress = resolveOrCreateActress(actressName, Actress.Tier.LIBRARY);
+            for (Path titleFolder : fs.listDirectory(actressFolder)) {
+                if (fs.isDirectory(titleFolder)) {
+                    saveTitleAndVideos(titleFolder, volumeId, "stars", actress.getId(), fs);
+                    count++;
+                }
             }
         }
         return count;

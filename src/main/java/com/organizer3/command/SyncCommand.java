@@ -3,7 +3,6 @@ package com.organizer3.command;
 import com.organizer3.config.AppConfig;
 import com.organizer3.config.volume.VolumeConfig;
 import com.organizer3.config.volume.VolumeStructureDef;
-import com.organizer3.filesystem.LocalFileSystem;
 import com.organizer3.shell.SessionContext;
 import com.organizer3.sync.SyncOperation;
 import org.slf4j.Logger;
@@ -68,8 +67,13 @@ public class SyncCommand implements Command {
                 .orElseThrow(() -> new IllegalStateException(
                         "No structure definition for type: " + volume.structureType()));
 
+        if (!ctx.isConnected()) {
+            out.println("Volume not connected. Use: mount <id>");
+            return;
+        }
+
         try {
-            operation.execute(volume, structure, new LocalFileSystem(), ctx, out);
+            operation.execute(volume, structure, ctx.getActiveConnection().fileSystem(), ctx, out);
         } catch (IOException e) {
             out.println("Sync failed: " + e.getMessage());
             log.error("Sync error on volume {}", volume.id(), e);

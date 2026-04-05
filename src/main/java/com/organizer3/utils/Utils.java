@@ -1,4 +1,4 @@
-package com.organizer;
+package com.organizer3.utils;
 
 import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
