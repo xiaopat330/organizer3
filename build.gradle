@@ -59,7 +59,7 @@ dependencies {
 }
 
 application {
-    mainClass = 'com.pyoung.organizer3.Application'
+    mainClass = 'com.organizer3.Application'
 }
 
 test {

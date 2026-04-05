@@ -63,24 +63,36 @@ Implementations:
 
 YAML files are used for structural configuration that humans write and rarely change. Mutable data discovered by the tool lives in the database.
 
+### Active config files (in `src/main/resources/`)
+
 | File | Purpose |
 |---|---|
-| `organizer-config.yaml` | Volume definitions: id, SMB path, local mount point, structure type, credentials key |
-| `operation-config.yaml` | Filename normalization rules, media extensions, tier thresholds |
-| `aliases.yaml` | Initial seed data for actress alias mappings (imported into DB on first run) |
-| `nas.yaml` | Initial seed data for known actress database (imported into DB on first run) |
+| `organizer-config.yaml` | Volume definitions: id, SMB path, local mount point, structure type, credentials key, username |
+| `aliases.yaml` | Seed data for actress alias mappings — imported into DB on first run, then DB is authoritative |
 
 Credentials are referenced by key in `organizer-config.yaml` but resolved from the macOS Keychain at runtime — never stored in YAML.
+
+### Legacy reference files (in `legacy/`)
+
+The original organizer2 project used a different set of YAML files. These have been moved to `legacy/` and are **not loaded by the application**. They exist only as reference material when porting configuration values.
+
+| File | Original purpose |
+|---|---|
+| `legacy/nas.yaml` | Seed data for the known actress database |
+| `legacy/operation-config.yaml` | Filename normalization rules, media extensions, tier thresholds |
+
+When porting values from these files into the new config model, move them into the appropriate active config file or database seed and delete from `legacy/` once complete.
 
 ### Volume Config Shape
 
 ```yaml
 volumes:
   - id: a
-    smbPath: //nas-server/ShareA
-    mountPoint: /Volumes/ShareA
+    smbPath: //pandora/jav_A
+    mountPoint: /Volumes/jav_A
     structureType: conventional
-    credentialsKey: nas-main
+    credentialsKey: pandora
+    username: patrick
 ```
 
 ---

@@ -1,5 +1,7 @@
 package com.organizer3.shell;
 
+import com.organizer3.config.volume.VolumeConfig;
+
 /**
  * Holds mutable session state for the current interactive session.
  *
@@ -9,7 +11,7 @@ package com.organizer3.shell;
  */
 public class SessionContext {
     private boolean dryRun = true;
-    private String mountedVolumeId = null;
+    private VolumeConfig mountedVolume = null;
     private boolean running = true;
 
     public boolean isDryRun() {
@@ -20,12 +22,17 @@ public class SessionContext {
         this.dryRun = dryRun;
     }
 
-    public String getMountedVolumeId() {
-        return mountedVolumeId;
+    public VolumeConfig getMountedVolume() {
+        return mountedVolume;
     }
 
-    public void setMountedVolumeId(String id) {
-        this.mountedVolumeId = id;
+    /** Returns the ID of the currently mounted volume, or {@code null} if none. */
+    public String getMountedVolumeId() {
+        return mountedVolume != null ? mountedVolume.id() : null;
+    }
+
+    public void setMountedVolume(VolumeConfig volume) {
+        this.mountedVolume = volume;
     }
 
     public boolean isRunning() {

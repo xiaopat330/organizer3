@@ -3,12 +3,18 @@ package com.organizer3;
 import com.organizer3.command.Command;
 import com.organizer3.command.HelloCommand;
 import com.organizer3.command.HelpCommand;
+import com.organizer3.command.MountCommand;
 import com.organizer3.command.ShutdownCommand;
+import com.organizer3.config.AppConfig;
+import com.organizer3.config.volume.OrganizerConfigLoader;
+import com.organizer3.mount.MacOsCredentialLookup;
+import com.organizer3.mount.OsSmbMounter;
 import com.organizer3.shell.OrganizerShell;
 import com.organizer3.shell.SessionContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -22,14 +28,17 @@ import java.util.List;
 public class Application {
     private static final Logger log = LoggerFactory.getLogger(Application.class);
 
-    public static void main(String[] args) {
+    public static void main(String[] args) throws IOException {
         log.info("Starting Organizer3");
+
+        AppConfig.initialize(new OrganizerConfigLoader().load());
 
         SessionContext session = new SessionContext();
 
         List<Command> commands = new ArrayList<>();
         commands.add(new HelloCommand());
         commands.add(new ShutdownCommand());
+        commands.add(new MountCommand(new MacOsCredentialLookup(), new OsSmbMounter()));
         commands.add(new HelpCommand(commands));
 
         OrganizerShell shell = new OrganizerShell(session, commands);
