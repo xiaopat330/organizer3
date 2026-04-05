@@ -8,6 +8,8 @@ import com.organizer3.mount.CredentialNotFoundException;
 import com.organizer3.mount.MountException;
 import com.organizer3.mount.SmbMounter;
 import com.organizer3.shell.SessionContext;
+import com.organizer3.sync.IndexLoader;
+import com.organizer3.sync.VolumeIndex;
 
 import java.io.PrintWriter;
 
@@ -26,10 +28,13 @@ public class MountCommand implements Command {
 
     private final CredentialLookup credentialLookup;
     private final SmbMounter smbMounter;
+    private final IndexLoader indexLoader;
 
-    public MountCommand(CredentialLookup credentialLookup, SmbMounter smbMounter) {
+    public MountCommand(CredentialLookup credentialLookup, SmbMounter smbMounter,
+                        IndexLoader indexLoader) {
         this.credentialLookup = credentialLookup;
         this.smbMounter = smbMounter;
+        this.indexLoader = indexLoader;
     }
 
     @Override
@@ -87,6 +92,18 @@ public class MountCommand implements Command {
         }
 
         ctx.setMountedVolume(volume);
+        loadIndex(volumeId, ctx, out);
         out.println("Mounted. Volume '" + volumeId + "' is now active.");
+    }
+
+    private void loadIndex(String volumeId, SessionContext ctx, PrintWriter out) {
+        VolumeIndex index = indexLoader.load(volumeId);
+        ctx.setIndex(index);
+        if (index.titleCount() == 0) {
+            out.println("No index found for volume '" + volumeId + "' — run sync-all to build it.");
+        } else {
+            out.println("Loaded index: " + index.titleCount() + " title(s), "
+                    + index.actressCount() + " actress(es).");
+        }
     }
 }

@@ -142,4 +142,16 @@ public class JdbiTitleRepository implements TitleRepository {
                         .execute()
         );
     }
+
+    @Override
+    public void deleteByVolumeAndPartition(String volumeId, String partitionId) {
+        jdbi.useHandle(h ->
+                h.createUpdate("""
+                        DELETE FROM titles
+                        WHERE volume_id = :volumeId AND partition_id = :partitionId""")
+                        .bind("volumeId", volumeId)
+                        .bind("partitionId", partitionId)
+                        .execute()
+        );
+    }
 }

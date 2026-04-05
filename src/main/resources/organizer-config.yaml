@@ -96,3 +96,55 @@ volumes:
     structureType: collections
     credentialsKey: pandora.local
     username: patrick_young@hotmail.com
+
+structures:
+  - id: conventional
+    unstructuredPartitions:
+      - { id: archive,    path: archive    }
+      - { id: attention,  path: attention  }
+      - { id: converted,  path: converted  }
+      - { id: duplicates, path: duplicates }
+      - { id: favorites,  path: favorites  }
+      - { id: queue,      path: queue      }
+      - { id: recent,     path: recent     }
+      - { id: minor,      path: minor      }
+    structuredPartition:
+      path: stars
+      partitions:
+        - { id: library,    path: library    }
+        - { id: minor,      path: minor      }
+        - { id: popular,    path: popular    }
+        - { id: superstar,  path: superstar  }
+        - { id: goddess,    path: goddess    }
+        - { id: favorites,  path: favorites  }
+        - { id: archive,    path: archive    }
+
+  - id: queue
+    unstructuredPartitions:
+      - { id: queue, path: fresh }
+
+  - id: collections
+    unstructuredPartitions:
+      - { id: archive,   path: archive   }
+      - { id: converted, path: converted }
+      - { id: duos,      path: duos      }
+      - { id: favorites, path: favorites }
+      - { id: new,       path: new       }
+      - { id: omnibus,   path: omnibus   }
+      - { id: recent,    path: recent    }
+
+syncConfig:
+  - structureType: conventional
+    commands:
+      - term: sync-queue
+        operation: partition
+        partitions: [queue]
+      - term: sync-all
+        operation: full
+
+  - structureType: queue
+    commands:
+      - term: sync
+        operation: full
+      - term: sync-all
+        operation: full

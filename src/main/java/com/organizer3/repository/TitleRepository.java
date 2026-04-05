@@ -32,4 +32,7 @@ public interface TitleRepository {
 
     /** Remove all title records for a volume (used before a full re-sync). */
     void deleteByVolume(String volumeId);
+
+    /** Remove title records for a specific volume+partition (used before a partition-scoped re-sync). */
+    void deleteByVolumeAndPartition(String volumeId, String partitionId);
 }

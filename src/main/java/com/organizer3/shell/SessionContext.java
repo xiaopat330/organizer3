@@ -1,6 +1,7 @@
 package com.organizer3.shell;
 
 import com.organizer3.config.volume.VolumeConfig;
+import com.organizer3.sync.VolumeIndex;
 
 /**
  * Holds mutable session state for the current interactive session.
@@ -12,6 +13,7 @@ import com.organizer3.config.volume.VolumeConfig;
 public class SessionContext {
     private boolean dryRun = true;
     private VolumeConfig mountedVolume = null;
+    private VolumeIndex index = null;
     private boolean running = true;
 
     public boolean isDryRun() {
@@ -33,6 +35,14 @@ public class SessionContext {
 
     public void setMountedVolume(VolumeConfig volume) {
         this.mountedVolume = volume;
+    }
+
+    public VolumeIndex getIndex() {
+        return index;
+    }
+
+    public void setIndex(VolumeIndex index) {
+        this.index = index;
     }
 
     public boolean isRunning() {

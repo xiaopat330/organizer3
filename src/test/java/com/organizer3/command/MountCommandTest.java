@@ -8,6 +8,8 @@ import com.organizer3.mount.CredentialNotFoundException;
 import com.organizer3.mount.MountException;
 import com.organizer3.mount.SmbMounter;
 import com.organizer3.shell.SessionContext;
+import com.organizer3.sync.IndexLoader;
+import com.organizer3.sync.VolumeIndex;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -34,13 +36,15 @@ class MountCommandTest {
 
     @BeforeEach
     void setUp() {
-        AppConfig.initializeForTest(new OrganizerConfig(List.of(VOLUME_A)));
+        AppConfig.initializeForTest(new OrganizerConfig(List.of(VOLUME_A), List.of(), List.of()));
         credentialLookup = mock(CredentialLookup.class);
         smbMounter = mock(SmbMounter.class);
+        IndexLoader indexLoader = mock(IndexLoader.class);
+        when(indexLoader.load(any())).thenReturn(VolumeIndex.empty("a"));
         ctx = new SessionContext();
         output = new StringWriter();
         out = new PrintWriter(output);
-        command = new MountCommand(credentialLookup, smbMounter);
+        command = new MountCommand(credentialLookup, smbMounter, indexLoader);
     }
 
     @AfterEach

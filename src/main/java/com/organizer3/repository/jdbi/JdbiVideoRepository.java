@@ -97,4 +97,30 @@ public class JdbiVideoRepository implements VideoRepository {
                         .execute()
         );
     }
+
+    @Override
+    public void deleteByVolume(String volumeId) {
+        jdbi.useHandle(h ->
+                h.createUpdate("""
+                        DELETE FROM videos WHERE title_id IN (
+                            SELECT id FROM titles WHERE volume_id = :volumeId
+                        )""")
+                        .bind("volumeId", volumeId)
+                        .execute()
+        );
+    }
+
+    @Override
+    public void deleteByVolumeAndPartition(String volumeId, String partitionId) {
+        jdbi.useHandle(h ->
+                h.createUpdate("""
+                        DELETE FROM videos WHERE title_id IN (
+                            SELECT id FROM titles
+                            WHERE volume_id = :volumeId AND partition_id = :partitionId
+                        )""")
+                        .bind("volumeId", volumeId)
+                        .bind("partitionId", partitionId)
+                        .execute()
+        );
+    }
 }

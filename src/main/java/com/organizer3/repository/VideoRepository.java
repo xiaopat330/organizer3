@@ -23,4 +23,13 @@ public interface VideoRepository {
     void delete(long id);
 
     void deleteByTitle(long titleId);
+
+    /** Remove all video records for a volume (used before a full re-sync). */
+    void deleteByVolume(String volumeId);
+
+    /**
+     * Remove all video records whose titles belong to the given volume and partition
+     * (used before a partition-scoped re-sync).
+     */
+    void deleteByVolumeAndPartition(String volumeId, String partitionId);
 }

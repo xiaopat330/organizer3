@@ -15,6 +15,10 @@ class AppConfigTest {
     private static final VolumeConfig VOLUME_A = new VolumeConfig(
             "a", "//pandora/jav_A", Path.of("/Volumes/jav_A"), "conventional", "pandora", "patrick");
 
+    private static OrganizerConfig cfg(VolumeConfig... vols) {
+        return new OrganizerConfig(List.of(vols), List.of(), List.of());
+    }
+
     @AfterEach
     void tearDown() {
         AppConfig.reset();
@@ -27,7 +31,7 @@ class AppConfigTest {
 
     @Test
     void initialize_makesConfigAccessibleViaGet() {
-        AppConfig.initialize(new OrganizerConfig(List.of(VOLUME_A)));
+        AppConfig.initialize(cfg(VOLUME_A));
 
         assertNotNull(AppConfig.get());
         assertEquals(1, AppConfig.get().volumes().volumes().size());
@@ -36,10 +40,9 @@ class AppConfigTest {
 
     @Test
     void initialize_throwsIfCalledTwice() {
-        AppConfig.initialize(new OrganizerConfig(List.of(VOLUME_A)));
+        AppConfig.initialize(cfg(VOLUME_A));
 
-        assertThrows(IllegalStateException.class,
-                () -> AppConfig.initialize(new OrganizerConfig(List.of(VOLUME_A))));
+        assertThrows(IllegalStateException.class, () -> AppConfig.initialize(cfg(VOLUME_A)));
     }
 
     @Test
@@ -47,27 +50,27 @@ class AppConfigTest {
         VolumeConfig volumeB = new VolumeConfig(
                 "b", "//pandora/jav_B", Path.of("/Volumes/jav_B"), "conventional", "pandora", "patrick");
 
-        AppConfig.initialize(new OrganizerConfig(List.of(VOLUME_A)));
+        AppConfig.initialize(cfg(VOLUME_A));
         AppConfig.reset();
-        AppConfig.initialize(new OrganizerConfig(List.of(volumeB)));
+        AppConfig.initialize(cfg(volumeB));
 
         assertEquals("b", AppConfig.get().volumes().volumes().get(0).id());
     }
 
     @Test
     void initializeForTest_replacesExistingInstance() {
-        AppConfig.initialize(new OrganizerConfig(List.of(VOLUME_A)));
+        AppConfig.initialize(cfg(VOLUME_A));
         VolumeConfig volumeB = new VolumeConfig(
                 "b", "//pandora/jav_B", Path.of("/Volumes/jav_B"), "conventional", "pandora", "patrick");
 
-        AppConfig.initializeForTest(new OrganizerConfig(List.of(volumeB)));
+        AppConfig.initializeForTest(cfg(volumeB));
 
         assertEquals("b", AppConfig.get().volumes().volumes().get(0).id());
     }
 
     @Test
     void volumes_findById_worksViaAppConfig() {
-        AppConfig.initialize(new OrganizerConfig(List.of(VOLUME_A)));
+        AppConfig.initialize(cfg(VOLUME_A));
 
         assertTrue(AppConfig.get().volumes().findById("a").isPresent());
         assertFalse(AppConfig.get().volumes().findById("zzz").isPresent());
