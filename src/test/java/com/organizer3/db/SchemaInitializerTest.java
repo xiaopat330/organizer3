@@ -1,0 +1,139 @@
+package com.organizer3.db;
+
+import org.jdbi.v3.core.Jdbi;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.util.List;
+
+import static org.junit.jupiter.api.Assertions.*;
+
+/**
+ * Tests for SchemaInitializer using an in-memory SQLite database.
+ */
+class SchemaInitializerTest {
+
+    private Jdbi jdbi;
+    private Connection connection;
+
+    @BeforeEach
+    void setUp() throws Exception {
+        connection = DriverManager.getConnection("jdbc:sqlite::memory:");
+        jdbi = Jdbi.create(connection);
+    }
+
+    @AfterEach
+    void tearDown() throws Exception {
+        connection.close();
+    }
+
+    @Test
+    void createsAllTables() {
+        new SchemaInitializer(jdbi).initialize();
+
+        List<String> tables = jdbi.withHandle(h ->
+                h.createQuery("""
+                        SELECT name FROM sqlite_master
+                        WHERE type = 'table' AND name NOT LIKE 'sqlite_%'
+                        ORDER BY name""")
+                        .mapTo(String.class)
+                        .list()
+        );
+
+        assertEquals(
+                List.of("actress_aliases", "actresses", "labels", "operations", "titles", "videos", "volumes"),
+                tables
+        );
+    }
+
+    @Test
+    void createsExpectedIndexes() {
+        new SchemaInitializer(jdbi).initialize();
+
+        List<String> indexes = jdbi.withHandle(h ->
+                h.createQuery("""
+                        SELECT name FROM sqlite_master
+                        WHERE type = 'index' AND name LIKE 'idx_%'
+                        ORDER BY name""")
+                        .mapTo(String.class)
+                        .list()
+        );
+
+        assertEquals(
+                List.of("idx_actress_aliases_name", "idx_titles_actress", "idx_titles_code",
+                        "idx_titles_label", "idx_titles_volume", "idx_videos_title"),
+                indexes
+        );
+    }
+
+    @Test
+    void isIdempotent() {
+        SchemaInitializer init = new SchemaInitializer(jdbi);
+        init.initialize();
+        assertDoesNotThrow(init::initialize, "Running initialize twice should not fail");
+    }
+
+    @Test
+    void titlesTableHasLabelAndSeqNum() {
+        new SchemaInitializer(jdbi).initialize();
+
+        // Insert a title with label and seq_num to verify columns exist
+        jdbi.useHandle(h -> {
+            h.execute("INSERT INTO volumes (id, structure_type) VALUES ('v1', 'starred')");
+            h.execute("""
+                    INSERT INTO titles (code, base_code, label, seq_num, volume_id, partition_id, path, last_seen_at)
+                    VALUES ('ABP-123', 'ABP-00123', 'ABP', 123, 'v1', 'some-actress', '/path', '2026-01-01')""");
+        });
+
+        var row = jdbi.withHandle(h ->
+                h.createQuery("SELECT label, seq_num FROM titles WHERE code = 'ABP-123'")
+                        .mapToMap()
+                        .one()
+        );
+
+        assertEquals("ABP", row.get("label"));
+        assertEquals(123, row.get("seq_num"));
+    }
+
+    @Test
+    void actressesTableHasFavoriteColumn() {
+        new SchemaInitializer(jdbi).initialize();
+
+        jdbi.useHandle(h ->
+                h.execute("""
+                        INSERT INTO actresses (canonical_name, tier, favorite, first_seen_at)
+                        VALUES ('Test Actress', 'regular', 1, '2026-01-01')""")
+        );
+
+        int favorite = jdbi.withHandle(h ->
+                h.createQuery("SELECT favorite FROM actresses WHERE canonical_name = 'Test Actress'")
+                        .mapTo(Integer.class)
+                        .one()
+        );
+
+        assertEquals(1, favorite);
+    }
+
+    @Test
+    void labelsTableAcceptsData() {
+        new SchemaInitializer(jdbi).initialize();
+
+        jdbi.useHandle(h ->
+                h.execute("""
+                        INSERT INTO labels (code, label_name, company, description)
+                        VALUES ('TEST', 'Test Label', 'Test Company', 'A test label')""")
+        );
+
+        var row = jdbi.withHandle(h ->
+                h.createQuery("SELECT * FROM labels WHERE code = 'TEST'")
+                        .mapToMap()
+                        .one()
+        );
+
+        assertEquals("Test Label", row.get("label_name"));
+        assertEquals("Test Company", row.get("company"));
+    }
+}

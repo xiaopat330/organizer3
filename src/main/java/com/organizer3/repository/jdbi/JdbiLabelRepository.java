@@ -1,0 +1,38 @@
+package com.organizer3.repository.jdbi;
+
+import com.organizer3.model.Label;
+import com.organizer3.repository.LabelRepository;
+import org.jdbi.v3.core.Jdbi;
+import org.jdbi.v3.core.mapper.RowMapper;
+
+import java.util.Map;
+import java.util.stream.Collectors;
+
+public class JdbiLabelRepository implements LabelRepository {
+
+    private static final RowMapper<Label> MAPPER = (rs, ctx) ->
+            new Label(
+                    rs.getString("code"),
+                    rs.getString("label_name"),
+                    rs.getString("company")
+            );
+
+    private final Jdbi jdbi;
+
+    public JdbiLabelRepository(Jdbi jdbi) {
+        this.jdbi = jdbi;
+    }
+
+    @Override
+    public Map<String, Label> findAllAsMap() {
+        return jdbi.withHandle(h ->
+                h.createQuery("SELECT code, label_name, company FROM labels")
+                        .map(MAPPER)
+                        .list()
+        ).stream().collect(Collectors.toMap(
+                l -> l.code().toUpperCase(),
+                l -> l,
+                (a, b) -> a   // keep first on duplicate codes
+        ));
+    }
+}

@@ -7,55 +7,62 @@
 | Language | Java 21 |
 | Build | Gradle |
 | Interactive shell / REPL | JLine3 (direct, not via Spring Shell) |
-| Command parsing / structure | Picocli |
-| Database | SQLite via xerial/sqlite-jdbc |
 | SQL mapping | JDBI3 |
+| Database | SQLite via xerial/sqlite-jdbc |
 | YAML config | Jackson + jackson-dataformat-yaml |
 | Logging | SLF4J + Logback |
+| SMB connectivity | smbj (SMB2/3 Java library) |
+| Domain models | Lombok (`@Value @Builder`) on `Actress`; Java records elsewhere |
+| Test mocking | Mockito |
+| Embedded web server | Javalin 6 (read-only browsing/querying) |
 
-No Spring. Dependencies are wired manually via a small `Application` or `Context` class.
+No Spring. Dependencies are wired manually in `Application.java` (the composition root).
 
 ---
 
 ## Modern Java Usage
 
-- **Records** for immutable domain objects: `Title`, `Actress`, `Video`, `Volume`, etc.
-- **Sealed classes** for the volume structure type hierarchy:
-  ```java
-  sealed interface VolumeStructure permits ConventionalStructure, QueueStructure, CollectionsStructure {}
-  ```
-  Enables exhaustive `switch` expressions when dispatching structure-specific behavior.
-- **`java.nio.file.Path` and `Files`** throughout — never `java.io.File`.
+- **Records** for immutable domain objects: `Title`, `Video`, `Volume`, `ActressAlias`
+- **Lombok `@Value @Builder`** on `Actress` (predates the records adoption; may be migrated later)
+- **Sealed classes** for use cases requiring exhaustive dispatch (not yet in place; intended for `VolumeStructure`)
+- **`java.nio.file.Path` and `Files`** throughout — never `java.io.File`
+- **`switch` expressions** used in tier/partition mapping (`toActressTier`, `SyncCommand` operation dispatch)
 
 ---
 
 ## SMB / Filesystem Access
 
-The app runs on macOS. All volumes are accessed via SMB (Windows file servers and NAS devices).
-
-Rather than using a Java SMB library, the app mounts shares at the OS level using `mount_smbfs` via `ProcessBuilder`, after which the share is accessible as a standard filesystem path (e.g., `/Volumes/ShareName`) using standard Java NIO. No third-party SMB library is needed.
-
-### Credential Storage
-
-Credentials are stored in the macOS Keychain. The app retrieves them at mount time using the `security find-internet-password` command via `ProcessBuilder`. Credentials are never stored in config files or on disk by the application.
+The app connects to all volumes via SMB2/3 using the **smbj** library. Shares are accessed entirely through smbj — there are no OS-level mounts (`mount_smbfs`). The filesystem is never exposed as a local path.
 
 ### VolumeFileSystem Abstraction
 
-All filesystem operations go through a `VolumeFileSystem` interface rather than calling `java.nio.file.Files` directly. This keeps SMB/local concerns out of business logic, makes dry-run trivial (a no-op implementation), and preserves flexibility.
+All filesystem reads go through a `VolumeFileSystem` interface. This decouples sync logic from the transport layer and will make dry-run trivial to implement for file operations:
 
 ```java
 interface VolumeFileSystem {
-    List<Path> listDirectory(String path);
-    void move(String source, String destination);
-    void createDirectory(String path);
-    boolean exists(String path);
+    List<Path> listDirectory(Path path);
+    boolean exists(Path path);
+    boolean isDirectory(Path path);
     // etc.
 }
 ```
 
 Implementations:
-- `LocalFileSystem` — delegates to `java.nio.file.Files` (used for all mounts, since OS handles SMB)
-- `DryRunFileSystem` — logs operations, executes nothing (used in test/dry-run mode)
+- `SmbFileSystem` — delegates to smbj's `DiskShare` API
+- `DryRunFileSystem` — intended for file operation simulation (not yet wired)
+
+### VolumeConnection
+
+`VolumeConnection` wraps the lifecycle of an smbj session:
+- Holds the `SMBClient`, `Connection`, `Session`, and `DiskShare`
+- Exposes a `VolumeFileSystem` backed by the open share
+- `close()` tears down the full session stack
+
+`SmbjConnector` opens connections and reports progress phases (connecting → authenticating → opening share) via a `MountProgressListener` callback so the shell can display a spinner.
+
+### Credentials
+
+Credentials are currently stored in `organizer-config.yaml` under a `servers:` block. This is a known deviation from the intended design (Keychain storage). Plan: move to macOS Keychain via `security find-internet-password` at mount time.
 
 ---
 
@@ -63,137 +70,340 @@ Implementations:
 
 YAML files are used for structural configuration that humans write and rarely change. Mutable data discovered by the tool lives in the database.
 
+### Active config files (in `src/main/resources/`)
+
 | File | Purpose |
 |---|---|
-| `organizer-config.yaml` | Volume definitions: id, SMB path, local mount point, structure type, credentials key |
-| `operation-config.yaml` | Filename normalization rules, media extensions, tier thresholds |
-| `aliases.yaml` | Initial seed data for actress alias mappings (imported into DB on first run) |
-| `nas.yaml` | Initial seed data for known actress database (imported into DB on first run) |
+| `organizer-config.yaml` | Servers (host, username, password), volume definitions, structure definitions, sync command bindings |
+| `aliases.yaml` | Seed data for actress alias mappings — imported into DB on first run |
 
-Credentials are referenced by key in `organizer-config.yaml` but resolved from the macOS Keychain at runtime — never stored in YAML.
-
-### Volume Config Shape
+### Config Shape
 
 ```yaml
+servers:
+  - id: pandora
+    username: patri
+    password: "..."
+    domain: pandora
+
 volumes:
   - id: a
-    smbPath: //nas-server/ShareA
-    mountPoint: /Volumes/ShareA
+    smbPath: //pandora/jav_A
     structureType: conventional
-    credentialsKey: nas-main
+    server: pandora        # references a server entry by id
+
+structures:
+  - id: conventional
+    unstructuredPartitions:
+      - { id: queue, path: queue }
+      ...
+    structuredPartition:
+      path: stars
+      partitions:
+        - { id: library, path: library }
+        ...
+
+syncConfig:
+  - structureType: conventional
+    commands:
+      - term: sync-queue
+        operation: partition
+        partitions: [queue]
+      - term: sync-all
+        operation: full
 ```
+
+`AppConfig` is a process-level singleton initialized at startup. `AppConfig.initializeForTest(...)` is available for unit tests.
+
+### Legacy reference files (in `legacy/`)
+
+The original organizer2 project config files are in `legacy/` and are **not loaded by the application**. They exist only as reference when porting configuration values.
 
 ---
 
 ## Database
 
-SQLite database, single file, embedded in process. Single user — no transaction management needed.
+SQLite database, single file at `~/.organizer3/organizer.db`. Single user — no concurrent access concerns.
 
-### Schema
+### Schema (current: version 4)
 
 ```sql
-volumes         (id, mount_path, structure_type, last_synced_at)
-actresses       (id, canonical_name, tier, first_seen_at)
-actress_aliases (actress_id, alias_name)
-titles          (id, code, base_code, volume_id, partition, actress_id, path, last_seen_at)
-videos          (id, title_id, filename, path, last_seen_at)
-operations      (id, timestamp, type, source_path, dest_path, was_armed)
+volumes         (id TEXT PK, structure_type TEXT, last_synced_at TEXT)
+actresses       (id INTEGER PK AUTOINCREMENT, canonical_name TEXT UNIQUE,
+                 tier TEXT, first_seen_at TEXT, favorite INTEGER DEFAULT 0)
+actress_aliases (actress_id INTEGER → actresses.id, alias_name TEXT,
+                 PRIMARY KEY (actress_id, alias_name))
+titles          (id INTEGER PK AUTOINCREMENT, code TEXT, base_code TEXT,
+                 label TEXT, seq_num INTEGER,
+                 volume_id TEXT → volumes.id, partition_id TEXT,
+                 actress_id INTEGER → actresses.id (nullable),
+                 path TEXT, last_seen_at TEXT)
+videos          (id INTEGER PK AUTOINCREMENT, title_id INTEGER → titles.id,
+                 filename TEXT, path TEXT, last_seen_at TEXT)
+operations      (id INTEGER PK AUTOINCREMENT, timestamp TEXT, type TEXT,
+                 source_path TEXT, dest_path TEXT, was_armed INTEGER)
+labels          (code TEXT PK, label_name TEXT, company TEXT, description TEXT)
 ```
 
-`actress_id` on titles is nullable — titles in unstructured partitions may not have an associated actress.
+Indexes: `actress_aliases(alias_name)`, `titles(volume_id)`, `titles(actress_id)`, `titles(code)`, `titles(label)`, `videos(title_id)`
+
+`labels.code` joins to `titles.label` for label metadata lookups. Seeded automatically on startup from `src/main/resources/labels.csv` via `LabelSeeder.seedIfEmpty()`. Call `reimport()` to clear and re-seed when the CSV is updated.
+
+`actress_id` on titles is nullable — titles in unstructured partitions have no actress until organized into a starred partition.
+
+### Schema Migrations
+
+`SchemaInitializer` uses `PRAGMA user_version` as a version counter. Migrations are applied in order on startup, each incrementing the version. Current migrations:
+
+| Version | Change |
+|---------|--------|
+| 0 → 1 | Initial schema |
+| 1 → 2 | Drop `mount_path` from volumes (smbj replaced OS mounts) |
+| 2 → 3 | Add `label` and `seq_num` columns to titles |
+| 3 → 4 | Add `favorite` column to actresses |
+| 4 → 5 | Add `labels` reference table |
 
 ### Repository Pattern
 
-A repository layer sits between domain logic and SQLite. Domain code never calls JDBI directly.
+All DB access goes through repository interfaces. Domain code never calls JDBI directly.
 
-- `ActressRepository`
-- `TitleRepository`
-- `VideoRepository`
-- `VolumeRepository`
-- `OperationLogRepository`
+| Interface | Implementation |
+|---|---|
+| `ActressRepository` | `JdbiActressRepository` |
+| `TitleRepository` | `JdbiTitleRepository` |
+| `VideoRepository` | `JdbiVideoRepository` |
+| `VolumeRepository` | `JdbiVolumeRepository` |
+
+Repositories are tested with real in-memory SQLite DBs (not mocks). Each test gets a fresh schema via `SchemaInitializer`.
 
 ### Data Ownership
 
-- **YAML owns**: volume definitions, normalization rules, thresholds — structural config humans edit.
-- **DB owns**: actress records, alias mappings, title records, video records, operation history — data the tool discovers and manages.
-- `aliases.yaml` and `nas.yaml` are **seed files** only — imported into the DB on first run, then the DB is authoritative.
+- **YAML owns**: volume definitions, server config, structure definitions, sync command bindings
+- **DB owns**: actress records, alias mappings, title records, video records, operation history
+- `aliases.yaml` is a **seed file** only — imported into the DB on first run, then the DB is authoritative
+- `labels.csv` is a **seed file** — auto-imported on startup if the table is empty; call `LabelSeeder.reimport()` to re-seed after updates
+
+---
+
+## Volume Structure Types
+
+Four structure types are defined in config:
+
+| Type | Stars layout | Sync |
+|---|---|---|
+| `conventional` | Tiered sub-folders under `stars/` | `sync-all` (full), `sync-queue` (partition) |
+| `queue` | No stars | `sync` / `sync-all` (full) |
+| `stars-flat` | Actress folders directly under `stars/`, no tier sub-folders | `sync-all` (full) |
+| `collections` | No stars, all unstructured partitions | Not yet implemented |
+
+For `stars-flat`, all actresses are stored with tier `LIBRARY` in the DB regardless of title count, because there is no tier information encoded in the folder structure.
+
+### Partition ID vs Path
+
+`PartitionDef` has two fields:
+- `id` — logical name used in DB (e.g., `"queue"`)
+- `path` — actual folder name on disk (e.g., `"fresh"` for queue volumes)
+
+These diverge in the queue volume type (`id=queue`, `path=fresh`). They are the same in conventional volumes. Always use `id` when writing to the DB; resolve to `path` when accessing the filesystem.
+
+For titles inside the structured partition, `partition_id` in the DB is `"stars/<tier-id>"` (e.g., `"stars/popular"`).
 
 ---
 
 ## Data Layer Architecture
 
-The DB is a **persistent cache of the filesystem**. The in-memory index (built at mount time) is a **session-level cache of the DB**.
-
 ```
-Filesystem  <--sync-->  Database  <--mount-->  In-memory index  <--commands-->  Results
+SMB Filesystem  <--sync-->  SQLite DB  <--mount-->  VolumeIndex  <--commands-->  Results
 ```
 
-- `mount` loads from DB into memory. Assumes DB is current.
-- `sync` walks the filesystem, reconciles against DB, updates records.
-- All operational commands work against the in-memory index.
+- `sync` walks the SMB filesystem, reconciles against DB, updates records
+- `mount` loads from DB into the in-memory `VolumeIndex`. Assumes DB is current.
+- Commands that need per-volume data read from `VolumeIndex`; cross-volume queries (actresses, favorites) go directly to the DB repositories
+
+---
+
+## Sync Design
+
+### Sync Commands are Config-Driven
+
+`SyncCommand` instances are registered dynamically at startup from `syncConfig` in the YAML. One instance is registered per unique term. Terms shared across structure types produce a single command that validates against all applicable types.
+
+### Sync Scope and DB Clearing
+
+- **`FullSyncOperation`**: deletes all `videos` then all `titles` for the volume (FK order), then re-scans everything
+- **`PartitionSyncOperation`**: deletes only the named partition's videos (via join) and titles, then re-scans that partition
+
+Sync always reads the real filesystem regardless of dry-run mode — it is read-only from the filesystem's perspective. All writes go to the DB.
+
+### What Sync Produces
+
+For each title folder found:
+- A `Title` record: `code`, `baseCode`, `label`, `seqNum` parsed from the folder name; `volume_id`, `partition_id`, `actress_id` (null for unstructured), `path`, `last_seen_at = today`
+- `Video` records for each media file inside the title folder (checked directly and inside an optional `video/` subdirectory)
+
+For each actress folder found in the `stars/` tree:
+- Resolved via `ActressRepository.resolveByName()` (checks canonical name and aliases)
+- Creates a new `Actress` record if not found, using the folder name as canonical name and the tier from the sub-partition mapping
+
+After all scanning, `last_synced_at` is stamped on the volume record and the `VolumeIndex` is rebuilt from DB.
+
+### Title Code Parsing
+
+`TitleCodeParser` extracts a JAV code from a folder name using pattern `[A-Za-z][A-Za-z0-9]{0,9}-\d{2,6}`:
+- `code` = normalized label (uppercased) + `-` + original digits + any `_SUFFIX` immediately following (e.g., `_U`, `_4K`)
+- `baseCode` = `LABEL-NNNNN` (5-digit zero-padded number, no suffix) — used for cross-volume matching
+- `label` = the label portion only (e.g., `"ABP"`)
+- `seqNum` = parsed as integer if digits are present
+- Falls back to the raw folder name for `code`/`baseCode` if no pattern matches
+
+### Video File Discovery
+
+Within a title folder, video files are collected from:
+1. Directly inside the title folder
+2. Inside an optional `video/` subdirectory
+
+Recognized extensions: `mkv mp4 avi mov wmv mpg mpeg m4v m2ts ts rmvb divx asf wma wm`
 
 ---
 
 ## Mount Lifecycle
 
 `mount <id>`:
-1. Look up volume config by id
-2. Check if `mountPoint` is already an active OS mount (non-empty directory check is sufficient)
-3. If not mounted: retrieve credentials from Keychain, call `mount_smbfs` via `ProcessBuilder`
-4. Capture stderr — surface clear error messages for wrong credentials, server unreachable, etc.
-5. **Cold DB detection**: if no records exist for this volume, inform the user: *"No index found for volume 'a' — run sync to build it."*
-6. If DB has data: load into in-memory index, set as active volume context, update prompt
+1. Look up volume config and server config by id
+2. If already connected to this volume, acknowledge and return
+3. If a different volume is connected, close its connection first
+4. Open smbj connection with spinner feedback (three phases: connect, authenticate, share open)
+5. On failure: print error, return without updating session state
+6. Set connection and volume on `SessionContext`
+7. Load `VolumeIndex` from DB — if empty (cold volume), print a prompt to run sync
 
-OS mounts are never unmounted by the app — that is the OS's responsibility. `mount` is idempotent: calling it on an already-mounted volume simply reactivates it as the session context.
-
-Only one volume is active at a time, but multiple volumes may remain OS-mounted from previous `mount` calls.
-
----
-
-## Command Categories
-
-Commands fall into two categories based on whether they need an active mounted volume:
-
-**Require a mounted volume (filesystem access):**
-- `run <action>` — execute organization workflows
-- `sync` — refresh DB index from filesystem (current volume only)
-- `list` — display inventory of current volume
-
-**Work from DB alone (no mount needed):**
-- `volumes` — list all known volumes with last-sync timestamps
-- `actress <name>` — actress detail, queries across all volumes in DB
-- `actresses` — full actress listing from DB
-- Future cross-volume search commands
+`unmount`:
+- Closes the SMB connection
+- Clears `activeConnection`, `mountedVolume`, and `index` from `SessionContext`
 
 ---
 
-## Dry-Run / Armed Mode
+## Command Infrastructure
 
-The batch operation builder is a first-class part of the execution model — not a flag passed to file operations.
+### Command Interface
 
-Every action produces a list of `Operation` objects (move, rename, mkdir). Execution is a separate step:
-- In **test mode**: operations are logged and displayed, not executed. `VolumeFileSystem` is backed by `DryRunFileSystem`.
-- In **armed mode**: operations are executed via `LocalFileSystem` and written to the operations log in the DB.
+```java
+public interface Command {
+    String name();
+    String description();
+    void execute(String[] args, SessionContext ctx, CommandIO io);
+    default List<String> aliases() { return List.of(); }
+}
+```
+
+`args[0]` is always the command name. The shell splits on whitespace before dispatching.
+
+### CommandIO
+
+Two output paths:
+- **`println`** — scrolling message output (accumulates above the prompt)
+- **`status` / `startSpinner` / `startProgress`** — persistent status line at the bottom, overwritten in place
+
+Implementations:
+- `JLineCommandIO` — live terminal with animated spinner and progress via JLine3's `Status` facility
+- `PlainCommandIO` — writes to a `PrintWriter`; spinner/progress are no-ops. Used in tests and non-TTY contexts.
+
+### Session State
+
+`SessionContext` holds all mutable per-session state:
+- `mountedVolume` — currently active `VolumeConfig`
+- `activeConnection` — open `VolumeConnection`
+- `index` — in-memory `VolumeIndex` for the active volume
+- `dryRun` — defaults to `true`; controls whether file operations execute
+- `running` — `false` triggers shell exit
+
+`SessionContext` is never a singleton — always injected so tests can construct isolated instances.
 
 ---
 
 ## Interactive Shell (JLine3)
 
-JLine3 is used directly — not via Spring Shell — to enable a modern interactive experience:
+JLine3 is used directly — not via Spring Shell:
 
-- Fish-style autosuggestions (ghost text from history)
-- Syntax/keyword highlighting in the prompt
-- Tab completion with dynamic completers
-- Ctrl+R reverse history search
-- Custom key bindings
+- Fish-style autosuggestions and history search available via JLine3 but completers not yet wired
+- Ctrl+C (`UserInterruptException`) continues the read loop without exiting
+- Ctrl+D (`EndOfFileException`) exits gracefully
+- History saved to `.organizer_history` in the working directory
+- On a real TTY: `JLineCommandIO` with spinner/progress
+- On a dumb terminal or non-TTY: `PlainCommandIO`
 
-### Tab Completion
+---
 
-Completers are built from live data at startup:
-- Command names (static)
-- Volume IDs (from config)
-- Actress names (from DB)
-- Action names (per structure type of mounted volume)
+## Dry-Run / Armed Mode
+
+`SessionContext.isDryRun()` defaults to `true`. The prompt displays `[*DRYRUN*]` when active.
+
+`arm` and `test` toggle commands are not yet implemented — the mode is set only at startup. The `VolumeFileSystem` abstraction is designed to support a `DryRunFileSystem` implementation for no-op file operations, but it is not yet wired.
+
+---
+
+## Web Server
+
+An embedded Javalin web server runs alongside the interactive shell, providing read-only browsing and querying of the collection. All endpoints are strictly read-only — no mutations are exposed through the web layer.
+
+### Lifecycle
+
+- Started in `Application.java` before the shell loop begins
+- Stopped after the shell loop exits (i.e., on `shutdown` or Ctrl+D)
+- Default port: 8080
+
+### Architecture
+
+`WebServer` in `com.organizer3.web` owns the Javalin instance and route registration. Repositories are shared with the shell — same instances, same JDBI handle.
+
+### Package
+
+```
+com.organizer3.web/
+  WebServer.java        — Javalin lifecycle and route registration
+```
+
+---
+
+## Cover Image Collection
+
+Cover images are collected from mounted volumes and stored locally for use by the web server.
+
+### Storage
+
+```
+data/covers/
+  <LABEL>/
+    <baseCode>.<ext>
+```
+
+Example: `data/covers/ABP/ABP-00123.jpg`. The directory is gitignored. Path is deterministic from a title's `label` and `baseCode` — no database column needed. The `CoverPath` utility in `com.organizer3.covers` resolves paths and checks for existing covers.
+
+### Commands
+
+| Command | Requires Mount | Description |
+|---------|---------------|-------------|
+| `scan-covers` | Yes | Collect cover images from the mounted volume's stars partitions |
+| `prune-covers` | No | Remove orphaned covers whose baseCode matches no title in the DB |
+
+### Discovery
+
+For each title folder, `scan-covers` lists files and filters by image extension (`jpg`, `jpeg`, `png`, `webp`, `gif`, `bmp`, `tiff`). If exactly one image is found, it is used. Multiple images: first alphabetically is chosen (warning logged). No images: title is skipped (warning logged).
+
+### Deduplication
+
+Titles sharing the same `baseCode` (e.g., `ABP-123` and `ABP-123_4K`) map to the same cover file. The first collected wins; subsequent encounters skip because the file already exists.
+
+### File Transfer
+
+`VolumeFileSystem.openFile(Path)` returns an `InputStream` for reading files over SMB. The stream is copied to the local covers directory. Original file extension is preserved (no format conversion).
+
+### Package
+
+```
+com.organizer3.covers/
+  CoverPath.java          — Path resolution, existence checks, image extension utilities
+```
 
 ---
 
@@ -202,5 +412,5 @@ Completers are built from live data at startup:
 - SLF4J + Logback
 - Session-based log files
 - Log rotation (configurable max files, default 3)
-- All file operations logged regardless of test/armed mode
-- Console echo of important events
+- All file operations will be logged regardless of armed mode (when file ops are implemented)
+- Console echo of important events via `CommandIO`

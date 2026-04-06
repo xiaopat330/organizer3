@@ -1,0 +1,97 @@
+package com.organizer3.filesystem;
+
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.PrintWriter;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.time.LocalDate;
+import java.time.ZoneId;
+import java.util.List;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
+
+/**
+ * Dry-run filesystem implementation.
+ *
+ * <p>Read operations ({@link #listDirectory}, {@link #walk}, {@link #exists},
+ * {@link #isDirectory}) delegate to the real filesystem — the live directory tree must be
+ * visible so that callers can plan operations correctly.
+ *
+ * <p>Write operations ({@link #move}, {@link #rename}, {@link #createDirectories}) log their
+ * intended action to the provided {@link PrintWriter} and do nothing else. The filesystem
+ * is never modified.
+ *
+ * <p>Note: because write ops are no-ops, a sequence of dependent operations may produce
+ * output that does not reflect what would actually succeed (e.g., moving into a directory
+ * that a prior dry-run step would have created). This is a known limitation of simulation
+ * without state tracking — the output is still useful as a human-readable preview.
+ *
+ * <p>A new instance should be created per command invocation, using the command's
+ * {@link PrintWriter}. See {@link FileSystemProvider}.
+ */
+public class DryRunFileSystem implements VolumeFileSystem {
+
+    private final PrintWriter out;
+
+    public DryRunFileSystem(PrintWriter out) {
+        this.out = out;
+    }
+
+    // -------------------------------------------------------------------------
+    // Read operations — delegate to real filesystem
+    // -------------------------------------------------------------------------
+
+    @Override
+    public List<Path> listDirectory(Path path) throws IOException {
+        try (Stream<Path> stream = Files.list(path)) {
+            return stream.collect(Collectors.toList());
+        }
+    }
+
+    @Override
+    public List<Path> walk(Path root) throws IOException {
+        try (Stream<Path> stream = Files.walk(root)) {
+            return stream.collect(Collectors.toList());
+        }
+    }
+
+    @Override
+    public boolean exists(Path path) {
+        return Files.exists(path);
+    }
+
+    @Override
+    public boolean isDirectory(Path path) {
+        return Files.isDirectory(path);
+    }
+
+    @Override
+    public LocalDate getLastModifiedDate(Path path) throws IOException {
+        return Files.getLastModifiedTime(path).toInstant().atZone(ZoneId.systemDefault()).toLocalDate();
+    }
+
+    @Override
+    public InputStream openFile(Path path) throws IOException {
+        return Files.newInputStream(path);
+    }
+
+    // -------------------------------------------------------------------------
+    // Write operations — log only
+    // -------------------------------------------------------------------------
+
+    @Override
+    public void move(Path source, Path destination) {
+        out.printf("[DRY RUN] move:  %s%n         ->  %s%n", source, destination);
+    }
+
+    @Override
+    public void rename(Path path, String newName) {
+        out.printf("[DRY RUN] rename: %s -> %s%n", path.getFileName(), newName);
+    }
+
+    @Override
+    public void createDirectories(Path path) {
+        out.printf("[DRY RUN] mkdir: %s%n", path);
+    }
+}

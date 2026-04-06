@@ -1,0 +1,143 @@
+servers:
+  - id: pandora
+    username: patri
+    password: "!&Xiaobeibei328&!"
+    domain: pandora
+
+  - id: qnap2
+    username: pyoung
+    password: xiaobeibei328
+
+volumes:
+  - id: a
+    smbPath: //pandora/jav_A
+    structureType: conventional
+    server: pandora
+
+  - id: bg
+    smbPath: //pandora/jav_BG
+    structureType: conventional
+    server: pandora
+
+  - id: hj
+    smbPath: //pandora/jav_HJ
+    structureType: conventional
+    server: pandora
+
+  - id: k
+    smbPath: //pandora/jav_K
+    structureType: conventional
+    server: pandora
+
+  - id: m
+    smbPath: //pandora/jav_M
+    structureType: conventional
+    server: pandora
+
+  - id: ma
+    smbPath: //pandora/jav_MA
+    structureType: conventional
+    server: pandora
+
+  - id: n
+    smbPath: //pandora/jav_N
+    structureType: conventional
+    server: pandora
+
+  - id: r
+    smbPath: //pandora/jav_OR
+    structureType: conventional
+    server: pandora
+
+  - id: s
+    smbPath: //pandora/jav_S
+    structureType: conventional
+    server: pandora
+
+  - id: tz
+    smbPath: //pandora/jav_TZ
+    structureType: conventional
+    server: pandora
+
+  - id: unsorted
+    smbPath: //pandora/jav_unsorted
+    structureType: queue
+    server: pandora
+
+  - id: qnap
+    smbPath: //qnap2/jav
+    structureType: stars-flat
+    server: qnap2
+
+  - id: classic
+    smbPath: //qnap2/JAV/classic
+    structureType: queue
+    server: qnap2
+
+  - id: collections
+    smbPath: //pandora/jav_collections
+    structureType: collections
+    server: pandora
+
+structures:
+  - id: conventional
+    unstructuredPartitions:
+      - { id: archive,    path: archive    }
+      - { id: attention,  path: attention  }
+      - { id: converted,  path: converted  }
+      - { id: duplicates, path: duplicates }
+      - { id: favorites,  path: favorites  }
+      - { id: queue,      path: queue      }
+      - { id: recent,     path: recent     }
+      - { id: minor,      path: minor      }
+    structuredPartition:
+      path: stars
+      partitions:
+        - { id: library,    path: library    }
+        - { id: minor,      path: minor      }
+        - { id: popular,    path: popular    }
+        - { id: superstar,  path: superstar  }
+        - { id: goddess,    path: goddess    }
+        - { id: favorites,  path: favorites  }
+        - { id: archive,    path: archive    }
+
+  - id: queue
+    unstructuredPartitions:
+      - { id: queue, path: fresh }
+
+  - id: stars-flat
+    unstructuredPartitions: []
+    structuredPartition:
+      path: stars
+      partitions: []
+
+  - id: collections
+    unstructuredPartitions:
+      - { id: archive,   path: archive   }
+      - { id: converted, path: converted }
+      - { id: duos,      path: duos      }
+      - { id: favorites, path: favorites }
+      - { id: new,       path: new       }
+      - { id: omnibus,   path: omnibus   }
+      - { id: recent,    path: recent    }
+
+syncConfig:
+  - structureType: conventional
+    commands:
+      - term: sync-queue
+        operation: partition
+        partitions: [queue]
+      - term: sync-all
+        operation: full
+
+  - structureType: stars-flat
+    commands:
+      - term: sync-all
+        operation: full
+
+  - structureType: queue
+    commands:
+      - term: sync
+        operation: full
+      - term: sync-all
+        operation: full

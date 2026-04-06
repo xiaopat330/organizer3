@@ -16,3 +16,11 @@ logs/
 
 # OS
 .DS_Store
+
+.claude
+CLAUDE.md
+
+.organizer_history
+
+# Runtime data
+data/

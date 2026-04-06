@@ -35,6 +35,24 @@ dependencies {
     implementation "org.jdbi:jdbi3-core:${jdbiVersion}"
     implementation "org.jdbi:jdbi3-sqlobject:${jdbiVersion}"
 
+    // SMB client
+    implementation "com.hierynomus:smbj:${smbjVersion}"
+
+    // Embedded web server
+    implementation "io.javalin:javalin:${javalinVersion}"
+
+    // Utilities
+    implementation "org.apache.commons:commons-lang3:${commonsLang3Version}"
+    implementation "commons-io:commons-io:${commonsIoVersion}"
+    implementation "com.google.guava:guava:${guavaVersion}"
+    implementation "org.apache.logging.log4j:log4j-api:${log4jVersion}"
+
+    // Lombok
+    compileOnly "org.projectlombok:lombok:${lombokVersion}"
+    annotationProcessor "org.projectlombok:lombok:${lombokVersion}"
+    testCompileOnly "org.projectlombok:lombok:${lombokVersion}"
+    testAnnotationProcessor "org.projectlombok:lombok:${lombokVersion}"
+
     // Logging
     implementation "org.slf4j:slf4j-api:${slf4jVersion}"
     implementation "ch.qos.logback:logback-classic:${logbackVersion}"
@@ -47,9 +65,23 @@ dependencies {
 }
 
 application {
-    mainClass = 'com.pyoung.organizer3.Application'
+    mainClass = 'com.organizer3.Application'
 }
 
 test {
     useJUnitPlatform()
+}
+
+tasks.register('dropDb') {
+    group = 'organizer'
+    description = 'Delete the local organizer3 SQLite database (~/.organizer3/organizer.db)'
+    doLast {
+        def db = file("${System.getProperty('user.home')}/.organizer3/organizer.db")
+        if (db.exists()) {
+            db.delete()
+            println "Deleted ${db}"
+        } else {
+            println "Database not found: ${db}"
+        }
+    }
 }

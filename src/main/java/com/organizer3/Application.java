@@ -1,0 +1,148 @@
+package com.organizer3;
+
+import com.organizer3.command.ActressSearchCommand;
+import com.organizer3.command.ActressesCommand;
+
+import com.organizer3.command.Command;
+import com.organizer3.command.FavoritesCommand;
+import com.organizer3.command.HelloCommand;
+import com.organizer3.command.HelpCommand;
+import com.organizer3.command.MountCommand;
+import com.organizer3.command.PruneCoversCommand;
+import com.organizer3.command.ScanCoversCommand;
+import com.organizer3.command.ShutdownCommand;
+import com.organizer3.command.SyncCommand;
+import com.organizer3.command.UnmountCommand;
+import com.organizer3.command.VolumesCommand;
+import com.organizer3.covers.CoverPath;
+import com.organizer3.config.AppConfig;
+import com.organizer3.config.sync.StructureSyncConfig;
+import com.organizer3.config.sync.SyncCommandDef;
+import com.organizer3.config.volume.OrganizerConfig;
+import com.organizer3.config.volume.OrganizerConfigLoader;
+import com.organizer3.db.LabelSeeder;
+import com.organizer3.db.SchemaInitializer;
+import com.organizer3.repository.ActressRepository;
+import com.organizer3.repository.LabelRepository;
+import com.organizer3.repository.TitleRepository;
+import com.organizer3.repository.VideoRepository;
+import com.organizer3.repository.VolumeRepository;
+import com.organizer3.repository.jdbi.JdbiActressRepository;
+import com.organizer3.repository.jdbi.JdbiLabelRepository;
+import com.organizer3.repository.jdbi.JdbiTitleRepository;
+import com.organizer3.repository.jdbi.JdbiVideoRepository;
+import com.organizer3.repository.jdbi.JdbiVolumeRepository;
+import com.organizer3.shell.OrganizerShell;
+import com.organizer3.shell.SessionContext;
+import com.organizer3.smb.SmbjConnector;
+import com.organizer3.sync.FullSyncOperation;
+import com.organizer3.sync.IndexLoader;
+import com.organizer3.sync.PartitionSyncOperation;
+import com.organizer3.sync.SyncOperation;
+import com.organizer3.web.TitleBrowseService;
+import com.organizer3.web.WebServer;
+import org.jdbi.v3.core.Jdbi;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+
+/**
+ * Entry point. Wires all dependencies manually (no IoC container).
+ *
+ * This class is the composition root — the only place that knows about
+ * all the concrete types. Everything else works against interfaces,
+ * making each piece independently testable.
+ */
+public class Application {
+    private static final Logger log = LoggerFactory.getLogger(Application.class);
+
+    public static void main(String[] args) throws IOException {
+        log.info("Starting Organizer3");
+
+        // Config
+        AppConfig.initialize(new OrganizerConfigLoader().load());
+        OrganizerConfig config = AppConfig.get().volumes();
+
+        // Database
+        Path dbDir = Path.of(System.getProperty("user.home"), ".organizer3");
+        Files.createDirectories(dbDir);
+        Jdbi jdbi = Jdbi.create("jdbc:sqlite:" + dbDir.resolve("organizer.db"));
+        new SchemaInitializer(jdbi).initialize();
+        new LabelSeeder(jdbi).seedIfEmpty();
+
+        // Repositories
+        TitleRepository   titleRepo   = new JdbiTitleRepository(jdbi);
+        VideoRepository   videoRepo   = new JdbiVideoRepository(jdbi);
+        ActressRepository actressRepo = new JdbiActressRepository(jdbi);
+        VolumeRepository  volumeRepo  = new JdbiVolumeRepository(jdbi);
+        LabelRepository   labelRepo   = new JdbiLabelRepository(jdbi);
+        IndexLoader indexLoader = new IndexLoader(titleRepo, actressRepo);
+
+        // Session
+        SessionContext session = new SessionContext();
+
+        // Commands
+        List<Command> commands = new ArrayList<>();
+        commands.add(new HelloCommand());
+        commands.add(new ShutdownCommand());
+        commands.add(new MountCommand(new SmbjConnector(), indexLoader));
+        commands.add(new UnmountCommand());
+        commands.add(new VolumesCommand(volumeRepo));
+        commands.add(new ActressesCommand(actressRepo, titleRepo));
+        commands.add(new ActressSearchCommand(actressRepo, titleRepo, labelRepo));
+        commands.add(new FavoritesCommand(actressRepo, titleRepo));
+
+        // Cover image commands
+        Path projectRoot = Path.of(System.getProperty("user.dir"));
+        CoverPath coverPath = new CoverPath(projectRoot);
+        commands.add(new ScanCoversCommand(titleRepo, volumeRepo, coverPath));
+        commands.add(new PruneCoversCommand(titleRepo, coverPath));
+
+        // Sync commands — registered dynamically from syncConfig.
+        // Group by term so that a term shared across structure types (e.g. sync-all)
+        // produces a single command that accepts all of those types.
+        Map<String, SyncCommandDef> defByTerm = new HashMap<>();
+        Map<String, Set<String>> structureTypesByTerm = new HashMap<>();
+        for (StructureSyncConfig structureSyncConfig : config.syncConfig()) {
+            String structureType = structureSyncConfig.structureType();
+            for (SyncCommandDef def : structureSyncConfig.commands()) {
+                defByTerm.putIfAbsent(def.term(), def);
+                structureTypesByTerm.computeIfAbsent(def.term(), k -> new HashSet<>()).add(structureType);
+            }
+        }
+        for (Map.Entry<String, SyncCommandDef> entry : defByTerm.entrySet()) {
+            String term = entry.getKey();
+            SyncCommandDef def = entry.getValue();
+            SyncOperation op = switch (def.operation()) {
+                case FULL ->
+                    new FullSyncOperation(titleRepo, videoRepo, actressRepo, volumeRepo, indexLoader);
+                case PARTITION ->
+                    new PartitionSyncOperation(def.partitions(), titleRepo, videoRepo,
+                            actressRepo, volumeRepo, indexLoader);
+            };
+            commands.add(new SyncCommand(term, structureTypesByTerm.get(term), op));
+        }
+
+        commands.add(new HelpCommand(commands));
+
+        // Web server (read-only browsing)
+        TitleBrowseService browseService = new TitleBrowseService(titleRepo, actressRepo, coverPath);
+        WebServer webServer = new WebServer(browseService, coverPath.root());
+        webServer.start();
+
+        OrganizerShell shell = new OrganizerShell(session, commands);
+        shell.run();
+
+        webServer.stop();
+        log.info("Organizer3 exiting");
+    }
+}
