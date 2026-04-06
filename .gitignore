@@ -21,3 +21,6 @@ logs/
 CLAUDE.md
 
 .organizer_history
+
+# Runtime data
+data/

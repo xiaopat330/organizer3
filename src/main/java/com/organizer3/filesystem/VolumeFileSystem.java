@@ -1,6 +1,7 @@
 package com.organizer3.filesystem;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.nio.file.Path;
 import java.time.LocalDate;
 import java.util.List;
@@ -44,6 +45,12 @@ public interface VolumeFileSystem {
      * date cannot be determined.
      */
     LocalDate getLastModifiedDate(Path path) throws IOException;
+
+    /**
+     * Opens the file at {@code path} for reading and returns an {@link InputStream}.
+     * The caller is responsible for closing the stream.
+     */
+    InputStream openFile(Path path) throws IOException;
 
     // -------------------------------------------------------------------------
     // Write operations

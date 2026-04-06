@@ -200,6 +200,17 @@ public class JdbiTitleRepository implements TitleRepository {
     }
 
     @Override
+    public List<Title> findRecent(int limit, int offset) {
+        return jdbi.withHandle(h ->
+                h.createQuery("SELECT * FROM titles WHERE actress_id IS NOT NULL ORDER BY added_date DESC, id DESC LIMIT :limit OFFSET :offset")
+                        .bind("limit", limit)
+                        .bind("offset", offset)
+                        .map(MAPPER)
+                        .list()
+        );
+    }
+
+    @Override
     public void deleteByVolumeAndPartition(String volumeId, String partitionId) {
         jdbi.useHandle(h ->
                 h.createUpdate("""

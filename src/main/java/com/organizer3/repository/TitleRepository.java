@@ -55,4 +55,7 @@ public interface TitleRepository {
 
     /** Remove title records for a specific volume+partition (used before a partition-scoped re-sync). */
     void deleteByVolumeAndPartition(String volumeId, String partitionId);
+
+    /** Find titles ordered by added_date DESC, id DESC — for the browse home page. */
+    List<Title> findRecent(int limit, int offset);
 }

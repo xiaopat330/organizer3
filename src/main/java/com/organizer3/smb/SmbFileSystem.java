@@ -12,6 +12,7 @@ import com.hierynomus.smbj.share.File;
 import com.organizer3.filesystem.VolumeFileSystem;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.nio.file.Path;
 import java.time.LocalDate;
 import java.time.ZoneId;
@@ -104,6 +105,23 @@ class SmbFileSystem implements VolumeFileSystem {
             return date.toInstant().atZone(ZoneId.systemDefault()).toLocalDate();
         } catch (Exception e) {
             throw new IOException("Failed to get last modified date: " + path, e);
+        }
+    }
+
+    @Override
+    public InputStream openFile(Path path) throws IOException {
+        String smbPath = toSmbPath(path);
+        try {
+            File f = share.openFile(
+                    smbPath,
+                    EnumSet.of(AccessMask.GENERIC_READ),
+                    EnumSet.of(FileAttributes.FILE_ATTRIBUTE_NORMAL),
+                    EnumSet.of(SMB2ShareAccess.FILE_SHARE_READ),
+                    SMB2CreateDisposition.FILE_OPEN,
+                    EnumSet.noneOf(SMB2CreateOptions.class));
+            return f.getInputStream();
+        } catch (Exception e) {
+            throw new IOException("Failed to open file: " + path, e);
         }
     }
 

@@ -14,6 +14,7 @@
 | SMB connectivity | smbj (SMB2/3 Java library) |
 | Domain models | Lombok (`@Value @Builder`) on `Actress`; Java records elsewhere |
 | Test mocking | Mockito |
+| Embedded web server | Javalin 6 (read-only browsing/querying) |
 
 No Spring. Dependencies are wired manually in `Application.java` (the composition root).
 
@@ -338,6 +339,71 @@ JLine3 is used directly — not via Spring Shell:
 `SessionContext.isDryRun()` defaults to `true`. The prompt displays `[*DRYRUN*]` when active.
 
 `arm` and `test` toggle commands are not yet implemented — the mode is set only at startup. The `VolumeFileSystem` abstraction is designed to support a `DryRunFileSystem` implementation for no-op file operations, but it is not yet wired.
+
+---
+
+## Web Server
+
+An embedded Javalin web server runs alongside the interactive shell, providing read-only browsing and querying of the collection. All endpoints are strictly read-only — no mutations are exposed through the web layer.
+
+### Lifecycle
+
+- Started in `Application.java` before the shell loop begins
+- Stopped after the shell loop exits (i.e., on `shutdown` or Ctrl+D)
+- Default port: 8080
+
+### Architecture
+
+`WebServer` in `com.organizer3.web` owns the Javalin instance and route registration. Repositories are shared with the shell — same instances, same JDBI handle.
+
+### Package
+
+```
+com.organizer3.web/
+  WebServer.java        — Javalin lifecycle and route registration
+```
+
+---
+
+## Cover Image Collection
+
+Cover images are collected from mounted volumes and stored locally for use by the web server.
+
+### Storage
+
+```
+data/covers/
+  <LABEL>/
+    <baseCode>.<ext>
+```
+
+Example: `data/covers/ABP/ABP-00123.jpg`. The directory is gitignored. Path is deterministic from a title's `label` and `baseCode` — no database column needed. The `CoverPath` utility in `com.organizer3.covers` resolves paths and checks for existing covers.
+
+### Commands
+
+| Command | Requires Mount | Description |
+|---------|---------------|-------------|
+| `scan-covers` | Yes | Collect cover images from the mounted volume's stars partitions |
+| `prune-covers` | No | Remove orphaned covers whose baseCode matches no title in the DB |
+
+### Discovery
+
+For each title folder, `scan-covers` lists files and filters by image extension (`jpg`, `jpeg`, `png`, `webp`, `gif`, `bmp`, `tiff`). If exactly one image is found, it is used. Multiple images: first alphabetically is chosen (warning logged). No images: title is skipped (warning logged).
+
+### Deduplication
+
+Titles sharing the same `baseCode` (e.g., `ABP-123` and `ABP-123_4K`) map to the same cover file. The first collected wins; subsequent encounters skip because the file already exists.
+
+### File Transfer
+
+`VolumeFileSystem.openFile(Path)` returns an `InputStream` for reading files over SMB. The stream is copied to the local covers directory. Original file extension is preserved (no format conversion).
+
+### Package
+
+```
+com.organizer3.covers/
+  CoverPath.java          — Path resolution, existence checks, image extension utilities
+```
 
 ---
 

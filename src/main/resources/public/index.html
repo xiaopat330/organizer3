@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>organizer3</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: #0d0d0d;
+      color: #d8d8d8;
+      font-family: system-ui, -apple-system, sans-serif;
+      min-height: 100vh;
+    }
+
+    header {
+      padding: 14px 20px;
+      border-bottom: 1px solid #1e1e1e;
+      position: sticky;
+      top: 0;
+      background: #0d0d0d;
+      z-index: 10;
+    }
+
+    header h1 {
+      font-size: 0.95rem;
+      font-weight: 500;
+      color: #555;
+      letter-spacing: 0.08em;
+      text-transform: lowercase;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 12px;
+      padding: 16px;
+    }
+
+    .card {
+      background: #161616;
+      border-radius: 6px;
+      overflow: hidden;
+      transition: transform 0.15s ease, background 0.15s ease;
+      cursor: default;
+    }
+
+    .card:hover {
+      background: #1e1e1e;
+      transform: translateY(-2px);
+    }
+
+    .cover-wrap {
+      width: 100%;
+      aspect-ratio: 17 / 12;
+      overflow: hidden;
+      background: #1c1c1c;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .cover-img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+
+    .cover-placeholder {
+      width: 100%;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #333;
+      font-size: 0.75rem;
+      letter-spacing: 0.05em;
+      font-weight: 500;
+    }
+
+    .card-info {
+      padding: 8px 10px 10px;
+    }
+
+    .actress-name {
+      font-size: 0.78rem;
+      color: #888;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      margin-bottom: 2px;
+    }
+
+    .actress-name.unknown {
+      color: #3a3a3a;
+    }
+
+    .title-code {
+      font-size: 0.88rem;
+      font-weight: 600;
+      color: #c8c8c8;
+      letter-spacing: 0.02em;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .added-date {
+      font-size: 0.7rem;
+      color: #444;
+      margin-top: 3px;
+    }
+
+    #status {
+      text-align: center;
+      padding: 28px;
+      color: #3a3a3a;
+      font-size: 0.8rem;
+      letter-spacing: 0.05em;
+    }
+
+    #sentinel { height: 1px; }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>organizer3</h1>
+</header>
+
+<div class="grid" id="grid"></div>
+<div id="status">loading</div>
+<div id="sentinel"></div>
+
+<script>
+  const MAX_TOTAL = 72;
+  const PAGE_SIZE = 24;
+  let offset = 0;
+  let loading = false;
+  let exhausted = false;
+
+  function esc(s) {
+    return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  }
+
+  function makeCard(t) {
+    const card = document.createElement('div');
+    card.className = 'card';
+
+    const coverHtml = t.coverUrl
+      ? `<div class="cover-wrap"><img class="cover-img" src="${esc(t.coverUrl)}" alt="${esc(t.code)}" loading="lazy"></div>`
+      : `<div class="cover-wrap"><div class="cover-placeholder">${esc(t.code)}</div></div>`;
+
+    const actressHtml = t.actressName
+      ? `<div class="actress-name">${esc(t.actressName)}</div>`
+      : `<div class="actress-name unknown">—</div>`;
+
+    const dateHtml = t.addedDate
+      ? `<div class="added-date">${esc(t.addedDate)}</div>`
+      : '';
+
+    card.innerHTML = `
+      ${coverHtml}
+      <div class="card-info">
+        ${actressHtml}
+        <div class="title-code">${esc(t.code)}</div>
+        ${dateHtml}
+      </div>
+    `;
+    return card;
+  }
+
+  async function loadMore() {
+    if (loading || exhausted) return;
+    loading = true;
+    setStatus('loading');
+
+    const limit = Math.min(PAGE_SIZE, MAX_TOTAL - offset);
+    if (limit <= 0) {
+      exhausted = true;
+      setStatus('');
+      loading = false;
+      return;
+    }
+
+    try {
+      const res = await fetch(`/api/titles?offset=${offset}&limit=${limit}`);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const titles = await res.json();
+
+      const grid = document.getElementById('grid');
+      for (const t of titles) {
+        grid.appendChild(makeCard(t));
+      }
+
+      offset += titles.length;
+
+      if (titles.length < limit || offset >= MAX_TOTAL) {
+        exhausted = true;
+        document.getElementById('sentinel').remove();
+        setStatus(offset === 0 ? 'no titles' : '');
+      } else {
+        setStatus('');
+      }
+    } catch (err) {
+      setStatus('error loading titles');
+      console.error(err);
+    }
+
+    loading = false;
+  }
+
+  function setStatus(msg) {
+    const el = document.getElementById('status');
+    if (el) el.textContent = msg;
+  }
+
+  const sentinel = document.getElementById('sentinel');
+  const observer = new IntersectionObserver(entries => {
+    if (entries[0].isIntersecting) loadMore();
+  }, { rootMargin: '300px' });
+  observer.observe(sentinel);
+
+  loadMore();
+</script>
+</body>
+</html>

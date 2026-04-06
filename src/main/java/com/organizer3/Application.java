@@ -8,10 +8,13 @@ import com.organizer3.command.FavoritesCommand;
 import com.organizer3.command.HelloCommand;
 import com.organizer3.command.HelpCommand;
 import com.organizer3.command.MountCommand;
+import com.organizer3.command.PruneCoversCommand;
+import com.organizer3.command.ScanCoversCommand;
 import com.organizer3.command.ShutdownCommand;
 import com.organizer3.command.SyncCommand;
 import com.organizer3.command.UnmountCommand;
 import com.organizer3.command.VolumesCommand;
+import com.organizer3.covers.CoverPath;
 import com.organizer3.config.AppConfig;
 import com.organizer3.config.sync.StructureSyncConfig;
 import com.organizer3.config.sync.SyncCommandDef;
@@ -36,6 +39,8 @@ import com.organizer3.sync.FullSyncOperation;
 import com.organizer3.sync.IndexLoader;
 import com.organizer3.sync.PartitionSyncOperation;
 import com.organizer3.sync.SyncOperation;
+import com.organizer3.web.TitleBrowseService;
+import com.organizer3.web.WebServer;
 import org.jdbi.v3.core.Jdbi;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -96,6 +101,12 @@ public class Application {
         commands.add(new ActressSearchCommand(actressRepo, titleRepo, labelRepo));
         commands.add(new FavoritesCommand(actressRepo, titleRepo));
 
+        // Cover image commands
+        Path projectRoot = Path.of(System.getProperty("user.dir"));
+        CoverPath coverPath = new CoverPath(projectRoot);
+        commands.add(new ScanCoversCommand(titleRepo, volumeRepo, coverPath));
+        commands.add(new PruneCoversCommand(titleRepo, coverPath));
+
         // Sync commands — registered dynamically from syncConfig.
         // Group by term so that a term shared across structure types (e.g. sync-all)
         // produces a single command that accepts all of those types.
@@ -123,9 +134,15 @@ public class Application {
 
         commands.add(new HelpCommand(commands));
 
+        // Web server (read-only browsing)
+        TitleBrowseService browseService = new TitleBrowseService(titleRepo, actressRepo, coverPath);
+        WebServer webServer = new WebServer(browseService, coverPath.root());
+        webServer.start();
+
         OrganizerShell shell = new OrganizerShell(session, commands);
         shell.run();
 
+        webServer.stop();
         log.info("Organizer3 exiting");
     }
 }

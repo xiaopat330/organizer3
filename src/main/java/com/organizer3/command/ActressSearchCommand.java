@@ -145,9 +145,12 @@ public class ActressSearchCommand implements Command {
         io.printlnAnsi("  Actress: " + YELLOW + actress.getCanonicalName() + RESET + favMark);
         io.printlnAnsi("  Tier:    " + CYAN + tier + RESET + "  (" + titleCount(totalTitles) + ")");
 
-        String start = firstAdded.map(d -> d.format(DATE_FORMAT)).orElse("?");
-        String end   = lastAdded.map(d -> d.format(DATE_FORMAT)).orElse("?");
-        io.println("  Active:  " + start + " → " + end);
+        String startFormatted = firstAdded.map(d -> GREEN + d.format(DATE_FORMAT) + RESET).orElse("?");
+        String endFormatted   = lastAdded.map(d -> {
+            String color = d.isBefore(java.time.LocalDate.now().minusYears(1)) ? "\033[91m" : YELLOW;
+            return color + d.format(DATE_FORMAT) + RESET;
+        }).orElse("?");
+        io.printlnAnsi("  Active:  " + startFormatted + " → " + endFormatted);
 
         // ── Primary titles ───────────────────────────────────────────────────
         io.println();
@@ -185,11 +188,13 @@ public class ActressSearchCommand implements Command {
 
         List<TitleTable.Column> columns = List.of(
                 TitleTable.Column.colored("Product Code", Title::code, GREEN),
-                TitleTable.Column.plain("Added", t -> t.addedDate() != null ? t.addedDate().format(DATE_FORMAT) : ""),
-                TitleTable.Column.plain("Label", t -> {
+                TitleTable.Column.plain("Label", t -> t.label() != null ? t.label() : ""),
+                TitleTable.Column.plain("Seq", t -> t.seqNum() != null ? formatSeq(t.seqNum()) : ""),
+                TitleTable.Column.plain("Studio", t -> {
                     String name = labelNameFor(t, labelMap);
                     return name != null ? name : "";
                 }),
+                TitleTable.Column.plain("Added", t -> t.addedDate() != null ? t.addedDate().format(DATE_FORMAT) : ""),
                 TitleTable.Column.plain("Location", t -> t.path() != null ? t.path().toString() : "")
         );
 
@@ -229,6 +234,10 @@ public class ActressSearchCommand implements Command {
         Label label = labelMap.get(title.label().toUpperCase());
         return (label != null && label.labelName() != null && !label.labelName().isBlank())
                 ? label.labelName() : null;
+    }
+
+    private static String formatSeq(int seq) {
+        return (seq >= 0 && seq <= 999) ? String.format("%03d", seq) : String.valueOf(seq);
     }
 
     private static String titleCount(int n) {

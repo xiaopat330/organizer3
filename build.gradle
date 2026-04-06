@@ -38,6 +38,9 @@ dependencies {
     // SMB client
     implementation "com.hierynomus:smbj:${smbjVersion}"
 
+    // Embedded web server
+    implementation "io.javalin:javalin:${javalinVersion}"
+
     // Utilities
     implementation "org.apache.commons:commons-lang3:${commonsLang3Version}"
     implementation "commons-io:commons-io:${commonsIoVersion}"

@@ -15,6 +15,7 @@ import java.util.function.Function;
 public class TitleTable {
 
     private static final String RESET = "\033[0m";
+    private static final String CYAN  = "\033[96m";
 
     public record Column(String header, Function<Title, String> raw, Function<Title, String> display) {
 
@@ -50,10 +51,10 @@ public class TitleTable {
         StringBuilder sep    = new StringBuilder(indent);
         for (int i = 0; i < columns.size(); i++) {
             if (i > 0) { header.append(" | "); sep.append("─┼─"); }
-            header.append(padRight(columns.get(i).header(), widths[i]));
+            header.append(CYAN).append(padRight(columns.get(i).header(), widths[i])).append(RESET);
             sep.append("─".repeat(widths[i]));
         }
-        io.println(header.toString().stripTrailing());
+        io.printlnAnsi(header.toString().stripTrailing());
         io.println(sep.toString());
 
         for (Title t : titles) {

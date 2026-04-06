@@ -1,6 +1,7 @@
 package com.organizer3.filesystem;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.PrintWriter;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -68,6 +69,11 @@ public class DryRunFileSystem implements VolumeFileSystem {
     @Override
     public LocalDate getLastModifiedDate(Path path) throws IOException {
         return Files.getLastModifiedTime(path).toInstant().atZone(ZoneId.systemDefault()).toLocalDate();
+    }
+
+    @Override
+    public InputStream openFile(Path path) throws IOException {
+        return Files.newInputStream(path);
     }
 
     // -------------------------------------------------------------------------

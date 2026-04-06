@@ -160,6 +160,68 @@ class JdbiTitleRepositoryTest {
         assertTrue(titleRepo.findByAliasesOnly(aya.getId()).isEmpty());
     }
 
+    // --- findRecent ---
+
+    @Test
+    void findRecentReturnsTitlesNewestFirst() {
+        Actress aya = actressRepo.save(actress("Aya Sazanami"));
+        titleRepo.save(titleWithDate("ABP-001", aya.getId(), LocalDate.of(2024, 1, 1)));
+        titleRepo.save(titleWithDate("ABP-002", aya.getId(), LocalDate.of(2024, 3, 1)));
+        titleRepo.save(titleWithDate("ABP-003", aya.getId(), LocalDate.of(2024, 2, 1)));
+
+        List<Title> results = titleRepo.findRecent(10, 0);
+        assertEquals(3, results.size());
+        assertEquals("ABP-002", results.get(0).code()); // newest first
+        assertEquals("ABP-003", results.get(1).code());
+        assertEquals("ABP-001", results.get(2).code());
+    }
+
+    @Test
+    void findRecentRespectsLimitAndOffset() {
+        Actress aya = actressRepo.save(actress("Aya Sazanami"));
+        titleRepo.save(titleWithDate("ABP-001", aya.getId(), LocalDate.of(2024, 1, 1)));
+        titleRepo.save(titleWithDate("ABP-002", aya.getId(), LocalDate.of(2024, 2, 1)));
+        titleRepo.save(titleWithDate("ABP-003", aya.getId(), LocalDate.of(2024, 3, 1)));
+
+        List<Title> page1 = titleRepo.findRecent(2, 0);
+        List<Title> page2 = titleRepo.findRecent(2, 2);
+
+        assertEquals(2, page1.size());
+        assertEquals("ABP-003", page1.get(0).code());
+        assertEquals("ABP-002", page1.get(1).code());
+
+        assertEquals(1, page2.size());
+        assertEquals("ABP-001", page2.get(0).code());
+    }
+
+    @Test
+    void findRecentPlacesNullDatesLast() {
+        Actress aya = actressRepo.save(actress("Aya Sazanami"));
+        titleRepo.save(titleWithDate("ABP-DATED", aya.getId(), LocalDate.of(2024, 1, 1)));
+        titleRepo.save(title("ABP-NODATE", aya.getId())); // no added_date
+
+        List<Title> results = titleRepo.findRecent(10, 0);
+        assertEquals(2, results.size());
+        assertEquals("ABP-DATED", results.get(0).code()); // dated titles sort before null
+        assertEquals("ABP-NODATE", results.get(1).code());
+    }
+
+    @Test
+    void findRecentExcludesUnorganizedTitles() {
+        Actress aya = actressRepo.save(actress("Aya Sazanami"));
+        titleRepo.save(titleWithDate("ABP-ORGANIZED", aya.getId(), LocalDate.of(2024, 1, 1)));
+        titleRepo.save(titleWithDate("ABP-QUEUE", null, LocalDate.of(2025, 1, 1))); // no actress
+
+        List<Title> results = titleRepo.findRecent(10, 0);
+        assertEquals(1, results.size());
+        assertEquals("ABP-ORGANIZED", results.get(0).code());
+    }
+
+    @Test
+    void findRecentReturnsEmptyWhenNoTitles() {
+        assertTrue(titleRepo.findRecent(10, 0).isEmpty());
+    }
+
     // --- helpers ---
 
     private static Actress actress(String canonicalName) {
@@ -171,9 +233,13 @@ class JdbiTitleRepositoryTest {
     }
 
     private static Title title(String code, Long actressId) {
+        return titleWithDate(code, actressId, null);
+    }
+
+    private static Title titleWithDate(String code, Long actressId, LocalDate addedDate) {
         return new Title(null, code, null, null, null,
                 "vol-a", "stars/library", actressId,
                 Path.of("/mnt/vol-a/stars/library/" + code),
-                LocalDate.of(2024, 1, 1), null);
+                LocalDate.of(2024, 1, 1), addedDate);
     }
 }

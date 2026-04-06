@@ -23,6 +23,7 @@ Before answering design or implementation questions, always read:
 com.organizer3
   command/      Command implementations (one class per command)
   config/       Config model + loaders (AppConfig singleton, YAML model)
+  covers/       CoverPath utility for local cover image path resolution
   db/           SchemaInitializer (PRAGMA user_version migrations)
   filesystem/   VolumeFileSystem interface + implementations
   model/        Domain records: Title, Actress, ActressAlias, Video, Volume
@@ -36,7 +37,7 @@ com.organizer3
 
 **Implemented:**
 - Interactive shell (JLine3), prompt with dry-run/volume indicators
-- `mount`, `unmount`, `volumes`, `sync`/`sync-all`/`sync-queue`, `actresses`, `favorites`, `help`, `shutdown`
+- `mount`, `unmount`, `volumes`, `sync`/`sync-all`/`sync-queue`, `actresses`, `favorites`, `scan-covers`, `prune-covers`, `help`, `shutdown`
 - Full and partition-scoped sync via SMB with progress display
 - Actress resolution through aliases during sync
 - Persistence layer: all repositories, 4-migration schema

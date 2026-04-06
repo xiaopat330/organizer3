@@ -180,8 +180,8 @@ class ActressSearchCommandTest {
 
         cmd.execute(new String[]{"actress", "Aya", "Sazanami"}, ctx, io);
 
-        verify(io).println(contains("2024-01-01"));  // firstSeenAt
-        verify(io).println(contains("2023-07-15"));  // latest title lastSeenAt
+        verify(io, atLeast(1)).printlnAnsi(contains("Mar 10, 2022"));  // earliest addedDate
+        verify(io, atLeast(1)).printlnAnsi(contains("Jul 15, 2023"));  // latest addedDate
     }
 
     @Test
@@ -218,7 +218,7 @@ class ActressSearchCommandTest {
 
         cmd.execute(new String[]{"actress", "Aya", "Sazanami"}, ctx, io);
 
-        verify(io, atLeast(1)).println(contains("Product Number"));
+        verify(io, atLeast(1)).printlnAnsi(contains("Product Code"));
         verify(io).printlnAnsi(contains("S1 No.1 Style"));
         verify(io).printlnAnsi(contains("Moodyz"));
         verify(io).printlnAnsi(contains("ABP-001"));
@@ -285,8 +285,8 @@ class ActressSearchCommandTest {
                 .build();
     }
 
-    private static Title title(String code, String label, LocalDate lastSeenAt) {
+    private static Title title(String code, String label, LocalDate addedDate) {
         return new Title(null, code, null, label, null, "vol-a", "stars/library",
-                null, Path.of("/fake/" + code), lastSeenAt != null ? lastSeenAt : LocalDate.of(2024, 1, 1), null);
+                null, Path.of("/fake/" + code), LocalDate.of(2024, 1, 1), addedDate);
     }
 }
