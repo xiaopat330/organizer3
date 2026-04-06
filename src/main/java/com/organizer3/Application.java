@@ -9,6 +9,7 @@ import com.organizer3.command.HelloCommand;
 import com.organizer3.command.HelpCommand;
 import com.organizer3.command.MountCommand;
 import com.organizer3.command.PruneCoversCommand;
+import com.organizer3.command.RebuildCommand;
 import com.organizer3.command.ScanCoversCommand;
 import com.organizer3.command.ShutdownCommand;
 import com.organizer3.command.SyncCommand;
@@ -39,6 +40,8 @@ import com.organizer3.sync.FullSyncOperation;
 import com.organizer3.sync.IndexLoader;
 import com.organizer3.sync.PartitionSyncOperation;
 import com.organizer3.sync.SyncOperation;
+import com.organizer3.config.volume.VolumeConfig;
+import com.organizer3.web.ActressBrowseService;
 import com.organizer3.web.TitleBrowseService;
 import com.organizer3.web.WebServer;
 import org.jdbi.v3.core.Jdbi;
@@ -119,6 +122,7 @@ public class Application {
                 structureTypesByTerm.computeIfAbsent(def.term(), k -> new HashSet<>()).add(structureType);
             }
         }
+        Command syncAllCommand = null;
         for (Map.Entry<String, SyncCommandDef> entry : defByTerm.entrySet()) {
             String term = entry.getKey();
             SyncCommandDef def = entry.getValue();
@@ -129,14 +133,27 @@ public class Application {
                     new PartitionSyncOperation(def.partitions(), titleRepo, videoRepo,
                             actressRepo, volumeRepo, indexLoader);
             };
-            commands.add(new SyncCommand(term, structureTypesByTerm.get(term), op));
+            SyncCommand syncCmd = new SyncCommand(term, structureTypesByTerm.get(term), op);
+            commands.add(syncCmd);
+            if ("sync-all".equals(term)) syncAllCommand = syncCmd;
+        }
+
+        if (syncAllCommand != null) {
+            ScanCoversCommand scanCovers = (ScanCoversCommand) commands.stream()
+                    .filter(c -> "scan-covers".equals(c.name()))
+                    .findFirst().orElseThrow();
+            commands.add(new RebuildCommand(syncAllCommand, scanCovers));
         }
 
         commands.add(new HelpCommand(commands));
 
         // Web server (read-only browsing)
-        TitleBrowseService browseService = new TitleBrowseService(titleRepo, actressRepo, coverPath);
-        WebServer webServer = new WebServer(browseService, coverPath.root());
+        TitleBrowseService browseService = new TitleBrowseService(titleRepo, actressRepo, coverPath, labelRepo);
+        Map<String, String> volumeSmbPaths = config.volumes().stream()
+                .collect(java.util.stream.Collectors.toMap(VolumeConfig::id, VolumeConfig::smbPath));
+        ActressBrowseService actressBrowseService = new ActressBrowseService(
+                actressRepo, titleRepo, coverPath, volumeSmbPaths, labelRepo);
+        WebServer webServer = new WebServer(browseService, actressBrowseService, coverPath.root());
         webServer.start();
 
         OrganizerShell shell = new OrganizerShell(session, commands);

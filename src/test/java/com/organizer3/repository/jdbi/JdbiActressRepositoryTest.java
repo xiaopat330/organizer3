@@ -205,6 +205,90 @@ class JdbiActressRepositoryTest {
         assertEquals("Yua Mikami", result.get(1).getCanonicalName());
     }
 
+    // --- toggleBookmark ---
+
+    @Test
+    void toggleBookmarkMarksBookmark() {
+        Actress saved = repo.save(actress("Aya Sazanami"));
+        assertFalse(repo.findById(saved.getId()).orElseThrow().isBookmark());
+
+        repo.toggleBookmark(saved.getId(), true);
+        assertTrue(repo.findById(saved.getId()).orElseThrow().isBookmark());
+    }
+
+    @Test
+    void toggleBookmarkUnmarksBookmark() {
+        Actress saved = repo.save(actress("Aya Sazanami"));
+        repo.toggleBookmark(saved.getId(), true);
+        repo.toggleBookmark(saved.getId(), false);
+        assertFalse(repo.findById(saved.getId()).orElseThrow().isBookmark());
+    }
+
+    @Test
+    void savedActressDefaultsToNotBookmark() {
+        Actress saved = repo.save(actress("Aya Sazanami"));
+        assertFalse(saved.isBookmark());
+    }
+
+    // --- setGrade ---
+
+    @Test
+    void setGradePersistsGrade() {
+        Actress saved = repo.save(actress("Aya Sazanami"));
+        assertNull(repo.findById(saved.getId()).orElseThrow().getGrade());
+
+        repo.setGrade(saved.getId(), Actress.Grade.A_PLUS);
+        assertEquals(Actress.Grade.A_PLUS, repo.findById(saved.getId()).orElseThrow().getGrade());
+    }
+
+    @Test
+    void setGradeClearsGrade() {
+        Actress saved = repo.save(actress("Aya Sazanami"));
+        repo.setGrade(saved.getId(), Actress.Grade.S);
+        repo.setGrade(saved.getId(), null);
+        assertNull(repo.findById(saved.getId()).orElseThrow().getGrade());
+    }
+
+    @Test
+    void setGradeAllGradesRoundTrip() {
+        Actress saved = repo.save(actress("Aya Sazanami"));
+        for (Actress.Grade grade : Actress.Grade.values()) {
+            repo.setGrade(saved.getId(), grade);
+            assertEquals(grade, repo.findById(saved.getId()).orElseThrow().getGrade());
+        }
+    }
+
+    @Test
+    void savedActressDefaultsToNullGrade() {
+        Actress saved = repo.save(actress("Aya Sazanami"));
+        assertNull(saved.getGrade());
+    }
+
+    // --- toggleRejected ---
+
+    @Test
+    void toggleRejectedMarksRejected() {
+        Actress saved = repo.save(actress("Aya Sazanami"));
+        assertFalse(repo.findById(saved.getId()).orElseThrow().isRejected());
+
+        repo.toggleRejected(saved.getId(), true);
+        assertTrue(repo.findById(saved.getId()).orElseThrow().isRejected());
+    }
+
+    @Test
+    void toggleRejectedUnmarksRejected() {
+        Actress saved = repo.save(actress("Aya Sazanami"));
+        repo.toggleRejected(saved.getId(), true);
+        repo.toggleRejected(saved.getId(), false);
+        assertFalse(repo.findById(saved.getId()).orElseThrow().isRejected());
+    }
+
+    @Test
+    void savedActressDefaultsToNotRejected() {
+        Actress saved = repo.save(actress("Aya Sazanami"));
+        assertFalse(saved.isRejected());
+    }
+
     // --- toggleFavorite / findFavorites ---
 
     @Test

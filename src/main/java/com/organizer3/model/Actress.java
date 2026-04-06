@@ -22,6 +22,9 @@ public class Actress implements Comparable<Actress> {
     String canonicalName;
     Tier tier;
     boolean favorite;
+    boolean bookmark;
+    Grade grade;           // nullable
+    boolean rejected;
     LocalDate firstSeenAt;
 
     /**
@@ -33,6 +36,40 @@ public class Actress implements Comparable<Actress> {
         POPULAR,     // 20–49 titles
         SUPERSTAR,   // 50–99 titles
         GODDESS      // 100+ titles
+    }
+
+    /**
+     * Personal quality rating, displayed using school-grade notation.
+     * Stored in the DB as the display string (e.g. "A+", "B-").
+     */
+    public enum Grade {
+        SSS("SSS"),
+        SS("SS"),
+        S("S"),
+        A_PLUS("A+"),
+        A("A"),
+        A_MINUS("A-"),
+        B_PLUS("B+"),
+        B("B"),
+        B_MINUS("B-"),
+        C_PLUS("C+"),
+        C("C"),
+        C_MINUS("C-"),
+        D("D"),
+        F("F");
+
+        public final String display;
+
+        Grade(String display) {
+            this.display = display;
+        }
+
+        public static Grade fromDisplay(String display) {
+            for (Grade g : values()) {
+                if (g.display.equals(display)) return g;
+            }
+            throw new IllegalArgumentException("Unknown grade: " + display);
+        }
     }
 
     @Override

@@ -38,6 +38,20 @@ public class JdbiTitleRepository implements TitleRepository {
     }
 
     @Override
+    public Optional<Long> findDominantActressForLabel(String label) {
+        return jdbi.withHandle(h ->
+                h.createQuery("""
+                        SELECT actress_id FROM titles
+                        WHERE label = :label AND actress_id IS NOT NULL
+                        GROUP BY actress_id ORDER BY COUNT(*) DESC LIMIT 1
+                        """)
+                        .bind("label", label)
+                        .mapTo(Long.class)
+                        .findFirst()
+        );
+    }
+
+    @Override
     public Optional<Title> findById(long id) {
         return jdbi.withHandle(h ->
                 h.createQuery("SELECT * FROM titles WHERE id = :id")
@@ -203,6 +217,31 @@ public class JdbiTitleRepository implements TitleRepository {
     public List<Title> findRecent(int limit, int offset) {
         return jdbi.withHandle(h ->
                 h.createQuery("SELECT * FROM titles WHERE actress_id IS NOT NULL ORDER BY added_date DESC, id DESC LIMIT :limit OFFSET :offset")
+                        .bind("limit", limit)
+                        .bind("offset", offset)
+                        .map(MAPPER)
+                        .list()
+        );
+    }
+
+    @Override
+    public List<Title> findByActressPaged(long actressId, int limit, int offset) {
+        return jdbi.withHandle(h ->
+                h.createQuery("SELECT * FROM titles WHERE actress_id = :actressId ORDER BY added_date DESC, id DESC LIMIT :limit OFFSET :offset")
+                        .bind("actressId", actressId)
+                        .bind("limit", limit)
+                        .bind("offset", offset)
+                        .map(MAPPER)
+                        .list()
+        );
+    }
+
+    @Override
+    public List<Title> findByVolumeAndPartition(String volumeId, String partitionId, int limit, int offset) {
+        return jdbi.withHandle(h ->
+                h.createQuery("SELECT * FROM titles WHERE volume_id = :volumeId AND partition_id = :partitionId ORDER BY added_date DESC, id DESC LIMIT :limit OFFSET :offset")
+                        .bind("volumeId", volumeId)
+                        .bind("partitionId", partitionId)
                         .bind("limit", limit)
                         .bind("offset", offset)
                         .map(MAPPER)

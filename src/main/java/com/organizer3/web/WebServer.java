@@ -1,5 +1,6 @@
 package com.organizer3.web;
 
+import com.organizer3.config.AppConfig;
 import com.organizer3.covers.CoverPath;
 import io.javalin.Javalin;
 import io.javalin.http.staticfiles.Location;
@@ -8,7 +9,9 @@ import org.slf4j.LoggerFactory;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 /**
  * Embedded web server for read-only browsing and querying.
@@ -31,25 +34,60 @@ public class WebServer {
     private final Javalin app;
     private final int port;
 
-    /** Full constructor: enables title browsing and cover serving. */
-    public WebServer(int port, TitleBrowseService browseService, Path coversRoot) {
+    /** Full constructor: enables title browsing, actress browsing, and cover serving. */
+    public WebServer(int port, TitleBrowseService browseService,
+                     ActressBrowseService actressBrowseService, Path coversRoot) {
         this.port = port;
         this.app = Javalin.create(config ->
                 config.staticFiles.add("/public", Location.CLASSPATH));
-        registerRoutes(browseService, coversRoot);
+        registerRoutes(browseService, actressBrowseService, coversRoot);
     }
 
     /** Convenience constructor using the default port. */
-    public WebServer(TitleBrowseService browseService, Path coversRoot) {
-        this(DEFAULT_PORT, browseService, coversRoot);
+    public WebServer(TitleBrowseService browseService,
+                     ActressBrowseService actressBrowseService, Path coversRoot) {
+        this(DEFAULT_PORT, browseService, actressBrowseService, coversRoot);
     }
 
     /** Minimal constructor for tests that only need the lifecycle and static file behaviour. */
     public WebServer(int port) {
-        this(port, null, null);
+        this(port, null, null, null);
     }
 
-    private void registerRoutes(TitleBrowseService browseService, Path coversRoot) {
+    private void registerRoutes(TitleBrowseService browseService,
+                                ActressBrowseService actressBrowseService, Path coversRoot) {
+        app.get("/api/config", ctx -> {
+            var cfg = AppConfig.get().volumes();
+            String appName = cfg.appName();
+            Integer maxBrowseTitles = cfg.maxBrowseTitles();
+            ctx.json(Map.of(
+                    "appName", appName != null ? appName : "organizer3",
+                    "maxBrowseTitles", maxBrowseTitles != null ? maxBrowseTitles : 500
+            ));
+        });
+
+        app.get("/api/queues/volumes", ctx -> {
+            var cfg = AppConfig.get().volumes();
+            var queueStructureTypes = cfg.structures().stream()
+                    .filter(s -> s.unstructuredPartitions() != null &&
+                                 s.unstructuredPartitions().stream().anyMatch(p -> "queue".equals(p.id())))
+                    .map(s -> s.id())
+                    .collect(Collectors.toSet());
+            var pool = cfg.volumes().stream()
+                    .filter(v -> "unsorted".equals(v.id()) && queueStructureTypes.contains(v.structureType()))
+                    .map(v -> Map.of("id", v.id()))
+                    .findFirst()
+                    .orElse(null);
+            var volumes = cfg.volumes().stream()
+                    .filter(v -> !"unsorted".equals(v.id()) && queueStructureTypes.contains(v.structureType()))
+                    .map(v -> Map.of("id", v.id()))
+                    .toList();
+            var result = new LinkedHashMap<String, Object>();
+            if (pool != null) result.put("pool", pool);
+            result.put("volumes", volumes);
+            ctx.json(result);
+        });
+
         if (browseService != null) {
             app.get("/api/titles", ctx -> {
                 int offset = ctx.queryParamAsClass("offset", Integer.class).getOrDefault(0);
@@ -57,6 +95,55 @@ public class WebServer {
                 offset = Math.max(offset, 0);
                 limit  = Math.max(1, Math.min(limit, TitleBrowseService.MAX_LIMIT));
                 ctx.json(browseService.findRecent(offset, limit));
+            });
+
+            app.get("/api/queues/{volumeId}/titles", ctx -> {
+                String volumeId = ctx.pathParam("volumeId");
+                int offset = ctx.queryParamAsClass("offset", Integer.class).getOrDefault(0);
+                int limit  = ctx.queryParamAsClass("limit",  Integer.class).getOrDefault(24);
+                offset = Math.max(offset, 0);
+                limit  = Math.max(1, Math.min(limit, TitleBrowseService.MAX_LIMIT));
+                ctx.json(browseService.findByVolumeQueue(volumeId, offset, limit));
+            });
+        }
+
+        if (actressBrowseService != null) {
+            app.get("/api/actresses/index", ctx ->
+                    ctx.json(actressBrowseService.findPrefixIndex()));
+
+            app.get("/api/actresses", ctx -> {
+                String prefix = ctx.queryParam("prefix");
+                String tier   = ctx.queryParam("tier");
+                if (prefix != null && !prefix.isBlank()) {
+                    ctx.json(actressBrowseService.findByPrefix(prefix));
+                } else if (tier != null && !tier.isBlank()) {
+                    try {
+                        ctx.json(actressBrowseService.findByTier(tier));
+                    } catch (IllegalArgumentException e) {
+                        ctx.status(400);
+                    }
+                } else {
+                    ctx.status(400);
+                }
+            });
+
+            app.get("/api/actresses/{id}", ctx -> {
+                long id;
+                try { id = Long.parseLong(ctx.pathParam("id")); }
+                catch (NumberFormatException e) { ctx.status(400); return; }
+                actressBrowseService.findById(id)
+                        .ifPresentOrElse(ctx::json, () -> ctx.status(404));
+            });
+
+            app.get("/api/actresses/{id}/titles", ctx -> {
+                long id;
+                try { id = Long.parseLong(ctx.pathParam("id")); }
+                catch (NumberFormatException e) { ctx.status(400); return; }
+                int offset = ctx.queryParamAsClass("offset", Integer.class).getOrDefault(0);
+                int limit  = ctx.queryParamAsClass("limit",  Integer.class).getOrDefault(24);
+                offset = Math.max(offset, 0);
+                limit  = Math.max(1, Math.min(limit, TitleBrowseService.MAX_LIMIT));
+                ctx.json(actressBrowseService.findTitlesByActress(id, offset, limit));
             });
         }
 

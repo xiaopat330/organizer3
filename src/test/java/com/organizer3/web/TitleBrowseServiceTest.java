@@ -2,8 +2,10 @@ package com.organizer3.web;
 
 import com.organizer3.covers.CoverPath;
 import com.organizer3.model.Actress;
+import com.organizer3.model.Label;
 import com.organizer3.model.Title;
 import com.organizer3.repository.ActressRepository;
+import com.organizer3.repository.LabelRepository;
 import com.organizer3.repository.TitleRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -14,6 +16,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import java.nio.file.Path;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -25,12 +28,13 @@ class TitleBrowseServiceTest {
     @Mock TitleRepository titleRepo;
     @Mock ActressRepository actressRepo;
     @Mock CoverPath coverPath;
+    @Mock LabelRepository labelRepo;
 
     TitleBrowseService service;
 
     @BeforeEach
     void setUp() {
-        service = new TitleBrowseService(titleRepo, actressRepo, coverPath);
+        service = new TitleBrowseService(titleRepo, actressRepo, coverPath, labelRepo);
     }
 
     @Test
@@ -116,12 +120,111 @@ class TitleBrowseServiceTest {
         verify(actressRepo, times(1)).findById(5L); // only one DB call despite two titles
     }
 
+    @Test
+    void mapsActressIdToTitleSummary() {
+        Title title = title("ABP-123", "ABP-00123", "ABP", 10L, null);
+        Actress actress = Actress.builder().id(10L).canonicalName("Yui Hatano")
+                .tier(Actress.Tier.POPULAR).favorite(false).firstSeenAt(LocalDate.of(2023, 1, 1)).build();
+
+        when(titleRepo.findRecent(24, 0)).thenReturn(List.of(title));
+        when(actressRepo.findById(10L)).thenReturn(Optional.of(actress));
+        when(coverPath.find(title)).thenReturn(Optional.empty());
+
+        assertEquals(10L, service.findRecent(0, 24).get(0).actressId());
+    }
+
+    @Test
+    void mapsCompanyAndLabelNameFromLabelRepo() {
+        Title title = title("ABP-123", "ABP-00123", "ABP", null, null);
+
+        when(titleRepo.findRecent(24, 0)).thenReturn(List.of(title));
+        when(coverPath.find(title)).thenReturn(Optional.empty());
+        when(labelRepo.findAllAsMap()).thenReturn(
+                Map.of("ABP", new Label("ABP", "Absolutely Perfect", "Prestige")));
+
+        TitleSummary s = service.findRecent(0, 24).get(0);
+        assertEquals("Prestige", s.companyName());
+        assertEquals("Absolutely Perfect", s.labelName());
+    }
+
+    @Test
+    void missingLabelEntryYieldsNullCompanyAndLabelName() {
+        Title title = title("ABP-123", "ABP-00123", "ABP", null, null);
+
+        when(titleRepo.findRecent(24, 0)).thenReturn(List.of(title));
+        when(coverPath.find(title)).thenReturn(Optional.empty());
+        // labelRepo returns empty map by default — no entry for ABP
+
+        TitleSummary s = service.findRecent(0, 24).get(0);
+        assertNull(s.companyName());
+        assertNull(s.labelName());
+    }
+
+    // --- findByVolumeQueue ---
+
+    @Test
+    void findByVolumeQueueDelegatesToVolumeAndPartitionRepo() {
+        Title title = title("ABP-123", "ABP-00123", "ABP", null, LocalDate.of(2024, 3, 1));
+
+        when(titleRepo.findByVolumeAndPartition("vol-a", "queue", 24, 0)).thenReturn(List.of(title));
+        when(coverPath.find(title)).thenReturn(Optional.empty());
+
+        List<TitleSummary> results = service.findByVolumeQueue("vol-a", 0, 24);
+
+        assertEquals(1, results.size());
+        assertEquals("ABP-123", results.get(0).code());
+        verify(titleRepo).findByVolumeAndPartition("vol-a", "queue", 24, 0);
+    }
+
+    @Test
+    void findByVolumeQueueInfersActressFromStarsCopyViaBaseCode() {
+        // Queue title has a base_code but no actress_id (unorganized)
+        Title queueTitle = new Title(1L, "ABP-123", "ABP-00123", "ABP", null,
+                "vol-a", "queue", null,
+                Path.of("/mnt/vol-a/queue/ABP-123"), LocalDate.of(2024, 1, 1), null);
+        Title starsTitle = title("ABP-123", "ABP-00123", "ABP", 7L, null); // same base_code, has actress
+        Actress actress = Actress.builder().id(7L).canonicalName("Yui Hatano")
+                .tier(Actress.Tier.POPULAR).favorite(false).firstSeenAt(LocalDate.of(2023, 1, 1)).build();
+
+        when(titleRepo.findByVolumeAndPartition("vol-a", "queue", 24, 0)).thenReturn(List.of(queueTitle));
+        when(titleRepo.findByBaseCode("ABP-00123")).thenReturn(List.of(queueTitle, starsTitle));
+        when(actressRepo.findById(7L)).thenReturn(Optional.of(actress));
+
+        List<TitleSummary> results = service.findByVolumeQueue("vol-a", 0, 24);
+
+        assertEquals(1, results.size());
+        assertEquals(7L, results.get(0).actressId());
+        assertEquals("Yui Hatano", results.get(0).actressName());
+    }
+
+    @Test
+    void findByVolumeQueueHandlesNullLabel() {
+        Title title = titleWithNullLabel("NOCODE-001", null, null);
+
+        when(titleRepo.findByVolumeAndPartition("unsorted", "queue", 24, 0)).thenReturn(List.of(title));
+
+        List<TitleSummary> results = service.findByVolumeQueue("unsorted", 0, 24);
+
+        assertEquals(1, results.size());
+        assertNull(results.get(0).coverUrl());
+        assertNull(results.get(0).companyName());
+        assertNull(results.get(0).labelName());
+        verifyNoInteractions(coverPath);
+    }
+
     // --- helpers ---
 
     private static Title title(String code, String baseCode, String label, Long actressId, LocalDate addedDate) {
         return new Title(1L, code, baseCode, label, 1,
                 "vol-a", "stars", actressId,
                 Path.of("/mnt/vol-a/stars/" + code),
+                LocalDate.of(2024, 1, 1), addedDate);
+    }
+
+    private static Title titleWithNullLabel(String code, Long actressId, LocalDate addedDate) {
+        return new Title(1L, code, null, null, null,
+                "unsorted", "queue", actressId,
+                Path.of("/mnt/unsorted/queue/" + code),
                 LocalDate.of(2024, 1, 1), addedDate);
     }
 }

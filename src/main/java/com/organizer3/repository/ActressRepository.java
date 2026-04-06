@@ -33,6 +33,12 @@ public interface ActressRepository {
      */
     List<Actress> searchByNamePrefix(String prefix);
 
+    /**
+     * Find all actresses whose canonical name starts with {@code prefix} (case-insensitive).
+     * Since names are stored given-name-first, this effectively filters by first name prefix.
+     */
+    List<Actress> findByFirstNamePrefix(String prefix);
+
     List<Actress> findByTier(Actress.Tier tier);
 
     List<Actress> findFavorites();
@@ -46,6 +52,12 @@ public interface ActressRepository {
     void updateTier(long actressId, Actress.Tier tier);
 
     void toggleFavorite(long actressId, boolean favorite);
+
+    void toggleBookmark(long actressId, boolean bookmark);
+
+    void setGrade(long actressId, Actress.Grade grade);
+
+    void toggleRejected(long actressId, boolean rejected);
 
     // --- Alias operations ---
 

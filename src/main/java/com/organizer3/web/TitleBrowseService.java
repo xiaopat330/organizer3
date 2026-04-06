@@ -1,11 +1,13 @@
 package com.organizer3.web;
 
 import com.organizer3.covers.CoverPath;
-import com.organizer3.model.Actress;
+import com.organizer3.model.Label;
 import com.organizer3.model.Title;
 import com.organizer3.repository.ActressRepository;
+import com.organizer3.repository.LabelRepository;
 import com.organizer3.repository.TitleRepository;
 
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -16,16 +18,19 @@ import java.util.stream.Collectors;
  */
 public class TitleBrowseService {
 
-    static final int MAX_LIMIT = 72;
+    static final int MAX_LIMIT = 500;
 
     private final TitleRepository titleRepo;
     private final ActressRepository actressRepo;
     private final CoverPath coverPath;
+    private final LabelRepository labelRepo;
 
-    public TitleBrowseService(TitleRepository titleRepo, ActressRepository actressRepo, CoverPath coverPath) {
+    public TitleBrowseService(TitleRepository titleRepo, ActressRepository actressRepo,
+                              CoverPath coverPath, LabelRepository labelRepo) {
         this.titleRepo = titleRepo;
         this.actressRepo = actressRepo;
         this.coverPath = coverPath;
+        this.labelRepo = labelRepo;
     }
 
     /**
@@ -34,28 +39,95 @@ public class TitleBrowseService {
      */
     public List<TitleSummary> findRecent(int offset, int limit) {
         limit = Math.min(limit, MAX_LIMIT);
-        List<Title> titles = titleRepo.findRecent(limit, offset);
+        return toSummaries(titleRepo.findRecent(limit, offset));
+    }
 
+    /**
+     * Returns titles in the queue partition of the given volume, ordered newest-first.
+     * Hard-capped at {@link #MAX_LIMIT} total regardless of requested limit.
+     *
+     * <p>Queue titles are synced without an actress_id. For each one, we attempt to infer
+     * the actress by finding another title in the DB with the same base_code that has already
+     * been attributed (e.g. a stars copy on another volume).
+     */
+    public List<TitleSummary> findByVolumeQueue(String volumeId, int offset, int limit) {
+        limit = Math.min(limit, MAX_LIMIT);
+        List<Title> titles = titleRepo.findByVolumeAndPartition(volumeId, "queue", limit, offset);
+
+        // Build actress inference maps for unattributed titles.
+        // Pass 1: exact base_code match — finds the actress if the same title exists in stars.
+        // Pass 2: dominant-actress-by-label fallback — covers new titles where the label maps
+        //         to one actress in the library (common in personal collections).
+        Map<String, Long> actressIdByBaseCode = new HashMap<>();
+        Map<String, Long> actressIdByLabel    = new HashMap<>();
+
+        titles.stream()
+                .filter(t -> t.actressId() == null)
+                .forEach(t -> {
+                    if (t.baseCode() != null && !actressIdByBaseCode.containsKey(t.baseCode())) {
+                        titleRepo.findByBaseCode(t.baseCode()).stream()
+                                .filter(other -> other.actressId() != null)
+                                .findFirst()
+                                .ifPresent(other -> actressIdByBaseCode.put(t.baseCode(), other.actressId()));
+                    }
+                    if (t.label() != null
+                            && !actressIdByBaseCode.containsKey(t.baseCode())
+                            && !actressIdByLabel.containsKey(t.label())) {
+                        titleRepo.findDominantActressForLabel(t.label())
+                                .ifPresent(id -> actressIdByLabel.put(t.label(), id));
+                    }
+                });
+
+        if (!actressIdByBaseCode.isEmpty() || !actressIdByLabel.isEmpty()) {
+            titles = titles.stream()
+                    .map(t -> {
+                        if (t.actressId() != null) return t;
+                        Long inferred = t.baseCode() != null ? actressIdByBaseCode.get(t.baseCode()) : null;
+                        if (inferred == null && t.label() != null) inferred = actressIdByLabel.get(t.label());
+                        return inferred != null
+                                ? new Title(t.id(), t.code(), t.baseCode(), t.label(), t.seqNum(),
+                                        t.volumeId(), t.partitionId(), inferred,
+                                        t.path(), t.lastSeenAt(), t.addedDate())
+                                : t;
+                    })
+                    .toList();
+        }
+
+        return toSummaries(titles);
+    }
+
+    private List<TitleSummary> toSummaries(List<Title> titles) {
         Map<Long, String> actressNames = titles.stream()
                 .map(Title::actressId)
                 .filter(Objects::nonNull)
                 .distinct()
                 .collect(Collectors.toMap(
                         id -> id,
-                        id -> actressRepo.findById(id).map(Actress::getCanonicalName).orElse(null)
+                        id -> actressRepo.findById(id).map(a -> a.getCanonicalName()).orElse(null)
                 ));
 
+        Map<String, Label> labelMap = labelRepo.findAllAsMap();
+
         return titles.stream()
-                .map(t -> new TitleSummary(
-                        t.code(),
-                        t.baseCode(),
-                        t.label(),
-                        t.actressId() != null ? actressNames.get(t.actressId()) : null,
-                        t.addedDate() != null ? t.addedDate().toString() : null,
-                        coverPath.find(t)
-                                .map(p -> "/covers/" + t.label().toUpperCase() + "/" + p.getFileName())
-                                .orElse(null)
-                ))
+                .map(t -> {
+                    Label lbl = t.label() != null ? labelMap.get(t.label().toUpperCase()) : null;
+                    String coverUrl = t.label() != null
+                            ? coverPath.find(t)
+                                    .map(p -> "/covers/" + t.label().toUpperCase() + "/" + p.getFileName())
+                                    .orElse(null)
+                            : null;
+                    return new TitleSummary(
+                            t.code(),
+                            t.baseCode(),
+                            t.label(),
+                            t.actressId(),
+                            t.actressId() != null ? actressNames.get(t.actressId()) : null,
+                            t.addedDate() != null ? t.addedDate().toString() : null,
+                            coverUrl,
+                            lbl != null ? lbl.company() : null,
+                            lbl != null ? lbl.labelName() : null
+                    );
+                })
                 .toList();
     }
 }

@@ -43,7 +43,7 @@ class WebServerTest {
                         .build(), HttpResponse.BodyHandlers.ofString());
 
         assertEquals(200, response.statusCode());
-        assertTrue(response.body().contains("organizer3"),
+        assertTrue(response.body().contains("JAV Helper"),
                 "Root should serve the HTML home page");
     }
 

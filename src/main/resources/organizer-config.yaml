@@ -1,3 +1,6 @@
+appName: "JAV Helper"
+maxBrowseTitles: 500
+
 servers:
   - id: pandora
     username: patri

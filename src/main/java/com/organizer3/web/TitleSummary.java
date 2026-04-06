@@ -8,7 +8,10 @@ public record TitleSummary(
         String code,
         String baseCode,
         String label,
+        Long actressId,
         String actressName,
         String addedDate,
-        String coverUrl
+        String coverUrl,
+        String companyName,
+        String labelName
 ) {}

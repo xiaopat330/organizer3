@@ -35,6 +35,9 @@ public class SchemaInitializer {
                         canonical_name  TEXT NOT NULL UNIQUE,
                         tier            TEXT NOT NULL,
                         favorite        INTEGER NOT NULL DEFAULT 0,
+                        bookmark        INTEGER NOT NULL DEFAULT 0,
+                        grade           TEXT,
+                        rejected        INTEGER NOT NULL DEFAULT 0,
                         first_seen_at   TEXT NOT NULL
                     )""");
 

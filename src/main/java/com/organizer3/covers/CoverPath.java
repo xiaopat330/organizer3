@@ -52,9 +52,10 @@ public class CoverPath {
 
     /**
      * Finds an existing cover image for the title, regardless of extension.
-     * Returns empty if no cover exists.
+     * Returns empty if no cover exists or if the title has no label/baseCode.
      */
     public Optional<Path> find(Title title) {
+        if (title.label() == null || title.baseCode() == null) return Optional.empty();
         Path dir = labelDir(title);
         if (!Files.isDirectory(dir)) return Optional.empty();
 

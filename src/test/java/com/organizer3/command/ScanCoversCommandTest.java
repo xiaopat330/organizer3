@@ -61,7 +61,7 @@ class ScanCoversCommandTest {
     @BeforeEach
     void setUp() {
         AppConfig.initializeForTest(new OrganizerConfig(
-                List.of(), List.of(CONVENTIONAL_VOL),
+                null, null, List.of(), List.of(CONVENTIONAL_VOL),
                 List.of(CONVENTIONAL_STRUCTURE),
                 List.of()
         ));
@@ -180,19 +180,44 @@ class ScanCoversCommandTest {
     }
 
     @Test
-    void filtersOutNonStarsTitles() throws IOException {
+    void filtersOutUnrecognizedPartitionTitles() throws IOException {
         ctx.setMountedVolume(CONVENTIONAL_VOL);
         ctx.setActiveConnection(connection);
         when(volumeRepo.findById("a")).thenReturn(Optional.of(syncedVolume()));
 
-        Title queueTitle = new Title(2L, "XYZ-456", "XYZ-00456", "XYZ", null, "a", "queue",
-                null, Path.of("/queue/XYZ-456"), LocalDate.now(), LocalDate.now());
-        when(titleRepo.findByVolume("a")).thenReturn(List.of(queueTitle));
+        // A title in an unrecognised partition (e.g. collections) should be skipped
+        Title collectionsTitle = new Title(2L, "XYZ-456", "XYZ-00456", "XYZ", null, "a", "collections",
+                null, Path.of("/collections/XYZ-456"), LocalDate.now(), LocalDate.now());
+        when(titleRepo.findByVolume("a")).thenReturn(List.of(collectionsTitle));
 
         ScanCoversCommand cmd = new ScanCoversCommand(titleRepo, volumeRepo, coverPath);
         cmd.execute(new String[]{"scan-covers"}, ctx, io);
 
         assertTrue(output.toString().contains("No eligible titles"));
+    }
+
+    @Test
+    void collectsCoverImageFromQueuePartition() throws IOException {
+        ctx.setMountedVolume(CONVENTIONAL_VOL);
+        ctx.setActiveConnection(connection);
+        when(volumeRepo.findById("a")).thenReturn(Optional.of(syncedVolume()));
+
+        Path titlePath = Path.of("/queue/ABP-200");
+        Title queueTitle = new Title(2L, "ABP-200", "ABP-00200", "ABP", null, "a", "queue",
+                null, titlePath, LocalDate.now(), LocalDate.now());
+        when(titleRepo.findByVolume("a")).thenReturn(List.of(queueTitle));
+
+        Path imagePath = titlePath.resolve("cover.jpg");
+        when(fs.listDirectory(titlePath)).thenReturn(List.of(imagePath));
+        when(fs.isDirectory(imagePath)).thenReturn(false);
+        when(fs.openFile(imagePath)).thenReturn(new ByteArrayInputStream("fake-jpg".getBytes()));
+
+        ScanCoversCommand cmd = new ScanCoversCommand(titleRepo, volumeRepo, coverPath);
+        cmd.execute(new String[]{"scan-covers"}, ctx, io);
+
+        Path expectedCover = coverPath.resolve(queueTitle, "jpg");
+        assertTrue(Files.exists(expectedCover));
+        assertTrue(output.toString().contains("collected: 1"));
     }
 
     @Test

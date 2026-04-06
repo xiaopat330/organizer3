@@ -18,6 +18,13 @@ public interface TitleRepository {
     /** Look up by normalized base code (e.g. "ABP-00123") — may return multiple for variant releases. */
     List<Title> findByBaseCode(String baseCode);
 
+    /**
+     * Returns the actress id most frequently attributed to titles with the given label,
+     * or empty if no attributed titles exist for that label.
+     * Used to infer the actress for unattributed queue titles.
+     */
+    Optional<Long> findDominantActressForLabel(String label);
+
     List<Title> findByVolume(String volumeId);
 
     List<Title> findByActress(long actressId);
@@ -53,9 +60,15 @@ public interface TitleRepository {
     /** Remove all title records for a volume (used before a full re-sync). */
     void deleteByVolume(String volumeId);
 
+    /** Find titles for a specific volume+partition, ordered by added_date DESC, id DESC. */
+    List<Title> findByVolumeAndPartition(String volumeId, String partitionId, int limit, int offset);
+
     /** Remove title records for a specific volume+partition (used before a partition-scoped re-sync). */
     void deleteByVolumeAndPartition(String volumeId, String partitionId);
 
     /** Find titles ordered by added_date DESC, id DESC — for the browse home page. */
     List<Title> findRecent(int limit, int offset);
+
+    /** Find titles for an actress ordered by added_date DESC, id DESC — for the actress detail page. */
+    List<Title> findByActressPaged(long actressId, int limit, int offset);
 }

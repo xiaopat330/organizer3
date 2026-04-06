@@ -28,8 +28,8 @@ import java.util.List;
  * remote volume. If found and not already present locally, copies it into the
  * local covers hierarchy at {@code data/covers/<LABEL>/<baseCode>.<ext>}.
  *
- * <p>Requires a mounted, synced volume. Only processes titles in {@code stars/}
- * partitions (conventional and stars-flat structure types).
+ * <p>Requires a mounted, synced volume. Processes titles in both {@code stars/}
+ * partitions (conventional and stars-flat) and {@code queue} partitions.
  */
 public class ScanCoversCommand implements Command {
 
@@ -76,17 +76,19 @@ public class ScanCoversCommand implements Command {
             return;
         }
 
-        // Must have a structured partition (stars)
         VolumeStructureDef structure = AppConfig.get().volumes()
                 .findStructureById(volume.structureType())
                 .orElse(null);
-        if (structure == null || structure.structuredPartition() == null) {
-            io.println("Volume '" + volume.id() + "' has no stars partitions — nothing to scan.");
+        boolean hasStars = structure != null && structure.structuredPartition() != null;
+        boolean hasQueue = structure != null && structure.findUnstructuredById("queue").isPresent();
+        if (!hasStars && !hasQueue) {
+            io.println("Volume '" + volume.id() + "' has no scannable partitions — nothing to scan.");
             return;
         }
 
         List<Title> titles = titleRepo.findByVolume(volume.id()).stream()
-                .filter(t -> t.partitionId() != null && t.partitionId().startsWith("stars/"))
+                .filter(t -> t.partitionId() != null &&
+                        (t.partitionId().startsWith("stars/") || "queue".equals(t.partitionId())))
                 .filter(t -> t.label() != null && !t.label().isBlank())
                 .filter(t -> t.baseCode() != null && !t.baseCode().isBlank())
                 .toList();
