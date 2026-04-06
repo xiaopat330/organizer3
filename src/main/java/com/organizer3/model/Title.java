@@ -23,5 +23,6 @@ public record Title(
         String partitionId,
         Long actressId,
         Path path,
-        LocalDate lastSeenAt
+        LocalDate lastSeenAt,
+        LocalDate addedDate
 ) {}

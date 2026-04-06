@@ -7,6 +7,7 @@ import org.junit.jupiter.api.io.TempDir;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.LocalDate;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -145,6 +146,18 @@ class LocalFileSystemTest {
 
         assertFalse(Files.exists(originalDir));
         assertTrue(Files.exists(tempDir.resolve("new-name")));
+    }
+
+    // --- getLastModifiedDate ---
+
+    @Test
+    void getLastModifiedDate_returnsDateForExistingFile() throws IOException {
+        Path file = Files.createFile(tempDir.resolve("file.txt"));
+
+        LocalDate result = fs.getLastModifiedDate(file);
+
+        assertNotNull(result);
+        assertEquals(LocalDate.now(), result);
     }
 
     // --- createDirectories ---

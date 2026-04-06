@@ -4,6 +4,8 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
+import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -42,6 +44,11 @@ public class LocalFileSystem implements VolumeFileSystem {
     @Override
     public boolean isDirectory(Path path) {
         return Files.isDirectory(path);
+    }
+
+    @Override
+    public LocalDate getLastModifiedDate(Path path) throws IOException {
+        return Files.getLastModifiedTime(path).toInstant().atZone(ZoneId.systemDefault()).toLocalDate();
     }
 
     @Override

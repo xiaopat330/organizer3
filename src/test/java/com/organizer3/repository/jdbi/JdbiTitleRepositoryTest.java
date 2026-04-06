@@ -174,6 +174,6 @@ class JdbiTitleRepositoryTest {
         return new Title(null, code, null, null, null,
                 "vol-a", "stars/library", actressId,
                 Path.of("/mnt/vol-a/stars/library/" + code),
-                LocalDate.of(2024, 1, 1));
+                LocalDate.of(2024, 1, 1), null);
     }
 }

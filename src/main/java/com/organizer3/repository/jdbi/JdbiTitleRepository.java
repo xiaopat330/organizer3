@@ -15,6 +15,7 @@ public class JdbiTitleRepository implements TitleRepository {
     private static final RowMapper<Title> MAPPER = (rs, ctx) -> {
         String actressIdStr = rs.getString("actress_id");
         String seqNumStr = rs.getString("seq_num");
+        String addedDateStr = rs.getString("added_date");
         return new Title(
                 rs.getLong("id"),
                 rs.getString("code"),
@@ -25,7 +26,8 @@ public class JdbiTitleRepository implements TitleRepository {
                 rs.getString("partition_id"),
                 actressIdStr != null ? Long.parseLong(actressIdStr) : null,
                 Path.of(rs.getString("path")),
-                LocalDate.parse(rs.getString("last_seen_at"))
+                LocalDate.parse(rs.getString("last_seen_at")),
+                addedDateStr != null ? LocalDate.parse(addedDateStr) : null
         );
     };
 
@@ -135,8 +137,8 @@ public class JdbiTitleRepository implements TitleRepository {
             if (title.id() == null) {
                 long id = h.createUpdate("""
                                 INSERT INTO titles
-                                    (code, base_code, label, seq_num, volume_id, partition_id, actress_id, path, last_seen_at)
-                                VALUES (:code, :baseCode, :label, :seqNum, :volumeId, :partitionId, :actressId, :path, :lastSeenAt)
+                                    (code, base_code, label, seq_num, volume_id, partition_id, actress_id, path, last_seen_at, added_date)
+                                VALUES (:code, :baseCode, :label, :seqNum, :volumeId, :partitionId, :actressId, :path, :lastSeenAt, :addedDate)
                                 """)
                         .bind("code", title.code())
                         .bind("baseCode", title.baseCode())
@@ -147,17 +149,19 @@ public class JdbiTitleRepository implements TitleRepository {
                         .bind("actressId", title.actressId())
                         .bind("path", title.path().toString())
                         .bind("lastSeenAt", title.lastSeenAt().toString())
+                        .bind("addedDate", title.addedDate() != null ? title.addedDate().toString() : null)
                         .executeAndReturnGeneratedKeys("id")
                         .mapTo(Long.class)
                         .one();
                 return new Title(id, title.code(), title.baseCode(), title.label(), title.seqNum(),
-                        title.volumeId(), title.partitionId(), title.actressId(), title.path(), title.lastSeenAt());
+                        title.volumeId(), title.partitionId(), title.actressId(), title.path(), title.lastSeenAt(),
+                        title.addedDate());
             } else {
                 h.createUpdate("""
                                 UPDATE titles SET
                                     code = :code, base_code = :baseCode, label = :label, seq_num = :seqNum,
                                     volume_id = :volumeId, partition_id = :partitionId, actress_id = :actressId,
-                                    path = :path, last_seen_at = :lastSeenAt
+                                    path = :path, last_seen_at = :lastSeenAt, added_date = :addedDate
                                 WHERE id = :id
                                 """)
                         .bind("id", title.id())
@@ -170,6 +174,7 @@ public class JdbiTitleRepository implements TitleRepository {
                         .bind("actressId", title.actressId())
                         .bind("path", title.path().toString())
                         .bind("lastSeenAt", title.lastSeenAt().toString())
+                        .bind("addedDate", title.addedDate() != null ? title.addedDate().toString() : null)
                         .execute();
                 return title;
             }

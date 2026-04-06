@@ -1,6 +1,8 @@
 package com.organizer3.shell.io;
 
 import java.io.PrintWriter;
+import java.util.List;
+import java.util.Optional;
 
 /**
  * Plain-text implementation of {@link CommandIO} for tests and non-TTY contexts.
@@ -54,6 +56,11 @@ public class PlainCommandIO implements CommandIO {
     @Override
     public Progress startProgress(String label, int total) {
         return NO_OP_PROGRESS;
+    }
+
+    @Override
+    public Optional<String> pick(List<String> items) {
+        return Optional.empty();
     }
 
     // -------------------------------------------------------------------------

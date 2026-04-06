@@ -9,6 +9,7 @@ import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.LocalDate;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -65,6 +66,18 @@ class DryRunFileSystemTest {
         Path file = Files.createFile(tempDir.resolve("file.txt"));
         assertTrue(fs.isDirectory(tempDir));
         assertFalse(fs.isDirectory(file));
+    }
+
+    // --- getLastModifiedDate — delegates to real filesystem ---
+
+    @Test
+    void getLastModifiedDate_returnsDateForExistingFile() throws IOException {
+        Path file = Files.createFile(tempDir.resolve("file.txt"));
+
+        LocalDate result = fs.getLastModifiedDate(file);
+
+        assertNotNull(result);
+        assertEquals(LocalDate.now(), result);
     }
 
     // --- Write operations log output and do NOT touch the filesystem ---

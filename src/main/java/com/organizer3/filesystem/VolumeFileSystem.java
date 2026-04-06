@@ -2,6 +2,7 @@ package com.organizer3.filesystem;
 
 import java.io.IOException;
 import java.nio.file.Path;
+import java.time.LocalDate;
 import java.util.List;
 
 /**
@@ -37,6 +38,12 @@ public interface VolumeFileSystem {
     boolean exists(Path path);
 
     boolean isDirectory(Path path);
+
+    /**
+     * Returns the last-modified date of the file at {@code path}, or {@code null} if the
+     * date cannot be determined.
+     */
+    LocalDate getLastModifiedDate(Path path) throws IOException;
 
     // -------------------------------------------------------------------------
     // Write operations

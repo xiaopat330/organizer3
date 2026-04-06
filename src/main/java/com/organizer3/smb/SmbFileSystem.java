@@ -2,6 +2,7 @@ package com.organizer3.smb;
 
 import com.hierynomus.msdtyp.AccessMask;
 import com.hierynomus.msfscc.FileAttributes;
+import com.hierynomus.msfscc.fileinformation.FileBasicInformation;
 import com.hierynomus.msfscc.fileinformation.FileIdBothDirectoryInformation;
 import com.hierynomus.mssmb2.SMB2CreateDisposition;
 import com.hierynomus.mssmb2.SMB2CreateOptions;
@@ -12,6 +13,8 @@ import com.organizer3.filesystem.VolumeFileSystem;
 
 import java.io.IOException;
 import java.nio.file.Path;
+import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.List;
@@ -81,6 +84,27 @@ class SmbFileSystem implements VolumeFileSystem {
     @Override
     public boolean isDirectory(Path path) {
         return share.folderExists(toSmbPath(path));
+    }
+
+    @Override
+    public LocalDate getLastModifiedDate(Path path) throws IOException {
+        String smbPath = toSmbPath(path);
+        try (File f = share.openFile(
+                smbPath,
+                EnumSet.of(AccessMask.FILE_READ_ATTRIBUTES),
+                EnumSet.of(FileAttributes.FILE_ATTRIBUTE_NORMAL),
+                EnumSet.of(SMB2ShareAccess.FILE_SHARE_READ, SMB2ShareAccess.FILE_SHARE_WRITE),
+                SMB2CreateDisposition.FILE_OPEN,
+                EnumSet.noneOf(SMB2CreateOptions.class))) {
+            FileBasicInformation info = f.getFileInformation(FileBasicInformation.class);
+            com.hierynomus.msdtyp.FileTime lwt = info.getLastWriteTime();
+            if (lwt == null) return null;
+            java.util.Date date = lwt.toDate();
+            if (date == null) return null;
+            return date.toInstant().atZone(ZoneId.systemDefault()).toLocalDate();
+        } catch (Exception e) {
+            throw new IOException("Failed to get last modified date: " + path, e);
+        }
     }
 
     // -------------------------------------------------------------------------

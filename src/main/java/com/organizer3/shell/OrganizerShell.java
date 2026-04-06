@@ -62,7 +62,7 @@ public class OrganizerShell {
             while (session.isRunning()) {
                 String line;
                 try {
-                    line = reader.readLine(promptBuilder.build(session));
+                    line = reader.readLine(promptBuilder.build(session).toAnsi(terminal));
                 } catch (UserInterruptException e) {
                     continue;
                 } catch (EndOfFileException e) {

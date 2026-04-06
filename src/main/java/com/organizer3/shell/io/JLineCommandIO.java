@@ -6,6 +6,7 @@ import org.jline.utils.AttributedString;
 import org.jline.utils.Status;
 
 import java.util.List;
+import java.util.Optional;
 
 /**
  * Live terminal implementation of {@link CommandIO}.
@@ -89,6 +90,11 @@ public class JLineCommandIO implements CommandIO {
     @Override
     public Progress startProgress(String label, int total) {
         return new JLineProgress(this, label, total);
+    }
+
+    @Override
+    public Optional<String> pick(List<String> items) {
+        return new ListPicker(terminal).pick(items);
     }
 
     // -------------------------------------------------------------------------

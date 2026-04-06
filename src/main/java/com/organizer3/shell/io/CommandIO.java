@@ -1,5 +1,8 @@
 package com.organizer3.shell.io;
 
+import java.util.List;
+import java.util.Optional;
+
 /**
  * The single channel for all command output and status display.
  *
@@ -81,4 +84,14 @@ public interface CommandIO {
      * <p>Must be closed before starting another activity.
      */
     Progress startProgress(String label, int total);
+
+    /**
+     * Presents an interactive list picker and returns the selected item.
+     *
+     * <p>On a live terminal, renders the items with a movable cursor; the user navigates
+     * with arrow keys, confirms with Enter, and cancels with Escape or 'q'.
+     *
+     * <p>On plain/non-TTY terminals (tests, piped input), always returns empty.
+     */
+    Optional<String> pick(List<String> items);
 }

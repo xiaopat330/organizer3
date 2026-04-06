@@ -56,7 +56,8 @@ public class SchemaInitializer {
                         partition_id  TEXT NOT NULL,
                         actress_id    INTEGER REFERENCES actresses(id),
                         path          TEXT NOT NULL,
-                        last_seen_at  TEXT NOT NULL
+                        last_seen_at  TEXT NOT NULL,
+                        added_date    TEXT
                     )""");
 
             h.execute("""

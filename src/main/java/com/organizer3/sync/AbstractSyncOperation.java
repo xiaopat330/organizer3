@@ -172,9 +172,40 @@ abstract class AbstractSyncOperation implements SyncOperation {
         Title title = titleRepo.save(new Title(
                 null, parsed.code(), parsed.baseCode(), parsed.label(), parsed.seqNum(),
                 volumeId, partitionId, actressId,
-                titleFolder, LocalDate.now()));
+                titleFolder, LocalDate.now(), computeAddedDate(titleFolder, fs)));
 
         saveVideosForTitle(titleFolder, title.id(), fs);
+    }
+
+    /**
+     * Estimates when a title was added by taking the earliest last-modified date from all
+     * files directly in the title folder and all files one level deep in subdirectories.
+     * Returns {@code null} if the folder contains no files.
+     */
+    private LocalDate computeAddedDate(Path titleFolder, VolumeFileSystem fs) throws IOException {
+        LocalDate earliest = null;
+        List<Path> children = fs.listDirectory(titleFolder);
+        for (Path child : children) {
+            if (!fs.isDirectory(child)) {
+                LocalDate d = fs.getLastModifiedDate(child);
+                if (d != null && (earliest == null || d.isBefore(earliest))) {
+                    earliest = d;
+                }
+            }
+        }
+        for (Path child : children) {
+            if (fs.isDirectory(child)) {
+                for (Path grandchild : fs.listDirectory(child)) {
+                    if (!fs.isDirectory(grandchild)) {
+                        LocalDate d = fs.getLastModifiedDate(grandchild);
+                        if (d != null && (earliest == null || d.isBefore(earliest))) {
+                            earliest = d;
+                        }
+                    }
+                }
+            }
+        }
+        return earliest;
     }
 
     private void saveVideosForTitle(Path titleFolder, long titleId,

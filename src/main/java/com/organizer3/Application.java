@@ -1,6 +1,8 @@
 package com.organizer3;
 
+import com.organizer3.command.ActressSearchCommand;
 import com.organizer3.command.ActressesCommand;
+
 import com.organizer3.command.Command;
 import com.organizer3.command.FavoritesCommand;
 import com.organizer3.command.HelloCommand;
@@ -18,10 +20,12 @@ import com.organizer3.config.volume.OrganizerConfigLoader;
 import com.organizer3.db.LabelSeeder;
 import com.organizer3.db.SchemaInitializer;
 import com.organizer3.repository.ActressRepository;
+import com.organizer3.repository.LabelRepository;
 import com.organizer3.repository.TitleRepository;
 import com.organizer3.repository.VideoRepository;
 import com.organizer3.repository.VolumeRepository;
 import com.organizer3.repository.jdbi.JdbiActressRepository;
+import com.organizer3.repository.jdbi.JdbiLabelRepository;
 import com.organizer3.repository.jdbi.JdbiTitleRepository;
 import com.organizer3.repository.jdbi.JdbiVideoRepository;
 import com.organizer3.repository.jdbi.JdbiVolumeRepository;
@@ -75,6 +79,7 @@ public class Application {
         VideoRepository   videoRepo   = new JdbiVideoRepository(jdbi);
         ActressRepository actressRepo = new JdbiActressRepository(jdbi);
         VolumeRepository  volumeRepo  = new JdbiVolumeRepository(jdbi);
+        LabelRepository   labelRepo   = new JdbiLabelRepository(jdbi);
         IndexLoader indexLoader = new IndexLoader(titleRepo, actressRepo);
 
         // Session
@@ -88,6 +93,7 @@ public class Application {
         commands.add(new UnmountCommand());
         commands.add(new VolumesCommand(volumeRepo));
         commands.add(new ActressesCommand(actressRepo, titleRepo));
+        commands.add(new ActressSearchCommand(actressRepo, titleRepo, labelRepo));
         commands.add(new FavoritesCommand(actressRepo, titleRepo));
 
         // Sync commands — registered dynamically from syncConfig.

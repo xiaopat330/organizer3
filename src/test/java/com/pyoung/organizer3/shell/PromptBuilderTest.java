@@ -3,44 +3,30 @@ package com.pyoung.organizer3.shell;
 import com.organizer3.config.volume.VolumeConfig;
 import com.organizer3.shell.PromptBuilder;
 import com.organizer3.shell.SessionContext;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 class PromptBuilderTest {
 
-    private PromptBuilder promptBuilder;
-    private SessionContext session;
+    private final PromptBuilder promptBuilder = new PromptBuilder();
 
-    @BeforeEach
-    void setUp() {
-        promptBuilder = new PromptBuilder();
-        session = new SessionContext();
+    @Test
+    void unmountedPromptShowsUnmountedLabel() {
+        assertEquals("[UNMOUNTED] ▶ ", promptBuilder.build(new SessionContext()).toString());
     }
 
     @Test
-    void defaultPromptShowsDryRunAndNoVolume() {
-        assertEquals("organizer [*DRYRUN*] > ", promptBuilder.build(session));
-    }
-
-    @Test
-    void promptIncludesVolumeIdWhenMounted() {
+    void promptIncludesMountIdWhenMounted() {
+        SessionContext session = new SessionContext();
         session.setMountedVolume(new VolumeConfig("a", "//pandora/jav_A", "conventional", "pandora"));
-        assertEquals("organizer:vol-a [*DRYRUN*] > ", promptBuilder.build(session));
+        assertEquals("[MOUNT → a] ▶ ", promptBuilder.build(session).toString());
     }
 
     @Test
-    void armedModeOmitsDryRunMarker() {
-        session.setDryRun(false);
-        assertEquals("organizer > ", promptBuilder.build(session));
-    }
-
-    @Test
-    void armedModeWithMountedVolume() {
+    void promptIncludesMultiCharMountId() {
+        SessionContext session = new SessionContext();
         session.setMountedVolume(new VolumeConfig("bg", "//pandora/jav_BG", "conventional", "pandora"));
-        session.setDryRun(false);
-        assertEquals("organizer:vol-bg > ", promptBuilder.build(session));
+        assertEquals("[MOUNT → bg] ▶ ", promptBuilder.build(session).toString());
     }
 }
