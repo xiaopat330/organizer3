@@ -56,8 +56,30 @@ class TitleBrowseServiceTest {
         assertEquals("ABP-00123", s.baseCode());
         assertEquals("ABP", s.label());
         assertEquals("Yui Hatano", s.actressName());
+        assertEquals("POPULAR", s.actressTier());
         assertEquals("2024-01-15", s.addedDate());
         assertEquals("/covers/ABP/ABP-00123.jpg", s.coverUrl());
+        assertEquals("/mnt/vol-a/stars/ABP-123", s.location());
+    }
+
+    @Test
+    void nullActressIdYieldsNullActressTier() {
+        Title title = title("ABP-001", "ABP-00001", "ABP", null, null);
+
+        when(titleRepo.findRecent(24, 0)).thenReturn(List.of(title));
+        when(coverPath.find(title)).thenReturn(Optional.empty());
+
+        assertNull(service.findRecent(0, 24).get(0).actressTier());
+    }
+
+    @Test
+    void mapsPathAsLocation() {
+        Title title = title("ABP-123", "ABP-00123", "ABP", null, null);
+
+        when(titleRepo.findRecent(24, 0)).thenReturn(List.of(title));
+        when(coverPath.find(title)).thenReturn(Optional.empty());
+
+        assertEquals("/mnt/vol-a/stars/ABP-123", service.findRecent(0, 24).get(0).location());
     }
 
     @Test

@@ -115,19 +115,22 @@ public class ActressBrowseService {
     public List<TitleSummary> findTitlesByActress(long actressId, int offset, int limit) {
         List<Title> titles = titleRepo.findByActressPaged(actressId, limit, offset);
         Map<String, Label> labelMap = labelRepo.findAllAsMap();
-        String actressName = actressRepo.findById(actressId).map(a -> a.getCanonicalName()).orElse(null);
+        com.organizer3.model.Actress actress = actressRepo.findById(actressId).orElse(null);
+        String actressName = actress != null ? actress.getCanonicalName() : null;
+        String actressTier = actress != null && actress.getTier() != null ? actress.getTier().name() : null;
         return titles.stream()
                 .map(t -> {
                     Label lbl = t.label() != null ? labelMap.get(t.label().toUpperCase()) : null;
                     return new TitleSummary(
                             t.code(), t.baseCode(), t.label(),
-                            actressId, actressName,
+                            actressId, actressName, actressTier,
                             t.addedDate() != null ? t.addedDate().toString() : null,
                             coverPath.find(t)
                                     .map(p -> "/covers/" + t.label().toUpperCase() + "/" + p.getFileName())
                                     .orElse(null),
                             lbl != null ? lbl.company() : null,
-                            lbl != null ? lbl.labelName() : null
+                            lbl != null ? lbl.labelName() : null,
+                            t.path() != null ? t.path().toString() : null
                     );
                 })
                 .toList();

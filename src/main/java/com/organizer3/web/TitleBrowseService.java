@@ -97,13 +97,18 @@ public class TitleBrowseService {
     }
 
     private List<TitleSummary> toSummaries(List<Title> titles) {
-        Map<Long, String> actressNames = titles.stream()
+        record ActressInfo(String name, String tier) {}
+
+        Map<Long, ActressInfo> actressInfo = titles.stream()
                 .map(Title::actressId)
                 .filter(Objects::nonNull)
                 .distinct()
                 .collect(Collectors.toMap(
                         id -> id,
-                        id -> actressRepo.findById(id).map(a -> a.getCanonicalName()).orElse(null)
+                        id -> actressRepo.findById(id)
+                                .map(a -> new ActressInfo(a.getCanonicalName(),
+                                        a.getTier() != null ? a.getTier().name() : null))
+                                .orElse(new ActressInfo(null, null))
                 ));
 
         Map<String, Label> labelMap = labelRepo.findAllAsMap();
@@ -116,16 +121,19 @@ public class TitleBrowseService {
                                     .map(p -> "/covers/" + t.label().toUpperCase() + "/" + p.getFileName())
                                     .orElse(null)
                             : null;
+                    ActressInfo ai = t.actressId() != null ? actressInfo.get(t.actressId()) : null;
                     return new TitleSummary(
                             t.code(),
                             t.baseCode(),
                             t.label(),
                             t.actressId(),
-                            t.actressId() != null ? actressNames.get(t.actressId()) : null,
+                            ai != null ? ai.name() : null,
+                            ai != null ? ai.tier() : null,
                             t.addedDate() != null ? t.addedDate().toString() : null,
                             coverUrl,
                             lbl != null ? lbl.company() : null,
-                            lbl != null ? lbl.labelName() : null
+                            lbl != null ? lbl.labelName() : null,
+                            t.path() != null ? t.path().toString() : null
                     );
                 })
                 .toList();

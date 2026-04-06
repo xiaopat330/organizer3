@@ -234,10 +234,23 @@
     .actress-name {
       font-size: 0.78rem;
       color: #888;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 5px;
+      overflow: hidden;
+      margin-bottom: 2px;
+    }
+
+    .actress-name .actress-link {
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
-      margin-bottom: 2px;
+      min-width: 0;
+    }
+
+    .actress-name .tier-badge {
+      flex-shrink: 0;
     }
 
     .actress-name.unknown {
@@ -279,6 +292,16 @@
       font-size: 0.7rem;
       color: #444;
       margin-top: 3px;
+    }
+
+    .title-location {
+      font-size: 0.62rem;
+      color: #363636;
+      font-family: ui-monospace, monospace;
+      margin-top: 3px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
 
     .actress-link {
@@ -604,9 +627,13 @@
       const si = t.actressName.indexOf(' ');
       const fn = si >= 0 ? t.actressName.slice(0, si) : t.actressName;
       const ln = si >= 0 ? t.actressName.slice(si + 1) : '';
-      const inner = `<span class="card-actress-first">${esc(fn)}</span>${ln ? `<span class="card-actress-last"> ${esc(ln)}</span>` : ''}`;
+      const tierHtml = t.actressTier
+        ? ` <span class="tier-badge tier-${esc(t.actressTier)}">${esc(t.actressTier.toLowerCase())}</span>`
+        : '';
+      const nameInner = `<span class="card-actress-first">${esc(fn)}</span>${ln ? `<span class="card-actress-last"> ${esc(ln)}</span>` : ''}`;
+      const inner = `${nameInner}${tierHtml}`;
       actressHtml = t.actressId
-        ? `<div class="actress-name"><a class="actress-link" href="#" data-actress-id="${t.actressId}">${inner}</a></div>`
+        ? `<div class="actress-name"><a class="actress-link" href="#" data-actress-id="${t.actressId}">${nameInner}</a>${tierHtml}</div>`
         : `<div class="actress-name">${inner}</div>`;
     } else {
       actressHtml = `<div class="actress-name unknown">—</div>`;
@@ -621,8 +648,9 @@
     }
 
     const dateHtml = t.addedDate ? `<div class="added-date">${esc(t.addedDate)}</div>` : '';
+    const locationHtml = t.location ? `<div class="title-location">${esc(t.location)}</div>` : '';
 
-    card.innerHTML = `${coverHtml}<div class="card-info">${actressHtml}<div class="title-code">${esc(t.code)}</div>${labelLineHtml}${dateHtml}</div>`;
+    card.innerHTML = `${coverHtml}<div class="card-info">${actressHtml}<div class="title-code">${esc(t.code)}</div>${labelLineHtml}${dateHtml}${locationHtml}</div>`;
 
     const link = card.querySelector('.actress-link');
     if (link) {
