@@ -15,6 +15,7 @@ import com.organizer3.config.sync.StructureSyncConfig;
 import com.organizer3.config.sync.SyncCommandDef;
 import com.organizer3.config.volume.OrganizerConfig;
 import com.organizer3.config.volume.OrganizerConfigLoader;
+import com.organizer3.db.LabelSeeder;
 import com.organizer3.db.SchemaInitializer;
 import com.organizer3.repository.ActressRepository;
 import com.organizer3.repository.TitleRepository;
@@ -67,6 +68,7 @@ public class Application {
         Files.createDirectories(dbDir);
         Jdbi jdbi = Jdbi.create("jdbc:sqlite:" + dbDir.resolve("organizer.db"));
         new SchemaInitializer(jdbi).initialize();
+        new LabelSeeder(jdbi).seedIfEmpty();
 
         // Repositories
         TitleRepository   titleRepo   = new JdbiTitleRepository(jdbi);

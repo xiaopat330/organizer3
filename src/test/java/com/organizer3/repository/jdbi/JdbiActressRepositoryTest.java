@@ -247,6 +247,67 @@ class JdbiActressRepositoryTest {
         assertFalse(saved.isFavorite());
     }
 
+    // --- searchByNamePrefix ---
+
+    @Test
+    void searchByNamePrefixMatchesFirstName() {
+        repo.save(actress("Aya Sazanami"));
+        repo.save(actress("Aino Kishi"));
+        repo.save(actress("Yua Mikami"));
+
+        List<Actress> results = repo.searchByNamePrefix("ay");
+        assertEquals(1, results.size());
+        assertEquals("Aya Sazanami", results.get(0).getCanonicalName());
+    }
+
+    @Test
+    void searchByNamePrefixMatchesLastName() {
+        repo.save(actress("Aya Sazanami"));
+        repo.save(actress("Hibiki Otsuki"));
+
+        List<Actress> results = repo.searchByNamePrefix("saz");
+        assertEquals(1, results.size());
+        assertEquals("Aya Sazanami", results.get(0).getCanonicalName());
+    }
+
+    @Test
+    void searchByNamePrefixIsCaseInsensitive() {
+        repo.save(actress("Aya Sazanami"));
+
+        assertEquals(1, repo.searchByNamePrefix("AY").size());
+        assertEquals(1, repo.searchByNamePrefix("ay").size());
+        assertEquals(1, repo.searchByNamePrefix("Ay").size());
+        assertEquals(1, repo.searchByNamePrefix("SAZ").size());
+    }
+
+    @Test
+    void searchByNamePrefixMatchesMultiple() {
+        repo.save(actress("Aino Kishi"));    // first name starts with "ai"
+        repo.save(actress("Hibiki Aizawa")); // last name starts with "ai"
+        repo.save(actress("Yua Mikami"));
+
+        List<Actress> results = repo.searchByNamePrefix("ai");
+        assertEquals(2, results.size());
+        assertTrue(results.stream().anyMatch(a -> a.getCanonicalName().equals("Aino Kishi")));
+        assertTrue(results.stream().anyMatch(a -> a.getCanonicalName().equals("Hibiki Aizawa")));
+    }
+
+    @Test
+    void searchByNamePrefixReturnsEmptyWhenNoMatch() {
+        repo.save(actress("Aya Sazanami"));
+        assertTrue(repo.searchByNamePrefix("xyz").isEmpty());
+    }
+
+    @Test
+    void searchByNamePrefixResultsOrderedByName() {
+        repo.save(actress("Hibiki Aizawa")); // last name starts with "ai"
+        repo.save(actress("Aino Kishi"));    // first name starts with "ai"
+
+        List<Actress> results = repo.searchByNamePrefix("ai");
+        assertEquals("Aino Kishi", results.get(0).getCanonicalName());
+        assertEquals("Hibiki Aizawa", results.get(1).getCanonicalName());
+    }
+
     // --- helpers ---
 
     private static Actress actress(String canonicalName) {

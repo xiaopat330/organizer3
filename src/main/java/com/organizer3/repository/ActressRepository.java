@@ -27,6 +27,12 @@ public interface ActressRepository {
 
     List<Actress> findAll();
 
+    /**
+     * Find all actresses where any name token (first name, last name, etc.) starts with
+     * the given prefix, case-insensitively.
+     */
+    List<Actress> searchByNamePrefix(String prefix);
+
     List<Actress> findByTier(Actress.Tier tier);
 
     List<Actress> findFavorites();

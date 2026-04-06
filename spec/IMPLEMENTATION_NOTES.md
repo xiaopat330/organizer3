@@ -141,9 +141,12 @@ videos          (id INTEGER PK AUTOINCREMENT, title_id INTEGER → titles.id,
                  filename TEXT, path TEXT, last_seen_at TEXT)
 operations      (id INTEGER PK AUTOINCREMENT, timestamp TEXT, type TEXT,
                  source_path TEXT, dest_path TEXT, was_armed INTEGER)
+labels          (code TEXT PK, label_name TEXT, company TEXT, description TEXT)
 ```
 
 Indexes: `actress_aliases(alias_name)`, `titles(volume_id)`, `titles(actress_id)`, `titles(code)`, `titles(label)`, `videos(title_id)`
+
+`labels.code` joins to `titles.label` for label metadata lookups. Seeded automatically on startup from `src/main/resources/labels.csv` via `LabelSeeder.seedIfEmpty()`. Call `reimport()` to clear and re-seed when the CSV is updated.
 
 `actress_id` on titles is nullable — titles in unstructured partitions have no actress until organized into a starred partition.
 
@@ -157,6 +160,7 @@ Indexes: `actress_aliases(alias_name)`, `titles(volume_id)`, `titles(actress_id)
 | 1 → 2 | Drop `mount_path` from volumes (smbj replaced OS mounts) |
 | 2 → 3 | Add `label` and `seq_num` columns to titles |
 | 3 → 4 | Add `favorite` column to actresses |
+| 4 → 5 | Add `labels` reference table |
 
 ### Repository Pattern
 
@@ -176,6 +180,7 @@ Repositories are tested with real in-memory SQLite DBs (not mocks). Each test ge
 - **YAML owns**: volume definitions, server config, structure definitions, sync command bindings
 - **DB owns**: actress records, alias mappings, title records, video records, operation history
 - `aliases.yaml` is a **seed file** only — imported into the DB on first run, then the DB is authoritative
+- `labels.csv` is a **seed file** — auto-imported on startup if the table is empty; call `LabelSeeder.reimport()` to re-seed after updates
 
 ---
 

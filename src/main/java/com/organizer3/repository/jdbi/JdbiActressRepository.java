@@ -83,6 +83,23 @@ public class JdbiActressRepository implements ActressRepository {
     }
 
     @Override
+    public List<Actress> searchByNamePrefix(String prefix) {
+        String lower = prefix.toLowerCase();
+        return jdbi.withHandle(h ->
+                h.createQuery("""
+                        SELECT * FROM actresses
+                        WHERE LOWER(canonical_name) LIKE :startsWith
+                           OR LOWER(canonical_name) LIKE :wordStartsWith
+                        ORDER BY canonical_name
+                        """)
+                        .bind("startsWith", lower + "%")
+                        .bind("wordStartsWith", "% " + lower + "%")
+                        .map(ACTRESS_MAPPER)
+                        .list()
+        );
+    }
+
+    @Override
     public List<Actress> findByTier(Actress.Tier tier) {
         return jdbi.withHandle(h ->
                 h.createQuery("SELECT * FROM actresses WHERE tier = :tier ORDER BY canonical_name")
