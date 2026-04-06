@@ -175,12 +175,88 @@ class JdbiActressRepositoryTest {
         assertTrue(aliases.stream().noneMatch(a -> a.aliasName().equals("Old Alias")));
     }
 
+    // --- findByTier ---
+
+    @Test
+    void findByTierReturnsOnlyMatchingTier() {
+        repo.save(actress("Aya Sazanami", Actress.Tier.LIBRARY));
+        repo.save(actress("Yua Mikami", Actress.Tier.GODDESS));
+        repo.save(actress("Hibiki Otsuki", Actress.Tier.GODDESS));
+
+        List<Actress> goddesses = repo.findByTier(Actress.Tier.GODDESS);
+        assertEquals(2, goddesses.size());
+        assertTrue(goddesses.stream().anyMatch(a -> a.getCanonicalName().equals("Yua Mikami")));
+        assertTrue(goddesses.stream().anyMatch(a -> a.getCanonicalName().equals("Hibiki Otsuki")));
+    }
+
+    @Test
+    void findByTierReturnsEmptyWhenNoneMatch() {
+        repo.save(actress("Aya Sazanami", Actress.Tier.LIBRARY));
+        assertTrue(repo.findByTier(Actress.Tier.SUPERSTAR).isEmpty());
+    }
+
+    @Test
+    void findByTierResultsOrderedByName() {
+        repo.save(actress("Yua Mikami", Actress.Tier.GODDESS));
+        repo.save(actress("Aya Sazanami", Actress.Tier.GODDESS));
+
+        List<Actress> result = repo.findByTier(Actress.Tier.GODDESS);
+        assertEquals("Aya Sazanami", result.get(0).getCanonicalName());
+        assertEquals("Yua Mikami", result.get(1).getCanonicalName());
+    }
+
+    // --- toggleFavorite / findFavorites ---
+
+    @Test
+    void toggleFavoriteMarksFavorite() {
+        Actress saved = repo.save(actress("Aya Sazanami"));
+        assertFalse(repo.findById(saved.getId()).orElseThrow().isFavorite());
+
+        repo.toggleFavorite(saved.getId(), true);
+        assertTrue(repo.findById(saved.getId()).orElseThrow().isFavorite());
+    }
+
+    @Test
+    void toggleFavoriteUnmarksFavorite() {
+        Actress saved = repo.save(actress("Aya Sazanami"));
+        repo.toggleFavorite(saved.getId(), true);
+        repo.toggleFavorite(saved.getId(), false);
+        assertFalse(repo.findById(saved.getId()).orElseThrow().isFavorite());
+    }
+
+    @Test
+    void findFavoritesReturnsOnlyFavoritedActresses() {
+        Actress aya = repo.save(actress("Aya Sazanami"));
+        repo.save(actress("Hibiki Otsuki"));
+        repo.toggleFavorite(aya.getId(), true);
+
+        List<Actress> favorites = repo.findFavorites();
+        assertEquals(1, favorites.size());
+        assertEquals("Aya Sazanami", favorites.get(0).getCanonicalName());
+    }
+
+    @Test
+    void findFavoritesReturnsEmptyWhenNoneFavorited() {
+        repo.save(actress("Aya Sazanami"));
+        assertTrue(repo.findFavorites().isEmpty());
+    }
+
+    @Test
+    void savedActressDefaultsToNotFavorite() {
+        Actress saved = repo.save(actress("Aya Sazanami"));
+        assertFalse(saved.isFavorite());
+    }
+
     // --- helpers ---
 
     private static Actress actress(String canonicalName) {
+        return actress(canonicalName, Actress.Tier.LIBRARY);
+    }
+
+    private static Actress actress(String canonicalName, Actress.Tier tier) {
         return Actress.builder()
                 .canonicalName(canonicalName)
-                .tier(Actress.Tier.LIBRARY)
+                .tier(tier)
                 .firstSeenAt(LocalDate.of(2024, 1, 1))
                 .build();
     }

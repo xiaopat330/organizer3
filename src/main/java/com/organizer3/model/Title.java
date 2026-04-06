@@ -17,6 +17,8 @@ public record Title(
         Long id,
         String code,
         String baseCode,
+        String label,
+        Integer seqNum,
         String volumeId,
         String partitionId,
         Long actressId,

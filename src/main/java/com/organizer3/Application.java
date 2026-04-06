@@ -1,11 +1,14 @@
 package com.organizer3;
 
+import com.organizer3.command.ActressesCommand;
 import com.organizer3.command.Command;
+import com.organizer3.command.FavoritesCommand;
 import com.organizer3.command.HelloCommand;
 import com.organizer3.command.HelpCommand;
 import com.organizer3.command.MountCommand;
 import com.organizer3.command.ShutdownCommand;
 import com.organizer3.command.SyncCommand;
+import com.organizer3.command.UnmountCommand;
 import com.organizer3.command.VolumesCommand;
 import com.organizer3.config.AppConfig;
 import com.organizer3.config.sync.StructureSyncConfig;
@@ -80,7 +83,10 @@ public class Application {
         commands.add(new HelloCommand());
         commands.add(new ShutdownCommand());
         commands.add(new MountCommand(new SmbjConnector(), indexLoader));
+        commands.add(new UnmountCommand());
         commands.add(new VolumesCommand(volumeRepo));
+        commands.add(new ActressesCommand(actressRepo, titleRepo));
+        commands.add(new FavoritesCommand(actressRepo, titleRepo));
 
         // Sync commands — registered dynamically from syncConfig.
         // Group by term so that a term shared across structure types (e.g. sync-all)

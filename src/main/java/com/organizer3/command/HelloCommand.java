@@ -1,8 +1,7 @@
 package com.organizer3.command;
 
 import com.organizer3.shell.SessionContext;
-
-import java.io.PrintWriter;
+import com.organizer3.shell.io.CommandIO;
 
 /**
  * Starter command — placeholder to verify the shell wiring works.
@@ -21,9 +20,9 @@ public class HelloCommand implements Command {
     }
 
     @Override
-    public void execute(String[] args, SessionContext ctx, PrintWriter out) {
+    public void execute(String[] args, SessionContext ctx, CommandIO io) {
         String target = args.length > 1 ? args[1] : "world";
-        out.println("Hello, " + target + "!");
-        out.println("Dry-run mode: " + (ctx.isDryRun() ? "ON" : "OFF"));
+        io.println("Hello, " + target + "!");
+        io.println("Dry-run mode: " + (ctx.isDryRun() ? "ON" : "OFF"));
     }
 }

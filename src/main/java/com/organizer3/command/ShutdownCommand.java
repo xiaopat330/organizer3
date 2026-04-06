@@ -1,8 +1,8 @@
 package com.organizer3.command;
 
 import com.organizer3.shell.SessionContext;
+import com.organizer3.shell.io.CommandIO;
 
-import java.io.PrintWriter;
 import java.util.List;
 
 public class ShutdownCommand implements Command {
@@ -23,8 +23,8 @@ public class ShutdownCommand implements Command {
     }
 
     @Override
-    public void execute(String[] args, SessionContext ctx, PrintWriter out) {
-        out.println("Goodbye.");
+    public void execute(String[] args, SessionContext ctx, CommandIO io) {
+        io.println("Goodbye.");
         ctx.shutdown();
     }
 }

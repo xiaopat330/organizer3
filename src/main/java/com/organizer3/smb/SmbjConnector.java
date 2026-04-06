@@ -23,18 +23,25 @@ public class SmbjConnector implements SmbConnector {
     private static final Logger log = LoggerFactory.getLogger(SmbjConnector.class);
 
     @Override
-    public VolumeConnection connect(VolumeConfig volume, ServerConfig server) throws SmbConnectionException {
+    public VolumeConnection connect(VolumeConfig volume, ServerConfig server, MountProgressListener progress)
+            throws SmbConnectionException {
         ParsedSmbPath parsed = parseSmbPath(volume.smbPath());
 
         log.info("Connecting to \\\\{}\\{} as {}", parsed.host, parsed.share, server.username());
 
         SMBClient client = new SMBClient();
         try {
+            progress.onStep("Connecting to " + parsed.host);
             Connection connection = client.connect(parsed.host);
+
+            progress.onStep("Authenticating as " + server.username());
             AuthenticationContext auth = new AuthenticationContext(
-                    server.username(), server.password().toCharArray(), "");
+                    server.username(), server.password().toCharArray(), server.domainOrEmpty());
             Session session = connection.authenticate(auth);
+
+            progress.onStep("Opening share " + parsed.share);
             DiskShare share = (DiskShare) session.connectShare(parsed.share);
+
             log.info("Connected to \\\\{}\\{}", parsed.host, parsed.share);
             return new SmbVolumeConnection(client, connection, session, share, parsed.subPath);
         } catch (IOException e) {

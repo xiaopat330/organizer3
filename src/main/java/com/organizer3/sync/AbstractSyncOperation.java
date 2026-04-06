@@ -10,11 +10,12 @@ import com.organizer3.repository.ActressRepository;
 import com.organizer3.repository.TitleRepository;
 import com.organizer3.repository.VideoRepository;
 import com.organizer3.repository.VolumeRepository;
+import com.organizer3.shell.io.CommandIO;
+import com.organizer3.shell.io.Progress;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.io.PrintWriter;
 import java.nio.file.Path;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -66,19 +67,26 @@ abstract class AbstractSyncOperation implements SyncOperation {
      */
     protected int scanUnstructuredPartition(Path partitionRoot, String partitionId,
                                             String volumeId, Long actressId,
-                                            VolumeFileSystem fs, PrintWriter out) throws IOException {
+                                            VolumeFileSystem fs, CommandIO io,
+                                            SyncStats stats) throws IOException {
         if (!fs.exists(partitionRoot)) {
-            out.println("  [skip] " + partitionRoot + " — not found");
+            io.println("  [skip] " + partitionRoot + " — not found");
             return 0;
         }
-        List<Path> children = fs.listDirectory(partitionRoot);
-        int count = 0;
-        for (Path child : children) {
-            if (fs.isDirectory(child)) {
+        List<Path> titleFolders = fs.listDirectory(partitionRoot).stream()
+                .filter(fs::isDirectory)
+                .toList();
+        if (titleFolders.isEmpty()) return 0;
+
+        try (Progress progress = io.startProgress(partitionId + "/", titleFolders.size())) {
+            for (Path child : titleFolders) {
+                progress.setLabel(child.getFileName().toString());
                 saveTitleAndVideos(child, volumeId, partitionId, actressId, fs);
-                count++;
+                progress.advance();
             }
         }
+        int count = titleFolders.size();
+        stats.addTitles(partitionId, count);
         return count;
     }
 
@@ -88,23 +96,34 @@ abstract class AbstractSyncOperation implements SyncOperation {
      * Returns the number of titles saved.
      */
     protected int scanFlatStarsPartition(Path starsRoot, String volumeId,
-                                         VolumeFileSystem fs, PrintWriter out) throws IOException {
+                                         VolumeFileSystem fs, CommandIO io,
+                                         SyncStats stats) throws IOException {
         if (!fs.exists(starsRoot)) {
-            out.println("  [skip] " + starsRoot + " — not found");
+            io.println("  [skip] " + starsRoot + " — not found");
             return 0;
         }
+        List<Path> actressFolders = fs.listDirectory(starsRoot).stream()
+                .filter(fs::isDirectory)
+                .toList();
+        if (actressFolders.isEmpty()) return 0;
+
         int count = 0;
-        for (Path actressFolder : fs.listDirectory(starsRoot)) {
-            if (!fs.isDirectory(actressFolder)) continue;
-            String actressName = actressFolder.getFileName().toString();
-            Actress actress = resolveOrCreateActress(actressName, Actress.Tier.LIBRARY);
-            for (Path titleFolder : fs.listDirectory(actressFolder)) {
-                if (fs.isDirectory(titleFolder)) {
-                    saveTitleAndVideos(titleFolder, volumeId, "stars", actress.getId(), fs);
-                    count++;
+        try (Progress progress = io.startProgress("stars/", actressFolders.size())) {
+            for (Path actressFolder : actressFolders) {
+                String actressName = actressFolder.getFileName().toString();
+                progress.setLabel(actressName);
+                Actress actress = resolveOrCreateActress(actressName, Actress.Tier.LIBRARY);
+                stats.addActress(actress.getId());
+                for (Path titleFolder : fs.listDirectory(actressFolder)) {
+                    if (fs.isDirectory(titleFolder)) {
+                        saveTitleAndVideos(titleFolder, volumeId, "stars", actress.getId(), fs);
+                        count++;
+                    }
                 }
+                progress.advance();
             }
         }
+        stats.addTitles("stars", count);
         return count;
     }
 
@@ -115,22 +134,33 @@ abstract class AbstractSyncOperation implements SyncOperation {
      */
     protected int scanStarPartition(Path tierRoot, String partitionId,
                                     String volumeId, Actress.Tier actressTier,
-                                    VolumeFileSystem fs, PrintWriter out) throws IOException {
+                                    VolumeFileSystem fs, CommandIO io,
+                                    SyncStats stats) throws IOException {
         if (!fs.exists(tierRoot)) {
             return 0;
         }
+        List<Path> actressFolders = fs.listDirectory(tierRoot).stream()
+                .filter(fs::isDirectory)
+                .toList();
+        if (actressFolders.isEmpty()) return 0;
+
         int count = 0;
-        for (Path actressFolder : fs.listDirectory(tierRoot)) {
-            if (!fs.isDirectory(actressFolder)) continue;
-            String actressName = actressFolder.getFileName().toString();
-            Actress actress = resolveOrCreateActress(actressName, actressTier);
-            for (Path titleFolder : fs.listDirectory(actressFolder)) {
-                if (fs.isDirectory(titleFolder)) {
-                    saveTitleAndVideos(titleFolder, volumeId, partitionId, actress.getId(), fs);
-                    count++;
+        try (Progress progress = io.startProgress("stars/" + partitionId, actressFolders.size())) {
+            for (Path actressFolder : actressFolders) {
+                String actressName = actressFolder.getFileName().toString();
+                progress.setLabel(actressName);
+                Actress actress = resolveOrCreateActress(actressName, actressTier);
+                stats.addActress(actress.getId());
+                for (Path titleFolder : fs.listDirectory(actressFolder)) {
+                    if (fs.isDirectory(titleFolder)) {
+                        saveTitleAndVideos(titleFolder, volumeId, partitionId, actress.getId(), fs);
+                        count++;
+                    }
                 }
+                progress.advance();
             }
         }
+        stats.addTitles(partitionId, count);
         return count;
     }
 
@@ -140,7 +170,7 @@ abstract class AbstractSyncOperation implements SyncOperation {
         TitleCodeParser.ParsedCode parsed = codeParser.parse(folderName);
 
         Title title = titleRepo.save(new Title(
-                null, parsed.code(), parsed.baseCode(),
+                null, parsed.code(), parsed.baseCode(), parsed.label(), parsed.seqNum(),
                 volumeId, partitionId, actressId,
                 titleFolder, LocalDate.now()));
 
@@ -205,8 +235,12 @@ abstract class AbstractSyncOperation implements SyncOperation {
         ctx.setIndex(indexLoader.load(volumeId));
     }
 
-    protected void printStats(int titleCount, PrintWriter out) {
-        out.println("Sync complete. " + titleCount + " title(s) indexed.");
+    protected void printStats(SyncStats stats, CommandIO io) {
+        io.println("Sync complete.");
+        io.println("  Actresses:  " + stats.actressCount());
+        io.printlnAnsi("  Queue:      \033[32m" + stats.queue     + "\033[0m");
+        io.printlnAnsi("  Attention:  \033[31m" + stats.attention + "\033[0m");
+        io.printlnAnsi("  Total:      \033[36m" + stats.total     + "\033[0m");
     }
 
     // Expose partition def lookup for unstructured partitions (used by PartitionSyncOperation)

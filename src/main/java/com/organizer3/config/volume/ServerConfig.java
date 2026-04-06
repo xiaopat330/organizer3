@@ -9,5 +9,10 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 public record ServerConfig(
         @JsonProperty("id")       String id,
         @JsonProperty("username") String username,
-        @JsonProperty("password") String password
-) {}
+        @JsonProperty("password") String password,
+        @JsonProperty("domain")   String domain
+) {
+    public String domainOrEmpty() {
+        return domain != null ? domain : "";
+    }
+}

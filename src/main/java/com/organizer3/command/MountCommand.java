@@ -5,13 +5,13 @@ import com.organizer3.config.volume.OrganizerConfig;
 import com.organizer3.config.volume.ServerConfig;
 import com.organizer3.config.volume.VolumeConfig;
 import com.organizer3.shell.SessionContext;
+import com.organizer3.shell.io.CommandIO;
+import com.organizer3.shell.io.Spinner;
 import com.organizer3.smb.SmbConnectionException;
 import com.organizer3.smb.SmbConnector;
 import com.organizer3.smb.VolumeConnection;
 import com.organizer3.sync.IndexLoader;
 import com.organizer3.sync.VolumeIndex;
-
-import java.io.PrintWriter;
 
 /**
  * Connects to an SMB volume and activates it as the current session context.
@@ -22,6 +22,8 @@ import java.io.PrintWriter;
  * as the session context without reconnecting.
  *
  * <p>When switching volumes, the previous connection is closed before opening the new one.
+ * An animated spinner provides feedback during the connection phases (host resolution,
+ * authentication, share connect), each of which may block for several seconds.
  */
 public class MountCommand implements Command {
 
@@ -44,9 +46,9 @@ public class MountCommand implements Command {
     }
 
     @Override
-    public void execute(String[] args, SessionContext ctx, PrintWriter out) {
+    public void execute(String[] args, SessionContext ctx, CommandIO io) {
         if (args.length < 2) {
-            out.println("Usage: mount <volume-id>");
+            io.println("Usage: mount <volume-id>");
             return;
         }
 
@@ -54,8 +56,8 @@ public class MountCommand implements Command {
         String volumeId = args[1];
         VolumeConfig volume = config.findById(volumeId).orElse(null);
         if (volume == null) {
-            out.println("Unknown volume: " + volumeId);
-            out.println("Known volumes: " + config.volumes().stream()
+            io.println("Unknown volume: " + volumeId);
+            io.println("Known volumes: " + config.volumes().stream()
                     .map(VolumeConfig::id)
                     .reduce((a, b) -> a + ", " + b)
                     .orElse("(none)"));
@@ -64,7 +66,7 @@ public class MountCommand implements Command {
 
         // Already connected to this volume — just reactivate
         if (volumeId.equals(ctx.getMountedVolumeId()) && ctx.isConnected()) {
-            out.println("Volume '" + volumeId + "' already connected.");
+            io.println("Volume '" + volumeId + "' already connected.");
             return;
         }
 
@@ -78,29 +80,27 @@ public class MountCommand implements Command {
         ServerConfig server = config.findServerById(volume.server()).orElseThrow(() ->
                 new IllegalStateException("No server config found for id: " + volume.server()));
 
-        out.println("Connecting to " + volume.smbPath() + " ...");
-
         VolumeConnection connection;
-        try {
-            connection = smbConnector.connect(volume, server);
+        try (Spinner spinner = io.startSpinner("Connecting to " + volume.smbPath())) {
+            connection = smbConnector.connect(volume, server, spinner::setStatus);
         } catch (SmbConnectionException e) {
-            out.println("Connection failed: " + e.getMessage());
+            io.println("Connection failed: " + e.getMessage());
             return;
         }
 
         ctx.setActiveConnection(connection);
         ctx.setMountedVolume(volume);
-        loadIndex(volumeId, ctx, out);
-        out.println("Connected. Volume '" + volumeId + "' is now active.");
+        loadIndex(volumeId, ctx, io);
+        io.println("Connected. Volume '" + volumeId + "' is now active.");
     }
 
-    private void loadIndex(String volumeId, SessionContext ctx, PrintWriter out) {
+    private void loadIndex(String volumeId, SessionContext ctx, CommandIO io) {
         VolumeIndex index = indexLoader.load(volumeId);
         ctx.setIndex(index);
         if (index.titleCount() == 0) {
-            out.println("No index found for volume '" + volumeId + "' — run sync-all to build it.");
+            io.println("No index found for volume '" + volumeId + "' — run sync-all to build it.");
         } else {
-            out.println("Loaded index: " + index.titleCount() + " title(s), "
+            io.println("Loaded index: " + index.titleCount() + " title(s), "
                     + index.actressCount() + " actress(es).");
         }
     }

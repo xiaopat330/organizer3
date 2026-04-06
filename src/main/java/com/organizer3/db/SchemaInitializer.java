@@ -15,12 +15,14 @@ import org.slf4j.LoggerFactory;
  * <ul>
  *   <li>0 → 1: initial schema (with {@code mount_path} on volumes)
  *   <li>1 → 2: drop {@code mount_path} from volumes
+ *   <li>2 → 3: add {@code label} and {@code seq_num} columns to titles
+ *   <li>3 → 4: add {@code favorite} column to actresses
  * </ul>
  */
 public class SchemaInitializer {
 
     private static final Logger log = LoggerFactory.getLogger(SchemaInitializer.class);
-    private static final int CURRENT_VERSION = 2;
+    private static final int CURRENT_VERSION = 4;
 
     private final Jdbi jdbi;
 
@@ -35,6 +37,8 @@ public class SchemaInitializer {
 
         if (version < 1) migrate1();
         if (version < 2) migrate2();
+        if (version < 3) migrate3();
+        if (version < 4) migrate4();
 
         log.info("Schema initialization complete (version {})", CURRENT_VERSION);
     }
@@ -117,6 +121,26 @@ public class SchemaInitializer {
             h.execute("CREATE INDEX IF NOT EXISTS idx_videos_title ON videos(title_id)");
         });
         setVersion(1);
+    }
+
+    /** Add favorite column to actresses for user-curated marking. */
+    private void migrate4() {
+        log.info("Applying migration 4: add favorite to actresses");
+        jdbi.useHandle(h ->
+                h.execute("ALTER TABLE actresses ADD COLUMN favorite INTEGER NOT NULL DEFAULT 0")
+        );
+        setVersion(4);
+    }
+
+    /** Add label and seq_num columns to titles for structured querying. */
+    private void migrate3() {
+        log.info("Applying migration 3: add label and seq_num to titles");
+        jdbi.useHandle(h -> {
+            h.execute("ALTER TABLE titles ADD COLUMN label TEXT");
+            h.execute("ALTER TABLE titles ADD COLUMN seq_num INTEGER");
+            h.execute("CREATE INDEX IF NOT EXISTS idx_titles_label ON titles(label)");
+        });
+        setVersion(3);
     }
 
     /** Drop mount_path from volumes — no longer needed with direct smbj connections. */

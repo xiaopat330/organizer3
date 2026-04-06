@@ -1,6 +1,9 @@
 package com.organizer3.shell;
 
 import com.organizer3.command.Command;
+import com.organizer3.shell.io.CommandIO;
+import com.organizer3.shell.io.JLineCommandIO;
+import com.organizer3.shell.io.PlainCommandIO;
 import org.jline.reader.EndOfFileException;
 import org.jline.reader.LineReader;
 import org.jline.reader.LineReaderBuilder;
@@ -20,6 +23,11 @@ import java.util.Map;
  *
  * Wires JLine3 (terminal + line reader) to the command dispatcher.
  * Commands are registered by name and looked up on each input line.
+ *
+ * On a real TTY, commands receive a {@link JLineCommandIO} that routes output above
+ * a persistent status bar and supports animated spinner/progress display.
+ * On a dumb terminal or non-TTY (e.g. tests piping stdin), commands receive a
+ * {@link PlainCommandIO} that writes directly to the terminal writer.
  */
 public class OrganizerShell {
     private static final Logger log = LoggerFactory.getLogger(OrganizerShell.class);
@@ -45,7 +53,9 @@ public class OrganizerShell {
                     .variable(LineReader.HISTORY_FILE, ".organizer_history")
                     .build();
 
+            CommandIO io = buildCommandIO(terminal, reader);
             PrintWriter out = terminal.writer();
+
             out.println("Organizer3 — type 'help' for available commands");
             out.flush();
 
@@ -54,16 +64,14 @@ public class OrganizerShell {
                 try {
                     line = reader.readLine(promptBuilder.build(session));
                 } catch (UserInterruptException e) {
-                    // Ctrl+C — cancel current line, loop again
                     continue;
                 } catch (EndOfFileException e) {
-                    // Ctrl+D — exit
                     break;
                 }
 
                 if (line == null || line.isBlank()) continue;
 
-                dispatch(line.trim(), out);
+                dispatch(line.trim(), io);
                 out.flush();
             }
         } catch (IOException e) {
@@ -71,20 +79,28 @@ public class OrganizerShell {
         }
     }
 
-    private void dispatch(String line, PrintWriter out) {
+    private CommandIO buildCommandIO(Terminal terminal, LineReader reader) {
+        if (Terminal.TYPE_DUMB.equals(terminal.getType())
+                || Terminal.TYPE_DUMB_COLOR.equals(terminal.getType())) {
+            return new PlainCommandIO(terminal.writer());
+        }
+        return new JLineCommandIO(terminal, reader);
+    }
+
+    private void dispatch(String line, CommandIO io) {
         String[] parts = line.split("\\s+");
         String name = parts[0].toLowerCase();
 
         Command cmd = commands.get(name);
         if (cmd != null) {
             try {
-                cmd.execute(parts, session, out);
+                cmd.execute(parts, session, io);
             } catch (Exception e) {
-                out.println("Error: " + e.getMessage());
+                io.println("Error: " + e.getMessage());
                 log.error("Command '{}' threw an exception", name, e);
             }
         } else {
-            out.println("Unknown command: " + name + "  (type 'help' for available commands)");
+            io.println("Unknown command: " + name + "  (type 'help' for available commands)");
         }
     }
 }

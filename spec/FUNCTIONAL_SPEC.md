@@ -10,17 +10,18 @@ Organizer is a CLI-based media library automation tool for managing a large, dis
 
 ### 1.1 Volumes
 
-A **volume** is a logical storage unit mapped to a physical path (local drive or network share). Each volume has:
+A **volume** is a logical storage unit mapped to a physical path on a remote SMB share. Each volume has:
 
 - A short **ID** (e.g., `a`, `bg`, `hj`, `unsorted`)
-- A **mount path** (UNC path or local path)
+- An **SMB path** (e.g., `//pandora/jav_A`)
+- A **server** reference (resolves to credentials and host)
 - A **structure type** that determines its folder layout and available commands
 
-The system manages ~14 volumes, most partitioned by actress name initial (A, BG, HJ, K, M, MA, N, OR, S, TZ) plus special-purpose volumes (unsorted, classic, collections).
+The system manages ~14 volumes, most partitioned by actress name initial (A, BG, HJ, K, M, MA, N, OR, S, TZ) plus special-purpose volumes (unsorted, classic, collections, qnap).
 
 ### 1.2 Structure Types
 
-Each volume follows one of three structure templates:
+Each volume follows one of four structure templates:
 
 #### Conventional (main library volumes)
 ```
@@ -46,8 +47,17 @@ Each volume follows one of three structure templates:
 #### Queue (intake/staging volumes)
 ```
 <volume root>/
-  fresh/              # Unorganized incoming titles
+  fresh/              # Unorganized incoming titles (logical id: queue)
 ```
+
+#### Stars-Flat (flat actress layout, no tier sub-folders)
+```
+<volume root>/
+  stars/
+    Actress Name/     # Actress folder directly under stars/
+      ABP-123/        # Title folder
+```
+All actresses in a stars-flat volume are stored with tier `LIBRARY` in the DB.
 
 #### Collections (curated sets)
 ```
@@ -87,8 +97,8 @@ A **title** is a video release identified by a **code** (e.g., `ABP-123`, `SSIS-
 
 - Format: `<LABEL>-<NUMBER>` (e.g., `PRED-456`)
 - Some codes have suffixes for variants: `_U` (uncensored), `_4K` (4K resolution)
-- Multi-part releases may have sub-codes
-- The **base code** is the normalized form used for matching (strips suffixes)
+- Multi-part releases may have sub-codes (tracked as `seqNum`)
+- The **base code** is the normalized form used for matching (label uppercased, number zero-padded to 5 digits, no suffix)
 
 A title folder typically contains:
 - One or more video files
@@ -101,11 +111,12 @@ An **actress** (performer) is identified by name and can:
 - Have **aliases** (alternate stage names that map to the same person)
 - Appear in multiple titles across multiple volumes
 - Be ranked into **tiers** based on title count:
-  - **library** - default (fewer than 5 titles)
-  - **minor** - 5 to 19 titles
-  - **popular** - 20 to 49 titles
-  - **superstar** - 50 to 99 titles
-  - **goddess** - 100+ titles
+  - **LIBRARY** - default (fewer than 5 titles)
+  - **MINOR** - 5 to 19 titles
+  - **POPULAR** - 20 to 49 titles
+  - **SUPERSTAR** - 50 to 99 titles
+  - **GODDESS** - 100+ titles
+- Be marked as a **favorite** for user-curated tracking
 
 ### 1.7 Videos
 
@@ -118,7 +129,7 @@ Individual video files. Supported formats:
 
 ### 2.1 Interactive Shell
 
-The application runs as an interactive CLI shell with modern interactive features (autosuggestions, tab completion, history search). The prompt displays the current context:
+The application runs as an interactive CLI shell with history file persistence. The prompt displays the current context:
 
 ```
 organizer [*DRYRUN*] >          # No volume mounted, dry-run mode
@@ -128,53 +139,64 @@ organizer:vol-a >               # Volume "a" mounted, armed (real mode)
 
 ### 2.2 Commands
 
-Some commands require an active mounted volume (filesystem access). Others work from the local database alone regardless of mount state.
+Some commands require an active mounted volume (filesystem access). Others work from the local database alone.
 
-| Command | Requires Mount | Description |
-|---------|---------------|-------------|
-| `volumes` | No | List all configured volumes with last-sync timestamps |
-| `mount <id>` | — | Authenticate and activate a volume as the current context |
-| `sync` | Yes | Refresh the database index from the current volume's filesystem |
-| `currentVolume` | No | Show currently mounted volume |
-| `list` | Yes | Display full inventory of current volume |
-| `partitions` | Yes | List partitions on current volume |
-| `actresses` | No | List all known actresses with title counts (from database) |
-| `actress <name> <surname>` | No | Show details for a specific actress (from database) |
-| `run <command>` | Yes | Execute an organization action (see below) |
-| `test` | No | Switch to dry-run mode (default) |
-| `arm` | No | Switch to live/real mode |
-| `hardReset` | No | Clear all session/cached data |
-| `shutdown` | No | Exit the application |
+| Command | Requires Mount | Status | Description |
+|---------|---------------|--------|-------------|
+| `help` | No | ✅ | List available commands |
+| `volumes` | No | ✅ | List all configured volumes with last-sync timestamps |
+| `mount <id>` | — | ✅ | Authenticate and activate a volume as the current context |
+| `unmount` | No | ✅ | Disconnect from the current volume |
+| `sync` | Yes | ✅ | Full sync (queue volumes) |
+| `sync-all` | Yes | ✅ | Full sync for conventional and queue volumes |
+| `sync-queue` | Yes | ✅ | Partition-scoped sync (queue partition only, conventional volumes) |
+| `actresses <tier>` | No | ✅ | List actresses in a tier with title counts, sorted by most to least |
+| `favorites` | No | ✅ | List all favorited actresses with title counts |
+| `arm` | No | ⬜ | Switch to live/real mode |
+| `test` | No | ⬜ | Switch to dry-run mode |
+| `actress <name>` | No | ⬜ | Show details for a specific actress |
+| `list` | Yes | ⬜ | Display full inventory of current volume |
+| `partitions` | Yes | ⬜ | List partitions on current volume |
+| `run <action>` | Yes | ⬜ | Execute an organization action |
+| `hardReset` | No | ⬜ | Clear all session/cached data |
+| `shutdown` | No | ✅ | Exit the application |
 
 ### 2.3 Mount Behavior
 
-`mount <id>` authenticates and prepares a volume for use:
+`mount <id>` authenticates and connects to a volume:
 
-- Ensures the SMB share is accessible at the OS level (mounts it if not already mounted)
+- Opens an SMB2/3 connection to the volume's share using the smbj library
+- Credentials are resolved from the `servers` block in `organizer-config.yaml`
+- Displays an animated spinner with phase feedback (connecting → authenticating → opening share)
 - Sets the volume as the active session context and updates the prompt
 - Loads the volume's index from the local database into memory — **assumes the database is current**
-- If no database record exists for this volume (first use), the user is informed and prompted to run `sync`
+- If no database records exist for this volume (first use), the user is informed and prompted to run a sync command
 
-OS mounts are never unmounted by the application. `mount` is idempotent — calling it on an already-mounted volume simply reactivates it as the session context. Only one volume is active at a time.
+Mount is idempotent — calling it on an already-connected volume simply acknowledges it is already active. Switching to a different volume closes the previous SMB connection first.
+
+`unmount` closes the SMB connection and clears the active volume, connection, and index from the session.
 
 ### 2.4 Sync Behavior
 
-`sync` explicitly refreshes the database index for the currently mounted volume by walking the filesystem. It is the only way to update the database from the filesystem. There is no automatic or background sync.
+Sync explicitly refreshes the database index for the currently mounted volume by walking the filesystem over SMB. It is the only way to update the database from the filesystem.
 
 - Must be run manually when the filesystem has changed outside of the tool
 - Operates on the currently mounted volume only
-- Handles unreachable or missing paths gracefully with clear messaging
+- Available sync commands and their scope are entirely config-driven (see §7)
+- Shows a progress bar per partition during scanning
+- Prints a summary of actresses and titles discovered on completion
+- After completing, reloads the in-memory index from the DB
 
 ### 2.5 Safety: Test vs Armed Mode
 
 - The application starts in **test/dry-run mode** by default
 - In test mode, all file operations are simulated and logged but not executed
-- The user must explicitly run `arm` to enable real file operations
+- The user must explicitly run `arm` to enable real file operations *(not yet implemented)*
 - The prompt clearly indicates the current mode
 
 ---
 
-## 3. Organization Actions
+## 3. Organization Actions *(not yet implemented)*
 
 Actions are the core automation workflows. Available actions depend on the volume's structure type.
 
@@ -185,7 +207,7 @@ Runs the complete organization pipeline in sequence:
 1. **Distribute queued titles** - Move titles from `queue/`, `archive/`, and `recent/` into the correct actress folder under `stars/`
 2. **Flag problem titles** - Move titles that can't be matched to `attention/`
 3. **Sort actress folders by tier** - Promote/demote actress folders between tier partitions based on current title count
-4. **Normalize title folders** - Ensure videos are in correct subfolder structure (e.g., inside a `video/` container)
+4. **Normalize title folders** - Ensure videos are in correct subfolder structure
 5. **Generate thumbnails** - Create folder thumbnails for actress directories
 6. **Handle attention items** - Process previously flagged titles
 7. **Reset modified dates** - Update filesystem timestamps
@@ -214,32 +236,31 @@ Clean up and normalize video filenames (remove junk, standardize format).
 #### `restructure`
 Organize orphaned video files into proper title folders based on code matching.
 
-### 3.3 Collections Volume Actions
+### 3.3 Collections Volume Actions *(sync not yet implemented)*
 
 #### `organize`
 Clean up converted folder and reorganize curated collection sets.
 
 #### `moveConverted`
-Same as conventional - restore converted files to original locations.
+Restore converted files to original locations.
 
 ---
 
-## 4. Filename Normalization
+## 4. Filename Normalization *(not yet implemented)*
 
 The system performs extensive filename cleanup by:
 
 ### 4.1 Code Normalization (Replacements)
 Standardize variant markers in title codes:
-- `FC2-PPV` -> `FC2PPV`
-- `-4K` -> `_4K`
-- `-UC-`, `-U-`, various uncensored markers -> `_U-`
+- `FC2-PPV` → `FC2PPV`
+- `-4K` → `_4K`
+- `-UC-`, `-U-`, various uncensored markers → `_U-`
 
 ### 4.2 Junk Removal
 Remove 150+ known patterns from filenames, including:
-- Watermark/source site markers (e.g., `hhd800.com@`, `hjd2048.com-`, `www.av9.cc-`)
+- Watermark/source site markers
 - Resolution tags (`-1080P`, `-720p`, `[FHD]`, `[HD]`)
 - Distribution group markers
-- International character artifacts
 
 ### 4.3 Files to Ignore
 - `Thumbs.db` and similar system files
@@ -251,53 +272,70 @@ Remove 150+ known patterns from filenames, including:
 Performers frequently work under multiple stage names. The system maintains an alias mapping so that different names resolve to the same person:
 
 ```
-Aya Sazanami -> also known as: Haruka Suzumiya, Aya Konami
-Hibiki Otsuki -> also known as: Eri Ando
+Aya Sazanami → also known as: Haruka Suzumiya, Aya Konami
+Hibiki Otsuki → also known as: Eri Ando
 ```
 
 This enables correct title-to-actress matching regardless of which name appears in the folder/file structure.
+
+During sync, actress folders are resolved through `resolveByName` — which checks both canonical names and aliases — before creating a new actress record. This ensures that a folder named with an alias is correctly attributed to the canonical actress rather than creating a duplicate.
 
 ---
 
 ## 6. Local Database
 
-The application maintains a local SQLite database that persists information across sessions. The database is always available for querying and updating regardless of which volume (if any) is currently mounted.
+The application maintains a local SQLite database at `~/.organizer3/organizer.db` that persists information across sessions. The database is always available for querying and updating regardless of which volume (if any) is currently mounted.
 
 The database stores:
 - **Volume records** - Known volumes and their last-sync timestamps
-- **Actress records** - Canonical names, tiers, first-seen dates
+- **Actress records** - Canonical names, tiers, favorite status, first-seen dates
 - **Alias mappings** - Alternate names resolving to canonical actresses
-- **Title records** - Codes, locations, volume, partition, associated actress
+- **Title records** - Codes, labels, locations, volume, partition, associated actress
 - **Video records** - Individual files matched to titles
 - **Operation history** - Audit log of all file operations
 
-The database is a persistent cache of the filesystem. It is populated by `sync` and queried by commands. The in-memory index built at `mount` time is a session-level cache of the database.
+The database is a persistent cache of the filesystem. It is populated by sync commands and queried by commands. The in-memory index built at `mount` time is a session-level cache of the database.
 
 ---
 
-## 7. Indexing
+## 7. Sync Configuration
+
+Available sync commands and their scope are defined in the `syncConfig` section of `organizer-config.yaml`, not hardcoded. Each entry binds a user-facing command term to a structure type and operation type.
+
+Current bindings:
+
+| Structure type | Term | Operation | Scope |
+|----------------|------|-----------|-------|
+| conventional | `sync-queue` | PARTITION | `queue` partition only |
+| conventional | `sync-all` | FULL | entire volume |
+| stars-flat | `sync-all` | FULL | entire volume |
+| queue | `sync` | FULL | entire volume |
+| queue | `sync-all` | FULL | same as `sync` (alias) |
+| collections | *(none)* | — | not yet implemented |
+
+To add a new sync term, add an entry under `syncConfig` in the YAML. No Java changes needed.
+
+---
+
+## 8. Indexing
 
 When a volume is mounted, the application loads its index from the local database into memory. No filesystem scan occurs at mount time — the database is assumed to be current.
 
-The in-memory index contains:
-- **Title index** - All title folders, codes, and locations for the active volume
-- **Video index** - All video files matched to titles
-- **Actress index** - All actress folders with their titles and tier
-- **Orphan index** - Video files that couldn't be matched to any title
+The in-memory `VolumeIndex` contains:
+- All `Title` records for the active volume
+- All `Actress` records referenced by those titles (via non-null `actress_id`)
 
-The index is refreshed by running `sync`, which walks the filesystem and reconciles against the database.
+The index is refreshed by running a sync command. All operational commands work against the in-memory index for the active volume; cross-volume queries (actresses, favorites) go directly to the DB.
 
 ---
 
-## 8. Known Actress Database
+## 9. Known Actress Database
 
-A pre-configured list of ~160 known actresses is provided as seed data. On first run, this data is imported into the local database, which then becomes the authoritative source. This serves as a reference for:
-- Matching titles to performers when the actress name appears in folder paths
-- Pre-populating actress data for faster matching
+A pre-configured list of known actresses is provided as seed data via `aliases.yaml`. On first run, this data is imported into the local database, which then becomes the authoritative source.
 
 ---
 
-## 9. File Operations
+## 10. File Operations *(not yet implemented)*
 
 All file operations go through a batch operation builder that:
 1. Collects all intended operations (moves, renames, creates)
@@ -312,7 +350,7 @@ Operations include:
 
 ---
 
-## 10. Logging
+## 11. Logging
 
 The system provides comprehensive operation logging:
 - Session-based log files
@@ -322,36 +360,11 @@ The system provides comprehensive operation logging:
 
 ---
 
-## 11. Configuration
+## 12. Configuration
 
 Structural configuration is externalized in YAML files. Mutable data (actresses, titles, aliases) lives in the local database and is not stored in config files.
 
 | File | Purpose |
 |------|---------|
-| `organizer-config.yaml` | Volume definitions, SMB paths, local mount points, structure types |
-| `operation-config.yaml` | Filename normalization rules, media extensions, tier thresholds |
+| `organizer-config.yaml` | Volume definitions, server credentials, SMB paths, structure types, sync commands |
 | `aliases.yaml` | Seed data for actress alias mappings (imported into DB on first run) |
-| `nas.yaml` | Seed data for known actress database (imported into DB on first run) |
-
-### Key Configurable Values
-
-| Setting | Default | Description |
-|---------|---------|-------------|
-| Star threshold | 3 | Minimum titles for "star" status |
-| Minor threshold | 5 | Titles for minor tier |
-| Popular threshold | 20 | Titles for popular tier |
-| Superstar threshold | 50 | Titles for superstar tier |
-| Goddess threshold | 100 | Titles for goddess tier |
-| Max log files | 3 | Log rotation limit |
-
----
-
-## 12. Original Technology Stack (for reference only)
-
-The original implementation used:
-- Java / Spring Boot
-- Spring Shell (interactive CLI framework)
-- Gradle build system
-- YAML configuration via Spring Boot properties
-
-**This is provided for context only. Organizer3 will be a complete rewrite with a new technology stack.**

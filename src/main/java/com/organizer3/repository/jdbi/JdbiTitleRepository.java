@@ -14,10 +14,13 @@ public class JdbiTitleRepository implements TitleRepository {
 
     private static final RowMapper<Title> MAPPER = (rs, ctx) -> {
         String actressIdStr = rs.getString("actress_id");
+        String seqNumStr = rs.getString("seq_num");
         return new Title(
                 rs.getLong("id"),
                 rs.getString("code"),
                 rs.getString("base_code"),
+                rs.getString("label"),
+                seqNumStr != null ? Integer.parseInt(seqNumStr) : null,
                 rs.getString("volume_id"),
                 rs.getString("partition_id"),
                 actressIdStr != null ? Long.parseLong(actressIdStr) : null,
@@ -83,16 +86,62 @@ public class JdbiTitleRepository implements TitleRepository {
     }
 
     @Override
+    public int countByActress(long actressId) {
+        return jdbi.withHandle(h ->
+                h.createQuery("SELECT COUNT(*) FROM titles WHERE actress_id = :actressId")
+                        .bind("actressId", actressId)
+                        .mapTo(Integer.class)
+                        .one()
+        );
+    }
+
+    @Override
+    public List<Title> findByAliasesOnly(long actressId) {
+        return jdbi.withHandle(h ->
+                h.createQuery("""
+                        SELECT t.* FROM titles t
+                            JOIN actresses a ON t.actress_id = a.id
+                            JOIN actress_aliases aa ON a.canonical_name = aa.alias_name
+                        WHERE aa.actress_id = :actressId
+                        ORDER BY code
+                        """)
+                        .bind("actressId", actressId)
+                        .map(MAPPER)
+                        .list()
+        );
+    }
+
+    @Override
+    public List<Title> findByActressIncludingAliases(long actressId) {
+        return jdbi.withHandle(h ->
+                h.createQuery("""
+                        SELECT * FROM titles WHERE actress_id = :actressId
+                        UNION
+                        SELECT t.* FROM titles t
+                            JOIN actresses a ON t.actress_id = a.id
+                            JOIN actress_aliases aa ON a.canonical_name = aa.alias_name
+                        WHERE aa.actress_id = :actressId
+                        ORDER BY code
+                        """)
+                        .bind("actressId", actressId)
+                        .map(MAPPER)
+                        .list()
+        );
+    }
+
+    @Override
     public Title save(Title title) {
         return jdbi.withHandle(h -> {
             if (title.id() == null) {
                 long id = h.createUpdate("""
                                 INSERT INTO titles
-                                    (code, base_code, volume_id, partition_id, actress_id, path, last_seen_at)
-                                VALUES (:code, :baseCode, :volumeId, :partitionId, :actressId, :path, :lastSeenAt)
+                                    (code, base_code, label, seq_num, volume_id, partition_id, actress_id, path, last_seen_at)
+                                VALUES (:code, :baseCode, :label, :seqNum, :volumeId, :partitionId, :actressId, :path, :lastSeenAt)
                                 """)
                         .bind("code", title.code())
                         .bind("baseCode", title.baseCode())
+                        .bind("label", title.label())
+                        .bind("seqNum", title.seqNum())
                         .bind("volumeId", title.volumeId())
                         .bind("partitionId", title.partitionId())
                         .bind("actressId", title.actressId())
@@ -101,19 +150,21 @@ public class JdbiTitleRepository implements TitleRepository {
                         .executeAndReturnGeneratedKeys("id")
                         .mapTo(Long.class)
                         .one();
-                return new Title(id, title.code(), title.baseCode(), title.volumeId(),
-                        title.partitionId(), title.actressId(), title.path(), title.lastSeenAt());
+                return new Title(id, title.code(), title.baseCode(), title.label(), title.seqNum(),
+                        title.volumeId(), title.partitionId(), title.actressId(), title.path(), title.lastSeenAt());
             } else {
                 h.createUpdate("""
                                 UPDATE titles SET
-                                    code = :code, base_code = :baseCode, volume_id = :volumeId,
-                                    partition_id = :partitionId, actress_id = :actressId,
+                                    code = :code, base_code = :baseCode, label = :label, seq_num = :seqNum,
+                                    volume_id = :volumeId, partition_id = :partitionId, actress_id = :actressId,
                                     path = :path, last_seen_at = :lastSeenAt
                                 WHERE id = :id
                                 """)
                         .bind("id", title.id())
                         .bind("code", title.code())
                         .bind("baseCode", title.baseCode())
+                        .bind("label", title.label())
+                        .bind("seqNum", title.seqNum())
                         .bind("volumeId", title.volumeId())
                         .bind("partitionId", title.partitionId())
                         .bind("actressId", title.actressId())

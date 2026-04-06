@@ -1,8 +1,8 @@
 package com.organizer3.command;
 
 import com.organizer3.shell.SessionContext;
+import com.organizer3.shell.io.CommandIO;
 
-import java.io.PrintWriter;
 import java.util.List;
 
 public class HelpCommand implements Command {
@@ -24,10 +24,10 @@ public class HelpCommand implements Command {
     }
 
     @Override
-    public void execute(String[] args, SessionContext ctx, PrintWriter out) {
-        out.println("Available commands:");
+    public void execute(String[] args, SessionContext ctx, CommandIO io) {
+        io.println("Available commands:");
         allCommands.stream()
                 .sorted((a, b) -> a.name().compareTo(b.name()))
-                .forEach(cmd -> out.printf("  %-16s %s%n", cmd.name(), cmd.description()));
+                .forEach(cmd -> io.println(String.format("  %-16s %s", cmd.name(), cmd.description())));
     }
 }

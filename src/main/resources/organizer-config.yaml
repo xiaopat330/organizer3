@@ -1,7 +1,8 @@
 servers:
   - id: pandora
-    username: patrick_young@hotmail.com
-    password: "!Xiaobeibei328!"
+    username: patri
+    password: "!&Xiaobeibei328&!"
+    domain: pandora
 
   - id: qnap2
     username: pyoung

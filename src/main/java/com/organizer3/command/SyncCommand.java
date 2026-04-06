@@ -4,12 +4,12 @@ import com.organizer3.config.AppConfig;
 import com.organizer3.config.volume.VolumeConfig;
 import com.organizer3.config.volume.VolumeStructureDef;
 import com.organizer3.shell.SessionContext;
+import com.organizer3.shell.io.CommandIO;
 import com.organizer3.sync.SyncOperation;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.io.PrintWriter;
 import java.util.Set;
 
 /**
@@ -49,15 +49,15 @@ public class SyncCommand implements Command {
     }
 
     @Override
-    public void execute(String[] args, SessionContext ctx, PrintWriter out) {
+    public void execute(String[] args, SessionContext ctx, CommandIO io) {
         VolumeConfig volume = ctx.getMountedVolume();
         if (volume == null) {
-            out.println("No volume mounted. Use: mount <id>");
+            io.println("No volume mounted. Use: mount <id>");
             return;
         }
 
         if (!validStructureTypes.contains(volume.structureType())) {
-            out.println("'" + term + "' is not available for volume '" + volume.id()
+            io.println("'" + term + "' is not available for volume '" + volume.id()
                     + "' (structure type: " + volume.structureType() + ")");
             return;
         }
@@ -68,14 +68,14 @@ public class SyncCommand implements Command {
                         "No structure definition for type: " + volume.structureType()));
 
         if (!ctx.isConnected()) {
-            out.println("Volume not connected. Use: mount <id>");
+            io.println("Volume not connected. Use: mount <id>");
             return;
         }
 
         try {
-            operation.execute(volume, structure, ctx.getActiveConnection().fileSystem(), ctx, out);
+            operation.execute(volume, structure, ctx.getActiveConnection().fileSystem(), ctx, io);
         } catch (IOException e) {
-            out.println("Sync failed: " + e.getMessage());
+            io.println("Sync failed: " + e.getMessage());
             log.error("Sync error on volume {}", volume.id(), e);
         }
     }

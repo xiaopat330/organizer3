@@ -11,6 +11,8 @@ import com.organizer3.config.volume.VolumeConfig;
 import com.organizer3.config.volume.VolumeStructureDef;
 import com.organizer3.filesystem.VolumeFileSystem;
 import com.organizer3.shell.SessionContext;
+import com.organizer3.shell.io.CommandIO;
+import com.organizer3.shell.io.PlainCommandIO;
 import com.organizer3.smb.VolumeConnection;
 import com.organizer3.sync.SyncOperation;
 import org.junit.jupiter.api.AfterEach;
@@ -43,7 +45,7 @@ class SyncCommandTest {
     private SyncOperation operation;
     private SessionContext ctx;
     private StringWriter output;
-    private PrintWriter out;
+    private CommandIO io;
     private VolumeConnection connection;
 
     @BeforeEach
@@ -70,7 +72,7 @@ class SyncCommandTest {
         when(connection.fileSystem()).thenReturn(mock(VolumeFileSystem.class));
         ctx = new SessionContext();
         output = new StringWriter();
-        out = new PrintWriter(output);
+        io = new PlainCommandIO(new PrintWriter(output));
     }
 
     @AfterEach
@@ -81,7 +83,7 @@ class SyncCommandTest {
     @Test
     void noVolumeMounted_printsError() {
         SyncCommand cmd = new SyncCommand("sync-all", Set.of("conventional"), operation);
-        cmd.execute(new String[]{"sync-all"}, ctx, out);
+        cmd.execute(new String[]{"sync-all"}, ctx, io);
 
         assertTrue(output.toString().contains("No volume mounted"));
         verifyNoInteractions(operation);
@@ -90,10 +92,9 @@ class SyncCommandTest {
     @Test
     void volumeMountedButNotConnected_printsError() {
         ctx.setMountedVolume(CONVENTIONAL_VOL);
-        // no active connection set
         SyncCommand cmd = new SyncCommand("sync-all", Set.of("conventional"), operation);
 
-        cmd.execute(new String[]{"sync-all"}, ctx, out);
+        cmd.execute(new String[]{"sync-all"}, ctx, io);
 
         assertTrue(output.toString().contains("not connected"));
         verifyNoInteractions(operation);
@@ -105,7 +106,7 @@ class SyncCommandTest {
         ctx.setActiveConnection(connection);
         SyncCommand cmd = new SyncCommand("sync-queue", Set.of("conventional"), operation);
 
-        cmd.execute(new String[]{"sync-queue"}, ctx, out);
+        cmd.execute(new String[]{"sync-queue"}, ctx, io);
 
         assertTrue(output.toString().contains("not available"));
         verifyNoInteractions(operation);
@@ -117,10 +118,10 @@ class SyncCommandTest {
         ctx.setActiveConnection(connection);
         SyncCommand cmd = new SyncCommand("sync-all", Set.of("conventional"), operation);
 
-        cmd.execute(new String[]{"sync-all"}, ctx, out);
+        cmd.execute(new String[]{"sync-all"}, ctx, io);
 
         verify(operation).execute(eq(CONVENTIONAL_VOL), eq(CONVENTIONAL_STRUCTURE),
-                any(VolumeFileSystem.class), eq(ctx), eq(out));
+                any(VolumeFileSystem.class), eq(ctx), any(CommandIO.class));
     }
 
     @Test
@@ -131,7 +132,7 @@ class SyncCommandTest {
         doThrow(new IOException("disk read error"))
                 .when(operation).execute(any(), any(), any(), any(), any());
 
-        cmd.execute(new String[]{"sync-all"}, ctx, out);
+        cmd.execute(new String[]{"sync-all"}, ctx, io);
 
         assertTrue(output.toString().contains("Sync failed"));
         assertTrue(output.toString().contains("disk read error"));

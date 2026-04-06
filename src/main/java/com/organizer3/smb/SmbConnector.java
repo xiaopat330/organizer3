@@ -10,8 +10,17 @@ public interface SmbConnector {
 
     /**
      * Connects to the share and returns an active {@link VolumeConnection}.
+     * Reports each connection phase (host resolution, auth, share connect) to the listener.
      *
      * @throws SmbConnectionException if the connection or authentication fails
      */
-    VolumeConnection connect(VolumeConfig volume, ServerConfig server) throws SmbConnectionException;
+    VolumeConnection connect(VolumeConfig volume, ServerConfig server, MountProgressListener progress)
+            throws SmbConnectionException;
+
+    /**
+     * Convenience overload with a no-op progress listener.
+     */
+    default VolumeConnection connect(VolumeConfig volume, ServerConfig server) throws SmbConnectionException {
+        return connect(volume, server, msg -> {});
+    }
 }

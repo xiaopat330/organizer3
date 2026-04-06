@@ -19,6 +19,7 @@ public class JdbiActressRepository implements ActressRepository {
                     .id(rs.getLong("id"))
                     .canonicalName(rs.getString("canonical_name"))
                     .tier(Actress.Tier.valueOf(rs.getString("tier")))
+                    .favorite(rs.getInt("favorite") != 0)
                     .firstSeenAt(LocalDate.parse(rs.getString("first_seen_at")))
                     .build();
 
@@ -82,15 +83,35 @@ public class JdbiActressRepository implements ActressRepository {
     }
 
     @Override
+    public List<Actress> findByTier(Actress.Tier tier) {
+        return jdbi.withHandle(h ->
+                h.createQuery("SELECT * FROM actresses WHERE tier = :tier ORDER BY canonical_name")
+                        .bind("tier", tier.name())
+                        .map(ACTRESS_MAPPER)
+                        .list()
+        );
+    }
+
+    @Override
+    public List<Actress> findFavorites() {
+        return jdbi.withHandle(h ->
+                h.createQuery("SELECT * FROM actresses WHERE favorite = 1 ORDER BY canonical_name")
+                        .map(ACTRESS_MAPPER)
+                        .list()
+        );
+    }
+
+    @Override
     public Actress save(Actress actress) {
         return jdbi.withHandle(h -> {
             if (actress.getId() == null) {
                 long id = h.createUpdate("""
-                                INSERT INTO actresses (canonical_name, tier, first_seen_at)
-                                VALUES (:name, :tier, :date)
+                                INSERT INTO actresses (canonical_name, tier, favorite, first_seen_at)
+                                VALUES (:name, :tier, :favorite, :date)
                                 """)
                         .bind("name", actress.getCanonicalName())
                         .bind("tier", actress.getTier().name())
+                        .bind("favorite", actress.isFavorite() ? 1 : 0)
                         .bind("date", actress.getFirstSeenAt().toString())
                         .executeAndReturnGeneratedKeys("id")
                         .mapTo(Long.class)
@@ -99,22 +120,34 @@ public class JdbiActressRepository implements ActressRepository {
                         .id(id)
                         .canonicalName(actress.getCanonicalName())
                         .tier(actress.getTier())
+                        .favorite(actress.isFavorite())
                         .firstSeenAt(actress.getFirstSeenAt())
                         .build();
             } else {
                 h.createUpdate("""
                                 UPDATE actresses
-                                SET canonical_name = :name, tier = :tier, first_seen_at = :date
+                                SET canonical_name = :name, tier = :tier, favorite = :favorite, first_seen_at = :date
                                 WHERE id = :id
                                 """)
                         .bind("id", actress.getId())
                         .bind("name", actress.getCanonicalName())
                         .bind("tier", actress.getTier().name())
+                        .bind("favorite", actress.isFavorite() ? 1 : 0)
                         .bind("date", actress.getFirstSeenAt().toString())
                         .execute();
                 return actress;
             }
         });
+    }
+
+    @Override
+    public void toggleFavorite(long actressId, boolean favorite) {
+        jdbi.useHandle(h ->
+                h.createUpdate("UPDATE actresses SET favorite = :favorite WHERE id = :id")
+                        .bind("favorite", favorite ? 1 : 0)
+                        .bind("id", actressId)
+                        .execute()
+        );
     }
 
     @Override

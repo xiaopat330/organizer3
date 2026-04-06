@@ -2,6 +2,7 @@ package com.pyoung.organizer3.command;
 
 import com.organizer3.command.ShutdownCommand;
 import com.organizer3.shell.SessionContext;
+import com.organizer3.shell.io.PlainCommandIO;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -16,14 +17,14 @@ class ShutdownCommandTest {
     private ShutdownCommand command;
     private SessionContext session;
     private StringWriter output;
-    private PrintWriter writer;
+    private PlainCommandIO io;
 
     @BeforeEach
     void setUp() {
         command = new ShutdownCommand();
         session = new SessionContext();
         output = new StringWriter();
-        writer = new PrintWriter(output);
+        io = new PlainCommandIO(new PrintWriter(output));
     }
 
     @Test
@@ -33,13 +34,13 @@ class ShutdownCommandTest {
 
     @Test
     void shutdownSetsRunningToFalse() {
-        command.execute(new String[]{"shutdown"}, session, writer);
+        command.execute(new String[]{"shutdown"}, session, io);
         assertFalse(session.isRunning());
     }
 
     @Test
     void shutdownPrintsGoodbye() {
-        command.execute(new String[]{"shutdown"}, session, writer);
+        command.execute(new String[]{"shutdown"}, session, io);
         assertTrue(output.toString().contains("Goodbye"));
     }
 }

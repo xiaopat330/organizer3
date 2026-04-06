@@ -10,9 +10,9 @@ import com.organizer3.repository.TitleRepository;
 import com.organizer3.repository.VideoRepository;
 import com.organizer3.repository.VolumeRepository;
 import com.organizer3.shell.SessionContext;
+import com.organizer3.shell.io.CommandIO;
 
 import java.io.IOException;
-import java.io.PrintWriter;
 import java.nio.file.Path;
 
 /**
@@ -31,23 +31,22 @@ public class FullSyncOperation extends AbstractSyncOperation {
 
     @Override
     public void execute(VolumeConfig volume, VolumeStructureDef structure,
-                        VolumeFileSystem fs, SessionContext ctx, PrintWriter out) throws IOException {
-        out.println("Syncing " + volume.id() + " (full) ...");
+                        VolumeFileSystem fs, SessionContext ctx, CommandIO io) throws IOException {
+        io.println("Syncing " + volume.id() + " (full) ...");
         ensureVolumeRecord(volume);
 
         // Clear existing records — videos first (FK), then titles
         videoRepo.deleteByVolume(volume.id());
         titleRepo.deleteByVolume(volume.id());
 
-        int count = 0;
+        SyncStats stats = new SyncStats();
         Path root = Path.of("/");
 
         // Unstructured partitions
         for (PartitionDef partition : structure.unstructuredPartitions()) {
             Path partRoot = root.resolve(partition.path());
-            out.println("  Scanning " + partition.id() + "/ ...");
-            count += scanUnstructuredPartition(partRoot, partition.id(),
-                    volume.id(), null, fs, out);
+            io.println("  Scanning " + partition.id() + "/ ...");
+            scanUnstructuredPartition(partRoot, partition.id(), volume.id(), null, fs, io, stats);
         }
 
         // Structured partition (stars/)
@@ -56,19 +55,19 @@ public class FullSyncOperation extends AbstractSyncOperation {
             Path starsRoot = root.resolve(stars.path());
             if (stars.partitions() == null || stars.partitions().isEmpty()) {
                 // Flat layout: actress folders sit directly under stars/
-                out.println("  Scanning stars/ ...");
-                count += scanFlatStarsPartition(starsRoot, volume.id(), fs, out);
+                io.println("  Scanning stars/ ...");
+                scanFlatStarsPartition(starsRoot, volume.id(), fs, io, stats);
             } else {
                 for (PartitionDef sub : stars.partitions()) {
                     Path tierRoot = starsRoot.resolve(sub.path());
-                    out.println("  Scanning stars/" + sub.id() + "/ ...");
-                    count += scanStarPartition(tierRoot, "stars/" + sub.id(),
-                            volume.id(), toActressTier(sub.id()), fs, out);
+                    io.println("  Scanning stars/" + sub.id() + "/ ...");
+                    scanStarPartition(tierRoot, "stars/" + sub.id(),
+                            volume.id(), toActressTier(sub.id()), fs, io, stats);
                 }
             }
         }
 
         finalizeSync(volume.id(), ctx);
-        printStats(count, out);
+        printStats(stats, io);
     }
 }

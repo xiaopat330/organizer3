@@ -21,6 +21,7 @@ public class Actress implements Comparable<Actress> {
     Long id;               // null for actresses not yet persisted
     String canonicalName;
     Tier tier;
+    boolean favorite;
     LocalDate firstSeenAt;
 
     /**

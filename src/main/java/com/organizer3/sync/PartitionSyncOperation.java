@@ -9,9 +9,9 @@ import com.organizer3.repository.TitleRepository;
 import com.organizer3.repository.VideoRepository;
 import com.organizer3.repository.VolumeRepository;
 import com.organizer3.shell.SessionContext;
+import com.organizer3.shell.io.CommandIO;
 
 import java.io.IOException;
-import java.io.PrintWriter;
 import java.nio.file.Path;
 import java.util.List;
 
@@ -36,27 +36,26 @@ public class PartitionSyncOperation extends AbstractSyncOperation {
 
     @Override
     public void execute(VolumeConfig volume, VolumeStructureDef structure,
-                        VolumeFileSystem fs, SessionContext ctx, PrintWriter out) throws IOException {
-        out.println("Syncing " + volume.id() + " (partitions: " + partitionIds + ") ...");
+                        VolumeFileSystem fs, SessionContext ctx, CommandIO io) throws IOException {
+        io.println("Syncing " + volume.id() + " (partitions: " + partitionIds + ") ...");
         ensureVolumeRecord(volume);
 
-        int count = 0;
+        SyncStats stats = new SyncStats();
         Path root = Path.of("/");
 
         for (String partitionId : partitionIds) {
             PartitionDef partition = requirePartitionDef(structure, partitionId);
             Path partRoot = root.resolve(partition.path());
-            out.println("  Scanning " + partitionId + "/ ...");
+            io.println("  Scanning " + partitionId + "/ ...");
 
             // Clear only this partition's records before re-scanning
             videoRepo.deleteByVolumeAndPartition(volume.id(), partitionId);
             titleRepo.deleteByVolumeAndPartition(volume.id(), partitionId);
 
-            count += scanUnstructuredPartition(partRoot, partitionId,
-                    volume.id(), null, fs, out);
+            scanUnstructuredPartition(partRoot, partitionId, volume.id(), null, fs, io, stats);
         }
 
         finalizeSync(volume.id(), ctx);
-        printStats(count, out);
+        printStats(stats, io);
     }
 }

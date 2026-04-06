@@ -27,6 +27,10 @@ public interface ActressRepository {
 
     List<Actress> findAll();
 
+    List<Actress> findByTier(Actress.Tier tier);
+
+    List<Actress> findFavorites();
+
     /**
      * Insert a new actress or update an existing one (matched by id).
      * Returns the actress with its generated id populated.
@@ -34,6 +38,8 @@ public interface ActressRepository {
     Actress save(Actress actress);
 
     void updateTier(long actressId, Actress.Tier tier);
+
+    void toggleFavorite(long actressId, boolean favorite);
 
     // --- Alias operations ---
 

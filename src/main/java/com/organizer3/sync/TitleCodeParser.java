@@ -23,12 +23,12 @@ public class TitleCodeParser {
     private static final Pattern SUFFIX = Pattern.compile(
             "^(_[A-Za-z0-9]+)");
 
-    public record ParsedCode(String code, String baseCode) {}
+    public record ParsedCode(String code, String baseCode, String label, Integer seqNum) {}
 
     public ParsedCode parse(String folderName) {
         Matcher m = CODE.matcher(folderName);
         if (!m.find()) {
-            return new ParsedCode(folderName, folderName);
+            return new ParsedCode(folderName, folderName, null, null);
         }
         String label = m.group(1).toUpperCase();
         String digits = m.group(2);
@@ -42,6 +42,6 @@ public class TitleCodeParser {
 
         String code = label + "-" + digits + suffix;
         String baseCode = String.format("%s-%05d", label, Integer.parseInt(digits));
-        return new ParsedCode(code, baseCode);
+        return new ParsedCode(code, baseCode, label, Integer.parseInt(digits));
     }
 }

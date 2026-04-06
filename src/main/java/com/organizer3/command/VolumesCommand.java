@@ -5,8 +5,8 @@ import com.organizer3.config.volume.VolumeConfig;
 import com.organizer3.model.Volume;
 import com.organizer3.repository.VolumeRepository;
 import com.organizer3.shell.SessionContext;
+import com.organizer3.shell.io.CommandIO;
 
-import java.io.PrintWriter;
 import java.time.format.DateTimeFormatter;
 import java.util.Map;
 import java.util.Optional;
@@ -45,7 +45,7 @@ public class VolumesCommand implements Command {
     }
 
     @Override
-    public void execute(String[] args, SessionContext ctx, PrintWriter out) {
+    public void execute(String[] args, SessionContext ctx, CommandIO io) {
         var configVolumes = AppConfig.get().volumes().volumes();
 
         Map<String, Volume> dbRecords = volumeRepository.findAll().stream()
@@ -54,8 +54,8 @@ public class VolumesCommand implements Command {
         String activeId = ctx.getMountedVolumeId();
         boolean activeConnected = ctx.isConnected();
 
-        out.printf("%-6s  %-14s  %-10s  %s%n", "ID", "STRUCTURE", "CONNECTED", "LAST SYNC");
-        out.println("-".repeat(60));
+        io.println(String.format("%-6s  %-14s  %-10s  %s", "ID", "STRUCTURE", "CONNECTED", "LAST SYNC"));
+        io.println("-".repeat(60));
 
         for (VolumeConfig vc : configVolumes) {
             Optional<Volume> dbVol = Optional.ofNullable(dbRecords.get(vc.id()));
@@ -69,12 +69,12 @@ public class VolumesCommand implements Command {
             String connStatus = connected ? "yes" : "-";
             String active = connected ? " *" : "";
 
-            out.printf("%-6s  %-14s  %-10s  %s%s%n",
+            io.println(String.format("%-6s  %-14s  %-10s  %s%s",
                     vc.id(),
                     vc.structureType(),
                     connStatus,
                     syncedAt,
-                    active);
+                    active));
         }
     }
 }

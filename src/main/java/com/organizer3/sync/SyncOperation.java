@@ -4,9 +4,9 @@ import com.organizer3.config.volume.VolumeConfig;
 import com.organizer3.config.volume.VolumeStructureDef;
 import com.organizer3.filesystem.VolumeFileSystem;
 import com.organizer3.shell.SessionContext;
+import com.organizer3.shell.io.CommandIO;
 
 import java.io.IOException;
-import java.io.PrintWriter;
 
 /**
  * A single sync operation — walks a defined scope of the volume's filesystem and
@@ -19,5 +19,5 @@ import java.io.PrintWriter;
 public interface SyncOperation {
 
     void execute(VolumeConfig volume, VolumeStructureDef structure,
-                 VolumeFileSystem fs, SessionContext ctx, PrintWriter out) throws IOException;
+                 VolumeFileSystem fs, SessionContext ctx, CommandIO io) throws IOException;
 }
