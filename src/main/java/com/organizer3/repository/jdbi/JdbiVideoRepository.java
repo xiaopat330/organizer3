@@ -2,6 +2,7 @@ package com.organizer3.repository.jdbi;
 
 import com.organizer3.model.Video;
 import com.organizer3.repository.VideoRepository;
+import lombok.RequiredArgsConstructor;
 import org.jdbi.v3.core.Jdbi;
 import org.jdbi.v3.core.mapper.RowMapper;
 
@@ -10,21 +11,19 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 
+@RequiredArgsConstructor
 public class JdbiVideoRepository implements VideoRepository {
 
     private static final RowMapper<Video> MAPPER = (rs, ctx) -> Video.builder()
             .id(rs.getLong("id"))
             .titleId(rs.getLong("title_id"))
+            .volumeId(rs.getString("volume_id"))
             .filename(rs.getString("filename"))
             .path(Path.of(rs.getString("path")))
             .lastSeenAt(LocalDate.parse(rs.getString("last_seen_at")))
             .build();
 
     private final Jdbi jdbi;
-
-    public JdbiVideoRepository(Jdbi jdbi) {
-        this.jdbi = jdbi;
-    }
 
     @Override
     public Optional<Video> findById(long id) {
@@ -51,26 +50,31 @@ public class JdbiVideoRepository implements VideoRepository {
         return jdbi.withHandle(h -> {
             if (video.getId() == null) {
                 long id = h.createUpdate("""
-                                INSERT INTO videos (title_id, filename, path, last_seen_at)
-                                VALUES (:titleId, :filename, :path, :lastSeenAt)
+                                INSERT INTO videos (title_id, volume_id, filename, path, last_seen_at)
+                                VALUES (:titleId, :volumeId, :filename, :path, :lastSeenAt)
                                 """)
                         .bind("titleId", video.getTitleId())
+                        .bind("volumeId", video.getVolumeId())
                         .bind("filename", video.getFilename())
                         .bind("path", video.getPath().toString())
                         .bind("lastSeenAt", video.getLastSeenAt().toString())
                         .executeAndReturnGeneratedKeys("id")
                         .mapTo(Long.class)
                         .one();
-                return Video.builder().id(id).titleId(video.getTitleId()).filename(video.getFilename()).path(video.getPath()).lastSeenAt(video.getLastSeenAt()).build();
+                return Video.builder()
+                        .id(id).titleId(video.getTitleId()).volumeId(video.getVolumeId())
+                        .filename(video.getFilename()).path(video.getPath()).lastSeenAt(video.getLastSeenAt())
+                        .build();
             } else {
                 h.createUpdate("""
                                 UPDATE videos SET
-                                    title_id = :titleId, filename = :filename,
+                                    title_id = :titleId, volume_id = :volumeId, filename = :filename,
                                     path = :path, last_seen_at = :lastSeenAt
                                 WHERE id = :id
                                 """)
                         .bind("id", video.getId())
                         .bind("titleId", video.getTitleId())
+                        .bind("volumeId", video.getVolumeId())
                         .bind("filename", video.getFilename())
                         .bind("path", video.getPath().toString())
                         .bind("lastSeenAt", video.getLastSeenAt().toString())
@@ -101,10 +105,7 @@ public class JdbiVideoRepository implements VideoRepository {
     @Override
     public void deleteByVolume(String volumeId) {
         jdbi.useHandle(h ->
-                h.createUpdate("""
-                        DELETE FROM videos WHERE title_id IN (
-                            SELECT id FROM titles WHERE volume_id = :volumeId
-                        )""")
+                h.createUpdate("DELETE FROM videos WHERE volume_id = :volumeId")
                         .bind("volumeId", volumeId)
                         .execute()
         );
@@ -114,8 +115,9 @@ public class JdbiVideoRepository implements VideoRepository {
     public void deleteByVolumeAndPartition(String volumeId, String partitionId) {
         jdbi.useHandle(h ->
                 h.createUpdate("""
-                        DELETE FROM videos WHERE title_id IN (
-                            SELECT id FROM titles
+                        DELETE FROM videos WHERE volume_id = :volumeId
+                        AND title_id IN (
+                            SELECT DISTINCT title_id FROM title_locations
                             WHERE volume_id = :volumeId AND partition_id = :partitionId
                         )""")
                         .bind("volumeId", volumeId)

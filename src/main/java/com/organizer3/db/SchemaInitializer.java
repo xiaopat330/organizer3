@@ -47,16 +47,11 @@ public class SchemaInitializer {
             h.execute("""
                     CREATE TABLE IF NOT EXISTS titles (
                         id            INTEGER PRIMARY KEY AUTOINCREMENT,
-                        code          TEXT NOT NULL,
+                        code          TEXT NOT NULL UNIQUE,
                         base_code     TEXT,
                         label         TEXT,
                         seq_num       INTEGER,
-                        volume_id     TEXT NOT NULL REFERENCES volumes(id),
-                        partition_id  TEXT NOT NULL,
                         actress_id    INTEGER REFERENCES actresses(id),
-                        path          TEXT NOT NULL,
-                        last_seen_at  TEXT NOT NULL,
-                        added_date    TEXT,
                         favorite      INTEGER NOT NULL DEFAULT 0,
                         bookmark      INTEGER NOT NULL DEFAULT 0,
                         grade         TEXT,
@@ -64,9 +59,22 @@ public class SchemaInitializer {
                     )""");
 
             h.execute("""
+                    CREATE TABLE IF NOT EXISTS title_locations (
+                        id            INTEGER PRIMARY KEY AUTOINCREMENT,
+                        title_id      INTEGER NOT NULL REFERENCES titles(id),
+                        volume_id     TEXT NOT NULL REFERENCES volumes(id),
+                        partition_id  TEXT NOT NULL,
+                        path          TEXT NOT NULL,
+                        last_seen_at  TEXT NOT NULL,
+                        added_date    TEXT,
+                        UNIQUE(title_id, volume_id, path)
+                    )""");
+
+            h.execute("""
                     CREATE TABLE IF NOT EXISTS videos (
                         id            INTEGER PRIMARY KEY AUTOINCREMENT,
                         title_id      INTEGER NOT NULL REFERENCES titles(id),
+                        volume_id     TEXT NOT NULL,
                         filename      TEXT NOT NULL,
                         path          TEXT NOT NULL,
                         last_seen_at  TEXT NOT NULL
@@ -91,11 +99,14 @@ public class SchemaInitializer {
                     )""");
 
             h.execute("CREATE INDEX IF NOT EXISTS idx_actress_aliases_name ON actress_aliases(alias_name)");
-            h.execute("CREATE INDEX IF NOT EXISTS idx_titles_volume ON titles(volume_id)");
-            h.execute("CREATE INDEX IF NOT EXISTS idx_titles_actress ON titles(actress_id)");
             h.execute("CREATE INDEX IF NOT EXISTS idx_titles_code ON titles(code)");
             h.execute("CREATE INDEX IF NOT EXISTS idx_titles_label ON titles(label)");
+            h.execute("CREATE INDEX IF NOT EXISTS idx_titles_actress ON titles(actress_id)");
+            h.execute("CREATE INDEX IF NOT EXISTS idx_title_locations_title ON title_locations(title_id)");
+            h.execute("CREATE INDEX IF NOT EXISTS idx_title_locations_volume ON title_locations(volume_id)");
+            h.execute("CREATE INDEX IF NOT EXISTS idx_title_locations_volume_partition ON title_locations(volume_id, partition_id)");
             h.execute("CREATE INDEX IF NOT EXISTS idx_videos_title ON videos(title_id)");
+            h.execute("CREATE INDEX IF NOT EXISTS idx_videos_volume ON videos(volume_id)");
         });
         log.info("Schema initialization complete");
     }

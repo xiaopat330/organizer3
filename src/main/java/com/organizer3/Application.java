@@ -30,6 +30,8 @@ import com.organizer3.repository.VideoRepository;
 import com.organizer3.repository.VolumeRepository;
 import com.organizer3.repository.jdbi.JdbiActressRepository;
 import com.organizer3.repository.jdbi.JdbiLabelRepository;
+import com.organizer3.repository.TitleLocationRepository;
+import com.organizer3.repository.jdbi.JdbiTitleLocationRepository;
 import com.organizer3.repository.jdbi.JdbiTitleRepository;
 import com.organizer3.repository.jdbi.JdbiVideoRepository;
 import com.organizer3.repository.jdbi.JdbiVolumeRepository;
@@ -40,6 +42,10 @@ import com.organizer3.sync.FullSyncOperation;
 import com.organizer3.sync.IndexLoader;
 import com.organizer3.sync.PartitionSyncOperation;
 import com.organizer3.sync.SyncOperation;
+import com.organizer3.sync.scanner.ConventionalScanner;
+import com.organizer3.sync.scanner.QueueScanner;
+import com.organizer3.sync.scanner.ScannerRegistry;
+import com.organizer3.sync.scanner.ExhibitionScanner;
 import com.organizer3.config.volume.VolumeConfig;
 import com.organizer3.web.ActressBrowseService;
 import com.organizer3.web.TitleBrowseService;
@@ -81,7 +87,8 @@ public class Application {
         new LabelSeeder(jdbi).seedIfEmpty();
 
         // Repositories
-        TitleRepository   titleRepo   = new JdbiTitleRepository(jdbi);
+        TitleLocationRepository titleLocationRepo = new JdbiTitleLocationRepository(jdbi);
+        TitleRepository   titleRepo   = new JdbiTitleRepository(jdbi, titleLocationRepo);
         VideoRepository   videoRepo   = new JdbiVideoRepository(jdbi);
         ActressRepository actressRepo = new JdbiActressRepository(jdbi);
         VolumeRepository  volumeRepo  = new JdbiVolumeRepository(jdbi);
@@ -108,6 +115,13 @@ public class Application {
         commands.add(new ScanCoversCommand(titleRepo, volumeRepo, coverPath));
         commands.add(new PruneCoversCommand(titleRepo, coverPath));
 
+        // Scanner registry — maps structure types to their filesystem scanners
+        ScannerRegistry scannerRegistry = new ScannerRegistry(Map.of(
+                "conventional", new ConventionalScanner(),
+                "queue",        new QueueScanner(),
+                "exhibition",   new ExhibitionScanner()
+        ));
+
         // Sync commands — registered dynamically from syncConfig.
         // Group by term so that a term shared across structure types (e.g. sync all)
         // produces a single command that accepts all of those types.
@@ -126,10 +140,10 @@ public class Application {
             SyncCommandDef def = entry.getValue();
             SyncOperation op = switch (def.operation()) {
                 case FULL ->
-                    new FullSyncOperation(titleRepo, videoRepo, actressRepo, volumeRepo, indexLoader);
+                    new FullSyncOperation(scannerRegistry, titleRepo, videoRepo, actressRepo, volumeRepo, titleLocationRepo, indexLoader);
                 case PARTITION ->
                     new PartitionSyncOperation(def.partitions(), titleRepo, videoRepo,
-                            actressRepo, volumeRepo, indexLoader);
+                            actressRepo, volumeRepo, titleLocationRepo, indexLoader);
             };
             SyncCommand syncCmd = new SyncCommand(term, structureTypesByTerm.get(term), op);
             commands.add(syncCmd);

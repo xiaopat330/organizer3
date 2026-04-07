@@ -5,6 +5,7 @@ import com.organizer3.config.volume.VolumeConfig;
 import com.organizer3.config.volume.VolumeStructureDef;
 import com.organizer3.filesystem.VolumeFileSystem;
 import com.organizer3.repository.ActressRepository;
+import com.organizer3.repository.TitleLocationRepository;
 import com.organizer3.repository.TitleRepository;
 import com.organizer3.repository.VideoRepository;
 import com.organizer3.repository.VolumeRepository;
@@ -29,8 +30,9 @@ public class PartitionSyncOperation extends AbstractSyncOperation {
     public PartitionSyncOperation(List<String> partitionIds,
                                   TitleRepository titleRepo, VideoRepository videoRepo,
                                   ActressRepository actressRepo, VolumeRepository volumeRepo,
+                                  TitleLocationRepository titleLocationRepo,
                                   IndexLoader indexLoader) {
-        super(titleRepo, videoRepo, actressRepo, volumeRepo, indexLoader);
+        super(titleRepo, videoRepo, actressRepo, volumeRepo, titleLocationRepo, indexLoader);
         this.partitionIds = partitionIds;
     }
 
@@ -50,10 +52,13 @@ public class PartitionSyncOperation extends AbstractSyncOperation {
 
             // Clear only this partition's records before re-scanning
             videoRepo.deleteByVolumeAndPartition(volume.id(), partitionId);
-            titleRepo.deleteByVolumeAndPartition(volume.id(), partitionId);
+            titleLocationRepo.deleteByVolumeAndPartition(volume.id(), partitionId);
 
             scanUnstructuredPartition(partRoot, partitionId, volume.id(), null, fs, io, stats);
         }
+
+        // Clean up titles that no longer have any locations
+        titleRepo.deleteOrphaned();
 
         finalizeSync(volume.id(), ctx);
         printStats(stats, io);

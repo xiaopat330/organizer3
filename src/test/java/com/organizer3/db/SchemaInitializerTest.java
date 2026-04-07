@@ -44,7 +44,7 @@ class SchemaInitializerTest {
         );
 
         assertEquals(
-                List.of("actress_aliases", "actresses", "labels", "operations", "titles", "videos", "volumes"),
+                List.of("actress_aliases", "actresses", "labels", "operations", "title_locations", "titles", "videos", "volumes"),
                 tables
         );
     }
@@ -63,8 +63,10 @@ class SchemaInitializerTest {
         );
 
         assertEquals(
-                List.of("idx_actress_aliases_name", "idx_titles_actress", "idx_titles_code",
-                        "idx_titles_label", "idx_titles_volume", "idx_videos_title"),
+                List.of("idx_actress_aliases_name",
+                        "idx_title_locations_title", "idx_title_locations_volume", "idx_title_locations_volume_partition",
+                        "idx_titles_actress", "idx_titles_code", "idx_titles_label",
+                        "idx_videos_title", "idx_videos_volume"),
                 indexes
         );
     }
@@ -81,12 +83,11 @@ class SchemaInitializerTest {
         new SchemaInitializer(jdbi).initialize();
 
         // Insert a title with label and seq_num to verify columns exist
-        jdbi.useHandle(h -> {
-            h.execute("INSERT INTO volumes (id, structure_type) VALUES ('v1', 'starred')");
+        jdbi.useHandle(h ->
             h.execute("""
-                    INSERT INTO titles (code, base_code, label, seq_num, volume_id, partition_id, path, last_seen_at)
-                    VALUES ('ABP-123', 'ABP-00123', 'ABP', 123, 'v1', 'some-actress', '/path', '2026-01-01')""");
-        });
+                    INSERT INTO titles (code, base_code, label, seq_num)
+                    VALUES ('ABP-123', 'ABP-00123', 'ABP', 123)""")
+        );
 
         var row = jdbi.withHandle(h ->
                 h.createQuery("SELECT label, seq_num FROM titles WHERE code = 'ABP-123'")

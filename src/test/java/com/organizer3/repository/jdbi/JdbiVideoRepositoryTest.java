@@ -2,6 +2,7 @@ package com.organizer3.repository.jdbi;
 
 import com.organizer3.db.SchemaInitializer;
 import com.organizer3.model.Title;
+import com.organizer3.model.TitleLocation;
 import com.organizer3.model.Video;
 import org.jdbi.v3.core.Jdbi;
 import org.junit.jupiter.api.AfterEach;
@@ -24,6 +25,7 @@ class JdbiVideoRepositoryTest {
 
     private JdbiVideoRepository videoRepo;
     private JdbiTitleRepository titleRepo;
+    private JdbiTitleLocationRepository locationRepo;
     private Jdbi jdbi;
     private Connection connection;
 
@@ -34,7 +36,8 @@ class JdbiVideoRepositoryTest {
         new SchemaInitializer(jdbi).initialize();
         jdbi.useHandle(h -> h.execute(
                 "INSERT INTO volumes (id, structure_type) VALUES ('vol-a', 'conventional')"));
-        titleRepo = new JdbiTitleRepository(jdbi);
+        locationRepo = new JdbiTitleLocationRepository(jdbi);
+        titleRepo = new JdbiTitleRepository(jdbi, locationRepo);
         videoRepo = new JdbiVideoRepository(jdbi);
     }
 
@@ -78,6 +81,7 @@ class JdbiVideoRepositoryTest {
         Video saved = videoRepo.save(video(title.getId(), "ABP-001.mp4", "/old/path.mp4"));
 
         Video updated = videoRepo.save(Video.builder().id(saved.getId()).titleId(title.getId())
+                .volumeId("vol-a")
                 .filename("ABP-001-hd.mp4").path(Path.of("/new/path.mp4")).lastSeenAt(LocalDate.of(2025, 6, 1)).build());
 
         Optional<Video> found = videoRepo.findById(saved.getId());
@@ -153,16 +157,24 @@ class JdbiVideoRepositoryTest {
     void deleteByVolumeAndPartitionRemovesOnlyMatchingPartition() {
         Title queueTitle = titleRepo.save(Title.builder()
                 .code("ABP-001").baseCode("ABP-00001").label("ABP").seqNum(1)
+                .build());
+        locationRepo.save(TitleLocation.builder()
+                .titleId(queueTitle.getId())
                 .volumeId("vol-a").partitionId("queue")
                 .path(Path.of("/queue/ABP-001"))
                 .lastSeenAt(LocalDate.now())
                 .build());
+
         Title starsTitle = titleRepo.save(Title.builder()
                 .code("ABP-002").baseCode("ABP-00002").label("ABP").seqNum(2)
+                .build());
+        locationRepo.save(TitleLocation.builder()
+                .titleId(starsTitle.getId())
                 .volumeId("vol-a").partitionId("stars")
                 .path(Path.of("/stars/ABP-002"))
                 .lastSeenAt(LocalDate.now())
                 .build());
+
         videoRepo.save(video(queueTitle.getId(), "q.mp4", "/q.mp4"));
         videoRepo.save(video(starsTitle.getId(), "s.mp4", "/s.mp4"));
 
@@ -174,17 +186,28 @@ class JdbiVideoRepositoryTest {
 
     // --- Helpers ---
 
+    /** Save a title with a location in the "queue" partition on vol-a. */
     private Title saveTitle(String code) {
-        return titleRepo.save(Title.builder()
+        Title saved = titleRepo.save(Title.builder()
                 .code(code).baseCode(code.toUpperCase().replace("-", "-00"))
                 .label(code.split("-")[0]).seqNum(1)
+                .build());
+        locationRepo.save(TitleLocation.builder()
+                .titleId(saved.getId())
                 .volumeId("vol-a").partitionId("queue")
                 .path(Path.of("/queue/" + code))
                 .lastSeenAt(LocalDate.now())
                 .build());
+        return saved;
     }
 
     private Video video(long titleId, String filename, String path) {
-        return Video.builder().titleId(titleId).filename(filename).path(Path.of(path)).lastSeenAt(LocalDate.now()).build();
+        return Video.builder()
+                .titleId(titleId)
+                .volumeId("vol-a")
+                .filename(filename)
+                .path(Path.of(path))
+                .lastSeenAt(LocalDate.now())
+                .build();
     }
 }

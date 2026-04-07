@@ -4,6 +4,7 @@ import com.organizer3.model.Actress;
 import com.organizer3.model.ActressAlias;
 import com.organizer3.model.Label;
 import com.organizer3.model.Title;
+import com.organizer3.model.TitleLocation;
 import com.organizer3.repository.ActressRepository;
 import com.organizer3.repository.LabelRepository;
 import com.organizer3.repository.TitleRepository;
@@ -288,9 +289,11 @@ class ActressSearchCommandTest {
     private static Title title(String code, String label, LocalDate addedDate) {
         return Title.builder()
                 .code(code).label(label)
-                .volumeId("vol-a").partitionId("stars/library")
-                .path(Path.of("/fake/" + code))
-                .lastSeenAt(LocalDate.of(2024, 1, 1)).addedDate(addedDate)
+                .locations(List.of(TitleLocation.builder()
+                        .volumeId("vol-a").partitionId("stars/library")
+                        .path(Path.of("/fake/" + code))
+                        .lastSeenAt(LocalDate.of(2024, 1, 1)).addedDate(addedDate)
+                        .build()))
                 .build();
     }
 }

@@ -69,7 +69,7 @@ volumes:
 
   - id: qnap
     smbPath: //qnap2/jav
-    structureType: stars-flat
+    structureType: exhibition
     server: qnap2
 
   - id: classic
@@ -108,7 +108,7 @@ structures:
     unstructuredPartitions:
       - { id: queue, path: fresh }
 
-  - id: stars-flat
+  - id: exhibition
     unstructuredPartitions: []
     structuredPartition:
       path: stars
@@ -133,7 +133,7 @@ syncConfig:
       - term: sync all
         operation: full
 
-  - structureType: stars-flat
+  - structureType: exhibition
     commands:
       - term: sync all
         operation: full

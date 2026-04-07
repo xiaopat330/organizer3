@@ -208,6 +208,12 @@ const observer = new IntersectionObserver(entries => {
 observer.observe(sentinel);
 
 // ── Card renderers ────────────────────────────────────────────────────────
+function renderLocation(path) {
+  const sep = path.lastIndexOf('/');
+  if (sep < 0) return `<span class="title-location-folder">${esc(path)}</span>`;
+  return `<span class="title-location-prefix">${esc(path.slice(0, sep + 1))}</span><span class="title-location-folder">${esc(path.slice(sep + 1))}</span>`;
+}
+
 function makeTitleCard(t) {
   const card = document.createElement('div');
   card.className = 'card';
@@ -237,8 +243,11 @@ function makeTitleCard(t) {
     labelLineHtml = `<div class="title-label-line">${parts.join(' ')}</div>`;
   }
 
-  const dateHtml     = t.addedDate ? `<div class="added-date">${esc(t.addedDate)}</div>` : '';
-  const locationHtml = t.location  ? `<div class="title-location">${esc(t.location)}</div>` : '';
+  const dateHtml = t.addedDate ? `<div class="added-date">${esc(t.addedDate)}</div>` : '';
+  const locs = (t.locations && t.locations.length > 0) ? t.locations : (t.location ? [t.location] : []);
+  const locationHtml = locs.length > 0
+    ? `<div class="title-locations">${locs.map(p => `<div class="title-location">${renderLocation(p)}</div>`).join('')}</div>`
+    : '';
 
   card.innerHTML = `${coverHtml}<div class="card-info">${actressHtml}<div class="title-code">${esc(t.code)}</div>${labelLineHtml}${dateHtml}${locationHtml}</div>`;
 
@@ -321,7 +330,10 @@ const queueGrid = new ScrollingGrid(
   document.getElementById('queue-grid'),
   (o, l) => `/api/queues/${encodeURIComponent(queueVolumeId)}/titles?offset=${o}&limit=${l}`,
   t => {
-    if (queueSmbPath && t.location) t.location = queueSmbPath + t.location;
+    if (queueSmbPath) {
+      if (t.location) t.location = queueSmbPath + t.location;
+      if (t.locations) t.locations = t.locations.map(p => queueSmbPath + p);
+    }
     return makeTitleCard(t);
   },
   'no titles in queue',

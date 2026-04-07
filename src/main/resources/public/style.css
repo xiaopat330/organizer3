@@ -336,14 +336,26 @@ header h1:hover {
   margin-top: 3px;
 }
 
+.title-locations {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-top: 4px;
+}
+
 .title-location {
   font-size: 0.62rem;
-  color: #363636;
   font-family: ui-monospace, monospace;
-  margin-top: 3px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  line-height: 1.4;
+  word-break: break-all;
+}
+
+.title-location-prefix {
+  color: #363636;
+}
+
+.title-location-folder {
+  color: #ffffff;
 }
 
 .actress-link {

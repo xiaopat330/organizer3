@@ -2,6 +2,7 @@ package com.organizer3.sync;
 
 import com.organizer3.model.Actress;
 import com.organizer3.model.Title;
+import com.organizer3.model.TitleLocation;
 import org.junit.jupiter.api.Test;
 
 import java.nio.file.Path;
@@ -60,9 +61,10 @@ class VolumeIndexTest {
     private Title title(String code) {
         return Title.builder()
                 .id(1L).code(code).baseCode(code).label(code.split("-")[0]).seqNum(1)
-                .volumeId("a").partitionId("queue")
-                .path(Path.of("/queue/" + code))
-                .lastSeenAt(LocalDate.now())
+                .locations(List.of(TitleLocation.builder()
+                        .titleId(1L).volumeId("a").partitionId("queue")
+                        .path(Path.of("/queue/" + code))
+                        .lastSeenAt(LocalDate.now()).build()))
                 .build();
     }
 }

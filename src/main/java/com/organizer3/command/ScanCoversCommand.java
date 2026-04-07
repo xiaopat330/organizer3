@@ -6,6 +6,7 @@ import com.organizer3.config.volume.VolumeStructureDef;
 import com.organizer3.covers.CoverPath;
 import com.organizer3.filesystem.VolumeFileSystem;
 import com.organizer3.model.Title;
+import com.organizer3.model.TitleLocation;
 import com.organizer3.repository.TitleRepository;
 import com.organizer3.repository.VolumeRepository;
 import com.organizer3.shell.SessionContext;
@@ -29,7 +30,7 @@ import lombok.RequiredArgsConstructor;
  * local covers hierarchy at {@code data/covers/<LABEL>/<baseCode>.<ext>}.
  *
  * <p>Requires a mounted, synced volume. Processes titles in both {@code stars/}
- * partitions (conventional and stars-flat) and {@code queue} partitions.
+ * partitions (conventional and exhibition) and {@code queue} partitions.
  */
 @Slf4j
 @RequiredArgsConstructor
@@ -79,11 +80,16 @@ public class ScanCoversCommand implements Command {
             return;
         }
 
-        List<Title> titles = titleRepo.findByVolume(volume.id()).stream()
-                .filter(t -> t.getPartitionId() != null &&
-                        (t.getPartitionId().startsWith("stars/") || "queue".equals(t.getPartitionId())))
+        // Find titles with locations on this volume in eligible partitions
+        String volumeId = volume.id();
+        List<Title> titles = titleRepo.findByVolume(volumeId).stream()
                 .filter(t -> t.getLabel() != null && !t.getLabel().isBlank())
                 .filter(t -> t.getBaseCode() != null && !t.getBaseCode().isBlank())
+                .filter(t -> t.findLocation(volumeId)
+                        .map(loc -> loc.getPartitionId() != null &&
+                                (loc.getPartitionId().startsWith("stars/") || "stars".equals(loc.getPartitionId())
+                                        || "queue".equals(loc.getPartitionId())))
+                        .orElse(false))
                 .toList();
 
         if (titles.isEmpty()) {
@@ -107,10 +113,17 @@ public class ScanCoversCommand implements Command {
                         continue;
                     }
 
-                    String imageFile = findCoverImage(fs, title.getPath());
+                    // Use the location on this volume
+                    TitleLocation loc = title.findLocation(volumeId).orElse(null);
+                    if (loc == null) {
+                        progress.advance();
+                        continue;
+                    }
+
+                    String imageFile = findCoverImage(fs, loc.getPath());
                     if (imageFile == null) {
                         noImage++;
-                        log.warn("No cover image found for {} at {}", title.getCode(), title.getPath());
+                        log.warn("No cover image found for {} at {}", title.getCode(), loc.getPath());
                         progress.advance();
                         continue;
                     }
@@ -119,7 +132,7 @@ public class ScanCoversCommand implements Command {
                     Path localPath = coverPath.resolve(title, ext);
                     Files.createDirectories(localPath.getParent());
 
-                    Path remotePath = title.getPath().resolve(imageFile);
+                    Path remotePath = loc.getPath().resolve(imageFile);
                     try (InputStream in = fs.openFile(remotePath)) {
                         Files.copy(in, localPath);
                     }

@@ -4,9 +4,11 @@ import com.organizer3.config.volume.PartitionDef;
 import com.organizer3.filesystem.VolumeFileSystem;
 import com.organizer3.model.Actress;
 import com.organizer3.model.Title;
+import com.organizer3.model.TitleLocation;
 import com.organizer3.model.Video;
 import com.organizer3.model.Volume;
 import com.organizer3.repository.ActressRepository;
+import com.organizer3.repository.TitleLocationRepository;
 import com.organizer3.repository.TitleRepository;
 import com.organizer3.repository.VideoRepository;
 import com.organizer3.repository.VolumeRepository;
@@ -39,8 +41,12 @@ abstract class AbstractSyncOperation implements SyncOperation {
     protected final VideoRepository videoRepo;
     protected final ActressRepository actressRepo;
     protected final VolumeRepository volumeRepo;
+    protected final TitleLocationRepository titleLocationRepo;
     protected final IndexLoader indexLoader;
     private final TitleCodeParser codeParser = new TitleCodeParser();
+
+    /** Subdirectories inside a title folder that may contain video files. */
+    private static final List<String> VIDEO_SUBDIRECTORIES = List.of("video", "h265");
 
     // -------------------------------------------------------------------------
     // Shared scanning helpers
@@ -58,7 +64,7 @@ abstract class AbstractSyncOperation implements SyncOperation {
     /**
      * Scans an unstructured partition: immediate child directories are title folders.
      * When {@code actressId} is null, attempts to infer the actress from each folder name
-     * (e.g., "Marin Yakuno (IPZZ-679)" → actress "Marin Yakuno").
+     * (e.g., "Marin Yakuno (IPZZ-679)" -> actress "Marin Yakuno").
      * Returns the number of titles saved.
      */
     protected int scanUnstructuredPartition(Path partitionRoot, String partitionId,
@@ -129,25 +135,33 @@ abstract class AbstractSyncOperation implements SyncOperation {
         return count;
     }
 
-    private void saveTitleAndVideos(Path titleFolder, String volumeId, String partitionId,
-                                    Long actressId, VolumeFileSystem fs) throws IOException {
+    protected void saveTitleAndVideos(Path titleFolder, String volumeId, String partitionId,
+                                      Long actressId, VolumeFileSystem fs) throws IOException {
         String folderName = titleFolder.getFileName().toString();
         TitleCodeParser.ParsedCode parsed = codeParser.parse(folderName);
 
-        Title title = titleRepo.save(Title.builder()
+        // Find or create the title record (unique by code)
+        Title template = Title.builder()
                 .code(parsed.code())
                 .baseCode(parsed.baseCode())
                 .label(parsed.label())
                 .seqNum(parsed.seqNum())
+                .actressId(actressId)
+                .build();
+        Title title = titleRepo.findOrCreateByCode(template);
+
+        // Save location for this volume+path
+        LocalDate addedDate = computeAddedDate(titleFolder, fs);
+        titleLocationRepo.save(TitleLocation.builder()
+                .titleId(title.getId())
                 .volumeId(volumeId)
                 .partitionId(partitionId)
-                .actressId(actressId)
                 .path(titleFolder)
                 .lastSeenAt(LocalDate.now())
-                .addedDate(computeAddedDate(titleFolder, fs))
+                .addedDate(addedDate)
                 .build());
 
-        saveVideosForTitle(titleFolder, title.getId(), fs);
+        saveVideosForTitle(titleFolder, title.getId(), volumeId, fs);
     }
 
     /**
@@ -180,22 +194,24 @@ abstract class AbstractSyncOperation implements SyncOperation {
         return (a == null || b.isBefore(a)) ? b : a;
     }
 
-    private void saveVideosForTitle(Path titleFolder, long titleId,
+    private void saveVideosForTitle(Path titleFolder, long titleId, String volumeId,
                                     VolumeFileSystem fs) throws IOException {
         // Direct video files in the title folder
         for (Path child : fs.listDirectory(titleFolder)) {
             if (!fs.isDirectory(child) && MediaExtensions.isVideo(child)) {
-                videoRepo.save(Video.builder().titleId(titleId)
+                videoRepo.save(Video.builder().titleId(titleId).volumeId(volumeId)
                         .filename(child.getFileName().toString()).path(child).lastSeenAt(LocalDate.now()).build());
             }
         }
-        // Optional video/ subdirectory
-        Path videoSubdir = titleFolder.resolve("video");
-        if (fs.exists(videoSubdir) && fs.isDirectory(videoSubdir)) {
-            for (Path child : fs.listDirectory(videoSubdir)) {
-                if (!fs.isDirectory(child) && MediaExtensions.isVideo(child)) {
-                    videoRepo.save(Video.builder().titleId(titleId)
-                            .filename(child.getFileName().toString()).path(child).lastSeenAt(LocalDate.now()).build());
+        // Optional video/ and h265/ subdirectories
+        for (String subdir : VIDEO_SUBDIRECTORIES) {
+            Path videoSubdir = titleFolder.resolve(subdir);
+            if (fs.exists(videoSubdir) && fs.isDirectory(videoSubdir)) {
+                for (Path child : fs.listDirectory(videoSubdir)) {
+                    if (!fs.isDirectory(child) && MediaExtensions.isVideo(child)) {
+                        videoRepo.save(Video.builder().titleId(titleId).volumeId(volumeId)
+                                .filename(child.getFileName().toString()).path(child).lastSeenAt(LocalDate.now()).build());
+                    }
                 }
             }
         }
@@ -229,6 +245,18 @@ abstract class AbstractSyncOperation implements SyncOperation {
         String name = extractActressName(folderName);
         if (name == null) return null;
         return resolveOrCreateActress(name, Actress.Tier.LIBRARY).getId();
+    }
+
+    /**
+     * Resolves the actress ID for a discovered title. If the title has an actress name,
+     * resolves (or creates) the actress record and tracks it in stats. Returns null if
+     * no actress name is available.
+     */
+    protected Long resolveActressId(com.organizer3.sync.scanner.DiscoveredTitle dt, SyncStats stats) {
+        if (dt.actressName() == null) return null;
+        Actress actress = resolveOrCreateActress(dt.actressName(), dt.actressTier());
+        stats.addActress(actress.getId());
+        return actress.getId();
     }
 
     /**

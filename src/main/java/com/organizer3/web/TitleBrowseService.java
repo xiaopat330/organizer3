@@ -3,6 +3,7 @@ package com.organizer3.web;
 import com.organizer3.covers.CoverPath;
 import com.organizer3.model.Label;
 import com.organizer3.model.Title;
+import com.organizer3.model.TitleLocation;
 import com.organizer3.repository.ActressRepository;
 import com.organizer3.repository.LabelRepository;
 import com.organizer3.repository.TitleRepository;
@@ -102,6 +103,9 @@ public class TitleBrowseService {
                                     .orElse(null)
                             : null;
                     ActressInfo ai = t.getActressId() != null ? actressInfo.get(t.getActressId()) : null;
+                    List<String> allLocations = t.getLocations().stream()
+                            .map(loc -> loc.getPath().toString())
+                            .toList();
                     return TitleSummary.builder()
                             .code(t.getCode())
                             .baseCode(t.getBaseCode())
@@ -114,6 +118,7 @@ public class TitleBrowseService {
                             .companyName(lbl != null ? lbl.company() : null)
                             .labelName(lbl != null ? lbl.labelName() : null)
                             .location(t.getPath() != null ? t.getPath().toString() : null)
+                            .locations(allLocations)
                             .build();
                 })
                 .toList();

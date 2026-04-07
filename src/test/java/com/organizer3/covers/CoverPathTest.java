@@ -1,6 +1,7 @@
 package com.organizer3.covers;
 
 import com.organizer3.model.Title;
+import com.organizer3.model.TitleLocation;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -9,6 +10,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.LocalDate;
+import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -28,9 +30,11 @@ class CoverPathTest {
     private Title title(String code, String baseCode, String label) {
         return Title.builder()
                 .id(1L).code(code).baseCode(baseCode).label(label)
-                .volumeId("a").partitionId("stars/popular").actressId(1L)
-                .path(Path.of("/stars/popular/Actress/ABP-123"))
-                .lastSeenAt(LocalDate.now()).addedDate(LocalDate.now())
+                .actressId(1L)
+                .locations(List.of(TitleLocation.builder()
+                        .titleId(1L).volumeId("a").partitionId("stars/popular")
+                        .path(Path.of("/stars/popular/Actress/ABP-123"))
+                        .lastSeenAt(LocalDate.now()).addedDate(LocalDate.now()).build()))
                 .build();
     }
 

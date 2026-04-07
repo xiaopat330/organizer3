@@ -4,6 +4,7 @@ import com.organizer3.model.Actress;
 import com.organizer3.model.Title;
 import com.organizer3.repository.ActressRepository;
 import com.organizer3.repository.TitleRepository;
+import lombok.RequiredArgsConstructor;
 
 import java.util.List;
 import java.util.Objects;
@@ -16,15 +17,11 @@ import java.util.stream.Collectors;
  * <p>Called at mount time (to initialize the session index) and after each sync
  * (to reflect the updated DB state in memory).
  */
+@RequiredArgsConstructor
 public class IndexLoader {
 
     private final TitleRepository titleRepo;
     private final ActressRepository actressRepo;
-
-    public IndexLoader(TitleRepository titleRepo, ActressRepository actressRepo) {
-        this.titleRepo = titleRepo;
-        this.actressRepo = actressRepo;
-    }
 
     public VolumeIndex load(String volumeId) {
         List<Title> titles = titleRepo.findByVolume(volumeId);

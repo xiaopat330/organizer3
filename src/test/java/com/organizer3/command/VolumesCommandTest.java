@@ -27,7 +27,7 @@ import static org.mockito.Mockito.*;
 class VolumesCommandTest {
 
     private static final VolumeConfig VOL_A = new VolumeConfig("a", "//pandora/jav_A", "conventional", "pandora");
-    private static final VolumeConfig VOL_B = new VolumeConfig("b", "//pandora/jav_B", "stars-flat", "pandora");
+    private static final VolumeConfig VOL_B = new VolumeConfig("b", "//pandora/jav_B", "exhibition", "pandora");
 
     private VolumeRepository volumeRepo;
     private SessionContext ctx;
@@ -69,7 +69,7 @@ class VolumesCommandTest {
         assertTrue(out.contains("a"));
         assertTrue(out.contains("conventional"));
         assertTrue(out.contains("b"));
-        assertTrue(out.contains("stars-flat"));
+        assertTrue(out.contains("exhibition"));
     }
 
     @Test

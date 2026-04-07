@@ -2,6 +2,7 @@ package com.organizer3.command;
 
 import com.organizer3.covers.CoverPath;
 import com.organizer3.model.Title;
+import com.organizer3.model.TitleLocation;
 import com.organizer3.repository.TitleRepository;
 import com.organizer3.shell.SessionContext;
 import com.organizer3.shell.io.CommandIO;
@@ -44,9 +45,11 @@ class PruneCoversCommandTest {
     private Title title(String baseCode) {
         return Title.builder()
                 .id(1L).code(baseCode).baseCode(baseCode).label("ABP")
-                .volumeId("a").partitionId("stars/library").actressId(1L)
-                .path(Path.of("/stars/library/Actress/" + baseCode))
-                .lastSeenAt(LocalDate.now()).addedDate(LocalDate.now())
+                .actressId(1L)
+                .locations(List.of(TitleLocation.builder()
+                        .titleId(1L).volumeId("a").partitionId("stars/library")
+                        .path(Path.of("/stars/library/Actress/" + baseCode))
+                        .lastSeenAt(LocalDate.now()).addedDate(LocalDate.now()).build()))
                 .build();
     }
 

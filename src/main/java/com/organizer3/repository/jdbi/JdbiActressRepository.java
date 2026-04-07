@@ -4,6 +4,7 @@ import com.organizer3.config.alias.AliasYamlEntry;
 import com.organizer3.model.ActressAlias;
 import com.organizer3.model.Actress;
 import com.organizer3.repository.ActressRepository;
+import lombok.RequiredArgsConstructor;
 import org.jdbi.v3.core.Handle;
 import org.jdbi.v3.core.Jdbi;
 import org.jdbi.v3.core.mapper.RowMapper;
@@ -12,6 +13,7 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 
+@RequiredArgsConstructor
 public class JdbiActressRepository implements ActressRepository {
 
     private static final RowMapper<Actress> ACTRESS_MAPPER = (rs, ctx) -> {
@@ -32,10 +34,6 @@ public class JdbiActressRepository implements ActressRepository {
             new ActressAlias(rs.getLong("actress_id"), rs.getString("alias_name"));
 
     private final Jdbi jdbi;
-
-    public JdbiActressRepository(Jdbi jdbi) {
-        this.jdbi = jdbi;
-    }
 
     @Override
     public Optional<Actress> findById(long id) {

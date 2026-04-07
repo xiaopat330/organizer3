@@ -12,6 +12,7 @@ import com.organizer3.covers.CoverPath;
 import com.organizer3.model.Actress;
 import com.organizer3.model.Label;
 import com.organizer3.model.Title;
+import com.organizer3.model.TitleLocation;
 import com.organizer3.repository.ActressRepository;
 import com.organizer3.repository.LabelRepository;
 import com.organizer3.repository.TitleRepository;
@@ -152,9 +153,11 @@ class WebServerTest {
 
         Title title = Title.builder()
                 .id(1L).code("ABP-001").baseCode("ABP-00001").label("ABP").seqNum(1)
-                .volumeId("a").partitionId("queue")
-                .path(Path.of("/queue/ABP-001"))
-                .lastSeenAt(LocalDate.now()).addedDate(LocalDate.of(2025, 3, 1))
+                .locations(List.of(TitleLocation.builder()
+                        .titleId(1L).volumeId("a").partitionId("queue")
+                        .path(Path.of("/queue/ABP-001"))
+                        .lastSeenAt(LocalDate.now()).addedDate(LocalDate.of(2025, 3, 1))
+                        .build()))
                 .build();
         when(titleRepo.findRecent(24, 0)).thenReturn(List.of(title));
         when(labelRepo.findAllAsMap()).thenReturn(Map.of());
@@ -203,9 +206,11 @@ class WebServerTest {
 
         Title queueTitle = Title.builder()
                 .id(1L).code("SSIS-001").baseCode("SSIS-00001").label("SSIS").seqNum(1)
-                .volumeId("a").partitionId("queue")
-                .path(Path.of("/queue/SSIS-001"))
-                .lastSeenAt(LocalDate.now())
+                .locations(List.of(TitleLocation.builder()
+                        .titleId(1L).volumeId("a").partitionId("queue")
+                        .path(Path.of("/queue/SSIS-001"))
+                        .lastSeenAt(LocalDate.now())
+                        .build()))
                 .build();
         when(titleRepo.findByVolumeAndPartition("a", "queue", 24, 0)).thenReturn(List.of(queueTitle));
         when(titleRepo.findByBaseCode("SSIS-00001")).thenReturn(List.of());

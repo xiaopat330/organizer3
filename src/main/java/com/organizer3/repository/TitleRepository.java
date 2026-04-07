@@ -25,6 +25,7 @@ public interface TitleRepository {
      */
     Optional<Long> findDominantActressForLabel(String label);
 
+    /** Find all titles that have at least one location on the given volume. */
     List<Title> findByVolume(String volumeId);
 
     List<Title> findByActress(long actressId);
@@ -34,18 +35,11 @@ public interface TitleRepository {
     /**
      * Find all titles for an actress, including titles attributed to any actress record
      * whose canonical name matches one of her known aliases.
-     *
-     * <p>This covers the case where titles were synced before an alias was configured,
-     * resulting in a separate actress record for the alias name. Use this instead of
-     * {@link #findByActress} when you want the full picture of her content.
      */
     List<Title> findByActressIncludingAliases(long actressId);
 
     /**
      * Find titles attributed to alias actress records but not to the canonical actress record.
-     *
-     * <p>These are titles that need to be re-attributed to the canonical actress as part of
-     * alias denormalization — i.e., the actress's content is fragmented across orphan records.
      */
     List<Title> findByAliasesOnly(long actressId);
 
@@ -55,26 +49,30 @@ public interface TitleRepository {
      */
     Title save(Title title);
 
+    /**
+     * Find an existing title by code, or create a new one from the given template.
+     * If the title already exists and has no actress but the template provides one,
+     * updates the actress attribution.
+     */
+    Title findOrCreateByCode(Title template);
+
     void delete(long id);
 
-    /** Remove all title records for a volume (used before a full re-sync). */
-    void deleteByVolume(String volumeId);
-
-    /** Find titles for a specific volume+partition, ordered by added_date DESC, id DESC. */
+    /** Find titles with at least one location on the given volume+partition. */
     List<Title> findByVolumeAndPartition(String volumeId, String partitionId, int limit, int offset);
 
-    /** Remove title records for a specific volume+partition (used before a partition-scoped re-sync). */
-    void deleteByVolumeAndPartition(String volumeId, String partitionId);
-
-    /** Find titles ordered by added_date DESC, id DESC — for the browse home page. */
+    /** Find titles ordered by added_date DESC — for the browse home page. */
     List<Title> findRecent(int limit, int offset);
 
-    /** Find titles for an actress ordered by added_date DESC, id DESC — for the actress detail page. */
+    /** Find titles for an actress ordered by added_date DESC. */
     List<Title> findByActressPaged(long actressId, int limit, int offset);
 
     /**
      * Find titles for an actress restricted to the given label codes (upper-case),
-     * ordered by added_date DESC, id DESC — for company-filtered actress detail pages.
+     * ordered by added_date DESC.
      */
     List<Title> findByActressAndLabelsPaged(long actressId, List<String> labels, int limit, int offset);
+
+    /** Delete titles that have zero locations (orphaned after location cleanup). */
+    void deleteOrphaned();
 }

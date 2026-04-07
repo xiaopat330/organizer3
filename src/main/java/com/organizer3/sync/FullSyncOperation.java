@@ -1,33 +1,38 @@
 package com.organizer3.sync;
 
-import com.organizer3.config.volume.PartitionDef;
-import com.organizer3.config.volume.StructuredPartitionDef;
 import com.organizer3.config.volume.VolumeConfig;
 import com.organizer3.config.volume.VolumeStructureDef;
 import com.organizer3.filesystem.VolumeFileSystem;
-import com.organizer3.model.Actress;
 import com.organizer3.repository.ActressRepository;
+import com.organizer3.repository.TitleLocationRepository;
 import com.organizer3.repository.TitleRepository;
 import com.organizer3.repository.VideoRepository;
 import com.organizer3.repository.VolumeRepository;
 import com.organizer3.shell.SessionContext;
 import com.organizer3.shell.io.CommandIO;
+import com.organizer3.sync.scanner.DiscoveredTitle;
+import com.organizer3.sync.scanner.ScannerRegistry;
+import com.organizer3.sync.scanner.VolumeScanner;
 
 import java.io.IOException;
-import java.nio.file.Path;
+import java.util.List;
 
 /**
- * Syncs the entire volume: all unstructured partitions and the full {@code stars/} tree.
- *
- * <p>Clears all existing title and video records for the volume before scanning, then
- * re-populates from the current filesystem state.
+ * Syncs the entire volume: clears all existing location and video records for the volume,
+ * then delegates to the appropriate {@link VolumeScanner} for filesystem discovery
+ * and persists the results.
  */
 public class FullSyncOperation extends AbstractSyncOperation {
 
-    public FullSyncOperation(TitleRepository titleRepo, VideoRepository videoRepo,
+    private final ScannerRegistry scannerRegistry;
+
+    public FullSyncOperation(ScannerRegistry scannerRegistry,
+                             TitleRepository titleRepo, VideoRepository videoRepo,
                              ActressRepository actressRepo, VolumeRepository volumeRepo,
+                             TitleLocationRepository titleLocationRepo,
                              IndexLoader indexLoader) {
-        super(titleRepo, videoRepo, actressRepo, volumeRepo, indexLoader);
+        super(titleRepo, videoRepo, actressRepo, volumeRepo, titleLocationRepo, indexLoader);
+        this.scannerRegistry = scannerRegistry;
     }
 
     @Override
@@ -36,38 +41,29 @@ public class FullSyncOperation extends AbstractSyncOperation {
         io.println("Syncing " + volume.id() + " (full) ...");
         ensureVolumeRecord(volume);
 
-        // Clear existing records — videos first (FK), then titles
+        // Clear existing records for this volume — videos first (FK), then locations
+        // Titles are NOT deleted — they may have locations on other volumes
         videoRepo.deleteByVolume(volume.id());
-        titleRepo.deleteByVolume(volume.id());
+        titleLocationRepo.deleteByVolume(volume.id());
 
+        // Scan filesystem via the structure-specific scanner
+        VolumeScanner scanner = scannerRegistry.forStructureType(volume.structureType());
+        List<DiscoveredTitle> discovered = scanner.scan(structure, fs, io);
+
+        // Persist all discovered titles
         SyncStats stats = new SyncStats();
-        Path root = Path.of("/");
-
-        // Unstructured partitions
-        for (PartitionDef partition : structure.unstructuredPartitions()) {
-            Path partRoot = root.resolve(partition.path());
-            io.println("  Scanning " + partition.id() + "/ ...");
-            scanUnstructuredPartition(partRoot, partition.id(), volume.id(), null, fs, io, stats);
-        }
-
-        // Structured partition (stars/)
-        StructuredPartitionDef stars = structure.structuredPartition();
-        if (stars != null) {
-            Path starsRoot = root.resolve(stars.path());
-            if (stars.partitions() == null || stars.partitions().isEmpty()) {
-                // Flat layout: actress folders sit directly under stars/
-                io.println("  Scanning stars/ ...");
-                scanStarsFolder(starsRoot, "stars", "stars/",
-                        volume.id(), Actress.Tier.LIBRARY, fs, io, stats);
-            } else {
-                for (PartitionDef sub : stars.partitions()) {
-                    Path tierRoot = starsRoot.resolve(sub.path());
-                    io.println("  Scanning stars/" + sub.id() + "/ ...");
-                    scanStarsFolder(tierRoot, "stars/" + sub.id(), "stars/" + sub.id(),
-                            volume.id(), toActressTier(sub.id()), fs, io, stats);
-                }
+        try (var progress = io.startProgress("Saving", discovered.size())) {
+            for (DiscoveredTitle dt : discovered) {
+                progress.setLabel(dt.path().getFileName().toString());
+                Long actressId = resolveActressId(dt, stats);
+                saveTitleAndVideos(dt.path(), volume.id(), dt.partitionId(), actressId, fs);
+                stats.addTitles(dt.partitionId(), 1);
+                progress.advance();
             }
         }
+
+        // Clean up titles that no longer have any locations
+        titleRepo.deleteOrphaned();
 
         finalizeSync(volume.id(), ctx);
         printStats(stats, io);

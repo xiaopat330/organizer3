@@ -81,7 +81,7 @@ class JdbiVolumeRepositoryTest {
     void findAllReturnsAllVolumesOrderedById() {
         repo.save(new Volume("c", "queue"));
         repo.save(new Volume("a", "conventional"));
-        repo.save(new Volume("b", "stars-flat"));
+        repo.save(new Volume("b", "exhibition"));
 
         List<Volume> all = repo.findAll();
         assertEquals(3, all.size());

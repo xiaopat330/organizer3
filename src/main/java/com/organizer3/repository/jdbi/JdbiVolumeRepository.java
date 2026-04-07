@@ -2,6 +2,7 @@ package com.organizer3.repository.jdbi;
 
 import com.organizer3.model.Volume;
 import com.organizer3.repository.VolumeRepository;
+import lombok.RequiredArgsConstructor;
 import org.jdbi.v3.core.Jdbi;
 import org.jdbi.v3.core.mapper.RowMapper;
 
@@ -9,6 +10,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
+@RequiredArgsConstructor
 public class JdbiVolumeRepository implements VolumeRepository {
 
     private static final RowMapper<Volume> MAPPER = (rs, ctx) -> {
@@ -24,10 +26,6 @@ public class JdbiVolumeRepository implements VolumeRepository {
     };
 
     private final Jdbi jdbi;
-
-    public JdbiVolumeRepository(Jdbi jdbi) {
-        this.jdbi = jdbi;
-    }
 
     @Override
     public Optional<Volume> findById(String id) {

@@ -2,6 +2,7 @@ package com.organizer3.repository.jdbi;
 
 import com.organizer3.model.OperationLogEntry;
 import com.organizer3.repository.OperationLogRepository;
+import lombok.RequiredArgsConstructor;
 import org.jdbi.v3.core.Jdbi;
 import org.jdbi.v3.core.mapper.RowMapper;
 
@@ -9,6 +10,7 @@ import java.nio.file.Path;
 import java.time.LocalDateTime;
 import java.util.List;
 
+@RequiredArgsConstructor
 public class JdbiOperationLogRepository implements OperationLogRepository {
 
     private static final RowMapper<OperationLogEntry> MAPPER = (rs, ctx) -> {
@@ -24,10 +26,6 @@ public class JdbiOperationLogRepository implements OperationLogRepository {
     };
 
     private final Jdbi jdbi;
-
-    public JdbiOperationLogRepository(Jdbi jdbi) {
-        this.jdbi = jdbi;
-    }
 
     @Override
     public void log(OperationLogEntry entry) {

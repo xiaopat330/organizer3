@@ -1,6 +1,7 @@
 package com.organizer3.shell;
 
 import com.organizer3.model.Title;
+import com.organizer3.model.TitleLocation;
 import com.organizer3.shell.io.PlainCommandIO;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -135,9 +136,10 @@ class TitleTableTest {
     private Title title(String code, String label) {
         return Title.builder()
                 .id(1L).code(code).baseCode(code).label(label).seqNum(1)
-                .volumeId("a").partitionId("queue")
-                .path(Path.of("/queue/" + code))
-                .lastSeenAt(LocalDate.now())
+                .locations(List.of(TitleLocation.builder()
+                        .titleId(1L).volumeId("a").partitionId("queue")
+                        .path(Path.of("/queue/" + code))
+                        .lastSeenAt(LocalDate.now()).build()))
                 .build();
     }
 }

@@ -4,6 +4,7 @@ import com.organizer3.covers.CoverPath;
 import com.organizer3.model.Actress;
 import com.organizer3.model.Label;
 import com.organizer3.model.Title;
+import com.organizer3.model.TitleLocation;
 import com.organizer3.repository.ActressRepository;
 import com.organizer3.repository.LabelRepository;
 import com.organizer3.repository.TitleRepository;
@@ -203,9 +204,11 @@ class TitleBrowseServiceTest {
         // Queue title has a base_code but no actress_id (unorganized)
         Title queueTitle = Title.builder()
                 .id(1L).code("ABP-123").baseCode("ABP-00123").label("ABP")
-                .volumeId("vol-a").partitionId("queue")
-                .path(Path.of("/mnt/vol-a/queue/ABP-123"))
-                .lastSeenAt(LocalDate.of(2024, 1, 1))
+                .locations(List.of(TitleLocation.builder()
+                        .titleId(1L).volumeId("vol-a").partitionId("queue")
+                        .path(Path.of("/mnt/vol-a/queue/ABP-123"))
+                        .lastSeenAt(LocalDate.of(2024, 1, 1))
+                        .build()))
                 .build();
         Title starsTitle = title("ABP-123", "ABP-00123", "ABP", 7L, null); // same base_code, has actress
         Actress actress = Actress.builder().id(7L).canonicalName("Yui Hatano")
@@ -242,18 +245,24 @@ class TitleBrowseServiceTest {
     private static Title title(String code, String baseCode, String label, Long actressId, LocalDate addedDate) {
         return Title.builder()
                 .id(1L).code(code).baseCode(baseCode).label(label).seqNum(1)
-                .volumeId("vol-a").partitionId("stars").actressId(actressId)
-                .path(Path.of("/mnt/vol-a/stars/" + code))
-                .lastSeenAt(LocalDate.of(2024, 1, 1)).addedDate(addedDate)
+                .actressId(actressId)
+                .locations(List.of(TitleLocation.builder()
+                        .titleId(1L).volumeId("vol-a").partitionId("stars")
+                        .path(Path.of("/mnt/vol-a/stars/" + code))
+                        .lastSeenAt(LocalDate.of(2024, 1, 1)).addedDate(addedDate)
+                        .build()))
                 .build();
     }
 
     private static Title titleWithNullLabel(String code, Long actressId, LocalDate addedDate) {
         return Title.builder()
                 .id(1L).code(code)
-                .volumeId("unsorted").partitionId("queue").actressId(actressId)
-                .path(Path.of("/mnt/unsorted/queue/" + code))
-                .lastSeenAt(LocalDate.of(2024, 1, 1)).addedDate(addedDate)
+                .actressId(actressId)
+                .locations(List.of(TitleLocation.builder()
+                        .titleId(1L).volumeId("unsorted").partitionId("queue")
+                        .path(Path.of("/mnt/unsorted/queue/" + code))
+                        .lastSeenAt(LocalDate.of(2024, 1, 1)).addedDate(addedDate)
+                        .build()))
                 .build();
     }
 }

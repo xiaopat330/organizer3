@@ -1,7 +1,7 @@
 package com.organizer3.model;
 
 import lombok.Builder;
-import lombok.Getter;
+import lombok.Value;
 
 import java.nio.file.Path;
 import java.time.LocalDateTime;
@@ -13,7 +13,7 @@ import java.time.LocalDateTime;
  * <p>Operations are always logged regardless of armed/dry-run mode — {@code wasArmed}
  * distinguishes whether the operation was actually executed or only simulated.
  */
-@Getter
+@Value
 @Builder
 public class OperationLogEntry {
 
@@ -21,10 +21,10 @@ public class OperationLogEntry {
         MOVE, RENAME, CREATE_DIRECTORY
     }
 
-    private final Long id;
-    private final LocalDateTime timestamp;
-    private final OperationType type;
-    private final Path sourcePath;
-    private final Path destPath;
-    private final boolean wasArmed;
+    Long id;
+    LocalDateTime timestamp;
+    OperationType type;
+    Path sourcePath;
+    Path destPath;
+    boolean wasArmed;
 }

@@ -1,24 +1,30 @@
 package com.organizer3.web;
 
 import lombok.Builder;
-import lombok.Getter;
+import lombok.Value;
+
+import java.util.List;
 
 /**
  * Lightweight projection of a title for the browse home page.
  * All fields except {@code code} may be null.
  */
-@Getter
+@Value
 @Builder
 public class TitleSummary {
-    private final String code;
-    private final String baseCode;
-    private final String label;
-    private final Long actressId;
-    private final String actressName;
-    private final String actressTier;
-    private final String addedDate;
-    private final String coverUrl;
-    private final String companyName;
-    private final String labelName;
-    private final String location;
+    String code;
+    String baseCode;
+    String label;
+    Long actressId;
+    String actressName;
+    String actressTier;
+    String addedDate;
+    String coverUrl;
+    String companyName;
+    String labelName;
+    /** Primary location path (first/best location). */
+    String location;
+    /** All known locations for this title. */
+    @Builder.Default
+    List<String> locations = List.of();
 }

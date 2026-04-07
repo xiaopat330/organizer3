@@ -24,9 +24,9 @@ com.organizer3
   command/      Command implementations (one class per command)
   config/       Config model + loaders (AppConfig singleton, YAML model)
   covers/       CoverPath utility for local cover image path resolution
-  db/           SchemaInitializer (PRAGMA user_version migrations)
+  db/           SchemaInitializer (drop-and-recreate schema)
   filesystem/   VolumeFileSystem interface + implementations
-  model/        Domain records: Title, Actress, ActressAlias, Video, Volume
+  model/        Domain records: Title, TitleLocation, Actress, ActressAlias, Video, Volume
   repository/   Repository interfaces + jdbi/ implementations
   shell/        SessionContext, OrganizerShell, PromptBuilder, CommandIO
   smb/          SmbConnector, SmbjConnector, VolumeConnection
@@ -40,7 +40,7 @@ com.organizer3
 - `mount`, `unmount`, `volumes`, `sync`/`sync all`/`sync queue`, `actresses`, `favorites`, `sync covers`, `prune-covers`, `help`, `shutdown`
 - Full and partition-scoped sync via SMB with progress display
 - Actress resolution through aliases during sync
-- Persistence layer: all repositories, 4-migration schema
+- Persistence layer: all repositories, title_locations for multi-location dedup support
 
 **Not yet implemented:**
 - `arm` / `test` mode toggle commands (dry-run defaults to true, no toggle command yet)

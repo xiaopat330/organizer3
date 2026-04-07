@@ -50,14 +50,14 @@ Each volume follows one of four structure templates:
   fresh/              # Unorganized incoming titles (logical id: queue)
 ```
 
-#### Stars-Flat (flat actress layout, no tier sub-folders)
+#### Exhibition (flat actress layout, no tier sub-folders)
 ```
 <volume root>/
   stars/
     Actress Name/     # Actress folder directly under stars/
       ABP-123/        # Title folder
 ```
-All actresses in a stars-flat volume are stored with tier `LIBRARY` in the DB.
+All actresses in a exhibition volume are stored with tier `LIBRARY` in the DB.
 
 #### Collections (curated sets)
 ```
@@ -308,7 +308,7 @@ Current bindings:
 |----------------|------|-----------|-------|
 | conventional | `sync queue` | PARTITION | `queue` partition only |
 | conventional | `sync all` | FULL | entire volume |
-| stars-flat | `sync all` | FULL | entire volume |
+| exhibition | `sync all` | FULL | entire volume |
 | queue | `sync` | FULL | entire volume |
 | queue | `sync all` | FULL | same as `sync` (alias) |
 | collections | *(none)* | — | not yet implemented |

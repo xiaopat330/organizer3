@@ -189,7 +189,10 @@ public class ActressSearchCommand implements Command {
                     return name != null ? name : "";
                 }),
                 TitleTable.Column.plain("Added", t -> t.getAddedDate() != null ? t.getAddedDate().format(DATE_FORMAT) : ""),
-                TitleTable.Column.plain("Location", t -> t.getPath() != null ? t.getPath().toString() : "")
+                TitleTable.Column.plain("Location", t -> t.getLocations().isEmpty() ? ""
+                        : t.getLocations().stream()
+                                .map(loc -> loc.getPath().toString())
+                                .collect(java.util.stream.Collectors.joining(", ")))
         );
 
         Map<String, List<Title>> byCompany = titles.stream().collect(

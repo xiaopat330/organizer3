@@ -2,21 +2,25 @@ package com.organizer3.repository.jdbi;
 
 import com.organizer3.model.Actress;
 import com.organizer3.model.Title;
+import com.organizer3.model.TitleLocation;
+import com.organizer3.repository.TitleLocationRepository;
 import com.organizer3.repository.TitleRepository;
+import lombok.RequiredArgsConstructor;
 import org.jdbi.v3.core.Jdbi;
 import org.jdbi.v3.core.mapper.RowMapper;
 
-import java.nio.file.Path;
-import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
+@RequiredArgsConstructor
 public class JdbiTitleRepository implements TitleRepository {
 
+    /** Maps a titles row to a Title with an empty locations list. */
     private static final RowMapper<Title> MAPPER = (rs, ctx) -> {
         String actressIdStr = rs.getString("actress_id");
         String seqNumStr = rs.getString("seq_num");
-        String addedDateStr = rs.getString("added_date");
         String gradeStr = rs.getString("grade");
         return Title.builder()
                 .id(rs.getLong("id"))
@@ -24,12 +28,7 @@ public class JdbiTitleRepository implements TitleRepository {
                 .baseCode(rs.getString("base_code"))
                 .label(rs.getString("label"))
                 .seqNum(seqNumStr != null ? Integer.parseInt(seqNumStr) : null)
-                .volumeId(rs.getString("volume_id"))
-                .partitionId(rs.getString("partition_id"))
                 .actressId(actressIdStr != null ? Long.parseLong(actressIdStr) : null)
-                .path(Path.of(rs.getString("path")))
-                .lastSeenAt(LocalDate.parse(rs.getString("last_seen_at")))
-                .addedDate(addedDateStr != null ? LocalDate.parse(addedDateStr) : null)
                 .favorite(rs.getBoolean("favorite"))
                 .bookmark(rs.getBoolean("bookmark"))
                 .grade(gradeStr != null ? Actress.Grade.fromDisplay(gradeStr) : null)
@@ -38,10 +37,7 @@ public class JdbiTitleRepository implements TitleRepository {
     };
 
     private final Jdbi jdbi;
-
-    public JdbiTitleRepository(Jdbi jdbi) {
-        this.jdbi = jdbi;
-    }
+    private final TitleLocationRepository locationRepo;
 
     @Override
     public Optional<Long> findDominantActressForLabel(String label) {
@@ -64,7 +60,7 @@ public class JdbiTitleRepository implements TitleRepository {
                         .bind("id", id)
                         .map(MAPPER)
                         .findFirst()
-        );
+        ).map(this::populateLocations);
     }
 
     @Override
@@ -74,37 +70,45 @@ public class JdbiTitleRepository implements TitleRepository {
                         .bind("code", code)
                         .map(MAPPER)
                         .findFirst()
-        );
+        ).map(this::populateLocations);
     }
 
     @Override
     public List<Title> findByBaseCode(String baseCode) {
-        return jdbi.withHandle(h ->
+        List<Title> titles = jdbi.withHandle(h ->
                 h.createQuery("SELECT * FROM titles WHERE base_code = :baseCode")
                         .bind("baseCode", baseCode)
                         .map(MAPPER)
                         .list()
         );
+        return populateLocationsBatch(titles);
     }
 
     @Override
     public List<Title> findByVolume(String volumeId) {
-        return jdbi.withHandle(h ->
-                h.createQuery("SELECT * FROM titles WHERE volume_id = :volumeId ORDER BY code")
+        List<Title> titles = jdbi.withHandle(h ->
+                h.createQuery("""
+                        SELECT DISTINCT t.* FROM titles t
+                        JOIN title_locations tl ON t.id = tl.title_id
+                        WHERE tl.volume_id = :volumeId
+                        ORDER BY t.code
+                        """)
                         .bind("volumeId", volumeId)
                         .map(MAPPER)
                         .list()
         );
+        return populateLocationsBatch(titles);
     }
 
     @Override
     public List<Title> findByActress(long actressId) {
-        return jdbi.withHandle(h ->
+        List<Title> titles = jdbi.withHandle(h ->
                 h.createQuery("SELECT * FROM titles WHERE actress_id = :actressId ORDER BY code")
                         .bind("actressId", actressId)
                         .map(MAPPER)
                         .list()
         );
+        return populateLocationsBatch(titles);
     }
 
     @Override
@@ -119,7 +123,7 @@ public class JdbiTitleRepository implements TitleRepository {
 
     @Override
     public List<Title> findByAliasesOnly(long actressId) {
-        return jdbi.withHandle(h ->
+        List<Title> titles = jdbi.withHandle(h ->
                 h.createQuery("""
                         SELECT t.* FROM titles t
                             JOIN actresses a ON t.actress_id = a.id
@@ -131,11 +135,12 @@ public class JdbiTitleRepository implements TitleRepository {
                         .map(MAPPER)
                         .list()
         );
+        return populateLocationsBatch(titles);
     }
 
     @Override
     public List<Title> findByActressIncludingAliases(long actressId) {
-        return jdbi.withHandle(h ->
+        List<Title> titles = jdbi.withHandle(h ->
                 h.createQuery("""
                         SELECT * FROM titles WHERE actress_id = :actressId
                         UNION
@@ -149,6 +154,7 @@ public class JdbiTitleRepository implements TitleRepository {
                         .map(MAPPER)
                         .list()
         );
+        return populateLocationsBatch(titles);
     }
 
     @Override
@@ -157,21 +163,16 @@ public class JdbiTitleRepository implements TitleRepository {
             if (title.getId() == null) {
                 long id = h.createUpdate("""
                                 INSERT INTO titles
-                                    (code, base_code, label, seq_num, volume_id, partition_id, actress_id, path, last_seen_at, added_date,
+                                    (code, base_code, label, seq_num, actress_id,
                                      favorite, bookmark, grade, rejected)
-                                VALUES (:code, :baseCode, :label, :seqNum, :volumeId, :partitionId, :actressId, :path, :lastSeenAt, :addedDate,
+                                VALUES (:code, :baseCode, :label, :seqNum, :actressId,
                                         :favorite, :bookmark, :grade, :rejected)
                                 """)
                         .bind("code", title.getCode())
                         .bind("baseCode", title.getBaseCode())
                         .bind("label", title.getLabel())
                         .bind("seqNum", title.getSeqNum())
-                        .bind("volumeId", title.getVolumeId())
-                        .bind("partitionId", title.getPartitionId())
                         .bind("actressId", title.getActressId())
-                        .bind("path", title.getPath().toString())
-                        .bind("lastSeenAt", title.getLastSeenAt().toString())
-                        .bind("addedDate", title.getAddedDate() != null ? title.getAddedDate().toString() : null)
                         .bind("favorite", title.isFavorite())
                         .bind("bookmark", title.isBookmark())
                         .bind("grade", title.getGrade() != null ? title.getGrade().display : null)
@@ -184,8 +185,7 @@ public class JdbiTitleRepository implements TitleRepository {
                 h.createUpdate("""
                                 UPDATE titles SET
                                     code = :code, base_code = :baseCode, label = :label, seq_num = :seqNum,
-                                    volume_id = :volumeId, partition_id = :partitionId, actress_id = :actressId,
-                                    path = :path, last_seen_at = :lastSeenAt, added_date = :addedDate,
+                                    actress_id = :actressId,
                                     favorite = :favorite, bookmark = :bookmark, grade = :grade, rejected = :rejected
                                 WHERE id = :id
                                 """)
@@ -194,12 +194,7 @@ public class JdbiTitleRepository implements TitleRepository {
                         .bind("baseCode", title.getBaseCode())
                         .bind("label", title.getLabel())
                         .bind("seqNum", title.getSeqNum())
-                        .bind("volumeId", title.getVolumeId())
-                        .bind("partitionId", title.getPartitionId())
                         .bind("actressId", title.getActressId())
-                        .bind("path", title.getPath().toString())
-                        .bind("lastSeenAt", title.getLastSeenAt().toString())
-                        .bind("addedDate", title.getAddedDate() != null ? title.getAddedDate().toString() : null)
                         .bind("favorite", title.isFavorite())
                         .bind("bookmark", title.isBookmark())
                         .bind("grade", title.getGrade() != null ? title.getGrade().display : null)
@@ -207,6 +202,52 @@ public class JdbiTitleRepository implements TitleRepository {
                         .execute();
                 return title;
             }
+        });
+    }
+
+    @Override
+    public Title findOrCreateByCode(Title template) {
+        return jdbi.withHandle(h -> {
+            // Try to find existing
+            Optional<Title> existing = h.createQuery("SELECT * FROM titles WHERE code = :code")
+                    .bind("code", template.getCode())
+                    .map(MAPPER)
+                    .findFirst();
+
+            if (existing.isPresent()) {
+                Title title = existing.get();
+                // Update actress if existing has none and template provides one
+                if (title.getActressId() == null && template.getActressId() != null) {
+                    h.createUpdate("UPDATE titles SET actress_id = :actressId WHERE id = :id")
+                            .bind("actressId", template.getActressId())
+                            .bind("id", title.getId())
+                            .execute();
+                    return title.toBuilder().actressId(template.getActressId()).build();
+                }
+                return title;
+            }
+
+            // Insert new
+            long id = h.createUpdate("""
+                            INSERT INTO titles
+                                (code, base_code, label, seq_num, actress_id,
+                                 favorite, bookmark, grade, rejected)
+                            VALUES (:code, :baseCode, :label, :seqNum, :actressId,
+                                    :favorite, :bookmark, :grade, :rejected)
+                            """)
+                    .bind("code", template.getCode())
+                    .bind("baseCode", template.getBaseCode())
+                    .bind("label", template.getLabel())
+                    .bind("seqNum", template.getSeqNum())
+                    .bind("actressId", template.getActressId())
+                    .bind("favorite", template.isFavorite())
+                    .bind("bookmark", template.isBookmark())
+                    .bind("grade", template.getGrade() != null ? template.getGrade().display : null)
+                    .bind("rejected", template.isRejected())
+                    .executeAndReturnGeneratedKeys("id")
+                    .mapTo(Long.class)
+                    .one();
+            return template.toBuilder().id(id).build();
         });
     }
 
@@ -220,41 +261,55 @@ public class JdbiTitleRepository implements TitleRepository {
     }
 
     @Override
-    public void deleteByVolume(String volumeId) {
-        jdbi.useHandle(h ->
-                h.createUpdate("DELETE FROM titles WHERE volume_id = :volumeId")
-                        .bind("volumeId", volumeId)
-                        .execute()
-        );
-    }
-
-    @Override
     public List<Title> findRecent(int limit, int offset) {
-        return jdbi.withHandle(h ->
-                h.createQuery("SELECT * FROM titles WHERE actress_id IS NOT NULL ORDER BY added_date DESC, id DESC LIMIT :limit OFFSET :offset")
+        List<Title> titles = jdbi.withHandle(h ->
+                h.createQuery("""
+                        SELECT t.* FROM titles t
+                        JOIN title_locations tl ON t.id = tl.title_id
+                        WHERE t.actress_id IS NOT NULL
+                        GROUP BY t.id
+                        ORDER BY MIN(tl.added_date) DESC, t.id DESC
+                        LIMIT :limit OFFSET :offset
+                        """)
                         .bind("limit", limit)
                         .bind("offset", offset)
                         .map(MAPPER)
                         .list()
         );
+        return populateLocationsBatch(titles);
     }
 
     @Override
     public List<Title> findByActressPaged(long actressId, int limit, int offset) {
-        return jdbi.withHandle(h ->
-                h.createQuery("SELECT * FROM titles WHERE actress_id = :actressId ORDER BY added_date DESC, id DESC LIMIT :limit OFFSET :offset")
+        List<Title> titles = jdbi.withHandle(h ->
+                h.createQuery("""
+                        SELECT t.* FROM titles t
+                        LEFT JOIN title_locations tl ON t.id = tl.title_id
+                        WHERE t.actress_id = :actressId
+                        GROUP BY t.id
+                        ORDER BY MIN(tl.added_date) DESC, t.id DESC
+                        LIMIT :limit OFFSET :offset
+                        """)
                         .bind("actressId", actressId)
                         .bind("limit", limit)
                         .bind("offset", offset)
                         .map(MAPPER)
                         .list()
         );
+        return populateLocationsBatch(titles);
     }
 
     @Override
     public List<Title> findByActressAndLabelsPaged(long actressId, List<String> labels, int limit, int offset) {
-        return jdbi.withHandle(h ->
-                h.createQuery("SELECT * FROM titles WHERE actress_id = :actressId AND upper(label) IN (<labels>) ORDER BY added_date DESC, id DESC LIMIT :limit OFFSET :offset")
+        List<Title> titles = jdbi.withHandle(h ->
+                h.createQuery("""
+                        SELECT t.* FROM titles t
+                        LEFT JOIN title_locations tl ON t.id = tl.title_id
+                        WHERE t.actress_id = :actressId AND upper(t.label) IN (<labels>)
+                        GROUP BY t.id
+                        ORDER BY MIN(tl.added_date) DESC, t.id DESC
+                        LIMIT :limit OFFSET :offset
+                        """)
                         .bind("actressId", actressId)
                         .bindList("labels", labels)
                         .bind("limit", limit)
@@ -262,12 +317,20 @@ public class JdbiTitleRepository implements TitleRepository {
                         .map(MAPPER)
                         .list()
         );
+        return populateLocationsBatch(titles);
     }
 
     @Override
     public List<Title> findByVolumeAndPartition(String volumeId, String partitionId, int limit, int offset) {
-        return jdbi.withHandle(h ->
-                h.createQuery("SELECT * FROM titles WHERE volume_id = :volumeId AND partition_id = :partitionId ORDER BY added_date DESC, id DESC LIMIT :limit OFFSET :offset")
+        List<Title> titles = jdbi.withHandle(h ->
+                h.createQuery("""
+                        SELECT t.* FROM titles t
+                        JOIN title_locations tl ON t.id = tl.title_id
+                        WHERE tl.volume_id = :volumeId AND tl.partition_id = :partitionId
+                        GROUP BY t.id
+                        ORDER BY MIN(tl.added_date) DESC, t.id DESC
+                        LIMIT :limit OFFSET :offset
+                        """)
                         .bind("volumeId", volumeId)
                         .bind("partitionId", partitionId)
                         .bind("limit", limit)
@@ -275,17 +338,40 @@ public class JdbiTitleRepository implements TitleRepository {
                         .map(MAPPER)
                         .list()
         );
+        return populateLocationsBatch(titles);
     }
 
     @Override
-    public void deleteByVolumeAndPartition(String volumeId, String partitionId) {
+    public void deleteOrphaned() {
         jdbi.useHandle(h ->
                 h.createUpdate("""
-                        DELETE FROM titles
-                        WHERE volume_id = :volumeId AND partition_id = :partitionId""")
-                        .bind("volumeId", volumeId)
-                        .bind("partitionId", partitionId)
+                        DELETE FROM titles WHERE id NOT IN (
+                            SELECT DISTINCT title_id FROM title_locations
+                        )""")
                         .execute()
         );
+    }
+
+    // -------------------------------------------------------------------------
+    // Location population helpers
+    // -------------------------------------------------------------------------
+
+    private Title populateLocations(Title title) {
+        if (title.getId() == null) return title;
+        List<TitleLocation> locations = locationRepo.findByTitle(title.getId());
+        return title.toBuilder().locations(locations).build();
+    }
+
+    private List<Title> populateLocationsBatch(List<Title> titles) {
+        if (titles.isEmpty()) return titles;
+        List<Long> ids = titles.stream().map(Title::getId).toList();
+        List<TitleLocation> allLocations = locationRepo.findByTitleIds(ids);
+        Map<Long, List<TitleLocation>> byTitleId = allLocations.stream()
+                .collect(Collectors.groupingBy(TitleLocation::getTitleId));
+        return titles.stream()
+                .map(t -> t.toBuilder()
+                        .locations(byTitleId.getOrDefault(t.getId(), List.of()))
+                        .build())
+                .toList();
     }
 }

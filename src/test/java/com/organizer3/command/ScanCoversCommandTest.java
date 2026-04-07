@@ -9,6 +9,7 @@ import com.organizer3.config.volume.VolumeStructureDef;
 import com.organizer3.covers.CoverPath;
 import com.organizer3.filesystem.VolumeFileSystem;
 import com.organizer3.model.Title;
+import com.organizer3.model.TitleLocation;
 import com.organizer3.model.Volume;
 import com.organizer3.repository.TitleRepository;
 import com.organizer3.repository.VolumeRepository;
@@ -85,9 +86,12 @@ class ScanCoversCommandTest {
     private Title starsTitle(String code, String baseCode, String label, Path path) {
         return Title.builder()
                 .id(1L).code(code).baseCode(baseCode).label(label)
-                .volumeId("a").partitionId("stars/library").actressId(1L)
-                .path(path)
-                .lastSeenAt(LocalDate.now()).addedDate(LocalDate.now())
+                .actressId(1L)
+                .locations(List.of(TitleLocation.builder()
+                        .titleId(1L).volumeId("a").partitionId("stars/library")
+                        .path(path)
+                        .lastSeenAt(LocalDate.now()).addedDate(LocalDate.now())
+                        .build()))
                 .build();
     }
 
@@ -192,9 +196,11 @@ class ScanCoversCommandTest {
         // A title in an unrecognised partition (e.g. collections) should be skipped
         Title collectionsTitle = Title.builder()
                 .id(2L).code("XYZ-456").baseCode("XYZ-00456").label("XYZ")
-                .volumeId("a").partitionId("collections")
-                .path(Path.of("/collections/XYZ-456"))
-                .lastSeenAt(LocalDate.now()).addedDate(LocalDate.now())
+                .locations(List.of(TitleLocation.builder()
+                        .titleId(2L).volumeId("a").partitionId("collections")
+                        .path(Path.of("/collections/XYZ-456"))
+                        .lastSeenAt(LocalDate.now()).addedDate(LocalDate.now())
+                        .build()))
                 .build();
         when(titleRepo.findByVolume("a")).thenReturn(List.of(collectionsTitle));
 
@@ -213,9 +219,11 @@ class ScanCoversCommandTest {
         Path titlePath = Path.of("/queue/ABP-200");
         Title queueTitle = Title.builder()
                 .id(2L).code("ABP-200").baseCode("ABP-00200").label("ABP")
-                .volumeId("a").partitionId("queue")
-                .path(titlePath)
-                .lastSeenAt(LocalDate.now()).addedDate(LocalDate.now())
+                .locations(List.of(TitleLocation.builder()
+                        .titleId(2L).volumeId("a").partitionId("queue")
+                        .path(titlePath)
+                        .lastSeenAt(LocalDate.now()).addedDate(LocalDate.now())
+                        .build()))
                 .build();
         when(titleRepo.findByVolume("a")).thenReturn(List.of(queueTitle));
 

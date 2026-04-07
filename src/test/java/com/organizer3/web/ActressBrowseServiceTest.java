@@ -4,6 +4,7 @@ import com.organizer3.covers.CoverPath;
 import com.organizer3.model.Actress;
 import com.organizer3.model.Label;
 import com.organizer3.model.Title;
+import com.organizer3.model.TitleLocation;
 import com.organizer3.repository.ActressRepository;
 import com.organizer3.repository.LabelRepository;
 import com.organizer3.repository.TitleRepository;
@@ -245,9 +246,12 @@ class ActressBrowseServiceTest {
         // give t2 a different label
         Title t2WithLabel = Title.builder()
                 .id(2L).code("SSIS-001").baseCode("SSIS-00001").label("SSIS").seqNum(1)
-                .volumeId("vol-a").partitionId("stars/popular").actressId(a.getId())
-                .path(Path.of("/stars/popular/Yui Hatano/SSIS-001"))
-                .lastSeenAt(LocalDate.of(2024, 1, 1)).addedDate(LocalDate.of(2024, 1, 1))
+                .actressId(a.getId())
+                .locations(List.of(TitleLocation.builder()
+                        .titleId(2L).volumeId("vol-a").partitionId("stars/popular")
+                        .path(Path.of("/stars/popular/Yui Hatano/SSIS-001"))
+                        .lastSeenAt(LocalDate.of(2024, 1, 1)).addedDate(LocalDate.of(2024, 1, 1))
+                        .build()))
                 .build();
 
         when(actressRepo.findById(a.getId())).thenReturn(Optional.of(a));
@@ -303,9 +307,12 @@ class ActressBrowseServiceTest {
     private static Title title(long actressId, String volumeId, String partitionId, String path) {
         return Title.builder()
                 .id(1L).code("ABP-001").baseCode("ABP-00001").label("ABP").seqNum(1)
-                .volumeId(volumeId).partitionId(partitionId).actressId(actressId)
-                .path(Path.of(path))
-                .lastSeenAt(LocalDate.of(2024, 1, 1)).addedDate(LocalDate.of(2024, 1, 1))
+                .actressId(actressId)
+                .locations(List.of(TitleLocation.builder()
+                        .titleId(1L).volumeId(volumeId).partitionId(partitionId)
+                        .path(Path.of(path))
+                        .lastSeenAt(LocalDate.of(2024, 1, 1)).addedDate(LocalDate.of(2024, 1, 1))
+                        .build()))
                 .build();
     }
 }

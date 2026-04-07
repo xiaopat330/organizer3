@@ -70,7 +70,7 @@ organizer [*DRYRUN*] >
 
 ### `sync all`
 
-Full sync for the currently mounted volume. Clears all existing title/video records for the volume and re-scans from the filesystem. Available for `conventional` and `stars-flat` volumes.
+Full sync for the currently mounted volume. Clears all existing title/video records for the volume and re-scans from the filesystem. Available for `conventional` and `exhibition` volumes.
 
 ```
 organizer:vol-a > sync all
@@ -240,7 +240,7 @@ Switching volumes automatically closes the previous SMB connection.
 | tz | //pandora/jav_TZ | conventional | T–Z |
 | unsorted | //pandora/jav_unsorted | queue | intake |
 | classic | //qnap2/JAV/classic | queue | classic |
-| qnap | //qnap2/jav | stars-flat | overflow |
+| qnap | //qnap2/jav | exhibition | overflow |
 | collections | //pandora/jav_collections | collections | curated |
 
 ---

@@ -2,6 +2,7 @@ package com.organizer3.sync;
 
 import com.organizer3.model.Actress;
 import com.organizer3.model.Title;
+import com.organizer3.model.TitleLocation;
 import com.organizer3.repository.ActressRepository;
 import com.organizer3.repository.TitleRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -105,9 +106,11 @@ class IndexLoaderTest {
     private Title title(String code, Long actressId) {
         return Title.builder()
                 .id(1L).code(code).baseCode(code).label(code.split("-")[0]).seqNum(1)
-                .volumeId("a").partitionId("queue").actressId(actressId)
-                .path(Path.of("/queue/" + code))
-                .lastSeenAt(LocalDate.now())
+                .actressId(actressId)
+                .locations(List.of(TitleLocation.builder()
+                        .titleId(1L).volumeId("a").partitionId("queue")
+                        .path(Path.of("/queue/" + code))
+                        .lastSeenAt(LocalDate.now()).build()))
                 .build();
     }
 }

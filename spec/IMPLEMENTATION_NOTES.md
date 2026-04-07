@@ -125,43 +125,40 @@ The original organizer2 project config files are in `legacy/` and are **not load
 
 SQLite database, single file at `~/.organizer3/organizer.db`. Single user — no concurrent access concerns.
 
-### Schema (current: version 4)
+### Schema
 
 ```sql
-volumes         (id TEXT PK, structure_type TEXT, last_synced_at TEXT)
-actresses       (id INTEGER PK AUTOINCREMENT, canonical_name TEXT UNIQUE,
-                 tier TEXT, first_seen_at TEXT, favorite INTEGER DEFAULT 0)
-actress_aliases (actress_id INTEGER → actresses.id, alias_name TEXT,
-                 PRIMARY KEY (actress_id, alias_name))
-titles          (id INTEGER PK AUTOINCREMENT, code TEXT, base_code TEXT,
-                 label TEXT, seq_num INTEGER,
-                 volume_id TEXT → volumes.id, partition_id TEXT,
-                 actress_id INTEGER → actresses.id (nullable),
-                 path TEXT, last_seen_at TEXT)
-videos          (id INTEGER PK AUTOINCREMENT, title_id INTEGER → titles.id,
-                 filename TEXT, path TEXT, last_seen_at TEXT)
-operations      (id INTEGER PK AUTOINCREMENT, timestamp TEXT, type TEXT,
-                 source_path TEXT, dest_path TEXT, was_armed INTEGER)
-labels          (code TEXT PK, label_name TEXT, company TEXT, description TEXT)
+volumes           (id TEXT PK, structure_type TEXT, last_synced_at TEXT)
+actresses         (id INTEGER PK AUTOINCREMENT, canonical_name TEXT UNIQUE,
+                   tier TEXT, first_seen_at TEXT, favorite INTEGER DEFAULT 0)
+actress_aliases   (actress_id INTEGER → actresses.id, alias_name TEXT,
+                   PRIMARY KEY (actress_id, alias_name))
+titles            (id INTEGER PK AUTOINCREMENT, code TEXT UNIQUE, base_code TEXT,
+                   label TEXT, seq_num INTEGER,
+                   actress_id INTEGER → actresses.id (nullable),
+                   favorite, bookmark, grade, rejected)
+title_locations   (id INTEGER PK AUTOINCREMENT, title_id INTEGER → titles.id,
+                   volume_id TEXT → volumes.id, partition_id TEXT,
+                   path TEXT, last_seen_at TEXT, added_date TEXT,
+                   UNIQUE(title_id, volume_id, path))
+videos            (id INTEGER PK AUTOINCREMENT, title_id INTEGER → titles.id,
+                   volume_id TEXT, filename TEXT, path TEXT, last_seen_at TEXT)
+operations        (id INTEGER PK AUTOINCREMENT, timestamp TEXT, type TEXT,
+                   source_path TEXT, dest_path TEXT, was_armed INTEGER)
+labels            (code TEXT PK, label_name TEXT, company TEXT, description TEXT)
 ```
 
-Indexes: `actress_aliases(alias_name)`, `titles(volume_id)`, `titles(actress_id)`, `titles(code)`, `titles(label)`, `videos(title_id)`
+Indexes: `actress_aliases(alias_name)`, `title_locations(title_id)`, `title_locations(volume_id)`, `title_locations(volume_id, partition_id)`, `titles(actress_id)`, `titles(code)`, `titles(label)`, `videos(title_id)`, `videos(volume_id)`
+
+A title is unique by `code` (the normalized parsed code like "ABP-123" or "ABP-123_4K"). Location data (volume, partition, path) lives in `title_locations` — one title can exist in multiple physical locations across volumes. This enables duplicate detection: titles with more than one location are duplicates.
 
 `labels.code` joins to `titles.label` for label metadata lookups. Seeded automatically on startup from `src/main/resources/labels.csv` via `LabelSeeder.seedIfEmpty()`. Call `reimport()` to clear and re-seed when the CSV is updated.
 
 `actress_id` on titles is nullable — titles in unstructured partitions have no actress until organized into a starred partition.
 
-### Schema Migrations
+### Schema Management
 
-`SchemaInitializer` uses `PRAGMA user_version` as a version counter. Migrations are applied in order on startup, each incrementing the version. Current migrations:
-
-| Version | Change |
-|---------|--------|
-| 0 → 1 | Initial schema |
-| 1 → 2 | Drop `mount_path` from volumes (smbj replaced OS mounts) |
-| 2 → 3 | Add `label` and `seq_num` columns to titles |
-| 3 → 4 | Add `favorite` column to actresses |
-| 4 → 5 | Add `labels` reference table |
+`SchemaInitializer` creates all tables and indexes using `CREATE TABLE IF NOT EXISTS` / `CREATE INDEX IF NOT EXISTS`. No incremental migrations — drop and recreate the DB during development as needed.
 
 ### Repository Pattern
 
@@ -171,6 +168,7 @@ All DB access goes through repository interfaces. Domain code never calls JDBI d
 |---|---|
 | `ActressRepository` | `JdbiActressRepository` |
 | `TitleRepository` | `JdbiTitleRepository` |
+| `TitleLocationRepository` | `JdbiTitleLocationRepository` |
 | `VideoRepository` | `JdbiVideoRepository` |
 | `VolumeRepository` | `JdbiVolumeRepository` |
 
@@ -193,10 +191,10 @@ Four structure types are defined in config:
 |---|---|---|
 | `conventional` | Tiered sub-folders under `stars/` | `sync all` (full), `sync queue` (partition) |
 | `queue` | No stars | `sync` / `sync all` (full) |
-| `stars-flat` | Actress folders directly under `stars/`, no tier sub-folders | `sync all` (full) |
+| `exhibition` | Actress folders directly under `stars/`, no tier sub-folders | `sync all` (full) |
 | `collections` | No stars, all unstructured partitions | Not yet implemented |
 
-For `stars-flat`, all actresses are stored with tier `LIBRARY` in the DB regardless of title count, because there is no tier information encoded in the folder structure.
+For `exhibition`, all actresses are stored with tier `LIBRARY` in the DB regardless of title count, because there is no tier information encoded in the folder structure.
 
 ### Partition ID vs Path
 
@@ -230,16 +228,17 @@ SMB Filesystem  <--sync-->  SQLite DB  <--mount-->  VolumeIndex  <--commands--> 
 
 ### Sync Scope and DB Clearing
 
-- **`FullSyncOperation`**: deletes all `videos` then all `titles` for the volume (FK order), then re-scans everything
-- **`PartitionSyncOperation`**: deletes only the named partition's videos (via join) and titles, then re-scans that partition
+- **`FullSyncOperation`**: deletes all `videos` and `title_locations` for the volume, then re-scans everything. Titles themselves are not deleted (they may have locations on other volumes). After scanning, `deleteOrphaned()` removes titles with zero remaining locations.
+- **`PartitionSyncOperation`**: deletes only the named partition's videos and locations, then re-scans that partition. Same orphan cleanup afterward.
 
 Sync always reads the real filesystem regardless of dry-run mode — it is read-only from the filesystem's perspective. All writes go to the DB.
 
 ### What Sync Produces
 
 For each title folder found:
-- A `Title` record: `code`, `baseCode`, `label`, `seqNum` parsed from the folder name; `volume_id`, `partition_id`, `actress_id` (null for unstructured), `path`, `last_seen_at = today`
-- `Video` records for each media file inside the title folder (checked directly and inside an optional `video/` subdirectory)
+- A `Title` record (find-or-create by `code`): `code`, `baseCode`, `label`, `seqNum` parsed from the folder name; `actress_id` (null for unstructured). If the title already exists, its actress is updated only if previously null.
+- A `TitleLocation` record: `volume_id`, `partition_id`, `path`, `last_seen_at = today`, `added_date` (estimated from file modification dates)
+- `Video` records for each media file inside the title folder (checked directly and inside optional `video/` and `h265/` subdirectories), each tagged with `volume_id`
 
 For each actress folder found in the `stars/` tree:
 - Resolved via `ActressRepository.resolveByName()` (checks canonical name and aliases)

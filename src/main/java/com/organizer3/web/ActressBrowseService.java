@@ -3,6 +3,7 @@ package com.organizer3.web;
 import com.organizer3.covers.CoverPath;
 import com.organizer3.model.Label;
 import com.organizer3.model.Title;
+import com.organizer3.model.TitleLocation;
 import com.organizer3.repository.ActressRepository;
 import com.organizer3.repository.LabelRepository;
 import com.organizer3.repository.TitleRepository;
@@ -123,6 +124,9 @@ public class ActressBrowseService {
         return titles.stream()
                 .map(t -> {
                     Label lbl = t.getLabel() != null ? labelMap.get(t.getLabel().toUpperCase()) : null;
+                    List<String> allLocations = t.getLocations().stream()
+                            .map(loc -> loc.getPath().toString())
+                            .toList();
                     return TitleSummary.builder()
                             .code(t.getCode())
                             .baseCode(t.getBaseCode())
@@ -137,6 +141,7 @@ public class ActressBrowseService {
                             .companyName(lbl != null ? lbl.company() : null)
                             .labelName(lbl != null ? lbl.labelName() : null)
                             .location(t.getPath() != null ? t.getPath().toString() : null)
+                            .locations(allLocations)
                             .build();
                 })
                 .toList();
@@ -154,11 +159,12 @@ public class ActressBrowseService {
                 .toList();
 
         List<String> folderPaths = titles.stream()
-                .filter(t -> t.getPartitionId() != null && t.getPartitionId().startsWith("stars"))
-                .map(t -> {
-                    Path actressFolder = t.getPath().getParent();
+                .flatMap(t -> t.getLocations().stream())
+                .filter(loc -> loc.getPartitionId() != null && loc.getPartitionId().startsWith("stars"))
+                .map(loc -> {
+                    Path actressFolder = loc.getPath().getParent();
                     if (actressFolder == null) return null;
-                    String smbBase = volumeSmbPaths.get(t.getVolumeId());
+                    String smbBase = volumeSmbPaths.get(loc.getVolumeId());
                     if (smbBase == null) return null;
                     return smbBase + actressFolder;
                 })

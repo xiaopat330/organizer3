@@ -2,12 +2,14 @@ package com.organizer3.repository.jdbi;
 
 import com.organizer3.model.Label;
 import com.organizer3.repository.LabelRepository;
+import lombok.RequiredArgsConstructor;
 import org.jdbi.v3.core.Jdbi;
 import org.jdbi.v3.core.mapper.RowMapper;
 
 import java.util.Map;
 import java.util.stream.Collectors;
 
+@RequiredArgsConstructor
 public class JdbiLabelRepository implements LabelRepository {
 
     private static final RowMapper<Label> MAPPER = (rs, ctx) ->
@@ -18,10 +20,6 @@ public class JdbiLabelRepository implements LabelRepository {
             );
 
     private final Jdbi jdbi;
-
-    public JdbiLabelRepository(Jdbi jdbi) {
-        this.jdbi = jdbi;
-    }
 
     @Override
     public Map<String, Label> findAllAsMap() {
