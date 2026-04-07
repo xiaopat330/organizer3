@@ -41,13 +41,23 @@ public interface ActressRepository {
 
     List<Actress> findByTier(Actress.Tier tier);
 
+    /**
+     * Find all actresses that have at least one title located on any of the given volumes.
+     */
+    List<Actress> findByVolumeIds(List<String> volumeIds);
+
     List<Actress> findFavorites();
+
+    /** Returns a random sample of at most {@code limit} actresses. */
+    List<Actress> findRandom(int limit);
 
     /**
      * Insert a new actress or update an existing one (matched by id).
      * Returns the actress with its generated id populated.
      */
     Actress save(Actress actress);
+
+    void setStageName(long actressId, String stageName);
 
     void updateTier(long actressId, Actress.Tier tier);
 

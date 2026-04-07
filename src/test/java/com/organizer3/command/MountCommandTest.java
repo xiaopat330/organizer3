@@ -42,7 +42,7 @@ class MountCommandTest {
     @BeforeEach
     void setUp() {
         AppConfig.initializeForTest(new OrganizerConfig(
-                null, null, List.of(SERVER), List.of(VOLUME_A), List.of(), List.of()));
+                null, null, null, null, List.of(SERVER), List.of(VOLUME_A), List.of(), List.of()));
         smbConnector = mock(SmbConnector.class);
         connection = mock(VolumeConnection.class);
         when(connection.isConnected()).thenReturn(true);
@@ -133,7 +133,7 @@ class MountCommandTest {
         ctx.setMountedVolume(new VolumeConfig("other", "//other/share", "queue", "other"));
         AppConfig.reset();
         AppConfig.initializeForTest(new OrganizerConfig(
-                null, null, List.of(SERVER, otherServer), List.of(VOLUME_A), List.of(), List.of()));
+                null, null, null, null, List.of(SERVER, otherServer), List.of(VOLUME_A), List.of(), List.of()));
 
         when(smbConnector.connect(eq(VOLUME_A), eq(SERVER), any(MountProgressListener.class)))
                 .thenReturn(connection);

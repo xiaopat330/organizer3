@@ -1,5 +1,6 @@
 package com.organizer3.command;
 
+import com.organizer3.ai.ActressNameLookup;
 import com.organizer3.model.Actress;
 import com.organizer3.model.ActressAlias;
 import com.organizer3.model.Label;
@@ -29,6 +30,7 @@ import lombok.RequiredArgsConstructor;
  * <ul>
  *   <li>{@code actress find <prefix>} — prefix search across first/last name with interactive picker</li>
  *   <li>{@code actress <name>} — display full detail for a named actress directly</li>
+ *   <li>{@code actress kanji <name>} — look up the Japanese name for a romanized actress name</li>
  * </ul>
  */
 @RequiredArgsConstructor
@@ -37,6 +39,7 @@ public class ActressSearchCommand implements Command {
     private final ActressRepository actressRepo;
     private final TitleRepository titleRepo;
     private final LabelRepository labelRepo;
+    private final ActressNameLookup nameLookup;
 
     @Override
     public String name() {
@@ -45,22 +48,49 @@ public class ActressSearchCommand implements Command {
 
     @Override
     public String description() {
-        return "Actress detail and search: actress <name> | actress find <prefix>";
+        return "Actress detail and search: actress <name> | actress find <prefix> | actress kanji <name>";
     }
 
     @Override
     public void execute(String[] args, SessionContext ctx, CommandIO io) {
         if (args.length < 2) {
-            io.println("Usage: actress <name> | actress find <prefix>");
+            io.println("Usage: actress <name> | actress find <prefix> | actress kanji <name>");
             return;
         }
 
         if (args[1].equalsIgnoreCase("find")) {
             handleSearch(args, io);
+        } else if (args[1].equalsIgnoreCase("kanji")) {
+            handleKanji(args, io);
         } else {
             String name = String.join(" ", Arrays.copyOfRange(args, 1, args.length));
             showDetail(name, io);
         }
+    }
+
+    // -------------------------------------------------------------------------
+    // Kanji lookup
+    // -------------------------------------------------------------------------
+
+    private void handleKanji(String[] args, CommandIO io) {
+        if (args.length < 3) {
+            io.println("Usage: actress kanji <name>");
+            return;
+        }
+        String name = String.join(" ", Arrays.copyOfRange(args, 2, args.length));
+
+        // Resolve from DB for canonical name + titles; fall back to bare lookup if unknown
+        Optional<Actress> resolved = actressRepo.resolveByName(name);
+        Actress actress = resolved.orElseGet(() -> Actress.builder().canonicalName(name).build());
+        List<Title> titles = actress.getId() != null
+                ? titleRepo.findByActress(actress.getId())
+                : List.of();
+
+        io.println("Looking up Japanese name for: " + actress.getCanonicalName());
+        nameLookup.findJapaneseName(actress, titles).ifPresentOrElse(
+                japanese -> io.printlnAnsi("  " + YELLOW + actress.getCanonicalName() + RESET + "  →  " + CYAN + japanese + RESET),
+                () -> io.println("  Japanese name not found for: " + actress.getCanonicalName())
+        );
     }
 
     // -------------------------------------------------------------------------

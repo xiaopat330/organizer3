@@ -24,6 +24,11 @@ import static com.organizer3.sync.scanner.ScannerSupport.*;
 public class QueueScanner implements VolumeScanner {
 
     @Override
+    public boolean isCoverScannable(String partitionId) {
+        return "queue".equals(partitionId);
+    }
+
+    @Override
     public List<DiscoveredTitle> scan(VolumeStructureDef structure, VolumeFileSystem fs,
                                       CommandIO io) throws IOException {
         List<DiscoveredTitle> results = new ArrayList<>();

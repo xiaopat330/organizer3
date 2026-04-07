@@ -137,7 +137,7 @@ header h1:hover {
 }
 
 /* Actress prefix dropdown */
-.actress-nav-wrap, .queues-nav-wrap {
+.actress-nav-wrap, .queues-nav-wrap, .archives-nav-wrap {
   position: relative;
 }
 
@@ -538,6 +538,39 @@ header h1:hover {
   margin-top: 2px;
 }
 
+.detail-stage-name {
+  font-size: 1rem;
+  color: #aaa;
+  margin-top: 4px;
+}
+
+.btn-search-stage-name {
+  margin-top: 6px;
+  padding: 3px 10px;
+  font-size: 0.75rem;
+  color: #888;
+  background: transparent;
+  border: 1px solid #444;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.btn-search-stage-name:hover {
+  border-color: #888;
+  color: #ccc;
+}
+
+.btn-search-stage-name.loading {
+  opacity: 0.5;
+  cursor: default;
+  animation: pulse 1s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 0.5; }
+  50%       { opacity: 0.2; }
+}
+
 .detail-meta-row {
   display: flex;
   align-items: center;
@@ -690,3 +723,36 @@ header h1:hover {
 }
 
 #sentinel { height: 1px; }
+
+/* ── Home tab island ──────────────────────────────────────────────────────── */
+#home-tabs {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 14px 20px 0;
+}
+
+.home-tab {
+  background: none;
+  border: none;
+  font-family: inherit;
+  font-size: 0.78rem;
+  font-weight: 500;
+  letter-spacing: 0.05em;
+  color: #3a3a3a;
+  padding: 6px 14px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: color 0.15s ease, background 0.15s ease;
+  white-space: nowrap;
+}
+
+.home-tab:hover {
+  color: #888;
+  background: #161616;
+}
+
+.home-tab.active {
+  color: #c8c8c8;
+  background: #1a1a1a;
+}

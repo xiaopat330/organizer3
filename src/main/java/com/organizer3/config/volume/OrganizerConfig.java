@@ -10,9 +10,11 @@ import java.util.Optional;
  * Root of the {@code organizer-config.yaml} config tree.
  */
 public record OrganizerConfig(
-        @JsonProperty("appName")         String appName,
-        @JsonProperty("maxBrowseTitles") Integer maxBrowseTitles,
-        @JsonProperty("servers")         List<ServerConfig> servers,
+        @JsonProperty("appName")            String appName,
+        @JsonProperty("maxBrowseTitles")    Integer maxBrowseTitles,
+        @JsonProperty("maxRandomTitles")    Integer maxRandomTitles,
+        @JsonProperty("maxRandomActresses") Integer maxRandomActresses,
+        @JsonProperty("servers")            List<ServerConfig> servers,
         @JsonProperty("volumes")         List<VolumeConfig> volumes,
         @JsonProperty("structures")      List<VolumeStructureDef> structures,
         @JsonProperty("syncConfig")      List<StructureSyncConfig> syncConfig

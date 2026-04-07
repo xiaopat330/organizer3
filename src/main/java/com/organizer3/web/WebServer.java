@@ -8,6 +8,7 @@ import io.javalin.http.staticfiles.Location;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
@@ -58,11 +59,12 @@ public class WebServer {
         app.get("/api/config", ctx -> {
             var cfg = AppConfig.get().volumes();
             String appName = cfg.appName();
-            Integer maxBrowseTitles = cfg.maxBrowseTitles();
-            ctx.json(Map.of(
-                    "appName", appName != null ? appName : "organizer3",
-                    "maxBrowseTitles", maxBrowseTitles != null ? maxBrowseTitles : 500
-            ));
+            var result = new LinkedHashMap<String, Object>();
+            result.put("appName", appName != null ? appName : "organizer3");
+            result.put("maxBrowseTitles",    cfg.maxBrowseTitles()    != null ? cfg.maxBrowseTitles()    : 500);
+            result.put("maxRandomTitles",    cfg.maxRandomTitles()    != null ? cfg.maxRandomTitles()    : 500);
+            result.put("maxRandomActresses", cfg.maxRandomActresses() != null ? cfg.maxRandomActresses() : 500);
+            ctx.json(result);
         });
 
         app.get("/api/queues/volumes", ctx -> {
@@ -87,12 +89,23 @@ public class WebServer {
                     .map(v -> Map.of("id", (Object) v.id(), "smbPath", (Object) v.smbPath()))
                     .findFirst()
                     .orElse(null);
+            // Sort-pool volumes: flat directory of title folders (structureType = sort_pool).
+            var sortPoolTypes = cfg.structures().stream()
+                    .filter(s -> "sort_pool".equals(s.id()))
+                    .map(s -> s.id())
+                    .collect(Collectors.toSet());
+            var sortPool = cfg.volumes().stream()
+                    .filter(v -> sortPoolTypes.contains(v.structureType()))
+                    .map(v -> Map.of("id", (Object) v.id(), "smbPath", (Object) v.smbPath()))
+                    .findFirst()
+                    .orElse(null);
             var volumes = cfg.volumes().stream()
                     .filter(v -> conventionalWithQueueTypes.contains(v.structureType()))
                     .map(v -> Map.of("id", (Object) v.id(), "smbPath", (Object) v.smbPath()))
                     .toList();
             var result = new LinkedHashMap<String, Object>();
             if (pool != null) result.put("pool", pool);
+            if (sortPool != null) result.put("sortPool", sortPool);
             result.put("volumes", volumes);
             ctx.json(result);
         });
@@ -106,6 +119,12 @@ public class WebServer {
                 ctx.json(browseService.findRecent(offset, limit));
             });
 
+            app.get("/api/titles/random", ctx -> {
+                int limit = ctx.queryParamAsClass("limit", Integer.class).getOrDefault(24);
+                limit = Math.max(1, Math.min(limit, TitleBrowseService.MAX_LIMIT));
+                ctx.json(browseService.findRandom(limit));
+            });
+
             app.get("/api/queues/{volumeId}/titles", ctx -> {
                 String volumeId = ctx.pathParam("volumeId");
                 int offset = ctx.queryParamAsClass("offset", Integer.class).getOrDefault(0);
@@ -114,15 +133,31 @@ public class WebServer {
                 limit  = Math.max(1, Math.min(limit, TitleBrowseService.MAX_LIMIT));
                 ctx.json(browseService.findByVolumeQueue(volumeId, offset, limit));
             });
+
+            app.get("/api/pool/{volumeId}/titles", ctx -> {
+                String volumeId = ctx.pathParam("volumeId");
+                int offset = ctx.queryParamAsClass("offset", Integer.class).getOrDefault(0);
+                int limit  = ctx.queryParamAsClass("limit",  Integer.class).getOrDefault(24);
+                offset = Math.max(offset, 0);
+                limit  = Math.max(1, Math.min(limit, TitleBrowseService.MAX_LIMIT));
+                ctx.json(browseService.findByVolumePartition(volumeId, "pool", offset, limit));
+            });
         }
 
         if (actressBrowseService != null) {
             app.get("/api/actresses/index", ctx ->
                     ctx.json(actressBrowseService.findPrefixIndex()));
 
+            app.get("/api/actresses/random", ctx -> {
+                int limit = ctx.queryParamAsClass("limit", Integer.class).getOrDefault(24);
+                limit = Math.max(1, Math.min(limit, TitleBrowseService.MAX_LIMIT));
+                ctx.json(actressBrowseService.findRandom(limit));
+            });
+
             app.get("/api/actresses", ctx -> {
-                String prefix = ctx.queryParam("prefix");
-                String tier   = ctx.queryParam("tier");
+                String prefix   = ctx.queryParam("prefix");
+                String tier     = ctx.queryParam("tier");
+                String volumesParam = ctx.queryParam("volumes");
                 if (prefix != null && !prefix.isBlank()) {
                     ctx.json(actressBrowseService.findByPrefix(prefix));
                 } else if (tier != null && !tier.isBlank()) {
@@ -131,6 +166,9 @@ public class WebServer {
                     } catch (IllegalArgumentException e) {
                         ctx.status(400);
                     }
+                } else if (volumesParam != null && !volumesParam.isBlank()) {
+                    var volumeIds = List.of(volumesParam.split(","));
+                    ctx.json(actressBrowseService.findByVolumes(volumeIds));
                 } else {
                     ctx.status(400);
                 }
@@ -154,6 +192,16 @@ public class WebServer {
                 offset = Math.max(offset, 0);
                 limit  = Math.max(1, Math.min(limit, TitleBrowseService.MAX_LIMIT));
                 ctx.json(actressBrowseService.findTitlesByActress(id, offset, limit, company));
+            });
+
+            app.post("/api/actresses/{id}/stage-name/search", ctx -> {
+                long id;
+                try { id = Long.parseLong(ctx.pathParam("id")); }
+                catch (NumberFormatException e) { ctx.status(400); return; }
+                var result = actressBrowseService.searchStageName(id);
+                var body = new java.util.LinkedHashMap<String, Object>();
+                body.put("stageName", result.orElse(null));
+                ctx.json(body);
             });
         }
 

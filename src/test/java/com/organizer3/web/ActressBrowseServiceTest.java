@@ -1,5 +1,6 @@
 package com.organizer3.web;
 
+import com.organizer3.ai.ActressNameLookup;
 import com.organizer3.covers.CoverPath;
 import com.organizer3.model.Actress;
 import com.organizer3.model.Label;
@@ -34,13 +35,14 @@ class ActressBrowseServiceTest {
     @Mock TitleRepository titleRepo;
     @Mock CoverPath coverPath;
     @Mock LabelRepository labelRepo;
+    @Mock ActressNameLookup nameLookup;
 
     ActressBrowseService service;
 
     @BeforeEach
     void setUp() {
         service = new ActressBrowseService(actressRepo, titleRepo, coverPath,
-                Map.of("vol-a", "//pandora/jav_A"), labelRepo);
+                Map.of("vol-a", "//pandora/jav_A"), labelRepo, nameLookup, null);
         lenient().when(actressRepo.findAliases(anyLong())).thenReturn(List.of());
         lenient().when(labelRepo.findAllAsMap()).thenReturn(Map.of());
     }

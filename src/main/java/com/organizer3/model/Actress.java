@@ -20,6 +20,7 @@ public class Actress implements Comparable<Actress> {
 
     Long id;               // null for actresses not yet persisted
     String canonicalName;
+    String stageName;      // Japanese kanji/kana stage name, nullable
     Tier tier;
     boolean favorite;
     boolean bookmark;

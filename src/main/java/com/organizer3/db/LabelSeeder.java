@@ -93,6 +93,7 @@ public class LabelSeeder {
 
     public record CompanyEntry(
             @JsonProperty("company") String company,
+            @JsonProperty("description") String description,
             @JsonProperty("labels") List<LabelEntry> labels
     ) {}
 

@@ -11,9 +11,10 @@
 <header>
   <h1 id="app-name">jav helper</h1>
   <div class="header-right">
-    <a class="nav-link" href="/company">Company</a>
-    <div class="nav-divider"></div>
-    <a class="nav-link" href="/titles">Titles</a>
+    <div class="archives-nav-wrap">
+      <button class="nav-link" id="archives-btn">Archives</button>
+      <div class="prefix-dropdown" id="archives-dropdown"></div>
+    </div>
     <div class="nav-divider"></div>
     <div class="actress-nav-wrap">
       <button class="nav-link" id="actresses-btn">Actresses</button>
@@ -30,8 +31,21 @@
   <div id="breadcrumb"></div>
 </header>
 
-<!-- Title home grid -->
+<!-- Home tab island (only shown on home view) -->
+<div id="home-tabs" style="display:none">
+  <button class="home-tab active" data-tab="latest">latest</button>
+  <button class="home-tab" data-tab="random-titles">random titles</button>
+  <button class="home-tab" data-tab="random-actresses">actresses</button>
+</div>
+
+<!-- Title home grid (latest tab) -->
 <div class="grid" id="grid"></div>
+
+<!-- Random titles grid -->
+<div class="grid" id="random-titles-grid" style="display:none"></div>
+
+<!-- Random actresses home grid -->
+<div class="grid" id="random-actress-home-grid" style="display:none"></div>
 
 <!-- Actress browse grid -->
 <div id="actress-grid" class="grid" style="display:none"></div>
@@ -50,6 +64,10 @@
 <!-- Queue browse header + grid -->
 <div id="queue-header" style="display:none; padding: 10px 20px 0; font-size: 0.78rem; color: #555; font-family: ui-monospace, monospace; letter-spacing: 0.03em;"></div>
 <div id="queue-grid" class="grid" style="display:none"></div>
+
+<!-- Pool browse header + grid -->
+<div id="pool-header" style="display:none; padding: 10px 20px 0; font-size: 0.78rem; color: #555; font-family: ui-monospace, monospace; letter-spacing: 0.03em;"></div>
+<div id="pool-grid" class="grid" style="display:none"></div>
 
 <div id="status">loading</div>
 <div id="sentinel"></div>

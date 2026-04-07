@@ -240,6 +240,54 @@ class TitleBrowseServiceTest {
         verifyNoInteractions(coverPath);
     }
 
+    // --- findByVolumePartition (pool) ---
+
+    @Test
+    void findByVolumePartitionDelegatesToCorrectPartition() {
+        Title title = Title.builder()
+                .id(1L).code("ABP-123").baseCode("ABP-00123").label("ABP")
+                .locations(List.of(TitleLocation.builder()
+                        .titleId(1L).volumeId("pool").partitionId("pool")
+                        .path(Path.of("/Yui Hatano (ABP-123)"))
+                        .lastSeenAt(LocalDate.of(2024, 1, 1))
+                        .addedDate(LocalDate.of(2024, 3, 1))
+                        .build()))
+                .build();
+
+        when(titleRepo.findByVolumeAndPartition("pool", "pool", 24, 0)).thenReturn(List.of(title));
+        when(coverPath.find(title)).thenReturn(Optional.empty());
+
+        List<TitleSummary> results = service.findByVolumePartition("pool", "pool", 0, 24);
+
+        assertEquals(1, results.size());
+        assertEquals("ABP-123", results.get(0).getCode());
+        verify(titleRepo).findByVolumeAndPartition("pool", "pool", 24, 0);
+    }
+
+    @Test
+    void findByVolumePartitionInfersActressViaBaseCode() {
+        Title poolTitle = Title.builder()
+                .id(1L).code("ABP-123").baseCode("ABP-00123").label("ABP")
+                .locations(List.of(TitleLocation.builder()
+                        .titleId(1L).volumeId("pool").partitionId("pool")
+                        .path(Path.of("/Yui Hatano (ABP-123)"))
+                        .lastSeenAt(LocalDate.of(2024, 1, 1))
+                        .build()))
+                .build();
+        Title starsTitle = title("ABP-123", "ABP-00123", "ABP", 7L, null);
+        Actress actress = Actress.builder().id(7L).canonicalName("Yui Hatano")
+                .tier(Actress.Tier.POPULAR).favorite(false).firstSeenAt(LocalDate.of(2023, 1, 1)).build();
+
+        when(titleRepo.findByVolumeAndPartition("pool", "pool", 24, 0)).thenReturn(List.of(poolTitle));
+        when(titleRepo.findByBaseCode("ABP-00123")).thenReturn(List.of(poolTitle, starsTitle));
+        when(actressRepo.findById(7L)).thenReturn(Optional.of(actress));
+
+        List<TitleSummary> results = service.findByVolumePartition("pool", "pool", 0, 24);
+
+        assertEquals(7L, results.get(0).getActressId());
+        assertEquals("Yui Hatano", results.get(0).getActressName());
+    }
+
     // --- helpers ---
 
     private static Title title(String code, String baseCode, String label, Long actressId, LocalDate addedDate) {

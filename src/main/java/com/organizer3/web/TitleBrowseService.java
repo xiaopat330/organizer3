@@ -38,6 +38,16 @@ public class TitleBrowseService {
     }
 
     /**
+     * Returns a random sample of at most {@code limit} titles with an actress attribution.
+     * Each call returns a fresh random set — offset-based pagination is intentionally not
+     * supported here, so the frontend just keeps requesting more until it hits the cap.
+     */
+    public List<TitleSummary> findRandom(int limit) {
+        limit = Math.min(limit, MAX_LIMIT);
+        return toSummaries(titleRepo.findRandom(limit));
+    }
+
+    /**
      * Returns titles in the queue partition of the given volume, ordered newest-first.
      * Hard-capped at {@link #MAX_LIMIT} total regardless of requested limit.
      *
@@ -47,8 +57,12 @@ public class TitleBrowseService {
      * are used — label-based guessing produced too many false positives.
      */
     public List<TitleSummary> findByVolumeQueue(String volumeId, int offset, int limit) {
+        return findByVolumePartition(volumeId, "queue", offset, limit);
+    }
+
+    public List<TitleSummary> findByVolumePartition(String volumeId, String partition, int offset, int limit) {
         limit = Math.min(limit, MAX_LIMIT);
-        List<Title> titles = titleRepo.findByVolumeAndPartition(volumeId, "queue", limit, offset);
+        List<Title> titles = titleRepo.findByVolumeAndPartition(volumeId, partition, limit, offset);
 
         // Infer actress for unattributed titles via exact base_code match only.
         Map<String, Long> actressIdByBaseCode = new HashMap<>();

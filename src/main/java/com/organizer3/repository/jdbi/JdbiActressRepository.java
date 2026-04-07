@@ -21,6 +21,7 @@ public class JdbiActressRepository implements ActressRepository {
         return Actress.builder()
                 .id(rs.getLong("id"))
                 .canonicalName(rs.getString("canonical_name"))
+                .stageName(rs.getString("stage_name"))
                 .tier(Actress.Tier.valueOf(rs.getString("tier")))
                 .favorite(rs.getInt("favorite") != 0)
                 .bookmark(rs.getInt("bookmark") != 0)
@@ -127,9 +128,36 @@ public class JdbiActressRepository implements ActressRepository {
     }
 
     @Override
+    public List<Actress> findByVolumeIds(List<String> volumeIds) {
+        if (volumeIds == null || volumeIds.isEmpty()) return List.of();
+        return jdbi.withHandle(h ->
+                h.createQuery("""
+                        SELECT DISTINCT a.* FROM actresses a
+                        JOIN titles t ON t.actress_id = a.id
+                        JOIN title_locations tl ON tl.title_id = t.id
+                        WHERE tl.volume_id IN (<volumeIds>)
+                        ORDER BY a.canonical_name
+                        """)
+                        .bindList("volumeIds", volumeIds)
+                        .map(ACTRESS_MAPPER)
+                        .list()
+        );
+    }
+
+    @Override
     public List<Actress> findFavorites() {
         return jdbi.withHandle(h ->
                 h.createQuery("SELECT * FROM actresses WHERE favorite = 1 ORDER BY canonical_name")
+                        .map(ACTRESS_MAPPER)
+                        .list()
+        );
+    }
+
+    @Override
+    public List<Actress> findRandom(int limit) {
+        return jdbi.withHandle(h ->
+                h.createQuery("SELECT * FROM actresses ORDER BY RANDOM() LIMIT :limit")
+                        .bind("limit", limit)
                         .map(ACTRESS_MAPPER)
                         .list()
         );
@@ -141,10 +169,11 @@ public class JdbiActressRepository implements ActressRepository {
             String gradeStr = actress.getGrade() != null ? actress.getGrade().display : null;
             if (actress.getId() == null) {
                 long id = h.createUpdate("""
-                                INSERT INTO actresses (canonical_name, tier, favorite, bookmark, grade, rejected, first_seen_at)
-                                VALUES (:name, :tier, :favorite, :bookmark, :grade, :rejected, :date)
+                                INSERT INTO actresses (canonical_name, stage_name, tier, favorite, bookmark, grade, rejected, first_seen_at)
+                                VALUES (:name, :stageName, :tier, :favorite, :bookmark, :grade, :rejected, :date)
                                 """)
                         .bind("name", actress.getCanonicalName())
+                        .bind("stageName", actress.getStageName())
                         .bind("tier", actress.getTier().name())
                         .bind("favorite", actress.isFavorite() ? 1 : 0)
                         .bind("bookmark", actress.isBookmark() ? 1 : 0)
@@ -157,6 +186,7 @@ public class JdbiActressRepository implements ActressRepository {
                 return Actress.builder()
                         .id(id)
                         .canonicalName(actress.getCanonicalName())
+                        .stageName(actress.getStageName())
                         .tier(actress.getTier())
                         .favorite(actress.isFavorite())
                         .bookmark(actress.isBookmark())
@@ -167,7 +197,7 @@ public class JdbiActressRepository implements ActressRepository {
             } else {
                 h.createUpdate("""
                                 UPDATE actresses
-                                SET canonical_name = :name, tier = :tier,
+                                SET canonical_name = :name, stage_name = :stageName, tier = :tier,
                                     favorite = :favorite, bookmark = :bookmark,
                                     grade = :grade, rejected = :rejected,
                                     first_seen_at = :date
@@ -175,6 +205,7 @@ public class JdbiActressRepository implements ActressRepository {
                                 """)
                         .bind("id", actress.getId())
                         .bind("name", actress.getCanonicalName())
+                        .bind("stageName", actress.getStageName())
                         .bind("tier", actress.getTier().name())
                         .bind("favorite", actress.isFavorite() ? 1 : 0)
                         .bind("bookmark", actress.isBookmark() ? 1 : 0)
@@ -222,6 +253,16 @@ public class JdbiActressRepository implements ActressRepository {
         jdbi.useHandle(h ->
                 h.createUpdate("UPDATE actresses SET rejected = :rejected WHERE id = :id")
                         .bind("rejected", rejected ? 1 : 0)
+                        .bind("id", actressId)
+                        .execute()
+        );
+    }
+
+    @Override
+    public void setStageName(long actressId, String stageName) {
+        jdbi.useHandle(h ->
+                h.createUpdate("UPDATE actresses SET stage_name = :stageName WHERE id = :id")
+                        .bind("stageName", stageName)
                         .bind("id", actressId)
                         .execute()
         );

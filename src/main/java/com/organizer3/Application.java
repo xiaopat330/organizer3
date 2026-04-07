@@ -1,5 +1,9 @@
 package com.organizer3;
 
+import com.anthropic.client.AnthropicClient;
+import com.anthropic.client.okhttp.AnthropicOkHttpClient;
+import com.organizer3.ai.ActressNameLookup;
+import com.organizer3.ai.ClaudeActressNameLookup;
 import com.organizer3.command.ActressSearchCommand;
 import com.organizer3.command.ActressesCommand;
 
@@ -23,6 +27,7 @@ import com.organizer3.config.volume.OrganizerConfig;
 import com.organizer3.config.volume.OrganizerConfigLoader;
 import com.organizer3.db.LabelSeeder;
 import com.organizer3.db.SchemaInitializer;
+import com.organizer3.db.SchemaUpgrader;
 import com.organizer3.repository.ActressRepository;
 import com.organizer3.repository.LabelRepository;
 import com.organizer3.repository.TitleRepository;
@@ -46,6 +51,7 @@ import com.organizer3.sync.scanner.ConventionalScanner;
 import com.organizer3.sync.scanner.QueueScanner;
 import com.organizer3.sync.scanner.ScannerRegistry;
 import com.organizer3.sync.scanner.ExhibitionScanner;
+import com.organizer3.sync.scanner.SortPoolScanner;
 import com.organizer3.config.volume.VolumeConfig;
 import com.organizer3.web.ActressBrowseService;
 import com.organizer3.web.TitleBrowseService;
@@ -84,6 +90,7 @@ public class Application {
         Files.createDirectories(dbDir);
         Jdbi jdbi = Jdbi.create("jdbc:sqlite:" + dbDir.resolve("organizer.db"));
         new SchemaInitializer(jdbi).initialize();
+        new SchemaUpgrader(jdbi).upgrade();
         new LabelSeeder(jdbi).seedIfEmpty();
 
         // Repositories
@@ -94,6 +101,17 @@ public class Application {
         VolumeRepository  volumeRepo  = new JdbiVolumeRepository(jdbi);
         LabelRepository   labelRepo   = new JdbiLabelRepository(jdbi);
         IndexLoader indexLoader = new IndexLoader(titleRepo, actressRepo);
+
+        // Claude API (optional — gracefully disabled if ANTHROPIC_API_KEY is not set)
+        ActressNameLookup nameLookup;
+        try {
+            AnthropicClient anthropicClient = AnthropicOkHttpClient.fromEnv();
+            nameLookup = ClaudeActressNameLookup.create(anthropicClient);
+            log.info("Claude API initialized — actress kanji lookup available");
+        } catch (Exception e) {
+            log.warn("ANTHROPIC_API_KEY not set — actress kanji lookup disabled");
+            nameLookup = (actress, titles) -> java.util.Optional.empty();
+        }
 
         // Session
         SessionContext session = new SessionContext();
@@ -106,21 +124,22 @@ public class Application {
         commands.add(new UnmountCommand());
         commands.add(new VolumesCommand(volumeRepo));
         commands.add(new ActressesCommand(actressRepo, titleRepo));
-        commands.add(new ActressSearchCommand(actressRepo, titleRepo, labelRepo));
+        commands.add(new ActressSearchCommand(actressRepo, titleRepo, labelRepo, nameLookup));
         commands.add(new FavoritesCommand(actressRepo, titleRepo));
-
-        // Cover image commands
-        Path projectRoot = Path.of(System.getProperty("user.dir"));
-        CoverPath coverPath = new CoverPath(projectRoot);
-        commands.add(new ScanCoversCommand(titleRepo, volumeRepo, coverPath));
-        commands.add(new PruneCoversCommand(titleRepo, coverPath));
 
         // Scanner registry — maps structure types to their filesystem scanners
         ScannerRegistry scannerRegistry = new ScannerRegistry(Map.of(
                 "conventional", new ConventionalScanner(),
                 "queue",        new QueueScanner(),
-                "exhibition",   new ExhibitionScanner()
+                "exhibition",   new ExhibitionScanner(),
+                "sort_pool",    new SortPoolScanner()
         ));
+
+        // Cover image commands
+        Path projectRoot = Path.of(System.getProperty("user.dir"));
+        CoverPath coverPath = new CoverPath(projectRoot);
+        commands.add(new ScanCoversCommand(titleRepo, volumeRepo, coverPath, scannerRegistry));
+        commands.add(new PruneCoversCommand(titleRepo, coverPath));
 
         // Sync commands — registered dynamically from syncConfig.
         // Group by term so that a term shared across structure types (e.g. sync all)
@@ -163,8 +182,10 @@ public class Application {
         TitleBrowseService browseService = new TitleBrowseService(titleRepo, actressRepo, coverPath, labelRepo);
         Map<String, String> volumeSmbPaths = config.volumes().stream()
                 .collect(java.util.stream.Collectors.toMap(VolumeConfig::id, VolumeConfig::smbPath));
+        com.organizer3.web.StageNameBackupFile stageNameBackup = new com.organizer3.web.StageNameBackupFile(
+                dbDir.resolve("stagenames.yaml"));
         ActressBrowseService actressBrowseService = new ActressBrowseService(
-                actressRepo, titleRepo, coverPath, volumeSmbPaths, labelRepo);
+                actressRepo, titleRepo, coverPath, volumeSmbPaths, labelRepo, nameLookup, stageNameBackup);
         WebServer webServer = new WebServer(browseService, actressBrowseService, coverPath.root());
         webServer.start();
 

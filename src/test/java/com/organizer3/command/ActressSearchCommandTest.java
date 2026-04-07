@@ -1,5 +1,6 @@
 package com.organizer3.command;
 
+import com.organizer3.ai.ActressNameLookup;
 import com.organizer3.model.Actress;
 import com.organizer3.model.ActressAlias;
 import com.organizer3.model.Label;
@@ -27,6 +28,7 @@ class ActressSearchCommandTest {
     private ActressRepository actressRepo;
     private TitleRepository titleRepo;
     private LabelRepository labelRepo;
+    private ActressNameLookup nameLookup;
     private ActressSearchCommand cmd;
     private SessionContext ctx;
     private CommandIO io;
@@ -36,8 +38,9 @@ class ActressSearchCommandTest {
         actressRepo = mock(ActressRepository.class);
         titleRepo   = mock(TitleRepository.class);
         labelRepo   = mock(LabelRepository.class);
+        nameLookup  = mock(ActressNameLookup.class);
         io          = mock(CommandIO.class);
-        cmd         = new ActressSearchCommand(actressRepo, titleRepo, labelRepo);
+        cmd         = new ActressSearchCommand(actressRepo, titleRepo, labelRepo, nameLookup);
         ctx         = new SessionContext();
 
         when(labelRepo.findAllAsMap()).thenReturn(Map.of());
@@ -268,6 +271,52 @@ class ActressSearchCommandTest {
         cmd.execute(new String[]{"actress", "Aya", "Sazanami"}, ctx, io);
 
         verify(io, never()).println(contains("Also known as"));
+    }
+
+    // ── kanji lookup ─────────────────────────────────────────────────────────
+
+    @Test
+    void kanji_missingName_printsUsage() {
+        cmd.execute(new String[]{"actress", "kanji"}, ctx, io);
+
+        verify(io).println(contains("Usage:"));
+        verifyNoInteractions(nameLookup);
+    }
+
+    @Test
+    void kanji_knownActress_usesCanonicalName() {
+        Actress mana = actress(1L, "Mana Sakura");
+        when(actressRepo.resolveByName("Mana Sakura")).thenReturn(Optional.of(mana));
+        when(titleRepo.findByActress(1L)).thenReturn(List.of());
+        when(nameLookup.findJapaneseName(eq(mana), anyList())).thenReturn(Optional.of("佐倉まな"));
+
+        cmd.execute(new String[]{"actress", "kanji", "Mana", "Sakura"}, ctx, io);
+
+        verify(nameLookup).findJapaneseName(eq(mana), anyList());
+        verify(io).printlnAnsi(contains("佐倉まな"));
+    }
+
+    @Test
+    void kanji_unknownActress_stillCallsLookupWithRawName() {
+        when(actressRepo.resolveByName("Unknown Person")).thenReturn(Optional.empty());
+        when(nameLookup.findJapaneseName(any(Actress.class), anyList())).thenReturn(Optional.empty());
+
+        cmd.execute(new String[]{"actress", "kanji", "Unknown", "Person"}, ctx, io);
+
+        verify(nameLookup).findJapaneseName(any(Actress.class), anyList());
+        verify(io).println(contains("not found"));
+    }
+
+    @Test
+    void kanji_lookupReturnsEmpty_printsNotFound() {
+        Actress mana = actress(1L, "Mana Sakura");
+        when(actressRepo.resolveByName("Mana Sakura")).thenReturn(Optional.of(mana));
+        when(titleRepo.findByActress(1L)).thenReturn(List.of());
+        when(nameLookup.findJapaneseName(eq(mana), anyList())).thenReturn(Optional.empty());
+
+        cmd.execute(new String[]{"actress", "kanji", "Mana", "Sakura"}, ctx, io);
+
+        verify(io).println(contains("not found"));
     }
 
     // ── helpers ──────────────────────────────────────────────────────────────

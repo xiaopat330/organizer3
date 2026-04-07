@@ -37,7 +37,7 @@ class VolumesCommandTest {
     @BeforeEach
     void setUp() {
         AppConfig.initializeForTest(new OrganizerConfig(
-                null, null, List.of(),
+                null, null, null, null, List.of(),
                 List.of(VOL_A, VOL_B),
                 List.of(),
                 List.of()
@@ -89,7 +89,7 @@ class VolumesCommandTest {
         VolumesCommand cmd = new VolumesCommand(volumeRepo);
         cmd.execute(new String[]{"volumes"}, ctx, io);
 
-        assertTrue(output.toString().contains("2025-03-15 10:30"));
+        assertTrue(output.toString().contains("Mar 15, 2025"));
     }
 
     @Test
@@ -102,13 +102,7 @@ class VolumesCommandTest {
         VolumesCommand cmd = new VolumesCommand(volumeRepo);
         cmd.execute(new String[]{"volumes"}, ctx, io);
 
-        String out = output.toString();
-        // The line for volume "a" should show "yes"
-        String[] lines = out.split("\n");
-        String lineA = java.util.Arrays.stream(lines)
-                .filter(l -> l.startsWith("a"))
-                .findFirst().orElse("");
-        assertTrue(lineA.contains("yes"));
+        assertTrue(output.toString().contains("connected"));
     }
 
     @Test
@@ -116,13 +110,6 @@ class VolumesCommandTest {
         VolumesCommand cmd = new VolumesCommand(volumeRepo);
         cmd.execute(new String[]{"volumes"}, ctx, io);
 
-        String out = output.toString();
-        // Both volumes should show "-" for connection status
-        String[] lines = out.split("\n");
-        long dashCount = java.util.Arrays.stream(lines)
-                .filter(l -> !l.startsWith("ID") && !l.startsWith("-"))
-                .filter(l -> l.contains("-  "))
-                .count();
-        assertTrue(dashCount >= 2, "Disconnected volumes should show '-'");
+        assertFalse(output.toString().contains("connected"), "No volume should show connected when none is mounted");
     }
 }

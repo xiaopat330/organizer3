@@ -13,6 +13,7 @@ import com.organizer3.model.Actress;
 import com.organizer3.model.Label;
 import com.organizer3.model.Title;
 import com.organizer3.model.TitleLocation;
+import com.organizer3.ai.ActressNameLookup;
 import com.organizer3.repository.ActressRepository;
 import com.organizer3.repository.LabelRepository;
 import com.organizer3.repository.TitleRepository;
@@ -111,7 +112,7 @@ class WebServerTest {
         );
 
         AppConfig.initializeForTest(new OrganizerConfig(
-                "Test", null, List.of(),
+                "Test", null, null, null, List.of(),
                 List.of(conventional, pool),
                 List.of(conventionalDef, queueDef),
                 List.of()
@@ -246,7 +247,7 @@ class WebServerTest {
         when(actressRepo.findAll()).thenReturn(List.of(aya, mia));
 
         ActressBrowseService actressBrowse = new ActressBrowseService(
-                actressRepo, titleRepo, coverPath, Map.of(), labelRepo);
+                actressRepo, titleRepo, coverPath, Map.of(), labelRepo, mock(ActressNameLookup.class), null);
         server = new WebServer(0, null, actressBrowse, null);
         server.start();
 
@@ -271,7 +272,7 @@ class WebServerTest {
         when(titleRepo.findByActress(1L)).thenReturn(List.of());
 
         ActressBrowseService actressBrowse = new ActressBrowseService(
-                actressRepo, titleRepo, coverPath, Map.of(), labelRepo);
+                actressRepo, titleRepo, coverPath, Map.of(), labelRepo, mock(ActressNameLookup.class), null);
         server = new WebServer(0, null, actressBrowse, null);
         server.start();
 
@@ -297,7 +298,7 @@ class WebServerTest {
         when(titleRepo.findByActress(1L)).thenReturn(List.of());
 
         ActressBrowseService actressBrowse = new ActressBrowseService(
-                actressRepo, titleRepo, coverPath, Map.of(), labelRepo);
+                actressRepo, titleRepo, coverPath, Map.of(), labelRepo, mock(ActressNameLookup.class), null);
         server = new WebServer(0, null, actressBrowse, null);
         server.start();
 
@@ -317,7 +318,7 @@ class WebServerTest {
         CoverPath coverPath = mock(CoverPath.class);
 
         ActressBrowseService actressBrowse = new ActressBrowseService(
-                actressRepo, titleRepo, coverPath, Map.of(), labelRepo);
+                actressRepo, titleRepo, coverPath, Map.of(), labelRepo, mock(ActressNameLookup.class), null);
         server = new WebServer(0, null, actressBrowse, null);
         server.start();
 
@@ -338,7 +339,7 @@ class WebServerTest {
         when(titleRepo.findByActress(42L)).thenReturn(List.of());
 
         ActressBrowseService actressBrowse = new ActressBrowseService(
-                actressRepo, titleRepo, coverPath, Map.of(), labelRepo);
+                actressRepo, titleRepo, coverPath, Map.of(), labelRepo, mock(ActressNameLookup.class), null);
         server = new WebServer(0, null, actressBrowse, null);
         server.start();
 
@@ -359,7 +360,7 @@ class WebServerTest {
         when(actressRepo.findById(999L)).thenReturn(Optional.empty());
 
         ActressBrowseService actressBrowse = new ActressBrowseService(
-                actressRepo, titleRepo, coverPath, Map.of(), labelRepo);
+                actressRepo, titleRepo, coverPath, Map.of(), labelRepo, mock(ActressNameLookup.class), null);
         server = new WebServer(0, null, actressBrowse, null);
         server.start();
 
@@ -375,7 +376,7 @@ class WebServerTest {
         CoverPath coverPath = mock(CoverPath.class);
 
         ActressBrowseService actressBrowse = new ActressBrowseService(
-                actressRepo, titleRepo, coverPath, Map.of(), labelRepo);
+                actressRepo, titleRepo, coverPath, Map.of(), labelRepo, mock(ActressNameLookup.class), null);
         server = new WebServer(0, null, actressBrowse, null);
         server.start();
 
@@ -438,7 +439,7 @@ class WebServerTest {
     @Test
     void configEndpointReturnsAppNameAndMaxBrowse() throws IOException, InterruptedException {
         AppConfig.initializeForTest(new OrganizerConfig(
-                "TestApp", 100, List.of(), List.of(), List.of(), List.of()));
+                "TestApp", 100, null, null, List.of(), List.of(), List.of(), List.of()));
 
         server = new WebServer(0, null, null, null);
         server.start();
@@ -484,7 +485,7 @@ class WebServerTest {
         );
 
         AppConfig.initializeForTest(new OrganizerConfig(
-                "Test", null, List.of(),
+                "Test", null, null, null, List.of(),
                 List.of(conventional, pool1, pool2),
                 List.of(conventionalDef, queueDef),
                 List.of()

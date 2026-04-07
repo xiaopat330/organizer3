@@ -13,6 +13,7 @@ import java.util.List;
 public class ActressSummary {
     long id;
     String canonicalName;
+    String stageName;
     String tier;
     boolean favorite;
     boolean bookmark;

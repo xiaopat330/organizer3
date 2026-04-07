@@ -73,6 +73,9 @@ public interface TitleRepository {
      */
     List<Title> findByActressAndLabelsPaged(long actressId, List<String> labels, int limit, int offset);
 
+    /** Find titles in random order (ignores offset — each call returns a fresh random sample). */
+    List<Title> findRandom(int limit);
+
     /** Delete titles that have zero locations (orphaned after location cleanup). */
     void deleteOrphaned();
 }

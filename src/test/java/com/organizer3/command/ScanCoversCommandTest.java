@@ -17,6 +17,9 @@ import com.organizer3.shell.SessionContext;
 import com.organizer3.shell.io.CommandIO;
 import com.organizer3.shell.io.PlainCommandIO;
 import com.organizer3.smb.VolumeConnection;
+import com.organizer3.sync.scanner.ConventionalScanner;
+import com.organizer3.sync.scanner.ScannerRegistry;
+import com.organizer3.sync.scanner.SortPoolScanner;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -31,6 +34,7 @@ import java.nio.file.Path;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -41,10 +45,17 @@ class ScanCoversCommandTest {
     private static final VolumeConfig CONVENTIONAL_VOL = new VolumeConfig(
             "a", "//pandora/jav_A", "conventional", "pandora");
 
+    private static final VolumeConfig SORT_POOL_VOL = new VolumeConfig(
+            "pool", "//pandora/jav_unsorted/_done", "sort_pool", "pandora");
+
     private static final VolumeStructureDef CONVENTIONAL_STRUCTURE = new VolumeStructureDef(
             "conventional",
             List.of(new PartitionDef("queue", "queue")),
             new StructuredPartitionDef("stars", List.of(new PartitionDef("library", "library")))
+    );
+
+    private static final VolumeStructureDef SORT_POOL_STRUCTURE = new VolumeStructureDef(
+            "sort_pool", List.of(), null
     );
 
     @TempDir
@@ -53,6 +64,7 @@ class ScanCoversCommandTest {
     private TitleRepository titleRepo;
     private VolumeRepository volumeRepo;
     private CoverPath coverPath;
+    private ScannerRegistry scannerRegistry;
     private SessionContext ctx;
     private StringWriter output;
     private CommandIO io;
@@ -62,9 +74,13 @@ class ScanCoversCommandTest {
     @BeforeEach
     void setUp() {
         AppConfig.initializeForTest(new OrganizerConfig(
-                null, null, List.of(), List.of(CONVENTIONAL_VOL),
-                List.of(CONVENTIONAL_STRUCTURE),
+                null, null, null, null, List.of(), List.of(CONVENTIONAL_VOL, SORT_POOL_VOL),
+                List.of(CONVENTIONAL_STRUCTURE, SORT_POOL_STRUCTURE),
                 List.of()
+        ));
+        scannerRegistry = new ScannerRegistry(Map.of(
+                "conventional", new ConventionalScanner(),
+                "sort_pool",    new SortPoolScanner()
         ));
         titleRepo = mock(TitleRepository.class);
         volumeRepo = mock(VolumeRepository.class);
@@ -103,7 +119,7 @@ class ScanCoversCommandTest {
 
     @Test
     void noVolumeMounted_printsError() {
-        ScanCoversCommand cmd = new ScanCoversCommand(titleRepo, volumeRepo, coverPath);
+        ScanCoversCommand cmd = new ScanCoversCommand(titleRepo, volumeRepo, coverPath, scannerRegistry);
         cmd.execute(new String[]{"sync covers"}, ctx, io);
         assertTrue(output.toString().contains("No volume mounted"));
     }
@@ -115,7 +131,7 @@ class ScanCoversCommandTest {
         Volume unsyncedVol = new Volume("a", "conventional");
         when(volumeRepo.findById("a")).thenReturn(Optional.of(unsyncedVol));
 
-        ScanCoversCommand cmd = new ScanCoversCommand(titleRepo, volumeRepo, coverPath);
+        ScanCoversCommand cmd = new ScanCoversCommand(titleRepo, volumeRepo, coverPath, scannerRegistry);
         cmd.execute(new String[]{"sync covers"}, ctx, io);
         assertTrue(output.toString().contains("has not been synced"));
     }
@@ -135,7 +151,7 @@ class ScanCoversCommandTest {
         when(fs.isDirectory(imagePath)).thenReturn(false);
         when(fs.openFile(imagePath)).thenReturn(new ByteArrayInputStream("fake-jpg".getBytes()));
 
-        ScanCoversCommand cmd = new ScanCoversCommand(titleRepo, volumeRepo, coverPath);
+        ScanCoversCommand cmd = new ScanCoversCommand(titleRepo, volumeRepo, coverPath, scannerRegistry);
         cmd.execute(new String[]{"sync covers"}, ctx, io);
 
         Path expectedCover = coverPath.resolve(title, "jpg");
@@ -159,7 +175,7 @@ class ScanCoversCommandTest {
         Files.createDirectories(existingCover.getParent());
         Files.writeString(existingCover, "already here");
 
-        ScanCoversCommand cmd = new ScanCoversCommand(titleRepo, volumeRepo, coverPath);
+        ScanCoversCommand cmd = new ScanCoversCommand(titleRepo, volumeRepo, coverPath, scannerRegistry);
         cmd.execute(new String[]{"sync covers"}, ctx, io);
 
         assertTrue(output.toString().contains("Skipped (existing): 1"));
@@ -181,7 +197,7 @@ class ScanCoversCommandTest {
         when(fs.listDirectory(titlePath)).thenReturn(List.of(videoPath));
         when(fs.isDirectory(videoPath)).thenReturn(false);
 
-        ScanCoversCommand cmd = new ScanCoversCommand(titleRepo, volumeRepo, coverPath);
+        ScanCoversCommand cmd = new ScanCoversCommand(titleRepo, volumeRepo, coverPath, scannerRegistry);
         cmd.execute(new String[]{"sync covers"}, ctx, io);
 
         assertTrue(output.toString().contains("No image: 1"));
@@ -204,7 +220,7 @@ class ScanCoversCommandTest {
                 .build();
         when(titleRepo.findByVolume("a")).thenReturn(List.of(collectionsTitle));
 
-        ScanCoversCommand cmd = new ScanCoversCommand(titleRepo, volumeRepo, coverPath);
+        ScanCoversCommand cmd = new ScanCoversCommand(titleRepo, volumeRepo, coverPath, scannerRegistry);
         cmd.execute(new String[]{"sync covers"}, ctx, io);
 
         assertTrue(output.toString().contains("No eligible titles"));
@@ -232,7 +248,7 @@ class ScanCoversCommandTest {
         when(fs.isDirectory(imagePath)).thenReturn(false);
         when(fs.openFile(imagePath)).thenReturn(new ByteArrayInputStream("fake-jpg".getBytes()));
 
-        ScanCoversCommand cmd = new ScanCoversCommand(titleRepo, volumeRepo, coverPath);
+        ScanCoversCommand cmd = new ScanCoversCommand(titleRepo, volumeRepo, coverPath, scannerRegistry);
         cmd.execute(new String[]{"sync covers"}, ctx, io);
 
         Path expectedCover = coverPath.resolve(queueTitle, "jpg");
@@ -241,8 +257,56 @@ class ScanCoversCommandTest {
     }
 
     @Test
+    void collectsCoverImageFromSortPoolPartition() throws IOException {
+        ctx.setMountedVolume(SORT_POOL_VOL);
+        ctx.setActiveConnection(connection);
+        Volume v = new Volume("pool", "sort_pool");
+        v.setLastSyncedAt(LocalDateTime.now());
+        when(volumeRepo.findById("pool")).thenReturn(Optional.of(v));
+
+        Path titlePath = Path.of("/Yui Hatano (IPX-123)");
+        Title poolTitle = Title.builder()
+                .id(3L).code("IPX-123").baseCode("IPX-00123").label("IPX")
+                .locations(List.of(TitleLocation.builder()
+                        .titleId(3L).volumeId("pool").partitionId("pool")
+                        .path(titlePath)
+                        .lastSeenAt(LocalDate.now()).addedDate(LocalDate.now())
+                        .build()))
+                .build();
+        when(titleRepo.findByVolume("pool")).thenReturn(List.of(poolTitle));
+
+        Path imagePath = titlePath.resolve("cover.jpg");
+        when(fs.listDirectory(titlePath)).thenReturn(List.of(imagePath));
+        when(fs.isDirectory(imagePath)).thenReturn(false);
+        when(fs.openFile(imagePath)).thenReturn(new ByteArrayInputStream("fake-jpg".getBytes()));
+
+        ScanCoversCommand cmd = new ScanCoversCommand(titleRepo, volumeRepo, coverPath, scannerRegistry);
+        cmd.execute(new String[]{"sync covers"}, ctx, io);
+
+        Path expectedCover = coverPath.resolve(poolTitle, "jpg");
+        assertTrue(Files.exists(expectedCover));
+        assertTrue(output.toString().contains("collected: 1"));
+    }
+
+    @Test
+    void noScannerRegistered_printsNoScannablePartitions() {
+        VolumeConfig collectionsVol = new VolumeConfig(
+                "collections", "//pandora/jav_collections", "collections", "pandora");
+        ctx.setMountedVolume(collectionsVol);
+        ctx.setActiveConnection(connection);
+        Volume v = new Volume("collections", "collections");
+        v.setLastSyncedAt(LocalDateTime.now());
+        when(volumeRepo.findById("collections")).thenReturn(Optional.of(v));
+
+        ScanCoversCommand cmd = new ScanCoversCommand(titleRepo, volumeRepo, coverPath, scannerRegistry);
+        cmd.execute(new String[]{"sync covers"}, ctx, io);
+
+        assertTrue(output.toString().contains("no scannable partitions"));
+    }
+
+    @Test
     void name_returnsScanCovers() {
-        ScanCoversCommand cmd = new ScanCoversCommand(titleRepo, volumeRepo, coverPath);
+        ScanCoversCommand cmd = new ScanCoversCommand(titleRepo, volumeRepo, coverPath, scannerRegistry);
         assertEquals("sync covers", cmd.name());
     }
 }

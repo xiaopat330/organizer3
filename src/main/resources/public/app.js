@@ -1,12 +1,16 @@
 // ── App name + config ─────────────────────────────────────────────────────
-let MAX_TOTAL = 500;
+let MAX_TOTAL           = 500;
+let MAX_RANDOM_TITLES   = 500;
+let MAX_RANDOM_ACTRESSES = 500;
 fetch('/api/config')
   .then(r => r.json())
   .then(cfg => {
     const name = cfg.appName || 'organizer3';
     document.getElementById('app-name').textContent = name.toLowerCase();
     document.title = name;
-    if (cfg.maxBrowseTitles) MAX_TOTAL = cfg.maxBrowseTitles;
+    if (cfg.maxBrowseTitles)    MAX_TOTAL            = cfg.maxBrowseTitles;
+    if (cfg.maxRandomTitles)    MAX_RANDOM_TITLES    = cfg.maxRandomTitles;
+    if (cfg.maxRandomActresses) MAX_RANDOM_ACTRESSES = cfg.maxRandomActresses;
   })
   .catch(() => {});
 
@@ -119,13 +123,16 @@ function updateDetailPanelTop() {
 
 // ── View management ───────────────────────────────────────────────────────
 // Each key maps to the IDs that should be visible in that view.
+// Home content grids are managed separately via activateHomeTab().
 const VIEWS = {
-  titles:           ['grid'],
+  titles:           ['home-tabs'],
   actresses:        ['actress-grid'],
   'actress-detail': ['actress-detail'],
   queue:            ['queue-header', 'queue-grid'],
+  pool:             ['pool-header', 'pool-grid'],
 };
-const ALL_PANEL_IDS = Object.values(VIEWS).flat();
+const HOME_GRID_IDS = ['grid', 'random-titles-grid', 'random-actress-home-grid'];
+const ALL_PANEL_IDS = [...Object.values(VIEWS).flat(), ...HOME_GRID_IDS];
 let mode = 'titles';
 
 function showView(name) {
@@ -340,6 +347,23 @@ const queueGrid = new ScrollingGrid(
   { getMax: () => MAX_TOTAL }
 );
 
+let poolVolumeId = null;
+let poolSmbPath  = null;
+
+const poolGrid = new ScrollingGrid(
+  document.getElementById('pool-grid'),
+  (o, l) => `/api/pool/${encodeURIComponent(poolVolumeId)}/titles?offset=${o}&limit=${l}`,
+  t => {
+    if (poolSmbPath) {
+      if (t.location) t.location = poolSmbPath + t.location;
+      if (t.locations) t.locations = t.locations.map(p => poolSmbPath + p);
+    }
+    return makeTitleCard(t);
+  },
+  'no titles in pool',
+  { getMax: () => MAX_TOTAL }
+);
+
 let detailActressId = null;
 let detailCompanyFilter = null;
 
@@ -354,27 +378,132 @@ const actressDetailGrid = new ScrollingGrid(
   'no titles'
 );
 
+// ── Random title/actress grids ────────────────────────────────────────────
+const randomTitlesGrid = new ScrollingGrid(
+  document.getElementById('random-titles-grid'),
+  (_o, l) => `/api/titles/random?limit=${l}`,
+  makeTitleCard,
+  'no titles',
+  { getMax: () => MAX_RANDOM_TITLES }
+);
+
+const randomActressHomeGrid = new ScrollingGrid(
+  document.getElementById('random-actress-home-grid'),
+  (_o, l) => `/api/actresses/random?limit=${l}`,
+  makeActressCard,
+  'no actresses',
+  { getMax: () => MAX_RANDOM_ACTRESSES }
+);
+
+// ── Home tab management ────────────────────────────────────────────────────
+let homeTab = 'latest';
+
+function activateHomeTab(tab) {
+  homeTab = tab;
+
+  // Update tab button states
+  document.querySelectorAll('.home-tab').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.tab === tab);
+  });
+
+  // Hide all home content grids, then show the right one
+  for (const id of HOME_GRID_IDS) {
+    const el = document.getElementById(id);
+    if (el) el.style.display = 'none';
+  }
+
+  if (tab === 'latest') {
+    document.getElementById('grid').style.display = 'grid';
+    activeGrid = titlesGrid;
+    ensureSentinel();
+    if (titlesGrid.offset === 0 && !titlesGrid.exhausted) titlesGrid.loadMore();
+  } else if (tab === 'random-titles') {
+    document.getElementById('random-titles-grid').style.display = 'grid';
+    activeGrid = randomTitlesGrid;
+    ensureSentinel();
+    if (randomTitlesGrid.offset === 0 && !randomTitlesGrid.exhausted) randomTitlesGrid.loadMore();
+  } else if (tab === 'random-actresses') {
+    document.getElementById('random-actress-home-grid').style.display = 'grid';
+    activeGrid = randomActressHomeGrid;
+    ensureSentinel();
+    if (randomActressHomeGrid.offset === 0 && !randomActressHomeGrid.exhausted) randomActressHomeGrid.loadMore();
+  }
+}
+
+document.querySelectorAll('.home-tab').forEach(btn => {
+  btn.addEventListener('click', () => activateHomeTab(btn.dataset.tab));
+});
+
 // ── Title browse ──────────────────────────────────────────────────────────
 function showTitlesView() {
   showView('titles');
-  activeGrid = titlesGrid;
   actressesBtn.classList.remove('active');
   closeQueuesDropdown();
-  selectedPrefix = null;
-  selectedTier   = null;
+  closeArchivesDropdown();
+  selectedPrefix  = null;
+  selectedTier    = null;
+  selectedArchive = null;
   prefixDropdown.querySelectorAll('.prefix-chip').forEach(c => c.classList.remove('selected'));
   updateBreadcrumb([]);
+  activateHomeTab(homeTab);
+}
+
+// ── Archives browse ───────────────────────────────────────────────────────
+const archivesBtn      = document.getElementById('archives-btn');
+const archivesDropdown = document.getElementById('archives-dropdown');
+
+archivesBtn.addEventListener('click', e => {
+  e.stopPropagation();
+  closeDropdown();
+  closeQueuesDropdown();
+  const isOpen = archivesDropdown.classList.contains('open');
+  if (isOpen) { closeArchivesDropdown(); return; }
+  if (archivesDropdown.childElementCount === 0) populateArchivesDropdown();
+  archivesDropdown.classList.add('open');
+  archivesBtn.classList.add('active');
+});
+
+document.addEventListener('click', () => closeArchivesDropdown());
+archivesDropdown.addEventListener('click', e => e.stopPropagation());
+
+function closeArchivesDropdown() {
+  archivesDropdown.classList.remove('open');
+  archivesBtn.classList.remove('active');
+}
+
+function populateArchivesDropdown() {
+  archivesDropdown.innerHTML = '';
+  const col = document.createElement('div');
+  col.className = 'dropdown-tier-col';
+
+  const starsChip = document.createElement('div');
+  starsChip.className = 'prefix-chip';
+  starsChip.textContent = 'stars';
+  starsChip.dataset.archives = 'stars';
+  starsChip.addEventListener('click', () => selectArchive('stars'));
+  col.appendChild(starsChip);
+
+  const poolChip = document.createElement('div');
+  poolChip.className = 'prefix-chip';
+  poolChip.textContent = 'pool';
+  poolChip.dataset.archives = 'pool';
+  // TODO: wire up when pool view is implemented
+  col.appendChild(poolChip);
+
+  archivesDropdown.appendChild(col);
 }
 
 // ── Actress browse ────────────────────────────────────────────────────────
 const actressesBtn   = document.getElementById('actresses-btn');
 const prefixDropdown = document.getElementById('prefix-dropdown');
-let selectedPrefix = null;
-let selectedTier   = null;
+let selectedPrefix  = null;
+let selectedTier    = null;
+let selectedArchive = null;
 
 actressesBtn.addEventListener('click', async e => {
   e.stopPropagation();
   closeQueuesDropdown();
+  closeArchivesDropdown();
   const isOpen = prefixDropdown.classList.contains('open');
   if (isOpen) { closeDropdown(); return; }
   if (prefixDropdown.childElementCount === 0) await populatePrefixDropdown();
@@ -465,8 +594,9 @@ async function loadActressGrid(url) {
 }
 
 async function selectPrefix(prefix, chip) {
-  selectedPrefix = prefix;
-  selectedTier   = null;
+  selectedPrefix  = prefix;
+  selectedTier    = null;
+  selectedArchive = null;
   closeDropdown();
   actressesBtn.classList.add('active');
   clearDropdownSelection();
@@ -479,8 +609,9 @@ async function selectPrefix(prefix, chip) {
 }
 
 async function selectTier(tier, chip) {
-  selectedTier   = tier;
-  selectedPrefix = null;
+  selectedTier    = tier;
+  selectedPrefix  = null;
+  selectedArchive = null;
   closeDropdown();
   actressesBtn.classList.add('active');
   clearDropdownSelection();
@@ -492,8 +623,27 @@ async function selectTier(tier, chip) {
   await loadActressGrid(`/api/actresses?tier=${encodeURIComponent(tier)}`);
 }
 
+const ARCHIVE_POOL_VOLUMES = 'qnap_archive,classic';
+
+async function selectArchive(archive) {
+  selectedArchive = archive;
+  selectedPrefix  = null;
+  selectedTier    = null;
+  closeArchivesDropdown();
+  archivesBtn.classList.add('active');
+  updateBreadcrumb([
+    { label: 'Archives', action: () => archivesBtn.click() },
+    { label: archive },
+  ]);
+  await loadActressGrid(`/api/actresses?volumes=${encodeURIComponent(ARCHIVE_POOL_VOLUMES)}`);
+}
+
 // ── Actress detail ────────────────────────────────────────────────────────
 async function openActressDetail(actressId) {
+  // Capture navigation context before switching views
+  const sourceMode    = mode;
+  const sourceHomeTab = homeTab;
+
   detailActressId = actressId;
   detailCompanyFilter = null;
   showView('actress-detail');
@@ -506,14 +656,26 @@ async function openActressDetail(actressId) {
   ensureSentinel();
   setStatus('loading');
 
-  // Build breadcrumbs — include prefix/tier context if we came from the actress grid
-  const crumbs = [{ label: 'Actresses', action: () => actressesBtn.click() }];
-  if (selectedPrefix) {
-    const p = selectedPrefix;
-    crumbs.push({ label: p, action: () => reSelectPrefix(p) });
-  } else if (selectedTier) {
-    const t = selectedTier;
-    crumbs.push({ label: t.toLowerCase(), action: () => reSelectTier(t) });
+  // Build breadcrumbs — include prefix/tier/archive context if we came from a browse grid
+  let crumbs;
+  if (selectedArchive) {
+    const arc = selectedArchive;
+    crumbs = [
+      { label: 'Archives', action: () => archivesBtn.click() },
+      { label: arc, action: () => selectArchive(arc) },
+    ];
+  } else if (sourceMode === 'titles' && sourceHomeTab === 'random-actresses') {
+    // Came from home random-actresses tab — HOME crumb restores it via showTitlesView()
+    crumbs = [];
+  } else {
+    crumbs = [{ label: 'Actresses', action: () => actressesBtn.click() }];
+    if (selectedPrefix) {
+      const p = selectedPrefix;
+      crumbs.push({ label: p, action: () => reSelectPrefix(p) });
+    } else if (selectedTier) {
+      const t = selectedTier;
+      crumbs.push({ label: t.toLowerCase(), action: () => reSelectTier(t) });
+    }
   }
   // Actress name added after fetch below; placeholder for now
   crumbs.push({ label: '...' });
@@ -534,6 +696,34 @@ async function openActressDetail(actressId) {
   }
 
   await actressDetailGrid.loadMore();
+}
+
+async function searchStageName(actressId) {
+  const btn = document.getElementById('btn-search-stage-name');
+  if (!btn) return;
+  btn.disabled = true;
+  btn.textContent = 'Searching…';
+  btn.classList.add('loading');
+  try {
+    const res = await fetch(`/api/actresses/${actressId}/stage-name/search`, { method: 'POST' });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    if (data.stageName) {
+      // Reload the detail panel to show the retrieved stage name
+      openActressDetail(actressId);
+    } else {
+      btn.disabled = false;
+      btn.textContent = 'Search for Stage Name';
+      btn.classList.remove('loading');
+      setStatus('stage name not found');
+    }
+  } catch (err) {
+    console.error('Stage name search failed:', err);
+    btn.disabled = false;
+    btn.textContent = 'Search for Stage Name';
+    btn.classList.remove('loading');
+    setStatus('search failed');
+  }
 }
 
 function renderDetailPanel(a) {
@@ -568,11 +758,16 @@ function renderDetailPanel(a) {
     </div>`;
   }
 
+  const stageNameHtml = a.stageName
+    ? `<div class="detail-stage-name">(${esc(a.stageName)})</div>`
+    : `<button class="btn-search-stage-name" id="btn-search-stage-name">Search for Stage Name</button>`;
+
   document.getElementById('detail-info').innerHTML = `
     <div class="detail-name">
       <span class="detail-first-name">${esc(firstName)}</span>
       ${lastName ? `<span class="detail-last-name">${esc(lastName)}</span>` : ''}
     </div>
+    ${stageNameHtml}
     <div class="detail-meta-row">
       <span class="tier-badge tier-${esc(a.tier)}">${esc(a.tier.toLowerCase())}</span>
       ${a.favorite ? '<div class="fav-dot"></div>' : ''}
@@ -581,6 +776,11 @@ function renderDetailPanel(a) {
     ${renderDateRange(a.firstAddedDate, a.lastAddedDate, 'detail-dates')}
     ${pathsHtml}
   `;
+
+  const btn = document.getElementById('btn-search-stage-name');
+  if (btn) {
+    btn.addEventListener('click', () => searchStageName(a.id));
+  }
 
   const companies = a.companies || [];
   const companiesEl = document.getElementById('detail-companies');
@@ -620,6 +820,7 @@ const queuesDropdown = document.getElementById('queues-dropdown');
 queuesBtn.addEventListener('click', async e => {
   e.stopPropagation();
   closeDropdown();
+  closeArchivesDropdown();
   const isOpen = queuesDropdown.classList.contains('open');
   if (isOpen) { closeQueuesDropdown(); return; }
   if (queuesDropdown.childElementCount === 0) await populateQueuesDropdown();
@@ -651,12 +852,12 @@ async function populateQueuesDropdown() {
   const poolCol = document.createElement('div');
   poolCol.className = 'dropdown-tier-col';
   poolCol.appendChild(makeLabel('pool'));
-  if (data.pool) {
-    const chip = document.createElement('div');
-    chip.className = 'prefix-chip';
-    chip.textContent = data.pool.id;
-    chip.addEventListener('click', () => openQueueView(data.pool.id, data.pool.smbPath));
-    poolCol.appendChild(chip);
+  if (data.sortPool) {
+    const unsortedChip = document.createElement('div');
+    unsortedChip.className = 'prefix-chip';
+    unsortedChip.textContent = 'unsorted';
+    unsortedChip.addEventListener('click', () => openPoolView(data.sortPool.id, data.sortPool.smbPath));
+    poolCol.appendChild(unsortedChip);
   }
   queuesDropdown.appendChild(poolCol);
   queuesDropdown.appendChild(Object.assign(document.createElement('div'), { className: 'dropdown-col-divider' }));
@@ -692,6 +893,25 @@ async function openQueueView(volumeId, smbPath) {
   await queueGrid.loadMore();
 }
 
+// ── Pool browse ──────────────────────────────────────────────────────────
+async function openPoolView(volumeId, smbPath) {
+  poolVolumeId = volumeId;
+  poolSmbPath  = smbPath || null;
+  closeQueuesDropdown();
+  queuesBtn.classList.add('active');
+  showView('pool');
+  document.getElementById('pool-header').textContent =
+    poolSmbPath ? poolSmbPath : volumeId;
+  updateBreadcrumb([
+    { label: 'Queues', action: () => queuesBtn.click() },
+    { label: 'unsorted' },
+  ]);
+  activeGrid = poolGrid;
+  poolGrid.reset();
+  ensureSentinel();
+  await poolGrid.loadMore();
+}
+
 // ── Initial load ──────────────────────────────────────────────────────────
-activeGrid = titlesGrid;
-titlesGrid.loadMore();
+showView('titles');
+activateHomeTab('latest');

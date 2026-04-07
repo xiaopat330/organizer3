@@ -41,6 +41,9 @@ dependencies {
     // Embedded web server
     implementation "io.javalin:javalin:${javalinVersion}"
 
+    // Claude API
+    implementation "com.anthropic:anthropic-java:${anthropicVersion}"
+
     // Utilities
     implementation "org.apache.commons:commons-lang3:${commonsLang3Version}"
     implementation "commons-io:commons-io:${commonsIoVersion}"

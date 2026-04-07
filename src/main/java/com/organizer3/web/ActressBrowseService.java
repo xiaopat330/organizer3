@@ -1,5 +1,6 @@
 package com.organizer3.web;
 
+import com.organizer3.ai.ActressNameLookup;
 import com.organizer3.covers.CoverPath;
 import com.organizer3.model.Label;
 import com.organizer3.model.Title;
@@ -18,6 +19,7 @@ import java.util.Optional;
 import java.util.TreeMap;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * Backing service for the actress browse UI.
@@ -27,6 +29,7 @@ import lombok.RequiredArgsConstructor;
  * Letters with more than {@link #SPLIT_THRESHOLD} actresses are expanded to two-character
  * prefixes — only those with at least one match are included.
  */
+@Slf4j
 @RequiredArgsConstructor
 public class ActressBrowseService {
 
@@ -39,6 +42,9 @@ public class ActressBrowseService {
     /** volumeId → smbPath, e.g. "a" → "//pandora/jav_A" */
     private final Map<String, String> volumeSmbPaths;
     private final LabelRepository labelRepo;
+    private final ActressNameLookup nameLookup;
+    /** Nullable — backup is skipped if not configured. */
+    private final StageNameBackupFile backupFile;
 
     public List<String> findPrefixIndex() {
         List<com.organizer3.model.Actress> all = actressRepo.findAll();
@@ -69,11 +75,31 @@ public class ActressBrowseService {
     }
 
     /**
+     * Returns a random sample of at most {@code limit} actresses, enriched with title count,
+     * cover URLs, and SMB folder paths. Each call returns a fresh random set.
+     */
+    public List<ActressSummary> findRandom(int limit) {
+        return actressRepo.findRandom(limit).stream()
+                .map(this::toSummary)
+                .toList();
+    }
+
+    /**
      * Returns all actresses whose canonical name starts with {@code prefix}, enriched with
      * title count, cover image URLs, and SMB folder paths.
      */
     public List<ActressSummary> findByPrefix(String prefix) {
         return actressRepo.findByFirstNamePrefix(prefix).stream()
+                .map(this::toSummary)
+                .toList();
+    }
+
+    /**
+     * Returns all actresses that have at least one title on any of the given volumes,
+     * enriched with title count, cover URLs, and SMB folder paths.
+     */
+    public List<ActressSummary> findByVolumes(List<String> volumeIds) {
+        return actressRepo.findByVolumeIds(volumeIds).stream()
                 .map(this::toSummary)
                 .toList();
     }
@@ -203,6 +229,7 @@ public class ActressBrowseService {
         return ActressSummary.builder()
                 .id(actress.getId())
                 .canonicalName(actress.getCanonicalName())
+                .stageName(actress.getStageName())
                 .tier(actress.getTier().name())
                 .favorite(actress.isFavorite())
                 .bookmark(actress.isBookmark())
@@ -216,6 +243,36 @@ public class ActressBrowseService {
                 .companies(companies)
                 .aliases(aliases)
                 .build();
+    }
+
+    /**
+     * Calls the AI name lookup for the given actress, persists the result to the database
+     * and the YAML backup file, and returns the stage name found.
+     *
+     * @return the stage name if Claude could determine it, or empty if the actress was not
+     *         found in the DB or Claude returned "unknown"
+     */
+    public Optional<String> searchStageName(long actressId) {
+        com.organizer3.model.Actress actress = actressRepo.findById(actressId).orElse(null);
+        if (actress == null) return Optional.empty();
+
+        List<Title> titles = titleRepo.findByActress(actressId);
+        log.info("Stage name search: actress='{}' titles={}", actress.getCanonicalName(), titles.size());
+
+        Optional<String> result = nameLookup.findJapaneseName(actress, titles);
+
+        if (result.isPresent()) {
+            String stageName = result.get();
+            log.info("Stage name found: '{}' → '{}'", actress.getCanonicalName(), stageName);
+            actressRepo.setStageName(actressId, stageName);
+            if (backupFile != null) {
+                backupFile.save(actress.getCanonicalName(), stageName);
+            }
+        } else {
+            log.info("Stage name not found for '{}'", actress.getCanonicalName());
+        }
+
+        return result;
     }
 
     private static String twoCharPrefix(String name) {

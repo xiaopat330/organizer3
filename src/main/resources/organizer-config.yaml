@@ -1,5 +1,7 @@
 appName: "JAV Helper"
 maxBrowseTitles: 500
+maxRandomTitles: 500
+maxRandomActresses: 500
 
 servers:
   - id: pandora
@@ -72,10 +74,20 @@ volumes:
     structureType: exhibition
     server: qnap2
 
+  - id: qnap_archive
+    smbPath: //pandora/qnap_archive
+    structureType: exhibition
+    server: pandora
+
   - id: classic
     smbPath: //qnap2/JAV/classic
-    structureType: queue
+    structureType: exhibition
     server: qnap2
+
+  - id: pool
+    smbPath: //pandora/jav_unsorted/_done
+    structureType: sort_pool
+    server: pandora
 
   - id: collections
     smbPath: //pandora/jav_collections
@@ -114,6 +126,9 @@ structures:
       path: stars
       partitions: []
 
+  - id: sort_pool
+    unstructuredPartitions: []
+
   - id: collections
     unstructuredPartitions:
       - { id: archive,   path: archive   }
@@ -139,6 +154,13 @@ syncConfig:
         operation: full
 
   - structureType: queue
+    commands:
+      - term: sync
+        operation: full
+      - term: sync all
+        operation: full
+
+  - structureType: sort_pool
     commands:
       - term: sync
         operation: full

@@ -342,6 +342,24 @@ public class JdbiTitleRepository implements TitleRepository {
     }
 
     @Override
+    public List<Title> findRandom(int limit) {
+        List<Title> titles = jdbi.withHandle(h ->
+                h.createQuery("""
+                        SELECT t.* FROM titles t
+                        JOIN title_locations tl ON t.id = tl.title_id
+                        WHERE t.actress_id IS NOT NULL
+                        GROUP BY t.id
+                        ORDER BY RANDOM()
+                        LIMIT :limit
+                        """)
+                        .bind("limit", limit)
+                        .map(MAPPER)
+                        .list()
+        );
+        return populateLocationsBatch(titles);
+    }
+
+    @Override
     public void deleteOrphaned() {
         jdbi.useHandle(h ->
                 h.createUpdate("""

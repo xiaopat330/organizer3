@@ -52,6 +52,11 @@ public class ConventionalScanner implements VolumeScanner {
         return results;
     }
 
+    @Override
+    public boolean isCoverScannable(String partitionId) {
+        return partitionId.startsWith("stars/") || "queue".equals(partitionId);
+    }
+
     private List<DiscoveredTitle> scanUnstructured(Path partRoot, String partitionId,
                                                     VolumeFileSystem fs, CommandIO io) throws IOException {
         List<Path> titleFolders = listSubdirectories(partRoot, fs);

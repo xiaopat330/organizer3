@@ -1,8 +1,6 @@
 package com.organizer3.command;
 
-import com.organizer3.config.AppConfig;
 import com.organizer3.config.volume.VolumeConfig;
-import com.organizer3.config.volume.VolumeStructureDef;
 import com.organizer3.covers.CoverPath;
 import com.organizer3.filesystem.VolumeFileSystem;
 import com.organizer3.model.Title;
@@ -12,6 +10,8 @@ import com.organizer3.repository.VolumeRepository;
 import com.organizer3.shell.SessionContext;
 import com.organizer3.shell.io.CommandIO;
 import com.organizer3.shell.io.Progress;
+import com.organizer3.sync.scanner.ScannerRegistry;
+import com.organizer3.sync.scanner.VolumeScanner;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -23,14 +23,14 @@ import lombok.RequiredArgsConstructor;
 
 /**
  * Scans the currently mounted volume and collects cover images for titles
- * in structured (stars) partitions.
+ * in partitions that the volume's scanner declares as cover-scannable.
  *
  * <p>For each title, looks for a single image file in the title's folder on the
  * remote volume. If found and not already present locally, copies it into the
  * local covers hierarchy at {@code data/covers/<LABEL>/<baseCode>.<ext>}.
  *
- * <p>Requires a mounted, synced volume. Processes titles in both {@code stars/}
- * partitions (conventional and exhibition) and {@code queue} partitions.
+ * <p>Requires a mounted, synced volume. Eligible partitions are determined by
+ * {@link VolumeScanner#isCoverScannable(String)}.
  */
 @Slf4j
 @RequiredArgsConstructor
@@ -39,6 +39,7 @@ public class ScanCoversCommand implements Command {
     private final TitleRepository titleRepo;
     private final VolumeRepository volumeRepo;
     private final CoverPath coverPath;
+    private final ScannerRegistry scannerRegistry;
 
     @Override
     public String name() {
@@ -70,12 +71,9 @@ public class ScanCoversCommand implements Command {
             return;
         }
 
-        VolumeStructureDef structure = AppConfig.get().volumes()
-                .findStructureById(volume.structureType())
+        VolumeScanner scanner = scannerRegistry.findForStructureType(volume.structureType())
                 .orElse(null);
-        boolean hasStars = structure != null && structure.structuredPartition() != null;
-        boolean hasQueue = structure != null && structure.findUnstructuredById("queue").isPresent();
-        if (!hasStars && !hasQueue) {
+        if (scanner == null) {
             io.println("Volume '" + volume.id() + "' has no scannable partitions — nothing to scan.");
             return;
         }
@@ -87,8 +85,7 @@ public class ScanCoversCommand implements Command {
                 .filter(t -> t.getBaseCode() != null && !t.getBaseCode().isBlank())
                 .filter(t -> t.findLocation(volumeId)
                         .map(loc -> loc.getPartitionId() != null &&
-                                (loc.getPartitionId().startsWith("stars/") || "stars".equals(loc.getPartitionId())
-                                        || "queue".equals(loc.getPartitionId())))
+                                scanner.isCoverScannable(loc.getPartitionId()))
                         .orElse(false))
                 .toList();
 

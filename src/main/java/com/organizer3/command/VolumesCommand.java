@@ -8,6 +8,8 @@ import com.organizer3.shell.SessionContext;
 import com.organizer3.shell.io.CommandIO;
 
 import java.time.format.DateTimeFormatter;
+import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.function.Function;
@@ -28,7 +30,14 @@ import lombok.RequiredArgsConstructor;
 public class VolumesCommand implements Command {
 
     private static final DateTimeFormatter DISPLAY_FMT =
-            DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
+            DateTimeFormatter.ofPattern("MMM d, yyyy  h:mm a");
+
+    private static final String BOLD    = "\033[1m";
+    private static final String GREEN   = "\033[92m";
+    private static final String YELLOW  = "\033[93m";
+    private static final String CYAN    = "\033[96m";
+    private static final String DIM     = "\033[2m";
+    private static final String RESET   = "\033[0m";
 
     private final VolumeRepository volumeRepository;
 
@@ -52,27 +61,46 @@ public class VolumesCommand implements Command {
         String activeId = ctx.getMountedVolumeId();
         boolean activeConnected = ctx.isConnected();
 
-        io.println(String.format("%-6s  %-14s  %-10s  %s", "ID", "STRUCTURE", "CONNECTED", "LAST SYNC"));
-        io.println("-".repeat(60));
-
+        // Group volumes by server
+        Map<String, List<VolumeConfig>> byServer = new LinkedHashMap<>();
         for (VolumeConfig vc : configVolumes) {
-            Optional<Volume> dbVol = Optional.ofNullable(dbRecords.get(vc.id()));
-
-            String syncedAt = dbVol
-                    .map(Volume::getLastSyncedAt)
-                    .map(dt -> dt.format(DISPLAY_FMT))
-                    .orElse("never");
-
-            boolean connected = vc.id().equals(activeId) && activeConnected;
-            String connStatus = connected ? "yes" : "-";
-            String active = connected ? " *" : "";
-
-            io.println(String.format("%-6s  %-14s  %-10s  %s%s",
-                    vc.id(),
-                    vc.structureType(),
-                    connStatus,
-                    syncedAt,
-                    active));
+            byServer.computeIfAbsent(vc.server(), k -> new java.util.ArrayList<>()).add(vc);
         }
+
+        boolean first = true;
+        for (Map.Entry<String, List<VolumeConfig>> entry : byServer.entrySet()) {
+            if (!first) io.println();
+            first = false;
+
+            io.printlnAnsi(BOLD + CYAN + "  " + entry.getKey().toUpperCase() + RESET);
+            io.printlnAnsi(DIM + "  " + "─".repeat(62) + RESET);
+            io.printlnAnsi(DIM + String.format("  %-8s  %-28s  %-14s  %s", "ID", "PATH", "STRUCTURE", "LAST SYNCED") + RESET);
+            io.printlnAnsi(DIM + "  " + "─".repeat(62) + RESET);
+
+            for (VolumeConfig vc : entry.getValue()) {
+                Optional<Volume> dbVol = Optional.ofNullable(dbRecords.get(vc.id()));
+
+                String syncedAt = dbVol
+                        .map(Volume::getLastSyncedAt)
+                        .map(dt -> dt.format(DISPLAY_FMT))
+                        .orElse("never synced");
+
+                boolean connected = vc.id().equals(activeId) && activeConnected;
+
+                // Extract just the share name from //server/share
+                String path = vc.smbPath().replaceFirst("^//[^/]+/", "/");
+
+                if (connected) {
+                    io.printlnAnsi(String.format(
+                            GREEN + "  %-8s" + RESET + "  %-28s  %-14s  %s" + YELLOW + "  ← connected" + RESET,
+                            vc.id(), path, vc.structureType(), syncedAt));
+                } else {
+                    io.printlnAnsi(String.format(
+                            "  %-8s  %-28s  %-14s  " + DIM + "%s" + RESET,
+                            vc.id(), path, vc.structureType(), syncedAt));
+                }
+            }
+        }
+        io.println();
     }
 }

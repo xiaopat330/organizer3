@@ -29,6 +29,7 @@ public class SchemaInitializer {
                     CREATE TABLE IF NOT EXISTS actresses (
                         id              INTEGER PRIMARY KEY AUTOINCREMENT,
                         canonical_name  TEXT NOT NULL UNIQUE,
+                        stage_name      TEXT,
                         tier            TEXT NOT NULL,
                         favorite        INTEGER NOT NULL DEFAULT 0,
                         bookmark        INTEGER NOT NULL DEFAULT 0,
@@ -107,6 +108,9 @@ public class SchemaInitializer {
             h.execute("CREATE INDEX IF NOT EXISTS idx_title_locations_volume_partition ON title_locations(volume_id, partition_id)");
             h.execute("CREATE INDEX IF NOT EXISTS idx_videos_title ON videos(title_id)");
             h.execute("CREATE INDEX IF NOT EXISTS idx_videos_volume ON videos(volume_id)");
+
+            // Stamp version so SchemaUpgrader skips migrations already baked into CREATE TABLE
+            h.execute("PRAGMA user_version = 2");
         });
         log.info("Schema initialization complete");
     }

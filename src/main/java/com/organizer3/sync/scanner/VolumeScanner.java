@@ -31,4 +31,13 @@ public interface VolumeScanner {
      */
     List<DiscoveredTitle> scan(VolumeStructureDef structure, VolumeFileSystem fs,
                                CommandIO io) throws IOException;
+
+    /**
+     * Returns whether the given partition ID contains titles eligible for
+     * cover image scanning.
+     *
+     * @param partitionId the partition ID to check (e.g. "stars/library", "queue", "pool")
+     * @return true if titles in this partition should be scanned for covers
+     */
+    boolean isCoverScannable(String partitionId);
 }

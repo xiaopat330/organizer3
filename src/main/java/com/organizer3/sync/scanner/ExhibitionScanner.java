@@ -44,6 +44,11 @@ public class ExhibitionScanner implements VolumeScanner {
     );
 
     @Override
+    public boolean isCoverScannable(String partitionId) {
+        return "stars".equals(partitionId);
+    }
+
+    @Override
     public List<DiscoveredTitle> scan(VolumeStructureDef structure, VolumeFileSystem fs,
                                       CommandIO io) throws IOException {
         StructuredPartitionDef stars = structure.structuredPartition();

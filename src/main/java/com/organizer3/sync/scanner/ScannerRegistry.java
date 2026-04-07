@@ -1,6 +1,7 @@
 package com.organizer3.sync.scanner;
 
 import java.util.Map;
+import java.util.Optional;
 
 /**
  * Maps structure type IDs to their corresponding {@link VolumeScanner} implementations.
@@ -27,5 +28,12 @@ public class ScannerRegistry {
             throw new IllegalArgumentException("No scanner registered for structure type: " + structureType);
         }
         return scanner;
+    }
+
+    /**
+     * Returns the scanner for the given structure type, or empty if none is registered.
+     */
+    public Optional<VolumeScanner> findForStructureType(String structureType) {
+        return Optional.ofNullable(scanners.get(structureType));
     }
 }
