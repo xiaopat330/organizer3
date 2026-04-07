@@ -91,10 +91,28 @@ public class OrganizerShell {
         String[] parts = line.split("\\s+");
         String name = parts[0].toLowerCase();
 
-        Command cmd = commands.get(name);
+        // Try two-word command first (e.g. "sync all", "sync queue")
+        Command cmd = null;
+        String[] cmdArgs = parts;
+        if (parts.length >= 2) {
+            String twoWord = name + " " + parts[1].toLowerCase();
+            cmd = commands.get(twoWord);
+            if (cmd != null) {
+                name = twoWord;
+                // Rebuild args: merge first two tokens into one, keep the rest
+                cmdArgs = new String[parts.length - 1];
+                cmdArgs[0] = twoWord;
+                System.arraycopy(parts, 2, cmdArgs, 1, parts.length - 2);
+            }
+        }
+
+        if (cmd == null) {
+            cmd = commands.get(name);
+        }
+
         if (cmd != null) {
             try {
-                cmd.execute(parts, session, io);
+                cmd.execute(cmdArgs, session, io);
             } catch (Exception e) {
                 io.println("Error: " + e.getMessage());
                 log.error("Command '{}' threw an exception", name, e);

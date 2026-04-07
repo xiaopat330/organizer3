@@ -96,7 +96,7 @@ class ScanCoversCommandTest {
     @Test
     void noVolumeMounted_printsError() {
         ScanCoversCommand cmd = new ScanCoversCommand(titleRepo, volumeRepo, coverPath);
-        cmd.execute(new String[]{"scan-covers"}, ctx, io);
+        cmd.execute(new String[]{"sync covers"}, ctx, io);
         assertTrue(output.toString().contains("No volume mounted"));
     }
 
@@ -108,7 +108,7 @@ class ScanCoversCommandTest {
         when(volumeRepo.findById("a")).thenReturn(Optional.of(unsyncedVol));
 
         ScanCoversCommand cmd = new ScanCoversCommand(titleRepo, volumeRepo, coverPath);
-        cmd.execute(new String[]{"scan-covers"}, ctx, io);
+        cmd.execute(new String[]{"sync covers"}, ctx, io);
         assertTrue(output.toString().contains("has not been synced"));
     }
 
@@ -128,7 +128,7 @@ class ScanCoversCommandTest {
         when(fs.openFile(imagePath)).thenReturn(new ByteArrayInputStream("fake-jpg".getBytes()));
 
         ScanCoversCommand cmd = new ScanCoversCommand(titleRepo, volumeRepo, coverPath);
-        cmd.execute(new String[]{"scan-covers"}, ctx, io);
+        cmd.execute(new String[]{"sync covers"}, ctx, io);
 
         Path expectedCover = coverPath.resolve(title, "jpg");
         assertTrue(Files.exists(expectedCover));
@@ -152,7 +152,7 @@ class ScanCoversCommandTest {
         Files.writeString(existingCover, "already here");
 
         ScanCoversCommand cmd = new ScanCoversCommand(titleRepo, volumeRepo, coverPath);
-        cmd.execute(new String[]{"scan-covers"}, ctx, io);
+        cmd.execute(new String[]{"sync covers"}, ctx, io);
 
         assertTrue(output.toString().contains("Skipped (existing): 1"));
         verifyNoInteractions(fs);
@@ -174,7 +174,7 @@ class ScanCoversCommandTest {
         when(fs.isDirectory(videoPath)).thenReturn(false);
 
         ScanCoversCommand cmd = new ScanCoversCommand(titleRepo, volumeRepo, coverPath);
-        cmd.execute(new String[]{"scan-covers"}, ctx, io);
+        cmd.execute(new String[]{"sync covers"}, ctx, io);
 
         assertTrue(output.toString().contains("No image: 1"));
     }
@@ -191,7 +191,7 @@ class ScanCoversCommandTest {
         when(titleRepo.findByVolume("a")).thenReturn(List.of(collectionsTitle));
 
         ScanCoversCommand cmd = new ScanCoversCommand(titleRepo, volumeRepo, coverPath);
-        cmd.execute(new String[]{"scan-covers"}, ctx, io);
+        cmd.execute(new String[]{"sync covers"}, ctx, io);
 
         assertTrue(output.toString().contains("No eligible titles"));
     }
@@ -213,7 +213,7 @@ class ScanCoversCommandTest {
         when(fs.openFile(imagePath)).thenReturn(new ByteArrayInputStream("fake-jpg".getBytes()));
 
         ScanCoversCommand cmd = new ScanCoversCommand(titleRepo, volumeRepo, coverPath);
-        cmd.execute(new String[]{"scan-covers"}, ctx, io);
+        cmd.execute(new String[]{"sync covers"}, ctx, io);
 
         Path expectedCover = coverPath.resolve(queueTitle, "jpg");
         assertTrue(Files.exists(expectedCover));
@@ -223,6 +223,6 @@ class ScanCoversCommandTest {
     @Test
     void name_returnsScanCovers() {
         ScanCoversCommand cmd = new ScanCoversCommand(titleRepo, volumeRepo, coverPath);
-        assertEquals("scan-covers", cmd.name());
+        assertEquals("sync covers", cmd.name());
     }
 }

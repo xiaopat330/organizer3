@@ -127,20 +127,20 @@ structures:
 syncConfig:
   - structureType: conventional
     commands:
-      - term: sync-queue
+      - term: sync queue
         operation: partition
         partitions: [queue]
-      - term: sync-all
+      - term: sync all
         operation: full
 
   - structureType: stars-flat
     commands:
-      - term: sync-all
+      - term: sync all
         operation: full
 
   - structureType: queue
     commands:
       - term: sync
         operation: full
-      - term: sync-all
+      - term: sync all
         operation: full

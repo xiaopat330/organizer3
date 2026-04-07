@@ -28,7 +28,7 @@ The shell starts in **test (dry-run) mode** by default. No file operations will 
 ```
 organizer [*DRYRUN*] > volumes
 organizer [*DRYRUN*] > mount a
-organizer:vol-a [*DRYRUN*] > sync-all
+organizer:vol-a [*DRYRUN*] > sync all
 organizer:vol-a [*DRYRUN*] > list
 ```
 
@@ -131,7 +131,7 @@ mount <volume-id>
 - `mount` is idempotent — calling it on an already-mounted volume simply reactivates it as the session context
 - Only one volume is active at a time, but multiple volumes may remain OS-mounted
 - OS mounts are never unmounted by the application
-- If no database record exists for the volume yet, you will be prompted to run `sync-all`
+- If no database record exists for the volume yet, you will be prompted to run `sync all`
 
 **Credentials:** Credentials are stored in the macOS Keychain, not in any config file. If credentials are missing, the mount command will print the `security` command you need to run to add them.
 
@@ -145,9 +145,9 @@ Sync commands available depend on the volume's structure type:
 
 | Command | Valid For | Scope |
 |---------|-----------|-------|
-| `sync-all` | `conventional`, `queue` | Entire volume — clears and rebuilds all records |
-| `sync-queue` | `conventional` | Queue partition only — faster partial update |
-| `sync` | `queue` | Entire volume (same as `sync-all` for queue volumes) |
+| `sync all` | `conventional`, `queue` | Entire volume — clears and rebuilds all records |
+| `sync queue` | `conventional` | Queue partition only — faster partial update |
+| `sync` | `queue` | Entire volume (same as `sync all` for queue volumes) |
 
 **What sync does:**
 - Walks the filesystem and finds all title folders and video files
@@ -199,8 +199,8 @@ The prompt shows `[*DRYRUN*]` whenever test mode is active. When armed, no indic
 
 | Command | Requires Mount | Description |
 |---------|---------------|-------------|
-| `sync-all` | Yes | Full sync — rebuilds the entire volume index from the filesystem |
-| `sync-queue` | Yes | Partial sync — refreshes the queue partition only (conventional volumes) |
+| `sync all` | Yes | Full sync — rebuilds the entire volume index from the filesystem |
+| `sync queue` | Yes | Partial sync — refreshes the queue partition only (conventional volumes) |
 | `sync` | Yes | Full sync for queue volumes |
 
 ### Actress Commands

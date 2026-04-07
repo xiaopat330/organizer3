@@ -50,7 +50,7 @@ public class JdbiActressRepository implements ActressRepository {
     @Override
     public Optional<Actress> findByCanonicalName(String name) {
         return jdbi.withHandle(h ->
-                h.createQuery("SELECT * FROM actresses WHERE canonical_name = :name")
+                h.createQuery("SELECT * FROM actresses WHERE canonical_name = :name COLLATE NOCASE")
                         .bind("name", name)
                         .map(ACTRESS_MAPPER)
                         .findFirst()
@@ -61,7 +61,7 @@ public class JdbiActressRepository implements ActressRepository {
     public Optional<Actress> resolveByName(String name) {
         return jdbi.withHandle(h -> {
             Optional<Actress> byCanonical = h
-                    .createQuery("SELECT * FROM actresses WHERE canonical_name = :name")
+                    .createQuery("SELECT * FROM actresses WHERE canonical_name = :name COLLATE NOCASE")
                     .bind("name", name)
                     .map(ACTRESS_MAPPER)
                     .findFirst();
@@ -70,7 +70,7 @@ public class JdbiActressRepository implements ActressRepository {
             return h.createQuery("""
                             SELECT a.* FROM actresses a
                             JOIN actress_aliases aa ON a.id = aa.actress_id
-                            WHERE aa.alias_name = :name
+                            WHERE aa.alias_name = :name COLLATE NOCASE
                             """)
                     .bind("name", name)
                     .map(ACTRESS_MAPPER)

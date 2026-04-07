@@ -68,19 +68,29 @@ public class WebServer {
 
         app.get("/api/queues/volumes", ctx -> {
             var cfg = AppConfig.get().volumes();
-            var queueStructureTypes = cfg.structures().stream()
-                    .filter(s -> s.unstructuredPartitions() != null &&
+            // Conventional volumes: have a structured partition (stars/) AND a "queue" unstructured partition.
+            // These are library volumes with a queue/ inbox subfolder.
+            var conventionalWithQueueTypes = cfg.structures().stream()
+                    .filter(s -> s.structuredPartition() != null &&
+                                 s.unstructuredPartitions() != null &&
+                                 s.unstructuredPartitions().stream().anyMatch(p -> "queue".equals(p.id())))
+                    .map(s -> s.id())
+                    .collect(Collectors.toSet());
+            // Pool volumes: no structured partition, primary partition is "queue" (pure intake volumes).
+            var queueOnlyTypes = cfg.structures().stream()
+                    .filter(s -> s.structuredPartition() == null &&
+                                 s.unstructuredPartitions() != null &&
                                  s.unstructuredPartitions().stream().anyMatch(p -> "queue".equals(p.id())))
                     .map(s -> s.id())
                     .collect(Collectors.toSet());
             var pool = cfg.volumes().stream()
-                    .filter(v -> "unsorted".equals(v.id()) && queueStructureTypes.contains(v.structureType()))
-                    .map(v -> Map.of("id", v.id()))
+                    .filter(v -> queueOnlyTypes.contains(v.structureType()))
+                    .map(v -> Map.of("id", (Object) v.id(), "smbPath", (Object) v.smbPath()))
                     .findFirst()
                     .orElse(null);
             var volumes = cfg.volumes().stream()
-                    .filter(v -> !"unsorted".equals(v.id()) && queueStructureTypes.contains(v.structureType()))
-                    .map(v -> Map.of("id", v.id()))
+                    .filter(v -> conventionalWithQueueTypes.contains(v.structureType()))
+                    .map(v -> Map.of("id", (Object) v.id(), "smbPath", (Object) v.smbPath()))
                     .toList();
             var result = new LinkedHashMap<String, Object>();
             if (pool != null) result.put("pool", pool);

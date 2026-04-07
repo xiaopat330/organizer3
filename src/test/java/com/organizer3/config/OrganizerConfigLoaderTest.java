@@ -81,15 +81,15 @@ class OrganizerConfigLoaderTest {
     void conventional_hasSyncQueueAndSyncAll() {
         var syncCfg = config.findSyncConfigForStructure("conventional").orElseThrow();
         var terms = syncCfg.commands().stream().map(c -> c.term()).toList();
-        assertTrue(terms.contains("sync-queue"));
-        assertTrue(terms.contains("sync-all"));
+        assertTrue(terms.contains("sync queue"));
+        assertTrue(terms.contains("sync all"));
     }
 
     @Test
     void syncQueue_isPartitionOperation_withQueuePartition() {
         var def = config.findSyncConfigForStructure("conventional").orElseThrow()
                 .commands().stream()
-                .filter(c -> c.term().equals("sync-queue"))
+                .filter(c -> c.term().equals("sync queue"))
                 .findFirst().orElseThrow();
         assertEquals(SyncOperationType.PARTITION, def.operation());
         assertTrue(def.partitions().contains("queue"));
@@ -99,7 +99,7 @@ class OrganizerConfigLoaderTest {
     void syncAll_isFullOperation() {
         var def = config.findSyncConfigForStructure("conventional").orElseThrow()
                 .commands().stream()
-                .filter(c -> c.term().equals("sync-all"))
+                .filter(c -> c.term().equals("sync all"))
                 .findFirst().orElseThrow();
         assertEquals(SyncOperationType.FULL, def.operation());
     }
@@ -109,7 +109,7 @@ class OrganizerConfigLoaderTest {
         var syncCfg = config.findSyncConfigForStructure("queue").orElseThrow();
         var terms = syncCfg.commands().stream().map(c -> c.term()).toList();
         assertTrue(terms.contains("sync"));
-        assertTrue(terms.contains("sync-all"));
+        assertTrue(terms.contains("sync all"));
     }
 
     @Test

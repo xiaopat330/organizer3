@@ -106,10 +106,10 @@ structures:
 syncConfig:
   - structureType: conventional
     commands:
-      - term: sync-queue
+      - term: sync queue
         operation: partition
         partitions: [queue]
-      - term: sync-all
+      - term: sync all
         operation: full
 ```
 
@@ -191,9 +191,9 @@ Four structure types are defined in config:
 
 | Type | Stars layout | Sync |
 |---|---|---|
-| `conventional` | Tiered sub-folders under `stars/` | `sync-all` (full), `sync-queue` (partition) |
-| `queue` | No stars | `sync` / `sync-all` (full) |
-| `stars-flat` | Actress folders directly under `stars/`, no tier sub-folders | `sync-all` (full) |
+| `conventional` | Tiered sub-folders under `stars/` | `sync all` (full), `sync queue` (partition) |
+| `queue` | No stars | `sync` / `sync all` (full) |
+| `stars-flat` | Actress folders directly under `stars/`, no tier sub-folders | `sync all` (full) |
 | `collections` | No stars, all unstructured partitions | Not yet implemented |
 
 For `stars-flat`, all actresses are stored with tier `LIBRARY` in the DB regardless of title count, because there is no tier information encoded in the folder structure.
@@ -383,12 +383,12 @@ Example: `data/covers/ABP/ABP-00123.jpg`. The directory is gitignored. Path is d
 
 | Command | Requires Mount | Description |
 |---------|---------------|-------------|
-| `scan-covers` | Yes | Collect cover images from the mounted volume's stars partitions |
+| `sync covers` | Yes | Collect cover images from the mounted volume's stars partitions |
 | `prune-covers` | No | Remove orphaned covers whose baseCode matches no title in the DB |
 
 ### Discovery
 
-For each title folder, `scan-covers` lists files and filters by image extension (`jpg`, `jpeg`, `png`, `webp`, `gif`, `bmp`, `tiff`). If exactly one image is found, it is used. Multiple images: first alphabetically is chosen (warning logged). No images: title is skipped (warning logged).
+For each title folder, `sync covers` lists files and filters by image extension (`jpg`, `jpeg`, `png`, `webp`, `gif`, `bmp`, `tiff`). If exactly one image is found, it is used. Multiple images: first alphabetically is chosen (warning logged). No images: title is skipped (warning logged).
 
 ### Deduplication
 

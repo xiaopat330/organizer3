@@ -58,8 +58,8 @@ class SyncCommandTest {
                                 List.of(new PartitionDef("queue", "fresh")), null)),
                 List.of(
                         new StructureSyncConfig("conventional", List.of(
-                                new SyncCommandDef("sync-queue", SyncOperationType.PARTITION, List.of("queue")),
-                                new SyncCommandDef("sync-all", SyncOperationType.FULL, null)
+                                new SyncCommandDef("sync queue", SyncOperationType.PARTITION, List.of("queue")),
+                                new SyncCommandDef("sync all", SyncOperationType.FULL, null)
                         )),
                         new StructureSyncConfig("queue", List.of(
                                 new SyncCommandDef("sync", SyncOperationType.FULL, null)
@@ -82,8 +82,8 @@ class SyncCommandTest {
 
     @Test
     void noVolumeMounted_printsError() {
-        SyncCommand cmd = new SyncCommand("sync-all", Set.of("conventional"), operation);
-        cmd.execute(new String[]{"sync-all"}, ctx, io);
+        SyncCommand cmd = new SyncCommand("sync all", Set.of("conventional"), operation);
+        cmd.execute(new String[]{"sync all"}, ctx, io);
 
         assertTrue(output.toString().contains("No volume mounted"));
         verifyNoInteractions(operation);
@@ -92,9 +92,9 @@ class SyncCommandTest {
     @Test
     void volumeMountedButNotConnected_printsError() {
         ctx.setMountedVolume(CONVENTIONAL_VOL);
-        SyncCommand cmd = new SyncCommand("sync-all", Set.of("conventional"), operation);
+        SyncCommand cmd = new SyncCommand("sync all", Set.of("conventional"), operation);
 
-        cmd.execute(new String[]{"sync-all"}, ctx, io);
+        cmd.execute(new String[]{"sync all"}, ctx, io);
 
         assertTrue(output.toString().contains("not connected"));
         verifyNoInteractions(operation);
@@ -104,9 +104,9 @@ class SyncCommandTest {
     void wrongStructureType_printsError() {
         ctx.setMountedVolume(QUEUE_VOL);
         ctx.setActiveConnection(connection);
-        SyncCommand cmd = new SyncCommand("sync-queue", Set.of("conventional"), operation);
+        SyncCommand cmd = new SyncCommand("sync queue", Set.of("conventional"), operation);
 
-        cmd.execute(new String[]{"sync-queue"}, ctx, io);
+        cmd.execute(new String[]{"sync queue"}, ctx, io);
 
         assertTrue(output.toString().contains("not available"));
         verifyNoInteractions(operation);
@@ -116,9 +116,9 @@ class SyncCommandTest {
     void correctStructureType_delegatesToOperation() throws IOException {
         ctx.setMountedVolume(CONVENTIONAL_VOL);
         ctx.setActiveConnection(connection);
-        SyncCommand cmd = new SyncCommand("sync-all", Set.of("conventional"), operation);
+        SyncCommand cmd = new SyncCommand("sync all", Set.of("conventional"), operation);
 
-        cmd.execute(new String[]{"sync-all"}, ctx, io);
+        cmd.execute(new String[]{"sync all"}, ctx, io);
 
         verify(operation).execute(eq(CONVENTIONAL_VOL), eq(CONVENTIONAL_STRUCTURE),
                 any(VolumeFileSystem.class), eq(ctx), any(CommandIO.class));
@@ -128,11 +128,11 @@ class SyncCommandTest {
     void operationThrowsIOException_printsError() throws IOException {
         ctx.setMountedVolume(CONVENTIONAL_VOL);
         ctx.setActiveConnection(connection);
-        SyncCommand cmd = new SyncCommand("sync-all", Set.of("conventional"), operation);
+        SyncCommand cmd = new SyncCommand("sync all", Set.of("conventional"), operation);
         doThrow(new IOException("disk read error"))
                 .when(operation).execute(any(), any(), any(), any(), any());
 
-        cmd.execute(new String[]{"sync-all"}, ctx, io);
+        cmd.execute(new String[]{"sync all"}, ctx, io);
 
         assertTrue(output.toString().contains("Sync failed"));
         assertTrue(output.toString().contains("disk read error"));
@@ -140,7 +140,7 @@ class SyncCommandTest {
 
     @Test
     void name_returnsConfiguredTerm() {
-        SyncCommand cmd = new SyncCommand("sync-queue", Set.of("conventional"), operation);
-        assertEquals("sync-queue", cmd.name());
+        SyncCommand cmd = new SyncCommand("sync queue", Set.of("conventional"), operation);
+        assertEquals("sync queue", cmd.name());
     }
 }

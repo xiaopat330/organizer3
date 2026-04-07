@@ -48,7 +48,7 @@ public class ScanCoversCommand implements Command {
 
     @Override
     public String name() {
-        return "scan-covers";
+        return "sync covers";
     }
 
     @Override

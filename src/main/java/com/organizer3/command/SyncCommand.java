@@ -15,8 +15,8 @@ import java.util.Set;
 /**
  * Executes a sync operation against the currently mounted volume.
  *
- * <p>One {@code SyncCommand} instance is registered per term (e.g., {@code sync-queue},
- * {@code sync-all}) at startup, derived from the {@code syncConfig} section of
+ * <p>One {@code SyncCommand} instance is registered per term (e.g., {@code sync queue},
+ * {@code sync all}) at startup, derived from the {@code syncConfig} section of
  * {@code organizer-config.yaml}. Each instance is bound to a specific
  * {@link SyncOperation} and the set of structure types for which it is valid.
  *

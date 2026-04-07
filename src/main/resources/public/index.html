@@ -558,7 +558,8 @@
   <div class="grid" id="detail-title-grid"></div>
 </div>
 
-<!-- Queue browse grid -->
+<!-- Queue browse header + grid -->
+<div id="queue-header" style="display:none; padding: 10px 20px 0; font-size: 0.78rem; color: #555; font-family: ui-monospace, monospace; letter-spacing: 0.03em;"></div>
 <div id="queue-grid" class="grid" style="display:none"></div>
 
 <div id="status">loading</div>
@@ -601,6 +602,7 @@
     document.getElementById('actress-grid').style.display = 'none';
     document.getElementById('actress-detail').style.display = 'none';
     document.getElementById('queue-grid').style.display = 'none';
+    document.getElementById('queue-header').style.display = 'none';
     actressesBtn.classList.remove('active');
     closeQueuesDropdown();
     selectedPrefix = null;
@@ -801,6 +803,8 @@
   async function loadActressGrid(url) {
     document.getElementById('grid').style.display = 'none';
     document.getElementById('actress-detail').style.display = 'none';
+    document.getElementById('queue-grid').style.display = 'none';
+    document.getElementById('queue-header').style.display = 'none';
     document.getElementById('sentinel')?.remove();
     setStatus('loading');
 
@@ -918,6 +922,8 @@
 
     document.getElementById('grid').style.display = 'none';
     document.getElementById('actress-grid').style.display = 'none';
+    document.getElementById('queue-grid').style.display = 'none';
+    document.getElementById('queue-header').style.display = 'none';
     document.getElementById('actress-detail').style.display = 'block';
     document.getElementById('detail-title-grid').innerHTML = '';
     document.getElementById('detail-cover').innerHTML = '';
@@ -1041,6 +1047,7 @@
       const chip = document.createElement('div');
       chip.className = 'prefix-chip';
       chip.textContent = data.pool.id;
+      chip.addEventListener('click', () => openQueueView(data.pool.id, data.pool.smbPath));
       poolCol.appendChild(chip);
     }
     queuesDropdown.appendChild(poolCol);
@@ -1063,7 +1070,7 @@
       const chip = document.createElement('div');
       chip.className = 'prefix-chip';
       chip.textContent = v.id;
-      chip.addEventListener('click', () => openQueueView(v.id));
+      chip.addEventListener('click', () => openQueueView(v.id, v.smbPath));
       volCol.appendChild(chip);
     }
     queuesDropdown.appendChild(volCol);
@@ -1071,12 +1078,14 @@
 
   // ── Queue browse (infinite scroll) ───────────────────────────────────────
   let queueVolumeId   = null;
+  let queueSmbPath    = null;
   let queueOffset     = 0;
   let queueLoading    = false;
   let queueExhausted  = false;
 
-  async function openQueueView(volumeId) {
+  async function openQueueView(volumeId, smbPath) {
     queueVolumeId  = volumeId;
+    queueSmbPath   = smbPath || null;
     queueOffset    = 0;
     queueLoading   = false;
     queueExhausted = false;
@@ -1088,6 +1097,11 @@
     document.getElementById('grid').style.display = 'none';
     document.getElementById('actress-grid').style.display = 'none';
     document.getElementById('actress-detail').style.display = 'none';
+
+    const queueHeader = document.getElementById('queue-header');
+    queueHeader.textContent = queueSmbPath ? `${queueSmbPath}/queue` : `${volumeId}/queue`;
+    queueHeader.style.display = 'block';
+
     const queueGrid = document.getElementById('queue-grid');
     queueGrid.innerHTML = '';
     queueGrid.style.display = 'grid';
@@ -1118,7 +1132,10 @@
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const titles = await res.json();
       const grid = document.getElementById('queue-grid');
-      for (const t of titles) grid.appendChild(makeTitleCard(t));
+      for (const t of titles) {
+        if (queueSmbPath && t.location) t.location = queueSmbPath + t.location;
+        grid.appendChild(makeTitleCard(t));
+      }
       queueOffset += titles.length;
       if (titles.length < limit || queueOffset >= MAX_TOTAL) {
         queueExhausted = true;

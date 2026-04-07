@@ -19,6 +19,8 @@ import java.io.IOException;
 import java.nio.file.Path;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.List;
 
 /**
@@ -63,6 +65,8 @@ abstract class AbstractSyncOperation implements SyncOperation {
 
     /**
      * Scans an unstructured partition: immediate child directories are title folders.
+     * When {@code actressId} is null, attempts to infer the actress from each folder name
+     * (e.g., "Marin Yakuno (IPZZ-679)" → actress "Marin Yakuno").
      * Returns the number of titles saved.
      */
     protected int scanUnstructuredPartition(Path partitionRoot, String partitionId,
@@ -81,7 +85,11 @@ abstract class AbstractSyncOperation implements SyncOperation {
         try (Progress progress = io.startProgress(partitionId + "/", titleFolders.size())) {
             for (Path child : titleFolders) {
                 progress.setLabel(child.getFileName().toString());
-                saveTitleAndVideos(child, volumeId, partitionId, actressId, fs);
+                Long resolvedActressId = actressId;
+                if (resolvedActressId == null) {
+                    resolvedActressId = inferActressFromFolderName(child.getFileName().toString());
+                }
+                saveTitleAndVideos(child, volumeId, partitionId, resolvedActressId, fs);
                 progress.advance();
             }
         }
@@ -227,6 +235,36 @@ abstract class AbstractSyncOperation implements SyncOperation {
                 }
             }
         }
+    }
+
+    // Matches "Actress Name (CODE-123)" or "Actress Name - Suffix (CODE-123)"
+    private static final Pattern ACTRESS_PREFIX = Pattern.compile(
+            "^(.+?)\\s*(?:-\\s*[^(]+)?\\s*\\(");
+
+    /**
+     * Extracts the actress name from a folder name like "Marin Yakuno (IPZZ-679)".
+     * For multi-actress folders (comma-separated), returns only the first actress name.
+     * Returns null if no name can be extracted.
+     */
+    static String extractActressName(String folderName) {
+        Matcher m = ACTRESS_PREFIX.matcher(folderName);
+        if (!m.find()) return null;
+        String rawName = m.group(1).trim();
+        if (rawName.isEmpty()) return null;
+        int comma = rawName.indexOf(',');
+        if (comma > 0) rawName = rawName.substring(0, comma).trim();
+        return rawName;
+    }
+
+    /**
+     * Extracts the actress name from a folder name and resolves (or creates) it via the
+     * alias system. New actresses discovered in queue folders default to {@code LIBRARY} tier.
+     * Returns null if no actress name can be extracted.
+     */
+    private Long inferActressFromFolderName(String folderName) {
+        String name = extractActressName(folderName);
+        if (name == null) return null;
+        return resolveOrCreateActress(name, Actress.Tier.LIBRARY).getId();
     }
 
     /**

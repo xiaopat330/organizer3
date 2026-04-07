@@ -148,8 +148,8 @@ Some commands require an active mounted volume (filesystem access). Others work 
 | `mount <id>` | — | ✅ | Authenticate and activate a volume as the current context |
 | `unmount` | No | ✅ | Disconnect from the current volume |
 | `sync` | Yes | ✅ | Full sync (queue volumes) |
-| `sync-all` | Yes | ✅ | Full sync for conventional and queue volumes |
-| `sync-queue` | Yes | ✅ | Partition-scoped sync (queue partition only, conventional volumes) |
+| `sync all` | Yes | ✅ | Full sync for conventional and queue volumes |
+| `sync queue` | Yes | ✅ | Partition-scoped sync (queue partition only, conventional volumes) |
 | `actresses <tier>` | No | ✅ | List actresses in a tier with title counts, sorted by most to least |
 | `favorites` | No | ✅ | List all favorited actresses with title counts |
 | `arm` | No | ⬜ | Switch to live/real mode |
@@ -306,11 +306,11 @@ Current bindings:
 
 | Structure type | Term | Operation | Scope |
 |----------------|------|-----------|-------|
-| conventional | `sync-queue` | PARTITION | `queue` partition only |
-| conventional | `sync-all` | FULL | entire volume |
-| stars-flat | `sync-all` | FULL | entire volume |
+| conventional | `sync queue` | PARTITION | `queue` partition only |
+| conventional | `sync all` | FULL | entire volume |
+| stars-flat | `sync all` | FULL | entire volume |
 | queue | `sync` | FULL | entire volume |
-| queue | `sync-all` | FULL | same as `sync` (alias) |
+| queue | `sync all` | FULL | same as `sync` (alias) |
 | collections | *(none)* | — | not yet implemented |
 
 To add a new sync term, add an entry under `syncConfig` in the YAML. No Java changes needed.

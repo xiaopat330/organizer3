@@ -48,18 +48,15 @@ public class TitleBrowseService {
      *
      * <p>Queue titles are synced without an actress_id. For each one, we attempt to infer
      * the actress by finding another title in the DB with the same base_code that has already
-     * been attributed (e.g. a stars copy on another volume).
+     * been attributed (e.g. a stars copy on another volume). Only exact base_code matches
+     * are used — label-based guessing produced too many false positives.
      */
     public List<TitleSummary> findByVolumeQueue(String volumeId, int offset, int limit) {
         limit = Math.min(limit, MAX_LIMIT);
         List<Title> titles = titleRepo.findByVolumeAndPartition(volumeId, "queue", limit, offset);
 
-        // Build actress inference maps for unattributed titles.
-        // Pass 1: exact base_code match — finds the actress if the same title exists in stars.
-        // Pass 2: dominant-actress-by-label fallback — covers new titles where the label maps
-        //         to one actress in the library (common in personal collections).
+        // Infer actress for unattributed titles via exact base_code match only.
         Map<String, Long> actressIdByBaseCode = new HashMap<>();
-        Map<String, Long> actressIdByLabel    = new HashMap<>();
 
         titles.stream()
                 .filter(t -> t.actressId() == null)
@@ -70,20 +67,13 @@ public class TitleBrowseService {
                                 .findFirst()
                                 .ifPresent(other -> actressIdByBaseCode.put(t.baseCode(), other.actressId()));
                     }
-                    if (t.label() != null
-                            && !actressIdByBaseCode.containsKey(t.baseCode())
-                            && !actressIdByLabel.containsKey(t.label())) {
-                        titleRepo.findDominantActressForLabel(t.label())
-                                .ifPresent(id -> actressIdByLabel.put(t.label(), id));
-                    }
                 });
 
-        if (!actressIdByBaseCode.isEmpty() || !actressIdByLabel.isEmpty()) {
+        if (!actressIdByBaseCode.isEmpty()) {
             titles = titles.stream()
                     .map(t -> {
                         if (t.actressId() != null) return t;
                         Long inferred = t.baseCode() != null ? actressIdByBaseCode.get(t.baseCode()) : null;
-                        if (inferred == null && t.label() != null) inferred = actressIdByLabel.get(t.label());
                         return inferred != null
                                 ? new Title(t.id(), t.code(), t.baseCode(), t.label(), t.seqNum(),
                                         t.volumeId(), t.partitionId(), inferred,

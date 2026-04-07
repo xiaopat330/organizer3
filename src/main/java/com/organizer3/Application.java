@@ -111,7 +111,7 @@ public class Application {
         commands.add(new PruneCoversCommand(titleRepo, coverPath));
 
         // Sync commands — registered dynamically from syncConfig.
-        // Group by term so that a term shared across structure types (e.g. sync-all)
+        // Group by term so that a term shared across structure types (e.g. sync all)
         // produces a single command that accepts all of those types.
         Map<String, SyncCommandDef> defByTerm = new HashMap<>();
         Map<String, Set<String>> structureTypesByTerm = new HashMap<>();
@@ -135,12 +135,12 @@ public class Application {
             };
             SyncCommand syncCmd = new SyncCommand(term, structureTypesByTerm.get(term), op);
             commands.add(syncCmd);
-            if ("sync-all".equals(term)) syncAllCommand = syncCmd;
+            if ("sync all".equals(term)) syncAllCommand = syncCmd;
         }
 
         if (syncAllCommand != null) {
             ScanCoversCommand scanCovers = (ScanCoversCommand) commands.stream()
-                    .filter(c -> "scan-covers".equals(c.name()))
+                    .filter(c -> "sync covers".equals(c.name()))
                     .findFirst().orElseThrow();
             commands.add(new RebuildCommand(syncAllCommand, scanCovers));
         }

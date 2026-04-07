@@ -98,7 +98,7 @@ public class MountCommand implements Command {
         VolumeIndex index = indexLoader.load(volumeId);
         ctx.setIndex(index);
         if (index.titleCount() == 0) {
-            io.println("No index found for volume '" + volumeId + "' — run sync-all to build it.");
+            io.println("No index found for volume '" + volumeId + "' — run 'sync all' to build it.");
         } else {
             io.println("Loaded index: " + index.titleCount() + " title(s), "
                     + index.actressCount() + " actress(es).");

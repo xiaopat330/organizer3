@@ -37,7 +37,7 @@ com.organizer3
 
 **Implemented:**
 - Interactive shell (JLine3), prompt with dry-run/volume indicators
-- `mount`, `unmount`, `volumes`, `sync`/`sync-all`/`sync-queue`, `actresses`, `favorites`, `scan-covers`, `prune-covers`, `help`, `shutdown`
+- `mount`, `unmount`, `volumes`, `sync`/`sync all`/`sync queue`, `actresses`, `favorites`, `sync covers`, `prune-covers`, `help`, `shutdown`
 - Full and partition-scoped sync via SMB with progress display
 - Actress resolution through aliases during sync
 - Persistence layer: all repositories, 4-migration schema

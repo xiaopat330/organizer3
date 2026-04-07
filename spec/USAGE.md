@@ -50,7 +50,7 @@ If the volume has never been synced:
 
 ```
 organizer > mount unsorted
-No index found for volume 'unsorted' — run sync-all to build it.
+No index found for volume 'unsorted' — run 'sync all' to build it.
 Connected. Volume 'unsorted' is now active.
 ```
 
@@ -68,12 +68,12 @@ organizer [*DRYRUN*] >
 
 ---
 
-### `sync-all`
+### `sync all`
 
 Full sync for the currently mounted volume. Clears all existing title/video records for the volume and re-scans from the filesystem. Available for `conventional` and `stars-flat` volumes.
 
 ```
-organizer:vol-a > sync-all
+organizer:vol-a > sync all
 Syncing a (full) ...
   Scanning queue/ ...
   Scanning stars/library/ ...
@@ -88,12 +88,12 @@ Sync complete.
 
 ---
 
-### `sync-queue`
+### `sync queue`
 
 Partition-scoped sync — rescans only the `queue/` partition on a `conventional` volume. Faster than a full sync when you only have new intake to index.
 
 ```
-organizer:vol-a > sync-queue
+organizer:vol-a > sync queue
 ```
 
 ---
@@ -157,8 +157,8 @@ Available commands:
   mount            Connect to a volume and activate it as the current context. Usage: mount <id>
   shutdown         Shut down the application
   sync             Sync the current volume's database index from the filesystem.
-  sync-all         Sync the current volume's database index from the filesystem.
-  sync-queue       Sync the current volume's database index from the filesystem.
+  sync all         Sync the current volume's database index from the filesystem.
+  sync queue       Sync the current volume's database index from the filesystem.
   unmount          Disconnect from the current volume and clear the session context.
   volumes          List all configured volumes with connection and sync status
 ```
@@ -177,7 +177,7 @@ Exits the shell. Ctrl+D also exits gracefully.
 
 ```
 organizer > mount unsorted
-No index found for volume 'unsorted' — run sync-all to build it.
+No index found for volume 'unsorted' — run 'sync all' to build it.
 Connected. Volume 'unsorted' is now active.
 
 organizer:vol-unsorted > sync
@@ -190,13 +190,13 @@ Sync complete.
 ### Refreshing the index after filesystem changes
 
 ```
-organizer:vol-a > sync-all
+organizer:vol-a > sync all
 ```
 
 Or, if only the queue changed:
 
 ```
-organizer:vol-a > sync-queue
+organizer:vol-a > sync queue
 ```
 
 ### Browsing the actress database
