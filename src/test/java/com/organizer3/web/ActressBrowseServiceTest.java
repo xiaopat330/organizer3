@@ -229,7 +229,7 @@ class ActressBrowseServiceTest {
         when(labelRepo.findAllAsMap()).thenReturn(
                 Map.of("ABP", new Label("ABP", "Absolutely Perfect", "Prestige")));
 
-        TitleSummary s = service.findTitlesByActress(1L, 0, 24).get(0);
+        TitleSummary s = service.findTitlesByActress(1L, 0, 24, null).get(0);
         assertEquals("Prestige", s.getCompanyName());
         assertEquals("Absolutely Perfect", s.getLabelName());
         assertEquals(1L, s.getActressId());

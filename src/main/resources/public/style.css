@@ -8,16 +8,17 @@ body {
 }
 
 header {
-  padding: 14px 20px;
+  padding: 14px 20px 0;
   border-bottom: 1px solid #1e1e1e;
   position: sticky;
   top: 0;
   background: #0d0d0d;
   z-index: 10;
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  gap: 16px;
+  gap: 0 16px;
 }
 
 header h1 {
@@ -28,6 +29,7 @@ header h1 {
   text-transform: lowercase;
   flex-shrink: 0;
   cursor: pointer;
+  padding-bottom: 14px;
 }
 
 header h1:hover {
@@ -38,6 +40,53 @@ header h1:hover {
   display: flex;
   align-items: center;
   gap: 8px;
+  padding-bottom: 14px;
+}
+
+/* Breadcrumb row */
+#breadcrumb {
+  width: 100%;
+  display: none;
+  align-items: center;
+  gap: 0;
+  padding: 0 0 10px;
+  font-size: 0.72rem;
+  letter-spacing: 0.03em;
+}
+
+#breadcrumb.visible {
+  display: flex;
+}
+
+#breadcrumb .crumb {
+  color: #555;
+  cursor: pointer;
+  transition: color 0.12s ease;
+}
+
+#breadcrumb .crumb:hover {
+  color: #aaa;
+}
+
+#breadcrumb .crumb-home {
+  color: #ffffff;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+}
+
+#breadcrumb .crumb-home:hover {
+  color: #ccc;
+}
+
+#breadcrumb .crumb-sep {
+  color: #333;
+  margin: 0 8px;
+  user-select: none;
+}
+
+#breadcrumb .crumb-current {
+  color: #888;
+  font-weight: 600;
 }
 
 .nav-link {
@@ -420,7 +469,7 @@ header h1:hover {
 
 .actress-detail-panel {
   position: sticky;
-  top: 49px; /* height of header */
+  top: 49px;
   z-index: 5;
   background: #0d0d0d;
   border-bottom: 1px solid #1e1e1e;
@@ -512,6 +561,8 @@ header h1:hover {
   justify-content: center;
   border-left: 1px solid #1e1e1e;
   min-width: 140px;
+  max-height: 260px;
+  overflow-y: auto;
 }
 
 .detail-section-label {
@@ -563,6 +614,59 @@ header h1:hover {
 
 .detail-alias-item:hover {
   color: #c0c0c0;
+}
+
+/* ── Alias badges (in detail info section) ────────────────────────────── */
+
+.detail-alias-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.detail-alias-label {
+  font-size: 0.65rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #555;
+  margin-right: 2px;
+}
+
+.alias-badge {
+  font-size: 0.63rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  border-radius: 3px;
+  padding: 2px 7px;
+  color: #7a8a7a;
+  background: #141a14;
+  cursor: pointer;
+  transition: color 0.12s ease, background 0.12s ease;
+  user-select: none;
+}
+
+.alias-badge:hover {
+  color: #a0c0a0;
+  background: #1a241a;
+}
+
+.primary-badge {
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  border-radius: 3px;
+  padding: 2px 8px;
+  color: #d04040;
+  background: #200808;
+  cursor: pointer;
+  transition: color 0.12s ease, background 0.12s ease;
+  user-select: none;
+}
+
+.primary-badge:hover {
+  color: #f06060;
+  background: #2a0c0c;
 }
 
 #status {

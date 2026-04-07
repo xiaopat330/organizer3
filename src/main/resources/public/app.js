@@ -63,6 +63,60 @@ function makeLabel(text) {
   });
 }
 
+// ── Breadcrumb ───────────────────────────────────────────────────────────
+// segments: [{ label, action? }] — last segment has no action (current page)
+function updateBreadcrumb(segments) {
+  const el = document.getElementById('breadcrumb');
+  el.innerHTML = '';
+  if (segments.length === 0) {
+    el.classList.remove('visible');
+    updateDetailPanelTop();
+    return;
+  }
+  el.classList.add('visible');
+
+  // Prepend Home crumb
+  const home = document.createElement('span');
+  home.className = 'crumb crumb-home';
+  home.innerHTML = '&#x1F3E0; HOME';
+  home.addEventListener('click', showTitlesView);
+  el.appendChild(home);
+  const homeSep = document.createElement('span');
+  homeSep.className = 'crumb-sep';
+  homeSep.textContent = '›';
+  el.appendChild(homeSep);
+
+  segments.forEach((seg, i) => {
+    const isLast = i === segments.length - 1;
+    const span = document.createElement('span');
+    if (isLast) {
+      span.className = 'crumb-current';
+      span.textContent = seg.label;
+    } else {
+      span.className = 'crumb';
+      span.textContent = seg.label;
+      if (seg.action) span.addEventListener('click', seg.action);
+    }
+    el.appendChild(span);
+    if (!isLast) {
+      const sep = document.createElement('span');
+      sep.className = 'crumb-sep';
+      sep.textContent = '›';
+      el.appendChild(sep);
+    }
+  });
+  updateDetailPanelTop();
+}
+
+function updateDetailPanelTop() {
+  requestAnimationFrame(() => {
+    const header = document.querySelector('header');
+    if (header) {
+      document.querySelector('.actress-detail-panel').style.top = header.offsetHeight + 'px';
+    }
+  });
+}
+
 // ── View management ───────────────────────────────────────────────────────
 // Each key maps to the IDs that should be visible in that view.
 const VIEWS = {
@@ -297,6 +351,7 @@ function showTitlesView() {
   selectedPrefix = null;
   selectedTier   = null;
   prefixDropdown.querySelectorAll('.prefix-chip').forEach(c => c.classList.remove('selected'));
+  updateBreadcrumb([]);
 }
 
 // ── Actress browse ────────────────────────────────────────────────────────
@@ -361,6 +416,18 @@ async function populatePrefixDropdown() {
   prefixDropdown.appendChild(prefixCol);
 }
 
+async function reSelectPrefix(prefix) {
+  if (prefixDropdown.childElementCount === 0) await populatePrefixDropdown();
+  const chip = prefixDropdown.querySelector(`.prefix-chip[data-prefix="${prefix}"]`);
+  if (chip) selectPrefix(prefix, chip);
+}
+
+async function reSelectTier(tier) {
+  if (prefixDropdown.childElementCount === 0) await populatePrefixDropdown();
+  const chip = prefixDropdown.querySelector(`.prefix-chip[data-tier="${tier}"]`);
+  if (chip) selectTier(tier, chip);
+}
+
 function clearDropdownSelection() {
   prefixDropdown.querySelectorAll('.prefix-chip').forEach(c => c.classList.remove('selected'));
 }
@@ -392,6 +459,10 @@ async function selectPrefix(prefix, chip) {
   actressesBtn.classList.add('active');
   clearDropdownSelection();
   chip.classList.add('selected');
+  updateBreadcrumb([
+    { label: 'Actresses', action: () => actressesBtn.click() },
+    { label: prefix },
+  ]);
   await loadActressGrid(`/api/actresses?prefix=${encodeURIComponent(prefix)}`);
 }
 
@@ -402,6 +473,10 @@ async function selectTier(tier, chip) {
   actressesBtn.classList.add('active');
   clearDropdownSelection();
   chip.classList.add('selected');
+  updateBreadcrumb([
+    { label: 'Actresses', action: () => actressesBtn.click() },
+    { label: tier.toLowerCase() },
+  ]);
   await loadActressGrid(`/api/actresses?tier=${encodeURIComponent(tier)}`);
 }
 
@@ -419,10 +494,27 @@ async function openActressDetail(actressId) {
   ensureSentinel();
   setStatus('loading');
 
+  // Build breadcrumbs — include prefix/tier context if we came from the actress grid
+  const crumbs = [{ label: 'Actresses', action: () => actressesBtn.click() }];
+  if (selectedPrefix) {
+    const p = selectedPrefix;
+    crumbs.push({ label: p, action: () => reSelectPrefix(p) });
+  } else if (selectedTier) {
+    const t = selectedTier;
+    crumbs.push({ label: t.toLowerCase(), action: () => reSelectTier(t) });
+  }
+  // Actress name added after fetch below; placeholder for now
+  crumbs.push({ label: '...' });
+  updateBreadcrumb(crumbs);
+
   try {
     const res = await fetch(`/api/actresses/${actressId}`);
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    renderDetailPanel(await res.json());
+    const data = await res.json();
+    renderDetailPanel(data);
+    // Update breadcrumb with actual name
+    crumbs[crumbs.length - 1] = { label: data.canonicalName };
+    updateBreadcrumb(crumbs);
   } catch (err) {
     setStatus('error loading actress');
     console.error(err);
@@ -446,6 +538,24 @@ function renderDetailPanel(a) {
   const pathsHtml = (a.folderPaths || []).length > 0
     ? `<div class="detail-paths">${a.folderPaths.map(p => `<div class="detail-path">${esc(p)}</div>`).join('')}</div>` : '';
 
+  const aliases = a.aliases || [];
+  let aliasHtml = '';
+  if (a.primaryName) {
+    // This actress identity is an alias — show who she's primarily known as
+    const { first: pFirst, last: pLast } = splitName(a.primaryName);
+    const pNameHtml = pLast ? `${esc(pFirst)} ${esc(pLast)}` : esc(pFirst);
+    aliasHtml = `<div class="detail-alias-row">
+      <span class="detail-alias-label">Primarily known as</span>
+      <span class="primary-badge" data-actress-id="${a.primaryId || ''}">${pNameHtml}</span>
+    </div>`;
+  } else if (aliases.length > 0) {
+    // This is the primary identity — show her aliases
+    aliasHtml = `<div class="detail-alias-row">
+      <span class="detail-alias-label">Also known as</span>
+      ${aliases.map(al => `<span class="alias-badge">${esc(al)}</span>`).join('')}
+    </div>`;
+  }
+
   document.getElementById('detail-info').innerHTML = `
     <div class="detail-name">
       <span class="detail-first-name">${esc(firstName)}</span>
@@ -455,6 +565,7 @@ function renderDetailPanel(a) {
       <span class="tier-badge tier-${esc(a.tier)}">${esc(a.tier.toLowerCase())}</span>
       ${a.favorite ? '<div class="fav-dot"></div>' : ''}
     </div>
+    ${aliasHtml}
     ${renderDateRange(a.firstAddedDate, a.lastAddedDate, 'detail-dates')}
     ${pathsHtml}
   `;
@@ -474,11 +585,8 @@ function renderDetailPanel(a) {
     companiesEl.innerHTML = '';
   }
 
-  const aliases = a.aliases || [];
-  document.getElementById('detail-aliases').innerHTML = aliases.length > 0
-    ? `<div class="detail-section-label">Aliases</div>` +
-      aliases.map(al => `<div class="detail-alias-item">${esc(al)}</div>`).join('')
-    : '';
+  // Aliases are now shown inline in the info section; clear the side column
+  document.getElementById('detail-aliases').innerHTML = '';
 }
 
 function setDetailCompanyFilter(company) {
@@ -562,6 +670,10 @@ async function openQueueView(volumeId, smbPath) {
   showView('queue');
   document.getElementById('queue-header').textContent =
     queueSmbPath ? `${queueSmbPath}/queue` : `${volumeId}/queue`;
+  updateBreadcrumb([
+    { label: 'Queues', action: () => queuesBtn.click() },
+    { label: volumeId },
+  ]);
   activeGrid = queueGrid;
   queueGrid.reset();
   ensureSentinel();
