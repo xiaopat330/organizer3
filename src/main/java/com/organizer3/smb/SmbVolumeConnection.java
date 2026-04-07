@@ -5,8 +5,7 @@ import com.hierynomus.smbj.connection.Connection;
 import com.hierynomus.smbj.session.Session;
 import com.hierynomus.smbj.share.DiskShare;
 import com.organizer3.filesystem.VolumeFileSystem;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * Holds the live smbj resources for an active SMB connection and exposes them
@@ -14,9 +13,8 @@ import org.slf4j.LoggerFactory;
  *
  * <p>Resources are closed in order: share → session → connection → client.
  */
+@Slf4j
 class SmbVolumeConnection implements VolumeConnection {
-
-    private static final Logger log = LoggerFactory.getLogger(SmbVolumeConnection.class);
 
     private final SMBClient client;
     private final Connection connection;

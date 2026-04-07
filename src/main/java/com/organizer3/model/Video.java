@@ -1,5 +1,8 @@
 package com.organizer3.model;
 
+import lombok.Builder;
+import lombok.Getter;
+
 import java.nio.file.Path;
 import java.time.LocalDate;
 
@@ -10,10 +13,12 @@ import java.time.LocalDate;
  * <p>A title may have content split across multiple video files (multi-part releases),
  * each represented by one Video record.
  */
-public record Video(
-        Long id,
-        Long titleId,
-        String filename,
-        Path path,
-        LocalDate lastSeenAt
-) {}
+@Getter
+@Builder
+public class Video {
+    private final Long id;
+    private final Long titleId;
+    private final String filename;
+    private final Path path;
+    private final LocalDate lastSeenAt;
+}

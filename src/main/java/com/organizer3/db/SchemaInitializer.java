@@ -1,23 +1,19 @@
 package com.organizer3.db;
 
 import org.jdbi.v3.core.Jdbi;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.extern.slf4j.Slf4j;
+import lombok.RequiredArgsConstructor;
 
 /**
  * Creates the database schema from scratch.
  *
  * <p>No incremental migrations — just drop and recreate as needed during development.
  */
+@Slf4j
+@RequiredArgsConstructor
 public class SchemaInitializer {
 
-    private static final Logger log = LoggerFactory.getLogger(SchemaInitializer.class);
-
     private final Jdbi jdbi;
-
-    public SchemaInitializer(Jdbi jdbi) {
-        this.jdbi = jdbi;
-    }
 
     public void initialize() {
         log.info("Initializing database schema");

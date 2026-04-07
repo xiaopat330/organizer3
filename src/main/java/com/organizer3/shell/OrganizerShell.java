@@ -10,13 +10,12 @@ import org.jline.reader.LineReaderBuilder;
 import org.jline.reader.UserInterruptException;
 import org.jline.terminal.Terminal;
 import org.jline.terminal.TerminalBuilder;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.util.List;
 import java.util.Map;
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * The interactive REPL shell.
@@ -29,9 +28,8 @@ import java.util.Map;
  * On a dumb terminal or non-TTY (e.g. tests piping stdin), commands receive a
  * {@link PlainCommandIO} that writes directly to the terminal writer.
  */
+@Slf4j
 public class OrganizerShell {
-    private static final Logger log = LoggerFactory.getLogger(OrganizerShell.class);
-
     private final SessionContext session;
     private final Map<String, Command> commands;
     private final PromptBuilder promptBuilder;

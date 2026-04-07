@@ -4,21 +4,18 @@ import com.organizer3.repository.ActressRepository;
 import com.organizer3.repository.TitleRepository;
 import com.organizer3.shell.SessionContext;
 import com.organizer3.shell.io.CommandIO;
+import lombok.RequiredArgsConstructor;
 
 /**
  * Lists all favorited actresses with their title counts, sorted by most to least.
  *
  * <p>Usage: {@code favorites}
  */
+@RequiredArgsConstructor
 public class FavoritesCommand implements Command {
 
     private final ActressRepository actressRepo;
     private final TitleRepository titleRepo;
-
-    public FavoritesCommand(ActressRepository actressRepo, TitleRepository titleRepo) {
-        this.actressRepo = actressRepo;
-        this.titleRepo = titleRepo;
-    }
 
     @Override
     public String name() {

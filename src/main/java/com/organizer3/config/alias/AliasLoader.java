@@ -3,12 +3,11 @@ package com.organizer3.config.alias;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.List;
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * Reads and parses aliases.yaml into a list of {@link AliasYamlEntry} objects.
@@ -17,9 +16,8 @@ import java.util.List;
  * The caller (typically {@code ActressRepository.importFromYaml}) is responsible for
  * persisting the result to the DB.
  */
+@Slf4j
 public class AliasLoader {
-
-    private static final Logger log = LoggerFactory.getLogger(AliasLoader.class);
 
     private final ObjectMapper yaml = new ObjectMapper(new YAMLFactory());
 

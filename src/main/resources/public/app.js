@@ -275,10 +275,15 @@ const queueGrid = new ScrollingGrid(
 );
 
 let detailActressId = null;
+let detailCompanyFilter = null;
 
 const actressDetailGrid = new ScrollingGrid(
   document.getElementById('detail-title-grid'),
-  (o, l) => `/api/actresses/${detailActressId}/titles?offset=${o}&limit=${l}`,
+  (o, l) => {
+    let url = `/api/actresses/${detailActressId}/titles?offset=${o}&limit=${l}`;
+    if (detailCompanyFilter) url += `&company=${encodeURIComponent(detailCompanyFilter)}`;
+    return url;
+  },
   makeTitleCard,
   'no titles'
 );
@@ -403,11 +408,14 @@ async function selectTier(tier, chip) {
 // ── Actress detail ────────────────────────────────────────────────────────
 async function openActressDetail(actressId) {
   detailActressId = actressId;
+  detailCompanyFilter = null;
   showView('actress-detail');
   activeGrid = actressDetailGrid;
   actressDetailGrid.reset();
   document.getElementById('detail-cover').innerHTML = '';
   document.getElementById('detail-info').innerHTML  = '';
+  document.getElementById('detail-companies').innerHTML = '';
+  document.getElementById('detail-aliases').innerHTML = '';
   ensureSentinel();
   setStatus('loading');
 
@@ -450,6 +458,39 @@ function renderDetailPanel(a) {
     ${renderDateRange(a.firstAddedDate, a.lastAddedDate, 'detail-dates')}
     ${pathsHtml}
   `;
+
+  const companies = a.companies || [];
+  const companiesEl = document.getElementById('detail-companies');
+  if (companies.length > 0) {
+    companiesEl.innerHTML =
+      `<div class="detail-section-label">Companies</div>` +
+      `<div class="detail-all-movies selected" id="detail-all-movies">ALL MOVIES</div>` +
+      companies.map(c => `<div class="detail-company-item" data-company="${esc(c)}">${esc(c)}</div>`).join('');
+    document.getElementById('detail-all-movies').addEventListener('click', () => setDetailCompanyFilter(null));
+    companiesEl.querySelectorAll('.detail-company-item').forEach(el =>
+      el.addEventListener('click', () => setDetailCompanyFilter(el.dataset.company))
+    );
+  } else {
+    companiesEl.innerHTML = '';
+  }
+
+  const aliases = a.aliases || [];
+  document.getElementById('detail-aliases').innerHTML = aliases.length > 0
+    ? `<div class="detail-section-label">Aliases</div>` +
+      aliases.map(al => `<div class="detail-alias-item">${esc(al)}</div>`).join('')
+    : '';
+}
+
+function setDetailCompanyFilter(company) {
+  detailCompanyFilter = company;
+  const allMoviesEl = document.getElementById('detail-all-movies');
+  if (allMoviesEl) allMoviesEl.classList.toggle('selected', company === null);
+  document.querySelectorAll('.detail-company-item').forEach(el =>
+    el.classList.toggle('selected', el.dataset.company === company)
+  );
+  actressDetailGrid.reset();
+  ensureSentinel();
+  actressDetailGrid.loadMore();
 }
 
 // ── Queues browse ─────────────────────────────────────────────────────────

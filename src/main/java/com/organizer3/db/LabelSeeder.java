@@ -5,12 +5,12 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import org.jdbi.v3.core.Handle;
 import org.jdbi.v3.core.Jdbi;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.List;
+import lombok.extern.slf4j.Slf4j;
+import lombok.RequiredArgsConstructor;
 
 /**
  * Seeds the {@code labels} table from the bundled {@code labels.yaml} classpath resource.
@@ -21,16 +21,13 @@ import java.util.List;
  *   <li>{@link #reimport()} — clears all rows and re-inserts. Call when the YAML has been updated.
  * </ul>
  */
+@Slf4j
+@RequiredArgsConstructor
 public class LabelSeeder {
 
-    private static final Logger log = LoggerFactory.getLogger(LabelSeeder.class);
     private static final String RESOURCE = "/labels.yaml";
 
     private final Jdbi jdbi;
-
-    public LabelSeeder(Jdbi jdbi) {
-        this.jdbi = jdbi;
-    }
 
     /** Seeds the labels table if it is currently empty. No-op if already populated. */
     public void seedIfEmpty() {

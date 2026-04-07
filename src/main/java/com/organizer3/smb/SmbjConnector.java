@@ -7,10 +7,9 @@ import com.hierynomus.smbj.session.Session;
 import com.hierynomus.smbj.share.DiskShare;
 import com.organizer3.config.volume.ServerConfig;
 import com.organizer3.config.volume.VolumeConfig;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * Opens an authenticated SMB2/3 connection using smbj.
@@ -18,9 +17,8 @@ import java.io.IOException;
  * <p>Parses {@code smbPath} (e.g. {@code //qnap2/jav}) to extract the hostname
  * and share name, then authenticates with the username and password from config.
  */
+@Slf4j
 public class SmbjConnector implements SmbConnector {
-
-    private static final Logger log = LoggerFactory.getLogger(SmbjConnector.class);
 
     @Override
     public VolumeConnection connect(VolumeConfig volume, ServerConfig server, MountProgressListener progress)

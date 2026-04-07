@@ -425,7 +425,8 @@ header h1:hover {
   background: #0d0d0d;
   border-bottom: 1px solid #1e1e1e;
   display: grid;
-  grid-template-columns: 220px 1fr;
+  grid-template-columns: 280px 1fr 1fr 1fr;
+  padding: 12px 0;
 }
 
 .detail-cover-col {
@@ -500,6 +501,68 @@ header h1:hover {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.detail-companies-col,
+.detail-aliases-col {
+  padding: 12px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  justify-content: center;
+  border-left: 1px solid #1e1e1e;
+  min-width: 140px;
+}
+
+.detail-section-label {
+  font-size: 0.65rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #555;
+  margin-bottom: 2px;
+}
+
+.detail-all-movies {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #555;
+  letter-spacing: 0.08em;
+  cursor: pointer;
+  padding: 2px 0;
+  transition: color 0.12s ease;
+  user-select: none;
+}
+
+.detail-all-movies:hover,
+.detail-all-movies.selected {
+  color: #ffffff;
+}
+
+.detail-company-item {
+  font-size: 0.78rem;
+  color: #666;
+  cursor: pointer;
+  transition: color 0.12s ease;
+  user-select: none;
+}
+
+.detail-company-item:hover {
+  color: #c0c0c0;
+}
+
+.detail-company-item.selected {
+  color: #d8d8d8;
+  font-weight: 600;
+}
+
+.detail-alias-item {
+  font-size: 0.78rem;
+  color: #888;
+  cursor: default;
+}
+
+.detail-alias-item:hover {
+  color: #c0c0c0;
 }
 
 #status {

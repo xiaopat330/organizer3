@@ -12,10 +12,12 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Collectors;
+import lombok.RequiredArgsConstructor;
 
 /**
  * Read-only query service backing the browse home page.
  */
+@RequiredArgsConstructor
 public class TitleBrowseService {
 
     static final int MAX_LIMIT = 500;
@@ -24,14 +26,6 @@ public class TitleBrowseService {
     private final ActressRepository actressRepo;
     private final CoverPath coverPath;
     private final LabelRepository labelRepo;
-
-    public TitleBrowseService(TitleRepository titleRepo, ActressRepository actressRepo,
-                              CoverPath coverPath, LabelRepository labelRepo) {
-        this.titleRepo = titleRepo;
-        this.actressRepo = actressRepo;
-        this.coverPath = coverPath;
-        this.labelRepo = labelRepo;
-    }
 
     /**
      * Returns at most {@code limit} titles starting at {@code offset}, ordered newest-first.
@@ -108,19 +102,19 @@ public class TitleBrowseService {
                                     .orElse(null)
                             : null;
                     ActressInfo ai = t.getActressId() != null ? actressInfo.get(t.getActressId()) : null;
-                    return new TitleSummary(
-                            t.getCode(),
-                            t.getBaseCode(),
-                            t.getLabel(),
-                            t.getActressId(),
-                            ai != null ? ai.name() : null,
-                            ai != null ? ai.tier() : null,
-                            t.getAddedDate() != null ? t.getAddedDate().toString() : null,
-                            coverUrl,
-                            lbl != null ? lbl.company() : null,
-                            lbl != null ? lbl.labelName() : null,
-                            t.getPath() != null ? t.getPath().toString() : null
-                    );
+                    return TitleSummary.builder()
+                            .code(t.getCode())
+                            .baseCode(t.getBaseCode())
+                            .label(t.getLabel())
+                            .actressId(t.getActressId())
+                            .actressName(ai != null ? ai.name() : null)
+                            .actressTier(ai != null ? ai.tier() : null)
+                            .addedDate(t.getAddedDate() != null ? t.getAddedDate().toString() : null)
+                            .coverUrl(coverUrl)
+                            .companyName(lbl != null ? lbl.company() : null)
+                            .labelName(lbl != null ? lbl.labelName() : null)
+                            .location(t.getPath() != null ? t.getPath().toString() : null)
+                            .build();
                 })
                 .toList();
     }

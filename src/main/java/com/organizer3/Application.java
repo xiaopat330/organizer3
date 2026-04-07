@@ -45,8 +45,6 @@ import com.organizer3.web.ActressBrowseService;
 import com.organizer3.web.TitleBrowseService;
 import com.organizer3.web.WebServer;
 import org.jdbi.v3.core.Jdbi;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -57,6 +55,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * Entry point. Wires all dependencies manually (no IoC container).
@@ -65,9 +64,8 @@ import java.util.Set;
  * all the concrete types. Everything else works against interfaces,
  * making each piece independently testable.
  */
+@Slf4j
 public class Application {
-    private static final Logger log = LoggerFactory.getLogger(Application.class);
-
     public static void main(String[] args) throws IOException {
         log.info("Starting Organizer3");
 

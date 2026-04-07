@@ -12,6 +12,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+import lombok.RequiredArgsConstructor;
 
 /**
  * Lists all configured volumes with their connection status and last-sync timestamp.
@@ -23,16 +24,13 @@ import java.util.stream.Collectors;
  *
  * <p>Usage: {@code volumes}
  */
+@RequiredArgsConstructor
 public class VolumesCommand implements Command {
 
     private static final DateTimeFormatter DISPLAY_FMT =
             DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
 
     private final VolumeRepository volumeRepository;
-
-    public VolumesCommand(VolumeRepository volumeRepository) {
-        this.volumeRepository = volumeRepository;
-    }
 
     @Override
     public String name() {

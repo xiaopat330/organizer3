@@ -2,20 +2,17 @@ package com.organizer3.command;
 
 import com.organizer3.shell.SessionContext;
 import com.organizer3.shell.io.CommandIO;
+import lombok.RequiredArgsConstructor;
 
 /**
  * Convenience command that runs sync all then sync covers in sequence.
  * Intended for fresh starts or full rebuilds of the local index and covers.
  */
+@RequiredArgsConstructor
 public class RebuildCommand implements Command {
 
     private final Command syncAll;
     private final Command scanCovers;
-
-    public RebuildCommand(Command syncAll, Command scanCovers) {
-        this.syncAll    = syncAll;
-        this.scanCovers = scanCovers;
-    }
 
     @Override
     public String name() {

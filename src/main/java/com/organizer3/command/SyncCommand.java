@@ -6,11 +6,11 @@ import com.organizer3.config.volume.VolumeStructureDef;
 import com.organizer3.shell.SessionContext;
 import com.organizer3.shell.io.CommandIO;
 import com.organizer3.sync.SyncOperation;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.Set;
+import lombok.extern.slf4j.Slf4j;
+import lombok.RequiredArgsConstructor;
 
 /**
  * Executes a sync operation against the currently mounted volume.
@@ -23,19 +23,13 @@ import java.util.Set;
  * <p>Sync always reads the real filesystem regardless of dry-run mode — it is a
  * read-only operation from the filesystem's perspective (all writes go to the DB).
  */
+@Slf4j
+@RequiredArgsConstructor
 public class SyncCommand implements Command {
-
-    private static final Logger log = LoggerFactory.getLogger(SyncCommand.class);
 
     private final String term;
     private final Set<String> validStructureTypes;
     private final SyncOperation operation;
-
-    public SyncCommand(String term, Set<String> validStructureTypes, SyncOperation operation) {
-        this.term                = term;
-        this.validStructureTypes = validStructureTypes;
-        this.operation           = operation;
-    }
 
     @Override
     public String name() {

@@ -10,6 +10,7 @@ import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
+import lombok.RequiredArgsConstructor;
 
 /**
  * Lists all actresses in a given tier with their title counts, sorted by most to least.
@@ -17,15 +18,11 @@ import java.util.Map;
  * <p>Usage: {@code actresses <tier>}
  * <p>Tier values (case-insensitive): library, minor, popular, superstar, goddess
  */
+@RequiredArgsConstructor
 public class ActressesCommand implements Command {
 
     private final ActressRepository actressRepo;
     private final TitleRepository titleRepo;
-
-    public ActressesCommand(ActressRepository actressRepo, TitleRepository titleRepo) {
-        this.actressRepo = actressRepo;
-        this.titleRepo = titleRepo;
-    }
 
     @Override
     public String name() {

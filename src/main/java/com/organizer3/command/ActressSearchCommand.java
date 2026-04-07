@@ -20,6 +20,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
+import lombok.RequiredArgsConstructor;
 
 /**
  * Actress lookup and detail commands.
@@ -30,19 +31,12 @@ import java.util.stream.Collectors;
  *   <li>{@code actress <name>} — display full detail for a named actress directly</li>
  * </ul>
  */
+@RequiredArgsConstructor
 public class ActressSearchCommand implements Command {
 
     private final ActressRepository actressRepo;
     private final TitleRepository titleRepo;
     private final LabelRepository labelRepo;
-
-    public ActressSearchCommand(ActressRepository actressRepo,
-                                TitleRepository titleRepo,
-                                LabelRepository labelRepo) {
-        this.actressRepo = actressRepo;
-        this.titleRepo = titleRepo;
-        this.labelRepo = labelRepo;
-    }
 
     @Override
     public String name() {

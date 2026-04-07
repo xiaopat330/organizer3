@@ -41,44 +41,41 @@ class JdbiOperationLogRepositoryTest {
 
     @Test
     void logAndFindAll() {
-        OperationLogEntry entry = new OperationLogEntry(
-                null,
-                LocalDateTime.of(2025, 6, 1, 10, 0),
-                OperationType.MOVE,
-                Path.of("/queue/ABP-001"),
-                Path.of("/stars/library/Aya Sazanami/ABP-001"),
-                true
-        );
+        OperationLogEntry entry = OperationLogEntry.builder()
+                .timestamp(LocalDateTime.of(2025, 6, 1, 10, 0))
+                .type(OperationType.MOVE)
+                .sourcePath(Path.of("/queue/ABP-001"))
+                .destPath(Path.of("/stars/library/Aya Sazanami/ABP-001"))
+                .wasArmed(true)
+                .build();
 
         repo.log(entry);
 
         List<OperationLogEntry> all = repo.findAll();
         assertEquals(1, all.size());
         OperationLogEntry found = all.get(0);
-        assertNotNull(found.id());
-        assertEquals(OperationType.MOVE, found.type());
-        assertEquals(Path.of("/queue/ABP-001"), found.sourcePath());
-        assertEquals(Path.of("/stars/library/Aya Sazanami/ABP-001"), found.destPath());
-        assertTrue(found.wasArmed());
+        assertNotNull(found.getId());
+        assertEquals(OperationType.MOVE, found.getType());
+        assertEquals(Path.of("/queue/ABP-001"), found.getSourcePath());
+        assertEquals(Path.of("/stars/library/Aya Sazanami/ABP-001"), found.getDestPath());
+        assertTrue(found.isWasArmed());
     }
 
     @Test
     void logWithNullDestPath() {
-        OperationLogEntry entry = new OperationLogEntry(
-                null,
-                LocalDateTime.of(2025, 6, 1, 10, 0),
-                OperationType.CREATE_DIRECTORY,
-                Path.of("/stars/library/New Actress"),
-                null,
-                false
-        );
+        OperationLogEntry entry = OperationLogEntry.builder()
+                .timestamp(LocalDateTime.of(2025, 6, 1, 10, 0))
+                .type(OperationType.CREATE_DIRECTORY)
+                .sourcePath(Path.of("/stars/library/New Actress"))
+                .wasArmed(false)
+                .build();
 
         repo.log(entry);
 
         List<OperationLogEntry> all = repo.findAll();
         assertEquals(1, all.size());
-        assertNull(all.get(0).destPath());
-        assertFalse(all.get(0).wasArmed());
+        assertNull(all.get(0).getDestPath());
+        assertFalse(all.get(0).isWasArmed());
     }
 
     @Test
@@ -94,9 +91,9 @@ class JdbiOperationLogRepositoryTest {
 
         List<OperationLogEntry> all = repo.findAll();
         assertEquals(3, all.size());
-        assertEquals(Path.of("/a"), all.get(0).sourcePath());
-        assertEquals(Path.of("/b"), all.get(1).sourcePath());
-        assertEquals(Path.of("/c"), all.get(2).sourcePath());
+        assertEquals(Path.of("/a"), all.get(0).getSourcePath());
+        assertEquals(Path.of("/b"), all.get(1).getSourcePath());
+        assertEquals(Path.of("/c"), all.get(2).getSourcePath());
     }
 
     // --- findSince ---
@@ -109,8 +106,8 @@ class JdbiOperationLogRepositoryTest {
 
         List<OperationLogEntry> result = repo.findSince(LocalDateTime.of(2025, 6, 5, 0, 0));
         assertEquals(2, result.size());
-        assertEquals(Path.of("/new1"), result.get(0).sourcePath());
-        assertEquals(Path.of("/new2"), result.get(1).sourcePath());
+        assertEquals(Path.of("/new1"), result.get(0).getSourcePath());
+        assertEquals(Path.of("/new2"), result.get(1).getSourcePath());
     }
 
     @Test
@@ -123,7 +120,8 @@ class JdbiOperationLogRepositoryTest {
     // --- Helpers ---
 
     private OperationLogEntry entry(LocalDateTime timestamp, String sourcePath) {
-        return new OperationLogEntry(null, timestamp, OperationType.MOVE,
-                Path.of(sourcePath), null, true);
+        return OperationLogEntry.builder()
+                .timestamp(timestamp).type(OperationType.MOVE)
+                .sourcePath(Path.of(sourcePath)).wasArmed(true).build();
     }
 }

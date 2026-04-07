@@ -52,14 +52,14 @@ class TitleBrowseServiceTest {
 
         assertEquals(1, results.size());
         TitleSummary s = results.get(0);
-        assertEquals("ABP-123", s.code());
-        assertEquals("ABP-00123", s.baseCode());
-        assertEquals("ABP", s.label());
-        assertEquals("Yui Hatano", s.actressName());
-        assertEquals("POPULAR", s.actressTier());
-        assertEquals("2024-01-15", s.addedDate());
-        assertEquals("/covers/ABP/ABP-00123.jpg", s.coverUrl());
-        assertEquals("/mnt/vol-a/stars/ABP-123", s.location());
+        assertEquals("ABP-123", s.getCode());
+        assertEquals("ABP-00123", s.getBaseCode());
+        assertEquals("ABP", s.getLabel());
+        assertEquals("Yui Hatano", s.getActressName());
+        assertEquals("POPULAR", s.getActressTier());
+        assertEquals("2024-01-15", s.getAddedDate());
+        assertEquals("/covers/ABP/ABP-00123.jpg", s.getCoverUrl());
+        assertEquals("/mnt/vol-a/stars/ABP-123", s.getLocation());
     }
 
     @Test
@@ -69,7 +69,7 @@ class TitleBrowseServiceTest {
         when(titleRepo.findRecent(24, 0)).thenReturn(List.of(title));
         when(coverPath.find(title)).thenReturn(Optional.empty());
 
-        assertNull(service.findRecent(0, 24).get(0).actressTier());
+        assertNull(service.findRecent(0, 24).get(0).getActressTier());
     }
 
     @Test
@@ -79,7 +79,7 @@ class TitleBrowseServiceTest {
         when(titleRepo.findRecent(24, 0)).thenReturn(List.of(title));
         when(coverPath.find(title)).thenReturn(Optional.empty());
 
-        assertEquals("/mnt/vol-a/stars/ABP-123", service.findRecent(0, 24).get(0).location());
+        assertEquals("/mnt/vol-a/stars/ABP-123", service.findRecent(0, 24).get(0).getLocation());
     }
 
     @Test
@@ -91,7 +91,7 @@ class TitleBrowseServiceTest {
 
         List<TitleSummary> results = service.findRecent(0, 24);
 
-        assertNull(results.get(0).actressName());
+        assertNull(results.get(0).getActressName());
         verifyNoInteractions(actressRepo);
     }
 
@@ -102,7 +102,7 @@ class TitleBrowseServiceTest {
         when(titleRepo.findRecent(24, 0)).thenReturn(List.of(title));
         when(coverPath.find(title)).thenReturn(Optional.empty());
 
-        assertNull(service.findRecent(0, 24).get(0).coverUrl());
+        assertNull(service.findRecent(0, 24).get(0).getCoverUrl());
     }
 
     @Test
@@ -112,7 +112,7 @@ class TitleBrowseServiceTest {
         when(titleRepo.findRecent(24, 0)).thenReturn(List.of(title));
         when(coverPath.find(title)).thenReturn(Optional.empty());
 
-        assertNull(service.findRecent(0, 24).get(0).addedDate());
+        assertNull(service.findRecent(0, 24).get(0).getAddedDate());
     }
 
     @Test
@@ -137,8 +137,8 @@ class TitleBrowseServiceTest {
 
         List<TitleSummary> results = service.findRecent(0, 24);
 
-        assertEquals("Airi Suzumura", results.get(0).actressName());
-        assertEquals("Airi Suzumura", results.get(1).actressName());
+        assertEquals("Airi Suzumura", results.get(0).getActressName());
+        assertEquals("Airi Suzumura", results.get(1).getActressName());
         verify(actressRepo, times(1)).findById(5L); // only one DB call despite two titles
     }
 
@@ -152,7 +152,7 @@ class TitleBrowseServiceTest {
         when(actressRepo.findById(10L)).thenReturn(Optional.of(actress));
         when(coverPath.find(title)).thenReturn(Optional.empty());
 
-        assertEquals(10L, service.findRecent(0, 24).get(0).actressId());
+        assertEquals(10L, service.findRecent(0, 24).get(0).getActressId());
     }
 
     @Test
@@ -165,8 +165,8 @@ class TitleBrowseServiceTest {
                 Map.of("ABP", new Label("ABP", "Absolutely Perfect", "Prestige")));
 
         TitleSummary s = service.findRecent(0, 24).get(0);
-        assertEquals("Prestige", s.companyName());
-        assertEquals("Absolutely Perfect", s.labelName());
+        assertEquals("Prestige", s.getCompanyName());
+        assertEquals("Absolutely Perfect", s.getLabelName());
     }
 
     @Test
@@ -178,8 +178,8 @@ class TitleBrowseServiceTest {
         // labelRepo returns empty map by default — no entry for ABP
 
         TitleSummary s = service.findRecent(0, 24).get(0);
-        assertNull(s.companyName());
-        assertNull(s.labelName());
+        assertNull(s.getCompanyName());
+        assertNull(s.getLabelName());
     }
 
     // --- findByVolumeQueue ---
@@ -194,7 +194,7 @@ class TitleBrowseServiceTest {
         List<TitleSummary> results = service.findByVolumeQueue("vol-a", 0, 24);
 
         assertEquals(1, results.size());
-        assertEquals("ABP-123", results.get(0).code());
+        assertEquals("ABP-123", results.get(0).getCode());
         verify(titleRepo).findByVolumeAndPartition("vol-a", "queue", 24, 0);
     }
 
@@ -218,8 +218,8 @@ class TitleBrowseServiceTest {
         List<TitleSummary> results = service.findByVolumeQueue("vol-a", 0, 24);
 
         assertEquals(1, results.size());
-        assertEquals(7L, results.get(0).actressId());
-        assertEquals("Yui Hatano", results.get(0).actressName());
+        assertEquals(7L, results.get(0).getActressId());
+        assertEquals("Yui Hatano", results.get(0).getActressName());
     }
 
     @Test
@@ -231,9 +231,9 @@ class TitleBrowseServiceTest {
         List<TitleSummary> results = service.findByVolumeQueue("unsorted", 0, 24);
 
         assertEquals(1, results.size());
-        assertNull(results.get(0).coverUrl());
-        assertNull(results.get(0).companyName());
-        assertNull(results.get(0).labelName());
+        assertNull(results.get(0).getCoverUrl());
+        assertNull(results.get(0).getCompanyName());
+        assertNull(results.get(0).getLabelName());
         verifyNoInteractions(coverPath);
     }
 

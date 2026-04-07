@@ -1,6 +1,8 @@
 package com.organizer3.model;
 
+import lombok.AllArgsConstructor;
 import lombok.Getter;
+import lombok.ToString;
 
 import java.nio.file.Path;
 
@@ -20,34 +22,18 @@ import java.nio.file.Path;
  * <p>Finding content within a partition (titles, videos, orphans) is the responsibility of the
  * repository layer, not this class.
  */
+@Getter
+@AllArgsConstructor
+@ToString(exclude = "parent")
 public final class Partition implements Comparable<Partition> {
 
-    @Getter
     private final String id;
-
-    @Getter
     private final Path path;
-
-    @Getter
     private final String strategy;
-
-    @Getter
     private final Volume parent;
-
-    public Partition(String id, Path path, String strategy, Volume parent) {
-        this.id = id;
-        this.path = path;
-        this.strategy = strategy;
-        this.parent = parent;
-    }
 
     @Override
     public int compareTo(Partition o) {
         return path.toString().compareTo(o.getPath().toString());
-    }
-
-    @Override
-    public String toString() {
-        return "Partition{id='" + id + "', path=" + path + '}';
     }
 }

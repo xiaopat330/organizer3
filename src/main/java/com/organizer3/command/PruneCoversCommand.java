@@ -4,13 +4,13 @@ import com.organizer3.covers.CoverPath;
 import com.organizer3.repository.TitleRepository;
 import com.organizer3.shell.SessionContext;
 import com.organizer3.shell.io.CommandIO;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.stream.Stream;
+import lombok.extern.slf4j.Slf4j;
+import lombok.RequiredArgsConstructor;
 
 /**
  * Removes orphaned cover images — covers whose baseCode no longer matches
@@ -19,17 +19,12 @@ import java.util.stream.Stream;
  * <p>Does not require a mounted volume. Walks the local covers directory and
  * checks each file against the DB across all volumes.
  */
+@Slf4j
+@RequiredArgsConstructor
 public class PruneCoversCommand implements Command {
-
-    private static final Logger log = LoggerFactory.getLogger(PruneCoversCommand.class);
 
     private final TitleRepository titleRepo;
     private final CoverPath coverPath;
-
-    public PruneCoversCommand(TitleRepository titleRepo, CoverPath coverPath) {
-        this.titleRepo = titleRepo;
-        this.coverPath = coverPath;
-    }
 
     @Override
     public String name() {

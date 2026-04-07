@@ -12,16 +12,18 @@ import com.organizer3.repository.VideoRepository;
 import com.organizer3.repository.VolumeRepository;
 import com.organizer3.shell.io.CommandIO;
 import com.organizer3.shell.io.Progress;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+
+import lombok.AccessLevel;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 import java.io.IOException;
 import java.nio.file.Path;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import java.util.List;
 
 /**
  * Shared helpers for sync operation implementations.
@@ -29,9 +31,9 @@ import java.util.List;
  * <p>Subclasses decide what scope to scan; this class provides the mechanics of scanning
  * a partition folder, parsing title codes, and persisting titles and videos.
  */
+@Slf4j
+@RequiredArgsConstructor(access = AccessLevel.PROTECTED)
 abstract class AbstractSyncOperation implements SyncOperation {
-
-    private static final Logger log = LoggerFactory.getLogger(AbstractSyncOperation.class);
 
     protected final TitleRepository titleRepo;
     protected final VideoRepository videoRepo;
@@ -39,16 +41,6 @@ abstract class AbstractSyncOperation implements SyncOperation {
     protected final VolumeRepository volumeRepo;
     protected final IndexLoader indexLoader;
     private final TitleCodeParser codeParser = new TitleCodeParser();
-
-    protected AbstractSyncOperation(TitleRepository titleRepo, VideoRepository videoRepo,
-                                    ActressRepository actressRepo, VolumeRepository volumeRepo,
-                                    IndexLoader indexLoader) {
-        this.titleRepo   = titleRepo;
-        this.videoRepo   = videoRepo;
-        this.actressRepo = actressRepo;
-        this.volumeRepo  = volumeRepo;
-        this.indexLoader = indexLoader;
-    }
 
     // -------------------------------------------------------------------------
     // Shared scanning helpers
@@ -193,8 +185,8 @@ abstract class AbstractSyncOperation implements SyncOperation {
         // Direct video files in the title folder
         for (Path child : fs.listDirectory(titleFolder)) {
             if (!fs.isDirectory(child) && MediaExtensions.isVideo(child)) {
-                videoRepo.save(new Video(null, titleId,
-                        child.getFileName().toString(), child, LocalDate.now()));
+                videoRepo.save(Video.builder().titleId(titleId)
+                        .filename(child.getFileName().toString()).path(child).lastSeenAt(LocalDate.now()).build());
             }
         }
         // Optional video/ subdirectory
@@ -202,8 +194,8 @@ abstract class AbstractSyncOperation implements SyncOperation {
         if (fs.exists(videoSubdir) && fs.isDirectory(videoSubdir)) {
             for (Path child : fs.listDirectory(videoSubdir)) {
                 if (!fs.isDirectory(child) && MediaExtensions.isVideo(child)) {
-                    videoRepo.save(new Video(null, titleId,
-                            child.getFileName().toString(), child, LocalDate.now()));
+                    videoRepo.save(Video.builder().titleId(titleId)
+                            .filename(child.getFileName().toString()).path(child).lastSeenAt(LocalDate.now()).build());
                 }
             }
         }

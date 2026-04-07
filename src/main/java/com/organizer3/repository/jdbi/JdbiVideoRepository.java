@@ -12,13 +12,13 @@ import java.util.Optional;
 
 public class JdbiVideoRepository implements VideoRepository {
 
-    private static final RowMapper<Video> MAPPER = (rs, ctx) -> new Video(
-            rs.getLong("id"),
-            rs.getLong("title_id"),
-            rs.getString("filename"),
-            Path.of(rs.getString("path")),
-            LocalDate.parse(rs.getString("last_seen_at"))
-    );
+    private static final RowMapper<Video> MAPPER = (rs, ctx) -> Video.builder()
+            .id(rs.getLong("id"))
+            .titleId(rs.getLong("title_id"))
+            .filename(rs.getString("filename"))
+            .path(Path.of(rs.getString("path")))
+            .lastSeenAt(LocalDate.parse(rs.getString("last_seen_at")))
+            .build();
 
     private final Jdbi jdbi;
 
@@ -49,19 +49,19 @@ public class JdbiVideoRepository implements VideoRepository {
     @Override
     public Video save(Video video) {
         return jdbi.withHandle(h -> {
-            if (video.id() == null) {
+            if (video.getId() == null) {
                 long id = h.createUpdate("""
                                 INSERT INTO videos (title_id, filename, path, last_seen_at)
                                 VALUES (:titleId, :filename, :path, :lastSeenAt)
                                 """)
-                        .bind("titleId", video.titleId())
-                        .bind("filename", video.filename())
-                        .bind("path", video.path().toString())
-                        .bind("lastSeenAt", video.lastSeenAt().toString())
+                        .bind("titleId", video.getTitleId())
+                        .bind("filename", video.getFilename())
+                        .bind("path", video.getPath().toString())
+                        .bind("lastSeenAt", video.getLastSeenAt().toString())
                         .executeAndReturnGeneratedKeys("id")
                         .mapTo(Long.class)
                         .one();
-                return new Video(id, video.titleId(), video.filename(), video.path(), video.lastSeenAt());
+                return Video.builder().id(id).titleId(video.getTitleId()).filename(video.getFilename()).path(video.getPath()).lastSeenAt(video.getLastSeenAt()).build();
             } else {
                 h.createUpdate("""
                                 UPDATE videos SET
@@ -69,11 +69,11 @@ public class JdbiVideoRepository implements VideoRepository {
                                     path = :path, last_seen_at = :lastSeenAt
                                 WHERE id = :id
                                 """)
-                        .bind("id", video.id())
-                        .bind("titleId", video.titleId())
-                        .bind("filename", video.filename())
-                        .bind("path", video.path().toString())
-                        .bind("lastSeenAt", video.lastSeenAt().toString())
+                        .bind("id", video.getId())
+                        .bind("titleId", video.getTitleId())
+                        .bind("filename", video.getFilename())
+                        .bind("path", video.getPath().toString())
+                        .bind("lastSeenAt", video.getLastSeenAt().toString())
                         .execute();
                 return video;
             }

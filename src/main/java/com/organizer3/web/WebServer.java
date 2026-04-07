@@ -4,14 +4,13 @@ import com.organizer3.config.AppConfig;
 import com.organizer3.covers.CoverPath;
 import io.javalin.Javalin;
 import io.javalin.http.staticfiles.Location;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.stream.Collectors;
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * Embedded web server for read-only browsing and querying.
@@ -19,8 +18,8 @@ import java.util.stream.Collectors;
  * Starts alongside the interactive shell and shuts down when the app exits.
  * All endpoints are read-only — no mutations are exposed through the web layer.
  */
+@Slf4j
 public class WebServer {
-    private static final Logger log = LoggerFactory.getLogger(WebServer.class);
     private static final int DEFAULT_PORT = 8080;
 
     private static final Map<String, String> MIME_TYPES = Map.of(
@@ -151,9 +150,10 @@ public class WebServer {
                 catch (NumberFormatException e) { ctx.status(400); return; }
                 int offset = ctx.queryParamAsClass("offset", Integer.class).getOrDefault(0);
                 int limit  = ctx.queryParamAsClass("limit",  Integer.class).getOrDefault(24);
+                String company = ctx.queryParam("company");
                 offset = Math.max(offset, 0);
                 limit  = Math.max(1, Math.min(limit, TitleBrowseService.MAX_LIMIT));
-                ctx.json(actressBrowseService.findTitlesByActress(id, offset, limit));
+                ctx.json(actressBrowseService.findTitlesByActress(id, offset, limit, company));
             });
         }
 

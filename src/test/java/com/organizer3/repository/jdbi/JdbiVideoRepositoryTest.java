@@ -50,8 +50,8 @@ class JdbiVideoRepositoryTest {
         Title title = saveTitle("ABP-001");
         Video saved = videoRepo.save(video(title.getId(), "ABP-001.mp4", "/queue/ABP-001/ABP-001.mp4"));
 
-        assertNotNull(saved.id());
-        assertTrue(saved.id() > 0);
+        assertNotNull(saved.getId());
+        assertTrue(saved.getId() > 0);
     }
 
     @Test
@@ -59,10 +59,10 @@ class JdbiVideoRepositoryTest {
         Title title = saveTitle("ABP-001");
         Video saved = videoRepo.save(video(title.getId(), "ABP-001.mp4", "/queue/ABP-001/ABP-001.mp4"));
 
-        Optional<Video> found = videoRepo.findById(saved.id());
+        Optional<Video> found = videoRepo.findById(saved.getId());
         assertTrue(found.isPresent());
-        assertEquals("ABP-001.mp4", found.get().filename());
-        assertEquals(Path.of("/queue/ABP-001/ABP-001.mp4"), found.get().path());
+        assertEquals("ABP-001.mp4", found.get().getFilename());
+        assertEquals(Path.of("/queue/ABP-001/ABP-001.mp4"), found.get().getPath());
     }
 
     @Test
@@ -77,13 +77,13 @@ class JdbiVideoRepositoryTest {
         Title title = saveTitle("ABP-001");
         Video saved = videoRepo.save(video(title.getId(), "ABP-001.mp4", "/old/path.mp4"));
 
-        Video updated = videoRepo.save(new Video(saved.id(), title.getId(), "ABP-001-hd.mp4",
-                Path.of("/new/path.mp4"), LocalDate.of(2025, 6, 1)));
+        Video updated = videoRepo.save(Video.builder().id(saved.getId()).titleId(title.getId())
+                .filename("ABP-001-hd.mp4").path(Path.of("/new/path.mp4")).lastSeenAt(LocalDate.of(2025, 6, 1)).build());
 
-        Optional<Video> found = videoRepo.findById(saved.id());
+        Optional<Video> found = videoRepo.findById(saved.getId());
         assertTrue(found.isPresent());
-        assertEquals("ABP-001-hd.mp4", found.get().filename());
-        assertEquals(Path.of("/new/path.mp4"), found.get().path());
+        assertEquals("ABP-001-hd.mp4", found.get().getFilename());
+        assertEquals(Path.of("/new/path.mp4"), found.get().getPath());
     }
 
     // --- findByTitle ---
@@ -96,8 +96,8 @@ class JdbiVideoRepositoryTest {
 
         List<Video> videos = videoRepo.findByTitle(title.getId());
         assertEquals(2, videos.size());
-        assertEquals("part1.mp4", videos.get(0).filename());
-        assertEquals("part2.mp4", videos.get(1).filename());
+        assertEquals("part1.mp4", videos.get(0).getFilename());
+        assertEquals("part2.mp4", videos.get(1).getFilename());
     }
 
     @Test
@@ -113,9 +113,9 @@ class JdbiVideoRepositoryTest {
         Title title = saveTitle("ABP-001");
         Video saved = videoRepo.save(video(title.getId(), "ABP-001.mp4", "/p.mp4"));
 
-        videoRepo.delete(saved.id());
+        videoRepo.delete(saved.getId());
 
-        assertTrue(videoRepo.findById(saved.id()).isEmpty());
+        assertTrue(videoRepo.findById(saved.getId()).isEmpty());
     }
 
     // --- deleteByTitle ---
@@ -185,6 +185,6 @@ class JdbiVideoRepositoryTest {
     }
 
     private Video video(long titleId, String filename, String path) {
-        return new Video(null, titleId, filename, Path.of(path), LocalDate.now());
+        return Video.builder().titleId(titleId).filename(filename).path(Path.of(path)).lastSeenAt(LocalDate.now()).build();
     }
 }

@@ -13,14 +13,14 @@ public class JdbiOperationLogRepository implements OperationLogRepository {
 
     private static final RowMapper<OperationLogEntry> MAPPER = (rs, ctx) -> {
         String destPath = rs.getString("dest_path");
-        return new OperationLogEntry(
-                rs.getLong("id"),
-                LocalDateTime.parse(rs.getString("timestamp")),
-                OperationLogEntry.OperationType.valueOf(rs.getString("type")),
-                Path.of(rs.getString("source_path")),
-                destPath != null ? Path.of(destPath) : null,
-                rs.getInt("was_armed") == 1
-        );
+        return OperationLogEntry.builder()
+                .id(rs.getLong("id"))
+                .timestamp(LocalDateTime.parse(rs.getString("timestamp")))
+                .type(OperationLogEntry.OperationType.valueOf(rs.getString("type")))
+                .sourcePath(Path.of(rs.getString("source_path")))
+                .destPath(destPath != null ? Path.of(destPath) : null)
+                .wasArmed(rs.getInt("was_armed") == 1)
+                .build();
     };
 
     private final Jdbi jdbi;
@@ -36,11 +36,11 @@ public class JdbiOperationLogRepository implements OperationLogRepository {
                         INSERT INTO operations (timestamp, type, source_path, dest_path, was_armed)
                         VALUES (:timestamp, :type, :sourcePath, :destPath, :wasArmed)
                         """)
-                        .bind("timestamp", entry.timestamp().toString())
-                        .bind("type", entry.type().name())
-                        .bind("sourcePath", entry.sourcePath().toString())
-                        .bind("destPath", entry.destPath() != null ? entry.destPath().toString() : null)
-                        .bind("wasArmed", entry.wasArmed() ? 1 : 0)
+                        .bind("timestamp", entry.getTimestamp().toString())
+                        .bind("type", entry.getType().name())
+                        .bind("sourcePath", entry.getSourcePath().toString())
+                        .bind("destPath", entry.getDestPath() != null ? entry.getDestPath().toString() : null)
+                        .bind("wasArmed", entry.isWasArmed() ? 1 : 0)
                         .execute()
         );
     }

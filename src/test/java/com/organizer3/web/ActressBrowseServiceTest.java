@@ -13,6 +13,8 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import com.organizer3.model.ActressAlias;
+
 import java.nio.file.Path;
 import java.time.LocalDate;
 import java.util.ArrayList;
@@ -21,6 +23,7 @@ import java.util.Map;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -37,6 +40,8 @@ class ActressBrowseServiceTest {
     void setUp() {
         service = new ActressBrowseService(actressRepo, titleRepo, coverPath,
                 Map.of("vol-a", "//pandora/jav_A"), labelRepo);
+        lenient().when(actressRepo.findAliases(anyLong())).thenReturn(List.of());
+        lenient().when(labelRepo.findAllAsMap()).thenReturn(Map.of());
     }
 
     // ── Prefix index ──────────────────────────────────────────────────────
@@ -104,10 +109,10 @@ class ActressBrowseServiceTest {
 
         assertEquals(1, results.size());
         ActressSummary s = results.get(0);
-        assertEquals("Mai Hagiwara", s.canonicalName());
-        assertEquals("LIBRARY", s.tier());
-        assertFalse(s.favorite());
-        assertEquals(2, s.titleCount());
+        assertEquals("Mai Hagiwara", s.getCanonicalName());
+        assertEquals("LIBRARY", s.getTier());
+        assertFalse(s.isFavorite());
+        assertEquals(2, s.getTitleCount());
     }
 
     @Test
@@ -122,7 +127,7 @@ class ActressBrowseServiceTest {
 
         ActressSummary s = service.findByPrefix("Y").get(0);
 
-        assertEquals(List.of("/covers/ABP/ABP-00001.jpg"), s.coverUrls());
+        assertEquals(List.of("/covers/ABP/ABP-00001.jpg"), s.getCoverUrls());
     }
 
     @Test
@@ -136,7 +141,7 @@ class ActressBrowseServiceTest {
 
         ActressSummary s = service.findByPrefix("Y").get(0);
 
-        assertEquals(List.of("//pandora/jav_A/stars/popular/Yui Hatano"), s.folderPaths());
+        assertEquals(List.of("//pandora/jav_A/stars/popular/Yui Hatano"), s.getFolderPaths());
     }
 
     @Test
@@ -151,7 +156,7 @@ class ActressBrowseServiceTest {
 
         ActressSummary s = service.findByPrefix("Y").get(0);
 
-        assertTrue(s.folderPaths().isEmpty());
+        assertTrue(s.getFolderPaths().isEmpty());
     }
 
     @Test
@@ -167,7 +172,7 @@ class ActressBrowseServiceTest {
 
         ActressSummary s = service.findByPrefix("Y").get(0);
 
-        assertEquals(1, s.folderPaths().size());
+        assertEquals(1, s.getFolderPaths().size());
     }
 
     @Test
@@ -179,7 +184,7 @@ class ActressBrowseServiceTest {
         when(actressRepo.findByFirstNamePrefix("Y")).thenReturn(List.of(fav));
         when(titleRepo.findByActress(1L)).thenReturn(List.of());
 
-        assertTrue(service.findByPrefix("Y").get(0).favorite());
+        assertTrue(service.findByPrefix("Y").get(0).isFavorite());
     }
 
     // ── findByTier ────────────────────────────────────────────────────────
@@ -196,8 +201,8 @@ class ActressBrowseServiceTest {
         List<ActressSummary> results = service.findByTier("GODDESS");
 
         assertEquals(1, results.size());
-        assertEquals("Yua Mikami", results.get(0).canonicalName());
-        assertEquals("GODDESS", results.get(0).tier());
+        assertEquals("Yua Mikami", results.get(0).getCanonicalName());
+        assertEquals("GODDESS", results.get(0).getTier());
     }
 
     @Test
@@ -225,9 +230,66 @@ class ActressBrowseServiceTest {
                 Map.of("ABP", new Label("ABP", "Absolutely Perfect", "Prestige")));
 
         TitleSummary s = service.findTitlesByActress(1L, 0, 24).get(0);
-        assertEquals("Prestige", s.companyName());
-        assertEquals("Absolutely Perfect", s.labelName());
-        assertEquals(1L, s.actressId());
+        assertEquals("Prestige", s.getCompanyName());
+        assertEquals("Absolutely Perfect", s.getLabelName());
+        assertEquals(1L, s.getActressId());
+    }
+
+    // ── companies and aliases ──────────────────────────────────────────
+
+    @Test
+    void findByIdIncludesCompaniesFromTitleLabels() {
+        Actress a = actress("Yui Hatano");
+        Title t1 = title(a.getId(), "vol-a", "stars/popular", "/stars/popular/Yui Hatano/ABP-00001");
+        Title t2 = title(a.getId(), "vol-a", "stars/popular", "/stars/popular/Yui Hatano/SSIS-001");
+        // give t2 a different label
+        Title t2WithLabel = Title.builder()
+                .id(2L).code("SSIS-001").baseCode("SSIS-00001").label("SSIS").seqNum(1)
+                .volumeId("vol-a").partitionId("stars/popular").actressId(a.getId())
+                .path(Path.of("/stars/popular/Yui Hatano/SSIS-001"))
+                .lastSeenAt(LocalDate.of(2024, 1, 1)).addedDate(LocalDate.of(2024, 1, 1))
+                .build();
+
+        when(actressRepo.findById(a.getId())).thenReturn(Optional.of(a));
+        when(titleRepo.findByActress(a.getId())).thenReturn(List.of(t1, t2WithLabel));
+        when(coverPath.find(any())).thenReturn(Optional.empty());
+        when(labelRepo.findAllAsMap()).thenReturn(Map.of(
+                "ABP", new Label("ABP", "Absolutely Perfect", "Prestige"),
+                "SSIS", new Label("SSIS", "S1 Special", "S1")
+        ));
+
+        ActressSummary s = service.findById(a.getId()).orElseThrow();
+
+        assertEquals(List.of("Prestige", "S1"), s.getCompanies());
+    }
+
+    @Test
+    void findByIdIncludesAliases() {
+        Actress a = actress("Yui Hatano");
+
+        when(actressRepo.findById(a.getId())).thenReturn(Optional.of(a));
+        when(titleRepo.findByActress(a.getId())).thenReturn(List.of());
+        when(actressRepo.findAliases(a.getId())).thenReturn(List.of(
+                new ActressAlias(a.getId(), "Hatano Yui"),
+                new ActressAlias(a.getId(), "波多野結衣")
+        ));
+
+        ActressSummary s = service.findById(a.getId()).orElseThrow();
+
+        assertEquals(List.of("Hatano Yui", "波多野結衣"), s.getAliases());
+    }
+
+    @Test
+    void findByIdReturnsEmptyListsWhenNoCompaniesOrAliases() {
+        Actress a = actress("Yui Hatano");
+
+        when(actressRepo.findById(a.getId())).thenReturn(Optional.of(a));
+        when(titleRepo.findByActress(a.getId())).thenReturn(List.of());
+
+        ActressSummary s = service.findById(a.getId()).orElseThrow();
+
+        assertTrue(s.getCompanies().isEmpty());
+        assertTrue(s.getAliases().isEmpty());
     }
 
     // ── helpers ───────────────────────────────────────────────────────────

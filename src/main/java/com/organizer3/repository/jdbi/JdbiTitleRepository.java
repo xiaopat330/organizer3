@@ -252,6 +252,19 @@ public class JdbiTitleRepository implements TitleRepository {
     }
 
     @Override
+    public List<Title> findByActressAndLabelsPaged(long actressId, List<String> labels, int limit, int offset) {
+        return jdbi.withHandle(h ->
+                h.createQuery("SELECT * FROM titles WHERE actress_id = :actressId AND upper(label) IN (<labels>) ORDER BY added_date DESC, id DESC LIMIT :limit OFFSET :offset")
+                        .bind("actressId", actressId)
+                        .bindList("labels", labels)
+                        .bind("limit", limit)
+                        .bind("offset", offset)
+                        .map(MAPPER)
+                        .list()
+        );
+    }
+
+    @Override
     public List<Title> findByVolumeAndPartition(String volumeId, String partitionId, int limit, int offset) {
         return jdbi.withHandle(h ->
                 h.createQuery("SELECT * FROM titles WHERE volume_id = :volumeId AND partition_id = :partitionId ORDER BY added_date DESC, id DESC LIMIT :limit OFFSET :offset")

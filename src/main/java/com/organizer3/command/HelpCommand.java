@@ -4,14 +4,12 @@ import com.organizer3.shell.SessionContext;
 import com.organizer3.shell.io.CommandIO;
 
 import java.util.List;
+import lombok.RequiredArgsConstructor;
 
+@RequiredArgsConstructor
 public class HelpCommand implements Command {
 
     private final List<Command> allCommands;
-
-    public HelpCommand(List<Command> allCommands) {
-        this.allCommands = allCommands;
-    }
 
     @Override
     public String name() {

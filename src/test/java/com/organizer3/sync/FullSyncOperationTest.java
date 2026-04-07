@@ -108,7 +108,7 @@ class FullSyncOperationTest {
         op.execute(VOLUME, structure, fs, ctx, io);
 
         verify(titleRepo).save(argThat(t -> "ABP-001".equals(t.getCode()) && "queue".equals(t.getPartitionId())));
-        verify(videoRepo).save(argThat(v -> "ABP-001.mp4".equals(v.filename())));
+        verify(videoRepo).save(argThat(v -> "ABP-001.mp4".equals(v.getFilename())));
     }
 
     @Test
@@ -313,7 +313,7 @@ class FullSyncOperationTest {
         FullSyncOperation op = new FullSyncOperation(titleRepo, videoRepo, actressRepo, volumeRepo, indexLoader);
         op.execute(VOLUME, structure, fs, ctx, io);
 
-        verify(videoRepo).save(argThat(v -> "ABP-001.mkv".equals(v.filename())));
+        verify(videoRepo).save(argThat(v -> "ABP-001.mkv".equals(v.getFilename())));
     }
 
     // --- Helpers ---

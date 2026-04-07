@@ -12,6 +12,7 @@ import com.organizer3.smb.SmbConnector;
 import com.organizer3.smb.VolumeConnection;
 import com.organizer3.sync.IndexLoader;
 import com.organizer3.sync.VolumeIndex;
+import lombok.RequiredArgsConstructor;
 
 /**
  * Connects to an SMB volume and activates it as the current session context.
@@ -25,15 +26,11 @@ import com.organizer3.sync.VolumeIndex;
  * An animated spinner provides feedback during the connection phases (host resolution,
  * authentication, share connect), each of which may block for several seconds.
  */
+@RequiredArgsConstructor
 public class MountCommand implements Command {
 
     private final SmbConnector smbConnector;
     private final IndexLoader indexLoader;
-
-    public MountCommand(SmbConnector smbConnector, IndexLoader indexLoader) {
-        this.smbConnector = smbConnector;
-        this.indexLoader = indexLoader;
-    }
 
     @Override
     public String name() {

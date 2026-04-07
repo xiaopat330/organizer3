@@ -11,14 +11,14 @@ import com.organizer3.repository.VolumeRepository;
 import com.organizer3.shell.SessionContext;
 import com.organizer3.shell.io.CommandIO;
 import com.organizer3.shell.io.Progress;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
+import lombok.extern.slf4j.Slf4j;
+import lombok.RequiredArgsConstructor;
 
 /**
  * Scans the currently mounted volume and collects cover images for titles
@@ -31,20 +31,13 @@ import java.util.List;
  * <p>Requires a mounted, synced volume. Processes titles in both {@code stars/}
  * partitions (conventional and stars-flat) and {@code queue} partitions.
  */
+@Slf4j
+@RequiredArgsConstructor
 public class ScanCoversCommand implements Command {
-
-    private static final Logger log = LoggerFactory.getLogger(ScanCoversCommand.class);
 
     private final TitleRepository titleRepo;
     private final VolumeRepository volumeRepo;
     private final CoverPath coverPath;
-
-    public ScanCoversCommand(TitleRepository titleRepo, VolumeRepository volumeRepo,
-                             CoverPath coverPath) {
-        this.titleRepo = titleRepo;
-        this.volumeRepo = volumeRepo;
-        this.coverPath = coverPath;
-    }
 
     @Override
     public String name() {

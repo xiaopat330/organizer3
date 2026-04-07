@@ -71,4 +71,10 @@ public interface TitleRepository {
 
     /** Find titles for an actress ordered by added_date DESC, id DESC — for the actress detail page. */
     List<Title> findByActressPaged(long actressId, int limit, int offset);
+
+    /**
+     * Find titles for an actress restricted to the given label codes (upper-case),
+     * ordered by added_date DESC, id DESC — for company-filtered actress detail pages.
+     */
+    List<Title> findByActressAndLabelsPaged(long actressId, List<String> labels, int limit, int offset);
 }
