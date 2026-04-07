@@ -17,8 +17,6 @@ import java.util.List;
  *   <li>{@link LocalFileSystem} — delegates to {@code java.nio.file.Files}; used in armed mode
  *   <li>{@link DryRunFileSystem} — read ops execute normally; write ops log what would happen
  * </ul>
- *
- * <p>Obtain the correct implementation for the current session via {@link FileSystemProvider}.
  */
 public interface VolumeFileSystem {
 

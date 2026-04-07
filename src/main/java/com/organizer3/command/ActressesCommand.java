@@ -7,6 +7,7 @@ import com.organizer3.shell.SessionContext;
 import com.organizer3.shell.io.CommandIO;
 
 import java.util.Arrays;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 
@@ -54,12 +55,21 @@ public class ActressesCommand implements Command {
 
         List<Actress> actresses = actressRepo.findByTier(tier);
 
+        printActressTable(tier.name(), actresses, titleRepo, io);
+    }
+
+    /**
+     * Shared rendering for an actress list with title counts, sorted most-to-least.
+     * Used by both {@link ActressesCommand} and {@link FavoritesCommand}.
+     */
+    static void printActressTable(String heading, List<Actress> actresses,
+                                  TitleRepository titleRepo, CommandIO io) {
         List<Map.Entry<Actress, Integer>> withCounts = actresses.stream()
                 .map(a -> Map.entry(a, titleRepo.countByActress(a.getId())))
-                .sorted(Map.Entry.<Actress, Integer>comparingByValue().reversed())
+                .sorted(Comparator.<Map.Entry<Actress, Integer>, Integer>comparing(Map.Entry::getValue).reversed())
                 .toList();
 
-        io.println(tier.name() + "  (" + withCounts.size() + " actress" + (withCounts.size() == 1 ? "" : "es") + ")");
+        io.println(heading + "  (" + withCounts.size() + " actress" + (withCounts.size() == 1 ? "" : "es") + ")");
         io.println(String.format("  %-40s  %s", "NAME", "TITLES"));
         io.println("  " + "-".repeat(48));
 

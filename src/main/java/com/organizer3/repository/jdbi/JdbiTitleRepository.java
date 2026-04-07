@@ -1,5 +1,6 @@
 package com.organizer3.repository.jdbi;
 
+import com.organizer3.model.Actress;
 import com.organizer3.model.Title;
 import com.organizer3.repository.TitleRepository;
 import org.jdbi.v3.core.Jdbi;
@@ -16,19 +17,24 @@ public class JdbiTitleRepository implements TitleRepository {
         String actressIdStr = rs.getString("actress_id");
         String seqNumStr = rs.getString("seq_num");
         String addedDateStr = rs.getString("added_date");
-        return new Title(
-                rs.getLong("id"),
-                rs.getString("code"),
-                rs.getString("base_code"),
-                rs.getString("label"),
-                seqNumStr != null ? Integer.parseInt(seqNumStr) : null,
-                rs.getString("volume_id"),
-                rs.getString("partition_id"),
-                actressIdStr != null ? Long.parseLong(actressIdStr) : null,
-                Path.of(rs.getString("path")),
-                LocalDate.parse(rs.getString("last_seen_at")),
-                addedDateStr != null ? LocalDate.parse(addedDateStr) : null
-        );
+        String gradeStr = rs.getString("grade");
+        return Title.builder()
+                .id(rs.getLong("id"))
+                .code(rs.getString("code"))
+                .baseCode(rs.getString("base_code"))
+                .label(rs.getString("label"))
+                .seqNum(seqNumStr != null ? Integer.parseInt(seqNumStr) : null)
+                .volumeId(rs.getString("volume_id"))
+                .partitionId(rs.getString("partition_id"))
+                .actressId(actressIdStr != null ? Long.parseLong(actressIdStr) : null)
+                .path(Path.of(rs.getString("path")))
+                .lastSeenAt(LocalDate.parse(rs.getString("last_seen_at")))
+                .addedDate(addedDateStr != null ? LocalDate.parse(addedDateStr) : null)
+                .favorite(rs.getBoolean("favorite"))
+                .bookmark(rs.getBoolean("bookmark"))
+                .grade(gradeStr != null ? Actress.Grade.fromDisplay(gradeStr) : null)
+                .rejected(rs.getBoolean("rejected"))
+                .build();
     };
 
     private final Jdbi jdbi;
@@ -148,47 +154,56 @@ public class JdbiTitleRepository implements TitleRepository {
     @Override
     public Title save(Title title) {
         return jdbi.withHandle(h -> {
-            if (title.id() == null) {
+            if (title.getId() == null) {
                 long id = h.createUpdate("""
                                 INSERT INTO titles
-                                    (code, base_code, label, seq_num, volume_id, partition_id, actress_id, path, last_seen_at, added_date)
-                                VALUES (:code, :baseCode, :label, :seqNum, :volumeId, :partitionId, :actressId, :path, :lastSeenAt, :addedDate)
+                                    (code, base_code, label, seq_num, volume_id, partition_id, actress_id, path, last_seen_at, added_date,
+                                     favorite, bookmark, grade, rejected)
+                                VALUES (:code, :baseCode, :label, :seqNum, :volumeId, :partitionId, :actressId, :path, :lastSeenAt, :addedDate,
+                                        :favorite, :bookmark, :grade, :rejected)
                                 """)
-                        .bind("code", title.code())
-                        .bind("baseCode", title.baseCode())
-                        .bind("label", title.label())
-                        .bind("seqNum", title.seqNum())
-                        .bind("volumeId", title.volumeId())
-                        .bind("partitionId", title.partitionId())
-                        .bind("actressId", title.actressId())
-                        .bind("path", title.path().toString())
-                        .bind("lastSeenAt", title.lastSeenAt().toString())
-                        .bind("addedDate", title.addedDate() != null ? title.addedDate().toString() : null)
+                        .bind("code", title.getCode())
+                        .bind("baseCode", title.getBaseCode())
+                        .bind("label", title.getLabel())
+                        .bind("seqNum", title.getSeqNum())
+                        .bind("volumeId", title.getVolumeId())
+                        .bind("partitionId", title.getPartitionId())
+                        .bind("actressId", title.getActressId())
+                        .bind("path", title.getPath().toString())
+                        .bind("lastSeenAt", title.getLastSeenAt().toString())
+                        .bind("addedDate", title.getAddedDate() != null ? title.getAddedDate().toString() : null)
+                        .bind("favorite", title.isFavorite())
+                        .bind("bookmark", title.isBookmark())
+                        .bind("grade", title.getGrade() != null ? title.getGrade().display : null)
+                        .bind("rejected", title.isRejected())
                         .executeAndReturnGeneratedKeys("id")
                         .mapTo(Long.class)
                         .one();
-                return new Title(id, title.code(), title.baseCode(), title.label(), title.seqNum(),
-                        title.volumeId(), title.partitionId(), title.actressId(), title.path(), title.lastSeenAt(),
-                        title.addedDate());
+                return title.toBuilder().id(id).build();
             } else {
                 h.createUpdate("""
                                 UPDATE titles SET
                                     code = :code, base_code = :baseCode, label = :label, seq_num = :seqNum,
                                     volume_id = :volumeId, partition_id = :partitionId, actress_id = :actressId,
-                                    path = :path, last_seen_at = :lastSeenAt, added_date = :addedDate
+                                    path = :path, last_seen_at = :lastSeenAt, added_date = :addedDate,
+                                    favorite = :favorite, bookmark = :bookmark, grade = :grade, rejected = :rejected
                                 WHERE id = :id
                                 """)
-                        .bind("id", title.id())
-                        .bind("code", title.code())
-                        .bind("baseCode", title.baseCode())
-                        .bind("label", title.label())
-                        .bind("seqNum", title.seqNum())
-                        .bind("volumeId", title.volumeId())
-                        .bind("partitionId", title.partitionId())
-                        .bind("actressId", title.actressId())
-                        .bind("path", title.path().toString())
-                        .bind("lastSeenAt", title.lastSeenAt().toString())
-                        .bind("addedDate", title.addedDate() != null ? title.addedDate().toString() : null)
+                        .bind("id", title.getId())
+                        .bind("code", title.getCode())
+                        .bind("baseCode", title.getBaseCode())
+                        .bind("label", title.getLabel())
+                        .bind("seqNum", title.getSeqNum())
+                        .bind("volumeId", title.getVolumeId())
+                        .bind("partitionId", title.getPartitionId())
+                        .bind("actressId", title.getActressId())
+                        .bind("path", title.getPath().toString())
+                        .bind("lastSeenAt", title.getLastSeenAt().toString())
+                        .bind("addedDate", title.getAddedDate() != null ? title.getAddedDate().toString() : null)
+                        .bind("favorite", title.isFavorite())
+                        .bind("bookmark", title.isBookmark())
+                        .bind("grade", title.getGrade() != null ? title.getGrade().display : null)
+                        .bind("rejected", title.isRejected())
                         .execute();
                 return title;
             }

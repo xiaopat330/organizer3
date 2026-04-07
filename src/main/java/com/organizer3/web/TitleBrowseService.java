@@ -59,26 +59,22 @@ public class TitleBrowseService {
         Map<String, Long> actressIdByBaseCode = new HashMap<>();
 
         titles.stream()
-                .filter(t -> t.actressId() == null)
+                .filter(t -> t.getActressId() == null)
                 .forEach(t -> {
-                    if (t.baseCode() != null && !actressIdByBaseCode.containsKey(t.baseCode())) {
-                        titleRepo.findByBaseCode(t.baseCode()).stream()
-                                .filter(other -> other.actressId() != null)
+                    if (t.getBaseCode() != null && !actressIdByBaseCode.containsKey(t.getBaseCode())) {
+                        titleRepo.findByBaseCode(t.getBaseCode()).stream()
+                                .filter(other -> other.getActressId() != null)
                                 .findFirst()
-                                .ifPresent(other -> actressIdByBaseCode.put(t.baseCode(), other.actressId()));
+                                .ifPresent(other -> actressIdByBaseCode.put(t.getBaseCode(), other.getActressId()));
                     }
                 });
 
         if (!actressIdByBaseCode.isEmpty()) {
             titles = titles.stream()
                     .map(t -> {
-                        if (t.actressId() != null) return t;
-                        Long inferred = t.baseCode() != null ? actressIdByBaseCode.get(t.baseCode()) : null;
-                        return inferred != null
-                                ? new Title(t.id(), t.code(), t.baseCode(), t.label(), t.seqNum(),
-                                        t.volumeId(), t.partitionId(), inferred,
-                                        t.path(), t.lastSeenAt(), t.addedDate())
-                                : t;
+                        if (t.getActressId() != null) return t;
+                        Long inferred = t.getBaseCode() != null ? actressIdByBaseCode.get(t.getBaseCode()) : null;
+                        return inferred != null ? t.toBuilder().actressId(inferred).build() : t;
                     })
                     .toList();
         }
@@ -90,7 +86,7 @@ public class TitleBrowseService {
         record ActressInfo(String name, String tier) {}
 
         Map<Long, ActressInfo> actressInfo = titles.stream()
-                .map(Title::actressId)
+                .map(Title::getActressId)
                 .filter(Objects::nonNull)
                 .distinct()
                 .collect(Collectors.toMap(
@@ -105,25 +101,25 @@ public class TitleBrowseService {
 
         return titles.stream()
                 .map(t -> {
-                    Label lbl = t.label() != null ? labelMap.get(t.label().toUpperCase()) : null;
-                    String coverUrl = t.label() != null
+                    Label lbl = t.getLabel() != null ? labelMap.get(t.getLabel().toUpperCase()) : null;
+                    String coverUrl = t.getLabel() != null
                             ? coverPath.find(t)
-                                    .map(p -> "/covers/" + t.label().toUpperCase() + "/" + p.getFileName())
+                                    .map(p -> "/covers/" + t.getLabel().toUpperCase() + "/" + p.getFileName())
                                     .orElse(null)
                             : null;
-                    ActressInfo ai = t.actressId() != null ? actressInfo.get(t.actressId()) : null;
+                    ActressInfo ai = t.getActressId() != null ? actressInfo.get(t.getActressId()) : null;
                     return new TitleSummary(
-                            t.code(),
-                            t.baseCode(),
-                            t.label(),
-                            t.actressId(),
+                            t.getCode(),
+                            t.getBaseCode(),
+                            t.getLabel(),
+                            t.getActressId(),
                             ai != null ? ai.name() : null,
                             ai != null ? ai.tier() : null,
-                            t.addedDate() != null ? t.addedDate().toString() : null,
+                            t.getAddedDate() != null ? t.getAddedDate().toString() : null,
                             coverUrl,
                             lbl != null ? lbl.company() : null,
                             lbl != null ? lbl.labelName() : null,
-                            t.path() != null ? t.path().toString() : null
+                            t.getPath() != null ? t.getPath().toString() : null
                     );
                 })
                 .toList();

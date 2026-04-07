@@ -60,7 +60,11 @@ public class SchemaInitializer {
                         actress_id    INTEGER REFERENCES actresses(id),
                         path          TEXT NOT NULL,
                         last_seen_at  TEXT NOT NULL,
-                        added_date    TEXT
+                        added_date    TEXT,
+                        favorite      INTEGER NOT NULL DEFAULT 0,
+                        bookmark      INTEGER NOT NULL DEFAULT 0,
+                        grade         TEXT,
+                        rejected      INTEGER NOT NULL DEFAULT 0
                     )""");
 
             h.execute("""

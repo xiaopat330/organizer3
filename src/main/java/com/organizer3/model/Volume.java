@@ -9,7 +9,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 
-import static com.organizer3.utils.Utils.format;
+import java.text.MessageFormat;
 
 /**
  * A Volume is a physical storage unit — a drive or network share. It has a short ID (e.g. "a", "bg", "hj")
@@ -52,6 +52,6 @@ public final class Volume {
 
     @Override
     public String toString() {
-        return format("[id:\"{0}\"]", id);
+        return MessageFormat.format("[id:\"{0}\"]", id);
     }
 }

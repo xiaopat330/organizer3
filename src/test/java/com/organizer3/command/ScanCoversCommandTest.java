@@ -83,8 +83,12 @@ class ScanCoversCommandTest {
     }
 
     private Title starsTitle(String code, String baseCode, String label, Path path) {
-        return new Title(1L, code, baseCode, label, null, "a", "stars/library",
-                1L, path, LocalDate.now(), LocalDate.now());
+        return Title.builder()
+                .id(1L).code(code).baseCode(baseCode).label(label)
+                .volumeId("a").partitionId("stars/library").actressId(1L)
+                .path(path)
+                .lastSeenAt(LocalDate.now()).addedDate(LocalDate.now())
+                .build();
     }
 
     private Volume syncedVolume() {
@@ -186,8 +190,12 @@ class ScanCoversCommandTest {
         when(volumeRepo.findById("a")).thenReturn(Optional.of(syncedVolume()));
 
         // A title in an unrecognised partition (e.g. collections) should be skipped
-        Title collectionsTitle = new Title(2L, "XYZ-456", "XYZ-00456", "XYZ", null, "a", "collections",
-                null, Path.of("/collections/XYZ-456"), LocalDate.now(), LocalDate.now());
+        Title collectionsTitle = Title.builder()
+                .id(2L).code("XYZ-456").baseCode("XYZ-00456").label("XYZ")
+                .volumeId("a").partitionId("collections")
+                .path(Path.of("/collections/XYZ-456"))
+                .lastSeenAt(LocalDate.now()).addedDate(LocalDate.now())
+                .build();
         when(titleRepo.findByVolume("a")).thenReturn(List.of(collectionsTitle));
 
         ScanCoversCommand cmd = new ScanCoversCommand(titleRepo, volumeRepo, coverPath);
@@ -203,8 +211,12 @@ class ScanCoversCommandTest {
         when(volumeRepo.findById("a")).thenReturn(Optional.of(syncedVolume()));
 
         Path titlePath = Path.of("/queue/ABP-200");
-        Title queueTitle = new Title(2L, "ABP-200", "ABP-00200", "ABP", null, "a", "queue",
-                null, titlePath, LocalDate.now(), LocalDate.now());
+        Title queueTitle = Title.builder()
+                .id(2L).code("ABP-200").baseCode("ABP-00200").label("ABP")
+                .volumeId("a").partitionId("queue")
+                .path(titlePath)
+                .lastSeenAt(LocalDate.now()).addedDate(LocalDate.now())
+                .build();
         when(titleRepo.findByVolume("a")).thenReturn(List.of(queueTitle));
 
         Path imagePath = titlePath.resolve("cover.jpg");

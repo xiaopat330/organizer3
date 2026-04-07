@@ -57,7 +57,7 @@ class JdbiTitleRepositoryTest {
 
         List<Title> results = titleRepo.findByActress(aya.getId());
         assertEquals(2, results.size());
-        assertTrue(results.stream().allMatch(t -> t.actressId().equals(aya.getId())));
+        assertTrue(results.stream().allMatch(t -> t.getActressId().equals(aya.getId())));
     }
 
     @Test
@@ -95,7 +95,7 @@ class JdbiTitleRepositoryTest {
 
         List<Title> results = titleRepo.findByActressIncludingAliases(aya.getId());
         assertEquals(1, results.size());
-        assertEquals("ABP-001", results.get(0).code());
+        assertEquals("ABP-001", results.get(0).getCode());
     }
 
     @Test
@@ -112,8 +112,8 @@ class JdbiTitleRepositoryTest {
 
         List<Title> results = titleRepo.findByActressIncludingAliases(aya.getId());
         assertEquals(2, results.size());
-        assertTrue(results.stream().anyMatch(t -> t.code().equals("ABP-001")));
-        assertTrue(results.stream().anyMatch(t -> t.code().equals("ABP-002")));
+        assertTrue(results.stream().anyMatch(t -> t.getCode().equals("ABP-001")));
+        assertTrue(results.stream().anyMatch(t -> t.getCode().equals("ABP-002")));
     }
 
     @Test
@@ -125,7 +125,7 @@ class JdbiTitleRepositoryTest {
 
         List<Title> results = titleRepo.findByActressIncludingAliases(aya.getId());
         assertEquals(1, results.size());
-        assertEquals("ABP-001", results.get(0).code());
+        assertEquals("ABP-001", results.get(0).getCode());
     }
 
     // --- findByAliasesOnly ---
@@ -141,7 +141,7 @@ class JdbiTitleRepositoryTest {
 
         List<Title> results = titleRepo.findByAliasesOnly(aya.getId());
         assertEquals(1, results.size());
-        assertEquals("ABP-002", results.get(0).code());
+        assertEquals("ABP-002", results.get(0).getCode());
     }
 
     @Test
@@ -172,9 +172,9 @@ class JdbiTitleRepositoryTest {
 
         List<Title> results = titleRepo.findRecent(10, 0);
         assertEquals(3, results.size());
-        assertEquals("ABP-002", results.get(0).code()); // newest first
-        assertEquals("ABP-003", results.get(1).code());
-        assertEquals("ABP-001", results.get(2).code());
+        assertEquals("ABP-002", results.get(0).getCode()); // newest first
+        assertEquals("ABP-003", results.get(1).getCode());
+        assertEquals("ABP-001", results.get(2).getCode());
     }
 
     @Test
@@ -188,11 +188,11 @@ class JdbiTitleRepositoryTest {
         List<Title> page2 = titleRepo.findRecent(2, 2);
 
         assertEquals(2, page1.size());
-        assertEquals("ABP-003", page1.get(0).code());
-        assertEquals("ABP-002", page1.get(1).code());
+        assertEquals("ABP-003", page1.get(0).getCode());
+        assertEquals("ABP-002", page1.get(1).getCode());
 
         assertEquals(1, page2.size());
-        assertEquals("ABP-001", page2.get(0).code());
+        assertEquals("ABP-001", page2.get(0).getCode());
     }
 
     @Test
@@ -203,8 +203,8 @@ class JdbiTitleRepositoryTest {
 
         List<Title> results = titleRepo.findRecent(10, 0);
         assertEquals(2, results.size());
-        assertEquals("ABP-DATED", results.get(0).code()); // dated titles sort before null
-        assertEquals("ABP-NODATE", results.get(1).code());
+        assertEquals("ABP-DATED", results.get(0).getCode()); // dated titles sort before null
+        assertEquals("ABP-NODATE", results.get(1).getCode());
     }
 
     @Test
@@ -215,7 +215,7 @@ class JdbiTitleRepositoryTest {
 
         List<Title> results = titleRepo.findRecent(10, 0);
         assertEquals(1, results.size());
-        assertEquals("ABP-ORGANIZED", results.get(0).code());
+        assertEquals("ABP-ORGANIZED", results.get(0).getCode());
     }
 
     @Test
@@ -234,9 +234,9 @@ class JdbiTitleRepositoryTest {
 
         List<Title> results = titleRepo.findByActressPaged(aya.getId(), 10, 0);
         assertEquals(3, results.size());
-        assertEquals("ABP-002", results.get(0).code());
-        assertEquals("ABP-003", results.get(1).code());
-        assertEquals("ABP-001", results.get(2).code());
+        assertEquals("ABP-002", results.get(0).getCode());
+        assertEquals("ABP-003", results.get(1).getCode());
+        assertEquals("ABP-001", results.get(2).getCode());
     }
 
     @Test
@@ -250,11 +250,11 @@ class JdbiTitleRepositoryTest {
         List<Title> page2 = titleRepo.findByActressPaged(aya.getId(), 2, 2);
 
         assertEquals(2, page1.size());
-        assertEquals("ABP-003", page1.get(0).code());
-        assertEquals("ABP-002", page1.get(1).code());
+        assertEquals("ABP-003", page1.get(0).getCode());
+        assertEquals("ABP-002", page1.get(1).getCode());
 
         assertEquals(1, page2.size());
-        assertEquals("ABP-001", page2.get(0).code());
+        assertEquals("ABP-001", page2.get(0).getCode());
     }
 
     @Test
@@ -266,7 +266,7 @@ class JdbiTitleRepositoryTest {
 
         List<Title> results = titleRepo.findByActressPaged(aya.getId(), 10, 0);
         assertEquals(1, results.size());
-        assertEquals("ABP-001", results.get(0).code());
+        assertEquals("ABP-001", results.get(0).getCode());
     }
 
     // --- findDominantActressForLabel ---
@@ -307,7 +307,7 @@ class JdbiTitleRepositoryTest {
 
         List<Title> results = titleRepo.findByVolumeAndPartition("vol-a", "queue", 10, 0);
         assertEquals(2, results.size());
-        assertTrue(results.stream().allMatch(t -> "queue".equals(t.partitionId())));
+        assertTrue(results.stream().allMatch(t -> "queue".equals(t.getPartitionId())));
     }
 
     @Test
@@ -320,8 +320,8 @@ class JdbiTitleRepositoryTest {
         List<Title> page2 = titleRepo.findByVolumeAndPartition("vol-a", "queue", 2, 2);
         assertEquals(2, page1.size());
         assertEquals(1, page2.size());
-        assertEquals("ABP-001", page1.get(0).code());
-        assertEquals("ABP-003", page2.get(0).code());
+        assertEquals("ABP-001", page1.get(0).getCode());
+        assertEquals("ABP-003", page2.get(0).getCode());
     }
 
     // --- helpers ---
@@ -339,17 +339,21 @@ class JdbiTitleRepositoryTest {
     }
 
     private static Title titleWithDate(String code, Long actressId, LocalDate addedDate) {
-        return new Title(null, code, null, null, null,
-                "vol-a", "stars/library", actressId,
-                Path.of("/mnt/vol-a/stars/library/" + code),
-                LocalDate.of(2024, 1, 1), addedDate);
+        return Title.builder()
+                .code(code)
+                .volumeId("vol-a").partitionId("stars/library").actressId(actressId)
+                .path(Path.of("/mnt/vol-a/stars/library/" + code))
+                .lastSeenAt(LocalDate.of(2024, 1, 1)).addedDate(addedDate)
+                .build();
     }
 
     private static Title titleWithLabel(String code, String label, Long actressId) {
-        return new Title(null, code, null, label, null,
-                "vol-a", "stars/library", actressId,
-                Path.of("/mnt/vol-a/stars/library/" + code),
-                LocalDate.of(2024, 1, 1), null);
+        return Title.builder()
+                .code(code).label(label)
+                .volumeId("vol-a").partitionId("stars/library").actressId(actressId)
+                .path(Path.of("/mnt/vol-a/stars/library/" + code))
+                .lastSeenAt(LocalDate.of(2024, 1, 1))
+                .build();
     }
 
     private static Title titleInPartition(String code, String partitionId) {
@@ -357,9 +361,11 @@ class JdbiTitleRepositoryTest {
     }
 
     private static Title titleInPartitionWithDate(String code, String partitionId, LocalDate addedDate) {
-        return new Title(null, code, null, null, null,
-                "vol-a", partitionId, null,
-                Path.of("/mnt/vol-a/" + partitionId + "/" + code),
-                LocalDate.of(2024, 1, 1), addedDate);
+        return Title.builder()
+                .code(code)
+                .volumeId("vol-a").partitionId(partitionId)
+                .path(Path.of("/mnt/vol-a/" + partitionId + "/" + code))
+                .lastSeenAt(LocalDate.of(2024, 1, 1)).addedDate(addedDate)
+                .build();
     }
 }

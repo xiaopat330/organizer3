@@ -99,61 +99,26 @@ abstract class AbstractSyncOperation implements SyncOperation {
     }
 
     /**
-     * Scans a flat {@code stars/} folder where actress folders sit directly under {@code starsRoot}
-     * (no tier sub-folders). All actresses are stored with tier {@code LIBRARY}.
+     * Scans an actress-folder tree: child dirs are actress folders, and inside each actress
+     * folder are title folders. Works for both flat {@code stars/} layouts (no tier sub-folders)
+     * and tiered layouts ({@code stars/popular/}, {@code stars/goddess/}, etc.).
      * Returns the number of titles saved.
      */
-    protected int scanFlatStarsPartition(Path starsRoot, String volumeId,
-                                         VolumeFileSystem fs, CommandIO io,
-                                         SyncStats stats) throws IOException {
-        if (!fs.exists(starsRoot)) {
-            io.println("  [skip] " + starsRoot + " — not found");
+    protected int scanStarsFolder(Path root, String partitionId, String progressLabel,
+                                  String volumeId, Actress.Tier actressTier,
+                                  VolumeFileSystem fs, CommandIO io,
+                                  SyncStats stats) throws IOException {
+        if (!fs.exists(root)) {
+            io.println("  [skip] " + root + " — not found");
             return 0;
         }
-        List<Path> actressFolders = fs.listDirectory(starsRoot).stream()
+        List<Path> actressFolders = fs.listDirectory(root).stream()
                 .filter(fs::isDirectory)
                 .toList();
         if (actressFolders.isEmpty()) return 0;
 
         int count = 0;
-        try (Progress progress = io.startProgress("stars/", actressFolders.size())) {
-            for (Path actressFolder : actressFolders) {
-                String actressName = actressFolder.getFileName().toString();
-                progress.setLabel(actressName);
-                Actress actress = resolveOrCreateActress(actressName, Actress.Tier.LIBRARY);
-                stats.addActress(actress.getId());
-                for (Path titleFolder : fs.listDirectory(actressFolder)) {
-                    if (fs.isDirectory(titleFolder)) {
-                        saveTitleAndVideos(titleFolder, volumeId, "stars", actress.getId(), fs);
-                        count++;
-                    }
-                }
-                progress.advance();
-            }
-        }
-        stats.addTitles("stars", count);
-        return count;
-    }
-
-    /**
-     * Scans a tier sub-folder under {@code stars/}: child dirs are actress folders,
-     * and inside each actress folder are title folders.
-     * Returns the number of titles saved.
-     */
-    protected int scanStarPartition(Path tierRoot, String partitionId,
-                                    String volumeId, Actress.Tier actressTier,
-                                    VolumeFileSystem fs, CommandIO io,
-                                    SyncStats stats) throws IOException {
-        if (!fs.exists(tierRoot)) {
-            return 0;
-        }
-        List<Path> actressFolders = fs.listDirectory(tierRoot).stream()
-                .filter(fs::isDirectory)
-                .toList();
-        if (actressFolders.isEmpty()) return 0;
-
-        int count = 0;
-        try (Progress progress = io.startProgress("stars/" + partitionId, actressFolders.size())) {
+        try (Progress progress = io.startProgress(progressLabel, actressFolders.size())) {
             for (Path actressFolder : actressFolders) {
                 String actressName = actressFolder.getFileName().toString();
                 progress.setLabel(actressName);
@@ -177,12 +142,20 @@ abstract class AbstractSyncOperation implements SyncOperation {
         String folderName = titleFolder.getFileName().toString();
         TitleCodeParser.ParsedCode parsed = codeParser.parse(folderName);
 
-        Title title = titleRepo.save(new Title(
-                null, parsed.code(), parsed.baseCode(), parsed.label(), parsed.seqNum(),
-                volumeId, partitionId, actressId,
-                titleFolder, LocalDate.now(), computeAddedDate(titleFolder, fs)));
+        Title title = titleRepo.save(Title.builder()
+                .code(parsed.code())
+                .baseCode(parsed.baseCode())
+                .label(parsed.label())
+                .seqNum(parsed.seqNum())
+                .volumeId(volumeId)
+                .partitionId(partitionId)
+                .actressId(actressId)
+                .path(titleFolder)
+                .lastSeenAt(LocalDate.now())
+                .addedDate(computeAddedDate(titleFolder, fs))
+                .build());
 
-        saveVideosForTitle(titleFolder, title.id(), fs);
+        saveVideosForTitle(titleFolder, title.getId(), fs);
     }
 
     /**
@@ -195,25 +168,24 @@ abstract class AbstractSyncOperation implements SyncOperation {
         List<Path> children = fs.listDirectory(titleFolder);
         for (Path child : children) {
             if (!fs.isDirectory(child)) {
-                LocalDate d = fs.getLastModifiedDate(child);
-                if (d != null && (earliest == null || d.isBefore(earliest))) {
-                    earliest = d;
-                }
+                earliest = earlierOf(earliest, fs.getLastModifiedDate(child));
             }
         }
         for (Path child : children) {
             if (fs.isDirectory(child)) {
                 for (Path grandchild : fs.listDirectory(child)) {
                     if (!fs.isDirectory(grandchild)) {
-                        LocalDate d = fs.getLastModifiedDate(grandchild);
-                        if (d != null && (earliest == null || d.isBefore(earliest))) {
-                            earliest = d;
-                        }
+                        earliest = earlierOf(earliest, fs.getLastModifiedDate(grandchild));
                     }
                 }
             }
         }
         return earliest;
+    }
+
+    private static LocalDate earlierOf(LocalDate a, LocalDate b) {
+        if (b == null) return a;
+        return (a == null || b.isBefore(a)) ? b : a;
     }
 
     private void saveVideosForTitle(Path titleFolder, long titleId,

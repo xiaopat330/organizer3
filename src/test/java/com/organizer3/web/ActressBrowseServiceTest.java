@@ -239,9 +239,11 @@ class ActressBrowseServiceTest {
     }
 
     private static Title title(long actressId, String volumeId, String partitionId, String path) {
-        return new Title(1L, "ABP-001", "ABP-00001", "ABP", 1,
-                volumeId, partitionId, actressId,
-                Path.of(path),
-                LocalDate.of(2024, 1, 1), LocalDate.of(2024, 1, 1));
+        return Title.builder()
+                .id(1L).code("ABP-001").baseCode("ABP-00001").label("ABP").seqNum(1)
+                .volumeId(volumeId).partitionId(partitionId).actressId(actressId)
+                .path(Path.of(path))
+                .lastSeenAt(LocalDate.of(2024, 1, 1)).addedDate(LocalDate.of(2024, 1, 1))
+                .build();
     }
 }

@@ -1,0 +1,513 @@
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  background: #0d0d0d;
+  color: #d8d8d8;
+  font-family: system-ui, -apple-system, sans-serif;
+  min-height: 100vh;
+}
+
+header {
+  padding: 14px 20px;
+  border-bottom: 1px solid #1e1e1e;
+  position: sticky;
+  top: 0;
+  background: #0d0d0d;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+header h1 {
+  font-size: 0.95rem;
+  font-weight: 500;
+  color: #555;
+  letter-spacing: 0.08em;
+  text-transform: lowercase;
+  flex-shrink: 0;
+  cursor: pointer;
+}
+
+header h1:hover {
+  color: #888;
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.nav-link {
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: #555;
+  text-decoration: none;
+  letter-spacing: 0.04em;
+  padding: 5px 10px;
+  border-radius: 4px;
+  transition: color 0.15s ease, background 0.15s ease;
+  white-space: nowrap;
+  cursor: pointer;
+  background: none;
+  border: none;
+  font-family: inherit;
+}
+
+.nav-link:hover, .nav-link.active {
+  color: #aaa;
+  background: #1a1a1a;
+}
+
+.nav-divider {
+  width: 1px;
+  height: 14px;
+  background: #2a2a2a;
+}
+
+.search-input {
+  background: #161616;
+  border: 1px solid #2a2a2a;
+  border-radius: 4px;
+  color: #c8c8c8;
+  font-size: 0.8rem;
+  padding: 5px 10px;
+  width: 200px;
+  outline: none;
+  transition: border-color 0.15s ease;
+}
+
+.search-input::placeholder {
+  color: #3a3a3a;
+}
+
+.search-input:focus {
+  border-color: #444;
+}
+
+/* Actress prefix dropdown */
+.actress-nav-wrap, .queues-nav-wrap {
+  position: relative;
+}
+
+.prefix-dropdown {
+  display: none;
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  background: #161616;
+  border: 1px solid #2a2a2a;
+  border-radius: 6px;
+  padding: 12px 14px;
+  z-index: 20;
+  min-width: 420px;
+}
+
+.prefix-dropdown.open {
+  display: flex;
+  align-items: flex-start;
+  gap: 0;
+}
+
+/* Left column: tiers */
+.dropdown-tier-col {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 96px;
+  flex-shrink: 0;
+}
+
+/* Divider between columns */
+.dropdown-col-divider {
+  width: 1px;
+  background: #222;
+  align-self: stretch;
+  margin: 0 12px;
+  flex-shrink: 0;
+}
+
+/* Right column: alphabet prefix chips */
+.dropdown-prefix-col {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-content: flex-start;
+}
+
+.dropdown-section-label {
+  font-size: 0.63rem;
+  color: #333;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  padding: 2px 9px 6px;
+  font-weight: 500;
+  width: 100%;
+}
+
+.prefix-chip {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: #666;
+  letter-spacing: 0.06em;
+  padding: 4px 9px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: color 0.12s ease, background 0.12s ease;
+  user-select: none;
+}
+
+.prefix-chip:hover {
+  color: #ccc;
+  background: #222;
+}
+
+.prefix-chip.selected {
+  color: #d8d8d8;
+  background: #252525;
+}
+
+/* Grids */
+.grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  padding: 16px;
+}
+
+/* Title cards */
+.card {
+  background: #161616;
+  border-radius: 6px;
+  overflow: hidden;
+  transition: transform 0.15s ease, background 0.15s ease;
+  cursor: default;
+}
+
+.card:hover {
+  background: #1e1e1e;
+  transform: translateY(-2px);
+}
+
+.cover-wrap {
+  width: 100%;
+  aspect-ratio: 17 / 12;
+  overflow: hidden;
+  background: #1c1c1c;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.cover-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.cover-placeholder {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #333;
+  font-size: 0.75rem;
+  letter-spacing: 0.05em;
+  font-weight: 500;
+}
+
+.card-info {
+  padding: 8px 10px 10px;
+}
+
+.actress-name {
+  font-size: 0.78rem;
+  color: #888;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 5px;
+  overflow: hidden;
+  margin-bottom: 2px;
+}
+
+.actress-name .actress-link {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+
+.actress-name .tier-badge {
+  flex-shrink: 0;
+}
+
+.actress-name.unknown {
+  color: #3a3a3a;
+}
+
+.card-actress-first {
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: #ffffff;
+}
+
+.card-actress-last {
+  font-size: 0.75rem;
+  font-weight: 400;
+  color: #666;
+}
+
+.title-code {
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: #c8c8c8;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.title-label-line {
+  font-size: 0.7rem;
+  color: #555;
+  margin-top: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.added-date {
+  font-size: 0.7rem;
+  color: #444;
+  margin-top: 3px;
+}
+
+.title-location {
+  font-size: 0.62rem;
+  color: #363636;
+  font-family: ui-monospace, monospace;
+  margin-top: 3px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.actress-link {
+  color: inherit;
+  text-decoration: none;
+}
+
+.actress-link:hover {
+  color: #bbb;
+  text-decoration: underline;
+}
+
+/* Actress cards */
+.actress-card {
+  background: #161616;
+  border-radius: 6px;
+  overflow: hidden;
+  transition: transform 0.15s ease, background 0.15s ease;
+  cursor: pointer;
+}
+
+.actress-card:hover {
+  background: #1e1e1e;
+  transform: translateY(-2px);
+}
+
+.actress-card .cover-img {
+  transition: opacity 0.4s ease;
+}
+
+.actress-card-body {
+  padding: 10px 12px 12px;
+}
+
+.actress-card-name {
+  margin-bottom: 7px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.actress-first-name {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #d0d0d0;
+}
+
+.actress-last-name {
+  font-size: 0.78rem;
+  font-weight: 400;
+  color: #777;
+  margin-left: 5px;
+}
+
+.actress-card-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 5px;
+}
+
+/* Tier badges — each tier gets a distinct look */
+.tier-badge {
+  font-size: 0.63rem;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  border-radius: 3px;
+  padding: 2px 6px;
+}
+
+.tier-LIBRARY  { color: #484848; background: #1a1a1a; }
+.tier-MINOR    { color: #5a6a78; background: #1a2028; }
+.tier-POPULAR  { color: #4a80a0; background: #162030; }
+.tier-SUPERSTAR{ color: #9a7a30; background: #201a08; }
+.tier-GODDESS  { color: #c060a0; background: #200818;
+                 box-shadow: 0 0 6px rgba(192,80,160,0.25); }
+
+.fav-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #c06060;
+  flex-shrink: 0;
+}
+
+.actress-title-count {
+  font-size: 0.7rem;
+  color: #484848;
+  margin-bottom: 4px;
+}
+
+.actress-active-dates {
+  font-size: 0.68rem;
+  color: #505050;
+  margin-bottom: 6px;
+}
+
+.date-first { color: #3a8a3a; }
+.date-last-stale { color: #cc2222; font-weight: 700; }
+.date-last { color: #505050; }
+
+.actress-folder-paths {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.actress-folder-path {
+  font-size: 0.62rem;
+  color: #383838;
+  font-family: ui-monospace, monospace;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ── Actress detail panel ─────────────────────────────────────────────── */
+
+#actress-detail {
+  display: none;
+}
+
+.actress-detail-panel {
+  position: sticky;
+  top: 49px; /* height of header */
+  z-index: 5;
+  background: #0d0d0d;
+  border-bottom: 1px solid #1e1e1e;
+  display: grid;
+  grid-template-columns: 220px 1fr;
+}
+
+.detail-cover-col {
+  aspect-ratio: 17 / 12;
+  overflow: hidden;
+  background: #1c1c1c;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.detail-cover-col img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.detail-cover-placeholder {
+  color: #333;
+  font-size: 0.75rem;
+  letter-spacing: 0.05em;
+}
+
+.detail-info-col {
+  padding: 20px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  justify-content: center;
+}
+
+.detail-name {
+  line-height: 1.2;
+}
+
+.detail-first-name {
+  font-size: 1.6rem;
+  font-weight: 700;
+  color: #e0e0e0;
+}
+
+.detail-last-name {
+  display: block;
+  font-size: 1rem;
+  font-weight: 400;
+  color: #888;
+  margin-top: 2px;
+}
+
+.detail-meta-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.detail-dates {
+  font-size: 0.78rem;
+  color: #555;
+}
+
+.detail-paths {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.detail-path {
+  font-size: 0.7rem;
+  color: #404040;
+  font-family: ui-monospace, monospace;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+#status {
+  text-align: center;
+  padding: 28px;
+  color: #3a3a3a;
+  font-size: 0.8rem;
+  letter-spacing: 0.05em;
+}
+
+#sentinel { height: 1px; }

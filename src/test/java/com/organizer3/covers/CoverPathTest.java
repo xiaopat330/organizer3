@@ -26,8 +26,12 @@ class CoverPathTest {
     }
 
     private Title title(String code, String baseCode, String label) {
-        return new Title(1L, code, baseCode, label, null, "a", "stars/popular",
-                1L, Path.of("/stars/popular/Actress/ABP-123"), LocalDate.now(), LocalDate.now());
+        return Title.builder()
+                .id(1L).code(code).baseCode(baseCode).label(label)
+                .volumeId("a").partitionId("stars/popular").actressId(1L)
+                .path(Path.of("/stars/popular/Actress/ABP-123"))
+                .lastSeenAt(LocalDate.now()).addedDate(LocalDate.now())
+                .build();
     }
 
     @Test

@@ -286,7 +286,11 @@ class ActressSearchCommandTest {
     }
 
     private static Title title(String code, String label, LocalDate addedDate) {
-        return new Title(null, code, null, label, null, "vol-a", "stars/library",
-                null, Path.of("/fake/" + code), LocalDate.of(2024, 1, 1), addedDate);
+        return Title.builder()
+                .code(code).label(label)
+                .volumeId("vol-a").partitionId("stars/library")
+                .path(Path.of("/fake/" + code))
+                .lastSeenAt(LocalDate.of(2024, 1, 1)).addedDate(addedDate)
+                .build();
     }
 }

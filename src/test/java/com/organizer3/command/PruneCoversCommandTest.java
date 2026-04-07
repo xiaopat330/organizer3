@@ -42,8 +42,12 @@ class PruneCoversCommandTest {
     }
 
     private Title title(String baseCode) {
-        return new Title(1L, baseCode, baseCode, "ABP", null, "a", "stars/library",
-                1L, Path.of("/stars/library/Actress/" + baseCode), LocalDate.now(), LocalDate.now());
+        return Title.builder()
+                .id(1L).code(baseCode).baseCode(baseCode).label("ABP")
+                .volumeId("a").partitionId("stars/library").actressId(1L)
+                .path(Path.of("/stars/library/Actress/" + baseCode))
+                .lastSeenAt(LocalDate.now()).addedDate(LocalDate.now())
+                .build();
     }
 
     @Test

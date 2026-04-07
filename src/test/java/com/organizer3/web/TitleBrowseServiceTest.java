@@ -201,9 +201,12 @@ class TitleBrowseServiceTest {
     @Test
     void findByVolumeQueueInfersActressFromStarsCopyViaBaseCode() {
         // Queue title has a base_code but no actress_id (unorganized)
-        Title queueTitle = new Title(1L, "ABP-123", "ABP-00123", "ABP", null,
-                "vol-a", "queue", null,
-                Path.of("/mnt/vol-a/queue/ABP-123"), LocalDate.of(2024, 1, 1), null);
+        Title queueTitle = Title.builder()
+                .id(1L).code("ABP-123").baseCode("ABP-00123").label("ABP")
+                .volumeId("vol-a").partitionId("queue")
+                .path(Path.of("/mnt/vol-a/queue/ABP-123"))
+                .lastSeenAt(LocalDate.of(2024, 1, 1))
+                .build();
         Title starsTitle = title("ABP-123", "ABP-00123", "ABP", 7L, null); // same base_code, has actress
         Actress actress = Actress.builder().id(7L).canonicalName("Yui Hatano")
                 .tier(Actress.Tier.POPULAR).favorite(false).firstSeenAt(LocalDate.of(2023, 1, 1)).build();
@@ -237,16 +240,20 @@ class TitleBrowseServiceTest {
     // --- helpers ---
 
     private static Title title(String code, String baseCode, String label, Long actressId, LocalDate addedDate) {
-        return new Title(1L, code, baseCode, label, 1,
-                "vol-a", "stars", actressId,
-                Path.of("/mnt/vol-a/stars/" + code),
-                LocalDate.of(2024, 1, 1), addedDate);
+        return Title.builder()
+                .id(1L).code(code).baseCode(baseCode).label(label).seqNum(1)
+                .volumeId("vol-a").partitionId("stars").actressId(actressId)
+                .path(Path.of("/mnt/vol-a/stars/" + code))
+                .lastSeenAt(LocalDate.of(2024, 1, 1)).addedDate(addedDate)
+                .build();
     }
 
     private static Title titleWithNullLabel(String code, Long actressId, LocalDate addedDate) {
-        return new Title(1L, code, null, null, null,
-                "unsorted", "queue", actressId,
-                Path.of("/mnt/unsorted/queue/" + code),
-                LocalDate.of(2024, 1, 1), addedDate);
+        return Title.builder()
+                .id(1L).code(code)
+                .volumeId("unsorted").partitionId("queue").actressId(actressId)
+                .path(Path.of("/mnt/unsorted/queue/" + code))
+                .lastSeenAt(LocalDate.of(2024, 1, 1)).addedDate(addedDate)
+                .build();
     }
 }

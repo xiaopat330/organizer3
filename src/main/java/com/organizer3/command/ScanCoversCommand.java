@@ -87,10 +87,10 @@ public class ScanCoversCommand implements Command {
         }
 
         List<Title> titles = titleRepo.findByVolume(volume.id()).stream()
-                .filter(t -> t.partitionId() != null &&
-                        (t.partitionId().startsWith("stars/") || "queue".equals(t.partitionId())))
-                .filter(t -> t.label() != null && !t.label().isBlank())
-                .filter(t -> t.baseCode() != null && !t.baseCode().isBlank())
+                .filter(t -> t.getPartitionId() != null &&
+                        (t.getPartitionId().startsWith("stars/") || "queue".equals(t.getPartitionId())))
+                .filter(t -> t.getLabel() != null && !t.getLabel().isBlank())
+                .filter(t -> t.getBaseCode() != null && !t.getBaseCode().isBlank())
                 .toList();
 
         if (titles.isEmpty()) {
@@ -114,10 +114,10 @@ public class ScanCoversCommand implements Command {
                         continue;
                     }
 
-                    String imageFile = findCoverImage(fs, title.path());
+                    String imageFile = findCoverImage(fs, title.getPath());
                     if (imageFile == null) {
                         noImage++;
-                        log.warn("No cover image found for {} at {}", title.code(), title.path());
+                        log.warn("No cover image found for {} at {}", title.getCode(), title.getPath());
                         progress.advance();
                         continue;
                     }
@@ -126,7 +126,7 @@ public class ScanCoversCommand implements Command {
                     Path localPath = coverPath.resolve(title, ext);
                     Files.createDirectories(localPath.getParent());
 
-                    Path remotePath = title.path().resolve(imageFile);
+                    Path remotePath = title.getPath().resolve(imageFile);
                     try (InputStream in = fs.openFile(remotePath)) {
                         Files.copy(in, localPath);
                     }
@@ -134,7 +134,7 @@ public class ScanCoversCommand implements Command {
 
                 } catch (IOException e) {
                     errors++;
-                    log.error("Failed to collect cover for {}: {}", title.code(), e.getMessage());
+                    log.error("Failed to collect cover for {}: {}", title.getCode(), e.getMessage());
                 }
                 progress.advance();
             }

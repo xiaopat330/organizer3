@@ -1,5 +1,8 @@
 package com.organizer3.model;
 
+import lombok.Builder;
+import lombok.Value;
+
 import java.nio.file.Path;
 import java.time.LocalDate;
 
@@ -13,16 +16,23 @@ import java.time.LocalDate;
  * <p>{@code baseCode} is the normalized form used for matching: label uppercased, number
  * zero-padded to 5 digits (e.g. "ABP-00123"). Used to correlate titles with their video files.
  */
-public record Title(
-        Long id,
-        String code,
-        String baseCode,
-        String label,
-        Integer seqNum,
-        String volumeId,
-        String partitionId,
-        Long actressId,
-        Path path,
-        LocalDate lastSeenAt,
-        LocalDate addedDate
-) {}
+@Value
+@Builder(toBuilder = true)
+public class Title {
+
+    Long id;
+    String code;
+    String baseCode;
+    String label;
+    Integer seqNum;
+    String volumeId;
+    String partitionId;
+    Long actressId;
+    Path path;
+    LocalDate lastSeenAt;
+    LocalDate addedDate;
+    boolean favorite;
+    boolean bookmark;
+    Actress.Grade grade;
+    boolean rejected;
+}

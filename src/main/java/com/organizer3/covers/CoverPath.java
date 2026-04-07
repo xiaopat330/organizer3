@@ -39,7 +39,7 @@ public class CoverPath {
 
     /** Returns the label directory for a given title (e.g. {@code data/covers/ABP/}). */
     public Path labelDir(Title title) {
-        return coversRoot.resolve(title.label().toUpperCase());
+        return coversRoot.resolve(title.getLabel().toUpperCase());
     }
 
     /**
@@ -47,7 +47,7 @@ public class CoverPath {
      * E.g. {@code data/covers/ABP/ABP-00123.jpg}
      */
     public Path resolve(Title title, String extension) {
-        return labelDir(title).resolve(title.baseCode() + "." + extension);
+        return labelDir(title).resolve(title.getBaseCode() + "." + extension);
     }
 
     /**
@@ -55,11 +55,11 @@ public class CoverPath {
      * Returns empty if no cover exists or if the title has no label/baseCode.
      */
     public Optional<Path> find(Title title) {
-        if (title.label() == null || title.baseCode() == null) return Optional.empty();
+        if (title.getLabel() == null || title.getBaseCode() == null) return Optional.empty();
         Path dir = labelDir(title);
         if (!Files.isDirectory(dir)) return Optional.empty();
 
-        String prefix = title.baseCode() + ".";
+        String prefix = title.getBaseCode() + ".";
         try (Stream<Path> files = Files.list(dir)) {
             return files
                     .filter(f -> f.getFileName().toString().startsWith(prefix))

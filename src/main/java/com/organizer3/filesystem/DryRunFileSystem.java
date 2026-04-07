@@ -28,7 +28,7 @@ import java.util.stream.Stream;
  * without state tracking — the output is still useful as a human-readable preview.
  *
  * <p>A new instance should be created per command invocation, using the command's
- * {@link PrintWriter}. See {@link FileSystemProvider}.
+ * {@link PrintWriter}.
  */
 public class DryRunFileSystem implements VolumeFileSystem {
 

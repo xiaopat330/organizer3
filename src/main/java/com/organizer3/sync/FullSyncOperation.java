@@ -5,6 +5,7 @@ import com.organizer3.config.volume.StructuredPartitionDef;
 import com.organizer3.config.volume.VolumeConfig;
 import com.organizer3.config.volume.VolumeStructureDef;
 import com.organizer3.filesystem.VolumeFileSystem;
+import com.organizer3.model.Actress;
 import com.organizer3.repository.ActressRepository;
 import com.organizer3.repository.TitleRepository;
 import com.organizer3.repository.VideoRepository;
@@ -56,12 +57,13 @@ public class FullSyncOperation extends AbstractSyncOperation {
             if (stars.partitions() == null || stars.partitions().isEmpty()) {
                 // Flat layout: actress folders sit directly under stars/
                 io.println("  Scanning stars/ ...");
-                scanFlatStarsPartition(starsRoot, volume.id(), fs, io, stats);
+                scanStarsFolder(starsRoot, "stars", "stars/",
+                        volume.id(), Actress.Tier.LIBRARY, fs, io, stats);
             } else {
                 for (PartitionDef sub : stars.partitions()) {
                     Path tierRoot = starsRoot.resolve(sub.path());
                     io.println("  Scanning stars/" + sub.id() + "/ ...");
-                    scanStarPartition(tierRoot, "stars/" + sub.id(),
+                    scanStarsFolder(tierRoot, "stars/" + sub.id(), "stars/" + sub.id(),
                             volume.id(), toActressTier(sub.id()), fs, io, stats);
                 }
             }

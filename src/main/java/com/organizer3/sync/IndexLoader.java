@@ -30,7 +30,7 @@ public class IndexLoader {
         List<Title> titles = titleRepo.findByVolume(volumeId);
 
         Set<Long> actressIds = titles.stream()
-                .map(Title::actressId)
+                .map(Title::getActressId)
                 .filter(Objects::nonNull)
                 .collect(Collectors.toSet());
 

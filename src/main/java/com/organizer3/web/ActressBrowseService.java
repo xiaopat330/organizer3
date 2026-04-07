@@ -120,17 +120,17 @@ public class ActressBrowseService {
         String actressTier = actress != null && actress.getTier() != null ? actress.getTier().name() : null;
         return titles.stream()
                 .map(t -> {
-                    Label lbl = t.label() != null ? labelMap.get(t.label().toUpperCase()) : null;
+                    Label lbl = t.getLabel() != null ? labelMap.get(t.getLabel().toUpperCase()) : null;
                     return new TitleSummary(
-                            t.code(), t.baseCode(), t.label(),
+                            t.getCode(), t.getBaseCode(), t.getLabel(),
                             actressId, actressName, actressTier,
-                            t.addedDate() != null ? t.addedDate().toString() : null,
+                            t.getAddedDate() != null ? t.getAddedDate().toString() : null,
                             coverPath.find(t)
-                                    .map(p -> "/covers/" + t.label().toUpperCase() + "/" + p.getFileName())
+                                    .map(p -> "/covers/" + t.getLabel().toUpperCase() + "/" + p.getFileName())
                                     .orElse(null),
                             lbl != null ? lbl.company() : null,
                             lbl != null ? lbl.labelName() : null,
-                            t.path() != null ? t.path().toString() : null
+                            t.getPath() != null ? t.getPath().toString() : null
                     );
                 })
                 .toList();
@@ -141,18 +141,18 @@ public class ActressBrowseService {
 
         List<String> coverUrls = titles.stream()
                 .map(t -> coverPath.find(t)
-                        .map(p -> "/covers/" + t.label().toUpperCase() + "/" + p.getFileName())
+                        .map(p -> "/covers/" + t.getLabel().toUpperCase() + "/" + p.getFileName())
                         .orElse(null))
                 .filter(Objects::nonNull)
                 .limit(MAX_COVERS)
                 .toList();
 
         List<String> folderPaths = titles.stream()
-                .filter(t -> t.partitionId() != null && t.partitionId().startsWith("stars"))
+                .filter(t -> t.getPartitionId() != null && t.getPartitionId().startsWith("stars"))
                 .map(t -> {
-                    Path actressFolder = t.path().getParent();
+                    Path actressFolder = t.getPath().getParent();
                     if (actressFolder == null) return null;
-                    String smbBase = volumeSmbPaths.get(t.volumeId());
+                    String smbBase = volumeSmbPaths.get(t.getVolumeId());
                     if (smbBase == null) return null;
                     return smbBase + actressFolder;
                 })
@@ -163,7 +163,7 @@ public class ActressBrowseService {
         String firstAdded = actress.getFirstSeenAt() != null
                 ? actress.getFirstSeenAt().toString() : null;
         String lastAdded = titles.stream()
-                .map(Title::addedDate)
+                .map(Title::getAddedDate)
                 .filter(Objects::nonNull)
                 .max(Comparator.naturalOrder())
                 .map(Object::toString)

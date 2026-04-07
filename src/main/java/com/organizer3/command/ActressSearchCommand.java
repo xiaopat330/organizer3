@@ -131,11 +131,11 @@ public class ActressSearchCommand implements Command {
         List<Title> allTitles = new ArrayList<>(primaryTitles);
         aliasSections.forEach(a -> allTitles.addAll(a.titles()));
         Optional<LocalDate> firstAdded = allTitles.stream()
-                .map(Title::addedDate)
+                .map(Title::getAddedDate)
                 .filter(d -> d != null)
                 .min(Comparator.naturalOrder());
         Optional<LocalDate> lastAdded = allTitles.stream()
-                .map(Title::addedDate)
+                .map(Title::getAddedDate)
                 .filter(d -> d != null)
                 .max(Comparator.naturalOrder());
 
@@ -187,15 +187,15 @@ public class ActressSearchCommand implements Command {
         if (titles.isEmpty()) return;
 
         List<TitleTable.Column> columns = List.of(
-                TitleTable.Column.colored("Product Code", Title::code, GREEN),
-                TitleTable.Column.plain("Label", t -> t.label() != null ? t.label() : ""),
-                TitleTable.Column.plain("Seq", t -> t.seqNum() != null ? formatSeq(t.seqNum()) : ""),
+                TitleTable.Column.colored("Product Code", Title::getCode, GREEN),
+                TitleTable.Column.plain("Label", t -> t.getLabel() != null ? t.getLabel() : ""),
+                TitleTable.Column.plain("Seq", t -> t.getSeqNum() != null ? formatSeq(t.getSeqNum()) : ""),
                 TitleTable.Column.plain("Studio", t -> {
                     String name = labelNameFor(t, labelMap);
                     return name != null ? name : "";
                 }),
-                TitleTable.Column.plain("Added", t -> t.addedDate() != null ? t.addedDate().format(DATE_FORMAT) : ""),
-                TitleTable.Column.plain("Location", t -> t.path() != null ? t.path().toString() : "")
+                TitleTable.Column.plain("Added", t -> t.getAddedDate() != null ? t.getAddedDate().format(DATE_FORMAT) : ""),
+                TitleTable.Column.plain("Location", t -> t.getPath() != null ? t.getPath().toString() : "")
         );
 
         Map<String, List<Title>> byCompany = titles.stream().collect(
@@ -214,8 +214,8 @@ public class ActressSearchCommand implements Command {
                     String company = entry.getKey();
                     List<Title> group = entry.getValue();
                     List<Title> sorted = group.stream()
-                            .sorted(Comparator.comparing(Title::addedDate, Comparator.nullsLast(Comparator.naturalOrder()))
-                                    .thenComparing(Title::code))
+                            .sorted(Comparator.comparing(Title::getAddedDate, Comparator.nullsLast(Comparator.naturalOrder()))
+                                    .thenComparing(Title::getCode))
                             .toList();
                     io.printlnAnsi(indent + YELLOW + company + RESET);
                     TitleTable.print(sorted, columns, indent + "  ", io);
@@ -224,14 +224,14 @@ public class ActressSearchCommand implements Command {
     }
 
     private static String companyFor(Title title, Map<String, Label> labelMap) {
-        if (title.label() == null) return "(Unknown)";
-        Label label = labelMap.get(title.label().toUpperCase());
+        if (title.getLabel() == null) return "(Unknown)";
+        Label label = labelMap.get(title.getLabel().toUpperCase());
         return (label != null && label.company() != null) ? label.company() : "(Unknown)";
     }
 
     private static String labelNameFor(Title title, Map<String, Label> labelMap) {
-        if (title.label() == null) return null;
-        Label label = labelMap.get(title.label().toUpperCase());
+        if (title.getLabel() == null) return null;
+        Label label = labelMap.get(title.getLabel().toUpperCase());
         return (label != null && label.labelName() != null && !label.labelName().isBlank())
                 ? label.labelName() : null;
     }
