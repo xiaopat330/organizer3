@@ -54,7 +54,7 @@ public class ConventionalScanner implements VolumeScanner {
 
     @Override
     public boolean isCoverScannable(String partitionId) {
-        return partitionId.startsWith("stars/") || "queue".equals(partitionId);
+        return true;
     }
 
     private List<DiscoveredTitle> scanUnstructured(Path partRoot, String partitionId,

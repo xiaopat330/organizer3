@@ -10,13 +10,11 @@ import com.organizer3.repository.LabelRepository;
 import com.organizer3.repository.TitleRepository;
 
 import java.nio.file.Path;
-import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.TreeMap;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -33,7 +31,6 @@ import lombok.extern.slf4j.Slf4j;
 @RequiredArgsConstructor
 public class ActressBrowseService {
 
-    static final int SPLIT_THRESHOLD = 20;
     private static final int MAX_COVERS = 8;
 
     private final ActressRepository actressRepo;
@@ -49,29 +46,11 @@ public class ActressBrowseService {
     public List<String> findPrefixIndex() {
         List<com.organizer3.model.Actress> all = actressRepo.findAll();
 
-        Map<Character, Long> letterCounts = all.stream()
-                .collect(Collectors.groupingBy(
-                        a -> Character.toUpperCase(a.getCanonicalName().charAt(0)),
-                        Collectors.counting()
-                ));
-
-        List<String> result = new ArrayList<>();
-
-        new TreeMap<>(letterCounts).forEach((letter, count) -> {
-            if (count <= SPLIT_THRESHOLD) {
-                result.add(String.valueOf(letter));
-            } else {
-                Map<String, Long> twoCounts = all.stream()
-                        .filter(a -> Character.toUpperCase(a.getCanonicalName().charAt(0)) == letter)
-                        .collect(Collectors.groupingBy(
-                                a -> twoCharPrefix(a.getCanonicalName()),
-                                Collectors.counting()
-                        ));
-                new TreeMap<>(twoCounts).keySet().forEach(result::add);
-            }
-        });
-
-        return result;
+        return all.stream()
+                .map(a -> String.valueOf(Character.toUpperCase(a.getCanonicalName().charAt(0))))
+                .distinct()
+                .sorted()
+                .toList();
     }
 
     /**
@@ -95,11 +74,41 @@ public class ActressBrowseService {
     }
 
     /**
+     * Returns actress counts grouped by tier for the given prefix, e.g. {"GODDESS": 3, "SUPERSTAR": 12}.
+     */
+    public Map<String, Integer> findTierCountsByPrefix(String prefix) {
+        return actressRepo.countByFirstNamePrefixGroupedByTier(prefix);
+    }
+
+    /**
+     * Paginated version: returns actresses whose canonical name starts with {@code letter}
+     * (a single letter), optionally filtered by tier.
+     */
+    public List<ActressSummary> findByPrefixPaged(String letter, String tierName, int offset, int limit) {
+        com.organizer3.model.Actress.Tier tier = null;
+        if (tierName != null && !tierName.isBlank()) {
+            tier = com.organizer3.model.Actress.Tier.valueOf(tierName.toUpperCase());
+        }
+        return actressRepo.findByFirstNamePrefixPaged(letter, tier, limit, offset).stream()
+                .map(this::toSummary)
+                .toList();
+    }
+
+    /**
      * Returns all actresses that have at least one title on any of the given volumes,
      * enriched with title count, cover URLs, and SMB folder paths.
      */
     public List<ActressSummary> findByVolumes(List<String> volumeIds) {
         return actressRepo.findByVolumeIds(volumeIds).stream()
+                .map(this::toSummary)
+                .toList();
+    }
+
+    /**
+     * Paginated version: returns actresses on the given volumes, ordered by canonical name.
+     */
+    public List<ActressSummary> findByVolumesPaged(List<String> volumeIds, int offset, int limit) {
+        return actressRepo.findByVolumeIdsPaged(volumeIds, limit, offset).stream()
                 .map(this::toSummary)
                 .toList();
     }
@@ -113,6 +122,28 @@ public class ActressBrowseService {
     public List<ActressSummary> findByTier(String tierName) {
         com.organizer3.model.Actress.Tier tier = com.organizer3.model.Actress.Tier.valueOf(tierName.toUpperCase());
         return actressRepo.findByTier(tier).stream()
+                .map(this::toSummary)
+                .toList();
+    }
+
+    /** Paginated tier query. */
+    public List<ActressSummary> findByTierPaged(String tierName, int offset, int limit) {
+        com.organizer3.model.Actress.Tier tier = com.organizer3.model.Actress.Tier.valueOf(tierName.toUpperCase());
+        return actressRepo.findByTierPaged(tier, limit, offset).stream()
+                .map(this::toSummary)
+                .toList();
+    }
+
+    /** Paginated all-actresses query. */
+    public List<ActressSummary> findAllPaged(int offset, int limit) {
+        return actressRepo.findAllPaged(limit, offset).stream()
+                .map(this::toSummary)
+                .toList();
+    }
+
+    /** Paginated favorites query. */
+    public List<ActressSummary> findFavoritesPaged(int offset, int limit) {
+        return actressRepo.findFavoritesPaged(limit, offset).stream()
                 .map(this::toSummary)
                 .toList();
     }
@@ -168,6 +199,11 @@ public class ActressBrowseService {
                             .labelName(lbl != null ? lbl.labelName() : null)
                             .location(t.getPath() != null ? t.getPath().toString() : null)
                             .locations(allLocations)
+                            .titleEnglish(t.getTitleEnglish())
+                            .titleOriginal(t.getTitleOriginal())
+                            .releaseDate(t.getReleaseDate() != null ? t.getReleaseDate().toString() : null)
+                            .grade(t.getGrade() != null ? t.getGrade().display : null)
+                            .tags(t.getTags())
                             .build();
                 })
                 .toList();
@@ -294,8 +330,4 @@ public class ActressBrowseService {
         return result;
     }
 
-    private static String twoCharPrefix(String name) {
-        String upper = name.toUpperCase();
-        return upper.length() >= 2 ? upper.substring(0, 2) : upper;
-    }
 }

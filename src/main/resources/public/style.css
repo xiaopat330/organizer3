@@ -151,7 +151,7 @@ header h1:hover {
   border-radius: 6px;
   padding: 12px 14px;
   z-index: 20;
-  min-width: 420px;
+  min-width: 280px;
 }
 
 .prefix-dropdown.open {
@@ -217,6 +217,64 @@ header h1:hover {
   color: #d8d8d8;
   background: #252525;
 }
+
+/* ── Actress sub-nav bar (letter + tier filter) ─────────────────────── */
+.actress-sub-nav {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 10px 20px;
+  background: #0d0d0d;
+  border-bottom: 1px solid #1e1e1e;
+  position: sticky;
+  top: 0;
+  z-index: 8;
+}
+
+.actress-sub-nav-item {
+  font-size: 0.72rem;
+  font-weight: 500;
+  letter-spacing: 0.05em;
+  color: #555;
+  padding: 5px 14px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: color 0.12s ease, background 0.12s ease;
+  user-select: none;
+}
+
+.actress-sub-nav-item:hover {
+  color: #c0c0c0;
+  background: #1a1a1a;
+}
+
+.actress-sub-nav-item.selected {
+  color: #e0e0e0;
+  font-weight: 600;
+  background: #1e1e1e;
+}
+
+/* Tier-colored sub-nav items */
+.actress-sub-nav-item.tier-LIBRARY        { color: #484848; }
+.actress-sub-nav-item.tier-LIBRARY:hover   { color: #888; background: #1a1a1a; }
+.actress-sub-nav-item.tier-LIBRARY.selected { color: #aaa; background: #1a1a1a; }
+
+.actress-sub-nav-item.tier-MINOR          { color: #5a6a78; }
+.actress-sub-nav-item.tier-MINOR:hover     { color: #8ab0d0; background: #1a2028; }
+.actress-sub-nav-item.tier-MINOR.selected  { color: #a0c8e8; background: #1a2028; }
+
+.actress-sub-nav-item.tier-POPULAR         { color: #4a80a0; }
+.actress-sub-nav-item.tier-POPULAR:hover    { color: #70b8e8; background: #162030; }
+.actress-sub-nav-item.tier-POPULAR.selected { color: #90d0f8; background: #162030; }
+
+.actress-sub-nav-item.tier-SUPERSTAR         { color: #9a7a30; }
+.actress-sub-nav-item.tier-SUPERSTAR:hover    { color: #d0a840; background: #201a08; }
+.actress-sub-nav-item.tier-SUPERSTAR.selected { color: #e8c050; background: #201a08; }
+
+.actress-sub-nav-item.tier-GODDESS         { color: #c060a0; }
+.actress-sub-nav-item.tier-GODDESS:hover    { color: #e888c8; background: #200818; }
+.actress-sub-nav-item.tier-GODDESS.selected { color: #f0a0d8; background: #200818;
+                                              box-shadow: 0 0 6px rgba(192,80,160,0.25); }
 
 /* Grids */
 .grid {
@@ -334,6 +392,11 @@ header h1:hover {
 
 .ticker-name:hover {
   color: #e0e0e0;
+}
+
+.ticker-first {
+  color: #fff;
+  font-weight: 600;
 }
 
 .ticker-sep {
@@ -532,7 +595,7 @@ header h1:hover {
   background: #0d0d0d;
   border-bottom: 1px solid #1e1e1e;
   display: grid;
-  grid-template-columns: 280px 1fr 1fr 1fr;
+  grid-template-columns: 15% 25% 25% 35%;
   padding: 12px 0;
 }
 
@@ -818,4 +881,80 @@ header h1:hover {
 .home-tab.active {
   color: #c8c8c8;
   background: #1a1a1a;
+}
+
+/* ── Special actress query chips (left column of dropdown) ──────────────── */
+
+.special-chip {
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+}
+
+/* Tier-colored chips inside the dropdown */
+.tier-chip-LIBRARY  { color: #484848; }
+.tier-chip-LIBRARY:hover   { color: #888; }
+.tier-chip-LIBRARY.selected { color: #aaa; background: #1a1a1a; }
+
+.tier-chip-MINOR    { color: #5a6a78; }
+.tier-chip-MINOR:hover     { color: #8ab0d0; background: #1a2028; }
+.tier-chip-MINOR.selected  { color: #a0c8e8; background: #1a2028; }
+
+.tier-chip-POPULAR  { color: #4a80a0; }
+.tier-chip-POPULAR:hover    { color: #70b8e8; background: #162030; }
+.tier-chip-POPULAR.selected { color: #90d0f8; background: #162030; }
+
+.tier-chip-SUPERSTAR { color: #9a7a30; }
+.tier-chip-SUPERSTAR:hover    { color: #d0a840; background: #201a08; }
+.tier-chip-SUPERSTAR.selected { color: #e8c050; background: #201a08; }
+
+.tier-chip-GODDESS  { color: #c060a0; }
+.tier-chip-GODDESS:hover    { color: #e888c8; background: #200818; }
+.tier-chip-GODDESS.selected { color: #f0a0d8; background: #200818;
+                               box-shadow: 0 0 6px rgba(192,80,160,0.25); }
+
+/* ── Title grade badge ───────────────────────────────────────────────────── */
+
+.grade-badge {
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  border-radius: 3px;
+  padding: 2px 6px;
+  display: inline-block;
+  vertical-align: middle;
+  margin-left: 5px;
+}
+
+/* ── Title translations ──────────────────────────────────────────────────── */
+
+.title-en {
+  font-size: 0.72rem;
+  color: #ffffff;
+  margin-top: 3px;
+  line-height: 1.35;
+}
+
+.title-ja {
+  font-size: 0.7rem;
+  color: #666;
+  margin-top: 2px;
+  line-height: 1.35;
+}
+
+/* ── Tag badges ──────────────────────────────────────────────────────────── */
+
+.title-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 5px;
+}
+
+.tag-badge {
+  font-size: 0.6rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  border-radius: 3px;
+  padding: 2px 5px;
 }

@@ -205,16 +205,26 @@ abstract class AbstractSyncOperation implements SyncOperation {
 
     /**
      * Resolves an actress by name (canonical or alias). Creates a new record if not found.
+     * If the actress already exists but the requested tier is higher (further right in the
+     * enum), promotes her tier — this ensures that scanning a goddess partition after the
+     * actress was created via alias import (LIBRARY) correctly updates the tier.
      */
     protected Actress resolveOrCreateActress(String name, Actress.Tier tier) {
-        return actressRepo.resolveByName(name).orElseGet(() -> {
-            log.debug("New actress discovered during sync: {}", name);
-            return actressRepo.save(Actress.builder()
-                    .canonicalName(name)
-                    .tier(tier)
-                    .firstSeenAt(LocalDate.now())
-                    .build());
-        });
+        var existing = actressRepo.resolveByName(name);
+        if (existing.isPresent()) {
+            Actress actress = existing.get();
+            if (tier.ordinal() > actress.getTier().ordinal()) {
+                log.debug("Promoting actress '{}' tier: {} → {}", name, actress.getTier(), tier);
+                actressRepo.updateTier(actress.getId(), tier);
+            }
+            return actress;
+        }
+        log.debug("New actress discovered during sync: {}", name);
+        return actressRepo.save(Actress.builder()
+                .canonicalName(name)
+                .tier(tier)
+                .firstSeenAt(LocalDate.now())
+                .build());
     }
 
     /**
@@ -232,11 +242,13 @@ abstract class AbstractSyncOperation implements SyncOperation {
     }
 
     /**
-     * Stamps the volume's {@code last_synced_at} to now and reloads the in-memory index.
+     * Stamps the volume's {@code last_synced_at} to now, recalculates actress tiers from
+     * current title counts, and reloads the in-memory index.
      */
     protected void finalizeSync(String volumeId,
                                 com.organizer3.shell.SessionContext ctx) {
         volumeRepo.updateLastSyncedAt(volumeId, LocalDateTime.now());
+        actressRepo.recalcTiers();
         ctx.setIndex(indexLoader.load(volumeId));
     }
 

@@ -13,5 +13,6 @@ public record VolumeConfig(
         @JsonProperty("id")            String id,
         @JsonProperty("smbPath")       String smbPath,
         @JsonProperty("structureType") String structureType,
-        @JsonProperty("server")        String server
+        @JsonProperty("server")        String server,
+        @JsonProperty("group")         String group
 ) {}

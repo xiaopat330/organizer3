@@ -16,6 +16,7 @@ import com.organizer3.model.TitleLocation;
 import com.organizer3.ai.ActressNameLookup;
 import com.organizer3.repository.ActressRepository;
 import com.organizer3.repository.LabelRepository;
+import com.organizer3.repository.TitleActressRepository;
 import com.organizer3.repository.TitleRepository;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
@@ -32,6 +33,7 @@ import java.util.Map;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 class WebServerTest {
@@ -164,7 +166,7 @@ class WebServerTest {
         when(labelRepo.findAllAsMap()).thenReturn(Map.of());
         when(coverPath.find(any(Title.class))).thenReturn(Optional.empty());
 
-        TitleBrowseService browseService = new TitleBrowseService(titleRepo, actressRepo, coverPath, labelRepo);
+        TitleBrowseService browseService = new TitleBrowseService(titleRepo, actressRepo, coverPath, labelRepo, mock(TitleActressRepository.class));
         server = new WebServer(0, browseService, null, null);
         server.start();
 
@@ -187,7 +189,7 @@ class WebServerTest {
         when(titleRepo.findRecent(10, 5)).thenReturn(List.of());
         when(labelRepo.findAllAsMap()).thenReturn(Map.of());
 
-        TitleBrowseService browseService = new TitleBrowseService(titleRepo, actressRepo, coverPath, labelRepo);
+        TitleBrowseService browseService = new TitleBrowseService(titleRepo, actressRepo, coverPath, labelRepo, mock(TitleActressRepository.class));
         server = new WebServer(0, browseService, null, null);
         server.start();
 
@@ -218,7 +220,7 @@ class WebServerTest {
         when(labelRepo.findAllAsMap()).thenReturn(Map.of());
         when(coverPath.find(any(Title.class))).thenReturn(Optional.empty());
 
-        TitleBrowseService browseService = new TitleBrowseService(titleRepo, actressRepo, coverPath, labelRepo);
+        TitleBrowseService browseService = new TitleBrowseService(titleRepo, actressRepo, coverPath, labelRepo, mock(TitleActressRepository.class));
         server = new WebServer(0, browseService, null, null);
         server.start();
 
@@ -268,7 +270,8 @@ class WebServerTest {
 
         Actress aya = Actress.builder().id(1L).canonicalName("Aya Sazanami")
                 .tier(Actress.Tier.LIBRARY).firstSeenAt(LocalDate.of(2025, 1, 1)).build();
-        when(actressRepo.findByFirstNamePrefix("A")).thenReturn(List.of(aya));
+        when(actressRepo.findByFirstNamePrefixPaged(eq("A"), isNull(), anyInt(), anyInt()))
+                .thenReturn(List.of(aya));
         when(titleRepo.findByActress(1L)).thenReturn(List.of());
 
         ActressBrowseService actressBrowse = new ActressBrowseService(

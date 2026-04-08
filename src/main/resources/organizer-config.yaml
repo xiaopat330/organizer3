@@ -73,16 +73,19 @@ volumes:
     smbPath: //qnap2/jav
     structureType: exhibition
     server: qnap2
+    group: exhibition
 
   - id: qnap_archive
     smbPath: //pandora/qnap_archive
     structureType: exhibition
     server: pandora
+    group: archive
 
   - id: classic
     smbPath: //qnap2/JAV/classic
     structureType: exhibition
     server: qnap2
+    group: archive
 
   - id: pool
     smbPath: //pandora/jav_unsorted/_done

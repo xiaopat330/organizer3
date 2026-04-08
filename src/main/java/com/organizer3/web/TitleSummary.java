@@ -31,6 +31,14 @@ public class TitleSummary {
     @Builder.Default
     List<ActressEntry> actresses = List.of();
 
+    // Enrichment fields (populated via load actress command)
+    String titleEnglish;
+    String titleOriginal;
+    String releaseDate;
+    String grade;
+    @Builder.Default
+    List<String> tags = List.of();
+
     /** Lightweight actress reference for multi-actress title cards. */
     @Value
     @Builder

@@ -11,6 +11,7 @@ import org.jdbi.v3.core.mapper.RowMapper;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 @RequiredArgsConstructor
@@ -137,10 +138,91 @@ public class JdbiActressRepository implements ActressRepository {
     }
 
     @Override
+    public List<Actress> findByFirstNamePrefixPaged(String prefix, Actress.Tier tier, int limit, int offset) {
+        return jdbi.withHandle(h -> {
+            if (tier != null) {
+                return h.createQuery("""
+                        SELECT * FROM actresses
+                        WHERE LOWER(canonical_name) LIKE :prefix AND tier = :tier
+                        ORDER BY canonical_name
+                        LIMIT :limit OFFSET :offset
+                        """)
+                        .bind("prefix", prefix.toLowerCase() + "%")
+                        .bind("tier", tier.name())
+                        .bind("limit", limit)
+                        .bind("offset", offset)
+                        .map(ACTRESS_MAPPER).list();
+            } else {
+                return h.createQuery("""
+                        SELECT * FROM actresses
+                        WHERE LOWER(canonical_name) LIKE :prefix
+                        ORDER BY canonical_name
+                        LIMIT :limit OFFSET :offset
+                        """)
+                        .bind("prefix", prefix.toLowerCase() + "%")
+                        .bind("limit", limit)
+                        .bind("offset", offset)
+                        .map(ACTRESS_MAPPER).list();
+            }
+        });
+    }
+
+    @Override
+    public Map<String, Integer> countByFirstNamePrefixGroupedByTier(String prefix) {
+        return jdbi.withHandle(h ->
+                h.createQuery("""
+                        SELECT tier, COUNT(*) AS cnt FROM actresses
+                        WHERE LOWER(canonical_name) LIKE :prefix
+                        GROUP BY tier
+                        """)
+                        .bind("prefix", prefix.toLowerCase() + "%")
+                        .<Map.Entry<String, Integer>>map((rs, ctx) ->
+                                Map.entry(rs.getString("tier"), rs.getInt("cnt")))
+                        .list()
+                        .stream()
+                        .collect(java.util.stream.Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue))
+        );
+    }
+
+    @Override
     public List<Actress> findByTier(Actress.Tier tier) {
         return jdbi.withHandle(h ->
                 h.createQuery("SELECT * FROM actresses WHERE tier = :tier ORDER BY canonical_name")
                         .bind("tier", tier.name())
+                        .map(ACTRESS_MAPPER)
+                        .list()
+        );
+    }
+
+    @Override
+    public List<Actress> findByTierPaged(Actress.Tier tier, int limit, int offset) {
+        return jdbi.withHandle(h ->
+                h.createQuery("SELECT * FROM actresses WHERE tier = :tier ORDER BY canonical_name LIMIT :limit OFFSET :offset")
+                        .bind("tier", tier.name())
+                        .bind("limit", limit)
+                        .bind("offset", offset)
+                        .map(ACTRESS_MAPPER)
+                        .list()
+        );
+    }
+
+    @Override
+    public List<Actress> findAllPaged(int limit, int offset) {
+        return jdbi.withHandle(h ->
+                h.createQuery("SELECT * FROM actresses ORDER BY canonical_name LIMIT :limit OFFSET :offset")
+                        .bind("limit", limit)
+                        .bind("offset", offset)
+                        .map(ACTRESS_MAPPER)
+                        .list()
+        );
+    }
+
+    @Override
+    public List<Actress> findFavoritesPaged(int limit, int offset) {
+        return jdbi.withHandle(h ->
+                h.createQuery("SELECT * FROM actresses WHERE favorite = 1 ORDER BY canonical_name LIMIT :limit OFFSET :offset")
+                        .bind("limit", limit)
+                        .bind("offset", offset)
                         .map(ACTRESS_MAPPER)
                         .list()
         );
@@ -158,6 +240,26 @@ public class JdbiActressRepository implements ActressRepository {
                         ORDER BY a.canonical_name
                         """)
                         .bindList("volumeIds", volumeIds)
+                        .map(ACTRESS_MAPPER)
+                        .list()
+        );
+    }
+
+    @Override
+    public List<Actress> findByVolumeIdsPaged(List<String> volumeIds, int limit, int offset) {
+        if (volumeIds == null || volumeIds.isEmpty()) return List.of();
+        return jdbi.withHandle(h ->
+                h.createQuery("""
+                        SELECT DISTINCT a.* FROM actresses a
+                        JOIN titles t ON t.actress_id = a.id
+                        JOIN title_locations tl ON tl.title_id = t.id
+                        WHERE tl.volume_id IN (<volumeIds>)
+                        ORDER BY a.canonical_name
+                        LIMIT :limit OFFSET :offset
+                        """)
+                        .bindList("volumeIds", volumeIds)
+                        .bind("limit", limit)
+                        .bind("offset", offset)
                         .map(ACTRESS_MAPPER)
                         .list()
         );
@@ -335,6 +437,22 @@ public class JdbiActressRepository implements ActressRepository {
                 h.createUpdate("UPDATE actresses SET tier = :tier WHERE id = :id")
                         .bind("tier", tier.name())
                         .bind("id", actressId)
+                        .execute()
+        );
+    }
+
+    @Override
+    public int recalcTiers() {
+        return jdbi.withHandle(h ->
+                h.createUpdate("""
+                        UPDATE actresses SET tier = CASE
+                          WHEN (SELECT COUNT(DISTINCT title_id) FROM title_actresses WHERE actress_id = actresses.id) >= 100 THEN 'GODDESS'
+                          WHEN (SELECT COUNT(DISTINCT title_id) FROM title_actresses WHERE actress_id = actresses.id) >= 50  THEN 'SUPERSTAR'
+                          WHEN (SELECT COUNT(DISTINCT title_id) FROM title_actresses WHERE actress_id = actresses.id) >= 20  THEN 'POPULAR'
+                          WHEN (SELECT COUNT(DISTINCT title_id) FROM title_actresses WHERE actress_id = actresses.id) >= 5   THEN 'MINOR'
+                          ELSE 'LIBRARY'
+                        END
+                        """)
                         .execute()
         );
     }

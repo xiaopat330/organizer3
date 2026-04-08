@@ -71,9 +71,9 @@ class ActressBrowseServiceTest {
     }
 
     @Test
-    void prefixIndexSplitsOverloadedLetterToTwoChars() {
+    void prefixIndexAlwaysReturnsSingleLetters() {
         List<Actress> many = new ArrayList<>();
-        for (int i = 0; i <= ActressBrowseService.SPLIT_THRESHOLD; i++) {
+        for (int i = 0; i < 30; i++) {
             many.add(actress("Maki Actor" + i));
         }
         many.add(actress("Mio Yamada"));
@@ -83,10 +83,9 @@ class ActressBrowseServiceTest {
 
         List<String> index = service.findPrefixIndex();
 
-        assertTrue(index.contains("MA"), "Should have MA prefix");
-        assertTrue(index.contains("MI"), "Should have MI prefix");
-        assertFalse(index.contains("M"),  "Single-letter M should not appear when split");
-        assertTrue(index.contains("A"),   "Unaffected letter A should remain");
+        assertTrue(index.contains("M"), "Should have single-letter M");
+        assertTrue(index.contains("A"), "Should have single-letter A");
+        assertFalse(index.contains("MA"), "Should not have two-char prefixes");
     }
 
     @Test

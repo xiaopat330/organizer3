@@ -211,6 +211,62 @@ class FullSyncOperationTest {
         verify(actressRepo).save(argThat(a -> "New Actress".equals(a.getCanonicalName())));
     }
 
+    @Test
+    void promotesTierWhenActressFoundInHigherPartition() throws IOException {
+        VolumeStructureDef structure = new VolumeStructureDef(
+                "conventional", List.of(),
+                new StructuredPartitionDef("stars", List.of(new PartitionDef("goddess", "goddess")))
+        );
+
+        Path goddessRoot = Path.of("/stars/goddess");
+        Path actressDir  = goddessRoot.resolve("Yua Mikami");
+        Path titleDir    = actressDir.resolve("SSIS-001");
+
+        when(fs.exists(goddessRoot)).thenReturn(true);
+        when(fs.listDirectory(goddessRoot)).thenReturn(List.of(actressDir));
+        when(fs.isDirectory(actressDir)).thenReturn(true);
+        when(fs.listDirectory(actressDir)).thenReturn(List.of(titleDir));
+        when(fs.isDirectory(titleDir)).thenReturn(true);
+        when(fs.listDirectory(titleDir)).thenReturn(List.of());
+
+        // Actress already exists with LIBRARY tier (e.g., from alias import)
+        Actress yua = Actress.builder().id(5L).canonicalName("Yua Mikami").tier(Actress.Tier.LIBRARY).build();
+        when(actressRepo.resolveByName("Yua Mikami")).thenReturn(Optional.of(yua));
+
+        newOp().execute(CONVENTIONAL_VOLUME, structure, fs, ctx, io);
+
+        // Should promote from LIBRARY to GODDESS
+        verify(actressRepo).updateTier(5L, Actress.Tier.GODDESS);
+    }
+
+    @Test
+    void doesNotDemoteTierWhenActressFoundInLowerPartition() throws IOException {
+        VolumeStructureDef structure = new VolumeStructureDef(
+                "conventional", List.of(),
+                new StructuredPartitionDef("stars", List.of(new PartitionDef("library", "library")))
+        );
+
+        Path libraryRoot = Path.of("/stars/library");
+        Path actressDir  = libraryRoot.resolve("Yua Mikami");
+        Path titleDir    = actressDir.resolve("SSIS-002");
+
+        when(fs.exists(libraryRoot)).thenReturn(true);
+        when(fs.listDirectory(libraryRoot)).thenReturn(List.of(actressDir));
+        when(fs.isDirectory(actressDir)).thenReturn(true);
+        when(fs.listDirectory(actressDir)).thenReturn(List.of(titleDir));
+        when(fs.isDirectory(titleDir)).thenReturn(true);
+        when(fs.listDirectory(titleDir)).thenReturn(List.of());
+
+        // Actress already exists with GODDESS tier
+        Actress yua = Actress.builder().id(5L).canonicalName("Yua Mikami").tier(Actress.Tier.GODDESS).build();
+        when(actressRepo.resolveByName("Yua Mikami")).thenReturn(Optional.of(yua));
+
+        newOp().execute(CONVENTIONAL_VOLUME, structure, fs, ctx, io);
+
+        // Should NOT demote — updateTier should not be called
+        verify(actressRepo, never()).updateTier(anyLong(), any());
+    }
+
     // --- Exhibition scanning ---
 
     @Test

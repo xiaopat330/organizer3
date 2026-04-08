@@ -166,6 +166,11 @@ public class TitleBrowseService {
                             .location(t.getPath() != null ? t.getPath().toString() : null)
                             .locations(allLocations)
                             .actresses(actresses)
+                            .titleEnglish(t.getTitleEnglish())
+                            .titleOriginal(t.getTitleOriginal())
+                            .releaseDate(t.getReleaseDate() != null ? t.getReleaseDate().toString() : null)
+                            .grade(t.getGrade() != null ? t.getGrade().display : null)
+                            .tags(t.getTags())
                             .build();
                 })
                 .toList();

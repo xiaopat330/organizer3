@@ -64,6 +64,16 @@ public class WebServer {
             result.put("maxBrowseTitles",    cfg.maxBrowseTitles()    != null ? cfg.maxBrowseTitles()    : 500);
             result.put("maxRandomTitles",    cfg.maxRandomTitles()    != null ? cfg.maxRandomTitles()    : 500);
             result.put("maxRandomActresses", cfg.maxRandomActresses() != null ? cfg.maxRandomActresses() : 500);
+            var exhibitionVolumes = cfg.volumes().stream()
+                    .filter(v -> "exhibition".equals(v.group()))
+                    .map(com.organizer3.config.volume.VolumeConfig::id)
+                    .toList();
+            var archiveVolumes = cfg.volumes().stream()
+                    .filter(v -> "archive".equals(v.group()))
+                    .map(com.organizer3.config.volume.VolumeConfig::id)
+                    .toList();
+            result.put("exhibitionVolumes", exhibitionVolumes);
+            result.put("archiveVolumes", archiveVolumes);
             ctx.json(result);
         });
 
@@ -156,6 +166,12 @@ public class WebServer {
             app.get("/api/actresses/index", ctx ->
                     ctx.json(actressBrowseService.findPrefixIndex()));
 
+            app.get("/api/actresses/tier-counts", ctx -> {
+                String prefix = ctx.queryParam("prefix");
+                if (prefix == null || prefix.isBlank()) { ctx.status(400); return; }
+                ctx.json(actressBrowseService.findTierCountsByPrefix(prefix));
+            });
+
             app.get("/api/actresses/random", ctx -> {
                 int limit = ctx.queryParamAsClass("limit", Integer.class).getOrDefault(24);
                 limit = Math.max(1, Math.min(limit, TitleBrowseService.MAX_LIMIT));
@@ -163,20 +179,34 @@ public class WebServer {
             });
 
             app.get("/api/actresses", ctx -> {
-                String prefix   = ctx.queryParam("prefix");
-                String tier     = ctx.queryParam("tier");
+                String prefix       = ctx.queryParam("prefix");
+                String tier         = ctx.queryParam("tier");
                 String volumesParam = ctx.queryParam("volumes");
+                String all          = ctx.queryParam("all");
+                String favorites    = ctx.queryParam("favorites");
+                int offset = ctx.queryParamAsClass("offset", Integer.class).getOrDefault(0);
+                int limit  = ctx.queryParamAsClass("limit",  Integer.class).getOrDefault(24);
+                offset = Math.max(offset, 0);
+                limit  = Math.max(1, Math.min(limit, TitleBrowseService.MAX_LIMIT));
                 if (prefix != null && !prefix.isBlank()) {
-                    ctx.json(actressBrowseService.findByPrefix(prefix));
+                    try {
+                        ctx.json(actressBrowseService.findByPrefixPaged(prefix, tier, offset, limit));
+                    } catch (IllegalArgumentException e) {
+                        ctx.status(400);
+                    }
                 } else if (tier != null && !tier.isBlank()) {
                     try {
-                        ctx.json(actressBrowseService.findByTier(tier));
+                        ctx.json(actressBrowseService.findByTierPaged(tier, offset, limit));
                     } catch (IllegalArgumentException e) {
                         ctx.status(400);
                     }
                 } else if (volumesParam != null && !volumesParam.isBlank()) {
                     var volumeIds = List.of(volumesParam.split(","));
-                    ctx.json(actressBrowseService.findByVolumes(volumeIds));
+                    ctx.json(actressBrowseService.findByVolumesPaged(volumeIds, offset, limit));
+                } else if ("true".equals(all)) {
+                    ctx.json(actressBrowseService.findAllPaged(offset, limit));
+                } else if ("true".equals(favorites)) {
+                    ctx.json(actressBrowseService.findFavoritesPaged(offset, limit));
                 } else {
                     ctx.status(400);
                 }

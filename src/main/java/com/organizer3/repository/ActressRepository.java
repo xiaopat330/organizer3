@@ -5,6 +5,7 @@ import com.organizer3.model.ActressAlias;
 import com.organizer3.model.Actress;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 /**
@@ -39,12 +40,38 @@ public interface ActressRepository {
      */
     List<Actress> findByFirstNamePrefix(String prefix);
 
+    /**
+     * Paginated version: find actresses whose canonical name starts with {@code prefix}
+     * (single letter), optionally filtered by tier.
+     */
+    List<Actress> findByFirstNamePrefixPaged(String prefix, Actress.Tier tier, int limit, int offset);
+
+    /**
+     * Returns the count of actresses per tier whose canonical name starts with {@code prefix}.
+     * Tiers with zero actresses are omitted from the result.
+     */
+    Map<String, Integer> countByFirstNamePrefixGroupedByTier(String prefix);
+
     List<Actress> findByTier(Actress.Tier tier);
+
+    /** Paginated version: actresses at the given tier, ordered by canonical name. */
+    List<Actress> findByTierPaged(Actress.Tier tier, int limit, int offset);
+
+    /** Paginated: all actresses ordered by canonical name. */
+    List<Actress> findAllPaged(int limit, int offset);
+
+    /** Paginated: only favorite actresses ordered by canonical name. */
+    List<Actress> findFavoritesPaged(int limit, int offset);
 
     /**
      * Find all actresses that have at least one title located on any of the given volumes.
      */
     List<Actress> findByVolumeIds(List<String> volumeIds);
+
+    /**
+     * Paginated version: find actresses on any of the given volumes, ordered by canonical name.
+     */
+    List<Actress> findByVolumeIdsPaged(List<String> volumeIds, int limit, int offset);
 
     List<Actress> findFavorites();
 
@@ -71,6 +98,13 @@ public interface ActressRepository {
                        String biography, String legacy);
 
     void updateTier(long actressId, Actress.Tier tier);
+
+    /**
+     * Recalculates and persists the tier for every actress based on her current title count
+     * across all volumes. Applies the standard thresholds: GODDESS ≥100, SUPERSTAR ≥50,
+     * POPULAR ≥20, MINOR ≥5, LIBRARY &lt;5. Returns the number of rows updated.
+     */
+    int recalcTiers();
 
     void toggleFavorite(long actressId, boolean favorite);
 

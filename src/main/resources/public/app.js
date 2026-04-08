@@ -2,6 +2,9 @@
 let MAX_TOTAL           = 500;
 let MAX_RANDOM_TITLES   = 500;
 let MAX_RANDOM_ACTRESSES = 500;
+let EXHIBITION_VOLUMES = '';
+let ARCHIVE_VOLUMES    = '';
+
 fetch('/api/config')
   .then(r => r.json())
   .then(cfg => {
@@ -11,6 +14,8 @@ fetch('/api/config')
     if (cfg.maxBrowseTitles)    MAX_TOTAL            = cfg.maxBrowseTitles;
     if (cfg.maxRandomTitles)    MAX_RANDOM_TITLES    = cfg.maxRandomTitles;
     if (cfg.maxRandomActresses) MAX_RANDOM_ACTRESSES = cfg.maxRandomActresses;
+    if (cfg.exhibitionVolumes)  EXHIBITION_VOLUMES   = cfg.exhibitionVolumes.join(',');
+    if (cfg.archiveVolumes)     ARCHIVE_VOLUMES      = cfg.archiveVolumes.join(',');
   })
   .catch(() => {});
 
@@ -36,11 +41,18 @@ function splitName(name) {
 // Renders a "first → last" active date range. Returns '' if both are absent.
 function renderDateRange(first, last, cls = 'actress-active-dates') {
   if (!first && !last) return '';
-  const firstHtml = first ? `<span class="date-first">${esc(first)}</span>` : '';
+  const firstHtml = first ? `<span class="date-first">${esc(fmtDate(first))}</span>` : '';
   const lastHtml  = last
-    ? `<span class="${isStale(last) ? 'date-last-stale' : 'date-last'}">${esc(last)}</span>` : '';
+    ? `<span class="${isStale(last) ? 'date-last-stale' : 'date-last'}">${esc(fmtDate(last))}</span>` : '';
   const sep = firstHtml && lastHtml ? ' → ' : '';
   return `<div class="${cls}">${firstHtml}${sep}${lastHtml}</div>`;
+}
+
+function fmtDate(dateStr) {
+  if (!dateStr) return '';
+  const d = new Date(dateStr + 'T00:00:00');
+  if (isNaN(d)) return dateStr;
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 }
 
 function setStatus(msg) {
@@ -126,7 +138,7 @@ function updateDetailPanelTop() {
 // Home content grids are managed separately via activateHomeTab().
 const VIEWS = {
   titles:           ['home-tabs'],
-  actresses:        ['actress-grid'],
+  actresses:        ['actress-sub-nav', 'actress-grid'],
   'actress-detail': ['actress-detail'],
   queue:            ['queue-header', 'queue-grid'],
   pool:             ['pool-header', 'pool-grid'],
@@ -142,7 +154,9 @@ function showView(name) {
     document.getElementById(id).style.display = 'none';
   for (const id of (VIEWS[name] || [])) {
     const el = document.getElementById(id);
-    el.style.display = el.classList.contains('grid') ? 'grid' : 'block';
+    if (el.classList.contains('grid')) el.style.display = 'grid';
+    else if (el.classList.contains('actress-sub-nav')) el.style.display = 'flex';
+    else el.style.display = 'block';
   }
   // Deactivate collections button when switching to any other view
   if (name !== 'collections') {
@@ -226,6 +240,43 @@ function renderLocation(path) {
   return `<span class="title-location-prefix">${esc(path.slice(0, sep + 1))}</span><span class="title-location-folder">${esc(path.slice(sep + 1))}</span>`;
 }
 
+// Grade → display style (colors match tier palette scale)
+const GRADE_STYLE = {
+  'SSS': 'color:#f0a0d8;background:#200818;box-shadow:0 0 6px rgba(192,80,160,0.25)',
+  'SS':  'color:#e8c050;background:#201a08',
+  'S':   'color:#b0d870;background:#141e06',
+  'A+':  'color:#50d880;background:#082010',
+  'A':   'color:#40c870;background:#071a0c',
+  'A-':  'color:#60b888;background:#091410',
+  'B+':  'color:#50b0d0;background:#081820',
+  'B':   'color:#4090b8;background:#081018',
+  'B-':  'color:#5888a0;background:#080e14',
+  'C+':  'color:#607888;background:#0c1010',
+  'C':   'color:#587070;background:#0c0e0e',
+  'C-':  'color:#4a6060;background:#0a0c0c',
+  'D':   'color:#505050;background:#0c0c0c',
+  'F':   'color:#885050;background:#100a0a',
+};
+
+function gradeBadgeHtml(grade) {
+  if (!grade) return '';
+  const style = GRADE_STYLE[grade] || 'color:#888;background:#1a1a1a';
+  return `<span class="grade-badge" style="${style}">${esc(grade)}</span>`;
+}
+
+// Tag → consistent color derived from tag string
+function tagHue(tag) {
+  let h = 0;
+  for (let i = 0; i < tag.length; i++) h = (h * 31 + tag.charCodeAt(i)) & 0xffff;
+  return h % 360;
+}
+
+function tagBadgeHtml(tag) {
+  const hue = tagHue(tag);
+  const style = `color:hsl(${hue},55%,62%);background:hsl(${hue},40%,10%)`;
+  return `<span class="tag-badge" style="${style}">${esc(tag)}</span>`;
+}
+
 function makeTitleCard(t) {
   const card = document.createElement('div');
   card.className = 'card';
@@ -239,8 +290,10 @@ function makeTitleCard(t) {
     // Multi-actress ticker
     const names = t.actresses.map(a => {
       const { first: fn, last: ln } = splitName(a.name);
-      const nameText = ln ? `${fn} ${ln}` : fn;
-      return `<a class="actress-link ticker-name" href="#" data-actress-id="${a.id}">${esc(nameText)}</a>`;
+      const nameHtml = ln
+        ? `<span class="ticker-first">${esc(fn)}</span> <span class="ticker-last">${esc(ln)}</span>`
+        : `<span class="ticker-first">${esc(fn)}</span>`;
+      return `<a class="actress-link ticker-name" href="#" data-actress-id="${a.id}">${nameHtml}</a>`;
     });
     const tickerContent = names.join('<span class="ticker-sep">, </span>');
     // Duplicate content for seamless loop
@@ -268,13 +321,26 @@ function makeTitleCard(t) {
     labelLineHtml = `<div class="title-label-line">${parts.join(' ')}</div>`;
   }
 
-  const dateHtml = t.addedDate ? `<div class="added-date">${esc(t.addedDate)}</div>` : '';
+  // Prefer releaseDate (curated production date) over addedDate
+  const displayDate = t.releaseDate || t.addedDate;
+  const dateHtml = displayDate ? `<div class="added-date">${esc(displayDate)}</div>` : '';
+
+  const titleEnHtml = t.titleEnglish ? `<div class="title-en">${esc(t.titleEnglish)}</div>` : '';
+  const titleJaHtml = t.titleOriginal ? `<div class="title-ja">${esc(t.titleOriginal)}</div>` : '';
+
   const locs = (t.locations && t.locations.length > 0) ? t.locations : (t.location ? [t.location] : []);
   const locationHtml = locs.length > 0
     ? `<div class="title-locations">${locs.map(p => `<div class="title-location">${renderLocation(p)}</div>`).join('')}</div>`
     : '';
 
-  card.innerHTML = `${coverHtml}<div class="card-info">${actressHtml}<div class="title-code">${esc(t.code)}</div>${labelLineHtml}${dateHtml}${locationHtml}</div>`;
+  const tags = t.tags || [];
+  const tagsHtml = tags.length > 0
+    ? `<div class="title-tags">${tags.map(tagBadgeHtml).join('')}</div>`
+    : '';
+
+  const titleCodeHtml = `<div class="title-code">${esc(t.code)}${gradeBadgeHtml(t.grade)}</div>`;
+
+  card.innerHTML = `${coverHtml}<div class="card-info">${actressHtml}${titleCodeHtml}${titleEnHtml}${titleJaHtml}${labelLineHtml}${dateHtml}${locationHtml}${tagsHtml}</div>`;
 
   card.querySelectorAll('.actress-link').forEach(link => {
     link.addEventListener('click', e => {
@@ -468,8 +534,9 @@ function showTitlesView() {
   closeArchivesDropdown();
   selectedPrefix  = null;
   selectedTier    = null;
-  selectedArchive = null;
+  selectedSpecial = null;
   prefixDropdown.querySelectorAll('.prefix-chip').forEach(c => c.classList.remove('selected'));
+  actressSubNav.innerHTML = '';
   updateBreadcrumb([]);
   activateHomeTab(homeTab);
 }
@@ -506,7 +573,7 @@ function populateArchivesDropdown() {
   starsChip.className = 'prefix-chip';
   starsChip.textContent = 'stars';
   starsChip.dataset.archives = 'stars';
-  starsChip.addEventListener('click', () => selectArchive('stars'));
+  starsChip.addEventListener('click', () => { closeArchivesDropdown(); selectSpecial('archive', starsChip); });
   col.appendChild(starsChip);
 
   const poolChip = document.createElement('div');
@@ -522,9 +589,11 @@ function populateArchivesDropdown() {
 // ── Actress browse ────────────────────────────────────────────────────────
 const actressesBtn   = document.getElementById('actresses-btn');
 const prefixDropdown = document.getElementById('prefix-dropdown');
+const actressSubNav  = document.getElementById('actress-sub-nav');
 let selectedPrefix  = null;
 let selectedTier    = null;
-let selectedArchive = null;
+// Special mode: null | 'favorites' | 'exhibition' | 'archive' | 'tier-GODDESS' | ... | 'all'
+let selectedSpecial = null;
 
 actressesBtn.addEventListener('click', async e => {
   e.stopPropagation();
@@ -542,27 +611,66 @@ prefixDropdown.addEventListener('click', e => e.stopPropagation());
 
 function closeDropdown() {
   prefixDropdown.classList.remove('open');
-  if (selectedPrefix === null && selectedTier === null && mode !== 'actress-detail')
+  if (selectedPrefix === null && selectedSpecial === null && mode !== 'actress-detail')
     actressesBtn.classList.remove('active');
 }
 
+const DROPDOWN_TIERS = ['LIBRARY', 'MINOR', 'POPULAR', 'SUPERSTAR', 'GODDESS'];
+
 async function populatePrefixDropdown() {
   prefixDropdown.innerHTML = '';
+  prefixDropdown.style.alignItems = 'flex-start';
 
-  const tierCol = document.createElement('div');
-  tierCol.className = 'dropdown-tier-col';
-  tierCol.appendChild(makeLabel('tier'));
-  for (const tier of ['LIBRARY', 'MINOR', 'POPULAR', 'SUPERSTAR', 'GODDESS']) {
+  // ── Left column: special queries ──
+  const specialCol = document.createElement('div');
+  specialCol.className = 'dropdown-tier-col';
+  specialCol.appendChild(makeLabel('browse'));
+
+  const specials = [
+    { key: 'favorites',   label: 'FAVORITES',   cls: 'special-chip-dim' },
+    { key: 'exhibition',  label: 'EXHIBITION',  cls: '' },
+    { key: 'archive',     label: 'ARCHIVE',     cls: '' },
+  ];
+  for (const { key, label } of specials) {
     const chip = document.createElement('div');
-    chip.className = `prefix-chip tier-${tier}`;
-    chip.textContent = tier.toLowerCase();
-    chip.dataset.tier = tier;
-    chip.addEventListener('click', () => selectTier(tier, chip));
-    tierCol.appendChild(chip);
+    chip.className = 'prefix-chip special-chip';
+    chip.textContent = label;
+    chip.dataset.special = key;
+    chip.addEventListener('click', () => selectSpecial(key, chip));
+    specialCol.appendChild(chip);
   }
-  prefixDropdown.appendChild(tierCol);
+
+  // Tier divider label
+  const tierLabel = makeLabel('tiers');
+  tierLabel.style.marginTop = '8px';
+  specialCol.appendChild(tierLabel);
+
+  for (const tier of DROPDOWN_TIERS) {
+    const chip = document.createElement('div');
+    chip.className = `prefix-chip special-chip tier-chip-${tier}`;
+    chip.textContent = tier.toLowerCase();
+    chip.dataset.special = `tier-${tier}`;
+    chip.addEventListener('click', () => selectSpecial(`tier-${tier}`, chip));
+    specialCol.appendChild(chip);
+  }
+
+  // ALL
+  const allChip = document.createElement('div');
+  allChip.className = 'prefix-chip special-chip';
+  allChip.textContent = 'ALL';
+  allChip.dataset.special = 'all';
+  const allLabel = makeLabel('library');
+  allLabel.style.marginTop = '8px';
+  specialCol.appendChild(allLabel);
+  allChip.addEventListener('click', () => selectSpecial('all', allChip));
+  specialCol.appendChild(allChip);
+
+  prefixDropdown.appendChild(specialCol);
+
+  // ── Divider ──
   prefixDropdown.appendChild(Object.assign(document.createElement('div'), { className: 'dropdown-col-divider' }));
 
+  // ── Right column: letter picker ──
   const prefixCol = document.createElement('div');
   prefixCol.className = 'dropdown-prefix-col';
   prefixCol.appendChild(makeLabel('name'));
@@ -581,6 +689,13 @@ async function populatePrefixDropdown() {
     console.error('Failed to load actress index', err);
   }
   prefixDropdown.appendChild(prefixCol);
+
+  // Restore selection highlight
+  if (selectedSpecial) {
+    prefixDropdown.querySelector(`.prefix-chip[data-special="${selectedSpecial}"]`)?.classList.add('selected');
+  } else if (selectedPrefix) {
+    prefixDropdown.querySelector(`.prefix-chip[data-prefix="${selectedPrefix}"]`)?.classList.add('selected');
+  }
 }
 
 async function reSelectPrefix(prefix) {
@@ -589,40 +704,119 @@ async function reSelectPrefix(prefix) {
   if (chip) selectPrefix(prefix, chip);
 }
 
-async function reSelectTier(tier) {
-  if (prefixDropdown.childElementCount === 0) await populatePrefixDropdown();
-  const chip = prefixDropdown.querySelector(`.prefix-chip[data-tier="${tier}"]`);
-  if (chip) selectTier(tier, chip);
-}
-
 function clearDropdownSelection() {
   prefixDropdown.querySelectorAll('.prefix-chip').forEach(c => c.classList.remove('selected'));
 }
 
-async function loadActressGrid(url) {
-  showView('actresses');
-  activeGrid = null;
-  document.getElementById('sentinel')?.remove();
-  setStatus('loading');
+// ── Actress scrolling grid ──
+const actressScrollGrid = new ScrollingGrid(
+  document.getElementById('actress-grid'),
+  (o, l) => {
+    if (selectedSpecial === 'favorites')  return `/api/actresses?favorites=true&offset=${o}&limit=${l}`;
+    if (selectedSpecial === 'exhibition') return `/api/actresses?volumes=${encodeURIComponent(EXHIBITION_VOLUMES)}&offset=${o}&limit=${l}`;
+    if (selectedSpecial === 'archive')    return `/api/actresses?volumes=${encodeURIComponent(ARCHIVE_VOLUMES)}&offset=${o}&limit=${l}`;
+    if (selectedSpecial === 'all')        return `/api/actresses?all=true&offset=${o}&limit=${l}`;
+    if (selectedSpecial && selectedSpecial.startsWith('tier-')) {
+      const tier = selectedSpecial.slice(5);
+      return `/api/actresses?tier=${encodeURIComponent(tier)}&offset=${o}&limit=${l}`;
+    }
+    let url = `/api/actresses?prefix=${encodeURIComponent(selectedPrefix)}&offset=${o}&limit=${l}`;
+    if (selectedTier) url += `&tier=${encodeURIComponent(selectedTier)}`;
+    return url;
+  },
+  makeActressCard,
+  'no actresses'
+);
 
-  const actressGrid = document.getElementById('actress-grid');
-  actressGrid.innerHTML = '';
+async function buildActressSubNav() {
+  actressSubNav.innerHTML = '';
+  const TIERS = ['LIBRARY', 'MINOR', 'POPULAR', 'SUPERSTAR', 'GODDESS'];
+
+  let tierCounts = {};
   try {
-    const res = await fetch(url);
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const actresses = await res.json();
-    for (const a of actresses) actressGrid.appendChild(makeActressCard(a));
-    setStatus(actresses.length === 0 ? 'no actresses' : '');
+    const res = await fetch(`/api/actresses/tier-counts?prefix=${encodeURIComponent(selectedPrefix)}`);
+    if (res.ok) tierCounts = await res.json();
   } catch (err) {
-    setStatus('error loading actresses');
-    console.error(err);
+    console.error('Failed to load tier counts', err);
   }
+
+  const total = Object.values(tierCounts).reduce((s, n) => s + n, 0);
+
+  const allBtn = document.createElement('div');
+  allBtn.className = 'actress-sub-nav-item selected';
+  allBtn.textContent = total > 0 ? `ALL (${total})` : 'ALL';
+  allBtn.addEventListener('click', () => selectActressTier(null));
+  actressSubNav.appendChild(allBtn);
+
+  for (const tier of TIERS) {
+    const btn = document.createElement('div');
+    btn.className = `actress-sub-nav-item tier-${tier}`;
+    const count = tierCounts[tier];
+    btn.textContent = count != null ? `${tier.toLowerCase()} (${count})` : tier.toLowerCase();
+    btn.dataset.tier = tier;
+    btn.addEventListener('click', () => selectActressTier(tier));
+    actressSubNav.appendChild(btn);
+  }
+}
+
+function selectActressTier(tier) {
+  selectedTier = tier;
+  actressSubNav.querySelectorAll('.actress-sub-nav-item').forEach(el => {
+    const isTierBtn = el.dataset.tier;
+    if (!isTierBtn) {
+      el.classList.toggle('selected', tier === null);
+    } else {
+      el.classList.toggle('selected', el.dataset.tier === tier);
+    }
+  });
+  const crumbs = [
+    { label: 'Actresses', action: () => actressesBtn.click() },
+    { label: selectedPrefix },
+  ];
+  if (tier) crumbs.push({ label: tier.toLowerCase() });
+  updateBreadcrumb(crumbs);
+  actressScrollGrid.reset();
+  ensureSentinel();
+  actressScrollGrid.loadMore();
+}
+
+// Labels for special modes in breadcrumbs
+const SPECIAL_LABELS = {
+  favorites:  'Favorites',
+  exhibition: 'Exhibition',
+  archive:    'Archive',
+  all:        'All Actresses',
+};
+
+async function selectSpecial(key, chip) {
+  selectedSpecial = key;
+  selectedPrefix  = null;
+  selectedTier    = null;
+  clearDropdownSelection();
+  chip.classList.add('selected');
+  closeDropdown();
+  actressesBtn.classList.add('active');
+
+  const label = key.startsWith('tier-')
+    ? key.slice(5).toLowerCase()
+    : (SPECIAL_LABELS[key] || key);
+
+  updateBreadcrumb([
+    { label: 'Actresses', action: () => actressesBtn.click() },
+    { label },
+  ]);
+  actressSubNav.style.display = 'none';
+  showView('actresses');
+  activeGrid = actressScrollGrid;
+  actressScrollGrid.reset();
+  ensureSentinel();
+  await actressScrollGrid.loadMore();
 }
 
 async function selectPrefix(prefix, chip) {
   selectedPrefix  = prefix;
   selectedTier    = null;
-  selectedArchive = null;
+  selectedSpecial = null;
   closeDropdown();
   actressesBtn.classList.add('active');
   clearDropdownSelection();
@@ -631,37 +825,16 @@ async function selectPrefix(prefix, chip) {
     { label: 'Actresses', action: () => actressesBtn.click() },
     { label: prefix },
   ]);
-  await loadActressGrid(`/api/actresses?prefix=${encodeURIComponent(prefix)}`);
-}
-
-async function selectTier(tier, chip) {
-  selectedTier    = tier;
-  selectedPrefix  = null;
-  selectedArchive = null;
-  closeDropdown();
-  actressesBtn.classList.add('active');
-  clearDropdownSelection();
-  chip.classList.add('selected');
-  updateBreadcrumb([
-    { label: 'Actresses', action: () => actressesBtn.click() },
-    { label: tier.toLowerCase() },
-  ]);
-  await loadActressGrid(`/api/actresses?tier=${encodeURIComponent(tier)}`);
-}
-
-const ARCHIVE_POOL_VOLUMES = 'qnap_archive,classic';
-
-async function selectArchive(archive) {
-  selectedArchive = archive;
-  selectedPrefix  = null;
-  selectedTier    = null;
-  closeArchivesDropdown();
-  archivesBtn.classList.add('active');
-  updateBreadcrumb([
-    { label: 'Archives', action: () => archivesBtn.click() },
-    { label: archive },
-  ]);
-  await loadActressGrid(`/api/actresses?volumes=${encodeURIComponent(ARCHIVE_POOL_VOLUMES)}`);
+  await buildActressSubNav();
+  showView('actresses');
+  requestAnimationFrame(() => {
+    const header = document.querySelector('header');
+    if (header) actressSubNav.style.top = header.offsetHeight + 'px';
+  });
+  activeGrid = actressScrollGrid;
+  actressScrollGrid.reset();
+  ensureSentinel();
+  await actressScrollGrid.loadMore();
 }
 
 // ── Actress detail ────────────────────────────────────────────────────────
@@ -683,25 +856,25 @@ async function openActressDetail(actressId) {
   ensureSentinel();
   setStatus('loading');
 
-  // Build breadcrumbs — include prefix/tier/archive context if we came from a browse grid
+  // Build breadcrumbs — include prefix/tier/special context if we came from a browse grid
   let crumbs;
-  if (selectedArchive) {
-    const arc = selectedArchive;
-    crumbs = [
-      { label: 'Archives', action: () => archivesBtn.click() },
-      { label: arc, action: () => selectArchive(arc) },
-    ];
-  } else if (sourceMode === 'titles' && sourceHomeTab === 'random-actresses') {
+  if (sourceMode === 'titles' && sourceHomeTab === 'random-actresses') {
     // Came from home random-actresses tab — HOME crumb restores it via showTitlesView()
     crumbs = [];
+  } else if (selectedSpecial) {
+    const sp = selectedSpecial;
+    const label = sp.startsWith('tier-') ? sp.slice(5).toLowerCase() : (SPECIAL_LABELS[sp] || sp);
+    crumbs = [
+      { label: 'Actresses', action: () => actressesBtn.click() },
+      { label, action: () => selectSpecial(sp, prefixDropdown.querySelector(`[data-special="${sp}"]`) || document.createElement('div')) },
+    ];
   } else {
     crumbs = [{ label: 'Actresses', action: () => actressesBtn.click() }];
     if (selectedPrefix) {
       const p = selectedPrefix;
-      crumbs.push({ label: p, action: () => reSelectPrefix(p) });
-    } else if (selectedTier) {
       const t = selectedTier;
-      crumbs.push({ label: t.toLowerCase(), action: () => reSelectTier(t) });
+      crumbs.push({ label: p, action: () => reSelectPrefix(p) });
+      if (t) crumbs.push({ label: t.toLowerCase() });
     }
   }
   // Actress name added after fetch below; placeholder for now
@@ -792,8 +965,8 @@ function renderDetailPanel(a) {
   const careerEnd   = a.activeTo   || a.lastAddedDate;
   let careerHtml = '';
   if (careerStart || careerEnd) {
-    const startHtml = careerStart ? `<span class="date-first">${esc(careerStart)}</span>` : '';
-    const endHtml   = careerEnd   ? `<span class="${isStale(careerEnd) ? 'date-last-stale' : 'date-last'}">${esc(careerEnd)}</span>` : '';
+    const startHtml = careerStart ? `<span class="date-first">${esc(fmtDate(careerStart))}</span>` : '';
+    const endHtml   = careerEnd   ? `<span class="${isStale(careerEnd) ? 'date-last-stale' : 'date-last'}">${esc(fmtDate(careerEnd))}</span>` : '';
     const sep = startHtml && endHtml ? ' → ' : '';
     careerHtml = `<div class="detail-career">${startHtml}${sep}${endHtml}</div>`;
   }
@@ -818,7 +991,7 @@ function renderDetailPanel(a) {
 
   // ── Column 2: Profile data ──
   const profileLines = [];
-  if (a.dateOfBirth)  profileLines.push(['Born', esc(a.dateOfBirth)]);
+  if (a.dateOfBirth)  profileLines.push(['Born', esc(fmtDate(a.dateOfBirth))]);
   if (a.birthplace)   profileLines.push(['Birthplace', esc(a.birthplace)]);
   if (a.bloodType)    profileLines.push(['Blood Type', esc(a.bloodType)]);
   if (a.heightCm)     profileLines.push(['Height', `${a.heightCm} cm`]);
@@ -983,7 +1156,7 @@ collectionsBtn.addEventListener('click', () => {
   actressesBtn.classList.remove('active');
   selectedPrefix  = null;
   selectedTier    = null;
-  selectedArchive = null;
+  selectedSpecial = null;
   showView('collections');
   updateBreadcrumb([{ label: 'Collections' }]);
   activeGrid = collectionsGrid;

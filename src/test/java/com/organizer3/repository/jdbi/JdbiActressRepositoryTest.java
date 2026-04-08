@@ -13,6 +13,7 @@ import java.sql.Connection;
 import java.sql.DriverManager;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -203,6 +204,77 @@ class JdbiActressRepositoryTest {
         List<Actress> result = repo.findByTier(Actress.Tier.GODDESS);
         assertEquals("Aya Sazanami", result.get(0).getCanonicalName());
         assertEquals("Yua Mikami", result.get(1).getCanonicalName());
+    }
+
+    // --- findByFirstNamePrefixPaged ---
+
+    @Test
+    void findByFirstNamePrefixPagedReturnsMatchingActresses() {
+        repo.save(actress("Aya Sazanami", Actress.Tier.LIBRARY));
+        repo.save(actress("Airi Suzumura", Actress.Tier.GODDESS));
+        repo.save(actress("Yua Mikami", Actress.Tier.GODDESS));
+
+        List<Actress> result = repo.findByFirstNamePrefixPaged("A", null, 10, 0);
+        assertEquals(2, result.size());
+        assertEquals("Airi Suzumura", result.get(0).getCanonicalName());
+        assertEquals("Aya Sazanami", result.get(1).getCanonicalName());
+    }
+
+    @Test
+    void findByFirstNamePrefixPagedFiltersByTier() {
+        repo.save(actress("Aya Sazanami", Actress.Tier.LIBRARY));
+        repo.save(actress("Airi Suzumura", Actress.Tier.GODDESS));
+        repo.save(actress("Aino Kishi", Actress.Tier.POPULAR));
+
+        List<Actress> goddesses = repo.findByFirstNamePrefixPaged("A", Actress.Tier.GODDESS, 10, 0);
+        assertEquals(1, goddesses.size());
+        assertEquals("Airi Suzumura", goddesses.get(0).getCanonicalName());
+    }
+
+    @Test
+    void findByFirstNamePrefixPagedRespectsLimitAndOffset() {
+        repo.save(actress("Aino Kishi", Actress.Tier.LIBRARY));
+        repo.save(actress("Airi Suzumura", Actress.Tier.LIBRARY));
+        repo.save(actress("Aya Sazanami", Actress.Tier.LIBRARY));
+
+        List<Actress> page1 = repo.findByFirstNamePrefixPaged("A", null, 2, 0);
+        assertEquals(2, page1.size());
+        assertEquals("Aino Kishi", page1.get(0).getCanonicalName());
+
+        List<Actress> page2 = repo.findByFirstNamePrefixPaged("A", null, 2, 2);
+        assertEquals(1, page2.size());
+        assertEquals("Aya Sazanami", page2.get(0).getCanonicalName());
+    }
+
+    @Test
+    void findByFirstNamePrefixPagedReturnsEmptyWhenNoTierMatch() {
+        repo.save(actress("Aya Sazanami", Actress.Tier.LIBRARY));
+        repo.save(actress("Airi Suzumura", Actress.Tier.POPULAR));
+
+        assertTrue(repo.findByFirstNamePrefixPaged("A", Actress.Tier.GODDESS, 10, 0).isEmpty());
+    }
+
+    // --- countByFirstNamePrefixGroupedByTier ---
+
+    @Test
+    void countByPrefixGroupedByTierReturnsTierCounts() {
+        repo.save(actress("Aya Sazanami", Actress.Tier.LIBRARY));
+        repo.save(actress("Airi Suzumura", Actress.Tier.GODDESS));
+        repo.save(actress("Aino Kishi", Actress.Tier.GODDESS));
+        repo.save(actress("Yua Mikami", Actress.Tier.GODDESS));
+
+        Map<String, Integer> counts = repo.countByFirstNamePrefixGroupedByTier("A");
+        assertEquals(1, counts.get("LIBRARY"));
+        assertEquals(2, counts.get("GODDESS"));
+        assertFalse(counts.containsKey("SUPERSTAR"));
+    }
+
+    @Test
+    void countByPrefixGroupedByTierReturnsEmptyForUnmatchedPrefix() {
+        repo.save(actress("Aya Sazanami", Actress.Tier.LIBRARY));
+
+        Map<String, Integer> counts = repo.countByFirstNamePrefixGroupedByTier("Z");
+        assertTrue(counts.isEmpty());
     }
 
     // --- toggleBookmark ---
@@ -434,6 +506,50 @@ class JdbiActressRepositoryTest {
         assertEquals(Actress.Tier.SUPERSTAR, after.getTier());
         assertEquals(Actress.Grade.SS, after.getGrade());
         assertTrue(after.isFavorite());
+    }
+
+    // --- recalcTiers ---
+
+    @Test
+    void recalcTiersAssignsCorrectTierByTitleCount() throws Exception {
+        Actress library  = repo.save(actress("Library Star"));    // 0 titles  → LIBRARY
+        Actress minor    = repo.save(actress("Minor Star"));      // 5 titles  → MINOR
+        Actress popular  = repo.save(actress("Popular Star"));    // 20 titles → POPULAR
+        Actress superstar = repo.save(actress("Super Star"));     // 50 titles → SUPERSTAR
+        Actress goddess  = repo.save(actress("Goddess Star"));    // 100 titles → GODDESS
+
+        insertTitlesForActress(minor.getId(),     5);
+        insertTitlesForActress(popular.getId(),  20);
+        insertTitlesForActress(superstar.getId(), 50);
+        insertTitlesForActress(goddess.getId(),  100);
+
+        repo.recalcTiers();
+
+        assertEquals(Actress.Tier.LIBRARY,   repo.findById(library.getId()).orElseThrow().getTier());
+        assertEquals(Actress.Tier.MINOR,     repo.findById(minor.getId()).orElseThrow().getTier());
+        assertEquals(Actress.Tier.POPULAR,   repo.findById(popular.getId()).orElseThrow().getTier());
+        assertEquals(Actress.Tier.SUPERSTAR, repo.findById(superstar.getId()).orElseThrow().getTier());
+        assertEquals(Actress.Tier.GODDESS,   repo.findById(goddess.getId()).orElseThrow().getTier());
+    }
+
+    @Test
+    void recalcTiersReturnsRowCount() throws Exception {
+        Actress a = repo.save(actress("Some Actress"));
+        insertTitlesForActress(a.getId(), 10);
+        int updated = repo.recalcTiers();
+        assertTrue(updated >= 1);
+    }
+
+    /** Inserts {@code count} distinct title rows and links them to {@code actressId}. */
+    private void insertTitlesForActress(long actressId, int count) throws Exception {
+        try (var stmt = connection.createStatement()) {
+            for (int i = 0; i < count; i++) {
+                String code = "T-" + actressId + "-" + i;
+                stmt.execute("INSERT INTO titles (code) VALUES ('" + code + "')");
+                long titleId = stmt.getGeneratedKeys().getLong(1);
+                stmt.execute("INSERT INTO title_actresses (title_id, actress_id) VALUES (" + titleId + ", " + actressId + ")");
+            }
+        }
     }
 
     // --- helpers ---
