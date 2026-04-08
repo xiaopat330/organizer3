@@ -35,7 +35,19 @@ public class SchemaInitializer {
                         bookmark        INTEGER NOT NULL DEFAULT 0,
                         grade           TEXT,
                         rejected        INTEGER NOT NULL DEFAULT 0,
-                        first_seen_at   TEXT NOT NULL
+                        first_seen_at   TEXT NOT NULL,
+                        date_of_birth   TEXT,
+                        birthplace      TEXT,
+                        blood_type      TEXT,
+                        height_cm       INTEGER,
+                        bust            INTEGER,
+                        waist           INTEGER,
+                        hip             INTEGER,
+                        cup             TEXT,
+                        active_from     TEXT,
+                        active_to       TEXT,
+                        biography       TEXT,
+                        legacy          TEXT
                     )""");
 
             h.execute("""
@@ -47,16 +59,27 @@ public class SchemaInitializer {
 
             h.execute("""
                     CREATE TABLE IF NOT EXISTS titles (
-                        id            INTEGER PRIMARY KEY AUTOINCREMENT,
-                        code          TEXT NOT NULL UNIQUE,
-                        base_code     TEXT,
-                        label         TEXT,
-                        seq_num       INTEGER,
-                        actress_id    INTEGER REFERENCES actresses(id),
-                        favorite      INTEGER NOT NULL DEFAULT 0,
-                        bookmark      INTEGER NOT NULL DEFAULT 0,
-                        grade         TEXT,
-                        rejected      INTEGER NOT NULL DEFAULT 0
+                        id              INTEGER PRIMARY KEY AUTOINCREMENT,
+                        code            TEXT NOT NULL UNIQUE,
+                        base_code       TEXT,
+                        label           TEXT,
+                        seq_num         INTEGER,
+                        actress_id      INTEGER REFERENCES actresses(id),
+                        favorite        INTEGER NOT NULL DEFAULT 0,
+                        bookmark        INTEGER NOT NULL DEFAULT 0,
+                        grade           TEXT,
+                        rejected        INTEGER NOT NULL DEFAULT 0,
+                        title_original  TEXT,
+                        title_english   TEXT,
+                        release_date    TEXT,
+                        notes           TEXT
+                    )""");
+
+            h.execute("""
+                    CREATE TABLE IF NOT EXISTS title_tags (
+                        title_id  INTEGER NOT NULL REFERENCES titles(id),
+                        tag       TEXT NOT NULL,
+                        PRIMARY KEY (title_id, tag)
                     )""");
 
             h.execute("""
@@ -103,6 +126,7 @@ public class SchemaInitializer {
             h.execute("CREATE INDEX IF NOT EXISTS idx_titles_code ON titles(code)");
             h.execute("CREATE INDEX IF NOT EXISTS idx_titles_label ON titles(label)");
             h.execute("CREATE INDEX IF NOT EXISTS idx_titles_actress ON titles(actress_id)");
+            h.execute("CREATE INDEX IF NOT EXISTS idx_title_tags_tag ON title_tags(tag)");
             h.execute("CREATE INDEX IF NOT EXISTS idx_title_locations_title ON title_locations(title_id)");
             h.execute("CREATE INDEX IF NOT EXISTS idx_title_locations_volume ON title_locations(volume_id)");
             h.execute("CREATE INDEX IF NOT EXISTS idx_title_locations_volume_partition ON title_locations(volume_id, partition_id)");
@@ -110,7 +134,7 @@ public class SchemaInitializer {
             h.execute("CREATE INDEX IF NOT EXISTS idx_videos_volume ON videos(volume_id)");
 
             // Stamp version so SchemaUpgrader skips migrations already baked into CREATE TABLE
-            h.execute("PRAGMA user_version = 2");
+            h.execute("PRAGMA user_version = 3");
         });
         log.info("Schema initialization complete");
     }

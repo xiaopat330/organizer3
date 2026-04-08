@@ -392,6 +392,50 @@ class JdbiActressRepositoryTest {
         assertEquals("Hibiki Aizawa", results.get(1).getCanonicalName());
     }
 
+    // --- updateProfile ---
+
+    @Test
+    void updateProfilePersistsEnrichmentFields() {
+        Actress saved = repo.save(actress("Nana Ogura"));
+
+        repo.updateProfile(saved.getId(), "小倉奈々",
+                LocalDate.of(1990, 1, 10), "Kanagawa, Japan", "O",
+                160, 88, 59, 90, "F",
+                LocalDate.of(2010, 7, 9), LocalDate.of(2014, 7, 11),
+                "Biography text.", "Legacy text.");
+
+        Actress enriched = repo.findById(saved.getId()).orElseThrow();
+        assertEquals("小倉奈々", enriched.getStageName());
+        assertEquals(LocalDate.of(1990, 1, 10), enriched.getDateOfBirth());
+        assertEquals("Kanagawa, Japan", enriched.getBirthplace());
+        assertEquals("O", enriched.getBloodType());
+        assertEquals(160, enriched.getHeightCm());
+        assertEquals(88, enriched.getBust());
+        assertEquals(59, enriched.getWaist());
+        assertEquals(90, enriched.getHip());
+        assertEquals("F", enriched.getCup());
+        assertEquals(LocalDate.of(2010, 7, 9), enriched.getActiveFrom());
+        assertEquals(LocalDate.of(2014, 7, 11), enriched.getActiveTo());
+        assertEquals("Biography text.", enriched.getBiography());
+        assertEquals("Legacy text.", enriched.getLegacy());
+    }
+
+    @Test
+    void updateProfileDoesNotTouchOperationalFields() {
+        Actress saved = repo.save(actress("Nana Ogura", Actress.Tier.SUPERSTAR));
+        repo.setGrade(saved.getId(), Actress.Grade.SS);
+        repo.toggleFavorite(saved.getId(), true);
+
+        repo.updateProfile(saved.getId(), "小倉奈々",
+                null, null, null, null, null, null, null, null,
+                null, null, null, null);
+
+        Actress after = repo.findById(saved.getId()).orElseThrow();
+        assertEquals(Actress.Tier.SUPERSTAR, after.getTier());
+        assertEquals(Actress.Grade.SS, after.getGrade());
+        assertTrue(after.isFavorite());
+    }
+
     // --- helpers ---
 
     private static Actress actress(String canonicalName) {

@@ -1,0 +1,45 @@
+profile:
+  name:
+    family_name: Actress
+    given_name: Test
+    stage_name: テスト女優
+    alternate_names:
+      - name: Testy
+        note: nickname
+  date_of_birth: '1990-01-15'
+  birthplace: Tokyo, Japan
+  blood_type: A
+  height_cm: 158
+  measurements:
+    bust: 85
+    waist: 58
+    hip: 88
+  cup: D
+  active_from: '2010-04-01'
+  active_to: '2015-03-31'
+  biography: Test biography text.
+  legacy: Test legacy text.
+
+portfolio:
+  - code: TEST-001
+    title:
+      original: テストタイトル1
+      english: Test Title 1
+    label: TestLabel
+    date: '2010-04-15'
+    notes: debut title
+    grade: S
+    tags:
+      - debut
+      - hardcore
+
+  - code: TEST-002
+    title:
+      original: テストタイトル2
+      english: Test Title 2
+    label: TestLabel
+    date: '2010-07-20'
+    grade: A
+    tags:
+      - femdom
+      - squirting

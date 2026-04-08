@@ -22,6 +22,10 @@ import java.util.Optional;
  *
  * <p>Location information (volume, partition, path) is stored in {@link TitleLocation} records.
  * A title may exist in multiple physical locations across volumes.
+ *
+ * <p>Enrichment fields ({@code titleOriginal}, {@code titleEnglish}, {@code releaseDate},
+ * {@code notes}, {@code tags}) are populated by the {@code load actress} command from curated
+ * YAML research data, not from sync.
  */
 @Value
 @Builder(toBuilder = true)
@@ -37,6 +41,15 @@ public class Title {
     boolean bookmark;
     Actress.Grade grade;
     boolean rejected;
+
+    // --- Enrichment fields (populated via load actress command) ---
+    String titleOriginal;
+    String titleEnglish;
+    LocalDate releaseDate;
+    String notes;
+
+    @Builder.Default
+    List<String> tags = List.of();
 
     @Builder.Default
     List<TitleLocation> locations = List.of();

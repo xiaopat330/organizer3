@@ -22,6 +22,7 @@ public class JdbiTitleRepository implements TitleRepository {
         String actressIdStr = rs.getString("actress_id");
         String seqNumStr = rs.getString("seq_num");
         String gradeStr = rs.getString("grade");
+        String releaseDateStr = rs.getString("release_date");
         return Title.builder()
                 .id(rs.getLong("id"))
                 .code(rs.getString("code"))
@@ -33,6 +34,10 @@ public class JdbiTitleRepository implements TitleRepository {
                 .bookmark(rs.getBoolean("bookmark"))
                 .grade(gradeStr != null ? Actress.Grade.fromDisplay(gradeStr) : null)
                 .rejected(rs.getBoolean("rejected"))
+                .titleOriginal(rs.getString("title_original"))
+                .titleEnglish(rs.getString("title_english"))
+                .releaseDate(releaseDateStr != null ? java.time.LocalDate.parse(releaseDateStr) : null)
+                .notes(rs.getString("notes"))
                 .build();
     };
 
@@ -357,6 +362,29 @@ public class JdbiTitleRepository implements TitleRepository {
                         .list()
         );
         return populateLocationsBatch(titles);
+    }
+
+    @Override
+    public void enrichTitle(long titleId, String titleOriginal, String titleEnglish,
+                            java.time.LocalDate releaseDate, String notes, Actress.Grade grade) {
+        jdbi.useHandle(h ->
+                h.createUpdate("""
+                        UPDATE titles SET
+                            title_original = :titleOriginal,
+                            title_english = :titleEnglish,
+                            release_date = :releaseDate,
+                            notes = :notes,
+                            grade = :grade
+                        WHERE id = :id
+                        """)
+                        .bind("id", titleId)
+                        .bind("titleOriginal", titleOriginal)
+                        .bind("titleEnglish", titleEnglish)
+                        .bind("releaseDate", releaseDate != null ? releaseDate.toString() : null)
+                        .bind("notes", notes)
+                        .bind("grade", grade != null ? grade.display : null)
+                        .execute()
+        );
     }
 
     @Override

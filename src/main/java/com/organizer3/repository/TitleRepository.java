@@ -1,5 +1,6 @@
 package com.organizer3.repository;
 
+import com.organizer3.model.Actress;
 import com.organizer3.model.Title;
 
 import java.util.List;
@@ -78,4 +79,12 @@ public interface TitleRepository {
 
     /** Delete titles that have zero locations (orphaned after location cleanup). */
     void deleteOrphaned();
+
+    /**
+     * Overwrite enrichment fields for a title.
+     * Leaves operational fields (actress_id, favorite, bookmark, rejected) unchanged.
+     * Called by the {@code load actress} command.
+     */
+    void enrichTitle(long titleId, String titleOriginal, String titleEnglish,
+                     java.time.LocalDate releaseDate, String notes, Actress.Grade grade);
 }

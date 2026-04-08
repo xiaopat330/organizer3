@@ -9,6 +9,7 @@ import com.organizer3.command.ActressesCommand;
 
 import com.organizer3.command.Command;
 import com.organizer3.command.FavoritesCommand;
+import com.organizer3.command.LoadActressCommand;
 import com.organizer3.command.HelloCommand;
 import com.organizer3.command.HelpCommand;
 import com.organizer3.command.MountCommand;
@@ -28,9 +29,11 @@ import com.organizer3.config.volume.OrganizerConfigLoader;
 import com.organizer3.db.LabelSeeder;
 import com.organizer3.db.SchemaInitializer;
 import com.organizer3.db.SchemaUpgrader;
+import com.organizer3.enrichment.ActressYamlLoader;
 import com.organizer3.repository.ActressRepository;
 import com.organizer3.repository.LabelRepository;
 import com.organizer3.repository.TitleRepository;
+import com.organizer3.repository.TitleTagRepository;
 import com.organizer3.repository.VideoRepository;
 import com.organizer3.repository.VolumeRepository;
 import com.organizer3.repository.jdbi.JdbiActressRepository;
@@ -38,6 +41,7 @@ import com.organizer3.repository.jdbi.JdbiLabelRepository;
 import com.organizer3.repository.TitleLocationRepository;
 import com.organizer3.repository.jdbi.JdbiTitleLocationRepository;
 import com.organizer3.repository.jdbi.JdbiTitleRepository;
+import com.organizer3.repository.jdbi.JdbiTitleTagRepository;
 import com.organizer3.repository.jdbi.JdbiVideoRepository;
 import com.organizer3.repository.jdbi.JdbiVolumeRepository;
 import com.organizer3.shell.OrganizerShell;
@@ -100,6 +104,7 @@ public class Application {
         ActressRepository actressRepo = new JdbiActressRepository(jdbi);
         VolumeRepository  volumeRepo  = new JdbiVolumeRepository(jdbi);
         LabelRepository   labelRepo   = new JdbiLabelRepository(jdbi);
+        TitleTagRepository tagRepo    = new JdbiTitleTagRepository(jdbi);
         IndexLoader indexLoader = new IndexLoader(titleRepo, actressRepo);
 
         // Claude API (optional — gracefully disabled if ANTHROPIC_API_KEY is not set)
@@ -126,6 +131,9 @@ public class Application {
         commands.add(new ActressesCommand(actressRepo, titleRepo));
         commands.add(new ActressSearchCommand(actressRepo, titleRepo, labelRepo, nameLookup));
         commands.add(new FavoritesCommand(actressRepo, titleRepo));
+
+        ActressYamlLoader yamlLoader = new ActressYamlLoader(actressRepo, titleRepo, tagRepo);
+        commands.add(new LoadActressCommand(yamlLoader));
 
         // Scanner registry — maps structure types to their filesystem scanners
         ScannerRegistry scannerRegistry = new ScannerRegistry(Map.of(

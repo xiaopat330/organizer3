@@ -13,6 +13,9 @@ import java.time.LocalDate;
  *
  * <p>The {@code tier} reflects how many titles she appears in and determines which
  * subfolder under {@code stars/} her content lives in.
+ *
+ * <p>Profile fields ({@code biography}, {@code dateOfBirth}, etc.) are populated by
+ * the {@code load actress} command from curated YAML research data, not from sync.
  */
 @Value
 @Builder
@@ -27,6 +30,20 @@ public class Actress implements Comparable<Actress> {
     Grade grade;           // nullable
     boolean rejected;
     LocalDate firstSeenAt;
+
+    // --- Enrichment fields (populated via load actress command) ---
+    LocalDate dateOfBirth;
+    String birthplace;
+    String bloodType;
+    Integer heightCm;
+    Integer bust;
+    Integer waist;
+    Integer hip;
+    String cup;
+    LocalDate activeFrom;
+    LocalDate activeTo;
+    String biography;
+    String legacy;
 
     /**
      * Title count thresholds that determine folder tier placement under {@code stars/}.

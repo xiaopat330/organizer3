@@ -18,6 +18,13 @@ public class JdbiActressRepository implements ActressRepository {
 
     private static final RowMapper<Actress> ACTRESS_MAPPER = (rs, ctx) -> {
         String gradeStr = rs.getString("grade");
+        String dobStr = rs.getString("date_of_birth");
+        String activeFromStr = rs.getString("active_from");
+        String activeToStr = rs.getString("active_to");
+        String heightStr = rs.getString("height_cm");
+        String bustStr = rs.getString("bust");
+        String waistStr = rs.getString("waist");
+        String hipStr = rs.getString("hip");
         return Actress.builder()
                 .id(rs.getLong("id"))
                 .canonicalName(rs.getString("canonical_name"))
@@ -28,6 +35,18 @@ public class JdbiActressRepository implements ActressRepository {
                 .grade(gradeStr != null ? Actress.Grade.fromDisplay(gradeStr) : null)
                 .rejected(rs.getInt("rejected") != 0)
                 .firstSeenAt(LocalDate.parse(rs.getString("first_seen_at")))
+                .dateOfBirth(dobStr != null ? LocalDate.parse(dobStr) : null)
+                .birthplace(rs.getString("birthplace"))
+                .bloodType(rs.getString("blood_type"))
+                .heightCm(heightStr != null ? Integer.parseInt(heightStr) : null)
+                .bust(bustStr != null ? Integer.parseInt(bustStr) : null)
+                .waist(waistStr != null ? Integer.parseInt(waistStr) : null)
+                .hip(hipStr != null ? Integer.parseInt(hipStr) : null)
+                .cup(rs.getString("cup"))
+                .activeFrom(activeFromStr != null ? LocalDate.parse(activeFromStr) : null)
+                .activeTo(activeToStr != null ? LocalDate.parse(activeToStr) : null)
+                .biography(rs.getString("biography"))
+                .legacy(rs.getString("legacy"))
                 .build();
     };
 
@@ -254,6 +273,48 @@ public class JdbiActressRepository implements ActressRepository {
                 h.createUpdate("UPDATE actresses SET rejected = :rejected WHERE id = :id")
                         .bind("rejected", rejected ? 1 : 0)
                         .bind("id", actressId)
+                        .execute()
+        );
+    }
+
+    @Override
+    public void updateProfile(long actressId, String stageName, LocalDate dateOfBirth,
+                              String birthplace, String bloodType, Integer heightCm,
+                              Integer bust, Integer waist, Integer hip, String cup,
+                              LocalDate activeFrom, LocalDate activeTo,
+                              String biography, String legacy) {
+        jdbi.useHandle(h ->
+                h.createUpdate("""
+                        UPDATE actresses SET
+                            stage_name = :stageName,
+                            date_of_birth = :dateOfBirth,
+                            birthplace = :birthplace,
+                            blood_type = :bloodType,
+                            height_cm = :heightCm,
+                            bust = :bust,
+                            waist = :waist,
+                            hip = :hip,
+                            cup = :cup,
+                            active_from = :activeFrom,
+                            active_to = :activeTo,
+                            biography = :biography,
+                            legacy = :legacy
+                        WHERE id = :id
+                        """)
+                        .bind("id", actressId)
+                        .bind("stageName", stageName)
+                        .bind("dateOfBirth", dateOfBirth != null ? dateOfBirth.toString() : null)
+                        .bind("birthplace", birthplace)
+                        .bind("bloodType", bloodType)
+                        .bind("heightCm", heightCm)
+                        .bind("bust", bust)
+                        .bind("waist", waist)
+                        .bind("hip", hip)
+                        .bind("cup", cup)
+                        .bind("activeFrom", activeFrom != null ? activeFrom.toString() : null)
+                        .bind("activeTo", activeTo != null ? activeTo.toString() : null)
+                        .bind("biography", biography)
+                        .bind("legacy", legacy)
                         .execute()
         );
     }

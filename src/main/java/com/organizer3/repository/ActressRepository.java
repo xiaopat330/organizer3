@@ -59,6 +59,17 @@ public interface ActressRepository {
 
     void setStageName(long actressId, String stageName);
 
+    /**
+     * Overwrite all enrichment profile fields for an actress.
+     * Leaves operational fields (tier, favorite, bookmark, grade, rejected) unchanged.
+     * Called by the {@code load actress} command.
+     */
+    void updateProfile(long actressId, String stageName, java.time.LocalDate dateOfBirth,
+                       String birthplace, String bloodType, Integer heightCm,
+                       Integer bust, Integer waist, Integer hip, String cup,
+                       java.time.LocalDate activeFrom, java.time.LocalDate activeTo,
+                       String biography, String legacy);
+
     void updateTier(long actressId, Actress.Tier tier);
 
     void toggleFavorite(long actressId, boolean favorite);
