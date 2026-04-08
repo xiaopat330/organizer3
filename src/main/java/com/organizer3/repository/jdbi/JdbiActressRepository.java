@@ -13,6 +13,7 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 @RequiredArgsConstructor
 public class JdbiActressRepository implements ActressRepository {
@@ -180,7 +181,7 @@ public class JdbiActressRepository implements ActressRepository {
                                 Map.entry(rs.getString("tier"), rs.getInt("cnt")))
                         .list()
                         .stream()
-                        .collect(java.util.stream.Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue))
+                        .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue))
         );
     }
 

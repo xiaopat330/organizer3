@@ -87,28 +87,30 @@ public class OrganizerShell {
     }
 
     private Completer buildCompleter() {
-        // Separate single-word commands from two-word commands (like "sync all")
         Set<String> singleWords = new TreeSet<>();
-        List<Completer> twoWordCompleters = new ArrayList<>();
+        Map<String, Set<String>> twoWordGroups = new java.util.LinkedHashMap<>();
 
         for (String key : commands.keySet()) {
             if (key.contains(" ")) {
                 String[] parts = key.split(" ", 2);
-                twoWordCompleters.add(new ArgumentCompleter(
-                        new StringsCompleter(parts[0]),
-                        new StringsCompleter(parts[1]),
-                        NullCompleter.INSTANCE));
+                twoWordGroups.computeIfAbsent(parts[0], k -> new TreeSet<>()).add(parts[1]);
             } else {
                 singleWords.add(key);
             }
         }
 
-        // Single-word completer: completes the command name, then stops
-        twoWordCompleters.add(new ArgumentCompleter(
+        List<Completer> completers = new ArrayList<>();
+        for (var entry : twoWordGroups.entrySet()) {
+            completers.add(new ArgumentCompleter(
+                    new StringsCompleter(entry.getKey()),
+                    new StringsCompleter(entry.getValue()),
+                    NullCompleter.INSTANCE));
+        }
+        completers.add(new ArgumentCompleter(
                 new StringsCompleter(singleWords),
                 NullCompleter.INSTANCE));
 
-        return new AggregateCompleter(twoWordCompleters);
+        return new AggregateCompleter(completers);
     }
 
     private CommandIO buildCommandIO(Terminal terminal, LineReader reader) {

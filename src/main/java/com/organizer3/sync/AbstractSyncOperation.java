@@ -1,6 +1,8 @@
 package com.organizer3.sync;
 
 import com.organizer3.config.volume.PartitionDef;
+import com.organizer3.config.volume.VolumeConfig;
+import com.organizer3.config.volume.VolumeStructureDef;
 import com.organizer3.filesystem.VolumeFileSystem;
 import com.organizer3.model.Actress;
 import com.organizer3.model.Title;
@@ -13,6 +15,7 @@ import com.organizer3.repository.TitleLocationRepository;
 import com.organizer3.repository.TitleRepository;
 import com.organizer3.repository.VideoRepository;
 import com.organizer3.repository.VolumeRepository;
+import com.organizer3.shell.SessionContext;
 import com.organizer3.shell.io.CommandIO;
 import com.organizer3.shell.io.Progress;
 
@@ -27,6 +30,9 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
+import com.organizer3.sync.scanner.DiscoveredTitle;
+
+import static com.organizer3.shell.Ansi.*;
 import static com.organizer3.sync.scanner.ScannerSupport.extractActressName;
 
 /**
@@ -58,7 +64,7 @@ abstract class AbstractSyncOperation implements SyncOperation {
     /**
      * Ensures the volume record exists in the DB (insert or no-op if already present).
      */
-    protected void ensureVolumeRecord(com.organizer3.config.volume.VolumeConfig volume) {
+    protected void ensureVolumeRecord(VolumeConfig volume) {
         if (volumeRepo.findById(volume.id()).isEmpty()) {
             volumeRepo.save(new Volume(volume.id(), volume.structureType()));
         }
@@ -104,13 +110,13 @@ abstract class AbstractSyncOperation implements SyncOperation {
     }
 
     /**
-     * Resolves all actress names from a {@link com.organizer3.sync.scanner.DiscoveredTitle},
+     * Resolves all actress names from a {@link DiscoveredTitle},
      * creates actress records for any new names, records them in stats, and returns their ids.
      *
      * <p>For single-name titles the returned list has one element (the filing actress id).
      * For multi-name collections titles it has all cast members. Empty when actress is unknown.
      */
-    protected List<Long> resolveCast(com.organizer3.sync.scanner.DiscoveredTitle dt, SyncStats stats) {
+    protected List<Long> resolveCast(DiscoveredTitle dt, SyncStats stats) {
         List<Long> ids = new ArrayList<>();
         for (String name : dt.actressNames()) {
             Actress actress = resolveOrCreateActress(name, dt.actressTier());
@@ -245,8 +251,7 @@ abstract class AbstractSyncOperation implements SyncOperation {
      * Stamps the volume's {@code last_synced_at} to now, recalculates actress tiers from
      * current title counts, and reloads the in-memory index.
      */
-    protected void finalizeSync(String volumeId,
-                                com.organizer3.shell.SessionContext ctx) {
+    protected void finalizeSync(String volumeId, SessionContext ctx) {
         volumeRepo.updateLastSyncedAt(volumeId, LocalDateTime.now());
         actressRepo.recalcTiers();
         ctx.setIndex(indexLoader.load(volumeId));
@@ -255,14 +260,14 @@ abstract class AbstractSyncOperation implements SyncOperation {
     protected void printStats(SyncStats stats, CommandIO io) {
         io.println("Sync complete.");
         io.println("  Actresses:  " + stats.actressCount());
-        io.printlnAnsi("  Queue:      \033[32m" + stats.queue     + "\033[0m");
-        io.printlnAnsi("  Attention:  \033[31m" + stats.attention + "\033[0m");
-        io.printlnAnsi("  Total:      \033[36m" + stats.total     + "\033[0m");
+        io.printlnAnsi("  Queue:      " + GREEN + stats.queue     + RESET);
+        io.printlnAnsi("  Attention:  " + RED   + stats.attention + RESET);
+        io.printlnAnsi("  Total:      " + CYAN  + stats.total     + RESET);
     }
 
     // Expose partition def lookup for unstructured partitions (used by PartitionSyncOperation)
     protected static PartitionDef requirePartitionDef(
-            com.organizer3.config.volume.VolumeStructureDef structure, String partitionId) {
+            VolumeStructureDef structure, String partitionId) {
         return structure.findUnstructuredById(partitionId)
                 .orElseThrow(() -> new IllegalArgumentException(
                         "No unstructured partition '" + partitionId

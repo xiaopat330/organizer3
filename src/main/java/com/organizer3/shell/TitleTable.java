@@ -1,5 +1,6 @@
 package com.organizer3.shell;
 
+import static com.organizer3.shell.Ansi.*;
 import com.organizer3.model.Title;
 import com.organizer3.shell.io.CommandIO;
 
@@ -13,9 +14,6 @@ import java.util.function.Function;
  * width calculation from the display value that may contain ANSI escape codes.
  */
 public class TitleTable {
-
-    private static final String RESET = "\033[0m";
-    private static final String CYAN  = "\033[96m";
 
     public record Column(String header, Function<Title, String> raw, Function<Title, String> display) {
 

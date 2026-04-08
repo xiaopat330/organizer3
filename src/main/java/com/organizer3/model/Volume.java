@@ -7,9 +7,6 @@ import lombok.Setter;
 
 import java.text.MessageFormat;
 import java.time.LocalDateTime;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Optional;
 
 /**
  * A Volume is a physical storage unit — a drive or network share. It has a short ID (e.g. "a", "bg", "hj")
@@ -32,15 +29,10 @@ public final class Volume {
 
     @NonNull private final String id;
     @NonNull private final String structureType;
-    private final Map<String, Partition> partitions = new HashMap<>();
 
     /** Timestamp of the last successful sync; null if this volume has never been synced. */
     @Setter
     private LocalDateTime lastSyncedAt;
-
-    public Optional<Partition> getPartition(String partitionId) {
-        return Optional.ofNullable(partitions.get(partitionId));
-    }
 
     @Override
     public String toString() {

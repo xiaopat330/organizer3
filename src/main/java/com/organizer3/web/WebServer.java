@@ -1,6 +1,7 @@
 package com.organizer3.web;
 
 import com.organizer3.config.AppConfig;
+import com.organizer3.config.volume.VolumeConfig;
 import com.organizer3.covers.CoverPath;
 import io.javalin.Javalin;
 import io.javalin.http.staticfiles.Location;
@@ -66,11 +67,11 @@ public class WebServer {
             result.put("maxRandomActresses", cfg.maxRandomActresses() != null ? cfg.maxRandomActresses() : 500);
             var exhibitionVolumes = cfg.volumes().stream()
                     .filter(v -> "exhibition".equals(v.group()))
-                    .map(com.organizer3.config.volume.VolumeConfig::id)
+                    .map(VolumeConfig::id)
                     .toList();
             var archiveVolumes = cfg.volumes().stream()
                     .filter(v -> "archive".equals(v.group()))
-                    .map(com.organizer3.config.volume.VolumeConfig::id)
+                    .map(VolumeConfig::id)
                     .toList();
             result.put("exhibitionVolumes", exhibitionVolumes);
             result.put("archiveVolumes", archiveVolumes);

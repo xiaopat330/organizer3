@@ -44,7 +44,7 @@ class SchemaInitializerTest {
         );
 
         assertEquals(
-                List.of("actress_aliases", "actresses", "labels", "operations", "title_actresses", "title_locations", "title_tags", "titles", "videos", "volumes"),
+                List.of("actress_aliases", "actresses", "labels", "title_actresses", "title_locations", "title_tags", "titles", "videos", "volumes"),
                 tables
         );
     }

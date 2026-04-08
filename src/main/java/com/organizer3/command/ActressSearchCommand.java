@@ -8,11 +8,13 @@ import com.organizer3.model.Title;
 import com.organizer3.repository.ActressRepository;
 import com.organizer3.repository.LabelRepository;
 import com.organizer3.repository.TitleRepository;
+import static com.organizer3.shell.Ansi.*;
 import com.organizer3.shell.SessionContext;
 import com.organizer3.shell.TitleTable;
 import com.organizer3.shell.io.CommandIO;
 
 import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
@@ -127,13 +129,9 @@ public class ActressSearchCommand implements Command {
     // Detail display
     // -------------------------------------------------------------------------
 
-    private static final String YELLOW = "\033[93m";
-    private static final String CYAN   = "\033[96m";
-    private static final String GREEN  = "\033[92m";
-    private static final String RESET  = "\033[0m";
 
-    private static final java.time.format.DateTimeFormatter DATE_FORMAT =
-            java.time.format.DateTimeFormatter.ofPattern("MMM d, yyyy");
+    private static final DateTimeFormatter DATE_FORMAT =
+            DateTimeFormatter.ofPattern("MMM d, yyyy");
 
     private void showDetail(String name, CommandIO io) {
         Optional<Actress> result = actressRepo.resolveByName(name);
@@ -171,7 +169,7 @@ public class ActressSearchCommand implements Command {
 
         String startFormatted = firstAdded.map(d -> GREEN + d.format(DATE_FORMAT) + RESET).orElse("?");
         String endFormatted   = lastAdded.map(d -> {
-            String color = d.isBefore(java.time.LocalDate.now().minusYears(1)) ? "\033[91m" : YELLOW;
+            String color = d.isBefore(LocalDate.now().minusYears(1)) ? RED : YELLOW;
             return color + d.format(DATE_FORMAT) + RESET;
         }).orElse("?");
         io.printlnAnsi("  Active:  " + startFormatted + " → " + endFormatted);
@@ -222,7 +220,7 @@ public class ActressSearchCommand implements Command {
                 TitleTable.Column.plain("Location", t -> t.getLocations().isEmpty() ? ""
                         : t.getLocations().stream()
                                 .map(loc -> loc.getPath().toString())
-                                .collect(java.util.stream.Collectors.joining(", ")))
+                                .collect(Collectors.joining(", ")))
         );
 
         Map<String, List<Title>> byCompany = titles.stream().collect(

@@ -105,16 +105,6 @@ public class SchemaInitializer {
                     )""");
 
             h.execute("""
-                    CREATE TABLE IF NOT EXISTS operations (
-                        id           INTEGER PRIMARY KEY AUTOINCREMENT,
-                        timestamp    TEXT NOT NULL,
-                        type         TEXT NOT NULL,
-                        source_path  TEXT NOT NULL,
-                        dest_path    TEXT,
-                        was_armed    INTEGER NOT NULL
-                    )""");
-
-            h.execute("""
                     CREATE TABLE IF NOT EXISTS labels (
                         code        TEXT PRIMARY KEY,
                         label_name  TEXT,

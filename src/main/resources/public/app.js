@@ -150,6 +150,7 @@ let mode = 'titles';
 
 function showView(name) {
   mode = name;
+  clearCardIntervals();
   for (const id of ALL_PANEL_IDS)
     document.getElementById(id).style.display = 'none';
   for (const id of (VIEWS[name] || [])) {
@@ -240,28 +241,9 @@ function renderLocation(path) {
   return `<span class="title-location-prefix">${esc(path.slice(0, sep + 1))}</span><span class="title-location-folder">${esc(path.slice(sep + 1))}</span>`;
 }
 
-// Grade → display style (colors match tier palette scale)
-const GRADE_STYLE = {
-  'SSS': 'color:#f0a0d8;background:#200818;box-shadow:0 0 6px rgba(192,80,160,0.25)',
-  'SS':  'color:#e8c050;background:#201a08',
-  'S':   'color:#b0d870;background:#141e06',
-  'A+':  'color:#50d880;background:#082010',
-  'A':   'color:#40c870;background:#071a0c',
-  'A-':  'color:#60b888;background:#091410',
-  'B+':  'color:#50b0d0;background:#081820',
-  'B':   'color:#4090b8;background:#081018',
-  'B-':  'color:#5888a0;background:#080e14',
-  'C+':  'color:#607888;background:#0c1010',
-  'C':   'color:#587070;background:#0c0e0e',
-  'C-':  'color:#4a6060;background:#0a0c0c',
-  'D':   'color:#505050;background:#0c0c0c',
-  'F':   'color:#885050;background:#100a0a',
-};
-
 function gradeBadgeHtml(grade) {
   if (!grade) return '';
-  const style = GRADE_STYLE[grade] || 'color:#888;background:#1a1a1a';
-  return `<span class="grade-badge" style="${style}">${esc(grade)}</span>`;
+  return `<span class="grade-badge" data-grade="${esc(grade)}">${esc(grade)}</span>`;
 }
 
 // Tag → consistent color derived from tag string
@@ -352,6 +334,12 @@ function makeTitleCard(t) {
 }
 
 const ROTATE_INTERVALS = [7000, 11000, 17000];
+const activeIntervals = new Set();
+
+function clearCardIntervals() {
+  for (const id of activeIntervals) clearInterval(id);
+  activeIntervals.clear();
+}
 
 function makeActressCard(a) {
   const card = document.createElement('div');
@@ -370,11 +358,12 @@ function makeActressCard(a) {
     coverWrap.appendChild(img);
     if (covers.length > 1) {
       const ms = ROTATE_INTERVALS[Math.floor(Math.random() * ROTATE_INTERVALS.length)];
-      setInterval(() => {
+      const intervalId = setInterval(() => {
         idx = (idx + 1) % covers.length;
         img.style.opacity = '0';
         setTimeout(() => { img.src = covers[idx]; img.style.opacity = '1'; }, 400);
       }, ms);
+      activeIntervals.add(intervalId);
     }
   } else {
     coverWrap.innerHTML = `<div class="cover-placeholder">—</div>`;
@@ -556,7 +545,6 @@ archivesBtn.addEventListener('click', e => {
   archivesBtn.classList.add('active');
 });
 
-document.addEventListener('click', () => closeArchivesDropdown());
 archivesDropdown.addEventListener('click', e => e.stopPropagation());
 
 function closeArchivesDropdown() {
@@ -580,7 +568,6 @@ function populateArchivesDropdown() {
   poolChip.className = 'prefix-chip';
   poolChip.textContent = 'pool';
   poolChip.dataset.archives = 'pool';
-  // TODO: wire up when pool view is implemented
   col.appendChild(poolChip);
 
   archivesDropdown.appendChild(col);
@@ -606,7 +593,6 @@ actressesBtn.addEventListener('click', async e => {
   actressesBtn.classList.add('active');
 });
 
-document.addEventListener('click', () => closeDropdown());
 prefixDropdown.addEventListener('click', e => e.stopPropagation());
 
 function closeDropdown() {
@@ -735,7 +721,8 @@ async function buildActressSubNav() {
   let tierCounts = {};
   try {
     const res = await fetch(`/api/actresses/tier-counts?prefix=${encodeURIComponent(selectedPrefix)}`);
-    if (res.ok) tierCounts = await res.json();
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    tierCounts = await res.json();
   } catch (err) {
     console.error('Failed to load tier counts', err);
   }
@@ -1061,8 +1048,14 @@ queuesBtn.addEventListener('click', async e => {
   queuesBtn.classList.add('active');
 });
 
-document.addEventListener('click', () => closeQueuesDropdown());
 queuesDropdown.addEventListener('click', e => e.stopPropagation());
+
+// Single global listener closes all dropdowns
+document.addEventListener('click', () => {
+  closeDropdown();
+  closeArchivesDropdown();
+  closeQueuesDropdown();
+});
 
 function closeQueuesDropdown() {
   queuesDropdown.classList.remove('open');
@@ -1163,13 +1156,6 @@ collectionsBtn.addEventListener('click', () => {
   collectionsGrid.reset();
   ensureSentinel();
   collectionsGrid.loadMore();
-});
-
-// ── Action! (placeholder) ────────────────────────────────────────────────
-const actionBtn = document.getElementById('action-btn');
-
-actionBtn.addEventListener('click', () => {
-  // Placeholder — will be wired up later
 });
 
 // ── Initial load ──────────────────────────────────────────────────────────

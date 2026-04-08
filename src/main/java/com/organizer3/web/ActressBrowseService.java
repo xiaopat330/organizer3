@@ -2,6 +2,8 @@ package com.organizer3.web;
 
 import com.organizer3.ai.ActressNameLookup;
 import com.organizer3.covers.CoverPath;
+import com.organizer3.model.Actress;
+import com.organizer3.model.ActressAlias;
 import com.organizer3.model.Label;
 import com.organizer3.model.Title;
 import com.organizer3.model.TitleLocation;
@@ -44,7 +46,7 @@ public class ActressBrowseService {
     private final StageNameBackupFile backupFile;
 
     public List<String> findPrefixIndex() {
-        List<com.organizer3.model.Actress> all = actressRepo.findAll();
+        List<Actress> all = actressRepo.findAll();
 
         return all.stream()
                 .map(a -> String.valueOf(Character.toUpperCase(a.getCanonicalName().charAt(0))))
@@ -85,9 +87,9 @@ public class ActressBrowseService {
      * (a single letter), optionally filtered by tier.
      */
     public List<ActressSummary> findByPrefixPaged(String letter, String tierName, int offset, int limit) {
-        com.organizer3.model.Actress.Tier tier = null;
+        Actress.Tier tier = null;
         if (tierName != null && !tierName.isBlank()) {
-            tier = com.organizer3.model.Actress.Tier.valueOf(tierName.toUpperCase());
+            tier = Actress.Tier.valueOf(tierName.toUpperCase());
         }
         return actressRepo.findByFirstNamePrefixPaged(letter, tier, limit, offset).stream()
                 .map(this::toSummary)
@@ -117,10 +119,10 @@ public class ActressBrowseService {
      * Returns all actresses at the given tier level, enriched with title count, cover URLs,
      * and SMB folder paths.
      *
-     * @throws IllegalArgumentException if {@code tierName} does not match a known {@link com.organizer3.model.Actress.Tier}
+     * @throws IllegalArgumentException if {@code tierName} does not match a known {@link Actress.Tier}
      */
     public List<ActressSummary> findByTier(String tierName) {
-        com.organizer3.model.Actress.Tier tier = com.organizer3.model.Actress.Tier.valueOf(tierName.toUpperCase());
+        Actress.Tier tier = Actress.Tier.valueOf(tierName.toUpperCase());
         return actressRepo.findByTier(tier).stream()
                 .map(this::toSummary)
                 .toList();
@@ -128,7 +130,7 @@ public class ActressBrowseService {
 
     /** Paginated tier query. */
     public List<ActressSummary> findByTierPaged(String tierName, int offset, int limit) {
-        com.organizer3.model.Actress.Tier tier = com.organizer3.model.Actress.Tier.valueOf(tierName.toUpperCase());
+        Actress.Tier tier = Actress.Tier.valueOf(tierName.toUpperCase());
         return actressRepo.findByTierPaged(tier, limit, offset).stream()
                 .map(this::toSummary)
                 .toList();
@@ -175,7 +177,7 @@ public class ActressBrowseService {
             titles = titleRepo.findByActressPaged(actressId, limit, offset);
         }
 
-        com.organizer3.model.Actress actress = actressRepo.findById(actressId).orElse(null);
+        Actress actress = actressRepo.findById(actressId).orElse(null);
         String actressName = actress != null ? actress.getCanonicalName() : null;
         String actressTier = actress != null && actress.getTier() != null ? actress.getTier().name() : null;
         return titles.stream()
@@ -209,7 +211,7 @@ public class ActressBrowseService {
                 .toList();
     }
 
-    private ActressSummary toSummary(com.organizer3.model.Actress actress) {
+    private ActressSummary toSummary(Actress actress) {
         List<Title> titles = titleRepo.findByActress(actress.getId());
 
         List<String> coverUrls = titles.stream()
@@ -258,7 +260,7 @@ public class ActressBrowseService {
                 .toList();
 
         List<String> aliases = actressRepo.findAliases(actress.getId()).stream()
-                .map(com.organizer3.model.ActressAlias::aliasName)
+                .map(ActressAlias::aliasName)
                 .sorted()
                 .toList();
 
@@ -308,7 +310,7 @@ public class ActressBrowseService {
      *         found in the DB or Claude returned "unknown"
      */
     public Optional<String> searchStageName(long actressId) {
-        com.organizer3.model.Actress actress = actressRepo.findById(actressId).orElse(null);
+        Actress actress = actressRepo.findById(actressId).orElse(null);
         if (actress == null) return Optional.empty();
 
         List<Title> titles = titleRepo.findByActress(actressId);

@@ -4,6 +4,7 @@ import com.organizer3.config.AppConfig;
 import com.organizer3.config.volume.VolumeConfig;
 import com.organizer3.model.Volume;
 import com.organizer3.repository.VolumeRepository;
+import static com.organizer3.shell.Ansi.*;
 import com.organizer3.shell.SessionContext;
 import com.organizer3.shell.io.CommandIO;
 
@@ -35,13 +36,6 @@ public class VolumesCommand implements Command {
     private static final DateTimeFormatter DISPLAY_FMT =
             DateTimeFormatter.ofPattern("MMM d, yyyy  h:mm a");
 
-    private static final String BOLD   = "\033[1m";
-    private static final String DIM    = "\033[2m";
-    private static final String WHITE  = "\033[97m";
-    private static final String GREEN  = "\033[92m";
-    private static final String RED    = "\033[91m";
-    private static final String CYAN   = "\033[96m";
-    private static final String RESET  = "\033[0m";
 
     private final VolumeRepository volumeRepository;
 

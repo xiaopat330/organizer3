@@ -10,7 +10,6 @@ import com.organizer3.command.ActressesCommand;
 import com.organizer3.command.Command;
 import com.organizer3.command.FavoritesCommand;
 import com.organizer3.command.LoadActressCommand;
-import com.organizer3.command.HelloCommand;
 import com.organizer3.command.HelpCommand;
 import com.organizer3.command.MountCommand;
 import com.organizer3.command.PruneCoversCommand;
@@ -62,6 +61,7 @@ import com.organizer3.sync.scanner.SortPoolScanner;
 import com.organizer3.config.volume.VolumeConfig;
 import com.organizer3.web.ActressBrowseService;
 import com.organizer3.web.TitleBrowseService;
+import com.organizer3.web.StageNameBackupFile;
 import com.organizer3.web.WebServer;
 import org.jdbi.v3.core.Jdbi;
 
@@ -74,6 +74,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
 
 /**
@@ -127,7 +128,6 @@ public class Application {
 
         // Commands
         List<Command> commands = new ArrayList<>();
-        commands.add(new HelloCommand());
         commands.add(new ShutdownCommand());
         MountCommand mountCommand = new MountCommand(new SmbjConnector(), indexLoader);
         commands.add(mountCommand);
@@ -196,8 +196,8 @@ public class Application {
         // Web server (read-only browsing)
         TitleBrowseService browseService = new TitleBrowseService(titleRepo, actressRepo, coverPath, labelRepo, titleActressRepo);
         Map<String, String> volumeSmbPaths = config.volumes().stream()
-                .collect(java.util.stream.Collectors.toMap(VolumeConfig::id, VolumeConfig::smbPath));
-        com.organizer3.web.StageNameBackupFile stageNameBackup = new com.organizer3.web.StageNameBackupFile(
+                .collect(Collectors.toMap(VolumeConfig::id, VolumeConfig::smbPath));
+        StageNameBackupFile stageNameBackup = new StageNameBackupFile(
                 dbDir.resolve("stagenames.yaml"));
         ActressBrowseService actressBrowseService = new ActressBrowseService(
                 actressRepo, titleRepo, coverPath, volumeSmbPaths, labelRepo, nameLookup, stageNameBackup);

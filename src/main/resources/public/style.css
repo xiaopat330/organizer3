@@ -1,5 +1,14 @@
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
+:root {
+  --tier-library: #484848;  --tier-library-bg: #1a1a1a;  --tier-library-hover: #888;    --tier-library-selected: #aaa;
+  --tier-minor: #5a6a78;    --tier-minor-bg: #1a2028;    --tier-minor-hover: #8ab0d0;   --tier-minor-selected: #a0c8e8;
+  --tier-popular: #4a80a0;  --tier-popular-bg: #162030;   --tier-popular-hover: #70b8e8;  --tier-popular-selected: #90d0f8;
+  --tier-superstar: #9a7a30; --tier-superstar-bg: #201a08; --tier-superstar-hover: #d0a840; --tier-superstar-selected: #e8c050;
+  --tier-goddess: #c060a0;  --tier-goddess-bg: #200818;   --tier-goddess-hover: #e888c8;  --tier-goddess-selected: #f0a0d8;
+  --tier-goddess-glow: 0 0 6px rgba(192,80,160,0.25);
+}
+
 body {
   background: #0d0d0d;
   color: #d8d8d8;
@@ -254,27 +263,27 @@ header h1:hover {
   background: #1e1e1e;
 }
 
-/* Tier-colored sub-nav items */
-.actress-sub-nav-item.tier-LIBRARY        { color: #484848; }
-.actress-sub-nav-item.tier-LIBRARY:hover   { color: #888; background: #1a1a1a; }
-.actress-sub-nav-item.tier-LIBRARY.selected { color: #aaa; background: #1a1a1a; }
+/* Tier-colored interactive items (sub-nav + dropdown chips) */
+.actress-sub-nav-item.tier-LIBRARY, .tier-chip-LIBRARY                           { color: var(--tier-library); }
+.actress-sub-nav-item.tier-LIBRARY:hover, .tier-chip-LIBRARY:hover               { color: var(--tier-library-hover); background: var(--tier-library-bg); }
+.actress-sub-nav-item.tier-LIBRARY.selected, .tier-chip-LIBRARY.selected         { color: var(--tier-library-selected); background: var(--tier-library-bg); }
 
-.actress-sub-nav-item.tier-MINOR          { color: #5a6a78; }
-.actress-sub-nav-item.tier-MINOR:hover     { color: #8ab0d0; background: #1a2028; }
-.actress-sub-nav-item.tier-MINOR.selected  { color: #a0c8e8; background: #1a2028; }
+.actress-sub-nav-item.tier-MINOR, .tier-chip-MINOR                              { color: var(--tier-minor); }
+.actress-sub-nav-item.tier-MINOR:hover, .tier-chip-MINOR:hover                  { color: var(--tier-minor-hover); background: var(--tier-minor-bg); }
+.actress-sub-nav-item.tier-MINOR.selected, .tier-chip-MINOR.selected            { color: var(--tier-minor-selected); background: var(--tier-minor-bg); }
 
-.actress-sub-nav-item.tier-POPULAR         { color: #4a80a0; }
-.actress-sub-nav-item.tier-POPULAR:hover    { color: #70b8e8; background: #162030; }
-.actress-sub-nav-item.tier-POPULAR.selected { color: #90d0f8; background: #162030; }
+.actress-sub-nav-item.tier-POPULAR, .tier-chip-POPULAR                          { color: var(--tier-popular); }
+.actress-sub-nav-item.tier-POPULAR:hover, .tier-chip-POPULAR:hover              { color: var(--tier-popular-hover); background: var(--tier-popular-bg); }
+.actress-sub-nav-item.tier-POPULAR.selected, .tier-chip-POPULAR.selected        { color: var(--tier-popular-selected); background: var(--tier-popular-bg); }
 
-.actress-sub-nav-item.tier-SUPERSTAR         { color: #9a7a30; }
-.actress-sub-nav-item.tier-SUPERSTAR:hover    { color: #d0a840; background: #201a08; }
-.actress-sub-nav-item.tier-SUPERSTAR.selected { color: #e8c050; background: #201a08; }
+.actress-sub-nav-item.tier-SUPERSTAR, .tier-chip-SUPERSTAR                      { color: var(--tier-superstar); }
+.actress-sub-nav-item.tier-SUPERSTAR:hover, .tier-chip-SUPERSTAR:hover          { color: var(--tier-superstar-hover); background: var(--tier-superstar-bg); }
+.actress-sub-nav-item.tier-SUPERSTAR.selected, .tier-chip-SUPERSTAR.selected    { color: var(--tier-superstar-selected); background: var(--tier-superstar-bg); }
 
-.actress-sub-nav-item.tier-GODDESS         { color: #c060a0; }
-.actress-sub-nav-item.tier-GODDESS:hover    { color: #e888c8; background: #200818; }
-.actress-sub-nav-item.tier-GODDESS.selected { color: #f0a0d8; background: #200818;
-                                              box-shadow: 0 0 6px rgba(192,80,160,0.25); }
+.actress-sub-nav-item.tier-GODDESS, .tier-chip-GODDESS                          { color: var(--tier-goddess); }
+.actress-sub-nav-item.tier-GODDESS:hover, .tier-chip-GODDESS:hover              { color: var(--tier-goddess-hover); background: var(--tier-goddess-bg); }
+.actress-sub-nav-item.tier-GODDESS.selected, .tier-chip-GODDESS.selected        { color: var(--tier-goddess-selected); background: var(--tier-goddess-bg);
+                                                                                   box-shadow: var(--tier-goddess-glow); }
 
 /* Grids */
 .grid {
@@ -536,12 +545,12 @@ header h1:hover {
   padding: 2px 6px;
 }
 
-.tier-LIBRARY  { color: #484848; background: #1a1a1a; }
-.tier-MINOR    { color: #5a6a78; background: #1a2028; }
-.tier-POPULAR  { color: #4a80a0; background: #162030; }
-.tier-SUPERSTAR{ color: #9a7a30; background: #201a08; }
-.tier-GODDESS  { color: #c060a0; background: #200818;
-                 box-shadow: 0 0 6px rgba(192,80,160,0.25); }
+.tier-LIBRARY  { color: var(--tier-library); background: var(--tier-library-bg); }
+.tier-MINOR    { color: var(--tier-minor); background: var(--tier-minor-bg); }
+.tier-POPULAR  { color: var(--tier-popular); background: var(--tier-popular-bg); }
+.tier-SUPERSTAR{ color: var(--tier-superstar); background: var(--tier-superstar-bg); }
+.tier-GODDESS  { color: var(--tier-goddess); background: var(--tier-goddess-bg);
+                 box-shadow: var(--tier-goddess-glow); }
 
 .fav-dot {
   width: 5px;
@@ -891,27 +900,6 @@ header h1:hover {
   letter-spacing: 0.06em;
 }
 
-/* Tier-colored chips inside the dropdown */
-.tier-chip-LIBRARY  { color: #484848; }
-.tier-chip-LIBRARY:hover   { color: #888; }
-.tier-chip-LIBRARY.selected { color: #aaa; background: #1a1a1a; }
-
-.tier-chip-MINOR    { color: #5a6a78; }
-.tier-chip-MINOR:hover     { color: #8ab0d0; background: #1a2028; }
-.tier-chip-MINOR.selected  { color: #a0c8e8; background: #1a2028; }
-
-.tier-chip-POPULAR  { color: #4a80a0; }
-.tier-chip-POPULAR:hover    { color: #70b8e8; background: #162030; }
-.tier-chip-POPULAR.selected { color: #90d0f8; background: #162030; }
-
-.tier-chip-SUPERSTAR { color: #9a7a30; }
-.tier-chip-SUPERSTAR:hover    { color: #d0a840; background: #201a08; }
-.tier-chip-SUPERSTAR.selected { color: #e8c050; background: #201a08; }
-
-.tier-chip-GODDESS  { color: #c060a0; }
-.tier-chip-GODDESS:hover    { color: #e888c8; background: #200818; }
-.tier-chip-GODDESS.selected { color: #f0a0d8; background: #200818;
-                               box-shadow: 0 0 6px rgba(192,80,160,0.25); }
 
 /* ── Title grade badge ───────────────────────────────────────────────────── */
 
@@ -924,7 +912,24 @@ header h1:hover {
   display: inline-block;
   vertical-align: middle;
   margin-left: 5px;
+  color: #888;
+  background: #1a1a1a;
 }
+
+.grade-badge[data-grade="SSS"] { color: #f0a0d8; background: #200818; box-shadow: var(--tier-goddess-glow); }
+.grade-badge[data-grade="SS"]  { color: #e8c050; background: #201a08; }
+.grade-badge[data-grade="S"]   { color: #b0d870; background: #141e06; }
+.grade-badge[data-grade="A+"]  { color: #50d880; background: #082010; }
+.grade-badge[data-grade="A"]   { color: #40c870; background: #071a0c; }
+.grade-badge[data-grade="A-"]  { color: #60b888; background: #091410; }
+.grade-badge[data-grade="B+"]  { color: #50b0d0; background: #081820; }
+.grade-badge[data-grade="B"]   { color: #4090b8; background: #081018; }
+.grade-badge[data-grade="B-"]  { color: #5888a0; background: #080e14; }
+.grade-badge[data-grade="C+"]  { color: #607888; background: #0c1010; }
+.grade-badge[data-grade="C"]   { color: #587070; background: #0c0e0e; }
+.grade-badge[data-grade="C-"]  { color: #4a6060; background: #0a0c0c; }
+.grade-badge[data-grade="D"]   { color: #505050; background: #0c0c0c; }
+.grade-badge[data-grade="F"]   { color: #885050; background: #100a0a; }
 
 /* ── Title translations ──────────────────────────────────────────────────── */
 
