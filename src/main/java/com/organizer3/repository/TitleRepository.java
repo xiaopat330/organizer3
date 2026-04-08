@@ -59,6 +59,9 @@ public interface TitleRepository {
 
     void delete(long id);
 
+    /** Find titles with at least one location on the given volume, ordered newest-first. */
+    List<Title> findByVolumePaged(String volumeId, int limit, int offset);
+
     /** Find titles with at least one location on the given volume+partition. */
     List<Title> findByVolumeAndPartition(String volumeId, String partitionId, int limit, int offset);
 

@@ -6,6 +6,7 @@ import com.organizer3.sync.TitleCodeParser;
 
 import java.io.IOException;
 import java.nio.file.Path;
+import java.util.Arrays;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -36,6 +37,30 @@ public final class ScannerSupport {
         int comma = rawName.indexOf(',');
         if (comma > 0) rawName = rawName.substring(0, comma).trim();
         return rawName;
+    }
+
+    /**
+     * Extracts all actress names from a collections-style folder name.
+     *
+     * <p>Input examples:
+     * <ul>
+     *   <li>{@code "Aika, Yui Hatano (HMN-102)"} → {@code ["Aika", "Yui Hatano"]}
+     *   <li>{@code "Ai Mukai, Rena Aoi - Demosaiced (MVSD-503)"} → {@code ["Ai Mukai", "Rena Aoi"]}
+     *   <li>{@code "Various (DCX-137)"} → {@code ["Various"]}
+     *   <li>{@code "ABP-001"} (no parens prefix) → {@code []}
+     * </ul>
+     *
+     * <p>Caller is responsible for filtering sentinel values like {@code "Various"}.
+     */
+    public static List<String> extractAllActressNames(String folderName) {
+        Matcher m = ACTRESS_PREFIX.matcher(folderName);
+        if (!m.find()) return List.of();
+        String raw = m.group(1).trim();
+        if (raw.isEmpty()) return List.of();
+        return Arrays.stream(raw.split(",\\s*"))
+                .map(String::trim)
+                .filter(s -> !s.isEmpty())
+                .toList();
     }
 
     /**

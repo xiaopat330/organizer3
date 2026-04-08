@@ -2,38 +2,39 @@ package com.organizer3.sync;
 
 import org.junit.jupiter.api.Test;
 
+import static com.organizer3.sync.scanner.ScannerSupport.extractActressName;
 import static org.junit.jupiter.api.Assertions.*;
 
 class ActressNameExtractionTest {
 
     @Test
     void simpleNameAndCode() {
-        assertEquals("Marin Yakuno", AbstractSyncOperation.extractActressName("Marin Yakuno (IPZZ-679)"));
+        assertEquals("Marin Yakuno", extractActressName("Marin Yakuno (IPZZ-679)"));
     }
 
     @Test
     void nameWithSuffix() {
-        assertEquals("Maho Uruya", AbstractSyncOperation.extractActressName("Maho Uruya - Demosaiced (DV-1239)"));
+        assertEquals("Maho Uruya", extractActressName("Maho Uruya - Demosaiced (DV-1239)"));
     }
 
     @Test
     void multiActressTakesFirst() {
         assertEquals("Maho Kitagawa",
-                AbstractSyncOperation.extractActressName("Maho Kitagawa, Ran Himeno, Konomi Hirose (MUCD-304)"));
+                extractActressName("Maho Kitagawa, Ran Himeno, Konomi Hirose (MUCD-304)"));
     }
 
     @Test
     void singleWordName() {
-        assertEquals("Machiap", AbstractSyncOperation.extractActressName("Machiap (YMDD-439)"));
+        assertEquals("Machiap", extractActressName("Machiap (YMDD-439)"));
     }
 
     @Test
     void noParenthesisReturnsNull() {
-        assertNull(AbstractSyncOperation.extractActressName("IPZZ-679"));
+        assertNull(extractActressName("IPZZ-679"));
     }
 
     @Test
     void emptyPrefixReturnsNull() {
-        assertNull(AbstractSyncOperation.extractActressName("(IPZZ-679)"));
+        assertNull(extractActressName("(IPZZ-679)"));
     }
 }

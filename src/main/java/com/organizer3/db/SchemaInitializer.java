@@ -122,6 +122,13 @@ public class SchemaInitializer {
                         description TEXT
                     )""");
 
+            h.execute("""
+                    CREATE TABLE IF NOT EXISTS title_actresses (
+                        title_id    INTEGER NOT NULL REFERENCES titles(id),
+                        actress_id  INTEGER NOT NULL REFERENCES actresses(id),
+                        PRIMARY KEY (title_id, actress_id)
+                    )""");
+
             h.execute("CREATE INDEX IF NOT EXISTS idx_actress_aliases_name ON actress_aliases(alias_name)");
             h.execute("CREATE INDEX IF NOT EXISTS idx_titles_code ON titles(code)");
             h.execute("CREATE INDEX IF NOT EXISTS idx_titles_label ON titles(label)");
@@ -132,9 +139,11 @@ public class SchemaInitializer {
             h.execute("CREATE INDEX IF NOT EXISTS idx_title_locations_volume_partition ON title_locations(volume_id, partition_id)");
             h.execute("CREATE INDEX IF NOT EXISTS idx_videos_title ON videos(title_id)");
             h.execute("CREATE INDEX IF NOT EXISTS idx_videos_volume ON videos(volume_id)");
+            h.execute("CREATE INDEX IF NOT EXISTS idx_title_actresses_title ON title_actresses(title_id)");
+            h.execute("CREATE INDEX IF NOT EXISTS idx_title_actresses_actress ON title_actresses(actress_id)");
 
             // Stamp version so SchemaUpgrader skips migrations already baked into CREATE TABLE
-            h.execute("PRAGMA user_version = 3");
+            h.execute("PRAGMA user_version = 4");
         });
         log.info("Schema initialization complete");
     }

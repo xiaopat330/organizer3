@@ -32,13 +32,15 @@ import com.organizer3.db.SchemaUpgrader;
 import com.organizer3.enrichment.ActressYamlLoader;
 import com.organizer3.repository.ActressRepository;
 import com.organizer3.repository.LabelRepository;
+import com.organizer3.repository.TitleActressRepository;
+import com.organizer3.repository.TitleLocationRepository;
 import com.organizer3.repository.TitleRepository;
 import com.organizer3.repository.TitleTagRepository;
 import com.organizer3.repository.VideoRepository;
 import com.organizer3.repository.VolumeRepository;
 import com.organizer3.repository.jdbi.JdbiActressRepository;
 import com.organizer3.repository.jdbi.JdbiLabelRepository;
-import com.organizer3.repository.TitleLocationRepository;
+import com.organizer3.repository.jdbi.JdbiTitleActressRepository;
 import com.organizer3.repository.jdbi.JdbiTitleLocationRepository;
 import com.organizer3.repository.jdbi.JdbiTitleRepository;
 import com.organizer3.repository.jdbi.JdbiTitleTagRepository;
@@ -51,6 +53,7 @@ import com.organizer3.sync.FullSyncOperation;
 import com.organizer3.sync.IndexLoader;
 import com.organizer3.sync.PartitionSyncOperation;
 import com.organizer3.sync.SyncOperation;
+import com.organizer3.sync.scanner.CollectionsScanner;
 import com.organizer3.sync.scanner.ConventionalScanner;
 import com.organizer3.sync.scanner.QueueScanner;
 import com.organizer3.sync.scanner.ScannerRegistry;
@@ -99,12 +102,13 @@ public class Application {
 
         // Repositories
         TitleLocationRepository titleLocationRepo = new JdbiTitleLocationRepository(jdbi);
-        TitleRepository   titleRepo   = new JdbiTitleRepository(jdbi, titleLocationRepo);
-        VideoRepository   videoRepo   = new JdbiVideoRepository(jdbi);
-        ActressRepository actressRepo = new JdbiActressRepository(jdbi);
-        VolumeRepository  volumeRepo  = new JdbiVolumeRepository(jdbi);
-        LabelRepository   labelRepo   = new JdbiLabelRepository(jdbi);
-        TitleTagRepository tagRepo    = new JdbiTitleTagRepository(jdbi);
+        TitleRepository        titleRepo        = new JdbiTitleRepository(jdbi, titleLocationRepo);
+        VideoRepository        videoRepo        = new JdbiVideoRepository(jdbi);
+        ActressRepository      actressRepo      = new JdbiActressRepository(jdbi);
+        VolumeRepository       volumeRepo       = new JdbiVolumeRepository(jdbi);
+        LabelRepository        labelRepo        = new JdbiLabelRepository(jdbi);
+        TitleTagRepository     tagRepo          = new JdbiTitleTagRepository(jdbi);
+        TitleActressRepository titleActressRepo = new JdbiTitleActressRepository(jdbi);
         IndexLoader indexLoader = new IndexLoader(titleRepo, actressRepo);
 
         // Claude API (optional — gracefully disabled if ANTHROPIC_API_KEY is not set)
@@ -140,7 +144,8 @@ public class Application {
                 "conventional", new ConventionalScanner(),
                 "queue",        new QueueScanner(),
                 "exhibition",   new ExhibitionScanner(),
-                "sort_pool",    new SortPoolScanner()
+                "sort_pool",    new SortPoolScanner(),
+                "collections",  new CollectionsScanner()
         ));
 
         // Cover image commands
@@ -167,10 +172,11 @@ public class Application {
             SyncCommandDef def = entry.getValue();
             SyncOperation op = switch (def.operation()) {
                 case FULL ->
-                    new FullSyncOperation(scannerRegistry, titleRepo, videoRepo, actressRepo, volumeRepo, titleLocationRepo, indexLoader);
+                    new FullSyncOperation(scannerRegistry, titleRepo, videoRepo, actressRepo,
+                            volumeRepo, titleLocationRepo, titleActressRepo, indexLoader);
                 case PARTITION ->
                     new PartitionSyncOperation(def.partitions(), titleRepo, videoRepo,
-                            actressRepo, volumeRepo, titleLocationRepo, indexLoader);
+                            actressRepo, volumeRepo, titleLocationRepo, titleActressRepo, indexLoader);
             };
             SyncCommand syncCmd = new SyncCommand(term, structureTypesByTerm.get(term), op);
             commands.add(syncCmd);
@@ -187,7 +193,7 @@ public class Application {
         commands.add(new HelpCommand(commands));
 
         // Web server (read-only browsing)
-        TitleBrowseService browseService = new TitleBrowseService(titleRepo, actressRepo, coverPath, labelRepo);
+        TitleBrowseService browseService = new TitleBrowseService(titleRepo, actressRepo, coverPath, labelRepo, titleActressRepo);
         Map<String, String> volumeSmbPaths = config.volumes().stream()
                 .collect(java.util.stream.Collectors.toMap(VolumeConfig::id, VolumeConfig::smbPath));
         com.organizer3.web.StageNameBackupFile stageNameBackup = new com.organizer3.web.StageNameBackupFile(

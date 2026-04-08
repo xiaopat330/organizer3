@@ -3,7 +3,9 @@ package com.organizer3.sync;
 import com.organizer3.config.volume.VolumeConfig;
 import com.organizer3.config.volume.VolumeStructureDef;
 import com.organizer3.filesystem.VolumeFileSystem;
+import com.organizer3.model.Title;
 import com.organizer3.repository.ActressRepository;
+import com.organizer3.repository.TitleActressRepository;
 import com.organizer3.repository.TitleLocationRepository;
 import com.organizer3.repository.TitleRepository;
 import com.organizer3.repository.VideoRepository;
@@ -30,8 +32,9 @@ public class FullSyncOperation extends AbstractSyncOperation {
                              TitleRepository titleRepo, VideoRepository videoRepo,
                              ActressRepository actressRepo, VolumeRepository volumeRepo,
                              TitleLocationRepository titleLocationRepo,
+                             TitleActressRepository titleActressRepo,
                              IndexLoader indexLoader) {
-        super(titleRepo, videoRepo, actressRepo, volumeRepo, titleLocationRepo, indexLoader);
+        super(titleRepo, videoRepo, actressRepo, volumeRepo, titleLocationRepo, titleActressRepo, indexLoader);
         this.scannerRegistry = scannerRegistry;
     }
 
@@ -41,8 +44,8 @@ public class FullSyncOperation extends AbstractSyncOperation {
         io.println("Syncing " + volume.id() + " (full) ...");
         ensureVolumeRecord(volume);
 
-        // Clear existing records for this volume — videos first (FK), then locations
-        // Titles are NOT deleted — they may have locations on other volumes
+        // Clear existing records for this volume — videos first (FK), then locations.
+        // Titles are NOT deleted — they may have locations on other volumes.
         videoRepo.deleteByVolume(volume.id());
         titleLocationRepo.deleteByVolume(volume.id());
 
@@ -50,20 +53,23 @@ public class FullSyncOperation extends AbstractSyncOperation {
         VolumeScanner scanner = scannerRegistry.forStructureType(volume.structureType());
         List<DiscoveredTitle> discovered = scanner.scan(structure, fs, io);
 
-        // Persist all discovered titles
+        // Persist all discovered titles and link their cast to the junction table
         SyncStats stats = new SyncStats();
         try (var progress = io.startProgress("Saving", discovered.size())) {
             for (DiscoveredTitle dt : discovered) {
                 progress.setLabel(dt.path().getFileName().toString());
-                Long actressId = resolveActressId(dt, stats);
-                saveTitleAndVideos(dt.path(), volume.id(), dt.partitionId(), actressId, fs);
+                List<Long> castIds = resolveCast(dt, stats);
+                Long filingActressId = castIds.size() == 1 ? castIds.get(0) : null;
+                Title title = saveTitleAndVideos(dt.path(), volume.id(), dt.partitionId(), filingActressId, fs);
+                titleActressRepo.linkAll(title.getId(), castIds);
                 stats.addTitles(dt.partitionId(), 1);
                 progress.advance();
             }
         }
 
-        // Clean up titles that no longer have any locations
+        // Remove titles with no remaining locations, then clean up orphaned cast rows
         titleRepo.deleteOrphaned();
+        titleActressRepo.deleteOrphaned();
 
         finalizeSync(volume.id(), ctx);
         printStats(stats, io);

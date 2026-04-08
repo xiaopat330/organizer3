@@ -48,7 +48,7 @@ class ExhibitionScannerTest {
         List<DiscoveredTitle> results = new ExhibitionScanner().scan(structure, fs, io);
 
         assertEquals(1, results.size());
-        assertEquals("Julia", results.get(0).actressName());
+        assertEquals("Julia", results.get(0).actressNames().get(0));
         assertEquals("stars", results.get(0).partitionId());
         assertEquals(Actress.Tier.LIBRARY, results.get(0).actressTier());
         assertEquals(titleDir, results.get(0).path());
@@ -109,7 +109,7 @@ class ExhibitionScannerTest {
         List<DiscoveredTitle> results = new ExhibitionScanner().scan(structure, fs, io);
 
         assertEquals(1, results.size());
-        assertEquals("Aika", results.get(0).actressName());
+        assertEquals("Aika", results.get(0).actressNames().get(0));
         assertEquals(parenTitle, results.get(0).path());
     }
 
@@ -138,7 +138,7 @@ class ExhibitionScannerTest {
         assertTrue(results.stream().anyMatch(d -> d.path().equals(directTitle)));
         assertTrue(results.stream().anyMatch(d -> d.path().equals(subTitle)));
         // Both attributed to the actress folder, not the subfolder
-        assertTrue(results.stream().allMatch(d -> "Sora Shiina".equals(d.actressName())));
+        assertTrue(results.stream().allMatch(d -> "Sora Shiina".equals(d.actressNames().get(0))));
     }
 
     @Test
@@ -160,7 +160,7 @@ class ExhibitionScannerTest {
         List<DiscoveredTitle> results = new ExhibitionScanner().scan(structure, fs, io);
 
         assertEquals(1, results.size());
-        assertEquals("Mana Sakura", results.get(0).actressName());
+        assertEquals("Mana Sakura", results.get(0).actressNames().get(0));
         assertEquals(titleInSub, results.get(0).path());
     }
 
@@ -183,7 +183,7 @@ class ExhibitionScannerTest {
         List<DiscoveredTitle> results = new ExhibitionScanner().scan(structure, fs, io);
 
         assertEquals(1, results.size());
-        assertEquals("Rio Hamasaki", results.get(0).actressName());
+        assertEquals("Rio Hamasaki", results.get(0).actressNames().get(0));
     }
 
     @Test

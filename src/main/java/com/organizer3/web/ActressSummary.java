@@ -26,4 +26,18 @@ public class ActressSummary {
     String lastAddedDate;
     List<String> companies;
     List<String> aliases;
+
+    // Enrichment / profile fields
+    String activeFrom;
+    String activeTo;
+    String dateOfBirth;
+    String birthplace;
+    String bloodType;
+    Integer heightCm;
+    Integer bust;
+    Integer waist;
+    Integer hip;
+    String cup;
+    String biography;
+    String legacy;
 }

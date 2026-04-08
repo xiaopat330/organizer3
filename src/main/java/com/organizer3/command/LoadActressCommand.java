@@ -42,15 +42,15 @@ public class LoadActressCommand implements Command {
 
     @Override
     public void execute(String[] args, SessionContext ctx, CommandIO io) {
-        // args[0] is always the matched command name or alias token
-        // "load actress <slug>" → args = ["load", "actress", "<slug>"]
-        // "load actresses"      → args = ["load", "actresses"]
-        boolean loadAll = args.length >= 2 && args[1].equalsIgnoreCase("actresses");
+        // Dispatcher merges two-word command name into args[0]:
+        // "load actress <slug>" → args = ["load actress", "<slug>"]
+        // "load actresses"      → args = ["load actresses"]
+        boolean loadAll = args[0].equalsIgnoreCase("load actresses");
 
         if (loadAll) {
             loadAll(io);
-        } else if (args.length >= 3) {
-            loadOne(args[2], io);
+        } else if (args.length >= 2) {
+            loadOne(args[1], io);
         } else {
             io.println("Usage: load actress <slug> | load actresses");
             io.println("  slug is the filename without .yaml, e.g. nana_ogura");

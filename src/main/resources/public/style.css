@@ -299,6 +299,52 @@ header h1:hover {
   color: #3a3a3a;
 }
 
+/* ── Multi-actress ticker ────────────────────────────────────────────── */
+
+.ticker-wrap {
+  overflow: hidden;
+  white-space: nowrap;
+  mask-image: linear-gradient(to right, transparent, #000 8%, #000 92%, transparent);
+  -webkit-mask-image: linear-gradient(to right, transparent, #000 8%, #000 92%, transparent);
+}
+
+.ticker-track {
+  display: inline-block;
+  animation: ticker-scroll 12s linear infinite;
+}
+
+.ticker-wrap:hover .ticker-track {
+  animation-play-state: paused;
+}
+
+.ticker-segment {
+  display: inline;
+}
+
+.ticker-segment + .ticker-segment::before {
+  content: ", ";
+  color: #444;
+}
+
+.ticker-name {
+  color: #999;
+  text-decoration: none;
+  transition: color 0.12s ease;
+}
+
+.ticker-name:hover {
+  color: #e0e0e0;
+}
+
+.ticker-sep {
+  color: #444;
+}
+
+@keyframes ticker-scroll {
+  0%   { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+
 .card-actress-first {
   font-size: 0.88rem;
   font-weight: 700;
@@ -577,88 +623,105 @@ header h1:hover {
   gap: 10px;
 }
 
-.detail-dates {
+.detail-grade {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: #b0a060;
+  letter-spacing: 0.04em;
+}
+
+.detail-career {
   font-size: 0.78rem;
   color: #555;
 }
 
-.detail-paths {
+/* ── Column 2: Profile ──────────────────────────────────────────────── */
+
+.detail-profile-col {
+  padding: 20px 24px;
   display: flex;
   flex-direction: column;
-  gap: 3px;
-}
-
-.detail-path {
-  font-size: 0.7rem;
-  color: #404040;
-  font-family: ui-monospace, monospace;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.detail-companies-col,
-.detail-aliases-col {
-  padding: 12px 24px;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
+  gap: 8px;
   justify-content: center;
   border-left: 1px solid #1e1e1e;
-  min-width: 140px;
-  max-height: 260px;
-  overflow-y: auto;
 }
 
-.detail-section-label {
+.detail-profile-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+}
+
+.detail-profile-label {
   font-size: 0.65rem;
   text-transform: uppercase;
   letter-spacing: 0.08em;
   color: #555;
-  margin-bottom: 2px;
+  white-space: nowrap;
 }
 
-.detail-all-movies {
-  font-size: 0.72rem;
-  font-weight: 700;
-  color: #555;
-  letter-spacing: 0.08em;
-  cursor: pointer;
-  padding: 2px 0;
-  transition: color 0.12s ease;
-  user-select: none;
+.detail-profile-value {
+  font-size: 0.82rem;
+  color: #aaa;
+  text-align: right;
 }
 
-.detail-all-movies:hover,
-.detail-all-movies.selected {
-  color: #ffffff;
+/* ── Column 3: Biography ────────────────────────────────────────────── */
+
+.detail-bio-col {
+  padding: 20px 24px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  border-left: 1px solid #1e1e1e;
+  max-height: 260px;
+  overflow-y: auto;
 }
 
-.detail-company-item {
-  font-size: 0.78rem;
-  color: #666;
-  cursor: pointer;
-  transition: color 0.12s ease;
-  user-select: none;
-}
-
-.detail-company-item:hover {
-  color: #c0c0c0;
-}
-
-.detail-company-item.selected {
-  color: #d8d8d8;
-  font-weight: 600;
-}
-
-.detail-alias-item {
+.detail-bio-text {
   font-size: 0.78rem;
   color: #888;
-  cursor: default;
+  line-height: 1.6;
+  white-space: pre-wrap;
 }
 
-.detail-alias-item:hover {
+/* ── Navigation bar (companies) ─────────────────────────────────────── */
+
+.detail-nav-bar {
+  background: #0d0d0d;
+  border-bottom: 1px solid #1e1e1e;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 20px;
+}
+
+.detail-nav-bar:empty {
+  display: none;
+}
+
+.detail-nav-item {
+  font-size: 0.72rem;
+  color: #555;
+  cursor: pointer;
+  padding: 4px 12px;
+  border-radius: 3px;
+  transition: color 0.12s ease, background 0.12s ease;
+  user-select: none;
+  letter-spacing: 0.04em;
+}
+
+.detail-nav-item:hover {
   color: #c0c0c0;
+  background: #1a1a1a;
+}
+
+.detail-nav-item.selected {
+  color: #e0e0e0;
+  font-weight: 600;
+  background: #1e1e1e;
 }
 
 /* ── Alias badges (in detail info section) ────────────────────────────── */

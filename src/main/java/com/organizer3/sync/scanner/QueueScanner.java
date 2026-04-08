@@ -51,7 +51,8 @@ public class QueueScanner implements VolumeScanner {
                     String folderName = child.getFileName().toString();
                     progress.setLabel(folderName);
                     String actressName = extractActressName(folderName);
-                    results.add(new DiscoveredTitle(child, partition.id(), actressName, Actress.Tier.LIBRARY));
+                    List<String> names = actressName != null ? List.of(actressName) : List.of();
+                    results.add(new DiscoveredTitle(child, partition.id(), names, Actress.Tier.LIBRARY));
                     progress.advance();
                 }
             }

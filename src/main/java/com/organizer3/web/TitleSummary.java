@@ -27,4 +27,16 @@ public class TitleSummary {
     /** All known locations for this title. */
     @Builder.Default
     List<String> locations = List.of();
+    /** All actresses linked via the title_actresses junction table (for multi-actress titles). */
+    @Builder.Default
+    List<ActressEntry> actresses = List.of();
+
+    /** Lightweight actress reference for multi-actress title cards. */
+    @Value
+    @Builder
+    public static class ActressEntry {
+        long id;
+        String name;
+        String tier;
+    }
 }

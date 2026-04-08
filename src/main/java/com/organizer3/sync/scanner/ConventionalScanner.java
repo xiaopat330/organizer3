@@ -73,7 +73,8 @@ public class ConventionalScanner implements VolumeScanner {
                 String folderName = child.getFileName().toString();
                 progress.setLabel(folderName);
                 String actressName = extractActressName(folderName);
-                results.add(new DiscoveredTitle(child, partitionId, actressName, Actress.Tier.LIBRARY));
+                List<String> names = actressName != null ? List.of(actressName) : List.of();
+                results.add(new DiscoveredTitle(child, partitionId, names, Actress.Tier.LIBRARY));
                 progress.advance();
             }
         }
@@ -99,7 +100,7 @@ public class ConventionalScanner implements VolumeScanner {
                 progress.setLabel(actressName);
                 for (Path titleFolder : fs.listDirectory(actressFolder).stream()
                         .filter(fs::isDirectory).toList()) {
-                    results.add(new DiscoveredTitle(titleFolder, partitionId, actressName, tier));
+                    results.add(new DiscoveredTitle(titleFolder, partitionId, List.of(actressName), tier));
                 }
                 progress.advance();
             }

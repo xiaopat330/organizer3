@@ -9,6 +9,7 @@ import com.organizer3.model.Actress;
 import com.organizer3.model.Title;
 import com.organizer3.model.Volume;
 import com.organizer3.repository.ActressRepository;
+import com.organizer3.repository.TitleActressRepository;
 import com.organizer3.repository.TitleLocationRepository;
 import com.organizer3.repository.TitleRepository;
 import com.organizer3.repository.VideoRepository;
@@ -16,10 +17,11 @@ import com.organizer3.repository.VolumeRepository;
 import com.organizer3.shell.SessionContext;
 import com.organizer3.shell.io.CommandIO;
 import com.organizer3.shell.io.PlainCommandIO;
+import com.organizer3.sync.scanner.CollectionsScanner;
 import com.organizer3.sync.scanner.ConventionalScanner;
+import com.organizer3.sync.scanner.ExhibitionScanner;
 import com.organizer3.sync.scanner.QueueScanner;
 import com.organizer3.sync.scanner.ScannerRegistry;
-import com.organizer3.sync.scanner.ExhibitionScanner;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -37,8 +39,8 @@ import static org.mockito.Mockito.*;
 
 /**
  * Tests for FullSyncOperation — verifies that a full sync clears existing data,
- * delegates to the appropriate scanner, persists discovered titles/videos, and
- * resolves actresses correctly.
+ * delegates to the appropriate scanner, persists discovered titles/videos, resolves
+ * actresses correctly, and links cast to the title_actresses junction table.
  */
 class FullSyncOperationTest {
 
@@ -47,6 +49,7 @@ class FullSyncOperationTest {
     private ActressRepository actressRepo;
     private VolumeRepository volumeRepo;
     private TitleLocationRepository titleLocationRepo;
+    private TitleActressRepository titleActressRepo;
     private IndexLoader indexLoader;
     private VolumeFileSystem fs;
     private SessionContext ctx;
@@ -55,31 +58,34 @@ class FullSyncOperationTest {
     private ScannerRegistry scannerRegistry;
 
     private static final VolumeConfig CONVENTIONAL_VOLUME = new VolumeConfig("a", "//pandora/jav_A", "conventional", "pandora");
-    private static final VolumeConfig QUEUE_VOLUME = new VolumeConfig("unsorted", "//pandora/jav_unsorted", "queue", "pandora");
-    private static final VolumeConfig EXHIBITION_VOLUME = new VolumeConfig("qnap", "//qnap2/jav", "exhibition", "qnap2");
+    private static final VolumeConfig QUEUE_VOLUME        = new VolumeConfig("unsorted", "//pandora/jav_unsorted", "queue", "pandora");
+    private static final VolumeConfig EXHIBITION_VOLUME   = new VolumeConfig("qnap", "//qnap2/jav", "exhibition", "qnap2");
+    private static final VolumeConfig COLLECTIONS_VOLUME  = new VolumeConfig("collections", "//pandora/jav_collections", "collections", "pandora");
 
     @BeforeEach
     void setUp() {
-        titleRepo = mock(TitleRepository.class);
-        videoRepo = mock(VideoRepository.class);
-        actressRepo = mock(ActressRepository.class);
-        volumeRepo = mock(VolumeRepository.class);
-        indexLoader = mock(IndexLoader.class);
-        fs = mock(VolumeFileSystem.class);
-        ctx = new SessionContext();
-        output = new StringWriter();
-        io = new PlainCommandIO(new PrintWriter(output));
-
+        titleRepo        = mock(TitleRepository.class);
+        videoRepo        = mock(VideoRepository.class);
+        actressRepo      = mock(ActressRepository.class);
+        volumeRepo       = mock(VolumeRepository.class);
         titleLocationRepo = mock(TitleLocationRepository.class);
+        titleActressRepo = mock(TitleActressRepository.class);
+        indexLoader      = mock(IndexLoader.class);
+        fs               = mock(VolumeFileSystem.class);
+        ctx              = new SessionContext();
+        output           = new StringWriter();
+        io               = new PlainCommandIO(new PrintWriter(output));
+
         scannerRegistry = new ScannerRegistry(Map.of(
                 "conventional", new ConventionalScanner(),
-                "queue", new QueueScanner(),
-                "exhibition", new ExhibitionScanner()
+                "queue",        new QueueScanner(),
+                "exhibition",   new ExhibitionScanner(),
+                "collections",  new CollectionsScanner()
         ));
 
         when(volumeRepo.findById(anyString())).thenReturn(Optional.empty());
         when(indexLoader.load(anyString())).thenReturn(VolumeIndex.empty("a"));
-        // Default: findOrCreateByCode returns the title with an id
+        // Default: findOrCreateByCode returns the title with a generated id
         when(titleRepo.findOrCreateByCode(any(Title.class))).thenAnswer(inv -> {
             Title t = inv.getArgument(0);
             return t.toBuilder().id(1L).build();
@@ -87,7 +93,8 @@ class FullSyncOperationTest {
     }
 
     private FullSyncOperation newOp() {
-        return new FullSyncOperation(scannerRegistry, titleRepo, videoRepo, actressRepo, volumeRepo, titleLocationRepo, indexLoader);
+        return new FullSyncOperation(scannerRegistry, titleRepo, videoRepo, actressRepo,
+                volumeRepo, titleLocationRepo, titleActressRepo, indexLoader);
     }
 
     // --- Clears data before scanning ---
@@ -95,11 +102,10 @@ class FullSyncOperationTest {
     @Test
     void clearsExistingRecordsBeforeScanning() throws IOException {
         VolumeStructureDef structure = conventionalStructure();
-        when(fs.exists(any())).thenReturn(false); // empty partitions
+        when(fs.exists(any())).thenReturn(false);
 
         newOp().execute(CONVENTIONAL_VOLUME, structure, fs, ctx, io);
 
-        // Videos cleared before title locations (FK ordering)
         var order = inOrder(videoRepo, titleLocationRepo);
         order.verify(videoRepo).deleteByVolume("a");
         order.verify(titleLocationRepo).deleteByVolume("a");
@@ -112,15 +118,14 @@ class FullSyncOperationTest {
         VolumeStructureDef structure = new VolumeStructureDef(
                 "conventional",
                 List.of(new PartitionDef("queue", "queue")),
-                null // no stars
+                null
         );
 
         Path queueRoot = Path.of("/queue");
-        Path titleDir = queueRoot.resolve("ABP-001");
+        Path titleDir  = queueRoot.resolve("ABP-001");
         when(fs.exists(queueRoot)).thenReturn(true);
         when(fs.listDirectory(queueRoot)).thenReturn(List.of(titleDir));
         when(fs.isDirectory(titleDir)).thenReturn(true);
-        // Title folder contents (one video file)
         Path videoFile = titleDir.resolve("ABP-001.mp4");
         when(fs.listDirectory(titleDir)).thenReturn(List.of(videoFile));
         when(fs.isDirectory(videoFile)).thenReturn(false);
@@ -152,11 +157,11 @@ class FullSyncOperationTest {
     void scansTieredStarsAndResolvesActresses() throws IOException {
         VolumeStructureDef structure = conventionalStructure();
 
-        Path starsRoot = Path.of("/stars");
+        Path starsRoot   = Path.of("/stars");
         Path libraryRoot = starsRoot.resolve("library");
-        Path actressDir = libraryRoot.resolve("Aya Sazanami");
-        Path titleDir = actressDir.resolve("ABP-001");
-        Path videoFile = titleDir.resolve("ABP-001.mp4");
+        Path actressDir  = libraryRoot.resolve("Aya Sazanami");
+        Path titleDir    = actressDir.resolve("ABP-001");
+        Path videoFile   = titleDir.resolve("ABP-001.mp4");
 
         when(fs.exists(Path.of("/queue"))).thenReturn(false);
         when(fs.exists(starsRoot)).thenReturn(true);
@@ -175,26 +180,27 @@ class FullSyncOperationTest {
 
         verify(titleRepo).findOrCreateByCode(argThat(t ->
                 "ABP-001".equals(t.getCode()) && t.getActressId() == 42L));
+        // Single actress → also linked in junction table
+        verify(titleActressRepo).linkAll(1L, List.of(42L));
     }
 
     @Test
     void createsNewActressWhenNotFoundDuringStarsScan() throws IOException {
         VolumeStructureDef structure = new VolumeStructureDef(
-                "conventional",
-                List.of(),
+                "conventional", List.of(),
                 new StructuredPartitionDef("stars", List.of(new PartitionDef("library", "library")))
         );
 
         Path libraryRoot = Path.of("/stars/library");
-        Path actressDir = libraryRoot.resolve("New Actress");
-        Path titleDir = actressDir.resolve("XYZ-001");
+        Path actressDir  = libraryRoot.resolve("New Actress");
+        Path titleDir    = actressDir.resolve("XYZ-001");
 
         when(fs.exists(libraryRoot)).thenReturn(true);
         when(fs.listDirectory(libraryRoot)).thenReturn(List.of(actressDir));
         when(fs.isDirectory(actressDir)).thenReturn(true);
         when(fs.listDirectory(actressDir)).thenReturn(List.of(titleDir));
         when(fs.isDirectory(titleDir)).thenReturn(true);
-        when(fs.listDirectory(titleDir)).thenReturn(List.of()); // no videos
+        when(fs.listDirectory(titleDir)).thenReturn(List.of());
 
         when(actressRepo.resolveByName("New Actress")).thenReturn(Optional.empty());
         Actress created = Actress.builder().id(99L).canonicalName("New Actress").tier(Actress.Tier.LIBRARY).build();
@@ -205,19 +211,18 @@ class FullSyncOperationTest {
         verify(actressRepo).save(argThat(a -> "New Actress".equals(a.getCanonicalName())));
     }
 
-    // --- Flat stars scanning ---
+    // --- Exhibition scanning ---
 
     @Test
     void scansFlatStarsLayout() throws IOException {
         VolumeStructureDef structure = new VolumeStructureDef(
-                "exhibition",
-                List.of(),
-                new StructuredPartitionDef("stars", List.of()) // empty partitions = flat
+                "exhibition", List.of(),
+                new StructuredPartitionDef("stars", List.of())
         );
 
         Path starsRoot = Path.of("/stars");
         Path actressDir = starsRoot.resolve("Marin Yakuno");
-        Path titleDir = actressDir.resolve("Marin Yakuno (IPZZ-679)");
+        Path titleDir   = actressDir.resolve("Marin Yakuno (IPZZ-679)");
 
         when(fs.exists(starsRoot)).thenReturn(true);
         when(fs.listDirectory(starsRoot)).thenReturn(List.of(actressDir));
@@ -233,6 +238,7 @@ class FullSyncOperationTest {
 
         verify(titleRepo).findOrCreateByCode(argThat(t ->
                 "IPZZ-679".equals(t.getCode()) && t.getActressId() == 7L));
+        verify(titleActressRepo).linkAll(1L, List.of(7L));
     }
 
     @Test
@@ -242,11 +248,11 @@ class FullSyncOperationTest {
                 new StructuredPartitionDef("stars", List.of())
         );
 
-        Path starsRoot = Path.of("/stars");
-        Path actressDir = starsRoot.resolve("Sora Shiina");
+        Path starsRoot    = Path.of("/stars");
+        Path actressDir   = starsRoot.resolve("Sora Shiina");
         Path favoritesDir = actressDir.resolve("favorites");
-        Path titleDirect = actressDir.resolve("Sora Shiina (WANZ-575)");
-        Path titleInSub = favoritesDir.resolve("Sora Shiina (HND-305)");
+        Path titleDirect  = actressDir.resolve("Sora Shiina (WANZ-575)");
+        Path titleInSub   = favoritesDir.resolve("Sora Shiina (HND-305)");
 
         when(fs.exists(starsRoot)).thenReturn(true);
         when(fs.listDirectory(starsRoot)).thenReturn(List.of(actressDir));
@@ -256,7 +262,6 @@ class FullSyncOperationTest {
         when(fs.isDirectory(favoritesDir)).thenReturn(true);
         when(fs.listDirectory(favoritesDir)).thenReturn(List.of(titleInSub));
         when(fs.isDirectory(titleInSub)).thenReturn(true);
-        // Title folder contents
         when(fs.listDirectory(titleDirect)).thenReturn(List.of());
         when(fs.listDirectory(titleInSub)).thenReturn(List.of());
 
@@ -265,7 +270,6 @@ class FullSyncOperationTest {
 
         newOp().execute(EXHIBITION_VOLUME, structure, fs, ctx, io);
 
-        // Both titles discovered — direct and inside subfolder
         verify(titleRepo).findOrCreateByCode(argThat(t -> "WANZ-575".equals(t.getCode())));
         verify(titleRepo).findOrCreateByCode(argThat(t -> "HND-305".equals(t.getCode())));
     }
@@ -279,8 +283,8 @@ class FullSyncOperationTest {
 
         Path starsRoot = Path.of("/stars");
         Path actressDir = starsRoot.resolve("Eimi Fukada");
-        Path coversDir = actressDir.resolve("covers");
-        Path titleDir = actressDir.resolve("Eimi Fukada (MIAA-085)");
+        Path coversDir  = actressDir.resolve("covers");
+        Path titleDir   = actressDir.resolve("Eimi Fukada (MIAA-085)");
 
         when(fs.exists(starsRoot)).thenReturn(true);
         when(fs.listDirectory(starsRoot)).thenReturn(List.of(actressDir));
@@ -289,14 +293,12 @@ class FullSyncOperationTest {
         when(fs.isDirectory(coversDir)).thenReturn(true);
         when(fs.isDirectory(titleDir)).thenReturn(true);
         when(fs.listDirectory(titleDir)).thenReturn(List.of());
-        // covers/ should never be listed for title scanning
 
         Actress eimi = Actress.builder().id(20L).canonicalName("Eimi Fukada").tier(Actress.Tier.LIBRARY).build();
         when(actressRepo.resolveByName("Eimi Fukada")).thenReturn(Optional.of(eimi));
 
         newOp().execute(EXHIBITION_VOLUME, structure, fs, ctx, io);
 
-        // Only the real title is saved, not anything from covers/
         verify(titleRepo, times(1)).findOrCreateByCode(any());
         verify(titleRepo).findOrCreateByCode(argThat(t -> "MIAA-085".equals(t.getCode())));
     }
@@ -308,10 +310,10 @@ class FullSyncOperationTest {
                 new StructuredPartitionDef("stars", List.of())
         );
 
-        Path starsRoot = Path.of("/stars");
-        Path tempDir = starsRoot.resolve("temp");
+        Path starsRoot  = Path.of("/stars");
+        Path tempDir    = starsRoot.resolve("temp");
         Path actressDir = starsRoot.resolve("Julia");
-        Path titleDir = actressDir.resolve("Julia (MIDE-517)");
+        Path titleDir   = actressDir.resolve("Julia (MIDE-517)");
 
         when(fs.exists(starsRoot)).thenReturn(true);
         when(fs.listDirectory(starsRoot)).thenReturn(List.of(tempDir, actressDir));
@@ -326,7 +328,6 @@ class FullSyncOperationTest {
 
         newOp().execute(EXHIBITION_VOLUME, structure, fs, ctx, io);
 
-        // temp/ should be skipped entirely — no listDirectory call on it
         verify(fs, never()).listDirectory(tempDir);
         verify(titleRepo, times(1)).findOrCreateByCode(any());
     }
@@ -339,7 +340,7 @@ class FullSyncOperationTest {
                 "queue", List.of(new PartitionDef("queue", "fresh")), null);
 
         Path queueRoot = Path.of("/fresh");
-        Path titleDir = queueRoot.resolve("Marin Yakuno (IPZZ-679)");
+        Path titleDir  = queueRoot.resolve("Marin Yakuno (IPZZ-679)");
         when(fs.exists(queueRoot)).thenReturn(true);
         when(fs.listDirectory(queueRoot)).thenReturn(List.of(titleDir));
         when(fs.isDirectory(titleDir)).thenReturn(true);
@@ -351,6 +352,104 @@ class FullSyncOperationTest {
         newOp().execute(QUEUE_VOLUME, structure, fs, ctx, io);
 
         verify(titleRepo).findOrCreateByCode(argThat(t -> t.getActressId() != null && t.getActressId() == 7L));
+    }
+
+    // --- Collections scanning ---
+
+    @Test
+    void scansCollectionsVolumeWithMultiActressTitles() throws IOException {
+        VolumeStructureDef structure = new VolumeStructureDef(
+                "collections",
+                List.of(new PartitionDef("duos", "duos")),
+                null
+        );
+
+        Path duosRoot = Path.of("/duos");
+        Path titleDir = duosRoot.resolve("Aika, Yui Hatano (HMN-102)");
+
+        when(fs.exists(duosRoot)).thenReturn(true);
+        when(fs.listDirectory(duosRoot)).thenReturn(List.of(titleDir));
+        when(fs.isDirectory(titleDir)).thenReturn(true);
+        when(fs.listDirectory(titleDir)).thenReturn(List.of());
+
+        Actress aika = Actress.builder().id(1L).canonicalName("Aika").tier(Actress.Tier.LIBRARY).build();
+        Actress yui  = Actress.builder().id(2L).canonicalName("Yui Hatano").tier(Actress.Tier.LIBRARY).build();
+        when(actressRepo.resolveByName("Aika")).thenReturn(Optional.of(aika));
+        when(actressRepo.resolveByName("Yui Hatano")).thenReturn(Optional.of(yui));
+
+        newOp().execute(COLLECTIONS_VOLUME, structure, fs, ctx, io);
+
+        // actress_id must be null (multi-actress, no single filing actress)
+        verify(titleRepo).findOrCreateByCode(argThat(t ->
+                "HMN-102".equals(t.getCode()) && t.getActressId() == null));
+        // Both actresses linked in junction table
+        verify(titleActressRepo).linkAll(1L, List.of(1L, 2L));
+    }
+
+    @Test
+    void collectionsVariousTitleHasNullActressAndNoJunctionRows() throws IOException {
+        VolumeStructureDef structure = new VolumeStructureDef(
+                "collections",
+                List.of(new PartitionDef("archive", "archive")),
+                null
+        );
+
+        Path archiveRoot = Path.of("/archive");
+        Path titleDir    = archiveRoot.resolve("Various (DCX-137)");
+
+        when(fs.exists(archiveRoot)).thenReturn(true);
+        when(fs.listDirectory(archiveRoot)).thenReturn(List.of(titleDir));
+        when(fs.isDirectory(titleDir)).thenReturn(true);
+        when(fs.listDirectory(titleDir)).thenReturn(List.of());
+
+        newOp().execute(COLLECTIONS_VOLUME, structure, fs, ctx, io);
+
+        verify(titleRepo).findOrCreateByCode(argThat(t ->
+                "DCX-137".equals(t.getCode()) && t.getActressId() == null));
+        // Empty cast — linkAll called with empty list (no junction rows)
+        verify(titleActressRepo).linkAll(1L, List.of());
+        verify(actressRepo, never()).resolveByName(any());
+    }
+
+    @Test
+    void collectionsSkipsCoversSubfolder() throws IOException {
+        VolumeStructureDef structure = new VolumeStructureDef(
+                "collections",
+                List.of(new PartitionDef("archive", "archive")),
+                null
+        );
+
+        Path archiveRoot = Path.of("/archive");
+        Path coversDir   = archiveRoot.resolve("__covers");
+        Path titleDir    = archiveRoot.resolve("Aika, Yui Hatano (HMN-102)");
+
+        when(fs.exists(archiveRoot)).thenReturn(true);
+        when(fs.listDirectory(archiveRoot)).thenReturn(List.of(coversDir, titleDir));
+        when(fs.isDirectory(coversDir)).thenReturn(true);
+        when(fs.isDirectory(titleDir)).thenReturn(true);
+        when(fs.listDirectory(titleDir)).thenReturn(List.of());
+
+        Actress aika = Actress.builder().id(1L).canonicalName("Aika").tier(Actress.Tier.LIBRARY).build();
+        Actress yui  = Actress.builder().id(2L).canonicalName("Yui Hatano").tier(Actress.Tier.LIBRARY).build();
+        when(actressRepo.resolveByName("Aika")).thenReturn(Optional.of(aika));
+        when(actressRepo.resolveByName("Yui Hatano")).thenReturn(Optional.of(yui));
+
+        newOp().execute(COLLECTIONS_VOLUME, structure, fs, ctx, io);
+
+        verify(titleRepo, times(1)).findOrCreateByCode(any());
+    }
+
+    // --- Junction table: deleteOrphaned called after titleRepo.deleteOrphaned ---
+
+    @Test
+    void callsDeleteOrphanedOnBothReposAfterSync() throws IOException {
+        VolumeStructureDef structure = new VolumeStructureDef("queue", List.of(), null);
+
+        newOp().execute(QUEUE_VOLUME, structure, fs, ctx, io);
+
+        var order = inOrder(titleRepo, titleActressRepo);
+        order.verify(titleRepo).deleteOrphaned();
+        order.verify(titleActressRepo).deleteOrphaned();
     }
 
     // --- Volume record and finalize ---
@@ -401,10 +500,10 @@ class FullSyncOperationTest {
         VolumeStructureDef structure = new VolumeStructureDef(
                 "queue", List.of(new PartitionDef("queue", "fresh")), null);
 
-        Path queueRoot = Path.of("/fresh");
-        Path titleDir = queueRoot.resolve("ABP-001");
+        Path queueRoot  = Path.of("/fresh");
+        Path titleDir   = queueRoot.resolve("ABP-001");
         Path videoSubdir = titleDir.resolve("video");
-        Path videoFile = videoSubdir.resolve("ABP-001.mkv");
+        Path videoFile   = videoSubdir.resolve("ABP-001.mkv");
 
         when(fs.exists(queueRoot)).thenReturn(true);
         when(fs.listDirectory(queueRoot)).thenReturn(List.of(titleDir));
@@ -425,10 +524,10 @@ class FullSyncOperationTest {
         VolumeStructureDef structure = new VolumeStructureDef(
                 "queue", List.of(new PartitionDef("queue", "fresh")), null);
 
-        Path queueRoot = Path.of("/fresh");
-        Path titleDir = queueRoot.resolve("ABP-001");
-        Path h265Subdir = titleDir.resolve("h265");
-        Path videoFile = h265Subdir.resolve("ABP-001.mkv");
+        Path queueRoot   = Path.of("/fresh");
+        Path titleDir    = queueRoot.resolve("ABP-001");
+        Path h265Subdir  = titleDir.resolve("h265");
+        Path videoFile   = h265Subdir.resolve("ABP-001.mkv");
 
         when(fs.exists(queueRoot)).thenReturn(true);
         when(fs.listDirectory(queueRoot)).thenReturn(List.of(titleDir));
@@ -444,7 +543,7 @@ class FullSyncOperationTest {
         verify(videoRepo).save(argThat(v -> "ABP-001.mkv".equals(v.getFilename())));
     }
 
-    // --- Helpers ---
+    // --- helpers ---
 
     private VolumeStructureDef conventionalStructure() {
         return new VolumeStructureDef(

@@ -69,7 +69,8 @@ public class SortPoolScanner implements VolumeScanner {
                 String folderName = child.getFileName().toString();
                 progress.setLabel(folderName);
                 String actressName = extractActressName(folderName);
-                results.add(new DiscoveredTitle(child, PARTITION_POOL, actressName, Actress.Tier.LIBRARY));
+                List<String> names = actressName != null ? List.of(actressName) : List.of();
+                results.add(new DiscoveredTitle(child, PARTITION_POOL, names, Actress.Tier.LIBRARY));
                 progress.advance();
             }
         }
@@ -93,7 +94,8 @@ public class SortPoolScanner implements VolumeScanner {
                 String folderName = child.getFileName().toString();
                 progress.setLabel(folderName);
                 String actressName = extractActressName(folderName);
-                results.add(new DiscoveredTitle(child, PARTITION_LATER, actressName, Actress.Tier.LIBRARY));
+                List<String> names = actressName != null ? List.of(actressName) : List.of();
+                results.add(new DiscoveredTitle(child, PARTITION_LATER, names, Actress.Tier.LIBRARY));
                 progress.advance();
             }
         }

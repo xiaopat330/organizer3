@@ -142,6 +142,14 @@ public class WebServer {
                 limit  = Math.max(1, Math.min(limit, TitleBrowseService.MAX_LIMIT));
                 ctx.json(browseService.findByVolumePartition(volumeId, "pool", offset, limit));
             });
+
+            app.get("/api/collections/titles", ctx -> {
+                int offset = ctx.queryParamAsClass("offset", Integer.class).getOrDefault(0);
+                int limit  = ctx.queryParamAsClass("limit",  Integer.class).getOrDefault(24);
+                offset = Math.max(offset, 0);
+                limit  = Math.max(1, Math.min(limit, TitleBrowseService.MAX_LIMIT));
+                ctx.json(browseService.findByVolumePaged("collections", offset, limit));
+            });
         }
 
         if (actressBrowseService != null) {

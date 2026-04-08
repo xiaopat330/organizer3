@@ -113,7 +113,9 @@ class OrganizerConfigLoaderTest {
     }
 
     @Test
-    void collections_hasNoSyncConfig() {
-        assertTrue(config.findSyncConfigForStructure("collections").isEmpty());
+    void collections_hasSyncAllConfig() {
+        var syncCfg = config.findSyncConfigForStructure("collections").orElseThrow();
+        var terms = syncCfg.commands().stream().map(c -> c.term()).toList();
+        assertTrue(terms.contains("sync all"));
     }
 }

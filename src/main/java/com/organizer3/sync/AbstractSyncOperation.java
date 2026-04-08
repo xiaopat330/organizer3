@@ -8,6 +8,7 @@ import com.organizer3.model.TitleLocation;
 import com.organizer3.model.Video;
 import com.organizer3.model.Volume;
 import com.organizer3.repository.ActressRepository;
+import com.organizer3.repository.TitleActressRepository;
 import com.organizer3.repository.TitleLocationRepository;
 import com.organizer3.repository.TitleRepository;
 import com.organizer3.repository.VideoRepository;
@@ -23,15 +24,16 @@ import java.io.IOException;
 import java.nio.file.Path;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
+
+import static com.organizer3.sync.scanner.ScannerSupport.extractActressName;
 
 /**
  * Shared helpers for sync operation implementations.
  *
  * <p>Subclasses decide what scope to scan; this class provides the mechanics of scanning
- * a partition folder, parsing title codes, and persisting titles and videos.
+ * a partition folder, parsing title codes, and persisting titles, videos, and cast links.
  */
 @Slf4j
 @RequiredArgsConstructor(access = AccessLevel.PROTECTED)
@@ -42,6 +44,7 @@ abstract class AbstractSyncOperation implements SyncOperation {
     protected final ActressRepository actressRepo;
     protected final VolumeRepository volumeRepo;
     protected final TitleLocationRepository titleLocationRepo;
+    protected final TitleActressRepository titleActressRepo;
     protected final IndexLoader indexLoader;
     private final TitleCodeParser codeParser = new TitleCodeParser();
 
@@ -63,12 +66,11 @@ abstract class AbstractSyncOperation implements SyncOperation {
 
     /**
      * Scans an unstructured partition: immediate child directories are title folders.
-     * When {@code actressId} is null, attempts to infer the actress from each folder name
-     * (e.g., "Marin Yakuno (IPZZ-679)" -> actress "Marin Yakuno").
-     * Returns the number of titles saved.
+     * Attempts to infer a single actress from each folder name (e.g., "Marin Yakuno (IPZZ-679)").
+     * Saves each title, links the inferred actress to the junction table, and returns the count.
      */
     protected int scanUnstructuredPartition(Path partitionRoot, String partitionId,
-                                            String volumeId, Long actressId,
+                                            String volumeId,
                                             VolumeFileSystem fs, CommandIO io,
                                             SyncStats stats) throws IOException {
         if (!fs.exists(partitionRoot)) {
@@ -83,11 +85,16 @@ abstract class AbstractSyncOperation implements SyncOperation {
         try (Progress progress = io.startProgress(partitionId + "/", titleFolders.size())) {
             for (Path child : titleFolders) {
                 progress.setLabel(child.getFileName().toString());
-                Long resolvedActressId = actressId;
-                if (resolvedActressId == null) {
-                    resolvedActressId = inferActressFromFolderName(child.getFileName().toString());
+                String inferred = extractActressName(child.getFileName().toString());
+                Long filingActressId = null;
+                List<Long> castIds = List.of();
+                if (inferred != null) {
+                    Actress actress = resolveOrCreateActress(inferred, Actress.Tier.LIBRARY);
+                    filingActressId = actress.getId();
+                    castIds = List.of(filingActressId);
                 }
-                saveTitleAndVideos(child, volumeId, partitionId, resolvedActressId, fs);
+                Title title = saveTitleAndVideos(child, volumeId, partitionId, filingActressId, fs);
+                titleActressRepo.linkAll(title.getId(), castIds);
                 progress.advance();
             }
         }
@@ -97,50 +104,31 @@ abstract class AbstractSyncOperation implements SyncOperation {
     }
 
     /**
-     * Scans an actress-folder tree: child dirs are actress folders, and inside each actress
-     * folder are title folders. Works for both flat {@code stars/} layouts (no tier sub-folders)
-     * and tiered layouts ({@code stars/popular/}, {@code stars/goddess/}, etc.).
-     * Returns the number of titles saved.
+     * Resolves all actress names from a {@link com.organizer3.sync.scanner.DiscoveredTitle},
+     * creates actress records for any new names, records them in stats, and returns their ids.
+     *
+     * <p>For single-name titles the returned list has one element (the filing actress id).
+     * For multi-name collections titles it has all cast members. Empty when actress is unknown.
      */
-    protected int scanStarsFolder(Path root, String partitionId, String progressLabel,
-                                  String volumeId, Actress.Tier actressTier,
-                                  VolumeFileSystem fs, CommandIO io,
-                                  SyncStats stats) throws IOException {
-        if (!fs.exists(root)) {
-            io.println("  [skip] " + root + " — not found");
-            return 0;
+    protected List<Long> resolveCast(com.organizer3.sync.scanner.DiscoveredTitle dt, SyncStats stats) {
+        List<Long> ids = new ArrayList<>();
+        for (String name : dt.actressNames()) {
+            Actress actress = resolveOrCreateActress(name, dt.actressTier());
+            stats.addActress(actress.getId());
+            ids.add(actress.getId());
         }
-        List<Path> actressFolders = fs.listDirectory(root).stream()
-                .filter(fs::isDirectory)
-                .toList();
-        if (actressFolders.isEmpty()) return 0;
-
-        int count = 0;
-        try (Progress progress = io.startProgress(progressLabel, actressFolders.size())) {
-            for (Path actressFolder : actressFolders) {
-                String actressName = actressFolder.getFileName().toString();
-                progress.setLabel(actressName);
-                Actress actress = resolveOrCreateActress(actressName, actressTier);
-                stats.addActress(actress.getId());
-                for (Path titleFolder : fs.listDirectory(actressFolder)) {
-                    if (fs.isDirectory(titleFolder)) {
-                        saveTitleAndVideos(titleFolder, volumeId, partitionId, actress.getId(), fs);
-                        count++;
-                    }
-                }
-                progress.advance();
-            }
-        }
-        stats.addTitles(partitionId, count);
-        return count;
+        return ids;
     }
 
-    protected void saveTitleAndVideos(Path titleFolder, String volumeId, String partitionId,
-                                      Long actressId, VolumeFileSystem fs) throws IOException {
+    /**
+     * Persists a title folder: find-or-create the title record, save its location,
+     * and collect video files. Returns the persisted title (with id populated).
+     */
+    protected Title saveTitleAndVideos(Path titleFolder, String volumeId, String partitionId,
+                                       Long actressId, VolumeFileSystem fs) throws IOException {
         String folderName = titleFolder.getFileName().toString();
         TitleCodeParser.ParsedCode parsed = codeParser.parse(folderName);
 
-        // Find or create the title record (unique by code)
         Title template = Title.builder()
                 .code(parsed.code())
                 .baseCode(parsed.baseCode())
@@ -150,7 +138,6 @@ abstract class AbstractSyncOperation implements SyncOperation {
                 .build();
         Title title = titleRepo.findOrCreateByCode(template);
 
-        // Save location for this volume+path
         LocalDate addedDate = computeAddedDate(titleFolder, fs);
         titleLocationRepo.save(TitleLocation.builder()
                 .titleId(title.getId())
@@ -162,6 +149,7 @@ abstract class AbstractSyncOperation implements SyncOperation {
                 .build());
 
         saveVideosForTitle(titleFolder, title.getId(), volumeId, fs);
+        return title;
     }
 
     /**
@@ -196,14 +184,12 @@ abstract class AbstractSyncOperation implements SyncOperation {
 
     private void saveVideosForTitle(Path titleFolder, long titleId, String volumeId,
                                     VolumeFileSystem fs) throws IOException {
-        // Direct video files in the title folder
         for (Path child : fs.listDirectory(titleFolder)) {
             if (!fs.isDirectory(child) && MediaExtensions.isVideo(child)) {
                 videoRepo.save(Video.builder().titleId(titleId).volumeId(volumeId)
                         .filename(child.getFileName().toString()).path(child).lastSeenAt(LocalDate.now()).build());
             }
         }
-        // Optional video/ and h265/ subdirectories
         for (String subdir : VIDEO_SUBDIRECTORIES) {
             Path videoSubdir = titleFolder.resolve(subdir);
             if (fs.exists(videoSubdir) && fs.isDirectory(videoSubdir)) {
@@ -215,48 +201,6 @@ abstract class AbstractSyncOperation implements SyncOperation {
                 }
             }
         }
-    }
-
-    // Matches "Actress Name (CODE-123)" or "Actress Name - Suffix (CODE-123)"
-    private static final Pattern ACTRESS_PREFIX = Pattern.compile(
-            "^(.+?)\\s*(?:-\\s*[^(]+)?\\s*\\(");
-
-    /**
-     * Extracts the actress name from a folder name like "Marin Yakuno (IPZZ-679)".
-     * For multi-actress folders (comma-separated), returns only the first actress name.
-     * Returns null if no name can be extracted.
-     */
-    static String extractActressName(String folderName) {
-        Matcher m = ACTRESS_PREFIX.matcher(folderName);
-        if (!m.find()) return null;
-        String rawName = m.group(1).trim();
-        if (rawName.isEmpty()) return null;
-        int comma = rawName.indexOf(',');
-        if (comma > 0) rawName = rawName.substring(0, comma).trim();
-        return rawName;
-    }
-
-    /**
-     * Extracts the actress name from a folder name and resolves (or creates) it via the
-     * alias system. New actresses discovered in queue folders default to {@code LIBRARY} tier.
-     * Returns null if no actress name can be extracted.
-     */
-    private Long inferActressFromFolderName(String folderName) {
-        String name = extractActressName(folderName);
-        if (name == null) return null;
-        return resolveOrCreateActress(name, Actress.Tier.LIBRARY).getId();
-    }
-
-    /**
-     * Resolves the actress ID for a discovered title. If the title has an actress name,
-     * resolves (or creates) the actress record and tracks it in stats. Returns null if
-     * no actress name is available.
-     */
-    protected Long resolveActressId(com.organizer3.sync.scanner.DiscoveredTitle dt, SyncStats stats) {
-        if (dt.actressName() == null) return null;
-        Actress actress = resolveOrCreateActress(dt.actressName(), dt.actressTier());
-        stats.addActress(actress.getId());
-        return actress.getId();
     }
 
     /**

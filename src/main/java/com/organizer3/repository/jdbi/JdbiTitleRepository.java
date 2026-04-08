@@ -108,7 +108,12 @@ public class JdbiTitleRepository implements TitleRepository {
     @Override
     public List<Title> findByActress(long actressId) {
         List<Title> titles = jdbi.withHandle(h ->
-                h.createQuery("SELECT * FROM titles WHERE actress_id = :actressId ORDER BY code")
+                h.createQuery("""
+                        SELECT DISTINCT t.* FROM titles t
+                        LEFT JOIN title_actresses ta ON ta.title_id = t.id
+                        WHERE t.actress_id = :actressId OR ta.actress_id = :actressId
+                        ORDER BY t.code
+                        """)
                         .bind("actressId", actressId)
                         .map(MAPPER)
                         .list()
@@ -119,7 +124,11 @@ public class JdbiTitleRepository implements TitleRepository {
     @Override
     public int countByActress(long actressId) {
         return jdbi.withHandle(h ->
-                h.createQuery("SELECT COUNT(*) FROM titles WHERE actress_id = :actressId")
+                h.createQuery("""
+                        SELECT COUNT(DISTINCT t.id) FROM titles t
+                        LEFT JOIN title_actresses ta ON ta.title_id = t.id
+                        WHERE t.actress_id = :actressId OR ta.actress_id = :actressId
+                        """)
                         .bind("actressId", actressId)
                         .mapTo(Integer.class)
                         .one()
@@ -317,6 +326,26 @@ public class JdbiTitleRepository implements TitleRepository {
                         """)
                         .bind("actressId", actressId)
                         .bindList("labels", labels)
+                        .bind("limit", limit)
+                        .bind("offset", offset)
+                        .map(MAPPER)
+                        .list()
+        );
+        return populateLocationsBatch(titles);
+    }
+
+    @Override
+    public List<Title> findByVolumePaged(String volumeId, int limit, int offset) {
+        List<Title> titles = jdbi.withHandle(h ->
+                h.createQuery("""
+                        SELECT t.* FROM titles t
+                        JOIN title_locations tl ON t.id = tl.title_id
+                        WHERE tl.volume_id = :volumeId
+                        GROUP BY t.id
+                        ORDER BY MIN(tl.added_date) DESC, t.id DESC
+                        LIMIT :limit OFFSET :offset
+                        """)
+                        .bind("volumeId", volumeId)
                         .bind("limit", limit)
                         .bind("offset", offset)
                         .map(MAPPER)

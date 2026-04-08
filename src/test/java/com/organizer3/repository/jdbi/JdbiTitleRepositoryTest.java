@@ -28,6 +28,7 @@ class JdbiTitleRepositoryTest {
     private JdbiTitleRepository titleRepo;
     private JdbiTitleLocationRepository locationRepo;
     private JdbiActressRepository actressRepo;
+    private JdbiTitleActressRepository titleActressRepo;
     private Connection connection;
 
     @BeforeEach
@@ -35,12 +36,15 @@ class JdbiTitleRepositoryTest {
         connection = DriverManager.getConnection("jdbc:sqlite::memory:");
         Jdbi jdbi = Jdbi.create(connection);
         new SchemaInitializer(jdbi).initialize();
-        // Insert a volume row to satisfy the FK constraint on title_locations
-        jdbi.useHandle(h -> h.execute(
-                "INSERT INTO volumes (id, structure_type) VALUES ('vol-a', 'conventional')"));
+        // Insert volume rows to satisfy the FK constraint on title_locations
+        jdbi.useHandle(h -> {
+            h.execute("INSERT INTO volumes (id, structure_type) VALUES ('vol-a', 'conventional')");
+            h.execute("INSERT INTO volumes (id, structure_type) VALUES ('vol-collections', 'collections')");
+        });
         locationRepo = new JdbiTitleLocationRepository(jdbi);
         titleRepo = new JdbiTitleRepository(jdbi, locationRepo);
         actressRepo = new JdbiActressRepository(jdbi);
+        titleActressRepo = new JdbiTitleActressRepository(jdbi);
     }
 
     @AfterEach
@@ -326,6 +330,34 @@ class JdbiTitleRepositoryTest {
         assertEquals("ABP-003", page2.get(0).getCode());
     }
 
+    // --- findByVolumePaged ---
+
+    @Test
+    void findByVolumePagedReturnsAllPartitionsForVolume() {
+        saveWithLocation(titleInPartition("ABP-001", "archive"), "vol-collections", "archive", "/mnt/col/archive/ABP-001");
+        saveWithLocation(titleInPartition("ABP-002", "converted"), "vol-collections", "converted", "/mnt/col/converted/ABP-002");
+        saveWithLocation(titleInPartition("ABP-003", "queue"), "vol-a", "queue", "/mnt/vol-a/queue/ABP-003");
+
+        List<Title> results = titleRepo.findByVolumePaged("vol-collections", 10, 0);
+        assertEquals(2, results.size());
+        assertTrue(results.stream().anyMatch(t -> t.getCode().equals("ABP-001")));
+        assertTrue(results.stream().anyMatch(t -> t.getCode().equals("ABP-002")));
+    }
+
+    @Test
+    void findByVolumePagedRespectsOffsetAndLimit() {
+        saveWithLocation(titleInPartition("ABP-001", "archive"), "vol-collections", "archive", "/mnt/col/archive/ABP-001", LocalDate.of(2024, 3, 1));
+        saveWithLocation(titleInPartition("ABP-002", "archive"), "vol-collections", "archive", "/mnt/col/archive/ABP-002", LocalDate.of(2024, 2, 1));
+        saveWithLocation(titleInPartition("ABP-003", "converted"), "vol-collections", "converted", "/mnt/col/converted/ABP-003", LocalDate.of(2024, 1, 1));
+
+        List<Title> page1 = titleRepo.findByVolumePaged("vol-collections", 2, 0);
+        List<Title> page2 = titleRepo.findByVolumePaged("vol-collections", 2, 2);
+        assertEquals(2, page1.size());
+        assertEquals(1, page2.size());
+        assertEquals("ABP-001", page1.get(0).getCode());
+        assertEquals("ABP-003", page2.get(0).getCode());
+    }
+
     // --- findOrCreateByCode ---
 
     @Test
@@ -414,6 +446,107 @@ class JdbiTitleRepositoryTest {
         titleRepo.deleteOrphaned();
 
         assertTrue(titleRepo.findById(t.getId()).isPresent());
+    }
+
+    // --- cross-volume: findByActress and countByActress via title_actresses ---
+
+    @Test
+    void findByActressIncludesCollectionsTitleLinkedViaJunctionTable() {
+        Actress aika = actressRepo.save(actress("Aika"));
+
+        // Collections title: actress_id is null, actress linked via junction table
+        Title collectionsTitle = saveWithLocation(
+                Title.builder().code("HMN-102").baseCode("HMN-00102").label("HMN").seqNum(102).build(),
+                "vol-collections", "archive", "/mnt/col/archive/HMN-102");
+        titleActressRepo.link(collectionsTitle.getId(), aika.getId());
+
+        List<Title> results = titleRepo.findByActress(aika.getId());
+
+        assertEquals(1, results.size());
+        assertEquals("HMN-102", results.get(0).getCode());
+    }
+
+    @Test
+    void findByActressReturnsBothConventionalAndCollectionsTitles() {
+        Actress aika = actressRepo.save(actress("Aika"));
+
+        // Conventional title: actress_id set directly
+        Title conventional = saveWithLocation(
+                title("ABP-001", aika.getId()), "vol-a", "stars/library", "/mnt/vol-a/stars/library/ABP-001");
+
+        // Collections title: actress_id null, linked via junction table
+        Title collections = saveWithLocation(
+                Title.builder().code("HMN-102").baseCode("HMN-00102").label("HMN").seqNum(102).build(),
+                "vol-collections", "archive", "/mnt/col/archive/HMN-102");
+        titleActressRepo.link(collections.getId(), aika.getId());
+
+        List<Title> results = titleRepo.findByActress(aika.getId());
+
+        assertEquals(2, results.size());
+        assertTrue(results.stream().anyMatch(t -> t.getCode().equals("ABP-001")));
+        assertTrue(results.stream().anyMatch(t -> t.getCode().equals("HMN-102")));
+    }
+
+    @Test
+    void countByActressCountsBothConventionalAndCollectionsTitles() {
+        Actress aika = actressRepo.save(actress("Aika"));
+
+        saveWithLocation(title("ABP-001", aika.getId()), "vol-a", "stars/library", "/mnt/vol-a/stars/library/ABP-001");
+        saveWithLocation(title("ABP-002", aika.getId()), "vol-a", "stars/library", "/mnt/vol-a/stars/library/ABP-002");
+
+        Title col1 = saveWithLocation(
+                Title.builder().code("HMN-102").baseCode("HMN-00102").label("HMN").seqNum(102).build(),
+                "vol-collections", "archive", "/mnt/col/archive/HMN-102");
+        titleActressRepo.link(col1.getId(), aika.getId());
+
+        assertEquals(3, titleRepo.countByActress(aika.getId()));
+    }
+
+    @Test
+    void countByActressDoesNotDoubleCountWhenActressIsInBothActressIdAndJunctionTable() {
+        // If a title has actress_id = X AND a row in title_actresses for X,
+        // it should still be counted only once.
+        Actress aika = actressRepo.save(actress("Aika"));
+        Title t = saveWithLocation(title("ABP-001", aika.getId()), "vol-a", "stars/library", "/mnt/vol-a/stars/library/ABP-001");
+        titleActressRepo.link(t.getId(), aika.getId()); // double-link same title
+
+        assertEquals(1, titleRepo.countByActress(aika.getId()));
+    }
+
+    @Test
+    void findByActressDoesNotDoubleCountWhenActressIsInBothActressIdAndJunctionTable() {
+        Actress aika = actressRepo.save(actress("Aika"));
+        Title t = saveWithLocation(title("ABP-001", aika.getId()), "vol-a", "stars/library", "/mnt/vol-a/stars/library/ABP-001");
+        titleActressRepo.link(t.getId(), aika.getId());
+
+        List<Title> results = titleRepo.findByActress(aika.getId());
+        assertEquals(1, results.size());
+    }
+
+    @Test
+    void findByActressExcludesCollectionsTitlesForOtherActresses() {
+        Actress aika = actressRepo.save(actress("Aika"));
+        Actress yui  = actressRepo.save(actress("Yui Hatano"));
+
+        Title aikaTitle = saveWithLocation(
+                Title.builder().code("HMN-102").baseCode("HMN-00102").label("HMN").seqNum(102).build(),
+                "vol-collections", "archive", "/mnt/col/archive/HMN-102");
+        titleActressRepo.link(aikaTitle.getId(), aika.getId());
+        titleActressRepo.link(aikaTitle.getId(), yui.getId()); // duo title
+
+        Title yuiOnly = saveWithLocation(
+                Title.builder().code("HMN-200").baseCode("HMN-00200").label("HMN").seqNum(200).build(),
+                "vol-collections", "archive", "/mnt/col/archive/HMN-200");
+        titleActressRepo.link(yuiOnly.getId(), yui.getId());
+
+        // aika appears in HMN-102 only
+        List<Title> aikaResults = titleRepo.findByActress(aika.getId());
+        assertEquals(1, aikaResults.size());
+        assertEquals("HMN-102", aikaResults.get(0).getCode());
+
+        // yui appears in both
+        List<Title> yuiResults = titleRepo.findByActress(yui.getId());
+        assertEquals(2, yuiResults.size());
     }
 
     // --- helpers ---

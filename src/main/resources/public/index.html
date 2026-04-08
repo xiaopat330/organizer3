@@ -11,20 +11,24 @@
 <header>
   <h1 id="app-name">jav helper</h1>
   <div class="header-right">
-    <div class="archives-nav-wrap">
-      <button class="nav-link" id="archives-btn">Archives</button>
-      <div class="prefix-dropdown" id="archives-dropdown"></div>
-    </div>
-    <div class="nav-divider"></div>
     <div class="actress-nav-wrap">
       <button class="nav-link" id="actresses-btn">Actresses</button>
       <div class="prefix-dropdown" id="prefix-dropdown"></div>
+    </div>
+    <div class="nav-divider"></div>
+    <button class="nav-link" id="collections-btn">Collections</button>
+    <div class="nav-divider"></div>
+    <div class="archives-nav-wrap">
+      <button class="nav-link" id="archives-btn">Archives</button>
+      <div class="prefix-dropdown" id="archives-dropdown"></div>
     </div>
     <div class="nav-divider"></div>
     <div class="queues-nav-wrap">
       <button class="nav-link" id="queues-btn">Queues</button>
       <div class="prefix-dropdown" id="queues-dropdown"></div>
     </div>
+    <div class="nav-divider"></div>
+    <button class="nav-link" id="action-btn">Action!</button>
     <div class="nav-divider"></div>
     <input class="search-input" type="search" placeholder="search…" id="search-input">
   </div>
@@ -55,9 +59,10 @@
   <div class="actress-detail-panel" id="detail-panel">
     <div class="detail-cover-col" id="detail-cover"></div>
     <div class="detail-info-col" id="detail-info"></div>
-    <div class="detail-companies-col" id="detail-companies"></div>
-    <div class="detail-aliases-col" id="detail-aliases"></div>
+    <div class="detail-profile-col" id="detail-profile"></div>
+    <div class="detail-bio-col" id="detail-bio"></div>
   </div>
+  <div class="detail-nav-bar" id="detail-nav-bar"></div>
   <div class="grid" id="detail-title-grid"></div>
 </div>
 
@@ -68,6 +73,9 @@
 <!-- Pool browse header + grid -->
 <div id="pool-header" style="display:none; padding: 10px 20px 0; font-size: 0.78rem; color: #555; font-family: ui-monospace, monospace; letter-spacing: 0.03em;"></div>
 <div id="pool-grid" class="grid" style="display:none"></div>
+
+<!-- Collections browse grid -->
+<div id="collections-grid" class="grid" style="display:none"></div>
 
 <div id="status">loading</div>
 <div id="sentinel"></div>

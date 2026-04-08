@@ -166,3 +166,8 @@ syncConfig:
         operation: full
       - term: sync all
         operation: full
+
+  - structureType: collections
+    commands:
+      - term: sync all
+        operation: full

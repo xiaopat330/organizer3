@@ -226,6 +226,13 @@ public class ActressBrowseService {
                 .sorted()
                 .toList();
 
+        String earliestTitleDate = titles.stream()
+                .map(Title::getAddedDate)
+                .filter(Objects::nonNull)
+                .min(Comparator.naturalOrder())
+                .map(Object::toString)
+                .orElse(null);
+
         return ActressSummary.builder()
                 .id(actress.getId())
                 .canonicalName(actress.getCanonicalName())
@@ -242,6 +249,18 @@ public class ActressBrowseService {
                 .lastAddedDate(lastAdded)
                 .companies(companies)
                 .aliases(aliases)
+                .activeFrom(actress.getActiveFrom() != null ? actress.getActiveFrom().toString() : earliestTitleDate)
+                .activeTo(actress.getActiveTo() != null ? actress.getActiveTo().toString() : lastAdded)
+                .dateOfBirth(actress.getDateOfBirth() != null ? actress.getDateOfBirth().toString() : null)
+                .birthplace(actress.getBirthplace())
+                .bloodType(actress.getBloodType())
+                .heightCm(actress.getHeightCm())
+                .bust(actress.getBust())
+                .waist(actress.getWaist())
+                .hip(actress.getHip())
+                .cup(actress.getCup())
+                .biography(actress.getBiography())
+                .legacy(actress.getLegacy())
                 .build();
     }
 

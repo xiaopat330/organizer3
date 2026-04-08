@@ -6,6 +6,7 @@ import com.organizer3.model.Title;
 import com.organizer3.model.TitleLocation;
 import com.organizer3.repository.ActressRepository;
 import com.organizer3.repository.LabelRepository;
+import com.organizer3.repository.TitleActressRepository;
 import com.organizer3.repository.TitleRepository;
 
 import java.util.HashMap;
@@ -27,6 +28,7 @@ public class TitleBrowseService {
     private final ActressRepository actressRepo;
     private final CoverPath coverPath;
     private final LabelRepository labelRepo;
+    private final TitleActressRepository titleActressRepo;
 
     /**
      * Returns at most {@code limit} titles starting at {@code offset}, ordered newest-first.
@@ -58,6 +60,12 @@ public class TitleBrowseService {
      */
     public List<TitleSummary> findByVolumeQueue(String volumeId, int offset, int limit) {
         return findByVolumePartition(volumeId, "queue", offset, limit);
+    }
+
+    public List<TitleSummary> findByVolumePaged(String volumeId, int offset, int limit) {
+        limit = Math.min(limit, MAX_LIMIT);
+        List<Title> titles = titleRepo.findByVolumePaged(volumeId, limit, offset);
+        return toSummaries(titles);
     }
 
     public List<TitleSummary> findByVolumePartition(String volumeId, String partition, int offset, int limit) {
@@ -94,7 +102,7 @@ public class TitleBrowseService {
     private List<TitleSummary> toSummaries(List<Title> titles) {
         record ActressInfo(String name, String tier) {}
 
-        Map<Long, ActressInfo> actressInfo = titles.stream()
+        Map<Long, ActressInfo> actressInfo = new HashMap<>(titles.stream()
                 .map(Title::getActressId)
                 .filter(Objects::nonNull)
                 .distinct()
@@ -104,7 +112,7 @@ public class TitleBrowseService {
                                 .map(a -> new ActressInfo(a.getCanonicalName(),
                                         a.getTier() != null ? a.getTier().name() : null))
                                 .orElse(new ActressInfo(null, null))
-                ));
+                )));
 
         Map<String, Label> labelMap = labelRepo.findAllAsMap();
 
@@ -120,6 +128,30 @@ public class TitleBrowseService {
                     List<String> allLocations = t.getLocations().stream()
                             .map(loc -> loc.getPath().toString())
                             .toList();
+
+                    // Multi-actress entries from junction table
+                    List<TitleSummary.ActressEntry> actresses = List.of();
+                    if (t.getId() != null) {
+                        List<Long> linkedIds = titleActressRepo.findActressIdsByTitle(t.getId());
+                        if (linkedIds.size() > 1) {
+                            actresses = linkedIds.stream()
+                                    .map(id -> {
+                                        ActressInfo linked = actressInfo.computeIfAbsent(id,
+                                                k -> actressRepo.findById(k)
+                                                        .map(a -> new ActressInfo(a.getCanonicalName(),
+                                                                a.getTier() != null ? a.getTier().name() : null))
+                                                        .orElse(new ActressInfo(null, null)));
+                                        return TitleSummary.ActressEntry.builder()
+                                                .id(id)
+                                                .name(linked.name())
+                                                .tier(linked.tier())
+                                                .build();
+                                    })
+                                    .filter(e -> e.getName() != null)
+                                    .toList();
+                        }
+                    }
+
                     return TitleSummary.builder()
                             .code(t.getCode())
                             .baseCode(t.getBaseCode())
@@ -133,6 +165,7 @@ public class TitleBrowseService {
                             .labelName(lbl != null ? lbl.labelName() : null)
                             .location(t.getPath() != null ? t.getPath().toString() : null)
                             .locations(allLocations)
+                            .actresses(actresses)
                             .build();
                 })
                 .toList();

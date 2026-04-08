@@ -130,6 +130,7 @@ const VIEWS = {
   'actress-detail': ['actress-detail'],
   queue:            ['queue-header', 'queue-grid'],
   pool:             ['pool-header', 'pool-grid'],
+  collections:      ['collections-grid'],
 };
 const HOME_GRID_IDS = ['grid', 'random-titles-grid', 'random-actress-home-grid'];
 const ALL_PANEL_IDS = [...Object.values(VIEWS).flat(), ...HOME_GRID_IDS];
@@ -142,6 +143,10 @@ function showView(name) {
   for (const id of (VIEWS[name] || [])) {
     const el = document.getElementById(id);
     el.style.display = el.classList.contains('grid') ? 'grid' : 'block';
+  }
+  // Deactivate collections button when switching to any other view
+  if (name !== 'collections') {
+    document.getElementById('collections-btn')?.classList.remove('active');
   }
 }
 
@@ -230,7 +235,20 @@ function makeTitleCard(t) {
     : `<div class="cover-wrap"><div class="cover-placeholder">${esc(t.code)}</div></div>`;
 
   let actressHtml;
-  if (t.actressName) {
+  if (t.actresses && t.actresses.length > 1) {
+    // Multi-actress ticker
+    const names = t.actresses.map(a => {
+      const { first: fn, last: ln } = splitName(a.name);
+      const nameText = ln ? `${fn} ${ln}` : fn;
+      return `<a class="actress-link ticker-name" href="#" data-actress-id="${a.id}">${esc(nameText)}</a>`;
+    });
+    const tickerContent = names.join('<span class="ticker-sep">, </span>');
+    // Duplicate content for seamless loop
+    actressHtml = `<div class="actress-name ticker-wrap"><div class="ticker-track">`
+      + `<span class="ticker-segment">${tickerContent}</span>`
+      + `<span class="ticker-segment">${tickerContent}</span>`
+      + `</div></div>`;
+  } else if (t.actressName) {
     const { first: fn, last: ln } = splitName(t.actressName);
     const tierHtml   = t.actressTier
       ? ` <span class="tier-badge tier-${esc(t.actressTier)}">${esc(t.actressTier.toLowerCase())}</span>` : '';
@@ -258,13 +276,12 @@ function makeTitleCard(t) {
 
   card.innerHTML = `${coverHtml}<div class="card-info">${actressHtml}<div class="title-code">${esc(t.code)}</div>${labelLineHtml}${dateHtml}${locationHtml}</div>`;
 
-  const link = card.querySelector('.actress-link');
-  if (link) {
+  card.querySelectorAll('.actress-link').forEach(link => {
     link.addEventListener('click', e => {
       e.preventDefault();
       openActressDetail(Number(link.dataset.actressId));
     });
-  }
+  });
   return card;
 }
 
@@ -364,6 +381,14 @@ const poolGrid = new ScrollingGrid(
   { getMax: () => MAX_TOTAL }
 );
 
+const collectionsGrid = new ScrollingGrid(
+  document.getElementById('collections-grid'),
+  (o, l) => `/api/collections/titles?offset=${o}&limit=${l}`,
+  makeTitleCard,
+  'no titles in collections',
+  { getMax: () => MAX_TOTAL }
+);
+
 let detailActressId = null;
 let detailCompanyFilter = null;
 
@@ -438,6 +463,7 @@ document.querySelectorAll('.home-tab').forEach(btn => {
 function showTitlesView() {
   showView('titles');
   actressesBtn.classList.remove('active');
+  collectionsBtn.classList.remove('active');
   closeQueuesDropdown();
   closeArchivesDropdown();
   selectedPrefix  = null;
@@ -651,8 +677,9 @@ async function openActressDetail(actressId) {
   actressDetailGrid.reset();
   document.getElementById('detail-cover').innerHTML = '';
   document.getElementById('detail-info').innerHTML  = '';
-  document.getElementById('detail-companies').innerHTML = '';
-  document.getElementById('detail-aliases').innerHTML = '';
+  document.getElementById('detail-profile').innerHTML = '';
+  document.getElementById('detail-bio').innerHTML = '';
+  document.getElementById('detail-nav-bar').innerHTML = '';
   ensureSentinel();
   setStatus('loading');
 
@@ -727,6 +754,7 @@ async function searchStageName(actressId) {
 }
 
 function renderDetailPanel(a) {
+  // ── Column 1: Cover image ──
   const coverCol = document.getElementById('detail-cover');
   const covers = a.coverUrls || [];
   if (covers.length > 0) {
@@ -736,14 +764,12 @@ function renderDetailPanel(a) {
     coverCol.innerHTML = `<div class="detail-cover-placeholder">—</div>`;
   }
 
+  // ── Column 1 continued: Info (below/beside cover) ──
   const { first: firstName, last: lastName } = splitName(a.canonicalName);
-  const pathsHtml = (a.folderPaths || []).length > 0
-    ? `<div class="detail-paths">${a.folderPaths.map(p => `<div class="detail-path">${esc(p)}</div>`).join('')}</div>` : '';
 
   const aliases = a.aliases || [];
   let aliasHtml = '';
   if (a.primaryName) {
-    // This actress identity is an alias — show who she's primarily known as
     const { first: pFirst, last: pLast } = splitName(a.primaryName);
     const pNameHtml = pLast ? `${esc(pFirst)} ${esc(pLast)}` : esc(pFirst);
     aliasHtml = `<div class="detail-alias-row">
@@ -751,7 +777,6 @@ function renderDetailPanel(a) {
       <span class="primary-badge" data-actress-id="${a.primaryId || ''}">${pNameHtml}</span>
     </div>`;
   } else if (aliases.length > 0) {
-    // This is the primary identity — show her aliases
     aliasHtml = `<div class="detail-alias-row">
       <span class="detail-alias-label">Also known as</span>
       ${aliases.map(al => `<span class="alias-badge">${esc(al)}</span>`).join('')}
@@ -759,8 +784,19 @@ function renderDetailPanel(a) {
   }
 
   const stageNameHtml = a.stageName
-    ? `<div class="detail-stage-name">(${esc(a.stageName)})</div>`
+    ? `<div class="detail-stage-name">${esc(a.stageName)}</div>`
     : `<button class="btn-search-stage-name" id="btn-search-stage-name">Search for Stage Name</button>`;
+
+  // Career span: prefer activeFrom/activeTo, fall back to title dates
+  const careerStart = a.activeFrom || a.firstAddedDate;
+  const careerEnd   = a.activeTo   || a.lastAddedDate;
+  let careerHtml = '';
+  if (careerStart || careerEnd) {
+    const startHtml = careerStart ? `<span class="date-first">${esc(careerStart)}</span>` : '';
+    const endHtml   = careerEnd   ? `<span class="${isStale(careerEnd) ? 'date-last-stale' : 'date-last'}">${esc(careerEnd)}</span>` : '';
+    const sep = startHtml && endHtml ? ' → ' : '';
+    careerHtml = `<div class="detail-career">${startHtml}${sep}${endHtml}</div>`;
+  }
 
   document.getElementById('detail-info').innerHTML = `
     <div class="detail-name">
@@ -770,42 +806,66 @@ function renderDetailPanel(a) {
     ${stageNameHtml}
     <div class="detail-meta-row">
       <span class="tier-badge tier-${esc(a.tier)}">${esc(a.tier.toLowerCase())}</span>
+      ${a.grade ? `<span class="detail-grade">${esc(a.grade)}</span>` : ''}
       ${a.favorite ? '<div class="fav-dot"></div>' : ''}
     </div>
     ${aliasHtml}
-    ${renderDateRange(a.firstAddedDate, a.lastAddedDate, 'detail-dates')}
-    ${pathsHtml}
+    ${careerHtml}
   `;
 
   const btn = document.getElementById('btn-search-stage-name');
-  if (btn) {
-    btn.addEventListener('click', () => searchStageName(a.id));
+  if (btn) btn.addEventListener('click', () => searchStageName(a.id));
+
+  // ── Column 2: Profile data ──
+  const profileLines = [];
+  if (a.dateOfBirth)  profileLines.push(['Born', esc(a.dateOfBirth)]);
+  if (a.birthplace)   profileLines.push(['Birthplace', esc(a.birthplace)]);
+  if (a.bloodType)    profileLines.push(['Blood Type', esc(a.bloodType)]);
+  if (a.heightCm)     profileLines.push(['Height', `${a.heightCm} cm`]);
+  if (a.bust || a.waist || a.hip) {
+    const bwh = [a.bust || '?', a.waist || '?', a.hip || '?'].join(' / ');
+    profileLines.push(['Measurements', bwh + (a.cup ? ` (${esc(a.cup)})` : '')]);
+  }
+  if (a.titleCount)   profileLines.push(['Titles', `${a.titleCount}`]);
+
+  const profileEl = document.getElementById('detail-profile');
+  if (profileLines.length > 0) {
+    profileEl.innerHTML = profileLines.map(([label, value]) =>
+      `<div class="detail-profile-row"><span class="detail-profile-label">${label}</span><span class="detail-profile-value">${value}</span></div>`
+    ).join('');
+  } else {
+    profileEl.innerHTML = '';
   }
 
+  // ── Column 3: Biography ──
+  const bioEl = document.getElementById('detail-bio');
+  if (a.biography) {
+    bioEl.innerHTML = `<div class="detail-bio-text">${esc(a.biography)}</div>`;
+  } else {
+    bioEl.innerHTML = '';
+  }
+
+  // ── Navigation bar: ALL MOVIES + companies ──
   const companies = a.companies || [];
-  const companiesEl = document.getElementById('detail-companies');
+  const navBar = document.getElementById('detail-nav-bar');
   if (companies.length > 0) {
-    companiesEl.innerHTML =
-      `<div class="detail-section-label">Companies</div>` +
-      `<div class="detail-all-movies selected" id="detail-all-movies">ALL MOVIES</div>` +
-      companies.map(c => `<div class="detail-company-item" data-company="${esc(c)}">${esc(c)}</div>`).join('');
+    navBar.innerHTML =
+      `<div class="detail-nav-item selected" id="detail-all-movies">ALL MOVIES</div>` +
+      companies.map(c => `<div class="detail-nav-item detail-company-item" data-company="${esc(c)}">${esc(c)}</div>`).join('');
     document.getElementById('detail-all-movies').addEventListener('click', () => setDetailCompanyFilter(null));
-    companiesEl.querySelectorAll('.detail-company-item').forEach(el =>
+    navBar.querySelectorAll('.detail-company-item').forEach(el =>
       el.addEventListener('click', () => setDetailCompanyFilter(el.dataset.company))
     );
   } else {
-    companiesEl.innerHTML = '';
+    navBar.innerHTML = '';
   }
-
-  // Aliases are now shown inline in the info section; clear the side column
-  document.getElementById('detail-aliases').innerHTML = '';
 }
 
 function setDetailCompanyFilter(company) {
   detailCompanyFilter = company;
   const allMoviesEl = document.getElementById('detail-all-movies');
   if (allMoviesEl) allMoviesEl.classList.toggle('selected', company === null);
-  document.querySelectorAll('.detail-company-item').forEach(el =>
+  document.querySelectorAll('.detail-nav-item.detail-company-item').forEach(el =>
     el.classList.toggle('selected', el.dataset.company === company)
   );
   actressDetailGrid.reset();
@@ -911,6 +971,33 @@ async function openPoolView(volumeId, smbPath) {
   ensureSentinel();
   await poolGrid.loadMore();
 }
+
+// ── Collections browse ───────────────────────────────────────────────────
+const collectionsBtn = document.getElementById('collections-btn');
+
+collectionsBtn.addEventListener('click', () => {
+  closeDropdown();
+  closeQueuesDropdown();
+  closeArchivesDropdown();
+  collectionsBtn.classList.add('active');
+  actressesBtn.classList.remove('active');
+  selectedPrefix  = null;
+  selectedTier    = null;
+  selectedArchive = null;
+  showView('collections');
+  updateBreadcrumb([{ label: 'Collections' }]);
+  activeGrid = collectionsGrid;
+  collectionsGrid.reset();
+  ensureSentinel();
+  collectionsGrid.loadMore();
+});
+
+// ── Action! (placeholder) ────────────────────────────────────────────────
+const actionBtn = document.getElementById('action-btn');
+
+actionBtn.addEventListener('click', () => {
+  // Placeholder — will be wired up later
+});
 
 // ── Initial load ──────────────────────────────────────────────────────────
 showView('titles');

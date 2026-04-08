@@ -99,7 +99,7 @@ public class ExhibitionScanner implements VolumeScanner {
             }
 
             if (hasParenthesizedTitleCode(name)) {
-                results.add(new DiscoveredTitle(child, PARTITION_ID, actressName, Actress.Tier.LIBRARY));
+                results.add(new DiscoveredTitle(child, PARTITION_ID, List.of(actressName), Actress.Tier.LIBRARY));
             } else {
                 // Arbitrary subfolder — recurse to find titles inside
                 collectTitles(child, actressName, fs, results);
