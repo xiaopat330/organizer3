@@ -30,7 +30,7 @@ class MountCommandTest {
 
     private static final ServerConfig SERVER = new ServerConfig("pandora", "patrick", "secret", null);
     private static final VolumeConfig VOLUME_A = new VolumeConfig(
-            "a", "//pandora/jav_A", "conventional", "pandora");
+            "a", "//pandora/jav_A", "conventional", "pandora", null);
 
     private SmbConnector smbConnector;
     private VolumeConnection connection;
@@ -130,7 +130,7 @@ class MountCommandTest {
         VolumeConnection oldConnection = mock(VolumeConnection.class);
         when(oldConnection.isConnected()).thenReturn(true);
         ctx.setActiveConnection(oldConnection);
-        ctx.setMountedVolume(new VolumeConfig("other", "//other/share", "queue", "other"));
+        ctx.setMountedVolume(new VolumeConfig("other", "//other/share", "queue", "other", null));
         AppConfig.reset();
         AppConfig.initializeForTest(new OrganizerConfig(
                 null, null, null, null, List.of(SERVER, otherServer), List.of(VOLUME_A), List.of(), List.of()));

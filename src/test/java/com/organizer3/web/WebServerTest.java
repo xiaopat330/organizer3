@@ -99,8 +99,8 @@ class WebServerTest {
      */
     @Test
     void queuesVolumesEndpoint_separatesConventionalFromPoolVolumes() throws IOException, InterruptedException {
-        VolumeConfig conventional = new VolumeConfig("a", "//pandora/jav_A", "conventional", "pandora");
-        VolumeConfig pool         = new VolumeConfig("unsorted", "//pandora/jav_unsorted", "queue", "pandora");
+        VolumeConfig conventional = new VolumeConfig("a", "//pandora/jav_A", "conventional", "pandora", null);
+        VolumeConfig pool         = new VolumeConfig("unsorted", "//pandora/jav_unsorted", "queue", "pandora", null);
 
         VolumeStructureDef conventionalDef = new VolumeStructureDef(
                 "conventional",
@@ -472,9 +472,9 @@ class WebServerTest {
      */
     @Test
     void queuesVolumesEndpoint_multipleQueueTypeVolumesDoNotLeakIntoVolumesList() throws IOException, InterruptedException {
-        VolumeConfig conventional = new VolumeConfig("a", "//pandora/jav_A", "conventional", "pandora");
-        VolumeConfig pool1        = new VolumeConfig("unsorted", "//pandora/jav_unsorted", "queue", "pandora");
-        VolumeConfig pool2        = new VolumeConfig("classic", "//qnap2/classic", "queue", "qnap2");
+        VolumeConfig conventional = new VolumeConfig("a", "//pandora/jav_A", "conventional", "pandora", null);
+        VolumeConfig pool1        = new VolumeConfig("unsorted", "//pandora/jav_unsorted", "queue", "pandora", null);
+        VolumeConfig pool2        = new VolumeConfig("classic", "//qnap2/classic", "queue", "qnap2", null);
 
         VolumeStructureDef conventionalDef = new VolumeStructureDef(
                 "conventional",

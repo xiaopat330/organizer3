@@ -12,7 +12,7 @@ import static org.junit.jupiter.api.Assertions.*;
 class AppConfigTest {
 
     private static final VolumeConfig VOLUME_A = new VolumeConfig(
-            "a", "//pandora/jav_A", "conventional", "pandora");
+            "a", "//pandora/jav_A", "conventional", "pandora", null);
 
     private static OrganizerConfig cfg(VolumeConfig... vols) {
         return new OrganizerConfig(null, null, null, null, List.of(), List.of(vols), List.of(), List.of());
@@ -47,7 +47,7 @@ class AppConfigTest {
     @Test
     void reset_allowsReinitializationWithNewConfig() {
         VolumeConfig volumeB = new VolumeConfig(
-                "b", "//pandora/jav_B", "conventional", "pandora");
+                "b", "//pandora/jav_B", "conventional", "pandora", null);
 
         AppConfig.initialize(cfg(VOLUME_A));
         AppConfig.reset();
@@ -60,7 +60,7 @@ class AppConfigTest {
     void initializeForTest_replacesExistingInstance() {
         AppConfig.initialize(cfg(VOLUME_A));
         VolumeConfig volumeB = new VolumeConfig(
-                "b", "//pandora/jav_B", "conventional", "pandora");
+                "b", "//pandora/jav_B", "conventional", "pandora", null);
 
         AppConfig.initializeForTest(cfg(volumeB));
 

@@ -48,7 +48,7 @@ class PartitionSyncOperationTest {
     private StringWriter output;
     private CommandIO io;
 
-    private static final VolumeConfig VOLUME = new VolumeConfig("a", "//pandora/jav_A", "conventional", "pandora");
+    private static final VolumeConfig VOLUME = new VolumeConfig("a", "//pandora/jav_A", "conventional", "pandora", null);
 
     private static final VolumeStructureDef STRUCTURE = new VolumeStructureDef(
             "conventional",

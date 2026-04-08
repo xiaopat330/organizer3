@@ -26,10 +26,11 @@ import static org.mockito.Mockito.*;
  */
 class VolumesCommandTest {
 
-    private static final VolumeConfig VOL_A = new VolumeConfig("a", "//pandora/jav_A", "conventional", "pandora");
-    private static final VolumeConfig VOL_B = new VolumeConfig("b", "//pandora/jav_B", "exhibition", "pandora");
+    private static final VolumeConfig VOL_A = new VolumeConfig("a", "//pandora/jav_A", "conventional", "pandora", null);
+    private static final VolumeConfig VOL_B = new VolumeConfig("b", "//pandora/jav_B", "exhibition", "pandora", null);
 
     private VolumeRepository volumeRepo;
+    private MountCommand mountCommand;
     private SessionContext ctx;
     private StringWriter output;
     private CommandIO io;
@@ -43,6 +44,7 @@ class VolumesCommandTest {
                 List.of()
         ));
         volumeRepo = mock(VolumeRepository.class);
+        mountCommand = mock(MountCommand.class);
         ctx = new SessionContext();
         output = new StringWriter();
         io = new PlainCommandIO(new PrintWriter(output));
@@ -57,12 +59,12 @@ class VolumesCommandTest {
 
     @Test
     void nameIsVolumes() {
-        assertEquals("volumes", new VolumesCommand(volumeRepo).name());
+        assertEquals("volumes", new VolumesCommand(mountCommand, volumeRepo).name());
     }
 
     @Test
     void listsAllConfiguredVolumes() {
-        VolumesCommand cmd = new VolumesCommand(volumeRepo);
+        VolumesCommand cmd = new VolumesCommand(mountCommand, volumeRepo);
         cmd.execute(new String[]{"volumes"}, ctx, io);
 
         String out = output.toString();
@@ -74,7 +76,7 @@ class VolumesCommandTest {
 
     @Test
     void showsNeverWhenVolumeNotSynced() {
-        VolumesCommand cmd = new VolumesCommand(volumeRepo);
+        VolumesCommand cmd = new VolumesCommand(mountCommand, volumeRepo);
         cmd.execute(new String[]{"volumes"}, ctx, io);
 
         assertTrue(output.toString().contains("never"));
@@ -86,7 +88,7 @@ class VolumesCommandTest {
         dbVol.setLastSyncedAt(LocalDateTime.of(2025, 3, 15, 10, 30));
         when(volumeRepo.findAll()).thenReturn(List.of(dbVol));
 
-        VolumesCommand cmd = new VolumesCommand(volumeRepo);
+        VolumesCommand cmd = new VolumesCommand(mountCommand, volumeRepo);
         cmd.execute(new String[]{"volumes"}, ctx, io);
 
         assertTrue(output.toString().contains("Mar 15, 2025"));
@@ -99,7 +101,7 @@ class VolumesCommandTest {
         ctx.setMountedVolume(VOL_A);
         ctx.setActiveConnection(conn);
 
-        VolumesCommand cmd = new VolumesCommand(volumeRepo);
+        VolumesCommand cmd = new VolumesCommand(mountCommand, volumeRepo);
         cmd.execute(new String[]{"volumes"}, ctx, io);
 
         assertTrue(output.toString().contains("connected"));
@@ -107,7 +109,7 @@ class VolumesCommandTest {
 
     @Test
     void showsDashForDisconnectedVolume() {
-        VolumesCommand cmd = new VolumesCommand(volumeRepo);
+        VolumesCommand cmd = new VolumesCommand(mountCommand, volumeRepo);
         cmd.execute(new String[]{"volumes"}, ctx, io);
 
         assertFalse(output.toString().contains("connected"), "No volume should show connected when none is mounted");

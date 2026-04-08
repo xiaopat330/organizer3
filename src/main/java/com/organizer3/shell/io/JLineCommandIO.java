@@ -54,7 +54,7 @@ public class JLineCommandIO implements CommandIO {
     @Override
     public void printlnAnsi(String message) {
         synchronized (terminal) {
-            AttributedString.fromAnsi(message).println(terminal);
+            terminal.writer().println(message);
             terminal.writer().flush();
         }
     }

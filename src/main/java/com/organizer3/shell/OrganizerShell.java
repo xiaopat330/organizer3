@@ -78,8 +78,7 @@ public class OrganizerShell {
     }
 
     private CommandIO buildCommandIO(Terminal terminal, LineReader reader) {
-        if (Terminal.TYPE_DUMB.equals(terminal.getType())
-                || Terminal.TYPE_DUMB_COLOR.equals(terminal.getType())) {
+        if (Terminal.TYPE_DUMB.equals(terminal.getType())) {
             return new PlainCommandIO(terminal.writer());
         }
         return new JLineCommandIO(terminal, reader);

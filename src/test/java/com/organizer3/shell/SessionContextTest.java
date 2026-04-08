@@ -38,7 +38,7 @@ class SessionContextTest {
     @Test
     void getMountedVolumeIdReturnsIdWhenVolumeSet() {
         SessionContext ctx = new SessionContext();
-        VolumeConfig vol = new VolumeConfig("a", "//nas/share", "conventional", "nas");
+        VolumeConfig vol = new VolumeConfig("a", "//nas/share", "conventional", "nas", null);
         ctx.setMountedVolume(vol);
         assertEquals("a", ctx.getMountedVolumeId());
     }

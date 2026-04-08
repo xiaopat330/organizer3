@@ -19,14 +19,14 @@ class PromptBuilderTest {
     @Test
     void promptIncludesMountIdWhenMounted() {
         SessionContext session = new SessionContext();
-        session.setMountedVolume(new VolumeConfig("a", "//pandora/jav_A", "conventional", "pandora"));
+        session.setMountedVolume(new VolumeConfig("a", "//pandora/jav_A", "conventional", "pandora", null));
         assertEquals("[MOUNT → a] ▶ ", promptBuilder.build(session).toString());
     }
 
     @Test
     void promptIncludesMultiCharMountId() {
         SessionContext session = new SessionContext();
-        session.setMountedVolume(new VolumeConfig("bg", "//pandora/jav_BG", "conventional", "pandora"));
+        session.setMountedVolume(new VolumeConfig("bg", "//pandora/jav_BG", "conventional", "pandora", null));
         assertEquals("[MOUNT → bg] ▶ ", promptBuilder.build(session).toString());
     }
 }

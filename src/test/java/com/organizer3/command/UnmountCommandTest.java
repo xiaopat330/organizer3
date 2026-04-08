@@ -18,7 +18,7 @@ import static org.mockito.Mockito.*;
 class UnmountCommandTest {
 
     private static final VolumeConfig VOLUME_A = new VolumeConfig(
-            "a", "//pandora/jav_A", "conventional", "pandora");
+            "a", "//pandora/jav_A", "conventional", "pandora", null);
 
     private SessionContext ctx;
     private StringWriter output;

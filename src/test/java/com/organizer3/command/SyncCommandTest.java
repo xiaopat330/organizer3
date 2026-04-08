@@ -31,10 +31,10 @@ import static org.mockito.Mockito.*;
 class SyncCommandTest {
 
     private static final VolumeConfig CONVENTIONAL_VOL = new VolumeConfig(
-            "a", "//pandora/jav_A", "conventional", "pandora");
+            "a", "//pandora/jav_A", "conventional", "pandora", null);
 
     private static final VolumeConfig QUEUE_VOL = new VolumeConfig(
-            "unsorted", "//pandora/jav_unsorted", "queue", "pandora");
+            "unsorted", "//pandora/jav_unsorted", "queue", "pandora", null);
 
     private static final VolumeStructureDef CONVENTIONAL_STRUCTURE = new VolumeStructureDef(
             "conventional",

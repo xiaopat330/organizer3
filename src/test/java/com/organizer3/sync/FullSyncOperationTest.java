@@ -57,10 +57,10 @@ class FullSyncOperationTest {
     private CommandIO io;
     private ScannerRegistry scannerRegistry;
 
-    private static final VolumeConfig CONVENTIONAL_VOLUME = new VolumeConfig("a", "//pandora/jav_A", "conventional", "pandora");
-    private static final VolumeConfig QUEUE_VOLUME        = new VolumeConfig("unsorted", "//pandora/jav_unsorted", "queue", "pandora");
-    private static final VolumeConfig EXHIBITION_VOLUME   = new VolumeConfig("qnap", "//qnap2/jav", "exhibition", "qnap2");
-    private static final VolumeConfig COLLECTIONS_VOLUME  = new VolumeConfig("collections", "//pandora/jav_collections", "collections", "pandora");
+    private static final VolumeConfig CONVENTIONAL_VOLUME = new VolumeConfig("a", "//pandora/jav_A", "conventional", "pandora", null);
+    private static final VolumeConfig QUEUE_VOLUME        = new VolumeConfig("unsorted", "//pandora/jav_unsorted", "queue", "pandora", null);
+    private static final VolumeConfig EXHIBITION_VOLUME   = new VolumeConfig("qnap", "//qnap2/jav", "exhibition", "qnap2", null);
+    private static final VolumeConfig COLLECTIONS_VOLUME  = new VolumeConfig("collections", "//pandora/jav_collections", "collections", "pandora", null);
 
     @BeforeEach
     void setUp() {

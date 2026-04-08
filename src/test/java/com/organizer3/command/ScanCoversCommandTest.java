@@ -43,10 +43,10 @@ import static org.mockito.Mockito.*;
 class ScanCoversCommandTest {
 
     private static final VolumeConfig CONVENTIONAL_VOL = new VolumeConfig(
-            "a", "//pandora/jav_A", "conventional", "pandora");
+            "a", "//pandora/jav_A", "conventional", "pandora", null);
 
     private static final VolumeConfig SORT_POOL_VOL = new VolumeConfig(
-            "pool", "//pandora/jav_unsorted/_done", "sort_pool", "pandora");
+            "pool", "//pandora/jav_unsorted/_done", "sort_pool", "pandora", null);
 
     private static final VolumeStructureDef CONVENTIONAL_STRUCTURE = new VolumeStructureDef(
             "conventional",
@@ -291,7 +291,7 @@ class ScanCoversCommandTest {
     @Test
     void noScannerRegistered_printsNoScannablePartitions() {
         VolumeConfig collectionsVol = new VolumeConfig(
-                "collections", "//pandora/jav_collections", "collections", "pandora");
+                "collections", "//pandora/jav_collections", "collections", "pandora", null);
         ctx.setMountedVolume(collectionsVol);
         ctx.setActiveConnection(connection);
         Volume v = new Volume("collections", "collections");

@@ -129,9 +129,10 @@ public class Application {
         List<Command> commands = new ArrayList<>();
         commands.add(new HelloCommand());
         commands.add(new ShutdownCommand());
-        commands.add(new MountCommand(new SmbjConnector(), indexLoader));
+        MountCommand mountCommand = new MountCommand(new SmbjConnector(), indexLoader);
+        commands.add(mountCommand);
         commands.add(new UnmountCommand());
-        commands.add(new VolumesCommand(volumeRepo));
+        commands.add(new VolumesCommand(mountCommand, volumeRepo));
         commands.add(new ActressesCommand(actressRepo, titleRepo));
         commands.add(new ActressSearchCommand(actressRepo, titleRepo, labelRepo, nameLookup));
         commands.add(new FavoritesCommand(actressRepo, titleRepo));
