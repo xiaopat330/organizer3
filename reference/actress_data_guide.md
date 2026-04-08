@@ -121,19 +121,22 @@ meta:
 
 ### Grade Scale
 
-Grades reflect **general fan/collector consensus**, not personal opinion. Do not assign grades from memory alone — only when consensus is well-known or the title's reception is documented.
+Grades reflect **general fan/collector consensus**, not personal opinion. Do not assign grades from memory alone — only when consensus is well-known or the title's reception is documented. Compilations and reissues receive no grade.
 
 | Grade | Meaning |
 |-------|---------|
-| A+    | All-time fan favorite, milestone release, or award-winning |
-| A     | Excellent, highly regarded |
-| A-    | Very good, above average |
-| B+    | Solid, well-received |
+| SSS   | All-time iconic, career-defining — legendary status |
+| SS    | Award-winning, landmark release, exceptional commercial performance |
+| S     | Excellent, highly regarded by fans, notable milestone |
+| A+    | Very strong, top-tier reception |
+| A     | Strong, above-average reception |
+| A-    | Good, solid work above the norm |
+| B+    | Decent, competent standard fare |
 | B     | Average for a top actress |
 | B-    | Below expectations but not bad |
-| C+/C/C- | Formulaic, unremarkable, or clearly rushed |
-| D     | Poorly received |
-| F     | Notably bad — rare for top-label productions |
+| C+    | Formulaic or unremarkable |
+| C     | Below average |
+| C-    | Poor — rare for top-label productions |
 
 ---
 
