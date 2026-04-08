@@ -11,8 +11,10 @@ This document is the authoritative procedure for researching, structuring, and v
 ### File Location and Naming
 
 ```
-reference/actresses/<romanized_family_name>_<romanized_given_name>.yaml
+reference/actresses/<family_name>_<given_name>/<family_name>_<given_name>.yaml
 ```
+
+Each actress gets a dedicated workspace folder. All research artifacts (raw data, scripts, the final YAML) go in that folder. See `reference/actress_research_procedure.md` for the full file inventory.
 
 ### Scraped Data Cache
 
@@ -21,7 +23,7 @@ All raw data fetched from external sources must be saved to disk immediately aft
 **Cache file naming convention:**
 
 ```
-reference/actresses/<romanized_name>_<source>_raw.<ext>
+reference/actresses/<name>/<name>_<source>_raw.<ext>
 ```
 
 | Source | Filename | Format |
@@ -32,9 +34,9 @@ reference/actresses/<romanized_name>_<source>_raw.<ext>
 
 **Examples:**
 ```
-reference/actresses/yuma_asami_dmm_raw.json
-reference/actresses/yuma_asami_wikipedia_ja_raw.txt
-reference/actresses/yuma_asami_minnano_raw.json
+reference/actresses/yuma_asami/yuma_asami_dmm_raw.json
+reference/actresses/yuma_asami/yuma_asami_wikipedia_ja_raw.txt
+reference/actresses/yuma_asami/yuma_asami_minnano_raw.json
 ```
 
 **Cache file must include a header with:**
@@ -72,52 +74,56 @@ These are hard rules. Violations will break machine parsing or corrupt the UI.
 
 ```yaml
 profile:
-  family_name:        # romanized family name
-  given_name:         # romanized given name
-  stage_name:         # Japanese kanji/kana stage name
-  reading:            # hiragana reading of stage name
-  alternate_names:    # list of {name, note} — other romanizations or prior names
-  date_of_birth:      # ISO date (unquoted)
-  birthplace:         # "City, Prefecture, Japan"
-  blood_type:         # A / B / AB / O
-  height_cm:          # integer
+  name:
+    family_name:        # romanized family name (Hepburn)
+    given_name:         # romanized given name (Hepburn)
+    stage_name:         # Japanese kanji/kana stage name
+    reading:            # hiragana reading of stage name
+    alternate_names:    # list of {name, note} — other romanizations or prior names
+  date_of_birth:        # ISO date (unquoted)
+  birthplace:           # "City, Prefecture, Japan"
+  blood_type:           # A / B / AB / O
+  height_cm:            # integer
   measurements:
-    bust:             # integer cm
-    waist:            # integer cm
-    hip:              # integer cm
-  cup:                # letter (A–K)
-  active_from:        # ISO date of first release
-  active_to:          # ISO date of last release or formal retirement announcement
-  biography:          # single quoted string, 3–6 sentences
-  primary_studios:    # list of {name, company, from, to, role}
-  awards:             # list of {event, year, category}
-  legacy:             # single quoted string, 1–3 sentences
+    bust:               # integer cm
+    waist:              # integer cm
+    hip:                # integer cm
+  cup:                  # letter (A–K)
+  active_from:          # ISO date of first release
+  active_to:            # ISO date of last release or formal retirement announcement
+  retirement_announced: # ISO date if different from active_to (optional)
+  biography:            # double-quoted string, 3–6 sentences
+  primary_studios:      # list of {name, company, from, to, role}
+  awards:               # list of {event, year, category}
+  legacy:               # double-quoted string, 1–3 sentences (optional)
 
-# Filmography: use one key if single studio, or split keys if multi-studio.
-# Multi-studio example:
-filmography_alice_japan:
-  - code: null          # product code — null if not confirmed from DB or cover spine
+# Portfolio: single flat array, chronologically sorted. No per-studio splits.
+portfolio:
+  - code:               # product code from DB (e.g. "DV-563")
     title:
-      original: null    # Japanese title — null if unknown; fill from cover scan or Wikipedia
-      translation: ""   # English translation (your own — be accurate, not literal)
-    label:              # label name as it appears on the cover (e.g. "Alice Japan", "S1 No.1 Style")
-    date:               # ISO release date
-    grade:              # see Grade Scale below
-    notes: null         # one quoted sentence or null
-
-filmography_s1:
-  - ...
-
-filmography_other:
-  - ...
+      original:         # Japanese title (null if unknown)
+      english:          # English translation (null if unknown)
+    label:              # must match a label value in src/main/resources/labels.yaml
+    date:               # ISO release date, single-quoted (null if unknown)
+    notes:              # one sentence or null (optional)
+    grade:              # SSS/SS/S/A+/A/A-/B+/B/B-/C+/C/C- — omit for compilations/reissues
+    tags:               # list from reference/tags.yaml vocabulary
+    - tag_name
 
 meta:
-  total_known_releases:   # integer estimate of full career catalog
-  titles_listed_here:     # count of entries in this file
-  coverage_note: ""       # what's included / excluded
-  confidence: ""          # data quality — flag any fields sourced from memory
-  data_source: ""         # URL(s) used
+  total_owned_titles:         # count of titles in local DB for this actress
+  titles_with_japanese_title: # count
+  titles_with_english_title:  # count
+  titles_with_release_date:   # count
+  total_known_releases:       # estimated full catalog size (including unowned)
+  coverage_note:              # what's included / excluded
+  confidence:                 # data quality — flag any fields sourced from uncertain sources
+  data_sources:               # list of URLs and local sources used
+  - url_or_source
+  portfolio_listed:           # count of entries in portfolio array
 ```
+
+The full schema specification with rules and examples is in `reference/actress_research_procedure.md`.
 
 ### Grade Scale
 
@@ -347,15 +353,11 @@ For any title where code, `title.original`, or date remains unknown after all ph
 2. All titles found in Phase 4 (DMM) that are not in the DB — actress's broader catalog.
 3. Any remaining titles from Phase 6 (Wikipedia) not covered above.
 
-#### Multi-studio careers
+#### Portfolio structure
 
-If the actress held contracts at more than one studio, split filmography into separate keys:
-- `filmography_<studio_slug>:` for each studio
-- `filmography_other:` for guest appearances
+Use a single flat `portfolio:` array sorted chronologically. Do not split by studio — the `label:` field on each entry already identifies the studio/sub-label, and the flat structure is simpler for database seeding.
 
-Do not merge multi-studio work into a single `filmography:` key — it destroys the ability to filter by label.
-
-**To detect dual-studio careers:** DMM and Wikipedia will both list titles under different label banners with overlapping date ranges. This is unusual — double-check before splitting.
+Multi-studio careers (e.g. simultaneous Alice Japan and S1 contracts) naturally interleave when sorted by date.
 
 #### Decision trees
 
