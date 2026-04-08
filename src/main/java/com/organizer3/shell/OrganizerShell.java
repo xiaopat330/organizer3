@@ -4,17 +4,25 @@ import com.organizer3.command.Command;
 import com.organizer3.shell.io.CommandIO;
 import com.organizer3.shell.io.JLineCommandIO;
 import com.organizer3.shell.io.PlainCommandIO;
+import org.jline.reader.Completer;
 import org.jline.reader.EndOfFileException;
 import org.jline.reader.LineReader;
 import org.jline.reader.LineReaderBuilder;
 import org.jline.reader.UserInterruptException;
+import org.jline.reader.impl.completer.AggregateCompleter;
+import org.jline.reader.impl.completer.ArgumentCompleter;
+import org.jline.reader.impl.completer.NullCompleter;
+import org.jline.reader.impl.completer.StringsCompleter;
 import org.jline.terminal.Terminal;
 import org.jline.terminal.TerminalBuilder;
 
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.TreeSet;
 import lombok.extern.slf4j.Slf4j;
 
 /**
@@ -49,6 +57,7 @@ public class OrganizerShell {
             LineReader reader = LineReaderBuilder.builder()
                     .terminal(terminal)
                     .variable(LineReader.HISTORY_FILE, ".organizer_history")
+                    .completer(buildCompleter())
                     .build();
 
             CommandIO io = buildCommandIO(terminal, reader);
@@ -75,6 +84,31 @@ public class OrganizerShell {
         } catch (IOException e) {
             log.error("Terminal error", e);
         }
+    }
+
+    private Completer buildCompleter() {
+        // Separate single-word commands from two-word commands (like "sync all")
+        Set<String> singleWords = new TreeSet<>();
+        List<Completer> twoWordCompleters = new ArrayList<>();
+
+        for (String key : commands.keySet()) {
+            if (key.contains(" ")) {
+                String[] parts = key.split(" ", 2);
+                twoWordCompleters.add(new ArgumentCompleter(
+                        new StringsCompleter(parts[0]),
+                        new StringsCompleter(parts[1]),
+                        NullCompleter.INSTANCE));
+            } else {
+                singleWords.add(key);
+            }
+        }
+
+        // Single-word completer: completes the command name, then stops
+        twoWordCompleters.add(new ArgumentCompleter(
+                new StringsCompleter(singleWords),
+                NullCompleter.INSTANCE));
+
+        return new AggregateCompleter(twoWordCompleters);
     }
 
     private CommandIO buildCommandIO(Terminal terminal, LineReader reader) {
