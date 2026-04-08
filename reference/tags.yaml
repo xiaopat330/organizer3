@@ -1,0 +1,144 @@
+# Tag vocabulary for title categorization
+# Normalized, flat tags applicable across all actresses and titles.
+# Tags are lowercase, hyphenated, and grouped here by category for readability.
+# In portfolio entries, they appear as a flat array: tags: [tag1, tag2, ...]
+
+# ── Format / Production ──────────────────────────────────────────────────────
+format:
+  - name: compilation
+    description: Best-of, collection, or multi-title compilation release
+  - name: reissue
+    description: Re-release, repackage, or remosaic of a previously released title
+  - name: long-format
+    description: Extended runtime title (4+ hours)
+  - name: co-star
+    description: Features one or more other named actresses prominently
+  - name: debut
+    description: Actress's first title at a studio or in the industry
+  - name: gravure
+    description: Image video (IV) / gravure content, not standard AV
+
+# ── Setting / Location ───────────────────────────────────────────────────────
+setting:
+  - name: soapland
+    description: Soapland (ソープランド) or bathhouse scenario
+  - name: brothel
+    description: Brothel, escort, or sex-worker establishment scenario
+  - name: massage-parlor
+    description: Massage parlor or aesthetic salon (エステ) scenario
+  - name: school
+    description: School or classroom setting
+  - name: hospital
+    description: Hospital, clinic, or medical office setting
+  - name: office
+    description: Office or corporate workplace setting
+  - name: hot-spring
+    description: Hot spring (温泉) or bathhouse trip
+  - name: outdoors
+    description: Outdoor, beach, resort, or travel location
+  - name: gym
+    description: Fitness gym or sports facility
+  - name: home-visit
+    description: Dispatch/home-visit or delivery scenario
+
+# ── Role / Character ─────────────────────────────────────────────────────────
+role:
+  - name: nurse
+    description: Nurse or medical staff role
+  - name: teacher
+    description: Teacher, tutor, or instructor role
+  - name: office-lady
+    description: Office lady (OL) or corporate worker role
+  - name: maid
+    description: Maid or domestic servant role
+  - name: married-woman
+    description: Married woman (人妻) or young wife (若妻) role
+  - name: widow
+    description: Widow role
+  - name: mother
+    description: Mother or stepmother role (taboo family scenario)
+  - name: sister
+    description: Sister or stepsister role (taboo family scenario)
+  - name: secret-agent
+    description: Secret investigator or undercover agent role
+  - name: hostess
+    description: Hostess, inn proprietress (女将), or service-industry role
+  - name: bus-guide
+    description: Bus guide or tour conductor role
+  - name: kunoichi
+    description: Female ninja (くノ一) role
+
+# ── Theme / Scenario ─────────────────────────────────────────────────────────
+theme:
+  - name: cosplay
+    description: Costume play or multiple-outfit theme
+  - name: fantasy-scenario
+    description: Supernatural, sci-fi, or impossible-premise scenario
+  - name: affair
+    description: Affair, infidelity, or NTR (netorare) theme
+  - name: taboo-family
+    description: Taboo family relationship scenario (incest roleplay)
+  - name: virgin-play
+    description: Virgin boy (童貞) or deflowering scenario
+  - name: pickup
+    description: Nanpa (ナンパ) or street-pickup theme
+  - name: groping
+    description: Train or bus groping (痴漢) scenario
+  - name: violation
+    description: Forced/violation scenario (レイプ/凌辱)
+  - name: confinement
+    description: Captivity, restraint, or confinement scenario
+  - name: hypnosis
+    description: Hypnosis or mind-control scenario
+  - name: aphrodisiac
+    description: Aphrodisiac or drugging scenario
+  - name: femdom
+    description: Dominant woman (痴女) or female-led scenario
+  - name: girlfriend-experience
+    description: Intimate, romantic, or girlfriend-simulation scenario
+  - name: hardcore
+    description: Intense, aggressive, or high-energy sex with no specific theme
+  - name: cum-control
+    description: Ejaculation management, edging, or cum-play focus
+
+# ── Act / Focus ──────────────────────────────────────────────────────────────
+act:
+  - name: paizuri
+    description: Titjob (パイズリ) focus
+  - name: blowjob
+    description: Fellatio or oral-focus title
+  - name: deepthroat
+    description: Deep throat focus
+  - name: facial
+    description: Facial cumshot (顔射) focus
+  - name: squirting
+    description: Female squirting (潮吹き) focus
+  - name: orgy
+    description: Group sex or multi-partner title
+  - name: cowgirl
+    description: Cowgirl position (騎乗位) focus
+  - name: swallow
+    description: Cum-swallowing (ごっくん/精飲) focus
+  - name: creampie
+    description: Internal cumshot (中出し) focus
+  - name: rimming
+    description: Anal licking or anal-adjacent focus
+  - name: oil
+    description: Oil, lotion, or body-slick focus
+
+# ── Body / Aesthetic ─────────────────────────────────────────────────────────
+body:
+  - name: busty
+    description: Breast size or bustiness as a title focus
+  - name: ass-focus
+    description: Buttocks emphasized as title theme
+  - name: swimsuit
+    description: Swimsuit, bikini, or competition swimwear featured
+  - name: leotard
+    description: Leotard, high-leg, or athletic wear featured
+  - name: braless
+    description: No-bra or visible-nipple clothing theme
+  - name: athletic
+    description: Athletic, flexible, or sports-themed body showcase
+  - name: eye-contact
+    description: Camera eye-contact (カメラ目線) focus
