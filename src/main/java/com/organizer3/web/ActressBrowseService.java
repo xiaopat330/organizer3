@@ -150,6 +150,23 @@ public class ActressBrowseService {
                 .toList();
     }
 
+    /** Paginated bookmarks query. */
+    public List<ActressSummary> findBookmarksPaged(int offset, int limit) {
+        return actressRepo.findBookmarksPaged(limit, offset).stream()
+                .map(this::toSummary)
+                .toList();
+    }
+
+    /**
+     * Paginated name search: matches actresses whose canonical name (or any name token)
+     * starts with {@code query}, case-insensitively.
+     */
+    public List<ActressSummary> searchByNamePaged(String query, int offset, int limit) {
+        return actressRepo.searchByNamePrefixPaged(query, limit, offset).stream()
+                .map(this::toSummary)
+                .toList();
+    }
+
     /**
      * Returns the full {@link ActressSummary} for a single actress by ID, or empty if not found.
      */

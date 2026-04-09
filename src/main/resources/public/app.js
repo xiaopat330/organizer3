@@ -140,7 +140,7 @@ function updateDetailPanelTop() {
 // Home content grids are managed separately via activateHomeTab().
 const VIEWS = {
   titles:           ['home-tabs'],
-  actresses:        ['actress-sub-nav', 'actress-grid'],
+  actresses:        ['actress-landing', 'actress-grid'],
   'actress-detail': ['actress-detail'],
   'title-detail':   ['title-detail'],
   queue:            ['queue-header', 'queue-grid'],
@@ -164,6 +164,7 @@ function showView(name) {
     const el = document.getElementById(id);
     if (el.classList.contains('grid')) el.style.display = 'grid';
     else if (el.classList.contains('actress-sub-nav')) el.style.display = 'flex';
+    else if (el.classList.contains('actress-landing')) el.style.display = 'flex';
     else if (el.id === 'title-detail') el.style.display = 'flex';
     else el.style.display = 'block';
   }
@@ -606,11 +607,12 @@ function showTitlesView() {
   document.getElementById('titles-browse-btn')?.classList.remove('active');
   closeQueuesDropdown();
   closeArchivesDropdown();
-  selectedPrefix  = null;
-  selectedTier    = null;
-  selectedSpecial = null;
-  prefixDropdown.querySelectorAll('.prefix-chip').forEach(c => c.classList.remove('selected'));
-  actressSubNav.innerHTML = '';
+  // Reset actress landing state
+  if (actressSearchTimer) { clearTimeout(actressSearchTimer); actressSearchTimer = null; }
+  actressBrowseMode = null;
+  actressSearchTerm = '';
+  if (actressSearchInput) actressSearchInput.value = '';
+  updateActressLandingSelection();
   updateBreadcrumb([]);
   activateHomeTab(homeTab);
 }
@@ -621,7 +623,6 @@ const archivesDropdown = document.getElementById('archives-dropdown');
 
 archivesBtn.addEventListener('click', e => {
   e.stopPropagation();
-  closeDropdown();
   closeQueuesDropdown();
   const isOpen = archivesDropdown.classList.contains('open');
   if (isOpen) { closeArchivesDropdown(); return; }
@@ -646,7 +647,7 @@ function populateArchivesDropdown() {
   starsChip.className = 'prefix-chip';
   starsChip.textContent = 'stars';
   starsChip.dataset.archives = 'stars';
-  starsChip.addEventListener('click', () => { closeArchivesDropdown(); selectSpecial('archive', starsChip); });
+  starsChip.addEventListener('click', () => { closeArchivesDropdown(); selectActressBrowseMode('archive-volumes'); });
   col.appendChild(starsChip);
 
   const poolChip = document.createElement('div');
@@ -659,225 +660,116 @@ function populateArchivesDropdown() {
 }
 
 // ── Actress browse ────────────────────────────────────────────────────────
-const actressesBtn   = document.getElementById('actresses-btn');
-const prefixDropdown = document.getElementById('prefix-dropdown');
-const actressSubNav  = document.getElementById('actress-sub-nav');
-let selectedPrefix  = null;
-let selectedTier    = null;
-// Special mode: null | 'favorites' | 'exhibition' | 'archive' | 'tier-GODDESS' | ... | 'all'
-let selectedSpecial = null;
+const actressesBtn          = document.getElementById('actresses-btn');
+const actressLandingEl      = document.getElementById('actress-landing');
+const actressSearchInput    = document.getElementById('actress-search-input');
+const actressSearchClearBtn = document.getElementById('actress-search-clear');
+const actressFavoritesBtn   = document.getElementById('actress-favorites-btn');
+const actressBookmarksBtn   = document.getElementById('actress-bookmarks-btn');
+const actressTierRow        = document.getElementById('actress-landing-tier-row');
 
-actressesBtn.addEventListener('click', async e => {
-  e.stopPropagation();
-  closeQueuesDropdown();
-  closeArchivesDropdown();
-  const isOpen = prefixDropdown.classList.contains('open');
-  if (isOpen) { closeDropdown(); return; }
-  if (prefixDropdown.childElementCount === 0) await populatePrefixDropdown();
-  prefixDropdown.classList.add('open');
-  actressesBtn.classList.add('active');
-});
+const ACTRESS_TIERS = ['LIBRARY', 'MINOR', 'POPULAR', 'SUPERSTAR', 'GODDESS'];
+const ACTRESS_SEARCH_DELAY_MS = 5000;
+const ACTRESS_SEARCH_MIN_CHARS = 2;
 
-prefixDropdown.addEventListener('click', e => e.stopPropagation());
+// Current browse mode:
+//   null            → empty grid, nothing selected
+//   'search'        → use actressSearchTerm
+//   'favorites'
+//   'bookmarks'
+//   'tier-<TIER>'
+let actressBrowseMode = null;
+let actressSearchTerm = '';
+let actressSearchTimer = null;
 
-function closeDropdown() {
-  prefixDropdown.classList.remove('open');
-  if (selectedPrefix === null && selectedSpecial === null && mode !== 'actress-detail')
-    actressesBtn.classList.remove('active');
-}
-
-const DROPDOWN_TIERS = ['LIBRARY', 'MINOR', 'POPULAR', 'SUPERSTAR', 'GODDESS'];
-
-async function populatePrefixDropdown() {
-  prefixDropdown.innerHTML = '';
-  prefixDropdown.style.alignItems = 'flex-start';
-
-  // ── Left column: special queries ──
-  const specialCol = document.createElement('div');
-  specialCol.className = 'dropdown-tier-col';
-  specialCol.appendChild(makeLabel('browse'));
-
-  const specials = [
-    { key: 'favorites',   label: 'FAVORITES',   cls: 'special-chip-dim' },
-    { key: 'exhibition',  label: 'EXHIBITION',  cls: '' },
-    { key: 'archive',     label: 'ARCHIVE',     cls: '' },
-  ];
-  for (const { key, label } of specials) {
-    const chip = document.createElement('div');
-    chip.className = 'prefix-chip special-chip';
-    chip.textContent = label;
-    chip.dataset.special = key;
-    chip.addEventListener('click', () => selectSpecial(key, chip));
-    specialCol.appendChild(chip);
-  }
-
-  // Tier divider label
-  const tierLabel = makeLabel('tiers');
-  tierLabel.style.marginTop = '8px';
-  specialCol.appendChild(tierLabel);
-
-  for (const tier of DROPDOWN_TIERS) {
-    const chip = document.createElement('div');
-    chip.className = `prefix-chip special-chip tier-chip-${tier}`;
-    chip.textContent = tier.toLowerCase();
-    chip.dataset.special = `tier-${tier}`;
-    chip.addEventListener('click', () => selectSpecial(`tier-${tier}`, chip));
-    specialCol.appendChild(chip);
-  }
-
-  // ALL
-  const allChip = document.createElement('div');
-  allChip.className = 'prefix-chip special-chip';
-  allChip.textContent = 'ALL';
-  allChip.dataset.special = 'all';
-  const allLabel = makeLabel('library');
-  allLabel.style.marginTop = '8px';
-  specialCol.appendChild(allLabel);
-  allChip.addEventListener('click', () => selectSpecial('all', allChip));
-  specialCol.appendChild(allChip);
-
-  prefixDropdown.appendChild(specialCol);
-
-  // ── Divider ──
-  prefixDropdown.appendChild(Object.assign(document.createElement('div'), { className: 'dropdown-col-divider' }));
-
-  // ── Right column: letter picker ──
-  const prefixCol = document.createElement('div');
-  prefixCol.className = 'dropdown-prefix-col';
-  prefixCol.appendChild(makeLabel('name'));
-  try {
-    const res = await fetch('/api/actresses/index');
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    for (const p of await res.json()) {
-      const chip = document.createElement('div');
-      chip.className = 'prefix-chip';
-      chip.textContent = p;
-      chip.dataset.prefix = p;
-      chip.addEventListener('click', () => selectPrefix(p, chip));
-      prefixCol.appendChild(chip);
-    }
-  } catch (err) {
-    console.error('Failed to load actress index', err);
-  }
-  prefixDropdown.appendChild(prefixCol);
-
-  // Restore selection highlight
-  if (selectedSpecial) {
-    prefixDropdown.querySelector(`.prefix-chip[data-special="${selectedSpecial}"]`)?.classList.add('selected');
-  } else if (selectedPrefix) {
-    prefixDropdown.querySelector(`.prefix-chip[data-prefix="${selectedPrefix}"]`)?.classList.add('selected');
+function buildActressTierChips() {
+  actressTierRow.innerHTML = '';
+  for (const tier of ACTRESS_TIERS) {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = `actress-landing-tier tier-chip-${tier}`;
+    btn.dataset.tier = tier;
+    btn.textContent = tier.toLowerCase();
+    btn.addEventListener('click', () => selectActressBrowseMode(`tier-${tier}`));
+    actressTierRow.appendChild(btn);
   }
 }
+buildActressTierChips();
 
-async function reSelectPrefix(prefix) {
-  if (prefixDropdown.childElementCount === 0) await populatePrefixDropdown();
-  const chip = prefixDropdown.querySelector(`.prefix-chip[data-prefix="${prefix}"]`);
-  if (chip) selectPrefix(prefix, chip);
-}
-
-function clearDropdownSelection() {
-  prefixDropdown.querySelectorAll('.prefix-chip').forEach(c => c.classList.remove('selected'));
+function updateActressLandingSelection() {
+  actressFavoritesBtn.classList.toggle('selected', actressBrowseMode === 'favorites');
+  actressBookmarksBtn.classList.toggle('selected', actressBrowseMode === 'bookmarks');
+  actressTierRow.querySelectorAll('.actress-landing-tier').forEach(btn => {
+    btn.classList.toggle('selected', actressBrowseMode === `tier-${btn.dataset.tier}`);
+  });
 }
 
 // ── Actress scrolling grid ──
+const actressGridEl = document.getElementById('actress-grid');
 const actressScrollGrid = new ScrollingGrid(
-  document.getElementById('actress-grid'),
+  actressGridEl,
   (o, l) => {
-    if (selectedSpecial === 'favorites')  return `/api/actresses?favorites=true&offset=${o}&limit=${l}`;
-    if (selectedSpecial === 'exhibition') return `/api/actresses?volumes=${encodeURIComponent(EXHIBITION_VOLUMES)}&offset=${o}&limit=${l}`;
-    if (selectedSpecial === 'archive')    return `/api/actresses?volumes=${encodeURIComponent(ARCHIVE_VOLUMES)}&offset=${o}&limit=${l}`;
-    if (selectedSpecial === 'all')        return `/api/actresses?all=true&offset=${o}&limit=${l}`;
-    if (selectedSpecial && selectedSpecial.startsWith('tier-')) {
-      const tier = selectedSpecial.slice(5);
+    if (actressBrowseMode === 'search') {
+      return `/api/actresses?search=${encodeURIComponent(actressSearchTerm)}&offset=${o}&limit=${l}`;
+    }
+    if (actressBrowseMode === 'favorites') return `/api/actresses?favorites=true&offset=${o}&limit=${l}`;
+    if (actressBrowseMode === 'bookmarks') return `/api/actresses?bookmarks=true&offset=${o}&limit=${l}`;
+    if (actressBrowseMode === 'archive-volumes')
+      return `/api/actresses?volumes=${encodeURIComponent(ARCHIVE_VOLUMES)}&offset=${o}&limit=${l}`;
+    if (actressBrowseMode && actressBrowseMode.startsWith('tier-')) {
+      const tier = actressBrowseMode.slice(5);
       return `/api/actresses?tier=${encodeURIComponent(tier)}&offset=${o}&limit=${l}`;
     }
-    let url = `/api/actresses?prefix=${encodeURIComponent(selectedPrefix)}&offset=${o}&limit=${l}`;
-    if (selectedTier) url += `&tier=${encodeURIComponent(selectedTier)}`;
-    return url;
+    return null; // no mode → empty grid
   },
   makeActressCard,
   'no actresses'
 );
 
-async function buildActressSubNav() {
-  actressSubNav.innerHTML = '';
-  const TIERS = ['LIBRARY', 'MINOR', 'POPULAR', 'SUPERSTAR', 'GODDESS'];
-
-  let tierCounts = {};
-  try {
-    const res = await fetch(`/api/actresses/tier-counts?prefix=${encodeURIComponent(selectedPrefix)}`);
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    tierCounts = await res.json();
-  } catch (err) {
-    console.error('Failed to load tier counts', err);
+// Patch loadMore to short-circuit when urlFn returns null (no active mode)
+const originalActressLoadMore = actressScrollGrid.loadMore.bind(actressScrollGrid);
+actressScrollGrid.loadMore = async function() {
+  const probeUrl = this.urlFn(this.offset, 1);
+  if (probeUrl == null) {
+    this.exhausted = true;
+    setStatus('');
+    return;
   }
-
-  const total = Object.values(tierCounts).reduce((s, n) => s + n, 0);
-
-  const allBtn = document.createElement('div');
-  allBtn.className = 'actress-sub-nav-item selected';
-  allBtn.textContent = total > 0 ? `ALL (${total})` : 'ALL';
-  allBtn.addEventListener('click', () => selectActressTier(null));
-  actressSubNav.appendChild(allBtn);
-
-  for (const tier of TIERS) {
-    const btn = document.createElement('div');
-    btn.className = `actress-sub-nav-item tier-${tier}`;
-    const count = tierCounts[tier];
-    btn.textContent = count != null ? `${tier.toLowerCase()} (${count})` : tier.toLowerCase();
-    btn.dataset.tier = tier;
-    btn.addEventListener('click', () => selectActressTier(tier));
-    actressSubNav.appendChild(btn);
-  }
-}
-
-function selectActressTier(tier) {
-  selectedTier = tier;
-  actressSubNav.querySelectorAll('.actress-sub-nav-item').forEach(el => {
-    const isTierBtn = el.dataset.tier;
-    if (!isTierBtn) {
-      el.classList.toggle('selected', tier === null);
-    } else {
-      el.classList.toggle('selected', el.dataset.tier === tier);
-    }
-  });
-  const crumbs = [
-    { label: 'Actresses', action: () => actressesBtn.click() },
-    { label: selectedPrefix },
-  ];
-  if (tier) crumbs.push({ label: tier.toLowerCase() });
-  updateBreadcrumb(crumbs);
-  actressScrollGrid.reset();
-  ensureSentinel();
-  actressScrollGrid.loadMore();
-}
-
-// Labels for special modes in breadcrumbs
-const SPECIAL_LABELS = {
-  favorites:  'Favorites',
-  exhibition: 'Exhibition',
-  archive:    'Archive',
-  all:        'All Actresses',
+  return originalActressLoadMore();
 };
 
-async function selectSpecial(key, chip) {
-  selectedSpecial = key;
-  selectedPrefix  = null;
-  selectedTier    = null;
-  clearDropdownSelection();
-  chip.classList.add('selected');
-  closeDropdown();
+function clearActressGrid() {
+  actressScrollGrid.reset();
+  setStatus('');
+}
+
+function actressBrowseLabel(modeKey) {
+  if (!modeKey) return '';
+  if (modeKey === 'favorites') return 'Favorites';
+  if (modeKey === 'bookmarks') return 'Bookmarks';
+  if (modeKey === 'archive-volumes') return 'Archive';
+  if (modeKey === 'search')    return `search: "${actressSearchTerm}"`;
+  if (modeKey.startsWith('tier-')) return modeKey.slice(5).toLowerCase();
+  return modeKey;
+}
+
+function updateActressBreadcrumb() {
+  const crumbs = [{ label: 'Actresses', action: () => showActressLanding() }];
+  if (actressBrowseMode) crumbs.push({ label: actressBrowseLabel(actressBrowseMode) });
+  updateBreadcrumb(crumbs);
+}
+
+async function selectActressBrowseMode(modeKey) {
+  actressBrowseMode = modeKey;
+  // Selecting a chip clears any pending search and empties the search box
+  if (modeKey !== 'search') {
+    if (actressSearchTimer) { clearTimeout(actressSearchTimer); actressSearchTimer = null; }
+    actressSearchTerm = '';
+    if (actressSearchInput.value !== '') actressSearchInput.value = '';
+  }
+  updateActressLandingSelection();
+  updateActressBreadcrumb();
   actressesBtn.classList.add('active');
-
-  const label = key.startsWith('tier-')
-    ? key.slice(5).toLowerCase()
-    : (SPECIAL_LABELS[key] || key);
-
-  updateBreadcrumb([
-    { label: 'Actresses', action: () => actressesBtn.click() },
-    { label },
-  ]);
-  actressSubNav.style.display = 'none';
   showView('actresses');
   activeGrid = actressScrollGrid;
   actressScrollGrid.reset();
@@ -885,29 +777,92 @@ async function selectSpecial(key, chip) {
   await actressScrollGrid.loadMore();
 }
 
-async function selectPrefix(prefix, chip) {
-  selectedPrefix  = prefix;
-  selectedTier    = null;
-  selectedSpecial = null;
-  closeDropdown();
+function showActressLanding() {
+  closeQueuesDropdown();
+  closeArchivesDropdown();
   actressesBtn.classList.add('active');
-  clearDropdownSelection();
-  chip.classList.add('selected');
-  updateBreadcrumb([
-    { label: 'Actresses', action: () => actressesBtn.click() },
-    { label: prefix },
-  ]);
-  await buildActressSubNav();
+  if (actressSearchTimer) { clearTimeout(actressSearchTimer); actressSearchTimer = null; }
+  actressBrowseMode = null;
+  actressSearchTerm = '';
+  actressSearchInput.value = '';
+  updateActressLandingSelection();
+  updateBreadcrumb([{ label: 'Actresses' }]);
   showView('actresses');
   requestAnimationFrame(() => {
     const header = document.querySelector('header');
-    if (header) actressSubNav.style.top = header.offsetHeight + 'px';
+    if (header) actressLandingEl.style.top = header.offsetHeight + 'px';
   });
+  activeGrid = actressScrollGrid;
+  clearActressGrid();
+}
+
+actressesBtn.addEventListener('click', e => {
+  e.stopPropagation();
+  showActressLanding();
+});
+
+// ── Search input: 5s debounce + 2-char minimum ──
+function scheduleActressSearch() {
+  if (actressSearchTimer) { clearTimeout(actressSearchTimer); actressSearchTimer = null; }
+  const raw = actressSearchInput.value.trim();
+  if (raw.length < ACTRESS_SEARCH_MIN_CHARS) {
+    // Below threshold → empty page and reset mode if we were in search mode
+    if (actressBrowseMode === 'search') {
+      actressBrowseMode = null;
+      updateActressLandingSelection();
+      updateActressBreadcrumb();
+      clearActressGrid();
+    }
+    return;
+  }
+  actressSearchTimer = setTimeout(() => {
+    actressSearchTimer = null;
+    actressSearchTerm = raw;
+    actressBrowseMode = 'search';
+    updateActressLandingSelection();
+    updateActressBreadcrumb();
+    actressesBtn.classList.add('active');
+    activeGrid = actressScrollGrid;
+    actressScrollGrid.reset();
+    ensureSentinel();
+    actressScrollGrid.loadMore();
+  }, ACTRESS_SEARCH_DELAY_MS);
+}
+
+actressSearchInput.addEventListener('input', scheduleActressSearch);
+// Enter bypasses the debounce timer
+actressSearchInput.addEventListener('keydown', e => {
+  if (e.key !== 'Enter') return;
+  e.preventDefault();
+  if (actressSearchTimer) { clearTimeout(actressSearchTimer); actressSearchTimer = null; }
+  const raw = actressSearchInput.value.trim();
+  if (raw.length < ACTRESS_SEARCH_MIN_CHARS) { clearActressGrid(); return; }
+  actressSearchTerm = raw;
+  actressBrowseMode = 'search';
+  updateActressLandingSelection();
+  updateActressBreadcrumb();
+  actressesBtn.classList.add('active');
   activeGrid = actressScrollGrid;
   actressScrollGrid.reset();
   ensureSentinel();
-  await actressScrollGrid.loadMore();
-}
+  actressScrollGrid.loadMore();
+});
+
+actressSearchClearBtn.addEventListener('click', () => {
+  if (actressSearchTimer) { clearTimeout(actressSearchTimer); actressSearchTimer = null; }
+  actressSearchInput.value = '';
+  actressSearchTerm = '';
+  if (actressBrowseMode === 'search') {
+    actressBrowseMode = null;
+    updateActressLandingSelection();
+    updateActressBreadcrumb();
+    clearActressGrid();
+  }
+  actressSearchInput.focus();
+});
+
+actressFavoritesBtn.addEventListener('click', () => selectActressBrowseMode('favorites'));
+actressBookmarksBtn.addEventListener('click', () => selectActressBrowseMode('bookmarks'));
 
 // ── Actress detail ────────────────────────────────────────────────────────
 async function openActressDetail(actressId) {
@@ -928,26 +883,19 @@ async function openActressDetail(actressId) {
   ensureSentinel();
   setStatus('loading');
 
-  // Build breadcrumbs — include prefix/tier/special context if we came from a browse grid
+  // Build breadcrumbs — include browse-mode context if we came from a browse grid
   let crumbs;
   if (sourceMode === 'titles' && sourceHomeTab === 'random-actresses') {
     // Came from home random-actresses tab — HOME crumb restores it via showTitlesView()
     crumbs = [];
-  } else if (selectedSpecial) {
-    const sp = selectedSpecial;
-    const label = sp.startsWith('tier-') ? sp.slice(5).toLowerCase() : (SPECIAL_LABELS[sp] || sp);
+  } else if (actressBrowseMode) {
+    const modeKey = actressBrowseMode;
     crumbs = [
-      { label: 'Actresses', action: () => actressesBtn.click() },
-      { label, action: () => selectSpecial(sp, prefixDropdown.querySelector(`[data-special="${sp}"]`) || document.createElement('div')) },
+      { label: 'Actresses', action: () => showActressLanding() },
+      { label: actressBrowseLabel(modeKey), action: () => selectActressBrowseMode(modeKey) },
     ];
   } else {
-    crumbs = [{ label: 'Actresses', action: () => actressesBtn.click() }];
-    if (selectedPrefix) {
-      const p = selectedPrefix;
-      const t = selectedTier;
-      crumbs.push({ label: p, action: () => reSelectPrefix(p) });
-      if (t) crumbs.push({ label: t.toLowerCase() });
-    }
+    crumbs = [{ label: 'Actresses', action: () => showActressLanding() }];
   }
   // Actress name added after fetch below; placeholder for now
   crumbs.push({ label: '...' });
@@ -1158,7 +1106,6 @@ const queuesDropdown = document.getElementById('queues-dropdown');
 
 queuesBtn.addEventListener('click', async e => {
   e.stopPropagation();
-  closeDropdown();
   closeArchivesDropdown();
   const isOpen = queuesDropdown.classList.contains('open');
   if (isOpen) { closeQueuesDropdown(); return; }
@@ -1171,7 +1118,6 @@ queuesDropdown.addEventListener('click', e => e.stopPropagation());
 
 // Single global listener closes all dropdowns
 document.addEventListener('click', () => {
-  closeDropdown();
   closeArchivesDropdown();
   closeQueuesDropdown();
 });
@@ -1261,14 +1207,15 @@ async function openPoolView(volumeId, smbPath) {
 const collectionsBtn = document.getElementById('collections-btn');
 
 collectionsBtn.addEventListener('click', () => {
-  closeDropdown();
   closeQueuesDropdown();
   closeArchivesDropdown();
   collectionsBtn.classList.add('active');
   actressesBtn.classList.remove('active');
-  selectedPrefix  = null;
-  selectedTier    = null;
-  selectedSpecial = null;
+  if (actressSearchTimer) { clearTimeout(actressSearchTimer); actressSearchTimer = null; }
+  actressBrowseMode = null;
+  actressSearchTerm = '';
+  if (actressSearchInput) actressSearchInput.value = '';
+  updateActressLandingSelection();
   showView('collections');
   updateBreadcrumb([{ label: 'Collections' }]);
   activeGrid = collectionsGrid;
@@ -1293,10 +1240,10 @@ function openTitleDetail(t) {
   // Breadcrumb: include source context
   let crumbs = [];
   if (sourceMode === 'actresses' || sourceMode === 'actress-detail') {
-    crumbs = [{ label: 'Actresses', action: () => actressesBtn.click() }];
-    if (selectedPrefix) {
-      const p = selectedPrefix;
-      crumbs.push({ label: p, action: () => reSelectPrefix(p) });
+    crumbs = [{ label: 'Actresses', action: () => showActressLanding() }];
+    if (actressBrowseMode) {
+      const modeKey = actressBrowseMode;
+      crumbs.push({ label: actressBrowseLabel(modeKey), action: () => selectActressBrowseMode(modeKey) });
     }
   } else if (sourceMode === 'collections') {
     crumbs = [{ label: 'Collections', action: () => collectionsBtn.click() }];
@@ -1787,15 +1734,16 @@ function buildTitlesSubNav() {
 }
 
 titlesBrowseBtn.addEventListener('click', () => {
-  closeDropdown();
   closeQueuesDropdown();
   closeArchivesDropdown();
   titlesBrowseBtn.classList.add('active');
   actressesBtn.classList.remove('active');
   collectionsBtn.classList.remove('active');
-  selectedPrefix  = null;
-  selectedTier    = null;
-  selectedSpecial = null;
+  if (actressSearchTimer) { clearTimeout(actressSearchTimer); actressSearchTimer = null; }
+  actressBrowseMode = null;
+  actressSearchTerm = '';
+  if (actressSearchInput) actressSearchInput.value = '';
+  updateActressLandingSelection();
   buildTitlesSubNav();
   showView('titles-browse');
   requestAnimationFrame(() => {

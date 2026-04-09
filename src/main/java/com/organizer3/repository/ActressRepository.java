@@ -35,6 +35,12 @@ public interface ActressRepository {
     List<Actress> searchByNamePrefix(String prefix);
 
     /**
+     * Paginated version of {@link #searchByNamePrefix(String)}: match first-name or
+     * any-word-starts-with, case-insensitively, ordered by canonical name.
+     */
+    List<Actress> searchByNamePrefixPaged(String prefix, int limit, int offset);
+
+    /**
      * Find all actresses whose canonical name starts with {@code prefix} (case-insensitive).
      * Since names are stored given-name-first, this effectively filters by first name prefix.
      */
@@ -62,6 +68,9 @@ public interface ActressRepository {
 
     /** Paginated: only favorite actresses ordered by canonical name. */
     List<Actress> findFavoritesPaged(int limit, int offset);
+
+    /** Paginated: only bookmarked actresses ordered by canonical name. */
+    List<Actress> findBookmarksPaged(int limit, int offset);
 
     /**
      * Find all actresses that have at least one title located on any of the given volumes.

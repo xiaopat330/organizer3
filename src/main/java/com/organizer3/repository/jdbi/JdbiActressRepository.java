@@ -125,6 +125,26 @@ public class JdbiActressRepository implements ActressRepository {
     }
 
     @Override
+    public List<Actress> searchByNamePrefixPaged(String prefix, int limit, int offset) {
+        String lower = prefix.toLowerCase();
+        return jdbi.withHandle(h ->
+                h.createQuery("""
+                        SELECT * FROM actresses
+                        WHERE LOWER(canonical_name) LIKE :startsWith
+                           OR LOWER(canonical_name) LIKE :wordStartsWith
+                        ORDER BY canonical_name
+                        LIMIT :limit OFFSET :offset
+                        """)
+                        .bind("startsWith", lower + "%")
+                        .bind("wordStartsWith", "% " + lower + "%")
+                        .bind("limit", limit)
+                        .bind("offset", offset)
+                        .map(ACTRESS_MAPPER)
+                        .list()
+        );
+    }
+
+    @Override
     public List<Actress> findByFirstNamePrefix(String prefix) {
         return jdbi.withHandle(h ->
                 h.createQuery("""
@@ -222,6 +242,17 @@ public class JdbiActressRepository implements ActressRepository {
     public List<Actress> findFavoritesPaged(int limit, int offset) {
         return jdbi.withHandle(h ->
                 h.createQuery("SELECT * FROM actresses WHERE favorite = 1 ORDER BY canonical_name LIMIT :limit OFFSET :offset")
+                        .bind("limit", limit)
+                        .bind("offset", offset)
+                        .map(ACTRESS_MAPPER)
+                        .list()
+        );
+    }
+
+    @Override
+    public List<Actress> findBookmarksPaged(int limit, int offset) {
+        return jdbi.withHandle(h ->
+                h.createQuery("SELECT * FROM actresses WHERE bookmark = 1 ORDER BY canonical_name LIMIT :limit OFFSET :offset")
                         .bind("limit", limit)
                         .bind("offset", offset)
                         .map(ACTRESS_MAPPER)

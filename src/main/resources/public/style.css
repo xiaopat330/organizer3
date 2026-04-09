@@ -285,6 +285,133 @@ header h1:hover {
 .actress-sub-nav-item.tier-GODDESS.selected, .tier-chip-GODDESS.selected        { color: var(--tier-goddess-selected); background: var(--tier-goddess-bg);
                                                                                    box-shadow: var(--tier-goddess-glow); }
 
+.actress-landing-tier.tier-chip-LIBRARY.selected,
+.actress-landing-tier.tier-chip-MINOR.selected,
+.actress-landing-tier.tier-chip-POPULAR.selected,
+.actress-landing-tier.tier-chip-SUPERSTAR.selected { font-weight: 700; }
+.actress-landing-tier.tier-chip-GODDESS.selected   { font-weight: 700; box-shadow: var(--tier-goddess-glow); }
+
+/* ── Actress landing island (search + favorites/bookmarks + tiers) ───────── */
+.actress-landing {
+  display: none;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px 20px;
+  background: #0d0d0d;
+  border-bottom: 1px solid #1e1e1e;
+  position: sticky;
+  top: 0;
+  z-index: 8;
+}
+
+.actress-landing-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.actress-landing-search-row {
+  gap: 10px;
+}
+
+.actress-search-input {
+  background: #161616;
+  border: 1px solid #2a2a2a;
+  border-radius: 4px;
+  color: #c8c8c8;
+  font-size: 0.82rem;
+  padding: 7px 12px;
+  flex: 1 1 auto;
+  max-width: 420px;
+  outline: none;
+  transition: border-color 0.15s ease;
+  font-family: inherit;
+}
+
+.actress-search-input::placeholder { color: #3a3a3a; }
+.actress-search-input:focus        { border-color: #444; }
+
+.actress-search-clear {
+  background: #161616;
+  border: 1px solid #2a2a2a;
+  border-radius: 4px;
+  color: #888;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: lowercase;
+  padding: 7px 14px;
+  cursor: pointer;
+  transition: color 0.12s ease, background 0.12s ease, border-color 0.12s ease;
+  font-family: inherit;
+}
+
+.actress-search-clear:hover {
+  color: #d8d8d8;
+  background: #1e1e1e;
+  border-color: #3a3a3a;
+}
+
+.actress-landing-divider {
+  height: 1px;
+  background: #1e1e1e;
+  width: 100%;
+}
+
+.actress-landing-special {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  padding: 6px 12px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  transition: background 0.12s ease, border-color 0.12s ease, color 0.12s ease;
+  font-family: inherit;
+}
+
+.actress-landing-favorites        { color: #f0c040; }
+.actress-landing-favorites .actress-landing-star   { fill: #f0c040; }
+.actress-landing-favorites:hover,
+.actress-landing-favorites.selected {
+  color: #ffd860;
+  background: #201a08;
+  border-color: #3a2c10;
+}
+.actress-landing-favorites.selected .actress-landing-star { fill: #ffd860; }
+
+.actress-landing-bookmarks        { color: #7ec4ff; }
+.actress-landing-bookmarks .actress-landing-bm     { fill: #7ec4ff; }
+.actress-landing-bookmarks:hover,
+.actress-landing-bookmarks.selected {
+  color: #a0daff;
+  background: #0c1a28;
+  border-color: #14324c;
+}
+.actress-landing-bookmarks.selected .actress-landing-bm   { fill: #a0daff; }
+
+.actress-landing-tier-row {
+  gap: 4px;
+}
+
+.actress-landing-tier {
+  background: transparent;
+  border: none;
+  border-radius: 4px;
+  padding: 5px 14px;
+  font-size: 0.76rem;
+  font-weight: 500;
+  letter-spacing: 0.05em;
+  cursor: pointer;
+  transition: color 0.12s ease, background 0.12s ease;
+  font-family: inherit;
+}
+
 /* Grids */
 .grid {
   display: grid;

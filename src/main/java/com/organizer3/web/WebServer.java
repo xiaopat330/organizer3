@@ -210,11 +210,19 @@ public class WebServer {
                 String volumesParam = ctx.queryParam("volumes");
                 String all          = ctx.queryParam("all");
                 String favorites    = ctx.queryParam("favorites");
+                String bookmarks    = ctx.queryParam("bookmarks");
+                String search       = ctx.queryParam("search");
                 int offset = ctx.queryParamAsClass("offset", Integer.class).getOrDefault(0);
                 int limit  = ctx.queryParamAsClass("limit",  Integer.class).getOrDefault(24);
                 offset = Math.max(offset, 0);
                 limit  = Math.max(1, Math.min(limit, TitleBrowseService.MAX_LIMIT));
-                if (prefix != null && !prefix.isBlank()) {
+                if (search != null && !search.isBlank()) {
+                    if (search.trim().length() < 2) {
+                        ctx.json(List.of());
+                    } else {
+                        ctx.json(actressBrowseService.searchByNamePaged(search.trim(), offset, limit));
+                    }
+                } else if (prefix != null && !prefix.isBlank()) {
                     try {
                         ctx.json(actressBrowseService.findByPrefixPaged(prefix, tier, offset, limit));
                     } catch (IllegalArgumentException e) {
@@ -233,6 +241,8 @@ public class WebServer {
                     ctx.json(actressBrowseService.findAllPaged(offset, limit));
                 } else if ("true".equals(favorites)) {
                     ctx.json(actressBrowseService.findFavoritesPaged(offset, limit));
+                } else if ("true".equals(bookmarks)) {
+                    ctx.json(actressBrowseService.findBookmarksPaged(offset, limit));
                 } else {
                     ctx.status(400);
                 }

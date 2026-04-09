@@ -491,6 +491,82 @@ class JdbiActressRepositoryTest {
         assertEquals("Hibiki Aizawa", results.get(1).getCanonicalName());
     }
 
+    // --- searchByNamePrefixPaged ---
+
+    @Test
+    void searchByNamePrefixPagedMatchesFirstAndLastNames() {
+        repo.save(actress("Aino Kishi"));    // first name starts with "ai"
+        repo.save(actress("Hibiki Aizawa")); // last name  starts with "ai"
+        repo.save(actress("Yua Mikami"));    // no match
+
+        List<Actress> results = repo.searchByNamePrefixPaged("ai", 10, 0);
+        assertEquals(2, results.size());
+        assertEquals("Aino Kishi", results.get(0).getCanonicalName());
+        assertEquals("Hibiki Aizawa", results.get(1).getCanonicalName());
+    }
+
+    @Test
+    void searchByNamePrefixPagedHonorsLimitAndOffset() {
+        repo.save(actress("Aya Sazanami"));
+        repo.save(actress("Aino Kishi"));
+        repo.save(actress("Ayumi Shinoda"));
+
+        List<Actress> page1 = repo.searchByNamePrefixPaged("a", 2, 0);
+        List<Actress> page2 = repo.searchByNamePrefixPaged("a", 2, 2);
+
+        assertEquals(2, page1.size());
+        assertEquals(1, page2.size());
+        assertEquals("Aino Kishi", page1.get(0).getCanonicalName());
+        assertEquals("Aya Sazanami", page1.get(1).getCanonicalName());
+        assertEquals("Ayumi Shinoda", page2.get(0).getCanonicalName());
+    }
+
+    @Test
+    void searchByNamePrefixPagedIsCaseInsensitive() {
+        repo.save(actress("Aya Sazanami"));
+        assertEquals(1, repo.searchByNamePrefixPaged("AY",  10, 0).size());
+        assertEquals(1, repo.searchByNamePrefixPaged("saz", 10, 0).size());
+    }
+
+    // --- findBookmarksPaged ---
+
+    @Test
+    void findBookmarksPagedReturnsOnlyBookmarkedActresses() {
+        Actress a = repo.save(actress("Aya Sazanami"));
+        Actress b = repo.save(actress("Hibiki Otsuki"));
+        repo.save(actress("Yua Mikami"));
+
+        repo.toggleBookmark(a.getId(), true);
+        repo.toggleBookmark(b.getId(), true);
+
+        List<Actress> results = repo.findBookmarksPaged(10, 0);
+        assertEquals(2, results.size());
+        assertEquals("Aya Sazanami", results.get(0).getCanonicalName());
+        assertEquals("Hibiki Otsuki", results.get(1).getCanonicalName());
+    }
+
+    @Test
+    void findBookmarksPagedHonorsLimitAndOffset() {
+        Actress a = repo.save(actress("Aya Sazanami"));
+        Actress b = repo.save(actress("Hibiki Otsuki"));
+        Actress c = repo.save(actress("Yua Mikami"));
+        repo.toggleBookmark(a.getId(), true);
+        repo.toggleBookmark(b.getId(), true);
+        repo.toggleBookmark(c.getId(), true);
+
+        List<Actress> page1 = repo.findBookmarksPaged(2, 0);
+        List<Actress> page2 = repo.findBookmarksPaged(2, 2);
+        assertEquals(2, page1.size());
+        assertEquals(1, page2.size());
+        assertEquals("Yua Mikami", page2.get(0).getCanonicalName());
+    }
+
+    @Test
+    void findBookmarksPagedReturnsEmptyWhenNoneBookmarked() {
+        repo.save(actress("Aya Sazanami"));
+        assertTrue(repo.findBookmarksPaged(10, 0).isEmpty());
+    }
+
     // --- updateProfile ---
 
     @Test

@@ -11,10 +11,7 @@
 <header>
   <h1 id="app-name">jav helper</h1>
   <div class="header-right">
-    <div class="actress-nav-wrap">
-      <button class="nav-link" id="actresses-btn">Actresses</button>
-      <div class="prefix-dropdown" id="prefix-dropdown"></div>
-    </div>
+    <button class="nav-link" id="actresses-btn">Actresses</button>
     <div class="nav-divider"></div>
     <button class="nav-link" id="collections-btn">Collections</button>
     <div class="nav-divider"></div>
@@ -53,8 +50,26 @@
 <!-- Random actresses home grid -->
 <div class="grid" id="random-actress-home-grid" style="display:none"></div>
 
-<!-- Actress browse sub-nav (letter + tier filter) -->
-<div id="actress-sub-nav" class="actress-sub-nav" style="display:none"></div>
+<!-- Actress landing island (search + favorites/bookmarks + tiers) -->
+<div id="actress-landing" class="actress-landing" style="display:none">
+  <div class="actress-landing-row actress-landing-search-row">
+    <input type="search" id="actress-search-input" class="actress-search-input" placeholder="type to search (2+ chars)…" autocomplete="off">
+    <button type="button" id="actress-search-clear" class="actress-search-clear">clear</button>
+  </div>
+  <div class="actress-landing-divider"></div>
+  <div class="actress-landing-row actress-landing-special-row">
+    <button type="button" id="actress-favorites-btn" class="actress-landing-special actress-landing-favorites">
+      <svg class="actress-landing-star" viewBox="0 0 24 24" width="14" height="14"><polygon points="12,2 15.09,8.26 22,9.27 17,14.14 18.18,21.02 12,17.77 5.82,21.02 7,14.14 2,9.27 8.91,8.26"/></svg>
+      Favorites
+    </button>
+    <button type="button" id="actress-bookmarks-btn" class="actress-landing-special actress-landing-bookmarks">
+      <svg class="actress-landing-bm" viewBox="0 0 24 24" width="14" height="14"><path d="M6 2h12a1 1 0 0 1 1 1v18.5a.5.5 0 0 1-.8.4L12 17.5 5.8 21.9a.5.5 0 0 1-.8-.4V3a1 1 0 0 1 1-1z"/></svg>
+      Bookmarks
+    </button>
+  </div>
+  <div class="actress-landing-divider"></div>
+  <div class="actress-landing-row actress-landing-tier-row" id="actress-landing-tier-row"></div>
+</div>
 
 <!-- Actress browse grid -->
 <div id="actress-grid" class="grid" style="display:none"></div>
