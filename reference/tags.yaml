@@ -17,6 +17,37 @@ format:
     description: Actress's first title at a studio or in the industry
   - name: gravure
     description: Image video (IV) / gravure content, not standard AV
+  - name: vr
+    description: Virtual reality release
+  - name: premium-production
+    description: Top-tier studio with the industry's highest production values (S1, IDEA POCKET, MOODYZ flagship, FALENO, etc.)
+  - name: exclusive-actress
+    description: Release built around a signed/contracted exclusive performer
+  - name: solo-actress
+    description: Single-actress showcase with one featured performer (no major co-stars)
+  - name: newcomer
+    description: Early-career or new-to-industry performer focus (beyond just the debut release)
+  - name: uncensored
+    description: No-mosaic (無修正/mushūsei) uncensored content
+  - name: female-oriented
+    description: Targeted at female viewers — romance-focused, male eromen-led content
+  - name: celebrity-crossover
+    description: Mainstream celebrity (gravure idol, pop idol, actress, singer) making an AV appearance
+
+# ── Production Style ─────────────────────────────────────────────────────────
+production_style:
+  - name: drama
+    description: Scripted narrative-focused content with story/dialogue emphasis
+  - name: planning
+    description: Kikaku (企画) — concept-driven scenario/planning content
+  - name: gonzo
+    description: Gonzo-style minimal-plot direct-sex content
+  - name: pov
+    description: First-person subjective viewpoint (ハメ撮り/hamedori)
+  - name: documentary
+    description: Documentary-style real amateur content (not scripted drama)
+  - name: monitoring
+    description: Monitoring/surveillance/observation-format scenario
 
 # ── Setting / Location ───────────────────────────────────────────────────────
 setting:
@@ -67,6 +98,8 @@ role:
     description: Bus guide or tour conductor role
   - name: kunoichi
     description: Female ninja (くノ一) role
+  - name: schoolgirl
+    description: Student/schoolgirl role in school-uniform scenarios
 
 # ── Theme / Scenario ─────────────────────────────────────────────────────────
 theme:
@@ -100,6 +133,32 @@ theme:
     description: Intense, aggressive, or high-energy sex with no specific theme
   - name: cum-control
     description: Ejaculation management, edging, or cum-play focus
+  - name: amateur
+    description: Amateur casting or amateur-aesthetic content (real shiroto, street-cast civilians, etc.)
+  - name: harem
+    description: One-with-many fantasy (single protagonist surrounded by multiple partners)
+  - name: sm-bdsm
+    description: SM/bondage/discipline/sadomasochism content
+  - name: voyeur
+    description: Voyeur, peeping, or hidden-camera observation concept
+  - name: training
+    description: Training, education, or discipline/development scenario
+  - name: pregnant
+    description: Pregnancy, impregnation, or breeding-fantasy focus
+  - name: elder-play
+    description: Scenarios involving elder (50s–70s+) performer on either side
+  - name: tokusatsu
+    description: Costumed superhero/heroine parody (sentai, magical girl, Kamen Rider-style)
+  - name: anime-parody
+    description: Anime, manga, or game character parody scenario
+  - name: lesbian
+    description: Female-female (yuri) content
+  - name: shemale
+    description: Crossdresser, transgender, or otokonoko content
+  - name: foreign-actress
+    description: Non-Japanese performer (Western, Korean, other Asian) featured
+  - name: dirty-talk
+    description: Explicit verbal/dirty-talk (淫語) content focus
 
 # ── Act / Focus ──────────────────────────────────────────────────────────────
 act:
@@ -125,6 +184,12 @@ act:
     description: Anal licking or anal-adjacent focus
   - name: oil
     description: Oil, lotion, or body-slick focus
+  - name: anal
+    description: Anal sex focus
+  - name: gangbang
+    description: Multi-male group sex / gangbang scenario (aggressive group, distinct from orgy)
+  - name: bukkake
+    description: Multi-man facial bukkake (ぶっかけ) focus
 
 # ── Body / Aesthetic ─────────────────────────────────────────────────────────
 body:
@@ -142,3 +207,11 @@ body:
     description: Athletic, flexible, or sports-themed body showcase
   - name: eye-contact
     description: Camera eye-contact (カメラ目線) focus
+  - name: mature-women
+    description: Jukujo (熟女) / MILF / married-woman demographic
+  - name: petite
+    description: Small-framed, short, or "minimum-size" actress aesthetic
+  - name: gyaru
+    description: Gyaru (ギャル) subculture aesthetic — tanned, flashy, party-girl style
+  - name: chubby
+    description: Plus-size/pocchari (ぽっちゃり) body type
