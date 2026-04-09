@@ -4810,12 +4810,18 @@
     - code: NJJD
       label: juku
       description: Lady
+      tags:
+        - mature-women
     - code: DKSS
       label: "schema industry"
       description: public
+      tags:
+        - amateur
     - code: DSKM
       label: "schema industry erect"
       description: public
+      tags:
+        - amateur
     - code: TDBR
       label: "black riot"
       description: "Gyaru specialist. Director OMARU and others were active."
@@ -4829,9 +4835,13 @@
     - code: TDMJ
       label: Manjuku
       description: Lady
+      tags:
+        - mature-women
     - code: FRE
       label: fresh
       description: public
+      tags:
+        - amateur
     - code: DIR
       label: D
       description: bitch
@@ -5178,14 +5188,19 @@
     - code: MXGS
       label: Maxing
       description: "regular part number"
+      tags:
+        - premium-production
     - code: MXGDL
       label: Maxing
       description: "Maxing compilation/specialty"
       tags:
+        - premium-production
         - compilation
     - code: MXTDS
       label: Maxing
       description: "Maxing specialty series"
+      tags:
+        - premium-production
 
 - company: Venus
   description: "Independent mature/married woman label. Focuses on incest fantasy and step-family scenarios with mature actresses. One of the larger independent jukujo labels."
@@ -5251,6 +5266,8 @@
       tags:
         - busty
         - sm-bdsm
+        - taboo-family
+        - shemale
     - code: GVH
       label: "Glory Quest"
       description: "busty content"
@@ -5299,6 +5316,11 @@
       description: "Aurora specialty series"
       tags:
         - planning
+    - code: AUKG
+      label: "Aurora Project Annex"
+      description: "All-female/lesbian flagship; one of the most recognizable lesbian JAV codes"
+      tags:
+        - lesbian
 
 - company: Cinemagic
   description: "One of the oldest SM/BDSM specialist studios in AV, operating since the VHS era. Known for cinematic approach to bondage — elaborate set design, costumes, and narrative frameworks (noir detective stories, fantasy kingdoms, ninja settings). Higher production values than most SM labels. The 'Cinemagic' name reflects the studio's ambition to bring filmmaking craft to SM content."
@@ -5417,6 +5439,8 @@
     - code: EKDV
       label: "E-Kiss"
       description: "cute/friendly concept; actresses with cute looks (Tsubomi, Rei Mizuna, Azusa Nagasawa)"
+      tags:
+        - girlfriend-experience
 
 - company: "Dream Ticket"
   description: "Independent maker known for themed series — cosplay (Annie Cosplay/CGD), seduction scenarios (CMD), school uniform content (DTSL), and various fantasy setups. Moderate production volume with consistent series-based release patterns."
