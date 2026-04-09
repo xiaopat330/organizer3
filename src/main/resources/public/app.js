@@ -381,10 +381,13 @@ function makeTitleCard(t) {
 
 const ROTATE_INTERVALS = [7000, 11000, 17000];
 const activeIntervals = new Set();
+const activeObservers = new Set();
 
 function clearCardIntervals() {
   for (const id of activeIntervals) clearInterval(id);
   activeIntervals.clear();
+  for (const obs of activeObservers) obs.disconnect();
+  activeObservers.clear();
 }
 
 function actressFlagIconsHtml(a) {
@@ -421,30 +424,86 @@ function updateActressCardIndicators(id, favorite, bookmark, rejected) {
 function makeActressCard(a) {
   const card = document.createElement('div');
   card.className = 'actress-card';
+  if (a.rejected) card.classList.add('actress-card-rejected');
   card.dataset.actressId = a.id;
 
   const covers = a.coverUrls || [];
   const coverWrap = document.createElement('div');
   coverWrap.className = 'cover-wrap';
-  if (covers.length > 0) {
-    let idx = Math.floor(Math.random() * covers.length);
+  if (covers.length === 0) {
+    coverWrap.innerHTML = `<div class="cover-placeholder">—</div>`;
+  } else if (a.rejected || covers.length < 2) {
+    // Rejected actresses and single-cover actresses get a static (non-animated) image.
+    // Rejected cards are additionally desaturated via CSS on .actress-card-rejected.
     const img = document.createElement('img');
     img.className = 'cover-img';
-    img.src = covers[idx];
+    img.src = covers[0];
     img.alt = a.canonicalName;
     img.loading = 'lazy';
     coverWrap.appendChild(img);
-    if (covers.length > 1) {
-      const ms = ROTATE_INTERVALS[Math.floor(Math.random() * ROTATE_INTERVALS.length)];
-      const intervalId = setInterval(() => {
-        idx = (idx + 1) % covers.length;
-        img.style.opacity = '0';
-        setTimeout(() => { img.src = covers[idx]; img.style.opacity = '1'; }, 400);
-      }, ms);
-      activeIntervals.add(intervalId);
-    }
   } else {
-    coverWrap.innerHTML = `<div class="cover-placeholder">—</div>`;
+    // Multi-tile right-to-left marquee with per-tile hot-swap.
+    // Track = UNIQUE unique tiles + the same UNIQUE tiles duplicated for a seamless loop.
+    // Animation scrolls 0 → -50% so position -50% shows the duplicate of tile 0, matching
+    // the initial state. When a unique tile exits the viewport we swap both it and its
+    // paired duplicate with a fresh random pick from the cover pool, so by the next cycle
+    // the user sees different images without the loop ever visibly seaming.
+    const UNIQUE = Math.min(3, covers.length);
+    const track = document.createElement('div');
+    track.className = 'cover-marquee-track';
+    // Randomize per-card pace and starting phase so adjacent cards don't march in lockstep.
+    const perTileSec = 8 + Math.random() * 6;  // 8s–14s per tile
+    const durationSec = UNIQUE * perTileSec;
+    track.style.animationDuration = `${durationSec}s`;
+    track.style.animationDelay = `-${(Math.random() * durationSec).toFixed(2)}s`;
+
+    // Initial unique picks (sampled without replacement so the first cycle has no repeats).
+    const pool = [...covers];
+    const initialPicks = [];
+    for (let i = 0; i < UNIQUE; i++) {
+      const pickIdx = Math.floor(Math.random() * pool.length);
+      initialPicks.push(pool.splice(pickIdx, 1)[0]);
+    }
+    // Build unique tiles + duplicate tiles.
+    for (let i = 0; i < UNIQUE * 2; i++) {
+      const tile = document.createElement('div');
+      tile.className = 'cover-marquee-tile';
+      const img = document.createElement('img');
+      img.className = 'cover-img';
+      img.src = initialPicks[i % UNIQUE];
+      img.alt = a.canonicalName;
+      img.loading = 'lazy';
+      tile.appendChild(img);
+      track.appendChild(tile);
+    }
+    coverWrap.appendChild(track);
+
+    // Hot-swap: observe the unique tiles only. On exit, swap BOTH the unique tile and its
+    // paired duplicate in lockstep — keeping them identical is what preserves the seamless
+    // loop at -50%. `seen` guards against the initial "not-intersecting" callback that
+    // fires for tiles 1..N-1 (which start off-screen right).
+    const seen = new Set();
+    const observer = new IntersectionObserver((entries) => {
+      for (const entry of entries) {
+        const idx = Number(entry.target.dataset.tileIdx);
+        if (entry.isIntersecting) {
+          seen.add(idx);
+          continue;
+        }
+        if (!seen.has(idx)) continue;
+        const dup = track.children[idx + UNIQUE];
+        const newSrc = covers[Math.floor(Math.random() * covers.length)];
+        const uniqImg = entry.target.querySelector('img');
+        const dupImg = dup ? dup.querySelector('img') : null;
+        if (uniqImg) uniqImg.src = newSrc;
+        if (dupImg)  dupImg.src  = newSrc;
+      }
+    }, { root: coverWrap, threshold: 0 });
+    for (let i = 0; i < UNIQUE; i++) {
+      track.children[i].dataset.tileIdx = String(i);
+      observer.observe(track.children[i]);
+    }
+    activeObservers.add(observer);
   }
   card.appendChild(coverWrap);
 

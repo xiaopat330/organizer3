@@ -33,7 +33,7 @@ import lombok.extern.slf4j.Slf4j;
 @RequiredArgsConstructor
 public class ActressBrowseService {
 
-    private static final int MAX_COVERS = 8;
+    private static final int MAX_COVERS = 24;
 
     private final ActressRepository actressRepo;
     private final TitleRepository titleRepo;

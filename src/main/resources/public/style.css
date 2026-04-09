@@ -444,6 +444,7 @@ header h1:hover {
   display: flex;
   align-items: center;
   justify-content: center;
+  position: relative;
 }
 
 .cover-img {
@@ -463,6 +464,53 @@ header h1:hover {
   font-size: 0.75rem;
   letter-spacing: 0.05em;
   font-weight: 500;
+}
+
+/* Actress card cover marquee.
+   The track is an absolutely-positioned flex row of tiles, each tile exactly
+   the width of the cover-wrap. Animation scrolls the track from 0 to -50%,
+   which lands on the start of the duplicate half — visually identical to
+   position 0 — so the loop reset is seamless. */
+.cover-marquee-track {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  display: flex;
+  width: max-content;
+  will-change: transform;
+  animation: cover-marquee-scroll linear infinite;
+}
+
+.cover-marquee-tile {
+  flex: 0 0 auto;
+  height: 100%;
+  aspect-ratio: 17 / 12;
+}
+
+.cover-marquee-tile .cover-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+@keyframes cover-marquee-scroll {
+  from { transform: translateX(0); }
+  to   { transform: translateX(-50%); }
+}
+
+/* Rejected actress cards: always-static, desaturated cover. */
+.actress-card-rejected .cover-img {
+  filter: grayscale(1) brightness(0.7);
+}
+
+/* Respect OS-level reduce-motion preference: freeze the marquee on the first
+   tile rather than scrolling. */
+@media (prefers-reduced-motion: reduce) {
+  .cover-marquee-track {
+    animation: none;
+  }
 }
 
 .card-info {
