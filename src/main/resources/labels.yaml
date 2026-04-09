@@ -696,24 +696,24 @@
     notes: "Alice Japan was founded April 5, 1986, within Japan Home Video (JHV). MAX-A launched May 23, 1992. Goro Tameike began directing the MAX-A Samantha label in 1994 — the foundational work that launched Japan's preeminent jukujo director. The Kuki group (KUKI Inc. + Alice Japan + MAX-A + Atlas21 + others), centered on the X CITY internet platform, was Japan's largest AV network in the late 1990s before dissolution/absorption into WILL/Hokuto."
   labels:
     # Alice Japan
-    - {code: DV,   label: "Alice Japan",  description: "old part number"}
-    - {code: DVAJ, label: "Alice Japan",  description: "regular part number"}
-    - {code: PDV,  label: "alice pink",   description: reprint}
+    - {code: DV,   label: "Alice Japan",  description: "old part number", tags: [exclusive-actress]}
+    - {code: DVAJ, label: "Alice Japan",  description: "regular part number", tags: [exclusive-actress]}
+    - {code: PDV,  label: "alice pink",   description: reprint, tags: [reissue]}
     # MAX-A
-    - {code: XC,   label: Karen,          description: "old part number"}
-    - {code: XS,   label: Samantha,       description: "old part number"}
-    - {code: XV,   label: Karen,          description: "old part number"}
-    - {code: SRXV, label: Karen,          description: "old part number"}
-    - {code: XVSR, label: "Karen/Samantha", description: "regular part number"}
-    - {code: PXV,  label: "max pink",     description: reprint}
+    - {code: XC,   label: Karen,          description: "old part number", tags: [premium-production, exclusive-actress]}
+    - {code: XS,   label: Samantha,       description: "old part number", tags: [premium-production, exclusive-actress]}
+    - {code: XV,   label: Karen,          description: "old part number", tags: [premium-production, exclusive-actress]}
+    - {code: SRXV, label: Karen,          description: "old part number", tags: [premium-production, exclusive-actress]}
+    - {code: XVSR, label: "Karen/Samantha", description: "regular part number", tags: [premium-production, exclusive-actress]}
+    - {code: PXV,  label: "max pink",     description: reprint, tags: [reissue]}
     # EROTICA (independent from Alice Japan)
-    - {code: SERO, label: EROTICA,        description: "independent from Alice Japan"}
+    - {code: SERO, label: EROTICA,        description: "independent from Alice Japan", tags: [exclusive-actress]}
     # Kirameki (independent from Alice Japan)
-    - {code: KIRA, label: Kirameki,       description: "independent from Alice Japan"}
+    - {code: KIRA, label: Kirameki,       description: "independent from Alice Japan", tags: [exclusive-actress]}
     # UP'S (independent from Max A)
-    - {code: UPSM, label: "UP'S",         description: "independent from Max A"}
+    - {code: UPSM, label: "UP'S",         description: "independent from Max A", tags: [exclusive-actress]}
     # Whip (independent from Max A)
-    - {code: WHX,  label: Whip,           description: "independent from Max A"}
+    - {code: WHX,  label: Whip,           description: "independent from Max A", tags: [exclusive-actress]}
 
 - company: "Deep's"
   description: "WILL subcontractor. Versatile maker covering variety genres from soft general AV to lesbian and hard anal content."
@@ -729,10 +729,10 @@
       - "Homeless series (starring Tsubomi, Nozomi Hazuki, Rei Mizuna)"
     notes: "Legal name: 株式会社東凛 (Torin Co., Ltd.). Founded August 1999 within SOD. Departed SOD October 2016 alongside Hunter — the Magic Mirror series had been considered a core SOD property, making its migration to WILL a significant industry event. Based in Shinjuku Ward, Tokyo; ~25 employees; capital ¥30M. Director Mamezou is the founder and principal creative force."
   labels:
-    - {code: DVDES, label: "Deep's", description: "variety genres; soft general AV to lesbian and hard anal"}
-    - {code: DVUES, label: "Deep's", description: "Deep's specialty series"}
-    - {code: DVUMA, label: "Deep's", description: "Deep's specialty series"}
-    - {code: DVDMS, label: "Deep's", description: "Deep's specialty series"}
+    - {code: DVDES, label: "Deep's", description: "variety genres; soft general AV to lesbian and hard anal", tags: [planning, pickup, monitoring]}
+    - {code: DVUES, label: "Deep's", description: "Deep's specialty series", tags: [planning]}
+    - {code: DVUMA, label: "Deep's", description: "Deep's specialty series", tags: [planning]}
+    - {code: DVDMS, label: "Deep's", description: "Deep's specialty series", tags: [planning, monitoring]}
 
 - company: dogma
   description: "WILL subcontractor specializing in BDSM and SM content. Known for director-driven auteur labels — notably Gold Tojiro (GTJ), directed by Tojiro, which is famous for historically accurate punishment scenes and straight whip usage. Higher intensity than most WILL labels."
@@ -752,15 +752,15 @@
       - "M-Drug S&M series (from September 2005)"
     notes: "Started at SOD under TOHJIRO in February 2001. Left SOD ~2002. Now Hokuto/WILL distribution. Based in Shinjuku. Awards: TOHJIRO won D-1 Climax 2005 and 2006; Dogma won 2009 AV GrandPrix Digital Sales Award. The GTJ code is recognized as one of the most serious SM labels in the industry."
   labels:
-    - {code: DDB,  label: dogma, description: "Directed by Bebop Minoru"}
-    - {code: DDT,  label: dogma, description: regular}
-    - {code: DDK,  label: dogma, description: "Directed by Normal Kim"}
-    - {code: DWD,  label: dogma, description: "dogma specialty series"}
-    - {code: DDOB, label: dogma, description: "dogma best compilation"}
-    - {code: DDKM, label: dogma, description: "dogma specialty series"}
-    - {code: GTJ,  label: dogma, description: "Gold Tojiro Label's BDSM, directed by Tojiro. There is a series that reproduces the punishment scenes of Japan in the past, and the straight whip, which is rarely used in other SM waters, is also used quite a bit."}
-    - {code: PTJ,  label: dogma, description: "old part number"}
-    - {code: NTJ,  label: dogma, description: "old part number"}
+    - {code: DDB,  label: dogma, description: "Directed by Bebop Minoru", tags: [sm-bdsm, hardcore]}
+    - {code: DDT,  label: dogma, description: regular, tags: [sm-bdsm, hardcore]}
+    - {code: DDK,  label: dogma, description: "Directed by Normal Kim", tags: [sm-bdsm, hardcore]}
+    - {code: DWD,  label: dogma, description: "dogma specialty series", tags: [sm-bdsm, hardcore]}
+    - {code: DDOB, label: dogma, description: "dogma best compilation", tags: [sm-bdsm, hardcore, compilation]}
+    - {code: DDKM, label: dogma, description: "dogma specialty series", tags: [sm-bdsm, hardcore]}
+    - {code: GTJ,  label: dogma, description: "Gold Tojiro Label's BDSM, directed by Tojiro. There is a series that reproduces the punishment scenes of Japan in the past, and the straight whip, which is rarely used in other SM waters, is also used quite a bit.", tags: [sm-bdsm, hardcore, training]}
+    - {code: PTJ,  label: dogma, description: "old part number", tags: [sm-bdsm, hardcore]}
+    - {code: NTJ,  label: dogma, description: "old part number", tags: [sm-bdsm, hardcore]}
 
 - company: Momotaro Video
   description: "WILL subcontractor. Long-running maker named after the Japanese folk hero Momotaro (Peach Boy). General content across multiple sub-labels."
@@ -777,9 +777,9 @@
       - "Yariман Wagon"
     notes: "Founded January 19, 1995 (incorporated). Headquarters Bunkyo Ward, Tokyo; ~30 employees; capital ¥10M. Named after Japan's folk hero Momotarō (Peach Boy) for brand recognition. At peak ranked 3rd in sales among independent AV producers (~¥1.6 billion FY 2010). Subsidiary: 素人onlyプラム (Amateur-only Plum)."
   labels:
-    - {code: ALD,  label: "Momotaro video publishing", description: "Momotaro specialty series"}
-    - {code: KED,  label: "Momotaro video publishing", description: "Momotaro specialty series"}
-    - {code: YMDD, label: "Momotaro video publishing", description: "Momotaro regular part number"}
+    - {code: ALD,  label: "Momotaro video publishing", description: "Momotaro specialty series", tags: [planning]}
+    - {code: KED,  label: "Momotaro video publishing", description: "Momotaro specialty series", tags: [planning]}
+    - {code: YMDD, label: "Momotaro video publishing", description: "Momotaro regular part number", tags: [planning]}
 
 - company: Hajime Project
   description: "WILL subcontractor. Planning/variety content."
@@ -789,8 +789,8 @@
     specialty: "Planning/variety content. HJMO is the main code; HJBB is the best compilation. General planning label under the WILL subcontractor umbrella."
     notes: "始め (Hajime) = 'beginning/start' — suggests debut or first-experience scenarios, though the label covers broader planning content."
   labels:
-    - {code: HJMO, label: "Hajime project", description: regular}
-    - {code: HJBB, label: "Hajime project", description: Best}
+    - {code: HJMO, label: "Hajime project", description: regular, tags: [planning]}
+    - {code: HJBB, label: "Hajime project", description: Best, tags: [planning, compilation]}
 
 - company: "M's Video Group"
   description: "WILL subcontractor. M's Video Group (エムズビデオグループ) produces content across standard and mania/fetish lines."
@@ -807,10 +807,10 @@
       - "Wealthy Old Man's Bulk Creampie Purchase (2016–2025)"
     notes: "Founded by director Matsumoto Kazuhiko, who ran 'Milky Shop M's' in Shibuya's Dogenzaka with a fans-only door policy (AV knowledge quiz required for entry). Original series launched ~1996; company revived December 2005 with Outvision distribution. Titles release on the third Tuesday of each month."
   labels:
-    - {code: MVSD, label: "M's Video Group", description: "regular part number"}
-    - {code: MVBD, label: "M's Video Group", description: "best compilation"}
-    - {code: MVGD, label: "M's Video Group", description: "M's Video Group specialty series"}
-    - {code: MVMD, label: mania,             description: "M's Video Group mania/fetish series"}
+    - {code: MVSD, label: "M's Video Group", description: "regular part number", tags: [swallow, creampie]}
+    - {code: MVBD, label: "M's Video Group", description: "best compilation", tags: [swallow, creampie, compilation]}
+    - {code: MVGD, label: "M's Video Group", description: "M's Video Group specialty series", tags: [swallow, creampie]}
+    - {code: MVMD, label: mania,             description: "M's Video Group mania/fetish series", tags: [swallow, creampie, hardcore]}
 
 - company: "WILL/Triple H Group"
   description: "WILL subcontractor group containing several planning-heavy labels. Hunter is the flagship — a major rival to Dandy (SOD), specializing in 'herbivorous man' fantasy scenarios. Apache focuses on train/public molestation scenarios. AtoM does game/penalty variety content."
@@ -827,15 +827,15 @@
       - "OYC / Oyashoku Company (everyday monitoring-style scenarios, active)"
     notes: "Hunter founded April 2007 within SOD; AtoM founded November 2010 within SOD. Both departed SOD March 2016 alongside Apache, Golden Time (GDHH), and Oyashoku Company (OYC) to form the HHH group under Outvision/WILL distribution. The Hunter–Dandy rivalry is one of the defining competitions in the kikaku planning genre — they were sister labels at SOD before the split. Director Borubo Nakano won a 'two-crown' at the 2010 SOD Awards (top sales + most releases). Apache and AtoM both ceased operations in 2021."
   labels:
-    - {code: HUNTC, label: Hunter,                          description: "A specialized company specializing in the motto of \"selfish herbivorous man\". A special label that is similar to dandy and rival relationship. Only the projects continue to take pictures. Old part number hunt, hunta, huntb"}
-    - {code: HUBLK, label: "Hunter Black",                  description: "There are many projects with high levels such as lines and rape. Old part number Hunbl"}
-    - {code: ATOM,  label: "Atom (AtoM)",                   description: "Variety specialty. There are many projects for amateur participation or penalties through games."}
-    - {code: AP,    label: Apache,                          description: "There are many pervert projects on trains, buses, outdoors, etc."}
-    - {code: OYC,   label: "Yashoku Company",               description: "daily project"}
-    - {code: GAPL,  label: "Green Apple",                   description: "daily project"}
-    - {code: GDHH,  label: "Golden Time",                   description: project}
-    - {code: PKPD,  label: "Paco Paco Dan and the Merry Friends", description: project}
-    - {code: ATHH,  label: "Atlantis-H",                    description: project}
+    - {code: HUNTC, label: Hunter,                          description: "A specialized company specializing in the motto of \"selfish herbivorous man\". A special label that is similar to dandy and rival relationship. Only the projects continue to take pictures. Old part number hunt, hunta, huntb", tags: [planning, fantasy-scenario]}
+    - {code: HUBLK, label: "Hunter Black",                  description: "There are many projects with high levels such as lines and rape. Old part number Hunbl", tags: [planning, violation, hardcore]}
+    - {code: ATOM,  label: "Atom (AtoM)",                   description: "Variety specialty. There are many projects for amateur participation or penalties through games.", tags: [planning, amateur, monitoring]}
+    - {code: AP,    label: Apache,                          description: "There are many pervert projects on trains, buses, outdoors, etc.", tags: [planning, groping, voyeur]}
+    - {code: OYC,   label: "Yashoku Company",               description: "daily project", tags: [planning, monitoring]}
+    - {code: GAPL,  label: "Green Apple",                   description: "daily project", tags: [planning]}
+    - {code: GDHH,  label: "Golden Time",                   description: project, tags: [planning]}
+    - {code: PKPD,  label: "Paco Paco Dan and the Merry Friends", description: project, tags: [planning]}
+    - {code: ATHH,  label: "Atlantis-H",                    description: project, tags: [planning]}
 
 - company: "WILL/Delusional Group"
   description: "WILL's largest subcontractor group by label count. An umbrella for dozens of niche and specialty labels — from BDSM (Art Video, Bermuda) to cosplay (Ramakos) to foreign actresses (Part Kin, Spartan) to voyeur concepts (Kurayami) to shemale (Lady Boy). Each label occupies a very specific niche; many have tiny output but deep specialization."
@@ -854,89 +854,89 @@
       - "JAMC / jam (extreme fetish including scat)"
     notes: "Founded April 2006. Expanded via mergers: Goemon Group (August 2012), Tokyo Mani Gun's + HERO (April 2014), Emmanuel Group (October 2014). Reached 253 affiliated makers March 2016. Art Video (founded 1982 by Kawamura Yoshio — Japan's first SM video company) joined Mousouzoku BLACK LABEL in 2010; founder died April 2017, Mousouzoku created Art Video SM (ADVO) as successor. Core in-house unit is Art Body Collection (ABC), producing Boeing BB, Okasan.com, and Partkin lines directly."
   labels:
-    - {code: BOBB, label: "Boeing BB",          description: "huge breasts"}
-    - {code: BOMN, label: "Boeing BB",          description: "Best compilation"}
-    - {code: OKSN, label: "Okasan.com",         description: Lady}
-    - {code: OOMN, label: "Okasan.com",         description: "Best compilation"}
-    - {code: PTKS, label: partkin,              description: "Blonde foreign beauty. She is frequently featured by 'Gina Gerson'."}
-    - {code: PTKX, label: partkin,              description: "Best compilation"}
-    - {code: PTDX, label: partkin,              description: "Best compilation"}
-    - {code: JKFV, label: "JK Five",            description: "School uniform fetish. A collection of videos from the adult site jk5.jp."}
-    - {code: ABCB, label: "ABC Best",           description: "Best compilation"}
-    - {code: ADVO, label: "Art Video SM",       description: "The successor of 'Art Video', a maker specializing in BDSM."}
-    - {code: URAM, label: "Ao Oni",             description: ghost}
-    - {code: AKHO, label: "Aka Hotaruika",      description: "SM drama"}
-    - {code: ASIA, label: Asia,                 description: "Korean women and Korean erotic actors appear."}
-    - {code: AMEB, label: AMEDIA,               description: BDSM}
-    - {code: KBMS, label: "Daily Ilsam Factory", description: Scottology}
-    - {code: EIMA, label: "Ekimae Two",         description: public}
+    - {code: BOBB, label: "Boeing BB",          description: "huge breasts", tags: [busty]}
+    - {code: BOMN, label: "Boeing BB",          description: "Best compilation", tags: [busty, compilation]}
+    - {code: OKSN, label: "Okasan.com",         description: Lady, tags: [mature-women, married-woman]}
+    - {code: OOMN, label: "Okasan.com",         description: "Best compilation", tags: [mature-women, married-woman, compilation]}
+    - {code: PTKS, label: partkin,              description: "Blonde foreign beauty. She is frequently featured by 'Gina Gerson'.", tags: [foreign-actress]}
+    - {code: PTKX, label: partkin,              description: "Best compilation", tags: [foreign-actress, compilation]}
+    - {code: PTDX, label: partkin,              description: "Best compilation", tags: [foreign-actress, compilation]}
+    - {code: JKFV, label: "JK Five",            description: "School uniform fetish. A collection of videos from the adult site jk5.jp.", tags: [schoolgirl, school, cosplay]}
+    - {code: ABCB, label: "ABC Best",           description: "Best compilation", tags: [compilation]}
+    - {code: ADVO, label: "Art Video SM",       description: "The successor of 'Art Video', a maker specializing in BDSM.", tags: [sm-bdsm]}
+    - {code: URAM, label: "Ao Oni",             description: ghost, tags: [fantasy-scenario]}
+    - {code: AKHO, label: "Aka Hotaruika",      description: "SM drama", tags: [sm-bdsm, drama]}
+    - {code: ASIA, label: Asia,                 description: "Korean women and Korean erotic actors appear.", tags: [foreign-actress]}
+    - {code: AMEB, label: AMEDIA,               description: BDSM, tags: [sm-bdsm]}
+    - {code: KBMS, label: "Daily Ilsam Factory", description: Scottology, tags: [hardcore]}
+    - {code: EIMA, label: "Ekimae Two",         description: public, tags: [pickup, amateur]}
     - {code: EVIS, label: "Ebisu Award",        description: fetish}
     - {code: DFTR, label: "F-FACTORY",          description: fetish}
     - {code: EMRD, label: Emperor,              description: fetish}
     - {code: OPAN, label: "Panty Lovers Association", description: "panty fetish"}
-    - {code: OPPW, label: "Ofenipenny World",   description: crossdresser}
-    - {code: MKON, label: "Kaguya Hime Petty",  description: "Subsidiary of 'Kaguya Hime'. Specializing in everyday projects."}
-    - {code: KATU, label: "Katsuo Products",    description: "Subsidiary of 'Maguro Products'. Yukdeok specialist."}
-    - {code: KTB,  label: "Kahanshin Tigers",   description: "Molester, bukkake, clothed sex, OL, school uniform, pantyhose"}
-    - {code: OPIG, label: Gakuensa,             description: "Brucella Fetish"}
-    - {code: KTKC, label: "Kitikkus",           description: "loli beautiful girl"}
-    - {code: KDKJ, label: "Forbidden Fruit",    description: "loli beautiful girl"}
-    - {code: YAMI, label: "Kurayami",           description: "massage voyeur concept"}
-    - {code: KMRE, label: "Kei Moa",            description: elevator}
-    - {code: KOIW, label: "Koiwa Movie",        description: "voyeur concept"}
-    - {code: KOSK, label: "The lustful generation", description: Lady}
-    - {code: KRHK, label: "Korehiko",           description: public}
-    - {code: GBSA, label: "Go Go's Black",      description: "A subsidiary of 'Gogoz'. Specializes in common people, married women, punishment, and near-future concepts."}
-    - {code: GEMR, label: "Gold Emperor",       description: "western porn"}
+    - {code: OPPW, label: "Ofenipenny World",   description: crossdresser, tags: [shemale]}
+    - {code: MKON, label: "Kaguya Hime Petty",  description: "Subsidiary of 'Kaguya Hime'. Specializing in everyday projects.", tags: [planning]}
+    - {code: KATU, label: "Katsuo Products",    description: "Subsidiary of 'Maguro Products'. Yukdeok specialist.", tags: [chubby]}
+    - {code: KTB,  label: "Kahanshin Tigers",   description: "Molester, bukkake, clothed sex, OL, school uniform, pantyhose", tags: [groping, bukkake, office-lady, schoolgirl, cosplay]}
+    - {code: OPIG, label: Gakuensa,             description: "Brucella Fetish", tags: [schoolgirl, cosplay]}
+    - {code: KTKC, label: "Kitikkus",           description: "loli beautiful girl", tags: [petite]}
+    - {code: KDKJ, label: "Forbidden Fruit",    description: "loli beautiful girl", tags: [petite]}
+    - {code: YAMI, label: "Kurayami",           description: "massage voyeur concept", tags: [massage-parlor, voyeur]}
+    - {code: KMRE, label: "Kei Moa",            description: elevator, tags: [fantasy-scenario]}
+    - {code: KOIW, label: "Koiwa Movie",        description: "voyeur concept", tags: [voyeur]}
+    - {code: KOSK, label: "The lustful generation", description: Lady, tags: [mature-women, married-woman]}
+    - {code: KRHK, label: "Korehiko",           description: public, tags: [amateur, pickup]}
+    - {code: GBSA, label: "Go Go's Black",      description: "A subsidiary of 'Gogoz'. Specializes in common people, married women, punishment, and near-future concepts.", tags: [married-woman, amateur, training]}
+    - {code: GEMR, label: "Gold Emperor",       description: "western porn", tags: [foreign-actress]}
     - {code: ABG,  label: "Goldberg",           description: "gold foil"}
-    - {code: AKNS, label: "San Project",        description: cosplay}
-    - {code: IRCP, label: "colored glasses",    description: "loli costume"}
-    - {code: SSKK, label: "Research Center for the Liberation of Women's Sensibility", description: public}
-    - {code: SINN, label: Shinsekai,            description: "Hamedori Drama"}
-    - {code: JPSB, label: "JPS",               description: public}
+    - {code: AKNS, label: "San Project",        description: cosplay, tags: [cosplay]}
+    - {code: IRCP, label: "colored glasses",    description: "loli costume", tags: [petite, cosplay]}
+    - {code: SSKK, label: "Research Center for the Liberation of Women's Sensibility", description: public, tags: [amateur]}
+    - {code: SINN, label: Shinsekai,            description: "Hamedori Drama", tags: [pov, drama]}
+    - {code: JPSB, label: "JPS",               description: public, tags: [amateur, pickup]}
     - {code: GENT, label: Gentleman,            description: fetish}
-    - {code: JYS,  label: "In fact, Yariman",   description: creampie}
-    - {code: ANCI, label: Spartan,              description: "blonde foreign beauty"}
-    - {code: PTSP, label: "self-publishing",    description: "gangbang, training, toilet"}
-    - {code: ZBES, label: "Despair Eros",       description: "runaway girl"}
-    - {code: SNTJ, label: "Jongsilsa",          description: "public voyeur concept"}
+    - {code: JYS,  label: "In fact, Yariman",   description: creampie, tags: [creampie]}
+    - {code: ANCI, label: Spartan,              description: "blonde foreign beauty", tags: [foreign-actress]}
+    - {code: PTSP, label: "self-publishing",    description: "gangbang, training, toilet", tags: [gangbang, training, hardcore]}
+    - {code: ZBES, label: "Despair Eros",       description: "runaway girl", tags: [confinement]}
+    - {code: SNTJ, label: "Jongsilsa",          description: "public voyeur concept", tags: [voyeur]}
     - {code: TPLS, label: "Take Factory Plus",  description: "leg fetish"}
     - {code: ONIN, label: Tamanegi,             description: mania}
-    - {code: TIKB, label: "Chiki Chiki Kama",   description: Hamedori}
+    - {code: TIKB, label: "Chiki Chiki Kama",   description: Hamedori, tags: [pov]}
     - {code: CRMN, label: "Chiromon",           description: fetish}
-    - {code: JMTY, label: Teacher,              description: public}
+    - {code: JMTY, label: Teacher,              description: public, tags: [teacher]}
     - {code: GAT,  label: "Ten",               description: "body part fetish"}
-    - {code: DIVAS, label: DIVA,               description: "blonde, black, asian foreign beauty"}
-    - {code: TSBG, label: "Voyeur Bijou",       description: "voyeur concept"}
-    - {code: DOSK, label: Doskebe,             description: bitch}
-    - {code: TWOE, label: "2.8 dimensions",     description: cosplay}
-    - {code: NTSU, label: Nuretsuba,            description: bitch}
-    - {code: HIKR, label: "High collar",        description: "american overseas beauty"}
-    - {code: BSTA, label: "Bad Stars",          description: public}
-    - {code: BDA,  label: Bermuda,              description: "Rape fetish, female investigator"}
+    - {code: DIVAS, label: DIVA,               description: "blonde, black, asian foreign beauty", tags: [foreign-actress]}
+    - {code: TSBG, label: "Voyeur Bijou",       description: "voyeur concept", tags: [voyeur]}
+    - {code: DOSK, label: Doskebe,             description: bitch, tags: [femdom]}
+    - {code: TWOE, label: "2.8 dimensions",     description: cosplay, tags: [cosplay, anime-parody]}
+    - {code: NTSU, label: Nuretsuba,            description: bitch, tags: [femdom]}
+    - {code: HIKR, label: "High collar",        description: "american overseas beauty", tags: [foreign-actress]}
+    - {code: BSTA, label: "Bad Stars",          description: public, tags: [amateur]}
+    - {code: BDA,  label: Bermuda,              description: "Rape fetish, female investigator", tags: [violation, secret-agent, drama]}
     - {code: PZO,  label: "Pazzo Fetch",        description: fetish}
     - {code: AYS,  label: Panjimi,              description: "underwear fetish"}
-    - {code: DPJT, label: "P-PROJECT",          description: "voyeur concept"}
-    - {code: ATFB, label: "Fetish Box",         description: "professional prostitute"}
-    - {code: BLOR, label: broccoli,             description: "sex in public"}
-    - {code: VOND, label: Bond,                 description: "Hamedori by Tetsuya Shido"}
-    - {code: BONU, label: "group of anguish",   description: bitch}
-    - {code: BOMC, label: "Bonbon Cherry",      description: "Public Big Tits"}
-    - {code: PCHA, label: Pochapuri,            description: Yukdeok}
-    - {code: SOAV, label: "My Wife",            description: "married woman affair"}
-    - {code: MAGG, label: "Martha Go Go!",      description: massage}
-    - {code: MANN, label: Mangetsu,             description: public}
-    - {code: MSTT, label: Mysteria,             description: "suspense drama"}
-    - {code: MEBX, label: "Mega Box",           description: "public project"}
-    - {code: YSSD, label: "Yarikuru Skevena Sepretachi DX", description: Hamedori}
-    - {code: YOGU, label: "Yogoku Lite",        description: "Lori Incest, Rape"}
-    - {code: COSU, label: Ramakos,              description: "A subsidiary of 'Rama'. Brucera specialty."}
-    - {code: LESS, label: "Real Vision",        description: lesbian}
-    - {code: RPIN, label: Lycopene,             description: public}
+    - {code: DPJT, label: "P-PROJECT",          description: "voyeur concept", tags: [voyeur]}
+    - {code: ATFB, label: "Fetish Box",         description: "professional prostitute", tags: [brothel, soapland]}
+    - {code: BLOR, label: broccoli,             description: "sex in public", tags: [amateur, outdoors]}
+    - {code: VOND, label: Bond,                 description: "Hamedori by Tetsuya Shido", tags: [pov]}
+    - {code: BONU, label: "group of anguish",   description: bitch, tags: [femdom]}
+    - {code: BOMC, label: "Bonbon Cherry",      description: "Public Big Tits", tags: [busty, amateur]}
+    - {code: PCHA, label: Pochapuri,            description: Yukdeok, tags: [chubby]}
+    - {code: SOAV, label: "My Wife",            description: "married woman affair", tags: [married-woman, affair, amateur, documentary]}
+    - {code: MAGG, label: "Martha Go Go!",      description: massage, tags: [massage-parlor]}
+    - {code: MANN, label: Mangetsu,             description: public, tags: [amateur]}
+    - {code: MSTT, label: Mysteria,             description: "suspense drama", tags: [drama]}
+    - {code: MEBX, label: "Mega Box",           description: "public project", tags: [amateur, planning]}
+    - {code: YSSD, label: "Yarikuru Skevena Sepretachi DX", description: Hamedori, tags: [pov]}
+    - {code: YOGU, label: "Yogoku Lite",        description: "Lori Incest, Rape", tags: [petite, taboo-family, violation]}
+    - {code: COSU, label: Ramakos,              description: "A subsidiary of 'Rama'. Brucera specialty.", tags: [schoolgirl, cosplay]}
+    - {code: LESS, label: "Real Vision",        description: lesbian, tags: [lesbian]}
+    - {code: RPIN, label: Lycopene,             description: public, tags: [amateur]}
     - {code: DOMS, label: "Yeyang Studio EX",   description: tension}
-    - {code: LBOY, label: "Lady Boy",           description: shemale}
-    - {code: JAMC, label: jam,                  description: "Fetishes such as masturbation, scatology, and grotesque"}
-    - {code: PPBB, label: Painblood,            description: "Radical SM"}
+    - {code: LBOY, label: "Lady Boy",           description: shemale, tags: [shemale]}
+    - {code: JAMC, label: jam,                  description: "Fetishes such as masturbation, scatology, and grotesque", tags: [hardcore]}
+    - {code: PPBB, label: Painblood,            description: "Radical SM", tags: [sm-bdsm, hardcore]}
     - {code: MRAL, label: moral,                description: "social work"}
 
 - company: "WILL/Emmanuel Group"
@@ -955,27 +955,27 @@
       - "SIBA / Ranbukan (mature woman SM specialty)"
     notes: "Founded February 2009 under Outvision/CA. Absorbed into Mousouzoku (WILL/Delusional Group) October 17, 2014 as part of Mousouzoku's 2014 consolidation phase — operationally no change for the labels, which continued under the same codes. The Emmanuel Group contributed ~20 sub-labels to Mousouzoku's eventual count of 253 affiliated makers (March 2016). Unlike WILL's mainstream idol labels, Emmanuel operates on an amateur/documentary casting model recruiting real older women rather than signed actresses."
   labels:
-    - {code: EMEN, label: "Enjuku",                 description: "old lady"}
-    - {code: EMBW, label: "Kasumi Planning",         description: "elderly lady"}
-    - {code: KITU, label: Kitsutsuki,                description: Lady}
-    - {code: KSBJ, label: "KSB Project",             description: Lady}
-    - {code: EMGB, label: Gekkabijin,                description: "public lady"}
-    - {code: EMBZ, label: "Jukujo-juku",             description: Lady}
-    - {code: EMAD, label: Jukudora,                  description: "Ladies in their 40's, 50's and 60's"}
-    - {code: JKNK, label: "Jukunojo",                description: "ladies fetish"}
-    - {code: ZUM,  label: ZUMA,                      description: "glamor, voluptuous, busty lady"}
-    - {code: SOAV, label: "Married Women's Support Association", description: "Married Woman Infidelity Documentary"}
-    - {code: HBNK, label: "Married Woman Cultural Center",      description: "Married Woman Sleeping"}
-    - {code: BIJN, label: "Bijin Majo",              description: "slut lady"}
-    - {code: EMAF, label: Formation,                 description: Lady}
-    - {code: EMAZ, label: Fujinsha,                  description: "Fetishes for women in their 50's, 60's and 70's"}
-    - {code: FLOW, label: "old man",                 description: "old lady"}
-    - {code: MRSS, label: "Mises no Sugao",          description: Lady}
-    - {code: EMTS, label: "Mitsuzo Sake",            description: "ladies documentary"}
-    - {code: SIBA, label: Ranbukan,                  description: "A maker specializing in mature woman SM of Mr. Gin Randa Mai."}
-    - {code: EMBX, label: "Lady Baba",               description: Lady}
-    - {code: TBKD, label: "big hole",                description: "amateur ladies"}
-    - {code: AQSH, label: "Aqua Mall",               description: Lady}
+    - {code: EMEN, label: "Enjuku",                 description: "old lady", tags: [mature-women, married-woman, elder-play]}
+    - {code: EMBW, label: "Kasumi Planning",         description: "elderly lady", tags: [mature-women, elder-play]}
+    - {code: KITU, label: Kitsutsuki,                description: Lady, tags: [mature-women, married-woman]}
+    - {code: KSBJ, label: "KSB Project",             description: Lady, tags: [mature-women, married-woman]}
+    - {code: EMGB, label: Gekkabijin,                description: "public lady", tags: [mature-women, amateur]}
+    - {code: EMBZ, label: "Jukujo-juku",             description: Lady, tags: [mature-women, married-woman]}
+    - {code: EMAD, label: Jukudora,                  description: "Ladies in their 40's, 50's and 60's", tags: [mature-women, married-woman, elder-play]}
+    - {code: JKNK, label: "Jukunojo",                description: "ladies fetish", tags: [mature-women]}
+    - {code: ZUM,  label: ZUMA,                      description: "glamor, voluptuous, busty lady", tags: [mature-women, married-woman, busty]}
+    - {code: SOAV, label: "Married Women's Support Association", description: "Married Woman Infidelity Documentary", tags: [married-woman, affair, documentary, amateur]}
+    - {code: HBNK, label: "Married Woman Cultural Center",      description: "Married Woman Sleeping", tags: [married-woman, mature-women]}
+    - {code: BIJN, label: "Bijin Majo",              description: "slut lady", tags: [mature-women, femdom]}
+    - {code: EMAF, label: Formation,                 description: Lady, tags: [mature-women, married-woman]}
+    - {code: EMAZ, label: Fujinsha,                  description: "Fetishes for women in their 50's, 60's and 70's", tags: [mature-women, elder-play]}
+    - {code: FLOW, label: "old man",                 description: "old lady", tags: [mature-women, elder-play, amateur]}
+    - {code: MRSS, label: "Mises no Sugao",          description: Lady, tags: [mature-women, married-woman]}
+    - {code: EMTS, label: "Mitsuzo Sake",            description: "ladies documentary", tags: [mature-women, documentary]}
+    - {code: SIBA, label: Ranbukan,                  description: "A maker specializing in mature woman SM of Mr. Gin Randa Mai.", tags: [mature-women, sm-bdsm]}
+    - {code: EMBX, label: "Lady Baba",               description: Lady, tags: [mature-women, elder-play]}
+    - {code: TBKD, label: "big hole",                description: "amateur ladies", tags: [mature-women, amateur]}
+    - {code: AQSH, label: "Aqua Mall",               description: Lady, tags: [mature-women, married-woman]}
 
 - company: Art Mode
   description: "Originally a Moodyz sub-label that became independent within WILL. Specializes in public/amateur-style documentary content. Famous for the 'hunting' series by directors Kei Ikeda and Wataru Ishibashi."
@@ -985,8 +985,8 @@
     specialty: "Public/amateur-style documentary content. Originally a Moodyz sub-label that became independent within WILL. Famous for the 'hunting' series directed by Kei Ikeda and Wataru Ishibashi. MDUD is the primary code; ATMD is the specialty series."
     notes: "The Moodyz origin gives Art Mode lineage within the WILL system. Directors Ikeda and Ishibashi are associated with the label's defining hunting series."
   labels:
-    - {code: MDUD, label: "art mode", description: "Public documentary. The hunting series by Kei Ikeda is famous. Originally a Moodyz label; became independent."}
-    - {code: ATMD, label: "art mode", description: "Public documentary. The hunting series by Wataru Ishibashi is famous."}
+    - {code: MDUD, label: "art mode", description: "Public documentary. The hunting series by Kei Ikeda is famous. Originally a Moodyz label; became independent.", tags: [amateur, documentary, pickup]}
+    - {code: ATMD, label: "art mode", description: "Public documentary. The hunting series by Wataru Ishibashi is famous.", tags: [amateur, documentary, pickup]}
 
 - company: Marx
   description: "WILL subcontractor. Comprehensive label covering projects, dramas, subjective viewpoints, and documentaries. Also has a pregnancy fetish sub-label."
@@ -996,9 +996,9 @@
     specialty: "Comprehensive maker covering projects, dramas, POV/subjective viewpoints, and documentaries. Particularly strong in married woman (人妻/hitozuma) content. Also produces hardcore and maniac works. SMA (standard releases), SMS (pregnant women/孕ませ content), SBB (best compilations)."
     notes: "マルクス興業 = 'Marx Industries/Entertainment.' No dedicated Wikipedia page. Name likely references the Marx Brothers comedy troupe — Western pop culture naming was common in 1990s-2000s Japanese AV makers. 興業 suffix is standard for Japanese entertainment companies."
   labels:
-    - {code: SMA, label: Marx, description: "comprehensive: projects, dramas, subjective viewpoints, documentaries; regular"}
-    - {code: SMS, label: Marx, description: "pregnant women"}
-    - {code: SBB, label: Marx, description: "best compilation"}
+    - {code: SMA, label: Marx, description: "comprehensive: projects, dramas, subjective viewpoints, documentaries; regular", tags: [planning, drama, married-woman, pov]}
+    - {code: SMS, label: Marx, description: "pregnant women", tags: [pregnant, married-woman]}
+    - {code: SBB, label: Marx, description: "best compilation", tags: [compilation]}
 
 # ── SOD ───────────────────────────────────────────────────────────────────────
 
