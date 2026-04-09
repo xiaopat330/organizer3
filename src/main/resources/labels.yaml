@@ -1728,9 +1728,9 @@
     - {code: MDTM,  label: Million, description: "Million specialty series"}
     - {code: MKMP,  label: Million, description: "from August 2015"}
     - {code: OKAD,  label: "Okazu", description: "since October 2005"}
-    - {code: EC,    label: Ecstasy, description: "harder content"}
-    - {code: SCOP,  label: Scoop,   description: "Amateur (2011.7~)"}
-    - {code: SAMA,  label: "S-Class Amateur", description: "Amateur (2008.7~)"}
+    - {code: EC,    label: Ecstasy, description: "harder content", tags: [hardcore]}
+    - {code: SCOP,  label: Scoop,   description: "Amateur (2011.7~)", tags: [amateur]}
+    - {code: SAMA,  label: "S-Class Amateur", description: "Amateur (2008.7~)", tags: [amateur]}
 
 # ── Aten ──────────────────────────────────────────────────────────────────────
 
@@ -1742,19 +1742,19 @@
     specialty: "Distribution umbrella aggregating ~40 small independent labels, each operated by a distinct sub-company. Three main constituent companies: Office K's (DOKS/DKSW/DKIM — fetish specialist; directors Seichu Matsumoto and Peterman), Kodo (TDBR Black Riot — gyaru specialist; director OMARU), AFRO-FILM (DIR/PFCK — fetish). V&R Planning (founded April 1986 by Kaoru Adachi — 'Visual and Retail'; one of Japan's earliest SM/fetish labels) is an affiliated label within the umbrella. Not a single production company — each sub-label operates independently under shared distribution infrastructure."
     notes: "V&R Planning (founded April 1986) predates most major labels and is one of Japan's earliest fetish/SM specialists. Its presence within the Aten umbrella gives the group unusual historical depth for an independent aggregator. Many sub-label names in this entry are machine-translated from Korean sources and may not reflect actual Japanese names."
   labels:
-    - {code: DOKS, label: "office case",      description: "Fetish specialist. Directors such as Seichu Matsumoto and Peterman worked."}
-    - {code: DKSW, label: "case works",       description: fetish}
-    - {code: DKIM, label: "image maker",      description: fetish}
+    - {code: DOKS, label: "office case",      description: "Fetish specialist. Directors such as Seichu Matsumoto and Peterman worked.", tags: [sm-bdsm]}
+    - {code: DKSW, label: "case works",       description: fetish, tags: [sm-bdsm]}
+    - {code: DKIM, label: "image maker",      description: fetish, tags: [sm-bdsm]}
     - {code: NJJD, label: juku,               description: Lady}
     - {code: DKSS, label: "schema industry",  description: public}
     - {code: DSKM, label: "schema industry erect", description: public}
-    - {code: TDBR, label: "black riot",       description: "Gyaru specialist. Director OMARU and others were active."}
-    - {code: TDBT, label: "busty tokyo",      description: "huge breasts"}
+    - {code: TDBR, label: "black riot",       description: "Gyaru specialist. Director OMARU and others were active.", tags: [gyaru]}
+    - {code: TDBT, label: "busty tokyo",      description: "huge breasts", tags: [busty]}
     - {code: TDMJ, label: Manjuku,            description: Lady}
     - {code: FRE,  label: fresh,              description: public}
-    - {code: DIR,  label: D,                  description: bitch}
-    - {code: PFCK, label: ex,                 description: fetish}
-    - {code: FETI, label: fcozo,              description: fetish}
+    - {code: DIR,  label: D,                  description: bitch, tags: [femdom, sm-bdsm]}
+    - {code: PFCK, label: ex,                 description: fetish, tags: [sm-bdsm]}
+    - {code: FETI, label: fcozo,              description: fetish, tags: [sm-bdsm]}
     - {code: LOST, label: "long stage",       description: "artefact. Director Rosan Jin and others worked."}
 
 # ── Taisei ────────────────────────────────────────────────────────────────────
@@ -1772,15 +1772,15 @@
     - {code: GON,  label: "Glaze One",    description: "Taisei specialty series"}
     - {code: GIGR, label: "glaze impact", description: "Taisei specialty series"}
     - {code: BUR,  label: burst,          description: "Taisei specialty series"}
-    - {code: COS,  label: "COS-P",        description: "Taisei specialty series"}
-    - {code: GST,  label: "G-Street",     description: "Taisei specialty series"}
-    - {code: KJC,  label: JC,             description: "Taisei specialty series"}
-    - {code: BJK,  label: "Fostering JK", description: "Taisei specialty series"}
+    - {code: COS,  label: "COS-P",        description: "Taisei specialty series", tags: [cosplay]}
+    - {code: GST,  label: "G-Street",     description: "Taisei specialty series", tags: [amateur, pickup]}
+    - {code: KJC,  label: JC,             description: "Taisei specialty series", tags: [schoolgirl]}
+    - {code: BJK,  label: "Fostering JK", description: "Taisei specialty series", tags: [schoolgirl]}
     - {code: GLT,  label: knife,          description: "Taisei specialty series"}
     - {code: RJK,  label: "R-Eightyne",   description: "Taisei specialty series"}
     - {code: SCR,  label: "S Scream",     description: "Taisei specialty series"}
     - {code: VAL,  label: Valex,          description: "Taisei specialty series"}
-    - {code: SIS,  label: sister,         description: "Taisei specialty series"}
+    - {code: SIS,  label: sister,         description: "Taisei specialty series", tags: [taboo-family]}
     - {code: AT,   label: lotus,          description: "Taisei specialty series"}
     - {code: WA,   label: lotus,          description: "Taisei specialty series"}
     - {code: DAI,  label: die,            description: "Taisei specialty series"}
@@ -1808,9 +1808,9 @@
   labels:
     - {code: HODV,  label: "h.m.p",                    description: "h.m.p specialty label"}
     - {code: ADZ,   label: KUKI,                        description: "KUKI specialty label"}
-    - {code: AKB,   label: "TMA (Total Media Agency)",  description: "TMA specialty label"}
-    - {code: HITMA, label: "TMA (Total Media Agency)",  description: "TMA specialty label"}
-    - {code: ID,    label: "TMA (Total Media Agency)",  description: "TMA specialty label"}
+    - {code: AKB,   label: "TMA (Total Media Agency)",  description: "TMA specialty label", tags: [anime-parody, cosplay]}
+    - {code: HITMA, label: "TMA (Total Media Agency)",  description: "TMA specialty label", tags: [anime-parody, cosplay]}
+    - {code: ID,    label: "TMA (Total Media Agency)",  description: "TMA specialty label", tags: [anime-parody]}
 
 # ── Indies ────────────────────────────────────────────────────────────────────
 
@@ -1834,25 +1834,25 @@
     - {code: ORI,   label: Eyes,              description: "A label that existed from May 2010 to July 2010."}
     - {code: OMAP,  label: MP,                description: "A label that existed from July 2010 to August 2010."}
     - {code: SHI,   label: "MONE MORE",       description: "A label that existed from February 2010 to July 2012."}
-    - {code: UGD,   label: "Ultima GOLD",     description: "A label exclusively for Scott water that existed from February 2011 to May 2012."}
+    - {code: UGD,   label: "Ultima GOLD",     description: "A label exclusively for Scott water that existed from February 2011 to May 2012.", tags: [squirting]}
     - {code: OMSP,  label: INFINITI,          description: "A label that existed from March 2012 to April 2012."}
-    - {code: KRMS,  label: "Arc Media Japan", description: "married woman"}
-    - {code: PRIS,  label: "Arc Media Japan", description: public}
-    - {code: URIS,  label: "girl hunt",       description: "wind speed"}
-    - {code: FECS,  label: secret,            description: "public, fetish"}
-    - {code: NGYS,  label: secret,            description: "Nagoya's customs"}
-    - {code: HJRS,  label: secret,            description: public}
-    - {code: HJYS,  label: secret,            description: "Compilation of HJRS"}
-    - {code: MISK,  label: secret,            description: "public married woman"}
-    - {code: KGRS,  label: secret,            description: "public beautiful girl"}
-    - {code: URAS,  label: "Nagoya's Father", description: "married woman"}
-    - {code: SRES,  label: "blue eye",        description: "The customs of Yokohama"}
-    - {code: ALBB,  label: "Potato Boy",      description: public}
-    - {code: EXPS,  label: mountain,          description: public}
-    - {code: BMTD,  label: "kingdom productions", description: "public married woman"}
-    - {code: HKID,  label: "Lovers Invitation", description: public}
-    - {code: WWHD,  label: "magic vision",    description: "busty public"}
-    - {code: HVBD,  label: "Misty Productions", description: public}
+    - {code: KRMS,  label: "Arc Media Japan", description: "married woman", tags: [married-woman]}
+    - {code: PRIS,  label: "Arc Media Japan", description: public, tags: [amateur, pickup]}
+    - {code: URIS,  label: "girl hunt",       description: "wind speed", tags: [pickup, amateur]}
+    - {code: FECS,  label: secret,            description: "public, fetish", tags: [amateur, sm-bdsm]}
+    - {code: NGYS,  label: secret,            description: "Nagoya's customs", tags: [amateur]}
+    - {code: HJRS,  label: secret,            description: public, tags: [amateur, pickup]}
+    - {code: HJYS,  label: secret,            description: "Compilation of HJRS", tags: [amateur, compilation]}
+    - {code: MISK,  label: secret,            description: "public married woman", tags: [married-woman, amateur]}
+    - {code: KGRS,  label: secret,            description: "public beautiful girl", tags: [amateur, pickup]}
+    - {code: URAS,  label: "Nagoya's Father", description: "married woman", tags: [married-woman]}
+    - {code: SRES,  label: "blue eye",        description: "The customs of Yokohama", tags: [amateur]}
+    - {code: ALBB,  label: "Potato Boy",      description: public, tags: [amateur]}
+    - {code: EXPS,  label: mountain,          description: public, tags: [amateur]}
+    - {code: BMTD,  label: "kingdom productions", description: "public married woman", tags: [married-woman, amateur]}
+    - {code: HKID,  label: "Lovers Invitation", description: public, tags: [amateur]}
+    - {code: WWHD,  label: "magic vision",    description: "busty public", tags: [busty, amateur]}
+    - {code: HVBD,  label: "Misty Productions", description: public, tags: [amateur]}
 
 # ── Ladies' specialty (independent) ──────────────────────────────────────────
 
@@ -1864,7 +1864,7 @@
     specialty: "Veteran independent jukujo (mature/married women) specialist. RUID code. Operates outside the WILL/SOD/Prestige conglomerates in the same space as Monarch and Center Village."
     notes: "Gemstone name (Ruby) is common branding in the premium/elegant mature-woman positioning, suggesting quality and refinement."
   labels:
-    - {code: RUID, label: Ruby, description: "regular part number; ladies' specialty, focus on married women and mature actresses"}
+    - {code: RUID, label: Ruby, description: "regular part number; ladies' specialty, focus on married women and mature actresses", tags: [mature-women, married-woman]}
 
 - company: Monarch
   description: "Independent mature/married woman specialist. Similar positioning to Madonna but operating independently. Focuses on elegant, upper-class married women in their 30s-40s."
@@ -1874,7 +1874,7 @@
     specialty: "Mature/married woman specialist. MOND code. Focuses on elegant, upper-class married women in their 30s–40s — similar positioning to Madonna (WILL) but operating independently with a more understated, refined aesthetic."
     notes: "The 'Monarch' (royalty) name reinforces the upper-class, refined aesthetic distinction from lower-tier mature woman labels."
   labels:
-    - {code: MOND, label: Monarch, description: "ladies' specialty; similar positioning to Madonna"}
+    - {code: MOND, label: Monarch, description: "ladies' specialty; similar positioning to Madonna", tags: [mature-women, married-woman]}
 
 # ── Guitar Labels (independent) ───────────────────────────────────────────────
 
