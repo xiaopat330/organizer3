@@ -1899,7 +1899,7 @@
     notes: "First videos October 16, 2006. Won 2010 Adult Broadcasting Awards Best Program (Yuzuka Kinoshita debut). Participated in 2007 AV Open and 2008 AV Grand Prix. The 'guitar labels' group refers to independent distribution channel used by these studios."
   labels:
     - {code: MXGS,  label: Maxing, description: "regular part number"}
-    - {code: MXGDL, label: Maxing, description: "Maxing compilation/specialty"}
+    - {code: MXGDL, label: Maxing, description: "Maxing compilation/specialty", tags: [compilation]}
     - {code: MXTDS, label: Maxing, description: "Maxing specialty series"}
 
 - company: Venus
@@ -1918,9 +1918,9 @@
       - "The Costume Play Maid"
     notes: "Crystal-Eizou founded October 1984 (incorporated June 1985); Venus label launched June 1997. Based in Toshima, Tokyo. Won 2003 Takeshi Kitano Awards Best AV Title; 2007 AV Open 2nd place. Ai Iijima was one of the most famous crossover celebrities in 1990s AV."
   labels:
-    - {code: VEC,  label: Venus, description: "regular part number"}
-    - {code: VEMA, label: Venus, description: "Venus specialty series"}
-    - {code: VENU, label: Venus, description: "Venus compilation/regular"}
+    - {code: VEC,  label: Venus, description: "regular part number", tags: [mature-women, solo-actress, taboo-family]}
+    - {code: VEMA, label: Venus, description: "Venus specialty series", tags: [mature-women, solo-actress, taboo-family]}
+    - {code: VENU, label: Venus, description: "Venus compilation/regular", tags: [mature-women, compilation]}
 
 - company: "Glory Quest"
   description: "Independent maker specializing in busty/maniac content. Known for accommodating niche fetishes and featuring voluptuous actresses. Moderate production volume."
@@ -1943,9 +1943,9 @@
       - "Maniac label (extreme fetish)"
     notes: "First release June 10, 2000 (Sweet Doll 01 on VHS). By December 2019, 3,532 DMM titles. ~18–20 releases/month. Independent operation. Won 2009 AV Grand Prix Supporters Award for 'Incest Family.' Shigeo Tokuda received extensive international press coverage."
   labels:
-    - {code: GVG, label: "Glory Quest", description: "busty/maniac content; regular part number"}
-    - {code: GVH, label: "Glory Quest", description: "busty content"}
-    - {code: GG,  label: "Glory Quest", description: "Glory Quest compilation/regular"}
+    - {code: GVG, label: "Glory Quest", description: "busty/maniac content; regular part number", tags: [busty, sm-bdsm]}
+    - {code: GVH, label: "Glory Quest", description: "busty content", tags: [busty]}
+    - {code: GG,  label: "Glory Quest", description: "Glory Quest compilation/regular", tags: [compilation]}
 
 - company: Aurora
   description: "Independent maker (Aurora Project). Produces content across multiple sub-labels with varied themes."
@@ -1985,13 +1985,13 @@
       - "Tortured Race Queen"
     notes: "Founded November 11, 1983 — one of Japan's oldest continuously operating AV studios. Over 1,000 titles produced. Located in Nakano-ku, Tokyo. Eri Kikuchi made her debut with CineMagic in September 1985. Was part of SOD's Contents Soft Association before going independent."
   labels:
-    - {code: CMC, label: Cinemagic,            description: "main label; varied SM scenarios including bondage and sadistic scenes"}
-    - {code: CMN, label: "Cinemagic Noir",     description: "torture/investigation scenarios"}
-    - {code: CMV, label: "Cinemagic Vixen",    description: "fantasy kingdoms and ninja settings"}
-    - {code: CMF, label: "Cinemagic Nymph",    description: "Cinemagic fantasy/nymph speciality"}
-    - {code: CMJ, label: Cinemagic,            description: "Cinemagic specialty series"}
-    - {code: CMK, label: "Cinemagic Mature",   description: "Cinemagic mature women specialty"}
-    - {code: CMA, label: "Cinemagic Memorial", description: "compilation of old works"}
+    - {code: CMC, label: Cinemagic,            description: "main label; varied SM scenarios including bondage and sadistic scenes", tags: [sm-bdsm]}
+    - {code: CMN, label: "Cinemagic Noir",     description: "torture/investigation scenarios", tags: [sm-bdsm, secret-agent, violation]}
+    - {code: CMV, label: "Cinemagic Vixen",    description: "fantasy kingdoms and ninja settings", tags: [sm-bdsm, fantasy-scenario, kunoichi]}
+    - {code: CMF, label: "Cinemagic Nymph",    description: "Cinemagic fantasy/nymph speciality", tags: [sm-bdsm, fantasy-scenario]}
+    - {code: CMJ, label: Cinemagic,            description: "Cinemagic specialty series", tags: [sm-bdsm]}
+    - {code: CMK, label: "Cinemagic Mature",   description: "Cinemagic mature women specialty", tags: [sm-bdsm, mature-women]}
+    - {code: CMA, label: "Cinemagic Memorial", description: "compilation of old works", tags: [sm-bdsm, compilation]}
 
 - company: "S-Cute"
   description: "Independent digital-first label. Produces cute, soft-style content similar to G-Area and Himemix. Emphasizes natural/amateur-looking actresses with gentle aesthetics. Primarily distributed through download platforms."
@@ -2001,8 +2001,8 @@
     specialty: "Digital-first independent label. Cute, soft-style content with natural/amateur-looking actresses — gentle aesthetics over aggressive scenarios. Primarily distributed through download platforms. SQTE is the main code; SQSET is the set/compilation."
     notes: "One of the few independent labels that built its identity around digital distribution from the start rather than transitioning from physical media."
   labels:
-    - {code: SQTE,  label: "S-Cute", description: "regular part number; cute/soft content, similar to G-Area and Himemix"}
-    - {code: SQSET, label: "S-Cute", description: "S-Cute compilation/specialty"}
+    - {code: SQTE,  label: "S-Cute", description: "regular part number; cute/soft content, similar to G-Area and Himemix", tags: [girlfriend-experience]}
+    - {code: SQSET, label: "S-Cute", description: "S-Cute compilation/specialty", tags: [girlfriend-experience, compilation]}
 
 - company: Cross
   description: "Independent maker. General content across multiple sub-labels."
@@ -2039,11 +2039,11 @@
     specialty: "Themed series independent. Known for cosplay (Annie Cosplay/CGD), seduction scenarios (CMD), school uniform content (DTSL), and various fantasy setups. Consistent series-based release structure across 7 active codes (AAD, AMD, CGD, CMD, DTSL, HFD, QBD)."
     notes: "Multi-code structure assigns each code to a specific scenario type, giving the label breadth within the fantasy/themed category."
   labels:
-    - {code: AAD,  label: "Dream Ticket", description: "small breasts series"}
+    - {code: AAD,  label: "Dream Ticket", description: "small breasts series", tags: [petite]}
     - {code: AMD,  label: "Dream Ticket", description: "My Erotic Video series"}
-    - {code: CGD,  label: "Dream Ticket", description: "Annie Cosplay series"}
+    - {code: CGD,  label: "Dream Ticket", description: "Annie Cosplay series", tags: [cosplay]}
     - {code: CMD,  label: "Dream Ticket", description: "Seduction series"}
-    - {code: DTSL, label: "Dream Ticket", description: "school uniform/intercourse with beautiful girls in uniforms; Taku Yoshimura appears frequently"}
+    - {code: DTSL, label: "Dream Ticket", description: "school uniform/intercourse with beautiful girls in uniforms; Taku Yoshimura appears frequently", tags: [schoolgirl, cosplay]}
     - {code: HFD,  label: "Dream Ticket", description: "Dream Ticket specialty series"}
     - {code: QBD,  label: "Dream Ticket", description: "Dream Ticket specialty series"}
 
@@ -2055,8 +2055,8 @@
     specialty: "Bukakke specialist. Known for extremely high-volume facial scenarios — among the most intense bukakke studios in the industry. DMC is the main code; PSD is the specialty series."
     notes: "The name combines 'milky' (semen reference) with 'cat' (cute/feminine) — a typical JAV juxtaposition of explicit signifier with an innocent animal name."
   labels:
-    - {code: DMC, label: "Milky Cat", description: "bukkake specialist; extremely high volume"}
-    - {code: PSD, label: "Milky Cat", description: "Milky Cat specialty series"}
+    - {code: DMC, label: "Milky Cat", description: "bukkake specialist; extremely high volume", tags: [bukkake, facial]}
+    - {code: PSD, label: "Milky Cat", description: "Milky Cat specialty series", tags: [bukkake]}
 
 - company: "Takara Visual"
   description: "Independent mature woman specialist. Focuses on ladies/jukujo content."
@@ -2066,7 +2066,7 @@
     specialty: "Mature woman/jukujo specialist. SPRD code. Focuses on ladies content in the mature woman genre alongside Madonna, Tameike Goro, and Ruby."
     notes: "Takara (宝) = 'treasure' in Japanese — a prestige/luxury framing common among independent mature woman labels."
   labels:
-    - {code: SPRD, label: "Takara Visual", description: "ladies specialist"}
+    - {code: SPRD, label: "Takara Visual", description: "ladies specialist", tags: [mature-women]}
 
 - company: "Center Village"
   description: "Independent mature woman specialist. One of the larger jukujo-focused independents. Content features women typically in their 40s-60s."
@@ -2079,7 +2079,7 @@
       - "HTDT (single unified code)"
     notes: "One of several independent jukujo specialists alongside Crystal-Eizou, Ruby, and Monarch. Center Village occupies the older-focus end of the mature woman spectrum."
   labels:
-    - {code: HTDT, label: "Center Village", description: "ladies content"}
+    - {code: HTDT, label: "Center Village", description: "ladies content", tags: [mature-women]}
 
 - company: Aroma
   description: "Independent fetish specialist (Aroma Planning/Aroma Kikaku). One of the longest-running fetish studios — produces content focused on specific body-part fetishes, scent fetishes, and other niche interests. Very specialized content."
@@ -2089,7 +2089,7 @@
     specialty: "Fetish specialist (Aroma Planning / Aroma Kikaku). One of the longer-running independent fetish studios. Content focused on specific body-part fetishes, scent fetishes, and other niche interests. ARMD code."
     notes: "The name 'Aroma' signals the scent/smell fetish origin, though output has expanded to other body-part and niche fetishes over time."
   labels:
-    - {code: ARMD, label: Aroma, description: "fetish specialist"}
+    - {code: ARMD, label: Aroma, description: "fetish specialist", tags: [sm-bdsm]}
 
 - company: "Crystal Eizou"
   description: "Independent maker (Crystal Eizou/クリスタル映像). Primarily mature woman/ladies-focused content. One of the veteran jukujo studios operating independently."
@@ -2108,10 +2108,10 @@
       - "The Costume Play Maid"
     notes: "Crystal-Eizou is the parent company; Venus (VEC/VEMA) is its premium sub-label, which has a separate profile entry in this database. The CESD/CETD codes are Crystal-Eizou's own-branded releases distinct from the Venus line. Founded by president Tadaharu Nishimura; based in Toshima, Tokyo. Won 2003 Takeshi Kitano Awards Best AV Title; 2007 AV Open 2nd place."
   labels:
-    - {code: CESD, label: "Crystal Eizou", description: "regular part number; ladies-focused"}
-    - {code: CETD, label: "Crystal Eizou", description: "older part number"}
-    - {code: CEAD, label: "Crystal Eizou", description: "Crystal Eizou specialty series"}
-    - {code: CEMD, label: "Crystal Eizou", description: "Crystal Eizou specialty series"}
+    - {code: CESD, label: "Crystal Eizou", description: "regular part number; ladies-focused", tags: [mature-women]}
+    - {code: CETD, label: "Crystal Eizou", description: "older part number", tags: [mature-women]}
+    - {code: CEAD, label: "Crystal Eizou", description: "Crystal Eizou specialty series", tags: [mature-women]}
+    - {code: CEMD, label: "Crystal Eizou", description: "Crystal Eizou specialty series", tags: [mature-women]}
 
 - company: ZIZ
   description: "Independent cosplay specialist. Known for character cosplay content — actresses dress as specific anime, game, and tokusatsu characters. Higher production value costumes and sets than typical cosplay AV."
@@ -2121,7 +2121,7 @@
     specialty: "Cosplay specialist. Actresses portray specific anime, game, and tokusatsu characters with higher production value costumes and sets than typical cosplay AV. ZIZG code."
     notes: "Distinct from TMA (anime parody narrative) and GIGA (tokusatsu heroine AV) — ZIZ focuses on faithful character costume recreation applied to standard AV scenarios."
   labels:
-    - {code: ZIZG, label: ZIZ, description: "cosplay specialist; character cosplay content"}
+    - {code: ZIZG, label: ZIZ, description: "cosplay specialist; character cosplay content", tags: [cosplay, anime-parody]}
 
 - company: "AV Open"
   description: "Not a production company per se — AV Open is an annual industry award/competition event organized by WILL. AVOP codes are used for cross-label collaborative releases, rookie showcases, and special releases tied to the AV Open awards ceremony."
@@ -2132,7 +2132,7 @@
     specialty: "Annual industry award/competition event — not a production company. The AVOP code is used for cross-label collaborative releases, rookie showcases, and special releases tied to the AV Open ceremony. Studios submit entries competing across categories."
     notes: "One of the major industry events alongside the AV Grand Prix. Organized by WILL as a cross-label promotional vehicle. AVOP codes in a collection indicate titles produced for or released in connection with the competition."
   labels:
-    - {code: AVOP, label: "AV Open", description: "WILL series cross-label releases; used for rookies and AV Open award releases"}
+    - {code: AVOP, label: "AV Open", description: "WILL series cross-label releases; used for rookies and AV Open award releases", tags: [debut, newcomer]}
 
 - company: GIGA
   description: "Independent maker specializing in tokusatsu/superhero heroine content. Actresses portray costumed superheroines (sentai, magical girls, Kamen Rider-style characters) in scenarios where they are captured and defeated. A unique niche that blends Japanese tokusatsu culture with AV. Substantial cult following."
@@ -2148,10 +2148,10 @@
       - "Shoudo Sentai Goukengo"
     notes: "Founded c. 1995, based in Minato, Tokyo. The GIGA Tokusatsu Channel YouTube strategy (all-ages content + adult DVD) is a novel dual-market approach. The studio has a substantial global cult following from fans of both tokusatsu and AV."
   labels:
-    - {code: GIGL, label: GIGA, description: "tokusatsu/superhero heroine content; actresses in costume fight scenarios that turn sexual"}
-    - {code: GHKQ, label: GIGA, description: "tokusatsu/superhero heroine specialty"}
-    - {code: GIGP, label: GIGA, description: "tokusatsu/superhero heroine specialty"}
-    - {code: GIGAF, label: GIGA, description: "tokusatsu/superhero heroine specialty"}
+    - {code: GIGL, label: GIGA, description: "tokusatsu/superhero heroine content; actresses in costume fight scenarios that turn sexual", tags: [tokusatsu, cosplay, violation, confinement]}
+    - {code: GHKQ, label: GIGA, description: "tokusatsu/superhero heroine specialty", tags: [tokusatsu, cosplay, violation]}
+    - {code: GIGP, label: GIGA, description: "tokusatsu/superhero heroine specialty", tags: [tokusatsu, cosplay]}
+    - {code: GIGAF, label: GIGA, description: "tokusatsu/superhero heroine specialty", tags: [tokusatsu, cosplay]}
 
 # ── Uncensored / Streaming ─────────────────────────────────────────────────────
 
@@ -2165,7 +2165,7 @@
       - "Yui Hatano (uncensored appearances)"
     notes: "Operates at the premium end of the uncensored market alongside Heyzo and Tokyo Hot. The cross-market casting model distinguishes SKY from purely uncensored-native labels."
   labels:
-    - {code: SKY, label: "Sky High Entertainment", description: "uncensored (nomo); known for high-quality cast including Yui Hatano"}
+    - {code: SKY, label: "Sky High Entertainment", description: "uncensored (nomo); known for high-quality cast including Yui Hatano", tags: [uncensored]}
 
 - company: FC2
   description: "User-generated content platform. FC2 PPV (pay-per-view) is a marketplace where individuals sell their own amateur/uncensored video content. Not a production company — FC2 is the platform. Content quality and legality vary widely. Code format is FC2PPV-XXXXXXX (7-digit number). Extremely high volume — tens of thousands of listings."
@@ -2175,7 +2175,7 @@
     specialty: "User-generated content platform. FC2 PPV (pay-per-view) is a marketplace where individuals sell their own amateur/uncensored video content. Not a production company. Content quality and legality vary widely. Extremely high volume — tens of thousands of listings."
     notes: "FC2PPV is fundamentally different from all other entries — it is a platform/marketplace, not a studio. The FC2PPV-XXXXXXX code format (7-digit number) is distinct from all standard JAV product codes. FC2 Inc. is an internet services company hosting user-generated content."
   labels:
-    - {code: FC2PPV, label: FC2, description: "user-generated/amateur uncensored content sold on FC2 platform; code format FC2PPV-XXXXXXX"}
+    - {code: FC2PPV, label: FC2, description: "user-generated/amateur uncensored content sold on FC2 platform; code format FC2PPV-XXXXXXX", tags: [uncensored, amateur]}
 
 - company: "Tokyo Hot"
   description: "Uncensored streaming/production company. One of the original uncensored AV sites, operating since the early 2000s. Known for hardcore uncensored content. Uses 'n' prefix for professional actress content and 'k' prefix for amateur/public content. Servers operated outside Japan to circumvent obscenity laws."
@@ -2189,8 +2189,8 @@
       - "k-series (amateur/public content, k0000 format)"
     notes: "Among the earliest and most established uncensored JAV platforms. The n/k dual-coding system is a distinctive identifier widely recognized in the uncensored market. International hosting is the operational key to the no-mosaic model."
   labels:
-    - {code: "n", label: "Tokyo Hot", description: "professional AV actress; code format n0000"}
-    - {code: "k", label: "Tokyo Hot", description: "amateur/public AV; code format k0000"}
+    - {code: "n", label: "Tokyo Hot", description: "professional AV actress; code format n0000", tags: [uncensored]}
+    - {code: "k", label: "Tokyo Hot", description: "amateur/public AV; code format k0000", tags: [uncensored, amateur]}
 
 - company: Heyzo
   description: "Uncensored streaming platform. Higher production quality than most uncensored sites — closer to mainstream AV standards. Frequently features known censored AV actresses making uncensored appearances. Part of the DTI Services group alongside 1Pondo and Caribbeancom."
@@ -2203,4 +2203,4 @@
       - "HEYZO (single unified code, HEYZO-XXXX 4-digit format)"
     notes: "Part of DTI Services group alongside 1Pondo and Caribbeancom — a consolidated uncensored streaming network. Heyzo occupies the 'premium uncensored' tier, offering production quality that rivals censored AV while operating in the uncensored space."
   labels:
-    - {code: HEYZO, label: Heyzo, description: "uncensored streaming platform; higher production quality than most nomo; code format HEYZO-XXXX"}
+    - {code: HEYZO, label: Heyzo, description: "uncensored streaming platform; higher production quality than most nomo; code format HEYZO-XXXX", tags: [uncensored]}
