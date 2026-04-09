@@ -694,6 +694,18 @@
 
 - company: "WILL/Triple H Group"
   description: "WILL subcontractor group containing several planning-heavy labels. Hunter is the flagship — a major rival to Dandy (SOD), specializing in 'herbivorous man' fantasy scenarios. Apache focuses on train/public molestation scenarios. AtoM does game/penalty variety content."
+  profile:
+    founded: 2007
+    status: active
+    parent: "WILL Co., Ltd. (group formed March 2016 when Hunter and co-labels departed SOD)"
+    specialty: "Planning (kikaku) label collective built around Hunter as the flagship. HHH stands for 'ホントにホットでエッチ' (Really Hot and Naughty). Hunter's core identity is the '草食男子メーカー' (herbivore male maker) — fantasy scenarios built around passive, non-assertive male archetypes — directly rivaling Dandy (SOD). Hunter Black (HUBLK) is the darker counterpart covering more aggressive scenarios. The group originated within SOD before departing in March 2016 to become independent under WILL/Outvision distribution."
+    notable_series:
+      - "HUNTC / Hunter (flagship planning series — extremely long titles are a trademark; one 2015 release exceeded 400 characters)"
+      - "HUBLK / Hunter Black (carnivore male sub-label — higher-intensity scenarios)"
+      - "ATOM / AtoM (TV variety × AV game/penalty format, ~181 titles, ceased May 2021)"
+      - "AP / Apache (train/public molestation scenarios, ceased September 2021)"
+      - "OYC / Oyashoku Company (everyday monitoring-style scenarios, active)"
+    notes: "Hunter founded April 2007 within SOD; AtoM founded November 2010 within SOD. Both departed SOD March 2016 alongside Apache, Golden Time (GDHH), and Oyashoku Company (OYC) to form the HHH group under Outvision/WILL distribution. The Hunter–Dandy rivalry is one of the defining competitions in the kikaku planning genre — they were sister labels at SOD before the split. Director Borubo Nakano won a 'two-crown' at the 2010 SOD Awards (top sales + most releases). Apache and AtoM both ceased operations in 2021."
   labels:
     - {code: HUNTC, label: Hunter,                          description: "A specialized company specializing in the motto of \"selfish herbivorous man\". A special label that is similar to dandy and rival relationship. Only the projects continue to take pictures. Old part number hunt, hunta, huntb"}
     - {code: HUBLK, label: "Hunter Black",                  description: "There are many projects with high levels such as lines and rape. Old part number Hunbl"}
@@ -809,6 +821,19 @@
 
 - company: "WILL/Emmanuel Group"
   description: "WILL subcontractor group specializing almost entirely in mature/elderly women content (jukujo/熟女). Contains labels for progressively older age ranges — from 40s married women up through 50s, 60s, and even 70s. The most extreme end of the mature woman spectrum in commercial AV."
+  profile:
+    founded: 2009
+    status: active
+    parent: "WILL Co., Ltd. (absorbed into Mousouzoku umbrella October 2014; continues as distinct sub-division)"
+    specialty: "Distribution umbrella aggregating 20+ sub-labels all targeting the jukujo (熟女) and hitozuma (人妻) space, explicitly structured around progressively older age brackets — 40s through 70s. Named after the 1974 French erotic film *Emmanuelle*, which grossed ~¥15.6 billion in Japan and made 'エマニエル' cultural shorthand for mature sensual content. The flagship EMAF (Four Dimension, 647+ titles) covers the broadest range; EMAZ (Fujinsha) is the most extreme elder-end label targeting women in their 50s, 60s, and 70s. Casting model is primarily documentary/amateur style with real older women rather than contract idol actresses."
+    notable_series:
+      - "EMAF / Four Dimension (flagship, 647+ titles, Feb 2009–May 2022)"
+      - "EMBZ / Ranbukan (Jukujo-juku, 400+ titles)"
+      - "EMAZ / Fujinsha (50s–70s extreme elder end)"
+      - "BIJN / Bijin Majo (400+ titles vol. 2)"
+      - "SOAV / Shiroto Harem (amateur married woman infidelity documentary, from Feb 2015)"
+      - "SIBA / Ranbukan (mature woman SM specialty)"
+    notes: "Founded February 2009 under Outvision/CA. Absorbed into Mousouzoku (WILL/Delusional Group) October 17, 2014 as part of Mousouzoku's 2014 consolidation phase — operationally no change for the labels, which continued under the same codes. The Emmanuel Group contributed ~20 sub-labels to Mousouzoku's eventual count of 253 affiliated makers (March 2016). Unlike WILL's mainstream idol labels, Emmanuel operates on an amateur/documentary casting model recruiting real older women rather than signed actresses."
   labels:
     - {code: EMEN, label: "Enjuku",                 description: "old lady"}
     - {code: EMBW, label: "Kasumi Planning",         description: "elderly lady"}
@@ -1831,6 +1856,20 @@
 
 - company: "Crystal Eizou"
   description: "Independent maker (Crystal Eizou/クリスタル映像). Primarily mature woman/ladies-focused content. One of the veteran jukujo studios operating independently."
+  profile:
+    founded: 1984
+    status: active
+    parent: "Independent (Crystal Eizou / クリスタル映像)"
+    specialty: "Veteran independent jukujo (熟女, mature woman) producer. Crystal-Eizou was founded October 1984 (incorporated June 1985) — one of the oldest independent AV companies in Japan. The CESD/CETD codes represent the studio's direct mature-woman and ladies-focused productions, distinct from the premium Venus sub-label (VEC/VEMA codes) which handles their flagship solo-actress showcase content. Known for high production craft and a focus on elegance over raunchiness."
+    notable_actresses:
+      - "Ai Iijima (debut 1992, considered 'top AV actress of her era,' major crossover celebrity in 1990s)"
+      - "Kaoru Kuroki (debut October 1986)"
+      - "Yumika Hayashi"
+    notable_series:
+      - "Venus label (VEC/VEMA — premium flagship, separate entry in database)"
+      - "CESD (current regular series — mature/ladies content)"
+      - "The Costume Play Maid"
+    notes: "Crystal-Eizou is the parent company; Venus (VEC/VEMA) is its premium sub-label, which has a separate profile entry in this database. The CESD/CETD codes are Crystal-Eizou's own-branded releases distinct from the Venus line. Founded by president Tadaharu Nishimura; based in Toshima, Tokyo. Won 2003 Takeshi Kitano Awards Best AV Title; 2007 AV Open 2nd place."
   labels:
     - {code: CESD, label: "Crystal Eizou", description: "regular part number; ladies-focused"}
     - {code: CETD, label: "Crystal Eizou", description: "older part number"}
