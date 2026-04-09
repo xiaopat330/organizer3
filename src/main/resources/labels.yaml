@@ -1277,14 +1277,14 @@
     - {code: NKSD,  label: "Secret communication", description: "The successor to KSD, which existed from July 2004 to June 2005."}
     - {code: IKD,   label: "Akasakaura Radical Gang", description: "The label existed from December 2002 to May 2004."}
     - {code: HND,   label: Zanzibar,               description: "A label that existed from February 2003 to October 2013."}
-    - {code: EDD,   label: "Tamashiya",             description: "Part numbers that existed from May 2003 to May 2013. The series is about super amateur women who escort. As the first gateway through which new actors pass through Prestige, there are many pure love stories in which a woman takes the lead and goes on a date. In particular, Sakuya Yua's EDD-202 was so well received in Korea that it was called a legendary product number."}
-    - {code: ESK,   label: "Tamashiya",             description: "The successor to EDD, which has been on sale from June 2013 to the present of 2020."}
+    - {code: EDD,   label: "Tamashiya",             description: "Part numbers that existed from May 2003 to May 2013. The series is about super amateur women who escort. As the first gateway through which new actors pass through Prestige, there are many pure love stories in which a woman takes the lead and goes on a date. In particular, Sakuya Yua's EDD-202 was so well received in Korea that it was called a legendary product number.", tags: [amateur, pickup, girlfriend-experience]}
+    - {code: ESK,   label: "Tamashiya",             description: "The successor to EDD, which has been on sale from June 2013 to the present of 2020.", tags: [amateur, pickup, girlfriend-experience]}
     - {code: MMY,   label: "Marumeya",              description: "A label that existed from August 2010 to August 2011."}
     - {code: BRD,   label: "Breeding Club",         description: "A label that existed from July 2003 to June 2005."}
     - {code: DMD,   label: "Devil master",          description: "A label that existed from October 2003 to February 2004."}
     - {code: MCD,   label: Mescaline,               description: "A label that existed from October 2003 to July 2005."}
     - {code: CTD,   label: "Harajuku Doru",         description: "A label that existed from November 2003 to September 2008."}
-    - {code: PPD,   label: "Peeping Pro",           description: "A label that existed from November 2003 to May 2005."}
+    - {code: PPD,   label: "Peeping Pro",           description: "A label that existed from November 2003 to May 2005.", tags: [voyeur]}
     - {code: ATD,   label: "ANGEL TALK",            description: "A label that existed from February 2004 to April 2006."}
     - {code: NFD,   label: "SUCK PLEASURE",         description: "A label that was only released in May 2004."}
     - {code: LLD,   label: "Lovers Lock",           description: "A label that existed from June 2004 to October 2004."}
@@ -1294,7 +1294,7 @@
     - {code: FRD,   label: "Flower Dive",           description: "A label that existed from October 2004 to September 2005."}
     - {code: KKD,   label: "Kikudo",                description: "A label that existed from October 2004 to July 2005."}
     - {code: AND,   label: "And (&AND)",            description: "A label that existed from November 2004 to August 2005."}
-    - {code: EXD,   label: Extra,                   description: "A label dedicated to the compilation, released only in December 2004."}
+    - {code: EXD,   label: Extra,                   description: "A label dedicated to the compilation, released only in December 2004.", tags: [compilation]}
     - {code: RUD,   label: Rumble,                  description: "The label existed from December 2004 to February 2005."}
     - {code: QTD,   label: Quiet,                   description: "A label that existed from February 2005 to July 2005."}
     - {code: SID,   label: Silence,                 description: "A label that was only released in March 2005."}
@@ -1302,8 +1302,8 @@
     - {code: END,   label: End,                     description: "A label that was only released in May 2005."}
     - {code: GLD,   label: GLOW,                    description: "A label that existed from May 2005 to August 2005."}
     - {code: GYD,   label: GUILTY,                  description: "A label that existed from May 2005 to July 2009."}
-    - {code: MXD,   label: "MIX LOVE JUICE",        description: "A label dedicated to the compilation, which existed from May 2005 to November 2005."}
-    - {code: ABD,   label: "secret rendezvous planning", description: "A label that existed from June 2005 to October 2005."}
+    - {code: MXD,   label: "MIX LOVE JUICE",        description: "A label dedicated to the compilation, which existed from May 2005 to November 2005.", tags: [compilation]}
+    - {code: ABD,   label: "secret rendezvous planning", description: "A label that existed from June 2005 to October 2005.", tags: [planning]}
     - {code: SMD,   label: refreshing,              description: "A label that was only released in June 2005."}
     - {code: ESD,   label: "Executive Sports",      description: "A label that was only released in August 2005."}
     - {code: HHD,   label: Casablanca,              description: "A label that existed from August 2005 to November 2005."}
@@ -1329,7 +1329,7 @@
     - {code: PBD,   label: "Platina BLACK",         description: "A label that existed from April 2006 to April 2007."}
     - {code: WWD,   label: "White Wife",            description: "A label that was only released in April 2006."}
     - {code: ZOD,   label: ZOO,                     description: "A label that existed from May 2006 to August 2006."}
-    - {code: PRE,   label: Prestige,                description: "A label dedicated to the compilation, which existed from June 2006 to October 2009."}
+    - {code: PRE,   label: Prestige,                description: "A label dedicated to the compilation, which existed from June 2006 to October 2009.", tags: [compilation]}
     - {code: REC,   label: level,                   description: "A label that existed from July 2006 to August 2010."}
     - {code: NRE,   label: "New REC",               description: "The follow-up label to REC, which existed from January 2011 to October 2011."}
     - {code: EYE,   label: "RED EYE",               description: "A label that existed from November 2006 to January 2008."}
@@ -1337,76 +1337,76 @@
     - {code: RJN,   label: "Raijin 2",              description: "A label that existed from June 2007 to July 2010."}
     - {code: VRD,   label: "Virgin Rose",           description: "Label released only in April 2007."}
     - {code: WIL,   label: "Wild cherry",           description: "A label that existed from April 2007 to December 2009."}
-    - {code: DAY,   label: Daisy,                   description: "A label with a Lori concept that existed from May 2007 to August 2008."}
-    - {code: JKS,   label: JK,                      description: "A label that existed from June 2007 to July 2008."}
-    - {code: DXD,   label: Deluxe,                  description: "EDD's compilation label, released only in August 2007."}
+    - {code: DAY,   label: Daisy,                   description: "A label with a Lori concept that existed from May 2007 to August 2008.", tags: [petite]}
+    - {code: JKS,   label: JK,                      description: "A label that existed from June 2007 to July 2008.", tags: [schoolgirl]}
+    - {code: DXD,   label: Deluxe,                  description: "EDD's compilation label, released only in August 2007.", tags: [compilation]}
     - {code: CHI,   label: Papillon,                description: "A label that existed from September 2007 to May 2008."}
     - {code: EGG,   label: Egg,                     description: "A label that existed from November 2007 to October 2008."}
     - {code: ISM,   label: Manhattanism,            description: "A label that existed from November 2007 to June 2008."}
     - {code: ZER,   label: zero,                    description: "A label that existed from November 2007 to November 2009."}
     - {code: NEW,   label: New,                     description: "A label that existed from January 2008 to March 2008."}
     - {code: TPL,   label: "Tokyo Rose",            description: "A label that existed from January 2008 to February 2008."}
-    - {code: XND,   label: XANADU,                  description: "Part numbers that existed from March 2008 to December 2009. Because it is a genre that pursues an American style, black men sometimes appear."}
+    - {code: XND,   label: XANADU,                  description: "Part numbers that existed from March 2008 to December 2009. Because it is a genre that pursues an American style, black men sometimes appear.", tags: [foreign-actress]}
     - {code: ESB,   label: ensemble,                description: "A label that existed from June 2008 to March 2009."}
     - {code: BLO,   label: BLOOM,                   description: "A label that existed from July 2008 to August 2010."}
     - {code: TDT,   label: "The documentary",       description: "The follow-up label to BLO, which existed from July 2010 to May 2011."}
-    - {code: DOM,   label: "Tokuma mushi",          description: "A label that existed from October 2008 to May 2013. Rui Saotome's DOM-001 is famous."}
+    - {code: DOM,   label: "Tokuma mushi",          description: "A label that existed from October 2008 to May 2013. Rui Saotome's DOM-001 is famous.", tags: [exclusive-actress, debut]}
     - {code: AKA,   label: Akamamushi,              description: "The follow-up label to DOM, which has been on the market from June 2013 to the present in 2018."}
     - {code: INU,   label: Inu,                     description: "The successor label to the DOM, which existed from September 2010 to May 2013."}
     - {code: BRA,   label: BARATIE,                 description: "The successor label to INU, which existed from June 2013 to August 2014."}
     - {code: SVV,   label: Survivor,                description: "A label that existed from December 2008 to August 2010."}
     - {code: GTO,   label: "Academy Heaven",        description: "A label that existed from January 2009 to March 2009."}
-    - {code: SHS,   label: "Amateur dispatch specialist", description: "A label that existed from April 2009 to July 2010."}
-    - {code: MAS,   label: "Masu",                  description: "The successor label to SHS, which existed from August 2010 to May 2013."}
-    - {code: CHN,   label: bogie,                   description: "A follow-up label to MAS, released from June 2013 to present in 2018."}
+    - {code: SHS,   label: "Amateur dispatch specialist", description: "A label that existed from April 2009 to July 2010.", tags: [amateur, home-visit]}
+    - {code: MAS,   label: "Masu",                  description: "The successor label to SHS, which existed from August 2010 to May 2013.", tags: [amateur, home-visit]}
+    - {code: CHN,   label: bogie,                   description: "A follow-up label to MAS, released from June 2013 to present in 2018.", tags: [amateur]}
     - {code: DKS,   label: "deep kiss",             description: "Deep Kiss specialty label"}
     - {code: HYK,   label: "Hayakei",               description: "A label that existed from May 2009 to August 2010."}
     - {code: CBK,   label: "Seven Dances",          description: "A label that existed from July 2009 to August 2009."}
     - {code: EGT,   label: EGOISTE,                 description: "A label that existed from July 2009 to June 2010."}
     - {code: HON,   label: Honey,                   description: "A label that existed from October 2009 to July 2010."}
     - {code: WHY,   label: "Otsuka Rock",           description: "A label that existed from November 2009 to July 2010."}
-    - {code: ABS,   label: ABSOLUTE,                description: "Existed from August 2010 to May 2013, label for exclusive use."}
-    - {code: ABP,   label: "ABSOLUTELY PERFECT",    description: "Existed from June 2013 to August 2020, the successor label to ABS."}
-    - {code: ABW,   label: "ABSOLUTELY WONDERFUL",  description: "Existed from August 2020 to June 2023, subsequent labeling of ABP."}
-    - {code: ABF,   label: "ABSOLUTELY FANTASIA",   description: "ABW's successor label, released from July 2023."}
+    - {code: ABS,   label: ABSOLUTE,                description: "Existed from August 2010 to May 2013, label for exclusive use.", tags: [exclusive-actress]}
+    - {code: ABP,   label: "ABSOLUTELY PERFECT",    description: "Existed from June 2013 to August 2020, the successor label to ABS.", tags: [exclusive-actress, solo-actress]}
+    - {code: ABW,   label: "ABSOLUTELY WONDERFUL",  description: "Existed from August 2020 to June 2023, subsequent labeling of ABP.", tags: [exclusive-actress, solo-actress]}
+    - {code: ABF,   label: "ABSOLUTELY FANTASIA",   description: "ABW's successor label, released from July 2023.", tags: [exclusive-actress, solo-actress]}
     - {code: SAD,   label: "Sell Doru",             description: "A cell video limited sale label that existed from July 2010 to November 2012."}
     - {code: SPC,   label: Special,                 description: "Part numbers that existed from February 2011 to May 2011."}
     - {code: SPP,   label: Special,                 description: "A summary of the SPC editions that existed from April 2013 to May 2013."}
-    - {code: BST,   label: Best,                    description: "A label dedicated to the compilation, which existed from February 2011 to May 2013."}
-    - {code: TRE,   label: treasure,                description: "A follow-up label to BST, released from June 2013 to present in 2018. Compilation only."}
-    - {code: PPB,   label: "PRESTIGE PREMIUM BEST", description: "A label dedicated to the compilation, which existed from February 2011 to May 2013."}
-    - {code: PPT,   label: "PRESTIGE PREMIUM TREASURE", description: "A follow-up label to PPB, released from June 2013 to present in 2018. Compilation only."}
-    - {code: PPC,   label: "PRESTIGE PREMIUM COLLECTION", description: "A label dedicated to the compilation, which was only released in June 2011."}
-    - {code: CHS,   label: "local specialty",       description: "A professional hunting label that existed from June 2011 to May 2013."}
-    - {code: CRS,   label: "Amateur former department", description: "The successor label to CHS, which existed from June 2013 to July 2017."}
+    - {code: BST,   label: Best,                    description: "A label dedicated to the compilation, which existed from February 2011 to May 2013.", tags: [compilation]}
+    - {code: TRE,   label: treasure,                description: "A follow-up label to BST, released from June 2013 to present in 2018. Compilation only.", tags: [compilation]}
+    - {code: PPB,   label: "PRESTIGE PREMIUM BEST", description: "A label dedicated to the compilation, which existed from February 2011 to May 2013.", tags: [compilation]}
+    - {code: PPT,   label: "PRESTIGE PREMIUM TREASURE", description: "A follow-up label to PPB, released from June 2013 to present in 2018. Compilation only.", tags: [compilation]}
+    - {code: PPC,   label: "PRESTIGE PREMIUM COLLECTION", description: "A label dedicated to the compilation, which was only released in June 2011.", tags: [compilation]}
+    - {code: CHS,   label: "local specialty",       description: "A professional hunting label that existed from June 2011 to May 2013.", tags: [pickup, amateur]}
+    - {code: CRS,   label: "Amateur former department", description: "The successor label to CHS, which existed from June 2013 to July 2017.", tags: [pickup, amateur]}
     - {code: TOR,   label: Predator,                description: "A label that existed from May 2012 to May 2013."}
     - {code: SOR,   label: "Predator 2nd Form",     description: "The successor label to TOR, which existed from June 2013 to November 2015."}
     - {code: SZR,   label: SIZURU,                  description: "A label that existed from September 2012 to April 2013."}
     - {code: RUS,   label: Rush,                    description: "A label that existed from December 2012 to April 2013."}
-    - {code: LLO,   label: "Tiny Girls.",           description: "A label that was only released in April 2013."}
-    - {code: LLR,   label: "LITTLE GIRL",           description: "The follow-up label to LLO, which existed from June 2013 to July 2017."}
-    - {code: BGN,   label: beginning,               description: "A newcomer-only label that has been on the market from May 2013 to the present in 2018."}
-    - {code: SGA,   label: "Setsugekka",            description: "A newcomer-only label that has been on the market from December 2013 to the present in 2018."}
-    - {code: RAW,   label: Raw,                     description: "A rookie-only label that existed from February 2014 to February 2017. It mainly comes out with the concept of the sports department."}
-    - {code: DIC,   label: discover,                description: "A newcomer-only label that has been on the market from July 2014 to the present in 2018."}
+    - {code: LLO,   label: "Tiny Girls.",           description: "A label that was only released in April 2013.", tags: [petite]}
+    - {code: LLR,   label: "LITTLE GIRL",           description: "The follow-up label to LLO, which existed from June 2013 to July 2017.", tags: [petite]}
+    - {code: BGN,   label: beginning,               description: "A newcomer-only label that has been on the market from May 2013 to the present in 2018.", tags: [debut, newcomer]}
+    - {code: SGA,   label: "Setsugekka",            description: "A newcomer-only label that has been on the market from December 2013 to the present in 2018.", tags: [debut, newcomer]}
+    - {code: RAW,   label: Raw,                     description: "A rookie-only label that existed from February 2014 to February 2017. It mainly comes out with the concept of the sports department.", tags: [debut, newcomer]}
+    - {code: DIC,   label: discover,                description: "A newcomer-only label that has been on the market from July 2014 to the present in 2018.", tags: [debut, newcomer]}
     - {code: LNP,   label: LNP,                     description: "A label that existed from July 2014 to April 2015."}
     - {code: AFS,   label: "After-sales service",   description: "Labels released from October 2013 to present in 2018."}
     - {code: BUY,   label: BUY,                     description: "A label that existed from December 2013 to October 2014."}
     - {code: NOF,   label: Nonfiction,               description: "A label that existed from November 2013 to January 2016."}
     - {code: GGG,   label: "Gold Red Project",       description: "A label that existed from December 2013 to December 2014."}
-    - {code: ABY,   label: Aburaya,                  description: "Married Woman Adultery Hot Spring. A label that existed from April 2011 to November 2012. Travel + ladies concept."}
-    - {code: DEL,   label: "Delivery Soap",          description: "A label that existed from October 2011 to November 2012."}
+    - {code: ABY,   label: Aburaya,                  description: "Married Woman Adultery Hot Spring. A label that existed from April 2011 to November 2012. Travel + ladies concept.", tags: [married-woman, affair, hot-spring]}
+    - {code: DEL,   label: "Delivery Soap",          description: "A label that existed from October 2011 to November 2012.", tags: [soapland]}
     - {code: KYK,   label: "Kyogado",                description: "A label that existed from September 2010 to March 2011."}
     - {code: HAZ,   label: "Hazukashi",              description: "A label that existed from March 2011 to November 2011. Filmed in a hotel room."}
     - {code: IPN,   label: Yipin,                    description: "A label that existed from April 2011 to May 2012."}
     - {code: MDC,   label: "Madam Celebrity",        description: "A label that existed from June 2011 to November 2011."}
     - {code: MTA,   label: Momitai,                  description: "A label that existed from July 2011 to January 2012."}
     # Avantgarde (2.4.2) — former affiliate 2005~2011
-    - {code: HID,   label: Hitozuma,                 description: "A label that existed from April 2005 to October 2005."}
+    - {code: HID,   label: Hitozuma,                 description: "A label that existed from April 2005 to October 2005.", tags: [married-woman]}
     - {code: HKI,   label: Misty,                    description: "A label that existed from January 2006 to December 2006."}
     - {code: BAN,   label: BANQUISH,                 description: "A label that existed from August 2006 to October 2010."}
     - {code: YOK,   label: ABALONE,                  description: "A label that existed from October 2006 to January 2010."}
-    - {code: SBN,   label: "SUPER BANQUISH",         description: "A compilation label of BAN that existed from November 2007 to July 2010."}
+    - {code: SBN,   label: "SUPER BANQUISH",         description: "A compilation label of BAN that existed from November 2007 to July 2010.", tags: [compilation]}
     - {code: AVG,   label: Avantgarde,               description: "A label that existed from January 2007 to February 2009."}
     - {code: AVN,   label: Pineapple,                description: "A label that existed from October 2008 to May 2009."}
     - {code: KMY,   label: "electric jellyfish",     description: "A label that was only released in March 2010."}
@@ -1419,7 +1419,7 @@
     - {code: NKM,   label: SPSTAR,                   description: "Part numbers that existed from August 2007 to November 2007."}
     - {code: HDKB,  label: LEON,                     description: "A label that existed from March 2008 to July 2008."}
     - {code: OSM,   label: Impact,                   description: "A label that existed from August 2008 to September 2008."}
-    - {code: TNIN,  label: "Tsuma Style",            description: "A label that existed from September 2008 to July 2009."}
+    - {code: TNIN,  label: "Tsuma Style",            description: "A label that existed from September 2008 to July 2009.", tags: [married-woman]}
     - {code: JLH,   label: JKL,                      description: "A label that existed from October 2008 to November 2008."}
     # Tiger Direction (2.4.4) — former affiliate 2005~2007
     - {code: SKH,   label: "people of the world",    description: "A label that existed from June 2005 to March 2006."}
@@ -1438,22 +1438,22 @@
     - {code: PE,    label: "Pink egg",               description: "A label that existed from November 2005 to April 2006."}
     - {code: BEX,   label: "POURQUOI?",              description: "A label that existed from November 2006 to March 2007."}
     - {code: NAP,   label: "One shot collection",    description: "Part numbers that existed from December 2006 to February 2008."}
-    - {code: NAPX,  label: "One shot collection",    description: "Compilation of NAP, which existed from March 2008 to December 2008."}
-    - {code: HARM,  label: "One shot harem",         description: "A label that existed from May 2008 to June 2008."}
+    - {code: NAPX,  label: "One shot collection",    description: "Compilation of NAP, which existed from March 2008 to December 2008.", tags: [compilation]}
+    - {code: HARM,  label: "One shot harem",         description: "A label that existed from May 2008 to June 2008.", tags: [harem]}
     - {code: GTA,   label: GT,                       description: "A label that existed from April 2007 to November 2007."}
     - {code: JCK,   label: Jack,                     description: "A label that existed from April 2007 to October 2007."}
     - {code: NOZK,  label: "Nozikiya main store",    description: "A label that existed from April 2008 to December 2008."}
-    - {code: NOZS,  label: "Nozikiya main store",    description: "A compilation label of NOZK, released only in December 2008."}
+    - {code: NOZS,  label: "Nozikiya main store",    description: "A compilation label of NOZK, released only in December 2008.", tags: [compilation]}
     - {code: OTSI,  label: "Otoshiya main store",    description: "A label that existed from July 2008 to November 2008."}
     # Nicks (2.4.7) — former affiliate 2006~2007
-    - {code: CAST,  label: Asia,                     description: "Part numbers that existed from June 2006 to May 2007."}
-    - {code: CASP,  label: Asia,                     description: "A summary of CAST, which existed from September 2007 to October 2007."}
-    - {code: CHUB,  label: Jersey,                   description: "Part numbers that existed from October 2006 to August 2007."}
-    - {code: CHSP,  label: Jersey,                   description: "Part number that was released only in October 2007."}
+    - {code: CAST,  label: Asia,                     description: "Part numbers that existed from June 2006 to May 2007.", tags: [foreign-actress]}
+    - {code: CASP,  label: Asia,                     description: "A summary of CAST, which existed from September 2007 to October 2007.", tags: [foreign-actress, compilation]}
+    - {code: CHUB,  label: Jersey,                   description: "Part numbers that existed from October 2006 to August 2007.", tags: [chubby]}
+    - {code: CHSP,  label: Jersey,                   description: "Part number that was released only in October 2007.", tags: [chubby, compilation]}
     # full sale (2.4.8)
     - {code: CBR,   label: "FULL SAIL",              description: "A label that existed from June 2006 to July 2008."}
     - {code: FZR,   label: "FULL SAIL",              description: "A label that existed from July 2006 to September 2006."}
-    - {code: FUL,   label: "FULL SAIL",              description: "A label dedicated to the compilation, which existed from December 2009 to September 2013."}
+    - {code: FUL,   label: "FULL SAIL",              description: "A label dedicated to the compilation, which existed from December 2009 to September 2013.", tags: [compilation]}
     - {code: GSX,   label: ACCEL,                    description: "A label that existed from September 2006 to June 2010. There is a 'Tokyo 25 Hours' series."}
     - {code: NJG,   label: "25 o'clock",             description: "The successor label to GSX, which existed from March 2011 to April 2012."}
     - {code: TKY,   label: Tokyo,                    description: "Subsequent label to NJG, which existed from May 2012 to October 2012."}
@@ -1464,13 +1464,13 @@
     - {code: NSR,   label: "Saisoku",                description: "A label that existed from November 2007 to September 2010. There is a 'Miss Campus Communication' series."}
     - {code: FST,   label: "F-Style",                description: "A label that existed from October 2010 to April 2012."}
     - {code: OLS,   label: woman,                    description: "A label that existed from August 2008 to September 2010."}
-    - {code: KPK,   label: "Investigation of cheating", description: "A compilation label of OLS, which existed from July 2014 to August 2014."}
+    - {code: KPK,   label: "Investigation of cheating", description: "A compilation label of OLS, which existed from July 2014 to August 2014.", tags: [affair, compilation]}
     - {code: CHL,   label: Trip,                     description: "A label that existed from November 2008 to April 2009."}
-    - {code: SRG,   label: natural,                  description: "A label that existed from May 2009 to September 2010. There is a 'Street Snap' series."}
+    - {code: SRG,   label: natural,                  description: "A label that existed from May 2009 to September 2010. There is a 'Street Snap' series.", tags: [amateur, pickup]}
     - {code: TYM,   label: "Sanbo",                  description: "The follow-up label to SRG, which existed from May 2013 to July 2013."}
     - {code: STS,   label: Snap,                     description: "The follow-up label to TYM, which was only released in July 2013."}
     - {code: PUR,   label: Pure,                     description: "A label that existed from February 2010 to September 2010."}
-    - {code: OJS,   label: treasure,                 description: "Part numbers that existed from March 2010 to July 2010."}
+    - {code: OJS,   label: treasure,                 description: "Part numbers that existed from March 2010 to July 2010.", tags: [compilation]}
     - {code: MPC,   label: "Master piece",           description: "A label that existed from April 2010 to September 2010."}
     - {code: TNP,   label: Dampopo,                  description: "A label that existed from April 2010 to May 2010."}
     - {code: RET,   label: "REAL TIME",              description: "A label that existed from May 2010 to September 2010."}
@@ -1491,8 +1491,8 @@
     - {code: MKK,   label: Kawaii,                   description: "The follow-up label to KRE, which was only released in August 2013."}
     - {code: SAI,   label: "talented woman",         description: "A label that existed from October 2012 to January 2013."}
     - {code: WAP,   label: "Wonpi",                  description: "A label that existed from May 2013 to July 2013."}
-    - {code: SFK,   label: "school uniform girl",    description: "A label that existed from June 2013 to August 2013."}
-    - {code: SPA,   label: "pretty girl",            description: "A label dedicated to the compilation, which existed from July 2013 to February 2014."}
+    - {code: SFK,   label: "school uniform girl",    description: "A label that existed from June 2013 to August 2013.", tags: [schoolgirl, cosplay]}
+    - {code: SPA,   label: "pretty girl",            description: "A label dedicated to the compilation, which existed from July 2013 to February 2014.", tags: [compilation]}
     - {code: UMI,   label: "Cheongcho",              description: "A label that was only released in August 2013."}
     - {code: GTN,   label: Gaten,                    description: "A label that was only released in October 2013."}
     - {code: APO,   label: interview,                description: "A label that existed from November 2013 to March 2014."}
@@ -1510,7 +1510,7 @@
     - {code: APM,   label: "morning afternoon",      description: "A label that existed from September 2014 to October 2014."}
     - {code: PVR,   label: "Sex wall orientation",   description: "A label that was only released in April 2015."}
     - {code: RMO,   label: "Hiramoto Gumi",          description: "A label that existed from April 2015 to July 2015."}
-    - {code: OJK,   label: JK,                       description: "Part numbers that existed from February 2016 to May 2016."}
+    - {code: OJK,   label: JK,                       description: "Part numbers that existed from February 2016 to May 2016.", tags: [schoolgirl]}
     - {code: MCT,   label: truth,                    description: "Labels released from March 2016 to present in 2018."}
     - {code: GES,   label: "Uragesu",                description: "Labels released from September 2016 to present in 2018."}
     # Himehana Original (2.4.9) — former affiliate 2006~2009
@@ -1521,7 +1521,7 @@
     - {code: CACA,  label: Cacao,                    description: "A label that existed from May 2007 to November 2007."}
     - {code: HYS,   label: HYS,                      description: "A label that existed from May 2007 to December 2007."}
     - {code: KOBA,  label: KOBA,                     description: "A label that existed from July 2007 to October 2007."}
-    - {code: HSP,   label: HSP,                      description: "A label dedicated to the compilation, which existed from March 2008 to July 2009."}
+    - {code: HSP,   label: HSP,                      description: "A label dedicated to the compilation, which existed from March 2008 to July 2009.", tags: [compilation]}
     # ONE MORE (2.4.10)
     - {code: ONEM,  label: "ONE MORE",               description: "A label that existed from November 2008 to August 2010."}
     - {code: ONCE,  label: ONCE,                     description: "The follow-up label to ONEM, which existed from September 2010 to June 2013."}
@@ -1530,7 +1530,7 @@
     - {code: FWP,   label: Flyway,                   description: "A label that existed from August 2009 to March 2010."}
     - {code: ONER,  label: research,                 description: "A label that existed from December 2015 to September 2017."}
     - {code: ONET,  label: TODOManic,                description: "A label that existed from January 2016 to September 2017. Directed by TODO."}
-    - {code: ONEB,  label: "ONE BEST",               description: "A label dedicated to the compilation that existed from September 2016 to July 2017."}
+    - {code: ONEB,  label: "ONE BEST",               description: "A label dedicated to the compilation that existed from September 2016 to July 2017.", tags: [compilation]}
     # Onimaru (2.4.11) — former affiliate 2006~2007
     - {code: OND,   label: Onimaru,                  description: "A label that existed from August 2006 to February 2007."}
     - {code: FND,   label: Onimaru,                  description: "A label that existed from February 2007 to December 2007."}
@@ -1549,15 +1549,15 @@
     - {code: COB,   label: Cobra,                    description: "A label that existed from January 2008 to September 2010."}
     - {code: KAMI,  label: Kamikaze,                 description: "A label that existed from July 2008 to January 2009."}
     - {code: ATOM,  label: Atomic,                   description: "A label that existed from August 2008 to February 2010."}
-    - {code: ZET,   label: Zetton,                   description: "A label dedicated to the compilation, which existed from October 2008 to February 2012."}
-    - {code: ZESP,  label: "Zetton Compilation",     description: "The follow-up label to ZET, which existed from March 2012 to November 2013. Compilation only."}
+    - {code: ZET,   label: Zetton,                   description: "A label dedicated to the compilation, which existed from October 2008 to February 2012.", tags: [compilation]}
+    - {code: ZESP,  label: "Zetton Compilation",     description: "The follow-up label to ZET, which existed from March 2012 to November 2013. Compilation only.", tags: [compilation]}
     - {code: MEG,   label: Megalo,                   description: "A label that existed from November 2008 to February 2009."}
     - {code: MIYA,  label: "Miyabi",                 description: "A label that existed from April 2009 to March 2013."}
     - {code: KAN,   label: Khan,                     description: "A label that existed from April 2009 to February 2010."}
     - {code: CHIM,  label: Chimera,                  description: "A label that existed from May 2009 to July 2010."}
-    - {code: TSG,   label: aqua,                     description: "A label that existed from May 2009 to July 2010. There is a 'Tokyo Street Graffiti' series."}
+    - {code: TSG,   label: aqua,                     description: "A label that existed from May 2009 to July 2010. There is a 'Tokyo Street Graffiti' series.", tags: [amateur, pickup]}
     - {code: LFS,   label: DROP,                     description: "A label that existed from July 2009 to May 2010."}
-    - {code: DNA,   label: "D&A",                    description: "A label dedicated to the compilation, which was only released in August 2009."}
+    - {code: DNA,   label: "D&A",                    description: "A label dedicated to the compilation, which was only released in August 2009.", tags: [compilation]}
     - {code: LAN,   label: "Ran",                    description: "A label that existed from September 2009 to December 2009."}
     - {code: MIRA,  label: Miracle,                  description: "A label that existed from September 2009 to February 2010."}
     - {code: LEM,   label: Lemon,                    description: "A label that existed from August 2010 to February 2013."}
@@ -1572,8 +1572,8 @@
     - {code: ZMSK,  label: Mask,                     description: "A label that existed from September 2014 to June 2015."}
     - {code: OMEG,  label: Omega,                    description: "The follow-up label to ZJI, which existed from October 2014 to July 2015."}
     - {code: LIME,  label: Lime,                     description: "A label that existed from September 2014 to May 2015."}
-    - {code: ZYON,  label: ZettonFH,                 description: "A label dedicated to the compilation, which existed from December 2014 to September 2015."}
-    - {code: ZENI,  label: Zenith,                   description: "The follow-up label to ZYON, which existed from October 2015 to December 2015. Compilation only."}
+    - {code: ZYON,  label: ZettonFH,                 description: "A label dedicated to the compilation, which existed from December 2014 to September 2015.", tags: [compilation]}
+    - {code: ZENI,  label: Zenith,                   description: "The follow-up label to ZYON, which existed from October 2015 to December 2015. Compilation only.", tags: [compilation]}
     - {code: KIWI,  label: Kiwi,                     description: "A label that existed from July 2015 to September 2015."}
     # Yabu Style (2.4.13)
     - {code: YAD,   label: Yabusame,                 description: "A label that existed from October 2006 to January 2009."}
@@ -1585,9 +1585,9 @@
     - {code: MLS,   label: Marvelous,                description: "A label that existed from July 2012 to March 2013."}
     - {code: KILL,  label: "ACE KILLER",             description: "A label that existed from May 2013 to September 2016."}
     # WAIWAI (2.4.14)
-    - {code: YYY,   label: WAIWAI,                   description: "A label dedicated to the compilation of Yabusame graffiti that existed from January 2009 to May 2011."}
+    - {code: YYY,   label: WAIWAI,                   description: "A label dedicated to the compilation of Yabusame graffiti that existed from January 2009 to May 2011.", tags: [compilation]}
     # Mad Crew (2.4.15) — former affiliate 2006~2008
-    - {code: PRMD,  label: "School Berry",           description: "A label that existed from November 2006 to November 2008."}
+    - {code: PRMD,  label: "School Berry",           description: "A label that existed from November 2006 to November 2008.", tags: [schoolgirl]}
     - {code: MACR,  label: "night mission",          description: "A label that existed from June 2007 to January 2008."}
     # Equus Change (2.4.16) — former affiliate 2007~2008
     - {code: EURO,  label: Euro,                     description: "A label that existed from February 2007 to June 2007."}
@@ -1606,7 +1606,7 @@
     - {code: OHM,   label: OMOPLATA,                 description: "A label that was only released in October 2007."}
     - {code: OOB,   label: "Ops!",                   description: "Part number that was released only in October 2007."}
     - {code: OSY,   label: "Ops!",                   description: "Part numbers that existed from December 2007 to March 2008."}
-    - {code: NNN,   label: Nama,                     description: "A label that existed from January 2008 to May 2009."}
+    - {code: NNN,   label: Nama,                     description: "A label that existed from January 2008 to May 2009.", tags: [creampie]}
     - {code: OFM,   label: Furima,                   description: "A label that existed from September 2008 to June 2010."}
     - {code: EEE,   label: G,                        description: "A label that was only released in October 2008."}
     - {code: SYSG,  label: "General of sexual desire", description: "A label that existed from December 2008 to May 2010."}
@@ -1636,34 +1636,34 @@
     # MARIPOSA (2.4.26)
     - {code: TFTF,  label: Mariposa,                 description: "A label that was only released in August 2008."}
     # MGS video (2.4.27) — Shiroto TV / download-only labels
-    - {code: SIRO,  label: "Shiroto TV",             description: "Download-only part number released from March 2010 to the present in 2018."}
-    - {code: OVER,  label: "Shiroto TV",             description: "Part number for ladies download only, which existed from March 2010 to June 2010."}
-    - {code: SIT,   label: "Shiroto TV Premium",     description: "The DVD part number of SIRO, which existed from December 2010 to March 2013."}
-    - {code: SIV,   label: "Shiroto TV Premium",     description: "SIRO's DVD label released from June 2013 to the present in 2018."}
-    - {code: "200GANA", label: "Wreck TV",           description: "A download-only part number released from April 2014 to the present in 2018."}
-    - {code: NPV,   label: "Wreck TV",               description: "DVD part number of 200GANA released from August 2014 to the present in 2018."}
-    - {code: "259LUXU", label: "Lagju TV",           description: "Download-only part numbers released from July 2015 to the present in 2018."}
-    - {code: LXV,   label: "Lagju TV",               description: "DVD article number of 259LUXU released from February 2016 to present in 2018."}
-    - {code: LXVS,  label: "Lagju TV",               description: "DVD article number of 259LUXU released from April 2016 to present in 2018."}
-    - {code: "261ARA", label: ARA,                   description: "Download-only part numbers released from September 2015 to the present in 2018."}
-    - {code: ARAS,  label: ARA,                      description: "The DVD part number of 261ARA, which was only released in April 2016."}
-    - {code: BCV,   label: "Boshu-chan TV",          description: "The DVD part number of 261ARA, which was released from August 2016 to September 2017."}
-    - {code: "277DCV", label: "Documentumen TV",     description: "Download-only part numbers released from April 2016 to the present in 2018."}
-    - {code: DCV,   label: "Documentumen TV",        description: "The DVD part number of 277DCV, which has been released from May 2016 to the present in 2018."}
-    - {code: "300MIUM", label: "Prestige Premium",   description: "Download-only part numbers released from November 2016 to the present in 2018."}
-    - {code: MHV,   label: "Prestige Premium",       description: "The DVD part number of 300MIUM, which has been released from February 2017 to the present in 2018."}
+    - {code: SIRO,  label: "Shiroto TV",             description: "Download-only part number released from March 2010 to the present in 2018.", tags: [amateur]}
+    - {code: OVER,  label: "Shiroto TV",             description: "Part number for ladies download only, which existed from March 2010 to June 2010.", tags: [amateur]}
+    - {code: SIT,   label: "Shiroto TV Premium",     description: "The DVD part number of SIRO, which existed from December 2010 to March 2013.", tags: [amateur]}
+    - {code: SIV,   label: "Shiroto TV Premium",     description: "SIRO's DVD label released from June 2013 to the present in 2018.", tags: [amateur]}
+    - {code: "200GANA", label: "Wreck TV",           description: "A download-only part number released from April 2014 to the present in 2018.", tags: [amateur, pickup]}
+    - {code: NPV,   label: "Wreck TV",               description: "DVD part number of 200GANA released from August 2014 to the present in 2018.", tags: [amateur, pickup]}
+    - {code: "259LUXU", label: "Lagju TV",           description: "Download-only part numbers released from July 2015 to the present in 2018.", tags: [amateur]}
+    - {code: LXV,   label: "Lagju TV",               description: "DVD article number of 259LUXU released from February 2016 to present in 2018.", tags: [amateur]}
+    - {code: LXVS,  label: "Lagju TV",               description: "DVD article number of 259LUXU released from April 2016 to present in 2018.", tags: [amateur]}
+    - {code: "261ARA", label: ARA,                   description: "Download-only part numbers released from September 2015 to the present in 2018.", tags: [mature-women, amateur]}
+    - {code: ARAS,  label: ARA,                      description: "The DVD part number of 261ARA, which was only released in April 2016.", tags: [mature-women, amateur]}
+    - {code: BCV,   label: "Boshu-chan TV",          description: "The DVD part number of 261ARA, which was released from August 2016 to September 2017.", tags: [mature-women, amateur]}
+    - {code: "277DCV", label: "Documentumen TV",     description: "Download-only part numbers released from April 2016 to the present in 2018.", tags: [amateur, documentary]}
+    - {code: DCV,   label: "Documentumen TV",        description: "The DVD part number of 277DCV, which has been released from May 2016 to the present in 2018.", tags: [amateur, documentary]}
+    - {code: "300MIUM", label: "Prestige Premium",   description: "Download-only part numbers released from November 2016 to the present in 2018.", tags: [exclusive-actress, solo-actress]}
+    - {code: MHV,   label: "Prestige Premium",       description: "The DVD part number of 300MIUM, which has been released from February 2017 to the present in 2018.", tags: [exclusive-actress, solo-actress]}
     - {code: VRET,  label: "Tokikaku Channel",       description: "Download-only part numbers that existed from November 2016 to December 2016."}
-    - {code: "320MMGH", label: "SOD Magic Mirror",   description: "Magic Mirror series; street pickups using one-way mirror van"}
+    - {code: "320MMGH", label: "SOD Magic Mirror",   description: "Magic Mirror series; street pickups using one-way mirror van", tags: [planning, pickup, amateur, monitoring]}
     # DOC (2.4.35)
-    - {code: BDY,   label: DOC,                      description: "Accommodation available today!! series (2010.8~2012.4)"}
-    - {code: EZN,   label: DOC,                      description: "Accommodation available today!! series (2010.8~2012.4)"}
-    - {code: HET,   label: DOC,                      description: "Accommodation available today!! series (2010.8~2012.4)"}
-    - {code: ILK,   label: DOC,                      description: "Accommodation available today!! series (2010.8~2012.4)"}
-    - {code: RDD,   label: DOC,                      description: "Accommodation available today!! series (2010.8~2012.4)"}
-    - {code: RDT,   label: DOC,                      description: "Accommodation available today!! series (2010.8~2012.4)"}
-    - {code: RTP,   label: DOC,                      description: "Accommodation available today!! series (2010.8~2012.4)"}
-    - {code: SST,   label: DOC,                      description: "Accommodation available today!! series (2010.8~2012.4)"}
-    - {code: UTE,   label: DOC,                      description: "Accommodation available today!! series (2010.8~2012.4)"}
+    - {code: BDY,   label: DOC,                      description: "Accommodation available today!! series (2010.8~2012.4)", tags: [amateur, pickup]}
+    - {code: EZN,   label: DOC,                      description: "Accommodation available today!! series (2010.8~2012.4)", tags: [amateur, pickup]}
+    - {code: HET,   label: DOC,                      description: "Accommodation available today!! series (2010.8~2012.4)", tags: [amateur, pickup]}
+    - {code: ILK,   label: DOC,                      description: "Accommodation available today!! series (2010.8~2012.4)", tags: [amateur, pickup]}
+    - {code: RDD,   label: DOC,                      description: "Accommodation available today!! series (2010.8~2012.4)", tags: [amateur, pickup]}
+    - {code: RDT,   label: DOC,                      description: "Accommodation available today!! series (2010.8~2012.4)", tags: [amateur, pickup]}
+    - {code: RTP,   label: DOC,                      description: "Accommodation available today!! series (2010.8~2012.4)", tags: [amateur, pickup]}
+    - {code: SST,   label: DOC,                      description: "Accommodation available today!! series (2010.8~2012.4)", tags: [amateur, pickup]}
+    - {code: UTE,   label: DOC,                      description: "Accommodation available today!! series (2010.8~2012.4)", tags: [amateur, pickup]}
     # Misc Prestige labels from CSV tail
     - {code: DEP,   label: Deep,                     description: "Prestige specialty label"}
     - {code: DLY,   label: DELAY,                    description: "Prestige specialty label"}
@@ -1677,24 +1677,24 @@
     - {code: IML,   label: Immoral,                  description: "Prestige specialty label"}
     - {code: JKB,   label: "Juke-Box",               description: "Prestige specialty label"}
     - {code: JPN,   label: "Zipang District",        description: "Prestige specialty label"}
-    - {code: JSN,   label: "Jukusen",               description: "Prestige specialty label"}
-    - {code: KDG,   label: Kudokigui,               description: "'Amateur Gekimanko' series (2012.12~2013.6)"}
+    - {code: JSN,   label: "Jukusen",               description: "Prestige specialty label", tags: [mature-women]}
+    - {code: KDG,   label: Kudokigui,               description: "'Amateur Gekimanko' series (2012.12~2013.6)", tags: [amateur]}
     - {code: KKJ,   label: "The art of persuasion", description: "Prestige specialty label"}
     - {code: LEA,   label: Leak,                     description: "Prestige specialty label"}
     - {code: LOD,   label: "LOVE DOLL",              description: "Prestige specialty label"}
     - {code: MET,   label: "Meet Again",             description: "Prestige specialty label"}
     - {code: MRT,   label: Moratorium,               description: "Prestige specialty label"}
-    - {code: MTG,   label: monitoring,               description: "Prestige specialty label"}
+    - {code: MTG,   label: monitoring,               description: "Prestige specialty label", tags: [monitoring, amateur]}
     - {code: MZM,   label: awakening,                description: "Prestige specialty label"}
-    - {code: NMP,   label: "Hunting Apocalypse",     description: "Prestige specialty label"}
+    - {code: NMP,   label: "Hunting Apocalypse",     description: "Prestige specialty label", tags: [pickup, amateur]}
     - {code: NTO,   label: "net girl",               description: "Prestige specialty label"}
     - {code: OHA,   label: "From Ohayo to Oyasumi",  description: "Prestige specialty label"}
     - {code: OYU,   label: "steam",                  description: "Prestige specialty label"}
     - {code: RIX,   label: "Relaxation Room",        description: "Prestige specialty label"}
     - {code: SEK,   label: Smile,                    description: "Prestige specialty label"}
     - {code: SEN,   label: Sen,                      description: "Prestige specialty label"}
-    - {code: SIN,   label: newcomer,                 description: "Prestige specialty label"}
-    - {code: SLG,   label: "Beheading Shiroto",      description: "Prestige specialty label"}
+    - {code: SIN,   label: newcomer,                 description: "Prestige specialty label", tags: [debut, newcomer]}
+    - {code: SLG,   label: "Beheading Shiroto",      description: "Prestige specialty label", tags: [amateur]}
     - {code: SPB,   label: "Super Body",             description: "Prestige specialty label"}
     - {code: SUB,   label: Submitter,                description: "Prestige specialty label"}
     - {code: TBL,   label: tablet,                   description: "'Ikisugita Wearing Erotic' Series (2011.9~2015.4)"}
