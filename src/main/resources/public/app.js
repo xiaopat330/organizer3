@@ -158,7 +158,7 @@ const VIEWS = {
   queue:            ['queue-header', 'queue-grid'],
   pool:             ['pool-header', 'pool-grid'],
   collections:      ['collections-grid'],
-  'titles-browse':  ['titles-sub-nav', 'titles-browse-grid'],
+  'titles-browse':  ['title-landing', 'titles-browse-grid'],
 };
 const HOME_GRID_IDS = ['grid', 'random-titles-grid', 'random-actress-home-grid'];
 const ALL_PANEL_IDS = [...Object.values(VIEWS).flat(), ...HOME_GRID_IDS];
@@ -593,9 +593,24 @@ const collectionsGrid = new ScrollingGrid(
   { getMax: () => MAX_TOTAL }
 );
 
+// Title browse state:
+//   null         → recent titles (default)
+//   'search'     → use titleSearchTerm (product-number prefix search)
+//   'favorites'  → favorited titles
+//   'bookmarks'  → bookmarked titles
+let titleBrowseMode = null;
+let titleSearchTerm = '';
+
 const allTitlesGrid = new ScrollingGrid(
   document.getElementById('titles-browse-grid'),
-  (o, l) => `/api/titles?offset=${o}&limit=${l}`,
+  (o, l) => {
+    if (titleBrowseMode === 'search') {
+      return `/api/titles?search=${encodeURIComponent(titleSearchTerm)}&offset=${o}&limit=${l}`;
+    }
+    if (titleBrowseMode === 'favorites') return `/api/titles?favorites=true&offset=${o}&limit=${l}`;
+    if (titleBrowseMode === 'bookmarks') return `/api/titles?bookmarks=true&offset=${o}&limit=${l}`;
+    return `/api/titles?offset=${o}&limit=${l}`;
+  },
   makeTitleCard,
   'no titles',
   { getMax: () => MAX_TOTAL }
@@ -1805,27 +1820,259 @@ function formatFileSize(bytes) {
 }
 
 // ── Titles browse ─────────────────────────────────────────────────────────
-const titlesBrowseBtn = document.getElementById('titles-browse-btn');
+const titlesBrowseBtn     = document.getElementById('titles-browse-btn');
+const titleLandingEl      = document.getElementById('title-landing');
+const titleSearchInput    = document.getElementById('title-search-input');
+const titleSearchClearBtn = document.getElementById('title-search-clear');
+const titleFavoritesBtn   = document.getElementById('title-favorites-btn');
+const titleBookmarksBtn   = document.getElementById('title-bookmarks-btn');
+const titleLabelDropdown  = document.getElementById('title-label-dropdown');
 
-function buildTitlesSubNav() {
-  const subNav = document.getElementById('titles-sub-nav');
-  subNav.innerHTML = '';
+const TITLE_SEARCH_DELAY_MS  = 350;
+const TITLE_SEARCH_MIN_CHARS = 1;
 
-  const allBtn = document.createElement('div');
-  allBtn.className = 'actress-sub-nav-item selected';
-  allBtn.textContent = 'ALL';
-  allBtn.addEventListener('click', () => {
-    subNav.querySelectorAll('.actress-sub-nav-item').forEach(el => el.classList.remove('selected'));
-    allBtn.classList.add('selected');
-    updateBreadcrumb([{ label: 'Titles' }]);
-    allTitlesGrid.reset();
-    ensureSentinel();
-    allTitlesGrid.loadMore();
+let titleSearchTimer = null;
+
+// Label reference cache for tab-completion (loaded once on first use)
+let titleLabelCache = null;
+let titleLabelCachePromise = null;
+let labelDropdownItems = [];    // current filtered list rendered in dropdown
+let labelDropdownIndex = -1;    // currently highlighted item
+
+async function ensureTitleLabels() {
+  if (titleLabelCache) return titleLabelCache;
+  if (titleLabelCachePromise) return titleLabelCachePromise;
+  titleLabelCachePromise = (async () => {
+    const res = await fetch('/api/titles/labels');
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    titleLabelCache = Array.isArray(data) ? data : [];
+    return titleLabelCache;
+  })().catch(err => {
+    console.error('Failed to load label catalog:', err);
+    titleLabelCache = [];
+    return titleLabelCache;
   });
-  subNav.appendChild(allBtn);
+  return titleLabelCachePromise;
 }
 
-titlesBrowseBtn.addEventListener('click', () => {
+function extractAlphaPrefix(raw) {
+  if (!raw) return '';
+  // Take leading alpha characters, ignore anything after first non-alpha
+  const m = raw.trim().toUpperCase().match(/^([A-Z][A-Z0-9]*)/);
+  return m ? m[1] : '';
+}
+
+function closeLabelDropdown() {
+  titleLabelDropdown.style.display = 'none';
+  titleLabelDropdown.innerHTML = '';
+  labelDropdownItems = [];
+  labelDropdownIndex = -1;
+}
+
+function renderLabelDropdown(matches, prefix) {
+  titleLabelDropdown.innerHTML = '';
+  labelDropdownItems = matches;
+  labelDropdownIndex = matches.length > 0 ? 0 : -1;
+
+  if (matches.length === 0) {
+    const empty = document.createElement('div');
+    empty.className = 'title-label-dropdown-empty';
+    empty.textContent = `no labels match "${prefix}"`;
+    titleLabelDropdown.appendChild(empty);
+    titleLabelDropdown.style.display = 'block';
+    return;
+  }
+
+  matches.forEach((lbl, i) => {
+    const item = document.createElement('div');
+    item.className = 'title-label-dropdown-item' + (i === 0 ? ' highlighted' : '');
+    item.dataset.index = String(i);
+    const metaParts = [];
+    if (lbl.labelName) metaParts.push(lbl.labelName);
+    if (lbl.company)   metaParts.push(lbl.company);
+    const metaHtml = metaParts.length
+      ? `<span class="title-label-dropdown-meta">${esc(metaParts.join(' · '))}</span>`
+      : '';
+    item.innerHTML = `<span class="title-label-dropdown-code">${esc(lbl.code)}</span>${metaHtml}`;
+    item.addEventListener('mouseenter', () => highlightLabelDropdownItem(i));
+    item.addEventListener('mousedown', e => {
+      // mousedown (not click) so we beat the input blur
+      e.preventDefault();
+      selectLabelDropdownItem(i);
+    });
+    titleLabelDropdown.appendChild(item);
+  });
+  titleLabelDropdown.style.display = 'block';
+}
+
+function highlightLabelDropdownItem(i) {
+  const nodes = titleLabelDropdown.querySelectorAll('.title-label-dropdown-item');
+  nodes.forEach((n, idx) => n.classList.toggle('highlighted', idx === i));
+  labelDropdownIndex = i;
+  const n = nodes[i];
+  if (n) n.scrollIntoView({ block: 'nearest' });
+}
+
+function selectLabelDropdownItem(i) {
+  const lbl = labelDropdownItems[i];
+  if (!lbl) return;
+  titleSearchInput.value = lbl.code + '-';
+  closeLabelDropdown();
+  titleSearchInput.focus();
+  // Place caret at end
+  const v = titleSearchInput.value;
+  titleSearchInput.setSelectionRange(v.length, v.length);
+  // Trigger a search for the chosen label
+  scheduleTitleSearch(0);
+}
+
+async function openLabelDropdown() {
+  const prefix = extractAlphaPrefix(titleSearchInput.value);
+  if (!prefix) {
+    closeLabelDropdown();
+    return;
+  }
+  const all = await ensureTitleLabels();
+  const matches = all.filter(lbl => lbl.code && lbl.code.startsWith(prefix)).slice(0, 50);
+  renderLabelDropdown(matches, prefix);
+}
+
+function updateTitleLandingSelection() {
+  titleFavoritesBtn.classList.toggle('selected', titleBrowseMode === 'favorites');
+  titleBookmarksBtn.classList.toggle('selected', titleBrowseMode === 'bookmarks');
+}
+
+function updateTitleBreadcrumb() {
+  const crumbs = [{ label: 'Titles', action: () => showTitlesBrowse() }];
+  if (titleBrowseMode === 'favorites')     crumbs.push({ label: 'Favorites' });
+  else if (titleBrowseMode === 'bookmarks') crumbs.push({ label: 'Bookmarks' });
+  else if (titleBrowseMode === 'search')    crumbs.push({ label: `search: "${titleSearchTerm}"` });
+  updateBreadcrumb(crumbs);
+}
+
+function runTitleBrowseQuery() {
+  activeGrid = allTitlesGrid;
+  allTitlesGrid.reset();
+  ensureSentinel();
+  allTitlesGrid.loadMore();
+}
+
+function selectTitleBrowseMode(modeKey) {
+  titleBrowseMode = modeKey;
+  if (modeKey !== 'search') {
+    if (titleSearchTimer) { clearTimeout(titleSearchTimer); titleSearchTimer = null; }
+    titleSearchTerm = '';
+    if (titleSearchInput.value !== '') titleSearchInput.value = '';
+    closeLabelDropdown();
+  }
+  updateTitleLandingSelection();
+  updateTitleBreadcrumb();
+  titlesBrowseBtn.classList.add('active');
+  runTitleBrowseQuery();
+}
+
+function scheduleTitleSearch(delayOverride) {
+  if (titleSearchTimer) { clearTimeout(titleSearchTimer); titleSearchTimer = null; }
+  const raw = titleSearchInput.value.trim();
+  if (raw.length < TITLE_SEARCH_MIN_CHARS) {
+    // Reset to default recent-titles view if we were searching
+    if (titleBrowseMode === 'search') {
+      titleBrowseMode = null;
+      updateTitleLandingSelection();
+      updateTitleBreadcrumb();
+      runTitleBrowseQuery();
+    }
+    return;
+  }
+  const delay = delayOverride != null ? delayOverride : TITLE_SEARCH_DELAY_MS;
+  titleSearchTimer = setTimeout(() => {
+    titleSearchTimer = null;
+    titleSearchTerm = raw;
+    titleBrowseMode = 'search';
+    updateTitleLandingSelection();
+    updateTitleBreadcrumb();
+    runTitleBrowseQuery();
+  }, delay);
+}
+
+titleSearchInput.addEventListener('input', () => {
+  closeLabelDropdown();
+  scheduleTitleSearch();
+});
+
+titleSearchInput.addEventListener('keydown', e => {
+  const dropdownOpen = titleLabelDropdown.style.display !== 'none' && labelDropdownItems.length > 0;
+
+  if (e.key === 'Tab' && !e.shiftKey) {
+    e.preventDefault();
+    if (dropdownOpen) {
+      // Accept the current highlight
+      selectLabelDropdownItem(labelDropdownIndex >= 0 ? labelDropdownIndex : 0);
+    } else if (extractAlphaPrefix(titleSearchInput.value)) {
+      openLabelDropdown();
+    }
+    return;
+  }
+
+  if (e.key === 'Escape') {
+    if (dropdownOpen) {
+      e.preventDefault();
+      closeLabelDropdown();
+    }
+    return;
+  }
+
+  if (dropdownOpen && (e.key === 'ArrowDown' || e.key === 'ArrowUp')) {
+    e.preventDefault();
+    const delta = e.key === 'ArrowDown' ? 1 : -1;
+    const next = (labelDropdownIndex + delta + labelDropdownItems.length) % labelDropdownItems.length;
+    highlightLabelDropdownItem(next);
+    return;
+  }
+
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    if (dropdownOpen) {
+      selectLabelDropdownItem(labelDropdownIndex >= 0 ? labelDropdownIndex : 0);
+      return;
+    }
+    // Enter bypasses debounce
+    if (titleSearchTimer) { clearTimeout(titleSearchTimer); titleSearchTimer = null; }
+    const raw = titleSearchInput.value.trim();
+    if (raw.length < TITLE_SEARCH_MIN_CHARS) return;
+    titleSearchTerm = raw;
+    titleBrowseMode = 'search';
+    updateTitleLandingSelection();
+    updateTitleBreadcrumb();
+    titlesBrowseBtn.classList.add('active');
+    runTitleBrowseQuery();
+  }
+});
+
+titleSearchInput.addEventListener('blur', () => {
+  // Small delay so mousedown on dropdown items still fires
+  setTimeout(closeLabelDropdown, 150);
+});
+
+titleSearchClearBtn.addEventListener('click', () => {
+  if (titleSearchTimer) { clearTimeout(titleSearchTimer); titleSearchTimer = null; }
+  titleSearchInput.value = '';
+  titleSearchTerm = '';
+  closeLabelDropdown();
+  if (titleBrowseMode === 'search') {
+    titleBrowseMode = null;
+    updateTitleLandingSelection();
+    updateTitleBreadcrumb();
+    runTitleBrowseQuery();
+  }
+  titleSearchInput.focus();
+});
+
+titleFavoritesBtn.addEventListener('click', () => selectTitleBrowseMode('favorites'));
+titleBookmarksBtn.addEventListener('click', () => selectTitleBrowseMode('bookmarks'));
+
+function showTitlesBrowse() {
   closeQueuesDropdown();
   closeArchivesDropdown();
   titlesBrowseBtn.classList.add('active');
@@ -1839,19 +2086,24 @@ titlesBrowseBtn.addEventListener('click', () => {
     actressSearchInput.classList.remove('invalid');
   }
   updateActressLandingSelection();
-  buildTitlesSubNav();
+  if (titleSearchTimer) { clearTimeout(titleSearchTimer); titleSearchTimer = null; }
+  titleBrowseMode = null;
+  titleSearchTerm = '';
+  titleSearchInput.value = '';
+  closeLabelDropdown();
+  updateTitleLandingSelection();
   showView('titles-browse');
   requestAnimationFrame(() => {
     const header = document.querySelector('header');
-    const subNav = document.getElementById('titles-sub-nav');
-    if (header && subNav) subNav.style.top = header.offsetHeight + 'px';
+    if (header) titleLandingEl.style.top = header.offsetHeight + 'px';
   });
-  updateBreadcrumb([{ label: 'Titles' }]);
-  activeGrid = allTitlesGrid;
-  allTitlesGrid.reset();
-  ensureSentinel();
-  allTitlesGrid.loadMore();
-});
+  updateTitleBreadcrumb();
+  runTitleBrowseQuery();
+  // Preload label catalog in background for fast tab-completion later
+  ensureTitleLabels();
+}
+
+titlesBrowseBtn.addEventListener('click', showTitlesBrowse);
 
 // ── Initial load ──────────────────────────────────────────────────────────
 showView('titles');

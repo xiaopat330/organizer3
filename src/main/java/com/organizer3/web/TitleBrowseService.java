@@ -8,7 +8,9 @@ import com.organizer3.repository.LabelRepository;
 import com.organizer3.repository.TitleActressRepository;
 import com.organizer3.repository.TitleRepository;
 import com.organizer3.repository.WatchHistoryRepository;
+import com.organizer3.sync.TitleCodeQuery;
 
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -40,6 +42,40 @@ public class TitleBrowseService {
     public List<TitleSummary> findRecent(int offset, int limit) {
         limit = Math.min(limit, MAX_LIMIT);
         return toSummaries(titleRepo.findRecent(limit, offset));
+    }
+
+    /**
+     * Searches titles by a product-number fragment using {@link TitleCodeQuery} normalization.
+     * Returns an empty list if the query can't be parsed into at least a label prefix.
+     */
+    public List<TitleSummary> searchByCodePaged(String rawQuery, int offset, int limit) {
+        limit = Math.min(limit, MAX_LIMIT);
+        TitleCodeQuery.ParsedQuery parsed = TitleCodeQuery.parse(rawQuery);
+        if (parsed.labelPrefix().isEmpty()) return List.of();
+        return toSummaries(titleRepo.findByCodePrefixPaged(
+                parsed.labelPrefix(), parsed.seqPrefix(), limit, offset));
+    }
+
+    /** Returns favorited titles, ordered newest-first. */
+    public List<TitleSummary> findFavoritesPaged(int offset, int limit) {
+        limit = Math.min(limit, MAX_LIMIT);
+        return toSummaries(titleRepo.findFavoritesPaged(limit, offset));
+    }
+
+    /** Returns bookmarked titles, ordered newest-first. */
+    public List<TitleSummary> findBookmarksPaged(int offset, int limit) {
+        limit = Math.min(limit, MAX_LIMIT);
+        return toSummaries(titleRepo.findBookmarksPaged(limit, offset));
+    }
+
+    /**
+     * Returns the full label reference catalog, sorted by code. Used by the title landing
+     * page to power tab-completion of the product-number search.
+     */
+    public List<Label> listLabels() {
+        return labelRepo.findAllAsMap().values().stream()
+                .sorted(Comparator.comparing(Label::code))
+                .toList();
     }
 
     /**

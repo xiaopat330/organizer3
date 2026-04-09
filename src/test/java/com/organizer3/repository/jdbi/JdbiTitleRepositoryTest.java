@@ -279,6 +279,121 @@ class JdbiTitleRepositoryTest {
         assertEquals("ABP-001", results.get(0).getCode());
     }
 
+    // --- findByCodePrefixPaged ---
+
+    @Test
+    void findByCodePrefixMatchesLabelPrefix() {
+        saveWithLocation(titleFull("SNIS-001", "SNIS", 1), "vol-a", "stars/library", "/mnt/vol-a/stars/library/SNIS-001");
+        saveWithLocation(titleFull("SNIS-002", "SNIS", 2), "vol-a", "stars/library", "/mnt/vol-a/stars/library/SNIS-002");
+        saveWithLocation(titleFull("SSNI-100", "SSNI", 100), "vol-a", "stars/library", "/mnt/vol-a/stars/library/SSNI-100");
+        saveWithLocation(titleFull("ABP-010", "ABP", 10), "vol-a", "stars/library", "/mnt/vol-a/stars/library/ABP-010");
+
+        // "S" prefix matches all three S-prefixed labels
+        List<Title> results = titleRepo.findByCodePrefixPaged("S", "", 10, 0);
+        assertEquals(3, results.size());
+        assertTrue(results.stream().allMatch(t -> t.getLabel().startsWith("S")));
+
+        // "SN" prefix matches only SNIS
+        results = titleRepo.findByCodePrefixPaged("SN", "", 10, 0);
+        assertEquals(2, results.size());
+        assertTrue(results.stream().allMatch(t -> t.getLabel().startsWith("SN")));
+
+        // "SNIS" is exact label match
+        results = titleRepo.findByCodePrefixPaged("SNIS", "", 10, 0);
+        assertEquals(2, results.size());
+    }
+
+    @Test
+    void findByCodePrefixMatchesSeqPrefixIgnoringLeadingZeros() {
+        saveWithLocation(titleFull("SNIS-001", "SNIS", 1),   "vol-a", "stars/library", "/mnt/vol-a/stars/library/SNIS-001");
+        saveWithLocation(titleFull("SNIS-010", "SNIS", 10),  "vol-a", "stars/library", "/mnt/vol-a/stars/library/SNIS-010");
+        saveWithLocation(titleFull("SNIS-100", "SNIS", 100), "vol-a", "stars/library", "/mnt/vol-a/stars/library/SNIS-100");
+        saveWithLocation(titleFull("SNIS-123", "SNIS", 123), "vol-a", "stars/library", "/mnt/vol-a/stars/library/SNIS-123");
+        saveWithLocation(titleFull("SNIS-234", "SNIS", 234), "vol-a", "stars/library", "/mnt/vol-a/stars/library/SNIS-234");
+
+        // seq prefix "1" matches 1, 10, 100, 123
+        List<Title> results = titleRepo.findByCodePrefixPaged("SNIS", "1", 10, 0);
+        assertEquals(4, results.size());
+        assertTrue(results.stream().map(Title::getSeqNum).toList().containsAll(List.of(1, 10, 100, 123)));
+
+        // seq prefix "12" matches only 123
+        results = titleRepo.findByCodePrefixPaged("SNIS", "12", 10, 0);
+        assertEquals(1, results.size());
+        assertEquals(123, results.get(0).getSeqNum());
+    }
+
+    @Test
+    void findByCodePrefixOrdersFavoritesThenBookmarksThenLabelSeq() {
+        // plain (ABP-001), favorite (SNIS-003), bookmark (SNIS-002), plain (SNIS-001)
+        saveWithLocation(Title.builder().code("ABP-001").baseCode("ABP-00001").label("ABP").seqNum(1).build(),
+                "vol-a", "stars/library", "/mnt/vol-a/stars/library/ABP-001");
+        saveWithLocation(Title.builder().code("SNIS-001").baseCode("SNIS-00001").label("SNIS").seqNum(1).build(),
+                "vol-a", "stars/library", "/mnt/vol-a/stars/library/SNIS-001");
+        saveWithLocation(Title.builder().code("SNIS-002").baseCode("SNIS-00002").label("SNIS").seqNum(2).bookmark(true).build(),
+                "vol-a", "stars/library", "/mnt/vol-a/stars/library/SNIS-002");
+        saveWithLocation(Title.builder().code("SNIS-003").baseCode("SNIS-00003").label("SNIS").seqNum(3).favorite(true).build(),
+                "vol-a", "stars/library", "/mnt/vol-a/stars/library/SNIS-003");
+
+        List<Title> results = titleRepo.findByCodePrefixPaged("S", "", 10, 0);
+        assertEquals(3, results.size());
+        assertEquals("SNIS-003", results.get(0).getCode()); // favorite first
+        assertEquals("SNIS-002", results.get(1).getCode()); // bookmark second
+        assertEquals("SNIS-001", results.get(2).getCode()); // plain last
+    }
+
+    @Test
+    void findByCodePrefixIsCaseInsensitive() {
+        saveWithLocation(titleFull("SNIS-001", "SNIS", 1), "vol-a", "stars/library", "/mnt/vol-a/stars/library/SNIS-001");
+        List<Title> results = titleRepo.findByCodePrefixPaged("snis", "", 10, 0);
+        assertEquals(1, results.size());
+    }
+
+    @Test
+    void findByCodePrefixRespectsLimitAndOffset() {
+        for (int i = 1; i <= 5; i++) {
+            saveWithLocation(titleFull("SNIS-00" + i, "SNIS", i),
+                    "vol-a", "stars/library", "/mnt/vol-a/stars/library/SNIS-00" + i);
+        }
+        List<Title> page1 = titleRepo.findByCodePrefixPaged("SNIS", "", 2, 0);
+        List<Title> page2 = titleRepo.findByCodePrefixPaged("SNIS", "", 2, 2);
+        assertEquals(2, page1.size());
+        assertEquals(2, page2.size());
+        assertEquals(1, page1.get(0).getSeqNum());
+        assertEquals(3, page2.get(0).getSeqNum());
+    }
+
+    // --- findFavoritesPaged / findBookmarksPaged ---
+
+    @Test
+    void findFavoritesPagedReturnsOnlyFavoritedTitles() {
+        saveWithLocation(Title.builder().code("ABP-001").baseCode("ABP-00001").label("ABP").seqNum(1).favorite(true).build(),
+                "vol-a", "stars/library", "/mnt/vol-a/stars/library/ABP-001", LocalDate.of(2024, 1, 1));
+        saveWithLocation(Title.builder().code("ABP-002").baseCode("ABP-00002").label("ABP").seqNum(2).favorite(true).build(),
+                "vol-a", "stars/library", "/mnt/vol-a/stars/library/ABP-002", LocalDate.of(2024, 2, 1));
+        saveWithLocation(Title.builder().code("ABP-003").baseCode("ABP-00003").label("ABP").seqNum(3).bookmark(true).build(),
+                "vol-a", "stars/library", "/mnt/vol-a/stars/library/ABP-003", LocalDate.of(2024, 3, 1));
+        saveWithLocation(title("ABP-004", null),
+                "vol-a", "stars/library", "/mnt/vol-a/stars/library/ABP-004", LocalDate.of(2024, 4, 1));
+
+        List<Title> results = titleRepo.findFavoritesPaged(10, 0);
+        assertEquals(2, results.size());
+        // Ordered newest-first by added_date
+        assertEquals("ABP-002", results.get(0).getCode());
+        assertEquals("ABP-001", results.get(1).getCode());
+    }
+
+    @Test
+    void findBookmarksPagedReturnsOnlyBookmarkedTitles() {
+        saveWithLocation(Title.builder().code("ABP-001").baseCode("ABP-00001").label("ABP").seqNum(1).bookmark(true).build(),
+                "vol-a", "stars/library", "/mnt/vol-a/stars/library/ABP-001", LocalDate.of(2024, 1, 1));
+        saveWithLocation(Title.builder().code("ABP-002").baseCode("ABP-00002").label("ABP").seqNum(2).favorite(true).build(),
+                "vol-a", "stars/library", "/mnt/vol-a/stars/library/ABP-002", LocalDate.of(2024, 2, 1));
+
+        List<Title> results = titleRepo.findBookmarksPaged(10, 0);
+        assertEquals(1, results.size());
+        assertEquals("ABP-001", results.get(0).getCode());
+    }
+
     // --- findDominantActressForLabel ---
 
     @Test
@@ -569,6 +684,16 @@ class JdbiTitleRepositoryTest {
                 .label(code.split("-")[0])
                 .seqNum(1)
                 .actressId(actressId)
+                .build();
+    }
+
+    /** Build a title with explicit label and seqNum (no actress attribution). */
+    private static Title titleFull(String code, String label, int seqNum) {
+        return Title.builder()
+                .code(code)
+                .baseCode(String.format("%s-%05d", label, seqNum))
+                .label(label)
+                .seqNum(seqNum)
                 .build();
     }
 

@@ -294,6 +294,64 @@ public class JdbiTitleRepository implements TitleRepository {
     }
 
     @Override
+    public List<Title> findByCodePrefixPaged(String labelPrefix, String seqPrefix, int limit, int offset) {
+        boolean hasSeq = seqPrefix != null && !seqPrefix.isEmpty();
+        String sql = "SELECT t.* FROM titles t "
+                + "WHERE upper(t.label) LIKE :labelPrefix || '%' "
+                + (hasSeq ? "AND CAST(t.seq_num AS TEXT) LIKE :seqPrefix || '%' " : "")
+                + "ORDER BY t.favorite DESC, t.bookmark DESC, t.label ASC, t.seq_num ASC "
+                + "LIMIT :limit OFFSET :offset";
+
+        List<Title> titles = jdbi.withHandle(h -> {
+            var q = h.createQuery(sql)
+                    .bind("labelPrefix", labelPrefix == null ? "" : labelPrefix.toUpperCase())
+                    .bind("limit", limit)
+                    .bind("offset", offset);
+            if (hasSeq) q.bind("seqPrefix", seqPrefix);
+            return q.map(MAPPER).list();
+        });
+        return populateLocationsBatch(titles);
+    }
+
+    @Override
+    public List<Title> findFavoritesPaged(int limit, int offset) {
+        List<Title> titles = jdbi.withHandle(h ->
+                h.createQuery("""
+                        SELECT t.* FROM titles t
+                        LEFT JOIN title_locations tl ON t.id = tl.title_id
+                        WHERE t.favorite = 1
+                        GROUP BY t.id
+                        ORDER BY MIN(tl.added_date) DESC, t.id DESC
+                        LIMIT :limit OFFSET :offset
+                        """)
+                        .bind("limit", limit)
+                        .bind("offset", offset)
+                        .map(MAPPER)
+                        .list()
+        );
+        return populateLocationsBatch(titles);
+    }
+
+    @Override
+    public List<Title> findBookmarksPaged(int limit, int offset) {
+        List<Title> titles = jdbi.withHandle(h ->
+                h.createQuery("""
+                        SELECT t.* FROM titles t
+                        LEFT JOIN title_locations tl ON t.id = tl.title_id
+                        WHERE t.bookmark = 1
+                        GROUP BY t.id
+                        ORDER BY MIN(tl.added_date) DESC, t.id DESC
+                        LIMIT :limit OFFSET :offset
+                        """)
+                        .bind("limit", limit)
+                        .bind("offset", offset)
+                        .map(MAPPER)
+                        .list()
+        );
+        return populateLocationsBatch(titles);
+    }
+
+    @Override
     public List<Title> findByActressPaged(long actressId, int limit, int offset) {
         List<Title> titles = jdbi.withHandle(h ->
                 h.createQuery("""

@@ -414,6 +414,84 @@ header h1:hover {
   font-family: inherit;
 }
 
+/* ── Title landing label-code tab-complete dropdown ─────────────────── */
+.title-search-wrap {
+  position: relative;
+  flex: 1 1 auto;
+  max-width: 420px;
+  display: flex;
+}
+
+.title-search-input {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  max-width: none;
+  width: 100%;
+}
+
+.title-search-input::placeholder {
+  text-transform: none;
+  letter-spacing: normal;
+}
+
+.title-label-dropdown {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  max-height: 280px;
+  overflow-y: auto;
+  background: #0f0f0f;
+  border: 1px solid #2a2a2a;
+  border-radius: 4px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+  z-index: 20;
+  padding: 4px 0;
+}
+
+.title-label-dropdown-item {
+  padding: 6px 12px;
+  font-size: 0.78rem;
+  color: #c8c8c8;
+  cursor: pointer;
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  transition: background 0.08s ease, color 0.08s ease;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+.title-label-dropdown-item:hover,
+.title-label-dropdown-item.highlighted {
+  background: #1c1c1c;
+  color: #e8e8e8;
+}
+
+.title-label-dropdown-code {
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  color: #e0e0e0;
+  min-width: 74px;
+}
+
+.title-label-dropdown-meta {
+  font-family: system-ui, -apple-system, sans-serif;
+  font-size: 0.72rem;
+  color: #6a6a6a;
+  letter-spacing: normal;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.title-label-dropdown-empty {
+  padding: 8px 12px;
+  font-size: 0.74rem;
+  color: #555;
+  font-style: italic;
+}
+
 /* Grids */
 .grid {
   display: grid;

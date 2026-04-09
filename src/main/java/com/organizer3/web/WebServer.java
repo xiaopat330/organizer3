@@ -148,12 +148,25 @@ public class WebServer {
 
         if (browseService != null) {
             app.get("/api/titles", ctx -> {
+                String search    = ctx.queryParam("search");
+                String favorites = ctx.queryParam("favorites");
+                String bookmarks = ctx.queryParam("bookmarks");
                 int offset = ctx.queryParamAsClass("offset", Integer.class).getOrDefault(0);
                 int limit  = ctx.queryParamAsClass("limit",  Integer.class).getOrDefault(24);
                 offset = Math.max(offset, 0);
                 limit  = Math.max(1, Math.min(limit, TitleBrowseService.MAX_LIMIT));
-                ctx.json(browseService.findRecent(offset, limit));
+                if (search != null && !search.isBlank()) {
+                    ctx.json(browseService.searchByCodePaged(search.trim(), offset, limit));
+                } else if ("true".equals(favorites)) {
+                    ctx.json(browseService.findFavoritesPaged(offset, limit));
+                } else if ("true".equals(bookmarks)) {
+                    ctx.json(browseService.findBookmarksPaged(offset, limit));
+                } else {
+                    ctx.json(browseService.findRecent(offset, limit));
+                }
             });
+
+            app.get("/api/titles/labels", ctx -> ctx.json(browseService.listLabels()));
 
             app.get("/api/titles/random", ctx -> {
                 int limit = ctx.queryParamAsClass("limit", Integer.class).getOrDefault(24);
