@@ -132,6 +132,15 @@ public class SchemaInitializer {
             h.execute("CREATE INDEX IF NOT EXISTS idx_title_actresses_title ON title_actresses(title_id)");
             h.execute("CREATE INDEX IF NOT EXISTS idx_title_actresses_actress ON title_actresses(actress_id)");
 
+            h.execute("""
+                    CREATE TABLE IF NOT EXISTS watch_history (
+                        id          INTEGER PRIMARY KEY AUTOINCREMENT,
+                        title_code  TEXT NOT NULL,
+                        watched_at  TEXT NOT NULL
+                    )""");
+            h.execute("CREATE INDEX IF NOT EXISTS idx_watch_history_title_code ON watch_history(title_code)");
+            h.execute("CREATE INDEX IF NOT EXISTS idx_watch_history_watched_at ON watch_history(watched_at)");
+
             // Stamp version so SchemaUpgrader skips migrations already baked into CREATE TABLE
             h.execute("PRAGMA user_version = 4");
         });

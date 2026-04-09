@@ -3,11 +3,11 @@ package com.organizer3.web;
 import com.organizer3.covers.CoverPath;
 import com.organizer3.model.Label;
 import com.organizer3.model.Title;
-import com.organizer3.model.TitleLocation;
 import com.organizer3.repository.ActressRepository;
 import com.organizer3.repository.LabelRepository;
 import com.organizer3.repository.TitleActressRepository;
 import com.organizer3.repository.TitleRepository;
+import com.organizer3.repository.WatchHistoryRepository;
 
 import java.util.HashMap;
 import java.util.List;
@@ -29,6 +29,7 @@ public class TitleBrowseService {
     private final CoverPath coverPath;
     private final LabelRepository labelRepo;
     private final TitleActressRepository titleActressRepo;
+    private final WatchHistoryRepository watchHistoryRepo;
     /** volumeId → smbPath, e.g. "a" → "//pandora/jav_A" */
     private final Map<String, String> volumeSmbPaths;
 
@@ -118,6 +119,9 @@ public class TitleBrowseService {
 
         Map<String, Label> labelMap = labelRepo.findAllAsMap();
 
+        List<String> codes = titles.stream().map(Title::getCode).toList();
+        Map<String, WatchHistoryRepository.WatchStats> watchStatsMap = watchHistoryRepo.findWatchStatsBatch(codes);
+
         return titles.stream()
                 .map(t -> {
                     Label lbl = t.getLabel() != null ? labelMap.get(t.getLabel().toUpperCase()) : null;
@@ -178,6 +182,10 @@ public class TitleBrowseService {
                             .titleOriginal(t.getTitleOriginal())
                             .releaseDate(t.getReleaseDate() != null ? t.getReleaseDate().toString() : null)
                             .grade(t.getGrade() != null ? t.getGrade().display : null)
+                            .favorite(t.isFavorite())
+                            .bookmark(t.isBookmark())
+                            .lastWatchedAt(watchStatsMap.containsKey(t.getCode()) ? watchStatsMap.get(t.getCode()).lastWatchedAt().toString() : null)
+                            .watchCount(watchStatsMap.containsKey(t.getCode()) ? watchStatsMap.get(t.getCode()).count() : 0)
                             .tags(t.getTags())
                             .build();
                 })

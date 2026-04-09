@@ -9,6 +9,7 @@ import com.organizer3.repository.ActressRepository;
 import com.organizer3.repository.LabelRepository;
 import com.organizer3.repository.TitleActressRepository;
 import com.organizer3.repository.TitleRepository;
+import com.organizer3.repository.WatchHistoryRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -32,12 +33,13 @@ class TitleBrowseServiceTest {
     @Mock CoverPath coverPath;
     @Mock LabelRepository labelRepo;
     @Mock TitleActressRepository titleActressRepo;
+    @Mock WatchHistoryRepository watchHistoryRepo;
 
     TitleBrowseService service;
 
     @BeforeEach
     void setUp() {
-        service = new TitleBrowseService(titleRepo, actressRepo, coverPath, labelRepo, titleActressRepo, Map.of());
+        service = new TitleBrowseService(titleRepo, actressRepo, coverPath, labelRepo, titleActressRepo, watchHistoryRepo, Map.of());
     }
 
     @Test

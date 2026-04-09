@@ -49,6 +49,8 @@ import com.organizer3.repository.jdbi.JdbiTitleRepository;
 import com.organizer3.repository.jdbi.JdbiTitleTagRepository;
 import com.organizer3.repository.jdbi.JdbiVideoRepository;
 import com.organizer3.repository.jdbi.JdbiVolumeRepository;
+import com.organizer3.repository.jdbi.JdbiWatchHistoryRepository;
+import com.organizer3.repository.WatchHistoryRepository;
 import com.organizer3.shell.OrganizerShell;
 import com.organizer3.shell.SessionContext;
 import com.organizer3.smb.SmbConnectionFactory;
@@ -116,6 +118,7 @@ public class Application {
         LabelRepository        labelRepo        = new JdbiLabelRepository(jdbi);
         TitleTagRepository     tagRepo          = new JdbiTitleTagRepository(jdbi);
         TitleActressRepository titleActressRepo = new JdbiTitleActressRepository(jdbi);
+        WatchHistoryRepository watchHistoryRepo = new JdbiWatchHistoryRepository(jdbi);
         IndexLoader indexLoader = new IndexLoader(titleRepo, actressRepo);
 
         // Claude API (optional — gracefully disabled if ANTHROPIC_API_KEY is not set)
@@ -212,7 +215,7 @@ public class Application {
         // Web server (read-only browsing)
         Map<String, String> volumeSmbPaths = config.volumes().stream()
                 .collect(Collectors.toMap(VolumeConfig::id, VolumeConfig::smbPath));
-        TitleBrowseService browseService = new TitleBrowseService(titleRepo, actressRepo, coverPath, labelRepo, titleActressRepo, volumeSmbPaths);
+        TitleBrowseService browseService = new TitleBrowseService(titleRepo, actressRepo, coverPath, labelRepo, titleActressRepo, watchHistoryRepo, volumeSmbPaths);
         StageNameBackupFile stageNameBackup = new StageNameBackupFile(
                 dbDir.resolve("stagenames.yaml"));
         ActressBrowseService actressBrowseService = new ActressBrowseService(
@@ -223,7 +226,7 @@ public class Application {
         VideoStreamService videoStreamService = new VideoStreamService(titleRepo, videoRepo, smbConnectionFactory);
         VideoProbe videoProbe = new VideoProbe(WebServer.DEFAULT_PORT);
         WebServer webServer = new WebServer(browseService, actressBrowseService, coverPath.root(),
-                videoStreamService, thumbnailService, videoProbe);
+                videoStreamService, thumbnailService, videoProbe, watchHistoryRepo, titleRepo);
         webServer.start();
 
         OrganizerShell shell = new OrganizerShell(session, commands);

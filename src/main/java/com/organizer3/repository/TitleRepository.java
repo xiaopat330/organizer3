@@ -90,4 +90,8 @@ public interface TitleRepository {
      */
     void enrichTitle(long titleId, String titleOriginal, String titleEnglish,
                      java.time.LocalDate releaseDate, String notes, Actress.Grade grade);
+
+    void toggleFavorite(long titleId, boolean favorite);
+
+    void toggleBookmark(long titleId, boolean bookmark);
 }

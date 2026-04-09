@@ -39,6 +39,10 @@ public class TitleSummary {
     String titleOriginal;
     String releaseDate;
     String grade;
+    boolean favorite;
+    boolean bookmark;
+    String lastWatchedAt;
+    int watchCount;
     @Builder.Default
     List<String> tags = List.of();
 

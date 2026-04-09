@@ -437,6 +437,22 @@ header h1:hover {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.title-code-fav { color: #fbbf24; }
+.title-code-bm  { color: #8cb4ff; }
+.title-code-bold { font-weight: 700; }
+.card-fav-icon { fill: #fbbf24; flex-shrink: 0; }
+.card-bm-icon  { fill: #60a5fa; flex-shrink: 0; }
+.card-watched {
+  font-size: 0.72rem;
+  color: #8cb4ff;
+  margin-top: 3px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .title-label-line {
@@ -1027,6 +1043,47 @@ header h1:hover {
   margin-bottom: 10px;
 }
 
+.title-detail-actions {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.title-action-btn {
+  background: none;
+  border: 1px solid #444;
+  border-radius: 6px;
+  padding: 6px 10px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: border-color 0.15s, transform 0.1s;
+}
+.title-action-btn:hover {
+  border-color: #888;
+  transform: scale(1.08);
+}
+.title-action-btn .star-icon {
+  fill: none;
+  stroke: #666;
+  stroke-width: 1.5;
+  transition: fill 0.15s, stroke 0.15s;
+}
+.title-action-btn.active .star-icon {
+  fill: #fbbf24;
+  stroke: #fbbf24;
+}
+.title-action-btn .bookmark-icon {
+  fill: none;
+  stroke: #666;
+  stroke-width: 1.5;
+  transition: fill 0.15s, stroke 0.15s;
+}
+.title-action-btn.active .bookmark-icon {
+  fill: #60a5fa;
+  stroke: #60a5fa;
+}
+
 .title-detail-title-ja {
   font-size: 1.25rem;
   font-weight: 700;
@@ -1136,6 +1193,14 @@ header h1:hover {
   font-size: 1.1rem;
   padding: 3px 12px;
   letter-spacing: 0.1em;
+}
+
+.title-detail-watched-row {
+  margin-top: 8px;
+}
+.title-detail-watched-value {
+  color: #8cb4ff;
+  font-size: 0.85rem;
 }
 
 .title-detail-nas-row {

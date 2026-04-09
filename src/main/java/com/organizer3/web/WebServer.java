@@ -7,6 +7,10 @@ import com.organizer3.covers.CoverPath;
 import com.organizer3.media.ThumbnailService;
 import com.organizer3.media.VideoProbe;
 import com.organizer3.model.Video;
+import com.organizer3.model.WatchHistory;
+import com.organizer3.model.Title;
+import com.organizer3.repository.TitleRepository;
+import com.organizer3.repository.WatchHistoryRepository;
 import com.organizer3.smb.SmbConnectionFactory.SmbShareHandle;
 import io.javalin.Javalin;
 import io.javalin.http.staticfiles.Location;
@@ -46,33 +50,37 @@ public class WebServer {
     public WebServer(int port, TitleBrowseService browseService,
                      ActressBrowseService actressBrowseService, Path coversRoot,
                      VideoStreamService videoStreamService, ThumbnailService thumbnailService,
-                     VideoProbe videoProbe) {
+                     VideoProbe videoProbe, WatchHistoryRepository watchHistoryRepo,
+                     TitleRepository titleRepo) {
         this.port = port;
         this.app = Javalin.create(config ->
                 config.staticFiles.add("/public", Location.CLASSPATH));
         registerRoutes(browseService, actressBrowseService, coversRoot,
-                videoStreamService, thumbnailService, videoProbe);
+                videoStreamService, thumbnailService, videoProbe, watchHistoryRepo, titleRepo);
     }
 
     /** Convenience constructor using the default port. */
     public WebServer(TitleBrowseService browseService,
                      ActressBrowseService actressBrowseService, Path coversRoot,
                      VideoStreamService videoStreamService, ThumbnailService thumbnailService,
-                     VideoProbe videoProbe) {
+                     VideoProbe videoProbe, WatchHistoryRepository watchHistoryRepo,
+                     TitleRepository titleRepo) {
         this(DEFAULT_PORT, browseService, actressBrowseService, coversRoot,
-                videoStreamService, thumbnailService, videoProbe);
+                videoStreamService, thumbnailService, videoProbe, watchHistoryRepo, titleRepo);
     }
 
     /** Minimal constructor for tests that only need the lifecycle and static file behaviour. */
     public WebServer(int port) {
-        this(port, null, null, null, null, null, null);
+        this(port, null, null, null, null, null, null, null, null);
     }
 
     private void registerRoutes(TitleBrowseService browseService,
                                 ActressBrowseService actressBrowseService, Path coversRoot,
                                 VideoStreamService videoStreamService,
                                 ThumbnailService thumbnailService,
-                                VideoProbe videoProbe) {
+                                VideoProbe videoProbe,
+                                WatchHistoryRepository watchHistoryRepo,
+                                TitleRepository titleRepo) {
         app.get("/api/config", ctx -> {
             var cfg = AppConfig.get().volumes();
             String appName = cfg.appName();
@@ -430,6 +438,55 @@ public class WebServer {
                 if (video == null) { ctx.status(404); return; }
 
                 ctx.json(videoProbe.probe(videoId, video.getFilename()));
+            });
+        }
+
+        if (watchHistoryRepo != null) {
+            app.post("/api/watch-history/{titleCode}", ctx -> {
+                String titleCode = ctx.pathParam("titleCode");
+                WatchHistory entry = watchHistoryRepo.record(titleCode, java.time.LocalDateTime.now());
+                ctx.json(Map.of("id", entry.getId(), "titleCode", entry.getTitleCode(),
+                        "watchedAt", entry.getWatchedAt().toString()));
+            });
+
+            app.get("/api/watch-history", ctx -> {
+                int limit = ctx.queryParamAsClass("limit", Integer.class).getOrDefault(50);
+                List<WatchHistory> history = watchHistoryRepo.findAll(limit);
+                ctx.json(history.stream().map(e -> Map.of(
+                        "id", e.getId(),
+                        "titleCode", e.getTitleCode(),
+                        "watchedAt", e.getWatchedAt().toString()
+                )).toList());
+            });
+
+            app.get("/api/watch-history/{titleCode}", ctx -> {
+                String titleCode = ctx.pathParam("titleCode");
+                List<WatchHistory> history = watchHistoryRepo.findByTitleCode(titleCode);
+                ctx.json(history.stream().map(e -> Map.of(
+                        "id", e.getId(),
+                        "titleCode", e.getTitleCode(),
+                        "watchedAt", e.getWatchedAt().toString()
+                )).toList());
+            });
+        }
+
+        if (titleRepo != null) {
+            app.post("/api/titles/{code}/favorite", ctx -> {
+                String code = ctx.pathParam("code");
+                Title title = titleRepo.findByCode(code).orElse(null);
+                if (title == null) { ctx.status(404).json(Map.of("error", "Title not found")); return; }
+                boolean newValue = !title.isFavorite();
+                titleRepo.toggleFavorite(title.getId(), newValue);
+                ctx.json(Map.of("code", code, "favorite", newValue));
+            });
+
+            app.post("/api/titles/{code}/bookmark", ctx -> {
+                String code = ctx.pathParam("code");
+                Title title = titleRepo.findByCode(code).orElse(null);
+                if (title == null) { ctx.status(404).json(Map.of("error", "Title not found")); return; }
+                boolean newValue = !title.isBookmark();
+                titleRepo.toggleBookmark(title.getId(), newValue);
+                ctx.json(Map.of("code", code, "bookmark", newValue));
             });
         }
     }

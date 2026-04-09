@@ -18,6 +18,7 @@ import com.organizer3.repository.ActressRepository;
 import com.organizer3.repository.LabelRepository;
 import com.organizer3.repository.TitleActressRepository;
 import com.organizer3.repository.TitleRepository;
+import com.organizer3.repository.WatchHistoryRepository;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
@@ -120,7 +121,7 @@ class WebServerTest {
                 List.of()
         ));
 
-        server = new WebServer(0, null, null, null, null, null, null);
+        server = new WebServer(0, null, null, null, null, null, null, null, null);
         server.start();
 
         HttpResponse<String> response = HttpClient.newHttpClient()
@@ -166,8 +167,8 @@ class WebServerTest {
         when(labelRepo.findAllAsMap()).thenReturn(Map.of());
         when(coverPath.find(any(Title.class))).thenReturn(Optional.empty());
 
-        TitleBrowseService browseService = new TitleBrowseService(titleRepo, actressRepo, coverPath, labelRepo, mock(TitleActressRepository.class), Map.of());
-        server = new WebServer(0, browseService, null, null, null, null, null);
+        TitleBrowseService browseService = new TitleBrowseService(titleRepo, actressRepo, coverPath, labelRepo, mock(TitleActressRepository.class), mock(WatchHistoryRepository.class), Map.of());
+        server = new WebServer(0, browseService, null, null, null, null, null, null, null);
         server.start();
 
         HttpResponse<String> response = get("/api/titles");
@@ -189,8 +190,8 @@ class WebServerTest {
         when(titleRepo.findRecent(10, 5)).thenReturn(List.of());
         when(labelRepo.findAllAsMap()).thenReturn(Map.of());
 
-        TitleBrowseService browseService = new TitleBrowseService(titleRepo, actressRepo, coverPath, labelRepo, mock(TitleActressRepository.class), Map.of());
-        server = new WebServer(0, browseService, null, null, null, null, null);
+        TitleBrowseService browseService = new TitleBrowseService(titleRepo, actressRepo, coverPath, labelRepo, mock(TitleActressRepository.class), mock(WatchHistoryRepository.class), Map.of());
+        server = new WebServer(0, browseService, null, null, null, null, null, null, null);
         server.start();
 
         HttpResponse<String> response = get("/api/titles?offset=5&limit=10");
@@ -220,8 +221,8 @@ class WebServerTest {
         when(labelRepo.findAllAsMap()).thenReturn(Map.of());
         when(coverPath.find(any(Title.class))).thenReturn(Optional.empty());
 
-        TitleBrowseService browseService = new TitleBrowseService(titleRepo, actressRepo, coverPath, labelRepo, mock(TitleActressRepository.class), Map.of());
-        server = new WebServer(0, browseService, null, null, null, null, null);
+        TitleBrowseService browseService = new TitleBrowseService(titleRepo, actressRepo, coverPath, labelRepo, mock(TitleActressRepository.class), mock(WatchHistoryRepository.class), Map.of());
+        server = new WebServer(0, browseService, null, null, null, null, null, null, null);
         server.start();
 
         HttpResponse<String> response = get("/api/queues/a/titles");
@@ -250,7 +251,7 @@ class WebServerTest {
 
         ActressBrowseService actressBrowse = new ActressBrowseService(
                 actressRepo, titleRepo, coverPath, Map.of(), labelRepo, mock(ActressNameLookup.class), null);
-        server = new WebServer(0, null, actressBrowse, null, null, null, null);
+        server = new WebServer(0, null, actressBrowse, null, null, null, null, null, null);
         server.start();
 
         HttpResponse<String> response = get("/api/actresses/index");
@@ -276,7 +277,7 @@ class WebServerTest {
 
         ActressBrowseService actressBrowse = new ActressBrowseService(
                 actressRepo, titleRepo, coverPath, Map.of(), labelRepo, mock(ActressNameLookup.class), null);
-        server = new WebServer(0, null, actressBrowse, null, null, null, null);
+        server = new WebServer(0, null, actressBrowse, null, null, null, null, null, null);
         server.start();
 
         HttpResponse<String> response = get("/api/actresses?prefix=A");
@@ -302,7 +303,7 @@ class WebServerTest {
 
         ActressBrowseService actressBrowse = new ActressBrowseService(
                 actressRepo, titleRepo, coverPath, Map.of(), labelRepo, mock(ActressNameLookup.class), null);
-        server = new WebServer(0, null, actressBrowse, null, null, null, null);
+        server = new WebServer(0, null, actressBrowse, null, null, null, null, null, null);
         server.start();
 
         HttpResponse<String> response = get("/api/actresses?tier=GODDESS");
@@ -322,7 +323,7 @@ class WebServerTest {
 
         ActressBrowseService actressBrowse = new ActressBrowseService(
                 actressRepo, titleRepo, coverPath, Map.of(), labelRepo, mock(ActressNameLookup.class), null);
-        server = new WebServer(0, null, actressBrowse, null, null, null, null);
+        server = new WebServer(0, null, actressBrowse, null, null, null, null, null, null);
         server.start();
 
         HttpResponse<String> response = get("/api/actresses");
@@ -343,7 +344,7 @@ class WebServerTest {
 
         ActressBrowseService actressBrowse = new ActressBrowseService(
                 actressRepo, titleRepo, coverPath, Map.of(), labelRepo, mock(ActressNameLookup.class), null);
-        server = new WebServer(0, null, actressBrowse, null, null, null, null);
+        server = new WebServer(0, null, actressBrowse, null, null, null, null, null, null);
         server.start();
 
         HttpResponse<String> response = get("/api/actresses/42");
@@ -364,7 +365,7 @@ class WebServerTest {
 
         ActressBrowseService actressBrowse = new ActressBrowseService(
                 actressRepo, titleRepo, coverPath, Map.of(), labelRepo, mock(ActressNameLookup.class), null);
-        server = new WebServer(0, null, actressBrowse, null, null, null, null);
+        server = new WebServer(0, null, actressBrowse, null, null, null, null, null, null);
         server.start();
 
         HttpResponse<String> response = get("/api/actresses/999");
@@ -380,7 +381,7 @@ class WebServerTest {
 
         ActressBrowseService actressBrowse = new ActressBrowseService(
                 actressRepo, titleRepo, coverPath, Map.of(), labelRepo, mock(ActressNameLookup.class), null);
-        server = new WebServer(0, null, actressBrowse, null, null, null, null);
+        server = new WebServer(0, null, actressBrowse, null, null, null, null, null, null);
         server.start();
 
         HttpResponse<String> response = get("/api/actresses/abc");
@@ -397,7 +398,7 @@ class WebServerTest {
         Path imageFile = labelDir.resolve("ABP-00001.jpg");
         java.nio.file.Files.writeString(imageFile, "fake-jpg-data");
 
-        server = new WebServer(0, null, null, tempDir, null, null, null);
+        server = new WebServer(0, null, null, tempDir, null, null, null, null, null);
         server.start();
 
         HttpResponse<String> response = get("/covers/ABP/ABP-00001.jpg");
@@ -414,7 +415,7 @@ class WebServerTest {
     void coversEndpointReturns404ForMissingFile() throws IOException, InterruptedException {
         Path tempDir = java.nio.file.Files.createTempDirectory("covers-test");
 
-        server = new WebServer(0, null, null, tempDir, null, null, null);
+        server = new WebServer(0, null, null, tempDir, null, null, null, null, null);
         server.start();
 
         HttpResponse<String> response = get("/covers/ABP/nonexistent.jpg");
@@ -427,7 +428,7 @@ class WebServerTest {
     void coversEndpointRejectsPathTraversal() throws IOException, InterruptedException {
         Path tempDir = java.nio.file.Files.createTempDirectory("covers-test");
 
-        server = new WebServer(0, null, null, tempDir, null, null, null);
+        server = new WebServer(0, null, null, tempDir, null, null, null, null, null);
         server.start();
 
         HttpResponse<String> response = get("/covers/../etc/passwd");
@@ -444,7 +445,7 @@ class WebServerTest {
         AppConfig.initializeForTest(new OrganizerConfig(
                 "TestApp", null, 100, null, null, null, null, List.of(), List.of(), List.of(), List.of()));
 
-        server = new WebServer(0, null, null, null, null, null, null);
+        server = new WebServer(0, null, null, null, null, null, null, null, null);
         server.start();
 
         HttpResponse<String> response = get("/api/config");
@@ -494,7 +495,7 @@ class WebServerTest {
                 List.of()
         ));
 
-        server = new WebServer(0, null, null, null, null, null, null);
+        server = new WebServer(0, null, null, null, null, null, null, null, null);
         server.start();
 
         HttpResponse<String> response = HttpClient.newHttpClient()

@@ -38,7 +38,7 @@ import org.bytedeco.javacv.Java2DFrameConverter;
 @Slf4j
 public class ThumbnailService {
 
-    private static final int THUMBNAIL_WIDTH = 320;
+    private static final int THUMBNAIL_WIDTH = 240;
     static final int MIN_THUMBNAILS = 4;
     static final int MAX_THUMBNAILS = 30;
     private static final String COUNT_FILE = ".count";

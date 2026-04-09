@@ -44,7 +44,7 @@ class SchemaInitializerTest {
         );
 
         assertEquals(
-                List.of("actress_aliases", "actresses", "labels", "title_actresses", "title_locations", "title_tags", "titles", "videos", "volumes"),
+                List.of("actress_aliases", "actresses", "labels", "title_actresses", "title_locations", "title_tags", "titles", "videos", "volumes", "watch_history"),
                 tables
         );
     }
@@ -68,7 +68,8 @@ class SchemaInitializerTest {
                         "idx_title_locations_title", "idx_title_locations_volume", "idx_title_locations_volume_partition",
                         "idx_title_tags_tag",
                         "idx_titles_actress", "idx_titles_code", "idx_titles_label",
-                        "idx_videos_title", "idx_videos_volume"),
+                        "idx_videos_title", "idx_videos_volume",
+                        "idx_watch_history_title_code", "idx_watch_history_watched_at"),
                 indexes
         );
     }

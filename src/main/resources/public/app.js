@@ -276,9 +276,26 @@ function tagBadgeHtml(tag) {
   return `<span class="tag-badge" style="${style}">${esc(tag)}</span>`;
 }
 
+function updateCardIndicators(code, favorite, bookmark) {
+  const card = document.querySelector(`.card[data-code="${CSS.escape(code)}"]`);
+  if (!card) return;
+  const codeEl = card.querySelector('.title-code');
+  if (!codeEl) return;
+  const favIcon = favorite ? '<svg class="card-fav-icon" viewBox="0 0 24 24" width="12" height="12"><polygon points="12,2 15.09,8.26 22,9.27 17,14.14 18.18,21.02 12,17.77 5.82,21.02 7,14.14 2,9.27 8.91,8.26"/></svg>' : '';
+  const bmIcon = bookmark ? '<svg class="card-bm-icon" viewBox="0 0 24 24" width="12" height="12"><path d="M6 2h12a1 1 0 0 1 1 1v18.5a.5.5 0 0 1-.8.4L12 17.5 5.8 21.9a.5.5 0 0 1-.8-.4V3a1 1 0 0 1 1-1z"/></svg>' : '';
+  const grade = codeEl.querySelector('.grade-badge');
+  const gradeHtml = grade ? grade.outerHTML : '';
+  codeEl.className = favorite && bookmark ? 'title-code title-code-fav title-code-bold'
+    : favorite ? 'title-code title-code-fav'
+    : bookmark ? 'title-code title-code-bm title-code-bold'
+    : 'title-code';
+  codeEl.innerHTML = `${favIcon}${bmIcon}${esc(code)}${gradeHtml}`;
+}
+
 function makeTitleCard(t) {
   const card = document.createElement('div');
   card.className = 'card';
+  card.dataset.code = t.code;
 
   const coverHtml = t.coverUrl
     ? `<div class="cover-wrap"><img class="cover-img" src="${esc(t.coverUrl)}" alt="${esc(t.code)}" loading="lazy"></div>`
@@ -337,9 +354,18 @@ function makeTitleCard(t) {
     ? `<div class="title-tags">${tags.map(tagBadgeHtml).join('')}</div>`
     : '';
 
-  const titleCodeHtml = `<div class="title-code">${esc(t.code)}${gradeBadgeHtml(t.grade)}</div>`;
+  // Favorite/bookmark indicators on the title code line
+  const favIcon = t.favorite ? '<svg class="card-fav-icon" viewBox="0 0 24 24" width="12" height="12"><polygon points="12,2 15.09,8.26 22,9.27 17,14.14 18.18,21.02 12,17.77 5.82,21.02 7,14.14 2,9.27 8.91,8.26"/></svg>' : '';
+  const bmIcon = t.bookmark ? '<svg class="card-bm-icon" viewBox="0 0 24 24" width="12" height="12"><path d="M6 2h12a1 1 0 0 1 1 1v18.5a.5.5 0 0 1-.8.4L12 17.5 5.8 21.9a.5.5 0 0 1-.8-.4V3a1 1 0 0 1 1-1z"/></svg>' : '';
+  const codeClass = t.favorite && t.bookmark ? 'title-code title-code-fav title-code-bold'
+    : t.favorite ? 'title-code title-code-fav'
+    : t.bookmark ? 'title-code title-code-bm title-code-bold'
+    : 'title-code';
+  const titleCodeHtml = `<div class="${codeClass}">${favIcon}${bmIcon}${esc(t.code)}${gradeBadgeHtml(t.grade)}</div>`;
 
-  card.innerHTML = `${coverHtml}<div class="card-info">${actressHtml}${titleCodeHtml}${titleEnHtml}${titleJaHtml}${labelLineHtml}${dateHtml}${locationHtml}${tagsHtml}</div>`;
+  const watchedHtml = t.lastWatchedAt ? `<div class="card-watched">watched ${timeAgo(t.lastWatchedAt)}${t.watchCount > 1 ? ` (${t.watchCount}x)` : ''}</div>` : '';
+
+  card.innerHTML = `${coverHtml}<div class="card-info">${actressHtml}${titleCodeHtml}${titleEnHtml}${titleJaHtml}${labelLineHtml}${dateHtml}${locationHtml}${tagsHtml}${watchedHtml}</div>`;
 
   card.querySelectorAll('.actress-link').forEach(link => {
     link.addEventListener('click', e => {
@@ -1196,6 +1222,7 @@ function openTitleDetail(t) {
   document.getElementById('title-detail-info').innerHTML  = '';
   document.getElementById('title-detail-right').innerHTML = '';
   renderTitleDetail(t);
+  loadLastWatched(t.code);
   loadTitleVideos(t.code);
 
   // Breadcrumb: include source context
@@ -1312,15 +1339,51 @@ function renderTitleDetail(t) {
     ${jaTitleHtml}
     ${enTitleHtml}
     <div class="title-detail-code">${esc(t.code)}</div>
+    <div class="title-detail-actions">
+      <button class="title-action-btn${t.favorite ? ' active' : ''}" id="title-fav-btn" title="Favorite">
+        <svg viewBox="0 0 24 24" width="22" height="22"><polygon class="star-icon" points="12,2 15.09,8.26 22,9.27 17,14.14 18.18,21.02 12,17.77 5.82,21.02 7,14.14 2,9.27 8.91,8.26"/></svg>
+      </button>
+      <button class="title-action-btn${t.bookmark ? ' active' : ''}" id="title-bm-btn" title="Bookmark">
+        <svg viewBox="0 0 24 24" width="22" height="22"><path class="bookmark-icon" d="M6 2h12a1 1 0 0 1 1 1v18.5a.5.5 0 0 1-.8.4L12 17.5 5.8 21.9a.5.5 0 0 1-.8-.4V3a1 1 0 0 1 1-1z"/></svg>
+      </button>
+    </div>
     <div class="title-detail-meta">
       ${actressesHtml}
       ${labelHtml}
       ${dateHtml}
       ${tagsHtml}
       ${gradeHtml}
+      <div class="title-detail-row title-detail-watched-row" id="title-detail-watched" style="display:none">
+        <span class="title-detail-label">Watched</span>
+        <span class="title-detail-value title-detail-watched-value" id="title-detail-watched-value"></span>
+      </div>
       ${nasHtml}
     </div>
   `;
+
+  // Toggle favorite
+  document.getElementById('title-fav-btn').addEventListener('click', () => {
+    fetch(`/api/titles/${encodeURIComponent(t.code)}/favorite`, { method: 'POST' })
+      .then(r => r.json())
+      .then(data => {
+        t.favorite = data.favorite;
+        const btn = document.getElementById('title-fav-btn');
+        btn.classList.toggle('active', data.favorite);
+        updateCardIndicators(t.code, t.favorite, t.bookmark);
+      });
+  });
+
+  // Toggle bookmark
+  document.getElementById('title-bm-btn').addEventListener('click', () => {
+    fetch(`/api/titles/${encodeURIComponent(t.code)}/bookmark`, { method: 'POST' })
+      .then(r => r.json())
+      .then(data => {
+        t.bookmark = data.bookmark;
+        const btn = document.getElementById('title-bm-btn');
+        btn.classList.toggle('active', data.bookmark);
+        updateCardIndicators(t.code, t.favorite, t.bookmark);
+      });
+  });
 
   infoEl.querySelectorAll('.actress-link').forEach(link => {
     link.addEventListener('click', e => {
@@ -1349,7 +1412,7 @@ function loadTitleVideos(titleCode) {
             className: 'video-divider'
           }));
         }
-        rightCol.appendChild(renderVideoSection(v));
+        rightCol.appendChild(renderVideoSection(v, titleCode));
       });
     })
     .catch(() => {
@@ -1357,7 +1420,7 @@ function loadTitleVideos(titleCode) {
     });
 }
 
-function renderVideoSection(v) {
+function renderVideoSection(v, titleCode) {
   const section = document.createElement('div');
   section.className = 'video-section';
 
@@ -1387,7 +1450,7 @@ function renderVideoSection(v) {
 
   // Resume playback: save position periodically, restore on play
   const player = section.querySelector(`#video-player-${v.id}`);
-  if (player) initResumePlayback(player, v.id);
+  if (player) initResumePlayback(player, v.id, titleCode);
 
   return section;
 }
@@ -1518,8 +1581,19 @@ function toggleTheater(videoId) {
 }
 
 // ── Resume playback ─────────────────────────────────────────────────────
-function initResumePlayback(player, videoId) {
+function initResumePlayback(player, videoId, titleCode) {
   const key = `resume_${videoId}`;
+
+  // Record watch history on first play
+  let watchRecorded = false;
+  player.addEventListener('play', () => {
+    if (!watchRecorded && titleCode) {
+      watchRecorded = true;
+      fetch(`/api/watch-history/${encodeURIComponent(titleCode)}`, { method: 'POST' })
+        .then(() => loadLastWatched(titleCode))
+        .catch(() => {});
+    }
+  });
 
   // Save position every 5 seconds during playback
   let saveInterval = null;
@@ -1576,6 +1650,46 @@ function formatTimestamp(seconds) {
   const s = Math.floor(seconds % 60);
   if (h > 0) return `${h}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
   return `${m}:${String(s).padStart(2,'0')}`;
+}
+
+// ── Watch history ───────────────────────────────────────────────────────
+function timeAgo(isoString) {
+  const then = new Date(isoString);
+  const now = new Date();
+  const seconds = Math.floor((now - then) / 1000);
+  if (seconds < 60)    return 'just now';
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60)    return minutes === 1 ? '1 minute ago' : `${minutes} minutes ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24)      return hours === 1 ? '1 hour ago' : `${hours} hours ago`;
+  const days = Math.floor(hours / 24);
+  if (days < 14)       return days === 1 ? '1 day ago' : `${days} days ago`;
+  const weeks = Math.floor(days / 7);
+  if (weeks < 9)       return weeks === 1 ? '1 week ago' : `${weeks} weeks ago`;
+  const months = Math.floor(days / 30);
+  if (months <= 3)     return months === 1 ? '1 month ago' : `${months} months ago`;
+  return 'more than 3 months ago';
+}
+
+function loadLastWatched(titleCode) {
+  fetch(`/api/watch-history/${encodeURIComponent(titleCode)}`)
+    .then(r => r.json())
+    .then(history => {
+      const row = document.getElementById('title-detail-watched');
+      const val = document.getElementById('title-detail-watched-value');
+      if (!row || !val) return;
+      if (history.length === 0) {
+        row.style.display = 'none';
+        return;
+      }
+      const latest = history[0];
+      val.textContent = timeAgo(latest.watchedAt);
+      if (history.length > 1) {
+        val.textContent += ` (${history.length} times)`;
+      }
+      row.style.display = '';
+    })
+    .catch(() => {});
 }
 
 function formatFileSize(bytes) {

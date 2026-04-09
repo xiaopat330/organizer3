@@ -417,6 +417,26 @@ public class JdbiTitleRepository implements TitleRepository {
     }
 
     @Override
+    public void toggleFavorite(long titleId, boolean favorite) {
+        jdbi.useHandle(h ->
+                h.createUpdate("UPDATE titles SET favorite = :favorite WHERE id = :id")
+                        .bind("favorite", favorite)
+                        .bind("id", titleId)
+                        .execute()
+        );
+    }
+
+    @Override
+    public void toggleBookmark(long titleId, boolean bookmark) {
+        jdbi.useHandle(h ->
+                h.createUpdate("UPDATE titles SET bookmark = :bookmark WHERE id = :id")
+                        .bind("bookmark", bookmark)
+                        .bind("id", titleId)
+                        .execute()
+        );
+    }
+
+    @Override
     public void deleteOrphaned() {
         jdbi.useHandle(h ->
                 h.createUpdate("""

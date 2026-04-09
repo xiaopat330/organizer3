@@ -5,6 +5,7 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import lombok.extern.slf4j.Slf4j;
+import org.bytedeco.ffmpeg.global.avutil;
 import org.bytedeco.javacv.FFmpegFrameGrabber;
 
 /**
@@ -22,6 +23,7 @@ public class VideoProbe {
 
     public VideoProbe(int serverPort) {
         this.serverPort = serverPort;
+        avutil.av_log_set_level(avutil.AV_LOG_ERROR);
     }
 
     /**
