@@ -1229,10 +1229,11 @@
 - company: Hibino
   description: "SOD subsidiary specializing in incest fantasy (step-family) and NTR (netorare/cuckold) scenarios. One of the go-to labels for taboo family drama content."
   profile:
+    founded: ~2002
     status: active
     parent: "Soft On Demand (SOD)"
-    specialty: "Incest fantasy (step-family) and NTR (netorare/cuckold) scenario specialist. One of the go-to SOD labels for these genres. HAVD (main), HBAD (specialty), NTR (dedicated NTR code — one of the most on-the-nose product codes in the industry)."
-    notes: "The NTR product code is a direct genre label — netorare (寝取られ, cuckold fantasy) is one of the most popular niche genres in Japanese AV and Hibino is among SOD's primary vehicles for it."
+    specialty: "Step-family incest fantasy and NTR (netorare/cuckold) specialist. Entered SOD group September 2002. The HAVD main series ran from December 2002 through 2024, reaching 1,000+ volumes across six numbered tranches — one of the longest-running single-code series in the SOD catalog. The dedicated NTR code launched November 2014 as cuckold drama became a dominant genre. Notable: Hibino staff split off in January 2006 to form Akinori (FSET code), a related planning/variety label also under SOD."
+    notes: "The NTR product code is a direct genre label — netorare (寝取られ, cuckold fantasy) is among the most popular niche genres in Japanese AV, and Hibino is the primary SOD vehicle for it. HAVD 1,000+ volumes establishes it as one of the most prolific single-series labels in the SOD group."
   labels:
     - {code: HAVD, label: Hibino, description: "aunt/incest/step-family specialist"}
     - {code: HBAD, label: Hibino, description: "aunt/incest/step-family; NTR genre"}
@@ -1738,8 +1739,8 @@
   profile:
     status: active
     parent: "Independent"
-    specialty: "Multi-label independent group covering fetish content, mature women, and gyaru-focused labels. 14 codes including DOKS, DKSW, DKIM, NJJD, DKSS, DSKM, TDBR, TDBT, TDMJ, FRE, DIR, PFCK, FETI, LOST — each targeting a different niche within the fetish/mature/gyaru spectrum."
-    notes: "V&R Planning (founded April 1986, 'Visual and Retail') appears related or ancestral to the Aten group based on code patterns, but no definitive corporate lineage confirmed in public sources."
+    specialty: "Distribution umbrella aggregating ~40 small independent labels, each operated by a distinct sub-company. Three main constituent companies: Office K's (DOKS/DKSW/DKIM — fetish specialist; directors Seichu Matsumoto and Peterman), Kodo (TDBR Black Riot — gyaru specialist; director OMARU), AFRO-FILM (DIR/PFCK — fetish). V&R Planning (founded April 1986 by Kaoru Adachi — 'Visual and Retail'; one of Japan's earliest SM/fetish labels) is an affiliated label within the umbrella. Not a single production company — each sub-label operates independently under shared distribution infrastructure."
+    notes: "V&R Planning (founded April 1986) predates most major labels and is one of Japan's earliest fetish/SM specialists. Its presence within the Aten umbrella gives the group unusual historical depth for an independent aggregator. Many sub-label names in this entry are machine-translated from Korean sources and may not reflect actual Japanese names."
   labels:
     - {code: DOKS, label: "office case",      description: "Fetish specialist. Directors such as Seichu Matsumoto and Peterman worked."}
     - {code: DKSW, label: "case works",       description: fetish}
@@ -1763,8 +1764,9 @@
   profile:
     status: active
     parent: "Independent"
-    specialty: "Independent production group with ~18 niche sub-labels (ZXY, GON, GIGR, BUR, COS, GST, KJC, BJK, GLT, RJK, SCR, VAL, SIS, AT, WA, DAI, AME, NPS), each targeting a specific aesthetic or genre. True long-tail independent operation."
-    notes: "One of the larger independent multi-label groups by code count. No single unifying content type across the sub-labels — each occupies a distinct niche."
+    founded: ~1998
+    specialty: "Independent studio based in Sumida Ward, Tokyo (est. ~August 1998). Operates two label families: GLAY'z (mainstream/idol content) and Lotus (specialty/niche content, codes AT/WA). Notable for three Japanese AV industry firsts: first UMD-format adult video (2005, PlayStation Portable), first HD DVD adult video (2006), first Blu-ray adult video (~December 2006). ~18 niche sub-labels in total, each targeting a distinct aesthetic or genre."
+    notes: "Taisei's format-first record is historically significant — no other Japanese AV company achieved all three (UMD/HD DVD/Blu-ray) in consecutive years. The GLAY'z vs. Lotus label split reflects two distinct production tiers within one company."
   labels:
     - {code: ZXY,  label: glaze,          description: "Taisei specialty series"}
     - {code: GON,  label: "Glaze One",    description: "Taisei specialty series"}
@@ -1817,8 +1819,8 @@
   profile:
     status: "varies by label"
     parent: "Various (true micro-labels outside major groups)"
-    specialty: "Collection of small independent (indie) labels operating entirely outside the major WILL/SOD/Prestige distribution infrastructure. KJ-prefix codes and others. Extremely small individual output."
-    notes: "The 'Indies' database entry is a catch-all for micro-labels with no other classification. KJ-series and associated codes represent the most grassroots tier of Japanese AV production."
+    specialty: "Catch-all for micro-labels operating entirely outside the major WILL/SOD/Prestige/KMP distribution infrastructure. Three identifiable clusters: (1) KJ/Prospert — director Hana Kashiwagi's label, active May 2005–February 2013 across three code series (KJ, KJG, KJA); (2) One More — Prestige affiliate micro-imprints including SHI (MONE MORE) and UGD (Ultima GOLD); (3) Arc Media Japan — regional independent based in Nagoya/Yokohama, specializing in married women (KRMS) and public/street (PRIS, NGYS, SRES). Remaining codes are true one-off or short-lived operations."
+    notes: "The -S suffix on many codes (FECS, NGYS, HJRS, MISK, etc.) is common among regional indie labels. Arc Media Japan's Nagoya/Yokohama regional focus is unusual — most Japanese AV production is Tokyo-centric."
   labels:
     - {code: KJ,    label: "Kashiwagi Jyuku", description: "Part numbers that existed from May 2005 to August 2008. Directed by Hana Kashiwagi."}
     - {code: KJG,   label: "Kashiwagi Jyuku", description: "Part numbers that existed from July 2009 to February 2013. Directed by Hana Kashiwagi."}
@@ -2005,10 +2007,11 @@
 - company: Cross
   description: "Independent maker. General content across multiple sub-labels."
   profile:
-    status: active
+    founded: 2005
+    status: defunct
     parent: "Independent"
-    specialty: "Independent maker covering general content across multiple sub-labels. CRAD (main), CRPD (specialty), CRSS (specialty series)."
-    notes: "Small independent operation without a dominant genre identity."
+    specialty: "Founded October 2005 by directors Matsushima Cross and Innjean Koga. Produced approximately 450 titles before closing in 2008. Won the Challenge Division at AV Open 2007. CRAD (main), CRPD (specialty), CRSS (specialty series)."
+    notes: "Short-lived (2005–2008) but respected — the AV Open 2007 Challenge Division win gave Cross industry recognition despite its small size. Founded by two directors who defined the label's creative identity."
   labels:
     - {code: CRAD, label: Cross, description: "Cross specialty series"}
     - {code: CRPD, label: Cross, description: "Cross specialty series"}

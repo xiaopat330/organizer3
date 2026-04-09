@@ -64,31 +64,68 @@
 
 ## Aten (アテン)
 **Status:** Active (partial — some codes inactive)
-**Parent:** Independent
-**Specialty:** Multi-label independent group covering fetish content, mature women, and gyaru-focused content. 14 active/legacy codes including DOKS, DKSW, DKIM, NJJD, DKSS, DSKM, TDBR, TDBT, TDMJ, FRE, DIR, PFCK, FETI, LOST.
-**Notes:** V&R Planning (founded April 1986 by Kaoru Adachi — "Visual and Retail") appears related to or ancestral to the Aten group based on code overlap; no definitive corporate history found in public sources.
-**Sources:** V&R Planning Wikipedia (en/ja); namu.wiki; labels.yaml
+**Parent:** Independent (distribution aggregation umbrella for ~40 sub-labels)
+**Structure:** Three main constituent companies:
+- **Office K's** (DOKS/DKSW/DKIM): Fetish specialist. Directors Seichu Matsumoto and Peterman.
+- **Kodo** (TDBR — "Black Riot"): Gyaru specialist. Director OMARU.
+- **AFRO-FILM** (DIR/PFCK): Fetish-bitch content.
+**V&R Planning:** Founded April 1986 by Kaoru Adachi ("Visual and Retail"). One of Japan's earliest SM/fetish video labels. Affiliated label within the Aten umbrella. FETI/LOST codes connect here.
+**Notes:** Not a single company — a distribution aggregation for ~40 independent labels each with distinct ownership. V&R Planning's 1986 founding gives the umbrella unusual historical depth.
+**Sources:** V&R Planning Wikipedia (en/ja); namu.wiki; labels.yaml; second-pass agent research
 
 ---
 
 ## Taisei (大盛り映像 / 大盛)
+**Founded:** ~August 1998
 **Status:** Active (partial)
+**Headquarters:** Sumida Ward, Tokyo
 **Parent:** Independent
-**Specialty:** Independent group with ~18 niche sub-labels (ZXY, GON, GIGR, BUR, COS, GST, KJC, BJK, GLT, RJK, SCR, VAL, SIS, AT, WA, DAI, AME, NPS) each targeting a specific aesthetic or genre. No single unifying content type.
-**Sources:** Internal labels.yaml data; namu.wiki
+**Label families:**
+- **GLAY'z**: Mainstream/idol content (primary label family)
+- **Lotus** (AT/WA codes): Specialty/niche content
+**Industry firsts:**
+- First UMD-format adult video (2005, PlayStation Portable)
+- First HD DVD adult video (2006)
+- First Blu-ray adult video (~December 2006)
+**Sub-labels:** ~18 total — ZXY (Glaze), GON (Glaze One), GIGR (Glaze Impact), BUR (Burst), COS (COS-P), GST (G-Street), KJC (JC), BJK (Fostering JK), GLT (Knife), RJK (R-Eightyne), SCR (S Scream), VAL (Valex), SIS (Sister), AT/WA (Lotus), DAI, AME, NPS (Peters)
+**Sources:** Internal labels.yaml data; namu.wiki; second-pass agent research
 
 ---
 
 ## Cross
-**Status:** Active
+**Founded:** October 2005
+**Status:** Defunct (closed ~2008)
 **Parent:** Independent
-**Specialty:** General content across multiple sub-labels: CRAD (main), CRPD (specialty), CRSS (specialty series).
-**Sources:** Internal labels.yaml data
+**Founders:** Directors Matsushima Cross and Innjean Koga
+**Output:** ~450 titles during 2005–2008 run
+**Awards:** AV Open 2007 — Challenge Division winner
+**Codes:** CRAD (main), CRPD (specialty), CRSS (specialty series)
+**Sources:** Second-pass agent research; internal labels.yaml data
 
 ---
 
 ## Indies (インディーズ)
-**Status:** Varies by label
-**Parent:** Various (true micro-labels operating outside major groups)
-**Specialty:** Collection of small independent labels with very small output — KJ-prefix codes and others. Operates outside WILL/SOD/Prestige distribution infrastructure.
-**Sources:** Internal labels.yaml data
+**Status:** Varies by label (most defunct)
+**Parent:** Various (true micro-labels outside major groups)
+**Three identifiable clusters:**
+
+**1. KJ/Prospert (Kashiwagi Jyuku):** Director Hana Kashiwagi's label. Three code series:
+- KJ: May 2005 – August 2008
+- KJG: July 2009 – February 2013
+- KJA: December 2009 – March 2012
+
+**2. One More (Prestige affiliate micro-imprints):**
+- SHI (MONE MORE): February 2010 – July 2012
+- UGD (Ultima GOLD): February 2011 – May 2012 (Scott water specialty)
+- OMSP (INFINITI): March – April 2012
+
+**3. Arc Media Japan (regional independent):**
+- Based in Nagoya/Yokohama — unusual regional focus in a Tokyo-centric industry
+- KRMS: Married women
+- PRIS: Public/street
+- NGYS: Nagoya customs
+- SRES: Yokohama customs
+
+**Remaining codes:** True one-off or extremely short-lived labels (MANJ, HIME, HNYM, MNYM, HYO, OHANA, ORI, OMAP — all 2009–2010 range)
+**Notes:** The -S suffix pattern (FECS, NGYS, HJRS, MISK, KGRS, URAS, SRES, etc.) is common among regional indie labels. Arc Media Japan's regional identity is the most distinctive thread in this group.
+**Sources:** namu.wiki; internal labels.yaml data; second-pass agent research
