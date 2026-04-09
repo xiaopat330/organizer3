@@ -3247,15 +3247,21 @@
     - code: BRD
       label: "Breeding Club"
       description: "A label that existed from July 2003 to June 2005."
+      tags:
+        - creampie
     - code: DMD
       label: "Devil master"
       description: "A label that existed from October 2003 to February 2004."
+      tags:
+        - sm-bdsm
     - code: MCD
       label: Mescaline
       description: "A label that existed from October 2003 to July 2005."
     - code: CTD
       label: "Harajuku Doru"
       description: "A label that existed from November 2003 to September 2008."
+      tags:
+        - gyaru
     - code: PPD
       label: "Peeping Pro"
       description: "A label that existed from November 2003 to May 2005."
@@ -3267,6 +3273,8 @@
     - code: NFD
       label: "SUCK PLEASURE"
       description: "A label that was only released in May 2004."
+      tags:
+        - blowjob
     - code: LLD
       label: "Lovers Lock"
       description: "A label that existed from June 2004 to October 2004."
@@ -3345,9 +3353,15 @@
     - code: FIS
       label: FisherMans
       description: "The follow-up label to MAN, which existed from August 2010 to May 2013."
+      tags:
+        - pickup
+        - amateur
     - code: TUS
       label: "angler"
       description: "A follow-up label to FIS, which has been on the market from June 2013 to the present in 2018."
+      tags:
+        - pickup
+        - amateur
     - code: TRD
       label: "Tokyo style"
       description: "A label that existed from August 2005 to September 2009."
@@ -3393,9 +3407,13 @@
     - code: PBD
       label: "Platina BLACK"
       description: "A label that existed from April 2006 to April 2007."
+      tags:
+        - gyaru
     - code: WWD
       label: "White Wife"
       description: "A label that was only released in April 2006."
+      tags:
+        - married-woman
     - code: ZOD
       label: ZOO
       description: "A label that existed from May 2006 to August 2006."
@@ -3472,6 +3490,9 @@
     - code: TDT
       label: "The documentary"
       description: "The follow-up label to BLO, which existed from July 2010 to May 2011."
+      tags:
+        - documentary
+        - amateur
     - code: DOM
       label: "Tokuma mushi"
       description: "A label that existed from October 2008 to May 2013. Rui Saotome's DOM-001 is famous."
@@ -3481,6 +3502,8 @@
     - code: AKA
       label: Akamamushi
       description: "The follow-up label to DOM, which has been on the market from June 2013 to the present in 2018."
+      tags:
+        - exclusive-actress
     - code: INU
       label: Inu
       description: "The successor label to the DOM, which existed from September 2010 to May 2013."
@@ -3493,6 +3516,8 @@
     - code: GTO
       label: "Academy Heaven"
       description: "A label that existed from January 2009 to March 2009."
+      tags:
+        - schoolgirl
     - code: SHS
       label: "Amateur dispatch specialist"
       description: "A label that existed from April 2009 to July 2010."
@@ -3554,12 +3579,16 @@
     - code: SAD
       label: "Sell Doru"
       description: "A cell video limited sale label that existed from July 2010 to November 2012."
+      tags:
+        - compilation
     - code: SPC
       label: Special
       description: "Part numbers that existed from February 2011 to May 2011."
     - code: SPP
       label: Special
       description: "A summary of the SPC editions that existed from April 2013 to May 2013."
+      tags:
+        - compilation
     - code: BST
       label: Best
       description: "A label dedicated to the compilation, which existed from February 2011 to May 2013."
@@ -3655,6 +3684,9 @@
     - code: NOF
       label: Nonfiction
       description: "A label that existed from November 2013 to January 2016."
+      tags:
+        - documentary
+        - amateur
     - code: GGG
       label: "Gold Red Project"
       description: "A label that existed from December 2013 to December 2014."
@@ -3682,6 +3714,8 @@
     - code: MDC
       label: "Madam Celebrity"
       description: "A label that existed from June 2011 to November 2011."
+      tags:
+        - mature-women
     - code: MTA
       label: Momitai
       description: "A label that existed from July 2011 to January 2012."
@@ -3697,6 +3731,8 @@
     - code: BAN
       label: BANQUISH
       description: "A label that existed from August 2006 to October 2010."
+      tags:
+        - sm-bdsm
     - code: YOK
       label: ABALONE
       description: "A label that existed from October 2006 to January 2010."
@@ -4166,6 +4202,8 @@
     - code: MIYA
       label: "Miyabi"
       description: "A label that existed from April 2009 to March 2013."
+      tags:
+        - mature-women
     - code: KAN
       label: Khan
       description: "A label that existed from April 2009 to February 2010."
@@ -4586,6 +4624,8 @@
     - code: IML
       label: Immoral
       description: "Prestige specialty label"
+      tags:
+        - sm-bdsm
     - code: JKB
       label: "Juke-Box"
       description: "Prestige specialty label"
@@ -4641,9 +4681,13 @@
     - code: OYU
       label: "steam"
       description: "Prestige specialty label"
+      tags:
+        - hot-spring
     - code: RIX
       label: "Relaxation Room"
       description: "Prestige specialty label"
+      tags:
+        - massage
     - code: SEK
       label: Smile
       description: "Prestige specialty label"
@@ -4664,6 +4708,8 @@
     - code: SPB
       label: "Super Body"
       description: "Prestige specialty label"
+      tags:
+        - busty
     - code: SUB
       label: Submitter
       description: "Prestige specialty label"
@@ -5231,18 +5277,28 @@
     - code: APAA
       label: Aurora
       description: "Aurora specialty series"
+      tags:
+        - planning
     - code: APAK
       label: Aurora
       description: "Aurora specialty series"
+      tags:
+        - planning
     - code: APAM
       label: Aurora
       description: "Aurora specialty series"
+      tags:
+        - planning
     - code: APAR
       label: Aurora
       description: "Aurora specialty series"
+      tags:
+        - planning
     - code: APAT
       label: Aurora
       description: "Aurora specialty series"
+      tags:
+        - planning
 
 - company: Cinemagic
   description: "One of the oldest SM/BDSM specialist studios in AV, operating since the VHS era. Known for cinematic approach to bondage — elaborate set design, costumes, and narrative frameworks (noir detective stories, fantasy kingdoms, ninja settings). Higher production values than most SM labels. The 'Cinemagic' name reflects the studio's ambition to bring filmmaking craft to SM content."
