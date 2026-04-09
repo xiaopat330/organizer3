@@ -361,6 +361,33 @@ class JdbiActressRepositoryTest {
         assertFalse(saved.isRejected());
     }
 
+    // --- setFlags ---
+
+    @Test
+    void setFlagsWritesAllThreeFlagsInOneUpdate() {
+        Actress saved = repo.save(actress("Aya Sazanami"));
+
+        repo.setFlags(saved.getId(), true, true, false);
+
+        Actress after = repo.findById(saved.getId()).orElseThrow();
+        assertTrue(after.isFavorite());
+        assertTrue(after.isBookmark());
+        assertFalse(after.isRejected());
+    }
+
+    @Test
+    void setFlagsCanClearAllThreeFlags() {
+        Actress saved = repo.save(actress("Aya Sazanami"));
+        repo.setFlags(saved.getId(), true, true, false);
+
+        repo.setFlags(saved.getId(), false, false, true);
+
+        Actress after = repo.findById(saved.getId()).orElseThrow();
+        assertFalse(after.isFavorite());
+        assertFalse(after.isBookmark());
+        assertTrue(after.isRejected());
+    }
+
     // --- toggleFavorite / findFavorites ---
 
     @Test

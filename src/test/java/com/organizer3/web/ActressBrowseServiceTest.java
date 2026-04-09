@@ -25,6 +25,7 @@ import java.util.Map;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.*;
 
@@ -295,6 +296,118 @@ class ActressBrowseServiceTest {
 
         assertTrue(s.getCompanies().isEmpty());
         assertTrue(s.getAliases().isEmpty());
+    }
+
+    // ── Flag toggles (favorite / bookmark / rejected) ─────────────────────
+
+    @Test
+    void toggleFavoriteFlipsFavoriteAndLeavesBookmarkAlone() {
+        Actress a = Actress.builder().id(42L).canonicalName("Yui Hatano")
+                .tier(Actress.Tier.LIBRARY).bookmark(true)
+                .firstSeenAt(LocalDate.of(2023, 1, 1)).build();
+        when(actressRepo.findById(42L)).thenReturn(Optional.of(a));
+
+        ActressBrowseService.FlagState result = service.toggleFavorite(42L).orElseThrow();
+
+        assertEquals(42L, result.id());
+        assertTrue(result.favorite());
+        assertTrue(result.bookmark(), "bookmark should be untouched by favorite toggle");
+        assertFalse(result.rejected());
+        verify(actressRepo).setFlags(42L, true, true, false);
+    }
+
+    @Test
+    void toggleFavoriteOnRejectedActressClearsRejected() {
+        Actress a = Actress.builder().id(42L).canonicalName("Yui Hatano")
+                .tier(Actress.Tier.LIBRARY).rejected(true)
+                .firstSeenAt(LocalDate.of(2023, 1, 1)).build();
+        when(actressRepo.findById(42L)).thenReturn(Optional.of(a));
+
+        ActressBrowseService.FlagState result = service.toggleFavorite(42L).orElseThrow();
+
+        assertTrue(result.favorite());
+        assertFalse(result.rejected(), "favoriting must clear rejected");
+        verify(actressRepo).setFlags(42L, true, false, false);
+    }
+
+    @Test
+    void toggleFavoriteOffLeavesRejectedAlone() {
+        Actress a = Actress.builder().id(42L).canonicalName("Yui Hatano")
+                .tier(Actress.Tier.LIBRARY).favorite(true)
+                .firstSeenAt(LocalDate.of(2023, 1, 1)).build();
+        when(actressRepo.findById(42L)).thenReturn(Optional.of(a));
+
+        ActressBrowseService.FlagState result = service.toggleFavorite(42L).orElseThrow();
+
+        assertFalse(result.favorite());
+        assertFalse(result.rejected());
+        verify(actressRepo).setFlags(42L, false, false, false);
+    }
+
+    @Test
+    void toggleBookmarkOnRejectedActressClearsRejected() {
+        Actress a = Actress.builder().id(42L).canonicalName("Yui Hatano")
+                .tier(Actress.Tier.LIBRARY).rejected(true)
+                .firstSeenAt(LocalDate.of(2023, 1, 1)).build();
+        when(actressRepo.findById(42L)).thenReturn(Optional.of(a));
+
+        ActressBrowseService.FlagState result = service.toggleBookmark(42L).orElseThrow();
+
+        assertTrue(result.bookmark());
+        assertFalse(result.rejected(), "bookmarking must clear rejected");
+        verify(actressRepo).setFlags(42L, false, true, false);
+    }
+
+    @Test
+    void toggleBookmarkLeavesFavoriteAlone() {
+        Actress a = Actress.builder().id(42L).canonicalName("Yui Hatano")
+                .tier(Actress.Tier.LIBRARY).favorite(true)
+                .firstSeenAt(LocalDate.of(2023, 1, 1)).build();
+        when(actressRepo.findById(42L)).thenReturn(Optional.of(a));
+
+        ActressBrowseService.FlagState result = service.toggleBookmark(42L).orElseThrow();
+
+        assertTrue(result.favorite(), "favorite should be untouched by bookmark toggle");
+        assertTrue(result.bookmark());
+        verify(actressRepo).setFlags(42L, true, true, false);
+    }
+
+    @Test
+    void toggleRejectedOnFavoriteActressClearsFavoriteAndBookmark() {
+        Actress a = Actress.builder().id(42L).canonicalName("Yui Hatano")
+                .tier(Actress.Tier.LIBRARY).favorite(true).bookmark(true)
+                .firstSeenAt(LocalDate.of(2023, 1, 1)).build();
+        when(actressRepo.findById(42L)).thenReturn(Optional.of(a));
+
+        ActressBrowseService.FlagState result = service.toggleRejected(42L).orElseThrow();
+
+        assertTrue(result.rejected());
+        assertFalse(result.favorite(), "rejecting must clear favorite");
+        assertFalse(result.bookmark(), "rejecting must clear bookmark");
+        verify(actressRepo).setFlags(42L, false, false, true);
+    }
+
+    @Test
+    void toggleRejectedOffLeavesOtherFlagsFalse() {
+        Actress a = Actress.builder().id(42L).canonicalName("Yui Hatano")
+                .tier(Actress.Tier.LIBRARY).rejected(true)
+                .firstSeenAt(LocalDate.of(2023, 1, 1)).build();
+        when(actressRepo.findById(42L)).thenReturn(Optional.of(a));
+
+        ActressBrowseService.FlagState result = service.toggleRejected(42L).orElseThrow();
+
+        assertFalse(result.rejected());
+        assertFalse(result.favorite());
+        assertFalse(result.bookmark());
+        verify(actressRepo).setFlags(42L, false, false, false);
+    }
+
+    @Test
+    void toggleFavoriteReturnsEmptyWhenActressNotFound() {
+        when(actressRepo.findById(999L)).thenReturn(Optional.empty());
+
+        assertTrue(service.toggleFavorite(999L).isEmpty());
+        verify(actressRepo, never()).setFlags(anyLong(), anyBoolean(), anyBoolean(), anyBoolean());
     }
 
     // ── helpers ───────────────────────────────────────────────────────────

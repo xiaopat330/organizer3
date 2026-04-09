@@ -309,6 +309,57 @@ public class ActressBrowseService {
     }
 
     /**
+     * Result of a flag toggle operation — returns the full post-toggle state of all three
+     * mutually-interacting flags so the client can stay in sync without a follow-up fetch.
+     */
+    public record FlagState(long id, boolean favorite, boolean bookmark, boolean rejected) {}
+
+    /**
+     * Toggle {@code favorite} for an actress. Favoriting implicitly clears {@code rejected}
+     * (a rejected actress cannot also be a favorite). Bookmark is left unchanged.
+     * @return the full post-toggle flag state, or empty if no such actress
+     */
+    public Optional<FlagState> toggleFavorite(long actressId) {
+        return actressRepo.findById(actressId).map(a -> {
+            boolean fav = !a.isFavorite();
+            boolean bm  = a.isBookmark();
+            boolean rej = fav ? false : a.isRejected();
+            actressRepo.setFlags(actressId, fav, bm, rej);
+            return new FlagState(actressId, fav, bm, rej);
+        });
+    }
+
+    /**
+     * Toggle {@code bookmark} for an actress. Bookmarking implicitly clears {@code rejected}.
+     * Favorite is left unchanged.
+     * @return the full post-toggle flag state, or empty if no such actress
+     */
+    public Optional<FlagState> toggleBookmark(long actressId) {
+        return actressRepo.findById(actressId).map(a -> {
+            boolean bm  = !a.isBookmark();
+            boolean fav = a.isFavorite();
+            boolean rej = bm ? false : a.isRejected();
+            actressRepo.setFlags(actressId, fav, bm, rej);
+            return new FlagState(actressId, fav, bm, rej);
+        });
+    }
+
+    /**
+     * Toggle {@code rejected} for an actress. Rejecting implicitly clears both
+     * {@code favorite} and {@code bookmark} (a rejected actress cannot be either).
+     * @return the full post-toggle flag state, or empty if no such actress
+     */
+    public Optional<FlagState> toggleRejected(long actressId) {
+        return actressRepo.findById(actressId).map(a -> {
+            boolean rej = !a.isRejected();
+            boolean fav = rej ? false : a.isFavorite();
+            boolean bm  = rej ? false : a.isBookmark();
+            actressRepo.setFlags(actressId, fav, bm, rej);
+            return new FlagState(actressId, fav, bm, rej);
+        });
+    }
+
+    /**
      * Calls the AI name lookup for the given actress, persists the result to the database
      * and the YAML backup file, and returns the stage name found.
      *

@@ -386,9 +386,41 @@ function clearCardIntervals() {
   activeIntervals.clear();
 }
 
+function actressFlagIconsHtml(a) {
+  const parts = [];
+  if (a.rejected) {
+    parts.push('<svg class="card-rej-icon" viewBox="0 0 24 24" width="12" height="12"><path d="M6 6 L18 18 M18 6 L6 18"/></svg>');
+  } else {
+    if (a.favorite) parts.push('<svg class="card-fav-icon" viewBox="0 0 24 24" width="12" height="12"><polygon points="12,2 15.09,8.26 22,9.27 17,14.14 18.18,21.02 12,17.77 5.82,21.02 7,14.14 2,9.27 8.91,8.26"/></svg>');
+    if (a.bookmark) parts.push('<svg class="card-bm-icon" viewBox="0 0 24 24" width="12" height="12"><path d="M6 2h12a1 1 0 0 1 1 1v18.5a.5.5 0 0 1-.8.4L12 17.5 5.8 21.9a.5.5 0 0 1-.8-.4V3a1 1 0 0 1 1-1z"/></svg>');
+  }
+  return parts.join('');
+}
+
+function actressNameClass(a) {
+  if (a.rejected) return 'actress-card-name';
+  if (a.favorite) return 'actress-card-name actress-name-fav';
+  if (a.bookmark) return 'actress-card-name actress-name-bm';
+  return 'actress-card-name';
+}
+
+function updateActressCardIndicators(id, favorite, bookmark, rejected) {
+  const card = document.querySelector(`.actress-card[data-actress-id="${id}"]`);
+  if (!card) return;
+  const nameEl = card.querySelector('.actress-card-name');
+  if (!nameEl) return;
+  const firstSpan = nameEl.querySelector('.actress-first-name');
+  const lastSpan  = nameEl.querySelector('.actress-last-name');
+  const firstHtml = firstSpan ? firstSpan.outerHTML : '';
+  const lastHtml  = lastSpan ? lastSpan.outerHTML : '';
+  nameEl.className = actressNameClass({ favorite, bookmark, rejected });
+  nameEl.innerHTML = actressFlagIconsHtml({ favorite, bookmark, rejected }) + firstHtml + lastHtml;
+}
+
 function makeActressCard(a) {
   const card = document.createElement('div');
   card.className = 'actress-card';
+  card.dataset.actressId = a.id;
 
   const covers = a.coverUrls || [];
   const coverWrap = document.createElement('div');
@@ -419,12 +451,11 @@ function makeActressCard(a) {
   const body = document.createElement('div');
   body.className = 'actress-card-body';
   body.innerHTML = `
-    <div class="actress-card-name">
-      <span class="actress-first-name">${esc(firstName)}</span>${lastName ? `<span class="actress-last-name">${esc(lastName)}</span>` : ''}
+    <div class="${actressNameClass(a)}">
+      ${actressFlagIconsHtml(a)}<span class="actress-first-name">${esc(firstName)}</span>${lastName ? `<span class="actress-last-name">${esc(lastName)}</span>` : ''}
     </div>
     <div class="actress-card-meta">
       <span class="tier-badge tier-${esc(a.tier)}">${esc(a.tier.toLowerCase())}</span>
-      ${a.favorite ? '<div class="fav-dot"></div>' : ''}
     </div>
     ${renderDateRange(a.firstAddedDate, a.lastAddedDate)}
     <div class="actress-title-count">Titles: ${a.titleCount}</div>
@@ -1021,7 +1052,17 @@ function renderDetailPanel(a) {
     <div class="detail-meta-row">
       <span class="tier-badge tier-${esc(a.tier)}">${esc(a.tier.toLowerCase())}</span>
       ${a.grade ? `<span class="detail-grade">${esc(a.grade)}</span>` : ''}
-      ${a.favorite ? '<div class="fav-dot"></div>' : ''}
+    </div>
+    <div class="actress-detail-actions">
+      <button class="title-action-btn${a.favorite ? ' active' : ''}" id="actress-fav-btn" title="Favorite">
+        <svg viewBox="0 0 24 24" width="22" height="22"><polygon class="star-icon" points="12,2 15.09,8.26 22,9.27 17,14.14 18.18,21.02 12,17.77 5.82,21.02 7,14.14 2,9.27 8.91,8.26"/></svg>
+      </button>
+      <button class="title-action-btn${a.bookmark ? ' active' : ''}" id="actress-bm-btn" title="Bookmark">
+        <svg viewBox="0 0 24 24" width="22" height="22"><path class="bookmark-icon" d="M6 2h12a1 1 0 0 1 1 1v18.5a.5.5 0 0 1-.8.4L12 17.5 5.8 21.9a.5.5 0 0 1-.8-.4V3a1 1 0 0 1 1-1z"/></svg>
+      </button>
+      <button class="title-action-btn reject-btn${a.rejected ? ' active' : ''}" id="actress-rej-btn" title="Reject">
+        <svg viewBox="0 0 24 24" width="22" height="22"><path class="reject-icon" d="M6 6 L18 18 M18 6 L6 18"/></svg>
+      </button>
     </div>
     ${aliasHtml}
     ${careerHtml}
@@ -1029,6 +1070,30 @@ function renderDetailPanel(a) {
 
   const btn = document.getElementById('btn-search-stage-name');
   if (btn) btn.addEventListener('click', () => searchStageName(a.id));
+
+  // Sync all three toggle buttons and the open card (if any) from a server response.
+  function applyActressFlags(data) {
+    a.favorite = data.favorite;
+    a.bookmark = data.bookmark;
+    a.rejected = data.rejected;
+    document.getElementById('actress-fav-btn').classList.toggle('active', data.favorite);
+    document.getElementById('actress-bm-btn').classList.toggle('active', data.bookmark);
+    document.getElementById('actress-rej-btn').classList.toggle('active', data.rejected);
+    updateActressCardIndicators(a.id, data.favorite, data.bookmark, data.rejected);
+  }
+
+  document.getElementById('actress-fav-btn').addEventListener('click', () => {
+    fetch(`/api/actresses/${a.id}/favorite`, { method: 'POST' })
+      .then(r => r.json()).then(applyActressFlags);
+  });
+  document.getElementById('actress-bm-btn').addEventListener('click', () => {
+    fetch(`/api/actresses/${a.id}/bookmark`, { method: 'POST' })
+      .then(r => r.json()).then(applyActressFlags);
+  });
+  document.getElementById('actress-rej-btn').addEventListener('click', () => {
+    fetch(`/api/actresses/${a.id}/reject`, { method: 'POST' })
+      .then(r => r.json()).then(applyActressFlags);
+  });
 
   // ── Column 2: Profile data ──
   const profileLines = [];

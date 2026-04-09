@@ -114,6 +114,13 @@ public interface ActressRepository {
 
     void toggleRejected(long actressId, boolean rejected);
 
+    /**
+     * Atomically overwrite the three mutually-interacting flags (favorite, bookmark, rejected)
+     * for an actress in a single UPDATE. Callers are responsible for enforcing any
+     * mutual-exclusion rules (e.g. rejected implies !favorite and !bookmark).
+     */
+    void setFlags(long actressId, boolean favorite, boolean bookmark, boolean rejected);
+
     // --- Alias operations ---
 
     List<ActressAlias> findAliases(long actressId);

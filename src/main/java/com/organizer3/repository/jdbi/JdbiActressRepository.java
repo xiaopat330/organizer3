@@ -381,6 +381,19 @@ public class JdbiActressRepository implements ActressRepository {
     }
 
     @Override
+    public void setFlags(long actressId, boolean favorite, boolean bookmark, boolean rejected) {
+        jdbi.useHandle(h ->
+                h.createUpdate("UPDATE actresses SET favorite = :favorite, " +
+                                "bookmark = :bookmark, rejected = :rejected WHERE id = :id")
+                        .bind("favorite", favorite ? 1 : 0)
+                        .bind("bookmark", bookmark ? 1 : 0)
+                        .bind("rejected", rejected ? 1 : 0)
+                        .bind("id", actressId)
+                        .execute()
+        );
+    }
+
+    @Override
     public void updateProfile(long actressId, String stageName, LocalDate dateOfBirth,
                               String birthplace, String bloodType, Integer heightCm,
                               Integer bust, Integer waist, Integer hip, String cup,

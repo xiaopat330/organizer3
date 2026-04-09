@@ -258,6 +258,45 @@ public class WebServer {
                 ctx.json(actressBrowseService.findTitlesByActress(id, offset, limit, company));
             });
 
+            app.post("/api/actresses/{id}/favorite", ctx -> {
+                long id;
+                try { id = Long.parseLong(ctx.pathParam("id")); }
+                catch (NumberFormatException e) { ctx.status(400); return; }
+                actressBrowseService.toggleFavorite(id).ifPresentOrElse(
+                        s -> ctx.json(Map.of("id", s.id(),
+                                "favorite", s.favorite(),
+                                "bookmark", s.bookmark(),
+                                "rejected", s.rejected())),
+                        () -> ctx.status(404).json(Map.of("error", "Actress not found"))
+                );
+            });
+
+            app.post("/api/actresses/{id}/bookmark", ctx -> {
+                long id;
+                try { id = Long.parseLong(ctx.pathParam("id")); }
+                catch (NumberFormatException e) { ctx.status(400); return; }
+                actressBrowseService.toggleBookmark(id).ifPresentOrElse(
+                        s -> ctx.json(Map.of("id", s.id(),
+                                "favorite", s.favorite(),
+                                "bookmark", s.bookmark(),
+                                "rejected", s.rejected())),
+                        () -> ctx.status(404).json(Map.of("error", "Actress not found"))
+                );
+            });
+
+            app.post("/api/actresses/{id}/reject", ctx -> {
+                long id;
+                try { id = Long.parseLong(ctx.pathParam("id")); }
+                catch (NumberFormatException e) { ctx.status(400); return; }
+                actressBrowseService.toggleRejected(id).ifPresentOrElse(
+                        s -> ctx.json(Map.of("id", s.id(),
+                                "favorite", s.favorite(),
+                                "bookmark", s.bookmark(),
+                                "rejected", s.rejected())),
+                        () -> ctx.status(404).json(Map.of("error", "Actress not found"))
+                );
+            });
+
             app.post("/api/actresses/{id}/stage-name/search", ctx -> {
                 long id;
                 try { id = Long.parseLong(ctx.pathParam("id")); }

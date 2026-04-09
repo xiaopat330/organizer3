@@ -446,6 +446,7 @@ header h1:hover {
 .title-code-bold { font-weight: 700; }
 .card-fav-icon { fill: #fbbf24; flex-shrink: 0; }
 .card-bm-icon  { fill: #60a5fa; flex-shrink: 0; }
+.card-rej-icon { fill: none; stroke: #ef4444; stroke-width: 2.5; stroke-linecap: round; flex-shrink: 0; }
 .card-watched {
   font-size: 0.72rem;
   color: #8cb4ff;
@@ -529,6 +530,9 @@ header h1:hover {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  display: flex;
+  align-items: center;
+  gap: 4px;
 }
 
 .actress-first-name {
@@ -543,6 +547,13 @@ header h1:hover {
   color: #777;
   margin-left: 5px;
 }
+
+/* Favorite/bookmark name coloring on actress cards. Favorite wins over bookmark
+   when both are set, per the spec. Last-name gets a dimmed variant of the same hue. */
+.actress-name-fav .actress-first-name { color: #fbbf24; font-weight: 800; }
+.actress-name-fav .actress-last-name  { color: #d9a020; font-weight: 700; }
+.actress-name-bm  .actress-first-name { color: #8cb4ff; font-weight: 800; }
+.actress-name-bm  .actress-last-name  { color: #6a8bc8; font-weight: 700; }
 
 .actress-card-meta {
   display: flex;
@@ -1082,6 +1093,26 @@ header h1:hover {
 .title-action-btn.active .bookmark-icon {
   fill: #60a5fa;
   stroke: #60a5fa;
+}
+.title-action-btn .reject-icon {
+  fill: none;
+  stroke: #666;
+  stroke-width: 2.5;
+  stroke-linecap: round;
+  transition: stroke 0.15s;
+}
+.title-action-btn.reject-btn.active .reject-icon {
+  stroke: #ef4444;
+}
+.title-action-btn.reject-btn.active {
+  border-color: #ef4444;
+}
+
+/* Actress detail page: same action-button row style as title detail. */
+.actress-detail-actions {
+  display: flex;
+  gap: 8px;
+  margin: 8px 0 12px;
 }
 
 .title-detail-title-ja {
