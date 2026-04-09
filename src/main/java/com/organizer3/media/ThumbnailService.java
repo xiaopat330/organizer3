@@ -1,16 +1,19 @@
 package com.organizer3.media;
 
 import com.organizer3.model.Video;
-import com.organizer3.smb.SmbConnectionFactory;
-import com.organizer3.smb.SmbConnectionFactory.SmbShareHandle;
 
 import java.awt.image.BufferedImage;
 import java.io.IOException;
-import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.Set;
 import javax.imageio.ImageIO;
 import lombok.extern.slf4j.Slf4j;
 import org.bytedeco.javacv.FFmpegFrameGrabber;
@@ -20,55 +23,100 @@ import org.bytedeco.javacv.Java2DFrameConverter;
 /**
  * Generates preview thumbnails from video files via JavaCV (FFmpeg).
  *
- * <p>Thumbnails are cached on local disk under {@code data/thumbnails/<videoId>/}.
- * Generated lazily on first request; subsequent requests serve from cache.
+ * <p>Thumbnails are cached on local disk under {@code data/thumbnails/<titleCode>/<videoFilename>/}.
+ * This content-stable keying means thumbnails survive database rebuilds — the same video
+ * always maps to the same directory regardless of its database ID.
+ *
+ * <p>Generation is async — callers get an empty list on first request and poll
+ * until thumbnails appear. FFmpeg opens the video via the local HTTP streaming
+ * endpoint so it can use Range requests for O(1) seeking instead of reading
+ * the entire file sequentially over SMB.
  */
 @Slf4j
 public class ThumbnailService {
 
-    private static final int THUMBNAIL_COUNT = 4;
     private static final int THUMBNAIL_WIDTH = 320;
 
     private final Path thumbnailRoot;
-    private final SmbConnectionFactory smbFactory;
+    private final int thumbnailCount;
+    private final int serverPort;
+    private final Set<String> generating = ConcurrentHashMap.newKeySet();
 
-    public ThumbnailService(Path dataDir, SmbConnectionFactory smbFactory) {
-        this.thumbnailRoot = dataDir.resolve("thumbnails");
-        this.smbFactory = smbFactory;
+    public ThumbnailService(Path thumbnailRoot, int thumbnailCount, int serverPort) {
+        this.thumbnailRoot = thumbnailRoot;
+        this.thumbnailCount = thumbnailCount;
+        this.serverPort = serverPort;
     }
 
     /**
-     * Returns thumbnail URLs for the given video. Generates them if not cached.
-     * Returns an empty list if generation fails (video inaccessible, unsupported format, etc.).
+     * Returns thumbnail status: URLs generated so far, expected total, and whether
+     * generation is still in progress. Kicks off async generation on first call.
+     *
+     * @param titleCode the title's product code (e.g. "ABP-123")
+     * @param video     the video record
      */
-    public List<String> getThumbnailUrls(Video video) {
-        Path videoDir = thumbnailRoot.resolve(String.valueOf(video.getId()));
-
-        // Check cache
+    public Map<String, Object> getThumbnailStatus(String titleCode, Video video) {
+        Path videoDir = resolveVideoDir(titleCode, video.getFilename());
         List<String> cached = findCachedThumbnails(video.getId(), videoDir);
-        if (!cached.isEmpty()) return cached;
 
-        // Generate
-        try {
-            return generateThumbnails(video, videoDir);
-        } catch (Exception e) {
-            log.warn("Failed to generate thumbnails for video {}: {}", video.getId(), e.getMessage());
-            return List.of();
+        String generationKey = titleCode + "/" + video.getFilename();
+        boolean isGenerating = generating.contains(generationKey);
+
+        // Kick off generation if not complete and not already running
+        if (cached.size() < thumbnailCount && !isGenerating) {
+            if (generating.add(generationKey)) {
+                isGenerating = true;
+                CompletableFuture.runAsync(() -> {
+                    try {
+                        generateThumbnails(video, videoDir);
+                    } catch (Exception e) {
+                        log.warn("Thumbnail generation failed for {} {}: {}",
+                                titleCode, video.getFilename(), e.getMessage());
+                    } finally {
+                        generating.remove(generationKey);
+                    }
+                });
+            }
         }
+
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("urls", cached);
+        result.put("total", thumbnailCount);
+        result.put("generating", isGenerating);
+        return result;
     }
 
     /**
      * Returns the local file path for a thumbnail image, or empty if not found.
      */
-    public java.util.Optional<Path> getThumbnailFile(long videoId, String filename) {
-        Path file = thumbnailRoot.resolve(String.valueOf(videoId)).resolve(filename);
-        return Files.isRegularFile(file) ? java.util.Optional.of(file) : java.util.Optional.empty();
+    public Optional<Path> getThumbnailFile(String titleCode, String videoFilename, String thumbFilename) {
+        Path file = resolveVideoDir(titleCode, videoFilename).resolve(thumbFilename);
+        return Files.isRegularFile(file) ? Optional.of(file) : Optional.empty();
+    }
+
+    /**
+     * Returns the root directory where all thumbnails are stored.
+     * Used by the pruning command to walk the directory tree.
+     */
+    public Path root() {
+        return thumbnailRoot;
+    }
+
+    /**
+     * Returns the expected thumbnail count (for pruning / validation).
+     */
+    public int thumbnailCount() {
+        return thumbnailCount;
+    }
+
+    private Path resolveVideoDir(String titleCode, String videoFilename) {
+        return thumbnailRoot.resolve(titleCode).resolve(videoFilename);
     }
 
     private List<String> findCachedThumbnails(long videoId, Path videoDir) {
         if (!Files.isDirectory(videoDir)) return List.of();
         List<String> urls = new ArrayList<>();
-        for (int i = 1; i <= THUMBNAIL_COUNT; i++) {
+        for (int i = 1; i <= thumbnailCount; i++) {
             String filename = String.format("thumb_%02d.jpg", i);
             if (Files.exists(videoDir.resolve(filename))) {
                 urls.add("/api/videos/" + videoId + "/thumbnails/" + filename);
@@ -77,30 +125,31 @@ public class ThumbnailService {
         return urls.isEmpty() ? List.of() : urls;
     }
 
-    private List<String> generateThumbnails(Video video, Path videoDir) throws IOException {
+    private void generateThumbnails(Video video, Path videoDir) throws IOException {
         Files.createDirectories(videoDir);
 
-        try (SmbShareHandle handle = smbFactory.open(video.getVolumeId());
-             InputStream is = handle.openFile(video.getPath().toString())) {
+        String streamUrl = "http://localhost:" + serverPort + "/api/stream/" + video.getId();
+        log.info("Generating {} thumbnails for video {} via {}", thumbnailCount, video.getId(), streamUrl);
 
-            FFmpegFrameGrabber grabber = new FFmpegFrameGrabber(is);
-            grabber.start();
+        FFmpegFrameGrabber grabber = new FFmpegFrameGrabber(streamUrl);
+        grabber.setOption("skip_frame", "noref");
+        grabber.setAudioChannels(0);
+        grabber.start();
 
+        try {
             long duration = grabber.getLengthInTime(); // microseconds
             if (duration <= 0) {
                 log.warn("Could not determine duration for video {}", video.getId());
-                grabber.stop();
-                return List.of();
+                return;
             }
 
             Java2DFrameConverter converter = new Java2DFrameConverter();
-            List<String> urls = new ArrayList<>();
+            int generated = 0;
 
-            for (int i = 0; i < THUMBNAIL_COUNT; i++) {
-                // Sample at 10%, 30%, 50%, 70% of duration (avoid very start/end)
-                double fraction = 0.1 + (0.6 * i / (THUMBNAIL_COUNT - 1));
+            for (int i = 0; i < thumbnailCount; i++) {
+                double fraction = 0.1 + (0.6 * i / (thumbnailCount - 1));
                 long timestamp = (long) (duration * fraction);
-                grabber.setTimestamp(timestamp);
+                grabber.setTimestamp(timestamp, true);
 
                 Frame frame = grabber.grabImage();
                 if (frame == null) continue;
@@ -108,18 +157,17 @@ public class ThumbnailService {
                 BufferedImage image = converter.convert(frame);
                 if (image == null) continue;
 
-                // Scale to thumbnail width
                 BufferedImage scaled = scaleImage(image, THUMBNAIL_WIDTH);
-
                 String filename = String.format("thumb_%02d.jpg", i + 1);
                 Path outFile = videoDir.resolve(filename);
                 ImageIO.write(scaled, "jpg", outFile.toFile());
-                urls.add("/api/videos/" + video.getId() + "/thumbnails/" + filename);
+                generated++;
             }
 
+            log.info("Generated {} thumbnails for video {}", generated, video.getId());
+        } finally {
             grabber.stop();
-            log.info("Generated {} thumbnails for video {}", urls.size(), video.getId());
-            return urls;
+            grabber.release();
         }
     }
 

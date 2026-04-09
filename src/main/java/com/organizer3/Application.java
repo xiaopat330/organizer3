@@ -13,6 +13,7 @@ import com.organizer3.command.LoadActressCommand;
 import com.organizer3.command.HelpCommand;
 import com.organizer3.command.MountCommand;
 import com.organizer3.command.PruneCoversCommand;
+import com.organizer3.command.PruneThumbnailsCommand;
 import com.organizer3.command.RebuildCommand;
 import com.organizer3.command.ScanCoversCommand;
 import com.organizer3.command.ShutdownCommand;
@@ -29,6 +30,7 @@ import com.organizer3.db.LabelSeeder;
 import com.organizer3.db.SchemaInitializer;
 import com.organizer3.db.SchemaUpgrader;
 import com.organizer3.media.ThumbnailService;
+import com.organizer3.media.VideoProbe;
 import com.organizer3.enrichment.ActressYamlLoader;
 import com.organizer3.repository.ActressRepository;
 import com.organizer3.repository.LabelRepository;
@@ -158,6 +160,13 @@ public class Application {
         commands.add(new ScanCoversCommand(titleRepo, volumeRepo, coverPath, scannerRegistry));
         commands.add(new PruneCoversCommand(titleRepo, coverPath));
 
+        // Thumbnail service — created early so commands can reference it
+        Path dataDir = Path.of(System.getProperty("user.dir"), "data");
+        int thumbnailCount = config.thumbnailCount() != null ? config.thumbnailCount() : 10;
+        ThumbnailService thumbnailService = new ThumbnailService(
+                dataDir.resolve("thumbnails"), thumbnailCount, WebServer.DEFAULT_PORT);
+        commands.add(new PruneThumbnailsCommand(titleRepo, thumbnailService));
+
         // Sync commands — registered dynamically from syncConfig.
         // Group by term so that a term shared across structure types (e.g. sync all)
         // produces a single command that accepts all of those types.
@@ -205,13 +214,12 @@ public class Application {
         ActressBrowseService actressBrowseService = new ActressBrowseService(
                 actressRepo, titleRepo, coverPath, volumeSmbPaths, labelRepo, nameLookup, stageNameBackup);
 
-        // Video streaming
+        // Video streaming + metadata
         SmbConnectionFactory smbConnectionFactory = new SmbConnectionFactory(config);
         VideoStreamService videoStreamService = new VideoStreamService(titleRepo, videoRepo, smbConnectionFactory);
-        ThumbnailService thumbnailService = new ThumbnailService(dbDir, smbConnectionFactory);
-
+        VideoProbe videoProbe = new VideoProbe(WebServer.DEFAULT_PORT);
         WebServer webServer = new WebServer(browseService, actressBrowseService, coverPath.root(),
-                videoStreamService, thumbnailService);
+                videoStreamService, thumbnailService, videoProbe);
         webServer.start();
 
         OrganizerShell shell = new OrganizerShell(session, commands);

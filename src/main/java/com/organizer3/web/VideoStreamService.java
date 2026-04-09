@@ -83,6 +83,17 @@ public class VideoStreamService {
     }
 
     /**
+     * Resolves the title code for a video by looking up its parent title.
+     * Returns null if the title cannot be found.
+     */
+    public String titleCodeForVideo(Video video) {
+        if (video.getTitleId() == null) return null;
+        return titleRepo.findById(video.getTitleId())
+                .map(Title::getCode)
+                .orElse(null);
+    }
+
+    /**
      * Returns the MIME type for a video file based on its extension.
      */
     public String mimeType(Video video) {

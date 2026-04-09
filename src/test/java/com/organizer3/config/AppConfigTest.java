@@ -15,7 +15,7 @@ class AppConfigTest {
             "a", "//pandora/jav_A", "conventional", "pandora", null);
 
     private static OrganizerConfig cfg(VolumeConfig... vols) {
-        return new OrganizerConfig(null, null, null, null, List.of(), List.of(vols), List.of(), List.of());
+        return new OrganizerConfig(null, null, null, null, null, null, List.of(), List.of(vols), List.of(), List.of());
     }
 
     @AfterEach

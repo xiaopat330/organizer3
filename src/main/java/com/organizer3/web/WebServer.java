@@ -5,6 +5,7 @@ import com.organizer3.config.AppConfig;
 import com.organizer3.config.volume.VolumeConfig;
 import com.organizer3.covers.CoverPath;
 import com.organizer3.media.ThumbnailService;
+import com.organizer3.media.VideoProbe;
 import com.organizer3.model.Video;
 import com.organizer3.smb.SmbConnectionFactory.SmbShareHandle;
 import io.javalin.Javalin;
@@ -28,7 +29,7 @@ import lombok.extern.slf4j.Slf4j;
  */
 @Slf4j
 public class WebServer {
-    private static final int DEFAULT_PORT = 8080;
+    public static final int DEFAULT_PORT = 8080;
 
     private static final Map<String, String> MIME_TYPES = Map.of(
             "jpg",  "image/jpeg",
@@ -44,31 +45,34 @@ public class WebServer {
     /** Full constructor: enables title browsing, actress browsing, cover serving, and video streaming. */
     public WebServer(int port, TitleBrowseService browseService,
                      ActressBrowseService actressBrowseService, Path coversRoot,
-                     VideoStreamService videoStreamService, ThumbnailService thumbnailService) {
+                     VideoStreamService videoStreamService, ThumbnailService thumbnailService,
+                     VideoProbe videoProbe) {
         this.port = port;
         this.app = Javalin.create(config ->
                 config.staticFiles.add("/public", Location.CLASSPATH));
         registerRoutes(browseService, actressBrowseService, coversRoot,
-                videoStreamService, thumbnailService);
+                videoStreamService, thumbnailService, videoProbe);
     }
 
     /** Convenience constructor using the default port. */
     public WebServer(TitleBrowseService browseService,
                      ActressBrowseService actressBrowseService, Path coversRoot,
-                     VideoStreamService videoStreamService, ThumbnailService thumbnailService) {
+                     VideoStreamService videoStreamService, ThumbnailService thumbnailService,
+                     VideoProbe videoProbe) {
         this(DEFAULT_PORT, browseService, actressBrowseService, coversRoot,
-                videoStreamService, thumbnailService);
+                videoStreamService, thumbnailService, videoProbe);
     }
 
     /** Minimal constructor for tests that only need the lifecycle and static file behaviour. */
     public WebServer(int port) {
-        this(port, null, null, null, null, null);
+        this(port, null, null, null, null, null, null);
     }
 
     private void registerRoutes(TitleBrowseService browseService,
                                 ActressBrowseService actressBrowseService, Path coversRoot,
                                 VideoStreamService videoStreamService,
-                                ThumbnailService thumbnailService) {
+                                ThumbnailService thumbnailService,
+                                VideoProbe videoProbe) {
         app.get("/api/config", ctx -> {
             var cfg = AppConfig.get().volumes();
             String appName = cfg.appName();
@@ -77,6 +81,7 @@ public class WebServer {
             result.put("maxBrowseTitles",    cfg.maxBrowseTitles()    != null ? cfg.maxBrowseTitles()    : 500);
             result.put("maxRandomTitles",    cfg.maxRandomTitles()    != null ? cfg.maxRandomTitles()    : 500);
             result.put("maxRandomActresses", cfg.maxRandomActresses() != null ? cfg.maxRandomActresses() : 500);
+            result.put("thumbnailColumns",  cfg.thumbnailColumns()  != null ? cfg.thumbnailColumns()  : 5);
             var exhibitionVolumes = cfg.volumes().stream()
                     .filter(v -> "exhibition".equals(v.group()))
                     .map(VolumeConfig::id)
@@ -379,7 +384,10 @@ public class WebServer {
                         : null;
                 if (video == null) { ctx.status(404); return; }
 
-                ctx.json(thumbnailService.getThumbnailUrls(video));
+                String titleCode = videoStreamService.titleCodeForVideo(video);
+                if (titleCode == null) { ctx.status(404); return; }
+
+                ctx.json(thumbnailService.getThumbnailStatus(titleCode, video));
             });
 
             // Serve individual thumbnail images
@@ -392,7 +400,15 @@ public class WebServer {
                     ctx.status(400); return;
                 }
 
-                thumbnailService.getThumbnailFile(videoId, filename)
+                Video video = videoStreamService != null
+                        ? videoStreamService.findVideoById(videoId).orElse(null)
+                        : null;
+                if (video == null) { ctx.status(404); return; }
+
+                String titleCode = videoStreamService.titleCodeForVideo(video);
+                if (titleCode == null) { ctx.status(404); return; }
+
+                thumbnailService.getThumbnailFile(titleCode, video.getFilename(), filename)
                         .ifPresentOrElse(
                                 path -> {
                                     ctx.contentType("image/jpeg");
@@ -401,6 +417,19 @@ public class WebServer {
                                 },
                                 () -> ctx.status(404)
                         );
+            });
+        }
+
+        if (videoProbe != null && videoStreamService != null) {
+            app.get("/api/videos/{videoId}/info", ctx -> {
+                long videoId;
+                try { videoId = Long.parseLong(ctx.pathParam("videoId")); }
+                catch (NumberFormatException e) { ctx.status(400); return; }
+
+                Video video = videoStreamService.findVideoById(videoId).orElse(null);
+                if (video == null) { ctx.status(404); return; }
+
+                ctx.json(videoProbe.probe(videoId, video.getFilename()));
             });
         }
     }

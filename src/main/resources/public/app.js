@@ -4,6 +4,7 @@ let MAX_RANDOM_TITLES   = 500;
 let MAX_RANDOM_ACTRESSES = 500;
 let EXHIBITION_VOLUMES = '';
 let ARCHIVE_VOLUMES    = '';
+let THUMBNAIL_COLUMNS  = 5;
 
 fetch('/api/config')
   .then(r => r.json())
@@ -16,6 +17,7 @@ fetch('/api/config')
     if (cfg.maxRandomActresses) MAX_RANDOM_ACTRESSES = cfg.maxRandomActresses;
     if (cfg.exhibitionVolumes)  EXHIBITION_VOLUMES   = cfg.exhibitionVolumes.join(',');
     if (cfg.archiveVolumes)     ARCHIVE_VOLUMES      = cfg.archiveVolumes.join(',');
+    if (cfg.thumbnailColumns)   THUMBNAIL_COLUMNS    = cfg.thumbnailColumns;
   })
   .catch(() => {});
 
@@ -150,6 +152,9 @@ const HOME_GRID_IDS = ['grid', 'random-titles-grid', 'random-actress-home-grid']
 const ALL_PANEL_IDS = [...Object.values(VIEWS).flat(), ...HOME_GRID_IDS];
 let mode = 'titles';
 
+// Views where the body must not scroll (they fill the viewport themselves)
+const FIXED_VIEWPORT_VIEWS = new Set(['title-detail']);
+
 function showView(name) {
   mode = name;
   clearCardIntervals();
@@ -159,8 +164,15 @@ function showView(name) {
     const el = document.getElementById(id);
     if (el.classList.contains('grid')) el.style.display = 'grid';
     else if (el.classList.contains('actress-sub-nav')) el.style.display = 'flex';
+    else if (el.id === 'title-detail') el.style.display = 'flex';
     else el.style.display = 'block';
   }
+  // Hide status/sentinel for full-viewport views so the body doesn't scroll
+  const fixedViewport = FIXED_VIEWPORT_VIEWS.has(name);
+  const statusEl = document.getElementById('status');
+  const sentinelEl = document.getElementById('sentinel');
+  if (statusEl)  statusEl.style.display  = fixedViewport ? 'none' : '';
+  if (sentinelEl) sentinelEl.style.display = fixedViewport ? 'none' : '';
   // Deactivate nav buttons when switching to any other view
   if (name !== 'collections') {
     document.getElementById('collections-btn')?.classList.remove('active');
@@ -1355,42 +1367,195 @@ function renderVideoSection(v) {
     <div class="video-header">
       <span class="video-filename">${esc(v.filename)}</span>
       ${sizeStr ? `<span class="video-size">${esc(sizeStr)}</span>` : ''}
+      <span class="video-meta" id="video-meta-${v.id}"></span>
     </div>
     <div class="video-thumbs" id="video-thumbs-${v.id}">
       <div class="video-thumbs-loading">Loading previews\u2026</div>
     </div>
-    <div class="video-player-wrap">
-      <video class="video-player" controls preload="none"
+    <div class="video-player-wrap" id="video-wrap-${v.id}">
+      <video class="video-player" id="video-player-${v.id}" controls preload="none"
              src="/api/stream/${v.id}"
              type="${esc(v.mimeType)}">
       </video>
+      <button class="theater-btn" onclick="toggleTheater(${v.id})">Theater</button>
     </div>
   `;
 
-  // Load thumbnails asynchronously
+  // Load thumbnails and metadata asynchronously
   loadVideoThumbnails(v.id);
+  loadVideoMetadata(v.id);
+
+  // Resume playback: save position periodically, restore on play
+  const player = section.querySelector(`#video-player-${v.id}`);
+  if (player) initResumePlayback(player, v.id);
 
   return section;
 }
 
-function loadVideoThumbnails(videoId) {
+function loadVideoThumbnails(videoId, attempt = 0) {
+  const MAX_ATTEMPTS = 60; // poll for up to ~120s
   fetch(`/api/videos/${videoId}/thumbnails`)
     .then(r => r.json())
-    .then(urls => {
+    .then(data => {
       const container = document.getElementById(`video-thumbs-${videoId}`);
       if (!container) return;
-      if (!urls || urls.length === 0) {
-        container.innerHTML = '';
-        return;
+
+      const urls = data.urls || [];
+      const total = data.total || 10;
+      const generating = data.generating;
+
+      // Render whatever thumbnails exist so far
+      if (urls.length > 0) {
+        container.style.gridTemplateColumns = `repeat(${THUMBNAIL_COLUMNS}, 1fr)`;
+        container.innerHTML = urls.map((url, i) => {
+          const fraction = 0.1 + (0.6 * i / (total - 1));
+          return `<img class="video-thumb" src="${esc(url)}" loading="lazy"
+            data-fraction="${fraction}"
+            title="Jump to ${Math.round(fraction * 100)}%"
+            onclick="seekVideoTo(${videoId}, ${fraction})">`;
+        }).join('');
       }
-      container.innerHTML = urls.map(url =>
-        `<img class="video-thumb" src="${esc(url)}" loading="lazy">`
-      ).join('');
+
+      // Show progress bar if still generating
+      if (urls.length < total && (generating || attempt < 3)) {
+        let progressEl = document.getElementById(`video-thumb-progress-${videoId}`);
+        if (!progressEl) {
+          progressEl = document.createElement('div');
+          progressEl.id = `video-thumb-progress-${videoId}`;
+          progressEl.className = 'thumb-progress';
+          container.parentNode.insertBefore(progressEl, container.nextSibling);
+        }
+        const pct = Math.round((urls.length / total) * 100);
+        progressEl.innerHTML = `<div class="thumb-progress-bar"><div class="thumb-progress-fill" style="width:${pct}%"></div></div>`
+          + `<span class="thumb-progress-text">${urls.length}/${total} previews</span>`;
+
+        if (attempt < MAX_ATTEMPTS) {
+          setTimeout(() => loadVideoThumbnails(videoId, attempt + 1), 2000);
+        }
+      } else {
+        // Done — remove progress bar if present
+        const progressEl = document.getElementById(`video-thumb-progress-${videoId}`);
+        if (progressEl) progressEl.remove();
+
+        if (urls.length === 0) {
+          container.innerHTML = '<span class="video-thumbs-loading">no preview available</span>';
+        }
+      }
     })
     .catch(() => {
       const container = document.getElementById(`video-thumbs-${videoId}`);
       if (container) container.innerHTML = '';
     });
+}
+
+function loadVideoMetadata(videoId) {
+  fetch(`/api/videos/${videoId}/info`)
+    .then(r => r.json())
+    .then(info => {
+      const el = document.getElementById(`video-meta-${videoId}`);
+      if (!el || !info || !info.duration) return;
+      const parts = [info.duration];
+      if (info.resolution) parts.push(info.resolution);
+      if (info.videoCodec) parts.push(info.videoCodec);
+      if (info.bitrate) parts.push(info.bitrate);
+      el.textContent = parts.join(' \u00b7 ');
+    })
+    .catch(() => {});
+}
+
+// ── Thumbnail seek ──────────────────────────────────────────────────────
+function seekVideoTo(videoId, fraction) {
+  const player = document.getElementById(`video-player-${videoId}`);
+  if (!player) return;
+
+  function doSeek() {
+    if (player.duration && isFinite(player.duration)) {
+      player.currentTime = player.duration * fraction;
+      if (player.paused) player.play();
+    }
+  }
+
+  if (player.readyState >= 1) {
+    doSeek();
+  } else {
+    // Metadata not loaded yet — load it first, then seek
+    player.preload = 'metadata';
+    player.addEventListener('loadedmetadata', doSeek, { once: true });
+    player.load();
+  }
+}
+
+// ── Theater mode ────────────────────────────────────────────────────────
+function toggleTheater(videoId) {
+  const wrap = document.getElementById(`video-wrap-${videoId}`);
+  if (!wrap) return;
+  const isActive = wrap.classList.toggle('theater-mode');
+  const btn = wrap.querySelector('.theater-btn');
+  if (btn) btn.textContent = isActive ? 'Exit Theater' : 'Theater';
+  // Dim the left panel when theater is active
+  const leftPanel = document.querySelector('.title-detail-left');
+  if (leftPanel) leftPanel.classList.toggle('theater-dimmed', isActive);
+}
+
+// ── Resume playback ─────────────────────────────────────────────────────
+function initResumePlayback(player, videoId) {
+  const key = `resume_${videoId}`;
+
+  // Save position every 5 seconds during playback
+  let saveInterval = null;
+  player.addEventListener('play', () => {
+    saveInterval = setInterval(() => {
+      if (player.currentTime > 5) {
+        localStorage.setItem(key, JSON.stringify({
+          time: player.currentTime,
+          duration: player.duration,
+          ts: Date.now()
+        }));
+      }
+    }, 5000);
+  });
+
+  player.addEventListener('pause', () => { clearInterval(saveInterval); });
+  player.addEventListener('ended', () => {
+    clearInterval(saveInterval);
+    localStorage.removeItem(key);
+  });
+
+  // Restore position on first play
+  let resumed = false;
+  player.addEventListener('loadedmetadata', () => {
+    if (resumed) return;
+    resumed = true;
+    const saved = localStorage.getItem(key);
+    if (!saved) return;
+    try {
+      const data = JSON.parse(saved);
+      const pct = data.time / data.duration;
+      // Only resume if between 5% and 90% — otherwise treat as fresh
+      if (pct > 0.05 && pct < 0.90 && data.time > 10) {
+        player.currentTime = data.time;
+        showResumeToast(player, data.time);
+      }
+    } catch (e) { /* ignore corrupt data */ }
+  });
+}
+
+function showResumeToast(player, time) {
+  const wrap = player.closest('.video-player-wrap');
+  if (!wrap) return;
+  const toast = document.createElement('div');
+  toast.className = 'resume-toast';
+  toast.textContent = 'Resuming from ' + formatTimestamp(time);
+  wrap.appendChild(toast);
+  setTimeout(() => toast.remove(), 3000);
+}
+
+function formatTimestamp(seconds) {
+  const h = Math.floor(seconds / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
+  const s = Math.floor(seconds % 60);
+  if (h > 0) return `${h}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+  return `${m}:${String(s).padStart(2,'0')}`;
 }
 
 function formatFileSize(bytes) {

@@ -14,6 +14,8 @@ public record OrganizerConfig(
         @JsonProperty("maxBrowseTitles")    Integer maxBrowseTitles,
         @JsonProperty("maxRandomTitles")    Integer maxRandomTitles,
         @JsonProperty("maxRandomActresses") Integer maxRandomActresses,
+        @JsonProperty("thumbnailCount")     Integer thumbnailCount,
+        @JsonProperty("thumbnailColumns")   Integer thumbnailColumns,
         @JsonProperty("servers")            List<ServerConfig> servers,
         @JsonProperty("volumes")         List<VolumeConfig> volumes,
         @JsonProperty("structures")      List<VolumeStructureDef> structures,
