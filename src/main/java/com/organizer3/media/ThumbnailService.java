@@ -23,9 +23,12 @@ import org.bytedeco.javacv.Java2DFrameConverter;
 /**
  * Generates preview thumbnails from video files via JavaCV (FFmpeg).
  *
- * <p>Thumbnails are cached on local disk under {@code data/thumbnails/<titleCode>/<videoFilename>/}.
- * This content-stable keying means thumbnails survive database rebuilds — the same video
- * always maps to the same directory regardless of its database ID.
+ * <p>Thumbnail count is duration-based: one thumbnail every {@code intervalMinutes}
+ * minutes, clamped between {@value #MIN_THUMBNAILS} and {@value #MAX_THUMBNAILS}.
+ *
+ * <p>Thumbnails are cached on local disk under {@code <dataDir>/thumbnails/<titleCode>/<videoFilename>/}.
+ * A {@code .count} marker file records the expected total so subsequent status
+ * checks don't need to re-probe the video duration.
  *
  * <p>Generation is async — callers get an empty list on first request and poll
  * until thumbnails appear. FFmpeg opens the video via the local HTTP streaming
@@ -36,16 +39,30 @@ import org.bytedeco.javacv.Java2DFrameConverter;
 public class ThumbnailService {
 
     private static final int THUMBNAIL_WIDTH = 320;
+    static final int MIN_THUMBNAILS = 4;
+    static final int MAX_THUMBNAILS = 30;
+    private static final String COUNT_FILE = ".count";
 
     private final Path thumbnailRoot;
-    private final int thumbnailCount;
+    private final int intervalMinutes;
     private final int serverPort;
     private final Set<String> generating = ConcurrentHashMap.newKeySet();
 
-    public ThumbnailService(Path thumbnailRoot, int thumbnailCount, int serverPort) {
+    public ThumbnailService(Path thumbnailRoot, int intervalMinutes, int serverPort) {
         this.thumbnailRoot = thumbnailRoot;
-        this.thumbnailCount = thumbnailCount;
+        this.intervalMinutes = intervalMinutes;
         this.serverPort = serverPort;
+    }
+
+    /**
+     * Computes the number of thumbnails for a given duration.
+     * Visible for testing.
+     */
+    int computeCount(long durationSeconds) {
+        if (durationSeconds <= 0) return MIN_THUMBNAILS;
+        double minutes = durationSeconds / 60.0;
+        int count = Math.max(MIN_THUMBNAILS, (int) Math.round(minutes / intervalMinutes));
+        return Math.min(count, MAX_THUMBNAILS);
     }
 
     /**
@@ -57,13 +74,20 @@ public class ThumbnailService {
      */
     public Map<String, Object> getThumbnailStatus(String titleCode, Video video) {
         Path videoDir = resolveVideoDir(titleCode, video.getFilename());
-        List<String> cached = findCachedThumbnails(video.getId(), videoDir);
+
+        // Read expected count from marker file if generation has already run
+        int expectedCount = readCountFile(videoDir).orElse(-1);
+
+        List<String> cached = expectedCount > 0
+                ? findCachedThumbnails(video.getId(), videoDir, expectedCount)
+                : List.of();
 
         String generationKey = titleCode + "/" + video.getFilename();
         boolean isGenerating = generating.contains(generationKey);
 
-        // Kick off generation if not complete and not already running
-        if (cached.size() < thumbnailCount && !isGenerating) {
+        // Kick off generation if count unknown or not complete, and not already running
+        boolean needsGeneration = expectedCount < 0 || cached.size() < expectedCount;
+        if (needsGeneration && !isGenerating) {
             if (generating.add(generationKey)) {
                 isGenerating = true;
                 CompletableFuture.runAsync(() -> {
@@ -81,7 +105,7 @@ public class ThumbnailService {
 
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("urls", cached);
-        result.put("total", thumbnailCount);
+        result.put("total", expectedCount > 0 ? expectedCount : 0);
         result.put("generating", isGenerating);
         return result;
     }
@@ -96,27 +120,44 @@ public class ThumbnailService {
 
     /**
      * Returns the root directory where all thumbnails are stored.
-     * Used by the pruning command to walk the directory tree.
      */
     public Path root() {
         return thumbnailRoot;
     }
 
     /**
-     * Returns the expected thumbnail count (for pruning / validation).
+     * Returns the configured interval in minutes.
      */
-    public int thumbnailCount() {
-        return thumbnailCount;
+    public int intervalMinutes() {
+        return intervalMinutes;
     }
 
     private Path resolveVideoDir(String titleCode, String videoFilename) {
         return thumbnailRoot.resolve(titleCode).resolve(videoFilename);
     }
 
-    private List<String> findCachedThumbnails(long videoId, Path videoDir) {
+    private Optional<Integer> readCountFile(Path videoDir) {
+        Path countFile = videoDir.resolve(COUNT_FILE);
+        if (!Files.isRegularFile(countFile)) return Optional.empty();
+        try {
+            return Optional.of(Integer.parseInt(Files.readString(countFile).trim()));
+        } catch (IOException | NumberFormatException e) {
+            return Optional.empty();
+        }
+    }
+
+    private void writeCountFile(Path videoDir, int count) {
+        try {
+            Files.writeString(videoDir.resolve(COUNT_FILE), String.valueOf(count));
+        } catch (IOException e) {
+            log.warn("Failed to write count file in {}: {}", videoDir, e.getMessage());
+        }
+    }
+
+    private List<String> findCachedThumbnails(long videoId, Path videoDir, int expectedCount) {
         if (!Files.isDirectory(videoDir)) return List.of();
         List<String> urls = new ArrayList<>();
-        for (int i = 1; i <= thumbnailCount; i++) {
+        for (int i = 1; i <= expectedCount; i++) {
             String filename = String.format("thumb_%02d.jpg", i);
             if (Files.exists(videoDir.resolve(filename))) {
                 urls.add("/api/videos/" + videoId + "/thumbnails/" + filename);
@@ -129,7 +170,6 @@ public class ThumbnailService {
         Files.createDirectories(videoDir);
 
         String streamUrl = "http://localhost:" + serverPort + "/api/stream/" + video.getId();
-        log.info("Generating {} thumbnails for video {} via {}", thumbnailCount, video.getId(), streamUrl);
 
         FFmpegFrameGrabber grabber = new FFmpegFrameGrabber(streamUrl);
         grabber.setOption("skip_frame", "noref");
@@ -137,18 +177,28 @@ public class ThumbnailService {
         grabber.start();
 
         try {
-            long duration = grabber.getLengthInTime(); // microseconds
-            if (duration <= 0) {
+            long durationMicros = grabber.getLengthInTime();
+            if (durationMicros <= 0) {
                 log.warn("Could not determine duration for video {}", video.getId());
                 return;
             }
+
+            long durationSeconds = durationMicros / 1_000_000;
+            int thumbnailCount = computeCount(durationSeconds);
+
+            log.info("Generating {} thumbnails ({}min intervals) for video {} ({}s) via {}",
+                    thumbnailCount, intervalMinutes, video.getId(), durationSeconds, streamUrl);
+
+            // Write count marker so status endpoint knows the expected total
+            writeCountFile(videoDir, thumbnailCount);
 
             Java2DFrameConverter converter = new Java2DFrameConverter();
             int generated = 0;
 
             for (int i = 0; i < thumbnailCount; i++) {
-                double fraction = 0.1 + (0.6 * i / (thumbnailCount - 1));
-                long timestamp = (long) (duration * fraction);
+                // Spread evenly across 3%-97% of the video
+                double fraction = 0.03 + (0.94 * i / (thumbnailCount - 1));
+                long timestamp = (long) (durationMicros * fraction);
                 grabber.setTimestamp(timestamp, true);
 
                 Frame frame = grabber.grabImage();

@@ -38,7 +38,7 @@ class VolumesCommandTest {
     @BeforeEach
     void setUp() {
         AppConfig.initializeForTest(new OrganizerConfig(
-                null, null, null, null, null, null, List.of(),
+                null, null, null, null, null, null, null, List.of(),
                 List.of(VOL_A, VOL_B),
                 List.of(),
                 List.of()

@@ -74,7 +74,7 @@ class ScanCoversCommandTest {
     @BeforeEach
     void setUp() {
         AppConfig.initializeForTest(new OrganizerConfig(
-                null, null, null, null, null, null, List.of(), List.of(CONVENTIONAL_VOL, SORT_POOL_VOL),
+                null, null, null, null, null, null, null, List.of(), List.of(CONVENTIONAL_VOL, SORT_POOL_VOL),
                 List.of(CONVENTIONAL_STRUCTURE, SORT_POOL_STRUCTURE),
                 List.of()
         ));

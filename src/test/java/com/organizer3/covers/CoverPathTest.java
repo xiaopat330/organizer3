@@ -42,14 +42,14 @@ class CoverPathTest {
     void resolve_buildsCorrectPath() {
         Title t = title("ABP-123", "ABP-00123", "ABP");
         Path result = coverPath.resolve(t, "jpg");
-        assertEquals(tempDir.resolve("data/covers/ABP/ABP-00123.jpg"), result);
+        assertEquals(tempDir.resolve("covers/ABP/ABP-00123.jpg"), result);
     }
 
     @Test
     void resolve_uppercasesLabel() {
         Title t = title("abp-123", "ABP-00123", "abp");
         Path result = coverPath.resolve(t, "png");
-        assertEquals(tempDir.resolve("data/covers/ABP/ABP-00123.png"), result);
+        assertEquals(tempDir.resolve("covers/ABP/ABP-00123.png"), result);
     }
 
     @Test

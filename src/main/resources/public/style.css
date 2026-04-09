@@ -1207,6 +1207,10 @@ header h1:hover {
   color: #555;
   font-size: 0.8rem;
 }
+.thumb-wrapper {
+  position: relative;
+  cursor: pointer;
+}
 .video-thumb {
   width: 100%;
   aspect-ratio: 16 / 9;
@@ -1216,11 +1220,23 @@ header h1:hover {
   cursor: pointer;
   transition: border-color 0.15s;
 }
-.video-thumb:hover {
+.thumb-time {
+  position: absolute;
+  bottom: 4px;
+  right: 4px;
+  background: rgba(0, 0, 0, 0.75);
+  color: #ddd;
+  font-size: 0.65rem;
+  padding: 1px 4px;
+  border-radius: 3px;
+  pointer-events: none;
+  font-variant-numeric: tabular-nums;
+}
+.thumb-wrapper:hover .video-thumb {
   border-color: #888;
   filter: brightness(1.15);
 }
-.video-thumb:active {
+.thumb-wrapper:active .video-thumb {
   filter: brightness(0.85);
   transition: filter 0.05s;
 }

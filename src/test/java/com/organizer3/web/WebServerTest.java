@@ -114,7 +114,7 @@ class WebServerTest {
         );
 
         AppConfig.initializeForTest(new OrganizerConfig(
-                "Test", null, null, null, null, null, List.of(),
+                "Test", null, null, null, null, null, null, List.of(),
                 List.of(conventional, pool),
                 List.of(conventionalDef, queueDef),
                 List.of()
@@ -442,7 +442,7 @@ class WebServerTest {
     @Test
     void configEndpointReturnsAppNameAndMaxBrowse() throws IOException, InterruptedException {
         AppConfig.initializeForTest(new OrganizerConfig(
-                "TestApp", 100, null, null, null, null, List.of(), List.of(), List.of(), List.of()));
+                "TestApp", null, 100, null, null, null, null, List.of(), List.of(), List.of(), List.of()));
 
         server = new WebServer(0, null, null, null, null, null, null);
         server.start();
@@ -488,7 +488,7 @@ class WebServerTest {
         );
 
         AppConfig.initializeForTest(new OrganizerConfig(
-                "Test", null, null, null, null, null, List.of(),
+                "Test", null, null, null, null, null, null, List.of(),
                 List.of(conventional, pool1, pool2),
                 List.of(conventionalDef, queueDef),
                 List.of()

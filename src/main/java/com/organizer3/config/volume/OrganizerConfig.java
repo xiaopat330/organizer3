@@ -11,10 +11,11 @@ import java.util.Optional;
  */
 public record OrganizerConfig(
         @JsonProperty("appName")            String appName,
+        @JsonProperty("dataDir")            String dataDir,
         @JsonProperty("maxBrowseTitles")    Integer maxBrowseTitles,
         @JsonProperty("maxRandomTitles")    Integer maxRandomTitles,
         @JsonProperty("maxRandomActresses") Integer maxRandomActresses,
-        @JsonProperty("thumbnailCount")     Integer thumbnailCount,
+        @JsonProperty("thumbnailInterval")  Integer thumbnailInterval,
         @JsonProperty("thumbnailColumns")   Integer thumbnailColumns,
         @JsonProperty("servers")            List<ServerConfig> servers,
         @JsonProperty("volumes")         List<VolumeConfig> volumes,

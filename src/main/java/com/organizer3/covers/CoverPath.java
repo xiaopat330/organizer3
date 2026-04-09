@@ -12,8 +12,8 @@ import java.util.stream.Stream;
 /**
  * Resolves local cover image paths for titles.
  *
- * <p>Cover images are stored under {@code data/covers/<LABEL>/<baseCode>.<ext>},
- * relative to the project root. The path is deterministic from the title's
+ * <p>Cover images are stored under {@code <dataDir>/covers/<LABEL>/<baseCode>.<ext>}.
+ * The path is deterministic from the title's
  * {@code label} and {@code baseCode} fields — no database lookup required.
  *
  * <p>Since titles may have different image formats (jpg, png, webp), the actual
@@ -28,8 +28,8 @@ public class CoverPath {
 
     private final Path coversRoot;
 
-    public CoverPath(Path projectRoot) {
-        this.coversRoot = projectRoot.resolve("data").resolve("covers");
+    public CoverPath(Path dataDir) {
+        this.coversRoot = dataDir.resolve("covers");
     }
 
     /** Returns the covers root directory. */

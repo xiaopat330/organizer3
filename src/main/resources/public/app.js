@@ -1408,11 +1408,11 @@ function loadVideoThumbnails(videoId, attempt = 0) {
       if (urls.length > 0) {
         container.style.gridTemplateColumns = `repeat(${THUMBNAIL_COLUMNS}, 1fr)`;
         container.innerHTML = urls.map((url, i) => {
-          const fraction = 0.1 + (0.6 * i / (total - 1));
-          return `<img class="video-thumb" src="${esc(url)}" loading="lazy"
-            data-fraction="${fraction}"
-            title="Jump to ${Math.round(fraction * 100)}%"
-            onclick="seekVideoTo(${videoId}, ${fraction})">`;
+          const fraction = total > 1 ? 0.03 + (0.94 * i / (total - 1)) : 0.5;
+          return `<div class="thumb-wrapper" onclick="seekVideoTo(${videoId}, ${fraction})">
+            <img class="video-thumb" src="${esc(url)}" loading="lazy" data-fraction="${fraction}">
+            <span class="thumb-time" data-video-id="${videoId}" data-fraction="${fraction}">${Math.round(fraction * 100)}%</span>
+          </div>`;
         }).join('');
       }
 
@@ -1459,8 +1459,28 @@ function loadVideoMetadata(videoId) {
       if (info.videoCodec) parts.push(info.videoCodec);
       if (info.bitrate) parts.push(info.bitrate);
       el.textContent = parts.join(' \u00b7 ');
+      if (info.durationSeconds) {
+        updateThumbTimestamps(videoId, info.durationSeconds);
+      }
     })
     .catch(() => {});
+}
+
+// ── Thumbnail time labels ────────────────────────────────────────────────
+function formatTimestamp(totalSeconds) {
+  const s = Math.round(totalSeconds);
+  const h = Math.floor(s / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  const sec = s % 60;
+  if (h > 0) return `${h}:${String(m).padStart(2, '0')}:${String(sec).padStart(2, '0')}`;
+  return `${m}:${String(sec).padStart(2, '0')}`;
+}
+
+function updateThumbTimestamps(videoId, durationSeconds) {
+  document.querySelectorAll(`.thumb-time[data-video-id="${videoId}"]`).forEach(el => {
+    const fraction = parseFloat(el.dataset.fraction);
+    el.textContent = formatTimestamp(fraction * durationSeconds);
+  });
 }
 
 // ── Thumbnail seek ──────────────────────────────────────────────────────

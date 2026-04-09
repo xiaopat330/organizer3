@@ -11,6 +11,7 @@ import com.organizer3.command.Command;
 import com.organizer3.command.FavoritesCommand;
 import com.organizer3.command.LoadActressCommand;
 import com.organizer3.command.HelpCommand;
+import com.organizer3.command.ClearThumbnailsCommand;
 import com.organizer3.command.MountCommand;
 import com.organizer3.command.PruneCoversCommand;
 import com.organizer3.command.PruneThumbnailsCommand;
@@ -154,18 +155,21 @@ public class Application {
                 "collections",  new CollectionsScanner()
         ));
 
+        // Data directory — config → env var → default
+        Path dataDir = resolveDataDir(config);
+        log.info("Data directory: {}", dataDir);
+
         // Cover image commands
-        Path projectRoot = Path.of(System.getProperty("user.dir"));
-        CoverPath coverPath = new CoverPath(projectRoot);
+        CoverPath coverPath = new CoverPath(dataDir);
         commands.add(new ScanCoversCommand(titleRepo, volumeRepo, coverPath, scannerRegistry));
         commands.add(new PruneCoversCommand(titleRepo, coverPath));
 
         // Thumbnail service — created early so commands can reference it
-        Path dataDir = Path.of(System.getProperty("user.dir"), "data");
-        int thumbnailCount = config.thumbnailCount() != null ? config.thumbnailCount() : 10;
+        int thumbnailInterval = config.thumbnailInterval() != null ? config.thumbnailInterval() : 8;
         ThumbnailService thumbnailService = new ThumbnailService(
-                dataDir.resolve("thumbnails"), thumbnailCount, WebServer.DEFAULT_PORT);
+                dataDir.resolve("thumbnails"), thumbnailInterval, WebServer.DEFAULT_PORT);
         commands.add(new PruneThumbnailsCommand(titleRepo, thumbnailService));
+        commands.add(new ClearThumbnailsCommand(thumbnailService));
 
         // Sync commands — registered dynamically from syncConfig.
         // Group by term so that a term shared across structure types (e.g. sync all)
@@ -227,5 +231,23 @@ public class Application {
 
         webServer.stop();
         log.info("Organizer3 exiting");
+    }
+
+    /**
+     * Resolves the data directory from (in priority order):
+     * 1. {@code ORGANIZER_DATA_DIR} environment variable
+     * 2. {@code dataDir} field in organizer-config.yaml
+     * 3. Default: {@code ./data} relative to working directory
+     */
+    private static Path resolveDataDir(OrganizerConfig config) {
+        String envDir = System.getenv("ORGANIZER_DATA_DIR");
+        if (envDir != null && !envDir.isBlank()) {
+            return Path.of(envDir).toAbsolutePath();
+        }
+        String configDir = config.dataDir();
+        if (configDir != null && !configDir.isBlank()) {
+            return Path.of(configDir).toAbsolutePath();
+        }
+        return Path.of(System.getProperty("user.dir"), "data");
     }
 }

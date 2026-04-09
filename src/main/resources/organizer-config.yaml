@@ -1,8 +1,9 @@
 appName: "JAV Helper"
+dataDir: ./data
 maxBrowseTitles: 500
 maxRandomTitles: 500
 maxRandomActresses: 500
-thumbnailCount: 10
+thumbnailInterval: 8
 thumbnailColumns: 5
 
 servers:
