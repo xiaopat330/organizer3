@@ -1022,27 +1022,27 @@
       - "SOD Star (STARS/START — exclusive actress flagship)"
     notes: "SOD Create established March 1999 (originally 'Hamlet' production unit; renamed 2001). Parent SOD founded December 1995 by Ganari Takahashi. SOD pioneered price disruption (cut AV prices from ¥10,000 to ¥2,500) to capture mass market. Headquarters in Nakano, Tokyo. Over 7,500 titles since inception."
   labels:
-    - {code: HD,    label: "SOD Create", description: "eighteen. 18 years old concept. 2006.11~2008.1"}
-    - {code: SDAB,  label: "SOD Create", description: "Youth Generation 2015.12~2025.1 / 18-year-old concept 2024.12~"}
-    - {code: SHYN,  label: "SOD Create", description: "SOD Women's Temple (former) 2015.6~2018.11"}
-    - {code: SDJS,  label: "SOD Create", description: "SOD female employee (new) 2018.12~"}
-    - {code: SDSI,  label: "SOD Create", description: "Non-woven AV actress 2015.6~"}
-    - {code: SCDA,  label: "SOD Create", description: "Audition Award"}
+    - {code: HD,    label: "SOD Create", description: "eighteen. 18 years old concept. 2006.11~2008.1", tags: [newcomer]}
+    - {code: SDAB,  label: "SOD Create", description: "Youth Generation 2015.12~2025.1 / 18-year-old concept 2024.12~", tags: [newcomer]}
+    - {code: SHYN,  label: "SOD Create", description: "SOD Women's Temple (former) 2015.6~2018.11", tags: [exclusive-actress]}
+    - {code: SDJS,  label: "SOD Create", description: "SOD female employee (new) 2018.12~", tags: [planning, office, office-lady]}
+    - {code: SDSI,  label: "SOD Create", description: "Non-woven AV actress 2015.6~", tags: [debut, newcomer]}
+    - {code: SCDA,  label: "SOD Create", description: "Audition Award", tags: [debut, newcomer]}
     - {code: SCDE,  label: "SOD Create", description: Presence}
-    - {code: SDDL,  label: "SOD Create", description: Best}
-    - {code: SDDM,  label: "SOD Create", description: "Project (former)"}
-    - {code: SDMS,  label: "SOD Create", description: "project (former)"}
-    - {code: SDMT,  label: "SOD Create", description: "project (former)"}
-    - {code: SDMU,  label: "SOD Create", description: "project (former), actor work (current)"}
-    - {code: SDMM,  label: "SOD Create", description: "Magic Mirror series; street pickups using one-way mirror van"}
-    - {code: SDNM,  label: "SOD Create", description: "AV Experience Series for Real Married Women Without Knowing Their Husband"}
-    - {code: MASD,  label: "SOD Create", description: "SOD Create specialty series"}
-    - {code: SACE,  label: "SOD Create", description: "SOD Create specialty series"}
-    - {code: STAR,  label: "SOD Star",  description: "SOD exclusive actress flagship (old) ~2018.9"}
-    - {code: STARS, label: "SOD Star",  description: "SOD exclusive actress flagship (2018.10~2023); succeeded by START"}
-    - {code: START, label: "SOD Star",  description: "SOD exclusive actress flagship (2024.1~); current flagship code"}
-    - {code: KIRE,  label: "SOD Create", description: "SOD Lady Specialist"}
-    - {code: SDDE,  label: "SOD Create", description: "The part number of Senz, a subsidiary of the project"}
+    - {code: SDDL,  label: "SOD Create", description: Best, tags: [compilation]}
+    - {code: SDDM,  label: "SOD Create", description: "Project (former)", tags: [planning]}
+    - {code: SDMS,  label: "SOD Create", description: "project (former)", tags: [planning]}
+    - {code: SDMT,  label: "SOD Create", description: "project (former)", tags: [planning]}
+    - {code: SDMU,  label: "SOD Create", description: "project (former), actor work (current)", tags: [planning]}
+    - {code: SDMM,  label: "SOD Create", description: "Magic Mirror series; street pickups using one-way mirror van", tags: [planning, pickup, amateur, monitoring]}
+    - {code: SDNM,  label: "SOD Create", description: "AV Experience Series for Real Married Women Without Knowing Their Husband", tags: [married-woman, affair, amateur, documentary]}
+    - {code: MASD,  label: "SOD Create", description: "SOD Create specialty series", tags: [planning]}
+    - {code: SACE,  label: "SOD Create", description: "SOD Create specialty series", tags: [planning]}
+    - {code: STAR,  label: "SOD Star",  description: "SOD exclusive actress flagship (old) ~2018.9", tags: [premium-production, exclusive-actress, solo-actress]}
+    - {code: STARS, label: "SOD Star",  description: "SOD exclusive actress flagship (2018.10~2023); succeeded by START", tags: [premium-production, exclusive-actress, solo-actress]}
+    - {code: START, label: "SOD Star",  description: "SOD exclusive actress flagship (2024.1~); current flagship code", tags: [premium-production, exclusive-actress, solo-actress]}
+    - {code: KIRE,  label: "SOD Create", description: "SOD Lady Specialist", tags: [mature-women, married-woman]}
+    - {code: SDDE,  label: "SOD Create", description: "The part number of Senz, a subsidiary of the project", tags: [planning]}
 
 - company: Silk Labo
   description: "SOD's female-targeted label. Produces romance-focused, softcore-leaning content designed to appeal to women viewers. High production values with emphasis on emotional narrative and male attractiveness. Ittetsu Suzuki is the signature male actor. One of the very few commercially successful 'AV for women' labels."
@@ -1057,7 +1057,7 @@
       - "SILK (single unified code)"
     notes: "Founded 2009. The eromen fan culture around Silk Labo was studied academically as commodified intimacy. One of the most successful experiments in female-targeted adult content. The male actors' fan events bridge AV and idol-culture fan formats."
   labels:
-    - {code: SILK, label: "Silk Labo", description: "female-perspective/for-women label under SOD; soft, romance-focused content; Ittetsu Suzuki is the signature male actor"}
+    - {code: SILK, label: "Silk Labo", description: "female-perspective/for-women label under SOD; soft, romance-focused content; Ittetsu Suzuki is the signature male actor", tags: [female-oriented, drama, girlfriend-experience]}
 
 - company: Dandy
   description: "SOD's planning/scenario specialist. A major rival to Hunter (WILL/Triple H). Known for elaborate fantasy setups — fetish scenarios, costume play, group/harem situations, and NTR. Primarily male-POV planning content. Very high volume of releases."
@@ -1070,7 +1070,7 @@
       - "DANDY (single unified code for all releases)"
     notes: "Founded February 2006 when Dandy Yoshino left Natural High (also SOD group). Very high release volume. The Dandy/Hunter rivalry is one of the most notable label competitions in JAV planning content."
   labels:
-    - {code: DANDY, label: Dandy, description: "project specialist under SOD; fetish scenarios, costumes, group/harem, NTR; comparable rival to Hunter; primarily male-POV planning content"}
+    - {code: DANDY, label: Dandy, description: "project specialist under SOD; fetish scenarios, costumes, group/harem, NTR; comparable rival to Hunter; primarily male-POV planning content", tags: [planning, fantasy-scenario, harem, affair, cosplay, pov]}
 
 - company: Natural High
   description: "SOD subsidiary specializing in molestation/voyeur scenario content (chikan, 痴漢). One of the longest-running labels in this niche. Content features public transport and crowd-based scenarios."
@@ -1086,11 +1086,11 @@
       - "NIC (newer umbrella code)"
     notes: "Established 1999, joined SOD group August 1999. The NHDT code family is one of the most recognizable in the chikan genre. Dandy Yoshino left Natural High in February 2006 to found the Dandy label — indicating the creative talent that passed through this label."
   labels:
-    - {code: NHDT,  label: "Natural High", description: "original code; molest/voyeur scenarios (former)"}
-    - {code: NHDTA, label: "Natural High", description: "molest/voyeur scenarios"}
-    - {code: NHDTB, label: "Natural High", description: "molest/voyeur scenarios"}
-    - {code: NHDTC, label: "Natural High", description: "current flagship code; molest/voyeur scenarios"}
-    - {code: NIC,   label: "Natural High", description: "umbrella/current series code replacing the NHDT family"}
+    - {code: NHDT,  label: "Natural High", description: "original code; molest/voyeur scenarios (former)", tags: [groping, voyeur, violation]}
+    - {code: NHDTA, label: "Natural High", description: "molest/voyeur scenarios", tags: [groping, voyeur, violation]}
+    - {code: NHDTB, label: "Natural High", description: "molest/voyeur scenarios", tags: [groping, voyeur, violation]}
+    - {code: NHDTC, label: "Natural High", description: "current flagship code; molest/voyeur scenarios", tags: [groping, voyeur, violation]}
+    - {code: NIC,   label: "Natural High", description: "umbrella/current series code replacing the NHDT family", tags: [groping, voyeur, violation]}
 
 - company: Cosmos Video
   description: "SOD subsidiary specializing in amateur married women content."
@@ -1103,7 +1103,7 @@
       - "HAWA (single unified code)"
     notes: "Focused niche within SOD: the amateur married-woman documentary format. Complements rather than competes with professional label content."
   labels:
-    - {code: HAWA, label: "Cosmos video", description: "specialized in amateur married women"}
+    - {code: HAWA, label: "Cosmos video", description: "specialized in amateur married women", tags: [married-woman, amateur, documentary]}
 
 - company: I Energy
   description: "SOD subsidiary. Planning-heavy label formerly known for the '20 vaginal cumshots' series. Covers a range of sub-labels including SM and idol-concept content."
@@ -1113,12 +1113,12 @@
     specialty: "Planning-heavy SOD subsidiary. Formerly known for the '20 vaginal cumshots' (20連発中出し) series. Multiple sub-labels: IENE (main), IESP (SM specialty), IESM (SM), IEQP (specialty), IDOL (idol concept), BKSP (specialty)."
     notes: "One of SOD's planning sub-labels covering variety scenarios, SM content, and idol-concept releases under multiple codes."
   labels:
-    - {code: IENE, label: "I Energy", description: "main flagship code; planning-heavy; formerly known for '20 vaginal cumshots' series"}
-    - {code: IESP, label: "I Energy", description: "special releases"}
-    - {code: IESM, label: "I Energy", description: "SM sub-label"}
-    - {code: IEQP, label: "I Energy", description: "I Energy specialty series"}
-    - {code: IDOL, label: "I Energy", description: "idol-concept sub-label"}
-    - {code: BKSP, label: "I Energy", description: "I Energy specialty series"}
+    - {code: IENE, label: "I Energy", description: "main flagship code; planning-heavy; formerly known for '20 vaginal cumshots' series", tags: [planning, creampie]}
+    - {code: IESP, label: "I Energy", description: "special releases", tags: [planning]}
+    - {code: IESM, label: "I Energy", description: "SM sub-label", tags: [sm-bdsm]}
+    - {code: IEQP, label: "I Energy", description: "I Energy specialty series", tags: [planning]}
+    - {code: IDOL, label: "I Energy", description: "idol-concept sub-label", tags: [exclusive-actress]}
+    - {code: BKSP, label: "I Energy", description: "I Energy specialty series", tags: [planning]}
 
 - company: Akinori
   description: "SOD subsidiary. Planning specialist with all releases unified under the single FSET code."
@@ -1128,7 +1128,7 @@
     specialty: "Planning specialist. All releases unified under the single FSET code. Wide range of scenario-driven content under SOD's umbrella."
     notes: "The studio name 'Akinori' is a personal given name, suggesting a director-driven or founder-named label identity common in smaller Japanese AV operations."
   labels:
-    - {code: FSET, label: Akinori, description: "A production company specializing in projects. All part numbers are unified as FSET."}
+    - {code: FSET, label: Akinori, description: "A production company specializing in projects. All part numbers are unified as FSET.", tags: [planning]}
 
 - company: SWITCH
   description: "SOD subsidiary. Known for harem-style scenarios — most famously the 'I'm the only man in...' series where a single male protagonist is surrounded by multiple women."
@@ -1141,7 +1141,7 @@
       - "SW (single unified code — 'I'm the only man in...' format)"
     notes: "The 'only man in...' format is one of the most straightforwardly appealing fantasy premises in planning content. Consistent moderate-volume output."
   labels:
-    - {code: SW, label: SWITCH, description: "There are many harem works such as My Alone in its representative works."}
+    - {code: SW, label: SWITCH, description: "There are many harem works such as My Alone in its representative works.", tags: [planning, harem, fantasy-scenario]}
 
 - company: Sadistic Village
   description: "SOD subsidiary specializing in SM and sadistic project content. Known for the outdoor vibrator shaming series."
@@ -1151,8 +1151,8 @@
     specialty: "SM and sadistic scenario specialist. SVDVD is the main code; SVOMN is the compilation. Known for the outdoor vibrator shaming (屋外バイブ羞恥) series — public humiliation scenarios using vibrators in outdoor/semi-public settings."
     notes: "The 'village' branding suggests an isolated community with its own sadistic customs — metaphorically consistent with isolated/controlled scenario content."
   labels:
-    - {code: SVDVD, label: "Sadistic Village", description: "SM/sadistic projects; vibrator shaming outdoors series"}
-    - {code: SVOMN, label: "Sadistic Village", description: "Focused on feature-length films compiled from existing SVDVD works."}
+    - {code: SVDVD, label: "Sadistic Village", description: "SM/sadistic projects; vibrator shaming outdoors series", tags: [sm-bdsm, outdoors]}
+    - {code: SVOMN, label: "Sadistic Village", description: "Focused on feature-length films compiled from existing SVDVD works.", tags: [sm-bdsm, compilation]}
 
 - company: ROCKET
   description: "SOD subsidiary known for comedy, parody, and absurdist planning content. Often features outrageous premises played for humor. One of the more lighthearted labels in AV."
@@ -1166,8 +1166,8 @@
       - "RCTD (specialty planning)"
     notes: "Founded October 2007 as SOD affiliate. The RCT series volume (970+) is extraordinary for a single product code. In-house scripting team dedicated to concept development. The comedic/absurdist tone distinguishes ROCKET from earnest drama and standard fantasy content."
   labels:
-    - {code: RCT,  label: ROCKET, description: "ROCKET regular part number"}
-    - {code: RCTD, label: ROCKET, description: "project"}
+    - {code: RCT,  label: ROCKET, description: "ROCKET regular part number", tags: [planning, fantasy-scenario]}
+    - {code: RCTD, label: ROCKET, description: "project", tags: [planning, fantasy-scenario]}
 
 - company: AROUND
   description: "SOD subsidiary. Mature/married woman content label."
@@ -1177,7 +1177,7 @@
     specialty: "Mature/married woman content label. ARSO code. SOD subsidiary targeting the jukujo/hitozuma niche, complementing SOD Create's SDNM (Real Married Women) series."
     notes: "The name 'AROUND' likely refers to women 'around' a certain age — a common euphemistic framing in the mature woman genre."
   labels:
-    - {code: ARSO, label: AROUND, description: "lady content; MYWIFE"}
+    - {code: ARSO, label: AROUND, description: "lady content; MYWIFE", tags: [married-woman, mature-women]}
 
 - company: Mr. Michiru
   description: "SOD subsidiary. Planning specialist with a wide range of scenario-driven content."
@@ -1187,7 +1187,7 @@
     specialty: "Planning specialist. MIST code. Wide range of scenario-driven content under SOD's umbrella."
     notes: "Director-named label (Mr. Michiru = ミスター充) suggesting a personality-driven creative identity within the SOD system."
   labels:
-    - {code: MIST, label: "Mr. Michiru", description: "Planning specialist."}
+    - {code: MIST, label: "Mr. Michiru", description: "Planning specialist.", tags: [planning]}
 
 - company: chick girl
   description: "SOD subsidiary. Schoolgirl-concept content. The name 'Piyo' (ひよこ, chick/baby bird) reflects the youthful aesthetic."
@@ -1197,7 +1197,7 @@
     specialty: "Schoolgirl-concept content. PIYO code — 'Piyo' (ひよこ) = chick/baby bird in Japanese, reflecting the youthful aesthetic. Content centers on school uniform scenarios and young-woman concepts."
     notes: "The dual naming (English 'chick girl' + Japanese 'Piyo' = baby bird) reinforces the youth theme from two angles."
   labels:
-    - {code: PIYO, label: "chick girl", description: "schoolgirl concept"}
+    - {code: PIYO, label: "chick girl", description: "schoolgirl concept", tags: [schoolgirl, school, cosplay]}
 
 - company: FALENO
   description: "SOD's newer premium label, launched ~2019. Created to compete directly with S1 and IDEA POCKET for top-tier exclusive actresses. Made a major industry splash by recruiting Yua Mikami (from S1) and other high-profile exclusives. FSDSS (Faleno Star) is the main exclusive code. Rapidly became one of the most prominent labels in the industry."
@@ -1219,12 +1219,12 @@
       - "FLNO / FLNS (1-month advance releases)"
     notes: "Founded December 2018; first releases February 2019. Streaming-first model — unlimited viewing membership — was a major departure from physical media norms. Part of SOD group but operates with premium-label independence. One of the fastest-rising new labels of the late 2010s–2020s."
   labels:
-    - {code: FSDSS, label: FALENO, description: "Faleno Star; main exclusive actress releases"}
-    - {code: FSVSS, label: FALENO, description: "Faleno VR"}
-    - {code: FCDSS, label: FALENO, description: "Faleno 8-hour compilation only"}
-    - {code: FLNO,  label: FALENO, description: "1-month advance/pre-release"}
-    - {code: FLNS,  label: FALENO, description: "1-month advance/pre-release"}
-    - {code: FADSS, label: FALENO, description: "uncertain code; verify"}
+    - {code: FSDSS, label: FALENO, description: "Faleno Star; main exclusive actress releases", tags: [premium-production, exclusive-actress, solo-actress]}
+    - {code: FSVSS, label: FALENO, description: "Faleno VR", tags: [premium-production, exclusive-actress, vr]}
+    - {code: FCDSS, label: FALENO, description: "Faleno 8-hour compilation only", tags: [premium-production, exclusive-actress, compilation, long-format]}
+    - {code: FLNO,  label: FALENO, description: "1-month advance/pre-release", tags: [premium-production, exclusive-actress]}
+    - {code: FLNS,  label: FALENO, description: "1-month advance/pre-release", tags: [premium-production, exclusive-actress]}
+    - {code: FADSS, label: FALENO, description: "uncertain code; verify", tags: [premium-production, exclusive-actress]}
 
 - company: Hibino
   description: "SOD subsidiary specializing in incest fantasy (step-family) and NTR (netorare/cuckold) scenarios. One of the go-to labels for taboo family drama content."
@@ -1235,9 +1235,9 @@
     specialty: "Step-family incest fantasy and NTR (netorare/cuckold) specialist. Entered SOD group September 2002. The HAVD main series ran from December 2002 through 2024, reaching 1,000+ volumes across six numbered tranches — one of the longest-running single-code series in the SOD catalog. The dedicated NTR code launched November 2014 as cuckold drama became a dominant genre. Notable: Hibino staff split off in January 2006 to form Akinori (FSET code), a related planning/variety label also under SOD."
     notes: "The NTR product code is a direct genre label — netorare (寝取られ, cuckold fantasy) is among the most popular niche genres in Japanese AV, and Hibino is the primary SOD vehicle for it. HAVD 1,000+ volumes establishes it as one of the most prolific single-series labels in the SOD group."
   labels:
-    - {code: HAVD, label: Hibino, description: "aunt/incest/step-family specialist"}
-    - {code: HBAD, label: Hibino, description: "aunt/incest/step-family; NTR genre"}
-    - {code: NTR,  label: Hibino, description: "NTR specialist"}
+    - {code: HAVD, label: Hibino, description: "aunt/incest/step-family specialist", tags: [taboo-family, mature-women, drama]}
+    - {code: HBAD, label: Hibino, description: "aunt/incest/step-family; NTR genre", tags: [taboo-family, affair, drama]}
+    - {code: NTR,  label: Hibino, description: "NTR specialist", tags: [affair, drama, married-woman]}
 
 - company: "Sosoru x Garson"
   description: "SOD subsidiary. Mixed planning content."
@@ -1247,8 +1247,8 @@
     specialty: "Mixed planning content. GS is the main code; GAR is the Garson specialty series. Small-volume SOD subsidiary covering general planning scenarios."
     notes: "The 'x' in the name suggests a collaboration or fusion of two planning units. Very small output by SOD subsidiary standards."
   labels:
-    - {code: GS,  label: "Sosoru x Garson", description: "regular part number"}
-    - {code: GAR, label: "Sosoru x Garson", description: "former part number"}
+    - {code: GS,  label: "Sosoru x Garson", description: "regular part number", tags: [planning]}
+    - {code: GAR, label: "Sosoru x Garson", description: "former part number", tags: [planning]}
 
 # ── Prestige Group ────────────────────────────────────────────────────────────
 
