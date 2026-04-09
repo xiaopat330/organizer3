@@ -186,6 +186,11 @@ public class ActressBrowseService {
                     List<String> allLocations = t.getLocations().stream()
                             .map(loc -> loc.getPath().toString())
                             .toList();
+                    List<String> nasPaths = t.getLocations().stream()
+                            .filter(loc -> loc.getVolumeId() != null && volumeSmbPaths.containsKey(loc.getVolumeId()))
+                            .map(loc -> volumeSmbPaths.get(loc.getVolumeId()) + "/" + loc.getPath())
+                            .distinct()
+                            .toList();
                     return TitleSummary.builder()
                             .code(t.getCode())
                             .baseCode(t.getBaseCode())
@@ -201,6 +206,7 @@ public class ActressBrowseService {
                             .labelName(lbl != null ? lbl.labelName() : null)
                             .location(t.getPath() != null ? t.getPath().toString() : null)
                             .locations(allLocations)
+                            .nasPaths(nasPaths)
                             .titleEnglish(t.getTitleEnglish())
                             .titleOriginal(t.getTitleOriginal())
                             .releaseDate(t.getReleaseDate() != null ? t.getReleaseDate().toString() : null)

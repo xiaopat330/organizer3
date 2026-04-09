@@ -194,9 +194,9 @@ public class Application {
         commands.add(new HelpCommand(commands));
 
         // Web server (read-only browsing)
-        TitleBrowseService browseService = new TitleBrowseService(titleRepo, actressRepo, coverPath, labelRepo, titleActressRepo);
         Map<String, String> volumeSmbPaths = config.volumes().stream()
                 .collect(Collectors.toMap(VolumeConfig::id, VolumeConfig::smbPath));
+        TitleBrowseService browseService = new TitleBrowseService(titleRepo, actressRepo, coverPath, labelRepo, titleActressRepo, volumeSmbPaths);
         StageNameBackupFile stageNameBackup = new StageNameBackupFile(
                 dbDir.resolve("stagenames.yaml"));
         ActressBrowseService actressBrowseService = new ActressBrowseService(

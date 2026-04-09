@@ -27,6 +27,9 @@ public class TitleSummary {
     /** All known locations for this title. */
     @Builder.Default
     List<String> locations = List.of();
+    /** Full NAS SMB paths for this title (volumeSmbPath + relative path). */
+    @Builder.Default
+    List<String> nasPaths = List.of();
     /** All actresses linked via the title_actresses junction table (for multi-actress titles). */
     @Builder.Default
     List<ActressEntry> actresses = List.of();

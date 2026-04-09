@@ -29,6 +29,8 @@ public class TitleBrowseService {
     private final CoverPath coverPath;
     private final LabelRepository labelRepo;
     private final TitleActressRepository titleActressRepo;
+    /** volumeId → smbPath, e.g. "a" → "//pandora/jav_A" */
+    private final Map<String, String> volumeSmbPaths;
 
     /**
      * Returns at most {@code limit} titles starting at {@code offset}, ordered newest-first.
@@ -128,6 +130,11 @@ public class TitleBrowseService {
                     List<String> allLocations = t.getLocations().stream()
                             .map(loc -> loc.getPath().toString())
                             .toList();
+                    List<String> nasPaths = t.getLocations().stream()
+                            .filter(loc -> loc.getVolumeId() != null && volumeSmbPaths.containsKey(loc.getVolumeId()))
+                            .map(loc -> volumeSmbPaths.get(loc.getVolumeId()) + "/" + loc.getPath())
+                            .distinct()
+                            .toList();
 
                     // Multi-actress entries from junction table
                     List<TitleSummary.ActressEntry> actresses = List.of();
@@ -165,6 +172,7 @@ public class TitleBrowseService {
                             .labelName(lbl != null ? lbl.labelName() : null)
                             .location(t.getPath() != null ? t.getPath().toString() : null)
                             .locations(allLocations)
+                            .nasPaths(nasPaths)
                             .actresses(actresses)
                             .titleEnglish(t.getTitleEnglish())
                             .titleOriginal(t.getTitleOriginal())

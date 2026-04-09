@@ -299,7 +299,7 @@ header h1:hover {
   border-radius: 6px;
   overflow: hidden;
   transition: transform 0.15s ease, background 0.15s ease;
-  cursor: default;
+  cursor: pointer;
 }
 
 .card:hover {
@@ -962,4 +962,199 @@ header h1:hover {
   letter-spacing: 0.04em;
   border-radius: 3px;
   padding: 2px 5px;
+}
+
+/* ── Title detail view ───────────────────────────────────────────────────── */
+
+#title-detail {
+  height: calc(100vh - 49px);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.title-detail-panel {
+  display: grid;
+  grid-template-columns: 25% 1fr;
+  flex: 1;
+  overflow: hidden;
+}
+
+.title-detail-left {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  text-align: left;
+  padding: 24px;
+  overflow: hidden;
+  height: 100%;
+  box-sizing: border-box;
+}
+
+.title-detail-right {
+  border-left: 1px solid #222;
+  height: 100%;
+  overflow-y: auto;
+  box-sizing: border-box;
+  padding: 24px;
+}
+
+#title-detail-cover img {
+  width: 100%;
+  display: block;
+  border-radius: 4px;
+}
+
+.title-detail-cover-placeholder {
+  background: #1c1c1c;
+  aspect-ratio: 17 / 12;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #333;
+  font-size: 0.75rem;
+  border-radius: 4px;
+  letter-spacing: 0.05em;
+}
+
+.title-detail-code {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: #7ab8e0;
+  letter-spacing: 0.08em;
+  margin-bottom: 10px;
+}
+
+.title-detail-title-ja {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #ffffff;
+  line-height: 1.4;
+  margin-bottom: 8px;
+}
+
+.title-detail-title-en {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #ffffff;
+  line-height: 1.45;
+  margin-bottom: 6px;
+}
+
+.title-detail-title-en--secondary {
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: #777;
+  margin-bottom: 14px;
+}
+
+.title-detail-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.title-detail-row {
+  display: flex;
+  align-items: baseline;
+  gap: 14px;
+}
+
+.title-detail-label {
+  font-size: 0.62rem;
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+  color: #444;
+  white-space: nowrap;
+  min-width: 64px;
+}
+
+.title-detail-value {
+  font-size: 0.82rem;
+  color: #aaa;
+}
+
+.title-detail-cast {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.title-detail-actress-row {
+  display: block;
+}
+
+.title-detail-actress-first {
+  font-weight: 700;
+  color: #ffffff;
+}
+
+.title-detail-actress-last {
+  font-weight: 400;
+  color: #888;
+}
+
+.title-detail-actress-link {
+  text-decoration: none;
+}
+
+.title-detail-actress-link:hover .title-detail-actress-first,
+.title-detail-actress-link:hover .title-detail-actress-last {
+  color: #ffffff;
+}
+
+.title-detail-company {
+  font-weight: 700;
+  color: #e8c050;
+}
+
+.title-detail-label-name {
+  color: #777;
+}
+
+.title-detail-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.title-detail-grade-row {
+  margin-top: 8px;
+  align-items: center;
+}
+
+.title-detail-grade-label {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #555;
+  letter-spacing: 0.1em;
+}
+
+.title-detail-grade-row .grade-badge {
+  font-size: 1.1rem;
+  padding: 3px 12px;
+  letter-spacing: 0.1em;
+}
+
+.title-detail-nas-row {
+  margin-top: 12px;
+  align-items: flex-start;
+}
+
+.title-detail-nas-paths {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.title-detail-location-label {
+  color: #ffffff;
+  font-weight: 700;
+}
+
+.title-detail-nas-path {
+  font-family: ui-monospace, monospace;
+  font-size: 0.65rem;
+  color: #00bcd4;
+  word-break: break-all;
 }

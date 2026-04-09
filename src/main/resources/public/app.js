@@ -140,9 +140,11 @@ const VIEWS = {
   titles:           ['home-tabs'],
   actresses:        ['actress-sub-nav', 'actress-grid'],
   'actress-detail': ['actress-detail'],
+  'title-detail':   ['title-detail'],
   queue:            ['queue-header', 'queue-grid'],
   pool:             ['pool-header', 'pool-grid'],
   collections:      ['collections-grid'],
+  'titles-browse':  ['titles-sub-nav', 'titles-browse-grid'],
 };
 const HOME_GRID_IDS = ['grid', 'random-titles-grid', 'random-actress-home-grid'];
 const ALL_PANEL_IDS = [...Object.values(VIEWS).flat(), ...HOME_GRID_IDS];
@@ -159,9 +161,12 @@ function showView(name) {
     else if (el.classList.contains('actress-sub-nav')) el.style.display = 'flex';
     else el.style.display = 'block';
   }
-  // Deactivate collections button when switching to any other view
+  // Deactivate nav buttons when switching to any other view
   if (name !== 'collections') {
     document.getElementById('collections-btn')?.classList.remove('active');
+  }
+  if (name !== 'titles-browse') {
+    document.getElementById('titles-browse-btn')?.classList.remove('active');
   }
 }
 
@@ -327,9 +332,11 @@ function makeTitleCard(t) {
   card.querySelectorAll('.actress-link').forEach(link => {
     link.addEventListener('click', e => {
       e.preventDefault();
+      e.stopPropagation();
       openActressDetail(Number(link.dataset.actressId));
     });
   });
+  card.addEventListener('click', () => openTitleDetail(t));
   return card;
 }
 
@@ -444,6 +451,14 @@ const collectionsGrid = new ScrollingGrid(
   { getMax: () => MAX_TOTAL }
 );
 
+const allTitlesGrid = new ScrollingGrid(
+  document.getElementById('titles-browse-grid'),
+  (o, l) => `/api/titles?offset=${o}&limit=${l}`,
+  makeTitleCard,
+  'no titles',
+  { getMax: () => MAX_TOTAL }
+);
+
 let detailActressId = null;
 let detailCompanyFilter = null;
 
@@ -519,6 +534,7 @@ function showTitlesView() {
   showView('titles');
   actressesBtn.classList.remove('active');
   collectionsBtn.classList.remove('active');
+  document.getElementById('titles-browse-btn')?.classList.remove('active');
   closeQueuesDropdown();
   closeArchivesDropdown();
   selectedPrefix  = null;
@@ -1156,6 +1172,193 @@ collectionsBtn.addEventListener('click', () => {
   collectionsGrid.reset();
   ensureSentinel();
   collectionsGrid.loadMore();
+});
+
+// ── Title detail ──────────────────────────────────────────────────────────
+function openTitleDetail(t) {
+  const sourceMode    = mode;
+  const sourceHomeTab = homeTab;
+
+  showView('title-detail');
+  document.getElementById('title-detail-cover').innerHTML = '';
+  document.getElementById('title-detail-info').innerHTML  = '';
+  renderTitleDetail(t);
+
+  // Breadcrumb: include source context
+  let crumbs = [];
+  if (sourceMode === 'actresses' || sourceMode === 'actress-detail') {
+    crumbs = [{ label: 'Actresses', action: () => actressesBtn.click() }];
+    if (selectedPrefix) {
+      const p = selectedPrefix;
+      crumbs.push({ label: p, action: () => reSelectPrefix(p) });
+    }
+  } else if (sourceMode === 'collections') {
+    crumbs = [{ label: 'Collections', action: () => collectionsBtn.click() }];
+  } else if (sourceMode === 'titles-browse') {
+    crumbs = [{ label: 'Titles', action: () => titlesBrowseBtn.click() }];
+  }
+  crumbs.push({ label: t.code });
+  updateBreadcrumb(crumbs);
+}
+
+function renderTitleDetail(t) {
+  const coverEl = document.getElementById('title-detail-cover');
+  const infoEl  = document.getElementById('title-detail-info');
+
+  // Cover
+  if (t.coverUrl) {
+    coverEl.innerHTML = `<img src="${esc(t.coverUrl)}" alt="${esc(t.code)}" loading="lazy">`;
+  } else {
+    coverEl.innerHTML = `<div class="title-detail-cover-placeholder">${esc(t.code)}</div>`;
+  }
+
+  // Titles — Japanese first (large bold white), then English
+  const hasJa = !!t.titleOriginal;
+  const hasEn = !!t.titleEnglish;
+  const jaTitleHtml = hasJa
+    ? `<div class="title-detail-title-ja">${esc(t.titleOriginal)}</div>`
+    : '';
+  const enClass = hasJa ? 'title-detail-title-en title-detail-title-en--secondary' : 'title-detail-title-en';
+  const enTitleHtml = hasEn
+    ? `<div class="${enClass}">${esc(t.titleEnglish)}</div>`
+    : '';
+
+  // Actresses — prefer multi-actress list, fall back to single actressId
+  const actresses = (t.actresses && t.actresses.length > 0)
+    ? t.actresses
+    : (t.actressId ? [{ id: t.actressId, name: t.actressName, tier: t.actressTier }] : []);
+
+  let actressesHtml = '';
+  if (actresses.length > 0) {
+    const lines = actresses
+      .filter(a => a.name)
+      .map(a => {
+        const spaceIdx = a.name.indexOf(' ');
+        let nameHtml;
+        if (spaceIdx === -1) {
+          nameHtml = `<span class="title-detail-actress-first">${esc(a.name)}</span>`;
+        } else {
+          const first = a.name.slice(0, spaceIdx);
+          const last  = a.name.slice(spaceIdx + 1);
+          nameHtml = `<span class="title-detail-actress-first">${esc(first)}</span> <span class="title-detail-actress-last">${esc(last)}</span>`;
+        }
+        const tierHtml = a.tier
+          ? ` <span class="tier-badge tier-${esc(a.tier)}">${esc(a.tier.toLowerCase())}</span>`
+          : '';
+        return `<div class="title-detail-actress-row"><a class="actress-link title-detail-actress-link" href="#" data-actress-id="${a.id}">${nameHtml}${tierHtml}</a></div>`;
+      })
+      .join('');
+    actressesHtml = `<div class="title-detail-row">
+      <span class="title-detail-label">Cast</span>
+      <span class="title-detail-value title-detail-cast">${lines}</span>
+    </div>`;
+  }
+
+  // Label / company — company bold yellow, label name muted
+  let labelHtml = '';
+  if (t.companyName || t.labelName) {
+    let text = '';
+    if (t.companyName) text += `<span class="title-detail-company">${esc(t.companyName)}</span>`;
+    if (t.labelName)   text += ` <span class="title-detail-label-name">(${esc(t.labelName)})</span>`;
+    labelHtml = `<div class="title-detail-row">
+      <span class="title-detail-label">Label</span>
+      <span class="title-detail-value">${text}</span>
+    </div>`;
+  }
+
+  // Date
+  const displayDate = t.releaseDate || t.addedDate;
+  const dateLabel   = t.releaseDate ? 'Released' : 'Added';
+  const dateHtml = displayDate ? `<div class="title-detail-row">
+    <span class="title-detail-label">${dateLabel}</span>
+    <span class="title-detail-value">${esc(fmtDate(displayDate))}</span>
+  </div>` : '';
+
+  // Tags
+  const tags = t.tags || [];
+  const tagsHtml = tags.length > 0 ? `<div class="title-detail-row">
+    <span class="title-detail-label">Tags</span>
+    <span class="title-detail-value title-detail-tags">${tags.map(tagBadgeHtml).join('')}</span>
+  </div>` : '';
+
+  // Grade — larger, prominent row
+  const gradeHtml = t.grade ? `<div class="title-detail-row title-detail-grade-row">
+    <span class="title-detail-label title-detail-grade-label">Grade</span>
+    <span class="title-detail-value">${gradeBadgeHtml(t.grade)}</span>
+  </div>` : '';
+
+  // NAS paths
+  const paths = t.nasPaths || [];
+  const nasHtml = paths.length > 0 ? `<div class="title-detail-row title-detail-nas-row">
+    <span class="title-detail-label title-detail-location-label">Location</span>
+    <span class="title-detail-value title-detail-nas-paths">${paths.map(p => `<div class="title-detail-nas-path">${esc(p)}</div>`).join('')}</span>
+  </div>` : '';
+
+  infoEl.innerHTML = `
+    ${jaTitleHtml}
+    ${enTitleHtml}
+    <div class="title-detail-code">${esc(t.code)}</div>
+    <div class="title-detail-meta">
+      ${actressesHtml}
+      ${labelHtml}
+      ${dateHtml}
+      ${tagsHtml}
+      ${gradeHtml}
+      ${nasHtml}
+    </div>
+  `;
+
+  infoEl.querySelectorAll('.actress-link').forEach(link => {
+    link.addEventListener('click', e => {
+      e.preventDefault();
+      openActressDetail(Number(link.dataset.actressId));
+    });
+  });
+}
+
+// ── Titles browse ─────────────────────────────────────────────────────────
+const titlesBrowseBtn = document.getElementById('titles-browse-btn');
+
+function buildTitlesSubNav() {
+  const subNav = document.getElementById('titles-sub-nav');
+  subNav.innerHTML = '';
+
+  const allBtn = document.createElement('div');
+  allBtn.className = 'actress-sub-nav-item selected';
+  allBtn.textContent = 'ALL';
+  allBtn.addEventListener('click', () => {
+    subNav.querySelectorAll('.actress-sub-nav-item').forEach(el => el.classList.remove('selected'));
+    allBtn.classList.add('selected');
+    updateBreadcrumb([{ label: 'Titles' }]);
+    allTitlesGrid.reset();
+    ensureSentinel();
+    allTitlesGrid.loadMore();
+  });
+  subNav.appendChild(allBtn);
+}
+
+titlesBrowseBtn.addEventListener('click', () => {
+  closeDropdown();
+  closeQueuesDropdown();
+  closeArchivesDropdown();
+  titlesBrowseBtn.classList.add('active');
+  actressesBtn.classList.remove('active');
+  collectionsBtn.classList.remove('active');
+  selectedPrefix  = null;
+  selectedTier    = null;
+  selectedSpecial = null;
+  buildTitlesSubNav();
+  showView('titles-browse');
+  requestAnimationFrame(() => {
+    const header = document.querySelector('header');
+    const subNav = document.getElementById('titles-sub-nav');
+    if (header && subNav) subNav.style.top = header.offsetHeight + 'px';
+  });
+  updateBreadcrumb([{ label: 'Titles' }]);
+  activeGrid = allTitlesGrid;
+  allTitlesGrid.reset();
+  ensureSentinel();
+  allTitlesGrid.loadMore();
 });
 
 // ── Initial load ──────────────────────────────────────────────────────────
