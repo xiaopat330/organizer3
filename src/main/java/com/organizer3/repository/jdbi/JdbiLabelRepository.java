@@ -16,7 +16,9 @@ public class JdbiLabelRepository implements LabelRepository {
             new Label(
                     rs.getString("code"),
                     rs.getString("label_name"),
-                    rs.getString("company")
+                    rs.getString("company"),
+                    rs.getString("description"),
+                    rs.getString("company_description")
             );
 
     private final Jdbi jdbi;
@@ -24,7 +26,7 @@ public class JdbiLabelRepository implements LabelRepository {
     @Override
     public Map<String, Label> findAllAsMap() {
         return jdbi.withHandle(h ->
-                h.createQuery("SELECT code, label_name, company FROM labels")
+                h.createQuery("SELECT code, label_name, company, description, company_description FROM labels")
                         .map(MAPPER)
                         .list()
         ).stream().collect(Collectors.toMap(

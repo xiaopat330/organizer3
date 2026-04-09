@@ -19,7 +19,7 @@ import org.jdbi.v3.core.Jdbi;
 public class SchemaUpgrader {
 
     /** Must match the version stamped by {@link SchemaInitializer}. */
-    private static final int CURRENT_VERSION = 3;
+    private static final int CURRENT_VERSION = 4;
 
     private final Jdbi jdbi;
 
@@ -41,6 +41,11 @@ public class SchemaUpgrader {
             setVersion(3);
         }
 
+        if (version < 4) {
+            applyV4();
+            setVersion(4);
+        }
+
         log.info("Schema upgrade complete");
     }
 
@@ -48,6 +53,12 @@ public class SchemaUpgrader {
     private void applyV2() {
         log.info("Applying migration v2: adding stage_name to actresses");
         jdbi.useHandle(h -> h.execute("ALTER TABLE actresses ADD COLUMN stage_name TEXT"));
+    }
+
+    /** v4: adds company_description column to labels table. */
+    private void applyV4() {
+        log.info("Applying migration v4: adding company_description to labels");
+        jdbi.useHandle(h -> h.execute("ALTER TABLE labels ADD COLUMN company_description TEXT"));
     }
 
     /** v3: adds actress profile fields, title metadata fields, and title_tags table. */

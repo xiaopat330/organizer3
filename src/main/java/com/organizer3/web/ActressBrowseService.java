@@ -174,6 +174,16 @@ public class ActressBrowseService {
         return actressRepo.findById(id).map(this::toSummary);
     }
 
+    /** Fetch full summaries for a batch of actress IDs, preserving the given order. */
+    public List<ActressSummary> findByIds(List<Long> ids) {
+        if (ids == null || ids.isEmpty()) return List.of();
+        Map<Long, ActressSummary> byId = actressRepo.findByIds(ids).stream()
+                .collect(java.util.stream.Collectors.toMap(
+                        a -> a.getId(),
+                        this::toSummary));
+        return ids.stream().map(byId::get).filter(java.util.Objects::nonNull).toList();
+    }
+
     /**
      * Returns a paginated list of title summaries for the given actress, ordered newest-first.
      * If {@code company} is non-null, only titles whose label belongs to that company are returned.

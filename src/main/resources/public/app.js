@@ -1826,7 +1826,11 @@ const titleSearchInput    = document.getElementById('title-search-input');
 const titleSearchClearBtn = document.getElementById('title-search-clear');
 const titleFavoritesBtn   = document.getElementById('title-favorites-btn');
 const titleBookmarksBtn   = document.getElementById('title-bookmarks-btn');
-const titleLabelDropdown  = document.getElementById('title-label-dropdown');
+const titleStudioBtn        = document.getElementById('title-studio-btn');
+const titleStudioDivider    = document.getElementById('title-studio-divider');
+const titleStudioGroupRow   = document.getElementById('title-studio-group-row');
+const titleStudioLabelsEl   = document.getElementById('title-studio-labels');
+const titleLabelDropdown    = document.getElementById('title-label-dropdown');
 
 const TITLE_SEARCH_DELAY_MS  = 350;
 const TITLE_SEARCH_MIN_CHARS = 1;
@@ -1854,6 +1858,210 @@ async function ensureTitleLabels() {
     return titleLabelCache;
   });
   return titleLabelCachePromise;
+}
+
+// Studio group cache
+let studioGroupsCache = null;
+let studioGroupsCachePromise = null;
+let selectedStudioSlug = null;
+
+async function ensureStudioGroups() {
+  if (studioGroupsCache) return studioGroupsCache;
+  if (studioGroupsCachePromise) return studioGroupsCachePromise;
+  studioGroupsCachePromise = (async () => {
+    const res = await fetch('/api/titles/studios');
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    studioGroupsCache = await res.json();
+    return studioGroupsCache;
+  })().catch(err => {
+    console.error('Failed to load studio groups:', err);
+    studioGroupsCache = [];
+    return studioGroupsCache;
+  });
+  return studioGroupsCachePromise;
+}
+
+function renderStudioGroupRow(groups) {
+  titleStudioGroupRow.innerHTML = '';
+  groups.forEach(g => {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'studio-group-btn' + (g.slug === selectedStudioSlug ? ' selected' : '');
+    btn.textContent = g.name;
+    btn.dataset.slug = g.slug;
+    btn.addEventListener('click', () => selectStudioGroup(g.slug));
+    titleStudioGroupRow.appendChild(btn);
+  });
+}
+
+async function selectStudioGroup(slug) {
+  selectedStudioSlug = slug;
+
+  // Update button highlights
+  titleStudioGroupRow.querySelectorAll('.studio-group-btn').forEach(btn => {
+    btn.classList.toggle('selected', btn.dataset.slug === slug);
+  });
+
+  // Get the group's company list
+  const groups = await ensureStudioGroups();
+  const group = groups.find(g => g.slug === slug);
+  if (!group) return;
+
+  // Get cached labels and filter to this group's companies
+  const allLabels = await ensureTitleLabels();
+  const companySet = new Set(group.companies);
+
+  // Group labels by company (preserve company order from studios.yaml)
+  const byCompany = new Map();
+  group.companies.forEach(c => byCompany.set(c, []));
+  allLabels.forEach(lbl => {
+    if (companySet.has(lbl.company)) {
+      byCompany.get(lbl.company).push(lbl);
+    }
+  });
+
+  renderStudioLabels(byCompany);
+}
+
+function renderStudioLabels(byCompany) {
+  titleStudioLabelsEl.innerHTML = '';
+
+  // Build left panel — one item per company
+  const listEl = document.createElement('div');
+  listEl.className = 'studio-label-list';
+
+  let firstCompany = null;
+  byCompany.forEach((labels, company) => {
+    if (labels.length === 0) return;
+    if (!firstCompany) firstCompany = company;
+    const item = document.createElement('div');
+    item.className = 'studio-label-item';
+    item.dataset.company = company;
+
+    const nameEl = document.createElement('span');
+    nameEl.className = 'studio-label-item-name studio-label-item-company';
+    nameEl.textContent = company;
+    item.appendChild(nameEl);
+
+    item.addEventListener('click', () => selectStudioCompany(company, byCompany));
+    listEl.appendChild(item);
+  });
+
+  // Build right panel — detail area
+  const detailEl = document.createElement('div');
+  detailEl.className = 'studio-label-detail';
+  detailEl.id = 'studio-label-detail';
+
+  titleStudioLabelsEl.appendChild(listEl);
+  titleStudioLabelsEl.appendChild(detailEl);
+  titleStudioLabelsEl.style.display = 'flex';
+  document.getElementById('titles-browse-grid').style.display = 'none';
+
+  // Auto-select first company
+  if (firstCompany) selectStudioCompany(firstCompany, byCompany);
+}
+
+function selectStudioCompany(company, byCompany) {
+  // Highlight selected item in the left list
+  titleStudioLabelsEl.querySelectorAll('.studio-label-item').forEach(el => {
+    el.classList.toggle('selected', el.dataset.company === company);
+  });
+
+  const detailEl = document.getElementById('studio-label-detail');
+  if (!detailEl) return;
+
+  const labels = byCompany.get(company) || [];
+  const labelCodeSet = new Set(labels.map(l => l.code.toUpperCase()));
+
+  // 1. Heading
+  const companyDesc = labels.length > 0 && labels[0].companyDescription ? labels[0].companyDescription : null;
+  let html = `<div class="studio-detail-heading">${esc(company)}</div>`;
+
+  // 2. Description
+  if (companyDesc) html += `<div class="studio-detail-company-desc">${esc(companyDesc)}</div>`;
+
+  // 3. Top 10 + Newest Actresses placeholders
+  html += `<div class="studio-detail-section-label">${esc(company)}'s Top 10</div>
+           <div class="studio-top-actress-grid" id="studio-top-actresses"><span class="studio-detail-loading">loading…</span></div>`;
+  html += `<div class="studio-detail-section-label">Newest Actresses</div>
+           <div class="studio-top-actress-grid" id="studio-newest-actresses"><span class="studio-detail-loading">loading…</span></div>`;
+
+  // 4. Label list
+  const byLabel = new Map();
+  labels.forEach(lbl => {
+    const key = lbl.labelName || lbl.code;
+    if (!byLabel.has(key)) byLabel.set(key, []);
+    byLabel.get(key).push(lbl);
+  });
+  html += '<div class="studio-detail-section-label" style="margin-top:32px">labels</div>';
+  html += '<div class="studio-detail-label-list">';
+  byLabel.forEach((codes, labelName) => {
+    html += `<div class="studio-detail-label-group">
+      <div class="studio-detail-label-name">${esc(labelName)}</div>
+      <div class="studio-detail-code-rows">`;
+    codes.forEach(lbl => {
+      html += `<div class="studio-detail-code-row">
+        <span class="studio-detail-code-badge">${esc(lbl.code)}</span>
+        ${lbl.description ? `<span class="studio-detail-label-desc">${esc(lbl.description)}</span>` : ''}
+      </div>`;
+    });
+    html += `</div></div>`;
+  });
+  html += '</div>';
+
+  detailEl.innerHTML = html;
+
+  const labelCodes = labels.map(l => l.code).join(',');
+
+  function renderActressGrid(containerId, apiUrl) {
+    fetch(apiUrl)
+      .then(r => r.ok ? r.json() : Promise.reject(r.status))
+      .then(ranked => {
+        const el = document.getElementById(containerId);
+        if (!el) return;
+        if (ranked.length === 0) {
+          el.innerHTML = '<span class="studio-detail-loading">none in library</span>';
+          return;
+        }
+        const ids = ranked.map(a => a.id).join(',');
+        return fetch(`/api/actresses?ids=${encodeURIComponent(ids)}`)
+          .then(r => r.ok ? r.json() : Promise.reject(r.status))
+          .then(summaries => {
+            const el2 = document.getElementById(containerId);
+            if (!el2) return;
+            el2.innerHTML = '';
+            summaries.forEach(a => {
+              const allCovers = a.coverUrls || [];
+              const filtered = allCovers.filter(url => {
+                const seg = url.split('/')[2];
+                return seg && labelCodeSet.has(seg.toUpperCase());
+              });
+              const card = makeActressCard({ ...a, coverUrls: filtered.length > 0 ? filtered : allCovers });
+              card.addEventListener('click', () => showActressDetail(a.id));
+              el2.appendChild(card);
+            });
+          });
+      })
+      .catch(() => {
+        const el = document.getElementById(containerId);
+        if (el) el.innerHTML = '<span class="studio-detail-loading">failed to load</span>';
+      });
+  }
+
+  renderActressGrid('studio-top-actresses',    `/api/titles/top-actresses?labels=${encodeURIComponent(labelCodes)}&limit=10`);
+  renderActressGrid('studio-newest-actresses', `/api/titles/newest-actresses?labels=${encodeURIComponent(labelCodes)}&limit=10`);
+}
+
+function showStudioGroupRow() {
+  titleStudioDivider.style.display = '';
+  titleStudioGroupRow.style.display = '';
+}
+
+function hideStudioGroupRow() {
+  titleStudioDivider.style.display = 'none';
+  titleStudioGroupRow.style.display = 'none';
+  titleStudioLabelsEl.style.display = 'none';
+  selectedStudioSlug = null;
 }
 
 function extractAlphaPrefix(raw) {
@@ -1941,12 +2149,14 @@ async function openLabelDropdown() {
 function updateTitleLandingSelection() {
   titleFavoritesBtn.classList.toggle('selected', titleBrowseMode === 'favorites');
   titleBookmarksBtn.classList.toggle('selected', titleBrowseMode === 'bookmarks');
+  titleStudioBtn.classList.toggle('selected', titleBrowseMode === 'studio');
 }
 
 function updateTitleBreadcrumb() {
   const crumbs = [{ label: 'Titles', action: () => showTitlesBrowse() }];
   if (titleBrowseMode === 'favorites')     crumbs.push({ label: 'Favorites' });
   else if (titleBrowseMode === 'bookmarks') crumbs.push({ label: 'Bookmarks' });
+  else if (titleBrowseMode === 'studio')    crumbs.push({ label: 'Studio' });
   else if (titleBrowseMode === 'search')    crumbs.push({ label: `search: "${titleSearchTerm}"` });
   updateBreadcrumb(crumbs);
 }
@@ -1969,6 +2179,19 @@ function selectTitleBrowseMode(modeKey) {
   updateTitleLandingSelection();
   updateTitleBreadcrumb();
   titlesBrowseBtn.classList.add('active');
+  if (modeKey === 'studio') {
+    document.getElementById('titles-browse-grid').style.display = 'none';
+    titleStudioLabelsEl.style.display = 'none';
+    ensureStudioGroups().then(groups => {
+      renderStudioGroupRow(groups);
+      showStudioGroupRow();
+      if (groups.length > 0 && !selectedStudioSlug) {
+        selectStudioGroup(groups[0].slug);
+      }
+    });
+    return;
+  }
+  hideStudioGroupRow();
   runTitleBrowseQuery();
 }
 
@@ -2071,6 +2294,7 @@ titleSearchClearBtn.addEventListener('click', () => {
 
 titleFavoritesBtn.addEventListener('click', () => selectTitleBrowseMode('favorites'));
 titleBookmarksBtn.addEventListener('click', () => selectTitleBrowseMode('bookmarks'));
+titleStudioBtn.addEventListener('click',    () => selectTitleBrowseMode('studio'));
 
 function showTitlesBrowse() {
   closeQueuesDropdown();
@@ -2091,6 +2315,7 @@ function showTitlesBrowse() {
   titleSearchTerm = '';
   titleSearchInput.value = '';
   closeLabelDropdown();
+  hideStudioGroupRow();
   updateTitleLandingSelection();
   showView('titles-browse');
   requestAnimationFrame(() => {

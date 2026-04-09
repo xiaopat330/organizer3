@@ -29,8 +29,23 @@ public class LabelSeeder {
 
     private final Jdbi jdbi;
 
-    /** Seeds the labels table if it is currently empty. No-op if already populated. */
+    /** Seeds the labels table if it is currently empty. Reimports if company_description is unpopulated. */
     public void seedIfEmpty() {
+        // Ensure company_description column exists (may be missing on DBs stamped before this field was added)
+        boolean hasCompanyDesc = jdbi.withHandle(h ->
+                h.createQuery("PRAGMA table_info(labels)")
+                        .mapToMap()
+                        .list()
+                        .stream()
+                        .anyMatch(row -> "company_description".equals(row.get("name")))
+        );
+        if (!hasCompanyDesc) {
+            log.info("Labels table missing company_description column — adding and reimporting");
+            jdbi.useHandle(h -> h.execute("ALTER TABLE labels ADD COLUMN company_description TEXT"));
+            reimport();
+            return;
+        }
+
         long count = jdbi.withHandle(h ->
                 h.createQuery("SELECT COUNT(*) FROM labels")
                         .mapTo(Long.class)
@@ -40,7 +55,17 @@ public class LabelSeeder {
             log.info("Labels table is empty — seeding from {}", RESOURCE);
             jdbi.useTransaction(this::insertAll);
         } else {
-            log.debug("Labels table already has {} rows, skipping seed", count);
+            long missing = jdbi.withHandle(h ->
+                    h.createQuery("SELECT COUNT(*) FROM labels WHERE company_description IS NULL OR company_description = ''")
+                            .mapTo(Long.class)
+                            .one()
+            );
+            if (missing > 0) {
+                log.info("Labels missing company_description ({} rows) — reimporting", missing);
+                reimport();
+            } else {
+                log.debug("Labels table already has {} rows, skipping seed", count);
+            }
         }
     }
 
@@ -63,13 +88,14 @@ public class LabelSeeder {
         for (CompanyEntry company : companies) {
             for (LabelEntry label : company.labels()) {
                 h.createUpdate("""
-                                INSERT OR IGNORE INTO labels (code, label_name, company, description)
-                                VALUES (:code, :labelName, :company, :description)
+                                INSERT OR IGNORE INTO labels (code, label_name, company, description, company_description)
+                                VALUES (:code, :labelName, :company, :description, :companyDescription)
                                 """)
                         .bind("code", label.code())
                         .bind("labelName", label.label())
                         .bind("company", company.company())
                         .bind("description", label.description() != null ? label.description() : "")
+                        .bind("companyDescription", company.description() != null ? company.description() : "")
                         .execute();
                 total++;
             }

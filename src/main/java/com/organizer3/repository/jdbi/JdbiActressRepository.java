@@ -68,6 +68,17 @@ public class JdbiActressRepository implements ActressRepository {
     }
 
     @Override
+    public List<Actress> findByIds(List<Long> ids) {
+        if (ids == null || ids.isEmpty()) return List.of();
+        String placeholders = ids.stream().map(id -> "?").collect(java.util.stream.Collectors.joining(", "));
+        return jdbi.withHandle(h -> {
+            var query = h.createQuery("SELECT * FROM actresses WHERE id IN (" + placeholders + ")");
+            for (int i = 0; i < ids.size(); i++) query.bind(i, ids.get(i));
+            return query.map(ACTRESS_MAPPER).list();
+        });
+    }
+
+    @Override
     public Optional<Actress> findByCanonicalName(String name) {
         return jdbi.withHandle(h ->
                 h.createQuery("SELECT * FROM actresses WHERE canonical_name = :name COLLATE NOCASE")

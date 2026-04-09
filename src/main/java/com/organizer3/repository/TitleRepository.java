@@ -98,6 +98,18 @@ public interface TitleRepository {
     void deleteOrphaned();
 
     /**
+     * Returns the top actresses by title count for titles whose label is in {@code labels}.
+     * Each row is [actressId (Long), actressName (String), tier (String), count (Long)].
+     */
+    List<Object[]> findTopActressesByLabels(List<String> labels, int limit);
+
+    /**
+     * Returns distinct actresses ordered by the most recently added title whose label is in
+     * {@code labels}. Each row is [actressId (Long), actressName (String), tier (String)].
+     */
+    List<Object[]> findNewestActressesByLabels(List<String> labels, int limit);
+
+    /**
      * Overwrite enrichment fields for a title.
      * Leaves operational fields (actress_id, favorite, bookmark, rejected) unchanged.
      * Called by the {@code load actress} command.

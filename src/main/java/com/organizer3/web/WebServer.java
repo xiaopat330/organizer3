@@ -166,7 +166,22 @@ public class WebServer {
                 }
             });
 
-            app.get("/api/titles/labels", ctx -> ctx.json(browseService.listLabels()));
+            app.get("/api/titles/labels",  ctx -> ctx.json(browseService.listLabels()));
+            app.get("/api/titles/studios", ctx -> ctx.json(browseService.listStudioGroups()));
+            app.get("/api/titles/top-actresses", ctx -> {
+                String labelsParam = ctx.queryParam("labels");
+                if (labelsParam == null || labelsParam.isBlank()) { ctx.json(List.of()); return; }
+                List<String> labels = List.of(labelsParam.split(","));
+                int limit = ctx.queryParamAsClass("limit", Integer.class).getOrDefault(10);
+                ctx.json(browseService.topActressesByLabels(labels, Math.min(limit, 50)));
+            });
+            app.get("/api/titles/newest-actresses", ctx -> {
+                String labelsParam = ctx.queryParam("labels");
+                if (labelsParam == null || labelsParam.isBlank()) { ctx.json(List.of()); return; }
+                List<String> labels = List.of(labelsParam.split(","));
+                int limit = ctx.queryParamAsClass("limit", Integer.class).getOrDefault(10);
+                ctx.json(browseService.newestActressesByLabels(labels, Math.min(limit, 50)));
+            });
 
             app.get("/api/titles/random", ctx -> {
                 int limit = ctx.queryParamAsClass("limit", Integer.class).getOrDefault(24);
@@ -218,6 +233,7 @@ public class WebServer {
             });
 
             app.get("/api/actresses", ctx -> {
+                String idsParam     = ctx.queryParam("ids");
                 String prefix       = ctx.queryParam("prefix");
                 String tier         = ctx.queryParam("tier");
                 String volumesParam = ctx.queryParam("volumes");
@@ -229,7 +245,12 @@ public class WebServer {
                 int limit  = ctx.queryParamAsClass("limit",  Integer.class).getOrDefault(24);
                 offset = Math.max(offset, 0);
                 limit  = Math.max(1, Math.min(limit, TitleBrowseService.MAX_LIMIT));
-                if (search != null && !search.isBlank()) {
+                if (idsParam != null && !idsParam.isBlank()) {
+                    List<Long> ids = List.of(idsParam.split(",")).stream()
+                            .map(String::trim).filter(s -> !s.isEmpty())
+                            .map(Long::parseLong).toList();
+                    ctx.json(actressBrowseService.findByIds(ids));
+                } else if (search != null && !search.isBlank()) {
                     if (search.trim().length() < 2) {
                         ctx.json(List.of());
                     } else {

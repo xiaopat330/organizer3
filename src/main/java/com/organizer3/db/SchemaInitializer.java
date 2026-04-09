@@ -106,10 +106,11 @@ public class SchemaInitializer {
 
             h.execute("""
                     CREATE TABLE IF NOT EXISTS labels (
-                        code        TEXT PRIMARY KEY,
-                        label_name  TEXT,
-                        company     TEXT,
-                        description TEXT
+                        code                TEXT PRIMARY KEY,
+                        label_name          TEXT,
+                        company             TEXT,
+                        description         TEXT,
+                        company_description TEXT
                     )""");
 
             h.execute("""

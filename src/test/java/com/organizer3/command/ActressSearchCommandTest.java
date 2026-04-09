@@ -216,8 +216,8 @@ class ActressSearchCommandTest {
         ));
         when(actressRepo.findAliases(1L)).thenReturn(List.of());
         when(labelRepo.findAllAsMap()).thenReturn(Map.of(
-                "ABP",  new Label("ABP",  "S1",         "S1 No.1 Style"),
-                "MIDE", new Label("MIDE", "Moody's Diva", "Moodyz")
+                "ABP",  new Label("ABP",  "S1",         "S1 No.1 Style", null, null),
+                "MIDE", new Label("MIDE", "Moody's Diva", "Moodyz", null, null)
         ));
 
         cmd.execute(new String[]{"actress", "Aya", "Sazanami"}, ctx, io);

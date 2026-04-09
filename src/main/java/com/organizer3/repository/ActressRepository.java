@@ -18,6 +18,9 @@ public interface ActressRepository {
 
     Optional<Actress> findById(long id);
 
+    /** Fetch multiple actresses by id in one query. Order of results is unspecified. */
+    List<Actress> findByIds(List<Long> ids);
+
     Optional<Actress> findByCanonicalName(String name);
 
     /**

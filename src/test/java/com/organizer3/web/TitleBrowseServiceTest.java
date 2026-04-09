@@ -167,7 +167,7 @@ class TitleBrowseServiceTest {
         when(titleRepo.findRecent(24, 0)).thenReturn(List.of(title));
         when(coverPath.find(title)).thenReturn(Optional.empty());
         when(labelRepo.findAllAsMap()).thenReturn(
-                Map.of("ABP", new Label("ABP", "Absolutely Perfect", "Prestige")));
+                Map.of("ABP", new Label("ABP", "Absolutely Perfect", "Prestige", null, null)));
 
         TitleSummary s = service.findRecent(0, 24).get(0);
         assertEquals("Prestige", s.getCompanyName());

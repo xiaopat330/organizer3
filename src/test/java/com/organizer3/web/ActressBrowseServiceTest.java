@@ -230,7 +230,7 @@ class ActressBrowseServiceTest {
         when(titleRepo.findByActressPaged(1L, 24, 0)).thenReturn(List.of(t));
         when(coverPath.find(any())).thenReturn(Optional.empty());
         when(labelRepo.findAllAsMap()).thenReturn(
-                Map.of("ABP", new Label("ABP", "Absolutely Perfect", "Prestige")));
+                Map.of("ABP", new Label("ABP", "Absolutely Perfect", "Prestige", null, null)));
 
         TitleSummary s = service.findTitlesByActress(1L, 0, 24, null).get(0);
         assertEquals("Prestige", s.getCompanyName());
@@ -260,8 +260,8 @@ class ActressBrowseServiceTest {
         when(titleRepo.findByActress(a.getId())).thenReturn(List.of(t1, t2WithLabel));
         when(coverPath.find(any())).thenReturn(Optional.empty());
         when(labelRepo.findAllAsMap()).thenReturn(Map.of(
-                "ABP", new Label("ABP", "Absolutely Perfect", "Prestige"),
-                "SSIS", new Label("SSIS", "S1 Special", "S1")
+                "ABP", new Label("ABP", "Absolutely Perfect", "Prestige", null, null),
+                "SSIS", new Label("SSIS", "S1 Special", "S1", null, null)
         ));
 
         ActressSummary s = service.findById(a.getId()).orElseThrow();

@@ -6,5 +6,6 @@ package com.organizer3.model;
  * <p>{@code code} is the label identifier as it appears in title codes (e.g., "ABP", "MIDE").
  * {@code labelName} is the human-readable label name (e.g., "Moody's Diva").
  * {@code company} is the production company that owns this label (e.g., "Moodyz").
+ * {@code description} is an optional short description of the label's focus or history.
  */
-public record Label(String code, String labelName, String company) {}
+public record Label(String code, String labelName, String company, String description, String companyDescription) {}

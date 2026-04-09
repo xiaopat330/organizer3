@@ -495,6 +495,59 @@ public class JdbiTitleRepository implements TitleRepository {
     }
 
     @Override
+    public List<Object[]> findTopActressesByLabels(List<String> labels, int limit) {
+        if (labels == null || labels.isEmpty()) return List.of();
+        String placeholders = labels.stream().map(l -> "?").collect(Collectors.joining(", "));
+        String sql = """
+                SELECT a.id, a.canonical_name, a.tier, COUNT(*) AS title_count
+                FROM titles t
+                JOIN actresses a ON t.actress_id = a.id
+                WHERE UPPER(t.label) IN (""" + placeholders + """
+                )
+                GROUP BY a.id
+                ORDER BY title_count DESC
+                LIMIT ?
+                """;
+        return jdbi.withHandle(h -> {
+            var query = h.createQuery(sql);
+            for (int i = 0; i < labels.size(); i++) {
+                query.bind(i, labels.get(i).toUpperCase());
+            }
+            query.bind(labels.size(), limit);
+            return query.map((rs, ctx) -> new Object[]{
+                    rs.getLong("id"),
+                    rs.getString("canonical_name"),
+                    rs.getString("tier"),
+                    rs.getLong("title_count")
+            }).list();
+        });
+    }
+
+    @Override
+    public List<Object[]> findNewestActressesByLabels(List<String> labels, int limit) {
+        if (labels == null || labels.isEmpty()) return List.of();
+        String placeholders = labels.stream().map(l -> "?").collect(Collectors.joining(", "));
+        String sql = "SELECT t.actress_id AS id, a.canonical_name, a.tier, MAX(tl.added_date) AS latest_date "
+                + "FROM titles t "
+                + "JOIN actresses a ON t.actress_id = a.id "
+                + "JOIN title_locations tl ON tl.title_id = t.id "
+                + "WHERE UPPER(t.label) IN (" + placeholders + ") AND t.actress_id IS NOT NULL "
+                + "GROUP BY t.actress_id "
+                + "ORDER BY latest_date DESC "
+                + "LIMIT ?";
+        return jdbi.withHandle(h -> {
+            var query = h.createQuery(sql);
+            for (int i = 0; i < labels.size(); i++) query.bind(i, labels.get(i).toUpperCase());
+            query.bind(labels.size(), limit);
+            return query.map((rs, ctx) -> new Object[]{
+                    rs.getLong("id"),
+                    rs.getString("canonical_name"),
+                    rs.getString("tier")
+            }).list();
+        });
+    }
+
+    @Override
     public void deleteOrphaned() {
         jdbi.useHandle(h ->
                 h.createUpdate("""
