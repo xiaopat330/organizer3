@@ -126,17 +126,42 @@ public class JdbiActressRepository implements ActressRepository {
 
     @Override
     public List<Actress> searchByNamePrefixPaged(String prefix, int limit, int offset) {
-        String lower = prefix.toLowerCase();
+        String trimmed = prefix.trim().toLowerCase();
+        // Compound form: "<first> <second>" → first name must start with <first>
+        //                 AND some later name token must start with <second>.
+        int firstSpace = trimmed.indexOf(' ');
+        if (firstSpace > 0 && firstSpace < trimmed.length() - 1) {
+            String first  = trimmed.substring(0, firstSpace).trim();
+            String second = trimmed.substring(firstSpace + 1).trim();
+            if (!first.isEmpty() && !second.isEmpty()) {
+                return jdbi.withHandle(h ->
+                        h.createQuery("""
+                                SELECT * FROM actresses
+                                WHERE LOWER(canonical_name) LIKE :first
+                                  AND LOWER(canonical_name) LIKE :second
+                                ORDER BY favorite DESC, bookmark DESC, canonical_name
+                                LIMIT :limit OFFSET :offset
+                                """)
+                                .bind("first",  first + "%")
+                                .bind("second", "% " + second + "%")
+                                .bind("limit", limit)
+                                .bind("offset", offset)
+                                .map(ACTRESS_MAPPER)
+                                .list()
+                );
+            }
+        }
+        // Single-token form: first-name-starts-with OR any-later-word-starts-with.
         return jdbi.withHandle(h ->
                 h.createQuery("""
                         SELECT * FROM actresses
                         WHERE LOWER(canonical_name) LIKE :startsWith
                            OR LOWER(canonical_name) LIKE :wordStartsWith
-                        ORDER BY canonical_name
+                        ORDER BY favorite DESC, bookmark DESC, canonical_name
                         LIMIT :limit OFFSET :offset
                         """)
-                        .bind("startsWith", lower + "%")
-                        .bind("wordStartsWith", "% " + lower + "%")
+                        .bind("startsWith", trimmed + "%")
+                        .bind("wordStartsWith", "% " + trimmed + "%")
                         .bind("limit", limit)
                         .bind("offset", offset)
                         .map(ACTRESS_MAPPER)

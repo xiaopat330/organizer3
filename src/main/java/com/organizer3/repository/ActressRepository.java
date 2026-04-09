@@ -35,8 +35,17 @@ public interface ActressRepository {
     List<Actress> searchByNamePrefix(String prefix);
 
     /**
-     * Paginated version of {@link #searchByNamePrefix(String)}: match first-name or
-     * any-word-starts-with, case-insensitively, ordered by canonical name.
+     * Paginated name search, case-insensitive.
+     *
+     * <p>Two forms:
+     * <ul>
+     *   <li><b>Single token</b> ("aya"): match first-name-starts-with OR any-word-starts-with.</li>
+     *   <li><b>Compound</b> ("aya sa"): first name must start with the first token AND some
+     *       later name word must start with the second token.</li>
+     * </ul>
+     *
+     * <p>Results are ordered favorites first, bookmarks second, then alphabetically by
+     * canonical name.
      */
     List<Actress> searchByNamePrefixPaged(String prefix, int limit, int offset);
 

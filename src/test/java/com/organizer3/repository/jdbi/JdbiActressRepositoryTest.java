@@ -528,6 +528,67 @@ class JdbiActressRepositoryTest {
         assertEquals(1, repo.searchByNamePrefixPaged("saz", 10, 0).size());
     }
 
+    @Test
+    void searchByNamePrefixPagedOrdersFavoritesFirstThenBookmarksThenName() {
+        Actress aya   = repo.save(actress("Aya Sazanami"));
+        repo.save(actress("Aino Kishi"));
+        Actress ayumi = repo.save(actress("Ayumi Shinoda"));
+        repo.save(actress("Akari Mitani"));
+
+        repo.toggleFavorite(ayumi.getId(), true); // favorite → first
+        repo.toggleBookmark(aya.getId(),   true); // bookmark → second
+        // aino & akari: no flags → alphabetic within their group
+
+        List<Actress> results = repo.searchByNamePrefixPaged("a", 10, 0);
+        assertEquals(4, results.size());
+        assertEquals("Ayumi Shinoda", results.get(0).getCanonicalName()); // favorite
+        assertEquals("Aya Sazanami",  results.get(1).getCanonicalName()); // bookmark
+        assertEquals("Aino Kishi",    results.get(2).getCanonicalName()); // plain, alpha
+        assertEquals("Akari Mitani",  results.get(3).getCanonicalName());
+    }
+
+    @Test
+    void searchByNamePrefixPagedCompoundMatchesFirstAndLastPrefix() {
+        repo.save(actress("Aya Sazanami"));   // first=Aya, last starts with "Sa" ✓
+        repo.save(actress("Aya Kishi"));      // first=Aya but last doesn't start with "Sa"
+        repo.save(actress("Sakura Nomiya"));  // first starts with "Sa" but not "Ay"
+
+        List<Actress> results = repo.searchByNamePrefixPaged("Ay Sa", 10, 0);
+        assertEquals(1, results.size());
+        assertEquals("Aya Sazanami", results.get(0).getCanonicalName());
+    }
+
+    @Test
+    void searchByNamePrefixPagedCompoundMatchesAnyLaterWord() {
+        // Compound should match any word *after* the first that starts with the second token
+        repo.save(actress("Maria de la Cruz"));
+
+        List<Actress> results = repo.searchByNamePrefixPaged("Ma de", 10, 0);
+        assertEquals(1, results.size());
+        assertEquals("Maria de la Cruz", results.get(0).getCanonicalName());
+    }
+
+    @Test
+    void searchByNamePrefixPagedCompoundHonorsFavoritesOrdering() {
+        repo.save(actress("Aya Sazanami"));
+        Actress b = repo.save(actress("Aya Sato"));
+        repo.toggleFavorite(b.getId(), true);
+
+        List<Actress> results = repo.searchByNamePrefixPaged("Ay Sa", 10, 0);
+        assertEquals(2, results.size());
+        assertEquals("Aya Sato",       results.get(0).getCanonicalName()); // favorite first
+        assertEquals("Aya Sazanami",   results.get(1).getCanonicalName());
+    }
+
+    @Test
+    void searchByNamePrefixPagedTrailingSpaceFallsBackToSingleToken() {
+        repo.save(actress("Aya Sazanami"));
+        // "Aya " (trailing space) should behave like the single-token form.
+        List<Actress> results = repo.searchByNamePrefixPaged("Aya ", 10, 0);
+        assertEquals(1, results.size());
+        assertEquals("Aya Sazanami", results.get(0).getCanonicalName());
+    }
+
     // --- findBookmarksPaged ---
 
     @Test

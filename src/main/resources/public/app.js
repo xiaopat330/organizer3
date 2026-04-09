@@ -611,7 +611,10 @@ function showTitlesView() {
   if (actressSearchTimer) { clearTimeout(actressSearchTimer); actressSearchTimer = null; }
   actressBrowseMode = null;
   actressSearchTerm = '';
-  if (actressSearchInput) actressSearchInput.value = '';
+  if (actressSearchInput) {
+    actressSearchInput.value = '';
+    actressSearchInput.classList.remove('invalid');
+  }
   updateActressLandingSelection();
   updateBreadcrumb([]);
   activateHomeTab(homeTab);
@@ -669,7 +672,7 @@ const actressBookmarksBtn   = document.getElementById('actress-bookmarks-btn');
 const actressTierRow        = document.getElementById('actress-landing-tier-row');
 
 const ACTRESS_TIERS = ['LIBRARY', 'MINOR', 'POPULAR', 'SUPERSTAR', 'GODDESS'];
-const ACTRESS_SEARCH_DELAY_MS = 5000;
+const ACTRESS_SEARCH_DELAY_MS = 350;
 const ACTRESS_SEARCH_MIN_CHARS = 2;
 
 // Current browse mode:
@@ -766,6 +769,7 @@ async function selectActressBrowseMode(modeKey) {
     if (actressSearchTimer) { clearTimeout(actressSearchTimer); actressSearchTimer = null; }
     actressSearchTerm = '';
     if (actressSearchInput.value !== '') actressSearchInput.value = '';
+    actressSearchInput.classList.remove('invalid');
   }
   updateActressLandingSelection();
   updateActressBreadcrumb();
@@ -785,6 +789,7 @@ function showActressLanding() {
   actressBrowseMode = null;
   actressSearchTerm = '';
   actressSearchInput.value = '';
+  actressSearchInput.classList.remove('invalid');
   updateActressLandingSelection();
   updateBreadcrumb([{ label: 'Actresses' }]);
   showView('actresses');
@@ -801,9 +806,18 @@ actressesBtn.addEventListener('click', e => {
   showActressLanding();
 });
 
+// Toggle red "invalid" styling while input is below the 2-char minimum
+// (but not empty — empty is a neutral reset state, not an error).
+function updateActressSearchValidity() {
+  const raw = actressSearchInput.value.trim();
+  const invalid = raw.length > 0 && raw.length < ACTRESS_SEARCH_MIN_CHARS;
+  actressSearchInput.classList.toggle('invalid', invalid);
+}
+
 // ── Search input: 5s debounce + 2-char minimum ──
 function scheduleActressSearch() {
   if (actressSearchTimer) { clearTimeout(actressSearchTimer); actressSearchTimer = null; }
+  updateActressSearchValidity();
   const raw = actressSearchInput.value.trim();
   if (raw.length < ACTRESS_SEARCH_MIN_CHARS) {
     // Below threshold → empty page and reset mode if we were in search mode
@@ -851,6 +865,7 @@ actressSearchInput.addEventListener('keydown', e => {
 actressSearchClearBtn.addEventListener('click', () => {
   if (actressSearchTimer) { clearTimeout(actressSearchTimer); actressSearchTimer = null; }
   actressSearchInput.value = '';
+  actressSearchInput.classList.remove('invalid');
   actressSearchTerm = '';
   if (actressBrowseMode === 'search') {
     actressBrowseMode = null;
@@ -1214,7 +1229,10 @@ collectionsBtn.addEventListener('click', () => {
   if (actressSearchTimer) { clearTimeout(actressSearchTimer); actressSearchTimer = null; }
   actressBrowseMode = null;
   actressSearchTerm = '';
-  if (actressSearchInput) actressSearchInput.value = '';
+  if (actressSearchInput) {
+    actressSearchInput.value = '';
+    actressSearchInput.classList.remove('invalid');
+  }
   updateActressLandingSelection();
   showView('collections');
   updateBreadcrumb([{ label: 'Collections' }]);
@@ -1742,7 +1760,10 @@ titlesBrowseBtn.addEventListener('click', () => {
   if (actressSearchTimer) { clearTimeout(actressSearchTimer); actressSearchTimer = null; }
   actressBrowseMode = null;
   actressSearchTerm = '';
-  if (actressSearchInput) actressSearchInput.value = '';
+  if (actressSearchInput) {
+    actressSearchInput.value = '';
+    actressSearchInput.classList.remove('invalid');
+  }
   updateActressLandingSelection();
   buildTitlesSubNav();
   showView('titles-browse');
