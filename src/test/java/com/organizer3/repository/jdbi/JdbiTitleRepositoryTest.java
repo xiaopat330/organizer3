@@ -233,17 +233,20 @@ class JdbiTitleRepositoryTest {
     // --- findByActressPaged ---
 
     @Test
-    void findByActressPagedReturnsNewestFirst() {
+    void findByActressPagedReturnsFavoritesFirstThenBookmarksThenCode() {
         Actress aya = actressRepo.save(actress("Aya Sazanami"));
-        saveWithLocation(title("ABP-001", aya.getId()), "vol-a", "stars/library", "/mnt/vol-a/stars/library/ABP-001", LocalDate.of(2024, 1, 1));
-        saveWithLocation(title("ABP-002", aya.getId()), "vol-a", "stars/library", "/mnt/vol-a/stars/library/ABP-002", LocalDate.of(2024, 3, 1));
-        saveWithLocation(title("ABP-003", aya.getId()), "vol-a", "stars/library", "/mnt/vol-a/stars/library/ABP-003", LocalDate.of(2024, 2, 1));
+        Title t1 = title("ABP-001", aya.getId());
+        Title t2 = Title.builder().code("ABP-002").baseCode("ABP-00002").label("ABP").seqNum(1).actressId(aya.getId()).favorite(true).build();
+        Title t3 = Title.builder().code("ABP-003").baseCode("ABP-00003").label("ABP").seqNum(1).actressId(aya.getId()).bookmark(true).build();
+        saveWithLocation(t1, "vol-a", "stars/library", "/mnt/vol-a/stars/library/ABP-001", LocalDate.of(2024, 1, 1));
+        saveWithLocation(t2, "vol-a", "stars/library", "/mnt/vol-a/stars/library/ABP-002", LocalDate.of(2024, 3, 1));
+        saveWithLocation(t3, "vol-a", "stars/library", "/mnt/vol-a/stars/library/ABP-003", LocalDate.of(2024, 2, 1));
 
         List<Title> results = titleRepo.findByActressPaged(aya.getId(), 10, 0);
         assertEquals(3, results.size());
-        assertEquals("ABP-002", results.get(0).getCode());
-        assertEquals("ABP-003", results.get(1).getCode());
-        assertEquals("ABP-001", results.get(2).getCode());
+        assertEquals("ABP-002", results.get(0).getCode()); // favorite first
+        assertEquals("ABP-003", results.get(1).getCode()); // bookmark second
+        assertEquals("ABP-001", results.get(2).getCode()); // plain last
     }
 
     @Test
@@ -257,11 +260,11 @@ class JdbiTitleRepositoryTest {
         List<Title> page2 = titleRepo.findByActressPaged(aya.getId(), 2, 2);
 
         assertEquals(2, page1.size());
-        assertEquals("ABP-003", page1.get(0).getCode());
+        assertEquals("ABP-001", page1.get(0).getCode()); // code ASC
         assertEquals("ABP-002", page1.get(1).getCode());
 
         assertEquals(1, page2.size());
-        assertEquals("ABP-001", page2.get(0).getCode());
+        assertEquals("ABP-003", page2.get(0).getCode());
     }
 
     @Test

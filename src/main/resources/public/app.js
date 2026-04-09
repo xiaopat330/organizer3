@@ -64,11 +64,28 @@ function setStatus(msg) {
 
 function ensureSentinel() {
   let s = document.getElementById('sentinel');
+  // If the sentinel is inside a non-body container (e.g., actress-detail-right), relocate it
+  if (s && s.parentElement !== document.body) {
+    s.remove();
+    s = null;
+  }
   if (!s) {
     s = document.createElement('div');
     s.id = 'sentinel';
     s.style.height = '1px';
     document.body.appendChild(s);
+    observer.observe(s);
+  }
+  return s;
+}
+
+function ensureActressDetailSentinel() {
+  let s = document.getElementById('sentinel');
+  if (!s) {
+    s = document.createElement('div');
+    s.id = 'sentinel';
+    s.style.height = '1px';
+    document.getElementById('actress-detail-right').appendChild(s);
     observer.observe(s);
   }
   return s;
@@ -127,12 +144,7 @@ function updateBreadcrumb(segments) {
 }
 
 function updateDetailPanelTop() {
-  requestAnimationFrame(() => {
-    const header = document.querySelector('header');
-    if (header) {
-      document.querySelector('.actress-detail-panel').style.top = header.offsetHeight + 'px';
-    }
-  });
+  // no-op: actress-detail is now a fixed-viewport layout, not sticky
 }
 
 // ── View management ───────────────────────────────────────────────────────
@@ -153,7 +165,7 @@ const ALL_PANEL_IDS = [...Object.values(VIEWS).flat(), ...HOME_GRID_IDS];
 let mode = 'titles';
 
 // Views where the body must not scroll (they fill the viewport themselves)
-const FIXED_VIEWPORT_VIEWS = new Set(['title-detail']);
+const FIXED_VIEWPORT_VIEWS = new Set(['title-detail', 'actress-detail']);
 
 function showView(name) {
   mode = name;
@@ -166,6 +178,7 @@ function showView(name) {
     else if (el.classList.contains('actress-sub-nav')) el.style.display = 'flex';
     else if (el.classList.contains('actress-landing')) el.style.display = 'flex';
     else if (el.id === 'title-detail') el.style.display = 'flex';
+    else if (el.id === 'actress-detail') el.style.display = 'flex';
     else el.style.display = 'block';
   }
   // Hide status/sentinel for full-viewport views so the body doesn't scroll
@@ -948,13 +961,14 @@ async function openActressDetail(actressId) {
   detailCompanyFilter = null;
   showView('actress-detail');
   activeGrid = actressDetailGrid;
+  document.getElementById('sentinel')?.remove();
   actressDetailGrid.reset();
   document.getElementById('detail-cover').innerHTML = '';
   document.getElementById('detail-info').innerHTML  = '';
   document.getElementById('detail-profile').innerHTML = '';
   document.getElementById('detail-bio').innerHTML = '';
   document.getElementById('detail-nav-bar').innerHTML = '';
-  ensureSentinel();
+  ensureActressDetailSentinel();
   setStatus('loading');
 
   // Build breadcrumbs — include browse-mode context if we came from a browse grid
@@ -1169,8 +1183,9 @@ function setDetailCompanyFilter(company) {
   document.querySelectorAll('.detail-nav-item.detail-company-item').forEach(el =>
     el.classList.toggle('selected', el.dataset.company === company)
   );
+  document.getElementById('sentinel')?.remove();
   actressDetailGrid.reset();
-  ensureSentinel();
+  ensureActressDetailSentinel();
   actressDetailGrid.loadMore();
 }
 
@@ -1563,7 +1578,7 @@ function loadVideoThumbnails(videoId, attempt = 0) {
           const fraction = total > 1 ? 0.03 + (0.94 * i / (total - 1)) : 0.5;
           return `<div class="thumb-wrapper" onclick="seekVideoTo(${videoId}, ${fraction})">
             <img class="video-thumb" src="${esc(url)}" loading="lazy" data-fraction="${fraction}">
-            <span class="thumb-time" data-video-id="${videoId}" data-fraction="${fraction}">${Math.round(fraction * 100)}%</span>
+            <span class="thumb-time" data-video-id="${videoId}" data-fraction="${fraction}">--:--</span>
           </div>`;
         }).join('');
       }

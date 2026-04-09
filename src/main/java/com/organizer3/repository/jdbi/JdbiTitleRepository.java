@@ -301,7 +301,7 @@ public class JdbiTitleRepository implements TitleRepository {
                         LEFT JOIN title_locations tl ON t.id = tl.title_id
                         WHERE t.actress_id = :actressId
                         GROUP BY t.id
-                        ORDER BY MIN(tl.added_date) DESC, t.id DESC
+                        ORDER BY t.favorite DESC, t.bookmark DESC, t.code ASC
                         LIMIT :limit OFFSET :offset
                         """)
                         .bind("actressId", actressId)
@@ -321,7 +321,7 @@ public class JdbiTitleRepository implements TitleRepository {
                         LEFT JOIN title_locations tl ON t.id = tl.title_id
                         WHERE t.actress_id = :actressId AND upper(t.label) IN (<labels>)
                         GROUP BY t.id
-                        ORDER BY MIN(tl.added_date) DESC, t.id DESC
+                        ORDER BY t.favorite DESC, t.bookmark DESC, t.code ASC
                         LIMIT :limit OFFSET :offset
                         """)
                         .bind("actressId", actressId)
