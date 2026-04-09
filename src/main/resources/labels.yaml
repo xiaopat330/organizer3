@@ -266,6 +266,11 @@
 
 - company: Under
   description: "WILL sub-label for radical image videos (IV). Content sits at the boundary between gravure/IV and AV — more provocative than gravure but softer than standard AV."
+  profile:
+    status: active
+    parent: "WILL Co., Ltd."
+    specialty: "Radical image video (IV) label at the boundary between gravure and AV — more provocative than standard gravure but softer than mainstream AV. Targets the audience that wants eroticism without explicit intercourse. MMND code."
+    notes: "One of WILL's smaller specialty labels occupying the softcore IV niche."
   labels:
     - {code: MMND, label: Under, description: "radical image videos; regular part number"}
 
@@ -349,6 +354,11 @@
 
 - company: Mature Women are Painful
   description: "WILL niche label focused on mature woman voyeur concepts. Very small output; specialized niche within the WILL jukujo ecosystem."
+  profile:
+    status: active
+    parent: "WILL Co., Ltd."
+    specialty: "Niche mature woman voyeur concept label. Very small output; a hyper-specialized sub-label within the WILL jukujo ecosystem. TURA/TURU codes."
+    notes: "One of the smallest WILL sub-labels by volume."
   labels:
     - {code: TURA, label: "Mature Women are Painful", description: "mature woman voyeur concept; regular part number"}
     - {code: TURU, label: "Mature Women are Painful", description: "best compilation"}
@@ -391,18 +401,33 @@
 
 - company: Candy
   description: "WILL debut/newcomer label. Focuses on first appearances and early-career work for beautiful girls entering the industry."
+  profile:
+    status: active
+    parent: "WILL Co., Ltd."
+    specialty: "Debut/newcomer label. Focuses on first appearances and early-career work for beautiful girls entering the industry. Sister label to kawaii* (also WILL debut-focused). CND is the main code; CNZ is the best compilation."
+    notes: "Emphasizes the 'new girl' experience rather than establishing an exclusive long-term roster."
   labels:
     - {code: CND, label: Candy, description: "regular part number; debut works for beautiful girls"}
     - {code: CNZ, label: Candy, description: "best compilation"}
 
 - company: minimum
   description: "WILL label specializing in petite/short actresses. Content emphasizes the size contrast and 'tiny body' aesthetic."
+  profile:
+    status: active
+    parent: "WILL Co., Ltd."
+    specialty: "Petite/short actress specialist. Content emphasizes size contrast and the 'tiny body' (小柄) aesthetic. MUM is the main code; MMT is the specialty series. The label name directly describes the physical type."
+    notes: "One of WILL's more narrowly focused sub-labels, targeting a specific physical type rather than a content genre."
   labels:
     - {code: MUM, label: minimum, description: "short Lori beautiful girls; regular part number"}
     - {code: MMT, label: minimum, description: "best compilation"}
 
 - company: Muku
   description: "WILL label for innocent/pure-image content. 'Muku' (無垢) means 'pure/innocent'. Focuses on actresses with a wholesome, untainted persona."
+  profile:
+    status: active
+    parent: "WILL Co., Ltd."
+    specialty: "無垢 (muku) = 'pure/innocent.' Focuses on actresses with a wholesome, untainted persona — the aesthetic opposite of experienced or aggressive performers. MUKD is the main code; MUDR is drama; MUCD is specialty series."
+    notes: "The 'pure/innocent' positioning is distinct from kawaii* (cute) and debut labels. Emphasizes psychological innocence and gentle scenarios."
   labels:
     - {code: MUKD, label: Muku, description: "past regular part number"}
     - {code: MUDR, label: Muku, description: "As of 2019, this seems to have been converted to a regular part number."}
@@ -439,6 +464,11 @@
 
 - company: Emco Labo
   description: "WILL hardcore specialty label. Focuses on extreme content including anal, deepthroat (irrumatio), and training scenarios."
+  profile:
+    status: active
+    parent: "WILL Co., Ltd."
+    specialty: "Hardcore specialty label. Focuses on extreme physical content including anal, deepthroat (irrumatio), and training scenarios. MISM code. The name suggests a laboratory/experimental framing for testing physical limits."
+    notes: "One of WILL's harder content labels, occupying the space between mainstream planning and extreme fetish."
   labels:
     - {code: MISM, label: "Emco Labo", description: "hardcore label: anal, iramaccio, training"}
 
@@ -469,6 +499,11 @@
 
 - company: Opera
   description: "WILL's SM/BDSM specialist label. Focuses on bondage, discipline, and sadomasochism content with relatively high production quality within the niche."
+  profile:
+    status: active
+    parent: "WILL Co., Ltd."
+    specialty: "SM/BDSM specialist. Bondage, discipline, and sadomasochism content with relatively high production quality. WILL's dedicated SM label distinct from dogma (extreme/WILL subcontractor) and Attackers (drama-driven). OPUD (main), OPBD (best), OPMD/OPRD/OPSD (specialty series)."
+    notes: "Positioned at a mid-tier SM level — more cinematic than low-budget SM producers, less extreme than dogma."
   labels:
     - {code: OPUD, label: opera, description: SM}
     - {code: OPBD, label: opera, description: "Best compilation"}
@@ -503,28 +538,53 @@
 
 - company: V
   description: "WILL fetish maker. Focuses on eroticism of high-class, elegant women — overlap with PREMIUM but with a more fetishistic edge."
+  profile:
+    status: active
+    parent: "WILL Co., Ltd."
+    specialty: "Elegant fetish label. Focuses on the eroticism of high-class, sophisticated women — overlaps with PREMIUM in aesthetic but with a more explicit fetishistic edge. VICD code."
+    notes: "One of WILL's smallest sub-labels by volume. Single-letter 'V' branding signals singular focus."
   labels:
     - {code: VICD, label: V, description: "fetish maker; eros of high-class women"}
 
 - company: kunka
   description: "WILL niche label for underwear/panty fetish content. 'Kunka' (クンカ) is onomatopoeia for sniffing."
+  profile:
+    status: active
+    parent: "WILL Co., Ltd."
+    specialty: "Underwear/panty fetish specialist. クンカ (kunka) is Japanese onomatopoeia for sniffing. Content centers on panty sniffing, worn underwear, and scent-based eroticism. KUNK code."
+    notes: "One of WILL's most narrowly focused single-fetish labels. The onomatopoeic name leaves no ambiguity about the content."
   labels:
     - {code: KUNK, label: kunka, description: "underwear fetishes for the general public"}
 
 - company: "Perverted Gentlemen's Club"
   description: "WILL niche label for massage parlor/voyeur concept content."
+  profile:
+    status: active
+    parent: "WILL Co., Ltd."
+    specialty: "Massage parlor and voyeur concept label. CLUB is the main code; STOL is the specialty series. Content frames scenarios around secret observation, hidden camera aesthetics, or illicit massage-service encounters."
+    notes: "The name frames the viewer as a member of an exclusive club indulging in taboo voyeurism — a common conceit in the massage/voyeur subgenre."
   labels:
     - {code: CLUB, label: "Perverted gentlemen's club", description: "massage voyeur; regular part number"}
     - {code: STOL, label: "Perverted gentlemen's club", description: "best compilation"}
 
 - company: Ranmaru
   description: "WILL label. Girl/lady genre content."
+  profile:
+    status: active
+    parent: "WILL Co., Ltd."
+    specialty: "Girl/lady content label. TYOD is the main code; TYWD is the specialty series. General-purpose label for varied scenarios without a highly specific niche identity."
+    notes: "Named after Mori Ranmaru, the famous young attendant to Oda Nobunaga — a historically resonant name evoking youth and beauty."
   labels:
     - {code: TYOD, label: Ranmaru, description: "pornography; girl/lady genres; regular part number"}
     - {code: TYWD, label: Ranmaru, description: "best compilation"}
 
 - company: Vivian
   description: "WILL's lesbian specialist label. One of the most prolific lesbian-focused makers in AV. The BBAN code is one of the most recognized lesbian product codes in the industry."
+  profile:
+    status: active
+    parent: "WILL Co., Ltd."
+    specialty: "Lesbian specialist. One of the most prolific lesbian-focused makers in AV. The BBAN code is one of the most recognized lesbian product codes in the industry. BBSS is the best compilation series."
+    notes: "WILL's primary lesbian label. BBAN has accumulated one of the largest lesbian AV catalogs of any single label."
   labels:
     - {code: BBAN, label: Vivian, description: "lesbian specialist; regular part number; one of the most prolific lesbian-focused labels"}
     - {code: BBSS, label: Vivian, description: "best compilation"}
@@ -559,18 +619,33 @@
 
 - company: Rookie
   description: "WILL label. Mixed content including fetish themes (premature ejaculation, breast milk). Moderate volume."
+  profile:
+    status: active
+    parent: "WILL Co., Ltd."
+    specialty: "Mixed content label covering fetish themes (premature ejaculation, breast milk) and variety scenarios. RKI is the main code; RBB is the best compilation."
+    notes: "Despite the 'Rookie' name, content spans established fetish niches rather than purely debut/newcomer scenarios."
   labels:
     - {code: RKI, label: Rookie, description: "penis/premature ejaculation/breast milk; regular part number"}
     - {code: RBB, label: Rookie, description: "best compilation"}
 
 - company: "ZUKKON & BAKKON"
   description: "WILL's harem/group creampie specialist label. Scenarios feature one woman with multiple men (or vice versa), always ending in creampie."
+  profile:
+    status: active
+    parent: "WILL Co., Ltd."
+    specialty: "Harem/group creampie specialist. ズッコン&バッコン (Zukkon & Bakkon) is Japanese sexual onomatopoeia (thrust-and-smack). All scenarios feature one woman with multiple men, always ending in group creampie. ZUKO is the main code; ZBST is the best compilation."
+    notes: "The label name is a direct onomatopoeic description of the act — consistent with JAV's tradition of extremely literal label naming in the specialty/fetish space."
   labels:
     - {code: ZUKO, label: "ZUKKON & BAKKON", description: "harem/creampie specialist; regular part number"}
     - {code: ZBST, label: "ZUKKON & BAKKON", description: "best compilation"}
 
 - company: Nanpa Japan
   description: "WILL's street pickup (ナンパ, nanpa) specialist label. All content follows the premise of picking up women on the street and convincing them to participate. Blends amateur aesthetic with professional production."
+  profile:
+    status: active
+    parent: "WILL Co., Ltd."
+    specialty: "Street pickup (ナンパ, nanpa) specialist. All content follows the premise of approaching women on the street and convincing them to participate. Blends amateur aesthetic with professional production. NNPJ is the main code; NPJB is the best compilation."
+    notes: "WILL's dedicated nanpa label, distinct from Prestige's hunting/escort series or SOD's amateur formats."
   labels:
     - {code: NNPJ, label: "Nanpa Japan", description: "street pickup/nanpa specialist; regular part number"}
     - {code: NPJB, label: "Nanpa Japan", description: "best compilation"}
@@ -590,6 +665,11 @@
 
 - company: team zero
   description: "WILL label focused on 'nurturing' beautiful girls — the concept is developing inexperienced newcomers into confident performers over a series of releases."
+  profile:
+    status: active
+    parent: "WILL Co., Ltd."
+    specialty: "'Nurturing' concept — developing inexperienced newcomers into confident performers across a series of releases. Tracks an actress's progression from hesitant to fully engaged. TEAM is the main code; TMBT is the best compilation."
+    notes: "The zero-to-engaged development arc is formalized as the entire brand identity, distinct from debut labels — team zero follows the same performers across multiple releases."
   labels:
     - {code: TEAM, label: "team zero", description: "nurturing beautiful girls into lewd actors; regular part number"}
     - {code: TMBT, label: "team zero", description: "best compilation"}
@@ -637,6 +717,17 @@
 
 - company: "Deep's"
   description: "WILL subcontractor. Versatile maker covering variety genres from soft general AV to lesbian and hard anal content."
+  profile:
+    founded: 1999
+    status: active
+    parent: "WILL Co., Ltd. (Outvision; originally SOD until October 2016)"
+    specialty: "Variety/planning (kikaku) with wide genre range — mainstream, pickup/street, lesbian, and hard anal content. Internally tiered by intensity. Most famous as the creator of the Magic Mirror Van (マジックミラー号) concept — one of the most recognizable series in all of Japanese AV. After departing SOD (2016), rebranded as 'The Magic Mirror' (ザ・マジックミラー). DVDES (primary), DVUES, DVUMA, DVDMS."
+    notable_series:
+      - "Magic Mirror Van / マジックミラー号 (flagship series; 25th anniversary ~2022)"
+      - "Magic Mirror Delivery"
+      - "General Men and Women Monitoring AV"
+      - "Homeless series (starring Tsubomi, Nozomi Hazuki, Rei Mizuna)"
+    notes: "Legal name: 株式会社東凛 (Torin Co., Ltd.). Founded August 1999 within SOD. Departed SOD October 2016 alongside Hunter — the Magic Mirror series had been considered a core SOD property, making its migration to WILL a significant industry event. Based in Shinjuku Ward, Tokyo; ~25 employees; capital ¥30M. Director Mamezou is the founder and principal creative force."
   labels:
     - {code: DVDES, label: "Deep's", description: "variety genres; soft general AV to lesbian and hard anal"}
     - {code: DVUES, label: "Deep's", description: "Deep's specialty series"}
@@ -673,6 +764,18 @@
 
 - company: Momotaro Video
   description: "WILL subcontractor. Long-running maker named after the Japanese folk hero Momotaro (Peach Boy). General content across multiple sub-labels."
+  profile:
+    founded: 1995
+    status: active
+    parent: "WILL Co., Ltd. (Outvision subcontractor)"
+    specialty: "General multi-genre content spanning amateur, roleplay/cosplay, creampie, soapland fantasy, and international co-productions. One of the few Japanese indie AV producers to maintain direct international talent networks. ALD (primary), KED, YMDD (secondary codes)."
+    notable_series:
+      - "B★Jean"
+      - "Wild Thing"
+      - "乳魂 / Breast Soul"
+      - "Splash Girl"
+      - "Yariман Wagon"
+    notes: "Founded January 19, 1995 (incorporated). Headquarters Bunkyo Ward, Tokyo; ~30 employees; capital ¥10M. Named after Japan's folk hero Momotarō (Peach Boy) for brand recognition. At peak ranked 3rd in sales among independent AV producers (~¥1.6 billion FY 2010). Subsidiary: 素人onlyプラム (Amateur-only Plum)."
   labels:
     - {code: ALD,  label: "Momotaro video publishing", description: "Momotaro specialty series"}
     - {code: KED,  label: "Momotaro video publishing", description: "Momotaro specialty series"}
@@ -680,12 +783,29 @@
 
 - company: Hajime Project
   description: "WILL subcontractor. Planning/variety content."
+  profile:
+    status: active
+    parent: "WILL Co., Ltd."
+    specialty: "Planning/variety content. HJMO is the main code; HJBB is the best compilation. General planning label under the WILL subcontractor umbrella."
+    notes: "始め (Hajime) = 'beginning/start' — suggests debut or first-experience scenarios, though the label covers broader planning content."
   labels:
     - {code: HJMO, label: "Hajime project", description: regular}
     - {code: HJBB, label: "Hajime project", description: Best}
 
 - company: "M's Video Group"
   description: "WILL subcontractor. M's Video Group (エムズビデオグループ) produces content across standard and mania/fetish lines."
+  profile:
+    founded: ~2005
+    status: active
+    parent: "WILL Co., Ltd. (Outvision distribution)"
+    specialty: "Semen-swallowing (gokkun/ごっくん) and creampie specialist. Studio tagline: 'ザーメン・ゴックンの殿堂' ('Temple of Semen and Swallowing'). Despite the word 'group' in the name, it is a single-label operation. MVSD (standard), MVBD (best), MVGD (general), MVMD (mania/fetish)."
+    notable_actresses:
+      - "Akari Neo (exclusive January 2022 – August 2025)"
+    notable_series:
+      - "Ichigo Ichie / 一期一会 (1996, 200,000+ copies sold — breakthrough hit)"
+      - "Housewife Home Salon (2022–present)"
+      - "Wealthy Old Man's Bulk Creampie Purchase (2016–2025)"
+    notes: "Founded by director Matsumoto Kazuhiko, who ran 'Milky Shop M's' in Shibuya's Dogenzaka with a fans-only door policy (AV knowledge quiz required for entry). Original series launched ~1996; company revived December 2005 with Outvision distribution. Titles release on the third Tuesday of each month."
   labels:
     - {code: MVSD, label: "M's Video Group", description: "regular part number"}
     - {code: MVBD, label: "M's Video Group", description: "best compilation"}
@@ -859,12 +979,22 @@
 
 - company: Art Mode
   description: "Originally a Moodyz sub-label that became independent within WILL. Specializes in public/amateur-style documentary content. Famous for the 'hunting' series by directors Kei Ikeda and Wataru Ishibashi."
+  profile:
+    status: active
+    parent: "WILL Co., Ltd. (originated as Moodyz sub-label)"
+    specialty: "Public/amateur-style documentary content. Originally a Moodyz sub-label that became independent within WILL. Famous for the 'hunting' series directed by Kei Ikeda and Wataru Ishibashi. MDUD is the primary code; ATMD is the specialty series."
+    notes: "The Moodyz origin gives Art Mode lineage within the WILL system. Directors Ikeda and Ishibashi are associated with the label's defining hunting series."
   labels:
     - {code: MDUD, label: "art mode", description: "Public documentary. The hunting series by Kei Ikeda is famous. Originally a Moodyz label; became independent."}
     - {code: ATMD, label: "art mode", description: "Public documentary. The hunting series by Wataru Ishibashi is famous."}
 
 - company: Marx
   description: "WILL subcontractor. Comprehensive label covering projects, dramas, subjective viewpoints, and documentaries. Also has a pregnancy fetish sub-label."
+  profile:
+    status: active
+    parent: "WILL Co., Ltd. (Outvision subcontractor)"
+    specialty: "Comprehensive maker covering projects, dramas, POV/subjective viewpoints, and documentaries. Particularly strong in married woman (人妻/hitozuma) content. Also produces hardcore and maniac works. SMA (standard releases), SMS (pregnant women/孕ませ content), SBB (best compilations)."
+    notes: "マルクス興業 = 'Marx Industries/Entertainment.' No dedicated Wikipedia page. Name likely references the Marx Brothers comedy troupe — Western pop culture naming was common in 1990s-2000s Japanese AV makers. 興業 suffix is standard for Japanese entertainment companies."
   labels:
     - {code: SMA, label: Marx, description: "comprehensive: projects, dramas, subjective viewpoints, documentaries; regular"}
     - {code: SMS, label: Marx, description: "pregnant women"}
@@ -977,6 +1107,11 @@
 
 - company: I Energy
   description: "SOD subsidiary. Planning-heavy label formerly known for the '20 vaginal cumshots' series. Covers a range of sub-labels including SM and idol-concept content."
+  profile:
+    status: active
+    parent: "Soft On Demand (SOD)"
+    specialty: "Planning-heavy SOD subsidiary. Formerly known for the '20 vaginal cumshots' (20連発中出し) series. Multiple sub-labels: IENE (main), IESP (SM specialty), IESM (SM), IEQP (specialty), IDOL (idol concept), BKSP (specialty)."
+    notes: "One of SOD's planning sub-labels covering variety scenarios, SM content, and idol-concept releases under multiple codes."
   labels:
     - {code: IENE, label: "I Energy", description: "main flagship code; planning-heavy; formerly known for '20 vaginal cumshots' series"}
     - {code: IESP, label: "I Energy", description: "special releases"}
@@ -987,6 +1122,11 @@
 
 - company: Akinori
   description: "SOD subsidiary. Planning specialist with all releases unified under the single FSET code."
+  profile:
+    status: active
+    parent: "Soft On Demand (SOD)"
+    specialty: "Planning specialist. All releases unified under the single FSET code. Wide range of scenario-driven content under SOD's umbrella."
+    notes: "The studio name 'Akinori' is a personal given name, suggesting a director-driven or founder-named label identity common in smaller Japanese AV operations."
   labels:
     - {code: FSET, label: Akinori, description: "A production company specializing in projects. All part numbers are unified as FSET."}
 
@@ -1005,6 +1145,11 @@
 
 - company: Sadistic Village
   description: "SOD subsidiary specializing in SM and sadistic project content. Known for the outdoor vibrator shaming series."
+  profile:
+    status: active
+    parent: "Soft On Demand (SOD)"
+    specialty: "SM and sadistic scenario specialist. SVDVD is the main code; SVOMN is the compilation. Known for the outdoor vibrator shaming (屋外バイブ羞恥) series — public humiliation scenarios using vibrators in outdoor/semi-public settings."
+    notes: "The 'village' branding suggests an isolated community with its own sadistic customs — metaphorically consistent with isolated/controlled scenario content."
   labels:
     - {code: SVDVD, label: "Sadistic Village", description: "SM/sadistic projects; vibrator shaming outdoors series"}
     - {code: SVOMN, label: "Sadistic Village", description: "Focused on feature-length films compiled from existing SVDVD works."}
@@ -1026,16 +1171,31 @@
 
 - company: AROUND
   description: "SOD subsidiary. Mature/married woman content label."
+  profile:
+    status: active
+    parent: "Soft On Demand (SOD)"
+    specialty: "Mature/married woman content label. ARSO code. SOD subsidiary targeting the jukujo/hitozuma niche, complementing SOD Create's SDNM (Real Married Women) series."
+    notes: "The name 'AROUND' likely refers to women 'around' a certain age — a common euphemistic framing in the mature woman genre."
   labels:
     - {code: ARSO, label: AROUND, description: "lady content; MYWIFE"}
 
 - company: Mr. Michiru
   description: "SOD subsidiary. Planning specialist with a wide range of scenario-driven content."
+  profile:
+    status: active
+    parent: "Soft On Demand (SOD)"
+    specialty: "Planning specialist. MIST code. Wide range of scenario-driven content under SOD's umbrella."
+    notes: "Director-named label (Mr. Michiru = ミスター充) suggesting a personality-driven creative identity within the SOD system."
   labels:
     - {code: MIST, label: "Mr. Michiru", description: "Planning specialist."}
 
 - company: chick girl
   description: "SOD subsidiary. Schoolgirl-concept content. The name 'Piyo' (ひよこ, chick/baby bird) reflects the youthful aesthetic."
+  profile:
+    status: active
+    parent: "Soft On Demand (SOD)"
+    specialty: "Schoolgirl-concept content. PIYO code — 'Piyo' (ひよこ) = chick/baby bird in Japanese, reflecting the youthful aesthetic. Content centers on school uniform scenarios and young-woman concepts."
+    notes: "The dual naming (English 'chick girl' + Japanese 'Piyo' = baby bird) reinforces the youth theme from two angles."
   labels:
     - {code: PIYO, label: "chick girl", description: "schoolgirl concept"}
 
@@ -1068,6 +1228,11 @@
 
 - company: Hibino
   description: "SOD subsidiary specializing in incest fantasy (step-family) and NTR (netorare/cuckold) scenarios. One of the go-to labels for taboo family drama content."
+  profile:
+    status: active
+    parent: "Soft On Demand (SOD)"
+    specialty: "Incest fantasy (step-family) and NTR (netorare/cuckold) scenario specialist. One of the go-to SOD labels for these genres. HAVD (main), HBAD (specialty), NTR (dedicated NTR code — one of the most on-the-nose product codes in the industry)."
+    notes: "The NTR product code is a direct genre label — netorare (寝取られ, cuckold fantasy) is one of the most popular niche genres in Japanese AV and Hibino is among SOD's primary vehicles for it."
   labels:
     - {code: HAVD, label: Hibino, description: "aunt/incest/step-family specialist"}
     - {code: HBAD, label: Hibino, description: "aunt/incest/step-family; NTR genre"}
@@ -1075,6 +1240,11 @@
 
 - company: "Sosoru x Garson"
   description: "SOD subsidiary. Mixed planning content."
+  profile:
+    status: active
+    parent: "Soft On Demand (SOD)"
+    specialty: "Mixed planning content. GS is the main code; GAR is the Garson specialty series. Small-volume SOD subsidiary covering general planning scenarios."
+    notes: "The 'x' in the name suggests a collaboration or fusion of two planning units. Very small output by SOD subsidiary standards."
   labels:
     - {code: GS,  label: "Sosoru x Garson", description: "regular part number"}
     - {code: GAR, label: "Sosoru x Garson", description: "former part number"}
@@ -1565,6 +1735,11 @@
 
 - company: Aten
   description: "Independent production group with multiple specialty labels. Known for fetish content, mature women, and gyaru-focused lines. Directors like Seichu Matsumoto, Peterman, and OMARU worked across its labels."
+  profile:
+    status: active
+    parent: "Independent"
+    specialty: "Multi-label independent group covering fetish content, mature women, and gyaru-focused labels. 14 codes including DOKS, DKSW, DKIM, NJJD, DKSS, DSKM, TDBR, TDBT, TDMJ, FRE, DIR, PFCK, FETI, LOST — each targeting a different niche within the fetish/mature/gyaru spectrum."
+    notes: "V&R Planning (founded April 1986, 'Visual and Retail') appears related or ancestral to the Aten group based on code patterns, but no definitive corporate lineage confirmed in public sources."
   labels:
     - {code: DOKS, label: "office case",      description: "Fetish specialist. Directors such as Seichu Matsumoto and Peterman worked."}
     - {code: DKSW, label: "case works",       description: fetish}
@@ -1585,6 +1760,11 @@
 
 - company: Taisei
   description: "Independent production group with a large number of niche sub-labels. Each label targets a specific aesthetic or genre — cosplay (COS-P), schoolgirl concepts (JC, Fostering JK), street content (G-Street), etc. Many of the label names in this section are machine-translated from Korean and may not reflect the actual Japanese names."
+  profile:
+    status: active
+    parent: "Independent"
+    specialty: "Independent production group with ~18 niche sub-labels (ZXY, GON, GIGR, BUR, COS, GST, KJC, BJK, GLT, RJK, SCR, VAL, SIS, AT, WA, DAI, AME, NPS), each targeting a specific aesthetic or genre. True long-tail independent operation."
+    notes: "One of the larger independent multi-label groups by code count. No single unifying content type across the sub-labels — each occupies a distinct niche."
   labels:
     - {code: ZXY,  label: glaze,          description: "Taisei specialty series"}
     - {code: GON,  label: "Glaze One",    description: "Taisei specialty series"}
@@ -1634,6 +1814,11 @@
 
 - company: Indies
   description: "Collection of small independent (indie) labels and production companies. These operate outside the major groups (WILL/SOD/Prestige/KMP). Many are run by individual directors or small teams. Content tends to be lower budget but often more niche or experimental. Includes Arc Media Japan (married women), various 'secret' labels, and other micro-producers."
+  profile:
+    status: "varies by label"
+    parent: "Various (true micro-labels outside major groups)"
+    specialty: "Collection of small independent (indie) labels operating entirely outside the major WILL/SOD/Prestige distribution infrastructure. KJ-prefix codes and others. Extremely small individual output."
+    notes: "The 'Indies' database entry is a catch-all for micro-labels with no other classification. KJ-series and associated codes represent the most grassroots tier of Japanese AV production."
   labels:
     - {code: KJ,    label: "Kashiwagi Jyuku", description: "Part numbers that existed from May 2005 to August 2008. Directed by Hana Kashiwagi."}
     - {code: KJG,   label: "Kashiwagi Jyuku", description: "Part numbers that existed from July 2009 to February 2013. Directed by Hana Kashiwagi."}
@@ -1671,11 +1856,21 @@
 
 - company: Ruby
   description: "Independent mature/married women specialist. One of the veteran jukujo labels operating outside the WILL ecosystem."
+  profile:
+    status: active
+    parent: "Independent"
+    specialty: "Veteran independent jukujo (mature/married women) specialist. RUID code. Operates outside the WILL/SOD/Prestige conglomerates in the same space as Monarch and Center Village."
+    notes: "Gemstone name (Ruby) is common branding in the premium/elegant mature-woman positioning, suggesting quality and refinement."
   labels:
     - {code: RUID, label: Ruby, description: "regular part number; ladies' specialty, focus on married women and mature actresses"}
 
 - company: Monarch
   description: "Independent mature/married woman specialist. Similar positioning to Madonna but operating independently. Focuses on elegant, upper-class married women in their 30s-40s."
+  profile:
+    status: active
+    parent: "Independent"
+    specialty: "Mature/married woman specialist. MOND code. Focuses on elegant, upper-class married women in their 30s–40s — similar positioning to Madonna (WILL) but operating independently with a more understated, refined aesthetic."
+    notes: "The 'Monarch' (royalty) name reinforces the upper-class, refined aesthetic distinction from lower-tier mature woman labels."
   labels:
     - {code: MOND, label: Monarch, description: "ladies' specialty; similar positioning to Madonna"}
 
@@ -1798,12 +1993,22 @@
 
 - company: "S-Cute"
   description: "Independent digital-first label. Produces cute, soft-style content similar to G-Area and Himemix. Emphasizes natural/amateur-looking actresses with gentle aesthetics. Primarily distributed through download platforms."
+  profile:
+    status: active
+    parent: "Independent"
+    specialty: "Digital-first independent label. Cute, soft-style content with natural/amateur-looking actresses — gentle aesthetics over aggressive scenarios. Primarily distributed through download platforms. SQTE is the main code; SQSET is the set/compilation."
+    notes: "One of the few independent labels that built its identity around digital distribution from the start rather than transitioning from physical media."
   labels:
     - {code: SQTE,  label: "S-Cute", description: "regular part number; cute/soft content, similar to G-Area and Himemix"}
     - {code: SQSET, label: "S-Cute", description: "S-Cute compilation/specialty"}
 
 - company: Cross
   description: "Independent maker. General content across multiple sub-labels."
+  profile:
+    status: active
+    parent: "Independent"
+    specialty: "Independent maker covering general content across multiple sub-labels. CRAD (main), CRPD (specialty), CRSS (specialty series)."
+    notes: "Small independent operation without a dominant genre identity."
   labels:
     - {code: CRAD, label: Cross, description: "Cross specialty series"}
     - {code: CRPD, label: Cross, description: "Cross specialty series"}
@@ -1811,11 +2016,25 @@
 
 - company: "E-Kiss"
   description: "Independent maker. Cute/friendly concept featuring actresses known for their approachable looks — notable roster included Tsubomi, Rei Mizuna, and Azusa Nagasawa."
+  profile:
+    status: active
+    parent: "Independent"
+    specialty: "Cute/approachable concept independent. EKDV code. Features actresses known for friendly, accessible screen personas rather than aggressive or dominatrix-style performance."
+    notable_actresses:
+      - "Tsubomi"
+      - "Rei Mizuna"
+      - "Azusa Nagasawa"
+    notes: "Notable past roster: Tsubomi, Rei Mizuna, Azusa Nagasawa — all known for approachable, friendly screen presence."
   labels:
     - {code: EKDV, label: "E-Kiss", description: "cute/friendly concept; actresses with cute looks (Tsubomi, Rei Mizuna, Azusa Nagasawa)"}
 
 - company: "Dream Ticket"
   description: "Independent maker known for themed series — cosplay (Annie Cosplay/CGD), seduction scenarios (CMD), school uniform content (DTSL), and various fantasy setups. Moderate production volume with consistent series-based release patterns."
+  profile:
+    status: active
+    parent: "Independent"
+    specialty: "Themed series independent. Known for cosplay (Annie Cosplay/CGD), seduction scenarios (CMD), school uniform content (DTSL), and various fantasy setups. Consistent series-based release structure across 7 active codes (AAD, AMD, CGD, CMD, DTSL, HFD, QBD)."
+    notes: "Multi-code structure assigns each code to a specific scenario type, giving the label breadth within the fantasy/themed category."
   labels:
     - {code: AAD,  label: "Dream Ticket", description: "small breasts series"}
     - {code: AMD,  label: "Dream Ticket", description: "My Erotic Video series"}
@@ -1827,12 +2046,22 @@
 
 - company: "Milky Cat"
   description: "Independent maker specializing in bukkake content. Known for extremely high volume facials — among the most intense bukkake studios in the industry."
+  profile:
+    status: active
+    parent: "Independent"
+    specialty: "Bukakke specialist. Known for extremely high-volume facial scenarios — among the most intense bukakke studios in the industry. DMC is the main code; PSD is the specialty series."
+    notes: "The name combines 'milky' (semen reference) with 'cat' (cute/feminine) — a typical JAV juxtaposition of explicit signifier with an innocent animal name."
   labels:
     - {code: DMC, label: "Milky Cat", description: "bukkake specialist; extremely high volume"}
     - {code: PSD, label: "Milky Cat", description: "Milky Cat specialty series"}
 
 - company: "Takara Visual"
   description: "Independent mature woman specialist. Focuses on ladies/jukujo content."
+  profile:
+    status: active
+    parent: "Independent"
+    specialty: "Mature woman/jukujo specialist. SPRD code. Focuses on ladies content in the mature woman genre alongside Madonna, Tameike Goro, and Ruby."
+    notes: "Takara (宝) = 'treasure' in Japanese — a prestige/luxury framing common among independent mature woman labels."
   labels:
     - {code: SPRD, label: "Takara Visual", description: "ladies specialist"}
 
@@ -1851,6 +2080,11 @@
 
 - company: Aroma
   description: "Independent fetish specialist (Aroma Planning/Aroma Kikaku). One of the longest-running fetish studios — produces content focused on specific body-part fetishes, scent fetishes, and other niche interests. Very specialized content."
+  profile:
+    status: active
+    parent: "Independent"
+    specialty: "Fetish specialist (Aroma Planning / Aroma Kikaku). One of the longer-running independent fetish studios. Content focused on specific body-part fetishes, scent fetishes, and other niche interests. ARMD code."
+    notes: "The name 'Aroma' signals the scent/smell fetish origin, though output has expanded to other body-part and niche fetishes over time."
   labels:
     - {code: ARMD, label: Aroma, description: "fetish specialist"}
 
@@ -1878,11 +2112,22 @@
 
 - company: ZIZ
   description: "Independent cosplay specialist. Known for character cosplay content — actresses dress as specific anime, game, and tokusatsu characters. Higher production value costumes and sets than typical cosplay AV."
+  profile:
+    status: active
+    parent: "Independent"
+    specialty: "Cosplay specialist. Actresses portray specific anime, game, and tokusatsu characters with higher production value costumes and sets than typical cosplay AV. ZIZG code."
+    notes: "Distinct from TMA (anime parody narrative) and GIGA (tokusatsu heroine AV) — ZIZ focuses on faithful character costume recreation applied to standard AV scenarios."
   labels:
     - {code: ZIZG, label: ZIZ, description: "cosplay specialist; character cosplay content"}
 
 - company: "AV Open"
   description: "Not a production company per se — AV Open is an annual industry award/competition event organized by WILL. AVOP codes are used for cross-label collaborative releases, rookie showcases, and special releases tied to the AV Open awards ceremony."
+  profile:
+    founded: 2007
+    status: active
+    parent: "WILL Co., Ltd. (organizer)"
+    specialty: "Annual industry award/competition event — not a production company. The AVOP code is used for cross-label collaborative releases, rookie showcases, and special releases tied to the AV Open ceremony. Studios submit entries competing across categories."
+    notes: "One of the major industry events alongside the AV Grand Prix. Organized by WILL as a cross-label promotional vehicle. AVOP codes in a collection indicate titles produced for or released in connection with the competition."
   labels:
     - {code: AVOP, label: "AV Open", description: "WILL series cross-label releases; used for rookies and AV Open award releases"}
 
@@ -1909,11 +2154,23 @@
 
 - company: "Sky High Entertainment"
   description: "Uncensored (無修正, mushūsei) production company. Produces high-quality uncensored content — known for casting well-known censored AV actresses in uncensored appearances. Notable for featuring Yui Hatano among others."
+  profile:
+    status: active
+    parent: "Independent"
+    specialty: "Premium uncensored (無修正, mushūsei) production company. Known for casting established censored AV actresses in uncensored appearances — bridging the mainstream censored market and the uncensored niche. SKY code."
+    notable_actresses:
+      - "Yui Hatano (uncensored appearances)"
+    notes: "Operates at the premium end of the uncensored market alongside Heyzo and Tokyo Hot. The cross-market casting model distinguishes SKY from purely uncensored-native labels."
   labels:
     - {code: SKY, label: "Sky High Entertainment", description: "uncensored (nomo); known for high-quality cast including Yui Hatano"}
 
 - company: FC2
   description: "User-generated content platform. FC2 PPV (pay-per-view) is a marketplace where individuals sell their own amateur/uncensored video content. Not a production company — FC2 is the platform. Content quality and legality vary widely. Code format is FC2PPV-XXXXXXX (7-digit number). Extremely high volume — tens of thousands of listings."
+  profile:
+    status: active
+    parent: "FC2 Inc. (platform, not AV producer)"
+    specialty: "User-generated content platform. FC2 PPV (pay-per-view) is a marketplace where individuals sell their own amateur/uncensored video content. Not a production company. Content quality and legality vary widely. Extremely high volume — tens of thousands of listings."
+    notes: "FC2PPV is fundamentally different from all other entries — it is a platform/marketplace, not a studio. The FC2PPV-XXXXXXX code format (7-digit number) is distinct from all standard JAV product codes. FC2 Inc. is an internet services company hosting user-generated content."
   labels:
     - {code: FC2PPV, label: FC2, description: "user-generated/amateur uncensored content sold on FC2 platform; code format FC2PPV-XXXXXXX"}
 
