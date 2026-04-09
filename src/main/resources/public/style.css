@@ -1158,3 +1158,68 @@ header h1:hover {
   color: #00bcd4;
   word-break: break-all;
 }
+
+/* ── Video sections (right column of title detail) ─────────────────────── */
+.video-loading,
+.video-empty {
+  color: #666;
+  font-size: 0.85rem;
+  padding: 40px 0;
+  text-align: center;
+}
+.video-section {
+  margin-bottom: 24px;
+}
+.video-divider {
+  border: none;
+  border-top: 1px solid #333;
+  margin: 32px 0;
+}
+.video-header {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+.video-filename {
+  font-weight: 700;
+  color: #fff;
+  font-size: 0.9rem;
+  font-family: ui-monospace, monospace;
+}
+.video-size {
+  color: #666;
+  font-size: 0.8rem;
+}
+.video-thumbs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+  overflow-x: auto;
+}
+.video-thumbs-loading {
+  color: #555;
+  font-size: 0.8rem;
+}
+.video-thumb {
+  width: 160px;
+  height: 90px;
+  object-fit: cover;
+  border-radius: 4px;
+  border: 1px solid #333;
+  flex-shrink: 0;
+  cursor: pointer;
+  transition: border-color 0.15s;
+}
+.video-thumb:hover {
+  border-color: #666;
+}
+.video-player-wrap {
+  margin-bottom: 8px;
+}
+.video-player {
+  width: 100%;
+  max-height: 500px;
+  background: #000;
+  border-radius: 6px;
+}

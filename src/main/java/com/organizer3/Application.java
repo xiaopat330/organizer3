@@ -28,6 +28,7 @@ import com.organizer3.config.volume.OrganizerConfigLoader;
 import com.organizer3.db.LabelSeeder;
 import com.organizer3.db.SchemaInitializer;
 import com.organizer3.db.SchemaUpgrader;
+import com.organizer3.media.ThumbnailService;
 import com.organizer3.enrichment.ActressYamlLoader;
 import com.organizer3.repository.ActressRepository;
 import com.organizer3.repository.LabelRepository;
@@ -47,6 +48,7 @@ import com.organizer3.repository.jdbi.JdbiVideoRepository;
 import com.organizer3.repository.jdbi.JdbiVolumeRepository;
 import com.organizer3.shell.OrganizerShell;
 import com.organizer3.shell.SessionContext;
+import com.organizer3.smb.SmbConnectionFactory;
 import com.organizer3.smb.SmbjConnector;
 import com.organizer3.sync.FullSyncOperation;
 import com.organizer3.sync.IndexLoader;
@@ -60,6 +62,7 @@ import com.organizer3.sync.scanner.ExhibitionScanner;
 import com.organizer3.sync.scanner.SortPoolScanner;
 import com.organizer3.config.volume.VolumeConfig;
 import com.organizer3.web.ActressBrowseService;
+import com.organizer3.web.VideoStreamService;
 import com.organizer3.web.TitleBrowseService;
 import com.organizer3.web.StageNameBackupFile;
 import com.organizer3.web.WebServer;
@@ -201,7 +204,14 @@ public class Application {
                 dbDir.resolve("stagenames.yaml"));
         ActressBrowseService actressBrowseService = new ActressBrowseService(
                 actressRepo, titleRepo, coverPath, volumeSmbPaths, labelRepo, nameLookup, stageNameBackup);
-        WebServer webServer = new WebServer(browseService, actressBrowseService, coverPath.root());
+
+        // Video streaming
+        SmbConnectionFactory smbConnectionFactory = new SmbConnectionFactory(config);
+        VideoStreamService videoStreamService = new VideoStreamService(titleRepo, videoRepo, smbConnectionFactory);
+        ThumbnailService thumbnailService = new ThumbnailService(dbDir, smbConnectionFactory);
+
+        WebServer webServer = new WebServer(browseService, actressBrowseService, coverPath.root(),
+                videoStreamService, thumbnailService);
         webServer.start();
 
         OrganizerShell shell = new OrganizerShell(session, commands);

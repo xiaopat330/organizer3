@@ -1182,7 +1182,9 @@ function openTitleDetail(t) {
   showView('title-detail');
   document.getElementById('title-detail-cover').innerHTML = '';
   document.getElementById('title-detail-info').innerHTML  = '';
+  document.getElementById('title-detail-right').innerHTML = '';
   renderTitleDetail(t);
+  loadTitleVideos(t.code);
 
   // Breadcrumb: include source context
   let crumbs = [];
@@ -1314,6 +1316,89 @@ function renderTitleDetail(t) {
       openActressDetail(Number(link.dataset.actressId));
     });
   });
+}
+
+// ── Title videos ─────────────────────────────────────────────────────────
+function loadTitleVideos(titleCode) {
+  const rightCol = document.getElementById('title-detail-right');
+  rightCol.innerHTML = '<div class="video-loading">Discovering videos\u2026</div>';
+
+  fetch(`/api/titles/${encodeURIComponent(titleCode)}/videos`)
+    .then(r => r.json())
+    .then(videos => {
+      if (!videos || videos.length === 0) {
+        rightCol.innerHTML = '<div class="video-empty">No video files found</div>';
+        return;
+      }
+      rightCol.innerHTML = '';
+      videos.forEach((v, idx) => {
+        if (idx > 0) {
+          rightCol.appendChild(Object.assign(document.createElement('hr'), {
+            className: 'video-divider'
+          }));
+        }
+        rightCol.appendChild(renderVideoSection(v));
+      });
+    })
+    .catch(() => {
+      rightCol.innerHTML = '<div class="video-empty">Could not load videos</div>';
+    });
+}
+
+function renderVideoSection(v) {
+  const section = document.createElement('div');
+  section.className = 'video-section';
+
+  // Header: filename + size
+  const sizeStr = v.fileSize != null ? formatFileSize(v.fileSize) : '';
+  section.innerHTML = `
+    <div class="video-header">
+      <span class="video-filename">${esc(v.filename)}</span>
+      ${sizeStr ? `<span class="video-size">${esc(sizeStr)}</span>` : ''}
+    </div>
+    <div class="video-thumbs" id="video-thumbs-${v.id}">
+      <div class="video-thumbs-loading">Loading previews\u2026</div>
+    </div>
+    <div class="video-player-wrap">
+      <video class="video-player" controls preload="none"
+             src="/api/stream/${v.id}"
+             type="${esc(v.mimeType)}">
+      </video>
+    </div>
+  `;
+
+  // Load thumbnails asynchronously
+  loadVideoThumbnails(v.id);
+
+  return section;
+}
+
+function loadVideoThumbnails(videoId) {
+  fetch(`/api/videos/${videoId}/thumbnails`)
+    .then(r => r.json())
+    .then(urls => {
+      const container = document.getElementById(`video-thumbs-${videoId}`);
+      if (!container) return;
+      if (!urls || urls.length === 0) {
+        container.innerHTML = '';
+        return;
+      }
+      container.innerHTML = urls.map(url =>
+        `<img class="video-thumb" src="${esc(url)}" loading="lazy">`
+      ).join('');
+    })
+    .catch(() => {
+      const container = document.getElementById(`video-thumbs-${videoId}`);
+      if (container) container.innerHTML = '';
+    });
+}
+
+function formatFileSize(bytes) {
+  if (bytes < 0) return '';
+  if (bytes < 1024) return bytes + ' B';
+  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+  if (bytes < 1024 * 1024 * 1024) return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+  return (bytes / (1024 * 1024 * 1024)).toFixed(2) + ' GB';
 }
 
 // ── Titles browse ─────────────────────────────────────────────────────────

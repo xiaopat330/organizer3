@@ -37,7 +37,7 @@ class TitleBrowseServiceTest {
 
     @BeforeEach
     void setUp() {
-        service = new TitleBrowseService(titleRepo, actressRepo, coverPath, labelRepo, titleActressRepo);
+        service = new TitleBrowseService(titleRepo, actressRepo, coverPath, labelRepo, titleActressRepo, Map.of());
     }
 
     @Test

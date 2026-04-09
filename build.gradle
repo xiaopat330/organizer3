@@ -44,6 +44,11 @@ dependencies {
     // Claude API
     implementation "com.anthropic:anthropic-java:${anthropicVersion}"
 
+    // JavaCV (FFmpeg wrapper — thumbnails, transmuxing, transcoding)
+    implementation "org.bytedeco:javacv:${javacvVersion}"
+    implementation "org.bytedeco:ffmpeg:7.1-${javacvVersion}:macosx-arm64"
+    implementation "org.bytedeco:ffmpeg:7.1-${javacvVersion}"
+
     // Utilities
     implementation "org.apache.commons:commons-lang3:${commonsLang3Version}"
     implementation "commons-io:commons-io:${commonsIoVersion}"
