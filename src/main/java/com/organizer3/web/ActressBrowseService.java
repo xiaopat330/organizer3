@@ -151,6 +151,20 @@ public class ActressBrowseService {
                 .toList();
     }
 
+    /** Returns up to {@code limit} most recently visited actresses, newest visit first. */
+    public List<ActressSummary> findLastVisited(int limit) {
+        return actressRepo.findLastVisited(limit).stream()
+                .map(this::toSummary)
+                .toList();
+    }
+
+    /** Returns up to {@code limit} most-visited actresses, highest visit count first. */
+    public List<ActressSummary> findMostVisited(int limit) {
+        return actressRepo.findMostVisited(limit).stream()
+                .map(this::toSummary)
+                .toList();
+    }
+
     /** Paginated bookmarks query. */
     public List<ActressSummary> findBookmarksPaged(int offset, int limit) {
         return actressRepo.findBookmarksPaged(limit, offset).stream()

@@ -99,6 +99,12 @@ public interface ActressRepository {
     /** Returns a random sample of at most {@code limit} actresses. */
     List<Actress> findRandom(int limit);
 
+    /** Returns the most recently visited actresses (visit_count &gt; 0), ordered by last_visited_at DESC. */
+    List<Actress> findLastVisited(int limit);
+
+    /** Returns the most-visited actresses (visit_count &gt; 0), ordered by visit_count DESC. */
+    List<Actress> findMostVisited(int limit);
+
     /**
      * Insert a new actress or update an existing one (matched by id).
      * Returns the actress with its generated id populated.

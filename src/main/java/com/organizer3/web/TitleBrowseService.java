@@ -277,6 +277,16 @@ public class TitleBrowseService {
                 .toList();
     }
 
+    /** Returns the most recently visited titles (visit_count > 0), ordered by last_visited_at DESC. */
+    public List<TitleSummary> findLastVisited(int limit) {
+        return toSummaries(titleRepo.findLastVisited(limit));
+    }
+
+    /** Returns the most-visited titles (visit_count > 0), ordered by visit_count DESC. */
+    public List<TitleSummary> findMostVisited(int limit) {
+        return toSummaries(titleRepo.findMostVisited(limit));
+    }
+
     /** Result of a visit record operation. */
     public record VisitStats(int visitCount, String lastVisitedAt) {}
 

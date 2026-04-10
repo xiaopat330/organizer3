@@ -11,6 +11,8 @@ export const titlesBrowseBtn    = document.getElementById('titles-browse-btn');
 const titleLandingEl            = document.getElementById('title-landing');
 const titleSearchInput          = document.getElementById('title-search-input');
 const titleSearchClearBtn       = document.getElementById('title-search-clear');
+const titleDashboardBtn         = document.getElementById('title-dashboard-btn');
+const titleDashboardEl          = document.getElementById('title-dashboard');
 const titleFavoritesBtn         = document.getElementById('title-favorites-btn');
 const titleBookmarksBtn         = document.getElementById('title-bookmarks-btn');
 const titleStudioBtn            = document.getElementById('title-studio-btn');
@@ -28,7 +30,7 @@ const titleTagsPanel            = document.getElementById('title-tags-panel');
 const TITLE_SEARCH_DELAY_MS  = 350;
 const TITLE_SEARCH_MIN_CHARS = 1;
 
-export let titleBrowseMode = null;   // null | 'search' | 'favorites' | 'bookmarks' | 'collections' | 'unsorted' | 'archive-pool' | 'tags' | 'studio'
+export let titleBrowseMode = null;   // null | 'dashboard' | 'search' | 'favorites' | 'bookmarks' | 'collections' | 'unsorted' | 'archive-pool' | 'tags' | 'studio'
 export let titleSearchTerm = '';
 let titleSearchTimer = null;
 
@@ -95,6 +97,7 @@ export function runTitleBrowseQuery() {
 
 // ── Landing UI state ──────────────────────────────────────────────────────
 function updateTitleLandingSelection() {
+  titleDashboardBtn.classList.toggle('selected', titleBrowseMode === 'dashboard');
   titleFavoritesBtn.classList.toggle('selected', titleBrowseMode === 'favorites');
   titleBookmarksBtn.classList.toggle('selected', titleBrowseMode === 'bookmarks');
   titleStudioBtn.classList.toggle('selected',    titleBrowseMode === 'studio');
@@ -106,7 +109,8 @@ function updateTitleLandingSelection() {
 
 function updateTitleBreadcrumb() {
   const crumbs = [{ label: 'Titles', action: () => showTitlesBrowse() }];
-  if (titleBrowseMode === 'favorites')     crumbs.push({ label: 'Favorites' });
+  if (titleBrowseMode === 'dashboard')     { /* no sub-item — dashboard IS the home */ }
+  else if (titleBrowseMode === 'favorites')     crumbs.push({ label: 'Favorites' });
   else if (titleBrowseMode === 'bookmarks')  crumbs.push({ label: 'Bookmarks' });
   else if (titleBrowseMode === 'studio')     crumbs.push({ label: 'Studio' });
   else if (titleBrowseMode === 'collections') crumbs.push({ label: 'Collections' });
@@ -117,6 +121,39 @@ function updateTitleBreadcrumb() {
   else if (titleBrowseMode === 'search')
     crumbs.push({ label: `search: "${titleSearchTerm}"` });
   updateBreadcrumb(crumbs);
+}
+
+// ── Dashboard render ──────────────────────────────────────────────────────
+async function renderTitleDashboard() {
+  titleDashboardEl.innerHTML = '<div class="dashboard-loading">loading…</div>';
+  try {
+    const res = await fetch('/api/titles/dashboard');
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    const lastVisited = data.lastVisited || [];
+    const mostVisited = data.mostVisited || [];
+    if (lastVisited.length === 0 && mostVisited.length === 0) {
+      titleDashboardEl.innerHTML = '<div class="dashboard-empty">No visits yet — browse some titles!</div>';
+      return;
+    }
+    let html = '';
+    if (lastVisited.length > 0)
+      html += '<div class="dashboard-section"><div class="dashboard-section-title">Last Visited</div><div class="dashboard-card-grid" id="title-dashboard-last-visited"></div></div>';
+    if (mostVisited.length > 0)
+      html += '<div class="dashboard-section"><div class="dashboard-section-title">Most Visited</div><div class="dashboard-card-grid" id="title-dashboard-most-visited"></div></div>';
+    titleDashboardEl.innerHTML = html;
+    if (lastVisited.length > 0) {
+      const g = document.getElementById('title-dashboard-last-visited');
+      lastVisited.forEach(t => g.appendChild(makeTitleCard(t)));
+    }
+    if (mostVisited.length > 0) {
+      const g = document.getElementById('title-dashboard-most-visited');
+      mostVisited.forEach(t => g.appendChild(makeTitleCard(t)));
+    }
+  } catch (err) {
+    titleDashboardEl.innerHTML = '<div class="dashboard-empty">Error loading dashboard.</div>';
+    console.error(err);
+  }
 }
 
 // ── Browse mode selection ─────────────────────────────────────────────────
@@ -131,6 +168,16 @@ export function selectTitleBrowseMode(modeKey) {
   updateTitleLandingSelection();
   updateTitleBreadcrumb();
   titlesBrowseBtn.classList.add('active');
+  if (modeKey === 'dashboard') {
+    showView('titles-browse');
+    document.getElementById('titles-browse-grid').style.display = 'none';
+    hideStudioGroupRow();
+    hideTagsPanel();
+    titleDashboardEl.style.display = 'block';
+    renderTitleDashboard();
+    return;
+  }
+  titleDashboardEl.style.display = 'none';
   if (modeKey === 'studio') {
     document.getElementById('titles-browse-grid').style.display = 'none';
     titleStudioLabelsEl.style.display = 'none';
@@ -176,12 +223,12 @@ export function showTitlesBrowse() {
     const header = document.querySelector('header');
     if (header) titleLandingEl.style.top = header.offsetHeight + 'px';
   });
-  updateTitleBreadcrumb();
-  runTitleBrowseQuery();
+  selectTitleBrowseMode('dashboard');
   ensureTitleLabels(); // preload in background for tab-completion
 }
 
 titlesBrowseBtn.addEventListener('click', showTitlesBrowse);
+titleDashboardBtn.addEventListener('click', () => selectTitleBrowseMode('dashboard'));
 
 // ── Label dropdown ────────────────────────────────────────────────────────
 function extractAlphaPrefix(raw) {

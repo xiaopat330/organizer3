@@ -604,6 +604,28 @@ public class JdbiTitleRepository implements TitleRepository {
         );
     }
 
+    @Override
+    public List<Title> findLastVisited(int limit) {
+        List<Title> titles = jdbi.withHandle(h ->
+                h.createQuery("SELECT * FROM titles WHERE visit_count > 0 ORDER BY last_visited_at DESC LIMIT :limit")
+                        .bind("limit", limit)
+                        .map(MAPPER)
+                        .list()
+        );
+        return populateLocationsBatch(titles);
+    }
+
+    @Override
+    public List<Title> findMostVisited(int limit) {
+        List<Title> titles = jdbi.withHandle(h ->
+                h.createQuery("SELECT * FROM titles WHERE visit_count > 0 ORDER BY visit_count DESC, last_visited_at DESC LIMIT :limit")
+                        .bind("limit", limit)
+                        .map(MAPPER)
+                        .list()
+        );
+        return populateLocationsBatch(titles);
+    }
+
     // -------------------------------------------------------------------------
     // Location population helpers
     // -------------------------------------------------------------------------

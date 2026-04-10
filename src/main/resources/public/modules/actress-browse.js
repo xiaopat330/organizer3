@@ -10,6 +10,8 @@ export const actressesBtn          = document.getElementById('actresses-btn');
 export const actressLandingEl      = document.getElementById('actress-landing');
 const actressSearchInput    = document.getElementById('actress-search-input');
 const actressSearchClearBtn = document.getElementById('actress-search-clear');
+const actressDashboardBtn   = document.getElementById('actress-dashboard-btn');
+const actressDashboardEl    = document.getElementById('actress-dashboard');
 const actressFavoritesBtn   = document.getElementById('actress-favorites-btn');
 const actressBookmarksBtn   = document.getElementById('actress-bookmarks-btn');
 const actressArchivesBtn    = document.getElementById('actress-archives-btn');
@@ -73,6 +75,7 @@ buildActressTierChips();
 
 // ── Selection state helpers ───────────────────────────────────────────────
 export function updateActressLandingSelection() {
+  actressDashboardBtn.classList.toggle('selected', actressBrowseMode === 'dashboard');
   actressFavoritesBtn.classList.toggle('selected', actressBrowseMode === 'favorites');
   actressBookmarksBtn.classList.toggle('selected', actressBrowseMode === 'bookmarks');
   actressArchivesBtn.classList.toggle('selected',  actressBrowseMode === 'archive-volumes');
@@ -85,6 +88,7 @@ export function updateActressLandingSelection() {
 
 export function actressBrowseLabel(modeKey) {
   if (!modeKey) return '';
+  if (modeKey === 'dashboard')       return 'Dashboard';
   if (modeKey === 'favorites')       return 'Favorites';
   if (modeKey === 'bookmarks')       return 'Bookmarks';
   if (modeKey === 'archive-volumes') return 'Archive';
@@ -96,7 +100,8 @@ export function actressBrowseLabel(modeKey) {
 
 export function updateActressBreadcrumb() {
   const crumbs = [{ label: 'Actresses', action: () => showActressLanding() }];
-  if (actressBrowseMode) crumbs.push({ label: actressBrowseLabel(actressBrowseMode) });
+  if (actressBrowseMode && actressBrowseMode !== 'dashboard')
+    crumbs.push({ label: actressBrowseLabel(actressBrowseMode) });
   updateBreadcrumb(crumbs);
 }
 
@@ -141,6 +146,42 @@ export function resetActressState() {
   updateActressLandingSelection();
 }
 
+// ── Dashboard render ──────────────────────────────────────────────────────
+async function renderActressDashboard() {
+  actressDashboardEl.innerHTML = '<div class="dashboard-loading">loading…</div>';
+  try {
+    const res = await fetch('/api/actresses/dashboard');
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    const lastVisited = data.lastVisited || [];
+    const mostVisited = data.mostVisited || [];
+
+    if (lastVisited.length === 0 && mostVisited.length === 0) {
+      actressDashboardEl.innerHTML = '<div class="dashboard-empty">No visits yet — browse some actresses!</div>';
+      return;
+    }
+
+    let html = '';
+    if (lastVisited.length > 0)
+      html += '<div class="dashboard-section"><div class="dashboard-section-title">Last Visited</div><div class="dashboard-card-grid" id="dashboard-last-visited"></div></div>';
+    if (mostVisited.length > 0)
+      html += '<div class="dashboard-section"><div class="dashboard-section-title">Most Visited</div><div class="dashboard-card-grid" id="dashboard-most-visited"></div></div>';
+    actressDashboardEl.innerHTML = html;
+
+    if (lastVisited.length > 0) {
+      const g = document.getElementById('dashboard-last-visited');
+      lastVisited.forEach(a => g.appendChild(makeActressCard(a)));
+    }
+    if (mostVisited.length > 0) {
+      const g = document.getElementById('dashboard-most-visited');
+      mostVisited.forEach(a => g.appendChild(makeActressCard(a)));
+    }
+  } catch (err) {
+    actressDashboardEl.innerHTML = '<div class="dashboard-empty">Error loading dashboard.</div>';
+    console.error(err);
+  }
+}
+
 // ── Browse mode selection ─────────────────────────────────────────────────
 export async function selectActressBrowseMode(modeKey) {
   actressBrowseMode = modeKey;
@@ -150,6 +191,23 @@ export async function selectActressBrowseMode(modeKey) {
     if (actressSearchInput.value !== '') actressSearchInput.value = '';
     actressSearchInput.classList.remove('invalid');
   }
+  if (modeKey === 'dashboard') {
+    hideActressTierRow();
+    hideActressStudioGroupRow();
+    updateActressLandingSelection();
+    updateActressBreadcrumb();
+    actressesBtn.classList.add('active');
+    showView('actresses');
+    actressGridEl.style.display = 'none';
+    actressDashboardEl.style.display = 'block';
+    requestAnimationFrame(() => {
+      const header = document.querySelector('header');
+      if (header) actressLandingEl.style.top = header.offsetHeight + 'px';
+    });
+    await renderActressDashboard();
+    return;
+  }
+  actressDashboardEl.style.display = 'none';
   if (modeKey === 'studio') {
     hideActressTierRow();
     updateActressLandingSelection();
@@ -184,23 +242,7 @@ export async function selectActressBrowseMode(modeKey) {
 }
 
 export function showActressLanding() {
-  actressesBtn.classList.add('active');
-  if (actressSearchTimer) { clearTimeout(actressSearchTimer); actressSearchTimer = null; }
-  actressBrowseMode = null;
-  actressSearchTerm = '';
-  actressSearchInput.value = '';
-  actressSearchInput.classList.remove('invalid');
-  hideActressStudioGroupRow();
-  hideActressTierRow();
-  updateActressLandingSelection();
-  updateBreadcrumb([{ label: 'Actresses' }]);
-  showView('actresses');
-  requestAnimationFrame(() => {
-    const header = document.querySelector('header');
-    if (header) actressLandingEl.style.top = header.offsetHeight + 'px';
-  });
-  setActiveGrid(actressScrollGrid);
-  clearActressGrid();
+  selectActressBrowseMode('dashboard');
 }
 
 // ── Search input ──────────────────────────────────────────────────────────
@@ -270,6 +312,7 @@ actressSearchClearBtn.addEventListener('click', () => {
   actressSearchInput.focus();
 });
 
+actressDashboardBtn.addEventListener('click', () => selectActressBrowseMode('dashboard'));
 actressFavoritesBtn.addEventListener('click', () => selectActressBrowseMode('favorites'));
 actressBookmarksBtn.addEventListener('click', () => selectActressBrowseMode('bookmarks'));
 actressArchivesBtn.addEventListener('click',  () => selectActressBrowseMode('archive-volumes'));
@@ -278,7 +321,7 @@ actressTierBtn.addEventListener('click', () => selectActressBrowseMode(`tier-${l
 
 actressesBtn.addEventListener('click', e => {
   e.stopPropagation();
-  selectActressBrowseMode('favorites');
+  selectActressBrowseMode('dashboard');
 });
 
 // ── Actress Studio browser ────────────────────────────────────────────────
