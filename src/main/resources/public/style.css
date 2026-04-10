@@ -297,6 +297,16 @@ header h1:hover {
   font-family: inherit;
 }
 
+.actress-landing-dashboard        { color: #e040fb; }
+.actress-landing-dashboard .actress-landing-activity { stroke: #e040fb; }
+.actress-landing-dashboard:hover,
+.actress-landing-dashboard.selected {
+  color: #f060ff;
+  background: #1a0820;
+  border-color: #380a44;
+}
+.actress-landing-dashboard.selected .actress-landing-activity { stroke: #f060ff; }
+
 .actress-landing-favorites        { color: #f0c040; }
 .actress-landing-favorites .actress-landing-star   { fill: #f0c040; }
 .actress-landing-favorites:hover,
@@ -1099,6 +1109,32 @@ header h1:hover {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+/* ── Actress dashboard ───────────────────────────────────────────────── */
+#actress-dashboard {
+  padding: 20px 16px 0;
+}
+.dashboard-section {
+  margin-bottom: 32px;
+}
+.dashboard-section-title {
+  font-size: 1rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: #fff;
+  margin-bottom: 14px;
+}
+.dashboard-card-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 12px;
+}
+.dashboard-loading,
+.dashboard-empty {
+  font-size: 0.8rem;
+  color: #555;
+  padding: 24px 0;
 }
 
 /* ── Actress detail panel ─────────────────────────────────────────────── */

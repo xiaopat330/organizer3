@@ -301,6 +301,26 @@ public class JdbiActressRepository implements ActressRepository {
     }
 
     @Override
+    public List<Actress> findLastVisited(int limit) {
+        return jdbi.withHandle(h ->
+                h.createQuery("SELECT * FROM actresses WHERE visit_count > 0 ORDER BY last_visited_at DESC LIMIT :limit")
+                        .bind("limit", limit)
+                        .map(ACTRESS_MAPPER)
+                        .list()
+        );
+    }
+
+    @Override
+    public List<Actress> findMostVisited(int limit) {
+        return jdbi.withHandle(h ->
+                h.createQuery("SELECT * FROM actresses WHERE visit_count > 0 ORDER BY visit_count DESC, last_visited_at DESC LIMIT :limit")
+                        .bind("limit", limit)
+                        .map(ACTRESS_MAPPER)
+                        .list()
+        );
+    }
+
+    @Override
     public List<Actress> findByVolumeIds(List<String> volumeIds) {
         if (volumeIds == null || volumeIds.isEmpty()) return List.of();
         return jdbi.withHandle(h ->

@@ -194,6 +194,12 @@ public class WebServer {
                 ctx.json(browseService.newestActressesByLabels(labels, Math.min(limit, 50)));
             });
 
+            app.get("/api/titles/dashboard", ctx -> {
+                var lastVisited = browseService.findLastVisited(10);
+                var mostVisited = browseService.findMostVisited(10);
+                ctx.json(Map.of("lastVisited", lastVisited, "mostVisited", mostVisited));
+            });
+
             app.get("/api/titles/random", ctx -> {
                 int limit = ctx.queryParamAsClass("limit", Integer.class).getOrDefault(24);
                 limit = Math.max(1, Math.min(limit, TitleBrowseService.MAX_LIMIT));
@@ -291,6 +297,12 @@ public class WebServer {
                 } else {
                     ctx.status(400);
                 }
+            });
+
+            app.get("/api/actresses/dashboard", ctx -> {
+                var lastVisited  = actressBrowseService.findLastVisited(10);
+                var mostVisited  = actressBrowseService.findMostVisited(10);
+                ctx.json(Map.of("lastVisited", lastVisited, "mostVisited", mostVisited));
             });
 
             app.get("/api/actresses/{id}", ctx -> {

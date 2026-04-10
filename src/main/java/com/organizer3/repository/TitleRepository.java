@@ -129,4 +129,10 @@ public interface TitleRepository {
      * No-op if the title does not exist.
      */
     void recordVisit(long titleId);
+
+    /** Returns the most recently visited titles (visit_count &gt; 0), ordered by last_visited_at DESC. */
+    List<Title> findLastVisited(int limit);
+
+    /** Returns the most-visited titles (visit_count &gt; 0), ordered by visit_count DESC. */
+    List<Title> findMostVisited(int limit);
 }
