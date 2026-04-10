@@ -679,6 +679,8 @@ function showTitlesView() {
     actressSearchInput.value = '';
     actressSearchInput.classList.remove('invalid');
   }
+  lastActressTier = 'GODDESS';
+  hideActressTierRow();
   updateActressLandingSelection();
   updateBreadcrumb([]);
   activateHomeTab(homeTab);
@@ -692,9 +694,11 @@ const actressSearchClearBtn = document.getElementById('actress-search-clear');
 const actressFavoritesBtn   = document.getElementById('actress-favorites-btn');
 const actressBookmarksBtn   = document.getElementById('actress-bookmarks-btn');
 const actressArchivesBtn    = document.getElementById('actress-archives-btn');
+const actressTierBtn        = document.getElementById('actress-tier-btn');
+const actressTierDivider    = document.getElementById('actress-tier-divider');
 const actressTierRow        = document.getElementById('actress-landing-tier-row');
 
-const ACTRESS_TIERS = ['LIBRARY', 'MINOR', 'POPULAR', 'SUPERSTAR', 'GODDESS'];
+const ACTRESS_TIERS = ['GODDESS', 'SUPERSTAR', 'POPULAR', 'MINOR', 'LIBRARY'];
 const ACTRESS_SEARCH_DELAY_MS = 350;
 const ACTRESS_SEARCH_MIN_CHARS = 2;
 
@@ -707,6 +711,19 @@ const ACTRESS_SEARCH_MIN_CHARS = 2;
 let actressBrowseMode = null;
 let actressSearchTerm = '';
 let actressSearchTimer = null;
+let actressTierPanelOpen = false;
+let lastActressTier = 'GODDESS';
+
+function showActressTierRow() {
+  actressTierPanelOpen = true;
+  actressTierDivider.style.display = '';
+  actressTierRow.style.display = '';
+}
+function hideActressTierRow() {
+  actressTierPanelOpen = false;
+  actressTierDivider.style.display = 'none';
+  actressTierRow.style.display = 'none';
+}
 
 function buildActressTierChips() {
   actressTierRow.innerHTML = '';
@@ -726,6 +743,7 @@ function updateActressLandingSelection() {
   actressFavoritesBtn.classList.toggle('selected', actressBrowseMode === 'favorites');
   actressBookmarksBtn.classList.toggle('selected', actressBrowseMode === 'bookmarks');
   actressArchivesBtn.classList.toggle('selected',  actressBrowseMode === 'archive-volumes');
+  actressTierBtn.classList.toggle('selected', actressTierPanelOpen);
   actressTierRow.querySelectorAll('.actress-landing-tier').forEach(btn => {
     btn.classList.toggle('selected', actressBrowseMode === `tier-${btn.dataset.tier}`);
   });
@@ -795,6 +813,12 @@ async function selectActressBrowseMode(modeKey) {
     if (actressSearchInput.value !== '') actressSearchInput.value = '';
     actressSearchInput.classList.remove('invalid');
   }
+  if (modeKey.startsWith('tier-')) {
+    lastActressTier = modeKey.slice(5);
+    showActressTierRow();
+  } else {
+    hideActressTierRow();
+  }
   updateActressLandingSelection();
   updateActressBreadcrumb();
   actressesBtn.classList.add('active');
@@ -812,6 +836,7 @@ function showActressLanding() {
   actressSearchTerm = '';
   actressSearchInput.value = '';
   actressSearchInput.classList.remove('invalid');
+  hideActressTierRow();
   updateActressLandingSelection();
   updateBreadcrumb([{ label: 'Actresses' }]);
   showView('actresses');
@@ -855,6 +880,7 @@ function scheduleActressSearch() {
     actressSearchTimer = null;
     actressSearchTerm = raw;
     actressBrowseMode = 'search';
+    hideActressTierRow();
     updateActressLandingSelection();
     updateActressBreadcrumb();
     actressesBtn.classList.add('active');
@@ -875,6 +901,7 @@ actressSearchInput.addEventListener('keydown', e => {
   if (raw.length < ACTRESS_SEARCH_MIN_CHARS) { clearActressGrid(); return; }
   actressSearchTerm = raw;
   actressBrowseMode = 'search';
+  hideActressTierRow();
   updateActressLandingSelection();
   updateActressBreadcrumb();
   actressesBtn.classList.add('active');
@@ -901,6 +928,10 @@ actressSearchClearBtn.addEventListener('click', () => {
 actressFavoritesBtn.addEventListener('click', () => selectActressBrowseMode('favorites'));
 actressBookmarksBtn.addEventListener('click', () => selectActressBrowseMode('bookmarks'));
 actressArchivesBtn.addEventListener('click',  () => selectActressBrowseMode('archive-volumes'));
+
+actressTierBtn.addEventListener('click', () => {
+  selectActressBrowseMode(`tier-${lastActressTier}`);
+});
 
 // ── Actress detail ────────────────────────────────────────────────────────
 async function openActressDetail(actressId) {
@@ -2274,6 +2305,8 @@ function showTitlesBrowse() {
     actressSearchInput.value = '';
     actressSearchInput.classList.remove('invalid');
   }
+  lastActressTier = 'GODDESS';
+  hideActressTierRow();
   updateActressLandingSelection();
   if (titleSearchTimer) { clearTimeout(titleSearchTimer); titleSearchTimer = null; }
   if (tagsDebounceTimer) { clearTimeout(tagsDebounceTimer); tagsDebounceTimer = null; }

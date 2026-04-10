@@ -357,6 +357,16 @@ header h1:hover {
 }
 .actress-landing-archives.selected .actress-landing-archive { stroke: #50d8c0; }
 
+.actress-landing-tier-btn        { color: #d4924a; }
+.actress-landing-tier-btn .actress-landing-levels { stroke: #d4924a; }
+.actress-landing-tier-btn:hover,
+.actress-landing-tier-btn.selected {
+  color: #f0a855;
+  background: #1a1006;
+  border-color: #3a2010;
+}
+.actress-landing-tier-btn.selected .actress-landing-levels { stroke: #f0a855; }
+
 .actress-landing-tags        { color: #50c878; }
 .actress-landing-tags .actress-landing-tag { stroke: #50c878; }
 .actress-landing-tags:hover,
