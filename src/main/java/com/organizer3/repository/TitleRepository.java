@@ -135,4 +135,74 @@ public interface TitleRepository {
 
     /** Returns the most-visited titles (visit_count &gt; 0), ordered by visit_count DESC. */
     List<Title> findMostVisited(int limit);
+
+    // ── Dashboard module queries ─────────────────────────────────────────────
+
+    /** Light projection: (labelCode, score) for a label's aggregated engagement score. */
+    record LabelScore(String code, double score) {}
+
+    /** Light projection for library stats. */
+    record LibraryStats(long totalTitles, long totalLabels, long unseen, long addedThisMonth, long addedThisYear) {}
+
+    /**
+     * Find titles whose earliest location added_date is on or after {@code since}, ordered
+     * newest-first. Used for "Just Added". Excludes any title whose code is in {@code excludeCodes}.
+     */
+    List<Title> findAddedSince(java.time.LocalDate since, int limit, java.util.Set<String> excludeCodes);
+
+    /**
+     * Same as {@link #findAddedSince} but restricted to titles whose label (uppercased) is in
+     * {@code labels}. Used for "From Favorite Labels".
+     */
+    List<Title> findAddedSinceByLabels(java.time.LocalDate since, java.util.Collection<String> labels,
+                                        int limit, java.util.Set<String> excludeCodes);
+
+    /**
+     * Find titles whose release_date OR earliest added_date month-day matches the given
+     * month/day, ordered by year ascending (oldest first).
+     */
+    List<Title> findAnniversary(int month, int day, int limit);
+
+    /**
+     * Compute per-label aggregated engagement scores across all titles:
+     * {@code sum(visitCount) + 3*favoriteCount + 2*bookmarkCount}. Returns rows with score &gt; 0
+     * ordered by raw score DESC. Caller can apply weighted random selection on top.
+     */
+    List<LabelScore> computeLabelScores(int limit);
+
+    /** Compute scalar library stats in a single pass where possible. */
+    LibraryStats computeLibraryStats();
+
+    /**
+     * Find candidate titles for the Spotlight module (one big card, weighted random pick).
+     * Candidate pool: favorited/bookmarked titles, titles for loved actresses, titles with
+     * loved labels, or titles whose actress tier is ≥ SUPERSTAR. Returns a larger candidate set
+     * with a computed score column so the caller can do weighted sampling.
+     *
+     * <p>Returns up to {@code limit} rows ordered by computed score DESC. Caller applies
+     * weighted random sampling and excludes codes in {@code excludeCodes}.
+     *
+     * @param lovedLabels        set of loved label codes (uppercase)
+     * @param lovedActressIds    set of loved actress ids (favorited/bookmarked/high-tier)
+     * @param superstarTiers     tier names counted as "superstar or above"
+     */
+    List<Title> findSpotlightCandidates(java.util.Set<String> lovedLabels,
+                                         java.util.Set<Long> lovedActressIds,
+                                         java.util.Set<String> superstarTiers,
+                                         int limit,
+                                         java.util.Set<String> excludeCodes);
+
+    /**
+     * Find candidates for Forgotten Attic:
+     * visitCount = 0 OR lastVisitedAt &lt; now - 180d, AND (addedDate &lt; 60d OR addedDate &gt; 365d).
+     * Sorted by computed score DESC (age dominates).
+     */
+    List<Title> findForgottenAtticCandidates(int limit, java.util.Set<String> excludeCodes);
+
+    /**
+     * Find candidates for Forgotten Favorites:
+     * favorite=1 AND (lastVisitedAt IS NULL OR lastVisitedAt &lt; now - 90d).
+     * Sorted by staleness-dominated score DESC.
+     */
+    List<Title> findForgottenFavoritesCandidates(int limit, java.util.Set<String> excludeCodes);
 }

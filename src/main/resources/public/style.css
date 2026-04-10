@@ -1151,6 +1151,346 @@ header h1:hover {
   padding: 24px 0;
 }
 
+/* ── Titles dashboard ─────────────────────────────────────────────────── */
+#title-dashboard {
+  padding: 20px 16px 40px;
+}
+
+.dashboard-section-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  text-transform: uppercase;
+}
+
+.dashboard-section-badge {
+  font-size: 0.7rem;
+  font-weight: 500;
+  color: #888;
+  letter-spacing: 0.02em;
+  text-transform: none;
+  background: #1a1a1a;
+  border: 1px solid #262626;
+  padding: 2px 8px;
+  border-radius: 10px;
+}
+
+/* Bordered standalone sections. */
+.dashboard-section-bordered {
+  border: 1px solid #2a2a2a;
+  border-radius: 4px;
+  padding: 14px;
+}
+
+/* Accent treatment for the On Deck hero strip. */
+.dashboard-section-accent .dashboard-section-title {
+  color: #ffb347;
+  border-left: 3px solid #ffb347;
+  padding-left: 10px;
+}
+
+/* Hero strip: 8 cards across on wide screens, graceful fallback. */
+#dash-on-deck {
+  grid-template-columns: repeat(8, 1fr);
+}
+@media (max-width: 1600px) {
+  #dash-on-deck { grid-template-columns: repeat(6, 1fr); }
+}
+@media (max-width: 1200px) {
+  #dash-on-deck { grid-template-columns: repeat(5, 1fr); }
+}
+
+/* Default strip width for other modules. */
+#dash-just-added,
+#dash-fav-labels,
+#dash-forgotten-attic,
+#dash-forgotten-favs,
+#dash-on-this-day {
+  grid-template-columns: repeat(6, 1fr);
+}
+@media (max-width: 1400px) {
+  #dash-just-added,
+  #dash-fav-labels,
+  #dash-forgotten-attic,
+  #dash-forgotten-favs,
+  #dash-on-this-day { grid-template-columns: repeat(5, 1fr); }
+}
+@media (max-width: 1100px) {
+  #dash-just-added,
+  #dash-fav-labels,
+  #dash-forgotten-attic,
+  #dash-forgotten-favs,
+  #dash-on-this-day { grid-template-columns: repeat(4, 1fr); }
+}
+
+/* Compact card variant — Recently Viewed strip. */
+.dashboard-card-grid-compact {
+  grid-template-columns: repeat(6, 1fr);
+  gap: 10px;
+}
+@media (max-width: 1400px) {
+  .dashboard-card-grid-compact { grid-template-columns: repeat(5, 1fr); }
+}
+@media (max-width: 1100px) {
+  .dashboard-card-grid-compact { grid-template-columns: repeat(4, 1fr); }
+}
+
+.card-compact .cover-wrap {
+  aspect-ratio: 17 / 10;
+}
+.card-compact .card-info-compact {
+  padding: 6px 8px 8px;
+}
+.card-compact .title-code {
+  font-size: 0.72rem;
+}
+.card-compact .actress-name-compact {
+  font-size: 0.7rem;
+  margin: 2px 0 0;
+}
+.title-card-visited-compact {
+  font-size: 0.65rem;
+  color: #666;
+  margin-top: 2px;
+}
+
+/* Aging label badge on Just Added / From Favorite Labels cards. */
+.title-card-aging {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  background: rgba(0, 0, 0, 0.72);
+  color: #d0d0d0;
+  font-size: 0.62rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  padding: 2px 7px;
+  border-radius: 10px;
+  backdrop-filter: blur(2px);
+  pointer-events: none;
+}
+
+/* Top info panel: Spotlight left + Library/Top Labels right. */
+.dashboard-top-panel {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  align-items: start;
+  margin-bottom: 32px;
+}
+@media (max-width: 1100px) {
+  .dashboard-top-panel { grid-template-columns: 1fr; }
+}
+.dashboard-top-panel-left {
+  border: 1px solid #2a2a2a;
+  border-radius: 4px;
+  padding: 14px;
+}
+.dashboard-top-panel-left .dashboard-section-title {
+  margin-bottom: 10px;
+}
+.dashboard-top-panel-right {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+/* Upper sub-row: Top Labels + Library side by side. */
+.dashboard-top-right-upper {
+  display: grid;
+  grid-template-columns: 1.2fr 1fr;
+  gap: 12px;
+}
+/* All sections in the right column get the same bordered-tile treatment. */
+.dashboard-top-panel-right .dashboard-section {
+  border: 1px solid #2a2a2a;
+  border-radius: 4px;
+  padding: 14px;
+  margin-bottom: 0;
+}
+/* On This Day compact strip: 3 columns fixed. */
+.dashboard-top-panel-right #dash-on-this-day {
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+}
+
+/* Side-by-side panel: two bordered cells. */
+.dashboard-side-panel {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  align-items: start;
+  margin-bottom: 32px;
+}
+@media (max-width: 1100px) {
+  .dashboard-side-panel { grid-template-columns: 1fr; }
+}
+.dashboard-side-panel-cell {
+  border: 1px solid #2a2a2a;
+  border-radius: 4px;
+  padding: 14px;
+}
+.dashboard-side-panel-cell .dashboard-section {
+  margin-bottom: 0;
+}
+
+/* Panel 2: 35% recently-viewed / 65% just-added. */
+.dashboard-panel-2 {
+  grid-template-columns: 35fr 65fr;
+}
+@media (max-width: 1100px) {
+  .dashboard-panel-2 { grid-template-columns: 1fr; }
+}
+
+/* Card column overrides inside panel-2 cells. */
+.dashboard-panel-2 #dash-recently-viewed {
+  grid-template-columns: repeat(2, 1fr);
+}
+.dashboard-panel-2 #dash-just-added {
+  grid-template-columns: repeat(4, 1fr);
+}
+@media (max-width: 1400px) {
+  .dashboard-panel-2 #dash-recently-viewed { grid-template-columns: repeat(2, 1fr); }
+  .dashboard-panel-2 #dash-just-added      { grid-template-columns: repeat(4, 1fr); }
+}
+@media (max-width: 1100px) {
+  .dashboard-panel-2 #dash-recently-viewed { grid-template-columns: repeat(3, 1fr); }
+  .dashboard-panel-2 #dash-just-added      { grid-template-columns: repeat(4, 1fr); }
+}
+
+/* Spotlight rotation crossfade. */
+@keyframes spotlight-fade-out {
+  from { opacity: 1; }
+  to   { opacity: 0; }
+}
+@keyframes spotlight-fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+.spotlight-exit {
+  animation: spotlight-fade-out 0.6s ease forwards;
+  pointer-events: none;
+  position: absolute;
+  width: 100%;
+}
+.spotlight-enter {
+  animation: spotlight-fade-in 0.6s ease forwards;
+}
+.dashboard-top-panel-left {
+  position: relative;
+}
+
+/* Spotlight card fills its left column. */
+.card-spotlight {
+  width: 100%;
+  border-color: #3a2e12;
+  box-shadow: 0 0 0 1px #3a2e12, 0 6px 18px rgba(0, 0, 0, 0.5);
+}
+.card-spotlight .cover-wrap {
+  aspect-ratio: 16 / 9;
+}
+.card-spotlight .card-info {
+  padding: 14px 18px 18px;
+}
+
+/* Top Labels leaderboard. */
+.dashboard-leaderboard {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.leaderboard-row {
+  display: grid;
+  grid-template-columns: 26px 70px 1fr 120px;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 10px;
+  background: #141414;
+  border: 1px solid #1e1e1e;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background 0.12s ease, border-color 0.12s ease;
+}
+.leaderboard-row:hover {
+  background: #1c1c1c;
+  border-color: #333;
+}
+.leaderboard-rank {
+  color: #555;
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-align: right;
+}
+.leaderboard-code {
+  color: #e0e0e0;
+  font-family: ui-monospace, SFMono-Regular, monospace;
+  font-size: 0.74rem;
+  font-weight: 700;
+}
+.leaderboard-name {
+  color: #a0a0a0;
+  font-size: 0.74rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.leaderboard-company {
+  color: #555;
+}
+.leaderboard-bar-wrap {
+  height: 6px;
+  background: #1a1a1a;
+  border-radius: 3px;
+  overflow: hidden;
+}
+.leaderboard-bar {
+  display: block;
+  height: 100%;
+  background: linear-gradient(90deg, #4a6b8a, #6f9ac4);
+  border-radius: 3px;
+}
+
+/* Library stats tile grid. */
+.dashboard-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  grid-template-rows: repeat(2, 1fr);
+  gap: 10px;
+}
+.stats-tile {
+  background: #141414;
+  border: 1px solid #1e1e1e;
+  border-radius: 4px;
+  padding: 14px 14px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.stats-tile-value {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #e8e8e8;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
+}
+.stats-tile-label {
+  font-size: 0.7rem;
+  color: #666;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+.stats-tile-bar-wrap {
+  margin-top: 6px;
+  height: 4px;
+  background: #1a1a1a;
+  border-radius: 2px;
+  overflow: hidden;
+}
+.stats-tile-bar {
+  display: block;
+  height: 100%;
+  background: linear-gradient(90deg, #4a6b8a, #6f9ac4);
+}
+
 /* ── Actress detail panel ─────────────────────────────────────────────── */
 
 #actress-detail {

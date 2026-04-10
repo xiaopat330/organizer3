@@ -196,9 +196,14 @@ public class WebServer {
             });
 
             app.get("/api/titles/dashboard", ctx -> {
-                var lastVisited = browseService.findLastVisited(10);
-                var mostVisited = browseService.findMostVisited(10);
-                ctx.json(Map.of("lastVisited", lastVisited, "mostVisited", mostVisited));
+                ctx.json(browseService.buildDashboard());
+            });
+
+            app.get("/api/titles/spotlight", ctx -> {
+                String exclude = ctx.queryParam("exclude");
+                var result = browseService.getSpotlight(exclude);
+                if (result == null) ctx.status(204);
+                else ctx.json(result);
             });
 
             app.get("/api/titles/random", ctx -> {

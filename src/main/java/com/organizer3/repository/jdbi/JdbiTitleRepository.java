@@ -25,6 +25,7 @@ public class JdbiTitleRepository implements TitleRepository {
         String gradeStr = rs.getString("grade");
         String releaseDateStr = rs.getString("release_date");
         String lastVisitedStr = rs.getString("last_visited_at");
+        String bookmarkedAtStr = rs.getString("bookmarked_at");
         return Title.builder()
                 .id(rs.getLong("id"))
                 .code(rs.getString("code"))
@@ -34,6 +35,7 @@ public class JdbiTitleRepository implements TitleRepository {
                 .actressId(actressIdStr != null ? Long.parseLong(actressIdStr) : null)
                 .favorite(rs.getBoolean("favorite"))
                 .bookmark(rs.getBoolean("bookmark"))
+                .bookmarkedAt(bookmarkedAtStr != null ? LocalDateTime.parse(bookmarkedAtStr) : null)
                 .grade(gradeStr != null ? Actress.Grade.fromDisplay(gradeStr) : null)
                 .rejected(rs.getBoolean("rejected"))
                 .titleOriginal(rs.getString("title_original"))
@@ -522,8 +524,12 @@ public class JdbiTitleRepository implements TitleRepository {
     @Override
     public void toggleBookmark(long titleId, boolean bookmark) {
         jdbi.useHandle(h ->
-                h.createUpdate("UPDATE titles SET bookmark = :bookmark WHERE id = :id")
+                h.createUpdate(
+                        "UPDATE titles SET bookmark = :bookmark, " +
+                                "bookmarked_at = CASE WHEN :bookmark THEN :now ELSE NULL END " +
+                                "WHERE id = :id")
                         .bind("bookmark", bookmark)
+                        .bind("now", LocalDateTime.now().toString())
                         .bind("id", titleId)
                         .execute()
         );
@@ -623,6 +629,248 @@ public class JdbiTitleRepository implements TitleRepository {
                         .map(MAPPER)
                         .list()
         );
+        return populateLocationsBatch(titles);
+    }
+
+    // -------------------------------------------------------------------------
+    // Dashboard module queries
+    // -------------------------------------------------------------------------
+
+    @Override
+    public List<Title> findAddedSince(java.time.LocalDate since, int limit, java.util.Set<String> excludeCodes) {
+        String exclusion = excludeCodes != null && !excludeCodes.isEmpty()
+                ? "AND t.code NOT IN (<excludeCodes>) " : "";
+        List<Title> titles = jdbi.withHandle(h -> {
+            var q = h.createQuery("""
+                    SELECT t.*, MIN(tl.added_date) AS min_added
+                    FROM titles t
+                    JOIN title_locations tl ON t.id = tl.title_id
+                    WHERE t.actress_id IS NOT NULL
+                      AND tl.added_date >= :since
+                      """ + exclusion + """
+                    GROUP BY t.id
+                    ORDER BY min_added DESC, t.id DESC
+                    LIMIT :limit
+                    """)
+                    .bind("since", since.toString())
+                    .bind("limit", limit);
+            if (!exclusion.isEmpty()) q.bindList("excludeCodes", new java.util.ArrayList<>(excludeCodes));
+            return q.map(MAPPER).list();
+        });
+        return populateLocationsBatch(titles);
+    }
+
+    @Override
+    public List<Title> findAddedSinceByLabels(java.time.LocalDate since, java.util.Collection<String> labels,
+                                               int limit, java.util.Set<String> excludeCodes) {
+        if (labels == null || labels.isEmpty()) return List.of();
+        String exclusion = excludeCodes != null && !excludeCodes.isEmpty()
+                ? "AND t.code NOT IN (<excludeCodes>) " : "";
+        List<String> upperLabels = labels.stream().map(String::toUpperCase).toList();
+        List<Title> titles = jdbi.withHandle(h -> {
+            var q = h.createQuery("""
+                    SELECT t.*, MIN(tl.added_date) AS min_added
+                    FROM titles t
+                    JOIN title_locations tl ON t.id = tl.title_id
+                    WHERE t.actress_id IS NOT NULL
+                      AND upper(t.label) IN (<labels>)
+                      AND tl.added_date >= :since
+                      """ + exclusion + """
+                    GROUP BY t.id
+                    ORDER BY RANDOM()
+                    LIMIT :limit
+                    """)
+                    .bindList("labels", upperLabels)
+                    .bind("since", since.toString())
+                    .bind("limit", limit);
+            if (!exclusion.isEmpty()) q.bindList("excludeCodes", new java.util.ArrayList<>(excludeCodes));
+            return q.map(MAPPER).list();
+        });
+        return populateLocationsBatch(titles);
+    }
+
+    @Override
+    public List<Title> findAnniversary(int month, int day, int limit) {
+        // Match month-day on either release_date or the earliest added_date.
+        // Two-step: filter titles having release_date mm-dd in SQL, and fetch enough rows
+        // to evaluate min(added_date) mm-dd in Java. Keeps SQL aggregate rules simple.
+        String mmdd = String.format("-%02d-%02d", month, day);
+        // Pull candidate titles: either release_date mm-dd matches, OR any location's added_date mm-dd matches.
+        List<Title> titles = jdbi.withHandle(h ->
+                h.createQuery("""
+                        SELECT DISTINCT t.*
+                        FROM titles t
+                        JOIN title_locations tl ON t.id = tl.title_id
+                        WHERE t.actress_id IS NOT NULL
+                          AND ( substr(t.release_date, 5, 6) = :mmdd
+                                OR substr(tl.added_date, 5, 6) = :mmdd )
+                        """)
+                        .bind("mmdd", mmdd)
+                        .map(MAPPER)
+                        .list()
+        );
+        titles = populateLocationsBatch(titles);
+        // Sort by year ascending (oldest first): use release_date year if it matches, else addedDate year.
+        titles = titles.stream()
+                .sorted((a, b) -> {
+                    String ya = anniversaryYear(a, mmdd);
+                    String yb = anniversaryYear(b, mmdd);
+                    if (ya == null) return 1;
+                    if (yb == null) return -1;
+                    return ya.compareTo(yb);
+                })
+                .limit(limit)
+                .toList();
+        return titles;
+    }
+
+    private static String anniversaryYear(Title t, String mmdd) {
+        if (t.getReleaseDate() != null) {
+            String d = t.getReleaseDate().toString();
+            if (d.length() >= 10 && d.substring(4).equals(mmdd)) return d.substring(0, 4);
+        }
+        java.time.LocalDate added = t.getAddedDate();
+        if (added != null) {
+            String d = added.toString();
+            if (d.length() >= 10 && d.substring(4).equals(mmdd)) return d.substring(0, 4);
+        }
+        return null;
+    }
+
+    @Override
+    public List<LabelScore> computeLabelScores(int limit) {
+        return jdbi.withHandle(h ->
+                h.createQuery("""
+                        SELECT upper(t.label) AS label_code,
+                               SUM(t.visit_count)
+                               + 3 * SUM(CASE WHEN t.favorite = 1 THEN 1 ELSE 0 END)
+                               + 2 * SUM(CASE WHEN t.bookmark = 1 THEN 1 ELSE 0 END) AS score
+                        FROM titles t
+                        WHERE t.label IS NOT NULL AND t.label != ''
+                        GROUP BY upper(t.label)
+                        HAVING score > 0
+                        ORDER BY score DESC
+                        LIMIT :limit
+                        """)
+                        .bind("limit", limit)
+                        .map((rs, ctx) -> new LabelScore(rs.getString("label_code"), rs.getDouble("score")))
+                        .list()
+        );
+    }
+
+    @Override
+    public LibraryStats computeLibraryStats() {
+        String monthStart = java.time.LocalDate.now().withDayOfMonth(1).toString();
+        String yearStart = java.time.LocalDate.now().withDayOfYear(1).toString();
+        return jdbi.withHandle(h -> {
+            long total = h.createQuery("SELECT COUNT(*) FROM titles")
+                    .mapTo(Long.class).one();
+            long labels = h.createQuery("SELECT COUNT(DISTINCT upper(label)) FROM titles WHERE label IS NOT NULL AND label != ''")
+                    .mapTo(Long.class).one();
+            long unseen = h.createQuery("SELECT COUNT(*) FROM titles WHERE visit_count = 0")
+                    .mapTo(Long.class).one();
+            long addedMonth = h.createQuery("""
+                            SELECT COUNT(DISTINCT title_id) FROM title_locations
+                            WHERE added_date >= :since
+                            """)
+                    .bind("since", monthStart)
+                    .mapTo(Long.class).one();
+            long addedYear = h.createQuery("""
+                            SELECT COUNT(DISTINCT title_id) FROM title_locations
+                            WHERE added_date >= :since
+                            """)
+                    .bind("since", yearStart)
+                    .mapTo(Long.class).one();
+            return new LibraryStats(total, labels, unseen, addedMonth, addedYear);
+        });
+    }
+
+    @Override
+    public List<Title> findSpotlightCandidates(java.util.Set<String> lovedLabels,
+                                                 java.util.Set<Long> lovedActressIds,
+                                                 java.util.Set<String> superstarTiers,
+                                                 int limit,
+                                                 java.util.Set<String> excludeCodes) {
+        boolean hasLovedLabels   = lovedLabels   != null && !lovedLabels.isEmpty();
+        boolean hasLovedActress  = lovedActressIds != null && !lovedActressIds.isEmpty();
+        boolean hasSuperstarTier = superstarTiers != null && !superstarTiers.isEmpty();
+        boolean hasExclusion     = excludeCodes  != null && !excludeCodes.isEmpty();
+
+        StringBuilder where = new StringBuilder("WHERE t.actress_id IS NOT NULL AND (t.favorite = 1 OR t.bookmark = 1");
+        if (hasLovedLabels)   where.append(" OR upper(t.label) IN (<lovedLabels>)");
+        if (hasLovedActress)  where.append(" OR t.actress_id IN (<lovedActressIds>)");
+        if (hasSuperstarTier) where.append(" OR a.tier IN (<superstarTiers>)");
+        where.append(")");
+        if (hasExclusion) where.append(" AND t.code NOT IN (<excludeCodes>)");
+
+        String sql = "SELECT t.* FROM titles t " +
+                "LEFT JOIN actresses a ON a.id = t.actress_id " +
+                where + " ORDER BY RANDOM() LIMIT :limit";
+
+        List<Title> titles = jdbi.withHandle(h -> {
+            var q = h.createQuery(sql).bind("limit", limit);
+            if (hasLovedLabels)   q.bindList("lovedLabels", new java.util.ArrayList<>(lovedLabels));
+            if (hasLovedActress)  q.bindList("lovedActressIds", new java.util.ArrayList<>(lovedActressIds));
+            if (hasSuperstarTier) q.bindList("superstarTiers", new java.util.ArrayList<>(superstarTiers));
+            if (hasExclusion)     q.bindList("excludeCodes", new java.util.ArrayList<>(excludeCodes));
+            return q.map(MAPPER).list();
+        });
+        return populateLocationsBatch(titles);
+    }
+
+    @Override
+    public List<Title> findForgottenAtticCandidates(int limit, java.util.Set<String> excludeCodes) {
+        String exclusion = excludeCodes != null && !excludeCodes.isEmpty()
+                ? "AND t.code NOT IN (<excludeCodes>) " : "";
+        String d180  = java.time.LocalDate.now().minusDays(180).toString();
+        String d60   = java.time.LocalDate.now().minusDays(60).toString();
+        String d365  = java.time.LocalDate.now().minusDays(365).toString();
+
+        // Age window: recent (<60d) OR old (>365d) — skip the 2-12 month middle.
+        // Neglect: visit_count = 0 OR last_visited_at < now - 180d.
+        String sql = """
+                SELECT t.* FROM titles t
+                JOIN title_locations tl ON t.id = tl.title_id
+                WHERE t.actress_id IS NOT NULL
+                  AND (t.visit_count = 0 OR t.last_visited_at < :d180)
+                  """ + exclusion + """
+                GROUP BY t.id
+                HAVING MIN(tl.added_date) >= :d60 OR MIN(tl.added_date) <= :d365
+                ORDER BY RANDOM()
+                LIMIT :limit
+                """;
+        List<Title> titles = jdbi.withHandle(h -> {
+            var q = h.createQuery(sql)
+                    .bind("d180", d180)
+                    .bind("d60", d60)
+                    .bind("d365", d365)
+                    .bind("limit", limit);
+            if (!exclusion.isEmpty()) q.bindList("excludeCodes", new java.util.ArrayList<>(excludeCodes));
+            return q.map(MAPPER).list();
+        });
+        return populateLocationsBatch(titles);
+    }
+
+    @Override
+    public List<Title> findForgottenFavoritesCandidates(int limit, java.util.Set<String> excludeCodes) {
+        String exclusion = excludeCodes != null && !excludeCodes.isEmpty()
+                ? "AND t.code NOT IN (<excludeCodes>) " : "";
+        String d90   = java.time.LocalDate.now().minusDays(90).toString();
+
+        String sql = """
+                SELECT t.* FROM titles t
+                WHERE t.favorite = 1
+                  AND (t.last_visited_at IS NULL OR t.last_visited_at < :d90)
+                  """ + exclusion + """
+                LIMIT :limit
+                """;
+        List<Title> titles = jdbi.withHandle(h -> {
+            var q = h.createQuery(sql)
+                    .bind("d90", d90)
+                    .bind("limit", limit);
+            if (!exclusion.isEmpty()) q.bindList("excludeCodes", new java.util.ArrayList<>(excludeCodes));
+            return q.map(MAPPER).list();
+        });
         return populateLocationsBatch(titles);
     }
 

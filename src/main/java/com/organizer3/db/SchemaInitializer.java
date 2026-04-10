@@ -69,6 +69,7 @@ public class SchemaInitializer {
                         actress_id      INTEGER REFERENCES actresses(id),
                         favorite        INTEGER NOT NULL DEFAULT 0,
                         bookmark        INTEGER NOT NULL DEFAULT 0,
+                        bookmarked_at   TEXT,
                         grade           TEXT,
                         rejected        INTEGER NOT NULL DEFAULT 0,
                         title_original  TEXT,
@@ -170,7 +171,7 @@ public class SchemaInitializer {
             // leave the version alone and let SchemaUpgrader apply any missing migrations.
             int currentVersion = h.createQuery("PRAGMA user_version").mapTo(Integer.class).one();
             if (currentVersion == 0) {
-                h.execute("PRAGMA user_version = 7");
+                h.execute("PRAGMA user_version = 8");
             }
         });
         log.info("Schema initialization complete");

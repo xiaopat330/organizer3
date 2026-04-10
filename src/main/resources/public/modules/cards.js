@@ -120,6 +120,57 @@ export function makeTitleCard(t) {
   return card;
 }
 
+/**
+ * Compact title card for dashboard history modules (Recently Viewed).
+ * Shows cover + title code + actress name + "visited Xh ago" aging label.
+ * Omits tags, label, date, grade. Roughly 60% standard card height.
+ */
+export function makeCompactTitleCard(t) {
+  const card = document.createElement('div');
+  card.className = 'card card-compact';
+  card.dataset.code = t.code;
+
+  const coverHtml = t.coverUrl
+    ? `<div class="cover-wrap"><img class="cover-img" src="${esc(t.coverUrl)}" alt="${esc(t.code)}" loading="lazy"></div>`
+    : `<div class="cover-wrap"><div class="cover-placeholder">${esc(t.code)}</div></div>`;
+
+  const favIcon = t.favorite ? ICON_FAV_SM : '';
+  const titleCodeHtml = `<div class="${titleCodeClass(t.favorite, t.bookmark)}">${favIcon}<span class="title-code-text">${esc(t.code)}</span></div>`;
+
+  let actressHtml = '';
+  if (t.actressName) {
+    const { first: fn, last: ln } = splitName(t.actressName);
+    const nameInner = `<span class="card-actress-first">${esc(fn)}</span>${ln ? `<span class="card-actress-last"> ${esc(ln)}</span>` : ''}`;
+    actressHtml = `<div class="actress-name actress-name-compact">${nameInner}</div>`;
+  }
+
+  const visitedHtml = t.lastVisitedAt
+    ? `<div class="title-card-visited-compact">visited ${timeAgoShort(t.lastVisitedAt)}</div>`
+    : '';
+
+  card.innerHTML = `${coverHtml}<div class="card-info card-info-compact">${titleCodeHtml}${actressHtml}${visitedHtml}</div>`;
+  card.addEventListener('click', () => _openTitleDetail(t));
+  return card;
+}
+
+/**
+ * Returns a short relative aging label for a date string (addedDate / releaseDate).
+ * Formats: "today", "Xd ago", "Xmo ago", "Xy ago".
+ */
+export function agingLabel(dateStr) {
+  if (!dateStr) return '';
+  const d = new Date(dateStr);
+  if (isNaN(d.getTime())) return '';
+  const days = Math.floor((Date.now() - d.getTime()) / 86400000);
+  if (days < 1) return 'today';
+  if (days === 1) return '1d ago';
+  if (days < 30) return `${days}d ago`;
+  const months = Math.floor(days / 30);
+  if (months < 12) return months === 1 ? '1mo ago' : `${months}mo ago`;
+  const years = Math.floor(days / 365);
+  return years === 1 ? '1y ago' : `${years}y ago`;
+}
+
 // timeAgo used on cards only needs relative display; full version lives in title-detail.js
 function timeAgoShort(isoString) {
   const seconds = Math.floor((Date.now() - new Date(isoString)) / 1000);

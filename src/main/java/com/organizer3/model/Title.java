@@ -40,6 +40,7 @@ public class Title {
     @With Long actressId;
     boolean favorite;
     boolean bookmark;
+    LocalDateTime bookmarkedAt;  // set when bookmark is toggled on; null when not bookmarked
     Actress.Grade grade;
     boolean rejected;
 

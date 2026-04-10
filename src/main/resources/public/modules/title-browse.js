@@ -1,6 +1,6 @@
 import { esc } from './utils.js';
 import { showView, setActiveGrid, ensureSentinel, updateBreadcrumb, ScrollingGrid, mode } from './grid.js';
-import { makeTitleCard } from './cards.js';
+import { makeTitleCard, makeCompactTitleCard, agingLabel } from './cards.js';
 import { tagBadgeHtml } from './icons.js';
 import { ensureStudioGroups, ensureTitleLabels, renderTwoColumnStudioPanel } from './studio-data.js';
 import { resetActressState, actressesBtn } from './actress-browse.js';
@@ -33,6 +33,11 @@ const TITLE_SEARCH_MIN_CHARS = 1;
 export let titleBrowseMode = null;   // null | 'dashboard' | 'search' | 'favorites' | 'bookmarks' | 'collections' | 'unsorted' | 'archive-pool' | 'tags' | 'studio'
 export let titleSearchTerm = '';
 let titleSearchTimer = null;
+
+// Spotlight rotation
+const SPOTLIGHT_INTERVAL_MS = 30_000;
+let spotlightIntervalId = null;
+let spotlightCardContainer = null;   // the .dashboard-top-panel-left div
 
 export let activeTags = new Set();
 let tagsDebounceTimer = null;
@@ -125,32 +130,317 @@ function updateTitleBreadcrumb() {
 }
 
 // ── Dashboard render ──────────────────────────────────────────────────────
+function makeTitleCardWithAging(t) {
+  const card = makeTitleCard(t);
+  const label = agingLabel(t.addedDate);
+  if (label) {
+    const badge = document.createElement('div');
+    badge.className = 'title-card-aging';
+    badge.textContent = label;
+    const coverWrap = card.querySelector('.cover-wrap');
+    (coverWrap || card).appendChild(badge);
+  }
+  return card;
+}
+
+function renderDashboardStrip(titles, { id, cardFactory }) {
+  const grid = document.createElement('div');
+  grid.className = 'dashboard-card-grid';
+  if (id) grid.id = id;
+  titles.forEach(t => grid.appendChild(cardFactory(t)));
+  return grid;
+}
+
+function renderDashboardSection({ title, accent = false, badge = null, body, bordered = false }) {
+  const section = document.createElement('section');
+  section.className = 'dashboard-section'
+    + (accent   ? ' dashboard-section-accent'   : '')
+    + (bordered ? ' dashboard-section-bordered' : '');
+  const header = document.createElement('div');
+  header.className = 'dashboard-section-title';
+  header.textContent = title;
+  if (badge) {
+    const b = document.createElement('span');
+    b.className = 'dashboard-section-badge';
+    b.textContent = badge;
+    header.appendChild(b);
+  }
+  section.appendChild(header);
+  section.appendChild(body);
+  return section;
+}
+
+function renderSideBySidePanel(panelClass, leftEl, rightEl) {
+  const panel = document.createElement('div');
+  panel.className = `dashboard-side-panel ${panelClass}`;
+  if (leftEl) {
+    const left = document.createElement('div');
+    left.className = 'dashboard-side-panel-cell';
+    left.appendChild(leftEl);
+    panel.appendChild(left);
+  }
+  if (rightEl) {
+    const right = document.createElement('div');
+    right.className = 'dashboard-side-panel-cell';
+    right.appendChild(rightEl);
+    panel.appendChild(right);
+  }
+  return panel;
+}
+
+function stopSpotlightRotation() {
+  if (spotlightIntervalId !== null) {
+    clearInterval(spotlightIntervalId);
+    spotlightIntervalId = null;
+  }
+  spotlightCardContainer = null;
+}
+
+async function rotateSpotlight() {
+  if (!spotlightCardContainer) return;
+  const currentCard = spotlightCardContainer.querySelector('.card');
+  const currentCode = currentCard ? currentCard.dataset.code : null;
+  const url = '/api/titles/spotlight' + (currentCode ? `?exclude=${encodeURIComponent(currentCode)}` : '');
+  try {
+    const res = await fetch(url);
+    if (res.status === 204 || !res.ok) return;   // no candidates — keep current
+    const t = await res.json();
+    const newCard = makeTitleCard(t);
+    newCard.classList.add('card-spotlight', 'spotlight-enter');
+    if (currentCard) {
+      currentCard.classList.add('spotlight-exit');
+      currentCard.addEventListener('animationend', () => currentCard.remove(), { once: true });
+    }
+    spotlightCardContainer.appendChild(newCard);
+    // Trigger reflow so the animation plays
+    void newCard.offsetWidth;
+    newCard.classList.remove('spotlight-enter');
+  } catch (_) { /* network error — silently skip */ }
+}
+
+function startSpotlightRotation(container) {
+  stopSpotlightRotation();
+  spotlightCardContainer = container;
+  spotlightIntervalId = setInterval(rotateSpotlight, SPOTLIGHT_INTERVAL_MS);
+}
+
+function renderTopInfoPanel(spotlight, topLabels, libraryStats, onThisDay) {
+  const panel = document.createElement('div');
+  panel.className = 'dashboard-top-panel';
+
+  // Left column: Spotlight card
+  if (spotlight) {
+    const left = document.createElement('div');
+    left.className = 'dashboard-top-panel-left';
+    const header = document.createElement('div');
+    header.className = 'dashboard-section-title';
+    header.textContent = 'Spotlight';
+    left.appendChild(header);
+    const card = makeTitleCard(spotlight);
+    card.classList.add('card-spotlight');
+    left.appendChild(card);
+    panel.appendChild(left);
+    // Store ref and start rotation after this render cycle
+    setTimeout(() => startSpotlightRotation(left), SPOTLIGHT_INTERVAL_MS);
+  }
+
+  // Right column: upper row (Top Labels + Library side-by-side) + lower (On This Day)
+  if (topLabels.length > 0 || libraryStats || onThisDay.length > 0) {
+    const right = document.createElement('div');
+    right.className = 'dashboard-top-panel-right';
+
+    // Upper: Top Labels (left) + Library (right) in a 2-column sub-row
+    if (topLabels.length > 0 || libraryStats) {
+      const upper = document.createElement('div');
+      upper.className = 'dashboard-top-right-upper';
+      if (topLabels.length > 0) upper.appendChild(renderTopLabelsLeaderboard(topLabels));
+      if (libraryStats)         upper.appendChild(renderLibraryStats(libraryStats));
+      right.appendChild(upper);
+    }
+
+    // Lower: On This Day — compact cards, max 3 shown
+    if (onThisDay.length > 0) {
+      const shown = onThisDay.slice(0, 3);
+      const strip = renderDashboardStrip(shown, { id: 'dash-on-this-day', cardFactory: makeCompactTitleCard });
+      right.appendChild(renderDashboardSection({
+        title: 'On This Day',
+        badge: `${onThisDay.length} memor${onThisDay.length === 1 ? 'y' : 'ies'}`,
+        body: strip,
+      }));
+    }
+
+    panel.appendChild(right);
+  }
+
+  return panel;
+}
+
+function renderTopLabelsLeaderboard(topLabels) {
+  const section = document.createElement('section');
+  section.className = 'dashboard-section dashboard-top-labels';
+  const header = document.createElement('div');
+  header.className = 'dashboard-section-title';
+  header.textContent = 'Top Labels';
+  section.appendChild(header);
+
+  const list = document.createElement('div');
+  list.className = 'dashboard-leaderboard';
+
+  const maxScore = topLabels.reduce((m, l) => Math.max(m, l.score || 0), 0) || 1;
+  topLabels.forEach((lbl, i) => {
+    const row = document.createElement('div');
+    row.className = 'leaderboard-row';
+    row.innerHTML = `
+      <span class="leaderboard-rank">${i + 1}</span>
+      <span class="leaderboard-code">${esc(lbl.code)}</span>
+      <span class="leaderboard-name">${esc(lbl.labelName || '')}${lbl.company ? `<span class="leaderboard-company"> · ${esc(lbl.company)}</span>` : ''}</span>
+      <span class="leaderboard-bar-wrap"><span class="leaderboard-bar" style="width:${Math.round((lbl.score / maxScore) * 100)}%"></span></span>
+    `;
+    row.addEventListener('click', () => {
+      titleSearchInput.value = lbl.code + '-';
+      scheduleTitleSearch(0);
+    });
+    list.appendChild(row);
+  });
+  section.appendChild(list);
+  return section;
+}
+
+function renderLibraryStats(stats) {
+  const section = document.createElement('section');
+  section.className = 'dashboard-section dashboard-library-stats';
+  const header = document.createElement('div');
+  header.className = 'dashboard-section-title';
+  header.textContent = 'Library';
+  section.appendChild(header);
+
+  const unseenPct = stats.totalTitles > 0
+    ? Math.round((stats.unseen / stats.totalTitles) * 100)
+    : 0;
+
+  const tiles = document.createElement('div');
+  tiles.className = 'dashboard-stats-grid';
+  const tileData = [
+    { label: 'Titles',          value: stats.totalTitles.toLocaleString() },
+    { label: 'Labels',          value: stats.totalLabels.toLocaleString() },
+    { label: 'Unseen',          value: stats.unseen.toLocaleString() },
+    { label: 'Unseen %',        value: `${unseenPct}%`, bar: unseenPct },
+    { label: 'Added this month', value: stats.addedThisMonth.toLocaleString() },
+    { label: 'Added this year',  value: stats.addedThisYear.toLocaleString() },
+  ];
+  tileData.forEach(t => {
+    const tile = document.createElement('div');
+    tile.className = 'stats-tile';
+    let html = `<div class="stats-tile-value">${esc(String(t.value))}</div><div class="stats-tile-label">${esc(t.label)}</div>`;
+    if (t.bar != null) {
+      html += `<div class="stats-tile-bar-wrap"><div class="stats-tile-bar" style="width:${t.bar}%"></div></div>`;
+    }
+    tile.innerHTML = html;
+    tiles.appendChild(tile);
+  });
+  section.appendChild(tiles);
+  return section;
+}
+
 async function renderTitleDashboard() {
   titleDashboardEl.innerHTML = '<div class="dashboard-loading">loading…</div>';
   try {
     const res = await fetch('/api/titles/dashboard');
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();
-    const lastVisited = data.lastVisited || [];
-    const mostVisited = data.mostVisited || [];
-    if (lastVisited.length === 0 && mostVisited.length === 0) {
-      titleDashboardEl.innerHTML = '<div class="dashboard-empty">No visits yet — browse some titles!</div>';
+
+    const onDeck             = data.onDeck             || [];
+    const justAdded          = data.justAdded          || [];
+    const fromFavoriteLabels = data.fromFavoriteLabels || [];
+    const recentlyViewed     = data.recentlyViewed     || [];
+    const spotlight          = data.spotlight          || null;
+    const forgottenAttic     = data.forgottenAttic     || [];
+    const forgottenFavorites = data.forgottenFavorites || [];
+    const onThisDay          = data.onThisDay          || [];
+    const topLabels          = data.topLabels          || [];
+    const libraryStats       = data.libraryStats       || null;
+
+    const hasAny = onDeck.length || justAdded.length || fromFavoriteLabels.length
+                || recentlyViewed.length || spotlight || forgottenAttic.length
+                || forgottenFavorites.length || onThisDay.length || topLabels.length;
+    if (!hasAny) {
+      titleDashboardEl.innerHTML = '<div class="dashboard-empty">No titles yet — sync a volume to get started.</div>';
       return;
     }
-    let html = '';
-    if (lastVisited.length > 0)
-      html += '<div class="dashboard-section"><div class="dashboard-section-title">Last Visited</div><div class="dashboard-card-grid" id="title-dashboard-last-visited"></div></div>';
-    if (mostVisited.length > 0)
-      html += '<div class="dashboard-section"><div class="dashboard-section-title">Most Visited</div><div class="dashboard-card-grid" id="title-dashboard-most-visited"></div></div>';
-    titleDashboardEl.innerHTML = html;
-    if (lastVisited.length > 0) {
-      const g = document.getElementById('title-dashboard-last-visited');
-      lastVisited.forEach(t => g.appendChild(makeTitleCard(t)));
+
+    titleDashboardEl.innerHTML = '';
+
+    // 0. Top info panel: Spotlight (left) + Top Labels/Library/On This Day (right).
+    if (spotlight || topLabels.length > 0 || libraryStats || onThisDay.length > 0) {
+      titleDashboardEl.appendChild(renderTopInfoPanel(spotlight, topLabels, libraryStats, onThisDay));
     }
-    if (mostVisited.length > 0) {
-      const g = document.getElementById('title-dashboard-most-visited');
-      mostVisited.forEach(t => g.appendChild(makeTitleCard(t)));
+
+    // 0b. Second panel: Recently Viewed (left) + Just Added (right).
+    if (recentlyViewed.length > 0 || justAdded.length > 0) {
+      const rvSection = recentlyViewed.length > 0
+        ? renderDashboardSection({
+            title: 'Recently Viewed',
+            body: (() => {
+              const strip = renderDashboardStrip(recentlyViewed, { id: 'dash-recently-viewed', cardFactory: makeCompactTitleCard });
+              strip.classList.add('dashboard-card-grid-compact');
+              return strip;
+            })(),
+          })
+        : null;
+      const jaSection = justAdded.length > 0
+        ? renderDashboardSection({
+            title: 'Just Added',
+            body: renderDashboardStrip(justAdded, { id: 'dash-just-added', cardFactory: makeTitleCardWithAging }),
+          })
+        : null;
+      titleDashboardEl.appendChild(renderSideBySidePanel('dashboard-panel-2', rvSection, jaSection));
     }
+
+    // 1. On Deck hero strip.
+    if (onDeck.length > 0) {
+      titleDashboardEl.appendChild(renderDashboardSection({
+        title: 'Bookmarked Selections',
+        accent: true,
+        bordered: true,
+        body: renderDashboardStrip(onDeck, { id: 'dash-on-deck', cardFactory: makeCompactTitleCard }),
+      }));
+    }
+
+    // 2. (Just Added now in second panel.)
+
+    // 3. From Favorite Labels.
+    if (fromFavoriteLabels.length > 0) {
+      titleDashboardEl.appendChild(renderDashboardSection({
+        title: 'From Favorite Labels',
+        bordered: true,
+        body: renderDashboardStrip(fromFavoriteLabels, { id: 'dash-fav-labels', cardFactory: makeTitleCardWithAging }),
+      }));
+    }
+
+    // 4. (Recently Viewed now in second panel.)
+
+    // 5. (Spotlight now in top panel.)
+
+    // 6. Forgotten Attic.
+    if (forgottenAttic.length > 0) {
+      titleDashboardEl.appendChild(renderDashboardSection({
+        title: 'Forgotten Attic',
+        bordered: true,
+        body: renderDashboardStrip(forgottenAttic, { id: 'dash-forgotten-attic', cardFactory: makeTitleCard }),
+      }));
+    }
+
+    // 7. Forgotten Favorites.
+    if (forgottenFavorites.length > 0) {
+      titleDashboardEl.appendChild(renderDashboardSection({
+        title: 'Forgotten Favorites',
+        body: renderDashboardStrip(forgottenFavorites, { id: 'dash-forgotten-favs', cardFactory: makeTitleCard }),
+      }));
+    }
+
+    // 8. (On This Day now in top panel right column.)
+
+    // 9. (Top Labels + Library Stats now in top panel.)
   } catch (err) {
     titleDashboardEl.innerHTML = '<div class="dashboard-empty">Error loading dashboard.</div>';
     console.error(err);
@@ -178,6 +468,7 @@ export function selectTitleBrowseMode(modeKey) {
     renderTitleDashboard();
     return;
   }
+  stopSpotlightRotation();
   titleDashboardEl.style.display = 'none';
   if (modeKey === 'studio') {
     document.getElementById('titles-browse-grid').style.display = 'none';
