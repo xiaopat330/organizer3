@@ -6,6 +6,7 @@ import lombok.With;
 
 import java.nio.file.Path;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
@@ -53,6 +54,11 @@ public class Title {
 
     @Builder.Default
     List<TitleLocation> locations = List.of();
+
+    // --- Visit tracking (populated from DB; updated when user views detail page) ---
+    @Builder.Default
+    int visitCount = 0;
+    LocalDateTime lastVisitedAt;  // null until first visit
 
     /** Returns the earliest added date across all locations. */
     public LocalDate getAddedDate() {

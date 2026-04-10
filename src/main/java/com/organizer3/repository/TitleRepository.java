@@ -117,7 +117,16 @@ public interface TitleRepository {
     void enrichTitle(long titleId, String titleOriginal, String titleEnglish,
                      java.time.LocalDate releaseDate, String notes, Actress.Grade grade);
 
+    /** Find titles having ALL of the given tags, ordered newest-first. */
+    List<Title> findByTagsPaged(List<String> tags, int limit, int offset);
+
     void toggleFavorite(long titleId, boolean favorite);
 
     void toggleBookmark(long titleId, boolean bookmark);
+
+    /**
+     * Increment the visit counter and update last_visited_at to now for a title.
+     * No-op if the title does not exist.
+     */
+    void recordVisit(long titleId);
 }

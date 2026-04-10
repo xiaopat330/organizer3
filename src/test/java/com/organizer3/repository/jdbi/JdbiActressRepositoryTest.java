@@ -716,6 +716,44 @@ class JdbiActressRepositoryTest {
         }
     }
 
+    // --- recordVisit ---
+
+    @Test
+    void recordVisitIncrementsCountFromZero() {
+        Actress saved = repo.save(actress("Aya Sazanami"));
+        assertEquals(0, repo.findById(saved.getId()).get().getVisitCount());
+
+        repo.recordVisit(saved.getId());
+
+        Actress updated = repo.findById(saved.getId()).get();
+        assertEquals(1, updated.getVisitCount());
+        assertNotNull(updated.getLastVisitedAt());
+    }
+
+    @Test
+    void recordVisitAccumulatesAcrossMultipleCalls() {
+        Actress saved = repo.save(actress("Hibiki Otsuki"));
+
+        repo.recordVisit(saved.getId());
+        repo.recordVisit(saved.getId());
+        repo.recordVisit(saved.getId());
+
+        assertEquals(3, repo.findById(saved.getId()).get().getVisitCount());
+    }
+
+    @Test
+    void recordVisitUpdatesLastVisitedAt() throws Exception {
+        Actress saved = repo.save(actress("Aya Sazanami"));
+        repo.recordVisit(saved.getId());
+        var first = repo.findById(saved.getId()).get().getLastVisitedAt();
+
+        Thread.sleep(10);
+        repo.recordVisit(saved.getId());
+        var second = repo.findById(saved.getId()).get().getLastVisitedAt();
+
+        assertTrue(second.isAfter(first));
+    }
+
     // --- helpers ---
 
     private static Actress actress(String canonicalName) {

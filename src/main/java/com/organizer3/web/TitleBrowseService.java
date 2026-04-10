@@ -16,6 +16,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
@@ -108,6 +109,12 @@ public class TitleBrowseService {
         return titleRepo.findNewestActressesByLabels(labels, limit).stream()
                 .map(row -> new ActressCount((Long) row[0], (String) row[1], (String) row[2], 0L))
                 .toList();
+    }
+
+    /** Returns titles having ALL of the given tags, ordered newest-first. */
+    public List<TitleSummary> findByTagsPaged(List<String> tags, int offset, int limit) {
+        limit = Math.min(limit, MAX_LIMIT);
+        return toSummaries(titleRepo.findByTagsPaged(tags, limit, offset));
     }
 
     /**
@@ -262,9 +269,30 @@ public class TitleBrowseService {
                             .bookmark(t.isBookmark())
                             .lastWatchedAt(watchStatsMap.containsKey(t.getCode()) ? watchStatsMap.get(t.getCode()).lastWatchedAt().toString() : null)
                             .watchCount(watchStatsMap.containsKey(t.getCode()) ? watchStatsMap.get(t.getCode()).count() : 0)
+                            .visitCount(t.getVisitCount())
+                            .lastVisitedAt(t.getLastVisitedAt() != null ? t.getLastVisitedAt().toString() : null)
                             .tags(allTags)
                             .build();
                 })
                 .toList();
+    }
+
+    /** Result of a visit record operation. */
+    public record VisitStats(int visitCount, String lastVisitedAt) {}
+
+    /**
+     * Record a detail-page visit for a title. Increments the visit counter and updates
+     * the last_visited_at timestamp.
+     *
+     * @return the updated visit stats, or empty if the title does not exist
+     */
+    public Optional<VisitStats> recordVisit(String code) {
+        return titleRepo.findByCode(code).map(t -> {
+            titleRepo.recordVisit(t.getId());
+            Title updated = titleRepo.findById(t.getId()).orElseThrow();
+            return new VisitStats(
+                    updated.getVisitCount(),
+                    updated.getLastVisitedAt() != null ? updated.getLastVisitedAt().toString() : null);
+        });
     }
 }

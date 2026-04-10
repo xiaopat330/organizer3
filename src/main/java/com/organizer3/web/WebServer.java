@@ -131,7 +131,12 @@ public class WebServer {
                     .map(s -> s.id())
                     .collect(Collectors.toSet());
             var sortPool = cfg.volumes().stream()
-                    .filter(v -> sortPoolTypes.contains(v.structureType()))
+                    .filter(v -> sortPoolTypes.contains(v.structureType()) && !"classic_pool".equals(v.id()))
+                    .map(v -> Map.of("id", (Object) v.id(), "smbPath", (Object) v.smbPath()))
+                    .findFirst()
+                    .orElse(null);
+            var classicPool = cfg.volumes().stream()
+                    .filter(v -> "classic_pool".equals(v.id()))
                     .map(v -> Map.of("id", (Object) v.id(), "smbPath", (Object) v.smbPath()))
                     .findFirst()
                     .orElse(null);
@@ -142,6 +147,7 @@ public class WebServer {
             var result = new LinkedHashMap<String, Object>();
             if (pool != null) result.put("pool", pool);
             if (sortPool != null) result.put("sortPool", sortPool);
+            if (classicPool != null) result.put("classicPool", classicPool);
             result.put("volumes", volumes);
             ctx.json(result);
         });
@@ -151,6 +157,7 @@ public class WebServer {
                 String search    = ctx.queryParam("search");
                 String favorites = ctx.queryParam("favorites");
                 String bookmarks = ctx.queryParam("bookmarks");
+                String tagsParam = ctx.queryParam("tags");
                 int offset = ctx.queryParamAsClass("offset", Integer.class).getOrDefault(0);
                 int limit  = ctx.queryParamAsClass("limit",  Integer.class).getOrDefault(24);
                 offset = Math.max(offset, 0);
@@ -161,11 +168,15 @@ public class WebServer {
                     ctx.json(browseService.findFavoritesPaged(offset, limit));
                 } else if ("true".equals(bookmarks)) {
                     ctx.json(browseService.findBookmarksPaged(offset, limit));
+                } else if (tagsParam != null && !tagsParam.isBlank()) {
+                    List<String> tags = List.of(tagsParam.split(","));
+                    ctx.json(browseService.findByTagsPaged(tags, offset, limit));
                 } else {
                     ctx.json(browseService.findRecent(offset, limit));
                 }
             });
 
+            app.get("/api/tags", ctx -> ctx.json(new TagCatalogLoader().load()));
             app.get("/api/titles/labels",  ctx -> ctx.json(browseService.listLabels()));
             app.get("/api/titles/studios", ctx -> ctx.json(browseService.listStudioGroups()));
             app.get("/api/titles/top-actresses", ctx -> {
@@ -337,6 +348,18 @@ public class WebServer {
                                 "favorite", s.favorite(),
                                 "bookmark", s.bookmark(),
                                 "rejected", s.rejected())),
+                        () -> ctx.status(404).json(Map.of("error", "Actress not found"))
+                );
+            });
+
+            app.post("/api/actresses/{id}/visit", ctx -> {
+                long id;
+                try { id = Long.parseLong(ctx.pathParam("id")); }
+                catch (NumberFormatException e) { ctx.status(400); return; }
+                actressBrowseService.recordVisit(id).ifPresentOrElse(
+                        stats -> ctx.json(Map.of(
+                                "visitCount", stats.visitCount(),
+                                "lastVisitedAt", stats.lastVisitedAt() != null ? stats.lastVisitedAt() : "")),
                         () -> ctx.status(404).json(Map.of("error", "Actress not found"))
                 );
             });
@@ -550,6 +573,18 @@ public class WebServer {
                         "titleCode", e.getTitleCode(),
                         "watchedAt", e.getWatchedAt().toString()
                 )).toList());
+            });
+        }
+
+        if (browseService != null) {
+            app.post("/api/titles/{code}/visit", ctx -> {
+                String code = ctx.pathParam("code");
+                browseService.recordVisit(code).ifPresentOrElse(
+                        stats -> ctx.json(Map.of(
+                                "visitCount", stats.visitCount(),
+                                "lastVisitedAt", stats.lastVisitedAt() != null ? stats.lastVisitedAt() : "")),
+                        () -> ctx.status(404).json(Map.of("error", "Title not found"))
+                );
             });
         }
 

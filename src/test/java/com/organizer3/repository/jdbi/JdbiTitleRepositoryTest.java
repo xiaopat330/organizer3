@@ -260,11 +260,11 @@ class JdbiTitleRepositoryTest {
         List<Title> page2 = titleRepo.findByActressPaged(aya.getId(), 2, 2);
 
         assertEquals(2, page1.size());
-        assertEquals("ABP-001", page1.get(0).getCode()); // code ASC
+        assertEquals("ABP-003", page1.get(0).getCode()); // newest first (added_date DESC)
         assertEquals("ABP-002", page1.get(1).getCode());
 
         assertEquals(1, page2.size());
-        assertEquals("ABP-003", page2.get(0).getCode());
+        assertEquals("ABP-001", page2.get(0).getCode());
     }
 
     @Test
@@ -665,6 +665,47 @@ class JdbiTitleRepositoryTest {
         // yui appears in both
         List<Title> yuiResults = titleRepo.findByActress(yui.getId());
         assertEquals(2, yuiResults.size());
+    }
+
+    // --- recordVisit ---
+
+    @Test
+    void recordVisitIncrementsCountFromZero() {
+        Actress aya = actressRepo.save(actress("Aya Sazanami"));
+        Title saved = titleRepo.save(title("ABP-001", aya.getId()));
+        assertEquals(0, titleRepo.findById(saved.getId()).get().getVisitCount());
+
+        titleRepo.recordVisit(saved.getId());
+
+        Title updated = titleRepo.findById(saved.getId()).get();
+        assertEquals(1, updated.getVisitCount());
+        assertNotNull(updated.getLastVisitedAt());
+    }
+
+    @Test
+    void recordVisitAccumulatesAcrossMultipleCalls() {
+        Actress aya = actressRepo.save(actress("Aya Sazanami"));
+        Title saved = titleRepo.save(title("ABP-001", aya.getId()));
+
+        titleRepo.recordVisit(saved.getId());
+        titleRepo.recordVisit(saved.getId());
+        titleRepo.recordVisit(saved.getId());
+
+        assertEquals(3, titleRepo.findById(saved.getId()).get().getVisitCount());
+    }
+
+    @Test
+    void recordVisitUpdatesLastVisitedAt() throws Exception {
+        Actress aya = actressRepo.save(actress("Aya Sazanami"));
+        Title saved = titleRepo.save(title("ABP-001", aya.getId()));
+        titleRepo.recordVisit(saved.getId());
+        var first = titleRepo.findById(saved.getId()).get().getLastVisitedAt();
+
+        Thread.sleep(10);
+        titleRepo.recordVisit(saved.getId());
+        var second = titleRepo.findById(saved.getId()).get().getLastVisitedAt();
+
+        assertTrue(second.isAfter(first));
     }
 
     // --- helpers ---

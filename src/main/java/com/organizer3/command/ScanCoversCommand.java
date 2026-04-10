@@ -1,6 +1,8 @@
 package com.organizer3.command;
 
+import com.organizer3.config.AppConfig;
 import com.organizer3.config.volume.VolumeConfig;
+import com.organizer3.config.volume.VolumeStructureDef;
 import com.organizer3.covers.CoverPath;
 import com.organizer3.filesystem.VolumeFileSystem;
 import com.organizer3.model.Title;
@@ -18,6 +20,9 @@ import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import lombok.extern.slf4j.Slf4j;
 import lombok.RequiredArgsConstructor;
 
@@ -78,6 +83,11 @@ public class ScanCoversCommand implements Command {
             return;
         }
 
+        // Derive the valid partition IDs for this volume's structure type
+        Set<String> validPartitionIds = AppConfig.get().volumes().findStructureById(volume.structureType())
+                .map(ScanCoversCommand::validPartitionIds)
+                .orElse(Set.of());
+
         // Find titles with locations on this volume in eligible partitions
         String volumeId = volume.id();
         List<Title> titles = titleRepo.findByVolume(volumeId).stream()
@@ -85,7 +95,8 @@ public class ScanCoversCommand implements Command {
                 .filter(t -> t.getBaseCode() != null && !t.getBaseCode().isBlank())
                 .filter(t -> t.findLocation(volumeId)
                         .map(loc -> loc.getPartitionId() != null &&
-                                scanner.isCoverScannable(loc.getPartitionId()))
+                                scanner.isCoverScannable(loc.getPartitionId()) &&
+                                (validPartitionIds.isEmpty() || validPartitionIds.contains(loc.getPartitionId())))
                         .orElse(false))
                 .toList();
 
@@ -145,6 +156,16 @@ public class ScanCoversCommand implements Command {
 
         io.println(String.format("Covers collected: %d  |  Skipped (existing): %d  |  No image: %d  |  Errors: %d",
                 collected, skipped, noImage, errors));
+    }
+
+    /** Returns the full set of valid partition IDs for a structure definition. */
+    private static Set<String> validPartitionIds(VolumeStructureDef structure) {
+        Stream<String> unstructured = structure.unstructuredPartitions().stream()
+                .map(p -> p.id());
+        Stream<String> structured = structure.structuredPartition() == null ? Stream.of()
+                : structure.structuredPartition().partitions().stream()
+                        .map(sub -> structure.structuredPartition().path() + "/" + sub.id());
+        return Stream.concat(unstructured, structured).collect(Collectors.toSet());
     }
 
     /**

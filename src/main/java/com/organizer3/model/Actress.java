@@ -4,6 +4,7 @@ import lombok.Builder;
 import lombok.Value;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 
 /**
  * Represents a known performer. Maps directly to the {@code actresses} DB table.
@@ -44,6 +45,11 @@ public class Actress implements Comparable<Actress> {
     LocalDate activeTo;
     String biography;
     String legacy;
+
+    // --- Visit tracking (populated from DB; updated when user views detail page) ---
+    @Builder.Default
+    int visitCount = 0;
+    LocalDateTime lastVisitedAt;  // null until first visit
 
     /**
      * Title count thresholds that determine folder tier placement under {@code stars/}.

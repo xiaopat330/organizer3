@@ -40,4 +40,8 @@ public class ActressSummary {
     String cup;
     String biography;
     String legacy;
+
+    // Visit tracking
+    int visitCount;
+    String lastVisitedAt;  // ISO datetime string, null until first visit
 }

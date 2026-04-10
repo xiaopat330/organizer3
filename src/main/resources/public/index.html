@@ -13,19 +13,7 @@
   <div class="header-right">
     <button class="nav-link" id="actresses-btn">Actresses</button>
     <div class="nav-divider"></div>
-    <button class="nav-link" id="collections-btn">Collections</button>
-    <div class="nav-divider"></div>
     <button class="nav-link" id="titles-browse-btn">Titles</button>
-    <div class="nav-divider"></div>
-    <div class="archives-nav-wrap">
-      <button class="nav-link" id="archives-btn">Archives</button>
-      <div class="prefix-dropdown" id="archives-dropdown"></div>
-    </div>
-    <div class="nav-divider"></div>
-    <div class="queues-nav-wrap">
-      <button class="nav-link" id="queues-btn">Queues</button>
-      <div class="prefix-dropdown" id="queues-dropdown"></div>
-    </div>
     <div class="nav-divider"></div>
     <button class="nav-link" id="action-btn">Action!</button>
     <div class="nav-divider"></div>
@@ -66,11 +54,27 @@
       <svg class="actress-landing-bm" viewBox="0 0 24 24" width="14" height="14"><path d="M6 2h12a1 1 0 0 1 1 1v18.5a.5.5 0 0 1-.8.4L12 17.5 5.8 21.9a.5.5 0 0 1-.8-.4V3a1 1 0 0 1 1-1z"/></svg>
       Bookmarks
     </button>
+    <button type="button" id="actress-archives-btn" class="actress-landing-special actress-landing-archives">
+      <svg class="actress-landing-archive" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="21 8 21 21 3 21 3 8"/><rect x="1" y="3" width="22" height="5"/><line x1="10" y1="12" x2="14" y2="12"/></svg>
+      Archives
+    </button>
+    <button type="button" id="actress-studio-btn" class="actress-landing-special actress-landing-studio">
+      <svg class="actress-landing-film" viewBox="0 0 24 24" width="14" height="14"><path d="M4 3h16v18H4V3zm1.5 1.5v1.5h1.5V4.5H5.5zm11.5 0v1.5h1.5V4.5H17zm-11.5 3v1.5h1.5V7.5H5.5zm11.5 0v1.5h1.5V7.5H17zm-11.5 3v1.5h1.5v-1.5H5.5zm11.5 0v1.5h1.5v-1.5H17zm-11.5 3v1.5h1.5v-1.5H5.5zm11.5 0v1.5h1.5v-1.5H17zm-11.5 3v1.5h1.5V18H5.5zm11.5 0v1.5h1.5V18H17zM8.5 4.5v15h7v-15h-7z"/></svg>
+      Studio
+    </button>
+    <button type="button" id="actress-tier-btn" class="actress-landing-special actress-landing-tier-btn">
+      <svg class="actress-landing-levels" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="16" width="4" height="6"/><rect x="10" y="10" width="4" height="12"/><rect x="18" y="4" width="4" height="16"/></svg>
+      Tier
+    </button>
   </div>
-  <div class="actress-landing-divider"></div>
-  <div class="actress-landing-row actress-landing-tier-row" id="actress-landing-tier-row"></div>
+  <div class="actress-landing-divider" id="actress-studio-divider" style="display:none"></div>
+  <div class="actress-landing-row actress-landing-tier-row" id="actress-studio-group-row" style="display:none"></div>
+  <div class="actress-landing-divider" id="actress-tier-divider" style="display:none"></div>
+  <div class="actress-landing-row actress-landing-tier-row" id="actress-landing-tier-row" style="display:none"></div>
 </div>
 
+<!-- Actress studio two-panel browser -->
+<div id="actress-studio-labels" style="display:none"></div>
 <!-- Actress browse grid -->
 <div id="actress-grid" class="grid" style="display:none"></div>
 
@@ -97,12 +101,30 @@
       <svg class="actress-landing-film" viewBox="0 0 24 24" width="14" height="14"><path d="M4 3h16v18H4V3zm1.5 1.5v1.5h1.5V4.5H5.5zm11.5 0v1.5h1.5V4.5H17zm-11.5 3v1.5h1.5V7.5H5.5zm11.5 0v1.5h1.5V7.5H17zm-11.5 3v1.5h1.5v-1.5H5.5zm11.5 0v1.5h1.5v-1.5H17zm-11.5 3v1.5h1.5v-1.5H5.5zm11.5 0v1.5h1.5v-1.5H17zm-11.5 3v1.5h1.5V18H5.5zm11.5 0v1.5h1.5V18H17zM8.5 4.5v15h7v-15h-7z"/></svg>
       Studio
     </button>
+    <button type="button" id="title-collections-btn" class="actress-landing-special actress-landing-collections">
+      <svg class="actress-landing-coll" viewBox="0 0 24 24" width="14" height="14"><path d="M3 3h8v8H3zM13 3h8v8h-8zM3 13h8v8H3zM13 13h8v8h-8z"/></svg>
+      Collections
+    </button>
+    <button type="button" id="title-unsorted-btn" class="actress-landing-special actress-landing-unsorted">
+      <svg class="actress-landing-shuffle" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 3 21 3 21 8"/><line x1="4" y1="20" x2="21" y2="3"/><polyline points="21 16 21 21 16 21"/><line x1="15" y1="15" x2="21" y2="21"/><line x1="4" y1="4" x2="9" y2="9"/></svg>
+      Unsorted
+    </button>
+    <button type="button" id="title-archives-btn" class="actress-landing-special actress-landing-archives">
+      <svg class="actress-landing-archive" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="21 8 21 21 3 21 3 8"/><rect x="1" y="3" width="22" height="5"/><line x1="10" y1="12" x2="14" y2="12"/></svg>
+      Archives
+    </button>
+    <button type="button" id="title-tags-btn" class="actress-landing-special actress-landing-tags">
+      <svg class="actress-landing-tag" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>
+      Tags
+    </button>
   </div>
   <div class="actress-landing-divider" id="title-studio-divider" style="display:none"></div>
   <div class="actress-landing-row actress-landing-tier-row" id="title-studio-group-row" style="display:none"></div>
 </div>
 <!-- Studio label list (shown in studio browse mode) -->
 <div id="title-studio-labels" style="display:none"></div>
+<!-- Tags filter panel (shown in tags browse mode) -->
+<div id="title-tags-panel" style="display:none"></div>
 <!-- Titles browse grid -->
 <div id="titles-browse-grid" class="grid" style="display:none"></div>
 
@@ -133,20 +155,12 @@
   </div>
 </div>
 
-<!-- Queue browse header + grid -->
-<div id="queue-header" style="display:none; padding: 10px 20px 0; font-size: 0.78rem; color: #555; font-family: ui-monospace, monospace; letter-spacing: 0.03em;"></div>
-<div id="queue-grid" class="grid" style="display:none"></div>
-
-<!-- Pool browse header + grid -->
-<div id="pool-header" style="display:none; padding: 10px 20px 0; font-size: 0.78rem; color: #555; font-family: ui-monospace, monospace; letter-spacing: 0.03em;"></div>
-<div id="pool-grid" class="grid" style="display:none"></div>
-
 <!-- Collections browse grid -->
 <div id="collections-grid" class="grid" style="display:none"></div>
 
 <div id="status">loading</div>
 <div id="sentinel"></div>
 
-<script src="/app.js"></script>
+<script type="module" src="/app.js"></script>
 </body>
 </html>

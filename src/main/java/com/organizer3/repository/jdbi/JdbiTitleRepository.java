@@ -9,6 +9,7 @@ import lombok.RequiredArgsConstructor;
 import org.jdbi.v3.core.Jdbi;
 import org.jdbi.v3.core.mapper.RowMapper;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -23,6 +24,7 @@ public class JdbiTitleRepository implements TitleRepository {
         String seqNumStr = rs.getString("seq_num");
         String gradeStr = rs.getString("grade");
         String releaseDateStr = rs.getString("release_date");
+        String lastVisitedStr = rs.getString("last_visited_at");
         return Title.builder()
                 .id(rs.getLong("id"))
                 .code(rs.getString("code"))
@@ -38,6 +40,8 @@ public class JdbiTitleRepository implements TitleRepository {
                 .titleEnglish(rs.getString("title_english"))
                 .releaseDate(releaseDateStr != null ? java.time.LocalDate.parse(releaseDateStr) : null)
                 .notes(rs.getString("notes"))
+                .visitCount(rs.getInt("visit_count"))
+                .lastVisitedAt(lastVisitedStr != null ? LocalDateTime.parse(lastVisitedStr) : null)
                 .build();
     };
 
@@ -282,7 +286,7 @@ public class JdbiTitleRepository implements TitleRepository {
                         JOIN title_locations tl ON t.id = tl.title_id
                         WHERE t.actress_id IS NOT NULL
                         GROUP BY t.id
-                        ORDER BY MIN(tl.added_date) DESC, t.id DESC
+                        ORDER BY t.favorite DESC, t.bookmark DESC, MIN(tl.added_date) DESC, t.id DESC
                         LIMIT :limit OFFSET :offset
                         """)
                         .bind("limit", limit)
@@ -321,7 +325,7 @@ public class JdbiTitleRepository implements TitleRepository {
                         LEFT JOIN title_locations tl ON t.id = tl.title_id
                         WHERE t.favorite = 1
                         GROUP BY t.id
-                        ORDER BY MIN(tl.added_date) DESC, t.id DESC
+                        ORDER BY t.bookmark DESC, MIN(tl.added_date) DESC, t.id DESC
                         LIMIT :limit OFFSET :offset
                         """)
                         .bind("limit", limit)
@@ -340,7 +344,7 @@ public class JdbiTitleRepository implements TitleRepository {
                         LEFT JOIN title_locations tl ON t.id = tl.title_id
                         WHERE t.bookmark = 1
                         GROUP BY t.id
-                        ORDER BY MIN(tl.added_date) DESC, t.id DESC
+                        ORDER BY t.favorite DESC, MIN(tl.added_date) DESC, t.id DESC
                         LIMIT :limit OFFSET :offset
                         """)
                         .bind("limit", limit)
@@ -359,7 +363,7 @@ public class JdbiTitleRepository implements TitleRepository {
                         LEFT JOIN title_locations tl ON t.id = tl.title_id
                         WHERE t.actress_id = :actressId
                         GROUP BY t.id
-                        ORDER BY t.favorite DESC, t.bookmark DESC, t.code ASC
+                        ORDER BY t.favorite DESC, t.bookmark DESC, MIN(tl.added_date) DESC, t.id DESC
                         LIMIT :limit OFFSET :offset
                         """)
                         .bind("actressId", actressId)
@@ -379,7 +383,7 @@ public class JdbiTitleRepository implements TitleRepository {
                         LEFT JOIN title_locations tl ON t.id = tl.title_id
                         WHERE t.actress_id = :actressId AND upper(t.label) IN (<labels>)
                         GROUP BY t.id
-                        ORDER BY t.favorite DESC, t.bookmark DESC, t.code ASC
+                        ORDER BY t.favorite DESC, t.bookmark DESC, MIN(tl.added_date) DESC, t.id DESC
                         LIMIT :limit OFFSET :offset
                         """)
                         .bind("actressId", actressId)
@@ -400,7 +404,7 @@ public class JdbiTitleRepository implements TitleRepository {
                         JOIN title_locations tl ON t.id = tl.title_id
                         WHERE tl.volume_id = :volumeId
                         GROUP BY t.id
-                        ORDER BY MIN(tl.added_date) DESC, t.id DESC
+                        ORDER BY t.favorite DESC, t.bookmark DESC, MIN(tl.added_date) DESC, t.id DESC
                         LIMIT :limit OFFSET :offset
                         """)
                         .bind("volumeId", volumeId)
@@ -420,7 +424,7 @@ public class JdbiTitleRepository implements TitleRepository {
                         JOIN title_locations tl ON t.id = tl.title_id
                         WHERE tl.volume_id = :volumeId AND tl.partition_id = :partitionId
                         GROUP BY t.id
-                        ORDER BY MIN(tl.added_date) DESC, t.id DESC
+                        ORDER BY t.favorite DESC, t.bookmark DESC, MIN(tl.added_date) DESC, t.id DESC
                         LIMIT :limit OFFSET :offset
                         """)
                         .bind("volumeId", volumeId)
@@ -445,6 +449,37 @@ public class JdbiTitleRepository implements TitleRepository {
                         LIMIT :limit
                         """)
                         .bind("limit", limit)
+                        .map(MAPPER)
+                        .list()
+        );
+        return populateLocationsBatch(titles);
+    }
+
+    @Override
+    public List<Title> findByTagsPaged(List<String> tags, int limit, int offset) {
+        // A title matches if, for every required tag, that tag appears in either
+        // title_tags (direct per-title tag) or label_tags (indirect via label code).
+        List<Title> titles = jdbi.withHandle(h ->
+                h.createQuery("""
+                        SELECT t.* FROM titles t
+                        LEFT JOIN title_locations tl ON t.id = tl.title_id
+                        WHERE (
+                            SELECT COUNT(DISTINCT merged.tag)
+                            FROM (
+                                SELECT tag FROM title_tags WHERE title_id = t.id
+                                UNION
+                                SELECT lt.tag FROM label_tags lt WHERE lt.label_code = upper(t.label)
+                            ) merged
+                            WHERE merged.tag IN (<tags>)
+                        ) = :tagCount
+                        GROUP BY t.id
+                        ORDER BY t.favorite DESC, t.bookmark DESC, MIN(tl.added_date) DESC, t.id DESC
+                        LIMIT :limit OFFSET :offset
+                        """)
+                        .bindList("tags", tags)
+                        .bind("tagCount", tags.size())
+                        .bind("limit", limit)
+                        .bind("offset", offset)
                         .map(MAPPER)
                         .list()
         );
@@ -489,6 +524,17 @@ public class JdbiTitleRepository implements TitleRepository {
         jdbi.useHandle(h ->
                 h.createUpdate("UPDATE titles SET bookmark = :bookmark WHERE id = :id")
                         .bind("bookmark", bookmark)
+                        .bind("id", titleId)
+                        .execute()
+        );
+    }
+
+    @Override
+    public void recordVisit(long titleId) {
+        jdbi.useHandle(h ->
+                h.createUpdate("UPDATE titles SET visit_count = visit_count + 1, " +
+                                "last_visited_at = :now WHERE id = :id")
+                        .bind("now", LocalDateTime.now().toString())
                         .bind("id", titleId)
                         .execute()
         );
