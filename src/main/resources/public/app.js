@@ -562,6 +562,9 @@ const collectionsGrid = new ScrollingGrid(
 //   'bookmarks'  → bookmarked titles
 let titleBrowseMode = null;
 let titleSearchTerm = '';
+let activeTags = new Set();
+let tagsDebounceTimer = null;
+let tagsCatalog = null;
 
 const allTitlesGrid = new ScrollingGrid(
   document.getElementById('titles-browse-grid'),
@@ -574,6 +577,8 @@ const allTitlesGrid = new ScrollingGrid(
     if (titleBrowseMode === 'collections') return `/api/collections/titles?offset=${o}&limit=${l}`;
     if (titleBrowseMode === 'unsorted')    return `/api/pool/${encodeURIComponent(poolVolumeId)}/titles?offset=${o}&limit=${l}`;
     if (titleBrowseMode === 'archive-pool') return `/api/pool/${encodeURIComponent(archivePoolVolumeId)}/titles?offset=${o}&limit=${l}`;
+    if (titleBrowseMode === 'tags' && activeTags.size > 0)
+      return `/api/titles?tags=${encodeURIComponent([...activeTags].join(','))}&offset=${o}&limit=${l}`;
     return `/api/titles?offset=${o}&limit=${l}`;
   },
   t => {
@@ -1180,6 +1185,63 @@ titleArchivesBtn.addEventListener('click', async () => {
   selectTitleBrowseMode('archive-pool');
 });
 
+// ── Tags browse ──────────────────────────────────────────────────────────
+const titleTagsBtn   = document.getElementById('title-tags-btn');
+const titleTagsPanel = document.getElementById('title-tags-panel');
+
+async function ensureTagsCatalog() {
+  if (tagsCatalog) return tagsCatalog;
+  const res = await fetch('/api/tags');
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  tagsCatalog = await res.json();
+  return tagsCatalog;
+}
+
+function renderTagsPanel(groups) {
+  titleTagsPanel.innerHTML = groups.map(g => `
+    <div class="tags-group">
+      <div class="tags-group-label">${esc(g.label)}</div>
+      <div class="tags-row">
+        ${g.tags.map(t => `<button type="button" class="tag-toggle${activeTags.has(t.name) ? ' active' : ''}" data-tag="${esc(t.name)}" title="${esc(t.description || '')}">${esc(t.name)}</button>`).join('')}
+      </div>
+    </div>
+  `).join('');
+  titleTagsPanel.querySelectorAll('.tag-toggle').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const tag = btn.dataset.tag;
+      if (activeTags.has(tag)) { activeTags.delete(tag); btn.classList.remove('active'); }
+      else                     { activeTags.add(tag);    btn.classList.add('active'); }
+      scheduleTagsQuery();
+    });
+  });
+}
+
+const TAGS_DEBOUNCE_MS = 350;
+function scheduleTagsQuery() {
+  if (tagsDebounceTimer) clearTimeout(tagsDebounceTimer);
+  tagsDebounceTimer = setTimeout(() => {
+    tagsDebounceTimer = null;
+    updateTitleBreadcrumb();
+    runTitleBrowseQuery();
+  }, TAGS_DEBOUNCE_MS);
+}
+
+function hideTagsPanel() {
+  titleTagsPanel.style.display = 'none';
+}
+
+titleTagsBtn.addEventListener('click', async () => {
+  if (mode === 'titles-browse' && titleBrowseMode === 'tags') return;
+  try {
+    const groups = await ensureTagsCatalog();
+    if (mode !== 'titles-browse') showView('titles-browse');
+    renderTagsPanel(groups);
+    selectTitleBrowseMode('tags');
+  } catch (err) {
+    console.error('Failed to load tags catalog', err);
+  }
+});
+
 // ── Title detail ──────────────────────────────────────────────────────────
 function openTitleDetail(t) {
   const sourceMode          = mode;
@@ -1210,6 +1272,8 @@ function openTitleDetail(t) {
     crumbs = [{ label: 'Unsorted', action: () => titleUnsortedBtn.click() }];
   } else if (sourceMode === 'titles-browse' && sourceTitleBrowseMode === 'archive-pool') {
     crumbs = [{ label: 'Archives', action: () => titleArchivesBtn.click() }];
+  } else if (sourceMode === 'titles-browse' && sourceTitleBrowseMode === 'tags') {
+    crumbs = [{ label: activeTags.size > 0 ? `Tags (${activeTags.size})` : 'Tags', action: () => titleTagsBtn.click() }];
   } else if (sourceMode === 'titles-browse') {
     crumbs = [{ label: 'Titles', action: () => titlesBrowseBtn.click() }];
   }
@@ -2038,6 +2102,7 @@ function updateTitleLandingSelection() {
   collectionsBtn.classList.toggle('selected',    titleBrowseMode === 'collections');
   titleUnsortedBtn.classList.toggle('selected',  titleBrowseMode === 'unsorted');
   titleArchivesBtn.classList.toggle('selected',  titleBrowseMode === 'archive-pool');
+  titleTagsBtn.classList.toggle('selected',      titleBrowseMode === 'tags');
 }
 
 function updateTitleBreadcrumb() {
@@ -2048,6 +2113,7 @@ function updateTitleBreadcrumb() {
   else if (titleBrowseMode === 'collections')  crumbs.push({ label: 'Collections' });
   else if (titleBrowseMode === 'unsorted')     crumbs.push({ label: 'Unsorted' });
   else if (titleBrowseMode === 'archive-pool') crumbs.push({ label: 'Archives' });
+  else if (titleBrowseMode === 'tags')         crumbs.push({ label: activeTags.size > 0 ? `Tags (${activeTags.size})` : 'Tags' });
   else if (titleBrowseMode === 'search')       crumbs.push({ label: `search: "${titleSearchTerm}"` });
   updateBreadcrumb(crumbs);
 }
@@ -2074,6 +2140,7 @@ function selectTitleBrowseMode(modeKey) {
   if (modeKey === 'studio') {
     document.getElementById('titles-browse-grid').style.display = 'none';
     titleStudioLabelsEl.style.display = 'none';
+    hideTagsPanel();
     ensureStudioGroups().then(groups => {
       renderStudioGroupRow(groups);
       showStudioGroupRow();
@@ -2083,7 +2150,14 @@ function selectTitleBrowseMode(modeKey) {
     });
     return;
   }
+  if (modeKey === 'tags') {
+    hideStudioGroupRow();
+    titleTagsPanel.style.display = 'grid';
+    runTitleBrowseQuery();
+    return;
+  }
   hideStudioGroupRow();
+  hideTagsPanel();
   runTitleBrowseQuery();
 }
 
@@ -2105,6 +2179,7 @@ function scheduleTitleSearch(delayOverride) {
     titleSearchTimer = null;
     titleSearchTerm = raw;
     titleBrowseMode = 'search';
+    hideTagsPanel();
     updateTitleLandingSelection();
     updateTitleBreadcrumb();
     runTitleBrowseQuery();
@@ -2201,11 +2276,14 @@ function showTitlesBrowse() {
   }
   updateActressLandingSelection();
   if (titleSearchTimer) { clearTimeout(titleSearchTimer); titleSearchTimer = null; }
+  if (tagsDebounceTimer) { clearTimeout(tagsDebounceTimer); tagsDebounceTimer = null; }
   titleBrowseMode = null;
   titleSearchTerm = '';
+  activeTags.clear();
   titleSearchInput.value = '';
   closeLabelDropdown();
   hideStudioGroupRow();
+  hideTagsPanel();
   updateTitleLandingSelection();
   showView('titles-browse');
   requestAnimationFrame(() => {

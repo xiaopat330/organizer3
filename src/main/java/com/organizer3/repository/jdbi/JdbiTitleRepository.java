@@ -452,6 +452,30 @@ public class JdbiTitleRepository implements TitleRepository {
     }
 
     @Override
+    public List<Title> findByTagsPaged(List<String> tags, int limit, int offset) {
+        List<Title> titles = jdbi.withHandle(h ->
+                h.createQuery("""
+                        SELECT t.* FROM titles t
+                        LEFT JOIN title_locations tl ON t.id = tl.title_id
+                        WHERE t.id IN (
+                            SELECT title_id FROM title_tags WHERE tag IN (<tags>)
+                            GROUP BY title_id HAVING COUNT(DISTINCT tag) = :tagCount
+                        )
+                        GROUP BY t.id
+                        ORDER BY MIN(tl.added_date) DESC, t.id DESC
+                        LIMIT :limit OFFSET :offset
+                        """)
+                        .bindList("tags", tags)
+                        .bind("tagCount", tags.size())
+                        .bind("limit", limit)
+                        .bind("offset", offset)
+                        .map(MAPPER)
+                        .list()
+        );
+        return populateLocationsBatch(titles);
+    }
+
+    @Override
     public void enrichTitle(long titleId, String titleOriginal, String titleEnglish,
                             java.time.LocalDate releaseDate, String notes, Actress.Grade grade) {
         jdbi.useHandle(h ->

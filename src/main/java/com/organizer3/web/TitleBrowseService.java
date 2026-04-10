@@ -110,6 +110,12 @@ public class TitleBrowseService {
                 .toList();
     }
 
+    /** Returns titles having ALL of the given tags, ordered newest-first. */
+    public List<TitleSummary> findByTagsPaged(List<String> tags, int offset, int limit) {
+        limit = Math.min(limit, MAX_LIMIT);
+        return toSummaries(titleRepo.findByTagsPaged(tags, limit, offset));
+    }
+
     /**
      * Returns a random sample of at most {@code limit} titles with an actress attribution.
      * Each call returns a fresh random set — offset-based pagination is intentionally not

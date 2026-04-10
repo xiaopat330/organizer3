@@ -357,6 +357,85 @@ header h1:hover {
 }
 .actress-landing-archives.selected .actress-landing-archive { stroke: #50d8c0; }
 
+.actress-landing-tags        { color: #50c878; }
+.actress-landing-tags .actress-landing-tag { stroke: #50c878; }
+.actress-landing-tags:hover,
+.actress-landing-tags.selected {
+  color: #70e898;
+  background: #081a10;
+  border-color: #153020;
+}
+.actress-landing-tags.selected .actress-landing-tag { stroke: #70e898; }
+
+/* ── Tags filter panel ───────────────────────────────────────────────── */
+#title-tags-panel {
+  padding: 10px 20px 14px;
+  background: #0d0d0d;
+  border-bottom: 1px solid #1e1e1e;
+  display: grid;
+  grid-template-columns: 160px 1fr;
+  gap: 0;
+}
+
+.tags-group {
+  display: contents;
+}
+
+.tags-group-label {
+  padding: 6px 12px 6px 0;
+  font-size: 0.68rem;
+  color: #444;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  font-weight: 500;
+  line-height: 1.6;
+  border-top: 1px solid #1a1a1a;
+  align-self: start;
+  padding-top: 9px;
+}
+
+.tags-group:first-child .tags-group-label,
+.tags-group:first-child .tags-row {
+  border-top: none;
+}
+
+.tags-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 5px 0 6px;
+  border-top: 1px solid #1a1a1a;
+  align-content: flex-start;
+}
+
+.tags-group:first-child .tags-row {
+  border-top: none;
+}
+
+.tag-toggle {
+  background: transparent;
+  border: 1px solid #222;
+  border-radius: 10px;
+  padding: 2px 9px;
+  font-size: 0.70rem;
+  color: #555;
+  cursor: pointer;
+  transition: color 0.10s ease, background 0.10s ease, border-color 0.10s ease;
+  font-family: inherit;
+  line-height: 1.5;
+}
+
+.tag-toggle:hover {
+  border-color: #383838;
+  color: #999;
+}
+
+.tag-toggle.active {
+  background: #081a10;
+  border-color: #50c878;
+  color: #70e898;
+}
+
 .actress-landing-tier-row {
   gap: 4px;
 }
