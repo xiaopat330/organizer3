@@ -188,9 +188,6 @@ function showView(name) {
   if (statusEl)  statusEl.style.display  = fixedViewport ? 'none' : '';
   if (sentinelEl) sentinelEl.style.display = fixedViewport ? 'none' : '';
   // Deactivate nav buttons when switching to any other view
-  if (name !== 'collections') {
-    document.getElementById('collections-btn')?.classList.remove('active');
-  }
   if (name !== 'titles-browse') {
     document.getElementById('titles-browse-btn')?.classList.remove('active');
   }
@@ -607,8 +604,9 @@ const allTitlesGrid = new ScrollingGrid(
     if (titleBrowseMode === 'search') {
       return `/api/titles?search=${encodeURIComponent(titleSearchTerm)}&offset=${o}&limit=${l}`;
     }
-    if (titleBrowseMode === 'favorites') return `/api/titles?favorites=true&offset=${o}&limit=${l}`;
-    if (titleBrowseMode === 'bookmarks') return `/api/titles?bookmarks=true&offset=${o}&limit=${l}`;
+    if (titleBrowseMode === 'favorites')    return `/api/titles?favorites=true&offset=${o}&limit=${l}`;
+    if (titleBrowseMode === 'bookmarks')   return `/api/titles?bookmarks=true&offset=${o}&limit=${l}`;
+    if (titleBrowseMode === 'collections') return `/api/collections/titles?offset=${o}&limit=${l}`;
     return `/api/titles?offset=${o}&limit=${l}`;
   },
   makeTitleCard,
@@ -1308,33 +1306,15 @@ async function openPoolView(volumeId, smbPath) {
 }
 
 // ── Collections browse ───────────────────────────────────────────────────
-const collectionsBtn = document.getElementById('collections-btn');
+const collectionsBtn = document.getElementById('title-collections-btn');
 
-collectionsBtn.addEventListener('click', () => {
-  closeQueuesDropdown();
-  closeArchivesDropdown();
-  collectionsBtn.classList.add('active');
-  actressesBtn.classList.remove('active');
-  if (actressSearchTimer) { clearTimeout(actressSearchTimer); actressSearchTimer = null; }
-  actressBrowseMode = null;
-  actressSearchTerm = '';
-  if (actressSearchInput) {
-    actressSearchInput.value = '';
-    actressSearchInput.classList.remove('invalid');
-  }
-  updateActressLandingSelection();
-  showView('collections');
-  updateBreadcrumb([{ label: 'Collections' }]);
-  activeGrid = collectionsGrid;
-  collectionsGrid.reset();
-  ensureSentinel();
-  collectionsGrid.loadMore();
-});
+collectionsBtn.addEventListener('click', () => selectTitleBrowseMode('collections'));
 
 // ── Title detail ──────────────────────────────────────────────────────────
 function openTitleDetail(t) {
-  const sourceMode    = mode;
-  const sourceHomeTab = homeTab;
+  const sourceMode          = mode;
+  const sourceHomeTab       = homeTab;
+  const sourceTitleBrowseMode = titleBrowseMode;
 
   showView('title-detail');
   document.getElementById('title-detail-cover').innerHTML = '';
@@ -1354,7 +1334,7 @@ function openTitleDetail(t) {
       const modeKey = actressBrowseMode;
       crumbs.push({ label: actressBrowseLabel(modeKey), action: () => selectActressBrowseMode(modeKey) });
     }
-  } else if (sourceMode === 'collections') {
+  } else if (sourceMode === 'titles-browse' && sourceTitleBrowseMode === 'collections') {
     crumbs = [{ label: 'Collections', action: () => collectionsBtn.click() }];
   } else if (sourceMode === 'titles-browse') {
     crumbs = [{ label: 'Titles', action: () => titlesBrowseBtn.click() }];
@@ -2180,19 +2160,22 @@ async function openLabelDropdown() {
 function updateTitleLandingSelection() {
   titleFavoritesBtn.classList.toggle('selected', titleBrowseMode === 'favorites');
   titleBookmarksBtn.classList.toggle('selected', titleBrowseMode === 'bookmarks');
-  titleStudioBtn.classList.toggle('selected', titleBrowseMode === 'studio');
+  titleStudioBtn.classList.toggle('selected',    titleBrowseMode === 'studio');
+  collectionsBtn.classList.toggle('selected',    titleBrowseMode === 'collections');
 }
 
 function updateTitleBreadcrumb() {
   const crumbs = [{ label: 'Titles', action: () => showTitlesBrowse() }];
   if (titleBrowseMode === 'favorites')     crumbs.push({ label: 'Favorites' });
   else if (titleBrowseMode === 'bookmarks') crumbs.push({ label: 'Bookmarks' });
-  else if (titleBrowseMode === 'studio')    crumbs.push({ label: 'Studio' });
-  else if (titleBrowseMode === 'search')    crumbs.push({ label: `search: "${titleSearchTerm}"` });
+  else if (titleBrowseMode === 'studio')       crumbs.push({ label: 'Studio' });
+  else if (titleBrowseMode === 'collections')  crumbs.push({ label: 'Collections' });
+  else if (titleBrowseMode === 'search')       crumbs.push({ label: `search: "${titleSearchTerm}"` });
   updateBreadcrumb(crumbs);
 }
 
 function runTitleBrowseQuery() {
+  document.getElementById('titles-browse-grid').style.display = 'grid';
   activeGrid = allTitlesGrid;
   allTitlesGrid.reset();
   ensureSentinel();

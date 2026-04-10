@@ -407,6 +407,16 @@ header h1:hover {
 }
 .actress-landing-studio.selected .actress-landing-film { fill: #ff7676; }
 
+.actress-landing-collections        { color: #f08030; }
+.actress-landing-collections .actress-landing-coll { fill: #f08030; }
+.actress-landing-collections:hover,
+.actress-landing-collections.active {
+  color: #ffa050;
+  background: #201408;
+  border-color: #3c2810;
+}
+.actress-landing-collections.active .actress-landing-coll { fill: #ffa050; }
+
 .actress-landing-tier-row {
   gap: 4px;
 }
