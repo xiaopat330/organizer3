@@ -153,7 +153,8 @@ const VIEWS = {
   'titles-browse':  ['title-landing', 'titles-browse-grid'],
 };
 const HOME_GRID_IDS = ['grid', 'random-titles-grid', 'random-actress-home-grid'];
-const ALL_PANEL_IDS = [...Object.values(VIEWS).flat(), ...HOME_GRID_IDS];
+const EXTRA_PANEL_IDS = ['title-studio-labels', 'title-tags-panel', 'actress-studio-labels'];
+const ALL_PANEL_IDS = [...Object.values(VIEWS).flat(), ...HOME_GRID_IDS, ...EXTRA_PANEL_IDS];
 let mode = 'titles';
 
 // Views where the body must not scroll (they fill the viewport themselves)
@@ -680,6 +681,7 @@ function showTitlesView() {
     actressSearchInput.classList.remove('invalid');
   }
   lastActressTier = 'GODDESS';
+  hideActressStudioGroupRow();
   hideActressTierRow();
   updateActressLandingSelection();
   updateBreadcrumb([]);
@@ -691,12 +693,16 @@ const actressesBtn          = document.getElementById('actresses-btn');
 const actressLandingEl      = document.getElementById('actress-landing');
 const actressSearchInput    = document.getElementById('actress-search-input');
 const actressSearchClearBtn = document.getElementById('actress-search-clear');
-const actressFavoritesBtn   = document.getElementById('actress-favorites-btn');
-const actressBookmarksBtn   = document.getElementById('actress-bookmarks-btn');
-const actressArchivesBtn    = document.getElementById('actress-archives-btn');
-const actressTierBtn        = document.getElementById('actress-tier-btn');
-const actressTierDivider    = document.getElementById('actress-tier-divider');
-const actressTierRow        = document.getElementById('actress-landing-tier-row');
+const actressFavoritesBtn    = document.getElementById('actress-favorites-btn');
+const actressBookmarksBtn    = document.getElementById('actress-bookmarks-btn');
+const actressArchivesBtn     = document.getElementById('actress-archives-btn');
+const actressStudioBtn       = document.getElementById('actress-studio-btn');
+const actressStudioDivider   = document.getElementById('actress-studio-divider');
+const actressStudioGroupRow  = document.getElementById('actress-studio-group-row');
+const actressStudioLabelsEl  = document.getElementById('actress-studio-labels');
+const actressTierBtn         = document.getElementById('actress-tier-btn');
+const actressTierDivider     = document.getElementById('actress-tier-divider');
+const actressTierRow         = document.getElementById('actress-landing-tier-row');
 
 const ACTRESS_TIERS = ['GODDESS', 'SUPERSTAR', 'POPULAR', 'MINOR', 'LIBRARY'];
 const ACTRESS_SEARCH_DELAY_MS = 350;
@@ -713,6 +719,7 @@ let actressSearchTerm = '';
 let actressSearchTimer = null;
 let actressTierPanelOpen = false;
 let lastActressTier = 'GODDESS';
+let selectedActressStudioSlug = null;
 
 function showActressTierRow() {
   actressTierPanelOpen = true;
@@ -723,6 +730,16 @@ function hideActressTierRow() {
   actressTierPanelOpen = false;
   actressTierDivider.style.display = 'none';
   actressTierRow.style.display = 'none';
+}
+function showActressStudioGroupRow() {
+  actressStudioDivider.style.display = '';
+  actressStudioGroupRow.style.display = '';
+}
+function hideActressStudioGroupRow() {
+  actressStudioDivider.style.display = 'none';
+  actressStudioGroupRow.style.display = 'none';
+  actressStudioLabelsEl.style.display = 'none';
+  selectedActressStudioSlug = null;
 }
 
 function buildActressTierChips() {
@@ -743,6 +760,7 @@ function updateActressLandingSelection() {
   actressFavoritesBtn.classList.toggle('selected', actressBrowseMode === 'favorites');
   actressBookmarksBtn.classList.toggle('selected', actressBrowseMode === 'bookmarks');
   actressArchivesBtn.classList.toggle('selected',  actressBrowseMode === 'archive-volumes');
+  actressStudioBtn.classList.toggle('selected',    actressBrowseMode === 'studio');
   actressTierBtn.classList.toggle('selected', actressTierPanelOpen);
   actressTierRow.querySelectorAll('.actress-landing-tier').forEach(btn => {
     btn.classList.toggle('selected', actressBrowseMode === `tier-${btn.dataset.tier}`);
@@ -793,6 +811,7 @@ function actressBrowseLabel(modeKey) {
   if (modeKey === 'favorites') return 'Favorites';
   if (modeKey === 'bookmarks') return 'Bookmarks';
   if (modeKey === 'archive-volumes') return 'Archive';
+  if (modeKey === 'studio')    return 'Studio';
   if (modeKey === 'search')    return `search: "${actressSearchTerm}"`;
   if (modeKey.startsWith('tier-')) return modeKey.slice(5).toLowerCase();
   return modeKey;
@@ -813,6 +832,23 @@ async function selectActressBrowseMode(modeKey) {
     if (actressSearchInput.value !== '') actressSearchInput.value = '';
     actressSearchInput.classList.remove('invalid');
   }
+  if (modeKey === 'studio') {
+    hideActressTierRow();
+    updateActressLandingSelection();
+    updateActressBreadcrumb();
+    actressesBtn.classList.add('active');
+    showView('actresses');
+    actressGridEl.style.display = 'none';
+    showActressStudioGroupRow();
+    ensureStudioGroups().then(groups => {
+      renderActressStudioGroupRow(groups);
+      if (groups.length > 0) {
+        selectActressStudioGroup(selectedActressStudioSlug || groups[0].slug);
+      }
+    });
+    return;
+  }
+  hideActressStudioGroupRow();
   if (modeKey.startsWith('tier-')) {
     lastActressTier = modeKey.slice(5);
     showActressTierRow();
@@ -836,6 +872,7 @@ function showActressLanding() {
   actressSearchTerm = '';
   actressSearchInput.value = '';
   actressSearchInput.classList.remove('invalid');
+  hideActressStudioGroupRow();
   hideActressTierRow();
   updateActressLandingSelection();
   updateBreadcrumb([{ label: 'Actresses' }]);
@@ -928,10 +965,122 @@ actressSearchClearBtn.addEventListener('click', () => {
 actressFavoritesBtn.addEventListener('click', () => selectActressBrowseMode('favorites'));
 actressBookmarksBtn.addEventListener('click', () => selectActressBrowseMode('bookmarks'));
 actressArchivesBtn.addEventListener('click',  () => selectActressBrowseMode('archive-volumes'));
+actressStudioBtn.addEventListener('click',    () => selectActressBrowseMode('studio'));
 
 actressTierBtn.addEventListener('click', () => {
   selectActressBrowseMode(`tier-${lastActressTier}`);
 });
+
+// ── Actress Studio browser ────────────────────────────────────────────────
+
+function renderActressStudioGroupRow(groups) {
+  actressStudioGroupRow.innerHTML = '';
+  groups.forEach(g => {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'studio-group-btn actress-studio-group-btn' +
+      (g.slug === selectedActressStudioSlug ? ' selected' : '');
+    btn.textContent = g.name;
+    btn.dataset.slug = g.slug;
+    btn.addEventListener('click', () => selectActressStudioGroup(g.slug));
+    actressStudioGroupRow.appendChild(btn);
+  });
+}
+
+async function selectActressStudioGroup(slug) {
+  selectedActressStudioSlug = slug;
+  actressStudioGroupRow.querySelectorAll('.actress-studio-group-btn').forEach(btn => {
+    btn.classList.toggle('selected', btn.dataset.slug === slug);
+  });
+
+  const groups = await ensureStudioGroups();
+  const group = groups.find(g => g.slug === slug);
+  if (!group) return;
+
+  const allLabels = await ensureTitleLabels();
+  const companySet = new Set(group.companies);
+
+  const byCompany = new Map();
+  group.companies.forEach(c => byCompany.set(c, []));
+  allLabels.forEach(lbl => {
+    if (companySet.has(lbl.company)) byCompany.get(lbl.company).push(lbl);
+  });
+
+  renderActressStudioLabels(byCompany);
+}
+
+function renderActressStudioLabels(byCompany) {
+  actressStudioLabelsEl.innerHTML = '';
+
+  const listEl = document.createElement('div');
+  listEl.className = 'studio-label-list';
+
+  let firstCompany = null;
+  byCompany.forEach((labels, company) => {
+    if (labels.length === 0) return;
+    if (!firstCompany) firstCompany = company;
+    const item = document.createElement('div');
+    item.className = 'studio-label-item';
+    item.dataset.company = company;
+    const nameEl = document.createElement('span');
+    nameEl.className = 'studio-label-item-name studio-label-item-company';
+    nameEl.textContent = company;
+    item.appendChild(nameEl);
+    item.addEventListener('click', () => selectActressStudioCompany(company, byCompany));
+    listEl.appendChild(item);
+  });
+
+  const detailEl = document.createElement('div');
+  detailEl.className = 'studio-label-detail';
+  detailEl.id = 'actress-studio-label-detail';
+
+  actressStudioLabelsEl.appendChild(listEl);
+  actressStudioLabelsEl.appendChild(detailEl);
+  actressStudioLabelsEl.style.display = 'flex';
+  actressGridEl.style.display = 'none';
+
+  if (firstCompany) selectActressStudioCompany(firstCompany, byCompany);
+}
+
+function selectActressStudioCompany(company, byCompany) {
+  actressStudioLabelsEl.querySelectorAll('.studio-label-item').forEach(el => {
+    el.classList.toggle('selected', el.dataset.company === company);
+  });
+
+  const detailEl = document.getElementById('actress-studio-label-detail');
+  if (!detailEl) return;
+
+  const labels = byCompany.get(company) || [];
+  const companyDesc = labels.length > 0 && labels[0].companyDescription ? labels[0].companyDescription : null;
+
+  let html = `<div class="studio-detail-heading">${esc(company)}</div>`;
+  if (companyDesc) html += `<div class="studio-detail-company-desc">${esc(companyDesc)}</div>`;
+
+  // Group by label name then list product codes
+  const byLabel = new Map();
+  labels.forEach(lbl => {
+    const key = lbl.labelName || lbl.code;
+    if (!byLabel.has(key)) byLabel.set(key, []);
+    byLabel.get(key).push(lbl);
+  });
+  html += '<div class="studio-detail-section-label">product codes</div>';
+  html += '<div class="studio-detail-label-list">';
+  byLabel.forEach((codes, labelName) => {
+    html += `<div class="studio-detail-label-group">
+      <div class="studio-detail-label-name">${esc(labelName)}</div>
+      <div class="studio-detail-code-rows">`;
+    codes.forEach(lbl => {
+      html += `<div class="studio-detail-code-row">
+        <span class="studio-detail-code-badge">${esc(lbl.code)}</span>
+        ${lbl.description ? `<span class="studio-detail-label-desc">${esc(lbl.description)}</span>` : ''}
+      </div>`;
+    });
+    html += `</div></div>`;
+  });
+  html += '</div>';
+
+  detailEl.innerHTML = html;
+}
 
 // ── Actress detail ────────────────────────────────────────────────────────
 async function openActressDetail(actressId) {
@@ -2306,6 +2455,7 @@ function showTitlesBrowse() {
     actressSearchInput.classList.remove('invalid');
   }
   lastActressTier = 'GODDESS';
+  hideActressStudioGroupRow();
   hideActressTierRow();
   updateActressLandingSelection();
   if (titleSearchTimer) { clearTimeout(titleSearchTimer); titleSearchTimer = null; }

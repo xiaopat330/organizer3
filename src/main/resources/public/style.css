@@ -568,10 +568,26 @@ header h1:hover {
 }
 
 /* ── Studio two-panel browser ────────────────────────────────────────── */
-#title-studio-labels {
+#title-studio-labels,
+#actress-studio-labels {
   display: flex;
   height: calc(100vh - 110px);
   overflow: hidden;
+}
+
+/* Actress studio — purple accent overrides */
+#actress-studio-labels .studio-group-btn.selected,
+.actress-studio-group-btn.selected {
+  color: #c080ff;
+  background: #140a20;
+  border-color: #2a1640;
+}
+#actress-studio-labels .studio-label-item.selected {
+  background: #14082a;
+  border-left-color: #a060e0;
+}
+#actress-studio-labels .studio-detail-code-badge {
+  color: #a060e0;
 }
 
 /* Left panel — company list */
