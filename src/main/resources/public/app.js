@@ -158,7 +158,7 @@ const VIEWS = {
   queue:            ['queue-header', 'queue-grid'],
   pool:             ['pool-header', 'pool-grid'],
   collections:      ['collections-grid'],
-  'titles-browse':  ['titles-sub-nav', 'titles-browse-grid'],
+  'titles-browse':  ['title-landing', 'titles-browse-grid'],
 };
 const HOME_GRID_IDS = ['grid', 'random-titles-grid', 'random-actress-home-grid'];
 const ALL_PANEL_IDS = [...Object.values(VIEWS).flat(), ...HOME_GRID_IDS];
@@ -286,7 +286,7 @@ function tagHue(tag) {
 
 function tagBadgeHtml(tag) {
   const hue = tagHue(tag);
-  const style = `color:hsl(${hue},55%,62%);background:hsl(${hue},40%,10%)`;
+  const style = `color:hsl(${hue},65%,65%);background:hsl(${hue},40%,12%);border:1px solid hsl(${hue},50%,38%)`;
   return `<span class="tag-badge" style="${style}">${esc(tag)}</span>`;
 }
 
@@ -593,9 +593,24 @@ const collectionsGrid = new ScrollingGrid(
   { getMax: () => MAX_TOTAL }
 );
 
+// Title browse state:
+//   null         → recent titles (default)
+//   'search'     → use titleSearchTerm (product-number prefix search)
+//   'favorites'  → favorited titles
+//   'bookmarks'  → bookmarked titles
+let titleBrowseMode = null;
+let titleSearchTerm = '';
+
 const allTitlesGrid = new ScrollingGrid(
   document.getElementById('titles-browse-grid'),
-  (o, l) => `/api/titles?offset=${o}&limit=${l}`,
+  (o, l) => {
+    if (titleBrowseMode === 'search') {
+      return `/api/titles?search=${encodeURIComponent(titleSearchTerm)}&offset=${o}&limit=${l}`;
+    }
+    if (titleBrowseMode === 'favorites') return `/api/titles?favorites=true&offset=${o}&limit=${l}`;
+    if (titleBrowseMode === 'bookmarks') return `/api/titles?bookmarks=true&offset=${o}&limit=${l}`;
+    return `/api/titles?offset=${o}&limit=${l}`;
+  },
   makeTitleCard,
   'no titles',
   { getMax: () => MAX_TOTAL }
@@ -875,7 +890,7 @@ function showActressLanding() {
 
 actressesBtn.addEventListener('click', e => {
   e.stopPropagation();
-  showActressLanding();
+  selectActressBrowseMode('favorites');
 });
 
 // Toggle red "invalid" styling while input is below the 2-char minimum
@@ -1324,10 +1339,12 @@ function openTitleDetail(t) {
   showView('title-detail');
   document.getElementById('title-detail-cover').innerHTML = '';
   document.getElementById('title-detail-info').innerHTML  = '';
-  document.getElementById('title-detail-right').innerHTML = '';
+  document.getElementById('title-detail-right').innerHTML =
+    '<div id="title-video-container"></div><div id="title-more-container"></div>';
   renderTitleDetail(t);
   loadLastWatched(t.code);
   loadTitleVideos(t.code);
+  loadMoreFromActress(t);
 
   // Breadcrumb: include source context
   let crumbs = [];
@@ -1455,13 +1472,13 @@ function renderTitleDetail(t) {
       ${actressesHtml}
       ${labelHtml}
       ${dateHtml}
-      ${tagsHtml}
       ${gradeHtml}
       <div class="title-detail-row title-detail-watched-row" id="title-detail-watched" style="display:none">
         <span class="title-detail-label">Watched</span>
         <span class="title-detail-value title-detail-watched-value" id="title-detail-watched-value"></span>
       </div>
       ${nasHtml}
+      ${tagsHtml}
     </div>
   `;
 
@@ -1499,7 +1516,7 @@ function renderTitleDetail(t) {
 
 // ── Title videos ─────────────────────────────────────────────────────────
 function loadTitleVideos(titleCode) {
-  const rightCol = document.getElementById('title-detail-right');
+  const rightCol = document.getElementById('title-video-container');
   rightCol.innerHTML = '<div class="video-loading">Discovering videos\u2026</div>';
 
   fetch(`/api/titles/${encodeURIComponent(titleCode)}/videos`)
@@ -1522,6 +1539,35 @@ function loadTitleVideos(titleCode) {
     .catch(() => {
       rightCol.innerHTML = '<div class="video-empty">Could not load videos</div>';
     });
+}
+
+async function loadMoreFromActress(t) {
+  const actressId   = t.actressId || (t.actresses && t.actresses.length === 1 ? t.actresses[0].id : null);
+  const actressName = t.actressName || (t.actresses && t.actresses.length === 1 ? t.actresses[0].name : null);
+  const container   = document.getElementById('title-more-container');
+  if (!actressId || !container) return;
+
+  container.innerHTML = '<div class="more-from-loading">Loading more titles\u2026</div>';
+
+  try {
+    const res    = await fetch(`/api/actresses/${actressId}/titles?limit=13`);
+    const titles = await res.json();
+    const others = titles.filter(x => x.code !== t.code).slice(0, 12);
+    if (others.length === 0) { container.innerHTML = ''; return; }
+
+    const section = document.createElement('div');
+    section.className = 'more-from-section';
+    section.innerHTML = `<div class="more-from-heading">More from <span class="more-from-name">${esc(actressName || '')}</span></div>`;
+
+    const row = document.createElement('div');
+    row.className = 'more-from-row';
+    others.forEach(other => row.appendChild(makeTitleCard(other)));
+    section.appendChild(row);
+    container.innerHTML = '';
+    container.appendChild(section);
+  } catch (e) {
+    container.innerHTML = '';
+  }
 }
 
 function renderVideoSection(v, titleCode) {
@@ -1805,27 +1851,483 @@ function formatFileSize(bytes) {
 }
 
 // ── Titles browse ─────────────────────────────────────────────────────────
-const titlesBrowseBtn = document.getElementById('titles-browse-btn');
+const titlesBrowseBtn     = document.getElementById('titles-browse-btn');
+const titleLandingEl      = document.getElementById('title-landing');
+const titleSearchInput    = document.getElementById('title-search-input');
+const titleSearchClearBtn = document.getElementById('title-search-clear');
+const titleFavoritesBtn   = document.getElementById('title-favorites-btn');
+const titleBookmarksBtn   = document.getElementById('title-bookmarks-btn');
+const titleStudioBtn        = document.getElementById('title-studio-btn');
+const titleStudioDivider    = document.getElementById('title-studio-divider');
+const titleStudioGroupRow   = document.getElementById('title-studio-group-row');
+const titleStudioLabelsEl   = document.getElementById('title-studio-labels');
+const titleLabelDropdown    = document.getElementById('title-label-dropdown');
 
-function buildTitlesSubNav() {
-  const subNav = document.getElementById('titles-sub-nav');
-  subNav.innerHTML = '';
+const TITLE_SEARCH_DELAY_MS  = 350;
+const TITLE_SEARCH_MIN_CHARS = 1;
 
-  const allBtn = document.createElement('div');
-  allBtn.className = 'actress-sub-nav-item selected';
-  allBtn.textContent = 'ALL';
-  allBtn.addEventListener('click', () => {
-    subNav.querySelectorAll('.actress-sub-nav-item').forEach(el => el.classList.remove('selected'));
-    allBtn.classList.add('selected');
-    updateBreadcrumb([{ label: 'Titles' }]);
-    allTitlesGrid.reset();
-    ensureSentinel();
-    allTitlesGrid.loadMore();
+let titleSearchTimer = null;
+
+// Label reference cache for tab-completion (loaded once on first use)
+let titleLabelCache = null;
+let titleLabelCachePromise = null;
+let labelDropdownItems = [];    // current filtered list rendered in dropdown
+let labelDropdownIndex = -1;    // currently highlighted item
+
+async function ensureTitleLabels() {
+  if (titleLabelCache) return titleLabelCache;
+  if (titleLabelCachePromise) return titleLabelCachePromise;
+  titleLabelCachePromise = (async () => {
+    const res = await fetch('/api/titles/labels');
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    titleLabelCache = Array.isArray(data) ? data : [];
+    return titleLabelCache;
+  })().catch(err => {
+    console.error('Failed to load label catalog:', err);
+    titleLabelCache = [];
+    return titleLabelCache;
   });
-  subNav.appendChild(allBtn);
+  return titleLabelCachePromise;
 }
 
-titlesBrowseBtn.addEventListener('click', () => {
+// Studio group cache
+let studioGroupsCache = null;
+let studioGroupsCachePromise = null;
+let selectedStudioSlug = null;
+
+async function ensureStudioGroups() {
+  if (studioGroupsCache) return studioGroupsCache;
+  if (studioGroupsCachePromise) return studioGroupsCachePromise;
+  studioGroupsCachePromise = (async () => {
+    const res = await fetch('/api/titles/studios');
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    studioGroupsCache = await res.json();
+    return studioGroupsCache;
+  })().catch(err => {
+    console.error('Failed to load studio groups:', err);
+    studioGroupsCache = [];
+    return studioGroupsCache;
+  });
+  return studioGroupsCachePromise;
+}
+
+function renderStudioGroupRow(groups) {
+  titleStudioGroupRow.innerHTML = '';
+  groups.forEach(g => {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'studio-group-btn' + (g.slug === selectedStudioSlug ? ' selected' : '');
+    btn.textContent = g.name;
+    btn.dataset.slug = g.slug;
+    btn.addEventListener('click', () => selectStudioGroup(g.slug));
+    titleStudioGroupRow.appendChild(btn);
+  });
+}
+
+async function selectStudioGroup(slug) {
+  selectedStudioSlug = slug;
+
+  // Update button highlights
+  titleStudioGroupRow.querySelectorAll('.studio-group-btn').forEach(btn => {
+    btn.classList.toggle('selected', btn.dataset.slug === slug);
+  });
+
+  // Get the group's company list
+  const groups = await ensureStudioGroups();
+  const group = groups.find(g => g.slug === slug);
+  if (!group) return;
+
+  // Get cached labels and filter to this group's companies
+  const allLabels = await ensureTitleLabels();
+  const companySet = new Set(group.companies);
+
+  // Group labels by company (preserve company order from studios.yaml)
+  const byCompany = new Map();
+  group.companies.forEach(c => byCompany.set(c, []));
+  allLabels.forEach(lbl => {
+    if (companySet.has(lbl.company)) {
+      byCompany.get(lbl.company).push(lbl);
+    }
+  });
+
+  renderStudioLabels(byCompany);
+}
+
+function renderStudioLabels(byCompany) {
+  titleStudioLabelsEl.innerHTML = '';
+
+  // Build left panel — one item per company
+  const listEl = document.createElement('div');
+  listEl.className = 'studio-label-list';
+
+  let firstCompany = null;
+  byCompany.forEach((labels, company) => {
+    if (labels.length === 0) return;
+    if (!firstCompany) firstCompany = company;
+    const item = document.createElement('div');
+    item.className = 'studio-label-item';
+    item.dataset.company = company;
+
+    const nameEl = document.createElement('span');
+    nameEl.className = 'studio-label-item-name studio-label-item-company';
+    nameEl.textContent = company;
+    item.appendChild(nameEl);
+
+    item.addEventListener('click', () => selectStudioCompany(company, byCompany));
+    listEl.appendChild(item);
+  });
+
+  // Build right panel — detail area
+  const detailEl = document.createElement('div');
+  detailEl.className = 'studio-label-detail';
+  detailEl.id = 'studio-label-detail';
+
+  titleStudioLabelsEl.appendChild(listEl);
+  titleStudioLabelsEl.appendChild(detailEl);
+  titleStudioLabelsEl.style.display = 'flex';
+  document.getElementById('titles-browse-grid').style.display = 'none';
+
+  // Auto-select first company
+  if (firstCompany) selectStudioCompany(firstCompany, byCompany);
+}
+
+function selectStudioCompany(company, byCompany) {
+  // Highlight selected item in the left list
+  titleStudioLabelsEl.querySelectorAll('.studio-label-item').forEach(el => {
+    el.classList.toggle('selected', el.dataset.company === company);
+  });
+
+  const detailEl = document.getElementById('studio-label-detail');
+  if (!detailEl) return;
+
+  const labels = byCompany.get(company) || [];
+  const labelCodeSet = new Set(labels.map(l => l.code.toUpperCase()));
+
+  // 1. Heading
+  const companyDesc = labels.length > 0 && labels[0].companyDescription ? labels[0].companyDescription : null;
+  let html = `<div class="studio-detail-heading">${esc(company)}</div>`;
+
+  // 2. Description
+  if (companyDesc) html += `<div class="studio-detail-company-desc">${esc(companyDesc)}</div>`;
+
+  // 3. Top 10 + Newest Actresses placeholders
+  html += `<div class="studio-detail-section-label">${esc(company)}'s Top 10</div>
+           <div class="studio-top-actress-grid" id="studio-top-actresses"><span class="studio-detail-loading">loading…</span></div>`;
+  html += `<div class="studio-detail-section-label">Newest Actresses</div>
+           <div class="studio-top-actress-grid" id="studio-newest-actresses"><span class="studio-detail-loading">loading…</span></div>`;
+
+  // 4. Label list
+  const byLabel = new Map();
+  labels.forEach(lbl => {
+    const key = lbl.labelName || lbl.code;
+    if (!byLabel.has(key)) byLabel.set(key, []);
+    byLabel.get(key).push(lbl);
+  });
+  html += '<div class="studio-detail-section-label" style="margin-top:32px">labels</div>';
+  html += '<div class="studio-detail-label-list">';
+  byLabel.forEach((codes, labelName) => {
+    html += `<div class="studio-detail-label-group">
+      <div class="studio-detail-label-name">${esc(labelName)}</div>
+      <div class="studio-detail-code-rows">`;
+    codes.forEach(lbl => {
+      html += `<div class="studio-detail-code-row">
+        <span class="studio-detail-code-badge">${esc(lbl.code)}</span>
+        ${lbl.description ? `<span class="studio-detail-label-desc">${esc(lbl.description)}</span>` : ''}
+      </div>`;
+    });
+    html += `</div></div>`;
+  });
+  html += '</div>';
+
+  detailEl.innerHTML = html;
+
+  const labelCodes = labels.map(l => l.code).join(',');
+
+  function renderActressGrid(containerId, apiUrl) {
+    fetch(apiUrl)
+      .then(r => r.ok ? r.json() : Promise.reject(r.status))
+      .then(ranked => {
+        const el = document.getElementById(containerId);
+        if (!el) return;
+        if (ranked.length === 0) {
+          el.innerHTML = '<span class="studio-detail-loading">none in library</span>';
+          return;
+        }
+        const ids = ranked.map(a => a.id).join(',');
+        return fetch(`/api/actresses?ids=${encodeURIComponent(ids)}`)
+          .then(r => r.ok ? r.json() : Promise.reject(r.status))
+          .then(summaries => {
+            const el2 = document.getElementById(containerId);
+            if (!el2) return;
+            el2.innerHTML = '';
+            summaries.forEach(a => {
+              const allCovers = a.coverUrls || [];
+              const filtered = allCovers.filter(url => {
+                const seg = url.split('/')[2];
+                return seg && labelCodeSet.has(seg.toUpperCase());
+              });
+              const card = makeActressCard({ ...a, coverUrls: filtered.length > 0 ? filtered : allCovers });
+              card.addEventListener('click', () => showActressDetail(a.id));
+              el2.appendChild(card);
+            });
+          });
+      })
+      .catch(() => {
+        const el = document.getElementById(containerId);
+        if (el) el.innerHTML = '<span class="studio-detail-loading">failed to load</span>';
+      });
+  }
+
+  renderActressGrid('studio-top-actresses',    `/api/titles/top-actresses?labels=${encodeURIComponent(labelCodes)}&limit=10`);
+  renderActressGrid('studio-newest-actresses', `/api/titles/newest-actresses?labels=${encodeURIComponent(labelCodes)}&limit=10`);
+}
+
+function showStudioGroupRow() {
+  titleStudioDivider.style.display = '';
+  titleStudioGroupRow.style.display = '';
+}
+
+function hideStudioGroupRow() {
+  titleStudioDivider.style.display = 'none';
+  titleStudioGroupRow.style.display = 'none';
+  titleStudioLabelsEl.style.display = 'none';
+  selectedStudioSlug = null;
+}
+
+function extractAlphaPrefix(raw) {
+  if (!raw) return '';
+  // Take leading alpha characters, ignore anything after first non-alpha
+  const m = raw.trim().toUpperCase().match(/^([A-Z][A-Z0-9]*)/);
+  return m ? m[1] : '';
+}
+
+function closeLabelDropdown() {
+  titleLabelDropdown.style.display = 'none';
+  titleLabelDropdown.innerHTML = '';
+  labelDropdownItems = [];
+  labelDropdownIndex = -1;
+}
+
+function renderLabelDropdown(matches, prefix) {
+  titleLabelDropdown.innerHTML = '';
+  labelDropdownItems = matches;
+  labelDropdownIndex = matches.length > 0 ? 0 : -1;
+
+  if (matches.length === 0) {
+    const empty = document.createElement('div');
+    empty.className = 'title-label-dropdown-empty';
+    empty.textContent = `no labels match "${prefix}"`;
+    titleLabelDropdown.appendChild(empty);
+    titleLabelDropdown.style.display = 'block';
+    return;
+  }
+
+  matches.forEach((lbl, i) => {
+    const item = document.createElement('div');
+    item.className = 'title-label-dropdown-item' + (i === 0 ? ' highlighted' : '');
+    item.dataset.index = String(i);
+    const metaParts = [];
+    if (lbl.labelName) metaParts.push(lbl.labelName);
+    if (lbl.company)   metaParts.push(lbl.company);
+    const metaHtml = metaParts.length
+      ? `<span class="title-label-dropdown-meta">${esc(metaParts.join(' · '))}</span>`
+      : '';
+    item.innerHTML = `<span class="title-label-dropdown-code">${esc(lbl.code)}</span>${metaHtml}`;
+    item.addEventListener('mouseenter', () => highlightLabelDropdownItem(i));
+    item.addEventListener('mousedown', e => {
+      // mousedown (not click) so we beat the input blur
+      e.preventDefault();
+      selectLabelDropdownItem(i);
+    });
+    titleLabelDropdown.appendChild(item);
+  });
+  titleLabelDropdown.style.display = 'block';
+}
+
+function highlightLabelDropdownItem(i) {
+  const nodes = titleLabelDropdown.querySelectorAll('.title-label-dropdown-item');
+  nodes.forEach((n, idx) => n.classList.toggle('highlighted', idx === i));
+  labelDropdownIndex = i;
+  const n = nodes[i];
+  if (n) n.scrollIntoView({ block: 'nearest' });
+}
+
+function selectLabelDropdownItem(i) {
+  const lbl = labelDropdownItems[i];
+  if (!lbl) return;
+  titleSearchInput.value = lbl.code + '-';
+  closeLabelDropdown();
+  titleSearchInput.focus();
+  // Place caret at end
+  const v = titleSearchInput.value;
+  titleSearchInput.setSelectionRange(v.length, v.length);
+  // Trigger a search for the chosen label
+  scheduleTitleSearch(0);
+}
+
+async function openLabelDropdown() {
+  const prefix = extractAlphaPrefix(titleSearchInput.value);
+  if (!prefix) {
+    closeLabelDropdown();
+    return;
+  }
+  const all = await ensureTitleLabels();
+  const matches = all.filter(lbl => lbl.code && lbl.code.startsWith(prefix)).slice(0, 50);
+  renderLabelDropdown(matches, prefix);
+}
+
+function updateTitleLandingSelection() {
+  titleFavoritesBtn.classList.toggle('selected', titleBrowseMode === 'favorites');
+  titleBookmarksBtn.classList.toggle('selected', titleBrowseMode === 'bookmarks');
+  titleStudioBtn.classList.toggle('selected', titleBrowseMode === 'studio');
+}
+
+function updateTitleBreadcrumb() {
+  const crumbs = [{ label: 'Titles', action: () => showTitlesBrowse() }];
+  if (titleBrowseMode === 'favorites')     crumbs.push({ label: 'Favorites' });
+  else if (titleBrowseMode === 'bookmarks') crumbs.push({ label: 'Bookmarks' });
+  else if (titleBrowseMode === 'studio')    crumbs.push({ label: 'Studio' });
+  else if (titleBrowseMode === 'search')    crumbs.push({ label: `search: "${titleSearchTerm}"` });
+  updateBreadcrumb(crumbs);
+}
+
+function runTitleBrowseQuery() {
+  activeGrid = allTitlesGrid;
+  allTitlesGrid.reset();
+  ensureSentinel();
+  allTitlesGrid.loadMore();
+}
+
+function selectTitleBrowseMode(modeKey) {
+  titleBrowseMode = modeKey;
+  if (modeKey !== 'search') {
+    if (titleSearchTimer) { clearTimeout(titleSearchTimer); titleSearchTimer = null; }
+    titleSearchTerm = '';
+    if (titleSearchInput.value !== '') titleSearchInput.value = '';
+    closeLabelDropdown();
+  }
+  updateTitleLandingSelection();
+  updateTitleBreadcrumb();
+  titlesBrowseBtn.classList.add('active');
+  if (modeKey === 'studio') {
+    document.getElementById('titles-browse-grid').style.display = 'none';
+    titleStudioLabelsEl.style.display = 'none';
+    ensureStudioGroups().then(groups => {
+      renderStudioGroupRow(groups);
+      showStudioGroupRow();
+      if (groups.length > 0 && !selectedStudioSlug) {
+        selectStudioGroup(groups[0].slug);
+      }
+    });
+    return;
+  }
+  hideStudioGroupRow();
+  runTitleBrowseQuery();
+}
+
+function scheduleTitleSearch(delayOverride) {
+  if (titleSearchTimer) { clearTimeout(titleSearchTimer); titleSearchTimer = null; }
+  const raw = titleSearchInput.value.trim();
+  if (raw.length < TITLE_SEARCH_MIN_CHARS) {
+    // Reset to default recent-titles view if we were searching
+    if (titleBrowseMode === 'search') {
+      titleBrowseMode = null;
+      updateTitleLandingSelection();
+      updateTitleBreadcrumb();
+      runTitleBrowseQuery();
+    }
+    return;
+  }
+  const delay = delayOverride != null ? delayOverride : TITLE_SEARCH_DELAY_MS;
+  titleSearchTimer = setTimeout(() => {
+    titleSearchTimer = null;
+    titleSearchTerm = raw;
+    titleBrowseMode = 'search';
+    updateTitleLandingSelection();
+    updateTitleBreadcrumb();
+    runTitleBrowseQuery();
+  }, delay);
+}
+
+titleSearchInput.addEventListener('input', () => {
+  closeLabelDropdown();
+  scheduleTitleSearch();
+});
+
+titleSearchInput.addEventListener('keydown', e => {
+  const dropdownOpen = titleLabelDropdown.style.display !== 'none' && labelDropdownItems.length > 0;
+
+  if (e.key === 'Tab' && !e.shiftKey) {
+    e.preventDefault();
+    if (dropdownOpen) {
+      // Accept the current highlight
+      selectLabelDropdownItem(labelDropdownIndex >= 0 ? labelDropdownIndex : 0);
+    } else if (extractAlphaPrefix(titleSearchInput.value)) {
+      openLabelDropdown();
+    }
+    return;
+  }
+
+  if (e.key === 'Escape') {
+    if (dropdownOpen) {
+      e.preventDefault();
+      closeLabelDropdown();
+    }
+    return;
+  }
+
+  if (dropdownOpen && (e.key === 'ArrowDown' || e.key === 'ArrowUp')) {
+    e.preventDefault();
+    const delta = e.key === 'ArrowDown' ? 1 : -1;
+    const next = (labelDropdownIndex + delta + labelDropdownItems.length) % labelDropdownItems.length;
+    highlightLabelDropdownItem(next);
+    return;
+  }
+
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    if (dropdownOpen) {
+      selectLabelDropdownItem(labelDropdownIndex >= 0 ? labelDropdownIndex : 0);
+      return;
+    }
+    // Enter bypasses debounce
+    if (titleSearchTimer) { clearTimeout(titleSearchTimer); titleSearchTimer = null; }
+    const raw = titleSearchInput.value.trim();
+    if (raw.length < TITLE_SEARCH_MIN_CHARS) return;
+    titleSearchTerm = raw;
+    titleBrowseMode = 'search';
+    updateTitleLandingSelection();
+    updateTitleBreadcrumb();
+    titlesBrowseBtn.classList.add('active');
+    runTitleBrowseQuery();
+  }
+});
+
+titleSearchInput.addEventListener('blur', () => {
+  // Small delay so mousedown on dropdown items still fires
+  setTimeout(closeLabelDropdown, 150);
+});
+
+titleSearchClearBtn.addEventListener('click', () => {
+  if (titleSearchTimer) { clearTimeout(titleSearchTimer); titleSearchTimer = null; }
+  titleSearchInput.value = '';
+  titleSearchTerm = '';
+  closeLabelDropdown();
+  if (titleBrowseMode === 'search') {
+    titleBrowseMode = null;
+    updateTitleLandingSelection();
+    updateTitleBreadcrumb();
+    runTitleBrowseQuery();
+  }
+  titleSearchInput.focus();
+});
+
+titleFavoritesBtn.addEventListener('click', () => selectTitleBrowseMode('favorites'));
+titleBookmarksBtn.addEventListener('click', () => selectTitleBrowseMode('bookmarks'));
+titleStudioBtn.addEventListener('click',    () => selectTitleBrowseMode('studio'));
+
+function showTitlesBrowse() {
   closeQueuesDropdown();
   closeArchivesDropdown();
   titlesBrowseBtn.classList.add('active');
@@ -1839,19 +2341,25 @@ titlesBrowseBtn.addEventListener('click', () => {
     actressSearchInput.classList.remove('invalid');
   }
   updateActressLandingSelection();
-  buildTitlesSubNav();
+  if (titleSearchTimer) { clearTimeout(titleSearchTimer); titleSearchTimer = null; }
+  titleBrowseMode = null;
+  titleSearchTerm = '';
+  titleSearchInput.value = '';
+  closeLabelDropdown();
+  hideStudioGroupRow();
+  updateTitleLandingSelection();
   showView('titles-browse');
   requestAnimationFrame(() => {
     const header = document.querySelector('header');
-    const subNav = document.getElementById('titles-sub-nav');
-    if (header && subNav) subNav.style.top = header.offsetHeight + 'px';
+    if (header) titleLandingEl.style.top = header.offsetHeight + 'px';
   });
-  updateBreadcrumb([{ label: 'Titles' }]);
-  activeGrid = allTitlesGrid;
-  allTitlesGrid.reset();
-  ensureSentinel();
-  allTitlesGrid.loadMore();
-});
+  updateTitleBreadcrumb();
+  runTitleBrowseQuery();
+  // Preload label catalog in background for fast tab-completion later
+  ensureTitleLabels();
+}
+
+titlesBrowseBtn.addEventListener('click', showTitlesBrowse);
 
 // ── Initial load ──────────────────────────────────────────────────────────
 showView('titles');

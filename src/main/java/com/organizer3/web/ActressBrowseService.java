@@ -18,6 +18,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -174,6 +175,16 @@ public class ActressBrowseService {
         return actressRepo.findById(id).map(this::toSummary);
     }
 
+    /** Fetch full summaries for a batch of actress IDs, preserving the given order. */
+    public List<ActressSummary> findByIds(List<Long> ids) {
+        if (ids == null || ids.isEmpty()) return List.of();
+        Map<Long, ActressSummary> byId = actressRepo.findByIds(ids).stream()
+                .collect(java.util.stream.Collectors.toMap(
+                        a -> a.getId(),
+                        this::toSummary));
+        return ids.stream().map(byId::get).filter(java.util.Objects::nonNull).toList();
+    }
+
     /**
      * Returns a paginated list of title summaries for the given actress, ordered newest-first.
      * If {@code company} is non-null, only titles whose label belongs to that company are returned.
@@ -208,6 +219,13 @@ public class ActressBrowseService {
                             .map(loc -> volumeSmbPaths.get(loc.getVolumeId()) + "/" + loc.getPath())
                             .distinct()
                             .toList();
+                    List<String> directTags = t.getTags() != null ? t.getTags() : List.of();
+                    List<String> labelTags  = lbl != null ? lbl.tags() : List.of();
+                    List<String> allTags = Stream.concat(directTags.stream(), labelTags.stream())
+                            .distinct()
+                            .sorted()
+                            .toList();
+
                     return TitleSummary.builder()
                             .code(t.getCode())
                             .baseCode(t.getBaseCode())
@@ -228,7 +246,7 @@ public class ActressBrowseService {
                             .titleOriginal(t.getTitleOriginal())
                             .releaseDate(t.getReleaseDate() != null ? t.getReleaseDate().toString() : null)
                             .grade(t.getGrade() != null ? t.getGrade().display : null)
-                            .tags(t.getTags())
+                            .tags(allTags)
                             .build();
                 })
                 .toList();

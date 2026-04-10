@@ -167,7 +167,7 @@ class TitleBrowseServiceTest {
         when(titleRepo.findRecent(24, 0)).thenReturn(List.of(title));
         when(coverPath.find(title)).thenReturn(Optional.empty());
         when(labelRepo.findAllAsMap()).thenReturn(
-                Map.of("ABP", new Label("ABP", "Absolutely Perfect", "Prestige")));
+                Map.of("ABP", new Label("ABP", "Absolutely Perfect", "Prestige", null, null)));
 
         TitleSummary s = service.findRecent(0, 24).get(0);
         assertEquals("Prestige", s.getCompanyName());
@@ -290,6 +290,81 @@ class TitleBrowseServiceTest {
 
         assertEquals(7L, results.get(0).getActressId());
         assertEquals("Yui Hatano", results.get(0).getActressName());
+    }
+
+    // --- tags (direct + indirect) ---
+
+    @Test
+    void includesLabelTagsInTitleSummaryTags() {
+        Title title = title("ABP-123", "ABP-00123", "ABP", null, null);
+        Label label = new Label("ABP", "Prestige", "Prestige International", null, null,
+                null, null, null, null, List.of("exclusive-actress", "solo-actress"));
+
+        when(titleRepo.findRecent(24, 0)).thenReturn(List.of(title));
+        when(coverPath.find(title)).thenReturn(Optional.empty());
+        when(labelRepo.findAllAsMap()).thenReturn(Map.of("ABP", label));
+
+        List<String> tags = service.findRecent(0, 24).get(0).getTags();
+        assertTrue(tags.contains("exclusive-actress"));
+        assertTrue(tags.contains("solo-actress"));
+    }
+
+    @Test
+    void mergesDirectAndLabelTagsWithoutDuplicates() {
+        Title title = Title.builder()
+                .id(1L).code("ABP-123").baseCode("ABP-00123").label("ABP").seqNum(1)
+                .tags(List.of("creampie", "solo-actress"))
+                .locations(List.of(TitleLocation.builder()
+                        .titleId(1L).volumeId("vol-a").partitionId("stars")
+                        .path(Path.of("/mnt/vol-a/stars/ABP-123"))
+                        .lastSeenAt(LocalDate.of(2024, 1, 1))
+                        .build()))
+                .build();
+        Label label = new Label("ABP", "Prestige", "Prestige International", null, null,
+                null, null, null, null, List.of("exclusive-actress", "solo-actress"));
+
+        when(titleRepo.findRecent(24, 0)).thenReturn(List.of(title));
+        when(coverPath.find(title)).thenReturn(Optional.empty());
+        when(labelRepo.findAllAsMap()).thenReturn(Map.of("ABP", label));
+
+        List<String> tags = service.findRecent(0, 24).get(0).getTags();
+        // solo-actress appears in both direct and label — must appear exactly once
+        assertEquals(1, tags.stream().filter("solo-actress"::equals).count());
+        assertTrue(tags.contains("creampie"));
+        assertTrue(tags.contains("exclusive-actress"));
+    }
+
+    @Test
+    void tagsAreSorted() {
+        Title title = Title.builder()
+                .id(1L).code("ABP-123").baseCode("ABP-00123").label("ABP").seqNum(1)
+                .tags(List.of("solo-actress"))
+                .locations(List.of(TitleLocation.builder()
+                        .titleId(1L).volumeId("vol-a").partitionId("stars")
+                        .path(Path.of("/mnt/vol-a/stars/ABP-123"))
+                        .lastSeenAt(LocalDate.of(2024, 1, 1))
+                        .build()))
+                .build();
+        Label label = new Label("ABP", "Prestige", "Prestige International", null, null,
+                null, null, null, null, List.of("amateur", "creampie"));
+
+        when(titleRepo.findRecent(24, 0)).thenReturn(List.of(title));
+        when(coverPath.find(title)).thenReturn(Optional.empty());
+        when(labelRepo.findAllAsMap()).thenReturn(Map.of("ABP", label));
+
+        List<String> tags = service.findRecent(0, 24).get(0).getTags();
+        assertEquals(List.of("amateur", "creampie", "solo-actress"), tags);
+    }
+
+    @Test
+    void noTagsWhenLabelMissingAndTitleHasNone() {
+        Title title = title("ABP-123", "ABP-00123", "ABP", null, null);
+
+        when(titleRepo.findRecent(24, 0)).thenReturn(List.of(title));
+        when(coverPath.find(title)).thenReturn(Optional.empty());
+        // labelRepo returns empty map — no label found
+
+        assertTrue(service.findRecent(0, 24).get(0).getTags().isEmpty());
     }
 
     // --- helpers ---

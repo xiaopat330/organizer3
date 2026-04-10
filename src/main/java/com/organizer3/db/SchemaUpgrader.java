@@ -19,7 +19,7 @@ import org.jdbi.v3.core.Jdbi;
 public class SchemaUpgrader {
 
     /** Must match the version stamped by {@link SchemaInitializer}. */
-    private static final int CURRENT_VERSION = 3;
+    private static final int CURRENT_VERSION = 5;
 
     private final Jdbi jdbi;
 
@@ -41,6 +41,16 @@ public class SchemaUpgrader {
             setVersion(3);
         }
 
+        if (version < 4) {
+            applyV4();
+            setVersion(4);
+        }
+
+        if (version < 5) {
+            applyV5();
+            setVersion(5);
+        }
+
         log.info("Schema upgrade complete");
     }
 
@@ -48,6 +58,36 @@ public class SchemaUpgrader {
     private void applyV2() {
         log.info("Applying migration v2: adding stage_name to actresses");
         jdbi.useHandle(h -> h.execute("ALTER TABLE actresses ADD COLUMN stage_name TEXT"));
+    }
+
+    /** v4: adds company_description column to labels table. */
+    private void applyV4() {
+        log.info("Applying migration v4: adding company_description to labels");
+        jdbi.useHandle(h -> h.execute("ALTER TABLE labels ADD COLUMN company_description TEXT"));
+    }
+
+    /** v5: adds company profile columns to labels, tags reference table, and label_tags join table. */
+    private void applyV5() {
+        log.info("Applying migration v5: label profile columns, tags table, label_tags table");
+        jdbi.useHandle(h -> {
+            h.execute("ALTER TABLE labels ADD COLUMN company_specialty TEXT");
+            h.execute("ALTER TABLE labels ADD COLUMN company_founded TEXT");
+            h.execute("ALTER TABLE labels ADD COLUMN company_status TEXT");
+            h.execute("ALTER TABLE labels ADD COLUMN company_parent TEXT");
+            h.execute("""
+                    CREATE TABLE IF NOT EXISTS tags (
+                        name        TEXT PRIMARY KEY,
+                        category    TEXT NOT NULL,
+                        description TEXT
+                    )""");
+            h.execute("""
+                    CREATE TABLE IF NOT EXISTS label_tags (
+                        label_code  TEXT NOT NULL REFERENCES labels(code),
+                        tag         TEXT NOT NULL REFERENCES tags(name),
+                        PRIMARY KEY (label_code, tag)
+                    )""");
+            h.execute("CREATE INDEX IF NOT EXISTS idx_label_tags_tag ON label_tags(tag)");
+        });
     }
 
     /** v3: adds actress profile fields, title metadata fields, and title_tags table. */

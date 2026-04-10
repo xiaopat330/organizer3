@@ -44,7 +44,8 @@ class SchemaInitializerTest {
         );
 
         assertEquals(
-                List.of("actress_aliases", "actresses", "labels", "title_actresses", "title_locations", "title_tags", "titles", "videos", "volumes", "watch_history"),
+                List.of("actress_aliases", "actresses", "label_tags", "labels", "tags",
+                        "title_actresses", "title_locations", "title_tags", "titles", "videos", "volumes", "watch_history"),
                 tables
         );
     }
@@ -64,6 +65,7 @@ class SchemaInitializerTest {
 
         assertEquals(
                 List.of("idx_actress_aliases_name",
+                        "idx_label_tags_tag",
                         "idx_title_actresses_actress", "idx_title_actresses_title",
                         "idx_title_locations_title", "idx_title_locations_volume", "idx_title_locations_volume_partition",
                         "idx_title_tags_tag",

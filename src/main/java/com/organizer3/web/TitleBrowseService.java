@@ -2,18 +2,22 @@ package com.organizer3.web;
 
 import com.organizer3.covers.CoverPath;
 import com.organizer3.model.Label;
+import com.organizer3.model.StudioGroup;
 import com.organizer3.model.Title;
 import com.organizer3.repository.ActressRepository;
 import com.organizer3.repository.LabelRepository;
 import com.organizer3.repository.TitleActressRepository;
 import com.organizer3.repository.TitleRepository;
 import com.organizer3.repository.WatchHistoryRepository;
+import com.organizer3.sync.TitleCodeQuery;
 
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
 
 /**
@@ -40,6 +44,70 @@ public class TitleBrowseService {
     public List<TitleSummary> findRecent(int offset, int limit) {
         limit = Math.min(limit, MAX_LIMIT);
         return toSummaries(titleRepo.findRecent(limit, offset));
+    }
+
+    /**
+     * Searches titles by a product-number fragment using {@link TitleCodeQuery} normalization.
+     * Returns an empty list if the query can't be parsed into at least a label prefix.
+     */
+    public List<TitleSummary> searchByCodePaged(String rawQuery, int offset, int limit) {
+        limit = Math.min(limit, MAX_LIMIT);
+        TitleCodeQuery.ParsedQuery parsed = TitleCodeQuery.parse(rawQuery);
+        if (parsed.labelPrefix().isEmpty()) return List.of();
+        return toSummaries(titleRepo.findByCodePrefixPaged(
+                parsed.labelPrefix(), parsed.seqPrefix(), limit, offset));
+    }
+
+    /** Returns favorited titles, ordered newest-first. */
+    public List<TitleSummary> findFavoritesPaged(int offset, int limit) {
+        limit = Math.min(limit, MAX_LIMIT);
+        return toSummaries(titleRepo.findFavoritesPaged(limit, offset));
+    }
+
+    /** Returns bookmarked titles, ordered newest-first. */
+    public List<TitleSummary> findBookmarksPaged(int offset, int limit) {
+        limit = Math.min(limit, MAX_LIMIT);
+        return toSummaries(titleRepo.findBookmarksPaged(limit, offset));
+    }
+
+    /**
+     * Returns the full label reference catalog, sorted by code. Used by the title landing
+     * page to power tab-completion of the product-number search.
+     */
+    public List<Label> listLabels() {
+        return labelRepo.findAllAsMap().values().stream()
+                .sorted(Comparator.comparing(Label::code))
+                .toList();
+    }
+
+    /**
+     * Returns all studio group definitions in declaration order from {@code studios.yaml}.
+     * Used by the Studio browser sub-nav.
+     */
+    public List<StudioGroup> listStudioGroups() {
+        return new StudioGroupLoader().load();
+    }
+
+    /** Lightweight projection for top-actresses-by-label queries. */
+    public record ActressCount(long id, String name, String tier, long count) {}
+
+    /**
+     * Returns the top actresses by title count for titles whose label is in {@code labels}.
+     */
+    public List<ActressCount> topActressesByLabels(List<String> labels, int limit) {
+        return titleRepo.findTopActressesByLabels(labels, limit).stream()
+                .map(row -> new ActressCount(
+                        (Long) row[0],
+                        (String) row[1],
+                        (String) row[2],
+                        (Long) row[3]))
+                .toList();
+    }
+
+    public List<ActressCount> newestActressesByLabels(List<String> labels, int limit) {
+        return titleRepo.findNewestActressesByLabels(labels, limit).stream()
+                .map(row -> new ActressCount((Long) row[0], (String) row[1], (String) row[2], 0L))
+                .toList();
     }
 
     /**
@@ -163,6 +231,14 @@ public class TitleBrowseService {
                         }
                     }
 
+                    // Merge direct title tags with indirect label tags, deduplicated and sorted
+                    List<String> directTags = t.getTags() != null ? t.getTags() : List.of();
+                    List<String> labelTags  = lbl != null ? lbl.tags() : List.of();
+                    List<String> allTags = Stream.concat(directTags.stream(), labelTags.stream())
+                            .distinct()
+                            .sorted()
+                            .toList();
+
                     return TitleSummary.builder()
                             .code(t.getCode())
                             .baseCode(t.getBaseCode())
@@ -186,7 +262,7 @@ public class TitleBrowseService {
                             .bookmark(t.isBookmark())
                             .lastWatchedAt(watchStatsMap.containsKey(t.getCode()) ? watchStatsMap.get(t.getCode()).lastWatchedAt().toString() : null)
                             .watchCount(watchStatsMap.containsKey(t.getCode()) ? watchStatsMap.get(t.getCode()).count() : 0)
-                            .tags(t.getTags())
+                            .tags(allTags)
                             .build();
                 })
                 .toList();

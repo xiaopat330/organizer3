@@ -68,6 +68,20 @@ public interface TitleRepository {
     /** Find titles ordered by added_date DESC — for the browse home page. */
     List<Title> findRecent(int limit, int offset);
 
+    /**
+     * Find titles whose label starts with {@code labelPrefix} (case-insensitive) and whose
+     * {@code seq_num}, when rendered without leading zeros, starts with {@code seqPrefix}.
+     * Pass an empty {@code seqPrefix} to skip the seq constraint. Results are ordered by
+     * favorite → bookmark → label → seq_num.
+     */
+    List<Title> findByCodePrefixPaged(String labelPrefix, String seqPrefix, int limit, int offset);
+
+    /** Find favorited titles, ordered newest-first by added_date. */
+    List<Title> findFavoritesPaged(int limit, int offset);
+
+    /** Find bookmarked titles, ordered newest-first by added_date. */
+    List<Title> findBookmarksPaged(int limit, int offset);
+
     /** Find titles for an actress ordered by added_date DESC. */
     List<Title> findByActressPaged(long actressId, int limit, int offset);
 
@@ -82,6 +96,18 @@ public interface TitleRepository {
 
     /** Delete titles that have zero locations (orphaned after location cleanup). */
     void deleteOrphaned();
+
+    /**
+     * Returns the top actresses by title count for titles whose label is in {@code labels}.
+     * Each row is [actressId (Long), actressName (String), tier (String), count (Long)].
+     */
+    List<Object[]> findTopActressesByLabels(List<String> labels, int limit);
+
+    /**
+     * Returns distinct actresses ordered by the most recently added title whose label is in
+     * {@code labels}. Each row is [actressId (Long), actressName (String), tier (String)].
+     */
+    List<Object[]> findNewestActressesByLabels(List<String> labels, int limit);
 
     /**
      * Overwrite enrichment fields for a title.

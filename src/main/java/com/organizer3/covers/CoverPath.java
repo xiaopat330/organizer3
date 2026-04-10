@@ -2,12 +2,11 @@ package com.organizer3.covers;
 
 import com.organizer3.model.Title;
 
-import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.List;
 import java.util.Optional;
 import java.util.Set;
-import java.util.stream.Stream;
 
 /**
  * Resolves local cover image paths for titles.
@@ -54,23 +53,22 @@ public class CoverPath {
      * Finds an existing cover image for the title, regardless of extension.
      * Returns empty if no cover exists or if the title has no label/baseCode.
      */
+    // Ordered by likelihood — jpg is by far the most common cover format
+    private static final List<String> PROBE_EXTENSIONS = List.of("jpg", "jpeg", "png", "webp", "gif");
+
     public Optional<Path> find(Title title) {
         if (title.getLabel() == null || title.getBaseCode() == null) return Optional.empty();
         Path dir = labelDir(title);
         if (!Files.isDirectory(dir)) return Optional.empty();
 
-        String prefix = title.getBaseCode() + ".";
-        try (Stream<Path> files = Files.list(dir)) {
-            return files
-                    .filter(f -> f.getFileName().toString().startsWith(prefix))
-                    .filter(f -> {
-                        String ext = extensionOf(f.getFileName().toString());
-                        return IMAGE_EXTENSIONS.contains(ext);
-                    })
-                    .findFirst();
-        } catch (IOException e) {
-            return Optional.empty();
+        // Probe specific filenames rather than listing the whole directory.
+        // Cover directories can have 700+ files — Files.list() is slow at that scale.
+        String base = title.getBaseCode();
+        for (String ext : PROBE_EXTENSIONS) {
+            Path candidate = dir.resolve(base + "." + ext);
+            if (Files.isRegularFile(candidate)) return Optional.of(candidate);
         }
+        return Optional.empty();
     }
 
     /** Returns true if a cover image already exists locally for this title. */

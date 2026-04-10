@@ -28,6 +28,7 @@ import com.organizer3.config.sync.SyncCommandDef;
 import com.organizer3.config.volume.OrganizerConfig;
 import com.organizer3.config.volume.OrganizerConfigLoader;
 import com.organizer3.db.LabelSeeder;
+import com.organizer3.db.TagSeeder;
 import com.organizer3.db.SchemaInitializer;
 import com.organizer3.db.SchemaUpgrader;
 import com.organizer3.media.ThumbnailService;
@@ -107,6 +108,7 @@ public class Application {
         Jdbi jdbi = Jdbi.create("jdbc:sqlite:" + dbDir.resolve("organizer.db"));
         new SchemaInitializer(jdbi).initialize();
         new SchemaUpgrader(jdbi).upgrade();
+        new TagSeeder(jdbi).seedIfEmpty();
         new LabelSeeder(jdbi).seedIfEmpty();
 
         // Repositories

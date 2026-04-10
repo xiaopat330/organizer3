@@ -1,0 +1,137 @@
+# Studio group definitions — maps parent companies to their label company entries.
+# Company names must match exactly the "company:" values in labels.yaml.
+
+- name: WILL Co., Ltd.
+  slug: will
+  companies:
+    - Moodyz
+    - WANZ Factory
+    - "S1 No.1 Style"
+    - IDEA POCKET
+    - MUTEKI
+    - Kira Kira
+    - E-BODY
+    - Chijo Heaven
+    - PREMIUM
+    - Under
+    - Madonna
+    - Tameike Goro
+    - Fitch
+    - Mature Women are Painful
+    - "kawaii*"
+    - BeFree
+    - Candy
+    - minimum
+    - Muku
+    - Attackers
+    - Emco Labo
+    - "Das!"
+    - Opera
+    - OPPAI
+    - V
+    - kunka
+    - "Perverted Gentlemen's Club"
+    - Ranmaru
+    - Vivian
+    - Honnaka
+    - Rookie
+    - "ZUKKON & BAKKON"
+    - Nanpa Japan
+    - Karma
+    - team zero
+    - "Deep's"
+    - dogma
+    - Momotaro Video
+    - Hajime Project
+    - "M's Video Group"
+    - "WILL/JHV Group"
+    - "WILL/Triple H Group"
+    - "WILL/Delusional Group"
+    - "WILL/Emmanuel Group"
+    - Art Mode
+    - Marx
+
+- name: SOD
+  slug: sod
+  companies:
+    - SOD Create
+    - Silk Labo
+    - Dandy
+    - Natural High
+    - Cosmos Video
+    - I Energy
+    - Akinori
+    - SWITCH
+    - Sadistic Village
+    - ROCKET
+    - AROUND
+    - Mr. Michiru
+    - chick girl
+    - FALENO
+    - Hibino
+    - "Sosoru x Garson"
+
+- name: Prestige
+  slug: prestige
+  companies:
+    - Prestige
+
+- name: KMP
+  slug: kmp
+  companies:
+    - KMP
+
+- name: Guitar Labels
+  slug: guitar
+  companies:
+    - Maxing
+    - Venus
+    - Aurora
+    - Cinemagic
+    - "S-Cute"
+    - Cross
+    - "E-Kiss"
+    - "Dream Ticket"
+    - "Milky Cat"
+    - "Takara Visual"
+    - "Center Village"
+    - Aroma
+    - "Crystal Eizou"
+    - ZIZ
+    - "Glory Quest"
+    - GIGA
+    - "AV Open"
+
+- name: Aten
+  slug: aten
+  companies:
+    - Aten
+
+- name: Taisei
+  slug: taisei
+  companies:
+    - Taisei
+
+- name: bidet wheel
+  slug: bidet-wheel
+  companies:
+    - bidet wheel
+
+- name: "Ladies' Specialty"
+  slug: ladies
+  companies:
+    - Ruby
+    - Monarch
+
+- name: Indies
+  slug: indies
+  companies:
+    - Indies
+
+- name: Uncensored
+  slug: uncensored
+  companies:
+    - FC2
+    - "Tokyo Hot"
+    - Heyzo
+    - "Sky High Entertainment"

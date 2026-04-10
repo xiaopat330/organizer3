@@ -294,6 +294,64 @@ public class JdbiTitleRepository implements TitleRepository {
     }
 
     @Override
+    public List<Title> findByCodePrefixPaged(String labelPrefix, String seqPrefix, int limit, int offset) {
+        boolean hasSeq = seqPrefix != null && !seqPrefix.isEmpty();
+        String sql = "SELECT t.* FROM titles t "
+                + "WHERE upper(t.label) LIKE :labelPrefix || '%' "
+                + (hasSeq ? "AND CAST(t.seq_num AS TEXT) LIKE :seqPrefix || '%' " : "")
+                + "ORDER BY t.favorite DESC, t.bookmark DESC, t.label ASC, t.seq_num ASC "
+                + "LIMIT :limit OFFSET :offset";
+
+        List<Title> titles = jdbi.withHandle(h -> {
+            var q = h.createQuery(sql)
+                    .bind("labelPrefix", labelPrefix == null ? "" : labelPrefix.toUpperCase())
+                    .bind("limit", limit)
+                    .bind("offset", offset);
+            if (hasSeq) q.bind("seqPrefix", seqPrefix);
+            return q.map(MAPPER).list();
+        });
+        return populateLocationsBatch(titles);
+    }
+
+    @Override
+    public List<Title> findFavoritesPaged(int limit, int offset) {
+        List<Title> titles = jdbi.withHandle(h ->
+                h.createQuery("""
+                        SELECT t.* FROM titles t
+                        LEFT JOIN title_locations tl ON t.id = tl.title_id
+                        WHERE t.favorite = 1
+                        GROUP BY t.id
+                        ORDER BY MIN(tl.added_date) DESC, t.id DESC
+                        LIMIT :limit OFFSET :offset
+                        """)
+                        .bind("limit", limit)
+                        .bind("offset", offset)
+                        .map(MAPPER)
+                        .list()
+        );
+        return populateLocationsBatch(titles);
+    }
+
+    @Override
+    public List<Title> findBookmarksPaged(int limit, int offset) {
+        List<Title> titles = jdbi.withHandle(h ->
+                h.createQuery("""
+                        SELECT t.* FROM titles t
+                        LEFT JOIN title_locations tl ON t.id = tl.title_id
+                        WHERE t.bookmark = 1
+                        GROUP BY t.id
+                        ORDER BY MIN(tl.added_date) DESC, t.id DESC
+                        LIMIT :limit OFFSET :offset
+                        """)
+                        .bind("limit", limit)
+                        .bind("offset", offset)
+                        .map(MAPPER)
+                        .list()
+        );
+        return populateLocationsBatch(titles);
+    }
+
+    @Override
     public List<Title> findByActressPaged(long actressId, int limit, int offset) {
         List<Title> titles = jdbi.withHandle(h ->
                 h.createQuery("""
@@ -434,6 +492,59 @@ public class JdbiTitleRepository implements TitleRepository {
                         .bind("id", titleId)
                         .execute()
         );
+    }
+
+    @Override
+    public List<Object[]> findTopActressesByLabels(List<String> labels, int limit) {
+        if (labels == null || labels.isEmpty()) return List.of();
+        String placeholders = labels.stream().map(l -> "?").collect(Collectors.joining(", "));
+        String sql = """
+                SELECT a.id, a.canonical_name, a.tier, COUNT(*) AS title_count
+                FROM titles t
+                JOIN actresses a ON t.actress_id = a.id
+                WHERE UPPER(t.label) IN (""" + placeholders + """
+                )
+                GROUP BY a.id
+                ORDER BY title_count DESC
+                LIMIT ?
+                """;
+        return jdbi.withHandle(h -> {
+            var query = h.createQuery(sql);
+            for (int i = 0; i < labels.size(); i++) {
+                query.bind(i, labels.get(i).toUpperCase());
+            }
+            query.bind(labels.size(), limit);
+            return query.map((rs, ctx) -> new Object[]{
+                    rs.getLong("id"),
+                    rs.getString("canonical_name"),
+                    rs.getString("tier"),
+                    rs.getLong("title_count")
+            }).list();
+        });
+    }
+
+    @Override
+    public List<Object[]> findNewestActressesByLabels(List<String> labels, int limit) {
+        if (labels == null || labels.isEmpty()) return List.of();
+        String placeholders = labels.stream().map(l -> "?").collect(Collectors.joining(", "));
+        String sql = "SELECT t.actress_id AS id, a.canonical_name, a.tier, MAX(tl.added_date) AS latest_date "
+                + "FROM titles t "
+                + "JOIN actresses a ON t.actress_id = a.id "
+                + "JOIN title_locations tl ON tl.title_id = t.id "
+                + "WHERE UPPER(t.label) IN (" + placeholders + ") AND t.actress_id IS NOT NULL "
+                + "GROUP BY t.actress_id "
+                + "ORDER BY latest_date DESC "
+                + "LIMIT ?";
+        return jdbi.withHandle(h -> {
+            var query = h.createQuery(sql);
+            for (int i = 0; i < labels.size(); i++) query.bind(i, labels.get(i).toUpperCase());
+            query.bind(labels.size(), limit);
+            return query.map((rs, ctx) -> new Object[]{
+                    rs.getLong("id"),
+                    rs.getString("canonical_name"),
+                    rs.getString("tier")
+            }).list();
+        });
     }
 
     @Override

@@ -106,11 +106,31 @@ public class SchemaInitializer {
 
             h.execute("""
                     CREATE TABLE IF NOT EXISTS labels (
-                        code        TEXT PRIMARY KEY,
-                        label_name  TEXT,
-                        company     TEXT,
+                        code                TEXT PRIMARY KEY,
+                        label_name          TEXT,
+                        company             TEXT,
+                        description         TEXT,
+                        company_description TEXT,
+                        company_specialty   TEXT,
+                        company_founded     TEXT,
+                        company_status      TEXT,
+                        company_parent      TEXT
+                    )""");
+
+            h.execute("""
+                    CREATE TABLE IF NOT EXISTS tags (
+                        name        TEXT PRIMARY KEY,
+                        category    TEXT NOT NULL,
                         description TEXT
                     )""");
+
+            h.execute("""
+                    CREATE TABLE IF NOT EXISTS label_tags (
+                        label_code  TEXT NOT NULL REFERENCES labels(code),
+                        tag         TEXT NOT NULL REFERENCES tags(name),
+                        PRIMARY KEY (label_code, tag)
+                    )""");
+            h.execute("CREATE INDEX IF NOT EXISTS idx_label_tags_tag ON label_tags(tag)");
 
             h.execute("""
                     CREATE TABLE IF NOT EXISTS title_actresses (
@@ -142,7 +162,7 @@ public class SchemaInitializer {
             h.execute("CREATE INDEX IF NOT EXISTS idx_watch_history_watched_at ON watch_history(watched_at)");
 
             // Stamp version so SchemaUpgrader skips migrations already baked into CREATE TABLE
-            h.execute("PRAGMA user_version = 4");
+            h.execute("PRAGMA user_version = 5");
         });
         log.info("Schema initialization complete");
     }

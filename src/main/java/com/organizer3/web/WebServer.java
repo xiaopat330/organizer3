@@ -148,11 +148,39 @@ public class WebServer {
 
         if (browseService != null) {
             app.get("/api/titles", ctx -> {
+                String search    = ctx.queryParam("search");
+                String favorites = ctx.queryParam("favorites");
+                String bookmarks = ctx.queryParam("bookmarks");
                 int offset = ctx.queryParamAsClass("offset", Integer.class).getOrDefault(0);
                 int limit  = ctx.queryParamAsClass("limit",  Integer.class).getOrDefault(24);
                 offset = Math.max(offset, 0);
                 limit  = Math.max(1, Math.min(limit, TitleBrowseService.MAX_LIMIT));
-                ctx.json(browseService.findRecent(offset, limit));
+                if (search != null && !search.isBlank()) {
+                    ctx.json(browseService.searchByCodePaged(search.trim(), offset, limit));
+                } else if ("true".equals(favorites)) {
+                    ctx.json(browseService.findFavoritesPaged(offset, limit));
+                } else if ("true".equals(bookmarks)) {
+                    ctx.json(browseService.findBookmarksPaged(offset, limit));
+                } else {
+                    ctx.json(browseService.findRecent(offset, limit));
+                }
+            });
+
+            app.get("/api/titles/labels",  ctx -> ctx.json(browseService.listLabels()));
+            app.get("/api/titles/studios", ctx -> ctx.json(browseService.listStudioGroups()));
+            app.get("/api/titles/top-actresses", ctx -> {
+                String labelsParam = ctx.queryParam("labels");
+                if (labelsParam == null || labelsParam.isBlank()) { ctx.json(List.of()); return; }
+                List<String> labels = List.of(labelsParam.split(","));
+                int limit = ctx.queryParamAsClass("limit", Integer.class).getOrDefault(10);
+                ctx.json(browseService.topActressesByLabels(labels, Math.min(limit, 50)));
+            });
+            app.get("/api/titles/newest-actresses", ctx -> {
+                String labelsParam = ctx.queryParam("labels");
+                if (labelsParam == null || labelsParam.isBlank()) { ctx.json(List.of()); return; }
+                List<String> labels = List.of(labelsParam.split(","));
+                int limit = ctx.queryParamAsClass("limit", Integer.class).getOrDefault(10);
+                ctx.json(browseService.newestActressesByLabels(labels, Math.min(limit, 50)));
             });
 
             app.get("/api/titles/random", ctx -> {
@@ -205,6 +233,7 @@ public class WebServer {
             });
 
             app.get("/api/actresses", ctx -> {
+                String idsParam     = ctx.queryParam("ids");
                 String prefix       = ctx.queryParam("prefix");
                 String tier         = ctx.queryParam("tier");
                 String volumesParam = ctx.queryParam("volumes");
@@ -216,7 +245,12 @@ public class WebServer {
                 int limit  = ctx.queryParamAsClass("limit",  Integer.class).getOrDefault(24);
                 offset = Math.max(offset, 0);
                 limit  = Math.max(1, Math.min(limit, TitleBrowseService.MAX_LIMIT));
-                if (search != null && !search.isBlank()) {
+                if (idsParam != null && !idsParam.isBlank()) {
+                    List<Long> ids = List.of(idsParam.split(",")).stream()
+                            .map(String::trim).filter(s -> !s.isEmpty())
+                            .map(Long::parseLong).toList();
+                    ctx.json(actressBrowseService.findByIds(ids));
+                } else if (search != null && !search.isBlank()) {
                     if (search.trim().length() < 2) {
                         ctx.json(List.of());
                     } else {
