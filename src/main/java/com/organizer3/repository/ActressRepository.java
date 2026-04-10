@@ -136,6 +136,12 @@ public interface ActressRepository {
     void toggleRejected(long actressId, boolean rejected);
 
     /**
+     * Increment the visit counter and update last_visited_at to now for an actress.
+     * No-op if the actress does not exist.
+     */
+    void recordVisit(long actressId);
+
+    /**
      * Atomically overwrite the three mutually-interacting flags (favorite, bookmark, rejected)
      * for an actress in a single UPDATE. Callers are responsible for enforcing any
      * mutual-exclusion rules (e.g. rejected implies !favorite and !bookmark).

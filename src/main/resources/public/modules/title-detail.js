@@ -1,14 +1,36 @@
-import { esc, fmtDate } from './utils.js';
+import { esc, fmtDate, timeAgo } from './utils.js';
 import { ICON_FAV_LG, ICON_BM_LG, gradeBadgeHtml, tagBadgeHtml } from './icons.js';
 import { showView, updateBreadcrumb, mode } from './grid.js';
 import { makeTitleCard, updateCardIndicators } from './cards.js';
 import { actressBrowseMode, actressBrowseLabel, selectActressBrowseMode, showActressLanding } from './actress-browse.js';
 import { THUMBNAIL_COLUMNS } from './config.js';
 
+// ── Visit tracking ────────────────────────────────────────────────────────
+let pendingVisitTimer = null;
+
+export function cancelPendingVisit() {
+  if (pendingVisitTimer !== null) {
+    clearTimeout(pendingVisitTimer);
+    pendingVisitTimer = null;
+  }
+}
+
 // ── Open title detail ─────────────────────────────────────────────────────
 export async function openTitleDetail(t) {
+  cancelPendingVisit();
+
   const sourceMode          = mode;
   const sourceHomeTab       = window._homeTab || 'latest';
+
+  // If navigating from actress detail, that counts as an immediate actress visit.
+  if (sourceMode === 'actress-detail') {
+    const ad = await import('./actress-detail.js');
+    const actressId = ad.detailActressId;
+    if (actressId) {
+      ad.cancelPendingVisit();
+      fetch(`/api/actresses/${actressId}/visit`, { method: 'POST' }).catch(() => {});
+    }
+  }
 
   // Capture title-browse state at call time — dynamic import avoids circular static dep
   const tb = await import('./title-browse.js');
@@ -25,6 +47,16 @@ export async function openTitleDetail(t) {
   loadLastWatched(t.code);
   loadTitleVideos(t.code);
   loadMoreFromActress(t);
+
+  // Start the 5-second visit timer for this title.
+  const titleCode = t.code;
+  pendingVisitTimer = setTimeout(() => {
+    pendingVisitTimer = null;
+    fetch(`/api/titles/${encodeURIComponent(titleCode)}/visit`, { method: 'POST' })
+      .then(r => r.json())
+      .then(data => updateTitleVisitedRow(data.visitCount, data.lastVisitedAt))
+      .catch(() => {});
+  }, 5000);
 
   // Breadcrumb
   let crumbs = [];
@@ -156,6 +188,10 @@ function renderTitleDetail(t) {
       <div class="title-detail-row title-detail-watched-row" id="title-detail-watched" style="display:none">
         <span class="title-detail-label">Watched</span>
         <span class="title-detail-value title-detail-watched-value" id="title-detail-watched-value"></span>
+      </div>
+      <div class="title-detail-row title-detail-visited-row" id="title-detail-visited" style="${t.visitCount > 0 ? '' : 'display:none'}">
+        <span class="title-detail-label">Visited</span>
+        <span class="title-detail-value" id="title-detail-visited-value">${t.visitCount > 0 ? formatVisited(t.visitCount, t.lastVisitedAt) : ''}</span>
       </div>
       ${nasHtml}
       ${tagsHtml}
@@ -460,25 +496,21 @@ function showResumeToast(player, time) {
   setTimeout(() => toast.remove(), 3000);
 }
 
-// ── Watch history ─────────────────────────────────────────────────────────
-function timeAgo(isoString) {
-  const then = new Date(isoString);
-  const now = new Date();
-  const seconds = Math.floor((now - then) / 1000);
-  if (seconds < 60)    return 'just now';
-  const minutes = Math.floor(seconds / 60);
-  if (minutes < 60)    return minutes === 1 ? '1 minute ago' : `${minutes} minutes ago`;
-  const hours = Math.floor(minutes / 60);
-  if (hours < 24)      return hours === 1 ? '1 hour ago' : `${hours} hours ago`;
-  const days = Math.floor(hours / 24);
-  if (days < 14)       return days === 1 ? '1 day ago' : `${days} days ago`;
-  const weeks = Math.floor(days / 7);
-  if (weeks < 9)       return weeks === 1 ? '1 week ago' : `${weeks} weeks ago`;
-  const months = Math.floor(days / 30);
-  if (months <= 3)     return months === 1 ? '1 month ago' : `${months} months ago`;
-  return 'more than 3 months ago';
+// ── Visit tracking helpers ────────────────────────────────────────────────
+function formatVisited(count, lastVisitedAt) {
+  const countLabel = count === 1 ? '1 view' : `${count} views`;
+  return lastVisitedAt ? `${countLabel} (Visited ${timeAgo(lastVisitedAt)})` : countLabel;
 }
 
+function updateTitleVisitedRow(visitCount, lastVisitedAt) {
+  const row = document.getElementById('title-detail-visited');
+  const val = document.getElementById('title-detail-visited-value');
+  if (!row || !val || visitCount <= 0) return;
+  val.textContent = formatVisited(visitCount, lastVisitedAt || null);
+  row.style.display = '';
+}
+
+// ── Watch history ─────────────────────────────────────────────────────────
 function loadLastWatched(titleCode) {
   fetch(`/api/watch-history/${encodeURIComponent(titleCode)}`)
     .then(r => r.json())

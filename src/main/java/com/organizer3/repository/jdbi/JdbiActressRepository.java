@@ -10,6 +10,7 @@ import org.jdbi.v3.core.Jdbi;
 import org.jdbi.v3.core.mapper.RowMapper;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -27,6 +28,7 @@ public class JdbiActressRepository implements ActressRepository {
         String bustStr = rs.getString("bust");
         String waistStr = rs.getString("waist");
         String hipStr = rs.getString("hip");
+        String lastVisitedStr = rs.getString("last_visited_at");
         return Actress.builder()
                 .id(rs.getLong("id"))
                 .canonicalName(rs.getString("canonical_name"))
@@ -49,6 +51,8 @@ public class JdbiActressRepository implements ActressRepository {
                 .activeTo(activeToStr != null ? LocalDate.parse(activeToStr) : null)
                 .biography(rs.getString("biography"))
                 .legacy(rs.getString("legacy"))
+                .visitCount(rs.getInt("visit_count"))
+                .lastVisitedAt(lastVisitedStr != null ? LocalDateTime.parse(lastVisitedStr) : null)
                 .build();
     };
 
@@ -442,6 +446,17 @@ public class JdbiActressRepository implements ActressRepository {
         jdbi.useHandle(h ->
                 h.createUpdate("UPDATE actresses SET rejected = :rejected WHERE id = :id")
                         .bind("rejected", rejected ? 1 : 0)
+                        .bind("id", actressId)
+                        .execute()
+        );
+    }
+
+    @Override
+    public void recordVisit(long actressId) {
+        jdbi.useHandle(h ->
+                h.createUpdate("UPDATE actresses SET visit_count = visit_count + 1, " +
+                                "last_visited_at = :now WHERE id = :id")
+                        .bind("now", LocalDateTime.now().toString())
                         .bind("id", actressId)
                         .execute()
         );

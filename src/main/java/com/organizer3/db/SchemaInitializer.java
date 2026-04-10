@@ -47,7 +47,9 @@ public class SchemaInitializer {
                         active_from     TEXT,
                         active_to       TEXT,
                         biography       TEXT,
-                        legacy          TEXT
+                        legacy          TEXT,
+                        visit_count     INTEGER NOT NULL DEFAULT 0,
+                        last_visited_at TEXT
                     )""");
 
             h.execute("""
@@ -72,7 +74,9 @@ public class SchemaInitializer {
                         title_original  TEXT,
                         title_english   TEXT,
                         release_date    TEXT,
-                        notes           TEXT
+                        notes           TEXT,
+                        visit_count     INTEGER NOT NULL DEFAULT 0,
+                        last_visited_at TEXT
                     )""");
 
             h.execute("""
@@ -161,8 +165,13 @@ public class SchemaInitializer {
             h.execute("CREATE INDEX IF NOT EXISTS idx_watch_history_title_code ON watch_history(title_code)");
             h.execute("CREATE INDEX IF NOT EXISTS idx_watch_history_watched_at ON watch_history(watched_at)");
 
-            // Stamp version so SchemaUpgrader skips migrations already baked into CREATE TABLE
-            h.execute("PRAGMA user_version = 5");
+            // Only stamp version on fresh installs (user_version = 0).
+            // On an existing DB the CREATE TABLE statements above are all no-ops, so we must
+            // leave the version alone and let SchemaUpgrader apply any missing migrations.
+            int currentVersion = h.createQuery("PRAGMA user_version").mapTo(Integer.class).one();
+            if (currentVersion == 0) {
+                h.execute("PRAGMA user_version = 7");
+            }
         });
         log.info("Schema initialization complete");
     }

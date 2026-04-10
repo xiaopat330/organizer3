@@ -340,7 +340,28 @@ public class ActressBrowseService {
                 .cup(actress.getCup())
                 .biography(actress.getBiography())
                 .legacy(actress.getLegacy())
+                .visitCount(actress.getVisitCount())
+                .lastVisitedAt(actress.getLastVisitedAt() != null ? actress.getLastVisitedAt().toString() : null)
                 .build();
+    }
+
+    /** Result of a visit record operation. */
+    public record VisitStats(int visitCount, String lastVisitedAt) {}
+
+    /**
+     * Record a detail-page visit for an actress. Increments the visit counter and updates
+     * the last_visited_at timestamp.
+     *
+     * @return the updated visit stats, or empty if the actress does not exist
+     */
+    public Optional<VisitStats> recordVisit(long actressId) {
+        return actressRepo.findById(actressId).map(a -> {
+            actressRepo.recordVisit(actressId);
+            Actress updated = actressRepo.findById(actressId).orElseThrow();
+            return new VisitStats(
+                    updated.getVisitCount(),
+                    updated.getLastVisitedAt() != null ? updated.getLastVisitedAt().toString() : null);
+        });
     }
 
     /**

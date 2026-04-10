@@ -1222,6 +1222,12 @@ header h1:hover {
   color: #555;
 }
 
+.detail-visited {
+  font-size: 0.75rem;
+  color: #4caf50;
+  margin-top: 2px;
+}
+
 /* ── Column 2: Profile ──────────────────────────────────────────────── */
 
 .detail-profile-col {
@@ -1698,6 +1704,11 @@ header h1:hover {
 .title-detail-grade-row {
   margin-top: 8px;
   align-items: center;
+}
+
+.title-detail-visited-row .title-detail-label,
+.title-detail-visited-row .title-detail-value {
+  color: #4caf50;
 }
 
 .title-detail-grade-label {

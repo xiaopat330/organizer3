@@ -43,6 +43,8 @@ public class TitleSummary {
     boolean bookmark;
     String lastWatchedAt;
     int watchCount;
+    int visitCount;
+    String lastVisitedAt;  // ISO datetime string, null until first visit
     @Builder.Default
     List<String> tags = List.of();
 

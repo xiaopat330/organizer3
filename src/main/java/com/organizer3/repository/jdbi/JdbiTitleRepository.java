@@ -9,6 +9,7 @@ import lombok.RequiredArgsConstructor;
 import org.jdbi.v3.core.Jdbi;
 import org.jdbi.v3.core.mapper.RowMapper;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -23,6 +24,7 @@ public class JdbiTitleRepository implements TitleRepository {
         String seqNumStr = rs.getString("seq_num");
         String gradeStr = rs.getString("grade");
         String releaseDateStr = rs.getString("release_date");
+        String lastVisitedStr = rs.getString("last_visited_at");
         return Title.builder()
                 .id(rs.getLong("id"))
                 .code(rs.getString("code"))
@@ -38,6 +40,8 @@ public class JdbiTitleRepository implements TitleRepository {
                 .titleEnglish(rs.getString("title_english"))
                 .releaseDate(releaseDateStr != null ? java.time.LocalDate.parse(releaseDateStr) : null)
                 .notes(rs.getString("notes"))
+                .visitCount(rs.getInt("visit_count"))
+                .lastVisitedAt(lastVisitedStr != null ? LocalDateTime.parse(lastVisitedStr) : null)
                 .build();
     };
 
@@ -520,6 +524,17 @@ public class JdbiTitleRepository implements TitleRepository {
         jdbi.useHandle(h ->
                 h.createUpdate("UPDATE titles SET bookmark = :bookmark WHERE id = :id")
                         .bind("bookmark", bookmark)
+                        .bind("id", titleId)
+                        .execute()
+        );
+    }
+
+    @Override
+    public void recordVisit(long titleId) {
+        jdbi.useHandle(h ->
+                h.createUpdate("UPDATE titles SET visit_count = visit_count + 1, " +
+                                "last_visited_at = :now WHERE id = :id")
+                        .bind("now", LocalDateTime.now().toString())
                         .bind("id", titleId)
                         .execute()
         );

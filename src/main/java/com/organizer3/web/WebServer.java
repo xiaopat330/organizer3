@@ -352,6 +352,18 @@ public class WebServer {
                 );
             });
 
+            app.post("/api/actresses/{id}/visit", ctx -> {
+                long id;
+                try { id = Long.parseLong(ctx.pathParam("id")); }
+                catch (NumberFormatException e) { ctx.status(400); return; }
+                actressBrowseService.recordVisit(id).ifPresentOrElse(
+                        stats -> ctx.json(Map.of(
+                                "visitCount", stats.visitCount(),
+                                "lastVisitedAt", stats.lastVisitedAt() != null ? stats.lastVisitedAt() : "")),
+                        () -> ctx.status(404).json(Map.of("error", "Actress not found"))
+                );
+            });
+
             app.post("/api/actresses/{id}/stage-name/search", ctx -> {
                 long id;
                 try { id = Long.parseLong(ctx.pathParam("id")); }
@@ -561,6 +573,18 @@ public class WebServer {
                         "titleCode", e.getTitleCode(),
                         "watchedAt", e.getWatchedAt().toString()
                 )).toList());
+            });
+        }
+
+        if (browseService != null) {
+            app.post("/api/titles/{code}/visit", ctx -> {
+                String code = ctx.pathParam("code");
+                browseService.recordVisit(code).ifPresentOrElse(
+                        stats -> ctx.json(Map.of(
+                                "visitCount", stats.visitCount(),
+                                "lastVisitedAt", stats.lastVisitedAt() != null ? stats.lastVisitedAt() : "")),
+                        () -> ctx.status(404).json(Map.of("error", "Title not found"))
+                );
             });
         }
 

@@ -1,4 +1,4 @@
-import { esc, fmtDate, isStale, setStatus } from './utils.js';
+import { esc, fmtDate, isStale, setStatus, timeAgo } from './utils.js';
 import { ICON_FAV_LG, ICON_BM_LG, ICON_REJ_LG } from './icons.js';
 import { showView, setActiveGrid, ensureActressDetailSentinel, ScrollingGrid, updateBreadcrumb, mode } from './grid.js';
 import { makeTitleCard, updateActressCardIndicators } from './cards.js';
@@ -7,6 +7,16 @@ import { actressBrowseMode, actressBrowseLabel, selectActressBrowseMode, showAct
 // ── State ─────────────────────────────────────────────────────────────────
 export let detailActressId    = null;
 export let detailCompanyFilter = null;
+
+// ── Visit tracking ────────────────────────────────────────────────────────
+let pendingVisitTimer = null;
+
+export function cancelPendingVisit() {
+  if (pendingVisitTimer !== null) {
+    clearTimeout(pendingVisitTimer);
+    pendingVisitTimer = null;
+  }
+}
 
 export const actressDetailGrid = new ScrollingGrid(
   document.getElementById('detail-title-grid'),
@@ -21,6 +31,8 @@ export const actressDetailGrid = new ScrollingGrid(
 
 // ── Open actress detail ───────────────────────────────────────────────────
 export async function openActressDetail(actressId) {
+  cancelPendingVisit();
+
   const sourceMode    = mode;
   const sourceHomeTab = window._homeTab || 'latest'; // set by home.js
 
@@ -60,6 +72,15 @@ export async function openActressDetail(actressId) {
     renderDetailPanel(data);
     crumbs[crumbs.length - 1] = { label: data.canonicalName };
     updateBreadcrumb(crumbs);
+
+    // Start the 5-second visit timer for this actress.
+    pendingVisitTimer = setTimeout(() => {
+      pendingVisitTimer = null;
+      fetch(`/api/actresses/${actressId}/visit`, { method: 'POST' })
+        .then(r => r.json())
+        .then(d => updateActressVisitedRow(d.visitCount, d.lastVisitedAt))
+        .catch(() => {});
+    }, 5000);
   } catch (err) {
     setStatus('error loading actress');
     console.error(err);
@@ -142,6 +163,10 @@ function renderDetailPanel(a) {
     careerHtml = `<div class="detail-career">${startHtml}${sep}${endHtml}</div>`;
   }
 
+  const visitedInfoHtml = a.visitCount > 0
+    ? `<div class="detail-visited" id="detail-visited-row"><span id="detail-visited-value">${esc(formatActressVisited(a.visitCount, a.lastVisitedAt))}</span></div>`
+    : `<div class="detail-visited" id="detail-visited-row" style="display:none"><span id="detail-visited-value"></span></div>`;
+
   document.getElementById('detail-info').innerHTML = `
     <div class="detail-name">
       <span class="detail-first-name">${esc(firstName)}</span>
@@ -159,6 +184,7 @@ function renderDetailPanel(a) {
     </div>
     ${aliasHtml}
     ${careerHtml}
+    ${visitedInfoHtml}
   `;
 
   const btn = document.getElementById('btn-search-stage-name');
@@ -224,6 +250,20 @@ function renderDetailPanel(a) {
   } else {
     navBar.innerHTML = '';
   }
+}
+
+// ── Visit display helpers ─────────────────────────────────────────────────
+function formatActressVisited(count, lastVisitedAt) {
+  const countLabel = count === 1 ? '1 view' : `${count} views`;
+  return lastVisitedAt ? `${countLabel} (Visited ${timeAgo(lastVisitedAt)})` : countLabel;
+}
+
+function updateActressVisitedRow(visitCount, lastVisitedAt) {
+  const row = document.getElementById('detail-visited-row');
+  const val = document.getElementById('detail-visited-value');
+  if (!row || !val || visitCount <= 0) return;
+  val.textContent = formatActressVisited(visitCount, lastVisitedAt || null);
+  row.style.display = '';
 }
 
 // splitName is needed here — inline since we can't import from utils without creating a local alias
