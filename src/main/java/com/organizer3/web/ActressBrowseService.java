@@ -5,6 +5,7 @@ import com.organizer3.covers.CoverPath;
 import com.organizer3.model.Actress;
 import com.organizer3.model.ActressAlias;
 import com.organizer3.model.Label;
+import com.organizer3.model.StudioGroup;
 import com.organizer3.model.Title;
 import com.organizer3.model.TitleLocation;
 import com.organizer3.repository.ActressRepository;
@@ -472,6 +473,308 @@ public class ActressBrowseService {
         }
 
         return result;
+    }
+
+    // -------------------------------------------------------------------------
+    // Actresses dashboard composition
+    // -------------------------------------------------------------------------
+
+    /** Tiers counted as "elite" for spotlight / undiscovered modules. */
+    private static final java.util.Set<Actress.Tier> SPOTLIGHT_TIERS =
+            java.util.Set.of(Actress.Tier.SUPERSTAR, Actress.Tier.GODDESS);
+
+    /** Tier floor for the Undiscovered Elites module. */
+    private static final java.util.Set<Actress.Tier> UNDISCOVERED_TIERS =
+            java.util.Set.of(Actress.Tier.POPULAR, Actress.Tier.SUPERSTAR, Actress.Tier.GODDESS);
+
+    /** Visit-count cap below which an elite counts as "undiscovered". */
+    private static final int UNDISCOVERED_MAX_VISITS = 2;
+
+    /** Grades counted as top-tier signal for the Forgotten Gems module. */
+    private static final java.util.Set<Actress.Grade> FORGOTTEN_GEM_GRADES = java.util.Set.of(
+            Actress.Grade.SSS, Actress.Grade.SS, Actress.Grade.S, Actress.Grade.A_PLUS);
+
+    /** Tiers counted as high signal for the Forgotten Gems module — used as a fallback
+        when grades are sparse so the panel still has meaningful content. */
+    private static final java.util.Set<Actress.Tier> FORGOTTEN_GEM_TIERS = java.util.Set.of(
+            Actress.Tier.SUPERSTAR, Actress.Tier.GODDESS);
+
+    /** Days since last visit before a graded/favorite actress is "forgotten". */
+    private static final int FORGOTTEN_GEM_STALE_DAYS = 30;
+
+    /** Top Groups leaderboard size. */
+    private static final int TOP_GROUPS_N = 10;
+
+    /** One leaderboard row for the Top Groups module. */
+    public record TopGroupEntry(String name, String slug, double score, int actressCount) {}
+
+    /** Pass-through DTO for the actress library footer stats. */
+    public record ActressLibraryStatsDto(
+            long totalActresses,
+            long favorites,
+            long graded,
+            long elites,
+            long newThisMonth,
+            long researchCovered,
+            long researchTotal
+    ) {}
+
+    /** One row in the Research Gaps module — actress + 4-bucket completeness flags. */
+    public record ResearchGapEntry(
+            ActressSummary actress,
+            boolean profileFilled,
+            boolean physicalFilled,
+            boolean biographyFilled,
+            boolean portfolioCovered
+    ) {}
+
+    /** Full Actresses dashboard payload returned by the API. */
+    public record ActressDashboard(
+            ActressSummary spotlight,
+            List<ActressSummary> birthdaysToday,
+            List<ActressSummary> newFaces,
+            List<ActressSummary> bookmarks,
+            List<ActressSummary> recentlyViewed,
+            List<ActressSummary> undiscoveredElites,
+            List<ActressSummary> forgottenGems,
+            List<TopGroupEntry> topGroups,
+            List<ResearchGapEntry> researchGaps,
+            ActressLibraryStatsDto libraryStats
+    ) {}
+
+    /**
+     * Pick a fresh spotlight actress, optionally excluding an id already on screen.
+     * Used by the rotating-spotlight endpoint.
+     */
+    public ActressSummary getSpotlight(Long excludeId) {
+        java.util.Set<Long> exclude = new java.util.HashSet<>();
+        if (excludeId != null) exclude.add(excludeId);
+        Actress picked = pickSpotlight(exclude);
+        return picked == null ? null : toSummary(picked);
+    }
+
+    public ActressDashboard buildDashboard() {
+        java.util.Set<Long> excludeIds = new java.util.HashSet<>();
+
+        // 1. Spotlight: 1 weighted-random actress from the taste pool.
+        Actress spotlight = pickSpotlight(excludeIds);
+        if (spotlight != null) excludeIds.add(spotlight.getId());
+
+        // 2. Birthdays Today — hidden if empty. Not added to excludeIds (a birthday actress
+        //    can also legitimately appear in other modules; the date signal is the point).
+        java.time.LocalDate today = java.time.LocalDate.now();
+        List<Actress> birthdaysToday = actressRepo.findBirthdaysToday(
+                today.getMonthValue(), today.getDayOfMonth(), 6);
+
+        // 3. New Faces: 6 cards from last 30 days, fallback to newest overall.
+        java.time.LocalDate since30 = today.minusDays(30);
+        List<Actress> newFaces = actressRepo.findNewFaces(since30, 6, excludeIds);
+        if (newFaces.isEmpty()) {
+            newFaces = actressRepo.findNewFacesFallback(6, excludeIds);
+        }
+        newFaces.forEach(a -> excludeIds.add(a.getId()));
+
+        // 4. Bookmarks: 8 cards ordered by bookmarked_at DESC.
+        List<Actress> bookmarks = actressRepo.findBookmarksOrderedByBookmarkedAt(8, excludeIds);
+        bookmarks.forEach(a -> excludeIds.add(a.getId()));
+
+        // 5. Recently Viewed: 6 compact cards, dedupe-exempt (history module).
+        List<Actress> recentlyViewed = actressRepo.findLastVisited(6);
+        // NOT added to excludeIds.
+
+        // 6. Undiscovered Elites: 6 cards — owned but never clicked.
+        List<Actress> undiscovered = actressRepo.findUndiscoveredElites(
+                UNDISCOVERED_TIERS, UNDISCOVERED_MAX_VISITS, 30, excludeIds);
+        // SQL returned random order — trim to 6.
+        if (undiscovered.size() > 6) undiscovered = new java.util.ArrayList<>(undiscovered.subList(0, 6));
+        undiscovered.forEach(a -> excludeIds.add(a.getId()));
+
+        // 7. Forgotten Gems: 6 cards — high-signal but stale, weighted by staleness.
+        java.time.LocalDate staleBefore = today.minusDays(FORGOTTEN_GEM_STALE_DAYS);
+        List<Actress> gemPool = actressRepo.findForgottenGemsCandidates(
+                FORGOTTEN_GEM_GRADES, FORGOTTEN_GEM_TIERS, staleBefore, 60, excludeIds);
+        List<Actress> forgottenGems = weightedSample(gemPool, this::forgottenGemWeight, 6);
+        forgottenGems.forEach(a -> excludeIds.add(a.getId()));
+
+        // 8. Top Groups: 10 leaderboard rows derived from per-(actress, label) engagement.
+        List<TopGroupEntry> topGroups = computeTopGroups();
+
+        // 9. Research Gaps: 6 row-list entries — bio is the strongest "needs research" signal.
+        List<Actress> gapPool = actressRepo.findResearchGapCandidates(SPOTLIGHT_TIERS, 30);
+        List<ResearchGapEntry> researchGaps = gapPool.stream()
+                .limit(6)
+                .map(a -> {
+                    ActressSummary s = toSummary(a);
+                    return new ResearchGapEntry(
+                            s,
+                            isProfileFilled(s),
+                            isPhysicalFilled(s),
+                            isBiographyFilled(s),
+                            isPortfolioCovered(s));
+                })
+                .toList();
+
+        // 10. Library stats footer.
+        ActressRepository.ActressLibraryStats stats = actressRepo.computeActressLibraryStats();
+        ActressLibraryStatsDto statsDto = new ActressLibraryStatsDto(
+                stats.totalActresses(), stats.favorites(), stats.graded(), stats.elites(),
+                stats.newThisMonth(), stats.researchCovered(), stats.researchTotal());
+
+        return new ActressDashboard(
+                spotlight != null ? toSummary(spotlight) : null,
+                birthdaysToday.stream().map(this::toSummary).toList(),
+                newFaces.stream().map(this::toSummary).toList(),
+                bookmarks.stream().map(this::toSummary).toList(),
+                recentlyViewed.stream().map(this::toSummary).toList(),
+                undiscovered.stream().map(this::toSummary).toList(),
+                forgottenGems.stream().map(this::toSummary).toList(),
+                topGroups,
+                researchGaps,
+                statsDto);
+    }
+
+    // --- Dashboard helpers --------------------------------------------------
+
+    private Actress pickSpotlight(java.util.Set<Long> excludeIds) {
+        List<Actress> pool = actressRepo.findSpotlightCandidates(SPOTLIGHT_TIERS, 200, excludeIds);
+        if (pool.isEmpty()) return null;
+        List<Actress> pick = weightedSample(pool, this::spotlightWeight, 1);
+        return pick.isEmpty() ? null : pick.get(0);
+    }
+
+    private double spotlightWeight(Actress a) {
+        double w = 1.0;
+        if (a.isFavorite()) w += 4.0;
+        if (a.isBookmark()) w += 2.0;
+        if (a.getGrade() != null && FORGOTTEN_GEM_GRADES.contains(a.getGrade())) w += 3.0;
+        if (a.getTier() != null && SPOTLIGHT_TIERS.contains(a.getTier())) w += 5.0;
+        return w;
+    }
+
+    private double forgottenGemWeight(Actress a) {
+        long days;
+        if (a.getLastVisitedAt() != null) {
+            days = java.time.temporal.ChronoUnit.DAYS.between(
+                    a.getLastVisitedAt().toLocalDate(), java.time.LocalDate.now());
+        } else {
+            java.time.LocalDate first = a.getFirstSeenAt();
+            days = first != null
+                    ? java.time.temporal.ChronoUnit.DAYS.between(first, java.time.LocalDate.now())
+                    : 90;
+        }
+        double w = Math.pow(Math.max(days, 1), 0.6);
+        if (a.isFavorite()) w += 2.0;
+        if (a.getGrade() != null && FORGOTTEN_GEM_GRADES.contains(a.getGrade())) w += 2.5;
+        if (a.getTier() != null && SPOTLIGHT_TIERS.contains(a.getTier())) w += 1.5;
+        return w;
+    }
+
+    /**
+     * Aggregate per-(actress, label) engagement rows into per-group scores using the
+     * studios.yaml mapping (label.company → group). Multiple labels owned by the same
+     * actress in the same group collapse to a single contribution per (actress, group).
+     */
+    private List<TopGroupEntry> computeTopGroups() {
+        List<ActressRepository.ActressLabelEngagement> rows = actressRepo.findActressLabelEngagements();
+        if (rows.isEmpty()) return List.of();
+
+        // Build labelCode → (groupName, groupSlug) map: studios.yaml lists company names per group;
+        // each company expands to all label codes whose company matches.
+        Map<String, Label> labelMap = labelRepo.findAllAsMap();
+        List<StudioGroup> studioGroups = new StudioGroupLoader().load();
+        record GroupRef(String name, String slug) {}
+        Map<String, GroupRef> labelToGroup = new java.util.HashMap<>();
+        for (StudioGroup g : studioGroups) {
+            java.util.Set<String> companies = new java.util.HashSet<>(g.companies());
+            for (Label lbl : labelMap.values()) {
+                if (lbl.company() != null && companies.contains(lbl.company())) {
+                    labelToGroup.put(lbl.code().toUpperCase(), new GroupRef(g.name(), g.slug()));
+                }
+            }
+        }
+        if (labelToGroup.isEmpty()) return List.of();
+
+        // Collapse per (actress, group): keep the strongest engagement signal.
+        record Signal(boolean favorite, boolean bookmark, int visitCount) {}
+        Map<String, Map<Long, Signal>> groupActressSignal = new java.util.HashMap<>();
+        Map<String, GroupRef> seenGroups = new java.util.HashMap<>();
+        for (var row : rows) {
+            if (row.labelCode() == null) continue;
+            GroupRef ref = labelToGroup.get(row.labelCode().toUpperCase());
+            if (ref == null) continue;
+            seenGroups.put(ref.slug(), ref);
+            Map<Long, Signal> perActress = groupActressSignal.computeIfAbsent(
+                    ref.slug(), k -> new java.util.HashMap<>());
+            Signal prev = perActress.get(row.actressId());
+            Signal next;
+            if (prev == null) {
+                next = new Signal(row.favorite(), row.bookmark(), row.visitCount());
+            } else {
+                next = new Signal(
+                        prev.favorite() || row.favorite(),
+                        prev.bookmark() || row.bookmark(),
+                        Math.max(prev.visitCount(), row.visitCount()));
+            }
+            perActress.put(row.actressId(), next);
+        }
+
+        // Score per group = sum of per-actress signal weights.
+        record Scored(GroupRef ref, double score, int actressCount) {}
+        List<Scored> scored = new java.util.ArrayList<>();
+        for (var entry : groupActressSignal.entrySet()) {
+            String slug = entry.getKey();
+            GroupRef ref = seenGroups.get(slug);
+            double total = 0;
+            for (Signal s : entry.getValue().values()) {
+                double w = 1.0;
+                if (s.favorite())     w += 3.0;
+                if (s.bookmark())     w += 1.5;
+                if (s.visitCount() > 0) w += Math.min(s.visitCount(), 10) * 0.25;
+                total += w;
+            }
+            scored.add(new Scored(ref, total, entry.getValue().size()));
+        }
+        scored.sort(java.util.Comparator.comparingDouble(Scored::score).reversed());
+        if (scored.size() > TOP_GROUPS_N) scored = scored.subList(0, TOP_GROUPS_N);
+        return scored.stream()
+                .map(s -> new TopGroupEntry(s.ref().name(), s.ref().slug(), s.score(), s.actressCount()))
+                .toList();
+    }
+
+    private static boolean isProfileFilled(ActressSummary s) {
+        return s.getStageName() != null && s.getDateOfBirth() != null && s.getBirthplace() != null;
+    }
+
+    private static boolean isPhysicalFilled(ActressSummary s) {
+        return s.getHeightCm() != null && s.getBust() != null && s.getWaist() != null && s.getHip() != null;
+    }
+
+    private static boolean isBiographyFilled(ActressSummary s) {
+        return s.getBiography() != null && !s.getBiography().isBlank();
+    }
+
+    private static boolean isPortfolioCovered(ActressSummary s) {
+        return s.getTitleCount() > 0;
+    }
+
+    /** Efraimidis-Spirakis weighted reservoir sampling: picks {@code n} items without replacement. */
+    private static <T> List<T> weightedSample(List<T> items, java.util.function.ToDoubleFunction<T> weight, int n) {
+        if (items.isEmpty()) return List.of();
+        if (items.size() <= n) return new java.util.ArrayList<>(items);
+        java.util.Random rng = new java.util.Random();
+        record Keyed<T>(T item, double key) {}
+        return items.stream()
+                .map(t -> {
+                    double w = Math.max(weight.applyAsDouble(t), 0.001);
+                    double u = rng.nextDouble();
+                    if (u <= 0) u = 1e-9;
+                    double key = -Math.log(u) / w;
+                    return new Keyed<>(t, key);
+                })
+                .sorted(java.util.Comparator.comparingDouble(Keyed::key))
+                .limit(n)
+                .map(Keyed::item)
+                .toList();
     }
 
 }

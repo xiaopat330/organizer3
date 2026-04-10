@@ -167,6 +167,8 @@ function renderDetailPanel(a) {
     ? `<div class="detail-visited" id="detail-visited-row"><span id="detail-visited-value">${esc(formatActressVisited(a.visitCount, a.lastVisitedAt))}</span></div>`
     : `<div class="detail-visited" id="detail-visited-row" style="display:none"><span id="detail-visited-value"></span></div>`;
 
+  const researchChecklistHtml = renderResearchChecklist(a);
+
   document.getElementById('detail-info').innerHTML = `
     <div class="detail-name">
       <span class="detail-first-name">${esc(firstName)}</span>
@@ -185,6 +187,7 @@ function renderDetailPanel(a) {
     ${aliasHtml}
     ${careerHtml}
     ${visitedInfoHtml}
+    ${researchChecklistHtml}
   `;
 
   const btn = document.getElementById('btn-search-stage-name');
@@ -250,6 +253,61 @@ function renderDetailPanel(a) {
   } else {
     navBar.innerHTML = '';
   }
+}
+
+// ── Research checklist ────────────────────────────────────────────────────
+// Mirrors ActressBrowseService.is{Profile,Physical,Biography,Portfolio}Filled
+// so the user sees, on the detail page, exactly which buckets the dashboard's
+// Research Gaps panel flagged as missing — and what fields would fill them.
+function renderResearchChecklist(a) {
+  const buckets = [
+    {
+      label: 'Profile',
+      missing: [
+        a.stageName   ? null : 'stage name',
+        a.dateOfBirth ? null : 'date of birth',
+        a.birthplace  ? null : 'birthplace',
+      ].filter(Boolean),
+    },
+    {
+      label: 'Physical',
+      missing: [
+        a.heightCm ? null : 'height',
+        a.bust     ? null : 'bust',
+        a.waist    ? null : 'waist',
+        a.hip      ? null : 'hip',
+      ].filter(Boolean),
+    },
+    {
+      label: 'Biography',
+      missing: (a.biography && a.biography.trim()) ? [] : ['biography'],
+    },
+    {
+      label: 'Portfolio',
+      missing: a.titleCount > 0 ? [] : ['no titles in library'],
+    },
+  ];
+
+  const gapCount = buckets.filter(b => b.missing.length > 0).length;
+  if (gapCount === 0) return ''; // hide entirely when fully researched
+
+  const rows = buckets.map(b => {
+    const filled = b.missing.length === 0;
+    const status = filled ? 'filled' : 'missing';
+    const detail = filled
+      ? '<span class="research-bucket-detail">complete</span>'
+      : `<span class="research-bucket-detail">missing: ${esc(b.missing.join(', '))}</span>`;
+    return `<div class="research-bucket research-bucket-${status}">
+      <span class="research-bucket-dot"></span>
+      <span class="research-bucket-label">${b.label}</span>
+      ${detail}
+    </div>`;
+  }).join('');
+
+  return `<div class="detail-research-checklist">
+    <div class="detail-research-checklist-title">Research gaps <span class="research-gap-count">${gapCount}/4</span></div>
+    ${rows}
+  </div>`;
 }
 
 // ── Visit display helpers ─────────────────────────────────────────────────

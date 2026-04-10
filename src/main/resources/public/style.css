@@ -1040,6 +1040,37 @@ header h1:hover {
   padding: 10px 12px 12px;
 }
 
+/* Compact actress card variant — used in dashboard panels with limited
+   horizontal room (Recently Viewed). Mirrors .card-compact for titles:
+   shorter cover, tighter padding, smaller name font. */
+.actress-card-compact .cover-wrap {
+  aspect-ratio: 17 / 10;
+}
+.actress-card-body-compact {
+  padding: 6px 8px 8px;
+}
+.actress-card-body-compact .actress-card-name {
+  margin-bottom: 0;
+  gap: 3px;
+}
+.actress-card-body-compact .actress-first-name {
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+.actress-card-body-compact .actress-last-name {
+  font-size: 0.66rem;
+  margin-left: 3px;
+}
+.actress-card-body-compact .actress-tier-badge {
+  font-size: 0.55rem;
+  padding: 1px 4px;
+  letter-spacing: 0.05em;
+}
+.actress-card-body-compact .actress-card-visited {
+  font-size: 0.62rem;
+  margin-top: 2px;
+}
+
 .actress-card-name {
   margin-bottom: 4px;
   white-space: nowrap;
@@ -1125,9 +1156,9 @@ header h1:hover {
 .date-last { color: #606060; }
 
 
-/* ── Actress dashboard ───────────────────────────────────────────────── */
+/* ── Dashboard (shared by Titles and Actresses) ───────────────────────── */
 #actress-dashboard {
-  padding: 20px 16px 0;
+  padding: 20px 16px 40px;
 }
 .dashboard-section {
   margin-bottom: 32px;
@@ -1491,6 +1522,200 @@ header h1:hover {
   background: linear-gradient(90deg, #4a6b8a, #6f9ac4);
 }
 
+/* ── Actress dashboard (overrides + actress-only modules) ─────────────── */
+
+/* Birthdays Today: 3-up strip in the upper-right cell, mirroring On This Day. */
+.dashboard-top-panel-right #dash-birthdays-today {
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+}
+
+/* Panel 2: Recently Viewed (left, narrow) + New Faces (right). */
+.dashboard-panel-2 #dash-actress-recently-viewed {
+  grid-template-columns: repeat(2, 1fr);
+}
+.dashboard-panel-2 #dash-actress-new-faces {
+  grid-template-columns: repeat(4, 1fr);
+}
+@media (max-width: 1100px) {
+  .dashboard-panel-2 #dash-actress-recently-viewed { grid-template-columns: repeat(3, 1fr); }
+  .dashboard-panel-2 #dash-actress-new-faces      { grid-template-columns: repeat(3, 1fr); }
+}
+
+/* Top Groups: 3-column leaderboard (rank / name+count / score bar) instead
+   of the 4-column title-labels variant. The upper-right cell is narrow, so
+   give the name column as much room as possible and shrink the bar. */
+.dashboard-top-groups .leaderboard-row {
+  grid-template-columns: 22px 1fr 50px;
+  gap: 8px;
+  padding: 6px 8px;
+}
+.dashboard-top-groups .leaderboard-name-cell {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  line-height: 1.2;
+}
+.dashboard-top-groups .leaderboard-name {
+  font-size: 0.78rem;
+  color: #d8d8d8;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.dashboard-top-groups .leaderboard-company {
+  color: #555;
+  font-size: 0.65rem;
+  margin-top: 1px;
+}
+/* Give Top Groups more horizontal real estate than the Library/Research-Gaps
+   stack in the actress upper-right grid (group names are long; the stack
+   contents are tight numbers and a compact list). */
+#actress-dashboard .dashboard-top-right-upper {
+  grid-template-columns: 1.4fr 1fr;
+  align-items: stretch;
+}
+
+/* Vertical stack on the right of the upper row: Library on top, Research
+   Gaps below. The two children should fill the column height alongside the
+   tall Top Groups list — Research Gaps stretches to absorb the extra space. */
+.dashboard-top-right-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+.dashboard-top-right-stack .dashboard-section {
+  margin-bottom: 0;
+}
+.dashboard-top-right-stack > .dashboard-section:last-child {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+/* Compact Library tiles when stacked: 2-column grid (instead of 3) so labels
+   like "New this month" actually fit, with smaller padding/fonts to keep the
+   overall block short alongside Top Groups. */
+.dashboard-top-right-stack .dashboard-library-stats .dashboard-stats-grid {
+  grid-template-columns: repeat(2, 1fr);
+  grid-template-rows: repeat(3, 1fr);
+  gap: 6px;
+}
+.dashboard-top-right-stack .dashboard-library-stats .stats-tile {
+  padding: 8px 10px;
+  min-width: 0;
+  overflow: hidden;
+}
+.dashboard-top-right-stack .dashboard-library-stats .stats-tile-value {
+  font-size: 1.15rem;
+}
+.dashboard-top-right-stack .dashboard-library-stats .stats-tile-label {
+  font-size: 0.62rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Research Gaps inside the narrow stack column: drop the tier chip column,
+   shrink fonts, tighten padding so 6 rows fit nicely under Library. */
+.dashboard-top-right-stack .research-gap-row {
+  grid-template-columns: 1fr auto;
+  padding: 5px 8px;
+  gap: 8px;
+}
+.dashboard-top-right-stack .research-gap-row .research-gap-tier {
+  display: none;
+}
+.dashboard-top-right-stack .research-gap-name {
+  font-size: 0.72rem;
+}
+.dashboard-top-right-stack .research-gap-dot {
+  width: 8px;
+  height: 8px;
+}
+.dashboard-top-right-stack .dashboard-research-gaps {
+  gap: 4px;
+}
+
+/* Hero / standalone actress strips. */
+#dash-actress-bookmarks,
+#dash-actress-undiscovered,
+#dash-actress-forgotten-gems {
+  grid-template-columns: repeat(6, 1fr);
+}
+@media (max-width: 1400px) {
+  #dash-actress-bookmarks,
+  #dash-actress-undiscovered,
+  #dash-actress-forgotten-gems { grid-template-columns: repeat(5, 1fr); }
+}
+@media (max-width: 1100px) {
+  #dash-actress-bookmarks,
+  #dash-actress-undiscovered,
+  #dash-actress-forgotten-gems { grid-template-columns: repeat(4, 1fr); }
+}
+
+/* Research Gaps row list. */
+.dashboard-research-gaps {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.research-gap-row {
+  display: grid;
+  grid-template-columns: 1fr 90px 90px;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 12px;
+  background: #141414;
+  border: 1px solid #1e1e1e;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background 0.12s ease, border-color 0.12s ease;
+}
+.research-gap-row:hover {
+  background: #1c1c1c;
+  border-color: #333;
+}
+.research-gap-name {
+  color: #e0e0e0;
+  font-size: 0.82rem;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.research-gap-tier {
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  text-align: center;
+  padding: 2px 8px;
+  border-radius: 10px;
+}
+.research-gap-dots {
+  display: flex;
+  gap: 6px;
+  justify-content: flex-end;
+}
+.research-gap-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  display: inline-block;
+  border: 1px solid #2a2a2a;
+}
+.research-gap-dot.filled {
+  background: #6f9ac4;
+  border-color: #6f9ac4;
+  box-shadow: 0 0 4px rgba(111, 154, 196, 0.4);
+}
+.research-gap-dot.empty {
+  background: #1a1a1a;
+}
+
 /* ── Actress detail panel ─────────────────────────────────────────────── */
 
 #actress-detail {
@@ -1628,6 +1853,78 @@ header h1:hover {
   font-size: 0.75rem;
   color: #29b6d4;
   margin-top: 2px;
+}
+
+/* Research checklist — explains which dashboard "research gap" buckets are
+   missing and what fields would fill them. Hidden by the JS layer when fully
+   researched. */
+.detail-research-checklist {
+  margin-top: 14px;
+  padding: 10px 12px;
+  background: #141414;
+  border: 1px solid #2a2a2a;
+  border-radius: 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.detail-research-checklist-title {
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: #888;
+  margin-bottom: 4px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.research-gap-count {
+  font-size: 0.66rem;
+  font-weight: 600;
+  color: #d0a040;
+  background: #2a1f08;
+  padding: 1px 7px;
+  border-radius: 10px;
+  letter-spacing: 0;
+}
+.research-bucket {
+  display: grid;
+  grid-template-columns: 12px 70px 1fr;
+  align-items: baseline;
+  gap: 8px;
+  font-size: 0.72rem;
+}
+.research-bucket-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+  border: 1px solid #2a2a2a;
+}
+.research-bucket-filled .research-bucket-dot {
+  background: #6f9ac4;
+  border-color: #6f9ac4;
+}
+.research-bucket-missing .research-bucket-dot {
+  background: #1a1a1a;
+}
+.research-bucket-label {
+  color: #c0c0c0;
+  font-weight: 600;
+}
+.research-bucket-filled .research-bucket-label {
+  color: #707070;
+}
+.research-bucket-detail {
+  color: #888;
+}
+.research-bucket-filled .research-bucket-detail {
+  color: #4a6b4a;
+  font-style: italic;
+}
+.research-bucket-missing .research-bucket-detail {
+  color: #b8884a;
 }
 
 /* ── Column 2: Profile ──────────────────────────────────────────────── */

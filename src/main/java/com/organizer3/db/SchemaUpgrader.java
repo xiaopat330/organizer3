@@ -19,7 +19,7 @@ import org.jdbi.v3.core.Jdbi;
 public class SchemaUpgrader {
 
     /** Must match the version stamped by {@link SchemaInitializer}. */
-    private static final int CURRENT_VERSION = 8;
+    private static final int CURRENT_VERSION = 9;
 
     private final Jdbi jdbi;
 
@@ -66,7 +66,29 @@ public class SchemaUpgrader {
             setVersion(8);
         }
 
+        if (version < 9) {
+            applyV9();
+            setVersion(9);
+        }
+
         log.info("Schema upgrade complete");
+    }
+
+    /** v9: adds bookmarked_at timestamp to actresses for Actresses dashboard ordering. */
+    private void applyV9() {
+        log.info("Applying migration v9: adding bookmarked_at to actresses");
+        jdbi.useHandle(h -> {
+            boolean hasCol = h.createQuery(
+                    "SELECT COUNT(*) FROM pragma_table_info('actresses') WHERE name='bookmarked_at'")
+                    .mapTo(Integer.class).one() > 0;
+            if (!hasCol) {
+                h.execute("ALTER TABLE actresses ADD COLUMN bookmarked_at TEXT");
+                // Backfill: stamp existing bookmarks with now so they don't all appear as epoch.
+                h.createUpdate("UPDATE actresses SET bookmarked_at = :now WHERE bookmark = 1")
+                        .bind("now", java.time.LocalDateTime.now().toString())
+                        .execute();
+            }
+        });
     }
 
     /** v8: adds bookmarked_at timestamp to titles for Titles dashboard ordering. */

@@ -1,9 +1,16 @@
 import { esc } from './utils.js';
 import { showView, setActiveGrid, ensureSentinel, updateBreadcrumb, mode } from './grid.js';
-import { makeActressCard } from './cards.js';
+import { makeActressCard, makeCompactActressCard } from './cards.js';
 import { ScrollingGrid } from './grid.js';
 import { ARCHIVE_VOLUMES } from './config.js';
 import { ensureStudioGroups, ensureTitleLabels, renderTwoColumnStudioPanel } from './studio-data.js';
+import {
+  renderDashboardStrip,
+  renderDashboardSection,
+  renderSideBySidePanel,
+  renderStatsTiles,
+  createSpotlightRotator,
+} from './dashboard-panels.js';
 
 // ── DOM refs ──────────────────────────────────────────────────────────────
 export const actressesBtn          = document.getElementById('actresses-btn');
@@ -147,39 +154,258 @@ export function resetActressState() {
 }
 
 // ── Dashboard render ──────────────────────────────────────────────────────
+
+const ACTRESS_SPOTLIGHT_INTERVAL_MS = 30_000;
+const actressSpotlightRotator = createSpotlightRotator({
+  endpoint: '/api/actresses/spotlight',
+  excludeAttr: 'actressId',
+  cardSelector: '.actress-card',
+  makeCard: a => {
+    const card = makeActressCard(a);
+    card.classList.add('card-spotlight');
+    return card;
+  },
+  intervalMs: ACTRESS_SPOTLIGHT_INTERVAL_MS,
+});
+
+function renderTopGroupsLeaderboard(topGroups) {
+  const section = document.createElement('section');
+  section.className = 'dashboard-section dashboard-top-groups';
+  const header = document.createElement('div');
+  header.className = 'dashboard-section-title';
+  header.textContent = 'Top Groups';
+  section.appendChild(header);
+
+  const list = document.createElement('div');
+  list.className = 'dashboard-leaderboard';
+  const maxScore = topGroups.reduce((m, g) => Math.max(m, g.score || 0), 0) || 1;
+  topGroups.forEach((g, i) => {
+    const row = document.createElement('div');
+    row.className = 'leaderboard-row leaderboard-row-clickable';
+    row.title = `Open ${g.name} in Studio browser`;
+    const countLabel = `${g.actressCount} ${g.actressCount === 1 ? 'actress' : 'actresses'}`;
+    row.innerHTML = `
+      <span class="leaderboard-rank">${i + 1}</span>
+      <span class="leaderboard-name-cell">
+        <span class="leaderboard-name">${esc(g.name)}</span>
+        <span class="leaderboard-company">${countLabel}</span>
+      </span>
+      <span class="leaderboard-bar-wrap"><span class="leaderboard-bar" style="width:${Math.round((g.score / maxScore) * 100)}%"></span></span>
+    `;
+    row.addEventListener('click', () => {
+      selectedActressStudioSlug = g.slug;
+      selectActressBrowseMode('studio');
+    });
+    list.appendChild(row);
+  });
+  section.appendChild(list);
+  return section;
+}
+
+function renderActressLibraryStats(stats) {
+  const researchPct = stats.researchTotal > 0
+    ? Math.round((stats.researchCovered / stats.researchTotal) * 100)
+    : 0;
+  return renderStatsTiles({
+    heading: 'Library',
+    tiles: [
+      { label: 'Actresses',     value: stats.totalActresses.toLocaleString() },
+      { label: 'Favorites',     value: stats.favorites.toLocaleString() },
+      { label: 'Graded',        value: stats.graded.toLocaleString() },
+      { label: 'Elites',        value: stats.elites.toLocaleString() },
+      { label: 'New this month', value: stats.newThisMonth.toLocaleString() },
+      { label: 'Researched',    value: `${researchPct}%`, bar: researchPct },
+    ],
+  });
+}
+
+function renderActressTopInfoPanel(spotlight, topGroups, libraryStats, birthdaysToday, researchGaps) {
+  const panel = document.createElement('div');
+  panel.className = 'dashboard-top-panel';
+
+  // Left column: Spotlight card
+  if (spotlight) {
+    const left = document.createElement('div');
+    left.className = 'dashboard-top-panel-left';
+    const header = document.createElement('div');
+    header.className = 'dashboard-section-title';
+    header.textContent = 'Spotlight';
+    left.appendChild(header);
+    const card = makeActressCard(spotlight);
+    card.classList.add('card-spotlight');
+    left.appendChild(card);
+    panel.appendChild(left);
+    setTimeout(() => actressSpotlightRotator.start(left), ACTRESS_SPOTLIGHT_INTERVAL_MS);
+  }
+
+  // Right column: upper row (Top Groups | Library+Research Gaps stack) + lower (Birthdays Today)
+  const hasRight = topGroups.length > 0 || libraryStats || birthdaysToday.length > 0 || researchGaps.length > 0;
+  if (hasRight) {
+    const right = document.createElement('div');
+    right.className = 'dashboard-top-panel-right';
+
+    if (topGroups.length > 0 || libraryStats || researchGaps.length > 0) {
+      const upper = document.createElement('div');
+      upper.className = 'dashboard-top-right-upper';
+      if (topGroups.length > 0) upper.appendChild(renderTopGroupsLeaderboard(topGroups));
+
+      // Right side of upper row: Library on top, Research Gaps below — fills the
+      // dead space that Library alone would leave next to the tall Top Groups list.
+      if (libraryStats || researchGaps.length > 0) {
+        const stack = document.createElement('div');
+        stack.className = 'dashboard-top-right-stack';
+        if (libraryStats) stack.appendChild(renderActressLibraryStats(libraryStats));
+        if (researchGaps.length > 0) {
+          stack.appendChild(renderDashboardSection({
+            title: 'Research Gaps',
+            badge: `${researchGaps.length}`,
+            body: renderResearchGapsList(researchGaps),
+          }));
+        }
+        upper.appendChild(stack);
+      }
+
+      right.appendChild(upper);
+    }
+
+    if (birthdaysToday.length > 0) {
+      const shown = birthdaysToday.slice(0, 3);
+      const strip = renderDashboardStrip(shown, { id: 'dash-birthdays-today', cardFactory: makeActressCard });
+      right.appendChild(renderDashboardSection({
+        title: 'Birthdays Today',
+        badge: `${birthdaysToday.length} 🎂`,
+        body: strip,
+      }));
+    }
+
+    panel.appendChild(right);
+  }
+
+  return panel;
+}
+
+function renderResearchGapsList(entries) {
+  const list = document.createElement('div');
+  list.className = 'dashboard-research-gaps';
+  entries.forEach(entry => {
+    const a = entry.actress;
+    const dots = [
+      { filled: entry.profileFilled,    label: 'profile'   },
+      { filled: entry.physicalFilled,   label: 'physical'  },
+      { filled: entry.biographyFilled,  label: 'biography' },
+      { filled: entry.portfolioCovered, label: 'portfolio' },
+    ];
+    const dotsHtml = dots.map(d => {
+      const tip = `${d.label}: ${d.filled ? 'filled' : 'missing'}`;
+      return `<span class="research-gap-dot ${d.filled ? 'filled' : 'empty'}" title="${tip}"></span>`;
+    }).join('');
+    const row = document.createElement('div');
+    row.className = 'research-gap-row';
+    row.innerHTML = `
+      <span class="research-gap-name">${esc(a.canonicalName)}</span>
+      <span class="research-gap-tier tier-${esc(a.tier)}">${esc(a.tier.toLowerCase())}</span>
+      <span class="research-gap-dots">${dotsHtml}</span>
+    `;
+    row.addEventListener('click', () => _openActressDetail(a.id));
+    list.appendChild(row);
+  });
+  return list;
+}
+
 async function renderActressDashboard() {
   actressDashboardEl.innerHTML = '<div class="dashboard-loading">loading…</div>';
   try {
     const res = await fetch('/api/actresses/dashboard');
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();
-    const lastVisited = data.lastVisited || [];
-    const mostVisited = data.mostVisited || [];
 
-    if (lastVisited.length === 0 && mostVisited.length === 0) {
-      actressDashboardEl.innerHTML = '<div class="dashboard-empty">No visits yet — browse some actresses!</div>';
+    const spotlight          = data.spotlight          || null;
+    const birthdaysToday     = data.birthdaysToday     || [];
+    const newFaces           = data.newFaces           || [];
+    const bookmarks          = data.bookmarks          || [];
+    const recentlyViewed     = data.recentlyViewed     || [];
+    const undiscoveredElites = data.undiscoveredElites || [];
+    const forgottenGems      = data.forgottenGems      || [];
+    const topGroups          = data.topGroups          || [];
+    const researchGaps       = data.researchGaps       || [];
+    const libraryStats       = data.libraryStats       || null;
+
+    const hasAny = spotlight || birthdaysToday.length || newFaces.length || bookmarks.length
+                || recentlyViewed.length || undiscoveredElites.length || forgottenGems.length
+                || topGroups.length || researchGaps.length;
+    if (!hasAny) {
+      actressDashboardEl.innerHTML = '<div class="dashboard-empty">No actresses yet — sync a volume to get started.</div>';
       return;
     }
 
-    let html = '';
-    if (lastVisited.length > 0)
-      html += '<div class="dashboard-section"><div class="dashboard-section-title">Last Visited</div><div class="dashboard-card-grid" id="dashboard-last-visited"></div></div>';
-    if (mostVisited.length > 0)
-      html += '<div class="dashboard-section"><div class="dashboard-section-title">Most Visited</div><div class="dashboard-card-grid" id="dashboard-most-visited"></div></div>';
-    actressDashboardEl.innerHTML = html;
+    actressDashboardEl.innerHTML = '';
 
-    if (lastVisited.length > 0) {
-      const g = document.getElementById('dashboard-last-visited');
-      lastVisited.forEach(a => g.appendChild(makeActressCard(a)));
+    // 0. Top info panel: Spotlight (left) + Top Groups | (Library + Research Gaps stack) | Birthdays (right).
+    if (spotlight || topGroups.length > 0 || libraryStats || birthdaysToday.length > 0 || researchGaps.length > 0) {
+      actressDashboardEl.appendChild(
+        renderActressTopInfoPanel(spotlight, topGroups, libraryStats, birthdaysToday, researchGaps));
     }
-    if (mostVisited.length > 0) {
-      const g = document.getElementById('dashboard-most-visited');
-      mostVisited.forEach(a => g.appendChild(makeActressCard(a)));
+
+    // 0b. Second panel: Recently Viewed (left) + New Faces (right).
+    if (recentlyViewed.length > 0 || newFaces.length > 0) {
+      const rvSection = recentlyViewed.length > 0
+        ? renderDashboardSection({
+            title: 'Recently Viewed',
+            body: (() => {
+              const strip = renderDashboardStrip(recentlyViewed, { id: 'dash-actress-recently-viewed', cardFactory: makeCompactActressCard });
+              strip.classList.add('dashboard-card-grid-compact');
+              return strip;
+            })(),
+          })
+        : null;
+      const nfSection = newFaces.length > 0
+        ? renderDashboardSection({
+            title: 'New Faces',
+            body: renderDashboardStrip(newFaces, { id: 'dash-actress-new-faces', cardFactory: makeActressCard }),
+          })
+        : null;
+      actressDashboardEl.appendChild(renderSideBySidePanel('dashboard-panel-2', rvSection, nfSection));
     }
+
+    // 1. Bookmarks hero strip.
+    if (bookmarks.length > 0) {
+      actressDashboardEl.appendChild(renderDashboardSection({
+        title: 'Bookmarked Actresses',
+        accent: true,
+        bordered: true,
+        body: renderDashboardStrip(bookmarks, { id: 'dash-actress-bookmarks', cardFactory: makeCompactActressCard }),
+      }));
+    }
+
+    // 2. Undiscovered Elites.
+    if (undiscoveredElites.length > 0) {
+      actressDashboardEl.appendChild(renderDashboardSection({
+        title: 'Undiscovered Elites',
+        bordered: true,
+        body: renderDashboardStrip(undiscoveredElites, { id: 'dash-actress-undiscovered', cardFactory: makeActressCard }),
+      }));
+    }
+
+    // 3. Forgotten Gems.
+    if (forgottenGems.length > 0) {
+      actressDashboardEl.appendChild(renderDashboardSection({
+        title: 'Forgotten Gems',
+        body: renderDashboardStrip(forgottenGems, { id: 'dash-actress-forgotten-gems', cardFactory: makeActressCard }),
+      }));
+    }
+
   } catch (err) {
     actressDashboardEl.innerHTML = '<div class="dashboard-empty">Error loading dashboard.</div>';
     console.error(err);
   }
+}
+
+// Local helper to open the actress detail view from research gap rows.
+// We dynamic-import actress-detail.js (same pattern as title-browse uses for
+// its actress-card click handlers) to avoid an import cycle with the
+// dashboard module.
+function _openActressDetail(id) {
+  import('./actress-detail.js').then(m => m.openActressDetail(id));
 }
 
 // ── Browse mode selection ─────────────────────────────────────────────────

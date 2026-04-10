@@ -29,6 +29,7 @@ public class JdbiActressRepository implements ActressRepository {
         String waistStr = rs.getString("waist");
         String hipStr = rs.getString("hip");
         String lastVisitedStr = rs.getString("last_visited_at");
+        String bookmarkedAtStr = rs.getString("bookmarked_at");
         return Actress.builder()
                 .id(rs.getLong("id"))
                 .canonicalName(rs.getString("canonical_name"))
@@ -36,6 +37,7 @@ public class JdbiActressRepository implements ActressRepository {
                 .tier(Actress.Tier.valueOf(rs.getString("tier")))
                 .favorite(rs.getInt("favorite") != 0)
                 .bookmark(rs.getInt("bookmark") != 0)
+                .bookmarkedAt(bookmarkedAtStr != null ? LocalDateTime.parse(bookmarkedAtStr) : null)
                 .grade(gradeStr != null ? Actress.Grade.fromDisplay(gradeStr) : null)
                 .rejected(rs.getInt("rejected") != 0)
                 .firstSeenAt(LocalDate.parse(rs.getString("first_seen_at")))
@@ -444,8 +446,12 @@ public class JdbiActressRepository implements ActressRepository {
     @Override
     public void toggleBookmark(long actressId, boolean bookmark) {
         jdbi.useHandle(h ->
-                h.createUpdate("UPDATE actresses SET bookmark = :bookmark WHERE id = :id")
-                        .bind("bookmark", bookmark ? 1 : 0)
+                h.createUpdate(
+                        "UPDATE actresses SET bookmark = :bookmark, " +
+                                "bookmarked_at = CASE WHEN :bookmark THEN :now ELSE NULL END " +
+                                "WHERE id = :id")
+                        .bind("bookmark", bookmark)
+                        .bind("now", LocalDateTime.now().toString())
                         .bind("id", actressId)
                         .execute()
         );
@@ -486,9 +492,12 @@ public class JdbiActressRepository implements ActressRepository {
     public void setFlags(long actressId, boolean favorite, boolean bookmark, boolean rejected) {
         jdbi.useHandle(h ->
                 h.createUpdate("UPDATE actresses SET favorite = :favorite, " +
-                                "bookmark = :bookmark, rejected = :rejected WHERE id = :id")
+                                "bookmark = :bookmark, " +
+                                "bookmarked_at = CASE WHEN :bookmark THEN :now ELSE NULL END, " +
+                                "rejected = :rejected WHERE id = :id")
                         .bind("favorite", favorite ? 1 : 0)
-                        .bind("bookmark", bookmark ? 1 : 0)
+                        .bind("bookmark", bookmark)
+                        .bind("now", LocalDateTime.now().toString())
                         .bind("rejected", rejected ? 1 : 0)
                         .bind("id", actressId)
                         .execute()
@@ -668,5 +677,254 @@ public class JdbiActressRepository implements ActressRepository {
                     .bind("aliasName", alias)
                     .execute();
         }
+    }
+
+    // ─── Dashboard module queries ────────────────────────────────────────────
+
+    @Override
+    public List<Actress> findSpotlightCandidates(java.util.Set<Actress.Tier> superstarTiers,
+                                                 int limit,
+                                                 java.util.Set<Long> excludeIds) {
+        boolean hasTiers   = superstarTiers != null && !superstarTiers.isEmpty();
+        boolean hasExclude = excludeIds != null && !excludeIds.isEmpty();
+
+        // Pool: favorite OR bookmark OR grade IN (high) OR tier IN superstar.
+        // High grades: SSS, SS, S, A_PLUS, A — anything ≥ A.
+        StringBuilder sql = new StringBuilder("""
+                SELECT * FROM actresses
+                WHERE rejected = 0
+                  AND (favorite = 1
+                       OR bookmark = 1
+                       OR grade IN ('SSS','SS','S','A+','A')
+                """);
+        if (hasTiers) sql.append("       OR tier IN (<tiers>) ");
+        sql.append(") ");
+        if (hasExclude) sql.append("AND id NOT IN (<excludeIds>) ");
+        sql.append("ORDER BY RANDOM() LIMIT :limit");
+
+        return jdbi.withHandle(h -> {
+            var q = h.createQuery(sql.toString()).bind("limit", limit);
+            if (hasTiers)   q.bindList("tiers", superstarTiers.stream().map(Enum::name).toList());
+            if (hasExclude) q.bindList("excludeIds", new java.util.ArrayList<>(excludeIds));
+            return q.map(ACTRESS_MAPPER).list();
+        });
+    }
+
+    @Override
+    public List<Actress> findBirthdaysToday(int month, int day, int limit) {
+        // SQLite stores LocalDate as ISO yyyy-MM-dd, so substr(date, 6, 5) = "MM-dd".
+        String mmdd = String.format("%02d-%02d", month, day);
+        return jdbi.withHandle(h ->
+                h.createQuery("""
+                        SELECT * FROM actresses
+                        WHERE rejected = 0
+                          AND date_of_birth IS NOT NULL
+                          AND substr(date_of_birth, 6, 5) = :mmdd
+                        ORDER BY favorite DESC, bookmark DESC,
+                                 CASE tier
+                                     WHEN 'GODDESS' THEN 0
+                                     WHEN 'SUPERSTAR' THEN 1
+                                     WHEN 'POPULAR' THEN 2
+                                     WHEN 'MINOR' THEN 3
+                                     ELSE 4
+                                 END,
+                                 canonical_name
+                        LIMIT :limit
+                        """)
+                        .bind("mmdd", mmdd)
+                        .bind("limit", limit)
+                        .map(ACTRESS_MAPPER)
+                        .list()
+        );
+    }
+
+    @Override
+    public List<Actress> findNewFaces(LocalDate since, int limit, java.util.Set<Long> excludeIds) {
+        boolean hasExclude = excludeIds != null && !excludeIds.isEmpty();
+        String exclusion = hasExclude ? "AND id NOT IN (<excludeIds>) " : "";
+        // first_seen_at is a date (no time), so when many actresses are imported on the same
+        // day they share the same value — secondary sort by id DESC keeps insertion order
+        // instead of degenerating into alphabetical (which made the strip all A-names).
+        String sql = "SELECT * FROM actresses WHERE rejected = 0 AND first_seen_at >= :since "
+                + exclusion
+                + "ORDER BY first_seen_at DESC, id DESC LIMIT :limit";
+        return jdbi.withHandle(h -> {
+            var q = h.createQuery(sql)
+                    .bind("since", since.toString())
+                    .bind("limit", limit);
+            if (hasExclude) q.bindList("excludeIds", new java.util.ArrayList<>(excludeIds));
+            return q.map(ACTRESS_MAPPER).list();
+        });
+    }
+
+    @Override
+    public List<Actress> findNewFacesFallback(int limit, java.util.Set<Long> excludeIds) {
+        boolean hasExclude = excludeIds != null && !excludeIds.isEmpty();
+        String exclusion = hasExclude ? "AND id NOT IN (<excludeIds>) " : "";
+        // See findNewFaces — secondary sort by id DESC, not canonical_name.
+        String sql = "SELECT * FROM actresses WHERE rejected = 0 "
+                + exclusion
+                + "ORDER BY first_seen_at DESC, id DESC LIMIT :limit";
+        return jdbi.withHandle(h -> {
+            var q = h.createQuery(sql).bind("limit", limit);
+            if (hasExclude) q.bindList("excludeIds", new java.util.ArrayList<>(excludeIds));
+            return q.map(ACTRESS_MAPPER).list();
+        });
+    }
+
+    @Override
+    public List<Actress> findBookmarksOrderedByBookmarkedAt(int limit, java.util.Set<Long> excludeIds) {
+        boolean hasExclude = excludeIds != null && !excludeIds.isEmpty();
+        String exclusion = hasExclude ? "AND id NOT IN (<excludeIds>) " : "";
+        // NULLs sort last so backfilled bookmarks (now stamped) sort by their backfill time;
+        // any future NULL stragglers fall to the bottom.
+        String sql = "SELECT * FROM actresses WHERE bookmark = 1 AND rejected = 0 "
+                + exclusion
+                + "ORDER BY bookmarked_at IS NULL, bookmarked_at DESC, canonical_name LIMIT :limit";
+        return jdbi.withHandle(h -> {
+            var q = h.createQuery(sql).bind("limit", limit);
+            if (hasExclude) q.bindList("excludeIds", new java.util.ArrayList<>(excludeIds));
+            return q.map(ACTRESS_MAPPER).list();
+        });
+    }
+
+    @Override
+    public List<Actress> findUndiscoveredElites(java.util.Set<Actress.Tier> minTiers,
+                                                int maxVisitCount,
+                                                int limit,
+                                                java.util.Set<Long> excludeIds) {
+        if (minTiers == null || minTiers.isEmpty()) return List.of();
+        boolean hasExclude = excludeIds != null && !excludeIds.isEmpty();
+        String exclusion = hasExclude ? "AND id NOT IN (<excludeIds>) " : "";
+        String sql = "SELECT * FROM actresses "
+                + "WHERE rejected = 0 AND visit_count < :maxVisits AND tier IN (<tiers>) "
+                + exclusion
+                + "ORDER BY RANDOM() LIMIT :limit";
+        return jdbi.withHandle(h -> {
+            var q = h.createQuery(sql)
+                    .bind("maxVisits", maxVisitCount)
+                    .bind("limit", limit)
+                    .bindList("tiers", minTiers.stream().map(Enum::name).toList());
+            if (hasExclude) q.bindList("excludeIds", new java.util.ArrayList<>(excludeIds));
+            return q.map(ACTRESS_MAPPER).list();
+        });
+    }
+
+    @Override
+    public List<Actress> findForgottenGemsCandidates(java.util.Set<Actress.Grade> topGrades,
+                                                     java.util.Set<Actress.Tier> highTiers,
+                                                     LocalDate staleBefore,
+                                                     int limit,
+                                                     java.util.Set<Long> excludeIds) {
+        boolean hasGrades  = topGrades != null && !topGrades.isEmpty();
+        boolean hasTiers   = highTiers != null && !highTiers.isEmpty();
+        boolean hasExclude = excludeIds != null && !excludeIds.isEmpty();
+        StringBuilder sql = new StringBuilder("SELECT * FROM actresses WHERE rejected = 0 AND (favorite = 1");
+        if (hasGrades) sql.append(" OR grade IN (<grades>)");
+        if (hasTiers)  sql.append(" OR tier IN (<tiers>)");
+        sql.append(") AND (last_visited_at IS NULL OR last_visited_at < :staleBefore) ");
+        if (hasExclude) sql.append("AND id NOT IN (<excludeIds>) ");
+        sql.append("ORDER BY RANDOM() LIMIT :limit");
+
+        return jdbi.withHandle(h -> {
+            var q = h.createQuery(sql.toString())
+                    .bind("staleBefore", staleBefore.toString())
+                    .bind("limit", limit);
+            if (hasGrades)
+                q.bindList("grades", topGrades.stream().map(g -> g.display).toList());
+            if (hasTiers)
+                q.bindList("tiers", highTiers.stream().map(Enum::name).toList());
+            if (hasExclude)
+                q.bindList("excludeIds", new java.util.ArrayList<>(excludeIds));
+            return q.map(ACTRESS_MAPPER).list();
+        });
+    }
+
+    @Override
+    public List<Actress> findResearchGapCandidates(java.util.Set<Actress.Tier> superstarTiers, int limit) {
+        boolean hasTiers = superstarTiers != null && !superstarTiers.isEmpty();
+        StringBuilder sql = new StringBuilder("""
+                SELECT * FROM actresses
+                WHERE rejected = 0
+                  AND (favorite = 1 OR grade IS NOT NULL
+                """);
+        if (hasTiers) sql.append("       OR tier IN (<tiers>) ");
+        sql.append(") AND biography IS NULL ");
+        sql.append("ORDER BY ");
+        // Score: tier weight + favorite bonus + graded bonus.
+        sql.append("CASE tier ");
+        sql.append("  WHEN 'GODDESS' THEN 5 ");
+        sql.append("  WHEN 'SUPERSTAR' THEN 3 ");
+        sql.append("  WHEN 'POPULAR' THEN 1 ");
+        sql.append("  ELSE 0 END DESC, ");
+        sql.append("favorite DESC, grade IS NOT NULL DESC, canonical_name ");
+        sql.append("LIMIT :limit");
+        return jdbi.withHandle(h -> {
+            var q = h.createQuery(sql.toString()).bind("limit", limit);
+            if (hasTiers) q.bindList("tiers", superstarTiers.stream().map(Enum::name).toList());
+            return q.map(ACTRESS_MAPPER).list();
+        });
+    }
+
+    @Override
+    public ActressLibraryStats computeActressLibraryStats() {
+        String monthStart = LocalDate.now().withDayOfMonth(1).toString();
+        return jdbi.withHandle(h -> {
+            long total = h.createQuery("SELECT COUNT(*) FROM actresses WHERE rejected = 0")
+                    .mapTo(Long.class).one();
+            long favorites = h.createQuery("SELECT COUNT(*) FROM actresses WHERE favorite = 1 AND rejected = 0")
+                    .mapTo(Long.class).one();
+            long graded = h.createQuery("SELECT COUNT(*) FROM actresses WHERE grade IS NOT NULL AND rejected = 0")
+                    .mapTo(Long.class).one();
+            long elites = h.createQuery(
+                            "SELECT COUNT(*) FROM actresses WHERE tier IN ('SUPERSTAR','GODDESS') AND rejected = 0")
+                    .mapTo(Long.class).one();
+            long newThisMonth = h.createQuery(
+                            "SELECT COUNT(*) FROM actresses WHERE first_seen_at >= :since AND rejected = 0")
+                    .bind("since", monthStart)
+                    .mapTo(Long.class).one();
+            // Research total = qualifying pool (favorite/graded/elite), regardless of bio state.
+            long researchTotal = h.createQuery("""
+                            SELECT COUNT(*) FROM actresses
+                            WHERE rejected = 0
+                              AND (favorite = 1 OR grade IS NOT NULL
+                                   OR tier IN ('SUPERSTAR','GODDESS'))
+                            """).mapTo(Long.class).one();
+            long researchCovered = h.createQuery("""
+                            SELECT COUNT(*) FROM actresses
+                            WHERE rejected = 0
+                              AND (favorite = 1 OR grade IS NOT NULL
+                                   OR tier IN ('SUPERSTAR','GODDESS'))
+                              AND biography IS NOT NULL AND biography != ''
+                            """).mapTo(Long.class).one();
+            return new ActressLibraryStats(total, favorites, graded, elites, newThisMonth,
+                    researchCovered, researchTotal);
+        });
+    }
+
+    @Override
+    public List<ActressLabelEngagement> findActressLabelEngagements() {
+        return jdbi.withHandle(h ->
+                h.createQuery("""
+                        SELECT a.id            AS actress_id,
+                               upper(t.label)  AS label_code,
+                               a.visit_count   AS visit_count,
+                               a.favorite      AS favorite,
+                               a.bookmark      AS bookmark
+                        FROM actresses a
+                        JOIN title_actresses ta ON ta.actress_id = a.id
+                        JOIN titles t ON t.id = ta.title_id
+                        WHERE a.rejected = 0
+                          AND t.label IS NOT NULL AND t.label != ''
+                        GROUP BY a.id, upper(t.label)
+                        """)
+                        .map((rs, ctx) -> new ActressLabelEngagement(
+                                rs.getLong("actress_id"),
+                                rs.getString("label_code"),
+                                rs.getInt("visit_count"),
+                                rs.getInt("favorite") != 0,
+                                rs.getInt("bookmark") != 0))
+                        .list()
+        );
     }
 }

@@ -25,8 +25,11 @@ import java.util.Map;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -434,6 +437,223 @@ class ActressBrowseServiceTest {
 
         assertTrue(service.toggleFavorite(999L).isEmpty());
         verify(actressRepo, never()).setFlags(anyLong(), anyBoolean(), anyBoolean(), anyBoolean());
+    }
+
+    // ── Dashboard composition ─────────────────────────────────────────────
+
+    @Test
+    void buildDashboardWiresAllModules() {
+        Actress spot   = elite(10L, "Spotlight");
+        Actress bday   = elite(11L, "BirthdayActress");
+        Actress fresh  = actress("Fresh");
+        Actress book   = actress("Bookmarked");
+        Actress lastV  = actress("LastVisited");
+        Actress undisc = elite(15L, "Undiscovered");
+        Actress gem    = elite(16L, "Gem");
+
+        when(actressRepo.findSpotlightCandidates(any(), anyInt(), any())).thenReturn(List.of(spot));
+        when(actressRepo.findBirthdaysToday(anyInt(), anyInt(), anyInt())).thenReturn(List.of(bday));
+        when(actressRepo.findNewFaces(any(), anyInt(), any())).thenReturn(List.of(fresh));
+        when(actressRepo.findBookmarksOrderedByBookmarkedAt(anyInt(), any())).thenReturn(List.of(book));
+        when(actressRepo.findLastVisited(anyInt())).thenReturn(List.of(lastV));
+        when(actressRepo.findUndiscoveredElites(any(), anyInt(), anyInt(), any())).thenReturn(List.of(undisc));
+        when(actressRepo.findForgottenGemsCandidates(any(), any(), any(), anyInt(), any())).thenReturn(List.of(gem));
+        when(actressRepo.findResearchGapCandidates(any(), anyInt())).thenReturn(List.of());
+        when(actressRepo.findActressLabelEngagements()).thenReturn(List.of());
+        when(actressRepo.computeActressLibraryStats()).thenReturn(
+                new ActressRepository.ActressLibraryStats(100, 12, 5, 4, 2, 3, 6));
+        when(titleRepo.findByActress(anyLong())).thenReturn(List.of());
+
+        ActressBrowseService.ActressDashboard d = service.buildDashboard();
+
+        assertNotNull(d.spotlight());
+        assertEquals("Spotlight", d.spotlight().getCanonicalName());
+        assertEquals(1, d.birthdaysToday().size());
+        assertEquals(1, d.newFaces().size());
+        assertEquals(1, d.bookmarks().size());
+        assertEquals(1, d.recentlyViewed().size());
+        assertEquals(1, d.undiscoveredElites().size());
+        assertEquals(1, d.forgottenGems().size());
+        assertEquals(100L, d.libraryStats().totalActresses());
+        assertEquals(12L, d.libraryStats().favorites());
+    }
+
+    @Test
+    void buildDashboardExcludesSpotlightFromSubsequentModules() {
+        Actress spot = elite(10L, "Spotlight");
+        when(actressRepo.findSpotlightCandidates(any(), anyInt(), any())).thenReturn(List.of(spot));
+        when(actressRepo.findBirthdaysToday(anyInt(), anyInt(), anyInt())).thenReturn(List.of());
+        when(actressRepo.findNewFaces(any(), anyInt(), any())).thenReturn(List.of());
+        when(actressRepo.findNewFacesFallback(anyInt(), any())).thenReturn(List.of());
+        when(actressRepo.findBookmarksOrderedByBookmarkedAt(anyInt(), any())).thenReturn(List.of());
+        when(actressRepo.findLastVisited(anyInt())).thenReturn(List.of());
+        when(actressRepo.findUndiscoveredElites(any(), anyInt(), anyInt(), any())).thenReturn(List.of());
+        when(actressRepo.findForgottenGemsCandidates(any(), any(), any(), anyInt(), any())).thenReturn(List.of());
+        when(actressRepo.findResearchGapCandidates(any(), anyInt())).thenReturn(List.of());
+        when(actressRepo.findActressLabelEngagements()).thenReturn(List.of());
+        when(actressRepo.computeActressLibraryStats()).thenReturn(
+                new ActressRepository.ActressLibraryStats(0, 0, 0, 0, 0, 0, 0));
+        when(titleRepo.findByActress(anyLong())).thenReturn(List.of());
+
+        service.buildDashboard();
+
+        // After spotlight picks id=10, the next call (newFaces) should receive {10} in excludeIds.
+        verify(actressRepo).findNewFaces(any(), eq(6), eq(java.util.Set.of(10L)));
+    }
+
+    @Test
+    void buildDashboardFallsBackToNewFacesFallbackWhenWindowIsEmpty() {
+        Actress fallback = actress("Fallback");
+        when(actressRepo.findSpotlightCandidates(any(), anyInt(), any())).thenReturn(List.of());
+        when(actressRepo.findBirthdaysToday(anyInt(), anyInt(), anyInt())).thenReturn(List.of());
+        when(actressRepo.findNewFaces(any(), anyInt(), any())).thenReturn(List.of());
+        when(actressRepo.findNewFacesFallback(anyInt(), any())).thenReturn(List.of(fallback));
+        when(actressRepo.findBookmarksOrderedByBookmarkedAt(anyInt(), any())).thenReturn(List.of());
+        when(actressRepo.findLastVisited(anyInt())).thenReturn(List.of());
+        when(actressRepo.findUndiscoveredElites(any(), anyInt(), anyInt(), any())).thenReturn(List.of());
+        when(actressRepo.findForgottenGemsCandidates(any(), any(), any(), anyInt(), any())).thenReturn(List.of());
+        when(actressRepo.findResearchGapCandidates(any(), anyInt())).thenReturn(List.of());
+        when(actressRepo.findActressLabelEngagements()).thenReturn(List.of());
+        when(actressRepo.computeActressLibraryStats()).thenReturn(
+                new ActressRepository.ActressLibraryStats(0, 0, 0, 0, 0, 0, 0));
+        when(titleRepo.findByActress(anyLong())).thenReturn(List.of());
+
+        ActressBrowseService.ActressDashboard d = service.buildDashboard();
+
+        assertEquals(1, d.newFaces().size());
+        assertEquals("Fallback", d.newFaces().get(0).getCanonicalName());
+        verify(actressRepo).findNewFacesFallback(eq(6), any());
+    }
+
+    @Test
+    void buildDashboardEmitsBirthdaysAsEmptyListWhenNoMatches() {
+        when(actressRepo.findSpotlightCandidates(any(), anyInt(), any())).thenReturn(List.of());
+        when(actressRepo.findBirthdaysToday(anyInt(), anyInt(), anyInt())).thenReturn(List.of());
+        when(actressRepo.findNewFaces(any(), anyInt(), any())).thenReturn(List.of());
+        when(actressRepo.findNewFacesFallback(anyInt(), any())).thenReturn(List.of());
+        when(actressRepo.findBookmarksOrderedByBookmarkedAt(anyInt(), any())).thenReturn(List.of());
+        when(actressRepo.findLastVisited(anyInt())).thenReturn(List.of());
+        when(actressRepo.findUndiscoveredElites(any(), anyInt(), anyInt(), any())).thenReturn(List.of());
+        when(actressRepo.findForgottenGemsCandidates(any(), any(), any(), anyInt(), any())).thenReturn(List.of());
+        when(actressRepo.findResearchGapCandidates(any(), anyInt())).thenReturn(List.of());
+        when(actressRepo.findActressLabelEngagements()).thenReturn(List.of());
+        when(actressRepo.computeActressLibraryStats()).thenReturn(
+                new ActressRepository.ActressLibraryStats(0, 0, 0, 0, 0, 0, 0));
+
+        ActressBrowseService.ActressDashboard d = service.buildDashboard();
+        assertNotNull(d.birthdaysToday());
+        assertTrue(d.birthdaysToday().isEmpty(), "JS layer hides the panel when empty");
+    }
+
+    @Test
+    void getSpotlightReturnsNullWhenPoolEmpty() {
+        when(actressRepo.findSpotlightCandidates(any(), anyInt(), any())).thenReturn(List.of());
+        assertNull(service.getSpotlight(null));
+    }
+
+    @Test
+    void getSpotlightExcludesGivenId() {
+        Actress spot = elite(20L, "Other");
+        when(actressRepo.findSpotlightCandidates(any(), anyInt(), eq(java.util.Set.of(99L))))
+                .thenReturn(List.of(spot));
+        when(titleRepo.findByActress(20L)).thenReturn(List.of());
+
+        ActressSummary result = service.getSpotlight(99L);
+        assertNotNull(result);
+        assertEquals("Other", result.getCanonicalName());
+    }
+
+    @Test
+    void researchGapsMarksCompletenessDots() {
+        // Actress with biography but missing other fields.
+        Actress complete = Actress.builder()
+                .id(50L).canonicalName("Complete").tier(Actress.Tier.SUPERSTAR)
+                .stageName("name").dateOfBirth(LocalDate.of(1990, 1, 1)).birthplace("Tokyo")
+                .heightCm(160).bust(85).waist(58).hip(86)
+                .biography("a real bio")
+                .firstSeenAt(LocalDate.of(2024, 1, 1))
+                .build();
+        Actress sparse = Actress.builder()
+                .id(51L).canonicalName("Sparse").tier(Actress.Tier.SUPERSTAR)
+                .firstSeenAt(LocalDate.of(2024, 1, 1))
+                .build();
+
+        when(actressRepo.findSpotlightCandidates(any(), anyInt(), any())).thenReturn(List.of());
+        when(actressRepo.findBirthdaysToday(anyInt(), anyInt(), anyInt())).thenReturn(List.of());
+        when(actressRepo.findNewFaces(any(), anyInt(), any())).thenReturn(List.of());
+        when(actressRepo.findNewFacesFallback(anyInt(), any())).thenReturn(List.of());
+        when(actressRepo.findBookmarksOrderedByBookmarkedAt(anyInt(), any())).thenReturn(List.of());
+        when(actressRepo.findLastVisited(anyInt())).thenReturn(List.of());
+        when(actressRepo.findUndiscoveredElites(any(), anyInt(), anyInt(), any())).thenReturn(List.of());
+        when(actressRepo.findForgottenGemsCandidates(any(), any(), any(), anyInt(), any())).thenReturn(List.of());
+        when(actressRepo.findResearchGapCandidates(any(), anyInt())).thenReturn(List.of(complete, sparse));
+        when(actressRepo.findActressLabelEngagements()).thenReturn(List.of());
+        when(actressRepo.computeActressLibraryStats()).thenReturn(
+                new ActressRepository.ActressLibraryStats(0, 0, 0, 0, 0, 0, 0));
+        Title t = title(50L, "vol-a", "stars/popular", "/stars/popular/Complete/ABP-001");
+        when(titleRepo.findByActress(50L)).thenReturn(List.of(t));
+        when(titleRepo.findByActress(51L)).thenReturn(List.of());
+        when(coverPath.find(any())).thenReturn(Optional.empty());
+
+        ActressBrowseService.ActressDashboard d = service.buildDashboard();
+
+        assertEquals(2, d.researchGaps().size());
+        var completeGap = d.researchGaps().get(0);
+        assertTrue(completeGap.profileFilled());
+        assertTrue(completeGap.physicalFilled());
+        assertTrue(completeGap.biographyFilled());
+        assertTrue(completeGap.portfolioCovered());
+
+        var sparseGap = d.researchGaps().get(1);
+        assertFalse(sparseGap.profileFilled());
+        assertFalse(sparseGap.physicalFilled());
+        assertFalse(sparseGap.biographyFilled());
+        assertFalse(sparseGap.portfolioCovered());
+    }
+
+    @Test
+    void topGroupsAggregatesPerActressEngagement() {
+        // Two actresses share an engagement on a label whose company maps to a real studio group.
+        // "S1 No.1 Style" is a company under the "WILL Co., Ltd." group in studios.yaml.
+        when(actressRepo.findSpotlightCandidates(any(), anyInt(), any())).thenReturn(List.of());
+        when(actressRepo.findBirthdaysToday(anyInt(), anyInt(), anyInt())).thenReturn(List.of());
+        when(actressRepo.findNewFaces(any(), anyInt(), any())).thenReturn(List.of());
+        when(actressRepo.findNewFacesFallback(anyInt(), any())).thenReturn(List.of());
+        when(actressRepo.findBookmarksOrderedByBookmarkedAt(anyInt(), any())).thenReturn(List.of());
+        when(actressRepo.findLastVisited(anyInt())).thenReturn(List.of());
+        when(actressRepo.findUndiscoveredElites(any(), anyInt(), anyInt(), any())).thenReturn(List.of());
+        when(actressRepo.findForgottenGemsCandidates(any(), any(), any(), anyInt(), any())).thenReturn(List.of());
+        when(actressRepo.findResearchGapCandidates(any(), anyInt())).thenReturn(List.of());
+        when(actressRepo.computeActressLibraryStats()).thenReturn(
+                new ActressRepository.ActressLibraryStats(0, 0, 0, 0, 0, 0, 0));
+
+        when(actressRepo.findActressLabelEngagements()).thenReturn(List.of(
+                new ActressRepository.ActressLabelEngagement(1L, "SSIS", 5, true, false),
+                new ActressRepository.ActressLabelEngagement(1L, "SNIS", 0, false, true), // same actress, second label
+                new ActressRepository.ActressLabelEngagement(2L, "SSIS", 1, false, false),
+                new ActressRepository.ActressLabelEngagement(3L, "ABP", 0, false, false)  // unmapped → no group
+        ));
+        when(labelRepo.findAllAsMap()).thenReturn(Map.of(
+                "SSIS", new Label("SSIS", "S1 Special", "S1 No.1 Style", null, null),
+                "SNIS", new Label("SNIS", "S1 Premium",  "S1 No.1 Style", null, null),
+                "ABP",  new Label("ABP",  "Absolutely Perfect", "Prestige Unmapped", null, null)
+        ));
+
+        ActressBrowseService.ActressDashboard d = service.buildDashboard();
+
+        // Only the WILL group should appear (ABP's company is unmapped).
+        assertEquals(1, d.topGroups().size());
+        var group = d.topGroups().get(0);
+        assertEquals("WILL Co., Ltd.", group.name());
+        // Two distinct actresses contributed (1 and 2); actress 3 was filtered.
+        assertEquals(2, group.actressCount());
+        assertTrue(group.score() > 0);
+    }
+
+    private static Actress elite(long id, String name) {
+        return Actress.builder()
+                .id(id).canonicalName(name).tier(Actress.Tier.SUPERSTAR)
+                .firstSeenAt(LocalDate.of(2023, 1, 1)).build();
     }
 
     // ── helpers ───────────────────────────────────────────────────────────

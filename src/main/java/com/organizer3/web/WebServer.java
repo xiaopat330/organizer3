@@ -306,9 +306,19 @@ public class WebServer {
             });
 
             app.get("/api/actresses/dashboard", ctx -> {
-                var lastVisited  = actressBrowseService.findLastVisited(10);
-                var mostVisited  = actressBrowseService.findMostVisited(10);
-                ctx.json(Map.of("lastVisited", lastVisited, "mostVisited", mostVisited));
+                ctx.json(actressBrowseService.buildDashboard());
+            });
+
+            app.get("/api/actresses/spotlight", ctx -> {
+                Long excludeId = null;
+                String exclude = ctx.queryParam("exclude");
+                if (exclude != null && !exclude.isBlank()) {
+                    try { excludeId = Long.parseLong(exclude.trim()); }
+                    catch (NumberFormatException e) { ctx.status(400); return; }
+                }
+                var result = actressBrowseService.getSpotlight(excludeId);
+                if (result == null) ctx.status(204);
+                else ctx.json(result);
             });
 
             app.get("/api/actresses/{id}", ctx -> {

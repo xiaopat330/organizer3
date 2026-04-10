@@ -380,3 +380,49 @@ export function makeActressCard(a) {
   card.addEventListener('click', () => _openActressDetail(a.id));
   return card;
 }
+
+/**
+ * Compact actress card — used in dashboard panels with limited horizontal room
+ * (Recently Viewed, etc.). Shows only the first cover image, the actress name
+ * with tier badge, and a tiny last-visited line. Drops the marquee, title
+ * count and date range.
+ */
+export function makeCompactActressCard(a) {
+  const card = document.createElement('div');
+  card.className = 'actress-card actress-card-compact';
+  if (a.rejected) card.classList.add('actress-card-rejected');
+  card.dataset.actressId = a.id;
+
+  const covers = a.coverUrls || [];
+  const coverWrap = document.createElement('div');
+  coverWrap.className = 'cover-wrap';
+  if (covers.length === 0) {
+    coverWrap.innerHTML = `<div class="cover-placeholder">—</div>`;
+  } else {
+    const img = document.createElement('img');
+    img.className = 'cover-img';
+    img.src = covers[0];
+    img.alt = a.canonicalName;
+    img.loading = 'lazy';
+    coverWrap.appendChild(img);
+  }
+  card.appendChild(coverWrap);
+
+  const { first: firstName, last: lastName } = splitName(a.canonicalName);
+  const body = document.createElement('div');
+  body.className = 'actress-card-body actress-card-body-compact';
+  body.innerHTML = `
+    <div class="${actressNameClass(a)}">
+      ${actressFlagIconsHtml(a)}<span class="actress-first-name">${esc(firstName)}</span>${lastName ? `<span class="actress-last-name">${esc(lastName)}</span>` : ''}<span class="tier-badge tier-${esc(a.tier)} actress-tier-badge">${esc(a.tier.toLowerCase())}</span>
+    </div>
+    ${a.lastVisitedAt ? `<div class="actress-card-visited">${timeAgoShort(a.lastVisitedAt)}</div>` : ''}
+  `;
+  card.appendChild(body);
+
+  if (!a.rejected) {
+    attachActressBookmarkListener(a.id, card.querySelector('.actress-card-name'), !!a.bookmark);
+  }
+
+  card.addEventListener('click', () => _openActressDetail(a.id));
+  return card;
+}

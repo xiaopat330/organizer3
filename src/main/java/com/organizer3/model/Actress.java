@@ -28,6 +28,7 @@ public class Actress implements Comparable<Actress> {
     Tier tier;
     boolean favorite;
     boolean bookmark;
+    LocalDateTime bookmarkedAt;   // null when not bookmarked; stamped when bookmark flips on
     Grade grade;           // nullable
     boolean rejected;
     LocalDate firstSeenAt;

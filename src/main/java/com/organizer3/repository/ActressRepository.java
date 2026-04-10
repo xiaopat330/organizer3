@@ -172,4 +172,96 @@ public interface ActressRepository {
      * Runs in a single transaction.
      */
     void importFromYaml(List<AliasYamlEntry> entries);
+
+    // ── Dashboard module queries ─────────────────────────────────────────────
+
+    /** Light projection for actress library stats. */
+    record ActressLibraryStats(
+            long totalActresses,
+            long favorites,
+            long graded,
+            long elites,            // SUPERSTAR + GODDESS
+            long newThisMonth,      // first_seen_at within current month
+            long researchCovered,   // qualifying actresses (favorite/graded/elite) with biography populated
+            long researchTotal      // qualifying actresses (favorite/graded/elite), populated or not
+    ) {}
+
+    /**
+     * One row per (actress, distinct label) with engagement-component data.
+     * Used by the service to aggregate Top Groups scores after mapping labels → groups via YAML.
+     */
+    record ActressLabelEngagement(long actressId, String labelCode, int visitCount, boolean favorite, boolean bookmark) {}
+
+    /**
+     * Find candidate actresses for the Spotlight module (one big card, weighted random pick).
+     * Pool: favorited / bookmarked / graded ≥ A_PLUS / tier in {@code superstarTiers}.
+     * Rejected actresses are excluded. Returns up to {@code limit} rows in random order
+     * for the caller to weighted-sample.
+     */
+    List<Actress> findSpotlightCandidates(java.util.Set<Actress.Tier> superstarTiers,
+                                          int limit,
+                                          java.util.Set<Long> excludeIds);
+
+    /**
+     * Find actresses whose date_of_birth month-day matches the given month/day.
+     * Excludes rejected. Sorted: favorites/bookmarks first, then tier DESC, then by canonical_name.
+     */
+    List<Actress> findBirthdaysToday(int month, int day, int limit);
+
+    /**
+     * Find actresses whose first_seen_at &gt;= {@code since}, ordered by first_seen_at DESC.
+     * Excludes rejected and {@code excludeIds}.
+     */
+    List<Actress> findNewFaces(java.time.LocalDate since, int limit, java.util.Set<Long> excludeIds);
+
+    /**
+     * Fallback for {@link #findNewFaces} when the date window returns nothing — return the
+     * newest N actresses overall by first_seen_at.
+     */
+    List<Actress> findNewFacesFallback(int limit, java.util.Set<Long> excludeIds);
+
+    /**
+     * Find bookmarked actresses ordered by bookmarked_at DESC (NULL last for backfilled rows).
+     * Excludes {@code excludeIds}.
+     */
+    List<Actress> findBookmarksOrderedByBookmarkedAt(int limit, java.util.Set<Long> excludeIds);
+
+    /**
+     * Find "undiscovered elites": actresses whose tier is in {@code minTiers} but who have
+     * been visited fewer than {@code maxVisitCount} times. Excludes rejected and {@code excludeIds}.
+     * Returned in random order so the caller can pick a fresh sample each load.
+     */
+    List<Actress> findUndiscoveredElites(java.util.Set<Actress.Tier> minTiers,
+                                         int maxVisitCount,
+                                         int limit,
+                                         java.util.Set<Long> excludeIds);
+
+    /**
+     * Find candidates for "Forgotten Gems": actresses with high signal (grade in {@code topGrades},
+     * tier in {@code highTiers}, or favorite=1) who haven't been visited recently
+     * (last_visited_at &lt; {@code staleBefore} or null). Excludes rejected and {@code excludeIds}.
+     * Returned in random order for weighted sampling.
+     */
+    List<Actress> findForgottenGemsCandidates(java.util.Set<Actress.Grade> topGrades,
+                                              java.util.Set<Actress.Tier> highTiers,
+                                              java.time.LocalDate staleBefore,
+                                              int limit,
+                                              java.util.Set<Long> excludeIds);
+
+    /**
+     * Find candidates for the Research Gaps module: qualifying actresses (favorite, graded, or
+     * tier in {@code superstarTiers}) whose biography is NULL — the strongest "needs research"
+     * signal. Excludes rejected. Caller computes per-bucket completeness (profile/physical/bio/portfolio).
+     */
+    List<Actress> findResearchGapCandidates(java.util.Set<Actress.Tier> superstarTiers, int limit);
+
+    /** Compute scalar library stats for the actress dashboard footer. */
+    ActressLibraryStats computeActressLibraryStats();
+
+    /**
+     * Return per-(actress, label) engagement rows for Top Groups score derivation.
+     * Only emits rows where the actress's title has a non-empty label. Multiple titles for
+     * the same (actress, label) collapse to a single row — the label appears once per actress.
+     */
+    List<ActressLabelEngagement> findActressLabelEngagements();
 }

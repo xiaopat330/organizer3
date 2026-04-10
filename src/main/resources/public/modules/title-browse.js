@@ -5,6 +5,13 @@ import { tagBadgeHtml } from './icons.js';
 import { ensureStudioGroups, ensureTitleLabels, renderTwoColumnStudioPanel } from './studio-data.js';
 import { resetActressState, actressesBtn } from './actress-browse.js';
 import { MAX_TOTAL } from './config.js';
+import {
+  renderDashboardStrip,
+  renderDashboardSection,
+  renderSideBySidePanel,
+  renderStatsTiles,
+  createSpotlightRotator,
+} from './dashboard-panels.js';
 
 // ── DOM refs ──────────────────────────────────────────────────────────────
 export const titlesBrowseBtn    = document.getElementById('titles-browse-btn');
@@ -34,10 +41,18 @@ export let titleBrowseMode = null;   // null | 'dashboard' | 'search' | 'favorit
 export let titleSearchTerm = '';
 let titleSearchTimer = null;
 
-// Spotlight rotation
+// Spotlight rotation (title-specific instance of the shared rotator)
 const SPOTLIGHT_INTERVAL_MS = 30_000;
-let spotlightIntervalId = null;
-let spotlightCardContainer = null;   // the .dashboard-top-panel-left div
+const titleSpotlightRotator = createSpotlightRotator({
+  endpoint: '/api/titles/spotlight',
+  excludeAttr: 'code',
+  makeCard: t => {
+    const card = makeTitleCard(t);
+    card.classList.add('card-spotlight');
+    return card;
+  },
+  intervalMs: SPOTLIGHT_INTERVAL_MS,
+});
 
 export let activeTags = new Set();
 let tagsDebounceTimer = null;
@@ -143,87 +158,6 @@ function makeTitleCardWithAging(t) {
   return card;
 }
 
-function renderDashboardStrip(titles, { id, cardFactory }) {
-  const grid = document.createElement('div');
-  grid.className = 'dashboard-card-grid';
-  if (id) grid.id = id;
-  titles.forEach(t => grid.appendChild(cardFactory(t)));
-  return grid;
-}
-
-function renderDashboardSection({ title, accent = false, badge = null, body, bordered = false }) {
-  const section = document.createElement('section');
-  section.className = 'dashboard-section'
-    + (accent   ? ' dashboard-section-accent'   : '')
-    + (bordered ? ' dashboard-section-bordered' : '');
-  const header = document.createElement('div');
-  header.className = 'dashboard-section-title';
-  header.textContent = title;
-  if (badge) {
-    const b = document.createElement('span');
-    b.className = 'dashboard-section-badge';
-    b.textContent = badge;
-    header.appendChild(b);
-  }
-  section.appendChild(header);
-  section.appendChild(body);
-  return section;
-}
-
-function renderSideBySidePanel(panelClass, leftEl, rightEl) {
-  const panel = document.createElement('div');
-  panel.className = `dashboard-side-panel ${panelClass}`;
-  if (leftEl) {
-    const left = document.createElement('div');
-    left.className = 'dashboard-side-panel-cell';
-    left.appendChild(leftEl);
-    panel.appendChild(left);
-  }
-  if (rightEl) {
-    const right = document.createElement('div');
-    right.className = 'dashboard-side-panel-cell';
-    right.appendChild(rightEl);
-    panel.appendChild(right);
-  }
-  return panel;
-}
-
-function stopSpotlightRotation() {
-  if (spotlightIntervalId !== null) {
-    clearInterval(spotlightIntervalId);
-    spotlightIntervalId = null;
-  }
-  spotlightCardContainer = null;
-}
-
-async function rotateSpotlight() {
-  if (!spotlightCardContainer) return;
-  const currentCard = spotlightCardContainer.querySelector('.card');
-  const currentCode = currentCard ? currentCard.dataset.code : null;
-  const url = '/api/titles/spotlight' + (currentCode ? `?exclude=${encodeURIComponent(currentCode)}` : '');
-  try {
-    const res = await fetch(url);
-    if (res.status === 204 || !res.ok) return;   // no candidates — keep current
-    const t = await res.json();
-    const newCard = makeTitleCard(t);
-    newCard.classList.add('card-spotlight', 'spotlight-enter');
-    if (currentCard) {
-      currentCard.classList.add('spotlight-exit');
-      currentCard.addEventListener('animationend', () => currentCard.remove(), { once: true });
-    }
-    spotlightCardContainer.appendChild(newCard);
-    // Trigger reflow so the animation plays
-    void newCard.offsetWidth;
-    newCard.classList.remove('spotlight-enter');
-  } catch (_) { /* network error — silently skip */ }
-}
-
-function startSpotlightRotation(container) {
-  stopSpotlightRotation();
-  spotlightCardContainer = container;
-  spotlightIntervalId = setInterval(rotateSpotlight, SPOTLIGHT_INTERVAL_MS);
-}
-
 function renderTopInfoPanel(spotlight, topLabels, libraryStats, onThisDay) {
   const panel = document.createElement('div');
   panel.className = 'dashboard-top-panel';
@@ -241,7 +175,7 @@ function renderTopInfoPanel(spotlight, topLabels, libraryStats, onThisDay) {
     left.appendChild(card);
     panel.appendChild(left);
     // Store ref and start rotation after this render cycle
-    setTimeout(() => startSpotlightRotation(left), SPOTLIGHT_INTERVAL_MS);
+    setTimeout(() => titleSpotlightRotator.start(left), SPOTLIGHT_INTERVAL_MS);
   }
 
   // Right column: upper row (Top Labels + Library side-by-side) + lower (On This Day)
@@ -307,39 +241,20 @@ function renderTopLabelsLeaderboard(topLabels) {
 }
 
 function renderLibraryStats(stats) {
-  const section = document.createElement('section');
-  section.className = 'dashboard-section dashboard-library-stats';
-  const header = document.createElement('div');
-  header.className = 'dashboard-section-title';
-  header.textContent = 'Library';
-  section.appendChild(header);
-
   const unseenPct = stats.totalTitles > 0
     ? Math.round((stats.unseen / stats.totalTitles) * 100)
     : 0;
-
-  const tiles = document.createElement('div');
-  tiles.className = 'dashboard-stats-grid';
-  const tileData = [
-    { label: 'Titles',          value: stats.totalTitles.toLocaleString() },
-    { label: 'Labels',          value: stats.totalLabels.toLocaleString() },
-    { label: 'Unseen',          value: stats.unseen.toLocaleString() },
-    { label: 'Unseen %',        value: `${unseenPct}%`, bar: unseenPct },
-    { label: 'Added this month', value: stats.addedThisMonth.toLocaleString() },
-    { label: 'Added this year',  value: stats.addedThisYear.toLocaleString() },
-  ];
-  tileData.forEach(t => {
-    const tile = document.createElement('div');
-    tile.className = 'stats-tile';
-    let html = `<div class="stats-tile-value">${esc(String(t.value))}</div><div class="stats-tile-label">${esc(t.label)}</div>`;
-    if (t.bar != null) {
-      html += `<div class="stats-tile-bar-wrap"><div class="stats-tile-bar" style="width:${t.bar}%"></div></div>`;
-    }
-    tile.innerHTML = html;
-    tiles.appendChild(tile);
+  return renderStatsTiles({
+    heading: 'Library',
+    tiles: [
+      { label: 'Titles',           value: stats.totalTitles.toLocaleString() },
+      { label: 'Labels',           value: stats.totalLabels.toLocaleString() },
+      { label: 'Unseen',           value: stats.unseen.toLocaleString() },
+      { label: 'Unseen %',         value: `${unseenPct}%`, bar: unseenPct },
+      { label: 'Added this month', value: stats.addedThisMonth.toLocaleString() },
+      { label: 'Added this year',  value: stats.addedThisYear.toLocaleString() },
+    ],
   });
-  section.appendChild(tiles);
-  return section;
 }
 
 async function renderTitleDashboard() {
@@ -468,7 +383,7 @@ export function selectTitleBrowseMode(modeKey) {
     renderTitleDashboard();
     return;
   }
-  stopSpotlightRotation();
+  titleSpotlightRotator.stop();
   titleDashboardEl.style.display = 'none';
   if (modeKey === 'studio') {
     document.getElementById('titles-browse-grid').style.display = 'none';
