@@ -91,12 +91,6 @@ function ensureActressDetailSentinel() {
   return s;
 }
 
-function makeLabel(text) {
-  return Object.assign(document.createElement('div'), {
-    className: 'dropdown-section-label',
-    textContent: text,
-  });
-}
 
 // ── Breadcrumb ───────────────────────────────────────────────────────────
 // segments: [{ label, action? }] — last segment has no action (current page)
@@ -155,8 +149,6 @@ const VIEWS = {
   actresses:        ['actress-landing', 'actress-grid'],
   'actress-detail': ['actress-detail'],
   'title-detail':   ['title-detail'],
-  queue:            ['queue-header', 'queue-grid'],
-  pool:             ['pool-header', 'pool-grid'],
   collections:      ['collections-grid'],
   'titles-browse':  ['title-landing', 'titles-browse-grid'],
 };
@@ -196,7 +188,7 @@ function showView(name) {
 // ── ScrollingGrid ─────────────────────────────────────────────────────────
 // Manages an infinite-scroll grid: tracks offset/exhaustion, fetches pages,
 // and appends rendered cards. The URL builder receives (offset, limit) each
-// call, so closures over mutable state (e.g. queueVolumeId) work naturally.
+// call, so closures over mutable state work naturally.
 const PAGE_SIZE = 24;
 
 class ScrollingGrid {
@@ -548,42 +540,12 @@ const titlesGrid = new ScrollingGrid(
   { getMax: () => MAX_TOTAL }
 );
 
-let queueVolumeId = null;
-let queueSmbPath  = null;
-
-const queueGrid = new ScrollingGrid(
-  document.getElementById('queue-grid'),
-  (o, l) => `/api/queues/${encodeURIComponent(queueVolumeId)}/titles?offset=${o}&limit=${l}`,
-  t => {
-    if (queueSmbPath) {
-      if (t.location) t.location = queueSmbPath + t.location;
-      if (t.locations) t.locations = t.locations.map(p => queueSmbPath + p);
-    }
-    return makeTitleCard(t);
-  },
-  'no titles in queue',
-  { getMax: () => MAX_TOTAL }
-);
-
 let poolVolumeId = null;
 let poolSmbPath  = null;
 
 let archivePoolVolumeId = null;
 let archivePoolSmbPath  = null;
 
-const poolGrid = new ScrollingGrid(
-  document.getElementById('pool-grid'),
-  (o, l) => `/api/pool/${encodeURIComponent(poolVolumeId)}/titles?offset=${o}&limit=${l}`,
-  t => {
-    if (poolSmbPath) {
-      if (t.location) t.location = poolSmbPath + t.location;
-      if (t.locations) t.locations = t.locations.map(p => poolSmbPath + p);
-    }
-    return makeTitleCard(t);
-  },
-  'no titles in pool',
-  { getMax: () => MAX_TOTAL }
-);
 
 const collectionsGrid = new ScrollingGrid(
   document.getElementById('collections-grid'),
@@ -704,8 +666,6 @@ function showTitlesView() {
   actressesBtn.classList.remove('active');
   collectionsBtn.classList.remove('active');
   document.getElementById('titles-browse-btn')?.classList.remove('active');
-  closeQueuesDropdown();
-  closeArchivesDropdown();
   // Reset actress landing state
   if (actressSearchTimer) { clearTimeout(actressSearchTimer); actressSearchTimer = null; }
   actressBrowseMode = null;
@@ -719,48 +679,6 @@ function showTitlesView() {
   activateHomeTab(homeTab);
 }
 
-// ── Archives browse ───────────────────────────────────────────────────────
-const archivesBtn      = document.getElementById('archives-btn');
-const archivesDropdown = document.getElementById('archives-dropdown');
-
-archivesBtn.addEventListener('click', e => {
-  e.stopPropagation();
-  closeQueuesDropdown();
-  const isOpen = archivesDropdown.classList.contains('open');
-  if (isOpen) { closeArchivesDropdown(); return; }
-  if (archivesDropdown.childElementCount === 0) populateArchivesDropdown();
-  archivesDropdown.classList.add('open');
-  archivesBtn.classList.add('active');
-});
-
-archivesDropdown.addEventListener('click', e => e.stopPropagation());
-
-function closeArchivesDropdown() {
-  archivesDropdown.classList.remove('open');
-  archivesBtn.classList.remove('active');
-}
-
-function populateArchivesDropdown() {
-  archivesDropdown.innerHTML = '';
-  const col = document.createElement('div');
-  col.className = 'dropdown-tier-col';
-
-  const starsChip = document.createElement('div');
-  starsChip.className = 'prefix-chip';
-  starsChip.textContent = 'stars';
-  starsChip.dataset.archives = 'stars';
-  starsChip.addEventListener('click', () => { closeArchivesDropdown(); selectActressBrowseMode('archive-volumes'); });
-  col.appendChild(starsChip);
-
-  const poolChip = document.createElement('div');
-  poolChip.className = 'prefix-chip';
-  poolChip.textContent = 'pool';
-  poolChip.dataset.archives = 'pool';
-  col.appendChild(poolChip);
-
-  archivesDropdown.appendChild(col);
-}
-
 // ── Actress browse ────────────────────────────────────────────────────────
 const actressesBtn          = document.getElementById('actresses-btn');
 const actressLandingEl      = document.getElementById('actress-landing');
@@ -768,6 +686,7 @@ const actressSearchInput    = document.getElementById('actress-search-input');
 const actressSearchClearBtn = document.getElementById('actress-search-clear');
 const actressFavoritesBtn   = document.getElementById('actress-favorites-btn');
 const actressBookmarksBtn   = document.getElementById('actress-bookmarks-btn');
+const actressArchivesBtn    = document.getElementById('actress-archives-btn');
 const actressTierRow        = document.getElementById('actress-landing-tier-row');
 
 const ACTRESS_TIERS = ['LIBRARY', 'MINOR', 'POPULAR', 'SUPERSTAR', 'GODDESS'];
@@ -801,6 +720,7 @@ buildActressTierChips();
 function updateActressLandingSelection() {
   actressFavoritesBtn.classList.toggle('selected', actressBrowseMode === 'favorites');
   actressBookmarksBtn.classList.toggle('selected', actressBrowseMode === 'bookmarks');
+  actressArchivesBtn.classList.toggle('selected',  actressBrowseMode === 'archive-volumes');
   actressTierRow.querySelectorAll('.actress-landing-tier').forEach(btn => {
     btn.classList.toggle('selected', actressBrowseMode === `tier-${btn.dataset.tier}`);
   });
@@ -881,8 +801,6 @@ async function selectActressBrowseMode(modeKey) {
 }
 
 function showActressLanding() {
-  closeQueuesDropdown();
-  closeArchivesDropdown();
   actressesBtn.classList.add('active');
   if (actressSearchTimer) { clearTimeout(actressSearchTimer); actressSearchTimer = null; }
   actressBrowseMode = null;
@@ -977,6 +895,7 @@ actressSearchClearBtn.addEventListener('click', () => {
 
 actressFavoritesBtn.addEventListener('click', () => selectActressBrowseMode('favorites'));
 actressBookmarksBtn.addEventListener('click', () => selectActressBrowseMode('bookmarks'));
+actressArchivesBtn.addEventListener('click',  () => selectActressBrowseMode('archive-volumes'));
 
 // ── Actress detail ────────────────────────────────────────────────────────
 async function openActressDetail(actressId) {
@@ -1214,109 +1133,6 @@ function setDetailCompanyFilter(company) {
   actressDetailGrid.reset();
   ensureActressDetailSentinel();
   actressDetailGrid.loadMore();
-}
-
-// ── Queues browse ─────────────────────────────────────────────────────────
-const queuesBtn      = document.getElementById('queues-btn');
-const queuesDropdown = document.getElementById('queues-dropdown');
-
-queuesBtn.addEventListener('click', async e => {
-  e.stopPropagation();
-  closeArchivesDropdown();
-  const isOpen = queuesDropdown.classList.contains('open');
-  if (isOpen) { closeQueuesDropdown(); return; }
-  if (queuesDropdown.childElementCount === 0) await populateQueuesDropdown();
-  queuesDropdown.classList.add('open');
-  queuesBtn.classList.add('active');
-});
-
-queuesDropdown.addEventListener('click', e => e.stopPropagation());
-
-// Single global listener closes all dropdowns
-document.addEventListener('click', () => {
-  closeArchivesDropdown();
-  closeQueuesDropdown();
-});
-
-function closeQueuesDropdown() {
-  queuesDropdown.classList.remove('open');
-  queuesBtn.classList.remove('active');
-}
-
-async function populateQueuesDropdown() {
-  queuesDropdown.innerHTML = '';
-
-  let data;
-  try {
-    const res = await fetch('/api/queues/volumes');
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    data = await res.json();
-  } catch (err) {
-    console.error('Failed to load queues', err);
-    return;
-  }
-
-  const poolCol = document.createElement('div');
-  poolCol.className = 'dropdown-tier-col';
-  poolCol.appendChild(makeLabel('pool'));
-  if (data.sortPool) {
-    const unsortedChip = document.createElement('div');
-    unsortedChip.className = 'prefix-chip';
-    unsortedChip.textContent = 'unsorted';
-    unsortedChip.addEventListener('click', () => openPoolView(data.sortPool.id, data.sortPool.smbPath));
-    poolCol.appendChild(unsortedChip);
-  }
-  queuesDropdown.appendChild(poolCol);
-  queuesDropdown.appendChild(Object.assign(document.createElement('div'), { className: 'dropdown-col-divider' }));
-
-  const volCol = document.createElement('div');
-  volCol.className = 'dropdown-prefix-col';
-  volCol.appendChild(makeLabel('volumes'));
-  for (const v of (data.volumes || [])) {
-    const chip = document.createElement('div');
-    chip.className = 'prefix-chip';
-    chip.textContent = v.id;
-    chip.addEventListener('click', () => openQueueView(v.id, v.smbPath));
-    volCol.appendChild(chip);
-  }
-  queuesDropdown.appendChild(volCol);
-}
-
-async function openQueueView(volumeId, smbPath) {
-  queueVolumeId = volumeId;
-  queueSmbPath  = smbPath || null;
-  closeQueuesDropdown();
-  queuesBtn.classList.add('active');
-  showView('queue');
-  document.getElementById('queue-header').textContent =
-    queueSmbPath ? `${queueSmbPath}/queue` : `${volumeId}/queue`;
-  updateBreadcrumb([
-    { label: 'Queues', action: () => queuesBtn.click() },
-    { label: volumeId },
-  ]);
-  activeGrid = queueGrid;
-  queueGrid.reset();
-  ensureSentinel();
-  await queueGrid.loadMore();
-}
-
-// ── Pool browse ──────────────────────────────────────────────────────────
-async function openPoolView(volumeId, smbPath) {
-  poolVolumeId = volumeId;
-  poolSmbPath  = smbPath || null;
-  closeQueuesDropdown();
-  queuesBtn.classList.add('active');
-  showView('pool');
-  document.getElementById('pool-header').textContent =
-    poolSmbPath ? poolSmbPath : volumeId;
-  updateBreadcrumb([
-    { label: 'Queues', action: () => queuesBtn.click() },
-    { label: 'unsorted' },
-  ]);
-  activeGrid = poolGrid;
-  poolGrid.reset();
-  ensureSentinel();
-  await poolGrid.loadMore();
 }
 
 // ── Collections browse ───────────────────────────────────────────────────
@@ -2373,8 +2189,6 @@ titleBookmarksBtn.addEventListener('click', () => selectTitleBrowseMode('bookmar
 titleStudioBtn.addEventListener('click',    () => selectTitleBrowseMode('studio'));
 
 function showTitlesBrowse() {
-  closeQueuesDropdown();
-  closeArchivesDropdown();
   titlesBrowseBtn.classList.add('active');
   actressesBtn.classList.remove('active');
   collectionsBtn.classList.remove('active');

@@ -15,16 +15,6 @@
     <div class="nav-divider"></div>
     <button class="nav-link" id="titles-browse-btn">Titles</button>
     <div class="nav-divider"></div>
-    <div class="archives-nav-wrap">
-      <button class="nav-link" id="archives-btn">Archives</button>
-      <div class="prefix-dropdown" id="archives-dropdown"></div>
-    </div>
-    <div class="nav-divider"></div>
-    <div class="queues-nav-wrap">
-      <button class="nav-link" id="queues-btn">Queues</button>
-      <div class="prefix-dropdown" id="queues-dropdown"></div>
-    </div>
-    <div class="nav-divider"></div>
     <button class="nav-link" id="action-btn">Action!</button>
     <div class="nav-divider"></div>
     <input class="search-input" type="search" placeholder="search…" id="search-input">
@@ -63,6 +53,10 @@
     <button type="button" id="actress-bookmarks-btn" class="actress-landing-special actress-landing-bookmarks">
       <svg class="actress-landing-bm" viewBox="0 0 24 24" width="14" height="14"><path d="M6 2h12a1 1 0 0 1 1 1v18.5a.5.5 0 0 1-.8.4L12 17.5 5.8 21.9a.5.5 0 0 1-.8-.4V3a1 1 0 0 1 1-1z"/></svg>
       Bookmarks
+    </button>
+    <button type="button" id="actress-archives-btn" class="actress-landing-special actress-landing-archives">
+      <svg class="actress-landing-archive" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="21 8 21 21 3 21 3 8"/><rect x="1" y="3" width="22" height="5"/><line x1="10" y1="12" x2="14" y2="12"/></svg>
+      Archives
     </button>
   </div>
   <div class="actress-landing-divider"></div>
@@ -142,14 +136,6 @@
     </div>
   </div>
 </div>
-
-<!-- Queue browse header + grid -->
-<div id="queue-header" style="display:none; padding: 10px 20px 0; font-size: 0.78rem; color: #555; font-family: ui-monospace, monospace; letter-spacing: 0.03em;"></div>
-<div id="queue-grid" class="grid" style="display:none"></div>
-
-<!-- Pool browse header + grid -->
-<div id="pool-header" style="display:none; padding: 10px 20px 0; font-size: 0.78rem; color: #555; font-family: ui-monospace, monospace; letter-spacing: 0.03em;"></div>
-<div id="pool-grid" class="grid" style="display:none"></div>
 
 <!-- Collections browse grid -->
 <div id="collections-grid" class="grid" style="display:none"></div>
