@@ -269,6 +269,15 @@
       tags:
         - premium-production
         - planning
+    - code: WNZ
+      label: Wands
+      description: "WANZ FACTORY specialty extreme series; intense oral, squirting, and SM scenarios"
+      tags:
+        - premium-production
+        - planning
+        - squirting
+        - hardcore
+        - sm-bdsm
 
 - company: "S1 No.1 Style"
   description: "WILL's premium flagship label. Founded 2004. The highest production values in the industry — considered the 'top of the top' for exclusive actress content. Famous exclusives include Akiho Yoshizawa, Tsukasa Aoi, and Yua Mikami (early career). S1 exclusives are among the most recognized names in the industry."
@@ -1581,6 +1590,14 @@
         - creampie
         - gangbang
         - violation
+    - code: MIH
+      label: SAMURAI
+      description: "Honnaka SAMURAI sub-label; office lady and beautiful legs creampie scenarios (美脚中出し)"
+      tags:
+        - premium-production
+        - creampie
+        - planning
+        - girlfriend-experience
 
 - company: Rookie
   description: "WILL label. Mixed content including fetish themes (premature ejaculation, breast milk). Moderate volume."
@@ -3259,6 +3276,13 @@
         - hot-spring
         - girlfriend-experience
         - drama
+    - code: REBDB
+      label: "FALENO"
+      description: "Faleno premium Blu-ray Disc releases; high-definition exclusive actress solo works"
+      tags:
+        - premium-production
+        - exclusive-actress
+        - solo-actress
 
 - company: Hibino
   description: "SOD subsidiary specializing in incest fantasy (step-family) and NTR (netorare/cuckold) scenarios. One of the go-to labels for taboo family drama content."
@@ -4891,6 +4915,14 @@
     - code: YMN
       label: Yumenogumi
       description: "Prestige specialty label"
+    - code: PPX
+      label: Prestige
+      description: "Prestige exclusive actress best-of compilation (The Best series); 8-hour 2-disc premium retrospectives"
+      tags:
+        - premium-production
+        - exclusive-actress
+        - solo-actress
+        - compilation
 
 # ── KMP ───────────────────────────────────────────────────────────────────────
 
@@ -5141,6 +5173,18 @@
       description: "TMA specialty label"
       tags:
         - anime-parody
+    - code: T28
+      label: "TMA (Total Media Agency)"
+      description: "TMA cosplay specialty series; shrine maiden (巫女), costumed role-play scenarios"
+      tags:
+        - cosplay
+        - anime-parody
+    - code: BNDV
+      label: "h.m.p"
+      description: "h.m.p best-of compilation series; themed 4-hour multi-performer collections and countdown rankings"
+      tags:
+        - compilation
+        - gangbang
 
 # ── Indies ────────────────────────────────────────────────────────────────────
 
@@ -5367,6 +5411,20 @@
       tags:
         - premium-production
         - compilation
+    - code: MXBD
+      label: "Maxing"
+      description: "Maxing Blu-ray Disc premium releases; high-definition exclusive actress showcase"
+      tags:
+        - premium-production
+        - exclusive-actress
+        - solo-actress
+    - code: SBMX
+      label: "Black Max Cafe"
+      description: "Maxing Black Max Cafe interracial series; Japanese actresses with Black male performers"
+      tags:
+        - premium-production
+        - planning
+        - gangbang
 
 - company: Venus
   description: "Independent mature/married woman label. Focuses on incest fantasy and step-family scenarios with mature actresses. One of the larger independent jukujo labels."
@@ -6042,6 +6100,14 @@
         - home-visit
         - pickup
         - premium-production
+    - code: KRMV
+      label: "KARMA"
+      description: "KARMA interracial series (J-Girls & Blacks); Japanese actresses with Black male performers; gangbang orgy format"
+      tags:
+        - premium-production
+        - gangbang
+        - creampie
+        - planning
 
 - company: "MILK"
   description: "Independent busty actress label. Specializes in high-impact squirting and orgasm content."
@@ -6464,3 +6530,177 @@
         - petite
         - exclusive-actress
         - solo-actress
+
+- company: "Uchu Kikaku"
+  description: "Independent studio (宇宙企画 = Space Planning) known for big-bust schoolgirl and idol content. Classic long-running independent."
+  profile:
+    status: active
+    parent: "Independent (宇宙企画)"
+    specialty: "Big-bust schoolgirl and idol content. G-cup series and BIG-TITS branded releases."
+  labels:
+    - code: MDS
+      label: "Uchu Kikaku"
+      description: "G-cup schoolgirl series (宇宙企画); big-bust idol content"
+      tags:
+        - busty
+        - schoolgirl
+        - solo-actress
+
+- company: "GENM"
+  description: "Independent label featuring premium gyaru exclusive actress content and NTR/cuckold scenarios."
+  profile:
+    status: active
+    parent: "Independent"
+    specialty: "Premium gyaru exclusive actress content; NTR and exhibitionism scenarios."
+  labels:
+    - code: GENM
+      label: "GENM"
+      description: "Premium gyaru exclusive actress series; cuckold and exhibitionism content"
+      tags:
+        - premium-production
+        - exclusive-actress
+        - solo-actress
+        - gyaru
+        - affair
+
+- company: "AZ Japan"
+  description: "Independent studio (アズジャパン) under NEVA association producing schoolgirl and idol content."
+  profile:
+    status: active
+    parent: "Independent"
+    specialty: "Schoolgirl and idol content; NEVA-certified independent studio."
+  labels:
+    - code: NDV
+      label: "AZ Japan"
+      description: "AZ Japan schoolgirl and idol content (女子校生/性春 series)"
+      tags:
+        - schoolgirl
+        - solo-actress
+
+- company: "CVD"
+  description: "Classic Video Disc uncensored independent label (AV entertainments). Older-era Japanese uncensored hardcore AV."
+  profile:
+    status: active
+    parent: "Independent"
+    specialty: "Uncensored hardcore AV; classic older-era production."
+  labels:
+    - code: KA
+      label: "CVD"
+      description: "Japanese Uncensored Hardcore AV (CVD/AV entertainments)"
+      tags:
+        - uncensored
+        - hardcore
+
+- company: "SEND"
+  description: "Independent planning label with diverse content including newcomer debuts, busty actress series, and cosplay scenarios."
+  profile:
+    status: active
+    parent: "Independent"
+    specialty: "Varied planning label; newcomer debuts, busty angel series, cosplay scenarios."
+  labels:
+    - code: SEND
+      label: "SEND"
+      description: "Newcomer debut, busty angel, and cosplay planning series"
+      tags:
+        - debut
+        - newcomer
+        - solo-actress
+        - cosplay
+        - busty
+
+- company: "YeLLOW Visual"
+  description: "Independent label producing idol beauty series. Flagship Beauty Style series showcases solo young actresses in private documentary style."
+  profile:
+    status: active
+    parent: "Independent"
+    specialty: "Idol and beauty series; solo actress private documentary content."
+  labels:
+    - code: ELO
+      label: "YeLLOW"
+      description: "Beauty Style series (from YeLLOW); solo young actress private documentary"
+      tags:
+        - solo-actress
+        - exclusive-actress
+        - pov
+        - gonzo
+
+- company: "Nadeshiko"
+  description: "Independent label specializing in taboo family drama scenarios with romantic domestic themes."
+  profile:
+    status: active
+    parent: "Independent"
+    specialty: "Taboo family and step-family drama; sister-in-law and relatives scenarios with romantic/domestic focus."
+  labels:
+    - code: NATR
+      label: "Nadeshiko"
+      description: "Taboo family drama series (僕の義妹/sister-in-law scenarios); romantic domestic content"
+      tags:
+        - taboo-family
+        - drama
+        - married-woman
+        - affair
+        - creampie
+
+- company: "Glamour"
+  description: "Independent studio producing glamour photography-style erotic content with beautiful body exposure scenarios."
+  profile:
+    status: active
+    parent: "Independent"
+    specialty: "Glamour photography aesthetic; shameful body exposure and erotic scenarios."
+  labels:
+    - code: HMGL
+      label: "Glamour"
+      description: "Glamour specialty series (恥ずかしいカラダ/Shameful Body); erotic body exposure"
+      tags:
+        - solo-actress
+        - premium-production
+        - gonzo
+
+- company: "Digital Ark"
+  description: "Independent label producing high-energy gyaru and flashy actress erotic content. Flagship EroBody series."
+  profile:
+    status: active
+    parent: "Independent"
+    specialty: "Gyaru and flashy actress erotic body showcase; high-energy production style."
+  labels:
+    - code: FLAV
+      label: "Digital Ark"
+      description: "EroBody series (digital ark); gyaru flashy actress erotic showcase"
+      tags:
+        - gyaru
+        - solo-actress
+        - busty
+        - gonzo
+
+- company: "ZM"
+  description: "Independent planning label producing the Kitto! (きっと!) series; taboo family compilation content."
+  profile:
+    status: active
+    parent: "Independent"
+    specialty: "Kitto! brand taboo family scenarios; 2-work compilation format with incest and relatives themes."
+  labels:
+    - code: ZMAR
+      label: "Kitto!"
+      description: "Kitto! (きっと!) taboo family and incest compilation series; 2-work complete collections"
+      tags:
+        - taboo-family
+        - drama
+        - compilation
+        - creampie
+
+- company: "style art PLATINUM"
+  description: "Independent newcomer showcase label (distinct from WILL/Delusional group's MDXD 'style art'). Pre-debut nude photography documentation."
+  profile:
+    status: active
+    parent: "Independent"
+    specialty: "Pre-debut newcomer showcase (デビュー未満); nude photography-style documentation of new actresses."
+    notes: "Distinct from WILL/Delusional group's MDXD 'style art' outsourcing label."
+  labels:
+    - code: SAP
+      label: "style art PLATINUM"
+      description: "Pre-debut newcomer showcase series (デビュー未満); nude photography documentation"
+      tags:
+        - newcomer
+        - debut
+        - solo-actress
+        - amateur
