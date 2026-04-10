@@ -927,7 +927,20 @@ header h1:hover {
 .title-code-bold { font-weight: 700; }
 .card-fav-icon { fill: #fbbf24; flex-shrink: 0; }
 .card-bm-icon  { fill: #60a5fa; flex-shrink: 0; }
+.card-bm-icon.card-bm-off { fill: none; stroke: #484848; flex-shrink: 0; }
 .card-rej-icon { fill: none; stroke: #ef4444; stroke-width: 2.5; stroke-linecap: round; flex-shrink: 0; }
+.card-bm-btn {
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  line-height: 0;
+}
+.card-bm-btn:hover .card-bm-off { stroke: #60a5fa; }
+.card-bm-btn:hover .card-bm-icon:not(.card-bm-off) { fill: #93c5fd; }
 .card-watched {
   font-size: 0.72rem;
   color: #8cb4ff;

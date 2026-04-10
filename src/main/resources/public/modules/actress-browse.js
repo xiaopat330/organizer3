@@ -272,6 +272,7 @@ function scheduleActressSearch() {
     updateActressLandingSelection();
     updateActressBreadcrumb();
     actressesBtn.classList.add('active');
+    showView('actresses');
     setActiveGrid(actressScrollGrid);
     actressScrollGrid.reset();
     ensureSentinel();
@@ -292,6 +293,7 @@ actressSearchInput.addEventListener('keydown', e => {
   updateActressLandingSelection();
   updateActressBreadcrumb();
   actressesBtn.classList.add('active');
+  showView('actresses');
   setActiveGrid(actressScrollGrid);
   actressScrollGrid.reset();
   ensureSentinel();

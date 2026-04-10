@@ -417,6 +417,19 @@ public class ActressBrowseService {
     }
 
     /**
+     * Set {@code bookmark} to an explicit value for an actress. Bookmarking implicitly
+     * clears {@code rejected}; un-bookmarking leaves other flags unchanged.
+     */
+    public Optional<FlagState> setBookmark(long actressId, boolean value) {
+        return actressRepo.findById(actressId).map(a -> {
+            boolean fav = a.isFavorite();
+            boolean rej = value ? false : a.isRejected();
+            actressRepo.setFlags(actressId, fav, value, rej);
+            return new FlagState(actressId, fav, value, rej);
+        });
+    }
+
+    /**
      * Toggle {@code rejected} for an actress. Rejecting implicitly clears both
      * {@code favorite} and {@code bookmark} (a rejected actress cannot be either).
      * @return the full post-toggle flag state, or empty if no such actress

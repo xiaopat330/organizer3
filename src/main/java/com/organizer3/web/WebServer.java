@@ -22,6 +22,7 @@ import java.nio.file.Path;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
 
@@ -342,7 +343,11 @@ public class WebServer {
                 long id;
                 try { id = Long.parseLong(ctx.pathParam("id")); }
                 catch (NumberFormatException e) { ctx.status(400); return; }
-                actressBrowseService.toggleBookmark(id).ifPresentOrElse(
+                String valueParam = ctx.queryParam("value");
+                Optional<ActressBrowseService.FlagState> result = valueParam != null
+                        ? actressBrowseService.setBookmark(id, Boolean.parseBoolean(valueParam))
+                        : actressBrowseService.toggleBookmark(id);
+                result.ifPresentOrElse(
                         s -> ctx.json(Map.of("id", s.id(),
                                 "favorite", s.favorite(),
                                 "bookmark", s.bookmark(),
@@ -614,7 +619,8 @@ public class WebServer {
                 String code = ctx.pathParam("code");
                 Title title = titleRepo.findByCode(code).orElse(null);
                 if (title == null) { ctx.status(404).json(Map.of("error", "Title not found")); return; }
-                boolean newValue = !title.isBookmark();
+                String valueParam = ctx.queryParam("value");
+                boolean newValue = valueParam != null ? Boolean.parseBoolean(valueParam) : !title.isBookmark();
                 titleRepo.toggleBookmark(title.getId(), newValue);
                 ctx.json(Map.of("code", code, "bookmark", newValue));
             });
