@@ -568,6 +568,9 @@ const queueGrid = new ScrollingGrid(
 let poolVolumeId = null;
 let poolSmbPath  = null;
 
+let archivePoolVolumeId = null;
+let archivePoolSmbPath  = null;
+
 const poolGrid = new ScrollingGrid(
   document.getElementById('pool-grid'),
   (o, l) => `/api/pool/${encodeURIComponent(poolVolumeId)}/titles?offset=${o}&limit=${l}`,
@@ -607,9 +610,20 @@ const allTitlesGrid = new ScrollingGrid(
     if (titleBrowseMode === 'favorites')    return `/api/titles?favorites=true&offset=${o}&limit=${l}`;
     if (titleBrowseMode === 'bookmarks')   return `/api/titles?bookmarks=true&offset=${o}&limit=${l}`;
     if (titleBrowseMode === 'collections') return `/api/collections/titles?offset=${o}&limit=${l}`;
+    if (titleBrowseMode === 'unsorted')    return `/api/pool/${encodeURIComponent(poolVolumeId)}/titles?offset=${o}&limit=${l}`;
+    if (titleBrowseMode === 'archive-pool') return `/api/pool/${encodeURIComponent(archivePoolVolumeId)}/titles?offset=${o}&limit=${l}`;
     return `/api/titles?offset=${o}&limit=${l}`;
   },
-  makeTitleCard,
+  t => {
+    if (titleBrowseMode === 'unsorted' && poolSmbPath) {
+      if (t.location)  t.location  = poolSmbPath + t.location;
+      if (t.locations) t.locations = t.locations.map(p => poolSmbPath + p);
+    } else if (titleBrowseMode === 'archive-pool' && archivePoolSmbPath) {
+      if (t.location)  t.location  = archivePoolSmbPath + t.location;
+      if (t.locations) t.locations = t.locations.map(p => archivePoolSmbPath + p);
+    }
+    return makeTitleCard(t);
+  },
   'no titles',
   { getMax: () => MAX_TOTAL }
 );
@@ -1310,6 +1324,46 @@ const collectionsBtn = document.getElementById('title-collections-btn');
 
 collectionsBtn.addEventListener('click', () => selectTitleBrowseMode('collections'));
 
+// ── Unsorted browse ──────────────────────────────────────────────────────
+const titleUnsortedBtn = document.getElementById('title-unsorted-btn');
+
+titleUnsortedBtn.addEventListener('click', async () => {
+  if (!poolVolumeId) {
+    try {
+      const res  = await fetch('/api/queues/volumes');
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      if (!data.sortPool) { console.warn('No sort pool available'); return; }
+      poolVolumeId = data.sortPool.id;
+      poolSmbPath  = data.sortPool.smbPath || null;
+    } catch (err) {
+      console.error('Failed to load pool info', err);
+      return;
+    }
+  }
+  selectTitleBrowseMode('unsorted');
+});
+
+// ── Archives pool browse ─────────────────────────────────────────────────
+const titleArchivesBtn = document.getElementById('title-archives-btn');
+
+titleArchivesBtn.addEventListener('click', async () => {
+  if (!archivePoolVolumeId) {
+    try {
+      const res  = await fetch('/api/queues/volumes');
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      if (!data.classicPool) { console.warn('No classic pool available'); return; }
+      archivePoolVolumeId = data.classicPool.id;
+      archivePoolSmbPath  = data.classicPool.smbPath || null;
+    } catch (err) {
+      console.error('Failed to load archive pool info', err);
+      return;
+    }
+  }
+  selectTitleBrowseMode('archive-pool');
+});
+
 // ── Title detail ──────────────────────────────────────────────────────────
 function openTitleDetail(t) {
   const sourceMode          = mode;
@@ -1336,6 +1390,10 @@ function openTitleDetail(t) {
     }
   } else if (sourceMode === 'titles-browse' && sourceTitleBrowseMode === 'collections') {
     crumbs = [{ label: 'Collections', action: () => collectionsBtn.click() }];
+  } else if (sourceMode === 'titles-browse' && sourceTitleBrowseMode === 'unsorted') {
+    crumbs = [{ label: 'Unsorted', action: () => titleUnsortedBtn.click() }];
+  } else if (sourceMode === 'titles-browse' && sourceTitleBrowseMode === 'archive-pool') {
+    crumbs = [{ label: 'Archives', action: () => titleArchivesBtn.click() }];
   } else if (sourceMode === 'titles-browse') {
     crumbs = [{ label: 'Titles', action: () => titlesBrowseBtn.click() }];
   }
@@ -2162,6 +2220,8 @@ function updateTitleLandingSelection() {
   titleBookmarksBtn.classList.toggle('selected', titleBrowseMode === 'bookmarks');
   titleStudioBtn.classList.toggle('selected',    titleBrowseMode === 'studio');
   collectionsBtn.classList.toggle('selected',    titleBrowseMode === 'collections');
+  titleUnsortedBtn.classList.toggle('selected',  titleBrowseMode === 'unsorted');
+  titleArchivesBtn.classList.toggle('selected',  titleBrowseMode === 'archive-pool');
 }
 
 function updateTitleBreadcrumb() {
@@ -2170,6 +2230,8 @@ function updateTitleBreadcrumb() {
   else if (titleBrowseMode === 'bookmarks') crumbs.push({ label: 'Bookmarks' });
   else if (titleBrowseMode === 'studio')       crumbs.push({ label: 'Studio' });
   else if (titleBrowseMode === 'collections')  crumbs.push({ label: 'Collections' });
+  else if (titleBrowseMode === 'unsorted')     crumbs.push({ label: 'Unsorted' });
+  else if (titleBrowseMode === 'archive-pool') crumbs.push({ label: 'Archives' });
   else if (titleBrowseMode === 'search')       crumbs.push({ label: `search: "${titleSearchTerm}"` });
   updateBreadcrumb(crumbs);
 }

@@ -95,6 +95,11 @@ volumes:
     structureType: sort_pool
     server: pandora
 
+  - id: classic_pool
+    smbPath: //qnap2/JAV/classic/new
+    structureType: sort_pool
+    server: qnap2
+
   - id: collections
     smbPath: //pandora/jav_collections
     structureType: collections

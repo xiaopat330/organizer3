@@ -397,15 +397,15 @@ header h1:hover {
 }
 .actress-landing-bookmarks.selected .actress-landing-bm   { fill: #a0daff; }
 
-.actress-landing-studio            { color: #e05a5a; }
-.actress-landing-studio .actress-landing-film { fill: #e05a5a; }
+.actress-landing-studio            { color: #a060e0; }
+.actress-landing-studio .actress-landing-film { fill: #a060e0; }
 .actress-landing-studio:hover,
 .actress-landing-studio.selected {
-  color: #ff7676;
-  background: #20080a;
-  border-color: #3c1214;
+  color: #c080ff;
+  background: #140a20;
+  border-color: #2a1640;
 }
-.actress-landing-studio.selected .actress-landing-film { fill: #ff7676; }
+.actress-landing-studio.selected .actress-landing-film { fill: #c080ff; }
 
 .actress-landing-collections        { color: #f08030; }
 .actress-landing-collections .actress-landing-coll { fill: #f08030; }
@@ -416,6 +416,26 @@ header h1:hover {
   border-color: #3c2810;
 }
 .actress-landing-collections.active .actress-landing-coll { fill: #ffa050; }
+
+.actress-landing-unsorted        { color: #dd2244; }
+.actress-landing-unsorted .actress-landing-shuffle { stroke: #dd2244; }
+.actress-landing-unsorted:hover,
+.actress-landing-unsorted.selected {
+  color: #ff4466;
+  background: #1a0810;
+  border-color: #3a1020;
+}
+.actress-landing-unsorted.selected .actress-landing-shuffle { stroke: #ff4466; }
+
+.actress-landing-archives        { color: #30b8a0; }
+.actress-landing-archives .actress-landing-archive { stroke: #30b8a0; }
+.actress-landing-archives:hover,
+.actress-landing-archives.selected {
+  color: #50d8c0;
+  background: #081a18;
+  border-color: #143830;
+}
+.actress-landing-archives.selected .actress-landing-archive { stroke: #50d8c0; }
 
 .actress-landing-tier-row {
   gap: 4px;

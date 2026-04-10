@@ -131,7 +131,12 @@ public class WebServer {
                     .map(s -> s.id())
                     .collect(Collectors.toSet());
             var sortPool = cfg.volumes().stream()
-                    .filter(v -> sortPoolTypes.contains(v.structureType()))
+                    .filter(v -> sortPoolTypes.contains(v.structureType()) && !"classic_pool".equals(v.id()))
+                    .map(v -> Map.of("id", (Object) v.id(), "smbPath", (Object) v.smbPath()))
+                    .findFirst()
+                    .orElse(null);
+            var classicPool = cfg.volumes().stream()
+                    .filter(v -> "classic_pool".equals(v.id()))
                     .map(v -> Map.of("id", (Object) v.id(), "smbPath", (Object) v.smbPath()))
                     .findFirst()
                     .orElse(null);
@@ -142,6 +147,7 @@ public class WebServer {
             var result = new LinkedHashMap<String, Object>();
             if (pool != null) result.put("pool", pool);
             if (sortPool != null) result.put("sortPool", sortPool);
+            if (classicPool != null) result.put("classicPool", classicPool);
             result.put("volumes", volumes);
             ctx.json(result);
         });
