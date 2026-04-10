@@ -453,14 +453,21 @@ public class JdbiTitleRepository implements TitleRepository {
 
     @Override
     public List<Title> findByTagsPaged(List<String> tags, int limit, int offset) {
+        // A title matches if, for every required tag, that tag appears in either
+        // title_tags (direct per-title tag) or label_tags (indirect via label code).
         List<Title> titles = jdbi.withHandle(h ->
                 h.createQuery("""
                         SELECT t.* FROM titles t
                         LEFT JOIN title_locations tl ON t.id = tl.title_id
-                        WHERE t.id IN (
-                            SELECT title_id FROM title_tags WHERE tag IN (<tags>)
-                            GROUP BY title_id HAVING COUNT(DISTINCT tag) = :tagCount
-                        )
+                        WHERE (
+                            SELECT COUNT(DISTINCT merged.tag)
+                            FROM (
+                                SELECT tag FROM title_tags WHERE title_id = t.id
+                                UNION
+                                SELECT lt.tag FROM label_tags lt WHERE lt.label_code = upper(t.label)
+                            ) merged
+                            WHERE merged.tag IN (<tags>)
+                        ) = :tagCount
                         GROUP BY t.id
                         ORDER BY MIN(tl.added_date) DESC, t.id DESC
                         LIMIT :limit OFFSET :offset
