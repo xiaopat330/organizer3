@@ -1,5 +1,5 @@
 import { esc, splitName, renderDateRange } from './utils.js';
-import { ICON_FAV_SM, ICON_BM_SM, titleCodeClass, gradeBadgeHtml, tagBadgeHtml } from './icons.js';
+import { ICON_FAV_SM, ICON_BM_SM, ICON_BM_SM_OFF, titleCodeClass, gradeBadgeHtml, tagBadgeHtml } from './icons.js';
 import { activeIntervals, activeObservers } from './grid.js';
 
 // ── Callbacks registered by app.js after all modules load ─────────────────
@@ -77,9 +77,9 @@ export function makeTitleCard(t) {
     ? `<div class="title-tags">${tags.map(tagBadgeHtml).join('')}</div>`
     : '';
 
-  const favIcon = t.favorite ? ICON_FAV_SM : '';
-  const bmIcon  = t.bookmark ? ICON_BM_SM  : '';
-  const titleCodeHtml = `<div class="${titleCodeClass(t.favorite, t.bookmark)}">${favIcon}${bmIcon}${esc(t.code)}${gradeBadgeHtml(t.grade)}</div>`;
+  const bmIconHtml = t.bookmark ? ICON_BM_SM : ICON_BM_SM_OFF;
+  const favIcon    = t.favorite ? ICON_FAV_SM : '';
+  const titleCodeHtml = `<div class="${titleCodeClass(t.favorite, t.bookmark)}"><button type="button" class="card-bm-btn${t.bookmark ? ' card-bm-active' : ''}">${bmIconHtml}</button>${favIcon}${esc(t.code)}${gradeBadgeHtml(t.grade)}</div>`;
 
   const watchedHtml = t.lastWatchedAt
     ? `<div class="card-watched">watched ${timeAgoShort(t.lastWatchedAt)}${t.watchCount > 1 ? ` (${t.watchCount}x)` : ''}</div>`
@@ -90,6 +90,27 @@ export function makeTitleCard(t) {
     : '';
 
   card.innerHTML = `${coverHtml}<div class="card-info">${actressHtml}${titleCodeHtml}${titleEnHtml}${titleJaHtml}${labelLineHtml}${dateHtml}${visitedHtml}${locationHtml}${tagsHtml}${watchedHtml}</div>`;
+
+  // Bookmark toggle — optimistic UI, debounced API call
+  let bookmarkState = !!t.bookmark;
+  let bookmarkTimer = null;
+  const bmBtn = card.querySelector('.card-bm-btn');
+  const codeEl = card.querySelector('.title-code');
+  bmBtn.addEventListener('click', e => {
+    e.preventDefault();
+    e.stopPropagation();
+    bookmarkState = !bookmarkState;
+    bmBtn.innerHTML = bookmarkState ? ICON_BM_SM : ICON_BM_SM_OFF;
+    bmBtn.classList.toggle('card-bm-active', bookmarkState);
+    const isFav = !!codeEl.querySelector('.card-fav-icon');
+    codeEl.className = titleCodeClass(isFav, bookmarkState);
+    if (bookmarkTimer) clearTimeout(bookmarkTimer);
+    bookmarkTimer = setTimeout(() => {
+      bookmarkTimer = null;
+      fetch(`/api/titles/${encodeURIComponent(t.code)}/bookmark?value=${bookmarkState}`, { method: 'POST' })
+        .catch(err => console.error('bookmark toggle failed', err));
+    }, 2000);
+  });
 
   card.querySelectorAll('.actress-link').forEach(link => {
     link.addEventListener('click', e => {
@@ -124,24 +145,58 @@ export function updateCardIndicators(code, favorite, bookmark) {
   if (!card) return;
   const codeEl = card.querySelector('.title-code');
   if (!codeEl) return;
-  const favIcon = favorite ? ICON_FAV_SM : '';
-  const bmIcon  = bookmark ? ICON_BM_SM  : '';
-  const grade = codeEl.querySelector('.grade-badge');
-  const gradeHtml = grade ? grade.outerHTML : '';
+
+  // Update bookmark button icon + state
+  const bmBtn = codeEl.querySelector('.card-bm-btn');
+  if (bmBtn) {
+    bmBtn.innerHTML = bookmark ? ICON_BM_SM : ICON_BM_SM_OFF;
+    bmBtn.classList.toggle('card-bm-active', bookmark);
+  }
+
+  // Add or remove the favorite star icon
+  const existingFavIcon = codeEl.querySelector('.card-fav-icon');
+  if (favorite && !existingFavIcon) {
+    const tmp = document.createElement('span');
+    tmp.innerHTML = ICON_FAV_SM;
+    const icon = tmp.firstChild;
+    bmBtn ? bmBtn.insertAdjacentElement('afterend', icon) : codeEl.prepend(icon);
+  } else if (!favorite && existingFavIcon) {
+    existingFavIcon.remove();
+  }
+
   codeEl.className = titleCodeClass(favorite, bookmark);
-  codeEl.innerHTML = `${favIcon}${bmIcon}${esc(code)}${gradeHtml}`;
 }
 
 // ── Actress card ──────────────────────────────────────────────────────────
 export function actressFlagIconsHtml(a) {
-  const parts = [];
   if (a.rejected) {
-    parts.push('<svg class="card-rej-icon" viewBox="0 0 24 24" width="12" height="12"><path d="M6 6 L18 18 M18 6 L6 18"/></svg>');
-  } else {
-    if (a.favorite) parts.push(ICON_FAV_SM);
-    if (a.bookmark) parts.push(ICON_BM_SM);
+    return '<svg class="card-rej-icon" viewBox="0 0 24 24" width="12" height="12"><path d="M6 6 L18 18 M18 6 L6 18"/></svg>';
   }
-  return parts.join('');
+  const bmIconHtml  = a.bookmark ? ICON_BM_SM : ICON_BM_SM_OFF;
+  const favIconHtml = a.favorite ? ICON_FAV_SM : '';
+  return `<button type="button" class="card-bm-btn${a.bookmark ? ' card-bm-active' : ''}">${bmIconHtml}</button>${favIconHtml}`;
+}
+
+function attachActressBookmarkListener(actressId, nameEl, initialBookmark) {
+  const bmBtn = nameEl.querySelector('.card-bm-btn');
+  if (!bmBtn) return;
+  let bookmarkState = initialBookmark;
+  let bookmarkTimer = null;
+  bmBtn.addEventListener('click', e => {
+    e.preventDefault();
+    e.stopPropagation();
+    bookmarkState = !bookmarkState;
+    bmBtn.innerHTML = bookmarkState ? ICON_BM_SM : ICON_BM_SM_OFF;
+    bmBtn.classList.toggle('card-bm-active', bookmarkState);
+    const isFav = !!nameEl.querySelector('.card-fav-icon');
+    nameEl.className = actressNameClass({ favorite: isFav, bookmark: bookmarkState, rejected: false });
+    if (bookmarkTimer) clearTimeout(bookmarkTimer);
+    bookmarkTimer = setTimeout(() => {
+      bookmarkTimer = null;
+      fetch(`/api/actresses/${actressId}/bookmark?value=${bookmarkState}`, { method: 'POST' })
+        .catch(err => console.error('actress bookmark toggle failed', err));
+    }, 2000);
+  });
 }
 
 export function actressNameClass(a) {
@@ -156,12 +211,35 @@ export function updateActressCardIndicators(id, favorite, bookmark, rejected) {
   if (!card) return;
   const nameEl = card.querySelector('.actress-card-name');
   if (!nameEl) return;
-  const firstSpan = nameEl.querySelector('.actress-first-name');
-  const lastSpan  = nameEl.querySelector('.actress-last-name');
-  const firstHtml = firstSpan ? firstSpan.outerHTML : '';
-  const lastHtml  = lastSpan  ? lastSpan.outerHTML  : '';
+
+  const bmBtn = nameEl.querySelector('.card-bm-btn');
+
+  // Full rebuild when: transitioning to rejected, or no bmBtn exists (was previously rejected)
+  if (rejected || !bmBtn) {
+    const firstSpan = nameEl.querySelector('.actress-first-name');
+    const lastSpan  = nameEl.querySelector('.actress-last-name');
+    const firstHtml = firstSpan ? firstSpan.outerHTML : '';
+    const lastHtml  = lastSpan  ? lastSpan.outerHTML  : '';
+    nameEl.className = actressNameClass({ favorite, bookmark, rejected });
+    nameEl.innerHTML = actressFlagIconsHtml({ favorite, bookmark, rejected }) + firstHtml + lastHtml;
+    if (!rejected) attachActressBookmarkListener(id, nameEl, bookmark);
+    return;
+  }
+
+  // Non-rejected, bmBtn exists — update surgically to preserve the click listener
+  bmBtn.innerHTML = bookmark ? ICON_BM_SM : ICON_BM_SM_OFF;
+  bmBtn.classList.toggle('card-bm-active', bookmark);
+
+  const existingFavIcon = nameEl.querySelector('.card-fav-icon');
+  if (favorite && !existingFavIcon) {
+    const tmp = document.createElement('span');
+    tmp.innerHTML = ICON_FAV_SM;
+    bmBtn.insertAdjacentElement('afterend', tmp.firstChild);
+  } else if (!favorite && existingFavIcon) {
+    existingFavIcon.remove();
+  }
+
   nameEl.className = actressNameClass({ favorite, bookmark, rejected });
-  nameEl.innerHTML = actressFlagIconsHtml({ favorite, bookmark, rejected }) + firstHtml + lastHtml;
 }
 
 export function makeActressCard(a) {
@@ -252,6 +330,10 @@ export function makeActressCard(a) {
       : ''}
   `;
   card.appendChild(body);
+
+  if (!a.rejected) {
+    attachActressBookmarkListener(a.id, card.querySelector('.actress-card-name'), !!a.bookmark);
+  }
 
   card.addEventListener('click', () => _openActressDetail(a.id));
   return card;
