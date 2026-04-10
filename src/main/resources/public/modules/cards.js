@@ -53,23 +53,20 @@ export function makeTitleCard(t) {
     actressHtml = `<div class="actress-name unknown">—</div>`;
   }
 
-  let labelLineHtml = '';
-  if (t.companyName || t.labelName) {
-    const parts = [];
-    if (t.companyName) parts.push(esc(t.companyName));
-    if (t.labelName)   parts.push(`(${esc(t.labelName)})`);
-    labelLineHtml = `<div class="title-label-line">${parts.join(' ')}</div>`;
-  }
-
-  const displayDate = t.releaseDate || t.addedDate;
-  const dateHtml = displayDate ? `<div class="added-date">${esc(displayDate)}</div>` : '';
-
   const titleEnHtml = t.titleEnglish  ? `<div class="title-en">${esc(t.titleEnglish)}</div>`  : '';
   const titleJaHtml = t.titleOriginal ? `<div class="title-ja">${esc(t.titleOriginal)}</div>` : '';
 
-  const locs = (t.locations && t.locations.length > 0) ? t.locations : (t.location ? [t.location] : []);
-  const locationHtml = locs.length > 0
-    ? `<div class="title-locations">${locs.map(p => `<div class="title-location">${renderLocation(p)}</div>`).join('')}</div>`
+  const metaParts = [];
+  if (t.companyName || t.labelName) {
+    const lp = [];
+    if (t.companyName) lp.push(esc(t.companyName));
+    if (t.labelName)   lp.push(`(${esc(t.labelName)})`);
+    metaParts.push(lp.join(' '));
+  }
+  const displayDate = t.releaseDate || t.addedDate;
+  if (displayDate) metaParts.push(esc(displayDate));
+  const metaLineHtml = metaParts.length > 0
+    ? `<div class="title-meta-line">${metaParts.join(' · ')}</div>`
     : '';
 
   const tags = t.tags || [];
@@ -79,7 +76,7 @@ export function makeTitleCard(t) {
 
   const bmIconHtml = t.bookmark ? ICON_BM_SM : ICON_BM_SM_OFF;
   const favIcon    = t.favorite ? ICON_FAV_SM : '';
-  const titleCodeHtml = `<div class="${titleCodeClass(t.favorite, t.bookmark)}"><button type="button" class="card-bm-btn${t.bookmark ? ' card-bm-active' : ''}">${bmIconHtml}</button>${favIcon}${esc(t.code)}${gradeBadgeHtml(t.grade)}</div>`;
+  const titleCodeHtml = `<div class="${titleCodeClass(t.favorite, t.bookmark)}"><button type="button" class="card-bm-btn${t.bookmark ? ' card-bm-active' : ''}">${bmIconHtml}</button>${favIcon}<span class="title-code-text">${esc(t.code)}</span>${gradeBadgeHtml(t.grade)}</div>`;
 
   const watchedHtml = t.lastWatchedAt
     ? `<div class="card-watched">watched ${timeAgoShort(t.lastWatchedAt)}${t.watchCount > 1 ? ` (${t.watchCount}x)` : ''}</div>`
@@ -89,7 +86,7 @@ export function makeTitleCard(t) {
     ? `<div class="title-card-visited">${t.visitCount === 1 ? '1 view' : `${t.visitCount} views`}${t.lastVisitedAt ? ` · ${timeAgoShort(t.lastVisitedAt)}` : ''}</div>`
     : '';
 
-  card.innerHTML = `${coverHtml}<div class="card-info">${actressHtml}${titleCodeHtml}${titleEnHtml}${titleJaHtml}${labelLineHtml}${dateHtml}${visitedHtml}${locationHtml}${tagsHtml}${watchedHtml}</div>`;
+  card.innerHTML = `${coverHtml}<div class="card-info">${titleCodeHtml}${actressHtml}${titleEnHtml}${titleJaHtml}${metaLineHtml}${visitedHtml}${tagsHtml}${watchedHtml}</div>`;
 
   // Bookmark toggle — optimistic UI, debounced API call
   let bookmarkState = !!t.bookmark;
@@ -317,17 +314,11 @@ export function makeActressCard(a) {
   body.className = 'actress-card-body';
   body.innerHTML = `
     <div class="${actressNameClass(a)}">
-      ${actressFlagIconsHtml(a)}<span class="actress-first-name">${esc(firstName)}</span>${lastName ? `<span class="actress-last-name">${esc(lastName)}</span>` : ''}
+      ${actressFlagIconsHtml(a)}<span class="actress-first-name">${esc(firstName)}</span>${lastName ? `<span class="actress-last-name">${esc(lastName)}</span>` : ''}<span class="tier-badge tier-${esc(a.tier)} actress-tier-badge">${esc(a.tier.toLowerCase())}</span>
     </div>
-    <div class="actress-card-meta">
-      <span class="tier-badge tier-${esc(a.tier)}">${esc(a.tier.toLowerCase())}</span>
-    </div>
+    <div class="actress-title-count">Titles: ${a.titleCount}</div>
     ${renderDateRange(a.firstAddedDate, a.lastAddedDate)}
     ${a.visitCount > 0 ? `<div class="actress-card-visited">${a.visitCount === 1 ? '1 view' : `${a.visitCount} views`}${a.lastVisitedAt ? ` · ${timeAgoShort(a.lastVisitedAt)}` : ''}</div>` : ''}
-    <div class="actress-title-count">Titles: ${a.titleCount}</div>
-    ${(a.folderPaths || []).length > 0
-      ? `<div class="actress-folder-paths">${a.folderPaths.map(p => `<div class="actress-folder-path">${esc(p)}</div>`).join('')}</div>`
-      : ''}
   `;
   card.appendChild(body);
 

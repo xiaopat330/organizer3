@@ -1,5 +1,5 @@
 import { esc } from './utils.js';
-import { showView, setActiveGrid, ensureSentinel, updateBreadcrumb, ScrollingGrid } from './grid.js';
+import { showView, setActiveGrid, ensureSentinel, updateBreadcrumb, ScrollingGrid, mode } from './grid.js';
 import { makeTitleCard } from './cards.js';
 import { tagBadgeHtml } from './icons.js';
 import { ensureStudioGroups, ensureTitleLabels, renderTwoColumnStudioPanel } from './studio-data.js';
@@ -88,6 +88,7 @@ export const allTitlesGrid = new ScrollingGrid(
 
 // ── Query runner ──────────────────────────────────────────────────────────
 export function runTitleBrowseQuery() {
+  titleDashboardEl.style.display = 'none';
   document.getElementById('titles-browse-grid').style.display = 'grid';
   setActiveGrid(allTitlesGrid);
   allTitlesGrid.reset();
@@ -374,7 +375,18 @@ titleSearchInput.addEventListener('keydown', e => {
   }
 });
 
-titleSearchInput.addEventListener('blur', () => setTimeout(closeLabelDropdown, 150));
+let titleBlurTimer = null;
+titleSearchInput.addEventListener('blur', () => {
+  titleBlurTimer = setTimeout(() => {
+    titleBlurTimer = null;
+    closeLabelDropdown();
+    if (mode !== 'titles-browse') return;
+    if (titleSearchInput.value.trim() === '') selectTitleBrowseMode('dashboard');
+  }, 150);
+});
+titleSearchInput.addEventListener('focus', () => {
+  if (titleBlurTimer) { clearTimeout(titleBlurTimer); titleBlurTimer = null; }
+});
 
 titleSearchClearBtn.addEventListener('click', () => {
   if (titleSearchTimer) { clearTimeout(titleSearchTimer); titleSearchTimer = null; }

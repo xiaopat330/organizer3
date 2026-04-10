@@ -99,11 +99,11 @@ header h1:hover {
 }
 
 .nav-link {
-  font-size: 0.8rem;
-  font-weight: 500;
+  font-size: 0.82rem;
+  font-weight: 700;
   color: #555;
   text-decoration: none;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.05em;
   padding: 5px 10px;
   border-radius: 4px;
   transition: color 0.15s ease, background 0.15s ease;
@@ -112,12 +112,24 @@ header h1:hover {
   background: none;
   border: none;
   font-family: inherit;
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 
 .nav-link:hover, .nav-link.active {
   color: #aaa;
   background: #1a1a1a;
 }
+
+#actresses-btn                        { color: #f472b6; }
+#actresses-btn:hover, #actresses-btn.active { color: #fda4d0; background: rgba(244,114,182,0.1); }
+
+#titles-browse-btn                             { color: #60a5fa; }
+#titles-browse-btn:hover, #titles-browse-btn.active { color: #93c5fd; background: rgba(96,165,250,0.1); }
+
+#action-btn                        { color: #fb923c; }
+#action-btn:hover, #action-btn.active { color: #fdba74; background: rgba(251,146,60,0.1); }
 
 .nav-divider {
   width: 1px;
@@ -729,14 +741,16 @@ header h1:hover {
 /* Title cards */
 .card {
   background: #161616;
+  border: 1px solid #1e1e1e;
   border-radius: 6px;
   overflow: hidden;
-  transition: transform 0.15s ease, background 0.15s ease;
+  transition: transform 0.15s ease, background 0.15s ease, border-color 0.15s ease;
   cursor: pointer;
 }
 
 .card:hover {
   background: #1e1e1e;
+  border-color: #333;
   transform: translateY(-2px);
 }
 
@@ -818,7 +832,7 @@ header h1:hover {
 }
 
 .card-info {
-  padding: 8px 10px 10px;
+  padding: 10px 12px 12px;
 }
 
 .actress-name {
@@ -829,7 +843,8 @@ header h1:hover {
   justify-content: space-between;
   gap: 5px;
   overflow: hidden;
-  margin-bottom: 2px;
+  margin-top: 4px;
+  margin-bottom: 3px;
 }
 
 .actress-name .actress-link {
@@ -911,20 +926,23 @@ header h1:hover {
 }
 
 .title-code {
-  font-size: 0.88rem;
-  font-weight: 600;
+  font-size: 0.95rem;
+  font-weight: 700;
   color: #c8c8c8;
   letter-spacing: 0.02em;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
   display: flex;
   align-items: center;
   gap: 4px;
 }
+.title-code-text {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 .title-code-fav { color: #fbbf24; }
 .title-code-bm  { color: #8cb4ff; }
-.title-code-bold { font-weight: 700; }
 .card-fav-icon { fill: #fbbf24; flex-shrink: 0; }
 .card-bm-icon  { fill: #60a5fa; flex-shrink: 0; }
 .card-bm-icon.card-bm-off { fill: none; stroke: #484848; flex-shrink: 0; }
@@ -932,7 +950,8 @@ header h1:hover {
 .card-bm-btn {
   background: none;
   border: none;
-  padding: 0;
+  padding: 2px 3px;
+  margin: -2px -3px;
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -1000,14 +1019,16 @@ header h1:hover {
 /* Actress cards */
 .actress-card {
   background: #161616;
+  border: 1px solid #1e1e1e;
   border-radius: 6px;
   overflow: hidden;
-  transition: transform 0.15s ease, background 0.15s ease;
+  transition: transform 0.15s ease, background 0.15s ease, border-color 0.15s ease;
   cursor: pointer;
 }
 
 .actress-card:hover {
   background: #1e1e1e;
+  border-color: #333;
   transform: translateY(-2px);
 }
 
@@ -1020,13 +1041,18 @@ header h1:hover {
 }
 
 .actress-card-name {
-  margin-bottom: 7px;
+  margin-bottom: 4px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
   display: flex;
   align-items: center;
   gap: 4px;
+}
+
+.actress-tier-badge {
+  margin-left: auto;
+  flex-shrink: 0;
 }
 
 .actress-first-name {
@@ -1049,12 +1075,7 @@ header h1:hover {
 .actress-name-bm  .actress-first-name { color: #8cb4ff; font-weight: 800; }
 .actress-name-bm  .actress-last-name  { color: #6a8bc8; font-weight: 700; }
 
-.actress-card-meta {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 5px;
-}
+/* .actress-card-meta removed — tier badge now lives in the name row */
 
 /* Tier badges — each tier gets a distinct look */
 .tier-badge {
@@ -1073,18 +1094,11 @@ header h1:hover {
 .tier-GODDESS  { color: var(--tier-goddess); background: var(--tier-goddess-bg);
                  box-shadow: var(--tier-goddess-glow); }
 
-.fav-dot {
-  width: 5px;
-  height: 5px;
-  border-radius: 50%;
-  background: #c06060;
-  flex-shrink: 0;
-}
 
 .actress-title-count {
   font-size: 0.7rem;
-  color: #484848;
-  margin-bottom: 4px;
+  color: #666;
+  margin-bottom: 3px;
 }
 
 .actress-active-dates {
@@ -1095,8 +1109,9 @@ header h1:hover {
 
 .actress-card-visited {
   font-size: 0.65rem;
-  color: #29b6d4;
-  margin-bottom: 4px;
+  color: #3a9ab0;
+  margin-top: 2px;
+  margin-bottom: 0;
 }
 
 .title-card-visited {
@@ -1105,24 +1120,10 @@ header h1:hover {
   margin-bottom: 2px;
 }
 
-.date-first { color: #3a8a3a; }
+.date-first { color: #5aaa5a; }
 .date-last-stale { color: #cc2222; font-weight: 700; }
-.date-last { color: #505050; }
+.date-last { color: #606060; }
 
-.actress-folder-paths {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.actress-folder-path {
-  font-size: 0.62rem;
-  color: #383838;
-  font-family: ui-monospace, monospace;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
 
 /* ── Actress dashboard ───────────────────────────────────────────────── */
 #actress-dashboard {
@@ -1516,7 +1517,7 @@ header h1:hover {
 
 .title-en {
   font-size: 0.72rem;
-  color: #ffffff;
+  color: #999;
   margin-top: 3px;
   line-height: 1.35;
 }
@@ -1526,6 +1527,15 @@ header h1:hover {
   color: #666;
   margin-top: 2px;
   line-height: 1.35;
+}
+
+.title-meta-line {
+  font-size: 0.7rem;
+  color: #555;
+  margin-top: 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 /* ── Tag badges ──────────────────────────────────────────────────────────── */
@@ -1538,11 +1548,11 @@ header h1:hover {
 }
 
 .tag-badge {
-  font-size: 0.6rem;
+  font-size: 0.63rem;
   font-weight: 600;
   letter-spacing: 0.04em;
   border-radius: 3px;
-  padding: 2px 5px;
+  padding: 2px 6px;
 }
 
 /* ── Title detail view ───────────────────────────────────────────────────── */

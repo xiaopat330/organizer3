@@ -1,5 +1,5 @@
 import { esc } from './utils.js';
-import { showView, setActiveGrid, ensureSentinel, updateBreadcrumb } from './grid.js';
+import { showView, setActiveGrid, ensureSentinel, updateBreadcrumb, mode } from './grid.js';
 import { makeActressCard } from './cards.js';
 import { ScrollingGrid } from './grid.js';
 import { ARCHIVE_VOLUMES } from './config.js';
@@ -273,12 +273,25 @@ function scheduleActressSearch() {
     updateActressBreadcrumb();
     actressesBtn.classList.add('active');
     showView('actresses');
+    actressDashboardEl.style.display = 'none';
     setActiveGrid(actressScrollGrid);
     actressScrollGrid.reset();
     ensureSentinel();
     actressScrollGrid.loadMore();
   }, ACTRESS_SEARCH_DELAY_MS);
 }
+
+let actressBlurTimer = null;
+actressSearchInput.addEventListener('blur', () => {
+  actressBlurTimer = setTimeout(() => {
+    actressBlurTimer = null;
+    if (mode !== 'actresses') return;
+    if (actressSearchInput.value.trim() === '') selectActressBrowseMode('dashboard');
+  }, 150);
+});
+actressSearchInput.addEventListener('focus', () => {
+  if (actressBlurTimer) { clearTimeout(actressBlurTimer); actressBlurTimer = null; }
+});
 
 actressSearchInput.addEventListener('input', scheduleActressSearch);
 actressSearchInput.addEventListener('keydown', e => {
@@ -294,6 +307,7 @@ actressSearchInput.addEventListener('keydown', e => {
   updateActressBreadcrumb();
   actressesBtn.classList.add('active');
   showView('actresses');
+  actressDashboardEl.style.display = 'none';
   setActiveGrid(actressScrollGrid);
   actressScrollGrid.reset();
   ensureSentinel();
