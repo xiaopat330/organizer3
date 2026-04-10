@@ -1860,6 +1860,13 @@ header h1:hover {
 }
 
 /* ── More from this actress ─────────────────────────────────────────────── */
+.more-from-loading {
+  margin-top: 24px;
+  padding-top: 16px;
+  border-top: 1px solid #222;
+  font-size: 0.75rem;
+  color: #444;
+}
 .more-from-section {
   margin-top: 24px;
   padding-top: 16px;

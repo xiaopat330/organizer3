@@ -1547,11 +1547,13 @@ async function loadMoreFromActress(t) {
   const container   = document.getElementById('title-more-container');
   if (!actressId || !container) return;
 
+  container.innerHTML = '<div class="more-from-loading">Loading more titles\u2026</div>';
+
   try {
     const res    = await fetch(`/api/actresses/${actressId}/titles?limit=13`);
     const titles = await res.json();
     const others = titles.filter(x => x.code !== t.code).slice(0, 12);
-    if (others.length === 0) return;
+    if (others.length === 0) { container.innerHTML = ''; return; }
 
     const section = document.createElement('div');
     section.className = 'more-from-section';
@@ -1561,9 +1563,10 @@ async function loadMoreFromActress(t) {
     row.className = 'more-from-row';
     others.forEach(other => row.appendChild(renderTitleCard(other)));
     section.appendChild(row);
+    container.innerHTML = '';
     container.appendChild(section);
   } catch (e) {
-    // silently fail — this is a bonus feature
+    container.innerHTML = '';
   }
 }
 
