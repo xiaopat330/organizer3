@@ -1339,10 +1339,12 @@ function openTitleDetail(t) {
   showView('title-detail');
   document.getElementById('title-detail-cover').innerHTML = '';
   document.getElementById('title-detail-info').innerHTML  = '';
-  document.getElementById('title-detail-right').innerHTML = '';
+  document.getElementById('title-detail-right').innerHTML =
+    '<div id="title-video-container"></div><div id="title-more-container"></div>';
   renderTitleDetail(t);
   loadLastWatched(t.code);
   loadTitleVideos(t.code);
+  loadMoreFromActress(t);
 
   // Breadcrumb: include source context
   let crumbs = [];
@@ -1514,7 +1516,7 @@ function renderTitleDetail(t) {
 
 // ── Title videos ─────────────────────────────────────────────────────────
 function loadTitleVideos(titleCode) {
-  const rightCol = document.getElementById('title-detail-right');
+  const rightCol = document.getElementById('title-video-container');
   rightCol.innerHTML = '<div class="video-loading">Discovering videos\u2026</div>';
 
   fetch(`/api/titles/${encodeURIComponent(titleCode)}/videos`)
@@ -1537,6 +1539,32 @@ function loadTitleVideos(titleCode) {
     .catch(() => {
       rightCol.innerHTML = '<div class="video-empty">Could not load videos</div>';
     });
+}
+
+async function loadMoreFromActress(t) {
+  const actressId   = t.actressId || (t.actresses && t.actresses.length === 1 ? t.actresses[0].id : null);
+  const actressName = t.actressName || (t.actresses && t.actresses.length === 1 ? t.actresses[0].name : null);
+  const container   = document.getElementById('title-more-container');
+  if (!actressId || !container) return;
+
+  try {
+    const res    = await fetch(`/api/actresses/${actressId}/titles?limit=13`);
+    const titles = await res.json();
+    const others = titles.filter(x => x.code !== t.code).slice(0, 12);
+    if (others.length === 0) return;
+
+    const section = document.createElement('div');
+    section.className = 'more-from-section';
+    section.innerHTML = `<div class="more-from-heading">More from <span class="more-from-name">${esc(actressName || '')}</span></div>`;
+
+    const row = document.createElement('div');
+    row.className = 'more-from-row';
+    others.forEach(other => row.appendChild(renderTitleCard(other)));
+    section.appendChild(row);
+    container.appendChild(section);
+  } catch (e) {
+    // silently fail — this is a bonus feature
+  }
 }
 
 function renderVideoSection(v, titleCode) {

@@ -1858,3 +1858,36 @@ header h1:hover {
   pointer-events: none;
   transition: opacity 0.3s ease;
 }
+
+/* ── More from this actress ─────────────────────────────────────────────── */
+.more-from-section {
+  margin-top: 24px;
+  padding-top: 16px;
+  border-top: 1px solid #222;
+}
+.more-from-heading {
+  font-size: 0.7rem;
+  color: #555;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  margin-bottom: 12px;
+}
+.more-from-name {
+  color: #888;
+}
+.more-from-row {
+  display: flex;
+  gap: 10px;
+  overflow-x: auto;
+  padding-bottom: 8px;
+  scrollbar-width: thin;
+  scrollbar-color: #333 transparent;
+}
+.more-from-row .card {
+  flex: 0 0 150px;
+  min-width: 0;
+  font-size: 0.8em;
+}
+.more-from-row .cover-wrap {
+  height: 100px;
+}
