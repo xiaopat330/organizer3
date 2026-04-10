@@ -282,7 +282,7 @@ public class JdbiTitleRepository implements TitleRepository {
                         JOIN title_locations tl ON t.id = tl.title_id
                         WHERE t.actress_id IS NOT NULL
                         GROUP BY t.id
-                        ORDER BY MIN(tl.added_date) DESC, t.id DESC
+                        ORDER BY t.favorite DESC, t.bookmark DESC, MIN(tl.added_date) DESC, t.id DESC
                         LIMIT :limit OFFSET :offset
                         """)
                         .bind("limit", limit)
@@ -321,7 +321,7 @@ public class JdbiTitleRepository implements TitleRepository {
                         LEFT JOIN title_locations tl ON t.id = tl.title_id
                         WHERE t.favorite = 1
                         GROUP BY t.id
-                        ORDER BY MIN(tl.added_date) DESC, t.id DESC
+                        ORDER BY t.bookmark DESC, MIN(tl.added_date) DESC, t.id DESC
                         LIMIT :limit OFFSET :offset
                         """)
                         .bind("limit", limit)
@@ -340,7 +340,7 @@ public class JdbiTitleRepository implements TitleRepository {
                         LEFT JOIN title_locations tl ON t.id = tl.title_id
                         WHERE t.bookmark = 1
                         GROUP BY t.id
-                        ORDER BY MIN(tl.added_date) DESC, t.id DESC
+                        ORDER BY t.favorite DESC, MIN(tl.added_date) DESC, t.id DESC
                         LIMIT :limit OFFSET :offset
                         """)
                         .bind("limit", limit)
@@ -359,7 +359,7 @@ public class JdbiTitleRepository implements TitleRepository {
                         LEFT JOIN title_locations tl ON t.id = tl.title_id
                         WHERE t.actress_id = :actressId
                         GROUP BY t.id
-                        ORDER BY t.favorite DESC, t.bookmark DESC, t.code ASC
+                        ORDER BY t.favorite DESC, t.bookmark DESC, MIN(tl.added_date) DESC, t.id DESC
                         LIMIT :limit OFFSET :offset
                         """)
                         .bind("actressId", actressId)
@@ -379,7 +379,7 @@ public class JdbiTitleRepository implements TitleRepository {
                         LEFT JOIN title_locations tl ON t.id = tl.title_id
                         WHERE t.actress_id = :actressId AND upper(t.label) IN (<labels>)
                         GROUP BY t.id
-                        ORDER BY t.favorite DESC, t.bookmark DESC, t.code ASC
+                        ORDER BY t.favorite DESC, t.bookmark DESC, MIN(tl.added_date) DESC, t.id DESC
                         LIMIT :limit OFFSET :offset
                         """)
                         .bind("actressId", actressId)
@@ -400,7 +400,7 @@ public class JdbiTitleRepository implements TitleRepository {
                         JOIN title_locations tl ON t.id = tl.title_id
                         WHERE tl.volume_id = :volumeId
                         GROUP BY t.id
-                        ORDER BY MIN(tl.added_date) DESC, t.id DESC
+                        ORDER BY t.favorite DESC, t.bookmark DESC, MIN(tl.added_date) DESC, t.id DESC
                         LIMIT :limit OFFSET :offset
                         """)
                         .bind("volumeId", volumeId)
@@ -420,7 +420,7 @@ public class JdbiTitleRepository implements TitleRepository {
                         JOIN title_locations tl ON t.id = tl.title_id
                         WHERE tl.volume_id = :volumeId AND tl.partition_id = :partitionId
                         GROUP BY t.id
-                        ORDER BY MIN(tl.added_date) DESC, t.id DESC
+                        ORDER BY t.favorite DESC, t.bookmark DESC, MIN(tl.added_date) DESC, t.id DESC
                         LIMIT :limit OFFSET :offset
                         """)
                         .bind("volumeId", volumeId)
@@ -469,7 +469,7 @@ public class JdbiTitleRepository implements TitleRepository {
                             WHERE merged.tag IN (<tags>)
                         ) = :tagCount
                         GROUP BY t.id
-                        ORDER BY MIN(tl.added_date) DESC, t.id DESC
+                        ORDER BY t.favorite DESC, t.bookmark DESC, MIN(tl.added_date) DESC, t.id DESC
                         LIMIT :limit OFFSET :offset
                         """)
                         .bindList("tags", tags)
