@@ -890,7 +890,7 @@ function showActressLanding() {
 
 actressesBtn.addEventListener('click', e => {
   e.stopPropagation();
-  showActressLanding();
+  selectActressBrowseMode('favorites');
 });
 
 // Toggle red "invalid" styling while input is below the 2-char minimum

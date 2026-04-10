@@ -238,6 +238,32 @@ class ActressBrowseServiceTest {
         assertEquals(1L, s.getActressId());
     }
 
+    @Test
+    void findTitlesByActressMergesDirectAndLabelTagsDeduped() {
+        Title t = Title.builder()
+                .id(1L).code("ABP-001").baseCode("ABP-00001").label("ABP").seqNum(1)
+                .actressId(1L)
+                .tags(List.of("creampie", "solo-actress"))
+                .locations(List.of(TitleLocation.builder()
+                        .titleId(1L).volumeId("vol-a").partitionId("stars")
+                        .path(Path.of("/stars/ABP-001"))
+                        .lastSeenAt(LocalDate.of(2024, 1, 1))
+                        .build()))
+                .build();
+        Label label = new Label("ABP", "Prestige", "Prestige International", null, null,
+                null, null, null, null, List.of("exclusive-actress", "solo-actress"));
+
+        when(titleRepo.findByActressPaged(1L, 24, 0)).thenReturn(List.of(t));
+        when(coverPath.find(any())).thenReturn(Optional.empty());
+        when(labelRepo.findAllAsMap()).thenReturn(Map.of("ABP", label));
+
+        List<String> tags = service.findTitlesByActress(1L, 0, 24, null).get(0).getTags();
+        assertEquals(1, tags.stream().filter("solo-actress"::equals).count(), "solo-actress must appear once");
+        assertTrue(tags.contains("creampie"));
+        assertTrue(tags.contains("exclusive-actress"));
+        assertEquals(tags, tags.stream().sorted().toList(), "tags must be sorted");
+    }
+
     // ── companies and aliases ──────────────────────────────────────────
 
     @Test
