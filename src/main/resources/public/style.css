@@ -576,7 +576,6 @@ header h1:hover {
 }
 
 /* Actress studio — purple accent overrides */
-#actress-studio-labels .studio-group-btn.selected,
 .actress-studio-group-btn.selected {
   color: #c080ff;
   background: #140a20;
