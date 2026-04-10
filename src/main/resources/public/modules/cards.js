@@ -85,7 +85,11 @@ export function makeTitleCard(t) {
     ? `<div class="card-watched">watched ${timeAgoShort(t.lastWatchedAt)}${t.watchCount > 1 ? ` (${t.watchCount}x)` : ''}</div>`
     : '';
 
-  card.innerHTML = `${coverHtml}<div class="card-info">${actressHtml}${titleCodeHtml}${titleEnHtml}${titleJaHtml}${labelLineHtml}${dateHtml}${locationHtml}${tagsHtml}${watchedHtml}</div>`;
+  const visitedHtml = t.visitCount > 0
+    ? `<div class="title-card-visited">${t.visitCount === 1 ? '1 view' : `${t.visitCount} views`}${t.lastVisitedAt ? ` · ${timeAgoShort(t.lastVisitedAt)}` : ''}</div>`
+    : '';
+
+  card.innerHTML = `${coverHtml}<div class="card-info">${actressHtml}${titleCodeHtml}${titleEnHtml}${titleJaHtml}${labelLineHtml}${dateHtml}${visitedHtml}${locationHtml}${tagsHtml}${watchedHtml}</div>`;
 
   card.querySelectorAll('.actress-link').forEach(link => {
     link.addEventListener('click', e => {
@@ -241,6 +245,7 @@ export function makeActressCard(a) {
       <span class="tier-badge tier-${esc(a.tier)}">${esc(a.tier.toLowerCase())}</span>
     </div>
     ${renderDateRange(a.firstAddedDate, a.lastAddedDate)}
+    ${a.visitCount > 0 ? `<div class="actress-card-visited">${a.visitCount === 1 ? '1 view' : `${a.visitCount} views`}${a.lastVisitedAt ? ` · ${timeAgoShort(a.lastVisitedAt)}` : ''}</div>` : ''}
     <div class="actress-title-count">Titles: ${a.titleCount}</div>
     ${(a.folderPaths || []).length > 0
       ? `<div class="actress-folder-paths">${a.folderPaths.map(p => `<div class="actress-folder-path">${esc(p)}</div>`).join('')}</div>`

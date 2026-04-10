@@ -247,6 +247,8 @@ public class ActressBrowseService {
                             .releaseDate(t.getReleaseDate() != null ? t.getReleaseDate().toString() : null)
                             .grade(t.getGrade() != null ? t.getGrade().display : null)
                             .tags(allTags)
+                            .visitCount(t.getVisitCount())
+                            .lastVisitedAt(t.getLastVisitedAt() != null ? t.getLastVisitedAt().toString() : null)
                             .build();
                 })
                 .toList();

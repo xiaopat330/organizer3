@@ -1067,7 +1067,19 @@ header h1:hover {
 .actress-active-dates {
   font-size: 0.68rem;
   color: #505050;
-  margin-bottom: 6px;
+  margin-bottom: 2px;
+}
+
+.actress-card-visited {
+  font-size: 0.65rem;
+  color: #29b6d4;
+  margin-bottom: 4px;
+}
+
+.title-card-visited {
+  font-size: 0.65rem;
+  color: #29b6d4;
+  margin-bottom: 2px;
 }
 
 .date-first { color: #3a8a3a; }
@@ -1224,7 +1236,7 @@ header h1:hover {
 
 .detail-visited {
   font-size: 0.75rem;
-  color: #4caf50;
+  color: #29b6d4;
   margin-top: 2px;
 }
 
@@ -1708,7 +1720,7 @@ header h1:hover {
 
 .title-detail-visited-row .title-detail-label,
 .title-detail-visited-row .title-detail-value {
-  color: #4caf50;
+  color: #29b6d4;
 }
 
 .title-detail-grade-label {
