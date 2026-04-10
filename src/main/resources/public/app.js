@@ -286,7 +286,7 @@ function tagHue(tag) {
 
 function tagBadgeHtml(tag) {
   const hue = tagHue(tag);
-  const style = `color:hsl(${hue},55%,62%);background:hsl(${hue},40%,10%)`;
+  const style = `color:hsl(${hue},65%,65%);background:hsl(${hue},40%,12%);border:1px solid hsl(${hue},50%,38%)`;
   return `<span class="tag-badge" style="${style}">${esc(tag)}</span>`;
 }
 
@@ -1472,13 +1472,13 @@ function renderTitleDetail(t) {
       ${actressesHtml}
       ${labelHtml}
       ${dateHtml}
-      ${tagsHtml}
       ${gradeHtml}
       <div class="title-detail-row title-detail-watched-row" id="title-detail-watched" style="display:none">
         <span class="title-detail-label">Watched</span>
         <span class="title-detail-value title-detail-watched-value" id="title-detail-watched-value"></span>
       </div>
       ${nasHtml}
+      ${tagsHtml}
     </div>
   `;
 

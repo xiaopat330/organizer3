@@ -17,6 +17,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
 
 /**
@@ -230,6 +231,14 @@ public class TitleBrowseService {
                         }
                     }
 
+                    // Merge direct title tags with indirect label tags, deduplicated and sorted
+                    List<String> directTags = t.getTags() != null ? t.getTags() : List.of();
+                    List<String> labelTags  = lbl != null ? lbl.tags() : List.of();
+                    List<String> allTags = Stream.concat(directTags.stream(), labelTags.stream())
+                            .distinct()
+                            .sorted()
+                            .toList();
+
                     return TitleSummary.builder()
                             .code(t.getCode())
                             .baseCode(t.getBaseCode())
@@ -253,7 +262,7 @@ public class TitleBrowseService {
                             .bookmark(t.isBookmark())
                             .lastWatchedAt(watchStatsMap.containsKey(t.getCode()) ? watchStatsMap.get(t.getCode()).lastWatchedAt().toString() : null)
                             .watchCount(watchStatsMap.containsKey(t.getCode()) ? watchStatsMap.get(t.getCode()).count() : 0)
-                            .tags(t.getTags())
+                            .tags(allTags)
                             .build();
                 })
                 .toList();

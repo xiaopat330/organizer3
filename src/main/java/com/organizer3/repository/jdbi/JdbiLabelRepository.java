@@ -6,27 +6,49 @@ import lombok.RequiredArgsConstructor;
 import org.jdbi.v3.core.Jdbi;
 import org.jdbi.v3.core.mapper.RowMapper;
 
+import java.util.Arrays;
+import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
 @RequiredArgsConstructor
 public class JdbiLabelRepository implements LabelRepository {
 
-    private static final RowMapper<Label> MAPPER = (rs, ctx) ->
-            new Label(
-                    rs.getString("code"),
-                    rs.getString("label_name"),
-                    rs.getString("company"),
-                    rs.getString("description"),
-                    rs.getString("company_description")
-            );
+    private static final RowMapper<Label> MAPPER = (rs, ctx) -> {
+        String tagsCsv = rs.getString("tags_concat");
+        List<String> tags = (tagsCsv != null && !tagsCsv.isEmpty())
+                ? Arrays.asList(tagsCsv.split(","))
+                : List.of();
+        return new Label(
+                rs.getString("code"),
+                rs.getString("label_name"),
+                rs.getString("company"),
+                rs.getString("description"),
+                rs.getString("company_description"),
+                rs.getString("company_specialty"),
+                rs.getString("company_founded"),
+                rs.getString("company_status"),
+                rs.getString("company_parent"),
+                tags
+        );
+    };
 
     private final Jdbi jdbi;
 
     @Override
     public Map<String, Label> findAllAsMap() {
         return jdbi.withHandle(h ->
-                h.createQuery("SELECT code, label_name, company, description, company_description FROM labels")
+                h.createQuery("""
+                        SELECT l.code, l.label_name, l.company, l.description,
+                               l.company_description, l.company_specialty,
+                               l.company_founded, l.company_status, l.company_parent,
+                               GROUP_CONCAT(lt.tag, ',') AS tags_concat
+                        FROM labels l
+                        LEFT JOIN label_tags lt ON lt.label_code = l.code
+                        GROUP BY l.code, l.label_name, l.company, l.description,
+                                 l.company_description, l.company_specialty,
+                                 l.company_founded, l.company_status, l.company_parent
+                        """)
                         .map(MAPPER)
                         .list()
         ).stream().collect(Collectors.toMap(
