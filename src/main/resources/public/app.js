@@ -1561,7 +1561,7 @@ async function loadMoreFromActress(t) {
 
     const row = document.createElement('div');
     row.className = 'more-from-row';
-    others.forEach(other => row.appendChild(renderTitleCard(other)));
+    others.forEach(other => row.appendChild(makeTitleCard(other)));
     section.appendChild(row);
     container.innerHTML = '';
     container.appendChild(section);
