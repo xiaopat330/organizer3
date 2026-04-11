@@ -29,6 +29,12 @@ public interface ActressRepository {
      */
     Optional<Actress> resolveByName(String name);
 
+    /**
+     * Given a name that may be stored as an alias of another actress, return that primary actress.
+     * Used to show "primarily known as" on alias actress profile pages.
+     */
+    Optional<Actress> findPrimaryForAlias(String aliasName);
+
     List<Actress> findAll();
 
     /**
@@ -90,9 +96,18 @@ public interface ActressRepository {
     List<Actress> findByVolumeIds(List<String> volumeIds);
 
     /**
-     * Paginated version: find actresses on any of the given volumes, ordered by canonical name.
+     * Paginated version: find actresses on any of the given volumes.
+     * Ordered: favorites/bookmarked first, then canonical name.
      */
     List<Actress> findByVolumeIdsPaged(List<String> volumeIds, int limit, int offset);
+
+    /**
+     * Paginated: find actresses who have ≥1 title on any of the given volumes AND ≥1 title
+     * whose label belongs to a company in {@code companies}.
+     * Ordered: favorites/bookmarked first, then canonical name.
+     */
+    List<Actress> findByVolumesAndCompaniesPaged(List<String> volumeIds, List<String> companies,
+                                                 int limit, int offset);
 
     /**
      * Find all actresses (paginated) who own at least one title whose label belongs to a
@@ -134,6 +149,20 @@ public interface ActressRepository {
                        Integer bust, Integer waist, Integer hip, String cup,
                        java.time.LocalDate activeFrom, java.time.LocalDate activeTo,
                        String biography, String legacy);
+
+    /**
+     * Overwrite the extended profile fields that are not covered by {@link #updateProfile}:
+     * the hiragana reading of the stage name, the retirement-announced date, and the
+     * JSON-serialized list columns for alternate names, studio tenures, and awards.
+     *
+     * <p>Called by the YAML loader after {@code updateProfile}. Passing {@code null} or an
+     * empty list clears the column.
+     */
+    void updateExtendedProfile(long actressId, String nameReading,
+                               java.time.LocalDate retirementAnnounced,
+                               List<Actress.AlternateName> alternateNames,
+                               List<Actress.StudioTenure> primaryStudios,
+                               List<Actress.Award> awards);
 
     void updateTier(long actressId, Actress.Tier tier);
 

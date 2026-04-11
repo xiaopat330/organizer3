@@ -328,7 +328,7 @@ public class WebServer {
                     }
                 } else if (volumesParam != null && !volumesParam.isBlank()) {
                     var volumeIds = List.of(volumesParam.split(","));
-                    ctx.json(actressBrowseService.findByVolumesPaged(volumeIds, offset, limit));
+                    ctx.json(actressBrowseService.findByVolumesPaged(volumeIds, company, offset, limit));
                 } else if (studioGroup != null && !studioGroup.isBlank()) {
                     ctx.json(actressBrowseService.findByStudioGroupPaged(studioGroup, company, offset, limit));
                 } else if ("true".equals(all)) {

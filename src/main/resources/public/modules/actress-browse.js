@@ -2,7 +2,7 @@ import { esc } from './utils.js';
 import { showView, setActiveGrid, ensureSentinel, updateBreadcrumb, mode } from './grid.js';
 import { makeActressCard, makeCompactActressCard } from './cards.js';
 import { ScrollingGrid } from './grid.js';
-import { ARCHIVE_VOLUMES } from './config.js';
+import { ARCHIVE_VOLUMES, EXHIBITION_VOLUMES } from './config.js';
 import { ensureStudioGroups, ensureTitleLabels, renderTwoColumnStudioPanel } from './studio-data.js';
 import {
   renderDashboardStrip,
@@ -21,6 +21,10 @@ const actressDashboardBtn   = document.getElementById('actress-dashboard-btn');
 const actressDashboardEl    = document.getElementById('actress-dashboard');
 const actressFavoritesBtn   = document.getElementById('actress-favorites-btn');
 const actressBookmarksBtn   = document.getElementById('actress-bookmarks-btn');
+const actressExhibitionBtn       = document.getElementById('actress-exhibition-btn');
+const actressExhibitionDivider   = document.getElementById('actress-exhibition-divider');
+const actressExhibitionRow       = document.getElementById('actress-exhibition-row');
+const actressExhibitionSelect    = document.getElementById('actress-exhibition-company-select');
 const actressArchivesBtn    = document.getElementById('actress-archives-btn');
 const actressStudioBtn      = document.getElementById('actress-studio-btn');
 const actressStudioDivider  = document.getElementById('actress-studio-divider');
@@ -38,7 +42,7 @@ export const ACTRESS_TIERS = ['GODDESS', 'SUPERSTAR', 'POPULAR', 'MINOR', 'LIBRA
 const ACTRESS_SEARCH_DELAY_MS  = 350;
 const ACTRESS_SEARCH_MIN_CHARS = 2;
 
-export let actressBrowseMode = null;         // null | 'search' | 'favorites' | 'bookmarks' | 'archive-volumes' | 'studio' | 'studio-group:<slug>' | 'tier-<TIER>'
+export let actressBrowseMode = null;         // null | 'search' | 'favorites' | 'bookmarks' | 'exhibition-volumes' | 'archive-volumes' | 'studio' | 'studio-group:<slug>' | 'tier-<TIER>'
 export let actressSearchTerm = '';
 export let actressSearchTimer = null;
 export let actressTierPanelOpen = false;
@@ -48,6 +52,8 @@ export let selectedActressStudioSlug = null;
 let activeStudioGroupName = null;
 // Optional company filter applied within the active studio-group filtered grid (null = all).
 let studioGroupCompanyFilter = null;
+// Optional company filter for exhibition mode (null = all companies on exhibition volumes).
+let exhibitionCompanyFilter = null;
 
 // ── Tier / studio row visibility ──────────────────────────────────────────
 function showActressTierRow() {
@@ -72,6 +78,15 @@ export function hideActressStudioGroupRow() {
   actressStudioLabelsEl.style.display = 'none';
   selectedActressStudioSlug = null;
 }
+function showExhibitionRow() {
+  actressExhibitionDivider.style.display = '';
+  actressExhibitionRow.style.display = '';
+}
+function hideExhibitionRow() {
+  actressExhibitionDivider.style.display = 'none';
+  actressExhibitionRow.style.display = 'none';
+  exhibitionCompanyFilter = null;
+}
 
 // ── Tier chips ────────────────────────────────────────────────────────────
 function buildActressTierChips() {
@@ -93,6 +108,7 @@ export function updateActressLandingSelection() {
   actressDashboardBtn.classList.toggle('selected', actressBrowseMode === 'dashboard');
   actressFavoritesBtn.classList.toggle('selected', actressBrowseMode === 'favorites');
   actressBookmarksBtn.classList.toggle('selected', actressBrowseMode === 'bookmarks');
+  actressExhibitionBtn.classList.toggle('selected', actressBrowseMode === 'exhibition-volumes');
   actressArchivesBtn.classList.toggle('selected',  actressBrowseMode === 'archive-volumes');
   // Keep Studio highlighted in both the catalog ("studio") and the filtered grid ("studio-group:*").
   actressStudioBtn.classList.toggle('selected',
@@ -106,9 +122,10 @@ export function updateActressLandingSelection() {
 export function actressBrowseLabel(modeKey) {
   if (!modeKey) return '';
   if (modeKey === 'dashboard')       return 'Dashboard';
-  if (modeKey === 'favorites')       return 'Favorites';
-  if (modeKey === 'bookmarks')       return 'Bookmarks';
-  if (modeKey === 'archive-volumes') return 'Archive';
+  if (modeKey === 'favorites')          return 'Favorites';
+  if (modeKey === 'bookmarks')          return 'Bookmarks';
+  if (modeKey === 'exhibition-volumes') return 'Exhibition';
+  if (modeKey === 'archive-volumes')    return 'Archive';
   if (modeKey === 'studio')          return 'Studio';
   if (modeKey === 'search')          return `search: "${actressSearchTerm}"`;
   if (modeKey.startsWith('tier-'))   return modeKey.slice(5).toLowerCase();
@@ -140,6 +157,11 @@ export const actressScrollGrid = new ScrollingGrid(
       return `/api/actresses?favorites=true&offset=${o}&limit=${l}`;
     if (actressBrowseMode === 'bookmarks')
       return `/api/actresses?bookmarks=true&offset=${o}&limit=${l}`;
+    if (actressBrowseMode === 'exhibition-volumes') {
+      let url = `/api/actresses?volumes=${encodeURIComponent(EXHIBITION_VOLUMES)}&offset=${o}&limit=${l}`;
+      if (exhibitionCompanyFilter) url += `&company=${encodeURIComponent(exhibitionCompanyFilter)}`;
+      return url;
+    }
     if (actressBrowseMode === 'archive-volumes')
       return `/api/actresses?volumes=${encodeURIComponent(ARCHIVE_VOLUMES)}&offset=${o}&limit=${l}`;
     if (actressBrowseMode && actressBrowseMode.startsWith('tier-')) {
@@ -178,6 +200,7 @@ export function resetActressState() {
   actressGridHeaderEl.innerHTML = '';
   hideActressStudioGroupRow();
   hideActressTierRow();
+  hideExhibitionRow();
   updateActressLandingSelection();
 }
 
@@ -486,6 +509,18 @@ export async function selectActressBrowseMode(modeKey) {
     return;
   }
   hideActressStudioGroupRow();
+  if (modeKey === 'exhibition-volumes') {
+    exhibitionCompanyFilter = null;
+    hideActressTierRow();
+    actressGridHeaderEl.style.display = 'none';
+    actressGridHeaderEl.innerHTML = '';
+    activeStudioGroupName = null;
+    studioGroupCompanyFilter = null;
+    showExhibitionRow();
+    populateExhibitionCompanyDropdown();
+  } else {
+    hideExhibitionRow();
+  }
   if (modeKey.startsWith('studio-group:')) {
     const slug = modeKey.slice('studio-group:'.length);
     selectedActressStudioSlug = slug;
@@ -615,16 +650,35 @@ actressSearchClearBtn.addEventListener('click', () => {
   actressSearchInput.focus();
 });
 
-actressDashboardBtn.addEventListener('click', () => selectActressBrowseMode('dashboard'));
-actressFavoritesBtn.addEventListener('click', () => selectActressBrowseMode('favorites'));
-actressBookmarksBtn.addEventListener('click', () => selectActressBrowseMode('bookmarks'));
-actressArchivesBtn.addEventListener('click',  () => selectActressBrowseMode('archive-volumes'));
+actressDashboardBtn.addEventListener('click',   () => selectActressBrowseMode('dashboard'));
+actressFavoritesBtn.addEventListener('click',   () => selectActressBrowseMode('favorites'));
+actressBookmarksBtn.addEventListener('click',   () => selectActressBrowseMode('bookmarks'));
+actressExhibitionBtn.addEventListener('click',  () => selectActressBrowseMode('exhibition-volumes'));
+actressArchivesBtn.addEventListener('click',    () => selectActressBrowseMode('archive-volumes'));
 actressStudioBtn.addEventListener('click',    () => selectActressBrowseMode('studio'));
 actressTierBtn.addEventListener('click', () => selectActressBrowseMode(`tier-${lastActressTier}`));
 
 actressesBtn.addEventListener('click', e => {
   e.stopPropagation();
   selectActressBrowseMode('dashboard');
+});
+
+// ── Exhibition company dropdown ───────────────────────────────────────────
+async function populateExhibitionCompanyDropdown() {
+  const labels = await ensureTitleLabels();
+  const companies = [...new Set(labels.map(l => l.company).filter(Boolean))].sort();
+  actressExhibitionSelect.innerHTML =
+    '<option value="">All Companies</option>' +
+    companies.map(c => `<option value="${esc(c)}">${esc(c)}</option>`).join('');
+  actressExhibitionSelect.value = exhibitionCompanyFilter || '';
+}
+
+actressExhibitionSelect.addEventListener('change', () => {
+  exhibitionCompanyFilter = actressExhibitionSelect.value || null;
+  document.getElementById('sentinel')?.remove();
+  actressScrollGrid.reset();
+  ensureSentinel();
+  actressScrollGrid.loadMore();
 });
 
 // ── Actress Studio browser ────────────────────────────────────────────────

@@ -109,12 +109,25 @@ public class ActressBrowseService {
     }
 
     /**
-     * Paginated version: returns actresses on the given volumes, ordered by canonical name.
+     * Paginated version: returns actresses on the given volumes, favorites/bookmarks first.
      */
     public List<ActressSummary> findByVolumesPaged(List<String> volumeIds, int offset, int limit) {
         return actressRepo.findByVolumeIdsPaged(volumeIds, limit, offset).stream()
                 .map(this::toSummary)
                 .toList();
+    }
+
+    /**
+     * Paginated version filtered by company: returns actresses on the given volumes who also
+     * have ≥1 title produced by {@code company}. Favorites/bookmarks sort first.
+     */
+    public List<ActressSummary> findByVolumesPaged(List<String> volumeIds, String company,
+                                                   int offset, int limit) {
+        if (company != null && !company.isBlank()) {
+            return actressRepo.findByVolumesAndCompaniesPaged(volumeIds, List.of(company), limit, offset)
+                    .stream().map(this::toSummary).toList();
+        }
+        return findByVolumesPaged(volumeIds, offset, limit);
     }
 
     /**
@@ -427,10 +440,18 @@ public class ActressBrowseService {
                 .sorted()
                 .toList();
 
-        List<String> aliases = actressRepo.findAliases(actress.getId()).stream()
+        List<ActressSummary.AliasDto> aliases = actressRepo.findAliases(actress.getId()).stream()
                 .map(ActressAlias::aliasName)
                 .sorted()
+                .map(name -> ActressSummary.AliasDto.builder()
+                        .name(name)
+                        .actressId(actressRepo.findByCanonicalName(name)
+                                .map(Actress::getId)
+                                .orElse(null))
+                        .build())
                 .toList();
+
+        Actress primaryActress = actressRepo.findPrimaryForAlias(actress.getCanonicalName()).orElse(null);
 
         String earliestTitleDate = titles.stream()
                 .map(Title::getAddedDate)
@@ -439,10 +460,42 @@ public class ActressBrowseService {
                 .map(Object::toString)
                 .orElse(null);
 
+        List<ActressSummary.AlternateNameDto> altNames = actress.getAlternateNames() == null
+                ? List.of()
+                : actress.getAlternateNames().stream()
+                        .map(a -> ActressSummary.AlternateNameDto.builder()
+                                .name(a.name())
+                                .note(a.note())
+                                .build())
+                        .toList();
+
+        List<ActressSummary.StudioTenureDto> studios = actress.getPrimaryStudios() == null
+                ? List.of()
+                : actress.getPrimaryStudios().stream()
+                        .map(s -> ActressSummary.StudioTenureDto.builder()
+                                .name(s.name())
+                                .company(s.company())
+                                .from(s.from() != null ? s.from().toString() : null)
+                                .to(s.to() != null ? s.to().toString() : null)
+                                .role(s.role())
+                                .build())
+                        .toList();
+
+        List<ActressSummary.AwardDto> awardList = actress.getAwards() == null
+                ? List.of()
+                : actress.getAwards().stream()
+                        .map(a -> ActressSummary.AwardDto.builder()
+                                .event(a.event())
+                                .year(a.year())
+                                .category(a.category())
+                                .build())
+                        .toList();
+
         return ActressSummary.builder()
                 .id(actress.getId())
                 .canonicalName(actress.getCanonicalName())
                 .stageName(actress.getStageName())
+                .nameReading(actress.getNameReading())
                 .tier(actress.getTier().name())
                 .favorite(actress.isFavorite())
                 .bookmark(actress.isBookmark())
@@ -455,8 +508,11 @@ public class ActressBrowseService {
                 .lastAddedDate(lastAdded)
                 .companies(companies)
                 .aliases(aliases)
+                .alternateNames(altNames)
                 .activeFrom(actress.getActiveFrom() != null ? actress.getActiveFrom().toString() : earliestTitleDate)
                 .activeTo(actress.getActiveTo() != null ? actress.getActiveTo().toString() : lastAdded)
+                .retirementAnnounced(actress.getRetirementAnnounced() != null
+                        ? actress.getRetirementAnnounced().toString() : null)
                 .dateOfBirth(actress.getDateOfBirth() != null ? actress.getDateOfBirth().toString() : null)
                 .birthplace(actress.getBirthplace())
                 .bloodType(actress.getBloodType())
@@ -467,6 +523,10 @@ public class ActressBrowseService {
                 .cup(actress.getCup())
                 .biography(actress.getBiography())
                 .legacy(actress.getLegacy())
+                .primaryStudios(studios)
+                .awards(awardList)
+                .primaryActressId(primaryActress != null ? primaryActress.getId() : null)
+                .primaryActressName(primaryActress != null ? primaryActress.getCanonicalName() : null)
                 .visitCount(actress.getVisitCount())
                 .lastVisitedAt(actress.getLastVisitedAt() != null ? actress.getLastVisitedAt().toString() : null)
                 .build();

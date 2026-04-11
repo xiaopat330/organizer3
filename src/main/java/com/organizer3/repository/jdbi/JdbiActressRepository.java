@@ -1,10 +1,15 @@
 package com.organizer3.repository.jdbi;
 
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializationFeature;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.organizer3.config.alias.AliasYamlEntry;
 import com.organizer3.model.ActressAlias;
 import com.organizer3.model.Actress;
 import com.organizer3.repository.ActressRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.jdbi.v3.core.Handle;
 import org.jdbi.v3.core.Jdbi;
 import org.jdbi.v3.core.mapper.RowMapper;
@@ -16,14 +21,29 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
+@Slf4j
 @RequiredArgsConstructor
 public class JdbiActressRepository implements ActressRepository {
+
+    /** Shared Jackson mapper for (de)serializing list columns. Uses JSR-310 so
+     *  LocalDate fields on StudioTenure/etc. round-trip as ISO strings. */
+    private static final ObjectMapper JSON = new ObjectMapper()
+            .registerModule(new JavaTimeModule())
+            .disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
+
+    private static final TypeReference<List<Actress.AlternateName>> ALT_NAMES_TYPE =
+            new TypeReference<>() {};
+    private static final TypeReference<List<Actress.StudioTenure>> STUDIOS_TYPE =
+            new TypeReference<>() {};
+    private static final TypeReference<List<Actress.Award>> AWARDS_TYPE =
+            new TypeReference<>() {};
 
     private static final RowMapper<Actress> ACTRESS_MAPPER = (rs, ctx) -> {
         String gradeStr = rs.getString("grade");
         String dobStr = rs.getString("date_of_birth");
         String activeFromStr = rs.getString("active_from");
         String activeToStr = rs.getString("active_to");
+        String retirementStr = rs.getString("retirement_announced");
         String heightStr = rs.getString("height_cm");
         String bustStr = rs.getString("bust");
         String waistStr = rs.getString("waist");
@@ -34,6 +54,7 @@ public class JdbiActressRepository implements ActressRepository {
                 .id(rs.getLong("id"))
                 .canonicalName(rs.getString("canonical_name"))
                 .stageName(rs.getString("stage_name"))
+                .nameReading(rs.getString("name_reading"))
                 .tier(Actress.Tier.valueOf(rs.getString("tier")))
                 .favorite(rs.getInt("favorite") != 0)
                 .bookmark(rs.getInt("bookmark") != 0)
@@ -51,12 +72,38 @@ public class JdbiActressRepository implements ActressRepository {
                 .cup(rs.getString("cup"))
                 .activeFrom(activeFromStr != null ? LocalDate.parse(activeFromStr) : null)
                 .activeTo(activeToStr != null ? LocalDate.parse(activeToStr) : null)
+                .retirementAnnounced(retirementStr != null ? LocalDate.parse(retirementStr) : null)
                 .biography(rs.getString("biography"))
                 .legacy(rs.getString("legacy"))
+                .alternateNames(readJson(rs.getString("alternate_names_json"), ALT_NAMES_TYPE))
+                .primaryStudios(readJson(rs.getString("primary_studios_json"), STUDIOS_TYPE))
+                .awards(readJson(rs.getString("awards_json"), AWARDS_TYPE))
                 .visitCount(rs.getInt("visit_count"))
                 .lastVisitedAt(lastVisitedStr != null ? LocalDateTime.parse(lastVisitedStr) : null)
                 .build();
     };
+
+    private static <T> List<T> readJson(String raw, TypeReference<List<T>> type) {
+        if (raw == null || raw.isBlank()) return List.of();
+        try {
+            List<T> v = JSON.readValue(raw, type);
+            return v != null ? v : List.of();
+        } catch (Exception e) {
+            log.warn("Failed to parse JSON column: {}", e.getMessage());
+            return List.of();
+        }
+    }
+
+    private static String writeJson(Object value) {
+        if (value == null) return null;
+        if (value instanceof List<?> list && list.isEmpty()) return null;
+        try {
+            return JSON.writeValueAsString(value);
+        } catch (Exception e) {
+            log.warn("Failed to serialize JSON column: {}", e.getMessage());
+            return null;
+        }
+    }
 
     private static final RowMapper<ActressAlias> ALIAS_MAPPER = (rs, ctx) ->
             new ActressAlias(rs.getLong("actress_id"), rs.getString("alias_name"));
@@ -348,10 +395,45 @@ public class JdbiActressRepository implements ActressRepository {
                         JOIN titles t ON t.actress_id = a.id
                         JOIN title_locations tl ON tl.title_id = t.id
                         WHERE tl.volume_id IN (<volumeIds>)
-                        ORDER BY a.canonical_name
+                        ORDER BY (a.favorite + a.bookmark) DESC, a.canonical_name
                         LIMIT :limit OFFSET :offset
                         """)
                         .bindList("volumeIds", volumeIds)
+                        .bind("limit", limit)
+                        .bind("offset", offset)
+                        .map(ACTRESS_MAPPER)
+                        .list()
+        );
+    }
+
+    @Override
+    public List<Actress> findByVolumesAndCompaniesPaged(List<String> volumeIds, List<String> companies,
+                                                        int limit, int offset) {
+        if (volumeIds == null || volumeIds.isEmpty()) return List.of();
+        if (companies == null || companies.isEmpty()) return List.of();
+        return jdbi.withHandle(h ->
+                h.createQuery("""
+                        SELECT a.* FROM actresses a
+                        WHERE a.rejected = 0
+                          AND EXISTS (
+                            SELECT 1 FROM titles t
+                            JOIN title_locations tl ON tl.title_id = t.id
+                            WHERE t.actress_id = a.id
+                              AND tl.volume_id IN (<volumeIds>)
+                          )
+                          AND EXISTS (
+                            SELECT 1 FROM title_actresses ta
+                            JOIN titles t2 ON t2.id = ta.title_id
+                            JOIN labels l ON upper(l.code) = upper(t2.label)
+                            WHERE ta.actress_id = a.id
+                              AND t2.label IS NOT NULL AND t2.label != ''
+                              AND l.company IN (<companies>)
+                          )
+                        ORDER BY (a.favorite + a.bookmark) DESC, a.canonical_name
+                        LIMIT :limit OFFSET :offset
+                        """)
+                        .bindList("volumeIds", volumeIds)
+                        .bindList("companies", companies)
                         .bind("limit", limit)
                         .bind("offset", offset)
                         .map(ACTRESS_MAPPER)
@@ -596,6 +678,32 @@ public class JdbiActressRepository implements ActressRepository {
     }
 
     @Override
+    public void updateExtendedProfile(long actressId, String nameReading,
+                                      LocalDate retirementAnnounced,
+                                      List<Actress.AlternateName> alternateNames,
+                                      List<Actress.StudioTenure> primaryStudios,
+                                      List<Actress.Award> awards) {
+        jdbi.useHandle(h ->
+                h.createUpdate("""
+                        UPDATE actresses SET
+                            name_reading = :nameReading,
+                            retirement_announced = :retirement,
+                            alternate_names_json = :altNames,
+                            primary_studios_json = :studios,
+                            awards_json = :awards
+                        WHERE id = :id
+                        """)
+                        .bind("id", actressId)
+                        .bind("nameReading", nameReading)
+                        .bind("retirement", retirementAnnounced != null ? retirementAnnounced.toString() : null)
+                        .bind("altNames", writeJson(alternateNames))
+                        .bind("studios", writeJson(primaryStudios))
+                        .bind("awards", writeJson(awards))
+                        .execute()
+        );
+    }
+
+    @Override
     public void setStageName(long actressId, String stageName) {
         jdbi.useHandle(h ->
                 h.createUpdate("UPDATE actresses SET stage_name = :stageName WHERE id = :id")
@@ -642,6 +750,20 @@ public class JdbiActressRepository implements ActressRepository {
     }
 
     @Override
+    public Optional<Actress> findPrimaryForAlias(String aliasName) {
+        return jdbi.withHandle(h ->
+                h.createQuery("""
+                        SELECT a.* FROM actresses a
+                        JOIN actress_aliases aa ON a.id = aa.actress_id
+                        WHERE aa.alias_name = :name COLLATE NOCASE
+                        """)
+                        .bind("name", aliasName)
+                        .map(ACTRESS_MAPPER)
+                        .findFirst()
+        );
+    }
+
+    @Override
     public void saveAlias(ActressAlias alias) {
         jdbi.useHandle(h ->
                 h.createUpdate("""
@@ -682,11 +804,12 @@ public class JdbiActressRepository implements ActressRepository {
         jdbi.useTransaction(h -> {
             for (AliasYamlEntry entry : entries) {
                 Actress actress = h.createQuery(
-                                "SELECT * FROM actresses WHERE canonical_name = :name")
+                                "SELECT * FROM actresses WHERE canonical_name = :name COLLATE NOCASE")
                         .bind("name", entry.name())
                         .map(ACTRESS_MAPPER)
                         .findFirst()
                         .orElseGet(() -> {
+                            log.warn("importFromYaml: no actress found for '{}' — creating stub record", entry.name());
                             long id = h.createUpdate("""
                                             INSERT INTO actresses (canonical_name, tier, first_seen_at)
                                             VALUES (:name, :tier, :date)
