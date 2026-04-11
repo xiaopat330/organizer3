@@ -25,7 +25,10 @@ const actressExhibitionBtn       = document.getElementById('actress-exhibition-b
 const actressExhibitionDivider   = document.getElementById('actress-exhibition-divider');
 const actressExhibitionRow       = document.getElementById('actress-exhibition-row');
 const actressExhibitionSelect    = document.getElementById('actress-exhibition-company-select');
-const actressArchivesBtn    = document.getElementById('actress-archives-btn');
+const actressArchivesBtn         = document.getElementById('actress-archives-btn');
+const actressArchivesDivider     = document.getElementById('actress-archives-divider');
+const actressArchivesRow         = document.getElementById('actress-archives-row');
+const actressArchivesSelect      = document.getElementById('actress-archives-company-select');
 const actressStudioBtn      = document.getElementById('actress-studio-btn');
 const actressStudioDivider  = document.getElementById('actress-studio-divider');
 const actressStudioGroupRow = document.getElementById('actress-studio-group-row');
@@ -54,6 +57,8 @@ let activeStudioGroupName = null;
 let studioGroupCompanyFilter = null;
 // Optional company filter for exhibition mode (null = all companies on exhibition volumes).
 let exhibitionCompanyFilter = null;
+// Optional company filter for archives mode (null = all companies on archive volumes).
+let archivesCompanyFilter = null;
 
 // ── Tier / studio row visibility ──────────────────────────────────────────
 function showActressTierRow() {
@@ -86,6 +91,15 @@ function hideExhibitionRow() {
   actressExhibitionDivider.style.display = 'none';
   actressExhibitionRow.style.display = 'none';
   exhibitionCompanyFilter = null;
+}
+function showArchivesRow() {
+  actressArchivesDivider.style.display = '';
+  actressArchivesRow.style.display = '';
+}
+function hideArchivesRow() {
+  actressArchivesDivider.style.display = 'none';
+  actressArchivesRow.style.display = 'none';
+  archivesCompanyFilter = null;
 }
 
 // ── Tier chips ────────────────────────────────────────────────────────────
@@ -162,8 +176,11 @@ export const actressScrollGrid = new ScrollingGrid(
       if (exhibitionCompanyFilter) url += `&company=${encodeURIComponent(exhibitionCompanyFilter)}`;
       return url;
     }
-    if (actressBrowseMode === 'archive-volumes')
-      return `/api/actresses?volumes=${encodeURIComponent(ARCHIVE_VOLUMES)}&offset=${o}&limit=${l}`;
+    if (actressBrowseMode === 'archive-volumes') {
+      let url = `/api/actresses?volumes=${encodeURIComponent(ARCHIVE_VOLUMES)}&offset=${o}&limit=${l}`;
+      if (archivesCompanyFilter) url += `&company=${encodeURIComponent(archivesCompanyFilter)}`;
+      return url;
+    }
     if (actressBrowseMode && actressBrowseMode.startsWith('tier-')) {
       const tier = actressBrowseMode.slice(5);
       return `/api/actresses?tier=${encodeURIComponent(tier)}&offset=${o}&limit=${l}`;
@@ -201,6 +218,7 @@ export function resetActressState() {
   hideActressStudioGroupRow();
   hideActressTierRow();
   hideExhibitionRow();
+  hideArchivesRow();
   updateActressLandingSelection();
 }
 
@@ -518,8 +536,20 @@ export async function selectActressBrowseMode(modeKey) {
     studioGroupCompanyFilter = null;
     showExhibitionRow();
     populateExhibitionCompanyDropdown();
+    hideArchivesRow();
+  } else if (modeKey === 'archive-volumes') {
+    archivesCompanyFilter = null;
+    hideActressTierRow();
+    actressGridHeaderEl.style.display = 'none';
+    actressGridHeaderEl.innerHTML = '';
+    activeStudioGroupName = null;
+    studioGroupCompanyFilter = null;
+    showArchivesRow();
+    populateArchivesCompanyDropdown();
+    hideExhibitionRow();
   } else {
     hideExhibitionRow();
+    hideArchivesRow();
   }
   if (modeKey.startsWith('studio-group:')) {
     const slug = modeKey.slice('studio-group:'.length);
@@ -675,6 +705,23 @@ async function populateExhibitionCompanyDropdown() {
 
 actressExhibitionSelect.addEventListener('change', () => {
   exhibitionCompanyFilter = actressExhibitionSelect.value || null;
+  document.getElementById('sentinel')?.remove();
+  actressScrollGrid.reset();
+  ensureSentinel();
+  actressScrollGrid.loadMore();
+});
+
+async function populateArchivesCompanyDropdown() {
+  const labels = await ensureTitleLabels();
+  const companies = [...new Set(labels.map(l => l.company).filter(Boolean))].sort();
+  actressArchivesSelect.innerHTML =
+    '<option value="">All Companies</option>' +
+    companies.map(c => `<option value="${esc(c)}">${esc(c)}</option>`).join('');
+  actressArchivesSelect.value = archivesCompanyFilter || '';
+}
+
+actressArchivesSelect.addEventListener('change', () => {
+  archivesCompanyFilter = actressArchivesSelect.value || null;
   document.getElementById('sentinel')?.remove();
   actressScrollGrid.reset();
   ensureSentinel();

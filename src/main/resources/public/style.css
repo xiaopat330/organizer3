@@ -526,6 +526,37 @@ header h1:hover {
   color: #ff7070;
 }
 
+/* ── Archives sub-nav row ────────────────────────────────────────────── */
+.actress-landing-archives-row {
+  gap: 8px;
+  padding: 2px 0;
+}
+
+.actress-archives-company-select {
+  background: #081a18;
+  color: #50d8c0;
+  border: 1px solid #143830;
+  border-radius: 5px;
+  padding: 5px 10px;
+  font-size: 0.78rem;
+  font-family: inherit;
+  cursor: pointer;
+  outline: none;
+  transition: border-color 0.12s ease, color 0.12s ease;
+  min-width: 180px;
+}
+
+.actress-archives-company-select:hover,
+.actress-archives-company-select:focus {
+  border-color: #30b8a0;
+  color: #70e8d8;
+}
+
+.actress-archives-company-select option {
+  background: #081a18;
+  color: #50d8c0;
+}
+
 /* ── Title landing label-code tab-complete dropdown ─────────────────── */
 .title-search-wrap {
   position: relative;
