@@ -1,0 +1,40 @@
+profile:
+  name:
+    family_name: Kano
+    given_name: Yura
+    stage_name: 架乃ゆら
+    reading: かの ゆら
+    alternate_names: null
+  date_of_birth: 1998-12-28
+  birthplace: Okayama Prefecture, Japan
+  blood_type: O
+  height_cm: 156
+  measurements:
+    bust: 87
+    waist: 55
+    hip: 86
+  cup: E
+  active_from: 2017-11-19
+  active_to: 2024-07-31
+  retirement_announced: 2024-05-07
+  biography: "Kano Yura is a Japanese actress and former AV actress from Okayama Prefecture who debuted exclusively with S1 No.1 Style on November 19, 2017, under the catchphrase 'infinite transparency' at age 18, having begun modeling nude at 18 before her AV debut. She maintained a single S1 exclusive contract for her entire seven-year AV career and was a member of Ebisu Mascats (2018–2021). Praised by industry critics for unusually naturalistic acting and dialogue, particularly in NTR scenarios, she built a reputation for dramatic range rare in the genre. She announced her AV retirement on May 7, 2024, citing a desire to pursue mainstream acting, with her final title releasing in July 2024. Following retirement she appeared in stage productions and the 2025 film 'ナマズのいた夏', continuing to work through her agency LINX."
+  primary_studios:
+  - name: S1 No.1 Style
+    company: S1 No.1 Style
+    from: 2017-11-19
+    to: 2024-07-31
+    role: Exclusive contract actress
+  awards: null
+  legacy: "Kano Yura was widely recognized as one of S1's most distinctive performers of the late 2010s–early 2020s, valued not for volume but for exceptional acting quality. Her NTR and drama-format works drew unusually high repeat-viewing rates, and she was among the first S1 actresses to self-author serialized release reviews on FANZA News."
+
+meta:
+  total_owned_titles: 95
+  titles_with_japanese_title: null
+  titles_with_english_title: null
+  titles_with_release_date: null
+  total_known_releases: null
+  coverage_note: "Owned titles are almost entirely S1 exclusive (SSNI: 41, SSIS: 32, SONE: 8, OFJE: 4, OAE: 1, DVAJ: 1) plus gravure/image DVD releases (REBD: 6) and one misc label (MBRBN: 1, FWAY: 1). Wikipedia confirms S1 was her sole AV studio throughout."
+  confidence: "Profile data from Japanese Wikipedia (2024 snapshot for measurements — cup updated D65→E65 in March 2024 per actress's own YouTube). Debut date from Wikipedia article text. Retirement announced 2024-05-07 per Wikipedia. Stage name kanji confirmed as 架乃ゆら (not 叶ゆら). Bust rounded from 86.5 cm to 87 cm per schema integer requirement."
+  data_sources:
+  - https://ja.wikipedia.org/wiki/架乃ゆら
+  portfolio_listed: 0
