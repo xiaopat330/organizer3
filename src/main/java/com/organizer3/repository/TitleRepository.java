@@ -4,6 +4,7 @@ import com.organizer3.model.Actress;
 import com.organizer3.model.Title;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 /**
@@ -108,6 +109,13 @@ public interface TitleRepository {
      * {@code labels}. Each row is [actressId (Long), actressName (String), tier (String)].
      */
     List<Object[]> findNewestActressesByLabels(List<String> labels, int limit);
+
+    /**
+     * Counts titles per label company, restricted to {@code companies}. The mapping
+     * {@code titles.label → labels.code → labels.company} is resolved inside the query.
+     * Companies with zero matching titles are omitted from the returned map.
+     */
+    Map<String, Long> countTitlesByCompanies(List<String> companies);
 
     /**
      * Overwrite enrichment fields for a title.

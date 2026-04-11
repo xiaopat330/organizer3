@@ -600,6 +600,27 @@ public class JdbiTitleRepository implements TitleRepository {
     }
 
     @Override
+    public Map<String, Long> countTitlesByCompanies(List<String> companies) {
+        if (companies == null || companies.isEmpty()) return Map.of();
+        return jdbi.withHandle(h ->
+                h.createQuery("""
+                        SELECT l.company AS company, COUNT(*) AS cnt
+                        FROM titles t
+                        JOIN labels l ON upper(l.code) = upper(t.label)
+                        WHERE t.label IS NOT NULL AND t.label != ''
+                          AND l.company IN (<companies>)
+                        GROUP BY l.company
+                        """)
+                        .bindList("companies", companies)
+                        .<Map.Entry<String, Long>>map((rs, ctx) ->
+                                Map.entry(rs.getString("company"), rs.getLong("cnt")))
+                        .list()
+                        .stream()
+                        .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue))
+        );
+    }
+
+    @Override
     public void deleteOrphaned() {
         jdbi.useHandle(h ->
                 h.createUpdate("""

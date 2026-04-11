@@ -174,6 +174,84 @@ public class ActressBrowseService {
     }
 
     /**
+     * Paginated query: actresses owning ≥1 title under any company belonging to the given
+     * studios.yaml group slug. Returns an empty list if the slug is unknown. Sorted by
+     * tier rank (GODDESS first), then canonical name.
+     */
+    public List<ActressSummary> findByStudioGroupPaged(String groupSlug, int offset, int limit) {
+        return findByStudioGroupPaged(groupSlug, null, offset, limit);
+    }
+
+    /**
+     * Same as {@link #findByStudioGroupPaged(String, int, int)} but optionally narrowed to a
+     * single company within the group. If {@code companyFilter} is non-blank, the result is
+     * restricted to actresses with ≥1 title under that company — but only if the company is
+     * actually a member of the group (otherwise an empty list is returned, never an
+     * unconstrained query).
+     */
+    public List<ActressSummary> findByStudioGroupPaged(String groupSlug, String companyFilter,
+                                                       int offset, int limit) {
+        List<String> companies = resolveQueryCompanies(groupSlug, companyFilter);
+        if (companies.isEmpty()) return List.of();
+        return actressRepo.findByStudioGroupCompaniesPaged(companies, limit, offset).stream()
+                .map(this::toSummary)
+                .toList();
+    }
+
+    /** Total count of actresses matching {@link #findByStudioGroupPaged}. */
+    public long countByStudioGroup(String groupSlug) {
+        return countByStudioGroup(groupSlug, null);
+    }
+
+    /** Total count narrowed by an optional company filter (validated against the group). */
+    public long countByStudioGroup(String groupSlug, String companyFilter) {
+        List<String> companies = resolveQueryCompanies(groupSlug, companyFilter);
+        if (companies.isEmpty()) return 0L;
+        return actressRepo.countByStudioGroupCompanies(companies);
+    }
+
+    /**
+     * Resolve the slug to its company list, then optionally narrow to a single company —
+     * only if that company is actually in the group. Unknown slug, unknown company, or a
+     * company not in the group all collapse to an empty list.
+     */
+    private List<String> resolveQueryCompanies(String groupSlug, String companyFilter) {
+        List<String> all = resolveStudioGroupCompanies(groupSlug);
+        if (all.isEmpty()) return List.of();
+        if (companyFilter == null || companyFilter.isBlank()) return all;
+        return all.contains(companyFilter) ? List.of(companyFilter) : List.of();
+    }
+
+    /** Lightweight projection of a label company plus its title count within a studio group. */
+    public record CompanyCount(String company, long titleCount) {}
+
+    /**
+     * Returns the companies belonging to the given studio group, ordered by title count
+     * descending (then alphabetical as a tiebreaker). Companies with zero matching titles
+     * are still included so the dropdown surfaces every defined sub-label, just at the
+     * bottom. Returns an empty list for an unknown slug.
+     */
+    public List<CompanyCount> listGroupCompaniesByTitleCount(String groupSlug) {
+        List<String> companies = resolveStudioGroupCompanies(groupSlug);
+        if (companies.isEmpty()) return List.of();
+        Map<String, Long> counts = titleRepo.countTitlesByCompanies(companies);
+        return companies.stream()
+                .map(c -> new CompanyCount(c, counts.getOrDefault(c, 0L)))
+                .sorted(Comparator.comparingLong(CompanyCount::titleCount).reversed()
+                        .thenComparing(CompanyCount::company))
+                .toList();
+    }
+
+    private List<String> resolveStudioGroupCompanies(String groupSlug) {
+        if (groupSlug == null || groupSlug.isBlank()) return List.of();
+        return new StudioGroupLoader().load().stream()
+                .filter(g -> groupSlug.equals(g.slug()))
+                .findFirst()
+                .map(StudioGroup::companies)
+                .orElse(List.of());
+    }
+
+    /**
      * Paginated name search: matches actresses whose canonical name (or any name token)
      * starts with {@code query}, case-insensitively.
      */

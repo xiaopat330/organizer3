@@ -360,6 +360,55 @@ public class JdbiActressRepository implements ActressRepository {
     }
 
     @Override
+    public List<Actress> findByStudioGroupCompaniesPaged(List<String> companies, int limit, int offset) {
+        if (companies == null || companies.isEmpty()) return List.of();
+        return jdbi.withHandle(h ->
+                h.createQuery("""
+                        SELECT DISTINCT a.* FROM actresses a
+                        JOIN title_actresses ta ON ta.actress_id = a.id
+                        JOIN titles t ON t.id = ta.title_id
+                        JOIN labels l ON upper(l.code) = upper(t.label)
+                        WHERE a.rejected = 0
+                          AND t.label IS NOT NULL AND t.label != ''
+                          AND l.company IN (<companies>)
+                        ORDER BY CASE a.tier
+                                     WHEN 'GODDESS'   THEN 0
+                                     WHEN 'SUPERSTAR' THEN 1
+                                     WHEN 'POPULAR'   THEN 2
+                                     WHEN 'MINOR'     THEN 3
+                                     ELSE 4
+                                 END,
+                                 a.canonical_name
+                        LIMIT :limit OFFSET :offset
+                        """)
+                        .bindList("companies", companies)
+                        .bind("limit", limit)
+                        .bind("offset", offset)
+                        .map(ACTRESS_MAPPER)
+                        .list()
+        );
+    }
+
+    @Override
+    public long countByStudioGroupCompanies(List<String> companies) {
+        if (companies == null || companies.isEmpty()) return 0L;
+        return jdbi.withHandle(h ->
+                h.createQuery("""
+                        SELECT COUNT(DISTINCT a.id) FROM actresses a
+                        JOIN title_actresses ta ON ta.actress_id = a.id
+                        JOIN titles t ON t.id = ta.title_id
+                        JOIN labels l ON upper(l.code) = upper(t.label)
+                        WHERE a.rejected = 0
+                          AND t.label IS NOT NULL AND t.label != ''
+                          AND l.company IN (<companies>)
+                        """)
+                        .bindList("companies", companies)
+                        .mapTo(Long.class)
+                        .one()
+        );
+    }
+
+    @Override
     public List<Actress> findFavorites() {
         return jdbi.withHandle(h ->
                 h.createQuery("SELECT * FROM actresses WHERE favorite = 1 ORDER BY canonical_name")

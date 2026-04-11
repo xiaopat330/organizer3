@@ -180,6 +180,10 @@ public class WebServer {
             app.get("/api/tags", ctx -> ctx.json(new TagCatalogLoader().load()));
             app.get("/api/titles/labels",  ctx -> ctx.json(browseService.listLabels()));
             app.get("/api/titles/studios", ctx -> ctx.json(browseService.listStudioGroups()));
+            app.get("/api/studio-groups/{slug}/companies", ctx -> {
+                String slug = ctx.pathParam("slug");
+                ctx.json(actressBrowseService.listGroupCompaniesByTitleCount(slug));
+            });
             app.get("/api/titles/top-actresses", ctx -> {
                 String labelsParam = ctx.queryParam("labels");
                 if (labelsParam == null || labelsParam.isBlank()) { ctx.json(List.of()); return; }
@@ -260,6 +264,8 @@ public class WebServer {
                 String prefix       = ctx.queryParam("prefix");
                 String tier         = ctx.queryParam("tier");
                 String volumesParam = ctx.queryParam("volumes");
+                String studioGroup  = ctx.queryParam("studioGroup");
+                String company      = ctx.queryParam("company");
                 String all          = ctx.queryParam("all");
                 String favorites    = ctx.queryParam("favorites");
                 String bookmarks    = ctx.queryParam("bookmarks");
@@ -294,6 +300,8 @@ public class WebServer {
                 } else if (volumesParam != null && !volumesParam.isBlank()) {
                     var volumeIds = List.of(volumesParam.split(","));
                     ctx.json(actressBrowseService.findByVolumesPaged(volumeIds, offset, limit));
+                } else if (studioGroup != null && !studioGroup.isBlank()) {
+                    ctx.json(actressBrowseService.findByStudioGroupPaged(studioGroup, company, offset, limit));
                 } else if ("true".equals(all)) {
                     ctx.json(actressBrowseService.findAllPaged(offset, limit));
                 } else if ("true".equals(favorites)) {

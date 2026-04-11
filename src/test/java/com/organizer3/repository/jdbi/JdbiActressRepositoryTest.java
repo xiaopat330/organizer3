@@ -1217,4 +1217,102 @@ class JdbiActressRepositoryTest {
             stmt.execute("INSERT INTO title_actresses (title_id, actress_id) VALUES (" + titleId + ", " + actressId + ")");
         }
     }
+
+    /** Insert a label row mapping a label code to a company. */
+    private void insertLabel(String code, String company) {
+        connection_execute("INSERT INTO labels (code, company) VALUES ('" + code + "', '" + company + "')");
+    }
+
+    // findByStudioGroupCompaniesPaged / countByStudioGroupCompanies
+
+    @Test
+    void findByStudioGroupCompaniesPagedReturnsActressesUnderAnyMatchingCompany() throws Exception {
+        // Two companies in the target group, one company outside, one rejected actress.
+        insertLabel("S1A", "S1");
+        insertLabel("MIDA", "Moodyz");
+        insertLabel("XXX", "Outside");
+
+        Actress goddess = repo.save(actress("Goddess Star", Actress.Tier.GODDESS));
+        Actress popular = repo.save(actress("Popular Star", Actress.Tier.POPULAR));
+        Actress moodyzOnly = repo.save(actress("Moodyz Only",  Actress.Tier.SUPERSTAR));
+        Actress outside    = repo.save(actress("Outside Only", Actress.Tier.GODDESS));
+        Actress rejected   = repo.save(actress("Rejected Star", Actress.Tier.GODDESS));
+        repo.toggleRejected(rejected.getId(), true);
+
+        insertTitleWithLabel(goddess.getId(),    "S1A-001", "S1A");
+        insertTitleWithLabel(popular.getId(),    "S1A-002", "S1A");
+        insertTitleWithLabel(moodyzOnly.getId(), "MIDA-01", "MIDA");
+        insertTitleWithLabel(outside.getId(),    "XXX-001", "XXX");
+        insertTitleWithLabel(rejected.getId(),   "S1A-003", "S1A");
+
+        List<Actress> result = repo.findByStudioGroupCompaniesPaged(
+                List.of("S1", "Moodyz"), 10, 0);
+
+        // Goddess first (tier rank), then Superstar, then Popular. Outside + rejected excluded.
+        assertEquals(3, result.size());
+        assertEquals("Goddess Star", result.get(0).getCanonicalName());
+        assertEquals("Moodyz Only",  result.get(1).getCanonicalName());
+        assertEquals("Popular Star", result.get(2).getCanonicalName());
+    }
+
+    @Test
+    void findByStudioGroupCompaniesPagedDeduplicatesActressesWithMultipleMatchingTitles() throws Exception {
+        insertLabel("S1A", "S1");
+        Actress a = repo.save(actress("Multi Title", Actress.Tier.SUPERSTAR));
+        insertTitleWithLabel(a.getId(), "S1A-001", "S1A");
+        insertTitleWithLabel(a.getId(), "S1A-002", "S1A");
+        insertTitleWithLabel(a.getId(), "S1A-003", "S1A");
+
+        List<Actress> result = repo.findByStudioGroupCompaniesPaged(List.of("S1"), 10, 0);
+        assertEquals(1, result.size());
+        assertEquals("Multi Title", result.get(0).getCanonicalName());
+    }
+
+    @Test
+    void findByStudioGroupCompaniesPagedHonorsLimitAndOffset() throws Exception {
+        insertLabel("S1A", "S1");
+        for (int i = 1; i <= 5; i++) {
+            Actress a = repo.save(actress("Star " + i, Actress.Tier.POPULAR));
+            insertTitleWithLabel(a.getId(), "S1A-00" + i, "S1A");
+        }
+        List<Actress> page1 = repo.findByStudioGroupCompaniesPaged(List.of("S1"), 2, 0);
+        List<Actress> page2 = repo.findByStudioGroupCompaniesPaged(List.of("S1"), 2, 2);
+        assertEquals(2, page1.size());
+        assertEquals(2, page2.size());
+        assertEquals("Star 1", page1.get(0).getCanonicalName());
+        assertEquals("Star 2", page1.get(1).getCanonicalName());
+        assertEquals("Star 3", page2.get(0).getCanonicalName());
+        assertEquals("Star 4", page2.get(1).getCanonicalName());
+    }
+
+    @Test
+    void findByStudioGroupCompaniesPagedReturnsEmptyForUnknownCompanies() throws Exception {
+        insertLabel("S1A", "S1");
+        Actress a = repo.save(actress("Star", Actress.Tier.POPULAR));
+        insertTitleWithLabel(a.getId(), "S1A-001", "S1A");
+
+        assertEquals(List.of(), repo.findByStudioGroupCompaniesPaged(List.of("Unknown"), 10, 0));
+        assertEquals(List.of(), repo.findByStudioGroupCompaniesPaged(List.of(), 10, 0));
+        assertEquals(List.of(), repo.findByStudioGroupCompaniesPaged(null, 10, 0));
+    }
+
+    @Test
+    void countByStudioGroupCompaniesMatchesPagedTotal() throws Exception {
+        insertLabel("S1A", "S1");
+        insertLabel("XXX", "Outside");
+        Actress a1 = repo.save(actress("A", Actress.Tier.POPULAR));
+        Actress a2 = repo.save(actress("B", Actress.Tier.POPULAR));
+        Actress a3 = repo.save(actress("C", Actress.Tier.POPULAR));
+        Actress out = repo.save(actress("Out", Actress.Tier.POPULAR));
+        insertTitleWithLabel(a1.getId(), "S1A-001", "S1A");
+        insertTitleWithLabel(a2.getId(), "S1A-002", "S1A");
+        insertTitleWithLabel(a3.getId(), "S1A-003", "S1A");
+        // Same actress, multiple titles — should still count once.
+        insertTitleWithLabel(a3.getId(), "S1A-004", "S1A");
+        insertTitleWithLabel(out.getId(), "XXX-001", "XXX");
+
+        assertEquals(3L, repo.countByStudioGroupCompanies(List.of("S1")));
+        assertEquals(0L, repo.countByStudioGroupCompanies(List.of()));
+        assertEquals(0L, repo.countByStudioGroupCompanies(null));
+    }
 }

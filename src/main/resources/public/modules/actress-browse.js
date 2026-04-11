@@ -25,7 +25,9 @@ const actressArchivesBtn    = document.getElementById('actress-archives-btn');
 const actressStudioBtn      = document.getElementById('actress-studio-btn');
 const actressStudioDivider  = document.getElementById('actress-studio-divider');
 const actressStudioGroupRow = document.getElementById('actress-studio-group-row');
+const actressStudioGroupHeaderEl = document.getElementById('actress-studio-group-header');
 const actressStudioLabelsEl = document.getElementById('actress-studio-labels');
+const actressGridHeaderEl = document.getElementById('actress-grid-header');
 const actressTierBtn        = document.getElementById('actress-tier-btn');
 const actressTierDivider    = document.getElementById('actress-tier-divider');
 const actressTierRow        = document.getElementById('actress-landing-tier-row');
@@ -36,12 +38,16 @@ export const ACTRESS_TIERS = ['GODDESS', 'SUPERSTAR', 'POPULAR', 'MINOR', 'LIBRA
 const ACTRESS_SEARCH_DELAY_MS  = 350;
 const ACTRESS_SEARCH_MIN_CHARS = 2;
 
-export let actressBrowseMode = null;         // null | 'search' | 'favorites' | 'bookmarks' | 'archive-volumes' | 'studio' | 'tier-<TIER>'
+export let actressBrowseMode = null;         // null | 'search' | 'favorites' | 'bookmarks' | 'archive-volumes' | 'studio' | 'studio-group:<slug>' | 'tier-<TIER>'
 export let actressSearchTerm = '';
 export let actressSearchTimer = null;
 export let actressTierPanelOpen = false;
 export let lastActressTier = 'GODDESS';
 export let selectedActressStudioSlug = null;
+// Display name for the active studio-group filtered grid (used by breadcrumb & header link).
+let activeStudioGroupName = null;
+// Optional company filter applied within the active studio-group filtered grid (null = all).
+let studioGroupCompanyFilter = null;
 
 // ── Tier / studio row visibility ──────────────────────────────────────────
 function showActressTierRow() {
@@ -61,6 +67,8 @@ function showActressStudioGroupRow() {
 export function hideActressStudioGroupRow() {
   actressStudioDivider.style.display = 'none';
   actressStudioGroupRow.style.display = 'none';
+  actressStudioGroupHeaderEl.style.display = 'none';
+  actressStudioGroupHeaderEl.innerHTML = '';
   actressStudioLabelsEl.style.display = 'none';
   selectedActressStudioSlug = null;
 }
@@ -86,7 +94,9 @@ export function updateActressLandingSelection() {
   actressFavoritesBtn.classList.toggle('selected', actressBrowseMode === 'favorites');
   actressBookmarksBtn.classList.toggle('selected', actressBrowseMode === 'bookmarks');
   actressArchivesBtn.classList.toggle('selected',  actressBrowseMode === 'archive-volumes');
-  actressStudioBtn.classList.toggle('selected',    actressBrowseMode === 'studio');
+  // Keep Studio highlighted in both the catalog ("studio") and the filtered grid ("studio-group:*").
+  actressStudioBtn.classList.toggle('selected',
+    actressBrowseMode === 'studio' || (actressBrowseMode || '').startsWith('studio-group:'));
   actressTierBtn.classList.toggle('selected', actressTierPanelOpen);
   actressTierRow.querySelectorAll('.actress-landing-tier').forEach(btn => {
     btn.classList.toggle('selected', actressBrowseMode === `tier-${btn.dataset.tier}`);
@@ -102,13 +112,21 @@ export function actressBrowseLabel(modeKey) {
   if (modeKey === 'studio')          return 'Studio';
   if (modeKey === 'search')          return `search: "${actressSearchTerm}"`;
   if (modeKey.startsWith('tier-'))   return modeKey.slice(5).toLowerCase();
+  if (modeKey.startsWith('studio-group:')) return activeStudioGroupName || 'Studio Group';
   return modeKey;
 }
 
 export function updateActressBreadcrumb() {
   const crumbs = [{ label: 'Actresses', action: () => showActressLanding() }];
-  if (actressBrowseMode && actressBrowseMode !== 'dashboard')
-    crumbs.push({ label: actressBrowseLabel(actressBrowseMode) });
+  if (actressBrowseMode && actressBrowseMode !== 'dashboard') {
+    if (actressBrowseMode.startsWith('studio-group:')) {
+      // 3-level: Actresses › Studio › {Group} — clicking Studio goes back to catalog.
+      crumbs.push({ label: 'Studio', action: () => selectActressBrowseMode('studio') });
+      crumbs.push({ label: actressBrowseLabel(actressBrowseMode) });
+    } else {
+      crumbs.push({ label: actressBrowseLabel(actressBrowseMode) });
+    }
+  }
   updateBreadcrumb(crumbs);
 }
 
@@ -127,6 +145,12 @@ export const actressScrollGrid = new ScrollingGrid(
     if (actressBrowseMode && actressBrowseMode.startsWith('tier-')) {
       const tier = actressBrowseMode.slice(5);
       return `/api/actresses?tier=${encodeURIComponent(tier)}&offset=${o}&limit=${l}`;
+    }
+    if (actressBrowseMode && actressBrowseMode.startsWith('studio-group:')) {
+      const slug = actressBrowseMode.slice('studio-group:'.length);
+      let url = `/api/actresses?studioGroup=${encodeURIComponent(slug)}&offset=${o}&limit=${l}`;
+      if (studioGroupCompanyFilter) url += `&company=${encodeURIComponent(studioGroupCompanyFilter)}`;
+      return url;
     }
     return null; // no active mode → empty grid
   },
@@ -148,6 +172,10 @@ export function resetActressState() {
     actressSearchInput.classList.remove('invalid');
   }
   lastActressTier = 'GODDESS';
+  activeStudioGroupName = null;
+  studioGroupCompanyFilter = null;
+  actressGridHeaderEl.style.display = 'none';
+  actressGridHeaderEl.innerHTML = '';
   hideActressStudioGroupRow();
   hideActressTierRow();
   updateActressLandingSelection();
@@ -193,8 +221,7 @@ function renderTopGroupsLeaderboard(topGroups) {
       <span class="leaderboard-bar-wrap"><span class="leaderboard-bar" style="width:${Math.round((g.score / maxScore) * 100)}%"></span></span>
     `;
     row.addEventListener('click', () => {
-      selectedActressStudioSlug = g.slug;
-      selectActressBrowseMode('studio');
+      selectActressBrowseMode(`studio-group:${g.slug}`);
     });
     list.appendChild(row);
   });
@@ -420,6 +447,10 @@ export async function selectActressBrowseMode(modeKey) {
   if (modeKey === 'dashboard') {
     hideActressTierRow();
     hideActressStudioGroupRow();
+    actressGridHeaderEl.style.display = 'none';
+    actressGridHeaderEl.innerHTML = '';
+    activeStudioGroupName = null;
+    studioGroupCompanyFilter = null;
     updateActressLandingSelection();
     updateActressBreadcrumb();
     actressesBtn.classList.add('active');
@@ -436,6 +467,10 @@ export async function selectActressBrowseMode(modeKey) {
   actressDashboardEl.style.display = 'none';
   if (modeKey === 'studio') {
     hideActressTierRow();
+    actressGridHeaderEl.style.display = 'none';
+    actressGridHeaderEl.innerHTML = '';
+    activeStudioGroupName = null;
+    studioGroupCompanyFilter = null;
     updateActressLandingSelection();
     updateActressBreadcrumb();
     actressesBtn.classList.add('active');
@@ -451,11 +486,37 @@ export async function selectActressBrowseMode(modeKey) {
     return;
   }
   hideActressStudioGroupRow();
-  if (modeKey.startsWith('tier-')) {
-    lastActressTier = modeKey.slice(5);
-    showActressTierRow();
-  } else {
+  if (modeKey.startsWith('studio-group:')) {
+    const slug = modeKey.slice('studio-group:'.length);
+    selectedActressStudioSlug = slug;
+    // Fresh entry into the filtered grid → start with the "All" filter.
+    studioGroupCompanyFilter = null;
+    // Resolve the human-readable group name for the breadcrumb / header label.
+    const groups = await ensureStudioGroups();
+    const group = groups.find(g => g.slug === slug);
+    activeStudioGroupName = group ? group.name : slug;
+    // Fetch companies ordered by title count (server-side) so the dropdown surfaces
+    // the most populous sub-labels first. Falls back to YAML order on fetch failure.
+    let companyCounts;
+    try {
+      const resp = await fetch(`/api/studio-groups/${encodeURIComponent(slug)}/companies`);
+      companyCounts = resp.ok ? await resp.json() : null;
+    } catch {
+      companyCounts = null;
+    }
+    renderActressGridHeader(group, slug, companyCounts);
     hideActressTierRow();
+  } else {
+    activeStudioGroupName = null;
+    studioGroupCompanyFilter = null;
+    actressGridHeaderEl.style.display = 'none';
+    actressGridHeaderEl.innerHTML = '';
+    if (modeKey.startsWith('tier-')) {
+      lastActressTier = modeKey.slice(5);
+      showActressTierRow();
+    } else {
+      hideActressTierRow();
+    }
   }
   updateActressLandingSelection();
   updateActressBreadcrumb();
@@ -591,6 +652,8 @@ async function selectActressStudioGroup(slug) {
   const group = groups.find(g => g.slug === slug);
   if (!group) return;
 
+  renderActressStudioGroupHeader(group);
+
   const allLabels = await ensureTitleLabels();
   const companySet = new Set(group.companies);
 
@@ -601,6 +664,70 @@ async function selectActressStudioGroup(slug) {
   });
 
   renderActressStudioLabels(byCompany);
+}
+
+// Header above the actress grid in studio-group mode: group name on the left, a
+// company-filter dropdown in the middle, and a "← View label catalog" crosslink on
+// the right. The dropdown lists every company in the active group; "All" reloads
+// the unfiltered grid.
+//
+// `companyCounts` (when provided) is an array of {company, titleCount} ordered by
+// titleCount desc — produced by /api/studio-groups/:slug/companies. Falls back to
+// the raw YAML order if the fetch failed.
+function renderActressGridHeader(group, slug, companyCounts) {
+  const name = group ? group.name : slug;
+  const ordered = Array.isArray(companyCounts) && companyCounts.length > 0
+    ? companyCounts
+    : ((group && group.companies) ? group.companies : []).map(c => ({ company: c, titleCount: 0 }));
+  const optionsHtml = ['<option value="">All labels</option>']
+    .concat(ordered.map(({ company, titleCount }) => {
+      const label = titleCount > 0 ? `${company} (${titleCount})` : company;
+      return `<option value="${esc(company)}">${esc(label)}</option>`;
+    }))
+    .join('');
+  actressGridHeaderEl.style.display = 'flex';
+  actressGridHeaderEl.innerHTML = `
+    <span class="grid-header-name">${esc(name)}</span>
+    <div class="grid-header-right">
+      <label class="grid-header-filter">
+        <span class="grid-header-filter-label">Filter:</span>
+        <select class="grid-header-filter-select" id="actress-grid-header-filter">
+          ${optionsHtml}
+        </select>
+      </label>
+      <button type="button" class="grid-header-action" id="actress-grid-header-action">
+        ← View label catalog
+      </button>
+    </div>
+  `;
+  const select = document.getElementById('actress-grid-header-filter');
+  select.value = studioGroupCompanyFilter || '';
+  select.addEventListener('change', () => {
+    studioGroupCompanyFilter = select.value || null;
+    document.getElementById('sentinel')?.remove();
+    actressScrollGrid.reset();
+    ensureSentinel();
+    actressScrollGrid.loadMore();
+  });
+  document.getElementById('actress-grid-header-action').addEventListener('click', () => {
+    selectedActressStudioSlug = slug;
+    selectActressBrowseMode('studio');
+  });
+}
+
+// Header above the catalog two-column panel: shows the group name and a "View actresses"
+// link that switches to the studio-group filtered grid for the same slug.
+function renderActressStudioGroupHeader(group) {
+  actressStudioGroupHeaderEl.style.display = 'flex';
+  actressStudioGroupHeaderEl.innerHTML = `
+    <span class="studio-group-header-name">${esc(group.name)}</span>
+    <button type="button" class="studio-group-header-action" id="studio-group-header-action">
+      View actresses in this group →
+    </button>
+  `;
+  document.getElementById('studio-group-header-action').addEventListener('click', () => {
+    selectActressBrowseMode(`studio-group:${group.slug}`);
+  });
 }
 
 function renderActressStudioLabels(byCompany) {

@@ -94,6 +94,17 @@ public interface ActressRepository {
      */
     List<Actress> findByVolumeIdsPaged(List<String> volumeIds, int limit, int offset);
 
+    /**
+     * Find all actresses (paginated) who own at least one title whose label belongs to a
+     * company in {@code companies}. The mapping titles.label → labels.company is resolved
+     * inside the query. Excludes rejected actresses. Ordered by tier rank (GODDESS first),
+     * then canonical name.
+     */
+    List<Actress> findByStudioGroupCompaniesPaged(List<String> companies, int limit, int offset);
+
+    /** Total count of actresses matching {@link #findByStudioGroupCompaniesPaged}. */
+    long countByStudioGroupCompanies(List<String> companies);
+
     List<Actress> findFavorites();
 
     /** Returns a random sample of at most {@code limit} actresses. */

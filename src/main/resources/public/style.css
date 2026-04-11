@@ -597,6 +597,88 @@ header h1:hover {
   overflow: hidden;
 }
 
+/* Studio group header (above the catalog two-column panel) and grid header
+   (above the studio-group filtered grid). Both share the same crosslink pattern. */
+.studio-group-header,
+.grid-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 16px;
+  margin: 0 16px 8px 16px;
+  background: #14082a;
+  border: 1px solid #2a1640;
+  border-radius: 4px;
+}
+.studio-group-header-name,
+.grid-header-name {
+  color: #c080ff;
+  font-size: 0.95rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+.studio-group-header-action,
+.grid-header-action {
+  background: transparent;
+  color: #a060e0;
+  border: 1px solid #2a1640;
+  border-radius: 4px;
+  padding: 5px 12px;
+  font-size: 0.78rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.12s ease, border-color 0.12s ease, color 0.12s ease;
+}
+.studio-group-header-action:hover,
+.grid-header-action:hover {
+  background: #1a0c30;
+  border-color: #4a2070;
+  color: #c080ff;
+}
+
+/* Right-side cluster (filter + crosslink button) inside the grid header */
+.grid-header-right {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+/* Company filter dropdown inside the grid header */
+.grid-header-filter {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.grid-header-filter-label {
+  color: #888;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.grid-header-filter-select {
+  background: #0a0418;
+  color: #d8c0ff;
+  border: 1px solid #2a1640;
+  border-radius: 4px;
+  padding: 4px 28px 4px 10px;
+  font-size: 0.78rem;
+  font-family: inherit;
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'><path d='M1 1l4 4 4-4' fill='none' stroke='%23a060e0' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/></svg>");
+  background-repeat: no-repeat;
+  background-position: right 8px center;
+}
+.grid-header-filter-select:hover {
+  border-color: #4a2070;
+}
+.grid-header-filter-select:focus {
+  outline: none;
+  border-color: #6a30a0;
+}
+
 /* Actress studio — purple accent overrides */
 .actress-studio-group-btn.selected {
   color: #c080ff;

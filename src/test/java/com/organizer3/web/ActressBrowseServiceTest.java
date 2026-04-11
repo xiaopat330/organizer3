@@ -29,6 +29,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
@@ -654,6 +655,122 @@ class ActressBrowseServiceTest {
         return Actress.builder()
                 .id(id).canonicalName(name).tier(Actress.Tier.SUPERSTAR)
                 .firstSeenAt(LocalDate.of(2023, 1, 1)).build();
+    }
+
+    // ── findByStudioGroupPaged (with optional company filter) ─────────────────
+
+    @Test
+    void findByStudioGroupPagedExpandsSlugToAllCompanies() {
+        // "will" is a real group in studios.yaml whose companies include Moodyz, S1 No.1 Style, ...
+        when(actressRepo.findByStudioGroupCompaniesPaged(any(), anyInt(), anyInt()))
+                .thenReturn(List.of(actress("Yua Mikami")));
+
+        List<ActressSummary> result =
+                service.findByStudioGroupPaged("will", 0, 24);
+
+        assertEquals(1, result.size());
+        // Verify the repo was called with the full company list (must contain at least one
+        // known WILL member like Moodyz).
+        verify(actressRepo).findByStudioGroupCompaniesPaged(
+                argThat((List<String> list) -> list != null && list.contains("Moodyz")),
+                eq(24), eq(0));
+    }
+
+    @Test
+    void findByStudioGroupPagedNarrowsToSingleCompanyWhenFilterMatches() {
+        when(actressRepo.findByStudioGroupCompaniesPaged(any(), anyInt(), anyInt()))
+                .thenReturn(List.of(actress("Moodyz Star")));
+
+        service.findByStudioGroupPaged("will", "Moodyz", 0, 24);
+
+        // Repo should receive a singleton list with just the filtered company.
+        verify(actressRepo).findByStudioGroupCompaniesPaged(
+                eq(List.of("Moodyz")), eq(24), eq(0));
+    }
+
+    @Test
+    void findByStudioGroupPagedReturnsEmptyWhenCompanyFilterIsNotInGroup() {
+        // "Prestige" is not a member of the "will" group → must NOT fall back to all companies.
+        List<ActressSummary> result =
+                service.findByStudioGroupPaged("will", "Prestige", 0, 24);
+
+        assertEquals(List.of(), result);
+        // Repo should never be hit because the filter is rejected upfront.
+        verify(actressRepo, never()).findByStudioGroupCompaniesPaged(any(), anyInt(), anyInt());
+    }
+
+    @Test
+    void findByStudioGroupPagedReturnsEmptyForUnknownSlug() {
+        List<ActressSummary> result =
+                service.findByStudioGroupPaged("nonexistent-slug", 0, 24);
+
+        assertEquals(List.of(), result);
+        verify(actressRepo, never()).findByStudioGroupCompaniesPaged(any(), anyInt(), anyInt());
+    }
+
+    @Test
+    void findByStudioGroupPagedTreatsBlankCompanyFilterAsAll() {
+        when(actressRepo.findByStudioGroupCompaniesPaged(any(), anyInt(), anyInt()))
+                .thenReturn(List.of());
+
+        service.findByStudioGroupPaged("will", "", 0, 24);
+        service.findByStudioGroupPaged("will", "   ", 0, 24);
+
+        // Both blank-filter calls should expand to the full company list (≫ 1 entry).
+        verify(actressRepo, times(2)).findByStudioGroupCompaniesPaged(
+                argThat((List<String> list) -> list != null && list.size() > 1),
+                eq(24), eq(0));
+    }
+
+    // ── listGroupCompaniesByTitleCount ────────────────────────────────────
+
+    @Test
+    void listGroupCompaniesByTitleCountOrdersByCountDescThenName() {
+        // Mock title counts for a subset of WILL companies; others stay at zero.
+        when(titleRepo.countTitlesByCompanies(any())).thenReturn(java.util.Map.of(
+                "Moodyz", 50L,
+                "S1 No.1 Style", 120L,
+                "Madonna", 50L
+        ));
+
+        var result = service.listGroupCompaniesByTitleCount("will");
+
+        // First entry must be the highest-count company.
+        assertEquals("S1 No.1 Style", result.get(0).company());
+        assertEquals(120L, result.get(0).titleCount());
+
+        // The two 50L companies are ordered alphabetically as the tiebreaker.
+        var fifties = result.stream()
+                .filter(c -> c.titleCount() == 50L)
+                .map(ActressBrowseService.CompanyCount::company)
+                .toList();
+        assertEquals(List.of("Madonna", "Moodyz"), fifties);
+
+        // All companies belonging to the WILL group should appear, even ones with zero titles.
+        long zeroCount = result.stream().filter(c -> c.titleCount() == 0L).count();
+        assertTrue(zeroCount > 0, "expected zero-count entries for unmatched group members");
+    }
+
+    @Test
+    void listGroupCompaniesByTitleCountReturnsEmptyForUnknownSlug() {
+        var result = service.listGroupCompaniesByTitleCount("nonexistent-slug");
+        assertEquals(List.of(), result);
+        verify(titleRepo, never()).countTitlesByCompanies(any());
+    }
+
+    @Test
+    void listGroupCompaniesByTitleCountIncludesEveryGroupCompanyEvenWhenAllZero() {
+        when(titleRepo.countTitlesByCompanies(any())).thenReturn(java.util.Map.of());
+
+        var result = service.listGroupCompaniesByTitleCount("will");
+
+        assertFalse(result.isEmpty());
+        assertTrue(result.stream().allMatch(c -> c.titleCount() == 0L));
+        // Sorted alphabetically by company name when all counts tie at zero.
+        var names = result.stream().map(ActressBrowseService.CompanyCount::company).toList();
+        var sorted = new java.util.ArrayList<>(names);
+        java.util.Collections.sort(sorted);
+        assertEquals(sorted, names);
     }
 
     // ── helpers ───────────────────────────────────────────────────────────
