@@ -5,6 +5,7 @@ import lombok.Value;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.List;
 
 /**
  * Represents a known performer. Maps directly to the {@code actresses} DB table.
@@ -34,6 +35,7 @@ public class Actress implements Comparable<Actress> {
     LocalDate firstSeenAt;
 
     // --- Enrichment fields (populated via load actress command) ---
+    String nameReading;       // hiragana reading of stage name
     LocalDate dateOfBirth;
     String birthplace;
     String bloodType;
@@ -44,8 +46,16 @@ public class Actress implements Comparable<Actress> {
     String cup;
     LocalDate activeFrom;
     LocalDate activeTo;
+    LocalDate retirementAnnounced;
     String biography;
     String legacy;
+
+    /** Alternate names with attribution notes (distinct from flat aliases used for sync name resolution). */
+    List<AlternateName> alternateNames;
+    /** Ordered studio tenures from YAML. */
+    List<StudioTenure> primaryStudios;
+    /** Awards and honors from YAML. */
+    List<Award> awards;
 
     // --- Visit tracking (populated from DB; updated when user views detail page) ---
     @Builder.Default
@@ -62,6 +72,29 @@ public class Actress implements Comparable<Actress> {
         SUPERSTAR,   // 50–99 titles
         GODDESS      // 100+ titles
     }
+
+    /**
+     * An alternate name (romanization variant, prior stage name, nickname) with an
+     * attribution note. Distinct from the flat alias list, which is used for name
+     * resolution during sync — these are for display and preserve provenance.
+     */
+    public record AlternateName(String name, String note) {}
+
+    /**
+     * One tenure in an actress's studio history — the name of the label/sublabel,
+     * its parent company, the date range she was contracted, and her role (e.g.
+     * "Exclusive contract actress").
+     */
+    public record StudioTenure(
+            String name,
+            String company,
+            LocalDate from,
+            LocalDate to,
+            String role
+    ) {}
+
+    /** An award, honor, or poll placement. */
+    public record Award(String event, Integer year, String category) {}
 
     /**
      * Personal quality rating, displayed using school-grade notation.

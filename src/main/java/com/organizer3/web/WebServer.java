@@ -322,7 +322,7 @@ public class WebServer {
                     }
                 } else if (tier != null && !tier.isBlank()) {
                     try {
-                        ctx.json(actressBrowseService.findByTierPaged(tier, offset, limit));
+                        ctx.json(actressBrowseService.findByTierPaged(tier, company, offset, limit));
                     } catch (IllegalArgumentException e) {
                         ctx.status(400);
                     }

@@ -317,6 +317,33 @@ public class JdbiActressRepository implements ActressRepository {
     }
 
     @Override
+    public List<Actress> findByTierAndCompaniesPaged(Actress.Tier tier, List<String> companies, int limit, int offset) {
+        return jdbi.withHandle(h ->
+                h.createQuery("""
+                        SELECT a.* FROM actresses a
+                        WHERE a.rejected = 0
+                          AND a.tier = :tier
+                          AND EXISTS (
+                            SELECT 1 FROM title_actresses ta
+                            JOIN titles t ON t.id = ta.title_id
+                            JOIN labels l ON upper(l.code) = upper(t.label)
+                            WHERE ta.actress_id = a.id
+                              AND t.label IS NOT NULL AND t.label != ''
+                              AND l.company IN (<companies>)
+                          )
+                        ORDER BY canonical_name
+                        LIMIT :limit OFFSET :offset
+                        """)
+                        .bind("tier", tier.name())
+                        .bindList("companies", companies)
+                        .bind("limit", limit)
+                        .bind("offset", offset)
+                        .map(ACTRESS_MAPPER)
+                        .list()
+        );
+    }
+
+    @Override
     public List<Actress> findAllPaged(int limit, int offset) {
         return jdbi.withHandle(h ->
                 h.createQuery("SELECT * FROM actresses ORDER BY canonical_name LIMIT :limit OFFSET :offset")

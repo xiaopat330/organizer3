@@ -80,3 +80,41 @@ export function renderTwoColumnStudioPanel(containerEl, detailId, byCompany, onS
 
   if (firstCompany) onSelect(firstCompany, byCompany);
 }
+
+// ── Company info marquee helpers ──────────────────────────────────────────
+
+/** Build the scrolling text for a company from its label metadata. */
+export function buildCompanyMarqueeText(labels, companyName) {
+  const co = labels.find(l => l.company === companyName &&
+    (l.companyDescription || l.companySpecialty || l.companyFounded || l.companyStatus));
+  if (!co) return null;
+  const parts = [];
+  if (co.companyDescription) parts.push(co.companyDescription);
+  const meta = [];
+  if (co.companyFounded)   meta.push(`Founded ${co.companyFounded}`);
+  if (co.companyStatus)    meta.push(co.companyStatus);
+  if (co.companyParent)    meta.push(`Parent: ${co.companyParent}`);
+  if (co.companySpecialty) meta.push(`Specialty: ${co.companySpecialty}`);
+  if (meta.length) parts.push(meta.join(' · '));
+  return parts.join('  ·  ') || null;
+}
+
+/**
+ * Populate and animate a company marquee element.
+ * marqueeEl must contain a child .company-marquee-inner span.
+ * Pass null/empty companyName to hide the marquee.
+ */
+export async function updateCompanyMarquee(marqueeEl, companyName) {
+  if (!companyName) { marqueeEl.style.display = 'none'; return; }
+  const labels = await ensureTitleLabels();
+  const text = buildCompanyMarqueeText(labels, companyName);
+  if (!text) { marqueeEl.style.display = 'none'; return; }
+  const inner = marqueeEl.querySelector('.company-marquee-inner');
+  inner.textContent = text;
+  // Speed ~120px/s; estimate travel = container (~500px) + text (~7px/char)
+  const duration = Math.max(10, Math.round((500 + text.length * 7) / 120));
+  inner.style.animation = 'none';
+  void inner.getBoundingClientRect(); // force reflow to restart animation
+  inner.style.animation = `company-marquee-scroll ${duration}s linear infinite`;
+  marqueeEl.style.display = '';
+}

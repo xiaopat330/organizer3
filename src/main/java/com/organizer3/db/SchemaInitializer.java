@@ -27,30 +27,35 @@ public class SchemaInitializer {
 
             h.execute("""
                     CREATE TABLE IF NOT EXISTS actresses (
-                        id              INTEGER PRIMARY KEY AUTOINCREMENT,
-                        canonical_name  TEXT NOT NULL UNIQUE,
-                        stage_name      TEXT,
-                        tier            TEXT NOT NULL,
-                        favorite        INTEGER NOT NULL DEFAULT 0,
-                        bookmark        INTEGER NOT NULL DEFAULT 0,
-                        bookmarked_at   TEXT,
-                        grade           TEXT,
-                        rejected        INTEGER NOT NULL DEFAULT 0,
-                        first_seen_at   TEXT NOT NULL,
-                        date_of_birth   TEXT,
-                        birthplace      TEXT,
-                        blood_type      TEXT,
-                        height_cm       INTEGER,
-                        bust            INTEGER,
-                        waist           INTEGER,
-                        hip             INTEGER,
-                        cup             TEXT,
-                        active_from     TEXT,
-                        active_to       TEXT,
-                        biography       TEXT,
-                        legacy          TEXT,
-                        visit_count     INTEGER NOT NULL DEFAULT 0,
-                        last_visited_at TEXT
+                        id                   INTEGER PRIMARY KEY AUTOINCREMENT,
+                        canonical_name       TEXT NOT NULL UNIQUE,
+                        stage_name           TEXT,
+                        name_reading         TEXT,
+                        tier                 TEXT NOT NULL,
+                        favorite             INTEGER NOT NULL DEFAULT 0,
+                        bookmark             INTEGER NOT NULL DEFAULT 0,
+                        bookmarked_at        TEXT,
+                        grade                TEXT,
+                        rejected             INTEGER NOT NULL DEFAULT 0,
+                        first_seen_at        TEXT NOT NULL,
+                        date_of_birth        TEXT,
+                        birthplace           TEXT,
+                        blood_type           TEXT,
+                        height_cm            INTEGER,
+                        bust                 INTEGER,
+                        waist                INTEGER,
+                        hip                  INTEGER,
+                        cup                  TEXT,
+                        active_from          TEXT,
+                        active_to            TEXT,
+                        retirement_announced TEXT,
+                        biography            TEXT,
+                        legacy               TEXT,
+                        alternate_names_json TEXT,
+                        primary_studios_json TEXT,
+                        awards_json          TEXT,
+                        visit_count          INTEGER NOT NULL DEFAULT 0,
+                        last_visited_at      TEXT
                     )""");
 
             h.execute("""
@@ -172,7 +177,7 @@ public class SchemaInitializer {
             // leave the version alone and let SchemaUpgrader apply any missing migrations.
             int currentVersion = h.createQuery("PRAGMA user_version").mapTo(Integer.class).one();
             if (currentVersion == 0) {
-                h.execute("PRAGMA user_version = 9");
+                h.execute("PRAGMA user_version = 10");
             }
         });
         log.info("Schema initialization complete");

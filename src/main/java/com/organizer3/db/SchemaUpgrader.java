@@ -19,7 +19,7 @@ import org.jdbi.v3.core.Jdbi;
 public class SchemaUpgrader {
 
     /** Must match the version stamped by {@link SchemaInitializer}. */
-    private static final int CURRENT_VERSION = 9;
+    private static final int CURRENT_VERSION = 10;
 
     private final Jdbi jdbi;
 
@@ -71,7 +71,37 @@ public class SchemaUpgrader {
             setVersion(9);
         }
 
+        if (version < 10) {
+            applyV10();
+            setVersion(10);
+        }
+
         log.info("Schema upgrade complete");
+    }
+
+    /**
+     * v10: adds rich-profile columns to actresses — hiragana reading, retirement
+     * announcement date, and JSON-serialized lists for alternate names with notes,
+     * studio tenures, and awards. All additive; idempotent via column existence check.
+     */
+    private void applyV10() {
+        log.info("Applying migration v10: adding rich profile columns to actresses");
+        jdbi.useHandle(h -> {
+            addColumnIfMissing(h, "actresses", "name_reading", "TEXT");
+            addColumnIfMissing(h, "actresses", "retirement_announced", "TEXT");
+            addColumnIfMissing(h, "actresses", "alternate_names_json", "TEXT");
+            addColumnIfMissing(h, "actresses", "primary_studios_json", "TEXT");
+            addColumnIfMissing(h, "actresses", "awards_json", "TEXT");
+        });
+    }
+
+    private static void addColumnIfMissing(org.jdbi.v3.core.Handle h, String table, String column, String type) {
+        boolean hasCol = h.createQuery(
+                "SELECT COUNT(*) FROM pragma_table_info('" + table + "') WHERE name='" + column + "'")
+                .mapTo(Integer.class).one() > 0;
+        if (!hasCol) {
+            h.execute("ALTER TABLE " + table + " ADD COLUMN " + column + " " + type);
+        }
     }
 
     /** v9: adds bookmarked_at timestamp to actresses for Actresses dashboard ordering. */

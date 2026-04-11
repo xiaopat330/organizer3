@@ -1,4 +1,5 @@
 import { showView, setActiveGrid, ensureSentinel, updateBreadcrumb, ScrollingGrid } from './grid.js';
+import { pushNav } from './nav.js';
 import { makeTitleCard, makeActressCard } from './cards.js';
 import { resetActressState } from './actress-browse.js';
 import { MAX_TOTAL, MAX_RANDOM_TITLES, MAX_RANDOM_ACTRESSES } from './config.js';
@@ -69,6 +70,7 @@ document.querySelectorAll('.home-tab').forEach(btn => {
 
 // ── showTitlesView ────────────────────────────────────────────────────────
 export function showTitlesView() {
+  pushNav({ view: 'titles' }, 'home');
   showView('titles');
   document.getElementById('actresses-btn')?.classList.remove('active');
   document.getElementById('titles-browse-btn')?.classList.remove('active');

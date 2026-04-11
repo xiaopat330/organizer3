@@ -4,8 +4,8 @@ import { setStatus } from './utils.js';
 export const VIEWS = {
   titles:           ['home-tabs'],
   actresses:        ['actress-landing', 'actress-grid'],
-  'actress-detail': ['actress-detail'],
-  'title-detail':   ['title-detail'],
+  'actress-detail': ['actress-landing', 'actress-detail'],
+  'title-detail':   ['title-landing', 'title-detail'],
   collections:      ['collections-grid'],
   'titles-browse':  ['title-landing', 'titles-browse-grid'],
 };

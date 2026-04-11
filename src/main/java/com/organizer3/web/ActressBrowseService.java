@@ -151,6 +151,17 @@ public class ActressBrowseService {
                 .toList();
     }
 
+    /** Paginated tier query with optional company filter. */
+    public List<ActressSummary> findByTierPaged(String tierName, String company, int offset, int limit) {
+        if (company != null && !company.isBlank()) {
+            Actress.Tier tier = Actress.Tier.valueOf(tierName.toUpperCase());
+            return actressRepo.findByTierAndCompaniesPaged(tier, List.of(company), limit, offset).stream()
+                    .map(this::toSummary)
+                    .toList();
+        }
+        return findByTierPaged(tierName, offset, limit);
+    }
+
     /** Paginated all-actresses query. */
     public List<ActressSummary> findAllPaged(int offset, int limit) {
         return actressRepo.findAllPaged(limit, offset).stream()

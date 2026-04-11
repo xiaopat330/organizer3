@@ -1,8 +1,9 @@
 import { esc } from './utils.js';
+import { pushNav } from './nav.js';
 import { showView, setActiveGrid, ensureSentinel, updateBreadcrumb, ScrollingGrid, mode } from './grid.js';
 import { makeTitleCard, makeCompactTitleCard, agingLabel } from './cards.js';
 import { tagBadgeHtml } from './icons.js';
-import { ensureStudioGroups, ensureTitleLabels, renderTwoColumnStudioPanel } from './studio-data.js';
+import { ensureStudioGroups, ensureTitleLabels, renderTwoColumnStudioPanel, updateCompanyMarquee } from './studio-data.js';
 import { resetActressState, actressesBtn } from './actress-browse.js';
 import { MAX_TOTAL } from './config.js';
 import {
@@ -387,6 +388,7 @@ async function renderTitleDashboard() {
 
 // ── Browse mode selection ─────────────────────────────────────────────────
 export function selectTitleBrowseMode(modeKey) {
+  if (modeKey !== 'search') pushNav({ view: 'titles-browse', mode: modeKey }, 'browse/' + modeKey);
   // Reset browse filters when entering a different filterable mode, or leaving filterable modes entirely
   if (modeKey !== titleBrowseMode) {
     resetBrowseFilters();
@@ -660,7 +662,7 @@ async function ensureQueuesVolumes() {
   return queuesVolumeData;
 }
 
-titleUnsortedBtn.addEventListener('click', async () => {
+export async function enterUnsortedMode() {
   if (!poolVolumeId) {
     try {
       const data = await ensureQueuesVolumes();
@@ -670,9 +672,9 @@ titleUnsortedBtn.addEventListener('click', async () => {
     } catch (err) { console.error('Failed to load pool info', err); return; }
   }
   selectTitleBrowseMode('unsorted');
-});
+}
 
-titleArchivesBtn.addEventListener('click', async () => {
+export async function enterArchiveMode() {
   if (!archivePoolVolumeId) {
     try {
       const data = await ensureQueuesVolumes();
@@ -682,7 +684,10 @@ titleArchivesBtn.addEventListener('click', async () => {
     } catch (err) { console.error('Failed to load archive pool info', err); return; }
   }
   selectTitleBrowseMode('archive-pool');
-});
+}
+
+titleUnsortedBtn.addEventListener('click', () => enterUnsortedMode());
+titleArchivesBtn.addEventListener('click', () => enterArchiveMode());
 
 // ── Tags browse ───────────────────────────────────────────────────────────
 async function ensureTagsCatalog() {
@@ -762,17 +767,22 @@ async function showBrowseFilterBar() {
       <option value="">All Companies</option>
       ${allCompanies.map(c => `<option value="${esc(c)}">${esc(c)}</option>`).join('')}
     </select>
+    <div class="company-marquee company-marquee-browse" id="browse-company-marquee" style="display:none"><span class="company-marquee-inner"></span></div>
     <button type="button" class="detail-tags-btn" id="browse-tags-btn">
       Tags<span class="detail-tags-count" id="browse-tags-count" style="display:none"></span>
     </button>`;
   bar.style.display = '';
 
   const sel = document.getElementById('browse-company-select');
-  if (sel && browseCompanyFilter) sel.value = browseCompanyFilter;
+  if (sel && browseCompanyFilter) {
+    sel.value = browseCompanyFilter;
+    updateCompanyMarquee(document.getElementById('browse-company-marquee'), browseCompanyFilter);
+  }
   updateBrowseTagsBtn();
 
   sel.addEventListener('change', e => {
     browseCompanyFilter = e.target.value || null;
+    updateCompanyMarquee(document.getElementById('browse-company-marquee'), browseCompanyFilter);
     scheduleBrowseFilteredQuery();
   });
   document.getElementById('browse-tags-btn').addEventListener('click', toggleBrowseTagsPanel);

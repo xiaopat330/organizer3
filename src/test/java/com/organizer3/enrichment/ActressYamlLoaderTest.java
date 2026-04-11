@@ -160,4 +160,70 @@ class ActressYamlLoaderTest {
         assertTrue(byAlias.isPresent());
         assertEquals(actress.getId(), byAlias.get().getId());
     }
+
+    @Test
+    void loadOneAppliesNameReading() throws Exception {
+        loader.loadOne("test_actress");
+
+        Actress actress = actressRepo.resolveByName("Test Actress").orElseThrow();
+        assertEquals("てすとじょゆう", actress.getNameReading());
+    }
+
+    @Test
+    void loadOneAppliesRetirementAnnounced() throws Exception {
+        loader.loadOne("test_actress");
+
+        Actress actress = actressRepo.resolveByName("Test Actress").orElseThrow();
+        assertEquals(LocalDate.of(2015, 2, 1), actress.getRetirementAnnounced());
+    }
+
+    @Test
+    void loadOneAppliesAlternateNamesWithNotes() throws Exception {
+        loader.loadOne("test_actress");
+
+        Actress actress = actressRepo.resolveByName("Test Actress").orElseThrow();
+        List<Actress.AlternateName> alts = actress.getAlternateNames();
+        assertNotNull(alts);
+        assertEquals(2, alts.size());
+        assertEquals("Testy", alts.get(0).name());
+        assertEquals("nickname", alts.get(0).note());
+        assertEquals("T-san", alts.get(1).name());
+        assertEquals("used early career", alts.get(1).note());
+    }
+
+    @Test
+    void loadOneAppliesPrimaryStudios() throws Exception {
+        loader.loadOne("test_actress");
+
+        Actress actress = actressRepo.resolveByName("Test Actress").orElseThrow();
+        List<Actress.StudioTenure> studios = actress.getPrimaryStudios();
+        assertNotNull(studios);
+        assertEquals(2, studios.size());
+
+        Actress.StudioTenure first = studios.get(0);
+        assertEquals("TestLabel", first.name());
+        assertEquals("TestCorp", first.company());
+        assertEquals(LocalDate.of(2010, 4, 1), first.from());
+        assertEquals(LocalDate.of(2012, 3, 31), first.to());
+        assertEquals("Exclusive contract actress", first.role());
+
+        Actress.StudioTenure second = studios.get(1);
+        assertEquals("OtherLabel", second.name());
+        assertEquals(LocalDate.of(2012, 4, 1), second.from());
+    }
+
+    @Test
+    void loadOneAppliesAwards() throws Exception {
+        loader.loadOne("test_actress");
+
+        Actress actress = actressRepo.resolveByName("Test Actress").orElseThrow();
+        List<Actress.Award> awards = actress.getAwards();
+        assertNotNull(awards);
+        assertEquals(2, awards.size());
+
+        Actress.Award first = awards.get(0);
+        assertEquals("Test Awards", first.event());
+        assertEquals(2012, first.year());
+        assertEquals("Best New Actress", first.category());
+    }
 }

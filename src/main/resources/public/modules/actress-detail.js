@@ -2,7 +2,8 @@ import { esc, fmtDate, isStale, setStatus, timeAgo } from './utils.js';
 import { ICON_FAV_LG, ICON_BM_LG, ICON_REJ_LG } from './icons.js';
 import { showView, setActiveGrid, ensureActressDetailSentinel, ScrollingGrid, updateBreadcrumb, mode } from './grid.js';
 import { makeTitleCard, updateActressCardIndicators } from './cards.js';
-import { actressBrowseMode, actressBrowseLabel, selectActressBrowseMode, showActressLanding } from './actress-browse.js';
+import { actressBrowseMode, actressBrowseLabel, selectActressBrowseMode, showActressLanding, hideAllActressSubNavRows } from './actress-browse.js';
+import { pushNav } from './nav.js';
 
 // ── State ─────────────────────────────────────────────────────────────────
 export let detailActressId    = null;
@@ -10,6 +11,14 @@ export let detailCompanyFilter = null;
 let detailActiveTags  = new Set();
 let detailFilterTimer = null;
 let detailActressTags = null;   // lazy-loaded tag list for current actress
+let coverRotateTimer  = null;
+
+function cancelCoverRotation() {
+  if (coverRotateTimer !== null) {
+    clearInterval(coverRotateTimer);
+    coverRotateTimer = null;
+  }
+}
 
 const FILTER_DEBOUNCE_MS = 350;
 
@@ -37,7 +46,10 @@ export const actressDetailGrid = new ScrollingGrid(
 
 // ── Open actress detail ───────────────────────────────────────────────────
 export async function openActressDetail(actressId) {
+  pushNav({ view: 'actress-detail', actressId }, 'actress/' + actressId);
   cancelPendingVisit();
+  cancelCoverRotation();
+  hideAllActressSubNavRows();
 
   const sourceMode    = mode;
   const sourceHomeTab = window._homeTab || 'latest'; // set by home.js
@@ -51,9 +63,7 @@ export async function openActressDetail(actressId) {
   document.getElementById('sentinel')?.remove();
   actressDetailGrid.reset();
   document.getElementById('detail-cover').innerHTML         = '';
-  document.getElementById('detail-info').innerHTML          = '';
-  document.getElementById('detail-profile').innerHTML       = '';
-  document.getElementById('detail-bio').innerHTML           = '';
+  document.getElementById('detail-sidebar').innerHTML       = '';
   document.getElementById('detail-filter-bar').innerHTML    = '';
   const tagsPanel = document.getElementById('detail-actress-tags-panel');
   if (tagsPanel) { tagsPanel.innerHTML = ''; tagsPanel.style.display = 'none'; }
@@ -129,77 +139,322 @@ async function searchStageName(actressId) {
 }
 
 // ── Render detail panel ───────────────────────────────────────────────────
+//
+// Sidebar is composed of sections, each hidden when empty. The visible order is:
+//   1. Cover image
+//   2. Identity (name, kanji + reading, tier/grade badges, flag buttons)
+//   3. Also-known-as (aliases with notes)
+//   4. Career strip (date range + duration + retirement + visits)
+//   5. Vitals (born / from / blood / height / measures)
+//   6. Library (count, studio count, first/last added)
+//   7. Studios timeline (YAML primary_studios)
+//   8. Awards
+//   9. Biography
+//  10. Legacy
+//  11. Research gaps (hidden when complete)
+//
+// Most actresses will only render the Cover/Identity/Library/Research sections —
+// enriched YAML data is still rare.
 function renderDetailPanel(a) {
-  // Column 1: Cover
+  renderCover(a);
+  renderSidebarSections(a);
+  wireActionButtons(a);
+  renderDetailFilterBar(a);
+}
+
+function renderCover(a) {
   const coverCol = document.getElementById('detail-cover');
   const covers = a.coverUrls || [];
-  if (covers.length > 0) {
-    const idx = Math.floor(Math.random() * covers.length);
-    coverCol.innerHTML = `<img src="${esc(covers[idx])}" alt="${esc(a.canonicalName)}" loading="lazy">`;
-  } else {
+  if (covers.length === 0) {
     coverCol.innerHTML = `<div class="detail-cover-placeholder">—</div>`;
+    return;
   }
 
-  // Column 1 continued: Info
+  let currentIdx = Math.floor(Math.random() * covers.length);
+  coverCol.innerHTML = `<img src="${esc(covers[currentIdx])}" alt="${esc(a.canonicalName)}" loading="lazy">`;
+
+  if (covers.length < 2) return;
+
+  coverRotateTimer = setInterval(() => {
+    const col = document.getElementById('detail-cover');
+    if (!col) { cancelCoverRotation(); return; }
+    let nextIdx;
+    do { nextIdx = Math.floor(Math.random() * covers.length); } while (nextIdx === currentIdx);
+    currentIdx = nextIdx;
+    const img = col.querySelector('img');
+    if (img) img.src = covers[currentIdx];
+  }, 10_000);
+}
+
+function renderSidebarSections(a) {
+  const sidebar = document.getElementById('detail-sidebar');
+  const sections = [
+    renderIdentitySection(a),
+    renderPrimaryActressSection(a),
+    renderAliasesSection(a),
+    renderCareerSection(a),
+    renderVitalsSection(a),
+    renderLibrarySection(a),
+    renderStudiosSection(a),
+    renderAwardsSection(a),
+    renderBiographySection(a),
+    renderLegacySection(a),
+    renderResearchChecklist(a),
+  ].filter(Boolean);
+
+  sidebar.innerHTML = sections.join('');
+
+  sidebar.querySelectorAll('.alias-badge-link, .primary-actress-link').forEach(btn => {
+    btn.addEventListener('click', () => openActressDetail(Number(btn.dataset.actressId)));
+  });
+}
+
+// ── Section: Identity (name + kanji + badges + actions) ──────────────────
+function renderIdentitySection(a) {
   const { first: firstName, last: lastName } = splitName(a.canonicalName);
 
-  const aliases = a.aliases || [];
-  let aliasHtml = '';
-  if (a.primaryName) {
-    const { first: pFirst, last: pLast } = splitName(a.primaryName);
-    const pNameHtml = pLast ? `${esc(pFirst)} ${esc(pLast)}` : esc(pFirst);
-    aliasHtml = `<div class="detail-alias-row">
-      <span class="detail-alias-label">Primarily known as</span>
-      <span class="primary-badge" data-actress-id="${a.primaryId || ''}">${pNameHtml}</span>
-    </div>`;
-  } else if (aliases.length > 0) {
-    aliasHtml = `<div class="detail-alias-row">
-      <span class="detail-alias-label">Also known as</span>
-      ${aliases.map(al => `<span class="alias-badge">${esc(al)}</span>`).join('')}
-    </div>`;
-  }
-
   const stageNameHtml = a.stageName
-    ? `<div class="detail-stage-name">${esc(a.stageName)}</div>`
+    ? `<div class="detail-stage-name">
+         <span class="detail-stage-name-kanji">${esc(a.stageName)}</span>
+         ${a.nameReading ? `<span class="detail-stage-name-reading">${esc(a.nameReading)}</span>` : ''}
+       </div>`
     : `<button class="btn-search-stage-name" id="btn-search-stage-name">Search for Stage Name</button>`;
 
+  const tierBadge = `<span class="tier-badge tier-${esc(a.tier)}">${esc(a.tier.toLowerCase())}</span>`;
+  const gradeBadge = a.grade ? `<span class="detail-grade">${esc(a.grade)}</span>` : '';
+
+  return `
+    <section class="detail-section detail-section-identity">
+      <div class="detail-name">
+        <span class="detail-first-name">${esc(firstName)}</span>
+        ${lastName ? `<span class="detail-last-name">${esc(lastName)}</span>` : ''}
+      </div>
+      ${stageNameHtml}
+      <div class="detail-meta-row">
+        ${tierBadge}
+        ${gradeBadge}
+      </div>
+      <div class="actress-detail-actions">
+        <button class="title-action-btn${a.favorite ? ' active' : ''}" id="actress-fav-btn" title="Favorite">${ICON_FAV_LG}</button>
+        <button class="title-action-btn${a.bookmark ? ' active' : ''}" id="actress-bm-btn" title="Bookmark">${ICON_BM_LG}</button>
+        <button class="title-action-btn reject-btn${a.rejected ? ' active' : ''}" id="actress-rej-btn" title="Reject">${ICON_REJ_LG}</button>
+      </div>
+    </section>
+  `;
+}
+
+// ── Section: Primary actress (shown when this actress is an alias of another) ─
+function renderPrimaryActressSection(a) {
+  if (!a.primaryActressId || !a.primaryActressName) return '';
+  return `<section class="detail-section detail-section-primary-actress">
+    <h3 class="detail-section-title">Primarily Known As</h3>
+    <div class="detail-alias-cloud">
+      <button class="alias-badge alias-badge-link primary-actress-link" data-actress-id="${a.primaryActressId}">${esc(a.primaryActressName)}</button>
+    </div>
+  </section>`;
+}
+
+// ── Section: Aliases / Also Known As ──────────────────────────────────────
+// Prefers rich alternate_names (with attribution notes) from YAML; falls back
+// to the flat alias list used for sync name resolution.
+function renderAliasesSection(a) {
+  const alt = a.alternateNames || [];
+  if (alt.length > 0) {
+    const rows = alt.map(n => `
+      <li class="detail-alt-name">
+        <span class="detail-alt-name-value">${esc(n.name || '')}</span>
+        ${n.note ? `<span class="detail-alt-name-note">${esc(n.note)}</span>` : ''}
+      </li>
+    `).join('');
+    return sectionShell('Also Known As', `<ul class="detail-alt-names-list">${rows}</ul>`);
+  }
+  const aliases = a.aliases || [];
+  if (aliases.length > 0) {
+    const badges = aliases.map(al => {
+      if (al.actressId) {
+        return `<button class="alias-badge alias-badge-link" data-actress-id="${al.actressId}">${esc(al.name)}</button>`;
+      }
+      return `<span class="alias-badge">${esc(al.name)}</span>`;
+    }).join('');
+    return sectionShell('Also Known As', `<div class="detail-alias-cloud">${badges}</div>`);
+  }
+  return '';
+}
+
+// ── Section: Career ───────────────────────────────────────────────────────
+function renderCareerSection(a) {
   const careerStart = a.activeFrom || a.firstAddedDate;
   const careerEnd   = a.activeTo   || a.lastAddedDate;
-  let careerHtml = '';
-  if (careerStart || careerEnd) {
+  if (!careerStart && !careerEnd && !a.retirementAnnounced && !(a.visitCount > 0)) return '';
+
+  const rangeHtml = (careerStart || careerEnd) ? (() => {
     const startHtml = careerStart ? `<span class="date-first">${esc(fmtDate(careerStart))}</span>` : '';
     const endHtml   = careerEnd   ? `<span class="${isStale(careerEnd) ? 'date-last-stale' : 'date-last'}">${esc(fmtDate(careerEnd))}</span>` : '';
     const sep = startHtml && endHtml ? ' → ' : '';
-    careerHtml = `<div class="detail-career">${startHtml}${sep}${endHtml}</div>`;
-  }
+    return `<div class="detail-career">${startHtml}${sep}${endHtml}</div>`;
+  })() : '';
 
-  const visitedInfoHtml = a.visitCount > 0
-    ? `<div class="detail-visited" id="detail-visited-row"><span id="detail-visited-value">${esc(formatActressVisited(a.visitCount, a.lastVisitedAt))}</span></div>`
-    : `<div class="detail-visited" id="detail-visited-row" style="display:none"><span id="detail-visited-value"></span></div>`;
+  const durationHtml = (careerStart && careerEnd)
+    ? `<div class="detail-career-duration">${esc(formatDuration(careerStart, careerEnd))} active</div>`
+    : '';
 
-  const researchChecklistHtml = renderResearchChecklist(a);
+  const retirementHtml = a.retirementAnnounced
+    ? `<div class="detail-career-retirement">Retirement announced ${esc(fmtDate(a.retirementAnnounced))}</div>`
+    : '';
 
-  document.getElementById('detail-info').innerHTML = `
-    <div class="detail-name">
-      <span class="detail-first-name">${esc(firstName)}</span>
-      ${lastName ? `<span class="detail-last-name">${esc(lastName)}</span>` : ''}
-    </div>
-    ${stageNameHtml}
-    <div class="detail-meta-row">
-      <span class="tier-badge tier-${esc(a.tier)}">${esc(a.tier.toLowerCase())}</span>
-      ${a.grade ? `<span class="detail-grade">${esc(a.grade)}</span>` : ''}
-    </div>
-    <div class="actress-detail-actions">
-      <button class="title-action-btn${a.favorite ? ' active' : ''}" id="actress-fav-btn" title="Favorite">${ICON_FAV_LG}</button>
-      <button class="title-action-btn${a.bookmark ? ' active' : ''}" id="actress-bm-btn" title="Bookmark">${ICON_BM_LG}</button>
-      <button class="title-action-btn reject-btn${a.rejected ? ' active' : ''}" id="actress-rej-btn" title="Reject">${ICON_REJ_LG}</button>
-    </div>
-    ${aliasHtml}
-    ${careerHtml}
-    ${visitedInfoHtml}
-    ${researchChecklistHtml}
+  const visitedDisplay = a.visitCount > 0 ? formatActressVisited(a.visitCount, a.lastVisitedAt) : '';
+  const visitedHtml = `<div class="detail-visited" id="detail-visited-row" ${a.visitCount > 0 ? '' : 'style="display:none"'}>
+      <span id="detail-visited-value">${esc(visitedDisplay)}</span>
+    </div>`;
+
+  const inner = `
+    ${rangeHtml}
+    ${durationHtml}
+    ${retirementHtml}
+    ${visitedHtml}
   `;
+  return sectionShell('Career', inner);
+}
 
+// ── Section: Vitals ───────────────────────────────────────────────────────
+function renderVitalsSection(a) {
+  const rows = [];
+  if (a.dateOfBirth) {
+    const age = computeAge(a.dateOfBirth, a.activeTo);
+    const ageLabel = age != null
+      ? (a.activeTo ? ` <span class="vital-subtle">age ${age} at retirement</span>` : ` <span class="vital-subtle">age ${age}</span>`)
+      : '';
+    rows.push(vitalRow('Born', `${esc(fmtDate(a.dateOfBirth))}${ageLabel}`));
+  }
+  if (a.birthplace)  rows.push(vitalRow('From',   esc(a.birthplace)));
+  if (a.bloodType)   rows.push(vitalRow('Blood',  esc(a.bloodType)));
+  if (a.heightCm)    rows.push(vitalRow('Height', `${a.heightCm} cm`));
+  if (a.bust || a.waist || a.hip) {
+    const bwh = [a.bust || '—', a.waist || '—', a.hip || '—'].join(' · ');
+    const cupHtml = a.cup ? `<span class="vital-subtle">${esc(a.cup)} cup</span>` : '';
+    rows.push(vitalRow('Measures', `${bwh} ${cupHtml}`));
+  }
+  if (rows.length === 0) return '';
+  return sectionShell('Vitals', `<div class="detail-vitals">${rows.join('')}</div>`);
+}
+
+function vitalRow(label, valueHtml) {
+  return `<div class="detail-vital-row">
+    <span class="detail-vital-label">${label}</span>
+    <span class="detail-vital-value">${valueHtml}</span>
+  </div>`;
+}
+
+// ── Section: Library (derived from local DB) ─────────────────────────────
+function renderLibrarySection(a) {
+  if (!a.titleCount && !a.firstAddedDate && !a.lastAddedDate) return '';
+
+  const rows = [];
+  if (a.titleCount != null) {
+    const titleWord = a.titleCount === 1 ? 'title' : 'titles';
+    const companyCount = (a.companies || []).length;
+    const studioFragment = companyCount > 0
+      ? ` <span class="vital-subtle">· ${companyCount} ${companyCount === 1 ? 'company' : 'companies'}</span>`
+      : '';
+    rows.push(vitalRow('Library', `${a.titleCount} ${titleWord}${studioFragment}`));
+  }
+  if (a.firstAddedDate) rows.push(vitalRow('First seen', esc(fmtDate(a.firstAddedDate))));
+  if (a.lastAddedDate)  rows.push(vitalRow('Last added', esc(fmtDate(a.lastAddedDate))));
+
+  if (rows.length === 0) return '';
+  return sectionShell('Library', `<div class="detail-vitals">${rows.join('')}</div>`);
+}
+
+// ── Section: Studio tenures (YAML primary_studios) ───────────────────────
+function renderStudiosSection(a) {
+  const studios = a.primaryStudios || [];
+  if (studios.length === 0) return '';
+  const items = studios.map(s => {
+    const from = s.from ? fmtYearMonth(s.from) : '';
+    const to   = s.to   ? fmtYearMonth(s.to)   : '';
+    const sep  = from && to ? ' – ' : '';
+    const dates = from || to ? `<div class="detail-studio-dates">${esc(from)}${sep}${esc(to)}</div>` : '';
+    const name  = s.name    ? `<div class="detail-studio-name">${esc(s.name)}</div>` : '';
+    const company = s.company && s.company !== s.name
+      ? `<div class="detail-studio-company">${esc(s.company)}</div>`
+      : '';
+    const role = s.role ? `<div class="detail-studio-role">${esc(s.role)}</div>` : '';
+    return `<li class="detail-studio-entry">${name}${company}${dates}${role}</li>`;
+  }).join('');
+  return sectionShell('Studios', `<ul class="detail-studios-list">${items}</ul>`);
+}
+
+// ── Section: Awards ───────────────────────────────────────────────────────
+function renderAwardsSection(a) {
+  const awards = a.awards || [];
+  if (awards.length === 0) return '';
+  const items = awards.map(aw => {
+    const yearHtml = aw.year ? `<span class="detail-award-year">${esc(String(aw.year))}</span>` : '';
+    const eventHtml = aw.event ? `<div class="detail-award-event">${esc(aw.event)}</div>` : '';
+    const catHtml = aw.category ? `<div class="detail-award-category">${esc(aw.category)}</div>` : '';
+    return `<li class="detail-award-entry">
+      ${yearHtml}
+      <div class="detail-award-body">${eventHtml}${catHtml}</div>
+    </li>`;
+  }).join('');
+  return sectionShell('Awards', `<ul class="detail-awards-list">${items}</ul>`);
+}
+
+// ── Section: Biography ────────────────────────────────────────────────────
+function renderBiographySection(a) {
+  if (!a.biography || !a.biography.trim()) return '';
+  return sectionShell('Biography', `<div class="detail-bio-text">${esc(a.biography)}</div>`);
+}
+
+// ── Section: Legacy (YAML legacy field — short capstone quote) ───────────
+function renderLegacySection(a) {
+  if (!a.legacy || !a.legacy.trim()) return '';
+  return sectionShell('Legacy', `<blockquote class="detail-legacy-text">${esc(a.legacy)}</blockquote>`);
+}
+
+// ── Shared section shell ──────────────────────────────────────────────────
+function sectionShell(title, inner) {
+  return `<section class="detail-section">
+    <h3 class="detail-section-title">${esc(title)}</h3>
+    ${inner}
+  </section>`;
+}
+
+// ── Date / duration helpers ───────────────────────────────────────────────
+function fmtYearMonth(dateStr) {
+  if (!dateStr) return '';
+  const d = new Date(dateStr + 'T00:00:00');
+  if (isNaN(d)) return dateStr;
+  return d.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+}
+
+function formatDuration(fromStr, toStr) {
+  const from = new Date(fromStr + 'T00:00:00');
+  const to = new Date(toStr + 'T00:00:00');
+  if (isNaN(from) || isNaN(to)) return '';
+  let months = (to.getFullYear() - from.getFullYear()) * 12 + (to.getMonth() - from.getMonth());
+  if (months < 0) months = 0;
+  const years = Math.floor(months / 12);
+  const rem = months % 12;
+  if (years === 0 && rem === 0) return '< 1 month';
+  if (years === 0) return `${rem} ${rem === 1 ? 'month' : 'months'}`;
+  if (rem === 0)   return `${years} ${years === 1 ? 'year' : 'years'}`;
+  return `${years}y ${rem}m`;
+}
+
+function computeAge(dobStr, asOfStr) {
+  const dob = new Date(dobStr + 'T00:00:00');
+  if (isNaN(dob)) return null;
+  const asOf = asOfStr ? new Date(asOfStr + 'T00:00:00') : new Date();
+  if (isNaN(asOf)) return null;
+  let age = asOf.getFullYear() - dob.getFullYear();
+  const m = asOf.getMonth() - dob.getMonth();
+  if (m < 0 || (m === 0 && asOf.getDate() < dob.getDate())) age--;
+  return age >= 0 ? age : null;
+}
+
+// ── Wire up flag buttons and stage-name search after render ──────────────
+function wireActionButtons(a) {
   const btn = document.getElementById('btn-search-stage-name');
   if (btn) btn.addEventListener('click', () => searchStageName(a.id));
 
@@ -225,32 +480,6 @@ function renderDetailPanel(a) {
     fetch(`/api/actresses/${a.id}/reject`, { method: 'POST' })
       .then(r => r.json()).then(applyActressFlags);
   });
-
-  // Column 2: Profile
-  const profileLines = [];
-  if (a.dateOfBirth)  profileLines.push(['Born', esc(fmtDate(a.dateOfBirth))]);
-  if (a.birthplace)   profileLines.push(['Birthplace', esc(a.birthplace)]);
-  if (a.bloodType)    profileLines.push(['Blood Type', esc(a.bloodType)]);
-  if (a.heightCm)     profileLines.push(['Height', `${a.heightCm} cm`]);
-  if (a.bust || a.waist || a.hip) {
-    const bwh = [a.bust || '?', a.waist || '?', a.hip || '?'].join(' / ');
-    profileLines.push(['Measurements', bwh + (a.cup ? ` (${esc(a.cup)})` : '')]);
-  }
-  if (a.titleCount) profileLines.push(['Titles', `${a.titleCount}`]);
-
-  const profileEl = document.getElementById('detail-profile');
-  profileEl.innerHTML = profileLines.length > 0
-    ? profileLines.map(([label, value]) =>
-        `<div class="detail-profile-row"><span class="detail-profile-label">${label}</span><span class="detail-profile-value">${value}</span></div>`
-      ).join('')
-    : '';
-
-  // Column 3: Biography
-  const bioEl = document.getElementById('detail-bio');
-  bioEl.innerHTML = a.biography ? `<div class="detail-bio-text">${esc(a.biography)}</div>` : '';
-
-  // Filter bar: company dropdown + Tags button
-  renderDetailFilterBar(a);
 }
 
 // ── Research checklist ────────────────────────────────────────────────────

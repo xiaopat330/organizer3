@@ -81,6 +81,9 @@ public interface ActressRepository {
     /** Paginated version: actresses at the given tier, ordered by canonical name. */
     List<Actress> findByTierPaged(Actress.Tier tier, int limit, int offset);
 
+    /** Paginated: actresses at the given tier whose titles match any of the given companies. */
+    List<Actress> findByTierAndCompaniesPaged(Actress.Tier tier, List<String> companies, int limit, int offset);
+
     /** Paginated: all actresses ordered by canonical name. */
     List<Actress> findAllPaged(int limit, int offset);
 

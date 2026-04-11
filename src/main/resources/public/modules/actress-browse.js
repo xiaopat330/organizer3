@@ -1,9 +1,10 @@
 import { esc } from './utils.js';
 import { showView, setActiveGrid, ensureSentinel, updateBreadcrumb, mode } from './grid.js';
+import { pushNav } from './nav.js';
 import { makeActressCard, makeCompactActressCard } from './cards.js';
 import { ScrollingGrid } from './grid.js';
 import { ARCHIVE_VOLUMES, EXHIBITION_VOLUMES } from './config.js';
-import { ensureStudioGroups, ensureTitleLabels, renderTwoColumnStudioPanel } from './studio-data.js';
+import { ensureStudioGroups, ensureTitleLabels, renderTwoColumnStudioPanel, updateCompanyMarquee } from './studio-data.js';
 import {
   renderDashboardStrip,
   renderDashboardSection,
@@ -35,9 +36,15 @@ const actressStudioGroupRow = document.getElementById('actress-studio-group-row'
 const actressStudioGroupHeaderEl = document.getElementById('actress-studio-group-header');
 const actressStudioLabelsEl = document.getElementById('actress-studio-labels');
 const actressGridHeaderEl = document.getElementById('actress-grid-header');
-const actressTierBtn        = document.getElementById('actress-tier-btn');
-const actressTierDivider    = document.getElementById('actress-tier-divider');
-const actressTierRow        = document.getElementById('actress-landing-tier-row');
+const actressTierBtn              = document.getElementById('actress-tier-btn');
+const actressTierDivider          = document.getElementById('actress-tier-divider');
+const actressTierRow              = document.getElementById('actress-landing-tier-row');
+const actressTierCompanyDivider   = document.getElementById('actress-tier-company-divider');
+const actressTierCompanyRow       = document.getElementById('actress-tier-company-row');
+const actressTierCompanySelect    = document.getElementById('actress-tier-company-select');
+const actressTierCompanyMarquee   = document.getElementById('actress-tier-company-marquee');
+const actressExhibitionMarquee    = document.getElementById('actress-exhibition-marquee');
+const actressArchivesMarquee      = document.getElementById('actress-archives-marquee');
 export const actressGridEl  = document.getElementById('actress-grid');
 
 // ── State ─────────────────────────────────────────────────────────────────
@@ -59,6 +66,8 @@ let studioGroupCompanyFilter = null;
 let exhibitionCompanyFilter = null;
 // Optional company filter for archives mode (null = all companies on archive volumes).
 let archivesCompanyFilter = null;
+// Optional company filter for tier mode (null = all companies in the tier).
+let tierCompanyFilter = null;
 
 // ── Tier / studio row visibility ──────────────────────────────────────────
 function showActressTierRow() {
@@ -70,6 +79,7 @@ function hideActressTierRow() {
   actressTierPanelOpen = false;
   actressTierDivider.style.display = 'none';
   actressTierRow.style.display = 'none';
+  hideTierCompanyRow();
 }
 function showActressStudioGroupRow() {
   actressStudioDivider.style.display = '';
@@ -100,6 +110,22 @@ function hideArchivesRow() {
   actressArchivesDivider.style.display = 'none';
   actressArchivesRow.style.display = 'none';
   archivesCompanyFilter = null;
+}
+/** Hide all mode-specific sub-nav rows (tier chips, tier company, exhibition, archives). */
+export function hideAllActressSubNavRows() {
+  hideActressTierRow();
+  hideExhibitionRow();
+  hideArchivesRow();
+}
+
+function showTierCompanyRow() {
+  actressTierCompanyDivider.style.display = '';
+  actressTierCompanyRow.style.display = '';
+}
+function hideTierCompanyRow() {
+  actressTierCompanyDivider.style.display = 'none';
+  actressTierCompanyRow.style.display = 'none';
+  tierCompanyFilter = null;
 }
 
 // ── Tier chips ────────────────────────────────────────────────────────────
@@ -183,7 +209,9 @@ export const actressScrollGrid = new ScrollingGrid(
     }
     if (actressBrowseMode && actressBrowseMode.startsWith('tier-')) {
       const tier = actressBrowseMode.slice(5);
-      return `/api/actresses?tier=${encodeURIComponent(tier)}&offset=${o}&limit=${l}`;
+      let url = `/api/actresses?tier=${encodeURIComponent(tier)}&offset=${o}&limit=${l}`;
+      if (tierCompanyFilter) url += `&company=${encodeURIComponent(tierCompanyFilter)}`;
+      return url;
     }
     if (actressBrowseMode && actressBrowseMode.startsWith('studio-group:')) {
       const slug = actressBrowseMode.slice('studio-group:'.length);
@@ -478,6 +506,7 @@ function _openActressDetail(id) {
 
 // ── Browse mode selection ─────────────────────────────────────────────────
 export async function selectActressBrowseMode(modeKey) {
+  if (modeKey !== 'search') pushNav({ view: 'actresses', mode: modeKey }, 'actresses/' + encodeURIComponent(modeKey));
   actressBrowseMode = modeKey;
   if (modeKey !== 'search') {
     if (actressSearchTimer) { clearTimeout(actressSearchTimer); actressSearchTimer = null; }
@@ -488,6 +517,8 @@ export async function selectActressBrowseMode(modeKey) {
   if (modeKey === 'dashboard') {
     hideActressTierRow();
     hideActressStudioGroupRow();
+    hideExhibitionRow();
+    hideArchivesRow();
     actressGridHeaderEl.style.display = 'none';
     actressGridHeaderEl.innerHTML = '';
     activeStudioGroupName = null;
@@ -508,6 +539,8 @@ export async function selectActressBrowseMode(modeKey) {
   actressDashboardEl.style.display = 'none';
   if (modeKey === 'studio') {
     hideActressTierRow();
+    hideExhibitionRow();
+    hideArchivesRow();
     actressGridHeaderEl.style.display = 'none';
     actressGridHeaderEl.innerHTML = '';
     activeStudioGroupName = null;
@@ -578,7 +611,10 @@ export async function selectActressBrowseMode(modeKey) {
     actressGridHeaderEl.innerHTML = '';
     if (modeKey.startsWith('tier-')) {
       lastActressTier = modeKey.slice(5);
+      tierCompanyFilter = null;
       showActressTierRow();
+      showTierCompanyRow();
+      populateTierCompanyDropdown();
     } else {
       hideActressTierRow();
     }
@@ -705,6 +741,7 @@ async function populateExhibitionCompanyDropdown() {
 
 actressExhibitionSelect.addEventListener('change', () => {
   exhibitionCompanyFilter = actressExhibitionSelect.value || null;
+  updateCompanyMarquee(actressExhibitionMarquee, exhibitionCompanyFilter);
   document.getElementById('sentinel')?.remove();
   actressScrollGrid.reset();
   ensureSentinel();
@@ -722,6 +759,25 @@ async function populateArchivesCompanyDropdown() {
 
 actressArchivesSelect.addEventListener('change', () => {
   archivesCompanyFilter = actressArchivesSelect.value || null;
+  updateCompanyMarquee(actressArchivesMarquee, archivesCompanyFilter);
+  document.getElementById('sentinel')?.remove();
+  actressScrollGrid.reset();
+  ensureSentinel();
+  actressScrollGrid.loadMore();
+});
+
+async function populateTierCompanyDropdown() {
+  const labels = await ensureTitleLabels();
+  const companies = [...new Set(labels.map(l => l.company).filter(Boolean))].sort();
+  actressTierCompanySelect.innerHTML =
+    '<option value="">All Companies</option>' +
+    companies.map(c => `<option value="${esc(c)}">${esc(c)}</option>`).join('');
+  actressTierCompanySelect.value = tierCompanyFilter || '';
+}
+
+actressTierCompanySelect.addEventListener('change', () => {
+  tierCompanyFilter = actressTierCompanySelect.value || null;
+  updateCompanyMarquee(actressTierCompanyMarquee, tierCompanyFilter);
   document.getElementById('sentinel')?.remove();
   actressScrollGrid.reset();
   ensureSentinel();

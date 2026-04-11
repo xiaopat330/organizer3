@@ -4,6 +4,7 @@ import { showView, updateBreadcrumb, mode } from './grid.js';
 import { makeTitleCard, updateCardIndicators } from './cards.js';
 import { actressBrowseMode, actressBrowseLabel, selectActressBrowseMode, showActressLanding } from './actress-browse.js';
 import { THUMBNAIL_COLUMNS } from './config.js';
+import { pushNav } from './nav.js';
 
 // ── Visit tracking ────────────────────────────────────────────────────────
 let pendingVisitTimer = null;
@@ -20,6 +21,7 @@ export function cancelPendingVisit() {
 
 // ── Open title detail ─────────────────────────────────────────────────────
 export async function openTitleDetail(t) {
+  pushNav({ view: 'title-detail', title: t }, 'title/' + encodeURIComponent(t.code));
   cancelPendingVisit();
 
   const sourceMode          = mode;

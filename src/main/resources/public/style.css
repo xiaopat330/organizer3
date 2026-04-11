@@ -557,6 +557,64 @@ header h1:hover {
   color: #50d8c0;
 }
 
+/* ── Tier company filter sub-nav row ─────────────────────────────────── */
+.actress-landing-tier-company-row {
+  gap: 8px;
+  padding: 2px 0;
+}
+
+.actress-tier-company-select {
+  background: #1a1308;
+  color: #d4924a;
+  border: 1px solid #3a2810;
+  border-radius: 5px;
+  padding: 5px 10px;
+  font-size: 0.78rem;
+  font-family: inherit;
+  cursor: pointer;
+  outline: none;
+  transition: border-color 0.12s ease, color 0.12s ease;
+  min-width: 180px;
+}
+
+.actress-tier-company-select:hover,
+.actress-tier-company-select:focus {
+  border-color: #f0a855;
+  color: #f0b870;
+}
+
+.actress-tier-company-select option {
+  background: #1a1308;
+  color: #d4924a;
+}
+
+/* ── Company info marquee ────────────────────────────────────────────── */
+.company-marquee {
+  flex: 1 1 0;
+  min-width: 0;
+  overflow: hidden;
+  -webkit-mask-image: linear-gradient(to right, transparent 0%, black 4%, black 96%, transparent 100%);
+  mask-image: linear-gradient(to right, transparent 0%, black 4%, black 96%, transparent 100%);
+}
+
+.company-marquee-inner {
+  display: inline-block;
+  white-space: nowrap;
+  padding-left: 100%;
+  font-size: 0.76rem;
+  opacity: 0.85;
+}
+
+@keyframes company-marquee-scroll {
+  0%   { transform: translateX(0); }
+  100% { transform: translateX(-100%); }
+}
+
+.actress-landing-exhibition-row .company-marquee-inner { color: #ff8080; }
+.actress-landing-archives-row   .company-marquee-inner { color: #60d8c8; }
+.actress-landing-tier-company-row .company-marquee-inner { color: #d4a060; }
+.company-marquee-browse .company-marquee-inner { color: #8899b8; }
+
 /* ── Title landing label-code tab-complete dropdown ─────────────────── */
 .title-search-wrap {
   position: relative;

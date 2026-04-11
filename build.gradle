@@ -29,6 +29,7 @@ dependencies {
     // YAML config
     implementation "com.fasterxml.jackson.core:jackson-databind:${jacksonVersion}"
     implementation "com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:${jacksonVersion}"
+    implementation "com.fasterxml.jackson.datatype:jackson-datatype-jsr310:${jacksonVersion}"
 
     // Database
     implementation "org.xerial:sqlite-jdbc:${sqliteVersion}"

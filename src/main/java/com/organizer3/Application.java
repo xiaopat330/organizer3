@@ -23,6 +23,8 @@ import com.organizer3.command.UnmountCommand;
 import com.organizer3.command.VolumesCommand;
 import com.organizer3.covers.CoverPath;
 import com.organizer3.config.AppConfig;
+import com.organizer3.config.alias.AliasLoader;
+import com.organizer3.config.alias.AliasYamlEntry;
 import com.organizer3.config.sync.StructureSyncConfig;
 import com.organizer3.config.sync.SyncCommandDef;
 import com.organizer3.config.volume.OrganizerConfig;
@@ -122,6 +124,18 @@ public class Application {
         TitleActressRepository titleActressRepo = new JdbiTitleActressRepository(jdbi);
         WatchHistoryRepository watchHistoryRepo = new JdbiWatchHistoryRepository(jdbi);
         IndexLoader indexLoader = new IndexLoader(titleRepo, actressRepo);
+
+        // Seed actress aliases from aliases.yaml
+        try (var aliasStream = Application.class.getResourceAsStream("/aliases.yaml")) {
+            if (aliasStream != null) {
+                List<AliasYamlEntry> aliasEntries = new AliasLoader().load(aliasStream);
+                actressRepo.importFromYaml(aliasEntries);
+            } else {
+                log.warn("aliases.yaml not found on classpath — skipping alias seed");
+            }
+        } catch (Exception e) {
+            log.warn("Failed to load aliases.yaml: {}", e.getMessage(), e);
+        }
 
         // Claude API (optional — gracefully disabled if ANTHROPIC_API_KEY is not set)
         ActressNameLookup nameLookup;
