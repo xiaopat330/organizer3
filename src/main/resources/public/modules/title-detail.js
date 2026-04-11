@@ -8,6 +8,9 @@ import { THUMBNAIL_COLUMNS } from './config.js';
 // ── Visit tracking ────────────────────────────────────────────────────────
 let pendingVisitTimer = null;
 
+// ── Known video durations (videoId → seconds) ─────────────────────────────
+const videoDurations = {};
+
 export function cancelPendingVisit() {
   if (pendingVisitTimer !== null) {
     clearTimeout(pendingVisitTimer);
@@ -293,6 +296,20 @@ function renderVideoSection(v, titleCode) {
       <span class="video-filename">${esc(v.filename)}</span>
       ${sizeStr ? `<span class="video-size">${esc(sizeStr)}</span>` : ''}
       <span class="video-meta" id="video-meta-${v.id}"></span>
+      ${v.folderUrl ? `
+        <a class="video-folder-link" href="${esc(v.folderUrl)}">
+          <svg width="11" height="11" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M1 3.5A1.5 1.5 0 0 1 2.5 2H5l1 1.5h3.5A1.5 1.5 0 0 1 11 5v4a1.5 1.5 0 0 1-1.5 1.5h-7A1.5 1.5 0 0 1 1 9V3.5z"/>
+          </svg>
+          Open folder
+        </a>
+        <button class="video-folder-copy">
+          <svg width="11" height="11" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="4" y="4" width="7" height="7" rx="1.2"/>
+            <path d="M8 4V2.5A1.5 1.5 0 0 0 6.5 1H2.5A1.5 1.5 0 0 0 1 2.5v4A1.5 1.5 0 0 0 2.5 8H4"/>
+          </svg>
+          Copy path
+        </button>` : ''}
     </div>
     <div class="video-thumbs" id="video-thumbs-${v.id}">
       <div class="video-thumbs-loading">Loading previews\u2026</div>
@@ -305,6 +322,11 @@ function renderVideoSection(v, titleCode) {
       <button class="theater-btn" onclick="toggleTheater(${v.id})">Theater</button>
     </div>
   `;
+
+  if (v.folderUrl) {
+    const copyBtn = section.querySelector('.video-folder-copy');
+    if (copyBtn) copyBtn.addEventListener('click', () => copyFolderPath(copyBtn, v.folderUrl));
+  }
 
   loadVideoThumbnails(v.id);
   loadVideoMetadata(v.id);
@@ -336,6 +358,9 @@ function loadVideoThumbnails(videoId, attempt = 0) {
             <span class="thumb-time" data-video-id="${videoId}" data-fraction="${fraction}">--:--</span>
           </div>`;
         }).join('');
+        if (videoDurations[videoId]) {
+          updateThumbTimestamps(videoId, videoDurations[videoId]);
+        }
       }
 
       if (urls.length < total && (generating || attempt < 3)) {
@@ -380,6 +405,7 @@ function loadVideoMetadata(videoId) {
       if (info.bitrate) parts.push(info.bitrate);
       el.textContent = parts.join(' \u00b7 ');
       if (info.durationSeconds) {
+        videoDurations[videoId] = info.durationSeconds;
         updateThumbTimestamps(videoId, info.durationSeconds);
       }
     })
@@ -402,6 +428,32 @@ function updateThumbTimestamps(videoId, durationSeconds) {
   });
 }
 
+// ── Folder path copy (exposed on window for inline onclick) ──────────────
+function copyFolderPath(btn, smbUrl) {
+  const isMac = /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent);
+  const text = isMac
+    ? smbUrl
+    : smbUrl.replace(/^smb:\/\//, '\\\\').replace(/\//g, '\\');
+
+  const confirm = () => {
+    const orig = btn.textContent;
+    btn.textContent = 'Copied!';
+    setTimeout(() => { btn.textContent = orig; }, 1500);
+  };
+
+  if (navigator.clipboard) {
+    navigator.clipboard.writeText(text).then(confirm);
+  } else {
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.cssText = 'position:fixed;opacity:0';
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    document.body.removeChild(ta);
+    confirm();
+  }
+}
 // ── Seek + Theater (exposed on window for inline onclick) ─────────────────
 function seekVideoTo(videoId, fraction) {
   const player = document.getElementById(`video-player-${videoId}`);

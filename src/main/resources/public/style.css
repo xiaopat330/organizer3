@@ -2056,45 +2056,104 @@ header h1:hover {
   white-space: pre-wrap;
 }
 
-/* ── Navigation bar (companies) ─────────────────────────────────────── */
+/* ── Filter bar (company dropdown + tags button) ─────────────────────── */
 
-.detail-nav-bar {
+.detail-filter-bar {
   position: sticky;
   top: 0;
   z-index: 2;
   background: #0d0d0d;
   border-bottom: 1px solid #1e1e1e;
   display: flex;
-  flex-wrap: wrap;
   align-items: center;
-  gap: 4px;
+  gap: 8px;
   padding: 8px 20px;
 }
 
-.detail-nav-bar:empty {
+.detail-filter-bar:empty {
   display: none;
 }
 
-.detail-nav-item {
-  font-size: 0.72rem;
-  color: #555;
+.detail-company-select {
+  appearance: none;
+  -webkit-appearance: none;
+  background: #111 url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23555'/%3E%3C/svg%3E") no-repeat right 10px center;
+  border: 1px solid #2a2a2a;
+  border-radius: 4px;
+  color: #b0b0b0;
+  font-size: 0.75rem;
+  font-family: inherit;
+  padding: 5px 28px 5px 10px;
   cursor: pointer;
-  padding: 4px 12px;
-  border-radius: 3px;
-  transition: color 0.12s ease, background 0.12s ease;
-  user-select: none;
-  letter-spacing: 0.04em;
+  min-width: 140px;
+  transition: border-color 0.12s ease, color 0.12s ease;
 }
 
-.detail-nav-item:hover {
+.detail-company-select:hover {
+  border-color: #404040;
+  color: #d0d0d0;
+}
+
+.detail-company-select:focus {
+  outline: none;
+  border-color: #505050;
+}
+
+.detail-tags-btn {
+  background: #111;
+  border: 1px solid #2a2a2a;
+  border-radius: 4px;
+  color: #888;
+  font-size: 0.75rem;
+  font-family: inherit;
+  padding: 5px 12px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  transition: border-color 0.12s ease, color 0.12s ease;
+  white-space: nowrap;
+}
+
+.detail-tags-btn:hover {
+  border-color: #404040;
   color: #c0c0c0;
-  background: #1a1a1a;
 }
 
-.detail-nav-item.selected {
-  color: #e0e0e0;
-  font-weight: 600;
-  background: #1e1e1e;
+.detail-tags-btn.has-active {
+  border-color: #50c878;
+  color: #70e898;
+}
+
+.detail-tags-count {
+  background: #1a3d26;
+  border: 1px solid #50c878;
+  border-radius: 8px;
+  color: #70e898;
+  font-size: 0.65rem;
+  font-weight: 700;
+  line-height: 1;
+  padding: 1px 6px;
+}
+
+/* ── Actress tags panel ───────────────────────────────────────────────── */
+
+.detail-actress-tags-panel {
+  background: #0d0d0d;
+  border-bottom: 1px solid #1e1e1e;
+  padding: 10px 20px 12px;
+}
+
+.detail-tags-inner {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.detail-tags-loading {
+  font-size: 0.75rem;
+  color: #444;
+  padding: 2px 0;
 }
 
 /* ── Alias badges (in detail info section) ────────────────────────────── */
@@ -2581,6 +2640,41 @@ header h1:hover {
   color: #555;
   font-size: 0.75rem;
   letter-spacing: 0.03em;
+}
+.video-folder-link,
+.video-folder-copy {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.72rem;
+  font-family: inherit;
+  font-weight: 500;
+  padding: 3px 9px;
+  border-radius: 4px;
+  border: 1px solid;
+  cursor: pointer;
+  text-decoration: none;
+  transition: background 0.15s, color 0.15s;
+  white-space: nowrap;
+}
+.video-folder-link {
+  margin-left: auto;
+  color: #60a5fa;
+  border-color: #1e3a5f;
+  background: rgba(96, 165, 250, 0.07);
+}
+.video-folder-link:hover {
+  background: rgba(96, 165, 250, 0.18);
+  border-color: #2d5a9e;
+}
+.video-folder-copy {
+  color: #fb923c;
+  border-color: #5a2e10;
+  background: rgba(251, 146, 60, 0.07);
+}
+.video-folder-copy:hover {
+  background: rgba(251, 146, 60, 0.18);
+  border-color: #9a4a18;
 }
 .video-thumbs {
   display: grid;

@@ -279,21 +279,53 @@ public class ActressBrowseService {
     }
 
     /**
+     * Returns all tags (direct and label-derived) that appear across any of the given actress's
+     * titles, sorted alphabetically. Used to populate the actress detail page tag filter.
+     */
+    public List<String> findTagsForActress(long actressId) {
+        Map<String, Label> labelMap = labelRepo.findAllAsMap();
+        return titleRepo.findByActress(actressId).stream()
+                .flatMap(t -> {
+                    List<String> direct = t.getTags() != null ? t.getTags() : List.of();
+                    Label lbl = t.getLabel() != null ? labelMap.get(t.getLabel().toUpperCase()) : null;
+                    List<String> labelTags = lbl != null ? lbl.tags() : List.of();
+                    return Stream.concat(direct.stream(), labelTags.stream());
+                })
+                .distinct()
+                .sorted()
+                .toList();
+    }
+
+    /**
      * Returns a paginated list of title summaries for the given actress, ordered newest-first.
      * If {@code company} is non-null, only titles whose label belongs to that company are returned.
+     * If {@code tags} is non-empty, only titles carrying all of those tags (direct or label-derived)
+     * are returned. The two filters are combined with AND.
      */
-    public List<TitleSummary> findTitlesByActress(long actressId, int offset, int limit, String company) {
+    public List<TitleSummary> findTitlesByActress(long actressId, int offset, int limit, String company, List<String> tags) {
         Map<String, Label> labelMap = labelRepo.findAllAsMap();
 
-        List<Title> titles;
+        List<String> matchingLabels = List.of();
         if (company != null && !company.isBlank()) {
-            List<String> matchingLabels = labelMap.values().stream()
+            matchingLabels = labelMap.values().stream()
                     .filter(l -> company.equals(l.company()))
                     .map(l -> l.code().toUpperCase())
                     .toList();
-            titles = matchingLabels.isEmpty()
-                    ? List.of()
-                    : titleRepo.findByActressAndLabelsPaged(actressId, matchingLabels, limit, offset);
+        }
+
+        List<Title> titles;
+        boolean hasTags   = tags != null && !tags.isEmpty();
+        boolean hasLabels = !matchingLabels.isEmpty();
+
+        if (hasTags) {
+            // new path: use the combined filter (handles optional labels too)
+            if (company != null && !company.isBlank() && matchingLabels.isEmpty()) {
+                titles = List.of(); // company specified but no known labels → no results
+            } else {
+                titles = titleRepo.findByActressTagsFiltered(actressId, matchingLabels, tags, limit, offset);
+            }
+        } else if (hasLabels) {
+            titles = titleRepo.findByActressAndLabelsPaged(actressId, matchingLabels, limit, offset);
         } else {
             titles = titleRepo.findByActressPaged(actressId, limit, offset);
         }

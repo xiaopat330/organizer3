@@ -1,5 +1,6 @@
 package com.organizer3.web;
 
+import com.organizer3.config.AppConfig;
 import com.organizer3.model.Title;
 import com.organizer3.model.TitleLocation;
 import com.organizer3.model.Video;
@@ -68,7 +69,12 @@ public class VideoStreamService {
         // Check if we already have videos in the DB
         List<Video> existing = title.getId() != null ? videoRepo.findByTitle(title.getId()) : List.of();
         if (!existing.isEmpty()) {
-            return existing.stream().map(v -> toInfo(v, null)).toList();
+            return existing.stream().map(v -> {
+                TitleLocation loc = title.getLocations().stream()
+                        .filter(l -> l.getVolumeId().equals(v.getVolumeId()))
+                        .findFirst().orElse(null);
+                return toInfo(v, null, loc);
+            }).toList();
         }
 
         // Discover from SMB
@@ -157,7 +163,7 @@ public class VideoStreamService {
                         .path(Path.of(df.fullPath))
                         .lastSeenAt(LocalDate.now())
                         .build());
-                result.add(toInfo(video, df.fileSize));
+                result.add(toInfo(video, df.fileSize, loc));
             }
             log.info("Discovered {} video(s) for {}", result.size(), title.getCode());
             return result;
@@ -194,14 +200,27 @@ public class VideoStreamService {
         }
     }
 
-    private VideoInfo toInfo(Video video, Long discoveredSize) {
+    private VideoInfo toInfo(Video video, Long discoveredSize, TitleLocation loc) {
         return new VideoInfo(
                 video.getId(),
                 video.getFilename(),
                 video.getPath().toString(),
                 discoveredSize,
-                mimeType(video)
+                mimeType(video),
+                loc != null ? buildSmbFolderUrl(loc.getVolumeId(), loc.getPath()) : null
         );
+    }
+
+    private static String buildSmbFolderUrl(String volumeId, Path titlePath) {
+        return AppConfig.get().volumes().findById(volumeId)
+                .map(v -> {
+                    String base = v.smbPath(); // e.g., //qnap2/jav
+                    if (!base.startsWith("//")) return null;
+                    String smbUrl = "smb://" + base.substring(2).replaceAll("/+$", "");
+                    String pathStr = titlePath.toString().replace('\\', '/').replaceAll("^/+", "");
+                    return smbUrl + "/" + pathStr;
+                })
+                .orElse(null);
     }
 
     private static String extensionOf(String filename) {
@@ -217,6 +236,7 @@ public class VideoStreamService {
             String filename,
             String path,
             Long fileSize,
-            String mimeType
+            String mimeType,
+            String folderUrl
     ) {}
 }

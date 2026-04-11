@@ -7,6 +7,11 @@ import { actressBrowseMode, actressBrowseLabel, selectActressBrowseMode, showAct
 // ── State ─────────────────────────────────────────────────────────────────
 export let detailActressId    = null;
 export let detailCompanyFilter = null;
+let detailActiveTags  = new Set();
+let detailFilterTimer = null;
+let detailActressTags = null;   // lazy-loaded tag list for current actress
+
+const FILTER_DEBOUNCE_MS = 350;
 
 // ── Visit tracking ────────────────────────────────────────────────────────
 let pendingVisitTimer = null;
@@ -23,6 +28,7 @@ export const actressDetailGrid = new ScrollingGrid(
   (o, l) => {
     let url = `/api/actresses/${detailActressId}/titles?offset=${o}&limit=${l}`;
     if (detailCompanyFilter) url += `&company=${encodeURIComponent(detailCompanyFilter)}`;
+    if (detailActiveTags.size > 0) url += `&tags=${encodeURIComponent([...detailActiveTags].join(','))}`;
     return url;
   },
   makeTitleCard,
@@ -38,15 +44,19 @@ export async function openActressDetail(actressId) {
 
   detailActressId     = actressId;
   detailCompanyFilter = null;
+  detailActiveTags    = new Set();
+  detailActressTags   = null;
   showView('actress-detail');
   setActiveGrid(actressDetailGrid);
   document.getElementById('sentinel')?.remove();
   actressDetailGrid.reset();
-  document.getElementById('detail-cover').innerHTML   = '';
-  document.getElementById('detail-info').innerHTML    = '';
-  document.getElementById('detail-profile').innerHTML = '';
-  document.getElementById('detail-bio').innerHTML     = '';
-  document.getElementById('detail-nav-bar').innerHTML = '';
+  document.getElementById('detail-cover').innerHTML         = '';
+  document.getElementById('detail-info').innerHTML          = '';
+  document.getElementById('detail-profile').innerHTML       = '';
+  document.getElementById('detail-bio').innerHTML           = '';
+  document.getElementById('detail-filter-bar').innerHTML    = '';
+  const tagsPanel = document.getElementById('detail-actress-tags-panel');
+  if (tagsPanel) { tagsPanel.innerHTML = ''; tagsPanel.style.display = 'none'; }
   ensureActressDetailSentinel();
   setStatus('loading');
 
@@ -239,20 +249,8 @@ function renderDetailPanel(a) {
   const bioEl = document.getElementById('detail-bio');
   bioEl.innerHTML = a.biography ? `<div class="detail-bio-text">${esc(a.biography)}</div>` : '';
 
-  // Navigation bar: ALL MOVIES + companies
-  const companies = a.companies || [];
-  const navBar = document.getElementById('detail-nav-bar');
-  if (companies.length > 0) {
-    navBar.innerHTML =
-      `<div class="detail-nav-item selected" id="detail-all-movies">ALL MOVIES</div>` +
-      companies.map(c => `<div class="detail-nav-item detail-company-item" data-company="${esc(c)}">${esc(c)}</div>`).join('');
-    document.getElementById('detail-all-movies').addEventListener('click', () => setDetailCompanyFilter(null));
-    navBar.querySelectorAll('.detail-company-item').forEach(el =>
-      el.addEventListener('click', () => setDetailCompanyFilter(el.dataset.company))
-    );
-  } else {
-    navBar.innerHTML = '';
-  }
+  // Filter bar: company dropdown + Tags button
+  renderDetailFilterBar(a);
 }
 
 // ── Research checklist ────────────────────────────────────────────────────
@@ -330,16 +328,110 @@ function splitName(name) {
   return i >= 0 ? { first: name.slice(0, i), last: name.slice(i + 1) } : { first: name, last: '' };
 }
 
-// ── Company filter ────────────────────────────────────────────────────────
+// ── Filter bar ────────────────────────────────────────────────────────────
+function renderDetailFilterBar(a) {
+  const companies = a.companies || [];
+  const bar = document.getElementById('detail-filter-bar');
+  if (!bar) return;
+
+  // Company dropdown
+  const selectHtml = `
+    <select class="detail-company-select" id="detail-company-select">
+      <option value="">All Companies</option>
+      ${companies.map(c => `<option value="${esc(c)}">${esc(c)}</option>`).join('')}
+    </select>`;
+
+  // Tags button (only if the actress has titles to tag)
+  const tagsHtml = `<button type="button" class="detail-tags-btn" id="detail-tags-btn">
+    Tags<span class="detail-tags-count" id="detail-tags-count" style="display:none"></span>
+  </button>`;
+
+  bar.innerHTML = selectHtml + tagsHtml;
+
+  document.getElementById('detail-company-select').addEventListener('change', e => {
+    detailCompanyFilter = e.target.value || null;
+    scheduleFilteredQuery();
+  });
+
+  document.getElementById('detail-tags-btn').addEventListener('click', toggleTagsPanel);
+}
+
+function scheduleFilteredQuery() {
+  updateTagsBtn();
+  if (detailFilterTimer) clearTimeout(detailFilterTimer);
+  detailFilterTimer = setTimeout(() => {
+    detailFilterTimer = null;
+    document.getElementById('sentinel')?.remove();
+    actressDetailGrid.reset();
+    ensureActressDetailSentinel();
+    actressDetailGrid.loadMore();
+  }, FILTER_DEBOUNCE_MS);
+}
+
+function updateTagsBtn() {
+  const countEl = document.getElementById('detail-tags-count');
+  if (!countEl) return;
+  if (detailActiveTags.size > 0) {
+    countEl.textContent = detailActiveTags.size;
+    countEl.style.display = '';
+  } else {
+    countEl.style.display = 'none';
+  }
+  const btn = document.getElementById('detail-tags-btn');
+  if (btn) btn.classList.toggle('has-active', detailActiveTags.size > 0);
+}
+
+async function toggleTagsPanel() {
+  const panel = document.getElementById('detail-actress-tags-panel');
+  if (!panel) return;
+
+  if (panel.style.display !== 'none') {
+    panel.style.display = 'none';
+    return;
+  }
+
+  // Load tags if not yet cached
+  if (!detailActressTags) {
+    panel.innerHTML = '<div class="detail-tags-loading">Loading tags\u2026</div>';
+    panel.style.display = '';
+    try {
+      const res = await fetch(`/api/actresses/${detailActressId}/tags`);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      detailActressTags = await res.json();
+    } catch (err) {
+      panel.innerHTML = '<div class="detail-tags-loading">Could not load tags</div>';
+      return;
+    }
+  }
+
+  renderTagsPanel(panel);
+  panel.style.display = '';
+}
+
+function renderTagsPanel(panel) {
+  const tags = detailActressTags || [];
+  if (tags.length === 0) {
+    panel.innerHTML = '<div class="detail-tags-loading">No tags available</div>';
+    return;
+  }
+  panel.innerHTML = `
+    <div class="detail-tags-inner">
+      ${tags.map(t => `<button type="button" class="tag-toggle${detailActiveTags.has(t) ? ' active' : ''}" data-tag="${esc(t)}">${esc(t)}</button>`).join('')}
+    </div>`;
+  panel.querySelectorAll('.tag-toggle').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const tag = btn.dataset.tag;
+      if (detailActiveTags.has(tag)) { detailActiveTags.delete(tag); btn.classList.remove('active'); }
+      else                           { detailActiveTags.add(tag);    btn.classList.add('active'); }
+      scheduleFilteredQuery();
+    });
+  });
+}
+
+// ── Company filter (legacy export, now delegates to unified scheduler) ─────
 export function setDetailCompanyFilter(company) {
   detailCompanyFilter = company;
-  const allMoviesEl = document.getElementById('detail-all-movies');
-  if (allMoviesEl) allMoviesEl.classList.toggle('selected', company === null);
-  document.querySelectorAll('.detail-nav-item.detail-company-item').forEach(el =>
-    el.classList.toggle('selected', el.dataset.company === company)
-  );
-  document.getElementById('sentinel')?.remove();
-  actressDetailGrid.reset();
-  ensureActressDetailSentinel();
-  actressDetailGrid.loadMore();
+  const sel = document.getElementById('detail-company-select');
+  if (sel) sel.value = company || '';
+  scheduleFilteredQuery();
 }
