@@ -231,7 +231,20 @@ public class WebServer {
                 int limit  = ctx.queryParamAsClass("limit",  Integer.class).getOrDefault(24);
                 offset = Math.max(offset, 0);
                 limit  = Math.max(1, Math.min(limit, TitleBrowseService.MAX_LIMIT));
-                ctx.json(browseService.findByVolumePartition(volumeId, "pool", offset, limit));
+                String company   = ctx.queryParam("company");
+                String tagsParam = ctx.queryParam("tags");
+                List<String> tags = (tagsParam != null && !tagsParam.isBlank())
+                        ? List.of(tagsParam.split(",")) : List.of();
+                if ((company != null && !company.isBlank()) || !tags.isEmpty()) {
+                    ctx.json(browseService.findByVolumePartitionFiltered(volumeId, "pool", company, tags, offset, limit));
+                } else {
+                    ctx.json(browseService.findByVolumePartition(volumeId, "pool", offset, limit));
+                }
+            });
+
+            app.get("/api/pool/{volumeId}/tags", ctx -> {
+                String volumeId = ctx.pathParam("volumeId");
+                ctx.json(browseService.findTagsForPool(volumeId));
             });
 
             app.get("/api/collections/titles", ctx -> {
@@ -239,7 +252,23 @@ public class WebServer {
                 int limit  = ctx.queryParamAsClass("limit",  Integer.class).getOrDefault(24);
                 offset = Math.max(offset, 0);
                 limit  = Math.max(1, Math.min(limit, TitleBrowseService.MAX_LIMIT));
-                ctx.json(browseService.findByVolumePaged("collections", offset, limit));
+                String company   = ctx.queryParam("company");
+                String tagsParam = ctx.queryParam("tags");
+                List<String> tags = (tagsParam != null && !tagsParam.isBlank())
+                        ? List.of(tagsParam.split(",")) : List.of();
+                if ((company != null && !company.isBlank()) || !tags.isEmpty()) {
+                    ctx.json(browseService.findByVolumePagedFiltered("collections", company, tags, offset, limit));
+                } else {
+                    ctx.json(browseService.findByVolumePaged("collections", offset, limit));
+                }
+            });
+
+            app.get("/api/collections/tags", ctx -> {
+                ctx.json(browseService.findTagsForCollections());
+            });
+
+            app.get("/api/companies", ctx -> {
+                ctx.json(browseService.listAllCompanies());
             });
         }
 
@@ -343,10 +372,21 @@ public class WebServer {
                 catch (NumberFormatException e) { ctx.status(400); return; }
                 int offset = ctx.queryParamAsClass("offset", Integer.class).getOrDefault(0);
                 int limit  = ctx.queryParamAsClass("limit",  Integer.class).getOrDefault(24);
-                String company = ctx.queryParam("company");
+                String company   = ctx.queryParam("company");
+                String tagsParam = ctx.queryParam("tags");
+                List<String> tags = (tagsParam != null && !tagsParam.isBlank())
+                        ? List.of(tagsParam.split(","))
+                        : List.of();
                 offset = Math.max(offset, 0);
                 limit  = Math.max(1, Math.min(limit, TitleBrowseService.MAX_LIMIT));
-                ctx.json(actressBrowseService.findTitlesByActress(id, offset, limit, company));
+                ctx.json(actressBrowseService.findTitlesByActress(id, offset, limit, company, tags));
+            });
+
+            app.get("/api/actresses/{id}/tags", ctx -> {
+                long id;
+                try { id = Long.parseLong(ctx.pathParam("id")); }
+                catch (NumberFormatException e) { ctx.status(400); return; }
+                ctx.json(actressBrowseService.findTagsForActress(id));
             });
 
             app.post("/api/actresses/{id}/favorite", ctx -> {

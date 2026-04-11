@@ -128,6 +128,31 @@ public interface TitleRepository {
     /** Find titles having ALL of the given tags, ordered newest-first. */
     List<Title> findByTagsPaged(List<String> tags, int limit, int offset);
 
+    /**
+     * Find titles for an actress, optionally restricted to a set of label codes and/or requiring
+     * all of the given tags (direct or label-derived). Pass empty lists to skip that dimension.
+     * Ordered by favorite → bookmark → newest first.
+     */
+    List<Title> findByActressTagsFiltered(long actressId, List<String> labels, List<String> tags, int limit, int offset);
+
+    /**
+     * Find titles on a volume, optionally restricted to label codes and/or requiring all tags.
+     * Pass empty lists to skip that dimension. Ordered by favorite → bookmark → newest first.
+     */
+    List<Title> findByVolumeFiltered(String volumeId, List<String> labels, List<String> tags, int limit, int offset);
+
+    /**
+     * Find titles in a volume+partition, optionally restricted to label codes and/or requiring
+     * all tags. Pass empty lists to skip that dimension. Ordered by favorite → bookmark → newest first.
+     */
+    List<Title> findByVolumeAndPartitionFiltered(String volumeId, String partitionId, List<String> labels, List<String> tags, int limit, int offset);
+
+    /** Returns all distinct tags (direct + label-derived) for titles on the given volume, sorted. */
+    List<String> findTagsByVolume(String volumeId);
+
+    /** Returns all distinct tags (direct + label-derived) for titles in a volume+partition, sorted. */
+    List<String> findTagsByVolumeAndPartition(String volumeId, String partitionId);
+
     void toggleFavorite(long titleId, boolean favorite);
 
     void toggleBookmark(long titleId, boolean bookmark);

@@ -399,6 +399,43 @@ public class JdbiTitleRepository implements TitleRepository {
     }
 
     @Override
+    public List<Title> findByActressTagsFiltered(long actressId, List<String> labels, List<String> tags, int limit, int offset) {
+        StringBuilder sql = new StringBuilder("""
+                SELECT t.* FROM titles t
+                LEFT JOIN title_locations tl ON t.id = tl.title_id
+                WHERE t.actress_id = :actressId
+                """);
+        if (!labels.isEmpty()) {
+            sql.append(" AND upper(t.label) IN (<labels>)\n");
+        }
+        if (!tags.isEmpty()) {
+            sql.append("""
+                    AND (
+                        SELECT COUNT(DISTINCT merged.tag)
+                        FROM (
+                            SELECT tag FROM title_tags WHERE title_id = t.id
+                            UNION
+                            SELECT lt.tag FROM label_tags lt WHERE lt.label_code = upper(t.label)
+                        ) merged
+                        WHERE merged.tag IN (<tags>)
+                    ) = :tagCount
+                    """);
+        }
+        sql.append("GROUP BY t.id ORDER BY t.favorite DESC, t.bookmark DESC, MIN(tl.added_date) DESC, t.id DESC LIMIT :limit OFFSET :offset");
+
+        List<Title> titles = jdbi.withHandle(h -> {
+            var q = h.createQuery(sql.toString())
+                    .bind("actressId", actressId)
+                    .bind("limit", limit)
+                    .bind("offset", offset);
+            if (!labels.isEmpty()) q = q.bindList("labels", labels);
+            if (!tags.isEmpty())   q = q.bindList("tags", tags).bind("tagCount", tags.size());
+            return q.map(MAPPER).list();
+        });
+        return populateLocationsBatch(titles);
+    }
+
+    @Override
     public List<Title> findByVolumePaged(String volumeId, int limit, int offset) {
         List<Title> titles = jdbi.withHandle(h ->
                 h.createQuery("""
@@ -437,6 +474,124 @@ public class JdbiTitleRepository implements TitleRepository {
                         .list()
         );
         return populateLocationsBatch(titles);
+    }
+
+    @Override
+    public List<Title> findByVolumeFiltered(String volumeId, List<String> labels, List<String> tags, int limit, int offset) {
+        StringBuilder sql = new StringBuilder("""
+                SELECT t.* FROM titles t
+                JOIN title_locations tl ON t.id = tl.title_id
+                WHERE tl.volume_id = :volumeId
+                """);
+        if (!labels.isEmpty()) {
+            sql.append(" AND upper(t.label) IN (<labels>)\n");
+        }
+        if (!tags.isEmpty()) {
+            sql.append("""
+                    AND (
+                        SELECT COUNT(DISTINCT merged.tag)
+                        FROM (
+                            SELECT tag FROM title_tags WHERE title_id = t.id
+                            UNION
+                            SELECT lt.tag FROM label_tags lt WHERE lt.label_code = upper(t.label)
+                        ) merged
+                        WHERE merged.tag IN (<tags>)
+                    ) = :tagCount
+                    """);
+        }
+        sql.append("GROUP BY t.id ORDER BY t.favorite DESC, t.bookmark DESC, MIN(tl.added_date) DESC, t.id DESC LIMIT :limit OFFSET :offset");
+
+        List<Title> titles = jdbi.withHandle(h -> {
+            var q = h.createQuery(sql.toString())
+                    .bind("volumeId", volumeId)
+                    .bind("limit", limit)
+                    .bind("offset", offset);
+            if (!labels.isEmpty()) q = q.bindList("labels", labels);
+            if (!tags.isEmpty())   q = q.bindList("tags", tags).bind("tagCount", tags.size());
+            return q.map(MAPPER).list();
+        });
+        return populateLocationsBatch(titles);
+    }
+
+    @Override
+    public List<Title> findByVolumeAndPartitionFiltered(String volumeId, String partitionId, List<String> labels, List<String> tags, int limit, int offset) {
+        StringBuilder sql = new StringBuilder("""
+                SELECT t.* FROM titles t
+                JOIN title_locations tl ON t.id = tl.title_id
+                WHERE tl.volume_id = :volumeId AND tl.partition_id = :partitionId
+                """);
+        if (!labels.isEmpty()) {
+            sql.append(" AND upper(t.label) IN (<labels>)\n");
+        }
+        if (!tags.isEmpty()) {
+            sql.append("""
+                    AND (
+                        SELECT COUNT(DISTINCT merged.tag)
+                        FROM (
+                            SELECT tag FROM title_tags WHERE title_id = t.id
+                            UNION
+                            SELECT lt.tag FROM label_tags lt WHERE lt.label_code = upper(t.label)
+                        ) merged
+                        WHERE merged.tag IN (<tags>)
+                    ) = :tagCount
+                    """);
+        }
+        sql.append("GROUP BY t.id ORDER BY t.favorite DESC, t.bookmark DESC, MIN(tl.added_date) DESC, t.id DESC LIMIT :limit OFFSET :offset");
+
+        List<Title> titles = jdbi.withHandle(h -> {
+            var q = h.createQuery(sql.toString())
+                    .bind("volumeId", volumeId)
+                    .bind("partitionId", partitionId)
+                    .bind("limit", limit)
+                    .bind("offset", offset);
+            if (!labels.isEmpty()) q = q.bindList("labels", labels);
+            if (!tags.isEmpty())   q = q.bindList("tags", tags).bind("tagCount", tags.size());
+            return q.map(MAPPER).list();
+        });
+        return populateLocationsBatch(titles);
+    }
+
+    @Override
+    public List<String> findTagsByVolume(String volumeId) {
+        return jdbi.withHandle(h ->
+                h.createQuery("""
+                        SELECT DISTINCT tag FROM (
+                            SELECT tt.tag FROM title_tags tt
+                            JOIN title_locations tl ON tl.title_id = tt.title_id
+                            WHERE tl.volume_id = :volumeId
+                            UNION
+                            SELECT lt.tag FROM label_tags lt
+                            JOIN titles t ON upper(t.label) = lt.label_code
+                            JOIN title_locations tl ON tl.title_id = t.id
+                            WHERE tl.volume_id = :volumeId
+                        ) ORDER BY tag
+                        """)
+                        .bind("volumeId", volumeId)
+                        .mapTo(String.class)
+                        .list()
+        );
+    }
+
+    @Override
+    public List<String> findTagsByVolumeAndPartition(String volumeId, String partitionId) {
+        return jdbi.withHandle(h ->
+                h.createQuery("""
+                        SELECT DISTINCT tag FROM (
+                            SELECT tt.tag FROM title_tags tt
+                            JOIN title_locations tl ON tl.title_id = tt.title_id
+                            WHERE tl.volume_id = :volumeId AND tl.partition_id = :partitionId
+                            UNION
+                            SELECT lt.tag FROM label_tags lt
+                            JOIN titles t ON upper(t.label) = lt.label_code
+                            JOIN title_locations tl ON tl.title_id = t.id
+                            WHERE tl.volume_id = :volumeId AND tl.partition_id = :partitionId
+                        ) ORDER BY tag
+                        """)
+                        .bind("volumeId", volumeId)
+                        .bind("partitionId", partitionId)
+                        .mapTo(String.class)
+                        .list()
+        );
     }
 
     @Override

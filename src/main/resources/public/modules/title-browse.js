@@ -65,6 +65,16 @@ export let archivePoolVolumeId = null;
 export let archivePoolSmbPath  = null;
 let queuesVolumeData = null;
 
+// ── Browse-mode filters (Collections / Unsorted / Archives) ──────────────
+const FILTERABLE_MODES = new Set(['collections', 'unsorted', 'archive-pool']);
+let browseCompanyFilter = null;
+let browseActiveTags    = new Set();
+let browseFilterTimer   = null;
+let browseCatalogTags   = null;  // lazy-loaded; reset on mode change
+let browseTagsForMode   = null;  // which mode browseCatalogTags belongs to
+let allCompanies        = null;  // lazy-loaded once, shared across modes
+const BROWSE_FILTER_DEBOUNCE_MS = 350;
+
 // Studio
 let selectedStudioSlug = null;
 
@@ -82,12 +92,24 @@ export const allTitlesGrid = new ScrollingGrid(
       return `/api/titles?favorites=true&offset=${o}&limit=${l}`;
     if (titleBrowseMode === 'bookmarks')
       return `/api/titles?bookmarks=true&offset=${o}&limit=${l}`;
-    if (titleBrowseMode === 'collections')
-      return `/api/collections/titles?offset=${o}&limit=${l}`;
-    if (titleBrowseMode === 'unsorted')
-      return `/api/pool/${encodeURIComponent(poolVolumeId)}/titles?offset=${o}&limit=${l}`;
-    if (titleBrowseMode === 'archive-pool')
-      return `/api/pool/${encodeURIComponent(archivePoolVolumeId)}/titles?offset=${o}&limit=${l}`;
+    if (titleBrowseMode === 'collections') {
+      let url = `/api/collections/titles?offset=${o}&limit=${l}`;
+      if (browseCompanyFilter) url += `&company=${encodeURIComponent(browseCompanyFilter)}`;
+      if (browseActiveTags.size > 0) url += `&tags=${encodeURIComponent([...browseActiveTags].join(','))}`;
+      return url;
+    }
+    if (titleBrowseMode === 'unsorted') {
+      let url = `/api/pool/${encodeURIComponent(poolVolumeId)}/titles?offset=${o}&limit=${l}`;
+      if (browseCompanyFilter) url += `&company=${encodeURIComponent(browseCompanyFilter)}`;
+      if (browseActiveTags.size > 0) url += `&tags=${encodeURIComponent([...browseActiveTags].join(','))}`;
+      return url;
+    }
+    if (titleBrowseMode === 'archive-pool') {
+      let url = `/api/pool/${encodeURIComponent(archivePoolVolumeId)}/titles?offset=${o}&limit=${l}`;
+      if (browseCompanyFilter) url += `&company=${encodeURIComponent(browseCompanyFilter)}`;
+      if (browseActiveTags.size > 0) url += `&tags=${encodeURIComponent([...browseActiveTags].join(','))}`;
+      return url;
+    }
     if (titleBrowseMode === 'tags' && activeTags.size > 0)
       return `/api/titles?tags=${encodeURIComponent([...activeTags].join(','))}&offset=${o}&limit=${l}`;
     return `/api/titles?offset=${o}&limit=${l}`;
@@ -220,8 +242,9 @@ function renderTopLabelsLeaderboard(topLabels) {
   const list = document.createElement('div');
   list.className = 'dashboard-leaderboard';
 
-  const maxScore = topLabels.reduce((m, l) => Math.max(m, l.score || 0), 0) || 1;
-  topLabels.forEach((lbl, i) => {
+  const displayed = topLabels.slice(0, 5);
+  const maxScore = displayed.reduce((m, l) => Math.max(m, l.score || 0), 0) || 1;
+  displayed.forEach((lbl, i) => {
     const row = document.createElement('div');
     row.className = 'leaderboard-row';
     row.innerHTML = `
@@ -364,6 +387,11 @@ async function renderTitleDashboard() {
 
 // ── Browse mode selection ─────────────────────────────────────────────────
 export function selectTitleBrowseMode(modeKey) {
+  // Reset browse filters when entering a different filterable mode, or leaving filterable modes entirely
+  if (modeKey !== titleBrowseMode) {
+    resetBrowseFilters();
+    if (!FILTERABLE_MODES.has(modeKey)) hideBrowseFilterBar();
+  }
   titleBrowseMode = modeKey;
   if (modeKey !== 'search') {
     if (titleSearchTimer) { clearTimeout(titleSearchTimer); titleSearchTimer = null; }
@@ -379,6 +407,7 @@ export function selectTitleBrowseMode(modeKey) {
     document.getElementById('titles-browse-grid').style.display = 'none';
     hideStudioGroupRow();
     hideTagsPanel();
+    hideBrowseFilterBar();
     titleDashboardEl.style.display = 'block';
     renderTitleDashboard();
     return;
@@ -389,6 +418,7 @@ export function selectTitleBrowseMode(modeKey) {
     document.getElementById('titles-browse-grid').style.display = 'none';
     titleStudioLabelsEl.style.display = 'none';
     hideTagsPanel();
+    hideBrowseFilterBar();
     ensureStudioGroups().then(groups => {
       renderStudioGroupRow(groups);
       showStudioGroupRow();
@@ -400,12 +430,18 @@ export function selectTitleBrowseMode(modeKey) {
   }
   if (modeKey === 'tags') {
     hideStudioGroupRow();
+    hideBrowseFilterBar();
     titleTagsPanel.style.display = 'grid';
     runTitleBrowseQuery();
     return;
   }
   hideStudioGroupRow();
   hideTagsPanel();
+  if (FILTERABLE_MODES.has(modeKey)) {
+    showBrowseFilterBar(); // async, fire-and-forget
+  } else {
+    hideBrowseFilterBar();
+  }
   runTitleBrowseQuery();
 }
 
@@ -422,8 +458,10 @@ export function showTitlesBrowse() {
   activeTags.clear();
   titleSearchInput.value = '';
   closeLabelDropdown();
+  resetBrowseFilters();
   hideStudioGroupRow();
   hideTagsPanel();
+  hideBrowseFilterBar();
   updateTitleLandingSelection();
   showView('titles-browse');
   requestAnimationFrame(() => {
@@ -686,6 +724,134 @@ function scheduleTagsQuery() {
 
 function hideTagsPanel() {
   titleTagsPanel.style.display = 'none';
+}
+
+// ── Browse-mode filter bar (Collections / Unsorted / Archives) ────────────
+
+function resetBrowseFilters() {
+  browseCompanyFilter = null;
+  browseActiveTags    = new Set();
+  browseCatalogTags   = null;
+  browseTagsForMode   = null;
+  if (browseFilterTimer) { clearTimeout(browseFilterTimer); browseFilterTimer = null; }
+}
+
+function hideBrowseFilterBar() {
+  const bar   = document.getElementById('title-browse-filter-bar');
+  const panel = document.getElementById('title-browse-tags-panel');
+  if (bar)   { bar.innerHTML = '';   bar.style.display   = 'none'; }
+  if (panel) { panel.innerHTML = ''; panel.style.display = 'none'; }
+}
+
+async function showBrowseFilterBar() {
+  if (!allCompanies) {
+    try {
+      const res = await fetch('/api/companies');
+      allCompanies = res.ok ? await res.json() : [];
+    } catch { allCompanies = []; }
+  }
+
+  // Guard: mode may have changed while companies were loading
+  if (!FILTERABLE_MODES.has(titleBrowseMode)) return;
+
+  const bar = document.getElementById('title-browse-filter-bar');
+  if (!bar) return;
+
+  bar.innerHTML = `
+    <select class="detail-company-select" id="browse-company-select">
+      <option value="">All Companies</option>
+      ${allCompanies.map(c => `<option value="${esc(c)}">${esc(c)}</option>`).join('')}
+    </select>
+    <button type="button" class="detail-tags-btn" id="browse-tags-btn">
+      Tags<span class="detail-tags-count" id="browse-tags-count" style="display:none"></span>
+    </button>`;
+  bar.style.display = '';
+
+  const sel = document.getElementById('browse-company-select');
+  if (sel && browseCompanyFilter) sel.value = browseCompanyFilter;
+  updateBrowseTagsBtn();
+
+  sel.addEventListener('change', e => {
+    browseCompanyFilter = e.target.value || null;
+    scheduleBrowseFilteredQuery();
+  });
+  document.getElementById('browse-tags-btn').addEventListener('click', toggleBrowseTagsPanel);
+}
+
+function updateBrowseTagsBtn() {
+  const countEl = document.getElementById('browse-tags-count');
+  if (!countEl) return;
+  if (browseActiveTags.size > 0) {
+    countEl.textContent = browseActiveTags.size;
+    countEl.style.display = '';
+  } else {
+    countEl.style.display = 'none';
+  }
+  const btn = document.getElementById('browse-tags-btn');
+  if (btn) btn.classList.toggle('has-active', browseActiveTags.size > 0);
+}
+
+function scheduleBrowseFilteredQuery() {
+  updateBrowseTagsBtn();
+  if (browseFilterTimer) clearTimeout(browseFilterTimer);
+  browseFilterTimer = setTimeout(() => {
+    browseFilterTimer = null;
+    document.getElementById('sentinel')?.remove();
+    allTitlesGrid.reset();
+    ensureSentinel();
+    allTitlesGrid.loadMore();
+  }, BROWSE_FILTER_DEBOUNCE_MS);
+}
+
+async function toggleBrowseTagsPanel() {
+  const panel = document.getElementById('title-browse-tags-panel');
+  if (!panel) return;
+
+  if (panel.style.display !== 'none') {
+    panel.style.display = 'none';
+    return;
+  }
+
+  // Load tags if not yet cached for this mode
+  if (!browseCatalogTags || browseTagsForMode !== titleBrowseMode) {
+    panel.innerHTML = '<div class="detail-tags-loading">Loading tags\u2026</div>';
+    panel.style.display = '';
+    const tagsUrl = titleBrowseMode === 'collections'
+      ? '/api/collections/tags'
+      : `/api/pool/${encodeURIComponent(titleBrowseMode === 'unsorted' ? poolVolumeId : archivePoolVolumeId)}/tags`;
+    try {
+      const res = await fetch(tagsUrl);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      browseCatalogTags = await res.json();
+      browseTagsForMode = titleBrowseMode;
+    } catch (err) {
+      panel.innerHTML = '<div class="detail-tags-loading">Could not load tags</div>';
+      return;
+    }
+  }
+
+  renderBrowseTagsPanel(panel);
+  panel.style.display = '';
+}
+
+function renderBrowseTagsPanel(panel) {
+  const tags = browseCatalogTags || [];
+  if (tags.length === 0) {
+    panel.innerHTML = '<div class="detail-tags-loading">No tags available</div>';
+    return;
+  }
+  panel.innerHTML = `
+    <div class="detail-tags-inner">
+      ${tags.map(t => `<button type="button" class="tag-toggle${browseActiveTags.has(t) ? ' active' : ''}" data-tag="${esc(t)}">${esc(t)}</button>`).join('')}
+    </div>`;
+  panel.querySelectorAll('.tag-toggle').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const tag = btn.dataset.tag;
+      if (browseActiveTags.has(tag)) { browseActiveTags.delete(tag); btn.classList.remove('active'); }
+      else                           { browseActiveTags.add(tag);    btn.classList.add('active'); }
+      scheduleBrowseFilteredQuery();
+    });
+  });
 }
 
 titleTagsBtn.addEventListener('click', async () => {
