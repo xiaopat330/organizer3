@@ -1548,6 +1548,33 @@ alias:
     aliases:
       - Seika Hirayama
 
+  - name: Miki Yoshi
+    aliases:
+      - Ryoko Isawa
+
+  - name: Ibuki Aoi
+    aliases:
+      - Aoi Tsubasa
+
+  - name: An Kitahara
+    aliases:
+      - Miki Goto
+      - Shizune Tachibana
+      - Arisa Tanimura
+
+  - name: Risa Tachibana
+    aliases:
+        - Eri Takamatsu
+
+  - name: Iori Kogawa
+    aliases:
+      - Iori Furukawa
+
+  - name: Kokone Mizutani
+    aliases:
+      - Rio Fujisaki
+
+
 ######################################################################
 # UNRESOLVED ENTRIES
 # These entries have been moved here because they could not be

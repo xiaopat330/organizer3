@@ -7,6 +7,10 @@
   --tier-superstar: #9a7a30; --tier-superstar-bg: #201a08; --tier-superstar-hover: #d0a840; --tier-superstar-selected: #e8c050;
   --tier-goddess: #c060a0;  --tier-goddess-bg: #200818;   --tier-goddess-hover: #e888c8;  --tier-goddess-selected: #f0a0d8;
   --tier-goddess-glow: 0 0 6px rgba(192,80,160,0.25);
+  /* Cover crop — right-N% of cover image shown. Computed by config.js from coverCropPercent. */
+  --cover-crop-width: 212.8%;
+  --cover-crop-offset: -112.8%;
+  --cover-card-ratio: 7.99 / 12;
 }
 
 body {
@@ -945,9 +949,13 @@ header h1:hover {
 /* Grids */
 .grid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(6, 1fr);
   gap: 12px;
   padding: 16px;
+}
+
+#detail-title-grid {
+  grid-template-columns: repeat(4, 1fr);
 }
 
 /* Title cards */
@@ -994,6 +1002,21 @@ header h1:hover {
   font-size: 0.75rem;
   letter-spacing: 0.05em;
   font-weight: 500;
+}
+
+/* Standard title cards only: crop to right N% of cover (front panel).
+   Width/offset/ratio are computed from coverCropPercent in config.js. */
+.card:not(.card-compact) .cover-wrap {
+  aspect-ratio: var(--cover-card-ratio);
+}
+.card:not(.card-compact) .cover-img {
+  position: absolute;
+  width: var(--cover-crop-width);
+  height: auto;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  object-fit: unset;
 }
 
 /* Actress card cover marquee.
@@ -1479,7 +1502,16 @@ header h1:hover {
 }
 
 .card-compact .cover-wrap {
-  aspect-ratio: 17 / 10;
+  aspect-ratio: var(--cover-card-ratio);
+}
+.card-compact .cover-img {
+  position: absolute;
+  width: var(--cover-crop-width);
+  height: auto;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  object-fit: unset;
 }
 .card-compact .card-info-compact {
   padding: 6px 8px 8px;
@@ -1516,7 +1548,7 @@ header h1:hover {
 /* Top info panel: Spotlight left + Library/Top Labels right. */
 .dashboard-top-panel {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: 346px 1fr;
   gap: 12px;
   align-items: start;
   margin-bottom: 32px;
@@ -1973,10 +2005,11 @@ header h1:hover {
 }
 
 .detail-cover-col img {
-  width: calc(100% - 16px);
-  margin: 8px;
+  width: var(--cover-crop-width);
+  margin-left: var(--cover-crop-offset);
+  margin-top: 8px;
+  margin-bottom: 8px;
   display: block;
-  object-fit: cover;
   border-radius: 4px;
 }
 
@@ -2460,6 +2493,65 @@ header h1:hover {
   font-weight: 700;
   line-height: 1;
   padding: 1px 6px;
+}
+
+/* ── Title grid column-count slider ──────────────────────────────────── */
+
+.title-cols-control {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  flex-shrink: 0;
+}
+
+.title-cols-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 108px;
+  height: 3px;
+  background: #2a2a2a;
+  border-radius: 2px;
+  outline: none;
+  cursor: pointer;
+}
+
+.title-cols-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  background: #666;
+  cursor: pointer;
+  transition: background 0.12s ease;
+}
+
+.title-cols-slider:hover::-webkit-slider-thumb,
+.title-cols-slider::-webkit-slider-thumb:active {
+  background: #999;
+}
+
+.title-cols-slider::-moz-range-thumb {
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  background: #666;
+  border: none;
+  cursor: pointer;
+}
+
+.title-cols-slider::-moz-range-track {
+  height: 3px;
+  background: #2a2a2a;
+  border-radius: 2px;
+}
+
+.title-cols-label {
+  font-size: 0.68rem;
+  color: #555;
+  min-width: 16px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
 }
 
 /* ── Actress tags panel ───────────────────────────────────────────────── */

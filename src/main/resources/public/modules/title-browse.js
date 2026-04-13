@@ -5,7 +5,7 @@ import { makeTitleCard, makeCompactTitleCard, agingLabel } from './cards.js';
 import { tagBadgeHtml } from './icons.js';
 import { ensureStudioGroups, ensureTitleLabels, renderTwoColumnStudioPanel, updateCompanyMarquee } from './studio-data.js';
 import { resetActressState, actressesBtn } from './actress-browse.js';
-import { MAX_TOTAL } from './config.js';
+import { MAX_TOTAL, THUMBNAIL_COLUMNS } from './config.js';
 import {
   renderDashboardStrip,
   renderDashboardSection,
@@ -33,6 +33,54 @@ export const titleUnsortedBtn   = document.getElementById('title-unsorted-btn');
 export const titleArchivesBtn   = document.getElementById('title-archives-btn');
 const titleTagsBtn              = document.getElementById('title-tags-btn');
 const titleTagsPanel            = document.getElementById('title-tags-panel');
+
+// ── Column count control ──────────────────────────────────────────────────
+const TITLE_COLS_VALUES      = [4, 5, 6, 8, 10, 12];
+const TITLE_COLS_STORAGE_KEY = 'title-grid-cols';
+
+function closestTitleCols(n) {
+  return TITLE_COLS_VALUES.reduce((a, b) => Math.abs(b - n) < Math.abs(a - n) ? b : a);
+}
+
+function effectiveTitleCols() {
+  const saved = parseInt(localStorage.getItem(TITLE_COLS_STORAGE_KEY), 10);
+  if (TITLE_COLS_VALUES.includes(saved)) return saved;
+  return closestTitleCols(THUMBNAIL_COLUMNS);
+}
+
+function applyTitleGridCols(cols) {
+  const grid = document.getElementById('titles-browse-grid');
+  if (grid) grid.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
+}
+
+function colsSliderHtml(cols) {
+  const idx = TITLE_COLS_VALUES.indexOf(cols);
+  return `<div class="title-cols-control" id="title-cols-control">
+    <input type="range" class="title-cols-slider" id="title-cols-slider"
+      min="0" max="5" step="1" value="${idx >= 0 ? idx : 2}">
+    <span class="title-cols-label" id="title-cols-label">${cols}</span>
+  </div>`;
+}
+
+function wireTitleColsSlider() {
+  const slider = document.getElementById('title-cols-slider');
+  const label  = document.getElementById('title-cols-label');
+  if (!slider) return;
+  slider.addEventListener('input', () => {
+    const cols = TITLE_COLS_VALUES[parseInt(slider.value, 10)];
+    if (label) label.textContent = cols;
+    applyTitleGridCols(cols);
+    localStorage.setItem(TITLE_COLS_STORAGE_KEY, cols);
+  });
+}
+
+function showColsOnlyFilterBar() {
+  const bar = document.getElementById('title-browse-filter-bar');
+  if (!bar) return;
+  bar.innerHTML = colsSliderHtml(effectiveTitleCols());
+  bar.style.display = '';
+  wireTitleColsSlider();
+}
 
 // ── State ─────────────────────────────────────────────────────────────────
 const TITLE_SEARCH_DELAY_MS  = 350;
@@ -134,6 +182,8 @@ export function runTitleBrowseQuery() {
   titleDashboardEl.style.display = 'none';
   document.getElementById('titles-browse-grid').style.display = 'grid';
   setActiveGrid(allTitlesGrid);
+  if (!FILTERABLE_MODES.has(titleBrowseMode)) showColsOnlyFilterBar();
+  applyTitleGridCols(effectiveTitleCols());
   allTitlesGrid.reset();
   ensureSentinel();
   allTitlesGrid.loadMore();
@@ -392,7 +442,6 @@ export function selectTitleBrowseMode(modeKey) {
   // Reset browse filters when entering a different filterable mode, or leaving filterable modes entirely
   if (modeKey !== titleBrowseMode) {
     resetBrowseFilters();
-    if (!FILTERABLE_MODES.has(modeKey)) hideBrowseFilterBar();
   }
   titleBrowseMode = modeKey;
   if (modeKey !== 'search') {
@@ -404,6 +453,11 @@ export function selectTitleBrowseMode(modeKey) {
   updateTitleLandingSelection();
   updateTitleBreadcrumb();
   titlesBrowseBtn.classList.add('active');
+  showView('titles-browse');
+  requestAnimationFrame(() => {
+    const header = document.querySelector('header');
+    if (header) titleLandingEl.style.top = header.offsetHeight + 'px';
+  });
   if (modeKey === 'dashboard') {
     showView('titles-browse');
     document.getElementById('titles-browse-grid').style.display = 'none';
@@ -432,7 +486,6 @@ export function selectTitleBrowseMode(modeKey) {
   }
   if (modeKey === 'tags') {
     hideStudioGroupRow();
-    hideBrowseFilterBar();
     titleTagsPanel.style.display = 'grid';
     runTitleBrowseQuery();
     return;
@@ -441,8 +494,6 @@ export function selectTitleBrowseMode(modeKey) {
   hideTagsPanel();
   if (FILTERABLE_MODES.has(modeKey)) {
     showBrowseFilterBar(); // async, fire-and-forget
-  } else {
-    hideBrowseFilterBar();
   }
   runTitleBrowseQuery();
 }
@@ -770,7 +821,8 @@ async function showBrowseFilterBar() {
     <div class="company-marquee company-marquee-browse" id="browse-company-marquee" style="display:none"><span class="company-marquee-inner"></span></div>
     <button type="button" class="detail-tags-btn" id="browse-tags-btn">
       Tags<span class="detail-tags-count" id="browse-tags-count" style="display:none"></span>
-    </button>`;
+    </button>
+    ${colsSliderHtml(effectiveTitleCols())}`;
   bar.style.display = '';
 
   const sel = document.getElementById('browse-company-select');
@@ -779,6 +831,7 @@ async function showBrowseFilterBar() {
     updateCompanyMarquee(document.getElementById('browse-company-marquee'), browseCompanyFilter);
   }
   updateBrowseTagsBtn();
+  wireTitleColsSlider();
 
   sel.addEventListener('change', e => {
     browseCompanyFilter = e.target.value || null;

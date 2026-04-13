@@ -90,7 +90,8 @@ public class WebServer {
             result.put("maxBrowseTitles",    cfg.maxBrowseTitles()    != null ? cfg.maxBrowseTitles()    : 500);
             result.put("maxRandomTitles",    cfg.maxRandomTitles()    != null ? cfg.maxRandomTitles()    : 500);
             result.put("maxRandomActresses", cfg.maxRandomActresses() != null ? cfg.maxRandomActresses() : 500);
-            result.put("thumbnailColumns",  cfg.thumbnailColumns()  != null ? cfg.thumbnailColumns()  : 5);
+            result.put("thumbnailColumns",   cfg.thumbnailColumns()   != null ? cfg.thumbnailColumns()   : 5);
+            result.put("coverCropPercent",   cfg.coverCropPercent()   != null ? cfg.coverCropPercent()   : 47);
             var exhibitionVolumes = cfg.volumes().stream()
                     .filter(v -> "exhibition".equals(v.group()))
                     .map(VolumeConfig::id)
