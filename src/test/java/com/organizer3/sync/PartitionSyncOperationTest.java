@@ -84,7 +84,8 @@ class PartitionSyncOperationTest {
         when(fs.exists(Path.of("/queue"))).thenReturn(false);
 
         PartitionSyncOperation op = new PartitionSyncOperation(
-                List.of("queue"), titleRepo, videoRepo, actressRepo, volumeRepo, titleLocationRepo, titleActressRepo, indexLoader);
+                List.of("queue"), titleRepo, videoRepo, actressRepo, volumeRepo, titleLocationRepo, titleActressRepo, indexLoader,
+                mock(com.organizer3.db.TitleEffectiveTagsService.class), mock(com.organizer3.db.ActressCompaniesService.class));
         op.execute(VOLUME, STRUCTURE, fs, ctx, io);
 
         verify(videoRepo).deleteByVolumeAndPartition("a", "queue");
@@ -104,7 +105,8 @@ class PartitionSyncOperationTest {
         when(fs.listDirectory(titleDir)).thenReturn(List.of());
 
         PartitionSyncOperation op = new PartitionSyncOperation(
-                List.of("queue"), titleRepo, videoRepo, actressRepo, volumeRepo, titleLocationRepo, titleActressRepo, indexLoader);
+                List.of("queue"), titleRepo, videoRepo, actressRepo, volumeRepo, titleLocationRepo, titleActressRepo, indexLoader,
+                mock(com.organizer3.db.TitleEffectiveTagsService.class), mock(com.organizer3.db.ActressCompaniesService.class));
         op.execute(VOLUME, STRUCTURE, fs, ctx, io);
 
         verify(titleRepo).findOrCreateByCode(argThat(t -> "ABP-001".equals(t.getCode())));
@@ -116,7 +118,8 @@ class PartitionSyncOperationTest {
         when(fs.exists(Path.of("/attention"))).thenReturn(false);
 
         PartitionSyncOperation op = new PartitionSyncOperation(
-                List.of("queue", "attention"), titleRepo, videoRepo, actressRepo, volumeRepo, titleLocationRepo, titleActressRepo, indexLoader);
+                List.of("queue", "attention"), titleRepo, videoRepo, actressRepo, volumeRepo, titleLocationRepo, titleActressRepo, indexLoader,
+                mock(com.organizer3.db.TitleEffectiveTagsService.class), mock(com.organizer3.db.ActressCompaniesService.class));
         op.execute(VOLUME, STRUCTURE, fs, ctx, io);
 
         verify(videoRepo).deleteByVolumeAndPartition("a", "queue");
@@ -128,7 +131,8 @@ class PartitionSyncOperationTest {
     @Test
     void throwsOnUnknownPartitionId() {
         PartitionSyncOperation op = new PartitionSyncOperation(
-                List.of("nonexistent"), titleRepo, videoRepo, actressRepo, volumeRepo, titleLocationRepo, titleActressRepo, indexLoader);
+                List.of("nonexistent"), titleRepo, videoRepo, actressRepo, volumeRepo, titleLocationRepo, titleActressRepo, indexLoader,
+                mock(com.organizer3.db.TitleEffectiveTagsService.class), mock(com.organizer3.db.ActressCompaniesService.class));
 
         assertThrows(IllegalArgumentException.class,
                 () -> op.execute(VOLUME, STRUCTURE, fs, ctx, io));
@@ -139,7 +143,8 @@ class PartitionSyncOperationTest {
         when(fs.exists(Path.of("/queue"))).thenReturn(false);
 
         PartitionSyncOperation op = new PartitionSyncOperation(
-                List.of("queue"), titleRepo, videoRepo, actressRepo, volumeRepo, titleLocationRepo, titleActressRepo, indexLoader);
+                List.of("queue"), titleRepo, videoRepo, actressRepo, volumeRepo, titleLocationRepo, titleActressRepo, indexLoader,
+                mock(com.organizer3.db.TitleEffectiveTagsService.class), mock(com.organizer3.db.ActressCompaniesService.class));
         op.execute(VOLUME, STRUCTURE, fs, ctx, io);
 
         verify(volumeRepo).updateLastSyncedAt(eq("a"), any(LocalDateTime.class));

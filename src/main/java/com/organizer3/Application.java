@@ -4,7 +4,11 @@ import com.anthropic.client.AnthropicClient;
 import com.anthropic.client.okhttp.AnthropicOkHttpClient;
 import com.organizer3.ai.ActressNameLookup;
 import com.organizer3.ai.ClaudeActressNameLookup;
+import com.organizer3.command.ActressNameCheckService;
 import com.organizer3.command.ActressSearchCommand;
+import com.organizer3.command.CheckNamesCommand;
+import com.organizer3.command.ErrorScanService;
+import com.organizer3.command.ScanErrorsCommand;
 import com.organizer3.command.ActressesCommand;
 
 import com.organizer3.command.Command;
@@ -169,6 +173,8 @@ public class Application {
 
         ActressYamlLoader yamlLoader = new ActressYamlLoader(actressRepo, titleRepo, tagRepo);
         commands.add(new LoadActressCommand(yamlLoader));
+        commands.add(new CheckNamesCommand(actressRepo, new ActressNameCheckService()));
+        commands.add(new ScanErrorsCommand(actressRepo, new ErrorScanService()));
 
         // Scanner registry — maps structure types to their filesystem scanners
         ScannerRegistry scannerRegistry = new ScannerRegistry(Map.of(

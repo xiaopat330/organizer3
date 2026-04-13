@@ -94,7 +94,8 @@ class FullSyncOperationTest {
 
     private FullSyncOperation newOp() {
         return new FullSyncOperation(scannerRegistry, titleRepo, videoRepo, actressRepo,
-                volumeRepo, titleLocationRepo, titleActressRepo, indexLoader);
+                volumeRepo, titleLocationRepo, titleActressRepo, indexLoader,
+                mock(com.organizer3.db.TitleEffectiveTagsService.class), mock(com.organizer3.db.ActressCompaniesService.class));
     }
 
     // --- Clears data before scanning ---

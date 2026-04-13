@@ -216,6 +216,28 @@ public interface ActressRepository {
      */
     void importFromYaml(List<AliasYamlEntry> entries);
 
+    // ── Name-check queries ───────────────────────────────────────────────────
+
+    /**
+     * Returns the combined title count for every actress, unioning both the
+     * {@code titles.actress_id} FK column and the {@code title_actresses} many-to-many table.
+     * Only actresses with at least one title are included.
+     */
+    Map<Long, Integer> countAllTitlesByActress();
+
+    /**
+     * Filing-title location record — one row per (title, location) for titles whose
+     * actress is the "filing" actress (i.e. the folder on the server is named after her).
+     */
+    record FilingLocation(long actressId, String code, String volumeId, String path) {}
+
+    /**
+     * Returns all filing-title locations grouped by actress id.
+     * Only covers titles linked via {@code titles.actress_id} (the FK), since those folder
+     * names carry the actress name and may need renaming.
+     */
+    Map<Long, List<FilingLocation>> findFilingLocations();
+
     // ── Federated search ──────────────────────────────────────────────────────
 
     /** Lightweight actress projection for federated search results. */

@@ -1223,6 +1223,92 @@ class JdbiActressRepositoryTest {
         connection_execute("INSERT INTO labels (code, company) VALUES ('" + code + "', '" + company + "')");
     }
 
+    /** Insert a title via actress_id FK (filing title) and add a title_location row. */
+    private long insertFilingTitle(long actressId, String code, String volumeId, String path) throws Exception {
+        // Ensure the volume exists (FK constraint on title_locations.volume_id)
+        connection_execute("INSERT OR IGNORE INTO volumes (id, structure_type) VALUES ('" + volumeId + "', 'conventional')");
+        try (var stmt = connection.createStatement()) {
+            stmt.execute("INSERT INTO titles (code, actress_id) VALUES ('" + code + "', " + actressId + ")");
+            long titleId = stmt.getGeneratedKeys().getLong(1);
+            stmt.execute("INSERT INTO title_locations (title_id, volume_id, partition_id, path, last_seen_at) VALUES ("
+                    + titleId + ", '" + volumeId + "', 'stars', '" + path + "', '2024-01-01')");
+            return titleId;
+        }
+    }
+
+    // ── countAllTitlesByActress ────────────────────────────────────────────
+
+    @Test
+    void countAllTitlesByActress_countsFKTitles() throws Exception {
+        Actress a = repo.save(actress("Yuna Shiina"));
+        insertFilingTitle(a.getId(), "SOD-001", "s", "/Yuna Shiina/Yuna Shiina (SOD-001)");
+        insertFilingTitle(a.getId(), "SOD-002", "s", "/Yuna Shiina/Yuna Shiina (SOD-002)");
+
+        Map<Long, Integer> counts = repo.countAllTitlesByActress();
+        assertEquals(2, counts.get(a.getId()));
+    }
+
+    @Test
+    void countAllTitlesByActress_countsJunctionTitles() throws Exception {
+        Actress a = repo.save(actress("Yuna Shiina"));
+        // Junction-only (title_actresses) — no actress_id FK
+        insertTitlesForActress(a.getId(), 3);
+
+        Map<Long, Integer> counts = repo.countAllTitlesByActress();
+        assertEquals(3, counts.get(a.getId()));
+    }
+
+    @Test
+    void countAllTitlesByActress_unionsBothSources() throws Exception {
+        Actress a = repo.save(actress("Yuna Shiina"));
+        insertFilingTitle(a.getId(), "SOD-001", "s", "/Yuna Shiina/Yuna Shiina (SOD-001)");
+        insertTitlesForActress(a.getId(), 2); // 2 via junction
+
+        Map<Long, Integer> counts = repo.countAllTitlesByActress();
+        assertEquals(3, counts.get(a.getId()));
+    }
+
+    @Test
+    void countAllTitlesByActress_omitsActressesWithNoTitles() {
+        Actress a = repo.save(actress("Nobody"));
+        Map<Long, Integer> counts = repo.countAllTitlesByActress();
+        assertFalse(counts.containsKey(a.getId()));
+    }
+
+    // ── findFilingLocations ───────────────────────────────────────────────
+
+    @Test
+    void findFilingLocations_returnsPathsForFilingActress() throws Exception {
+        Actress a = repo.save(actress("Yuna Shiina"));
+        insertFilingTitle(a.getId(), "SOD-001", "s", "/Yuna Shiina/Yuna Shiina (SOD-001)");
+
+        Map<Long, List<ActressRepository.FilingLocation>> locs = repo.findFilingLocations();
+        assertTrue(locs.containsKey(a.getId()));
+        assertEquals(1, locs.get(a.getId()).size());
+        assertEquals("SOD-001", locs.get(a.getId()).get(0).code());
+        assertEquals("s",       locs.get(a.getId()).get(0).volumeId());
+    }
+
+    @Test
+    void findFilingLocations_excludesJunctionOnlyActresses() throws Exception {
+        Actress a = repo.save(actress("Yuna Shiina"));
+        // Only linked via title_actresses junction, not actress_id FK
+        insertTitlesForActress(a.getId(), 1);
+
+        Map<Long, List<ActressRepository.FilingLocation>> locs = repo.findFilingLocations();
+        assertFalse(locs.containsKey(a.getId()));
+    }
+
+    @Test
+    void findFilingLocations_groupsMultipleTitlesUnderSameActress() throws Exception {
+        Actress a = repo.save(actress("Yuna Shiina"));
+        insertFilingTitle(a.getId(), "SOD-001", "s", "/Yuna Shiina/Yuna Shiina (SOD-001)");
+        insertFilingTitle(a.getId(), "SOD-002", "s", "/Yuna Shiina/Yuna Shiina (SOD-002)");
+
+        Map<Long, List<ActressRepository.FilingLocation>> locs = repo.findFilingLocations();
+        assertEquals(2, locs.get(a.getId()).size());
+    }
+
     // findByStudioGroupCompaniesPaged / countByStudioGroupCompanies
 
     @Test

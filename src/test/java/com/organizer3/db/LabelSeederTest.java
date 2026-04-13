@@ -28,7 +28,7 @@ class LabelSeederTest {
         new SchemaInitializer(jdbi).initialize();
         // Tags must exist before label_tags rows can be inserted (FK reference)
         new TagSeeder(jdbi).seedIfEmpty();
-        seeder = new LabelSeeder(jdbi);
+        seeder = new LabelSeeder(jdbi, new TitleEffectiveTagsService(jdbi));
     }
 
     @AfterEach

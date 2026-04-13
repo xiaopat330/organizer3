@@ -51,7 +51,7 @@ class SyncCommandTest {
     @BeforeEach
     void setUp() {
         AppConfig.initializeForTest(new OrganizerConfig(
-                null, null, null, null, null, null, null, List.of(),
+                null, null, null, null, null, null, null, null, List.of(),
                 List.of(CONVENTIONAL_VOL, QUEUE_VOL),
                 List.of(CONVENTIONAL_STRUCTURE,
                         new VolumeStructureDef("queue",

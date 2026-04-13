@@ -1,0 +1,43 @@
+profile:
+  name:
+    family_name: "Wakana"
+    given_name: "Nao"
+    stage_name: "若菜奈央"
+    reading: "わかな なお"
+    alternate_names:
+    - name: "若菜奈緒"
+      note: "alternate kanji spelling (奈緒 vs 奈央, both read 'nao'); used in DMM actress profile"
+  date_of_birth: 1994-02-06
+  birthplace: "Tokyo, Japan"
+  blood_type: null
+  height_cm: 171
+  measurements:
+    bust: 88
+    waist: 58
+    hip: 88
+  cup: "F"
+  active_from: 2015-08-01
+  active_to: 2017-10-01
+  retirement_announced: 2018-04-02
+  biography: "Nao Wakana was born February 6, 1994 in Tokyo and debuted as a PRESTIGE exclusive actress in August 2015. Standing 171 cm tall with an F-cup figure, she was unusually statuesque for an AV actress and attracted attention for her model-like physique. She left her PRESTIGE exclusive contract in January 2017 and worked freelance across multiple studios for the remainder of her career. She retired from the industry in October 2017, announcing it via Twitter in April 2018 with the stated ambition of pursuing a career as a fashion model. Her hobbies include yoga, swimming, and piano."
+  primary_studios:
+  - name: "PRESTIGE"
+    company: "PRESTIGE"
+    from: 2015-08-01
+    to: 2017-01-01
+    role: "Exclusive contract actress"
+  awards: null
+  legacy: null
+
+meta:
+  total_owned_titles: 99
+  titles_with_japanese_title: null
+  titles_with_english_title: null
+  titles_with_release_date: null
+  total_known_releases: null
+  coverage_note: "99 owned titles in local DB across 53 labels; notably high label count for a 2-year career — may include compilation appearances. DB id=1 (first actress added)."
+  confidence: "Profile sourced from Chinese Wikipedia (no Japanese article exists); data traces back to DMM actress profile (actress_id=1031241). Alternate kanji 若菜奈緒 appears in DMM source footnote vs 若菜奈央 in article title — same reading ('nao'), unclear which is authoritative. Blood type not listed. Active dates approximated to first of month (debut August 2015, retirement October 2017). Retirement announcement date 2018-04-02 is exact (Twitter). Height/measurements dated as of 2015 per DMM profile."
+  data_sources:
+  - "https://zh.wikipedia.org/wiki/%E8%8B%A5%E8%8F%9C%E5%A5%88%E5%A4%AE"
+  - "local DB (actress id=1, 99 titles)"
+  portfolio_listed: 0

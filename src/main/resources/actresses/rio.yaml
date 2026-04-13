@@ -1,0 +1,60 @@
+profile:
+  name:
+    family_name: null
+    given_name: "Rio"
+    stage_name: "Rio"
+    reading: "りお"
+    alternate_names:
+    - name: "柚木ティナ"
+      note: "debut name under MAX-A (2005–2007); renamed to Rio July 2007"
+    - name: "RIO"
+      note: "all-caps variant used for music career (singer debut 2013)"
+    - name: "ティナっち"
+      note: "nickname"
+  date_of_birth: 1986-10-29
+  birthplace: "Tokyo, Japan"
+  blood_type: "A"
+  height_cm: 154
+  measurements:
+    bust: 84
+    waist: 58
+    hip: 83
+  cup: "C"
+  active_from: 2005-11-22
+  active_to: 2016-12-31
+  retirement_announced: null
+  biography: "Rio is a Tokyo-born former AV actress, gravure idol, and singer, born October 29, 1986 to a Japanese father and Portuguese mother — her mixed heritage is visible in her looks, and Portuguese is among her listed special skills. Scouted at Minamikoshigaya Station, she debuted under the name Yuzuki Tina (柚木ティナ) as a MAX-A exclusive in November 2005, then renamed herself Rio in July 2007. She moved to S1 as an exclusive in February 2008 and then to Idea Pocket (alongside MAX-A) in March 2009, where the bulk of her catalog was produced. She was also a member of Ebisu Muscats and made her music debut as RIO in December 2013. She stepped back from AV work around 2016 and was reported in 2023 to be working in visiting-care nursing counselling and accessory design."
+  primary_studios:
+  - name: "MAX-A"
+    company: "MAX-A"
+    from: 2005-11-22
+    to: 2008-01-31
+    role: "Exclusive contract actress (as 柚木ティナ, later as Rio)"
+  - name: "S1 No.1 Style"
+    company: "S1 No.1 Style"
+    from: 2008-02-01
+    to: 2009-02-28
+    role: "Exclusive contract actress"
+  - name: "Idea Pocket / MAX-A"
+    company: "Idea Pocket / MAX-A"
+    from: 2009-03-01
+    to: 2016-12-31
+    role: "Exclusive contract actress (dual label)"
+  awards:
+  - event: "SKY PerfecTV! Adult Broadcast Award 2008"
+    year: 2009
+    category: "Actress Award"
+  legacy: "Over an approximately eleven-year career, Rio built an extensive catalog across MAX-A, S1, and Idea Pocket while simultaneously working as a gravure idol and, later, a singer. Her half-Japanese, half-Portuguese look and the dramatic rename from Yuzuki Tina to Rio became key parts of her public identity. She was ranked tenth in the AV 30th Anniversary fan popularity poll, reflecting her enduring appeal across a long career."
+
+meta:
+  total_owned_titles: 122
+  titles_with_japanese_title: null
+  titles_with_english_title: null
+  titles_with_release_date: null
+  total_known_releases: null
+  coverage_note: "122 owned titles; top labels XV(40), IPTD(31), IPZ(16), SRXV(12) — all MAX-A or Idea Pocket. SOE(6)+ONED(5) from S1 period."
+  confidence: "Strong — full Japanese Wikipedia article with consistent infobox. Measurements dated as of 2006. active_to approximated to end of 2016 (Wikipedia lists active period as 2005–2016, exact final release date not determined). Retirement not formally announced — AV activity simply ceased. Studio transition dates (S1: Feb 2008, Idea Pocket: Mar 2009) are exact per article."
+  data_sources:
+  - "https://ja.wikipedia.org/wiki/Rio_(AV%E5%A5%B3%E5%84%AA)"
+  - "local DB (actress id=95, 122 titles)"
+  portfolio_listed: 0

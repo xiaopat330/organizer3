@@ -1126,6 +1126,49 @@ public class JdbiActressRepository implements ActressRepository {
         );
     }
 
+    // ─── Name-check queries ──────────────────────────────────────────────────
+
+    @Override
+    public Map<Long, Integer> countAllTitlesByActress() {
+        return jdbi.withHandle(h ->
+                h.createQuery("""
+                        SELECT actress_id, COUNT(*) AS cnt FROM (
+                            SELECT actress_id FROM titles WHERE actress_id IS NOT NULL
+                            UNION ALL
+                            SELECT actress_id FROM title_actresses
+                        ) GROUP BY actress_id
+                        """)
+                        .map((rs, ctx) -> Map.entry(rs.getLong("actress_id"), rs.getInt("cnt")))
+                        .list()
+                        .stream()
+                        .collect(java.util.stream.Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue))
+        );
+    }
+
+    @Override
+    public Map<Long, List<FilingLocation>> findFilingLocations() {
+        List<FilingLocation> rows = jdbi.withHandle(h ->
+                h.createQuery("""
+                        SELECT t.actress_id, t.code, tl.volume_id, tl.path
+                        FROM titles t
+                        JOIN title_locations tl ON tl.title_id = t.id
+                        WHERE t.actress_id IS NOT NULL
+                        ORDER BY t.actress_id, t.code
+                        """)
+                        .map((rs, ctx) -> new FilingLocation(
+                                rs.getLong("actress_id"),
+                                rs.getString("code"),
+                                rs.getString("volume_id"),
+                                rs.getString("path")))
+                        .list()
+        );
+        Map<Long, List<FilingLocation>> result = new java.util.LinkedHashMap<>();
+        for (FilingLocation loc : rows) {
+            result.computeIfAbsent(loc.actressId(), k -> new java.util.ArrayList<>()).add(loc);
+        }
+        return result;
+    }
+
     @Override
     public List<FederatedActressResult> searchForFederated(String query, boolean startsWith, int limit) {
         String pattern = startsWith ? query + "%" : "%" + query + "%";
