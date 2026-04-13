@@ -5,6 +5,7 @@ maxRandomTitles: 500
 maxRandomActresses: 500
 thumbnailInterval: 8
 thumbnailColumns: 5
+coverCropPercent: 47
 
 servers:
   - id: pandora

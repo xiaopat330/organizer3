@@ -17,6 +17,7 @@ public record OrganizerConfig(
         @JsonProperty("maxRandomActresses") Integer maxRandomActresses,
         @JsonProperty("thumbnailInterval")  Integer thumbnailInterval,
         @JsonProperty("thumbnailColumns")   Integer thumbnailColumns,
+        @JsonProperty("coverCropPercent")   Integer coverCropPercent,
         @JsonProperty("servers")            List<ServerConfig> servers,
         @JsonProperty("volumes")         List<VolumeConfig> volumes,
         @JsonProperty("structures")      List<VolumeStructureDef> structures,

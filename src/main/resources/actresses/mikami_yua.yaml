@@ -1,0 +1,83 @@
+profile:
+  name:
+    family_name: Mikami
+    given_name: Yua
+    stage_name: 三上 悠亜
+    reading: みかみ ゆあ
+    alternate_names:
+    - name: 鬼頭 桃菜
+      note: real name (きとう ももな); used as SKE48 stage name 2009–2014
+  date_of_birth: '1993-08-16'
+  birthplace: Nagoya, Aichi Prefecture, Japan
+  blood_type: A
+  height_cm: 159
+  measurements:
+    bust: 90
+    waist: 57
+    hip: 88
+  cup: G
+  active_from: '2015-06-01'
+  active_to: '2023-08-15'
+  retirement_announced: '2023-03-13'
+  biography: "Yua Mikami (born Momona Kito, August 16, 1993) is a former AV actress,
+    YouTuber, and talent from Nagoya, Aichi Prefecture. A former member of idol group
+    SKE48 (2009–2014), she made her AV debut on June 1, 2015, with MUTEKI in the landmark
+    release Princess Peach, which topped the DMM annual rankings across all formats and
+    earned her four awards at the 2016 DMM.R18 Adult Awards including Best New Actress.
+    She transferred to S1 No.1 Style in November 2016 and became one of the label's most
+    prominent exclusives, winning Best Actress at the 2017 DMM.R18 Adult Awards and
+    consistently ranking at the top of annual sales charts throughout her career. She
+    announced her retirement on March 13, 2023, citing a personal goal to complete her
+    AV career before age 30; her final release coincided with her 30th birthday on
+    August 15, 2023. After retirement she has continued as a talent, YouTuber (over
+    1.1 million subscribers), and apparel brand director."
+  primary_studios:
+  - name: MUTEKI
+    company: MUTEKI
+    from: '2015-06-01'
+    to: '2018-12-01'
+    role: Exclusive contract actress; celebrity AV debut label
+  - name: S1 No.1 Style
+    company: WILL Co., Ltd.
+    from: '2016-11-25'
+    to: '2023-08-15'
+    role: Exclusive contract actress; S1 Ambassador (2018–2023)
+  awards:
+  - event: DMM.R18アダルトアワード
+    year: 2016
+    category: 最優秀新人女優賞 (Best New Actress) + 4冠 (最優秀作品賞 通販BD・通販DVD・レンタル部門) for Princess Peach
+  - event: スカパー!アダルト放送大賞
+    year: 2017
+    category: 作品賞・FLASH賞 (Best Title + Flash Award)
+  - event: DMM.R18アダルトアワード
+    year: 2017
+    category: 最優秀女優賞 (Best Actress)
+  - event: アサ芸AV大賞
+    year: 2023
+    category: AV業界栄誉賞 (Industry Lifetime Honor Award)
+  legacy: "One of the defining AV actresses of the late 2010s, Mikami made the
+    celebrity-crossover transition from idol stardom to top-tier exclusive in a way
+    that set an industry template. Her debut TEK-067 Princess Peach remains among
+    the highest-selling JAV releases of all time, and her 8-year career at S1 — the
+    longest run of any top exclusive of her generation — saw her dominate annual
+    sales rankings from 2016 through retirement in 2023."
+
+meta:
+  total_owned_titles: 103
+  titles_with_japanese_title: 0
+  titles_with_english_title: 0
+  titles_with_release_date: 0
+  total_known_releases: 115
+  coverage_note: "Portfolio not yet researched. 103 unique owned titles in local DB
+    (105 rows; SSIS-509 and SSNI-989 each have a _4K duplicate). Wikipedia lists
+    ~97 solo titles plus multi-actress appearances and compilations not in the DB.
+    OFJE-505 and OFJE-550 are likely post-retirement compilations (2024–2025) not
+    yet covered in Wikipedia."
+  confidence: "Profile data sourced from Japanese Wikipedia. Measurements are
+    self-reported as of 2021. Cup size G confirmed in Wikipedia infobox (actress
+    has stated she grew from F to G during her career via salon treatments).
+    DB code EM-0001 likely corresponds to Wikipedia-listed EHM-0001
+    (オルスタックソフト販売, 2016-12-29) — label code discrepancy noted."
+  data_sources:
+  - https://ja.wikipedia.org/wiki/三上悠亜
+  portfolio_listed: 0

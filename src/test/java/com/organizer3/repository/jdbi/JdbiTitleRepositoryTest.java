@@ -708,7 +708,68 @@ class JdbiTitleRepositoryTest {
         assertTrue(second.isAfter(first));
     }
 
+    // --- countTitlesByCompanies ---
+
+    @Test
+    void countTitlesByCompaniesGroupsByLabelCompany() {
+        insertLabel("MIDA", "Moodyz");
+        insertLabel("MIAA", "Moodyz");
+        insertLabel("SSIS", "S1");
+        insertLabel("XXX",  "Outside");
+
+        saveWithLocation(titleFull("MIDA-001", "MIDA", 1), "vol-a", "stars/library", "/p/MIDA-001");
+        saveWithLocation(titleFull("MIDA-002", "MIDA", 2), "vol-a", "stars/library", "/p/MIDA-002");
+        saveWithLocation(titleFull("MIAA-001", "MIAA", 1), "vol-a", "stars/library", "/p/MIAA-001");
+        saveWithLocation(titleFull("SSIS-001", "SSIS", 1), "vol-a", "stars/library", "/p/SSIS-001");
+        saveWithLocation(titleFull("XXX-001",  "XXX",  1), "vol-a", "stars/library", "/p/XXX-001");
+
+        var counts = titleRepo.countTitlesByCompanies(List.of("Moodyz", "S1"));
+        assertEquals(2, counts.size());
+        assertEquals(3L, counts.get("Moodyz")); // MIDA-001, MIDA-002, MIAA-001
+        assertEquals(1L, counts.get("S1"));
+        assertNull(counts.get("Outside"));
+    }
+
+    @Test
+    void countTitlesByCompaniesOmitsCompaniesWithZeroTitles() {
+        insertLabel("MIDA", "Moodyz");
+        saveWithLocation(titleFull("MIDA-001", "MIDA", 1), "vol-a", "stars/library", "/p/MIDA-001");
+
+        var counts = titleRepo.countTitlesByCompanies(List.of("Moodyz", "Madonna"));
+        assertEquals(1, counts.size());
+        assertEquals(1L, counts.get("Moodyz"));
+        assertNull(counts.get("Madonna"));
+    }
+
+    @Test
+    void countTitlesByCompaniesReturnsEmptyForNullOrEmptyInput() {
+        insertLabel("MIDA", "Moodyz");
+        saveWithLocation(titleFull("MIDA-001", "MIDA", 1), "vol-a", "stars/library", "/p/MIDA-001");
+
+        assertTrue(titleRepo.countTitlesByCompanies(List.of()).isEmpty());
+        assertTrue(titleRepo.countTitlesByCompanies(null).isEmpty());
+    }
+
+    @Test
+    void countTitlesByCompaniesIsCaseInsensitiveOnLabelCode() {
+        insertLabel("MIDA", "Moodyz");
+        // Title stored with lowercase label code — join is upper(l.code) = upper(t.label).
+        saveWithLocation(titleFull("mida-001", "mida", 1), "vol-a", "stars/library", "/p/mida-001");
+
+        var counts = titleRepo.countTitlesByCompanies(List.of("Moodyz"));
+        assertEquals(1L, counts.get("Moodyz"));
+    }
+
     // --- helpers ---
+
+    /** Insert a label row mapping a label code to a company. */
+    private void insertLabel(String code, String company) {
+        try (var stmt = connection.createStatement()) {
+            stmt.execute("INSERT INTO labels (code, company) VALUES ('" + code + "', '" + company + "')");
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
 
     private static Actress actress(String canonicalName) {
         return Actress.builder()

@@ -28,8 +28,11 @@ public record ActressYaml(
             @JsonProperty("cup") String cup,
             @JsonProperty("active_from") String activeFrom,
             @JsonProperty("active_to") String activeTo,
+            @JsonProperty("retirement_announced") String retirementAnnounced,
             @JsonProperty("biography") String biography,
-            @JsonProperty("legacy") String legacy
+            @JsonProperty("legacy") String legacy,
+            @JsonProperty("primary_studios") List<Studio> primaryStudios,
+            @JsonProperty("awards") List<Award> awards
     ) {}
 
     @JsonIgnoreProperties(ignoreUnknown = true)
@@ -37,6 +40,7 @@ public record ActressYaml(
             @JsonProperty("family_name") String familyName,
             @JsonProperty("given_name") String givenName,
             @JsonProperty("stage_name") String stageName,
+            @JsonProperty("reading") String reading,
             @JsonProperty("alternate_names") List<AlternateName> alternateNames
     ) {
         /** Returns the canonical romanized name: "Given Family" order. */
@@ -59,6 +63,24 @@ public record ActressYaml(
             @JsonProperty("bust") Integer bust,
             @JsonProperty("waist") Integer waist,
             @JsonProperty("hip") Integer hip
+    ) {}
+
+    /** One tenure in the actress's studio history. */
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public record Studio(
+            @JsonProperty("name") String name,
+            @JsonProperty("company") String company,
+            @JsonProperty("from") String from,
+            @JsonProperty("to") String to,
+            @JsonProperty("role") String role
+    ) {}
+
+    /** A single award or honor. */
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public record Award(
+            @JsonProperty("event") String event,
+            @JsonProperty("year") Integer year,
+            @JsonProperty("category") String category
     ) {}
 
     @JsonIgnoreProperties(ignoreUnknown = true)

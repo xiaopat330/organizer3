@@ -2,6 +2,8 @@ package com.organizer3.sync;
 
 import com.organizer3.config.volume.VolumeConfig;
 import com.organizer3.config.volume.VolumeStructureDef;
+import com.organizer3.db.ActressCompaniesService;
+import com.organizer3.db.TitleEffectiveTagsService;
 import com.organizer3.filesystem.VolumeFileSystem;
 import com.organizer3.model.Title;
 import com.organizer3.repository.ActressRepository;
@@ -33,8 +35,11 @@ public class FullSyncOperation extends AbstractSyncOperation {
                              ActressRepository actressRepo, VolumeRepository volumeRepo,
                              TitleLocationRepository titleLocationRepo,
                              TitleActressRepository titleActressRepo,
-                             IndexLoader indexLoader) {
-        super(titleRepo, videoRepo, actressRepo, volumeRepo, titleLocationRepo, titleActressRepo, indexLoader);
+                             IndexLoader indexLoader,
+                             TitleEffectiveTagsService titleEffectiveTagsService,
+                             ActressCompaniesService actressCompaniesService) {
+        super(titleRepo, videoRepo, actressRepo, volumeRepo, titleLocationRepo, titleActressRepo,
+                indexLoader, titleEffectiveTagsService, actressCompaniesService);
         this.scannerRegistry = scannerRegistry;
     }
 
@@ -62,6 +67,7 @@ public class FullSyncOperation extends AbstractSyncOperation {
                 Long filingActressId = castIds.size() == 1 ? castIds.get(0) : null;
                 Title title = saveTitleAndVideos(dt.path(), volume.id(), dt.partitionId(), filingActressId, fs);
                 titleActressRepo.linkAll(title.getId(), castIds);
+                stats.addTitle(title.getId());
                 stats.addTitles(dt.partitionId(), 1);
                 progress.advance();
             }
@@ -71,7 +77,7 @@ public class FullSyncOperation extends AbstractSyncOperation {
         titleRepo.deleteOrphaned();
         titleActressRepo.deleteOrphaned();
 
-        finalizeSync(volume.id(), ctx);
+        finalizeSync(volume.id(), ctx, stats);
         printStats(stats, io);
     }
 }

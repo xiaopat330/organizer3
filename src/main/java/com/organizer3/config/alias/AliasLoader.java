@@ -36,6 +36,20 @@ public class AliasLoader {
         return entries;
     }
 
+    /**
+     * Parse aliases.yaml from an input stream (e.g. classpath resource inside a JAR).
+     *
+     * @param in input stream for aliases.yaml
+     * @return list of alias entries (never null, may be empty)
+     * @throws IOException if the stream cannot be read or parsed
+     */
+    public List<AliasYamlEntry> load(java.io.InputStream in) throws IOException {
+        AliasYamlRoot root = yaml.readValue(in, AliasYamlRoot.class);
+        List<AliasYamlEntry> entries = root.alias() != null ? root.alias() : List.of();
+        log.info("Loaded {} alias entries from classpath", entries.size());
+        return entries;
+    }
+
     /** Internal root wrapper matching the top-level {@code alias:} key in the YAML file. */
     private record AliasYamlRoot(@JsonProperty("alias") List<AliasYamlEntry> alias) {}
 }

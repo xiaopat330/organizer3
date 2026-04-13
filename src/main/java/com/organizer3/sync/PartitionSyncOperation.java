@@ -3,6 +3,8 @@ package com.organizer3.sync;
 import com.organizer3.config.volume.PartitionDef;
 import com.organizer3.config.volume.VolumeConfig;
 import com.organizer3.config.volume.VolumeStructureDef;
+import com.organizer3.db.ActressCompaniesService;
+import com.organizer3.db.TitleEffectiveTagsService;
 import com.organizer3.filesystem.VolumeFileSystem;
 import com.organizer3.repository.ActressRepository;
 import com.organizer3.repository.TitleActressRepository;
@@ -33,8 +35,11 @@ public class PartitionSyncOperation extends AbstractSyncOperation {
                                   ActressRepository actressRepo, VolumeRepository volumeRepo,
                                   TitleLocationRepository titleLocationRepo,
                                   TitleActressRepository titleActressRepo,
-                                  IndexLoader indexLoader) {
-        super(titleRepo, videoRepo, actressRepo, volumeRepo, titleLocationRepo, titleActressRepo, indexLoader);
+                                  IndexLoader indexLoader,
+                                  TitleEffectiveTagsService titleEffectiveTagsService,
+                                  ActressCompaniesService actressCompaniesService) {
+        super(titleRepo, videoRepo, actressRepo, volumeRepo, titleLocationRepo, titleActressRepo,
+                indexLoader, titleEffectiveTagsService, actressCompaniesService);
         this.partitionIds = partitionIds;
     }
 
@@ -63,7 +68,7 @@ public class PartitionSyncOperation extends AbstractSyncOperation {
         titleRepo.deleteOrphaned();
         titleActressRepo.deleteOrphaned();
 
-        finalizeSync(volume.id(), ctx);
+        finalizeSync(volume.id(), ctx, stats);
         printStats(stats, io);
     }
 }

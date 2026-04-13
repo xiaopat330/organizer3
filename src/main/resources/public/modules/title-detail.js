@@ -4,9 +4,21 @@ import { showView, updateBreadcrumb, mode } from './grid.js';
 import { makeTitleCard, updateCardIndicators } from './cards.js';
 import { actressBrowseMode, actressBrowseLabel, selectActressBrowseMode, showActressLanding } from './actress-browse.js';
 import { THUMBNAIL_COLUMNS } from './config.js';
+import { pushNav } from './nav.js';
 
 // ── Visit tracking ────────────────────────────────────────────────────────
 let pendingVisitTimer = null;
+
+// ── Known video durations (videoId → seconds) ─────────────────────────────
+const videoDurations = {};
+
+// ── Thumbnail poll timer tracking ─────────────────────────────────────────
+const activePollTimers = new Set();
+
+function cancelVideoPolling() {
+  for (const id of activePollTimers) clearTimeout(id);
+  activePollTimers.clear();
+}
 
 export function cancelPendingVisit() {
   if (pendingVisitTimer !== null) {
@@ -17,7 +29,9 @@ export function cancelPendingVisit() {
 
 // ── Open title detail ─────────────────────────────────────────────────────
 export async function openTitleDetail(t) {
+  pushNav({ view: 'title-detail', title: t }, 'title/' + encodeURIComponent(t.code));
   cancelPendingVisit();
+  cancelVideoPolling();
 
   const sourceMode          = mode;
   const sourceHomeTab       = window._homeTab || 'latest';
@@ -293,6 +307,20 @@ function renderVideoSection(v, titleCode) {
       <span class="video-filename">${esc(v.filename)}</span>
       ${sizeStr ? `<span class="video-size">${esc(sizeStr)}</span>` : ''}
       <span class="video-meta" id="video-meta-${v.id}"></span>
+      ${v.folderUrl ? `
+        <a class="video-folder-link" href="${esc(v.folderUrl)}">
+          <svg width="11" height="11" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M1 3.5A1.5 1.5 0 0 1 2.5 2H5l1 1.5h3.5A1.5 1.5 0 0 1 11 5v4a1.5 1.5 0 0 1-1.5 1.5h-7A1.5 1.5 0 0 1 1 9V3.5z"/>
+          </svg>
+          Open folder
+        </a>
+        <button class="video-folder-copy">
+          <svg width="11" height="11" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="4" y="4" width="7" height="7" rx="1.2"/>
+            <path d="M8 4V2.5A1.5 1.5 0 0 0 6.5 1H2.5A1.5 1.5 0 0 0 1 2.5v4A1.5 1.5 0 0 0 2.5 8H4"/>
+          </svg>
+          Copy path
+        </button>` : ''}
     </div>
     <div class="video-thumbs" id="video-thumbs-${v.id}">
       <div class="video-thumbs-loading">Loading previews\u2026</div>
@@ -302,9 +330,17 @@ function renderVideoSection(v, titleCode) {
              src="/api/stream/${v.id}"
              type="${esc(v.mimeType)}">
       </video>
-      <button class="theater-btn" onclick="toggleTheater(${v.id})">Theater</button>
+      <button class="theater-btn">Theater</button>
     </div>
   `;
+
+  if (v.folderUrl) {
+    const copyBtn = section.querySelector('.video-folder-copy');
+    if (copyBtn) copyBtn.addEventListener('click', () => copyFolderPath(copyBtn, v.folderUrl));
+  }
+
+  const theaterBtn = section.querySelector('.theater-btn');
+  if (theaterBtn) theaterBtn.addEventListener('click', () => toggleTheater(v.id));
 
   loadVideoThumbnails(v.id);
   loadVideoMetadata(v.id);
@@ -331,11 +367,18 @@ function loadVideoThumbnails(videoId, attempt = 0) {
         container.style.gridTemplateColumns = `repeat(${THUMBNAIL_COLUMNS}, 1fr)`;
         container.innerHTML = urls.map((url, i) => {
           const fraction = total > 1 ? 0.03 + (0.94 * i / (total - 1)) : 0.5;
-          return `<div class="thumb-wrapper" onclick="seekVideoTo(${videoId}, ${fraction})">
+          return `<div class="thumb-wrapper" data-fraction="${fraction}">
             <img class="video-thumb" src="${esc(url)}" loading="lazy" data-fraction="${fraction}">
             <span class="thumb-time" data-video-id="${videoId}" data-fraction="${fraction}">--:--</span>
           </div>`;
         }).join('');
+        container.onclick = e => {
+          const wrapper = e.target.closest('.thumb-wrapper');
+          if (wrapper) seekVideoTo(videoId, parseFloat(wrapper.dataset.fraction));
+        };
+        if (videoDurations[videoId]) {
+          updateThumbTimestamps(videoId, videoDurations[videoId]);
+        }
       }
 
       if (urls.length < total && (generating || attempt < 3)) {
@@ -351,7 +394,11 @@ function loadVideoThumbnails(videoId, attempt = 0) {
           + `<span class="thumb-progress-text">${urls.length}/${total} previews</span>`;
 
         if (attempt < MAX_ATTEMPTS) {
-          setTimeout(() => loadVideoThumbnails(videoId, attempt + 1), 2000);
+          const timerId = setTimeout(() => {
+            activePollTimers.delete(timerId);
+            loadVideoThumbnails(videoId, attempt + 1);
+          }, 2000);
+          activePollTimers.add(timerId);
         }
       } else {
         const progressEl = document.getElementById(`video-thumb-progress-${videoId}`);
@@ -380,6 +427,7 @@ function loadVideoMetadata(videoId) {
       if (info.bitrate) parts.push(info.bitrate);
       el.textContent = parts.join(' \u00b7 ');
       if (info.durationSeconds) {
+        videoDurations[videoId] = info.durationSeconds;
         updateThumbTimestamps(videoId, info.durationSeconds);
       }
     })
@@ -402,7 +450,33 @@ function updateThumbTimestamps(videoId, durationSeconds) {
   });
 }
 
-// ── Seek + Theater (exposed on window for inline onclick) ─────────────────
+// ── Folder path copy ──────────────────────────────────────────────────────
+function copyFolderPath(btn, smbUrl) {
+  const isMac = /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent);
+  const text = isMac
+    ? smbUrl
+    : smbUrl.replace(/^smb:\/\//, '\\\\').replace(/\//g, '\\');
+
+  const confirm = () => {
+    const orig = btn.textContent;
+    btn.textContent = 'Copied!';
+    setTimeout(() => { btn.textContent = orig; }, 1500);
+  };
+
+  if (navigator.clipboard) {
+    navigator.clipboard.writeText(text).then(confirm);
+  } else {
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.cssText = 'position:fixed;opacity:0';
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    document.body.removeChild(ta);
+    confirm();
+  }
+}
+// ── Seek + Theater ────────────────────────────────────────────────────────
 function seekVideoTo(videoId, fraction) {
   const player = document.getElementById(`video-player-${videoId}`);
   if (!player) return;
@@ -432,9 +506,6 @@ function toggleTheater(videoId) {
   const leftPanel = document.querySelector('.title-detail-left');
   if (leftPanel) leftPanel.classList.toggle('theater-dimmed', isActive);
 }
-
-window.seekVideoTo  = seekVideoTo;
-window.toggleTheater = toggleTheater;
 
 // ── Resume playback ───────────────────────────────────────────────────────
 function initResumePlayback(player, videoId, titleCode) {

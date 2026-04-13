@@ -52,12 +52,13 @@ public class WebServer {
                      ActressBrowseService actressBrowseService, Path coversRoot,
                      VideoStreamService videoStreamService, ThumbnailService thumbnailService,
                      VideoProbe videoProbe, WatchHistoryRepository watchHistoryRepo,
-                     TitleRepository titleRepo) {
+                     TitleRepository titleRepo, SearchService searchService) {
         this.port = port;
         this.app = Javalin.create(config ->
                 config.staticFiles.add("/public", Location.CLASSPATH));
         registerRoutes(browseService, actressBrowseService, coversRoot,
-                videoStreamService, thumbnailService, videoProbe, watchHistoryRepo, titleRepo);
+                videoStreamService, thumbnailService, videoProbe, watchHistoryRepo, titleRepo,
+                searchService);
     }
 
     /** Convenience constructor using the default port. */
@@ -65,14 +66,15 @@ public class WebServer {
                      ActressBrowseService actressBrowseService, Path coversRoot,
                      VideoStreamService videoStreamService, ThumbnailService thumbnailService,
                      VideoProbe videoProbe, WatchHistoryRepository watchHistoryRepo,
-                     TitleRepository titleRepo) {
+                     TitleRepository titleRepo, SearchService searchService) {
         this(DEFAULT_PORT, browseService, actressBrowseService, coversRoot,
-                videoStreamService, thumbnailService, videoProbe, watchHistoryRepo, titleRepo);
+                videoStreamService, thumbnailService, videoProbe, watchHistoryRepo, titleRepo,
+                searchService);
     }
 
     /** Minimal constructor for tests that only need the lifecycle and static file behaviour. */
     public WebServer(int port) {
-        this(port, null, null, null, null, null, null, null, null);
+        this(port, null, null, null, null, null, null, null, null, null);
     }
 
     private void registerRoutes(TitleBrowseService browseService,
@@ -81,7 +83,8 @@ public class WebServer {
                                 ThumbnailService thumbnailService,
                                 VideoProbe videoProbe,
                                 WatchHistoryRepository watchHistoryRepo,
-                                TitleRepository titleRepo) {
+                                TitleRepository titleRepo,
+                                SearchService searchService) {
         app.get("/api/config", ctx -> {
             var cfg = AppConfig.get().volumes();
             String appName = cfg.appName();
@@ -90,7 +93,8 @@ public class WebServer {
             result.put("maxBrowseTitles",    cfg.maxBrowseTitles()    != null ? cfg.maxBrowseTitles()    : 500);
             result.put("maxRandomTitles",    cfg.maxRandomTitles()    != null ? cfg.maxRandomTitles()    : 500);
             result.put("maxRandomActresses", cfg.maxRandomActresses() != null ? cfg.maxRandomActresses() : 500);
-            result.put("thumbnailColumns",  cfg.thumbnailColumns()  != null ? cfg.thumbnailColumns()  : 5);
+            result.put("thumbnailColumns",   cfg.thumbnailColumns()   != null ? cfg.thumbnailColumns()   : 5);
+            result.put("coverCropPercent",   cfg.coverCropPercent()   != null ? cfg.coverCropPercent()   : 47);
             var exhibitionVolumes = cfg.volumes().stream()
                     .filter(v -> "exhibition".equals(v.group()))
                     .map(VolumeConfig::id)
@@ -180,6 +184,10 @@ public class WebServer {
             app.get("/api/tags", ctx -> ctx.json(new TagCatalogLoader().load()));
             app.get("/api/titles/labels",  ctx -> ctx.json(browseService.listLabels()));
             app.get("/api/titles/studios", ctx -> ctx.json(browseService.listStudioGroups()));
+            app.get("/api/studio-groups/{slug}/companies", ctx -> {
+                String slug = ctx.pathParam("slug");
+                ctx.json(actressBrowseService.listGroupCompaniesByTitleCount(slug));
+            });
             app.get("/api/titles/top-actresses", ctx -> {
                 String labelsParam = ctx.queryParam("labels");
                 if (labelsParam == null || labelsParam.isBlank()) { ctx.json(List.of()); return; }
@@ -227,7 +235,20 @@ public class WebServer {
                 int limit  = ctx.queryParamAsClass("limit",  Integer.class).getOrDefault(24);
                 offset = Math.max(offset, 0);
                 limit  = Math.max(1, Math.min(limit, TitleBrowseService.MAX_LIMIT));
-                ctx.json(browseService.findByVolumePartition(volumeId, "pool", offset, limit));
+                String company   = ctx.queryParam("company");
+                String tagsParam = ctx.queryParam("tags");
+                List<String> tags = (tagsParam != null && !tagsParam.isBlank())
+                        ? List.of(tagsParam.split(",")) : List.of();
+                if ((company != null && !company.isBlank()) || !tags.isEmpty()) {
+                    ctx.json(browseService.findByVolumePartitionFiltered(volumeId, "pool", company, tags, offset, limit));
+                } else {
+                    ctx.json(browseService.findByVolumePartition(volumeId, "pool", offset, limit));
+                }
+            });
+
+            app.get("/api/pool/{volumeId}/tags", ctx -> {
+                String volumeId = ctx.pathParam("volumeId");
+                ctx.json(browseService.findTagsForPool(volumeId));
             });
 
             app.get("/api/collections/titles", ctx -> {
@@ -235,7 +256,63 @@ public class WebServer {
                 int limit  = ctx.queryParamAsClass("limit",  Integer.class).getOrDefault(24);
                 offset = Math.max(offset, 0);
                 limit  = Math.max(1, Math.min(limit, TitleBrowseService.MAX_LIMIT));
-                ctx.json(browseService.findByVolumePaged("collections", offset, limit));
+                String company   = ctx.queryParam("company");
+                String tagsParam = ctx.queryParam("tags");
+                List<String> tags = (tagsParam != null && !tagsParam.isBlank())
+                        ? List.of(tagsParam.split(",")) : List.of();
+                if ((company != null && !company.isBlank()) || !tags.isEmpty()) {
+                    ctx.json(browseService.findByVolumePagedFiltered("collections", company, tags, offset, limit));
+                } else {
+                    ctx.json(browseService.findByVolumePaged("collections", offset, limit));
+                }
+            });
+
+            app.get("/api/collections/tags", ctx -> {
+                ctx.json(browseService.findTagsForCollections());
+            });
+
+            app.get("/api/companies", ctx -> {
+                ctx.json(browseService.listAllCompanies());
+            });
+        }
+
+        if (searchService != null) {
+            app.get("/api/search", ctx -> {
+                String q = ctx.queryParam("q");
+                if (q == null || q.isBlank()) {
+                    ctx.json(Map.of("actresses", List.of(), "titles", List.of(),
+                            "labels", List.of(), "companies", List.of()));
+                    return;
+                }
+                String matchMode = ctx.queryParam("matchMode");
+                boolean startsWith = "startsWith".equals(matchMode);
+                ctx.json(searchService.search(q.trim(), startsWith));
+            });
+
+            app.get("/api/titles/by-code-prefix", ctx -> {
+                String prefix = ctx.queryParam("prefix");
+                if (prefix == null || prefix.isBlank()) { ctx.json(List.of()); return; }
+                int limit = ctx.queryParamAsClass("limit", Integer.class).getOrDefault(11);
+                limit = Math.max(1, Math.min(limit, 11));
+                ctx.json(searchService.searchByCodePrefix(prefix.trim().toUpperCase(), limit));
+            });
+
+            app.get("/api/titles/by-code/{code}", ctx -> {
+                String code = ctx.pathParam("code").toUpperCase();
+                if (titleRepo == null) { ctx.status(503); return; }
+                if (!titleRepo.findByCode(code).isPresent()) { ctx.status(404); return; }
+                // Return full TitleSummary so callers get coverUrl, actressName, etc.
+                if (browseService != null) {
+                    List<TitleSummary> hits = browseService.searchByCodePaged(code, 0, 10);
+                    TitleSummary exact = hits.stream()
+                            .filter(ts -> code.equals(ts.getCode()))
+                            .findFirst()
+                            .orElse(null);
+                    if (exact != null) { ctx.json(exact); return; }
+                }
+                // Fallback: bare id+code (shouldn't happen in production)
+                titleRepo.findByCode(code)
+                        .ifPresent(t -> ctx.json(Map.of("id", t.getId(), "code", t.getCode())));
             });
         }
 
@@ -260,6 +337,8 @@ public class WebServer {
                 String prefix       = ctx.queryParam("prefix");
                 String tier         = ctx.queryParam("tier");
                 String volumesParam = ctx.queryParam("volumes");
+                String studioGroup  = ctx.queryParam("studioGroup");
+                String company      = ctx.queryParam("company");
                 String all          = ctx.queryParam("all");
                 String favorites    = ctx.queryParam("favorites");
                 String bookmarks    = ctx.queryParam("bookmarks");
@@ -287,13 +366,15 @@ public class WebServer {
                     }
                 } else if (tier != null && !tier.isBlank()) {
                     try {
-                        ctx.json(actressBrowseService.findByTierPaged(tier, offset, limit));
+                        ctx.json(actressBrowseService.findByTierPaged(tier, company, offset, limit));
                     } catch (IllegalArgumentException e) {
                         ctx.status(400);
                     }
                 } else if (volumesParam != null && !volumesParam.isBlank()) {
                     var volumeIds = List.of(volumesParam.split(","));
-                    ctx.json(actressBrowseService.findByVolumesPaged(volumeIds, offset, limit));
+                    ctx.json(actressBrowseService.findByVolumesPaged(volumeIds, company, offset, limit));
+                } else if (studioGroup != null && !studioGroup.isBlank()) {
+                    ctx.json(actressBrowseService.findByStudioGroupPaged(studioGroup, company, offset, limit));
                 } else if ("true".equals(all)) {
                     ctx.json(actressBrowseService.findAllPaged(offset, limit));
                 } else if ("true".equals(favorites)) {
@@ -306,9 +387,19 @@ public class WebServer {
             });
 
             app.get("/api/actresses/dashboard", ctx -> {
-                var lastVisited  = actressBrowseService.findLastVisited(10);
-                var mostVisited  = actressBrowseService.findMostVisited(10);
-                ctx.json(Map.of("lastVisited", lastVisited, "mostVisited", mostVisited));
+                ctx.json(actressBrowseService.buildDashboard());
+            });
+
+            app.get("/api/actresses/spotlight", ctx -> {
+                Long excludeId = null;
+                String exclude = ctx.queryParam("exclude");
+                if (exclude != null && !exclude.isBlank()) {
+                    try { excludeId = Long.parseLong(exclude.trim()); }
+                    catch (NumberFormatException e) { ctx.status(400); return; }
+                }
+                var result = actressBrowseService.getSpotlight(excludeId);
+                if (result == null) ctx.status(204);
+                else ctx.json(result);
             });
 
             app.get("/api/actresses/{id}", ctx -> {
@@ -325,10 +416,21 @@ public class WebServer {
                 catch (NumberFormatException e) { ctx.status(400); return; }
                 int offset = ctx.queryParamAsClass("offset", Integer.class).getOrDefault(0);
                 int limit  = ctx.queryParamAsClass("limit",  Integer.class).getOrDefault(24);
-                String company = ctx.queryParam("company");
+                String company   = ctx.queryParam("company");
+                String tagsParam = ctx.queryParam("tags");
+                List<String> tags = (tagsParam != null && !tagsParam.isBlank())
+                        ? List.of(tagsParam.split(","))
+                        : List.of();
                 offset = Math.max(offset, 0);
                 limit  = Math.max(1, Math.min(limit, TitleBrowseService.MAX_LIMIT));
-                ctx.json(actressBrowseService.findTitlesByActress(id, offset, limit, company));
+                ctx.json(actressBrowseService.findTitlesByActress(id, offset, limit, company, tags));
+            });
+
+            app.get("/api/actresses/{id}/tags", ctx -> {
+                long id;
+                try { id = Long.parseLong(ctx.pathParam("id")); }
+                catch (NumberFormatException e) { ctx.status(400); return; }
+                ctx.json(actressBrowseService.findTagsForActress(id));
             });
 
             app.post("/api/actresses/{id}/favorite", ctx -> {

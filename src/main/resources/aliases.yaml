@@ -1496,6 +1496,84 @@ alias:
     aliases:
       - Rina Fujiki
 
+  - name: Ria Sakuragi
+    aliases:
+      - Rin Kajika
+      - Ruka Nishigaki
+
+  - name: Ibuki Haruhi
+    aliases:
+        - Aoi Yuki
+
+  - name: Ryoko Murakami
+    aliases:
+      - Naho Kuroki
+      - Rikako Nakamura
+
+  - name: Aya Kokusho
+    aliases:
+      - Chika Takase
+      - Tomoka Takase
+
+  - name: Mei Haruka
+    aliases:
+      - Mirina Aikawa
+
+  - name: An Shoji
+    aliases:
+      - Chika Hirako
+
+  - name: Saya Yoshimi
+    aliases:
+      - Rin Aina
+      - Saya Kazuki
+      - Rena Aso
+
+  - name: Momoka Ayasaki
+    aliases:
+      - Yuri Momose
+      - Yurina Momosa
+
+  - name:
+    aliases:
+      - Ami Kasai
+      - Chinatsu Kurusu
+      - Azusa Anzu
+
+  - name: Hikaru Hoshizaki
+    aliases:
+      - Meru
+
+  - name: Yuna Hirose
+    aliases:
+      - Seika Hirayama
+
+  - name: Miki Yoshi
+    aliases:
+      - Ryoko Isawa
+
+  - name: Ibuki Aoi
+    aliases:
+      - Aoi Tsubasa
+
+  - name: An Kitahara
+    aliases:
+      - Miki Goto
+      - Shizune Tachibana
+      - Arisa Tanimura
+
+  - name: Risa Tachibana
+    aliases:
+        - Eri Takamatsu
+
+  - name: Iori Kogawa
+    aliases:
+      - Iori Furukawa
+
+  - name: Kokone Mizutani
+    aliases:
+      - Rio Fujisaki
+
 
 ######################################################################
 # UNRESOLVED ENTRIES
@@ -1596,3 +1674,4 @@ alias:
 #
 #  Canonical: Sena Nagakura
 #  Garbled alias: Sayana SaFAzukkuragi
+

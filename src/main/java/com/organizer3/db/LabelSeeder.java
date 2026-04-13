@@ -11,7 +11,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.util.List;
 import lombok.extern.slf4j.Slf4j;
-import lombok.RequiredArgsConstructor;
 
 /**
  * Seeds the {@code labels} and {@code label_tags} tables from the bundled {@code labels.yaml}
@@ -24,12 +23,17 @@ import lombok.RequiredArgsConstructor;
  * </ul>
  */
 @Slf4j
-@RequiredArgsConstructor
 public class LabelSeeder {
 
     private static final String RESOURCE = "/labels.yaml";
 
     private final Jdbi jdbi;
+    private final TitleEffectiveTagsService titleEffectiveTagsService;
+
+    public LabelSeeder(Jdbi jdbi, TitleEffectiveTagsService titleEffectiveTagsService) {
+        this.jdbi = jdbi;
+        this.titleEffectiveTagsService = titleEffectiveTagsService;
+    }
 
     /**
      * Seeds the labels table if it is currently empty. Reimports if required columns are missing
@@ -98,6 +102,7 @@ public class LabelSeeder {
             insertAll(h);
         });
         log.info("Labels reimport complete");
+        titleEffectiveTagsService.recomputeAll();
     }
 
     private void insertAll(Handle h) {

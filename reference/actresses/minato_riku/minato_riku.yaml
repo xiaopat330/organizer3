@@ -1,0 +1,64 @@
+profile:
+  name:
+    family_name: Minato
+    given_name: Riku
+    stage_name: 湊莉久
+    reading: みなと りく
+    alternate_names:
+    - name: 上村陽菜
+      note: birth name / early career name
+    - name: CHIAKI
+      note: idol unit name
+    - name: 三浦莉嘉
+      note: early pseudonym
+    - name: 源莉子
+      note: early pseudonym
+  date_of_birth: 1993-08-01
+  birthplace: Kanagawa Prefecture, Japan
+  blood_type: O
+  height_cm: 160
+  measurements:
+    bust: 82
+    waist: 58
+    hip: 83
+  cup: D
+  active_from: '2013-04-01'
+  active_to: '2018-03-01'
+  retirement_announced: 2018-02-07
+  biography: "湊莉久 (Minato Riku), born August 1, 1993 in Kanagawa Prefecture, debuted in April 2013 with Candy under the short-haired persona that became her trademark, after working part-time at a mahjong parlor following high school graduation. She worked freelance across numerous labels through 2014 before taking an indefinite hiatus, then returned in late 2015 as a teamZERO exclusive and joined the idol unit 恵比寿マスカッツ. In October 2016 she moved to S1 No.1 Style as an exclusive actress, her most prominent affiliation, during which she won the DMM.R18 Adult Award for Best Actress (2015) and the SKY PerfecTV! Adult Broadcast Award in 2017. She announced retirement in February 2018, with her final complete retirement marked by a photography exhibition in January 2019; as of 2022 she works as an esthetician and part-time bar staff."
+  primary_studios:
+  - name: teamZERO
+    company: teamZERO
+    from: '2015-10-01'
+    to: '2016-09-01'
+    role: Exclusive contract actress
+  - name: S1 No.1 Style
+    company: エスワン ナンバーワンスタイル
+    from: '2016-10-01'
+    to: '2018-03-01'
+    role: Exclusive contract actress
+  awards:
+  - event: MOODYZ年忘れ会2014
+    year: 2014
+    category: MOODYZ賞、ZUKKON BAKKON賞、最優秀作品賞 (3冠)
+  - event: DMM.R18アダルトアワード2015
+    year: 2015
+    category: 最優秀女優賞 (Best Actress)
+  - event: R18.com Awards 2015
+    year: 2015
+    category: 特別賞 (Special Award)
+  - event: スカパー!アダルト放送大賞2017
+    year: 2017
+    category: スカパー!オンデマンドアダルト賞
+
+meta:
+  total_owned_titles: 142
+  titles_with_japanese_title: null
+  titles_with_english_title: null
+  titles_with_release_date: null
+  total_known_releases: null
+  coverage_note: Profile only; portfolio not yet researched
+  confidence: Profile data sourced from Japanese Wikipedia infobox. Measurements as of October 2016. Birthplace is prefecture-level only (city not disclosed).
+  data_sources:
+  - https://ja.wikipedia.org/wiki/湊莉久
+  portfolio_listed: 0

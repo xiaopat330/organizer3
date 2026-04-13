@@ -4,6 +4,7 @@ import com.organizer3.model.Actress;
 import com.organizer3.model.Title;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 /**
@@ -110,6 +111,13 @@ public interface TitleRepository {
     List<Object[]> findNewestActressesByLabels(List<String> labels, int limit);
 
     /**
+     * Counts titles per label company, restricted to {@code companies}. The mapping
+     * {@code titles.label → labels.code → labels.company} is resolved inside the query.
+     * Companies with zero matching titles are omitted from the returned map.
+     */
+    Map<String, Long> countTitlesByCompanies(List<String> companies);
+
+    /**
      * Overwrite enrichment fields for a title.
      * Leaves operational fields (actress_id, favorite, bookmark, rejected) unchanged.
      * Called by the {@code load actress} command.
@@ -119,6 +127,31 @@ public interface TitleRepository {
 
     /** Find titles having ALL of the given tags, ordered newest-first. */
     List<Title> findByTagsPaged(List<String> tags, int limit, int offset);
+
+    /**
+     * Find titles for an actress, optionally restricted to a set of label codes and/or requiring
+     * all of the given tags (direct or label-derived). Pass empty lists to skip that dimension.
+     * Ordered by favorite → bookmark → newest first.
+     */
+    List<Title> findByActressTagsFiltered(long actressId, List<String> labels, List<String> tags, int limit, int offset);
+
+    /**
+     * Find titles on a volume, optionally restricted to label codes and/or requiring all tags.
+     * Pass empty lists to skip that dimension. Ordered by favorite → bookmark → newest first.
+     */
+    List<Title> findByVolumeFiltered(String volumeId, List<String> labels, List<String> tags, int limit, int offset);
+
+    /**
+     * Find titles in a volume+partition, optionally restricted to label codes and/or requiring
+     * all tags. Pass empty lists to skip that dimension. Ordered by favorite → bookmark → newest first.
+     */
+    List<Title> findByVolumeAndPartitionFiltered(String volumeId, String partitionId, List<String> labels, List<String> tags, int limit, int offset);
+
+    /** Returns all distinct tags (direct + label-derived) for titles on the given volume, sorted. */
+    List<String> findTagsByVolume(String volumeId);
+
+    /** Returns all distinct tags (direct + label-derived) for titles in a volume+partition, sorted. */
+    List<String> findTagsByVolumeAndPartition(String volumeId, String partitionId);
 
     void toggleFavorite(long titleId, boolean favorite);
 
@@ -135,6 +168,36 @@ public interface TitleRepository {
 
     /** Returns the most-visited titles (visit_count &gt; 0), ordered by visit_count DESC. */
     List<Title> findMostVisited(int limit);
+
+    // ── Federated search ──────────────────────────────────────────────────────
+
+    /** Lightweight title projection for federated search results. */
+    record FederatedTitleResult(
+            long id,
+            String code,
+            String titleOriginal,
+            String titleEnglish,
+            String label,
+            String baseCode,
+            String releaseDate,
+            Long actressId,
+            String actressName,
+            boolean favorite,
+            boolean bookmark
+    ) {}
+
+    /**
+     * Search titles by title_original or title_english for the federated search overlay.
+     * Rejected titles are excluded. Results ordered: favorites first, bookmarks next, then newest.
+     */
+    List<FederatedTitleResult> searchByTitleName(String query, boolean startsWith, int limit);
+
+    /**
+     * Search titles whose code starts with {@code prefix} (case-insensitive).
+     * Used by the search overlay's partial product-code shortcut.
+     * Pass {@code limit=11} and check if the result size exceeds 10 to decide whether to display.
+     */
+    List<FederatedTitleResult> searchByCodePrefix(String prefix, int limit);
 
     // ── Dashboard module queries ─────────────────────────────────────────────
 

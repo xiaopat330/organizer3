@@ -1,4 +1,4 @@
-import { esc, splitName, renderDateRange } from './utils.js';
+import { esc, splitName, renderDateRange, timeAgoShort } from './utils.js';
 import { ICON_FAV_SM, ICON_BM_SM, ICON_BM_SM_OFF, titleCodeClass, gradeBadgeHtml, tagBadgeHtml } from './icons.js';
 import { activeIntervals, activeObservers } from './grid.js';
 
@@ -171,22 +171,6 @@ export function agingLabel(dateStr) {
   return years === 1 ? '1y ago' : `${years}y ago`;
 }
 
-// timeAgo used on cards only needs relative display; full version lives in title-detail.js
-function timeAgoShort(isoString) {
-  const seconds = Math.floor((Date.now() - new Date(isoString)) / 1000);
-  if (seconds < 60)  return 'just now';
-  const minutes = Math.floor(seconds / 60);
-  if (minutes < 60)  return minutes === 1 ? '1 min ago' : `${minutes} min ago`;
-  const hours = Math.floor(minutes / 60);
-  if (hours < 24)    return hours === 1 ? '1 hour ago' : `${hours} hours ago`;
-  const days = Math.floor(hours / 24);
-  if (days < 14)     return days === 1 ? '1 day ago' : `${days} days ago`;
-  const weeks = Math.floor(days / 7);
-  if (weeks < 9)     return weeks === 1 ? '1 week ago' : `${weeks} weeks ago`;
-  const months = Math.floor(days / 30);
-  if (months <= 3)   return months === 1 ? '1 month ago' : `${months} months ago`;
-  return 'more than 3 months ago';
-}
 
 export function updateCardIndicators(code, favorite, bookmark) {
   const card = document.querySelector(`.card[data-code="${CSS.escape(code)}"]`);
@@ -370,6 +354,52 @@ export function makeActressCard(a) {
     <div class="actress-title-count">Titles: ${a.titleCount}</div>
     ${renderDateRange(a.firstAddedDate, a.lastAddedDate)}
     ${a.visitCount > 0 ? `<div class="actress-card-visited">${a.visitCount === 1 ? '1 view' : `${a.visitCount} views`}${a.lastVisitedAt ? ` · ${timeAgoShort(a.lastVisitedAt)}` : ''}</div>` : ''}
+  `;
+  card.appendChild(body);
+
+  if (!a.rejected) {
+    attachActressBookmarkListener(a.id, card.querySelector('.actress-card-name'), !!a.bookmark);
+  }
+
+  card.addEventListener('click', () => _openActressDetail(a.id));
+  return card;
+}
+
+/**
+ * Compact actress card — used in dashboard panels with limited horizontal room
+ * (Recently Viewed, etc.). Shows only the first cover image, the actress name
+ * with tier badge, and a tiny last-visited line. Drops the marquee, title
+ * count and date range.
+ */
+export function makeCompactActressCard(a) {
+  const card = document.createElement('div');
+  card.className = 'actress-card actress-card-compact';
+  if (a.rejected) card.classList.add('actress-card-rejected');
+  card.dataset.actressId = a.id;
+
+  const covers = a.coverUrls || [];
+  const coverWrap = document.createElement('div');
+  coverWrap.className = 'cover-wrap';
+  if (covers.length === 0) {
+    coverWrap.innerHTML = `<div class="cover-placeholder">—</div>`;
+  } else {
+    const img = document.createElement('img');
+    img.className = 'cover-img';
+    img.src = covers[0];
+    img.alt = a.canonicalName;
+    img.loading = 'lazy';
+    coverWrap.appendChild(img);
+  }
+  card.appendChild(coverWrap);
+
+  const { first: firstName, last: lastName } = splitName(a.canonicalName);
+  const body = document.createElement('div');
+  body.className = 'actress-card-body actress-card-body-compact';
+  body.innerHTML = `
+    <div class="${actressNameClass(a)}">
+      ${actressFlagIconsHtml(a)}<span class="actress-first-name">${esc(firstName)}</span>${lastName ? `<span class="actress-last-name">${esc(lastName)}</span>` : ''}<span class="tier-badge tier-${esc(a.tier)} actress-tier-badge">${esc(a.tier.toLowerCase())}</span>
+    </div>
+    ${a.lastVisitedAt ? `<div class="actress-card-visited">${timeAgoShort(a.lastVisitedAt)}</div>` : ''}
   `;
   card.appendChild(body);
 

@@ -29,6 +29,12 @@ public interface ActressRepository {
      */
     Optional<Actress> resolveByName(String name);
 
+    /**
+     * Given a name that may be stored as an alias of another actress, return that primary actress.
+     * Used to show "primarily known as" on alias actress profile pages.
+     */
+    Optional<Actress> findPrimaryForAlias(String aliasName);
+
     List<Actress> findAll();
 
     /**
@@ -75,6 +81,9 @@ public interface ActressRepository {
     /** Paginated version: actresses at the given tier, ordered by canonical name. */
     List<Actress> findByTierPaged(Actress.Tier tier, int limit, int offset);
 
+    /** Paginated: actresses at the given tier whose titles match any of the given companies. */
+    List<Actress> findByTierAndCompaniesPaged(Actress.Tier tier, List<String> companies, int limit, int offset);
+
     /** Paginated: all actresses ordered by canonical name. */
     List<Actress> findAllPaged(int limit, int offset);
 
@@ -90,9 +99,29 @@ public interface ActressRepository {
     List<Actress> findByVolumeIds(List<String> volumeIds);
 
     /**
-     * Paginated version: find actresses on any of the given volumes, ordered by canonical name.
+     * Paginated version: find actresses on any of the given volumes.
+     * Ordered: favorites/bookmarked first, then canonical name.
      */
     List<Actress> findByVolumeIdsPaged(List<String> volumeIds, int limit, int offset);
+
+    /**
+     * Paginated: find actresses who have ≥1 title on any of the given volumes AND ≥1 title
+     * whose label belongs to a company in {@code companies}.
+     * Ordered: favorites/bookmarked first, then canonical name.
+     */
+    List<Actress> findByVolumesAndCompaniesPaged(List<String> volumeIds, List<String> companies,
+                                                 int limit, int offset);
+
+    /**
+     * Find all actresses (paginated) who own at least one title whose label belongs to a
+     * company in {@code companies}. The mapping titles.label → labels.company is resolved
+     * inside the query. Excludes rejected actresses. Ordered by tier rank (GODDESS first),
+     * then canonical name.
+     */
+    List<Actress> findByStudioGroupCompaniesPaged(List<String> companies, int limit, int offset);
+
+    /** Total count of actresses matching {@link #findByStudioGroupCompaniesPaged}. */
+    long countByStudioGroupCompanies(List<String> companies);
 
     List<Actress> findFavorites();
 
@@ -123,6 +152,20 @@ public interface ActressRepository {
                        Integer bust, Integer waist, Integer hip, String cup,
                        java.time.LocalDate activeFrom, java.time.LocalDate activeTo,
                        String biography, String legacy);
+
+    /**
+     * Overwrite the extended profile fields that are not covered by {@link #updateProfile}:
+     * the hiragana reading of the stage name, the retirement-announced date, and the
+     * JSON-serialized list columns for alternate names, studio tenures, and awards.
+     *
+     * <p>Called by the YAML loader after {@code updateProfile}. Passing {@code null} or an
+     * empty list clears the column.
+     */
+    void updateExtendedProfile(long actressId, String nameReading,
+                               java.time.LocalDate retirementAnnounced,
+                               List<Actress.AlternateName> alternateNames,
+                               List<Actress.StudioTenure> primaryStudios,
+                               List<Actress.Award> awards);
 
     void updateTier(long actressId, Actress.Tier tier);
 
@@ -172,4 +215,128 @@ public interface ActressRepository {
      * Runs in a single transaction.
      */
     void importFromYaml(List<AliasYamlEntry> entries);
+
+    // ── Federated search ──────────────────────────────────────────────────────
+
+    /** Lightweight actress projection for federated search results. */
+    record FederatedActressResult(
+            long id,
+            String canonicalName,
+            String stageName,
+            String tier,
+            String grade,
+            boolean favorite,
+            boolean bookmark,
+            /** Non-null when the match was on an alias rather than the canonical name. */
+            String matchedAlias,
+            int titleCount,
+            /**
+             * Label code from the most recently indexed title that has both a label and baseCode.
+             * Paired with {@link #coverBaseCode} — both come from the same title row so that
+             * {@code CoverPath.find()} resolves to an existing file.
+             */
+            String coverLabel,
+            /** Base code from the same title as {@link #coverLabel}. */
+            String coverBaseCode
+    ) {}
+
+    /**
+     * Search actresses for the federated search overlay.
+     * Matches against canonical_name and actress_aliases.alias_name.
+     * Rejected actresses are excluded. Results ordered: favorites first, then bookmarks, then name.
+     * When an alias is matched, {@link FederatedActressResult#matchedAlias()} is populated.
+     */
+    List<FederatedActressResult> searchForFederated(String query, boolean startsWith, int limit);
+
+    // ── Dashboard module queries ─────────────────────────────────────────────
+
+    /** Light projection for actress library stats. */
+    record ActressLibraryStats(
+            long totalActresses,
+            long favorites,
+            long graded,
+            long elites,            // SUPERSTAR + GODDESS
+            long newThisMonth,      // first_seen_at within current month
+            long researchCovered,   // qualifying actresses (favorite/graded/elite) with biography populated
+            long researchTotal      // qualifying actresses (favorite/graded/elite), populated or not
+    ) {}
+
+    /**
+     * One row per (actress, distinct label) with engagement-component data.
+     * Used by the service to aggregate Top Groups scores after mapping labels → groups via YAML.
+     */
+    record ActressLabelEngagement(long actressId, String labelCode, int visitCount, boolean favorite, boolean bookmark) {}
+
+    /**
+     * Find candidate actresses for the Spotlight module (one big card, weighted random pick).
+     * Pool: favorited / bookmarked / graded ≥ A_PLUS / tier in {@code superstarTiers}.
+     * Rejected actresses are excluded. Returns up to {@code limit} rows in random order
+     * for the caller to weighted-sample.
+     */
+    List<Actress> findSpotlightCandidates(java.util.Set<Actress.Tier> superstarTiers,
+                                          int limit,
+                                          java.util.Set<Long> excludeIds);
+
+    /**
+     * Find actresses whose date_of_birth month-day matches the given month/day.
+     * Excludes rejected. Sorted: favorites/bookmarks first, then tier DESC, then by canonical_name.
+     */
+    List<Actress> findBirthdaysToday(int month, int day, int limit);
+
+    /**
+     * Find actresses whose first_seen_at &gt;= {@code since}, ordered by first_seen_at DESC.
+     * Excludes rejected and {@code excludeIds}.
+     */
+    List<Actress> findNewFaces(java.time.LocalDate since, int limit, java.util.Set<Long> excludeIds);
+
+    /**
+     * Fallback for {@link #findNewFaces} when the date window returns nothing — return the
+     * newest N actresses overall by first_seen_at.
+     */
+    List<Actress> findNewFacesFallback(int limit, java.util.Set<Long> excludeIds);
+
+    /**
+     * Find bookmarked actresses ordered by bookmarked_at DESC (NULL last for backfilled rows).
+     * Excludes {@code excludeIds}.
+     */
+    List<Actress> findBookmarksOrderedByBookmarkedAt(int limit, java.util.Set<Long> excludeIds);
+
+    /**
+     * Find "undiscovered elites": actresses whose tier is in {@code minTiers} but who have
+     * been visited fewer than {@code maxVisitCount} times. Excludes rejected and {@code excludeIds}.
+     * Returned in random order so the caller can pick a fresh sample each load.
+     */
+    List<Actress> findUndiscoveredElites(java.util.Set<Actress.Tier> minTiers,
+                                         int maxVisitCount,
+                                         int limit,
+                                         java.util.Set<Long> excludeIds);
+
+    /**
+     * Find candidates for "Forgotten Gems": actresses with high signal (grade in {@code topGrades},
+     * tier in {@code highTiers}, or favorite=1) who haven't been visited recently
+     * (last_visited_at &lt; {@code staleBefore} or null). Excludes rejected and {@code excludeIds}.
+     * Returned in random order for weighted sampling.
+     */
+    List<Actress> findForgottenGemsCandidates(java.util.Set<Actress.Grade> topGrades,
+                                              java.util.Set<Actress.Tier> highTiers,
+                                              java.time.LocalDate staleBefore,
+                                              int limit,
+                                              java.util.Set<Long> excludeIds);
+
+    /**
+     * Find candidates for the Research Gaps module: qualifying actresses (favorite, graded, or
+     * tier in {@code superstarTiers}) whose biography is NULL — the strongest "needs research"
+     * signal. Excludes rejected. Caller computes per-bucket completeness (profile/physical/bio/portfolio).
+     */
+    List<Actress> findResearchGapCandidates(java.util.Set<Actress.Tier> superstarTiers, int limit);
+
+    /** Compute scalar library stats for the actress dashboard footer. */
+    ActressLibraryStats computeActressLibraryStats();
+
+    /**
+     * Return per-(actress, label) engagement rows for Top Groups score derivation.
+     * Only emits rows where the actress's title has a non-empty label. Multiple titles for
+     * the same (actress, label) collapse to a single row — the label appears once per actress.
+     */
+    List<ActressLabelEngagement> findActressLabelEngagements();
 }

@@ -27,29 +27,35 @@ public class SchemaInitializer {
 
             h.execute("""
                     CREATE TABLE IF NOT EXISTS actresses (
-                        id              INTEGER PRIMARY KEY AUTOINCREMENT,
-                        canonical_name  TEXT NOT NULL UNIQUE,
-                        stage_name      TEXT,
-                        tier            TEXT NOT NULL,
-                        favorite        INTEGER NOT NULL DEFAULT 0,
-                        bookmark        INTEGER NOT NULL DEFAULT 0,
-                        grade           TEXT,
-                        rejected        INTEGER NOT NULL DEFAULT 0,
-                        first_seen_at   TEXT NOT NULL,
-                        date_of_birth   TEXT,
-                        birthplace      TEXT,
-                        blood_type      TEXT,
-                        height_cm       INTEGER,
-                        bust            INTEGER,
-                        waist           INTEGER,
-                        hip             INTEGER,
-                        cup             TEXT,
-                        active_from     TEXT,
-                        active_to       TEXT,
-                        biography       TEXT,
-                        legacy          TEXT,
-                        visit_count     INTEGER NOT NULL DEFAULT 0,
-                        last_visited_at TEXT
+                        id                   INTEGER PRIMARY KEY AUTOINCREMENT,
+                        canonical_name       TEXT NOT NULL UNIQUE,
+                        stage_name           TEXT,
+                        name_reading         TEXT,
+                        tier                 TEXT NOT NULL,
+                        favorite             INTEGER NOT NULL DEFAULT 0,
+                        bookmark             INTEGER NOT NULL DEFAULT 0,
+                        bookmarked_at        TEXT,
+                        grade                TEXT,
+                        rejected             INTEGER NOT NULL DEFAULT 0,
+                        first_seen_at        TEXT NOT NULL,
+                        date_of_birth        TEXT,
+                        birthplace           TEXT,
+                        blood_type           TEXT,
+                        height_cm            INTEGER,
+                        bust                 INTEGER,
+                        waist                INTEGER,
+                        hip                  INTEGER,
+                        cup                  TEXT,
+                        active_from          TEXT,
+                        active_to            TEXT,
+                        retirement_announced TEXT,
+                        biography            TEXT,
+                        legacy               TEXT,
+                        alternate_names_json TEXT,
+                        primary_studios_json TEXT,
+                        awards_json          TEXT,
+                        visit_count          INTEGER NOT NULL DEFAULT 0,
+                        last_visited_at      TEXT
                     )""");
 
             h.execute("""
@@ -158,6 +164,25 @@ public class SchemaInitializer {
             h.execute("CREATE INDEX IF NOT EXISTS idx_title_actresses_actress ON title_actresses(actress_id)");
 
             h.execute("""
+                    CREATE TABLE IF NOT EXISTS title_effective_tags (
+                        title_id  INTEGER NOT NULL REFERENCES titles(id) ON DELETE CASCADE,
+                        tag       TEXT NOT NULL,
+                        source    TEXT NOT NULL CHECK(source IN ('direct', 'label')),
+                        PRIMARY KEY (title_id, tag)
+                    )""");
+            h.execute("CREATE INDEX IF NOT EXISTS idx_title_effective_tags_tag ON title_effective_tags(tag)");
+
+            h.execute("""
+                    CREATE TABLE IF NOT EXISTS actress_companies (
+                        actress_id  INTEGER NOT NULL REFERENCES actresses(id) ON DELETE CASCADE,
+                        company     TEXT NOT NULL,
+                        PRIMARY KEY (actress_id, company)
+                    )""");
+            h.execute("CREATE INDEX IF NOT EXISTS idx_actress_companies_company ON actress_companies(company)");
+
+            h.execute("CREATE INDEX IF NOT EXISTS idx_actresses_name_nocase ON actresses(canonical_name COLLATE NOCASE)");
+
+            h.execute("""
                     CREATE TABLE IF NOT EXISTS watch_history (
                         id          INTEGER PRIMARY KEY AUTOINCREMENT,
                         title_code  TEXT NOT NULL,
@@ -171,7 +196,7 @@ public class SchemaInitializer {
             // leave the version alone and let SchemaUpgrader apply any missing migrations.
             int currentVersion = h.createQuery("PRAGMA user_version").mapTo(Integer.class).one();
             if (currentVersion == 0) {
-                h.execute("PRAGMA user_version = 8");
+                h.execute("PRAGMA user_version = 12");
             }
         });
         log.info("Schema initialization complete");

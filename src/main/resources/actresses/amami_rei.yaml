@@ -1,0 +1,52 @@
+profile:
+  name:
+    family_name: Amami
+    given_name: Rei
+    stage_name: 天海 麗
+    reading: あまみ れい
+    alternate_names:
+    - name: 天海れい
+      note: hiragana variant used in some promotional contexts
+  date_of_birth: 1984-03-28
+  birthplace: Shizuoka Prefecture, Japan
+  blood_type: A
+  height_cm: 150
+  measurements:
+    bust: 80
+    waist: 56
+    hip: 80
+  cup: D
+  active_from: 2005-02-25
+  active_to: 2008-02-24
+  retirement_announced: null
+  biography: "Amami Rei debuted on February 25, 2005 with 'Natural 天海麗' on the Shy Kikaku label, her first release selling 26,000 copies on initial shipment — a rare figure for a debut. Her fifth title, 'Frame Graffiti,' sold 30,000 copies and helped spark a mainstream 'megane-ko' (glasses-girl) boom that drew coverage in weekly magazines and evening newspapers. Following Shy Kikaku's eight-title contract, a fierce bidding war among studios concluded when veteran label Alice Japan (JHV/WILL Group) secured her exclusive contract; she released titles across Alice Japan and its sister labels Calen and Samantha through early 2007. In mid-2007 SOD Create won a subsequent bidding contest for her sell-through rights, and she held an exclusive SOD contract until her graduation event on February 24, 2008. Beyond AV she appeared in mainstream films, a TV Osaka talk show, and worked as a production-side actress with Attackers; she also served as a photoshoot model for musician Ryuichi Sakamoto's photography debut."
+  primary_studios:
+  - name: Shy Kikaku
+    company: Shy Kikaku
+    from: 2005-02-25
+    to: 2005-09-29
+    role: Exclusive contract actress (8-title contract)
+  - name: Alice Japan / Calen / Samantha
+    company: JHV/WILL Group (Alice Japan, MAX-A)
+    from: 2005-10-21
+    to: 2007-03-23
+    role: Exclusive contract actress
+  - name: SOD Create
+    company: SOD
+    from: 2007-07-05
+    to: 2008-02-24
+    role: Exclusive contract actress (SOD Star)
+  awards: null
+  legacy: "One of the most commercially successful AV debuts of the 2005–2006 era, Amami Rei's early Shy Kikaku releases set decade-best sales records for that label and reignited mainstream interest in the glasses-girl archetype in Japanese AV. Her crossover activities — photographic work with Ryuichi Sakamoto, lead roles in indie films, and television hosting — made her a rare example of an AV actress who built a parallel presence in mainstream entertainment during her active years."
+
+meta:
+  total_owned_titles: 28
+  titles_with_japanese_title: 0
+  titles_with_english_title: 0
+  titles_with_release_date: 0
+  total_known_releases: 35
+  coverage_note: "DB contains 28 owned titles. Wikipedia filmography lists approximately 35 AV entries across SHY, Alice Japan/Calen/Samantha, and SOD Create. NDV (AZ Japan) and FEDV/FE codes in DB are not accounted for in Wikipedia filmography — may be compilation appearances, third-party releases, or titles Wikipedia does not document."
+  confidence: "High confidence on all profile fields — DOB, birthplace, blood type, height, measurements, cup all sourced directly from Japanese Wikipedia infobox (labelled 2006年時点 for measurements). Studio affiliations and dates confirmed from article body. One Wikipedia filmography date anomaly: 'relax' is listed as 2004年5月27日, which predates the stated 2005 debut — likely a shooting or pre-release date error in Wikipedia. Label mapping for NDV/FEDV/FE/SH codes in DB not yet resolved against Wikipedia filmography."
+  data_sources:
+  - https://ja.wikipedia.org/wiki/%E5%A4%A9%E6%B5%B7%E9%BA%97
+  portfolio_listed: 0

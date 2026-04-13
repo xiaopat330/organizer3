@@ -1,16 +1,23 @@
 import { esc } from './utils.js';
+import { pushNav } from './nav.js';
 import { showView, setActiveGrid, ensureSentinel, updateBreadcrumb, ScrollingGrid, mode } from './grid.js';
 import { makeTitleCard, makeCompactTitleCard, agingLabel } from './cards.js';
 import { tagBadgeHtml } from './icons.js';
-import { ensureStudioGroups, ensureTitleLabels, renderTwoColumnStudioPanel } from './studio-data.js';
+import { ensureStudioGroups, ensureTitleLabels, renderTwoColumnStudioPanel, updateCompanyMarquee } from './studio-data.js';
 import { resetActressState, actressesBtn } from './actress-browse.js';
 import { MAX_TOTAL } from './config.js';
+import { effectiveCols, colsSliderHtml, wireColsSlider } from './grid-cols.js';
+import {
+  renderDashboardStrip,
+  renderDashboardSection,
+  renderSideBySidePanel,
+  renderStatsTiles,
+  createSpotlightRotator,
+} from './dashboard-panels.js';
 
 // ── DOM refs ──────────────────────────────────────────────────────────────
 export const titlesBrowseBtn    = document.getElementById('titles-browse-btn');
 const titleLandingEl            = document.getElementById('title-landing');
-const titleSearchInput          = document.getElementById('title-search-input');
-const titleSearchClearBtn       = document.getElementById('title-search-clear');
 const titleDashboardBtn         = document.getElementById('title-dashboard-btn');
 const titleDashboardEl          = document.getElementById('title-dashboard');
 const titleFavoritesBtn         = document.getElementById('title-favorites-btn');
@@ -19,25 +26,41 @@ const titleStudioBtn            = document.getElementById('title-studio-btn');
 const titleStudioDivider        = document.getElementById('title-studio-divider');
 const titleStudioGroupRow       = document.getElementById('title-studio-group-row');
 const titleStudioLabelsEl       = document.getElementById('title-studio-labels');
-const titleLabelDropdown        = document.getElementById('title-label-dropdown');
 export const collectionsBtn     = document.getElementById('title-collections-btn');
 export const titleUnsortedBtn   = document.getElementById('title-unsorted-btn');
 export const titleArchivesBtn   = document.getElementById('title-archives-btn');
 const titleTagsBtn              = document.getElementById('title-tags-btn');
 const titleTagsPanel            = document.getElementById('title-tags-panel');
 
+// ── Column count control ──────────────────────────────────────────────────
+function applyTitleGridCols(cols) {
+  const grid = document.getElementById('titles-browse-grid');
+  if (grid) grid.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
+}
+
+function showColsOnlyFilterBar() {
+  const bar = document.getElementById('title-browse-filter-bar');
+  if (!bar) return;
+  bar.innerHTML = colsSliderHtml(effectiveCols(), 'title-cols-control', 'title-cols-slider', 'title-cols-label');
+  bar.style.display = '';
+  wireColsSlider('title-cols-slider', 'title-cols-label', applyTitleGridCols);
+}
+
 // ── State ─────────────────────────────────────────────────────────────────
-const TITLE_SEARCH_DELAY_MS  = 350;
-const TITLE_SEARCH_MIN_CHARS = 1;
+export let titleBrowseMode = null;   // null | 'dashboard' | 'favorites' | 'bookmarks' | 'collections' | 'unsorted' | 'archive-pool' | 'tags' | 'studio'
 
-export let titleBrowseMode = null;   // null | 'dashboard' | 'search' | 'favorites' | 'bookmarks' | 'collections' | 'unsorted' | 'archive-pool' | 'tags' | 'studio'
-export let titleSearchTerm = '';
-let titleSearchTimer = null;
-
-// Spotlight rotation
+// Spotlight rotation (title-specific instance of the shared rotator)
 const SPOTLIGHT_INTERVAL_MS = 30_000;
-let spotlightIntervalId = null;
-let spotlightCardContainer = null;   // the .dashboard-top-panel-left div
+const titleSpotlightRotator = createSpotlightRotator({
+  endpoint: '/api/titles/spotlight',
+  excludeAttr: 'code',
+  makeCard: t => {
+    const card = makeTitleCard(t);
+    card.classList.add('card-spotlight');
+    return card;
+  },
+  intervalMs: SPOTLIGHT_INTERVAL_MS,
+});
 
 export let activeTags = new Set();
 let tagsDebounceTimer = null;
@@ -50,29 +73,45 @@ export let archivePoolVolumeId = null;
 export let archivePoolSmbPath  = null;
 let queuesVolumeData = null;
 
+// ── Browse-mode filters (Collections / Unsorted / Archives) ──────────────
+const FILTERABLE_MODES = new Set(['collections', 'unsorted', 'archive-pool']);
+let browseCompanyFilter = null;
+let browseActiveTags    = new Set();
+let browseFilterTimer   = null;
+let browseCatalogTags   = null;  // lazy-loaded; reset on mode change
+let browseTagsForMode   = null;  // which mode browseCatalogTags belongs to
+let allCompanies        = null;  // lazy-loaded once, shared across modes
+const BROWSE_FILTER_DEBOUNCE_MS = 350;
+
 // Studio
 let selectedStudioSlug = null;
-
-// Label dropdown
-let labelDropdownItems = [];
-let labelDropdownIndex = -1;
 
 // ── Scrolling grid ────────────────────────────────────────────────────────
 export const allTitlesGrid = new ScrollingGrid(
   document.getElementById('titles-browse-grid'),
   (o, l) => {
-    if (titleBrowseMode === 'search')
-      return `/api/titles?search=${encodeURIComponent(titleSearchTerm)}&offset=${o}&limit=${l}`;
     if (titleBrowseMode === 'favorites')
       return `/api/titles?favorites=true&offset=${o}&limit=${l}`;
     if (titleBrowseMode === 'bookmarks')
       return `/api/titles?bookmarks=true&offset=${o}&limit=${l}`;
-    if (titleBrowseMode === 'collections')
-      return `/api/collections/titles?offset=${o}&limit=${l}`;
-    if (titleBrowseMode === 'unsorted')
-      return `/api/pool/${encodeURIComponent(poolVolumeId)}/titles?offset=${o}&limit=${l}`;
-    if (titleBrowseMode === 'archive-pool')
-      return `/api/pool/${encodeURIComponent(archivePoolVolumeId)}/titles?offset=${o}&limit=${l}`;
+    if (titleBrowseMode === 'collections') {
+      let url = `/api/collections/titles?offset=${o}&limit=${l}`;
+      if (browseCompanyFilter) url += `&company=${encodeURIComponent(browseCompanyFilter)}`;
+      if (browseActiveTags.size > 0) url += `&tags=${encodeURIComponent([...browseActiveTags].join(','))}`;
+      return url;
+    }
+    if (titleBrowseMode === 'unsorted') {
+      let url = `/api/pool/${encodeURIComponent(poolVolumeId)}/titles?offset=${o}&limit=${l}`;
+      if (browseCompanyFilter) url += `&company=${encodeURIComponent(browseCompanyFilter)}`;
+      if (browseActiveTags.size > 0) url += `&tags=${encodeURIComponent([...browseActiveTags].join(','))}`;
+      return url;
+    }
+    if (titleBrowseMode === 'archive-pool') {
+      let url = `/api/pool/${encodeURIComponent(archivePoolVolumeId)}/titles?offset=${o}&limit=${l}`;
+      if (browseCompanyFilter) url += `&company=${encodeURIComponent(browseCompanyFilter)}`;
+      if (browseActiveTags.size > 0) url += `&tags=${encodeURIComponent([...browseActiveTags].join(','))}`;
+      return url;
+    }
     if (titleBrowseMode === 'tags' && activeTags.size > 0)
       return `/api/titles?tags=${encodeURIComponent([...activeTags].join(','))}&offset=${o}&limit=${l}`;
     return `/api/titles?offset=${o}&limit=${l}`;
@@ -96,6 +135,8 @@ export function runTitleBrowseQuery() {
   titleDashboardEl.style.display = 'none';
   document.getElementById('titles-browse-grid').style.display = 'grid';
   setActiveGrid(allTitlesGrid);
+  if (!FILTERABLE_MODES.has(titleBrowseMode)) showColsOnlyFilterBar();
+  applyTitleGridCols(effectiveCols());
   allTitlesGrid.reset();
   ensureSentinel();
   allTitlesGrid.loadMore();
@@ -124,8 +165,6 @@ function updateTitleBreadcrumb() {
   else if (titleBrowseMode === 'archive-pool') crumbs.push({ label: 'Archives' });
   else if (titleBrowseMode === 'tags')
     crumbs.push({ label: activeTags.size > 0 ? `Tags (${activeTags.size})` : 'Tags' });
-  else if (titleBrowseMode === 'search')
-    crumbs.push({ label: `search: "${titleSearchTerm}"` });
   updateBreadcrumb(crumbs);
 }
 
@@ -141,87 +180,6 @@ function makeTitleCardWithAging(t) {
     (coverWrap || card).appendChild(badge);
   }
   return card;
-}
-
-function renderDashboardStrip(titles, { id, cardFactory }) {
-  const grid = document.createElement('div');
-  grid.className = 'dashboard-card-grid';
-  if (id) grid.id = id;
-  titles.forEach(t => grid.appendChild(cardFactory(t)));
-  return grid;
-}
-
-function renderDashboardSection({ title, accent = false, badge = null, body, bordered = false }) {
-  const section = document.createElement('section');
-  section.className = 'dashboard-section'
-    + (accent   ? ' dashboard-section-accent'   : '')
-    + (bordered ? ' dashboard-section-bordered' : '');
-  const header = document.createElement('div');
-  header.className = 'dashboard-section-title';
-  header.textContent = title;
-  if (badge) {
-    const b = document.createElement('span');
-    b.className = 'dashboard-section-badge';
-    b.textContent = badge;
-    header.appendChild(b);
-  }
-  section.appendChild(header);
-  section.appendChild(body);
-  return section;
-}
-
-function renderSideBySidePanel(panelClass, leftEl, rightEl) {
-  const panel = document.createElement('div');
-  panel.className = `dashboard-side-panel ${panelClass}`;
-  if (leftEl) {
-    const left = document.createElement('div');
-    left.className = 'dashboard-side-panel-cell';
-    left.appendChild(leftEl);
-    panel.appendChild(left);
-  }
-  if (rightEl) {
-    const right = document.createElement('div');
-    right.className = 'dashboard-side-panel-cell';
-    right.appendChild(rightEl);
-    panel.appendChild(right);
-  }
-  return panel;
-}
-
-function stopSpotlightRotation() {
-  if (spotlightIntervalId !== null) {
-    clearInterval(spotlightIntervalId);
-    spotlightIntervalId = null;
-  }
-  spotlightCardContainer = null;
-}
-
-async function rotateSpotlight() {
-  if (!spotlightCardContainer) return;
-  const currentCard = spotlightCardContainer.querySelector('.card');
-  const currentCode = currentCard ? currentCard.dataset.code : null;
-  const url = '/api/titles/spotlight' + (currentCode ? `?exclude=${encodeURIComponent(currentCode)}` : '');
-  try {
-    const res = await fetch(url);
-    if (res.status === 204 || !res.ok) return;   // no candidates — keep current
-    const t = await res.json();
-    const newCard = makeTitleCard(t);
-    newCard.classList.add('card-spotlight', 'spotlight-enter');
-    if (currentCard) {
-      currentCard.classList.add('spotlight-exit');
-      currentCard.addEventListener('animationend', () => currentCard.remove(), { once: true });
-    }
-    spotlightCardContainer.appendChild(newCard);
-    // Trigger reflow so the animation plays
-    void newCard.offsetWidth;
-    newCard.classList.remove('spotlight-enter');
-  } catch (_) { /* network error — silently skip */ }
-}
-
-function startSpotlightRotation(container) {
-  stopSpotlightRotation();
-  spotlightCardContainer = container;
-  spotlightIntervalId = setInterval(rotateSpotlight, SPOTLIGHT_INTERVAL_MS);
 }
 
 function renderTopInfoPanel(spotlight, topLabels, libraryStats, onThisDay) {
@@ -241,7 +199,7 @@ function renderTopInfoPanel(spotlight, topLabels, libraryStats, onThisDay) {
     left.appendChild(card);
     panel.appendChild(left);
     // Store ref and start rotation after this render cycle
-    setTimeout(() => startSpotlightRotation(left), SPOTLIGHT_INTERVAL_MS);
+    setTimeout(() => titleSpotlightRotator.start(left), SPOTLIGHT_INTERVAL_MS);
   }
 
   // Right column: upper row (Top Labels + Library side-by-side) + lower (On This Day)
@@ -286,8 +244,9 @@ function renderTopLabelsLeaderboard(topLabels) {
   const list = document.createElement('div');
   list.className = 'dashboard-leaderboard';
 
-  const maxScore = topLabels.reduce((m, l) => Math.max(m, l.score || 0), 0) || 1;
-  topLabels.forEach((lbl, i) => {
+  const displayed = topLabels.slice(0, 5);
+  const maxScore = displayed.reduce((m, l) => Math.max(m, l.score || 0), 0) || 1;
+  displayed.forEach((lbl, i) => {
     const row = document.createElement('div');
     row.className = 'leaderboard-row';
     row.innerHTML = `
@@ -297,8 +256,12 @@ function renderTopLabelsLeaderboard(topLabels) {
       <span class="leaderboard-bar-wrap"><span class="leaderboard-bar" style="width:${Math.round((lbl.score / maxScore) * 100)}%"></span></span>
     `;
     row.addEventListener('click', () => {
-      titleSearchInput.value = lbl.code + '-';
-      scheduleTitleSearch(0);
+      const searchInput = document.getElementById('search-input');
+      if (searchInput) {
+        searchInput.value = lbl.code + '-';
+        searchInput.dispatchEvent(new Event('input'));
+        searchInput.focus();
+      }
     });
     list.appendChild(row);
   });
@@ -307,39 +270,20 @@ function renderTopLabelsLeaderboard(topLabels) {
 }
 
 function renderLibraryStats(stats) {
-  const section = document.createElement('section');
-  section.className = 'dashboard-section dashboard-library-stats';
-  const header = document.createElement('div');
-  header.className = 'dashboard-section-title';
-  header.textContent = 'Library';
-  section.appendChild(header);
-
   const unseenPct = stats.totalTitles > 0
     ? Math.round((stats.unseen / stats.totalTitles) * 100)
     : 0;
-
-  const tiles = document.createElement('div');
-  tiles.className = 'dashboard-stats-grid';
-  const tileData = [
-    { label: 'Titles',          value: stats.totalTitles.toLocaleString() },
-    { label: 'Labels',          value: stats.totalLabels.toLocaleString() },
-    { label: 'Unseen',          value: stats.unseen.toLocaleString() },
-    { label: 'Unseen %',        value: `${unseenPct}%`, bar: unseenPct },
-    { label: 'Added this month', value: stats.addedThisMonth.toLocaleString() },
-    { label: 'Added this year',  value: stats.addedThisYear.toLocaleString() },
-  ];
-  tileData.forEach(t => {
-    const tile = document.createElement('div');
-    tile.className = 'stats-tile';
-    let html = `<div class="stats-tile-value">${esc(String(t.value))}</div><div class="stats-tile-label">${esc(t.label)}</div>`;
-    if (t.bar != null) {
-      html += `<div class="stats-tile-bar-wrap"><div class="stats-tile-bar" style="width:${t.bar}%"></div></div>`;
-    }
-    tile.innerHTML = html;
-    tiles.appendChild(tile);
+  return renderStatsTiles({
+    heading: 'Library',
+    tiles: [
+      { label: 'Titles',           value: stats.totalTitles.toLocaleString() },
+      { label: 'Labels',           value: stats.totalLabels.toLocaleString() },
+      { label: 'Unseen',           value: stats.unseen.toLocaleString() },
+      { label: 'Unseen %',         value: `${unseenPct}%`, bar: unseenPct },
+      { label: 'Added this month', value: stats.addedThisMonth.toLocaleString() },
+      { label: 'Added this year',  value: stats.addedThisYear.toLocaleString() },
+    ],
   });
-  section.appendChild(tiles);
-  return section;
 }
 
 async function renderTitleDashboard() {
@@ -449,31 +393,33 @@ async function renderTitleDashboard() {
 
 // ── Browse mode selection ─────────────────────────────────────────────────
 export function selectTitleBrowseMode(modeKey) {
-  titleBrowseMode = modeKey;
-  if (modeKey !== 'search') {
-    if (titleSearchTimer) { clearTimeout(titleSearchTimer); titleSearchTimer = null; }
-    titleSearchTerm = '';
-    if (titleSearchInput.value !== '') titleSearchInput.value = '';
-    closeLabelDropdown();
+  pushNav({ view: 'titles-browse', mode: modeKey }, 'browse/' + modeKey);
+  // Reset browse filters when entering a different filterable mode, or leaving filterable modes entirely
+  if (modeKey !== titleBrowseMode) {
+    resetBrowseFilters();
   }
+  titleBrowseMode = modeKey;
   updateTitleLandingSelection();
   updateTitleBreadcrumb();
   titlesBrowseBtn.classList.add('active');
+  showView('titles-browse');
   if (modeKey === 'dashboard') {
     showView('titles-browse');
     document.getElementById('titles-browse-grid').style.display = 'none';
     hideStudioGroupRow();
     hideTagsPanel();
+    hideBrowseFilterBar();
     titleDashboardEl.style.display = 'block';
     renderTitleDashboard();
     return;
   }
-  stopSpotlightRotation();
+  titleSpotlightRotator.stop();
   titleDashboardEl.style.display = 'none';
   if (modeKey === 'studio') {
     document.getElementById('titles-browse-grid').style.display = 'none';
     titleStudioLabelsEl.style.display = 'none';
     hideTagsPanel();
+    hideBrowseFilterBar();
     ensureStudioGroups().then(groups => {
       renderStudioGroupRow(groups);
       showStudioGroupRow();
@@ -491,6 +437,9 @@ export function selectTitleBrowseMode(modeKey) {
   }
   hideStudioGroupRow();
   hideTagsPanel();
+  if (FILTERABLE_MODES.has(modeKey)) {
+    showBrowseFilterBar(); // async, fire-and-forget
+  }
   runTitleBrowseQuery();
 }
 
@@ -500,198 +449,20 @@ export function showTitlesBrowse() {
   actressesBtn.classList.remove('active');
   collectionsBtn.classList.remove('active');
   resetActressState();
-  if (titleSearchTimer)   { clearTimeout(titleSearchTimer);   titleSearchTimer   = null; }
   if (tagsDebounceTimer) { clearTimeout(tagsDebounceTimer);  tagsDebounceTimer  = null; }
   titleBrowseMode = null;
-  titleSearchTerm = '';
   activeTags.clear();
-  titleSearchInput.value = '';
-  closeLabelDropdown();
+  resetBrowseFilters();
   hideStudioGroupRow();
   hideTagsPanel();
+  hideBrowseFilterBar();
   updateTitleLandingSelection();
   showView('titles-browse');
-  requestAnimationFrame(() => {
-    const header = document.querySelector('header');
-    if (header) titleLandingEl.style.top = header.offsetHeight + 'px';
-  });
   selectTitleBrowseMode('dashboard');
-  ensureTitleLabels(); // preload in background for tab-completion
 }
 
 titlesBrowseBtn.addEventListener('click', showTitlesBrowse);
 titleDashboardBtn.addEventListener('click', () => selectTitleBrowseMode('dashboard'));
-
-// ── Label dropdown ────────────────────────────────────────────────────────
-function extractAlphaPrefix(raw) {
-  if (!raw) return '';
-  const m = raw.trim().toUpperCase().match(/^([A-Z][A-Z0-9]*)/);
-  return m ? m[1] : '';
-}
-
-function closeLabelDropdown() {
-  titleLabelDropdown.style.display = 'none';
-  titleLabelDropdown.innerHTML = '';
-  labelDropdownItems = [];
-  labelDropdownIndex = -1;
-}
-
-function renderLabelDropdown(matches, prefix) {
-  titleLabelDropdown.innerHTML = '';
-  labelDropdownItems = matches;
-  labelDropdownIndex = matches.length > 0 ? 0 : -1;
-
-  if (matches.length === 0) {
-    const empty = document.createElement('div');
-    empty.className = 'title-label-dropdown-empty';
-    empty.textContent = `no labels match "${prefix}"`;
-    titleLabelDropdown.appendChild(empty);
-    titleLabelDropdown.style.display = 'block';
-    return;
-  }
-
-  matches.forEach((lbl, i) => {
-    const item = document.createElement('div');
-    item.className = 'title-label-dropdown-item' + (i === 0 ? ' highlighted' : '');
-    item.dataset.index = String(i);
-    const metaParts = [];
-    if (lbl.labelName) metaParts.push(lbl.labelName);
-    if (lbl.company)   metaParts.push(lbl.company);
-    const metaHtml = metaParts.length
-      ? `<span class="title-label-dropdown-meta">${esc(metaParts.join(' · '))}</span>`
-      : '';
-    item.innerHTML = `<span class="title-label-dropdown-code">${esc(lbl.code)}</span>${metaHtml}`;
-    item.addEventListener('mouseenter', () => highlightLabelDropdownItem(i));
-    item.addEventListener('mousedown', e => {
-      e.preventDefault();
-      selectLabelDropdownItem(i);
-    });
-    titleLabelDropdown.appendChild(item);
-  });
-  titleLabelDropdown.style.display = 'block';
-}
-
-function highlightLabelDropdownItem(i) {
-  const nodes = titleLabelDropdown.querySelectorAll('.title-label-dropdown-item');
-  nodes.forEach((n, idx) => n.classList.toggle('highlighted', idx === i));
-  labelDropdownIndex = i;
-  const n = nodes[i];
-  if (n) n.scrollIntoView({ block: 'nearest' });
-}
-
-function selectLabelDropdownItem(i) {
-  const lbl = labelDropdownItems[i];
-  if (!lbl) return;
-  titleSearchInput.value = lbl.code + '-';
-  closeLabelDropdown();
-  titleSearchInput.focus();
-  const v = titleSearchInput.value;
-  titleSearchInput.setSelectionRange(v.length, v.length);
-  scheduleTitleSearch(0);
-}
-
-async function openLabelDropdown() {
-  const prefix = extractAlphaPrefix(titleSearchInput.value);
-  if (!prefix) { closeLabelDropdown(); return; }
-  const all = await ensureTitleLabels();
-  const matches = all.filter(lbl => lbl.code && lbl.code.startsWith(prefix)).slice(0, 50);
-  renderLabelDropdown(matches, prefix);
-}
-
-// ── Search ────────────────────────────────────────────────────────────────
-function scheduleTitleSearch(delayOverride) {
-  if (titleSearchTimer) { clearTimeout(titleSearchTimer); titleSearchTimer = null; }
-  const raw = titleSearchInput.value.trim();
-  if (raw.length < TITLE_SEARCH_MIN_CHARS) {
-    if (titleBrowseMode === 'search') {
-      titleBrowseMode = null;
-      updateTitleLandingSelection();
-      updateTitleBreadcrumb();
-      runTitleBrowseQuery();
-    }
-    return;
-  }
-  const delay = delayOverride != null ? delayOverride : TITLE_SEARCH_DELAY_MS;
-  titleSearchTimer = setTimeout(() => {
-    titleSearchTimer = null;
-    titleSearchTerm = raw;
-    titleBrowseMode = 'search';
-    hideTagsPanel();
-    updateTitleLandingSelection();
-    updateTitleBreadcrumb();
-    runTitleBrowseQuery();
-  }, delay);
-}
-
-titleSearchInput.addEventListener('input', () => {
-  closeLabelDropdown();
-  scheduleTitleSearch();
-});
-
-titleSearchInput.addEventListener('keydown', e => {
-  const dropdownOpen = titleLabelDropdown.style.display !== 'none' && labelDropdownItems.length > 0;
-
-  if (e.key === 'Tab' && !e.shiftKey) {
-    e.preventDefault();
-    if (dropdownOpen) {
-      selectLabelDropdownItem(labelDropdownIndex >= 0 ? labelDropdownIndex : 0);
-    } else if (extractAlphaPrefix(titleSearchInput.value)) {
-      openLabelDropdown();
-    }
-    return;
-  }
-  if (e.key === 'Escape') {
-    if (dropdownOpen) { e.preventDefault(); closeLabelDropdown(); }
-    return;
-  }
-  if (dropdownOpen && (e.key === 'ArrowDown' || e.key === 'ArrowUp')) {
-    e.preventDefault();
-    const delta = e.key === 'ArrowDown' ? 1 : -1;
-    const next = (labelDropdownIndex + delta + labelDropdownItems.length) % labelDropdownItems.length;
-    highlightLabelDropdownItem(next);
-    return;
-  }
-  if (e.key === 'Enter') {
-    e.preventDefault();
-    if (dropdownOpen) { selectLabelDropdownItem(labelDropdownIndex >= 0 ? labelDropdownIndex : 0); return; }
-    if (titleSearchTimer) { clearTimeout(titleSearchTimer); titleSearchTimer = null; }
-    const raw = titleSearchInput.value.trim();
-    if (raw.length < TITLE_SEARCH_MIN_CHARS) return;
-    titleSearchTerm = raw;
-    titleBrowseMode = 'search';
-    updateTitleLandingSelection();
-    updateTitleBreadcrumb();
-    titlesBrowseBtn.classList.add('active');
-    runTitleBrowseQuery();
-  }
-});
-
-let titleBlurTimer = null;
-titleSearchInput.addEventListener('blur', () => {
-  titleBlurTimer = setTimeout(() => {
-    titleBlurTimer = null;
-    closeLabelDropdown();
-    if (mode !== 'titles-browse') return;
-    if (titleSearchInput.value.trim() === '') selectTitleBrowseMode('dashboard');
-  }, 150);
-});
-titleSearchInput.addEventListener('focus', () => {
-  if (titleBlurTimer) { clearTimeout(titleBlurTimer); titleBlurTimer = null; }
-});
-
-titleSearchClearBtn.addEventListener('click', () => {
-  if (titleSearchTimer) { clearTimeout(titleSearchTimer); titleSearchTimer = null; }
-  titleSearchInput.value = '';
-  titleSearchTerm = '';
-  closeLabelDropdown();
-  if (titleBrowseMode === 'search') {
-    titleBrowseMode = null;
-    updateTitleLandingSelection();
-    updateTitleBreadcrumb();
-    runTitleBrowseQuery();
-  }
-  titleSearchInput.focus();
-});
 
 titleFavoritesBtn.addEventListener('click', () => selectTitleBrowseMode('favorites'));
 titleBookmarksBtn.addEventListener('click', () => selectTitleBrowseMode('bookmarks'));
@@ -707,7 +478,7 @@ async function ensureQueuesVolumes() {
   return queuesVolumeData;
 }
 
-titleUnsortedBtn.addEventListener('click', async () => {
+export async function enterUnsortedMode() {
   if (!poolVolumeId) {
     try {
       const data = await ensureQueuesVolumes();
@@ -717,9 +488,9 @@ titleUnsortedBtn.addEventListener('click', async () => {
     } catch (err) { console.error('Failed to load pool info', err); return; }
   }
   selectTitleBrowseMode('unsorted');
-});
+}
 
-titleArchivesBtn.addEventListener('click', async () => {
+export async function enterArchiveMode() {
   if (!archivePoolVolumeId) {
     try {
       const data = await ensureQueuesVolumes();
@@ -729,7 +500,10 @@ titleArchivesBtn.addEventListener('click', async () => {
     } catch (err) { console.error('Failed to load archive pool info', err); return; }
   }
   selectTitleBrowseMode('archive-pool');
-});
+}
+
+titleUnsortedBtn.addEventListener('click', () => enterUnsortedMode());
+titleArchivesBtn.addEventListener('click', () => enterArchiveMode());
 
 // ── Tags browse ───────────────────────────────────────────────────────────
 async function ensureTagsCatalog() {
@@ -771,6 +545,141 @@ function scheduleTagsQuery() {
 
 function hideTagsPanel() {
   titleTagsPanel.style.display = 'none';
+}
+
+// ── Browse-mode filter bar (Collections / Unsorted / Archives) ────────────
+
+function resetBrowseFilters() {
+  browseCompanyFilter = null;
+  browseActiveTags    = new Set();
+  browseCatalogTags   = null;
+  browseTagsForMode   = null;
+  if (browseFilterTimer) { clearTimeout(browseFilterTimer); browseFilterTimer = null; }
+}
+
+function hideBrowseFilterBar() {
+  const bar   = document.getElementById('title-browse-filter-bar');
+  const panel = document.getElementById('title-browse-tags-panel');
+  if (bar)   { bar.innerHTML = '';   bar.style.display   = 'none'; }
+  if (panel) { panel.innerHTML = ''; panel.style.display = 'none'; }
+}
+
+async function showBrowseFilterBar() {
+  if (!allCompanies) {
+    try {
+      const res = await fetch('/api/companies');
+      allCompanies = res.ok ? await res.json() : [];
+    } catch { allCompanies = []; }
+  }
+
+  // Guard: mode may have changed while companies were loading
+  if (!FILTERABLE_MODES.has(titleBrowseMode)) return;
+
+  const bar = document.getElementById('title-browse-filter-bar');
+  if (!bar) return;
+
+  bar.innerHTML = `
+    <select class="detail-company-select" id="browse-company-select">
+      <option value="">All Companies</option>
+      ${allCompanies.map(c => `<option value="${esc(c)}">${esc(c)}</option>`).join('')}
+    </select>
+    <div class="company-marquee company-marquee-browse" id="browse-company-marquee" style="display:none"><span class="company-marquee-inner"></span></div>
+    <button type="button" class="detail-tags-btn" id="browse-tags-btn">
+      Tags<span class="detail-tags-count" id="browse-tags-count" style="display:none"></span>
+    </button>
+    ${colsSliderHtml(effectiveCols(), 'title-cols-control', 'title-cols-slider', 'title-cols-label')}`;
+  bar.style.display = '';
+
+  const sel = document.getElementById('browse-company-select');
+  if (sel && browseCompanyFilter) {
+    sel.value = browseCompanyFilter;
+    updateCompanyMarquee(document.getElementById('browse-company-marquee'), browseCompanyFilter);
+  }
+  updateBrowseTagsBtn();
+  wireColsSlider('title-cols-slider', 'title-cols-label', applyTitleGridCols);
+
+  sel.addEventListener('change', e => {
+    browseCompanyFilter = e.target.value || null;
+    updateCompanyMarquee(document.getElementById('browse-company-marquee'), browseCompanyFilter);
+    scheduleBrowseFilteredQuery();
+  });
+  document.getElementById('browse-tags-btn').addEventListener('click', toggleBrowseTagsPanel);
+}
+
+function updateBrowseTagsBtn() {
+  const countEl = document.getElementById('browse-tags-count');
+  if (!countEl) return;
+  if (browseActiveTags.size > 0) {
+    countEl.textContent = browseActiveTags.size;
+    countEl.style.display = '';
+  } else {
+    countEl.style.display = 'none';
+  }
+  const btn = document.getElementById('browse-tags-btn');
+  if (btn) btn.classList.toggle('has-active', browseActiveTags.size > 0);
+}
+
+function scheduleBrowseFilteredQuery() {
+  updateBrowseTagsBtn();
+  if (browseFilterTimer) clearTimeout(browseFilterTimer);
+  browseFilterTimer = setTimeout(() => {
+    browseFilterTimer = null;
+    document.getElementById('sentinel')?.remove();
+    allTitlesGrid.reset();
+    ensureSentinel();
+    allTitlesGrid.loadMore();
+  }, BROWSE_FILTER_DEBOUNCE_MS);
+}
+
+async function toggleBrowseTagsPanel() {
+  const panel = document.getElementById('title-browse-tags-panel');
+  if (!panel) return;
+
+  if (panel.style.display !== 'none') {
+    panel.style.display = 'none';
+    return;
+  }
+
+  // Load tags if not yet cached for this mode
+  if (!browseCatalogTags || browseTagsForMode !== titleBrowseMode) {
+    panel.innerHTML = '<div class="detail-tags-loading">Loading tags\u2026</div>';
+    panel.style.display = '';
+    const tagsUrl = titleBrowseMode === 'collections'
+      ? '/api/collections/tags'
+      : `/api/pool/${encodeURIComponent(titleBrowseMode === 'unsorted' ? poolVolumeId : archivePoolVolumeId)}/tags`;
+    try {
+      const res = await fetch(tagsUrl);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      browseCatalogTags = await res.json();
+      browseTagsForMode = titleBrowseMode;
+    } catch (err) {
+      panel.innerHTML = '<div class="detail-tags-loading">Could not load tags</div>';
+      return;
+    }
+  }
+
+  renderBrowseTagsPanel(panel);
+  panel.style.display = '';
+}
+
+function renderBrowseTagsPanel(panel) {
+  const tags = browseCatalogTags || [];
+  if (tags.length === 0) {
+    panel.innerHTML = '<div class="detail-tags-loading">No tags available</div>';
+    return;
+  }
+  panel.innerHTML = `
+    <div class="detail-tags-inner">
+      ${tags.map(t => `<button type="button" class="tag-toggle${browseActiveTags.has(t) ? ' active' : ''}" data-tag="${esc(t)}">${esc(t)}</button>`).join('')}
+    </div>`;
+  panel.querySelectorAll('.tag-toggle').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const tag = btn.dataset.tag;
+      if (browseActiveTags.has(tag)) { browseActiveTags.delete(tag); btn.classList.remove('active'); }
+      else                           { browseActiveTags.add(tag);    btn.classList.add('active'); }
+      scheduleBrowseFilteredQuery();
+    });
+  });
 }
 
 titleTagsBtn.addEventListener('click', async () => {

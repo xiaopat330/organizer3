@@ -3,9 +3,12 @@ profile:
     family_name: Actress
     given_name: Test
     stage_name: テスト女優
+    reading: てすとじょゆう
     alternate_names:
       - name: Testy
         note: nickname
+      - name: T-san
+        note: used early career
   date_of_birth: '1990-01-15'
   birthplace: Tokyo, Japan
   blood_type: A
@@ -17,8 +20,27 @@ profile:
   cup: D
   active_from: '2010-04-01'
   active_to: '2015-03-31'
+  retirement_announced: '2015-02-01'
   biography: Test biography text.
   legacy: Test legacy text.
+  primary_studios:
+    - name: TestLabel
+      company: TestCorp
+      from: '2010-04-01'
+      to: '2012-03-31'
+      role: Exclusive contract actress
+    - name: OtherLabel
+      company: TestCorp
+      from: '2012-04-01'
+      to: '2015-03-31'
+      role: Exclusive contract actress
+  awards:
+    - event: Test Awards
+      year: 2012
+      category: Best New Actress
+    - event: Annual Poll
+      year: 2014
+      category: Top 10
 
 portfolio:
   - code: TEST-001

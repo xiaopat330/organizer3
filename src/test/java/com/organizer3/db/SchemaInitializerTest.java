@@ -124,6 +124,26 @@ class SchemaInitializerTest {
     }
 
     @Test
+    void actressesTableHasBookmarkedAtColumn() {
+        new SchemaInitializer(jdbi).initialize();
+
+        boolean hasCol = jdbi.withHandle(h ->
+                h.createQuery("SELECT COUNT(*) FROM pragma_table_info('actresses') WHERE name='bookmarked_at'")
+                        .mapTo(Integer.class)
+                        .one() > 0);
+        assertTrue(hasCol);
+    }
+
+    @Test
+    void freshSchemaIsStampedAtCurrentVersion() {
+        new SchemaInitializer(jdbi).initialize();
+
+        int version = jdbi.withHandle(h ->
+                h.createQuery("PRAGMA user_version").mapTo(Integer.class).one());
+        assertEquals(10, version);
+    }
+
+    @Test
     void labelsTableAcceptsData() {
         new SchemaInitializer(jdbi).initialize();
 

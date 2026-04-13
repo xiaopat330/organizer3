@@ -11,13 +11,18 @@ import com.organizer3.sync.TitleCodeParser;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.URI;
 import java.net.URL;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.jar.JarFile;
 
 /**
  * Loads actress YAML files from {@code resources/actresses/} and applies them to the database.
@@ -72,23 +77,54 @@ public class ActressYamlLoader {
             return results;
         }
 
-        // Read directory listing from the classpath URL
-        try (var dirStream = dirUrl.openStream()) {
-            byte[] bytes = dirStream.readAllBytes();
-            String listing = new String(bytes);
-            for (String line : listing.split("\n")) {
-                line = line.trim();
-                if (line.endsWith(".yaml")) {
-                    String slug = line.replace(".yaml", "");
-                    try {
-                        results.add(loadOne(slug));
-                    } catch (Exception e) {
-                        log.error("Failed to load actress YAML for slug '{}': {}", slug, e.getMessage());
-                    }
-                }
+        for (String slug : discoverSlugs(dirUrl)) {
+            try {
+                results.add(loadOne(slug));
+            } catch (Exception e) {
+                log.error("Failed to load actress YAML for slug '{}': {}", slug, e.getMessage());
             }
         }
         return results;
+    }
+
+    private List<String> discoverSlugs(URL dirUrl) throws IOException {
+        String protocol = dirUrl.getProtocol();
+        if ("file".equals(protocol)) {
+            try {
+                try (var paths = Files.list(Path.of(dirUrl.toURI()))) {
+                    return paths
+                            .map(p -> p.getFileName().toString())
+                            .filter(name -> name.endsWith(".yaml") && !name.startsWith("test_"))
+                            .map(name -> name.replace(".yaml", ""))
+                            .sorted()
+                            .toList();
+                }
+            } catch (Exception e) {
+                throw new IOException("Failed to list actresses directory: " + e.getMessage(), e);
+            }
+        } else if ("jar".equals(protocol)) {
+            String jarPath = dirUrl.getPath();
+            String jarFilePart = jarPath.substring(0, jarPath.indexOf('!'));
+            String dirPrefix = RESOURCE_PREFIX;
+            List<String> slugs = new ArrayList<>();
+            try (JarFile jar = new JarFile(new File(new URI(jarFilePart)))) {
+                jar.entries().asIterator().forEachRemaining(entry -> {
+                    String name = entry.getName();
+                    if (name.startsWith(dirPrefix) && name.endsWith(".yaml") && !entry.isDirectory()) {
+                        String filename = name.substring(name.lastIndexOf('/') + 1);
+                        if (!filename.startsWith("test_")) {
+                            slugs.add(filename.replace(".yaml", ""));
+                        }
+                    }
+                });
+            } catch (Exception e) {
+                throw new IOException("Failed to enumerate JAR entries: " + e.getMessage(), e);
+            }
+            slugs.sort(String::compareTo);
+            return slugs;
+        } else {
+            throw new IOException("Unsupported classpath URL protocol '" + protocol + "' for actresses directory");
+        }
     }
 
     private ActressYaml parseYaml(InputStream stream) throws IOException {
@@ -137,6 +173,16 @@ public class ActressYamlLoader {
                 parseDate(profile.activeTo()),
                 profile.biography(),
                 profile.legacy()
+        );
+
+        // Apply extended profile fields (reading, retirement, alternate names, studios, awards).
+        actressRepo.updateExtendedProfile(
+                actress.getId(),
+                profile.name() != null ? profile.name().reading() : null,
+                parseDate(profile.retirementAnnounced()),
+                toAlternateNames(profile.name() != null ? profile.name().alternateNames() : null),
+                toStudioTenures(profile.primaryStudios()),
+                toAwards(profile.awards())
         );
 
         // Update aliases from alternate_names
@@ -212,6 +258,35 @@ public class ActressYamlLoader {
         } catch (Exception e) {
             return null;
         }
+    }
+
+    private static List<com.organizer3.model.Actress.AlternateName> toAlternateNames(
+            List<ActressYaml.AlternateName> yaml) {
+        if (yaml == null || yaml.isEmpty()) return List.of();
+        return yaml.stream()
+                .filter(a -> a != null && a.name() != null && !a.name().isBlank())
+                .map(a -> new com.organizer3.model.Actress.AlternateName(a.name(), a.note()))
+                .toList();
+    }
+
+    private static List<com.organizer3.model.Actress.StudioTenure> toStudioTenures(
+            List<ActressYaml.Studio> yaml) {
+        if (yaml == null || yaml.isEmpty()) return List.of();
+        return yaml.stream()
+                .filter(s -> s != null && (s.name() != null || s.company() != null))
+                .map(s -> new com.organizer3.model.Actress.StudioTenure(
+                        s.name(), s.company(),
+                        parseDate(s.from()), parseDate(s.to()),
+                        s.role()))
+                .toList();
+    }
+
+    private static List<com.organizer3.model.Actress.Award> toAwards(List<ActressYaml.Award> yaml) {
+        if (yaml == null || yaml.isEmpty()) return List.of();
+        return yaml.stream()
+                .filter(a -> a != null && (a.event() != null || a.category() != null))
+                .map(a -> new com.organizer3.model.Actress.Award(a.event(), a.year(), a.category()))
+                .toList();
     }
 
     /**

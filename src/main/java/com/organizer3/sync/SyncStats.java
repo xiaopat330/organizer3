@@ -13,6 +13,7 @@ final class SyncStats {
     int queue;
     int attention;
     private final Set<Long> actressIds = new LinkedHashSet<>();
+    private final Set<Long> titleIds   = new LinkedHashSet<>();
 
     void addTitles(String partitionId, int n) {
         total += n;
@@ -26,7 +27,19 @@ final class SyncStats {
         actressIds.add(id);
     }
 
+    void addTitle(long id) {
+        titleIds.add(id);
+    }
+
     int actressCount() {
         return actressIds.size();
+    }
+
+    Set<Long> touchedActressIds() {
+        return actressIds;
+    }
+
+    Set<Long> touchedTitleIds() {
+        return titleIds;
     }
 }

@@ -1,0 +1,44 @@
+profile:
+  name:
+    family_name: Sakura
+    given_name: Momo
+    stage_name: 桜空もも
+    reading: さくら もも
+    alternate_names:
+    - name: Momo Sakura
+      note: romanized form used in DB (空 dropped in transliteration)
+  date_of_birth: 1996-12-03
+  birthplace: Akita Prefecture, Japan
+  blood_type: O
+  height_cm: 160
+  measurements:
+    bust: 90
+    waist: 55
+    hip: 86
+  cup: G
+  active_from: '2017-05-01'
+  active_to: null
+  biography: "桜空もも (Sakurasora Momo) is a Japanese AV actress from Akita Prefecture, born December 3, 1996. A former gravure idol, she pursued a singing career in her teens before pivoting to gravure after encouragement from friends. She debuted as an IDEA POCKET exclusive actress in May 2017 with FIRST IMPRESSION 115, and quickly rose to prominence for her G-cup figure and the distinctive waist-to-bust ratio that critics noted was among the most striking in the industry. She won the DMM.R18 Adult Award 2018 Best New Actress prize in her first full year, cementing her status as one of IDEA POCKET's flagship performers. Now in her ninth year of exclusive work with the label, she remains one of their most consistently ranked and commercially successful actresses."
+  primary_studios:
+  - name: IDEA POCKET
+    company: IDEA POCKET
+    from: '2017-05-01'
+    to: null
+    role: Exclusive contract actress
+  awards:
+  - event: DMM.R18アダルトアワード2018
+    year: 2018
+    category: 最優秀新人女優賞 (Best New Actress)
+  legacy: "One of IDEA POCKET's longest-running and most commercially durable exclusives of the 2017 generation, 桜空もも achieved consistent top-25 placements in multiple industry rankings over a span of seven-plus years, and was named to TC Candler's 2023 '100 Most Beautiful Faces' list — a rare crossover recognition for an AV actress."
+
+meta:
+  total_owned_titles: 123
+  titles_with_japanese_title: null
+  titles_with_english_title: null
+  titles_with_release_date: null
+  total_known_releases: null
+  coverage_note: Portfolio not yet researched. Profile section only.
+  confidence: "Profile data sourced from Japanese Wikipedia (2025-era article). Measurements are as of 2017 per Wikipedia infobox notation. Active_to is null — actress confirmed active as of 2025 per Wikipedia. Note: DB stores canonical_name as 'Momo Sakura'; the correct stage name is 桜空もも (the 空 character in 桜空 is routinely dropped in Western romanization)."
+  data_sources:
+  - https://ja.wikipedia.org/wiki/桜空もも
+  portfolio_listed: 0

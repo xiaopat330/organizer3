@@ -16,35 +16,32 @@
     <button class="nav-link" id="titles-browse-btn"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="20" rx="2"/><line x1="7" y1="2" x2="7" y2="22"/><line x1="17" y1="2" x2="17" y2="22"/><line x1="2" y1="12" x2="22" y2="12"/><line x1="2" y1="7" x2="7" y2="7"/><line x1="2" y1="17" x2="7" y2="17"/><line x1="17" y1="7" x2="22" y2="7"/><line x1="17" y1="17" x2="22" y2="17"/></svg>Titles</button>
     <div class="nav-divider"></div>
     <button class="nav-link" id="action-btn"><svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10"/></svg>Action!</button>
-    <div class="nav-divider"></div>
-    <input class="search-input" type="search" placeholder="search…" id="search-input">
   </div>
   <div id="breadcrumb"></div>
 </header>
 
-<!-- Home tab island (only shown on home view) -->
-<div id="home-tabs" style="display:none">
-  <button class="home-tab active" data-tab="latest">latest</button>
-  <button class="home-tab" data-tab="random-titles">random titles</button>
-  <button class="home-tab" data-tab="random-actresses">actresses</button>
+<!-- Persistent search bar — visible on all views except home portal -->
+<div id="sub-nav-search-bar" style="display:none">
+  <div class="sub-nav-search-wrap">
+    <input class="search-input sub-nav-search-input" type="search" placeholder="search…" id="search-input" autocomplete="off" spellcheck="false">
+    <div id="search-overlay" class="search-overlay" style="display:none"></div>
+  </div>
 </div>
 
-<!-- Title home grid (latest tab) -->
-<div class="grid" id="grid"></div>
-
-<!-- Random titles grid -->
-<div class="grid" id="random-titles-grid" style="display:none"></div>
-
-<!-- Random actresses home grid -->
-<div class="grid" id="random-actress-home-grid" style="display:none"></div>
+<!-- Home portal (default landing page) -->
+<div id="home-portal" style="display:none">
+  <div class="home-portal-search-panel">
+    <div class="home-portal-search-heading">Search everything</div>
+    <p class="home-portal-search-sub">titles, actresses, labels, studios — search for almost anything</p>
+    <div class="home-portal-search-wrap">
+      <input type="search" id="portal-search-input" class="portal-search-input" placeholder="type to search…" autocomplete="off" spellcheck="false">
+      <div id="portal-search-overlay" class="search-overlay portal-search-overlay" style="display:none"></div>
+    </div>
+  </div>
+</div>
 
 <!-- Actress landing island (search + favorites/bookmarks + tiers) -->
 <div id="actress-landing" class="actress-landing" style="display:none">
-  <div class="actress-landing-row actress-landing-search-row">
-    <input type="search" id="actress-search-input" class="actress-search-input" placeholder="type to search (2+ chars)…" autocomplete="off">
-    <button type="button" id="actress-search-clear" class="actress-search-clear">clear</button>
-  </div>
-  <div class="actress-landing-divider"></div>
   <div class="actress-landing-row actress-landing-special-row">
     <button type="button" id="actress-dashboard-btn" class="actress-landing-special actress-landing-dashboard">
       <svg class="actress-landing-activity" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
@@ -57,6 +54,10 @@
     <button type="button" id="actress-bookmarks-btn" class="actress-landing-special actress-landing-bookmarks">
       <svg class="actress-landing-bm" viewBox="0 0 24 24" width="14" height="14"><path d="M6 2h12a1 1 0 0 1 1 1v18.5a.5.5 0 0 1-.8.4L12 17.5 5.8 21.9a.5.5 0 0 1-.8-.4V3a1 1 0 0 1 1-1z"/></svg>
       Bookmarks
+    </button>
+    <button type="button" id="actress-exhibition-btn" class="actress-landing-special actress-landing-exhibition">
+      <svg class="actress-landing-exhibit" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+      Exhibition
     </button>
     <button type="button" id="actress-archives-btn" class="actress-landing-special actress-landing-archives">
       <svg class="actress-landing-archive" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="21 8 21 21 3 21 3 8"/><rect x="1" y="3" width="22" height="5"/><line x1="10" y1="12" x2="14" y2="12"/></svg>
@@ -71,29 +72,45 @@
       Tier
     </button>
   </div>
+  <div class="actress-landing-divider" id="actress-exhibition-divider" style="display:none"></div>
+  <div class="actress-landing-row actress-landing-exhibition-row" id="actress-exhibition-row" style="display:none">
+    <select id="actress-exhibition-company-select" class="actress-exhibition-company-select">
+      <option value="">All Companies</option>
+    </select>
+    <div class="company-marquee" id="actress-exhibition-marquee" style="display:none"><span class="company-marquee-inner"></span></div>
+  </div>
+  <div class="actress-landing-divider" id="actress-archives-divider" style="display:none"></div>
+  <div class="actress-landing-row actress-landing-archives-row" id="actress-archives-row" style="display:none">
+    <select id="actress-archives-company-select" class="actress-archives-company-select">
+      <option value="">All Companies</option>
+    </select>
+    <div class="company-marquee" id="actress-archives-marquee" style="display:none"><span class="company-marquee-inner"></span></div>
+  </div>
   <div class="actress-landing-divider" id="actress-studio-divider" style="display:none"></div>
   <div class="actress-landing-row actress-landing-tier-row" id="actress-studio-group-row" style="display:none"></div>
   <div class="actress-landing-divider" id="actress-tier-divider" style="display:none"></div>
   <div class="actress-landing-row actress-landing-tier-row" id="actress-landing-tier-row" style="display:none"></div>
+  <div class="actress-landing-divider actress-tier-company-divider" id="actress-tier-company-divider" style="display:none"></div>
+  <div class="actress-landing-row actress-landing-tier-company-row" id="actress-tier-company-row" style="display:none">
+    <select id="actress-tier-company-select" class="actress-tier-company-select">
+      <option value="">All Companies</option>
+    </select>
+    <div class="company-marquee" id="actress-tier-company-marquee" style="display:none"><span class="company-marquee-inner"></span></div>
+  </div>
 </div>
 
 <!-- Actress studio two-panel browser -->
+<div id="actress-studio-group-header" class="studio-group-header" style="display:none"></div>
 <div id="actress-studio-labels" style="display:none"></div>
 <!-- Actress browse grid -->
+<div id="actress-browse-filter-bar" class="detail-filter-bar" style="display:none"></div>
+<div id="actress-grid-header" class="grid-header" style="display:none"></div>
 <div id="actress-grid" class="grid" style="display:none"></div>
 <!-- Actress dashboard (default landing) -->
 <div id="actress-dashboard" style="display:none"></div>
 
 <!-- Title landing island (product-number search + favorites/bookmarks) -->
 <div id="title-landing" class="actress-landing title-landing" style="display:none">
-  <div class="actress-landing-row actress-landing-search-row">
-    <div class="title-search-wrap">
-      <input type="search" id="title-search-input" class="actress-search-input title-search-input" placeholder="product number (e.g. SNIS-1, ONSD-100)…" autocomplete="off" spellcheck="false">
-      <div id="title-label-dropdown" class="title-label-dropdown" style="display:none"></div>
-    </div>
-    <button type="button" id="title-search-clear" class="actress-search-clear">clear</button>
-  </div>
-  <div class="actress-landing-divider"></div>
   <div class="actress-landing-row actress-landing-special-row">
     <button type="button" id="title-dashboard-btn" class="actress-landing-special actress-landing-dashboard">
       <svg class="actress-landing-activity" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
@@ -135,6 +152,9 @@
 <div id="title-studio-labels" style="display:none"></div>
 <!-- Tags filter panel (shown in tags browse mode) -->
 <div id="title-tags-panel" style="display:none"></div>
+<!-- Filter bar + tags panel for Collections / Unsorted / Archives modes -->
+<div id="title-browse-filter-bar" class="detail-filter-bar" style="display:none"></div>
+<div id="title-browse-tags-panel" class="detail-actress-tags-panel" style="display:none"></div>
 <!-- Titles browse grid -->
 <div id="titles-browse-grid" class="grid" style="display:none"></div>
 <!-- Title dashboard (default landing) -->
@@ -156,12 +176,11 @@
   <div class="actress-detail-panel">
     <div class="actress-detail-left">
       <div class="detail-cover-col" id="detail-cover"></div>
-      <div class="detail-info-col" id="detail-info"></div>
-      <div class="detail-profile-col" id="detail-profile"></div>
-      <div class="detail-bio-col" id="detail-bio"></div>
+      <div class="detail-sidebar" id="detail-sidebar"></div>
     </div>
     <div class="actress-detail-right" id="actress-detail-right">
-      <div class="detail-nav-bar" id="detail-nav-bar"></div>
+      <div class="detail-filter-bar" id="detail-filter-bar"></div>
+      <div class="detail-actress-tags-panel" id="detail-actress-tags-panel" style="display:none"></div>
       <div class="grid" id="detail-title-grid"></div>
     </div>
   </div>

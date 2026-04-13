@@ -148,11 +148,77 @@ public class TitleBrowseService {
 
     public List<TitleSummary> findByVolumePartition(String volumeId, String partition, int offset, int limit) {
         limit = Math.min(limit, MAX_LIMIT);
-        List<Title> titles = titleRepo.findByVolumeAndPartition(volumeId, partition, limit, offset);
+        return toSummaries(inferActresses(titleRepo.findByVolumeAndPartition(volumeId, partition, limit, offset)));
+    }
 
-        // Infer actress for unattributed titles via exact base_code match only.
+    /**
+     * Like {@link #findByVolumePaged} but with optional company and/or tag filters.
+     * Pass {@code null}/{@code ""} company and empty tags to use the unfiltered path.
+     */
+    public List<TitleSummary> findByVolumePagedFiltered(String volumeId, String company, List<String> tags, int offset, int limit) {
+        limit = Math.min(limit, MAX_LIMIT);
+        Map<String, Label> labelMap = labelRepo.findAllAsMap();
+        List<String> matchingLabels = resolveCompanyLabels(labelMap, company);
+        if (company != null && !company.isBlank() && matchingLabels.isEmpty()) return List.of();
+        boolean hasTags   = tags != null && !tags.isEmpty();
+        boolean hasLabels = !matchingLabels.isEmpty();
+        List<Title> titles = (hasTags || hasLabels)
+                ? titleRepo.findByVolumeFiltered(volumeId, matchingLabels, hasTags ? tags : List.of(), limit, offset)
+                : titleRepo.findByVolumePaged(volumeId, limit, offset);
+        return toSummaries(titles);
+    }
+
+    /**
+     * Like {@link #findByVolumePartition} but with optional company and/or tag filters.
+     * Preserves actress inference for unattributed pool titles.
+     */
+    public List<TitleSummary> findByVolumePartitionFiltered(String volumeId, String partition, String company, List<String> tags, int offset, int limit) {
+        limit = Math.min(limit, MAX_LIMIT);
+        Map<String, Label> labelMap = labelRepo.findAllAsMap();
+        List<String> matchingLabels = resolveCompanyLabels(labelMap, company);
+        if (company != null && !company.isBlank() && matchingLabels.isEmpty()) return List.of();
+        boolean hasTags   = tags != null && !tags.isEmpty();
+        boolean hasLabels = !matchingLabels.isEmpty();
+        List<Title> titles = (hasTags || hasLabels)
+                ? titleRepo.findByVolumeAndPartitionFiltered(volumeId, partition, matchingLabels, hasTags ? tags : List.of(), limit, offset)
+                : titleRepo.findByVolumeAndPartition(volumeId, partition, limit, offset);
+        return toSummaries(inferActresses(titles));
+    }
+
+    /** Returns all distinct company names from the label catalog, sorted. */
+    public List<String> listAllCompanies() {
+        return labelRepo.findAllAsMap().values().stream()
+                .map(Label::company)
+                .filter(Objects::nonNull)
+                .distinct()
+                .sorted()
+                .toList();
+    }
+
+    /** Returns all distinct tags (direct + label-derived) for titles in the collections volume. */
+    public List<String> findTagsForCollections() {
+        return titleRepo.findTagsByVolume("collections");
+    }
+
+    /** Returns all distinct tags (direct + label-derived) for titles in the pool partition of a volume. */
+    public List<String> findTagsForPool(String volumeId) {
+        return titleRepo.findTagsByVolumeAndPartition(volumeId, "pool");
+    }
+
+    private List<String> resolveCompanyLabels(Map<String, Label> labelMap, String company) {
+        if (company == null || company.isBlank()) return List.of();
+        return labelMap.values().stream()
+                .filter(l -> company.equals(l.company()))
+                .map(l -> l.code().toUpperCase())
+                .toList();
+    }
+
+    /**
+     * Infers actress attribution for unattributed titles by matching on base_code against
+     * attributed copies in the DB. Used by pool/archive browse to show actress info.
+     */
+    private List<Title> inferActresses(List<Title> titles) {
         Map<String, Long> actressIdByBaseCode = new HashMap<>();
-
         titles.stream()
                 .filter(t -> t.getActressId() == null)
                 .forEach(t -> {
@@ -163,18 +229,14 @@ public class TitleBrowseService {
                                 .ifPresent(other -> actressIdByBaseCode.put(t.getBaseCode(), other.getActressId()));
                     }
                 });
-
-        if (!actressIdByBaseCode.isEmpty()) {
-            titles = titles.stream()
-                    .map(t -> {
-                        if (t.getActressId() != null) return t;
-                        Long inferred = t.getBaseCode() != null ? actressIdByBaseCode.get(t.getBaseCode()) : null;
-                        return inferred != null ? t.toBuilder().actressId(inferred).build() : t;
-                    })
-                    .toList();
-        }
-
-        return toSummaries(titles);
+        if (actressIdByBaseCode.isEmpty()) return titles;
+        return titles.stream()
+                .map(t -> {
+                    if (t.getActressId() != null) return t;
+                    Long inferred = t.getBaseCode() != null ? actressIdByBaseCode.get(t.getBaseCode()) : null;
+                    return inferred != null ? t.toBuilder().actressId(inferred).build() : t;
+                })
+                .toList();
     }
 
     private List<TitleSummary> toSummaries(List<Title> titles) {
