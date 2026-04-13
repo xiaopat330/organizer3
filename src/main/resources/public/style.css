@@ -162,7 +162,34 @@ header h1:hover {
   border-color: #444;
 }
 
-/* Actress prefix dropdown */
+/* ── Persistent sub-nav search bar ──────────────────────────────────── */
+#sub-nav-search-bar {
+  background: #0d0d0d;
+  border-bottom: 1px solid #1e1e1e;
+  padding: 8px 20px;
+  position: sticky;
+  top: 0; /* overridden dynamically by showView() */
+  z-index: 9;
+  display: flex;
+  align-items: center;
+}
+
+.sub-nav-search-wrap {
+  position: relative;
+  width: 420px;
+}
+
+.sub-nav-search-input {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+#sub-nav-search-bar .search-overlay {
+  left: 0;
+  right: auto;
+  width: 100%;
+  min-width: 380px;
+}
 
 /* ── Actress sub-nav bar (letter + tier filter) ─────────────────────── */
 .actress-sub-nav {

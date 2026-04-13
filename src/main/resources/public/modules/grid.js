@@ -42,6 +42,27 @@ export function showView(name) {
   if (name !== 'titles-browse') {
     document.getElementById('titles-browse-btn')?.classList.remove('active');
   }
+
+  // Update sticky positions for sub-nav bar and landing panels
+  requestAnimationFrame(() => {
+    const header    = document.querySelector('header');
+    const subNavBar = document.getElementById('sub-nav-search-bar');
+    const headerH   = header ? header.offsetHeight : 0;
+
+    if (subNavBar) {
+      const isHome = name === 'titles';
+      subNavBar.style.display = isHome ? 'none' : '';
+      subNavBar.style.top = headerH + 'px';
+    }
+
+    const subNavH = (subNavBar && subNavBar.style.display !== 'none') ? subNavBar.offsetHeight : 0;
+    const landingTop = (headerH + subNavH) + 'px';
+
+    const actressLanding = document.getElementById('actress-landing');
+    const titleLanding   = document.getElementById('title-landing');
+    if (actressLanding && actressLanding.style.display !== 'none') actressLanding.style.top = landingTop;
+    if (titleLanding   && titleLanding.style.display   !== 'none') titleLanding.style.top   = landingTop;
+  });
 }
 
 // ── Breadcrumb ────────────────────────────────────────────────────────────

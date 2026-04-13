@@ -16,12 +16,17 @@
     <button class="nav-link" id="titles-browse-btn"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="20" rx="2"/><line x1="7" y1="2" x2="7" y2="22"/><line x1="17" y1="2" x2="17" y2="22"/><line x1="2" y1="12" x2="22" y2="12"/><line x1="2" y1="7" x2="7" y2="7"/><line x1="2" y1="17" x2="7" y2="17"/><line x1="17" y1="7" x2="22" y2="7"/><line x1="17" y1="17" x2="22" y2="17"/></svg>Titles</button>
     <div class="nav-divider"></div>
     <button class="nav-link" id="action-btn"><svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10"/></svg>Action!</button>
-    <div class="nav-divider"></div>
-    <input class="search-input" type="search" placeholder="search…" id="search-input">
-    <div id="search-overlay" class="search-overlay" style="display:none"></div>
   </div>
   <div id="breadcrumb"></div>
 </header>
+
+<!-- Persistent search bar — visible on all views except home portal -->
+<div id="sub-nav-search-bar" style="display:none">
+  <div class="sub-nav-search-wrap">
+    <input class="search-input sub-nav-search-input" type="search" placeholder="search…" id="search-input" autocomplete="off" spellcheck="false">
+    <div id="search-overlay" class="search-overlay" style="display:none"></div>
+  </div>
+</div>
 
 <!-- Home portal (default landing page) -->
 <div id="home-portal" style="display:none">
@@ -37,11 +42,6 @@
 
 <!-- Actress landing island (search + favorites/bookmarks + tiers) -->
 <div id="actress-landing" class="actress-landing" style="display:none">
-  <div class="actress-landing-row actress-landing-search-row">
-    <input type="search" id="actress-search-input" class="actress-search-input" placeholder="type to search (2+ chars)…" autocomplete="off">
-    <button type="button" id="actress-search-clear" class="actress-search-clear">clear</button>
-  </div>
-  <div class="actress-landing-divider"></div>
   <div class="actress-landing-row actress-landing-special-row">
     <button type="button" id="actress-dashboard-btn" class="actress-landing-special actress-landing-dashboard">
       <svg class="actress-landing-activity" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
@@ -111,14 +111,6 @@
 
 <!-- Title landing island (product-number search + favorites/bookmarks) -->
 <div id="title-landing" class="actress-landing title-landing" style="display:none">
-  <div class="actress-landing-row actress-landing-search-row">
-    <div class="title-search-wrap">
-      <input type="search" id="title-search-input" class="actress-search-input title-search-input" placeholder="product number (e.g. SNIS-1, ONSD-100)…" autocomplete="off" spellcheck="false">
-      <div id="title-label-dropdown" class="title-label-dropdown" style="display:none"></div>
-    </div>
-    <button type="button" id="title-search-clear" class="actress-search-clear">clear</button>
-  </div>
-  <div class="actress-landing-divider"></div>
   <div class="actress-landing-row actress-landing-special-row">
     <button type="button" id="title-dashboard-btn" class="actress-landing-special actress-landing-dashboard">
       <svg class="actress-landing-activity" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>

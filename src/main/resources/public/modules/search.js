@@ -210,16 +210,10 @@ export function createSearch(inputEl, overlayEl, opts = {}) {
         overlayEl.querySelectorAll('.search-label-row').forEach(el => {
             el.addEventListener('click', async () => {
                 hideOverlay();
-                inputEl.value = '';
                 const code = el.dataset.labelCode;
-                const { showTitlesBrowse } = await import('./title-browse.js');
-                showTitlesBrowse();
-                const titleSearch = document.getElementById('title-search-input');
-                if (titleSearch) {
-                    titleSearch.value = code + '-';
-                    titleSearch.dispatchEvent(new Event('input'));
-                    titleSearch.focus();
-                }
+                inputEl.value = code + '-';
+                inputEl.dispatchEvent(new Event('input'));
+                inputEl.focus();
             });
         });
 

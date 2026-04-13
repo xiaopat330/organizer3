@@ -16,8 +16,6 @@ import {
 // ── DOM refs ──────────────────────────────────────────────────────────────
 export const actressesBtn          = document.getElementById('actresses-btn');
 export const actressLandingEl      = document.getElementById('actress-landing');
-const actressSearchInput    = document.getElementById('actress-search-input');
-const actressSearchClearBtn = document.getElementById('actress-search-clear');
 const actressDashboardBtn   = document.getElementById('actress-dashboard-btn');
 const actressDashboardEl    = document.getElementById('actress-dashboard');
 const actressFavoritesBtn   = document.getElementById('actress-favorites-btn');
@@ -49,12 +47,8 @@ export const actressGridEl  = document.getElementById('actress-grid');
 
 // ── State ─────────────────────────────────────────────────────────────────
 export const ACTRESS_TIERS = ['GODDESS', 'SUPERSTAR', 'POPULAR', 'MINOR', 'LIBRARY'];
-const ACTRESS_SEARCH_DELAY_MS  = 350;
-const ACTRESS_SEARCH_MIN_CHARS = 2;
 
-export let actressBrowseMode = null;         // null | 'search' | 'favorites' | 'bookmarks' | 'exhibition-volumes' | 'archive-volumes' | 'studio' | 'studio-group:<slug>' | 'tier-<TIER>'
-export let actressSearchTerm = '';
-export let actressSearchTimer = null;
+export let actressBrowseMode = null;         // null | 'favorites' | 'bookmarks' | 'exhibition-volumes' | 'archive-volumes' | 'studio' | 'studio-group:<slug>' | 'tier-<TIER>'
 export let actressTierPanelOpen = false;
 export let lastActressTier = 'GODDESS';
 export let selectedActressStudioSlug = null;
@@ -240,7 +234,6 @@ export function actressBrowseLabel(modeKey) {
   if (modeKey === 'exhibition-volumes') return 'Exhibition';
   if (modeKey === 'archive-volumes')    return 'Archive';
   if (modeKey === 'studio')          return 'Studio';
-  if (modeKey === 'search')          return `search: "${actressSearchTerm}"`;
   if (modeKey.startsWith('tier-'))   return modeKey.slice(5).toLowerCase();
   if (modeKey.startsWith('studio-group:')) return activeStudioGroupName || 'Studio Group';
   return modeKey;
@@ -264,8 +257,6 @@ export function updateActressBreadcrumb() {
 export const actressScrollGrid = new ScrollingGrid(
   actressGridEl,
   (o, l) => {
-    if (actressBrowseMode === 'search')
-      return `/api/actresses?search=${encodeURIComponent(actressSearchTerm)}&offset=${o}&limit=${l}`;
     if (actressBrowseMode === 'favorites')
       return `/api/actresses?favorites=true&offset=${o}&limit=${l}`;
     if (actressBrowseMode === 'bookmarks')
@@ -304,13 +295,7 @@ export function clearActressGrid() {
 
 // ── resetActressState — called by showTitlesBrowse and showTitlesView ──────
 export function resetActressState() {
-  if (actressSearchTimer) { clearTimeout(actressSearchTimer); actressSearchTimer = null; }
   actressBrowseMode = null;
-  actressSearchTerm = '';
-  if (actressSearchInput) {
-    actressSearchInput.value = '';
-    actressSearchInput.classList.remove('invalid');
-  }
   lastActressTier = 'GODDESS';
   activeStudioGroupName = null;
   studioGroupCompanyFilter = null;
@@ -579,14 +564,8 @@ function _openActressDetail(id) {
 
 // ── Browse mode selection ─────────────────────────────────────────────────
 export async function selectActressBrowseMode(modeKey) {
-  if (modeKey !== 'search') pushNav({ view: 'actresses', mode: modeKey }, 'actresses/' + encodeURIComponent(modeKey));
+  pushNav({ view: 'actresses', mode: modeKey }, 'actresses/' + encodeURIComponent(modeKey));
   actressBrowseMode = modeKey;
-  if (modeKey !== 'search') {
-    if (actressSearchTimer) { clearTimeout(actressSearchTimer); actressSearchTimer = null; }
-    actressSearchTerm = '';
-    if (actressSearchInput.value !== '') actressSearchInput.value = '';
-    actressSearchInput.classList.remove('invalid');
-  }
   if (modeKey === 'dashboard') {
     hideActressTierRow();
     hideActressStudioGroupRow();
@@ -602,10 +581,6 @@ export async function selectActressBrowseMode(modeKey) {
     showView('actresses');
     actressGridEl.style.display = 'none';
     actressDashboardEl.style.display = 'block';
-    requestAnimationFrame(() => {
-      const header = document.querySelector('header');
-      if (header) actressLandingEl.style.top = header.offsetHeight + 'px';
-    });
     await renderActressDashboard();
     return;
   }
@@ -707,93 +682,6 @@ export async function selectActressBrowseMode(modeKey) {
 export function showActressLanding() {
   selectActressBrowseMode('dashboard');
 }
-
-// ── Search input ──────────────────────────────────────────────────────────
-function updateActressSearchValidity() {
-  const raw = actressSearchInput.value.trim();
-  actressSearchInput.classList.toggle('invalid', raw.length > 0 && raw.length < ACTRESS_SEARCH_MIN_CHARS);
-}
-
-function scheduleActressSearch() {
-  if (actressSearchTimer) { clearTimeout(actressSearchTimer); actressSearchTimer = null; }
-  updateActressSearchValidity();
-  const raw = actressSearchInput.value.trim();
-  if (raw.length < ACTRESS_SEARCH_MIN_CHARS) {
-    if (actressBrowseMode === 'search') {
-      actressBrowseMode = null;
-      updateActressLandingSelection();
-      updateActressBreadcrumb();
-      clearActressGrid();
-    }
-    return;
-  }
-  actressSearchTimer = setTimeout(() => {
-    actressSearchTimer = null;
-    actressSearchTerm = raw;
-    actressBrowseMode = 'search';
-    hideActressTierRow();
-    updateActressLandingSelection();
-    updateActressBreadcrumb();
-    actressesBtn.classList.add('active');
-    showView('actresses');
-    actressDashboardEl.style.display = 'none';
-    showActressColsFilterBar();
-    applyActressGridCols(effectiveActressCols());
-    setActiveGrid(actressScrollGrid);
-    actressScrollGrid.reset();
-    ensureSentinel();
-    actressScrollGrid.loadMore();
-  }, ACTRESS_SEARCH_DELAY_MS);
-}
-
-let actressBlurTimer = null;
-actressSearchInput.addEventListener('blur', () => {
-  actressBlurTimer = setTimeout(() => {
-    actressBlurTimer = null;
-    if (mode !== 'actresses') return;
-    if (actressSearchInput.value.trim() === '') selectActressBrowseMode('dashboard');
-  }, 150);
-});
-actressSearchInput.addEventListener('focus', () => {
-  if (actressBlurTimer) { clearTimeout(actressBlurTimer); actressBlurTimer = null; }
-});
-
-actressSearchInput.addEventListener('input', scheduleActressSearch);
-actressSearchInput.addEventListener('keydown', e => {
-  if (e.key !== 'Enter') return;
-  e.preventDefault();
-  if (actressSearchTimer) { clearTimeout(actressSearchTimer); actressSearchTimer = null; }
-  const raw = actressSearchInput.value.trim();
-  if (raw.length < ACTRESS_SEARCH_MIN_CHARS) { clearActressGrid(); return; }
-  actressSearchTerm = raw;
-  actressBrowseMode = 'search';
-  hideActressTierRow();
-  updateActressLandingSelection();
-  updateActressBreadcrumb();
-  actressesBtn.classList.add('active');
-  showView('actresses');
-  actressDashboardEl.style.display = 'none';
-  showActressColsFilterBar();
-  applyActressGridCols(effectiveActressCols());
-  setActiveGrid(actressScrollGrid);
-  actressScrollGrid.reset();
-  ensureSentinel();
-  actressScrollGrid.loadMore();
-});
-
-actressSearchClearBtn.addEventListener('click', () => {
-  if (actressSearchTimer) { clearTimeout(actressSearchTimer); actressSearchTimer = null; }
-  actressSearchInput.value = '';
-  actressSearchInput.classList.remove('invalid');
-  actressSearchTerm = '';
-  if (actressBrowseMode === 'search') {
-    actressBrowseMode = null;
-    updateActressLandingSelection();
-    updateActressBreadcrumb();
-    clearActressGrid();
-  }
-  actressSearchInput.focus();
-});
 
 actressDashboardBtn.addEventListener('click',   () => selectActressBrowseMode('dashboard'));
 actressFavoritesBtn.addEventListener('click',   () => selectActressBrowseMode('favorites'));

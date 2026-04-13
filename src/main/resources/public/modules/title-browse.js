@@ -17,8 +17,6 @@ import {
 // ── DOM refs ──────────────────────────────────────────────────────────────
 export const titlesBrowseBtn    = document.getElementById('titles-browse-btn');
 const titleLandingEl            = document.getElementById('title-landing');
-const titleSearchInput          = document.getElementById('title-search-input');
-const titleSearchClearBtn       = document.getElementById('title-search-clear');
 const titleDashboardBtn         = document.getElementById('title-dashboard-btn');
 const titleDashboardEl          = document.getElementById('title-dashboard');
 const titleFavoritesBtn         = document.getElementById('title-favorites-btn');
@@ -27,7 +25,6 @@ const titleStudioBtn            = document.getElementById('title-studio-btn');
 const titleStudioDivider        = document.getElementById('title-studio-divider');
 const titleStudioGroupRow       = document.getElementById('title-studio-group-row');
 const titleStudioLabelsEl       = document.getElementById('title-studio-labels');
-const titleLabelDropdown        = document.getElementById('title-label-dropdown');
 export const collectionsBtn     = document.getElementById('title-collections-btn');
 export const titleUnsortedBtn   = document.getElementById('title-unsorted-btn');
 export const titleArchivesBtn   = document.getElementById('title-archives-btn');
@@ -83,12 +80,7 @@ function showColsOnlyFilterBar() {
 }
 
 // ── State ─────────────────────────────────────────────────────────────────
-const TITLE_SEARCH_DELAY_MS  = 350;
-const TITLE_SEARCH_MIN_CHARS = 1;
-
-export let titleBrowseMode = null;   // null | 'dashboard' | 'search' | 'favorites' | 'bookmarks' | 'collections' | 'unsorted' | 'archive-pool' | 'tags' | 'studio'
-export let titleSearchTerm = '';
-let titleSearchTimer = null;
+export let titleBrowseMode = null;   // null | 'dashboard' | 'favorites' | 'bookmarks' | 'collections' | 'unsorted' | 'archive-pool' | 'tags' | 'studio'
 
 // Spotlight rotation (title-specific instance of the shared rotator)
 const SPOTLIGHT_INTERVAL_MS = 30_000;
@@ -127,16 +119,10 @@ const BROWSE_FILTER_DEBOUNCE_MS = 350;
 // Studio
 let selectedStudioSlug = null;
 
-// Label dropdown
-let labelDropdownItems = [];
-let labelDropdownIndex = -1;
-
 // ── Scrolling grid ────────────────────────────────────────────────────────
 export const allTitlesGrid = new ScrollingGrid(
   document.getElementById('titles-browse-grid'),
   (o, l) => {
-    if (titleBrowseMode === 'search')
-      return `/api/titles?search=${encodeURIComponent(titleSearchTerm)}&offset=${o}&limit=${l}`;
     if (titleBrowseMode === 'favorites')
       return `/api/titles?favorites=true&offset=${o}&limit=${l}`;
     if (titleBrowseMode === 'bookmarks')
@@ -212,8 +198,6 @@ function updateTitleBreadcrumb() {
   else if (titleBrowseMode === 'archive-pool') crumbs.push({ label: 'Archives' });
   else if (titleBrowseMode === 'tags')
     crumbs.push({ label: activeTags.size > 0 ? `Tags (${activeTags.size})` : 'Tags' });
-  else if (titleBrowseMode === 'search')
-    crumbs.push({ label: `search: "${titleSearchTerm}"` });
   updateBreadcrumb(crumbs);
 }
 
@@ -305,8 +289,12 @@ function renderTopLabelsLeaderboard(topLabels) {
       <span class="leaderboard-bar-wrap"><span class="leaderboard-bar" style="width:${Math.round((lbl.score / maxScore) * 100)}%"></span></span>
     `;
     row.addEventListener('click', () => {
-      titleSearchInput.value = lbl.code + '-';
-      scheduleTitleSearch(0);
+      const searchInput = document.getElementById('search-input');
+      if (searchInput) {
+        searchInput.value = lbl.code + '-';
+        searchInput.dispatchEvent(new Event('input'));
+        searchInput.focus();
+      }
     });
     list.appendChild(row);
   });
@@ -438,26 +426,16 @@ async function renderTitleDashboard() {
 
 // ── Browse mode selection ─────────────────────────────────────────────────
 export function selectTitleBrowseMode(modeKey) {
-  if (modeKey !== 'search') pushNav({ view: 'titles-browse', mode: modeKey }, 'browse/' + modeKey);
+  pushNav({ view: 'titles-browse', mode: modeKey }, 'browse/' + modeKey);
   // Reset browse filters when entering a different filterable mode, or leaving filterable modes entirely
   if (modeKey !== titleBrowseMode) {
     resetBrowseFilters();
   }
   titleBrowseMode = modeKey;
-  if (modeKey !== 'search') {
-    if (titleSearchTimer) { clearTimeout(titleSearchTimer); titleSearchTimer = null; }
-    titleSearchTerm = '';
-    if (titleSearchInput.value !== '') titleSearchInput.value = '';
-    closeLabelDropdown();
-  }
   updateTitleLandingSelection();
   updateTitleBreadcrumb();
   titlesBrowseBtn.classList.add('active');
   showView('titles-browse');
-  requestAnimationFrame(() => {
-    const header = document.querySelector('header');
-    if (header) titleLandingEl.style.top = header.offsetHeight + 'px';
-  });
   if (modeKey === 'dashboard') {
     showView('titles-browse');
     document.getElementById('titles-browse-grid').style.display = 'none';
@@ -504,200 +482,20 @@ export function showTitlesBrowse() {
   actressesBtn.classList.remove('active');
   collectionsBtn.classList.remove('active');
   resetActressState();
-  if (titleSearchTimer)   { clearTimeout(titleSearchTimer);   titleSearchTimer   = null; }
   if (tagsDebounceTimer) { clearTimeout(tagsDebounceTimer);  tagsDebounceTimer  = null; }
   titleBrowseMode = null;
-  titleSearchTerm = '';
   activeTags.clear();
-  titleSearchInput.value = '';
-  closeLabelDropdown();
   resetBrowseFilters();
   hideStudioGroupRow();
   hideTagsPanel();
   hideBrowseFilterBar();
   updateTitleLandingSelection();
   showView('titles-browse');
-  requestAnimationFrame(() => {
-    const header = document.querySelector('header');
-    if (header) titleLandingEl.style.top = header.offsetHeight + 'px';
-  });
   selectTitleBrowseMode('dashboard');
-  ensureTitleLabels(); // preload in background for tab-completion
 }
 
 titlesBrowseBtn.addEventListener('click', showTitlesBrowse);
 titleDashboardBtn.addEventListener('click', () => selectTitleBrowseMode('dashboard'));
-
-// ── Label dropdown ────────────────────────────────────────────────────────
-function extractAlphaPrefix(raw) {
-  if (!raw) return '';
-  const m = raw.trim().toUpperCase().match(/^([A-Z][A-Z0-9]*)/);
-  return m ? m[1] : '';
-}
-
-function closeLabelDropdown() {
-  titleLabelDropdown.style.display = 'none';
-  titleLabelDropdown.innerHTML = '';
-  labelDropdownItems = [];
-  labelDropdownIndex = -1;
-}
-
-function renderLabelDropdown(matches, prefix) {
-  titleLabelDropdown.innerHTML = '';
-  labelDropdownItems = matches;
-  labelDropdownIndex = matches.length > 0 ? 0 : -1;
-
-  if (matches.length === 0) {
-    const empty = document.createElement('div');
-    empty.className = 'title-label-dropdown-empty';
-    empty.textContent = `no labels match "${prefix}"`;
-    titleLabelDropdown.appendChild(empty);
-    titleLabelDropdown.style.display = 'block';
-    return;
-  }
-
-  matches.forEach((lbl, i) => {
-    const item = document.createElement('div');
-    item.className = 'title-label-dropdown-item' + (i === 0 ? ' highlighted' : '');
-    item.dataset.index = String(i);
-    const metaParts = [];
-    if (lbl.labelName) metaParts.push(lbl.labelName);
-    if (lbl.company)   metaParts.push(lbl.company);
-    const metaHtml = metaParts.length
-      ? `<span class="title-label-dropdown-meta">${esc(metaParts.join(' · '))}</span>`
-      : '';
-    item.innerHTML = `<span class="title-label-dropdown-code">${esc(lbl.code)}</span>${metaHtml}`;
-    item.addEventListener('mouseenter', () => highlightLabelDropdownItem(i));
-    item.addEventListener('mousedown', e => {
-      e.preventDefault();
-      selectLabelDropdownItem(i);
-    });
-    titleLabelDropdown.appendChild(item);
-  });
-  titleLabelDropdown.style.display = 'block';
-}
-
-function highlightLabelDropdownItem(i) {
-  const nodes = titleLabelDropdown.querySelectorAll('.title-label-dropdown-item');
-  nodes.forEach((n, idx) => n.classList.toggle('highlighted', idx === i));
-  labelDropdownIndex = i;
-  const n = nodes[i];
-  if (n) n.scrollIntoView({ block: 'nearest' });
-}
-
-function selectLabelDropdownItem(i) {
-  const lbl = labelDropdownItems[i];
-  if (!lbl) return;
-  titleSearchInput.value = lbl.code + '-';
-  closeLabelDropdown();
-  titleSearchInput.focus();
-  const v = titleSearchInput.value;
-  titleSearchInput.setSelectionRange(v.length, v.length);
-  scheduleTitleSearch(0);
-}
-
-async function openLabelDropdown() {
-  const prefix = extractAlphaPrefix(titleSearchInput.value);
-  if (!prefix) { closeLabelDropdown(); return; }
-  const all = await ensureTitleLabels();
-  const matches = all.filter(lbl => lbl.code && lbl.code.startsWith(prefix)).slice(0, 50);
-  renderLabelDropdown(matches, prefix);
-}
-
-// ── Search ────────────────────────────────────────────────────────────────
-function scheduleTitleSearch(delayOverride) {
-  if (titleSearchTimer) { clearTimeout(titleSearchTimer); titleSearchTimer = null; }
-  const raw = titleSearchInput.value.trim();
-  if (raw.length < TITLE_SEARCH_MIN_CHARS) {
-    if (titleBrowseMode === 'search') {
-      titleBrowseMode = null;
-      updateTitleLandingSelection();
-      updateTitleBreadcrumb();
-      runTitleBrowseQuery();
-    }
-    return;
-  }
-  const delay = delayOverride != null ? delayOverride : TITLE_SEARCH_DELAY_MS;
-  titleSearchTimer = setTimeout(() => {
-    titleSearchTimer = null;
-    titleSearchTerm = raw;
-    titleBrowseMode = 'search';
-    hideTagsPanel();
-    updateTitleLandingSelection();
-    updateTitleBreadcrumb();
-    runTitleBrowseQuery();
-  }, delay);
-}
-
-titleSearchInput.addEventListener('input', () => {
-  closeLabelDropdown();
-  scheduleTitleSearch();
-});
-
-titleSearchInput.addEventListener('keydown', e => {
-  const dropdownOpen = titleLabelDropdown.style.display !== 'none' && labelDropdownItems.length > 0;
-
-  if (e.key === 'Tab' && !e.shiftKey) {
-    e.preventDefault();
-    if (dropdownOpen) {
-      selectLabelDropdownItem(labelDropdownIndex >= 0 ? labelDropdownIndex : 0);
-    } else if (extractAlphaPrefix(titleSearchInput.value)) {
-      openLabelDropdown();
-    }
-    return;
-  }
-  if (e.key === 'Escape') {
-    if (dropdownOpen) { e.preventDefault(); closeLabelDropdown(); }
-    return;
-  }
-  if (dropdownOpen && (e.key === 'ArrowDown' || e.key === 'ArrowUp')) {
-    e.preventDefault();
-    const delta = e.key === 'ArrowDown' ? 1 : -1;
-    const next = (labelDropdownIndex + delta + labelDropdownItems.length) % labelDropdownItems.length;
-    highlightLabelDropdownItem(next);
-    return;
-  }
-  if (e.key === 'Enter') {
-    e.preventDefault();
-    if (dropdownOpen) { selectLabelDropdownItem(labelDropdownIndex >= 0 ? labelDropdownIndex : 0); return; }
-    if (titleSearchTimer) { clearTimeout(titleSearchTimer); titleSearchTimer = null; }
-    const raw = titleSearchInput.value.trim();
-    if (raw.length < TITLE_SEARCH_MIN_CHARS) return;
-    titleSearchTerm = raw;
-    titleBrowseMode = 'search';
-    updateTitleLandingSelection();
-    updateTitleBreadcrumb();
-    titlesBrowseBtn.classList.add('active');
-    runTitleBrowseQuery();
-  }
-});
-
-let titleBlurTimer = null;
-titleSearchInput.addEventListener('blur', () => {
-  titleBlurTimer = setTimeout(() => {
-    titleBlurTimer = null;
-    closeLabelDropdown();
-    if (mode !== 'titles-browse') return;
-    if (titleSearchInput.value.trim() === '') selectTitleBrowseMode('dashboard');
-  }, 150);
-});
-titleSearchInput.addEventListener('focus', () => {
-  if (titleBlurTimer) { clearTimeout(titleBlurTimer); titleBlurTimer = null; }
-});
-
-titleSearchClearBtn.addEventListener('click', () => {
-  if (titleSearchTimer) { clearTimeout(titleSearchTimer); titleSearchTimer = null; }
-  titleSearchInput.value = '';
-  titleSearchTerm = '';
-  closeLabelDropdown();
-  if (titleBrowseMode === 'search') {
-    titleBrowseMode = null;
-    updateTitleLandingSelection();
-    updateTitleBreadcrumb();
-    runTitleBrowseQuery();
-  }
-  titleSearchInput.focus();
-});
 
 titleFavoritesBtn.addEventListener('click', () => selectTitleBrowseMode('favorites'));
 titleBookmarksBtn.addEventListener('click', () => selectTitleBrowseMode('bookmarks'));
