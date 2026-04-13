@@ -1,0 +1,65 @@
+profile:
+  name:
+    family_name: Kijima
+    given_name: Airi
+    stage_name: 希島あいり
+    reading: きじま あいり
+    alternate_names: []
+  date_of_birth: 1988-12-24
+  birthplace: Tokyo, Japan
+  blood_type: O
+  height_cm: 160
+  measurements:
+    bust: 85
+    waist: 58
+    hip: 87
+  cup: C
+  active_from: 2013-08-01
+  active_to: 2025-08-31
+  retirement_announced: 2024-12-20
+  biography: "Airi Kijima (希島あいり) is a Japanese AV actress, model, and singer from
+    Tokyo who spent over a decade as one of Idea Pocket's most prominent exclusive
+    talents. Before her AV debut she worked as a model and hair designer. She made
+    her AV debut in August 2013 as an Idea Pocket exclusive, and prior to that had
+    already joined the entertainment idol group Ebisu Muscats on October 6, 2012. On
+    February 4, 2015 she debuted as a singer with Milky Pop Generation. In 2021 she
+    was elevated to Premium Exclusive status at Idea Pocket, recognizing her seniority
+    and consistent popularity within the label. Her outside interests include reading,
+    cooking, and dance, and she is skilled at guitar, songwriting, and basketball.
+    On December 20, 2024 she announced via social media her retirement from AV, with
+    her final work scheduled for August 2025."
+  primary_studios:
+  - name: Idea Pocket
+    company: Idea Pocket
+    from: 2013-08-01
+    to: 2025-08-31
+    role: Exclusive contract actress; Premium Exclusive from 2021
+  awards: []
+  legacy: "Kijima Airi's twelve-year run as an Idea Pocket exclusive made her one
+    of the label's longest-tenured performers, a rare example of actress and studio
+    growing together over an extended arc. Her multi-disciplinary presence — spanning
+    AV, idol group membership (Ebisu Muscats), and a singer debut — positioned her
+    as a versatile entertainment figure at a time when cross-genre activity was expanding
+    for AV actresses."
+
+meta:
+  total_owned_titles: null
+  titles_with_japanese_title: null
+  titles_with_english_title: null
+  titles_with_release_date: null
+  total_known_releases: null
+  coverage_note: "Profile only — portfolio not yet researched."
+  confidence: "DOB 1988-12-24 per bodysize.org, ask-oracle, Wikidata Q16770405. Birthplace
+    Tokyo per NamuWiki and generasia. Blood type O per bodysize.org. Height 160 cm
+    confirmed. Measurements B85W58H87 per bodysize.org; cup C (C-65) per same source.
+    AV debut August 2013, Idea Pocket exclusive per multiple sources. Ebisu Muscats
+    join date 2012-10-06 confirmed. Premium Exclusive promotion 2021 per NamuWiki.
+    Singer debut date 2015-02-04 (Milky Pop Generation) per generasia/jpop wiki.
+    Retirement announcement 2024-12-20 per multiple sources; retirement effective August
+    2025. active_from set to first day of debut month as exact date not confirmed."
+  data_sources:
+  - https://www.wikidata.org/wiki/Q16770405
+  - https://en.namu.wiki/w/%ED%82%A4%EC%A7%80%EB%A7%88%20%EC%95%84%EC%9D%B4%EB%A6%AC
+  - https://bodysize.org/en/airi-kijima/
+  - https://ja.wikipedia.org/wiki/%E5%B8%8C%E5%B3%B6%E3%81%82%E3%81%84%E3%82%8A
+  portfolio_listed: 0
