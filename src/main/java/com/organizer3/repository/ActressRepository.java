@@ -355,6 +355,40 @@ public interface ActressRepository {
     /** Compute scalar library stats for the actress dashboard footer. */
     ActressLibraryStats computeActressLibraryStats();
 
+    // ── Backup / restore ─────────────────────────────────────────────────────
+
+    /**
+     * Lightweight projection of user-altered fields for backup export.
+     * Only actresses where at least one field differs from its default are returned.
+     */
+    record ActressBackupRow(
+            String canonicalName,
+            boolean favorite,
+            boolean bookmark,
+            java.time.LocalDateTime bookmarkedAt,
+            String grade,
+            boolean rejected,
+            int visitCount,
+            java.time.LocalDateTime lastVisitedAt
+    ) {}
+
+    /**
+     * Return all actresses that have at least one non-default user field
+     * (favorite, bookmark, grade, rejected, visitCount, lastVisitedAt).
+     * Returns lightweight rows — no profile text is loaded.
+     */
+    List<ActressBackupRow> findAllForBackup();
+
+    /**
+     * Overwrite all user-altered fields for the actress with the given canonical name
+     * in a single UPDATE. No-op if the actress is not found.
+     * Called by the restore path — applies the full snapshot from a backup entry.
+     */
+    void restoreUserData(String canonicalName, boolean favorite, boolean bookmark,
+                         java.time.LocalDateTime bookmarkedAt, String grade,
+                         boolean rejected, int visitCount,
+                         java.time.LocalDateTime lastVisitedAt);
+
     /**
      * Return per-(actress, label) engagement rows for Top Groups score derivation.
      * Only emits rows where the actress's title has a non-empty label. Multiple titles for

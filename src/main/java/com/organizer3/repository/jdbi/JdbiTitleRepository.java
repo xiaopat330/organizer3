@@ -1104,4 +1104,67 @@ public class JdbiTitleRepository implements TitleRepository {
                         .list()
         );
     }
+
+    // ── Backup / restore ─────────────────────────────────────────────────────
+
+    @Override
+    public List<TitleBackupRow> findAllForBackup() {
+        return jdbi.withHandle(h ->
+                h.createQuery("""
+                        SELECT code, favorite, bookmark, bookmarked_at,
+                               grade, rejected, visit_count, last_visited_at, notes
+                        FROM titles
+                        WHERE favorite = 1 OR bookmark = 1 OR grade IS NOT NULL
+                           OR rejected = 1 OR visit_count > 0 OR notes IS NOT NULL
+                        ORDER BY code
+                        """)
+                        .map((rs, ctx) -> {
+                            String bookmarkedAtStr = rs.getString("bookmarked_at");
+                            String lastVisitedStr = rs.getString("last_visited_at");
+                            return new TitleBackupRow(
+                                    rs.getString("code"),
+                                    rs.getBoolean("favorite"),
+                                    rs.getBoolean("bookmark"),
+                                    bookmarkedAtStr != null ? LocalDateTime.parse(bookmarkedAtStr) : null,
+                                    rs.getString("grade"),
+                                    rs.getBoolean("rejected"),
+                                    rs.getInt("visit_count"),
+                                    lastVisitedStr != null ? LocalDateTime.parse(lastVisitedStr) : null,
+                                    rs.getString("notes")
+                            );
+                        })
+                        .list()
+        );
+    }
+
+    @Override
+    public void restoreUserData(String code, boolean favorite, boolean bookmark,
+                                LocalDateTime bookmarkedAt, String grade,
+                                boolean rejected, int visitCount,
+                                LocalDateTime lastVisitedAt, String notes) {
+        jdbi.useHandle(h ->
+                h.createUpdate("""
+                        UPDATE titles
+                        SET favorite        = :favorite,
+                            bookmark        = :bookmark,
+                            bookmarked_at   = :bookmarkedAt,
+                            grade           = :grade,
+                            rejected        = :rejected,
+                            visit_count     = :visitCount,
+                            last_visited_at = :lastVisitedAt,
+                            notes           = :notes
+                        WHERE code = :code
+                        """)
+                        .bind("code", code)
+                        .bind("favorite", favorite)
+                        .bind("bookmark", bookmark)
+                        .bind("bookmarkedAt", bookmarkedAt != null ? bookmarkedAt.toString() : null)
+                        .bind("grade", grade)
+                        .bind("rejected", rejected)
+                        .bind("visitCount", visitCount)
+                        .bind("lastVisitedAt", lastVisitedAt != null ? lastVisitedAt.toString() : null)
+                        .bind("notes", notes)
+                        .execute()
+        );
+    }
 }

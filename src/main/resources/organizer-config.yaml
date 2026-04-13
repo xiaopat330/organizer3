@@ -1,4 +1,8 @@
 appName: "JAV Helper"
+
+backup:
+  autoBackupIntervalMinutes: 10080
+  snapshotCount: 10
 dataDir: ./data
 maxBrowseTitles: 500
 maxRandomTitles: 500

@@ -64,7 +64,7 @@ class ScanErrorsCommandTest {
 
         OrganizerConfig cfg = new OrganizerConfig(
                 null, null, null, null, null, null, null, null,
-                List.of(), List.of(VOL), List.of(STRUCTURE), List.of());
+                List.of(), List.of(VOL), List.of(STRUCTURE), List.of(), null);
         AppConfig.initializeForTest(cfg);
 
         // Default: library tier exists and is empty
@@ -97,7 +97,7 @@ class ScanErrorsCommandTest {
                 "collections", List.of(new PartitionDef("main", "main")), null);
         OrganizerConfig cfg = new OrganizerConfig(
                 null, null, null, null, null, null, null, null,
-                List.of(), List.of(collVol), List.of(collStructure), List.of());
+                List.of(), List.of(collVol), List.of(collStructure), List.of(), null);
         AppConfig.initializeForTest(cfg);
         ctx.setMountedVolume(collVol);
 
@@ -129,7 +129,7 @@ class ScanErrorsCommandTest {
                 "collections", List.of(new PartitionDef("main", "main")), null);
         OrganizerConfig cfg = new OrganizerConfig(
                 null, null, null, null, null, null, null, null,
-                List.of(), List.of(collVol), List.of(collStructure), List.of());
+                List.of(), List.of(collVol), List.of(collStructure), List.of(), null);
         AppConfig.initializeForTest(cfg);
         ctx.setMountedVolume(collVol);
 
@@ -155,7 +155,7 @@ class ScanErrorsCommandTest {
                 "collections", List.of(new PartitionDef("main", "main")), null);
         OrganizerConfig cfg = new OrganizerConfig(
                 null, null, null, null, null, null, null, null,
-                List.of(), List.of(collVol), List.of(collStructure), List.of());
+                List.of(), List.of(collVol), List.of(collStructure), List.of(), null);
         AppConfig.initializeForTest(cfg);
         ctx.setMountedVolume(collVol);
 
@@ -302,7 +302,7 @@ class ScanErrorsCommandTest {
         );
         OrganizerConfig cfg = new OrganizerConfig(
                 null, null, null, null, null, null, null, null,
-                List.of(), List.of(exhibVol), List.of(exhibStructure), List.of());
+                List.of(), List.of(exhibVol), List.of(exhibStructure), List.of(), null);
         AppConfig.initializeForTest(cfg);
         ctx.setMountedVolume(exhibVol);
 
@@ -332,7 +332,7 @@ class ScanErrorsCommandTest {
                 "exhibition", List.of(), new StructuredPartitionDef("stars", List.of()));
         OrganizerConfig cfg = new OrganizerConfig(
                 null, null, null, null, null, null, null, null,
-                List.of(), List.of(exhibVol), List.of(exhibStructure), List.of());
+                List.of(), List.of(exhibVol), List.of(exhibStructure), List.of(), null);
         AppConfig.initializeForTest(cfg);
         ctx.setMountedVolume(exhibVol);
 
@@ -359,7 +359,7 @@ class ScanErrorsCommandTest {
         VolumeStructureDef poolStructure = new VolumeStructureDef("sort_pool", List.of(), null);
         OrganizerConfig cfg = new OrganizerConfig(
                 null, null, null, null, null, null, null, null,
-                List.of(), List.of(poolVol), List.of(poolStructure), List.of());
+                List.of(), List.of(poolVol), List.of(poolStructure), List.of(), null);
         AppConfig.initializeForTest(cfg);
         ctx.setMountedVolume(poolVol);
 
@@ -396,7 +396,7 @@ class ScanErrorsCommandTest {
         VolumeStructureDef poolStructure = new VolumeStructureDef("sort_pool", List.of(), null);
         OrganizerConfig cfg = new OrganizerConfig(
                 null, null, null, null, null, null, null, null,
-                List.of(), List.of(poolVol), List.of(poolStructure), List.of());
+                List.of(), List.of(poolVol), List.of(poolStructure), List.of(), null);
         AppConfig.initializeForTest(cfg);
         ctx.setMountedVolume(poolVol);
 

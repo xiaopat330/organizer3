@@ -40,7 +40,7 @@ class CheckNamesCommandTest {
         VolumeConfig vol = new VolumeConfig("qnap", "//qnap2/jav", null, null, null);
         OrganizerConfig cfg = new OrganizerConfig(
                 null, null, null, null, null, null, null, null,
-                List.of(), List.of(vol), List.of(), List.of());
+                List.of(), List.of(vol), List.of(), List.of(), null);
         AppConfig.initializeForTest(cfg);
     }
 

@@ -19,7 +19,7 @@ import org.jdbi.v3.core.Jdbi;
 public class SchemaUpgrader {
 
     /** Must match the version stamped by {@link SchemaInitializer}. */
-    private static final int CURRENT_VERSION = 12;
+    private static final int CURRENT_VERSION = 13;
 
     private final Jdbi jdbi;
 
@@ -81,6 +81,11 @@ public class SchemaUpgrader {
         if (version < 12) {
             applyV12();
             setVersion(12);
+        }
+
+        if (version < 13) {
+            applyV13();
+            setVersion(13);
         }
 
         log.info("Schema upgrade complete");
@@ -301,6 +306,27 @@ public class SchemaUpgrader {
             h.execute("ALTER TABLE actresses ADD COLUMN last_visited_at TEXT");
             h.execute("ALTER TABLE titles ADD COLUMN visit_count INTEGER NOT NULL DEFAULT 0");
             h.execute("ALTER TABLE titles ADD COLUMN last_visited_at TEXT");
+        });
+    }
+
+    /**
+     * v13: adds a UNIQUE index on (title_code, watched_at) in watch_history so that
+     * {@code INSERT OR IGNORE} in the restore path can deduplicate entries idempotently.
+     * Deduplicates any existing rows first (keeps the lowest rowid per pair).
+     */
+    private void applyV13() {
+        log.info("Applying migration v13: unique index on watch_history(title_code, watched_at)");
+        jdbi.useHandle(h -> {
+            // Remove any pre-existing duplicate (title_code, watched_at) pairs before creating
+            // the unique index — otherwise the index creation would fail.
+            h.execute("""
+                    DELETE FROM watch_history
+                    WHERE rowid NOT IN (
+                        SELECT MIN(rowid) FROM watch_history GROUP BY title_code, watched_at
+                    )""");
+            h.execute("""
+                    CREATE UNIQUE INDEX IF NOT EXISTS idx_watch_history_unique_entry
+                        ON watch_history(title_code, watched_at)""");
         });
     }
 

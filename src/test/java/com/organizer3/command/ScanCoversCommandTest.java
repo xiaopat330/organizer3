@@ -76,7 +76,8 @@ class ScanCoversCommandTest {
         AppConfig.initializeForTest(new OrganizerConfig(
                 null, null, null, null, null, null, null, null, List.of(), List.of(CONVENTIONAL_VOL, SORT_POOL_VOL),
                 List.of(CONVENTIONAL_STRUCTURE, SORT_POOL_STRUCTURE),
-                List.of()
+                List.of(),
+                null
         ));
         scannerRegistry = new ScannerRegistry(Map.of(
                 "conventional", new ConventionalScanner(),

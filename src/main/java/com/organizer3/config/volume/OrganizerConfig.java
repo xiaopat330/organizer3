@@ -21,7 +21,8 @@ public record OrganizerConfig(
         @JsonProperty("servers")            List<ServerConfig> servers,
         @JsonProperty("volumes")         List<VolumeConfig> volumes,
         @JsonProperty("structures")      List<VolumeStructureDef> structures,
-        @JsonProperty("syncConfig")      List<StructureSyncConfig> syncConfig
+        @JsonProperty("syncConfig")      List<StructureSyncConfig> syncConfig,
+        @JsonProperty("backup")          BackupConfig backup
 ) {
     public Optional<VolumeConfig> findById(String id) {
         return volumes.stream().filter(v -> v.id().equals(id)).findFirst();

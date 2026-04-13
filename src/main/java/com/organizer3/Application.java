@@ -3,6 +3,10 @@ package com.organizer3;
 import com.anthropic.client.AnthropicClient;
 import com.anthropic.client.okhttp.AnthropicOkHttpClient;
 import com.organizer3.ai.ActressNameLookup;
+import com.organizer3.backup.BackupScheduler;
+import com.organizer3.backup.UserDataBackupService;
+import com.organizer3.command.BackupCommand;
+import com.organizer3.command.RestoreCommand;
 import com.organizer3.ai.ClaudeActressNameLookup;
 import com.organizer3.command.ActressNameCheckService;
 import com.organizer3.command.ActressSearchCommand;
@@ -191,6 +195,23 @@ public class Application {
         Path dataDir = resolveDataDir(config);
         log.info("Data directory: {}", dataDir);
 
+        // Backup service + commands
+        com.organizer3.config.volume.BackupConfig backupCfg = config.backup();
+        Path backupPath = dataDir.resolve("backups").resolve("user-data-backup.json");
+        int autoBackupInterval = (backupCfg != null && backupCfg.autoBackupIntervalMinutes() != null)
+                ? backupCfg.autoBackupIntervalMinutes() : 0;
+        int snapshotCount = (backupCfg != null && backupCfg.snapshotCount() != null)
+                ? backupCfg.snapshotCount() : 0;
+        UserDataBackupService backupService = new UserDataBackupService(actressRepo, titleRepo, watchHistoryRepo);
+        commands.add(new BackupCommand(backupService, backupPath, snapshotCount));
+        commands.add(new RestoreCommand(backupService, backupPath));
+
+        // Auto-backup scheduler (disabled when interval is 0 or unset)
+        BackupScheduler backupScheduler = new BackupScheduler();
+        if (autoBackupInterval > 0) {
+            backupScheduler.start(backupService, backupPath, autoBackupInterval, snapshotCount);
+        }
+
         // Cover image commands
         CoverPath coverPath = new CoverPath(dataDir);
         commands.add(new ScanCoversCommand(titleRepo, volumeRepo, coverPath, scannerRegistry));
@@ -268,6 +289,7 @@ public class Application {
         shell.run();
 
         webServer.stop();
+        backupScheduler.stop();
         log.info("Organizer3 exiting");
     }
 

@@ -268,4 +268,39 @@ public interface TitleRepository {
      * Sorted by staleness-dominated score DESC.
      */
     List<Title> findForgottenFavoritesCandidates(int limit, java.util.Set<String> excludeCodes);
+
+    // ── Backup / restore ─────────────────────────────────────────────────────
+
+    /**
+     * Lightweight projection of user-altered fields for backup export.
+     * Only titles where at least one field differs from its default are returned.
+     */
+    record TitleBackupRow(
+            String code,
+            boolean favorite,
+            boolean bookmark,
+            java.time.LocalDateTime bookmarkedAt,
+            String grade,
+            boolean rejected,
+            int visitCount,
+            java.time.LocalDateTime lastVisitedAt,
+            String notes
+    ) {}
+
+    /**
+     * Return all titles that have at least one non-default user field
+     * (favorite, bookmark, grade, rejected, visitCount, lastVisitedAt, notes).
+     * Returns lightweight rows — no location or enrichment data is loaded.
+     */
+    List<TitleBackupRow> findAllForBackup();
+
+    /**
+     * Overwrite all user-altered fields for the title with the given code
+     * in a single UPDATE. No-op if the title is not found.
+     * Called by the restore path — applies the full snapshot from a backup entry.
+     */
+    void restoreUserData(String code, boolean favorite, boolean bookmark,
+                         java.time.LocalDateTime bookmarkedAt, String grade,
+                         boolean rejected, int visitCount,
+                         java.time.LocalDateTime lastVisitedAt, String notes);
 }
