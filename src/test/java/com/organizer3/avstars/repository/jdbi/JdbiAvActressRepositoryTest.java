@@ -169,6 +169,74 @@ class JdbiAvActressRepositoryTest {
         assertEquals("Great performer", found.getNotes());
     }
 
+    // --- toggleFavorite / toggleBookmark / toggleRejected / setGrade ---
+
+    @Test
+    void toggleFavoriteChangesValue() {
+        long id = repo.upsert(actress("Anissa Kate"));
+        repo.toggleFavorite(id, true);
+        assertTrue(repo.findById(id).orElseThrow().isFavorite());
+        repo.toggleFavorite(id, false);
+        assertFalse(repo.findById(id).orElseThrow().isFavorite());
+    }
+
+    @Test
+    void toggleBookmarkChangesValue() {
+        long id = repo.upsert(actress("Anissa Kate"));
+        repo.toggleBookmark(id, true);
+        assertTrue(repo.findById(id).orElseThrow().isBookmark());
+    }
+
+    @Test
+    void toggleRejectedChangesValue() {
+        long id = repo.upsert(actress("Anissa Kate"));
+        repo.toggleRejected(id, true);
+        assertTrue(repo.findById(id).orElseThrow().isRejected());
+    }
+
+    @Test
+    void setGradePersistsValue() {
+        long id = repo.upsert(actress("Anissa Kate"));
+        repo.setGrade(id, "SSS");
+        assertEquals("SSS", repo.findById(id).orElseThrow().getGrade());
+    }
+
+    @Test
+    void setGradeNullClearsValue() {
+        long id = repo.upsert(actress("Anissa Kate"));
+        repo.setGrade(id, "S");
+        repo.setGrade(id, null);
+        assertNull(repo.findById(id).orElseThrow().getGrade());
+    }
+
+    // --- migrateCuration ---
+
+    @Test
+    void migrateCurationCopiesAllCurationFields() {
+        long fromId = repo.upsert(actress("Old Name"));
+        long toId   = repo.upsert(actress("New Name"));
+        repo.updateCuration(fromId, true, false, false, "S", "great");
+        repo.setGrade(fromId, "S");
+
+        repo.migrateCuration(fromId, toId);
+
+        AvActress to = repo.findById(toId).orElseThrow();
+        assertTrue(to.isFavorite());
+        assertFalse(to.isRejected());
+        assertEquals("S", to.getGrade());
+        assertEquals("great", to.getNotes());
+    }
+
+    @Test
+    void migrateCurationDeletesSourceRow() {
+        long fromId = repo.upsert(actress("Old Name"));
+        long toId   = repo.upsert(actress("New Name"));
+
+        repo.migrateCuration(fromId, toId);
+
+        assertTrue(repo.findById(fromId).isEmpty());
+    }
+
     // --- helpers ---
 
     private AvActress actress(String folderName) {

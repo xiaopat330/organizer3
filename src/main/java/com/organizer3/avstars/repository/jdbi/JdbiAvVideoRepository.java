@@ -113,4 +113,26 @@ public class JdbiAvVideoRepository implements AvVideoRepository {
                         .bind("syncStart", syncStart.toString())
                         .execute());
     }
+
+    @Override
+    public void updateParsedFields(long videoId, String studio, String releaseDate,
+                                   String resolution, String codec, String tagsJson) {
+        jdbi.useHandle(h ->
+                h.createUpdate("""
+                        UPDATE av_videos SET
+                            studio       = :studio,
+                            release_date = :releaseDate,
+                            resolution   = :resolution,
+                            codec        = :codec,
+                            tags_json    = :tagsJson
+                        WHERE id = :id
+                        """)
+                        .bind("studio", studio)
+                        .bind("releaseDate", releaseDate)
+                        .bind("resolution", resolution)
+                        .bind("codec", codec)
+                        .bind("tagsJson", tagsJson)
+                        .bind("id", videoId)
+                        .execute());
+    }
 }

@@ -15,8 +15,12 @@ import com.organizer3.command.ErrorScanService;
 import com.organizer3.command.ScanErrorsCommand;
 import com.organizer3.avstars.command.AvActressCommand;
 import com.organizer3.avstars.command.AvActressesCommand;
+import com.organizer3.avstars.command.AvCurateCommand;
 import com.organizer3.avstars.command.AvFavoritesCommand;
+import com.organizer3.avstars.command.AvMigrateActressCommand;
+import com.organizer3.avstars.command.AvParseFilenamesCommand;
 import com.organizer3.avstars.command.AvSyncCommand;
+import com.organizer3.avstars.sync.AvFilenameParser;
 import com.organizer3.avstars.repository.AvActressRepository;
 import com.organizer3.avstars.repository.AvVideoRepository;
 import com.organizer3.avstars.repository.jdbi.JdbiAvActressRepository;
@@ -227,10 +231,14 @@ public class Application {
 
         // AV Stars commands
         AvStarsSyncOperation avStarsSyncOp = new AvStarsSyncOperation(avActressRepo, avVideoRepo, volumeRepo);
+        AvFilenameParser avFilenameParser = new AvFilenameParser();
         commands.add(new AvSyncCommand(avStarsSyncOp));
         commands.add(new AvActressesCommand(avActressRepo));
         commands.add(new AvActressCommand(avActressRepo, avVideoRepo));
         commands.add(new AvFavoritesCommand(avActressRepo));
+        commands.add(new AvCurateCommand(avActressRepo));
+        commands.add(new AvMigrateActressCommand(avActressRepo));
+        commands.add(new AvParseFilenamesCommand(avVideoRepo, avFilenameParser));
 
         // Cover image commands
         CoverPath coverPath = new CoverPath(dataDir);

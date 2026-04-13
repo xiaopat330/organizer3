@@ -31,4 +31,11 @@ public interface AvVideoRepository {
      * timestamp (orphan cleanup after sync).
      */
     void deleteOrphanedByVolume(String volumeId, LocalDateTime syncStart);
+
+    /**
+     * Persists the parsed metadata fields for a single video row.
+     * Fields that could not be parsed should be null.
+     */
+    void updateParsedFields(long videoId, String studio, String releaseDate,
+                            String resolution, String codec, String tagsJson);
 }

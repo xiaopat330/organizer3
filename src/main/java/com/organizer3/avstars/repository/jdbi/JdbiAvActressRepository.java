@@ -179,4 +179,56 @@ public class JdbiAvActressRepository implements AvActressRepository {
                         .bind("id", actressId)
                         .execute());
     }
+
+    @Override
+    public void toggleFavorite(long actressId, boolean favorite) {
+        jdbi.useHandle(h ->
+                h.createUpdate("UPDATE av_actresses SET favorite = :v WHERE id = :id")
+                        .bind("v", favorite ? 1 : 0).bind("id", actressId).execute());
+    }
+
+    @Override
+    public void toggleBookmark(long actressId, boolean bookmark) {
+        jdbi.useHandle(h ->
+                h.createUpdate("UPDATE av_actresses SET bookmark = :v WHERE id = :id")
+                        .bind("v", bookmark ? 1 : 0).bind("id", actressId).execute());
+    }
+
+    @Override
+    public void toggleRejected(long actressId, boolean rejected) {
+        jdbi.useHandle(h ->
+                h.createUpdate("UPDATE av_actresses SET rejected = :v WHERE id = :id")
+                        .bind("v", rejected ? 1 : 0).bind("id", actressId).execute());
+    }
+
+    @Override
+    public void setGrade(long actressId, String grade) {
+        jdbi.useHandle(h ->
+                h.createUpdate("UPDATE av_actresses SET grade = :grade WHERE id = :id")
+                        .bind("grade", grade).bind("id", actressId).execute());
+    }
+
+    @Override
+    public void migrateCuration(long fromActressId, long toActressId) {
+        jdbi.useHandle(h -> {
+            // Copy curation + IAFD identity from source to target
+            h.createUpdate("""
+                    UPDATE av_actresses
+                    SET favorite     = (SELECT favorite     FROM av_actresses WHERE id = :from),
+                        bookmark     = (SELECT bookmark     FROM av_actresses WHERE id = :from),
+                        rejected     = (SELECT rejected     FROM av_actresses WHERE id = :from),
+                        grade        = (SELECT grade        FROM av_actresses WHERE id = :from),
+                        notes        = (SELECT notes        FROM av_actresses WHERE id = :from),
+                        iafd_id      = (SELECT iafd_id      FROM av_actresses WHERE id = :from),
+                        headshot_path = (SELECT headshot_path FROM av_actresses WHERE id = :from)
+                    WHERE id = :to
+                    """)
+                    .bind("from", fromActressId)
+                    .bind("to", toActressId)
+                    .execute();
+            // Delete the orphaned source row (its av_videos were already orphaned by sync)
+            h.createUpdate("DELETE FROM av_actresses WHERE id = :id")
+                    .bind("id", fromActressId).execute();
+        });
+    }
 }

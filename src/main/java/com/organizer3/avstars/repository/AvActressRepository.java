@@ -40,4 +40,17 @@ public interface AvActressRepository {
     /** Updates curation fields (favorite, bookmark, rejected, grade, notes). */
     void updateCuration(long actressId, boolean favorite, boolean bookmark,
                         boolean rejected, String grade, String notes);
+
+    void toggleFavorite(long actressId, boolean favorite);
+    void toggleBookmark(long actressId, boolean bookmark);
+    void toggleRejected(long actressId, boolean rejected);
+    /** Sets or clears the grade. Pass {@code null} to clear. */
+    void setGrade(long actressId, String grade);
+
+    /**
+     * Copies curation fields (favorite, bookmark, rejected, grade, notes, iafd_id,
+     * headshot_path) from {@code fromId} to {@code toId}, then deletes the {@code fromId}
+     * row. Used by {@code av migrate} when an actress folder is renamed on disk.
+     */
+    void migrateCuration(long fromActressId, long toActressId);
 }
