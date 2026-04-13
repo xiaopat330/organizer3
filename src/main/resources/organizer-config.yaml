@@ -110,6 +110,11 @@ volumes:
     structureType: collections
     server: pandora
 
+  - id: qnap_av
+    smbPath: //qnap2/AV/stars
+    structureType: avstars
+    server: qnap2
+
 structures:
   - id: conventional
     unstructuredPartitions:
@@ -154,6 +159,13 @@ structures:
       - { id: new,       path: new       }
       - { id: omnibus,   path: omnibus   }
       - { id: recent,    path: recent    }
+
+  - id: avstars
+    unstructuredPartitions: []
+    ignoredSubfolders:
+      - trash
+      - .Trashes
+      - incomplete
 
 syncConfig:
   - structureType: conventional

@@ -1,0 +1,52 @@
+profile:
+  name:
+    family_name: "Kogawa"
+    given_name: "Iori"
+    stage_name: "古川いおり"
+    reading: "こがわ いおり"
+    alternate_names:
+    - name: "こっちゃん"
+      note: "nickname used within Ebisu Muscats"
+  date_of_birth: 1992-09-25
+  birthplace: "Hirakata, Osaka, Japan"
+  blood_type: "O"
+  height_cm: 155
+  measurements:
+    bust: 83
+    waist: 58
+    hip: 88
+  cup: "C"
+  active_from: 2012-11-08
+  active_to: 2022-12-31
+  retirement_announced: 2022-01-28
+  biography: "Iori Kogawa was born September 25, 1992 in Hirakata, Osaka, and debuted with SOD Create in November 2012. She famously stated that she entered the AV industry because she 'wanted to act,' having previously worked as a talent and aspiring actress. She remained an SOD exclusive for the full ten years of her career, appearing in over 100 titles on the STAR and STARS labels. From 2015 to 2018 she was a member of Ebisu Muscats and appeared on television, winning the group's academic test two years running, and she won a cameo role in Sega's Yakuza 0. She announced her retirement in January 2022, conducted a nationwide farewell tour across seven prefectures, and fully retired on December 31, 2022."
+  primary_studios:
+  - name: "SOD Create (SODstar / STAR label)"
+    company: "Soft on Demand"
+    from: 2012-11-08
+    to: 2022-12-31
+    role: "Exclusive contract actress"
+  awards:
+  - event: "64th SOD Award"
+    year: 2013
+    category: "Outstanding Actress Award"
+  - event: "28th Pink Grand Prix"
+    year: 2016
+    category: "Best New Actress Award"
+  - event: "SKY PerfecTV! Adult Broadcast Award 2017"
+    year: 2017
+    category: "Cyzo Award"
+  legacy: "One of SOD's longest-serving exclusive actresses, with a continuous decade-long career from 2012 to 2022. Her articulate, intellectual on-screen persona and stated acting ambitions set her apart in the genre, and her involvement with Ebisu Muscats and the Yakuza video game franchise gave her a mainstream profile beyond the AV industry. Her retirement was marked by an elaborate nationwide fan tour and a crowdfunded photo book project."
+
+meta:
+  total_owned_titles: 104
+  titles_with_japanese_title: null
+  titles_with_english_title: null
+  titles_with_release_date: null
+  total_known_releases: null
+  coverage_note: "104 owned titles in local DB (STAR×72, STARS×24, plus misc SOD labels); full catalog size not yet determined"
+  confidence: "Strong — all profile fields sourced from a single consistent Wikipedia infobox with no contradictions. Measurements dated as of 2015 per Wikipedia. Retirement announcement date (2022-01-28) from SOD YouTube channel as noted in article."
+  data_sources:
+  - "https://ja.wikipedia.org/wiki/%E5%8F%A4%E5%B7%9D%E3%81%84%E3%81%8A%E3%82%8A"
+  - "local DB (actress id=116, 104 titles)"
+  portfolio_listed: 0

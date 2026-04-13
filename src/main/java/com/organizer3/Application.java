@@ -13,6 +13,15 @@ import com.organizer3.command.ActressSearchCommand;
 import com.organizer3.command.CheckNamesCommand;
 import com.organizer3.command.ErrorScanService;
 import com.organizer3.command.ScanErrorsCommand;
+import com.organizer3.avstars.command.AvActressCommand;
+import com.organizer3.avstars.command.AvActressesCommand;
+import com.organizer3.avstars.command.AvFavoritesCommand;
+import com.organizer3.avstars.command.AvSyncCommand;
+import com.organizer3.avstars.repository.AvActressRepository;
+import com.organizer3.avstars.repository.AvVideoRepository;
+import com.organizer3.avstars.repository.jdbi.JdbiAvActressRepository;
+import com.organizer3.avstars.repository.jdbi.JdbiAvVideoRepository;
+import com.organizer3.avstars.sync.AvStarsSyncOperation;
 import com.organizer3.command.ActressesCommand;
 
 import com.organizer3.command.Command;
@@ -140,6 +149,10 @@ public class Application {
         WatchHistoryRepository watchHistoryRepo = new JdbiWatchHistoryRepository(jdbi);
         IndexLoader indexLoader = new IndexLoader(titleRepo, actressRepo);
 
+        // AV Stars repositories
+        AvActressRepository avActressRepo = new JdbiAvActressRepository(jdbi);
+        AvVideoRepository   avVideoRepo   = new JdbiAvVideoRepository(jdbi);
+
         // Seed actress aliases from aliases.yaml
         try (var aliasStream = Application.class.getResourceAsStream("/aliases.yaml")) {
             if (aliasStream != null) {
@@ -211,6 +224,13 @@ public class Application {
         if (autoBackupInterval > 0) {
             backupScheduler.start(backupService, backupPath, autoBackupInterval, snapshotCount);
         }
+
+        // AV Stars commands
+        AvStarsSyncOperation avStarsSyncOp = new AvStarsSyncOperation(avActressRepo, avVideoRepo, volumeRepo);
+        commands.add(new AvSyncCommand(avStarsSyncOp));
+        commands.add(new AvActressesCommand(avActressRepo));
+        commands.add(new AvActressCommand(avActressRepo, avVideoRepo));
+        commands.add(new AvFavoritesCommand(avActressRepo));
 
         // Cover image commands
         CoverPath coverPath = new CoverPath(dataDir);

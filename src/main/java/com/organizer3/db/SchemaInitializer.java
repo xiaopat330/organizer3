@@ -192,12 +192,102 @@ public class SchemaInitializer {
             h.execute("CREATE INDEX IF NOT EXISTS idx_watch_history_watched_at ON watch_history(watched_at)");
             h.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_watch_history_unique_entry ON watch_history(title_code, watched_at)");
 
+            h.execute("""
+                    CREATE TABLE IF NOT EXISTS av_actresses (
+                        id                   INTEGER PRIMARY KEY AUTOINCREMENT,
+                        volume_id            TEXT NOT NULL REFERENCES volumes(id),
+                        folder_name          TEXT NOT NULL,
+                        stage_name           TEXT NOT NULL,
+
+                        iafd_id              TEXT,
+                        headshot_path        TEXT,
+                        aka_names_json       TEXT,
+
+                        gender               TEXT,
+                        date_of_birth        TEXT,
+                        date_of_death        TEXT,
+                        birthplace           TEXT,
+                        nationality          TEXT,
+                        ethnicity            TEXT,
+
+                        hair_color           TEXT,
+                        eye_color            TEXT,
+                        height_cm            INTEGER,
+                        weight_kg            INTEGER,
+                        measurements         TEXT,
+                        cup                  TEXT,
+                        shoe_size            TEXT,
+                        tattoos              TEXT,
+                        piercings            TEXT,
+
+                        active_from          INTEGER,
+                        active_to            INTEGER,
+                        director_from        INTEGER,
+                        director_to          INTEGER,
+                        iafd_title_count     INTEGER,
+
+                        website_url          TEXT,
+                        social_json          TEXT,
+                        platforms_json       TEXT,
+                        external_refs_json   TEXT,
+
+                        iafd_comments_json   TEXT,
+                        awards_json          TEXT,
+
+                        favorite             INTEGER NOT NULL DEFAULT 0,
+                        bookmark             INTEGER NOT NULL DEFAULT 0,
+                        rejected             INTEGER NOT NULL DEFAULT 0,
+                        grade                TEXT,
+                        notes                TEXT,
+
+                        first_seen_at        TEXT NOT NULL,
+                        last_scanned_at      TEXT,
+                        last_iafd_synced_at  TEXT,
+                        video_count          INTEGER NOT NULL DEFAULT 0,
+                        total_size_bytes     INTEGER NOT NULL DEFAULT 0,
+
+                        UNIQUE(volume_id, folder_name)
+                    )""");
+            h.execute("CREATE INDEX IF NOT EXISTS idx_av_actresses_volume ON av_actresses(volume_id)");
+            h.execute("CREATE INDEX IF NOT EXISTS idx_av_actresses_iafd_id ON av_actresses(iafd_id)");
+
+            h.execute("""
+                    CREATE TABLE IF NOT EXISTS av_videos (
+                        id              INTEGER PRIMARY KEY AUTOINCREMENT,
+                        av_actress_id   INTEGER NOT NULL REFERENCES av_actresses(id),
+                        volume_id       TEXT NOT NULL REFERENCES volumes(id),
+                        relative_path   TEXT NOT NULL,
+                        filename        TEXT NOT NULL,
+                        extension       TEXT,
+                        size_bytes      INTEGER,
+                        mtime           TEXT,
+                        last_seen_at    TEXT NOT NULL,
+                        added_date      TEXT,
+                        bucket          TEXT,
+
+                        studio          TEXT,
+                        release_date    TEXT,
+                        parsed_title    TEXT,
+                        resolution      TEXT,
+                        codec           TEXT,
+                        tags_json       TEXT,
+
+                        favorite        INTEGER NOT NULL DEFAULT 0,
+                        rejected        INTEGER NOT NULL DEFAULT 0,
+
+                        UNIQUE(av_actress_id, relative_path)
+                    )""");
+            h.execute("CREATE INDEX IF NOT EXISTS idx_av_videos_actress ON av_videos(av_actress_id)");
+            h.execute("CREATE INDEX IF NOT EXISTS idx_av_videos_volume ON av_videos(volume_id)");
+            h.execute("CREATE INDEX IF NOT EXISTS idx_av_videos_studio ON av_videos(studio)");
+            h.execute("CREATE INDEX IF NOT EXISTS idx_av_videos_bucket ON av_videos(bucket)");
+
             // Only stamp version on fresh installs (user_version = 0).
             // On an existing DB the CREATE TABLE statements above are all no-ops, so we must
             // leave the version alone and let SchemaUpgrader apply any missing migrations.
             int currentVersion = h.createQuery("PRAGMA user_version").mapTo(Integer.class).one();
             if (currentVersion == 0) {
-                h.execute("PRAGMA user_version = 13");
+                h.execute("PRAGMA user_version = 14");
             }
         });
         log.info("Schema initialization complete");

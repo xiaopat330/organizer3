@@ -44,7 +44,9 @@ class SchemaInitializerTest {
         );
 
         assertEquals(
-                List.of("actress_aliases", "actress_companies", "actresses", "label_tags", "labels", "tags",
+                List.of("actress_aliases", "actress_companies", "actresses",
+                        "av_actresses", "av_videos",
+                        "label_tags", "labels", "tags",
                         "title_actresses", "title_effective_tags", "title_locations", "title_tags",
                         "titles", "videos", "volumes", "watch_history"),
                 tables
@@ -67,6 +69,9 @@ class SchemaInitializerTest {
         assertEquals(
                 List.of("idx_actress_aliases_name", "idx_actress_companies_company",
                         "idx_actresses_name_nocase",
+                        "idx_av_actresses_iafd_id", "idx_av_actresses_volume",
+                        "idx_av_videos_actress", "idx_av_videos_bucket",
+                        "idx_av_videos_studio", "idx_av_videos_volume",
                         "idx_label_tags_tag",
                         "idx_title_actresses_actress", "idx_title_actresses_title",
                         "idx_title_effective_tags_tag",
@@ -143,7 +148,7 @@ class SchemaInitializerTest {
 
         int version = jdbi.withHandle(h ->
                 h.createQuery("PRAGMA user_version").mapTo(Integer.class).one());
-        assertEquals(13, version);
+        assertEquals(14, version);
     }
 
     @Test
