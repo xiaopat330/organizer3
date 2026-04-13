@@ -178,6 +178,7 @@ public interface TitleRepository {
             String titleOriginal,
             String titleEnglish,
             String label,
+            String baseCode,
             String releaseDate,
             Long actressId,
             String actressName
@@ -188,6 +189,13 @@ public interface TitleRepository {
      * Rejected titles are excluded. Results ordered: favorites first, bookmarks next, then newest.
      */
     List<FederatedTitleResult> searchByTitleName(String query, boolean startsWith, int limit);
+
+    /**
+     * Search titles whose code starts with {@code prefix} (case-insensitive).
+     * Used by the search overlay's partial product-code shortcut.
+     * Pass {@code limit=11} and check if the result size exceeds 10 to decide whether to display.
+     */
+    List<FederatedTitleResult> searchByCodePrefix(String prefix, int limit);
 
     // ── Dashboard module queries ─────────────────────────────────────────────
 

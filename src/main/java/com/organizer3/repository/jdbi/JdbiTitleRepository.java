@@ -1031,11 +1031,45 @@ public class JdbiTitleRepository implements TitleRepository {
     }
 
     @Override
+    public List<FederatedTitleResult> searchByCodePrefix(String prefix, int limit) {
+        String pattern = prefix.toUpperCase() + "%";
+        return jdbi.withHandle(h ->
+                h.createQuery("""
+                        SELECT t.id, t.code, t.title_original, t.title_english, t.label, t.base_code,
+                               t.release_date, t.actress_id, a.canonical_name AS actress_name
+                        FROM titles t
+                        LEFT JOIN actresses a ON a.id = t.actress_id
+                        WHERE t.code LIKE :pattern COLLATE NOCASE
+                          AND t.rejected = 0
+                        ORDER BY t.favorite DESC, t.bookmark DESC, t.id DESC
+                        LIMIT :limit
+                        """)
+                        .bind("pattern", pattern)
+                        .bind("limit", limit)
+                        .map((rs, ctx) -> {
+                            String actressIdStr = rs.getString("actress_id");
+                            return new FederatedTitleResult(
+                                    rs.getLong("id"),
+                                    rs.getString("code"),
+                                    rs.getString("title_original"),
+                                    rs.getString("title_english"),
+                                    rs.getString("label"),
+                                    rs.getString("base_code"),
+                                    rs.getString("release_date"),
+                                    actressIdStr != null ? Long.parseLong(actressIdStr) : null,
+                                    rs.getString("actress_name")
+                            );
+                        })
+                        .list()
+        );
+    }
+
+    @Override
     public List<FederatedTitleResult> searchByTitleName(String query, boolean startsWith, int limit) {
         String pattern = startsWith ? query + "%" : "%" + query + "%";
         return jdbi.withHandle(h ->
                 h.createQuery("""
-                        SELECT t.id, t.code, t.title_original, t.title_english, t.label,
+                        SELECT t.id, t.code, t.title_original, t.title_english, t.label, t.base_code,
                                t.release_date, t.actress_id, a.canonical_name AS actress_name
                         FROM titles t
                         LEFT JOIN actresses a ON a.id = t.actress_id
@@ -1055,6 +1089,7 @@ public class JdbiTitleRepository implements TitleRepository {
                                     rs.getString("title_original"),
                                     rs.getString("title_english"),
                                     rs.getString("label"),
+                                    rs.getString("base_code"),
                                     rs.getString("release_date"),
                                     actressIdStr != null ? Long.parseLong(actressIdStr) : null,
                                     rs.getString("actress_name")

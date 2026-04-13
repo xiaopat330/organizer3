@@ -289,6 +289,14 @@ public class WebServer {
                 ctx.json(searchService.search(q.trim(), startsWith));
             });
 
+            app.get("/api/titles/by-code-prefix", ctx -> {
+                String prefix = ctx.queryParam("prefix");
+                if (prefix == null || prefix.isBlank()) { ctx.json(List.of()); return; }
+                int limit = ctx.queryParamAsClass("limit", Integer.class).getOrDefault(11);
+                limit = Math.max(1, Math.min(limit, 11));
+                ctx.json(searchService.searchByCodePrefix(prefix.trim().toUpperCase(), limit));
+            });
+
             app.get("/api/titles/by-code/{code}", ctx -> {
                 String code = ctx.pathParam("code").toUpperCase();
                 if (titleRepo == null) { ctx.status(503); return; }

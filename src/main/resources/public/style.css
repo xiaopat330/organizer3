@@ -3362,14 +3362,16 @@ header h1:hover {
   cursor: pointer;
   transition: background 0.1s ease;
 }
-.search-row:hover {
+.search-row:hover,
+.search-row-selected {
   background: #222;
 }
 
 .search-thumb {
-  width: 32px;
-  height: 32px;
+  width: 28px;
+  height: 40px;
   object-fit: cover;
+  object-position: right center;
   border-radius: 2px;
   flex-shrink: 0;
 }

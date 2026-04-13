@@ -100,6 +100,17 @@ public class SearchService {
         return m;
     }
 
+    /**
+     * Search titles by code prefix for the partial product-code shortcut.
+     * Returns up to {@code limit} results; caller passes 11 and checks size > 10 to suppress display.
+     */
+    public List<Map<String, Object>> searchByCodePrefix(String prefix, int limit) {
+        return titleRepo.searchByCodePrefix(prefix, limit)
+                .stream()
+                .map(this::toTitleMap)
+                .toList();
+    }
+
     private Map<String, Object> toTitleMap(TitleRepository.FederatedTitleResult r) {
         Map<String, Object> m = new LinkedHashMap<>();
         m.put("id",            r.id());
@@ -110,6 +121,18 @@ public class SearchService {
         m.put("releaseDate",   r.releaseDate());
         m.put("actressId",     r.actressId());
         m.put("actressName",   r.actressName());
+
+        String coverUrl = null;
+        if (r.label() != null && r.baseCode() != null) {
+            Title synth = Title.builder()
+                    .label(r.label())
+                    .baseCode(r.baseCode())
+                    .build();
+            coverUrl = coverPath.find(synth)
+                    .map(p -> "/covers/" + r.label().toUpperCase() + "/" + p.getFileName())
+                    .orElse(null);
+        }
+        m.put("coverUrl", coverUrl);
         return m;
     }
 }
