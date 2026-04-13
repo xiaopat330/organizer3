@@ -173,16 +173,15 @@ public class JdbiActressRepository implements ActressRepository {
 
     @Override
     public List<Actress> searchByNamePrefix(String prefix) {
-        String lower = prefix.toLowerCase();
         return jdbi.withHandle(h ->
                 h.createQuery("""
                         SELECT * FROM actresses
-                        WHERE LOWER(canonical_name) LIKE :startsWith
-                           OR LOWER(canonical_name) LIKE :wordStartsWith
+                        WHERE canonical_name LIKE :startsWith COLLATE NOCASE
+                           OR canonical_name LIKE :wordStartsWith COLLATE NOCASE
                         ORDER BY canonical_name
                         """)
-                        .bind("startsWith", lower + "%")
-                        .bind("wordStartsWith", "% " + lower + "%")
+                        .bind("startsWith", prefix + "%")
+                        .bind("wordStartsWith", "% " + prefix + "%")
                         .map(ACTRESS_MAPPER)
                         .list()
         );
@@ -201,8 +200,8 @@ public class JdbiActressRepository implements ActressRepository {
                 return jdbi.withHandle(h ->
                         h.createQuery("""
                                 SELECT * FROM actresses
-                                WHERE LOWER(canonical_name) LIKE :first
-                                  AND LOWER(canonical_name) LIKE :second
+                                WHERE canonical_name LIKE :first COLLATE NOCASE
+                                  AND canonical_name LIKE :second COLLATE NOCASE
                                 ORDER BY favorite DESC, bookmark DESC, canonical_name
                                 LIMIT :limit OFFSET :offset
                                 """)
@@ -219,8 +218,8 @@ public class JdbiActressRepository implements ActressRepository {
         return jdbi.withHandle(h ->
                 h.createQuery("""
                         SELECT * FROM actresses
-                        WHERE LOWER(canonical_name) LIKE :startsWith
-                           OR LOWER(canonical_name) LIKE :wordStartsWith
+                        WHERE canonical_name LIKE :startsWith COLLATE NOCASE
+                           OR canonical_name LIKE :wordStartsWith COLLATE NOCASE
                         ORDER BY favorite DESC, bookmark DESC, canonical_name
                         LIMIT :limit OFFSET :offset
                         """)
@@ -238,10 +237,10 @@ public class JdbiActressRepository implements ActressRepository {
         return jdbi.withHandle(h ->
                 h.createQuery("""
                         SELECT * FROM actresses
-                        WHERE LOWER(canonical_name) LIKE :prefix
+                        WHERE canonical_name LIKE :prefix COLLATE NOCASE
                         ORDER BY canonical_name
                         """)
-                        .bind("prefix", prefix.toLowerCase() + "%")
+                        .bind("prefix", prefix + "%")
                         .map(ACTRESS_MAPPER)
                         .list()
         );
@@ -253,11 +252,11 @@ public class JdbiActressRepository implements ActressRepository {
             if (tier != null) {
                 return h.createQuery("""
                         SELECT * FROM actresses
-                        WHERE LOWER(canonical_name) LIKE :prefix AND tier = :tier
+                        WHERE canonical_name LIKE :prefix COLLATE NOCASE AND tier = :tier
                         ORDER BY canonical_name
                         LIMIT :limit OFFSET :offset
                         """)
-                        .bind("prefix", prefix.toLowerCase() + "%")
+                        .bind("prefix", prefix + "%")
                         .bind("tier", tier.name())
                         .bind("limit", limit)
                         .bind("offset", offset)
@@ -265,11 +264,11 @@ public class JdbiActressRepository implements ActressRepository {
             } else {
                 return h.createQuery("""
                         SELECT * FROM actresses
-                        WHERE LOWER(canonical_name) LIKE :prefix
+                        WHERE canonical_name LIKE :prefix COLLATE NOCASE
                         ORDER BY canonical_name
                         LIMIT :limit OFFSET :offset
                         """)
-                        .bind("prefix", prefix.toLowerCase() + "%")
+                        .bind("prefix", prefix + "%")
                         .bind("limit", limit)
                         .bind("offset", offset)
                         .map(ACTRESS_MAPPER).list();
@@ -282,10 +281,10 @@ public class JdbiActressRepository implements ActressRepository {
         return jdbi.withHandle(h ->
                 h.createQuery("""
                         SELECT tier, COUNT(*) AS cnt FROM actresses
-                        WHERE LOWER(canonical_name) LIKE :prefix
+                        WHERE canonical_name LIKE :prefix COLLATE NOCASE
                         GROUP BY tier
                         """)
-                        .bind("prefix", prefix.toLowerCase() + "%")
+                        .bind("prefix", prefix + "%")
                         .<Map.Entry<String, Integer>>map((rs, ctx) ->
                                 Map.entry(rs.getString("tier"), rs.getInt("cnt")))
                         .list()
@@ -324,12 +323,9 @@ public class JdbiActressRepository implements ActressRepository {
                         WHERE a.rejected = 0
                           AND a.tier = :tier
                           AND EXISTS (
-                            SELECT 1 FROM title_actresses ta
-                            JOIN titles t ON t.id = ta.title_id
-                            JOIN labels l ON upper(l.code) = upper(t.label)
-                            WHERE ta.actress_id = a.id
-                              AND t.label IS NOT NULL AND t.label != ''
-                              AND l.company IN (<companies>)
+                            SELECT 1 FROM actress_companies ac
+                            WHERE ac.actress_id = a.id
+                              AND ac.company IN (<companies>)
                           )
                         ORDER BY canonical_name
                         LIMIT :limit OFFSET :offset
@@ -401,10 +397,13 @@ public class JdbiActressRepository implements ActressRepository {
         if (volumeIds == null || volumeIds.isEmpty()) return List.of();
         return jdbi.withHandle(h ->
                 h.createQuery("""
-                        SELECT DISTINCT a.* FROM actresses a
-                        JOIN titles t ON t.actress_id = a.id
-                        JOIN title_locations tl ON tl.title_id = t.id
-                        WHERE tl.volume_id IN (<volumeIds>)
+                        SELECT a.* FROM actresses a
+                        WHERE EXISTS (
+                            SELECT 1 FROM titles t
+                            JOIN title_locations tl ON tl.title_id = t.id
+                            WHERE t.actress_id = a.id
+                              AND tl.volume_id IN (<volumeIds>)
+                        )
                         ORDER BY a.canonical_name
                         """)
                         .bindList("volumeIds", volumeIds)
@@ -418,10 +417,13 @@ public class JdbiActressRepository implements ActressRepository {
         if (volumeIds == null || volumeIds.isEmpty()) return List.of();
         return jdbi.withHandle(h ->
                 h.createQuery("""
-                        SELECT DISTINCT a.* FROM actresses a
-                        JOIN titles t ON t.actress_id = a.id
-                        JOIN title_locations tl ON tl.title_id = t.id
-                        WHERE tl.volume_id IN (<volumeIds>)
+                        SELECT a.* FROM actresses a
+                        WHERE EXISTS (
+                            SELECT 1 FROM titles t
+                            JOIN title_locations tl ON tl.title_id = t.id
+                            WHERE t.actress_id = a.id
+                              AND tl.volume_id IN (<volumeIds>)
+                        )
                         ORDER BY (a.favorite + a.bookmark) DESC, a.canonical_name
                         LIMIT :limit OFFSET :offset
                         """)
@@ -449,12 +451,9 @@ public class JdbiActressRepository implements ActressRepository {
                               AND tl.volume_id IN (<volumeIds>)
                           )
                           AND EXISTS (
-                            SELECT 1 FROM title_actresses ta
-                            JOIN titles t2 ON t2.id = ta.title_id
-                            JOIN labels l ON upper(l.code) = upper(t2.label)
-                            WHERE ta.actress_id = a.id
-                              AND t2.label IS NOT NULL AND t2.label != ''
-                              AND l.company IN (<companies>)
+                            SELECT 1 FROM actress_companies ac
+                            WHERE ac.actress_id = a.id
+                              AND ac.company IN (<companies>)
                           )
                         ORDER BY (a.favorite + a.bookmark) DESC, a.canonical_name
                         LIMIT :limit OFFSET :offset
@@ -473,13 +472,13 @@ public class JdbiActressRepository implements ActressRepository {
         if (companies == null || companies.isEmpty()) return List.of();
         return jdbi.withHandle(h ->
                 h.createQuery("""
-                        SELECT DISTINCT a.* FROM actresses a
-                        JOIN title_actresses ta ON ta.actress_id = a.id
-                        JOIN titles t ON t.id = ta.title_id
-                        JOIN labels l ON upper(l.code) = upper(t.label)
+                        SELECT a.* FROM actresses a
                         WHERE a.rejected = 0
-                          AND t.label IS NOT NULL AND t.label != ''
-                          AND l.company IN (<companies>)
+                          AND EXISTS (
+                            SELECT 1 FROM actress_companies ac
+                            WHERE ac.actress_id = a.id
+                              AND ac.company IN (<companies>)
+                          )
                         ORDER BY CASE a.tier
                                      WHEN 'GODDESS'   THEN 0
                                      WHEN 'SUPERSTAR' THEN 1
@@ -503,13 +502,13 @@ public class JdbiActressRepository implements ActressRepository {
         if (companies == null || companies.isEmpty()) return 0L;
         return jdbi.withHandle(h ->
                 h.createQuery("""
-                        SELECT COUNT(DISTINCT a.id) FROM actresses a
-                        JOIN title_actresses ta ON ta.actress_id = a.id
-                        JOIN titles t ON t.id = ta.title_id
-                        JOIN labels l ON upper(l.code) = upper(t.label)
+                        SELECT COUNT(*) FROM actresses a
                         WHERE a.rejected = 0
-                          AND t.label IS NOT NULL AND t.label != ''
-                          AND l.company IN (<companies>)
+                          AND EXISTS (
+                            SELECT 1 FROM actress_companies ac
+                            WHERE ac.actress_id = a.id
+                              AND ac.company IN (<companies>)
+                          )
                         """)
                         .bindList("companies", companies)
                         .mapTo(Long.class)
@@ -1106,7 +1105,7 @@ public class JdbiActressRepository implements ActressRepository {
         return jdbi.withHandle(h ->
                 h.createQuery("""
                         SELECT a.id            AS actress_id,
-                               upper(t.label)  AS label_code,
+                               t.label         AS label_code,
                                a.visit_count   AS visit_count,
                                a.favorite      AS favorite,
                                a.bookmark      AS bookmark
@@ -1115,7 +1114,7 @@ public class JdbiActressRepository implements ActressRepository {
                         JOIN titles t ON t.id = ta.title_id
                         WHERE a.rejected = 0
                           AND t.label IS NOT NULL AND t.label != ''
-                        GROUP BY a.id, upper(t.label)
+                        GROUP BY a.id, t.label
                         """)
                         .map((rs, ctx) -> new ActressLabelEngagement(
                                 rs.getLong("actress_id"),
@@ -1123,6 +1122,67 @@ public class JdbiActressRepository implements ActressRepository {
                                 rs.getInt("visit_count"),
                                 rs.getInt("favorite") != 0,
                                 rs.getInt("bookmark") != 0))
+                        .list()
+        );
+    }
+
+    @Override
+    public List<FederatedActressResult> searchForFederated(String query, boolean startsWith, int limit) {
+        String pattern = startsWith ? query + "%" : "%" + query + "%";
+        return jdbi.withHandle(h ->
+                h.createQuery("""
+                        WITH matches AS (
+                          SELECT a.id, a.canonical_name, a.stage_name, a.tier, a.grade,
+                                 a.favorite, a.bookmark,
+                                 aa.alias_name AS matched_alias, 0 AS is_canonical
+                          FROM actresses a
+                          JOIN actress_aliases aa ON aa.actress_id = a.id
+                          WHERE aa.alias_name LIKE :pattern COLLATE NOCASE AND a.rejected = 0
+                          UNION ALL
+                          SELECT a.id, a.canonical_name, a.stage_name, a.tier, a.grade,
+                                 a.favorite, a.bookmark,
+                                 NULL AS matched_alias, 1 AS is_canonical
+                          FROM actresses a
+                          WHERE a.canonical_name LIKE :pattern COLLATE NOCASE AND a.rejected = 0
+                        ),
+                        ranked AS (
+                          SELECT *, ROW_NUMBER() OVER (PARTITION BY id ORDER BY is_canonical DESC) AS rn
+                          FROM matches
+                        )
+                        SELECT r.id, r.canonical_name, r.stage_name, r.tier, r.grade,
+                               r.favorite, r.bookmark, r.matched_alias,
+                               COUNT(t.id) AS title_count,
+                               (SELECT tc.label FROM titles tc
+                                WHERE tc.actress_id = r.id
+                                  AND tc.base_code IS NOT NULL AND tc.label IS NOT NULL
+                                ORDER BY tc.id DESC LIMIT 1) AS cover_label,
+                               (SELECT tc.base_code FROM titles tc
+                                WHERE tc.actress_id = r.id
+                                  AND tc.base_code IS NOT NULL AND tc.label IS NOT NULL
+                                ORDER BY tc.id DESC LIMIT 1) AS cover_base_code
+                        FROM ranked r
+                        LEFT JOIN titles t ON t.actress_id = r.id
+                        WHERE r.rn = 1
+                        GROUP BY r.id
+                        HAVING COUNT(t.id) >= 2
+                        ORDER BY r.favorite DESC, r.bookmark DESC, r.canonical_name
+                        LIMIT :limit
+                        """)
+                        .bind("pattern", pattern)
+                        .bind("limit", limit)
+                        .map((rs, ctx) -> new FederatedActressResult(
+                                rs.getLong("id"),
+                                rs.getString("canonical_name"),
+                                rs.getString("stage_name"),
+                                rs.getString("tier"),
+                                rs.getString("grade"),
+                                rs.getInt("favorite") != 0,
+                                rs.getInt("bookmark") != 0,
+                                rs.getString("matched_alias"),
+                                rs.getInt("title_count"),
+                                rs.getString("cover_label"),
+                                rs.getString("cover_base_code")
+                        ))
                         .list()
         );
     }

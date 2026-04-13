@@ -216,6 +216,38 @@ public interface ActressRepository {
      */
     void importFromYaml(List<AliasYamlEntry> entries);
 
+    // ── Federated search ──────────────────────────────────────────────────────
+
+    /** Lightweight actress projection for federated search results. */
+    record FederatedActressResult(
+            long id,
+            String canonicalName,
+            String stageName,
+            String tier,
+            String grade,
+            boolean favorite,
+            boolean bookmark,
+            /** Non-null when the match was on an alias rather than the canonical name. */
+            String matchedAlias,
+            int titleCount,
+            /**
+             * Label code from the most recently indexed title that has both a label and baseCode.
+             * Paired with {@link #coverBaseCode} — both come from the same title row so that
+             * {@code CoverPath.find()} resolves to an existing file.
+             */
+            String coverLabel,
+            /** Base code from the same title as {@link #coverLabel}. */
+            String coverBaseCode
+    ) {}
+
+    /**
+     * Search actresses for the federated search overlay.
+     * Matches against canonical_name and actress_aliases.alias_name.
+     * Rejected actresses are excluded. Results ordered: favorites first, then bookmarks, then name.
+     * When an alias is matched, {@link FederatedActressResult#matchedAlias()} is populated.
+     */
+    List<FederatedActressResult> searchForFederated(String query, boolean startsWith, int limit);
+
     // ── Dashboard module queries ─────────────────────────────────────────────
 
     /** Light projection for actress library stats. */

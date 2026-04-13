@@ -164,6 +164,25 @@ public class SchemaInitializer {
             h.execute("CREATE INDEX IF NOT EXISTS idx_title_actresses_actress ON title_actresses(actress_id)");
 
             h.execute("""
+                    CREATE TABLE IF NOT EXISTS title_effective_tags (
+                        title_id  INTEGER NOT NULL REFERENCES titles(id) ON DELETE CASCADE,
+                        tag       TEXT NOT NULL,
+                        source    TEXT NOT NULL CHECK(source IN ('direct', 'label')),
+                        PRIMARY KEY (title_id, tag)
+                    )""");
+            h.execute("CREATE INDEX IF NOT EXISTS idx_title_effective_tags_tag ON title_effective_tags(tag)");
+
+            h.execute("""
+                    CREATE TABLE IF NOT EXISTS actress_companies (
+                        actress_id  INTEGER NOT NULL REFERENCES actresses(id) ON DELETE CASCADE,
+                        company     TEXT NOT NULL,
+                        PRIMARY KEY (actress_id, company)
+                    )""");
+            h.execute("CREATE INDEX IF NOT EXISTS idx_actress_companies_company ON actress_companies(company)");
+
+            h.execute("CREATE INDEX IF NOT EXISTS idx_actresses_name_nocase ON actresses(canonical_name COLLATE NOCASE)");
+
+            h.execute("""
                     CREATE TABLE IF NOT EXISTS watch_history (
                         id          INTEGER PRIMARY KEY AUTOINCREMENT,
                         title_code  TEXT NOT NULL,
@@ -177,7 +196,7 @@ public class SchemaInitializer {
             // leave the version alone and let SchemaUpgrader apply any missing migrations.
             int currentVersion = h.createQuery("PRAGMA user_version").mapTo(Integer.class).one();
             if (currentVersion == 0) {
-                h.execute("PRAGMA user_version = 10");
+                h.execute("PRAGMA user_version = 12");
             }
         });
         log.info("Schema initialization complete");

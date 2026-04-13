@@ -19,7 +19,7 @@ import org.jdbi.v3.core.Jdbi;
 public class SchemaUpgrader {
 
     /** Must match the version stamped by {@link SchemaInitializer}. */
-    private static final int CURRENT_VERSION = 10;
+    private static final int CURRENT_VERSION = 12;
 
     private final Jdbi jdbi;
 
@@ -76,7 +76,66 @@ public class SchemaUpgrader {
             setVersion(10);
         }
 
+        // v11 is reserved for AV Stars — skipped for now.
+
+        if (version < 12) {
+            applyV12();
+            setVersion(12);
+        }
+
         log.info("Schema upgrade complete");
+    }
+
+    /**
+     * v12: adds denormalization tables for tag and company filtering, plus a COLLATE NOCASE
+     * index on actress names. v11 is reserved for AV Stars.
+     */
+    private void applyV12() {
+        log.info("Applying migration v12: title_effective_tags, actress_companies, name nocase index");
+        jdbi.useHandle(h -> {
+            h.execute("""
+                    CREATE TABLE IF NOT EXISTS title_effective_tags (
+                        title_id  INTEGER NOT NULL REFERENCES titles(id) ON DELETE CASCADE,
+                        tag       TEXT NOT NULL,
+                        source    TEXT NOT NULL CHECK(source IN ('direct', 'label')),
+                        PRIMARY KEY (title_id, tag)
+                    )""");
+            h.execute("CREATE INDEX IF NOT EXISTS idx_title_effective_tags_tag ON title_effective_tags(tag)");
+
+            h.execute("""
+                    CREATE TABLE IF NOT EXISTS actress_companies (
+                        actress_id  INTEGER NOT NULL REFERENCES actresses(id) ON DELETE CASCADE,
+                        company     TEXT NOT NULL,
+                        PRIMARY KEY (actress_id, company)
+                    )""");
+            h.execute("CREATE INDEX IF NOT EXISTS idx_actress_companies_company ON actress_companies(company)");
+
+            h.execute("CREATE INDEX IF NOT EXISTS idx_actresses_name_nocase ON actresses(canonical_name COLLATE NOCASE)");
+
+            // Backfill title_effective_tags
+            h.execute("""
+                    INSERT OR IGNORE INTO title_effective_tags (title_id, tag, source)
+                    SELECT title_id, tag, 'direct' FROM title_tags
+                    """);
+            h.execute("""
+                    INSERT OR IGNORE INTO title_effective_tags (title_id, tag, source)
+                    SELECT t.id, lt.tag, 'label'
+                    FROM titles t
+                    JOIN label_tags lt ON lt.label_code = t.label
+                    WHERE t.label IS NOT NULL AND t.label != ''
+                    """);
+
+            // Backfill actress_companies
+            h.execute("""
+                    INSERT OR IGNORE INTO actress_companies (actress_id, company)
+                    SELECT DISTINCT ta.actress_id, l.company
+                    FROM title_actresses ta
+                    JOIN titles t ON t.id = ta.title_id
+                    JOIN labels l ON l.code = t.label
+                    WHERE t.label IS NOT NULL AND t.label != ''
+                      AND l.company IS NOT NULL
+                    """);
+        });
     }
 
     /**

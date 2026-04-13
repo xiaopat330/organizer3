@@ -169,6 +169,26 @@ public interface TitleRepository {
     /** Returns the most-visited titles (visit_count &gt; 0), ordered by visit_count DESC. */
     List<Title> findMostVisited(int limit);
 
+    // ── Federated search ──────────────────────────────────────────────────────
+
+    /** Lightweight title projection for federated search results. */
+    record FederatedTitleResult(
+            long id,
+            String code,
+            String titleOriginal,
+            String titleEnglish,
+            String label,
+            String releaseDate,
+            Long actressId,
+            String actressName
+    ) {}
+
+    /**
+     * Search titles by title_original or title_english for the federated search overlay.
+     * Rejected titles are excluded. Results ordered: favorites first, bookmarks next, then newest.
+     */
+    List<FederatedTitleResult> searchByTitleName(String query, boolean startsWith, int limit);
+
     // ── Dashboard module queries ─────────────────────────────────────────────
 
     /** Light projection: (labelCode, score) for a label's aggregated engagement score. */

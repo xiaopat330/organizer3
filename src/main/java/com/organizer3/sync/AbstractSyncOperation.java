@@ -3,6 +3,8 @@ package com.organizer3.sync;
 import com.organizer3.config.volume.PartitionDef;
 import com.organizer3.config.volume.VolumeConfig;
 import com.organizer3.config.volume.VolumeStructureDef;
+import com.organizer3.db.ActressCompaniesService;
+import com.organizer3.db.TitleEffectiveTagsService;
 import com.organizer3.filesystem.VolumeFileSystem;
 import com.organizer3.model.Actress;
 import com.organizer3.model.Title;
@@ -52,6 +54,8 @@ abstract class AbstractSyncOperation implements SyncOperation {
     protected final TitleLocationRepository titleLocationRepo;
     protected final TitleActressRepository titleActressRepo;
     protected final IndexLoader indexLoader;
+    protected final TitleEffectiveTagsService titleEffectiveTagsService;
+    protected final ActressCompaniesService actressCompaniesService;
     private final TitleCodeParser codeParser = new TitleCodeParser();
 
     /** Subdirectories inside a title folder that may contain video files. */
@@ -101,6 +105,7 @@ abstract class AbstractSyncOperation implements SyncOperation {
                 }
                 Title title = saveTitleAndVideos(child, volumeId, partitionId, filingActressId, fs);
                 titleActressRepo.linkAll(title.getId(), castIds);
+                stats.addTitle(title.getId());
                 progress.advance();
             }
         }
@@ -248,12 +253,14 @@ abstract class AbstractSyncOperation implements SyncOperation {
     }
 
     /**
-     * Stamps the volume's {@code last_synced_at} to now, recalculates actress tiers from
-     * current title counts, and reloads the in-memory index.
+     * Stamps the volume's {@code last_synced_at} to now, recalculates actress tiers,
+     * updates the denorm tables for all touched titles and actresses, and reloads the index.
      */
-    protected void finalizeSync(String volumeId, SessionContext ctx) {
+    protected void finalizeSync(String volumeId, SessionContext ctx, SyncStats stats) {
         volumeRepo.updateLastSyncedAt(volumeId, LocalDateTime.now());
         actressRepo.recalcTiers();
+        titleEffectiveTagsService.recomputeForTitles(stats.touchedTitleIds());
+        actressCompaniesService.recomputeForActresses(stats.touchedActressIds());
         ctx.setIndex(indexLoader.load(volumeId));
     }
 

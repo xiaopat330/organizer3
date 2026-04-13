@@ -11,6 +11,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+import static com.organizer3.repository.LabelRepository.LabelSearchResult;
+
 @RequiredArgsConstructor
 public class JdbiLabelRepository implements LabelRepository {
 
@@ -56,5 +58,43 @@ public class JdbiLabelRepository implements LabelRepository {
                 l -> l,
                 (a, b) -> a   // keep first on duplicate codes
         ));
+    }
+
+    @Override
+    public List<LabelSearchResult> searchLabels(String query, boolean startsWith, int limit) {
+        String pattern = startsWith ? query + "%" : "%" + query + "%";
+        return jdbi.withHandle(h ->
+                h.createQuery("""
+                        SELECT code, label_name, company FROM labels
+                        WHERE label_name LIKE :pattern COLLATE NOCASE
+                           OR code LIKE :pattern COLLATE NOCASE
+                        ORDER BY label_name
+                        LIMIT :limit
+                        """)
+                        .bind("pattern", pattern)
+                        .bind("limit", limit)
+                        .map((rs, ctx) -> new LabelSearchResult(
+                                rs.getString("code"),
+                                rs.getString("label_name"),
+                                rs.getString("company")))
+                        .list()
+        );
+    }
+
+    @Override
+    public List<String> searchCompanies(String query, boolean startsWith, int limit) {
+        String pattern = startsWith ? query + "%" : "%" + query + "%";
+        return jdbi.withHandle(h ->
+                h.createQuery("""
+                        SELECT DISTINCT company FROM labels
+                        WHERE company LIKE :pattern COLLATE NOCASE
+                        ORDER BY company
+                        LIMIT :limit
+                        """)
+                        .bind("pattern", pattern)
+                        .bind("limit", limit)
+                        .mapTo(String.class)
+                        .list()
+        );
     }
 }

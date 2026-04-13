@@ -303,7 +303,7 @@ public class JdbiTitleRepository implements TitleRepository {
     public List<Title> findByCodePrefixPaged(String labelPrefix, String seqPrefix, int limit, int offset) {
         boolean hasSeq = seqPrefix != null && !seqPrefix.isEmpty();
         String sql = "SELECT t.* FROM titles t "
-                + "WHERE upper(t.label) LIKE :labelPrefix || '%' "
+                + "WHERE t.label LIKE :labelPrefix || '%' "
                 + (hasSeq ? "AND CAST(t.seq_num AS TEXT) LIKE :seqPrefix || '%' " : "")
                 + "ORDER BY t.favorite DESC, t.bookmark DESC, t.label ASC, t.seq_num ASC "
                 + "LIMIT :limit OFFSET :offset";
@@ -383,13 +383,13 @@ public class JdbiTitleRepository implements TitleRepository {
                 h.createQuery("""
                         SELECT t.* FROM titles t
                         LEFT JOIN title_locations tl ON t.id = tl.title_id
-                        WHERE t.actress_id = :actressId AND upper(t.label) IN (<labels>)
+                        WHERE t.actress_id = :actressId AND t.label IN (<labels>)
                         GROUP BY t.id
                         ORDER BY t.favorite DESC, t.bookmark DESC, MIN(tl.added_date) DESC, t.id DESC
                         LIMIT :limit OFFSET :offset
                         """)
                         .bind("actressId", actressId)
-                        .bindList("labels", labels)
+                        .bindList("labels", labels.stream().map(String::toUpperCase).toList())
                         .bind("limit", limit)
                         .bind("offset", offset)
                         .map(MAPPER)
@@ -400,35 +400,27 @@ public class JdbiTitleRepository implements TitleRepository {
 
     @Override
     public List<Title> findByActressTagsFiltered(long actressId, List<String> labels, List<String> tags, int limit, int offset) {
-        StringBuilder sql = new StringBuilder("""
-                SELECT t.* FROM titles t
-                LEFT JOIN title_locations tl ON t.id = tl.title_id
-                WHERE t.actress_id = :actressId
-                """);
-        if (!labels.isEmpty()) {
-            sql.append(" AND upper(t.label) IN (<labels>)\n");
-        }
+        StringBuilder sql = new StringBuilder("SELECT t.* FROM titles t\n");
+        sql.append("LEFT JOIN title_locations tl ON t.id = tl.title_id\n");
         if (!tags.isEmpty()) {
-            sql.append("""
-                    AND (
-                        SELECT COUNT(DISTINCT merged.tag)
-                        FROM (
-                            SELECT tag FROM title_tags WHERE title_id = t.id
-                            UNION
-                            SELECT lt.tag FROM label_tags lt WHERE lt.label_code = upper(t.label)
-                        ) merged
-                        WHERE merged.tag IN (<tags>)
-                    ) = :tagCount
-                    """);
+            sql.append("JOIN title_effective_tags tet ON tet.title_id = t.id AND tet.tag IN (<tags>)\n");
         }
-        sql.append("GROUP BY t.id ORDER BY t.favorite DESC, t.bookmark DESC, MIN(tl.added_date) DESC, t.id DESC LIMIT :limit OFFSET :offset");
+        sql.append("WHERE t.actress_id = :actressId\n");
+        if (!labels.isEmpty()) {
+            sql.append("AND t.label IN (<labels>)\n");
+        }
+        sql.append("GROUP BY t.id\n");
+        if (!tags.isEmpty()) {
+            sql.append("HAVING COUNT(DISTINCT tet.tag) = :tagCount\n");
+        }
+        sql.append("ORDER BY t.favorite DESC, t.bookmark DESC, MIN(tl.added_date) DESC, t.id DESC LIMIT :limit OFFSET :offset");
 
         List<Title> titles = jdbi.withHandle(h -> {
             var q = h.createQuery(sql.toString())
                     .bind("actressId", actressId)
                     .bind("limit", limit)
                     .bind("offset", offset);
-            if (!labels.isEmpty()) q = q.bindList("labels", labels);
+            if (!labels.isEmpty()) q = q.bindList("labels", labels.stream().map(String::toUpperCase).toList());
             if (!tags.isEmpty())   q = q.bindList("tags", tags).bind("tagCount", tags.size());
             return q.map(MAPPER).list();
         });
@@ -478,35 +470,27 @@ public class JdbiTitleRepository implements TitleRepository {
 
     @Override
     public List<Title> findByVolumeFiltered(String volumeId, List<String> labels, List<String> tags, int limit, int offset) {
-        StringBuilder sql = new StringBuilder("""
-                SELECT t.* FROM titles t
-                JOIN title_locations tl ON t.id = tl.title_id
-                WHERE tl.volume_id = :volumeId
-                """);
-        if (!labels.isEmpty()) {
-            sql.append(" AND upper(t.label) IN (<labels>)\n");
-        }
+        StringBuilder sql = new StringBuilder("SELECT t.* FROM titles t\n");
+        sql.append("JOIN title_locations tl ON t.id = tl.title_id\n");
         if (!tags.isEmpty()) {
-            sql.append("""
-                    AND (
-                        SELECT COUNT(DISTINCT merged.tag)
-                        FROM (
-                            SELECT tag FROM title_tags WHERE title_id = t.id
-                            UNION
-                            SELECT lt.tag FROM label_tags lt WHERE lt.label_code = upper(t.label)
-                        ) merged
-                        WHERE merged.tag IN (<tags>)
-                    ) = :tagCount
-                    """);
+            sql.append("JOIN title_effective_tags tet ON tet.title_id = t.id AND tet.tag IN (<tags>)\n");
         }
-        sql.append("GROUP BY t.id ORDER BY t.favorite DESC, t.bookmark DESC, MIN(tl.added_date) DESC, t.id DESC LIMIT :limit OFFSET :offset");
+        sql.append("WHERE tl.volume_id = :volumeId\n");
+        if (!labels.isEmpty()) {
+            sql.append("AND t.label IN (<labels>)\n");
+        }
+        sql.append("GROUP BY t.id\n");
+        if (!tags.isEmpty()) {
+            sql.append("HAVING COUNT(DISTINCT tet.tag) = :tagCount\n");
+        }
+        sql.append("ORDER BY t.favorite DESC, t.bookmark DESC, MIN(tl.added_date) DESC, t.id DESC LIMIT :limit OFFSET :offset");
 
         List<Title> titles = jdbi.withHandle(h -> {
             var q = h.createQuery(sql.toString())
                     .bind("volumeId", volumeId)
                     .bind("limit", limit)
                     .bind("offset", offset);
-            if (!labels.isEmpty()) q = q.bindList("labels", labels);
+            if (!labels.isEmpty()) q = q.bindList("labels", labels.stream().map(String::toUpperCase).toList());
             if (!tags.isEmpty())   q = q.bindList("tags", tags).bind("tagCount", tags.size());
             return q.map(MAPPER).list();
         });
@@ -515,28 +499,20 @@ public class JdbiTitleRepository implements TitleRepository {
 
     @Override
     public List<Title> findByVolumeAndPartitionFiltered(String volumeId, String partitionId, List<String> labels, List<String> tags, int limit, int offset) {
-        StringBuilder sql = new StringBuilder("""
-                SELECT t.* FROM titles t
-                JOIN title_locations tl ON t.id = tl.title_id
-                WHERE tl.volume_id = :volumeId AND tl.partition_id = :partitionId
-                """);
-        if (!labels.isEmpty()) {
-            sql.append(" AND upper(t.label) IN (<labels>)\n");
-        }
+        StringBuilder sql = new StringBuilder("SELECT t.* FROM titles t\n");
+        sql.append("JOIN title_locations tl ON t.id = tl.title_id\n");
         if (!tags.isEmpty()) {
-            sql.append("""
-                    AND (
-                        SELECT COUNT(DISTINCT merged.tag)
-                        FROM (
-                            SELECT tag FROM title_tags WHERE title_id = t.id
-                            UNION
-                            SELECT lt.tag FROM label_tags lt WHERE lt.label_code = upper(t.label)
-                        ) merged
-                        WHERE merged.tag IN (<tags>)
-                    ) = :tagCount
-                    """);
+            sql.append("JOIN title_effective_tags tet ON tet.title_id = t.id AND tet.tag IN (<tags>)\n");
         }
-        sql.append("GROUP BY t.id ORDER BY t.favorite DESC, t.bookmark DESC, MIN(tl.added_date) DESC, t.id DESC LIMIT :limit OFFSET :offset");
+        sql.append("WHERE tl.volume_id = :volumeId AND tl.partition_id = :partitionId\n");
+        if (!labels.isEmpty()) {
+            sql.append("AND t.label IN (<labels>)\n");
+        }
+        sql.append("GROUP BY t.id\n");
+        if (!tags.isEmpty()) {
+            sql.append("HAVING COUNT(DISTINCT tet.tag) = :tagCount\n");
+        }
+        sql.append("ORDER BY t.favorite DESC, t.bookmark DESC, MIN(tl.added_date) DESC, t.id DESC LIMIT :limit OFFSET :offset");
 
         List<Title> titles = jdbi.withHandle(h -> {
             var q = h.createQuery(sql.toString())
@@ -544,7 +520,7 @@ public class JdbiTitleRepository implements TitleRepository {
                     .bind("partitionId", partitionId)
                     .bind("limit", limit)
                     .bind("offset", offset);
-            if (!labels.isEmpty()) q = q.bindList("labels", labels);
+            if (!labels.isEmpty()) q = q.bindList("labels", labels.stream().map(String::toUpperCase).toList());
             if (!tags.isEmpty())   q = q.bindList("tags", tags).bind("tagCount", tags.size());
             return q.map(MAPPER).list();
         });
@@ -555,16 +531,11 @@ public class JdbiTitleRepository implements TitleRepository {
     public List<String> findTagsByVolume(String volumeId) {
         return jdbi.withHandle(h ->
                 h.createQuery("""
-                        SELECT DISTINCT tag FROM (
-                            SELECT tt.tag FROM title_tags tt
-                            JOIN title_locations tl ON tl.title_id = tt.title_id
-                            WHERE tl.volume_id = :volumeId
-                            UNION
-                            SELECT lt.tag FROM label_tags lt
-                            JOIN titles t ON upper(t.label) = lt.label_code
-                            JOIN title_locations tl ON tl.title_id = t.id
-                            WHERE tl.volume_id = :volumeId
-                        ) ORDER BY tag
+                        SELECT DISTINCT tet.tag
+                        FROM title_effective_tags tet
+                        JOIN title_locations tl ON tl.title_id = tet.title_id
+                        WHERE tl.volume_id = :volumeId
+                        ORDER BY tet.tag
                         """)
                         .bind("volumeId", volumeId)
                         .mapTo(String.class)
@@ -576,16 +547,11 @@ public class JdbiTitleRepository implements TitleRepository {
     public List<String> findTagsByVolumeAndPartition(String volumeId, String partitionId) {
         return jdbi.withHandle(h ->
                 h.createQuery("""
-                        SELECT DISTINCT tag FROM (
-                            SELECT tt.tag FROM title_tags tt
-                            JOIN title_locations tl ON tl.title_id = tt.title_id
-                            WHERE tl.volume_id = :volumeId AND tl.partition_id = :partitionId
-                            UNION
-                            SELECT lt.tag FROM label_tags lt
-                            JOIN titles t ON upper(t.label) = lt.label_code
-                            JOIN title_locations tl ON tl.title_id = t.id
-                            WHERE tl.volume_id = :volumeId AND tl.partition_id = :partitionId
-                        ) ORDER BY tag
+                        SELECT DISTINCT tet.tag
+                        FROM title_effective_tags tet
+                        JOIN title_locations tl ON tl.title_id = tet.title_id
+                        WHERE tl.volume_id = :volumeId AND tl.partition_id = :partitionId
+                        ORDER BY tet.tag
                         """)
                         .bind("volumeId", volumeId)
                         .bind("partitionId", partitionId)
@@ -614,22 +580,13 @@ public class JdbiTitleRepository implements TitleRepository {
 
     @Override
     public List<Title> findByTagsPaged(List<String> tags, int limit, int offset) {
-        // A title matches if, for every required tag, that tag appears in either
-        // title_tags (direct per-title tag) or label_tags (indirect via label code).
         List<Title> titles = jdbi.withHandle(h ->
                 h.createQuery("""
                         SELECT t.* FROM titles t
                         LEFT JOIN title_locations tl ON t.id = tl.title_id
-                        WHERE (
-                            SELECT COUNT(DISTINCT merged.tag)
-                            FROM (
-                                SELECT tag FROM title_tags WHERE title_id = t.id
-                                UNION
-                                SELECT lt.tag FROM label_tags lt WHERE lt.label_code = upper(t.label)
-                            ) merged
-                            WHERE merged.tag IN (<tags>)
-                        ) = :tagCount
+                        JOIN title_effective_tags tet ON tet.title_id = t.id AND tet.tag IN (<tags>)
                         GROUP BY t.id
+                        HAVING COUNT(DISTINCT tet.tag) = :tagCount
                         ORDER BY t.favorite DESC, t.bookmark DESC, MIN(tl.added_date) DESC, t.id DESC
                         LIMIT :limit OFFSET :offset
                         """)
@@ -709,7 +666,7 @@ public class JdbiTitleRepository implements TitleRepository {
                 SELECT a.id, a.canonical_name, a.tier, COUNT(*) AS title_count
                 FROM titles t
                 JOIN actresses a ON t.actress_id = a.id
-                WHERE UPPER(t.label) IN (""" + placeholders + """
+                WHERE t.label IN (""" + placeholders + """
                 )
                 GROUP BY a.id
                 ORDER BY title_count DESC
@@ -738,7 +695,7 @@ public class JdbiTitleRepository implements TitleRepository {
                 + "FROM titles t "
                 + "JOIN actresses a ON t.actress_id = a.id "
                 + "JOIN title_locations tl ON tl.title_id = t.id "
-                + "WHERE UPPER(t.label) IN (" + placeholders + ") AND t.actress_id IS NOT NULL "
+                + "WHERE t.label IN (" + placeholders + ") AND t.actress_id IS NOT NULL "
                 + "GROUP BY t.actress_id "
                 + "ORDER BY latest_date DESC "
                 + "LIMIT ?";
@@ -761,7 +718,7 @@ public class JdbiTitleRepository implements TitleRepository {
                 h.createQuery("""
                         SELECT l.company AS company, COUNT(*) AS cnt
                         FROM titles t
-                        JOIN labels l ON upper(l.code) = upper(t.label)
+                        JOIN labels l ON l.code = t.label
                         WHERE t.label IS NOT NULL AND t.label != ''
                           AND l.company IN (<companies>)
                         GROUP BY l.company
@@ -849,7 +806,7 @@ public class JdbiTitleRepository implements TitleRepository {
                     FROM titles t
                     JOIN title_locations tl ON t.id = tl.title_id
                     WHERE t.actress_id IS NOT NULL
-                      AND upper(t.label) IN (<labels>)
+                      AND t.label IN (<labels>)
                       AND tl.added_date >= :since
                       """ + exclusion + """
                     GROUP BY t.id
@@ -973,7 +930,7 @@ public class JdbiTitleRepository implements TitleRepository {
         boolean hasExclusion     = excludeCodes  != null && !excludeCodes.isEmpty();
 
         StringBuilder where = new StringBuilder("WHERE t.actress_id IS NOT NULL AND (t.favorite = 1 OR t.bookmark = 1");
-        if (hasLovedLabels)   where.append(" OR upper(t.label) IN (<lovedLabels>)");
+        if (hasLovedLabels)   where.append(" OR t.label IN (<lovedLabels>)");
         if (hasLovedActress)  where.append(" OR t.actress_id IN (<lovedActressIds>)");
         if (hasSuperstarTier) where.append(" OR a.tier IN (<superstarTiers>)");
         where.append(")");
@@ -985,7 +942,7 @@ public class JdbiTitleRepository implements TitleRepository {
 
         List<Title> titles = jdbi.withHandle(h -> {
             var q = h.createQuery(sql).bind("limit", limit);
-            if (hasLovedLabels)   q.bindList("lovedLabels", new java.util.ArrayList<>(lovedLabels));
+            if (hasLovedLabels)   q.bindList("lovedLabels", lovedLabels.stream().map(String::toUpperCase).toList());
             if (hasLovedActress)  q.bindList("lovedActressIds", new java.util.ArrayList<>(lovedActressIds));
             if (hasSuperstarTier) q.bindList("superstarTiers", new java.util.ArrayList<>(superstarTiers));
             if (hasExclusion)     q.bindList("excludeCodes", new java.util.ArrayList<>(excludeCodes));
@@ -1071,5 +1028,39 @@ public class JdbiTitleRepository implements TitleRepository {
                         .locations(byTitleId.getOrDefault(t.getId(), List.of()))
                         .build())
                 .toList();
+    }
+
+    @Override
+    public List<FederatedTitleResult> searchByTitleName(String query, boolean startsWith, int limit) {
+        String pattern = startsWith ? query + "%" : "%" + query + "%";
+        return jdbi.withHandle(h ->
+                h.createQuery("""
+                        SELECT t.id, t.code, t.title_original, t.title_english, t.label,
+                               t.release_date, t.actress_id, a.canonical_name AS actress_name
+                        FROM titles t
+                        LEFT JOIN actresses a ON a.id = t.actress_id
+                        WHERE (t.title_original LIKE :pattern COLLATE NOCASE
+                            OR t.title_english  LIKE :pattern COLLATE NOCASE)
+                          AND t.rejected = 0
+                        ORDER BY t.favorite DESC, t.bookmark DESC, t.id DESC
+                        LIMIT :limit
+                        """)
+                        .bind("pattern", pattern)
+                        .bind("limit", limit)
+                        .map((rs, ctx) -> {
+                            String actressIdStr = rs.getString("actress_id");
+                            return new FederatedTitleResult(
+                                    rs.getLong("id"),
+                                    rs.getString("code"),
+                                    rs.getString("title_original"),
+                                    rs.getString("title_english"),
+                                    rs.getString("label"),
+                                    rs.getString("release_date"),
+                                    actressIdStr != null ? Long.parseLong(actressIdStr) : null,
+                                    rs.getString("actress_name")
+                            );
+                        })
+                        .list()
+        );
     }
 }

@@ -54,6 +54,7 @@ header h1:hover {
   align-items: center;
   gap: 8px;
   padding-bottom: 14px;
+  position: relative;
 }
 
 /* Breadcrumb row */
@@ -3312,4 +3313,118 @@ header h1:hover {
 }
 .more-from-row .cover-wrap {
   height: 100px;
+}
+
+/* ── Federated search overlay ───────────────────────────────────────────── */
+
+.search-overlay {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  width: 380px;
+  background: #181818;
+  border: 1px solid #2e2e2e;
+  border-radius: 6px;
+  box-shadow: 0 6px 24px rgba(0,0,0,0.7);
+  z-index: 200;
+  max-height: 60vh;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: #333 transparent;
+}
+
+.search-overlay-empty {
+  padding: 12px 14px;
+  color: #555;
+  font-size: 0.8rem;
+}
+
+.search-group {
+  border-bottom: 1px solid #1e1e1e;
+}
+.search-group:last-child {
+  border-bottom: none;
+}
+
+.search-group-label {
+  padding: 7px 12px 4px;
+  font-size: 0.68rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #444;
+}
+
+.search-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  cursor: pointer;
+  transition: background 0.1s ease;
+}
+.search-row:hover {
+  background: #222;
+}
+
+.search-thumb {
+  width: 32px;
+  height: 32px;
+  object-fit: cover;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+.search-thumb-empty {
+  background: #2a2a2a;
+}
+
+.search-code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.72rem;
+  color: #666;
+  flex-shrink: 0;
+  letter-spacing: 0.04em;
+}
+
+.search-name {
+  font-size: 0.82rem;
+  color: #c8c8c8;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.search-stage-name {
+  font-size: 0.72rem;
+  color: #555;
+  flex-shrink: 0;
+}
+
+.search-alias {
+  font-size: 0.72rem;
+  color: #555;
+  flex-shrink: 0;
+}
+
+.search-grade {
+  font-size: 0.72rem;
+  color: #888;
+  flex-shrink: 0;
+}
+
+.search-meta {
+  font-size: 0.72rem;
+  color: #555;
+  flex-shrink: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100px;
+}
+
+.search-count {
+  font-size: 0.7rem;
+  color: #444;
+  flex-shrink: 0;
 }

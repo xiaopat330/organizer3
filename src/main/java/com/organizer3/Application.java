@@ -29,10 +29,12 @@ import com.organizer3.config.sync.StructureSyncConfig;
 import com.organizer3.config.sync.SyncCommandDef;
 import com.organizer3.config.volume.OrganizerConfig;
 import com.organizer3.config.volume.OrganizerConfigLoader;
+import com.organizer3.db.ActressCompaniesService;
 import com.organizer3.db.LabelSeeder;
 import com.organizer3.db.TagSeeder;
 import com.organizer3.db.SchemaInitializer;
 import com.organizer3.db.SchemaUpgrader;
+import com.organizer3.db.TitleEffectiveTagsService;
 import com.organizer3.media.ThumbnailService;
 import com.organizer3.media.VideoProbe;
 import com.organizer3.enrichment.ActressYamlLoader;
@@ -70,6 +72,7 @@ import com.organizer3.sync.scanner.ExhibitionScanner;
 import com.organizer3.sync.scanner.SortPoolScanner;
 import com.organizer3.config.volume.VolumeConfig;
 import com.organizer3.web.ActressBrowseService;
+import com.organizer3.web.SearchService;
 import com.organizer3.web.VideoStreamService;
 import com.organizer3.web.TitleBrowseService;
 import com.organizer3.web.StageNameBackupFile;
@@ -111,7 +114,9 @@ public class Application {
         new SchemaInitializer(jdbi).initialize();
         new SchemaUpgrader(jdbi).upgrade();
         new TagSeeder(jdbi).seedIfEmpty();
-        new LabelSeeder(jdbi).seedIfEmpty();
+        TitleEffectiveTagsService titleEffectiveTagsService = new TitleEffectiveTagsService(jdbi);
+        ActressCompaniesService   actressCompaniesService   = new ActressCompaniesService(jdbi);
+        new LabelSeeder(jdbi, titleEffectiveTagsService).seedIfEmpty();
 
         // Repositories
         TitleLocationRepository titleLocationRepo = new JdbiTitleLocationRepository(jdbi);
@@ -209,10 +214,12 @@ public class Application {
             SyncOperation op = switch (def.operation()) {
                 case FULL ->
                     new FullSyncOperation(scannerRegistry, titleRepo, videoRepo, actressRepo,
-                            volumeRepo, titleLocationRepo, titleActressRepo, indexLoader);
+                            volumeRepo, titleLocationRepo, titleActressRepo, indexLoader,
+                            titleEffectiveTagsService, actressCompaniesService);
                 case PARTITION ->
                     new PartitionSyncOperation(def.partitions(), titleRepo, videoRepo,
-                            actressRepo, volumeRepo, titleLocationRepo, titleActressRepo, indexLoader);
+                            actressRepo, volumeRepo, titleLocationRepo, titleActressRepo, indexLoader,
+                            titleEffectiveTagsService, actressCompaniesService);
             };
             SyncCommand syncCmd = new SyncCommand(term, structureTypesByTerm.get(term), op);
             commands.add(syncCmd);
@@ -236,13 +243,14 @@ public class Application {
                 dbDir.resolve("stagenames.yaml"));
         ActressBrowseService actressBrowseService = new ActressBrowseService(
                 actressRepo, titleRepo, coverPath, volumeSmbPaths, labelRepo, nameLookup, stageNameBackup);
+        SearchService searchService = new SearchService(actressRepo, titleRepo, labelRepo, coverPath);
 
         // Video streaming + metadata
         SmbConnectionFactory smbConnectionFactory = new SmbConnectionFactory(config);
         VideoStreamService videoStreamService = new VideoStreamService(titleRepo, videoRepo, smbConnectionFactory);
         VideoProbe videoProbe = new VideoProbe(WebServer.DEFAULT_PORT);
         WebServer webServer = new WebServer(browseService, actressBrowseService, coverPath.root(),
-                videoStreamService, thumbnailService, videoProbe, watchHistoryRepo, titleRepo);
+                videoStreamService, thumbnailService, videoProbe, watchHistoryRepo, titleRepo, searchService);
         webServer.start();
 
         OrganizerShell shell = new OrganizerShell(session, commands);

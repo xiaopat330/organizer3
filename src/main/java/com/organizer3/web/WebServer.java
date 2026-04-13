@@ -52,12 +52,13 @@ public class WebServer {
                      ActressBrowseService actressBrowseService, Path coversRoot,
                      VideoStreamService videoStreamService, ThumbnailService thumbnailService,
                      VideoProbe videoProbe, WatchHistoryRepository watchHistoryRepo,
-                     TitleRepository titleRepo) {
+                     TitleRepository titleRepo, SearchService searchService) {
         this.port = port;
         this.app = Javalin.create(config ->
                 config.staticFiles.add("/public", Location.CLASSPATH));
         registerRoutes(browseService, actressBrowseService, coversRoot,
-                videoStreamService, thumbnailService, videoProbe, watchHistoryRepo, titleRepo);
+                videoStreamService, thumbnailService, videoProbe, watchHistoryRepo, titleRepo,
+                searchService);
     }
 
     /** Convenience constructor using the default port. */
@@ -65,14 +66,15 @@ public class WebServer {
                      ActressBrowseService actressBrowseService, Path coversRoot,
                      VideoStreamService videoStreamService, ThumbnailService thumbnailService,
                      VideoProbe videoProbe, WatchHistoryRepository watchHistoryRepo,
-                     TitleRepository titleRepo) {
+                     TitleRepository titleRepo, SearchService searchService) {
         this(DEFAULT_PORT, browseService, actressBrowseService, coversRoot,
-                videoStreamService, thumbnailService, videoProbe, watchHistoryRepo, titleRepo);
+                videoStreamService, thumbnailService, videoProbe, watchHistoryRepo, titleRepo,
+                searchService);
     }
 
     /** Minimal constructor for tests that only need the lifecycle and static file behaviour. */
     public WebServer(int port) {
-        this(port, null, null, null, null, null, null, null, null);
+        this(port, null, null, null, null, null, null, null, null, null);
     }
 
     private void registerRoutes(TitleBrowseService browseService,
@@ -81,7 +83,8 @@ public class WebServer {
                                 ThumbnailService thumbnailService,
                                 VideoProbe videoProbe,
                                 WatchHistoryRepository watchHistoryRepo,
-                                TitleRepository titleRepo) {
+                                TitleRepository titleRepo,
+                                SearchService searchService) {
         app.get("/api/config", ctx -> {
             var cfg = AppConfig.get().volumes();
             String appName = cfg.appName();
@@ -270,6 +273,38 @@ public class WebServer {
 
             app.get("/api/companies", ctx -> {
                 ctx.json(browseService.listAllCompanies());
+            });
+        }
+
+        if (searchService != null) {
+            app.get("/api/search", ctx -> {
+                String q = ctx.queryParam("q");
+                if (q == null || q.isBlank()) {
+                    ctx.json(Map.of("actresses", List.of(), "titles", List.of(),
+                            "labels", List.of(), "companies", List.of()));
+                    return;
+                }
+                String matchMode = ctx.queryParam("matchMode");
+                boolean startsWith = "startsWith".equals(matchMode);
+                ctx.json(searchService.search(q.trim(), startsWith));
+            });
+
+            app.get("/api/titles/by-code/{code}", ctx -> {
+                String code = ctx.pathParam("code").toUpperCase();
+                if (titleRepo == null) { ctx.status(503); return; }
+                if (!titleRepo.findByCode(code).isPresent()) { ctx.status(404); return; }
+                // Return full TitleSummary so callers get coverUrl, actressName, etc.
+                if (browseService != null) {
+                    List<TitleSummary> hits = browseService.searchByCodePaged(code, 0, 10);
+                    TitleSummary exact = hits.stream()
+                            .filter(ts -> code.equals(ts.getCode()))
+                            .findFirst()
+                            .orElse(null);
+                    if (exact != null) { ctx.json(exact); return; }
+                }
+                // Fallback: bare id+code (shouldn't happen in production)
+                titleRepo.findByCode(code)
+                        .ifPresent(t -> ctx.json(Map.of("id", t.getId(), "code", t.getCode())));
             });
         }
 
