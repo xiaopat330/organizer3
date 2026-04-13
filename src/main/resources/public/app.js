@@ -8,12 +8,14 @@ import { selectActressBrowseMode } from './modules/actress-browse.js';
 import { selectTitleBrowseMode, enterUnsortedMode, enterArchiveMode } from './modules/title-browse.js';
 import { setRestoring, replaceNav } from './modules/nav.js';
 import { initSearch } from './modules/search.js';
+import { initTerminal } from './modules/terminal.js';
 
 // ── Wire cross-module callbacks ───────────────────────────────────────────
 initCardCallbacks(openTitleDetail, openActressDetail);
 setHomeClickHandler(showTitlesView);
 initSearch();
 initPortalSearch();
+initTerminal();
 
 // ── Config (app name + runtime limits, also updates DOM) ──────────────────
 initConfig();

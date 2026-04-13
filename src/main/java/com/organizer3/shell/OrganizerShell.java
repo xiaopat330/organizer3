@@ -39,17 +39,18 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class OrganizerShell {
     private final SessionContext session;
-    private final Map<String, Command> commands;
+    private final CommandDispatcher dispatcher;
     private final PromptBuilder promptBuilder;
 
-    public OrganizerShell(SessionContext session, List<Command> commands) {
+    public OrganizerShell(SessionContext session, CommandDispatcher dispatcher) {
         this.session = session;
         this.promptBuilder = new PromptBuilder();
-        this.commands = new java.util.HashMap<>();
-        for (Command cmd : commands) {
-            this.commands.put(cmd.name(), cmd);
-            cmd.aliases().forEach(alias -> this.commands.put(alias, cmd));
-        }
+        this.dispatcher = dispatcher;
+    }
+
+    /** Convenience constructor — builds a {@link CommandDispatcher} from the command list. */
+    public OrganizerShell(SessionContext session, List<Command> commands) {
+        this(session, new CommandDispatcher(commands));
     }
 
     public void run() {
@@ -78,7 +79,7 @@ public class OrganizerShell {
 
                 if (line == null || line.isBlank()) continue;
 
-                dispatch(line.trim(), io);
+                dispatcher.dispatch(line.trim(), session, io);
                 out.flush();
             }
         } catch (IOException e) {
@@ -90,7 +91,7 @@ public class OrganizerShell {
         Set<String> singleWords = new TreeSet<>();
         Map<String, Set<String>> twoWordGroups = new java.util.LinkedHashMap<>();
 
-        for (String key : commands.keySet()) {
+        for (String key : dispatcher.commandNames()) {
             if (key.contains(" ")) {
                 String[] parts = key.split(" ", 2);
                 twoWordGroups.computeIfAbsent(parts[0], k -> new TreeSet<>()).add(parts[1]);
@@ -120,38 +121,4 @@ public class OrganizerShell {
         return new JLineCommandIO(terminal, reader);
     }
 
-    private void dispatch(String line, CommandIO io) {
-        String[] parts = line.split("\\s+");
-        String name = parts[0].toLowerCase();
-
-        // Try two-word command first (e.g. "sync all", "sync queue")
-        Command cmd = null;
-        String[] cmdArgs = parts;
-        if (parts.length >= 2) {
-            String twoWord = name + " " + parts[1].toLowerCase();
-            cmd = commands.get(twoWord);
-            if (cmd != null) {
-                name = twoWord;
-                // Rebuild args: merge first two tokens into one, keep the rest
-                cmdArgs = new String[parts.length - 1];
-                cmdArgs[0] = twoWord;
-                System.arraycopy(parts, 2, cmdArgs, 1, parts.length - 2);
-            }
-        }
-
-        if (cmd == null) {
-            cmd = commands.get(name);
-        }
-
-        if (cmd != null) {
-            try {
-                cmd.execute(cmdArgs, session, io);
-            } catch (Exception e) {
-                io.println("Error: " + e.getMessage());
-                log.error("Command '{}' threw an exception", name, e);
-            }
-        } else {
-            io.println("Unknown command: " + name + "  (type 'help' for available commands)");
-        }
-    }
 }

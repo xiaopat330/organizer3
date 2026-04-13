@@ -60,6 +60,7 @@ import com.organizer3.repository.jdbi.JdbiVideoRepository;
 import com.organizer3.repository.jdbi.JdbiVolumeRepository;
 import com.organizer3.repository.jdbi.JdbiWatchHistoryRepository;
 import com.organizer3.repository.WatchHistoryRepository;
+import com.organizer3.shell.CommandDispatcher;
 import com.organizer3.shell.OrganizerShell;
 import com.organizer3.shell.SessionContext;
 import com.organizer3.smb.SmbConnectionFactory;
@@ -81,6 +82,7 @@ import com.organizer3.web.VideoStreamService;
 import com.organizer3.web.TitleBrowseService;
 import com.organizer3.web.StageNameBackupFile;
 import com.organizer3.web.WebServer;
+import com.organizer3.web.WebTerminalHandler;
 import org.jdbi.v3.core.Jdbi;
 
 import java.io.IOException;
@@ -255,11 +257,14 @@ public class Application {
         SmbConnectionFactory smbConnectionFactory = new SmbConnectionFactory(config);
         VideoStreamService videoStreamService = new VideoStreamService(titleRepo, videoRepo, smbConnectionFactory);
         VideoProbe videoProbe = new VideoProbe(WebServer.DEFAULT_PORT);
+        CommandDispatcher dispatcher = new CommandDispatcher(commands);
+
         WebServer webServer = new WebServer(browseService, actressBrowseService, coverPath.root(),
                 videoStreamService, thumbnailService, videoProbe, watchHistoryRepo, titleRepo, searchService);
+        webServer.registerTerminal(new WebTerminalHandler(dispatcher, session));
         webServer.start();
 
-        OrganizerShell shell = new OrganizerShell(session, commands);
+        OrganizerShell shell = new OrganizerShell(session, dispatcher);
         shell.run();
 
         webServer.stop();

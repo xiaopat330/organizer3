@@ -77,6 +77,14 @@ public class WebServer {
         this(port, null, null, null, null, null, null, null, null, null);
     }
 
+    /**
+     * Registers the web terminal WebSocket endpoint ({@code /ws/terminal}).
+     * Call after construction, before {@link #start()}.
+     */
+    public void registerTerminal(WebTerminalHandler handler) {
+        handler.register(app);
+    }
+
     private void registerRoutes(TitleBrowseService browseService,
                                 ActressBrowseService actressBrowseService, Path coversRoot,
                                 VideoStreamService videoStreamService,

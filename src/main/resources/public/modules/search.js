@@ -13,7 +13,7 @@ import { esc } from './utils.js';
 import { ICON_FAV_SM, ICON_BM_SM } from './icons.js';
 
 export function createSearch(inputEl, overlayEl, opts = {}) {
-    const { keyboardNav = false, globalShortcut = false, autoNavigate = true, twoColumn = false } = opts;
+    const { keyboardNav = false, globalShortcut = false, autoNavigate = true, twoColumn = false, getEnabledCategories = null } = opts;
 
     let debounceTimer = null;
     let selectedIndex = -1;
@@ -38,6 +38,12 @@ export function createSearch(inputEl, overlayEl, opts = {}) {
     // ── Product-code shortcut ─────────────────────────────────────────────────
 
     async function tryProductCodeNavigate(code) {
+        // If titles are filtered out, don't attempt product-code matching at all.
+        if (getEnabledCategories) {
+            const enabled = getEnabledCategories();
+            if (!enabled.has('titles')) { hideOverlay(); return; }
+        }
+
         const upper = code.toUpperCase();
 
         // 1. Try exact match — navigate immediately (header search only).
@@ -83,7 +89,11 @@ export function createSearch(inputEl, overlayEl, opts = {}) {
     // ── Render ────────────────────────────────────────────────────────────────
 
     function renderOverlay(data) {
-        const { actresses = [], titles = [], labels = [], companies = [] } = data;
+        const enabled = getEnabledCategories ? getEnabledCategories() : null;
+        const actresses  = (enabled && !enabled.has('actresses')) ? [] : (data.actresses  || []);
+        const titles     = (enabled && !enabled.has('titles'))    ? [] : (data.titles     || []);
+        const labels     = (enabled && !enabled.has('labels'))    ? [] : (data.labels     || []);
+        const companies  = (enabled && !enabled.has('studios'))   ? [] : (data.companies  || []);
         const hasResults = actresses.length || titles.length || labels.length || companies.length;
 
         if (!hasResults) {
@@ -323,9 +333,79 @@ export function createSearch(inputEl, overlayEl, opts = {}) {
 
 // ── Header search init ────────────────────────────────────────────────────────
 
+const HEADER_FILTER_KEY  = 'header-search-filters';
+const SEARCH_CATEGORIES  = ['actresses', 'titles', 'labels', 'studios'];
+
+function loadHeaderFilterState() {
+    try {
+        const saved = JSON.parse(localStorage.getItem(HEADER_FILTER_KEY));
+        if (saved && typeof saved === 'object') return saved;
+    } catch { /* ignore */ }
+    return Object.fromEntries(SEARCH_CATEGORIES.map(c => [c, true]));
+}
+
 export function initSearch() {
-    const input   = document.getElementById('search-input');
-    const overlay = document.getElementById('search-overlay');
+    const input      = document.getElementById('search-input');
+    const overlay    = document.getElementById('search-overlay');
+    const clearBtn   = document.getElementById('search-clear');
+    const filtersEl  = document.getElementById('sub-nav-search-filters');
     if (!input || !overlay) return;
-    createSearch(input, overlay, { keyboardNav: true, globalShortcut: true });
+
+    // ── Clear button ──────────────────────────────────────────────────────────
+    if (clearBtn) {
+        input.addEventListener('input', () => {
+            clearBtn.style.display = input.value ? 'flex' : 'none';
+        });
+        clearBtn.addEventListener('click', () => {
+            input.value = '';
+            clearBtn.style.display = 'none';
+            overlay.style.display = 'none';
+            input.focus();
+        });
+    }
+
+    // ── Filter toggles ────────────────────────────────────────────────────────
+    const state = loadHeaderFilterState();
+    let getEnabledCategories = null;
+
+    if (filtersEl) {
+        const toggleEntries = Array.from(
+            filtersEl.querySelectorAll('.portal-filter-toggle')
+        ).map(label => ({
+            label,
+            category: label.dataset.category,
+            checkbox: label.querySelector('input[type=checkbox]'),
+        }));
+
+        function updateDisabledState() {
+            const activeCount = toggleEntries.filter(e => e.checkbox?.checked).length;
+            toggleEntries.forEach(({ checkbox, label }) => {
+                const isLast = activeCount === 1 && checkbox?.checked;
+                if (checkbox) checkbox.disabled = isLast;
+                label.classList.toggle('portal-filter-toggle-locked', isLast);
+            });
+        }
+
+        toggleEntries.forEach(({ category, checkbox }) => {
+            if (checkbox && category in state) checkbox.checked = state[category];
+
+            checkbox?.addEventListener('change', () => {
+                state[category] = checkbox.checked;
+                localStorage.setItem(HEADER_FILTER_KEY, JSON.stringify(state));
+                updateDisabledState();
+                input.dispatchEvent(new Event('input'));
+            });
+        });
+
+        updateDisabledState();
+
+        getEnabledCategories = () =>
+            new Set(SEARCH_CATEGORIES.filter(c => state[c] !== false));
+    }
+
+    createSearch(input, overlay, {
+        keyboardNav: true,
+        globalShortcut: true,
+        ...(getEnabledCategories && { getEnabledCategories }),
+    });
 }

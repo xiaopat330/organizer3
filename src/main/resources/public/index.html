@@ -16,6 +16,8 @@
     <button class="nav-link" id="titles-browse-btn"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="20" rx="2"/><line x1="7" y1="2" x2="7" y2="22"/><line x1="17" y1="2" x2="17" y2="22"/><line x1="2" y1="12" x2="22" y2="12"/><line x1="2" y1="7" x2="7" y2="7"/><line x1="2" y1="17" x2="7" y2="17"/><line x1="17" y1="7" x2="22" y2="7"/><line x1="17" y1="17" x2="22" y2="17"/></svg>Titles</button>
     <div class="nav-divider"></div>
     <button class="nav-link" id="action-btn"><svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10"/></svg>Action!</button>
+    <div class="nav-divider"></div>
+    <button class="nav-link" id="terminal-toggle-btn" title="Terminal">⌨</button>
   </div>
   <div id="breadcrumb"></div>
 </header>
@@ -23,8 +25,33 @@
 <!-- Persistent search bar — visible on all views except home portal -->
 <div id="sub-nav-search-bar" style="display:none">
   <div class="sub-nav-search-wrap">
-    <input class="search-input sub-nav-search-input" type="search" placeholder="search…" id="search-input" autocomplete="off" spellcheck="false">
-    <div id="search-overlay" class="search-overlay" style="display:none"></div>
+    <div class="sub-nav-search-input-wrap">
+      <input class="search-input sub-nav-search-input" type="search" placeholder="search…" id="search-input" autocomplete="off" spellcheck="false">
+      <button type="button" id="search-clear" class="search-clear" style="display:none" aria-label="Clear search">✕</button>
+      <div id="search-overlay" class="search-overlay" style="display:none"></div>
+    </div>
+    <div class="sub-nav-search-filters" id="sub-nav-search-filters">
+      <label class="portal-filter-toggle" data-category="actresses">
+        <input type="checkbox" checked>
+        <span class="portal-filter-track"></span>
+        <span class="portal-filter-label">Actresses</span>
+      </label>
+      <label class="portal-filter-toggle" data-category="titles">
+        <input type="checkbox" checked>
+        <span class="portal-filter-track"></span>
+        <span class="portal-filter-label">Titles</span>
+      </label>
+      <label class="portal-filter-toggle" data-category="labels">
+        <input type="checkbox" checked>
+        <span class="portal-filter-track"></span>
+        <span class="portal-filter-label">Labels</span>
+      </label>
+      <label class="portal-filter-toggle" data-category="studios">
+        <input type="checkbox" checked>
+        <span class="portal-filter-track"></span>
+        <span class="portal-filter-label">Studios</span>
+      </label>
+    </div>
   </div>
 </div>
 
@@ -35,7 +62,30 @@
     <p class="home-portal-search-sub">titles, actresses, labels, studios — search for almost anything</p>
     <div class="home-portal-search-wrap">
       <input type="search" id="portal-search-input" class="portal-search-input" placeholder="type to search…" autocomplete="off" spellcheck="false">
+      <button type="button" id="portal-search-clear" class="portal-search-clear" style="display:none" aria-label="Clear search">✕</button>
       <div id="portal-search-overlay" class="search-overlay portal-search-overlay" style="display:none"></div>
+    </div>
+    <div class="portal-search-filters" id="portal-search-filters">
+      <label class="portal-filter-toggle" data-category="actresses">
+        <input type="checkbox" checked>
+        <span class="portal-filter-track"></span>
+        <span class="portal-filter-label">Actresses</span>
+      </label>
+      <label class="portal-filter-toggle" data-category="titles">
+        <input type="checkbox" checked>
+        <span class="portal-filter-track"></span>
+        <span class="portal-filter-label">Titles</span>
+      </label>
+      <label class="portal-filter-toggle" data-category="labels">
+        <input type="checkbox" checked>
+        <span class="portal-filter-track"></span>
+        <span class="portal-filter-label">Labels</span>
+      </label>
+      <label class="portal-filter-toggle" data-category="studios">
+        <input type="checkbox" checked>
+        <span class="portal-filter-track"></span>
+        <span class="portal-filter-label">Studios</span>
+      </label>
     </div>
   </div>
 </div>
@@ -191,6 +241,18 @@
 
 <div id="status">loading</div>
 <div id="sentinel"></div>
+
+<!-- Web terminal slide-out panel -->
+<div id="terminal-panel" class="terminal-panel">
+  <div id="terminal-drag-handle" class="terminal-drag-handle"></div>
+  <div id="terminal-output" class="terminal-output"></div>
+  <div id="terminal-status" class="terminal-status"></div>
+  <div class="terminal-input-line">
+    <span id="terminal-prompt" class="terminal-prompt">[UNMOUNTED] ▶</span>
+    <input id="terminal-input" class="terminal-input" type="text"
+           autocomplete="off" spellcheck="false" placeholder="type a command…" disabled>
+  </div>
+</div>
 
 <script type="module" src="/app.js"></script>
 </body>
