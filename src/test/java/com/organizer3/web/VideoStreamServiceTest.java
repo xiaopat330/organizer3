@@ -1,5 +1,8 @@
 package com.organizer3.web;
 
+import com.organizer3.config.AppConfig;
+import com.organizer3.config.volume.OrganizerConfig;
+import com.organizer3.config.volume.VolumeConfig;
 import com.organizer3.model.Title;
 import com.organizer3.model.TitleLocation;
 import com.organizer3.model.Video;
@@ -35,6 +38,10 @@ class VideoStreamServiceTest {
 
     @BeforeEach
     void setUp() {
+        AppConfig.initializeForTest(new OrganizerConfig(
+                null, null, null, null, null, null, null, null, List.of(),
+                List.of(new VolumeConfig("a", "//pandora/jav_A", "conventional", "pandora", null)),
+                List.of(), List.of(), null));
         service = new VideoStreamService(titleRepo, videoRepo, smbFactory);
     }
 

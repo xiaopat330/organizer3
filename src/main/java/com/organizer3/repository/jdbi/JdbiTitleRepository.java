@@ -718,7 +718,7 @@ public class JdbiTitleRepository implements TitleRepository {
                 h.createQuery("""
                         SELECT l.company AS company, COUNT(*) AS cnt
                         FROM titles t
-                        JOIN labels l ON l.code = t.label
+                        JOIN labels l ON upper(l.code) = upper(t.label)
                         WHERE t.label IS NOT NULL AND t.label != ''
                           AND l.company IN (<companies>)
                         GROUP BY l.company
