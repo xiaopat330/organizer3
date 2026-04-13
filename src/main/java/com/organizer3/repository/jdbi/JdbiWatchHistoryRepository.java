@@ -100,4 +100,27 @@ public class JdbiWatchHistoryRepository implements WatchHistoryRepository {
                         .execute()
         );
     }
+
+    @Override
+    public List<WatchHistory> findAllEntries() {
+        return jdbi.withHandle(h ->
+                h.createQuery("SELECT * FROM watch_history ORDER BY watched_at ASC")
+                        .map(MAPPER)
+                        .list()
+        );
+    }
+
+    @Override
+    public boolean insertOrIgnore(String titleCode, LocalDateTime watchedAt) {
+        int rows = jdbi.withHandle(h ->
+                h.createUpdate("""
+                        INSERT OR IGNORE INTO watch_history (title_code, watched_at)
+                        VALUES (:titleCode, :watchedAt)
+                        """)
+                        .bind("titleCode", titleCode)
+                        .bind("watchedAt", watchedAt.toString())
+                        .execute()
+        );
+        return rows > 0;
+    }
 }

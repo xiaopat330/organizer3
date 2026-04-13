@@ -1229,4 +1229,63 @@ public class JdbiActressRepository implements ActressRepository {
                         .list()
         );
     }
+
+    // ── Backup / restore ─────────────────────────────────────────────────────
+
+    @Override
+    public List<ActressBackupRow> findAllForBackup() {
+        return jdbi.withHandle(h ->
+                h.createQuery("""
+                        SELECT canonical_name, favorite, bookmark, bookmarked_at,
+                               grade, rejected, visit_count, last_visited_at
+                        FROM actresses
+                        WHERE favorite = 1 OR bookmark = 1 OR grade IS NOT NULL
+                           OR rejected = 1 OR visit_count > 0
+                        ORDER BY canonical_name
+                        """)
+                        .map((rs, ctx) -> {
+                            String bookmarkedAtStr = rs.getString("bookmarked_at");
+                            String lastVisitedStr = rs.getString("last_visited_at");
+                            return new ActressBackupRow(
+                                    rs.getString("canonical_name"),
+                                    rs.getInt("favorite") != 0,
+                                    rs.getInt("bookmark") != 0,
+                                    bookmarkedAtStr != null ? LocalDateTime.parse(bookmarkedAtStr) : null,
+                                    rs.getString("grade"),
+                                    rs.getInt("rejected") != 0,
+                                    rs.getInt("visit_count"),
+                                    lastVisitedStr != null ? LocalDateTime.parse(lastVisitedStr) : null
+                            );
+                        })
+                        .list()
+        );
+    }
+
+    @Override
+    public void restoreUserData(String canonicalName, boolean favorite, boolean bookmark,
+                                LocalDateTime bookmarkedAt, String grade,
+                                boolean rejected, int visitCount, LocalDateTime lastVisitedAt) {
+        jdbi.useHandle(h ->
+                h.createUpdate("""
+                        UPDATE actresses
+                        SET favorite        = :favorite,
+                            bookmark        = :bookmark,
+                            bookmarked_at   = :bookmarkedAt,
+                            grade           = :grade,
+                            rejected        = :rejected,
+                            visit_count     = :visitCount,
+                            last_visited_at = :lastVisitedAt
+                        WHERE canonical_name = :canonicalName
+                        """)
+                        .bind("canonicalName", canonicalName)
+                        .bind("favorite", favorite ? 1 : 0)
+                        .bind("bookmark", bookmark ? 1 : 0)
+                        .bind("bookmarkedAt", bookmarkedAt != null ? bookmarkedAt.toString() : null)
+                        .bind("grade", grade)
+                        .bind("rejected", rejected ? 1 : 0)
+                        .bind("visitCount", visitCount)
+                        .bind("lastVisitedAt", lastVisitedAt != null ? lastVisitedAt.toString() : null)
+                        .execute()
+        );
+    }
 }

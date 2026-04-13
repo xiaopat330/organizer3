@@ -28,6 +28,19 @@ public interface WatchHistoryRepository {
     /** Delete all watch history for a title code. */
     void deleteByTitleCode(String titleCode);
 
+    /**
+     * Return all watch history entries ordered by watched_at ASC. No limit.
+     * Used for backup export.
+     */
+    List<WatchHistory> findAllEntries();
+
+    /**
+     * Insert a watch entry only if no row with the same (title_code, watched_at) already exists.
+     * Used during restore to make the operation idempotent.
+     * Returns {@code true} if the row was inserted, {@code false} if it was skipped.
+     */
+    boolean insertOrIgnore(String titleCode, java.time.LocalDateTime watchedAt);
+
     /** Batch lookup: returns titleCode → (most recent watchedAt, watch count) for all codes that have history. */
     Map<String, WatchStats> findWatchStatsBatch(Collection<String> titleCodes);
 

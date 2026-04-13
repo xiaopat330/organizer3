@@ -1208,13 +1208,27 @@ class JdbiActressRepositoryTest {
         }
     }
 
-    /** Insert a title with a label and link it to an actress via title_actresses. */
+    /** Insert a title with a label and link it to an actress via title_actresses.
+     *  Also populates actress_companies so findByStudioGroupCompaniesPaged works. */
     private void insertTitleWithLabel(long actressId, String code, String label) throws Exception {
         try (var stmt = connection.createStatement()) {
             String labelClause = label == null ? "NULL" : "'" + label + "'";
             stmt.execute("INSERT INTO titles (code, label) VALUES ('" + code + "', " + labelClause + ")");
             long titleId = stmt.getGeneratedKeys().getLong(1);
             stmt.execute("INSERT INTO title_actresses (title_id, actress_id) VALUES (" + titleId + ", " + actressId + ")");
+        }
+        // Keep actress_companies denormalization in sync
+        if (label != null) {
+            connection_execute("""
+                    INSERT OR IGNORE INTO actress_companies (actress_id, company)
+                    SELECT DISTINCT ta.actress_id, l.company
+                    FROM title_actresses ta
+                    JOIN titles t ON t.id = ta.title_id
+                    JOIN labels l ON l.code = t.label
+                    WHERE ta.actress_id = """ + actressId + """
+                      AND t.label IS NOT NULL AND t.label != ''
+                      AND l.company IS NOT NULL
+                    """);
         }
     }
 

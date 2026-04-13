@@ -16,6 +16,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import com.organizer3.model.ActressAlias;
+import com.organizer3.web.ActressSummary;
 
 import java.nio.file.Path;
 import java.time.LocalDate;
@@ -312,7 +313,9 @@ class ActressBrowseServiceTest {
 
         ActressSummary s = service.findById(a.getId()).orElseThrow();
 
-        assertEquals(List.of("Hatano Yui", "波多野結衣"), s.getAliases());
+        List<String> aliasNames = s.getAliases().stream()
+                .map(ActressSummary.AliasDto::getName).toList();
+        assertEquals(List.of("Hatano Yui", "波多野結衣"), aliasNames);
     }
 
     @Test

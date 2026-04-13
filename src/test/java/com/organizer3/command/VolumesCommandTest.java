@@ -41,7 +41,8 @@ class VolumesCommandTest {
                 null, null, null, null, null, null, null, null, List.of(),
                 List.of(VOL_A, VOL_B),
                 List.of(),
-                List.of()
+                List.of(),
+                null
         ));
         volumeRepo = mock(VolumeRepository.class);
         mountCommand = mock(MountCommand.class);

@@ -44,8 +44,9 @@ class SchemaInitializerTest {
         );
 
         assertEquals(
-                List.of("actress_aliases", "actresses", "label_tags", "labels", "tags",
-                        "title_actresses", "title_locations", "title_tags", "titles", "videos", "volumes", "watch_history"),
+                List.of("actress_aliases", "actress_companies", "actresses", "label_tags", "labels", "tags",
+                        "title_actresses", "title_effective_tags", "title_locations", "title_tags",
+                        "titles", "videos", "volumes", "watch_history"),
                 tables
         );
     }
@@ -64,14 +65,16 @@ class SchemaInitializerTest {
         );
 
         assertEquals(
-                List.of("idx_actress_aliases_name",
+                List.of("idx_actress_aliases_name", "idx_actress_companies_company",
+                        "idx_actresses_name_nocase",
                         "idx_label_tags_tag",
                         "idx_title_actresses_actress", "idx_title_actresses_title",
+                        "idx_title_effective_tags_tag",
                         "idx_title_locations_title", "idx_title_locations_volume", "idx_title_locations_volume_partition",
                         "idx_title_tags_tag",
                         "idx_titles_actress", "idx_titles_code", "idx_titles_label",
                         "idx_videos_title", "idx_videos_volume",
-                        "idx_watch_history_title_code", "idx_watch_history_watched_at"),
+                        "idx_watch_history_title_code", "idx_watch_history_unique_entry", "idx_watch_history_watched_at"),
                 indexes
         );
     }
@@ -140,7 +143,7 @@ class SchemaInitializerTest {
 
         int version = jdbi.withHandle(h ->
                 h.createQuery("PRAGMA user_version").mapTo(Integer.class).one());
-        assertEquals(10, version);
+        assertEquals(13, version);
     }
 
     @Test

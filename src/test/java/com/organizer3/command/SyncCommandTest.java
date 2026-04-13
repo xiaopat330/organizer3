@@ -64,7 +64,8 @@ class SyncCommandTest {
                         new StructureSyncConfig("queue", List.of(
                                 new SyncCommandDef("sync", SyncOperationType.FULL, null)
                         ))
-                )
+                ),
+                null
         ));
         operation = mock(SyncOperation.class);
         connection = mock(VolumeConnection.class);
