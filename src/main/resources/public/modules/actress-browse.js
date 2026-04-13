@@ -3,7 +3,7 @@ import { showView, setActiveGrid, ensureSentinel, updateBreadcrumb, mode } from 
 import { pushNav } from './nav.js';
 import { makeActressCard, makeCompactActressCard } from './cards.js';
 import { ScrollingGrid } from './grid.js';
-import { ARCHIVE_VOLUMES, EXHIBITION_VOLUMES } from './config.js';
+import { ARCHIVE_VOLUMES, EXHIBITION_VOLUMES, THUMBNAIL_COLUMNS } from './config.js';
 import { ensureStudioGroups, ensureTitleLabels, renderTwoColumnStudioPanel, updateCompanyMarquee } from './studio-data.js';
 import {
   renderDashboardStrip,
@@ -68,6 +68,79 @@ let exhibitionCompanyFilter = null;
 let archivesCompanyFilter = null;
 // Optional company filter for tier mode (null = all companies in the tier).
 let tierCompanyFilter = null;
+
+// ── Column count control (universal — shares storage key with title-browse) ─
+const ACTRESS_COLS_VALUES      = [4, 5, 6, 8, 10, 12];
+const ACTRESS_COLS_STORAGE_KEY = 'title-grid-cols';
+
+function closestActressCols(n) {
+  return ACTRESS_COLS_VALUES.reduce((a, b) => Math.abs(b - n) < Math.abs(a - n) ? b : a);
+}
+
+function effectiveActressCols() {
+  const saved = parseInt(localStorage.getItem(ACTRESS_COLS_STORAGE_KEY), 10);
+  if (ACTRESS_COLS_VALUES.includes(saved)) return saved;
+  return closestActressCols(THUMBNAIL_COLUMNS);
+}
+
+function applyActressGridCols(cols) {
+  if (actressGridEl) actressGridEl.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
+}
+
+function actressColsSliderHtml(cols) {
+  const idx = ACTRESS_COLS_VALUES.indexOf(cols);
+  return `<div class="title-cols-control" id="actress-cols-control">
+    <input type="range" class="title-cols-slider" id="actress-cols-slider"
+      min="0" max="5" step="1" value="${idx >= 0 ? idx : 2}">
+    <span class="title-cols-label" id="actress-cols-label">${cols}</span>
+  </div>`;
+}
+
+function wireActressColsSlider() {
+  const slider = document.getElementById('actress-cols-slider');
+  const label  = document.getElementById('actress-cols-label');
+  if (!slider) return;
+  slider.addEventListener('input', () => {
+    const cols = ACTRESS_COLS_VALUES[parseInt(slider.value, 10)];
+    if (label) label.textContent = cols;
+    applyActressGridCols(cols);
+    localStorage.setItem(ACTRESS_COLS_STORAGE_KEY, cols);
+  });
+}
+
+function injectActressColsSlider(containerEl) {
+  containerEl.querySelector('#actress-cols-control')?.remove();
+  containerEl.insertAdjacentHTML('beforeend', actressColsSliderHtml(effectiveActressCols()));
+  wireActressColsSlider();
+}
+
+function showActressColsFilterBar() {
+  // For modes that already have a company filter row, inject the slider into that
+  // row so both controls share one toolbar.  Fall back to the standalone bar for
+  // simple modes (search, favorites, bookmarks) that have no filter row.
+  if (actressBrowseMode === 'exhibition-volumes') {
+    const row = document.getElementById('actress-exhibition-row');
+    if (row) { injectActressColsSlider(row); return; }
+  }
+  if (actressBrowseMode === 'archive-volumes') {
+    const row = document.getElementById('actress-archives-row');
+    if (row) { injectActressColsSlider(row); return; }
+  }
+  if (actressBrowseMode && actressBrowseMode.startsWith('tier-')) {
+    const row = document.getElementById('actress-tier-company-row');
+    if (row) { injectActressColsSlider(row); return; }
+  }
+  if (actressBrowseMode && actressBrowseMode.startsWith('studio-group:')) {
+    const right = actressGridHeaderEl.querySelector('.grid-header-right');
+    if (right) { injectActressColsSlider(right); return; }
+  }
+  // search, favorites, bookmarks — no existing filter row; use standalone bar
+  const bar = document.getElementById('actress-browse-filter-bar');
+  if (!bar) return;
+  bar.innerHTML = actressColsSliderHtml(effectiveActressCols());
+  bar.style.display = '';
+  wireActressColsSlider();
+}
 
 // ── Tier / studio row visibility ──────────────────────────────────────────
 function showActressTierRow() {
@@ -623,6 +696,8 @@ export async function selectActressBrowseMode(modeKey) {
   updateActressBreadcrumb();
   actressesBtn.classList.add('active');
   showView('actresses');
+  showActressColsFilterBar();
+  applyActressGridCols(effectiveActressCols());
   setActiveGrid(actressScrollGrid);
   actressScrollGrid.reset();
   ensureSentinel();
@@ -662,6 +737,8 @@ function scheduleActressSearch() {
     actressesBtn.classList.add('active');
     showView('actresses');
     actressDashboardEl.style.display = 'none';
+    showActressColsFilterBar();
+    applyActressGridCols(effectiveActressCols());
     setActiveGrid(actressScrollGrid);
     actressScrollGrid.reset();
     ensureSentinel();
@@ -696,6 +773,8 @@ actressSearchInput.addEventListener('keydown', e => {
   actressesBtn.classList.add('active');
   showView('actresses');
   actressDashboardEl.style.display = 'none';
+  showActressColsFilterBar();
+  applyActressGridCols(effectiveActressCols());
   setActiveGrid(actressScrollGrid);
   actressScrollGrid.reset();
   ensureSentinel();

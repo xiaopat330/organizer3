@@ -10,7 +10,7 @@ export const VIEWS = {
   'titles-browse':  ['title-landing', 'titles-browse-grid'],
 };
 export const HOME_GRID_IDS   = ['grid', 'random-titles-grid', 'random-actress-home-grid'];
-export const EXTRA_PANEL_IDS = ['title-studio-labels', 'title-tags-panel', 'title-browse-filter-bar', 'title-browse-tags-panel', 'actress-studio-labels', 'actress-dashboard', 'title-dashboard'];
+export const EXTRA_PANEL_IDS = ['title-studio-labels', 'title-tags-panel', 'title-browse-filter-bar', 'title-browse-tags-panel', 'actress-studio-labels', 'actress-dashboard', 'title-dashboard', 'actress-browse-filter-bar'];
 export const ALL_PANEL_IDS   = [...Object.values(VIEWS).flat(), ...HOME_GRID_IDS, ...EXTRA_PANEL_IDS];
 
 // Views where the body must not scroll (they fill the viewport themselves)
