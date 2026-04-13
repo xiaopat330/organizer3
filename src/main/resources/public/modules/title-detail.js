@@ -12,6 +12,14 @@ let pendingVisitTimer = null;
 // ── Known video durations (videoId → seconds) ─────────────────────────────
 const videoDurations = {};
 
+// ── Thumbnail poll timer tracking ─────────────────────────────────────────
+const activePollTimers = new Set();
+
+function cancelVideoPolling() {
+  for (const id of activePollTimers) clearTimeout(id);
+  activePollTimers.clear();
+}
+
 export function cancelPendingVisit() {
   if (pendingVisitTimer !== null) {
     clearTimeout(pendingVisitTimer);
@@ -23,6 +31,7 @@ export function cancelPendingVisit() {
 export async function openTitleDetail(t) {
   pushNav({ view: 'title-detail', title: t }, 'title/' + encodeURIComponent(t.code));
   cancelPendingVisit();
+  cancelVideoPolling();
 
   const sourceMode          = mode;
   const sourceHomeTab       = window._homeTab || 'latest';
@@ -321,7 +330,7 @@ function renderVideoSection(v, titleCode) {
              src="/api/stream/${v.id}"
              type="${esc(v.mimeType)}">
       </video>
-      <button class="theater-btn" onclick="toggleTheater(${v.id})">Theater</button>
+      <button class="theater-btn">Theater</button>
     </div>
   `;
 
@@ -329,6 +338,9 @@ function renderVideoSection(v, titleCode) {
     const copyBtn = section.querySelector('.video-folder-copy');
     if (copyBtn) copyBtn.addEventListener('click', () => copyFolderPath(copyBtn, v.folderUrl));
   }
+
+  const theaterBtn = section.querySelector('.theater-btn');
+  if (theaterBtn) theaterBtn.addEventListener('click', () => toggleTheater(v.id));
 
   loadVideoThumbnails(v.id);
   loadVideoMetadata(v.id);
@@ -355,11 +367,15 @@ function loadVideoThumbnails(videoId, attempt = 0) {
         container.style.gridTemplateColumns = `repeat(${THUMBNAIL_COLUMNS}, 1fr)`;
         container.innerHTML = urls.map((url, i) => {
           const fraction = total > 1 ? 0.03 + (0.94 * i / (total - 1)) : 0.5;
-          return `<div class="thumb-wrapper" onclick="seekVideoTo(${videoId}, ${fraction})">
+          return `<div class="thumb-wrapper" data-fraction="${fraction}">
             <img class="video-thumb" src="${esc(url)}" loading="lazy" data-fraction="${fraction}">
             <span class="thumb-time" data-video-id="${videoId}" data-fraction="${fraction}">--:--</span>
           </div>`;
         }).join('');
+        container.onclick = e => {
+          const wrapper = e.target.closest('.thumb-wrapper');
+          if (wrapper) seekVideoTo(videoId, parseFloat(wrapper.dataset.fraction));
+        };
         if (videoDurations[videoId]) {
           updateThumbTimestamps(videoId, videoDurations[videoId]);
         }
@@ -378,7 +394,11 @@ function loadVideoThumbnails(videoId, attempt = 0) {
           + `<span class="thumb-progress-text">${urls.length}/${total} previews</span>`;
 
         if (attempt < MAX_ATTEMPTS) {
-          setTimeout(() => loadVideoThumbnails(videoId, attempt + 1), 2000);
+          const timerId = setTimeout(() => {
+            activePollTimers.delete(timerId);
+            loadVideoThumbnails(videoId, attempt + 1);
+          }, 2000);
+          activePollTimers.add(timerId);
         }
       } else {
         const progressEl = document.getElementById(`video-thumb-progress-${videoId}`);
@@ -430,7 +450,7 @@ function updateThumbTimestamps(videoId, durationSeconds) {
   });
 }
 
-// ── Folder path copy (exposed on window for inline onclick) ──────────────
+// ── Folder path copy ──────────────────────────────────────────────────────
 function copyFolderPath(btn, smbUrl) {
   const isMac = /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent);
   const text = isMac
@@ -456,7 +476,7 @@ function copyFolderPath(btn, smbUrl) {
     confirm();
   }
 }
-// ── Seek + Theater (exposed on window for inline onclick) ─────────────────
+// ── Seek + Theater ────────────────────────────────────────────────────────
 function seekVideoTo(videoId, fraction) {
   const player = document.getElementById(`video-player-${videoId}`);
   if (!player) return;
@@ -486,9 +506,6 @@ function toggleTheater(videoId) {
   const leftPanel = document.querySelector('.title-detail-left');
   if (leftPanel) leftPanel.classList.toggle('theater-dimmed', isActive);
 }
-
-window.seekVideoTo  = seekVideoTo;
-window.toggleTheater = toggleTheater;
 
 // ── Resume playback ───────────────────────────────────────────────────────
 function initResumePlayback(player, videoId, titleCode) {

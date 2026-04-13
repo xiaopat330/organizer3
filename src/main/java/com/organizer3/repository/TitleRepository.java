@@ -181,7 +181,9 @@ public interface TitleRepository {
             String baseCode,
             String releaseDate,
             Long actressId,
-            String actressName
+            String actressName,
+            boolean favorite,
+            boolean bookmark
     ) {}
 
     /**

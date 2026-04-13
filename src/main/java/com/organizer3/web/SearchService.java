@@ -121,6 +121,8 @@ public class SearchService {
         m.put("releaseDate",   r.releaseDate());
         m.put("actressId",     r.actressId());
         m.put("actressName",   r.actressName());
+        m.put("favorite",      r.favorite());
+        m.put("bookmark",      r.bookmark());
 
         String coverUrl = null;
         if (r.label() != null && r.baseCode() != null) {

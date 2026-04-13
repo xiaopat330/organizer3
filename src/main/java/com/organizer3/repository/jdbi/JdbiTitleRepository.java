@@ -1036,7 +1036,8 @@ public class JdbiTitleRepository implements TitleRepository {
         return jdbi.withHandle(h ->
                 h.createQuery("""
                         SELECT t.id, t.code, t.title_original, t.title_english, t.label, t.base_code,
-                               t.release_date, t.actress_id, a.canonical_name AS actress_name
+                               t.release_date, t.actress_id, a.canonical_name AS actress_name,
+                               t.favorite, t.bookmark
                         FROM titles t
                         LEFT JOIN actresses a ON a.id = t.actress_id
                         WHERE t.code LIKE :pattern COLLATE NOCASE
@@ -1057,7 +1058,9 @@ public class JdbiTitleRepository implements TitleRepository {
                                     rs.getString("base_code"),
                                     rs.getString("release_date"),
                                     actressIdStr != null ? Long.parseLong(actressIdStr) : null,
-                                    rs.getString("actress_name")
+                                    rs.getString("actress_name"),
+                                    rs.getBoolean("favorite"),
+                                    rs.getBoolean("bookmark")
                             );
                         })
                         .list()
@@ -1070,7 +1073,8 @@ public class JdbiTitleRepository implements TitleRepository {
         return jdbi.withHandle(h ->
                 h.createQuery("""
                         SELECT t.id, t.code, t.title_original, t.title_english, t.label, t.base_code,
-                               t.release_date, t.actress_id, a.canonical_name AS actress_name
+                               t.release_date, t.actress_id, a.canonical_name AS actress_name,
+                               t.favorite, t.bookmark
                         FROM titles t
                         LEFT JOIN actresses a ON a.id = t.actress_id
                         WHERE (t.title_original LIKE :pattern COLLATE NOCASE
@@ -1092,7 +1096,9 @@ public class JdbiTitleRepository implements TitleRepository {
                                     rs.getString("base_code"),
                                     rs.getString("release_date"),
                                     actressIdStr != null ? Long.parseLong(actressIdStr) : null,
-                                    rs.getString("actress_name")
+                                    rs.getString("actress_name"),
+                                    rs.getBoolean("favorite"),
+                                    rs.getBoolean("bookmark")
                             );
                         })
                         .list()

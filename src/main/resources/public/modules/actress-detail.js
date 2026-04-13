@@ -1,4 +1,4 @@
-import { esc, fmtDate, isStale, setStatus, timeAgo } from './utils.js';
+import { esc, fmtDate, isStale, setStatus, splitName, timeAgo } from './utils.js';
 import { ICON_FAV_LG, ICON_BM_LG, ICON_REJ_LG } from './icons.js';
 import { showView, setActiveGrid, ensureActressDetailSentinel, ScrollingGrid, updateBreadcrumb, mode } from './grid.js';
 import { makeTitleCard, updateActressCardIndicators } from './cards.js';
@@ -549,12 +549,6 @@ function updateActressVisitedRow(visitCount, lastVisitedAt) {
   if (!row || !val || visitCount <= 0) return;
   val.textContent = formatActressVisited(visitCount, lastVisitedAt || null);
   row.style.display = '';
-}
-
-// splitName is needed here — inline since we can't import from utils without creating a local alias
-function splitName(name) {
-  const i = name.indexOf(' ');
-  return i >= 0 ? { first: name.slice(0, i), last: name.slice(i + 1) } : { first: name, last: '' };
 }
 
 // ── Filter bar ────────────────────────────────────────────────────────────

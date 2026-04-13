@@ -9,6 +9,9 @@
  *   globalShortcut — register Cmd/Ctrl+K to focus the input (default false)
  */
 
+import { esc } from './utils.js';
+import { ICON_FAV_SM, ICON_BM_SM } from './icons.js';
+
 export function createSearch(inputEl, overlayEl, opts = {}) {
     const { keyboardNav = false, globalShortcut = false, autoNavigate = true, twoColumn = false } = opts;
 
@@ -30,15 +33,6 @@ export function createSearch(inputEl, overlayEl, opts = {}) {
         selectedIndex = Math.max(0, Math.min(idx, rows.length - 1));
         rows.forEach((r, i) => r.classList.toggle('search-row-selected', i === selectedIndex));
         rows[selectedIndex].scrollIntoView({ block: 'nearest' });
-    }
-
-    function esc(str) {
-        if (!str) return '';
-        return String(str)
-            .replace(/&/g, '&amp;')
-            .replace(/</g, '&lt;')
-            .replace(/>/g, '&gt;')
-            .replace(/"/g, '&quot;');
     }
 
     // ── Product-code shortcut ─────────────────────────────────────────────────
@@ -114,10 +108,12 @@ export function createSearch(inputEl, overlayEl, opts = {}) {
                 const thumb = a.coverUrl
                     ? `<img class="search-thumb" src="${esc(a.coverUrl)}" alt="" loading="lazy">`
                     : '<div class="search-thumb search-thumb-empty"></div>';
+                const favIcon = a.favorite ? ICON_FAV_SM : '';
+                const bmIcon  = a.bookmark  ? ICON_BM_SM  : '';
                 html += `<div class="search-row search-actress-row" data-actress-id="${a.id}">`
                       + thumb
                       + `<span class="search-name tier-${tier}">${esc(a.canonicalName)}</span>`
-                      + stageSub + alias + grade + count
+                      + stageSub + alias + grade + count + favIcon + bmIcon
                       + '</div>';
             }
             html += '</div>';
@@ -143,8 +139,10 @@ export function createSearch(inputEl, overlayEl, opts = {}) {
                             : '')
                         + `</div>`
                     : `<span class="search-code">${esc(t.code)}</span>` + nameHtml + actress + year;
+                const favIcon = t.favorite ? ICON_FAV_SM : '';
+                const bmIcon  = t.bookmark  ? ICON_BM_SM  : '';
                 html += `<div class="search-row search-title-row" data-title-code="${esc(t.code)}">`
-                      + thumb + inner
+                      + thumb + inner + favIcon + bmIcon
                       + '</div>';
             }
             html += '</div>';
