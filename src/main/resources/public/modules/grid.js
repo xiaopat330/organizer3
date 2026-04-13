@@ -2,14 +2,14 @@ import { setStatus } from './utils.js';
 
 // ── View management ───────────────────────────────────────────────────────
 export const VIEWS = {
-  titles:           ['home-tabs'],
+  titles:           ['home-portal'],
   actresses:        ['actress-landing', 'actress-grid'],
   'actress-detail': ['actress-landing', 'actress-detail'],
   'title-detail':   ['title-landing', 'title-detail'],
   collections:      ['collections-grid'],
   'titles-browse':  ['title-landing', 'titles-browse-grid'],
 };
-export const HOME_GRID_IDS   = ['grid', 'random-titles-grid', 'random-actress-home-grid'];
+export const HOME_GRID_IDS   = [];
 export const EXTRA_PANEL_IDS = ['title-studio-labels', 'title-tags-panel', 'title-browse-filter-bar', 'title-browse-tags-panel', 'actress-studio-labels', 'actress-dashboard', 'title-dashboard', 'actress-browse-filter-bar'];
 export const ALL_PANEL_IDS   = [...Object.values(VIEWS).flat(), ...HOME_GRID_IDS, ...EXTRA_PANEL_IDS];
 
@@ -21,8 +21,10 @@ export let mode = 'titles';
 export function showView(name) {
   mode = name;
   clearCardIntervals();
-  for (const id of ALL_PANEL_IDS)
-    document.getElementById(id).style.display = 'none';
+  for (const id of ALL_PANEL_IDS) {
+    const el = document.getElementById(id);
+    if (el) el.style.display = 'none';
+  }
   for (const id of (VIEWS[name] || [])) {
     const el = document.getElementById(id);
     if (el.classList.contains('grid')) el.style.display = 'grid';
@@ -50,17 +52,16 @@ export function setHomeClickHandler(fn) { _homeClickHandler = fn; }
 export function updateBreadcrumb(segments) {
   const el = document.getElementById('breadcrumb');
   el.innerHTML = '';
-  if (segments.length === 0) {
-    el.classList.remove('visible');
-    return;
-  }
-  el.classList.add('visible');
 
   const home = document.createElement('span');
   home.className = 'crumb crumb-home';
   home.innerHTML = '&#x1F3E0; HOME';
-  home.addEventListener('click', _homeClickHandler);
+  if (segments.length > 0) home.addEventListener('click', _homeClickHandler);
+  else home.style.cursor = 'default';
   el.appendChild(home);
+
+  if (segments.length === 0) return;
+
   const homeSep = document.createElement('span');
   homeSep.className = 'crumb-sep';
   homeSep.textContent = '›';

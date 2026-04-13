@@ -1,9 +1,9 @@
 import { initConfig } from './modules/config.js';
-import { showView, setHomeClickHandler } from './modules/grid.js';
+import { showView, setHomeClickHandler, updateBreadcrumb } from './modules/grid.js';
 import { initCardCallbacks } from './modules/cards.js';
 import { openActressDetail } from './modules/actress-detail.js';
 import { openTitleDetail } from './modules/title-detail.js';
-import { showTitlesView, activateHomeTab } from './modules/home.js';
+import { showTitlesView, initPortalSearch } from './modules/home.js';
 import { selectActressBrowseMode } from './modules/actress-browse.js';
 import { selectTitleBrowseMode, enterUnsortedMode, enterArchiveMode } from './modules/title-browse.js';
 import { setRestoring, replaceNav } from './modules/nav.js';
@@ -13,6 +13,7 @@ import { initSearch } from './modules/search.js';
 initCardCallbacks(openTitleDetail, openActressDetail);
 setHomeClickHandler(showTitlesView);
 initSearch();
+initPortalSearch();
 
 // ── Config (app name + runtime limits, also updates DOM) ──────────────────
 initConfig();
@@ -23,7 +24,7 @@ document.getElementById('app-name').addEventListener('click', showTitlesView);
 // ── Initial load ──────────────────────────────────────────────────────────
 replaceNav({ view: 'titles' }, 'home');
 showView('titles');
-activateHomeTab('latest');
+updateBreadcrumb([]);
 
 // ── Back/forward navigation ───────────────────────────────────────────────
 window.addEventListener('popstate', async (e) => {

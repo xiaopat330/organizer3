@@ -23,21 +23,17 @@
   <div id="breadcrumb"></div>
 </header>
 
-<!-- Home tab island (only shown on home view) -->
-<div id="home-tabs" style="display:none">
-  <button class="home-tab active" data-tab="latest">latest</button>
-  <button class="home-tab" data-tab="random-titles">random titles</button>
-  <button class="home-tab" data-tab="random-actresses">actresses</button>
+<!-- Home portal (default landing page) -->
+<div id="home-portal" style="display:none">
+  <div class="home-portal-search-panel">
+    <div class="home-portal-search-heading">Search everything</div>
+    <p class="home-portal-search-sub">titles, actresses, labels, studios — search for almost anything</p>
+    <div class="home-portal-search-wrap">
+      <input type="search" id="portal-search-input" class="portal-search-input" placeholder="type to search…" autocomplete="off" spellcheck="false">
+      <div id="portal-search-overlay" class="search-overlay portal-search-overlay" style="display:none"></div>
+    </div>
+  </div>
 </div>
-
-<!-- Title home grid (latest tab) -->
-<div class="grid" id="grid"></div>
-
-<!-- Random titles grid -->
-<div class="grid" id="random-titles-grid" style="display:none"></div>
-
-<!-- Random actresses home grid -->
-<div class="grid" id="random-actress-home-grid" style="display:none"></div>
 
 <!-- Actress landing island (search + favorites/bookmarks + tiers) -->
 <div id="actress-landing" class="actress-landing" style="display:none">

@@ -60,16 +60,13 @@ header h1:hover {
 /* Breadcrumb row */
 #breadcrumb {
   width: 100%;
-  display: none;
+  display: flex;
   align-items: center;
   gap: 0;
   padding: 0 0 10px;
   font-size: 0.72rem;
   letter-spacing: 0.03em;
-}
-
-#breadcrumb.visible {
-  display: flex;
+  min-height: 1.6rem;
 }
 
 #breadcrumb .crumb {
@@ -90,6 +87,9 @@ header h1:hover {
 
 #breadcrumb .crumb-home:hover {
   color: #ccc;
+}
+#breadcrumb .crumb-home[style*="cursor: default"]:hover {
+  color: #ffffff;
 }
 
 #breadcrumb .crumb-sep {
@@ -2686,37 +2686,154 @@ header h1:hover {
 
 #sentinel { height: 1px; }
 
-/* ── Home tab island ──────────────────────────────────────────────────────── */
-#home-tabs {
-  display: flex;
-  align-items: center;
-  gap: 2px;
-  padding: 14px 20px 0;
+/* ── Home portal ──────────────────────────────────────────────────────────── */
+#home-portal {
+  padding: 48px 24px 32px;
 }
 
-.home-tab {
-  background: none;
-  border: none;
+.home-portal-search-panel {
+  max-width: 680px;
+  margin: 0 auto;
+}
+
+.home-portal-search-heading {
+  font-size: 1.6rem;
+  font-weight: 600;
+  color: #d0d0d0;
+  letter-spacing: -0.01em;
+  margin-bottom: 6px;
+}
+
+.home-portal-search-sub {
+  font-size: 0.85rem;
+  color: #444;
+  margin: 0 0 20px;
+}
+
+.home-portal-search-wrap {
+  position: relative;
+}
+
+.portal-search-input {
+  width: 100%;
+  box-sizing: border-box;
+  background: #111;
+  border: 1px solid #2e2e2e;
+  border-radius: 8px;
+  color: #d8d8d8;
   font-family: inherit;
+  font-size: 1.05rem;
+  padding: 14px 18px;
+  outline: none;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  -webkit-appearance: none;
+  appearance: none;
+}
+.portal-search-input::placeholder {
+  color: #333;
+}
+.portal-search-input:focus {
+  border-color: #444;
+  box-shadow: 0 0 0 2px rgba(80,80,80,0.2);
+}
+
+/* Portal overlay: wider, taller, and scaled-up to match the large search input.
+   Uses ID selector to beat the .search-overlay width:380px cascade. */
+#portal-search-overlay {
+  right: auto;
+  left: 0;
+  width: 100%;
+  max-width: none;
+  max-height: 75vh;
+}
+
+#portal-search-overlay .search-col-wrap {
+  column-count: 2;
+  column-gap: 0;
+  column-fill: balance;
+}
+
+#portal-search-overlay .search-group {
+  break-inside: avoid;
+}
+
+#portal-search-overlay .search-overlay-empty {
+  padding: 14px 16px;
+  font-size: 0.9rem;
+}
+
+#portal-search-overlay .search-group-label {
+  padding: 10px 16px 5px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+}
+
+#portal-search-overlay .search-group-actresses .search-group-label { color: #c084a8; }
+#portal-search-overlay .search-group-titles   .search-group-label { color: #6ea8d8; }
+#portal-search-overlay .search-group-labels   .search-group-label { color: #7ec88a; }
+#portal-search-overlay .search-group-studios  .search-group-label { color: #d4956a; }
+
+#portal-search-overlay .search-row {
+  gap: 10px;
+  padding: 8px 16px;
+}
+
+#portal-search-overlay .search-thumb {
+  width: 36px;
+  height: 51px;
+}
+
+#portal-search-overlay .search-name {
+  font-size: 0.9rem;
+}
+
+#portal-search-overlay .search-code {
+  font-size: 0.8rem;
+}
+
+#portal-search-overlay .search-meta {
   font-size: 0.78rem;
-  font-weight: 500;
-  letter-spacing: 0.05em;
-  color: #3a3a3a;
-  padding: 6px 14px;
-  border-radius: 4px;
-  cursor: pointer;
-  transition: color 0.15s ease, background 0.15s ease;
+  max-width: 120px;
+}
+
+#portal-search-overlay .search-stage-name,
+#portal-search-overlay .search-alias {
+  font-size: 0.78rem;
+}
+
+#portal-search-overlay .search-grade {
+  font-size: 0.78rem;
+}
+
+#portal-search-overlay .search-count {
+  font-size: 0.76rem;
+}
+
+.search-title-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.search-title-stack .search-code {
+  display: block;
+}
+
+.search-title-stack .search-name {
+  display: block;
+  white-space: normal;
+  line-height: 1.3;
+}
+
+.search-title-byline {
+  font-size: 0.76rem;
+  color: #555;
   white-space: nowrap;
-}
-
-.home-tab:hover {
-  color: #888;
-  background: #161616;
-}
-
-.home-tab.active {
-  color: #c8c8c8;
-  background: #1a1a1a;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 /* ── Special actress query chips (left column of dropdown) ──────────────── */
