@@ -1,0 +1,32 @@
+profile:
+  name:
+    family_name: Sakura
+    given_name: Akane
+    stage_name: 桜あかね
+    reading: さくら あかね
+    alternate_names: []
+  date_of_birth: 1984-06-10
+  birthplace: Tokyo, Japan
+  blood_type: A
+  height_cm: 146
+  measurements: null
+  cup: null
+  active_from: null
+  active_to: null
+  retirement_announced: null
+  biography: "Akane Sakura (桜あかね) is a Japanese AV actress born June 10, 1984 in Tokyo. She worked as an AV idol during the 2000s. At 146 cm she is notably petite. Detailed career documentation beyond basic biographical data is limited in publicly available sources."
+  primary_studios: []
+  awards: null
+  legacy: null
+
+meta:
+  total_owned_titles: null
+  titles_with_japanese_title: null
+  titles_with_english_title: null
+  titles_with_release_date: null
+  total_known_releases: null
+  coverage_note: "Profile data is minimal; only Wikidata entry Q9299870 available. Career timeline, studio affiliations, and measurements not established from available sources."
+  confidence: "DOB 1984-06-10 and birthplace Tokyo from Wikidata Q9299870. Blood type A and height 146 cm from Wikidata infobox. Stage name kanji is uncertain — one source suggests 桜朱音 per Wikidata record, but using 桜あかね as conservative estimate pending verification. Measurements, active period, and studio affiliations not found."
+  data_sources:
+  - "https://www.wikidata.org/wiki/Q9299870"
+  portfolio_listed: 0
