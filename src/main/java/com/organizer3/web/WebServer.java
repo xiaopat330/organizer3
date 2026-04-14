@@ -4,6 +4,7 @@ import com.hierynomus.smbj.share.File;
 import com.organizer3.avstars.model.AvVideo;
 import com.organizer3.avstars.model.AvVideoScreenshot;
 import com.organizer3.avstars.repository.AvActressRepository;
+import com.organizer3.avstars.AvScreenshotService;
 import com.organizer3.avstars.repository.AvScreenshotRepository;
 import com.organizer3.config.AppConfig;
 import com.organizer3.config.volume.VolumeConfig;
@@ -760,7 +761,8 @@ public class WebServer {
                                  AvActressRepository avActressRepo,
                                  AvScreenshotRepository avScreenshotRepo,
                                  Path avScreenshotsDir,
-                                 com.organizer3.avstars.repository.AvTagDefinitionRepository avTagDefRepo) {
+                                 com.organizer3.avstars.repository.AvTagDefinitionRepository avTagDefRepo,
+                                 AvScreenshotService avScreenshotService) {
         // List all AV actresses (index grid + favorites + bookmarks)
         app.get("/api/av/actresses", ctx -> {
             String mode = ctx.queryParam("mode");
@@ -844,6 +846,15 @@ public class WebServer {
             catch (NumberFormatException e) { ctx.status(400); return; }
             var v = avBrowseService.recordVideoWatch(id);
             ctx.json(Map.of("watched", v.isWatched(), "watchCount", v.getWatchCount()));
+        });
+
+        // On-demand screenshot generation
+        app.post("/api/av/videos/{id}/screenshots", ctx -> {
+            long id;
+            try { id = Long.parseLong(ctx.pathParam("id")); }
+            catch (NumberFormatException e) { ctx.status(400); return; }
+            List<String> urls = avScreenshotService.generateForVideo(id);
+            ctx.json(Map.of("screenshotUrls", urls));
         });
 
         // Full detail for a single video (includes SMB URL)

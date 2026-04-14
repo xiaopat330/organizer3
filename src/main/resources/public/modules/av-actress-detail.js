@@ -1,16 +1,22 @@
-import { esc } from './utils.js';
+import { esc, timeAgo } from './utils.js';
 import { showView, updateBreadcrumb } from './grid.js';
 import { pushNav } from './nav.js';
 import { avBrowseMode, selectAvBrowseMode } from './av-browse.js';
 import { openAvVideoDetail } from './av-video-detail.js';
+import { COLS_VALUES, colsSliderHtml, wireColsSlider } from './grid-cols.js';
+import { ICON_FAV_LG, ICON_BM_LG, ICON_FAV_SM, ICON_BM_SM, ICON_BM_SM_OFF } from './icons.js';
+
+// ── Constants ─────────────────────────────────────────────────────────────
+const AV_DETAIL_COLS_KEY     = 'av-detail-grid-cols';
+const AV_DETAIL_COLS_DEFAULT = 4;
 
 // ── State ─────────────────────────────────────────────────────────────────
 let currentActressId = null;
 let currentActress   = null;
 let allVideos        = [];
 let videoFilter      = '';
-let videoSort        = 'path';   // 'path' | 'date' | 'size'
-let activeTagFilters = new Set(); // tag slugs selected for filtering
+let gridCols         = AV_DETAIL_COLS_DEFAULT;
+
 
 // ── Visit tracking ────────────────────────────────────────────────────────
 let pendingVisitTimer = null;
@@ -22,6 +28,12 @@ function cancelPendingVisit() {
   }
 }
 
+// ── Column helper ─────────────────────────────────────────────────────────
+function getSavedCols() {
+  const saved = parseInt(localStorage.getItem(AV_DETAIL_COLS_KEY), 10);
+  return COLS_VALUES.includes(saved) ? saved : AV_DETAIL_COLS_DEFAULT;
+}
+
 // ── Entry point ───────────────────────────────────────────────────────────
 export async function openAvActressDetail(actressId) {
   cancelPendingVisit();
@@ -29,10 +41,13 @@ export async function openAvActressDetail(actressId) {
   currentActress   = null;
   allVideos        = [];
   videoFilter      = '';
-  videoSort        = 'path';
-  activeTagFilters = new Set();
+  gridCols         = getSavedCols();
 
   showView('av-actress-detail');
+  // Fit the detail panel to the remaining viewport below the header + landing nav
+  const landingEl = document.getElementById('av-landing');
+  const landingH  = landingEl ? landingEl.offsetHeight : 0;
+  document.getElementById('av-actress-detail').style.height = `calc(100vh - 49px - ${landingH}px)`;
   pushNav({ view: 'av-actress-detail', actressId }, `av/actress/${actressId}`);
   updateBreadcrumb([
     { label: 'AV', action: () => selectAvBrowseMode(avBrowseMode || 'index') },
@@ -62,10 +77,12 @@ export async function openAvActressDetail(actressId) {
 
   renderDetail();
 
-  // 5-second debounce before recording visit
   pendingVisitTimer = setTimeout(() => {
     pendingVisitTimer = null;
-    fetch(`/api/av/actresses/${actressId}/visit`, { method: 'POST' }).catch(() => {});
+    fetch(`/api/av/actresses/${actressId}/visit`, { method: 'POST' })
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { if (d) updateVisitedRow(d.visitCount, d.lastVisitedAt); })
+      .catch(() => {});
   }, 5000);
 }
 
@@ -78,16 +95,30 @@ function renderDetail() {
       ${renderActionBar(currentActress)}
       ${renderProfileDetails(currentActress)}
     </div>
-    <div class="av-detail-main">
-      ${renderVideoFilterBar()}
-      <div id="av-detail-video-grid" class="av-detail-video-grid"></div>
+    <div class="av-detail-right" id="av-detail-right">
+      ${renderToolbar()}
+      <div id="av-vc-grid" class="av-vc-grid"></div>
     </div>`;
+
+  applyGridCols(gridCols);
   wireSidebarButtons();
-  wireMainOnce();
+  wireRightPanel();
   renderVideoGrid();
 }
 
-// ── Profile card ──────────────────────────────────────────────────────────
+// ── Restore video grid (called by av-video-detail back button) ───────────
+export function showAvActressVideoGrid() {
+  const rightEl = document.getElementById('av-detail-right');
+  if (!rightEl) return;
+  rightEl.innerHTML = `
+    ${renderToolbar()}
+    <div id="av-vc-grid" class="av-vc-grid"></div>`;
+  applyGridCols(gridCols);
+  wireRightPanel();
+  renderVideoGrid();
+}
+
+// ── Profile card (left panel) ─────────────────────────────────────────────
 function renderProfileCard(a) {
   const imgHtml = a.headshotUrl
     ? `<img class="av-detail-headshot" src="${esc(a.headshotUrl)}" alt="${esc(a.stageName)}">`
@@ -117,25 +148,20 @@ function renderProfileCard(a) {
         ${a.totalSizeBytes ? `<span>${formatBytes(a.totalSizeBytes)}</span>` : ''}
       </div>
       <div class="av-detail-badges">${resolvedBadge}</div>
+      <div class="detail-visited" id="av-detail-visited-row"${a.visitCount > 0 ? '' : ' style="display:none"'}>
+        <span id="av-detail-visited-value">${a.visitCount > 0 ? formatVisited(a.visitCount, a.lastVisitedAt) : ''}</span>
+      </div>
     </div>`;
 }
 
-// ── Action bar (favorite / bookmark toggles) ──────────────────────────────
 function renderActionBar(a) {
   return `
-    <div class="av-detail-action-bar">
-      <button id="av-detail-fav-btn" class="av-detail-action-btn${a.favorite ? ' active' : ''}" title="${a.favorite ? 'Remove favorite' : 'Add to favorites'}">
-        <svg viewBox="0 0 24 24" width="16" height="16"><polygon points="12,2 15.09,8.26 22,9.27 17,14.14 18.18,21.02 12,17.77 5.82,21.02 7,14.14 2,9.27 8.91,8.26" fill="${a.favorite ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="2"/></svg>
-        ${a.favorite ? 'Favorited' : 'Favorite'}
-      </button>
-      <button id="av-detail-bm-btn" class="av-detail-action-btn${a.bookmark ? ' active' : ''}" title="${a.bookmark ? 'Remove bookmark' : 'Bookmark'}">
-        <svg viewBox="0 0 24 24" width="16" height="16"><path d="M6 2h12a1 1 0 0 1 1 1v18.5a.5.5 0 0 1-.8.4L12 17.5 5.8 21.9a.5.5 0 0 1-.8-.4V3a1 1 0 0 1 1-1z" fill="${a.bookmark ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="2"/></svg>
-        ${a.bookmark ? 'Bookmarked' : 'Bookmark'}
-      </button>
+    <div class="title-detail-actions">
+      <button class="title-action-btn${a.favorite ? ' active' : ''}" id="av-detail-fav-btn" title="Favorite">${ICON_FAV_LG}</button>
+      <button class="title-action-btn${a.bookmark ? ' active' : ''}" id="av-detail-bm-btn" title="Bookmark">${ICON_BM_LG}</button>
     </div>`;
 }
 
-// ── Profile details (IAFD enrichment — hidden when sparse) ────────────────
 function renderProfileDetails(a) {
   const rows = [];
   if (a.nationality)   rows.push(['Nationality', esc(a.nationality)]);
@@ -158,196 +184,185 @@ function renderProfileDetails(a) {
     </dl>`;
 }
 
-// ── Video filter bar ──────────────────────────────────────────────────────
-function renderVideoFilterBar() {
-  // Collect all unique tag slugs across all videos
-  const allTags = [...new Set(allVideos.flatMap(v => v.tags || []))].sort();
-  const tagPills = allTags.length > 0
-    ? `<div class="av-tag-filter-row" id="av-tag-filter-row">
-        ${allTags.map(slug =>
-          `<button class="av-tag-pill${activeTagFilters.has(slug) ? ' active' : ''}" data-tag="${esc(slug)}">${esc(slug)}</button>`
-        ).join('')}
-       </div>`
-    : '';
+// ── Toolbar (right panel top) ─────────────────────────────────────────────
+function renderToolbar() {
+  const cols = gridCols;
   return `
-    <div class="av-detail-filter-bar">
-      <input type="search" id="av-detail-video-search" class="av-detail-video-search"
-             placeholder="filter by filename…" autocomplete="off" spellcheck="false">
-      <div class="av-index-sort-group">
-        <button class="av-index-sort-btn${videoSort === 'path'  ? ' selected' : ''}" data-vsort="path">Path</button>
-        <button class="av-index-sort-btn${videoSort === 'date'  ? ' selected' : ''}" data-vsort="date">Date</button>
-        <button class="av-index-sort-btn${videoSort === 'size'  ? ' selected' : ''}" data-vsort="size">Size</button>
-      </div>
-      <span id="av-detail-video-count" class="av-index-count"></span>
-    </div>
-    ${tagPills}`;
+    <div class="av-vc-toolbar">
+      <input type="search" id="av-vc-search" class="av-vc-search"
+             placeholder="filter…" autocomplete="off" spellcheck="false"
+             value="${esc(videoFilter)}">
+      ${colsSliderHtml(cols, 'av-vc-cols-ctrl', 'av-vc-cols-slider', 'av-vc-cols-label')}
+      <span id="av-vc-count" class="av-vc-count"></span>
+    </div>`;
 }
 
 // ── Video grid ────────────────────────────────────────────────────────────
+function applyGridCols(cols) {
+  const grid = document.getElementById('av-vc-grid');
+  if (grid) grid.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
+}
+
 function renderVideoGrid() {
-  const gridEl = document.getElementById('av-detail-video-grid');
-  if (!gridEl) return;
+  const grid = document.getElementById('av-vc-grid');
+  if (!grid) return;
 
   const q = videoFilter.trim().toLowerCase();
   let data = allVideos.slice();
-  if (q) data = data.filter(v => v.filename.toLowerCase().includes(q)
-                               || (v.relativePath || '').toLowerCase().includes(q));
-
-  // Tag filter: OR logic — video must have at least one of the active tags
-  if (activeTagFilters.size > 0) {
-    data = data.filter(v => (v.tags || []).some(t => activeTagFilters.has(t)));
+  if (q) {
+    data = data.filter(v =>
+      v.filename.toLowerCase().includes(q) ||
+      (v.parsedTitle || '').toLowerCase().includes(q) ||
+      (v.relativePath || '').toLowerCase().includes(q));
   }
 
-  if (videoSort === 'date') {
-    data.sort((a, b) => (b.releaseDate || '').localeCompare(a.releaseDate || '')
-                     || a.filename.localeCompare(b.filename));
-  } else if (videoSort === 'size') {
-    data.sort((a, b) => (b.sizeBytes || 0) - (a.sizeBytes || 0));
-  } else {
-    data.sort((a, b) => a.relativePath.localeCompare(b.relativePath));
-  }
-
-  const countEl = document.getElementById('av-detail-video-count');
+  const countEl = document.getElementById('av-vc-count');
   if (countEl) countEl.textContent = `${data.length} video${data.length === 1 ? '' : 's'}`;
 
-  gridEl.innerHTML = data.length === 0
-    ? '<div class="av-grid-loading">No videos found.</div>'
-    : data.map(makeVideoRow).join('');
+  grid.innerHTML = data.length === 0
+    ? '<div class="av-vc-empty">No videos found.</div>'
+    : data.map(makeVideoCard).join('');
 }
 
-function makeVideoRow(v) {
-  const size = v.sizeBytes ? formatBytes(v.sizeBytes) : '';
-  const res  = v.resolution ? `<span class="av-video-res">${esc(v.resolution)}</span>` : '';
-  const stu  = v.studio     ? `<span class="av-video-studio">${esc(v.studio)}</span>`   : '';
-  const date = v.releaseDate ? `<span class="av-video-date">${esc(v.releaseDate)}</span>` : '';
-  const bucket = v.bucket ? `<span class="av-video-bucket">${esc(v.bucket)}</span>` : '';
+// ── Video card ────────────────────────────────────────────────────────────
+function makeVideoCard(v) {
+  const count = v.screenshotCount || 0;
 
-  const watched = v.watched
-    ? `<span class="av-video-watched" title="Watched ${v.watchCount}×">✓</span>` : '';
-  const favCls  = v.favorite ? ' active' : '';
-  const bmCls   = v.bookmark ? ' active' : '';
+  let thumbHtml;
+  if (count > 1) {
+    // Marquee: mirrors cover-marquee-track — UNIQUE tiles × 2, -50% loop
+    const perTileSec = 3 + Math.random() * 2;
+    const durationSec = count * perTileSec;
+    const delayMs = -(Math.random() * durationSec * 1000).toFixed(0);
+    const tiles = Array.from({ length: count * 2 }, (_, i) =>
+      `<div class="av-vc-marquee-tile"><img src="/api/av/screenshots/${v.id}/${i % count}" alt="" loading="lazy"></div>`
+    ).join('');
+    thumbHtml = `<div class="av-vc-marquee-track" style="animation-duration:${durationSec.toFixed(2)}s;animation-delay:${delayMs}ms">${tiles}</div>`;
+  } else if (v.firstScreenshotUrl) {
+    thumbHtml = `<img class="av-vc-thumb" src="${esc(v.firstScreenshotUrl)}" alt="" loading="lazy">`;
+  } else {
+    thumbHtml = `<div class="av-vc-thumb-placeholder">
+         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"
+              stroke-linecap="round" stroke-linejoin="round" width="32" height="32">
+           <polygon points="5,3 19,12 5,21"/>
+         </svg>
+       </div>`;
+  }
+
+  const watchedBadge = v.watched
+    ? `<div class="av-vc-watched-badge">✓${v.watchCount > 1 ? ` ${v.watchCount}×` : ''}</div>`
+    : '';
+
+  const title = v.parsedTitle && v.parsedTitle !== v.filename
+    ? esc(v.parsedTitle)
+    : esc(v.filename);
+
+  const metaParts = [v.resolution, v.sizeBytes ? formatBytes(v.sizeBytes) : null, v.studio, v.releaseDate]
+    .filter(Boolean);
+  const metaHtml = metaParts.length > 0
+    ? `<div class="av-vc-meta">${metaParts.map(esc).join(' · ')}</div>`
+    : '';
+
+  const tags = v.tags || [];
+  const tagsHtml = tags.length > 0
+    ? `<div class="av-vc-tags">${tags.map(t => `<span class="av-vc-tag">${esc(t)}</span>`).join('')}</div>`
+    : '';
+
+  const bmIcon   = v.bookmark ? ICON_BM_SM : ICON_BM_SM_OFF;
+  const favIcon  = v.favorite ? ICON_FAV_SM : '';
 
   return `
-    <div class="av-video-row" data-video-id="${v.id}">
-      <div class="av-video-main">
-        <span class="av-video-name">${esc(v.filename)}</span>
-        <span class="av-video-meta">${[size, res, stu, date, bucket].filter(Boolean).join(' · ')}</span>
+    <div class="av-video-card" data-video-id="${v.id}">
+      <div class="av-vc-thumb-wrap">
+        ${thumbHtml}
+        ${watchedBadge}
       </div>
-      <div class="av-video-actions">
-        ${watched}
-        <button class="av-video-btn av-video-fav-btn${favCls}" data-id="${v.id}" data-type="favorite" title="Favorite" aria-pressed="${v.favorite}">★</button>
-        <button class="av-video-btn av-video-bm-btn${bmCls}" data-id="${v.id}" data-type="bookmark" title="Bookmark" aria-pressed="${v.bookmark}">⊿</button>
-        <button class="av-video-btn av-video-watch-btn${v.watched ? ' active' : ''}" data-id="${v.id}" data-type="watch" title="Mark watched">✓</button>
+      <div class="av-vc-body">
+        <div class="av-vc-header">
+          <button class="av-vc-bm-btn${v.bookmark ? ' av-vc-bm-active' : ''}" data-type="bookmark" data-id="${v.id}">${bmIcon}</button>
+          ${favIcon}
+          <span class="av-vc-title" title="${esc(v.filename)}">${title}</span>
+        </div>
+        ${metaHtml}
+        ${tagsHtml}
       </div>
     </div>`;
 }
 
-// ── Wire interactive elements ─────────────────────────────────────────────
-
-/** Wires the sidebar actress favorite/bookmark buttons. Called on every sidebar re-render. */
+// ── Wire interactions ─────────────────────────────────────────────────────
 function wireSidebarButtons() {
-  const el = document.getElementById('av-actress-detail');
-
-  // Actress favorite toggle
-  el.querySelector('#av-detail-fav-btn')?.addEventListener('click', async () => {
+  document.getElementById('av-detail-fav-btn')?.addEventListener('click', async () => {
     const newVal = !currentActress.favorite;
     const res = await fetch(`/api/av/actresses/${currentActressId}/favorite?value=${newVal}`, { method: 'POST' });
     if (res.ok) {
       const data = await res.json();
       currentActress = { ...currentActress, favorite: data.favorite };
-      el.querySelector('.av-detail-sidebar').innerHTML = renderProfileCard(currentActress)
-        + renderActionBar(currentActress) + renderProfileDetails(currentActress);
-      wireSidebarButtons();
+      document.getElementById('av-detail-fav-btn').classList.toggle('active', data.favorite);
     }
   });
 
-  // Actress bookmark toggle
-  el.querySelector('#av-detail-bm-btn')?.addEventListener('click', async () => {
+  document.getElementById('av-detail-bm-btn')?.addEventListener('click', async () => {
     const newVal = !currentActress.bookmark;
     const res = await fetch(`/api/av/actresses/${currentActressId}/bookmark?value=${newVal}`, { method: 'POST' });
     if (res.ok) {
       const data = await res.json();
       currentActress = { ...currentActress, bookmark: data.bookmark };
-      el.querySelector('.av-detail-sidebar').innerHTML = renderProfileCard(currentActress)
-        + renderActionBar(currentActress) + renderProfileDetails(currentActress);
-      wireSidebarButtons();
+      document.getElementById('av-detail-bm-btn').classList.toggle('active', data.bookmark);
     }
   });
 }
 
-/**
- * Wires the main-panel listeners (filter bar + video grid). Called once per full render.
- * Separate from wireSidebarButtons() to avoid listener duplication on sidebar-only re-renders.
- */
-function wireMainOnce() {
-  const el = document.getElementById('av-actress-detail');
+function formatVisited(count, lastVisitedAt) {
+  const label = count === 1 ? '1 view' : `${count} views`;
+  return lastVisitedAt ? `${label} · visited ${timeAgo(lastVisitedAt)}` : label;
+}
 
-  // Video filter search
-  el.querySelector('#av-detail-video-search')?.addEventListener('input', e => {
+function updateVisitedRow(visitCount, lastVisitedAt) {
+  const row = document.getElementById('av-detail-visited-row');
+  const val = document.getElementById('av-detail-visited-value');
+  if (!row || !val || visitCount <= 0) return;
+  val.textContent = formatVisited(visitCount, lastVisitedAt || null);
+  row.style.display = '';
+}
+
+function wireRightPanel() {
+  // Search
+  document.getElementById('av-vc-search')?.addEventListener('input', e => {
     videoFilter = e.target.value;
     renderVideoGrid();
   });
 
-  // Video sort buttons
-  el.querySelectorAll('[data-vsort]').forEach(btn => {
-    btn.addEventListener('click', () => {
-      videoSort = btn.dataset.vsort;
-      el.querySelectorAll('[data-vsort]').forEach(b => b.classList.remove('selected'));
-      btn.classList.add('selected');
-      renderVideoGrid();
-    });
-  });
+  // Column slider — use separate storage key so it doesn't clobber the title grid setting
+  wireColsSlider('av-vc-cols-slider', 'av-vc-cols-label', cols => {
+    gridCols = cols;
+    applyGridCols(cols);
+  }, AV_DETAIL_COLS_KEY);
 
-  // Tag filter pills (delegated — row is re-rendered when filter bar re-renders)
-  el.querySelector('.av-detail-main')?.addEventListener('click', e => {
-    const pill = e.target.closest('.av-tag-pill');
-    if (!pill) return;
-    const slug = pill.dataset.tag;
-    if (activeTagFilters.has(slug)) {
-      activeTagFilters.delete(slug);
-      pill.classList.remove('active');
-    } else {
-      activeTagFilters.add(slug);
-      pill.classList.add('active');
-    }
-    renderVideoGrid();
-  });
-
-  const grid = document.getElementById('av-detail-video-grid');
+  // Grid delegated clicks
+  const grid = document.getElementById('av-vc-grid');
   if (!grid) return;
 
-  // Video row click → open detail modal (clicking main area, not action buttons)
-  grid.addEventListener('click', e => {
-    if (e.target.closest('[data-type]')) return; // let action button handler take it
-    const row = e.target.closest('.av-video-row');
-    if (!row) return;
-    const vid = parseInt(row.dataset.videoId, 10);
-    if (!isNaN(vid)) openAvVideoDetail(vid);
-  });
-
-  // Video action buttons (delegated)
   grid.addEventListener('click', async e => {
-    const btn = e.target.closest('[data-type]');
-    if (!btn) return;
-    const vid = parseInt(btn.dataset.id, 10);
-    if (isNaN(vid)) return;
-    const type = btn.dataset.type;
-
-    if (type === 'favorite') {
-      const cur = allVideos.find(v => v.id === vid);
-      if (!cur) return;
-      const res = await fetch(`/api/av/videos/${vid}/favorite?value=${!cur.favorite}`, { method: 'POST' });
-      if (res.ok) { const d = await res.json(); updateVideo(vid, { favorite: d.favorite }); }
-    } else if (type === 'bookmark') {
+    // Bookmark toggle
+    const bmBtn = e.target.closest('[data-type="bookmark"]');
+    if (bmBtn) {
+      e.stopPropagation();
+      const vid = parseInt(bmBtn.dataset.id, 10);
       const cur = allVideos.find(v => v.id === vid);
       if (!cur) return;
       const res = await fetch(`/api/av/videos/${vid}/bookmark?value=${!cur.bookmark}`, { method: 'POST' });
       if (res.ok) { const d = await res.json(); updateVideo(vid, { bookmark: d.bookmark }); }
-    } else if (type === 'watch') {
-      const res = await fetch(`/api/av/videos/${vid}/watch`, { method: 'POST' });
-      if (res.ok) { const d = await res.json(); updateVideo(vid, { watched: d.watched, watchCount: d.watchCount }); }
+      return;
+    }
+
+    // Card click → open video detail
+    const card = e.target.closest('.av-video-card');
+    if (card) {
+      const vid = parseInt(card.dataset.videoId, 10);
+      if (!isNaN(vid)) openAvVideoDetail(vid, showAvActressVideoGrid);
     }
   });
+
 }
 
 function updateVideo(videoId, patch) {
@@ -355,11 +370,20 @@ function updateVideo(videoId, patch) {
   renderVideoGrid();
 }
 
+window.addEventListener('av-screenshots-generated', e => {
+  const { videoId, count } = e.detail;
+  if (!allVideos.some(v => v.id === videoId)) return;
+  updateVideo(videoId, {
+    screenshotCount: count,
+    firstScreenshotUrl: `/api/av/screenshots/${videoId}/0`
+  });
+});
+
 // ── Utilities ─────────────────────────────────────────────────────────────
 function formatBytes(bytes) {
   if (!bytes) return '';
-  if (bytes < 1024)             return bytes + ' B';
-  if (bytes < 1024 * 1024)     return (bytes / 1024).toFixed(1) + ' KB';
-  if (bytes < 1024 ** 3)       return (bytes / 1024 / 1024).toFixed(1) + ' MB';
+  if (bytes < 1024)         return bytes + ' B';
+  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+  if (bytes < 1024 ** 3)   return (bytes / 1024 / 1024).toFixed(1) + ' MB';
   return (bytes / 1024 ** 3).toFixed(2) + ' GB';
 }

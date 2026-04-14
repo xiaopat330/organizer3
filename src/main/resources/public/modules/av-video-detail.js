@@ -1,13 +1,16 @@
-import { esc } from './utils.js';
+import { esc, timeAgo } from './utils.js';
+import { THUMBNAIL_COLUMNS } from './config.js';
+import { ICON_FAV_LG, ICON_BM_LG } from './icons.js';
 
 // ── State ─────────────────────────────────────────────────────────────────
-let modalEl = null;
-let isOpen  = false;
 let currentVideo = null;
+let _onBack      = null;
 
-// ── Public API ────────────────────────────────────────────────────────────
+// Known video duration (seconds) for thumbnail timestamp labels
+let _durationSec = null;
 
-export async function openAvVideoDetail(videoId) {
+// ── Entry point ───────────────────────────────────────────────────────────
+export async function openAvVideoDetail(videoId, onBack) {
   let v;
   try {
     const res = await fetch(`/api/av/videos/${videoId}`);
@@ -16,219 +19,364 @@ export async function openAvVideoDetail(videoId) {
   } catch {
     return;
   }
-  currentVideo = v;
-  _ensureModal();
-  _render(v);
-  modalEl.style.display = 'flex';
-  isOpen = true;
-  document.addEventListener('keydown', _onKeyDown);
+  currentVideo  = v;
+  _onBack       = onBack || null;
+  _durationSec  = null;
+
+  const rightEl = document.getElementById('av-detail-right');
+  if (!rightEl) return;
+  rightEl.innerHTML = '';
+  rightEl.appendChild(_renderPanel(v));
+  _wirePanel(v);
+
+  if ((v.screenshotUrls || []).length === 0) {
+    _generateScreenshots(v.id);
+  }
 }
 
-export function closeAvVideoModal() {
-  if (!isOpen || !modalEl) return;
-  isOpen = false;
-  modalEl.style.display = 'none';
-  document.removeEventListener('keydown', _onKeyDown);
-  currentVideo = null;
-}
-
-// ── Modal scaffold ────────────────────────────────────────────────────────
-
-function _ensureModal() {
-  if (modalEl) return;
-  modalEl = document.createElement('div');
-  modalEl.id = 'av-video-modal';
-  modalEl.className = 'av-video-modal';
-  document.body.appendChild(modalEl);
-
-  // Click on backdrop → close
-  modalEl.addEventListener('click', e => {
-    if (e.target === modalEl) closeAvVideoModal();
-  });
-}
-
-function _onKeyDown(e) {
-  if (e.key === 'Escape') closeAvVideoModal();
-}
-
-// ── Render ────────────────────────────────────────────────────────────────
-
-function _render(v) {
-  modalEl.innerHTML = `
-    <div class="av-vm-panel">
-      <div class="av-vm-header">
-        <span class="av-vm-filename" title="${esc(v.relativePath)}">${esc(v.filename)}</span>
-        <button class="av-vm-close" aria-label="Close">✕</button>
+// ── Panel render ──────────────────────────────────────────────────────────
+function _renderPanel(v) {
+  const panel = document.createElement('div');
+  panel.className = 'av-vpanel';
+  panel.innerHTML = `
+    <div class="av-vpanel-header">
+      <button class="av-vpanel-back-btn" id="av-vpanel-back">← Videos</button>
+      <span class="av-vpanel-title" title="${esc(v.filename)}">${esc(v.parsedTitle || v.filename)}</span>
+    </div>
+    <div class="av-vpanel-body" id="av-vpanel-body">
+      <div class="video-section">
+        <div class="video-header">
+          <span class="video-filename">${esc(v.filename)}</span>
+          ${v.sizeBytes ? `<span class="video-size">${_formatBytes(v.sizeBytes)}</span>` : ''}
+          <span class="video-meta" id="av-vpanel-meta-line">${_buildMetaLine(v)}</span>
+          ${v.smbUrl ? `
+            <div class="video-folder-actions">
+              <button class="video-folder-copy" id="av-vpanel-copy-btn">Copy path</button>
+              <a class="video-folder-link" href="${esc(v.smbUrl)}" title="Open in player (macOS/Safari)">Open in player</a>
+            </div>
+          ` : ''}
+        </div>
+        ${_renderThumbs(v)}
+        <div class="video-player-wrap" id="av-vpanel-wrap-${v.id}">
+          <video class="video-player" id="av-vpanel-player-${v.id}" controls preload="none"
+                 src="/api/av/stream/${v.id}">
+          </video>
+          <button class="theater-btn">Theater</button>
+        </div>
       </div>
-      <div class="av-vm-body">
-        ${_renderScreenshots(v)}
-        ${_renderActionBar(v)}
-        ${v.parsedTitle ? `<div class="av-vm-parsed-title">${esc(v.parsedTitle)}</div>` : ''}
-        ${_renderMeta(v)}
-        ${_renderWatchSection(v)}
-        ${v.smbUrl ? _renderPlaySection(v.smbUrl) : ''}
+      <div class="av-vpanel-actions" id="av-vpanel-actions">
+        ${_renderActions(v)}
       </div>
+      ${_renderMeta(v)}
     </div>`;
-
-  // Close button
-  modalEl.querySelector('.av-vm-close').addEventListener('click', closeAvVideoModal);
-
-  // Action bar buttons
-  _wireActions(v);
+  return panel;
 }
 
-function _renderScreenshots(v) {
+function _buildMetaLine(v) {
+  const parts = [v.resolution, v.codec].filter(Boolean);
+  return parts.map(esc).join(' · ');
+}
+
+function _renderThumbs(v) {
   const urls = v.screenshotUrls || [];
   if (urls.length === 0) {
-    return `<div class="av-vm-screenshots-empty">
-      No screenshots — run <code>av screenshots &lt;actress&gt;</code> in the terminal
+    return `<div class="video-thumbs-loading" id="av-vpanel-thumbs-loading-${v.id}" style="padding:8px 0">
+      Generating previews…
     </div>`;
   }
-  const thumbs = urls.map((url, i) =>
-    `<img class="av-vm-thumb${i === 0 ? ' active' : ''}" src="${esc(url)}" data-idx="${i}" alt="Screenshot ${i + 1}">`
-  ).join('');
-  return `
-    <div class="av-vm-screenshots">
-      <div class="av-vm-carousel-wrap">
-        <img class="av-vm-carousel-img" id="av-vm-carousel-img" src="${esc(urls[0])}" alt="Screenshot">
-      </div>
-      <div class="av-vm-thumbs" id="av-vm-thumbs">${thumbs}</div>
-    </div>`;
+  return _buildThumbsHtml(v.id, urls);
 }
 
-function _renderActionBar(v) {
-  const favCls = v.favorite ? ' active' : '';
-  const bmCls  = v.bookmark ? ' active' : '';
-  const watchCls = v.watched ? ' active' : '';
-  return `
-    <div class="av-vm-actions">
-      <button class="av-vm-btn av-vm-fav-btn${favCls}" data-action="favorite"
-              aria-pressed="${v.favorite}" title="${v.favorite ? 'Remove favorite' : 'Add favorite'}">
-        <svg viewBox="0 0 24 24" width="14" height="14"><polygon points="12,2 15.09,8.26 22,9.27 17,14.14 18.18,21.02 12,17.77 5.82,21.02 7,14.14 2,9.27 8.91,8.26" fill="${v.favorite ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="2"/></svg>
-        ${v.favorite ? 'Favorited' : 'Favorite'}
-      </button>
-      <button class="av-vm-btn av-vm-bm-btn${bmCls}" data-action="bookmark"
-              aria-pressed="${v.bookmark}" title="${v.bookmark ? 'Remove bookmark' : 'Bookmark'}">
-        <svg viewBox="0 0 24 24" width="14" height="14"><path d="M6 2h12a1 1 0 0 1 1 1v18.5a.5.5 0 0 1-.8.4L12 17.5 5.8 21.9a.5.5 0 0 1-.8-.4V3a1 1 0 0 1 1-1z" fill="${v.bookmark ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="2"/></svg>
-        ${v.bookmark ? 'Bookmarked' : 'Bookmark'}
-      </button>
-      <button class="av-vm-btn av-vm-watch-btn${watchCls}" data-action="watch"
-              aria-pressed="${v.watched}" title="Mark watched">
-        ✓ ${v.watched ? `Watched ${v.watchCount}×` : 'Mark watched'}
-      </button>
+function _buildThumbsHtml(videoId, urls) {
+  const cols = Math.min(urls.length, THUMBNAIL_COLUMNS);
+  const thumbs = urls.map((url, i) => {
+    const fraction = 0.05 + i * 0.10;
+    return `<div class="thumb-wrapper" data-fraction="${fraction}">
+      <img class="video-thumb" src="${esc(url)}" loading="lazy" data-fraction="${fraction}">
+      <span class="thumb-time" data-video-id="av-${videoId}" data-fraction="${fraction}">--:--</span>
     </div>`;
+  }).join('');
+  return `<div class="video-thumbs" id="av-vpanel-thumbs-${videoId}"
+               style="grid-template-columns: repeat(${cols}, 1fr)">${thumbs}</div>`;
+}
+
+async function _generateScreenshots(videoId) {
+  try {
+    const res = await fetch(`/api/av/videos/${videoId}/screenshots`, { method: 'POST' });
+    if (!res.ok) return;
+    const data = await res.json();
+    const urls = data.screenshotUrls || [];
+    if (urls.length === 0) return;
+
+    const loadingEl = document.getElementById(`av-vpanel-thumbs-loading-${videoId}`);
+    if (!loadingEl) return;
+    loadingEl.outerHTML = _buildThumbsHtml(videoId, urls);
+
+    // Wire seek on new thumbs
+    const thumbsEl = document.getElementById(`av-vpanel-thumbs-${videoId}`);
+    if (thumbsEl) {
+      thumbsEl.addEventListener('click', e => {
+        const wrapper = e.target.closest('.thumb-wrapper');
+        if (wrapper) _seekTo(videoId, parseFloat(wrapper.dataset.fraction));
+      });
+    }
+
+    // Apply timestamps if duration already known
+    if (_durationSec) _updateThumbTimestamps(videoId, _durationSec);
+
+    // Notify the actress detail grid so the video card can show the marquee
+    window.dispatchEvent(new CustomEvent('av-screenshots-generated', {
+      detail: { videoId, count: urls.length }
+    }));
+  } catch {
+    const loadingEl = document.getElementById(`av-vpanel-thumbs-loading-${videoId}`);
+    if (loadingEl) loadingEl.textContent = 'Preview generation failed.';
+  }
+}
+
+function _renderActions(v) {
+  return `
+    <button class="title-action-btn${v.favorite ? ' active' : ''}" id="av-vpanel-fav-btn" title="Favorite">${ICON_FAV_LG}</button>
+    <button class="title-action-btn${v.bookmark ? ' active' : ''}" id="av-vpanel-bm-btn" title="Bookmark">${ICON_BM_LG}</button>`;
 }
 
 function _renderMeta(v) {
   const rows = [];
-  if (v.relativePath) rows.push(['Path',       esc(v.relativePath)]);
-  if (v.bucket)       rows.push(['Bucket',     esc(v.bucket)]);
-  if (v.sizeBytes)    rows.push(['Size',       _formatBytes(v.sizeBytes)]);
-  if (v.resolution)   rows.push(['Resolution', esc(v.resolution)]);
-  if (v.codec)        rows.push(['Codec',      esc(v.codec)]);
   if (v.studio)       rows.push(['Studio',     esc(v.studio)]);
-  if (v.releaseDate)  rows.push(['Date',       esc(v.releaseDate)]);
-  if (v.volumeId)     rows.push(['Volume',     esc(v.volumeId)]);
+  if (v.releaseDate)  rows.push(['Date',        esc(v.releaseDate)]);
+  if (v.bucket)       rows.push(['Bucket',      esc(v.bucket)]);
+  if (v.relativePath) rows.push(['Path',        esc(v.relativePath)]);
+  if (v.watched && v.lastWatchedAt)
+                      rows.push(['Watched', _formatWatched(v.watchCount, v.lastWatchedAt), 'av-vpanel-watched-row']);
+  const tags = v.tags || [];
+  if (tags.length > 0) rows.push(['Tags', tags.map(t => `<span class="av-vc-tag">${esc(t)}</span>`).join('')]);
+
   if (rows.length === 0) return '';
-  return `
-    <dl class="av-vm-meta">
-      ${rows.map(([k, val]) => `<dt>${k}</dt><dd>${val}</dd>`).join('')}
-    </dl>`;
+  return `<dl class="av-vpanel-meta">
+    ${rows.map(([k, val, id]) => `<dt${id ? ` id="${id}-dt"` : ''}>${k}</dt><dd${id ? ` id="${id}"` : ''}>${val}</dd>`).join('')}
+  </dl>`;
 }
 
-function _renderWatchSection(v) {
-  if (!v.watched) return '';
-  const last = v.lastWatchedAt ? ` — last ${v.lastWatchedAt.substring(0, 10)}` : '';
-  return `<div class="av-vm-watched-badge">✓ Watched ${v.watchCount}×${last}</div>`;
-}
+// ── Wire interactions ─────────────────────────────────────────────────────
+function _wirePanel(v) {
+  // Back button
+  document.getElementById('av-vpanel-back')?.addEventListener('click', () => {
+    if (_onBack) _onBack();
+  });
 
-function _renderPlaySection(smbUrl) {
-  return `
-    <div class="av-vm-play-section">
-      <div class="av-vm-smb-url" id="av-vm-smb-url-text">${esc(smbUrl)}</div>
-      <div class="av-vm-play-btns">
-        <button class="av-vm-copy-btn" id="av-vm-copy-btn">Copy path</button>
-        <a class="av-vm-open-btn" href="${esc(smbUrl)}" title="Open in player (macOS/Safari)">Open in player</a>
-      </div>
-    </div>`;
-}
-
-// ── Wire interactive elements ─────────────────────────────────────────────
-
-function _wireActions(v) {
-  // Screenshot thumbnail clicks
-  const thumbsEl = modalEl.querySelector('#av-vm-thumbs');
-  if (thumbsEl) {
-    thumbsEl.addEventListener('click', e => {
-      const thumb = e.target.closest('img[data-idx]');
-      if (!thumb) return;
-      const mainImg = modalEl.querySelector('#av-vm-carousel-img');
-      if (mainImg) mainImg.src = thumb.src;
-      thumbsEl.querySelectorAll('.av-vm-thumb').forEach(t => t.classList.remove('active'));
-      thumb.classList.add('active');
-    });
-  }
-
-  // Copy button
-  const copyBtn = modalEl.querySelector('#av-vm-copy-btn');
+  // Copy SMB path
+  const copyBtn = document.getElementById('av-vpanel-copy-btn');
   if (copyBtn && v.smbUrl) {
     copyBtn.addEventListener('click', () => {
-      navigator.clipboard.writeText(v.smbUrl).then(() => {
+      navigator.clipboard?.writeText(v.smbUrl).then(() => {
+        const orig = copyBtn.textContent;
         copyBtn.textContent = 'Copied!';
-        setTimeout(() => { copyBtn.textContent = 'Copy path'; }, 1500);
-      }).catch(() => {
-        // Fallback: select the text in the URL display
-        const urlEl = modalEl.querySelector('#av-vm-smb-url-text');
-        if (urlEl) {
-          const sel = window.getSelection();
-          const range = document.createRange();
-          range.selectNodeContents(urlEl);
-          sel.removeAllRanges();
-          sel.addRange(range);
-        }
-      });
+        setTimeout(() => { copyBtn.textContent = orig; }, 1500);
+      }).catch(() => {});
     });
   }
 
-  // Favorite toggle
-  modalEl.querySelector('[data-action="favorite"]')?.addEventListener('click', async () => {
+  // Theater mode
+  const wrap = document.getElementById(`av-vpanel-wrap-${v.id}`);
+  wrap?.querySelector('.theater-btn')?.addEventListener('click', () => {
+    const isActive = wrap.classList.toggle('theater-mode');
+    const btn = wrap.querySelector('.theater-btn');
+    if (btn) btn.textContent = isActive ? 'Exit Theater' : 'Theater';
+    document.querySelector('.av-detail-sidebar')?.classList.toggle('theater-dimmed', isActive);
+  });
+
+  // Thumbnail seek
+  const thumbsEl = document.getElementById(`av-vpanel-thumbs-${v.id}`);
+  if (thumbsEl) {
+    thumbsEl.addEventListener('click', e => {
+      const wrapper = e.target.closest('.thumb-wrapper');
+      if (wrapper) _seekTo(v.id, parseFloat(wrapper.dataset.fraction));
+    });
+  }
+
+  // Video player — duration → timestamp labels + resume + auto-watch
+  const player = document.getElementById(`av-vpanel-player-${v.id}`);
+  if (player) {
+    player.addEventListener('loadedmetadata', () => {
+      if (player.duration && isFinite(player.duration)) {
+        _durationSec = player.duration;
+        _updateThumbTimestamps(v.id, player.duration);
+      }
+    });
+    _initResume(player, v.id);
+    _initAutoWatch(player, v.id);
+  }
+
+  // Action buttons
+  document.getElementById('av-vpanel-fav-btn')?.addEventListener('click', async () => {
     const newVal = !currentVideo.favorite;
     const res = await fetch(`/api/av/videos/${currentVideo.id}/favorite?value=${newVal}`, { method: 'POST' });
     if (res.ok) {
       const d = await res.json();
       currentVideo = { ...currentVideo, favorite: d.favorite };
-      _render(currentVideo);
+      _refreshActions();
     }
   });
 
-  // Bookmark toggle
-  modalEl.querySelector('[data-action="bookmark"]')?.addEventListener('click', async () => {
+  document.getElementById('av-vpanel-bm-btn')?.addEventListener('click', async () => {
     const newVal = !currentVideo.bookmark;
     const res = await fetch(`/api/av/videos/${currentVideo.id}/bookmark?value=${newVal}`, { method: 'POST' });
     if (res.ok) {
       const d = await res.json();
       currentVideo = { ...currentVideo, bookmark: d.bookmark };
-      _render(currentVideo);
-    }
-  });
-
-  // Mark watched
-  modalEl.querySelector('[data-action="watch"]')?.addEventListener('click', async () => {
-    const res = await fetch(`/api/av/videos/${currentVideo.id}/watch`, { method: 'POST' });
-    if (res.ok) {
-      const d = await res.json();
-      currentVideo = { ...currentVideo, watched: d.watched, watchCount: d.watchCount };
-      _render(currentVideo);
+      _refreshActions();
     }
   });
 }
 
-// ── Utilities ─────────────────────────────────────────────────────────────
+function _refreshActions() {
+  const el = document.getElementById('av-vpanel-actions');
+  if (el) el.innerHTML = _renderActions(currentVideo);
+  // Re-wire action buttons (innerHTML replaced)
+  document.getElementById('av-vpanel-fav-btn')?.addEventListener('click', async () => {
+    const newVal = !currentVideo.favorite;
+    const res = await fetch(`/api/av/videos/${currentVideo.id}/favorite?value=${newVal}`, { method: 'POST' });
+    if (res.ok) { const d = await res.json(); currentVideo = { ...currentVideo, favorite: d.favorite }; _refreshActions(); }
+  });
+  document.getElementById('av-vpanel-bm-btn')?.addEventListener('click', async () => {
+    const newVal = !currentVideo.bookmark;
+    const res = await fetch(`/api/av/videos/${currentVideo.id}/bookmark?value=${newVal}`, { method: 'POST' });
+    if (res.ok) { const d = await res.json(); currentVideo = { ...currentVideo, bookmark: d.bookmark }; _refreshActions(); }
+  });
+}
 
+// ── Auto-watch on first play ──────────────────────────────────────────────
+function _initAutoWatch(player, videoId) {
+  let recorded = false;
+  player.addEventListener('play', () => {
+    if (recorded) return;
+    recorded = true;
+    fetch(`/api/av/videos/${videoId}/watch`, { method: 'POST' })
+      .then(r => r.ok ? r.json() : null)
+      .then(d => {
+        if (!d) return;
+        currentVideo = { ...currentVideo, watched: d.watched, watchCount: d.watchCount, lastWatchedAt: d.lastWatchedAt };
+        // Update the watched row in the meta section without re-rendering the whole panel
+        _refreshWatchedMeta();
+      })
+      .catch(() => {});
+  });
+}
+
+function _refreshWatchedMeta() {
+  if (!currentVideo.watched || !currentVideo.lastWatchedAt) return;
+  const text = _formatWatched(currentVideo.watchCount, currentVideo.lastWatchedAt);
+  const dd = document.getElementById('av-vpanel-watched-row');
+  if (dd) {
+    dd.textContent = text;
+    return;
+  }
+  // Row not yet in DOM (video was never watched before) — append dt+dd to the meta dl
+  const dl = document.querySelector('.av-vpanel-meta');
+  if (!dl) return;
+  const dt = document.createElement('dt');
+  dt.textContent = 'Watched';
+  const newDd = document.createElement('dd');
+  newDd.id = 'av-vpanel-watched-row';
+  newDd.textContent = text;
+  dl.appendChild(dt);
+  dl.appendChild(newDd);
+}
+
+function _formatWatched(count, lastWatchedAt) {
+  const times = count === 1 ? '1 time' : `${count} times`;
+  return lastWatchedAt ? `${times} · last ${timeAgo(lastWatchedAt)}` : times;
+}
+
+// ── Seek ──────────────────────────────────────────────────────────────────
+function _seekTo(videoId, fraction) {
+  const player = document.getElementById(`av-vpanel-player-${videoId}`);
+  if (!player) return;
+
+  function doSeek() {
+    if (player.duration && isFinite(player.duration)) {
+      player.currentTime = player.duration * fraction;
+      if (player.paused) player.play();
+    }
+  }
+
+  if (player.readyState >= 1) {
+    doSeek();
+  } else {
+    player.preload = 'metadata';
+    player.addEventListener('loadedmetadata', doSeek, { once: true });
+    player.load();
+  }
+}
+
+// ── Thumbnail timestamps ──────────────────────────────────────────────────
+function _formatTimestamp(seconds) {
+  const h = Math.floor(seconds / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
+  const s = Math.floor(seconds % 60);
+  if (h > 0) return `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+  return `${m}:${String(s).padStart(2, '0')}`;
+}
+
+function _updateThumbTimestamps(videoId, durationSeconds) {
+  document.querySelectorAll(`.thumb-time[data-video-id="av-${videoId}"]`).forEach(el => {
+    el.textContent = _formatTimestamp(parseFloat(el.dataset.fraction) * durationSeconds);
+  });
+}
+
+// ── Resume playback ───────────────────────────────────────────────────────
+function _initResume(player, videoId) {
+  const key = `av_resume_${videoId}`;
+
+  let saveInterval = null;
+  player.addEventListener('play', () => {
+    clearInterval(saveInterval);
+    saveInterval = setInterval(() => {
+      if (player.currentTime > 5) {
+        localStorage.setItem(key, JSON.stringify({
+          time: player.currentTime,
+          duration: player.duration,
+          ts: Date.now()
+        }));
+      }
+    }, 5000);
+  });
+
+  player.addEventListener('pause',  () => clearInterval(saveInterval));
+  player.addEventListener('ended',  () => { clearInterval(saveInterval); localStorage.removeItem(key); });
+
+  let resumed = false;
+  player.addEventListener('loadedmetadata', () => {
+    if (resumed) return;
+    resumed = true;
+    const saved = localStorage.getItem(key);
+    if (!saved) return;
+    try {
+      const data = JSON.parse(saved);
+      const pct = data.time / data.duration;
+      if (pct > 0.05 && pct < 0.90 && data.time > 10) {
+        player.currentTime = data.time;
+        _showResumeToast(player, data.time);
+      }
+    } catch (e) { /* ignore */ }
+  });
+}
+
+function _showResumeToast(player, time) {
+  const wrap = player.closest('.video-player-wrap');
+  if (!wrap) return;
+  const toast = document.createElement('div');
+  toast.className = 'resume-toast';
+  toast.textContent = 'Resuming from ' + _formatTimestamp(time);
+  wrap.appendChild(toast);
+  setTimeout(() => toast.remove(), 3000);
+}
+
+// ── Utilities ─────────────────────────────────────────────────────────────
 function _formatBytes(bytes) {
   if (!bytes) return '';
-  if (bytes < 1024)         return bytes + ' B';
-  if (bytes < 1024 * 1024)  return (bytes / 1024).toFixed(1) + ' KB';
-  if (bytes < 1024 ** 3)    return (bytes / 1024 / 1024).toFixed(1) + ' MB';
+  if (bytes < 1024)        return bytes + ' B';
+  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+  if (bytes < 1024 ** 3)   return (bytes / 1024 / 1024).toFixed(1) + ' MB';
   return (bytes / 1024 ** 3).toFixed(2) + ' GB';
 }

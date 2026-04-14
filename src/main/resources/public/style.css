@@ -3443,7 +3443,6 @@ header h1:hover {
   white-space: nowrap;
 }
 .video-folder-link {
-  margin-left: auto;
   color: #60a5fa;
   border-color: #1e3a5f;
   background: rgba(96, 165, 250, 0.07);
@@ -3451,6 +3450,12 @@ header h1:hover {
 .video-folder-link:hover {
   background: rgba(96, 165, 250, 0.18);
   border-color: #2d5a9e;
+}
+.video-folder-actions {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 .video-folder-copy {
   color: #fb923c;
@@ -4120,13 +4125,21 @@ header h1:hover {
 }
 
 .av-card-name {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  margin-bottom: 4px;
+  min-width: 0;
+}
+.av-card-name-text {
   color: #d8d8d8;
   font-size: 0.82rem;
   font-weight: 500;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  margin-bottom: 4px;
+  flex: 1;
+  min-width: 0;
 }
 
 .av-card-meta {
@@ -4146,20 +4159,13 @@ header h1:hover {
   font-size: 0.70rem;
 }
 
-.av-card-indicators {
-  margin-top: 4px;
-  display: flex;
-  gap: 4px;
-}
-
-.av-card-fav {
-  color: #f0c040;
-  font-size: 0.72rem;
-}
-
-.av-card-bm {
-  color: #7ec4ff;
-  font-size: 0.72rem;
+.av-card-visited {
+  color: #1a9aaa;
+  font-size: 0.70rem;
+  margin-top: 3px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 /* AV Actresses search filter toggle track */
@@ -4173,23 +4179,33 @@ header h1:hover {
 #av-actress-detail.av-detail-layout {
   display: flex;
   flex-direction: row;
-  gap: 0;
-  height: calc(100vh - var(--header-total-h, 56px));
+  /* Height is set dynamically in JS to account for the av-landing bar height */
   overflow: hidden;
 }
 
-/* Sidebar */
+/* Left panel (profile) */
 .av-detail-sidebar {
-  width: 260px;
+  width: 30%;
   min-width: 220px;
-  max-width: 300px;
+  max-width: 360px;
   flex-shrink: 0;
+  min-height: 0;
   overflow-y: auto;
   border-right: 1px solid #222;
   padding: 16px 14px;
   display: flex;
   flex-direction: column;
   gap: 14px;
+}
+
+/* Right panel (video grid) */
+.av-detail-right {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
 
 /* Profile card */
@@ -4415,115 +4431,269 @@ header h1:hover {
   font-size: 0.88rem;
 }
 
-/* ── Video detail modal ───────────────────────────────────────────────────── */
-
-.av-video-modal {
-  position: fixed;
-  inset: 0;
-  background: rgba(0,0,0,0.65);
-  display: flex;
-  align-items: flex-start;
-  justify-content: center;
-  z-index: 1000;
-  padding: 40px 16px;
-  overflow-y: auto;
-}
-
-.av-vm-panel {
-  background: #1e1e1e;
-  border: 1px solid #333;
-  border-radius: 6px;
-  width: 100%;
-  max-width: 680px;
-  display: flex;
-  flex-direction: column;
-  box-shadow: 0 8px 32px rgba(0,0,0,0.6);
-}
-
-.av-vm-header {
+/* ── AV video card toolbar ───────────────────────────────────────────────── */
+.av-vc-toolbar {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  padding: 12px 16px;
-  border-bottom: 1px solid #2e2e2e;
   gap: 12px;
+  padding: 10px 16px;
+  border-bottom: 1px solid #1e1e1e;
+  flex-shrink: 0;
+  flex-wrap: wrap;
 }
 
-.av-vm-filename {
-  font-size: 0.88rem;
+.av-vc-search {
+  background: #1a1a1a;
+  border: 1px solid #2a2a2a;
+  border-radius: 4px;
+  color: #d8d8d8;
+  font-size: 0.82rem;
+  padding: 5px 10px;
+  width: 200px;
+  outline: none;
+}
+.av-vc-search:focus { border-color: #444; }
+
+.av-vc-count {
+  color: #444;
+  font-size: 0.78rem;
+  margin-left: auto;
+}
+
+/* ── AV video card grid ───────────────────────────────────────────────────── */
+.av-vc-grid {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 16px;
+  display: grid;
+  gap: 12px;
+  align-content: start;
+  grid-auto-rows: max-content;
+}
+
+.av-vc-empty {
+  grid-column: 1 / -1;
+  padding: 48px;
+  text-align: center;
+  color: #444;
+  font-size: 0.85rem;
+}
+
+/* ── AV video card ───────────────────────────────────────────────────────── */
+.av-video-card {
+  background: #161616;
+  border: 1px solid #1e1e1e;
+  border-radius: 6px;
+  overflow: hidden;
+  cursor: pointer;
+  transition: border-color 0.15s, transform 0.1s;
+}
+.av-video-card:hover {
+  border-color: #333;
+  transform: translateY(-2px);
+}
+
+.av-vc-thumb-wrap {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  overflow: hidden;
+  background: #111;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.av-vc-thumb {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.av-vc-thumb-placeholder {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #2a2a2a;
+}
+.av-vc-thumb-placeholder svg { stroke: #2a2a2a; }
+
+/* Screenshot marquee — mirrors cover-marquee-track pattern */
+.av-vc-marquee-track {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  display: flex;
+  width: max-content;
+  will-change: transform;
+  animation: av-vc-marquee-scroll linear infinite;
+}
+.av-vc-marquee-tile {
+  flex: 0 0 auto;
+  height: 100%;
+  aspect-ratio: 16 / 9;
+  overflow: hidden;
+}
+.av-vc-marquee-tile img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+@keyframes av-vc-marquee-scroll {
+  from { transform: translateX(0); }
+  to   { transform: translateX(-50%); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .av-vc-marquee-track { animation: none; }
+}
+
+.av-vc-watched-badge {
+  position: absolute;
+  bottom: 5px;
+  right: 6px;
+  background: rgba(0,0,0,0.72);
+  color: #4db;
+  font-size: 0.66rem;
   font-weight: 600;
-  color: #e0e0e0;
+  padding: 1px 5px;
+  border-radius: 3px;
+  pointer-events: none;
+}
+
+.av-vc-body {
+  padding: 7px 9px 9px;
+}
+
+.av-vc-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 4px;
+  margin-bottom: 3px;
+}
+
+/* Bookmark button — mirrors .card-bm-btn */
+.av-vc-bm-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  line-height: 0;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+.av-vc-bm-btn:hover .card-bm-off { stroke: #60a5fa; }
+.av-vc-bm-btn:hover .card-bm-icon:not(.card-bm-off) { fill: #93c5fd; }
+
+/* Favorite icon (shared .card-fav-icon from icons.js) */
+.av-vc-header .card-fav-icon { margin-top: 1px; flex-shrink: 0; }
+
+.av-vc-title {
+  flex: 1;
+  color: #ccc;
+  font-size: 0.76rem;
+  font-weight: 500;
+  line-height: 1.35;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.av-vc-meta {
+  font-size: 0.68rem;
+  color: #555;
+  margin-bottom: 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.av-vc-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+  margin-top: 3px;
+}
+.av-vc-tag {
+  background: #0f2530;
+  color: #26b5c8;
+  font-size: 0.62rem;
+  padding: 1px 5px;
+  border-radius: 3px;
+  letter-spacing: 0.02em;
+}
+
+/* ── AV video detail panel (inline, replaces right column) ───────────────── */
+
+.av-vpanel {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+
+.av-vpanel-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 14px;
+  border-bottom: 1px solid #222;
+  flex-shrink: 0;
+  background: #111;
+}
+
+.av-vpanel-back-btn {
+  background: none;
+  border: 1px solid #333;
+  border-radius: 4px;
+  color: #888;
+  font-size: 0.78rem;
+  cursor: pointer;
+  padding: 4px 10px;
+  flex-shrink: 0;
+  transition: color 0.15s, border-color 0.15s;
+}
+.av-vpanel-back-btn:hover { color: #ccc; border-color: #555; }
+
+.av-vpanel-title {
+  font-size: 0.85rem;
+  color: #c8c8c8;
+  font-weight: 500;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
   flex: 1;
 }
 
-.av-vm-close {
-  background: none;
-  border: none;
-  color: #666;
-  font-size: 1rem;
-  cursor: pointer;
-  padding: 2px 6px;
-  border-radius: 3px;
-  line-height: 1;
-  flex-shrink: 0;
-}
-.av-vm-close:hover { color: #ccc; background: #2e2e2e; }
-
-.av-vm-body {
+.av-vpanel-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
   padding: 16px;
   display: flex;
   flex-direction: column;
   gap: 14px;
 }
 
-/* Action bar */
-.av-vm-actions {
+.av-vpanel-actions {
   display: flex;
   gap: 8px;
   flex-wrap: wrap;
 }
 
-.av-vm-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  padding: 5px 10px;
-  background: #2a2a2a;
-  border: 1px solid #3a3a3a;
-  border-radius: 4px;
-  color: #aaa;
-  font-size: 0.8rem;
-  cursor: pointer;
-  transition: border-color 0.15s, color 0.15s;
-}
-.av-vm-btn:hover { border-color: #555; color: #ddd; }
-.av-vm-fav-btn.active  { color: #f0c040; border-color: #a08020; }
-.av-vm-bm-btn.active   { color: #7ec4ff; border-color: #3a7abf; }
-.av-vm-watch-btn.active { color: #50c878; border-color: #2a7a48; }
-
-/* Parsed title */
-.av-vm-parsed-title {
-  font-size: 0.85rem;
-  color: #c0c0c0;
-  font-style: italic;
-  padding: 8px 10px;
-  background: #252525;
-  border-radius: 4px;
-  border-left: 3px solid #3a8a6e;
-}
-
 /* Metadata table */
-.av-vm-meta {
+.av-vpanel-meta {
   display: grid;
   grid-template-columns: 88px 1fr;
   gap: 4px 10px;
   margin: 0;
   font-size: 0.8rem;
 }
-.av-vm-meta dt {
+.av-vpanel-meta dt {
   color: #666;
   font-size: 0.75rem;
   text-transform: uppercase;
@@ -4531,127 +4701,11 @@ header h1:hover {
   display: flex;
   align-items: baseline;
 }
-.av-vm-meta dd {
+.av-vpanel-meta dd {
   color: #ccc;
   margin: 0;
   word-break: break-all;
 }
-
-/* Watched badge */
-.av-vm-watched-badge {
-  font-size: 0.78rem;
-  color: #50c878;
-  padding: 5px 10px;
-  background: #1a2e22;
-  border-radius: 4px;
-  border: 1px solid #2a7a48;
-}
-
-/* Play / copy section */
-.av-vm-play-section {
-  border: 1px solid #2e2e2e;
-  border-radius: 5px;
-  padding: 10px 12px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  background: #1a1a1a;
-}
-
-.av-vm-smb-url {
-  font-size: 0.72rem;
-  color: #777;
-  word-break: break-all;
-  font-family: monospace;
-  user-select: text;
-}
-
-.av-vm-play-btns {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-}
-
-.av-vm-copy-btn {
-  padding: 5px 12px;
-  background: #2e4a3a;
-  border: 1px solid #3a8a5a;
-  border-radius: 4px;
-  color: #50c878;
-  font-size: 0.8rem;
-  cursor: pointer;
-}
-.av-vm-copy-btn:hover { background: #3a6048; }
-
-.av-vm-open-btn {
-  font-size: 0.78rem;
-  color: #666;
-  text-decoration: none;
-}
-.av-vm-open-btn:hover { color: #999; text-decoration: underline; }
-
-/* ── Video detail modal — screenshot carousel ──────────────────────────── */
-
-.av-vm-screenshots {
-  margin-bottom: 14px;
-}
-
-.av-vm-screenshots-empty {
-  font-size: 0.75rem;
-  color: #555;
-  background: #1a1a1a;
-  border: 1px solid #2e2e2e;
-  border-radius: 4px;
-  padding: 10px 14px;
-  margin-bottom: 14px;
-}
-.av-vm-screenshots-empty code {
-  background: #2a2a2a;
-  padding: 1px 5px;
-  border-radius: 3px;
-  font-size: 0.72rem;
-  color: #a0d4a0;
-}
-
-.av-vm-carousel-wrap {
-  width: 100%;
-  background: #0e0e0e;
-  border-radius: 4px;
-  overflow: hidden;
-  margin-bottom: 6px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  max-height: 220px;
-}
-
-.av-vm-carousel-img {
-  max-width: 100%;
-  max-height: 220px;
-  object-fit: contain;
-  display: block;
-}
-
-.av-vm-thumbs {
-  display: flex;
-  gap: 4px;
-  overflow-x: auto;
-  padding-bottom: 2px;
-}
-
-.av-vm-thumb {
-  flex-shrink: 0;
-  width: 60px;
-  height: 38px;
-  object-fit: cover;
-  border-radius: 3px;
-  border: 2px solid transparent;
-  cursor: pointer;
-  opacity: 0.6;
-  transition: opacity 0.15s, border-color 0.15s;
-}
-.av-vm-thumb:hover { opacity: 0.85; }
-.av-vm-thumb.active { border-color: #50a0ff; opacity: 1; }
 
 /* Clickable video rows in actress detail */
 .av-video-row {

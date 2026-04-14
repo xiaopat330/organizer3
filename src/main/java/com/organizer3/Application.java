@@ -24,6 +24,7 @@ import com.organizer3.avstars.command.AvSyncCommand;
 import com.organizer3.avstars.iafd.HttpIafdClient;
 import com.organizer3.avstars.iafd.IafdProfileParser;
 import com.organizer3.avstars.iafd.IafdSearchParser;
+import com.organizer3.avstars.AvScreenshotService;
 import com.organizer3.avstars.command.AvScreenshotsCommand;
 import com.organizer3.avstars.command.AvTagsCommand;
 import com.organizer3.avstars.sync.AvFilenameParser;
@@ -260,8 +261,8 @@ public class Application {
         Path avScreenshotDir  = dataDir.resolve("av_screenshots");
         commands.add(new AvResolveCommand(avActressRepo, new HttpIafdClient(),
                 new IafdSearchParser(), new IafdProfileParser(), avHeadshotDir));
-        commands.add(new AvScreenshotsCommand(avActressRepo, avVideoRepo, avScreenshotRepo,
-                avScreenshotDir, WebServer.DEFAULT_PORT));
+        AvScreenshotService avScreenshotService = new AvScreenshotService(avScreenshotRepo, avScreenshotDir, WebServer.DEFAULT_PORT);
+        commands.add(new AvScreenshotsCommand(avActressRepo, avVideoRepo, avScreenshotRepo, avScreenshotService));
         AvTagYamlLoader avTagYamlLoader = new AvTagYamlLoader(avTagDefRepo);
         commands.add(new AvTagsCommand(avTagDefRepo, avVideoTagRepo, avTagYamlLoader,
                 dataDir.resolve("av_tags.yaml")));
@@ -338,7 +339,7 @@ public class Application {
                 videoStreamService, thumbnailService, videoProbe, watchHistoryRepo, titleRepo, searchService);
         webServer.registerAvRoutes(new AvBrowseService(avActressRepo, avVideoRepo, avScreenshotRepo, avVideoTagRepo),
                 avHeadshotDir, smbConnectionFactory, avVideoRepo, avActressRepo,
-                avScreenshotRepo, avScreenshotDir, avTagDefRepo);
+                avScreenshotRepo, avScreenshotDir, avTagDefRepo, avScreenshotService);
         webServer.registerTerminal(new WebTerminalHandler(dispatcher, session));
         webServer.start();
 

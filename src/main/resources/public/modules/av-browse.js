@@ -1,6 +1,7 @@
 import { showView, updateBreadcrumb } from './grid.js';
-import { esc } from './utils.js';
+import { esc, timeAgoShort } from './utils.js';
 import { pushNav } from './nav.js';
+import { ICON_FAV_SM, ICON_BM_SM, ICON_BM_SM_OFF } from './icons.js';
 
 // ── DOM refs ──────────────────────────────────────────────────────────────
 export const avBtn          = document.getElementById('av-btn');
@@ -189,27 +190,54 @@ function makeAvActressCard(a) {
     ? `<span class="av-card-years">${a.activeFrom || '?'}–${a.activeTo || 'present'}</span>`
     : '';
 
-  const favHtml = a.favorite
-    ? `<span class="av-card-fav" title="Favorite">★</span>` : '';
-  const bmHtml  = a.bookmark
-    ? `<span class="av-card-bm"  title="Bookmarked">⊿</span>` : '';
+  const bmIcon  = a.bookmark ? ICON_BM_SM : ICON_BM_SM_OFF;
+  const favIcon = a.favorite ? ICON_FAV_SM : '';
+
+  const visitedHtml = a.visitCount > 0
+    ? `<div class="av-card-visited">${a.visitCount === 1 ? '1 view' : `${a.visitCount} views`}${a.lastVisitedAt ? ` · ${timeAgoShort(a.lastVisitedAt)}` : ''}</div>`
+    : '';
 
   return `
     <div class="av-card" data-id="${a.id}">
       <div class="av-card-img-wrap">${imgHtml}</div>
       <div class="av-card-body">
-        <div class="av-card-name">${esc(a.stageName)}</div>
+        <div class="av-card-name">
+          <button type="button" class="card-bm-btn${a.bookmark ? ' card-bm-active' : ''}" data-bm-id="${a.id}">${bmIcon}</button>
+          ${favIcon}
+          <span class="av-card-name-text">${esc(a.stageName)}</span>
+        </div>
         <div class="av-card-meta">
           <span class="av-card-count">${a.videoCount} video${a.videoCount === 1 ? '' : 's'}</span>
           ${years}
         </div>
-        <div class="av-card-indicators">${favHtml}${bmHtml}</div>
+        ${visitedHtml}
       </div>
     </div>`;
 }
 
 // ── Card click delegation ─────────────────────────────────────────────────
+const _bmTimers = new Map();
+
 avGridEl?.addEventListener('click', e => {
+  // Bookmark toggle — 2-second delay to avoid accidental clicks
+  const bmBtn = e.target.closest('.card-bm-btn[data-bm-id]');
+  if (bmBtn) {
+    e.stopPropagation();
+    const id = parseInt(bmBtn.dataset.bmId, 10);
+    const actress = allActresses.find(a => a.id === id);
+    if (!actress) return;
+    actress.bookmark = !actress.bookmark;
+    bmBtn.innerHTML = actress.bookmark ? ICON_BM_SM : ICON_BM_SM_OFF;
+    bmBtn.classList.toggle('card-bm-active', actress.bookmark);
+    if (_bmTimers.has(id)) clearTimeout(_bmTimers.get(id));
+    _bmTimers.set(id, setTimeout(() => {
+      _bmTimers.delete(id);
+      fetch(`/api/av/actresses/${id}/bookmark?value=${actress.bookmark}`, { method: 'POST' }).catch(() => {});
+    }, 2000));
+    return;
+  }
+
+  // Card click → open detail
   const card = e.target.closest('.av-card');
   if (!card) return;
   const id = parseInt(card.dataset.id, 10);

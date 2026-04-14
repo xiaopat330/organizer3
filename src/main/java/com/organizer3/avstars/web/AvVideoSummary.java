@@ -27,4 +27,10 @@ public class AvVideoSummary {
 
     /** Canonical tag slugs applied to this video via 'av tags apply'. Empty list if none. */
     List<String> tags;
+
+    /** URL for the first screenshot thumbnail, e.g. {@code /api/av/screenshots/123/0}. Null if none taken. */
+    String firstScreenshotUrl;
+
+    /** Number of screenshots available for this video. 0 if none taken. */
+    int screenshotCount;
 }

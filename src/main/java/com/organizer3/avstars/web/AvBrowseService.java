@@ -1,5 +1,7 @@
 package com.organizer3.avstars.web;
 
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.organizer3.avstars.model.AvActress;
 import com.organizer3.avstars.model.AvVideo;
 import com.organizer3.avstars.repository.AvActressRepository;
@@ -19,6 +21,8 @@ import java.util.Optional;
  */
 @RequiredArgsConstructor
 public class AvBrowseService {
+
+    private static final ObjectMapper JSON = new ObjectMapper();
 
     private final AvActressRepository actressRepo;
     private final AvVideoRepository videoRepo;
@@ -51,8 +55,24 @@ public class AvBrowseService {
         var videos = videoRepo.findByActress(actressId);
         var videoIds = videos.stream().map(v -> v.getId()).toList();
         Map<Long, List<String>> tagsByVideo = videoTagRepo.findTagSlugsByVideoIds(videoIds);
+        Map<Long, Integer> firstSeqs = screenshotRepo.findFirstSeqByVideoIds(videoIds);
+        Map<Long, Integer> screenshotCounts = screenshotRepo.findCountsByVideoIds(videoIds);
         return videos.stream()
-                .map(v -> toVideoSummary(v, tagsByVideo.getOrDefault(v.getId(), List.of())))
+                .map(v -> {
+                    List<String> tags = tagsByVideo.getOrDefault(v.getId(), List.of());
+                    // Fall back to raw filename-parsed tokens when no canonical tags exist
+                    if (tags.isEmpty() && v.getTagsJson() != null && !v.getTagsJson().isBlank()) {
+                        try {
+                            tags = JSON.readValue(v.getTagsJson(), new TypeReference<>() {});
+                        } catch (Exception ignored) {}
+                    }
+                    Integer firstSeq = firstSeqs.get(v.getId());
+                    String thumbUrl = firstSeq != null
+                            ? "/api/av/screenshots/" + v.getId() + "/" + firstSeq
+                            : null;
+                    int count = screenshotCounts.getOrDefault(v.getId(), 0);
+                    return toVideoSummary(v, tags, thumbUrl, count);
+                })
                 .toList();
     }
 
@@ -83,25 +103,32 @@ public class AvBrowseService {
     /** Toggles favorite on a video. Returns updated video summary. */
     public AvVideoSummary toggleVideoFavorite(long videoId, boolean favorite) {
         videoRepo.toggleFavorite(videoId, favorite);
-        return videoRepo.findById(videoId)
-                .map(v -> toVideoSummary(v, videoTagRepo.findTagSlugsByVideoIds(List.of(videoId)).getOrDefault(videoId, List.of())))
+        return videoRepo.findById(videoId).map(v -> toVideoSummaryWithThumb(videoId, v))
                 .orElseThrow(() -> new IllegalArgumentException("Video not found: " + videoId));
     }
 
     /** Toggles bookmark on a video. Returns updated video summary. */
     public AvVideoSummary toggleVideoBookmark(long videoId, boolean bookmark) {
         videoRepo.toggleBookmark(videoId, bookmark);
-        return videoRepo.findById(videoId)
-                .map(v -> toVideoSummary(v, videoTagRepo.findTagSlugsByVideoIds(List.of(videoId)).getOrDefault(videoId, List.of())))
+        return videoRepo.findById(videoId).map(v -> toVideoSummaryWithThumb(videoId, v))
                 .orElseThrow(() -> new IllegalArgumentException("Video not found: " + videoId));
     }
 
     /** Marks a video as watched. Returns updated video summary. */
     public AvVideoSummary recordVideoWatch(long videoId) {
         videoRepo.recordWatch(videoId);
-        return videoRepo.findById(videoId)
-                .map(v -> toVideoSummary(v, videoTagRepo.findTagSlugsByVideoIds(List.of(videoId)).getOrDefault(videoId, List.of())))
+        return videoRepo.findById(videoId).map(v -> toVideoSummaryWithThumb(videoId, v))
                 .orElseThrow(() -> new IllegalArgumentException("Video not found: " + videoId));
+    }
+
+    private AvVideoSummary toVideoSummaryWithThumb(long videoId, AvVideo v) {
+        List<String> tags = videoTagRepo.findTagSlugsByVideoIds(List.of(videoId))
+                .getOrDefault(videoId, List.of());
+        Map<Long, Integer> firstSeqs = screenshotRepo.findFirstSeqByVideoIds(List.of(videoId));
+        Integer firstSeq = firstSeqs.get(videoId);
+        String thumbUrl = firstSeq != null ? "/api/av/screenshots/" + videoId + "/" + firstSeq : null;
+        int count = screenshotRepo.findCountsByVideoIds(List.of(videoId)).getOrDefault(videoId, 0);
+        return toVideoSummary(v, tags, thumbUrl, count);
     }
 
     /** Returns full detail for a single video including SMB URL and screenshot URLs. Empty if not found. */
@@ -175,7 +202,7 @@ public class AvBrowseService {
                 .build();
     }
 
-    private AvVideoSummary toVideoSummary(AvVideo v, List<String> tags) {
+    private AvVideoSummary toVideoSummary(AvVideo v, List<String> tags, String firstScreenshotUrl, int screenshotCount) {
         return AvVideoSummary.builder()
                 .id(v.getId())
                 .filename(v.getFilename())
@@ -192,6 +219,8 @@ public class AvBrowseService {
                 .watchCount(v.getWatchCount())
                 .lastWatchedAt(v.getLastWatchedAt())
                 .tags(tags != null ? tags : List.of())
+                .firstScreenshotUrl(firstScreenshotUrl)
+                .screenshotCount(screenshotCount)
                 .build();
     }
 
