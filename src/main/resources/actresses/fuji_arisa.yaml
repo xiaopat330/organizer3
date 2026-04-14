@@ -1,0 +1,41 @@
+profile:
+  name:
+    family_name: "Fuji"
+    given_name: "Arisa"
+    stage_name: "藤井ありさ"
+    reading: "ふじい ありさ"
+    alternate_names: []
+  date_of_birth: null
+  birthplace: null
+  blood_type: null
+  height_cm: null
+  measurements:
+    bust: null
+    waist: null
+    hip: null
+  cup: null
+  active_from: 2015-09-01
+  active_to: 2016-06-30
+  retirement_announced: null
+  biography: "Arisa Fuji (藤井ありさ) debuted as a Prestige exclusive actress in September–October 2015 and released titles monthly through approximately June 2016, after which no further works appeared. Her departure from AV has never been formally announced. She was noted for a shapely figure with large bust, narrow waist, and full hips."
+  primary_studios:
+  - name: "Prestige"
+    company: "Prestige"
+    from: 2015-09-01
+    to: 2016-06-30
+    role: "Exclusive contract actress"
+  awards: []
+  legacy: "A brief Prestige exclusive whose career lasted under a year. Little public biographical information is available."
+
+meta:
+  total_owned_titles: null
+  titles_with_japanese_title: null
+  titles_with_english_title: null
+  titles_with_release_date: null
+  total_known_releases: null
+  coverage_note: "Owned titles not yet queried from local DB. Very limited public information available for this actress."
+  confidence: "Low — date of birth, measurements, height, and blood type not found in any available source. Debut studio (Prestige) and approximate career window (September 2015 – June 2016) sourced from NamuWiki. Japanese stage name 藤井ありさ inferred from Korean NamuWiki rendering (후지이 아리사); may be 藤ありさ in some credits. Retirement status unconfirmed."
+  data_sources:
+  - "https://en.namu.wiki/w/%ED%9B%84%EC%A7%80%EC%9D%B4%20%EC%95%84%EB%A6%AC%EC%82%AC"
+  - "https://www.imdb.com/name/nm9102570/"
+  portfolio_listed: 0
