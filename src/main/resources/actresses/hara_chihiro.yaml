@@ -1,0 +1,59 @@
+profile:
+  name:
+    family_name: "Hara"
+    given_name: "Chihiro"
+    stage_name: "原千尋"
+    reading: "はら ちひろ"
+    alternate_names:
+    - name: "愛咲れいら"
+      note: "comeback stage name from March 2011 onward, used with Idea Pocket"
+    - name: "Reira Aisaki"
+      note: "romanization of 愛咲れいら"
+  date_of_birth: 1984-05-22
+  birthplace: "Tokyo, Japan"
+  blood_type: null
+  height_cm: 168
+  measurements:
+    bust: null
+    waist: null
+    hip: null
+  cup: null
+  active_from: 2004-11-01
+  active_to: null
+  retirement_announced: null
+  biography: "Chihiro Hara was born May 22, 1984 in Tokyo and debuted in adult video in November 2004 with S1 No. 1 Style. She won the Special Actress Award at the 2004 Moodyz Awards within months of her debut, and rose rapidly in the industry's semi-annual popularity rankings, reaching #14 in the first half of 2006 and #3 in the first half of 2007. By August 2005 she had expanded to work with Moodyz alongside S1. After peaking around 2007, she took an extended hiatus from AV work of approximately three years. She returned to the industry in March 2011 under the new stage name Reira Aisaki (愛咲れいら), working with Idea Pocket and other studios under that name."
+  primary_studios:
+  - name: "S1 No. 1 Style"
+    company: "S1 No. 1 Style"
+    from: 2004-11-01
+    to: 2005-07-31
+    role: "Exclusive contract actress"
+  - name: "Moodyz"
+    company: "Moodyz"
+    from: 2005-08-01
+    to: 2008-12-31
+    role: "Contract actress"
+  - name: "Idea Pocket"
+    company: "Idea Pocket"
+    from: 2011-03-01
+    to: null
+    role: "Contract actress (as 愛咲れいら)"
+  awards:
+  - event: "Moodyz Awards 2004"
+    year: 2004
+    category: "Special Actress Award (S1 prize)"
+  legacy: "A top-five popularity-ranked actress of the mid-2000s who combined S1 and Moodyz output before a hiatus. Her comeback under the name Reira Aisaki demonstrated a degree of career longevity uncommon in the era."
+
+meta:
+  total_owned_titles: null
+  titles_with_japanese_title: null
+  titles_with_english_title: null
+  titles_with_release_date: null
+  total_known_releases: null
+  coverage_note: "Owned titles not yet queried from local DB. Measurements and blood type not found in any available source. Career timeline between 2008 and 2011 hiatus is approximate."
+  confidence: "Moderate — DOB 1984-05-22 from multiple sources (IMDb, Wikidata, en-academic); prabook.com incorrectly lists March 22, 1984. Birthplace Tokyo from Wikipedia. Height 168 cm from en-academic (may be approximate). Blood type and measurements not found. S1 debut November 2004 confirmed. Moodyz work confirmed from August 2005. Peak popularity rankings (#14 H1 2006, #3 H1 2007) from English Wikipedia article. Comeback as 愛咲れいら March 2011 with Idea Pocket confirmed from multiple sources. Active-to date and retirement status unknown."
+  data_sources:
+  - "https://en-academic.com/dic.nsf/enwiki/11529577"
+  - "https://www.wikidata.org/wiki/Q2963548"
+  - "https://www.imdb.com/name/nm4159701/bio/"
+  portfolio_listed: 0
