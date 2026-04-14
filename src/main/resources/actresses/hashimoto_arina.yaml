@@ -1,0 +1,59 @@
+profile:
+  name:
+    family_name: "Hashimoto"
+    given_name: "Arina"
+    stage_name: "橋本ありな"
+    reading: "はしもと ありな"
+    alternate_names:
+    - name: "新ありな"
+      note: "stage name adopted in August–September 2022 upon joining Moodyz"
+    - name: "Arata Arina"
+      note: "romanization of 新ありな"
+  date_of_birth: 1996-12-15
+  birthplace: "Tokyo, Japan"
+  blood_type: null
+  height_cm: 166
+  measurements:
+    bust: 83
+    waist: 56
+    hip: 83
+  cup: "C"
+  active_from: 2016-03-01
+  active_to: 2025-12-31
+  retirement_announced: 2024-12-21
+  biography: "Arina Hashimoto was born December 15, 1996 in Tokyo and made her image-video debut in December 2015 before joining S1 No. 1 Style as an exclusive AV actress in March 2016. She became one of S1's flagship performers, winning the grand prize at the DMM.R18 Adult Award 2018. After leaving S1 in early 2020 she moved to FALENO (a SOD Create label). In August–September 2022 she joined Moodyz under the new stage name 新ありな (Arata Arina), marking a deliberate reinvention. She announced her retirement via YouTube live on December 21, 2024, and spent 2025 on farewell fan-meet tours across Japan before her final title was released in December 2025, closing a nine-year career."
+  primary_studios:
+  - name: "S1 No. 1 Style"
+    company: "S1 No. 1 Style"
+    from: 2016-03-01
+    to: 2020-03-31
+    role: "Exclusive contract actress"
+  - name: "FALENO"
+    company: "FALENO"
+    from: 2020-04-01
+    to: 2022-08-31
+    role: "Exclusive contract actress"
+  - name: "Moodyz"
+    company: "Moodyz"
+    from: 2022-09-01
+    to: 2025-12-31
+    role: "Exclusive contract actress (as 新ありな)"
+  awards:
+  - event: "DMM.R18 Adult Award 2018"
+    year: 2018
+    category: "Best Actress (Grand Prize)"
+  legacy: "One of S1's most prominent exclusives of the late 2010s, Arina Hashimoto was known for her tall slender build and girl-next-door appeal. Unusually for the genre, she sustained a nine-year career by rebranding across three major studios, concluding with a well-publicized nationwide farewell tour."
+
+meta:
+  total_owned_titles: null
+  titles_with_japanese_title: null
+  titles_with_english_title: null
+  titles_with_release_date: null
+  total_known_releases: null
+  coverage_note: "Owned titles not yet queried from local DB. Career spanned S1 (~4 years), FALENO (~2 years), and Moodyz (~3 years)."
+  confidence: "Moderate — DOB 1996-12-15 confirmed by Instagram profile post. Height 166 cm and measurements 83-56-83 Cup C from fan profile citing official S1/FANZA data (one source gives 167 cm, using 166 as more widely cited). AV debut March 2016 from multiple sources (one source gives February 17, 2016 — likely the image video). S1 departure ~March 2020 from Japanese press. FALENO period ~2020–2022. Moodyz from August/September 2022 as 新ありな. Retirement announced December 21, 2024 (YouTube live); final release December 2025. Blood type not found in any source."
+  data_sources:
+  - "https://ja.wikipedia.org/wiki/%E6%96%B0%E3%81%82%E3%82%8A%E3%81%AA"
+  - "https://www.imdb.com/name/nm8659183/"
+  - "https://inf.news/en/entertainment/1d98aa72b9ed00dda8b412647c0e7316.html"
+  portfolio_listed: 0
