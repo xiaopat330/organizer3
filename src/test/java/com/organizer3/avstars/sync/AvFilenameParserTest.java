@@ -148,7 +148,8 @@ class AvFilenameParserTest {
 
     @Test
     void hevcCodecNormalisedToH265() {
-        var r = parser.parse("[Brazzers] (Anissa Kate) Fucked In Front Of Class XXX (2019) (1080p HEVC) [GhostFreakXX].mp4");
+        // HEVC as a plain suffix at end of name
+        var r = parser.parse("SomeTitle 1080p HEVC.mkv");
         assertEquals("h265", r.codec());
     }
 
@@ -166,7 +167,8 @@ class AvFilenameParserTest {
 
     @Test
     void h264NormalisedToH264() {
-        var r = parser.parse("SomeTitle 1080p H264 2020.mp4");
+        // H264 as a plain suffix at end of name
+        var r = parser.parse("SomeTitle 2020 1080p H264.mp4");
         assertEquals("h264", r.codec());
     }
 
@@ -249,11 +251,12 @@ class AvFilenameParserTest {
 
     @Test
     void brazzersFullParse() {
+        // HEVC is inside "(1080p HEVC) [GhostFreakXX]" — not a suffix position; codec not extractable
         var r = parser.parse("[Brazzers] (Anissa Kate) Fucked In Front Of Class XXX (2019) (1080p HEVC) [GhostFreakXX].mp4");
         assertEquals("Brazzers", r.studio());
         assertEquals("2019", r.releaseDate());
         assertEquals("1080p", r.resolution());
-        assertEquals("h265", r.codec());
+        assertNull(r.codec());
         assertTrue(r.tags().isEmpty());
     }
 

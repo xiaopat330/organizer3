@@ -64,8 +64,7 @@ public class AvParseFilenamesCommand implements Command {
         int skipped = 0;
 
         for (AvVideo video : videos) {
-            String stem = stripExtension(video.getFilename());
-            AvFilenameParser.ParsedFilename parsed = parser.parse(stem);
+            AvFilenameParser.ParsedFilename parsed = parser.parse(video.getFilename());
 
             String tagsJson = tagsToJson(parsed.tags());
 
@@ -88,12 +87,6 @@ public class AvParseFilenamesCommand implements Command {
         }
 
         io.println("Parsed " + videos.size() + " video(s): " + updated + " updated, " + skipped + " no matches.");
-    }
-
-    private static String stripExtension(String filename) {
-        if (filename == null) return "";
-        int dot = filename.lastIndexOf('.');
-        return dot > 0 ? filename.substring(0, dot) : filename;
     }
 
     /** Converts a list of tags to a compact JSON array string, or null if empty. */
