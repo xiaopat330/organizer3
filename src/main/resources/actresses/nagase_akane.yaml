@@ -1,0 +1,32 @@
+profile:
+  name:
+    family_name: Nagase
+    given_name: Akane
+    stage_name: 長瀬あかね
+    reading: ながせ あかね
+    alternate_names: []
+  date_of_birth: 1985-07-07
+  birthplace: Akita Prefecture, Japan
+  blood_type: B
+  height_cm: 160
+  measurements: null
+  cup: null
+  active_from: null
+  active_to: null
+  retirement_announced: null
+  biography: "Akane Nagase (長瀬あかね) is a Japanese AV actress born July 7, 1985 in Akita Prefecture. She worked as an AV idol during the 2000s. Detailed career documentation is sparse in publicly available sources."
+  primary_studios: []
+  awards: null
+  legacy: null
+
+meta:
+  total_owned_titles: null
+  titles_with_japanese_title: null
+  titles_with_english_title: null
+  titles_with_release_date: null
+  total_known_releases: null
+  coverage_note: "Profile data is minimal; only Wikidata entry Q11653394 available. Career timeline, studio affiliations, and measurements not established from available sources."
+  confidence: "DOB 1985-07-07 and birthplace Akita Prefecture from Wikidata Q11653394. Blood type B and height 160 cm from Wikidata infobox. Kanji for stage name unconfirmed — search results suggest 長瀬あかね but this has not been independently verified. Measurements, active period, and studio affiliations not found."
+  data_sources:
+  - "https://www.wikidata.org/wiki/Q11653394"
+  portfolio_listed: 0
