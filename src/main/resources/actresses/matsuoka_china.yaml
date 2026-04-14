@@ -1,0 +1,48 @@
+profile:
+  name:
+    family_name: "Matsuoka"
+    given_name: "China"
+    stage_name: "松岡ちな"
+    reading: "まつおか ちな"
+    alternate_names: []
+  date_of_birth: 1994-04-16
+  birthplace: "Fukuoka Prefecture, Japan"
+  blood_type: "O"
+  height_cm: 148
+  measurements:
+    bust: 88
+    waist: 57
+    hip: 85
+  cup: null
+  active_from: 2014-12-01
+  active_to: 2016-08-31
+  retirement_announced: 2016-08-01
+  biography: "China Matsuoka was born April 16, 1994 in Fukuoka Prefecture. She first appeared publicly as 'China' in the July 28, 2014 issue of Weekly Playboy, featured in a spread titled 'History's Strongest Amateur Nude.' She made her AV debut with SOD Create in December 2014. Within eighteen months she had risen to award-winning status, winning both the Newcomer Actress Award and the FLASH Award at the Skyperfect Adult Broadcast Awards 2016 in March 2016. On May 31, 2016, she was seriously injured in a hit-and-run traffic accident, and was subsequently hospitalized in July 2016 for an internal organ disease. She announced her retirement from AV in August 2016. She has remained out of public life since."
+  primary_studios:
+  - name: "SOD Create"
+    company: "Soft on Demand"
+    from: 2014-12-01
+    to: 2016-08-31
+    role: "Exclusive contract actress"
+  awards:
+  - event: "Skyperfect Adult Broadcast Awards 2016"
+    year: 2016
+    category: "Newcomer Actress Award"
+  - event: "Skyperfect Adult Broadcast Awards 2016"
+    year: 2016
+    category: "FLASH Award"
+  legacy: "China Matsuoka's eighteen-month career illustrated how quickly a performer could rise from anonymous gravure newcomer to award winner in the SOD system. Her retirement due to injury and illness cut short what appeared to be a trajectory toward sustained popularity. She has been remembered in fan communities for both her rapid ascent and the abrupt circumstances of her retirement."
+
+meta:
+  total_owned_titles: null
+  titles_with_japanese_title: null
+  titles_with_english_title: null
+  titles_with_release_date: null
+  total_known_releases: null
+  coverage_note: "Owned titles not yet queried from local DB. Career was short (December 2014 – August 2016); total title count expected to be modest."
+  confidence: "Strong — DOB 1994-04-16, birthplace Fukuoka, height 148 cm, blood type O, measurements 88-57-85 all from Japanese Wikipedia and NamuWiki with consistent values. Gravure debut date (July 28, 2014 Weekly Playboy) confirmed. AV debut December 2014 with SOD Create confirmed. Skyperfect 2016 awards (Newcomer and FLASH) confirmed from multiple sources. Hit-and-run accident May 31, 2016 confirmed. Retirement announcement August 2016 confirmed. Cup size not found in available sources."
+  data_sources:
+  - "https://ja.wikipedia.org/wiki/%E6%9D%BE%E5%B2%A1%E3%81%A1%E3%81%AA"
+  - "https://www.wikidata.org/wiki/Q22131721"
+  - "https://en.namu.wiki/w/%EB%A7%88%EC%B8%A0%EC%98%A4%EC%B9%B4%20%EC%B9%98%EB%82%98"
+  portfolio_listed: 0
