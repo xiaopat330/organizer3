@@ -19,7 +19,7 @@ import org.jdbi.v3.core.Jdbi;
 public class SchemaUpgrader {
 
     /** Must match the version stamped by {@link SchemaInitializer}. */
-    private static final int CURRENT_VERSION = 14;
+    private static final int CURRENT_VERSION = 17;
 
     private final Jdbi jdbi;
 
@@ -93,7 +93,86 @@ public class SchemaUpgrader {
             setVersion(14);
         }
 
+        if (version < 15) {
+            applyV15();
+            setVersion(15);
+        }
+
+        if (version < 16) {
+            applyV16();
+            setVersion(16);
+        }
+
+        if (version < 17) {
+            applyV17();
+            setVersion(17);
+        }
+
         log.info("Schema upgrade complete");
+    }
+
+    /**
+     * v17: AV Stars — creates {@code av_tag_definitions} and {@code av_video_tags} tables
+     * for the tag taxonomy + filter feature (Phase 5e).
+     */
+    private void applyV17() {
+        log.info("Applying migration v17: av_tag_definitions and av_video_tags tables");
+        jdbi.useHandle(h -> {
+            h.execute("""
+                    CREATE TABLE IF NOT EXISTS av_tag_definitions (
+                        slug         TEXT PRIMARY KEY,
+                        display_name TEXT NOT NULL,
+                        category     TEXT,
+                        aliases_json TEXT
+                    )""");
+
+            h.execute("""
+                    CREATE TABLE IF NOT EXISTS av_video_tags (
+                        av_video_id  INTEGER NOT NULL REFERENCES av_videos(id) ON DELETE CASCADE,
+                        tag_slug     TEXT NOT NULL REFERENCES av_tag_definitions(slug),
+                        source       TEXT NOT NULL DEFAULT 'apply',
+                        PRIMARY KEY (av_video_id, tag_slug)
+                    )""");
+            h.execute("CREATE INDEX IF NOT EXISTS idx_av_video_tags_tag ON av_video_tags(tag_slug)");
+            h.execute("CREATE INDEX IF NOT EXISTS idx_av_video_tags_video ON av_video_tags(av_video_id)");
+        });
+    }
+
+    /**
+     * v16: AV Stars — creates {@code av_video_screenshots} table for storing
+     * locally-generated screenshot frames (Phase 5d).
+     */
+    private void applyV16() {
+        log.info("Applying migration v16: av_video_screenshots table");
+        jdbi.useHandle(h -> {
+            h.execute("""
+                    CREATE TABLE IF NOT EXISTS av_video_screenshots (
+                        id          INTEGER PRIMARY KEY AUTOINCREMENT,
+                        av_video_id INTEGER NOT NULL REFERENCES av_videos(id) ON DELETE CASCADE,
+                        seq         INTEGER NOT NULL,
+                        path        TEXT NOT NULL,
+                        UNIQUE(av_video_id, seq)
+                    )""");
+            h.execute("""
+                    CREATE INDEX IF NOT EXISTS idx_av_video_screenshots_video
+                        ON av_video_screenshots(av_video_id)""");
+        });
+    }
+
+    /**
+     * v15: AV Stars — adds visit tracking to av_actresses and watch/bookmark/curation
+     * fields to av_videos needed by the Phase 5 web UI.
+     */
+    private void applyV15() {
+        log.info("Applying migration v15: visit/watch tracking on av_actresses and av_videos");
+        jdbi.useHandle(h -> {
+            addColumnIfMissing(h, "av_actresses", "last_visited_at",  "TEXT");
+            addColumnIfMissing(h, "av_actresses", "visit_count",      "INTEGER NOT NULL DEFAULT 0");
+            addColumnIfMissing(h, "av_videos",    "bookmark",         "INTEGER NOT NULL DEFAULT 0");
+            addColumnIfMissing(h, "av_videos",    "watched",          "INTEGER NOT NULL DEFAULT 0");
+            addColumnIfMissing(h, "av_videos",    "last_watched_at",  "TEXT");
+            addColumnIfMissing(h, "av_videos",    "watch_count",      "INTEGER NOT NULL DEFAULT 0");
+        });
     }
 
     /**

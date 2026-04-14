@@ -246,6 +246,10 @@ public class SchemaInitializer {
                         video_count          INTEGER NOT NULL DEFAULT 0,
                         total_size_bytes     INTEGER NOT NULL DEFAULT 0,
 
+                        -- Visit tracking (v15)
+                        last_visited_at      TEXT,
+                        visit_count          INTEGER NOT NULL DEFAULT 0,
+
                         UNIQUE(volume_id, folder_name)
                     )""");
             h.execute("CREATE INDEX IF NOT EXISTS idx_av_actresses_volume ON av_actresses(volume_id)");
@@ -275,6 +279,12 @@ public class SchemaInitializer {
                         favorite        INTEGER NOT NULL DEFAULT 0,
                         rejected        INTEGER NOT NULL DEFAULT 0,
 
+                        -- Watch/curation tracking (v15)
+                        bookmark        INTEGER NOT NULL DEFAULT 0,
+                        watched         INTEGER NOT NULL DEFAULT 0,
+                        last_watched_at TEXT,
+                        watch_count     INTEGER NOT NULL DEFAULT 0,
+
                         UNIQUE(av_actress_id, relative_path)
                     )""");
             h.execute("CREATE INDEX IF NOT EXISTS idx_av_videos_actress ON av_videos(av_actress_id)");
@@ -282,12 +292,44 @@ public class SchemaInitializer {
             h.execute("CREATE INDEX IF NOT EXISTS idx_av_videos_studio ON av_videos(studio)");
             h.execute("CREATE INDEX IF NOT EXISTS idx_av_videos_bucket ON av_videos(bucket)");
 
+            // av_tag_definitions + av_video_tags (v17)
+            h.execute("""
+                    CREATE TABLE IF NOT EXISTS av_tag_definitions (
+                        slug         TEXT PRIMARY KEY,
+                        display_name TEXT NOT NULL,
+                        category     TEXT,
+                        aliases_json TEXT
+                    )""");
+
+            h.execute("""
+                    CREATE TABLE IF NOT EXISTS av_video_tags (
+                        av_video_id  INTEGER NOT NULL REFERENCES av_videos(id) ON DELETE CASCADE,
+                        tag_slug     TEXT NOT NULL REFERENCES av_tag_definitions(slug),
+                        source       TEXT NOT NULL DEFAULT 'apply',
+                        PRIMARY KEY (av_video_id, tag_slug)
+                    )""");
+            h.execute("CREATE INDEX IF NOT EXISTS idx_av_video_tags_tag ON av_video_tags(tag_slug)");
+            h.execute("CREATE INDEX IF NOT EXISTS idx_av_video_tags_video ON av_video_tags(av_video_id)");
+
+            // av_video_screenshots (v16)
+            h.execute("""
+                    CREATE TABLE IF NOT EXISTS av_video_screenshots (
+                        id          INTEGER PRIMARY KEY AUTOINCREMENT,
+                        av_video_id INTEGER NOT NULL REFERENCES av_videos(id) ON DELETE CASCADE,
+                        seq         INTEGER NOT NULL,
+                        path        TEXT NOT NULL,
+                        UNIQUE(av_video_id, seq)
+                    )""");
+            h.execute("""
+                    CREATE INDEX IF NOT EXISTS idx_av_video_screenshots_video
+                        ON av_video_screenshots(av_video_id)""");
+
             // Only stamp version on fresh installs (user_version = 0).
             // On an existing DB the CREATE TABLE statements above are all no-ops, so we must
             // leave the version alone and let SchemaUpgrader apply any missing migrations.
             int currentVersion = h.createQuery("PRAGMA user_version").mapTo(Integer.class).one();
             if (currentVersion == 0) {
-                h.execute("PRAGMA user_version = 14");
+                h.execute("PRAGMA user_version = 17");
             }
         });
         log.info("Schema initialization complete");

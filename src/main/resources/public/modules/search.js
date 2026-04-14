@@ -334,7 +334,7 @@ export function createSearch(inputEl, overlayEl, opts = {}) {
 // ── Header search init ────────────────────────────────────────────────────────
 
 const HEADER_FILTER_KEY  = 'header-search-filters';
-const SEARCH_CATEGORIES  = ['actresses', 'titles', 'labels', 'studios'];
+const SEARCH_CATEGORIES  = ['actresses', 'titles', 'labels', 'studios', 'av-actresses'];
 
 function loadHeaderFilterState() {
     try {

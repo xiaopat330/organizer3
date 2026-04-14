@@ -60,6 +60,9 @@ public interface AvActressRepository {
      */
     void updateIafdFields(long actressId, IafdResolvedProfile profile, String headshotPath);
 
+    /** Increments visit_count and updates last_visited_at for the given actress. */
+    void recordVisit(long actressId);
+
     /**
      * Copies curation fields (favorite, bookmark, rejected, grade, notes, iafd_id,
      * headshot_path) from {@code fromId} to {@code toId}, then deletes the {@code fromId}

@@ -38,4 +38,10 @@ public interface AvVideoRepository {
      */
     void updateParsedFields(long videoId, String studio, String releaseDate,
                             String resolution, String codec, String tagsJson);
+
+    void toggleFavorite(long videoId, boolean favorite);
+    void toggleBookmark(long videoId, boolean bookmark);
+
+    /** Marks a video as watched and records the current timestamp + increments watch_count. */
+    void recordWatch(long videoId);
 }

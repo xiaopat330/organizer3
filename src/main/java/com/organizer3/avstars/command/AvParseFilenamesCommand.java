@@ -32,31 +32,25 @@ public class AvParseFilenamesCommand implements Command {
 
     @Override
     public String description() {
-        return "Parse filenames and persist metadata for AV videos: av parse [volume-id]";
+        return "Parse filenames and persist metadata for AV videos (uses mounted volume, or: av parse <volume-id>)";
     }
 
     @Override
     public void execute(String[] args, SessionContext ctx, CommandIO io) {
-        String volumeFilter = args.length >= 2 ? args[1] : null;
+        String volumeId = args.length >= 2 ? args[1] : null;
 
-        List<AvVideo> videos;
-        if (volumeFilter != null) {
-            videos = videoRepo.findByVolume(volumeFilter);
-            if (videos.isEmpty()) {
-                io.println("No videos found for volume '" + volumeFilter + "'.");
+        if (volumeId == null) {
+            var mounted = ctx.getMountedVolume();
+            if (mounted == null) {
+                io.println("No volume mounted. Use: mount <id>  or  av parse <volume-id>");
                 return;
             }
-        } else {
-            // Load all volumes — we don't have a findAll, so collect per known volumes
-            // via findByVolume isn't feasible without a volume list. Use the simpler approach:
-            // findByVolume is volume-specific; for "all" we piggyback on any volume accessible.
-            // Since AvVideoRepository only exposes findByVolume and findByActress, we need
-            // a workaround. Use the fact that volume_id is stored on every row and expose
-            // a findAll via findByVolume with null to mean all.
-            // For now, if no volume given, inform user to specify one.
-            io.println("Usage: av parse <volume-id>");
-            io.println("  Parses filenames for all videos in the given volume.");
-            io.println("  Known volumes can be listed with 'volumes'.");
+            volumeId = mounted.id();
+        }
+
+        List<AvVideo> videos = videoRepo.findByVolume(volumeId);
+        if (videos.isEmpty()) {
+            io.println("No videos found for volume '" + volumeId + "'.");
             return;
         }
 

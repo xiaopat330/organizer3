@@ -8,13 +8,16 @@ export const VIEWS = {
   'title-detail':   ['title-landing', 'title-detail'],
   collections:      ['collections-grid'],
   'titles-browse':  ['title-landing', 'titles-browse-grid'],
+  'av':             ['av-landing'],
+  'av-index':       ['av-landing', 'av-grid'],
+  'av-actress-detail': ['av-landing', 'av-actress-detail'],
 };
 export const HOME_GRID_IDS   = [];
-export const EXTRA_PANEL_IDS = ['title-studio-labels', 'title-tags-panel', 'title-browse-filter-bar', 'title-browse-tags-panel', 'actress-studio-labels', 'actress-dashboard', 'title-dashboard', 'actress-browse-filter-bar'];
+export const EXTRA_PANEL_IDS = ['title-studio-labels', 'title-tags-panel', 'title-browse-filter-bar', 'title-browse-tags-panel', 'actress-studio-labels', 'actress-dashboard', 'title-dashboard', 'actress-browse-filter-bar', 'av-dashboard', 'av-index-filter-bar'];
 export const ALL_PANEL_IDS   = [...Object.values(VIEWS).flat(), ...HOME_GRID_IDS, ...EXTRA_PANEL_IDS];
 
 // Views where the body must not scroll (they fill the viewport themselves)
-const FIXED_VIEWPORT_VIEWS = new Set(['title-detail', 'actress-detail']);
+const FIXED_VIEWPORT_VIEWS = new Set(['title-detail', 'actress-detail', 'av-actress-detail']);
 
 export let mode = 'titles';
 
@@ -60,8 +63,10 @@ export function showView(name) {
 
     const actressLanding = document.getElementById('actress-landing');
     const titleLanding   = document.getElementById('title-landing');
+    const avLanding      = document.getElementById('av-landing');
     if (actressLanding && actressLanding.style.display !== 'none') actressLanding.style.top = landingTop;
     if (titleLanding   && titleLanding.style.display   !== 'none') titleLanding.style.top   = landingTop;
+    if (avLanding      && avLanding.style.display      !== 'none') avLanding.style.top      = landingTop;
   });
 }
 

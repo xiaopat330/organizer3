@@ -61,6 +61,8 @@ public class JdbiAvActressRepository implements AvActressRepository {
                     ? LocalDateTime.parse(rs.getString("last_iafd_synced_at")) : null)
             .videoCount(rs.getInt("video_count"))
             .totalSizeBytes(rs.getLong("total_size_bytes"))
+            .visitCount(rs.getInt("visit_count"))
+            .lastVisitedAt(rs.getString("last_visited_at"))
             .build();
 
     private final Jdbi jdbi;
@@ -285,6 +287,15 @@ public class JdbiAvActressRepository implements AvActressRepository {
                         .bind("iafdCommentsJson", p.getIafdCommentsJson())
                         .bind("awardsJson", p.getAwardsJson())
                         .bind("syncedAt", LocalDateTime.now().toString())
+                        .execute());
+    }
+
+    @Override
+    public void recordVisit(long actressId) {
+        jdbi.useHandle(h ->
+                h.createUpdate("UPDATE av_actresses SET visit_count = visit_count + 1, last_visited_at = :now WHERE id = :id")
+                        .bind("now", LocalDateTime.now().toString())
+                        .bind("id", actressId)
                         .execute());
     }
 

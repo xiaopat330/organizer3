@@ -99,6 +99,7 @@ export function showTitlesView() {
   document.getElementById('actresses-btn')?.classList.remove('active');
   document.getElementById('titles-browse-btn')?.classList.remove('active');
   document.getElementById('title-collections-btn')?.classList.remove('active');
+  document.getElementById('av-btn')?.classList.remove('active');
   resetActressState();
   updateBreadcrumb([]);
 }

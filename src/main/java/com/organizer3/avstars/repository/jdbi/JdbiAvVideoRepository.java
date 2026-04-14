@@ -34,6 +34,10 @@ public class JdbiAvVideoRepository implements AvVideoRepository {
             .tagsJson(rs.getString("tags_json"))
             .favorite(rs.getInt("favorite") == 1)
             .rejected(rs.getInt("rejected") == 1)
+            .bookmark(rs.getInt("bookmark") == 1)
+            .watched(rs.getInt("watched") == 1)
+            .lastWatchedAt(rs.getString("last_watched_at"))
+            .watchCount(rs.getInt("watch_count"))
             .build();
 
     private final Jdbi jdbi;
@@ -112,6 +116,31 @@ public class JdbiAvVideoRepository implements AvVideoRepository {
                         .bind("volumeId", volumeId)
                         .bind("syncStart", syncStart.toString())
                         .execute());
+    }
+
+    @Override
+    public void toggleFavorite(long videoId, boolean favorite) {
+        jdbi.useHandle(h -> h.createUpdate("UPDATE av_videos SET favorite = :v WHERE id = :id")
+                .bind("v", favorite ? 1 : 0).bind("id", videoId).execute());
+    }
+
+    @Override
+    public void toggleBookmark(long videoId, boolean bookmark) {
+        jdbi.useHandle(h -> h.createUpdate("UPDATE av_videos SET bookmark = :v WHERE id = :id")
+                .bind("v", bookmark ? 1 : 0).bind("id", videoId).execute());
+    }
+
+    @Override
+    public void recordWatch(long videoId) {
+        jdbi.useHandle(h -> h.createUpdate("""
+                UPDATE av_videos SET
+                    watched          = 1,
+                    watch_count      = watch_count + 1,
+                    last_watched_at  = :now
+                WHERE id = :id
+                """)
+                .bind("now", LocalDateTime.now().toString())
+                .bind("id", videoId).execute());
     }
 
     @Override

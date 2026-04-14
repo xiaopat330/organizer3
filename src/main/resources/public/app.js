@@ -6,6 +6,8 @@ import { openTitleDetail } from './modules/title-detail.js';
 import { showTitlesView, initPortalSearch } from './modules/home.js';
 import { selectActressBrowseMode } from './modules/actress-browse.js';
 import { selectTitleBrowseMode, enterUnsortedMode, enterArchiveMode } from './modules/title-browse.js';
+import { showAvLanding, selectAvBrowseMode } from './modules/av-browse.js';
+import { openAvActressDetail } from './modules/av-actress-detail.js';
 import { setRestoring, replaceNav } from './modules/nav.js';
 import { initSearch } from './modules/search.js';
 import { initTerminal } from './modules/terminal.js';
@@ -51,6 +53,12 @@ window.addEventListener('popstate', async (e) => {
         if (state.mode === 'unsorted')      await enterUnsortedMode();
         else if (state.mode === 'archive-pool') await enterArchiveMode();
         else selectTitleBrowseMode(state.mode);
+        break;
+      case 'av':
+        await selectAvBrowseMode(state.mode || 'dashboard');
+        break;
+      case 'av-actress-detail':
+        await openAvActressDetail(state.actressId);
         break;
     }
   } finally {

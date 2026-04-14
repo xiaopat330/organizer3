@@ -74,4 +74,8 @@ public class AvActress {
     LocalDateTime lastIafdSyncedAt;
     @Builder.Default int videoCount = 0;
     @Builder.Default long totalSizeBytes = 0;
+
+    // Visit tracking
+    @Builder.Default int visitCount = 0;
+    String lastVisitedAt;
 }

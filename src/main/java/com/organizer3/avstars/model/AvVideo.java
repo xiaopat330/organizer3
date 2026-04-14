@@ -45,4 +45,10 @@ public class AvVideo {
     // Curation
     @Builder.Default boolean favorite = false;
     @Builder.Default boolean rejected = false;
+
+    // Watch/curation tracking (v15)
+    @Builder.Default boolean bookmark = false;
+    @Builder.Default boolean watched = false;
+    String lastWatchedAt;
+    @Builder.Default int watchCount = 0;
 }

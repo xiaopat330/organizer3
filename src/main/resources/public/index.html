@@ -15,6 +15,8 @@
     <div class="nav-divider"></div>
     <button class="nav-link" id="titles-browse-btn"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="20" rx="2"/><line x1="7" y1="2" x2="7" y2="22"/><line x1="17" y1="2" x2="17" y2="22"/><line x1="2" y1="12" x2="22" y2="12"/><line x1="2" y1="7" x2="7" y2="7"/><line x1="2" y1="17" x2="7" y2="17"/><line x1="17" y1="7" x2="22" y2="7"/><line x1="17" y1="17" x2="22" y2="17"/></svg>Titles</button>
     <div class="nav-divider"></div>
+    <button class="nav-link" id="av-btn"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>AV</button>
+    <div class="nav-divider"></div>
     <button class="nav-link" id="action-btn"><svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10"/></svg>Action!</button>
     <div class="nav-divider"></div>
     <button class="nav-link" id="terminal-toggle-btn" title="Terminal">⌨</button>
@@ -51,6 +53,11 @@
         <span class="portal-filter-track"></span>
         <span class="portal-filter-label">Studios</span>
       </label>
+      <label class="portal-filter-toggle" data-category="av-actresses">
+        <input type="checkbox" checked>
+        <span class="portal-filter-track"></span>
+        <span class="portal-filter-label">AV Actresses</span>
+      </label>
     </div>
   </div>
 </div>
@@ -85,6 +92,11 @@
         <input type="checkbox" checked>
         <span class="portal-filter-track"></span>
         <span class="portal-filter-label">Studios</span>
+      </label>
+      <label class="portal-filter-toggle" data-category="av-actresses">
+        <input type="checkbox" checked>
+        <span class="portal-filter-track"></span>
+        <span class="portal-filter-label">AV Actresses</span>
       </label>
     </div>
   </div>
@@ -209,6 +221,36 @@
 <div id="titles-browse-grid" class="grid" style="display:none"></div>
 <!-- Title dashboard (default landing) -->
 <div id="title-dashboard" style="display:none"></div>
+
+<!-- AV landing island -->
+<div id="av-landing" class="actress-landing av-landing" style="display:none">
+  <div class="actress-landing-row actress-landing-special-row">
+    <button type="button" id="av-dashboard-btn" class="actress-landing-special av-landing-dashboard">
+      <svg class="av-landing-activity" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+      Dashboard
+    </button>
+    <button type="button" id="av-favorites-btn" class="actress-landing-special av-landing-favorites">
+      <svg class="av-landing-star" viewBox="0 0 24 24" width="14" height="14"><polygon points="12,2 15.09,8.26 22,9.27 17,14.14 18.18,21.02 12,17.77 5.82,21.02 7,14.14 2,9.27 8.91,8.26"/></svg>
+      Favorites
+    </button>
+    <button type="button" id="av-bookmarks-btn" class="actress-landing-special av-landing-bookmarks">
+      <svg class="av-landing-bm" viewBox="0 0 24 24" width="14" height="14"><path d="M6 2h12a1 1 0 0 1 1 1v18.5a.5.5 0 0 1-.8.4L12 17.5 5.8 21.9a.5.5 0 0 1-.8-.4V3a1 1 0 0 1 1-1z"/></svg>
+      Bookmarks
+    </button>
+    <button type="button" id="av-index-btn" class="actress-landing-special av-landing-index">
+      <svg class="av-landing-index-icon" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+      Index
+    </button>
+  </div>
+</div>
+<!-- AV dashboard (blank slate) -->
+<div id="av-dashboard" style="display:none">
+  <div class="av-dashboard-empty">AV Dashboard coming soon.</div>
+</div>
+<!-- AV actress index grid -->
+<div id="av-grid" class="grid" style="display:none"></div>
+<!-- AV actress detail page -->
+<div id="av-actress-detail" class="av-detail-layout" style="display:none"></div>
 
 <!-- Title detail view -->
 <div id="title-detail" style="display:none">
