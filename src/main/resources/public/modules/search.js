@@ -77,7 +77,9 @@ export function createSearch(inputEl, overlayEl, opts = {}) {
 
     async function runSearch(q) {
         try {
-            const res = await fetch(`/api/search?q=${encodeURIComponent(q)}&matchMode=contains`);
+            const enabled = getEnabledCategories ? getEnabledCategories() : null;
+            const includeAv = !enabled || enabled.has('av-actresses');
+            const res = await fetch(`/api/search?q=${encodeURIComponent(q)}&matchMode=contains&includeAv=${includeAv}`);
             if (!res.ok) return;
             const data = await res.json();
             renderOverlay(data);
@@ -90,11 +92,12 @@ export function createSearch(inputEl, overlayEl, opts = {}) {
 
     function renderOverlay(data) {
         const enabled = getEnabledCategories ? getEnabledCategories() : null;
-        const actresses  = (enabled && !enabled.has('actresses')) ? [] : (data.actresses  || []);
-        const titles     = (enabled && !enabled.has('titles'))    ? [] : (data.titles     || []);
-        const labels     = (enabled && !enabled.has('labels'))    ? [] : (data.labels     || []);
-        const companies  = (enabled && !enabled.has('studios'))   ? [] : (data.companies  || []);
-        const hasResults = actresses.length || titles.length || labels.length || companies.length;
+        const actresses   = (enabled && !enabled.has('actresses'))    ? [] : (data.actresses   || []);
+        const titles      = (enabled && !enabled.has('titles'))       ? [] : (data.titles      || []);
+        const labels      = (enabled && !enabled.has('labels'))       ? [] : (data.labels      || []);
+        const companies   = (enabled && !enabled.has('studios'))      ? [] : (data.companies   || []);
+        const avActresses = (enabled && !enabled.has('av-actresses')) ? [] : (data.avActresses || []);
+        const hasResults  = actresses.length || titles.length || labels.length || companies.length || avActresses.length;
 
         if (!hasResults) {
             overlayEl.innerHTML = '<div class="search-overlay-empty">no results</div>';
@@ -181,6 +184,23 @@ export function createSearch(inputEl, overlayEl, opts = {}) {
             html += '</div>';
         }
 
+        if (avActresses.length) {
+            const placeholder = `<div class="search-thumb search-thumb-empty search-thumb-person"></div>`;
+            html += '<div class="search-group search-group-av-actresses"><div class="search-group-label">AV Actresses</div>';
+            for (const a of avActresses) {
+                const thumb = a.headshotUrl
+                    ? `<img class="search-thumb search-thumb-person" src="${esc(a.headshotUrl)}" alt="" loading="lazy">`
+                    : placeholder;
+                const count = `<span class="search-count">${a.videoCount} video${a.videoCount === 1 ? '' : 's'}</span>`;
+                html += `<div class="search-row search-av-actress-row" data-av-actress-id="${a.id}">`
+                      + thumb
+                      + `<span class="search-name">${esc(a.stageName)}</span>`
+                      + count
+                      + '</div>';
+            }
+            html += '</div>';
+        }
+
         selectedIndex = -1;
         overlayEl.innerHTML = twoColumn
             ? `<div class="search-col-wrap">${html}</div>`
@@ -231,6 +251,16 @@ export function createSearch(inputEl, overlayEl, opts = {}) {
                 inputEl.value = '';
                 const { selectTitleBrowseMode } = await import('./title-browse.js');
                 selectTitleBrowseMode('studio');
+            });
+        });
+
+        overlayEl.querySelectorAll('.search-av-actress-row').forEach(el => {
+            el.addEventListener('click', async () => {
+                hideOverlay();
+                inputEl.value = '';
+                const id = parseInt(el.dataset.avActressId, 10);
+                const { openAvActressDetail } = await import('./av-actress-detail.js');
+                await openAvActressDetail(id);
             });
         });
     }
@@ -334,7 +364,7 @@ export function createSearch(inputEl, overlayEl, opts = {}) {
 // ── Header search init ────────────────────────────────────────────────────────
 
 const HEADER_FILTER_KEY  = 'header-search-filters';
-const SEARCH_CATEGORIES  = ['actresses', 'titles', 'labels', 'studios'];
+const SEARCH_CATEGORIES  = ['actresses', 'titles', 'labels', 'studios', 'av-actresses'];
 
 function loadHeaderFilterState() {
     try {

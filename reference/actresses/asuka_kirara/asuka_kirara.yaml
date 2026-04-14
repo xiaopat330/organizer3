@@ -1,0 +1,59 @@
+profile:
+  name:
+    family_name: "Asuka"
+    given_name: "Kirara"
+    stage_name: "明日花キララ"
+    reading: "あすか きらら"
+    alternate_names:
+    - name: "きぃちゃん"
+      note: "nickname, also 'きいたん'"
+  date_of_birth: 1988-10-02
+  birthplace: "Hokkaido, Japan"
+  blood_type: "A"
+  height_cm: 162
+  measurements:
+    bust: 90
+    waist: 58
+    hip: 85
+  cup: "G"
+  active_from: 2007-12-21
+  active_to: 2018-04-17
+  retirement_announced: 2020-02-04
+  biography: "Kirara Asuka was born October 2, 1988 in Hokkaido and debuted with h.m.p in December 2007, moving to PRESTIGE in October 2009 and then to S1 No.1 Style in June 2013 where she became one of S1's flagship actresses. Her career extended well beyond the AV industry: she served as the fourth leader of Ebisu Muscats from 2015, starred in the Iron Girl film trilogy, released music as a solo singer, and was ranked first in a survey of 'faces women most want to look like.' Around 2018 she quietly stepped back from AV work, formally announcing her retirement on February 4, 2020, and has since worked as a talent, beauty clinic entrepreneur, and apparel brand producer."
+  primary_studios:
+  - name: "h.m.p"
+    company: "h.m.p"
+    from: 2007-12-21
+    to: 2009-09-30
+    role: "Exclusive contract actress"
+  - name: "PRESTIGE"
+    company: "PRESTIGE"
+    from: 2009-10-01
+    to: 2013-04-30
+    role: "Exclusive contract actress"
+  - name: "S1 No.1 Style"
+    company: "S1 No.1 Style"
+    from: 2013-06-01
+    to: 2018-04-17
+    role: "Exclusive contract actress"
+  awards:
+  - event: "SKY PerfecTV! Adult Broadcast Award 2009"
+    year: 2009
+    category: "Actress Award / HD Award"
+  - event: "DMM Adult Award 2017"
+    year: 2017
+    category: "Outstanding Actress Award"
+  legacy: "One of the most multi-dimensional AV actresses of her generation, Kirara Asuka spent roughly ten years moving through h.m.p, PRESTIGE, and S1 while simultaneously building a mainstream entertainment profile through music, film, and Ebisu Muscats. Her public disclosure of cosmetic surgery and sustained post-retirement visibility — including a beauty clinic, fashion brand, and YouTube channel with over 300,000 subscribers — make her one of the few former AV actresses to achieve genuine mainstream celebrity."
+
+meta:
+  total_owned_titles: null
+  titles_with_japanese_title: null
+  titles_with_english_title: null
+  titles_with_release_date: null
+  total_known_releases: null
+  coverage_note: "DB label distribution queried with LIMIT 15; top labels are SNIS(34), HODV(18), ABS(13), OFJE(8), SSNI(7), BNDV(7). Total owned titles not counted (query was limited). Full catalog spans ~10 years across 3 studios."
+  confidence: "Strong — Japanese Wikipedia article with consistent infobox. Birthplace: officially listed as Tokyo in old AV-era profiles (FANZA, S1) but confirmed as Hokkaido in May 2020 YouTube video with Hikaru; Hokkaido used here. Measurements have no date qualifier in infobox. active_to approximated to Ebisu Muscats graduation date (2018-04-17); last actual AV release date not determined."
+  data_sources:
+  - "https://ja.wikipedia.org/wiki/%E6%98%8E%E6%97%A5%E8%8A%B1%E3%82%AD%E3%83%A9%E3%83%A9"
+  - "local DB (actress id=86)"
+  portfolio_listed: 0

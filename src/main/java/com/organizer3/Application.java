@@ -13,6 +13,34 @@ import com.organizer3.command.ActressSearchCommand;
 import com.organizer3.command.CheckNamesCommand;
 import com.organizer3.command.ErrorScanService;
 import com.organizer3.command.ScanErrorsCommand;
+import com.organizer3.avstars.command.AvActressCommand;
+import com.organizer3.avstars.command.AvActressesCommand;
+import com.organizer3.avstars.command.AvCurateCommand;
+import com.organizer3.avstars.command.AvFavoritesCommand;
+import com.organizer3.avstars.command.AvMigrateActressCommand;
+import com.organizer3.avstars.command.AvParseFilenamesCommand;
+import com.organizer3.avstars.command.AvResolveCommand;
+import com.organizer3.avstars.command.AvSyncCommand;
+import com.organizer3.avstars.iafd.HttpIafdClient;
+import com.organizer3.avstars.iafd.IafdProfileParser;
+import com.organizer3.avstars.iafd.IafdSearchParser;
+import com.organizer3.avstars.AvScreenshotService;
+import com.organizer3.avstars.command.AvScreenshotsCommand;
+import com.organizer3.avstars.command.AvTagsCommand;
+import com.organizer3.avstars.sync.AvFilenameParser;
+import com.organizer3.avstars.sync.AvTagYamlLoader;
+import com.organizer3.avstars.repository.AvActressRepository;
+import com.organizer3.avstars.repository.AvScreenshotRepository;
+import com.organizer3.avstars.repository.AvTagDefinitionRepository;
+import com.organizer3.avstars.repository.AvVideoRepository;
+import com.organizer3.avstars.repository.AvVideoTagRepository;
+import com.organizer3.avstars.repository.jdbi.JdbiAvActressRepository;
+import com.organizer3.avstars.repository.jdbi.JdbiAvScreenshotRepository;
+import com.organizer3.avstars.repository.jdbi.JdbiAvTagDefinitionRepository;
+import com.organizer3.avstars.repository.jdbi.JdbiAvVideoRepository;
+import com.organizer3.avstars.repository.jdbi.JdbiAvVideoTagRepository;
+import com.organizer3.avstars.sync.AvStarsSyncOperation;
+import com.organizer3.avstars.web.AvBrowseService;
 import com.organizer3.command.ActressesCommand;
 
 import com.organizer3.command.Command;
@@ -140,6 +168,13 @@ public class Application {
         WatchHistoryRepository watchHistoryRepo = new JdbiWatchHistoryRepository(jdbi);
         IndexLoader indexLoader = new IndexLoader(titleRepo, actressRepo);
 
+        // AV Stars repositories
+        AvActressRepository      avActressRepo    = new JdbiAvActressRepository(jdbi);
+        AvVideoRepository        avVideoRepo      = new JdbiAvVideoRepository(jdbi);
+        AvScreenshotRepository   avScreenshotRepo = new JdbiAvScreenshotRepository(jdbi);
+        AvTagDefinitionRepository avTagDefRepo    = new JdbiAvTagDefinitionRepository(jdbi);
+        AvVideoTagRepository      avVideoTagRepo  = new JdbiAvVideoTagRepository(jdbi);
+
         // Seed actress aliases from aliases.yaml
         try (var aliasStream = Application.class.getResourceAsStream("/aliases.yaml")) {
             if (aliasStream != null) {
@@ -212,6 +247,26 @@ public class Application {
             backupScheduler.start(backupService, backupPath, autoBackupInterval, snapshotCount);
         }
 
+        // AV Stars commands
+        AvStarsSyncOperation avStarsSyncOp = new AvStarsSyncOperation(avActressRepo, avVideoRepo, volumeRepo);
+        AvFilenameParser avFilenameParser = new AvFilenameParser();
+        commands.add(new AvSyncCommand(avStarsSyncOp));
+        commands.add(new AvActressesCommand(avActressRepo));
+        commands.add(new AvActressCommand(avActressRepo, avVideoRepo));
+        commands.add(new AvFavoritesCommand(avActressRepo));
+        commands.add(new AvCurateCommand(avActressRepo));
+        commands.add(new AvMigrateActressCommand(avActressRepo));
+        commands.add(new AvParseFilenamesCommand(avVideoRepo, avFilenameParser));
+        Path avHeadshotDir    = dataDir.resolve("av_headshots");
+        Path avScreenshotDir  = dataDir.resolve("av_screenshots");
+        commands.add(new AvResolveCommand(avActressRepo, new HttpIafdClient(),
+                new IafdSearchParser(), new IafdProfileParser(), avHeadshotDir));
+        AvScreenshotService avScreenshotService = new AvScreenshotService(avScreenshotRepo, avScreenshotDir, WebServer.DEFAULT_PORT);
+        commands.add(new AvScreenshotsCommand(avActressRepo, avVideoRepo, avScreenshotRepo, avScreenshotService));
+        AvTagYamlLoader avTagYamlLoader = new AvTagYamlLoader(avTagDefRepo);
+        commands.add(new AvTagsCommand(avTagDefRepo, avVideoTagRepo, avTagYamlLoader,
+                dataDir.resolve("av_tags.yaml")));
+
         // Cover image commands
         CoverPath coverPath = new CoverPath(dataDir);
         commands.add(new ScanCoversCommand(titleRepo, volumeRepo, coverPath, scannerRegistry));
@@ -272,7 +327,7 @@ public class Application {
                 dbDir.resolve("stagenames.yaml"));
         ActressBrowseService actressBrowseService = new ActressBrowseService(
                 actressRepo, titleRepo, coverPath, volumeSmbPaths, labelRepo, nameLookup, stageNameBackup);
-        SearchService searchService = new SearchService(actressRepo, titleRepo, labelRepo, coverPath);
+        SearchService searchService = new SearchService(actressRepo, titleRepo, labelRepo, coverPath, avActressRepo);
 
         // Video streaming + metadata
         SmbConnectionFactory smbConnectionFactory = new SmbConnectionFactory(config);
@@ -282,6 +337,9 @@ public class Application {
 
         WebServer webServer = new WebServer(browseService, actressBrowseService, coverPath.root(),
                 videoStreamService, thumbnailService, videoProbe, watchHistoryRepo, titleRepo, searchService);
+        webServer.registerAvRoutes(new AvBrowseService(avActressRepo, avVideoRepo, avScreenshotRepo, avVideoTagRepo),
+                avHeadshotDir, smbConnectionFactory, avVideoRepo, avActressRepo,
+                avScreenshotRepo, avScreenshotDir, avTagDefRepo, avScreenshotService);
         webServer.registerTerminal(new WebTerminalHandler(dispatcher, session));
         webServer.start();
 

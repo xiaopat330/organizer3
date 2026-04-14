@@ -12,6 +12,11 @@ thumbnailColumns: 5
 coverCropPercent: 47
 
 servers:
+  - id: athena
+    username: patri
+    password: "!&Xiaobeibei328&!"
+    domain: athena
+
   - id: pandora
     username: patri
     password: "!&Xiaobeibei328&!"
@@ -110,6 +115,16 @@ volumes:
     structureType: collections
     server: pandora
 
+  - id: qnap_av
+    smbPath: //qnap2/AV/stars
+    structureType: avstars
+    server: qnap2
+
+  - id: athena_av
+    smbPath: //athena/AV/stars
+    structureType: avstars
+    server: athena
+
 structures:
   - id: conventional
     unstructuredPartitions:
@@ -154,6 +169,13 @@ structures:
       - { id: new,       path: new       }
       - { id: omnibus,   path: omnibus   }
       - { id: recent,    path: recent    }
+
+  - id: avstars
+    unstructuredPartitions: []
+    ignoredSubfolders:
+      - trash
+      - .Trashes
+      - incomplete
 
 syncConfig:
   - structureType: conventional

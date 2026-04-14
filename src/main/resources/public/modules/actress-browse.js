@@ -530,6 +530,7 @@ function _openActressDetail(id) {
 export async function selectActressBrowseMode(modeKey) {
   pushNav({ view: 'actresses', mode: modeKey }, 'actresses/' + encodeURIComponent(modeKey));
   actressBrowseMode = modeKey;
+  document.getElementById('av-btn')?.classList.remove('active');
   if (modeKey === 'dashboard') {
     hideActressTierRow();
     hideActressStudioGroupRow();

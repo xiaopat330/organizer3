@@ -1,5 +1,6 @@
 package com.organizer3.web;
 
+import com.organizer3.avstars.repository.AvActressRepository;
 import com.organizer3.covers.CoverPath;
 import com.organizer3.model.Title;
 import com.organizer3.repository.ActressRepository;
@@ -21,23 +22,26 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class SearchService {
 
-    private static final int MAX_ACTRESS_RESULTS = 5;
-    private static final int MAX_TITLE_RESULTS   = 3;
-    private static final int MAX_LABEL_RESULTS   = 2;
-    private static final int MAX_COMPANY_RESULTS = 2;
+    private static final int MAX_ACTRESS_RESULTS    = 5;
+    private static final int MAX_TITLE_RESULTS      = 3;
+    private static final int MAX_LABEL_RESULTS      = 2;
+    private static final int MAX_COMPANY_RESULTS    = 2;
+    private static final int MAX_AV_ACTRESS_RESULTS = 5;
 
-    private final ActressRepository actressRepo;
-    private final TitleRepository   titleRepo;
-    private final LabelRepository   labelRepo;
-    private final CoverPath         coverPath;
+    private final ActressRepository   actressRepo;
+    private final TitleRepository     titleRepo;
+    private final LabelRepository     labelRepo;
+    private final CoverPath           coverPath;
+    private final AvActressRepository avActressRepo;
 
     /**
      * Run the federated search and return a grouped result map suitable for JSON serialisation.
      *
      * @param query      the user's search string (non-blank, already trimmed)
      * @param startsWith {@code true} for prefix matching, {@code false} for contains matching
+     * @param includeAv  {@code true} to include AV actress results
      */
-    public Map<String, Object> search(String query, boolean startsWith) {
+    public Map<String, Object> search(String query, boolean startsWith, boolean includeAv) {
         List<Map<String, Object>> actresses = actressRepo
                 .searchForFederated(query, startsWith, MAX_ACTRESS_RESULTS)
                 .stream()
@@ -64,11 +68,17 @@ public class SearchService {
 
         List<String> companies = labelRepo.searchCompanies(query, startsWith, MAX_COMPANY_RESULTS);
 
+        List<Map<String, Object>> avActresses = includeAv
+                ? avActressRepo.searchForFederated(query, MAX_AV_ACTRESS_RESULTS)
+                        .stream().map(this::toAvActressMap).toList()
+                : List.of();
+
         Map<String, Object> result = new LinkedHashMap<>();
-        result.put("actresses", actresses);
-        result.put("titles",    titles);
-        result.put("labels",    labels);
-        result.put("companies", companies);
+        result.put("actresses",   actresses);
+        result.put("titles",      titles);
+        result.put("labels",      labels);
+        result.put("companies",   companies);
+        result.put("avActresses", avActresses);
         return result;
     }
 
@@ -97,6 +107,18 @@ public class SearchService {
                     .orElse(null);
         }
         m.put("coverUrl", coverUrl);
+        return m;
+    }
+
+    private Map<String, Object> toAvActressMap(AvActressRepository.FederatedAvActressResult r) {
+        Map<String, Object> m = new LinkedHashMap<>();
+        m.put("id",         r.id());
+        m.put("stageName",  r.stageName());
+        m.put("videoCount", r.videoCount());
+        String headshotUrl = r.headshotPath() != null
+                ? "/api/av/headshots/" + r.id()
+                : null;
+        m.put("headshotUrl", headshotUrl);
         return m;
     }
 

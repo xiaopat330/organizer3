@@ -19,7 +19,7 @@ import org.jdbi.v3.core.Jdbi;
 public class SchemaUpgrader {
 
     /** Must match the version stamped by {@link SchemaInitializer}. */
-    private static final int CURRENT_VERSION = 13;
+    private static final int CURRENT_VERSION = 17;
 
     private final Jdbi jdbi;
 
@@ -76,7 +76,7 @@ public class SchemaUpgrader {
             setVersion(10);
         }
 
-        // v11 is reserved for AV Stars — skipped for now.
+        // v11 is reserved — slot was held for AV Stars but tables land in v14 for existing DBs.
 
         if (version < 12) {
             applyV12();
@@ -88,7 +88,190 @@ public class SchemaUpgrader {
             setVersion(13);
         }
 
+        if (version < 14) {
+            applyV14();
+            setVersion(14);
+        }
+
+        if (version < 15) {
+            applyV15();
+            setVersion(15);
+        }
+
+        if (version < 16) {
+            applyV16();
+            setVersion(16);
+        }
+
+        if (version < 17) {
+            applyV17();
+            setVersion(17);
+        }
+
         log.info("Schema upgrade complete");
+    }
+
+    /**
+     * v17: AV Stars — creates {@code av_tag_definitions} and {@code av_video_tags} tables
+     * for the tag taxonomy + filter feature (Phase 5e).
+     */
+    private void applyV17() {
+        log.info("Applying migration v17: av_tag_definitions and av_video_tags tables");
+        jdbi.useHandle(h -> {
+            h.execute("""
+                    CREATE TABLE IF NOT EXISTS av_tag_definitions (
+                        slug         TEXT PRIMARY KEY,
+                        display_name TEXT NOT NULL,
+                        category     TEXT,
+                        aliases_json TEXT
+                    )""");
+
+            h.execute("""
+                    CREATE TABLE IF NOT EXISTS av_video_tags (
+                        av_video_id  INTEGER NOT NULL REFERENCES av_videos(id) ON DELETE CASCADE,
+                        tag_slug     TEXT NOT NULL REFERENCES av_tag_definitions(slug),
+                        source       TEXT NOT NULL DEFAULT 'apply',
+                        PRIMARY KEY (av_video_id, tag_slug)
+                    )""");
+            h.execute("CREATE INDEX IF NOT EXISTS idx_av_video_tags_tag ON av_video_tags(tag_slug)");
+            h.execute("CREATE INDEX IF NOT EXISTS idx_av_video_tags_video ON av_video_tags(av_video_id)");
+        });
+    }
+
+    /**
+     * v16: AV Stars — creates {@code av_video_screenshots} table for storing
+     * locally-generated screenshot frames (Phase 5d).
+     */
+    private void applyV16() {
+        log.info("Applying migration v16: av_video_screenshots table");
+        jdbi.useHandle(h -> {
+            h.execute("""
+                    CREATE TABLE IF NOT EXISTS av_video_screenshots (
+                        id          INTEGER PRIMARY KEY AUTOINCREMENT,
+                        av_video_id INTEGER NOT NULL REFERENCES av_videos(id) ON DELETE CASCADE,
+                        seq         INTEGER NOT NULL,
+                        path        TEXT NOT NULL,
+                        UNIQUE(av_video_id, seq)
+                    )""");
+            h.execute("""
+                    CREATE INDEX IF NOT EXISTS idx_av_video_screenshots_video
+                        ON av_video_screenshots(av_video_id)""");
+        });
+    }
+
+    /**
+     * v15: AV Stars — adds visit tracking to av_actresses and watch/bookmark/curation
+     * fields to av_videos needed by the Phase 5 web UI.
+     */
+    private void applyV15() {
+        log.info("Applying migration v15: visit/watch tracking on av_actresses and av_videos");
+        jdbi.useHandle(h -> {
+            addColumnIfMissing(h, "av_actresses", "last_visited_at",  "TEXT");
+            addColumnIfMissing(h, "av_actresses", "visit_count",      "INTEGER NOT NULL DEFAULT 0");
+            addColumnIfMissing(h, "av_videos",    "bookmark",         "INTEGER NOT NULL DEFAULT 0");
+            addColumnIfMissing(h, "av_videos",    "watched",          "INTEGER NOT NULL DEFAULT 0");
+            addColumnIfMissing(h, "av_videos",    "last_watched_at",  "TEXT");
+            addColumnIfMissing(h, "av_videos",    "watch_count",      "INTEGER NOT NULL DEFAULT 0");
+        });
+    }
+
+    /**
+     * v14: AV Stars — creates {@code av_actresses} and {@code av_videos} tables for the
+     * Western performer library. Fully independent of the JAV actress/title schema.
+     */
+    private void applyV14() {
+        log.info("Applying migration v14: av_actresses and av_videos tables");
+        jdbi.useHandle(h -> {
+            h.execute("""
+                    CREATE TABLE IF NOT EXISTS av_actresses (
+                        id                   INTEGER PRIMARY KEY AUTOINCREMENT,
+                        volume_id            TEXT NOT NULL REFERENCES volumes(id),
+                        folder_name          TEXT NOT NULL,
+                        stage_name           TEXT NOT NULL,
+
+                        iafd_id              TEXT,
+                        headshot_path        TEXT,
+                        aka_names_json       TEXT,
+
+                        gender               TEXT,
+                        date_of_birth        TEXT,
+                        date_of_death        TEXT,
+                        birthplace           TEXT,
+                        nationality          TEXT,
+                        ethnicity            TEXT,
+
+                        hair_color           TEXT,
+                        eye_color            TEXT,
+                        height_cm            INTEGER,
+                        weight_kg            INTEGER,
+                        measurements         TEXT,
+                        cup                  TEXT,
+                        shoe_size            TEXT,
+                        tattoos              TEXT,
+                        piercings            TEXT,
+
+                        active_from          INTEGER,
+                        active_to            INTEGER,
+                        director_from        INTEGER,
+                        director_to          INTEGER,
+                        iafd_title_count     INTEGER,
+
+                        website_url          TEXT,
+                        social_json          TEXT,
+                        platforms_json       TEXT,
+                        external_refs_json   TEXT,
+
+                        iafd_comments_json   TEXT,
+                        awards_json          TEXT,
+
+                        favorite             INTEGER NOT NULL DEFAULT 0,
+                        bookmark             INTEGER NOT NULL DEFAULT 0,
+                        rejected             INTEGER NOT NULL DEFAULT 0,
+                        grade                TEXT,
+                        notes                TEXT,
+
+                        first_seen_at        TEXT NOT NULL,
+                        last_scanned_at      TEXT,
+                        last_iafd_synced_at  TEXT,
+                        video_count          INTEGER NOT NULL DEFAULT 0,
+                        total_size_bytes     INTEGER NOT NULL DEFAULT 0,
+
+                        UNIQUE(volume_id, folder_name)
+                    )""");
+            h.execute("CREATE INDEX IF NOT EXISTS idx_av_actresses_volume ON av_actresses(volume_id)");
+            h.execute("CREATE INDEX IF NOT EXISTS idx_av_actresses_iafd_id ON av_actresses(iafd_id)");
+
+            h.execute("""
+                    CREATE TABLE IF NOT EXISTS av_videos (
+                        id              INTEGER PRIMARY KEY AUTOINCREMENT,
+                        av_actress_id   INTEGER NOT NULL REFERENCES av_actresses(id),
+                        volume_id       TEXT NOT NULL REFERENCES volumes(id),
+                        relative_path   TEXT NOT NULL,
+                        filename        TEXT NOT NULL,
+                        extension       TEXT,
+                        size_bytes      INTEGER,
+                        mtime           TEXT,
+                        last_seen_at    TEXT NOT NULL,
+                        added_date      TEXT,
+                        bucket          TEXT,
+
+                        studio          TEXT,
+                        release_date    TEXT,
+                        parsed_title    TEXT,
+                        resolution      TEXT,
+                        codec           TEXT,
+                        tags_json       TEXT,
+
+                        favorite        INTEGER NOT NULL DEFAULT 0,
+                        rejected        INTEGER NOT NULL DEFAULT 0,
+
+                        UNIQUE(av_actress_id, relative_path)
+                    )""");
+            h.execute("CREATE INDEX IF NOT EXISTS idx_av_videos_actress ON av_videos(av_actress_id)");
+            h.execute("CREATE INDEX IF NOT EXISTS idx_av_videos_volume ON av_videos(volume_id)");
+            h.execute("CREATE INDEX IF NOT EXISTS idx_av_videos_studio ON av_videos(studio)");
+            h.execute("CREATE INDEX IF NOT EXISTS idx_av_videos_bucket ON av_videos(bucket)");
+        });
     }
 
     /**
