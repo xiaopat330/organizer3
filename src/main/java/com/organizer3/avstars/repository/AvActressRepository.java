@@ -69,4 +69,20 @@ public interface AvActressRepository {
      * row. Used by {@code av migrate} when an actress folder is renamed on disk.
      */
     void migrateCuration(long fromActressId, long toActressId);
+
+    // ── Federated search ──────────────────────────────────────────────────────
+
+    /** Lightweight AV actress projection for federated search results. */
+    record FederatedAvActressResult(
+            long   id,
+            String stageName,
+            int    videoCount,
+            String headshotPath
+    ) {}
+
+    /**
+     * Search AV actresses by stage name for the federated search overlay.
+     * Returns at most {@code limit} results, ordered by video_count DESC.
+     */
+    List<FederatedAvActressResult> searchForFederated(String query, int limit);
 }

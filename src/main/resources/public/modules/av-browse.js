@@ -16,7 +16,7 @@ const avGridEl              = document.getElementById('av-grid');
 // ── State ─────────────────────────────────────────────────────────────────
 export let avBrowseMode = null;
 let allActresses = [];      // full loaded set for client-side filter/sort
-let activeSort = 'count';   // 'count' | 'name'
+let activeSort = 'name';    // 'count' | 'name'
 let filterText = '';
 let activeTagFilters = new Set(); // tag slugs for actress index filtering
 let allTagDefs = [];               // loaded from /api/av/tags
@@ -166,11 +166,12 @@ function renderGrid() {
     data = data.filter(a => (a.topTags || []).some(t => activeTagFilters.has(t)));
   }
 
-  // Sort
+  // Sort: favorites first, bookmarks second, then by selected sort within each tier
+  const tier = a => a.favorite ? 0 : a.bookmark ? 1 : 2;
   if (activeSort === 'name') {
-    data.sort((a, b) => a.stageName.localeCompare(b.stageName));
+    data.sort((a, b) => tier(a) - tier(b) || a.stageName.localeCompare(b.stageName));
   } else {
-    data.sort((a, b) => b.videoCount - a.videoCount || a.stageName.localeCompare(b.stageName));
+    data.sort((a, b) => tier(a) - tier(b) || b.videoCount - a.videoCount || a.stageName.localeCompare(b.stageName));
   }
 
   const countEl = document.getElementById('av-index-count');

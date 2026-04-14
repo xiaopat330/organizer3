@@ -9,8 +9,8 @@ export const COLS_VALUES = [4, 5, 6, 8, 10, 12];
 export const STORAGE_KEY = 'title-grid-cols';
 
 /** Returns the currently saved col count, falling back to the closest value to THUMBNAIL_COLUMNS. */
-export function effectiveCols() {
-  const saved = parseInt(localStorage.getItem(STORAGE_KEY), 10);
+export function effectiveCols(storageKey = STORAGE_KEY) {
+  const saved = parseInt(localStorage.getItem(storageKey), 10);
   if (COLS_VALUES.includes(saved)) return saved;
   return COLS_VALUES.reduce((a, b) =>
     Math.abs(b - THUMBNAIL_COLUMNS) < Math.abs(a - THUMBNAIL_COLUMNS) ? b : a
@@ -28,7 +28,7 @@ export function colsSliderHtml(cols, controlId, sliderId, labelId) {
 }
 
 /** Attaches the input listener to an already-rendered slider. applyFn receives the new column count. */
-export function wireColsSlider(sliderId, labelId, applyFn) {
+export function wireColsSlider(sliderId, labelId, applyFn, storageKey = STORAGE_KEY) {
   const slider = document.getElementById(sliderId);
   const label  = document.getElementById(labelId);
   if (!slider) return;
@@ -36,7 +36,7 @@ export function wireColsSlider(sliderId, labelId, applyFn) {
     const cols = COLS_VALUES[parseInt(slider.value, 10)];
     if (label) label.textContent = cols;
     applyFn(cols);
-    localStorage.setItem(STORAGE_KEY, cols);
+    localStorage.setItem(storageKey, cols);
   });
 }
 

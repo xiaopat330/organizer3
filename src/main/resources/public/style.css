@@ -3701,6 +3701,12 @@ header h1:hover {
 .search-thumb-empty {
   background: #2a2a2a;
 }
+.search-thumb-person {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  object-position: center top;
+}
 
 .search-code {
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;

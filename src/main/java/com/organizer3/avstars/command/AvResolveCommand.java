@@ -51,24 +51,24 @@ public class AvResolveCommand implements Command {
 
     @Override
     public void execute(String[] args, SessionContext ctx, CommandIO io) {
-        // args[0] = "av", args[1] = "resolve", args[2..] = subcommand
-        if (args.length < 3) {
+        // args[0] = "av resolve" (merged by dispatcher), args[1..] = subcommand + name
+        if (args.length < 2) {
             io.println("Usage: av resolve <name>");
             io.println("       av resolve all");
             io.println("       av resolve refresh <name>");
             return;
         }
 
-        String sub = args[2].toLowerCase();
+        String sub = args[1].toLowerCase();
 
         if ("all".equals(sub)) {
             resolveAll(io);
         } else if ("refresh".equals(sub)) {
-            String name = joinArgs(args, 3);
+            String name = joinArgs(args, 2);
             if (name.isEmpty()) { io.println("Usage: av resolve refresh <name>"); return; }
             resolveRefresh(name, io);
         } else {
-            String name = joinArgs(args, 2);
+            String name = joinArgs(args, 1);
             resolveOne(name, io);
         }
     }

@@ -80,16 +80,21 @@ public class AvScreenshotsCommand implements Command {
 
         int done = 0;
         int failed = 0;
-        for (AvVideo video : pending) {
-            io.status("  " + video.getFilename() + " …");
-            List<String> urls = screenshotService.generateForVideo(video.getId());
-            io.clearStatus();
-            if (!urls.isEmpty()) {
-                io.println("  " + video.getFilename() + ": " + urls.size() + " frames");
-                done++;
-            } else {
-                io.println("  " + video.getFilename() + ": failed");
-                failed++;
+        int total = pending.size();
+        try (var progress = io.startProgress("Screenshots", total)) {
+            for (int i = 0; i < total; i++) {
+                AvVideo video = pending.get(i);
+                int remaining = total - i;
+                progress.setLabel("[" + remaining + "/" + total + "] " + video.getFilename());
+                List<String> urls = screenshotService.generateForVideo(video.getId());
+                progress.advance();
+                if (!urls.isEmpty()) {
+                    io.println("  " + video.getFilename() + ": " + urls.size() + " frames");
+                    done++;
+                } else {
+                    io.println("  " + video.getFilename() + ": failed");
+                    failed++;
+                }
             }
         }
 

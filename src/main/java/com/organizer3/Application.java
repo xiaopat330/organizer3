@@ -327,7 +327,7 @@ public class Application {
                 dbDir.resolve("stagenames.yaml"));
         ActressBrowseService actressBrowseService = new ActressBrowseService(
                 actressRepo, titleRepo, coverPath, volumeSmbPaths, labelRepo, nameLookup, stageNameBackup);
-        SearchService searchService = new SearchService(actressRepo, titleRepo, labelRepo, coverPath);
+        SearchService searchService = new SearchService(actressRepo, titleRepo, labelRepo, coverPath, avActressRepo);
 
         // Video streaming + metadata
         SmbConnectionFactory smbConnectionFactory = new SmbConnectionFactory(config);

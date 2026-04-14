@@ -12,6 +12,11 @@ thumbnailColumns: 5
 coverCropPercent: 47
 
 servers:
+  - id: athena
+    username: patri
+    password: "!&Xiaobeibei328&!"
+    domain: athena
+
   - id: pandora
     username: patri
     password: "!&Xiaobeibei328&!"
@@ -114,6 +119,11 @@ volumes:
     smbPath: //qnap2/AV/stars
     structureType: avstars
     server: qnap2
+
+  - id: athena_av
+    smbPath: //athena/AV/stars
+    structureType: avstars
+    server: athena
 
 structures:
   - id: conventional

@@ -300,7 +300,8 @@ public class WebServer {
                 }
                 String matchMode = ctx.queryParam("matchMode");
                 boolean startsWith = "startsWith".equals(matchMode);
-                ctx.json(searchService.search(q.trim(), startsWith));
+                boolean includeAv  = "true".equals(ctx.queryParam("includeAv"));
+                ctx.json(searchService.search(q.trim(), startsWith, includeAv));
             });
 
             app.get("/api/titles/by-code-prefix", ctx -> {

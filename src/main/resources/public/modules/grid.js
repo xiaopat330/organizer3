@@ -35,6 +35,7 @@ export function showView(name) {
     else if (el.classList.contains('actress-landing')) el.style.display = 'flex';
     else if (el.id === 'title-detail') el.style.display = 'flex';
     else if (el.id === 'actress-detail') el.style.display = 'flex';
+    else if (el.id === 'av-actress-detail') el.style.display = 'flex';
     else el.style.display = 'block';
   }
   const fixedViewport = FIXED_VIEWPORT_VIEWS.has(name);

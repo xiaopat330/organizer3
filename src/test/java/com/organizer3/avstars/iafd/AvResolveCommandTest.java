@@ -56,7 +56,8 @@ class AvResolveCommandTest {
 
     @Test
     void noArgsShowsUsage() {
-        cmd.execute(new String[]{"av", "resolve"}, null, io);
+        // dispatcher merges two-word prefix into args[0]; no further args → length 1
+        cmd.execute(new String[]{"av resolve"}, null, io);
         assertTrue(out.toString().contains("Usage:"));
         verifyNoInteractions(iafdClient);
     }
@@ -66,7 +67,7 @@ class AvResolveCommandTest {
     @Test
     void unknownActressShowsMessage() {
         when(actressRepo.findAllByVideoCountDesc()).thenReturn(List.of());
-        cmd.execute(new String[]{"av", "resolve", "Nobody"}, null, io);
+        cmd.execute(new String[]{"av resolve", "Nobody"}, null, io);
         assertTrue(out.toString().contains("No actress found"));
         verifyNoInteractions(iafdClient);
     }
@@ -76,7 +77,7 @@ class AvResolveCommandTest {
         when(actressRepo.findAllByVideoCountDesc()).thenReturn(List.of(actress("Anissa Kate", null)));
         when(iafdClient.fetchSearch("Anissa Kate")).thenThrow(new IafdFetchException("timeout"));
 
-        cmd.execute(new String[]{"av", "resolve", "Anissa Kate"}, null, io);
+        cmd.execute(new String[]{"av resolve", "Anissa Kate"}, null, io);
 
         assertTrue(out.toString().contains("IAFD search failed"));
         verify(actressRepo, never()).updateIafdFields(anyLong(), any(), any());
@@ -87,7 +88,7 @@ class AvResolveCommandTest {
         when(actressRepo.findAllByVideoCountDesc()).thenReturn(List.of(actress("Anissa Kate", null)));
         when(iafdClient.fetchSearch("Anissa Kate")).thenReturn("<html><table id='tblFeatured'></table></html>");
 
-        cmd.execute(new String[]{"av", "resolve", "Anissa Kate"}, null, io);
+        cmd.execute(new String[]{"av resolve", "Anissa Kate"}, null, io);
 
         assertTrue(out.toString().contains("No IAFD results"));
         verify(actressRepo, never()).updateIafdFields(anyLong(), any(), any());
@@ -103,7 +104,7 @@ class AvResolveCommandTest {
         when(iafdClient.fetchProfile("53696199-bf71-4219-b58a-bd1e2fae9f1e"))
                 .thenReturn("<html><div id='perftabs'>Performer Credits (352)</div></html>");
 
-        cmd.execute(new String[]{"av", "resolve", "Anissa Kate"}, null, io);
+        cmd.execute(new String[]{"av resolve", "Anissa Kate"}, null, io);
 
         verify(actressRepo).updateIafdFields(eq(1L), any(), any());
         assertTrue(out.toString().contains("Resolved"));
@@ -114,7 +115,7 @@ class AvResolveCommandTest {
     @Test
     void resolveAllNothingToResolve() {
         when(actressRepo.findUnresolved()).thenReturn(List.of());
-        cmd.execute(new String[]{"av", "resolve", "all"}, null, io);
+        cmd.execute(new String[]{"av resolve", "all"}, null, io);
         assertTrue(out.toString().contains("All actresses are already resolved"));
         verifyNoInteractions(iafdClient);
     }
@@ -129,7 +130,7 @@ class AvResolveCommandTest {
         when(iafdClient.fetchProfile(asaUuid))
                 .thenReturn("<html><div id='perftabs'>Performer Credits (700)</div></html>");
 
-        cmd.execute(new String[]{"av", "resolve", "all"}, null, io);
+        cmd.execute(new String[]{"av resolve", "all"}, null, io);
 
         verify(actressRepo).updateIafdFields(eq(1L), any(), any());
         assertTrue(out.toString().contains("resolved"));
@@ -143,7 +144,7 @@ class AvResolveCommandTest {
                 + buildSearchRow("22222222-2222-2222-2222-222222222222", "Jane Doe", "J. Doe", "2015", "2023", "12", "");
         when(iafdClient.fetchSearch("Jane Doe")).thenReturn(wrapInTable(searchHtml));
 
-        cmd.execute(new String[]{"av", "resolve", "all"}, null, io);
+        cmd.execute(new String[]{"av resolve", "all"}, null, io);
 
         // Should not auto-resolve ambiguous
         verify(actressRepo, never()).updateIafdFields(anyLong(), any(), any());
@@ -155,14 +156,14 @@ class AvResolveCommandTest {
     @Test
     void refreshActressNotFoundShowsMessage() {
         when(actressRepo.findAllByVideoCountDesc()).thenReturn(List.of());
-        cmd.execute(new String[]{"av", "resolve", "refresh", "Unknown"}, null, io);
+        cmd.execute(new String[]{"av resolve", "refresh", "Unknown"}, null, io);
         assertTrue(out.toString().contains("No actress found"));
     }
 
     @Test
     void refreshActressNotYetResolvedShowsMessage() {
         when(actressRepo.findAllByVideoCountDesc()).thenReturn(List.of(actress("Anissa Kate", null)));
-        cmd.execute(new String[]{"av", "resolve", "refresh", "Anissa Kate"}, null, io);
+        cmd.execute(new String[]{"av resolve", "refresh", "Anissa Kate"}, null, io);
         assertTrue(out.toString().contains("not yet resolved"));
         verifyNoInteractions(iafdClient);
     }
@@ -174,7 +175,7 @@ class AvResolveCommandTest {
         when(iafdClient.fetchProfile("53696199-bf71-4219-b58a-bd1e2fae9f1e"))
                 .thenReturn("<html><div id='perftabs'>Performer Credits (360)</div></html>");
 
-        cmd.execute(new String[]{"av", "resolve", "refresh", "Anissa Kate"}, null, io);
+        cmd.execute(new String[]{"av resolve", "refresh", "Anissa Kate"}, null, io);
 
         verify(iafdClient).fetchProfile("53696199-bf71-4219-b58a-bd1e2fae9f1e");
         verify(actressRepo).updateIafdFields(eq(1L), any(), any());

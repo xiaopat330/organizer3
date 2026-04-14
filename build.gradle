@@ -80,6 +80,10 @@ application {
     mainClass = 'com.organizer3.Application'
 }
 
+run {
+    standardInput = System.in
+}
+
 test {
     useJUnitPlatform()
 }

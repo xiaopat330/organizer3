@@ -322,4 +322,25 @@ public class JdbiAvActressRepository implements AvActressRepository {
                     .bind("id", fromActressId).execute();
         });
     }
+
+    @Override
+    public List<FederatedAvActressResult> searchForFederated(String query, int limit) {
+        String pattern = "%" + query.replace("%", "\\%").replace("_", "\\_") + "%";
+        return jdbi.withHandle(h -> h.createQuery("""
+                        SELECT id, stage_name, video_count, headshot_path
+                        FROM av_actresses
+                        WHERE stage_name LIKE :pattern ESCAPE '\\'
+                          AND rejected = 0
+                        ORDER BY video_count DESC
+                        LIMIT :limit
+                        """)
+                .bind("pattern", pattern)
+                .bind("limit", limit)
+                .map((rs, ctx) -> new FederatedAvActressResult(
+                        rs.getLong("id"),
+                        rs.getString("stage_name"),
+                        rs.getInt("video_count"),
+                        rs.getString("headshot_path")))
+                .list());
+    }
 }
