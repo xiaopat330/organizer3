@@ -1,5 +1,6 @@
 package com.organizer3.avstars.repository.jdbi;
 
+import com.organizer3.avstars.iafd.IafdResolvedProfile;
 import com.organizer3.avstars.model.AvActress;
 import com.organizer3.avstars.repository.AvActressRepository;
 import lombok.RequiredArgsConstructor;
@@ -206,6 +207,85 @@ public class JdbiAvActressRepository implements AvActressRepository {
         jdbi.useHandle(h ->
                 h.createUpdate("UPDATE av_actresses SET grade = :grade WHERE id = :id")
                         .bind("grade", grade).bind("id", actressId).execute());
+    }
+
+    @Override
+    public List<AvActress> findUnresolved() {
+        return jdbi.withHandle(h ->
+                h.createQuery("SELECT * FROM av_actresses WHERE iafd_id IS NULL ORDER BY stage_name")
+                        .map(MAPPER)
+                        .list());
+    }
+
+    @Override
+    public void updateIafdFields(long actressId, IafdResolvedProfile p, String headshotPath) {
+        jdbi.useHandle(h ->
+                h.createUpdate("""
+                        UPDATE av_actresses SET
+                            iafd_id              = :iafdId,
+                            headshot_path        = :headshotPath,
+                            aka_names_json       = :akaNamesJson,
+                            gender               = :gender,
+                            date_of_birth        = :dateOfBirth,
+                            date_of_death        = :dateOfDeath,
+                            birthplace           = :birthplace,
+                            nationality          = :nationality,
+                            ethnicity            = :ethnicity,
+                            hair_color           = :hairColor,
+                            eye_color            = :eyeColor,
+                            height_cm            = :heightCm,
+                            weight_kg            = :weightKg,
+                            measurements         = :measurements,
+                            cup                  = :cup,
+                            shoe_size            = :shoeSize,
+                            tattoos              = :tattoos,
+                            piercings            = :piercings,
+                            active_from          = :activeFrom,
+                            active_to            = :activeTo,
+                            director_from        = :directorFrom,
+                            director_to          = :directorTo,
+                            iafd_title_count     = :iafdTitleCount,
+                            website_url          = :websiteUrl,
+                            social_json          = :socialJson,
+                            platforms_json       = :platformsJson,
+                            external_refs_json   = :externalRefsJson,
+                            iafd_comments_json   = :iafdCommentsJson,
+                            awards_json          = :awardsJson,
+                            last_iafd_synced_at  = :syncedAt
+                        WHERE id = :id
+                        """)
+                        .bind("id", actressId)
+                        .bind("iafdId", p.getIafdId())
+                        .bind("headshotPath", headshotPath)
+                        .bind("akaNamesJson", p.getAkaNamesJson())
+                        .bind("gender", p.getGender())
+                        .bind("dateOfBirth", p.getDateOfBirth())
+                        .bind("dateOfDeath", p.getDateOfDeath())
+                        .bind("birthplace", p.getBirthplace())
+                        .bind("nationality", p.getNationality())
+                        .bind("ethnicity", p.getEthnicity())
+                        .bind("hairColor", p.getHairColor())
+                        .bind("eyeColor", p.getEyeColor())
+                        .bind("heightCm", p.getHeightCm())
+                        .bind("weightKg", p.getWeightKg())
+                        .bind("measurements", p.getMeasurements())
+                        .bind("cup", p.getCup())
+                        .bind("shoeSize", p.getShoeSize())
+                        .bind("tattoos", p.getTattoos())
+                        .bind("piercings", p.getPiercings())
+                        .bind("activeFrom", p.getActiveFrom())
+                        .bind("activeTo", p.getActiveTo())
+                        .bind("directorFrom", p.getDirectorFrom())
+                        .bind("directorTo", p.getDirectorTo())
+                        .bind("iafdTitleCount", p.getIafdTitleCount())
+                        .bind("websiteUrl", p.getWebsiteUrl())
+                        .bind("socialJson", p.getSocialJson())
+                        .bind("platformsJson", p.getPlatformsJson())
+                        .bind("externalRefsJson", p.getExternalRefsJson())
+                        .bind("iafdCommentsJson", p.getIafdCommentsJson())
+                        .bind("awardsJson", p.getAwardsJson())
+                        .bind("syncedAt", LocalDateTime.now().toString())
+                        .execute());
     }
 
     @Override

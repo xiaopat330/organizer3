@@ -50,6 +50,9 @@ dependencies {
     implementation "org.bytedeco:ffmpeg:7.1-${javacvVersion}:macosx-arm64"
     implementation "org.bytedeco:ffmpeg:7.1-${javacvVersion}"
 
+    // HTML parsing (IAFD profile scraping)
+    implementation "org.jsoup:jsoup:${jsoupVersion}"
+
     // Utilities
     implementation "org.apache.commons:commons-lang3:${commonsLang3Version}"
     implementation "commons-io:commons-io:${commonsIoVersion}"

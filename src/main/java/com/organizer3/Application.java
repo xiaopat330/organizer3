@@ -19,7 +19,11 @@ import com.organizer3.avstars.command.AvCurateCommand;
 import com.organizer3.avstars.command.AvFavoritesCommand;
 import com.organizer3.avstars.command.AvMigrateActressCommand;
 import com.organizer3.avstars.command.AvParseFilenamesCommand;
+import com.organizer3.avstars.command.AvResolveCommand;
 import com.organizer3.avstars.command.AvSyncCommand;
+import com.organizer3.avstars.iafd.HttpIafdClient;
+import com.organizer3.avstars.iafd.IafdProfileParser;
+import com.organizer3.avstars.iafd.IafdSearchParser;
 import com.organizer3.avstars.sync.AvFilenameParser;
 import com.organizer3.avstars.repository.AvActressRepository;
 import com.organizer3.avstars.repository.AvVideoRepository;
@@ -239,6 +243,9 @@ public class Application {
         commands.add(new AvCurateCommand(avActressRepo));
         commands.add(new AvMigrateActressCommand(avActressRepo));
         commands.add(new AvParseFilenamesCommand(avVideoRepo, avFilenameParser));
+        Path avHeadshotDir = dataDir.resolve("av_headshots");
+        commands.add(new AvResolveCommand(avActressRepo, new HttpIafdClient(),
+                new IafdSearchParser(), new IafdProfileParser(), avHeadshotDir));
 
         // Cover image commands
         CoverPath coverPath = new CoverPath(dataDir);

@@ -1,5 +1,6 @@
 package com.organizer3.avstars.repository;
 
+import com.organizer3.avstars.iafd.IafdResolvedProfile;
 import com.organizer3.avstars.model.AvActress;
 
 import java.util.List;
@@ -46,6 +47,18 @@ public interface AvActressRepository {
     void toggleRejected(long actressId, boolean rejected);
     /** Sets or clears the grade. Pass {@code null} to clear. */
     void setGrade(long actressId, String grade);
+
+    /**
+     * Returns all actresses that have not yet been resolved against IAFD ({@code iafd_id IS NULL}),
+     * sorted by stage name. Used by {@code av resolve all}.
+     */
+    List<AvActress> findUnresolved();
+
+    /**
+     * Applies all IAFD-sourced fields from {@code profile} to the actress row and sets
+     * {@code last_iafd_synced_at} to now.
+     */
+    void updateIafdFields(long actressId, IafdResolvedProfile profile, String headshotPath);
 
     /**
      * Copies curation fields (favorite, bookmark, rejected, grade, notes, iafd_id,
