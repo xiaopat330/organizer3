@@ -523,6 +523,130 @@ class JdbiTitleRepositoryTest {
         assertEquals(aya.getId(), result.getActressId());
     }
 
+    // --- findLabelCodesWithPrefix ---
+
+    @Test
+    void findLabelCodesWithPrefixReturnsMatchingCodes() {
+        saveWithLocation(titleFull("SNIS-001", "SNIS", 1), "vol-a", "stars/library", "/s1");
+        saveWithLocation(titleFull("SSNI-001", "SSNI", 1), "vol-a", "stars/library", "/s2");
+        saveWithLocation(titleFull("ABP-001",  "ABP",  1), "vol-a", "stars/library", "/s3");
+
+        List<String> results = titleRepo.findLabelCodesWithPrefix("S");
+        assertEquals(2, results.size());
+        assertTrue(results.containsAll(List.of("SNIS", "SSNI")));
+    }
+
+    @Test
+    void findLabelCodesWithPrefixIsCaseInsensitive() {
+        saveWithLocation(titleFull("SNIS-001", "SNIS", 1), "vol-a", "stars/library", "/s1");
+        List<String> results = titleRepo.findLabelCodesWithPrefix("sn");
+        assertEquals(1, results.size());
+        assertEquals("SNIS", results.get(0));
+    }
+
+    @Test
+    void findLabelCodesWithPrefixReturnsDistinctCodes() {
+        saveWithLocation(titleFull("SNIS-001", "SNIS", 1), "vol-a", "stars/library", "/s1");
+        saveWithLocation(titleFull("SNIS-002", "SNIS", 2), "vol-a", "stars/library", "/s2");
+        List<String> results = titleRepo.findLabelCodesWithPrefix("SNIS");
+        assertEquals(1, results.size());
+    }
+
+    @Test
+    void findLabelCodesWithPrefixReturnsEmptyForBlankPrefix() {
+        saveWithLocation(titleFull("SNIS-001", "SNIS", 1), "vol-a", "stars/library", "/s1");
+        assertTrue(titleRepo.findLabelCodesWithPrefix("").isEmpty());
+        assertTrue(titleRepo.findLabelCodesWithPrefix(null).isEmpty());
+    }
+
+    @Test
+    void findLabelCodesWithPrefixIsOrderedAlphabetically() {
+        saveWithLocation(titleFull("SSNI-001", "SSNI", 1), "vol-a", "stars/library", "/s1");
+        saveWithLocation(titleFull("SNIS-001", "SNIS", 1), "vol-a", "stars/library", "/s2");
+        saveWithLocation(titleFull("SONE-001", "SONE", 1), "vol-a", "stars/library", "/s3");
+        List<String> results = titleRepo.findLabelCodesWithPrefix("S");
+        assertEquals(List.of("SNIS", "SONE", "SSNI"), results);
+    }
+
+    // --- findLibraryPaged ---
+
+    @Test
+    void findLibraryPagedWithNoFiltersReturnsAllTitles() {
+        saveWithLocation(titleFull("ABP-001", "ABP", 1),   "vol-a", "stars/library", "/a1");
+        saveWithLocation(titleFull("SNIS-001", "SNIS", 1), "vol-a", "stars/library", "/s1");
+
+        List<Title> results = titleRepo.findLibraryPaged("", "", List.of(), List.of(), null, false, 10, 0);
+        assertEquals(2, results.size());
+    }
+
+    @Test
+    void findLibraryPagedFiltersByLabelPrefix() {
+        saveWithLocation(titleFull("SNIS-001", "SNIS", 1), "vol-a", "stars/library", "/s1");
+        saveWithLocation(titleFull("SSNI-001", "SSNI", 1), "vol-a", "stars/library", "/s2");
+        saveWithLocation(titleFull("ABP-001",  "ABP",  1), "vol-a", "stars/library", "/a1");
+
+        List<Title> results = titleRepo.findLibraryPaged("SN", "", List.of(), List.of(), null, false, 10, 0);
+        assertEquals(1, results.size());
+        assertEquals("SNIS-001", results.get(0).getCode());
+    }
+
+    @Test
+    void findLibraryPagedFiltersByExactLabelAndSeq() {
+        saveWithLocation(titleFull("SNIS-001", "SNIS", 1),  "vol-a", "stars/library", "/s1");
+        saveWithLocation(titleFull("SNIS-042", "SNIS", 42), "vol-a", "stars/library", "/s2");
+        saveWithLocation(titleFull("SNIS-421", "SNIS", 421),"vol-a", "stars/library", "/s3");
+
+        // seq prefix "42" matches 42 and 421
+        List<Title> results = titleRepo.findLibraryPaged("SNIS", "42", List.of(), List.of(), null, false, 10, 0);
+        assertEquals(2, results.size());
+        assertTrue(results.stream().map(Title::getSeqNum).toList().containsAll(List.of(42, 421)));
+    }
+
+    @Test
+    void findLibraryPagedFiltersByCompanyLabels() {
+        saveWithLocation(titleFull("ABP-001",  "ABP",  1), "vol-a", "stars/library", "/a1");
+        saveWithLocation(titleFull("SNIS-001", "SNIS", 1), "vol-a", "stars/library", "/s1");
+
+        // Only ABP
+        List<Title> results = titleRepo.findLibraryPaged("", "", List.of("ABP"), List.of(), null, false, 10, 0);
+        assertEquals(1, results.size());
+        assertEquals("ABP-001", results.get(0).getCode());
+    }
+
+    @Test
+    void findLibraryPagedSortsByProductCodeAscending() {
+        saveWithLocation(titleFull("SNIS-003", "SNIS", 3), "vol-a", "stars/library", "/s3");
+        saveWithLocation(titleFull("SNIS-001", "SNIS", 1), "vol-a", "stars/library", "/s1");
+        saveWithLocation(titleFull("ABP-001",  "ABP",  1), "vol-a", "stars/library", "/a1");
+
+        List<Title> results = titleRepo.findLibraryPaged("", "", List.of(), List.of(), "productCode", true, 10, 0);
+        assertEquals("ABP-001",  results.get(0).getCode());
+        assertEquals("SNIS-001", results.get(1).getCode());
+        assertEquals("SNIS-003", results.get(2).getCode());
+    }
+
+    @Test
+    void findLibraryPagedSortsByProductCodeDescending() {
+        saveWithLocation(titleFull("SNIS-001", "SNIS", 1), "vol-a", "stars/library", "/s1");
+        saveWithLocation(titleFull("ABP-001",  "ABP",  1), "vol-a", "stars/library", "/a1");
+
+        List<Title> results = titleRepo.findLibraryPaged("", "", List.of(), List.of(), "productCode", false, 10, 0);
+        assertEquals("SNIS-001", results.get(0).getCode());
+        assertEquals("ABP-001",  results.get(1).getCode());
+    }
+
+    @Test
+    void findLibraryPagedRespectsLimitAndOffset() {
+        for (int i = 1; i <= 5; i++) {
+            saveWithLocation(titleFull("ABP-00" + i, "ABP", i), "vol-a", "stars/library", "/a" + i);
+        }
+        List<Title> page1 = titleRepo.findLibraryPaged("ABP", "", List.of(), List.of(), "productCode", true, 2, 0);
+        List<Title> page2 = titleRepo.findLibraryPaged("ABP", "", List.of(), List.of(), "productCode", true, 2, 2);
+        assertEquals(2, page1.size());
+        assertEquals(2, page2.size());
+        assertNotEquals(page1.get(0).getCode(), page2.get(0).getCode());
+    }
+
     // --- deleteOrphaned ---
 
     @Test

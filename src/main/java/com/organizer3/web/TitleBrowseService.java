@@ -111,6 +111,40 @@ public class TitleBrowseService {
                 .toList();
     }
 
+    /**
+     * Returns up to 20 distinct label codes from the database that start with {@code prefix}
+     * (case-insensitive). Used by the Library mode code-input autocomplete.
+     */
+    public List<String> labelAutocomplete(String prefix) {
+        return titleRepo.findLabelCodesWithPrefix(prefix);
+    }
+
+    /**
+     * Full-library query combining code, company, tag, sort, and order filters.
+     * All filters are optional and combine via AND.
+     *
+     * @param code    raw user-typed code string (parsed by {@link com.organizer3.sync.TitleCodeQuery})
+     * @param company company name to filter by (null = no filter)
+     * @param tags    tags that must ALL be present (empty = no filter)
+     * @param sort    "productCode" | "actressName" | "addedDate" (null/other → addedDate)
+     * @param order   "asc" | "desc" (null → desc)
+     */
+    public List<TitleSummary> findLibraryPaged(String code, String company,
+                                                List<String> tags, String sort, String order,
+                                                int offset, int limit) {
+        limit = Math.min(limit, MAX_LIMIT);
+        com.organizer3.sync.TitleCodeQuery.ParsedQuery parsed =
+                com.organizer3.sync.TitleCodeQuery.parse(code);
+        Map<String, Label> labelMap = labelRepo.findAllAsMap();
+        List<String> companyLabels  = resolveCompanyLabels(labelMap, company);
+        if (company != null && !company.isBlank() && companyLabels.isEmpty()) return List.of();
+        boolean asc = "asc".equalsIgnoreCase(order);
+        return toSummaries(titleRepo.findLibraryPaged(
+                parsed.labelPrefix(), parsed.seqPrefix(),
+                companyLabels, tags != null ? tags : List.of(),
+                sort, asc, limit, offset));
+    }
+
     /** Returns titles having ALL of the given tags, ordered newest-first. */
     public List<TitleSummary> findByTagsPaged(List<String> tags, int offset, int limit) {
         limit = Math.min(limit, MAX_LIMIT);
@@ -570,7 +604,6 @@ public class TitleBrowseService {
     private static List<Title> applySoftUnseen(List<Title> ordered, int n, int targetUnseen) {
         if (ordered.isEmpty()) return List.of();
         List<Title> unseen = ordered.stream().filter(t -> t.getVisitCount() == 0).toList();
-        List<Title> seen   = ordered.stream().filter(t -> t.getVisitCount() >  0).toList();
         int unseenPicks = Math.min(targetUnseen, Math.min(unseen.size(), n));
         java.util.LinkedHashSet<Title> result = new java.util.LinkedHashSet<>(unseen.subList(0, unseenPicks));
         // Fill remaining slots preserving the original order (mix seen + unused unseen).

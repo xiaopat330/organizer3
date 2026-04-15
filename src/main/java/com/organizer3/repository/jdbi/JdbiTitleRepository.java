@@ -1105,6 +1105,93 @@ public class JdbiTitleRepository implements TitleRepository {
         );
     }
 
+    // ── Library browse ───────────────────────────────────────────────────────
+
+    @Override
+    public List<String> findLabelCodesWithPrefix(String prefix) {
+        if (prefix == null || prefix.isBlank()) return List.of();
+        return jdbi.withHandle(h ->
+                h.createQuery("""
+                        SELECT DISTINCT UPPER(label) FROM titles
+                        WHERE UPPER(label) LIKE UPPER(:prefix) || '%'
+                        ORDER BY UPPER(label)
+                        LIMIT 20
+                        """)
+                        .bind("prefix", prefix.toUpperCase())
+                        .mapTo(String.class)
+                        .list()
+        );
+    }
+
+    @Override
+    public List<Title> findLibraryPaged(String labelPrefix, String seqPrefix,
+                                         List<String> companyLabels, List<String> tags,
+                                         String sort, boolean asc,
+                                         int limit, int offset) {
+        String safeLabel   = labelPrefix   != null ? labelPrefix   : "";
+        String safeSeq     = seqPrefix     != null ? seqPrefix     : "";
+        List<String> safeCompany = companyLabels != null ? companyLabels : List.of();
+        List<String> safeTags    = tags          != null ? tags          : List.of();
+        boolean hasLabelPrefix  = !safeLabel.isBlank();
+        boolean hasSeqPrefix    = !safeSeq.isBlank();
+        boolean hasCompany      = !safeCompany.isEmpty();
+        boolean hasTags         = !safeTags.isEmpty();
+        boolean sortByActress   = "actressName".equals(sort);
+        boolean sortByProduct   = "productCode".equals(sort);
+        // default is "addedDate"
+
+        StringBuilder sql = new StringBuilder("SELECT t.* FROM titles t\n");
+        sql.append("LEFT JOIN title_locations tl ON t.id = tl.title_id\n");
+        if (sortByActress) {
+            sql.append("LEFT JOIN actresses a ON t.actress_id = a.id\n");
+        }
+        if (hasTags) {
+            sql.append("JOIN title_effective_tags tet ON tet.title_id = t.id AND tet.tag IN (<tags>)\n");
+        }
+        sql.append("WHERE 1=1\n");
+        if (hasLabelPrefix) {
+            sql.append("AND UPPER(t.label) LIKE UPPER(:labelPrefix) || '%'\n");
+        }
+        if (hasSeqPrefix) {
+            sql.append("AND CAST(t.seq_num AS TEXT) LIKE :seqPrefix || '%'\n");
+        }
+        if (hasCompany) {
+            sql.append("AND UPPER(t.label) IN (<companyLabels>)\n");
+        }
+        sql.append("GROUP BY t.id\n");
+        if (hasTags) {
+            sql.append("HAVING COUNT(DISTINCT tet.tag) = :tagCount\n");
+        }
+
+        String dir = asc ? "ASC" : "DESC";
+        if (sortByProduct) {
+            sql.append("ORDER BY t.label ").append(dir).append(", t.seq_num ").append(dir).append("\n");
+        } else if (sortByActress) {
+            // NULLS LAST is achieved by CASE trick in SQLite
+            if (asc) {
+                sql.append("ORDER BY CASE WHEN a.canonical_name IS NULL THEN 1 ELSE 0 END, a.canonical_name ASC, t.label ASC, t.seq_num ASC\n");
+            } else {
+                sql.append("ORDER BY CASE WHEN a.canonical_name IS NULL THEN 0 ELSE 1 END, a.canonical_name DESC, t.label DESC, t.seq_num DESC\n");
+            }
+        } else {
+            // addedDate — use MIN(tl.added_date) from the LEFT JOIN
+            sql.append("ORDER BY MIN(tl.added_date) ").append(dir).append(", t.id ").append(asc ? "ASC" : "DESC").append("\n");
+        }
+        sql.append("LIMIT :limit OFFSET :offset");
+
+        List<Title> titles = jdbi.withHandle(h -> {
+            var q = h.createQuery(sql.toString())
+                    .bind("limit", limit)
+                    .bind("offset", offset);
+            if (hasLabelPrefix)  q = q.bind("labelPrefix", safeLabel.toUpperCase());
+            if (hasSeqPrefix)    q = q.bind("seqPrefix", safeSeq);
+            if (hasCompany)      q = q.bindList("companyLabels", safeCompany.stream().map(String::toUpperCase).toList());
+            if (hasTags)         q = q.bindList("tags", safeTags).bind("tagCount", safeTags.size());
+            return q.map(MAPPER).list();
+        });
+        return populateLocationsBatch(titles);
+    }
+
     // ── Duplication management ────────────────────────────────────────────────
 
     @Override

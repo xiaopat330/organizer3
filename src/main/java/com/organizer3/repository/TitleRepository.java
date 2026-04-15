@@ -269,6 +269,29 @@ public interface TitleRepository {
      */
     List<Title> findForgottenFavoritesCandidates(int limit, java.util.Set<String> excludeCodes);
 
+    // ── Library browse ──────────────────────────────────────────────────────
+
+    /**
+     * Returns distinct label codes (uppercased) that start with {@code prefix}, ordered
+     * alphabetically. At most 20 results — used for the Library code-input autocomplete.
+     */
+    List<String> findLabelCodesWithPrefix(String prefix);
+
+    /**
+     * Full-library paged query with all optional filters combined via AND.
+     *
+     * @param labelPrefix   label code prefix from TitleCodeQuery (empty = no filter)
+     * @param seqPrefix     sequence number prefix, leading zeros stripped (empty = no filter)
+     * @param companyLabels label codes belonging to the selected company (empty = no filter)
+     * @param tags          tag names that must ALL be present (empty = no filter)
+     * @param sort          "productCode" | "actressName" | "addedDate" (null → addedDate)
+     * @param asc           true for ascending, false for descending
+     */
+    List<Title> findLibraryPaged(String labelPrefix, String seqPrefix,
+                                  List<String> companyLabels, List<String> tags,
+                                  String sort, boolean asc,
+                                  int limit, int offset);
+
     // ── Duplication management ───────────────────────────────────────────────
 
     /**

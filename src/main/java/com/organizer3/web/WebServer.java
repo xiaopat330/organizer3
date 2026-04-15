@@ -177,6 +177,10 @@ public class WebServer {
                 String favorites = ctx.queryParam("favorites");
                 String bookmarks = ctx.queryParam("bookmarks");
                 String tagsParam = ctx.queryParam("tags");
+                String codeParam = ctx.queryParam("code");
+                String company   = ctx.queryParam("company");
+                String sort      = ctx.queryParam("sort");
+                String order     = ctx.queryParam("order");
                 int offset = ctx.queryParamAsClass("offset", Integer.class).getOrDefault(0);
                 int limit  = ctx.queryParamAsClass("limit",  Integer.class).getOrDefault(24);
                 offset = Math.max(offset, 0);
@@ -187,12 +191,19 @@ public class WebServer {
                     ctx.json(browseService.findFavoritesPaged(offset, limit));
                 } else if ("true".equals(bookmarks)) {
                     ctx.json(browseService.findBookmarksPaged(offset, limit));
-                } else if (tagsParam != null && !tagsParam.isBlank()) {
-                    List<String> tags = List.of(tagsParam.split(","));
-                    ctx.json(browseService.findByTagsPaged(tags, offset, limit));
+                } else if (codeParam != null || company != null || sort != null || order != null
+                           || (tagsParam != null && !tagsParam.isBlank())) {
+                    List<String> tags = (tagsParam != null && !tagsParam.isBlank())
+                            ? List.of(tagsParam.split(",")) : List.of();
+                    ctx.json(browseService.findLibraryPaged(codeParam, company, tags, sort, order, offset, limit));
                 } else {
                     ctx.json(browseService.findRecent(offset, limit));
                 }
+            });
+
+            app.get("/api/labels/autocomplete", ctx -> {
+                String prefix = ctx.queryParam("prefix");
+                ctx.json(browseService.labelAutocomplete(prefix));
             });
 
             app.get("/api/tags", ctx -> ctx.json(new TagCatalogLoader().load()));

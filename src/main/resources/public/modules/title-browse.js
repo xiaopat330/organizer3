@@ -47,7 +47,7 @@ function showColsOnlyFilterBar() {
 }
 
 // ── State ─────────────────────────────────────────────────────────────────
-export let titleBrowseMode = null;   // null | 'dashboard' | 'favorites' | 'bookmarks' | 'collections' | 'unsorted' | 'archive-pool' | 'tags' | 'studio'
+export let titleBrowseMode = null;   // null | 'dashboard' | 'favorites' | 'bookmarks' | 'collections' | 'unsorted' | 'archive-pool' | 'library' | 'studio'
 
 // Spotlight rotation (title-specific instance of the shared rotator)
 const SPOTLIGHT_INTERVAL_MS = 30_000;
@@ -65,6 +65,14 @@ const titleSpotlightRotator = createSpotlightRotator({
 export let activeTags = new Set();
 let tagsDebounceTimer = null;
 let tagsCatalog = null;
+
+// ── Library filter state ──────────────────────────────────────────────────
+let libraryCode    = '';        // raw typed code string
+let libraryCompany = null;      // selected company name or null
+let librarySort    = 'addedDate'; // 'addedDate' | 'productCode' | 'actressName'
+let libraryOrder   = 'desc';    // 'asc' | 'desc'
+let libraryAutoTimer = null;    // debounce for autocomplete fetch
+let libraryAutoVisible = false; // is the autocomplete dropdown open
 
 // Pool volumes (Unsorted / Archives) — both use the same API endpoint
 export let poolVolumeId      = null;
@@ -112,8 +120,15 @@ export const allTitlesGrid = new ScrollingGrid(
       if (browseActiveTags.size > 0) url += `&tags=${encodeURIComponent([...browseActiveTags].join(','))}`;
       return url;
     }
-    if (titleBrowseMode === 'tags' && activeTags.size > 0)
-      return `/api/titles?tags=${encodeURIComponent([...activeTags].join(','))}&offset=${o}&limit=${l}`;
+    if (titleBrowseMode === 'library') {
+      const params = new URLSearchParams({ offset: o, limit: l });
+      if (libraryCode.trim())     params.set('code',    libraryCode.trim());
+      if (libraryCompany)         params.set('company', libraryCompany);
+      if (activeTags.size > 0)    params.set('tags',    [...activeTags].join(','));
+      if (librarySort !== 'addedDate') params.set('sort', librarySort);
+      if (libraryOrder !== 'desc')     params.set('order', libraryOrder);
+      return `/api/titles?${params}`;
+    }
     return `/api/titles?offset=${o}&limit=${l}`;
   },
   t => {
@@ -151,7 +166,7 @@ function updateTitleLandingSelection() {
   collectionsBtn.classList.toggle('selected',    titleBrowseMode === 'collections');
   titleUnsortedBtn.classList.toggle('selected',  titleBrowseMode === 'unsorted');
   titleArchivesBtn.classList.toggle('selected',  titleBrowseMode === 'archive-pool');
-  titleTagsBtn.classList.toggle('selected',      titleBrowseMode === 'tags');
+  titleTagsBtn.classList.toggle('selected',      titleBrowseMode === 'library');
 }
 
 function updateTitleBreadcrumb() {
@@ -163,8 +178,13 @@ function updateTitleBreadcrumb() {
   else if (titleBrowseMode === 'collections') crumbs.push({ label: 'Collections' });
   else if (titleBrowseMode === 'unsorted')   crumbs.push({ label: 'Unsorted' });
   else if (titleBrowseMode === 'archive-pool') crumbs.push({ label: 'Archives' });
-  else if (titleBrowseMode === 'tags')
-    crumbs.push({ label: activeTags.size > 0 ? `Tags (${activeTags.size})` : 'Tags' });
+  else if (titleBrowseMode === 'library') {
+    const parts = [];
+    if (libraryCode.trim())  parts.push(libraryCode.trim().toUpperCase());
+    if (libraryCompany)      parts.push(libraryCompany);
+    if (activeTags.size > 0) parts.push(`${activeTags.size} tag${activeTags.size > 1 ? 's' : ''}`);
+    crumbs.push({ label: parts.length > 0 ? `Library (${parts.join(', ')})` : 'Library' });
+  }
   updateBreadcrumb(crumbs);
 }
 
@@ -429,9 +449,10 @@ export function selectTitleBrowseMode(modeKey) {
     });
     return;
   }
-  if (modeKey === 'tags') {
+  if (modeKey === 'library') {
     hideStudioGroupRow();
-    titleTagsPanel.style.display = 'grid';
+    hideBrowseFilterBar();
+    titleTagsPanel.style.display = 'block';
     runTitleBrowseQuery();
     return;
   }
@@ -451,9 +472,14 @@ export function showTitlesBrowse() {
   document.getElementById('av-btn')?.classList.remove('active');
   document.getElementById('action-btn')?.classList.remove('active');
   resetActressState();
-  if (tagsDebounceTimer) { clearTimeout(tagsDebounceTimer);  tagsDebounceTimer  = null; }
+  if (tagsDebounceTimer)   { clearTimeout(tagsDebounceTimer);  tagsDebounceTimer  = null; }
+  if (libraryAutoTimer)    { clearTimeout(libraryAutoTimer);   libraryAutoTimer   = null; }
   titleBrowseMode = null;
   activeTags.clear();
+  libraryCode    = '';
+  libraryCompany = null;
+  librarySort    = 'addedDate';
+  libraryOrder   = 'desc';
   resetBrowseFilters();
   hideStudioGroupRow();
   hideTagsPanel();
@@ -507,7 +533,7 @@ export async function enterArchiveMode() {
 titleUnsortedBtn.addEventListener('click', () => enterUnsortedMode());
 titleArchivesBtn.addEventListener('click', () => enterArchiveMode());
 
-// ── Tags browse ───────────────────────────────────────────────────────────
+// ── Library browse ────────────────────────────────────────────────────────
 async function ensureTagsCatalog() {
   if (tagsCatalog) return tagsCatalog;
   const res = await fetch('/api/tags');
@@ -516,37 +542,210 @@ async function ensureTagsCatalog() {
   return tagsCatalog;
 }
 
-function renderTagsPanel(groups) {
-  titleTagsPanel.innerHTML = groups.map(g => `
-    <div class="tags-group">
-      <div class="tags-group-label">${esc(g.label)}</div>
-      <div class="tags-row">
-        ${g.tags.map(t => `<button type="button" class="tag-toggle${activeTags.has(t.name) ? ' active' : ''}" data-tag="${esc(t.name)}" title="${esc(t.description || '')}">${esc(t.name)}</button>`).join('')}
-      </div>
-    </div>
-  `).join('');
-  titleTagsPanel.querySelectorAll('.tag-toggle').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const tag = btn.dataset.tag;
-      if (activeTags.has(tag)) { activeTags.delete(tag); btn.classList.remove('active'); }
-      else                     { activeTags.add(tag);    btn.classList.add('active'); }
-      scheduleTagsQuery();
-    });
-  });
-}
-
-const TAGS_DEBOUNCE_MS = 350;
-function scheduleTagsQuery() {
+const LIBRARY_DEBOUNCE_MS = 350;
+function scheduleLibraryQuery() {
   if (tagsDebounceTimer) clearTimeout(tagsDebounceTimer);
   tagsDebounceTimer = setTimeout(() => {
     tagsDebounceTimer = null;
     updateTitleBreadcrumb();
     runTitleBrowseQuery();
-  }, TAGS_DEBOUNCE_MS);
+  }, LIBRARY_DEBOUNCE_MS);
 }
 
 function hideTagsPanel() {
   titleTagsPanel.style.display = 'none';
+  closeLibraryAutocomplete();
+}
+
+// ── Autocomplete dropdown ─────────────────────────────────────────────────
+
+function closeLibraryAutocomplete() {
+  libraryAutoVisible = false;
+  if (libraryAutoTimer) { clearTimeout(libraryAutoTimer); libraryAutoTimer = null; }
+  const drop = document.getElementById('library-code-dropdown');
+  if (drop) drop.innerHTML = '';
+  const wrap = document.getElementById('library-code-wrap');
+  if (wrap) wrap.classList.remove('autocomplete-open');
+}
+
+function openLibraryAutocomplete(items, inputEl) {
+  const drop = document.getElementById('library-code-dropdown');
+  if (!drop || items.length === 0) { closeLibraryAutocomplete(); return; }
+  libraryAutoVisible = true;
+  drop.innerHTML = '';
+  items.forEach((code, i) => {
+    const item = document.createElement('div');
+    item.className = 'library-autocomplete-item';
+    item.textContent = code;
+    item.dataset.idx = i;
+    item.addEventListener('mousedown', e => {
+      e.preventDefault(); // don't blur the input
+      selectAutocompleteItem(code, inputEl);
+    });
+    drop.appendChild(item);
+  });
+  document.getElementById('library-code-wrap')?.classList.add('autocomplete-open');
+}
+
+function selectAutocompleteItem(code, inputEl) {
+  libraryCode = code;
+  if (inputEl) { inputEl.value = code; inputEl.focus(); }
+  closeLibraryAutocomplete();
+  scheduleLibraryQuery();
+}
+
+function moveAutocompleteSelection(dir) {
+  const drop = document.getElementById('library-code-dropdown');
+  if (!drop || !libraryAutoVisible) return;
+  const items = drop.querySelectorAll('.library-autocomplete-item');
+  if (items.length === 0) return;
+  const current = drop.querySelector('.library-autocomplete-item.focused');
+  let idx = current ? parseInt(current.dataset.idx) + dir : (dir > 0 ? 0 : items.length - 1);
+  idx = Math.max(0, Math.min(items.length - 1, idx));
+  items.forEach(el => el.classList.remove('focused'));
+  items[idx]?.classList.add('focused');
+}
+
+async function fetchAutocomplete(prefix) {
+  if (!prefix || prefix.length < 1) { closeLibraryAutocomplete(); return; }
+  try {
+    const res = await fetch(`/api/labels/autocomplete?prefix=${encodeURIComponent(prefix)}`);
+    if (!res.ok) return;
+    const codes = await res.json();
+    const inputEl = document.getElementById('library-code-input');
+    if (titleBrowseMode === 'library' && inputEl) openLibraryAutocomplete(codes, inputEl);
+  } catch { /* ignore */ }
+}
+
+// ── Library filter panel render ───────────────────────────────────────────
+
+async function renderLibraryFilterPanel() {
+  let companies = [];
+  try {
+    if (!allCompanies) {
+      const res = await fetch('/api/companies');
+      allCompanies = res.ok ? await res.json() : [];
+    }
+    companies = allCompanies;
+  } catch { /* ignore */ }
+
+  let groups = [];
+  try { groups = await ensureTagsCatalog(); } catch { /* ignore */ }
+
+  // Build the panel HTML
+  const sortOptions = [
+    { value: 'addedDate',   label: 'Added Date' },
+    { value: 'productCode', label: 'Product Code' },
+    { value: 'actressName', label: 'Actress Name' },
+  ];
+
+  titleTagsPanel.innerHTML = `
+    <div class="library-controls-row">
+      <div class="library-code-wrap" id="library-code-wrap">
+        <input type="text" id="library-code-input" class="library-code-input"
+               placeholder="code (e.g. ONED, ONED-42)"
+               value="${esc(libraryCode)}"
+               autocomplete="off" spellcheck="false">
+        <div class="library-autocomplete-dropdown" id="library-code-dropdown"></div>
+      </div>
+      <select id="library-company-select" class="library-company-select">
+        <option value="">All Companies</option>
+        ${companies.map(c => `<option value="${esc(c)}"${libraryCompany === c ? ' selected' : ''}>${esc(c)}</option>`).join('')}
+      </select>
+      <select id="library-sort-select" class="library-sort-select">
+        ${sortOptions.map(o => `<option value="${o.value}"${librarySort === o.value ? ' selected' : ''}>${o.label}</option>`).join('')}
+      </select>
+      <button type="button" id="library-order-btn" class="library-order-btn">${libraryOrder === 'asc' ? 'A–Z' : 'Z–A'}</button>
+    </div>
+    <div class="library-tags-section">
+      ${groups.map(g => `
+        <div class="tags-group">
+          <div class="tags-group-label">${esc(g.label)}</div>
+          <div class="tags-row">
+            ${g.tags.map(t => `<button type="button" class="tag-toggle${activeTags.has(t.name) ? ' active' : ''}" data-tag="${esc(t.name)}" title="${esc(t.description || '')}">${esc(t.name)}</button>`).join('')}
+          </div>
+        </div>
+      `).join('')}
+    </div>
+  `;
+
+  // Wire code input
+  const codeInput = document.getElementById('library-code-input');
+  if (codeInput) {
+    codeInput.addEventListener('input', () => {
+      libraryCode = codeInput.value;
+      // Determine if we should show autocomplete:
+      // only when there's no sequence part yet (pure label prefix)
+      const upper = libraryCode.trim().toUpperCase().replace(/\s+/g, '');
+      const isLabelPrefixOnly = upper.length > 0 && /^[A-Z][A-Z0-9]*-?$/.test(upper);
+      if (isLabelPrefixOnly) {
+        if (libraryAutoTimer) clearTimeout(libraryAutoTimer);
+        libraryAutoTimer = setTimeout(() => {
+          libraryAutoTimer = null;
+          fetchAutocomplete(upper.replace(/-+$/, ''));
+        }, 200);
+      } else {
+        closeLibraryAutocomplete();
+      }
+      scheduleLibraryQuery();
+    });
+
+    codeInput.addEventListener('keydown', e => {
+      if (e.key === 'ArrowDown') { e.preventDefault(); moveAutocompleteSelection(1); }
+      else if (e.key === 'ArrowUp') { e.preventDefault(); moveAutocompleteSelection(-1); }
+      else if (e.key === 'Enter') {
+        if (libraryAutoVisible) {
+          const focused = document.querySelector('#library-code-dropdown .library-autocomplete-item.focused');
+          if (focused) { e.preventDefault(); selectAutocompleteItem(focused.textContent, codeInput); return; }
+        }
+        closeLibraryAutocomplete();
+      }
+      else if (e.key === 'Escape') { closeLibraryAutocomplete(); }
+    });
+
+    codeInput.addEventListener('blur', () => {
+      // Small delay so mousedown on dropdown item fires first
+      setTimeout(closeLibraryAutocomplete, 150);
+    });
+  }
+
+  // Wire company select
+  const compSel = document.getElementById('library-company-select');
+  if (compSel) {
+    compSel.addEventListener('change', () => {
+      libraryCompany = compSel.value || null;
+      scheduleLibraryQuery();
+    });
+  }
+
+  // Wire sort select
+  const sortSel = document.getElementById('library-sort-select');
+  if (sortSel) {
+    sortSel.addEventListener('change', () => {
+      librarySort = sortSel.value;
+      scheduleLibraryQuery();
+    });
+  }
+
+  // Wire order toggle
+  const orderBtn = document.getElementById('library-order-btn');
+  if (orderBtn) {
+    orderBtn.addEventListener('click', () => {
+      libraryOrder = libraryOrder === 'desc' ? 'asc' : 'desc';
+      orderBtn.textContent = libraryOrder === 'asc' ? 'A–Z' : 'Z–A';
+      scheduleLibraryQuery();
+    });
+  }
+
+  // Wire tag toggles
+  titleTagsPanel.querySelectorAll('.tag-toggle').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const tag = btn.dataset.tag;
+      if (activeTags.has(tag)) { activeTags.delete(tag); btn.classList.remove('active'); }
+      else                     { activeTags.add(tag);    btn.classList.add('active'); }
+      scheduleLibraryQuery();
+    });
+  });
 }
 
 // ── Browse-mode filter bar (Collections / Unsorted / Archives) ────────────
@@ -685,13 +884,12 @@ function renderBrowseTagsPanel(panel) {
 }
 
 titleTagsBtn.addEventListener('click', async () => {
-  if (titleBrowseMode === 'tags') return;
+  if (titleBrowseMode === 'library') return;
   try {
-    const groups = await ensureTagsCatalog();
-    renderTagsPanel(groups);
-    selectTitleBrowseMode('tags');
+    selectTitleBrowseMode('library');
+    await renderLibraryFilterPanel();
   } catch (err) {
-    console.error('Failed to load tags catalog', err);
+    console.error('Failed to render library panel', err);
   }
 });
 
