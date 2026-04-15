@@ -2,6 +2,7 @@ package com.organizer3.config.volume;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.organizer3.config.sync.StructureSyncConfig;
+import com.organizer3.mcp.McpConfig;
 
 import java.util.List;
 import java.util.Optional;
@@ -22,8 +23,21 @@ public record OrganizerConfig(
         @JsonProperty("volumes")         List<VolumeConfig> volumes,
         @JsonProperty("structures")      List<VolumeStructureDef> structures,
         @JsonProperty("syncConfig")      List<StructureSyncConfig> syncConfig,
-        @JsonProperty("backup")          BackupConfig backup
+        @JsonProperty("backup")          BackupConfig backup,
+        @JsonProperty("mcp")             McpConfig mcp
 ) {
+    /** Legacy constructor for test sites that predate the {@code mcp:} block. */
+    public OrganizerConfig(String appName, String dataDir,
+                           Integer maxBrowseTitles, Integer maxRandomTitles, Integer maxRandomActresses,
+                           Integer thumbnailInterval, Integer thumbnailColumns, Integer coverCropPercent,
+                           List<ServerConfig> servers, List<VolumeConfig> volumes,
+                           List<VolumeStructureDef> structures, List<StructureSyncConfig> syncConfig,
+                           BackupConfig backup) {
+        this(appName, dataDir, maxBrowseTitles, maxRandomTitles, maxRandomActresses,
+             thumbnailInterval, thumbnailColumns, coverCropPercent,
+             servers, volumes, structures, syncConfig, backup, null);
+    }
+
     public Optional<VolumeConfig> findById(String id) {
         return volumes.stream().filter(v -> v.id().equals(id)).findFirst();
     }

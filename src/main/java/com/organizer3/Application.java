@@ -349,24 +349,34 @@ public class Application {
 
         // MCP (Model Context Protocol) server — read-only diagnostic tools mounted on
         // the existing Javalin instance. See spec/PROPOSAL_MCP_SERVER.md.
-        com.organizer3.mcp.McpConfig mcpConfig = com.organizer3.mcp.McpConfig.defaults();
-        com.organizer3.mcp.ReadOnlyDb mcpRoDb = new com.organizer3.mcp.ReadOnlyDb(dbDir.resolve("organizer.db"));
-        com.organizer3.mcp.ToolRegistry mcpTools = new com.organizer3.mcp.ToolRegistry()
-                .register(new com.organizer3.mcp.tools.ListVolumesTool(session))
-                .register(new com.organizer3.mcp.tools.GetStatsTool(jdbi))
-                .register(new com.organizer3.mcp.tools.DescribeSchemaTool())
-                .register(new com.organizer3.mcp.tools.LookupActressTool(actressRepo, titleRepo))
-                .register(new com.organizer3.mcp.tools.LookupTitleTool(
-                        titleRepo, titleActressRepo, actressRepo, videoRepo))
-                .register(new com.organizer3.mcp.tools.ListTitlesForActressTool(actressRepo, titleRepo))
-                .register(new com.organizer3.mcp.tools.SqlQueryTool(mcpRoDb))
-                .register(new com.organizer3.mcp.tools.SqlTablesTool(mcpRoDb))
-                .register(new com.organizer3.mcp.tools.SqlSchemaTool(mcpRoDb))
-                .register(new com.organizer3.mcp.tools.ListDirectoryTool(session))
-                .register(new com.organizer3.mcp.tools.ReadTextFileTool(session));
-        com.organizer3.mcp.McpServer mcpServer = new com.organizer3.mcp.McpServer(
-                mcpTools, mcpConfig, "organizer3", "0.1.0");
-        webServer.registerMcp(mcpServer);
+        com.organizer3.mcp.McpConfig mcpConfig = AppConfig.get().volumes().mcp() != null
+                ? AppConfig.get().volumes().mcp()
+                : com.organizer3.mcp.McpConfig.defaults();
+        com.organizer3.mcp.ReadOnlyDb mcpRoDb = null;
+        if (mcpConfig.isEnabled()) {
+            mcpRoDb = new com.organizer3.mcp.ReadOnlyDb(dbDir.resolve("organizer.db"));
+            com.organizer3.mcp.ToolRegistry mcpTools = new com.organizer3.mcp.ToolRegistry()
+                    .register(new com.organizer3.mcp.tools.ListVolumesTool(session))
+                    .register(new com.organizer3.mcp.tools.GetStatsTool(jdbi))
+                    .register(new com.organizer3.mcp.tools.DescribeSchemaTool())
+                    .register(new com.organizer3.mcp.tools.LookupActressTool(actressRepo, titleRepo))
+                    .register(new com.organizer3.mcp.tools.LookupTitleTool(
+                            titleRepo, titleActressRepo, actressRepo, videoRepo))
+                    .register(new com.organizer3.mcp.tools.ListTitlesForActressTool(actressRepo, titleRepo))
+                    .register(new com.organizer3.mcp.tools.FindSimilarActressesTool(actressRepo))
+                    .register(new com.organizer3.mcp.tools.FindNameOrderVariantsTool(actressRepo))
+                    .register(new com.organizer3.mcp.tools.FindSuspectCreditsTool(jdbi))
+                    .register(new com.organizer3.mcp.tools.SqlQueryTool(mcpRoDb))
+                    .register(new com.organizer3.mcp.tools.SqlTablesTool(mcpRoDb))
+                    .register(new com.organizer3.mcp.tools.SqlSchemaTool(mcpRoDb))
+                    .register(new com.organizer3.mcp.tools.ListDirectoryTool(session))
+                    .register(new com.organizer3.mcp.tools.ReadTextFileTool(session));
+            com.organizer3.mcp.McpServer mcpServer = new com.organizer3.mcp.McpServer(
+                    mcpTools, mcpConfig, "organizer3", "0.1.0");
+            webServer.registerMcp(mcpServer);
+        } else {
+            log.info("MCP server disabled via config");
+        }
 
         webServer.start();
 
@@ -375,7 +385,7 @@ public class Application {
 
         webServer.stop();
         backupScheduler.stop();
-        mcpRoDb.close();
+        if (mcpRoDb != null) mcpRoDb.close();
         log.info("Organizer3 exiting");
     }
 
