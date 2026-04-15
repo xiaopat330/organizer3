@@ -377,6 +377,10 @@ public class Application {
                     .register(new com.organizer3.mcp.tools.SqlSchemaTool(mcpRoDb))
                     .register(new com.organizer3.mcp.tools.ListDirectoryTool(session))
                     .register(new com.organizer3.mcp.tools.ReadTextFileTool(session));
+            if (mcpConfig.mutationsAllowed()) {
+                mcpTools.register(new com.organizer3.mcp.tools.MergeActressesTool(jdbi, actressRepo));
+                log.info("MCP mutation tools enabled");
+            }
             com.organizer3.mcp.McpServer mcpServer = new com.organizer3.mcp.McpServer(
                     mcpTools, mcpConfig, "organizer3", "0.1.0");
             webServer.registerMcp(mcpServer);

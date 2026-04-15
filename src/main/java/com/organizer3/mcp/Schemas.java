@@ -87,4 +87,17 @@ public final class Schemas {
         com.fasterxml.jackson.databind.JsonNode v = args.get(name);
         return (v == null || v.isNull()) ? defaultValue : v.asLong(defaultValue);
     }
+
+    public static long requireLong(com.fasterxml.jackson.databind.JsonNode args, String name) {
+        com.fasterxml.jackson.databind.JsonNode v = args.get(name);
+        if (v == null || v.isNull()) {
+            throw new IllegalArgumentException("Missing required argument: " + name);
+        }
+        return v.asLong();
+    }
+
+    public static boolean optBoolean(com.fasterxml.jackson.databind.JsonNode args, String name, boolean defaultValue) {
+        com.fasterxml.jackson.databind.JsonNode v = args.get(name);
+        return (v == null || v.isNull()) ? defaultValue : v.asBoolean(defaultValue);
+    }
 }
