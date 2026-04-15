@@ -1105,6 +1105,55 @@ public class JdbiTitleRepository implements TitleRepository {
         );
     }
 
+    // ── Duplication management ────────────────────────────────────────────────
+
+    @Override
+    public List<Title> findWithMultipleLocationsPaged(int limit, int offset, String volumeId) {
+        String volumeFilter = volumeId != null
+                ? "AND EXISTS (SELECT 1 FROM title_locations vf WHERE vf.title_id = t.id AND vf.volume_id = :volumeId)"
+                : "";
+        List<Title> titles = jdbi.withHandle(h ->
+                h.createQuery("""
+                        SELECT t.* FROM titles t
+                        JOIN (
+                            SELECT title_id FROM title_locations
+                            GROUP BY title_id
+                            HAVING COUNT(*) > 1
+                        ) dup ON dup.title_id = t.id
+                        WHERE 1=1 <volumeFilter>
+                        ORDER BY t.code ASC
+                        LIMIT :limit OFFSET :offset
+                        """.replace("<volumeFilter>", volumeFilter))
+                        .bind("limit", limit)
+                        .bind("offset", offset)
+                        .bindMap(volumeId != null ? Map.of("volumeId", volumeId) : Map.of())
+                        .map(MAPPER)
+                        .list()
+        );
+        return populateLocationsBatch(titles);
+    }
+
+    @Override
+    public int countWithMultipleLocations(String volumeId) {
+        String volumeFilter = volumeId != null
+                ? "AND EXISTS (SELECT 1 FROM title_locations vf WHERE vf.title_id = t.id AND vf.volume_id = :volumeId)"
+                : "";
+        return jdbi.withHandle(h ->
+                h.createQuery("""
+                        SELECT COUNT(*) FROM titles t
+                        JOIN (
+                            SELECT title_id FROM title_locations
+                            GROUP BY title_id
+                            HAVING COUNT(*) > 1
+                        ) dup ON dup.title_id = t.id
+                        WHERE 1=1 <volumeFilter>
+                        """.replace("<volumeFilter>", volumeFilter))
+                        .bindMap(volumeId != null ? Map.of("volumeId", volumeId) : Map.of())
+                        .mapTo(Integer.class)
+                        .one()
+        );
+    }
+
     // ── Backup / restore ─────────────────────────────────────────────────────
 
     @Override

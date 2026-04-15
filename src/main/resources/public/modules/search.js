@@ -69,7 +69,7 @@ export function createSearch(inputEl, overlayEl, opts = {}) {
             if (!res.ok) return;
             const titles = await res.json();
             if (titles.length === 0 || titles.length > 10) { hideOverlay(); return; }
-            renderOverlay({ actresses: [], titles, labels: [], companies: [] });
+            renderOverlay({ actresses: [], titles, labels: [], companies: [] }, upper);
         } catch { /* ignore */ }
     }
 
@@ -82,7 +82,7 @@ export function createSearch(inputEl, overlayEl, opts = {}) {
             const res = await fetch(`/api/search?q=${encodeURIComponent(q)}&matchMode=contains&includeAv=${includeAv}`);
             if (!res.ok) return;
             const data = await res.json();
-            renderOverlay(data);
+            renderOverlay(data, q);
         } catch {
             // ignore network errors silently
         }
@@ -90,7 +90,20 @@ export function createSearch(inputEl, overlayEl, opts = {}) {
 
     // ── Render ────────────────────────────────────────────────────────────────
 
-    function renderOverlay(data) {
+    // Wrap the first occurrence of `query` in `text` with bold+italic markup.
+    // Falls back to plain esc() if there is no match.
+    function highlight(text, query) {
+        if (!text) return '';
+        if (!query) return esc(text);
+        const lower = text.toLowerCase();
+        const idx   = lower.indexOf(query.toLowerCase());
+        if (idx < 0) return esc(text);
+        return esc(text.slice(0, idx))
+             + '<em><strong class="search-match">' + esc(text.slice(idx, idx + query.length)) + '</strong></em>'
+             + esc(text.slice(idx + query.length));
+    }
+
+    function renderOverlay(data, query = '') {
         const enabled = getEnabledCategories ? getEnabledCategories() : null;
         const actresses   = (enabled && !enabled.has('actresses'))    ? [] : (data.actresses   || []);
         const titles      = (enabled && !enabled.has('titles'))       ? [] : (data.titles      || []);
@@ -112,9 +125,9 @@ export function createSearch(inputEl, overlayEl, opts = {}) {
             for (const a of actresses) {
                 const tier      = (a.tier || '').toLowerCase();
                 const stageSub  = a.stageName
-                    ? `<span class="search-stage-name">${esc(a.stageName)}</span>` : '';
+                    ? `<span class="search-stage-name">${highlight(a.stageName, query)}</span>` : '';
                 const alias = a.matchedAlias
-                    ? `<span class="search-alias">a.k.a. ${esc(a.matchedAlias)}</span>` : '';
+                    ? `<span class="search-alias">a.k.a. ${highlight(a.matchedAlias, query)}</span>` : '';
                 const grade = a.grade
                     ? `<span class="search-grade">${esc(a.grade)}</span>` : '';
                 const count = `<span class="search-count">${a.titleCount}</span>`;
@@ -125,7 +138,7 @@ export function createSearch(inputEl, overlayEl, opts = {}) {
                 const bmIcon  = a.bookmark  ? ICON_BM_SM  : '';
                 html += `<div class="search-row search-actress-row" data-actress-id="${a.id}">`
                       + thumb
-                      + `<span class="search-name tier-${tier}">${esc(a.canonicalName)}</span>`
+                      + `<span class="search-name tier-${tier}">${highlight(a.canonicalName, query)}</span>`
                       + stageSub + alias + grade + count + favIcon + bmIcon
                       + '</div>';
             }
@@ -136,22 +149,23 @@ export function createSearch(inputEl, overlayEl, opts = {}) {
             html += '<div class="search-group search-group-titles"><div class="search-group-label">Titles</div>';
             for (const t of titles) {
                 const displayName = t.titleEnglish || t.titleOriginal || '';
-                const nameHtml = displayName ? `<span class="search-name">${esc(displayName)}</span>` : '';
+                const nameHtml = displayName ? `<span class="search-name">${highlight(displayName, query)}</span>` : '';
                 const actress = t.actressName
                     ? `<span class="search-meta">${esc(t.actressName)}</span>` : '';
                 const year = t.releaseDate ? `<span class="search-meta">${t.releaseDate.substring(0, 4)}</span>` : '';
                 const thumb = t.coverUrl
                     ? `<img class="search-thumb search-thumb-title" src="${esc(t.coverUrl)}" alt="" loading="lazy">`
                     : '<div class="search-thumb search-thumb-title search-thumb-empty"></div>';
+                const codeHtml = `<span class="search-code">${highlight(t.code, query)}</span>`;
                 const inner = twoColumn
                     ? `<div class="search-title-stack">`
-                        + `<span class="search-code">${esc(t.code)}</span>`
+                        + codeHtml
                         + nameHtml
                         + (actress || year
                             ? `<span class="search-title-byline">${actress}${actress && year ? ' · ' : ''}${year}</span>`
                             : '')
                         + `</div>`
-                    : `<span class="search-code">${esc(t.code)}</span>` + nameHtml + actress + year;
+                    : codeHtml + nameHtml + actress + year;
                 const favIcon = t.favorite ? ICON_FAV_SM : '';
                 const bmIcon  = t.bookmark  ? ICON_BM_SM  : '';
                 html += `<div class="search-row search-title-row" data-title-code="${esc(t.code)}">`
@@ -166,8 +180,8 @@ export function createSearch(inputEl, overlayEl, opts = {}) {
             for (const l of labels) {
                 const company = l.company ? `<span class="search-meta">${esc(l.company)}</span>` : '';
                 html += `<div class="search-row search-label-row" data-label-code="${esc(l.code)}">`
-                      + `<span class="search-code">${esc(l.code)}</span>`
-                      + `<span class="search-name">${esc(l.labelName || l.code)}</span>`
+                      + `<span class="search-code">${highlight(l.code, query)}</span>`
+                      + `<span class="search-name">${highlight(l.labelName || l.code, query)}</span>`
                       + company
                       + '</div>';
             }
@@ -178,7 +192,7 @@ export function createSearch(inputEl, overlayEl, opts = {}) {
             html += '<div class="search-group search-group-studios"><div class="search-group-label">Studios</div>';
             for (const c of companies) {
                 html += `<div class="search-row search-company-row">`
-                      + `<span class="search-name">${esc(c)}</span>`
+                      + `<span class="search-name">${highlight(c, query)}</span>`
                       + '</div>';
             }
             html += '</div>';
@@ -194,7 +208,7 @@ export function createSearch(inputEl, overlayEl, opts = {}) {
                 const count = `<span class="search-count">${a.videoCount} video${a.videoCount === 1 ? '' : 's'}</span>`;
                 html += `<div class="search-row search-av-actress-row" data-av-actress-id="${a.id}">`
                       + thumb
-                      + `<span class="search-name">${esc(a.stageName)}</span>`
+                      + `<span class="search-name">${highlight(a.stageName, query)}</span>`
                       + count
                       + '</div>';
             }

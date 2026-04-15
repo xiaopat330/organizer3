@@ -2,6 +2,7 @@ package com.organizer3.avstars.repository.jdbi;
 
 import com.organizer3.avstars.model.AvVideo;
 import com.organizer3.avstars.repository.AvVideoRepository;
+import com.organizer3.backup.AvVideoBackupEntry;
 import lombok.RequiredArgsConstructor;
 import org.jdbi.v3.core.Jdbi;
 import org.jdbi.v3.core.mapper.RowMapper;
@@ -141,6 +142,59 @@ public class JdbiAvVideoRepository implements AvVideoRepository {
                 """)
                 .bind("now", LocalDateTime.now().toString())
                 .bind("id", videoId).execute());
+    }
+
+    @Override
+    public List<AvVideoBackupRow> findAllForBackup() {
+        return jdbi.withHandle(h -> h.createQuery("""
+                        SELECT a.volume_id, a.folder_name,
+                               v.relative_path, v.favorite, v.bookmark,
+                               v.watched, v.watch_count, v.last_watched_at
+                        FROM av_videos v
+                        JOIN av_actresses a ON a.id = v.av_actress_id
+                        WHERE v.favorite = 1
+                           OR v.bookmark = 1
+                           OR v.watched  = 1
+                           OR v.watch_count > 0
+                        ORDER BY a.volume_id, a.folder_name, v.relative_path
+                        """)
+                .map((rs, ctx) -> new AvVideoBackupRow(
+                        rs.getString("volume_id"),
+                        rs.getString("folder_name"),
+                        rs.getString("relative_path"),
+                        rs.getInt("favorite") == 1,
+                        rs.getInt("bookmark") == 1,
+                        rs.getInt("watched") == 1,
+                        rs.getInt("watch_count"),
+                        rs.getString("last_watched_at")))
+                .list());
+    }
+
+    @Override
+    public void restoreUserData(String volumeId, String folderName, String relativePath,
+                                boolean favorite, boolean bookmark,
+                                boolean watched, int watchCount, String lastWatchedAt) {
+        jdbi.useHandle(h -> h.createUpdate("""
+                        UPDATE av_videos SET
+                            favorite        = :favorite,
+                            bookmark        = :bookmark,
+                            watched         = :watched,
+                            watch_count     = :watchCount,
+                            last_watched_at = :lastWatchedAt
+                        WHERE av_actress_id = (
+                            SELECT id FROM av_actresses
+                            WHERE volume_id = :volumeId AND folder_name = :folderName
+                        ) AND relative_path = :relativePath
+                        """)
+                .bind("favorite", favorite ? 1 : 0)
+                .bind("bookmark", bookmark ? 1 : 0)
+                .bind("watched", watched ? 1 : 0)
+                .bind("watchCount", watchCount)
+                .bind("lastWatchedAt", lastWatchedAt)
+                .bind("volumeId", volumeId)
+                .bind("folderName", folderName)
+                .bind("relativePath", relativePath)
+                .execute());
     }
 
     @Override

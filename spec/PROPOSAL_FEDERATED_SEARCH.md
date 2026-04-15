@@ -1,5 +1,8 @@
 # Proposal: Federated Search
 
+> **Status: IMPLEMENTED**
+> Federated search is fully implemented: `SearchService` backend queries JAV actresses, titles, labels, companies, and AV actresses. The home page has a search bar with grouped results and per-category toggle filters. The AV actresses category was a subsequent addition — the `ALL_CATEGORIES` list in `home.js` controls which groups are rendered; `includeAv` flag is derived from whether that category is enabled.
+
 Design spec for the home page federated search feature. The search box is the flagship element of the home landing page — the first thing a user sees when entering the site, and the primary navigation path into any part of the library.
 
 ---

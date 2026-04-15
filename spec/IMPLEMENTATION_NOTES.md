@@ -1,4 +1,4 @@
-# Organizer3 - Implementation Notes
+# Organizer3 — Implementation Notes
 
 ## Technology Stack
 
@@ -10,74 +10,127 @@
 | SQL mapping | JDBI3 |
 | Database | SQLite via xerial/sqlite-jdbc |
 | YAML config | Jackson + jackson-dataformat-yaml |
+| JSON serialization | Jackson (backup files, API responses) |
 | Logging | SLF4J + Logback |
 | SMB connectivity | smbj (SMB2/3 Java library) |
-| Domain models | Lombok (`@Value @Builder`) on `Actress`; Java records elsewhere |
+| Domain models | Lombok `@Value @Builder` on `Actress` + `AvActress`; Java records elsewhere |
 | Test mocking | Mockito |
-| Embedded web server | Javalin 6 (read-only browsing/querying) |
+| Embedded web server | Javalin 6 |
+| Web terminal | WebSocket via Javalin |
 
-No Spring. Dependencies are wired manually in `Application.java` (the composition root).
+No Spring. All dependencies are wired manually in `Application.java` (the composition root).
 
 ---
 
-## Modern Java Usage
+## Package Structure
 
-- **Records** for immutable domain objects: `Title`, `Video`, `Volume`, `ActressAlias`
-- **Lombok `@Value @Builder`** on `Actress` (predates the records adoption; may be migrated later)
-- **Sealed classes** for use cases requiring exhaustive dispatch (not yet in place; intended for `VolumeStructure`)
-- **`java.nio.file.Path` and `Files`** throughout — never `java.io.File`
-- **`switch` expressions** used in tier/partition mapping (`toActressTier`, `SyncCommand` operation dispatch)
+```
+com.organizer3
+  Application.java          — composition root; wires all dependencies; starts shell + web server
+  backup/                   — UserDataBackup, UserDataBackupService, entry records, RestoreResult
+  command/                  — JAV shell command implementations (one class per command)
+  config/                   — AppConfig singleton, YAML model records
+  covers/                   — CoverPath utility (local cover image path resolution)
+  db/                       — SchemaInitializer, SchemaUpgrader
+  filesystem/               — VolumeFileSystem interface + SmbFileSystem
+  model/                    — JAV domain records: Title, TitleLocation, Actress, ActressAlias, Video, Volume
+  repository/               — JAV repository interfaces + jdbi/ implementations
+  shell/                    — SessionContext, OrganizerShell, PromptBuilder, CommandIO
+  smb/                      — SmbConnector, SmbjConnector, VolumeConnection
+  sync/                     — JAV sync operations, VolumeIndex, IndexLoader, TitleCodeParser
+  web/                      — WebServer, SearchService, AvBrowseService, ActressBrowseService, etc.
+
+  avstars/
+    command/                — AV shell command implementations
+    iafd/                   — HttpIafdClient, IafdSearchParser, IafdProfileParser, IafdResolvedProfile
+    model/                  — AvActress, AvVideo (Lombok @Value @Builder)
+    repository/             — AvActressRepository, AvVideoRepository, AvScreenshotRepository,
+                              AvTagDefinitionRepository, AvVideoTagRepository
+    repository/jdbi/        — JDBI implementations of AV repositories
+    service/                — AvBrowseService, AvScreenshotService, AvFilenameParser,
+                              AvStarsSyncOperation, AvTagYamlLoader
+```
 
 ---
 
 ## SMB / Filesystem Access
 
-The app connects to all volumes via SMB2/3 using the **smbj** library. Shares are accessed entirely through smbj — there are no OS-level mounts (`mount_smbfs`). The filesystem is never exposed as a local path.
+The app connects to all volumes via SMB2/3 using **smbj**. There are no OS-level mounts. The filesystem is accessed entirely through smbj's Java API.
 
-### VolumeFileSystem Abstraction
+### VolumeFileSystem abstraction
 
-All filesystem reads go through a `VolumeFileSystem` interface. This decouples sync logic from the transport layer and will make dry-run trivial to implement for file operations:
+All filesystem reads go through the `VolumeFileSystem` interface. This decouples sync logic from transport:
 
 ```java
 interface VolumeFileSystem {
     List<Path> listDirectory(Path path);
     boolean exists(Path path);
     boolean isDirectory(Path path);
+    InputStream openFile(Path path);  // used by sync covers
     // etc.
 }
 ```
 
-Implementations:
-- `SmbFileSystem` — delegates to smbj's `DiskShare` API
-- `DryRunFileSystem` — intended for file operation simulation (not yet wired)
+`SmbFileSystem` delegates to smbj's `DiskShare` API. `DryRunFileSystem` (file operation simulation) is not yet wired.
 
 ### VolumeConnection
 
-`VolumeConnection` wraps the lifecycle of an smbj session:
-- Holds the `SMBClient`, `Connection`, `Session`, and `DiskShare`
-- Exposes a `VolumeFileSystem` backed by the open share
-- `close()` tears down the full session stack
-
-`SmbjConnector` opens connections and reports progress phases (connecting → authenticating → opening share) via a `MountProgressListener` callback so the shell can display a spinner.
+Wraps smbj session lifecycle. `SmbjConnector` opens connections and reports progress phases (connecting → authenticating → opening share) via a `MountProgressListener` callback so the shell can display a spinner.
 
 ### Credentials
 
-Credentials are currently stored in `organizer-config.yaml` under a `servers:` block. This is a known deviation from the intended design (Keychain storage). Plan: move to macOS Keychain via `security find-internet-password` at mount time.
+Stored in `organizer-config.yaml` under `servers:`. Intended to move to macOS Keychain; not yet done.
 
 ---
 
-## Configuration Files
+## Database
 
-YAML files are used for structural configuration that humans write and rarely change. Mutable data discovered by the tool lives in the database.
+SQLite, single file at `~/.organizer3/organizer.db`. Single-user, no concurrent access concerns.
 
-### Active config files (in `src/main/resources/`)
+### Schema Management
 
-| File | Purpose |
+Two-tier approach:
+- `SchemaInitializer` — creates all tables and indexes using `CREATE TABLE IF NOT EXISTS`. Runs on every startup. Safe to re-run. Used in tests to set up in-memory DBs.
+- `SchemaUpgrader` — incremental migrations using `applyVN()` methods (idempotent `ALTER TABLE` + backfill). Runs after `SchemaInitializer`. Each migration is gated by checking `PRAGMA user_version`.
+
+**Do not drop-and-recreate during development** — use `SchemaUpgrader` for schema changes. The `user_version` pragma tracks the current schema version.
+
+### Full Schema
+
+See `FUNCTIONAL_SPEC.md §7` for the schema overview. Full DDL is in `SchemaInitializer.java`.
+
+Key structural points:
+- A title is unique by `code`. Location data lives in `title_locations` (one title can have multiple physical locations = duplicate detection).
+- `title_effective_tags` is a denormalized union of `title_tags` (direct) and `label_tags` (inherited from the label). Maintained by `TitleTagService`.
+- `av_actresses` identity is `(volume_id, folder_name)`. Stage name defaults to folder name when not set.
+- `av_videos` identity is `(av_actress_id, relative_path)`.
+
+### Repository Pattern
+
+All DB access goes through repository interfaces. Domain code never calls JDBI directly. Tests use real in-memory SQLite via `SchemaInitializer` — not mocks.
+
+| Interface | Implementation |
 |---|---|
-| `organizer-config.yaml` | Servers (host, username, password), volume definitions, structure definitions, sync command bindings |
-| `aliases.yaml` | Seed data for actress alias mappings — imported into DB on first run |
+| `ActressRepository` | `JdbiActressRepository` |
+| `TitleRepository` | `JdbiTitleRepository` |
+| `TitleLocationRepository` | `JdbiTitleLocationRepository` |
+| `VideoRepository` | `JdbiVideoRepository` |
+| `VolumeRepository` | `JdbiVolumeRepository` |
+| `LabelRepository` | `JdbiLabelRepository` |
+| `WatchHistoryRepository` | `JdbiWatchHistoryRepository` |
+| `AvActressRepository` | `JdbiAvActressRepository` |
+| `AvVideoRepository` | `JdbiAvVideoRepository` |
+| `AvScreenshotRepository` | `JdbiAvScreenshotRepository` |
+| `AvTagDefinitionRepository` | `JdbiAvTagDefinitionRepository` |
+| `AvVideoTagRepository` | `JdbiAvVideoTagRepository` |
 
-### Config Shape
+---
+
+## Configuration
+
+`organizer-config.yaml` (in `src/main/resources/`) is the bootstrap config. It is loaded once at startup into `AppConfig` (process-level singleton). `AppConfig.initializeForTest(...)` is available for tests.
+
+### Config shape
 
 ```yaml
 servers:
@@ -90,18 +143,20 @@ volumes:
   - id: a
     smbPath: //pandora/jav_A
     structureType: conventional
-    server: pandora        # references a server entry by id
+    server: pandora
 
 structures:
   - id: conventional
     unstructuredPartitions:
       - { id: queue, path: queue }
-      ...
     structuredPartition:
       path: stars
       partitions:
         - { id: library, path: library }
-        ...
+        - ...
+  - id: avstars
+    unstructuredPartitions: []
+    ignoredSubfolders: [trash, .Trashes, incomplete]
 
 syncConfig:
   - structureType: conventional
@@ -111,305 +166,121 @@ syncConfig:
         partitions: [queue]
       - term: sync all
         operation: full
+  - structureType: avstars
+    commands:
+      - term: sync all
+        operation: full
+
+backup:
+  autoBackupIntervalMinutes: 10080   # weekly
+  snapshotCount: 10
+
+dataDir: data    # root for covers/, thumbnails/, backups/, av_headshots/, av_screenshots/
 ```
 
-`AppConfig` is a process-level singleton initialized at startup. `AppConfig.initializeForTest(...)` is available for unit tests.
+### Seed files
 
-### Legacy reference files (in `legacy/`)
-
-The original organizer2 project config files are in `legacy/` and are **not loaded by the application**. They exist only as reference when porting configuration values.
-
----
-
-## Database
-
-SQLite database, single file at `~/.organizer3/organizer.db`. Single user — no concurrent access concerns.
-
-### Schema
-
-```sql
-volumes           (id TEXT PK, structure_type TEXT, last_synced_at TEXT)
-actresses         (id INTEGER PK AUTOINCREMENT, canonical_name TEXT UNIQUE,
-                   tier TEXT, first_seen_at TEXT, favorite INTEGER DEFAULT 0)
-actress_aliases   (actress_id INTEGER → actresses.id, alias_name TEXT,
-                   PRIMARY KEY (actress_id, alias_name))
-titles            (id INTEGER PK AUTOINCREMENT, code TEXT UNIQUE, base_code TEXT,
-                   label TEXT, seq_num INTEGER,
-                   actress_id INTEGER → actresses.id (nullable),
-                   favorite, bookmark, grade, rejected)
-title_locations   (id INTEGER PK AUTOINCREMENT, title_id INTEGER → titles.id,
-                   volume_id TEXT → volumes.id, partition_id TEXT,
-                   path TEXT, last_seen_at TEXT, added_date TEXT,
-                   UNIQUE(title_id, volume_id, path))
-videos            (id INTEGER PK AUTOINCREMENT, title_id INTEGER → titles.id,
-                   volume_id TEXT, filename TEXT, path TEXT, last_seen_at TEXT)
-operations        (id INTEGER PK AUTOINCREMENT, timestamp TEXT, type TEXT,
-                   source_path TEXT, dest_path TEXT, was_armed INTEGER)
-labels            (code TEXT PK, label_name TEXT, company TEXT, description TEXT)
-```
-
-Indexes: `actress_aliases(alias_name)`, `title_locations(title_id)`, `title_locations(volume_id)`, `title_locations(volume_id, partition_id)`, `titles(actress_id)`, `titles(code)`, `titles(label)`, `videos(title_id)`, `videos(volume_id)`
-
-A title is unique by `code` (the normalized parsed code like "ABP-123" or "ABP-123_4K"). Location data (volume, partition, path) lives in `title_locations` — one title can exist in multiple physical locations across volumes. This enables duplicate detection: titles with more than one location are duplicates.
-
-`labels.code` joins to `titles.label` for label metadata lookups. Seeded automatically on startup from `src/main/resources/labels.csv` via `LabelSeeder.seedIfEmpty()`. Call `reimport()` to clear and re-seed when the CSV is updated.
-
-`actress_id` on titles is nullable — titles in unstructured partitions have no actress until organized into a starred partition.
-
-### Schema Management
-
-`SchemaInitializer` creates all tables and indexes using `CREATE TABLE IF NOT EXISTS` / `CREATE INDEX IF NOT EXISTS`. No incremental migrations — drop and recreate the DB during development as needed.
-
-### Repository Pattern
-
-All DB access goes through repository interfaces. Domain code never calls JDBI directly.
-
-| Interface | Implementation |
+| File | Purpose |
 |---|---|
-| `ActressRepository` | `JdbiActressRepository` |
-| `TitleRepository` | `JdbiTitleRepository` |
-| `TitleLocationRepository` | `JdbiTitleLocationRepository` |
-| `VideoRepository` | `JdbiVideoRepository` |
-| `VolumeRepository` | `JdbiVolumeRepository` |
-
-Repositories are tested with real in-memory SQLite DBs (not mocks). Each test gets a fresh schema via `SchemaInitializer`.
-
-### Data Ownership
-
-- **YAML owns**: volume definitions, server config, structure definitions, sync command bindings
-- **DB owns**: actress records, alias mappings, title records, video records, operation history
-- `aliases.yaml` is a **seed file** only — imported into the DB on first run, then the DB is authoritative
-- `labels.csv` is a **seed file** — auto-imported on startup if the table is empty; call `LabelSeeder.reimport()` to re-seed after updates
+| `src/main/resources/aliases.yaml` | Actress alias seed (imported once on fresh DB) |
+| `src/main/resources/labels.csv` | Label metadata seed (auto-imported on empty table) |
 
 ---
 
-## Volume Structure Types
+## CommandIO
 
-Four structure types are defined in config:
+Two output channels:
+- **`println`** — scrolling message output (accumulates above the prompt)
+- **`status(String)`** — persistent status line at the bottom, overwritten in place
+- **`startSpinner(String)`** — animated spinner on the status line (returns `AutoCloseable`)
+- **`startProgress(String, int)`** — progress counter on the status line (returns `Progress` with `advance()` and `setLabel()`)
 
-| Type | Stars layout | Sync |
-|---|---|---|
-| `conventional` | Tiered sub-folders under `stars/` | `sync all` (full), `sync queue` (partition) |
-| `queue` | No stars | `sync` / `sync all` (full) |
-| `exhibition` | Actress folders directly under `stars/`, no tier sub-folders | `sync all` (full) |
-| `collections` | No stars, all unstructured partitions | Not yet implemented |
-
-For `exhibition`, all actresses are stored with tier `LIBRARY` in the DB regardless of title count, because there is no tier information encoded in the folder structure.
-
-### Partition ID vs Path
-
-`PartitionDef` has two fields:
-- `id` — logical name used in DB (e.g., `"queue"`)
-- `path` — actual folder name on disk (e.g., `"fresh"` for queue volumes)
-
-These diverge in the queue volume type (`id=queue`, `path=fresh`). They are the same in conventional volumes. Always use `id` when writing to the DB; resolve to `path` when accessing the filesystem.
-
-For titles inside the structured partition, `partition_id` in the DB is `"stars/<tier-id>"` (e.g., `"stars/popular"`).
-
----
-
-## Data Layer Architecture
-
-```
-SMB Filesystem  <--sync-->  SQLite DB  <--mount-->  VolumeIndex  <--commands-->  Results
-```
-
-- `sync` walks the SMB filesystem, reconciles against DB, updates records
-- `mount` loads from DB into the in-memory `VolumeIndex`. Assumes DB is current.
-- Commands that need per-volume data read from `VolumeIndex`; cross-volume queries (actresses, favorites) go directly to the DB repositories
+Implementations:
+- `JLineCommandIO` — live terminal via JLine3's `Status` facility
+- `PlainCommandIO` — writes to `PrintWriter`; spinner/progress are no-ops. Used in tests and non-TTY.
 
 ---
 
 ## Sync Design
 
-### Sync Commands are Config-Driven
+### Config-Driven Sync Commands
 
-`SyncCommand` instances are registered dynamically at startup from `syncConfig` in the YAML. One instance is registered per unique term. Terms shared across structure types produce a single command that validates against all applicable types.
+`SyncCommand` instances are registered dynamically from `syncConfig` in YAML. Adding a new sync term requires only a YAML change, no Java code.
 
-### Sync Scope and DB Clearing
+### JAV FullSyncOperation
 
-- **`FullSyncOperation`**: deletes all `videos` and `title_locations` for the volume, then re-scans everything. Titles themselves are not deleted (they may have locations on other volumes). After scanning, `deleteOrphaned()` removes titles with zero remaining locations.
-- **`PartitionSyncOperation`**: deletes only the named partition's videos and locations, then re-scans that partition. Same orphan cleanup afterward.
+1. Delete all `videos` and `title_locations` for the volume
+2. Walk filesystem partitions; for each title folder: upsert `Title`, insert `TitleLocation`, insert `Video` records
+3. Delete orphaned titles (zero remaining locations)
+4. Stamp `last_synced_at` on the volume; rebuild `VolumeIndex` from DB
 
-Sync always reads the real filesystem regardless of dry-run mode — it is read-only from the filesystem's perspective. All writes go to the DB.
+### AV AvStarsSyncOperation
 
-### What Sync Produces
-
-For each title folder found:
-- A `Title` record (find-or-create by `code`): `code`, `baseCode`, `label`, `seqNum` parsed from the folder name; `actress_id` (null for unstructured). If the title already exists, its actress is updated only if previously null.
-- A `TitleLocation` record: `volume_id`, `partition_id`, `path`, `last_seen_at = today`, `added_date` (estimated from file modification dates)
-- `Video` records for each media file inside the title folder (checked directly and inside optional `video/` and `h265/` subdirectories), each tagged with `volume_id`
-
-For each actress folder found in the `stars/` tree:
-- Resolved via `ActressRepository.resolveByName()` (checks canonical name and aliases)
-- Creates a new `Actress` record if not found, using the folder name as canonical name and the tier from the sub-partition mapping
-
-After all scanning, `last_synced_at` is stamped on the volume record and the `VolumeIndex` is rebuilt from DB.
-
-### Title Code Parsing
-
-`TitleCodeParser` extracts a JAV code from a folder name using pattern `[A-Za-z][A-Za-z0-9]{0,9}-\d{2,6}`:
-- `code` = normalized label (uppercased) + `-` + original digits + any `_SUFFIX` immediately following (e.g., `_U`, `_4K`)
-- `baseCode` = `LABEL-NNNNN` (5-digit zero-padded number, no suffix) — used for cross-volume matching
-- `label` = the label portion only (e.g., `"ABP"`)
-- `seqNum` = parsed as integer if digits are present
-- Falls back to the raw folder name for `code`/`baseCode` if no pattern matches
-
-### Video File Discovery
-
-Within a title folder, video files are collected from:
-1. Directly inside the title folder
-2. Inside an optional `video/` subdirectory
-
-Recognized extensions: `mkv mp4 avi mov wmv mpg mpeg m4v m2ts ts rmvb divx asf wma wm`
+1. For each `avstars` volume: walk each top-level actress folder recursively
+2. Upsert `AvActress` record; upsert `AvVideo` records for each video file found
+3. Delete orphaned videos (last_seen_at < sync start)
+4. Update `video_count` and `total_size_bytes` on each actress
+5. Update `last_scanned_at` on each actress
 
 ---
 
-## Mount Lifecycle
+## Backup System
 
-`mount <id>`:
-1. Look up volume config and server config by id
-2. If already connected to this volume, acknowledge and return
-3. If a different volume is connected, close its connection first
-4. Open smbj connection with spinner feedback (three phases: connect, authenticate, share open)
-5. On failure: print error, return without updating session state
-6. Set connection and volume on `SessionContext`
-7. Load `VolumeIndex` from DB — if empty (cold volume), print a prompt to run sync
+`UserDataBackupService` in `com.organizer3.backup`. Exports user-altered fields from both JAV and AV tables to a versioned JSON file. Restores by overlay (not replace).
 
-`unmount`:
-- Closes the SMB connection
-- Clears `activeConnection`, `mountedVolume`, and `index` from `SessionContext`
+Current backup version: **2** (added `avActresses` and `avVideos` lists in v2; v1 files have null for these).
 
----
+Stable backup keys:
+- JAV actress → `canonicalName`
+- JAV title → `code`
+- AV actress → `(volumeId, folderName)`
+- AV video → `(volumeId, folderName, relativePath)`
 
-## Command Infrastructure
-
-### Command Interface
-
-```java
-public interface Command {
-    String name();
-    String description();
-    void execute(String[] args, SessionContext ctx, CommandIO io);
-    default List<String> aliases() { return List.of(); }
-}
-```
-
-`args[0]` is always the command name. The shell splits on whitespace before dispatching.
-
-### CommandIO
-
-Two output paths:
-- **`println`** — scrolling message output (accumulates above the prompt)
-- **`status` / `startSpinner` / `startProgress`** — persistent status line at the bottom, overwritten in place
-
-Implementations:
-- `JLineCommandIO` — live terminal with animated spinner and progress via JLine3's `Status` facility
-- `PlainCommandIO` — writes to a `PrintWriter`; spinner/progress are no-ops. Used in tests and non-TTY contexts.
-
-### Session State
-
-`SessionContext` holds all mutable per-session state:
-- `mountedVolume` — currently active `VolumeConfig`
-- `activeConnection` — open `VolumeConnection`
-- `index` — in-memory `VolumeIndex` for the active volume
-- `dryRun` — defaults to `true`; controls whether file operations execute
-- `running` — `false` triggers shell exit
-
-`SessionContext` is never a singleton — always injected so tests can construct isolated instances.
-
----
-
-## Interactive Shell (JLine3)
-
-JLine3 is used directly — not via Spring Shell:
-
-- Fish-style autosuggestions and history search available via JLine3 but completers not yet wired
-- Ctrl+C (`UserInterruptException`) continues the read loop without exiting
-- Ctrl+D (`EndOfFileException`) exits gracefully
-- History saved to `.organizer_history` in the working directory
-- On a real TTY: `JLineCommandIO` with spinner/progress
-- On a dumb terminal or non-TTY: `PlainCommandIO`
-
----
-
-## Dry-Run / Armed Mode
-
-`SessionContext.isDryRun()` defaults to `true`. The prompt displays `[*DRYRUN*]` when active.
-
-`arm` and `test` toggle commands are not yet implemented — the mode is set only at startup. The `VolumeFileSystem` abstraction is designed to support a `DryRunFileSystem` implementation for no-op file operations, but it is not yet wired.
+`BackupScheduler` runs auto-backup on a background thread at a configurable interval. Snapshot files use the pattern `user-data-backup-<timestamp>.json`. Oldest snapshots are pruned beyond the configured `snapshotCount`.
 
 ---
 
 ## Web Server
 
-An embedded Javalin web server runs alongside the interactive shell, providing read-only browsing and querying of the collection. All endpoints are strictly read-only — no mutations are exposed through the web layer.
+Javalin 6, port 8080. Started before the shell loop; stopped after.
 
-### Lifecycle
+### Route categories
 
-- Started in `Application.java` before the shell loop begins
-- Stopped after the shell loop exits (i.e., on `shutdown` or Ctrl+D)
-- Default port: 8080
+- **Static assets** — JS modules, CSS, fonts served from `src/main/resources/public/`
+- **JAV browse API** — `/api/actresses/*`, `/api/titles/*`, `/api/labels/*`, `/api/search`, `/api/favorites/*`, `/api/bookmarks/*`, `/api/grades/*`, `/api/notes/*`, `/api/watch/*`
+- **Cover / thumbnail serving** — `/covers/*`, `/thumbnails/*`, `/api/thumbnail/*`
+- **Video streaming** — `/api/video/*` (range-request aware; streams from SMB)
+- **AV browse API** — `/api/av/*` (actresses, videos, tags, curation, watch state)
+- **AV media serving** — `/api/av/headshots/*`, `/api/av/screenshots/*`
+- **AV video streaming** — `/api/av/stream/*`
+- **Web terminal** — WebSocket at `/terminal/ws`
 
-### Architecture
+`WebServer.registerAvRoutes(...)` is called with all AV-specific dependencies and wires the AV sub-routes.
 
-`WebServer` in `com.organizer3.web` owns the Javalin instance and route registration. Repositories are shared with the shell — same instances, same JDBI handle.
+### SearchService
 
-### Package
+`SearchService.search(query, startsWith, includeAv)` performs federated search across JAV actresses, titles, labels, companies, and optionally AV actresses. Returns a grouped result map ready for JSON serialization.
 
-```
-com.organizer3.web/
-  WebServer.java        — Javalin lifecycle and route registration
-```
-
----
-
-## Cover Image Collection
-
-Cover images are collected from mounted volumes and stored locally for use by the web server.
-
-### Storage
-
-```
-data/covers/
-  <LABEL>/
-    <baseCode>.<ext>
-```
-
-Example: `data/covers/ABP/ABP-00123.jpg`. The directory is gitignored. Path is deterministic from a title's `label` and `baseCode` — no database column needed. The `CoverPath` utility in `com.organizer3.covers` resolves paths and checks for existing covers.
-
-### Commands
-
-| Command | Requires Mount | Description |
-|---------|---------------|-------------|
-| `sync covers` | Yes | Collect cover images from the mounted volume's stars partitions |
-| `prune-covers` | No | Remove orphaned covers whose baseCode matches no title in the DB |
-
-### Discovery
-
-For each title folder, `sync covers` lists files and filters by image extension (`jpg`, `jpeg`, `png`, `webp`, `gif`, `bmp`, `tiff`). If exactly one image is found, it is used. Multiple images: first alphabetically is chosen (warning logged). No images: title is skipped (warning logged).
-
-### Deduplication
-
-Titles sharing the same `baseCode` (e.g., `ABP-123` and `ABP-123_4K`) map to the same cover file. The first collected wins; subsequent encounters skip because the file already exists.
-
-### File Transfer
-
-`VolumeFileSystem.openFile(Path)` returns an `InputStream` for reading files over SMB. The stream is copied to the local covers directory. Original file extension is preserved (no format conversion).
-
-### Package
-
-```
-com.organizer3.covers/
-  CoverPath.java          — Path resolution, existence checks, image extension utilities
-```
+Headshot URL construction: `/api/av/headshots/{filename}` — the endpoint serves by **filename** (not ID). `toAvActressMap()` uses `Path.of(r.headshotPath()).getFileName()` to derive the filename.
 
 ---
 
-## Logging
+## Interactive Shell (JLine3)
 
-- SLF4J + Logback
-- Session-based log files
-- Log rotation (configurable max files, default 3)
-- All file operations will be logged regardless of armed mode (when file ops are implemented)
-- Console echo of important events via `CommandIO`
+- Fish-style autosuggestions and history search available via JLine3
+- Completers not yet wired (tab completion not implemented)
+- Ctrl+C continues the read loop; Ctrl+D exits gracefully
+- History saved to `.organizer_history` in working directory
+- On real TTY: `JLineCommandIO` with spinner/progress
+- On dumb terminal / non-TTY: `PlainCommandIO`
+
+---
+
+## Known Deviations from Original Spec
+
+- SMB via smbj (Java) — no OS-level `mount_smbfs`
+- Credentials in YAML, not macOS Keychain
+- `arm`/`test` toggle commands not yet implemented
+- Collections volume sync not yet implemented
+- File operations (move/rename) not yet implemented
+- Tab completion not yet wired

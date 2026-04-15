@@ -365,7 +365,7 @@ public class ActressBrowseService {
                             .toList();
                     List<String> nasPaths = t.getLocations().stream()
                             .filter(loc -> loc.getVolumeId() != null && volumeSmbPaths.containsKey(loc.getVolumeId()))
-                            .map(loc -> volumeSmbPaths.get(loc.getVolumeId()) + "/" + loc.getPath())
+                            .map(loc -> volumeSmbPaths.get(loc.getVolumeId()) + loc.getPath())
                             .distinct()
                             .toList();
                     List<String> directTags = t.getTags() != null ? t.getTags() : List.of();

@@ -1,5 +1,9 @@
 package com.organizer3.backup;
 
+import com.organizer3.avstars.model.AvActress;
+import com.organizer3.avstars.model.AvVideo;
+import com.organizer3.avstars.repository.jdbi.JdbiAvActressRepository;
+import com.organizer3.avstars.repository.jdbi.JdbiAvVideoRepository;
 import com.organizer3.db.SchemaInitializer;
 import com.organizer3.model.Actress;
 import com.organizer3.model.Title;
@@ -36,6 +40,8 @@ class UserDataBackupServiceTest {
     private JdbiActressRepository actressRepo;
     private JdbiTitleRepository titleRepo;
     private JdbiWatchHistoryRepository watchHistoryRepo;
+    private JdbiAvActressRepository avActressRepo;
+    private JdbiAvVideoRepository avVideoRepo;
     private UserDataBackupService service;
 
     @BeforeEach
@@ -49,7 +55,9 @@ class UserDataBackupServiceTest {
         actressRepo = new JdbiActressRepository(jdbi);
         titleRepo = new JdbiTitleRepository(jdbi, locationRepo);
         watchHistoryRepo = new JdbiWatchHistoryRepository(jdbi);
-        service = new UserDataBackupService(actressRepo, titleRepo, watchHistoryRepo);
+        avActressRepo = new JdbiAvActressRepository(jdbi);
+        avVideoRepo = new JdbiAvVideoRepository(jdbi);
+        service = new UserDataBackupService(actressRepo, titleRepo, watchHistoryRepo, avActressRepo, avVideoRepo);
 
         // Seed a volume so title locations can be created
         volumeRepo.save(new Volume("vol-a", "conventional"));
@@ -230,7 +238,7 @@ class UserDataBackupServiceTest {
         // Write a valid file then manually bump the version field
         UserDataBackup backup = new UserDataBackup(
                 UserDataBackupService.CURRENT_BACKUP_VERSION + 1,
-                LocalDateTime.now(), List.of(), List.of(), List.of());
+                LocalDateTime.now(), List.of(), List.of(), List.of(), List.of(), List.of());
         Path backupFile = tempDir.resolve("future.json");
         service.write(backup, backupFile);
 
@@ -253,7 +261,7 @@ class UserDataBackupServiceTest {
                 LocalDateTime.now(),
                 List.of(new ActressBackupEntry("Airi Suzumura", true, false, null, "A+", false, 7,
                         LocalDateTime.of(2026, 2, 10, 18, 0))),
-                List.of(), List.of());
+                List.of(), List.of(), List.of(), List.of());
 
         RestoreResult result = service.restore(backup);
 
@@ -277,7 +285,7 @@ class UserDataBackupServiceTest {
                 LocalDateTime.now(), List.of(),
                 List.of(new TitleBackupEntry("SSIS-001", true, false, null, "S", false, 3,
                         LocalDateTime.of(2026, 3, 1, 20, 0), "Excellent solo.")),
-                List.of());
+                List.of(), List.of(), List.of());
 
         RestoreResult result = service.restore(backup);
 
@@ -297,7 +305,7 @@ class UserDataBackupServiceTest {
                 UserDataBackupService.CURRENT_BACKUP_VERSION,
                 LocalDateTime.now(),
                 List.of(new ActressBackupEntry("Unknown Actress", true, false, null, null, false, 0, null)),
-                List.of(), List.of());
+                List.of(), List.of(), List.of(), List.of());
 
         RestoreResult result = service.restore(backup);
 
@@ -311,7 +319,7 @@ class UserDataBackupServiceTest {
                 UserDataBackupService.CURRENT_BACKUP_VERSION,
                 LocalDateTime.now(), List.of(),
                 List.of(new TitleBackupEntry("GHOST-999", true, false, null, null, false, 0, null, null)),
-                List.of());
+                List.of(), List.of(), List.of());
 
         RestoreResult result = service.restore(backup);
 
@@ -329,7 +337,7 @@ class UserDataBackupServiceTest {
                 List.of(
                         new WatchHistoryEntry("ABP-001", LocalDateTime.of(2026, 1, 1, 12, 0)),  // already exists
                         new WatchHistoryEntry("ABP-001", LocalDateTime.of(2026, 2, 1, 20, 0))   // new
-                ));
+                ), List.of(), List.of());
 
         RestoreResult result = service.restore(backup);
 
@@ -512,5 +520,173 @@ class UserDataBackupServiceTest {
         Title restoredTitle = titleRepo.findByCode("PRED-001").orElseThrow();
         assertTrue(restoredTitle.isFavorite());
         assertEquals("Top shelf.", restoredTitle.getNotes());
+    }
+
+    // ── AV actress backup ────────────────────────────────────────────────────
+
+    @Test
+    void exportExcludesDefaultOnlyAvActresses() {
+        avActressRepo.upsert(AvActress.builder()
+                .volumeId("av_vol").folderName("anissa_kate").stageName("Anissa Kate").build());
+
+        UserDataBackup backup = service.export();
+
+        assertTrue(backup.avActresses().isEmpty(),
+                "AV actress with all-default user fields should be omitted from backup");
+    }
+
+    @Test
+    void exportIncludesFavoritedAvActress() {
+        long id = avActressRepo.upsert(AvActress.builder()
+                .volumeId("av_vol").folderName("anissa_kate").stageName("Anissa Kate").build());
+        avActressRepo.toggleFavorite(id, true);
+
+        UserDataBackup backup = service.export();
+
+        assertEquals(1, backup.avActresses().size());
+        AvActressBackupEntry entry = backup.avActresses().get(0);
+        assertEquals("av_vol", entry.volumeId());
+        assertEquals("anissa_kate", entry.folderName());
+        assertTrue(entry.favorite());
+    }
+
+    @Test
+    void restoreOverlaysAvActressUserFields() {
+        avActressRepo.upsert(AvActress.builder()
+                .volumeId("av_vol").folderName("lela_star").stageName("Lela Star").build());
+
+        UserDataBackup backup = new UserDataBackup(
+                UserDataBackupService.CURRENT_BACKUP_VERSION, LocalDateTime.now(),
+                List.of(), List.of(), List.of(),
+                List.of(new AvActressBackupEntry("av_vol", "lela_star", true, false, false, "A", "Great performer.", 3, null)),
+                List.of());
+
+        RestoreResult result = service.restore(backup);
+
+        assertEquals(1, result.avActressesRestored());
+        assertEquals(0, result.avActressesSkipped());
+
+        AvActress after = avActressRepo.findByVolumeAndFolder("av_vol", "lela_star").orElseThrow();
+        assertTrue(after.isFavorite());
+        assertEquals("A", after.getGrade());
+        assertEquals("Great performer.", after.getNotes());
+    }
+
+    @Test
+    void restoreSkipsAvActressNotInDatabase() {
+        UserDataBackup backup = new UserDataBackup(
+                UserDataBackupService.CURRENT_BACKUP_VERSION, LocalDateTime.now(),
+                List.of(), List.of(), List.of(),
+                List.of(new AvActressBackupEntry("av_vol", "ghost_folder", true, false, false, null, null, 0, null)),
+                List.of());
+
+        RestoreResult result = service.restore(backup);
+
+        assertEquals(0, result.avActressesRestored());
+        assertEquals(1, result.avActressesSkipped());
+    }
+
+    // ── AV video backup ──────────────────────────────────────────────────────
+
+    @Test
+    void exportExcludesDefaultOnlyAvVideos() {
+        long actressId = avActressRepo.upsert(AvActress.builder()
+                .volumeId("av_vol").folderName("anissa_kate").stageName("Anissa Kate").build());
+        avVideoRepo.upsert(AvVideo.builder()
+                .avActressId(actressId).volumeId("av_vol")
+                .relativePath("anissa_kate/video.mp4").filename("video.mp4").extension("mp4")
+                .build());
+
+        UserDataBackup backup = service.export();
+
+        assertTrue(backup.avVideos().isEmpty(),
+                "AV video with all-default user fields should be omitted from backup");
+    }
+
+    @Test
+    void exportIncludesWatchedAvVideo() {
+        long actressId = avActressRepo.upsert(AvActress.builder()
+                .volumeId("av_vol").folderName("anissa_kate").stageName("Anissa Kate").build());
+        long videoId = avVideoRepo.upsert(AvVideo.builder()
+                .avActressId(actressId).volumeId("av_vol")
+                .relativePath("anissa_kate/video.mp4").filename("video.mp4").extension("mp4")
+                .build());
+        avVideoRepo.recordWatch(videoId);
+
+        UserDataBackup backup = service.export();
+
+        assertEquals(1, backup.avVideos().size());
+        AvVideoBackupEntry entry = backup.avVideos().get(0);
+        assertEquals("av_vol", entry.volumeId());
+        assertEquals("anissa_kate", entry.folderName());
+        assertEquals("anissa_kate/video.mp4", entry.relativePath());
+        assertTrue(entry.watched());
+        assertEquals(1, entry.watchCount());
+    }
+
+    @Test
+    void restoreOverlaysAvVideoUserFields() {
+        long actressId = avActressRepo.upsert(AvActress.builder()
+                .volumeId("av_vol").folderName("lela_star").stageName("Lela Star").build());
+        avVideoRepo.upsert(AvVideo.builder()
+                .avActressId(actressId).volumeId("av_vol")
+                .relativePath("lela_star/scene.mp4").filename("scene.mp4").extension("mp4")
+                .build());
+
+        UserDataBackup backup = new UserDataBackup(
+                UserDataBackupService.CURRENT_BACKUP_VERSION, LocalDateTime.now(),
+                List.of(), List.of(), List.of(), List.of(),
+                List.of(new AvVideoBackupEntry("av_vol", "lela_star", "lela_star/scene.mp4",
+                        true, false, true, 2, null)));
+
+        RestoreResult result = service.restore(backup);
+
+        assertEquals(1, result.avVideosRestored());
+        assertEquals(0, result.avVideosSkipped());
+    }
+
+    @Test
+    void restoreSkipsAvVideoWhenActressNotInDatabase() {
+        UserDataBackup backup = new UserDataBackup(
+                UserDataBackupService.CURRENT_BACKUP_VERSION, LocalDateTime.now(),
+                List.of(), List.of(), List.of(), List.of(),
+                List.of(new AvVideoBackupEntry("av_vol", "ghost_folder", "ghost_folder/scene.mp4",
+                        true, false, false, 0, null)));
+
+        RestoreResult result = service.restore(backup);
+
+        assertEquals(0, result.avVideosRestored());
+        assertEquals(1, result.avVideosSkipped());
+    }
+
+    // ── Backward compatibility ────────────────────────────────────────────────
+
+    @Test
+    void restoreHandlesV1BackupWithNullAvFields() throws Exception {
+        // Construct a v1-style JSON manually (no avActresses / avVideos fields)
+        String v1Json = """
+                {
+                  "version": 1,
+                  "exportedAt": "2026-01-01T12:00:00",
+                  "actresses": [],
+                  "titles": [],
+                  "watchHistory": []
+                }
+                """;
+        Path backupFile = tempDir.resolve("v1-backup.json");
+        java.nio.file.Files.writeString(backupFile, v1Json);
+
+        // Reading should not throw
+        UserDataBackup backup = service.read(backupFile);
+
+        assertNull(backup.avActresses());
+        assertNull(backup.avVideos());
+
+        // Restoring should not throw — null lists treated as empty
+        RestoreResult result = service.restore(backup);
+        assertEquals(0, result.avActressesRestored());
+        assertEquals(0, result.avActressesSkipped());
+        assertEquals(0, result.avVideosRestored());
+        assertEquals(0, result.avVideosSkipped());
     }
 }

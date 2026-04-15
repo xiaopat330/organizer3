@@ -1,5 +1,14 @@
 # Proposal: User Data Backup and Restore
 
+> **Status: IMPLEMENTED (v2)**
+> The core backup/restore system described in §1–7 is fully implemented.
+> **v2 extension** (AV Stars data) was implemented subsequently:
+> - `UserDataBackup` now carries `avActresses` and `avVideos` lists (null in v1 files for backward compat)
+> - `CURRENT_BACKUP_VERSION` is 2
+> - Auto-backup (§8 "out of scope") is implemented via `BackupScheduler`
+> - Snapshot history (§8 "out of scope") is implemented: timestamped files, `snapshotCount` retention
+> The "out of scope" items web UI export/import remain unimplemented.
+
 Design spec for a CLI command pair that exports user-altered database fields to a JSON file and restores them after a database drop and reseed.
 
 ---

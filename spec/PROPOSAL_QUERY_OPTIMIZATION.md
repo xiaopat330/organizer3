@@ -1,5 +1,8 @@
 # Proposal: Query Optimization
 
+> **Status: IMPLEMENTED**
+> The query optimizations described in this document are implemented: `title_effective_tags` denormalized view, `actress_companies` denormalized table, targeted indexes, and the query patterns described here are in use.
+
 Design spec for a set of targeted database optimizations to eliminate known slow query patterns. All changes are invisible to the user — the app feels faster and more responsive, especially on filtered browse views and company/tag filtering.
 
 No new user-facing features. No behavioral changes.

@@ -1,5 +1,8 @@
 # Proposal: Web Terminal
 
+> **Status: IMPLEMENTED**
+> The web terminal is fully implemented. WebSocket at `/terminal/ws` connects the browser to the same `CommandDispatcher` and `SessionContext` used by the native shell. The terminal panel is accessible from the bottom of any page in the web UI.
+
 ## Motivation
 
 All administration — mounting volumes, syncing, managing actresses, loading YAML — is done through the JLine3 interactive shell. This works well, but requires a terminal window. Since the Javalin web server is already running alongside the shell, it's natural to expose the same command interface through the browser.

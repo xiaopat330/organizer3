@@ -17,7 +17,7 @@
     <div class="nav-divider"></div>
     <button class="nav-link" id="av-btn"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>AV</button>
     <div class="nav-divider"></div>
-    <button class="nav-link" id="action-btn"><svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10"/></svg>Action!</button>
+    <button class="nav-link" id="action-btn"><svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10"/></svg>Tools</button>
     <div class="nav-divider"></div>
     <button class="nav-link" id="terminal-toggle-btn" title="Terminal">⌨</button>
   </div>
@@ -221,6 +221,42 @@
 <div id="titles-browse-grid" class="grid" style="display:none"></div>
 <!-- Title dashboard (default landing) -->
 <div id="title-dashboard" style="display:none"></div>
+
+<!-- Tools landing sub-nav -->
+<div id="action-landing" class="action-landing" style="display:none">
+  <div class="action-landing-row" id="action-landing-tools-row">
+    <button type="button" id="tools-duplicates-btn" class="action-tool-btn tools-duplicates-btn">
+      <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="8" width="13" height="13" rx="2"/><path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h3"/></svg>
+      Duplicates
+    </button>
+  </div>
+</div>
+
+<!-- Duplicates tool filter bar -->
+<div id="tools-duplicates-filters" class="tools-subnav" style="display:none">
+  <label class="dup-filter-label" for="dup-volume-select">Volume</label>
+  <select id="dup-volume-select" class="dup-filter-select">
+    <option value="">&lt;all&gt;</option>
+  </select>
+</div>
+
+<!-- Duplicates tool content -->
+<div id="tools-duplicates-view" style="display:none">
+  <div id="tools-duplicates-status" class="tools-duplicates-status"></div>
+  <div id="tools-duplicates-list" class="tools-duplicates-list"></div>
+  <div id="tools-duplicates-sentinel"></div>
+</div>
+
+<!-- Duplicate detail modal -->
+<div id="dup-detail-overlay" class="dup-detail-overlay" style="display:none">
+  <div class="dup-detail-modal">
+    <div class="dup-detail-header">
+      <div id="dup-detail-heading" class="dup-detail-heading"></div>
+      <button class="dup-detail-close" id="dup-detail-close" aria-label="Close">✕</button>
+    </div>
+    <div id="dup-detail-body" class="dup-detail-body"></div>
+  </div>
+</div>
 
 <!-- AV landing island -->
 <div id="av-landing" class="actress-landing av-landing" style="display:none">

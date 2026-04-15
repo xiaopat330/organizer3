@@ -196,6 +196,14 @@ public class WebServer {
             });
 
             app.get("/api/tags", ctx -> ctx.json(new TagCatalogLoader().load()));
+            app.get("/api/tools/volumes", ctx -> ctx.json(browseService.listVolumes()));
+            app.get("/api/tools/duplicates", ctx -> {
+                int offset = ctx.queryParamAsClass("offset", Integer.class).getOrDefault(0);
+                int limit  = ctx.queryParamAsClass("limit",  Integer.class).getOrDefault(50);
+                String volumeId = ctx.queryParam("volumeId");
+                offset = Math.max(offset, 0);
+                ctx.json(browseService.findDuplicatesPaged(offset, limit, volumeId));
+            });
             app.get("/api/titles/labels",  ctx -> ctx.json(browseService.listLabels()));
             app.get("/api/titles/studios", ctx -> ctx.json(browseService.listStudioGroups()));
             app.get("/api/studio-groups/{slug}/companies", ctx -> {
@@ -542,7 +550,8 @@ public class WebServer {
             // Video discovery: scan SMB for video files belonging to a title
             app.get("/api/titles/{code}/videos", ctx -> {
                 String code = ctx.pathParam("code");
-                ctx.json(videoStreamService.findVideos(code));
+                String volumeId = ctx.queryParam("volumeId");
+                ctx.json(videoStreamService.findVideos(code, volumeId));
             });
 
             // Video streaming with HTTP Range support

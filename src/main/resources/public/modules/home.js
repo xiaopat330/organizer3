@@ -4,7 +4,7 @@ import { resetActressState } from './actress-browse.js';
 import { createSearch } from './search.js';
 
 const FILTER_STORAGE_KEY = 'portal-search-filters';
-const ALL_CATEGORIES = ['actresses', 'titles', 'labels', 'studios'];
+const ALL_CATEGORIES = ['actresses', 'titles', 'labels', 'studios', 'av-actresses'];
 
 // ── Portal search filter toggles ──────────────────────────────────────────
 
@@ -100,6 +100,7 @@ export function showTitlesView() {
   document.getElementById('titles-browse-btn')?.classList.remove('active');
   document.getElementById('title-collections-btn')?.classList.remove('active');
   document.getElementById('av-btn')?.classList.remove('active');
+  document.getElementById('action-btn')?.classList.remove('active');
   resetActressState();
   updateBreadcrumb([]);
 }

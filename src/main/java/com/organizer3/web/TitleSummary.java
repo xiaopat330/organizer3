@@ -30,6 +30,9 @@ public class TitleSummary {
     /** Full NAS SMB paths for this title (volumeSmbPath + relative path). */
     @Builder.Default
     List<String> nasPaths = List.of();
+    /** Structured location entries pairing volumeId with the full NAS SMB path. */
+    @Builder.Default
+    List<LocationEntry> locationEntries = List.of();
     /** All actresses linked via the title_actresses junction table (for multi-actress titles). */
     @Builder.Default
     List<ActressEntry> actresses = List.of();
@@ -47,6 +50,14 @@ public class TitleSummary {
     String lastVisitedAt;  // ISO datetime string, null until first visit
     @Builder.Default
     List<String> tags = List.of();
+
+    /** Pairs a volumeId with the full NAS SMB path for one title location. */
+    @Value
+    @Builder
+    public static class LocationEntry {
+        String volumeId;
+        String nasPath;
+    }
 
     /** Lightweight actress reference for multi-actress title cards. */
     @Value

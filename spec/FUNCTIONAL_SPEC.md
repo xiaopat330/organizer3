@@ -1,8 +1,13 @@
-# Organizer3 - Functional Specification
+# Organizer3 — Functional Specification
 
 ## Overview
 
-Organizer is a CLI-based media library automation tool for managing a large, distributed collection of Japanese adult video (JAV) content across multiple network-attached storage (NAS) volumes. It provides intelligent file organization, metadata extraction from filenames, performer-based categorization, and batch file operations with a safety-first dry-run mode.
+Organizer3 is a CLI + web application for managing a large, distributed adult video library across multiple NAS volumes over SMB. It indexes content from two parallel, non-overlapping library systems:
+
+- **JAV library** — Japanese adult video, organized by actress and title code across ~17 conventional/queue/exhibition/collections volumes
+- **AV Stars library** — Western/European performer content, organized by actress folder on a dedicated `avstars` volume
+
+Both libraries share the same database, shell, and web UI, but use completely separate data models. There is no cross-linking between JAV and AV records.
 
 ---
 
@@ -11,360 +16,336 @@ Organizer is a CLI-based media library automation tool for managing a large, dis
 ### 1.1 Volumes
 
 A **volume** is a logical storage unit mapped to a physical path on a remote SMB share. Each volume has:
-
-- A short **ID** (e.g., `a`, `bg`, `hj`, `unsorted`)
+- A short **ID** (e.g., `a`, `qnap_av`)
 - An **SMB path** (e.g., `//pandora/jav_A`)
 - A **server** reference (resolves to credentials and host)
-- A **structure type** that determines its folder layout and available commands
-
-The system manages ~14 volumes, most partitioned by actress name initial (A, BG, HJ, K, M, MA, N, OR, S, TZ) plus special-purpose volumes (unsorted, classic, collections, qnap).
+- A **structure type** that determines folder layout and available sync commands
 
 ### 1.2 Structure Types
 
-Each volume follows one of four structure templates:
+#### `conventional` (main JAV library volumes)
+Tiered actress structure under `stars/`, plus unstructured partitions (`queue/`, `archive/`, etc.).
+Sync commands: `sync all` (full), `sync queue` (queue partition only).
 
-#### Conventional (main library volumes)
-```
-<volume root>/
-  stars/              # Organized by actress
-    library/          # Default tier (under thresholds)
-    minor/            # 5-19 titles
-    popular/          # 20-49 titles
-    superstar/        # 50-99 titles
-    goddess/          # 100+ titles
-    favorites/        # User-curated
-    archive/          # Archived content
-  queue/              # Incoming titles awaiting sorting
-  recent/             # Recently added
-  archive/            # Volume-level archive
-  attention/          # Titles needing manual review
-  converted/          # Format-converted files staging
-  duplicates/         # Detected duplicates
-  favorites/          # Volume-level favorites
-  minor/              # Minor content
-```
+#### `queue` (intake/staging volumes)
+Single flat partition for incoming titles awaiting sorting.
+Sync commands: `sync` / `sync all`.
 
-#### Queue (intake/staging volumes)
-```
-<volume root>/
-  fresh/              # Unorganized incoming titles (logical id: queue)
-```
+#### `exhibition` (flat actress layout, no tier subfolders)
+Actress folders directly under `stars/`, no tier subdirectories.
+All actresses stored with tier `LIBRARY` in the DB.
+Sync commands: `sync all`.
 
-#### Exhibition (flat actress layout, no tier sub-folders)
-```
-<volume root>/
-  stars/
-    Actress Name/     # Actress folder directly under stars/
-      ABP-123/        # Title folder
-```
-All actresses in a exhibition volume are stored with tier `LIBRARY` in the DB.
+#### `collections` (curated sets)
+Unstructured partitions; sync not yet implemented.
 
-#### Collections (curated sets)
-```
-<volume root>/
-  archive/
-  converted/
-  duos/
-  favorites/
-  new/
-  omnibus/
-  recent/
-```
+#### `sort_pool` (post-sort staging)
+Pool volumes where sorted titles await placement into a conventional volume.
+Sync commands: `sync all`.
 
-### 1.3 Partitions
+#### `avstars` (Western performer library)
+Volume root contains top-level actress folders; each folder is recursively walked for video files. No partition structure. Dedicated schema (`av_actresses`, `av_videos`).
+Sync commands: `sync all`.
 
-Partitions are the top-level folder groupings within a volume. They are divided into:
+### 1.3 JAV Content Model
 
-- **Structured partitions** - Under the `stars/` directory, organized by actress. Each subfolder is an actress folder containing her titles.
-- **Unstructured partitions** - Top-level folders like `queue/`, `archive/`, `converted/`, etc. that hold titles directly without actress-level grouping.
+**Title** — a JAV release identified by a code (`ABP-123`). Normalized to a `baseCode` (5-digit zero-padded, no suffix). A title can exist in multiple physical locations across volumes (detected as duplicates when `title_locations` has > 1 row for the same title).
 
-### 1.4 Content Hierarchy
+**Actress** — a JAV performer, identified by canonical name. May have aliases. Belongs to a tier based on title count in the library.
 
-```
-Volume
-  -> Partition (folder grouping, e.g., "stars/popular", "queue")
-       -> Actress (performer folder, only in structured partitions)
-            -> Title (a release/series folder, identified by code)
-                 -> Video files
-       -> Title (directly in partition, for unstructured)
-            -> Video files
-  -> Orphaned Videos (files not matched to any title)
-```
+| Tier | Title count |
+|------|-------------|
+| LIBRARY | < 5 |
+| MINOR | 5–19 |
+| POPULAR | 20–49 |
+| SUPERSTAR | 50–99 |
+| GODDESS | 100+ |
 
-### 1.5 Titles
+**Actress metadata** is enriched via YAML profiles (`load actress` / `load actresses`), which populate biography, measurements, filmography metadata, and a 59-tag taxonomy.
 
-A **title** is a video release identified by a **code** (e.g., `ABP-123`, `SSIS-456`). Title codes follow standard JAV naming conventions:
+### 1.4 AV Stars Content Model
 
-- Format: `<LABEL>-<NUMBER>` (e.g., `PRED-456`)
-- Some codes have suffixes for variants: `_U` (uncensored), `_4K` (4K resolution)
-- Multi-part releases may have sub-codes (tracked as `seqNum`)
-- The **base code** is the normalized form used for matching (label uppercased, number zero-padded to 5 digits, no suffix)
+**AvActress** — keyed by `(volumeId, folderName)`. Identity and metadata optionally enriched from IAFD via `av resolve`. User fields: `favorite`, `bookmark`, `rejected`, `grade`, `notes`, `visitCount`, `lastVisitedAt`.
 
-A title folder typically contains:
-- One or more video files
-- Optionally a `video/` subdirectory containing the actual files
+**AvVideo** — keyed by `(avActressId, relativePath)`. Contains parsed metadata (studio, date, resolution, codec, tags). User fields: `favorite`, `bookmark`, `watched`, `watchCount`, `lastWatchedAt`.
 
-### 1.6 Actresses
+**AvTagDefinition** — canonical tag vocabulary (`av_tag_definitions`). Tags are applied to videos via `av_video_tags`.
 
-An **actress** (performer) is identified by name and can:
+**AvVideoScreenshot** — up to N extracted frames per video, stored locally, served by the web UI.
 
-- Have **aliases** (alternate stage names that map to the same person)
-- Appear in multiple titles across multiple volumes
-- Be ranked into **tiers** based on title count:
-  - **LIBRARY** - default (fewer than 5 titles)
-  - **MINOR** - 5 to 19 titles
-  - **POPULAR** - 20 to 49 titles
-  - **SUPERSTAR** - 50 to 99 titles
-  - **GODDESS** - 100+ titles
-- Be marked as a **favorite** for user-curated tracking
-
-### 1.7 Videos
-
-Individual video files. Supported formats:
-`mkv, mp4, avi, mov, wmv, mpg, mpeg, m4v, m2ts, ts, rmvb, divx, asf, wma, wm`
+There is no release code, no tier system, and no cross-linking with JAV actresses.
 
 ---
 
-## 2. User Interaction
+## 2. Interactive Shell
 
-### 2.1 Interactive Shell
-
-The application runs as an interactive CLI shell with history file persistence. The prompt displays the current context:
+The application runs as an interactive CLI shell (JLine3). The prompt shows current state:
 
 ```
-organizer [*DRYRUN*] >          # No volume mounted, dry-run mode
-organizer:vol-a [*DRYRUN*] >   # Volume "a" mounted, dry-run mode
-organizer:vol-a >               # Volume "a" mounted, armed (real mode)
+organizer [*DRYRUN*] >          # no volume mounted, dry-run mode
+organizer:vol-a [*DRYRUN*] >   # volume "a" mounted, dry-run mode
+organizer:vol-a >               # volume "a" mounted, armed mode
 ```
 
-### 2.2 Commands
+The shell is also embedded in the web UI as a web terminal (WebSocket-backed).
 
-Some commands require an active mounted volume (filesystem access). Others work from the local database alone.
+### Dry-Run vs Armed Mode
 
-| Command | Requires Mount | Status | Description |
-|---------|---------------|--------|-------------|
-| `help` | No | ✅ | List available commands |
-| `volumes` | No | ✅ | List all configured volumes with last-sync timestamps |
-| `mount <id>` | — | ✅ | Authenticate and activate a volume as the current context |
-| `unmount` | No | ✅ | Disconnect from the current volume |
-| `sync` | Yes | ✅ | Full sync (queue volumes) |
-| `sync all` | Yes | ✅ | Full sync for conventional and queue volumes |
-| `sync queue` | Yes | ✅ | Partition-scoped sync (queue partition only, conventional volumes) |
-| `actresses <tier>` | No | ✅ | List actresses in a tier with title counts, sorted by most to least |
-| `favorites` | No | ✅ | List all favorited actresses with title counts |
-| `arm` | No | ⬜ | Switch to live/real mode |
-| `test` | No | ⬜ | Switch to dry-run mode |
-| `actress <name>` | No | ⬜ | Show details for a specific actress |
-| `list` | Yes | ⬜ | Display full inventory of current volume |
-| `partitions` | Yes | ⬜ | List partitions on current volume |
-| `run <action>` | Yes | ⬜ | Execute an organization action |
-| `hardReset` | No | ⬜ | Clear all session/cached data |
-| `shutdown` | No | ✅ | Exit the application |
-
-### 2.3 Mount Behavior
-
-`mount <id>` authenticates and connects to a volume:
-
-- Opens an SMB2/3 connection to the volume's share using the smbj library
-- Credentials are resolved from the `servers` block in `organizer-config.yaml`
-- Displays an animated spinner with phase feedback (connecting → authenticating → opening share)
-- Sets the volume as the active session context and updates the prompt
-- Loads the volume's index from the local database into memory — **assumes the database is current**
-- If no database records exist for this volume (first use), the user is informed and prompted to run a sync command
-
-Mount is idempotent — calling it on an already-connected volume simply acknowledges it is already active. Switching to a different volume closes the previous SMB connection first.
-
-`unmount` closes the SMB connection and clears the active volume, connection, and index from the session.
-
-### 2.4 Sync Behavior
-
-Sync explicitly refreshes the database index for the currently mounted volume by walking the filesystem over SMB. It is the only way to update the database from the filesystem.
-
-- Must be run manually when the filesystem has changed outside of the tool
-- Operates on the currently mounted volume only
-- Available sync commands and their scope are entirely config-driven (see §7)
-- Shows a progress bar per partition during scanning
-- Prints a summary of actresses and titles discovered on completion
-- After completing, reloads the in-memory index from the DB
-
-### 2.5 Safety: Test vs Armed Mode
-
-- The application starts in **test/dry-run mode** by default
-- In test mode, all file operations are simulated and logged but not executed
-- The user must explicitly run `arm` to enable real file operations *(not yet implemented)*
-- The prompt clearly indicates the current mode
+The shell starts in **dry-run mode**. File operation commands report what would happen without executing. Sync, backup, restore, and AV operations are not affected by this flag — sync is inherently read-only from the filesystem perspective; backup/restore are suppressed in dry-run (report counts but do not write). `arm`/`test` toggle commands are not yet implemented.
 
 ---
 
-## 3. Organization Actions *(not yet implemented)*
+## 3. Commands
 
-Actions are the core automation workflows. Available actions depend on the volume's structure type.
+### Volume commands (require mount except where noted)
 
-### 3.1 Conventional Volume Actions
+| Command | Mount? | Description |
+|---------|--------|-------------|
+| `volumes` | No | List all configured volumes with sync status |
+| `mount <id>` | — | Open SMB connection, set as active volume |
+| `unmount` | No | Close SMB connection |
+| `sync all` | Yes | Full sync for conventional/exhibition/queue/sort\_pool/avstars |
+| `sync queue` | Yes | Queue-partition-only sync for conventional volumes |
+| `sync` | Yes | Full sync for queue volumes |
+| `rebuild` | Yes | `sync all` + `sync covers` in one step |
+| `sync covers` | Yes | Collect cover images from the mounted volume's stars partitions |
+| `prune-covers` | No | Remove local covers with no matching title in the DB |
+| `prune-thumbnails` | No | Remove orphaned local thumbnails |
+| `clear-thumbnails` | No | Delete all local thumbnails |
 
-#### `organize` (full library organization)
-Runs the complete organization pipeline in sequence:
-1. **Distribute queued titles** - Move titles from `queue/`, `archive/`, and `recent/` into the correct actress folder under `stars/`
-2. **Flag problem titles** - Move titles that can't be matched to `attention/`
-3. **Sort actress folders by tier** - Promote/demote actress folders between tier partitions based on current title count
-4. **Normalize title folders** - Ensure videos are in correct subfolder structure
-5. **Generate thumbnails** - Create folder thumbnails for actress directories
-6. **Handle attention items** - Process previously flagged titles
-7. **Reset modified dates** - Update filesystem timestamps
-8. **Reindex** - Refresh all indices
+### JAV data commands (no mount required)
 
-#### `moveConverted`
-Restore format-converted video files from the `converted/` staging folder back to their original title locations.
+| Command | Description |
+|---------|-------------|
+| `actresses <tier>` | List actresses in a tier, sorted by title count |
+| `favorites` | List favorited JAV actresses |
+| `actress search <name>` | Search for an actress by name (uses Claude API if key set) |
+| `check-names` | Validate actress name formatting |
+| `scan-errors` | Report data integrity issues |
+| `load actress <slug>` | Load one actress YAML profile into the DB |
+| `load actresses` | Load all actress YAML profiles |
 
-#### `sortActresses`
-Promote or demote actress folders between tier partitions based on current title count thresholds.
+### AV Stars commands (no mount required)
 
-#### `sortTitles`
-Distribute titles from queue folders into the correct actress folders.
+| Command | Description |
+|---------|-------------|
+| `av sync` | Sync the `qnap_av` (and `athena_av`) volume(s) |
+| `av actresses` | List all AV actresses sorted by video count |
+| `av actress <name>` | Show detail for one AV actress |
+| `av favorites` | List favorited AV actresses |
+| `av resolve <name>` | Resolve one actress against IAFD (fetches profile + headshot) |
+| `av resolve all` | Resolve all unresolved actresses against IAFD |
+| `av curate <name>` | Set curation fields (favorite, bookmark, rejected, grade, notes) |
+| `av migrate <old> <new>` | Migrate curation data when an actress folder is renamed on disk |
+| `av parse` | Parse metadata from AV video filenames (studio, date, resolution, tags) |
+| `av screenshots` | Generate screenshot frames for all videos that don't have them yet |
+| `av tags <subcommand>` | Manage AV tag definitions and apply tags to videos |
 
-#### `normalizeTitles`
-Normalize title folder structures (ensure proper subfolder layout).
+### Backup and restore (no mount required)
 
-### 3.2 Queue Volume Actions
+| Command | Description |
+|---------|-------------|
+| `backup` | Write a manual backup snapshot |
+| `restore [path]` | Restore user data from backup (newest snapshot if no path given) |
 
-#### `organize`
-Basic folder normalization for raw/incoming content.
+### Shell meta
 
-#### `normalize`
-Clean up and normalize video filenames (remove junk, standardize format).
-
-#### `restructure`
-Organize orphaned video files into proper title folders based on code matching.
-
-### 3.3 Collections Volume Actions *(sync not yet implemented)*
-
-#### `organize`
-Clean up converted folder and reorganize curated collection sets.
-
-#### `moveConverted`
-Restore converted files to original locations.
-
----
-
-## 4. Filename Normalization *(not yet implemented)*
-
-The system performs extensive filename cleanup by:
-
-### 4.1 Code Normalization (Replacements)
-Standardize variant markers in title codes:
-- `FC2-PPV` → `FC2PPV`
-- `-4K` → `_4K`
-- `-UC-`, `-U-`, various uncensored markers → `_U-`
-
-### 4.2 Junk Removal
-Remove 150+ known patterns from filenames, including:
-- Watermark/source site markers
-- Resolution tags (`-1080P`, `-720p`, `[FHD]`, `[HD]`)
-- Distribution group markers
-
-### 4.3 Files to Ignore
-- `Thumbs.db` and similar system files
+| Command | Description |
+|---------|-------------|
+| `help` | List all available commands |
+| `shutdown` | Exit the application |
 
 ---
 
-## 5. Actress Alias System
+## 4. Sync
 
-Performers frequently work under multiple stage names. The system maintains an alias mapping so that different names resolve to the same person:
+### JAV Sync
+
+`sync all` (full): clears `videos` and `title_locations` for the volume, walks the filesystem over SMB, creates/updates `Title`, `TitleLocation`, `Video`, and `Actress` records. After scan, deletes orphaned titles (no remaining locations). Reloads the in-memory `VolumeIndex` from DB.
+
+`sync queue` (partition): same as full sync but restricted to the `queue` partition.
+
+Title code parsing: `TitleCodeParser` extracts `<LABEL>-<NUMBER>[_SUFFIX]` from folder names. `baseCode` is normalized to 5-digit zero-padded, no suffix.
+
+Actress resolution: folder names are resolved through `ActressRepository.resolveByName()`, checking canonical names and aliases. Creates a new actress if not found.
+
+### AV Sync
+
+`av sync` walks each `avstars` volume root. Each top-level folder is an actress (`AvActress`). Recursive treewalk under each actress folder finds all video files, which become `AvVideo` records. Ignores configured subfolder names (e.g., `trash`). After sync, updates `video_count` and `total_size_bytes` on each actress. Orphaned videos (not seen since sync start) are deleted.
+
+`av parse` runs `AvFilenameParser` over all videos, extracting studio, release date, resolution, codec, and tag strings from the filename. Parsed fields are stored on `av_videos`.
+
+`av screenshots` extracts frame captures from videos that have none yet. Uses ffmpeg to generate N equally-spaced frames, stores paths in `av_video_screenshots`. Shows a progress bar with remaining/total count.
+
+### IAFD Enrichment
+
+`av resolve <name>` / `av resolve all` fetch actress profiles from IAFD (iafd.com). `HttpIafdClient` uses `IafdSearchParser` to find the actress, then `IafdProfileParser` to extract profile fields. Downloads the headshot image to `data/av_headshots/`. Stores all IAFD fields on the `av_actresses` row.
+
+---
+
+## 5. Web UI
+
+An embedded Javalin web server runs on port 8080. The web UI is the primary browsing interface. It is fully interactive for curation (favorites, bookmarks, grades) — it is NOT read-only.
+
+### JAV Sections
+
+- **Titles** — Dashboard, Favorites, Bookmarks, By Studio, By Tag, Unsorted, Archive, Collections
+- **Actresses** — Dashboard, Favorites, Bookmarks, By Tier, By Studio, Exhibition, Archives
+- **Title detail** — plays video, grade, bookmark, notes, actress link, watch history
+- **Actress detail** — profile, title list, grade, tier, studio affiliations
+
+### AV Stars Section
+
+- **Browse** — all AV actresses sorted by video count, with headshot thumbnails
+- **Actress detail** — profile (IAFD data), video grid with screenshot thumbnails, tag browser
+- **Video modal** — inline video player, favorite/bookmark/watched controls, screenshot strip
+
+### Federated Search
+
+The landing page search bar queries JAV actresses, JAV titles, labels, studios, and AV actresses simultaneously. Results are grouped by category. Toggle buttons let users filter which categories show. `getEnabledCategories()` controls which result groups render. The `includeAv` flag on the backend call is derived from whether AV actresses are in the enabled set.
+
+### Cover and Headshot Serving
+
+- JAV cover images: served from `data/covers/<LABEL>/<baseCode>.<ext>`
+- AV headshots: served from `data/av_headshots/<filename>` via `/api/av/headshots/{file}`
+- AV screenshots: served from `data/av_screenshots/` via `/api/av/screenshots/{file}`
+- JAV video thumbnails: served from `data/thumbnails/`
+
+---
+
+## 6. Backup and Restore
+
+The backup system protects user-generated data — the only data that cannot be recovered by re-syncing volumes and reloading YAML profiles.
+
+### What is backed up (v2 format)
+
+**JAV actresses** (keyed by `canonicalName`): `favorite`, `bookmark`, `bookmarkedAt`, `grade`, `rejected`, `visitCount`, `lastVisitedAt`
+
+**JAV titles** (keyed by `code`): same fields + `notes`
+
+**Watch history**: `titleCode` + `watchedAt` pairs
+
+**AV actresses** (keyed by `volumeId` + `folderName`): `favorite`, `bookmark`, `rejected`, `grade`, `notes`, `visitCount`, `lastVisitedAt`
+
+**AV videos** (keyed by `volumeId` + `folderName` + `relativePath`): `favorite`, `bookmark`, `watched`, `watchCount`, `lastWatchedAt`
+
+Only rows with at least one non-default user field are exported. Restore is an overlay — untouched rows are left unchanged. Entities not yet present in the DB are skipped and counted; re-running restore after syncing remaining volumes picks them up.
+
+### Auto-backup
+
+Runs automatically on a configurable schedule (default weekly). Writes a timestamped snapshot to `data/backups/`. Retains up to N snapshots (configurable; default 10). `restore` with no argument uses the newest snapshot.
+
+### Format versioning
+
+Backup files carry a `version` integer. v1 files have no AV fields (null on read). v2 adds AV data. A file with version higher than `CURRENT_BACKUP_VERSION` (currently 2) is rejected with an error.
+
+---
+
+## 7. Database
+
+SQLite at `~/.organizer3/organizer.db`. Single-user, no concurrent access concerns. Schema managed by `SchemaInitializer` (fresh installs) + `SchemaUpgrader` (incremental `ALTER TABLE`/backfill migrations for existing databases).
+
+### JAV tables
 
 ```
-Aya Sazanami → also known as: Haruka Suzumiya, Aya Konami
-Hibiki Otsuki → also known as: Eri Ando
+volumes             (id PK, structure_type, last_synced_at)
+actresses           (id PK, canonical_name UNIQUE, stage_name, tier, favorite, bookmark,
+                     grade, rejected, visit_count, last_visited_at, date_of_birth, etc.)
+actress_aliases     (actress_id → actresses, alias_name; PK both)
+titles              (id PK, code UNIQUE, base_code, label, actress_id → actresses,
+                     favorite, bookmark, grade, rejected, notes, visit_count, etc.)
+title_locations     (id PK, title_id → titles, volume_id → volumes, partition_id,
+                     path, last_seen_at, added_date; UNIQUE(title_id, volume_id, path))
+videos              (id PK, title_id → titles, volume_id, filename, path, last_seen_at)
+title_actresses     (title_id, actress_id; many-to-many; PK both)
+title_tags          (title_id, tag; PK both)
+title_effective_tags (title_id, tag, source∈{direct,label}; PK title_id+tag)
+labels              (code PK, label_name, company, description, company_*)
+tags                (name PK, category, description)
+label_tags          (label_code → labels, tag → tags; PK both)
+actress_companies   (actress_id → actresses, company; PK both)
+watch_history       (id PK, title_code, watched_at; UNIQUE title_code+watched_at)
 ```
 
-This enables correct title-to-actress matching regardless of which name appears in the folder/file structure.
+### AV tables
 
-During sync, actress folders are resolved through `resolveByName` — which checks both canonical names and aliases — before creating a new actress record. This ensures that a folder named with an alias is correctly attributed to the canonical actress rather than creating a duplicate.
-
----
-
-## 6. Local Database
-
-The application maintains a local SQLite database at `~/.organizer3/organizer.db` that persists information across sessions. The database is always available for querying and updating regardless of which volume (if any) is currently mounted.
-
-The database stores:
-- **Volume records** - Known volumes and their last-sync timestamps
-- **Actress records** - Canonical names, tiers, favorite status, first-seen dates
-- **Alias mappings** - Alternate names resolving to canonical actresses
-- **Title records** - Codes, labels, locations, volume, partition, associated actress
-- **Video records** - Individual files matched to titles
-- **Operation history** - Audit log of all file operations
-
-The database is a persistent cache of the filesystem. It is populated by sync commands and queried by commands. The in-memory index built at `mount` time is a session-level cache of the database.
-
----
-
-## 7. Sync Configuration
-
-Available sync commands and their scope are defined in the `syncConfig` section of `organizer-config.yaml`, not hardcoded. Each entry binds a user-facing command term to a structure type and operation type.
-
-Current bindings:
-
-| Structure type | Term | Operation | Scope |
-|----------------|------|-----------|-------|
-| conventional | `sync queue` | PARTITION | `queue` partition only |
-| conventional | `sync all` | FULL | entire volume |
-| exhibition | `sync all` | FULL | entire volume |
-| queue | `sync` | FULL | entire volume |
-| queue | `sync all` | FULL | same as `sync` (alias) |
-| collections | *(none)* | — | not yet implemented |
-
-To add a new sync term, add an entry under `syncConfig` in the YAML. No Java changes needed.
+```
+av_actresses        (id PK, volume_id → volumes, folder_name, stage_name,
+                     iafd_id, headshot_path, aka_names_json,
+                     gender, date_of_birth, date_of_death, birthplace, nationality, ethnicity,
+                     hair_color, eye_color, height_cm, weight_kg, measurements, cup,
+                     shoe_size, tattoos, piercings,
+                     active_from, active_to, director_from, director_to, iafd_title_count,
+                     website_url, social_json, platforms_json, external_refs_json,
+                     iafd_comments_json, awards_json,
+                     favorite, bookmark, rejected, grade, notes,
+                     first_seen_at, last_scanned_at, last_iafd_synced_at,
+                     video_count, total_size_bytes, visit_count, last_visited_at;
+                     UNIQUE(volume_id, folder_name))
+av_videos           (id PK, av_actress_id → av_actresses, volume_id → volumes,
+                     relative_path, filename, extension, size_bytes, mtime,
+                     last_seen_at, added_date, bucket,
+                     studio, release_date, parsed_title, resolution, codec, tags_json,
+                     favorite, rejected, bookmark, watched, last_watched_at, watch_count;
+                     UNIQUE(av_actress_id, relative_path))
+av_tag_definitions  (slug PK, display_name, category, aliases_json)
+av_video_tags       (av_video_id → av_videos, tag_slug → av_tag_definitions, source; PK both)
+av_video_screenshots (id PK, av_video_id → av_videos, seq, path; UNIQUE av_video_id+seq)
+```
 
 ---
 
-## 8. Indexing
+## 8. Configuration
 
-When a volume is mounted, the application loads its index from the local database into memory. No filesystem scan occurs at mount time — the database is assumed to be current.
+`organizer-config.yaml` (in `src/main/resources/`) is the bootstrap config. It is NOT gitignored in development but should be externalized before packaging.
 
-The in-memory `VolumeIndex` contains:
-- All `Title` records for the active volume
-- All `Actress` records referenced by those titles (via non-null `actress_id`)
+```yaml
+servers:          # SMB server credentials
+volumes:          # Volume definitions (id, smbPath, structureType, server)
+structures:       # Partition layouts per structure type
+syncConfig:       # Command term → structure type + operation type bindings
+backup:           # autoBackupIntervalMinutes, snapshotCount
+dataDir:          # Root for covers, thumbnails, backups, av_headshots, av_screenshots
+```
 
-The index is refreshed by running a sync command. All operational commands work against the in-memory index for the active volume; cross-volume queries (actresses, favorites) go directly to the DB.
-
----
-
-## 9. Known Actress Database
-
-A pre-configured list of known actresses is provided as seed data via `aliases.yaml`. On first run, this data is imported into the local database, which then becomes the authoritative source.
-
----
-
-## 10. File Operations *(not yet implemented)*
-
-All file operations go through a batch operation builder that:
-1. Collects all intended operations (moves, renames, creates)
-2. Presents them for review (in test mode, this is the final step)
-3. Executes them atomically when armed
-4. Logs all operations for audit
-
-Operations include:
-- **Move** - Relocate a file or folder
-- **Rename** - Change a file/folder name
-- **Create directory** - Make new folders as needed
+**Data ownership:**
+- YAML owns: volume/server/structure/sync config
+- DB owns: all actress, title, alias, video, AV records, watch history, tag data
+- `aliases.yaml` is seed-only — imported once on fresh DB, then DB is authoritative
+- `labels.csv` is auto-seeded on empty table; `LabelSeeder.reimport()` forces re-seed
 
 ---
 
-## 11. Logging
+## 9. Volumes Reference
 
-The system provides comprehensive operation logging:
-- Session-based log files
-- Console echo of important events
-- Log rotation (configurable max files, default 3)
-- All file operations logged regardless of test/armed mode
+| ID | SMB Path | Structure | Content |
+|----|----------|-----------|---------|
+| a | //pandora/jav_A | conventional | A |
+| bg | //pandora/jav_BG | conventional | B–G |
+| hj | //pandora/jav_HJ | conventional | H–J |
+| k | //pandora/jav_K | conventional | K |
+| m | //pandora/jav_M | conventional | M |
+| ma | //pandora/jav_MA | conventional | MA |
+| n | //pandora/jav_N | conventional | N |
+| r | //pandora/jav_OR | conventional | O–R |
+| s | //pandora/jav_S | conventional | S |
+| tz | //pandora/jav_TZ | conventional | T–Z |
+| unsorted | //pandora/jav_unsorted | queue | Intake staging |
+| qnap | //qnap2/jav | exhibition | Overflow |
+| qnap_archive | //pandora/qnap_archive | exhibition | Archive overflow |
+| classic | //qnap2/JAV/classic | exhibition | Classic |
+| pool | //pandora/jav_unsorted/_done | sort_pool | Post-sort staging |
+| classic_pool | //qnap2/JAV/classic/new | sort_pool | Classic intake |
+| collections | //pandora/jav_collections | collections | Curated sets |
+| qnap_av | //qnap2/AV/stars | avstars | Western performers (primary) |
+| athena_av | //athena/AV/stars | avstars | Western performers (secondary) |
 
 ---
 
-## 12. Configuration
+## 10. Not Yet Implemented
 
-Structural configuration is externalized in YAML files. Mutable data (actresses, titles, aliases) lives in the local database and is not stored in config files.
-
-| File | Purpose |
-|------|---------|
-| `organizer-config.yaml` | Volume definitions, server credentials, SMB paths, structure types, sync commands |
-| `aliases.yaml` | Seed data for actress alias mappings (imported into DB on first run) |
+- `arm` / `test` toggle commands (dry-run mode is set only at startup)
+- File operations (move, rename, mkdir) and `DryRunFileSystem`
+- Tab completion in the shell
+- `collections` volume sync
+- Organization workflow commands (`run <action>`)

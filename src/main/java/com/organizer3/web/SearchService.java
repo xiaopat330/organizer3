@@ -116,7 +116,7 @@ public class SearchService {
         m.put("stageName",  r.stageName());
         m.put("videoCount", r.videoCount());
         String headshotUrl = r.headshotPath() != null
-                ? "/api/av/headshots/" + r.id()
+                ? "/api/av/headshots/" + java.nio.file.Path.of(r.headshotPath()).getFileName()
                 : null;
         m.put("headshotUrl", headshotUrl);
         return m;

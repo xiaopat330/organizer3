@@ -8,7 +8,7 @@
 
 1. Ensure the app is running (someone with admin access started it)
 2. Open a browser and go to `http://<host>:8080`
-3. Browse titles and actresses, play videos, mark favorites
+3. Browse titles, actresses, and AV stars content; play videos; mark favorites
 
 That's it. No login, no setup.
 
@@ -37,19 +37,15 @@ Type `help` at any time to list available commands.
 
 ## Part I — Viewer Guide
 
-The viewer role is entirely web-based. No shell access or configuration is needed.
-
 ### Navigating the UI
 
-The top navigation bar has two sections: **Titles** and **Actresses**. Click either to enter that section. The app name in the top-left returns you to the titles home.
+The top navigation bar has three sections: **Titles**, **Actresses**, and **AV Stars**. Click any to enter that section. The app name in the top-left returns you to the home screen.
 
 #### Titles
 
-The Titles section offers several browsing modes, accessible from the left sidebar:
-
 | Mode | Description |
 |------|-------------|
-| Dashboard | Featured content, recently added, and spotlights |
+| Dashboard | Featured content, recently added, spotlights |
 | Favorites | Titles you have marked as favorite |
 | Bookmarks | Titles you have bookmarked for later |
 | By Studio | Browse by production company or label |
@@ -58,9 +54,7 @@ The Titles section offers several browsing modes, accessible from the left sideb
 | Archive | Archived titles |
 | Collections | Curated multi-actress sets |
 
-#### Actresses
-
-The Actresses section also has multiple modes:
+#### Actresses (JAV)
 
 | Mode | Description |
 |------|-------------|
@@ -72,13 +66,21 @@ The Actresses section also has multiple modes:
 | Exhibition | Overflow/exhibition volume content |
 | Archives | Archived actress content |
 
+#### AV Stars
+
+| Mode | Description |
+|------|-------------|
+| Browse | All Western performers sorted by video count, with headshot thumbnails |
+| Actress detail | Profile, video grid with screenshot thumbnails, tags |
+| Video modal | Inline video player, favorite/bookmark/watched controls |
+
 #### Search
 
-The search bar at the top of the home screen searches across actresses, titles, labels, and studios simultaneously. Results are grouped by category. Use the toggle filters to narrow results to specific categories.
+The search bar on the home screen searches across JAV actresses, JAV titles, labels, studios, and AV actresses simultaneously. Results are grouped by category. Use the toggle filters to narrow by category.
 
 ---
 
-### Title Detail
+### Title Detail (JAV)
 
 Click any title card to open its detail view. From here you can:
 
@@ -93,19 +95,30 @@ Watch history is recorded automatically when you play a video.
 
 ---
 
-### Actress Detail
+### Actress Detail (JAV)
 
 Click any actress card to open her profile. From here you can:
 
-- **Mark as favorite**
-- **Bookmark**
-- **Grade** the actress
+- **Mark as favorite** and **bookmark**
+- **Grade** the actress (same scale as titles)
 - Browse her full title list with covers
-- See her studio affiliations and tier
+- See her studio affiliations, tier, and biography
 
 ---
 
-### Actress Tiers
+### AV Actress Detail
+
+Click any AV actress card to open her profile. From here you can:
+
+- **Mark as favorite**, **bookmark**, **reject**, or **grade** her
+- See IAFD-sourced profile data (nationality, measurements, career span, etc.)
+- Browse her video grid with screenshot thumbnails
+- Play any video inline with the video modal
+- Mark individual videos as **favorite**, **bookmark**, or **watched**
+
+---
+
+### JAV Actress Tiers
 
 Actresses are automatically classified by how many titles they have in the library:
 
@@ -123,7 +136,7 @@ Tiers update automatically when the library is synced.
 
 ## Part II — Admin Guide
 
-The admin role manages the library through the interactive shell (terminal or web terminal). This includes connecting to volumes, syncing the index, managing backups, and running maintenance tasks.
+The admin role manages the library through the interactive shell. This includes connecting to volumes, syncing the index, managing backups, and running AV enrichment commands.
 
 ---
 
@@ -133,21 +146,19 @@ The admin role manages the library through the interactive shell (terminal or we
 ./gradlew run
 ```
 
-The prompt reflects current state at all times:
+The prompt reflects current state:
 
 ```
-organizer [*DRYRUN*] >          # No volume mounted, dry-run mode
-organizer:vol-a [*DRYRUN*] >   # Volume "a" mounted, dry-run mode
-organizer:vol-a >               # Volume "a" mounted, armed mode
+organizer [*DRYRUN*] >          # no volume mounted, dry-run mode
+organizer:vol-a [*DRYRUN*] >   # volume "a" mounted, dry-run mode
+organizer:vol-a >               # volume "a" mounted, armed mode
 ```
 
-The shell also runs embedded in the web UI. Open the terminal panel at the bottom of any page to issue commands from the browser without SSH access.
+The shell also runs embedded in the web UI. Open the terminal panel at the bottom of any page to issue commands from the browser.
 
 ---
 
 ### Volumes
-
-Volumes are the individual NAS shares that make up the library. Each has an ID, a structure type, and a server it lives on.
 
 | ID | SMB Path | Structure | Content |
 |----|----------|-----------|---------|
@@ -164,188 +175,111 @@ Volumes are the individual NAS shares that make up the library. Each has an ID, 
 | unsorted | //pandora/jav_unsorted | queue | Intake staging |
 | qnap | //qnap2/jav | exhibition | Overflow |
 | qnap_archive | //pandora/qnap_archive | exhibition | Archive overflow |
-| classic | //qnap2/JAV/classic | exhibition | Classic content |
-| pool | //pandora/jav_unsorted/_done | sort_pool | Sorted, awaiting placement |
+| classic | //qnap2/JAV/classic | exhibition | Classic |
+| pool | //pandora/jav_unsorted/_done | sort_pool | Post-sort staging |
 | classic_pool | //qnap2/JAV/classic/new | sort_pool | Classic intake |
 | collections | //pandora/jav_collections | collections | Curated sets |
-
-List all volumes with sync status:
-
-```
-organizer > volumes
-ID          STRUCTURE       CONNECTED   LAST SYNC
-------------------------------------------------------------
-a           conventional    -           2026-04-01 14:22
-bg          conventional    -           2026-03-28 09:00
-unsorted    queue           -           never
-...
-```
-
----
-
-### Connecting to a Volume
-
-```
-mount <id>
-```
-
-Opens an SMB connection, loads the volume's index from the local database, and sets it as the active context. A spinner shows connection progress.
-
-```
-organizer > mount a
-Loaded index: 3,241 title(s), 187 actress(es).
-Connected. Volume 'a' is now active.
-organizer:vol-a [*DRYRUN*] >
-```
-
-If the volume has never been synced:
-
-```
-organizer > mount unsorted
-No index found for volume 'unsorted' — run 'sync all' to build it.
-Connected. Volume 'unsorted' is now active.
-```
-
-Switching volumes automatically closes the previous connection:
-
-```
-organizer:vol-a > mount bg
-Connected. Volume 'bg' is now active.
-organizer:vol-bg [*DRYRUN*] >
-```
-
-Disconnect with:
-
-```
-organizer:vol-a > unmount
-```
+| qnap_av | //qnap2/AV/stars | avstars | Western performers (primary) |
+| athena_av | //athena/AV/stars | avstars | Western performers (secondary) |
 
 ---
 
 ### Syncing a Volume
 
-Sync walks the SMB filesystem and updates the local database index. It must be run after any changes to the filesystem — new files, moved content, or a fresh database.
-
 **Full sync** (re-indexes the entire volume):
-
 ```
 organizer:vol-a > sync all
 ```
 
-Available on `conventional`, `exhibition`, `queue`, `sort_pool`, and `collections` volumes.
-
 **Queue-only sync** (faster — rescans only the intake partition):
-
 ```
 organizer:vol-a > sync queue
 ```
 
-Available on `conventional` volumes. Use this when you've only added new titles to the queue and don't need to rescan the full stars tree.
-
-**`sync`** (for queue-type volumes):
-
-```
-organizer:vol-unsorted > sync
-```
-
-Sync output shows progress per partition and a summary on completion:
-
-```
-Syncing a (full) ...
-  Scanning stars/library/ ...
-  Scanning stars/popular/ ...
-  ...
-Sync complete.
-  Actresses:  187
-  Queue:      12
-  Total:      3,241
-```
-
-**Rebuild** (full sync + cover scan in one step):
-
+**Rebuild** (sync all + cover collection):
 ```
 organizer:vol-a > rebuild
 ```
 
-Runs `sync all` followed by `sync covers`. Use this after major library changes.
+**AV sync** (no mount required — syncs all AV volumes):
+```
+organizer > av sync
+```
 
 ---
 
 ### Cover Images
 
-Cover images are collected from the NAS and stored locally for the web UI. They are not required — titles without covers show a placeholder.
-
-**Collect covers for the mounted volume:**
-
 ```
-organizer:vol-a > sync covers
+organizer:vol-a > sync covers     # collect covers from mounted volume
+organizer > prune-covers          # remove orphaned covers
 ```
-
-Only visits the `stars/` partitions. Covers are stored under `data/covers/`.
-
-**Remove orphaned covers** (covers whose title no longer exists in the database):
-
-```
-organizer > prune-covers
-```
-
-Does not require a mounted volume.
 
 ---
 
-### Querying the Database
+### AV Stars Management
 
-These commands work without a mounted volume — they query the local database directly.
+These commands do not require a mounted volume.
 
-**List actresses by tier:**
-
+**Sync AV library:**
 ```
-organizer > actresses goddess
-GODDESS  (5 actresses)
-  NAME                                      TITLES
-  ------------------------------------------------
-  Yua Mikami                                127
-  Aya Sazanami                               98
-  ...
+organizer > av sync
 ```
 
-Valid tiers: `library`, `minor`, `popular`, `superstar`, `goddess`
-
-**List favorited actresses:**
-
+**Browse:**
 ```
-organizer > favorites
+organizer > av actresses        # list all, sorted by video count
+organizer > av actress Anissa Kate
+organizer > av favorites
+```
+
+**Enrich with IAFD data:**
+```
+organizer > av resolve Anissa Kate    # resolve one actress
+organizer > av resolve all            # resolve all unresolved
+```
+
+Note: VPN to Japan is NOT needed for IAFD (it's a US site). VPN is only needed for DMM/FANZA.
+
+**Curation:**
+```
+organizer > av curate Anissa Kate     # set favorite/grade/notes interactively
+```
+
+**Migrate after folder rename on disk:**
+```
+organizer > av migrate "Old Name" "New Name"
+```
+
+**Parse filenames:**
+```
+organizer > av parse              # extract studio/date/tags from all video filenames
+```
+
+**Generate screenshots:**
+```
+organizer > av screenshots        # extract frame previews for videos without them
 ```
 
 ---
 
 ### Backup and Restore
 
-User data — favorites, bookmarks, grades, visit counts, notes, and watch history — is stored in the local database at `~/.organizer3/organizer.db`. This data is not recovered by a sync after a database drop. The backup system protects it.
+User data — favorites, bookmarks, grades, visit counts, notes, watch history for both JAV and AV content — is stored in the local database. It cannot be recovered by re-syncing volumes. The backup system protects it.
 
 #### Automatic backups
 
-Backups run automatically once a week in the background. No action needed. Up to 10 timestamped snapshots are kept; the oldest is pruned when a new one is written.
-
-Snapshots are stored under `data/backups/`:
-
-```
-data/backups/
-  user-data-backup-2026-04-06T14-00-00.json
-  user-data-backup-2026-04-07T14-00-00.json
-  ...
-  user-data-backup-2026-04-13T14-00-00.json   ← newest
-```
+Backups run automatically in the background (weekly by default). Timestamped snapshots are kept in `data/backups/`. Up to 10 snapshots are retained; the oldest is pruned when a new one is written.
 
 #### Manual backup
 
 ```
 organizer > backup
+Exported 1,204 actress, 18,432 title, 847 watch history, 62 av-actress, 1,841 av-video records.
+Backup written to: data/backups/user-data-backup-2026-04-14T22-30-00.json
 ```
 
-Writes a new timestamped snapshot immediately and prunes the oldest if needed.
-
-In dry-run mode, reports what would be exported without writing.
+In dry-run mode: reports counts but does not write.
 
 #### Restore
 
@@ -359,66 +293,64 @@ Restores from the newest snapshot automatically. To restore from a specific file
 organizer > restore data/backups/user-data-backup-2026-04-06T14-00-00.json
 ```
 
-Restore is an **overlay** — it only fills in fields from the backup. Rows not in the backup are untouched. Actress and title entries not yet present in the database are skipped with a count reported; sync those volumes first and run `restore` again to pick them up.
+Restore is an **overlay** — only fills in fields from the backup; untouched rows are left as-is. Entities not yet in the DB are skipped; sync remaining volumes and run `restore` again.
 
-In dry-run mode, parses the backup and reports counts without touching the database.
+In dry-run mode: parses and reports counts without touching the database.
 
-#### Post-drop recovery workflow
+#### Full recovery workflow after a database drop
 
-After dropping and recreating the database:
-
-1. `sync all` on each volume (rebuilds titles and actresses)
-2. `restore` (overlays favorites, grades, bookmarks, watch history)
-
----
-
-### Actress Name Lookup
-
-The app can look up actress kanji/full names via the Claude API when `ANTHROPIC_API_KEY` is set in the environment. This is used by the `actress search` command.
-
-```
-organizer > actress search <name>
-```
-
-If the API key is not set, the lookup is silently disabled and the command falls back to database-only results.
+1. `load actresses` — reseeds JAV actress profiles from YAML
+2. Mount each JAV volume → `sync all`
+3. `av sync` — rebuilds AV records
+4. `restore` — overlays all user-altered fields
 
 ---
 
 ### Safety: Dry-Run vs Armed Mode
 
-The shell starts in **dry-run mode** by default. In this mode, commands that would modify files report what they would do without making any changes. The prompt shows `[*DRYRUN*]` as a reminder.
+The shell starts in **dry-run mode** (`[*DRYRUN*]` in prompt). In this mode, commands that would modify files report what they would do without making changes. `arm`/`test` toggle commands are not yet implemented — the mode is set only at startup.
 
-File operation commands (`arm` / `test` toggle) are not yet implemented — the mode is currently set at startup only. Sync commands and backup/restore are unaffected by dry-run mode:
-
-- **Sync** is always read-only from the filesystem's perspective (writes only to the local database)
-- **Backup** is suppressed in dry-run (reports counts only, does not write the file)
-- **Restore** is suppressed in dry-run (reads and reports counts, does not touch the database)
+- **Sync** — always read-only from the filesystem (writes only to the local DB)
+- **AV sync** — same, read-only
+- **Backup** — suppressed in dry-run (reports counts, does not write)
+- **Restore** — suppressed in dry-run (reports counts, does not touch DB)
 
 ---
 
 ### All Shell Commands
 
-| Command | Requires mount | Description |
-|---------|---------------|-------------|
+| Command | Mount? | Description |
+|---------|--------|-------------|
 | `help` | No | List all available commands |
 | `volumes` | No | List volumes with sync status |
 | `mount <id>` | — | Connect to a volume |
 | `unmount` | No | Disconnect from the current volume |
-| `sync all` | Yes | Full sync for conventional, exhibition, queue, and pool volumes |
+| `sync all` | Yes | Full sync (conventional/exhibition/queue/sort\_pool/avstars) |
 | `sync queue` | Yes | Queue-partition-only sync for conventional volumes |
 | `sync` | Yes | Full sync for queue-type volumes |
-| `sync covers` | Yes | Collect cover images from the mounted volume |
+| `sync covers` | Yes | Collect cover images from mounted volume |
 | `prune-covers` | No | Remove orphaned local cover images |
 | `prune-thumbnails` | No | Remove orphaned local thumbnails |
 | `clear-thumbnails` | No | Delete all local thumbnails |
-| `rebuild` | Yes | sync all + sync covers in one step |
-| `actresses <tier>` | No | List actresses in a tier with title counts |
-| `favorites` | No | List favorited actresses |
-| `actress search <name>` | No | Search for an actress by name |
+| `rebuild` | Yes | sync all + sync covers |
+| `actresses <tier>` | No | List JAV actresses in a tier with title counts |
+| `favorites` | No | List favorited JAV actresses |
+| `actress search <name>` | No | Search for a JAV actress by name |
 | `check-names` | No | Validate actress name formatting |
 | `scan-errors` | No | Report data integrity issues |
 | `load actress <slug>` | No | Load actress metadata from a YAML profile |
 | `load actresses` | No | Load all actress YAML profiles |
+| `av sync` | No | Sync all AV volumes |
+| `av actresses` | No | List AV actresses by video count |
+| `av actress <name>` | No | Show AV actress detail |
+| `av favorites` | No | List favorited AV actresses |
+| `av resolve <name>` | No | Resolve one AV actress against IAFD |
+| `av resolve all` | No | Resolve all unresolved AV actresses against IAFD |
+| `av curate <name>` | No | Set curation fields for an AV actress |
+| `av migrate <old> <new>` | No | Migrate curation when actress folder is renamed |
+| `av parse` | No | Parse metadata from AV video filenames |
+| `av screenshots` | No | Generate screenshot frames for AV videos |
+| `av tags <subcommand>` | No | Manage AV tag definitions and video tags |
 | `backup` | No | Write a manual backup snapshot |
 | `restore [path]` | No | Restore user data from backup |
 | `shutdown` | No | Exit the application |
@@ -427,7 +359,7 @@ File operation commands (`arm` / `test` toggle) are not yet implemented — the 
 
 ### Web Terminal
 
-The web terminal embeds the full admin shell in the browser. Open it from the panel at the bottom of any page at `http://<host>:8080`. All shell commands work identically. This is useful for quick admin tasks without opening a terminal session.
+The web terminal embeds the full admin shell in the browser. Open it from the panel at the bottom of any page at `http://<host>:8080`. All shell commands work identically. Useful for quick admin tasks without opening a separate terminal session.
 
 ---
 
@@ -439,9 +371,9 @@ The app is configured via `organizer-config.yaml`. Key sections:
 |---------|---------|
 | `servers` | SMB server credentials (host, username, password) |
 | `volumes` | Volume definitions (id, SMB path, structure type, server) |
-| `structures` | Partition layouts for each structure type |
+| `structures` | Partition layouts and ignored subfolders per structure type |
 | `syncConfig` | Which sync commands apply to which structure types |
-| `backup` | Auto-backup interval and snapshot retention count |
-| `dataDir` | Root directory for local data (covers, thumbnails, backups) |
+| `backup` | `autoBackupIntervalMinutes` and `snapshotCount` |
+| `dataDir` | Root for local data: covers, thumbnails, backups, AV headshots/screenshots |
 
 The database lives at `~/.organizer3/organizer.db` and is managed automatically.

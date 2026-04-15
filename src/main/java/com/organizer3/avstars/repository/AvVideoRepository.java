@@ -1,6 +1,7 @@
 package com.organizer3.avstars.repository;
 
 import com.organizer3.avstars.model.AvVideo;
+import com.organizer3.backup.AvVideoBackupEntry;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -44,4 +45,33 @@ public interface AvVideoRepository {
 
     /** Marks a video as watched and records the current timestamp + increments watch_count. */
     void recordWatch(long videoId);
+
+    // ── Backup / restore ──────────────────────────────────────────────────────
+
+    /**
+     * Lightweight backup projection — all videos where at least one user-altered field
+     * differs from its default. Includes the actress's volumeId and folderName so that
+     * videos can be keyed stably across DB resets.
+     */
+    record AvVideoBackupRow(
+            String volumeId,
+            String folderName,
+            String relativePath,
+            boolean favorite,
+            boolean bookmark,
+            boolean watched,
+            int watchCount,
+            String lastWatchedAt
+    ) {}
+
+    /** Returns all AV video rows that have at least one non-default user field. */
+    List<AvVideoBackupRow> findAllForBackup();
+
+    /**
+     * Overlays user-altered fields from a backup entry onto the row identified by
+     * {@code (volumeId, folderName, relativePath)}. No-ops if the row does not exist.
+     */
+    void restoreUserData(String volumeId, String folderName, String relativePath,
+                         boolean favorite, boolean bookmark,
+                         boolean watched, int watchCount, String lastWatchedAt);
 }

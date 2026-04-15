@@ -269,6 +269,18 @@ public interface TitleRepository {
      */
     List<Title> findForgottenFavoritesCandidates(int limit, java.util.Set<String> excludeCodes);
 
+    // ── Duplication management ───────────────────────────────────────────────
+
+    /**
+     * Returns titles that appear in more than one location, ordered by code ascending.
+     * If {@code volumeId} is non-null, only titles with at least one location on that volume
+     * are returned (while still requiring the overall count > 1). Used by the Duplicates tool.
+     */
+    List<Title> findWithMultipleLocationsPaged(int limit, int offset, String volumeId);
+
+    /** Total count of titles with more than one location, optionally filtered to a volume. */
+    int countWithMultipleLocations(String volumeId);
+
     // ── Backup / restore ─────────────────────────────────────────────────────
 
     /**

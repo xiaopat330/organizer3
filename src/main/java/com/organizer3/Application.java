@@ -17,7 +17,9 @@ import com.organizer3.avstars.command.AvActressCommand;
 import com.organizer3.avstars.command.AvActressesCommand;
 import com.organizer3.avstars.command.AvCurateCommand;
 import com.organizer3.avstars.command.AvFavoritesCommand;
+import com.organizer3.avstars.command.AvDeleteActressCommand;
 import com.organizer3.avstars.command.AvMigrateActressCommand;
+import com.organizer3.avstars.command.AvRenameActressCommand;
 import com.organizer3.avstars.command.AvParseFilenamesCommand;
 import com.organizer3.avstars.command.AvResolveCommand;
 import com.organizer3.avstars.command.AvSyncCommand;
@@ -237,7 +239,7 @@ public class Application {
                 ? backupCfg.autoBackupIntervalMinutes() : 0;
         int snapshotCount = (backupCfg != null && backupCfg.snapshotCount() != null)
                 ? backupCfg.snapshotCount() : 0;
-        UserDataBackupService backupService = new UserDataBackupService(actressRepo, titleRepo, watchHistoryRepo);
+        UserDataBackupService backupService = new UserDataBackupService(actressRepo, titleRepo, watchHistoryRepo, avActressRepo, avVideoRepo);
         commands.add(new BackupCommand(backupService, backupPath, snapshotCount));
         commands.add(new RestoreCommand(backupService, backupPath));
 
@@ -256,6 +258,8 @@ public class Application {
         commands.add(new AvFavoritesCommand(avActressRepo));
         commands.add(new AvCurateCommand(avActressRepo));
         commands.add(new AvMigrateActressCommand(avActressRepo));
+        commands.add(new AvRenameActressCommand(avActressRepo));
+        commands.add(new AvDeleteActressCommand(avActressRepo));
         commands.add(new AvParseFilenamesCommand(avVideoRepo, avFilenameParser));
         Path avHeadshotDir    = dataDir.resolve("av_headshots");
         Path avScreenshotDir  = dataDir.resolve("av_screenshots");
@@ -321,6 +325,7 @@ public class Application {
 
         // Web server (read-only browsing)
         Map<String, String> volumeSmbPaths = config.volumes().stream()
+                .filter(v -> !"avstars".equals(v.structureType()))
                 .collect(Collectors.toMap(VolumeConfig::id, VolumeConfig::smbPath));
         TitleBrowseService browseService = new TitleBrowseService(titleRepo, actressRepo, coverPath, labelRepo, titleActressRepo, watchHistoryRepo, volumeSmbPaths);
         StageNameBackupFile stageNameBackup = new StageNameBackupFile(

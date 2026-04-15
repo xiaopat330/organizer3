@@ -11,9 +11,10 @@ export const VIEWS = {
   'av':             ['av-landing'],
   'av-index':       ['av-landing', 'av-grid'],
   'av-actress-detail': ['av-landing', 'av-actress-detail'],
+  'action':         ['action-landing'],
 };
 export const HOME_GRID_IDS   = [];
-export const EXTRA_PANEL_IDS = ['title-studio-labels', 'title-tags-panel', 'title-browse-filter-bar', 'title-browse-tags-panel', 'actress-studio-labels', 'actress-dashboard', 'title-dashboard', 'actress-browse-filter-bar', 'av-dashboard', 'av-index-filter-bar'];
+export const EXTRA_PANEL_IDS = ['title-studio-labels', 'title-tags-panel', 'title-browse-filter-bar', 'title-browse-tags-panel', 'actress-studio-labels', 'actress-dashboard', 'title-dashboard', 'actress-browse-filter-bar', 'av-dashboard', 'av-index-filter-bar', 'tools-duplicates-view', 'tools-duplicates-filters'];
 export const ALL_PANEL_IDS   = [...Object.values(VIEWS).flat(), ...HOME_GRID_IDS, ...EXTRA_PANEL_IDS];
 
 // Views where the body must not scroll (they fill the viewport themselves)
@@ -33,6 +34,7 @@ export function showView(name) {
     if (el.classList.contains('grid')) el.style.display = 'grid';
     else if (el.classList.contains('actress-sub-nav')) el.style.display = 'flex';
     else if (el.classList.contains('actress-landing')) el.style.display = 'flex';
+    else if (el.classList.contains('action-landing'))  el.style.display = 'flex';
     else if (el.id === 'title-detail') el.style.display = 'flex';
     else if (el.id === 'actress-detail') el.style.display = 'flex';
     else if (el.id === 'av-actress-detail') el.style.display = 'flex';
@@ -54,7 +56,7 @@ export function showView(name) {
     const headerH   = header ? header.offsetHeight : 0;
 
     if (subNavBar) {
-      const isHome = name === 'titles';
+      const isHome = name === 'titles' || name === 'action';
       subNavBar.style.display = isHome ? 'none' : '';
       subNavBar.style.top = headerH + 'px';
     }
@@ -65,9 +67,11 @@ export function showView(name) {
     const actressLanding = document.getElementById('actress-landing');
     const titleLanding   = document.getElementById('title-landing');
     const avLanding      = document.getElementById('av-landing');
+    const actionLanding  = document.getElementById('action-landing');
     if (actressLanding && actressLanding.style.display !== 'none') actressLanding.style.top = landingTop;
     if (titleLanding   && titleLanding.style.display   !== 'none') titleLanding.style.top   = landingTop;
     if (avLanding      && avLanding.style.display      !== 'none') avLanding.style.top      = landingTop;
+    if (actionLanding  && actionLanding.style.display  !== 'none') actionLanding.style.top  = headerH + 'px';
   });
 }
 

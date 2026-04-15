@@ -1,5 +1,8 @@
 # Titles Dashboard Design
 
+> **Status: IMPLEMENTED**
+> The Titles dashboard is implemented. This document remains the canonical design reference; the Actresses dashboard was subsequently designed using the same patterns.
+
 Design spec for the Titles landing page dashboard. The Titles dashboard is the primary landing spot when a user clicks "Titles" in the main nav. Its charter is twofold: **check what's new** and **access titles the user has shown interest in**.
 
 This document is the source of truth for all module design decisions locked during the Titles dashboard design phase. It also serves as a reference for the forthcoming Actresses dashboard, which will be designed using the same process and will inherit many of the patterns established here.

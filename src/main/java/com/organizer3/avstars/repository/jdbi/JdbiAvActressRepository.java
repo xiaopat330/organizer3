@@ -3,6 +3,7 @@ package com.organizer3.avstars.repository.jdbi;
 import com.organizer3.avstars.iafd.IafdResolvedProfile;
 import com.organizer3.avstars.model.AvActress;
 import com.organizer3.avstars.repository.AvActressRepository;
+import com.organizer3.backup.AvActressBackupEntry;
 import lombok.RequiredArgsConstructor;
 import org.jdbi.v3.core.Jdbi;
 import org.jdbi.v3.core.mapper.RowMapper;
@@ -212,6 +213,13 @@ public class JdbiAvActressRepository implements AvActressRepository {
     }
 
     @Override
+    public void updateStageName(long actressId, String stageName) {
+        jdbi.useHandle(h ->
+                h.createUpdate("UPDATE av_actresses SET stage_name = :name WHERE id = :id")
+                        .bind("name", stageName).bind("id", actressId).execute());
+    }
+
+    @Override
     public List<AvActress> findUnresolved() {
         return jdbi.withHandle(h ->
                 h.createQuery("SELECT * FROM av_actresses WHERE iafd_id IS NULL ORDER BY stage_name")
@@ -302,16 +310,47 @@ public class JdbiAvActressRepository implements AvActressRepository {
     @Override
     public void migrateCuration(long fromActressId, long toActressId) {
         jdbi.useHandle(h -> {
-            // Copy curation + IAFD identity from source to target
+            // Copy all non-identity fields from source to target
             h.createUpdate("""
-                    UPDATE av_actresses
-                    SET favorite     = (SELECT favorite     FROM av_actresses WHERE id = :from),
-                        bookmark     = (SELECT bookmark     FROM av_actresses WHERE id = :from),
-                        rejected     = (SELECT rejected     FROM av_actresses WHERE id = :from),
-                        grade        = (SELECT grade        FROM av_actresses WHERE id = :from),
-                        notes        = (SELECT notes        FROM av_actresses WHERE id = :from),
-                        iafd_id      = (SELECT iafd_id      FROM av_actresses WHERE id = :from),
-                        headshot_path = (SELECT headshot_path FROM av_actresses WHERE id = :from)
+                    UPDATE av_actresses SET
+                        stage_name          = (SELECT stage_name          FROM av_actresses WHERE id = :from),
+                        iafd_id             = (SELECT iafd_id             FROM av_actresses WHERE id = :from),
+                        headshot_path       = (SELECT headshot_path       FROM av_actresses WHERE id = :from),
+                        aka_names_json      = (SELECT aka_names_json      FROM av_actresses WHERE id = :from),
+                        gender              = (SELECT gender              FROM av_actresses WHERE id = :from),
+                        date_of_birth       = (SELECT date_of_birth       FROM av_actresses WHERE id = :from),
+                        date_of_death       = (SELECT date_of_death       FROM av_actresses WHERE id = :from),
+                        birthplace          = (SELECT birthplace          FROM av_actresses WHERE id = :from),
+                        nationality         = (SELECT nationality         FROM av_actresses WHERE id = :from),
+                        ethnicity           = (SELECT ethnicity           FROM av_actresses WHERE id = :from),
+                        hair_color          = (SELECT hair_color          FROM av_actresses WHERE id = :from),
+                        eye_color           = (SELECT eye_color           FROM av_actresses WHERE id = :from),
+                        height_cm           = (SELECT height_cm           FROM av_actresses WHERE id = :from),
+                        weight_kg           = (SELECT weight_kg           FROM av_actresses WHERE id = :from),
+                        measurements        = (SELECT measurements        FROM av_actresses WHERE id = :from),
+                        cup                 = (SELECT cup                 FROM av_actresses WHERE id = :from),
+                        shoe_size           = (SELECT shoe_size           FROM av_actresses WHERE id = :from),
+                        tattoos             = (SELECT tattoos             FROM av_actresses WHERE id = :from),
+                        piercings           = (SELECT piercings           FROM av_actresses WHERE id = :from),
+                        active_from         = (SELECT active_from         FROM av_actresses WHERE id = :from),
+                        active_to           = (SELECT active_to           FROM av_actresses WHERE id = :from),
+                        director_from       = (SELECT director_from       FROM av_actresses WHERE id = :from),
+                        director_to         = (SELECT director_to         FROM av_actresses WHERE id = :from),
+                        iafd_title_count    = (SELECT iafd_title_count    FROM av_actresses WHERE id = :from),
+                        website_url         = (SELECT website_url         FROM av_actresses WHERE id = :from),
+                        social_json         = (SELECT social_json         FROM av_actresses WHERE id = :from),
+                        platforms_json      = (SELECT platforms_json      FROM av_actresses WHERE id = :from),
+                        external_refs_json  = (SELECT external_refs_json  FROM av_actresses WHERE id = :from),
+                        iafd_comments_json  = (SELECT iafd_comments_json  FROM av_actresses WHERE id = :from),
+                        awards_json         = (SELECT awards_json         FROM av_actresses WHERE id = :from),
+                        last_iafd_synced_at = (SELECT last_iafd_synced_at FROM av_actresses WHERE id = :from),
+                        favorite            = (SELECT favorite            FROM av_actresses WHERE id = :from),
+                        bookmark            = (SELECT bookmark            FROM av_actresses WHERE id = :from),
+                        rejected            = (SELECT rejected            FROM av_actresses WHERE id = :from),
+                        grade               = (SELECT grade               FROM av_actresses WHERE id = :from),
+                        notes               = (SELECT notes               FROM av_actresses WHERE id = :from),
+                        visit_count         = (SELECT visit_count         FROM av_actresses WHERE id = :from),
+                        last_visited_at     = (SELECT last_visited_at     FROM av_actresses WHERE id = :from)
                     WHERE id = :to
                     """)
                     .bind("from", fromActressId)
@@ -321,6 +360,71 @@ public class JdbiAvActressRepository implements AvActressRepository {
             h.createUpdate("DELETE FROM av_actresses WHERE id = :id")
                     .bind("id", fromActressId).execute();
         });
+    }
+
+    @Override
+    public void delete(long actressId) {
+        jdbi.useTransaction(h -> {
+            // Delete child rows first (foreign_keys may not be enforced)
+            h.execute("DELETE FROM av_video_tags  WHERE av_video_id IN (SELECT id FROM av_videos WHERE av_actress_id = ?)", actressId);
+            h.execute("DELETE FROM av_screenshots WHERE av_video_id IN (SELECT id FROM av_videos WHERE av_actress_id = ?)", actressId);
+            h.execute("DELETE FROM av_videos WHERE av_actress_id = ?", actressId);
+            h.execute("DELETE FROM av_actresses WHERE id = ?", actressId);
+        });
+    }
+
+    @Override
+    public List<AvActressBackupRow> findAllForBackup() {
+        return jdbi.withHandle(h -> h.createQuery("""
+                        SELECT volume_id, folder_name, favorite, bookmark, rejected,
+                               grade, notes, visit_count, last_visited_at
+                        FROM av_actresses
+                        WHERE favorite = 1
+                           OR bookmark = 1
+                           OR rejected = 1
+                           OR grade IS NOT NULL
+                           OR notes IS NOT NULL
+                           OR visit_count > 0
+                        ORDER BY volume_id, folder_name
+                        """)
+                .map((rs, ctx) -> new AvActressBackupRow(
+                        rs.getString("volume_id"),
+                        rs.getString("folder_name"),
+                        rs.getInt("favorite") == 1,
+                        rs.getInt("bookmark") == 1,
+                        rs.getInt("rejected") == 1,
+                        rs.getString("grade"),
+                        rs.getString("notes"),
+                        rs.getInt("visit_count"),
+                        rs.getString("last_visited_at")))
+                .list());
+    }
+
+    @Override
+    public void restoreUserData(String volumeId, String folderName, boolean favorite, boolean bookmark,
+                                boolean rejected, String grade, String notes,
+                                int visitCount, String lastVisitedAt) {
+        jdbi.useHandle(h -> h.createUpdate("""
+                        UPDATE av_actresses SET
+                            favorite         = :favorite,
+                            bookmark         = :bookmark,
+                            rejected         = :rejected,
+                            grade            = :grade,
+                            notes            = :notes,
+                            visit_count      = :visitCount,
+                            last_visited_at  = :lastVisitedAt
+                        WHERE volume_id = :volumeId AND folder_name = :folderName
+                        """)
+                .bind("favorite", favorite ? 1 : 0)
+                .bind("bookmark", bookmark ? 1 : 0)
+                .bind("rejected", rejected ? 1 : 0)
+                .bind("grade", grade)
+                .bind("notes", notes)
+                .bind("visitCount", visitCount)
+                .bind("lastVisitedAt", lastVisitedAt)
+                .bind("volumeId", volumeId)
+                .bind("folderName", folderName)
+                .execute());
     }
 
     @Override

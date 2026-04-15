@@ -63,11 +63,41 @@ public class VideoStreamService {
      * returns from DB on subsequent calls.
      */
     public List<VideoInfo> findVideos(String titleCode) throws IOException {
+        return findVideos(titleCode, null);
+    }
+
+    /**
+     * Returns videos for the given title code, optionally scoped to a specific volume.
+     * If {@code volumeId} is non-null, only videos on that volume are returned, discovering
+     * from SMB if needed. If null, behaves like {@link #findVideos(String)}.
+     */
+    public List<VideoInfo> findVideos(String titleCode, String volumeId) throws IOException {
         Title title = titleRepo.findByCode(titleCode).orElse(null);
         if (title == null) return List.of();
 
-        // Check if we already have videos in the DB
         List<Video> existing = title.getId() != null ? videoRepo.findByTitle(title.getId()) : List.of();
+
+        if (volumeId != null) {
+            // Filter DB results to this specific volume
+            List<Video> forVolume = existing.stream()
+                    .filter(v -> volumeId.equals(v.getVolumeId()))
+                    .toList();
+            if (!forVolume.isEmpty()) {
+                return forVolume.stream().map(v -> {
+                    TitleLocation loc = title.getLocations().stream()
+                            .filter(l -> l.getVolumeId().equals(v.getVolumeId()))
+                            .findFirst().orElse(null);
+                    return toInfo(v, null, loc);
+                }).toList();
+            }
+            // Not in DB for this volume — discover from this specific location
+            TitleLocation loc = title.getLocations().stream()
+                    .filter(l -> volumeId.equals(l.getVolumeId()))
+                    .findFirst().orElse(null);
+            return loc != null ? discoverFromLocation(title, loc) : List.of();
+        }
+
+        // No volumeId filter — original behaviour
         if (!existing.isEmpty()) {
             return existing.stream().map(v -> {
                 TitleLocation loc = title.getLocations().stream()
