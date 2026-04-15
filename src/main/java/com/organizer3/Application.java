@@ -366,6 +366,8 @@ public class Application {
                     .register(new com.organizer3.mcp.tools.FindSimilarActressesTool(actressRepo))
                     .register(new com.organizer3.mcp.tools.FindNameOrderVariantsTool(actressRepo))
                     .register(new com.organizer3.mcp.tools.FindSuspectCreditsTool(jdbi))
+                    .register(new com.organizer3.mcp.tools.FindAliasConflictsTool(actressRepo))
+                    .register(new com.organizer3.mcp.tools.FindLoneTitlesTool(actressRepo))
                     .register(new com.organizer3.mcp.tools.SqlQueryTool(mcpRoDb))
                     .register(new com.organizer3.mcp.tools.SqlTablesTool(mcpRoDb))
                     .register(new com.organizer3.mcp.tools.SqlSchemaTool(mcpRoDb))
