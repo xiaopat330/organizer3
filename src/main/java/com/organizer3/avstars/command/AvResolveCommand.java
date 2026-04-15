@@ -46,7 +46,7 @@ public class AvResolveCommand implements Command {
 
     @Override
     public String description() {
-        return "Resolve AV actress against IAFD: av resolve <name> | av resolve all | av resolve refresh <name>";
+        return "Resolve AV actress against IAFD: av resolve <name> | av resolve all | av resolve refresh <name> | av resolve id <name> <iafd-id>";
     }
 
     @Override
@@ -56,6 +56,7 @@ public class AvResolveCommand implements Command {
             io.println("Usage: av resolve <name>");
             io.println("       av resolve all");
             io.println("       av resolve refresh <name>");
+            io.println("       av resolve id <name> <iafd-id>");
             return;
         }
 
@@ -67,6 +68,12 @@ public class AvResolveCommand implements Command {
             String name = joinArgs(args, 2);
             if (name.isEmpty()) { io.println("Usage: av resolve refresh <name>"); return; }
             resolveRefresh(name, io);
+        } else if ("id".equals(sub)) {
+            if (args.length < 4) { io.println("Usage: av resolve id <name> <iafd-id>"); return; }
+            String iafdId = args[args.length - 1];
+            String name = joinArgs(args, 2, args.length - 1);
+            if (name.isEmpty()) { io.println("Usage: av resolve id <name> <iafd-id>"); return; }
+            resolveById(name, iafdId, io);
         } else {
             String name = joinArgs(args, 1);
             resolveOne(name, io);
@@ -141,6 +148,36 @@ public class AvResolveCommand implements Command {
         io.println("");
         io.println("Done: " + resolved + " resolved, " + ambiguous + " ambiguous, "
                 + notFound + " not found, " + failed + " errors.");
+    }
+
+    // ── av resolve id <name> <iafd-id> ────────────────────────────────────────
+
+    private void resolveById(String name, String iafdId, CommandIO io) {
+        Optional<AvActress> actressOpt = findActress(name);
+        if (actressOpt.isEmpty()) {
+            io.println("No actress found matching '" + name + "'.");
+            return;
+        }
+        AvActress actress = actressOpt.get();
+
+        io.println("Fetching IAFD profile for " + actress.getStageName() + " using ID: " + iafdId);
+        try {
+            String profileHtml = iafdClient.fetchProfile(iafdId);
+            IafdResolvedProfile profile = profileParser.parse(iafdId, profileHtml);
+            String headshotPath = profile.getHeadshotUrl() != null
+                    ? downloadHeadshot(iafdId, profile.getHeadshotUrl(), io)
+                    : actress.getHeadshotPath();
+            actressRepo.updateIafdFields(actress.getId(), profile, headshotPath);
+            io.println("Resolved: " + actress.getStageName() + " → IAFD ID " + iafdId);
+            if (profile.getIafdTitleCount() != null) {
+                io.println("Titles: " + profile.getIafdTitleCount()
+                        + (profile.getActiveFrom() != null
+                        ? "  Active: " + profile.getActiveFrom() + "–" + (profile.getActiveTo() != null ? profile.getActiveTo() : "present")
+                        : ""));
+            }
+        } catch (IafdFetchException e) {
+            io.println("IAFD fetch failed: " + e.getMessage());
+        }
     }
 
     // ── av resolve refresh <name> ──────────────────────────────────────────────
@@ -262,9 +299,13 @@ public class AvResolveCommand implements Command {
     }
 
     private String joinArgs(String[] args, int fromIndex) {
-        if (fromIndex >= args.length) return "";
+        return joinArgs(args, fromIndex, args.length);
+    }
+
+    private String joinArgs(String[] args, int fromIndex, int toIndexExclusive) {
+        if (fromIndex >= toIndexExclusive) return "";
         StringBuilder sb = new StringBuilder();
-        for (int i = fromIndex; i < args.length; i++) {
+        for (int i = fromIndex; i < toIndexExclusive; i++) {
             if (i > fromIndex) sb.append(" ");
             sb.append(args[i]);
         }

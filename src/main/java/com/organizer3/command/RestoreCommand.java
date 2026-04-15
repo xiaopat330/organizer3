@@ -67,10 +67,14 @@ public class RestoreCommand implements Command {
             return;
         }
 
+        int avActressCount = backup.avActresses() != null ? backup.avActresses().size() : 0;
+        int avVideoCount   = backup.avVideos()    != null ? backup.avVideos().size()    : 0;
+
         if (ctx.isDryRun()) {
             io.println(String.format(
-                    "[DRY RUN] Would restore %,d actress records, %,d title records, %,d watch history entries.",
-                    backup.actresses().size(), backup.titles().size(), backup.watchHistory().size()));
+                    "[DRY RUN] Would restore %,d actress, %,d title, %,d watch history, %,d av-actress, %,d av-video records.",
+                    backup.actresses().size(), backup.titles().size(), backup.watchHistory().size(),
+                    avActressCount, avVideoCount));
             io.println("(Skipped counts require a real run — not all entities may be present yet.)");
             io.println("Run 'arm' to enable writing.");
             return;
@@ -83,7 +87,12 @@ public class RestoreCommand implements Command {
             io.println(String.format("Restored %,d title records (%,d skipped — not found).",
                     result.titlesRestored(), result.titlesSkipped()));
             io.println(String.format("Inserted %,d watch history entries.", result.watchHistoryInserted()));
-            if (result.actressesSkipped() > 0 || result.titlesSkipped() > 0) {
+            io.println(String.format("Restored %,d av-actress records (%,d skipped — not found).",
+                    result.avActressesRestored(), result.avActressesSkipped()));
+            io.println(String.format("Restored %,d av-video records (%,d skipped — not found).",
+                    result.avVideosRestored(), result.avVideosSkipped()));
+            if (result.actressesSkipped() > 0 || result.titlesSkipped() > 0
+                    || result.avActressesSkipped() > 0 || result.avVideosSkipped() > 0) {
                 io.println("Tip: sync remaining volumes and run 'restore' again to pick up skipped entries.");
             }
         } catch (Exception e) {

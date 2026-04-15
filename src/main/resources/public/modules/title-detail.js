@@ -15,7 +15,7 @@ const videoDurations = {};
 // ── Thumbnail poll timer tracking ─────────────────────────────────────────
 const activePollTimers = new Set();
 
-function cancelVideoPolling() {
+export function cancelVideoPolling() {
   for (const id of activePollTimers) clearTimeout(id);
   activePollTimers.clear();
 }
@@ -297,7 +297,7 @@ function loadTitleVideos(titleCode) {
     });
 }
 
-function renderVideoSection(v, titleCode) {
+export function renderVideoSection(v, titleCode, { thumbnails = true } = {}) {
   const section = document.createElement('div');
   section.className = 'video-section';
 
@@ -322,9 +322,9 @@ function renderVideoSection(v, titleCode) {
           Copy path
         </button>` : ''}
     </div>
-    <div class="video-thumbs" id="video-thumbs-${v.id}">
+    ${thumbnails ? `<div class="video-thumbs" id="video-thumbs-${v.id}">
       <div class="video-thumbs-loading">Loading previews\u2026</div>
-    </div>
+    </div>` : ''}
     <div class="video-player-wrap" id="video-wrap-${v.id}">
       <video class="video-player" id="video-player-${v.id}" controls preload="none"
              src="/api/stream/${v.id}"
@@ -342,7 +342,7 @@ function renderVideoSection(v, titleCode) {
   const theaterBtn = section.querySelector('.theater-btn');
   if (theaterBtn) theaterBtn.addEventListener('click', () => toggleTheater(v.id));
 
-  loadVideoThumbnails(v.id);
+  if (thumbnails) loadVideoThumbnails(v.id);
   loadVideoMetadata(v.id);
 
   const player = section.querySelector(`#video-player-${v.id}`);

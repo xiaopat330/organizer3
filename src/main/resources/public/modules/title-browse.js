@@ -449,6 +449,7 @@ export function showTitlesBrowse() {
   actressesBtn.classList.remove('active');
   collectionsBtn.classList.remove('active');
   document.getElementById('av-btn')?.classList.remove('active');
+  document.getElementById('action-btn')?.classList.remove('active');
   resetActressState();
   if (tagsDebounceTimer) { clearTimeout(tagsDebounceTimer);  tagsDebounceTimer  = null; }
   titleBrowseMode = null;

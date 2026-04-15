@@ -1,5 +1,8 @@
 # Proposal: In-Browser Video Streaming
 
+> **Status: IMPLEMENTED**
+> Video streaming (range-request aware, streams from SMB) is implemented for both JAV titles and AV videos. Watch history is recorded on play. AV video streaming uses the same approach via `/api/av/stream/*`. Thumbnails are generated on demand and cached locally.
+
 ## Motivation
 
 The web UI already displays titles with metadata, covers, locations, and actress info. The natural next step is being able to watch videos directly from the browser — turning organizer3 from a catalog into a personal media player for the library.

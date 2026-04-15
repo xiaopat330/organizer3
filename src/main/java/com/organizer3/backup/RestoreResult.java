@@ -6,5 +6,9 @@ public record RestoreResult(
         int actressesSkipped,
         int titlesRestored,
         int titlesSkipped,
-        int watchHistoryInserted
+        int watchHistoryInserted,
+        int avActressesRestored,
+        int avActressesSkipped,
+        int avVideosRestored,
+        int avVideosSkipped
 ) {}

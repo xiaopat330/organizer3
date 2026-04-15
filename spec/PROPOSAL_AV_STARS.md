@@ -1,5 +1,8 @@
 # AV Stars — Western Performer Library
 
+> **Status: FULLY IMPLEMENTED**
+> All phases of the AV Stars backend are complete: `avstars` volume type, `av_actresses` / `av_videos` / `av_tag_definitions` / `av_video_tags` / `av_video_screenshots` schema, sync (`av sync`), IAFD enrichment (`av resolve`), filename parsing (`av parse`), screenshot generation (`av screenshots`), curation commands, web UI, federated search integration, and backup/restore support. A second AV volume (`athena_av` → `//athena/AV/stars`) has been added alongside the original `qnap_av`.
+
 Design proposal for adding a new volume type, `avstars`, holding Western/European adult performer content alongside the existing JAV library. AV stars content lives on a single volume (`qnap_av` → `//qnap2/AV/stars`) and is modeled independently from the existing `actresses` / `titles` schema — there is **no shared identity or crossover** between JAV and AV data.
 
 This document is the source of truth for the initial AV stars implementation. It was derived from direct inspection of `/Volumes/AV/stars/` and analysis of eight sample IAFD profiles (Charity Crawford, Gianna Dior, August Ames, Ashley Adams, Vina Sky, Angel Dark, and prior reference: Anissa Kate, Asa Akira via folder sampling only).

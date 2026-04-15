@@ -16,11 +16,12 @@ import java.util.Set;
  *
  * <p>Usage:
  * <pre>
- *   av curate &lt;name&gt; fav           — toggle favorite
- *   av curate &lt;name&gt; bookmark      — toggle bookmark
- *   av curate &lt;name&gt; reject        — toggle rejected
- *   av curate &lt;name&gt; grade &lt;grade&gt; — set grade (SSS/SS/S/A/B/C)
- *   av curate &lt;name&gt; clear-grade   — remove grade
+ *   av curate &lt;name&gt; fav                    — toggle favorite
+ *   av curate &lt;name&gt; bookmark               — toggle bookmark
+ *   av curate &lt;name&gt; reject                 — toggle rejected
+ *   av curate &lt;name&gt; grade &lt;grade&gt;          — set grade (SSS/SS/S/A/B/C)
+ *   av curate &lt;name&gt; clear-grade            — remove grade
+ *   av curate &lt;name&gt; stage-name &lt;new name&gt;  — override display name
  * </pre>
  *
  * <p>The action keyword(s) are the trailing token(s); the name is everything between
@@ -55,17 +56,29 @@ public class AvCurateCommand implements Command {
 
         // Detect action at the tail.
         // Tail cases:
-        //   "grade S"     → action = "grade", value = args[last], name = args[1..last-2]
-        //   "clear-grade" → action = "clear-grade",               name = args[1..last-1]
-        //   "fav" etc.    → action = last token,                  name = args[1..last-1]
+        //   "grade S"          → action = "grade", value = args[last], name = args[1..last-2]
+        //   "clear-grade"      → action = "clear-grade",               name = args[1..last-1]
+        //   "fav" etc.         → action = last token,                  name = args[1..last-1]
+        //   "stage-name Foo B" → scan for "stage-name" pivot token
         String lastToken = args[args.length - 1];
         String secondLast = args.length >= 3 ? args[args.length - 2] : null;
 
+        // Check for stage-name pivot anywhere in args[1..]
+        int stageNameIdx = -1;
+        for (int i = 1; i < args.length; i++) {
+            if ("stage-name".equalsIgnoreCase(args[i])) { stageNameIdx = i; break; }
+        }
+
         String action;
         String gradeValue = null;
+        String stageNameValue = null;
         int nameEndExclusive; // exclusive end index into args for the name tokens
 
-        if ("grade".equalsIgnoreCase(secondLast)) {
+        if (stageNameIdx > 1 && stageNameIdx < args.length - 1) {
+            action = "stage-name";
+            stageNameValue = String.join(" ", Arrays.copyOfRange(args, stageNameIdx + 1, args.length));
+            nameEndExclusive = stageNameIdx;
+        } else if ("grade".equalsIgnoreCase(secondLast)) {
             action = "grade";
             gradeValue = lastToken.toUpperCase();
             nameEndExclusive = args.length - 2;
@@ -134,15 +147,20 @@ public class AvCurateCommand implements Command {
                 actressRepo.setGrade(a.getId(), null);
                 io.println(a.getStageName() + ": grade cleared");
             }
+            case "stage-name" -> {
+                actressRepo.updateStageName(a.getId(), stageNameValue);
+                io.println(a.getStageName() + " → stage name set to: " + stageNameValue);
+            }
         }
     }
 
     private static void printUsage(CommandIO io) {
         io.println("Usage:");
-        io.println("  av curate <name> fav           — toggle favorite");
-        io.println("  av curate <name> bookmark      — toggle bookmark");
-        io.println("  av curate <name> reject        — toggle rejected");
-        io.println("  av curate <name> grade <grade> — set grade (SSS SS S A B C)");
-        io.println("  av curate <name> clear-grade   — remove grade");
+        io.println("  av curate <name> fav                    — toggle favorite");
+        io.println("  av curate <name> bookmark               — toggle bookmark");
+        io.println("  av curate <name> reject                 — toggle rejected");
+        io.println("  av curate <name> grade <grade>          — set grade (SSS SS S A B C)");
+        io.println("  av curate <name> clear-grade            — remove grade");
+        io.println("  av curate <name> stage-name <new name>  — override display name");
     }
 }

@@ -1,4 +1,4 @@
-# Organizer3 - Usage Guide
+# Organizer3 — Usage Guide
 
 ## Starting the Shell
 
@@ -6,7 +6,7 @@
 ./gradlew run
 ```
 
-The shell starts in **dry-run mode** by default (safe — no file operations execute). The prompt shows current state:
+The shell starts in **dry-run mode** by default. The prompt shows current state:
 
 ```
 organizer [*DRYRUN*] >          # no volume mounted
@@ -18,101 +18,107 @@ Type `help` at any time to list available commands.
 
 ---
 
-## Commands
+## Volume Commands
 
 ### `volumes`
 
-Lists all configured volumes with their connection status and last-sync timestamp.
+Lists all configured volumes with connection status and last-sync timestamp.
 
 ```
 organizer > volumes
-ID      STRUCTURE       CONNECTED   LAST SYNC
+ID          STRUCTURE       CONNECTED   LAST SYNC
 ------------------------------------------------------------
-a       conventional    -           2026-03-15 14:22
-bg      conventional    -           2026-03-10 09:00
-unsorted queue          -           never
+a           conventional    -           2026-04-01 14:22
+qnap_av     avstars         -           2026-04-13 09:00
+...
 ```
 
 ---
 
 ### `mount <id>`
 
-Connects to a volume over SMB and activates it as the current session context. Displays a spinner during the connection phases.
+Connects to a volume over SMB and activates it as the session context.
 
 ```
 organizer > mount a
-Loaded index: 3241 title(s), 187 actress(es).
+Loaded index: 3,241 title(s), 187 actress(es).
 Connected. Volume 'a' is now active.
 organizer:vol-a [*DRYRUN*] >
-```
-
-If the volume has never been synced:
-
-```
-organizer > mount unsorted
-No index found for volume 'unsorted' — run 'sync all' to build it.
-Connected. Volume 'unsorted' is now active.
 ```
 
 ---
 
 ### `unmount`
 
-Disconnects from the current volume and clears the session context.
-
-```
-organizer:vol-a > unmount
-Disconnected from volume 'a'.
-organizer [*DRYRUN*] >
-```
+Disconnects from the current volume.
 
 ---
 
 ### `sync all`
 
-Full sync for the currently mounted volume. Clears all existing title/video records for the volume and re-scans from the filesystem. Available for `conventional` and `exhibition` volumes.
+Full sync for the mounted volume. Re-scans the entire filesystem and rebuilds the database index. Available for `conventional`, `exhibition`, `queue`, `sort_pool`, and `avstars` volumes.
 
 ```
 organizer:vol-a > sync all
 Syncing a (full) ...
   Scanning queue/ ...
   Scanning stars/library/ ...
-  Scanning stars/popular/ ...
   ...
 Sync complete.
-  Actresses:  187
-  Queue:      12
-  Attention:  3
-  Total:      3241
+  Actresses: 187   Queue: 12   Total: 3,241
 ```
 
 ---
 
 ### `sync queue`
 
-Partition-scoped sync — rescans only the `queue/` partition on a `conventional` volume. Faster than a full sync when you only have new intake to index.
-
-```
-organizer:vol-a > sync queue
-```
+Queue-partition-only sync for `conventional` volumes. Faster when only intake content has changed.
 
 ---
 
 ### `sync`
 
-Full sync for `queue` structure volumes (e.g., `unsorted`, `classic`).
-
-```
-organizer:vol-unsorted > sync
-```
+Full sync for `queue` structure volumes (e.g., `unsorted`).
 
 ---
 
+### `rebuild`
+
+Runs `sync all` followed by `sync covers` in one step.
+
+---
+
+### `sync covers`
+
+Collects cover images from the mounted volume's `stars/` partitions and stores them locally under `data/covers/<LABEL>/`. Requires a mounted volume.
+
+---
+
+### `prune-covers`
+
+Removes local cover files whose `baseCode` does not match any title in the database. Does not require a mounted volume.
+
+---
+
+### `prune-thumbnails`
+
+Removes local thumbnails whose title is no longer in the database.
+
+---
+
+### `clear-thumbnails`
+
+Deletes all local thumbnails unconditionally.
+
+---
+
+## JAV Data Commands
+
 ### `actresses <tier>`
 
-Lists all actresses in a given tier with their title counts, sorted from most to fewest. Does not require a mounted volume — queries the DB directly.
+Lists actresses in a tier sorted by title count (descending). No mount required.
 
-Valid tier values (case-insensitive): `library`, `minor`, `popular`, `superstar`, `goddess`
+Valid tiers: `library`, `minor`, `popular`, `superstar`, `goddess`
 
 ```
 organizer > actresses goddess
@@ -121,113 +127,197 @@ GODDESS  (5 actresses)
   ------------------------------------------------
   Yua Mikami                                127
   Aya Sazanami                               98
-  Hibiki Otsuki                              87
-  Mia Khalifa                                56
-  Julia Boin                                 51
+  ...
 ```
 
 ---
 
 ### `favorites`
 
-Lists all favorited actresses with their title counts, sorted from most to fewest. Does not require a mounted volume.
+Lists all favorited JAV actresses with title counts.
+
+---
+
+### `actress search <name>`
+
+Searches for a JAV actress by name. Uses the Claude API for name lookups when `ANTHROPIC_API_KEY` is set in the environment; falls back to DB-only search otherwise.
+
+---
+
+### `check-names`
+
+Validates actress name formatting in the database and reports inconsistencies.
+
+---
+
+### `scan-errors`
+
+Reports data integrity issues (titles with bad codes, missing locations, etc.).
+
+---
+
+### `load actress <slug>`
+
+Loads one actress's YAML profile from `reference/actresses/<slug>/` into the database. Populates biography, measurements, filmography metadata, and tags.
+
+---
+
+### `load actresses`
+
+Loads all actress YAML profiles found under `reference/actresses/`.
+
+---
+
+## AV Stars Commands
+
+All AV commands begin with `av`. None require a mounted volume.
+
+---
+
+### `av sync`
+
+Syncs all `avstars` volumes (`qnap_av`, `athena_av`). Walks each actress folder recursively, upserts `av_actresses` and `av_videos` records, deletes orphaned videos, and updates video counts.
+
+---
+
+### `av actresses`
+
+Lists all AV actresses sorted by video count descending.
 
 ```
-organizer > favorites
-FAVORITES  (3 actresses)
-  NAME                                      TITLES
+organizer > av actresses
+  NAME                         VIDEOS   GRADE
   ------------------------------------------------
-  Yua Mikami                                127
-  Aya Sazanami                               98
-  Hibiki Otsuki                              87
+  Anissa Kate                    312     A
+  Asa Akira                      284     S
+  ...
 ```
 
 ---
+
+### `av actress <name>`
+
+Shows detail for one AV actress: IAFD profile fields, video count, grade, notes.
+
+---
+
+### `av favorites`
+
+Lists AV actresses with `favorite = true`.
+
+---
+
+### `av resolve <name>`
+
+Resolves one AV actress against IAFD: fetches her profile, downloads headshot, stores all IAFD fields on the `av_actresses` row.
+
+---
+
+### `av resolve all`
+
+Resolves all AV actresses that have not yet been resolved (`iafd_id IS NULL`) against IAFD in sequence.
+
+---
+
+### `av curate <name>`
+
+Interactive prompt to set curation fields for an AV actress: `favorite`, `bookmark`, `rejected`, `grade`, `notes`.
+
+---
+
+### `av migrate <old-folder> <new-folder>`
+
+Copies curation fields (favorite, bookmark, rejected, grade, notes, IAFD data) from the old actress row to the new one, then deletes the old row. Used when an actress folder is renamed on disk.
+
+---
+
+### `av parse`
+
+Runs `AvFilenameParser` over all AV videos, extracting studio, release date, resolution, codec, and tag strings from filenames. Stores parsed fields on `av_videos`.
+
+---
+
+### `av screenshots`
+
+Generates screenshot frames for all AV videos that don't yet have them. Uses ffmpeg. Shows a progress bar:
+
+```
+[47/312] anissa_kate_2023-08-15_full_scene.mp4
+```
+
+---
+
+### `av tags <subcommand>`
+
+Manages AV tag definitions and applies tags to videos. Subcommands include loading tag definitions from YAML and applying tags to matched videos.
+
+---
+
+## Backup and Restore
+
+### `backup`
+
+Exports all user-altered fields (JAV + AV favorites, grades, visit history, watch history) to a timestamped snapshot file in `data/backups/`. Reports counts by category:
+
+```
+organizer > backup
+Exported 1,204 actress, 18,432 title, 847 watch history, 62 av-actress, 1,841 av-video records.
+Backup written to: data/backups/user-data-backup-2026-04-14T22-30-00.json
+```
+
+In dry-run mode: reports counts but does not write.
+
+---
+
+### `restore [path]`
+
+Restores user data from a backup. With no argument, uses the newest snapshot in `data/backups/`. An explicit file path can be supplied.
+
+```
+organizer > restore
+Using backup: user-data-backup-2026-04-14T22-30-00.json
+Restored 1,198 actress records (6 skipped — not found).
+Restored 18,401 title records (31 skipped — not found).
+Inserted 847 watch history entries.
+Restored 62 av-actress records (0 skipped — not found).
+Restored 1,841 av-video records (0 skipped — not found).
+```
+
+Skipped entries are expected when restoring before all volumes have been synced — re-run after syncing.
+
+In dry-run mode: reads and parses the file, reports what would be applied, does not touch the database.
+
+---
+
+## Backup Recovery Workflow
+
+After dropping and recreating the database:
+
+1. `load actresses` — reseeds JAV actress profiles from YAML
+2. Mount each JAV volume and run `sync all`
+3. `av sync` — rebuilds AV actress/video records
+4. `restore` — overlays all user-altered fields from backup
+
+---
+
+## Shell Meta
 
 ### `help`
 
 Lists all available commands with descriptions.
 
-```
-organizer > help
-Available commands:
-  actresses        List actresses in a tier with title counts: actresses <tier>
-  favorites        List all favorited actresses with title counts
-  help             List available commands
-  mount            Connect to a volume and activate it as the current context. Usage: mount <id>
-  shutdown         Shut down the application
-  sync             Sync the current volume's database index from the filesystem.
-  sync all         Sync the current volume's database index from the filesystem.
-  sync queue       Sync the current volume's database index from the filesystem.
-  unmount          Disconnect from the current volume and clear the session context.
-  volumes          List all configured volumes with connection and sync status
-```
-
 ---
 
 ### `shutdown`
 
-Exits the shell. Ctrl+D also exits gracefully.
-
----
-
-## Common Workflows
-
-### First-time setup for a new volume
-
-```
-organizer > mount unsorted
-No index found for volume 'unsorted' — run 'sync all' to build it.
-Connected. Volume 'unsorted' is now active.
-
-organizer:vol-unsorted > sync
-Syncing unsorted (full) ...
-  ...
-Sync complete.
-  Total:  412
-```
-
-### Refreshing the index after filesystem changes
-
-```
-organizer:vol-a > sync all
-```
-
-Or, if only the queue changed:
-
-```
-organizer:vol-a > sync queue
-```
-
-### Browsing the actress database
-
-```
-# Who are the top performers?
-organizer > actresses goddess
-
-# Who has between 5 and 19 titles?
-organizer > actresses minor
-
-# Who have I marked as favorites?
-organizer > favorites
-```
-
-### Switching volumes
-
-```
-organizer:vol-a > mount bg
-Connected. Volume 'bg' is now active.
-organizer:vol-bg [*DRYRUN*] >
-```
-
-Switching volumes automatically closes the previous SMB connection.
+Exits the application. Ctrl+D also exits gracefully.
 
 ---
 
 ## Volumes Reference
 
-| ID | SMB Path | Structure | Partition range |
-|----|----------|-----------|-----------------|
+| ID | SMB Path | Structure | Content |
+|----|----------|-----------|---------|
 | a | //pandora/jav_A | conventional | A |
 | bg | //pandora/jav_BG | conventional | B–G |
 | hj | //pandora/jav_HJ | conventional | H–J |
@@ -238,23 +328,26 @@ Switching volumes automatically closes the previous SMB connection.
 | r | //pandora/jav_OR | conventional | O–R |
 | s | //pandora/jav_S | conventional | S |
 | tz | //pandora/jav_TZ | conventional | T–Z |
-| unsorted | //pandora/jav_unsorted | queue | intake |
-| classic | //qnap2/JAV/classic | queue | classic |
-| qnap | //qnap2/jav | exhibition | overflow |
-| collections | //pandora/jav_collections | collections | curated |
+| unsorted | //pandora/jav_unsorted | queue | Intake staging |
+| qnap | //qnap2/jav | exhibition | Overflow |
+| qnap_archive | //pandora/qnap_archive | exhibition | Archive overflow |
+| classic | //qnap2/JAV/classic | exhibition | Classic |
+| pool | //pandora/jav_unsorted/_done | sort_pool | Post-sort staging |
+| classic_pool | //qnap2/JAV/classic/new | sort_pool | Classic intake |
+| collections | //pandora/jav_collections | collections | Curated sets |
+| qnap_av | //qnap2/AV/stars | avstars | Western performers (primary) |
+| athena_av | //athena/AV/stars | avstars | Western performers (secondary) |
 
 ---
 
-## Actress Tiers
+## Actress Tiers (JAV)
 
-Tier determines which subfolder under `stars/` an actress's content lives in on conventional volumes.
+| Tier | Title count | Folder under stars/ |
+|------|-------------|---------------------|
+| LIBRARY | < 5 | library/ |
+| MINOR | 5–19 | minor/ |
+| POPULAR | 20–49 | popular/ |
+| SUPERSTAR | 50–99 | superstar/ |
+| GODDESS | 100+ | goddess/ |
 
-| Tier | Title count | Folder |
-|------|-------------|--------|
-| LIBRARY | < 5 | `stars/library/` |
-| MINOR | 5–19 | `stars/minor/` |
-| POPULAR | 20–49 | `stars/popular/` |
-| SUPERSTAR | 50–99 | `stars/superstar/` |
-| GODDESS | 100+ | `stars/goddess/` |
-
-Actresses in `stars/favorites/` and `stars/archive/` are stored with tier `LIBRARY` in the DB regardless of title count.
+AV actresses have no tier system.

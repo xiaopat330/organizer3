@@ -36,11 +36,13 @@ public class BackupCommand implements Command {
         int actresses    = backup.actresses().size();
         int titles       = backup.titles().size();
         int watchHistory = backup.watchHistory().size();
+        int avActresses  = backup.avActresses() != null ? backup.avActresses().size() : 0;
+        int avVideos     = backup.avVideos()    != null ? backup.avVideos().size()    : 0;
 
         if (ctx.isDryRun()) {
             io.println(String.format(
-                    "[DRY RUN] Would export %,d actress records, %,d title records, %,d watch history entries.",
-                    actresses, titles, watchHistory));
+                    "[DRY RUN] Would export %,d actress, %,d title, %,d watch history, %,d av-actress, %,d av-video records.",
+                    actresses, titles, watchHistory, avActresses, avVideos));
             io.println("Run 'arm' to enable writing.");
             return;
         }
@@ -54,8 +56,8 @@ public class BackupCommand implements Command {
                 writtenPath = backupPath;
             }
             io.println(String.format(
-                    "Exported %,d actress records, %,d title records, %,d watch history entries.",
-                    actresses, titles, watchHistory));
+                    "Exported %,d actress, %,d title, %,d watch history, %,d av-actress, %,d av-video records.",
+                    actresses, titles, watchHistory, avActresses, avVideos));
             io.println("Backup written to: " + writtenPath);
         } catch (Exception e) {
             io.println("Backup failed: " + e.getMessage());

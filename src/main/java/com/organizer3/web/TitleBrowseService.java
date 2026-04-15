@@ -271,10 +271,16 @@ public class TitleBrowseService {
                     List<String> allLocations = t.getLocations().stream()
                             .map(loc -> loc.getPath().toString())
                             .toList();
-                    List<String> nasPaths = t.getLocations().stream()
+                    List<TitleSummary.LocationEntry> locationEntries = t.getLocations().stream()
                             .filter(loc -> loc.getVolumeId() != null && volumeSmbPaths.containsKey(loc.getVolumeId()))
-                            .map(loc -> volumeSmbPaths.get(loc.getVolumeId()) + "/" + loc.getPath())
+                            .map(loc -> TitleSummary.LocationEntry.builder()
+                                    .volumeId(loc.getVolumeId())
+                                    .nasPath(volumeSmbPaths.get(loc.getVolumeId()) + loc.getPath())
+                                    .build())
                             .distinct()
+                            .toList();
+                    List<String> nasPaths = locationEntries.stream()
+                            .map(TitleSummary.LocationEntry::getNasPath)
                             .toList();
 
                     // Multi-actress entries from junction table
@@ -322,6 +328,7 @@ public class TitleBrowseService {
                             .location(t.getPath() != null ? t.getPath().toString() : null)
                             .locations(allLocations)
                             .nasPaths(nasPaths)
+                            .locationEntries(locationEntries)
                             .actresses(actresses)
                             .titleEnglish(t.getTitleEnglish())
                             .titleOriginal(t.getTitleOriginal())
@@ -337,6 +344,34 @@ public class TitleBrowseService {
                             .build();
                 })
                 .toList();
+    }
+
+    // ── Duplication management ───────────────────────────────────────────────
+
+    /** Result page for the duplicates tool. */
+    public record DuplicatePage(List<TitleSummary> titles, int total) {}
+
+    /** One entry in the volumes dropdown: stable id and display SMB path. */
+    public record VolumeEntry(String id, String smbPath) {}
+
+    /** Returns all configured volumes, sorted by smbPath, for the filter dropdown. */
+    public List<VolumeEntry> listVolumes() {
+        return volumeSmbPaths.entrySet().stream()
+                .map(e -> new VolumeEntry(e.getKey(), e.getValue()))
+                .sorted(java.util.Comparator.comparing(VolumeEntry::smbPath))
+                .toList();
+    }
+
+    /**
+     * Returns titles that exist in more than one location, ordered by code ascending.
+     * If {@code volumeId} is non-null, only titles with at least one location on that volume
+     * are included. Each {@link TitleSummary} includes the full {@code nasPaths} list.
+     */
+    public DuplicatePage findDuplicatesPaged(int offset, int limit, String volumeId) {
+        limit = Math.min(limit, MAX_LIMIT);
+        List<TitleSummary> titles = toSummaries(titleRepo.findWithMultipleLocationsPaged(limit, offset, volumeId));
+        int total = titleRepo.countWithMultipleLocations(volumeId);
+        return new DuplicatePage(titles, total);
     }
 
     /** Returns the most recently visited titles (visit_count > 0), ordered by last_visited_at DESC. */

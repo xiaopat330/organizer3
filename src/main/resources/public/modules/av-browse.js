@@ -27,6 +27,7 @@ export async function selectAvBrowseMode(mode) {
   avBtn.classList.add('active');
   document.getElementById('actresses-btn')?.classList.remove('active');
   document.getElementById('titles-browse-btn')?.classList.remove('active');
+  document.getElementById('action-btn')?.classList.remove('active');
 
   [avDashboardBtn, avFavoritesBtn, avBookmarksBtn, avIndexBtn].forEach(b => b?.classList.remove('selected'));
 

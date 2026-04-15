@@ -3,6 +3,8 @@ package com.organizer3.backup;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import com.organizer3.avstars.repository.AvActressRepository;
+import com.organizer3.avstars.repository.AvVideoRepository;
 import com.organizer3.repository.ActressRepository;
 import com.organizer3.repository.TitleRepository;
 import com.organizer3.repository.WatchHistoryRepository;
@@ -34,7 +36,7 @@ import java.util.stream.Stream;
 @RequiredArgsConstructor
 public class UserDataBackupService {
 
-    public static final int CURRENT_BACKUP_VERSION = 1;
+    public static final int CURRENT_BACKUP_VERSION = 2;
 
     private static final ObjectMapper MAPPER = new ObjectMapper()
             .registerModule(new JavaTimeModule())
@@ -44,6 +46,8 @@ public class UserDataBackupService {
     private final ActressRepository actressRepo;
     private final TitleRepository titleRepo;
     private final WatchHistoryRepository watchHistoryRepo;
+    private final AvActressRepository avActressRepo;
+    private final AvVideoRepository avVideoRepo;
 
     /**
      * Build a {@link UserDataBackup} from the current database state.
@@ -66,8 +70,20 @@ public class UserDataBackupService {
                 .map(h -> new WatchHistoryEntry(h.getTitleCode(), h.getWatchedAt()))
                 .toList();
 
+        List<AvActressBackupEntry> avActresses = avActressRepo.findAllForBackup().stream()
+                .map(r -> new AvActressBackupEntry(
+                        r.volumeId(), r.folderName(), r.favorite(), r.bookmark(),
+                        r.rejected(), r.grade(), r.notes(), r.visitCount(), r.lastVisitedAt()))
+                .toList();
+
+        List<AvVideoBackupEntry> avVideos = avVideoRepo.findAllForBackup().stream()
+                .map(r -> new AvVideoBackupEntry(
+                        r.volumeId(), r.folderName(), r.relativePath(),
+                        r.favorite(), r.bookmark(), r.watched(), r.watchCount(), r.lastWatchedAt()))
+                .toList();
+
         return new UserDataBackup(CURRENT_BACKUP_VERSION, LocalDateTime.now(),
-                actresses, titles, watchHistory);
+                actresses, titles, watchHistory, avActresses, avVideos);
     }
 
     /**
@@ -77,9 +93,11 @@ public class UserDataBackupService {
     public void write(UserDataBackup backup, Path path) throws IOException {
         Files.createDirectories(path.getParent());
         MAPPER.writeValue(path.toFile(), backup);
-        log.info("Backup written: {} actresses, {} titles, {} watch history entries → {}",
-                backup.actresses().size(), backup.titles().size(),
-                backup.watchHistory().size(), path);
+        List<AvActressBackupEntry> avA = backup.avActresses() != null ? backup.avActresses() : List.of();
+        List<AvVideoBackupEntry>   avV = backup.avVideos()    != null ? backup.avVideos()    : List.of();
+        log.info("Backup written: {} actresses, {} titles, {} watch history, {} av-actresses, {} av-videos → {}",
+                backup.actresses().size(), backup.titles().size(), backup.watchHistory().size(),
+                avA.size(), avV.size(), path);
     }
 
     /**
@@ -141,8 +159,42 @@ public class UserDataBackupService {
             }
         }
 
+        int avActressesRestored = 0, avActressesSkipped = 0;
+        int avVideosRestored = 0, avVideosSkipped = 0;
+
+        List<AvActressBackupEntry> avActresses = backup.avActresses() != null ? backup.avActresses() : List.of();
+        for (AvActressBackupEntry entry : avActresses) {
+            boolean exists = avActressRepo.findByVolumeAndFolder(entry.volumeId(), entry.folderName()).isPresent();
+            if (!exists) {
+                avActressesSkipped++;
+            } else {
+                avActressRepo.restoreUserData(
+                        entry.volumeId(), entry.folderName(), entry.favorite(), entry.bookmark(),
+                        entry.rejected(), entry.grade(), entry.notes(),
+                        entry.visitCount(), entry.lastVisitedAt());
+                avActressesRestored++;
+            }
+        }
+
+        List<AvVideoBackupEntry> avVideos = backup.avVideos() != null ? backup.avVideos() : List.of();
+        for (AvVideoBackupEntry entry : avVideos) {
+            // Check existence via the actress row (video lookup requires actress presence)
+            boolean actressExists = avActressRepo.findByVolumeAndFolder(entry.volumeId(), entry.folderName()).isPresent();
+            if (!actressExists) {
+                avVideosSkipped++;
+            } else {
+                avVideoRepo.restoreUserData(
+                        entry.volumeId(), entry.folderName(), entry.relativePath(),
+                        entry.favorite(), entry.bookmark(),
+                        entry.watched(), entry.watchCount(), entry.lastWatchedAt());
+                avVideosRestored++;
+            }
+        }
+
         return new RestoreResult(actressesRestored, actressesSkipped,
-                titlesRestored, titlesSkipped, watchHistoryInserted);
+                titlesRestored, titlesSkipped, watchHistoryInserted,
+                avActressesRestored, avActressesSkipped,
+                avVideosRestored, avVideosSkipped);
     }
 
     /** Convenience: export and immediately write to {@code path}. Used by auto-backup. */

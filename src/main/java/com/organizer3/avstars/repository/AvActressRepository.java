@@ -2,6 +2,7 @@ package com.organizer3.avstars.repository;
 
 import com.organizer3.avstars.iafd.IafdResolvedProfile;
 import com.organizer3.avstars.model.AvActress;
+import com.organizer3.backup.AvActressBackupEntry;
 
 import java.util.List;
 import java.util.Optional;
@@ -48,6 +49,9 @@ public interface AvActressRepository {
     /** Sets or clears the grade. Pass {@code null} to clear. */
     void setGrade(long actressId, String grade);
 
+    /** Overrides the display name (stage_name) without touching the folder_name identity key. */
+    void updateStageName(long actressId, String stageName);
+
     /**
      * Returns all actresses that have not yet been resolved against IAFD ({@code iafd_id IS NULL}),
      * sorted by stage name. Used by {@code av resolve all}.
@@ -69,6 +73,41 @@ public interface AvActressRepository {
      * row. Used by {@code av migrate} when an actress folder is renamed on disk.
      */
     void migrateCuration(long fromActressId, long toActressId);
+
+    /**
+     * Permanently deletes an actress and all her associated videos, video tags,
+     * and screenshots. Used by {@code av delete} to remove placeholder/temp rows.
+     */
+    void delete(long actressId);
+
+    // ── Backup / restore ──────────────────────────────────────────────────────
+
+    /**
+     * Lightweight backup projection — all rows where at least one user-altered field
+     * differs from its default value.
+     */
+    record AvActressBackupRow(
+            String volumeId,
+            String folderName,
+            boolean favorite,
+            boolean bookmark,
+            boolean rejected,
+            String grade,
+            String notes,
+            int visitCount,
+            String lastVisitedAt
+    ) {}
+
+    /** Returns all AV actress rows that have at least one non-default user field. */
+    List<AvActressBackupRow> findAllForBackup();
+
+    /**
+     * Overlays user-altered fields from a backup entry onto the row identified by
+     * {@code (volumeId, folderName)}. No-ops if the row does not exist.
+     */
+    void restoreUserData(String volumeId, String folderName, boolean favorite, boolean bookmark,
+                         boolean rejected, String grade, String notes,
+                         int visitCount, String lastVisitedAt);
 
     // ── Federated search ──────────────────────────────────────────────────────
 
