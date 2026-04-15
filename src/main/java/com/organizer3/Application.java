@@ -372,6 +372,8 @@ public class Application {
                     .register(new com.organizer3.mcp.tools.FindDuplicateBaseCodesTool(jdbi))
                     .register(new com.organizer3.mcp.tools.FindLabelMismatchesTool(jdbi))
                     .register(new com.organizer3.mcp.tools.FindStaleLocationsTool(jdbi))
+                    .register(new com.organizer3.mcp.tools.ListActressesWithMisnamedFoldersTool(jdbi))
+                    .register(new com.organizer3.mcp.tools.FindMisnamedFoldersForActressTool(jdbi, actressRepo))
                     .register(new com.organizer3.mcp.tools.SqlQueryTool(mcpRoDb))
                     .register(new com.organizer3.mcp.tools.SqlTablesTool(mcpRoDb))
                     .register(new com.organizer3.mcp.tools.SqlSchemaTool(mcpRoDb))
