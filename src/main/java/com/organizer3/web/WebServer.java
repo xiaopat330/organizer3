@@ -91,6 +91,15 @@ public class WebServer {
         handler.register(app);
     }
 
+    /**
+     * Mounts the MCP (Model Context Protocol) endpoint on this server.
+     * The endpoint is disabled if {@code mcp.enabled: false} in config.
+     * Call after construction, before {@link #start()}.
+     */
+    public void registerMcp(com.organizer3.mcp.McpServer mcp) {
+        mcp.register(app);
+    }
+
     private void registerRoutes(TitleBrowseService browseService,
                                 ActressBrowseService actressBrowseService, Path coversRoot,
                                 VideoStreamService videoStreamService,

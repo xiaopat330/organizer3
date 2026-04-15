@@ -122,30 +122,17 @@ This tool intentionally exposes raw table and column names, which is why `sql_sc
 
 ### 3.1 Embedding model
 
-**In-process.** The MCP server is started from `Application.java` alongside the web server and shell, shares the same repositories, and lives exactly as long as the app does. When the app shuts down, the MCP server shuts down with it. No standalone launcher, no coordination with a running shell — there is only one process.
+**In-process, on the existing Javalin web server.** The MCP server is not a separate process or a separate listener — it's a set of routes mounted on the Javalin instance that already serves the web UI. Lifecycle is automatic: the MCP endpoint is live as soon as `webServer.start()` returns and stops when `webServer.stop()` is called.
 
 The MCP server holds **two** JDBC handles to the SQLite DB: the shared app `Jdbi` (used by all tools that go through repositories) and a **second read-only handle** opened with `mode=ro` in the JDBC URL, dedicated to the `sql_query` tool. SQLite WAL permits concurrent readers alongside the app's writer, and the `mode=ro` flag guarantees raw SQL cannot mutate even if the statement filter is bypassed.
 
-Consequence: the MCP client cannot spawn the server on demand the way Claude Desktop spawns stdio subprocesses. The client connects to an already-running instance. That drives the transport choice.
-
 ### 3.2 Transport
 
-**Unix domain socket** under `dataDir/mcp.sock`. The app binds it on startup and unlinks it on shutdown. MCP clients that support socket transport connect directly; clients that only speak stdio (Claude Desktop today) use a tiny `socat`-style bridge script as their `command`:
+**HTTP (MCP Streamable HTTP transport)** on the existing Javalin port. A single `POST /mcp` endpoint accepts JSON-RPC 2.0 request bodies and returns JSON-RPC responses. An optional `GET /mcp` upgrades to Server-Sent Events for server-initiated notifications, though Phase 1 doesn't need it — we return synchronous responses.
 
-```json
-{
-  "mcpServers": {
-    "organizer3": {
-      "command": "socat",
-      "args": ["-", "UNIX-CONNECT:/Users/pyoung/.organizer3/mcp.sock"]
-    }
-  }
-}
-```
+The app already binds a port for the web UI; reusing it avoids new networking infrastructure, a separate bridge tool, and a second thing to keep mounted/unmounted. The MCP endpoint sits next to the existing web routes and shares Javalin's thread pool.
 
-The bridge is one line of config; the app doesn't ship it. If the app isn't running, the client gets a connection error — that's the intended behavior.
-
-A TCP fallback on `127.0.0.1:<port>` is available as a second transport mode for clients that can't do either socket or bridge. Off by default.
+No dedicated MCP SDK is used. The protocol surface we need is small enough to hand-roll over Jackson (which is already a dependency): `initialize`, `tools/list`, `tools/call`, and the `notifications/initialized` ack. CLAUDE.md forbids Spring, which the official Java MCP SDK drags in, so hand-rolling is the right call on dependency grounds too.
 
 ### 3.3 Code layout
 
@@ -274,22 +261,30 @@ A new top-level `mcp:` block in `organizer-config.yaml`:
 
 ```yaml
 mcp:
-  enabled: true
-  transport: socket       # socket | tcp
-  socketPath: mcp.sock    # relative to dataDir; used when transport=socket
-  tcpPort: 0              # used when transport=tcp; 0 = disabled
+  enabled: true           # false skips route registration entirely
+  path: /mcp              # HTTP path mounted on the existing Javalin server
   allowMutations: false   # master switch for Phase 2 tools
 ```
 
-The MCP subsystem is skipped on app start if `enabled: false`. Phase 2 tools are hidden from the tool list when `allowMutations: false`.
+The port is whatever the web server is already bound to; there is no separate MCP port. If `enabled: false`, the routes are not registered and the endpoint returns 404. Phase 2 tools are hidden from `tools/list` when `allowMutations: false`.
 
 ---
 
 ## 6. Client setup
 
-The app must be running for the MCP server to be reachable. See §3.2 for the `socat` bridge snippet that lets stdio-only clients talk to the socket. Clients with native Unix-socket or TCP transport connect directly.
+The app must be running. MCP clients that support HTTP transport connect directly:
 
-No credentials, no URL. The server runs inside the already-configured app process.
+```json
+{
+  "mcpServers": {
+    "organizer3": {
+      "url": "http://localhost:7070/mcp"
+    }
+  }
+}
+```
+
+(Replace the port with whatever the Javalin server is bound to.) No credentials, no bridge tool. If the app isn't running, the client gets a connection error — that's the intended behavior.
 
 ---
 
