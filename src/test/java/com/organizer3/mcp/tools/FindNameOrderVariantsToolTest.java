@@ -67,6 +67,17 @@ class FindNameOrderVariantsToolTest {
     }
 
     @Test
+    void ignoresExactStringCollisionsAcrossActresses() throws Exception {
+        // Two different actresses with the same exact canonical name — this is an
+        // alias-conflict case, not a name-order inversion. The tool should skip it.
+        repo.save(mk("Yua Mikami"));
+        repo.save(mk("yua mikami")); // same tokens, same order, different actress id
+
+        var r = (FindNameOrderVariantsTool.Result) tool.call(args(2, 100));
+        assertEquals(0, r.count(), "exact-string collisions belong to find_alias_conflicts");
+    }
+
+    @Test
     void caseInsensitiveMatch() throws Exception {
         repo.save(mk("Yua Mikami"));
         repo.save(mk("MIKAMI yua"));

@@ -9,10 +9,12 @@ import com.organizer3.repository.ActressRepository;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * Find groups of actresses whose names (canonical or alias) have the same set of tokens
@@ -66,6 +68,14 @@ public class FindNameOrderVariantsTool implements Tool {
             List<Member> members = e.getValue();
             long distinctIds = members.stream().mapToLong(m -> m.actressId).distinct().count();
             if (distinctIds < 2) continue;
+            // True order variants: at least two members must have *differing* original strings.
+            // Groups where every member shares the same spelling are exact-string collisions —
+            // that's find_alias_conflicts territory, not name-order inversions.
+            Set<String> distinctNames = new HashSet<>();
+            for (Member m : members) {
+                distinctNames.add(m.name.trim().toLowerCase(Locale.ROOT).replaceAll("\\s+", " "));
+            }
+            if (distinctNames.size() < 2) continue;
             groups.add(new Group(Arrays.asList(e.getKey().split(" ")), members));
             if (groups.size() >= limit) break;
         }
