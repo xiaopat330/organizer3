@@ -31,51 +31,65 @@ volumes:
     smbPath: //pandora/jav_A
     structureType: conventional
     server: pandora
+    letters: [A]
 
   - id: bg
     smbPath: //pandora/jav_BG
     structureType: conventional
     server: pandora
+    letters: [B, C, D, E, F, G]
 
   - id: hj
     smbPath: //pandora/jav_HJ
     structureType: conventional
     server: pandora
+    letters: [H, I, J]
 
   - id: k
     smbPath: //pandora/jav_K
     structureType: conventional
     server: pandora
+    letters: [K]
 
+  # "ma" holds Ma-prefixed actresses only (most-specific match).
+  # "m" holds the rest of M (Mb-Mz) — the plain "M" prefix still matches Ma-names
+  # too, but sort only flags actual LETTER mismatches (not sub-optimal volume
+  # placement), so no conflict.
   - id: m
     smbPath: //pandora/jav_M
     structureType: conventional
     server: pandora
+    letters: [M]
 
   - id: ma
     smbPath: //pandora/jav_MA
     structureType: conventional
     server: pandora
+    letters: [Ma]
 
   - id: n
     smbPath: //pandora/jav_N
     structureType: conventional
     server: pandora
+    letters: [N]
 
   - id: r
     smbPath: //pandora/jav_OR
     structureType: conventional
     server: pandora
+    letters: [O, P, Q, R]
 
   - id: s
     smbPath: //pandora/jav_S
     structureType: conventional
     server: pandora
+    letters: [S]
 
   - id: tz
     smbPath: //pandora/jav_TZ
     structureType: conventional
     server: pandora
+    letters: [T, U, V, W, X, Y, Z]
 
   - id: unsorted
     smbPath: //pandora/jav_unsorted

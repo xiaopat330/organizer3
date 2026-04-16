@@ -293,6 +293,13 @@ public class Application {
                 new com.organizer3.organize.TitleRestructurerService(config.mediaOrDefaults());
         commands.add(new com.organizer3.command.RestructureTitleCommand(jdbi, titleRestructurerService));
 
+        // Organize-pipeline commands — phase 3: sort title from queue → /stars/{tier}/{actress}/
+        com.organizer3.organize.TitleSorterService titleSorterService =
+                new com.organizer3.organize.TitleSorterService(
+                        titleRepo, actressRepo, titleActressRepo, titleLocationRepo,
+                        config.libraryOrDefaults(), titleTimestampService);
+        commands.add(new com.organizer3.command.SortTitleCommand(jdbi, config, titleSorterService));
+
         // Thumbnail service — created early so commands can reference it
         int thumbnailInterval = config.thumbnailInterval() != null ? config.thumbnailInterval() : 8;
         ThumbnailService thumbnailService = new ThumbnailService(
@@ -429,6 +436,7 @@ public class Application {
                 mcpTools.register(new com.organizer3.mcp.tools.AuditVolumeTimestampsTool(session, jdbi, titleTimestampService));
                 mcpTools.register(new com.organizer3.mcp.tools.NormalizeTitleTool(session, jdbi, titleNormalizerService));
                 mcpTools.register(new com.organizer3.mcp.tools.RestructureTitleTool(session, jdbi, titleRestructurerService));
+                mcpTools.register(new com.organizer3.mcp.tools.SortTitleTool(session, jdbi, config, titleSorterService));
                 log.info("MCP file-op tools enabled");
             }
             com.organizer3.mcp.McpServer mcpServer = new com.organizer3.mcp.McpServer(

@@ -100,4 +100,18 @@ public class JdbiTitleLocationRepository implements TitleLocationRepository {
                         .execute()
         );
     }
+
+    @Override
+    public void updatePathAndPartition(long locationId, Path newPath, String newPartitionId) {
+        jdbi.useHandle(h ->
+                h.createUpdate("""
+                        UPDATE title_locations
+                        SET path = :path, partition_id = :partitionId
+                        WHERE id = :id""")
+                        .bind("id", locationId)
+                        .bind("path", newPath.toString())
+                        .bind("partitionId", newPartitionId)
+                        .execute()
+        );
+    }
 }
