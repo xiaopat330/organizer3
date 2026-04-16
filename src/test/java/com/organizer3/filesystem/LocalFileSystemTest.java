@@ -187,4 +187,86 @@ class LocalFileSystemTest {
         assertDoesNotThrow(() -> fs.createDirectories(existing));
         assertTrue(Files.isDirectory(existing));
     }
+
+    // --- getTimestamps ---
+
+    @Test
+    void getTimestamps_returnsAllThreeForFile() throws IOException {
+        Path file = Files.createFile(tempDir.resolve("file.txt"));
+        FileTimestamps t = fs.getTimestamps(file);
+        assertNotNull(t);
+        assertNotNull(t.created());
+        assertNotNull(t.modified());
+        assertNotNull(t.accessed());
+    }
+
+    @Test
+    void getTimestamps_worksForDirectories() throws IOException {
+        Path dir = Files.createDirectory(tempDir.resolve("d"));
+        FileTimestamps t = fs.getTimestamps(dir);
+        assertNotNull(t.modified());
+    }
+
+    // --- setTimestamps ---
+
+    @Test
+    void setTimestamps_updatesModifiedTime() throws IOException {
+        Path file = Files.createFile(tempDir.resolve("f.txt"));
+        java.time.Instant target = java.time.Instant.parse("2020-01-15T10:30:00Z");
+
+        fs.setTimestamps(file, null, target);
+
+        FileTimestamps after = fs.getTimestamps(file);
+        assertEquals(target.toEpochMilli(), after.modified().toEpochMilli());
+    }
+
+    @Test
+    void setTimestamps_updatesCreationTime() throws IOException {
+        Path file = Files.createFile(tempDir.resolve("f.txt"));
+        java.time.Instant target = java.time.Instant.parse("2018-06-01T00:00:00Z");
+
+        fs.setTimestamps(file, target, null);
+
+        FileTimestamps after = fs.getTimestamps(file);
+        assertNotNull(after.created());
+        assertEquals(target.toEpochMilli(), after.created().toEpochMilli());
+    }
+
+    @Test
+    void setTimestamps_bothFieldsAtOnce() throws IOException {
+        Path file = Files.createFile(tempDir.resolve("f.txt"));
+        java.time.Instant created  = java.time.Instant.parse("2020-01-15T10:30:00Z");
+        java.time.Instant modified = java.time.Instant.parse("2021-03-20T15:45:00Z");
+
+        fs.setTimestamps(file, created, modified);
+
+        FileTimestamps after = fs.getTimestamps(file);
+        assertEquals(created.toEpochMilli(),  after.created().toEpochMilli());
+        assertEquals(modified.toEpochMilli(), after.modified().toEpochMilli());
+    }
+
+    @Test
+    void setTimestamps_worksOnDirectories() throws IOException {
+        Path dir = Files.createDirectory(tempDir.resolve("d"));
+        java.time.Instant target = java.time.Instant.parse("2019-12-31T23:59:59Z");
+
+        fs.setTimestamps(dir, target, target);
+
+        FileTimestamps after = fs.getTimestamps(dir);
+        assertEquals(target.toEpochMilli(), after.modified().toEpochMilli());
+    }
+
+    @Test
+    void setTimestamps_nullArgsLeaveTimestampsAlone() throws IOException {
+        Path file = Files.createFile(tempDir.resolve("f.txt"));
+        FileTimestamps before = fs.getTimestamps(file);
+
+        fs.setTimestamps(file, null, null);
+
+        FileTimestamps after = fs.getTimestamps(file);
+        assertEquals(before.modified().toEpochMilli(), after.modified().toEpochMilli());
+        if (before.created() != null && after.created() != null) {
+            assertEquals(before.created().toEpochMilli(), after.created().toEpochMilli());
+        }
+    }
 }

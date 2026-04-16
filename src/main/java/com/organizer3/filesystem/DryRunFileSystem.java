@@ -5,6 +5,8 @@ import java.io.InputStream;
 import java.io.PrintWriter;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.attribute.BasicFileAttributes;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.List;
@@ -98,5 +100,19 @@ public class DryRunFileSystem implements VolumeFileSystem {
     @Override
     public void writeFile(Path path, byte[] contents) {
         out.printf("[DRY RUN] write: %s (%d bytes)%n", path, contents.length);
+    }
+
+    @Override
+    public FileTimestamps getTimestamps(Path path) throws IOException {
+        BasicFileAttributes a = Files.readAttributes(path, BasicFileAttributes.class);
+        Instant created  = a.creationTime()     != null ? a.creationTime().toInstant()     : null;
+        Instant modified = a.lastModifiedTime() != null ? a.lastModifiedTime().toInstant() : null;
+        Instant accessed = a.lastAccessTime()   != null ? a.lastAccessTime().toInstant()   : null;
+        return new FileTimestamps(created, modified, accessed);
+    }
+
+    @Override
+    public void setTimestamps(Path path, Instant created, Instant modified) {
+        out.printf("[DRY RUN] setTimestamps: %s created=%s modified=%s%n", path, created, modified);
     }
 }

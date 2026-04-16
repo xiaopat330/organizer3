@@ -197,5 +197,7 @@ class MountVolumeToolsTest {
         @Override public void rename(Path p, String n)      {}
         @Override public void createDirectories(Path p)     {}
         @Override public void writeFile(Path p, byte[] b)   {}
+        @Override public com.organizer3.filesystem.FileTimestamps getTimestamps(Path p) { return new com.organizer3.filesystem.FileTimestamps(null, null, null); }
+        @Override public void setTimestamps(Path p, java.time.Instant c, java.time.Instant m) {}
     };
 }

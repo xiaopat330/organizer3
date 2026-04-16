@@ -32,7 +32,9 @@ public class McpServer {
      */
     private static final String PROTOCOL_VERSION = "2024-11-05";
 
-    private static final ObjectMapper MAPPER = new ObjectMapper();
+    private static final ObjectMapper MAPPER = new ObjectMapper()
+            .registerModule(new com.fasterxml.jackson.datatype.jsr310.JavaTimeModule())
+            .disable(com.fasterxml.jackson.databind.SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
 
     private final ToolRegistry registry;
     private final McpConfig config;

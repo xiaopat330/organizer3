@@ -3,6 +3,7 @@ package com.organizer3.filesystem;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Path;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
 
@@ -78,4 +79,20 @@ public interface VolumeFileSystem {
      * must already exist. Atomicity is not guaranteed — on SMB this is a sequential write.
      */
     void writeFile(Path path, byte[] contents) throws IOException;
+
+    /**
+     * Returns the file or folder's timestamps. Works for both files and directories.
+     * Fields may be {@code null} if not supported by the underlying filesystem.
+     */
+    FileTimestamps getTimestamps(Path path) throws IOException;
+
+    /**
+     * Sets the file or folder's creation and/or modification time. A {@code null} arg leaves
+     * that timestamp unchanged. Works for both files and directories.
+     *
+     * <p>Required SMB access: {@code FILE_WRITE_ATTRIBUTES} in addition to {@code FILE_READ_ATTRIBUTES}
+     * so we can preserve the other fields. Access time is intentionally not exposed —
+     * it's usually OS-maintained and rarely useful to set from app code.
+     */
+    void setTimestamps(Path path, Instant created, Instant modified) throws IOException;
 }

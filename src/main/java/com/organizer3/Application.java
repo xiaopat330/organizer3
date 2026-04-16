@@ -277,6 +277,12 @@ public class Application {
         commands.add(new ScanCoversCommand(titleRepo, volumeRepo, coverPath, scannerRegistry));
         commands.add(new PruneCoversCommand(titleRepo, coverPath));
 
+        // Organize-pipeline commands — title-folder timestamp correction
+        com.organizer3.organize.TitleTimestampService titleTimestampService =
+                new com.organizer3.organize.TitleTimestampService();
+        commands.add(new com.organizer3.command.FixTitleTimestampsCommand(jdbi, titleTimestampService));
+        commands.add(new com.organizer3.command.AuditTimestampsCommand(jdbi, titleTimestampService));
+
         // Thumbnail service — created early so commands can reference it
         int thumbnailInterval = config.thumbnailInterval() != null ? config.thumbnailInterval() : 8;
         ThumbnailService thumbnailService = new ThumbnailService(
@@ -409,6 +415,8 @@ public class Application {
                 mcpTools.register(new com.organizer3.mcp.tools.TrashDuplicateCoverTool(session, jdbi, config));
                 mcpTools.register(new com.organizer3.mcp.tools.MoveCoverToBaseTool(session, jdbi));
                 mcpTools.register(new com.organizer3.mcp.tools.SandboxWriteTestTool(session, config));
+                mcpTools.register(new com.organizer3.mcp.tools.FixTitleTimestampsTool(session, jdbi, titleTimestampService));
+                mcpTools.register(new com.organizer3.mcp.tools.AuditVolumeTimestampsTool(session, jdbi, titleTimestampService));
                 log.info("MCP file-op tools enabled");
             }
             com.organizer3.mcp.McpServer mcpServer = new com.organizer3.mcp.McpServer(
