@@ -71,13 +71,13 @@ public class ProbeJobRunner {
      * @param volumeId  the mounted volume to probe
      * @param maxVideos optional cap on how many unprobed videos to attempt this run;
      *                  {@code <= 0} means "probe all remaining"
-     * @return state of the started job, or of the already-running job if one exists
+     * @return snapshot of the started job, or of the already-running job if one exists
      */
-    public synchronized JobState start(String volumeId, int maxVideos) {
+    public synchronized Snapshot start(String volumeId, int maxVideos) {
         evictStaleCompleted();
         JobState active = activeJob();
         if (active != null) {
-            return active.withAlreadyRunning(true);
+            return Snapshot.of(active, true);
         }
         String id = UUID.randomUUID().toString();
         long totalInitially = videoRepo.countUnprobed(volumeId);
@@ -85,18 +85,19 @@ public class ProbeJobRunner {
         jobs.put(id, state);
         Future<?> future = executor.submit(() -> runLoop(state));
         state.future = future;
-        return state;
+        return Snapshot.of(state, false);
     }
 
-    public JobState status(String jobId) {
+    public Snapshot status(String jobId) {
         evictStaleCompleted();
         JobState s = jobs.get(jobId);
         if (s == null) throw new IllegalArgumentException("No job with id " + jobId);
-        return s;
+        return Snapshot.of(s, false);
     }
 
-    public JobState active() {
-        return activeJob();
+    public Snapshot active() {
+        JobState s = activeJob();
+        return s == null ? null : Snapshot.of(s, false);
     }
 
     public boolean cancel(String jobId) {
@@ -192,56 +193,56 @@ public class ProbeJobRunner {
 
     public enum Status { RUNNING, COMPLETED, CANCELLED, FAILED }
 
-    public static final class JobState {
-        private final String id;
-        private final String volumeId;
-        private final LocalDateTime startedAt;
-        private final long totalInitiallyUnprobed;
-        private final int maxVideos;
-        private final AtomicInteger probed   = new AtomicInteger();
-        private final AtomicInteger failed   = new AtomicInteger();
-        private final AtomicBoolean cancelRequested = new AtomicBoolean();
-        private volatile Status status = Status.RUNNING;
-        private volatile LocalDateTime completedAt;
-        private volatile String failureReason;
-        private volatile Future<?> future;
-        private final boolean alreadyRunning;
+    /** Jackson-friendly immutable snapshot of a {@link JobState}. Returned by all public API methods. */
+    public record Snapshot(
+            String id,
+            String volumeId,
+            String startedAt,
+            String completedAt,
+            long totalInitiallyUnprobed,
+            int maxVideos,
+            int probed,
+            int failed,
+            Status status,
+            String failureReason,
+            boolean alreadyRunning
+    ) {
+        static Snapshot of(JobState s, boolean alreadyRunning) {
+            return new Snapshot(
+                    s.id, s.volumeId,
+                    s.startedAt == null ? null : s.startedAt.toString(),
+                    s.completedAt == null ? null : s.completedAt.toString(),
+                    s.totalInitiallyUnprobed,
+                    s.maxVideos,
+                    s.probed.get(),
+                    s.failed.get(),
+                    s.status,
+                    s.failureReason,
+                    alreadyRunning);
+        }
+    }
+
+    static final class JobState {
+        final String id;
+        final String volumeId;
+        final LocalDateTime startedAt;
+        final long totalInitiallyUnprobed;
+        final int maxVideos;
+        final AtomicInteger probed   = new AtomicInteger();
+        final AtomicInteger failed   = new AtomicInteger();
+        final AtomicBoolean cancelRequested = new AtomicBoolean();
+        volatile Status status = Status.RUNNING;
+        volatile LocalDateTime completedAt;
+        volatile String failureReason;
+        volatile Future<?> future;
 
         JobState(String id, String volumeId, LocalDateTime startedAt,
                  long totalInitiallyUnprobed, int maxVideos) {
-            this(id, volumeId, startedAt, totalInitiallyUnprobed, maxVideos, false);
-        }
-
-        private JobState(String id, String volumeId, LocalDateTime startedAt,
-                         long totalInitiallyUnprobed, int maxVideos, boolean alreadyRunning) {
             this.id = id;
             this.volumeId = volumeId;
             this.startedAt = startedAt;
             this.totalInitiallyUnprobed = totalInitiallyUnprobed;
             this.maxVideos = maxVideos;
-            this.alreadyRunning = alreadyRunning;
         }
-
-        JobState withAlreadyRunning(boolean flag) {
-            JobState s = new JobState(id, volumeId, startedAt, totalInitiallyUnprobed, maxVideos, flag);
-            s.probed.set(this.probed.get());
-            s.failed.set(this.failed.get());
-            s.status = this.status;
-            s.completedAt = this.completedAt;
-            s.failureReason = this.failureReason;
-            return s;
-        }
-
-        public String  id()                    { return id; }
-        public String  volumeId()              { return volumeId; }
-        public String  startedAt()             { return startedAt.toString(); }
-        public String  completedAt()           { return completedAt == null ? null : completedAt.toString(); }
-        public long    totalInitiallyUnprobed(){ return totalInitiallyUnprobed; }
-        public int     maxVideos()             { return maxVideos; }
-        public int     probed()                { return probed.get(); }
-        public int     failed()                { return failed.get(); }
-        public Status  status()                { return status; }
-        public String  failureReason()         { return failureReason; }
-        public boolean alreadyRunning()        { return alreadyRunning; }
     }
 }

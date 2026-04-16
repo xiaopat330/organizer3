@@ -31,11 +31,11 @@ public class ProbeJobStatusTool implements Tool {
     public Object call(JsonNode args) {
         String id = Schemas.optString(args, "jobId", null);
         if (id == null || id.isBlank()) {
-            ProbeJobRunner.JobState active = runner.active();
+            ProbeJobRunner.Snapshot active = runner.active();
             return new Result(active != null, active);
         }
         return new Result(true, runner.status(id));
     }
 
-    public record Result(boolean present, ProbeJobRunner.JobState job) {}
+    public record Result(boolean present, ProbeJobRunner.Snapshot job) {}
 }

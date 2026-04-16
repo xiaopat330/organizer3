@@ -66,7 +66,7 @@ class ProbeJobRunnerTest {
         canned.put(v2.getId(), Map.of("durationSeconds", 200L, "width", 1, "height", 1,
                 "videoCodec", "h264", "audioCodec", "aac"));
 
-        ProbeJobRunner.JobState s = runner.start("a", 0);
+        ProbeJobRunner.Snapshot s = runner.start("a", 0);
         assertEquals(ProbeJobRunner.Status.COMPLETED, s.status());
         assertEquals(2, s.probed());
         assertEquals(0, s.failed());
@@ -82,7 +82,7 @@ class ProbeJobRunnerTest {
                     "videoCodec", "h264", "audioCodec", "aac"));
         }
 
-        ProbeJobRunner.JobState s = runner.start("a", 2);
+        ProbeJobRunner.Snapshot s = runner.start("a", 2);
         assertEquals(ProbeJobRunner.Status.COMPLETED, s.status());
         assertEquals(2, s.probed(), "cap respected");
         assertEquals(3L, videoRepo.countUnprobed("a"), "3 rows remain null");
@@ -96,7 +96,7 @@ class ProbeJobRunnerTest {
         canned.put(v1.getId(), Map.of("durationSeconds", 100L, "width", 1, "height", 1,
                 "videoCodec", "h264", "audioCodec", "aac"));
 
-        ProbeJobRunner.JobState s = runner.start("a", 0);
+        ProbeJobRunner.Snapshot s = runner.start("a", 0);
         assertEquals(ProbeJobRunner.Status.COMPLETED, s.status());
         assertEquals(1, s.probed());
         assertEquals(1, s.failed());
@@ -115,7 +115,7 @@ class ProbeJobRunnerTest {
         // dedicated test path: use a no-op repo to keep the loop short, then start again.
         runner.start("a", 0);
         // Second start after first completes — should create a NEW job, not return the old.
-        ProbeJobRunner.JobState s2 = runner.start("a", 0);
+        ProbeJobRunner.Snapshot s2 = runner.start("a", 0);
         assertFalse(s2.alreadyRunning());
     }
 
@@ -125,8 +125,8 @@ class ProbeJobRunnerTest {
         Video v = videoRepo.save(video(tid, "a.mkv"));
         canned.put(v.getId(), Map.of("durationSeconds", 100L, "width", 1, "height", 1,
                 "videoCodec", "h264", "audioCodec", "aac"));
-        ProbeJobRunner.JobState s = runner.start("a", 0);
-        ProbeJobRunner.JobState again = runner.status(s.id());
+        ProbeJobRunner.Snapshot s = runner.start("a", 0);
+        ProbeJobRunner.Snapshot again = runner.status(s.id());
         assertEquals(s.id(), again.id());
     }
 
