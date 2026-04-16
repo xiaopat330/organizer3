@@ -112,7 +112,13 @@ public class SchemaInitializer {
                         volume_id     TEXT NOT NULL,
                         filename      TEXT NOT NULL,
                         path          TEXT NOT NULL,
-                        last_seen_at  TEXT NOT NULL
+                        last_seen_at  TEXT NOT NULL,
+                        duration_sec  INTEGER,
+                        width         INTEGER,
+                        height        INTEGER,
+                        video_codec   TEXT,
+                        audio_codec   TEXT,
+                        container     TEXT
                     )""");
 
             h.execute("""
@@ -329,7 +335,7 @@ public class SchemaInitializer {
             // leave the version alone and let SchemaUpgrader apply any missing migrations.
             int currentVersion = h.createQuery("PRAGMA user_version").mapTo(Integer.class).one();
             if (currentVersion == 0) {
-                h.execute("PRAGMA user_version = 17");
+                h.execute("PRAGMA user_version = 18");
             }
         });
         log.info("Schema initialization complete");

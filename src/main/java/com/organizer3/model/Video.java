@@ -14,7 +14,7 @@ import java.time.LocalDate;
  * each represented by one Video record.
  */
 @Value
-@Builder
+@Builder(toBuilder = true)
 public class Video {
     Long id;
     Long titleId;
@@ -22,4 +22,14 @@ public class Video {
     String filename;
     Path path;
     LocalDate lastSeenAt;
+
+    // Media metadata — populated by VideoProbe during sync or backfill. All nullable;
+    // {@code durationSec == null} is the "needs probing" signal used by the backfill command.
+    Long    durationSec;
+    Integer width;
+    Integer height;
+    String  videoCodec;
+    String  audioCodec;
+    /** Derived from filename extension — e.g. "mkv", "mp4", "avi". Lowercase, no dot. */
+    String  container;
 }

@@ -184,6 +184,56 @@ class JdbiVideoRepositoryTest {
         assertEquals(1, videoRepo.findByTitle(starsTitle.getId()).size());
     }
 
+    // --- v18 metadata ---
+
+    @org.junit.jupiter.api.Test
+    void saveRoundtripsMetadataFields() {
+        Title t = saveTitle("SKY-283");
+        Video saved = videoRepo.save(Video.builder()
+                .titleId(t.getId()).volumeId("vol-a")
+                .filename("sky283.mkv").path(Path.of("/x/sky283.mkv"))
+                .lastSeenAt(LocalDate.now())
+                .durationSec(3600L).width(1920).height(1080)
+                .videoCodec("h264").audioCodec("aac").container("mkv")
+                .build());
+
+        Video loaded = videoRepo.findById(saved.getId()).orElseThrow();
+        assertEquals(3600L,  loaded.getDurationSec());
+        assertEquals(1920,   loaded.getWidth());
+        assertEquals(1080,   loaded.getHeight());
+        assertEquals("h264", loaded.getVideoCodec());
+        assertEquals("aac",  loaded.getAudioCodec());
+        assertEquals("mkv",  loaded.getContainer());
+    }
+
+    @org.junit.jupiter.api.Test
+    void updateMetadataOverwritesOnlyMetadataFields() {
+        Title t = saveTitle("SKY-283");
+        Video v = videoRepo.save(video(t.getId(), "x.mkv", "/x.mkv"));
+        assertNull(v.getDurationSec(), "fresh row has null metadata");
+
+        videoRepo.updateMetadata(v.getId(), 7200L, 3840, 2160, "hevc", "eac3", "mkv");
+        Video after = videoRepo.findById(v.getId()).orElseThrow();
+        assertEquals(7200L, after.getDurationSec());
+        assertEquals("hevc", after.getVideoCodec());
+        assertEquals("x.mkv", after.getFilename(), "non-metadata fields untouched");
+    }
+
+    @org.junit.jupiter.api.Test
+    void findUnprobedAndCountUnprobedRespectVolumeFilter() {
+        Title t = saveTitle("ABP-001");
+        videoRepo.save(video(t.getId(), "a.mkv", "/a"));
+        videoRepo.save(video(t.getId(), "b.mkv", "/b"));
+        Video probed = videoRepo.save(video(t.getId(), "c.mkv", "/c"));
+        videoRepo.updateMetadata(probed.getId(), 100L, 1280, 720, "h264", "aac", "mkv");
+
+        assertEquals(2, videoRepo.countUnprobed(null));
+        assertEquals(2, videoRepo.countUnprobed("vol-a"));
+        assertEquals(0, videoRepo.countUnprobed("vol-nowhere"));
+        assertEquals(2, videoRepo.findUnprobed(null, 10).size());
+        assertEquals(1, videoRepo.findUnprobed(null, 1).size(), "limit respected");
+    }
+
     // --- Helpers ---
 
     /** Save a title with a location in the "queue" partition on vol-a. */

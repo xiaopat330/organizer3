@@ -19,7 +19,7 @@ import org.jdbi.v3.core.Jdbi;
 public class SchemaUpgrader {
 
     /** Must match the version stamped by {@link SchemaInitializer}. */
-    private static final int CURRENT_VERSION = 17;
+    private static final int CURRENT_VERSION = 18;
 
     private final Jdbi jdbi;
 
@@ -108,7 +108,28 @@ public class SchemaUpgrader {
             setVersion(17);
         }
 
+        if (version < 18) {
+            applyV18();
+            setVersion(18);
+        }
+
         log.info("Schema upgrade complete");
+    }
+
+    /**
+     * v18: Video metadata columns for duplicate/normalization tooling.
+     * All fields are nullable; {@code duration_sec IS NULL} is the "needs backfill" signal.
+     */
+    private void applyV18() {
+        log.info("Applying migration v18: video metadata columns");
+        jdbi.useHandle(h -> {
+            addColumnIfMissing(h, "videos", "duration_sec", "INTEGER");
+            addColumnIfMissing(h, "videos", "width",        "INTEGER");
+            addColumnIfMissing(h, "videos", "height",       "INTEGER");
+            addColumnIfMissing(h, "videos", "video_codec",  "TEXT");
+            addColumnIfMissing(h, "videos", "audio_codec",  "TEXT");
+            addColumnIfMissing(h, "videos", "container",    "TEXT");
+        });
     }
 
     /**

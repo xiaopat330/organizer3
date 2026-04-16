@@ -20,6 +20,23 @@ public interface VideoRepository {
      */
     Video save(Video video);
 
+    /**
+     * Overwrite media metadata fields (durationSec, width, height, videoCodec, audioCodec,
+     * container) for one video. Used by the sync probe and the backfill command.
+     * Other fields are left untouched.
+     */
+    void updateMetadata(long videoId, Long durationSec, Integer width, Integer height,
+                        String videoCodec, String audioCodec, String container);
+
+    /**
+     * Returns videos whose {@code duration_sec} is NULL — the backfill candidates.
+     * Optionally filtered by volume; {@code null} volume means all volumes.
+     */
+    List<Video> findUnprobed(String volumeId, int limit);
+
+    /** Count of videos with {@code duration_sec IS NULL}, optionally per volume. */
+    long countUnprobed(String volumeId);
+
     void delete(long id);
 
     void deleteByTitle(long titleId);

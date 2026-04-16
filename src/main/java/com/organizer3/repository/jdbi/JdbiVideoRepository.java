@@ -14,14 +14,28 @@ import java.util.Optional;
 @RequiredArgsConstructor
 public class JdbiVideoRepository implements VideoRepository {
 
-    private static final RowMapper<Video> MAPPER = (rs, ctx) -> Video.builder()
-            .id(rs.getLong("id"))
-            .titleId(rs.getLong("title_id"))
-            .volumeId(rs.getString("volume_id"))
-            .filename(rs.getString("filename"))
-            .path(Path.of(rs.getString("path")))
-            .lastSeenAt(LocalDate.parse(rs.getString("last_seen_at")))
-            .build();
+    private static final RowMapper<Video> MAPPER = (rs, ctx) -> {
+        long duration = rs.getLong("duration_sec");
+        Long durationOrNull = rs.wasNull() ? null : duration;
+        int width = rs.getInt("width");
+        Integer widthOrNull = rs.wasNull() ? null : width;
+        int height = rs.getInt("height");
+        Integer heightOrNull = rs.wasNull() ? null : height;
+        return Video.builder()
+                .id(rs.getLong("id"))
+                .titleId(rs.getLong("title_id"))
+                .volumeId(rs.getString("volume_id"))
+                .filename(rs.getString("filename"))
+                .path(Path.of(rs.getString("path")))
+                .lastSeenAt(LocalDate.parse(rs.getString("last_seen_at")))
+                .durationSec(durationOrNull)
+                .width(widthOrNull)
+                .height(heightOrNull)
+                .videoCodec(rs.getString("video_codec"))
+                .audioCodec(rs.getString("audio_codec"))
+                .container(rs.getString("container"))
+                .build();
+    };
 
     private final Jdbi jdbi;
 
@@ -50,21 +64,28 @@ public class JdbiVideoRepository implements VideoRepository {
         return jdbi.withHandle(h -> {
             if (video.getId() == null) {
                 long id = h.createUpdate("""
-                                INSERT INTO videos (title_id, volume_id, filename, path, last_seen_at)
-                                VALUES (:titleId, :volumeId, :filename, :path, :lastSeenAt)
+                                INSERT INTO videos
+                                    (title_id, volume_id, filename, path, last_seen_at,
+                                     duration_sec, width, height, video_codec, audio_codec, container)
+                                VALUES
+                                    (:titleId, :volumeId, :filename, :path, :lastSeenAt,
+                                     :durationSec, :width, :height, :videoCodec, :audioCodec, :container)
                                 """)
                         .bind("titleId", video.getTitleId())
                         .bind("volumeId", video.getVolumeId())
                         .bind("filename", video.getFilename())
                         .bind("path", video.getPath().toString())
                         .bind("lastSeenAt", video.getLastSeenAt().toString())
+                        .bind("durationSec", video.getDurationSec())
+                        .bind("width", video.getWidth())
+                        .bind("height", video.getHeight())
+                        .bind("videoCodec", video.getVideoCodec())
+                        .bind("audioCodec", video.getAudioCodec())
+                        .bind("container", video.getContainer())
                         .executeAndReturnGeneratedKeys("id")
                         .mapTo(Long.class)
                         .one();
-                return Video.builder()
-                        .id(id).titleId(video.getTitleId()).volumeId(video.getVolumeId())
-                        .filename(video.getFilename()).path(video.getPath()).lastSeenAt(video.getLastSeenAt())
-                        .build();
+                return video.toBuilder().id(id).build();
             } else {
                 h.createUpdate("""
                                 UPDATE videos SET
@@ -81,6 +102,53 @@ public class JdbiVideoRepository implements VideoRepository {
                         .execute();
                 return video;
             }
+        });
+    }
+
+    @Override
+    public void updateMetadata(long videoId, Long durationSec, Integer width, Integer height,
+                               String videoCodec, String audioCodec, String container) {
+        jdbi.useHandle(h ->
+                h.createUpdate("""
+                        UPDATE videos SET
+                            duration_sec = :durationSec,
+                            width        = :width,
+                            height       = :height,
+                            video_codec  = :videoCodec,
+                            audio_codec  = :audioCodec,
+                            container    = :container
+                        WHERE id = :id
+                        """)
+                        .bind("id", videoId)
+                        .bind("durationSec", durationSec)
+                        .bind("width", width)
+                        .bind("height", height)
+                        .bind("videoCodec", videoCodec)
+                        .bind("audioCodec", audioCodec)
+                        .bind("container", container)
+                        .execute());
+    }
+
+    @Override
+    public List<Video> findUnprobed(String volumeId, int limit) {
+        return jdbi.withHandle(h -> {
+            String sql = "SELECT * FROM videos WHERE duration_sec IS NULL"
+                    + (volumeId != null ? " AND volume_id = :volumeId" : "")
+                    + " ORDER BY id LIMIT :limit";
+            var q = h.createQuery(sql).bind("limit", limit);
+            if (volumeId != null) q.bind("volumeId", volumeId);
+            return q.map(MAPPER).list();
+        });
+    }
+
+    @Override
+    public long countUnprobed(String volumeId) {
+        return jdbi.withHandle(h -> {
+            String sql = "SELECT COUNT(*) FROM videos WHERE duration_sec IS NULL"
+                    + (volumeId != null ? " AND volume_id = :volumeId" : "");
+            var q = h.createQuery(sql);
+            if (volumeId != null) q.bind("volumeId", volumeId);
+            return q.mapTo(Long.class).one();
         });
     }
 
