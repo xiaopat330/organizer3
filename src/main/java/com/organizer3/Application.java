@@ -206,7 +206,8 @@ public class Application {
         // Commands
         List<Command> commands = new ArrayList<>();
         commands.add(new ShutdownCommand());
-        MountCommand mountCommand = new MountCommand(new SmbjConnector(), indexLoader);
+        SmbjConnector smbjConnector = new SmbjConnector();
+        MountCommand mountCommand = new MountCommand(smbjConnector, indexLoader);
         commands.add(mountCommand);
         commands.add(new UnmountCommand());
         commands.add(new VolumesCommand(mountCommand, volumeRepo));
@@ -381,6 +382,13 @@ public class Application {
                     .register(new com.organizer3.mcp.tools.FindMultiCoverTitlesTool(session, jdbi))
                     .register(new com.organizer3.mcp.tools.FindMisfiledCoversTool(session, jdbi))
                     .register(new com.organizer3.mcp.tools.ScanTitleFolderAnomaliesTool(session, titleRepo, titleLocationRepo))
+                    .register(new com.organizer3.mcp.tools.MountStatusTool(session));
+            if (mcpConfig.networkOpsAllowed()) {
+                mcpTools.register(new com.organizer3.mcp.tools.MountVolumeTool(session, smbjConnector, indexLoader));
+                mcpTools.register(new com.organizer3.mcp.tools.UnmountVolumeTool(session));
+                log.info("MCP network-op tools enabled");
+            }
+            mcpTools
                     .register(new com.organizer3.mcp.tools.SqlQueryTool(mcpRoDb))
                     .register(new com.organizer3.mcp.tools.SqlTablesTool(mcpRoDb))
                     .register(new com.organizer3.mcp.tools.SqlSchemaTool(mcpRoDb))
