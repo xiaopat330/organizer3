@@ -133,9 +133,12 @@ class SmbFileSystem implements VolumeFileSystem {
     public void move(Path source, Path destination) throws IOException {
         String srcPath = toSmbPath(source);
         String dstPath = toSmbPath(destination);
+        // Minimal rights for FileRenameInformation: DELETE on the source, plus
+        // FILE_READ_ATTRIBUTES which some SMB stacks require during the rename flow.
+        // GENERIC_ALL was rejected by NAS ACLs that grant modify but not full control.
         try (File f = share.openFile(
                 srcPath,
-                EnumSet.of(AccessMask.GENERIC_ALL),
+                EnumSet.of(AccessMask.DELETE, AccessMask.FILE_READ_ATTRIBUTES),
                 EnumSet.of(FileAttributes.FILE_ATTRIBUTE_NORMAL),
                 EnumSet.of(SMB2ShareAccess.FILE_SHARE_DELETE),
                 SMB2CreateDisposition.FILE_OPEN,

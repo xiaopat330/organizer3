@@ -408,6 +408,7 @@ public class Application {
             if (mcpConfig.mutationsAllowed() && mcpConfig.fileOpsAllowed()) {
                 mcpTools.register(new com.organizer3.mcp.tools.TrashDuplicateCoverTool(session, jdbi, config));
                 mcpTools.register(new com.organizer3.mcp.tools.MoveCoverToBaseTool(session, jdbi));
+                mcpTools.register(new com.organizer3.mcp.tools.SandboxWriteTestTool(session, config));
                 log.info("MCP file-op tools enabled");
             }
             com.organizer3.mcp.McpServer mcpServer = new com.organizer3.mcp.McpServer(
