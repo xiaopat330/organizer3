@@ -1,0 +1,44 @@
+profile:
+  name:
+    family_name: Ito
+    given_name: Chinami
+    stage_name: 伊東ちなみ
+    reading: いとう ちなみ
+    alternate_names:
+    - name: 伊東千奈美
+      note: alternate kanji rendering of the given name used in some sources
+  date_of_birth: 1996-12-01
+  birthplace: Shizuoka Prefecture, Japan
+  blood_type: null
+  height_cm: 163
+  measurements:
+    bust: null
+    waist: null
+    hip: null
+  cup: F
+  active_from: 2015-09-10
+  active_to: 2018-12-13
+  retirement_announced: null
+  biography: "Chinami Ito (伊東ちなみ) was born on December 1, 1996, in Shizuoka Prefecture and debuted with MOODYZ on September 10, 2015, while an active university student attending a private institution in Tokyo. Her debut title MIDE-264, 'サワカワ18歳AVデビュー！！', emphasized her fresh, youthful appearance and she was described by media as 'Japan's cutest naked female college student', earning coverage in Kodansha's FRIDAY and Weekly Gendai. She released a photo book through Kodansha in October 2016. She is widely noted for her bust having grown from a C-cup at debut to an F-cup by 2017, which she attributed publicly to soy milk consumption and self-massage and expressly denied was the result of surgery. Her final titles were recalled by MOODYZ in December 2018, and all her works were removed from retail and streaming platforms in July 2019 under circumstances that were never publicly explained by the studio or actress."
+  primary_studios:
+  - name: MOODYZ
+    company: MOODYZ
+    from: 2015-09-10
+    to: 2018-12-13
+    role: Exclusive contract actress
+  awards: []
+  legacy: "Chinami Ito was notable during her MOODYZ career for the combination of her genuine active-student status, her documented natural physical development, and the unusual unexplained recall of her entire catalog — a combination that continued to attract online discussion and fan interest well after her departure from the industry."
+
+meta:
+  total_owned_titles: null
+  titles_with_japanese_title: null
+  titles_with_english_title: null
+  titles_with_release_date: null
+  total_known_releases: null
+  coverage_note: "Career confined to MOODYZ MIDE label, approximately September 2015 to December 2018. All titles withdrawn from distribution by July 2019. Exact title count not determined."
+  confidence: "Moderate — DOB (1996-12-01) and birthplace (Shizuoka) from Japanese Wikipedia. Height 163 cm from NamuWiki profile. Cup progression (C at debut → F by 2017) from Chinese Wikipedia and Japanese blog sources; exact bust/waist/hip measurements not found in available sources. Debut title and date confirmed by multiple sources. active_to is the date of the recalled release (December 2018); final confirmed activity date may differ."
+  data_sources:
+  - https://ja.wikipedia.org/wiki/%E4%BC%8A%E6%9D%B1%E3%81%A1%E3%81%AA%E3%81%BF
+  - https://zh.wikipedia.org/wiki/%E4%BC%8A%E6%9D%B1%E5%8D%83%E5%A5%88%E7%BE%8E
+  - https://en.namu.wiki/w/%EC%9D%B4%ED%86%A0%20%EC%B9%98%EB%82%98%EB%AF%B8
+  portfolio_listed: 0
