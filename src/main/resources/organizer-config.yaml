@@ -209,3 +209,106 @@ syncConfig:
     commands:
       - term: sync all
         operation: full
+
+# Library tier thresholds — see spec/PROPOSAL_ORGANIZE_PIPELINE.md §5.1.
+# Actress with n titles goes to:
+#   n <  star       → pool     (no tier folder; titles stay in volume queue)
+#   n <  minor      → library
+#   n <  popular    → minor
+#   n <  superstar  → popular
+#   n <  goddess    → superstar
+#   n >= goddess    → goddess
+library:
+  star:      3
+  minor:     5
+  popular:   20
+  superstar: 50
+  goddess:   100
+
+# Filename normalization rules for the normalize phase. Carried forward verbatim
+# from legacy/operation-config.yaml. See spec/PROPOSAL_ORGANIZE_PIPELINE.md §5.2.
+normalize:
+  replacelist:
+    - { from: 'FC2-PPV',                  to: 'FC2PPV' }
+    - { from: '-4K',                      to: '_4K' }
+    - { from: '-UC-',                     to: '_U-' }
+    - { from: '-U-',                      to: '_U-' }
+    - { from: '-uncensored-nyap2p.com-',  to: '_U-' }
+    - { from: '-Uncen',                   to: '_U' }
+    - { from: '_uncensored',              to: '_U' }
+  removelist:
+    - 'hhd800.com@'
+    - '-h264'
+    - 'hjd2048.com-'
+    - 'www.av9.cc-'
+    - 'hotavxxx.com_'
+    - 'jp.myav.tv-'
+    - '[Thz.la]'
+    - '【Thz.la】'
+    - '@蜂鳥@fengniao131.vip-'
+    - '-1080P'
+    - '[168x.me]'
+    - '[44x.me]'
+    - '[456k.me]'
+    - '[88k.me]'
+    - '[88q.me]'
+    - '[99u.me]'
+    - '[FHD]'
+    - '[HD]'
+    - '[ThZu.Cc]'
+    - 'dioguitar23.net_'
+    - 'xxfhd.com_原版首发_'
+    - 'www.av9.cc-'
+    - 'mp4'
+    - 'hhb'
+    - 'dioguitar23.net'
+    - 'AsiaMoviePass'
+    - 'play999.cc-'
+    - 'FHD'
+    - '.1080p'
+    - '-AV'
+    - 'yaobaibai@'
+    - 'javset.com-'
+    - 'YA88.CC-'
+    - 'crv2000.com-'
+    - '5032.ifei.com.tw-'
+    - 'fullhd'
+    - 'g-cup.tv-'
+    - 'bbyxv.xyz-'
+    - 'big-cup.tv-'
+    - 'hjd2048.com_'
+    - 'dioguitar23.me_'
+    - '.HD'
+    - '-kan224.com'
+    - '-javbo.net_'
+    - 'hjd2048.com'
+    - '_HD'
+    - 'JAVSET.COM-'
+    - '3xplanet_'
+    - 'www.0597.me-'
+    - 'Jav.li_'
+    - 'hotavxxx.com-'
+    - 'avidol.us-'
+    - '1080fhd.com_'
+    - 'bbsxv.xyz-'
+    - 'fun2048.com@'
+    - '-yav.me'
+    - 'boy999.co-'
+    - 'zzpp08.com@'
+    - '-720p'
+    - 'aaxv.xyz-'
+    - 'mw6.me_'
+    - 'avmans.com-'
+    - 'hdtongzhi.com@[NoDRM]-'
+    - 'big2048.com@'
+    - '169bbs.com@'
+    - '169bbs1.com@'
+    - '4K2.ME@'
+    - '4k2.me@'
+    - '489155.com@'
+
+# Media file extensions — which extensions count as video vs cover files for
+# the organize pipeline. See spec/PROPOSAL_ORGANIZE_PIPELINE.md §5.3.
+media:
+  videoExtensions: [asf, wma, wmv, wm, avi, mpg, mpeg, mkv, mov, rmvb, mp4, m4v, mp4v, m2ts, ts, divx]
+  coverExtensions: [jpg, jpeg, png, webp]
