@@ -71,4 +71,9 @@ public class LocalFileSystem implements VolumeFileSystem {
     public void createDirectories(Path path) throws IOException {
         Files.createDirectories(path);
     }
+
+    @Override
+    public void writeFile(Path path, byte[] contents) throws IOException {
+        Files.write(path, contents);
+    }
 }

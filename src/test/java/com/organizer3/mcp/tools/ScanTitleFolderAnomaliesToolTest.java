@@ -172,6 +172,7 @@ class ScanTitleFolderAnomaliesToolTest {
         @Override public void move(Path s, Path d)           {}
         @Override public void rename(Path p, String n)       {}
         @Override public void createDirectories(Path p)      {}
+        @Override public void writeFile(Path p, byte[] b)    {}
     }
 
     private static final class FakeConnection implements VolumeConnection {

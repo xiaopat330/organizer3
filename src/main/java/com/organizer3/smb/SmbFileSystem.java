@@ -173,6 +173,22 @@ class SmbFileSystem implements VolumeFileSystem {
         }
     }
 
+    @Override
+    public void writeFile(Path path, byte[] contents) throws IOException {
+        String smbPath = toSmbPath(path);
+        try (File f = share.openFile(
+                smbPath,
+                EnumSet.of(AccessMask.GENERIC_WRITE),
+                EnumSet.of(FileAttributes.FILE_ATTRIBUTE_NORMAL),
+                EnumSet.of(SMB2ShareAccess.FILE_SHARE_READ),
+                SMB2CreateDisposition.FILE_OVERWRITE_IF,
+                EnumSet.noneOf(SMB2CreateOptions.class))) {
+            f.write(contents, 0);
+        } catch (Exception e) {
+            throw new IOException("Failed to write file: " + path, e);
+        }
+    }
+
     // -------------------------------------------------------------------------
     // Path translation
     // -------------------------------------------------------------------------
