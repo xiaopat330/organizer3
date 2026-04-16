@@ -72,4 +72,10 @@ public interface VolumeFileSystem {
      * Creates {@code path} and any missing parent directories (mkdir -p semantics).
      */
     void createDirectories(Path path) throws IOException;
+
+    /**
+     * Writes {@code contents} to {@code path}, creating or overwriting. The parent directory
+     * must already exist. Atomicity is not guaranteed — on SMB this is a sequential write.
+     */
+    void writeFile(Path path, byte[] contents) throws IOException;
 }

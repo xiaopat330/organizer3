@@ -402,7 +402,14 @@ public class Application {
                     .register(new com.organizer3.mcp.tools.ReadTextFileTool(session));
             if (mcpConfig.mutationsAllowed()) {
                 mcpTools.register(new com.organizer3.mcp.tools.MergeActressesTool(jdbi, actressRepo));
+                mcpTools.register(new com.organizer3.mcp.tools.DeleteTitleTool(jdbi, titleRepo));
                 log.info("MCP mutation tools enabled");
+            }
+            if (mcpConfig.mutationsAllowed() && mcpConfig.fileOpsAllowed()) {
+                mcpTools.register(new com.organizer3.mcp.tools.TrashDuplicateCoverTool(session, jdbi, config));
+                mcpTools.register(new com.organizer3.mcp.tools.MoveCoverToBaseTool(session, jdbi));
+                mcpTools.register(new com.organizer3.mcp.tools.SandboxWriteTestTool(session, config));
+                log.info("MCP file-op tools enabled");
             }
             com.organizer3.mcp.McpServer mcpServer = new com.organizer3.mcp.McpServer(
                     mcpTools, mcpConfig, "organizer3", "0.1.0");

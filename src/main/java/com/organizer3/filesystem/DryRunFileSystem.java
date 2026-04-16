@@ -94,4 +94,9 @@ public class DryRunFileSystem implements VolumeFileSystem {
     public void createDirectories(Path path) {
         out.printf("[DRY RUN] mkdir: %s%n", path);
     }
+
+    @Override
+    public void writeFile(Path path, byte[] contents) {
+        out.printf("[DRY RUN] write: %s (%d bytes)%n", path, contents.length);
+    }
 }

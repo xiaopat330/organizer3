@@ -1,0 +1,733 @@
+[
+  {
+    "volumeId": "a",
+    "mount": "ok",
+    "success": true,
+    "steps": [
+      {
+        "op": "ensure sandbox root",
+        "ok": true,
+        "error": null
+      },
+      {
+        "op": "createDirectories run",
+        "ok": true,
+        "error": null
+      },
+      {
+        "op": "writeFile marker",
+        "ok": true,
+        "error": null
+      },
+      {
+        "op": "createDirectories sub",
+        "ok": true,
+        "error": null
+      },
+      {
+        "op": "move marker",
+        "ok": true,
+        "error": null
+      },
+      {
+        "op": "rename moved",
+        "ok": true,
+        "error": null
+      },
+      {
+        "op": "readback renamed",
+        "ok": true,
+        "error": null
+      }
+    ],
+    "runDir": "/_sandbox/write-test-1776368294197"
+  },
+  {
+    "volumeId": "bg",
+    "mount": "ok",
+    "success": true,
+    "steps": [
+      {
+        "op": "ensure sandbox root",
+        "ok": true,
+        "error": null
+      },
+      {
+        "op": "createDirectories run",
+        "ok": true,
+        "error": null
+      },
+      {
+        "op": "writeFile marker",
+        "ok": true,
+        "error": null
+      },
+      {
+        "op": "createDirectories sub",
+        "ok": true,
+        "error": null
+      },
+      {
+        "op": "move marker",
+        "ok": true,
+        "error": null
+      },
+      {
+        "op": "rename moved",
+        "ok": true,
+        "error": null
+      },
+      {
+        "op": "readback renamed",
+        "ok": true,
+        "error": null
+      }
+    ],
+    "runDir": "/_sandbox/write-test-1776368294340"
+  },
+  {
+    "volumeId": "hj",
+    "mount": "ok",
+    "success": true,
+    "steps": [
+      {
+        "op": "ensure sandbox root",
+        "ok": true,
+        "error": null
+      },
+      {
+        "op": "createDirectories run",
+        "ok": true,
+        "error": null
+      },
+      {
+        "op": "writeFile marker",
+        "ok": true,
+        "error": null
+      },
+      {
+        "op": "createDirectories sub",
+        "ok": true,
+        "error": null
+      },
+      {
+        "op": "move marker",
+        "ok": true,
+        "error": null
+      },
+      {
+        "op": "rename moved",
+        "ok": true,
+        "error": null
+      },
+      {
+        "op": "readback renamed",
+        "ok": true,
+        "error": null
+      }
+    ],
+    "runDir": "/_sandbox/write-test-1776368294526"
+  },
+  {
+    "volumeId": "k",
+    "mount": "ok",
+    "success": true,
+    "steps": [
+      {
+        "op": "ensure sandbox root",
+        "ok": true,
+        "error": null
+      },
+      {
+        "op": "createDirectories run",
+        "ok": true,
+        "error": null
+      },
+      {
+        "op": "writeFile marker",
+        "ok": true,
+        "error": null
+      },
+      {
+        "op": "createDirectories sub",
+        "ok": true,
+        "error": null
+      },
+      {
+        "op": "move marker",
+        "ok": true,
+        "error": null
+      },
+      {
+        "op": "rename moved",
+        "ok": true,
+        "error": null
+      },
+      {
+        "op": "readback renamed",
+        "ok": true,
+        "error": null
+      }
+    ],
+    "runDir": "/_sandbox/write-test-1776368294921"
+  },
+  {
+    "volumeId": "m",
+    "mount": "ok",
+    "success": true,
+    "steps": [
+      {
+        "op": "ensure sandbox root",
+        "ok": true,
+        "error": null
+      },
+      {
+        "op": "createDirectories run",
+        "ok": true,
+        "error": null
+      },
+      {
+        "op": "writeFile marker",
+        "ok": true,
+        "error": null
+      },
+      {
+        "op": "createDirectories sub",
+        "ok": true,
+        "error": null
+      },
+      {
+        "op": "move marker",
+        "ok": true,
+        "error": null
+      },
+      {
+        "op": "rename moved",
+        "ok": true,
+        "error": null
+      },
+      {
+        "op": "readback renamed",
+        "ok": true,
+        "error": null
+      }
+    ],
+    "runDir": "/_sandbox/write-test-1776368295397"
+  },
+  {
+    "volumeId": "ma",
+    "mount": "ok",
+    "success": true,
+    "steps": [
+      {
+        "op": "ensure sandbox root",
+        "ok": true,
+        "error": null
+      },
+      {
+        "op": "createDirectories run",
+        "ok": true,
+        "error": null
+      },
+      {
+        "op": "writeFile marker",
+        "ok": true,
+        "error": null
+      },
+      {
+        "op": "createDirectories sub",
+        "ok": true,
+        "error": null
+      },
+      {
+        "op": "move marker",
+        "ok": true,
+        "error": null
+      },
+      {
+        "op": "rename moved",
+        "ok": true,
+        "error": null
+      },
+      {
+        "op": "readback renamed",
+        "ok": true,
+        "error": null
+      }
+    ],
+    "runDir": "/_sandbox/write-test-1776368295769"
+  },
+  {
+    "volumeId": "n",
+    "mount": "ok",
+    "success": true,
+    "steps": [
+      {
+        "op": "ensure sandbox root",
+        "ok": true,
+        "error": null
+      },
+      {
+        "op": "createDirectories run",
+        "ok": true,
+        "error": null
+      },
+      {
+        "op": "writeFile marker",
+        "ok": true,
+        "error": null
+      },
+      {
+        "op": "createDirectories sub",
+        "ok": true,
+        "error": null
+      },
+      {
+        "op": "move marker",
+        "ok": true,
+        "error": null
+      },
+      {
+        "op": "rename moved",
+        "ok": true,
+        "error": null
+      },
+      {
+        "op": "readback renamed",
+        "ok": true,
+        "error": null
+      }
+    ],
+    "runDir": "/_sandbox/write-test-1776368295915"
+  },
+  {
+    "volumeId": "r",
+    "mount": "ok",
+    "success": true,
+    "steps": [
+      {
+        "op": "ensure sandbox root",
+        "ok": true,
+        "error": null
+      },
+      {
+        "op": "createDirectories run",
+        "ok": true,
+        "error": null
+      },
+      {
+        "op": "writeFile marker",
+        "ok": true,
+        "error": null
+      },
+      {
+        "op": "createDirectories sub",
+        "ok": true,
+        "error": null
+      },
+      {
+        "op": "move marker",
+        "ok": true,
+        "error": null
+      },
+      {
+        "op": "rename moved",
+        "ok": true,
+        "error": null
+      },
+      {
+        "op": "readback renamed",
+        "ok": true,
+        "error": null
+      }
+    ],
+    "runDir": "/_sandbox/write-test-1776368296137"
+  },
+  {
+    "volumeId": "s",
+    "mount": "ok",
+    "success": true,
+    "steps": [
+      {
+        "op": "ensure sandbox root",
+        "ok": true,
+        "error": null
+      },
+      {
+        "op": "createDirectories run",
+        "ok": true,
+        "error": null
+      },
+      {
+        "op": "writeFile marker",
+        "ok": true,
+        "error": null
+      },
+      {
+        "op": "createDirectories sub",
+        "ok": true,
+        "error": null
+      },
+      {
+        "op": "move marker",
+        "ok": true,
+        "error": null
+      },
+      {
+        "op": "rename moved",
+        "ok": true,
+        "error": null
+      },
+      {
+        "op": "readback renamed",
+        "ok": true,
+        "error": null
+      }
+    ],
+    "runDir": "/_sandbox/write-test-1776368296604"
+  },
+  {
+    "volumeId": "tz",
+    "mount": "ok",
+    "success": true,
+    "steps": [
+      {
+        "op": "ensure sandbox root",
+        "ok": true,
+        "error": null
+      },
+      {
+        "op": "createDirectories run",
+        "ok": true,
+        "error": null
+      },
+      {
+        "op": "writeFile marker",
+        "ok": true,
+        "error": null
+      },
+      {
+        "op": "createDirectories sub",
+        "ok": true,
+        "error": null
+      },
+      {
+        "op": "move marker",
+        "ok": true,
+        "error": null
+      },
+      {
+        "op": "rename moved",
+        "ok": true,
+        "error": null
+      },
+      {
+        "op": "readback renamed",
+        "ok": true,
+        "error": null
+      }
+    ],
+    "runDir": "/_sandbox/write-test-1776368297020"
+  },
+  {
+    "volumeId": "unsorted",
+    "mount": "ok",
+    "success": true,
+    "steps": [
+      {
+        "op": "ensure sandbox root",
+        "ok": true,
+        "error": null
+      },
+      {
+        "op": "createDirectories run",
+        "ok": true,
+        "error": null
+      },
+      {
+        "op": "writeFile marker",
+        "ok": true,
+        "error": null
+      },
+      {
+        "op": "createDirectories sub",
+        "ok": true,
+        "error": null
+      },
+      {
+        "op": "move marker",
+        "ok": true,
+        "error": null
+      },
+      {
+        "op": "rename moved",
+        "ok": true,
+        "error": null
+      },
+      {
+        "op": "readback renamed",
+        "ok": true,
+        "error": null
+      }
+    ],
+    "runDir": "/_sandbox/write-test-1776368297336"
+  },
+  {
+    "volumeId": "pool",
+    "mount": "ok",
+    "success": true,
+    "steps": [
+      {
+        "op": "ensure sandbox root",
+        "ok": true,
+        "error": null
+      },
+      {
+        "op": "createDirectories run",
+        "ok": true,
+        "error": null
+      },
+      {
+        "op": "writeFile marker",
+        "ok": true,
+        "error": null
+      },
+      {
+        "op": "createDirectories sub",
+        "ok": true,
+        "error": null
+      },
+      {
+        "op": "move marker",
+        "ok": true,
+        "error": null
+      },
+      {
+        "op": "rename moved",
+        "ok": true,
+        "error": null
+      },
+      {
+        "op": "readback renamed",
+        "ok": true,
+        "error": null
+      }
+    ],
+    "runDir": "/_sandbox/write-test-1776368297776"
+  },
+  {
+    "volumeId": "qnap_archive",
+    "mount": "ok",
+    "success": true,
+    "steps": [
+      {
+        "op": "ensure sandbox root",
+        "ok": true,
+        "error": null
+      },
+      {
+        "op": "createDirectories run",
+        "ok": true,
+        "error": null
+      },
+      {
+        "op": "writeFile marker",
+        "ok": true,
+        "error": null
+      },
+      {
+        "op": "createDirectories sub",
+        "ok": true,
+        "error": null
+      },
+      {
+        "op": "move marker",
+        "ok": true,
+        "error": null
+      },
+      {
+        "op": "rename moved",
+        "ok": true,
+        "error": null
+      },
+      {
+        "op": "readback renamed",
+        "ok": true,
+        "error": null
+      }
+    ],
+    "runDir": "/_sandbox/write-test-1776368297872"
+  },
+  {
+    "volumeId": "collections",
+    "mount": "ok",
+    "success": true,
+    "steps": [
+      {
+        "op": "ensure sandbox root",
+        "ok": true,
+        "error": null
+      },
+      {
+        "op": "createDirectories run",
+        "ok": true,
+        "error": null
+      },
+      {
+        "op": "writeFile marker",
+        "ok": true,
+        "error": null
+      },
+      {
+        "op": "createDirectories sub",
+        "ok": true,
+        "error": null
+      },
+      {
+        "op": "move marker",
+        "ok": true,
+        "error": null
+      },
+      {
+        "op": "rename moved",
+        "ok": true,
+        "error": null
+      },
+      {
+        "op": "readback renamed",
+        "ok": true,
+        "error": null
+      }
+    ],
+    "runDir": "/_sandbox/write-test-1776368297987"
+  },
+  {
+    "volumeId": "qnap",
+    "mount": "ok",
+    "success": true,
+    "steps": [
+      {
+        "op": "ensure sandbox root",
+        "ok": true,
+        "error": null
+      },
+      {
+        "op": "createDirectories run",
+        "ok": true,
+        "error": null
+      },
+      {
+        "op": "writeFile marker",
+        "ok": true,
+        "error": null
+      },
+      {
+        "op": "createDirectories sub",
+        "ok": true,
+        "error": null
+      },
+      {
+        "op": "move marker",
+        "ok": true,
+        "error": null
+      },
+      {
+        "op": "rename moved",
+        "ok": true,
+        "error": null
+      },
+      {
+        "op": "readback renamed",
+        "ok": true,
+        "error": null
+      }
+    ],
+    "runDir": "/_sandbox/write-test-1776368298551"
+  },
+  {
+    "volumeId": "classic",
+    "mount": "ok",
+    "success": true,
+    "steps": [
+      {
+        "op": "ensure sandbox root",
+        "ok": true,
+        "error": null
+      },
+      {
+        "op": "createDirectories run",
+        "ok": true,
+        "error": null
+      },
+      {
+        "op": "writeFile marker",
+        "ok": true,
+        "error": null
+      },
+      {
+        "op": "createDirectories sub",
+        "ok": true,
+        "error": null
+      },
+      {
+        "op": "move marker",
+        "ok": true,
+        "error": null
+      },
+      {
+        "op": "rename moved",
+        "ok": true,
+        "error": null
+      },
+      {
+        "op": "readback renamed",
+        "ok": true,
+        "error": null
+      }
+    ],
+    "runDir": "/_sandbox/write-test-1776368298885"
+  },
+  {
+    "volumeId": "classic_pool",
+    "mount": "ok",
+    "success": true,
+    "steps": [
+      {
+        "op": "ensure sandbox root",
+        "ok": true,
+        "error": null
+      },
+      {
+        "op": "createDirectories run",
+        "ok": true,
+        "error": null
+      },
+      {
+        "op": "writeFile marker",
+        "ok": true,
+        "error": null
+      },
+      {
+        "op": "createDirectories sub",
+        "ok": true,
+        "error": null
+      },
+      {
+        "op": "move marker",
+        "ok": true,
+        "error": null
+      },
+      {
+        "op": "rename moved",
+        "ok": true,
+        "error": null
+      },
+      {
+        "op": "readback renamed",
+        "ok": true,
+        "error": null
+      }
+    ],
+    "runDir": "/_sandbox/write-test-1776368299300"
+  }
+]
