@@ -130,12 +130,12 @@ public class JdbiVideoRepository implements VideoRepository {
     }
 
     @Override
-    public List<Video> findUnprobed(String volumeId, int limit) {
+    public List<Video> findUnprobed(String volumeId, long fromIdExclusive, int limit) {
         return jdbi.withHandle(h -> {
-            String sql = "SELECT * FROM videos WHERE duration_sec IS NULL"
+            String sql = "SELECT * FROM videos WHERE duration_sec IS NULL AND id > :fromId"
                     + (volumeId != null ? " AND volume_id = :volumeId" : "")
                     + " ORDER BY id LIMIT :limit";
-            var q = h.createQuery(sql).bind("limit", limit);
+            var q = h.createQuery(sql).bind("fromId", fromIdExclusive).bind("limit", limit);
             if (volumeId != null) q.bind("volumeId", volumeId);
             return q.map(MAPPER).list();
         });

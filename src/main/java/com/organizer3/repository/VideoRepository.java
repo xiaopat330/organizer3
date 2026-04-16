@@ -31,8 +31,11 @@ public interface VideoRepository {
     /**
      * Returns videos whose {@code duration_sec} is NULL — the backfill candidates.
      * Optionally filtered by volume; {@code null} volume means all volumes.
+     * Cursor-paginated: only returns rows with {@code id > fromIdExclusive} (use 0 to start),
+     * which lets the caller make forward progress even when individual probes fail and
+     * leave their rows with null metadata.
      */
-    List<Video> findUnprobed(String volumeId, int limit);
+    List<Video> findUnprobed(String volumeId, long fromIdExclusive, int limit);
 
     /** Count of videos with {@code duration_sec IS NULL}, optionally per volume. */
     long countUnprobed(String volumeId);

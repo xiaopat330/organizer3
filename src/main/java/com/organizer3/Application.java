@@ -338,6 +338,7 @@ public class Application {
         SmbConnectionFactory smbConnectionFactory = new SmbConnectionFactory(config);
         VideoStreamService videoStreamService = new VideoStreamService(titleRepo, videoRepo, smbConnectionFactory);
         VideoProbe videoProbe = new VideoProbe(WebServer.DEFAULT_PORT);
+        commands.add(new com.organizer3.command.ProbeVideosCommand(videoRepo, videoProbe::probe));
         CommandDispatcher dispatcher = new CommandDispatcher(commands);
 
         WebServer webServer = new WebServer(browseService, actressBrowseService, coverPath.root(),

@@ -230,8 +230,8 @@ class JdbiVideoRepositoryTest {
         assertEquals(2, videoRepo.countUnprobed(null));
         assertEquals(2, videoRepo.countUnprobed("vol-a"));
         assertEquals(0, videoRepo.countUnprobed("vol-nowhere"));
-        assertEquals(2, videoRepo.findUnprobed(null, 10).size());
-        assertEquals(1, videoRepo.findUnprobed(null, 1).size(), "limit respected");
+        assertEquals(2, videoRepo.findUnprobed(null, 0L, 10).size());
+        assertEquals(1, videoRepo.findUnprobed(null, 0L, 1).size(), "limit respected");
     }
 
     // --- Helpers ---
