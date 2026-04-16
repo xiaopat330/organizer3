@@ -1,0 +1,352 @@
+[12:06:11] Starting audit of 1 volumes: ['k']
+[12:06:11] === k (expected 3261 locations) ===
+[12:06:11]   scanning multi_cover...
+[12:06:29]     find_multi_cover_titles offset=0 scanned=500 hits=0 in 17.5s
+[12:06:35]     find_multi_cover_titles offset=500 scanned=500 hits=0 in 6.8s
+[12:06:42]     find_multi_cover_titles offset=1000 scanned=500 hits=0 in 6.5s
+[12:06:49]     find_multi_cover_titles offset=1500 scanned=500 hits=1 in 7.2s
+[12:06:56]     find_multi_cover_titles offset=2000 scanned=500 hits=2 in 6.9s
+[12:07:03]     find_multi_cover_titles offset=2500 scanned=500 hits=1 in 7.3s
+[12:07:07]     find_multi_cover_titles offset=3000 scanned=261 hits=0 in 3.6s
+[12:07:07]     scanned=3261 hits=4 errors=0
+[12:07:07]   scanning misfiled_covers...
+[12:07:15]     find_misfiled_covers offset=0 scanned=500 hits=0 in 8.5s
+[12:07:24]     find_misfiled_covers offset=500 scanned=500 hits=0 in 8.5s
+[12:07:33]     find_misfiled_covers offset=1000 scanned=500 hits=0 in 8.7s
+[12:07:40]     find_misfiled_covers offset=1500 scanned=500 hits=0 in 7.1s
+[12:07:48]     find_misfiled_covers offset=2000 scanned=500 hits=0 in 8.7s
+[12:07:57]     find_misfiled_covers offset=2500 scanned=500 hits=0 in 8.8s
+[12:08:01]     find_misfiled_covers offset=3000 scanned=261 hits=0 in 4.2s
+[12:08:01]     scanned=3261 hits=0 errors=0
+[12:08:01]   unmounted (unmounted)
+[12:08:01] Done in 110s (1.8 min)
+[12:08:39] Starting audit of 16 volumes: ['a', 'bg', 'classic', 'classic_pool', 'collections', 'hj', 'm', 'ma', 'n', 'pool', 'qnap', 'qnap_archive', 'r', 's', 'tz', 'unsorted']
+[12:08:39] === a (expected 5099 locations) ===
+[12:08:39]   scanning multi_cover...
+[12:08:56]     find_multi_cover_titles offset=0 scanned=500 hits=0 in 17.1s
+[12:09:02]     find_multi_cover_titles offset=500 scanned=500 hits=0 in 6.4s
+[12:09:08]     find_multi_cover_titles offset=1000 scanned=500 hits=0 in 5.5s
+[12:09:13]     find_multi_cover_titles offset=1500 scanned=500 hits=2 in 5.1s
+[12:09:18]     find_multi_cover_titles offset=2000 scanned=500 hits=0 in 5.3s
+[12:09:23]     find_multi_cover_titles offset=2500 scanned=500 hits=2 in 5.1s
+[12:09:29]     find_multi_cover_titles offset=3000 scanned=500 hits=1 in 5.6s
+[12:09:34]     find_multi_cover_titles offset=3500 scanned=500 hits=0 in 5.0s
+[12:09:39]     find_multi_cover_titles offset=4000 scanned=500 hits=0 in 4.9s
+[12:09:44]     find_multi_cover_titles offset=4500 scanned=500 hits=2 in 5.0s
+[12:09:45]     find_multi_cover_titles offset=5000 scanned=99 hits=2 in 1.2s
+[12:09:45]     scanned=5099 hits=9 errors=0
+[12:09:45]   scanning misfiled_covers...
+[12:09:52]     find_misfiled_covers offset=0 scanned=500 hits=0 in 6.7s
+[12:09:58]     find_misfiled_covers offset=500 scanned=500 hits=0 in 6.1s
+[12:10:04]     find_misfiled_covers offset=1000 scanned=500 hits=0 in 6.2s
+[12:10:10]     find_misfiled_covers offset=1500 scanned=500 hits=0 in 6.3s
+[12:10:17]     find_misfiled_covers offset=2000 scanned=500 hits=0 in 6.3s
+[12:10:23]     find_misfiled_covers offset=2500 scanned=500 hits=0 in 6.3s
+[12:10:30]     find_misfiled_covers offset=3000 scanned=500 hits=0 in 6.5s
+[12:10:36]     find_misfiled_covers offset=3500 scanned=500 hits=0 in 6.2s
+[12:10:42]     find_misfiled_covers offset=4000 scanned=500 hits=0 in 6.2s
+[12:10:50]     find_misfiled_covers offset=4500 scanned=500 hits=0 in 8.4s
+[12:10:52]     find_misfiled_covers offset=5000 scanned=99 hits=0 in 1.8s
+[12:10:52]     scanned=5099 hits=0 errors=0
+[12:10:52]   unmounted (unmounted)
+[12:10:52] === bg (expected 1423 locations) ===
+[12:10:52]   scanning multi_cover...
+[12:11:09]     find_multi_cover_titles offset=0 scanned=500 hits=4 in 16.8s
+[12:11:15]     find_multi_cover_titles offset=500 scanned=500 hits=4 in 5.9s
+[12:11:21]     find_multi_cover_titles offset=1000 scanned=423 hits=1 in 6.2s
+[12:11:21]     scanned=1423 hits=9 errors=0
+[12:11:21]   scanning misfiled_covers...
+[12:11:28]     find_misfiled_covers offset=0 scanned=500 hits=0 in 7.1s
+[12:11:35]     find_misfiled_covers offset=500 scanned=500 hits=0 in 7.1s
+[12:11:42]     find_misfiled_covers offset=1000 scanned=423 hits=0 in 6.9s
+[12:11:42]     scanned=1423 hits=0 errors=0
+[12:11:42]   unmounted (unmounted)
+[12:11:42] === classic (expected 1385 locations) ===
+[12:11:43]   scanning multi_cover...
+[12:11:49]     find_multi_cover_titles offset=0 scanned=500 hits=10 in 6.5s
+[12:11:55]     find_multi_cover_titles offset=500 scanned=500 hits=2 in 6.3s
+[12:12:00]     find_multi_cover_titles offset=1000 scanned=385 hits=1 in 5.0s
+[12:12:00]     scanned=1385 hits=13 errors=0
+[12:12:00]   scanning misfiled_covers...
+[12:12:09]     find_misfiled_covers offset=0 scanned=500 hits=1 in 8.9s
+[12:12:18]     find_misfiled_covers offset=500 scanned=500 hits=0 in 9.0s
+[12:12:25]     find_misfiled_covers offset=1000 scanned=385 hits=2 in 6.5s
+[12:12:25]     scanned=1385 hits=3 errors=0
+[12:12:25]   unmounted (unmounted)
+[12:12:25] === classic_pool (expected 2178 locations) ===
+[12:12:25]   scanning multi_cover...
+[12:12:31]     find_multi_cover_titles offset=0 scanned=500 hits=0 in 5.8s
+[12:12:37]     find_multi_cover_titles offset=500 scanned=500 hits=0 in 5.8s
+[12:12:43]     find_multi_cover_titles offset=1000 scanned=500 hits=0 in 6.1s
+[12:12:49]     find_multi_cover_titles offset=1500 scanned=500 hits=1 in 6.5s
+[12:12:51]     find_multi_cover_titles offset=2000 scanned=178 hits=0 in 2.1s
+[12:12:51]     scanned=2178 hits=1 errors=0
+[12:12:51]   scanning misfiled_covers...
+[12:13:00]     find_misfiled_covers offset=0 scanned=500 hits=0 in 8.0s
+[12:13:08]     find_misfiled_covers offset=500 scanned=500 hits=0 in 8.4s
+[12:13:16]     find_misfiled_covers offset=1000 scanned=500 hits=0 in 8.0s
+[12:13:25]     find_misfiled_covers offset=1500 scanned=500 hits=0 in 8.5s
+[12:13:27]     find_misfiled_covers offset=2000 scanned=178 hits=0 in 2.9s
+[12:13:27]     scanned=2178 hits=0 errors=0
+[12:13:27]   unmounted (unmounted)
+[12:13:27] === collections (expected 2325 locations) ===
+[12:13:27]   scanning multi_cover...
+[12:13:34]     find_multi_cover_titles offset=0 scanned=500 hits=1 in 6.9s
+[12:13:41]     find_multi_cover_titles offset=500 scanned=500 hits=0 in 6.7s
+[12:13:48]     find_multi_cover_titles offset=1000 scanned=500 hits=0 in 7.2s
+[12:13:55]     find_multi_cover_titles offset=1500 scanned=500 hits=0 in 6.9s
+[12:14:00]     find_multi_cover_titles offset=2000 scanned=325 hits=0 in 4.4s
+[12:14:00]     scanned=2325 hits=1 errors=0
+[12:14:00]   scanning misfiled_covers...
+[12:14:09]     find_misfiled_covers offset=0 scanned=500 hits=0 in 9.3s
+[12:14:17]     find_misfiled_covers offset=500 scanned=500 hits=0 in 8.2s
+[12:14:26]     find_misfiled_covers offset=1000 scanned=500 hits=0 in 8.9s
+[12:14:34]     find_misfiled_covers offset=1500 scanned=500 hits=0 in 8.5s
+[12:14:40]     find_misfiled_covers offset=2000 scanned=325 hits=0 in 5.2s
+[12:14:40]     scanned=2325 hits=0 errors=0
+[12:14:40]   unmounted (unmounted)
+[12:14:40] === hj (expected 3612 locations) ===
+[12:14:40]   scanning multi_cover...
+[12:14:47]     find_multi_cover_titles offset=0 scanned=500 hits=3 in 7.2s
+[12:14:54]     find_multi_cover_titles offset=500 scanned=500 hits=0 in 6.8s
+[12:15:01]     find_multi_cover_titles offset=1000 scanned=500 hits=3 in 7.0s
+[12:15:08]     find_multi_cover_titles offset=1500 scanned=500 hits=3 in 6.7s
+[12:15:14]     find_multi_cover_titles offset=2000 scanned=500 hits=0 in 6.9s
+[12:15:21]     find_multi_cover_titles offset=2500 scanned=500 hits=1 in 6.9s
+[12:15:28]     find_multi_cover_titles offset=3000 scanned=500 hits=3 in 6.9s
+[12:15:30]     find_multi_cover_titles offset=3500 scanned=112 hits=0 in 1.7s
+[12:15:30]     scanned=3612 hits=13 errors=0
+[12:15:30]   scanning misfiled_covers...
+[12:15:38]     find_misfiled_covers offset=0 scanned=500 hits=0 in 8.3s
+[12:15:46]     find_misfiled_covers offset=500 scanned=500 hits=0 in 8.1s
+[12:15:54]     find_misfiled_covers offset=1000 scanned=500 hits=0 in 7.8s
+[12:16:02]     find_misfiled_covers offset=1500 scanned=500 hits=0 in 7.9s
+[12:16:10]     find_misfiled_covers offset=2000 scanned=500 hits=0 in 8.3s
+[12:16:19]     find_misfiled_covers offset=2500 scanned=500 hits=0 in 8.5s
+[12:16:27]     find_misfiled_covers offset=3000 scanned=500 hits=0 in 8.0s
+[12:16:29]     find_misfiled_covers offset=3500 scanned=112 hits=0 in 1.8s
+[12:16:29]     scanned=3612 hits=0 errors=0
+[12:16:29]   unmounted (unmounted)
+[12:16:29] === m (expected 4902 locations) ===
+[12:16:29]   scanning multi_cover...
+[12:16:46]     find_multi_cover_titles offset=0 scanned=500 hits=5 in 17.0s
+[12:16:53]     find_multi_cover_titles offset=500 scanned=500 hits=2 in 6.9s
+[12:17:00]     find_multi_cover_titles offset=1000 scanned=500 hits=1 in 6.8s
+[12:17:06]     find_multi_cover_titles offset=1500 scanned=500 hits=5 in 6.7s
+[12:17:14]     find_multi_cover_titles offset=2000 scanned=500 hits=3 in 7.0s
+[12:17:20]     find_multi_cover_titles offset=2500 scanned=500 hits=0 in 6.6s
+[12:17:27]     find_multi_cover_titles offset=3000 scanned=500 hits=2 in 7.1s
+[12:17:34]     find_multi_cover_titles offset=3500 scanned=500 hits=2 in 7.0s
+[12:17:41]     find_multi_cover_titles offset=4000 scanned=500 hits=1 in 6.3s
+[12:17:47]     find_multi_cover_titles offset=4500 scanned=402 hits=2 in 6.0s
+[12:17:47]     scanned=4902 hits=23 errors=0
+[12:17:47]   scanning misfiled_covers...
+[12:17:55]     find_misfiled_covers offset=0 scanned=500 hits=0 in 8.7s
+[12:18:03]     find_misfiled_covers offset=500 scanned=500 hits=0 in 8.0s
+[12:18:12]     find_misfiled_covers offset=1000 scanned=500 hits=0 in 8.3s
+[12:18:20]     find_misfiled_covers offset=1500 scanned=500 hits=0 in 8.6s
+[12:18:28]     find_misfiled_covers offset=2000 scanned=500 hits=0 in 7.4s
+[12:18:34]     find_misfiled_covers offset=2500 scanned=500 hits=0 in 6.1s
+[12:18:40]     find_misfiled_covers offset=3000 scanned=500 hits=0 in 6.3s
+[12:18:46]     find_misfiled_covers offset=3500 scanned=500 hits=0 in 6.3s
+[12:18:52]     find_misfiled_covers offset=4000 scanned=500 hits=0 in 6.1s
+[12:18:59]     find_misfiled_covers offset=4500 scanned=402 hits=0 in 6.3s
+[12:18:59]     scanned=4902 hits=0 errors=0
+[12:18:59]   unmounted (unmounted)
+[12:18:59] === ma (expected 2189 locations) ===
+[12:19:00]   scanning multi_cover...
+[12:19:08]     find_multi_cover_titles offset=0 scanned=500 hits=4 in 8.3s
+[12:19:16]     find_multi_cover_titles offset=500 scanned=500 hits=2 in 7.3s
+[12:19:23]     find_multi_cover_titles offset=1000 scanned=500 hits=6 in 7.3s
+[12:19:30]     find_multi_cover_titles offset=1500 scanned=500 hits=2 in 7.2s
+[12:19:33]     find_multi_cover_titles offset=2000 scanned=189 hits=0 in 2.7s
+[12:19:33]     scanned=2189 hits=14 errors=0
+[12:19:33]   scanning misfiled_covers...
+[12:19:41]     find_misfiled_covers offset=0 scanned=500 hits=0 in 8.4s
+[12:19:50]     find_misfiled_covers offset=500 scanned=500 hits=0 in 9.1s
+[12:19:59]     find_misfiled_covers offset=1000 scanned=500 hits=0 in 8.9s
+[12:20:08]     find_misfiled_covers offset=1500 scanned=500 hits=0 in 8.8s
+[12:20:12]     find_misfiled_covers offset=2000 scanned=189 hits=0 in 3.5s
+[12:20:12]     scanned=2189 hits=0 errors=0
+[12:20:12]   unmounted (unmounted)
+[12:20:12] === n (expected 2342 locations) ===
+[12:20:12]   scanning multi_cover...
+[12:20:19]     find_multi_cover_titles offset=0 scanned=500 hits=1 in 7.2s
+[12:20:26]     find_multi_cover_titles offset=500 scanned=500 hits=2 in 7.1s
+[12:20:33]     find_multi_cover_titles offset=1000 scanned=500 hits=1 in 7.1s
+[12:20:40]     find_multi_cover_titles offset=1500 scanned=500 hits=3 in 6.6s
+[12:20:44]     find_multi_cover_titles offset=2000 scanned=342 hits=1 in 4.7s
+[12:20:44]     scanned=2342 hits=8 errors=0
+[12:20:44]   scanning misfiled_covers...
+[12:20:53]     find_misfiled_covers offset=0 scanned=500 hits=0 in 8.8s
+[12:21:02]     find_misfiled_covers offset=500 scanned=500 hits=0 in 8.7s
+[12:21:11]     find_misfiled_covers offset=1000 scanned=500 hits=0 in 9.1s
+[12:21:20]     find_misfiled_covers offset=1500 scanned=500 hits=0 in 8.9s
+[12:21:26]     find_misfiled_covers offset=2000 scanned=342 hits=0 in 6.2s
+[12:21:26]     scanned=2342 hits=0 errors=0
+[12:21:26]   unmounted (unmounted)
+[12:21:26] === pool (expected 2531 locations) ===
+[12:21:26]   scanning multi_cover...
+[12:21:34]     find_multi_cover_titles offset=0 scanned=500 hits=2 in 7.7s
+[12:21:41]     find_multi_cover_titles offset=500 scanned=500 hits=1 in 6.6s
+[12:21:48]     find_multi_cover_titles offset=1000 scanned=500 hits=1 in 7.0s
+[12:21:55]     find_multi_cover_titles offset=1500 scanned=500 hits=1 in 7.0s
+[12:22:01]     find_multi_cover_titles offset=2000 scanned=500 hits=1 in 6.4s
+[12:22:02]     find_multi_cover_titles offset=2500 scanned=31 hits=0 in 0.5s
+[12:22:02]     scanned=2531 hits=6 errors=0
+[12:22:02]   scanning misfiled_covers...
+[12:22:10]     find_misfiled_covers offset=0 scanned=500 hits=0 in 8.8s
+[12:22:19]     find_misfiled_covers offset=500 scanned=500 hits=0 in 9.0s
+[12:22:28]     find_misfiled_covers offset=1000 scanned=500 hits=0 in 8.7s
+[12:22:37]     find_misfiled_covers offset=1500 scanned=500 hits=0 in 8.8s
+[12:22:44]     find_misfiled_covers offset=2000 scanned=500 hits=0 in 7.3s
+[12:22:45]     find_misfiled_covers offset=2500 scanned=31 hits=0 in 0.6s
+[12:22:45]     scanned=2531 hits=0 errors=0
+[12:22:45]   unmounted (unmounted)
+[12:22:45] === qnap (expected 11516 locations) ===
+[12:22:45]   scanning multi_cover...
+[12:22:52]     find_multi_cover_titles offset=0 scanned=500 hits=8 in 7.1s
+[12:22:59]     find_multi_cover_titles offset=500 scanned=500 hits=4 in 6.6s
+[12:23:05]     find_multi_cover_titles offset=1000 scanned=500 hits=1 in 6.5s
+[12:23:12]     find_multi_cover_titles offset=1500 scanned=500 hits=7 in 6.9s
+[12:23:19]     find_multi_cover_titles offset=2000 scanned=500 hits=5 in 6.8s
+[12:23:26]     find_multi_cover_titles offset=2500 scanned=500 hits=4 in 7.0s
+[12:23:33]     find_multi_cover_titles offset=3000 scanned=500 hits=5 in 6.5s
+[12:23:40]     find_multi_cover_titles offset=3500 scanned=500 hits=2 in 7.2s
+[12:23:47]     find_multi_cover_titles offset=4000 scanned=500 hits=36 in 7.0s
+[12:23:53]     find_multi_cover_titles offset=4500 scanned=500 hits=17 in 6.6s
+[12:24:00]     find_multi_cover_titles offset=5000 scanned=500 hits=1 in 6.8s
+[12:24:07]     find_multi_cover_titles offset=5500 scanned=500 hits=2 in 7.3s
+[12:24:14]     find_multi_cover_titles offset=6000 scanned=500 hits=2 in 6.8s
+[12:24:21]     find_multi_cover_titles offset=6500 scanned=500 hits=1 in 7.0s
+[12:24:28]     find_multi_cover_titles offset=7000 scanned=500 hits=4 in 6.8s
+[12:24:35]     find_multi_cover_titles offset=7500 scanned=500 hits=8 in 7.0s
+[12:24:42]     find_multi_cover_titles offset=8000 scanned=500 hits=13 in 7.1s
+[12:24:49]     find_multi_cover_titles offset=8500 scanned=500 hits=11 in 6.7s
+[12:24:56]     find_multi_cover_titles offset=9000 scanned=500 hits=12 in 6.9s
+[12:25:03]     find_multi_cover_titles offset=9500 scanned=500 hits=10 in 7.1s
+[12:25:09]     find_multi_cover_titles offset=10000 scanned=500 hits=4 in 6.6s
+[12:25:16]     find_multi_cover_titles offset=10500 scanned=500 hits=3 in 6.5s
+[12:25:23]     find_multi_cover_titles offset=11000 scanned=500 hits=1 in 6.8s
+[12:25:23]     find_multi_cover_titles offset=11500 scanned=16 hits=0 in 0.3s
+[12:25:23]     scanned=11516 hits=161 errors=0
+[12:25:23]   scanning misfiled_covers...
+[12:25:32]     find_misfiled_covers offset=0 scanned=500 hits=0 in 9.2s
+[12:25:41]     find_misfiled_covers offset=500 scanned=500 hits=0 in 8.8s
+[12:25:50]     find_misfiled_covers offset=1000 scanned=500 hits=0 in 8.8s
+[12:25:59]     find_misfiled_covers offset=1500 scanned=500 hits=0 in 9.0s
+[12:26:08]     find_misfiled_covers offset=2000 scanned=500 hits=0 in 9.4s
+[12:26:17]     find_misfiled_covers offset=2500 scanned=500 hits=0 in 9.1s
+[12:26:27]     find_misfiled_covers offset=3000 scanned=500 hits=0 in 9.5s
+[12:26:36]     find_misfiled_covers offset=3500 scanned=500 hits=0 in 9.5s
+[12:26:45]     find_misfiled_covers offset=4000 scanned=500 hits=0 in 9.0s
+[12:26:54]     find_misfiled_covers offset=4500 scanned=500 hits=0 in 9.0s
+[12:27:03]     find_misfiled_covers offset=5000 scanned=500 hits=0 in 9.2s
+[12:27:13]     find_misfiled_covers offset=5500 scanned=500 hits=0 in 9.3s
+[12:27:22]     find_misfiled_covers offset=6000 scanned=500 hits=0 in 9.6s
+[12:27:32]     find_misfiled_covers offset=6500 scanned=500 hits=0 in 9.4s
+[12:27:41]     find_misfiled_covers offset=7000 scanned=500 hits=7 in 9.4s
+[12:27:51]     find_misfiled_covers offset=7500 scanned=500 hits=1 in 9.7s
+[12:28:00]     find_misfiled_covers offset=8000 scanned=500 hits=1 in 9.2s
+[12:28:09]     find_misfiled_covers offset=8500 scanned=500 hits=1 in 9.5s
+[12:28:19]     find_misfiled_covers offset=9000 scanned=500 hits=2 in 9.7s
+[12:28:29]     find_misfiled_covers offset=9500 scanned=500 hits=0 in 9.5s
+[12:28:38]     find_misfiled_covers offset=10000 scanned=500 hits=0 in 9.5s
+[12:28:47]     find_misfiled_covers offset=10500 scanned=500 hits=0 in 9.3s
+[12:28:57]     find_misfiled_covers offset=11000 scanned=500 hits=0 in 9.3s
+[12:28:57]     find_misfiled_covers offset=11500 scanned=16 hits=0 in 0.3s
+[12:28:57]     scanned=11516 hits=12 errors=0
+[12:28:57]   unmounted (unmounted)
+[12:28:57] === qnap_archive (expected 807 locations) ===
+[12:28:58]   scanning multi_cover...
+[12:29:05]     find_multi_cover_titles offset=0 scanned=500 hits=6 in 7.0s
+[12:29:10]     find_multi_cover_titles offset=500 scanned=307 hits=3 in 4.7s
+[12:29:10]     scanned=807 hits=9 errors=0
+[12:29:10]   scanning misfiled_covers...
+[12:29:19]     find_misfiled_covers offset=0 scanned=500 hits=0 in 9.3s
+[12:29:25]     find_misfiled_covers offset=500 scanned=307 hits=1 in 5.9s
+[12:29:25]     scanned=807 hits=1 errors=0
+[12:29:25]   unmounted (unmounted)
+[12:29:25] === r (expected 4930 locations) ===
+[12:29:25]   scanning multi_cover...
+[12:29:33]     find_multi_cover_titles offset=0 scanned=500 hits=5 in 8.3s
+[12:29:41]     find_multi_cover_titles offset=500 scanned=500 hits=2 in 7.4s
+[12:29:49]     find_multi_cover_titles offset=1000 scanned=500 hits=2 in 8.0s
+[12:29:57]     find_multi_cover_titles offset=1500 scanned=500 hits=1 in 7.9s
+[12:30:04]     find_multi_cover_titles offset=2000 scanned=500 hits=3 in 7.2s
+[12:30:12]     find_multi_cover_titles offset=2500 scanned=500 hits=4 in 7.5s
+[12:30:19]     find_multi_cover_titles offset=3000 scanned=500 hits=4 in 7.4s
+[12:30:26]     find_multi_cover_titles offset=3500 scanned=500 hits=1 in 7.6s
+[12:30:34]     find_multi_cover_titles offset=4000 scanned=500 hits=1 in 7.6s
+[12:30:40]     find_multi_cover_titles offset=4500 scanned=430 hits=1 in 6.0s
+[12:30:40]     scanned=4930 hits=24 errors=0
+[12:30:40]   scanning misfiled_covers...
+[12:30:50]     find_misfiled_covers offset=0 scanned=500 hits=1 in 9.7s
+[12:30:59]     find_misfiled_covers offset=500 scanned=500 hits=2 in 9.7s
+[12:31:09]     find_misfiled_covers offset=1000 scanned=500 hits=0 in 9.5s
+[12:31:18]     find_misfiled_covers offset=1500 scanned=500 hits=0 in 9.4s
+[12:31:27]     find_misfiled_covers offset=2000 scanned=500 hits=0 in 9.0s
+[12:31:36]     find_misfiled_covers offset=2500 scanned=500 hits=0 in 9.0s
+[12:31:46]     find_misfiled_covers offset=3000 scanned=500 hits=0 in 9.3s
+[12:31:55]     find_misfiled_covers offset=3500 scanned=500 hits=0 in 9.5s
+[12:32:05]     find_misfiled_covers offset=4000 scanned=500 hits=0 in 9.7s
+[12:32:13]     find_misfiled_covers offset=4500 scanned=430 hits=0 in 8.3s
+[12:32:13]     scanned=4930 hits=3 errors=0
+[12:32:13]   unmounted (unmounted)
+[12:32:13] === s (expected 3491 locations) ===
+[12:32:13]   scanning multi_cover...
+[12:32:31]     find_multi_cover_titles offset=0 scanned=500 hits=3 in 17.4s
+[12:32:38]     find_multi_cover_titles offset=500 scanned=500 hits=2 in 7.6s
+[12:32:45]     find_multi_cover_titles offset=1000 scanned=500 hits=1 in 7.2s
+[12:32:53]     find_multi_cover_titles offset=1500 scanned=500 hits=1 in 7.5s
+[12:33:00]     find_multi_cover_titles offset=2000 scanned=500 hits=4 in 7.5s
+[12:33:08]     find_multi_cover_titles offset=2500 scanned=500 hits=2 in 7.3s
+[12:33:15]     find_multi_cover_titles offset=3000 scanned=491 hits=0 in 7.2s
+[12:33:15]     scanned=3491 hits=13 errors=0
+[12:33:15]   scanning misfiled_covers...
+[12:33:24]     find_misfiled_covers offset=0 scanned=500 hits=0 in 9.6s
+[12:33:34]     find_misfiled_covers offset=500 scanned=500 hits=0 in 9.4s
+[12:33:43]     find_misfiled_covers offset=1000 scanned=500 hits=0 in 8.9s
+[12:33:52]     find_misfiled_covers offset=1500 scanned=500 hits=0 in 9.3s
+[12:34:01]     find_misfiled_covers offset=2000 scanned=500 hits=0 in 9.3s
+[12:34:10]     find_misfiled_covers offset=2500 scanned=500 hits=1 in 9.1s
+[12:34:20]     find_misfiled_covers offset=3000 scanned=491 hits=0 in 9.3s
+[12:34:20]     scanned=3491 hits=1 errors=0
+[12:34:20]   unmounted (unmounted)
+[12:34:20] === tz (expected 5105 locations) ===
+[12:34:20]   scanning multi_cover...
+[12:34:37]     find_multi_cover_titles offset=0 scanned=500 hits=1 in 17.3s
+[12:34:44]     find_multi_cover_titles offset=500 scanned=500 hits=1 in 6.7s
+[12:34:51]     find_multi_cover_titles offset=1000 scanned=500 hits=2 in 7.3s
+[12:34:58]     find_multi_cover_titles offset=1500 scanned=500 hits=3 in 7.2s
+[12:35:05]     find_multi_cover_titles offset=2000 scanned=500 hits=3 in 7.0s
+[12:35:12]     find_multi_cover_titles offset=2500 scanned=500 hits=0 in 6.5s
+[12:35:19]     find_multi_cover_titles offset=3000 scanned=500 hits=0 in 7.5s
+[12:35:27]     find_multi_cover_titles offset=3500 scanned=500 hits=5 in 7.6s
+[12:35:34]     find_multi_cover_titles offset=4000 scanned=500 hits=3 in 7.2s
+[12:35:41]     find_multi_cover_titles offset=4500 scanned=500 hits=3 in 6.5s
+[12:35:42]     find_multi_cover_titles offset=5000 scanned=105 hits=0 in 1.5s
+[12:35:42]     scanned=5105 hits=21 errors=0
+[12:35:42]   scanning misfiled_covers...
+[12:35:52]     find_misfiled_covers offset=0 scanned=500 hits=1 in 9.7s
+[12:36:02]     find_misfiled_covers offset=500 scanned=500 hits=0 in 9.8s
+[12:36:11]     find_misfiled_covers offset=1000 scanned=500 hits=0 in 9.1s
+[12:36:20]     find_misfiled_covers offset=1500 scanned=500 hits=0 in 9.1s
+[12:36:29]     find_misfiled_covers offset=2000 scanned=500 hits=0 in 9.4s
+[12:36:37]     find_misfiled_covers offset=2500 scanned=500 hits=0 in 7.8s
+[12:36:45]     find_misfiled_covers offset=3000 scanned=500 hits=0 in 8.1s
+[12:36:55]     find_misfiled_covers offset=3500 scanned=500 hits=0 in 9.7s
+[12:37:04]     find_misfiled_covers offset=4000 scanned=500 hits=0 in 9.6s
+[12:37:13]     find_misfiled_covers offset=4500 scanned=500 hits=0 in 8.9s
+[12:37:15]     find_misfiled_covers offset=5000 scanned=105 hits=0 in 2.0s
+[12:37:15]     scanned=5105 hits=1 errors=0
+[12:37:15]   unmounted (unmounted)
+[12:37:15] === unsorted (expected 112 locations) ===
+[12:37:15]   scanning multi_cover...
+[12:37:16]     find_multi_cover_titles offset=0 scanned=112 hits=0 in 0.8s
+[12:37:16]     scanned=112 hits=0 errors=0
+[12:37:16]   scanning misfiled_covers...
+[12:37:17]     find_misfiled_covers offset=0 scanned=112 hits=0 in 0.9s
+[12:37:17]     scanned=112 hits=0 errors=0
+[12:37:17]   unmounted (unmounted)
+[12:37:17] Done in 1718s (28.6 min)
