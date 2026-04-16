@@ -382,7 +382,8 @@ public class Application {
                     .register(new com.organizer3.mcp.tools.FindMultiCoverTitlesTool(session, jdbi))
                     .register(new com.organizer3.mcp.tools.FindMisfiledCoversTool(session, jdbi))
                     .register(new com.organizer3.mcp.tools.ScanTitleFolderAnomaliesTool(session, titleRepo, titleLocationRepo))
-                    .register(new com.organizer3.mcp.tools.MountStatusTool(session));
+                    .register(new com.organizer3.mcp.tools.MountStatusTool(session))
+                    .register(new com.organizer3.mcp.tools.ProbeVideosBatchTool(session, videoRepo, videoProbe::probe));
             if (mcpConfig.networkOpsAllowed()) {
                 mcpTools.register(new com.organizer3.mcp.tools.MountVolumeTool(session, smbjConnector, indexLoader));
                 mcpTools.register(new com.organizer3.mcp.tools.UnmountVolumeTool(session));
