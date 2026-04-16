@@ -34,11 +34,20 @@ public class VideoProbe {
         return cache.computeIfAbsent(videoId, id -> probeUncached(id, filename));
     }
 
+    /**
+     * Per-probe socket I/O timeout, microseconds. Prevents an unreachable or stale file
+     * from hanging a long-running backfill indefinitely. {@code timeout} covers HTTP
+     * connects/reads; {@code rw_timeout} is the generic protocol-level read/write cap.
+     */
+    private static final String PROBE_TIMEOUT_MICROS = String.valueOf(60L * 1_000_000L); // 60s
+
     private Map<String, Object> probeUncached(long videoId, String filename) {
         String streamUrl = "http://localhost:" + serverPort + "/api/stream/" + videoId;
         try {
             FFmpegFrameGrabber grabber = new FFmpegFrameGrabber(streamUrl);
             grabber.setAudioChannels(0);
+            grabber.setOption("timeout",    PROBE_TIMEOUT_MICROS);
+            grabber.setOption("rw_timeout", PROBE_TIMEOUT_MICROS);
             grabber.start();
             try {
                 Map<String, Object> info = new LinkedHashMap<>();
