@@ -320,6 +320,11 @@ public class Application {
                         config.normalizeOrEmpty(), config.mediaOrDefaults());
         commands.add(new com.organizer3.command.PrepFreshCommand(config, freshPrepService));
 
+        // Organize-pipeline commands — audit: read-only classification of prepped skeletons by graduation readiness
+        com.organizer3.organize.FreshAuditService freshAuditService =
+                new com.organizer3.organize.FreshAuditService(config.mediaOrDefaults());
+        commands.add(new com.organizer3.command.AuditFreshCommand(config, freshAuditService));
+
         // Thumbnail service — created early so commands can reference it
         int thumbnailInterval = config.thumbnailInterval() != null ? config.thumbnailInterval() : 8;
         ThumbnailService thumbnailService = new ThumbnailService(
@@ -442,7 +447,8 @@ public class Application {
                     .register(new com.organizer3.mcp.tools.SqlTablesTool(mcpRoDb))
                     .register(new com.organizer3.mcp.tools.SqlSchemaTool(mcpRoDb))
                     .register(new com.organizer3.mcp.tools.ListDirectoryTool(session))
-                    .register(new com.organizer3.mcp.tools.ReadTextFileTool(session));
+                    .register(new com.organizer3.mcp.tools.ReadTextFileTool(session))
+                    .register(new com.organizer3.mcp.tools.AuditFreshSkeletonsTool(session, config, freshAuditService));
             if (mcpConfig.mutationsAllowed()) {
                 mcpTools.register(new com.organizer3.mcp.tools.MergeActressesTool(jdbi, actressRepo));
                 mcpTools.register(new com.organizer3.mcp.tools.DeleteTitleTool(jdbi, titleRepo));
