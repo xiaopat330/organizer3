@@ -306,6 +306,14 @@ public class Application {
                         actressRepo, titleRepo, titleLocationRepo, config.libraryOrDefaults());
         commands.add(new com.organizer3.command.ClassifyActressCommand(jdbi, config, actressClassifierService));
 
+        // Organize-pipeline commands — composite: walk queue, run phases 1-3 per title, phase 4 per actress
+        com.organizer3.organize.OrganizeVolumeService organizeVolumeService =
+                new com.organizer3.organize.OrganizeVolumeService(
+                        titleRepo, titleLocationRepo,
+                        titleNormalizerService, titleRestructurerService,
+                        titleSorterService, actressClassifierService);
+        commands.add(new com.organizer3.command.OrganizeVolumeCommand(jdbi, config, organizeVolumeService));
+
         // Thumbnail service — created early so commands can reference it
         int thumbnailInterval = config.thumbnailInterval() != null ? config.thumbnailInterval() : 8;
         ThumbnailService thumbnailService = new ThumbnailService(
@@ -444,6 +452,7 @@ public class Application {
                 mcpTools.register(new com.organizer3.mcp.tools.RestructureTitleTool(session, jdbi, titleRestructurerService));
                 mcpTools.register(new com.organizer3.mcp.tools.SortTitleTool(session, jdbi, config, titleSorterService));
                 mcpTools.register(new com.organizer3.mcp.tools.ClassifyActressTool(session, jdbi, config, actressClassifierService));
+                mcpTools.register(new com.organizer3.mcp.tools.OrganizeVolumeTool(session, jdbi, config, organizeVolumeService));
                 log.info("MCP file-op tools enabled");
             }
             com.organizer3.mcp.McpServer mcpServer = new com.organizer3.mcp.McpServer(
