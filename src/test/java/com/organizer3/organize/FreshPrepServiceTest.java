@@ -27,7 +27,8 @@ class FreshPrepServiceTest {
         fs  = new FakeFS();
         NormalizeConfig n = new NormalizeConfig(
                 List.of("hhd800.com@", "foo.com@", "-h264", "-1080P"),
-                List.of(new NormalizeConfig.Replace("FC2-PPV", "FC2PPV")));
+                List.of(new NormalizeConfig.Replace("FC2-PPV", "FC2PPV"),
+                        new NormalizeConfig.Replace("FC2PPV ", "FC2PPV-")));
         svc = new FreshPrepService(n, MediaConfig.DEFAULTS);
     }
 
@@ -112,6 +113,44 @@ class FreshPrepServiceTest {
     void unparseable_returnsNull() {
         assertNull(svc.planOne(Path.of("/fresh"), "Thumbs.db"));
         assertNull(svc.planOne(Path.of("/fresh"), "random-garbage-no-code.mp4"));
+    }
+
+    // ── suffix-label exception codes: 1PON / CARIB kept literal ─────────────
+
+    @Test
+    void suffixLabel_1PON_keptLiteral_h265() {
+        var p = svc.planOne(Path.of("/fresh"), "hhd800.com@041126_001-1PON-h265.mkv");
+        assertEquals("041126_001-1PON",                             p.code());
+        assertEquals("/fresh/(041126_001-1PON)",                    p.targetFolder());
+        assertEquals("/fresh/(041126_001-1PON)/h265",               p.targetSubfolder());
+        assertEquals("/fresh/(041126_001-1PON)/h265/041126_001-1PON-h265.mkv",
+                     p.targetVideoPath());
+    }
+
+    @Test
+    void suffixLabel_CARIB_keptLiteral_noEncoding() {
+        var p = svc.planOne(Path.of("/fresh"), "hhd800.com@013126-001-CARIB.mp4");
+        assertEquals("013126-001-CARIB",                            p.code());
+        assertEquals("/fresh/(013126-001-CARIB)",                   p.targetFolder());
+        assertEquals("video",                                       p.subfolderName());
+        assertEquals("/fresh/(013126-001-CARIB)/video/013126-001-CARIB.mp4",
+                     p.targetVideoPath());
+    }
+
+    @Test
+    void fc2PpvSpace_normalizedToDash() {
+        // "FC2PPV 2009419" (space separator) → replacelist converts to "FC2PPV-2009419" before parse
+        var p = svc.planOne(Path.of("/fresh"), "FC2PPV 2009419-h265.mkv");
+        assertEquals("FC2PPV-2009419",                              p.code());
+        assertEquals("/fresh/(FC2PPV-2009419)/h265/FC2PPV-2009419-h265.mkv", p.targetVideoPath());
+    }
+
+    @Test
+    void suffixLabel_caseIsPreservedLiterally() {
+        // no uppercasing — whatever case comes in stays
+        var p = svc.planOne(Path.of("/fresh"), "hhd800.com@050825_001-carib-h265.mkv");
+        assertEquals("050825_001-carib",                            p.code());
+        assertEquals("/fresh/(050825_001-carib)",                   p.targetFolder());
     }
 
     // ── run-level: plan / execute / collisions / skips ──────────────────────

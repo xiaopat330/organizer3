@@ -244,6 +244,7 @@ library:
 normalize:
   replacelist:
     - { from: 'FC2-PPV',                  to: 'FC2PPV' }
+    - { from: 'FC2PPV ',                  to: 'FC2PPV-' }
     - { from: '-4K',                      to: '_4K' }
     - { from: '-UC-',                     to: '_U-' }
     - { from: '-U-',                      to: '_U-' }

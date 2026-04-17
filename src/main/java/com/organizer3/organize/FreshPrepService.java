@@ -57,6 +57,16 @@ public class FreshPrepService {
     private static final Pattern CODE_REGION = Pattern.compile(
             "^([0-9]{0,6}[A-Za-z][A-Za-z0-9]{0,9})-(\\d{2,8})((?:_[A-Za-z0-9]+)*)");
 
+    /**
+     * Exception shape: codes that end with a recognized studio-label suffix rather than
+     * starting with a label (e.g. {@code 041126_001-1PON}, {@code 050825_001-CARIB}).
+     * These are treated as literal — no uppercasing, no canonicalization. The regex
+     * runs against the encoding-stripped stem; the matched prefix (up through the
+     * suffix label) is used verbatim as the folder body and in the filename.
+     */
+    private static final Pattern SUFFIX_LABEL_CODE = Pattern.compile(
+            "(?i)^(.+-(?:1PON|CARIB))(?=$|[-_ .])");
+
     /** Encoding hint detection (subfolder decision) and preservation against removelist stripping. */
     private static final Pattern H265_HINT = Pattern.compile("(?i)(?<![A-Za-z0-9])h265(?![A-Za-z0-9])");
 
@@ -149,6 +159,22 @@ public class FreshPrepService {
 
         String stripped = applyRemovelist(stem);
         stripped = applyReplacelist(stripped);
+
+        // Exception branch: suffix-label codes (1PON/CARIB style) are kept literal.
+        // Match against the encoding-stripped stem so the trailing -h265 doesn't hide the label.
+        String encodingFreeForSuffix = ENCODING_STRIP.matcher(stripped).replaceAll("");
+        Matcher ms = SUFFIX_LABEL_CODE.matcher(encodingFreeForSuffix);
+        if (ms.find()) {
+            String literalCode = ms.group(1);
+            String subName = H265_HINT.matcher(stripped).find() ? "h265" : "video";
+            Path folder    = partitionRoot.resolve("(" + literalCode + ")");
+            Path subfolder = folder.resolve(subName);
+            Path target    = subfolder.resolve(stripped + ext);
+            Path source    = partitionRoot.resolve(rawFilename);
+            return new Plan(
+                    source.toString(), folder.toString(), subfolder.toString(),
+                    target.toString(), literalCode, subName);
+        }
 
         // Video filename parsing — against the intact stripped stem (encoding hint preserved).
         Matcher mv = CODE_REGION.matcher(stripped);
