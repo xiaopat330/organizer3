@@ -230,10 +230,11 @@ organizer > prune-covers          # remove orphaned covers
 
 ### The Organize Pipeline
 
-After new content arrives in a letter-volume's `/queue/` partition (moved there manually by you from the global pool), the organize pipeline takes over. Four phases run per title, plus one per affected actress:
+After new content arrives in a letter-volume's `/queue/` partition (moved there manually by you from the global pool), the organize pipeline takes over. Four phases run per title, plus one per affected actress. A separate prep phase handles raw-video ingestion on the global pool itself:
 
 | Phase | What it does |
 |-------|--------------|
+| 0. prep | Turn raw video files in a queue partition (e.g. `unsorted/fresh`) into `(CODE)/<video|h265>/{file}` skeletons — strip junk prefixes, parse the code, pick a subfolder by h265 hint |
 | 1. normalize | Rename the title's sole cover + sole video to canonical `{CODE}.{ext}` |
 | 2. restructure | Move videos from base into `video/` / `h265/` / `4K/` by filename hint |
 | 3. sort | Move the title folder from `/queue/` → `/stars/{tier}/{actress}/`, or route to `/attention/` with a `REASON.txt` sidecar if it can't be filed |
@@ -265,6 +266,28 @@ organizer:vol-a > restructure-title MIDE-123    # move videos into video/h265/4K
 organizer:vol-a > sort-title MIDE-123            # /queue/ → /stars/{tier}/{actress}/ or attention
 organizer:vol-a > classify-actress 4506         # re-tier actress 4506 if she crossed a threshold
 ```
+
+#### Prep — raw videos in the global pool
+
+The `unsorted` volume's `fresh/` partition is where new content lands from the outside world — often as bare video files with junk prefixes (`hhd800.com@JUR-717-h265.mkv`). Prep wraps each parseable file in a `(CODE)/<video|h265>/` skeleton so a human operator can then add an actress, a cover, and a curated folder name.
+
+```
+organizer > mount unsorted
+organizer:vol-unsorted [*DRYRUN*] > prep-fresh queue          # dry-run — show the plan for all files
+organizer:vol-unsorted [*DRYRUN*] > prep-fresh queue 20       # just the first 20 candidates
+organizer:vol-unsorted > prep-fresh queue 20 40                # limit 20, offset 40 (armed)
+organizer:vol-unsorted > prep-fresh queue                      # armed — do them all
+```
+
+Behavior:
+- Strips known junk-prefix tokens (from the `normalize.removelist` in config).
+- Parses a product code at the start of the cleaned name. Unparseable files (`Thumbs.db`, arbitrary `.mkv` without a code) are skipped with a reason — human will handle.
+- Folder name = `(CODE[_SUFFIX…])` — code region upper-cased, suffixes like `_4K` or `_U` preserved. Encoding tokens don't appear in the folder name.
+- Video filename retains the encoding hint and original extension case (`ONED-999-h265.mp4` — not force-uppercased).
+- Subfolder = `h265/` if the filename contains an `h265` token, else `video/`.
+- If the target folder already exists, the file is skipped with a reason — human decides whether to merge.
+
+Phases 1–4 do **not** apply to the prep partition — prep operates on pre-title raw files, not on indexed titles.
 
 #### Attention partition
 
@@ -442,6 +465,7 @@ Independent of shell mode, **every organize-pipeline command and MCP mutation to
 | `rebuild` | Yes | sync all + sync covers |
 | `probe videos [limit]` | Yes | Backfill video metadata (duration, codec, resolution) |
 | **Organize pipeline** | | |
+| `prep-fresh <partitionId> [limit] [offset]` | Yes | Phase 0 — raw videos in a queue partition → (CODE)/<video|h265>/ skeletons |
 | `organize [phases]` | Yes | Composite: walk queue + run phases. Phases CSV subset optional |
 | `normalize-title <CODE>` | Yes | Phase 1 — rename cover + single video to canonical |
 | `restructure-title <CODE>` | Yes | Phase 2 — move base videos into subfolder by hint |
@@ -561,7 +585,7 @@ With all gates on, the following 47 tools are exposed:
 
 **File ops (`allowMutations` + `allowFileOps`):**
 - Cover cleanup: `trash_duplicate_cover`, `move_cover_to_base`
-- Organize pipeline: `normalize_title`, `restructure_title`, `sort_title`, `classify_actress`, `organize_volume`
+- Organize pipeline: `prep_fresh_videos`, `normalize_title`, `restructure_title`, `sort_title`, `classify_actress`, `organize_volume`
 - Timestamp correction: `fix_title_timestamps`, `audit_volume_timestamps`
 - Diagnostic: `sandbox_write_test`
 
@@ -772,7 +796,25 @@ _Agent dry-runs each `merge_actresses`, shows plans, then executes._
 
 _Agent mounts each volume in turn, runs `audit_volume_timestamps` with `dryRun: false`, unmounts, reports totals per volume._
 
-#### Session B — New content arrival
+#### Session B — Raw-video prep on the global pool
+
+A new batch of videos dropped into `unsorted/fresh` — 26 files, all with junk prefixes like `hhd800.com@JUR-717-h265.mkv`. You want them wrapped into `(CODE)/<video|h265>/` skeletons so you can curate them (add actress, add cover) later.
+
+> **You:** "Check `unsorted/fresh` for raw video files and dry-run the prep."
+
+_Agent mounts `unsorted`, calls `prep_fresh_videos` with `volumeId: unsorted, partitionId: queue, dryRun: true`. Reports: "26 files planned. All match the `hhd800.com@{CODE}-h265.mkv` pattern; each would produce a `(CODE)/h265/{CODE}-h265.mkv` skeleton. 0 skipped."_
+
+> **You:** "Anything unusual? Collisions? Ambiguous codes?"
+
+_Agent: "No collisions — none of the target folders exist yet. All 26 codes parsed cleanly, including one digit-prefix label (`300MIUM-1353`). Nothing routed to skip."_
+
+> **You:** "Go ahead and execute."
+
+_Agent re-calls with `dryRun: false`. Reports: "26 moved, 0 failed. Folders created: `(300MIUM-1353)`, `(ACHJ-083)`, …"_
+
+After prep, you'll manually add actress names + cover images to each folder, then move the curated folders into a letter-volume's queue for the rest of the pipeline (Session C).
+
+#### Session C — New content arrival
 
 You manually moved 45 new titles from the global pool to volume `n`'s queue. Now you want to run them through the pipeline.
 
@@ -796,7 +838,7 @@ _Agent calls `organize_volume` with `dryRun: false`. Reports: "44 sorted to tier
 
 _Agent calls `read_text_file` on `/attention/<folder>/REASON.txt`, explains._
 
-#### Session C — Investigating data quality
+#### Session D — Investigating data quality
 
 You noticed something weird in the web UI — a specific actress seems to have two entries. Track down what's going on.
 
@@ -820,7 +862,7 @@ _Agent calls `list_actresses_with_misnamed_folders`. Reports: "Yes — on volume
 
 _Agent mounts `m`, moves the Minami Rika folder to `/attention/Minami Rika/`, writes a REASON.txt explaining the post-merge letter change and pointing to the correct target volume. You'll handle the cross-volume move in the NAS UI at your leisure._
 
-#### Session D — The mass cleanup
+#### Session E — The mass cleanup
 
 You have the folder-anomaly audit report from `find_multi_cover_titles` — 329 titles across the library need cleanup. You want to tackle them agentically instead of one-by-one.
 

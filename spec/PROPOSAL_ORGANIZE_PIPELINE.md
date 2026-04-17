@@ -30,8 +30,10 @@ This proposal defines that pipeline.
 The full intended path of a title from arrival to home:
 
 ```
-[unsorted queue]     ingestion (raw video files)            ← deferred scope
-      │                                                       (future work)
+[unsorted queue]     raw video files arrive at a
+      │              queue partition (e.g. unsorted/fresh)
+      │              → Phase 0 prep turns each into a
+      │              (CODE)/<video|h265>/ skeleton
       ▼
 [global pool]        normalized titles waiting for
       │              cross-volume assignment by a person
@@ -46,9 +48,9 @@ The full intended path of a title from arrival to home:
   {title-folder}]
 ```
 
-The boundary the app is responsible for: **letter-volume pool → final home**.
-Cross-volume assignment stays manual; the unsorted-queue ingestion stage is
-deferred to a future spec.
+The boundary the app is responsible for: **prep (Phase 0) + letter-volume pool
+→ final home**. Cross-volume assignment stays manual; everything inside a
+volume is mechanical.
 
 **Volume-letter mapping** is a pre-existing convention: volume `a` holds actresses
 whose canonical name starts with A; `bg` holds B–G; `hj` holds H–J; etc. Volume
@@ -58,11 +60,40 @@ whose canonical name starts with A; `bg` holds B–G; `hj` holds H–J; etc. Vol
 
 ## 3. Pipeline phases
 
-Four phases, each its own operation with clean unit contracts. Each phase is
+Five phases, each its own operation with clean unit contracts. Each phase is
 dry-run-default and transactional where the DB is involved. Phases are composable:
 
+- Phase 0 acts **per-video-file** in a queue partition (pre-title).
 - Phases 1–3 act **per-title** — they operate on the title's folder.
 - Phase 4 acts **per-actress** — it operates on the actress's folder.
+
+### 3.0 Phase 0 — prep (queue partition only)
+
+Input: raw video files sitting at the root of a queue partition (e.g.
+`unsorted/fresh`). Output: for each file, a skeleton `(CODE)/<video|h265>/{file}`
+ready for a human to add an actress, a cover, and curate the folder name.
+
+Per file:
+1. Apply `normalize.removelist` / `normalize.replacelist` to strip junk prefixes
+   (`hhd800.com@`, `[FHD]`, etc.). Encoding tokens (`-h265`, `-h264`) are
+   exempt from stripping — they carry information the subfolder choice needs.
+2. Match a product code at the start: optional leading digits, a letter-bearing
+   label of 1–10 chars, a dash, 2–8 digits, then zero or more `_X` suffix
+   tokens. Unparseable → skip.
+3. Folder body = code + underscore-suffixes, upper-cased. Encoding-stripped
+   copy of the stem is used for folder-body parsing so suffixes that live
+   *after* the encoding token (e.g. `ONED-999-h265_4K` → `(ONED-999_4K)`)
+   collapse adjacent to the code.
+4. Video filename = code region upper-cased + everything after it preserved
+   as-is (keeps the `-h265` hint and the original extension case).
+5. Subfolder = `h265/` if the stem contains an `h265` token, else `video/`.
+6. Target folder already exists → skip (human decides merge/conflict).
+
+No DB writes — queue partitions aren't indexed. No timestamp correction. No
+actress assignment. Strictly filename/layout work.
+
+Tool: `prep_fresh_videos { volumeId, partitionId, limit?, offset?, dryRun }`
+(+ shell `prep-fresh <partitionId>`). Paginated for large inboxes.
 
 ### 3.1 Phase 1 — normalize
 
@@ -344,6 +375,9 @@ This is consistent with what's already in the codebase: `merge_actresses`,
 All pipeline operations are mechanical — given the DB state and the current file
 layout, the correct action is deterministic. Each gets both surfaces.
 
+Per-video-file (queue prep):
+- `prep_fresh_videos { volumeId, partitionId, limit?, offset?, dryRun }`
+
 Per-title:
 - `normalize_title { titleCode, dryRun }`
 - `restructure_title { titleCode, dryRun }`
@@ -420,8 +454,9 @@ Each step a separate PR; tests required for each.
 
 ## 10. Out of scope
 
-- **Ingest / unsorted queue processing** — separate future spec. The unsorted
-  volume is set aside entirely in this pipeline.
+- **Human curation after prep** — actress assignment, cover sourcing, folder
+  naming with `{Actress Name} ({CODE})` is manual; prep only shapes the empty
+  skeleton.
 - **Cross-volume movement** — forever manual per intra-volume invariant.
 - **Tier demotions** — by design.
 - **Actress catalog disposal** — separate workflow.

@@ -314,6 +314,12 @@ public class Application {
                         titleSorterService, actressClassifierService);
         commands.add(new com.organizer3.command.OrganizeVolumeCommand(jdbi, config, organizeVolumeService));
 
+        // Organize-pipeline commands — prep: raw videos in queue partition → (CODE)/<video|h265>/ skeletons
+        com.organizer3.organize.FreshPrepService freshPrepService =
+                new com.organizer3.organize.FreshPrepService(
+                        config.normalizeOrEmpty(), config.mediaOrDefaults());
+        commands.add(new com.organizer3.command.PrepFreshCommand(config, freshPrepService));
+
         // Thumbnail service — created early so commands can reference it
         int thumbnailInterval = config.thumbnailInterval() != null ? config.thumbnailInterval() : 8;
         ThumbnailService thumbnailService = new ThumbnailService(
@@ -453,6 +459,7 @@ public class Application {
                 mcpTools.register(new com.organizer3.mcp.tools.SortTitleTool(session, jdbi, config, titleSorterService));
                 mcpTools.register(new com.organizer3.mcp.tools.ClassifyActressTool(session, jdbi, config, actressClassifierService));
                 mcpTools.register(new com.organizer3.mcp.tools.OrganizeVolumeTool(session, jdbi, config, organizeVolumeService));
+                mcpTools.register(new com.organizer3.mcp.tools.PrepFreshVideosTool(session, config, freshPrepService));
                 log.info("MCP file-op tools enabled");
             }
             com.organizer3.mcp.McpServer mcpServer = new com.organizer3.mcp.McpServer(
