@@ -517,49 +517,42 @@ With all four enabled, the full organize pipeline is agent-driveable.
 
 ---
 
-## Part III — AI Agent Integration (MCP)
+## Part III — MCP Server (Technical Reference)
 
-Organizer3 exposes an **MCP server** at `http://localhost:8080/mcp`. This is a JSON-RPC endpoint that AI agents (Claude Desktop, Claude CLI, custom clients) can call to drive the library using natural-language prompts.
+Organizer3 exposes an **MCP (Model Context Protocol) server** at `http://localhost:8080/mcp`. This is a JSON-RPC endpoint that AI agents can call to drive the library. For a practical how-to guide on working this way, see **Part IV — Agentic Use**. This section is the technical reference.
 
-### What you can do with it
+### What MCP is
 
-- **Diagnose**: find duplicate actresses, actressless titles, mislabeled folders, multi-cover titles, orphan titles, name-order variants, alias conflicts.
-- **Investigate**: SQL the database, list directory contents on a mounted volume, read text files (useful for REASON.txt sidecars).
-- **Mutate DB**: merge actresses, delete ghost title rows.
-- **Mutate files**: trash duplicate covers, move misfiled covers, rename via the organize pipeline, sort titles from queue to tier folders.
-- **Background work**: kick off probe-videos backfill jobs and poll their status.
+MCP is an open protocol for giving LLMs structured tool access to external systems. The Organizer3 MCP server exposes 47 tools covering everything from read-only diagnostics (run SQL, look up actresses) to full file-system mutations (run the organize pipeline). Any MCP client — Claude Desktop, Claude CLI, third-party clients — can connect.
 
-### Setup: Claude Desktop
+### Enabling the server
 
-Add the MCP server to Claude Desktop's config (on macOS, `~/Library/Application Support/Claude/claude_desktop_config.json`):
+The server is on by default but mutation and file-op tools are gated. Opt in per class in `organizer-config.yaml`:
 
-```json
-{
-  "mcpServers": {
-    "organizer3": {
-      "command": "/usr/local/bin/npx",
-      "args": ["-y", "mcp-remote", "http://localhost:8080/mcp"]
-    }
-  }
-}
+```yaml
+mcp:
+  enabled: true           # MCP server on/off
+  allowMutations: true    # DB-write tools (merge_actresses, delete_title, etc.)
+  allowNetworkOps: true   # mount_volume / unmount_volume
+  allowFileOps: true      # file-moving tools (trash_*, move_cover_to_base, sort_title, organize_volume, …)
 ```
 
-Restart Claude Desktop. While the Organizer3 app is running, Claude auto-connects to the MCP server. Tools show up in Claude's tool list automatically.
+When a gate is `false`, the corresponding tools disappear from the tool list entirely — the agent can't call them. This is your safety switch: flip a gate off and restart to block a whole class of operations.
 
 ### Tool categories
 
-Tools are grouped by what they touch. With all MCP gates enabled, 47 tools are available.
+With all gates on, the following 47 tools are exposed:
 
 **Read-only (always available):**
-- **Lookup**: `list_volumes`, `lookup_actress`, `lookup_title`, `list_titles_for_actress`, `get_stats`
-- **Search**: `find_similar_actresses`, `find_name_order_variants`, `find_suspect_credits`, `find_alias_conflicts`, `find_lone_titles`, `find_orphan_titles`, `find_duplicate_base_codes`, `find_label_mismatches`, `find_stale_locations`, `find_misnamed_folders_for_actress`, `list_actresses_with_misnamed_folders`
+- **Lookup**: `list_volumes`, `lookup_actress`, `lookup_title`, `list_titles_for_actress`, `get_stats`, `describe_schema`
+- **Search / diagnostics**: `find_similar_actresses`, `find_name_order_variants`, `find_suspect_credits`, `find_alias_conflicts`, `find_lone_titles`, `find_orphan_titles`, `find_duplicate_base_codes`, `find_label_mismatches`, `find_stale_locations`, `find_misnamed_folders_for_actress`, `list_actresses_with_misnamed_folders`
 - **Video diagnostics**: `list_multi_video_titles`, `analyze_title_videos`, `find_duplicate_candidates`
-- **SQL + FS**: `sql_query`, `sql_tables`, `sql_schema`, `list_directory`, `read_text_file`, `describe_schema`
+- **SQL + FS**: `sql_query`, `sql_tables`, `sql_schema`, `list_directory`, `read_text_file`
 
 **Mount (`allowNetworkOps`):**
 - `mount_volume`, `unmount_volume`, `mount_status`
 
-**Mounted-volume scans (need a volume mounted):**
+**Mounted-volume scans (require a mounted volume):**
 - Folder anomaly: `find_multi_cover_titles`, `find_misfiled_covers`, `scan_title_folder_anomalies`
 - Video backfill: `probe_videos_batch`, `start_probe_job`, `probe_job_status`, `cancel_probe_job`
 
@@ -572,84 +565,315 @@ Tools are grouped by what they touch. With all MCP gates enabled, 47 tools are a
 - Timestamp correction: `fix_title_timestamps`, `audit_volume_timestamps`
 - Diagnostic: `sandbox_write_test`
 
-Every mutation tool defaults to `dryRun: true` — the agent must pass `dryRun: false` explicitly to commit changes.
+Every mutation tool defaults to `dryRun: true` per call. The agent must pass `dryRun: false` explicitly to commit changes.
+
+### Wire format
+
+Tools are invoked via JSON-RPC 2.0 `tools/call`:
+
+```bash
+curl -X POST http://localhost:8080/mcp \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "jsonrpc": "2.0",
+    "id": 1,
+    "method": "tools/call",
+    "params": {
+      "name": "lookup_title",
+      "arguments": {"code": "MIDE-123"}
+    }
+  }'
+```
+
+You usually won't invoke tools directly — an MCP client does it for you.
 
 ---
 
-### Example prompts
+## Part IV — Agentic Use
 
-The following prompts are meant for a session with Claude Desktop (or another MCP client). Each assumes the Organizer3 app is running.
-
-#### Diagnose: find problems
-
-> "What's the current state of the library? Show me counts by volume and any obvious data-quality issues."
-
-> "Are there actresses that might be duplicate records from name-order swaps (like `Aino Nami` / `Nami Aino`)? List the candidates — don't merge anything."
-
-> "Find titles whose label in the DB doesn't match their product code's prefix."
-
-> "Any title folders with more than one cover image at the base on volume `classic`?"
-
-#### Investigate: read-only drill-down
-
-> "Tell me everything about title `MIDE-123` — its filing actress, all the other credited actresses, all on-disk locations, all video files."
-
-> "Show me actress 4506's full profile including aliases, title count by label, tier."
-
-> "Run SQL to list the top 20 labels by title count."
-
-> "Mount volume `a`, look inside `/attention/` — what's there and why?"
-
-#### Clean up: multi-cover titles
-
-> "Volume `classic` has a bunch of titles with duplicate covers. For each one, pick the canonical cover (prefer `{code}pl.jpg` naming) and trash the others. Do a dry-run first; show me the plan before executing."
-
-> "Title `IPTD-849` has two covers. Keep `iptd849pl.jpg`, trash the other."
-
-#### Clean up: ghost titles / actressless titles
-
-> "Ghost 'covers' titles from the parser bug are still in the DB. Find them via SQL and delete them with `delete_title`."
-
-> "There are titles with no filing actress in the DB. List them; for the ones that are amateur codes I'll tell you which actress to attribute each to."
-
-#### Organize pipeline
-
-> "Mount volume `a`, run `organize` in dry-run, and summarize what would happen. Don't execute."
-
-> "Run the full organize pipeline on volume `bg` — normalize, restructure, sort, classify. Process 50 titles at a time, and stop at the first batch that has any errors."
-
-> "Just normalize (don't move) the titles in `a`'s queue so the filenames are canonical."
-
-> "Sort only `ACHJ-059` — don't touch any other titles."
-
-> "Actress 51 just crossed 50 titles. Re-classify her so her folder moves to the superstar tier."
-
-#### Timestamp correction
-
-> "Volume `tz` has creation times that reflect NAS copy dates, not true authoring. Run `audit_volume_timestamps` in dry-run across the whole volume; report how many need correction. If it's more than 100, execute it."
-
-> "Fix the timestamps on `IPZ-463` so Finder sorts it correctly."
-
-#### Actress rename / spelling (future; judgment-only)
-
-> "I want to rename actress 4506 `Aino Nami` to `Nami Aino` (name-order fix). Do a dry-run first to see every title folder that would get renamed and whether she ends up on the wrong volume letter-wise."
-
-#### Probe backfill (long-running)
-
-> "Start a probe job on volume `a`. Tell me the job id, then check back in 10 minutes with `probe_job_status`."
-
-> "While the probe job is running, look up what else I should clean up."
-
-#### Sanity checks / permission audits
-
-> "Before I do any file operations on volume `qnap_archive`, run `sandbox_write_test` to confirm the SMB user has full write permission there."
+This is the practical guide to **using Organizer3 through Claude Desktop** (or another MCP client). Everything in this section is about how to work with the app conversationally — asking an agent to run pipelines, clean up data, investigate problems, and apply mutations on your behalf.
 
 ---
 
-### Tips for working with the agent
+### Why work this way
 
-- **Always dry-run first.** Every mutation tool defaults to `dryRun: true`. When you ask for a change, the agent will usually show you the plan; you then say "OK, execute" to commit.
-- **Scope by volume.** Most file-op tools need a volume mounted. Tell the agent which volume to work on, or let it pick based on the task.
-- **Chain operations.** It's fine to ask for multi-step flows: "find duplicate covers, pick a canonical for each, trash the others, then fix folder timestamps." The agent will orchestrate each step.
-- **Pagination.** For `organize_volume`, `audit_volume_timestamps`, `probe_videos_batch`, and scan tools, the agent handles `limit`/`offset` automatically — you don't need to think about pagination.
-- **Config flags are your safety.** If you want to block a class of operation, flip the gate in `organizer-config.yaml` and restart. The tool disappears from the agent's toolset entirely.
+The shell and web UI are excellent for routine operations. Agentic mode adds three things on top:
+
+1. **Multi-step orchestration.** "Find duplicate covers, pick a canonical for each, trash the others, then audit timestamps across the whole volume" is a single prompt. The agent chains the individual tools.
+2. **Judgment-driven tasks.** Deciding whether `Yua Mikarni` is a typo for `Yua Mikami`, or which of two covers is canonical, is the agent's strong suit. Shell commands can't make that call; the agent can.
+3. **Natural-language reporting.** The agent synthesizes raw tool output into human-readable summaries. You don't have to read 300 rows of SQL — you get "8 actresses have name-order variants; here are the three most likely duplicates."
+
+When you should stay in the shell instead:
+
+- **Bulk routine work with no decisions** (e.g. `sync all` on ten volumes in a row) — the shell is faster.
+- **Browsing** — the web UI is purpose-built for this.
+- **When the operation is well-defined and you know exactly what you want** — `organize` at the shell is a one-liner.
+
+---
+
+### First-time setup
+
+#### 1. Install Claude Desktop
+
+Download from `claude.ai/download`. Install and sign in.
+
+#### 2. Install the MCP bridge
+
+Organizer3's MCP server is HTTP; Claude Desktop speaks MCP over stdio. The `mcp-remote` bridge handles translation. It runs from `npx`, so all you need is Node.js (any recent version).
+
+```bash
+which npx   # should show /usr/local/bin/npx or similar
+```
+
+If missing, install Node.js from `nodejs.org` or via Homebrew (`brew install node`).
+
+#### 3. Register the server with Claude Desktop
+
+Edit `~/Library/Application Support/Claude/claude_desktop_config.json` (macOS). Create the file if it doesn't exist:
+
+```json
+{
+  "mcpServers": {
+    "organizer3": {
+      "command": "/usr/local/bin/npx",
+      "args": ["-y", "mcp-remote", "http://localhost:8080/mcp"]
+    }
+  }
+}
+```
+
+Set the `command` path to match your `which npx` output. Restart Claude Desktop after editing.
+
+#### 4. Start the Organizer3 app
+
+```
+./gradlew run
+```
+
+With the app running, Claude Desktop auto-connects to the MCP server. You'll see "organizer3" in Claude's tools dropdown (click the tools icon near the message input). Tools come and go based on your MCP gate config.
+
+#### 5. Smoke test
+
+In Claude Desktop, open a new conversation and try:
+
+> "What Organizer3 tools do you have access to? List the top-level categories."
+
+If Claude lists tools like `list_volumes`, `lookup_actress`, `organize_volume`, setup is complete. If not, check:
+- Is the Organizer3 app running? (`curl -s http://localhost:8080/mcp -X POST -H 'Content-Type: application/json' -d '{"jsonrpc":"2.0","id":1,"method":"tools/list"}'`)
+- Is the `command` path in the JSON correct?
+- Did you restart Claude Desktop after editing the config?
+
+---
+
+### Your first session
+
+Here's what a typical first session looks like. Say your goal is "check the health of the library, no changes yet."
+
+**You:**
+> "Give me a quick health check on the Organizer3 library. I want to see what's there, any data-quality issues, and anything unusual. Don't change anything."
+
+**Agent (paraphrased):**
+- Calls `get_stats` → 53,561 titles, 6,832 actresses, 57,208 title locations across 17 volumes.
+- Calls `find_alias_conflicts`, `find_name_order_variants`, `find_orphan_titles`, `find_lone_titles`, `find_duplicate_base_codes` → picks out 8 name-order pairs, 3 orphan titles, 11 duplicate base codes, etc.
+- Synthesizes: "Library looks healthy overall. Three things worth flagging: (1) 8 likely-duplicate actress pairs from name-order swaps, (2) 11 titles with duplicate base codes, (3) one title with no filing actress."
+
+**You:**
+> "Show me the three most likely duplicate actress pairs. Don't merge them yet."
+
+The agent ranks candidates, shows you names + title counts for each side, and waits for your call on which to merge.
+
+**You:**
+> "Merge `Aino Nami` into `Nami Aino`. Dry-run first."
+
+Agent calls `merge_actresses` with `dryRun: true`, shows the plan (titles reassigned, aliases migrated, flag merges), and waits. You say "OK, execute" — agent re-calls with `dryRun: false`.
+
+The shape: **describe → agent investigates → you direct → agent plans → you approve → agent executes.** Don't try to orchestrate every tool call yourself; just describe the outcome you want and let the agent pick the tools.
+
+---
+
+### Core patterns
+
+#### Pattern: "Show me, then I'll decide"
+
+Ask the agent to enumerate candidates first. Don't ask it to mutate anything. Once it's listed what's there, you can point at specific ones.
+
+> "Which actresses have multiple title folders under different names on volume `tz`?"
+> "Show me all titles where the filing actress has fewer than 3 titles but the folder is already under `/stars/library/`."
+
+#### Pattern: "Dry-run, then approve"
+
+Even when you know what you want, start with a dry-run. This is free (no side effects) and shows you the exact plan.
+
+> "Move the misfiled cover on `IPZ-463` to the title's base — dry-run only."
+
+After the agent shows the plan:
+
+> "Good, execute that."
+
+#### Pattern: "Chain by volume"
+
+Most file operations require a mounted volume. Let the agent manage the mount lifecycle:
+
+> "For each conventional volume, mount it, scan for multi-cover titles, record the findings, then unmount. Compile the results into a cross-volume summary."
+
+The agent will loop through volumes, managing mounts — you don't have to mount/unmount manually.
+
+#### Pattern: "Background and check back"
+
+For long-running work (probe videos across a whole volume is 15-30 min), start a background job and poll:
+
+> "Start a probe-videos background job on volume `a`. Give me the job id."
+> _...later..._
+> "Check the probe job status — is it done?"
+
+Tools for this: `start_probe_job`, `probe_job_status`, `cancel_probe_job`.
+
+#### Pattern: "Narrow before wide"
+
+When running the organize pipeline, start with a single title to validate the pipeline behaves as expected:
+
+> "Dry-run `organize_volume` on `a` with `limit=1`. Show me the plan for that one title."
+
+If the plan looks right, scale up:
+
+> "Looks good. Run organize on the first 20 titles in `a`'s queue, armed."
+
+---
+
+### Extended example sessions
+
+These are realistic multi-turn flows showing how a full task runs. Prompts in quotes; what the agent does is briefly summarized in between.
+
+#### Session A — Weekly cleanup after sync
+
+After your weekly `sync all` across several volumes, run through post-sync maintenance agentically.
+
+> **You:** "I just finished syncing the library. Walk through post-sync maintenance with me. Start by identifying any data-quality issues that came up during sync."
+
+_Agent calls `get_stats`, then the suite of diagnostic tools. Reports: 4 new name-order candidates; 2 orphan titles; 1 actress with misnamed folders on volume `bg`._
+
+> **You:** "Handle the misnamed folders first. Show me what needs to be done."
+
+_Agent calls `list_actresses_with_misnamed_folders`, mounts `bg`, calls `find_misnamed_folders_for_actress` for the flagged actress. Reports: "3 title folders use the old spelling `Chinatsu`; canonical is `Chinatsu Hashimoto`. I can rename each folder."_
+
+> **You:** "Do those renames, armed."
+
+_Agent renames each folder via `rename` primitive, reports done._
+
+> **You:** "Now the 4 name-order candidates. Who are they, and how confident is each match?"
+
+_Agent lists them with title counts on each side. 2 are obvious (high overlap in label distribution, same debut year), 2 are ambiguous._
+
+> **You:** "Merge the 2 obvious ones. Skip the ambiguous ones for now — I'll look at those manually later."
+
+_Agent dry-runs each `merge_actresses`, shows plans, then executes._
+
+> **You:** "Finally, run `audit_volume_timestamps` on each volume I synced today. Don't dry-run — just fix them."
+
+_Agent mounts each volume in turn, runs `audit_volume_timestamps` with `dryRun: false`, unmounts, reports totals per volume._
+
+#### Session B — New content arrival
+
+You manually moved 45 new titles from the global pool to volume `n`'s queue. Now you want to run them through the pipeline.
+
+> **You:** "I just dropped 45 new titles into volume `n`'s queue. Run the full organize pipeline on them. Do a dry-run first — I want to see if anything would fail or route to attention before we commit."
+
+_Agent mounts `n`, calls `organize_volume` with `dryRun: true` and all 4 phases. Reports: "45 titles processed. 43 would sort cleanly to tier folders, 1 would route to attention (letter mismatch — actress is `Natsume Iroha` → `N` ✓, but the folder is misnamed and doesn't contain her code), 1 has a multi-cover situation and normalize would skip."_
+
+> **You:** "Before executing, let's fix the one with multi-cover. Show me the covers."
+
+_Agent calls `find_multi_cover_titles` for the specific title, lists the candidates._
+
+> **You:** "The `xyz456pl.jpg` is the canonical one. Trash the other."
+
+_Agent dry-runs `trash_duplicate_cover`, shows plan, you approve, executes._
+
+> **You:** "Great. Now run organize for real on the full 45 titles."
+
+_Agent calls `organize_volume` with `dryRun: false`. Reports: "44 sorted to tier folders, 1 routed to /attention/ with REASON.txt. 38 actresses affected; 6 promoted to a higher tier."_
+
+> **You:** "Show me the one that went to attention. What does the REASON.txt say?"
+
+_Agent calls `read_text_file` on `/attention/<folder>/REASON.txt`, explains._
+
+#### Session C — Investigating data quality
+
+You noticed something weird in the web UI — a specific actress seems to have two entries. Track down what's going on.
+
+> **You:** "In the UI I see both `Rika Minami` and `Minami Rika` in the actress list. Are these the same person?"
+
+_Agent calls `lookup_actress` for each. Reports: two separate records, each with their own title counts. Runs `find_name_order_variants` focused on these names. Shows label overlap (both have titles under labels MIDD, IDBD) and debut date proximity._
+
+> **You:** "Yeah, looks like the same person. Which one has more titles?"
+
+_Agent: "Rika Minami has 14 titles, Minami Rika has 2."_
+
+> **You:** "OK, merge `Minami Rika` into `Rika Minami`. Dry-run first."
+
+_Agent dry-runs merge, shows plan: 2 titles reassigned, 1 alias added. You approve. Agent executes._
+
+> **You:** "Did the merge create any letter-volume mismatches on disk?"
+
+_Agent calls `list_actresses_with_misnamed_folders`. Reports: "Yes — on volume `m`, there's a folder `Minami Rika` that contains the 2 migrated titles. Since her canonical name is now `Rika Minami`, those should be under `/stars/{tier}/Rika Minami/` on volume `r`."_
+
+> **You:** "That's a cross-volume move, so it needs manual intervention. Route it to attention on `m` with a clear explanation."
+
+_Agent mounts `m`, moves the Minami Rika folder to `/attention/Minami Rika/`, writes a REASON.txt explaining the post-merge letter change and pointing to the correct target volume. You'll handle the cross-volume move in the NAS UI at your leisure._
+
+#### Session D — The mass cleanup
+
+You have the folder-anomaly audit report from `find_multi_cover_titles` — 329 titles across the library need cleanup. You want to tackle them agentically instead of one-by-one.
+
+> **You:** "I have 329 multi-cover titles to resolve across the library. For each one, pick the canonical cover using this rule: if there's a file named `{code}pl.jpg`, keep that; otherwise keep the lexicographically-first one. Trash the rest. Process one volume at a time; report progress per volume."
+
+_Agent mounts volume `a` first, iterates through its multi-cover hits. For each, calls `list_directory` to see current state, applies the rule to pick `keep`, calls `trash_duplicate_cover` with `dryRun: false`. When done, reports: "volume `a`: 9 titles processed, 9 resolved, 0 failures." Unmounts, moves to next volume._
+
+> **You** _(mid-run):_ "Actually pause. Before we continue to `bg`, show me one of the decisions you already made on `a` — I want to sanity-check the canonical-picker logic."
+
+_Agent shows one case: input was `[ipz111pl.jpg, ipz111pl - Copy.jpg]`, kept `ipz111pl.jpg` per rule 1, trashed the "Copy" file._
+
+> **You:** "Looks right. Continue."
+
+_Agent resumes. At the end, produces a consolidated summary: "329 titles processed across 14 volumes. 317 resolved cleanly. 12 failed (listed below) — 8 because the keep-rule produced no match (no `{code}pl.jpg` and multiple non-suffixed candidates — ambiguous), 4 because the cover filenames contained non-ASCII characters that broke the rule."_
+
+---
+
+### Prompt patterns that work well
+
+A few concrete phrasings that consistently produce good agent behavior:
+
+- **"Dry-run first"** — at the end of any mutation request. Forces the plan-then-approve flow.
+- **"Show me before executing"** — same effect, slightly different phrasing. Both work.
+- **"Process one [unit] at a time, report after each"** — gives you a chance to catch issues early.
+- **"Don't commit until I confirm"** — sets an explicit pause point.
+- **"Why did you make that choice?"** — ask after a judgment call (which cover to keep, which merge direction). Good for building trust in the agent's picks.
+- **"What would happen if..."** — hypothetical mode; agent thinks through the tool call without making it.
+- **"Redo that, but..."** — iterate on a plan you didn't like before approving execution.
+
+---
+
+### Gotchas and anti-patterns
+
+**Don't rush the agent past dry-run.** Saying "just do it" in the first prompt works for small ops but can skip the check that a bulk operation would have caught. For anything >3-4 items, dry-run first.
+
+**Don't over-specify the tool to use.** Asking "call `organize_volume` with `phases=[sort]`" is more brittle than "sort the titles in `a`'s queue." The agent knows the tool catalog; let it pick.
+
+**Don't forget mounts.** Some tools don't care (DB-only work, SQL queries). File-op tools need a volume mounted. The agent will usually mount if asked to operate on a specific volume, but if you're chaining complex work, tell it which volume upfront.
+
+**Don't assume the agent remembers across conversations.** Each Claude Desktop conversation is fresh. If you did a merge in session A and later start session B, the agent won't remember — it'll read the current DB state, which already reflects your earlier merge.
+
+**Don't commit to a long autonomous run without checkpoints.** "Clean up everything on the library, go" is too vague. Break into smaller prompts: "clean up duplicate covers on `a`", then check back, then next volume. The agent is good but long autonomous loops on real data still deserve human check-ins.
+
+**Don't expect the agent to know your house rules** _(until you tell it)_. "Always prefer `{code}pl.jpg` for canonical covers" is a rule you'd teach the agent in-session. It won't guess. Once stated, the rule applies for the rest of that conversation.
+
+---
+
+### Safety recap
+
+Three layers of protection for agentic mode:
+
+1. **Config gates** (`organizer-config.yaml`): if `allowFileOps: false`, the agent literally can't invoke file-moving tools. They're not in its catalog.
+2. **Per-tool dry-run defaults**: every mutation tool starts in dry-run. The agent must pass `dryRun: false` explicitly.
+3. **Trash, not delete**: nothing is ever permanently deleted by the app. Trashed items go to each volume's `_trash/` folder where you can review them at leisure via the NAS UI.
+
+If any one of these three fails, the other two cover you.
