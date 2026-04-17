@@ -5,6 +5,10 @@ import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
+import java.nio.file.attribute.BasicFileAttributeView;
+import java.nio.file.attribute.BasicFileAttributes;
+import java.nio.file.attribute.FileTime;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.List;
@@ -75,5 +79,23 @@ public class LocalFileSystem implements VolumeFileSystem {
     @Override
     public void writeFile(Path path, byte[] contents) throws IOException {
         Files.write(path, contents);
+    }
+
+    @Override
+    public FileTimestamps getTimestamps(Path path) throws IOException {
+        BasicFileAttributes a = Files.readAttributes(path, BasicFileAttributes.class);
+        Instant created  = a.creationTime()     != null ? a.creationTime().toInstant()     : null;
+        Instant modified = a.lastModifiedTime() != null ? a.lastModifiedTime().toInstant() : null;
+        Instant accessed = a.lastAccessTime()   != null ? a.lastAccessTime().toInstant()   : null;
+        return new FileTimestamps(created, modified, accessed);
+    }
+
+    @Override
+    public void setTimestamps(Path path, Instant created, Instant modified) throws IOException {
+        BasicFileAttributeView view = Files.getFileAttributeView(path, BasicFileAttributeView.class);
+        FileTime mod = modified != null ? FileTime.from(modified) : null;
+        FileTime cre = created  != null ? FileTime.from(created)  : null;
+        // Signature: setTimes(lastModified, lastAccess, creation). null means "leave unchanged".
+        view.setTimes(mod, null, cre);
     }
 }

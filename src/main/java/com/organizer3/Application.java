@@ -277,6 +277,43 @@ public class Application {
         commands.add(new ScanCoversCommand(titleRepo, volumeRepo, coverPath, scannerRegistry));
         commands.add(new PruneCoversCommand(titleRepo, coverPath));
 
+        // Organize-pipeline commands — title-folder timestamp correction
+        com.organizer3.organize.TitleTimestampService titleTimestampService =
+                new com.organizer3.organize.TitleTimestampService();
+        commands.add(new com.organizer3.command.FixTitleTimestampsCommand(jdbi, titleTimestampService));
+        commands.add(new com.organizer3.command.AuditTimestampsCommand(jdbi, titleTimestampService));
+
+        // Organize-pipeline commands — phase 1: normalize filenames
+        com.organizer3.organize.TitleNormalizerService titleNormalizerService =
+                new com.organizer3.organize.TitleNormalizerService(config.mediaOrDefaults());
+        commands.add(new com.organizer3.command.NormalizeTitleCommand(jdbi, titleNormalizerService));
+
+        // Organize-pipeline commands — phase 2: restructure title folder
+        com.organizer3.organize.TitleRestructurerService titleRestructurerService =
+                new com.organizer3.organize.TitleRestructurerService(config.mediaOrDefaults());
+        commands.add(new com.organizer3.command.RestructureTitleCommand(jdbi, titleRestructurerService));
+
+        // Organize-pipeline commands — phase 3: sort title from queue → /stars/{tier}/{actress}/
+        com.organizer3.organize.TitleSorterService titleSorterService =
+                new com.organizer3.organize.TitleSorterService(
+                        titleRepo, actressRepo, titleActressRepo, titleLocationRepo,
+                        config.libraryOrDefaults(), titleTimestampService);
+        commands.add(new com.organizer3.command.SortTitleCommand(jdbi, config, titleSorterService));
+
+        // Organize-pipeline commands — phase 4: re-tier actress by current title count
+        com.organizer3.organize.ActressClassifierService actressClassifierService =
+                new com.organizer3.organize.ActressClassifierService(
+                        actressRepo, titleRepo, titleLocationRepo, config.libraryOrDefaults());
+        commands.add(new com.organizer3.command.ClassifyActressCommand(jdbi, config, actressClassifierService));
+
+        // Organize-pipeline commands — composite: walk queue, run phases 1-3 per title, phase 4 per actress
+        com.organizer3.organize.OrganizeVolumeService organizeVolumeService =
+                new com.organizer3.organize.OrganizeVolumeService(
+                        titleRepo, titleLocationRepo,
+                        titleNormalizerService, titleRestructurerService,
+                        titleSorterService, actressClassifierService);
+        commands.add(new com.organizer3.command.OrganizeVolumeCommand(jdbi, config, organizeVolumeService));
+
         // Thumbnail service — created early so commands can reference it
         int thumbnailInterval = config.thumbnailInterval() != null ? config.thumbnailInterval() : 8;
         ThumbnailService thumbnailService = new ThumbnailService(
@@ -409,6 +446,13 @@ public class Application {
                 mcpTools.register(new com.organizer3.mcp.tools.TrashDuplicateCoverTool(session, jdbi, config));
                 mcpTools.register(new com.organizer3.mcp.tools.MoveCoverToBaseTool(session, jdbi));
                 mcpTools.register(new com.organizer3.mcp.tools.SandboxWriteTestTool(session, config));
+                mcpTools.register(new com.organizer3.mcp.tools.FixTitleTimestampsTool(session, jdbi, titleTimestampService));
+                mcpTools.register(new com.organizer3.mcp.tools.AuditVolumeTimestampsTool(session, jdbi, titleTimestampService));
+                mcpTools.register(new com.organizer3.mcp.tools.NormalizeTitleTool(session, jdbi, titleNormalizerService));
+                mcpTools.register(new com.organizer3.mcp.tools.RestructureTitleTool(session, jdbi, titleRestructurerService));
+                mcpTools.register(new com.organizer3.mcp.tools.SortTitleTool(session, jdbi, config, titleSorterService));
+                mcpTools.register(new com.organizer3.mcp.tools.ClassifyActressTool(session, jdbi, config, actressClassifierService));
+                mcpTools.register(new com.organizer3.mcp.tools.OrganizeVolumeTool(session, jdbi, config, organizeVolumeService));
                 log.info("MCP file-op tools enabled");
             }
             com.organizer3.mcp.McpServer mcpServer = new com.organizer3.mcp.McpServer(

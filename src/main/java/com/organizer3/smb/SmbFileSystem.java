@@ -1,19 +1,23 @@
 package com.organizer3.smb;
 
 import com.hierynomus.msdtyp.AccessMask;
+import com.hierynomus.msdtyp.FileTime;
 import com.hierynomus.msfscc.FileAttributes;
 import com.hierynomus.msfscc.fileinformation.FileBasicInformation;
 import com.hierynomus.msfscc.fileinformation.FileIdBothDirectoryInformation;
 import com.hierynomus.mssmb2.SMB2CreateDisposition;
 import com.hierynomus.mssmb2.SMB2CreateOptions;
 import com.hierynomus.mssmb2.SMB2ShareAccess;
+import com.hierynomus.smbj.share.DiskEntry;
 import com.hierynomus.smbj.share.DiskShare;
 import com.hierynomus.smbj.share.File;
+import com.organizer3.filesystem.FileTimestamps;
 import com.organizer3.filesystem.VolumeFileSystem;
 
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Path;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.ArrayList;
@@ -190,6 +194,59 @@ class SmbFileSystem implements VolumeFileSystem {
         } catch (Exception e) {
             throw new IOException("Failed to write file: " + path, e);
         }
+    }
+
+    @Override
+    public FileTimestamps getTimestamps(Path path) throws IOException {
+        String smbPath = toSmbPath(path);
+        boolean isDir = share.folderExists(smbPath);
+        try (DiskEntry e = share.open(
+                smbPath,
+                EnumSet.of(AccessMask.FILE_READ_ATTRIBUTES),
+                EnumSet.of(FileAttributes.FILE_ATTRIBUTE_NORMAL),
+                EnumSet.of(SMB2ShareAccess.FILE_SHARE_READ, SMB2ShareAccess.FILE_SHARE_WRITE),
+                SMB2CreateDisposition.FILE_OPEN,
+                isDir ? EnumSet.of(SMB2CreateOptions.FILE_DIRECTORY_FILE)
+                      : EnumSet.noneOf(SMB2CreateOptions.class))) {
+            FileBasicInformation info = e.getFileInformation(FileBasicInformation.class);
+            return new FileTimestamps(
+                    toInstant(info.getCreationTime()),
+                    toInstant(info.getLastWriteTime()),
+                    toInstant(info.getLastAccessTime()));
+        } catch (Exception ex) {
+            throw new IOException("Failed to read timestamps: " + path, ex);
+        }
+    }
+
+    @Override
+    public void setTimestamps(Path path, Instant created, Instant modified) throws IOException {
+        String smbPath = toSmbPath(path);
+        boolean isDir = share.folderExists(smbPath);
+        try (DiskEntry e = share.open(
+                smbPath,
+                EnumSet.of(AccessMask.FILE_WRITE_ATTRIBUTES, AccessMask.FILE_READ_ATTRIBUTES),
+                EnumSet.of(FileAttributes.FILE_ATTRIBUTE_NORMAL),
+                EnumSet.of(SMB2ShareAccess.FILE_SHARE_READ, SMB2ShareAccess.FILE_SHARE_WRITE),
+                SMB2CreateDisposition.FILE_OPEN,
+                isDir ? EnumSet.of(SMB2CreateOptions.FILE_DIRECTORY_FILE)
+                      : EnumSet.noneOf(SMB2CreateOptions.class))) {
+            FileBasicInformation current = e.getFileInformation(FileBasicInformation.class);
+            FileTime newCre = created  != null ? FileTime.fromInstant(created)  : current.getCreationTime();
+            FileTime newMod = modified != null ? FileTime.fromInstant(modified) : current.getLastWriteTime();
+            FileBasicInformation updated = new FileBasicInformation(
+                    newCre,
+                    current.getLastAccessTime(),
+                    newMod,
+                    current.getChangeTime(),
+                    current.getFileAttributes());
+            e.setFileInformation(updated);
+        } catch (Exception ex) {
+            throw new IOException("Failed to set timestamps: " + path, ex);
+        }
+    }
+
+    private static Instant toInstant(FileTime ft) {
+        return ft == null ? null : ft.toInstant();
     }
 
     // -------------------------------------------------------------------------

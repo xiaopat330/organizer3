@@ -24,9 +24,24 @@ public record OrganizerConfig(
         @JsonProperty("structures")      List<VolumeStructureDef> structures,
         @JsonProperty("syncConfig")      List<StructureSyncConfig> syncConfig,
         @JsonProperty("backup")          BackupConfig backup,
-        @JsonProperty("mcp")             McpConfig mcp
+        @JsonProperty("mcp")             McpConfig mcp,
+        @JsonProperty("library")         LibraryConfig library,
+        @JsonProperty("normalize")       NormalizeConfig normalize,
+        @JsonProperty("media")           MediaConfig media
 ) {
-    /** Legacy constructor for test sites that predate the {@code mcp:} block. */
+    /** Legacy ctor for tests that predate the organize-pipeline blocks. */
+    public OrganizerConfig(String appName, String dataDir,
+                           Integer maxBrowseTitles, Integer maxRandomTitles, Integer maxRandomActresses,
+                           Integer thumbnailInterval, Integer thumbnailColumns, Integer coverCropPercent,
+                           List<ServerConfig> servers, List<VolumeConfig> volumes,
+                           List<VolumeStructureDef> structures, List<StructureSyncConfig> syncConfig,
+                           BackupConfig backup, McpConfig mcp) {
+        this(appName, dataDir, maxBrowseTitles, maxRandomTitles, maxRandomActresses,
+             thumbnailInterval, thumbnailColumns, coverCropPercent,
+             servers, volumes, structures, syncConfig, backup, mcp, null, null, null);
+    }
+
+    /** Legacy ctor for test sites that predate the {@code mcp:} block. */
     public OrganizerConfig(String appName, String dataDir,
                            Integer maxBrowseTitles, Integer maxRandomTitles, Integer maxRandomActresses,
                            Integer thumbnailInterval, Integer thumbnailColumns, Integer coverCropPercent,
@@ -35,7 +50,22 @@ public record OrganizerConfig(
                            BackupConfig backup) {
         this(appName, dataDir, maxBrowseTitles, maxRandomTitles, maxRandomActresses,
              thumbnailInterval, thumbnailColumns, coverCropPercent,
-             servers, volumes, structures, syncConfig, backup, null);
+             servers, volumes, structures, syncConfig, backup, null, null, null, null);
+    }
+
+    /** Returns the library config, or defaults if unset. */
+    public LibraryConfig libraryOrDefaults() {
+        return library != null ? library : LibraryConfig.DEFAULTS;
+    }
+
+    /** Returns the normalize config, or an empty one if unset. */
+    public NormalizeConfig normalizeOrEmpty() {
+        return normalize != null ? normalize : NormalizeConfig.EMPTY;
+    }
+
+    /** Returns the media config, or defaults if unset. */
+    public MediaConfig mediaOrDefaults() {
+        return media != null ? media : MediaConfig.DEFAULTS;
     }
 
     public Optional<VolumeConfig> findById(String id) {
