@@ -1,82 +1,101 @@
-# Where We Left Off — 2026-04-16 end of day
+# Where We Left Off — 2026-04-17 end of day
 
 Working notes for resuming tomorrow.
 
 ## What shipped today
 
-Commit `b764db8` on `main` (pushed):
+Two commits on `main` (pushed):
 
-- **Phase 0 — prep** (`FreshPrepService`): raw videos in a queue partition →
-  `(CODE)/<video|h265>/{file}` skeletons. Algorithm strips legacy junk-prefix
-  tokens, parses product code, handles digit-prefix labels (300MIUM), 7-digit
-  FC2PPV, reorders underscore suffixes around encoding tokens
-  (`ONED-999-h265_4K` → `(ONED-999_4K)`).
-- **`prep_fresh_videos`** MCP tool (gated on `allowFileOps` + `allowMutations`).
-- **`prep-fresh <partitionId> [limit] [offset]`** shell command.
-- **PROPOSAL_ORGANIZE_PIPELINE.md §3.0** added; **INSTRUCTION_MANUAL.md** Session B
-  rewritten as the prep walkthrough.
-- 16 new unit tests; full suite green.
+**`0228d3c`** — Prep phase hardened against real corpus:
+- **Suffix-label exception branch** in `FreshPrepService.planOne`. Codes ending
+  in `-1PON` or `-CARIB` are kept literal (no uppercasing, no canonicalization) —
+  separator preserved as-is (`_`, `-`, or space). Emitted via a small whitelist
+  regex checked before the standard `CODE_REGION` pattern.
+- **`FC2PPV ` → `FC2PPV-`** replacelist entry. Normalizes the space-separated
+  variant into the dashed canonical form so existing FC2PPV handling catches it.
+- 4 new unit tests.
+
+**`f5298fe`** — Post-prep diagnostic:
+- **`FreshAuditService`** — classifies each `(CODE)` folder in a queue partition
+  into `READY` / `NEEDS_COVER` / `NEEDS_ACTRESS` / `EMPTY` / `OTHER`.
+  Readiness signals: actress prefix in folder name + cover at base + video inside.
+- **`audit-fresh <partitionId>`** shell command (read-only).
+- **`audit_fresh_skeletons`** MCP tool (read-only, unconditional — no `allowFileOps`
+  gate required).
+- 10 new unit tests.
 
 ## Proven live
 
-Smoke-ran `execute()` against `/Volumes/jav_unsorted-1/fresh`:
-26 raw `hhd800.com@{CODE}-h265.mkv` files → 26 `(CODE)/h265/{CODE}-h265.mkv`
-skeletons. 0 failed, 0 skipped. No `hhd800.com@*` files remain in `fresh/`.
+**Prep execute on the 37 new raws in `unsorted/fresh`:** 37/37 moved, 0 skipped,
+0 failed. Includes the first live 1PON case (`hhd800.com@041126_001-1PON-h265.mkv`
+→ `(041126_001-1PON)/h265/...`). No raw `hhd800.com@*` files remain.
 
-Digit-prefix label `(300MIUM-1353)` parsed correctly. All JUR/FFT/IENF/NGOD/
-RKI/SVGAL/URE/DLDSS/HZGD/ACHJ codes resolved cleanly.
+**Folder audit of the 156 pre-existing prepped folders:** algorithm reproduces
+145 exactly, 1 intentional mismatch (actress workspace folder `_JAV_Ameri_Ichinose`),
+10 unparseable (7 Western dotted names + 3 freeform — all intentionally ignored
+per user rules). After the fix: net coverage 152/156 (97%).
+
+**Live audit of `unsorted/fresh` (post-prep):** 193 folders total. 192 in
+`NEEDS_ACTRESS`, 1 in `OTHER` (`_JAV_Ameri_Ichinose`), 0 `READY` / `NEEDS_COVER` /
+`EMPTY`. Matches expected state — curation hasn't happened yet.
 
 ## Uncommitted local-only
 
-`src/main/resources/organizer-config.yaml` carries local dev tweaks that stay
-out of git:
+`src/main/resources/organizer-config.yaml` still carries local dev tweaks out
+of git:
 - per-server `trash: _trash`, `sandbox: _sandbox`
 - `mcp.allowMutations / allowNetworkOps / allowFileOps: true`
 
+The `FC2PPV ` → `FC2PPV-` replacelist line ships in today's commit; selective
+`git apply` was used to keep the other local tweaks out.
+
 ## Loose ends carried forward
 
-- **`spec/USAGE.md` not updated** — today's MANUAL update covered the same
-  ground in more depth, but USAGE.md still lacks `prep-fresh`. Small cleanup.
-- **`arm`/`test` shell toggle still not wired** — the shell is dry-run-locked.
-  All pipeline execution happens via MCP. `prep-fresh` in the shell is
-  read-only-in-practice.
-- **Claude Desktop MCP** needs an app restart to pick up `prep_fresh_videos`.
-  The stale PID 40173 was killed today; next time the app starts, the new
-  tool will be in the catalog.
-- **Human curation step after prep** — the 26 newly-prepped skeletons now
-  sitting in `fresh/` need actress assignment + covers before they can be
-  moved to letter-volume queues for the rest of the pipeline. That's manual
-  work (not app-managed).
+- **`spec/USAGE.md` updated today** — `prep-fresh` and `audit-fresh` both
+  documented. MANUAL not yet updated for audit (optional; MANUAL's post-prep
+  walkthrough could add an audit example).
+- **`arm`/`test` shell toggle still not wired** — the shell remains dry-run-locked.
+  Pipeline execution happens via MCP or test harness.
+- **Claude Desktop MCP** needs an app restart to pick up both `prep_fresh_videos`
+  (from yesterday) and `audit_fresh_skeletons` (today).
+- **Human curation is the blocker** — 192 `NEEDS_ACTRESS` folders now sit in
+  `unsorted/fresh`. Until some of them get curated, there's no way to validate
+  the READY / NEEDS_COVER / graduation pipeline end-to-end against real data.
 
 ## Three likely next moves
 
 Ranked by payoff.
 
-### 1. Generalize the prep beyond the legacy pattern
+### 1. `arm`/`test` shell toggle
 
-Today's live batch was 100% the `hhd800.com@{CODE}-h265.mkv` shape — easy
-mode. The real `fresh/` inbox over time will be messier:
-- non-h265 encodings (plain, 4K without h265 hint)
-- paired `_a`/`_b` files (algorithm handles them but not yet seen live)
-- Japanese-text folder names in the preserved `(JDXA-57536-)` pattern —
-  the trailing dash case worth noting
-- codes the regex doesn't yet cover (low-confidence edge cases)
+The shell has been dry-run-locked since prep shipped. Every mutation path runs
+through MCP or a test. Wiring a `arm` / `test` pair of commands (and a session
+flag) would let a human drive the pipeline directly from the shell. Scope:
+- Session flag (already exists conceptually via `ctx.isDryRun()`).
+- Two new commands: `arm` flips the flag off (live mode), `test` flips it on.
+- Every mutation command already checks the flag — audit to confirm.
+- Prompt indicator already renders `[*DRYRUN*]` when armed-down.
 
-Audit the other 156 already-prepped folders in `fresh/` against what our
-algorithm *would have* produced. Mismatches are signal — either the
-algorithm is wrong, or the existing folders were hand-curated off-pattern.
+Not strictly required (MCP covers the mutation path), but it closes the gap
+that made yesterday's "prep-fresh in the shell is read-only-in-practice" note
+necessary.
 
-### 2. Post-prep workflow tooling
+### 2. Extend audit with auto-graduation routing (deferred "option B")
 
-Once a human curates a prepped skeleton (actress + cover), moving it to a
-letter-volume's queue is currently manual cross-volume work (always manual
-per intra-volume invariant). But we could add a *diagnostic* MCP tool that
-audits the `fresh/` folder for "ready to graduate" skeletons — has an
-actress-ish sibling folder or cover file, has been stable N days, etc.
+Once some folders enter `READY`, the next friction is computing each one's
+destination letter-volume + queue path. A small extension to `FreshAuditService`
+would include the routing target per READY entry:
+`Yua Aida (ONED-1234) → //pandora/jav_TZ/queue/...`. Reuses existing
+letter→volume mapping. ~30 lines.
 
-### 3. `spec/USAGE.md` + manual cross-check
+Deferred today because `READY` count is 0; only worth building once the curation
+queue has produced some candidates.
 
-Low-urgency housekeeping. Treat as a background task.
+### 3. `size_bytes` + multi-file dedup (inherited)
+
+The older architecture debt. Adding `size()` to `VolumeFileSystem`, a schema
+column backfill, and the dedup policy (`PROPOSAL_ORGANIZE_PIPELINE.md §6.2`).
+Blocked-in-concept on probe-backfill as before. Independent work stream.
 
 ## Open design questions (still valid, inherited)
 
@@ -87,7 +106,7 @@ Low-urgency housekeeping. Treat as a background task.
 
 ## One-line recap
 
-Phase 0 prep shipped + proven on real data (26/26). Pipeline now covers the
-full flow from raw ingest through actress re-tier. Next session is open
-ground — generalize the prep, or pivot back to probe-backfill / data-quality
-cleanups.
+Prep generalized against the real corpus (152/156 coverage, 37/37 live proven)
+and post-prep audit shipped. Next friction point is human actress-curation
+throughput, not code. Pick up `arm`/`test` toggle, auto-graduation routing, or
+probe-backfill when returning.

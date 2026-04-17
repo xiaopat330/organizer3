@@ -112,6 +112,64 @@ Deletes all local thumbnails unconditionally.
 
 ---
 
+## Organize Pipeline
+
+Commands that operate on intake content before it enters the curated library. Apply to `queue` structure volumes (e.g. `unsorted`). See `spec/PROPOSAL_ORGANIZE_PIPELINE.md` for the full pipeline design.
+
+### `prep-fresh <partitionId> [limit] [offset]`
+
+Prep phase (Phase 0). Turns raw video files dropped at the partition root into `(CODE)/<video|h265>/<file>` skeletons ready for human curation.
+
+For each raw file:
+1. Normalize the filename via the configured removelist/replacelist (strips legacy junk-prefix tokens like `hhd800.com@`).
+2. Parse a product code. Handles standard (`JUR-717`), digit-prefix (`300MIUM-1353`), FC2PPV, and suffix-label codes (`041126_001-1PON`, `050825_001-CARIB`).
+3. Compute the target folder (`(CODE)`) and subfolder (`h265/` or `video/` based on encoding hint).
+4. Move the file.
+
+Unparseable files are skipped with a reason. Collisions with existing target folders are also skipped — a human decides whether to merge.
+
+Respects session dry-run. The shell is currently dry-run-locked; actual execution happens via the `prep_fresh_videos` MCP tool.
+
+```
+organizer:vol-unsorted [*DRYRUN*] > prep-fresh queue
+[DRY RUN] 37 planned, 0 skipped  (total videos at root: 37)
+  - /fresh/hhd800.com@JUR-717-h265.mkv → /fresh/(JUR-717)/h265/JUR-717-h265.mkv
+  ...
+```
+
+---
+
+### `audit-fresh <partitionId>`
+
+Read-only diagnostic that classifies each skeleton folder in a queue partition by graduation readiness.
+
+Buckets:
+- `READY` — actress prefix (e.g. `Yua Aida (ONED-1234)`), cover at folder base, video inside
+- `NEEDS_COVER` — has actress prefix but no cover at base
+- `NEEDS_ACTRESS` — bare `(CODE)` folder, still awaiting actress lookup
+- `EMPTY` — skeleton shape but no video inside (investigate)
+- `OTHER` — doesn't match any skeleton pattern (actress workspace folders, free-form dirs)
+
+Output includes per-folder last-modified date so you can triage by age.
+
+```
+organizer:vol-unsorted > audit-fresh queue
+Audit of /fresh — total: 193
+  READY: 0
+  NEEDS_ACTRESS: 192
+  NEEDS_COVER: 0
+  EMPTY: 0
+  OTHER: 1
+--- NEEDS_ACTRESS ---
+  (041126_001-1PON) (mtime 2026-04-17)
+  (ACHJ-083) (mtime 2026-04-16)
+  ...
+```
+
+Also exposed as MCP tool `audit_fresh_skeletons`.
+
+---
+
 ## JAV Data Commands
 
 ### `actresses <tier>`
