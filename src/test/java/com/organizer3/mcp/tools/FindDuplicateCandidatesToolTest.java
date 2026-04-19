@@ -72,6 +72,49 @@ class FindDuplicateCandidatesToolTest {
     }
 
     @Test
+    void reportsPerVideoSizesAndSpread() {
+        long id = titleRepo.save(title("SZ-001")).getId();
+        videoRepo.save(probed(id, "big.mkv", 3600L, "h264", 1920, 1080).toBuilder()
+                .sizeBytes(3_500_000_000L).build());
+        videoRepo.save(probed(id, "small.mkv", 3605L, "hevc", 3840, 2160).toBuilder()
+                .sizeBytes(1_200_000_000L).build());
+
+        var r = (FindDuplicateCandidatesTool.Result) tool.call(args(30, 100));
+        assertEquals(1, r.count());
+        var row = r.candidates().get(0);
+        assertEquals(2, row.sizesBytes().size());
+        assertEquals(3_500_000_000L - 1_200_000_000L, row.sizeSpreadBytes());
+        assertTrue(row.sizesBytes().contains(3_500_000_000L));
+        assertTrue(row.sizesBytes().contains(1_200_000_000L));
+    }
+
+    @Test
+    void nullSizesAppearAsNullInList() {
+        long id = titleRepo.save(title("SZ-002")).getId();
+        videoRepo.save(probed(id, "a.mkv", 3600L, "h264", 1920, 1080).toBuilder()
+                .sizeBytes(2_000_000_000L).build());
+        // Second video probed for duration but no size yet (pre-v19 row).
+        videoRepo.save(probed(id, "b.mkv", 3610L, "hevc", 1920, 1080));
+
+        var r = (FindDuplicateCandidatesTool.Result) tool.call(args(30, 100));
+        assertEquals(1, r.count());
+        var sizes = r.candidates().get(0).sizesBytes();
+        assertEquals(2, sizes.size());
+        assertTrue(sizes.contains(null));
+    }
+
+    @Test
+    void requireSizeSkipsPartiallyMeasuredTitles() {
+        long id = titleRepo.save(title("SZ-003")).getId();
+        videoRepo.save(probed(id, "a.mkv", 3600L, "h264", 1920, 1080).toBuilder()
+                .sizeBytes(2_000_000_000L).build());
+        videoRepo.save(probed(id, "b.mkv", 3610L, "hevc", 1920, 1080)); // no size
+
+        ObjectNode a = args(30, 100); a.put("require_size", true);
+        assertEquals(0, ((FindDuplicateCandidatesTool.Result) tool.call(a)).count());
+    }
+
+    @Test
     void respectsCustomTolerance() {
         long id = titleRepo.save(title("T-001")).getId();
         // 50s spread — within 60s tolerance but outside default 30s
