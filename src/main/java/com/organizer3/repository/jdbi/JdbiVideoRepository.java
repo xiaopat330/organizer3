@@ -161,6 +161,38 @@ public class JdbiVideoRepository implements VideoRepository {
     }
 
     @Override
+    public List<Video> findWithoutSize(String volumeId, long fromIdExclusive, int limit) {
+        return jdbi.withHandle(h -> {
+            String sql = "SELECT * FROM videos WHERE size_bytes IS NULL AND id > :fromId"
+                    + (volumeId != null ? " AND volume_id = :volumeId" : "")
+                    + " ORDER BY id LIMIT :limit";
+            var q = h.createQuery(sql).bind("fromId", fromIdExclusive).bind("limit", limit);
+            if (volumeId != null) q.bind("volumeId", volumeId);
+            return q.map(MAPPER).list();
+        });
+    }
+
+    @Override
+    public long countWithoutSize(String volumeId) {
+        return jdbi.withHandle(h -> {
+            String sql = "SELECT COUNT(*) FROM videos WHERE size_bytes IS NULL"
+                    + (volumeId != null ? " AND volume_id = :volumeId" : "");
+            var q = h.createQuery(sql);
+            if (volumeId != null) q.bind("volumeId", volumeId);
+            return q.mapTo(Long.class).one();
+        });
+    }
+
+    @Override
+    public void updateSize(long videoId, long sizeBytes) {
+        jdbi.useHandle(h ->
+                h.createUpdate("UPDATE videos SET size_bytes = :size WHERE id = :id")
+                        .bind("id", videoId)
+                        .bind("size", sizeBytes)
+                        .execute());
+    }
+
+    @Override
     public void delete(long id) {
         jdbi.useHandle(h ->
                 h.createUpdate("DELETE FROM videos WHERE id = :id")

@@ -388,6 +388,7 @@ public class Application {
         VideoStreamService videoStreamService = new VideoStreamService(titleRepo, videoRepo, smbConnectionFactory);
         VideoProbe videoProbe = new VideoProbe(WebServer.DEFAULT_PORT);
         commands.add(new com.organizer3.command.ProbeVideosCommand(videoRepo, videoProbe::probe));
+        commands.add(new com.organizer3.command.BackfillSizesCommand(videoRepo));
         com.organizer3.media.ProbeJobRunner probeJobRunner =
                 new com.organizer3.media.ProbeJobRunner(videoRepo, videoProbe::probe);
         CommandDispatcher dispatcher = new CommandDispatcher(commands);
@@ -434,6 +435,7 @@ public class Application {
                     .register(new com.organizer3.mcp.tools.ScanTitleFolderAnomaliesTool(session, titleRepo, titleLocationRepo))
                     .register(new com.organizer3.mcp.tools.MountStatusTool(session))
                     .register(new com.organizer3.mcp.tools.ProbeVideosBatchTool(session, videoRepo, videoProbe::probe))
+                    .register(new com.organizer3.mcp.tools.BackfillSizesBatchTool(session, videoRepo))
                     .register(new com.organizer3.mcp.tools.StartProbeJobTool(session, probeJobRunner))
                     .register(new com.organizer3.mcp.tools.ProbeJobStatusTool(probeJobRunner))
                     .register(new com.organizer3.mcp.tools.CancelProbeJobTool(probeJobRunner));

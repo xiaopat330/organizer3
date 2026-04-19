@@ -40,6 +40,18 @@ public interface VideoRepository {
     /** Count of videos with {@code duration_sec IS NULL}, optionally per volume. */
     long countUnprobed(String volumeId);
 
+    /**
+     * Returns videos whose {@code size_bytes} is NULL — the size-backfill candidates.
+     * Optionally filtered by volume. Cursor-paginated like {@link #findUnprobed}.
+     */
+    List<Video> findWithoutSize(String volumeId, long fromIdExclusive, int limit);
+
+    /** Count of videos with {@code size_bytes IS NULL}, optionally per volume. */
+    long countWithoutSize(String volumeId);
+
+    /** Overwrite just the {@code size_bytes} column for one video. */
+    void updateSize(long videoId, long sizeBytes);
+
     void delete(long id);
 
     void deleteByTitle(long titleId);
