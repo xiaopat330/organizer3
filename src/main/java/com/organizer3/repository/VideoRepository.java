@@ -64,4 +64,15 @@ public interface VideoRepository {
      * (used before a partition-scoped re-sync).
      */
     void deleteByVolumeAndPartition(String volumeId, String partitionId);
+
+    /**
+     * Returns unprobed (duration_sec IS NULL) videos that belong to titles flagged as
+     * size-variant candidates (max/min size ratio >= minRatio, with at least minVideos
+     * videos all having size_bytes populated). Cursor-paginated like {@link #findUnprobed}.
+     */
+    List<Video> findUnprobedForSizeVariants(long fromIdExclusive, int limit,
+                                            double minRatio, int minVideos);
+
+    /** Count of unprobed videos belonging to size-variant candidate titles. */
+    long countUnprobedForSizeVariants(double minRatio, int minVideos);
 }

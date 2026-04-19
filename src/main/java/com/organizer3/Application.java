@@ -436,6 +436,7 @@ public class Application {
                     .register(new com.organizer3.mcp.tools.ScanTitleFolderAnomaliesTool(session, titleRepo, titleLocationRepo))
                     .register(new com.organizer3.mcp.tools.MountStatusTool(session))
                     .register(new com.organizer3.mcp.tools.ProbeVideosBatchTool(session, videoRepo, videoProbe::probe))
+                    .register(new com.organizer3.mcp.tools.ProbeSizeVariantsBatchTool(videoRepo, videoProbe::probe))
                     .register(new com.organizer3.mcp.tools.BackfillSizesBatchTool(session, videoRepo))
                     .register(new com.organizer3.mcp.tools.StartProbeJobTool(session, probeJobRunner))
                     .register(new com.organizer3.mcp.tools.ProbeJobStatusTool(probeJobRunner))

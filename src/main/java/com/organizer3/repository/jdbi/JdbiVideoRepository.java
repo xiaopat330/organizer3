@@ -184,6 +184,50 @@ public class JdbiVideoRepository implements VideoRepository {
     }
 
     @Override
+    public List<Video> findUnprobedForSizeVariants(long fromIdExclusive, int limit,
+                                                   double minRatio, int minVideos) {
+        return jdbi.withHandle(h -> h.createQuery("""
+                        SELECT v.* FROM videos v
+                        WHERE v.duration_sec IS NULL
+                          AND v.id > :fromId
+                          AND v.title_id IN (
+                              SELECT s.title_id FROM videos s
+                              GROUP BY s.title_id
+                              HAVING COUNT(*) >= :minVideos
+                                 AND COUNT(*) = COUNT(s.size_bytes)
+                                 AND MIN(s.size_bytes) > 0
+                                 AND (1.0 * MAX(s.size_bytes) / MIN(s.size_bytes)) >= :minRatio
+                          )
+                        ORDER BY v.id
+                        LIMIT :limit
+                        """)
+                .bind("fromId",    fromIdExclusive)
+                .bind("limit",     limit)
+                .bind("minRatio",  minRatio)
+                .bind("minVideos", minVideos)
+                .map(MAPPER).list());
+    }
+
+    @Override
+    public long countUnprobedForSizeVariants(double minRatio, int minVideos) {
+        return jdbi.withHandle(h -> h.createQuery("""
+                        SELECT COUNT(*) FROM videos v
+                        WHERE v.duration_sec IS NULL
+                          AND v.title_id IN (
+                              SELECT s.title_id FROM videos s
+                              GROUP BY s.title_id
+                              HAVING COUNT(*) >= :minVideos
+                                 AND COUNT(*) = COUNT(s.size_bytes)
+                                 AND MIN(s.size_bytes) > 0
+                                 AND (1.0 * MAX(s.size_bytes) / MIN(s.size_bytes)) >= :minRatio
+                          )
+                        """)
+                .bind("minRatio",  minRatio)
+                .bind("minVideos", minVideos)
+                .mapTo(Long.class).one());
+    }
+
+    @Override
     public void updateSize(long videoId, long sizeBytes) {
         jdbi.useHandle(h ->
                 h.createUpdate("UPDATE videos SET size_bytes = :size WHERE id = :id")
