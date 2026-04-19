@@ -19,7 +19,7 @@ import org.jdbi.v3.core.Jdbi;
 public class SchemaUpgrader {
 
     /** Must match the version stamped by {@link SchemaInitializer}. */
-    private static final int CURRENT_VERSION = 18;
+    private static final int CURRENT_VERSION = 19;
 
     private final Jdbi jdbi;
 
@@ -113,7 +113,23 @@ public class SchemaUpgrader {
             setVersion(18);
         }
 
+        if (version < 19) {
+            applyV19();
+            setVersion(19);
+        }
+
         log.info("Schema upgrade complete");
+    }
+
+    /**
+     * v19: {@code size_bytes} column on videos. Enables size-based duplicate detection
+     * (MCP Phase 2 §4.1) and multi-file title dedup. Nullable — backfilled by sync
+     * re-scan or the probe job, which now widens its "needs probing" predicate to
+     * include rows where size is missing.
+     */
+    private void applyV19() {
+        log.info("Applying migration v19: videos.size_bytes");
+        jdbi.useHandle(h -> addColumnIfMissing(h, "videos", "size_bytes", "INTEGER"));
     }
 
     /**

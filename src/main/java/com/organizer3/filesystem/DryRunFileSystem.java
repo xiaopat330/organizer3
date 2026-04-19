@@ -78,6 +78,11 @@ public class DryRunFileSystem implements VolumeFileSystem {
         return Files.newInputStream(path);
     }
 
+    @Override
+    public long size(Path path) throws IOException {
+        return Files.size(path);
+    }
+
     // -------------------------------------------------------------------------
     // Write operations — log only
     // -------------------------------------------------------------------------

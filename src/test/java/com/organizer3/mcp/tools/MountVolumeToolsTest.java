@@ -193,6 +193,7 @@ class MountVolumeToolsTest {
         @Override public boolean isDirectory(Path p)        { return false; }
         @Override public LocalDate getLastModifiedDate(Path p) { return null; }
         @Override public InputStream openFile(Path p)       { throw new UnsupportedOperationException(); }
+        @Override public long size(Path p)                   { throw new UnsupportedOperationException(); }
         @Override public void move(Path s, Path d)          {}
         @Override public void rename(Path p, String n)      {}
         @Override public void createDirectories(Path p)     {}

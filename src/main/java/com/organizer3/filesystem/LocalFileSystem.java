@@ -62,6 +62,11 @@ public class LocalFileSystem implements VolumeFileSystem {
     }
 
     @Override
+    public long size(Path path) throws IOException {
+        return Files.size(path);
+    }
+
+    @Override
     public void move(Path source, Path destination) throws IOException {
         Files.move(source, destination, StandardCopyOption.ATOMIC_MOVE);
     }

@@ -21,6 +21,8 @@ public class JdbiVideoRepository implements VideoRepository {
         Integer widthOrNull = rs.wasNull() ? null : width;
         int height = rs.getInt("height");
         Integer heightOrNull = rs.wasNull() ? null : height;
+        long sizeBytes = rs.getLong("size_bytes");
+        Long sizeOrNull = rs.wasNull() ? null : sizeBytes;
         return Video.builder()
                 .id(rs.getLong("id"))
                 .titleId(rs.getLong("title_id"))
@@ -34,6 +36,7 @@ public class JdbiVideoRepository implements VideoRepository {
                 .videoCodec(rs.getString("video_codec"))
                 .audioCodec(rs.getString("audio_codec"))
                 .container(rs.getString("container"))
+                .sizeBytes(sizeOrNull)
                 .build();
     };
 
@@ -66,10 +69,12 @@ public class JdbiVideoRepository implements VideoRepository {
                 long id = h.createUpdate("""
                                 INSERT INTO videos
                                     (title_id, volume_id, filename, path, last_seen_at,
-                                     duration_sec, width, height, video_codec, audio_codec, container)
+                                     duration_sec, width, height, video_codec, audio_codec, container,
+                                     size_bytes)
                                 VALUES
                                     (:titleId, :volumeId, :filename, :path, :lastSeenAt,
-                                     :durationSec, :width, :height, :videoCodec, :audioCodec, :container)
+                                     :durationSec, :width, :height, :videoCodec, :audioCodec, :container,
+                                     :sizeBytes)
                                 """)
                         .bind("titleId", video.getTitleId())
                         .bind("volumeId", video.getVolumeId())
@@ -82,6 +87,7 @@ public class JdbiVideoRepository implements VideoRepository {
                         .bind("videoCodec", video.getVideoCodec())
                         .bind("audioCodec", video.getAudioCodec())
                         .bind("container", video.getContainer())
+                        .bind("sizeBytes", video.getSizeBytes())
                         .executeAndReturnGeneratedKeys("id")
                         .mapTo(Long.class)
                         .one();
@@ -90,7 +96,8 @@ public class JdbiVideoRepository implements VideoRepository {
                 h.createUpdate("""
                                 UPDATE videos SET
                                     title_id = :titleId, volume_id = :volumeId, filename = :filename,
-                                    path = :path, last_seen_at = :lastSeenAt
+                                    path = :path, last_seen_at = :lastSeenAt,
+                                    size_bytes = COALESCE(:sizeBytes, size_bytes)
                                 WHERE id = :id
                                 """)
                         .bind("id", video.getId())
@@ -99,6 +106,7 @@ public class JdbiVideoRepository implements VideoRepository {
                         .bind("filename", video.getFilename())
                         .bind("path", video.getPath().toString())
                         .bind("lastSeenAt", video.getLastSeenAt().toString())
+                        .bind("sizeBytes", video.getSizeBytes())
                         .execute();
                 return video;
             }

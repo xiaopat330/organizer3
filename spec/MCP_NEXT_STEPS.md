@@ -91,18 +91,33 @@ letter→volume mapping. ~30 lines.
 Deferred today because `READY` count is 0; only worth building once the curation
 queue has produced some candidates.
 
-### 3. `size_bytes` + multi-file dedup (inherited)
+### 3. `size_bytes` foundation — partial, follow-ups open
 
-The older architecture debt. Adding `size()` to `VolumeFileSystem`, a schema
-column backfill, and the dedup policy (`PROPOSAL_ORGANIZE_PIPELINE.md §6.2`).
-Blocked-in-concept on probe-backfill as before. Independent work stream.
+Schema v19 landed the column, `VolumeFileSystem.size()` exists on all impls,
+and sync captures size at video insert via `AbstractSyncOperation.buildVideoRecord`.
+Two things still outstanding:
+
+- **Size backfill for existing rows.** Rows that predate v19 stay `size_bytes IS NULL`
+  until their partition is re-synced (sync deletes + reinserts). A dedicated
+  "walk-and-fill" command (or widening the probe-job unprobed predicate to
+  `duration_sec IS NULL OR size_bytes IS NULL` and giving `ProbeJobRunner` an FS
+  handle) would clear the steady-state gap without a full re-sync.
+- **SMB `listDirectory` optimization.** `SmbFileSystem.size()` does a separate
+  `openFile` per call. Scanner calls it per video → N extra SMB round-trips per
+  full sync. `FileIdBothDirectoryInformation` already carries size on the
+  existing `share.list` call, so a richer listing method (`listDirectoryDetailed`
+  returning name+size+mtime) would make size free during scanning. Worth
+  benchmarking on a small partition first before investing in the refactor.
+
+### 4. Multi-file title dedup (inherited)
+
+`PROPOSAL_ORGANIZE_PIPELINE.md §6.2`. Unblocked in principle once a meaningful
+fraction of rows have size populated. `find_duplicate_candidates` MCP tool is
+the natural consumer.
 
 ## Open design questions (still valid, inherited)
 
-- **`size_bytes` column on videos** — deferred from schema v18; needs
-  `VolumeFileSystem.size()` added across implementations.
-- **Multi-file title dedup** — `PROPOSAL_ORGANIZE_PIPELINE.md §6.2` policy;
-  blocked on probe-backfill.
+- **Multi-file title dedup** — `PROPOSAL_ORGANIZE_PIPELINE.md §6.2` policy.
 
 ## One-line recap
 

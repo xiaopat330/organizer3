@@ -219,6 +219,38 @@ class JdbiVideoRepositoryTest {
         assertEquals("x.mkv", after.getFilename(), "non-metadata fields untouched");
     }
 
+    // --- v19 size_bytes ---
+
+    @org.junit.jupiter.api.Test
+    void saveRoundtripsSizeBytes() {
+        Title t = saveTitle("ABP-001");
+        Video saved = videoRepo.save(Video.builder()
+                .titleId(t.getId()).volumeId("vol-a")
+                .filename("abp001.mkv").path(Path.of("/x/abp001.mkv"))
+                .lastSeenAt(LocalDate.now())
+                .sizeBytes(2_147_483_648L)
+                .build());
+
+        Video loaded = videoRepo.findById(saved.getId()).orElseThrow();
+        assertEquals(2_147_483_648L, loaded.getSizeBytes());
+    }
+
+    @org.junit.jupiter.api.Test
+    void saveWithNullSizeBytesPreservesExistingValue() {
+        Title t = saveTitle("ABP-001");
+        Video saved = videoRepo.save(Video.builder()
+                .titleId(t.getId()).volumeId("vol-a")
+                .filename("abp001.mkv").path(Path.of("/x/abp001.mkv"))
+                .lastSeenAt(LocalDate.now())
+                .sizeBytes(123L)
+                .build());
+
+        // Update path with a null sizeBytes — existing value must not be clobbered.
+        videoRepo.save(saved.toBuilder().sizeBytes(null).build());
+
+        assertEquals(123L, videoRepo.findById(saved.getId()).orElseThrow().getSizeBytes());
+    }
+
     @org.junit.jupiter.api.Test
     void findUnprobedAndCountUnprobedRespectVolumeFilter() {
         Title t = saveTitle("ABP-001");

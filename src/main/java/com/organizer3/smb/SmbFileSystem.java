@@ -5,6 +5,7 @@ import com.hierynomus.msdtyp.FileTime;
 import com.hierynomus.msfscc.FileAttributes;
 import com.hierynomus.msfscc.fileinformation.FileBasicInformation;
 import com.hierynomus.msfscc.fileinformation.FileIdBothDirectoryInformation;
+import com.hierynomus.msfscc.fileinformation.FileStandardInformation;
 import com.hierynomus.mssmb2.SMB2CreateDisposition;
 import com.hierynomus.mssmb2.SMB2CreateOptions;
 import com.hierynomus.mssmb2.SMB2ShareAccess;
@@ -109,6 +110,29 @@ class SmbFileSystem implements VolumeFileSystem {
             return date.toInstant().atZone(ZoneId.systemDefault()).toLocalDate();
         } catch (Exception e) {
             throw new IOException("Failed to get last modified date: " + path, e);
+        }
+    }
+
+    /**
+     * Fetches file size via a dedicated {@code open} + {@code FileStandardInformation}.
+     * Note: {@link #listDirectory} already pulls {@code FileIdBothDirectoryInformation}
+     * which carries the size on its directory entries, so bulk scanners that need size
+     * for every child should eventually surface it through listing rather than calling
+     * this method per file. See MCP_NEXT_STEPS "SMB listDirectory optimization".
+     */
+    @Override
+    public long size(Path path) throws IOException {
+        String smbPath = toSmbPath(path);
+        try (File f = share.openFile(
+                smbPath,
+                EnumSet.of(AccessMask.FILE_READ_ATTRIBUTES),
+                EnumSet.of(FileAttributes.FILE_ATTRIBUTE_NORMAL),
+                EnumSet.of(SMB2ShareAccess.FILE_SHARE_READ, SMB2ShareAccess.FILE_SHARE_WRITE),
+                SMB2CreateDisposition.FILE_OPEN,
+                EnumSet.noneOf(SMB2CreateOptions.class))) {
+            return f.getFileInformation(FileStandardInformation.class).getEndOfFile();
+        } catch (Exception e) {
+            throw new IOException("Failed to get size: " + path, e);
         }
     }
 

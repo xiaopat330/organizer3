@@ -262,6 +262,7 @@ class FreshPrepServiceTest {
         @Override public boolean isDirectory(Path path)         { return Boolean.TRUE.equals(nodes.get(path)); }
         @Override public LocalDate getLastModifiedDate(Path p)  { return null; }
         @Override public InputStream openFile(Path p) throws IOException { throw new IOException("n/a"); }
+        @Override public long size(Path p) throws IOException { throw new IOException("n/a"); }
 
         @Override public void move(Path source, Path destination) {
             Boolean kind = nodes.remove(source);

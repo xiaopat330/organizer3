@@ -142,6 +142,7 @@ class TrashTest {
         @Override public boolean isDirectory(Path path)      { return Boolean.TRUE.equals(nodes.get(path)); }
         @Override public LocalDate getLastModifiedDate(Path path) { return null; }
         @Override public InputStream openFile(Path path) throws IOException { throw new IOException("n/a"); }
+        @Override public long size(Path path) throws IOException { throw new IOException("n/a"); }
 
         @Override public void move(Path source, Path destination) {
             Boolean kind = nodes.remove(source);

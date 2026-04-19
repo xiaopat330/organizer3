@@ -289,6 +289,7 @@ class TitleSorterServiceTest {
         @Override public boolean isDirectory(Path p) { return delegate.isDirectory(rebase(p)); }
         @Override public LocalDate getLastModifiedDate(Path p) throws java.io.IOException { return delegate.getLastModifiedDate(rebase(p)); }
         @Override public InputStream openFile(Path p) throws java.io.IOException { return delegate.openFile(rebase(p)); }
+        @Override public long size(Path p) throws java.io.IOException { return delegate.size(rebase(p)); }
         @Override public void move(Path s, Path d) throws java.io.IOException { delegate.move(rebase(s), rebase(d)); }
         @Override public void rename(Path p, String n) throws java.io.IOException { delegate.rename(rebase(p), n); }
         @Override public void createDirectories(Path p) throws java.io.IOException { delegate.createDirectories(rebase(p)); }

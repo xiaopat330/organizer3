@@ -23,8 +23,12 @@ public class Video {
     Path path;
     LocalDate lastSeenAt;
 
-    // Media metadata — populated by VideoProbe during sync or backfill. All nullable;
-    // {@code durationSec == null} is the "needs probing" signal used by the backfill command.
+    // Media metadata. All nullable.
+    //
+    // durationSec/width/height/codecs/container are populated by VideoProbe (HTTP stream).
+    // sizeBytes is populated at sync time via VolumeFileSystem.size(). There is no
+    // "size backfill" path yet — rows that predate v19 stay null until their partition
+    // is re-synced. findUnprobed keys on {@code duration_sec IS NULL} only.
     Long    durationSec;
     Integer width;
     Integer height;
@@ -32,4 +36,6 @@ public class Video {
     String  audioCodec;
     /** Derived from filename extension — e.g. "mkv", "mp4", "avi". Lowercase, no dot. */
     String  container;
+    /** File size in bytes. Captured at sync time via {@code VolumeFileSystem.size()}. */
+    Long    sizeBytes;
 }

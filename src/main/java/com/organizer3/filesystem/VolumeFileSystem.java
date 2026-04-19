@@ -51,6 +51,12 @@ public interface VolumeFileSystem {
      */
     InputStream openFile(Path path) throws IOException;
 
+    /**
+     * Returns the size of the file at {@code path} in bytes. Behavior on directories
+     * is implementation-defined; callers should only invoke on regular files.
+     */
+    long size(Path path) throws IOException;
+
     // -------------------------------------------------------------------------
     // Write operations
     // LocalFileSystem:    executes via java.nio.file.Files and logs to audit

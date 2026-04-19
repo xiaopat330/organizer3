@@ -197,8 +197,7 @@ abstract class AbstractSyncOperation implements SyncOperation {
                                     VolumeFileSystem fs) throws IOException {
         for (Path child : fs.listDirectory(titleFolder)) {
             if (!fs.isDirectory(child) && MediaExtensions.isVideo(child)) {
-                videoRepo.save(Video.builder().titleId(titleId).volumeId(volumeId)
-                        .filename(child.getFileName().toString()).path(child).lastSeenAt(LocalDate.now()).build());
+                videoRepo.save(buildVideoRecord(child, titleId, volumeId, fs));
             }
         }
         for (String subdir : VIDEO_SUBDIRECTORIES) {
@@ -206,12 +205,28 @@ abstract class AbstractSyncOperation implements SyncOperation {
             if (fs.exists(videoSubdir) && fs.isDirectory(videoSubdir)) {
                 for (Path child : fs.listDirectory(videoSubdir)) {
                     if (!fs.isDirectory(child) && MediaExtensions.isVideo(child)) {
-                        videoRepo.save(Video.builder().titleId(titleId).volumeId(volumeId)
-                                .filename(child.getFileName().toString()).path(child).lastSeenAt(LocalDate.now()).build());
+                        videoRepo.save(buildVideoRecord(child, titleId, volumeId, fs));
                     }
                 }
             }
         }
+    }
+
+    private Video buildVideoRecord(Path path, long titleId, String volumeId, VolumeFileSystem fs) {
+        Long sizeBytes = null;
+        try {
+            sizeBytes = fs.size(path);
+        } catch (IOException e) {
+            log.warn("Failed to read size for {}: {}", path, e.getMessage());
+        }
+        return Video.builder()
+                .titleId(titleId)
+                .volumeId(volumeId)
+                .filename(path.getFileName().toString())
+                .path(path)
+                .lastSeenAt(LocalDate.now())
+                .sizeBytes(sizeBytes)
+                .build();
     }
 
     /**
