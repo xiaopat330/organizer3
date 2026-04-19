@@ -88,6 +88,11 @@ public final class Schemas {
         return (v == null || v.isNull()) ? defaultValue : v.asLong(defaultValue);
     }
 
+    public static double optDouble(com.fasterxml.jackson.databind.JsonNode args, String name, double defaultValue) {
+        com.fasterxml.jackson.databind.JsonNode v = args.get(name);
+        return (v == null || v.isNull()) ? defaultValue : v.asDouble(defaultValue);
+    }
+
     public static long requireLong(com.fasterxml.jackson.databind.JsonNode args, String name) {
         com.fasterxml.jackson.databind.JsonNode v = args.get(name);
         if (v == null || v.isNull()) {

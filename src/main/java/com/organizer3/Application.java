@@ -430,6 +430,7 @@ public class Application {
                     .register(new com.organizer3.mcp.tools.ListMultiVideoTitlesTool(jdbi))
                     .register(new com.organizer3.mcp.tools.AnalyzeTitleVideosTool(titleRepo, videoRepo))
                     .register(new com.organizer3.mcp.tools.FindDuplicateCandidatesTool(jdbi))
+                    .register(new com.organizer3.mcp.tools.FindSizeVariantTitlesTool(jdbi))
                     .register(new com.organizer3.mcp.tools.FindMultiCoverTitlesTool(session, jdbi))
                     .register(new com.organizer3.mcp.tools.FindMisfiledCoversTool(session, jdbi))
                     .register(new com.organizer3.mcp.tools.ScanTitleFolderAnomaliesTool(session, titleRepo, titleLocationRepo))
