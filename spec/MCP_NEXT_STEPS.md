@@ -91,29 +91,41 @@ letter→volume mapping. ~30 lines.
 Deferred today because `READY` count is 0; only worth building once the curation
 queue has produced some candidates.
 
-### 3. `size_bytes` foundation — partial, follow-ups open
+### 3. `size_bytes` foundation — shipped 2026-04-19
 
-Schema v19 landed the column, `VolumeFileSystem.size()` exists on all impls,
-and sync captures size at video insert via `AbstractSyncOperation.buildVideoRecord`.
-Two things still outstanding:
+Schema v19 added the column; `VolumeFileSystem.size()` exists on all impls;
+sync captures size at video insert time; `backfill-sizes` shell command and
+`backfill_sizes_batch` MCP tool fill gaps on already-indexed rows.
 
-- **Size backfill for existing rows.** Rows that predate v19 stay `size_bytes IS NULL`
-  until their partition is re-synced (sync deletes + reinserts). A dedicated
-  "walk-and-fill" command (or widening the probe-job unprobed predicate to
-  `duration_sec IS NULL OR size_bytes IS NULL` and giving `ProbeJobRunner` an FS
-  handle) would clear the steady-state gap without a full re-sync.
+Backfilled live across 17 volumes on 2026-04-19: 60,110 / 60,375 rows now
+have size. The 265 failures (mostly on volatile partitions: `classic`,
+`qnap_archive`, `unsorted`) are files that no longer exist at their recorded
+path — candidates for a separate "stale paths" cleanup pass.
+
+Size-variance canary `find_size_variant_titles` added as the first consumer
+(ratio >= 2): flags 918 multi-video titles, 30 of them at >= 10x. Snapshot
+at `reference/size_variant_snapshot_2026-04-19.txt`.
+
+Remaining follow-ups:
+
 - **SMB `listDirectory` optimization.** `SmbFileSystem.size()` does a separate
   `openFile` per call. Scanner calls it per video → N extra SMB round-trips per
-  full sync. `FileIdBothDirectoryInformation` already carries size on the
-  existing `share.list` call, so a richer listing method (`listDirectoryDetailed`
-  returning name+size+mtime) would make size free during scanning. Worth
-  benchmarking on a small partition first before investing in the refactor.
+  full sync. Live test (187 videos, bg/queue) showed ~6.6 ms per stat on LAN —
+  so probably negligible in practice; skip unless a full re-sync starts feeling
+  slow. `FileIdBothDirectoryInformation` already carries size on the existing
+  `share.list` call if we ever want to claw it back for free.
+- **Duration probe is still the gap.** `find_duplicate_candidates` needs
+  `duration_sec` non-null on every video in a candidate title; only 350 / 60k
+  rows have duration today. Running `probe videos` per volume (slow — streams
+  each file through ffmpeg) is the next obvious lever to unlock the
+  duration-based heuristic at scale.
 
 ### 4. Multi-file title dedup (inherited)
 
-`PROPOSAL_ORGANIZE_PIPELINE.md §6.2`. Unblocked in principle once a meaningful
-fraction of rows have size populated. `find_duplicate_candidates` MCP tool is
-the natural consumer.
+`PROPOSAL_ORGANIZE_PIPELINE.md §6.2`. Size-foundation is shipped; the
+`find_size_variant_titles` output is a triage feed. Next step is deciding a
+deletion policy (keep the largest? keep the h265 variant? keep whichever
+matches a duration we've probed?).
 
 ## Open design questions (still valid, inherited)
 
