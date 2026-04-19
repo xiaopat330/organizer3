@@ -206,6 +206,8 @@ public class Application {
         // Commands
         List<Command> commands = new ArrayList<>();
         commands.add(new ShutdownCommand());
+        commands.add(new com.organizer3.command.ArmCommand());
+        commands.add(new com.organizer3.command.TestCommand());
         SmbjConnector smbjConnector = new SmbjConnector();
         MountCommand mountCommand = new MountCommand(smbjConnector, indexLoader);
         commands.add(mountCommand);
