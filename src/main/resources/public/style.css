@@ -3344,6 +3344,26 @@ header h1:hover {
   margin: 8px 0 12px;
 }
 
+.actress-detail-folder-paths {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  margin: 0 0 12px;
+}
+
+.actress-detail-folder-path {
+  font-family: ui-monospace, monospace;
+  font-size: 0.7rem;
+  color: #7fd7ff;
+  text-decoration: none;
+  word-break: break-all;
+  cursor: pointer;
+}
+
+.actress-detail-folder-path:hover {
+  text-decoration: underline;
+}
+
 .title-detail-title-ja {
   font-size: 1.25rem;
   font-weight: 700;
