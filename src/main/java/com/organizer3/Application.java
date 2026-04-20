@@ -404,6 +404,20 @@ public class Application {
                 avScreenshotRepo, avScreenshotDir, avTagDefRepo, avScreenshotService);
         webServer.registerTerminal(new WebTerminalHandler(dispatcher, session));
 
+        // Title Editor — metadata preparation for fully-structured titles in the unsorted volume.
+        // See spec/PROPOSAL_TITLE_EDITOR.md.
+        final String UNSORTED_VOLUME_ID = "unsorted";
+        com.organizer3.repository.UnsortedEditorRepository unsortedRepo =
+                new com.organizer3.repository.jdbi.JdbiUnsortedEditorRepository(jdbi);
+        com.organizer3.web.UnsortedEditorService unsortedEditorService =
+                new com.organizer3.web.UnsortedEditorService(unsortedRepo, actressRepo, coverPath,
+                        smbConnectionFactory, UNSORTED_VOLUME_ID);
+        com.organizer3.web.CoverWriteService coverWriteService =
+                new com.organizer3.web.CoverWriteService(smbConnectionFactory, coverPath, UNSORTED_VOLUME_ID);
+        com.organizer3.web.ImageFetcher imageFetcher = new com.organizer3.web.ImageFetcher();
+        webServer.registerUnsortedEditor(new com.organizer3.web.routes.UnsortedEditorRoutes(
+                unsortedEditorService, coverWriteService, imageFetcher, coverPath));
+
         // MCP (Model Context Protocol) server — read-only diagnostic tools mounted on
         // the existing Javalin instance. See spec/PROPOSAL_MCP_SERVER.md.
         com.organizer3.mcp.McpConfig mcpConfig = AppConfig.get().volumes().mcp() != null

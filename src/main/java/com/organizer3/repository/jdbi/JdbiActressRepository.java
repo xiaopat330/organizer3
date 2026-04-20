@@ -80,6 +80,7 @@ public class JdbiActressRepository implements ActressRepository {
                 .awards(readJson(rs.getString("awards_json"), AWARDS_TYPE))
                 .visitCount(rs.getInt("visit_count"))
                 .lastVisitedAt(lastVisitedStr != null ? LocalDateTime.parse(lastVisitedStr) : null)
+                .needsProfiling(rs.getInt("needs_profiling") != 0)
                 .build();
     };
 
@@ -541,8 +542,8 @@ public class JdbiActressRepository implements ActressRepository {
             String gradeStr = actress.getGrade() != null ? actress.getGrade().display : null;
             if (actress.getId() == null) {
                 long id = h.createUpdate("""
-                                INSERT INTO actresses (canonical_name, stage_name, tier, favorite, bookmark, grade, rejected, first_seen_at)
-                                VALUES (:name, :stageName, :tier, :favorite, :bookmark, :grade, :rejected, :date)
+                                INSERT INTO actresses (canonical_name, stage_name, tier, favorite, bookmark, grade, rejected, first_seen_at, needs_profiling)
+                                VALUES (:name, :stageName, :tier, :favorite, :bookmark, :grade, :rejected, :date, :needsProfiling)
                                 """)
                         .bind("name", actress.getCanonicalName())
                         .bind("stageName", actress.getStageName())
@@ -552,6 +553,7 @@ public class JdbiActressRepository implements ActressRepository {
                         .bind("grade", gradeStr)
                         .bind("rejected", actress.isRejected() ? 1 : 0)
                         .bind("date", actress.getFirstSeenAt().toString())
+                        .bind("needsProfiling", actress.isNeedsProfiling() ? 1 : 0)
                         .executeAndReturnGeneratedKeys("id")
                         .mapTo(Long.class)
                         .one();
@@ -565,6 +567,7 @@ public class JdbiActressRepository implements ActressRepository {
                         .grade(actress.getGrade())
                         .rejected(actress.isRejected())
                         .firstSeenAt(actress.getFirstSeenAt())
+                        .needsProfiling(actress.isNeedsProfiling())
                         .build();
             } else {
                 h.createUpdate("""
@@ -1202,6 +1205,63 @@ public class JdbiActressRepository implements ActressRepository {
             result.computeIfAbsent(loc.actressId(), k -> new java.util.ArrayList<>()).add(loc);
         }
         return result;
+    }
+
+    @Override
+    public List<FederatedActressResult> searchForEditor(String query, boolean startsWith, int limit) {
+        String pattern = startsWith ? query + "%" : "%" + query + "%";
+        return jdbi.withHandle(h ->
+                h.createQuery("""
+                        WITH matches AS (
+                          SELECT a.id, a.canonical_name, a.stage_name, a.tier, a.grade,
+                                 a.favorite, a.bookmark,
+                                 aa.alias_name AS matched_alias, 0 AS is_canonical
+                          FROM actresses a
+                          JOIN actress_aliases aa ON aa.actress_id = a.id
+                          WHERE aa.alias_name LIKE :pattern COLLATE NOCASE AND a.rejected = 0
+                          UNION ALL
+                          SELECT a.id, a.canonical_name, a.stage_name, a.tier, a.grade,
+                                 a.favorite, a.bookmark,
+                                 NULL AS matched_alias, 1 AS is_canonical
+                          FROM actresses a
+                          WHERE a.canonical_name LIKE :pattern COLLATE NOCASE AND a.rejected = 0
+                        ),
+                        ranked AS (
+                          SELECT *, ROW_NUMBER() OVER (PARTITION BY id ORDER BY is_canonical DESC) AS rn
+                          FROM matches
+                        )
+                        SELECT r.id, r.canonical_name, r.stage_name, r.tier, r.grade,
+                               r.favorite, r.bookmark, r.matched_alias,
+                               COUNT(t.id) AS title_count,
+                               (SELECT GROUP_CONCAT(sub.label || ':' || sub.base_code, '|')
+                                FROM (SELECT tc.label, tc.base_code FROM titles tc
+                                      WHERE tc.actress_id = r.id
+                                        AND tc.base_code IS NOT NULL AND tc.label IS NOT NULL
+                                      ORDER BY tc.id DESC LIMIT 5) sub
+                               ) AS cover_candidates
+                        FROM ranked r
+                        LEFT JOIN titles t ON t.actress_id = r.id
+                        WHERE r.rn = 1
+                        GROUP BY r.id
+                        ORDER BY r.favorite DESC, r.bookmark DESC, r.canonical_name
+                        LIMIT :limit
+                        """)
+                        .bind("pattern", pattern)
+                        .bind("limit", limit)
+                        .map((rs, ctx) -> new FederatedActressResult(
+                                rs.getLong("id"),
+                                rs.getString("canonical_name"),
+                                rs.getString("stage_name"),
+                                rs.getString("tier"),
+                                rs.getString("grade"),
+                                rs.getInt("favorite") != 0,
+                                rs.getInt("bookmark") != 0,
+                                rs.getString("matched_alias"),
+                                rs.getInt("title_count"),
+                                rs.getString("cover_candidates")
+                        ))
+                        .list()
+        );
     }
 
     @Override

@@ -86,6 +86,14 @@ public class WebServer {
     }
 
     /**
+     * Mounts the Title Editor routes ({@code /api/unsorted/*}).
+     * Call after construction, before {@link #start()}.
+     */
+    public void registerUnsortedEditor(com.organizer3.web.routes.UnsortedEditorRoutes routes) {
+        routes.register(app);
+    }
+
+    /**
      * Mounts the MCP (Model Context Protocol) endpoint on this server.
      * The endpoint is disabled if {@code mcp.enabled: false} in config.
      * Call after construction, before {@link #start()}.

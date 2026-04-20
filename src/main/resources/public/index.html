@@ -10,6 +10,7 @@
   <link rel="stylesheet" href="/css/details.css">
   <link rel="stylesheet" href="/css/overlays.css">
   <link rel="stylesheet" href="/css/av-tools.css">
+  <link rel="stylesheet" href="/css/title-editor.css">
 </head>
 <body>
 
@@ -239,7 +240,97 @@
       <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="8" width="13" height="13" rx="2"/><path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h3"/></svg>
       Duplicates
     </button>
+    <button type="button" id="tools-queue-btn" class="action-tool-btn tools-queue-btn">
+      <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+      Queue
+    </button>
   </div>
+</div>
+
+<!-- Title Editor (Queue) tool content -->
+<div id="tools-queue-view" class="tools-queue-view" style="display:none">
+  <aside class="queue-sidebar">
+    <div class="queue-sidebar-header">
+      <span id="queue-count-label">Queue</span>
+      <label class="queue-filter-toggle">
+        <input type="checkbox" id="queue-show-complete"> Show complete
+      </label>
+    </div>
+    <ul id="queue-list" class="queue-list"></ul>
+  </aside>
+  <main class="queue-editor">
+    <div id="queue-editor-empty" class="queue-editor-empty">Select a title from the queue to start editing.</div>
+    <section id="queue-editor-pane" class="queue-editor-pane" style="display:none">
+      <div class="queue-editor-header">
+        <span id="queue-editor-code"></span>
+        <span class="queue-editor-sep">·</span>
+        <span id="queue-editor-folder" class="queue-editor-folder"></span>
+        <span id="queue-duplicate-badge" class="queue-duplicate-badge" style="display:none">Duplicate</span>
+      </div>
+      <div id="queue-duplicate-banner" class="queue-duplicate-banner" style="display:none">
+        <div class="queue-duplicate-banner-title">This product code already exists in the library.</div>
+        <div class="queue-duplicate-banner-body">
+          Actress and cover editing are disabled. Set a descriptor to uniquely identify this copy —
+          the folder will be renamed using the existing primary actress.
+        </div>
+        <ul id="queue-duplicate-locations" class="queue-duplicate-locations"></ul>
+      </div>
+      <div class="queue-editor-body">
+        <div class="queue-cover-column">
+          <div id="queue-cover-panel" class="queue-cover-panel" tabindex="0">
+            <img id="queue-cover-img" class="queue-cover-img" alt="" style="display:none">
+            <div id="queue-cover-placeholder" class="queue-cover-placeholder">
+              <div>Drop image here</div>
+              <div class="queue-cover-hint">URL · file · paste</div>
+            </div>
+            <div id="queue-cover-lock" class="queue-cover-lock" style="display:none">
+              <div class="queue-cover-lock-icon">🔒</div>
+              <div class="queue-cover-lock-text">Cover locked — reused from original</div>
+            </div>
+          </div>
+          <div class="queue-descriptor-row">
+            <label for="queue-descriptor-input" class="queue-descriptor-label">Descriptor</label>
+            <input type="text" id="queue-descriptor-input" class="queue-descriptor-input"
+                   placeholder="optional — e.g. Demosaiced, 4K, Uncut" autocomplete="off">
+            <span class="queue-descriptor-hint">writes as <span class="queue-descriptor-preview" id="queue-descriptor-preview"></span></span>
+          </div>
+        </div>
+        <div class="queue-actress-panel">
+          <div class="queue-actress-panel-title">
+            Actresses <span class="queue-actress-panel-note">(at least one required; ★ = primary)</span>
+          </div>
+          <ul id="queue-actress-list" class="queue-actress-list"></ul>
+          <div id="queue-actress-hint" class="queue-actress-hint" style="display:none"></div>
+          <div class="queue-actress-add">
+            <label for="queue-actress-input" class="queue-actress-add-label">
+              <span class="queue-actress-add-plus">+</span> Add actress
+            </label>
+            <input type="text" id="queue-actress-input" class="queue-actress-input"
+                   placeholder="Type a name to search or create a new actress…" autocomplete="off">
+            <div id="queue-actress-suggest" class="queue-actress-suggest" style="display:none"></div>
+            <div class="queue-actress-add-hint">Add as many as you like — typing again will add another.</div>
+          </div>
+        </div>
+      </div>
+      <hr class="queue-section-divider">
+      <div class="queue-tags-section">
+        <div class="queue-tags-label">
+          Tags
+          <span class="queue-tags-label-note">click to toggle · <span class="queue-tag-implicit-sample">red</span> = implied by label (not editable)</span>
+        </div>
+        <div id="queue-tags-panel" class="queue-tags-panel"></div>
+      </div>
+      <div class="queue-editor-actions">
+        <button type="button" id="queue-save-btn" class="queue-btn queue-btn-primary" disabled>Save</button>
+        <button type="button" id="queue-skip-btn" class="queue-btn">Skip →</button>
+        <label class="queue-advance-toggle">
+          <input type="checkbox" id="queue-advance-after-save" checked>
+          Advance after save
+        </label>
+        <span id="queue-editor-status" class="queue-editor-status"></span>
+      </div>
+    </section>
+  </main>
 </div>
 
 <!-- Aliases tool content -->

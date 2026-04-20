@@ -274,6 +274,14 @@ public interface ActressRepository {
      */
     List<FederatedActressResult> searchForFederated(String query, boolean startsWith, int limit);
 
+    /**
+     * Variant of {@link #searchForFederated} used by the Title Editor typeahead. Identical
+     * matching semantics, but does NOT apply the "≥ 2 titles" filter — the editor needs to
+     * find newly-created draft actresses and low-title performers when attaching them to
+     * titles. Rejected actresses are still excluded.
+     */
+    List<FederatedActressResult> searchForEditor(String query, boolean startsWith, int limit);
+
     // ── Dashboard module queries ─────────────────────────────────────────────
 
     /** Light projection for actress library stats. */

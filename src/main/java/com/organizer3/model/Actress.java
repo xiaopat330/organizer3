@@ -62,6 +62,9 @@ public class Actress implements Comparable<Actress> {
     int visitCount = 0;
     LocalDateTime lastVisitedAt;  // null until first visit
 
+    /** Flags actresses that were created inline via the Title Editor and need enrichment. */
+    boolean needsProfiling;
+
     /**
      * Title count thresholds that determine folder tier placement under {@code stars/}.
      */

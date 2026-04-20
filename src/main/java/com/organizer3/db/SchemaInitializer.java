@@ -55,7 +55,8 @@ public class SchemaInitializer {
                         primary_studios_json TEXT,
                         awards_json          TEXT,
                         visit_count          INTEGER NOT NULL DEFAULT 0,
-                        last_visited_at      TEXT
+                        last_visited_at      TEXT,
+                        needs_profiling      INTEGER NOT NULL DEFAULT 0
                     )""");
 
             h.execute("""
@@ -336,7 +337,7 @@ public class SchemaInitializer {
             // leave the version alone and let SchemaUpgrader apply any missing migrations.
             int currentVersion = h.createQuery("PRAGMA user_version").mapTo(Integer.class).one();
             if (currentVersion == 0) {
-                h.execute("PRAGMA user_version = 19");
+                h.execute("PRAGMA user_version = 20");
             }
         });
         log.info("Schema initialization complete");
