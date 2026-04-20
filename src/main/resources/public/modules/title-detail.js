@@ -48,8 +48,8 @@ export async function openTitleDetail(t) {
 
   // Capture title-browse state at call time — dynamic import avoids circular static dep
   const tb = await import('./title-browse.js');
-  const sourceTitleBrowseMode = tb.titleBrowseMode;
-  const sourceActiveTags      = tb.activeTags;
+  const sourceTitleBrowseMode = tb.getTitleBrowseMode();
+  const sourceActiveTags      = tb.getActiveTags();
 
   showView('title-detail');
   document.getElementById('title-detail-cover').innerHTML = '';

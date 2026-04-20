@@ -51,7 +51,82 @@ function showColsOnlyFilterBar() {
 }
 
 // ── State ─────────────────────────────────────────────────────────────────
-export let titleBrowseMode = null;   // null | 'dashboard' | 'favorites' | 'bookmarks' | 'collections' | 'unsorted' | 'archive-pool' | 'library' | 'studio'
+/**
+ * All mutable title-browse state lives in one object. Kept flat (not grouped
+ * into library/browse/pool sub-objects) — bundling is a follow-up refactor.
+ *
+ * Fields:
+ *   mode               — null | 'dashboard' | 'favorites' | 'bookmarks'
+ *                        | 'collections' | 'unsorted' | 'archive-pool'
+ *                        | 'library' | 'studio'
+ *   state.activeTags         — Set of library-mode tag filters (live reference used in `.add()/.delete()`)
+ *   state.tagsDebounceTimer  — library-mode query debounce handle
+ *   state.tagsCatalog        — cached /api/tags response
+ *   state.tagsBarOpen        — library-mode tags panel visibility
+ *   state.tagsPendingChanged — library-mode queued change flag
+ *   state.chipsHideTimer     — chip bar auto-hide handle
+ *   state.libraryCode        — library-mode product-code input
+ *   state.libraryCompany     — library-mode company filter
+ *   state.librarySort        — 'addedDate' | 'productCode' | 'actressName'
+ *   state.libraryOrder       — 'asc' | 'desc'
+ *   state.libraryAutoTimer   — autocomplete fetch debounce
+ *   state.libraryAutoVisible — autocomplete dropdown visible
+ *   state.poolVolumeId       — lazy-loaded unsorted pool volume id
+ *   state.poolSmbPath        — lazy-loaded unsorted pool SMB path prefix
+ *   state.archivePoolVolumeId — lazy-loaded archive pool volume id
+ *   state.archivePoolSmbPath  — lazy-loaded archive pool SMB path prefix
+ *   state.queuesVolumeData   — cached /api/queues/volumes response
+ *   state.browseCompanyFilter — filter in collections/unsorted/archive modes
+ *   state.browseActiveTags   — tag filters in collections/unsorted/archive modes
+ *   state.browseFilterTimer  — browse-mode query debounce
+ *   state.browseCatalogTags  — cached tag list for current browse mode
+ *   state.browseTagsForMode  — which mode state.browseCatalogTags belongs to
+ *   state.allCompanies       — cached full company list
+ *   state.selectedStudioSlug — studio-group slug currently active
+ */
+function createTitleBrowseState() {
+  return {
+    mode: null,
+    activeTags: new Set(),
+    tagsDebounceTimer: null,
+    tagsCatalog: null,
+    tagsBarOpen: false,
+    tagsPendingChanged: false,
+    chipsHideTimer: null,
+    libraryCode: '',
+    libraryCompany: null,
+    librarySort: 'addedDate',
+    libraryOrder: 'desc',
+    libraryAutoTimer: null,
+    libraryAutoVisible: false,
+    poolVolumeId: null,
+    poolSmbPath: null,
+    archivePoolVolumeId: null,
+    archivePoolSmbPath: null,
+    queuesVolumeData: null,
+    browseCompanyFilter: null,
+    browseActiveTags: new Set(),
+    browseFilterTimer: null,
+    browseCatalogTags: null,
+    browseTagsForMode: null,
+    allCompanies: null,
+    selectedStudioSlug: null,
+    /** Clears collections/unsorted/archive filter state only. */
+    resetBrowse() {
+      this.browseCompanyFilter = null;
+      this.browseActiveTags    = new Set();
+      this.browseCatalogTags   = null;
+      this.browseTagsForMode   = null;
+      if (this.browseFilterTimer) { clearTimeout(this.browseFilterTimer); this.browseFilterTimer = null; }
+    },
+  };
+}
+const state = createTitleBrowseState();
+
+/** Getter for external consumers (replaces the previous live-binding export). */
+export function getTitleBrowseMode() { return state.mode; }
+/** Getter for external consumers that need the library-mode tag set. */
+export function getActiveTags() { return state.activeTags; }
 
 // Spotlight rotation (title-specific instance of the shared rotator)
 const SPOTLIGHT_INTERVAL_MS = 30_000;
@@ -66,85 +141,54 @@ const titleSpotlightRotator = createSpotlightRotator({
   intervalMs: SPOTLIGHT_INTERVAL_MS,
 });
 
-export let activeTags = new Set();
-let tagsDebounceTimer = null;
-let tagsCatalog = null;
-let tagsBarOpen = false;
-let tagsPendingChanged = false;
-let chipsHideTimer = null;
-
-// ── Library filter state ──────────────────────────────────────────────────
-let libraryCode    = '';        // raw typed code string
-let libraryCompany = null;      // selected company name or null
-let librarySort    = 'addedDate'; // 'addedDate' | 'productCode' | 'actressName'
-let libraryOrder   = 'desc';    // 'asc' | 'desc'
-let libraryAutoTimer = null;    // debounce for autocomplete fetch
-let libraryAutoVisible = false; // is the autocomplete dropdown open
-
-// Pool volumes (Unsorted / Archives) — both use the same API endpoint
-export let poolVolumeId      = null;
-export let poolSmbPath       = null;
-export let archivePoolVolumeId = null;
-export let archivePoolSmbPath  = null;
-let queuesVolumeData = null;
-
-// ── Browse-mode filters (Collections / Unsorted / Archives) ──────────────
+// ── Browse-mode constants ────────────────────────────────────────────────
 const FILTERABLE_MODES = new Set(['collections', 'unsorted', 'archive-pool']);
-let browseCompanyFilter = null;
-let browseActiveTags    = new Set();
-let browseFilterTimer   = null;
-let browseCatalogTags   = null;  // lazy-loaded; reset on mode change
-let browseTagsForMode   = null;  // which mode browseCatalogTags belongs to
-let allCompanies        = null;  // lazy-loaded once, shared across modes
 const BROWSE_FILTER_DEBOUNCE_MS = 350;
-
-// Studio
-let selectedStudioSlug = null;
 
 // ── Scrolling grid ────────────────────────────────────────────────────────
 export const allTitlesGrid = new ScrollingGrid(
   document.getElementById('titles-browse-grid'),
   (o, l) => {
-    if (titleBrowseMode === 'favorites')
+    if (state.mode === 'favorites')
       return `/api/titles?favorites=true&offset=${o}&limit=${l}`;
-    if (titleBrowseMode === 'bookmarks')
+    if (state.mode === 'bookmarks')
       return `/api/titles?bookmarks=true&offset=${o}&limit=${l}`;
-    if (titleBrowseMode === 'collections') {
+    if (state.mode === 'collections') {
       let url = `/api/collections/titles?offset=${o}&limit=${l}`;
-      if (browseCompanyFilter) url += `&company=${encodeURIComponent(browseCompanyFilter)}`;
-      if (browseActiveTags.size > 0) url += `&tags=${encodeURIComponent([...browseActiveTags].join(','))}`;
+      if (state.browseCompanyFilter) url += `&company=${encodeURIComponent(state.browseCompanyFilter)}`;
+      if (state.browseActiveTags.size > 0) url += `&tags=${encodeURIComponent([...state.browseActiveTags].join(','))}`;
       return url;
     }
-    if (titleBrowseMode === 'unsorted') {
-      let url = `/api/pool/${encodeURIComponent(poolVolumeId)}/titles?offset=${o}&limit=${l}`;
-      if (browseCompanyFilter) url += `&company=${encodeURIComponent(browseCompanyFilter)}`;
-      if (browseActiveTags.size > 0) url += `&tags=${encodeURIComponent([...browseActiveTags].join(','))}`;
+    if (state.mode === 'unsorted') {
+      let url = `/api/pool/${encodeURIComponent(state.poolVolumeId)}/titles?offset=${o}&limit=${l}`;
+      if (state.browseCompanyFilter) url += `&company=${encodeURIComponent(state.browseCompanyFilter)}`;
+      if (state.browseActiveTags.size > 0) url += `&tags=${encodeURIComponent([...state.browseActiveTags].join(','))}`;
       return url;
     }
-    if (titleBrowseMode === 'archive-pool') {
-      let url = `/api/pool/${encodeURIComponent(archivePoolVolumeId)}/titles?offset=${o}&limit=${l}`;
-      if (browseCompanyFilter) url += `&company=${encodeURIComponent(browseCompanyFilter)}`;
-      if (browseActiveTags.size > 0) url += `&tags=${encodeURIComponent([...browseActiveTags].join(','))}`;
+    if (state.mode === 'archive-pool') {
+      let url = `/api/pool/${encodeURIComponent(state.archivePoolVolumeId)}/titles?offset=${o}&limit=${l}`;
+      if (state.browseCompanyFilter) url += `&company=${encodeURIComponent(state.browseCompanyFilter)}`;
+      if (state.browseActiveTags.size > 0) url += `&tags=${encodeURIComponent([...state.browseActiveTags].join(','))}`;
       return url;
     }
-    if (titleBrowseMode === 'library') {
+    if (state.mode === 'library') {
       const params = new URLSearchParams({ offset: o, limit: l });
-      if (libraryCode.trim())     params.set('code',    libraryCode.trim());
-      if (libraryCompany)         params.set('company', libraryCompany);
-      if (activeTags.size > 0)    params.set('tags',    [...activeTags].join(','));
-      if (librarySort !== 'addedDate') params.set('sort', librarySort);
-      if (libraryOrder !== 'desc')     params.set('order', libraryOrder);
+      if (state.libraryCode.trim())     params.set('code',    state.libraryCode.trim());
+      if (state.libraryCompany)         params.set('company', state.libraryCompany);
+      if (state.activeTags.size > 0)    params.set('tags',    [...state.activeTags].join(','));
+      if (state.librarySort !== 'addedDate') params.set('sort', state.librarySort);
+      if (state.libraryOrder !== 'desc')     params.set('order', state.libraryOrder);
       return `/api/titles?${params}`;
     }
     return `/api/titles?offset=${o}&limit=${l}`;
   },
   t => {
-    if (titleBrowseMode === 'unsorted' && poolSmbPath) {
-      if (t.location)  t.location  = poolSmbPath + t.location;
-      if (t.locations) t.locations = t.locations.map(p => poolSmbPath + p);
-    } else if (titleBrowseMode === 'archive-pool' && archivePoolSmbPath) {
-      if (t.location)  t.location  = archivePoolSmbPath + t.location;
-      if (t.locations) t.locations = t.locations.map(p => archivePoolSmbPath + p);
+    if (state.mode === 'unsorted' && state.poolSmbPath) {
+      if (t.location)  t.location  = state.poolSmbPath + t.location;
+      if (t.locations) t.locations = t.locations.map(p => state.poolSmbPath + p);
+    } else if (state.mode === 'archive-pool' && state.archivePoolSmbPath) {
+      if (t.location)  t.location  = state.archivePoolSmbPath + t.location;
+      if (t.locations) t.locations = t.locations.map(p => state.archivePoolSmbPath + p);
     }
     return makeTitleCard(t);
   },
@@ -157,7 +201,7 @@ export function runTitleBrowseQuery() {
   titleDashboardEl.style.display = 'none';
   document.getElementById('titles-browse-grid').style.display = 'grid';
   setActiveGrid(allTitlesGrid);
-  if (!FILTERABLE_MODES.has(titleBrowseMode) && titleBrowseMode !== 'library') showColsOnlyFilterBar();
+  if (!FILTERABLE_MODES.has(state.mode) && state.mode !== 'library') showColsOnlyFilterBar();
   applyTitleGridCols(effectiveCols());
   allTitlesGrid.reset();
   ensureSentinel();
@@ -166,30 +210,30 @@ export function runTitleBrowseQuery() {
 
 // ── Landing UI state ──────────────────────────────────────────────────────
 function updateTitleLandingSelection() {
-  titleDashboardBtn.classList.toggle('selected', titleBrowseMode === 'dashboard');
-  titleFavoritesBtn.classList.toggle('selected', titleBrowseMode === 'favorites');
-  titleBookmarksBtn.classList.toggle('selected', titleBrowseMode === 'bookmarks');
-  titleStudioBtn.classList.toggle('selected',    titleBrowseMode === 'studio');
-  collectionsBtn.classList.toggle('selected',    titleBrowseMode === 'collections');
-  titleUnsortedBtn.classList.toggle('selected',  titleBrowseMode === 'unsorted');
-  titleArchivesBtn.classList.toggle('selected',  titleBrowseMode === 'archive-pool');
-  titleTagsBtn.classList.toggle('selected',      titleBrowseMode === 'library');
+  titleDashboardBtn.classList.toggle('selected', state.mode === 'dashboard');
+  titleFavoritesBtn.classList.toggle('selected', state.mode === 'favorites');
+  titleBookmarksBtn.classList.toggle('selected', state.mode === 'bookmarks');
+  titleStudioBtn.classList.toggle('selected',    state.mode === 'studio');
+  collectionsBtn.classList.toggle('selected',    state.mode === 'collections');
+  titleUnsortedBtn.classList.toggle('selected',  state.mode === 'unsorted');
+  titleArchivesBtn.classList.toggle('selected',  state.mode === 'archive-pool');
+  titleTagsBtn.classList.toggle('selected',      state.mode === 'library');
 }
 
 function updateTitleBreadcrumb() {
   const crumbs = [{ label: 'Titles', action: () => showTitlesBrowse() }];
-  if (titleBrowseMode === 'dashboard')     { /* no sub-item — dashboard IS the home */ }
-  else if (titleBrowseMode === 'favorites')     crumbs.push({ label: 'Favorites' });
-  else if (titleBrowseMode === 'bookmarks')  crumbs.push({ label: 'Bookmarks' });
-  else if (titleBrowseMode === 'studio')     crumbs.push({ label: 'Studio' });
-  else if (titleBrowseMode === 'collections') crumbs.push({ label: 'Collections' });
-  else if (titleBrowseMode === 'unsorted')   crumbs.push({ label: 'Unsorted' });
-  else if (titleBrowseMode === 'archive-pool') crumbs.push({ label: 'Archives' });
-  else if (titleBrowseMode === 'library') {
+  if (state.mode === 'dashboard')     { /* no sub-item — dashboard IS the home */ }
+  else if (state.mode === 'favorites')     crumbs.push({ label: 'Favorites' });
+  else if (state.mode === 'bookmarks')  crumbs.push({ label: 'Bookmarks' });
+  else if (state.mode === 'studio')     crumbs.push({ label: 'Studio' });
+  else if (state.mode === 'collections') crumbs.push({ label: 'Collections' });
+  else if (state.mode === 'unsorted')   crumbs.push({ label: 'Unsorted' });
+  else if (state.mode === 'archive-pool') crumbs.push({ label: 'Archives' });
+  else if (state.mode === 'library') {
     const parts = [];
-    if (libraryCode.trim())  parts.push(libraryCode.trim().toUpperCase());
-    if (libraryCompany)      parts.push(libraryCompany);
-    if (activeTags.size > 0) parts.push(`${activeTags.size} tag${activeTags.size > 1 ? 's' : ''}`);
+    if (state.libraryCode.trim())  parts.push(state.libraryCode.trim().toUpperCase());
+    if (state.libraryCompany)      parts.push(state.libraryCompany);
+    if (state.activeTags.size > 0) parts.push(`${state.activeTags.size} tag${state.activeTags.size > 1 ? 's' : ''}`);
     crumbs.push({ label: parts.length > 0 ? `Library (${parts.join(', ')})` : 'Library' });
   }
   updateBreadcrumb(crumbs);
@@ -382,10 +426,10 @@ async function renderTitleDashboard() {
 export function selectTitleBrowseMode(modeKey) {
   pushNav({ view: 'titles-browse', mode: modeKey }, 'browse/' + modeKey);
   // Reset browse filters when entering a different filterable mode, or leaving filterable modes entirely
-  if (modeKey !== titleBrowseMode) {
+  if (modeKey !== state.mode) {
     resetBrowseFilters();
   }
-  titleBrowseMode = modeKey;
+  state.mode = modeKey;
   updateTitleLandingSelection();
   updateTitleBreadcrumb();
   titlesBrowseBtn.classList.add('active');
@@ -410,7 +454,7 @@ export function selectTitleBrowseMode(modeKey) {
     ensureStudioGroups().then(groups => {
       renderStudioGroupRow(groups);
       showStudioGroupRow();
-      if (groups.length > 0 && !selectedStudioSlug) {
+      if (groups.length > 0 && !state.selectedStudioSlug) {
         selectStudioGroup(groups[0].slug);
       }
     });
@@ -448,14 +492,14 @@ export function showTitlesBrowse() {
   document.getElementById('av-btn')?.classList.remove('active');
   document.getElementById('action-btn')?.classList.remove('active');
   resetActressState();
-  if (tagsDebounceTimer)   { clearTimeout(tagsDebounceTimer);  tagsDebounceTimer  = null; }
-  if (libraryAutoTimer)    { clearTimeout(libraryAutoTimer);   libraryAutoTimer   = null; }
-  titleBrowseMode = null;
-  activeTags.clear();
-  libraryCode    = '';
-  libraryCompany = null;
-  librarySort    = 'addedDate';
-  libraryOrder   = 'desc';
+  if (state.tagsDebounceTimer)   { clearTimeout(state.tagsDebounceTimer);  state.tagsDebounceTimer  = null; }
+  if (state.libraryAutoTimer)    { clearTimeout(state.libraryAutoTimer);   state.libraryAutoTimer   = null; }
+  state.mode = null;
+  state.activeTags.clear();
+  state.libraryCode    = '';
+  state.libraryCompany = null;
+  state.librarySort    = 'addedDate';
+  state.libraryOrder   = 'desc';
   resetBrowseFilters();
   hideStudioGroupRow();
   hideTagsPanel();
@@ -475,32 +519,32 @@ collectionsBtn.addEventListener('click',    () => selectTitleBrowseMode('collect
 
 // ── Unsorted / Archives pool browse ───────────────────────────────────────
 async function ensureQueuesVolumes() {
-  if (queuesVolumeData) return queuesVolumeData;
+  if (state.queuesVolumeData) return state.queuesVolumeData;
   const res = await fetch('/api/queues/volumes');
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  queuesVolumeData = await res.json();
-  return queuesVolumeData;
+  state.queuesVolumeData = await res.json();
+  return state.queuesVolumeData;
 }
 
 export async function enterUnsortedMode() {
-  if (!poolVolumeId) {
+  if (!state.poolVolumeId) {
     try {
       const data = await ensureQueuesVolumes();
       if (!data.sortPool) { console.warn('No sort pool available'); return; }
-      poolVolumeId = data.sortPool.id;
-      poolSmbPath  = data.sortPool.smbPath || null;
+      state.poolVolumeId = data.sortPool.id;
+      state.poolSmbPath  = data.sortPool.smbPath || null;
     } catch (err) { console.error('Failed to load pool info', err); return; }
   }
   selectTitleBrowseMode('unsorted');
 }
 
 export async function enterArchiveMode() {
-  if (!archivePoolVolumeId) {
+  if (!state.archivePoolVolumeId) {
     try {
       const data = await ensureQueuesVolumes();
       if (!data.classicPool) { console.warn('No classic pool available'); return; }
-      archivePoolVolumeId = data.classicPool.id;
-      archivePoolSmbPath  = data.classicPool.smbPath || null;
+      state.archivePoolVolumeId = data.classicPool.id;
+      state.archivePoolSmbPath  = data.classicPool.smbPath || null;
     } catch (err) { console.error('Failed to load archive pool info', err); return; }
   }
   selectTitleBrowseMode('archive-pool');
@@ -511,27 +555,27 @@ titleArchivesBtn.addEventListener('click', () => enterArchiveMode());
 
 // ── Library browse ────────────────────────────────────────────────────────
 async function ensureTagsCatalog() {
-  if (tagsCatalog) return tagsCatalog;
+  if (state.tagsCatalog) return state.tagsCatalog;
   const res = await fetch('/api/tags');
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  tagsCatalog = await res.json();
-  return tagsCatalog;
+  state.tagsCatalog = await res.json();
+  return state.tagsCatalog;
 }
 
 const LIBRARY_DEBOUNCE_MS = 350;
 function scheduleLibraryQuery() {
-  if (tagsDebounceTimer) clearTimeout(tagsDebounceTimer);
-  tagsDebounceTimer = setTimeout(() => {
-    tagsDebounceTimer = null;
+  if (state.tagsDebounceTimer) clearTimeout(state.tagsDebounceTimer);
+  state.tagsDebounceTimer = setTimeout(() => {
+    state.tagsDebounceTimer = null;
     updateTitleBreadcrumb();
     runTitleBrowseQuery();
   }, LIBRARY_DEBOUNCE_MS);
 }
 
 function hideTagsPanel() {
-  tagsBarOpen = false;
-  tagsPendingChanged = false;
-  if (chipsHideTimer) { clearTimeout(chipsHideTimer); chipsHideTimer = null; }
+  state.tagsBarOpen = false;
+  state.tagsPendingChanged = false;
+  if (state.chipsHideTimer) { clearTimeout(state.chipsHideTimer); state.chipsHideTimer = null; }
   const section = document.getElementById('library-tags-section');
   if (section) section.style.display = 'none';
   const tagsToggleBtn = document.getElementById('library-tags-toggle-btn');
@@ -563,7 +607,7 @@ function tagChipStyle(tag) {
 function showChipsBar() {
   const bar = document.getElementById('library-tags-bar');
   if (!bar) return;
-  if (chipsHideTimer) { clearTimeout(chipsHideTimer); chipsHideTimer = null; }
+  if (state.chipsHideTimer) { clearTimeout(state.chipsHideTimer); state.chipsHideTimer = null; }
   bar.classList.remove('rolling-up');
   bar.style.display = '';
 }
@@ -571,9 +615,9 @@ function showChipsBar() {
 function scheduleChipsBarHide() {
   const bar = document.getElementById('library-tags-bar');
   if (!bar || bar.style.display === 'none') return;
-  if (chipsHideTimer) clearTimeout(chipsHideTimer);
-  chipsHideTimer = setTimeout(() => {
-    chipsHideTimer = null;
+  if (state.chipsHideTimer) clearTimeout(state.chipsHideTimer);
+  state.chipsHideTimer = setTimeout(() => {
+    state.chipsHideTimer = null;
     bar.classList.add('rolling-up');
     setTimeout(() => {
       bar.style.display = 'none';
@@ -585,20 +629,20 @@ function scheduleChipsBarHide() {
 function renderTagChips() {
   const container = document.getElementById('library-tag-chips');
   if (!container) return;
-  if (activeTags.size === 0) {
+  if (state.activeTags.size === 0) {
     container.innerHTML = '';
     scheduleChipsBarHide();
     return;
   }
   showChipsBar();
-  container.innerHTML = [...activeTags].map(tag =>
+  container.innerHTML = [...state.activeTags].map(tag =>
     `<span class="library-tag-chip" data-tag="${esc(tag)}" style="${tagChipStyle(tag)}"><button type="button" class="library-tag-chip-remove" data-tag="${esc(tag)}" title="Remove tag">&#x2296;</button>${esc(tag)}</span>`
   ).join('');
   container.querySelectorAll('.library-tag-chip-remove').forEach(btn => {
     btn.addEventListener('click', e => {
       e.stopPropagation();
       const tag = btn.dataset.tag;
-      activeTags.delete(tag);
+      state.activeTags.delete(tag);
       const toggleEl = titleTagsPanel.querySelector(`.tag-toggle[data-tag="${CSS.escape(tag)}"]`);
       if (toggleEl) toggleEl.classList.remove('active');
       renderTagChips();
@@ -611,16 +655,16 @@ function toggleTagsSection() {
   const section = document.getElementById('library-tags-section');
   const btn = document.getElementById('library-tags-toggle-btn');
   if (!section) return;
-  if (tagsBarOpen) {
-    tagsBarOpen = false;
+  if (state.tagsBarOpen) {
+    state.tagsBarOpen = false;
     section.style.display = 'none';
     btn?.classList.remove('open');
-    if (tagsPendingChanged) {
-      tagsPendingChanged = false;
+    if (state.tagsPendingChanged) {
+      state.tagsPendingChanged = false;
       scheduleLibraryQuery();
     }
   } else {
-    tagsBarOpen = true;
+    state.tagsBarOpen = true;
     section.style.display = '';
     btn?.classList.add('open');
   }
@@ -629,8 +673,8 @@ function toggleTagsSection() {
 // ── Autocomplete dropdown ─────────────────────────────────────────────────
 
 function closeLibraryAutocomplete() {
-  libraryAutoVisible = false;
-  if (libraryAutoTimer) { clearTimeout(libraryAutoTimer); libraryAutoTimer = null; }
+  state.libraryAutoVisible = false;
+  if (state.libraryAutoTimer) { clearTimeout(state.libraryAutoTimer); state.libraryAutoTimer = null; }
   const drop = document.getElementById('library-code-dropdown');
   if (drop) drop.innerHTML = '';
   const wrap = document.getElementById('library-code-wrap');
@@ -640,7 +684,7 @@ function closeLibraryAutocomplete() {
 function openLibraryAutocomplete(items, inputEl) {
   const drop = document.getElementById('library-code-dropdown');
   if (!drop || items.length === 0) { closeLibraryAutocomplete(); return; }
-  libraryAutoVisible = true;
+  state.libraryAutoVisible = true;
   drop.innerHTML = '';
   items.forEach((code, i) => {
     const item = document.createElement('div');
@@ -657,7 +701,7 @@ function openLibraryAutocomplete(items, inputEl) {
 }
 
 function selectAutocompleteItem(code, inputEl) {
-  libraryCode = code;
+  state.libraryCode = code;
   if (inputEl) { inputEl.value = code; inputEl.focus(); }
   closeLibraryAutocomplete();
   scheduleLibraryQuery();
@@ -665,7 +709,7 @@ function selectAutocompleteItem(code, inputEl) {
 
 function moveAutocompleteSelection(dir) {
   const drop = document.getElementById('library-code-dropdown');
-  if (!drop || !libraryAutoVisible) return;
+  if (!drop || !state.libraryAutoVisible) return;
   const items = drop.querySelectorAll('.library-autocomplete-item');
   if (items.length === 0) return;
   const current = drop.querySelector('.library-autocomplete-item.focused');
@@ -682,7 +726,7 @@ async function fetchAutocomplete(prefix) {
     if (!res.ok) return;
     const codes = await res.json();
     const inputEl = document.getElementById('library-code-input');
-    if (titleBrowseMode === 'library' && inputEl) openLibraryAutocomplete(codes, inputEl);
+    if (state.mode === 'library' && inputEl) openLibraryAutocomplete(codes, inputEl);
   } catch { /* ignore */ }
 }
 
@@ -691,11 +735,11 @@ async function fetchAutocomplete(prefix) {
 async function renderLibraryFilterPanel() {
   let companies = [];
   try {
-    if (!allCompanies) {
+    if (!state.allCompanies) {
       const res = await fetch('/api/companies');
-      allCompanies = res.ok ? await res.json() : [];
+      state.allCompanies = res.ok ? await res.json() : [];
     }
-    companies = allCompanies;
+    companies = state.allCompanies;
   } catch { /* ignore */ }
 
   let groups = [];
@@ -713,19 +757,19 @@ async function renderLibraryFilterPanel() {
       <div class="library-code-wrap" id="library-code-wrap">
         <input type="text" id="library-code-input" class="library-code-input"
                placeholder="code (e.g. ONED, ONED-42)"
-               value="${esc(libraryCode)}"
+               value="${esc(state.libraryCode)}"
                autocomplete="off" spellcheck="false">
         <div class="library-autocomplete-dropdown" id="library-code-dropdown"></div>
       </div>
       <select id="library-company-select" class="library-company-select">
         <option value="">All Companies</option>
-        ${companies.map(c => `<option value="${esc(c)}"${libraryCompany === c ? ' selected' : ''}>${esc(c)}</option>`).join('')}
+        ${companies.map(c => `<option value="${esc(c)}"${state.libraryCompany === c ? ' selected' : ''}>${esc(c)}</option>`).join('')}
       </select>
       <select id="library-sort-select" class="library-sort-select">
-        ${sortOptions.map(o => `<option value="${o.value}"${librarySort === o.value ? ' selected' : ''}>${o.label}</option>`).join('')}
+        ${sortOptions.map(o => `<option value="${o.value}"${state.librarySort === o.value ? ' selected' : ''}>${o.label}</option>`).join('')}
       </select>
       <button type="button" id="library-tags-toggle-btn" class="library-tags-toggle-btn">Tags</button>
-      <button type="button" id="library-order-btn" class="library-order-btn">${libraryOrder === 'asc' ? 'A–Z' : 'Z–A'}</button>
+      <button type="button" id="library-order-btn" class="library-order-btn">${state.libraryOrder === 'asc' ? 'A–Z' : 'Z–A'}</button>
       ${colsSliderHtml(effectiveCols(), 'title-cols-control', 'title-cols-slider', 'title-cols-label')}
     </div>
     <div class="library-tags-bar" id="library-tags-bar" style="display:none">
@@ -736,7 +780,7 @@ async function renderLibraryFilterPanel() {
         <div class="tags-group">
           <div class="tags-group-label">${esc(g.label)}</div>
           <div class="tags-row">
-            ${g.tags.map(t => `<button type="button" class="tag-toggle${activeTags.has(t.name) ? ' active' : ''}" data-tag="${esc(t.name)}" title="${esc(t.description || '')}">${esc(t.name)}</button>`).join('')}
+            ${g.tags.map(t => `<button type="button" class="tag-toggle${state.activeTags.has(t.name) ? ' active' : ''}" data-tag="${esc(t.name)}" title="${esc(t.description || '')}">${esc(t.name)}</button>`).join('')}
           </div>
         </div>
       `).join('')}
@@ -747,15 +791,15 @@ async function renderLibraryFilterPanel() {
   const codeInput = document.getElementById('library-code-input');
   if (codeInput) {
     codeInput.addEventListener('input', () => {
-      libraryCode = codeInput.value;
+      state.libraryCode = codeInput.value;
       // Determine if we should show autocomplete:
       // only when there's no sequence part yet (pure label prefix)
-      const upper = libraryCode.trim().toUpperCase().replace(/\s+/g, '');
+      const upper = state.libraryCode.trim().toUpperCase().replace(/\s+/g, '');
       const isLabelPrefixOnly = upper.length > 0 && /^[A-Z][A-Z0-9]*-?$/.test(upper);
       if (isLabelPrefixOnly) {
-        if (libraryAutoTimer) clearTimeout(libraryAutoTimer);
-        libraryAutoTimer = setTimeout(() => {
-          libraryAutoTimer = null;
+        if (state.libraryAutoTimer) clearTimeout(state.libraryAutoTimer);
+        state.libraryAutoTimer = setTimeout(() => {
+          state.libraryAutoTimer = null;
           fetchAutocomplete(upper.replace(/-+$/, ''));
         }, 200);
       } else {
@@ -768,7 +812,7 @@ async function renderLibraryFilterPanel() {
       if (e.key === 'ArrowDown') { e.preventDefault(); moveAutocompleteSelection(1); }
       else if (e.key === 'ArrowUp') { e.preventDefault(); moveAutocompleteSelection(-1); }
       else if (e.key === 'Enter') {
-        if (libraryAutoVisible) {
+        if (state.libraryAutoVisible) {
           const focused = document.querySelector('#library-code-dropdown .library-autocomplete-item.focused');
           if (focused) { e.preventDefault(); selectAutocompleteItem(focused.textContent, codeInput); return; }
         }
@@ -787,7 +831,7 @@ async function renderLibraryFilterPanel() {
   const compSel = document.getElementById('library-company-select');
   if (compSel) {
     compSel.addEventListener('change', () => {
-      libraryCompany = compSel.value || null;
+      state.libraryCompany = compSel.value || null;
       scheduleLibraryQuery();
     });
   }
@@ -796,7 +840,7 @@ async function renderLibraryFilterPanel() {
   const sortSel = document.getElementById('library-sort-select');
   if (sortSel) {
     sortSel.addEventListener('change', () => {
-      librarySort = sortSel.value;
+      state.librarySort = sortSel.value;
       scheduleLibraryQuery();
     });
   }
@@ -805,8 +849,8 @@ async function renderLibraryFilterPanel() {
   const orderBtn = document.getElementById('library-order-btn');
   if (orderBtn) {
     orderBtn.addEventListener('click', () => {
-      libraryOrder = libraryOrder === 'desc' ? 'asc' : 'desc';
-      orderBtn.textContent = libraryOrder === 'asc' ? 'A–Z' : 'Z–A';
+      state.libraryOrder = state.libraryOrder === 'desc' ? 'asc' : 'desc';
+      orderBtn.textContent = state.libraryOrder === 'asc' ? 'A–Z' : 'Z–A';
       scheduleLibraryQuery();
     });
   }
@@ -824,9 +868,9 @@ async function renderLibraryFilterPanel() {
   titleTagsPanel.querySelectorAll('.tag-toggle').forEach(btn => {
     btn.addEventListener('click', () => {
       const tag = btn.dataset.tag;
-      if (activeTags.has(tag)) { activeTags.delete(tag); btn.classList.remove('active'); }
-      else                     { activeTags.add(tag);    btn.classList.add('active'); }
-      tagsPendingChanged = true;
+      if (state.activeTags.has(tag)) { state.activeTags.delete(tag); btn.classList.remove('active'); }
+      else                     { state.activeTags.add(tag);    btn.classList.add('active'); }
+      state.tagsPendingChanged = true;
       renderTagChips();
     });
   });
@@ -834,13 +878,7 @@ async function renderLibraryFilterPanel() {
 
 // ── Browse-mode filter bar (Collections / Unsorted / Archives) ────────────
 
-function resetBrowseFilters() {
-  browseCompanyFilter = null;
-  browseActiveTags    = new Set();
-  browseCatalogTags   = null;
-  browseTagsForMode   = null;
-  if (browseFilterTimer) { clearTimeout(browseFilterTimer); browseFilterTimer = null; }
-}
+function resetBrowseFilters() { state.resetBrowse(); }
 
 function hideBrowseFilterBar() {
   const bar   = document.getElementById('title-browse-filter-bar');
@@ -850,15 +888,15 @@ function hideBrowseFilterBar() {
 }
 
 async function showBrowseFilterBar() {
-  if (!allCompanies) {
+  if (!state.allCompanies) {
     try {
       const res = await fetch('/api/companies');
-      allCompanies = res.ok ? await res.json() : [];
-    } catch { allCompanies = []; }
+      state.allCompanies = res.ok ? await res.json() : [];
+    } catch { state.allCompanies = []; }
   }
 
   // Guard: mode may have changed while companies were loading
-  if (!FILTERABLE_MODES.has(titleBrowseMode)) return;
+  if (!FILTERABLE_MODES.has(state.mode)) return;
 
   const bar = document.getElementById('title-browse-filter-bar');
   if (!bar) return;
@@ -866,7 +904,7 @@ async function showBrowseFilterBar() {
   bar.innerHTML = `
     <select class="detail-company-select" id="browse-company-select">
       <option value="">All Companies</option>
-      ${allCompanies.map(c => `<option value="${esc(c)}">${esc(c)}</option>`).join('')}
+      ${state.allCompanies.map(c => `<option value="${esc(c)}">${esc(c)}</option>`).join('')}
     </select>
     <div class="company-marquee company-marquee-browse" id="browse-company-marquee" style="display:none"><span class="company-marquee-inner"></span></div>
     <button type="button" class="detail-tags-btn" id="browse-tags-btn">
@@ -876,16 +914,16 @@ async function showBrowseFilterBar() {
   bar.style.display = '';
 
   const sel = document.getElementById('browse-company-select');
-  if (sel && browseCompanyFilter) {
-    sel.value = browseCompanyFilter;
-    updateCompanyMarquee(document.getElementById('browse-company-marquee'), browseCompanyFilter);
+  if (sel && state.browseCompanyFilter) {
+    sel.value = state.browseCompanyFilter;
+    updateCompanyMarquee(document.getElementById('browse-company-marquee'), state.browseCompanyFilter);
   }
   updateBrowseTagsBtn();
   wireColsSlider('title-cols-slider', 'title-cols-label', applyTitleGridCols);
 
   sel.addEventListener('change', e => {
-    browseCompanyFilter = e.target.value || null;
-    updateCompanyMarquee(document.getElementById('browse-company-marquee'), browseCompanyFilter);
+    state.browseCompanyFilter = e.target.value || null;
+    updateCompanyMarquee(document.getElementById('browse-company-marquee'), state.browseCompanyFilter);
     scheduleBrowseFilteredQuery();
   });
   document.getElementById('browse-tags-btn').addEventListener('click', toggleBrowseTagsPanel);
@@ -894,21 +932,21 @@ async function showBrowseFilterBar() {
 function updateBrowseTagsBtn() {
   const countEl = document.getElementById('browse-tags-count');
   if (!countEl) return;
-  if (browseActiveTags.size > 0) {
-    countEl.textContent = browseActiveTags.size;
+  if (state.browseActiveTags.size > 0) {
+    countEl.textContent = state.browseActiveTags.size;
     countEl.style.display = '';
   } else {
     countEl.style.display = 'none';
   }
   const btn = document.getElementById('browse-tags-btn');
-  if (btn) btn.classList.toggle('has-active', browseActiveTags.size > 0);
+  if (btn) btn.classList.toggle('has-active', state.browseActiveTags.size > 0);
 }
 
 function scheduleBrowseFilteredQuery() {
   updateBrowseTagsBtn();
-  if (browseFilterTimer) clearTimeout(browseFilterTimer);
-  browseFilterTimer = setTimeout(() => {
-    browseFilterTimer = null;
+  if (state.browseFilterTimer) clearTimeout(state.browseFilterTimer);
+  state.browseFilterTimer = setTimeout(() => {
+    state.browseFilterTimer = null;
     document.getElementById('sentinel')?.remove();
     allTitlesGrid.reset();
     ensureSentinel();
@@ -926,17 +964,17 @@ async function toggleBrowseTagsPanel() {
   }
 
   // Load tags if not yet cached for this mode
-  if (!browseCatalogTags || browseTagsForMode !== titleBrowseMode) {
+  if (!state.browseCatalogTags || state.browseTagsForMode !== state.mode) {
     panel.innerHTML = '<div class="detail-tags-loading">Loading tags\u2026</div>';
     panel.style.display = '';
-    const tagsUrl = titleBrowseMode === 'collections'
+    const tagsUrl = state.mode === 'collections'
       ? '/api/collections/tags'
-      : `/api/pool/${encodeURIComponent(titleBrowseMode === 'unsorted' ? poolVolumeId : archivePoolVolumeId)}/tags`;
+      : `/api/pool/${encodeURIComponent(state.mode === 'unsorted' ? state.poolVolumeId : state.archivePoolVolumeId)}/tags`;
     try {
       const res = await fetch(tagsUrl);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      browseCatalogTags = await res.json();
-      browseTagsForMode = titleBrowseMode;
+      state.browseCatalogTags = await res.json();
+      state.browseTagsForMode = state.mode;
     } catch (err) {
       panel.innerHTML = '<div class="detail-tags-loading">Could not load tags</div>';
       return;
@@ -948,27 +986,27 @@ async function toggleBrowseTagsPanel() {
 }
 
 function renderBrowseTagsPanel(panel) {
-  const tags = browseCatalogTags || [];
+  const tags = state.browseCatalogTags || [];
   if (tags.length === 0) {
     panel.innerHTML = '<div class="detail-tags-loading">No tags available</div>';
     return;
   }
   panel.innerHTML = `
     <div class="detail-tags-inner">
-      ${tags.map(t => `<button type="button" class="tag-toggle${browseActiveTags.has(t) ? ' active' : ''}" data-tag="${esc(t)}">${esc(t)}</button>`).join('')}
+      ${tags.map(t => `<button type="button" class="tag-toggle${state.browseActiveTags.has(t) ? ' active' : ''}" data-tag="${esc(t)}">${esc(t)}</button>`).join('')}
     </div>`;
   panel.querySelectorAll('.tag-toggle').forEach(btn => {
     btn.addEventListener('click', () => {
       const tag = btn.dataset.tag;
-      if (browseActiveTags.has(tag)) { browseActiveTags.delete(tag); btn.classList.remove('active'); }
-      else                           { browseActiveTags.add(tag);    btn.classList.add('active'); }
+      if (state.browseActiveTags.has(tag)) { state.browseActiveTags.delete(tag); btn.classList.remove('active'); }
+      else                           { state.browseActiveTags.add(tag);    btn.classList.add('active'); }
       scheduleBrowseFilteredQuery();
     });
   });
 }
 
 titleTagsBtn.addEventListener('click', async () => {
-  if (titleBrowseMode === 'library') return;
+  if (state.mode === 'library') return;
   try {
     selectTitleBrowseMode('library');
     await renderLibraryFilterPanel();
@@ -983,7 +1021,7 @@ function renderStudioGroupRow(groups) {
   groups.forEach(g => {
     const btn = document.createElement('button');
     btn.type = 'button';
-    btn.className = 'studio-group-btn' + (g.slug === selectedStudioSlug ? ' selected' : '');
+    btn.className = 'studio-group-btn' + (g.slug === state.selectedStudioSlug ? ' selected' : '');
     btn.textContent = g.name;
     btn.dataset.slug = g.slug;
     btn.addEventListener('click', () => selectStudioGroup(g.slug));
@@ -992,7 +1030,7 @@ function renderStudioGroupRow(groups) {
 }
 
 async function selectStudioGroup(slug) {
-  selectedStudioSlug = slug;
+  state.selectedStudioSlug = slug;
   titleStudioGroupRow.querySelectorAll('.studio-group-btn').forEach(btn => {
     btn.classList.toggle('selected', btn.dataset.slug === slug);
   });
@@ -1114,5 +1152,5 @@ function hideStudioGroupRow() {
   titleStudioDivider.style.display = 'none';
   titleStudioGroupRow.style.display = 'none';
   titleStudioLabelsEl.style.display = 'none';
-  selectedStudioSlug = null;
+  state.selectedStudioSlug = null;
 }
