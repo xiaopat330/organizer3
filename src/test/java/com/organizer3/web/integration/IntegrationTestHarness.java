@@ -4,8 +4,6 @@ import com.organizer3.ai.ActressNameLookup;
 import com.organizer3.covers.CoverPath;
 import com.organizer3.db.SchemaInitializer;
 import com.organizer3.model.Actress;
-import com.organizer3.model.Title;
-import com.organizer3.model.TitleLocation;
 import com.organizer3.repository.jdbi.JdbiActressRepository;
 import com.organizer3.repository.jdbi.JdbiLabelRepository;
 import com.organizer3.repository.jdbi.JdbiTitleActressRepository;
@@ -23,7 +21,6 @@ import java.sql.Connection;
 import java.sql.DriverManager;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.util.List;
 import java.util.Map;
 
 import static org.mockito.Mockito.mock;
@@ -93,6 +90,12 @@ public final class IntegrationTestHarness implements AutoCloseable {
 
     public String baseUrl() { return "http://localhost:" + port(); }
 
+    /** Exposed so {@link FixtureBuilder} can issue raw INSERTs for tables without a repo. */
+    Jdbi jdbi() { return jdbi; }
+
+    /** Start a fluent fixture — see {@link FixtureBuilder}. */
+    public FixtureBuilder fixture() { return new FixtureBuilder(this); }
+
     /**
      * Seeds a diverse dataset that exercises filters, aggregations, and join paths
      * the minimal fixture can't: multi-actress titles, multi-location dedup,
@@ -103,157 +106,78 @@ public final class IntegrationTestHarness implements AutoCloseable {
      * exact numbers (e.g. "favorites endpoint returns 2").
      */
     public RichSeed seedRich() {
-        jdbi.useHandle(h -> {
-            // Company names intentionally align with src/main/resources/studios.yaml
-            // so listStudioGroups() and /api/studio-groups/{slug}/companies return
-            // non-empty results for titles under these labels.
-            h.createUpdate("INSERT INTO labels (code, label_name, company) VALUES (:c, :n, :co)")
-                    .bind("c", "ABP").bind("n", "ABP Label").bind("co", "Prestige").execute();
-            h.createUpdate("INSERT INTO labels (code, label_name, company) VALUES (:c, :n, :co)")
-                    .bind("c", "SSIS").bind("n", "SSIS Label").bind("co", "S1 No.1 Style").execute();
-            h.createUpdate("INSERT INTO labels (code, label_name, company) VALUES (:c, :n, :co)")
-                    .bind("c", "MIDV").bind("n", "MIDV Label").bind("co", "Moodyz").execute();
-
-            // Tag master rows (label_tags + title_tags FK into tags.name).
-            h.createUpdate("INSERT OR IGNORE INTO tags (name, category) VALUES (:n, :c)")
-                    .bind("n", "creampie").bind("c", "sexact").execute();
-            h.createUpdate("INSERT OR IGNORE INTO tags (name, category) VALUES (:n, :c)")
-                    .bind("n", "solowork").bind("c", "structural").execute();
-            h.createUpdate("INSERT OR IGNORE INTO tags (name, category) VALUES (:n, :c)")
-                    .bind("n", "bigtits").bind("c", "body").execute();
-
-            // Label-inherited tag: every ABP-labeled title inherits "bigtits".
-            h.createUpdate("INSERT OR IGNORE INTO label_tags (label_code, tag) VALUES (:c, :t)")
-                    .bind("c", "ABP").bind("t", "bigtits").execute();
-        });
-
-        // Actresses: 5 across 4 prefixes (A, A, Y, M, R) and all tiers except MINOR.
-        Actress aya = actressRepo.save(Actress.builder()
-                .canonicalName("Aya Sazanami").tier(Actress.Tier.GODDESS)
-                .firstSeenAt(LocalDate.of(2024, 1, 1)).build());
-        Actress ayumi = actressRepo.save(Actress.builder()
-                .canonicalName("Ayumi Kimito").tier(Actress.Tier.SUPERSTAR)
-                .firstSeenAt(LocalDate.of(2024, 1, 2)).build());
-        Actress yua = actressRepo.save(Actress.builder()
-                .canonicalName("Yua Mikami").tier(Actress.Tier.GODDESS)
-                .firstSeenAt(LocalDate.of(2023, 1, 1)).build());
-        Actress mio = actressRepo.save(Actress.builder()
-                .canonicalName("Mio Kimijima").tier(Actress.Tier.POPULAR)
-                .firstSeenAt(LocalDate.of(2023, 6, 1)).build());
-        Actress rej = actressRepo.save(Actress.builder()
-                .canonicalName("Rejected Rika").tier(Actress.Tier.LIBRARY)
-                .firstSeenAt(LocalDate.of(2022, 1, 1)).build());
-
-        // Flag variety
-        actressRepo.toggleFavorite(aya.getId(), true);
-        actressRepo.toggleFavorite(yua.getId(), true);
-        actressRepo.toggleBookmark(ayumi.getId(), true);
-        actressRepo.toggleRejected(rej.getId(), true);
-
-        // Titles — dates spread so "recent"/"on this day" etc. differ.
-        Title abp001 = titleRepo.save(Title.builder()
-                .code("ABP-001").baseCode("ABP-00001").label("ABP").seqNum(1)
-                .actressId(aya.getId()).titleEnglish("ABP 001")
-                .favorite(true).build());
-        Title abp002 = titleRepo.save(Title.builder()
-                .code("ABP-002").baseCode("ABP-00002").label("ABP").seqNum(2)
-                .actressId(aya.getId()).titleEnglish("ABP 002 co-star").build());
-        Title ssis100 = titleRepo.save(Title.builder()
-                .code("SSIS-100").baseCode("SSIS-00100").label("SSIS").seqNum(100)
-                .actressId(yua.getId()).titleEnglish("SSIS 100")
-                .bookmark(true).build());
-        Title ssis200 = titleRepo.save(Title.builder()
-                .code("SSIS-200").baseCode("SSIS-00200").label("SSIS").seqNum(200)
-                .actressId(yua.getId()).titleEnglish("SSIS 200").build());
-        Title midv050 = titleRepo.save(Title.builder()
-                .code("MIDV-050").baseCode("MIDV-00050").label("MIDV").seqNum(50)
-                .actressId(mio.getId()).titleEnglish("MIDV 050").build());
-        Title midv100 = titleRepo.save(Title.builder()
-                .code("MIDV-100").baseCode("MIDV-00100").label("MIDV").seqNum(100)
-                .actressId(mio.getId()).titleEnglish("MIDV 100 tagged").build());
-
-        // Co-star: ABP-002 links Aya + Ayumi (via title_actress table).
-        titleActressRepo.linkAll(abp002.getId(), List.of(aya.getId(), ayumi.getId()));
-
-        // Locations — ABP-002 has two, others have one. Exercises dedup on list endpoints.
-        saveLocation(abp001, "vol-a", "stars", "/stars/popular/Aya Sazanami/ABP-001",
-                LocalDate.of(2024, 1, 15));
-        saveLocation(abp002, "vol-a", "stars", "/stars/popular/Aya Sazanami/ABP-002",
-                LocalDate.of(2024, 2, 1));
-        saveLocation(abp002, "vol-b", "archive", "/archive/dup/ABP-002",
-                LocalDate.of(2024, 2, 5));
-        saveLocation(ssis100, "vol-a", "stars", "/stars/popular/Yua Mikami/SSIS-100",
-                LocalDate.of(2024, 3, 1));
-        // "On this day" match — added exactly 3 years ago today (2023-04-20 vs today 2026-04-20).
-        saveLocation(ssis200, "vol-a", "stars", "/stars/popular/Yua Mikami/SSIS-200",
-                LocalDate.of(2023, 4, 20));
-        saveLocation(midv050, "vol-a", "queue", "/queue/MIDV-050",
-                LocalDate.of(2024, 6, 1));
-        saveLocation(midv100, "vol-a", "queue", "/queue/MIDV-100",
-                LocalDate.of(2024, 7, 1));
-
-        // Tags on MIDV-100 only. The list endpoint reads title_effective_tags,
-        // not title_tags, so recompute the denorm row after the write.
-        new com.organizer3.repository.jdbi.JdbiTitleTagRepository(jdbi)
-                .replaceTagsForTitle(midv100.getId(), List.of("creampie", "solowork"));
-        com.organizer3.db.TitleEffectiveTagsService effectiveTags =
-                new com.organizer3.db.TitleEffectiveTagsService(jdbi);
-        effectiveTags.recomputeForTitle(midv100.getId());
-        // Propagate the ABP label tag to ABP-titled rows.
-        effectiveTags.recomputeForTitle(abp001.getId());
-        effectiveTags.recomputeForTitle(abp002.getId());
-
-        // Visit / watch history on MIDV-050.
-        titleRepo.recordVisit(midv050.getId());
-        actressRepo.recordVisit(mio.getId());
-        watchHistoryRepo.record("MIDV-050", LocalDateTime.of(2024, 6, 15, 20, 0));
+        FixtureBuilder.Fixtures f = fixture()
+                // Company names align with src/main/resources/studios.yaml so
+                // studio-group endpoints return non-empty results.
+                .label("ABP", "Prestige")
+                .label("SSIS", "S1 No.1 Style")
+                .label("MIDV", "Moodyz")
+                .tag("creampie", "sexact")
+                .tag("solowork", "structural")
+                .tag("bigtits", "body")
+                // Actresses: 5 across 4 prefixes (A, A, Y, M, R), all tiers except MINOR.
+                .actress("aya",   a -> a.canonical("Aya Sazanami").tier(Actress.Tier.GODDESS)
+                                        .firstSeen(LocalDate.of(2024, 1, 1)).favorite())
+                .actress("ayumi", a -> a.canonical("Ayumi Kimito").tier(Actress.Tier.SUPERSTAR)
+                                        .firstSeen(LocalDate.of(2024, 1, 2)).bookmark())
+                .actress("yua",   a -> a.canonical("Yua Mikami").tier(Actress.Tier.GODDESS)
+                                        .firstSeen(LocalDate.of(2023, 1, 1)).favorite())
+                .actress("mio",   a -> a.canonical("Mio Kimijima").tier(Actress.Tier.POPULAR)
+                                        .firstSeen(LocalDate.of(2023, 6, 1)))
+                .actress("rej",   a -> a.canonical("Rejected Rika").tier(Actress.Tier.LIBRARY)
+                                        .firstSeen(LocalDate.of(2022, 1, 1)).rejected())
+                // Titles
+                .title("abp001",  t -> t.code("ABP-001").baseCode("ABP-00001").label("ABP")
+                                        .seqNum(1).actress("aya").titleEnglish("ABP 001").favorite())
+                .title("abp002",  t -> t.code("ABP-002").baseCode("ABP-00002").label("ABP")
+                                        .seqNum(2).actress("aya").titleEnglish("ABP 002 co-star"))
+                .title("ssis100", t -> t.code("SSIS-100").baseCode("SSIS-00100").label("SSIS")
+                                        .seqNum(100).actress("yua").titleEnglish("SSIS 100").bookmark())
+                .title("ssis200", t -> t.code("SSIS-200").baseCode("SSIS-00200").label("SSIS")
+                                        .seqNum(200).actress("yua").titleEnglish("SSIS 200"))
+                .title("midv050", t -> t.code("MIDV-050").baseCode("MIDV-00050").label("MIDV")
+                                        .seqNum(50).actress("mio").titleEnglish("MIDV 050"))
+                .title("midv100", t -> t.code("MIDV-100").baseCode("MIDV-00100").label("MIDV")
+                                        .seqNum(100).actress("mio").titleEnglish("MIDV 100 tagged"))
+                .coStar("abp002", "ayumi")
+                // Label-inherited tag. Must come after ABP titles exist so recompute picks them up.
+                .labelTag("ABP", "bigtits")
+                // Locations — ABP-002 has two (dedup test), others have one.
+                .location("abp001",  "vol-a", "stars",   "/stars/popular/Aya Sazanami/ABP-001", LocalDate.of(2024, 1, 15))
+                .location("abp002",  "vol-a", "stars",   "/stars/popular/Aya Sazanami/ABP-002", LocalDate.of(2024, 2, 1))
+                .location("abp002",  "vol-b", "archive", "/archive/dup/ABP-002",                LocalDate.of(2024, 2, 5))
+                .location("ssis100", "vol-a", "stars",   "/stars/popular/Yua Mikami/SSIS-100",  LocalDate.of(2024, 3, 1))
+                .location("ssis200", "vol-a", "stars",   "/stars/popular/Yua Mikami/SSIS-200",  LocalDate.of(2023, 4, 20))
+                .location("midv050", "vol-a", "queue",   "/queue/MIDV-050",                     LocalDate.of(2024, 6, 1))
+                .location("midv100", "vol-a", "queue",   "/queue/MIDV-100",                     LocalDate.of(2024, 7, 1))
+                // Title-level tags (creampie + solowork on MIDV-100).
+                .titleTags("midv100", "creampie", "solowork")
+                // Visit / watch history
+                .visit("midv050")
+                .visitActress("mio")
+                .watchHistory("midv050", LocalDateTime.of(2024, 6, 15, 20, 0))
+                .build();
 
         return new RichSeed(
-                aya.getId(), ayumi.getId(), yua.getId(), mio.getId(), rej.getId(),
-                abp001.getCode(), abp002.getCode(), ssis100.getCode(),
-                ssis200.getCode(), midv050.getCode(), midv100.getCode());
-    }
-
-    private void saveLocation(Title title, String volumeId, String partitionId,
-                              String path, LocalDate date) {
-        locationRepo.save(TitleLocation.builder()
-                .titleId(title.getId())
-                .volumeId(volumeId).partitionId(partitionId)
-                .path(Path.of(path))
-                .lastSeenAt(date).addedDate(date)
-                .build());
+                f.actressId("aya"), f.actressId("ayumi"), f.actressId("yua"),
+                f.actressId("mio"), f.actressId("rej"),
+                f.titleCode("abp001"), f.titleCode("abp002"), f.titleCode("ssis100"),
+                f.titleCode("ssis200"), f.titleCode("midv050"), f.titleCode("midv100"));
     }
 
     /** Seeds a single label, actress, and title with one location. */
     public SeedData seedMinimal() {
-        // Labels are yaml-loaded in production; for the integration test insert directly.
-        jdbi.useHandle(h -> h.createUpdate(
-                "INSERT INTO labels (code, label_name, company) VALUES (:c, :n, :co)")
-                .bind("c", "ABP").bind("n", "ABP Label").bind("co", "Prestige")
-                .execute());
+        FixtureBuilder.Fixtures f = fixture()
+                .label("ABP", "Prestige")
+                .actress("aya", a -> a.canonical("Aya Sazanami").tier(Actress.Tier.GODDESS)
+                                      .firstSeen(LocalDate.of(2024, 1, 1)))
+                .title("abp001", t -> t.code("ABP-001").baseCode("ABP-00001").label("ABP")
+                                       .seqNum(1).actress("aya").titleEnglish("The First Title"))
+                .location("abp001", "vol-a", "stars",
+                        "/stars/popular/Aya Sazanami/ABP-001", LocalDate.of(2024, 1, 15))
+                .build();
 
-        Actress aya = actressRepo.save(Actress.builder()
-                .canonicalName("Aya Sazanami")
-                .tier(Actress.Tier.GODDESS)
-                .firstSeenAt(LocalDate.of(2024, 1, 1))
-                .build());
-
-        Title title = titleRepo.save(Title.builder()
-                .code("ABP-001").baseCode("ABP-00001").label("ABP").seqNum(1)
-                .actressId(aya.getId())
-                .titleEnglish("The First Title")
-                .build());
-
-        // TitleRepository.save doesn't persist locations — write them separately.
-        locationRepo.save(TitleLocation.builder()
-                .titleId(title.getId())
-                .volumeId("vol-a").partitionId("stars")
-                .path(Path.of("/stars/popular/Aya Sazanami/ABP-001"))
-                .lastSeenAt(LocalDate.of(2024, 1, 15))
-                .addedDate(LocalDate.of(2024, 1, 15))
-                .build());
-
-        return new SeedData(aya.getId(), title.getCode());
+        return new SeedData(f.actressId("aya"), f.titleCode("abp001"));
     }
 
     @Override
