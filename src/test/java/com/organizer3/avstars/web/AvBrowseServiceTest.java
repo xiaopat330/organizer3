@@ -140,6 +140,198 @@ class AvBrowseServiceTest {
         assertEquals("smb://qnap2/AV/stars/Folder/file%5Bhd%5D.mp4", url);
     }
 
+    // ── findAll / findFavorites ───────────────────────────────────────────
+
+    @Test
+    void findAllMapsActressesWithTopTags() {
+        var a = actress(1L, "Asa Akira", "Asa Akira");
+        when(actressRepo.findAllByVideoCountDesc()).thenReturn(List.of(a));
+        when(videoTagRepo.findTopTagSlugsForActress(1L, 5)).thenReturn(List.of("solo", "pov"));
+
+        var out = service.findAll();
+
+        assertEquals(1, out.size());
+        assertEquals(1L, out.get(0).getId());
+        assertEquals("Asa Akira", out.get(0).getStageName());
+        assertEquals(List.of("solo", "pov"), out.get(0).getTopTags());
+    }
+
+    @Test
+    void findFavoritesDelegatesToFavoritesRepo() {
+        var a = actress(1L, "Fav", "Fav");
+        when(actressRepo.findFavorites()).thenReturn(List.of(a));
+        when(videoTagRepo.findTopTagSlugsForActress(1L, 5)).thenReturn(List.of());
+
+        var out = service.findFavorites();
+
+        assertEquals(1, out.size());
+        verify(actressRepo).findFavorites();
+        verify(actressRepo, never()).findAllByVideoCountDesc();
+    }
+
+    // ── getActressDetail ──────────────────────────────────────────────────
+
+    @Test
+    void getActressDetailReturnsEmptyWhenMissing() {
+        when(actressRepo.findById(99L)).thenReturn(Optional.empty());
+        assertTrue(service.getActressDetail(99L).isEmpty());
+    }
+
+    @Test
+    void getActressDetailPopulatesFields() {
+        var a = actress(1L, "Stage", "Folder");
+        when(actressRepo.findById(1L)).thenReturn(Optional.of(a));
+
+        var detail = service.getActressDetail(1L).orElseThrow();
+
+        assertEquals("Stage", detail.getStageName());
+        assertEquals("Folder", detail.getFolderName());
+    }
+
+    // ── findVideosForActress ──────────────────────────────────────────────
+
+    @Test
+    void findVideosForActressAttachesTagsAndThumbUrl() {
+        var v = video(10L, 1L, "video.mp4", "video.mp4");
+        when(videoRepo.findByActress(1L)).thenReturn(List.of(v));
+        when(videoTagRepo.findTagSlugsByVideoIds(List.of(10L))).thenReturn(java.util.Map.of(10L, List.of("solo")));
+        when(screenshotRepo.findFirstSeqByVideoIds(List.of(10L))).thenReturn(java.util.Map.of(10L, 3));
+        when(screenshotRepo.findCountsByVideoIds(List.of(10L))).thenReturn(java.util.Map.of(10L, 12));
+
+        var out = service.findVideosForActress(1L);
+
+        assertEquals(1, out.size());
+        assertEquals("/api/av/screenshots/10/3", out.get(0).getFirstScreenshotUrl());
+        assertEquals(12, out.get(0).getScreenshotCount());
+        assertEquals(List.of("solo"), out.get(0).getTags());
+    }
+
+    @Test
+    void findVideosForActressFallsBackToTagsJsonWhenNoCanonical() {
+        var v = AvVideo.builder()
+                .id(10L).avActressId(1L).volumeId("qnap_av")
+                .relativePath("video.mp4").filename("video.mp4").extension("mp4")
+                .tagsJson("[\"amateur\",\"raw\"]")
+                .build();
+        when(videoRepo.findByActress(1L)).thenReturn(List.of(v));
+        when(videoTagRepo.findTagSlugsByVideoIds(List.of(10L))).thenReturn(java.util.Map.of());
+        when(screenshotRepo.findFirstSeqByVideoIds(List.of(10L))).thenReturn(java.util.Map.of());
+        when(screenshotRepo.findCountsByVideoIds(List.of(10L))).thenReturn(java.util.Map.of());
+
+        var out = service.findVideosForActress(1L);
+
+        assertEquals(List.of("amateur", "raw"), out.get(0).getTags());
+        assertNull(out.get(0).getFirstScreenshotUrl());
+        assertEquals(0, out.get(0).getScreenshotCount());
+    }
+
+    @Test
+    void findVideosForActressHandlesMalformedTagsJson() {
+        var v = AvVideo.builder()
+                .id(10L).avActressId(1L).volumeId("qnap_av")
+                .relativePath("video.mp4").filename("video.mp4").extension("mp4")
+                .tagsJson("not-json")
+                .build();
+        when(videoRepo.findByActress(1L)).thenReturn(List.of(v));
+        when(videoTagRepo.findTagSlugsByVideoIds(List.of(10L))).thenReturn(java.util.Map.of());
+        when(screenshotRepo.findFirstSeqByVideoIds(List.of(10L))).thenReturn(java.util.Map.of());
+        when(screenshotRepo.findCountsByVideoIds(List.of(10L))).thenReturn(java.util.Map.of());
+
+        var out = service.findVideosForActress(1L);
+
+        // Malformed JSON leaves tags empty; does not throw
+        assertEquals(List.of(), out.get(0).getTags());
+    }
+
+    // ── recordVisit / toggle actions ──────────────────────────────────────
+
+    @Test
+    void recordVisitCallsRepoAndReturnsSummary() {
+        var a = actress(1L, "A", "A");
+        when(actressRepo.findById(1L)).thenReturn(Optional.of(a));
+        when(videoTagRepo.findTopTagSlugsForActress(1L, 5)).thenReturn(List.of());
+
+        var out = service.recordVisit(1L);
+
+        verify(actressRepo).recordVisit(1L);
+        assertEquals(1L, out.getId());
+    }
+
+    @Test
+    void recordVisitThrowsWhenActressMissing() {
+        when(actressRepo.findById(99L)).thenReturn(Optional.empty());
+        assertThrows(IllegalArgumentException.class, () -> service.recordVisit(99L));
+    }
+
+    @Test
+    void toggleActressFavoriteCallsRepoAndReturnsDetail() {
+        var a = actress(1L, "A", "A");
+        when(actressRepo.findById(1L)).thenReturn(Optional.of(a));
+
+        var detail = service.toggleActressFavorite(1L, true);
+
+        verify(actressRepo).toggleFavorite(1L, true);
+        assertEquals(1L, detail.getId());
+    }
+
+    @Test
+    void toggleActressBookmarkCallsRepoAndReturnsDetail() {
+        var a = actress(1L, "A", "A");
+        when(actressRepo.findById(1L)).thenReturn(Optional.of(a));
+
+        service.toggleActressBookmark(1L, false);
+
+        verify(actressRepo).toggleBookmark(1L, false);
+    }
+
+    @Test
+    void toggleVideoFavoriteCallsRepoAndReturnsSummary() {
+        var v = video(10L, 1L, "a.mp4", "a.mp4");
+        when(videoRepo.findById(10L)).thenReturn(Optional.of(v));
+        when(videoTagRepo.findTagSlugsByVideoIds(List.of(10L))).thenReturn(java.util.Map.of());
+        when(screenshotRepo.findFirstSeqByVideoIds(List.of(10L))).thenReturn(java.util.Map.of());
+        when(screenshotRepo.findCountsByVideoIds(List.of(10L))).thenReturn(java.util.Map.of());
+
+        var out = service.toggleVideoFavorite(10L, true);
+
+        verify(videoRepo).toggleFavorite(10L, true);
+        assertEquals(10L, out.getId());
+    }
+
+    @Test
+    void toggleVideoBookmarkCallsRepo() {
+        var v = video(10L, 1L, "a.mp4", "a.mp4");
+        when(videoRepo.findById(10L)).thenReturn(Optional.of(v));
+        when(videoTagRepo.findTagSlugsByVideoIds(List.of(10L))).thenReturn(java.util.Map.of());
+        when(screenshotRepo.findFirstSeqByVideoIds(List.of(10L))).thenReturn(java.util.Map.of());
+        when(screenshotRepo.findCountsByVideoIds(List.of(10L))).thenReturn(java.util.Map.of());
+
+        service.toggleVideoBookmark(10L, false);
+
+        verify(videoRepo).toggleBookmark(10L, false);
+    }
+
+    @Test
+    void recordVideoWatchCallsRepoAndReturnsSummary() {
+        var v = video(10L, 1L, "a.mp4", "a.mp4");
+        when(videoRepo.findById(10L)).thenReturn(Optional.of(v));
+        when(videoTagRepo.findTagSlugsByVideoIds(List.of(10L))).thenReturn(java.util.Map.of());
+        when(screenshotRepo.findFirstSeqByVideoIds(List.of(10L))).thenReturn(java.util.Map.of());
+        when(screenshotRepo.findCountsByVideoIds(List.of(10L))).thenReturn(java.util.Map.of());
+
+        service.recordVideoWatch(10L);
+
+        verify(videoRepo).recordWatch(10L);
+    }
+
+    @Test
+    void videoMutationsThrowWhenVideoMissing() {
+        when(videoRepo.findById(99L)).thenReturn(Optional.empty());
+        assertThrows(IllegalArgumentException.class, () -> service.toggleVideoFavorite(99L, true));
+        assertThrows(IllegalArgumentException.class, () -> service.toggleVideoBookmark(99L, true));
+        assertThrows(IllegalArgumentException.class, () -> service.recordVideoWatch(99L));
+    }
+
     // ── Helpers ───────────────────────────────────────────────────────────
 
     private static AvVideo video(long id, long actressId, String relPath, String filename) {
