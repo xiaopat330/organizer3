@@ -129,10 +129,18 @@
 .queue-editor-sep { color: #444; }
 .queue-editor-folder { color: #999; font-size: 0.9rem; }
 
+.queue-cover-column {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 420px;
+  flex-shrink: 0;
+}
+
 .queue-descriptor-row {
   display: flex;
-  align-items: center;
-  gap: 10px;
+  flex-direction: column;
+  gap: 4px;
   font-size: 0.82rem;
 }
 .queue-descriptor-label {
@@ -140,10 +148,9 @@
   letter-spacing: 0.04em;
   text-transform: uppercase;
   font-size: 0.72rem;
-  flex-shrink: 0;
 }
 .queue-descriptor-input {
-  flex: 0 0 320px;
+  width: 100%;
   background: #0d0d0d;
   color: #eee;
   border: 1px solid #333;
