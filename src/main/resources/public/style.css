@@ -4239,7 +4239,7 @@ header h1:hover {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 9px 14px;
+  padding: 7px 12px;
   cursor: pointer;
   border-bottom: 1px solid #1a1a1a;
   transition: background 0.1s;
@@ -4248,20 +4248,12 @@ header h1:hover {
 .alias-search-row:hover,
 .alias-search-row.selected   { background: #1a2a28; }
 
-.alias-search-thumb {
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  object-fit: cover;
-  flex-shrink: 0;
-  background: #1e1e1e;
-}
-.alias-search-thumb-empty {
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  background: #1e1e1e;
-  flex-shrink: 0;
+.alias-search-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
 }
 
 .alias-search-name {
@@ -4270,14 +4262,29 @@ header h1:hover {
   font-weight: 500;
 }
 .alias-search-alias {
-  font-size: 0.75rem;
+  font-size: 0.72rem;
   color: #2dd4bf;
-  margin-left: 4px;
 }
 .alias-search-count {
-  margin-left: auto;
   font-size: 0.72rem;
   color: #555;
+}
+
+/* Small portrait DVD cover on the right of each search row */
+.alias-search-cover-wrap {
+  width: 30px;
+  aspect-ratio: var(--cover-card-ratio);
+  overflow: hidden;
+  border-radius: 2px;
+  flex-shrink: 0;
+  background: #1e1e1e;
+}
+.alias-search-cover-img {
+  width: var(--cover-crop-width);
+  margin-left: var(--cover-crop-offset);
+  display: block;
+  height: 100%;
+  object-fit: cover;
 }
 .alias-search-empty {
   padding: 20px;
@@ -4392,20 +4399,29 @@ header h1:hover {
 }
 
 /* Actress mini-card inside modal left panel */
-.alias-card-cover {
-  width: 100%;
-  aspect-ratio: 2/3;
-  object-fit: cover;
+.alias-card-cover-wrap {
+  width: 72%;
+  aspect-ratio: var(--cover-card-ratio);
+  overflow: hidden;
   border-radius: 4px;
-  display: block;
+  margin-left: auto;           /* right-align within the panel */
   margin-bottom: 16px;
   background: #1a1a1a;
+  display: block;
+}
+.alias-card-cover-img {
+  width: var(--cover-crop-width);
+  margin-left: var(--cover-crop-offset);
+  display: block;
+  height: 100%;
+  object-fit: cover;
 }
 .alias-card-cover-empty {
-  width: 100%;
-  aspect-ratio: 2/3;
+  width: 72%;
+  aspect-ratio: var(--cover-card-ratio);
   background: #1a1a1a;
   border-radius: 4px;
+  margin-left: auto;
   margin-bottom: 16px;
 }
 .alias-card-name {

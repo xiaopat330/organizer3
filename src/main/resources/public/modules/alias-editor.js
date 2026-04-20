@@ -74,17 +74,20 @@ function renderSearchResults(actresses, query) {
     const row = document.createElement('div');
     row.className = 'alias-search-row';
 
-    const thumb = a.coverUrl
-      ? `<img class="alias-search-thumb" src="${esc(a.coverUrl)}" alt="" loading="lazy">`
-      : '<div class="alias-search-thumb-empty"></div>';
-
     const aliasHtml = a.matchedAlias
-      ? `<span class="alias-search-alias">a.k.a. ${esc(a.matchedAlias)}</span>` : '';
+      ? `<div class="alias-search-alias">a.k.a. ${esc(a.matchedAlias)}</div>` : '';
 
-    row.innerHTML = thumb
+    const coverHtml = a.coverUrl
+      ? `<div class="alias-search-cover-wrap"><img class="alias-search-cover-img" src="${esc(a.coverUrl)}" alt="" loading="lazy"></div>`
+      : '<div class="alias-search-cover-wrap"></div>';
+
+    row.innerHTML =
+        `<div class="alias-search-text">`
       + `<span class="alias-search-name">${esc(a.canonicalName)}</span>`
       + aliasHtml
-      + `<span class="alias-search-count">${a.titleCount}</span>`;
+      + `<span class="alias-search-count">${a.titleCount} titles</span>`
+      + `</div>`
+      + coverHtml;
 
     row.addEventListener('click', () => {
       hideSearchOverlay();
@@ -121,7 +124,7 @@ function renderModal(a) {
 
   // ── Left panel: actress card ───────────────────────────────────────────
   const cover = (a.coverUrls && a.coverUrls.length)
-    ? `<img class="alias-card-cover" src="${esc(a.coverUrls[0])}" alt="">`
+    ? `<div class="alias-card-cover-wrap"><img class="alias-card-cover-img" src="${esc(a.coverUrls[0])}" alt=""></div>`
     : '<div class="alias-card-cover-empty"></div>';
 
   const nameParts  = splitCanonical(a.canonicalName);
