@@ -784,6 +784,84 @@ class ActressBrowseServiceTest {
                 .favorite(false).firstSeenAt(LocalDate.of(2023, 1, 1)).build();
     }
 
+    // ── updateAliases ─────────────────────────────────────────────────────
+
+    @Test
+    void updateAliasesSucceedsWithNoConflicts() {
+        when(actressRepo.findById(1L)).thenReturn(Optional.of(actress(1L, "Aya Sazanami")));
+        when(actressRepo.findByCanonicalName("Alias One")).thenReturn(Optional.empty());
+        when(actressRepo.resolveByName("Alias One")).thenReturn(Optional.empty());
+
+        var result = service.updateAliases(1L, List.of("Alias One"));
+
+        assertTrue(result.ok());
+        verify(actressRepo).replaceAllAliases(1L, List.of("Alias One"));
+    }
+
+    @Test
+    void updateAliasesRejectsAliasMatchingOtherCanonicalName() {
+        when(actressRepo.findById(1L)).thenReturn(Optional.of(actress(1L, "Aya Sazanami")));
+        when(actressRepo.findByCanonicalName("Hibiki Otsuki")).thenReturn(Optional.of(actress(2L, "Hibiki Otsuki")));
+
+        var result = service.updateAliases(1L, List.of("Hibiki Otsuki"));
+
+        assertFalse(result.ok());
+        assertTrue(result.error().contains("Hibiki Otsuki"));
+        verify(actressRepo, never()).replaceAllAliases(anyLong(), any());
+    }
+
+    @Test
+    void updateAliasesRejectsAliasOwnedByOtherActress() {
+        when(actressRepo.findById(1L)).thenReturn(Optional.of(actress(1L, "Aya Sazanami")));
+        when(actressRepo.findByCanonicalName("Eri Ando")).thenReturn(Optional.empty());
+        when(actressRepo.resolveByName("Eri Ando")).thenReturn(Optional.of(actress(2L, "Hibiki Otsuki")));
+
+        var result = service.updateAliases(1L, List.of("Eri Ando"));
+
+        assertFalse(result.ok());
+        assertTrue(result.error().contains("Eri Ando"));
+        verify(actressRepo, never()).replaceAllAliases(anyLong(), any());
+    }
+
+    @Test
+    void updateAliasesAllowsActressToKeepOwnAlias() {
+        Actress aya = actress(1L, "Aya Sazanami");
+        when(actressRepo.findById(1L)).thenReturn(Optional.of(aya));
+        when(actressRepo.findByCanonicalName("A-chan")).thenReturn(Optional.empty());
+        when(actressRepo.resolveByName("A-chan")).thenReturn(Optional.of(aya));
+
+        var result = service.updateAliases(1L, List.of("A-chan"));
+
+        assertTrue(result.ok());
+        verify(actressRepo).replaceAllAliases(1L, List.of("A-chan"));
+    }
+
+    @Test
+    void updateAliasesReturnsConflictForUnknownActress() {
+        when(actressRepo.findById(9999L)).thenReturn(Optional.empty());
+
+        var result = service.updateAliases(9999L, List.of("Anything"));
+
+        assertFalse(result.ok());
+        verify(actressRepo, never()).replaceAllAliases(anyLong(), any());
+    }
+
+    @Test
+    void updateAliasesStripsBlankEntriesBeforeSaving() {
+        when(actressRepo.findById(1L)).thenReturn(Optional.of(actress(1L, "Aya Sazanami")));
+        when(actressRepo.findByCanonicalName("Real Name")).thenReturn(Optional.empty());
+        when(actressRepo.resolveByName("Real Name")).thenReturn(Optional.empty());
+
+        service.updateAliases(1L, List.of("  ", "Real Name", ""));
+
+        verify(actressRepo).replaceAllAliases(1L, List.of("Real Name"));
+    }
+
+    private static Actress actress(long id, String name) {
+        return Actress.builder().id(id).canonicalName(name)
+                .tier(Actress.Tier.LIBRARY).firstSeenAt(LocalDate.now()).build();
+    }
+
     private static Title title(long actressId, String volumeId, String partitionId, String path) {
         return Title.builder()
                 .id(1L).code("ABP-001").baseCode("ABP-00001").label("ABP").seqNum(1)
