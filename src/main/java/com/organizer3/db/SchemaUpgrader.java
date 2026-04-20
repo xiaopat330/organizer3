@@ -19,7 +19,7 @@ import org.jdbi.v3.core.Jdbi;
 public class SchemaUpgrader {
 
     /** Must match the version stamped by {@link SchemaInitializer}. */
-    private static final int CURRENT_VERSION = 20;
+    private static final int CURRENT_VERSION = 21;
 
     private final Jdbi jdbi;
 
@@ -123,7 +123,33 @@ public class SchemaUpgrader {
             setVersion(20);
         }
 
+        if (version < 21) {
+            applyV21();
+            setVersion(21);
+        }
+
         log.info("Schema upgrade complete");
+    }
+
+    /**
+     * v21: {@code favorite_cleared_at} on titles + actresses, with triggers that
+     * auto-maintain it on any UPDATE of {@code favorite}.
+     *
+     * <p>Supports the 30-day retention grace window used by the background thumbnail
+     * evictor — see {@code spec/PROPOSAL_BACKGROUND_THUMBNAILS.md}.
+     *
+     * <p>Backfill: existing rows left with {@code favorite_cleared_at = NULL}. Pre-migration
+     * un-favorites have unknown timestamp and are treated as "never favorited" (no grace).
+     * This is the right default — the only risk is users losing grace they weren't tracking
+     * yet, not getting surprise retention.
+     */
+    private void applyV21() {
+        log.info("Applying migration v21: favorite_cleared_at + triggers");
+        jdbi.useHandle(h -> {
+            addColumnIfMissing(h, "titles",    "favorite_cleared_at", "TEXT");
+            addColumnIfMissing(h, "actresses", "favorite_cleared_at", "TEXT");
+            SchemaInitializer.createFavoriteClearedAtTriggers(h);
+        });
     }
 
     /**

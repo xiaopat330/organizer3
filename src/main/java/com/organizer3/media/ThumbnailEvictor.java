@@ -20,11 +20,15 @@ import java.util.stream.Stream;
  *   <li>{@code titles.last_visited_at} is NULL or older than {@code evictionDays}</li>
  *   <li>{@code titles.bookmark = 0}</li>
  *   <li>{@code titles.favorite = 0}</li>
+ *   <li>{@code titles.favorite_cleared_at} is NULL or older than {@code evictionDays}</li>
  *   <li>no linked actress has {@code favorite = 1}</li>
+ *   <li>no linked actress has {@code favorite_cleared_at} newer than {@code evictionDays} ago</li>
  * </ul>
  *
- * <p>Favorites and bookmarks are sticky — pre-warmed-but-unvisited content doesn't
- * churn. Unknown title directories (code not in DB at all) are left alone here —
+ * <p>Favorites are sticky perpetually. On un-favorite, a {@code evictionDays} grace
+ * window keeps the thumbnails around — re-favoriting during the window clears the
+ * stamp and restores perpetual retention. Bookmarks are sticky only while set (no
+ * grace). Unknown title directories (code not in DB at all) are left alone here —
  * {@code prune-thumbnails} handles those.
  */
 @Slf4j
@@ -63,19 +67,30 @@ public class ThumbnailEvictor {
     }
 
     private Set<String> loadEvictableTitleCodes(int evictionDays) {
+        // A linked-actress signal is "recent" if the actress is currently favorited,
+        // or her favorite_cleared_at is within the grace window.
         String sql = """
-            WITH title_actress_fav AS (
-                SELECT ta.title_id, MAX(a.favorite) AS any_fav
+            WITH title_actress_signal AS (
+                SELECT ta.title_id,
+                       MAX(CASE WHEN a.favorite = 1 THEN 1 ELSE 0 END) AS any_fav,
+                       MAX(CASE
+                             WHEN a.favorite_cleared_at IS NOT NULL
+                              AND (julianday('now') - julianday(a.favorite_cleared_at)) <= :days
+                             THEN 1 ELSE 0
+                           END) AS any_in_grace
                 FROM title_actresses ta
                 JOIN actresses a ON a.id = ta.actress_id
                 GROUP BY ta.title_id
             )
             SELECT t.code
             FROM titles t
-            LEFT JOIN title_actress_fav tf ON tf.title_id = t.id
+            LEFT JOIN title_actress_signal tas ON tas.title_id = t.id
             WHERE t.favorite = 0
               AND t.bookmark = 0
-              AND COALESCE(tf.any_fav, 0) = 0
+              AND COALESCE(tas.any_fav,      0) = 0
+              AND COALESCE(tas.any_in_grace, 0) = 0
+              AND (t.favorite_cleared_at IS NULL
+                   OR (julianday('now') - julianday(t.favorite_cleared_at)) > :days)
               AND (t.last_visited_at IS NULL
                    OR (julianday('now') - julianday(t.last_visited_at)) > :days)
             """;

@@ -99,9 +99,13 @@ To keep disk use bounded without an explicit size cap, the worker also runs a pe
 - `titles.last_visited_at` is null OR older than `eviction-days` (default 30)
 - `titles.bookmark = 0`
 - `titles.favorite = 0`
+- `titles.favorite_cleared_at` is null OR older than `eviction-days`
 - No linked actress has `favorite = 1`
+- No linked actress has `favorite_cleared_at` newer than `eviction-days` ago
 
-Favorites and bookmarks are sticky — those titles are never evicted regardless of visit recency. This prevents churn where a pre-warmed-but-unvisited favorite gets deleted then immediately regenerated.
+Favorites are sticky *perpetually*. On un-favorite, a grace window of `eviction-days` keeps the thumbnails around — this is tracked by the `favorite_cleared_at` timestamp (schema v21). Re-favoriting during the grace window clears the stamp and restores perpetual retention. Bookmarks are sticky only while set (no grace period).
+
+The `favorite_cleared_at` column is auto-maintained by SQLite triggers that fire on any `UPDATE OF favorite` — so the retention semantics hold regardless of which code path toggles the flag.
 
 Sweep runs once per worker cycle (cheap: filesystem scan + one SQL query per title directory). Eviction deletes the `<titleCode>/` directory and all `<videoFilename>/` subdirectories beneath it.
 
@@ -126,10 +130,17 @@ Shell toggle:
 
 ## Schema Changes
 
-**None required.** All needed columns already exist:
+**Migration v21** — added to support the favorite grace window:
+- `titles.favorite_cleared_at` TEXT (nullable)
+- `actresses.favorite_cleared_at` TEXT (nullable)
+- 4 triggers that auto-maintain these columns on `UPDATE OF favorite`:
+  - Transition 1→0: stamp `favorite_cleared_at = datetime('now')`
+  - Transition 0→1: clear to NULL
+
+All other signals use existing columns:
 - `titles`: `favorite`, `bookmark`, `last_visited_at`, `visit_count`
 - `actresses`: `favorite`, `last_visited_at`, `visit_count`
-- `videos`: `id`, `title_id`, `filename`
+- `videos`: `id`, `title_id`, `filename`, `last_seen_at`
 
 ## Testing
 

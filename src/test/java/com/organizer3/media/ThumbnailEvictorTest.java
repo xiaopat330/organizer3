@@ -95,6 +95,117 @@ class ThumbnailEvictorTest {
         assertTrue(Files.exists(thumbsRoot.resolve("OLD-001")));
     }
 
+    // --- Grace window: favorite_cleared_at semantics ---
+
+    @Test
+    void unfavoritedTitleWithinGraceWindowStaysSticky() throws Exception {
+        long id = insertTitle("GRACE-001", false, false, null);
+        // Simulate: was favorited, un-favorited 10 days ago (within 30-day grace)
+        jdbi.useHandle(h -> h.execute(
+                "UPDATE titles SET favorite_cleared_at = datetime('now', '-10 days') WHERE id = ?", id));
+        seedThumbnails("GRACE-001");
+
+        assertEquals(0, evictor.sweep(30));
+        assertTrue(Files.exists(thumbsRoot.resolve("GRACE-001")));
+    }
+
+    @Test
+    void unfavoritedTitleAfterGraceExpiresIsEvicted() throws Exception {
+        long id = insertTitle("EXPIRED-001", false, false, null);
+        jdbi.useHandle(h -> h.execute(
+                "UPDATE titles SET favorite_cleared_at = datetime('now', '-45 days') WHERE id = ?", id));
+        seedThumbnails("EXPIRED-001");
+
+        assertEquals(1, evictor.sweep(30));
+        assertFalse(Files.exists(thumbsRoot.resolve("EXPIRED-001")));
+    }
+
+    @Test
+    void unfavoritedActressWithinGraceKeepsHerTitlesSticky() throws Exception {
+        long actressId = insertActress("GraceFav", /*fav=*/false);
+        jdbi.useHandle(h -> h.execute(
+                "UPDATE actresses SET favorite_cleared_at = datetime('now', '-15 days') WHERE id = ?", actressId));
+        long titleId = insertTitle("HER-GRACE-001", false, false, LocalDateTime.now().minusDays(100));
+        jdbi.useHandle(h -> h.execute(
+                "INSERT INTO title_actresses(title_id, actress_id) VALUES (?, ?)", titleId, actressId));
+        seedThumbnails("HER-GRACE-001");
+
+        assertEquals(0, evictor.sweep(30));
+        assertTrue(Files.exists(thumbsRoot.resolve("HER-GRACE-001")));
+    }
+
+    @Test
+    void unfavoritedActressAfterGraceDoesNotProtectTitle() throws Exception {
+        long actressId = insertActress("ExpiredFav", false);
+        jdbi.useHandle(h -> h.execute(
+                "UPDATE actresses SET favorite_cleared_at = datetime('now', '-40 days') WHERE id = ?", actressId));
+        long titleId = insertTitle("HER-OLD-001", false, false, LocalDateTime.now().minusDays(100));
+        jdbi.useHandle(h -> h.execute(
+                "INSERT INTO title_actresses(title_id, actress_id) VALUES (?, ?)", titleId, actressId));
+        seedThumbnails("HER-OLD-001");
+
+        assertEquals(1, evictor.sweep(30));
+        assertFalse(Files.exists(thumbsRoot.resolve("HER-OLD-001")));
+    }
+
+    // --- Trigger: favorite_cleared_at auto-maintenance ---
+
+    @Test
+    void unfavoritingTitleStampsFavoriteClearedAt() {
+        long id = jdbi.withHandle(h -> h.createUpdate(
+                "INSERT INTO titles(code, base_code, label, seq_num, favorite) "
+              + "VALUES ('TRIG-001','TRIG-001','TRIG',1, 1)")
+                .executeAndReturnGeneratedKeys("id").mapTo(Long.class).one());
+
+        jdbi.useHandle(h -> h.execute("UPDATE titles SET favorite = 0 WHERE id = ?", id));
+
+        String stamp = jdbi.withHandle(h -> h.createQuery(
+                "SELECT favorite_cleared_at FROM titles WHERE id = ?")
+                .bind(0, id).mapTo(String.class).one());
+        assertNotNull(stamp, "favorite_cleared_at must be stamped on 1→0 transition");
+    }
+
+    @Test
+    void refavoritingTitleClearsFavoriteClearedAt() {
+        long id = jdbi.withHandle(h -> h.createUpdate(
+                "INSERT INTO titles(code, base_code, label, seq_num, favorite) "
+              + "VALUES ('TRIG-002','TRIG-002','TRIG',1, 1)")
+                .executeAndReturnGeneratedKeys("id").mapTo(Long.class).one());
+
+        jdbi.useHandle(h -> h.execute("UPDATE titles SET favorite = 0 WHERE id = ?", id));
+        jdbi.useHandle(h -> h.execute("UPDATE titles SET favorite = 1 WHERE id = ?", id));
+
+        String stamp = jdbi.withHandle(h -> h.createQuery(
+                "SELECT favorite_cleared_at FROM titles WHERE id = ?")
+                .bind(0, id).mapTo(String.class).findOne().orElse(null));
+        assertNull(stamp, "favorite_cleared_at must be cleared on 0→1 transition (re-favorite)");
+    }
+
+    @Test
+    void unfavoritingActressStampsFavoriteClearedAt() {
+        long id = insertActress("TrigActress", /*fav=*/true);
+        jdbi.useHandle(h -> h.execute("UPDATE actresses SET favorite = 0 WHERE id = ?", id));
+
+        String stamp = jdbi.withHandle(h -> h.createQuery(
+                "SELECT favorite_cleared_at FROM actresses WHERE id = ?")
+                .bind(0, id).mapTo(String.class).one());
+        assertNotNull(stamp);
+    }
+
+    @Test
+    void favoritedTitlesAndNoTransitionLeaveStampNull() {
+        // Just inserting with favorite=1 and never toggling it shouldn't stamp anything.
+        long id = jdbi.withHandle(h -> h.createUpdate(
+                "INSERT INTO titles(code, base_code, label, seq_num, favorite) "
+              + "VALUES ('QUIET-001','QUIET-001','QUIET',1, 1)")
+                .executeAndReturnGeneratedKeys("id").mapTo(Long.class).one());
+
+        String stamp = jdbi.withHandle(h -> h.createQuery(
+                "SELECT favorite_cleared_at FROM titles WHERE id = ?")
+                .bind(0, id).mapTo(String.class).findOne().orElse(null));
+        assertNull(stamp);
+    }
+
     @Test
     void orphanDirectoryNotInDbIsIgnoredByEvictor() throws Exception {
         // Evictor only targets known-cold titles; unknown codes are left for prune-thumbnails.
