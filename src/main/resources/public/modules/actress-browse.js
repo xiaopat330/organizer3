@@ -7,10 +7,14 @@ import { ARCHIVE_VOLUMES, EXHIBITION_VOLUMES } from './config.js';
 import { effectiveCols, colsSliderHtml, wireColsSlider, injectColsSlider } from './grid-cols.js';
 import { ensureStudioGroups, ensureTitleLabels, renderTwoColumnStudioPanel, updateCompanyMarquee } from './studio-data.js';
 import {
+  renderTopGroupsLeaderboard,
+  renderActressLibraryStats,
+  renderResearchGapsList,
+} from './dashboard-renderers.js';
+import {
   renderDashboardStrip,
   renderDashboardSection,
   renderSideBySidePanel,
-  renderStatsTiles,
   createSpotlightRotator,
 } from './dashboard-panels.js';
 
@@ -283,53 +287,9 @@ const actressSpotlightRotator = createSpotlightRotator({
   intervalMs: ACTRESS_SPOTLIGHT_INTERVAL_MS,
 });
 
-function renderTopGroupsLeaderboard(topGroups) {
-  const section = document.createElement('section');
-  section.className = 'dashboard-section dashboard-top-groups';
-  const header = document.createElement('div');
-  header.className = 'dashboard-section-title';
-  header.textContent = 'Top Groups';
-  section.appendChild(header);
-
-  const list = document.createElement('div');
-  list.className = 'dashboard-leaderboard';
-  const maxScore = topGroups.reduce((m, g) => Math.max(m, g.score || 0), 0) || 1;
-  topGroups.forEach((g, i) => {
-    const row = document.createElement('div');
-    row.className = 'leaderboard-row leaderboard-row-clickable';
-    row.title = `Open ${g.name} in Studio browser`;
-    const countLabel = `${g.actressCount} ${g.actressCount === 1 ? 'actress' : 'actresses'}`;
-    row.innerHTML = `
-      <span class="leaderboard-rank">${i + 1}</span>
-      <span class="leaderboard-name-cell">
-        <span class="leaderboard-name">${esc(g.name)}</span>
-        <span class="leaderboard-company">${countLabel}</span>
-      </span>
-      <span class="leaderboard-bar-wrap"><span class="leaderboard-bar" style="width:${Math.round((g.score / maxScore) * 100)}%"></span></span>
-    `;
-    row.addEventListener('click', () => {
-      selectActressBrowseMode(`studio-group:${g.slug}`);
-    });
-    list.appendChild(row);
-  });
-  section.appendChild(list);
-  return section;
-}
-
-function renderActressLibraryStats(stats) {
-  const researchPct = stats.researchTotal > 0
-    ? Math.round((stats.researchCovered / stats.researchTotal) * 100)
-    : 0;
-  return renderStatsTiles({
-    heading: 'Library',
-    tiles: [
-      { label: 'Actresses',     value: stats.totalActresses.toLocaleString() },
-      { label: 'Favorites',     value: stats.favorites.toLocaleString() },
-      { label: 'Graded',        value: stats.graded.toLocaleString() },
-      { label: 'Elites',        value: stats.elites.toLocaleString() },
-      { label: 'New this month', value: stats.newThisMonth.toLocaleString() },
-      { label: 'Researched',    value: `${researchPct}%`, bar: researchPct },
-    ],
+function renderTopGroupsSection(topGroups) {
+  return renderTopGroupsLeaderboard(topGroups, {
+    onRowClick: (g) => selectActressBrowseMode(`studio-group:${g.slug}`),
   });
 }
 
@@ -361,7 +321,7 @@ function renderActressTopInfoPanel(spotlight, topGroups, libraryStats, birthdays
     if (topGroups.length > 0 || libraryStats || researchGaps.length > 0) {
       const upper = document.createElement('div');
       upper.className = 'dashboard-top-right-upper';
-      if (topGroups.length > 0) upper.appendChild(renderTopGroupsLeaderboard(topGroups));
+      if (topGroups.length > 0) upper.appendChild(renderTopGroupsSection(topGroups));
 
       // Right side of upper row: Library on top, Research Gaps below — fills the
       // dead space that Library alone would leave next to the tall Top Groups list.
@@ -373,7 +333,7 @@ function renderActressTopInfoPanel(spotlight, topGroups, libraryStats, birthdays
           stack.appendChild(renderDashboardSection({
             title: 'Research Gaps',
             badge: `${researchGaps.length}`,
-            body: renderResearchGapsList(researchGaps),
+            body: renderResearchGapsList(researchGaps, { onRowClick: (a) => _openActressDetail(a.id) }),
           }));
         }
         upper.appendChild(stack);
@@ -398,33 +358,6 @@ function renderActressTopInfoPanel(spotlight, topGroups, libraryStats, birthdays
   return panel;
 }
 
-function renderResearchGapsList(entries) {
-  const list = document.createElement('div');
-  list.className = 'dashboard-research-gaps';
-  entries.forEach(entry => {
-    const a = entry.actress;
-    const dots = [
-      { filled: entry.profileFilled,    label: 'profile'   },
-      { filled: entry.physicalFilled,   label: 'physical'  },
-      { filled: entry.biographyFilled,  label: 'biography' },
-      { filled: entry.portfolioCovered, label: 'portfolio' },
-    ];
-    const dotsHtml = dots.map(d => {
-      const tip = `${d.label}: ${d.filled ? 'filled' : 'missing'}`;
-      return `<span class="research-gap-dot ${d.filled ? 'filled' : 'empty'}" title="${tip}"></span>`;
-    }).join('');
-    const row = document.createElement('div');
-    row.className = 'research-gap-row';
-    row.innerHTML = `
-      <span class="research-gap-name">${esc(a.canonicalName)}</span>
-      <span class="research-gap-tier tier-${esc(a.tier)}">${esc(a.tier.toLowerCase())}</span>
-      <span class="research-gap-dots">${dotsHtml}</span>
-    `;
-    row.addEventListener('click', () => _openActressDetail(a.id));
-    list.appendChild(row);
-  });
-  return list;
-}
 
 async function renderActressDashboard() {
   actressDashboardEl.innerHTML = '<div class="dashboard-loading">loading…</div>';
