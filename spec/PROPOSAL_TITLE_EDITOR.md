@@ -144,7 +144,7 @@ Paste is scoped to the drop zone rather than the window to avoid conflicting wit
 - For URL fetch, backend sends an appropriate `Referer` header (DMM hotlink protection)
 - If an existing cover is present, the frontend shows a one-shot confirmation before issuing the request
 - The backend writes the cover bytes **twice**, in order:
-  1. **NAS write (first, source of truth):** to the title folder base on the unsorted volume via `VolumeFileSystem.writeFile` — this is the cover that travels with the title when redistribution moves it into the library.
+  1. **NAS write (first, source of truth):** to the title folder base on the unsorted volume via `VolumeFileSystem.writeFile`. Filename is the normalized product number (`baseCode.ext`, e.g. `RKI-00738.jpg`) — consistent with the local cover cache and library conventions.
   2. **Local cache write (second, best-effort):** to `<dataDir>/covers/<LABEL>/<baseCode>.<ext>` via `CoverPath.resolve` — so the UI preview is instant and other views see the cover without waiting for `sync covers`.
 - **Failure handling:**
   - NAS write fails → return an error; cache is not touched; user retries.

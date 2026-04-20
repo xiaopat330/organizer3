@@ -54,7 +54,9 @@ public class CoverWriteService {
     private void writeToNas(Title title, String folderPath, byte[] bytes, String extension) throws IOException {
         try (SmbShareHandle handle = smbFactory.open(unsortedVolumeId)) {
             VolumeFileSystem fs = handle.fileSystem();
-            String filename = "cover." + extension;
+            // Filename is the normalized product number (baseCode), matching how the
+            // local cover cache and library-side covers are named.
+            String filename = title.getBaseCode() + "." + extension;
             Path target = Path.of(folderPath, filename);
             fs.writeFile(target, bytes);
             log.info("Saved cover to NAS: {} ({} bytes)", target, bytes.length);

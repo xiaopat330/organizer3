@@ -51,7 +51,7 @@ class CoverWriteServiceTest {
         ArgumentCaptor<Path> pathCap = ArgumentCaptor.forClass(Path.class);
         ArgumentCaptor<byte[]> bytesCap = ArgumentCaptor.forClass(byte[].class);
         verify(fs).writeFile(pathCap.capture(), bytesCap.capture());
-        assertEquals(Path.of("/root/Some Title (ONED-123)/cover.jpg"), pathCap.getValue());
+        assertEquals(Path.of("/root/Some Title (ONED-123)/ONED-123.jpg"), pathCap.getValue());
         assertArrayEquals(bytes, bytesCap.getValue());
 
         Path cached = dataDir.resolve("covers/ONED/ONED-123.jpg");
@@ -92,7 +92,7 @@ class CoverWriteServiceTest {
 
         ArgumentCaptor<Path> pathCap = ArgumentCaptor.forClass(Path.class);
         verify(fs).writeFile(pathCap.capture(), any());
-        assertEquals("cover.png", pathCap.getValue().getFileName().toString());
+        assertEquals("ONED-123.png", pathCap.getValue().getFileName().toString());
 
         assertTrue(Files.exists(dataDir.resolve("covers/ONED/ONED-123.png")));
     }
