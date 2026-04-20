@@ -18,6 +18,17 @@ const cancelBtn        = document.getElementById('alias-modal-cancel');
 const MIN_CHARS    = 2;
 const DEBOUNCE_MS  = 300;
 
+function highlight(text, query) {
+  if (!text) return '';
+  if (!query) return esc(text);
+  const lower = text.toLowerCase();
+  const idx   = lower.indexOf(query.toLowerCase());
+  if (idx < 0) return esc(text);
+  return esc(text.slice(0, idx))
+       + '<em><strong class="search-match">' + esc(text.slice(idx, idx + query.length)) + '</strong></em>'
+       + esc(text.slice(idx + query.length));
+}
+
 // ── Alias editor view ──────────────────────────────────────────────────────
 
 export function showAliasEditor() {
@@ -75,7 +86,7 @@ function renderSearchResults(actresses, query) {
     row.className = 'alias-search-row';
 
     const aliasHtml = a.matchedAlias
-      ? `<div class="alias-search-alias">a.k.a. ${esc(a.matchedAlias)}</div>` : '';
+      ? `<div class="alias-search-alias">a.k.a. ${highlight(a.matchedAlias, query)}</div>` : '';
 
     const coverHtml = a.coverUrl
       ? `<div class="alias-search-cover-wrap"><img class="alias-search-cover-img" src="${esc(a.coverUrl)}" alt="" loading="lazy"></div>`
@@ -83,7 +94,7 @@ function renderSearchResults(actresses, query) {
 
     row.innerHTML =
         `<div class="alias-search-text">`
-      + `<span class="alias-search-name">${esc(a.canonicalName)}</span>`
+      + `<span class="alias-search-name">${highlight(a.canonicalName, query)}</span>`
       + aliasHtml
       + `<span class="alias-search-count">${a.titleCount} titles</span>`
       + `</div>`
@@ -123,9 +134,10 @@ function renderModal(a) {
   modalTitle.textContent = a.canonicalName;
 
   // ── Left panel: actress card ───────────────────────────────────────────
-  const cover = (a.coverUrls && a.coverUrls.length)
+  const coverInner = (a.coverUrls && a.coverUrls.length)
     ? `<div class="alias-card-cover-wrap"><img class="alias-card-cover-img" src="${esc(a.coverUrls[0])}" alt=""></div>`
     : '<div class="alias-card-cover-empty"></div>';
+  const cover = `<div style="margin-bottom:16px">${coverInner}</div>`;
 
   const nameParts  = splitCanonical(a.canonicalName);
   const nameHtml   = nameParts.first
@@ -176,8 +188,9 @@ addBtn.addEventListener('click', () => {
 
 // ── Save / Cancel ──────────────────────────────────────────────────────────
 
-saveBtn.addEventListener('click', () => {
-  // Collect alias data from table (for future wiring)
+saveBtn.addEventListener('click', async () => {
+  if (!currentActressId) return;
+
   const rows = Array.from(tableBody.querySelectorAll('tr'));
   const aliases = rows.map(tr => {
     const first = tr.querySelector('.alias-input-first')?.value.trim() || '';
@@ -185,9 +198,30 @@ saveBtn.addEventListener('click', () => {
     return first ? `${first} ${last}` : last;
   }).filter(Boolean);
 
-  // TODO: POST /api/actresses/:id/aliases with { aliases }
-  console.log('Alias save (not yet wired):', currentActressId, aliases);
-  closeModal();
+  saveBtn.disabled = true;
+  saveBtn.textContent = 'Saving…';
+
+  try {
+    const res = await fetch(`/api/actresses/${currentActressId}/aliases`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ aliases }),
+    });
+
+    if (res.ok) {
+      closeModal();
+    } else {
+      const data = await res.json().catch(() => ({}));
+      const msg = data.error || `Error ${res.status}`;
+      alert(`Could not save aliases:\n${msg}`);
+    }
+  } catch (err) {
+    alert('Network error — aliases not saved.');
+    console.error(err);
+  } finally {
+    saveBtn.disabled = false;
+    saveBtn.textContent = 'Save';
+  }
 });
 
 cancelBtn.addEventListener('click', closeModal);

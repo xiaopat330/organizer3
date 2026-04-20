@@ -94,17 +94,20 @@ public class SearchService {
         m.put("matchedAlias",  r.matchedAlias());
         m.put("titleCount",    r.titleCount());
 
-        // Resolve cover URL — coverLabel and coverBaseCode come from the same DB row,
-        // so CoverPath.find() looks in the right label directory.
+        // Try each "label:baseCode" candidate in order until a local cover file is found.
         String coverUrl = null;
-        if (r.coverLabel() != null && r.coverBaseCode() != null) {
-            Title synth = Title.builder()
-                    .label(r.coverLabel())
-                    .baseCode(r.coverBaseCode())
-                    .build();
-            coverUrl = coverPath.find(synth)
-                    .map(p -> "/covers/" + r.coverLabel().toUpperCase() + "/" + p.getFileName())
-                    .orElse(null);
+        if (r.coverCandidates() != null) {
+            for (String candidate : r.coverCandidates().split("\\|")) {
+                int colon = candidate.indexOf(':');
+                if (colon < 0) continue;
+                String label    = candidate.substring(0, colon);
+                String baseCode = candidate.substring(colon + 1);
+                Title synth = Title.builder().label(label).baseCode(baseCode).build();
+                coverUrl = coverPath.find(synth)
+                        .map(p -> "/covers/" + label.toUpperCase() + "/" + p.getFileName())
+                        .orElse(null);
+                if (coverUrl != null) break;
+            }
         }
         m.put("coverUrl", coverUrl);
         return m;

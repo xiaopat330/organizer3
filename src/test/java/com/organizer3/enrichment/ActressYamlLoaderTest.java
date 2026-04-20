@@ -12,6 +12,7 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.time.LocalDate;
@@ -152,13 +153,16 @@ class ActressYamlLoaderTest {
     }
 
     @Test
-    void loadOneAddsAliases() throws Exception {
+    void loadOneStoresAlternateNamesNotAsAliases() throws Exception {
         loader.loadOne("test_actress");
 
         Actress actress = actressRepo.resolveByName("Test Actress").orElseThrow();
-        Optional<Actress> byAlias = actressRepo.resolveByName("Testy");
-        assertTrue(byAlias.isPresent());
-        assertEquals(actress.getId(), byAlias.get().getId());
+        // alternate_names from the YAML are stored in alternate_names_json, NOT as aliases
+        assertFalse(actressRepo.resolveByName("Testy").isPresent(),
+                "alternate_names should not be added as searchable aliases");
+        assertTrue(actress.getAlternateNames() != null
+                && actress.getAlternateNames().stream().anyMatch(a -> "Testy".equals(a.name())),
+                "alternate_names should be stored in the alternateNames field");
     }
 
     @Test

@@ -6,6 +6,7 @@ import com.organizer3.ai.ActressNameLookup;
 import com.organizer3.backup.BackupScheduler;
 import com.organizer3.backup.UserDataBackupService;
 import com.organizer3.command.BackupCommand;
+import com.organizer3.command.ExportAliasesCommand;
 import com.organizer3.command.RestoreCommand;
 import com.organizer3.ai.ClaudeActressNameLookup;
 import com.organizer3.command.ActressNameCheckService;
@@ -245,6 +246,7 @@ public class Application {
         UserDataBackupService backupService = new UserDataBackupService(actressRepo, titleRepo, watchHistoryRepo, avActressRepo, avVideoRepo);
         commands.add(new BackupCommand(backupService, backupPath, snapshotCount));
         commands.add(new RestoreCommand(backupService, backupPath));
+        commands.add(new ExportAliasesCommand(actressRepo, dataDir));
 
         // Auto-backup scheduler (disabled when interval is 0 or unset)
         BackupScheduler backupScheduler = new BackupScheduler();

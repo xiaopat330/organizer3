@@ -130,9 +130,13 @@ class ActressYamlLoaderRealDataTest {
         }
 
         @Test
-        void aliasIsResolvable() {
-            // alternate_name: オグナナ
-            assertTrue(actressRepo.resolveByName("オグナナ").isPresent());
+        void alternateNameStoredInProfileNotAlias() {
+            // alternate_name: オグナナ — stored in alternate_names_json, not as a searchable alias
+            assertFalse(actressRepo.resolveByName("オグナナ").isPresent(),
+                    "alternate_names should not be added as aliases");
+            Actress a = actressRepo.resolveByName("Nana Ogura").orElseThrow();
+            assertTrue(a.getAlternateNames() != null
+                    && a.getAlternateNames().stream().anyMatch(n -> "オグナナ".equals(n.name())));
         }
 
         @Test
@@ -211,9 +215,13 @@ class ActressYamlLoaderRealDataTest {
         }
 
         @Test
-        void chineseNameAliasIsResolvable() {
-            // alternate_name: 苍井空
-            assertTrue(actressRepo.resolveByName("苍井空").isPresent());
+        void chineseAlternateNameStoredInProfileNotAlias() {
+            // alternate_name: 苍井空 — stored in alternate_names_json, not as a searchable alias
+            assertFalse(actressRepo.resolveByName("苍井空").isPresent(),
+                    "alternate_names should not be added as aliases");
+            Actress a = actressRepo.resolveByName("Sora Aoi").orElseThrow();
+            assertTrue(a.getAlternateNames() != null
+                    && a.getAlternateNames().stream().anyMatch(n -> "苍井空".equals(n.name())));
         }
 
         @Test
@@ -298,9 +306,13 @@ class ActressYamlLoaderRealDataTest {
         }
 
         @Test
-        void earlyGravureAliasIsResolvable() {
-            // alternate_name: 麻生由真 (gravure name)
-            assertTrue(actressRepo.resolveByName("麻生由真").isPresent());
+        void earlyGravureAlternateNameStoredInProfileNotAlias() {
+            // alternate_name: 麻生由真 (gravure name) — stored in alternate_names_json, not as alias
+            assertFalse(actressRepo.resolveByName("麻生由真").isPresent(),
+                    "alternate_names should not be added as aliases");
+            Actress a = actressRepo.resolveByName("Yuma Asami").orElseThrow();
+            assertTrue(a.getAlternateNames() != null
+                    && a.getAlternateNames().stream().anyMatch(n -> "麻生由真".equals(n.name())));
         }
     }
 

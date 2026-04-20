@@ -4404,10 +4404,7 @@ header h1:hover {
   aspect-ratio: var(--cover-card-ratio);
   overflow: hidden;
   border-radius: 4px;
-  margin-left: auto;           /* right-align within the panel */
-  margin-bottom: 16px;
   background: #1a1a1a;
-  display: block;
 }
 .alias-card-cover-img {
   width: var(--cover-crop-width);
@@ -4421,8 +4418,6 @@ header h1:hover {
   aspect-ratio: var(--cover-card-ratio);
   background: #1a1a1a;
   border-radius: 4px;
-  margin-left: auto;
-  margin-bottom: 16px;
 }
 .alias-card-name {
   font-size: 1.05rem;
