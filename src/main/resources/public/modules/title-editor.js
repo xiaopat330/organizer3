@@ -23,6 +23,7 @@ const descriptorPreview = document.getElementById('queue-descriptor-preview');
 const actressList   = document.getElementById('queue-actress-list');
 const actressInput  = document.getElementById('queue-actress-input');
 const actressSuggest= document.getElementById('queue-actress-suggest');
+const actressHint   = document.getElementById('queue-actress-hint');
 
 const saveBtn       = document.getElementById('queue-save-btn');
 const skipBtn       = document.getElementById('queue-skip-btn');
@@ -186,6 +187,21 @@ function renderEditor() {
   updateSaveEnabled();
 }
 
+function renderActressHint() {
+  if (!editorState) { actressHint.style.display = 'none'; return; }
+  const count = editorState.actresses.length;
+  const hasPrimary = editorState.actresses.some(a => a.primary);
+  let msg = '';
+  if (count === 0) msg = 'At least one actress is required before you can save.';
+  else if (!hasPrimary) msg = 'Pick a primary actress (★). The folder will be renamed after her.';
+  if (msg) {
+    actressHint.textContent = msg;
+    actressHint.style.display = 'block';
+  } else {
+    actressHint.style.display = 'none';
+  }
+}
+
 function renderActresses() {
   actressList.innerHTML = '';
   const count = editorState.actresses.length;
@@ -222,6 +238,7 @@ function renderActresses() {
     li.appendChild(remove);
     actressList.appendChild(li);
   });
+  renderActressHint();
 }
 
 function setPrimary(idx) {
@@ -250,7 +267,7 @@ actressInput.addEventListener('input', () => {
 });
 
 actressInput.addEventListener('keydown', e => {
-  const items = Array.from(actressSuggest.querySelectorAll('.queue-actress-suggest-item'));
+  const items = Array.from(actressSuggest.querySelectorAll('.queue-actress-suggest-item:not(.disabled)'));
   if (e.key === 'ArrowDown') {
     e.preventDefault();
     if (!items.length) return;
@@ -270,7 +287,9 @@ actressInput.addEventListener('keydown', e => {
 });
 
 function updateHighlight(items) {
-  items.forEach((el, i) => el.classList.toggle('highlight', i === suggestHighlight));
+  // Clear highlight across all items (including disabled, which wouldn't be in the arrow list)
+  actressSuggest.querySelectorAll('.queue-actress-suggest-item').forEach(el => el.classList.remove('highlight'));
+  if (items[suggestHighlight]) items[suggestHighlight].classList.add('highlight');
 }
 
 async function runSearch() {
@@ -302,13 +321,13 @@ function highlight(text, query) {
 function renderSuggest(hits, query) {
   actressSuggest.innerHTML = '';
   suggestHighlight = -1;
-  const taken = new Set(editorState.actresses.filter(a => a.id != null).map(a => a.id));
+  const takenIds   = new Set(editorState.actresses.filter(a => a.id != null).map(a => a.id));
   const takenNames = new Set(editorState.actresses.map(a => a.canonicalName.toLowerCase()));
 
-  const filtered = hits.filter(h => !taken.has(h.id));
-  filtered.forEach((h) => {
+  hits.forEach((h) => {
+    const alreadyAdded = takenIds.has(h.id) || takenNames.has(h.canonicalName.toLowerCase());
     const item = document.createElement('div');
-    item.className = 'queue-actress-suggest-item';
+    item.className = 'queue-actress-suggest-item' + (alreadyAdded ? ' disabled' : '');
 
     const thumb = h.coverUrl
         ? `<div class="queue-actress-suggest-thumb" style="background-image:url(${esc(h.coverUrl)})"></div>`
@@ -322,22 +341,26 @@ function renderSuggest(hits, query) {
         ? `<span class="queue-actress-suggest-tier tier-${(h.tier || '').toLowerCase()}">${esc(h.tier)}</span>` : '';
     const count = h.titleCount > 0
         ? `<span class="queue-actress-suggest-count">${h.titleCount}</span>` : '';
+    const addedBadge = alreadyAdded
+        ? `<span class="queue-actress-suggest-added">already added</span>` : '';
 
     item.innerHTML = thumb
         + '<div class="queue-actress-suggest-body">'
         +   `<div class="queue-actress-suggest-row1">`
         +     `<span class="queue-actress-suggest-name">${highlight(h.canonicalName, query)}</span>`
         +     stage
+        +     addedBadge
         +   `</div>`
         +   (alias || tier || count
               ? `<div class="queue-actress-suggest-row2">${alias}${tier}${count}</div>`
               : '')
         + '</div>';
-    item.addEventListener('click', () => addExisting(h));
+    if (!alreadyAdded) item.addEventListener('click', () => addExisting(h));
     actressSuggest.appendChild(item);
   });
 
-  const exactMatch = filtered.some(h => h.canonicalName.toLowerCase() === query.toLowerCase());
+  const liveHits = hits.filter(h => !takenIds.has(h.id) && !takenNames.has(h.canonicalName.toLowerCase()));
+  const exactMatch = liveHits.some(h => h.canonicalName.toLowerCase() === query.toLowerCase());
   if (!exactMatch && !takenNames.has(query.toLowerCase())) {
     const create = document.createElement('div');
     create.className = 'queue-actress-suggest-item queue-actress-suggest-create';

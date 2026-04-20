@@ -281,10 +281,14 @@
           </div>
         </div>
         <div class="queue-actress-panel">
-          <div class="queue-actress-panel-title">Actresses</div>
+          <div class="queue-actress-panel-title">
+            Actresses <span class="queue-actress-panel-note">(at least one required; ★ = primary)</span>
+          </div>
           <ul id="queue-actress-list" class="queue-actress-list"></ul>
+          <div id="queue-actress-hint" class="queue-actress-hint" style="display:none"></div>
           <div class="queue-actress-add">
-            <input type="text" id="queue-actress-input" class="queue-actress-input" placeholder="Add actress…" autocomplete="off">
+            <input type="text" id="queue-actress-input" class="queue-actress-input"
+                   placeholder="Type to add another actress… (search existing or create new)" autocomplete="off">
             <div id="queue-actress-suggest" class="queue-actress-suggest" style="display:none"></div>
           </div>
         </div>

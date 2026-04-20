@@ -230,6 +230,23 @@
   letter-spacing: 0.04em;
   text-transform: uppercase;
 }
+.queue-actress-panel-note {
+  color: #666;
+  font-weight: 400;
+  text-transform: none;
+  letter-spacing: 0;
+  font-size: 0.74rem;
+  margin-left: 6px;
+}
+
+.queue-actress-hint {
+  color: #fbbf24;
+  background: #1c1404;
+  border: 1px solid #92400e;
+  border-radius: 4px;
+  padding: 6px 10px;
+  font-size: 0.78rem;
+}
 
 .queue-actress-list {
   list-style: none;
@@ -276,15 +293,22 @@
   margin-left: 6px;
 }
 .queue-actress-remove-btn {
-  background: none;
-  border: none;
-  color: #666;
+  background: #1a1a1a;
+  border: 1px solid #2a2a2a;
+  color: #aaa;
   cursor: pointer;
-  padding: 2px 6px;
-  font-size: 0.85rem;
+  padding: 2px 8px;
+  font-size: 0.95rem;
+  line-height: 1;
+  border-radius: 3px;
+  transition: background 0.08s, color 0.08s, border-color 0.08s;
 }
-.queue-actress-remove-btn:hover:not(:disabled) { color: #ef4444; }
-.queue-actress-remove-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+.queue-actress-remove-btn:hover:not(:disabled) {
+  color: #fecaca;
+  background: #450a0a;
+  border-color: #991b1b;
+}
+.queue-actress-remove-btn:disabled { opacity: 0.25; cursor: not-allowed; }
 
 .queue-actress-add { position: relative; }
 .queue-actress-input {
@@ -328,8 +352,22 @@
   transition: background 0.08s ease;
 }
 .queue-actress-suggest-item:last-child { border-bottom: none; }
-.queue-actress-suggest-item:hover,
+.queue-actress-suggest-item:not(.disabled):hover,
 .queue-actress-suggest-item.highlight { background: #1c1404; }
+.queue-actress-suggest-item.disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+.queue-actress-suggest-added {
+  color: #64748b;
+  background: #1a1a1a;
+  border: 1px solid #2a2a2a;
+  border-radius: 3px;
+  padding: 1px 6px;
+  font-size: 0.68rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
 
 /* Actress thumbnail: square crop of the right half of a cover (typically the actress). */
 .queue-actress-suggest-thumb {
