@@ -99,35 +99,15 @@ public class ActressBrowseService {
     }
 
     /**
-     * Returns all actresses that have at least one title on any of the given volumes,
-     * enriched with title count, cover URLs, and SMB folder paths.
-     */
-    public List<ActressSummary> findByVolumes(List<String> volumeIds) {
-        return actressRepo.findByVolumeIds(volumeIds).stream()
-                .map(this::toSummary)
-                .toList();
-    }
-
-    /**
-     * Paginated version: returns actresses on the given volumes, favorites/bookmarks first.
-     */
-    public List<ActressSummary> findByVolumesPaged(List<String> volumeIds, int offset, int limit) {
-        return actressRepo.findByVolumeIdsPaged(volumeIds, limit, offset).stream()
-                .map(this::toSummary)
-                .toList();
-    }
-
-    /**
-     * Paginated version filtered by company: returns actresses on the given volumes who also
-     * have ≥1 title produced by {@code company}. Favorites/bookmarks sort first.
+     * Paginated: actresses on the given volumes, favorites/bookmarks first. When
+     * {@code company} is non-blank, narrows to actresses with ≥1 title by that company.
      */
     public List<ActressSummary> findByVolumesPaged(List<String> volumeIds, String company,
                                                    int offset, int limit) {
-        if (company != null && !company.isBlank()) {
-            return actressRepo.findByVolumesAndCompaniesPaged(volumeIds, List.of(company), limit, offset)
-                    .stream().map(this::toSummary).toList();
-        }
-        return findByVolumesPaged(volumeIds, offset, limit);
+        List<Actress> hits = (company != null && !company.isBlank())
+                ? actressRepo.findByVolumesAndCompaniesPaged(volumeIds, List.of(company), limit, offset)
+                : actressRepo.findByVolumeIdsPaged(volumeIds, limit, offset);
+        return hits.stream().map(this::toSummary).toList();
     }
 
     /**
@@ -143,23 +123,13 @@ public class ActressBrowseService {
                 .toList();
     }
 
-    /** Paginated tier query. */
-    public List<ActressSummary> findByTierPaged(String tierName, int offset, int limit) {
-        Actress.Tier tier = Actress.Tier.valueOf(tierName.toUpperCase());
-        return actressRepo.findByTierPaged(tier, limit, offset).stream()
-                .map(this::toSummary)
-                .toList();
-    }
-
     /** Paginated tier query with optional company filter. */
     public List<ActressSummary> findByTierPaged(String tierName, String company, int offset, int limit) {
-        if (company != null && !company.isBlank()) {
-            Actress.Tier tier = Actress.Tier.valueOf(tierName.toUpperCase());
-            return actressRepo.findByTierAndCompaniesPaged(tier, List.of(company), limit, offset).stream()
-                    .map(this::toSummary)
-                    .toList();
-        }
-        return findByTierPaged(tierName, offset, limit);
+        Actress.Tier tier = Actress.Tier.valueOf(tierName.toUpperCase());
+        List<Actress> hits = (company != null && !company.isBlank())
+                ? actressRepo.findByTierAndCompaniesPaged(tier, List.of(company), limit, offset)
+                : actressRepo.findByTierPaged(tier, limit, offset);
+        return hits.stream().map(this::toSummary).toList();
     }
 
     /** Paginated all-actresses query. */
@@ -198,20 +168,11 @@ public class ActressBrowseService {
     }
 
     /**
-     * Paginated query: actresses owning ≥1 title under any company belonging to the given
-     * studios.yaml group slug. Returns an empty list if the slug is unknown. Sorted by
+     * Paginated: actresses owning ≥1 title under any company in the given studios.yaml
+     * group slug. Returns empty if the slug is unknown. When {@code companyFilter} is
+     * non-blank, narrows to that company (but only if it's actually a member of the group —
+     * an unknown company collapses to empty, never an unconstrained query). Sorted by
      * tier rank (GODDESS first), then canonical name.
-     */
-    public List<ActressSummary> findByStudioGroupPaged(String groupSlug, int offset, int limit) {
-        return findByStudioGroupPaged(groupSlug, null, offset, limit);
-    }
-
-    /**
-     * Same as {@link #findByStudioGroupPaged(String, int, int)} but optionally narrowed to a
-     * single company within the group. If {@code companyFilter} is non-blank, the result is
-     * restricted to actresses with ≥1 title under that company — but only if the company is
-     * actually a member of the group (otherwise an empty list is returned, never an
-     * unconstrained query).
      */
     public List<ActressSummary> findByStudioGroupPaged(String groupSlug, String companyFilter,
                                                        int offset, int limit) {
@@ -220,18 +181,6 @@ public class ActressBrowseService {
         return actressRepo.findByStudioGroupCompaniesPaged(companies, limit, offset).stream()
                 .map(this::toSummary)
                 .toList();
-    }
-
-    /** Total count of actresses matching {@link #findByStudioGroupPaged}. */
-    public long countByStudioGroup(String groupSlug) {
-        return countByStudioGroup(groupSlug, null);
-    }
-
-    /** Total count narrowed by an optional company filter (validated against the group). */
-    public long countByStudioGroup(String groupSlug, String companyFilter) {
-        List<String> companies = resolveQueryCompanies(groupSlug, companyFilter);
-        if (companies.isEmpty()) return 0L;
-        return actressRepo.countByStudioGroupCompanies(companies);
     }
 
     /**

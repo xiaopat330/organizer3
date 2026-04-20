@@ -669,7 +669,7 @@ class ActressBrowseServiceTest {
                 .thenReturn(List.of(actress("Yua Mikami")));
 
         List<ActressSummary> result =
-                service.findByStudioGroupPaged("will", 0, 24);
+                service.findByStudioGroupPaged("will", null, 0, 24);
 
         assertEquals(1, result.size());
         // Verify the repo was called with the full company list (must contain at least one
@@ -705,7 +705,7 @@ class ActressBrowseServiceTest {
     @Test
     void findByStudioGroupPagedReturnsEmptyForUnknownSlug() {
         List<ActressSummary> result =
-                service.findByStudioGroupPaged("nonexistent-slug", 0, 24);
+                service.findByStudioGroupPaged("nonexistent-slug", null, 0, 24);
 
         assertEquals(List.of(), result);
         verify(actressRepo, never()).findByStudioGroupCompaniesPaged(any(), anyInt(), anyInt());
