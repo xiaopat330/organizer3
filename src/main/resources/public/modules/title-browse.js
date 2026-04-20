@@ -1,7 +1,8 @@
 import { esc } from './utils.js';
 import { pushNav } from './nav.js';
 import { showView, setActiveGrid, ensureSentinel, updateBreadcrumb, ScrollingGrid, mode } from './grid.js';
-import { makeTitleCard, makeCompactTitleCard, agingLabel } from './cards.js';
+import { makeTitleCard, makeCompactTitleCard, makeActressCard, agingLabel } from './cards.js';
+import { openActressDetail } from './actress-detail.js';
 import { tagBadgeHtml } from './icons.js';
 import { ensureStudioGroups, ensureTitleLabels, renderTwoColumnStudioPanel, updateCompanyMarquee } from './studio-data.js';
 import { resetActressState, actressesBtn } from './actress-browse.js';
@@ -1125,12 +1126,9 @@ function selectStudioCompany(company, byCompany) {
                 const seg = url.split('/')[2];
                 return seg && labelCodeSet.has(seg.toUpperCase());
               });
-              // Import makeActressCard dynamically to avoid circular reference in module init
-              import('./cards.js').then(({ makeActressCard }) => {
-                const card = makeActressCard({ ...a, coverUrls: filtered.length > 0 ? filtered : allCovers });
-                card.addEventListener('click', () => import('./actress-detail.js').then(m => m.openActressDetail(a.id)));
-                el2.appendChild(card);
-              });
+              const card = makeActressCard({ ...a, coverUrls: filtered.length > 0 ? filtered : allCovers });
+              card.addEventListener('click', () => openActressDetail(a.id));
+              el2.appendChild(card);
             });
           });
       })

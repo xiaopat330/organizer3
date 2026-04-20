@@ -39,6 +39,13 @@ export function setStatus(msg) {
   if (el) el.textContent = msg;
 }
 
+// Fetch JSON and throw on non-2xx. Pass opts for POST/PUT.
+export async function jsonFetch(url, opts) {
+  const res = await fetch(url, opts);
+  if (!res.ok) throw new Error(`HTTP ${res.status} ${url}`);
+  return res.json();
+}
+
 // Compact relative time labels for card surfaces ("1 min ago" vs "1 minute ago").
 export function timeAgoShort(isoString) {
   const seconds = Math.floor((Date.now() - new Date(isoString)) / 1000);

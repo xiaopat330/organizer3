@@ -10,6 +10,8 @@ import com.organizer3.avstars.repository.AvVideoRepository;
 import com.organizer3.avstars.repository.AvVideoTagRepository;
 import com.organizer3.config.AppConfig;
 import lombok.RequiredArgsConstructor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.nio.file.Path;
 import java.util.List;
@@ -22,6 +24,7 @@ import java.util.Optional;
 @RequiredArgsConstructor
 public class AvBrowseService {
 
+    private static final Logger log = LoggerFactory.getLogger(AvBrowseService.class);
     private static final ObjectMapper JSON = new ObjectMapper();
 
     private final AvActressRepository actressRepo;
@@ -64,7 +67,9 @@ public class AvBrowseService {
                     if (tags.isEmpty() && v.getTagsJson() != null && !v.getTagsJson().isBlank()) {
                         try {
                             tags = JSON.readValue(v.getTagsJson(), new TypeReference<>() {});
-                        } catch (Exception ignored) {}
+                        } catch (Exception e) {
+                            log.warn("Failed to parse tagsJson for video {}: {}", v.getId(), e.toString());
+                        }
                     }
                     Integer firstSeq = firstSeqs.get(v.getId());
                     String thumbUrl = firstSeq != null

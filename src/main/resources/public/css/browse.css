@@ -1,0 +1,948 @@
+/* ── Actress landing island (search + favorites/bookmarks + tiers) ───────── */
+.actress-landing {
+  display: none;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px 20px;
+  background: #0d0d0d;
+  border-bottom: var(--border-subtle);
+  position: sticky;
+  top: 0;
+  z-index: 8;
+}
+
+.actress-landing-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.actress-landing-divider {
+  height: 1px;
+  background: #1e1e1e;
+  width: 100%;
+}
+
+.actress-landing-special {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  padding: 6px 12px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  transition: background 0.12s ease, border-color 0.12s ease, color 0.12s ease;
+  font-family: inherit;
+}
+
+.actress-landing-dashboard        { color: #e040fb; }
+.actress-landing-dashboard .actress-landing-activity { stroke: #e040fb; }
+.actress-landing-dashboard:hover,
+.actress-landing-dashboard.selected {
+  color: #f060ff;
+  background: #1a0820;
+  border-color: #380a44;
+}
+.actress-landing-dashboard.selected .actress-landing-activity { stroke: #f060ff; }
+
+.actress-landing-favorites        { color: #f0c040; }
+.actress-landing-favorites .actress-landing-star   { fill: #f0c040; }
+.actress-landing-favorites:hover,
+.actress-landing-favorites.selected {
+  color: #ffd860;
+  background: #201a08;
+  border-color: #3a2c10;
+}
+.actress-landing-favorites.selected .actress-landing-star { fill: #ffd860; }
+
+.actress-landing-bookmarks        { color: #7ec4ff; }
+.actress-landing-bookmarks .actress-landing-bm     { fill: #7ec4ff; }
+.actress-landing-bookmarks:hover,
+.actress-landing-bookmarks.selected {
+  color: #a0daff;
+  background: #0c1a28;
+  border-color: #14324c;
+}
+.actress-landing-bookmarks.selected .actress-landing-bm   { fill: #a0daff; }
+
+.actress-landing-exhibition        { color: #ff5252; }
+.actress-landing-exhibition .actress-landing-exhibit { stroke: #ff5252; }
+.actress-landing-exhibition:hover,
+.actress-landing-exhibition.selected {
+  color: #ff7070;
+  background: #1a0808;
+  border-color: #3a1010;
+}
+.actress-landing-exhibition.selected .actress-landing-exhibit { stroke: #ff7070; }
+
+.actress-landing-studio            { color: #a060e0; }
+.actress-landing-studio .actress-landing-film { fill: #a060e0; }
+.actress-landing-studio:hover,
+.actress-landing-studio.selected {
+  color: #c080ff;
+  background: #140a20;
+  border-color: #2a1640;
+}
+.actress-landing-studio.selected .actress-landing-film { fill: #c080ff; }
+
+.actress-landing-collections        { color: #f08030; }
+.actress-landing-collections .actress-landing-coll { fill: #f08030; }
+.actress-landing-collections:hover,
+.actress-landing-collections.active {
+  color: #ffa050;
+  background: #201408;
+  border-color: #3c2810;
+}
+.actress-landing-collections.active .actress-landing-coll { fill: #ffa050; }
+
+.actress-landing-unsorted        { color: #dd2244; }
+.actress-landing-unsorted .actress-landing-shuffle { stroke: #dd2244; }
+.actress-landing-unsorted:hover,
+.actress-landing-unsorted.selected {
+  color: #ff4466;
+  background: #1a0810;
+  border-color: #3a1020;
+}
+.actress-landing-unsorted.selected .actress-landing-shuffle { stroke: #ff4466; }
+
+.actress-landing-archives        { color: #30b8a0; }
+.actress-landing-archives .actress-landing-archive { stroke: #30b8a0; }
+.actress-landing-archives:hover,
+.actress-landing-archives.selected {
+  color: #50d8c0;
+  background: #081a18;
+  border-color: #143830;
+}
+.actress-landing-archives.selected .actress-landing-archive { stroke: #50d8c0; }
+
+.actress-landing-tier-btn        { color: #d4924a; }
+.actress-landing-tier-btn .actress-landing-levels { stroke: #d4924a; }
+.actress-landing-tier-btn:hover,
+.actress-landing-tier-btn.selected {
+  color: #f0a855;
+  background: #1a1006;
+  border-color: #3a2010;
+}
+.actress-landing-tier-btn.selected .actress-landing-levels { stroke: #f0a855; }
+
+.actress-landing-tags        { color: #50c878; }
+.actress-landing-tags .actress-landing-tag { stroke: #50c878; }
+.actress-landing-tags:hover,
+.actress-landing-tags.selected {
+  color: #70e898;
+  background: #081a10;
+  border-color: #153020;
+}
+.actress-landing-tags.selected .actress-landing-tag { stroke: #70e898; }
+
+/* ── Library / Tags filter panel ────────────────────────────────────── */
+#title-tags-panel {
+  padding: 0;
+  background: #0d0d0d;
+  border-bottom: var(--border-subtle);
+  display: block;
+  position: sticky;
+  top: 0; /* overridden by JS to sit below the title-landing bar */
+  z-index: 8;
+}
+
+.library-controls-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 20px 8px;
+  border-bottom: 1px solid #181818;
+  flex-wrap: wrap;
+}
+
+.library-code-wrap {
+  position: relative;
+  flex: 0 0 200px;
+}
+
+.library-code-input {
+  width: 100%;
+  background: #111;
+  border: var(--border-control);
+  border-radius: 4px;
+  color: #ccc;
+  font-size: 0.78rem;
+  padding: 5px 9px;
+  outline: none;
+  box-sizing: border-box;
+}
+
+.library-code-input:focus {
+  border-color: #3a3a3a;
+  color: #e0e0e0;
+}
+
+.library-autocomplete-dropdown {
+  position: absolute;
+  top: calc(100% + 2px);
+  left: 0;
+  min-width: 100%;
+  background: #161616;
+  border: 1px solid #2e2e2e;
+  border-radius: 4px;
+  z-index: 200;
+  max-height: 240px;
+  overflow-y: auto;
+}
+
+.library-autocomplete-item {
+  padding: 6px 10px;
+  font-size: 0.78rem;
+  color: #aaa;
+  cursor: pointer;
+  font-family: monospace;
+}
+
+.library-autocomplete-item:hover,
+.library-autocomplete-item.focused {
+  background: #1e2e1e;
+  color: #70e898;
+}
+
+.library-company-select,
+.library-sort-select {
+  background: #111;
+  border: var(--border-control);
+  border-radius: 4px;
+  color: #888;
+  font-size: 0.78rem;
+  padding: 5px 8px;
+  outline: none;
+  cursor: pointer;
+}
+
+.library-company-select { flex: 0 1 180px; }
+.library-sort-select    { flex: 0 0 130px; }
+
+.library-company-select:focus,
+.library-sort-select:focus {
+  border-color: #3a3a3a;
+  color: #ccc;
+}
+
+.library-order-btn {
+  background: #111;
+  border: var(--border-control);
+  border-radius: 4px;
+  color: #888;
+  font-size: 0.75rem;
+  padding: 5px 10px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.library-order-btn:hover {
+  border-color: #3a3a3a;
+  color: #ccc;
+}
+
+.library-tags-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 20px;
+  border-bottom: 1px solid #181818;
+  flex-wrap: wrap;
+  overflow: hidden;
+  max-height: 200px;
+  transition: max-height 0.35s ease, padding 0.35s ease, border-width 0.2s ease;
+}
+
+.library-tags-bar.rolling-up {
+  max-height: 0;
+  padding-top: 0;
+  padding-bottom: 0;
+  border-bottom-width: 0;
+}
+
+.library-tags-toggle-btn {
+  background: #111;
+  border: var(--border-control);
+  border-radius: 4px;
+  color: #888;
+  cursor: pointer;
+  font-size: 0.75rem;
+  padding: 4px 12px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.library-tags-toggle-btn:hover {
+  border-color: #3a3a3a;
+  color: #ccc;
+}
+
+.library-tags-toggle-btn.open {
+  background: #081a10;
+  border-color: #50c878;
+  color: #50c878;
+}
+
+.library-tag-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+
+.library-tag-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  border: 1px solid;
+  border-radius: 12px;
+  font-size: 0.7rem;
+  padding: 2px 9px 2px 4px;
+  white-space: nowrap;
+}
+
+.library-tag-chip-remove {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: inherit;
+  font-size: 1rem;
+  line-height: 1;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  opacity: 0.75;
+}
+
+.library-tag-chip-remove:hover {
+  background: rgba(255, 255, 255, 0.15);
+  opacity: 1;
+}
+
+.library-tags-section {
+  display: grid;
+  grid-template-columns: 160px 1fr;
+  gap: 0;
+  padding: 2px 20px 14px;
+}
+
+.tags-group {
+  display: contents;
+}
+
+.tags-group-label {
+  padding: 6px 12px 6px 0;
+  font-size: 0.68rem;
+  color: #444;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  font-weight: 500;
+  line-height: 1.6;
+  border-top: 1px solid #1a1a1a;
+  align-self: start;
+  padding-top: 9px;
+}
+
+.tags-group:first-child .tags-group-label,
+.tags-group:first-child .tags-row {
+  border-top: none;
+}
+
+.tags-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 5px 0 6px;
+  border-top: 1px solid #1a1a1a;
+  align-content: flex-start;
+}
+
+.tags-group:first-child .tags-row {
+  border-top: none;
+}
+
+.tag-toggle {
+  background: transparent;
+  border: 1px solid #222;
+  border-radius: 10px;
+  padding: 2px 9px;
+  font-size: 0.70rem;
+  color: #555;
+  cursor: pointer;
+  transition: color 0.10s ease, background 0.10s ease, border-color 0.10s ease;
+  font-family: inherit;
+  line-height: 1.5;
+}
+
+.tag-toggle:hover {
+  border-color: #383838;
+  color: #999;
+}
+
+.tag-toggle.active {
+  background: #081a10;
+  border-color: #50c878;
+  color: #70e898;
+}
+
+.actress-landing-tier-row {
+  gap: 4px;
+  flex-wrap: nowrap;
+}
+
+#actress-landing-tier-row .title-cols-control {
+  margin-left: auto;
+}
+
+.actress-landing-tier {
+  background: transparent;
+  border: none;
+  border-radius: 4px;
+  padding: 5px 14px;
+  font-size: 0.76rem;
+  font-weight: 500;
+  letter-spacing: 0.05em;
+  cursor: pointer;
+  transition: color 0.12s ease, background 0.12s ease;
+  font-family: inherit;
+}
+
+/* ── Exhibition sub-nav row ──────────────────────────────────────────── */
+.actress-landing-exhibition-row {
+  gap: 8px;
+  padding: 2px 0;
+}
+
+.actress-exhibition-company-select {
+  background: #1a0c0c;
+  color: #ff7070;
+  border: 1px solid #3a1010;
+  border-radius: 5px;
+  padding: 5px 10px;
+  font-size: 0.78rem;
+  font-family: inherit;
+  cursor: pointer;
+  outline: none;
+  transition: border-color 0.12s ease, color 0.12s ease;
+  min-width: 180px;
+}
+
+.actress-exhibition-company-select:hover,
+.actress-exhibition-company-select:focus {
+  border-color: #ff5252;
+  color: #ff9090;
+}
+
+.actress-exhibition-company-select option {
+  background: #1a0c0c;
+  color: #ff7070;
+}
+
+/* ── Archives sub-nav row ────────────────────────────────────────────── */
+.actress-landing-archives-row {
+  gap: 8px;
+  padding: 2px 0;
+}
+
+.actress-archives-company-select {
+  background: #081a18;
+  color: #50d8c0;
+  border: 1px solid #143830;
+  border-radius: 5px;
+  padding: 5px 10px;
+  font-size: 0.78rem;
+  font-family: inherit;
+  cursor: pointer;
+  outline: none;
+  transition: border-color 0.12s ease, color 0.12s ease;
+  min-width: 180px;
+}
+
+.actress-archives-company-select:hover,
+.actress-archives-company-select:focus {
+  border-color: #30b8a0;
+  color: #70e8d8;
+}
+
+.actress-archives-company-select option {
+  background: #081a18;
+  color: #50d8c0;
+}
+
+/* ── Tier company filter sub-nav row ─────────────────────────────────── */
+.actress-landing-tier-row .actress-tier-company-select {
+  margin-left: 4px;
+}
+
+.actress-tier-company-select {
+  background: #1a1308;
+  color: #d4924a;
+  border: 1px solid #3a2810;
+  border-radius: 5px;
+  padding: 5px 10px;
+  font-size: 0.78rem;
+  font-family: inherit;
+  cursor: pointer;
+  outline: none;
+  transition: border-color 0.12s ease, color 0.12s ease;
+  min-width: 180px;
+}
+
+.actress-tier-company-select:hover,
+.actress-tier-company-select:focus {
+  border-color: #f0a855;
+  color: #f0b870;
+}
+
+.actress-tier-company-select option {
+  background: #1a1308;
+  color: #d4924a;
+}
+
+/* ── Company info marquee ────────────────────────────────────────────── */
+.company-marquee {
+  flex: 1 1 0;
+  min-width: 0;
+  overflow: hidden;
+  -webkit-mask-image: linear-gradient(to right, transparent 0%, black 4%, black 96%, transparent 100%);
+  mask-image: linear-gradient(to right, transparent 0%, black 4%, black 96%, transparent 100%);
+}
+
+.company-marquee-inner {
+  display: inline-block;
+  white-space: nowrap;
+  padding-left: 100%;
+  font-size: 0.76rem;
+  opacity: 0.85;
+}
+
+@keyframes company-marquee-scroll {
+  0%   { transform: translateX(0); }
+  100% { transform: translateX(-100%); }
+}
+
+.actress-landing-exhibition-row .company-marquee-inner { color: #ff8080; }
+.actress-landing-archives-row   .company-marquee-inner { color: #60d8c8; }
+.actress-landing-tier-row .company-marquee-inner { color: #d4a060; }
+.company-marquee-browse .company-marquee-inner { color: #8899b8; }
+
+/* ── Studio group sub-nav buttons ───────────────────────────────────── */
+.studio-group-btn {
+  background: transparent;
+  border: var(--border-control);
+  border-radius: 4px;
+  padding: 5px 14px;
+  font-size: 0.76rem;
+  font-weight: 500;
+  letter-spacing: 0.05em;
+  cursor: pointer;
+  color: #aaa;
+  transition: color 0.12s ease, background 0.12s ease, border-color 0.12s ease;
+  font-family: inherit;
+  white-space: nowrap;
+}
+.studio-group-btn:hover {
+  color: #ddd;
+  background: #1a1a1a;
+  border-color: #3a3a3a;
+}
+.studio-group-btn.selected {
+  color: #ff7676;
+  background: #20080a;
+  border-color: #3c1214;
+}
+
+/* ── Studio two-panel browser ────────────────────────────────────────── */
+#title-studio-labels,
+#actress-studio-labels {
+  display: flex;
+  height: calc(100vh - 110px);
+  overflow: hidden;
+}
+
+/* Studio group header (above the catalog two-column panel) and grid header
+   (above the studio-group filtered grid). Both share the same crosslink pattern. */
+.studio-group-header,
+.grid-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 16px;
+  margin: 0 16px 8px 16px;
+  background: #14082a;
+  border: 1px solid #2a1640;
+  border-radius: 4px;
+}
+.studio-group-header-name,
+.grid-header-name {
+  color: #c080ff;
+  font-size: 0.95rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+.studio-group-header-action,
+.grid-header-action {
+  background: transparent;
+  color: #a060e0;
+  border: 1px solid #2a1640;
+  border-radius: 4px;
+  padding: 5px 12px;
+  font-size: 0.78rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.12s ease, border-color 0.12s ease, color 0.12s ease;
+}
+.studio-group-header-action:hover,
+.grid-header-action:hover {
+  background: #1a0c30;
+  border-color: #4a2070;
+  color: #c080ff;
+}
+
+/* Right-side cluster (filter + crosslink button) inside the grid header */
+.grid-header-right {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+/* Column slider injected into grid-header-right — cancel the auto left margin
+   that pushes it away when the container is already right-aligned. */
+.grid-header-right .title-cols-control {
+  margin-left: 0;
+}
+
+/* Company filter dropdown inside the grid header */
+.grid-header-filter {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.grid-header-filter-label {
+  color: #888;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.grid-header-filter-select {
+  background: #0a0418;
+  color: #d8c0ff;
+  border: 1px solid #2a1640;
+  border-radius: 4px;
+  padding: 4px 28px 4px 10px;
+  font-size: 0.78rem;
+  font-family: inherit;
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'><path d='M1 1l4 4 4-4' fill='none' stroke='%23a060e0' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/></svg>");
+  background-repeat: no-repeat;
+  background-position: right 8px center;
+}
+.grid-header-filter-select:hover {
+  border-color: #4a2070;
+}
+.grid-header-filter-select:focus {
+  outline: none;
+  border-color: #6a30a0;
+}
+
+/* Actress studio — purple accent overrides */
+.actress-studio-group-btn.selected {
+  color: #c080ff;
+  background: #140a20;
+  border-color: #2a1640;
+}
+#actress-studio-labels .studio-label-item.selected {
+  background: #14082a;
+  border-left-color: #a060e0;
+}
+#actress-studio-labels .studio-detail-code-badge {
+  color: #a060e0;
+}
+
+/* Left panel — company list */
+.studio-label-list {
+  width: 25%;
+  min-width: 160px;
+  border-right: var(--border-subtle);
+  overflow-y: auto;
+  padding: 8px 0;
+  flex-shrink: 0;
+}
+.studio-label-item {
+  display: flex;
+  align-items: center;
+  padding: 9px 16px;
+  cursor: pointer;
+  border-left: 2px solid transparent;
+  transition: background 0.1s;
+}
+.studio-label-item:hover {
+  background: #161616;
+}
+.studio-label-item.selected {
+  background: #1a0608;
+  border-left-color: #e05a5a;
+}
+.studio-label-item-name {
+  font-size: 0.78rem;
+  color: #999;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.studio-label-item-company {
+  font-weight: 500;
+}
+.studio-label-item.selected .studio-label-item-name {
+  color: #e8e8e8;
+}
+
+/* Right panel — company detail */
+.studio-label-detail {
+  flex: 1;
+  overflow-y: auto;
+  padding: 24px 28px 40px;
+}
+.studio-detail-heading {
+  font-size: 1.6rem;
+  font-weight: 700;
+  color: #e8e8e8;
+  letter-spacing: 0.02em;
+  margin-bottom: 20px;
+  line-height: 1.2;
+}
+.studio-detail-company-desc {
+  font-size: 0.82rem;
+  color: #777;
+  line-height: 1.6;
+  max-width: 680px;
+  margin-bottom: 24px;
+}
+.studio-detail-label-list {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+.studio-detail-label-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.studio-detail-label-name {
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: #c8c8c8;
+  margin-bottom: 2px;
+}
+.studio-detail-code-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding-left: 12px;
+}
+.studio-detail-code-row {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+.studio-detail-code-badge {
+  font-family: ui-monospace, 'Cascadia Code', 'Source Code Pro', monospace;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: #e05a5a;
+  flex-shrink: 0;
+  min-width: 60px;
+}
+.studio-detail-label-desc {
+  font-size: 0.74rem;
+  color: #666;
+  font-style: italic;
+}
+.studio-detail-section-label {
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: #444;
+  text-transform: uppercase;
+  margin: 28px 0 12px;
+}
+.studio-top-actress-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  grid-template-rows: repeat(2, auto);
+  gap: 10px;
+}
+.studio-detail-loading {
+  font-size: 0.75rem;
+  color: #555;
+}
+
+/* Grids */
+.grid {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 12px;
+  padding: 16px;
+}
+
+#detail-title-grid {
+  grid-template-columns: repeat(4, 1fr);
+}
+
+/* Title cards */
+.card {
+  background: #161616;
+  border: var(--border-subtle);
+  border-radius: 6px;
+  overflow: hidden;
+  transition: transform 0.15s ease, background 0.15s ease, border-color 0.15s ease;
+  cursor: pointer;
+}
+
+.card:hover {
+  background: #1e1e1e;
+  border-color: #333;
+  transform: translateY(-2px);
+}
+
+.cover-wrap {
+  width: 100%;
+  aspect-ratio: 17 / 12;
+  overflow: hidden;
+  background: #1c1c1c;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+
+.cover-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.cover-placeholder {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #333;
+  font-size: 0.75rem;
+  letter-spacing: 0.05em;
+  font-weight: 500;
+}
+
+/* Standard title cards only: crop to right N% of cover (front panel).
+   Width/offset/ratio are computed from coverCropPercent in config.js. */
+.card:not(.card-compact) .cover-wrap {
+  aspect-ratio: var(--cover-card-ratio);
+}
+.card:not(.card-compact) .cover-img {
+  position: absolute;
+  width: var(--cover-crop-width);
+  height: auto;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  object-fit: unset;
+}
+
+/* Actress card cover marquee.
+   The track is an absolutely-positioned flex row of tiles, each tile exactly
+   the width of the cover-wrap. Animation scrolls the track from 0 to -50%,
+   which lands on the start of the duplicate half — visually identical to
+   position 0 — so the loop reset is seamless. */
+.cover-marquee-track {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  display: flex;
+  width: max-content;
+  will-change: transform;
+  animation: cover-marquee-scroll linear infinite;
+}
+
+.cover-marquee-tile {
+  flex: 0 0 auto;
+  height: 100%;
+  aspect-ratio: var(--cover-card-ratio);
+  position: relative;
+  overflow: hidden;
+}
+
+.cover-marquee-tile .cover-img {
+  position: absolute;
+  width: var(--cover-crop-width);
+  height: auto;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  display: block;
+}
+
+@keyframes cover-marquee-scroll {
+  from { transform: translateX(0); }
+  to   { transform: translateX(-50%); }
+}
+
+/* Rejected actress cards: always-static, desaturated cover. */
+.actress-card-rejected .cover-img {
+  filter: grayscale(1) brightness(0.7);
+}
+
+/* Respect OS-level reduce-motion preference: freeze the marquee on the first
+   tile rather than scrolling. */
+@media (prefers-reduced-motion: reduce) {
+  .cover-marquee-track {
+    animation: none;
+  }
+}
+
+.card-info {
+  padding: 10px 12px 12px;
+}
+
+.actress-name {
+  font-size: 0.78rem;
+  color: #888;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 5px;
+  overflow: hidden;
+  margin-top: 4px;
+  margin-bottom: 3px;
+}
+
+.actress-name .actress-link {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+
+.actress-name .tier-badge {
+  flex-shrink: 0;
+}
+
+.actress-name.unknown {
+  color: #3a3a3a;
+}
+
