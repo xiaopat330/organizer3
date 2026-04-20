@@ -456,8 +456,10 @@ public class Application {
                     .register(new com.organizer3.mcp.tools.SqlSchemaTool(mcpRoDb))
                     .register(new com.organizer3.mcp.tools.ListDirectoryTool(session))
                     .register(new com.organizer3.mcp.tools.ReadTextFileTool(session))
-                    .register(new com.organizer3.mcp.tools.AuditFreshSkeletonsTool(session, config, freshAuditService));
+                    .register(new com.organizer3.mcp.tools.AuditFreshSkeletonsTool(session, config, freshAuditService))
+                    .register(new com.organizer3.mcp.tools.ExportAliasesTool(actressRepo, dataDir));
             if (mcpConfig.mutationsAllowed()) {
+                mcpTools.register(new com.organizer3.mcp.tools.SetActressAliasesTool(actressRepo));
                 mcpTools.register(new com.organizer3.mcp.tools.MergeActressesTool(jdbi, actressRepo));
                 mcpTools.register(new com.organizer3.mcp.tools.DeleteTitleTool(jdbi, titleRepo));
                 log.info("MCP mutation tools enabled");

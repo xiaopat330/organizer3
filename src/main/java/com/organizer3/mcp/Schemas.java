@@ -52,6 +52,15 @@ public final class Schemas {
             return this;
         }
 
+        /** Declare an {@code array of string} property. */
+        public Builder propArray(String name, String description) {
+            ObjectNode p = properties.putObject(name);
+            p.put("type", "array");
+            p.putObject("items").put("type", "string");
+            if (description != null) p.put("description", description);
+            return this;
+        }
+
         public Builder require(String... names) {
             for (String n : names) required.add(n);
             return this;
