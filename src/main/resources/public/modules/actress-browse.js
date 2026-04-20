@@ -253,10 +253,6 @@ export const actressScrollGrid = new ScrollingGrid(
   'no actresses'
 );
 
-export function clearActressGrid() {
-  actressScrollGrid.reset();
-}
-
 // ── resetActressState — called by showTitlesBrowse and showTitlesView ──────
 export function resetActressState() {
   actressBrowseMode = null;

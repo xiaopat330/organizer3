@@ -29,6 +29,10 @@ public class TitleBrowseService {
 
     static final int MAX_LIMIT = 500;
 
+    private static int cappedLimit(int limit) {
+        return Math.min(limit, MAX_LIMIT);
+    }
+
     private final TitleRepository titleRepo;
     private final ActressRepository actressRepo;
     private final CoverPath coverPath;
@@ -43,7 +47,7 @@ public class TitleBrowseService {
      * Hard-capped at {@link #MAX_LIMIT} total regardless of requested limit.
      */
     public List<TitleSummary> findRecent(int offset, int limit) {
-        limit = Math.min(limit, MAX_LIMIT);
+        limit = cappedLimit(limit);
         return toSummaries(titleRepo.findRecent(limit, offset));
     }
 
@@ -52,7 +56,7 @@ public class TitleBrowseService {
      * Returns an empty list if the query can't be parsed into at least a label prefix.
      */
     public List<TitleSummary> searchByCodePaged(String rawQuery, int offset, int limit) {
-        limit = Math.min(limit, MAX_LIMIT);
+        limit = cappedLimit(limit);
         TitleCodeQuery.ParsedQuery parsed = TitleCodeQuery.parse(rawQuery);
         if (parsed.labelPrefix().isEmpty()) return List.of();
         return toSummaries(titleRepo.findByCodePrefixPaged(
@@ -61,13 +65,13 @@ public class TitleBrowseService {
 
     /** Returns favorited titles, ordered newest-first. */
     public List<TitleSummary> findFavoritesPaged(int offset, int limit) {
-        limit = Math.min(limit, MAX_LIMIT);
+        limit = cappedLimit(limit);
         return toSummaries(titleRepo.findFavoritesPaged(limit, offset));
     }
 
     /** Returns bookmarked titles, ordered newest-first. */
     public List<TitleSummary> findBookmarksPaged(int offset, int limit) {
-        limit = Math.min(limit, MAX_LIMIT);
+        limit = cappedLimit(limit);
         return toSummaries(titleRepo.findBookmarksPaged(limit, offset));
     }
 
@@ -132,7 +136,7 @@ public class TitleBrowseService {
     public List<TitleSummary> findLibraryPaged(String code, String company,
                                                 List<String> tags, String sort, String order,
                                                 int offset, int limit) {
-        limit = Math.min(limit, MAX_LIMIT);
+        limit = cappedLimit(limit);
         com.organizer3.sync.TitleCodeQuery.ParsedQuery parsed =
                 com.organizer3.sync.TitleCodeQuery.parse(code);
         Map<String, Label> labelMap = labelRepo.findAllAsMap();
@@ -147,7 +151,7 @@ public class TitleBrowseService {
 
     /** Returns titles having ALL of the given tags, ordered newest-first. */
     public List<TitleSummary> findByTagsPaged(List<String> tags, int offset, int limit) {
-        limit = Math.min(limit, MAX_LIMIT);
+        limit = cappedLimit(limit);
         return toSummaries(titleRepo.findByTagsPaged(tags, limit, offset));
     }
 
@@ -157,7 +161,7 @@ public class TitleBrowseService {
      * supported here, so the frontend just keeps requesting more until it hits the cap.
      */
     public List<TitleSummary> findRandom(int limit) {
-        limit = Math.min(limit, MAX_LIMIT);
+        limit = cappedLimit(limit);
         return toSummaries(titleRepo.findRandom(limit));
     }
 
@@ -175,13 +179,13 @@ public class TitleBrowseService {
     }
 
     public List<TitleSummary> findByVolumePaged(String volumeId, int offset, int limit) {
-        limit = Math.min(limit, MAX_LIMIT);
+        limit = cappedLimit(limit);
         List<Title> titles = titleRepo.findByVolumePaged(volumeId, limit, offset);
         return toSummaries(titles);
     }
 
     public List<TitleSummary> findByVolumePartition(String volumeId, String partition, int offset, int limit) {
-        limit = Math.min(limit, MAX_LIMIT);
+        limit = cappedLimit(limit);
         return toSummaries(inferActresses(titleRepo.findByVolumeAndPartition(volumeId, partition, limit, offset)));
     }
 
@@ -190,7 +194,7 @@ public class TitleBrowseService {
      * Pass {@code null}/{@code ""} company and empty tags to use the unfiltered path.
      */
     public List<TitleSummary> findByVolumePagedFiltered(String volumeId, String company, List<String> tags, int offset, int limit) {
-        limit = Math.min(limit, MAX_LIMIT);
+        limit = cappedLimit(limit);
         Map<String, Label> labelMap = labelRepo.findAllAsMap();
         List<String> matchingLabels = resolveCompanyLabels(labelMap, company);
         if (company != null && !company.isBlank() && matchingLabels.isEmpty()) return List.of();
@@ -207,7 +211,7 @@ public class TitleBrowseService {
      * Preserves actress inference for unattributed pool titles.
      */
     public List<TitleSummary> findByVolumePartitionFiltered(String volumeId, String partition, String company, List<String> tags, int offset, int limit) {
-        limit = Math.min(limit, MAX_LIMIT);
+        limit = cappedLimit(limit);
         Map<String, Label> labelMap = labelRepo.findAllAsMap();
         List<String> matchingLabels = resolveCompanyLabels(labelMap, company);
         if (company != null && !company.isBlank() && matchingLabels.isEmpty()) return List.of();
@@ -402,7 +406,7 @@ public class TitleBrowseService {
      * are included. Each {@link TitleSummary} includes the full {@code nasPaths} list.
      */
     public DuplicatePage findDuplicatesPaged(int offset, int limit, String volumeId) {
-        limit = Math.min(limit, MAX_LIMIT);
+        limit = cappedLimit(limit);
         List<TitleSummary> titles = toSummaries(titleRepo.findWithMultipleLocationsPaged(limit, offset, volumeId));
         int total = titleRepo.countWithMultipleLocations(volumeId);
         return new DuplicatePage(titles, total);
