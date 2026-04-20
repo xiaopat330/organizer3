@@ -17,6 +17,7 @@ const folderEl      = document.getElementById('queue-editor-folder');
 const coverPanel    = document.getElementById('queue-cover-panel');
 const coverImg      = document.getElementById('queue-cover-img');
 const coverPlaceholder = document.getElementById('queue-cover-placeholder');
+const coverLock     = document.getElementById('queue-cover-lock');
 
 const descriptorInput   = document.getElementById('queue-descriptor-input');
 const descriptorPreview = document.getElementById('queue-descriptor-preview');
@@ -174,6 +175,7 @@ function renderEditor() {
   renderDuplicateState();
 
   // Cover preview
+  const dup = isDuplicate();
   if (currentDetail.hasCover && currentDetail.coverFilename && !editorState.coverDirty) {
     coverImg.src = `/covers/${encodeURIComponent(d.label)}/${encodeURIComponent(currentDetail.coverFilename)}?t=${Date.now()}`;
     coverImg.style.display = 'block';
@@ -184,8 +186,10 @@ function renderEditor() {
     coverPlaceholder.style.display = 'none';
   } else {
     coverImg.style.display = 'none';
-    coverPlaceholder.style.display = 'block';
+    // Hide the "Drop image here" prompt in duplicate mode — the cover isn't editable.
+    coverPlaceholder.style.display = dup ? 'none' : 'block';
   }
+  coverLock.style.display = dup ? 'flex' : 'none';
 
   renderActresses();
   updateSaveEnabled();

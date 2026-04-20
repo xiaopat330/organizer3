@@ -185,12 +185,41 @@
 }
 
 .queue-cover-panel.readonly {
-  cursor: default;
+  cursor: not-allowed;
   border-style: solid;
-  opacity: 0.95;
+  border-color: #333;
 }
 .queue-cover-panel.readonly:hover,
-.queue-cover-panel.readonly:focus { border-color: #333; }
+.queue-cover-panel.readonly:focus { border-color: #333; outline: none; }
+.queue-cover-panel.readonly .queue-cover-img { opacity: 0.7; }
+
+.queue-cover-lock {
+  position: absolute;
+  inset: 0;
+  background: rgba(10, 10, 10, 0.55);
+  color: #fca5a5;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  pointer-events: none;
+  border-radius: 6px;
+}
+.queue-cover-lock-icon {
+  font-size: 1.6rem;
+  filter: grayscale(0.4) brightness(0.9);
+}
+.queue-cover-lock-text {
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  background: #1f0a0a;
+  border: 1px solid #7f1d1d;
+  border-radius: 3px;
+  padding: 3px 8px;
+}
 
 .queue-actress-add.disabled {
   opacity: 0.55;
