@@ -19,6 +19,10 @@ import com.organizer3.repository.LabelRepository;
 import com.organizer3.repository.TitleActressRepository;
 import com.organizer3.repository.TitleRepository;
 import com.organizer3.repository.WatchHistoryRepository;
+import com.organizer3.media.ThumbnailService;
+import com.organizer3.media.VideoProbe;
+import com.organizer3.model.Video;
+import com.organizer3.model.WatchHistory;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
@@ -466,6 +470,232 @@ class WebServerTest {
                         .GET()
                         .build(),
                 HttpResponse.BodyHandlers.ofString());
+    }
+
+    private HttpResponse<String> post(String path) throws IOException, InterruptedException {
+        return HttpClient.newHttpClient().send(
+                HttpRequest.newBuilder()
+                        .uri(URI.create("http://localhost:" + server.port() + path))
+                        .POST(HttpRequest.BodyPublishers.noBody())
+                        .build(),
+                HttpResponse.BodyHandlers.ofString());
+    }
+
+    // ── SearchRoutes ────────────────────────────────────────────────────
+
+    @Test
+    void searchEndpointReturnsEmptyGroupsForBlankQuery() throws IOException, InterruptedException {
+        SearchService searchService = mock(SearchService.class);
+        server = new WebServer(0, null, null, null, null, null, null, null, null, searchService);
+        server.start();
+
+        HttpResponse<String> response = get("/api/search?q=");
+        assertEquals(200, response.statusCode());
+
+        JsonNode body = mapper.readTree(response.body());
+        assertEquals(0, body.get("actresses").size());
+        assertEquals(0, body.get("titles").size());
+        verifyNoInteractions(searchService);
+    }
+
+    @Test
+    void searchEndpointDelegatesStartsWithAndIncludeAv() throws IOException, InterruptedException {
+        SearchService searchService = mock(SearchService.class);
+        when(searchService.search(anyString(), anyBoolean(), anyBoolean()))
+                .thenReturn(Map.of("actresses", List.of(), "titles", List.of(),
+                        "labels", List.of(), "companies", List.of(), "avActresses", List.of()));
+        server = new WebServer(0, null, null, null, null, null, null, null, null, searchService);
+        server.start();
+
+        HttpResponse<String> response = get("/api/search?q=yua&matchMode=startsWith&includeAv=true");
+        assertEquals(200, response.statusCode());
+        verify(searchService).search("yua", true, true);
+    }
+
+    @Test
+    void titlesByCodePrefixEndpointReturnsResults() throws IOException, InterruptedException {
+        SearchService searchService = mock(SearchService.class);
+        when(searchService.searchByCodePrefix("ABP", 11)).thenReturn(List.of(Map.of("code", "ABP-001")));
+        server = new WebServer(0, null, null, null, null, null, null, null, null, searchService);
+        server.start();
+
+        HttpResponse<String> response = get("/api/titles/by-code-prefix?prefix=ABP&limit=11");
+        assertEquals(200, response.statusCode());
+        assertEquals(1, mapper.readTree(response.body()).size());
+    }
+
+    @Test
+    void titlesByCodePrefixEndpointRejectsBlankPrefix() throws IOException, InterruptedException {
+        SearchService searchService = mock(SearchService.class);
+        server = new WebServer(0, null, null, null, null, null, null, null, null, searchService);
+        server.start();
+
+        HttpResponse<String> response = get("/api/titles/by-code-prefix?prefix=");
+        assertEquals(200, response.statusCode());
+        assertEquals(0, mapper.readTree(response.body()).size());
+        verifyNoInteractions(searchService);
+    }
+
+    @Test
+    void titleByCodeEndpointReturns404WhenMissing() throws IOException, InterruptedException {
+        SearchService searchService = mock(SearchService.class);
+        TitleRepository titleRepo = mock(TitleRepository.class);
+        when(titleRepo.findByCode("ABP-999")).thenReturn(Optional.empty());
+        server = new WebServer(0, null, null, null, null, null, null, null, titleRepo, searchService);
+        server.start();
+
+        HttpResponse<String> response = get("/api/titles/by-code/ABP-999");
+        assertEquals(404, response.statusCode());
+    }
+
+    // ── WatchHistoryRoutes ──────────────────────────────────────────────
+
+    @Test
+    void watchHistoryPostEndpointRecordsAndReturnsEntry() throws IOException, InterruptedException {
+        WatchHistoryRepository watchRepo = mock(WatchHistoryRepository.class);
+        WatchHistory entry = WatchHistory.builder().id(42L).titleCode("ABP-123")
+                .watchedAt(java.time.LocalDateTime.of(2026, 4, 20, 10, 0)).build();
+        when(watchRepo.record(eq("ABP-123"), any())).thenReturn(entry);
+
+        server = new WebServer(0, null, null, null, null, null, null, watchRepo, null, null);
+        server.start();
+
+        HttpResponse<String> response = post("/api/watch-history/ABP-123");
+        assertEquals(200, response.statusCode());
+        JsonNode body = mapper.readTree(response.body());
+        assertEquals(42L, body.get("id").asLong());
+        assertEquals("ABP-123", body.get("titleCode").asText());
+    }
+
+    @Test
+    void watchHistoryGetAllEndpointReturnsList() throws IOException, InterruptedException {
+        WatchHistoryRepository watchRepo = mock(WatchHistoryRepository.class);
+        WatchHistory e1 = WatchHistory.builder().id(1L).titleCode("A")
+                .watchedAt(java.time.LocalDateTime.now()).build();
+        WatchHistory e2 = WatchHistory.builder().id(2L).titleCode("B")
+                .watchedAt(java.time.LocalDateTime.now()).build();
+        when(watchRepo.findAll(50)).thenReturn(List.of(e1, e2));
+
+        server = new WebServer(0, null, null, null, null, null, null, watchRepo, null, null);
+        server.start();
+
+        HttpResponse<String> response = get("/api/watch-history");
+        assertEquals(200, response.statusCode());
+        assertEquals(2, mapper.readTree(response.body()).size());
+    }
+
+    @Test
+    void watchHistoryGetByTitleEndpointFiltersByCode() throws IOException, InterruptedException {
+        WatchHistoryRepository watchRepo = mock(WatchHistoryRepository.class);
+        when(watchRepo.findByTitleCode("ABP-1")).thenReturn(List.of(
+                WatchHistory.builder().id(7L).titleCode("ABP-1")
+                        .watchedAt(java.time.LocalDateTime.now()).build()));
+
+        server = new WebServer(0, null, null, null, null, null, null, watchRepo, null, null);
+        server.start();
+
+        HttpResponse<String> response = get("/api/watch-history/ABP-1");
+        assertEquals(200, response.statusCode());
+        JsonNode body = mapper.readTree(response.body());
+        assertEquals(1, body.size());
+        assertEquals("ABP-1", body.get(0).get("titleCode").asText());
+    }
+
+    // ── VideoRoutes ─────────────────────────────────────────────────────
+
+    @Test
+    void videosByTitleCodeEndpointDelegatesToStreamService() throws IOException, InterruptedException {
+        VideoStreamService videoStream = mock(VideoStreamService.class);
+        when(videoStream.findVideos("ABP-123", null)).thenReturn(List.of());
+
+        server = new WebServer(0, null, null, null, videoStream, null, null, null, null, null);
+        server.start();
+
+        HttpResponse<String> response = get("/api/titles/ABP-123/videos");
+        assertEquals(200, response.statusCode());
+        verify(videoStream).findVideos("ABP-123", null);
+    }
+
+    @Test
+    void videosByTitleCodePassesVolumeIdWhenProvided() throws IOException, InterruptedException {
+        VideoStreamService videoStream = mock(VideoStreamService.class);
+        when(videoStream.findVideos("ABP-123", "vol-a")).thenReturn(List.of());
+
+        server = new WebServer(0, null, null, null, videoStream, null, null, null, null, null);
+        server.start();
+
+        HttpResponse<String> response = get("/api/titles/ABP-123/videos?volumeId=vol-a");
+        assertEquals(200, response.statusCode());
+        verify(videoStream).findVideos("ABP-123", "vol-a");
+    }
+
+    @Test
+    void videoStreamEndpointReturns400ForNonNumericId() throws IOException, InterruptedException {
+        VideoStreamService videoStream = mock(VideoStreamService.class);
+
+        server = new WebServer(0, null, null, null, videoStream, null, null, null, null, null);
+        server.start();
+
+        HttpResponse<String> response = get("/api/stream/not-a-number");
+        assertEquals(400, response.statusCode());
+    }
+
+    @Test
+    void videoStreamEndpointReturns404WhenVideoMissing() throws IOException, InterruptedException {
+        VideoStreamService videoStream = mock(VideoStreamService.class);
+        when(videoStream.findVideoById(99L)).thenReturn(Optional.empty());
+
+        server = new WebServer(0, null, null, null, videoStream, null, null, null, null, null);
+        server.start();
+
+        HttpResponse<String> response = get("/api/stream/99");
+        assertEquals(404, response.statusCode());
+    }
+
+    @Test
+    void videoInfoEndpointProbesAndReturnsJson() throws IOException, InterruptedException {
+        VideoStreamService videoStream = mock(VideoStreamService.class);
+        VideoProbe videoProbe = mock(VideoProbe.class);
+        Video video = Video.builder().id(1L).filename("test.mp4").build();
+        when(videoStream.findVideoById(1L)).thenReturn(Optional.of(video));
+        when(videoProbe.probe(1L, "test.mp4")).thenReturn(Map.of("duration", 3600));
+
+        server = new WebServer(0, null, null, null, videoStream, null, videoProbe, null, null, null);
+        server.start();
+
+        HttpResponse<String> response = get("/api/videos/1/info");
+        assertEquals(200, response.statusCode());
+        assertEquals(3600, mapper.readTree(response.body()).get("duration").asInt());
+    }
+
+    @Test
+    void videoThumbnailsEndpointReturns404WhenVideoMissing() throws IOException, InterruptedException {
+        VideoStreamService videoStream = mock(VideoStreamService.class);
+        ThumbnailService thumbs = mock(ThumbnailService.class);
+        when(videoStream.findVideoById(99L)).thenReturn(Optional.empty());
+
+        server = new WebServer(0, null, null, null, videoStream, thumbs, null, null, null, null);
+        server.start();
+
+        HttpResponse<String> response = get("/api/videos/99/thumbnails");
+        assertEquals(404, response.statusCode());
+    }
+
+    @Test
+    void videoThumbnailsEndpointReturnsStatus() throws IOException, InterruptedException {
+        VideoStreamService videoStream = mock(VideoStreamService.class);
+        ThumbnailService thumbs = mock(ThumbnailService.class);
+        Video video = Video.builder().id(1L).filename("test.mp4").build();
+        when(videoStream.findVideoById(1L)).thenReturn(Optional.of(video));
+        when(videoStream.titleCodeForVideo(video)).thenReturn("ABP-123");
+        when(thumbs.getThumbnailStatus("ABP-123", video)).thenReturn(Map.of("ready", true, "urls", List.of()));
+
+        server = new WebServer(0, null, null, null, videoStream, thumbs, null, null, null, null);
+        server.start();
+
+        HttpResponse<String> response = get("/api/videos/1/thumbnails");
+        assertEquals(200, response.statusCode());
+        assertTrue(mapper.readTree(response.body()).get("ready").asBoolean());
     }
 
     /**
