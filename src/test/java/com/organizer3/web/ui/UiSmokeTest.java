@@ -71,6 +71,68 @@ class UiSmokeTest {
         assertNoConsoleErrors();
     }
 
+    @Test
+    void actressesNavClickShowsActressLanding() {
+        page.navigate(baseUrl() + "/");
+
+        // Landing starts hidden (inline style="display:none" in the template).
+        assertEquals("none", page.locator("#actress-landing").evaluate("e => e.style.display"));
+
+        page.locator("#actresses-btn").click();
+
+        // After click, showView() must reveal the actress landing.
+        page.locator("#actress-landing").waitFor();
+        String display = (String) page.locator("#actress-landing").evaluate("e => e.style.display");
+        assertNotEquals("none", display,
+                "actress-landing should be visible after clicking actresses nav button");
+    }
+
+    @Test
+    void titlesNavClickShowsTitleLanding() {
+        page.navigate(baseUrl() + "/");
+
+        assertEquals("none", page.locator("#title-landing").evaluate("e => e.style.display"));
+
+        page.locator("#titles-browse-btn").click();
+
+        page.locator("#title-landing").waitFor();
+        String display = (String) page.locator("#title-landing").evaluate("e => e.style.display");
+        assertNotEquals("none", display,
+                "title-landing should be visible after clicking titles nav button");
+    }
+
+    @Test
+    void toolsNavClickShowsActionLanding() {
+        page.navigate(baseUrl() + "/");
+
+        assertEquals("none", page.locator("#action-landing").evaluate("e => e.style.display"));
+
+        page.locator("#action-btn").click();
+
+        page.locator("#action-landing").waitFor();
+        String display = (String) page.locator("#action-landing").evaluate("e => e.style.display");
+        assertNotEquals("none", display,
+                "action-landing should be visible after clicking tools nav button");
+    }
+
+    @Test
+    void clickingBetweenTabsSwapsVisiblePanels() {
+        page.navigate(baseUrl() + "/");
+
+        page.locator("#actresses-btn").click();
+        page.locator("#actress-landing").waitFor();
+        assertNotEquals("none", page.locator("#actress-landing").evaluate("e => e.style.display"));
+
+        page.locator("#titles-browse-btn").click();
+        page.locator("#title-landing").waitFor();
+
+        // Actress landing must be hidden again once titles view is active.
+        String actressDisplay = (String) page.locator("#actress-landing").evaluate("e => e.style.display");
+        assertEquals("none", actressDisplay, "actress-landing must hide when switching to titles");
+        String titleDisplay = (String) page.locator("#title-landing").evaluate("e => e.style.display");
+        assertNotEquals("none", titleDisplay);
+    }
+
     // ── helpers ───────────────────────────────────────────────────────
 
     private String baseUrl() {
