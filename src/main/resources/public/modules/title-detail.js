@@ -2,7 +2,7 @@ import { esc, fmtDate, timeAgo } from './utils.js';
 import { ICON_FAV_LG, ICON_BM_LG, gradeBadgeHtml, tagBadgeHtml } from './icons.js';
 import { showView, updateBreadcrumb, mode } from './grid.js';
 import { makeTitleCard, updateCardIndicators } from './cards.js';
-import { actressBrowseMode, actressBrowseLabel, selectActressBrowseMode, showActressLanding } from './actress-browse.js';
+import { getActressBrowseMode, actressBrowseLabel, selectActressBrowseMode, showActressLanding } from './actress-browse.js';
 import { THUMBNAIL_COLUMNS } from './config.js';
 import { pushNav } from './nav.js';
 
@@ -76,9 +76,9 @@ export async function openTitleDetail(t) {
   let crumbs = [];
   if (sourceMode === 'actresses' || sourceMode === 'actress-detail') {
     crumbs = [{ label: 'Actresses', action: () => showActressLanding() }];
-    if (actressBrowseMode) {
-      const modeKey = actressBrowseMode;
-      crumbs.push({ label: actressBrowseLabel(modeKey), action: () => selectActressBrowseMode(modeKey) });
+    const abMode = getActressBrowseMode();
+    if (abMode) {
+      crumbs.push({ label: actressBrowseLabel(abMode), action: () => selectActressBrowseMode(abMode) });
     }
   } else if (sourceMode === 'titles-browse' && sourceTitleBrowseMode === 'collections') {
     crumbs = [{ label: 'Collections', action: () => document.getElementById('title-collections-btn').click() }];

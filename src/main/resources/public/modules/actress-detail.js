@@ -2,7 +2,7 @@ import { esc, fmtDate, isStale, setStatus, splitName, timeAgo } from './utils.js
 import { ICON_FAV_LG, ICON_BM_LG, ICON_REJ_LG } from './icons.js';
 import { showView, setActiveGrid, ensureActressDetailSentinel, ScrollingGrid, updateBreadcrumb, mode } from './grid.js';
 import { makeTitleCard, updateActressCardIndicators } from './cards.js';
-import { actressBrowseMode, actressBrowseLabel, selectActressBrowseMode, showActressLanding, hideAllActressSubNavRows } from './actress-browse.js';
+import { getActressBrowseMode, actressBrowseLabel, selectActressBrowseMode, showActressLanding, hideAllActressSubNavRows } from './actress-browse.js';
 import { pushNav } from './nav.js';
 
 // ── State ─────────────────────────────────────────────────────────────────
@@ -73,8 +73,8 @@ export async function openActressDetail(actressId) {
   let crumbs;
   if (sourceMode === 'titles' && sourceHomeTab === 'random-actresses') {
     crumbs = [];
-  } else if (actressBrowseMode) {
-    const modeKey = actressBrowseMode;
+  } else if (getActressBrowseMode()) {
+    const modeKey = getActressBrowseMode();
     crumbs = [
       { label: 'Actresses', action: () => showActressLanding() },
       { label: actressBrowseLabel(modeKey), action: () => selectActressBrowseMode(modeKey) },
