@@ -1,0 +1,1539 @@
+/* ── Actress detail panel ─────────────────────────────────────────────── */
+
+#actress-detail {
+  height: calc(100vh - 49px);
+  display: none;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.actress-detail-panel {
+  display: flex;
+  flex-direction: row;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.actress-detail-left {
+  width: 35%;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  box-sizing: border-box;
+}
+
+.actress-detail-right {
+  flex: 1;
+  min-width: 0;
+  border-left: 1px solid #222;
+  overflow-y: auto;
+  box-sizing: border-box;
+}
+
+.detail-cover-col {
+  width: 100%;
+  overflow: hidden;
+  background: #1c1c1c;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.detail-cover-col img {
+  width: var(--cover-crop-width);
+  margin-left: var(--cover-crop-offset);
+  margin-top: 8px;
+  margin-bottom: 8px;
+  display: block;
+  border-radius: 4px;
+}
+
+.detail-cover-placeholder {
+  color: #333;
+  font-size: 0.75rem;
+  letter-spacing: 0.05em;
+  padding: 20px;
+}
+
+.detail-sidebar {
+  display: flex;
+  flex-direction: column;
+}
+
+/* Section shell — all sidebar sections share this frame */
+.detail-section {
+  padding: 16px 24px;
+  border-top: 1px solid #1a1a1a;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.detail-section:first-child,
+.detail-section-identity {
+  border-top: none;
+  padding-top: 20px;
+}
+
+.detail-section-title {
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #666;
+  margin: 0 0 2px;
+}
+
+/* ── Identity section ───────────────────────────────────────────────── */
+
+.detail-name {
+  line-height: 1.2;
+}
+
+.detail-first-name {
+  font-size: 1.6rem;
+  font-weight: 700;
+  color: #e0e0e0;
+}
+
+.detail-last-name {
+  display: block;
+  font-size: 1rem;
+  font-weight: 400;
+  color: #888;
+  margin-top: 2px;
+}
+
+.detail-stage-name {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-top: 4px;
+}
+
+.detail-stage-name-kanji {
+  font-size: 1.05rem;
+  color: #bdbdbd;
+  line-height: 1.2;
+}
+
+.detail-stage-name-reading {
+  font-size: 0.72rem;
+  color: #6d6d6d;
+  letter-spacing: 0.04em;
+}
+
+.btn-search-stage-name {
+  margin-top: 6px;
+  padding: 3px 10px;
+  font-size: 0.75rem;
+  color: #888;
+  background: transparent;
+  border: 1px solid #444;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.btn-search-stage-name:hover {
+  border-color: #888;
+  color: #ccc;
+}
+
+.btn-search-stage-name.loading {
+  opacity: 0.5;
+  cursor: default;
+  animation: pulse 1s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 0.5; }
+  50%       { opacity: 0.2; }
+}
+
+.detail-meta-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.detail-grade {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: #b0a060;
+  letter-spacing: 0.04em;
+}
+
+.detail-career {
+  font-size: 0.78rem;
+  color: #555;
+}
+
+.detail-visited {
+  font-size: 0.75rem;
+  color: #29b6d4;
+  margin-top: 2px;
+}
+
+/* Research checklist — explains which dashboard "research gap" buckets are
+   missing and what fields would fill them. Hidden by the JS layer when fully
+   researched. */
+.detail-research-checklist {
+  margin-top: 14px;
+  padding: 10px 12px;
+  background: #141414;
+  border: var(--border-control);
+  border-radius: 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.detail-research-checklist-title {
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: #888;
+  margin-bottom: 4px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.research-gap-count {
+  font-size: 0.66rem;
+  font-weight: 600;
+  color: #d0a040;
+  background: #2a1f08;
+  padding: 1px 7px;
+  border-radius: 10px;
+  letter-spacing: 0;
+}
+.research-bucket {
+  display: grid;
+  grid-template-columns: 12px 70px 1fr;
+  align-items: baseline;
+  gap: 8px;
+  font-size: 0.72rem;
+}
+.research-bucket-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+  border: var(--border-control);
+}
+.research-bucket-filled .research-bucket-dot {
+  background: #6f9ac4;
+  border-color: #6f9ac4;
+}
+.research-bucket-missing .research-bucket-dot {
+  background: #1a1a1a;
+}
+.research-bucket-label {
+  color: #c0c0c0;
+  font-weight: 600;
+}
+.research-bucket-filled .research-bucket-label {
+  color: #707070;
+}
+.research-bucket-detail {
+  color: #888;
+}
+.research-bucket-filled .research-bucket-detail {
+  color: #4a6b4a;
+  font-style: italic;
+}
+.research-bucket-missing .research-bucket-detail {
+  color: #b8884a;
+}
+
+/* ── Vitals / Library sections (label + value rows) ─────────────────── */
+
+.detail-vitals {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.detail-vital-row {
+  display: grid;
+  grid-template-columns: 72px 1fr;
+  align-items: baseline;
+  gap: 10px;
+}
+
+.detail-vital-label {
+  font-size: 0.62rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #555;
+  white-space: nowrap;
+}
+
+.detail-vital-value {
+  font-size: 0.82rem;
+  color: #b0b0b0;
+}
+
+.vital-subtle {
+  color: #666;
+  font-size: 0.72rem;
+  margin-left: 4px;
+}
+
+/* ── Aliases section ────────────────────────────────────────────────── */
+
+.detail-alt-names-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.detail-alt-name {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 4px 0;
+}
+
+.detail-alt-name-value {
+  font-size: 0.84rem;
+  color: #c0c0c0;
+}
+
+.detail-alt-name-note {
+  font-size: 0.68rem;
+  color: #666;
+  font-style: italic;
+}
+
+.detail-alias-cloud {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+/* ── Career section ─────────────────────────────────────────────────── */
+
+.detail-section .detail-career {
+  font-size: 0.85rem;
+  color: #c0c0c0;
+}
+
+.detail-career-duration {
+  font-size: 0.72rem;
+  color: #6d6d6d;
+}
+
+.detail-career-retirement {
+  font-size: 0.72rem;
+  color: #a07040;
+  font-style: italic;
+}
+
+/* ── Studios section (ordered tenures) ──────────────────────────────── */
+
+.detail-studios-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.detail-studio-entry {
+  border-left: 2px solid #2a2a2a;
+  padding: 2px 0 2px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.detail-studio-name {
+  font-size: 0.86rem;
+  font-weight: 600;
+  color: #c8c8c8;
+}
+
+.detail-studio-company {
+  font-size: 0.7rem;
+  color: #666;
+}
+
+.detail-studio-dates {
+  font-size: 0.7rem;
+  color: #888;
+  letter-spacing: 0.03em;
+}
+
+.detail-studio-role {
+  font-size: 0.7rem;
+  color: #6b8aa8;
+  font-style: italic;
+}
+
+/* ── Awards section ─────────────────────────────────────────────────── */
+
+.detail-awards-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.detail-award-entry {
+  display: grid;
+  grid-template-columns: 44px 1fr;
+  gap: 10px;
+  align-items: start;
+}
+
+.detail-award-year {
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: #d0a040;
+  background: #201808;
+  padding: 2px 6px;
+  border-radius: 3px;
+  text-align: center;
+  justify-self: start;
+}
+
+.detail-award-body {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.detail-award-event {
+  font-size: 0.78rem;
+  color: #c0c0c0;
+}
+
+.detail-award-category {
+  font-size: 0.7rem;
+  color: #777;
+  font-style: italic;
+}
+
+/* ── Biography section ──────────────────────────────────────────────── */
+
+.detail-bio-text {
+  font-size: 0.78rem;
+  color: #9a9a9a;
+  line-height: 1.6;
+  white-space: pre-wrap;
+}
+
+/* ── Legacy section (capstone blockquote) ───────────────────────────── */
+
+.detail-legacy-text {
+  margin: 0;
+  padding: 6px 0 6px 12px;
+  border-left: 2px solid #3a3020;
+  font-size: 0.78rem;
+  color: #a89878;
+  line-height: 1.55;
+  font-style: italic;
+}
+
+/* Research checklist sits inside its own section-less block — tighten
+   the margin now that sections already provide framing. */
+.detail-section .detail-research-checklist,
+.detail-sidebar > .detail-research-checklist {
+  margin: 12px 24px 20px;
+}
+
+/* ── Filter bar (company dropdown + tags button) ─────────────────────── */
+
+.detail-filter-bar {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: #0d0d0d;
+  border-bottom: var(--border-subtle);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 20px;
+}
+
+.detail-filter-bar:empty {
+  display: none;
+}
+
+.detail-company-select {
+  appearance: none;
+  -webkit-appearance: none;
+  background: #111 url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23555'/%3E%3C/svg%3E") no-repeat right 10px center;
+  border: var(--border-control);
+  border-radius: 4px;
+  color: #b0b0b0;
+  font-size: 0.75rem;
+  font-family: inherit;
+  padding: 5px 28px 5px 10px;
+  cursor: pointer;
+  min-width: 140px;
+  transition: border-color 0.12s ease, color 0.12s ease;
+}
+
+.detail-company-select:hover {
+  border-color: #404040;
+  color: #d0d0d0;
+}
+
+.detail-company-select:focus {
+  outline: none;
+  border-color: #505050;
+}
+
+.detail-tags-btn {
+  background: #111;
+  border: var(--border-control);
+  border-radius: 4px;
+  color: #888;
+  font-size: 0.75rem;
+  font-family: inherit;
+  padding: 5px 12px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  transition: border-color 0.12s ease, color 0.12s ease;
+  white-space: nowrap;
+}
+
+.detail-tags-btn:hover {
+  border-color: #404040;
+  color: #c0c0c0;
+}
+
+.detail-tags-btn.has-active {
+  border-color: #50c878;
+  color: #70e898;
+}
+
+.detail-tags-count {
+  background: #1a3d26;
+  border: 1px solid #50c878;
+  border-radius: 8px;
+  color: #70e898;
+  font-size: 0.65rem;
+  font-weight: 700;
+  line-height: 1;
+  padding: 1px 6px;
+}
+
+/* ── Title grid column-count slider ──────────────────────────────────── */
+
+.title-cols-control {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  flex-shrink: 0;
+}
+
+.title-cols-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 108px;
+  height: 3px;
+  background: #2a2a2a;
+  border-radius: 2px;
+  outline: none;
+  cursor: pointer;
+}
+
+.title-cols-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  background: #666;
+  cursor: pointer;
+  transition: background 0.12s ease;
+}
+
+.title-cols-slider:hover::-webkit-slider-thumb,
+.title-cols-slider::-webkit-slider-thumb:active {
+  background: #999;
+}
+
+.title-cols-slider::-moz-range-thumb {
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  background: #666;
+  border: none;
+  cursor: pointer;
+}
+
+.title-cols-slider::-moz-range-track {
+  height: 3px;
+  background: #2a2a2a;
+  border-radius: 2px;
+}
+
+.title-cols-label {
+  font-size: 0.68rem;
+  color: #555;
+  min-width: 16px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Actress tags panel ───────────────────────────────────────────────── */
+
+.detail-actress-tags-panel {
+  background: #0d0d0d;
+  border-bottom: var(--border-subtle);
+  padding: 10px 20px 12px;
+}
+
+.detail-tags-inner {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.detail-tags-loading {
+  font-size: 0.75rem;
+  color: #444;
+  padding: 2px 0;
+}
+
+/* ── Alias badges (in detail info section) ────────────────────────────── */
+
+.alias-badge {
+  font-size: 0.63rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  border-radius: 3px;
+  padding: 2px 7px;
+  color: #7a8a7a;
+  background: #141a14;
+  cursor: pointer;
+  transition: color 0.12s ease, background 0.12s ease;
+  user-select: none;
+}
+
+.alias-badge:hover {
+  color: #a0c0a0;
+  background: #1a241a;
+}
+
+.alias-badge-link {
+  border: none;
+  font-family: inherit;
+  cursor: pointer;
+  text-decoration: underline;
+  text-decoration-color: #3a5a3a;
+  text-underline-offset: 2px;
+}
+
+.alias-badge-link:hover {
+  color: #b8d4b8;
+  background: #1e2e1e;
+  text-decoration-color: #6a9a6a;
+}
+
+
+#status {
+  text-align: center;
+  padding: 28px;
+  color: #3a3a3a;
+  font-size: 0.8rem;
+  letter-spacing: 0.05em;
+}
+
+#sentinel { height: 1px; }
+
+/* ── Home portal ──────────────────────────────────────────────────────────── */
+#home-portal {
+  padding: 48px 24px 32px;
+}
+
+.home-portal-search-panel {
+  max-width: 680px;
+  margin: 0 auto;
+}
+
+.home-portal-search-heading {
+  font-size: 1.6rem;
+  font-weight: 600;
+  color: #d0d0d0;
+  letter-spacing: -0.01em;
+  margin-bottom: 6px;
+}
+
+.home-portal-search-sub {
+  font-size: 0.85rem;
+  color: #444;
+  margin: 0 0 20px;
+}
+
+.home-portal-search-wrap {
+  position: relative;
+}
+
+.portal-search-clear {
+  position: absolute;
+  right: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  color: #555;
+  font-size: 0.85rem;
+  cursor: pointer;
+  padding: 4px 6px;
+  line-height: 1;
+  border-radius: 4px;
+  transition: color 0.15s ease;
+}
+.portal-search-clear:hover {
+  color: #aaa;
+}
+
+.portal-search-input {
+  width: 100%;
+  box-sizing: border-box;
+  background: #111;
+  border: 1px solid #2e2e2e;
+  border-radius: 8px;
+  color: #d8d8d8;
+  font-family: inherit;
+  font-size: 1.05rem;
+  padding: 14px 44px 14px 18px;
+  outline: none;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  -webkit-appearance: none;
+  appearance: none;
+}
+.portal-search-input::placeholder {
+  color: #333;
+}
+.portal-search-input:focus {
+  border-color: #444;
+  box-shadow: 0 0 0 2px rgba(80,80,80,0.2);
+}
+
+/* Portal overlay: wider, taller, and scaled-up to match the large search input.
+   Uses ID selector to beat the .search-overlay width:380px cascade. */
+#portal-search-overlay {
+  right: auto;
+  left: 0;
+  width: 100%;
+  max-width: none;
+  max-height: 75vh;
+}
+
+#portal-search-overlay .search-col-wrap {
+  column-count: 2;
+  column-gap: 0;
+  column-fill: balance;
+}
+
+#portal-search-overlay .search-group {
+  break-inside: avoid;
+}
+
+#portal-search-overlay .search-overlay-empty {
+  padding: 14px 16px;
+  font-size: 0.9rem;
+}
+
+#portal-search-overlay .search-group-label {
+  padding: 10px 16px 5px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+}
+
+#portal-search-overlay .search-group-actresses .search-group-label { color: #c084a8; }
+#portal-search-overlay .search-group-titles   .search-group-label { color: #6ea8d8; }
+#portal-search-overlay .search-group-labels   .search-group-label { color: #7ec88a; }
+#portal-search-overlay .search-group-studios  .search-group-label { color: #d4956a; }
+
+#portal-search-overlay .search-row {
+  gap: 10px;
+  padding: 8px 16px;
+}
+
+#portal-search-overlay .search-thumb {
+  width: 36px;
+  height: 51px;
+}
+
+#portal-search-overlay .search-name {
+  font-size: 0.9rem;
+}
+
+#portal-search-overlay .search-code {
+  font-size: 0.8rem;
+}
+
+#portal-search-overlay .search-meta {
+  font-size: 0.78rem;
+  max-width: 120px;
+}
+
+#portal-search-overlay .search-stage-name,
+#portal-search-overlay .search-alias {
+  font-size: 0.78rem;
+}
+
+#portal-search-overlay .search-grade {
+  font-size: 0.78rem;
+}
+
+#portal-search-overlay .search-count {
+  font-size: 0.76rem;
+}
+
+/* ── Portal search filter toggles ──────────────────────────────────────── */
+
+.portal-search-filters {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  margin-top: 14px;
+  flex-wrap: wrap;
+}
+
+.portal-filter-toggle {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.portal-filter-toggle input[type=checkbox] {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+/* Toggle track */
+.portal-filter-track {
+  display: inline-block;
+  width: 30px;
+  height: 17px;
+  border-radius: 9px;
+  background: #2a2a2a;
+  border: 1px solid #3a3a3a;
+  position: relative;
+  flex-shrink: 0;
+  transition: background 0.18s ease, border-color 0.18s ease;
+}
+
+/* Knob */
+.portal-filter-track::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  background: #555;
+  transition: transform 0.18s ease, background 0.18s ease;
+}
+
+/* Checked state — move knob right, color track by category */
+.portal-filter-toggle input:checked + .portal-filter-track::after {
+  transform: translateX(13px);
+  background: #fff;
+}
+
+.portal-filter-toggle[data-category="actresses"] input:checked + .portal-filter-track {
+  background: #7a3d62;
+  border-color: #9a5080;
+}
+.portal-filter-toggle[data-category="titles"] input:checked + .portal-filter-track {
+  background: #2d5a82;
+  border-color: #4878a8;
+}
+.portal-filter-toggle[data-category="labels"] input:checked + .portal-filter-track {
+  background: #2e6636;
+  border-color: #4a8c54;
+}
+.portal-filter-toggle[data-category="studios"] input:checked + .portal-filter-track {
+  background: #7a4d28;
+  border-color: #9a6a40;
+}
+
+.portal-filter-label {
+  font-size: 0.78rem;
+  color: #555;
+  transition: color 0.18s ease;
+}
+
+.portal-filter-toggle input:checked ~ .portal-filter-label {
+  color: #888;
+}
+
+.portal-filter-toggle[data-category="actresses"] input:checked ~ .portal-filter-label { color: #c084a8; }
+.portal-filter-toggle[data-category="titles"]    input:checked ~ .portal-filter-label { color: #6ea8d8; }
+.portal-filter-toggle[data-category="labels"]    input:checked ~ .portal-filter-label { color: #7ec88a; }
+.portal-filter-toggle[data-category="studios"]   input:checked ~ .portal-filter-label { color: #d4956a; }
+
+/* Locked toggle — last active, cannot be turned off */
+.portal-filter-toggle-locked {
+  cursor: default;
+  opacity: 0.5;
+}
+
+.search-title-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.search-title-stack .search-code {
+  display: block;
+}
+
+.search-title-stack .search-name {
+  display: block;
+  white-space: normal;
+  line-height: 1.3;
+}
+
+.search-title-byline {
+  font-size: 0.76rem;
+  color: #555;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ── Title grade badge ───────────────────────────────────────────────────── */
+
+.grade-badge {
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  border-radius: 3px;
+  padding: 2px 6px;
+  display: inline-block;
+  vertical-align: middle;
+  margin-left: 5px;
+  color: #888;
+  background: #1a1a1a;
+}
+
+.grade-badge[data-grade="SSS"] { color: #f0a0d8; background: #200818; box-shadow: var(--tier-goddess-glow); }
+.grade-badge[data-grade="SS"]  { color: #e8c050; background: #201a08; }
+.grade-badge[data-grade="S"]   { color: #b0d870; background: #141e06; }
+.grade-badge[data-grade="A+"]  { color: #50d880; background: #082010; }
+.grade-badge[data-grade="A"]   { color: #40c870; background: #071a0c; }
+.grade-badge[data-grade="A-"]  { color: #60b888; background: #091410; }
+.grade-badge[data-grade="B+"]  { color: #50b0d0; background: #081820; }
+.grade-badge[data-grade="B"]   { color: #4090b8; background: #081018; }
+.grade-badge[data-grade="B-"]  { color: #5888a0; background: #080e14; }
+.grade-badge[data-grade="C+"]  { color: #607888; background: #0c1010; }
+.grade-badge[data-grade="C"]   { color: #587070; background: #0c0e0e; }
+.grade-badge[data-grade="C-"]  { color: #4a6060; background: #0a0c0c; }
+.grade-badge[data-grade="D"]   { color: #505050; background: #0c0c0c; }
+.grade-badge[data-grade="F"]   { color: #885050; background: #100a0a; }
+
+/* ── Title translations ──────────────────────────────────────────────────── */
+
+.title-en {
+  font-size: 0.72rem;
+  color: #999;
+  margin-top: 3px;
+  line-height: 1.35;
+}
+
+.title-ja {
+  font-size: 0.7rem;
+  color: #666;
+  margin-top: 2px;
+  line-height: 1.35;
+}
+
+.title-meta-line {
+  font-size: 0.7rem;
+  color: #555;
+  margin-top: 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ── Tag badges ──────────────────────────────────────────────────────────── */
+
+.title-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 5px;
+}
+
+.tag-badge {
+  font-size: 0.63rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  border-radius: 3px;
+  padding: 2px 6px;
+}
+
+/* ── Title detail view ───────────────────────────────────────────────────── */
+
+#title-detail {
+  height: calc(100vh - 49px);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.title-detail-panel {
+  display: flex;
+  flex-direction: row;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.title-detail-left {
+  width: 25%;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  padding: 24px;
+  overflow-y: auto;
+  box-sizing: border-box;
+}
+
+.title-detail-right {
+  flex: 1;
+  min-width: 0;
+  border-left: 1px solid #222;
+  overflow-y: auto;
+  box-sizing: border-box;
+  padding: 24px;
+}
+
+#title-detail-cover img {
+  width: 100%;
+  display: block;
+  border-radius: 4px;
+}
+
+.title-detail-cover-placeholder {
+  background: #1c1c1c;
+  aspect-ratio: 17 / 12;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #333;
+  font-size: 0.75rem;
+  border-radius: 4px;
+  letter-spacing: 0.05em;
+}
+
+.title-detail-code {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: #7ab8e0;
+  letter-spacing: 0.08em;
+  margin-bottom: 10px;
+}
+
+.title-detail-actions {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.title-action-btn {
+  background: none;
+  border: 1px solid #444;
+  border-radius: 6px;
+  padding: 6px 10px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: border-color 0.15s, transform 0.1s;
+}
+.title-action-btn:hover {
+  border-color: #888;
+  transform: scale(1.08);
+}
+.title-action-btn .star-icon {
+  fill: none;
+  stroke: #666;
+  stroke-width: 1.5;
+  transition: fill 0.15s, stroke 0.15s;
+}
+.title-action-btn.active .star-icon {
+  fill: #fbbf24;
+  stroke: #fbbf24;
+}
+.title-action-btn .bookmark-icon {
+  fill: none;
+  stroke: #666;
+  stroke-width: 1.5;
+  transition: fill 0.15s, stroke 0.15s;
+}
+.title-action-btn.active .bookmark-icon {
+  fill: #60a5fa;
+  stroke: #60a5fa;
+}
+.title-action-btn .reject-icon {
+  fill: none;
+  stroke: #666;
+  stroke-width: 2.5;
+  stroke-linecap: round;
+  transition: stroke 0.15s;
+}
+.title-action-btn.reject-btn.active .reject-icon {
+  stroke: #ef4444;
+}
+.title-action-btn.reject-btn.active {
+  border-color: #ef4444;
+}
+
+/* Actress detail page: same action-button row style as title detail. */
+.actress-detail-actions {
+  display: flex;
+  gap: 8px;
+  margin: 8px 0 12px;
+}
+
+.actress-detail-folder-paths {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  margin: 0 0 12px;
+}
+
+.actress-detail-folder-path {
+  font-family: ui-monospace, monospace;
+  font-size: 0.7rem;
+  color: #7fd7ff;
+  text-decoration: none;
+  word-break: break-all;
+  cursor: pointer;
+}
+
+.actress-detail-folder-path:hover {
+  text-decoration: underline;
+}
+
+.title-detail-title-ja {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #ffffff;
+  line-height: 1.4;
+  margin-bottom: 8px;
+}
+
+.title-detail-title-en {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #ffffff;
+  line-height: 1.45;
+  margin-bottom: 6px;
+}
+
+.title-detail-title-en--secondary {
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: #777;
+  margin-bottom: 14px;
+}
+
+.title-detail-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.title-detail-row {
+  display: flex;
+  align-items: baseline;
+  gap: 14px;
+}
+
+.title-detail-label {
+  font-size: 0.62rem;
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+  color: #444;
+  white-space: nowrap;
+  min-width: 64px;
+}
+
+.title-detail-value {
+  font-size: 0.82rem;
+  color: #aaa;
+}
+
+.title-detail-cast {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.title-detail-actress-row {
+  display: block;
+}
+
+.title-detail-actress-first {
+  font-weight: 700;
+  color: #ffffff;
+}
+
+.title-detail-actress-last {
+  font-weight: 400;
+  color: #888;
+}
+
+.title-detail-actress-link {
+  text-decoration: none;
+}
+
+.title-detail-actress-link:hover .title-detail-actress-first,
+.title-detail-actress-link:hover .title-detail-actress-last {
+  color: #ffffff;
+}
+
+.title-detail-company {
+  font-weight: 700;
+  color: #e8c050;
+}
+
+.title-detail-label-name {
+  color: #777;
+}
+
+.title-detail-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.title-detail-grade-row {
+  margin-top: 8px;
+  align-items: center;
+}
+
+.title-detail-visited-row .title-detail-label,
+.title-detail-visited-row .title-detail-value {
+  color: #29b6d4;
+}
+
+.title-detail-grade-label {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #555;
+  letter-spacing: 0.1em;
+}
+
+.title-detail-grade-row .grade-badge {
+  font-size: 1.1rem;
+  padding: 3px 12px;
+  letter-spacing: 0.1em;
+}
+
+.title-detail-watched-row {
+  margin-top: 8px;
+}
+.title-detail-watched-value {
+  color: #8cb4ff;
+  font-size: 0.85rem;
+}
+
+.title-detail-nas-row {
+  margin-top: 12px;
+  align-items: flex-start;
+}
+
+.title-detail-nas-paths {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.title-detail-location-label {
+  color: #ffffff;
+  font-weight: 700;
+}
+
+.title-detail-nas-path {
+  font-family: ui-monospace, monospace;
+  font-size: 0.65rem;
+  color: #00bcd4;
+  word-break: break-all;
+}
+
+/* ── Video sections (right column of title detail) ─────────────────────── */
+.video-loading,
+.video-empty {
+  color: #666;
+  font-size: 0.85rem;
+  padding: 40px 0;
+  text-align: center;
+}
+.video-section {
+  margin-bottom: 24px;
+}
+.video-divider {
+  border: none;
+  border-top: 1px solid #333;
+  margin: 32px 0;
+}
+.video-header {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+.video-filename {
+  font-weight: 700;
+  color: #fff;
+  font-size: 0.9rem;
+  font-family: ui-monospace, monospace;
+}
+.video-size {
+  color: #666;
+  font-size: 0.8rem;
+}
+.video-meta {
+  color: #555;
+  font-size: 0.75rem;
+  letter-spacing: 0.03em;
+}
+.video-folder-link,
+.video-folder-copy {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.72rem;
+  font-family: inherit;
+  font-weight: 500;
+  padding: 3px 9px;
+  border-radius: 4px;
+  border: 1px solid;
+  cursor: pointer;
+  text-decoration: none;
+  transition: background 0.15s, color 0.15s;
+  white-space: nowrap;
+}
+.video-folder-link {
+  color: #60a5fa;
+  border-color: #1e3a5f;
+  background: rgba(96, 165, 250, 0.07);
+}
+.video-folder-link:hover {
+  background: rgba(96, 165, 250, 0.18);
+  border-color: #2d5a9e;
+}
+.video-folder-actions {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.video-folder-copy {
+  color: #fb923c;
+  border-color: #5a2e10;
+  background: rgba(251, 146, 60, 0.07);
+}
+.video-folder-copy:hover {
+  background: rgba(251, 146, 60, 0.18);
+  border-color: #9a4a18;
+}
+.video-thumbs {
+  display: grid;
+  gap: 6px;
+  margin-bottom: 16px;
+}
+.video-thumbs-loading {
+  color: #555;
+  font-size: 0.8rem;
+}
+.thumb-wrapper {
+  position: relative;
+  cursor: pointer;
+}
+.video-thumb {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  object-fit: cover;
+  border-radius: 4px;
+  border: 1px solid #333;
+  cursor: pointer;
+  transition: border-color 0.15s;
+}
+.thumb-time {
+  position: absolute;
+  bottom: 4px;
+  right: 4px;
+  background: rgba(0, 0, 0, 0.75);
+  color: #ddd;
+  font-size: 0.65rem;
+  padding: 1px 4px;
+  border-radius: 3px;
+  pointer-events: none;
+  font-variant-numeric: tabular-nums;
+}
+.thumb-wrapper:hover .video-thumb {
+  border-color: #888;
+  filter: brightness(1.15);
+}
+.thumb-wrapper:active .video-thumb {
+  filter: brightness(0.85);
+  transition: filter 0.05s;
+}
+.thumb-progress {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+.thumb-progress-bar {
+  flex: 1;
+  height: 3px;
+  background: #222;
+  border-radius: 2px;
+  overflow: hidden;
+}
+.thumb-progress-fill {
+  height: 100%;
+  background: #4a80a0;
+  border-radius: 2px;
+  transition: width 0.5s ease;
+}
+.thumb-progress-text {
+  font-size: 0.68rem;
+  color: #555;
+  white-space: nowrap;
+  letter-spacing: 0.03em;
+}
+.video-player-wrap {
+  margin-bottom: 8px;
+  position: relative;
+}
+.video-player {
+  width: 100%;
+  max-height: 500px;
+  background: #000;
+  border-radius: 6px;
+}
+.resume-toast {
+  position: absolute;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(0, 0, 0, 0.8);
+  color: #e0e0e0;
+  font-size: 0.78rem;
+  padding: 6px 16px;
+  border-radius: 4px;
+  z-index: 5;
+  pointer-events: none;
+  animation: toast-fade 3s ease forwards;
+}
+@keyframes toast-fade {
+  0%, 70% { opacity: 1; }
+  100%    { opacity: 0; }
+}
+
+/* Theater mode */
+.theater-btn {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  background: rgba(0, 0, 0, 0.7);
+  color: #aaa;
+  border: 1px solid #444;
+  border-radius: 4px;
+  font-size: 0.7rem;
+  padding: 4px 10px;
+  cursor: pointer;
+  z-index: 5;
+  opacity: 0;
+  transition: opacity 0.2s ease, color 0.15s ease, border-color 0.15s ease;
+}
+.video-player-wrap:hover .theater-btn {
+  opacity: 1;
+}
+.theater-btn:hover {
+  color: #fff;
+  border-color: #888;
+}
+.theater-mode .video-player {
+  max-height: none;
+  height: calc(100vh - 120px);
+}
+.theater-mode .theater-btn {
+  opacity: 1;
+}
+.theater-dimmed {
+  opacity: 0.3;
+  pointer-events: none;
+  transition: opacity 0.3s ease;
+}
+
+/* ── More from this actress ─────────────────────────────────────────────── */
+.more-from-loading {
+  margin-top: 24px;
+  padding-top: 16px;
+  border-top: 1px solid #222;
+  font-size: 0.75rem;
+  color: #444;
+}
+.more-from-section {
+  margin-top: 24px;
+  padding-top: 16px;
+  border-top: 1px solid #222;
+}
+.more-from-heading {
+  font-size: 0.7rem;
+  color: #555;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  margin-bottom: 12px;
+}
+.more-from-name {
+  color: #888;
+}
+.more-from-row {
+  display: flex;
+  gap: 10px;
+  overflow-x: auto;
+  padding-bottom: 8px;
+  scrollbar-width: thin;
+  scrollbar-color: #333 transparent;
+}
+.more-from-row .card {
+  flex: 0 0 150px;
+  min-width: 0;
+  font-size: 0.8em;
+}
+.more-from-row .cover-wrap {
+  height: 100px;
+}
+
