@@ -111,6 +111,43 @@ public class ThumbnailService {
     }
 
     /**
+     * Synchronous thumbnail generation for the background worker.
+     *
+     * <p>Returns immediately if the video is already fully thumbnailed. Otherwise runs
+     * {@link #generateThumbnails} on the calling thread so the caller can bound it with
+     * a timeout. Uses the same in-flight {@code generating} Set as the async path so a
+     * foreground web request and a background worker can't both grab the same video.
+     *
+     * @return true if generation was attempted, false if skipped (already complete or already in-flight)
+     */
+    public boolean generateBlocking(String titleCode, Video video) throws IOException {
+        Path videoDir = resolveVideoDir(titleCode, video.getFilename());
+        int expected = readCountFile(videoDir).orElse(-1);
+        if (expected > 0 && findCachedThumbnails(video.getId(), videoDir, expected).size() == expected) {
+            return false;
+        }
+        String key = titleCode + "/" + video.getFilename();
+        if (!generating.add(key)) return false;
+        try {
+            generateThumbnails(video, videoDir);
+            return true;
+        } finally {
+            generating.remove(key);
+        }
+    }
+
+    /**
+     * Returns true if this video is fully thumbnailed (count marker present and all files exist).
+     * Cheap — filesystem stat only, no video probe.
+     */
+    public boolean isComplete(String titleCode, String videoFilename, long videoId) {
+        Path videoDir = resolveVideoDir(titleCode, videoFilename);
+        int expected = readCountFile(videoDir).orElse(-1);
+        if (expected <= 0) return false;
+        return findCachedThumbnails(videoId, videoDir, expected).size() == expected;
+    }
+
+    /**
      * Returns the local file path for a thumbnail image, or empty if not found.
      */
     public Optional<Path> getThumbnailFile(String titleCode, String videoFilename, String thumbFilename) {

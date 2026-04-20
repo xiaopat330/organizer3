@@ -112,6 +112,18 @@ Deletes all local thumbnails unconditionally.
 
 ---
 
+### `background-thumbs [on|off|status]`
+
+Controls the background thumbnail sync worker (see `spec/PROPOSAL_BACKGROUND_THUMBNAILS.md`).
+
+- `on` — enable pre-generation for favorites, bookmarks, and recently-visited titles
+- `off` — disable
+- `status` (default) — print enabled state, last-cycle queue size, totals generated/evicted this session, and the most recent generation
+
+The worker is low-priority and pauses while the web UI is being used. Default is off; to enable on startup, set `backgroundThumbnails.enabled: true` in `organizer-config.yaml`.
+
+---
+
 ## Organize Pipeline
 
 Commands that operate on intake content before it enters the curated library. Apply to `queue` structure volumes (e.g. `unsorted`). See `spec/PROPOSAL_ORGANIZE_PIPELINE.md` for the full pipeline design.

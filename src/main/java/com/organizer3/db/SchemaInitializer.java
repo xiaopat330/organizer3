@@ -56,7 +56,8 @@ public class SchemaInitializer {
                         awards_json          TEXT,
                         visit_count          INTEGER NOT NULL DEFAULT 0,
                         last_visited_at      TEXT,
-                        needs_profiling      INTEGER NOT NULL DEFAULT 0
+                        needs_profiling      INTEGER NOT NULL DEFAULT 0,
+                        favorite_cleared_at  TEXT
                     )""");
 
             h.execute("""
@@ -84,7 +85,8 @@ public class SchemaInitializer {
                         release_date    TEXT,
                         notes           TEXT,
                         visit_count     INTEGER NOT NULL DEFAULT 0,
-                        last_visited_at TEXT
+                        last_visited_at TEXT,
+                        favorite_cleared_at TEXT
                     )""");
 
             h.execute("""
@@ -332,14 +334,79 @@ public class SchemaInitializer {
                     CREATE INDEX IF NOT EXISTS idx_av_video_screenshots_video
                         ON av_video_screenshots(av_video_id)""");
 
+            // Triggers that auto-maintain favorite_cleared_at on titles + actresses.
+            // On favorite 1→0: stamp NOW. On 0→1: clear. Fires only on UPDATE OF favorite,
+            // so the inner UPDATE of favorite_cleared_at does not recurse.
+            createFavoriteClearedAtTriggers(h);
+
             // Only stamp version on fresh installs (user_version = 0).
             // On an existing DB the CREATE TABLE statements above are all no-ops, so we must
             // leave the version alone and let SchemaUpgrader apply any missing migrations.
             int currentVersion = h.createQuery("PRAGMA user_version").mapTo(Integer.class).one();
             if (currentVersion == 0) {
-                h.execute("PRAGMA user_version = 20");
+                h.execute("PRAGMA user_version = 21");
             }
         });
         log.info("Schema initialization complete");
+    }
+
+    /**
+     * Installs (or re-installs) the four triggers that auto-maintain
+     * {@code favorite_cleared_at} on {@code titles} and {@code actresses}.
+     *
+     * <p>Each table has two triggers:
+     * <ul>
+     *   <li><b>on unfavorite</b> (1→0): stamp {@code favorite_cleared_at = now()}</li>
+     *   <li><b>on refavorite</b> (0→1): clear {@code favorite_cleared_at = NULL}</li>
+     * </ul>
+     *
+     * <p>Safe to run on a DB where the columns already exist; triggers are dropped
+     * and recreated so both fresh-install and migration paths converge on the same
+     * definition.
+     */
+    static void createFavoriteClearedAtTriggers(org.jdbi.v3.core.Handle h) {
+        String[] stmts = new String[] {
+            "DROP TRIGGER IF EXISTS trg_titles_favorite_cleared_on_unfav",
+            "DROP TRIGGER IF EXISTS trg_titles_favorite_cleared_on_refav",
+            "DROP TRIGGER IF EXISTS trg_actresses_favorite_cleared_on_unfav",
+            "DROP TRIGGER IF EXISTS trg_actresses_favorite_cleared_on_refav",
+            """
+            CREATE TRIGGER trg_titles_favorite_cleared_on_unfav
+            AFTER UPDATE OF favorite ON titles
+            FOR EACH ROW
+            WHEN OLD.favorite = 1 AND NEW.favorite = 0
+            BEGIN
+                UPDATE titles SET favorite_cleared_at = datetime('now') WHERE id = NEW.id;
+            END
+            """,
+            """
+            CREATE TRIGGER trg_titles_favorite_cleared_on_refav
+            AFTER UPDATE OF favorite ON titles
+            FOR EACH ROW
+            WHEN OLD.favorite = 0 AND NEW.favorite = 1
+            BEGIN
+                UPDATE titles SET favorite_cleared_at = NULL WHERE id = NEW.id;
+            END
+            """,
+            """
+            CREATE TRIGGER trg_actresses_favorite_cleared_on_unfav
+            AFTER UPDATE OF favorite ON actresses
+            FOR EACH ROW
+            WHEN OLD.favorite = 1 AND NEW.favorite = 0
+            BEGIN
+                UPDATE actresses SET favorite_cleared_at = datetime('now') WHERE id = NEW.id;
+            END
+            """,
+            """
+            CREATE TRIGGER trg_actresses_favorite_cleared_on_refav
+            AFTER UPDATE OF favorite ON actresses
+            FOR EACH ROW
+            WHEN OLD.favorite = 0 AND NEW.favorite = 1
+            BEGIN
+                UPDATE actresses SET favorite_cleared_at = NULL WHERE id = NEW.id;
+            END
+            """
+        };
+        for (String s : stmts) h.execute(s);
     }
 }

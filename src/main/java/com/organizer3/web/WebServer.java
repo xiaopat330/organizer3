@@ -86,6 +86,17 @@ public class WebServer {
     }
 
     /**
+     * Installs a {@code before} hook that bumps the given activity tracker on every
+     * {@code /api/**} request. Used by the background thumbnail worker to detect
+     * quiet periods. Call after construction, before {@link #start()}.
+     */
+    public void registerActivityTracker(com.organizer3.media.UserActivityTracker tracker) {
+        app.before(ctx -> {
+            if (ctx.path().startsWith("/api/")) tracker.bump();
+        });
+    }
+
+    /**
      * Mounts the Title Editor routes ({@code /api/unsorted/*}).
      * Call after construction, before {@link #start()}.
      */
