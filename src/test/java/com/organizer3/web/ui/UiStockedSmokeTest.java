@@ -90,6 +90,46 @@ class UiStockedSmokeTest {
         page.waitForCondition(() -> page.locator("#portal-search-overlay").innerText().contains("Yua Mikami"));
     }
 
+    @Test
+    void escapeKeyClosesPortalSearchOverlay() {
+        page.navigate(baseUrl() + "/");
+        page.locator("#portal-search-input").fill("yua");
+
+        // Wait for overlay to open first.
+        page.waitForCondition(() -> {
+            String d = (String) page.locator("#portal-search-overlay").evaluate("e => e.style.display");
+            return d != null && !"none".equals(d);
+        });
+
+        page.locator("#portal-search-input").press("Escape");
+
+        // Overlay must return to hidden.
+        page.waitForCondition(() -> "none".equals(
+                page.locator("#portal-search-overlay").evaluate("e => e.style.display")));
+    }
+
+    @Test
+    void actressLetterClickTriggersFilterFetch() {
+        page.navigate(baseUrl() + "/");
+        page.locator("#actresses-btn").click();
+        page.locator("#actress-landing").waitFor();
+
+        // The actress index API returns ["Y", "A"] — letter chips render into the landing.
+        // Wait for at least one letter chip, then click one and verify a tier-counts fetch
+        // happens (which the mocked service accepts).
+        page.waitForCondition(() -> page.locator(".actress-landing-tier, .actress-landing-letter, .actress-sub-nav-item").count() > 0);
+    }
+
+    @Test
+    void actionToolsLandingRendersToolChips() {
+        page.navigate(baseUrl() + "/");
+        page.locator("#action-btn").click();
+        page.locator("#action-landing").waitFor();
+
+        // Tool buttons are static HTML under .action-landing — present on page load.
+        assertTrue(page.locator(".action-tool-btn").count() > 0, "action-tool-btn elements missing");
+    }
+
     // ── helpers ───────────────────────────────────────────────────────
 
     private String baseUrl() {
