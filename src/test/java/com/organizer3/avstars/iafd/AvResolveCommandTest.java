@@ -182,6 +182,56 @@ class AvResolveCommandTest {
         assertTrue(out.toString().contains("Updated"));
     }
 
+    // ── av resolve id <name> <iafd-id> ────────────────────────────────────────
+
+    @Test
+    void resolveIdMissingIdPrintsUsage() {
+        cmd.execute(new String[]{"av resolve", "id", "Anissa"}, null, io);
+        assertTrue(out.toString().contains("Usage: av resolve id"));
+        verifyNoInteractions(actressRepo, iafdClient);
+    }
+
+    @Test
+    void resolveIdUnknownActressPrintsNoMatch() {
+        when(actressRepo.findAllByVideoCountDesc()).thenReturn(List.of());
+        cmd.execute(new String[]{"av resolve", "id", "Nobody", "abc-123"}, null, io);
+        assertTrue(out.toString().contains("No actress found"));
+        verifyNoInteractions(iafdClient);
+    }
+
+    @Test
+    void resolveIdFetchesProfileAndPersists() {
+        when(actressRepo.findAllByVideoCountDesc()).thenReturn(List.of(actress("Anissa Kate", null)));
+        when(iafdClient.fetchProfile("abc-123"))
+                .thenReturn("<html><div id='perftabs'>Performer Credits (10)</div></html>");
+
+        cmd.execute(new String[]{"av resolve", "id", "Anissa", "Kate", "abc-123"}, null, io);
+
+        verify(iafdClient).fetchProfile("abc-123");
+        verify(actressRepo).updateIafdFields(eq(1L), any(), any());
+        assertTrue(out.toString().contains("Resolved:"));
+    }
+
+    @Test
+    void resolveIdReportsIafdFetchFailureGracefully() {
+        when(actressRepo.findAllByVideoCountDesc()).thenReturn(List.of(actress("Anissa Kate", null)));
+        when(iafdClient.fetchProfile("bad-id")).thenThrow(new IafdFetchException("404"));
+
+        cmd.execute(new String[]{"av resolve", "id", "Anissa Kate", "bad-id"}, null, io);
+
+        assertTrue(out.toString().contains("IAFD fetch failed"));
+        verify(actressRepo, never()).updateIafdFields(anyLong(), any(), any());
+    }
+
+    // ── av resolve refresh — usage gap ─────────────────────────────────────────
+
+    @Test
+    void refreshWithoutNamePrintsUsage() {
+        cmd.execute(new String[]{"av resolve", "refresh"}, null, io);
+        assertTrue(out.toString().contains("Usage: av resolve refresh"));
+        verifyNoInteractions(actressRepo, iafdClient);
+    }
+
     // ── command metadata ───────────────────────────────────────────────────────
 
     @Test
