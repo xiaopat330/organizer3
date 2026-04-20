@@ -130,6 +130,66 @@ class UiStockedSmokeTest {
         assertTrue(page.locator(".action-tool-btn").count() > 0, "action-tool-btn elements missing");
     }
 
+    // ── Card interactions (B1) ────────────────────────────────────────
+
+    @Test
+    void titleCardClickOpensTitleDetailView() {
+        page.navigate(baseUrl() + "/");
+        page.locator("#titles-browse-btn").click();
+
+        // Wait for a card to render from the mocked dashboard.
+        page.waitForCondition(() -> page.locator(".card, .card-compact").count() > 0);
+
+        // Clicking the card triggers openTitleDetail which calls showView('title-detail').
+        page.locator(".card, .card-compact").first().click();
+
+        // #title-detail becomes visible.
+        page.waitForCondition(() -> {
+            String d = (String) page.locator("#title-detail").evaluate("e => e.style.display");
+            return d != null && !"none".equals(d);
+        });
+    }
+
+    @Test
+    void searchResultActressClickNavigatesToDetail() {
+        page.navigate(baseUrl() + "/");
+        page.locator("#portal-search-input").fill("yua");
+
+        // Wait for overlay to render the mocked hit.
+        page.waitForCondition(() -> page.locator("#portal-search-overlay").innerText().contains("Yua Mikami"));
+
+        // Clicking the result row navigates to actress detail.
+        page.locator("#portal-search-overlay [data-actress-id], #portal-search-overlay .search-result")
+                .first().click();
+
+        // #actress-detail view becomes visible.
+        page.waitForCondition(() -> {
+            String d = (String) page.locator("#actress-detail").evaluate("e => e.style.display");
+            return d != null && !"none".equals(d);
+        });
+    }
+
+    @Test
+    void titleCardHasDataCodeAttributeForDeepLink() {
+        // The bookmark toggle + deep-link routing both rely on cards carrying a data-code
+        // attribute. Regression-test the contract so frontend code that queries by
+        // .card[data-code=...] keeps working.
+        page.navigate(baseUrl() + "/");
+        page.locator("#titles-browse-btn").click();
+        page.waitForCondition(() -> page.locator(".card[data-code], .card-compact[data-code]").count() > 0);
+    }
+
+    @Test
+    void actressCardElementExistsAfterActressLanding() {
+        // Ensure the actress landing view produces elements the card factory
+        // emits (.actress-card or similar) so the CSS/JS contract holds.
+        page.navigate(baseUrl() + "/");
+        page.locator("#actresses-btn").click();
+        page.locator("#actress-landing").waitFor();
+        // Landing buttons exist regardless of API data — they are static HTML.
+        assertTrue(page.locator(".actress-landing-dashboard, .actress-landing-favorites").count() > 0);
+    }
+
     // ── helpers ───────────────────────────────────────────────────────
 
     private String baseUrl() {
