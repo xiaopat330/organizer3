@@ -1208,6 +1208,55 @@ public class JdbiActressRepository implements ActressRepository {
     }
 
     @Override
+    public List<FederatedActressResult> searchForEditor(String query, boolean startsWith, int limit) {
+        String pattern = startsWith ? query + "%" : "%" + query + "%";
+        return jdbi.withHandle(h ->
+                h.createQuery("""
+                        WITH matches AS (
+                          SELECT a.id, a.canonical_name, a.stage_name, a.tier, a.grade,
+                                 a.favorite, a.bookmark,
+                                 aa.alias_name AS matched_alias, 0 AS is_canonical
+                          FROM actresses a
+                          JOIN actress_aliases aa ON aa.actress_id = a.id
+                          WHERE aa.alias_name LIKE :pattern COLLATE NOCASE AND a.rejected = 0
+                          UNION ALL
+                          SELECT a.id, a.canonical_name, a.stage_name, a.tier, a.grade,
+                                 a.favorite, a.bookmark,
+                                 NULL AS matched_alias, 1 AS is_canonical
+                          FROM actresses a
+                          WHERE a.canonical_name LIKE :pattern COLLATE NOCASE AND a.rejected = 0
+                        ),
+                        ranked AS (
+                          SELECT *, ROW_NUMBER() OVER (PARTITION BY id ORDER BY is_canonical DESC) AS rn
+                          FROM matches
+                        )
+                        SELECT r.id, r.canonical_name, r.stage_name, r.tier, r.grade,
+                               r.favorite, r.bookmark, r.matched_alias,
+                               0 AS title_count, NULL AS cover_candidates
+                        FROM ranked r
+                        WHERE r.rn = 1
+                        ORDER BY r.favorite DESC, r.bookmark DESC, r.canonical_name
+                        LIMIT :limit
+                        """)
+                        .bind("pattern", pattern)
+                        .bind("limit", limit)
+                        .map((rs, ctx) -> new FederatedActressResult(
+                                rs.getLong("id"),
+                                rs.getString("canonical_name"),
+                                rs.getString("stage_name"),
+                                rs.getString("tier"),
+                                rs.getString("grade"),
+                                rs.getInt("favorite") != 0,
+                                rs.getInt("bookmark") != 0,
+                                rs.getString("matched_alias"),
+                                rs.getInt("title_count"),
+                                rs.getString("cover_candidates")
+                        ))
+                        .list()
+        );
+    }
+
+    @Override
     public List<FederatedActressResult> searchForFederated(String query, boolean startsWith, int limit) {
         String pattern = startsWith ? query + "%" : "%" + query + "%";
         return jdbi.withHandle(h ->

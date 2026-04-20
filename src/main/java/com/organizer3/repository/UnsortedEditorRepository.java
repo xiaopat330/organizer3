@@ -80,4 +80,11 @@ public interface UnsortedEditorRepository {
 
     /** Run {@code work} inside a single JDBI transaction. */
     <T> T inTransaction(java.util.function.Function<org.jdbi.v3.core.Handle, T> work);
+
+    /**
+     * In-transaction variant of {@link #replaceActresses} — the caller supplies the Handle
+     * so this can run alongside other mutations (e.g. draft actress creation) in a single
+     * transaction.
+     */
+    void replaceActressesInTx(org.jdbi.v3.core.Handle h, long titleId, List<Long> actressIds, long primaryActressId);
 }

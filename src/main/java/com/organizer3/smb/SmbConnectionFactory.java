@@ -146,6 +146,16 @@ public class SmbConnectionFactory {
          * supports {@code read(byte[], long, int, int)} for offset-based reads.
          * The caller must close the returned handle.
          */
+        /**
+         * Expose the share as a {@link com.organizer3.filesystem.VolumeFileSystem} so write
+         * paths (move, createDirectories, writeFile) are available from the web layer.
+         * The returned filesystem is backed by the same {@link DiskShare} as this handle —
+         * closing the handle closes the filesystem.
+         */
+        public com.organizer3.filesystem.VolumeFileSystem fileSystem() {
+            return new SmbFileSystem(share, subPath);
+        }
+
         public File openFileHandle(String relativePath) throws IOException {
             String smbPath = toSmbPath(relativePath);
             try {
