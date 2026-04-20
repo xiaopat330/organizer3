@@ -225,10 +225,53 @@
 <!-- Tools landing sub-nav -->
 <div id="action-landing" class="action-landing" style="display:none">
   <div class="action-landing-row" id="action-landing-tools-row">
+    <button type="button" id="tools-aliases-btn" class="action-tool-btn tools-aliases-btn">
+      <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="7" r="3"/><path d="M2 21v-2a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v2"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/><path d="M21 21v-2a4 4 0 0 0-3-3.87"/></svg>
+      Aliases
+    </button>
     <button type="button" id="tools-duplicates-btn" class="action-tool-btn tools-duplicates-btn">
       <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="8" width="13" height="13" rx="2"/><path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h3"/></svg>
       Duplicates
     </button>
+  </div>
+</div>
+
+<!-- Aliases tool content -->
+<div id="tools-aliases-view" style="display:none">
+  <div class="alias-search-wrap">
+    <input type="text" id="alias-search-input" class="alias-search-input" placeholder="Search actresses or aliases…" autocomplete="off" spellcheck="false">
+    <div id="alias-search-overlay" class="alias-search-overlay" style="display:none"></div>
+  </div>
+  <div id="alias-editor-hint" class="alias-editor-hint">Type at least 2 characters to search. Click a result to open the alias editor.</div>
+</div>
+
+<!-- Alias editor modal -->
+<div id="alias-modal-overlay" class="alias-modal-overlay" style="display:none">
+  <div class="alias-modal">
+    <div class="alias-modal-header">
+      <span id="alias-modal-title" class="alias-modal-title"></span>
+      <div class="alias-modal-header-actions">
+        <button id="alias-modal-save" class="alias-modal-save-btn">Save</button>
+        <button id="alias-modal-cancel" class="alias-modal-cancel-btn">Cancel</button>
+      </div>
+    </div>
+    <div class="alias-modal-body">
+      <div id="alias-modal-left" class="alias-modal-left"></div>
+      <div id="alias-modal-right" class="alias-modal-right">
+        <div class="alias-editor-heading">Aliases</div>
+        <table class="alias-table">
+          <thead>
+            <tr>
+              <th class="alias-col-first">First Name</th>
+              <th class="alias-col-last">Name</th>
+              <th class="alias-col-remove"></th>
+            </tr>
+          </thead>
+          <tbody id="alias-table-body"></tbody>
+        </table>
+        <button id="alias-add-btn" class="alias-add-btn">+ Add alias</button>
+      </div>
+    </div>
   </div>
 </div>
 

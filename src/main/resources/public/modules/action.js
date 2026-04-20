@@ -3,9 +3,11 @@ import { pushNav } from './nav.js';
 import { makeCompactTitleCard } from './cards.js';
 import { esc } from './utils.js';
 import { renderVideoSection } from './title-detail.js';
+import { showAliasEditor, hideAliasEditorView } from './alias-editor.js';
 
 // ── DOM refs ──────────────────────────────────────────────────────────────
 const actionBtn         = document.getElementById('action-btn');
+const aliasesBtn        = document.getElementById('tools-aliases-btn');
 const duplicatesBtn     = document.getElementById('tools-duplicates-btn');
 const duplicatesView    = document.getElementById('tools-duplicates-view');
 const duplicatesFilters = document.getElementById('tools-duplicates-filters');
@@ -19,7 +21,7 @@ const dupDetailBody     = document.getElementById('dup-detail-body');
 const dupDetailClose    = document.getElementById('dup-detail-close');
 
 // ── Tool buttons ──────────────────────────────────────────────────────────
-const TOOL_BTNS = [duplicatesBtn];
+const TOOL_BTNS = [aliasesBtn, duplicatesBtn];
 
 function selectTool(btn) {
   TOOL_BTNS.forEach(b => b?.classList.remove('selected'));
@@ -27,6 +29,7 @@ function selectTool(btn) {
 }
 
 function hideAllToolViews() {
+  hideAliasEditorView();
   duplicatesView.style.display    = 'none';
   duplicatesFilters.style.display = 'none';
 }
@@ -277,4 +280,13 @@ document.addEventListener('keydown', e => {
 
 // ── Button wiring ─────────────────────────────────────────────────────────
 actionBtn.addEventListener('click', () => showActionView());
+
+aliasesBtn.addEventListener('click', () => {
+  showActionView('aliases');
+  selectTool(aliasesBtn);
+  updateBreadcrumb([{ label: 'Tools' }, { label: 'Aliases' }]);
+  hideAllToolViews();
+  showAliasEditor();
+});
+
 duplicatesBtn.addEventListener('click', showDuplicates);
