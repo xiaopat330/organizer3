@@ -32,7 +32,15 @@ const actressHint   = document.getElementById('queue-actress-hint');
 
 const saveBtn       = document.getElementById('queue-save-btn');
 const skipBtn       = document.getElementById('queue-skip-btn');
+const advanceCb     = document.getElementById('queue-advance-after-save');
 const statusEl      = document.getElementById('queue-editor-status');
+
+// Restore persisted preference, default on.
+const ADVANCE_KEY = 'queue.advanceAfterSave';
+advanceCb.checked = (localStorage.getItem(ADVANCE_KEY) ?? '1') === '1';
+advanceCb.addEventListener('change', () => {
+  localStorage.setItem(ADVANCE_KEY, advanceCb.checked ? '1' : '0');
+});
 
 // ── Module state ──────────────────────────────────────────────────────────
 let queueRows = [];          // [{titleId, code, folderName, actressCount, hasCover, complete}]
@@ -127,6 +135,25 @@ skipBtn.addEventListener('click', () => {
   currentId = next.titleId;
   loadDetail(next.titleId).then(renderSidebar);
 });
+
+/**
+ * After a Save, return the titleId of the next item in the currently-visible sidebar.
+ * Preference is the row that now sits at the same ordinal position as {@code savedId}
+ * was before the save — because the filter may have dropped the saved row (e.g. it
+ * became "complete" and the filter hides complete titles). If the filter kept it, we
+ * just walk to the next row. Returns null when no candidate remains.
+ */
+function nextTitleIdAfter(savedId) {
+  const rows = visibleRows();
+  if (!rows.length) return null;
+  const idx = rows.findIndex(r => r.titleId === savedId);
+  if (idx < 0) {
+    // Saved row dropped out of view (filtered). Use the first remaining row.
+    return rows[0].titleId;
+  }
+  // Saved row is still visible — take the one after it. Don't wrap; stop at end.
+  return idx + 1 < rows.length ? rows[idx + 1].titleId : null;
+}
 
 // ── Load + render editor pane ─────────────────────────────────────────────
 async function loadDetail(titleId) {
@@ -670,10 +697,20 @@ saveBtn.addEventListener('click', async () => {
       }
     }
 
-    // 3. Refresh sidebar and current detail
+    // 3. Refresh sidebar; then either advance to the next title or reload the current one.
     await loadQueue();
-    await loadDetail(currentId);
-    setStatus(actData.folderRenamed ? 'Saved · folder renamed' : 'Saved', 'success');
+    const savedId = currentId;
+    const nextId = advanceCb.checked ? nextTitleIdAfter(savedId) : null;
+    if (nextId != null) {
+      currentId = nextId;
+      await loadDetail(nextId);
+    } else {
+      if (advanceCb.checked) showEmpty();  // nothing left in the current filtered view
+      else await loadDetail(savedId);
+    }
+    renderSidebar();
+    const base = actData.folderRenamed ? 'Saved · folder renamed' : 'Saved';
+    setStatus(nextId != null ? base + ' · next title loaded' : base, 'success');
   } catch (err) {
     console.error('Save failed', err);
     setStatus('Save failed: ' + (err.message || err), 'error');

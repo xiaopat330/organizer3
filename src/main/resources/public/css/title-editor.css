@@ -719,6 +719,18 @@
 .queue-btn-primary:hover:not(:disabled) { background: #b45309; border-color: #d97706; }
 .queue-btn-primary:disabled { opacity: 0.4; cursor: not-allowed; }
 
+.queue-advance-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: #888;
+  font-size: 0.78rem;
+  cursor: pointer;
+  user-select: none;
+  margin-left: 8px;
+}
+.queue-advance-toggle input { cursor: pointer; }
+
 .queue-editor-status {
   margin-left: auto;
   font-size: 0.78rem;
