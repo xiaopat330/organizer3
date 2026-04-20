@@ -1232,9 +1232,17 @@ public class JdbiActressRepository implements ActressRepository {
                         )
                         SELECT r.id, r.canonical_name, r.stage_name, r.tier, r.grade,
                                r.favorite, r.bookmark, r.matched_alias,
-                               0 AS title_count, NULL AS cover_candidates
+                               COUNT(t.id) AS title_count,
+                               (SELECT GROUP_CONCAT(sub.label || ':' || sub.base_code, '|')
+                                FROM (SELECT tc.label, tc.base_code FROM titles tc
+                                      WHERE tc.actress_id = r.id
+                                        AND tc.base_code IS NOT NULL AND tc.label IS NOT NULL
+                                      ORDER BY tc.id DESC LIMIT 5) sub
+                               ) AS cover_candidates
                         FROM ranked r
+                        LEFT JOIN titles t ON t.actress_id = r.id
                         WHERE r.rn = 1
+                        GROUP BY r.id
                         ORDER BY r.favorite DESC, r.bookmark DESC, r.canonical_name
                         LIMIT :limit
                         """)

@@ -287,6 +287,18 @@ async function runSearch() {
   }
 }
 
+// Bold-red highlight of the matched substring in a name. Case-insensitive.
+function highlight(text, query) {
+  if (!text) return '';
+  const t = String(text);
+  if (!query) return esc(t);
+  const idx = t.toLowerCase().indexOf(query.toLowerCase());
+  if (idx < 0) return esc(t);
+  return esc(t.slice(0, idx))
+       + '<strong class="queue-actress-match">' + esc(t.slice(idx, idx + query.length)) + '</strong>'
+       + esc(t.slice(idx + query.length));
+}
+
 function renderSuggest(hits, query) {
   actressSuggest.innerHTML = '';
   suggestHighlight = -1;
@@ -294,14 +306,33 @@ function renderSuggest(hits, query) {
   const takenNames = new Set(editorState.actresses.map(a => a.canonicalName.toLowerCase()));
 
   const filtered = hits.filter(h => !taken.has(h.id));
-  filtered.forEach((h, i) => {
+  filtered.forEach((h) => {
     const item = document.createElement('div');
     item.className = 'queue-actress-suggest-item';
-    let html = `<span>${esc(h.canonicalName)}</span>`;
-    if (h.matchedAlias) {
-      html += `<span class="queue-actress-suggest-alias">(matched: ${esc(h.matchedAlias)})</span>`;
-    }
-    item.innerHTML = html;
+
+    const thumb = h.coverUrl
+        ? `<div class="queue-actress-suggest-thumb" style="background-image:url(${esc(h.coverUrl)})"></div>`
+        : `<div class="queue-actress-suggest-thumb queue-actress-suggest-thumb-empty"></div>`;
+
+    const stage = h.stageName
+        ? `<span class="queue-actress-suggest-stage">${highlight(h.stageName, query)}</span>` : '';
+    const alias = h.matchedAlias
+        ? `<span class="queue-actress-suggest-alias">a.k.a. ${highlight(h.matchedAlias, query)}</span>` : '';
+    const tier  = h.tier
+        ? `<span class="queue-actress-suggest-tier tier-${(h.tier || '').toLowerCase()}">${esc(h.tier)}</span>` : '';
+    const count = h.titleCount > 0
+        ? `<span class="queue-actress-suggest-count">${h.titleCount}</span>` : '';
+
+    item.innerHTML = thumb
+        + '<div class="queue-actress-suggest-body">'
+        +   `<div class="queue-actress-suggest-row1">`
+        +     `<span class="queue-actress-suggest-name">${highlight(h.canonicalName, query)}</span>`
+        +     stage
+        +   `</div>`
+        +   (alias || tier || count
+              ? `<div class="queue-actress-suggest-row2">${alias}${tier}${count}</div>`
+              : '')
+        + '</div>';
     item.addEventListener('click', () => addExisting(h));
     actressSuggest.appendChild(item);
   });
@@ -310,7 +341,8 @@ function renderSuggest(hits, query) {
   if (!exactMatch && !takenNames.has(query.toLowerCase())) {
     const create = document.createElement('div');
     create.className = 'queue-actress-suggest-item queue-actress-suggest-create';
-    create.textContent = `+ Create "${query}"`;
+    create.innerHTML = `<div class="queue-actress-suggest-thumb queue-actress-suggest-thumb-empty"></div>`
+                     + `<div class="queue-actress-suggest-body"><span class="queue-actress-suggest-name">+ Create "${esc(query)}"</span></div>`;
     create.addEventListener('click', () => addDraft(query));
     actressSuggest.appendChild(create);
   }

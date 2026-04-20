@@ -111,21 +111,46 @@ public class UnsortedEditorService {
 
     // ── Typeahead ────────────────────────────────────────────────────────
 
-    /** Typeahead row annotated with the matched alias (if any) for UI transparency. */
+    /** Typeahead row shaped for the editor's overlay — mirrors the federated-search fields. */
     public record ActressSearchRow(
             long id,
             String canonicalName,
             String stageName,
             /** Non-null when the match was via an alias rather than the canonical name. */
-            String matchedAlias
+            String matchedAlias,
+            String tier,
+            String grade,
+            boolean favorite,
+            boolean bookmark,
+            int titleCount,
+            /** Local URL to one of the actress's title covers, or null if none cached. */
+            String coverUrl
     ) {}
 
     public List<ActressSearchRow> searchActresses(String query, int limit) {
         if (query == null || query.isBlank()) return List.of();
         List<FederatedActressResult> raw = actressRepo.searchForEditor(query, false, limit);
         return raw.stream()
-                .map(r -> new ActressSearchRow(r.id(), r.canonicalName(), r.stageName(), r.matchedAlias()))
+                .map(r -> new ActressSearchRow(
+                        r.id(), r.canonicalName(), r.stageName(), r.matchedAlias(),
+                        r.tier(), r.grade(), r.favorite(), r.bookmark(),
+                        r.titleCount(), resolveCoverUrl(r.coverCandidates())))
                 .toList();
+    }
+
+    private String resolveCoverUrl(String coverCandidates) {
+        if (coverCandidates == null || coverCandidates.isBlank()) return null;
+        for (String candidate : coverCandidates.split("\\|")) {
+            int colon = candidate.indexOf(':');
+            if (colon < 0) continue;
+            String label    = candidate.substring(0, colon);
+            String baseCode = candidate.substring(colon + 1);
+            Title synth = Title.builder().label(label).baseCode(baseCode).build();
+            Optional<String> url = coverPath.find(synth)
+                    .map(p -> "/covers/" + label.toUpperCase() + "/" + p.getFileName());
+            if (url.isPresent()) return url.get();
+        }
+        return null;
     }
 
     // ── Save actress assignments (transactional, with inline create) ────
