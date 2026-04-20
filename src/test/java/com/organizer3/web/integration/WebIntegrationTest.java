@@ -2,6 +2,7 @@ package com.organizer3.web.integration;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.organizer3.model.Actress;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -11,6 +12,7 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.time.LocalDate;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -119,6 +121,27 @@ class WebIntegrationTest {
 
         HttpResponse<String> off = post(favUrl);
         assertFalse(mapper.readTree(off.body()).get("favorite").asBoolean());
+    }
+
+    @Test
+    void inlineBuilderFixtureSeedsTwoActressesWithCoStarTitle() throws IOException, InterruptedException {
+        // Demonstrates per-test composition via FixtureBuilder — no seedMinimal/seedRich needed
+        // when a test wants its own specific shape. Cheaper than extending the canned fixtures
+        // for one-off scenarios.
+        var f = h.fixture()
+                .label("ABP", "Prestige")
+                .actress("star1", a -> a.canonical("Hikaru Konno").tier(Actress.Tier.SUPERSTAR))
+                .actress("star2", a -> a.canonical("Rika Aimi").tier(Actress.Tier.POPULAR))
+                .title("duo", t -> t.code("ABP-500").label("ABP").seqNum(500).actress("star1"))
+                .coStar("duo", "star2")
+                .location("duo", "vol-a", "stars", "/stars/ABP-500", LocalDate.of(2024, 5, 1))
+                .build();
+
+        JsonNode body = mapper.readTree(get("/api/titles").body());
+        assertEquals(1, body.size());
+        assertEquals("ABP-500", body.get(0).get("code").asText());
+        assertEquals(2, body.get(0).get("actresses").size(), "co-star count from builder");
+        assertNotEquals(0L, f.actressId("star1"));
     }
 
     @Test
