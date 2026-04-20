@@ -205,7 +205,10 @@ public class UnsortedEditorService {
             fs.rename(Path.of(currentPath), targetName);
             log.info("Renamed title {} folder: {} -> {}", titleId, currentPath, newPath);
         } catch (IOException e) {
-            throw new RuntimeException("Folder rename failed: " + e.getMessage(), e);
+            String rootCause = e.getCause() != null ? e.getCause().toString() : "(no cause)";
+            log.warn("Folder rename failed for title {} ({} -> {}): {} / root: {}",
+                    titleId, currentPath, newPath, e.getMessage(), rootCause);
+            throw new RuntimeException("Folder rename failed: " + e.getMessage() + " / " + rootCause, e);
         }
 
         repo.renameFolderInDb(titleId, unsortedVolumeId, currentPath, newPath);
