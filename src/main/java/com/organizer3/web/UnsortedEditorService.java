@@ -1,14 +1,18 @@
 package com.organizer3.web;
 
 import com.organizer3.covers.CoverPath;
+import com.organizer3.filesystem.VolumeFileSystem;
 import com.organizer3.model.Title;
 import com.organizer3.repository.ActressRepository;
 import com.organizer3.repository.ActressRepository.FederatedActressResult;
 import com.organizer3.repository.UnsortedEditorRepository;
 import com.organizer3.repository.UnsortedEditorRepository.EligibleTitle;
 import com.organizer3.repository.UnsortedEditorRepository.TitleDetail;
-import lombok.RequiredArgsConstructor;
+import com.organizer3.smb.SmbConnectionFactory;
+import lombok.extern.slf4j.Slf4j;
 
+import java.io.IOException;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -18,13 +22,24 @@ import java.util.Optional;
  * derived data (cover-present, complete status, typeahead shaping) that is not
  * worth pushing into persistence-layer queries.
  */
-@RequiredArgsConstructor
+@Slf4j
 public class UnsortedEditorService {
 
     private final UnsortedEditorRepository repo;
     private final ActressRepository actressRepo;
     private final CoverPath coverPath;
+    private final SmbConnectionFactory smbFactory;
     private final String unsortedVolumeId;
+
+    public UnsortedEditorService(UnsortedEditorRepository repo, ActressRepository actressRepo,
+                                 CoverPath coverPath, SmbConnectionFactory smbFactory,
+                                 String unsortedVolumeId) {
+        this.repo = repo;
+        this.actressRepo = actressRepo;
+        this.coverPath = coverPath;
+        this.smbFactory = smbFactory;
+        this.unsortedVolumeId = unsortedVolumeId;
+    }
 
     public String volumeId() {
         return unsortedVolumeId;
@@ -106,7 +121,8 @@ public class UnsortedEditorService {
         public boolean isExisting() { return id != null; }
     }
 
-    public record SaveResult(List<Long> actressIds, long primaryActressId) {}
+    public record SaveResult(List<Long> actressIds, long primaryActressId,
+                             String folderPath, boolean folderRenamed) {}
 
     /**
      * Apply a full actress-list replacement, creating any draft actresses inline in the
@@ -134,7 +150,7 @@ public class UnsortedEditorService {
             }
         }
 
-        return repo.inTransaction(h -> {
+        SaveResult committed = repo.inTransaction(h -> {
             // Resolve draft actresses first (create) so we know their ids before link.
             List<Long> ids = new ArrayList<>(entries.size());
             Long primaryId = null;
@@ -152,8 +168,73 @@ public class UnsortedEditorService {
                 throw new IllegalArgumentException("Primary actress is not in the list");
             }
             repo.replaceActressesInTx(h, titleId, ids, primaryId);
-            return new SaveResult(ids, primaryId);
+            return new SaveResult(ids, primaryId, null, false);
         });
+
+        // Folder rename (SMB + DB path rewrite) happens after the DB commit so we never
+        // hold a SQLite lock across a network op. If the SMB rename fails, actresses are
+        // still saved — callers see the failure via the returned error.
+        return renameFolderIfNeeded(titleId, committed);
+    }
+
+    /**
+     * If the title's current folder name differs from {@code {PrimaryCanonical} (CODE)}, perform
+     * the SMB rename and update DB paths. Returns an updated {@link SaveResult}.
+     */
+    private SaveResult renameFolderIfNeeded(long titleId, SaveResult committed) {
+        var detail = repo.findEligibleById(titleId, unsortedVolumeId).orElse(null);
+        if (detail == null) return committed;  // race — can't rename
+        String currentPath = detail.folderPath();
+        String currentName = basename(currentPath);
+        String primaryName = repo.findActressCanonicalName(committed.primaryActressId()).orElse(null);
+        if (primaryName == null) return committed;
+
+        String targetName = sanitizeFolderName(primaryName + " (" + detail.code() + ")");
+        if (targetName.equals(currentName)) {
+            return new SaveResult(committed.actressIds(), committed.primaryActressId(), currentPath, false);
+        }
+
+        String parent = parentPath(currentPath);
+        String newPath = parent.isEmpty() ? targetName : parent + "/" + targetName;
+
+        try (SmbConnectionFactory.SmbShareHandle handle = smbFactory.open(unsortedVolumeId)) {
+            VolumeFileSystem fs = handle.fileSystem();
+            if (fs.exists(Path.of(newPath)) && !newPath.equalsIgnoreCase(currentPath)) {
+                throw new IllegalStateException("Target folder already exists: " + newPath);
+            }
+            fs.rename(Path.of(currentPath), targetName);
+            log.info("Renamed title {} folder: {} -> {}", titleId, currentPath, newPath);
+        } catch (IOException e) {
+            throw new RuntimeException("Folder rename failed: " + e.getMessage(), e);
+        }
+
+        repo.renameFolderInDb(titleId, unsortedVolumeId, currentPath, newPath);
+        return new SaveResult(committed.actressIds(), committed.primaryActressId(), newPath, true);
+    }
+
+    /** Strip filesystem-unsafe characters. Keeps letters, digits, spaces, parens, hyphens, dots, ampersands, apostrophes. */
+    static String sanitizeFolderName(String raw) {
+        StringBuilder sb = new StringBuilder(raw.length());
+        for (char c : raw.toCharArray()) {
+            if (c == '/' || c == '\\' || c == ':' || c == '*' || c == '?' || c == '"'
+                    || c == '<' || c == '>' || c == '|') {
+                sb.append(' ');
+            } else {
+                sb.append(c);
+            }
+        }
+        // Collapse runs of spaces and trim.
+        return sb.toString().replaceAll("\\s+", " ").trim();
+    }
+
+    private static String basename(String path) {
+        int i = path.lastIndexOf('/');
+        return i < 0 ? path : path.substring(i + 1);
+    }
+
+    private static String parentPath(String path) {
+        int i = path.lastIndexOf('/');
+        return i < 0 ? "" : path.substring(0, i);
     }
 
     private long createDraftOrReuse(org.jdbi.v3.core.Handle h, String name) {

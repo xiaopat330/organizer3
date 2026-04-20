@@ -38,7 +38,7 @@ unsorted (queue)
 
 | Field     | Rule |
 |-----------|------|
-| Actresses | 1 or more required. User can add and remove freely, but cannot reduce to zero. Save is blocked if count = 0. One actress is marked **primary** (see Primary actress below). |
+| Actresses | 1 or more required. User can add and remove freely, but cannot reduce to zero. Save is blocked if count = 0. One actress is marked **primary** (see Primary actress below). On save, the title folder is renamed to match the primary (see Folder rename). |
 | Cover     | Optional. User can attach a cover image via URL drop, local file drop, or clipboard paste (image or URL). Replaces any existing cover on save. If a cover already exists, a one-shot confirmation is shown before replacement. If no cover is provided, existing cover (if any) is preserved. |
 
 ### Primary actress
@@ -48,6 +48,21 @@ One actress in the list is always marked primary (star / radio affordance). On s
 - **Default primary:** whichever actress sync already set as `actress_id`. If none, the first-added actress.
 - **If the primary is removed:** the UI forces the user to pick a new primary before save is enabled.
 - Primary is a distinct concept from list order — reordering the list does not change the primary, and the editor does not capture any other ordering.
+
+### Folder rename
+
+On save, the title folder on the unsorted volume is renamed to match the library convention:
+
+    {PrimaryActressCanonicalName} ({code})
+
+Example: `/fresh/(RKI-745)` → `/fresh/Haruna Kawai (RKI-745)`.
+
+- Only the folder basename changes; the parent directory stays the same.
+- No-op when the current folder name already matches the target.
+- Actress name is sanitized: filesystem-unsafe characters (`/ \ : * ? " < > |`) are replaced with a space, and runs of spaces are collapsed.
+- **Ordering:** the DB actress save commits first (its own transaction), then the SMB rename runs, then the DB path rewrite (title_locations.path + video paths rooted under the folder) runs in a second transaction. This keeps SQLite locks off the network path.
+- **Failure mode:** if the SMB rename fails, the actress save is already committed and the folder is unchanged on disk. The save endpoint returns 500 with the error message; the next successful save will re-attempt the rename.
+- Collision guard: if the target folder name already exists (and isn't the current folder), the rename is aborted with a clear error.
 
 ### Adding a new actress (not in DB)
 
@@ -176,6 +191,6 @@ Paste is scoped to the drop zone rather than the window to avoid conflicting wit
 ## Out of Scope
 
 - Moving/redistributing titles out of unsorted — separate redistribution command
-- Editing title metadata beyond actresses and cover (code, folder name, video files)
+- Editing title metadata beyond actresses, cover, and folder-name-derived-from-primary (code itself, video filenames)
 - Editing titles in any volume other than unsorted
 - Bulk editing

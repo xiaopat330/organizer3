@@ -87,4 +87,16 @@ public interface UnsortedEditorRepository {
      * transaction.
      */
     void replaceActressesInTx(org.jdbi.v3.core.Handle h, long titleId, List<Long> actressIds, long primaryActressId);
+
+    /**
+     * Rename the folder for a title location from {@code oldFolderPath} to {@code newFolderPath}
+     * in the DB: updates {@code title_locations.path} and rewrites {@code videos.path} for every
+     * video rooted under the old folder. Does not touch the filesystem.
+     *
+     * <p>Call after a successful SMB rename so the DB reflects on-disk state.
+     */
+    void renameFolderInDb(long titleId, String volumeId, String oldFolderPath, String newFolderPath);
+
+    /** Return the canonical name of an actress by id, or empty. */
+    Optional<String> findActressCanonicalName(long actressId);
 }

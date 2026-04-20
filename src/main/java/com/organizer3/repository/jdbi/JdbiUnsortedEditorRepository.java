@@ -166,6 +166,43 @@ public class JdbiUnsortedEditorRepository implements UnsortedEditorRepository {
         return jdbi.inTransaction(work::apply);
     }
 
+    @Override
+    public void renameFolderInDb(long titleId, String volumeId, String oldFolderPath, String newFolderPath) {
+        jdbi.useTransaction(h -> {
+            h.createUpdate("""
+                    UPDATE title_locations SET path = :newPath
+                    WHERE title_id = :titleId AND volume_id = :volumeId AND path = :oldPath
+                    """)
+                    .bind("newPath", newFolderPath)
+                    .bind("oldPath", oldFolderPath)
+                    .bind("titleId", titleId)
+                    .bind("volumeId", volumeId)
+                    .execute();
+            // Rewrite video paths that sit under the old folder.
+            h.createUpdate("""
+                    UPDATE videos
+                    SET path = :newPrefix || substr(path, length(:oldPrefix) + 1)
+                    WHERE title_id = :titleId
+                      AND volume_id = :volumeId
+                      AND substr(path, 1, length(:oldPrefix)) = :oldPrefix
+                    """)
+                    .bind("newPrefix", newFolderPath)
+                    .bind("oldPrefix", oldFolderPath)
+                    .bind("titleId", titleId)
+                    .bind("volumeId", volumeId)
+                    .execute();
+        });
+    }
+
+    @Override
+    public Optional<String> findActressCanonicalName(long actressId) {
+        return jdbi.withHandle(h -> h.createQuery(
+                        "SELECT canonical_name FROM actresses WHERE id = :id")
+                .bind("id", actressId)
+                .mapTo(String.class)
+                .findFirst());
+    }
+
     private static String basename(String path) {
         if (path == null || path.isEmpty()) return "";
         int idx = path.lastIndexOf('/');

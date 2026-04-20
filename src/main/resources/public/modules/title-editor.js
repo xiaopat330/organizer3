@@ -445,6 +445,7 @@ saveBtn.addEventListener('click', async () => {
       body: JSON.stringify(actressPayload)
     });
     if (!actRes.ok) throw new Error('Actresses: ' + await actRes.text());
+    const actData = await actRes.json();
 
     // 2. Cover save (if staged)
     if (editorState.coverStaged) {
@@ -467,7 +468,7 @@ saveBtn.addEventListener('click', async () => {
     // 3. Refresh sidebar and current detail
     await loadQueue();
     await loadDetail(currentId);
-    setStatus('Saved', 'success');
+    setStatus(actData.folderRenamed ? 'Saved · folder renamed' : 'Saved', 'success');
   } catch (err) {
     console.error('Save failed', err);
     setStatus('Save failed: ' + (err.message || err), 'error');

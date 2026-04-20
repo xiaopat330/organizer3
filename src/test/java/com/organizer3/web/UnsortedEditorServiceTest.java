@@ -12,6 +12,7 @@ import com.organizer3.repository.jdbi.JdbiTitleLocationRepository;
 import com.organizer3.repository.jdbi.JdbiTitleRepository;
 import com.organizer3.repository.jdbi.JdbiUnsortedEditorRepository;
 import com.organizer3.repository.jdbi.JdbiVideoRepository;
+import com.organizer3.smb.SmbConnectionFactory;
 import org.jdbi.v3.core.Jdbi;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -55,10 +56,21 @@ class UnsortedEditorServiceTest {
         videoRepo = new JdbiVideoRepository(jdbi);
         titleActressRepo = new JdbiTitleActressRepository(jdbi);
         coverPath = new CoverPath(dataDir);
+        // Rename path is always triggered when primary name + code differs from the folder.
+        // Wire up a fake SMB handle whose filesystem accepts rename as a no-op so the focus
+        // stays on the DB/service behavior. A separate test exercises rename path explicitly.
+        SmbConnectionFactory smbFactory = org.mockito.Mockito.mock(SmbConnectionFactory.class);
+        SmbConnectionFactory.SmbShareHandle handle = org.mockito.Mockito.mock(SmbConnectionFactory.SmbShareHandle.class);
+        com.organizer3.filesystem.VolumeFileSystem fs =
+                org.mockito.Mockito.mock(com.organizer3.filesystem.VolumeFileSystem.class);
+        org.mockito.Mockito.when(smbFactory.open(VOL)).thenReturn(handle);
+        org.mockito.Mockito.when(handle.fileSystem()).thenReturn(fs);
+        org.mockito.Mockito.when(fs.exists(org.mockito.ArgumentMatchers.any())).thenReturn(false);
         service = new UnsortedEditorService(
                 new JdbiUnsortedEditorRepository(jdbi),
                 actressRepo,
                 coverPath,
+                smbFactory,
                 VOL);
     }
 
@@ -154,6 +166,14 @@ class UnsortedEditorServiceTest {
                 "SELECT COUNT(*) FROM actresses WHERE canonical_name = 'Aika Suzuki' COLLATE NOCASE")
                 .mapTo(Long.class).one());
         assertEquals(1, count);
+    }
+
+    @Test
+    void sanitizeFolderNameStripsForbiddenCharacters() {
+        assertEquals("Name (CODE-1)",       UnsortedEditorService.sanitizeFolderName("Name (CODE-1)"));
+        assertEquals("A B (X-1)",           UnsortedEditorService.sanitizeFolderName("A/B (X-1)"));
+        assertEquals("Foo Bar (Y-2)",       UnsortedEditorService.sanitizeFolderName("Foo:Bar (Y-2)"));
+        assertEquals("Who (Z-3)",           UnsortedEditorService.sanitizeFolderName("Who?  (Z-3)"));
     }
 
     @Test

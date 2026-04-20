@@ -70,13 +70,19 @@ public class UnsortedEditorRoutes {
                         .toList();
                 ActressEntry primary = new ActressEntry(body.primary.id, body.primary.newName);
                 var result = editor.replaceActresses(id, entries, primary);
-                ctx.json(Map.of(
-                        "actressIds", result.actressIds(),
-                        "primaryActressId", result.primaryActressId()));
+                Map<String, Object> resp = new java.util.LinkedHashMap<>();
+                resp.put("actressIds", result.actressIds());
+                resp.put("primaryActressId", result.primaryActressId());
+                resp.put("folderRenamed", result.folderRenamed());
+                if (result.folderPath() != null) resp.put("folderPath", result.folderPath());
+                ctx.json(resp);
             } catch (IllegalArgumentException e) {
                 ctx.status(400).result(e.getMessage());
             } catch (IllegalStateException e) {
                 ctx.status(409).result(e.getMessage());
+            } catch (RuntimeException e) {
+                log.warn("Actress save failed: {}", e.getMessage());
+                ctx.status(500).result(e.getMessage());
             }
         });
 

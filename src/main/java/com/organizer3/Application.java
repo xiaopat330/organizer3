@@ -410,7 +410,8 @@ public class Application {
         com.organizer3.repository.UnsortedEditorRepository unsortedRepo =
                 new com.organizer3.repository.jdbi.JdbiUnsortedEditorRepository(jdbi);
         com.organizer3.web.UnsortedEditorService unsortedEditorService =
-                new com.organizer3.web.UnsortedEditorService(unsortedRepo, actressRepo, coverPath, UNSORTED_VOLUME_ID);
+                new com.organizer3.web.UnsortedEditorService(unsortedRepo, actressRepo, coverPath,
+                        smbConnectionFactory, UNSORTED_VOLUME_ID);
         com.organizer3.web.CoverWriteService coverWriteService =
                 new com.organizer3.web.CoverWriteService(smbConnectionFactory, coverPath, UNSORTED_VOLUME_ID);
         com.organizer3.web.ImageFetcher imageFetcher = new com.organizer3.web.ImageFetcher();
