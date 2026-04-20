@@ -66,7 +66,7 @@ Default timeout: `generation-timeout-sec: 300` (5 min per video).
 ### Failure handling
 
 - **Retry policy:** one automatic retry on failure, then the video is added to an in-memory "skip" set for the rest of the process lifetime. Fail set is cleared on app restart — gives the user a natural way to retry (restart the shell).
-- **Unmounted volume:** worker consults the volume connection registry and skips any video whose `volume_id` isn't currently mounted. No auto-mount attempt — mount lifecycle stays owned by shell commands. For a user who only runs the shell every few weeks, this naturally means the worker idles between sessions, which is the desired behavior.
+- **Unreachable NAS:** there is no explicit mount-state check. The web layer (which the worker reuses for streaming) opens its own SMB connection per request via `SmbConnectionFactory` and has no shell-level mount concept. A volume being unavailable manifests as an SMB connect/read failure inside `generateBlocking`, which the per-video timeout catches and routes through the retry/fail-set path.
 
 ## Changes to `ThumbnailService`
 

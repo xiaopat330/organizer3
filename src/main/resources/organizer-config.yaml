@@ -11,6 +11,18 @@ thumbnailInterval: 8
 thumbnailColumns: 5
 coverCropPercent: 47
 
+# Background thumbnail sync — see spec/PROPOSAL_BACKGROUND_THUMBNAILS.md.
+# Pre-generates thumbnails for titles with attention signal (favorites, bookmarks,
+# recent visits). Opt-in; runtime toggle: `background-thumbs on|off|status`.
+backgroundThumbnails:
+  enabled: false
+  quietThresholdSec: 30        # wait this long after user activity before running
+  maxCandidatesPerCycle: 200
+  idleSleepSec: 300
+  startupDelaySec: 600         # delay first cycle after boot
+  generationTimeoutSec: 300    # per-video hard timeout (hang protection)
+  evictionDays: 30             # evict cold non-sticky thumbnails after N days; 0 disables
+
 servers:
   - id: athena
     username: patri
