@@ -421,18 +421,36 @@ function isDirty() {
   return JSON.stringify(editorState.actresses) !== editorState.initialActresses;
 }
 
+const DESCRIPTOR_ALLOWED = /^[A-Za-z0-9 _@#=+,;]*$/;
+
 descriptorInput.addEventListener('input', () => {
   if (!editorState) return;
   editorState.descriptor = descriptorInput.value;
   updateDescriptorPreview();
+  updateSaveEnabled();
 });
 
+function descriptorIsValid() {
+  const v = (editorState?.descriptor || '').trim();
+  return DESCRIPTOR_ALLOWED.test(v);
+}
+
 function updateDescriptorPreview() {
-  if (!currentDetail || !editorState) { descriptorPreview.textContent = ''; return; }
+  if (!currentDetail || !editorState) {
+    descriptorPreview.textContent = '';
+    descriptorInput.classList.remove('invalid');
+    return;
+  }
   const primary = editorState.actresses.find(a => a.primary);
   const primaryName = primary ? primary.canonicalName : '(primary)';
   const code = currentDetail.detail.code;
   const desc = (editorState.descriptor || '').trim();
+  const valid = descriptorIsValid();
+  descriptorInput.classList.toggle('invalid', !valid);
+  if (!valid) {
+    descriptorPreview.textContent = 'invalid — allowed: letters, digits, space, _ @ # = + , ;';
+    return;
+  }
   descriptorPreview.textContent = desc
       ? `${primaryName} - ${desc} (${code})`
       : `${primaryName} (${code})`;
@@ -446,6 +464,7 @@ function canSave() {
   if (!editorState) return false;
   if (editorState.actresses.length === 0) return false;
   if (!editorState.actresses.some(a => a.primary)) return false;
+  if (!descriptorIsValid()) return false;
   return true;
 }
 

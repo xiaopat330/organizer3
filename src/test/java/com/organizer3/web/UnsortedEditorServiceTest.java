@@ -169,6 +169,39 @@ class UnsortedEditorServiceTest {
     }
 
     @Test
+    void validateDescriptorAcceptsAllowedCharacters() {
+        assertEquals("",                       UnsortedEditorService.validateDescriptor(null));
+        assertEquals("",                       UnsortedEditorService.validateDescriptor(""));
+        assertEquals("",                       UnsortedEditorService.validateDescriptor("   "));
+        assertEquals("Demosaiced",             UnsortedEditorService.validateDescriptor("Demosaiced"));
+        assertEquals("4K Extended Cut",        UnsortedEditorService.validateDescriptor("  4K Extended Cut  "));
+        assertEquals("v2 @ home #1, #2; +alt", UnsortedEditorService.validateDescriptor("v2 @ home #1, #2; +alt"));
+        assertEquals("a_b=c",                  UnsortedEditorService.validateDescriptor("a_b=c"));
+    }
+
+    @Test
+    void validateDescriptorRejectsHyphenAndReservedCharacters() {
+        for (String bad : new String[]{
+                "has-dash",                  // hyphen (delimiter)
+                "slash/no",                  // /
+                "back\\slash",               // \
+                "co:lon",                    // :
+                "aster*isk",                 // *
+                "quest?ion",                 // ?
+                "quo\"te",                   // "
+                "lt<gt>",                    // < >
+                "pi|pe",                     // |
+                "with.dot",                  // . not in allowlist
+                "paren(s)",                  // parens not in allowlist
+                "naïve",                     // non-ASCII
+        }) {
+            assertThrows(IllegalArgumentException.class,
+                    () -> UnsortedEditorService.validateDescriptor(bad),
+                    "expected rejection for: " + bad);
+        }
+    }
+
+    @Test
     void extractDescriptorPullsSuffixBetweenDashAndCode() {
         assertEquals("Demosaiced",
                 UnsortedEditorService.extractDescriptor("Nao Wakana - Demosaiced (ABP-527)", "ABP-527"));

@@ -157,6 +157,10 @@
   border-color: #f59e0b;
   outline: none;
 }
+.queue-descriptor-input.invalid,
+.queue-descriptor-input.invalid:focus {
+  border-color: #ef4444;
+}
 .queue-descriptor-hint {
   color: #666;
   font-size: 0.74rem;

@@ -62,6 +62,16 @@ Examples:
 
 The descriptor is an optional editorial tag (`Demosaiced`, `4K`, `Uncut`, etc.). It has no DB column — the folder basename is the durable storage, and the editor extracts it on load by splitting the basename on ` - ` before the trailing ` (code)`. Empty by default for unsorted folders that don't yet carry one.
 
+**Descriptor character rules** (enforced both client-side for live feedback and server-side as a hard gate):
+
+- Allowed: ASCII letters, digits, spaces, and the punctuation `_ @ # = + , ;`.
+- Forbidden:
+  - The hyphen `-` (reserved as the `actress - descriptor` delimiter).
+  - Filesystem-reserved characters from any OS: `/ \ : * ? " < > |`.
+  - Dots, parentheses, non-ASCII characters — not on the allowlist.
+- Leading/trailing whitespace is trimmed; internal runs of spaces are preserved.
+- Save is blocked (and the input is outlined red) when the current value fails the allowlist.
+
 - Only the folder basename changes; the parent directory stays the same.
 - No-op when the current folder name already matches the target.
 - Actress name is sanitized: filesystem-unsafe characters (`/ \ : * ? " < > |`) are replaced with a space, and runs of spaces are collapsed.

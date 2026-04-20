@@ -16,6 +16,7 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.regex.Pattern;
 
 /**
  * Service layer for the Title Editor. Aggregates repository calls and adds
@@ -150,8 +151,30 @@ public class UnsortedEditorService {
         return replaceActresses(titleId, entries, primary, null);
     }
 
+    /**
+     * Descriptor character allowlist: ASCII letters/digits, space, and the punctuation
+     * {@code _ @ # = + , ;}. The hyphen is reserved as the {@code actress - descriptor}
+     * delimiter; any filesystem-unsafe character ({@code / \ : * ? " < > |}) is excluded.
+     */
+    private static final Pattern DESCRIPTOR_ALLOWED = Pattern.compile("^[A-Za-z0-9 _@#=+,;]*$");
+
+    /** Validate and normalize a descriptor. Returns empty string when input is null/blank. */
+    public static String validateDescriptor(String descriptor) {
+        if (descriptor == null) return "";
+        String trimmed = descriptor.trim();
+        if (trimmed.isEmpty()) return "";
+        if (!DESCRIPTOR_ALLOWED.matcher(trimmed).matches()) {
+            throw new IllegalArgumentException(
+                    "Descriptor may only contain letters, digits, spaces, and _ @ # = + , ; "
+                            + "(no hyphens or filesystem-reserved characters)");
+        }
+        return trimmed;
+    }
+
     public SaveResult replaceActresses(long titleId, List<ActressEntry> entries, ActressEntry primary,
                                        String descriptor) {
+        // Fail fast before any DB writes.
+        final String validatedDescriptor = validateDescriptor(descriptor);
         if (entries == null || entries.isEmpty()) {
             throw new IllegalArgumentException("Actress list must not be empty");
         }
@@ -196,7 +219,7 @@ public class UnsortedEditorService {
         // Folder rename (SMB + DB path rewrite) happens after the DB commit so we never
         // hold a SQLite lock across a network op. If the SMB rename fails, actresses are
         // still saved — callers see the failure via the returned error.
-        return renameFolderIfNeeded(titleId, committed, descriptor);
+        return renameFolderIfNeeded(titleId, committed, validatedDescriptor);
     }
 
     /**
