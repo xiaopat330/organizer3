@@ -75,6 +75,9 @@ dependencies {
     testImplementation "org.mockito:mockito-core:${mockitoVersion}"
     testImplementation "org.mockito:mockito-junit-jupiter:${mockitoVersion}"
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+
+    // UI smoke tests (tag=ui, opt-in via uiTest task). Downloads Chromium on first run.
+    testImplementation "com.microsoft.playwright:playwright:${playwrightVersion}"
 }
 
 application {
@@ -86,7 +89,9 @@ run {
 }
 
 test {
-    useJUnitPlatform()
+    useJUnitPlatform {
+        excludeTags 'ui'
+    }
     finalizedBy jacocoTestReport
 }
 
@@ -96,6 +101,18 @@ jacocoTestReport {
         xml.required = true
         html.required = true
     }
+}
+
+// Browser-driven smoke tests. Opt-in; downloads Chromium on first run.
+tasks.register('uiTest', Test) {
+    description = 'Run Playwright browser smoke tests (tag: ui). Downloads Chromium on first run.'
+    group = 'verification'
+    testClassesDirs = sourceSets.test.output.classesDirs
+    classpath = sourceSets.test.runtimeClasspath
+    useJUnitPlatform {
+        includeTags 'ui'
+    }
+    shouldRunAfter test
 }
 
 tasks.register('dropDb') {
