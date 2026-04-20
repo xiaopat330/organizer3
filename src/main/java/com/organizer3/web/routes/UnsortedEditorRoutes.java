@@ -69,7 +69,7 @@ public class UnsortedEditorRoutes {
                         .map(e -> new ActressEntry(e.id, e.newName))
                         .toList();
                 ActressEntry primary = new ActressEntry(body.primary.id, body.primary.newName);
-                var result = editor.replaceActresses(id, entries, primary);
+                var result = editor.replaceActresses(id, entries, primary, body.descriptor);
                 Map<String, Object> resp = new java.util.LinkedHashMap<>();
                 resp.put("actressIds", result.actressIds());
                 resp.put("primaryActressId", result.primaryActressId());
@@ -178,6 +178,7 @@ public class UnsortedEditorRoutes {
     public static class ActressSaveBody {
         public List<ActressItem> actresses;
         public ActressItem primary;
+        public String descriptor;
     }
 
     public static class CoverUrlBody {

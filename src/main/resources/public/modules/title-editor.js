@@ -18,6 +18,8 @@ const coverPanel    = document.getElementById('queue-cover-panel');
 const coverImg      = document.getElementById('queue-cover-img');
 const coverPlaceholder = document.getElementById('queue-cover-placeholder');
 
+const descriptorInput   = document.getElementById('queue-descriptor-input');
+const descriptorPreview = document.getElementById('queue-descriptor-preview');
 const actressList   = document.getElementById('queue-actress-list');
 const actressInput  = document.getElementById('queue-actress-input');
 const actressSuggest= document.getElementById('queue-actress-suggest');
@@ -144,12 +146,15 @@ function buildInitialState(detail) {
     primary: a.primary,
     isNew: false
   }));
+  const descriptor = detail.descriptor || '';
   return {
     actresses,
+    descriptor,
     coverStaged: null,
     coverDirty: false,
     hasExistingCover: !!detail.hasCover,
-    initial: JSON.stringify(actresses)
+    initialActresses: JSON.stringify(actresses),
+    initialDescriptor: descriptor
   };
 }
 
@@ -160,6 +165,8 @@ function renderEditor() {
   const d = currentDetail.detail;
   codeEl.textContent = d.code;
   folderEl.textContent = d.folderName;
+  descriptorInput.value = editorState.descriptor || '';
+  updateDescriptorPreview();
 
   // Cover preview
   if (currentDetail.hasCover && currentDetail.coverFilename && !editorState.coverDirty) {
@@ -220,6 +227,7 @@ function renderActresses() {
 function setPrimary(idx) {
   editorState.actresses.forEach((a, i) => a.primary = (i === idx));
   renderActresses();
+  updateDescriptorPreview();
   updateSaveEnabled();
 }
 
@@ -409,7 +417,25 @@ function stageUrl(url) {
 function isDirty() {
   if (!editorState) return false;
   if (editorState.coverDirty) return true;
-  return JSON.stringify(editorState.actresses) !== editorState.initial;
+  if ((editorState.descriptor || '') !== (editorState.initialDescriptor || '')) return true;
+  return JSON.stringify(editorState.actresses) !== editorState.initialActresses;
+}
+
+descriptorInput.addEventListener('input', () => {
+  if (!editorState) return;
+  editorState.descriptor = descriptorInput.value;
+  updateDescriptorPreview();
+});
+
+function updateDescriptorPreview() {
+  if (!currentDetail || !editorState) { descriptorPreview.textContent = ''; return; }
+  const primary = editorState.actresses.find(a => a.primary);
+  const primaryName = primary ? primary.canonicalName : '(primary)';
+  const code = currentDetail.detail.code;
+  const desc = (editorState.descriptor || '').trim();
+  descriptorPreview.textContent = desc
+      ? `${primaryName} - ${desc} (${code})`
+      : `${primaryName} (${code})`;
 }
 
 function updateSaveEnabled() {
@@ -437,7 +463,8 @@ saveBtn.addEventListener('click', async () => {
       primary: (() => {
         const p = editorState.actresses.find(a => a.primary);
         return p.isNew ? { newName: p.newName } : { id: p.id };
-      })()
+      })(),
+      descriptor: (editorState.descriptor || '').trim() || null
     };
     const actRes = await fetch(`/api/unsorted/titles/${currentId}/actresses`, {
       method: 'PUT',

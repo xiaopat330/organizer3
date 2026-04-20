@@ -169,6 +169,20 @@ class UnsortedEditorServiceTest {
     }
 
     @Test
+    void extractDescriptorPullsSuffixBetweenDashAndCode() {
+        assertEquals("Demosaiced",
+                UnsortedEditorService.extractDescriptor("Nao Wakana - Demosaiced (ABP-527)", "ABP-527"));
+        assertEquals("4K Extended Cut",
+                UnsortedEditorService.extractDescriptor("Yua Aida - 4K Extended Cut (ONED-125)", "ONED-125"));
+        assertEquals("",
+                UnsortedEditorService.extractDescriptor("Nami Nanami (RKI-738)", "RKI-738"));
+        assertEquals("",
+                UnsortedEditorService.extractDescriptor("(RKI-738)", "RKI-738"));
+        assertEquals("",
+                UnsortedEditorService.extractDescriptor("Something completely different", "CODE-1"));
+    }
+
+    @Test
     void sanitizeFolderNameStripsForbiddenCharacters() {
         assertEquals("Name (CODE-1)",       UnsortedEditorService.sanitizeFolderName("Name (CODE-1)"));
         assertEquals("A B (X-1)",           UnsortedEditorService.sanitizeFolderName("A/B (X-1)"));

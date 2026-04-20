@@ -54,8 +54,13 @@ One actress in the list is always marked primary (star / radio affordance). On s
 On save, the title folder on the unsorted volume is renamed to match the library convention:
 
     {PrimaryActressCanonicalName} ({code})
+    {PrimaryActressCanonicalName} - {Descriptor} ({code})   (when the optional descriptor is set)
 
-Example: `/fresh/(RKI-745)` → `/fresh/Haruna Kawai (RKI-745)`.
+Examples:
+- `/fresh/(RKI-745)` → `/fresh/Haruna Kawai (RKI-745)`
+- `/fresh/(ONED-125)` → `/fresh/Yua Aida - Demosaiced (ONED-125)` (descriptor = `Demosaiced`)
+
+The descriptor is an optional editorial tag (`Demosaiced`, `4K`, `Uncut`, etc.). It has no DB column — the folder basename is the durable storage, and the editor extracts it on load by splitting the basename on ` - ` before the trailing ` (code)`. Empty by default for unsorted folders that don't yet carry one.
 
 - Only the folder basename changes; the parent directory stays the same.
 - No-op when the current folder name already matches the target.

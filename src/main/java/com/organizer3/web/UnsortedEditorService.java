@@ -73,11 +73,28 @@ public class UnsortedEditorService {
         return repo.findEligibleById(titleId, unsortedVolumeId)
                 .map(detail -> {
                     String coverFile = coverFilename(detail.label(), detail.baseCode());
-                    return new TitleDetailView(detail, coverFile != null, coverFile);
+                    String descriptor = extractDescriptor(detail.folderName(), detail.code());
+                    return new TitleDetailView(detail, coverFile != null, coverFile, descriptor);
                 });
     }
 
-    public record TitleDetailView(TitleDetail detail, boolean hasCover, String coverFilename) {}
+    public record TitleDetailView(TitleDetail detail, boolean hasCover, String coverFilename, String descriptor) {}
+
+    /**
+     * Pull the folder-name descriptor (e.g. "Demosaiced") out of a basename like
+     * {@code "Nao Wakana - Demosaiced (ABP-527)"}. Returns empty string when there is no
+     * {@code " - "} separator before the code. The prefix (actress / title stub) is discarded
+     * — we only keep the text that would sit after the primary actress on a rewrite.
+     */
+    static String extractDescriptor(String folderName, String code) {
+        if (folderName == null || code == null) return "";
+        String suffix = " (" + code + ")";
+        if (!folderName.endsWith(suffix)) return "";
+        String prefix = folderName.substring(0, folderName.length() - suffix.length());
+        int sep = prefix.indexOf(" - ");
+        if (sep < 0) return "";
+        return prefix.substring(sep + 3).trim();
+    }
 
     private boolean coverExists(String label, String baseCode) {
         return coverFilename(label, baseCode) != null;
@@ -130,6 +147,11 @@ public class UnsortedEditorService {
      * (empty list, primary not in list, blank draft name).
      */
     public SaveResult replaceActresses(long titleId, List<ActressEntry> entries, ActressEntry primary) {
+        return replaceActresses(titleId, entries, primary, null);
+    }
+
+    public SaveResult replaceActresses(long titleId, List<ActressEntry> entries, ActressEntry primary,
+                                       String descriptor) {
         if (entries == null || entries.isEmpty()) {
             throw new IllegalArgumentException("Actress list must not be empty");
         }
@@ -174,14 +196,16 @@ public class UnsortedEditorService {
         // Folder rename (SMB + DB path rewrite) happens after the DB commit so we never
         // hold a SQLite lock across a network op. If the SMB rename fails, actresses are
         // still saved — callers see the failure via the returned error.
-        return renameFolderIfNeeded(titleId, committed);
+        return renameFolderIfNeeded(titleId, committed, descriptor);
     }
 
     /**
-     * If the title's current folder name differs from {@code {PrimaryCanonical} (CODE)}, perform
-     * the SMB rename and update DB paths. Returns an updated {@link SaveResult}.
+     * If the title's current folder name differs from the target pattern, perform the SMB
+     * rename and update DB paths. Target pattern is
+     * {@code "{PrimaryCanonical} - {Descriptor} ({code})"} when {@code descriptor} is non-blank,
+     * otherwise {@code "{PrimaryCanonical} ({code})"}. Returns an updated {@link SaveResult}.
      */
-    private SaveResult renameFolderIfNeeded(long titleId, SaveResult committed) {
+    private SaveResult renameFolderIfNeeded(long titleId, SaveResult committed, String descriptor) {
         var detail = repo.findEligibleById(titleId, unsortedVolumeId).orElse(null);
         if (detail == null) return committed;  // race — can't rename
         String currentPath = detail.folderPath();
@@ -189,7 +213,11 @@ public class UnsortedEditorService {
         String primaryName = repo.findActressCanonicalName(committed.primaryActressId()).orElse(null);
         if (primaryName == null) return committed;
 
-        String targetName = sanitizeFolderName(primaryName + " (" + detail.code() + ")");
+        String desc = descriptor == null ? "" : descriptor.trim();
+        String base = desc.isEmpty()
+                ? primaryName + " (" + detail.code() + ")"
+                : primaryName + " - " + desc + " (" + detail.code() + ")";
+        String targetName = sanitizeFolderName(base);
         if (targetName.equals(currentName)) {
             return new SaveResult(committed.actressIds(), committed.primaryActressId(), currentPath, false);
         }
