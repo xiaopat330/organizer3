@@ -50,6 +50,7 @@ import com.organizer3.command.Command;
 import com.organizer3.command.FavoritesCommand;
 import com.organizer3.command.LoadActressCommand;
 import com.organizer3.command.HelpCommand;
+import com.organizer3.command.BackgroundThumbsCommand;
 import com.organizer3.command.ClearThumbnailsCommand;
 import com.organizer3.command.MountCommand;
 import com.organizer3.command.PruneCoversCommand;
@@ -74,7 +75,11 @@ import com.organizer3.db.TagSeeder;
 import com.organizer3.db.SchemaInitializer;
 import com.organizer3.db.SchemaUpgrader;
 import com.organizer3.db.TitleEffectiveTagsService;
+import com.organizer3.media.BackgroundThumbnailQueue;
+import com.organizer3.media.BackgroundThumbnailWorker;
+import com.organizer3.media.ThumbnailEvictor;
 import com.organizer3.media.ThumbnailService;
+import com.organizer3.media.UserActivityTracker;
 import com.organizer3.media.VideoProbe;
 import com.organizer3.enrichment.ActressYamlLoader;
 import com.organizer3.repository.ActressRepository;
@@ -336,6 +341,15 @@ public class Application {
         commands.add(new PruneThumbnailsCommand(titleRepo, thumbnailService));
         commands.add(new ClearThumbnailsCommand(thumbnailService));
 
+        // Background thumbnail sync — see spec/PROPOSAL_BACKGROUND_THUMBNAILS.md
+        UserActivityTracker activityTracker = new UserActivityTracker();
+        BackgroundThumbnailQueue bgQueue = new BackgroundThumbnailQueue(jdbi);
+        ThumbnailEvictor bgEvictor = new ThumbnailEvictor(jdbi, thumbnailService);
+        BackgroundThumbnailWorker bgWorker = new BackgroundThumbnailWorker(
+                config.backgroundThumbnailsOrDefaults(),
+                bgQueue, thumbnailService, bgEvictor, videoRepo, activityTracker);
+        commands.add(new BackgroundThumbsCommand(bgWorker));
+
         // Sync commands — registered dynamically from syncConfig.
         // Group by term so that a term shared across structure types (e.g. sync all)
         // produces a single command that accepts all of those types.
@@ -403,6 +417,7 @@ public class Application {
                 avHeadshotDir, smbConnectionFactory, avVideoRepo, avActressRepo,
                 avScreenshotRepo, avScreenshotDir, avTagDefRepo, avScreenshotService);
         webServer.registerTerminal(new WebTerminalHandler(dispatcher, session));
+        webServer.registerActivityTracker(activityTracker);
 
         // Title Editor — metadata preparation for fully-structured titles in the unsorted volume.
         // See spec/PROPOSAL_TITLE_EDITOR.md.
@@ -501,11 +516,13 @@ public class Application {
         }
 
         webServer.start();
+        bgWorker.start();
 
         OrganizerShell shell = new OrganizerShell(session, dispatcher);
         shell.run();
 
         webServer.stop();
+        bgWorker.stop();
         backupScheduler.stop();
         probeJobRunner.shutdown();
         if (mcpRoDb != null) mcpRoDb.close();

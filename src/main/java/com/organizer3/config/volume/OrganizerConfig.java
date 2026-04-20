@@ -27,7 +27,8 @@ public record OrganizerConfig(
         @JsonProperty("mcp")             McpConfig mcp,
         @JsonProperty("library")         LibraryConfig library,
         @JsonProperty("normalize")       NormalizeConfig normalize,
-        @JsonProperty("media")           MediaConfig media
+        @JsonProperty("media")           MediaConfig media,
+        @JsonProperty("backgroundThumbnails") BackgroundThumbnailConfig backgroundThumbnails
 ) {
     /** Legacy ctor for tests that predate the organize-pipeline blocks. */
     public OrganizerConfig(String appName, String dataDir,
@@ -38,7 +39,7 @@ public record OrganizerConfig(
                            BackupConfig backup, McpConfig mcp) {
         this(appName, dataDir, maxBrowseTitles, maxRandomTitles, maxRandomActresses,
              thumbnailInterval, thumbnailColumns, coverCropPercent,
-             servers, volumes, structures, syncConfig, backup, mcp, null, null, null);
+             servers, volumes, structures, syncConfig, backup, mcp, null, null, null, null);
     }
 
     /** Legacy ctor for test sites that predate the {@code mcp:} block. */
@@ -50,7 +51,12 @@ public record OrganizerConfig(
                            BackupConfig backup) {
         this(appName, dataDir, maxBrowseTitles, maxRandomTitles, maxRandomActresses,
              thumbnailInterval, thumbnailColumns, coverCropPercent,
-             servers, volumes, structures, syncConfig, backup, null, null, null, null);
+             servers, volumes, structures, syncConfig, backup, null, null, null, null, null);
+    }
+
+    /** Returns the background-thumbnail config, or defaults (disabled) if unset. */
+    public BackgroundThumbnailConfig backgroundThumbnailsOrDefaults() {
+        return backgroundThumbnails != null ? backgroundThumbnails : BackgroundThumbnailConfig.DEFAULTS;
     }
 
     /** Returns the library config, or defaults if unset. */
