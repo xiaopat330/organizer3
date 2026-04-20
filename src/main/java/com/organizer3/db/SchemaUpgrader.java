@@ -19,7 +19,7 @@ import org.jdbi.v3.core.Jdbi;
 public class SchemaUpgrader {
 
     /** Must match the version stamped by {@link SchemaInitializer}. */
-    private static final int CURRENT_VERSION = 19;
+    private static final int CURRENT_VERSION = 20;
 
     private final Jdbi jdbi;
 
@@ -118,7 +118,23 @@ public class SchemaUpgrader {
             setVersion(19);
         }
 
+        if (version < 20) {
+            applyV20();
+            setVersion(20);
+        }
+
         log.info("Schema upgrade complete");
+    }
+
+    /**
+     * v20: {@code needs_profiling} flag on actresses. Set to 1 for actresses created via the
+     * Title Editor's inline-create flow so MCP / AI tooling can surface them as profiling
+     * candidates. Existing actresses remain at the default (0).
+     */
+    private void applyV20() {
+        log.info("Applying migration v20: actresses.needs_profiling");
+        jdbi.useHandle(h -> addColumnIfMissing(h, "actresses", "needs_profiling",
+                "INTEGER NOT NULL DEFAULT 0"));
     }
 
     /**

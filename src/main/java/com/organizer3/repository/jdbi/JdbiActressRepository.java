@@ -80,6 +80,7 @@ public class JdbiActressRepository implements ActressRepository {
                 .awards(readJson(rs.getString("awards_json"), AWARDS_TYPE))
                 .visitCount(rs.getInt("visit_count"))
                 .lastVisitedAt(lastVisitedStr != null ? LocalDateTime.parse(lastVisitedStr) : null)
+                .needsProfiling(rs.getInt("needs_profiling") != 0)
                 .build();
     };
 
@@ -541,8 +542,8 @@ public class JdbiActressRepository implements ActressRepository {
             String gradeStr = actress.getGrade() != null ? actress.getGrade().display : null;
             if (actress.getId() == null) {
                 long id = h.createUpdate("""
-                                INSERT INTO actresses (canonical_name, stage_name, tier, favorite, bookmark, grade, rejected, first_seen_at)
-                                VALUES (:name, :stageName, :tier, :favorite, :bookmark, :grade, :rejected, :date)
+                                INSERT INTO actresses (canonical_name, stage_name, tier, favorite, bookmark, grade, rejected, first_seen_at, needs_profiling)
+                                VALUES (:name, :stageName, :tier, :favorite, :bookmark, :grade, :rejected, :date, :needsProfiling)
                                 """)
                         .bind("name", actress.getCanonicalName())
                         .bind("stageName", actress.getStageName())
@@ -552,6 +553,7 @@ public class JdbiActressRepository implements ActressRepository {
                         .bind("grade", gradeStr)
                         .bind("rejected", actress.isRejected() ? 1 : 0)
                         .bind("date", actress.getFirstSeenAt().toString())
+                        .bind("needsProfiling", actress.isNeedsProfiling() ? 1 : 0)
                         .executeAndReturnGeneratedKeys("id")
                         .mapTo(Long.class)
                         .one();
@@ -565,6 +567,7 @@ public class JdbiActressRepository implements ActressRepository {
                         .grade(actress.getGrade())
                         .rejected(actress.isRejected())
                         .firstSeenAt(actress.getFirstSeenAt())
+                        .needsProfiling(actress.isNeedsProfiling())
                         .build();
             } else {
                 h.createUpdate("""
