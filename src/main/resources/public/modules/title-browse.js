@@ -12,9 +12,12 @@ import {
   renderDashboardStrip,
   renderDashboardSection,
   renderSideBySidePanel,
-  renderStatsTiles,
   createSpotlightRotator,
 } from './dashboard-panels.js';
+import {
+  renderTopLabelsLeaderboard,
+  renderTitleLibraryStats,
+} from './dashboard-renderers.js';
 
 // ── DOM refs ──────────────────────────────────────────────────────────────
 export const titlesBrowseBtn    = document.getElementById('titles-browse-btn');
@@ -235,8 +238,8 @@ function renderTopInfoPanel(spotlight, topLabels, libraryStats, onThisDay) {
     if (topLabels.length > 0 || libraryStats) {
       const upper = document.createElement('div');
       upper.className = 'dashboard-top-right-upper';
-      if (topLabels.length > 0) upper.appendChild(renderTopLabelsLeaderboard(topLabels));
-      if (libraryStats)         upper.appendChild(renderLibraryStats(libraryStats));
+      if (topLabels.length > 0) upper.appendChild(renderTopLabelsSection(topLabels));
+      if (libraryStats)         upper.appendChild(renderTitleLibraryStats(libraryStats));
       right.appendChild(upper);
     }
 
@@ -257,56 +260,16 @@ function renderTopInfoPanel(spotlight, topLabels, libraryStats, onThisDay) {
   return panel;
 }
 
-function renderTopLabelsLeaderboard(topLabels) {
-  const section = document.createElement('section');
-  section.className = 'dashboard-section dashboard-top-labels';
-  const header = document.createElement('div');
-  header.className = 'dashboard-section-title';
-  header.textContent = 'Top Labels';
-  section.appendChild(header);
-
-  const list = document.createElement('div');
-  list.className = 'dashboard-leaderboard';
-
-  const displayed = topLabels.slice(0, 5);
-  const maxScore = displayed.reduce((m, l) => Math.max(m, l.score || 0), 0) || 1;
-  displayed.forEach((lbl, i) => {
-    const row = document.createElement('div');
-    row.className = 'leaderboard-row';
-    row.innerHTML = `
-      <span class="leaderboard-rank">${i + 1}</span>
-      <span class="leaderboard-code">${esc(lbl.code)}</span>
-      <span class="leaderboard-name">${esc(lbl.labelName || '')}${lbl.company ? `<span class="leaderboard-company"> · ${esc(lbl.company)}</span>` : ''}</span>
-      <span class="leaderboard-bar-wrap"><span class="leaderboard-bar" style="width:${Math.round((lbl.score / maxScore) * 100)}%"></span></span>
-    `;
-    row.addEventListener('click', () => {
+function renderTopLabelsSection(topLabels) {
+  return renderTopLabelsLeaderboard(topLabels, {
+    onRowClick: (lbl) => {
       const searchInput = document.getElementById('search-input');
       if (searchInput) {
         searchInput.value = lbl.code + '-';
         searchInput.dispatchEvent(new Event('input'));
         searchInput.focus();
       }
-    });
-    list.appendChild(row);
-  });
-  section.appendChild(list);
-  return section;
-}
-
-function renderLibraryStats(stats) {
-  const unseenPct = stats.totalTitles > 0
-    ? Math.round((stats.unseen / stats.totalTitles) * 100)
-    : 0;
-  return renderStatsTiles({
-    heading: 'Library',
-    tiles: [
-      { label: 'Titles',           value: stats.totalTitles.toLocaleString() },
-      { label: 'Labels',           value: stats.totalLabels.toLocaleString() },
-      { label: 'Unseen',           value: stats.unseen.toLocaleString() },
-      { label: 'Unseen %',         value: `${unseenPct}%`, bar: unseenPct },
-      { label: 'Added this month', value: stats.addedThisMonth.toLocaleString() },
-      { label: 'Added this year',  value: stats.addedThisYear.toLocaleString() },
-    ],
+    },
   });
 }
 
