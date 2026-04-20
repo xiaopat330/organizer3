@@ -151,13 +151,14 @@
   <div class="actress-landing-divider" id="actress-studio-divider" style="display:none"></div>
   <div class="actress-landing-row actress-landing-tier-row" id="actress-studio-group-row" style="display:none"></div>
   <div class="actress-landing-divider" id="actress-tier-divider" style="display:none"></div>
-  <div class="actress-landing-row actress-landing-tier-row" id="actress-landing-tier-row" style="display:none"></div>
-  <div class="actress-landing-divider actress-tier-company-divider" id="actress-tier-company-divider" style="display:none"></div>
-  <div class="actress-landing-row actress-landing-tier-company-row" id="actress-tier-company-row" style="display:none">
-    <select id="actress-tier-company-select" class="actress-tier-company-select">
+  <div class="actress-landing-row actress-landing-tier-row" id="actress-landing-tier-row" style="display:none">
+    <!-- tier chips injected by JS before this divider -->
+    <div class="nav-divider" id="actress-tier-company-divider" style="display:none"></div>
+    <select id="actress-tier-company-select" class="actress-tier-company-select" style="display:none">
       <option value="">All Companies</option>
     </select>
     <div class="company-marquee" id="actress-tier-company-marquee" style="display:none"><span class="company-marquee-inner"></span></div>
+    <!-- cols slider injected as last child; margin-left:auto in CSS right-aligns it -->
   </div>
 </div>
 

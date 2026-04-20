@@ -928,10 +928,12 @@ class JdbiActressRepositoryTest {
     // findNewFaces
 
     @Test
-    void findNewFacesReturnsActressesAfterSinceOrderedByFirstSeenDesc() {
+    void findNewFacesReturnsActressesAfterSinceOrderedByFirstSeenDesc() throws Exception {
         repo.save(builder("Old").firstSeenAt(LocalDate.of(2024, 1, 1)).build());
-        repo.save(builder("Recent").firstSeenAt(LocalDate.now().minusDays(5)).build());
-        repo.save(builder("Fresh").firstSeenAt(LocalDate.now().minusDays(1)).build());
+        Actress recent = repo.save(builder("Recent").firstSeenAt(LocalDate.now().minusDays(5)).build());
+        Actress fresh  = repo.save(builder("Fresh").firstSeenAt(LocalDate.now().minusDays(1)).build());
+        insertTitlesForActress(recent.getId(), 1);
+        insertTitlesForActress(fresh.getId(), 1);
 
         List<Actress> result = repo.findNewFaces(LocalDate.now().minusDays(30), 10, java.util.Set.of());
         assertEquals(2, result.size());
@@ -940,9 +942,19 @@ class JdbiActressRepositoryTest {
     }
 
     @Test
-    void findNewFacesRespectsExcludeIds() {
+    void findNewFacesExcludesActressesWithNoTitles() {
+        repo.save(builder("NoTitles").firstSeenAt(LocalDate.now().minusDays(1)).build());
+
+        List<Actress> result = repo.findNewFaces(LocalDate.now().minusDays(30), 10, java.util.Set.of());
+        assertTrue(result.isEmpty());
+    }
+
+    @Test
+    void findNewFacesRespectsExcludeIds() throws Exception {
         Actress fresh = repo.save(builder("Fresh").firstSeenAt(LocalDate.now().minusDays(1)).build());
-        repo.save(builder("Other").firstSeenAt(LocalDate.now().minusDays(2)).build());
+        Actress other = repo.save(builder("Other").firstSeenAt(LocalDate.now().minusDays(2)).build());
+        insertTitlesForActress(fresh.getId(), 1);
+        insertTitlesForActress(other.getId(), 1);
 
         List<Actress> result = repo.findNewFaces(
                 LocalDate.now().minusDays(30), 10, java.util.Set.of(fresh.getId()));
@@ -951,15 +963,25 @@ class JdbiActressRepositoryTest {
     }
 
     @Test
-    void findNewFacesFallbackReturnsNewestOverall() {
+    void findNewFacesFallbackReturnsNewestOverall() throws Exception {
         repo.save(builder("A").firstSeenAt(LocalDate.of(2020, 1, 1)).build());
-        repo.save(builder("B").firstSeenAt(LocalDate.of(2024, 1, 1)).build());
-        repo.save(builder("C").firstSeenAt(LocalDate.of(2025, 1, 1)).build());
+        Actress b = repo.save(builder("B").firstSeenAt(LocalDate.of(2024, 1, 1)).build());
+        Actress c = repo.save(builder("C").firstSeenAt(LocalDate.of(2025, 1, 1)).build());
+        insertTitlesForActress(b.getId(), 1);
+        insertTitlesForActress(c.getId(), 1);
 
         List<Actress> result = repo.findNewFacesFallback(2, java.util.Set.of());
         assertEquals(2, result.size());
         assertEquals("C", result.get(0).getCanonicalName());
         assertEquals("B", result.get(1).getCanonicalName());
+    }
+
+    @Test
+    void findNewFacesFallbackExcludesActressesWithNoTitles() {
+        repo.save(builder("NoTitles").firstSeenAt(LocalDate.of(2025, 1, 1)).build());
+
+        List<Actress> result = repo.findNewFacesFallback(10, java.util.Set.of());
+        assertTrue(result.isEmpty());
     }
 
     // findBookmarksOrderedByBookmarkedAt

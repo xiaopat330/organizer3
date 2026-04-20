@@ -39,7 +39,6 @@ const actressTierBtn              = document.getElementById('actress-tier-btn');
 const actressTierDivider          = document.getElementById('actress-tier-divider');
 const actressTierRow              = document.getElementById('actress-landing-tier-row');
 const actressTierCompanyDivider   = document.getElementById('actress-tier-company-divider');
-const actressTierCompanyRow       = document.getElementById('actress-tier-company-row');
 const actressTierCompanySelect    = document.getElementById('actress-tier-company-select');
 const actressTierCompanyMarquee   = document.getElementById('actress-tier-company-marquee');
 const actressExhibitionMarquee    = document.getElementById('actress-exhibition-marquee');
@@ -85,7 +84,7 @@ function showActressColsFilterBar() {
     if (row) { injectColsSlider(row, controlId, sliderId, labelId, applyActressGridCols); return; }
   }
   if (actressBrowseMode && actressBrowseMode.startsWith('tier-')) {
-    const row = document.getElementById('actress-tier-company-row');
+    const row = document.getElementById('actress-landing-tier-row');
     if (row) { injectColsSlider(row, controlId, sliderId, labelId, applyActressGridCols); return; }
   }
   if (actressBrowseMode && actressBrowseMode.startsWith('studio-group:')) {
@@ -151,17 +150,18 @@ export function hideAllActressSubNavRows() {
 
 function showTierCompanyRow() {
   actressTierCompanyDivider.style.display = '';
-  actressTierCompanyRow.style.display = '';
+  actressTierCompanySelect.style.display = '';
 }
 function hideTierCompanyRow() {
   actressTierCompanyDivider.style.display = 'none';
-  actressTierCompanyRow.style.display = 'none';
+  actressTierCompanySelect.style.display = 'none';
+  actressTierCompanyMarquee.style.display = 'none';
   tierCompanyFilter = null;
 }
 
 // ── Tier chips ────────────────────────────────────────────────────────────
 function buildActressTierChips() {
-  actressTierRow.innerHTML = '';
+  actressTierRow.querySelectorAll('.actress-landing-tier').forEach(el => el.remove());
   for (const tier of ACTRESS_TIERS) {
     const btn = document.createElement('button');
     btn.type = 'button';
@@ -169,7 +169,7 @@ function buildActressTierChips() {
     btn.dataset.tier = tier;
     btn.textContent = tier.toLowerCase();
     btn.addEventListener('click', () => selectActressBrowseMode(`tier-${tier}`));
-    actressTierRow.appendChild(btn);
+    actressTierRow.insertBefore(btn, actressTierCompanyDivider);
   }
 }
 buildActressTierChips();

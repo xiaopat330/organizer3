@@ -65,6 +65,9 @@ const titleSpotlightRotator = createSpotlightRotator({
 export let activeTags = new Set();
 let tagsDebounceTimer = null;
 let tagsCatalog = null;
+let tagsBarOpen = false;
+let tagsPendingChanged = false;
+let chipsHideTimer = null;
 
 // ── Library filter state ──────────────────────────────────────────────────
 let libraryCode    = '';        // raw typed code string
@@ -150,7 +153,7 @@ export function runTitleBrowseQuery() {
   titleDashboardEl.style.display = 'none';
   document.getElementById('titles-browse-grid').style.display = 'grid';
   setActiveGrid(allTitlesGrid);
-  if (!FILTERABLE_MODES.has(titleBrowseMode)) showColsOnlyFilterBar();
+  if (!FILTERABLE_MODES.has(titleBrowseMode) && titleBrowseMode !== 'library') showColsOnlyFilterBar();
   applyTitleGridCols(effectiveCols());
   allTitlesGrid.reset();
   ensureSentinel();
@@ -453,6 +456,15 @@ export function selectTitleBrowseMode(modeKey) {
     hideStudioGroupRow();
     hideBrowseFilterBar();
     titleTagsPanel.style.display = 'block';
+    requestAnimationFrame(() => {
+      const header  = document.querySelector('header');
+      const subNav  = document.getElementById('sub-nav-search-bar');
+      const landing = document.getElementById('title-landing');
+      const h = (header  ? header.offsetHeight  : 0)
+              + (subNav  && subNav.style.display  !== 'none' ? subNav.offsetHeight  : 0)
+              + (landing ? landing.offsetHeight : 0);
+      titleTagsPanel.style.top = h + 'px';
+    });
     runTitleBrowseQuery();
     return;
   }
@@ -553,8 +565,101 @@ function scheduleLibraryQuery() {
 }
 
 function hideTagsPanel() {
+  tagsBarOpen = false;
+  tagsPendingChanged = false;
+  if (chipsHideTimer) { clearTimeout(chipsHideTimer); chipsHideTimer = null; }
+  const section = document.getElementById('library-tags-section');
+  if (section) section.style.display = 'none';
+  const tagsToggleBtn = document.getElementById('library-tags-toggle-btn');
+  if (tagsToggleBtn) tagsToggleBtn.classList.remove('open');
+  const bar = document.getElementById('library-tags-bar');
+  if (bar) { bar.classList.remove('rolling-up'); bar.style.display = 'none'; }
   titleTagsPanel.style.display = 'none';
   closeLibraryAutocomplete();
+}
+
+const TAG_CHIP_PALETTE = [
+  { border: '#50c878', bg: '#081a10', text: '#70e898' },
+  { border: '#e07050', bg: '#2a0e08', text: '#e89070' },
+  { border: '#e0a030', bg: '#251800', text: '#e8c060' },
+  { border: '#60c0e0', bg: '#081820', text: '#80d8f0' },
+  { border: '#9060e0', bg: '#180a28', text: '#b080f0' },
+  { border: '#e060a0', bg: '#280810', text: '#f080c0' },
+  { border: '#60e0a0', bg: '#082018', text: '#80f0b8' },
+  { border: '#e0d060', bg: '#201c00', text: '#f0e880' },
+];
+
+function tagChipStyle(tag) {
+  let h = 5381;
+  for (let i = 0; i < tag.length; i++) h = ((h << 5) + h) ^ tag.charCodeAt(i);
+  const c = TAG_CHIP_PALETTE[Math.abs(h) % TAG_CHIP_PALETTE.length];
+  return `background:${c.bg};border-color:${c.border};color:${c.text}`;
+}
+
+function showChipsBar() {
+  const bar = document.getElementById('library-tags-bar');
+  if (!bar) return;
+  if (chipsHideTimer) { clearTimeout(chipsHideTimer); chipsHideTimer = null; }
+  bar.classList.remove('rolling-up');
+  bar.style.display = '';
+}
+
+function scheduleChipsBarHide() {
+  const bar = document.getElementById('library-tags-bar');
+  if (!bar || bar.style.display === 'none') return;
+  if (chipsHideTimer) clearTimeout(chipsHideTimer);
+  chipsHideTimer = setTimeout(() => {
+    chipsHideTimer = null;
+    bar.classList.add('rolling-up');
+    setTimeout(() => {
+      bar.style.display = 'none';
+      bar.classList.remove('rolling-up');
+    }, 350);
+  }, 1800);
+}
+
+function renderTagChips() {
+  const container = document.getElementById('library-tag-chips');
+  if (!container) return;
+  if (activeTags.size === 0) {
+    container.innerHTML = '';
+    scheduleChipsBarHide();
+    return;
+  }
+  showChipsBar();
+  container.innerHTML = [...activeTags].map(tag =>
+    `<span class="library-tag-chip" data-tag="${esc(tag)}" style="${tagChipStyle(tag)}"><button type="button" class="library-tag-chip-remove" data-tag="${esc(tag)}" title="Remove tag">&#x2296;</button>${esc(tag)}</span>`
+  ).join('');
+  container.querySelectorAll('.library-tag-chip-remove').forEach(btn => {
+    btn.addEventListener('click', e => {
+      e.stopPropagation();
+      const tag = btn.dataset.tag;
+      activeTags.delete(tag);
+      const toggleEl = titleTagsPanel.querySelector(`.tag-toggle[data-tag="${CSS.escape(tag)}"]`);
+      if (toggleEl) toggleEl.classList.remove('active');
+      renderTagChips();
+      scheduleLibraryQuery();
+    });
+  });
+}
+
+function toggleTagsSection() {
+  const section = document.getElementById('library-tags-section');
+  const btn = document.getElementById('library-tags-toggle-btn');
+  if (!section) return;
+  if (tagsBarOpen) {
+    tagsBarOpen = false;
+    section.style.display = 'none';
+    btn?.classList.remove('open');
+    if (tagsPendingChanged) {
+      tagsPendingChanged = false;
+      scheduleLibraryQuery();
+    }
+  } else {
+    tagsBarOpen = true;
+    section.style.display = '';
+    btn?.classList.add('open');
+  }
 }
 
 // ── Autocomplete dropdown ─────────────────────────────────────────────────
@@ -655,9 +760,14 @@ async function renderLibraryFilterPanel() {
       <select id="library-sort-select" class="library-sort-select">
         ${sortOptions.map(o => `<option value="${o.value}"${librarySort === o.value ? ' selected' : ''}>${o.label}</option>`).join('')}
       </select>
+      <button type="button" id="library-tags-toggle-btn" class="library-tags-toggle-btn">Tags</button>
       <button type="button" id="library-order-btn" class="library-order-btn">${libraryOrder === 'asc' ? 'A–Z' : 'Z–A'}</button>
+      ${colsSliderHtml(effectiveCols(), 'title-cols-control', 'title-cols-slider', 'title-cols-label')}
     </div>
-    <div class="library-tags-section">
+    <div class="library-tags-bar" id="library-tags-bar" style="display:none">
+      <div class="library-tag-chips" id="library-tag-chips"></div>
+    </div>
+    <div class="library-tags-section" id="library-tags-section" style="display:none">
       ${groups.map(g => `
         <div class="tags-group">
           <div class="tags-group-label">${esc(g.label)}</div>
@@ -737,13 +847,23 @@ async function renderLibraryFilterPanel() {
     });
   }
 
-  // Wire tag toggles
+  // Wire cols slider
+  wireColsSlider('title-cols-slider', 'title-cols-label', applyTitleGridCols);
+
+  // Wire tags toggle button
+  document.getElementById('library-tags-toggle-btn')?.addEventListener('click', toggleTagsSection);
+
+  // Render any already-active tags as chips
+  renderTagChips();
+
+  // Wire tag toggles — deferred execution: accumulate changes, run query on panel close
   titleTagsPanel.querySelectorAll('.tag-toggle').forEach(btn => {
     btn.addEventListener('click', () => {
       const tag = btn.dataset.tag;
       if (activeTags.has(tag)) { activeTags.delete(tag); btn.classList.remove('active'); }
       else                     { activeTags.add(tag);    btn.classList.add('active'); }
-      scheduleLibraryQuery();
+      tagsPendingChanged = true;
+      renderTagChips();
     });
   });
 }

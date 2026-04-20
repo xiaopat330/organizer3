@@ -975,6 +975,8 @@ public class JdbiActressRepository implements ActressRepository {
         // day they share the same value — secondary sort by id DESC keeps insertion order
         // instead of degenerating into alphabetical (which made the strip all A-names).
         String sql = "SELECT * FROM actresses WHERE rejected = 0 AND first_seen_at >= :since "
+                + "AND (EXISTS (SELECT 1 FROM titles WHERE actress_id = actresses.id) "
+                + "     OR EXISTS (SELECT 1 FROM title_actresses WHERE actress_id = actresses.id)) "
                 + exclusion
                 + "ORDER BY first_seen_at DESC, id DESC LIMIT :limit";
         return jdbi.withHandle(h -> {
@@ -992,6 +994,8 @@ public class JdbiActressRepository implements ActressRepository {
         String exclusion = hasExclude ? "AND id NOT IN (<excludeIds>) " : "";
         // See findNewFaces — secondary sort by id DESC, not canonical_name.
         String sql = "SELECT * FROM actresses WHERE rejected = 0 "
+                + "AND (EXISTS (SELECT 1 FROM titles WHERE actress_id = actresses.id) "
+                + "     OR EXISTS (SELECT 1 FROM title_actresses WHERE actress_id = actresses.id)) "
                 + exclusion
                 + "ORDER BY first_seen_at DESC, id DESC LIMIT :limit";
         return jdbi.withHandle(h -> {

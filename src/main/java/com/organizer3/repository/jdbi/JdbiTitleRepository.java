@@ -848,6 +848,7 @@ public class JdbiTitleRepository implements TitleRepository {
                 .sorted((a, b) -> {
                     String ya = anniversaryYear(a, mmdd);
                     String yb = anniversaryYear(b, mmdd);
+                    if (ya == null && yb == null) return 0;
                     if (ya == null) return 1;
                     if (yb == null) return -1;
                     return ya.compareTo(yb);

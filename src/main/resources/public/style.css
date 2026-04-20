@@ -506,6 +506,9 @@ header h1:hover {
   background: #0d0d0d;
   border-bottom: 1px solid #1e1e1e;
   display: block;
+  position: sticky;
+  top: 0; /* overridden by JS to sit below the title-landing bar */
+  z-index: 8;
 }
 
 .library-controls-row {
@@ -603,6 +606,88 @@ header h1:hover {
   color: #ccc;
 }
 
+.library-tags-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 20px;
+  border-bottom: 1px solid #181818;
+  flex-wrap: wrap;
+  overflow: hidden;
+  max-height: 200px;
+  transition: max-height 0.35s ease, padding 0.35s ease, border-width 0.2s ease;
+}
+
+.library-tags-bar.rolling-up {
+  max-height: 0;
+  padding-top: 0;
+  padding-bottom: 0;
+  border-bottom-width: 0;
+}
+
+.library-tags-toggle-btn {
+  background: #111;
+  border: 1px solid #2a2a2a;
+  border-radius: 4px;
+  color: #888;
+  cursor: pointer;
+  font-size: 0.75rem;
+  padding: 4px 12px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.library-tags-toggle-btn:hover {
+  border-color: #3a3a3a;
+  color: #ccc;
+}
+
+.library-tags-toggle-btn.open {
+  background: #081a10;
+  border-color: #50c878;
+  color: #50c878;
+}
+
+.library-tag-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+
+.library-tag-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  border: 1px solid;
+  border-radius: 12px;
+  font-size: 0.7rem;
+  padding: 2px 9px 2px 4px;
+  white-space: nowrap;
+}
+
+.library-tag-chip-remove {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: inherit;
+  font-size: 1rem;
+  line-height: 1;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  opacity: 0.75;
+}
+
+.library-tag-chip-remove:hover {
+  background: rgba(255, 255, 255, 0.15);
+  opacity: 1;
+}
+
 .library-tags-section {
   display: grid;
   grid-template-columns: 160px 1fr;
@@ -671,6 +756,11 @@ header h1:hover {
 
 .actress-landing-tier-row {
   gap: 4px;
+  flex-wrap: nowrap;
+}
+
+#actress-landing-tier-row .title-cols-control {
+  margin-left: auto;
 }
 
 .actress-landing-tier {
@@ -749,9 +839,8 @@ header h1:hover {
 }
 
 /* ── Tier company filter sub-nav row ─────────────────────────────────── */
-.actress-landing-tier-company-row {
-  gap: 8px;
-  padding: 2px 0;
+.actress-landing-tier-row .actress-tier-company-select {
+  margin-left: 4px;
 }
 
 .actress-tier-company-select {
@@ -803,7 +892,7 @@ header h1:hover {
 
 .actress-landing-exhibition-row .company-marquee-inner { color: #ff8080; }
 .actress-landing-archives-row   .company-marquee-inner { color: #60d8c8; }
-.actress-landing-tier-company-row .company-marquee-inner { color: #d4a060; }
+.actress-landing-tier-row .company-marquee-inner { color: #d4a060; }
 .company-marquee-browse .company-marquee-inner { color: #8899b8; }
 
 /* ── Title landing label-code tab-complete dropdown ─────────────────── */

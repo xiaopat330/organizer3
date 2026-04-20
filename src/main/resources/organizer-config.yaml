@@ -16,15 +16,21 @@ servers:
     username: patri
     password: "!&Xiaobeibei328&!"
     domain: athena
+    trash: _trash
+    sandbox: _sandbox
 
   - id: pandora
     username: patri
     password: "!&Xiaobeibei328&!"
     domain: pandora
+    trash: _trash
+    sandbox: _sandbox
 
   - id: qnap2
     username: pyoung
     password: xiaobeibei328
+    trash: _trash
+    sandbox: _sandbox
 
 volumes:
   - id: a
@@ -327,3 +333,11 @@ normalize:
 media:
   videoExtensions: [asf, wma, wmv, wm, avi, mpg, mpeg, mkv, mov, rmvb, mp4, m4v, mp4v, m2ts, ts, divx]
   coverExtensions: [jpg, jpeg, png, webp]
+
+# MCP server — enable mutation + network-op tools for smoke-testing.
+# Roll back by flipping the relevant flag to false or removing this block.
+mcp:
+  enabled: true
+  allowMutations: true
+  allowNetworkOps: true
+  allowFileOps: true
