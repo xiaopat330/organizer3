@@ -104,12 +104,27 @@ public final class IntegrationTestHarness implements AutoCloseable {
      */
     public RichSeed seedRich() {
         jdbi.useHandle(h -> {
+            // Company names intentionally align with src/main/resources/studios.yaml
+            // so listStudioGroups() and /api/studio-groups/{slug}/companies return
+            // non-empty results for titles under these labels.
             h.createUpdate("INSERT INTO labels (code, label_name, company) VALUES (:c, :n, :co)")
                     .bind("c", "ABP").bind("n", "ABP Label").bind("co", "Prestige").execute();
             h.createUpdate("INSERT INTO labels (code, label_name, company) VALUES (:c, :n, :co)")
-                    .bind("c", "SSIS").bind("n", "SSIS Label").bind("co", "S1").execute();
+                    .bind("c", "SSIS").bind("n", "SSIS Label").bind("co", "S1 No.1 Style").execute();
             h.createUpdate("INSERT INTO labels (code, label_name, company) VALUES (:c, :n, :co)")
                     .bind("c", "MIDV").bind("n", "MIDV Label").bind("co", "Moodyz").execute();
+
+            // Tag master rows (label_tags + title_tags FK into tags.name).
+            h.createUpdate("INSERT OR IGNORE INTO tags (name, category) VALUES (:n, :c)")
+                    .bind("n", "creampie").bind("c", "sexact").execute();
+            h.createUpdate("INSERT OR IGNORE INTO tags (name, category) VALUES (:n, :c)")
+                    .bind("n", "solowork").bind("c", "structural").execute();
+            h.createUpdate("INSERT OR IGNORE INTO tags (name, category) VALUES (:n, :c)")
+                    .bind("n", "bigtits").bind("c", "body").execute();
+
+            // Label-inherited tag: every ABP-labeled title inherits "bigtits".
+            h.createUpdate("INSERT OR IGNORE INTO label_tags (label_code, tag) VALUES (:c, :t)")
+                    .bind("c", "ABP").bind("t", "bigtits").execute();
         });
 
         // Actresses: 5 across 4 prefixes (A, A, Y, M, R) and all tiers except MINOR.
@@ -181,8 +196,12 @@ public final class IntegrationTestHarness implements AutoCloseable {
         // not title_tags, so recompute the denorm row after the write.
         new com.organizer3.repository.jdbi.JdbiTitleTagRepository(jdbi)
                 .replaceTagsForTitle(midv100.getId(), List.of("creampie", "solowork"));
-        new com.organizer3.db.TitleEffectiveTagsService(jdbi)
-                .recomputeForTitle(midv100.getId());
+        com.organizer3.db.TitleEffectiveTagsService effectiveTags =
+                new com.organizer3.db.TitleEffectiveTagsService(jdbi);
+        effectiveTags.recomputeForTitle(midv100.getId());
+        // Propagate the ABP label tag to ABP-titled rows.
+        effectiveTags.recomputeForTitle(abp001.getId());
+        effectiveTags.recomputeForTitle(abp002.getId());
 
         // Visit / watch history on MIDV-050.
         titleRepo.recordVisit(midv050.getId());

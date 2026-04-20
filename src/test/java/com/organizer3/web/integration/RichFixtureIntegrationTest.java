@@ -132,6 +132,42 @@ class RichFixtureIntegrationTest {
     }
 
     @Test
+    void labelInheritedTagFilterMatchesAllAbpTitles() throws Exception {
+        // "bigtits" is attached to the ABP label (not the title), so the filter
+        // should pick up ABP-001 and ABP-002 via title_effective_tags source='label'.
+        JsonNode body = getJson("/api/titles?tags=bigtits");
+        assertEquals(2, body.size(), "both ABP titles should inherit the label tag");
+    }
+
+    @Test
+    void studioGroupsListIncludesPrestigeGroup() throws Exception {
+        JsonNode groups = getJson("/api/titles/studios");
+        assertTrue(groups.isArray());
+        boolean foundPrestige = false;
+        for (JsonNode g : groups) {
+            if ("prestige".equals(g.get("slug").asText())) { foundPrestige = true; break; }
+        }
+        assertTrue(foundPrestige, "studios.yaml defines a 'prestige' group");
+    }
+
+    @Test
+    void studioGroupCompaniesReturnsPrestigeTitleCount() throws Exception {
+        // Two ABP titles exist (company="Prestige"), the 'prestige' group
+        // should aggregate a titleCount of 2.
+        JsonNode companies = getJson("/api/studio-groups/prestige/companies");
+        assertTrue(companies.isArray());
+        assertTrue(companies.size() > 0);
+        boolean matched = false;
+        for (JsonNode c : companies) {
+            if ("Prestige".equals(c.get("company").asText())) {
+                assertEquals(2, c.get("titleCount").asInt());
+                matched = true;
+            }
+        }
+        assertTrue(matched, "expected a Prestige company entry: " + companies);
+    }
+
+    @Test
     void visitedTitleCarriesVisitCountThroughListEndpoint() throws Exception {
         JsonNode body = getJson("/api/titles?search=MIDV-050");
         assertEquals(1, body.size());
