@@ -24,8 +24,9 @@ public class JdbiUnsortedEditorRepository implements UnsortedEditorRepository {
                 FROM titles t
                 JOIN title_locations tl ON tl.title_id = t.id
                 WHERE tl.volume_id = :volumeId
+                  AND t.code IS NOT NULL
                   AND t.base_code IS NOT NULL
-                  AND tl.path LIKE '%(' || t.base_code || ')%'
+                  AND tl.path LIKE '%(' || t.code || ')%'
                   AND EXISTS (
                       SELECT 1 FROM videos v
                       WHERE v.title_id = t.id
