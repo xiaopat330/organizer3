@@ -461,6 +461,395 @@ class WebServerTest {
         assertEquals(100, body.get("maxBrowseTitles").asInt());
     }
 
+    // ── ActressRoutes gap-fill ──────────────────────────────────────────
+
+    @Test
+    void actressesTierCountsEndpointReturnsMap() throws IOException, InterruptedException {
+        ActressBrowseService actressBrowse = mock(ActressBrowseService.class);
+        when(actressBrowse.findTierCountsByPrefix("A")).thenReturn(Map.of("GODDESS", 2, "POPULAR", 5));
+
+        server = new WebServer(0, null, actressBrowse, null, null, null, null, null, null, null);
+        server.start();
+
+        HttpResponse<String> response = get("/api/actresses/tier-counts?prefix=A");
+        assertEquals(200, response.statusCode());
+        assertEquals(2, mapper.readTree(response.body()).get("GODDESS").asInt());
+    }
+
+    @Test
+    void actressesTierCountsReturns400WhenPrefixBlank() throws IOException, InterruptedException {
+        ActressBrowseService actressBrowse = mock(ActressBrowseService.class);
+        server = new WebServer(0, null, actressBrowse, null, null, null, null, null, null, null);
+        server.start();
+
+        HttpResponse<String> response = get("/api/actresses/tier-counts");
+        assertEquals(400, response.statusCode());
+    }
+
+    @Test
+    void actressesRandomEndpointDelegates() throws IOException, InterruptedException {
+        ActressBrowseService actressBrowse = mock(ActressBrowseService.class);
+        when(actressBrowse.findRandom(anyInt())).thenReturn(List.of());
+
+        server = new WebServer(0, null, actressBrowse, null, null, null, null, null, null, null);
+        server.start();
+
+        HttpResponse<String> response = get("/api/actresses/random?limit=10");
+        assertEquals(200, response.statusCode());
+        verify(actressBrowse).findRandom(10);
+    }
+
+    @Test
+    void actressesDashboardEndpointDelegates() throws IOException, InterruptedException {
+        ActressBrowseService actressBrowse = mock(ActressBrowseService.class);
+
+        server = new WebServer(0, null, actressBrowse, null, null, null, null, null, null, null);
+        server.start();
+
+        // Route invoked — delegation is what matters; the null dashboard serializes to null.
+        get("/api/actresses/dashboard");
+        verify(actressBrowse).buildDashboard();
+    }
+
+    @Test
+    void actressesSpotlightEndpointReturns204WhenNull() throws IOException, InterruptedException {
+        ActressBrowseService actressBrowse = mock(ActressBrowseService.class);
+        when(actressBrowse.getSpotlight(null)).thenReturn(null);
+
+        server = new WebServer(0, null, actressBrowse, null, null, null, null, null, null, null);
+        server.start();
+
+        HttpResponse<String> response = get("/api/actresses/spotlight");
+        assertEquals(204, response.statusCode());
+    }
+
+    @Test
+    void actressesSpotlightEndpointReturns400ForNonNumericExclude() throws IOException, InterruptedException {
+        ActressBrowseService actressBrowse = mock(ActressBrowseService.class);
+        server = new WebServer(0, null, actressBrowse, null, null, null, null, null, null, null);
+        server.start();
+
+        HttpResponse<String> response = get("/api/actresses/spotlight?exclude=abc");
+        assertEquals(400, response.statusCode());
+    }
+
+    @Test
+    void actressAliasesPutReturns400ForNonNumericId() throws IOException, InterruptedException {
+        ActressBrowseService actressBrowse = mock(ActressBrowseService.class);
+        server = new WebServer(0, null, actressBrowse, null, null, null, null, null, null, null);
+        server.start();
+
+        HttpResponse<String> response = HttpClient.newHttpClient().send(
+                HttpRequest.newBuilder()
+                        .uri(URI.create("http://localhost:" + server.port() + "/api/actresses/abc/aliases"))
+                        .PUT(HttpRequest.BodyPublishers.ofString("{\"aliases\":[]}"))
+                        .header("Content-Type", "application/json")
+                        .build(),
+                HttpResponse.BodyHandlers.ofString());
+        assertEquals(400, response.statusCode());
+    }
+
+    @Test
+    void actressTitlesEndpointDelegates() throws IOException, InterruptedException {
+        ActressBrowseService actressBrowse = mock(ActressBrowseService.class);
+        when(actressBrowse.findTitlesByActress(eq(42L), eq(0), eq(24), any(), any())).thenReturn(List.of());
+
+        server = new WebServer(0, null, actressBrowse, null, null, null, null, null, null, null);
+        server.start();
+
+        HttpResponse<String> response = get("/api/actresses/42/titles");
+        assertEquals(200, response.statusCode());
+    }
+
+    @Test
+    void actressTagsEndpointDelegates() throws IOException, InterruptedException {
+        ActressBrowseService actressBrowse = mock(ActressBrowseService.class);
+        when(actressBrowse.findTagsForActress(42L)).thenReturn(List.of("creampie"));
+
+        server = new WebServer(0, null, actressBrowse, null, null, null, null, null, null, null);
+        server.start();
+
+        HttpResponse<String> response = get("/api/actresses/42/tags");
+        assertEquals(200, response.statusCode());
+        assertEquals(1, mapper.readTree(response.body()).size());
+    }
+
+    @Test
+    void actressFavoritePostReturnsFlagState() throws IOException, InterruptedException {
+        ActressBrowseService actressBrowse = mock(ActressBrowseService.class);
+        when(actressBrowse.toggleFavorite(42L)).thenReturn(Optional.of(
+                new ActressBrowseService.FlagState(42L, true, false, false)));
+
+        server = new WebServer(0, null, actressBrowse, null, null, null, null, null, null, null);
+        server.start();
+
+        HttpResponse<String> response = post("/api/actresses/42/favorite");
+        assertEquals(200, response.statusCode());
+        assertTrue(mapper.readTree(response.body()).get("favorite").asBoolean());
+    }
+
+    @Test
+    void actressFavoritePostReturns404WhenMissing() throws IOException, InterruptedException {
+        ActressBrowseService actressBrowse = mock(ActressBrowseService.class);
+        when(actressBrowse.toggleFavorite(99L)).thenReturn(Optional.empty());
+
+        server = new WebServer(0, null, actressBrowse, null, null, null, null, null, null, null);
+        server.start();
+
+        HttpResponse<String> response = post("/api/actresses/99/favorite");
+        assertEquals(404, response.statusCode());
+    }
+
+    @Test
+    void actressBookmarkPostWithValueParamCallsSetBookmark() throws IOException, InterruptedException {
+        ActressBrowseService actressBrowse = mock(ActressBrowseService.class);
+        when(actressBrowse.setBookmark(42L, true)).thenReturn(Optional.of(
+                new ActressBrowseService.FlagState(42L, false, true, false)));
+
+        server = new WebServer(0, null, actressBrowse, null, null, null, null, null, null, null);
+        server.start();
+
+        HttpResponse<String> response = post("/api/actresses/42/bookmark?value=true");
+        assertEquals(200, response.statusCode());
+        verify(actressBrowse).setBookmark(42L, true);
+    }
+
+    @Test
+    void actressVisitPostReturnsVisitStats() throws IOException, InterruptedException {
+        ActressBrowseService actressBrowse = mock(ActressBrowseService.class);
+        when(actressBrowse.recordVisit(42L)).thenReturn(Optional.of(
+                new ActressBrowseService.VisitStats(5, "2026-04-20T10:00")));
+
+        server = new WebServer(0, null, actressBrowse, null, null, null, null, null, null, null);
+        server.start();
+
+        HttpResponse<String> response = post("/api/actresses/42/visit");
+        assertEquals(200, response.statusCode());
+        assertEquals(5, mapper.readTree(response.body()).get("visitCount").asInt());
+    }
+
+    // ── TitleRoutes gap-fill ────────────────────────────────────────────
+
+    @Test
+    void tagsEndpointReturns200() throws IOException, InterruptedException {
+        TitleBrowseService browse = mock(TitleBrowseService.class);
+        server = new WebServer(0, browse, null, null, null, null, null, null, null, null);
+        server.start();
+
+        HttpResponse<String> response = get("/api/tags");
+        assertEquals(200, response.statusCode());
+    }
+
+    @Test
+    void labelsAutocompleteEndpointDelegates() throws IOException, InterruptedException {
+        TitleBrowseService browse = mock(TitleBrowseService.class);
+        when(browse.labelAutocomplete("AB")).thenReturn(List.of("ABP", "ABS"));
+
+        server = new WebServer(0, browse, null, null, null, null, null, null, null, null);
+        server.start();
+
+        HttpResponse<String> response = get("/api/labels/autocomplete?prefix=AB");
+        assertEquals(200, response.statusCode());
+        assertEquals(2, mapper.readTree(response.body()).size());
+    }
+
+    @Test
+    void titlesLabelsEndpointDelegates() throws IOException, InterruptedException {
+        TitleBrowseService browse = mock(TitleBrowseService.class);
+        when(browse.listLabels()).thenReturn(List.of());
+
+        server = new WebServer(0, browse, null, null, null, null, null, null, null, null);
+        server.start();
+
+        HttpResponse<String> response = get("/api/titles/labels");
+        assertEquals(200, response.statusCode());
+        verify(browse).listLabels();
+    }
+
+    @Test
+    void titlesTopActressesEndpointReturnsEmptyForMissingLabels() throws IOException, InterruptedException {
+        TitleBrowseService browse = mock(TitleBrowseService.class);
+        server = new WebServer(0, browse, null, null, null, null, null, null, null, null);
+        server.start();
+
+        HttpResponse<String> response = get("/api/titles/top-actresses");
+        assertEquals(200, response.statusCode());
+        assertEquals(0, mapper.readTree(response.body()).size());
+        verify(browse, never()).topActressesByLabels(any(), anyInt());
+    }
+
+    @Test
+    void titlesTopActressesPassesLabelList() throws IOException, InterruptedException {
+        TitleBrowseService browse = mock(TitleBrowseService.class);
+        when(browse.topActressesByLabels(anyList(), anyInt())).thenReturn(List.of());
+
+        server = new WebServer(0, browse, null, null, null, null, null, null, null, null);
+        server.start();
+
+        HttpResponse<String> response = get("/api/titles/top-actresses?labels=ABP,SSIS&limit=5");
+        assertEquals(200, response.statusCode());
+        verify(browse).topActressesByLabels(List.of("ABP", "SSIS"), 5);
+    }
+
+    @Test
+    void titlesDashboardEndpointDelegates() throws IOException, InterruptedException {
+        TitleBrowseService browse = mock(TitleBrowseService.class);
+        server = new WebServer(0, browse, null, null, null, null, null, null, null, null);
+        server.start();
+
+        get("/api/titles/dashboard");
+        verify(browse).buildDashboard();
+    }
+
+    @Test
+    void titlesSpotlightEndpointReturns204WhenNull() throws IOException, InterruptedException {
+        TitleBrowseService browse = mock(TitleBrowseService.class);
+        when(browse.getSpotlight(null)).thenReturn(null);
+
+        server = new WebServer(0, browse, null, null, null, null, null, null, null, null);
+        server.start();
+
+        HttpResponse<String> response = get("/api/titles/spotlight");
+        assertEquals(204, response.statusCode());
+    }
+
+    @Test
+    void titlesRandomEndpointDelegates() throws IOException, InterruptedException {
+        TitleBrowseService browse = mock(TitleBrowseService.class);
+        when(browse.findRandom(anyInt())).thenReturn(List.of());
+
+        server = new WebServer(0, browse, null, null, null, null, null, null, null, null);
+        server.start();
+
+        HttpResponse<String> response = get("/api/titles/random?limit=12");
+        assertEquals(200, response.statusCode());
+        verify(browse).findRandom(12);
+    }
+
+    @Test
+    void poolTitlesEndpointDelegatesWithoutFilters() throws IOException, InterruptedException {
+        TitleBrowseService browse = mock(TitleBrowseService.class);
+        when(browse.findByVolumePartition(eq("vol-a"), eq("pool"), anyInt(), anyInt())).thenReturn(List.of());
+
+        server = new WebServer(0, browse, null, null, null, null, null, null, null, null);
+        server.start();
+
+        HttpResponse<String> response = get("/api/pool/vol-a/titles");
+        assertEquals(200, response.statusCode());
+        verify(browse).findByVolumePartition("vol-a", "pool", 0, 24);
+    }
+
+    @Test
+    void poolTitlesEndpointUsesFilteredWhenCompanyProvided() throws IOException, InterruptedException {
+        TitleBrowseService browse = mock(TitleBrowseService.class);
+        when(browse.findByVolumePartitionFiltered(anyString(), anyString(), anyString(), anyList(), anyInt(), anyInt()))
+                .thenReturn(List.of());
+
+        server = new WebServer(0, browse, null, null, null, null, null, null, null, null);
+        server.start();
+
+        HttpResponse<String> response = get("/api/pool/vol-a/titles?company=Prestige");
+        assertEquals(200, response.statusCode());
+        verify(browse).findByVolumePartitionFiltered("vol-a", "pool", "Prestige", List.of(), 0, 24);
+    }
+
+    @Test
+    void collectionsTitlesEndpointDelegates() throws IOException, InterruptedException {
+        TitleBrowseService browse = mock(TitleBrowseService.class);
+        when(browse.findByVolumePaged(eq("collections"), anyInt(), anyInt())).thenReturn(List.of());
+
+        server = new WebServer(0, browse, null, null, null, null, null, null, null, null);
+        server.start();
+
+        HttpResponse<String> response = get("/api/collections/titles");
+        assertEquals(200, response.statusCode());
+        verify(browse).findByVolumePaged("collections", 0, 24);
+    }
+
+    @Test
+    void companiesEndpointDelegates() throws IOException, InterruptedException {
+        TitleBrowseService browse = mock(TitleBrowseService.class);
+        when(browse.listAllCompanies()).thenReturn(List.of("Prestige", "Moodyz"));
+
+        server = new WebServer(0, browse, null, null, null, null, null, null, null, null);
+        server.start();
+
+        HttpResponse<String> response = get("/api/companies");
+        assertEquals(200, response.statusCode());
+        assertEquals(2, mapper.readTree(response.body()).size());
+    }
+
+    @Test
+    void titleVisitPostReturnsStats() throws IOException, InterruptedException {
+        TitleBrowseService browse = mock(TitleBrowseService.class);
+        when(browse.recordVisit("ABP-001")).thenReturn(Optional.of(
+                new TitleBrowseService.VisitStats(3, "2026-04-20T10:00")));
+
+        server = new WebServer(0, browse, null, null, null, null, null, null, null, null);
+        server.start();
+
+        HttpResponse<String> response = post("/api/titles/ABP-001/visit");
+        assertEquals(200, response.statusCode());
+        assertEquals(3, mapper.readTree(response.body()).get("visitCount").asInt());
+    }
+
+    @Test
+    void titleFavoritePostTogglesFavorite() throws IOException, InterruptedException {
+        TitleBrowseService browse = mock(TitleBrowseService.class);
+        TitleRepository titleRepo = mock(TitleRepository.class);
+        Title t = Title.builder().id(1L).code("ABP-001").favorite(false).build();
+        when(titleRepo.findByCode("ABP-001")).thenReturn(Optional.of(t));
+
+        server = new WebServer(0, browse, null, null, null, null, null, null, titleRepo, null);
+        server.start();
+
+        HttpResponse<String> response = post("/api/titles/ABP-001/favorite");
+        assertEquals(200, response.statusCode());
+        verify(titleRepo).toggleFavorite(1L, true);
+    }
+
+    @Test
+    void titleBookmarkPostRespectsValueParam() throws IOException, InterruptedException {
+        TitleBrowseService browse = mock(TitleBrowseService.class);
+        TitleRepository titleRepo = mock(TitleRepository.class);
+        Title t = Title.builder().id(1L).code("ABP-001").build();
+        when(titleRepo.findByCode("ABP-001")).thenReturn(Optional.of(t));
+
+        server = new WebServer(0, browse, null, null, null, null, null, null, titleRepo, null);
+        server.start();
+
+        HttpResponse<String> response = post("/api/titles/ABP-001/bookmark?value=true");
+        assertEquals(200, response.statusCode());
+        verify(titleRepo).toggleBookmark(1L, true);
+    }
+
+    @Test
+    void titleFavoritePostReturns404WhenMissing() throws IOException, InterruptedException {
+        TitleBrowseService browse = mock(TitleBrowseService.class);
+        TitleRepository titleRepo = mock(TitleRepository.class);
+        when(titleRepo.findByCode("NOPE")).thenReturn(Optional.empty());
+
+        server = new WebServer(0, browse, null, null, null, null, null, null, titleRepo, null);
+        server.start();
+
+        HttpResponse<String> response = post("/api/titles/NOPE/favorite");
+        assertEquals(404, response.statusCode());
+    }
+
+    @Test
+    void toolsDuplicatesEndpointDelegates() throws IOException, InterruptedException {
+        TitleBrowseService browse = mock(TitleBrowseService.class);
+        when(browse.findDuplicatesPaged(anyInt(), anyInt(), any()))
+                .thenReturn(new TitleBrowseService.DuplicatePage(List.of(), 0));
+
+        server = new WebServer(0, browse, null, null, null, null, null, null, null, null);
+        server.start();
+
+        HttpResponse<String> response = get("/api/tools/duplicates?limit=20");
+        assertEquals(200, response.statusCode());
+        assertEquals(0, mapper.readTree(response.body()).get("total").asInt());
+    }
+
     // ── Helpers ─────────────────────────────────────────────────────────
 
     private HttpResponse<String> get(String path) throws IOException, InterruptedException {
