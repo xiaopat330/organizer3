@@ -226,6 +226,114 @@
   pointer-events: none;
 }
 
+/* ── Tag panel ────────────────────────────────────────────────── */
+.queue-section-divider {
+  border: none;
+  border-top: 1px solid #222;
+  margin: 4px 0;
+}
+
+.queue-tags-section {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.queue-tags-label {
+  font-size: 0.78rem;
+  color: #aaa;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.queue-tags-label-note {
+  color: #666;
+  font-weight: 400;
+  text-transform: none;
+  letter-spacing: 0;
+  font-size: 0.74rem;
+  margin-left: 6px;
+}
+.queue-tag-implicit-sample {
+  color: #f87171;
+  font-weight: 700;
+}
+
+.queue-tags-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.queue-tag-group {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  padding: 6px 0;
+  border-top: 1px solid #141414;
+}
+.queue-tag-group:first-child { border-top: none; }
+.queue-tag-group-label {
+  flex-shrink: 0;
+  width: 160px;
+  color: #888;
+  font-size: 0.72rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.queue-tag-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+/* Base chip — subtle until active. */
+.queue-tag-toggle {
+  background: transparent;
+  border: 1px solid #222;
+  border-radius: 10px;
+  padding: 2px 9px;
+  font-size: 0.70rem;
+  color: #555;
+  cursor: pointer;
+  transition: color 0.10s, background 0.10s, border-color 0.10s;
+  font-family: inherit;
+  line-height: 1.5;
+}
+.queue-tag-toggle:hover:not(:disabled):not(.implicit) {
+  border-color: #444;
+  color: #ccc;
+}
+.queue-tag-toggle.active {
+  /* per-category color overrides below */
+  color: #fff;
+}
+
+/* Per-category palette — applied to active tags in that group.
+   Each group picks a distinct hue so the panel reads at a glance. */
+.tag-cat-format           .queue-tag-toggle.active { background:#0c2a1a; color:#6ee7b7; border-color:#065f46; }
+.tag-cat-production_style .queue-tag-toggle.active { background:#0b2140; color:#93c5fd; border-color:#1e40af; }
+.tag-cat-setting          .queue-tag-toggle.active { background:#2a1a06; color:#fcd34d; border-color:#78350f; }
+.tag-cat-role             .queue-tag-toggle.active { background:#2a0b1c; color:#f9a8d4; border-color:#9d174d; }
+.tag-cat-theme            .queue-tag-toggle.active { background:#1b0c2a; color:#c4b5fd; border-color:#5b21b6; }
+.tag-cat-act              .queue-tag-toggle.active { background:#281b05; color:#fdba74; border-color:#9a3412; }
+.tag-cat-body             .queue-tag-toggle.active { background:#052326; color:#5eead4; border-color:#115e59; }
+
+/* Implicit (label-implied) tags — red, not editable. */
+.queue-tag-toggle.implicit,
+.queue-tag-toggle.implicit.active {
+  background: #2a0a0a;
+  color: #fca5a5;
+  border-color: #7f1d1d;
+  cursor: help;
+  opacity: 0.95;
+}
+
+.queue-tag-toggle.disabled,
+.queue-tag-toggle:disabled {
+  cursor: not-allowed;
+}
+.queue-tag-toggle.disabled:not(.implicit):not(.active) {
+  opacity: 0.35;
+}
+
 .queue-cover-column {
   display: flex;
   flex-direction: column;

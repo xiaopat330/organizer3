@@ -24,6 +24,7 @@ const descriptorPreview = document.getElementById('queue-descriptor-preview');
 const duplicateBadge    = document.getElementById('queue-duplicate-badge');
 const duplicateBanner   = document.getElementById('queue-duplicate-banner');
 const duplicateLocations= document.getElementById('queue-duplicate-locations');
+const tagsPanel         = document.getElementById('queue-tags-panel');
 const actressList   = document.getElementById('queue-actress-list');
 const actressInput  = document.getElementById('queue-actress-input');
 const actressSuggest= document.getElementById('queue-actress-suggest');
@@ -40,6 +41,7 @@ let currentDetail = null;    // loaded detail for currentId
 let editorState = null;      // { actresses: [{id?|newName, canonicalName, primary, isNew}], coverStaged: { kind: 'url'|'bytes', ...} | null, coverDirty: boolean }
 let suggestHighlight = -1;
 let searchSeq = 0;
+let tagsCatalog = null; // [{category, label, tags: [{name, description}]}]
 
 // ── Public API ────────────────────────────────────────────────────────────
 export function showTitleEditor() {
@@ -55,13 +57,21 @@ export function hideTitleEditorView() {
 // ── Sidebar / queue list ──────────────────────────────────────────────────
 async function loadQueue() {
   try {
-    const res = await fetch('/api/unsorted/titles');
-    queueRows = await res.json();
+    const [rowsRes] = await Promise.all([fetch('/api/unsorted/titles'), ensureTagsCatalog()]);
+    queueRows = await rowsRes.json();
     renderSidebar();
   } catch (err) {
     console.error('loadQueue failed', err);
     sidebarCount.textContent = 'Error loading queue';
   }
+}
+
+async function ensureTagsCatalog() {
+  if (tagsCatalog) return tagsCatalog;
+  const res = await fetch('/api/tags');
+  if (!res.ok) throw new Error(`tags catalog HTTP ${res.status}`);
+  tagsCatalog = await res.json();
+  return tagsCatalog;
 }
 
 function visibleRows() {
@@ -152,14 +162,18 @@ function buildInitialState(detail) {
     isNew: false
   }));
   const descriptor = detail.descriptor || '';
+  const directTags = (detail.directTags || []).slice().sort();
   return {
     actresses,
     descriptor,
+    directTags: new Set(directTags),
+    labelImpliedTags: new Set(detail.labelImpliedTags || []),
     coverStaged: null,
     coverDirty: false,
     hasExistingCover: !!detail.hasCover,
     initialActresses: JSON.stringify(actresses),
-    initialDescriptor: descriptor
+    initialDescriptor: descriptor,
+    initialTags: JSON.stringify(directTags)
   };
 }
 
@@ -173,6 +187,7 @@ function renderEditor() {
   descriptorInput.value = editorState.descriptor || '';
   updateDescriptorPreview();
   renderDuplicateState();
+  renderTags();
 
   // Cover preview
   const dup = isDuplicate();
@@ -193,6 +208,43 @@ function renderEditor() {
 
   renderActresses();
   updateSaveEnabled();
+}
+
+function renderTags() {
+  if (!editorState || !tagsCatalog) { tagsPanel.innerHTML = ''; return; }
+  const dup = isDuplicate();
+  const direct  = editorState.directTags;
+  const implied = editorState.labelImpliedTags;
+
+  tagsPanel.innerHTML = tagsCatalog.map(group => `
+    <div class="queue-tag-group tag-cat-${esc(group.category)}">
+      <div class="queue-tag-group-label">${esc(group.label)}</div>
+      <div class="queue-tag-row">
+        ${group.tags.map(t => {
+          const isImplied = implied.has(t.name);
+          const isActive  = direct.has(t.name) || isImplied;
+          const cls = 'queue-tag-toggle'
+                    + (isActive  ? ' active'    : '')
+                    + (isImplied ? ' implicit'  : '')
+                    + (dup       ? ' disabled'  : '');
+          const title = isImplied
+              ? `Implied by label (${esc(t.description || '')})`
+              : esc(t.description || '');
+          return `<button type="button" class="${cls}" data-tag="${esc(t.name)}" ${isImplied || dup ? 'disabled' : ''} title="${title}">${esc(t.name)}</button>`;
+        }).join('')}
+      </div>
+    </div>
+  `).join('');
+
+  tagsPanel.querySelectorAll('.queue-tag-toggle:not(.implicit):not(.disabled)').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const tag = btn.getAttribute('data-tag');
+      if (editorState.directTags.has(tag)) editorState.directTags.delete(tag);
+      else editorState.directTags.add(tag);
+      btn.classList.toggle('active');
+      updateSaveEnabled();
+    });
+  });
 }
 
 function isDuplicate() {
@@ -498,6 +550,7 @@ function stageFile(file) {
     editorState.coverStaged = { kind: 'bytes', file, previewUrl: reader.result };
     editorState.coverDirty = true;
     renderEditor();
+    updateSaveEnabled();
   };
   reader.readAsDataURL(file);
 }
@@ -506,6 +559,7 @@ function stageUrl(url) {
   editorState.coverStaged = { kind: 'url', url, previewUrl: url };
   editorState.coverDirty = true;
   renderEditor();
+  updateSaveEnabled();
 }
 
 // ── Save flow ────────────────────────────────────────────────────────────
@@ -513,6 +567,8 @@ function isDirty() {
   if (!editorState) return false;
   if (editorState.coverDirty) return true;
   if ((editorState.descriptor || '') !== (editorState.initialDescriptor || '')) return true;
+  const currentTags = JSON.stringify([...editorState.directTags].sort());
+  if (currentTags !== editorState.initialTags) return true;
   return JSON.stringify(editorState.actresses) !== editorState.initialActresses;
 }
 
@@ -559,12 +615,12 @@ function canSave() {
   if (!editorState) return false;
   if (!descriptorIsValid()) return false;
   if (isDuplicate()) {
-    // Duplicates save only when descriptor changed (the only editable field).
     return (editorState.descriptor || '') !== (editorState.initialDescriptor || '');
   }
   if (editorState.actresses.length === 0) return false;
   if (!editorState.actresses.some(a => a.primary)) return false;
-  return true;
+  // Non-duplicate: enable when anything editable is dirty so user can resave tag-only changes.
+  return isDirty();
 }
 
 saveBtn.addEventListener('click', async () => {
@@ -585,7 +641,8 @@ saveBtn.addEventListener('click', async () => {
             const p = editorState.actresses.find(a => a.primary);
             return p.isNew ? { newName: p.newName } : { id: p.id };
           })(),
-          descriptor: (editorState.descriptor || '').trim() || null
+          descriptor: (editorState.descriptor || '').trim() || null,
+          tags: [...editorState.directTags].sort()
         };
     const actRes = await fetch(`/api/unsorted/titles/${currentId}/actresses`, {
       method: 'PUT',

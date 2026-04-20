@@ -79,6 +79,15 @@ The descriptor is an optional editorial tag (`Demosaiced`, `4K`, `Uncut`, etc.).
 - **Failure mode:** if the SMB rename fails, the actress save is already committed and the folder is unchanged on disk. The save endpoint returns 500 with the error message; the next successful save will re-attempt the rename.
 - Collision guard: if the target folder name already exists (and isn't the current folder), the rename is aborted with a clear error.
 
+### Tags
+
+Under a horizontal divider below the cover + actress grid, the editor exposes the full tag vocabulary (from `/api/tags`) as toggleable chips, grouped by category (Format, Production Style, Setting, Role, Theme, Act, Body). Each category has a distinct color so groups read at a glance.
+
+- **Direct tags** (on `title_tags`) — user-editable; click a chip to toggle.
+- **Label-implied tags** (on `label_tags` for the title's label) — **rendered in red, non-interactive**. They already apply automatically via the `title_effective_tags` view and cannot be toggled off from the editor.
+- **No DB write until Save.** Toggles mutate a local Set; a tag-only change is enough to enable Save. On Save (non-duplicate), the PUT body carries a `tags` array; the backend replaces `title_tags` for the title and rebuilds `title_effective_tags` (direct ∪ label-implied).
+- **Duplicates disable tag editing** (consistent with actress/cover rules — tags are global per product code).
+
 ### Duplicates
 
 A title is a **duplicate** when its product code already has ≥1 `title_locations` row outside the unsorted volume (another library volume, partition, or unsorted path). Duplicates are legitimate — special editions, different encodes, BD rips, demosaiced variations — and must be preservable alongside the original.

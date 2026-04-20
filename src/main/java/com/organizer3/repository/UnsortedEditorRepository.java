@@ -100,6 +100,18 @@ public interface UnsortedEditorRepository {
     /** Return the canonical name of an actress by id, or empty. */
     Optional<String> findActressCanonicalName(long actressId);
 
+    /** Tags currently directly attached to the title via {@code title_tags}. */
+    List<String> findDirectTags(long titleId);
+
+    /** Tags implied by the title's {@code label} via {@code label_tags}. */
+    List<String> findLabelTags(String label);
+
+    /**
+     * Replace {@code title_tags} for the title with {@code tags}, and rebuild the denormalized
+     * {@code title_effective_tags} set (direct ∪ label-implied).
+     */
+    void replaceTags(long titleId, List<String> tags);
+
     /** Lightweight row for "this title also lives here" disclosure. */
     record OtherLocation(String volumeId, String path) {}
 

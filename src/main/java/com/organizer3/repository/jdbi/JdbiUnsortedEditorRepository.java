@@ -195,6 +195,48 @@ public class JdbiUnsortedEditorRepository implements UnsortedEditorRepository {
     }
 
     @Override
+    public List<String> findDirectTags(long titleId) {
+        return jdbi.withHandle(h -> h.createQuery(
+                        "SELECT tag FROM title_tags WHERE title_id = :id ORDER BY tag")
+                .bind("id", titleId).mapTo(String.class).list());
+    }
+
+    @Override
+    public List<String> findLabelTags(String label) {
+        if (label == null || label.isBlank()) return List.of();
+        return jdbi.withHandle(h -> h.createQuery(
+                        "SELECT tag FROM label_tags WHERE label_code = :label ORDER BY tag")
+                .bind("label", label).mapTo(String.class).list());
+    }
+
+    @Override
+    public void replaceTags(long titleId, List<String> tags) {
+        jdbi.useTransaction(h -> {
+            h.createUpdate("DELETE FROM title_tags WHERE title_id = :id")
+                    .bind("id", titleId).execute();
+            for (String t : tags) {
+                if (t == null || t.isBlank()) continue;
+                h.createUpdate("INSERT OR IGNORE INTO title_tags (title_id, tag) VALUES (:id, :t)")
+                        .bind("id", titleId).bind("t", t).execute();
+            }
+            // Rebuild denormalized effective tags: direct + label-implied.
+            h.createUpdate("DELETE FROM title_effective_tags WHERE title_id = :id")
+                    .bind("id", titleId).execute();
+            h.createUpdate("""
+                    INSERT OR IGNORE INTO title_effective_tags (title_id, tag, source)
+                    SELECT :id, tag, 'direct' FROM title_tags WHERE title_id = :id
+                    """).bind("id", titleId).execute();
+            h.createUpdate("""
+                    INSERT OR IGNORE INTO title_effective_tags (title_id, tag, source)
+                    SELECT t.id, lt.tag, 'label'
+                    FROM titles t
+                    JOIN label_tags lt ON lt.label_code = t.label
+                    WHERE t.id = :id AND t.label IS NOT NULL AND t.label != ''
+                    """).bind("id", titleId).execute();
+        });
+    }
+
+    @Override
     public List<OtherLocation> findOtherLocations(long titleId, String excludeVolumeId, String excludePath) {
         return jdbi.withHandle(h -> h.createQuery("""
                 SELECT volume_id, path FROM title_locations

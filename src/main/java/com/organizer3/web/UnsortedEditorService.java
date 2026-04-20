@@ -77,14 +77,17 @@ public class UnsortedEditorService {
                     String descriptor = extractDescriptor(detail.folderName(), detail.code());
                     List<UnsortedEditorRepository.OtherLocation> others =
                             repo.findOtherLocations(titleId, unsortedVolumeId, detail.folderPath());
+                    List<String> directTags       = repo.findDirectTags(titleId);
+                    List<String> labelImpliedTags = repo.findLabelTags(detail.label());
                     return new TitleDetailView(detail, coverFile != null, coverFile, descriptor,
-                            !others.isEmpty(), others);
+                            !others.isEmpty(), others, directTags, labelImpliedTags);
                 });
     }
 
     public record TitleDetailView(TitleDetail detail, boolean hasCover, String coverFilename,
                                   String descriptor, boolean duplicate,
-                                  List<UnsortedEditorRepository.OtherLocation> otherLocations) {}
+                                  List<UnsortedEditorRepository.OtherLocation> otherLocations,
+                                  List<String> directTags, List<String> labelImpliedTags) {}
 
     /**
      * Pull the folder-name descriptor (e.g. "Demosaiced") out of a basename like
@@ -181,6 +184,19 @@ public class UnsortedEditorService {
         return replaceActresses(titleId, entries, primary, null);
     }
 
+    public SaveResult replaceActresses(long titleId, List<ActressEntry> entries, ActressEntry primary,
+                                       String descriptor) {
+        return replaceActresses(titleId, entries, primary, descriptor, null);
+    }
+
+    /**
+     * Replace the user-directed tag set for the title. Idempotent; safe to call with the
+     * unchanged set. Rebuilds {@code title_effective_tags} (direct ∪ label-implied).
+     */
+    public void replaceTags(long titleId, List<String> tags) {
+        repo.replaceTags(titleId, tags == null ? List.of() : tags);
+    }
+
     /**
      * Save flow for titles that are duplicates of an already-registered entry: the
      * actress assignment (global per code) and cover cache stay untouched. The only
@@ -226,7 +242,7 @@ public class UnsortedEditorService {
     }
 
     public SaveResult replaceActresses(long titleId, List<ActressEntry> entries, ActressEntry primary,
-                                       String descriptor) {
+                                       String descriptor, List<String> tags) {
         // Fail fast before any DB writes.
         final String validatedDescriptor = validateDescriptor(descriptor);
         if (entries == null || entries.isEmpty()) {
@@ -269,6 +285,10 @@ public class UnsortedEditorService {
             repo.replaceActressesInTx(h, titleId, ids, primaryId);
             return new SaveResult(ids, primaryId, null, false);
         });
+
+        // Replace tags (own transaction + effective-tag rebuild). Safe to run after the
+        // actress save since it's scoped to the title row and doesn't depend on SMB.
+        if (tags != null) replaceTags(titleId, tags);
 
         // Folder rename (SMB + DB path rewrite) happens after the DB commit so we never
         // hold a SQLite lock across a network op. If the SMB rename fails, actresses are
