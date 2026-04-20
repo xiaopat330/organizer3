@@ -4404,10 +4404,8 @@ header h1:hover {
   aspect-ratio: var(--cover-card-ratio);
   overflow: hidden;
   border-radius: 4px;
-  margin-left: auto;           /* right-align within the panel */
-  margin-bottom: 16px;
   background: #1a1a1a;
-  display: block;
+  margin-bottom: 16px;
 }
 .alias-card-cover-img {
   width: var(--cover-crop-width);
@@ -4421,7 +4419,6 @@ header h1:hover {
   aspect-ratio: var(--cover-card-ratio);
   background: #1a1a1a;
   border-radius: 4px;
-  margin-left: auto;
   margin-bottom: 16px;
 }
 .alias-card-name {
@@ -4534,6 +4531,31 @@ header h1:hover {
   transition: border-color 0.15s, background 0.15s;
 }
 .alias-add-btn:hover { border-color: #0f766e; background: #042320; }
+
+.alias-error-msg {
+  margin-top: 8px;
+  padding: 6px 10px;
+  background: #3b0f0f;
+  border: 1px solid #7f1d1d;
+  border-radius: 4px;
+  color: #fca5a5;
+  font-size: 0.8rem;
+}
+
+.alias-saved-toast {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #0f766e;
+  color: #e0e0e0;
+  font-size: 0.82rem;
+  padding: 7px 20px;
+  border-radius: 4px;
+  z-index: 9999;
+  pointer-events: none;
+  animation: toast-fade 3s ease forwards;
+}
 
 /* ── Tools sub-nav filter bar ─────────────────────────────────────── */
 .tools-subnav {

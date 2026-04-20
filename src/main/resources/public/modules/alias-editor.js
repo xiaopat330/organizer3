@@ -14,9 +14,21 @@ const tableBody        = document.getElementById('alias-table-body');
 const addBtn           = document.getElementById('alias-add-btn');
 const saveBtn          = document.getElementById('alias-modal-save');
 const cancelBtn        = document.getElementById('alias-modal-cancel');
+const errorMsg         = document.getElementById('alias-error-msg');
 
 const MIN_CHARS    = 2;
 const DEBOUNCE_MS  = 300;
+
+function highlight(text, query) {
+  if (!text) return '';
+  if (!query) return esc(text);
+  const lower = text.toLowerCase();
+  const idx   = lower.indexOf(query.toLowerCase());
+  if (idx < 0) return esc(text);
+  return esc(text.slice(0, idx))
+       + '<em><strong class="search-match">' + esc(text.slice(idx, idx + query.length)) + '</strong></em>'
+       + esc(text.slice(idx + query.length));
+}
 
 // ── Alias editor view ──────────────────────────────────────────────────────
 
@@ -75,7 +87,7 @@ function renderSearchResults(actresses, query) {
     row.className = 'alias-search-row';
 
     const aliasHtml = a.matchedAlias
-      ? `<div class="alias-search-alias">a.k.a. ${esc(a.matchedAlias)}</div>` : '';
+      ? `<div class="alias-search-alias">a.k.a. ${highlight(a.matchedAlias, query)}</div>` : '';
 
     const coverHtml = a.coverUrl
       ? `<div class="alias-search-cover-wrap"><img class="alias-search-cover-img" src="${esc(a.coverUrl)}" alt="" loading="lazy"></div>`
@@ -83,7 +95,7 @@ function renderSearchResults(actresses, query) {
 
     row.innerHTML =
         `<div class="alias-search-text">`
-      + `<span class="alias-search-name">${esc(a.canonicalName)}</span>`
+      + `<span class="alias-search-name">${highlight(a.canonicalName, query)}</span>`
       + aliasHtml
       + `<span class="alias-search-count">${a.titleCount} titles</span>`
       + `</div>`
@@ -164,11 +176,12 @@ function appendAliasRow(aliasName) {
   + `<td><input class="alias-input alias-input-last"  type="text" value="${esc(last)}"  placeholder="Required"></td>`
   + `<td><button class="alias-row-remove" title="Remove" tabindex="-1">✕</button></td>`;
 
-  tr.querySelector('.alias-row-remove').addEventListener('click', () => tr.remove());
+  tr.querySelector('.alias-row-remove').addEventListener('click', () => { tr.remove(); clearError(); });
   tableBody.appendChild(tr);
 }
 
 addBtn.addEventListener('click', () => {
+  clearError();
   appendAliasRow('');
   const inputs = tableBody.querySelectorAll('tr:last-child .alias-input-last');
   if (inputs.length) inputs[0].focus();
@@ -176,8 +189,10 @@ addBtn.addEventListener('click', () => {
 
 // ── Save / Cancel ──────────────────────────────────────────────────────────
 
-saveBtn.addEventListener('click', () => {
-  // Collect alias data from table (for future wiring)
+saveBtn.addEventListener('click', async () => {
+  if (!currentActressId) return;
+  clearError();
+
   const rows = Array.from(tableBody.querySelectorAll('tr'));
   const aliases = rows.map(tr => {
     const first = tr.querySelector('.alias-input-first')?.value.trim() || '';
@@ -185,9 +200,44 @@ saveBtn.addEventListener('click', () => {
     return first ? `${first} ${last}` : last;
   }).filter(Boolean);
 
-  // TODO: POST /api/actresses/:id/aliases with { aliases }
-  console.log('Alias save (not yet wired):', currentActressId, aliases);
-  closeModal();
+  // Client-side duplicate check
+  const seen = new Set();
+  const dupes = [];
+  for (const a of aliases) {
+    const key = a.toLowerCase();
+    if (seen.has(key)) dupes.push(a);
+    else seen.add(key);
+  }
+  if (dupes.length) {
+    showError(`Duplicate alias${dupes.length > 1 ? 'es' : ''}: ${dupes.join(', ')}`);
+    return;
+  }
+
+  saveBtn.disabled = true;
+  saveBtn.textContent = 'Saving…';
+  const actressName = modalTitle.textContent;
+
+  try {
+    const res = await fetch(`/api/actresses/${currentActressId}/aliases`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ aliases }),
+    });
+
+    if (res.ok) {
+      closeModal();
+      showSavedToast(actressName);
+    } else {
+      const data = await res.json().catch(() => ({}));
+      showError(data.error || `Error ${res.status}`);
+    }
+  } catch (err) {
+    showError('Network error — aliases not saved.');
+    console.error(err);
+  } finally {
+    saveBtn.disabled = false;
+    saveBtn.textContent = 'Save';
+  }
 });
 
 cancelBtn.addEventListener('click', closeModal);
@@ -204,5 +254,25 @@ function closeModal() {
   modalOverlay.style.display = 'none';
   tableBody.innerHTML = '';
   modalLeft.innerHTML = '';
+  errorMsg.style.display = 'none';
+  errorMsg.textContent = '';
   currentActressId = null;
+}
+
+function showError(msg) {
+  errorMsg.textContent = msg;
+  errorMsg.style.display = 'block';
+}
+
+function clearError() {
+  errorMsg.style.display = 'none';
+  errorMsg.textContent = '';
+}
+
+function showSavedToast(name) {
+  const t = document.createElement('div');
+  t.className = 'alias-saved-toast';
+  t.textContent = `Aliases saved for ${name}`;
+  document.body.appendChild(t);
+  setTimeout(() => t.remove(), 3000);
 }

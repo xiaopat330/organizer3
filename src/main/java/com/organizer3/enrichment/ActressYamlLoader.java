@@ -185,17 +185,6 @@ public class ActressYamlLoader {
                 toAwards(profile.awards())
         );
 
-        // Update aliases from alternate_names
-        if (profile.name() != null && profile.name().alternateNames() != null) {
-            List<String> aliases = profile.name().alternateNames().stream()
-                    .map(ActressYaml.AlternateName::name)
-                    .filter(n -> n != null && !n.isBlank())
-                    .toList();
-            if (!aliases.isEmpty()) {
-                actressRepo.replaceAllAliases(actress.getId(), aliases);
-            }
-        }
-
         // Apply portfolio entries
         int titlesCreated = 0;
         int titlesEnriched = 0;

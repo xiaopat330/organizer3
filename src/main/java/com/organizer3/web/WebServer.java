@@ -453,6 +453,30 @@ public class WebServer {
                         .ifPresentOrElse(ctx::json, () -> ctx.status(404));
             });
 
+            app.put("/api/actresses/{id}/aliases", ctx -> {
+                long id;
+                try { id = Long.parseLong(ctx.pathParam("id")); }
+                catch (NumberFormatException e) { ctx.status(400); return; }
+                @SuppressWarnings("unchecked")
+                java.util.List<String> aliases;
+                try {
+                    var body = ctx.bodyAsClass(java.util.Map.class);
+                    Object raw = body.get("aliases");
+                    aliases = raw instanceof java.util.List<?> list
+                            ? list.stream().map(Object::toString).toList()
+                            : java.util.List.of();
+                } catch (Exception e) {
+                    ctx.status(400).json(Map.of("error", "Invalid request body"));
+                    return;
+                }
+                var result = actressBrowseService.updateAliases(id, aliases);
+                if (result.ok()) {
+                    actressBrowseService.findById(id).ifPresentOrElse(ctx::json, () -> ctx.status(404));
+                } else {
+                    ctx.status(409).json(Map.of("error", result.error()));
+                }
+            });
+
             app.get("/api/actresses/{id}/titles", ctx -> {
                 long id;
                 try { id = Long.parseLong(ctx.pathParam("id")); }

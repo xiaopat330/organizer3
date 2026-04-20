@@ -657,6 +657,52 @@ public class ActressBrowseService {
     }
 
     // -------------------------------------------------------------------------
+    // Alias management
+    // -------------------------------------------------------------------------
+
+    /** Result of an alias update: either success or a conflict error message. */
+    public record AliasUpdateResult(boolean ok, String error) {
+        public static AliasUpdateResult success() { return new AliasUpdateResult(true, null); }
+        public static AliasUpdateResult conflict(String msg) { return new AliasUpdateResult(false, msg); }
+    }
+
+    /**
+     * Replace all aliases for an actress with the given list, after conflict-checking each
+     * proposed alias against other actresses. Blank entries are silently dropped.
+     *
+     * <p>Conflicts: an alias cannot be the canonical name of a different actress, and cannot
+     * be an existing alias already owned by a different actress.
+     *
+     * @return {@link AliasUpdateResult#success()} on success, or a conflict result with a
+     *         human-readable error if any alias is already taken
+     */
+    public AliasUpdateResult updateAliases(long actressId, List<String> aliases) {
+        if (actressRepo.findById(actressId).isEmpty()) {
+            return AliasUpdateResult.conflict("Actress not found");
+        }
+
+        List<String> cleaned = (aliases == null ? List.<String>of() : aliases).stream()
+                .filter(a -> a != null && !a.isBlank())
+                .map(String::trim)
+                .distinct()
+                .toList();
+
+        for (String alias : cleaned) {
+            Optional<Actress> byCanonical = actressRepo.findByCanonicalName(alias);
+            if (byCanonical.isPresent() && byCanonical.get().getId() != actressId) {
+                return AliasUpdateResult.conflict("'" + alias + "' is the canonical name of another actress");
+            }
+            Optional<Actress> byAlias = actressRepo.resolveByName(alias);
+            if (byAlias.isPresent() && byAlias.get().getId() != actressId) {
+                return AliasUpdateResult.conflict("'" + alias + "' is already an alias for another actress");
+            }
+        }
+
+        actressRepo.replaceAllAliases(actressId, cleaned);
+        return AliasUpdateResult.success();
+    }
+
+    // -------------------------------------------------------------------------
     // Actresses dashboard composition
     // -------------------------------------------------------------------------
 

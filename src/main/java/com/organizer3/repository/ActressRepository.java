@@ -209,12 +209,18 @@ public interface ActressRepository {
     void replaceAllAliases(long actressId, List<String> aliasNames);
 
     /**
-     * Import actress and alias data from a parsed aliases.yaml.
-     * For each entry: ensures the canonical actress exists (creates with LIBRARY tier if new),
-     * then replaces all her alias mappings with the ones from the file.
-     * Runs in a single transaction.
+     * Seed actress aliases from a parsed aliases.yaml. This is a one-time migration:
+     * if the {@code actress_aliases} table already contains any rows, the call is a no-op.
+     * Once seeded, the DB is the authoritative source and callers should use
+     * {@link #replaceAllAliases} for individual edits or {@link #exportAliases} for backup.
      */
     void importFromYaml(List<AliasYamlEntry> entries);
+
+    /**
+     * Export all current alias data as a list of YAML-compatible entries, sorted by canonical
+     * name. Actresses with no aliases are omitted. Use this to write a backup aliases.yaml.
+     */
+    List<AliasYamlEntry> exportAliases();
 
     // ── Name-check queries ───────────────────────────────────────────────────
 
@@ -253,13 +259,11 @@ public interface ActressRepository {
             String matchedAlias,
             int titleCount,
             /**
-             * Label code from the most recently indexed title that has both a label and baseCode.
-             * Paired with {@link #coverBaseCode} — both come from the same title row so that
-             * {@code CoverPath.find()} resolves to an existing file.
+             * Pipe-delimited list of up to 5 "label:baseCode" pairs from the actress's most
+             * recent titles. {@code SearchService} tries each in order until a local cover file
+             * is found, so stale/missing covers on any single title don't blank the result.
              */
-            String coverLabel,
-            /** Base code from the same title as {@link #coverLabel}. */
-            String coverBaseCode
+            String coverCandidates
     ) {}
 
     /**

@@ -163,18 +163,50 @@ class JdbiActressRepositoryTest {
     }
 
     @Test
-    void importFromYamlReplacesExistingAliasesOnReimport() {
+    void importFromYamlIsNoOpWhenTableAlreadyHasRows() {
+        // First call seeds the table
         repo.importFromYaml(List.of(
                 new AliasYamlEntry("Aya Sazanami", List.of("Old Alias"))
         ));
+        // Second call must be a no-op — DB is now source of truth
         repo.importFromYaml(List.of(
                 new AliasYamlEntry("Aya Sazanami", List.of("Haruka Suzumiya", "Aya Konami"))
         ));
 
         List<ActressAlias> aliases = repo.findAliases(
                 repo.findByCanonicalName("Aya Sazanami").orElseThrow().getId());
-        assertEquals(2, aliases.size());
-        assertTrue(aliases.stream().noneMatch(a -> a.aliasName().equals("Old Alias")));
+        // Still contains the original seed alias, not the ones from the second call
+        assertEquals(1, aliases.size());
+        assertEquals("Old Alias", aliases.get(0).aliasName());
+    }
+
+    // --- exportAliases ---
+
+    @Test
+    void exportAliasesReturnsAllAliasesGroupedByActress() {
+        repo.importFromYaml(List.of(
+                new AliasYamlEntry("Aya Sazanami", List.of("Haruka Suzumiya", "Aya Konami")),
+                new AliasYamlEntry("Hibiki Otsuki", List.of("Eri Ando"))
+        ));
+
+        List<AliasYamlEntry> exported = repo.exportAliases();
+
+        assertEquals(2, exported.size());
+        AliasYamlEntry aya = exported.stream()
+                .filter(e -> "Aya Sazanami".equals(e.name())).findFirst().orElseThrow();
+        assertEquals(2, aya.aliases().size());
+        assertTrue(aya.aliases().contains("Haruka Suzumiya"));
+        assertTrue(aya.aliases().contains("Aya Konami"));
+
+        AliasYamlEntry hibiki = exported.stream()
+                .filter(e -> "Hibiki Otsuki".equals(e.name())).findFirst().orElseThrow();
+        assertEquals(List.of("Eri Ando"), hibiki.aliases());
+    }
+
+    @Test
+    void exportAliasesReturnsEmptyWhenNoAliases() {
+        repo.save(actress("Aya Sazanami", Actress.Tier.LIBRARY));
+        assertTrue(repo.exportAliases().isEmpty());
     }
 
     // --- findByTier ---

@@ -828,7 +828,18 @@ public class JdbiActressRepository implements ActressRepository {
     @Override
     public void importFromYaml(List<AliasYamlEntry> entries) {
         jdbi.useTransaction(h -> {
+            long existing = h.createQuery("SELECT COUNT(*) FROM actress_aliases")
+                    .mapTo(Long.class).one();
+            if (existing > 0) {
+                log.info("importFromYaml: {} aliases already in DB — skipping seed (DB is source of truth)", existing);
+                return;
+            }
+
             for (AliasYamlEntry entry : entries) {
+                if (entry.name() == null || entry.name().isBlank()) {
+                    log.warn("importFromYaml: skipping entry with blank canonical name (aliases: {})", entry.aliases());
+                    continue;
+                }
                 Actress actress = h.createQuery(
                                 "SELECT * FROM actresses WHERE canonical_name = :name COLLATE NOCASE")
                         .bind("name", entry.name())
@@ -854,14 +865,34 @@ public class JdbiActressRepository implements ActressRepository {
                                     .build();
                         });
 
-                h.createUpdate("DELETE FROM actress_aliases WHERE actress_id = :id")
-                        .bind("id", actress.getId())
-                        .execute();
-
                 if (entry.aliases() != null) {
                     insertAliases(h, actress.getId(), entry.aliases());
                 }
             }
+        });
+    }
+
+    @Override
+    public List<AliasYamlEntry> exportAliases() {
+        return jdbi.withHandle(h -> {
+            record Row(String canonicalName, String aliasName) {}
+            List<Row> rows = h.createQuery("""
+                    SELECT a.canonical_name, aa.alias_name
+                    FROM actress_aliases aa
+                    JOIN actresses a ON a.id = aa.actress_id
+                    ORDER BY a.canonical_name, aa.alias_name
+                    """)
+                    .map((rs, ctx) -> new Row(rs.getString("canonical_name"), rs.getString("alias_name")))
+                    .list();
+
+            Map<String, List<String>> grouped = new java.util.LinkedHashMap<>();
+            for (Row row : rows) {
+                grouped.computeIfAbsent(row.canonicalName(), k -> new java.util.ArrayList<>())
+                        .add(row.aliasName());
+            }
+            return grouped.entrySet().stream()
+                    .map(e -> new AliasYamlEntry(e.getKey(), e.getValue()))
+                    .toList();
         });
     }
 
@@ -1195,14 +1226,12 @@ public class JdbiActressRepository implements ActressRepository {
                         SELECT r.id, r.canonical_name, r.stage_name, r.tier, r.grade,
                                r.favorite, r.bookmark, r.matched_alias,
                                COUNT(t.id) AS title_count,
-                               (SELECT tc.label FROM titles tc
-                                WHERE tc.actress_id = r.id
-                                  AND tc.base_code IS NOT NULL AND tc.label IS NOT NULL
-                                ORDER BY tc.id DESC LIMIT 1) AS cover_label,
-                               (SELECT tc.base_code FROM titles tc
-                                WHERE tc.actress_id = r.id
-                                  AND tc.base_code IS NOT NULL AND tc.label IS NOT NULL
-                                ORDER BY tc.id DESC LIMIT 1) AS cover_base_code
+                               (SELECT GROUP_CONCAT(sub.label || ':' || sub.base_code, '|')
+                                FROM (SELECT tc.label, tc.base_code FROM titles tc
+                                      WHERE tc.actress_id = r.id
+                                        AND tc.base_code IS NOT NULL AND tc.label IS NOT NULL
+                                      ORDER BY tc.id DESC LIMIT 5) sub
+                               ) AS cover_candidates
                         FROM ranked r
                         LEFT JOIN titles t ON t.actress_id = r.id
                         WHERE r.rn = 1
@@ -1223,8 +1252,7 @@ public class JdbiActressRepository implements ActressRepository {
                                 rs.getInt("bookmark") != 0,
                                 rs.getString("matched_alias"),
                                 rs.getInt("title_count"),
-                                rs.getString("cover_label"),
-                                rs.getString("cover_base_code")
+                                rs.getString("cover_candidates")
                         ))
                         .list()
         );
