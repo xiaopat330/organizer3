@@ -75,11 +75,16 @@ public class UnsortedEditorService {
                 .map(detail -> {
                     String coverFile = coverFilename(detail.label(), detail.baseCode());
                     String descriptor = extractDescriptor(detail.folderName(), detail.code());
-                    return new TitleDetailView(detail, coverFile != null, coverFile, descriptor);
+                    List<UnsortedEditorRepository.OtherLocation> others =
+                            repo.findOtherLocations(titleId, unsortedVolumeId, detail.folderPath());
+                    return new TitleDetailView(detail, coverFile != null, coverFile, descriptor,
+                            !others.isEmpty(), others);
                 });
     }
 
-    public record TitleDetailView(TitleDetail detail, boolean hasCover, String coverFilename, String descriptor) {}
+    public record TitleDetailView(TitleDetail detail, boolean hasCover, String coverFilename,
+                                  String descriptor, boolean duplicate,
+                                  List<UnsortedEditorRepository.OtherLocation> otherLocations) {}
 
     /**
      * Pull the folder-name descriptor (e.g. "Demosaiced") out of a basename like
@@ -174,6 +179,30 @@ public class UnsortedEditorService {
      */
     public SaveResult replaceActresses(long titleId, List<ActressEntry> entries, ActressEntry primary) {
         return replaceActresses(titleId, entries, primary, null);
+    }
+
+    /**
+     * Save flow for titles that are duplicates of an already-registered entry: the
+     * actress assignment (global per code) and cover cache stay untouched. The only
+     * mutation is the folder rename, using the existing {@code titles.actress_id}
+     * as primary and the supplied descriptor for uniqueness.
+     */
+    public SaveResult saveDuplicateRename(long titleId, String descriptor) {
+        final String validatedDescriptor = validateDescriptor(descriptor);
+        if (!repo.hasLocationInVolume(titleId, unsortedVolumeId)) {
+            throw new IllegalStateException("Title is no longer in the unsorted volume");
+        }
+        Long existingPrimary = repo.inTransaction(h ->
+                h.createQuery("SELECT actress_id FROM titles WHERE id = :id")
+                        .bind("id", titleId)
+                        .mapTo(Long.class)
+                        .findFirst()
+                        .orElse(null));
+        if (existingPrimary == null) {
+            throw new IllegalStateException("Duplicate title has no primary actress on record");
+        }
+        SaveResult stub = new SaveResult(List.of(), existingPrimary, null, false);
+        return renameFolderIfNeeded(titleId, stub, validatedDescriptor);
     }
 
     /**

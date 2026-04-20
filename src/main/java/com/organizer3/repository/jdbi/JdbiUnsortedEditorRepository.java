@@ -195,6 +195,21 @@ public class JdbiUnsortedEditorRepository implements UnsortedEditorRepository {
     }
 
     @Override
+    public List<OtherLocation> findOtherLocations(long titleId, String excludeVolumeId, String excludePath) {
+        return jdbi.withHandle(h -> h.createQuery("""
+                SELECT volume_id, path FROM title_locations
+                WHERE title_id = :titleId
+                  AND NOT (volume_id = :vol AND path = :path)
+                ORDER BY volume_id, path
+                """)
+                .bind("titleId", titleId)
+                .bind("vol", excludeVolumeId)
+                .bind("path", excludePath)
+                .map((rs, ctx) -> new OtherLocation(rs.getString("volume_id"), rs.getString("path")))
+                .list());
+    }
+
+    @Override
     public Optional<String> findActressCanonicalName(long actressId) {
         return jdbi.withHandle(h -> h.createQuery(
                         "SELECT canonical_name FROM actresses WHERE id = :id")

@@ -99,4 +99,13 @@ public interface UnsortedEditorRepository {
 
     /** Return the canonical name of an actress by id, or empty. */
     Optional<String> findActressCanonicalName(long actressId);
+
+    /** Lightweight row for "this title also lives here" disclosure. */
+    record OtherLocation(String volumeId, String path) {}
+
+    /**
+     * Return every {@code title_locations} row for the title EXCEPT the one on
+     * {@code excludeVolumeId} / {@code excludePath}. Used to detect duplicates.
+     */
+    List<OtherLocation> findOtherLocations(long titleId, String excludeVolumeId, String excludePath);
 }

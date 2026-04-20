@@ -59,17 +59,32 @@ public class UnsortedEditorRoutes {
                 ctx.status(400).result("Invalid body: " + e.getMessage());
                 return;
             }
-            if (body == null || body.actresses == null || body.primary == null) {
-                ctx.status(400).result("Missing actresses or primary");
+            if (body == null) {
+                ctx.status(400).result("Missing body");
                 return;
             }
 
             try {
-                List<ActressEntry> entries = body.actresses.stream()
-                        .map(e -> new ActressEntry(e.id, e.newName))
-                        .toList();
-                ActressEntry primary = new ActressEntry(body.primary.id, body.primary.newName);
-                var result = editor.replaceActresses(id, entries, primary, body.descriptor);
+                var detailOpt = editor.findEligibleById(id);
+                if (detailOpt.isEmpty()) { ctx.status(404); return; }
+                boolean isDuplicate = detailOpt.get().duplicate();
+
+                UnsortedEditorService.SaveResult result;
+                if (isDuplicate) {
+                    // Actress + cover mutations are disallowed on duplicates; only descriptor
+                    // / folder rename proceeds. Any actress payload is intentionally ignored.
+                    result = editor.saveDuplicateRename(id, body.descriptor);
+                } else {
+                    if (body.actresses == null || body.primary == null) {
+                        ctx.status(400).result("Missing actresses or primary");
+                        return;
+                    }
+                    List<ActressEntry> entries = body.actresses.stream()
+                            .map(e -> new ActressEntry(e.id, e.newName))
+                            .toList();
+                    ActressEntry primary = new ActressEntry(body.primary.id, body.primary.newName);
+                    result = editor.replaceActresses(id, entries, primary, body.descriptor);
+                }
                 Map<String, Object> resp = new java.util.LinkedHashMap<>();
                 resp.put("actressIds", result.actressIds());
                 resp.put("primaryActressId", result.primaryActressId());
@@ -101,6 +116,10 @@ public class UnsortedEditorRoutes {
             var detailOpt = editor.findEligibleById(id);
             if (detailOpt.isEmpty()) { ctx.status(404); return; }
             var detail = detailOpt.get();
+            if (detail.duplicate()) {
+                ctx.status(409).result("Cover changes are disabled for duplicates — reuse the existing cover.");
+                return;
+            }
 
             byte[] bytes;
             String extension;

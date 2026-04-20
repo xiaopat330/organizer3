@@ -129,6 +129,74 @@
 .queue-editor-sep { color: #444; }
 .queue-editor-folder { color: #999; font-size: 0.9rem; }
 
+.queue-duplicate-badge {
+  display: inline-flex;
+  align-items: center;
+  background: #7f1d1d;
+  color: #fecaca;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 2px 8px;
+  border-radius: 3px;
+  border: 1px solid #991b1b;
+  margin-left: 8px;
+}
+
+.queue-duplicate-banner {
+  background: #1f0a0a;
+  border: 1px solid #7f1d1d;
+  border-radius: 6px;
+  padding: 10px 14px;
+  color: #fecaca;
+}
+.queue-duplicate-banner-title {
+  font-weight: 700;
+  color: #fca5a5;
+  margin-bottom: 4px;
+}
+.queue-duplicate-banner-body {
+  color: #e5c5c5;
+  font-size: 0.82rem;
+  margin-bottom: 6px;
+}
+.queue-duplicate-locations {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  font-size: 0.8rem;
+}
+.queue-duplicate-locations li {
+  display: flex;
+  gap: 8px;
+  padding: 2px 0;
+  color: #ddd;
+}
+.queue-duplicate-vol {
+  color: #f87171;
+  font-weight: 700;
+  min-width: 64px;
+}
+.queue-duplicate-path {
+  color: #aaa;
+  font-family: ui-monospace, Menlo, Monaco, monospace;
+  font-size: 0.78rem;
+}
+
+.queue-cover-panel.readonly {
+  cursor: default;
+  border-style: solid;
+  opacity: 0.95;
+}
+.queue-cover-panel.readonly:hover,
+.queue-cover-panel.readonly:focus { border-color: #333; }
+
+.queue-actress-add.disabled {
+  opacity: 0.55;
+  pointer-events: none;
+}
+
 .queue-cover-column {
   display: flex;
   flex-direction: column;
@@ -285,7 +353,8 @@
   transition: color 0.1s;
 }
 .queue-actress-primary-btn.active { color: #fbbf24; }
-.queue-actress-primary-btn:hover  { color: #f59e0b; }
+.queue-actress-primary-btn:hover:not(:disabled)  { color: #f59e0b; }
+.queue-actress-primary-btn:disabled { cursor: not-allowed; opacity: 0.5; }
 
 .queue-actress-name { flex: 1; }
 .queue-actress-new-badge {

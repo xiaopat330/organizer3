@@ -20,6 +20,9 @@ const coverPlaceholder = document.getElementById('queue-cover-placeholder');
 
 const descriptorInput   = document.getElementById('queue-descriptor-input');
 const descriptorPreview = document.getElementById('queue-descriptor-preview');
+const duplicateBadge    = document.getElementById('queue-duplicate-badge');
+const duplicateBanner   = document.getElementById('queue-duplicate-banner');
+const duplicateLocations= document.getElementById('queue-duplicate-locations');
 const actressList   = document.getElementById('queue-actress-list');
 const actressInput  = document.getElementById('queue-actress-input');
 const actressSuggest= document.getElementById('queue-actress-suggest');
@@ -168,6 +171,7 @@ function renderEditor() {
   folderEl.textContent = d.folderName;
   descriptorInput.value = editorState.descriptor || '';
   updateDescriptorPreview();
+  renderDuplicateState();
 
   // Cover preview
   if (currentDetail.hasCover && currentDetail.coverFilename && !editorState.coverDirty) {
@@ -187,8 +191,33 @@ function renderEditor() {
   updateSaveEnabled();
 }
 
+function isDuplicate() {
+  return !!(currentDetail && currentDetail.duplicate);
+}
+
+function renderDuplicateState() {
+  const dup = isDuplicate();
+  duplicateBadge.style.display  = dup ? 'inline-flex' : 'none';
+  duplicateBanner.style.display = dup ? 'block' : 'none';
+  if (dup) {
+    const locs = currentDetail.otherLocations || [];
+    duplicateLocations.innerHTML = locs
+        .map(l => `<li><span class="queue-duplicate-vol">${esc(l.volumeId)}</span><span class="queue-duplicate-path">${esc(l.path)}</span></li>`)
+        .join('');
+  }
+  // Disable actress add in duplicate mode
+  actressInput.disabled = dup;
+  actressInput.placeholder = dup
+      ? 'Actress edits are disabled for duplicates'
+      : 'Type a name to search or create a new actress…';
+  document.querySelector('.queue-actress-add')?.classList.toggle('disabled', dup);
+  // Disable cover panel in duplicate mode
+  coverPanel.classList.toggle('readonly', dup);
+  coverPanel.setAttribute('aria-disabled', dup ? 'true' : 'false');
+}
+
 function renderActressHint() {
-  if (!editorState) { actressHint.style.display = 'none'; return; }
+  if (!editorState || isDuplicate()) { actressHint.style.display = 'none'; return; }
   const count = editorState.actresses.length;
   const hasPrimary = editorState.actresses.some(a => a.primary);
   let msg = '';
@@ -205,6 +234,7 @@ function renderActressHint() {
 function renderActresses() {
   actressList.innerHTML = '';
   const count = editorState.actresses.length;
+  const dup = isDuplicate();
   editorState.actresses.forEach((a, idx) => {
     const li = document.createElement('li');
     li.className = 'queue-actress-item';
@@ -212,8 +242,10 @@ function renderActresses() {
     primaryBtn.type = 'button';
     primaryBtn.className = 'queue-actress-primary-btn' + (a.primary ? ' active' : '');
     primaryBtn.textContent = a.primary ? '★' : '☆';
-    primaryBtn.title = a.primary ? 'Primary actress' : 'Mark as primary';
-    primaryBtn.addEventListener('click', () => setPrimary(idx));
+    primaryBtn.disabled = dup;
+    primaryBtn.title = dup ? 'Locked (duplicate)'
+                           : (a.primary ? 'Primary actress' : 'Mark as primary');
+    primaryBtn.addEventListener('click', () => { if (!dup) setPrimary(idx); });
 
     const name = document.createElement('span');
     name.className = 'queue-actress-name';
@@ -223,9 +255,10 @@ function renderActresses() {
     remove.type = 'button';
     remove.className = 'queue-actress-remove-btn';
     remove.textContent = '×';
-    remove.disabled = count <= 1;
-    remove.title = count <= 1 ? 'At least one actress required' : 'Remove';
-    remove.addEventListener('click', () => removeActress(idx));
+    remove.disabled = dup || count <= 1;
+    remove.title = dup ? 'Locked (duplicate)'
+                       : (count <= 1 ? 'At least one actress required' : 'Remove');
+    remove.addEventListener('click', () => { if (!dup && count > 1) removeActress(idx); });
 
     li.appendChild(primaryBtn);
     li.appendChild(name);
@@ -411,11 +444,13 @@ document.addEventListener('click', e => {
 
 // ── Cover panel: URL drop, file drop, clipboard paste ─────────────────────
 coverPanel.addEventListener('dragover', e => {
+  if (isDuplicate()) return;
   e.preventDefault();
   coverPanel.classList.add('dragover');
 });
 coverPanel.addEventListener('dragleave', () => coverPanel.classList.remove('dragover'));
 coverPanel.addEventListener('drop', async e => {
+  if (isDuplicate()) { e.preventDefault(); return; }
   e.preventDefault();
   coverPanel.classList.remove('dragover');
   if (!confirmCoverReplace()) return;
@@ -430,6 +465,7 @@ coverPanel.addEventListener('drop', async e => {
 });
 
 coverPanel.addEventListener('paste', async e => {
+  if (isDuplicate()) { e.preventDefault(); return; }
   if (!confirmCoverReplace()) { e.preventDefault(); return; }
   const items = e.clipboardData?.items || [];
   for (const it of items) {
@@ -517,9 +553,13 @@ function updateSaveEnabled() {
 
 function canSave() {
   if (!editorState) return false;
+  if (!descriptorIsValid()) return false;
+  if (isDuplicate()) {
+    // Duplicates save only when descriptor changed (the only editable field).
+    return (editorState.descriptor || '') !== (editorState.initialDescriptor || '');
+  }
   if (editorState.actresses.length === 0) return false;
   if (!editorState.actresses.some(a => a.primary)) return false;
-  if (!descriptorIsValid()) return false;
   return true;
 }
 
@@ -530,16 +570,19 @@ saveBtn.addEventListener('click', async () => {
 
   try {
     // 1. Actress save (transactional with inline create)
-    const actressPayload = {
-      actresses: editorState.actresses.map(a => a.isNew
-        ? { newName: a.newName }
-        : { id: a.id }),
-      primary: (() => {
-        const p = editorState.actresses.find(a => a.primary);
-        return p.isNew ? { newName: p.newName } : { id: p.id };
-      })(),
-      descriptor: (editorState.descriptor || '').trim() || null
-    };
+    const dup = isDuplicate();
+    const actressPayload = dup
+      ? { descriptor: (editorState.descriptor || '').trim() || null }
+      : {
+          actresses: editorState.actresses.map(a => a.isNew
+            ? { newName: a.newName }
+            : { id: a.id }),
+          primary: (() => {
+            const p = editorState.actresses.find(a => a.primary);
+            return p.isNew ? { newName: p.newName } : { id: p.id };
+          })(),
+          descriptor: (editorState.descriptor || '').trim() || null
+        };
     const actRes = await fetch(`/api/unsorted/titles/${currentId}/actresses`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
@@ -548,8 +591,8 @@ saveBtn.addEventListener('click', async () => {
     if (!actRes.ok) throw new Error('Actresses: ' + await actRes.text());
     const actData = await actRes.json();
 
-    // 2. Cover save (if staged)
-    if (editorState.coverStaged) {
+    // 2. Cover save (if staged) — skipped entirely for duplicates
+    if (!dup && editorState.coverStaged) {
       const cs = editorState.coverStaged;
       if (cs.kind === 'bytes') {
         const fd = new FormData();

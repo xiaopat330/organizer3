@@ -79,6 +79,24 @@ The descriptor is an optional editorial tag (`Demosaiced`, `4K`, `Uncut`, etc.).
 - **Failure mode:** if the SMB rename fails, the actress save is already committed and the folder is unchanged on disk. The save endpoint returns 500 with the error message; the next successful save will re-attempt the rename.
 - Collision guard: if the target folder name already exists (and isn't the current folder), the rename is aborted with a clear error.
 
+### Duplicates
+
+A title is a **duplicate** when its product code already has ≥1 `title_locations` row outside the unsorted volume (another library volume, partition, or unsorted path). Duplicates are legitimate — special editions, different encodes, BD rips, demosaiced variations — and must be preservable alongside the original.
+
+**When loaded, the editor adapts:**
+- A red **Duplicate** badge appears next to the title code, and a banner above the editor lists the other `{volume_id, path}` entries that already exist.
+- **Actress list is read-only.** Primary marker, remove button, and the `+ Add actress` card are all disabled. Rationale: actress assignment is global per code — it already reflects the canonical entry and should not be overridden from a duplicate copy.
+- **Cover panel is read-only.** Drop, file-paste, and URL-paste handlers are all gated. The existing cover (from the local cache) is reused.
+- **Descriptor field stays editable** — it is the mechanism for differentiating this copy (`Demosaiced`, `4K`, `Special Edition`, etc.).
+
+**Save behavior (duplicate):**
+- The actress DB and cover cache are never touched.
+- The folder is renamed using `titles.actress_id`'s canonical name as primary, with the optional descriptor: `{ExistingPrimary} ({code})` or `{ExistingPrimary} - {Descriptor} ({code})`.
+- DB-side path rewrites on `title_locations.path` and `videos.path` are scoped to this location only.
+- Save is enabled only when the descriptor changed (the only editable field).
+
+**Cover endpoint guard:** `POST /api/unsorted/titles/{id}/cover` returns `409 Conflict` on duplicates with the message *"Cover changes are disabled for duplicates — reuse the existing cover."* Belt-and-suspenders — the frontend already blocks the interaction.
+
 ### Adding a new actress (not in DB)
 
 Typeahead against the existing actress DB. If no match is found, the dropdown offers a "Create '{typed name}'" row. Clicking it:
