@@ -27,7 +27,7 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class TitleBrowseService {
 
-    static final int MAX_LIMIT = 500;
+    public static final int MAX_LIMIT = 500;
 
     private static int cappedLimit(int limit) {
         return Math.min(limit, MAX_LIMIT);
