@@ -56,17 +56,24 @@ public class UnsortedEditorService {
 
     public Optional<TitleDetailView> findEligibleById(long titleId) {
         return repo.findEligibleById(titleId, unsortedVolumeId)
-                .map(detail -> new TitleDetailView(
-                        detail,
-                        coverExists(detail.label(), detail.baseCode())));
+                .map(detail -> {
+                    String coverFile = coverFilename(detail.label(), detail.baseCode());
+                    return new TitleDetailView(detail, coverFile != null, coverFile);
+                });
     }
 
-    public record TitleDetailView(TitleDetail detail, boolean hasCover) {}
+    public record TitleDetailView(TitleDetail detail, boolean hasCover, String coverFilename) {}
 
     private boolean coverExists(String label, String baseCode) {
-        if (label == null || baseCode == null) return false;
+        return coverFilename(label, baseCode) != null;
+    }
+
+    private String coverFilename(String label, String baseCode) {
+        if (label == null || baseCode == null) return null;
         Title t = Title.builder().code(baseCode).label(label).baseCode(baseCode).build();
-        return coverPath.exists(t);
+        return coverPath.find(t)
+                .map(p -> p.getFileName().toString())
+                .orElse(null);
     }
 
     // ── Typeahead ────────────────────────────────────────────────────────

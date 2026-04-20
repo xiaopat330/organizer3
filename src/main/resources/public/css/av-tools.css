@@ -92,6 +92,16 @@
 }
 .tools-duplicates-btn.selected svg { stroke: #fb923c; }
 
+.tools-queue-btn        { color: #f59e0b; }
+.tools-queue-btn svg    { stroke: #f59e0b; }
+.tools-queue-btn:hover,
+.tools-queue-btn.selected {
+  color: #fbbf24;
+  background: #1c1404;
+  border-color: #92400e;
+}
+.tools-queue-btn.selected svg { stroke: #fbbf24; }
+
 /* ── Aliases tool view ────────────────────────────────────────────── */
 .alias-search-wrap {
   position: relative;
