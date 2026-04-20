@@ -52,20 +52,43 @@ export const actressGridEl  = document.getElementById('actress-grid');
 // ── State ─────────────────────────────────────────────────────────────────
 export const ACTRESS_TIERS = ['GODDESS', 'SUPERSTAR', 'POPULAR', 'MINOR', 'LIBRARY'];
 
-export let actressBrowseMode = null;         // null | 'favorites' | 'bookmarks' | 'exhibition-volumes' | 'archive-volumes' | 'studio' | 'studio-group:<slug>' | 'tier-<TIER>'
-export let actressTierPanelOpen = false;
-export let lastActressTier = 'GODDESS';
-export let selectedActressStudioSlug = null;
-// Display name for the active studio-group filtered grid (used by breadcrumb & header link).
-let activeStudioGroupName = null;
-// Optional company filter applied within the active studio-group filtered grid (null = all).
-let studioGroupCompanyFilter = null;
-// Optional company filter for exhibition mode (null = all companies on exhibition volumes).
-let exhibitionCompanyFilter = null;
-// Optional company filter for archives mode (null = all companies on archive volumes).
-let archivesCompanyFilter = null;
-// Optional company filter for tier mode (null = all companies in the tier).
-let tierCompanyFilter = null;
+/**
+ * All mutable actress-browse state lives in a single object so there's one
+ * seam to find and reset. Field meanings:
+ *   mode               — null | 'dashboard' | 'favorites' | 'bookmarks' | 'exhibition-volumes'
+ *                        | 'archive-volumes' | 'studio' | 'studio-group:<slug>' | 'tier-<TIER>'
+ *   tierPanelOpen      — tier sub-nav row visibility
+ *   lastTier           — which tier-X mode to recall when the tier button is clicked
+ *   studioSlug         — currently selected studio-group slug (studio mode)
+ *   studioGroupName    — display name of the active studio group
+ *   studioGroupCompany — company filter within studio-group mode (null = all)
+ *   exhibitionCompany  — company filter for exhibition mode (null = all)
+ *   archivesCompany    — company filter for archives mode (null = all)
+ *   tierCompany        — company filter for tier mode (null = all)
+ */
+function createActressBrowseState() {
+  return {
+    mode: null,
+    tierPanelOpen: false,
+    lastTier: 'GODDESS',
+    studioSlug: null,
+    studioGroupName: null,
+    studioGroupCompany: null,
+    exhibitionCompany: null,
+    archivesCompany: null,
+    tierCompany: null,
+    reset() {
+      this.mode = null;
+      this.lastTier = 'GODDESS';
+      this.studioGroupName = null;
+      this.studioGroupCompany = null;
+    },
+  };
+}
+const state = createActressBrowseState();
+
+/** Getter for external consumers (replaces the previous live-binding export). */
+export function getActressBrowseMode() { return state.mode; }
 
 // ── Column count control (universal — shares storage key with title-browse) ─
 const ACTRESS_SLIDER_IDS = ['actress-cols-control', 'actress-cols-slider', 'actress-cols-label'];
@@ -79,19 +102,19 @@ function showActressColsFilterBar() {
   // row so both controls share one toolbar.  Fall back to the standalone bar for
   // simple modes (search, favorites, bookmarks) that have no filter row.
   const [controlId, sliderId, labelId] = ACTRESS_SLIDER_IDS;
-  if (actressBrowseMode === 'exhibition-volumes') {
+  if (state.mode === 'exhibition-volumes') {
     const row = document.getElementById('actress-exhibition-row');
     if (row) { injectColsSlider(row, controlId, sliderId, labelId, applyActressGridCols); return; }
   }
-  if (actressBrowseMode === 'archive-volumes') {
+  if (state.mode === 'archive-volumes') {
     const row = document.getElementById('actress-archives-row');
     if (row) { injectColsSlider(row, controlId, sliderId, labelId, applyActressGridCols); return; }
   }
-  if (actressBrowseMode && actressBrowseMode.startsWith('tier-')) {
+  if (state.mode && state.mode.startsWith('tier-')) {
     const row = document.getElementById('actress-landing-tier-row');
     if (row) { injectColsSlider(row, controlId, sliderId, labelId, applyActressGridCols); return; }
   }
-  if (actressBrowseMode && actressBrowseMode.startsWith('studio-group:')) {
+  if (state.mode && state.mode.startsWith('studio-group:')) {
     const right = actressGridHeaderEl.querySelector('.grid-header-right');
     if (right) { injectColsSlider(right, controlId, sliderId, labelId, applyActressGridCols); return; }
   }
@@ -105,12 +128,12 @@ function showActressColsFilterBar() {
 
 // ── Tier / studio row visibility ──────────────────────────────────────────
 function showActressTierRow() {
-  actressTierPanelOpen = true;
+  state.tierPanelOpen = true;
   actressTierDivider.style.display = '';
   actressTierRow.style.display = '';
 }
 function hideActressTierRow() {
-  actressTierPanelOpen = false;
+  state.tierPanelOpen = false;
   actressTierDivider.style.display = 'none';
   actressTierRow.style.display = 'none';
   hideTierCompanyRow();
@@ -125,7 +148,7 @@ export function hideActressStudioGroupRow() {
   actressStudioGroupHeaderEl.style.display = 'none';
   actressStudioGroupHeaderEl.innerHTML = '';
   actressStudioLabelsEl.style.display = 'none';
-  selectedActressStudioSlug = null;
+  state.studioSlug = null;
 }
 function showExhibitionRow() {
   actressExhibitionDivider.style.display = '';
@@ -134,7 +157,7 @@ function showExhibitionRow() {
 function hideExhibitionRow() {
   actressExhibitionDivider.style.display = 'none';
   actressExhibitionRow.style.display = 'none';
-  exhibitionCompanyFilter = null;
+  state.exhibitionCompany = null;
 }
 function showArchivesRow() {
   actressArchivesDivider.style.display = '';
@@ -143,7 +166,7 @@ function showArchivesRow() {
 function hideArchivesRow() {
   actressArchivesDivider.style.display = 'none';
   actressArchivesRow.style.display = 'none';
-  archivesCompanyFilter = null;
+  state.archivesCompany = null;
 }
 /** Hide all mode-specific sub-nav rows (tier chips, tier company, exhibition, archives). */
 export function hideAllActressSubNavRows() {
@@ -160,7 +183,7 @@ function hideTierCompanyRow() {
   actressTierCompanyDivider.style.display = 'none';
   actressTierCompanySelect.style.display = 'none';
   actressTierCompanyMarquee.style.display = 'none';
-  tierCompanyFilter = null;
+  state.tierCompany = null;
 }
 
 // ── Tier chips ────────────────────────────────────────────────────────────
@@ -180,17 +203,17 @@ buildActressTierChips();
 
 // ── Selection state helpers ───────────────────────────────────────────────
 export function updateActressLandingSelection() {
-  actressDashboardBtn.classList.toggle('selected', actressBrowseMode === 'dashboard');
-  actressFavoritesBtn.classList.toggle('selected', actressBrowseMode === 'favorites');
-  actressBookmarksBtn.classList.toggle('selected', actressBrowseMode === 'bookmarks');
-  actressExhibitionBtn.classList.toggle('selected', actressBrowseMode === 'exhibition-volumes');
-  actressArchivesBtn.classList.toggle('selected',  actressBrowseMode === 'archive-volumes');
+  actressDashboardBtn.classList.toggle('selected', state.mode === 'dashboard');
+  actressFavoritesBtn.classList.toggle('selected', state.mode === 'favorites');
+  actressBookmarksBtn.classList.toggle('selected', state.mode === 'bookmarks');
+  actressExhibitionBtn.classList.toggle('selected', state.mode === 'exhibition-volumes');
+  actressArchivesBtn.classList.toggle('selected',  state.mode === 'archive-volumes');
   // Keep Studio highlighted in both the catalog ("studio") and the filtered grid ("studio-group:*").
   actressStudioBtn.classList.toggle('selected',
-    actressBrowseMode === 'studio' || (actressBrowseMode || '').startsWith('studio-group:'));
-  actressTierBtn.classList.toggle('selected', actressTierPanelOpen);
+    state.mode === 'studio' || (state.mode || '').startsWith('studio-group:'));
+  actressTierBtn.classList.toggle('selected', state.tierPanelOpen);
   actressTierRow.querySelectorAll('.actress-landing-tier').forEach(btn => {
-    btn.classList.toggle('selected', actressBrowseMode === `tier-${btn.dataset.tier}`);
+    btn.classList.toggle('selected', state.mode === `tier-${btn.dataset.tier}`);
   });
 }
 
@@ -203,19 +226,19 @@ export function actressBrowseLabel(modeKey) {
   if (modeKey === 'archive-volumes')    return 'Archive';
   if (modeKey === 'studio')          return 'Studio';
   if (modeKey.startsWith('tier-'))   return modeKey.slice(5).toLowerCase();
-  if (modeKey.startsWith('studio-group:')) return activeStudioGroupName || 'Studio Group';
+  if (modeKey.startsWith('studio-group:')) return state.studioGroupName || 'Studio Group';
   return modeKey;
 }
 
 export function updateActressBreadcrumb() {
   const crumbs = [{ label: 'Actresses', action: () => showActressLanding() }];
-  if (actressBrowseMode && actressBrowseMode !== 'dashboard') {
-    if (actressBrowseMode.startsWith('studio-group:')) {
+  if (state.mode && state.mode !== 'dashboard') {
+    if (state.mode.startsWith('studio-group:')) {
       // 3-level: Actresses › Studio › {Group} — clicking Studio goes back to catalog.
       crumbs.push({ label: 'Studio', action: () => selectActressBrowseMode('studio') });
-      crumbs.push({ label: actressBrowseLabel(actressBrowseMode) });
+      crumbs.push({ label: actressBrowseLabel(state.mode) });
     } else {
-      crumbs.push({ label: actressBrowseLabel(actressBrowseMode) });
+      crumbs.push({ label: actressBrowseLabel(state.mode) });
     }
   }
   updateBreadcrumb(crumbs);
@@ -225,30 +248,30 @@ export function updateActressBreadcrumb() {
 export const actressScrollGrid = new ScrollingGrid(
   actressGridEl,
   (o, l) => {
-    if (actressBrowseMode === 'favorites')
+    if (state.mode === 'favorites')
       return `/api/actresses?favorites=true&offset=${o}&limit=${l}`;
-    if (actressBrowseMode === 'bookmarks')
+    if (state.mode === 'bookmarks')
       return `/api/actresses?bookmarks=true&offset=${o}&limit=${l}`;
-    if (actressBrowseMode === 'exhibition-volumes') {
+    if (state.mode === 'exhibition-volumes') {
       let url = `/api/actresses?volumes=${encodeURIComponent(EXHIBITION_VOLUMES)}&offset=${o}&limit=${l}`;
-      if (exhibitionCompanyFilter) url += `&company=${encodeURIComponent(exhibitionCompanyFilter)}`;
+      if (state.exhibitionCompany) url += `&company=${encodeURIComponent(state.exhibitionCompany)}`;
       return url;
     }
-    if (actressBrowseMode === 'archive-volumes') {
+    if (state.mode === 'archive-volumes') {
       let url = `/api/actresses?volumes=${encodeURIComponent(ARCHIVE_VOLUMES)}&offset=${o}&limit=${l}`;
-      if (archivesCompanyFilter) url += `&company=${encodeURIComponent(archivesCompanyFilter)}`;
+      if (state.archivesCompany) url += `&company=${encodeURIComponent(state.archivesCompany)}`;
       return url;
     }
-    if (actressBrowseMode && actressBrowseMode.startsWith('tier-')) {
-      const tier = actressBrowseMode.slice(5);
+    if (state.mode && state.mode.startsWith('tier-')) {
+      const tier = state.mode.slice(5);
       let url = `/api/actresses?tier=${encodeURIComponent(tier)}&offset=${o}&limit=${l}`;
-      if (tierCompanyFilter) url += `&company=${encodeURIComponent(tierCompanyFilter)}`;
+      if (state.tierCompany) url += `&company=${encodeURIComponent(state.tierCompany)}`;
       return url;
     }
-    if (actressBrowseMode && actressBrowseMode.startsWith('studio-group:')) {
-      const slug = actressBrowseMode.slice('studio-group:'.length);
+    if (state.mode && state.mode.startsWith('studio-group:')) {
+      const slug = state.mode.slice('studio-group:'.length);
       let url = `/api/actresses?studioGroup=${encodeURIComponent(slug)}&offset=${o}&limit=${l}`;
-      if (studioGroupCompanyFilter) url += `&company=${encodeURIComponent(studioGroupCompanyFilter)}`;
+      if (state.studioGroupCompany) url += `&company=${encodeURIComponent(state.studioGroupCompany)}`;
       return url;
     }
     return null; // no active mode → empty grid
@@ -259,10 +282,7 @@ export const actressScrollGrid = new ScrollingGrid(
 
 // ── resetActressState — called by showTitlesBrowse and showTitlesView ──────
 export function resetActressState() {
-  actressBrowseMode = null;
-  lastActressTier = 'GODDESS';
-  activeStudioGroupName = null;
-  studioGroupCompanyFilter = null;
+  state.reset();
   actressGridHeaderEl.style.display = 'none';
   actressGridHeaderEl.innerHTML = '';
   hideActressStudioGroupRow();
@@ -458,7 +478,7 @@ function _openActressDetail(id) {
 // ── Browse mode selection ─────────────────────────────────────────────────
 export async function selectActressBrowseMode(modeKey) {
   pushNav({ view: 'actresses', mode: modeKey }, 'actresses/' + encodeURIComponent(modeKey));
-  actressBrowseMode = modeKey;
+  state.mode = modeKey;
   document.getElementById('av-btn')?.classList.remove('active');
   document.getElementById('action-btn')?.classList.remove('active');
   if (modeKey === 'dashboard') {
@@ -468,8 +488,8 @@ export async function selectActressBrowseMode(modeKey) {
     hideArchivesRow();
     actressGridHeaderEl.style.display = 'none';
     actressGridHeaderEl.innerHTML = '';
-    activeStudioGroupName = null;
-    studioGroupCompanyFilter = null;
+    state.studioGroupName = null;
+    state.studioGroupCompany = null;
     updateActressLandingSelection();
     updateActressBreadcrumb();
     actressesBtn.classList.add('active');
@@ -486,8 +506,8 @@ export async function selectActressBrowseMode(modeKey) {
     hideArchivesRow();
     actressGridHeaderEl.style.display = 'none';
     actressGridHeaderEl.innerHTML = '';
-    activeStudioGroupName = null;
-    studioGroupCompanyFilter = null;
+    state.studioGroupName = null;
+    state.studioGroupCompany = null;
     updateActressLandingSelection();
     updateActressBreadcrumb();
     actressesBtn.classList.add('active');
@@ -497,29 +517,29 @@ export async function selectActressBrowseMode(modeKey) {
     ensureStudioGroups().then(groups => {
       renderActressStudioGroupRow(groups);
       if (groups.length > 0) {
-        selectActressStudioGroup(selectedActressStudioSlug || groups[0].slug);
+        selectActressStudioGroup(state.studioSlug || groups[0].slug);
       }
     });
     return;
   }
   hideActressStudioGroupRow();
   if (modeKey === 'exhibition-volumes') {
-    exhibitionCompanyFilter = null;
+    state.exhibitionCompany = null;
     hideActressTierRow();
     actressGridHeaderEl.style.display = 'none';
     actressGridHeaderEl.innerHTML = '';
-    activeStudioGroupName = null;
-    studioGroupCompanyFilter = null;
+    state.studioGroupName = null;
+    state.studioGroupCompany = null;
     showExhibitionRow();
     populateExhibitionCompanyDropdown();
     hideArchivesRow();
   } else if (modeKey === 'archive-volumes') {
-    archivesCompanyFilter = null;
+    state.archivesCompany = null;
     hideActressTierRow();
     actressGridHeaderEl.style.display = 'none';
     actressGridHeaderEl.innerHTML = '';
-    activeStudioGroupName = null;
-    studioGroupCompanyFilter = null;
+    state.studioGroupName = null;
+    state.studioGroupCompany = null;
     showArchivesRow();
     populateArchivesCompanyDropdown();
     hideExhibitionRow();
@@ -529,13 +549,13 @@ export async function selectActressBrowseMode(modeKey) {
   }
   if (modeKey.startsWith('studio-group:')) {
     const slug = modeKey.slice('studio-group:'.length);
-    selectedActressStudioSlug = slug;
+    state.studioSlug = slug;
     // Fresh entry into the filtered grid → start with the "All" filter.
-    studioGroupCompanyFilter = null;
+    state.studioGroupCompany = null;
     // Resolve the human-readable group name for the breadcrumb / header label.
     const groups = await ensureStudioGroups();
     const group = groups.find(g => g.slug === slug);
-    activeStudioGroupName = group ? group.name : slug;
+    state.studioGroupName = group ? group.name : slug;
     // Fetch companies ordered by title count (server-side) so the dropdown surfaces
     // the most populous sub-labels first. Falls back to YAML order on fetch failure.
     let companyCounts;
@@ -548,13 +568,13 @@ export async function selectActressBrowseMode(modeKey) {
     renderActressGridHeader(group, slug, companyCounts);
     hideActressTierRow();
   } else {
-    activeStudioGroupName = null;
-    studioGroupCompanyFilter = null;
+    state.studioGroupName = null;
+    state.studioGroupCompany = null;
     actressGridHeaderEl.style.display = 'none';
     actressGridHeaderEl.innerHTML = '';
     if (modeKey.startsWith('tier-')) {
-      lastActressTier = modeKey.slice(5);
-      tierCompanyFilter = null;
+      state.lastTier = modeKey.slice(5);
+      state.tierCompany = null;
       showActressTierRow();
       showTierCompanyRow();
       populateTierCompanyDropdown();
@@ -584,7 +604,7 @@ actressBookmarksBtn.addEventListener('click',   () => selectActressBrowseMode('b
 actressExhibitionBtn.addEventListener('click',  () => selectActressBrowseMode('exhibition-volumes'));
 actressArchivesBtn.addEventListener('click',    () => selectActressBrowseMode('archive-volumes'));
 actressStudioBtn.addEventListener('click',    () => selectActressBrowseMode('studio'));
-actressTierBtn.addEventListener('click', () => selectActressBrowseMode(`tier-${lastActressTier}`));
+actressTierBtn.addEventListener('click', () => selectActressBrowseMode(`tier-${state.lastTier}`));
 
 actressesBtn.addEventListener('click', e => {
   e.stopPropagation();
@@ -598,12 +618,12 @@ async function populateExhibitionCompanyDropdown() {
   actressExhibitionSelect.innerHTML =
     '<option value="">All Companies</option>' +
     companies.map(c => `<option value="${esc(c)}">${esc(c)}</option>`).join('');
-  actressExhibitionSelect.value = exhibitionCompanyFilter || '';
+  actressExhibitionSelect.value = state.exhibitionCompany || '';
 }
 
 actressExhibitionSelect.addEventListener('change', () => {
-  exhibitionCompanyFilter = actressExhibitionSelect.value || null;
-  updateCompanyMarquee(actressExhibitionMarquee, exhibitionCompanyFilter);
+  state.exhibitionCompany = actressExhibitionSelect.value || null;
+  updateCompanyMarquee(actressExhibitionMarquee, state.exhibitionCompany);
   document.getElementById('sentinel')?.remove();
   actressScrollGrid.reset();
   ensureSentinel();
@@ -616,12 +636,12 @@ async function populateArchivesCompanyDropdown() {
   actressArchivesSelect.innerHTML =
     '<option value="">All Companies</option>' +
     companies.map(c => `<option value="${esc(c)}">${esc(c)}</option>`).join('');
-  actressArchivesSelect.value = archivesCompanyFilter || '';
+  actressArchivesSelect.value = state.archivesCompany || '';
 }
 
 actressArchivesSelect.addEventListener('change', () => {
-  archivesCompanyFilter = actressArchivesSelect.value || null;
-  updateCompanyMarquee(actressArchivesMarquee, archivesCompanyFilter);
+  state.archivesCompany = actressArchivesSelect.value || null;
+  updateCompanyMarquee(actressArchivesMarquee, state.archivesCompany);
   document.getElementById('sentinel')?.remove();
   actressScrollGrid.reset();
   ensureSentinel();
@@ -634,12 +654,12 @@ async function populateTierCompanyDropdown() {
   actressTierCompanySelect.innerHTML =
     '<option value="">All Companies</option>' +
     companies.map(c => `<option value="${esc(c)}">${esc(c)}</option>`).join('');
-  actressTierCompanySelect.value = tierCompanyFilter || '';
+  actressTierCompanySelect.value = state.tierCompany || '';
 }
 
 actressTierCompanySelect.addEventListener('change', () => {
-  tierCompanyFilter = actressTierCompanySelect.value || null;
-  updateCompanyMarquee(actressTierCompanyMarquee, tierCompanyFilter);
+  state.tierCompany = actressTierCompanySelect.value || null;
+  updateCompanyMarquee(actressTierCompanyMarquee, state.tierCompany);
   document.getElementById('sentinel')?.remove();
   actressScrollGrid.reset();
   ensureSentinel();
@@ -653,7 +673,7 @@ function renderActressStudioGroupRow(groups) {
     const btn = document.createElement('button');
     btn.type = 'button';
     btn.className = 'studio-group-btn actress-studio-group-btn' +
-      (g.slug === selectedActressStudioSlug ? ' selected' : '');
+      (g.slug === state.studioSlug ? ' selected' : '');
     btn.textContent = g.name;
     btn.dataset.slug = g.slug;
     btn.addEventListener('click', () => selectActressStudioGroup(g.slug));
@@ -662,7 +682,7 @@ function renderActressStudioGroupRow(groups) {
 }
 
 async function selectActressStudioGroup(slug) {
-  selectedActressStudioSlug = slug;
+  state.studioSlug = slug;
   actressStudioGroupRow.querySelectorAll('.actress-studio-group-btn').forEach(btn => {
     btn.classList.toggle('selected', btn.dataset.slug === slug);
   });
@@ -720,16 +740,16 @@ function renderActressGridHeader(group, slug, companyCounts) {
     </div>
   `;
   const select = document.getElementById('actress-grid-header-filter');
-  select.value = studioGroupCompanyFilter || '';
+  select.value = state.studioGroupCompany || '';
   select.addEventListener('change', () => {
-    studioGroupCompanyFilter = select.value || null;
+    state.studioGroupCompany = select.value || null;
     document.getElementById('sentinel')?.remove();
     actressScrollGrid.reset();
     ensureSentinel();
     actressScrollGrid.loadMore();
   });
   document.getElementById('actress-grid-header-action').addEventListener('click', () => {
-    selectedActressStudioSlug = slug;
+    state.studioSlug = slug;
     selectActressBrowseMode('studio');
   });
 }
