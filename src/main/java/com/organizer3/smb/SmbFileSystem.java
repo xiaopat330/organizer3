@@ -161,17 +161,26 @@ class SmbFileSystem implements VolumeFileSystem {
     public void move(Path source, Path destination) throws IOException {
         String srcPath = toSmbPath(source);
         String dstPath = toSmbPath(destination);
+        boolean isDir = share.folderExists(srcPath);
         // Minimal rights for FileRenameInformation: DELETE on the source, plus
         // FILE_READ_ATTRIBUTES which some SMB stacks require during the rename flow.
         // GENERIC_ALL was rejected by NAS ACLs that grant modify but not full control.
-        try (File f = share.openFile(
+        // For directories we must pass FILE_DIRECTORY_FILE so the server doesn't reject
+        // the open with STATUS_FILE_IS_A_DIRECTORY.
+        EnumSet<SMB2CreateOptions> createOptions = isDir
+                ? EnumSet.of(SMB2CreateOptions.FILE_DIRECTORY_FILE)
+                : EnumSet.noneOf(SMB2CreateOptions.class);
+        EnumSet<FileAttributes> attrs = isDir
+                ? EnumSet.of(FileAttributes.FILE_ATTRIBUTE_DIRECTORY)
+                : EnumSet.of(FileAttributes.FILE_ATTRIBUTE_NORMAL);
+        try (DiskEntry e = share.open(
                 srcPath,
                 EnumSet.of(AccessMask.DELETE, AccessMask.FILE_READ_ATTRIBUTES),
-                EnumSet.of(FileAttributes.FILE_ATTRIBUTE_NORMAL),
+                attrs,
                 EnumSet.of(SMB2ShareAccess.FILE_SHARE_DELETE),
                 SMB2CreateDisposition.FILE_OPEN,
-                EnumSet.noneOf(SMB2CreateOptions.class))) {
-            f.rename(dstPath, false);
+                createOptions)) {
+            e.rename(dstPath, false);
         } catch (Exception e) {
             throw new IOException("Failed to move " + source + " -> " + destination, e);
         }
