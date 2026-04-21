@@ -124,6 +124,7 @@ public class UnsortedEditorRoutes {
             byte[] bytes;
             String extension;
             String contentType = ctx.contentType();
+            String source;
             if (contentType != null && contentType.startsWith("multipart/")) {
                 UploadedFile uf = ctx.uploadedFile("file");
                 if (uf == null) { ctx.status(400).result("Missing file part"); return; }
@@ -133,6 +134,7 @@ public class UnsortedEditorRoutes {
                 if (bytes.length > ImageFetcher.MAX_BYTES) {
                     ctx.status(413).result("File too large"); return;
                 }
+                source = "upload=\"" + uf.filename() + "\"";
             } else {
                 CoverUrlBody body;
                 try { body = ctx.bodyAsClass(CoverUrlBody.class); }
@@ -147,7 +149,10 @@ public class UnsortedEditorRoutes {
                 } catch (ImageFetcher.ImageFetchException e) {
                     ctx.status(400).result(e.getMessage()); return;
                 }
+                source = "url=" + body.url;
             }
+            log.info("TitleEditor: cover save request — titleId={} code={} ext={} bytes={} source={}",
+                    id, detail.detail().code(), extension, bytes.length, source);
 
             Title title = Title.builder()
                     .code(detail.detail().code())

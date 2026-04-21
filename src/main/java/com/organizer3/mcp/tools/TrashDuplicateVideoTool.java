@@ -12,6 +12,7 @@ import com.organizer3.repository.VideoRepository;
 import com.organizer3.shell.SessionContext;
 import com.organizer3.smb.VolumeConnection;
 import com.organizer3.trash.Trash;
+import lombok.extern.slf4j.Slf4j;
 import org.jdbi.v3.core.Jdbi;
 
 import java.io.IOException;
@@ -31,6 +32,7 @@ import java.util.List;
  * <p>Gated on {@code mcp.allowMutations} and {@code mcp.allowFileOps}.
  * Defaults to {@code dryRun: true}.
  */
+@Slf4j
 public class TrashDuplicateVideoTool implements Tool {
 
     private final SessionContext session;
@@ -124,11 +126,17 @@ public class TrashDuplicateVideoTool implements Tool {
             try {
                 Trash.Result r = trash.trashItem(filePath, "video");
                 videoRepo.delete(v.getId());
+                log.info("MCP trash_duplicate_video: trashed + deleted row — titleCode={} videoId={} path={} trashedTo={}",
+                        titleCode, v.getId(), filePath, r.trashedPath());
                 trashed.add(filePath + " → " + r.trashedPath());
             } catch (IOException e) {
+                log.warn("MCP trash_duplicate_video failed — titleCode={} videoId={} path={} error={}",
+                        titleCode, v.getId(), filePath, e.getMessage());
                 failed.add(filePath + " → " + e.getMessage());
             }
         }
+        log.info("MCP trash_duplicate_video summary — titleCode={} keptVideoId={} trashed={} failed={}",
+                titleCode, keepId, trashed.size(), failed.size());
         return new Result(false, plan, trashed, failed);
     }
 

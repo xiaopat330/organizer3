@@ -150,7 +150,11 @@ public class ActressClassifierService {
                     titleLocationRepo.updatePathAndPartition(l.getId(), newPath, targetTier);
                 }
             });
+            log.info("FS mutation [ActressClassifier.classify]: promoted actress tier — actressId={} name=\"{}\" from={} to={} folderFrom={} folderTo={} titleLocations={}",
+                    actressId, name, currentTier, targetTier, actressFolder, targetFolder, hers.size());
         } catch (Exception e) {
+            log.warn("FS mutation [ActressClassifier.classify] failed — actressId={} name=\"{}\" from={} to={} error={}",
+                    actressId, name, actressFolder, targetFolder, describe(e));
             return new Result(false, Outcome.FAILED, actressId, name, currentTier, targetTier,
                     actressFolder.toString(), targetFolder.toString(),
                     "apply failed: " + describe(e));

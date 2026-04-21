@@ -149,6 +149,9 @@ public class Application {
     public static void main(String[] args) throws IOException {
         log.info("Starting Organizer3");
 
+        // Route FFmpeg/JavaCV native logs into SLF4J so they don't pollute stderr.
+        com.organizer3.media.FFmpegSlf4jBridge.install();
+
         // Config
         AppConfig.initialize(new OrganizerConfigLoader().load());
         OrganizerConfig config = AppConfig.get().volumes();
@@ -188,6 +191,7 @@ public class Application {
             if (aliasStream != null) {
                 List<AliasYamlEntry> aliasEntries = new AliasLoader().load(aliasStream);
                 actressRepo.importFromYaml(aliasEntries);
+                log.info("Alias seed loaded — entries={}", aliasEntries.size());
             } else {
                 log.warn("aliases.yaml not found on classpath — skipping alias seed");
             }
@@ -257,6 +261,10 @@ public class Application {
         BackupScheduler backupScheduler = new BackupScheduler();
         if (autoBackupInterval > 0) {
             backupScheduler.start(backupService, backupPath, autoBackupInterval, snapshotCount);
+            log.info("Backup scheduler active — intervalMinutes={} snapshotsRetained={} path={}",
+                    autoBackupInterval, snapshotCount, backupPath);
+        } else {
+            log.info("Backup scheduler disabled (autoBackupIntervalMinutes not set or 0)");
         }
 
         // AV Stars commands
@@ -455,6 +463,7 @@ public class Application {
                     .register(new com.organizer3.mcp.tools.ListVolumesTool(session))
                     .register(new com.organizer3.mcp.tools.GetStatsTool(jdbi))
                     .register(new com.organizer3.mcp.tools.DescribeSchemaTool())
+                    .register(new com.organizer3.mcp.tools.ReadLogTool(java.nio.file.Paths.get("logs/organizer3.log")))
                     .register(new com.organizer3.mcp.tools.LookupActressTool(actressRepo, titleRepo))
                     .register(new com.organizer3.mcp.tools.LookupTitleTool(
                             titleRepo, titleActressRepo, actressRepo, videoRepo))

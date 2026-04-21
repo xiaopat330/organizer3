@@ -72,8 +72,12 @@ public class TitleRestructurerService {
                 Path dest = Path.of(a.to());
                 fs.createDirectories(dest.getParent());
                 fs.move(Path.of(a.from()), dest);
+                log.info("FS mutation [TitleRestructurer.restructure]: moved video — titleFolder={} from={} to={}",
+                        titleFolder, a.from(), a.to());
                 moved.add(a);
             } catch (IOException e) {
+                log.warn("FS mutation [TitleRestructurer.restructure] failed — from={} to={} error={}",
+                        a.from(), a.to(), e.getMessage());
                 failed.add(new Action(a.from(), a.to(), e.getMessage()));
             }
         }

@@ -6,6 +6,7 @@ import com.organizer3.mcp.Schemas;
 import com.organizer3.mcp.Tool;
 import com.organizer3.shell.SessionContext;
 import com.organizer3.smb.VolumeConnection;
+import lombok.extern.slf4j.Slf4j;
 import org.jdbi.v3.core.Jdbi;
 
 import java.io.IOException;
@@ -28,6 +29,7 @@ import java.util.Set;
  *
  * <p>Gated on {@code mcp.allowMutations} + {@code mcp.allowFileOps}. Defaults to dryRun.
  */
+@Slf4j
 public class MoveCoverToBaseTool implements Tool {
 
     private static final Set<String> COVER_EXTS = Set.of("jpg", "jpeg", "png", "webp");
@@ -90,8 +92,12 @@ public class MoveCoverToBaseTool implements Tool {
             for (Action a : planned) {
                 try {
                     fs.move(Path.of(a.from()), Path.of(a.to()));
+                    log.info("FS mutation [MCP move_cover_to_base]: moved cover — volume={} titleCode={} from={} to={}",
+                            volumeId, titleCode, a.from(), a.to());
                     moved.add(a);
                 } catch (IOException e) {
+                    log.warn("FS mutation [MCP move_cover_to_base] failed — from={} to={} error={}",
+                            a.from(), a.to(), e.getMessage());
                     failed.add(new Action(a.from(), a.to(), e.getMessage()));
                 }
             }

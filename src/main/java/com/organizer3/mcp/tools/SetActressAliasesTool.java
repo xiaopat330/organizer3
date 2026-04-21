@@ -6,6 +6,7 @@ import com.organizer3.mcp.Tool;
 import com.organizer3.model.Actress;
 import com.organizer3.model.ActressAlias;
 import com.organizer3.repository.ActressRepository;
+import lombok.extern.slf4j.Slf4j;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -24,6 +25,7 @@ import java.util.Optional;
  *
  * <p>Defaults to {@code dryRun: true} — returns what would be set without committing.
  */
+@Slf4j
 public class SetActressAliasesTool implements Tool {
 
     private final ActressRepository actressRepo;
@@ -94,6 +96,8 @@ public class SetActressAliasesTool implements Tool {
         }
 
         if (!conflicts.isEmpty()) {
+            log.warn("MCP set_actress_aliases rejected — id={} name=\"{}\" conflicts={}",
+                    actress.getId(), actress.getCanonicalName(), conflicts);
             return new Result(false, dryRun, actress.getId(), actress.getCanonicalName(),
                     currentAliases(actress.getId()), proposed, conflicts, "Conflict(s) detected — no change made");
         }
@@ -102,6 +106,11 @@ public class SetActressAliasesTool implements Tool {
 
         if (!dryRun) {
             actressRepo.replaceAllAliases(actress.getId(), proposed);
+            log.info("MCP set_actress_aliases committed — id={} name=\"{}\" before={} after={}",
+                    actress.getId(), actress.getCanonicalName(), before, proposed);
+        } else {
+            log.info("MCP set_actress_aliases dry-run — id={} name=\"{}\" before={} proposed={}",
+                    actress.getId(), actress.getCanonicalName(), before, proposed);
         }
 
         String summary = dryRun

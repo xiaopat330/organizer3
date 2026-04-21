@@ -106,8 +106,12 @@ public class TitleNormalizerService {
         for (Action a : planned) {
             try {
                 fs.rename(Path.of(a.from()), a.to());
+                log.info("FS mutation [TitleNormalizer.normalize]: renamed — op={} titleFolder={} from={} to={}",
+                        a.op(), titleFolder, a.from(), a.to());
                 applied.add(a);
             } catch (IOException e) {
+                log.warn("FS mutation [TitleNormalizer.normalize] failed — op={} from={} to={} error={}",
+                        a.op(), a.from(), a.to(), e.getMessage());
                 failed.add(new Action(a.op(), a.from(), a.to() + "  (error: " + e.getMessage() + ")"));
             }
         }

@@ -137,9 +137,12 @@ public class FreshPrepService {
             try {
                 fs.createDirectories(Path.of(p.targetSubfolder()));
                 fs.move(Path.of(p.sourcePath()), Path.of(p.targetVideoPath()));
+                log.info("FS mutation [FreshPrep.prep]: moved raw video into title folder — partitionRoot={} from={} to={}",
+                        partitionRoot, p.sourcePath(), p.targetVideoPath());
                 moved.add(p);
             } catch (IOException e) {
-                log.debug("prep failed for {}: {}", p.sourcePath(), e.getMessage());
+                log.warn("FS mutation [FreshPrep.prep] failed — from={} to={} error={}",
+                        p.sourcePath(), p.targetVideoPath(), e.getMessage());
                 failed.add(p);
                 skipped.add(new Skip(filename(Path.of(p.sourcePath())), "move failed: " + e.getMessage()));
             }

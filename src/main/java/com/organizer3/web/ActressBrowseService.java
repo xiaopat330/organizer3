@@ -528,6 +528,8 @@ public class ActressBrowseService {
             boolean bm  = a.isBookmark();
             boolean rej = fav ? false : a.isRejected();
             actressRepo.setFlags(actressId, fav, bm, rej);
+            log.info("Actress modified — id={} name=\"{}\" favorite={} (bookmark={} rejected={})",
+                    actressId, a.getCanonicalName(), fav, bm, rej);
             return new FlagState(actressId, fav, bm, rej);
         });
     }
@@ -543,6 +545,8 @@ public class ActressBrowseService {
             boolean fav = a.isFavorite();
             boolean rej = bm ? false : a.isRejected();
             actressRepo.setFlags(actressId, fav, bm, rej);
+            log.info("Actress modified — id={} name=\"{}\" bookmark={} (favorite={} rejected={})",
+                    actressId, a.getCanonicalName(), bm, fav, rej);
             return new FlagState(actressId, fav, bm, rej);
         });
     }
@@ -556,6 +560,8 @@ public class ActressBrowseService {
             boolean fav = a.isFavorite();
             boolean rej = value ? false : a.isRejected();
             actressRepo.setFlags(actressId, fav, value, rej);
+            log.info("Actress modified — id={} name=\"{}\" bookmark={} (explicit set) (favorite={} rejected={})",
+                    actressId, a.getCanonicalName(), value, fav, rej);
             return new FlagState(actressId, fav, value, rej);
         });
     }
@@ -571,6 +577,8 @@ public class ActressBrowseService {
             boolean fav = rej ? false : a.isFavorite();
             boolean bm  = rej ? false : a.isBookmark();
             actressRepo.setFlags(actressId, fav, bm, rej);
+            log.info("Actress modified — id={} name=\"{}\" rejected={} (favorite={} bookmark={})",
+                    actressId, a.getCanonicalName(), rej, fav, bm);
             return new FlagState(actressId, fav, bm, rej);
         });
     }
@@ -646,30 +654,41 @@ public class ActressBrowseService {
      *         human-readable error if any alias is already taken
      */
     public AliasUpdateResult updateAliases(long actressId, List<String> aliases) {
-        if (actressRepo.findById(actressId).isEmpty()) {
+        Optional<Actress> target = actressRepo.findById(actressId);
+        if (target.isEmpty()) {
+            log.warn("AliasEditor: updateAliases rejected — unknown actressId={}", actressId);
             return AliasUpdateResult.conflict("Actress not found");
         }
+        String actressName = target.get().getCanonicalName();
 
         List<String> cleaned = (aliases == null ? List.<String>of() : aliases).stream()
                 .filter(a -> a != null && !a.isBlank())
                 .map(String::trim)
                 .distinct()
                 .toList();
+        log.info("AliasEditor: updateAliases start — actressId={} name=\"{}\" proposed={}",
+                actressId, actressName, cleaned);
 
         for (String alias : cleaned) {
             Optional<Actress> byCanonical = actressRepo.findByCanonicalName(alias);
             if (byCanonical.isPresent() && byCanonical.get().getId() != actressId) {
+                log.warn("AliasEditor: conflict (canonical) — actressId={} alias=\"{}\" ownerId={} ownerName=\"{}\"",
+                        actressId, alias, byCanonical.get().getId(), byCanonical.get().getCanonicalName());
                 return AliasUpdateResult.conflictCanonical(
                         "'" + alias + "' is the canonical name of another actress", byCanonical.get());
             }
             Optional<Actress> byAlias = actressRepo.resolveByName(alias);
             if (byAlias.isPresent() && byAlias.get().getId() != actressId) {
+                log.warn("AliasEditor: conflict (alias) — actressId={} alias=\"{}\" ownerId={} ownerName=\"{}\"",
+                        actressId, alias, byAlias.get().getId(), byAlias.get().getCanonicalName());
                 return AliasUpdateResult.conflictAlias(
                         "'" + alias + "' is already an alias for another actress", byAlias.get());
             }
         }
 
         actressRepo.replaceAllAliases(actressId, cleaned);
+        log.info("AliasEditor: updateAliases committed — actressId={} name=\"{}\" aliasCount={}",
+                actressId, actressName, cleaned.size());
         return AliasUpdateResult.success();
     }
 

@@ -3,6 +3,7 @@ package com.organizer3.web.routes;
 import com.organizer3.mcp.tools.MergeActressesTool;
 import com.organizer3.repository.ActressRepository;
 import io.javalin.Javalin;
+import lombok.extern.slf4j.Slf4j;
 import org.jdbi.v3.core.Jdbi;
 
 import java.util.Map;
@@ -15,6 +16,7 @@ import java.util.Map;
  * <p>Delegates to {@link MergeActressesTool#merge} so the merge policy (flag merging,
  * alias migration, title reassignment) is identical to the MCP tool.
  */
+@Slf4j
 public class ActressMergeRoutes {
 
     private final Jdbi jdbi;
@@ -46,9 +48,11 @@ public class ActressMergeRoutes {
                 return;
             }
 
+            log.info("ActressMerge request received — into={} from={} dryRun={}", intoId, fromId, dryRun);
             try {
                 ctx.json(MergeActressesTool.merge(jdbi, actressRepo, intoId, fromId, dryRun));
             } catch (IllegalArgumentException e) {
+                log.warn("ActressMerge rejected — into={} from={} reason={}", intoId, fromId, e.getMessage());
                 ctx.status(400).json(Map.of("error", e.getMessage()));
             }
         });

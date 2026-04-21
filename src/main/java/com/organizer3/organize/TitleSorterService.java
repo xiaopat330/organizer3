@@ -160,7 +160,11 @@ public class TitleSorterService {
                 fs.move(currentFolder, target);
                 titleLocationRepo.updatePathAndPartition(current.getId(), target, tier);
             });
+            log.info("FS mutation [TitleSorter.sort]: moved title folder — volume={} code={} actress=\"{}\" tier={} from={} to={}",
+                    volumeId, titleCode, name, tier, currentFolder, target);
         } catch (Exception e) {
+            log.warn("FS mutation [TitleSorter.sort] failed — volume={} code={} from={} to={} error={}",
+                    volumeId, titleCode, currentFolder, target, describe(e));
             return new Result(false, Outcome.FAILED, currentFolder.toString(), target.toString(),
                     "apply failed: " + describe(e), null, null);
         }

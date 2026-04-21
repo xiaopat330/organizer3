@@ -75,6 +75,8 @@ public class Trash {
 
         Path trashed = trashParent.resolve(itemPath.getFileName().toString());
         fs.move(itemPath, trashed);
+        log.info("FS mutation [Trash.trash]: moved to trash — volume={} entityType={} from={} to={}",
+                volumeId, entityType, itemPath, trashed);
 
         Path sidecar = trashParent.resolve(itemPath.getFileName().toString() + ".json");
         try {
