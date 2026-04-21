@@ -233,6 +233,61 @@ class ActressRoutesCoverageTest {
         assertEquals(200, r.statusCode());
     }
 
+    @Test
+    void putAliasesCanonicalConflictReturnsConflictKindAndActressId() throws Exception {
+        // Aya's canonical name collides with Yua's canonical name → kind "canonical".
+        var r = putRaw("/api/actresses/" + seed.ayaId() + "/aliases",
+                "{\"aliases\":[\"Yua Mikami\"]}");
+        assertEquals(409, r.statusCode());
+        JsonNode body = mapper.readTree(r.body());
+        assertEquals(seed.yuaId(), body.get("conflictActressId").asLong());
+        assertEquals("Yua Mikami", body.get("conflictActressName").asText());
+        assertEquals("canonical", body.get("conflictKind").asText());
+    }
+
+    // ── POST /{id}/merge ──────────────────────────────────────────────
+
+    @Test
+    void mergeDryRunReturnsPlanWithoutMutating() throws Exception {
+        String body = String.format("{\"fromId\":%d,\"dryRun\":true}", seed.yuaId());
+        var r = postJson("/api/actresses/" + seed.ayaId() + "/merge", body);
+        assertEquals(200, r.statusCode());
+        JsonNode json = mapper.readTree(r.body());
+        assertTrue(json.get("dryRun").asBoolean());
+        assertNotNull(json.get("plan"));
+        assertTrue(json.get("plan").get("summary").asText().contains("Yua Mikami"));
+        // Yua still exists — dry-run committed nothing.
+        assertEquals(200, getStatus("/api/actresses/" + seed.yuaId()));
+    }
+
+    @Test
+    void mergeCommitFoldsFromActressIntoInto() throws Exception {
+        String body = String.format("{\"fromId\":%d,\"dryRun\":false}", seed.yuaId());
+        var r = postJson("/api/actresses/" + seed.ayaId() + "/merge", body);
+        assertEquals(200, r.statusCode());
+        // Yua is gone; Aya now carries "Yua Mikami" as an alias.
+        assertEquals(404, getStatus("/api/actresses/" + seed.yuaId()));
+        JsonNode aya = getJson("/api/actresses/" + seed.ayaId());
+        boolean hasAlias = false;
+        for (JsonNode alias : aya.get("aliases")) {
+            if ("Yua Mikami".equals(alias.get("name").asText())) { hasAlias = true; break; }
+        }
+        assertTrue(hasAlias, "Aya should now have 'Yua Mikami' as an alias after merge");
+    }
+
+    @Test
+    void mergeSameIdIsRejected() throws Exception {
+        String body = String.format("{\"fromId\":%d}", seed.ayaId());
+        var r = postJson("/api/actresses/" + seed.ayaId() + "/merge", body);
+        assertEquals(400, r.statusCode());
+    }
+
+    @Test
+    void mergeInvalidBodyIsRejected() throws Exception {
+        var r = postJson("/api/actresses/" + seed.ayaId() + "/merge", "not json");
+        assertEquals(400, r.statusCode());
+    }
+
     // ── helpers ───────────────────────────────────────────────────────
 
     private JsonNode getJson(String path) throws IOException, InterruptedException {
@@ -253,6 +308,14 @@ class ActressRoutesCoverageTest {
         return HttpClient.newHttpClient().send(
                 HttpRequest.newBuilder().uri(URI.create(h.baseUrl() + path))
                         .POST(HttpRequest.BodyPublishers.noBody()).build(),
+                HttpResponse.BodyHandlers.ofString());
+    }
+
+    private HttpResponse<String> postJson(String path, String body) throws IOException, InterruptedException {
+        return HttpClient.newHttpClient().send(
+                HttpRequest.newBuilder().uri(URI.create(h.baseUrl() + path))
+                        .header("Content-Type", "application/json")
+                        .POST(HttpRequest.BodyPublishers.ofString(body)).build(),
                 HttpResponse.BodyHandlers.ofString());
     }
 

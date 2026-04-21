@@ -83,6 +83,8 @@ public final class IntegrationTestHarness implements AutoCloseable {
 
         this.server = new WebServer(0, titleBrowse, actressBrowse, null,
                 null, null, null, watchHistoryRepo, titleRepo, searchService);
+        this.server.registerActressMerge(
+                new com.organizer3.web.routes.ActressMergeRoutes(jdbi, actressRepo));
         this.server.start();
     }
 

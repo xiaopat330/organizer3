@@ -609,10 +609,30 @@ public class ActressBrowseService {
     // Alias management
     // -------------------------------------------------------------------------
 
-    /** Result of an alias update: either success or a conflict error message. */
-    public record AliasUpdateResult(boolean ok, String error) {
-        public static AliasUpdateResult success() { return new AliasUpdateResult(true, null); }
-        public static AliasUpdateResult conflict(String msg) { return new AliasUpdateResult(false, msg); }
+    /**
+     * Result of an alias update: either success or a conflict error message. On conflicts
+     * against another actress, {@code conflictActressId} / {@code conflictActressName}
+     * identify that actress so the UI can offer a link to edit her directly.
+     *
+     * <p>{@code conflictKind} disambiguates:
+     * <ul>
+     *   <li>{@code "canonical"} — the alias is the canonical name of another actress. Merging
+     *       that actress into the current one is a legitimate resolution.</li>
+     *   <li>{@code "alias"} — the alias is already an alias of a third actress. The user must
+     *       first detach it there; merging is NOT appropriate.</li>
+     * </ul>
+     */
+    public record AliasUpdateResult(
+            boolean ok, String error,
+            Long conflictActressId, String conflictActressName, String conflictKind) {
+        public static AliasUpdateResult success() { return new AliasUpdateResult(true, null, null, null, null); }
+        public static AliasUpdateResult conflict(String msg) { return new AliasUpdateResult(false, msg, null, null, null); }
+        public static AliasUpdateResult conflictCanonical(String msg, Actress other) {
+            return new AliasUpdateResult(false, msg, other.getId(), other.getCanonicalName(), "canonical");
+        }
+        public static AliasUpdateResult conflictAlias(String msg, Actress other) {
+            return new AliasUpdateResult(false, msg, other.getId(), other.getCanonicalName(), "alias");
+        }
     }
 
     /**
@@ -639,11 +659,13 @@ public class ActressBrowseService {
         for (String alias : cleaned) {
             Optional<Actress> byCanonical = actressRepo.findByCanonicalName(alias);
             if (byCanonical.isPresent() && byCanonical.get().getId() != actressId) {
-                return AliasUpdateResult.conflict("'" + alias + "' is the canonical name of another actress");
+                return AliasUpdateResult.conflictCanonical(
+                        "'" + alias + "' is the canonical name of another actress", byCanonical.get());
             }
             Optional<Actress> byAlias = actressRepo.resolveByName(alias);
             if (byAlias.isPresent() && byAlias.get().getId() != actressId) {
-                return AliasUpdateResult.conflict("'" + alias + "' is already an alias for another actress");
+                return AliasUpdateResult.conflictAlias(
+                        "'" + alias + "' is already an alias for another actress", byAlias.get());
             }
         }
 

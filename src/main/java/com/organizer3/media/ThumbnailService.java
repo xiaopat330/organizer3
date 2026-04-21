@@ -92,7 +92,7 @@ public class ThumbnailService {
                 isGenerating = true;
                 CompletableFuture.runAsync(() -> {
                     try {
-                        generateThumbnails(video, videoDir);
+                        generateThumbnails(video, videoDir, titleCode, null);
                     } catch (Exception e) {
                         log.warn("Thumbnail generation failed for {} {}: {}",
                                 titleCode, video.getFilename(), e.getMessage());
@@ -121,6 +121,14 @@ public class ThumbnailService {
      * @return true if generation was attempted, false if skipped (already complete or already in-flight)
      */
     public boolean generateBlocking(String titleCode, Video video) throws IOException {
+        return generateBlocking(titleCode, video, null);
+    }
+
+    /**
+     * Same as {@link #generateBlocking(String, Video)} but accepts an optional
+     * {@code primaryActressName} so the log line carries human-readable context.
+     */
+    public boolean generateBlocking(String titleCode, Video video, String primaryActressName) throws IOException {
         Path videoDir = resolveVideoDir(titleCode, video.getFilename());
         int expected = readCountFile(videoDir).orElse(-1);
         if (expected > 0 && findCachedThumbnails(video.getId(), videoDir, expected).size() == expected) {
@@ -129,7 +137,7 @@ public class ThumbnailService {
         String key = titleCode + "/" + video.getFilename();
         if (!generating.add(key)) return false;
         try {
-            generateThumbnails(video, videoDir);
+            generateThumbnails(video, videoDir, titleCode, primaryActressName);
             return true;
         } finally {
             generating.remove(key);
@@ -203,10 +211,17 @@ public class ThumbnailService {
         return urls.isEmpty() ? List.of() : urls;
     }
 
-    private void generateThumbnails(Video video, Path videoDir) throws IOException {
+    private void generateThumbnails(Video video, Path videoDir,
+                                    String titleCode, String primaryActressName) throws IOException {
         Files.createDirectories(videoDir);
 
         String streamUrl = "http://localhost:" + serverPort + "/api/stream/" + video.getId();
+        String actress = primaryActressName != null ? primaryActressName : "(unknown actress)";
+        String location = video.getVolumeId() + ":" + video.getPath();
+        long startMs = System.currentTimeMillis();
+
+        log.info("Thumbnail generation started — actress={} title={} video={} location={}",
+                actress, titleCode, video.getFilename(), location);
 
         FFmpegFrameGrabber grabber = new FFmpegFrameGrabber(streamUrl);
         grabber.setOption("skip_frame", "noref");
@@ -216,15 +231,13 @@ public class ThumbnailService {
         try {
             long durationMicros = grabber.getLengthInTime();
             if (durationMicros <= 0) {
-                log.warn("Could not determine duration for video {}", video.getId());
+                log.warn("Thumbnail generation aborted — could not determine duration — actress={} title={} video={} location={}",
+                        actress, titleCode, video.getFilename(), location);
                 return;
             }
 
             long durationSeconds = durationMicros / 1_000_000;
             int thumbnailCount = computeCount(durationSeconds);
-
-            log.info("Generating {} thumbnails ({}min intervals) for video {} ({}s) via {}",
-                    thumbnailCount, intervalMinutes, video.getId(), durationSeconds, streamUrl);
 
             // Write count marker so status endpoint knows the expected total
             writeCountFile(videoDir, thumbnailCount);
@@ -251,7 +264,10 @@ public class ThumbnailService {
                 generated++;
             }
 
-            log.info("Generated {} thumbnails for video {}", generated, video.getId());
+            long elapsedMs = System.currentTimeMillis() - startMs;
+            log.info("Thumbnail generation completed — actress={} title={} video={} location={} thumbnails={}/{} duration={}s elapsed={}ms",
+                    actress, titleCode, video.getFilename(), location,
+                    generated, thumbnailCount, durationSeconds, elapsedMs);
         } finally {
             grabber.stop();
             grabber.release();

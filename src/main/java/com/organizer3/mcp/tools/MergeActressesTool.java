@@ -72,7 +72,17 @@ public class MergeActressesTool implements Tool {
         long intoId = Schemas.requireLong(args, "into");
         long fromId = Schemas.requireLong(args, "from");
         boolean dryRun = Schemas.optBoolean(args, "dryRun", true);
+        return merge(jdbi, actressRepo, intoId, fromId, dryRun);
+    }
 
+    /**
+     * Core merge entry-point. Reusable from the web layer; {@link #call(JsonNode)} is a thin
+     * adapter over this for the MCP interface.
+     *
+     * @throws IllegalArgumentException if {@code intoId == fromId} or either id is unknown
+     */
+    public static Result merge(Jdbi jdbi, ActressRepository actressRepo,
+                               long intoId, long fromId, boolean dryRun) {
         if (intoId == fromId) {
             throw new IllegalArgumentException("'into' and 'from' must be different actress ids");
         }

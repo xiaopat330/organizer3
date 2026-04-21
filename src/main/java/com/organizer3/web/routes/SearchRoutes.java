@@ -35,8 +35,9 @@ public class SearchRoutes {
             }
             String matchMode = ctx.queryParam("matchMode");
             boolean startsWith = "startsWith".equals(matchMode);
-            boolean includeAv  = "true".equals(ctx.queryParam("includeAv"));
-            ctx.json(searchService.search(q.trim(), startsWith, includeAv));
+            boolean includeAv     = "true".equals(ctx.queryParam("includeAv"));
+            boolean includeSparse = "true".equals(ctx.queryParam("includeSparse"));
+            ctx.json(searchService.search(q.trim(), startsWith, includeAv, includeSparse));
         });
 
         app.get("/api/titles/by-code-prefix", ctx -> {

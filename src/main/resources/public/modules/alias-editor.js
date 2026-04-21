@@ -67,7 +67,7 @@ function hideSearchOverlay()  { searchOverlay.style.display = 'none'; }
 
 async function runAliasSearch(q) {
   try {
-    const res = await fetch(`/api/search?q=${encodeURIComponent(q)}&matchMode=contains&includeAv=false`);
+    const res = await fetch(`/api/search?q=${encodeURIComponent(q)}&matchMode=contains&includeAv=false&includeSparse=true`);
     if (!res.ok) return;
     const data = await res.json();
     renderSearchResults(data.actresses || [], q);
@@ -229,7 +229,8 @@ saveBtn.addEventListener('click', async () => {
       showSavedToast(actressName);
     } else {
       const data = await res.json().catch(() => ({}));
-      showError(data.error || `Error ${res.status}`);
+      showError(data.error || `Error ${res.status}`,
+               data.conflictActressId, data.conflictActressName, data.conflictKind);
     }
   } catch (err) {
     showError('Network error — aliases not saved.');
@@ -255,18 +256,110 @@ function closeModal() {
   tableBody.innerHTML = '';
   modalLeft.innerHTML = '';
   errorMsg.style.display = 'none';
-  errorMsg.textContent = '';
+  errorMsg.innerHTML = '';
   currentActressId = null;
 }
 
-function showError(msg) {
-  errorMsg.textContent = msg;
+function showError(msg, conflictActressId, conflictActressName, conflictKind) {
+  errorMsg.innerHTML = '';
+  errorMsg.appendChild(document.createTextNode(msg));
+  if (conflictActressId != null && conflictActressName) {
+    errorMsg.appendChild(document.createTextNode(' — '));
+    const openLink = document.createElement('a');
+    openLink.href = '#';
+    openLink.className = 'alias-error-link';
+    openLink.textContent = `Open ${conflictActressName}`;
+    openLink.addEventListener('click', (e) => {
+      e.preventDefault();
+      openAliasModal(conflictActressId);
+    });
+    errorMsg.appendChild(openLink);
+
+    // Only offer Merge for canonical-name conflicts. Alias-kind conflicts mean the alias
+    // belongs to a third actress; merging is not the right resolution there.
+    if (conflictKind === 'canonical' && currentActressId != null) {
+      errorMsg.appendChild(document.createTextNode(' · '));
+      const mergeLink = document.createElement('a');
+      mergeLink.href = '#';
+      mergeLink.className = 'alias-error-link';
+      mergeLink.textContent = `Merge ${conflictActressName} into ${modalTitle.textContent}`;
+      mergeLink.addEventListener('click', (e) => {
+        e.preventDefault();
+        startMergeFlow(conflictActressId, conflictActressName);
+      });
+      errorMsg.appendChild(mergeLink);
+    }
+  }
   errorMsg.style.display = 'block';
+}
+
+// ── Merge flow ─────────────────────────────────────────────────────────────
+// Two-step: dry-run → confirm dialog with counts → execute.
+
+async function startMergeFlow(fromId, fromName) {
+  const intoId   = currentActressId;
+  const intoName = modalTitle.textContent;
+  if (!intoId) return;
+
+  // 1. Dry-run to get the plan.
+  let plan;
+  try {
+    const res = await fetch(`/api/actresses/${intoId}/merge`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ fromId, dryRun: true }),
+    });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      showError(data.error || `Merge preview failed (${res.status})`);
+      return;
+    }
+    const body = await res.json();
+    plan = body.plan || body;
+  } catch (err) {
+    showError('Network error — merge preview failed.');
+    console.error(err);
+    return;
+  }
+
+  // 2. Confirm with counts from the plan.
+  const summary = plan.summary || `Fold "${fromName}" into "${intoName}"`;
+  if (!window.confirm(
+        `${summary}\n\n`
+      + `This will:\n`
+      + `  • reassign all of ${fromName}'s titles to ${intoName}\n`
+      + `  • add "${fromName}" as an alias of ${intoName}\n`
+      + `  • delete the ${fromName} record\n\n`
+      + `This cannot be undone. Proceed?`)) {
+    return;
+  }
+
+  // 3. Commit.
+  try {
+    const res = await fetch(`/api/actresses/${intoId}/merge`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ fromId, dryRun: false }),
+    });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      showError(data.error || `Merge failed (${res.status})`);
+      return;
+    }
+  } catch (err) {
+    showError('Network error — merge failed.');
+    console.error(err);
+    return;
+  }
+
+  // 4. Reload the kept actress so the new alias is visible.
+  showSavedToast(`Merged ${fromName} into ${intoName}`);
+  openAliasModal(intoId);
 }
 
 function clearError() {
   errorMsg.style.display = 'none';
-  errorMsg.textContent = '';
+  errorMsg.innerHTML = '';
 }
 
 function showSavedToast(name) {

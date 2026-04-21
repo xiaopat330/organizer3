@@ -131,7 +131,14 @@ public class ActressRoutes {
             if (result.ok()) {
                 actressBrowseService.findById(id).ifPresentOrElse(ctx::json, () -> ctx.status(404));
             } else {
-                ctx.status(409).json(Map.of("error", result.error()));
+                Map<String, Object> body2 = new java.util.LinkedHashMap<>();
+                body2.put("error", result.error());
+                if (result.conflictActressId() != null) {
+                    body2.put("conflictActressId", result.conflictActressId());
+                    body2.put("conflictActressName", result.conflictActressName());
+                    body2.put("conflictKind", result.conflictKind());
+                }
+                ctx.status(409).json(body2);
             }
         });
 
