@@ -222,7 +222,45 @@ public class UnsortedEditorService {
             throw new IllegalStateException("Duplicate title has no primary actress on record");
         }
         SaveResult stub = new SaveResult(List.of(), existingPrimary, null, false);
-        return renameFolderIfNeeded(titleId, stub, validatedDescriptor);
+        SaveResult renamed = renameFolderIfNeeded(titleId, stub, validatedDescriptor);
+        placeCoverFromCache(titleId, renamed.folderPath());
+        return renamed;
+    }
+
+    /**
+     * Copy the cached cover image into the title's folder on the unsorted volume as
+     * {@code {baseCode}.{ext}}. Used by the duplicate-save path — the canonical Title
+     * already has a cached cover, so we plant it in this physical copy's folder so the
+     * folder looks the same as every other structured title.
+     *
+     * <p>Best-effort: failures are logged but do not fail the save. The rename is the
+     * durable mutation; the cover can be healed later by {@code sync covers}.
+     */
+    private void placeCoverFromCache(long titleId, String folderPath) {
+        if (folderPath == null) return;
+        var detail = repo.findEligibleById(titleId, unsortedVolumeId).orElse(null);
+        if (detail == null) return;
+        Title synth = Title.builder().label(detail.label()).baseCode(detail.baseCode()).build();
+        Optional<java.nio.file.Path> cached = coverPath.find(synth);
+        if (cached.isEmpty()) {
+            log.info("TitleEditor: no cached cover to place — titleId={} label={} baseCode={}",
+                    titleId, detail.label(), detail.baseCode());
+            return;
+        }
+        java.nio.file.Path cachedPath = cached.get();
+        String filename = cachedPath.getFileName().toString();
+        try {
+            byte[] bytes = java.nio.file.Files.readAllBytes(cachedPath);
+            try (SmbConnectionFactory.SmbShareHandle handle = smbFactory.open(unsortedVolumeId)) {
+                VolumeFileSystem fs = handle.fileSystem();
+                java.nio.file.Path target = java.nio.file.Path.of(folderPath, filename);
+                fs.writeFile(target, bytes);
+                log.info("FS mutation [TitleEditor.placeCover]: volume={} titleId={} target={} bytes={}",
+                        unsortedVolumeId, titleId, target, bytes.length);
+            }
+        } catch (IOException e) {
+            log.warn("TitleEditor: failed to place cover for titleId={}: {}", titleId, e.getMessage());
+        }
     }
 
     /**
