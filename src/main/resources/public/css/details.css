@@ -1034,10 +1034,49 @@
   padding: 24px;
 }
 
-#title-detail-cover img {
+/* Crop to the right-N% (front panel) using the same vars as title cards,
+   so the detail cover matches the DVD-case aspect shown elsewhere. */
+#title-detail-cover {
+  position: relative;
   width: 100%;
-  display: block;
+  aspect-ratio: var(--cover-card-ratio);
+  overflow: hidden;
+  background: #1c1c1c;
   border-radius: 4px;
+}
+#title-detail-cover img {
+  position: absolute;
+  width: var(--cover-crop-width);
+  height: auto;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  display: block;
+}
+.title-detail-cover-img {
+  cursor: zoom-in;
+  transition: filter 0.12s ease;
+}
+.title-detail-cover-img:hover { filter: brightness(1.08); }
+
+/* Full-cover lightbox — shown on cover click. */
+.cover-lightbox-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.88);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10000;
+  cursor: zoom-out;
+  padding: 24px;
+  overflow: auto;
+}
+.cover-lightbox-img {
+  max-width: 100%;
+  max-height: 100%;
+  box-shadow: 0 8px 40px rgba(0, 0, 0, 0.7);
+  border-radius: 2px;
 }
 
 .title-detail-cover-placeholder {
@@ -1533,7 +1572,6 @@
   min-width: 0;
   font-size: 0.8em;
 }
-.more-from-row .cover-wrap {
-  height: 100px;
-}
+/* Height is derived from the 150px card width × --cover-card-ratio (DVD-front aspect)
+   inherited from the base .card:not(.card-compact) .cover-wrap rule. */
 

@@ -101,9 +101,11 @@ function renderTitleDetail(t) {
   const coverEl = document.getElementById('title-detail-cover');
   const infoEl  = document.getElementById('title-detail-info');
 
-  // Cover
+  // Cover — click to open a lightbox showing the full image.
   if (t.coverUrl) {
-    coverEl.innerHTML = `<img src="${esc(t.coverUrl)}" alt="${esc(t.code)}" loading="lazy">`;
+    coverEl.innerHTML = `<img src="${esc(t.coverUrl)}" alt="${esc(t.code)}" loading="lazy" class="title-detail-cover-img">`;
+    const img = coverEl.querySelector('img');
+    img.addEventListener('click', () => showCoverLightbox(t.coverUrl, t.code));
   } else {
     coverEl.innerHTML = `<div class="title-detail-cover-placeholder">${esc(t.code)}</div>`;
   }
@@ -250,9 +252,9 @@ async function loadMoreFromActress(t) {
   container.innerHTML = '<div class="more-from-loading">Loading more titles\u2026</div>';
 
   try {
-    const res    = await fetch(`/api/actresses/${actressId}/titles?limit=13`);
+    const res    = await fetch(`/api/actresses/${actressId}/titles?limit=6`);
     const titles = await res.json();
-    const others = titles.filter(x => x.code !== t.code).slice(0, 12);
+    const others = titles.filter(x => x.code !== t.code).slice(0, 5);
     if (others.length === 0) { container.innerHTML = ''; return; }
 
     const section = document.createElement('div');
@@ -609,4 +611,25 @@ function formatFileSize(bytes) {
   if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
   if (bytes < 1024 * 1024 * 1024) return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
   return (bytes / (1024 * 1024 * 1024)).toFixed(2) + ' GB';
+}
+
+// ── Cover lightbox ────────────────────────────────────────────────────────
+function showCoverLightbox(src, code) {
+  const overlay = document.createElement("div");
+  overlay.className = "cover-lightbox-overlay";
+  const img = document.createElement("img");
+  img.src = src;
+  img.alt = code || "";
+  img.className = "cover-lightbox-img";
+  overlay.appendChild(img);
+
+  const dismiss = () => {
+    overlay.remove();
+    document.removeEventListener("keydown", onKey);
+  };
+  const onKey = e => { if (e.key === "Escape") dismiss(); };
+
+  overlay.addEventListener("click", dismiss);
+  document.addEventListener("keydown", onKey);
+  document.body.appendChild(overlay);
 }
