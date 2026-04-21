@@ -3,11 +3,13 @@ package com.organizer3.web.routes;
 import com.organizer3.model.WatchHistory;
 import com.organizer3.repository.WatchHistoryRepository;
 import io.javalin.Javalin;
+import lombok.extern.slf4j.Slf4j;
 
 import java.util.List;
 import java.util.Map;
 
 /** Watch-history read/write routes. */
+@Slf4j
 public class WatchHistoryRoutes {
 
     private final WatchHistoryRepository repo;
@@ -20,6 +22,7 @@ public class WatchHistoryRoutes {
         app.post("/api/watch-history/{titleCode}", ctx -> {
             String titleCode = ctx.pathParam("titleCode");
             WatchHistory entry = repo.record(titleCode, java.time.LocalDateTime.now());
+            log.info("Watch recorded — code={} watchedAt={}", titleCode, entry.getWatchedAt());
             ctx.json(Map.of("id", entry.getId(), "titleCode", entry.getTitleCode(),
                     "watchedAt", entry.getWatchedAt().toString()));
         });

@@ -85,6 +85,8 @@ public class ProbeJobRunner {
         jobs.put(id, state);
         Future<?> future = executor.submit(() -> runLoop(state));
         state.future = future;
+        log.info("ProbeJob started — id={} volume={} maxVideos={} initiallyUnprobed={}",
+                id, volumeId, maxVideos, totalInitially);
         return Snapshot.of(state, false);
     }
 
@@ -105,6 +107,8 @@ public class ProbeJobRunner {
         if (s == null) return false;
         s.cancelRequested.set(true);
         if (s.future != null) s.future.cancel(true);
+        log.info("ProbeJob cancel requested — id={} volume={} probed={} failed={}",
+                jobId, s.volumeId, s.probed.get(), s.failed.get());
         return true;
     }
 
@@ -131,6 +135,7 @@ public class ProbeJobRunner {
     }
 
     private void runLoop(JobState state) {
+        int lastLoggedProgress = 0;
         try {
             long cursor = 0;
             int attempted = 0;
@@ -155,14 +160,24 @@ public class ProbeJobRunner {
                     }
                     attempted++;
                 }
+                // Progress ping every batch so long jobs show movement in the log.
+                int done = state.probed.get() + state.failed.get();
+                if (done - lastLoggedProgress >= BATCH_SIZE) {
+                    log.info("ProbeJob progress — id={} volume={} probed={} failed={} attempted={}",
+                            state.id, state.volumeId, state.probed.get(), state.failed.get(), attempted);
+                    lastLoggedProgress = done;
+                }
             }
             state.status = state.cancelRequested.get() ? Status.CANCELLED : Status.COMPLETED;
         } catch (RuntimeException e) {
-            log.warn("probe job {} failed", state.id, e);
+            log.warn("ProbeJob failed — id={} volume={} probed={} failed={} error={}",
+                    state.id, state.volumeId, state.probed.get(), state.failed.get(), e.getMessage(), e);
             state.status = Status.FAILED;
             state.failureReason = e.getMessage();
         } finally {
             state.completedAt = LocalDateTime.now();
+            log.info("ProbeJob finished — id={} volume={} status={} probed={} failed={}",
+                    state.id, state.volumeId, state.status, state.probed.get(), state.failed.get());
         }
     }
 

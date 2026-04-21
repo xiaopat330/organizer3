@@ -77,6 +77,8 @@ public class AttentionRouter {
 
         fs.createDirectories(ATTENTION_ROOT);
         fs.move(source, target);
+        log.info("FS mutation [AttentionRouter.route]: routed to attention — volume={} reason={} from={} to={}",
+                volumeId, reasonCode, source, target);
 
         Path sidecar = target.resolve("REASON.txt");
         try {

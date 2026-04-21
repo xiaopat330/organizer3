@@ -5,6 +5,7 @@ import com.organizer3.mcp.Schemas;
 import com.organizer3.mcp.Tool;
 import com.organizer3.model.Title;
 import com.organizer3.repository.TitleRepository;
+import lombok.extern.slf4j.Slf4j;
 import org.jdbi.v3.core.Handle;
 import org.jdbi.v3.core.Jdbi;
 
@@ -30,6 +31,7 @@ import java.util.List;
  *
  * <p>Defaults to {@code dryRun: true}.
  */
+@Slf4j
 public class DeleteTitleTool implements Tool {
 
     private final Jdbi jdbi;
@@ -66,7 +68,13 @@ public class DeleteTitleTool implements Tool {
         return jdbi.inTransaction(h -> {
             Plan plan = buildPlan(h, title);
             if (!dryRun) {
+                log.info("MCP delete_title: committing — id={} code=\"{}\" summary=\"{}\"",
+                        id, title.getCode(), plan.summary());
                 execute(h, id);
+                log.info("MCP delete_title: deleted — id={} code=\"{}\"", id, title.getCode());
+            } else {
+                log.info("MCP delete_title: dry-run — id={} code=\"{}\" summary=\"{}\"",
+                        id, title.getCode(), plan.summary());
             }
             return new Result(dryRun, plan);
         });

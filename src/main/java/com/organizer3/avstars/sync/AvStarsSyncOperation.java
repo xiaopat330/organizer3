@@ -98,6 +98,8 @@ public class AvStarsSyncOperation {
         // Stamp volume
         volumeRepo.updateLastSyncedAt(volume.id(), syncStart);
 
+        log.info("AvStars sync finalized — volume={} actresses={} videos={}",
+                volume.id(), actressCount, videoCount);
         io.println("Done. " + actressCount + " actresses, " + videoCount + " videos indexed.");
     }
 

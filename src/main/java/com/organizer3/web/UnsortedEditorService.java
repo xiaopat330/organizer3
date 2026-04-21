@@ -194,7 +194,9 @@ public class UnsortedEditorService {
      * unchanged set. Rebuilds {@code title_effective_tags} (direct ∪ label-implied).
      */
     public void replaceTags(long titleId, List<String> tags) {
-        repo.replaceTags(titleId, tags == null ? List.of() : tags);
+        List<String> normalized = tags == null ? List.of() : tags;
+        log.info("TitleEditor: replacing tags — titleId={} tags={}", titleId, normalized);
+        repo.replaceTags(titleId, normalized);
     }
 
     /**
@@ -205,6 +207,8 @@ public class UnsortedEditorService {
      */
     public SaveResult saveDuplicateRename(long titleId, String descriptor) {
         final String validatedDescriptor = validateDescriptor(descriptor);
+        log.info("TitleEditor: duplicate-rename start — titleId={} descriptor=\"{}\"",
+                titleId, validatedDescriptor);
         if (!repo.hasLocationInVolume(titleId, unsortedVolumeId)) {
             throw new IllegalStateException("Title is no longer in the unsorted volume");
         }
@@ -245,6 +249,12 @@ public class UnsortedEditorService {
                                        String descriptor, List<String> tags) {
         // Fail fast before any DB writes.
         final String validatedDescriptor = validateDescriptor(descriptor);
+        int draftCount = (int) (entries == null ? 0 : entries.stream().filter(e -> e != null && e.id() == null).count());
+        int existingCount = (entries == null ? 0 : entries.size()) - draftCount;
+        log.info("TitleEditor: replaceActresses start — titleId={} existing={} drafts={} primary={} descriptor=\"{}\" tags={}",
+                titleId, existingCount, draftCount,
+                primary == null ? "null" : (primary.id() != null ? ("id=" + primary.id()) : ("new=\"" + primary.newName() + "\"")),
+                validatedDescriptor, tags == null ? null : tags);
         if (entries == null || entries.isEmpty()) {
             throw new IllegalArgumentException("Actress list must not be empty");
         }
@@ -285,6 +295,8 @@ public class UnsortedEditorService {
             repo.replaceActressesInTx(h, titleId, ids, primaryId);
             return new SaveResult(ids, primaryId, null, false);
         });
+        log.info("TitleEditor: replaceActresses committed — titleId={} actressIds={} primaryId={}",
+                titleId, committed.actressIds(), committed.primaryActressId());
 
         // Replace tags (own transaction + effective-tag rebuild). Safe to run after the
         // actress save since it's scoped to the title row and doesn't depend on SMB.
@@ -328,7 +340,8 @@ public class UnsortedEditorService {
                 throw new IllegalStateException("Target folder already exists: " + newPath);
             }
             fs.rename(Path.of(currentPath), targetName);
-            log.info("Renamed title {} folder: {} -> {}", titleId, currentPath, newPath);
+            log.info("FS mutation [TitleEditor.renameFolder]: volume={} titleId={} from={} to={}",
+                    unsortedVolumeId, titleId, currentPath, newPath);
         } catch (IOException e) {
             String rootCause = e.getCause() != null ? e.getCause().toString() : "(no cause)";
             log.warn("Folder rename failed for title {} ({} -> {}): {} / root: {}",
@@ -373,7 +386,9 @@ public class UnsortedEditorService {
                 .mapTo(Long.class)
                 .findFirst();
         if (existing.isPresent()) return existing.get();
-        return repo.createDraftActress(h, name);
+        long newId = repo.createDraftActress(h, name);
+        log.info("TitleEditor: created draft actress — id={} name=\"{}\"", newId, name);
+        return newId;
     }
 
     private static boolean matchesPrimary(ActressEntry e, ActressEntry primary) {

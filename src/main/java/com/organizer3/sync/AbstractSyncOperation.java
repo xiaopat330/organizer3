@@ -277,6 +277,9 @@ abstract class AbstractSyncOperation implements SyncOperation {
         titleEffectiveTagsService.recomputeForTitles(stats.touchedTitleIds());
         actressCompaniesService.recomputeForActresses(stats.touchedActressIds());
         ctx.setIndex(indexLoader.load(volumeId));
+        log.info("Sync finalized — volume={} actresses={} queue={} attention={} total={} touchedTitles={} touchedActresses={}",
+                volumeId, stats.actressCount(), stats.queue, stats.attention, stats.total,
+                stats.touchedTitleIds().size(), stats.touchedActressIds().size());
     }
 
     protected void printStats(SyncStats stats, CommandIO io) {

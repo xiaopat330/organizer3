@@ -5,6 +5,7 @@ import com.organizer3.mcp.Schemas;
 import com.organizer3.mcp.Tool;
 import com.organizer3.model.Actress;
 import com.organizer3.repository.ActressRepository;
+import lombok.extern.slf4j.Slf4j;
 import org.jdbi.v3.core.Handle;
 import org.jdbi.v3.core.Jdbi;
 
@@ -40,6 +41,7 @@ import java.util.List;
  *   <li>{@code lastVisitedAt}: later of the two non-null values</li>
  * </ul>
  */
+@Slf4j
 public class MergeActressesTool implements Tool {
 
     private final Jdbi jdbi;
@@ -92,12 +94,19 @@ public class MergeActressesTool implements Tool {
         Actress fromActress = actressRepo.findById(fromId).orElseThrow(
                 () -> new IllegalArgumentException("No actress with id " + fromId + " (from)"));
 
+        log.info("ActressMerge: start — into={}/\"{}\" from={}/\"{}\" dryRun={}",
+                intoId, intoActress.getCanonicalName(), fromId, fromActress.getCanonicalName(), dryRun);
+
         MergedFlags merged = mergeFlags(intoActress, fromActress);
 
         return jdbi.inTransaction(h -> {
             Plan plan = buildPlan(h, intoActress, fromActress, merged);
+            log.info("ActressMerge: plan — {}", plan.summary());
             if (!dryRun) {
                 execute(h, intoId, fromId, fromActress.getCanonicalName(), merged);
+                log.info("ActressMerge: committed — into={} from={} (row deleted)", intoId, fromId);
+            } else {
+                log.info("ActressMerge: dry-run only — no changes committed");
             }
             return new Result(dryRun, plan);
         });
@@ -180,30 +189,37 @@ public class MergeActressesTool implements Tool {
 
     private static void execute(Handle h, long intoId, long fromId, String fromCanonicalName, MergedFlags merged) {
         // 1. Reassign filing actress
-        h.createUpdate("UPDATE titles SET actress_id = :into WHERE actress_id = :from")
+        int titlesReassigned = h.createUpdate("UPDATE titles SET actress_id = :into WHERE actress_id = :from")
                 .bind("into", intoId).bind("from", fromId).execute();
+        log.info("ActressMerge step 1: reassigned titles.actress_id — rows={}", titlesReassigned);
 
         // 2. Migrate junction rows (INSERT OR IGNORE then DELETE remaining)
-        h.createUpdate("""
+        int junctionInserted = h.createUpdate("""
                 INSERT OR IGNORE INTO title_actresses (title_id, actress_id)
                 SELECT title_id, :into FROM title_actresses WHERE actress_id = :from
                 """).bind("into", intoId).bind("from", fromId).execute();
-        h.createUpdate("DELETE FROM title_actresses WHERE actress_id = :from")
+        int junctionDeleted = h.createUpdate("DELETE FROM title_actresses WHERE actress_id = :from")
                 .bind("from", fromId).execute();
+        log.info("ActressMerge step 2: title_actresses migrated — inserted={} deleted={}",
+                junctionInserted, junctionDeleted);
 
         // 3. Add from's canonical name as alias of into
-        h.createUpdate("""
+        int canonicalInserted = h.createUpdate("""
                 INSERT OR IGNORE INTO actress_aliases (actress_id, alias_name)
                 VALUES (:into, :name)
                 """).bind("into", intoId).bind("name", fromCanonicalName).execute();
+        log.info("ActressMerge step 3: added canonical-name alias \"{}\" → into={} — inserted={}",
+                fromCanonicalName, intoId, canonicalInserted);
 
         // 4. Migrate from's aliases to into (INSERT OR IGNORE preserves into's existing)
-        h.createUpdate("""
+        int aliasInserted = h.createUpdate("""
                 INSERT OR IGNORE INTO actress_aliases (actress_id, alias_name)
                 SELECT :into, alias_name FROM actress_aliases WHERE actress_id = :from
                 """).bind("into", intoId).bind("from", fromId).execute();
-        h.createUpdate("DELETE FROM actress_aliases WHERE actress_id = :from")
+        int aliasDeleted = h.createUpdate("DELETE FROM actress_aliases WHERE actress_id = :from")
                 .bind("from", fromId).execute();
+        log.info("ActressMerge step 4: actress_aliases migrated — inserted={} deleted={}",
+                aliasInserted, aliasDeleted);
 
         // 5. Update into's flags per merge policy
         h.createUpdate("""
@@ -226,10 +242,15 @@ public class MergeActressesTool implements Tool {
                 .bind("visitCount", merged.visitCount)
                 .bind("lastVisitedAt", merged.lastVisitedAt == null ? null : merged.lastVisitedAt.toString())
                 .execute();
+        log.info("ActressMerge step 5: into={} flags updated — favorite={} bookmark={} grade={} rejected={} visitCount={}",
+                intoId, merged.favorite, merged.bookmark,
+                merged.grade == null ? "null" : merged.grade.name(),
+                merged.rejected, merged.visitCount);
 
         // 6. Delete from's row
         h.createUpdate("DELETE FROM actresses WHERE id = :from")
                 .bind("from", fromId).execute();
+        log.info("ActressMerge step 6: deleted source actress id={}", fromId);
     }
 
     // ── flag merge policy ───────────────────────────────────────────────────
