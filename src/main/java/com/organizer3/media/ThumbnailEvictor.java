@@ -54,7 +54,7 @@ public class ThumbnailEvictor {
                 if (!evictable.contains(code)) continue;
                 try {
                     deleteRecursively(titleDir);
-                    log.info("Evicted cold thumbnails: {}", code);
+                    log.warn("Thumbnails discarded (expired) — code={}", code);
                     removed++;
                 } catch (IOException e) {
                     log.warn("Failed to evict {}: {}", titleDir, e.getMessage());

@@ -425,6 +425,10 @@ public class Application {
         webServer.registerLogRoutes(
                 new com.organizer3.web.routes.LogRoutes(java.nio.file.Paths.get("logs/organizer3.log")));
 
+        // Title-detail tag editor (direct + label-implied state, save direct tags).
+        webServer.registerTitleTagEditor(
+                new com.organizer3.web.routes.TitleTagEditorRoutes(jdbi, titleRepo));
+
         // Title Editor — metadata preparation for fully-structured titles in the unsorted volume.
         // See spec/PROPOSAL_TITLE_EDITOR.md.
         final String UNSORTED_VOLUME_ID = "unsorted";

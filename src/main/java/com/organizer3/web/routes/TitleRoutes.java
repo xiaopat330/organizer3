@@ -6,6 +6,7 @@ import com.organizer3.web.ActressBrowseService;
 import com.organizer3.web.TagCatalogLoader;
 import com.organizer3.web.TitleBrowseService;
 import io.javalin.Javalin;
+import lombok.extern.slf4j.Slf4j;
 
 import java.util.List;
 import java.util.Map;
@@ -18,6 +19,7 @@ import java.util.Map;
  * {@code actressBrowseService} and {@code titleRepo} may be null; the
  * corresponding routes are skipped when the dep is absent.
  */
+@Slf4j
 public class TitleRoutes {
 
     private final TitleBrowseService browseService;
@@ -180,6 +182,7 @@ public class TitleRoutes {
                 if (title == null) { ctx.status(404).json(Map.of("error", "Title not found")); return; }
                 boolean newValue = !title.isFavorite();
                 titleRepo.toggleFavorite(title.getId(), newValue);
+                log.info("Title modified — code={} favorite={}", code, newValue);
                 ctx.json(Map.of("code", code, "favorite", newValue));
             });
 
@@ -190,6 +193,7 @@ public class TitleRoutes {
                 String valueParam = ctx.queryParam("value");
                 boolean newValue = valueParam != null ? Boolean.parseBoolean(valueParam) : !title.isBookmark();
                 titleRepo.toggleBookmark(title.getId(), newValue);
+                log.info("Title modified — code={} bookmark={}", code, newValue);
                 ctx.json(Map.of("code", code, "bookmark", newValue));
             });
         }
