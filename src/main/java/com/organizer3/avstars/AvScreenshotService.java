@@ -51,6 +51,14 @@ public class AvScreenshotService {
         try {
             grabber = new FFmpegFrameGrabber(streamUrl);
             grabber.setOption("skip_frame", "noref");
+            // Fail fast if the stream endpoint is unhealthy — prevents FFmpeg's HTTP
+            // demuxer from entering an infinite reconnect loop against a 502-returning
+            // server. See logs/organizer3.log "AV stream failed" pattern for the class
+            // of bug this guards against.
+            grabber.setOption("reconnect", "0");
+            grabber.setOption("reconnect_streamed", "0");
+            grabber.setOption("reconnect_on_network_error", "0");
+            grabber.setOption("rw_timeout", "10000000");   // 10s in microseconds
             grabber.setAudioChannels(0);
             grabber.start();
 

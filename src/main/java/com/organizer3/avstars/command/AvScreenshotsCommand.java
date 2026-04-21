@@ -14,6 +14,11 @@ import lombok.extern.slf4j.Slf4j;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 /**
  * Generates screenshot frames for all videos belonging to a named AV actress.
@@ -25,6 +30,9 @@ import java.util.List;
 @Slf4j
 @RequiredArgsConstructor
 public class AvScreenshotsCommand implements Command {
+
+    /** Max seconds per video before we cancel and move on. Generous vs the ~3s we observe for healthy files. */
+    private static final int PER_VIDEO_TIMEOUT_SEC = 120;
 
     private final AvActressRepository actressRepo;
     private final AvVideoRepository videoRepo;
@@ -80,13 +88,49 @@ public class AvScreenshotsCommand implements Command {
 
         int done = 0;
         int failed = 0;
+        int timedOut = 0;
         int total = pending.size();
+        // Dedicated single-thread executor so one wedged FFmpeg call (pathological file,
+        // stuck demuxer) can't hang the command. If a video exceeds PER_VIDEO_TIMEOUT_SEC
+        // we cancel the future, abandon the executor, and move on. The native JavaCV
+        // thread may keep spinning in the background — acceptable tradeoff vs hanging.
+        ExecutorService generator = Executors.newSingleThreadExecutor(r -> {
+            Thread t = new Thread(r, "av-screenshot-gen");
+            t.setDaemon(true);
+            return t;
+        });
         try (var progress = io.startProgress("Screenshots", total)) {
             for (int i = 0; i < total; i++) {
                 AvVideo video = pending.get(i);
                 int remaining = total - i;
                 progress.setLabel("[" + remaining + "/" + total + "] " + video.getFilename());
-                List<String> urls = screenshotService.generateForVideo(video.getId());
+
+                final long vid = video.getId();
+                Future<List<String>> future = generator.submit(() -> screenshotService.generateForVideo(vid));
+                List<String> urls;
+                try {
+                    urls = future.get(PER_VIDEO_TIMEOUT_SEC, TimeUnit.SECONDS);
+                } catch (TimeoutException te) {
+                    future.cancel(true);
+                    log.warn("Screenshot generation timed out for video {} ({}) after {}s — abandoning executor",
+                            video.getId(), video.getFilename(), PER_VIDEO_TIMEOUT_SEC);
+                    io.println("  " + video.getFilename() + ": TIMEOUT after " + PER_VIDEO_TIMEOUT_SEC + "s");
+                    // The FFmpeg native thread may be stuck — replace the executor so the
+                    // next video gets a fresh worker and the old one is abandoned.
+                    generator.shutdownNow();
+                    generator = Executors.newSingleThreadExecutor(r -> {
+                        Thread t = new Thread(r, "av-screenshot-gen");
+                        t.setDaemon(true);
+                        return t;
+                    });
+                    timedOut++;
+                    progress.advance();
+                    continue;
+                } catch (Exception e) {
+                    log.warn("Screenshot generation errored for video {} ({}): {}",
+                            video.getId(), video.getFilename(), e.getMessage(), e);
+                    urls = List.of();
+                }
                 progress.advance();
                 if (!urls.isEmpty()) {
                     io.println("  " + video.getFilename() + ": " + urls.size() + " frames");
@@ -96,8 +140,10 @@ public class AvScreenshotsCommand implements Command {
                     failed++;
                 }
             }
+        } finally {
+            generator.shutdownNow();
         }
 
-        io.println("Done: " + done + " processed, " + failed + " failed.");
+        io.println("Done: " + done + " processed, " + failed + " failed, " + timedOut + " timed out.");
     }
 }
