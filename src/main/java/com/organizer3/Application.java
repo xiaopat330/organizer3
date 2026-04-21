@@ -544,6 +544,8 @@ public class Application {
         bgWorker.stop();
         backupScheduler.stop();
         probeJobRunner.shutdown();
+        thumbnailService.shutdown();
+        smbConnectionFactory.shutdown();
         if (mcpRoDb != null) mcpRoDb.close();
         log.info("Organizer3 exiting");
     }

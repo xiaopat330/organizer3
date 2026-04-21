@@ -11,8 +11,12 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.Set;
 import javax.imageio.ImageIO;
 import lombok.extern.slf4j.Slf4j;
@@ -43,15 +47,41 @@ public class ThumbnailService {
     static final int MAX_THUMBNAILS = 30;
     private static final String COUNT_FILE = ".count";
 
+    private static final int FOREGROUND_PARALLELISM = 2;
+
     private final Path thumbnailRoot;
     private final int intervalMinutes;
     private final int serverPort;
     private final Set<String> generating = ConcurrentHashMap.newKeySet();
+    private final ExecutorService foregroundExecutor;
 
     public ThumbnailService(Path thumbnailRoot, int intervalMinutes, int serverPort) {
         this.thumbnailRoot = thumbnailRoot;
         this.intervalMinutes = intervalMinutes;
         this.serverPort = serverPort;
+        this.foregroundExecutor = newForegroundExecutor();
+    }
+
+    private static ExecutorService newForegroundExecutor() {
+        AtomicInteger seq = new AtomicInteger();
+        // Bounded parallelism so a page with many videos can't fire hundreds
+        // of concurrent ffmpeg grabs (each opens a fresh SMB connection).
+        ThreadPoolExecutor exec = new ThreadPoolExecutor(
+                FOREGROUND_PARALLELISM, FOREGROUND_PARALLELISM,
+                0L, TimeUnit.MILLISECONDS,
+                new LinkedBlockingQueue<>(),
+                r -> {
+                    Thread t = new Thread(r, "thumb-fg-" + seq.incrementAndGet());
+                    t.setDaemon(true);
+                    t.setPriority(Thread.NORM_PRIORITY - 1);
+                    return t;
+                });
+        return exec;
+    }
+
+    /** Shuts down the foreground generation executor. Safe to call more than once. */
+    public void shutdown() {
+        foregroundExecutor.shutdownNow();
     }
 
     /**
@@ -90,7 +120,7 @@ public class ThumbnailService {
         if (needsGeneration && !isGenerating) {
             if (generating.add(generationKey)) {
                 isGenerating = true;
-                CompletableFuture.runAsync(() -> {
+                foregroundExecutor.execute(() -> {
                     try {
                         generateThumbnails(video, videoDir, titleCode, null);
                     } catch (Exception e) {
