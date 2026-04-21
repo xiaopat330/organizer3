@@ -3,7 +3,93 @@ import { ICON_FAV_LG, ICON_BM_LG, gradeBadgeHtml, tagBadgeHtml } from './icons.j
 import { showView, updateBreadcrumb, mode } from './grid.js';
 import { makeTitleCard, updateCardIndicators } from './cards.js';
 import { getActressBrowseMode, actressBrowseLabel, selectActressBrowseMode, showActressLanding } from './actress-browse.js';
-import { THUMBNAIL_COLUMNS } from './config.js';
+// ── Thumbnail size preference (discrete fractional ratios of the 240px source) ──
+// Slider value is an index into THUMB_RATIOS (1..N).
+const THUMB_SOURCE_WIDTH = 240;
+// Ordered so slider left (idx=1) = smallest, right (idx=N) = largest.
+const THUMB_RATIOS = [
+  { label: '1/3', factor: 1 / 3 },   //  80px
+  { label: '1/2', factor: 1 / 2 },   // 120px
+  { label: '2/3', factor: 2 / 3 },   // 160px
+];
+const THUMB_MIN = 1, THUMB_MAX = THUMB_RATIOS.length;
+const THUMB_DEFAULT = 2;  // middle (1/2) — intuitive: left = smaller, right = bigger
+
+function getThumbRatioIdx() {
+  const m = document.cookie.match(/(?:^|; )thumbCols=(\d+)/);
+  if (!m) return THUMB_DEFAULT;
+  const n = parseInt(m[1], 10);
+  return (n >= THUMB_MIN && n <= THUMB_MAX) ? n : THUMB_DEFAULT;
+}
+
+function thumbWidthPx(idx) {
+  const r = THUMB_RATIOS[idx - 1] || THUMB_RATIOS[0];
+  return Math.round(THUMB_SOURCE_WIDTH * r.factor);
+}
+
+function thumbRatioLabel(idx) {
+  return (THUMB_RATIOS[idx - 1] || THUMB_RATIOS[0]).label;
+}
+
+function applyThumbGrid(container, idx) {
+  const w = thumbWidthPx(idx);
+  container.style.gridTemplateColumns = `repeat(auto-fill, ${w}px)`;
+}
+
+// Hover-preview: after ~350ms hover, show the thumbnail at its natural size.
+// Singleton element reused across all thumbnails to avoid DOM churn.
+let _thumbHoverEl = null;
+let _thumbHoverTimer = null;
+function thumbHoverEl() {
+  if (_thumbHoverEl) return _thumbHoverEl;
+  _thumbHoverEl = document.createElement('div');
+  _thumbHoverEl.className = 'thumb-hover-preview';
+  _thumbHoverEl.style.display = 'none';
+  document.body.appendChild(_thumbHoverEl);
+  return _thumbHoverEl;
+}
+function hideThumbHover() {
+  clearTimeout(_thumbHoverTimer);
+  _thumbHoverTimer = null;
+  if (_thumbHoverEl) _thumbHoverEl.style.display = 'none';
+}
+function showThumbHover(img) {
+  const el = thumbHoverEl();
+  el.innerHTML = `<img src="${img.src}" alt="">`;
+  el.style.display = 'block';
+  // Position to the right of the thumb if there's room, else to the left.
+  const r = img.getBoundingClientRect();
+  const gap = 8;
+  const w = 240, h = 135;
+  let x = r.right + gap;
+  if (x + w > window.innerWidth - 8) x = Math.max(8, r.left - w - gap);
+  let y = r.top + (r.height / 2) - (h / 2);
+  y = Math.max(8, Math.min(y, window.innerHeight - h - 8));
+  el.style.left = x + 'px';
+  el.style.top = y + 'px';
+}
+function attachThumbHoverPreview(container) {
+  container.addEventListener('mouseover', e => {
+    const img = e.target.closest('.video-thumb');
+    if (!img || !container.contains(img)) return;
+    clearTimeout(_thumbHoverTimer);
+    _thumbHoverTimer = setTimeout(() => showThumbHover(img), 350);
+  });
+  container.addEventListener('mouseout', e => {
+    // Only hide when leaving the whole container or moving off a thumb.
+    if (!e.target.closest('.video-thumb')) return;
+    hideThumbHover();
+  });
+  container.addEventListener('mouseleave', hideThumbHover);
+}
+
+function setThumbRatio(idx) {
+  idx = Math.max(THUMB_MIN, Math.min(THUMB_MAX, idx | 0));
+  document.cookie = `thumbCols=${idx}; path=/; max-age=${60 * 60 * 24 * 365 * 10}`;
+  document.querySelectorAll('.video-thumbs').forEach(el => applyThumbGrid(el, idx));
+  document.querySelectorAll('.thumb-size-slider').forEach(s => { if (+s.value !== idx) s.value = idx; });
+  document.querySelectorAll('.thumb-size-label').forEach(l => { l.textContent = thumbRatioLabel(idx); });
+}
 import { pushNav } from './nav.js';
 import { openTitleTagEditor } from './title-tag-editor.js';
 
@@ -175,7 +261,7 @@ function renderTitleDetail(t) {
       ? tags.map(tagBadgeHtml).join('')
       : `<span class="title-detail-tags-empty">No tags — click to add</span>`;
   const tagsHtml = `<div class="title-detail-row">
-    <button type="button" class="title-detail-label title-detail-tags-btn" id="title-detail-tags-btn" title="Edit tags">Tags</button>
+    <button type="button" class="title-detail-label title-detail-tags-btn" id="title-detail-tags-btn" title="Edit tags">Tags<svg class="title-detail-tags-btn-icon" viewBox="0 0 16 16" width="11" height="11" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M11.5 2.5a1.8 1.8 0 0 1 2.5 2.5L5 14l-3 .8.8-3L11.5 2.5z"/></svg></button>
     <span class="title-detail-value title-detail-tags" id="title-detail-tags-value">${tagsInner}</span>
   </div>`;
 
@@ -189,7 +275,7 @@ function renderTitleDetail(t) {
   const paths = t.nasPaths || [];
   const nasHtml = paths.length > 0 ? `<div class="title-detail-row title-detail-nas-row">
     <span class="title-detail-label title-detail-location-label">Location</span>
-    <span class="title-detail-value title-detail-nas-paths">${paths.map(p => `<div class="title-detail-nas-path">${esc(p)}</div>`).join('')}</span>
+    <span class="title-detail-value title-detail-nas-paths">${paths.map(p => `<div class="title-detail-nas-path" data-path="${esc(p)}" title="Click to copy path">${esc(p)}</div>`).join('')}</span>
   </div>` : '';
 
   infoEl.innerHTML = `
@@ -251,6 +337,10 @@ function renderTitleDetail(t) {
     } catch (err) {
       console.error('tag editor failed', err);
     }
+  });
+
+  infoEl.querySelectorAll('.title-detail-nas-path').forEach(el => {
+    el.addEventListener('click', () => copyNasPath(el));
   });
 
   infoEl.querySelectorAll('.actress-link').forEach(link => {
@@ -342,6 +432,12 @@ export function renderVideoSection(v, titleCode, { thumbnails = true } = {}) {
           </svg>
           Copy path
         </button>` : ''}
+      ${thumbnails ? `
+        <span class="thumb-size-control" title="Thumbnail size (1:N — columns per row)">
+          <span class="thumb-size-caption">Thumb size</span>
+          <input type="range" class="thumb-size-slider" min="${THUMB_MIN}" max="${THUMB_MAX}" step="1" value="${getThumbRatioIdx()}">
+          <span class="thumb-size-label">${thumbRatioLabel(getThumbRatioIdx())}</span>
+        </span>` : ''}
     </div>
     ${thumbnails ? `<div class="video-thumbs" id="video-thumbs-${v.id}">
       <div class="video-thumbs-loading">Loading previews\u2026</div>
@@ -359,6 +455,9 @@ export function renderVideoSection(v, titleCode, { thumbnails = true } = {}) {
     const copyBtn = section.querySelector('.video-folder-copy');
     if (copyBtn) copyBtn.addEventListener('click', () => copyFolderPath(copyBtn, v.folderUrl));
   }
+
+  const slider = section.querySelector('.thumb-size-slider');
+  if (slider) slider.addEventListener('input', e => setThumbRatio(+e.target.value));
 
   const theaterBtn = section.querySelector('.theater-btn');
   if (theaterBtn) theaterBtn.addEventListener('click', () => toggleTheater(v.id));
@@ -385,7 +484,8 @@ function loadVideoThumbnails(videoId, attempt = 0) {
       const generating = data.generating;
 
       if (urls.length > 0) {
-        container.style.gridTemplateColumns = `repeat(${THUMBNAIL_COLUMNS}, 1fr)`;
+        applyThumbGrid(container, getThumbRatioIdx());
+        attachThumbHoverPreview(container);
         container.innerHTML = urls.map((url, i) => {
           const fraction = total > 1 ? 0.03 + (0.94 * i / (total - 1)) : 0.5;
           return `<div class="thumb-wrapper" data-fraction="${fraction}">
@@ -469,6 +569,33 @@ function updateThumbTimestamps(videoId, durationSeconds) {
     const fraction = parseFloat(el.dataset.fraction);
     el.textContent = formatTimestamp(fraction * durationSeconds);
   });
+}
+
+// Click-to-copy for the Location rows on the title detail panel.
+// Normalizes //host/share/... to the platform-appropriate form.
+function copyNasPath(el) {
+  const raw = el.dataset.path || el.textContent.trim();
+  const isWin = /Win/.test(navigator.platform || navigator.userAgent);
+  const isMac = /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent);
+  let text = raw;
+  if (isWin)      text = raw.replace(/^\/\//, '\\\\').replace(/\//g, '\\');
+  else if (isMac) text = raw.startsWith('//') ? 'smb:' + raw : raw;
+
+  const flashOk = () => {
+    el.classList.add('title-detail-nas-path-copied');
+    setTimeout(() => el.classList.remove('title-detail-nas-path-copied'), 900);
+  };
+  if (navigator.clipboard) navigator.clipboard.writeText(text).then(flashOk);
+  else {
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.cssText = 'position:fixed;opacity:0';
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    document.body.removeChild(ta);
+    flashOk();
+  }
 }
 
 // ── Folder path copy ──────────────────────────────────────────────────────

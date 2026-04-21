@@ -106,7 +106,7 @@ public class TitleTagEditorRoutes {
                         """).bind("id", titleId).execute();
             });
 
-            log.info("Title tags updated — code={} directTags={}", t.getCode(), tagsToSave);
+            log.info("Title modified — code={} directTags={}", t.getCode(), tagsToSave);
 
             // Return the refreshed effective-tag view so the client can update without a re-fetch.
             List<String> implied = (t.getLabel() == null || t.getLabel().isBlank())
