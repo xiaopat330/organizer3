@@ -1575,3 +1575,95 @@
 /* Height is derived from the 150px card width × --cover-card-ratio (DVD-front aspect)
    inherited from the base .card:not(.card-compact) .cover-wrap rule. */
 
+
+/* ── Title tags: editable label-button + modal ─────────────────────────── */
+.title-detail-tags-btn {
+  background: transparent;
+  border: 1px solid transparent;
+  padding: 2px 6px;
+  margin-left: -6px;
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.62rem;
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+  color: #666;
+  border-radius: 3px;
+  transition: color 0.12s ease, border-color 0.12s ease;
+}
+.title-detail-tags-btn:hover {
+  color: #9fb4c7;
+  border-color: #2a3642;
+}
+.title-detail-tags-empty {
+  color: #555;
+  font-style: italic;
+  font-size: 0.78rem;
+}
+
+.tag-modal-overlay {
+  position: fixed; inset: 0;
+  background: rgba(0, 0, 0, 0.82);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10000;
+  padding: 24px;
+}
+.tag-modal {
+  background: #0d0d0d;
+  border: 1px solid #2a2a2a;
+  border-radius: 8px;
+  width: min(900px, 100%);
+  max-height: calc(100vh - 60px);
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 8px 40px rgba(0, 0, 0, 0.6);
+}
+.tag-modal-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 20px;
+  border-bottom: 1px solid #222;
+}
+.tag-modal-title { color: #d8d8d8; font-size: 0.95rem; }
+.tag-modal-title strong { color: #7ab8e0; letter-spacing: 0.08em; }
+.tag-modal-note { color: #666; font-size: 0.75rem; }
+.tag-modal-body {
+  padding: 16px 20px;
+  overflow-y: auto;
+  flex: 1;
+}
+.tag-modal-footer {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 20px;
+  border-top: 1px solid #222;
+}
+.tag-modal-status {
+  flex: 1;
+  color: #888;
+  font-size: 0.78rem;
+}
+.tag-modal-save-btn,
+.tag-modal-cancel-btn {
+  background: transparent;
+  border: 1px solid #333;
+  color: #bbb;
+  border-radius: 4px;
+  padding: 6px 16px;
+  font: inherit;
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+.tag-modal-save-btn {
+  background: #0b2140;
+  color: #93c5fd;
+  border-color: #1e40af;
+}
+.tag-modal-save-btn:hover:not(:disabled) { background: #112a50; }
+.tag-modal-save-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.tag-modal-cancel-btn:hover { color: #ddd; border-color: #555; }

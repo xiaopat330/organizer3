@@ -129,6 +129,14 @@ public class WebServer {
     }
 
     /**
+     * Mounts the title-detail tag editor endpoints
+     * ({@code GET /api/titles/{code}/tag-state}, {@code PUT /api/titles/{code}/tags}).
+     */
+    public void registerTitleTagEditor(com.organizer3.web.routes.TitleTagEditorRoutes routes) {
+        routes.register(app);
+    }
+
+    /**
      * Mounts the MCP (Model Context Protocol) endpoint on this server.
      * The endpoint is disabled if {@code mcp.enabled: false} in config.
      * Call after construction, before {@link #start()}.

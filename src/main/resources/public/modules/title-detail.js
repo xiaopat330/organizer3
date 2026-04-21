@@ -5,6 +5,7 @@ import { makeTitleCard, updateCardIndicators } from './cards.js';
 import { getActressBrowseMode, actressBrowseLabel, selectActressBrowseMode, showActressLanding } from './actress-browse.js';
 import { THUMBNAIL_COLUMNS } from './config.js';
 import { pushNav } from './nav.js';
+import { openTitleTagEditor } from './title-tag-editor.js';
 
 // ── Visit tracking ────────────────────────────────────────────────────────
 let pendingVisitTimer = null;
@@ -168,12 +169,15 @@ function renderTitleDetail(t) {
     <span class="title-detail-value">${esc(fmtDate(displayDate))}</span>
   </div>` : '';
 
-  // Tags
+  // Tags — always render so the user can open the editor even when no tags are set.
   const tags = t.tags || [];
-  const tagsHtml = tags.length > 0 ? `<div class="title-detail-row">
-    <span class="title-detail-label">Tags</span>
-    <span class="title-detail-value title-detail-tags">${tags.map(tagBadgeHtml).join('')}</span>
-  </div>` : '';
+  const tagsInner = tags.length > 0
+      ? tags.map(tagBadgeHtml).join('')
+      : `<span class="title-detail-tags-empty">No tags — click to add</span>`;
+  const tagsHtml = `<div class="title-detail-row">
+    <button type="button" class="title-detail-label title-detail-tags-btn" id="title-detail-tags-btn" title="Edit tags">Tags</button>
+    <span class="title-detail-value title-detail-tags" id="title-detail-tags-value">${tagsInner}</span>
+  </div>`;
 
   // Grade
   const gradeHtml = t.grade ? `<div class="title-detail-row title-detail-grade-row">
@@ -232,6 +236,21 @@ function renderTitleDetail(t) {
         document.getElementById('title-bm-btn').classList.toggle('active', data.bookmark);
         updateCardIndicators(t.code, t.favorite, t.bookmark);
       });
+  });
+
+  document.getElementById('title-detail-tags-btn').addEventListener('click', async () => {
+    try {
+      const result = await openTitleTagEditor(t.code);
+      if (!result) return;  // cancelled
+      t.tags = result.effectiveTags || [];
+      const valueEl = document.getElementById('title-detail-tags-value');
+      if (!valueEl) return;
+      valueEl.innerHTML = t.tags.length > 0
+          ? t.tags.map(tagBadgeHtml).join('')
+          : `<span class="title-detail-tags-empty">No tags — click to add</span>`;
+    } catch (err) {
+      console.error('tag editor failed', err);
+    }
   });
 
   infoEl.querySelectorAll('.actress-link').forEach(link => {
