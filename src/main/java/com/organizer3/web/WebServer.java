@@ -121,6 +121,14 @@ public class WebServer {
     }
 
     /**
+     * Mounts the log tail endpoint ({@code GET /api/logs/tail}) used by the
+     * in-app Logs viewer.
+     */
+    public void registerLogRoutes(com.organizer3.web.routes.LogRoutes routes) {
+        routes.register(app);
+    }
+
+    /**
      * Mounts the MCP (Model Context Protocol) endpoint on this server.
      * The endpoint is disabled if {@code mcp.enabled: false} in config.
      * Call after construction, before {@link #start()}.

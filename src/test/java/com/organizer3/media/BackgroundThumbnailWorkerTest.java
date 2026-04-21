@@ -71,15 +71,15 @@ class BackgroundThumbnailWorkerTest {
     @Test
     void successfulGenerationBumpsCounters() throws Exception {
         var cand = new BackgroundThumbnailQueue.Candidate(
-                1L, 10L, "ABP-001", "v.mp4", 1500.0);
+                1L, 10L, "ABP-001", "v.mp4", 1500.0, null);
         when(queue.topCandidates(anyInt())).thenReturn(List.of(cand));
         when(thumbnailService.isComplete(anyString(), anyString(), anyLong())).thenReturn(false);
         when(videoRepo.findById(1L)).thenReturn(Optional.of(video(1L, 10L, "v.mp4")));
-        when(thumbnailService.generateBlocking(eq("ABP-001"), any(Video.class))).thenReturn(true);
+        when(thumbnailService.generateBlocking(eq("ABP-001"), any(Video.class), any())).thenReturn(true);
 
         worker.runOneCycle();
 
-        verify(thumbnailService).generateBlocking(eq("ABP-001"), any(Video.class));
+        verify(thumbnailService).generateBlocking(eq("ABP-001"), any(Video.class), any());
         assertEquals(1, worker.getTotalGenerated());
         assertEquals("ABP-001", worker.getLastGeneratedCode());
     }
@@ -87,24 +87,24 @@ class BackgroundThumbnailWorkerTest {
     @Test
     void alreadyCompleteVideosAreSkipped() throws Exception {
         var cand = new BackgroundThumbnailQueue.Candidate(
-                1L, 10L, "DONE-001", "v.mp4", 500.0);
+                1L, 10L, "DONE-001", "v.mp4", 500.0, null);
         when(queue.topCandidates(anyInt())).thenReturn(List.of(cand));
         when(thumbnailService.isComplete("DONE-001", "v.mp4", 1L)).thenReturn(true);
 
         worker.runOneCycle();
 
-        verify(thumbnailService, never()).generateBlocking(anyString(), any());
+        verify(thumbnailService, never()).generateBlocking(anyString(), any(), any());
         verify(videoRepo, never()).findById(anyLong());
     }
 
     @Test
     void videoGetsAddedToFailSetAfterTwoFailures() throws Exception {
         var cand = new BackgroundThumbnailQueue.Candidate(
-                9L, 10L, "BAD-001", "v.mp4", 800.0);
+                9L, 10L, "BAD-001", "v.mp4", 800.0, null);
         when(queue.topCandidates(anyInt())).thenReturn(List.of(cand));
         when(thumbnailService.isComplete(anyString(), anyString(), anyLong())).thenReturn(false);
         when(videoRepo.findById(9L)).thenReturn(Optional.of(video(9L, 10L, "v.mp4")));
-        when(thumbnailService.generateBlocking(anyString(), any()))
+        when(thumbnailService.generateBlocking(anyString(), any(), any()))
                 .thenThrow(new IOException("boom"));
 
         worker.runOneCycle(); // fail #1
@@ -113,21 +113,21 @@ class BackgroundThumbnailWorkerTest {
         // On the third cycle the candidate is filtered out before generateBlocking,
         // so call count stays at 2.
         worker.runOneCycle();
-        verify(thumbnailService, times(2)).generateBlocking(anyString(), any());
+        verify(thumbnailService, times(2)).generateBlocking(anyString(), any(), any());
         assertEquals(0, worker.getTotalGenerated());
     }
 
     @Test
     void missingVideoRowSkipsGeneration() throws Exception {
         var cand = new BackgroundThumbnailQueue.Candidate(
-                999L, 10L, "GONE-001", "v.mp4", 800.0);
+                999L, 10L, "GONE-001", "v.mp4", 800.0, null);
         when(queue.topCandidates(anyInt())).thenReturn(List.of(cand));
         when(thumbnailService.isComplete(anyString(), anyString(), anyLong())).thenReturn(false);
         when(videoRepo.findById(999L)).thenReturn(Optional.empty());
 
         worker.runOneCycle();
 
-        verify(thumbnailService, never()).generateBlocking(anyString(), any());
+        verify(thumbnailService, never()).generateBlocking(anyString(), any(), any());
     }
 
     private static Video video(long id, long titleId, String filename) {

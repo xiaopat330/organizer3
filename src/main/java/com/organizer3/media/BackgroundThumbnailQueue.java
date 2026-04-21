@@ -29,6 +29,8 @@ public class BackgroundThumbnailQueue {
         String  titleCode;
         String  videoFilename;
         double  score;
+        /** Canonical name of the title's primary actress; {@code null} if title has none assigned. */
+        String  primaryActressName;
     }
 
     /**
@@ -71,6 +73,7 @@ public class BackgroundThumbnailQueue {
             per_title_score AS (
                 SELECT t.id AS title_id,
                        t.code AS title_code,
+                       pa.canonical_name AS primary_actress_name,
                        (CASE WHEN t.bookmark = 1 THEN 1000 ELSE 0 END)
                      + (CASE WHEN t.favorite = 1 THEN  500 ELSE 0 END)
                      + (CASE WHEN COALESCE(tas.any_fav_actress,0) = 1 THEN 500 ELSE 0 END)
@@ -104,10 +107,12 @@ public class BackgroundThumbnailQueue {
                      AS attention_score
                 FROM titles t
                 LEFT JOIN title_actress_signal tas ON tas.title_id = t.id
+                LEFT JOIN actresses pa ON pa.id = t.actress_id
             )
             SELECT v.id AS video_id,
                    v.title_id,
                    pts.title_code,
+                   pts.primary_actress_name,
                    v.filename AS video_filename,
                    pts.attention_score
                  + (CASE
@@ -130,7 +135,8 @@ public class BackgroundThumbnailQueue {
                         rs.getLong("title_id"),
                         rs.getString("title_code"),
                         rs.getString("video_filename"),
-                        rs.getDouble("score")))
+                        rs.getDouble("score"),
+                        rs.getString("primary_actress_name")))
                 .list());
     }
 }

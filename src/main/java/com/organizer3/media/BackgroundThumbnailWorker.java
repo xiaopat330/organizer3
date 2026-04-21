@@ -173,7 +173,7 @@ public class BackgroundThumbnailWorker {
         long timeoutSec = config.generationTimeoutSecOrDefault();
         Future<?> future = generationExecutor.submit(() -> {
             try {
-                thumbnailService.generateBlocking(cand.getTitleCode(), video);
+                thumbnailService.generateBlocking(cand.getTitleCode(), video, cand.getPrimaryActressName());
             } catch (Throwable e) {
                 log.warn("Thumbnail generation failed for video {} ({}): {}",
                         cand.getVideoId(), cand.getTitleCode(), e.getMessage());

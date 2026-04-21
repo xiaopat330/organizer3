@@ -5,12 +5,14 @@ import { esc } from './utils.js';
 import { renderVideoSection } from './title-detail.js';
 import { showAliasEditor, hideAliasEditorView } from './alias-editor.js';
 import { showTitleEditor, hideTitleEditorView } from './title-editor.js';
+import { showLogsView, hideLogsView } from './log-viewer.js';
 
 // ── DOM refs ──────────────────────────────────────────────────────────────
 const actionBtn         = document.getElementById('action-btn');
 const aliasesBtn        = document.getElementById('tools-aliases-btn');
 const duplicatesBtn     = document.getElementById('tools-duplicates-btn');
 const queueBtn          = document.getElementById('tools-queue-btn');
+const logsBtn           = document.getElementById('tools-logs-btn');
 const duplicatesView    = document.getElementById('tools-duplicates-view');
 const duplicatesFilters = document.getElementById('tools-duplicates-filters');
 const duplicatesList    = document.getElementById('tools-duplicates-list');
@@ -23,7 +25,7 @@ const dupDetailBody     = document.getElementById('dup-detail-body');
 const dupDetailClose    = document.getElementById('dup-detail-close');
 
 // ── Tool buttons ──────────────────────────────────────────────────────────
-const TOOL_BTNS = [aliasesBtn, duplicatesBtn, queueBtn];
+const TOOL_BTNS = [aliasesBtn, duplicatesBtn, queueBtn, logsBtn];
 
 function selectTool(btn) {
   TOOL_BTNS.forEach(b => b?.classList.remove('selected'));
@@ -33,6 +35,7 @@ function selectTool(btn) {
 function hideAllToolViews() {
   hideAliasEditorView();
   hideTitleEditorView();
+  hideLogsView();
   duplicatesView.style.display    = 'none';
   duplicatesFilters.style.display = 'none';
 }
@@ -300,4 +303,12 @@ queueBtn.addEventListener('click', () => {
   updateBreadcrumb([{ label: 'Tools' }, { label: 'Queue' }]);
   hideAllToolViews();
   showTitleEditor();
+});
+
+logsBtn.addEventListener('click', () => {
+  showActionView('logs');
+  selectTool(logsBtn);
+  updateBreadcrumb([{ label: 'Tools' }, { label: 'Logs' }]);
+  hideAllToolViews();
+  showLogsView();
 });

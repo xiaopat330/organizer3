@@ -421,6 +421,10 @@ public class Application {
         webServer.registerActressMerge(
                 new com.organizer3.web.routes.ActressMergeRoutes(jdbi, actressRepo));
 
+        // In-app log viewer (Tools → Logs). Path matches logback.xml's RollingFileAppender.
+        webServer.registerLogRoutes(
+                new com.organizer3.web.routes.LogRoutes(java.nio.file.Paths.get("logs/organizer3.log")));
+
         // Title Editor — metadata preparation for fully-structured titles in the unsorted volume.
         // See spec/PROPOSAL_TITLE_EDITOR.md.
         final String UNSORTED_VOLUME_ID = "unsorted";

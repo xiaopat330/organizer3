@@ -1,1 +1,10 @@
 rootProject.name = 'organizer3'
+
+// Local build cache — speeds up incremental and clean builds by reusing task outputs
+// keyed on inputs (source content, dependencies, JVM, etc.). Stored under
+// ~/.gradle/caches/build-cache-1 by default. Safe to delete at any time.
+buildCache {
+    local {
+        enabled = true
+    }
+}
