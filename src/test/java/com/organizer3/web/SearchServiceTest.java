@@ -85,6 +85,22 @@ class SearchServiceTest {
     }
 
     @Test
+    void searchUsesFederatedByDefaultAndEditorWhenIncludeSparse() {
+        when(actressRepo.searchForFederated(anyString(), anyBoolean(), anyInt())).thenReturn(List.of());
+        when(actressRepo.searchForEditor(anyString(), anyBoolean(), anyInt())).thenReturn(List.of());
+        when(titleRepo.searchByTitleName(anyString(), anyBoolean(), anyInt())).thenReturn(List.of());
+        when(labelRepo.searchLabels(anyString(), anyBoolean(), anyInt())).thenReturn(List.of());
+        when(labelRepo.searchCompanies(anyString(), anyBoolean(), anyInt())).thenReturn(List.of());
+
+        service.search("reina", false, false, false);
+        verify(actressRepo).searchForFederated("reina", false, 5);
+        verify(actressRepo, never()).searchForEditor(anyString(), anyBoolean(), anyInt());
+
+        service.search("reina", false, false, true);
+        verify(actressRepo).searchForEditor("reina", false, 5);
+    }
+
+    @Test
     void searchPassesStartsWithFlagToRepos() {
         when(actressRepo.searchForFederated(anyString(), anyBoolean(), anyInt())).thenReturn(List.of());
         when(titleRepo.searchByTitleName(anyString(), anyBoolean(), anyInt())).thenReturn(List.of());

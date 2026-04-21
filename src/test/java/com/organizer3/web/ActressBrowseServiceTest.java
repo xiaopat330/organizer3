@@ -807,6 +807,8 @@ class ActressBrowseServiceTest {
 
         assertFalse(result.ok());
         assertTrue(result.error().contains("Hibiki Otsuki"));
+        assertEquals(2L, result.conflictActressId());
+        assertEquals("Hibiki Otsuki", result.conflictActressName());
         verify(actressRepo, never()).replaceAllAliases(anyLong(), any());
     }
 
@@ -820,6 +822,8 @@ class ActressBrowseServiceTest {
 
         assertFalse(result.ok());
         assertTrue(result.error().contains("Eri Ando"));
+        assertEquals(2L, result.conflictActressId());
+        assertEquals("Hibiki Otsuki", result.conflictActressName());
         verify(actressRepo, never()).replaceAllAliases(anyLong(), any());
     }
 

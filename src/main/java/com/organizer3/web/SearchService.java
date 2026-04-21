@@ -42,9 +42,19 @@ public class SearchService {
      * @param includeAv  {@code true} to include AV actress results
      */
     public Map<String, Object> search(String query, boolean startsWith, boolean includeAv) {
-        List<Map<String, Object>> actresses = actressRepo
-                .searchForFederated(query, startsWith, MAX_ACTRESS_RESULTS)
-                .stream()
+        return search(query, startsWith, includeAv, false);
+    }
+
+    /**
+     * Variant that, when {@code includeSparse} is true, uses {@code searchForEditor} for
+     * actresses so performers with fewer than 2 titles are included. Used by the alias
+     * editor, which must be able to find any actress that could block an alias edit.
+     */
+    public Map<String, Object> search(String query, boolean startsWith, boolean includeAv, boolean includeSparse) {
+        var rawActresses = includeSparse
+                ? actressRepo.searchForEditor(query, startsWith, MAX_ACTRESS_RESULTS)
+                : actressRepo.searchForFederated(query, startsWith, MAX_ACTRESS_RESULTS);
+        List<Map<String, Object>> actresses = rawActresses.stream()
                 .map(this::toActressMap)
                 .toList();
 

@@ -92,7 +92,15 @@ public class WebServer {
      */
     public void registerActivityTracker(com.organizer3.media.UserActivityTracker tracker) {
         app.before(ctx -> {
-            if (ctx.path().startsWith("/api/")) tracker.bump();
+            String p = ctx.path();
+            if (!p.startsWith("/api/")) return;
+            // Skip paths that don't represent genuine user activity:
+            //   /api/stream/*                    — the worker's own thumbnail-generation calls
+            //                                       would otherwise reset the quiet clock every cycle
+            //   /api/actresses/spotlight         — dashboard's 30s rotator poll, not interaction
+            if (p.startsWith("/api/stream/")) return;
+            if (p.startsWith("/api/actresses/spotlight")) return;
+            tracker.bump();
         });
     }
 
@@ -101,6 +109,14 @@ public class WebServer {
      * Call after construction, before {@link #start()}.
      */
     public void registerUnsortedEditor(com.organizer3.web.routes.UnsortedEditorRoutes routes) {
+        routes.register(app);
+    }
+
+    /**
+     * Mounts the actress merge endpoint ({@code POST /api/actresses/{id}/merge}).
+     * Call after construction, before {@link #start()}. Optional — omit to disable merging.
+     */
+    public void registerActressMerge(com.organizer3.web.routes.ActressMergeRoutes routes) {
         routes.register(app);
     }
 

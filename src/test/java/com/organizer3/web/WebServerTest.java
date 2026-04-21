@@ -890,7 +890,7 @@ class WebServerTest {
     @Test
     void searchEndpointDelegatesStartsWithAndIncludeAv() throws IOException, InterruptedException {
         SearchService searchService = mock(SearchService.class);
-        when(searchService.search(anyString(), anyBoolean(), anyBoolean()))
+        when(searchService.search(anyString(), anyBoolean(), anyBoolean(), anyBoolean()))
                 .thenReturn(Map.of("actresses", List.of(), "titles", List.of(),
                         "labels", List.of(), "companies", List.of(), "avActresses", List.of()));
         server = new WebServer(0, null, null, null, null, null, null, null, null, searchService);
@@ -898,7 +898,7 @@ class WebServerTest {
 
         HttpResponse<String> response = get("/api/search?q=yua&matchMode=startsWith&includeAv=true");
         assertEquals(200, response.statusCode());
-        verify(searchService).search("yua", true, true);
+        verify(searchService).search("yua", true, true, false);
     }
 
     @Test
