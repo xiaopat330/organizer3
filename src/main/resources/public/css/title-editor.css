@@ -178,6 +178,22 @@
   font-weight: 700;
   min-width: 64px;
 }
+.queue-duplicate-view-btn {
+  display: inline-block;
+  margin-top: 10px;
+  padding: 6px 12px;
+  background: #7f1d1d;
+  color: #fecaca;
+  border: 1px solid #991b1b;
+  border-radius: 4px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.queue-duplicate-view-btn:hover {
+  background: #991b1b;
+  color: #fff;
+}
 .queue-duplicate-path {
   color: #aaa;
   font-family: ui-monospace, Menlo, Monaco, monospace;

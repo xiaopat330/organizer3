@@ -285,7 +285,7 @@ document.addEventListener('keydown', e => {
 });
 
 // ── Button wiring ─────────────────────────────────────────────────────────
-actionBtn.addEventListener('click', () => showActionView());
+actionBtn.addEventListener('click', () => logsBtn.click());
 
 aliasesBtn.addEventListener('click', () => {
   showActionView('aliases');

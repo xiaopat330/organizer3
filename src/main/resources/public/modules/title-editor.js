@@ -2,6 +2,7 @@
 // Split layout: sidebar queue + editor pane. Single route, swap editor pane in place.
 
 import { esc } from './utils.js';
+import { openTitleDetail } from './title-detail.js';
 
 // ── DOM refs ──────────────────────────────────────────────────────────────
 const view          = document.getElementById('tools-queue-view');
@@ -24,6 +25,23 @@ const descriptorPreview = document.getElementById('queue-descriptor-preview');
 const duplicateBadge    = document.getElementById('queue-duplicate-badge');
 const duplicateBanner   = document.getElementById('queue-duplicate-banner');
 const duplicateLocations= document.getElementById('queue-duplicate-locations');
+const duplicateViewBtn  = document.getElementById('queue-duplicate-view-btn');
+
+duplicateViewBtn.addEventListener('click', async () => {
+  const d = currentDetail?.detail;
+  if (!d?.code) return;
+  // Fetch the full title record so the detail page has cover, actresses, tags, etc.
+  // Passing a bare { code } object leaves the page half-rendered.
+  try {
+    const res = await fetch(`/api/titles?code=${encodeURIComponent(d.code)}&limit=1`);
+    const rows = await res.json();
+    const full = Array.isArray(rows) ? rows[0] : null;
+    openTitleDetail(full || { code: d.code, label: d.label });
+  } catch (err) {
+    console.error('Failed to fetch title for duplicate link', err);
+    openTitleDetail({ code: d.code, label: d.label });
+  }
+});
 const tagsPanel         = document.getElementById('queue-tags-panel');
 const actressList   = document.getElementById('queue-actress-list');
 const actressInput  = document.getElementById('queue-actress-input');
@@ -642,7 +660,9 @@ function canSave() {
   if (!editorState) return false;
   if (!descriptorIsValid()) return false;
   if (isDuplicate()) {
-    return (editorState.descriptor || '') !== (editorState.initialDescriptor || '');
+    // Duplicates: always allow save. Even with no descriptor change, save still
+    // places the cover from cache into the folder, unblocking the stuck state.
+    return true;
   }
   if (editorState.actresses.length === 0) return false;
   if (!editorState.actresses.some(a => a.primary)) return false;
