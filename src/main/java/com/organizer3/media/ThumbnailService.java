@@ -225,6 +225,11 @@ public class ThumbnailService {
 
         FFmpegFrameGrabber grabber = new FFmpegFrameGrabber(streamUrl);
         grabber.setOption("skip_frame", "noref");
+        // Prevent FFmpeg's HTTP demuxer from retrying a failing stream endpoint forever.
+        grabber.setOption("reconnect", "0");
+        grabber.setOption("reconnect_streamed", "0");
+        grabber.setOption("reconnect_on_network_error", "0");
+        grabber.setOption("rw_timeout", "10000000");
         grabber.setAudioChannels(0);
         grabber.start();
 

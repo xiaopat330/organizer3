@@ -16,7 +16,6 @@ import com.organizer3.smb.SmbConnectionFactory.SmbShareHandle;
 import io.javalin.Javalin;
 import io.javalin.http.staticfiles.Location;
 
-import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -445,10 +444,22 @@ public class WebServer {
                         out.flush();
                     }
                 }
-            } catch (IOException e) {
-                log.warn("AV stream failed for video {}: {}", videoId, e.getMessage());
+            } catch (org.eclipse.jetty.io.EofException eof) {
+                // Expected when FFmpeg closes the HTTP connection after extracting the
+                // frame it wanted mid-response. Not an error — just debug-level breadcrumb.
+                if (log.isDebugEnabled()) {
+                    log.debug("AV stream client closed early for video {} path=\"{}\" (EofException)",
+                            videoId, smbRelPath);
+                }
+            } catch (Exception e) {
+                // Include exception class + full stack — SmbApiException and similar often
+                // have a null getMessage() and we can't debug from that alone.
+                log.warn("AV stream failed for video {} path=\"{}\" volume={} exception={}: {}",
+                        videoId, smbRelPath, video.getVolumeId(),
+                        e.getClass().getName(), e.getMessage(), e);
                 if (!ctx.res().isCommitted()) {
-                    ctx.status(502).result("Stream error: " + e.getMessage());
+                    String msg = e.getMessage() != null ? e.getMessage() : e.getClass().getSimpleName();
+                    ctx.status(502).result("Stream error: " + msg);
                 }
             }
         });
