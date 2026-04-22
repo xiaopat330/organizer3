@@ -41,6 +41,7 @@ public final class VolumeStateService {
         LocalDateTime lastSynced = volumeRepo.findById(config.id())
                 .map(Volume::getLastSyncedAt)
                 .orElse(null);
+        String lastSyncedIso = lastSynced == null ? null : lastSynced.toString();
         int titleCount = titleRepo.countByVolume(config.id());
 
         // Health stubs: real detection (orphan covers, missing thumbs, probe failures)
@@ -52,7 +53,7 @@ public final class VolumeStateService {
                 config.id(),
                 config.smbPath(),
                 config.structureType(),
-                lastSynced,
+                lastSyncedIso,
                 titleCount,
                 "online",
                 health);

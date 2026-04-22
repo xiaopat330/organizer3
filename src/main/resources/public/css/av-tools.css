@@ -1500,7 +1500,7 @@
 }
 
 .volumes-list li {
-  padding: 12px 16px;
+  padding: 12px 14px;
   border-bottom: 1px solid #111827;
   cursor: pointer;
   transition: background 0.1s ease, border-left-color 0.1s ease;
@@ -1516,14 +1516,36 @@
   border-left-color: #60a5fa;
 }
 
+.vol-row {
+  display: grid;
+  grid-template-columns: 28px 1fr;
+  gap: 12px;
+  align-items: start;
+}
+.vol-row-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding-top: 2px;
+}
+.vol-row-body {
+  min-width: 0;  /* allow child text-overflow to work inside grid */
+}
+
 .vol-row-title {
-  font-size: 14px;
+  font-size: 15px;
   color: #e2e8f0;
   font-weight: 500;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 8px;
+}
+
+.vol-row-name {
+  font-weight: 600;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  letter-spacing: 0.02em;
 }
 
 .vol-row-id {
@@ -1606,6 +1628,18 @@
   font-size: 22px;
   color: #f1f5f9;
   font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.vol-detail-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.vol-detail-icon svg {
+  width: 26px;
+  height: 26px;
 }
 .vol-detail-path {
   font-size: 12px;

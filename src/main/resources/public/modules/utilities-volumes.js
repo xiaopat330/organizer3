@@ -48,6 +48,28 @@ async function refreshVolumes() {
   renderList();
 }
 
+// Palette of distinct volume hues. A stable index per id gives each volume its
+// own color identity across re-renders and across sessions.
+const VOLUME_HUES = [
+  '#60a5fa', '#4ade80', '#fbbf24', '#f472b6', '#a78bfa',
+  '#34d399', '#fb923c', '#22d3ee', '#e879f9', '#facc15',
+  '#2dd4bf', '#f87171',
+];
+
+function hueFor(id) {
+  let h = 0;
+  for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) | 0;
+  return VOLUME_HUES[Math.abs(h) % VOLUME_HUES.length];
+}
+
+function diskIconSVG(color) {
+  return `<svg class="vol-icon" viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="${color}" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+    <ellipse cx="12" cy="5" rx="9" ry="3"/>
+    <path d="M3 5v6c0 1.66 4 3 9 3s9-1.34 9-3V5"/>
+    <path d="M3 11v6c0 1.66 4 3 9 3s9-1.34 9-3v-6"/>
+  </svg>`;
+}
+
 function renderList() {
   const ul = listEl();
   ul.innerHTML = '';
@@ -61,20 +83,20 @@ function renderList() {
       showDetail(v.id);
     });
 
-    const row = document.createElement('div');
-    row.className = 'vol-row-title';
-    row.innerHTML = `<span>Volume ${esc(v.id.toUpperCase())}</span>${badgeHTML(v)}`;
-    li.appendChild(row);
-
-    const path = document.createElement('div');
-    path.className = 'vol-row-path';
-    path.textContent = v.smbPath || '';
-    li.appendChild(path);
-
-    const meta = document.createElement('div');
-    meta.className = 'vol-row-meta';
-    meta.textContent = `${v.titleCount || 0} titles · ${formatLastSynced(v.lastSyncedAt)}`;
-    li.appendChild(meta);
+    const color = hueFor(v.id);
+    li.innerHTML = `
+      <div class="vol-row">
+        <div class="vol-row-icon">${diskIconSVG(color)}</div>
+        <div class="vol-row-body">
+          <div class="vol-row-title">
+            <span class="vol-row-name" style="color:${color}">${esc(v.id.toUpperCase())}</span>
+            ${badgeHTML(v)}
+          </div>
+          <div class="vol-row-path">${esc(v.smbPath || '')}</div>
+          <div class="vol-row-meta">${v.titleCount || 0} titles · ${esc(formatLastSynced(v.lastSyncedAt))}</div>
+        </div>
+      </div>
+    `;
 
     ul.appendChild(li);
   }
@@ -121,9 +143,13 @@ function showDetail(volumeId) {
   const d = detailEl();
   d.style.display = '';
 
+  const color = hueFor(v.id);
   d.innerHTML = `
     <div class="vol-detail-head">
-      <div class="vol-detail-name">Volume ${esc(v.id.toUpperCase())}</div>
+      <div class="vol-detail-name">
+        <span class="vol-detail-icon">${diskIconSVG(color)}</span>
+        <span>Volume <span style="color:${color}">${esc(v.id.toUpperCase())}</span></span>
+      </div>
       <div class="vol-detail-path">${esc(v.smbPath || '')}</div>
     </div>
     <div class="vol-detail-stats">

@@ -1,6 +1,5 @@
 package com.organizer3.utilities.volume;
 
-import java.time.LocalDateTime;
 import java.util.List;
 
 /**
@@ -9,7 +8,7 @@ import java.util.List;
  * @param id            stable volume identifier (e.g. "a")
  * @param smbPath       network path (e.g. "//pandora/jav_A") — shown as muted subtitle
  * @param structureType e.g. "conventional", "exhibition"
- * @param lastSyncedAt  may be null for never-synced volumes
+ * @param lastSyncedAt  ISO-8601 string (e.g. "2026-04-19T11:43:44.659488"), or null if never synced
  * @param titleCount    number of titles with at least one location on the volume
  * @param status        "online" or "offline"
  * @param health        zero or more issues; empty list renders as "All healthy"
@@ -18,7 +17,7 @@ public record VolumeStateDTO(
         String id,
         String smbPath,
         String structureType,
-        LocalDateTime lastSyncedAt,
+        String lastSyncedAt,
         int titleCount,
         String status,
         List<HealthIssue> health) {
