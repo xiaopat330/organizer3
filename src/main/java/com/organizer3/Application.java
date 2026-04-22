@@ -433,6 +433,24 @@ public class Application {
         webServer.registerLogRoutes(
                 new com.organizer3.web.routes.LogRoutes(java.nio.file.Paths.get("logs/organizer3.log")));
 
+        // Utilities — maintenance UI (Tools → Volumes, ...). See spec/PROPOSAL_UTILITIES.md.
+        java.util.Map<String, com.organizer3.command.Command> commandsByName = new java.util.LinkedHashMap<>();
+        for (com.organizer3.command.Command c : commands) {
+            commandsByName.put(c.name(), c);
+        }
+        com.organizer3.utilities.volume.VolumeStateService volumeStateService =
+                new com.organizer3.utilities.volume.VolumeStateService(volumeRepo, titleRepo);
+        com.organizer3.utilities.task.volume.SyncVolumeTask syncVolumeTask =
+                new com.organizer3.utilities.task.volume.SyncVolumeTask(() ->
+                        new com.organizer3.utilities.task.CommandInvoker(
+                                commandsByName, new com.organizer3.shell.SessionContext()));
+        com.organizer3.utilities.task.TaskRegistry taskRegistry =
+                new com.organizer3.utilities.task.TaskRegistry(java.util.List.of(syncVolumeTask));
+        com.organizer3.utilities.task.TaskRunner taskRunner =
+                new com.organizer3.utilities.task.TaskRunner(taskRegistry);
+        webServer.registerUtilities(new com.organizer3.web.routes.UtilitiesRoutes(
+                volumeStateService, taskRegistry, taskRunner));
+
         // Title-detail tag editor (direct + label-implied state, save direct tags).
         webServer.registerTitleTagEditor(
                 new com.organizer3.web.routes.TitleTagEditorRoutes(jdbi, titleRepo));
