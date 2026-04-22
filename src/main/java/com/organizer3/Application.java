@@ -361,7 +361,14 @@ public class Application {
         com.organizer3.media.BgThumbnailsState bgThumbnailsState =
                 new com.organizer3.media.BgThumbnailsState(dataDir);
         Boolean persisted = bgThumbnailsState.readEnabled();
-        if (persisted != null) bgWorker.setEnabled(persisted);
+        if (persisted != null) {
+            bgWorker.setEnabled(persisted);
+            log.info("Background thumbnails: applied persisted state enabled={} from {}",
+                    persisted, dataDir.resolve("bg-thumbnails-state.json"));
+        } else {
+            log.info("Background thumbnails: no persisted state at {}, using config default enabled={}",
+                    dataDir.resolve("bg-thumbnails-state.json"), bgWorker.isEnabled());
+        }
         commands.add(new BackgroundThumbsCommand(bgWorker));
 
         // Sync commands — registered dynamically from syncConfig.
