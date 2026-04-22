@@ -484,7 +484,7 @@ public class Application {
                 java.util.List.of(
                         new com.organizer3.utilities.health.checks.StaleLocationsCheck(jdbi),
                         new com.organizer3.utilities.health.checks.OrphanedCoversCheck(coverPath, titleRepo),
-                        new com.organizer3.utilities.health.checks.TitlesWithoutCoversCheck(titleRepo, coverPath),
+                        new com.organizer3.utilities.health.checks.TitlesWithoutCoversCheck(titleRepo, titleLocationRepo, coverPath),
                         new com.organizer3.utilities.health.checks.UnloadedYamlsCheck(yamlLoader, actressRepo),
                         new com.organizer3.utilities.health.checks.UnresolvedAliasesCheck(jdbi),
                         new com.organizer3.utilities.health.checks.DuplicateCodesCheck(jdbi));

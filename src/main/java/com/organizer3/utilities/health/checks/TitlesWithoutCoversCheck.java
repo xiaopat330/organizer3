@@ -2,11 +2,14 @@ package com.organizer3.utilities.health.checks;
 
 import com.organizer3.covers.CoverPath;
 import com.organizer3.model.Title;
+import com.organizer3.model.TitleLocation;
+import com.organizer3.repository.TitleLocationRepository;
 import com.organizer3.repository.TitleRepository;
 import com.organizer3.utilities.health.LibraryHealthCheck;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
 
 /**
  * Titles whose expected cover file doesn't exist under the covers directory. "Titles without
@@ -23,10 +26,13 @@ public final class TitlesWithoutCoversCheck implements LibraryHealthCheck {
     private static final int SAMPLE_LIMIT = 50;
 
     private final TitleRepository titles;
+    private final TitleLocationRepository locations;
     private final CoverPath coverPath;
 
-    public TitlesWithoutCoversCheck(TitleRepository titles, CoverPath coverPath) {
+    public TitlesWithoutCoversCheck(TitleRepository titles, TitleLocationRepository locations,
+                                    CoverPath coverPath) {
         this.titles = titles;
+        this.locations = locations;
         this.coverPath = coverPath;
     }
 
@@ -58,8 +64,7 @@ public final class TitlesWithoutCoversCheck implements LibraryHealthCheck {
                         sample.add(new Finding(
                                 String.valueOf(t.getId()),
                                 t.getCode(),
-                                "expected: covers/" + t.getLabel().toUpperCase()
-                                        + "/" + t.getBaseCode() + ".jpg"));
+                                buildDetail(t)));
                     }
                 }
             }
@@ -67,5 +72,25 @@ public final class TitlesWithoutCoversCheck implements LibraryHealthCheck {
             offset += page;
         }
         return new CheckResult(total, sample);
+    }
+
+    /**
+     * Detail string for one missing-cover title. Shows the volumes where the title's videos
+     * actually live (that's where {@code sync covers} would pull the image from), plus the
+     * expected local cache path so the user can cross-check.
+     */
+    private String buildDetail(Title t) {
+        List<TitleLocation> locs = locations.findByTitle(t.getId());
+        String expected = "covers/" + t.getLabel().toUpperCase() + "/" + t.getBaseCode() + ".jpg";
+        if (locs.isEmpty()) {
+            return "no locations — expected " + expected;
+        }
+        String volList = locs.stream()
+                .map(l -> l.getVolumeId().toUpperCase())
+                .distinct()
+                .collect(Collectors.joining(", "));
+        // First location's path gives the user enough to know where to sync covers from.
+        String firstPath = locs.get(0).getPath().toString();
+        return "on volume(s) " + volList + " · " + firstPath + " · expected " + expected;
     }
 }

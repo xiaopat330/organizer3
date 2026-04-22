@@ -65,10 +65,12 @@ public final class OrphanedCoversCheck implements LibraryHealthCheck {
                         if (titles.findByCode(baseCode).isEmpty()) {
                             total++;
                             if (sample.size() < SAMPLE_LIMIT) {
+                                long size = safeSize(file);
                                 sample.add(new Finding(
                                         label + "/" + name,
-                                        label + "/" + name,
-                                        "no title row for code " + baseCode));
+                                        file.toAbsolutePath().toString(),
+                                        "local cover cache · " + formatSize(size)
+                                                + " · safe to delete (no DB row for " + baseCode + ")"));
                             }
                         }
                     }
@@ -78,6 +80,17 @@ public final class OrphanedCoversCheck implements LibraryHealthCheck {
             log.warn("Failed to walk covers dir {}", root, e);
         }
         return new CheckResult(total, sample);
+    }
+
+    private static long safeSize(Path p) {
+        try { return Files.size(p); } catch (IOException e) { return -1; }
+    }
+
+    private static String formatSize(long bytes) {
+        if (bytes < 0) return "?";
+        if (bytes < 1024) return bytes + " B";
+        if (bytes < 1024 * 1024) return String.format("%.1f KB", bytes / 1024.0);
+        return String.format("%.1f MB", bytes / (1024.0 * 1024.0));
     }
 
     private static String stripExtension(String filename) {
