@@ -237,6 +237,9 @@ function handlePhaseStarted(ev) {
     status: 'running',
     detail: '',
     durationMs: null,
+    current: 0,
+    total: -1,
+    lastTick: Date.now(),
     logs: [],
   });
   renderRun();
@@ -246,11 +249,14 @@ function handlePhaseProgress(ev) {
   if (!activeRun) return;
   const p = activeRun.phases.get(ev.phaseId);
   if (!p) return;
+  p.current = ev.current;
+  p.total = ev.total;
   if (ev.total > 0) {
     p.detail = `${ev.current} / ${ev.total}${ev.detail ? ' — ' + ev.detail : ''}`;
   } else if (ev.detail) {
     p.detail = ev.detail;
   }
+  p.lastTick = Date.now();
   renderRun();
 }
 
@@ -293,7 +299,7 @@ function renderRun() {
 
   const phasesHTML = Array.from(activeRun.phases.entries()).map(([id, p]) => {
     const cls = p.status;
-    const icon = p.status === 'running' ? '⏳'
+    const icon = p.status === 'running' ? '<span class="vol-run-spinner"></span>'
               : p.status === 'ok'      ? '✓'
               : p.status === 'failed'  ? '✗'
               : '○';
@@ -304,6 +310,7 @@ function renderRun() {
         <div>
           <div class="vol-run-phase-label">${esc(p.label)}</div>
           ${p.detail ? `<div class="vol-run-phase-detail">${esc(p.detail)}</div>` : ''}
+          ${renderPhaseBar(p)}
         </div>
         <div class="vol-run-phase-duration">${esc(dur)}</div>
       </div>
@@ -333,6 +340,15 @@ function renderRun() {
     });
   }
   renderRunLog();
+}
+
+function renderPhaseBar(p) {
+  if (p.status !== 'running') return '';
+  if (p.total > 0 && p.current >= 0) {
+    const pct = Math.min(100, Math.max(0, Math.floor(100 * p.current / p.total)));
+    return `<div class="vol-phase-bar"><div class="vol-phase-bar-fill" style="width:${pct}%"></div></div>`;
+  }
+  return `<div class="vol-phase-bar"><div class="vol-phase-bar-indet"></div></div>`;
 }
 
 function renderRunLog() {
