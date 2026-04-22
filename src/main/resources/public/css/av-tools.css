@@ -3321,3 +3321,22 @@
   color: #64748b;
   font-style: italic;
 }
+
+.lh-visualize-actions {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  margin-top: 8px;
+}
+.lh-visualize-cancel {
+  font-family: inherit;
+  font-size: 12px;
+  padding: 6px 14px;
+  background: transparent;
+  color: #cbd5e1;
+  border: 1px solid #334155;
+  border-radius: 3px;
+  cursor: pointer;
+  letter-spacing: 0.04em;
+}
+.lh-visualize-cancel:hover { background: #1e293b; }

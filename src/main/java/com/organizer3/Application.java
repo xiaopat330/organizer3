@@ -479,11 +479,18 @@ public class Application {
                 new com.organizer3.utilities.task.backup.RestoreSnapshotTask(
                         backupService, backupCatalogService);
 
+        // Local-covers cleanup — shared service used by both the Library Health check and the
+        // bulk delete task so they evaluate the same predicate.
+        com.organizer3.utilities.covers.OrphanedCoversService orphanedCoversService =
+                new com.organizer3.utilities.covers.OrphanedCoversService(coverPath, titleRepo);
+        com.organizer3.utilities.task.covers.CleanOrphanedCoversTask cleanOrphanedCoversTask =
+                new com.organizer3.utilities.task.covers.CleanOrphanedCoversTask(orphanedCoversService);
+
         // Library Health — pluggable check list; add new checks by appending below.
         java.util.List<com.organizer3.utilities.health.LibraryHealthCheck> healthChecks =
                 java.util.List.of(
                         new com.organizer3.utilities.health.checks.StaleLocationsCheck(jdbi),
-                        new com.organizer3.utilities.health.checks.OrphanedCoversCheck(coverPath, titleRepo),
+                        new com.organizer3.utilities.health.checks.OrphanedCoversCheck(orphanedCoversService),
                         new com.organizer3.utilities.health.checks.TitlesWithoutCoversCheck(titleRepo, titleLocationRepo, coverPath),
                         new com.organizer3.utilities.health.checks.UnloadedYamlsCheck(yamlLoader, actressRepo),
                         new com.organizer3.utilities.health.checks.UnresolvedAliasesCheck(jdbi),
@@ -498,12 +505,12 @@ public class Application {
                         java.util.List.of(syncVolumeTask, cleanStaleLocationsTask,
                                 loadActressTask, loadAllActressesTask,
                                 backupNowTask, restoreSnapshotTask,
-                                scanLibraryTask));
+                                scanLibraryTask, cleanOrphanedCoversTask));
         com.organizer3.utilities.task.TaskRunner taskRunner =
                 new com.organizer3.utilities.task.TaskRunner(taskRegistry);
         webServer.registerUtilities(new com.organizer3.web.routes.UtilitiesRoutes(
                 volumeStateService, staleLocationsService, actressCatalogService, yamlLoader,
-                backupCatalogService, backupService, libraryHealthService,
+                backupCatalogService, backupService, libraryHealthService, orphanedCoversService,
                 taskRegistry, taskRunner));
 
         webServer.registerBgThumbnails(new com.organizer3.web.routes.BgThumbnailsRoutes(

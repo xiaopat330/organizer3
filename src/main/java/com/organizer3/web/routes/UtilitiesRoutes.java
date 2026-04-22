@@ -9,6 +9,7 @@ import com.organizer3.backup.UserDataBackupService;
 import com.organizer3.enrichment.ActressYamlLoader;
 import com.organizer3.utilities.actress.ActressYamlCatalogService;
 import com.organizer3.utilities.backup.BackupCatalogService;
+import com.organizer3.utilities.covers.OrphanedCoversService;
 import com.organizer3.utilities.health.LibraryHealthCheck;
 import com.organizer3.utilities.health.LibraryHealthReport;
 import com.organizer3.utilities.health.LibraryHealthService;
@@ -47,6 +48,7 @@ public final class UtilitiesRoutes {
     private final BackupCatalogService backupCatalog;
     private final UserDataBackupService backupService;
     private final LibraryHealthService healthService;
+    private final OrphanedCoversService orphanedCoversService;
     private final TaskRegistry registry;
     private final TaskRunner runner;
     private final ObjectMapper json = new ObjectMapper().registerModule(new JavaTimeModule());
@@ -57,6 +59,7 @@ public final class UtilitiesRoutes {
                            BackupCatalogService backupCatalog,
                            UserDataBackupService backupService,
                            LibraryHealthService healthService,
+                           OrphanedCoversService orphanedCoversService,
                            TaskRegistry registry, TaskRunner runner) {
         this.volumeState = volumeState;
         this.staleLocations = staleLocations;
@@ -65,6 +68,7 @@ public final class UtilitiesRoutes {
         this.backupCatalog = backupCatalog;
         this.backupService = backupService;
         this.healthService = healthService;
+        this.orphanedCoversService = orphanedCoversService;
         this.registry = registry;
         this.runner = runner;
     }
@@ -153,6 +157,18 @@ public final class UtilitiesRoutes {
             if (inputs == null) inputs = Map.of();
 
             switch (taskId) {
+                case "covers.clean_orphaned" -> {
+                    // Preview echoes the service's full scan — rows (capped for the UI) + total
+                    // size so the user can see what "Proceed" will delete before committing.
+                    var pv = orphanedCoversService.preview();
+                    int cap = 200;
+                    var capped = pv.rows().size() > cap ? pv.rows().subList(0, cap) : pv.rows();
+                    ctx.json(Map.of(
+                            "count", pv.count(),
+                            "totalBytes", pv.totalBytes(),
+                            "truncated", pv.rows().size() > cap,
+                            "rows", capped));
+                }
                 case "volume.clean_stale_locations" -> {
                     if (!(inputs.get("volumeId") instanceof String volumeId)) {
                         ctx.status(400);
