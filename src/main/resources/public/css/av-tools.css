@@ -1705,6 +1705,25 @@
   gap: 12px;
 }
 
+.vol-health-desc {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.vol-health-info {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #475569;
+  cursor: help;
+  transition: color 0.12s ease;
+}
+.vol-health-info:hover,
+.vol-health-info:focus {
+  color: #94a3b8;
+  outline: none;
+}
+
 .vol-health-action {
   background: #1e293b;
   color: #e2e8f0;

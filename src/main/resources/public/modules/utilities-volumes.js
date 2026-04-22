@@ -292,7 +292,13 @@ function renderHealth(v) {
     const btn = action
       ? `<button type="button" class="vol-health-action" data-cat="${esc(h.category)}"${taskCenter.isRunning() ? ' disabled' : ''}>${esc(action.label)}</button>`
       : '';
-    return `<li><span>${esc(h.description)}</span>${btn}</li>`;
+    const tip = healthTooltip(h.category);
+    const info = tip
+      ? `<span class="vol-health-info" tabindex="0" title="${esc(tip)}">
+          <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+         </span>`
+      : '';
+    return `<li><span class="vol-health-desc">${esc(h.description)}${info}</span>${btn}</li>`;
   }).join('');
   return `<ul class="vol-health-list">${rows}</ul>`;
 }
@@ -301,6 +307,18 @@ function renderHealth(v) {
 function healthAction(h) {
   if (h.category === 'stale_locations') return { label: 'Clean up', kind: 'visualize-task', taskId: 'volume.clean_stale_locations' };
   return null;
+}
+
+/** Short plain-text tooltip keyed by health category. Shown on hover of the (i) icon. */
+function healthTooltip(category) {
+  switch (category) {
+    case 'stale_locations':
+      return 'A stale location is a DB row saying "this file is at path X on this volume," but '
+           + 'the file wasn\'t found during the last sync — it was moved, renamed, or deleted. '
+           + 'Cleaning up removes the index row only; nothing on disk is touched.';
+    default:
+      return null;
+  }
 }
 
 // ── Visualize-then-confirm: Clean stale locations ──────────────────────────
