@@ -356,6 +356,19 @@ public class Application {
         BackgroundThumbnailWorker bgWorker = new BackgroundThumbnailWorker(
                 config.backgroundThumbnailsOrDefaults(),
                 bgQueue, thumbnailService, bgEvictor, videoRepo, activityTracker);
+        // Apply persisted enable-state (set via the web chip) over the YAML default, so the
+        // user doesn't have to re-enable after every restart.
+        com.organizer3.media.BgThumbnailsState bgThumbnailsState =
+                new com.organizer3.media.BgThumbnailsState(dataDir);
+        Boolean persisted = bgThumbnailsState.readEnabled();
+        if (persisted != null) {
+            bgWorker.setEnabled(persisted);
+            log.info("Background thumbnails: applied persisted state enabled={} from {}",
+                    persisted, dataDir.resolve("bg-thumbnails-state.json"));
+        } else {
+            log.info("Background thumbnails: no persisted state at {}, using config default enabled={}",
+                    dataDir.resolve("bg-thumbnails-state.json"), bgWorker.isEnabled());
+        }
         commands.add(new BackgroundThumbsCommand(bgWorker));
 
         // Sync commands — registered dynamically from syncConfig.
@@ -432,6 +445,42 @@ public class Application {
         // In-app log viewer (Tools → Logs). Path matches logback.xml's RollingFileAppender.
         webServer.registerLogRoutes(
                 new com.organizer3.web.routes.LogRoutes(java.nio.file.Paths.get("logs/organizer3.log")));
+
+        // Utilities — maintenance UI (Tools → Volumes, ...). See spec/PROPOSAL_UTILITIES.md.
+        java.util.Map<String, com.organizer3.command.Command> commandsByName = new java.util.LinkedHashMap<>();
+        for (com.organizer3.command.Command c : commands) {
+            commandsByName.put(c.name(), c);
+        }
+        com.organizer3.utilities.volume.StaleLocationsService staleLocationsService =
+                new com.organizer3.utilities.volume.StaleLocationsService(jdbi);
+        com.organizer3.utilities.volume.VolumeStateService volumeStateService =
+                new com.organizer3.utilities.volume.VolumeStateService(volumeRepo, titleRepo, staleLocationsService);
+        com.organizer3.utilities.task.volume.SyncVolumeTask syncVolumeTask =
+                new com.organizer3.utilities.task.volume.SyncVolumeTask(() ->
+                        new com.organizer3.utilities.task.CommandInvoker(
+                                commandsByName, new com.organizer3.shell.SessionContext()));
+        com.organizer3.utilities.task.volume.CleanStaleLocationsTask cleanStaleLocationsTask =
+                new com.organizer3.utilities.task.volume.CleanStaleLocationsTask(staleLocationsService);
+        // Actress data — catalog + load tasks.
+        com.organizer3.utilities.actress.ActressYamlCatalogService actressCatalogService =
+                new com.organizer3.utilities.actress.ActressYamlCatalogService(yamlLoader, actressRepo);
+        com.organizer3.utilities.task.actress.LoadActressTask loadActressTask =
+                new com.organizer3.utilities.task.actress.LoadActressTask(yamlLoader);
+        com.organizer3.utilities.task.actress.LoadAllActressesTask loadAllActressesTask =
+                new com.organizer3.utilities.task.actress.LoadAllActressesTask(yamlLoader);
+
+        com.organizer3.utilities.task.TaskRegistry taskRegistry =
+                new com.organizer3.utilities.task.TaskRegistry(
+                        java.util.List.of(syncVolumeTask, cleanStaleLocationsTask,
+                                loadActressTask, loadAllActressesTask));
+        com.organizer3.utilities.task.TaskRunner taskRunner =
+                new com.organizer3.utilities.task.TaskRunner(taskRegistry);
+        webServer.registerUtilities(new com.organizer3.web.routes.UtilitiesRoutes(
+                volumeStateService, staleLocationsService, actressCatalogService, yamlLoader,
+                taskRegistry, taskRunner));
+
+        webServer.registerBgThumbnails(new com.organizer3.web.routes.BgThumbnailsRoutes(
+                bgWorker, bgThumbnailsState));
 
         // Title-detail tag editor (direct + label-implied state, save direct tags).
         webServer.registerTitleTagEditor(

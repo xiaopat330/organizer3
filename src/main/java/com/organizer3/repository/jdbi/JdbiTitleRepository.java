@@ -112,6 +112,19 @@ public class JdbiTitleRepository implements TitleRepository {
     }
 
     @Override
+    public int countByVolume(String volumeId) {
+        return jdbi.withHandle(h ->
+                h.createQuery("""
+                        SELECT COUNT(DISTINCT t.id) FROM titles t
+                        JOIN title_locations tl ON t.id = tl.title_id
+                        WHERE tl.volume_id = :volumeId
+                        """)
+                        .bind("volumeId", volumeId)
+                        .mapTo(Integer.class)
+                        .one());
+    }
+
+    @Override
     public List<Title> findByActress(long actressId) {
         List<Title> titles = jdbi.withHandle(h ->
                 h.createQuery("""

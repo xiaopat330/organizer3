@@ -21,6 +21,9 @@ public interface TitleLocationRepository {
 
     void deleteByVolumeAndPartition(String volumeId, String partitionId);
 
+    /** Delete a single title_location row. No-op if the id does not exist. */
+    void deleteById(long locationId);
+
     /**
      * Update an existing row's {@code path} and {@code partition_id} after a sort-phase
      * move. No-op if the row does not exist. Does not touch {@code last_seen_at} or

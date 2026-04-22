@@ -30,6 +30,9 @@ public interface TitleRepository {
     /** Find all titles that have at least one location on the given volume. */
     List<Title> findByVolume(String volumeId);
 
+    /** Count titles that have at least one location on the given volume. */
+    int countByVolume(String volumeId);
+
     List<Title> findByActress(long actressId);
 
     int countByActress(long actressId);
