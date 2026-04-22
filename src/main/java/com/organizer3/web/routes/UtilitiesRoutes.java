@@ -83,31 +83,31 @@ public final class UtilitiesRoutes {
     }
 
     /**
-     * Streams event history plus future events to an SSE client. On disconnect, the subscriber
-     * auto-cleans and the method returns — Javalin closes the underlying response.
+     * Streams event history plus future events to an SSE client. Atomic subscribe-with-replay
+     * ensures no event slips through between the history snapshot and the live subscription.
+     * On disconnect, the subscriber auto-cleans.
      */
     private void streamRun(SseClient client, TaskRun run) {
         client.keepAlive();
 
-        // Replay history so a late subscriber can reconstruct current state.
-        for (TaskEvent e : run.eventSnapshot()) {
-            sendEvent(client, e);
-        }
-        // If the run is already terminal, close after replay.
-        if (run.status() != TaskRun.Status.RUNNING) {
-            client.close();
-            return;
-        }
-
-        // Subscribe for live events. The subscriber runs on the task thread; it must not block.
         Consumer<TaskEvent> listener = e -> {
             sendEvent(client, e);
             if (e instanceof TaskEvent.TaskEnded) {
                 client.close();
             }
         };
-        Runnable unsubscribe = run.subscribe(listener);
-        client.onClose(unsubscribe::run);
+
+        TaskRun.SubscribeHandle handle = run.subscribeWithReplay(listener);
+        client.onClose(handle.unsubscribe()::run);
+
+        for (TaskEvent e : handle.replay()) {
+            sendEvent(client, e);
+        }
+        // If the run was already terminal at subscribe time, the TaskEnded in replay won't
+        // have triggered the close path (we hadn't sent it yet), so close explicitly.
+        if (handle.statusAtSubscribe() != TaskRun.Status.RUNNING) {
+            client.close();
+        }
     }
 
     private void sendEvent(SseClient client, TaskEvent e) {

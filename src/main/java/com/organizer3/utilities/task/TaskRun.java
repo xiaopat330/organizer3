@@ -29,6 +29,14 @@ public final class TaskRun {
     private final CopyOnWriteArrayList<TaskEvent> events = new CopyOnWriteArrayList<>();
     private final CopyOnWriteArraySet<Consumer<TaskEvent>> subscribers = new CopyOnWriteArraySet<>();
 
+    /**
+     * Lock held for the brief critical section that appends an event or attaches a subscriber
+     * with a replay snapshot. Ensures late subscribers never miss an event: the append and
+     * subscribe operations cannot interleave in a way that drops events after the snapshot
+     * but before the listener is registered.
+     */
+    private final Object writeLock = new Object();
+
     TaskRun(String taskId) {
         this.taskId = taskId;
     }
@@ -44,21 +52,44 @@ public final class TaskRun {
         return List.copyOf(events);
     }
 
-    /** Register a subscriber. Returns a handle; caller must invoke it to unsubscribe. */
+    /**
+     * Register a subscriber. Returns a handle; caller must invoke it to unsubscribe. Prefer
+     * {@link #subscribeWithReplay} for clients that also need the event history — that variant
+     * snapshots and subscribes atomically, so no events slip through the gap.
+     */
     public Runnable subscribe(Consumer<TaskEvent> listener) {
-        subscribers.add(listener);
+        synchronized (writeLock) {
+            subscribers.add(listener);
+        }
         return () -> subscribers.remove(listener);
     }
 
+    /**
+     * Atomic variant of {@link #subscribe}: returns the current event history and registers the
+     * listener under the same write lock, so no event can be appended between the snapshot and
+     * the listener becoming active. Use this for SSE clients joining mid-run.
+     */
+    public SubscribeHandle subscribeWithReplay(Consumer<TaskEvent> listener) {
+        synchronized (writeLock) {
+            List<TaskEvent> snapshot = List.copyOf(events);
+            subscribers.add(listener);
+            Runnable unsubscribe = () -> subscribers.remove(listener);
+            return new SubscribeHandle(snapshot, status, unsubscribe);
+        }
+    }
+
+    public record SubscribeHandle(List<TaskEvent> replay, Status statusAtSubscribe, Runnable unsubscribe) {}
+
     /** Record an event and fan out to subscribers. Called only by the task runner / TaskIO impl. */
     void append(TaskEvent event) {
-        events.add(event);
-        for (Consumer<TaskEvent> sub : subscribers) {
-            try {
-                sub.accept(event);
-            } catch (RuntimeException ignored) {
-                // Subscribers must not break the producer. A flaky subscriber's failure is swallowed;
-                // the subscriber will drop off when it cleans up via its own unsubscribe path.
+        synchronized (writeLock) {
+            events.add(event);
+            for (Consumer<TaskEvent> sub : subscribers) {
+                try {
+                    sub.accept(event);
+                } catch (RuntimeException ignored) {
+                    // Subscribers must not break the producer.
+                }
             }
         }
     }
