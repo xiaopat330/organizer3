@@ -114,6 +114,17 @@ Unchanged. Already a usability tool.
 - **Duplicates tile** — becomes a row in Library Health.
 - **Aliases tile** — folds into Actress Data.
 
+## Screen layout convention (Volumes, and template for others)
+
+All Utilities screens follow a **two-pane target + operations** layout:
+
+- **Left pane — target picker.** For Volumes: the list of volumes, each row showing name, size/count, last-synced, and a compact health badge. Selection is sticky across page reloads. Mount state is never surfaced; offline/online is.
+- **Right pane — operations stage.** Dynamic per selection. When nothing is selected: a welcome/empty state. When a target is selected: volume detail at top (enumerated health problems), operations below.
+
+**Operations list** is **flat** in Phase 1 — one primary action (Sync), then secondary actions surfaced from health indicators ("3 orphan covers → Clean up"). Revisit categorization when the list grows past ~5–6 items with real examples in hand.
+
+**Right-pane lifecycle** for any operation: *detail → visualize → run → summary → back to detail*. Visualizations and progress render inline in the right pane, not in modals. This spine is the standard for every future operation on every Utilities screen.
+
 ## Execution model
 
 ### Task layer

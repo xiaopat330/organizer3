@@ -6,9 +6,11 @@ import { renderVideoSection } from './title-detail.js';
 import { showAliasEditor, hideAliasEditorView } from './alias-editor.js';
 import { showTitleEditor, hideTitleEditorView } from './title-editor.js';
 import { showLogsView, hideLogsView } from './log-viewer.js';
+import { showVolumesView, hideVolumesView } from './utilities-volumes.js';
 
 // ── DOM refs ──────────────────────────────────────────────────────────────
 const actionBtn         = document.getElementById('action-btn');
+const volumesBtn        = document.getElementById('tools-volumes-btn');
 const aliasesBtn        = document.getElementById('tools-aliases-btn');
 const duplicatesBtn     = document.getElementById('tools-duplicates-btn');
 const queueBtn          = document.getElementById('tools-queue-btn');
@@ -25,7 +27,7 @@ const dupDetailBody     = document.getElementById('dup-detail-body');
 const dupDetailClose    = document.getElementById('dup-detail-close');
 
 // ── Tool buttons ──────────────────────────────────────────────────────────
-const TOOL_BTNS = [aliasesBtn, duplicatesBtn, queueBtn, logsBtn];
+const TOOL_BTNS = [volumesBtn, aliasesBtn, duplicatesBtn, queueBtn, logsBtn];
 
 function selectTool(btn) {
   TOOL_BTNS.forEach(b => b?.classList.remove('selected'));
@@ -36,6 +38,7 @@ function hideAllToolViews() {
   hideAliasEditorView();
   hideTitleEditorView();
   hideLogsView();
+  hideVolumesView();
   duplicatesView.style.display    = 'none';
   duplicatesFilters.style.display = 'none';
 }
@@ -285,7 +288,15 @@ document.addEventListener('keydown', e => {
 });
 
 // ── Button wiring ─────────────────────────────────────────────────────────
-actionBtn.addEventListener('click', () => logsBtn.click());
+actionBtn.addEventListener('click', () => volumesBtn.click());
+
+volumesBtn.addEventListener('click', () => {
+  showActionView('volumes');
+  selectTool(volumesBtn);
+  updateBreadcrumb([{ label: 'Tools' }, { label: 'Volumes' }]);
+  hideAllToolViews();
+  showVolumesView();
+});
 
 aliasesBtn.addEventListener('click', () => {
   showActionView('aliases');
