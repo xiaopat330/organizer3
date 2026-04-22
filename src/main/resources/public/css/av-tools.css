@@ -3593,3 +3593,203 @@
   color: #64748b;
   font-size: 12px;
 }
+
+/* ── Duplicate Triage (dt-) ──────────────────────────────────────────────── */
+
+.tools-duplicates-btn        { color: #fb923c; }
+.tools-duplicates-btn svg    { stroke: #fb923c; }
+.tools-duplicates-btn:hover,
+.tools-duplicates-btn.selected {
+  background: rgba(251, 146, 60, 0.12);
+  color: #fdba74;
+}
+.tools-duplicates-btn.selected svg { stroke: #fdba74; }
+
+.tools-dup-triage-view {
+  display: none;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+}
+
+.dt-header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 12px 20px;
+  border-bottom: 1px solid #1e293b;
+  flex-shrink: 0;
+}
+
+.dt-headline {
+  flex: 1;
+  font-size: 13px;
+  color: #94a3b8;
+  font-variant-numeric: tabular-nums;
+}
+
+.dt-actress-sel {
+  font-family: inherit;
+  font-size: 13px;
+  padding: 5px 10px;
+  background: #0f172a;
+  color: #e2e8f0;
+  border: 1px solid #334155;
+  border-radius: 3px;
+  max-width: 300px;
+}
+
+.dt-groups {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.dt-closure {
+  font-size: 13px;
+  color: #4ade80;
+  padding: 8px 12px;
+  background: rgba(74, 222, 128, 0.08);
+  border: 1px solid rgba(74, 222, 128, 0.2);
+  border-radius: 4px;
+}
+
+.dt-card {
+  background: #0f172a;
+  border: 1px solid #1e293b;
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.dt-card-header {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  padding: 12px;
+  border-bottom: 1px solid #1e293b;
+}
+
+.dt-cover {
+  width: 60px;
+  height: 80px;
+  object-fit: cover;
+  border-radius: 2px;
+  flex-shrink: 0;
+  background: #1e293b;
+}
+
+.dt-card-title {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.dt-code {
+  font-size: 14px;
+  color: #fb923c;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+}
+
+.dt-title-en {
+  font-size: 12px;
+  color: #cbd5e1;
+}
+
+.dt-loc-count {
+  font-size: 11px;
+  color: #64748b;
+}
+
+.dt-rationale {
+  font-size: 11px;
+  color: #94a3b8;
+  padding: 6px 12px;
+  background: rgba(251, 146, 60, 0.05);
+  border-bottom: 1px solid #1e293b;
+  font-style: italic;
+}
+
+.dt-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 1px;
+  background: #1e293b;
+}
+
+.dt-cell {
+  background: #0a0f1e;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  position: relative;
+}
+
+.dt-cell-keep    { background: rgba(74, 222, 128, 0.06); }
+.dt-cell-trash   { background: rgba(248, 113, 113, 0.06); opacity: 0.7; }
+.dt-cell-variant { background: rgba(148, 163, 184, 0.06); }
+.dt-cell-suggested { border-top: 2px solid #fb923c; }
+
+.dt-cell-path {
+  font-size: 11px;
+  font-family: monospace;
+  word-break: break-all;
+  line-height: 1.4;
+}
+
+.dt-path-base { color: #475569; }
+.dt-path-rest { color: #94a3b8; }
+
+.dt-cell-vsum {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.dt-chip {
+  font-size: 10px;
+  padding: 2px 6px;
+  background: #1e293b;
+  border-radius: 10px;
+  color: #94a3b8;
+  font-variant-numeric: tabular-nums;
+}
+
+.dt-suggested-badge {
+  font-size: 10px;
+  color: #fb923c;
+  padding: 2px 6px;
+  background: rgba(251, 146, 60, 0.1);
+  border-radius: 10px;
+  border: 1px solid rgba(251, 146, 60, 0.25);
+  align-self: flex-start;
+}
+
+.dt-cell-actions {
+  display: flex;
+  gap: 6px;
+  margin-top: 2px;
+}
+
+.dt-dec-btn {
+  font-family: inherit;
+  font-size: 11px;
+  padding: 4px 10px;
+  border-radius: 3px;
+  cursor: pointer;
+  letter-spacing: 0.04em;
+  border: 1px solid #334155;
+  background: #0f172a;
+  color: #94a3b8;
+}
+
+.dt-dec-btn:hover:not(:disabled) { color: #e2e8f0; border-color: #64748b; }
+.dt-dec-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+
+.dt-dec-keep.active    { color: #4ade80; border-color: #166534; background: rgba(74, 222, 128, 0.1); }
+.dt-dec-trash.active   { color: #f87171; border-color: #7f1d1d; background: rgba(248, 113, 113, 0.1); }
+.dt-dec-variant.active { color: #93c5fd; border-color: #1d4ed8; background: rgba(147, 197, 253, 0.1); }

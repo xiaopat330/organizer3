@@ -235,9 +235,14 @@ public class VideoStreamService {
                 video.getId(),
                 video.getFilename(),
                 video.getPath().toString(),
-                discoveredSize,
+                discoveredSize != null ? discoveredSize : video.getSizeBytes(),
                 mimeType(video),
-                loc != null ? buildSmbFolderUrl(loc.getVolumeId(), loc.getPath()) : null
+                loc != null ? buildSmbFolderUrl(loc.getVolumeId(), loc.getPath()) : null,
+                video.getDurationSec(),
+                video.getWidth(),
+                video.getHeight(),
+                video.getVideoCodec(),
+                video.getContainer()
         );
     }
 
@@ -267,6 +272,11 @@ public class VideoStreamService {
             String path,
             Long fileSize,
             String mimeType,
-            String folderUrl
+            String folderUrl,
+            Long durationSec,
+            Integer width,
+            Integer height,
+            String videoCodec,
+            String container
     ) {}
 }
