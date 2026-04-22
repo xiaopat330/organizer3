@@ -9,6 +9,9 @@ import com.organizer3.backup.UserDataBackupService;
 import com.organizer3.enrichment.ActressYamlLoader;
 import com.organizer3.utilities.actress.ActressYamlCatalogService;
 import com.organizer3.utilities.backup.BackupCatalogService;
+import com.organizer3.utilities.health.LibraryHealthCheck;
+import com.organizer3.utilities.health.LibraryHealthReport;
+import com.organizer3.utilities.health.LibraryHealthService;
 import com.organizer3.utilities.volume.StaleLocationsService;
 import com.organizer3.utilities.volume.VolumeStateService;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -18,6 +21,7 @@ import io.javalin.http.sse.SseClient;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
 
@@ -42,6 +46,7 @@ public final class UtilitiesRoutes {
     private final ActressYamlLoader actressLoader;
     private final BackupCatalogService backupCatalog;
     private final UserDataBackupService backupService;
+    private final LibraryHealthService healthService;
     private final TaskRegistry registry;
     private final TaskRunner runner;
     private final ObjectMapper json = new ObjectMapper().registerModule(new JavaTimeModule());
@@ -51,6 +56,7 @@ public final class UtilitiesRoutes {
                            ActressYamlLoader actressLoader,
                            BackupCatalogService backupCatalog,
                            UserDataBackupService backupService,
+                           LibraryHealthService healthService,
                            TaskRegistry registry, TaskRunner runner) {
         this.volumeState = volumeState;
         this.staleLocations = staleLocations;
@@ -58,6 +64,7 @@ public final class UtilitiesRoutes {
         this.actressLoader = actressLoader;
         this.backupCatalog = backupCatalog;
         this.backupService = backupService;
+        this.healthService = healthService;
         this.registry = registry;
         this.runner = runner;
     }
@@ -112,6 +119,28 @@ public final class UtilitiesRoutes {
                 ctx.status(500);
                 ctx.json(Map.of("error", e.getMessage()));
             }
+        });
+
+        // Library Health — check list + latest report + per-check detail
+        app.get("/api/utilities/health/checks", ctx -> {
+            // Always-available list so the UI can render empty rows before the first scan.
+            ctx.json(healthService.checks().stream().map(UtilitiesRoutes::checkMetaJson).toList());
+        });
+        app.get("/api/utilities/health/report/latest", ctx -> {
+            var latest = healthService.latest();
+            if (latest.isEmpty()) {
+                ctx.json(Map.of("scanned", false));
+                return;
+            }
+            ctx.json(reportSummaryJson(latest.get()));
+        });
+        app.get("/api/utilities/health/report/latest/{checkId}", ctx -> {
+            String checkId = ctx.pathParam("checkId");
+            var latest = healthService.latest();
+            if (latest.isEmpty()) { ctx.status(404); ctx.json(Map.of("error", "no report yet")); return; }
+            var entry = latest.get().checks().get(checkId);
+            if (entry == null) { ctx.status(404); ctx.json(Map.of("error", "no such check: " + checkId)); return; }
+            ctx.json(entry);
         });
 
         // Preview for visualize-then-confirm. Currently only volume.clean_stale_locations is
@@ -285,6 +314,35 @@ public final class UtilitiesRoutes {
         } catch (Exception ex) {
             // Client gone or network error — not actionable, don't propagate.
         }
+    }
+
+    private static Map<String, Object> checkMetaJson(LibraryHealthCheck c) {
+        Map<String, Object> m = new LinkedHashMap<>();
+        m.put("id", c.id());
+        m.put("label", c.label());
+        m.put("description", c.description());
+        m.put("fixRouting", c.fixRouting().name());
+        return m;
+    }
+
+    private static Map<String, Object> reportSummaryJson(LibraryHealthReport r) {
+        Map<String, Object> out = new LinkedHashMap<>();
+        out.put("scanned", true);
+        out.put("runId", r.runId());
+        out.put("scannedAt", r.scannedAt().toString());
+        // Per-check { id, label, fixRouting, total } — enough to render the list pane.
+        List<Map<String, Object>> checks = new java.util.ArrayList<>();
+        r.checks().values().forEach(e -> {
+            Map<String, Object> row = new LinkedHashMap<>();
+            row.put("id", e.id());
+            row.put("label", e.label());
+            row.put("description", e.description());
+            row.put("fixRouting", e.fixRouting().name());
+            row.put("total", e.result().total());
+            checks.add(row);
+        });
+        out.put("checks", checks);
+        return out;
     }
 
     private Map<String, Object> runStateJson(TaskRun run) {
