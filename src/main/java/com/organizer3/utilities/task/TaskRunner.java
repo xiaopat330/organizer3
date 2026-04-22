@@ -42,8 +42,9 @@ public final class TaskRunner {
                 .orElseThrow(() -> new IllegalArgumentException("Unknown task: " + taskId));
         TaskRun run = new TaskRun(taskId);
         runs.put(run.runId(), run);
-        TaskIO io = new RecordingTaskIO(run);
+        TaskIO io = new RecordingTaskIO(run, taskId);
 
+        log.info("Task {} started (run={}, inputs={})", taskId, run.runId(), inputs.values());
         executor.submit(() -> executeSafely(task, inputs, run, io));
         return run;
     }
@@ -62,11 +63,14 @@ public final class TaskRunner {
         try {
             task.run(inputs, io);
             TaskRun.Status finalStatus = inferTerminalStatus(run);
-            String summary = buildSummary(finalStatus, Duration.between(t0, Instant.now()));
+            Duration elapsed = Duration.between(t0, Instant.now());
+            String summary = buildSummary(finalStatus, elapsed);
             run.append(new TaskEvent.TaskEnded(Instant.now(), statusWire(finalStatus), summary));
             run.markEnded(finalStatus, summary);
+            log.info("Task {} ended status={} elapsed={} (run={})",
+                    task.spec().id(), statusWire(finalStatus), formatElapsed(elapsed), run.runId());
         } catch (Exception e) {
-            log.error("Task {} failed", task.spec().id(), e);
+            log.error("Task {} threw (run={})", task.spec().id(), run.runId(), e);
             String msg = "Task failed: " + e.getMessage();
             run.append(new TaskEvent.TaskEnded(Instant.now(), "failed", msg));
             run.markEnded(TaskRun.Status.FAILED, msg);
@@ -122,16 +126,21 @@ public final class TaskRunner {
         };
     }
 
-    /** TaskIO implementation that appends events to a {@link TaskRun}. */
+    /** TaskIO implementation that appends events to a {@link TaskRun} and logs phase boundaries. */
     private static final class RecordingTaskIO implements TaskIO {
         private final TaskRun run;
+        private final String taskId;
         private final Map<String, Instant> phaseStartedAt = new ConcurrentHashMap<>();
 
-        RecordingTaskIO(TaskRun run) { this.run = run; }
+        RecordingTaskIO(TaskRun run, String taskId) {
+            this.run = run;
+            this.taskId = taskId;
+        }
 
         @Override
         public void phaseStart(String phaseId, String label) {
             phaseStartedAt.put(phaseId, Instant.now());
+            log.info("Task {} phase '{}' started (run={})", taskId, phaseId, run.runId());
             run.append(new TaskEvent.PhaseStarted(Instant.now(), phaseId, label));
         }
 
@@ -150,6 +159,8 @@ public final class TaskRunner {
         public void phaseEnd(String phaseId, String status, String summary) {
             Instant started = phaseStartedAt.getOrDefault(phaseId, Instant.now());
             long durationMs = Duration.between(started, Instant.now()).toMillis();
+            log.info("Task {} phase '{}' ended status={} durationMs={} (run={})",
+                    taskId, phaseId, status, durationMs, run.runId());
             run.append(new TaskEvent.PhaseEnded(Instant.now(), phaseId, status, durationMs,
                     summary == null ? "" : summary));
         }
