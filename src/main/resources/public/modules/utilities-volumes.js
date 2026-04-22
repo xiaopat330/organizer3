@@ -59,6 +59,7 @@ taskCenter.onOpenRequested((state) => {
 
 function labelFor(taskId) {
   if (taskId === 'volume.sync') return 'Syncing volume';
+  if (taskId === 'volume.clean_stale_locations') return 'Cleaning stale locations';
   return taskId;
 }
 
@@ -70,11 +71,19 @@ taskCenter.subscribe(() => {
   }
 });
 
-const listEl    = () => document.getElementById('volumes-list');
-const emptyEl   = () => document.getElementById('volumes-empty');
-const detailEl  = () => document.getElementById('volumes-detail');
-const runEl     = () => document.getElementById('volumes-run');
-const viewEl    = () => document.getElementById('tools-volumes-view');
+const listEl      = () => document.getElementById('volumes-list');
+const emptyEl     = () => document.getElementById('volumes-empty');
+const detailEl    = () => document.getElementById('volumes-detail');
+const visualizeEl = () => document.getElementById('volumes-visualize');
+const runEl       = () => document.getElementById('volumes-run');
+const viewEl      = () => document.getElementById('tools-volumes-view');
+
+function hideAllRightPanes() {
+  emptyEl().style.display = 'none';
+  detailEl().style.display = 'none';
+  visualizeEl().style.display = 'none';
+  runEl().style.display = 'none';
+}
 
 let volumes = [];        // last-known list from /api/utilities/volumes
 let selectedId = null;   // currently selected volume id
@@ -89,11 +98,12 @@ export async function showVolumesView() {
   // that run view regardless of what's currently selected. They expect
   // continuity.
   if (activeRun && activeRun.taskStatus === 'running') {
-    selectedId = activeRun.volumeId;
-    localStorage.setItem(SELECTION_KEY, selectedId);
-    renderList();
-    detailEl().style.display = 'none';
-    emptyEl().style.display = 'none';
+    if (activeRun.volumeId) {
+      selectedId = activeRun.volumeId;
+      localStorage.setItem(SELECTION_KEY, selectedId);
+      renderList();
+    }
+    hideAllRightPanes();
     runEl().style.display = '';
     renderRun();
     return;
@@ -205,9 +215,8 @@ function formatLastSynced(ts) {
 }
 
 function showEmpty() {
+  hideAllRightPanes();
   emptyEl().style.display = '';
-  detailEl().style.display = 'none';
-  runEl().style.display = 'none';
 }
 
 /**
@@ -217,8 +226,7 @@ function showEmpty() {
  */
 function openVolume(volumeId) {
   if (activeRun && activeRun.taskStatus === 'running' && activeRun.volumeId === volumeId) {
-    emptyEl().style.display = 'none';
-    detailEl().style.display = 'none';
+    hideAllRightPanes();
     runEl().style.display = '';
     renderRun();
     return;
@@ -230,8 +238,7 @@ function showDetail(volumeId) {
   const v = volumes.find(x => x.id === volumeId);
   if (!v) { showEmpty(); return; }
 
-  emptyEl().style.display = 'none';
-  runEl().style.display = 'none';
+  hideAllRightPanes();
   const d = detailEl();
   d.style.display = '';
 
@@ -260,6 +267,16 @@ function showDetail(volumeId) {
     </div>
   `;
   document.getElementById('vol-op-sync').addEventListener('click', () => startSync(v.id));
+
+  // Wire up any health-row action buttons. Each button's data-cat drives behavior.
+  d.querySelectorAll('.vol-health-action').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const cat = btn.getAttribute('data-cat');
+      if (cat === 'stale_locations') {
+        await showStaleLocationsVisualize(v.id);
+      }
+    });
+  });
 }
 
 function renderHealth(v) {
@@ -270,12 +287,142 @@ function renderHealth(v) {
       All healthy
     </div>`;
   }
-  const rows = issues.map(h => `
-    <li>
-      <span>${esc(h.description)}</span>
-    </li>
-  `).join('');
+  const rows = issues.map(h => {
+    const action = healthAction(h);
+    const btn = action
+      ? `<button type="button" class="vol-health-action" data-cat="${esc(h.category)}"${taskCenter.isRunning() ? ' disabled' : ''}>${esc(action.label)}</button>`
+      : '';
+    return `<li><span>${esc(h.description)}</span>${btn}</li>`;
+  }).join('');
   return `<ul class="vol-health-list">${rows}</ul>`;
+}
+
+/** Returns the action metadata for a health category, or null if there's no action yet. */
+function healthAction(h) {
+  if (h.category === 'stale_locations') return { label: 'Clean up', kind: 'visualize-task', taskId: 'volume.clean_stale_locations' };
+  return null;
+}
+
+// ── Visualize-then-confirm: Clean stale locations ──────────────────────────
+async function showStaleLocationsVisualize(volumeId) {
+  if (taskCenter.isRunning()) {
+    alert('Another utility task is already running. Wait for it to finish.');
+    return;
+  }
+  const pane = visualizeEl();
+  hideAllRightPanes();
+  pane.style.display = '';
+  pane.innerHTML = `
+    <div class="vol-visualize-head">
+      <div class="vol-visualize-title">Clean stale locations</div>
+      <div class="vol-visualize-sub">Fetching preview…</div>
+    </div>
+  `;
+
+  let preview;
+  try {
+    const res = await fetch(`/api/utilities/tasks/volume.clean_stale_locations/preview`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ volumeId }),
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    preview = await res.json();
+  } catch (err) {
+    pane.innerHTML = `
+      <div class="vol-visualize-head">
+        <div class="vol-visualize-title">Clean stale locations</div>
+        <div class="vol-visualize-sub">Failed to fetch preview: ${esc(err.message)}</div>
+      </div>
+      <div class="vol-visualize-actions">
+        <button type="button" class="vol-visualize-cancel">Back</button>
+      </div>
+    `;
+    pane.querySelector('.vol-visualize-cancel').addEventListener('click', () => showDetail(volumeId));
+    return;
+  }
+
+  const rows = preview.rows || [];
+  if (rows.length === 0) {
+    pane.innerHTML = `
+      <div class="vol-visualize-head">
+        <div class="vol-visualize-title">Clean stale locations</div>
+        <div class="vol-visualize-sub">No stale locations found. Nothing to clean up.</div>
+      </div>
+      <div class="vol-visualize-actions">
+        <button type="button" class="vol-visualize-cancel">Back</button>
+      </div>
+    `;
+    pane.querySelector('.vol-visualize-cancel').addEventListener('click', () => showDetail(volumeId));
+    return;
+  }
+
+  const rowsHTML = rows.map(r => `
+    <tr>
+      <td class="vol-visualize-cell-code">${esc(r.titleCode || '')}</td>
+      <td class="vol-visualize-cell-path">${esc(r.path || '')}</td>
+      <td class="vol-visualize-cell-date">${esc(shortDate(r.lastSeenAt))}</td>
+    </tr>
+  `).join('');
+
+  pane.innerHTML = `
+    <div class="vol-visualize-head">
+      <div class="vol-visualize-title">Clean stale locations</div>
+      <div class="vol-visualize-sub">
+        The following <b>${rows.length}</b> location record${rows.length === 1 ? '' : 's'} will be removed from the database.
+        Files on disk are not touched — only the index entries pointing at files no longer observed on the last sync.
+      </div>
+    </div>
+    <div class="vol-visualize-table-wrap">
+      <table class="vol-visualize-table">
+        <thead><tr><th>Title</th><th>Path</th><th>Last seen</th></tr></thead>
+        <tbody>${rowsHTML}</tbody>
+      </table>
+    </div>
+    <div class="vol-visualize-actions">
+      <button type="button" class="vol-visualize-cancel">Cancel</button>
+      <button type="button" class="vol-visualize-proceed">Proceed — remove ${rows.length}</button>
+    </div>
+  `;
+  pane.querySelector('.vol-visualize-cancel').addEventListener('click', () => showDetail(volumeId));
+  pane.querySelector('.vol-visualize-proceed').addEventListener('click', () =>
+      startCleanStaleLocations(volumeId));
+}
+
+async function startCleanStaleLocations(volumeId) {
+  if (taskCenter.isRunning()) {
+    alert('Another utility task is already running.');
+    return;
+  }
+  try {
+    const res = await fetch(`/api/utilities/tasks/volume.clean_stale_locations/run`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ volumeId }),
+    });
+    if (res.status === 409) {
+      const body = await res.json().catch(() => ({}));
+      alert(body.error || 'Another utility task is already running.');
+      return;
+    }
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const { runId } = await res.json();
+    taskCenter.start({
+      taskId: 'volume.clean_stale_locations',
+      runId,
+      label: `Cleaning stale locations on Volume ${volumeId.toUpperCase()}`,
+    });
+    beginRunView(volumeId, runId, 'volume.clean_stale_locations');
+  } catch (err) {
+    alert('Failed to start cleanup: ' + err.message);
+  }
+}
+
+function shortDate(ts) {
+  if (!ts) return '';
+  const d = new Date(ts);
+  if (isNaN(d.getTime())) return ts;
+  return d.toISOString().slice(0, 10);
 }
 
 async function startSync(volumeId) {
@@ -301,26 +448,27 @@ async function startSync(volumeId) {
       runId,
       label: `Syncing Volume ${volumeId.toUpperCase()}`,
     });
-    beginRunView(volumeId, runId);
+    beginRunView(volumeId, runId, 'volume.sync');
   } catch (err) {
     alert('Failed to start sync: ' + err.message);
   }
 }
 
-function beginRunView(volumeId, runId) {
+function beginRunView(volumeId, runId, taskId) {
   // Close any previous SSE.
   if (activeRun?.eventSource) activeRun.eventSource.close();
 
   activeRun = {
     runId,
     volumeId,
+    taskId: taskId || 'volume.sync',
     eventSource: null,
-    phases: new Map(),   // phaseId → { label, status, detail, durationMs, logs: [] }
+    phases: new Map(),   // phaseId → { label, status, detail, durationMs }
     taskStatus: 'running',
     taskSummary: '',
   };
 
-  detailEl().style.display = 'none';
+  hideAllRightPanes();
   const r = runEl();
   r.style.display = '';
   renderRun();
@@ -455,9 +603,13 @@ function renderRun() {
       ? ''
       : `<div class="vol-run-actions"><button type="button" id="vol-run-done">Done</button></div>`;
 
+  const heading = activeRun.taskId === 'volume.clean_stale_locations'
+      ? `Cleaning stale locations · Volume ${esc((v.id || '').toUpperCase())}`
+      : `Syncing Volume ${esc((v.id || '').toUpperCase())}`;
+
   r.innerHTML = `
     <div class="vol-run-head">
-      <span>Syncing Volume ${esc(v.id.toUpperCase())}</span>
+      <span>${heading}</span>
       <span class="vol-run-status ${activeRun.taskStatus}">${esc(statusLabel)}</span>
     </div>
     <div class="vol-run-phases">${phasesHTML}</div>

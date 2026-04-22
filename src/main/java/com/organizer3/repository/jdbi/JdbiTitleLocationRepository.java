@@ -90,6 +90,15 @@ public class JdbiTitleLocationRepository implements TitleLocationRepository {
     }
 
     @Override
+    public void deleteById(long locationId) {
+        jdbi.useHandle(h ->
+                h.createUpdate("DELETE FROM title_locations WHERE id = :id")
+                        .bind("id", locationId)
+                        .execute()
+        );
+    }
+
+    @Override
     public void deleteByVolumeAndPartition(String volumeId, String partitionId) {
         jdbi.useHandle(h ->
                 h.createUpdate("""

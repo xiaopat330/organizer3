@@ -19,10 +19,13 @@ public final class VolumeStateService {
 
     private final VolumeRepository volumeRepo;
     private final TitleRepository titleRepo;
+    private final StaleLocationsService staleLocations;
 
-    public VolumeStateService(VolumeRepository volumeRepo, TitleRepository titleRepo) {
+    public VolumeStateService(VolumeRepository volumeRepo, TitleRepository titleRepo,
+                              StaleLocationsService staleLocations) {
         this.volumeRepo = volumeRepo;
         this.titleRepo = titleRepo;
+        this.staleLocations = staleLocations;
     }
 
     public List<VolumeStateDTO> list() {
@@ -44,10 +47,16 @@ public final class VolumeStateService {
         String lastSyncedIso = lastSynced == null ? null : lastSynced.toString();
         int titleCount = titleRepo.countByVolume(config.id());
 
-        // Health stubs: real detection (orphan covers, missing thumbs, probe failures)
-        // will be wired up in a follow-up PR. For now the list is empty and the overall
-        // status is "healthy". The UI renders the empty list as "All healthy".
-        List<VolumeStateDTO.HealthIssue> health = List.of();
+        // Real health detection is being wired in one indicator at a time. First up: stale
+        // locations — rows whose file wasn't observed during the last sync. More indicators
+        // (missing thumbnails, probe failures, etc.) will append to this list.
+        List<VolumeStateDTO.HealthIssue> health = new java.util.ArrayList<>();
+        int staleCount = staleLocations.count(config.id());
+        if (staleCount > 0) {
+            health.add(new VolumeStateDTO.HealthIssue(
+                    "warn", "stale_locations", staleCount,
+                    staleCount + " stale location" + (staleCount == 1 ? "" : "s")));
+        }
 
         return new VolumeStateDTO(
                 config.id(),

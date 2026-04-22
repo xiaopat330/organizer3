@@ -438,18 +438,23 @@ public class Application {
         for (com.organizer3.command.Command c : commands) {
             commandsByName.put(c.name(), c);
         }
+        com.organizer3.utilities.volume.StaleLocationsService staleLocationsService =
+                new com.organizer3.utilities.volume.StaleLocationsService(jdbi);
         com.organizer3.utilities.volume.VolumeStateService volumeStateService =
-                new com.organizer3.utilities.volume.VolumeStateService(volumeRepo, titleRepo);
+                new com.organizer3.utilities.volume.VolumeStateService(volumeRepo, titleRepo, staleLocationsService);
         com.organizer3.utilities.task.volume.SyncVolumeTask syncVolumeTask =
                 new com.organizer3.utilities.task.volume.SyncVolumeTask(() ->
                         new com.organizer3.utilities.task.CommandInvoker(
                                 commandsByName, new com.organizer3.shell.SessionContext()));
+        com.organizer3.utilities.task.volume.CleanStaleLocationsTask cleanStaleLocationsTask =
+                new com.organizer3.utilities.task.volume.CleanStaleLocationsTask(staleLocationsService);
         com.organizer3.utilities.task.TaskRegistry taskRegistry =
-                new com.organizer3.utilities.task.TaskRegistry(java.util.List.of(syncVolumeTask));
+                new com.organizer3.utilities.task.TaskRegistry(
+                        java.util.List.of(syncVolumeTask, cleanStaleLocationsTask));
         com.organizer3.utilities.task.TaskRunner taskRunner =
                 new com.organizer3.utilities.task.TaskRunner(taskRegistry);
         webServer.registerUtilities(new com.organizer3.web.routes.UtilitiesRoutes(
-                volumeStateService, taskRegistry, taskRunner));
+                volumeStateService, staleLocationsService, taskRegistry, taskRunner));
 
         // Title-detail tag editor (direct + label-implied state, save direct tags).
         webServer.registerTitleTagEditor(

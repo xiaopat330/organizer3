@@ -5,6 +5,7 @@ import com.organizer3.utilities.task.TaskInputs;
 import com.organizer3.utilities.task.TaskRegistry;
 import com.organizer3.utilities.task.TaskRun;
 import com.organizer3.utilities.task.TaskRunner;
+import com.organizer3.utilities.volume.StaleLocationsService;
 import com.organizer3.utilities.volume.VolumeStateService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
@@ -32,12 +33,15 @@ import java.util.function.Consumer;
 public final class UtilitiesRoutes {
 
     private final VolumeStateService volumeState;
+    private final StaleLocationsService staleLocations;
     private final TaskRegistry registry;
     private final TaskRunner runner;
     private final ObjectMapper json = new ObjectMapper().registerModule(new JavaTimeModule());
 
-    public UtilitiesRoutes(VolumeStateService volumeState, TaskRegistry registry, TaskRunner runner) {
+    public UtilitiesRoutes(VolumeStateService volumeState, StaleLocationsService staleLocations,
+                           TaskRegistry registry, TaskRunner runner) {
         this.volumeState = volumeState;
+        this.staleLocations = staleLocations;
         this.registry = registry;
         this.runner = runner;
     }
@@ -51,6 +55,27 @@ public final class UtilitiesRoutes {
                         () -> { ctx.status(404); ctx.json(Map.of("error", "volume not found")); }));
 
         app.get("/api/utilities/tasks", ctx -> ctx.json(registry.specs()));
+
+        // Preview for visualize-then-confirm. Currently only volume.clean_stale_locations is
+        // previewable. As more preview-backed tasks are added, switch to a per-task dispatcher
+        // (tasks declare preview shape in TaskSpec, or a separate PreviewProvider registry).
+        app.post("/api/utilities/tasks/{id}/preview", ctx -> {
+            String taskId = ctx.pathParam("id");
+            if (!"volume.clean_stale_locations".equals(taskId)) {
+                ctx.status(404);
+                ctx.json(Map.of("error", "no preview available for task " + taskId));
+                return;
+            }
+            @SuppressWarnings("unchecked")
+            Map<String, Object> inputs = ctx.bodyAsClass(Map.class);
+            if (inputs == null || !(inputs.get("volumeId") instanceof String volumeId)) {
+                ctx.status(400);
+                ctx.json(Map.of("error", "volumeId is required"));
+                return;
+            }
+            var rows = staleLocations.preview(volumeId);
+            ctx.json(Map.of("rows", rows, "count", rows.size()));
+        });
 
         app.post("/api/utilities/tasks/{id}/run", ctx -> {
             String taskId = ctx.pathParam("id");
