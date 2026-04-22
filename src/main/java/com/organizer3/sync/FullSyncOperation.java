@@ -37,9 +37,10 @@ public class FullSyncOperation extends AbstractSyncOperation {
                              TitleActressRepository titleActressRepo,
                              IndexLoader indexLoader,
                              TitleEffectiveTagsService titleEffectiveTagsService,
-                             ActressCompaniesService actressCompaniesService) {
+                             ActressCompaniesService actressCompaniesService,
+                             com.organizer3.covers.CoverPath coverPath) {
         super(titleRepo, videoRepo, actressRepo, volumeRepo, titleLocationRepo, titleActressRepo,
-                indexLoader, titleEffectiveTagsService, actressCompaniesService);
+                indexLoader, titleEffectiveTagsService, actressCompaniesService, coverPath);
         this.scannerRegistry = scannerRegistry;
     }
 
@@ -73,9 +74,8 @@ public class FullSyncOperation extends AbstractSyncOperation {
             }
         }
 
-        // Remove titles with no remaining locations, then clean up orphaned cast rows
-        titleRepo.deleteOrphaned();
-        titleActressRepo.deleteOrphaned();
+        // Drop titles whose locations all disappeared AND their local cover files.
+        pruneOrphanedTitlesAndCovers(io);
 
         finalizeSync(volume.id(), ctx, stats);
         printStats(stats, io);

@@ -3,6 +3,7 @@ package com.organizer3.sync;
 import com.organizer3.config.volume.PartitionDef;
 import com.organizer3.config.volume.VolumeConfig;
 import com.organizer3.config.volume.VolumeStructureDef;
+import com.organizer3.covers.CoverPath;
 import com.organizer3.db.ActressCompaniesService;
 import com.organizer3.db.TitleEffectiveTagsService;
 import com.organizer3.filesystem.VolumeFileSystem;
@@ -26,6 +27,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -56,6 +58,7 @@ abstract class AbstractSyncOperation implements SyncOperation {
     protected final IndexLoader indexLoader;
     protected final TitleEffectiveTagsService titleEffectiveTagsService;
     protected final ActressCompaniesService actressCompaniesService;
+    protected final CoverPath coverPath;
     private final TitleCodeParser codeParser = new TitleCodeParser();
 
     /** Subdirectories inside a title folder that may contain video files. */
@@ -265,6 +268,41 @@ abstract class AbstractSyncOperation implements SyncOperation {
             case "goddess"   -> Actress.Tier.GODDESS;
             default          -> Actress.Tier.LIBRARY;
         };
+    }
+
+    /**
+     * Drop titles whose locations all disappeared during this sync, and delete their local
+     * cover cache files in the same pass. Called between scan and {@link #finalizeSync}.
+     *
+     * <p>Returns covers for every orphaned title to its pre-fetch state — closes the gap that
+     * was leaving thousands of unreferenced covers on disk as folders got renamed on the NAS.
+     * Any cover whose title is dropped here would be flagged by Library Health on the next
+     * scan, so removing them eagerly keeps the app's on-disk footprint honest.
+     *
+     * <p>Partition sync calls this after per-partition clears; full sync calls it after the
+     * complete discovery+save pass. In both cases the predicate is the same — zero
+     * {@code title_locations} rows.
+     */
+    protected void pruneOrphanedTitlesAndCovers(CommandIO io) {
+        List<TitleRepository.OrphanedTitleRef> orphans = titleRepo.findOrphanedTitles();
+        int coversDeleted = 0;
+        for (TitleRepository.OrphanedTitleRef ref : orphans) {
+            // Build a minimal synthetic title so CoverPath.find() can probe extensions.
+            Title synth = Title.builder().label(ref.label()).baseCode(ref.baseCode()).build();
+            var found = coverPath.find(synth);
+            if (found.isEmpty()) continue;
+            try {
+                if (Files.deleteIfExists(found.get())) coversDeleted++;
+            } catch (IOException e) {
+                log.warn("Failed to delete orphan cover {} for {}-{}", found.get(), ref.label(), ref.baseCode(), e);
+            }
+        }
+        titleRepo.deleteOrphaned();
+        titleActressRepo.deleteOrphaned();
+        if (!orphans.isEmpty() || coversDeleted > 0) {
+            log.info("Pruned {} orphan title(s); deleted {} cover file(s)", orphans.size(), coversDeleted);
+            io.println("  Pruned " + orphans.size() + " orphan title(s); deleted " + coversDeleted + " cover file(s).");
+        }
     }
 
     /**
