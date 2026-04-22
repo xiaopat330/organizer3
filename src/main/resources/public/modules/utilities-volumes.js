@@ -100,7 +100,7 @@ export async function showVolumesView() {
   }
 
   if (selectedId && volumes.some(v => v.id === selectedId)) {
-    showDetail(selectedId);
+    openVolume(selectedId);
   } else {
     showEmpty();
   }
@@ -156,7 +156,7 @@ function renderList() {
       selectedId = v.id;
       localStorage.setItem(SELECTION_KEY, v.id);
       renderList();
-      showDetail(v.id);
+      openVolume(v.id);
     });
 
     const color = hueFor(v.id);
@@ -208,6 +208,22 @@ function showEmpty() {
   emptyEl().style.display = '';
   detailEl().style.display = 'none';
   runEl().style.display = 'none';
+}
+
+/**
+ * Dispatch for opening a volume from the picker. If a run is in flight *for this
+ * volume*, show the run pane; otherwise show the static detail pane. This is what
+ * the user expects after clicking a volume whose sync they already started.
+ */
+function openVolume(volumeId) {
+  if (activeRun && activeRun.taskStatus === 'running' && activeRun.volumeId === volumeId) {
+    emptyEl().style.display = 'none';
+    detailEl().style.display = 'none';
+    runEl().style.display = '';
+    renderRun();
+    return;
+  }
+  showDetail(volumeId);
 }
 
 function showDetail(volumeId) {
