@@ -60,7 +60,6 @@ taskCenter.onOpenRequested((state) => {
 function labelFor(taskId) {
   if (taskId === 'volume.sync') return 'Syncing volume';
   if (taskId === 'volume.clean_stale_locations') return 'Cleaning stale locations';
-  if (taskId === 'volume.generate_missing_thumbnails') return 'Generating missing thumbnails';
   return taskId;
 }
 
@@ -263,15 +262,11 @@ function showDetail(volumeId) {
     </div>
     <div class="vol-section">
       <div class="vol-section-heading">Operations</div>
-      <div class="vol-op-row">
-        <button type="button" class="vol-op-primary" id="vol-op-sync"${taskCenter.isRunning() ? ' disabled' : ''}>Sync</button>
-        <button type="button" class="vol-op-secondary" id="vol-op-thumbs"${taskCenter.isRunning() ? ' disabled' : ''}>Generate missing thumbnails</button>
-      </div>
+      <button type="button" class="vol-op-primary" id="vol-op-sync"${taskCenter.isRunning() ? ' disabled' : ''}>Sync</button>
       ${taskCenter.isRunning() ? '<div class="vol-op-blocked">Another utility task is running. Wait for it to finish.</div>' : ''}
     </div>
   `;
   document.getElementById('vol-op-sync').addEventListener('click', () => startSync(v.id));
-  document.getElementById('vol-op-thumbs').addEventListener('click', () => startGenerateThumbnails(v.id));
 
   // Wire up any health-row action buttons. Each button's data-cat drives behavior.
   d.querySelectorAll('.vol-health-action').forEach(btn => {
@@ -446,35 +441,6 @@ function shortDate(ts) {
   const d = new Date(ts);
   if (isNaN(d.getTime())) return ts;
   return d.toISOString().slice(0, 10);
-}
-
-async function startGenerateThumbnails(volumeId) {
-  if (taskCenter.isRunning()) {
-    alert('Another utility task is already running.');
-    return;
-  }
-  try {
-    const res = await fetch(`/api/utilities/tasks/volume.generate_missing_thumbnails/run`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ volumeId }),
-    });
-    if (res.status === 409) {
-      const body = await res.json().catch(() => ({}));
-      alert(body.error || 'Another utility task is already running.');
-      return;
-    }
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const { runId } = await res.json();
-    taskCenter.start({
-      taskId: 'volume.generate_missing_thumbnails',
-      runId,
-      label: `Generating thumbnails on Volume ${volumeId.toUpperCase()}`,
-    });
-    beginRunView(volumeId, runId, 'volume.generate_missing_thumbnails');
-  } catch (err) {
-    alert('Failed to start thumbnail generation: ' + err.message);
-  }
 }
 
 async function startSync(volumeId) {
@@ -655,12 +621,9 @@ function renderRun() {
       ? ''
       : `<div class="vol-run-actions"><button type="button" id="vol-run-done">Done</button></div>`;
 
-  const volLabel = esc((v.id || '').toUpperCase());
   const heading = activeRun.taskId === 'volume.clean_stale_locations'
-      ? `Cleaning stale locations · Volume ${volLabel}`
-      : activeRun.taskId === 'volume.generate_missing_thumbnails'
-      ? `Generating missing thumbnails · Volume ${volLabel}`
-      : `Syncing Volume ${volLabel}`;
+      ? `Cleaning stale locations · Volume ${esc((v.id || '').toUpperCase())}`
+      : `Syncing Volume ${esc((v.id || '').toUpperCase())}`;
 
   r.innerHTML = `
     <div class="vol-run-head">

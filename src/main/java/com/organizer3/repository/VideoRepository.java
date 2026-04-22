@@ -14,9 +14,6 @@ public interface VideoRepository {
 
     List<Video> findByTitle(long titleId);
 
-    /** All videos whose {@code volume_id} matches. Used by the utilities layer for per-volume scans. */
-    List<Video> findByVolume(String volumeId);
-
     /**
      * Insert a new video or update an existing one (matched by id).
      * Returns the video with its generated id populated.
