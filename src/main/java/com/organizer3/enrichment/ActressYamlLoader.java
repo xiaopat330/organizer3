@@ -2,6 +2,10 @@ package com.organizer3.enrichment;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
+import com.organizer3.enrichment.plan.ActressChange;
+import com.organizer3.enrichment.plan.ActressYamlPlan;
+import com.organizer3.enrichment.plan.FieldChange;
+import com.organizer3.enrichment.plan.PortfolioChange;
 import com.organizer3.model.Actress;
 import com.organizer3.model.Title;
 import com.organizer3.repository.ActressRepository;
@@ -20,8 +24,12 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
+import java.util.TreeSet;
 import java.util.jar.JarFile;
 
 /**
@@ -107,6 +115,21 @@ public class ActressYamlLoader {
         InputStream stream = getClass().getClassLoader().getResourceAsStream(resourcePath);
         if (stream == null) return null;
         return parseYaml(stream);
+    }
+
+    /**
+     * Compute what would change if this slug's YAML were applied to the DB right now. Purely
+     * read-only — no writes. The result drives the visualize-then-confirm UI so the user can
+     * see the diff before committing. {@code loadOne} is unchanged; this is a parallel read path.
+     *
+     * @throws IllegalArgumentException if the YAML resource is missing
+     */
+    public ActressYamlPlan plan(String slug) throws IOException {
+        ActressYaml yaml = peek(slug);
+        if (yaml == null) {
+            throw new IllegalArgumentException("No actress YAML found at classpath:" + RESOURCE_PREFIX + slug + ".yaml");
+        }
+        return buildPlan(slug, yaml);
     }
 
     private List<String> discoverSlugs(URL dirUrl) throws IOException {
@@ -298,6 +321,179 @@ public class ActressYamlLoader {
                 .filter(a -> a != null && (a.event() != null || a.category() != null))
                 .map(a -> new com.organizer3.model.Actress.Award(a.event(), a.year(), a.category()))
                 .toList();
+    }
+
+    // ─────────────────────────────────────────────────────────────────────
+    //  Read-only diff planner (used by the Utilities visualize pane)
+    // ─────────────────────────────────────────────────────────────────────
+
+    private ActressYamlPlan buildPlan(String slug, ActressYaml data) {
+        ActressYaml.Profile profile = data.profile();
+        String canonicalName = (profile != null && profile.name() != null)
+                ? profile.name().toCanonicalName() : slug;
+
+        Optional<Actress> found = actressRepo.resolveByName(canonicalName);
+        if (found.isEmpty() && profile != null && profile.name() != null && profile.name().stageName() != null) {
+            found = actressRepo.resolveByName(profile.name().stageName());
+        }
+
+        ActressChange actressChange = found.isPresent()
+                ? planActressUpdate(found.get(), profile)
+                : planActressCreate(canonicalName, profile);
+
+        List<PortfolioChange> portfolio = new ArrayList<>();
+        int titlesCreate = 0, titlesEnrich = 0, titlesNoop = 0, fieldChanges = 0, tagsAdded = 0, tagsRemoved = 0;
+        if (data.portfolio() != null) {
+            for (ActressYaml.PortfolioEntry entry : data.portfolio()) {
+                if (entry.code() == null || entry.code().isBlank()) continue;
+                String code = entry.code().trim();
+                PortfolioChange pc = planPortfolioEntry(code, entry);
+                portfolio.add(pc);
+                if (pc instanceof PortfolioChange.CreateTitle) {
+                    titlesCreate++;
+                } else if (pc instanceof PortfolioChange.EnrichTitle et) {
+                    if (et.isNoop()) titlesNoop++; else titlesEnrich++;
+                    fieldChanges += et.fields().size();
+                    tagsAdded    += et.tagsAdded().size();
+                    tagsRemoved  += et.tagsRemoved().size();
+                }
+            }
+        }
+
+        int actressFieldCount = (actressChange instanceof ActressChange.Update u)
+                ? u.fields().size()
+                : (actressChange instanceof ActressChange.Create c ? c.fields().size() : 0);
+        int actressChanged = (actressChange instanceof ActressChange.Create) ? 1
+                : (actressChange instanceof ActressChange.Update u && !u.fields().isEmpty()) ? 1 : 0;
+        fieldChanges += actressFieldCount;
+
+        ActressYamlPlan.Summary summary = new ActressYamlPlan.Summary(
+                actressChanged, titlesCreate, titlesEnrich, titlesNoop,
+                fieldChanges, tagsAdded, tagsRemoved);
+
+        return new ActressYamlPlan(slug, actressChange, portfolio, List.of(), summary);
+    }
+
+    private ActressChange planActressCreate(String canonicalName, ActressYaml.Profile profile) {
+        List<FieldChange> fields = new ArrayList<>();
+        if (profile != null) collectActressFieldChanges(null, profile, fields);
+        return new ActressChange.Create(canonicalName, fields);
+    }
+
+    private ActressChange planActressUpdate(Actress existing, ActressYaml.Profile profile) {
+        List<FieldChange> fields = new ArrayList<>();
+        if (profile != null) collectActressFieldChanges(existing, profile, fields);
+        return new ActressChange.Update(existing.getId(), existing.getCanonicalName(), fields);
+    }
+
+    /** Emit a FieldChange for each actress enrichment field where YAML differs from current DB state. */
+    private static void collectActressFieldChanges(
+            Actress current, ActressYaml.Profile profile, List<FieldChange> out) {
+        ActressYaml.Name name = profile.name();
+        ActressYaml.Measurements m = profile.measurements();
+        String currentStageName     = current != null ? current.getStageName() : null;
+        String currentNameReading   = current != null ? current.getNameReading() : null;
+        LocalDate currentDob        = current != null ? current.getDateOfBirth() : null;
+        String currentBirthplace    = current != null ? current.getBirthplace() : null;
+        String currentBloodType     = current != null ? current.getBloodType() : null;
+        Integer currentHeightCm     = current != null ? current.getHeightCm() : null;
+        Integer currentBust         = current != null ? current.getBust() : null;
+        Integer currentWaist        = current != null ? current.getWaist() : null;
+        Integer currentHip          = current != null ? current.getHip() : null;
+        String currentCup           = current != null ? current.getCup() : null;
+        LocalDate currentActiveFrom = current != null ? current.getActiveFrom() : null;
+        LocalDate currentActiveTo   = current != null ? current.getActiveTo() : null;
+        LocalDate currentRetired    = current != null ? current.getRetirementAnnounced() : null;
+        String currentBio           = current != null ? current.getBiography() : null;
+        String currentLegacy        = current != null ? current.getLegacy() : null;
+        List<Actress.AlternateName> currentAlts    = current != null ? current.getAlternateNames() : null;
+        List<Actress.StudioTenure>  currentStudios = current != null ? current.getPrimaryStudios() : null;
+        List<Actress.Award>         currentAwards  = current != null ? current.getAwards() : null;
+
+        diff(out, "stageName",            currentStageName,   name != null ? name.stageName() : null);
+        diff(out, "nameReading",          currentNameReading, name != null ? name.reading()   : null);
+        diff(out, "dateOfBirth",          currentDob,         parseDate(profile.dateOfBirth()));
+        diff(out, "birthplace",           currentBirthplace,  profile.birthplace());
+        diff(out, "bloodType",            currentBloodType,   profile.bloodType());
+        diff(out, "heightCm",             currentHeightCm,    profile.heightCm());
+        diff(out, "bust",                 currentBust,        m != null ? m.bust()  : null);
+        diff(out, "waist",                currentWaist,       m != null ? m.waist() : null);
+        diff(out, "hip",                  currentHip,         m != null ? m.hip()   : null);
+        diff(out, "cup",                  currentCup,         profile.cup());
+        diff(out, "activeFrom",           currentActiveFrom,  parseDate(profile.activeFrom()));
+        diff(out, "activeTo",             currentActiveTo,    parseDate(profile.activeTo()));
+        diff(out, "retirementAnnounced",  currentRetired,     parseDate(profile.retirementAnnounced()));
+        diff(out, "biography",            currentBio,         profile.biography());
+        diff(out, "legacy",               currentLegacy,      profile.legacy());
+        diffList(out, "alternateNames", currentAlts, toAlternateNames(name != null ? name.alternateNames() : null));
+        diffList(out, "primaryStudios", currentStudios, toStudioTenures(profile.primaryStudios()));
+        diffList(out, "awards",         currentAwards, toAwards(profile.awards()));
+    }
+
+    private PortfolioChange planPortfolioEntry(String code, ActressYaml.PortfolioEntry entry) {
+        Optional<Title> existing = titleRepo.findByCode(code);
+        String titleOriginal = entry.title() != null ? entry.title().original() : null;
+        String titleEnglish  = entry.title() != null ? entry.title().english() : null;
+        LocalDate releaseDate = parseDate(entry.date());
+        String notes = entry.notes();
+        String grade = entry.grade() != null ? entry.grade().trim() : null;
+        List<String> yamlTags = entry.tags() != null ? entry.tags() : List.of();
+
+        if (existing.isEmpty()) {
+            return new PortfolioChange.CreateTitle(code, titleOriginal, titleEnglish,
+                    releaseDate != null ? releaseDate.toString() : null, notes, grade, yamlTags);
+        }
+
+        Title t = existing.get();
+        List<FieldChange> fields = new ArrayList<>();
+        diff(fields, "titleOriginal", t.getTitleOriginal(), titleOriginal);
+        diff(fields, "titleEnglish",  t.getTitleEnglish(),  titleEnglish);
+        diff(fields, "releaseDate",   t.getReleaseDate(),   releaseDate);
+        diff(fields, "notes",         t.getNotes(),         notes);
+        diff(fields, "grade",         t.getGrade() != null ? t.getGrade().display : null, grade);
+
+        List<String> currentTags = tagRepo.findTagsForTitle(t.getId());
+        Set<String> currentSet = new HashSet<>(currentTags);
+        Set<String> yamlSet    = new HashSet<>(yamlTags);
+        List<String> added   = new ArrayList<>(new TreeSet<>(difference(yamlSet, currentSet)));
+        List<String> removed = new ArrayList<>(new TreeSet<>(difference(currentSet, yamlSet)));
+        List<String> unchanged = new ArrayList<>(new TreeSet<>(intersection(currentSet, yamlSet)));
+
+        return new PortfolioChange.EnrichTitle(t.getId(), code, fields, added, removed, unchanged);
+    }
+
+    private static void diff(List<FieldChange> out, String field, Object oldValue, Object newValue) {
+        if (oldValue == null && newValue == null) return;
+        // Treat empty string / empty list as null for comparison; the loader treats them identically.
+        Object a = normalize(oldValue);
+        Object b = normalize(newValue);
+        if (Objects.equals(a, b)) return;
+        out.add(new FieldChange(field, a, b));
+    }
+
+    /** List diff: both null / both empty counts as no change. */
+    private static <T> void diffList(List<FieldChange> out, String field, List<T> oldValue, List<T> newValue) {
+        boolean oldEmpty = oldValue == null || oldValue.isEmpty();
+        boolean newEmpty = newValue == null || newValue.isEmpty();
+        if (oldEmpty && newEmpty) return;
+        if (!Objects.equals(oldValue, newValue)) {
+            out.add(new FieldChange(field,
+                    oldEmpty ? null : oldValue,
+                    newEmpty ? null : newValue));
+        }
+    }
+
+    private static Object normalize(Object v) {
+        if (v instanceof String s && s.isEmpty()) return null;
+        if (v instanceof List<?> l && l.isEmpty()) return null;
+        return v;
+    }
+
+    private static <T> Set<T> difference(Set<T> a, Set<T> b) {
+        Set<T> r = new HashSet<>(a); r.removeAll(b); return r;
+    }
+    private static <T> Set<T> intersection(Set<T> a, Set<T> b) {
+        Set<T> r = new HashSet<>(a); r.retainAll(b); return r;
     }
 
     /**

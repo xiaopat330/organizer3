@@ -476,7 +476,7 @@ public class Application {
         com.organizer3.utilities.task.TaskRunner taskRunner =
                 new com.organizer3.utilities.task.TaskRunner(taskRegistry);
         webServer.registerUtilities(new com.organizer3.web.routes.UtilitiesRoutes(
-                volumeStateService, staleLocationsService, actressCatalogService,
+                volumeStateService, staleLocationsService, actressCatalogService, yamlLoader,
                 taskRegistry, taskRunner));
 
         webServer.registerBgThumbnails(new com.organizer3.web.routes.BgThumbnailsRoutes(

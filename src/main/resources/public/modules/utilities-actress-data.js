@@ -9,16 +9,18 @@ import * as taskCenter from './task-center.js';
 
 const SELECTION_KEY = 'utilities.actress-data.selection';
 
-const listEl    = () => document.getElementById('ad-list');
-const emptyEl   = () => document.getElementById('ad-empty');
-const detailEl  = () => document.getElementById('ad-detail');
-const runEl     = () => document.getElementById('ad-run');
-const viewEl    = () => document.getElementById('tools-actress-data-view');
-const loadAllEl = () => document.getElementById('ad-load-all');
+const listEl      = () => document.getElementById('ad-list');
+const emptyEl     = () => document.getElementById('ad-empty');
+const detailEl    = () => document.getElementById('ad-detail');
+const visualizeEl = () => document.getElementById('ad-visualize');
+const runEl       = () => document.getElementById('ad-run');
+const viewEl      = () => document.getElementById('tools-actress-data-view');
+const loadAllEl   = () => document.getElementById('ad-load-all');
 
 function hideAllRightPanes() {
   emptyEl().style.display = 'none';
   detailEl().style.display = 'none';
+  visualizeEl().style.display = 'none';
   runEl().style.display = 'none';
 }
 
@@ -130,11 +132,218 @@ function showDetail(slug) {
     ${studios ? `<div class="ad-detail-studios"><span class="ad-stat-label">Primary studios</span><div class="ad-chip-row">${studios}</div></div>` : ''}
     <div class="ad-section">
       <div class="ad-section-heading">Operations</div>
-      <button type="button" class="ad-op-primary" id="ad-op-load"${taskCenter.isRunning() ? ' disabled' : ''}>Load</button>
+      <button type="button" class="ad-op-primary" id="ad-op-preview"${taskCenter.isRunning() ? ' disabled' : ''}>Preview changes</button>
       ${taskCenter.isRunning() ? '<div class="ad-op-blocked">Another utility task is running. Wait for it to finish.</div>' : ''}
     </div>
   `;
-  document.getElementById('ad-op-load').addEventListener('click', () => startLoadOne(e.slug));
+  document.getElementById('ad-op-preview').addEventListener('click', () => showPreview(e.slug));
+}
+
+// ── Visualize-then-confirm: preview field-level changes ───────────────────
+async function showPreview(slug) {
+  if (taskCenter.isRunning()) {
+    alert('Another utility task is already running. Wait for it to finish.');
+    return;
+  }
+  const pane = visualizeEl();
+  hideAllRightPanes();
+  pane.style.display = '';
+  pane.innerHTML = `<div class="ad-visualize-head">
+    <div class="ad-visualize-title">Preview changes</div>
+    <div class="ad-visualize-sub">Reading YAML and diffing against the database…</div>
+  </div>`;
+
+  let plan;
+  try {
+    const res = await fetch('/api/utilities/tasks/actress.load_one/preview', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ slug }),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || `HTTP ${res.status}`);
+    }
+    plan = await res.json();
+  } catch (err) {
+    pane.innerHTML = `
+      <div class="ad-visualize-head">
+        <div class="ad-visualize-title">Preview changes</div>
+        <div class="ad-visualize-sub">Failed to build preview: ${esc(err.message)}</div>
+      </div>
+      <div class="ad-visualize-actions">
+        <button type="button" class="ad-visualize-cancel">Back</button>
+      </div>
+    `;
+    pane.querySelector('.ad-visualize-cancel').addEventListener('click', () => showDetail(slug));
+    return;
+  }
+
+  renderPlan(pane, slug, plan);
+}
+
+function renderPlan(pane, slug, plan) {
+  const s = plan.summary || {};
+  const actressLine = plan.actressChange && plan.actressChange.kind === 'create'
+      ? `<span class="ad-vz-badge create">Create actress</span>`
+      : (plan.actressChange && plan.actressChange.fields && plan.actressChange.fields.length > 0
+          ? `<span class="ad-vz-badge update">Update actress (${plan.actressChange.fields.length} field${plan.actressChange.fields.length === 1 ? '' : 's'})</span>`
+          : `<span class="ad-vz-badge noop">Actress unchanged</span>`);
+
+  const titleLine = `
+    <span class="ad-vz-badge">${s.titlesToCreate || 0} create</span>
+    <span class="ad-vz-badge">${s.titlesToEnrich || 0} enrich</span>
+    ${s.titlesNoop ? `<span class="ad-vz-badge noop">${s.titlesNoop} no change</span>` : ''}
+  `;
+
+  const tagLine = (s.tagsAdded || s.tagsRemoved)
+      ? `<span class="ad-vz-badge tag-add">+${s.tagsAdded || 0} tags</span><span class="ad-vz-badge tag-rm">−${s.tagsRemoved || 0} tags</span>`
+      : '';
+
+  const nothingToDo = (s.actressChanged === 0)
+      && ((s.titlesToCreate || 0) === 0)
+      && ((s.titlesToEnrich || 0) === 0)
+      && ((s.tagsAdded || 0) === 0)
+      && ((s.tagsRemoved || 0) === 0);
+
+  pane.innerHTML = `
+    <div class="ad-visualize-head">
+      <div class="ad-visualize-title">Preview changes · ${esc(slug)}</div>
+      <div class="ad-vz-badges">${actressLine} ${titleLine} ${tagLine}</div>
+    </div>
+    ${renderActressBlock(plan.actressChange)}
+    ${renderPortfolioBlock(plan.portfolioChanges || [])}
+    <div class="ad-visualize-actions">
+      <button type="button" class="ad-visualize-cancel">Cancel</button>
+      <button type="button" class="ad-visualize-proceed"${nothingToDo ? ' disabled title="No changes to apply"' : ''}>
+        ${nothingToDo ? 'No changes' : 'Proceed — apply'}
+      </button>
+    </div>
+  `;
+  pane.querySelector('.ad-visualize-cancel').addEventListener('click', () => showDetail(slug));
+  const proceed = pane.querySelector('.ad-visualize-proceed');
+  if (!nothingToDo) {
+    proceed.addEventListener('click', () => startLoadOne(slug));
+  }
+}
+
+function renderActressBlock(change) {
+  if (!change) return '';
+  if (change.kind === 'create' && change.fields && change.fields.length > 0) {
+    return `
+      <div class="ad-vz-section">
+        <div class="ad-vz-section-head">Actress · new record</div>
+        ${renderFieldList(change.fields, { allNew: true })}
+      </div>
+    `;
+  }
+  if (change.kind === 'update' && change.fields && change.fields.length > 0) {
+    return `
+      <div class="ad-vz-section">
+        <div class="ad-vz-section-head">Actress · field updates</div>
+        ${renderFieldList(change.fields, { allNew: false })}
+      </div>
+    `;
+  }
+  return '';
+}
+
+function renderPortfolioBlock(changes) {
+  if (changes.length === 0) return '';
+  const rows = changes.map(c => {
+    if (c.kind === 'create') {
+      const tagCount = (c.tags || []).length;
+      return `
+        <details class="ad-vz-title create">
+          <summary>
+            <span class="ad-vz-badge create">new</span>
+            <span class="ad-vz-code">${esc(c.code)}</span>
+            ${c.titleEnglish ? `<span class="ad-vz-muted">${esc(c.titleEnglish)}</span>` : ''}
+            ${tagCount ? `<span class="ad-vz-chip">${tagCount} tag${tagCount === 1 ? '' : 's'}</span>` : ''}
+          </summary>
+          ${renderCreateTitleBody(c)}
+        </details>
+      `;
+    }
+    // enrich
+    const changeCount = (c.fields || []).length;
+    const added = (c.tagsAdded || []).length;
+    const removed = (c.tagsRemoved || []).length;
+    const isNoop = changeCount === 0 && added === 0 && removed === 0;
+    return `
+      <details class="ad-vz-title enrich${isNoop ? ' noop' : ''}">
+        <summary>
+          <span class="ad-vz-badge ${isNoop ? 'noop' : 'update'}">${isNoop ? 'no change' : 'update'}</span>
+          <span class="ad-vz-code">${esc(c.code)}</span>
+          ${changeCount ? `<span class="ad-vz-chip">${changeCount} field${changeCount === 1 ? '' : 's'}</span>` : ''}
+          ${added ? `<span class="ad-vz-chip tag-add">+${added}</span>` : ''}
+          ${removed ? `<span class="ad-vz-chip tag-rm">−${removed}</span>` : ''}
+        </summary>
+        ${renderEnrichTitleBody(c)}
+      </details>
+    `;
+  }).join('');
+  return `
+    <div class="ad-vz-section">
+      <div class="ad-vz-section-head">Portfolio · ${changes.length} entr${changes.length === 1 ? 'y' : 'ies'}</div>
+      <div class="ad-vz-title-list">${rows}</div>
+    </div>
+  `;
+}
+
+function renderCreateTitleBody(c) {
+  const rows = [];
+  if (c.titleOriginal) rows.push({ field: 'titleOriginal', oldValue: null, newValue: c.titleOriginal });
+  if (c.titleEnglish)  rows.push({ field: 'titleEnglish',  oldValue: null, newValue: c.titleEnglish });
+  if (c.releaseDate)   rows.push({ field: 'releaseDate',   oldValue: null, newValue: c.releaseDate });
+  if (c.notes)         rows.push({ field: 'notes',         oldValue: null, newValue: c.notes });
+  if (c.grade)         rows.push({ field: 'grade',         oldValue: null, newValue: c.grade });
+
+  const tagRow = (c.tags && c.tags.length > 0)
+      ? `<div class="ad-vz-taglist"><span class="ad-vz-field-name">tags</span><div class="ad-vz-tags">${c.tags.map(t => `<span class="ad-vz-tag tag-add">${esc(t)}</span>`).join('')}</div></div>`
+      : '';
+  return `<div class="ad-vz-title-body">${renderFieldList(rows, { allNew: true })}${tagRow}</div>`;
+}
+
+function renderEnrichTitleBody(c) {
+  const fields = renderFieldList(c.fields || [], { allNew: false });
+  const added = (c.tagsAdded || []).map(t => `<span class="ad-vz-tag tag-add">+${esc(t)}</span>`).join('');
+  const removed = (c.tagsRemoved || []).map(t => `<span class="ad-vz-tag tag-rm">−${esc(t)}</span>`).join('');
+  const tagBlock = (added || removed)
+      ? `<div class="ad-vz-taglist"><span class="ad-vz-field-name">tags</span><div class="ad-vz-tags">${added}${removed}</div></div>`
+      : '';
+  return `<div class="ad-vz-title-body">${fields}${tagBlock}</div>`;
+}
+
+function renderFieldList(fields, { allNew }) {
+  if (!fields || fields.length === 0) return '';
+  const rows = fields.map(f => {
+    if (allNew || f.oldValue == null) {
+      return `<tr>
+        <td class="ad-vz-field-name">${esc(f.field)}</td>
+        <td class="ad-vz-field-new" colspan="2">${renderValue(f.newValue)}</td>
+      </tr>`;
+    }
+    return `<tr>
+      <td class="ad-vz-field-name">${esc(f.field)}</td>
+      <td class="ad-vz-field-old">${renderValue(f.oldValue)}</td>
+      <td class="ad-vz-field-new">${renderValue(f.newValue)}</td>
+    </tr>`;
+  }).join('');
+  const headHtml = allNew
+      ? '<thead><tr><th>Field</th><th colspan="2">Value</th></tr></thead>'
+      : '<thead><tr><th>Field</th><th>Current</th><th>New</th></tr></thead>';
+  return `<table class="ad-vz-fields">${headHtml}<tbody>${rows}</tbody></table>`;
+}
+
+function renderValue(v) {
+  if (v == null) return '<span class="ad-vz-muted">(none)</span>';
+  if (Array.isArray(v)) {
+    if (v.length === 0) return '<span class="ad-vz-muted">(empty)</span>';
+    return v.map(x => `<div class="ad-vz-array-item">${esc(typeof x === 'string' ? x : JSON.stringify(x))}</div>`).join('');
+  }
+  if (typeof v === 'object') return `<pre class="ad-vz-obj">${esc(JSON.stringify(v, null, 2))}</pre>`;
+  return esc(String(v));
 }
 
 async function startLoadOne(slug) {
