@@ -168,12 +168,14 @@ function renderDetail(meta, entry) {
   `;
 
   const fixBtn = detailEl().querySelector('.lh-fix-cta');
-  if (fixBtn) fixBtn.addEventListener('click', () => handleFixRoute(entry.fixRouting));
+  if (fixBtn) fixBtn.addEventListener('click', () => handleFixRoute(entry, entry.fixRouting));
 }
 
 function renderFixCTA(entry) {
   if (entry.result.total === 0) return '';
   switch (entry.fixRouting) {
+    case 'INLINE':
+      return inlineCtaFor(entry);
     case 'VOLUMES_SCREEN':
       return `<button type="button" class="lh-fix-cta">Open Volumes screen →</button>`;
     case 'ACTRESS_DATA_SCREEN':
@@ -185,8 +187,19 @@ function renderFixCTA(entry) {
   }
 }
 
-function handleFixRoute(routing) {
+/** Per-check inline CTA copy. Only orphaned_covers ships with an inline task today. */
+function inlineCtaFor(entry) {
+  if (entry.id === 'orphaned_covers') {
+    return `<button type="button" class="lh-fix-cta" data-inline="orphaned_covers">Clean all (delete local files) →</button>`;
+  }
+  return '';
+}
+
+function handleFixRoute(entry, routing) {
   switch (routing) {
+    case 'INLINE':
+      if (entry.id === 'orphaned_covers') startOrphanedCoversFlow();
+      break;
     case 'VOLUMES_SCREEN':
       document.getElementById('tools-volumes-btn')?.click();
       break;
@@ -194,6 +207,112 @@ function handleFixRoute(routing) {
       document.getElementById('tools-actress-data-btn')?.click();
       break;
   }
+}
+
+// ── Inline cleanup: orphaned covers ──────────────────────────────────────
+
+async function startOrphanedCoversFlow() {
+  if (taskCenter.isRunning()) { alert('Another task is running.'); return; }
+  // Fetch the server-side preview (not the cached sample) so the user sees the full set.
+  let preview;
+  try {
+    const res = await fetch('/api/utilities/tasks/covers.clean_orphaned/preview', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: '{}'
+    });
+    if (!res.ok) { alert(`Preview failed (${res.status})`); return; }
+    preview = await res.json();
+  } catch (e) {
+    console.error('preview failed', e);
+    alert('Preview failed — see console.');
+    return;
+  }
+  renderOrphanedCoversVisualize(preview);
+}
+
+function renderOrphanedCoversVisualize(preview) {
+  const rows = preview.rows || [];
+  const total = preview.count || 0;
+  const size = formatSize(preview.totalBytes || 0);
+  const sampleHTML = rows.slice(0, 100).map(r => `
+    <div class="lh-finding">
+      <div class="lh-finding-label">${esc(r.label)}/${esc(r.filename)}</div>
+      <div class="lh-finding-detail">${esc(r.absolutePath)} · ${formatSize(r.sizeBytes)}</div>
+    </div>
+  `).join('');
+  const moreHTML = rows.length > 100 ? `<div class="lh-findings-more">… and ${rows.length - 100} more in preview</div>` : '';
+  const truncatedHTML = preview.truncated ? `<div class="lh-findings-more">Preview capped at 200 rows — delete will process all ${total}.</div>` : '';
+
+  detailEl().innerHTML = `
+    <div class="lh-detail-head">
+      <div class="lh-detail-label">Clean orphaned covers</div>
+      <div class="lh-detail-desc">Delete ${total} local cover file${total === 1 ? '' : 's'} · ${size} to free</div>
+    </div>
+    <div class="lh-detail-body">
+      <div class="lh-findings">
+        ${sampleHTML}
+        ${moreHTML}
+        ${truncatedHTML}
+      </div>
+      <div class="lh-visualize-actions">
+        <button type="button" class="lh-fix-cta" id="lh-orphans-proceed">Proceed — delete ${total}</button>
+        <button type="button" class="lh-visualize-cancel" id="lh-orphans-cancel">Cancel</button>
+      </div>
+    </div>
+  `;
+  document.getElementById('lh-orphans-proceed').addEventListener('click', runOrphanedCoversDelete);
+  document.getElementById('lh-orphans-cancel').addEventListener('click', () => showDetail('orphaned_covers'));
+}
+
+async function runOrphanedCoversDelete() {
+  try {
+    const res = await fetch('/api/utilities/tasks/covers.clean_orphaned/run', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: '{}'
+    });
+    if (!res.ok) {
+      if (res.status === 409) {
+        const body = await res.json();
+        alert(`Another task is already running: ${body.runningTaskId}`);
+      } else {
+        alert(`Start failed (${res.status})`);
+      }
+      return;
+    }
+    const { runId } = await res.json();
+    taskCenter.start({ taskId: 'covers.clean_orphaned', runId, label: 'Cleaning orphaned covers' });
+    subscribeToInlineRun(runId);
+  } catch (e) {
+    console.error('orphan delete start failed', e);
+  }
+}
+
+function subscribeToInlineRun(runId) {
+  const es = new EventSource(`/api/utilities/runs/${encodeURIComponent(runId)}/events`);
+  es.addEventListener('phase.started', e => {
+    const ev = JSON.parse(e.data);
+    taskCenter.updateProgress({ phaseLabel: ev.label });
+  });
+  es.addEventListener('task.ended', async e => {
+    const ev = JSON.parse(e.data);
+    taskCenter.finish({ status: ev.status, summary: ev.summary });
+    // Refresh the report so the count on the Library Health list updates to reflect the delete.
+    await loadLatestReport();
+    renderList();
+    showDetail('orphaned_covers');
+    es.close();
+  });
+  es.onerror = () => {};
+}
+
+function formatSize(bytes) {
+  if (bytes == null || bytes < 0) return '?';
+  if (bytes < 1024) return bytes + ' B';
+  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+  if (bytes < 1024 * 1024 * 1024) return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+  return (bytes / (1024 * 1024 * 1024)).toFixed(2) + ' GB';
 }
 
 // ── Scan ──────────────────────────────────────────────────────────────────
