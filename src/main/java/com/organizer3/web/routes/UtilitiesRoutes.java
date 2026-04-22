@@ -7,8 +7,10 @@ import com.organizer3.utilities.task.TaskRun;
 import com.organizer3.utilities.task.TaskRunner;
 import com.organizer3.utilities.volume.VolumeStateService;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import io.javalin.Javalin;
 import io.javalin.http.sse.SseClient;
+import lombok.extern.slf4j.Slf4j;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -26,12 +28,13 @@ import java.util.function.Consumer;
  *   <li>{@code GET  /api/utilities/runs/{runId}/events} — SSE stream of events.</li>
  * </ul>
  */
+@Slf4j
 public final class UtilitiesRoutes {
 
     private final VolumeStateService volumeState;
     private final TaskRegistry registry;
     private final TaskRunner runner;
-    private final ObjectMapper json = new ObjectMapper();
+    private final ObjectMapper json = new ObjectMapper().registerModule(new JavaTimeModule());
 
     public UtilitiesRoutes(VolumeStateService volumeState, TaskRegistry registry, TaskRunner runner) {
         this.volumeState = volumeState;
@@ -121,8 +124,11 @@ public final class UtilitiesRoutes {
         };
         try {
             client.sendEvent(type, json.writeValueAsString(e));
+        } catch (com.fasterxml.jackson.core.JsonProcessingException ex) {
+            // Programming error — event record cannot be serialized. Log loudly so we notice.
+            log.error("Failed to serialize task event {}", e, ex);
         } catch (Exception ex) {
-            // A failed send means the client is gone — do not propagate.
+            // Client gone or network error — not actionable, don't propagate.
         }
     }
 
