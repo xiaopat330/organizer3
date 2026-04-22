@@ -252,363 +252,322 @@
 }
 .logs-jump-btn:hover { background: #7c3aed; }
 
-/* ── Aliases tool view ────────────────────────────────────────────── */
-.alias-search-wrap {
-  position: relative;
-  max-width: 560px;
-  margin: 28px auto 0;
+/* ── Aliases subview (two-pane inline editor under Actress Data) ──── */
+.ad-subview#ad-subview-aliases {
+  display: flex;
+  gap: 0;
+  border: 1px solid #1e293b;
+  border-radius: 6px;
+  overflow: hidden;
+  background: #0b1220;
 }
 
-.alias-search-input {
+.al-left {
+  width: 340px;
+  flex-shrink: 0;
+  border-right: 1px solid #1e293b;
+  background: #0a1220;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.al-search-wrap {
+  padding: 10px 12px;
+  border-bottom: 1px solid #1e293b;
+  background: #060b17;
+}
+.al-search-input {
   width: 100%;
   background: #0a1220;
   border: 1px solid #334155;
-  border-radius: 6px;
+  border-radius: 4px;
   color: #e2e8f0;
-  font-size: 0.9rem;
+  font-size: 13px;
   font-family: inherit;
-  padding: 10px 14px;
+  padding: 8px 12px;
   outline: none;
   box-sizing: border-box;
   transition: border-color 0.15s, background 0.15s;
 }
-.alias-search-input::placeholder { color: #64748b; }
-.alias-search-input:hover { border-color: #475569; }
-.alias-search-input:focus {
+.al-search-input::placeholder { color: #64748b; }
+.al-search-input:hover { border-color: #475569; }
+.al-search-input:focus {
   border-color: #a21caf;
   background: #0f172a;
 }
 
-.alias-search-overlay {
-  position: absolute;
-  top: calc(100% + 4px);
-  left: 0;
-  right: 0;
-  background: #0b1220;
-  border: 1px solid #1e293b;
-  border-radius: 6px;
-  z-index: 200;
-  max-height: 400px;
+.al-results {
+  flex: 1;
   overflow-y: auto;
-  box-shadow: 0 10px 32px rgba(0, 0, 0, 0.65);
 }
-
-.alias-search-row {
+.al-result {
   display: flex;
-  align-items: center;
   gap: 10px;
-  padding: 7px 12px;
+  padding: 10px 12px;
   cursor: pointer;
   border-bottom: 1px solid #111827;
-  transition: background 0.1s;
+  border-left: 3px solid transparent;
+  transition: background 0.1s ease, border-left-color 0.1s ease;
 }
-.alias-search-row:last-child { border-bottom: none; }
-.alias-search-row:hover,
-.alias-search-row.selected   { background: #1a0a24; }
-
-.alias-search-text {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
+.al-result:hover { background: #1a0a24; }
+.al-result.selected {
+  background: #1a0a24;
+  border-left-color: #d946ef;
 }
-
-.alias-search-name {
-  font-size: 0.85rem;
-  color: #e2e8f0;
-  font-weight: 500;
-}
-.alias-search-alias {
-  font-size: 0.72rem;
-  color: #e879f9;
-}
-.alias-search-count {
-  font-size: 0.72rem;
-  color: #64748b;
-}
-
-/* Small portrait DVD cover on the right of each search row */
-.alias-search-cover-wrap {
-  width: 30px;
+.al-result-cover {
+  width: 40px;
   aspect-ratio: var(--cover-card-ratio);
   overflow: hidden;
   border-radius: 2px;
   flex-shrink: 0;
   background: #1e293b;
 }
-.alias-search-cover-img {
+.al-result-cover.empty { opacity: 0.5; }
+.al-result-cover-img {
   width: var(--cover-crop-width);
   margin-left: var(--cover-crop-offset);
   display: block;
   height: 100%;
   object-fit: cover;
 }
-.alias-search-empty {
-  padding: 20px;
-  text-align: center;
-  color: #64748b;
-  font-size: 0.82rem;
-}
-
-.alias-editor-hint {
-  text-align: center;
-  color: #64748b;
-  font-size: 0.78rem;
-  margin-top: 14px;
-}
-
-/* ── Alias editor modal ───────────────────────────────────────────── */
-.alias-modal-overlay {
-  position: fixed;
-  inset: 0;
-  background: rgba(0,0,0,0.88);
-  z-index: 900;
-  display: flex;
-  align-items: flex-start;
-  justify-content: center;
-  padding: 32px 16px 64px;
-  overflow-y: auto;
-}
-
-.alias-modal {
-  width: 100%;
-  max-width: 1100px;
-  background: #0b1220;
-  border: 1px solid #1e293b;
-  border-radius: 8px;
-  overflow: hidden;
+.al-result-body {
+  flex: 1;
+  min-width: 0;
   display: flex;
   flex-direction: column;
-  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.7);
+  gap: 2px;
 }
-
-.alias-modal-header {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 14px 20px;
-  background: #050a13;
-  border-bottom: 1px solid #1e293b;
-  position: sticky;
-  top: 0;
-  z-index: 1;
-}
-
-.alias-modal-title {
-  flex: 1;
+.al-result-name {
   font-size: 13px;
-  font-weight: 600;
   color: #e2e8f0;
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-  letter-spacing: 0.02em;
-}
-
-.alias-modal-header-actions {
-  display: flex;
-  gap: 8px;
-}
-
-.alias-modal-save-btn {
-  background: #6b21a8;
-  color: #f5f3ff;
-  border: 1px solid #a21caf;
-  border-radius: 4px;
-  padding: 6px 16px;
-  font-size: 0.78rem;
-  font-weight: 600;
-  font-family: inherit;
-  cursor: pointer;
-  transition: background 0.15s;
-}
-.alias-modal-save-btn:hover { background: #7e22ce; }
-
-.alias-modal-cancel-btn {
-  background: #1e293b;
-  color: #e2e8f0;
-  border: 1px solid #334155;
-  border-radius: 4px;
-  padding: 6px 16px;
-  font-size: 0.78rem;
   font-weight: 500;
-  font-family: inherit;
-  cursor: pointer;
-  transition: background 0.15s, border-color 0.15s;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
-.alias-modal-cancel-btn:hover { background: #334155; border-color: #475569; }
-
-.alias-modal-body {
-  display: flex;
-  min-height: 480px;
+.al-result-alias {
+  font-size: 11px;
+  color: #e879f9;
+}
+.al-result-count {
+  font-size: 11px;
+  color: #64748b;
+}
+.al-empty-results {
+  padding: 24px 12px;
+  text-align: center;
+  color: #64748b;
+  font-size: 12px;
 }
 
-.alias-modal-left {
-  width: 30%;
-  flex-shrink: 0;
-  border-right: 1px solid #1e293b;
-  padding: 24px 20px;
-  background: #0a1220;
-  overflow-y: auto;
-}
-
-.alias-modal-right {
+/* ── Right pane: actress card + inline alias editor ──────────────── */
+.al-right {
   flex: 1;
-  padding: 24px 28px;
   overflow-y: auto;
+  padding: 24px 28px;
 }
+.al-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: #475569;
+  text-align: center;
+}
+.al-empty-icon   { color: #1e293b; margin-bottom: 16px; }
+.al-empty-title  { font-size: 16px; color: #94a3b8; margin-bottom: 4px; }
+.al-empty-sub    { font-size: 13px; color: #64748b; }
 
-/* Actress mini-card inside modal left panel */
-.alias-card-cover-wrap {
-  width: 72%;
+.al-detail {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+.al-detail-loading { color: #64748b; font-size: 13px; padding: 16px 0; }
+.al-detail-error   { color: #f87171; font-size: 13px; padding: 16px 0; }
+
+/* Actress card at top of detail pane */
+.al-card {
+  display: flex;
+  gap: 18px;
+  padding-bottom: 18px;
+  border-bottom: 1px solid #1e293b;
+}
+.al-card-cover {
+  width: 120px;
   aspect-ratio: var(--cover-card-ratio);
   overflow: hidden;
   border-radius: 4px;
   background: #1e293b;
-  margin-bottom: 16px;
+  flex-shrink: 0;
 }
-.alias-card-cover-img {
+.al-card-cover.empty { opacity: 0.5; }
+.al-card-cover-img {
   width: var(--cover-crop-width);
   margin-left: var(--cover-crop-offset);
   display: block;
   height: 100%;
   object-fit: cover;
 }
-.alias-card-cover-empty {
-  width: 72%;
-  aspect-ratio: var(--cover-card-ratio);
-  background: #1e293b;
-  border-radius: 4px;
-  margin-bottom: 16px;
+.al-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
-.alias-card-name {
-  font-size: 1.05rem;
-  font-weight: 700;
+.al-card-name {
+  font-size: 20px;
   color: #f1f5f9;
-  margin-bottom: 6px;
-  line-height: 1.3;
+  font-weight: 600;
 }
-.alias-card-first { color: #94a3b8; margin-right: 4px; }
-.alias-card-last  { color: #f1f5f9; }
-.alias-card-meta  {
+.al-card-first { color: #94a3b8; margin-right: 4px; }
+.al-card-last  { color: #f1f5f9; }
+.al-card-meta  {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
-  margin-top: 8px;
+  align-items: center;
 }
-.alias-card-tier {
-  font-size: 0.65rem;
+.al-card-tier {
+  font-size: 10px;
   text-transform: uppercase;
   letter-spacing: 0.07em;
   font-weight: 700;
-  padding: 2px 7px;
+  padding: 3px 8px;
   border-radius: 3px;
   background: #1e293b;
   color: #94a3b8;
 }
-.alias-card-grade {
-  font-size: 0.75rem;
+.al-card-grade {
+  font-size: 12px;
   font-weight: 700;
   color: #fbbf24;
 }
-.alias-card-count {
-  font-size: 0.72rem;
+.al-card-count {
+  font-size: 12px;
   color: #64748b;
-  margin-top: 10px;
 }
 
-/* Right panel alias editor */
-.alias-editor-heading {
-  font-size: 0.7rem;
+/* Inline alias editor */
+.al-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.al-editor-heading {
+  font-size: 11px;
   text-transform: uppercase;
   letter-spacing: 0.08em;
   color: #64748b;
-  font-weight: 700;
-  margin-bottom: 14px;
+  font-weight: 600;
 }
-
-.alias-table {
+.al-table {
   width: 100%;
   border-collapse: collapse;
-  margin-bottom: 16px;
-}
-.alias-table thead th {
-  font-size: 0.65rem;
-  text-transform: uppercase;
-  letter-spacing: 0.07em;
-  color: #64748b;
-  font-weight: 600;
-  padding: 0 8px 8px;
-  text-align: left;
-}
-.alias-col-first { width: 36%; }
-.alias-col-last  { width: 50%; }
-.alias-col-remove { width: 14%; }
-
-.alias-table tbody tr { border-top: 1px solid #111827; }
-.alias-table tbody tr:first-child { border-top: none; }
-
-.alias-input {
-  width: 100%;
   background: #0a1220;
-  border: 1px solid #334155;
+  border: 1px solid #1e293b;
   border-radius: 4px;
+  overflow: hidden;
+}
+.al-table thead th {
+  text-align: left;
+  padding: 8px 10px;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #64748b;
+  font-weight: 500;
+  background: #050a13;
+  border-bottom: 1px solid #1e293b;
+}
+.al-col-first  { width: 30%; }
+.al-col-last   { width: 60%; }
+.al-col-remove { width: 10%; }
+.al-table tbody tr { border-top: 1px solid #111827; }
+.al-table tbody tr:first-child { border-top: none; }
+.al-table td { padding: 4px 10px; vertical-align: middle; }
+
+.al-input {
+  width: 100%;
+  background: #050a13;
+  border: 1px solid #334155;
+  border-radius: 3px;
   color: #e2e8f0;
-  font-size: 0.82rem;
+  font-size: 12px;
   font-family: inherit;
   padding: 6px 9px;
   outline: none;
   box-sizing: border-box;
-  margin: 4px 0;
   transition: border-color 0.15s, background 0.15s;
 }
-.alias-input:hover { border-color: #475569; }
-.alias-input:focus { border-color: #a21caf; background: #0f172a; }
+.al-input:hover { border-color: #475569; }
+.al-input:focus { border-color: #a21caf; background: #0f172a; }
 
-.alias-table td { padding: 2px 8px; vertical-align: middle; }
-
-.alias-row-remove {
+.al-row-remove {
   background: none;
   border: none;
   color: #475569;
   cursor: pointer;
-  font-size: 16px;
+  font-size: 15px;
   padding: 4px 8px;
-  border-radius: 4px;
+  border-radius: 3px;
   line-height: 1;
   transition: color 0.15s, background 0.15s;
 }
-.alias-row-remove:hover { color: #f87171; background: #3f0708; }
+.al-row-remove:hover { color: #f87171; background: #3f0708; }
 
-.alias-add-btn {
+.al-editor-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+}
+.al-editor-actions-right { display: flex; gap: 8px; }
+.al-add-btn {
   background: transparent;
   border: 1px dashed #334155;
   color: #e879f9;
   border-radius: 4px;
   padding: 7px 14px;
-  font-size: 0.78rem;
+  font-size: 12px;
   font-family: inherit;
   cursor: pointer;
   transition: border-color 0.15s, background 0.15s, color 0.15s;
 }
-.alias-add-btn:hover { border-color: #a21caf; background: #1e0a1e; color: #f0abfc; }
+.al-add-btn:hover { border-color: #a21caf; background: #1e0a1e; color: #f0abfc; }
 
-.alias-error-msg {
-  margin-top: 8px;
-  padding: 6px 10px;
+.al-save-btn {
+  background: #6b21a8;
+  color: #f5f3ff;
+  border: 1px solid #a21caf;
+  border-radius: 4px;
+  padding: 8px 20px;
+  font-size: 13px;
+  font-weight: 500;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.al-save-btn:hover:not(:disabled) { background: #7e22ce; }
+.al-save-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.al-error {
+  padding: 8px 12px;
   background: #3b0f0f;
   border: 1px solid #7f1d1d;
   border-radius: 4px;
   color: #fca5a5;
-  font-size: 0.8rem;
+  font-size: 12px;
 }
-.alias-error-link {
+.al-error-link {
   color: #fecaca;
   text-decoration: underline;
   cursor: pointer;
+  margin-left: 4px;
 }
-.alias-error-link:hover { color: #fff; }
+.al-error-link:hover { color: #fff; }
 
-.alias-saved-toast {
+.al-toast {
   position: fixed;
   bottom: 24px;
   left: 50%;
@@ -616,13 +575,14 @@
   background: #6b21a8;
   color: #f5f3ff;
   border: 1px solid #a21caf;
-  font-size: 0.82rem;
-  padding: 7px 20px;
+  font-size: 13px;
+  padding: 8px 20px;
   border-radius: 4px;
   z-index: 9999;
   pointer-events: none;
   animation: toast-fade 3s ease forwards;
 }
+
 
 /* ── Tools sub-nav filter bar ─────────────────────────────────────── */
 .tools-subnav {
@@ -2200,7 +2160,7 @@
 }
 .ad-subview#ad-subview-aliases {
   height: calc(100% - 44px);
-  padding: 8px 0;
+  padding: 0;
 }
 
 .ad-left {
