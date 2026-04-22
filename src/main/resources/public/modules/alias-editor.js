@@ -183,6 +183,7 @@ function renderDetail(a) {
       <div class="al-editor-actions">
         <button type="button" id="al-add-btn" class="al-add-btn">+ Add alias</button>
         <div class="al-editor-actions-right">
+          <button type="button" id="al-cancel-btn" class="al-cancel-btn">Cancel</button>
           <button type="button" id="al-save-btn" class="al-save-btn">Save</button>
         </div>
       </div>
@@ -202,6 +203,11 @@ function renderDetail(a) {
   });
   document.getElementById('al-save-btn').addEventListener('click', () =>
       saveAliases(a.id, a.canonicalName));
+  document.getElementById('al-cancel-btn').addEventListener('click', () => {
+    // Discard unsaved edits by re-fetching the actress. Simpler than tracking
+    // original state locally and handles re-ordering / removes in one step.
+    openActress(a.id);
+  });
 }
 
 function splitCanonical(name) {

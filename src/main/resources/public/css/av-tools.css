@@ -551,6 +551,20 @@
 .al-save-btn:hover:not(:disabled) { background: #7e22ce; }
 .al-save-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
+.al-cancel-btn {
+  background: #1e293b;
+  color: #e2e8f0;
+  border: 1px solid #334155;
+  border-radius: 4px;
+  padding: 8px 18px;
+  font-size: 13px;
+  font-weight: 500;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+.al-cancel-btn:hover { background: #334155; border-color: #475569; }
+
 .al-error {
   padding: 8px 12px;
   background: #3b0f0f;
