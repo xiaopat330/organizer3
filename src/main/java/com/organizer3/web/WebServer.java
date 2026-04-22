@@ -139,6 +139,11 @@ public class WebServer {
         routes.register(app);
     }
 
+    /** Mounts the Utilities → AV Stars endpoints ({@code /api/utilities/avstars/*}). */
+    public void registerAvStars(com.organizer3.web.routes.AvStarsRoutes routes) {
+        routes.register(app);
+    }
+
     /**
      * Mounts the title-detail tag editor endpoints
      * ({@code GET /api/titles/{code}/tag-state}, {@code PUT /api/titles/{code}/tags}).
