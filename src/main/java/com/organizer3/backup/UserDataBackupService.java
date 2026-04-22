@@ -202,6 +202,136 @@ public class UserDataBackupService {
         write(export(), path);
     }
 
+    /**
+     * Read a snapshot file and compute a read-only preview of what {@link #restore} would do.
+     * Mirrors the matching logic of {@link #restore} exactly: a backup entry is "existing" iff
+     * the corresponding lookup succeeds against the current DB. No writes happen.
+     *
+     * <p>Sample identifiers (up to {@value #SAMPLE_CAP} per category) are included so the UI can
+     * give a visual feel for scope without exploding the payload on large snapshots.
+     */
+    public RestorePreview previewRestore(Path path) throws IOException {
+        UserDataBackup backup = read(path);
+        return previewRestore(backup);
+    }
+
+    private static final int SAMPLE_CAP = 10;
+
+    /** Overload that takes an already-parsed backup. Used in tests and avoids double-reads. */
+    public RestorePreview previewRestore(UserDataBackup backup) {
+        // ── Actresses ───────────────────────────────────────────────────────
+        int aExisting = 0, aMissing = 0;
+        java.util.List<String> aSample = new java.util.ArrayList<>();
+        for (ActressBackupEntry e : backup.actresses()) {
+            if (actressRepo.findByCanonicalName(e.canonicalName()).isPresent()) {
+                aExisting++;
+                if (aSample.size() < SAMPLE_CAP) aSample.add(e.canonicalName());
+            } else {
+                aMissing++;
+            }
+        }
+
+        // ── Titles ──────────────────────────────────────────────────────────
+        int tExisting = 0, tMissing = 0;
+        java.util.List<String> tSample = new java.util.ArrayList<>();
+        for (TitleBackupEntry e : backup.titles()) {
+            if (titleRepo.findByCode(e.code()).isPresent()) {
+                tExisting++;
+                if (tSample.size() < SAMPLE_CAP) tSample.add(e.code());
+            } else {
+                tMissing++;
+            }
+        }
+
+        // ── Watch history ──────────────────────────────────────────────────
+        // Build a lookup of current DB (code, watchedAt) pairs so we can distinguish
+        // "already there" from "would be inserted" without writing anything.
+        java.util.Set<String> watchKeys = new java.util.HashSet<>();
+        for (var h : watchHistoryRepo.findAllEntries()) {
+            watchKeys.add(h.getTitleCode() + "|" + h.getWatchedAt());
+        }
+        int whExisting = 0, whInsert = 0;
+        java.util.List<String> whSample = new java.util.ArrayList<>();
+        for (WatchHistoryEntry e : backup.watchHistory()) {
+            String key = e.titleCode() + "|" + e.watchedAt();
+            if (watchKeys.contains(key)) {
+                whExisting++;
+            } else {
+                whInsert++;
+                if (whSample.size() < SAMPLE_CAP) whSample.add(e.titleCode());
+            }
+        }
+
+        // ── AV actresses ────────────────────────────────────────────────────
+        int avaExisting = 0, avaMissing = 0;
+        java.util.List<String> avaSample = new java.util.ArrayList<>();
+        java.util.List<AvActressBackupEntry> avActresses =
+                backup.avActresses() != null ? backup.avActresses() : java.util.List.of();
+        for (AvActressBackupEntry e : avActresses) {
+            if (avActressRepo.findByVolumeAndFolder(e.volumeId(), e.folderName()).isPresent()) {
+                avaExisting++;
+                if (avaSample.size() < SAMPLE_CAP) avaSample.add(e.folderName());
+            } else {
+                avaMissing++;
+            }
+        }
+
+        // ── AV videos ───────────────────────────────────────────────────────
+        // Mirrors restore: a video is existing iff its parent av-actress exists.
+        int avvExisting = 0, avvMissing = 0;
+        java.util.List<String> avvSample = new java.util.ArrayList<>();
+        java.util.List<AvVideoBackupEntry> avVideos =
+                backup.avVideos() != null ? backup.avVideos() : java.util.List.of();
+        for (AvVideoBackupEntry e : avVideos) {
+            if (avActressRepo.findByVolumeAndFolder(e.volumeId(), e.folderName()).isPresent()) {
+                avvExisting++;
+                if (avvSample.size() < SAMPLE_CAP) avvSample.add(e.folderName() + "/" + e.relativePath());
+            } else {
+                avvMissing++;
+            }
+        }
+
+        return new RestorePreview(
+                backup.version(),
+                backup.exportedAt(),
+                new RestorePreview.Category("actresses",     aExisting,   aMissing,   0,        aSample),
+                new RestorePreview.Category("titles",        tExisting,   tMissing,   0,        tSample),
+                new RestorePreview.Category("watchHistory",  whExisting,  0,          whInsert, whSample),
+                new RestorePreview.Category("avActresses",   avaExisting, avaMissing, 0,        avaSample),
+                new RestorePreview.Category("avVideos",      avvExisting, avvMissing, 0,        avvSample));
+    }
+
+    /**
+     * Lightweight stats for a snapshot file (just counts, no diff against current DB). Used by
+     * the Utilities detail pane before the user commits to a full restore preview.
+     */
+    public SnapshotDetail snapshotDetail(Path path) throws IOException {
+        UserDataBackup backup = read(path);
+        long fileSize = Files.exists(path) ? Files.size(path) : 0L;
+        int avA = backup.avActresses() != null ? backup.avActresses().size() : 0;
+        int avV = backup.avVideos()    != null ? backup.avVideos().size()    : 0;
+        return new SnapshotDetail(
+                path.getFileName().toString(),
+                fileSize,
+                backup.version(),
+                backup.exportedAt(),
+                backup.actresses().size(),
+                backup.titles().size(),
+                backup.watchHistory().size(),
+                avA,
+                avV);
+    }
+
+    public record SnapshotDetail(String name,
+                                 long sizeBytes,
+                                 int version,
+                                 LocalDateTime createdAt,
+                                 int actresses,
+                                 int titles,
+                                 int watchHistory,
+                                 int avActresses,
+                                 int avVideos) {}
+
     // ── Snapshot support ─────────────────────────────────────────────────────
 
     /**
