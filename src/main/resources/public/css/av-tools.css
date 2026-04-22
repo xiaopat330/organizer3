@@ -2086,3 +2086,57 @@
   font-family: inherit;
 }
 .vol-run-actions button:hover { background: #334155; }
+
+/* ── Background thumbnails chip (always visible, bottom-left) ──────── */
+.bg-thumbnails-chip {
+  position: fixed;
+  left: 14px;
+  bottom: 14px;
+  z-index: 998;  /* below the task pill (1000) */
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px 5px 8px;
+  background: #0a0f1a;
+  border: 1px solid #1e293b;
+  border-radius: 14px;
+  color: #94a3b8;
+  font-size: 11px;
+  font-family: inherit;
+  cursor: pointer;
+  opacity: 0.75;
+  transition: opacity 0.12s ease, background 0.12s ease, border-color 0.12s ease;
+}
+.bg-thumbnails-chip:hover {
+  opacity: 1;
+  background: #0f172a;
+  border-color: #334155;
+}
+.bg-thumbnails-chip.pending { opacity: 0.5; cursor: progress; }
+
+.bg-thumbnails-chip .bg-chip-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #475569;
+  display: inline-block;
+  flex-shrink: 0;
+}
+.bg-thumbnails-chip.on .bg-chip-dot {
+  background: #4ade80;
+  box-shadow: 0 0 6px rgba(74, 222, 128, 0.6);
+  animation: bg-chip-pulse 2s ease-in-out infinite;
+}
+@keyframes bg-chip-pulse {
+  0%, 100% { box-shadow: 0 0 6px rgba(74, 222, 128, 0.55); }
+  50%      { box-shadow: 0 0 11px rgba(74, 222, 128, 0.9);  }
+}
+
+.bg-thumbnails-chip .bg-chip-label { color: #cbd5e1; }
+.bg-thumbnails-chip .bg-chip-state {
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+.bg-thumbnails-chip.on  .bg-chip-state { color: #4ade80; }
+.bg-thumbnails-chip.off .bg-chip-state { color: #64748b; }
+.bg-thumbnails-chip .bg-chip-meta { color: #64748b; }

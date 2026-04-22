@@ -356,6 +356,12 @@ public class Application {
         BackgroundThumbnailWorker bgWorker = new BackgroundThumbnailWorker(
                 config.backgroundThumbnailsOrDefaults(),
                 bgQueue, thumbnailService, bgEvictor, videoRepo, activityTracker);
+        // Apply persisted enable-state (set via the web chip) over the YAML default, so the
+        // user doesn't have to re-enable after every restart.
+        com.organizer3.media.BgThumbnailsState bgThumbnailsState =
+                new com.organizer3.media.BgThumbnailsState(dataDir);
+        Boolean persisted = bgThumbnailsState.readEnabled();
+        if (persisted != null) bgWorker.setEnabled(persisted);
         commands.add(new BackgroundThumbsCommand(bgWorker));
 
         // Sync commands — registered dynamically from syncConfig.
@@ -455,6 +461,9 @@ public class Application {
                 new com.organizer3.utilities.task.TaskRunner(taskRegistry);
         webServer.registerUtilities(new com.organizer3.web.routes.UtilitiesRoutes(
                 volumeStateService, staleLocationsService, taskRegistry, taskRunner));
+
+        webServer.registerBgThumbnails(new com.organizer3.web.routes.BgThumbnailsRoutes(
+                bgWorker, bgThumbnailsState));
 
         // Title-detail tag editor (direct + label-implied state, save direct tags).
         webServer.registerTitleTagEditor(

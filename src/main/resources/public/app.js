@@ -12,6 +12,7 @@ import { showActionView } from './modules/action.js';
 import { setRestoring, replaceNav } from './modules/nav.js';
 import { initSearch } from './modules/search.js';
 import { initTerminal } from './modules/terminal.js';
+import { installBgThumbnailChip } from './modules/bg-thumbnails.js';
 
 // ── Wire cross-module callbacks ───────────────────────────────────────────
 initCardCallbacks(openTitleDetail, openActressDetail);
@@ -19,6 +20,7 @@ setHomeClickHandler(showTitlesView);
 initSearch();
 initPortalSearch();
 initTerminal();
+installBgThumbnailChip();
 
 // ── Config (app name + runtime limits, also updates DOM) ──────────────────
 initConfig();

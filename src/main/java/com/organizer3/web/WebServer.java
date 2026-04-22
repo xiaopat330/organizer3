@@ -134,6 +134,11 @@ public class WebServer {
         routes.register(app);
     }
 
+    /** Mounts the background-thumbnail chip endpoints ({@code /api/bg-thumbnails/*}). */
+    public void registerBgThumbnails(com.organizer3.web.routes.BgThumbnailsRoutes routes) {
+        routes.register(app);
+    }
+
     /**
      * Mounts the title-detail tag editor endpoints
      * ({@code GET /api/titles/{code}/tag-state}, {@code PUT /api/titles/{code}/tags}).
