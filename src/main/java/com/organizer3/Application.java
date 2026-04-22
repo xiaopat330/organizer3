@@ -436,7 +436,8 @@ public class Application {
 
         WebServer webServer = new WebServer(browseService, actressBrowseService, coverPath.root(),
                 videoStreamService, thumbnailService, videoProbe, watchHistoryRepo, titleRepo, searchService);
-        webServer.registerAvRoutes(new AvBrowseService(avActressRepo, avVideoRepo, avScreenshotRepo, avVideoTagRepo),
+        AvBrowseService avBrowseService = new AvBrowseService(avActressRepo, avVideoRepo, avScreenshotRepo, avVideoTagRepo);
+        webServer.registerAvRoutes(avBrowseService,
                 avHeadshotDir, smbConnectionFactory, avVideoRepo, avActressRepo,
                 avScreenshotRepo, avScreenshotDir, avTagDefRepo, avScreenshotService);
         webServer.registerTerminal(new WebTerminalHandler(dispatcher, session));
@@ -502,18 +503,37 @@ public class Application {
         com.organizer3.utilities.task.health.ScanLibraryTask scanLibraryTask =
                 new com.organizer3.utilities.task.health.ScanLibraryTask(libraryHealthService);
 
+        // AV Stars Utilities — curation screen over existing AV pipeline.
+        com.organizer3.utilities.avstars.AvStarsCatalogService avStarsCatalog =
+                new com.organizer3.utilities.avstars.AvStarsCatalogService(avActressRepo, avVideoRepo);
+        com.organizer3.utilities.avstars.IafdResolverService iafdResolver =
+                new com.organizer3.utilities.avstars.IafdResolverService(
+                        avActressRepo, new HttpIafdClient(),
+                        new IafdSearchParser(), new IafdProfileParser(), avHeadshotDir);
+        com.organizer3.utilities.task.avstars.ResolveIafdTask resolveIafdTask =
+                new com.organizer3.utilities.task.avstars.ResolveIafdTask(iafdResolver);
+        com.organizer3.utilities.task.avstars.RenameAvActressTask renameAvActressTask =
+                new com.organizer3.utilities.task.avstars.RenameAvActressTask(avActressRepo);
+        com.organizer3.utilities.task.avstars.DeleteAvActressTask deleteAvActressTask =
+                new com.organizer3.utilities.task.avstars.DeleteAvActressTask(avActressRepo, avVideoRepo, avArtifactCleaner);
+        com.organizer3.utilities.task.avstars.ParseFilenamesTask parseFilenamesTask =
+                new com.organizer3.utilities.task.avstars.ParseFilenamesTask(avVideoRepo, avFilenameParser);
+
         com.organizer3.utilities.task.TaskRegistry taskRegistry =
                 new com.organizer3.utilities.task.TaskRegistry(
                         java.util.List.of(syncVolumeTask, cleanStaleLocationsTask,
                                 loadActressTask, loadAllActressesTask,
                                 backupNowTask, restoreSnapshotTask,
-                                scanLibraryTask, cleanOrphanedCoversTask));
+                                scanLibraryTask, cleanOrphanedCoversTask,
+                                resolveIafdTask, renameAvActressTask, deleteAvActressTask, parseFilenamesTask));
         com.organizer3.utilities.task.TaskRunner taskRunner =
                 new com.organizer3.utilities.task.TaskRunner(taskRegistry);
         webServer.registerUtilities(new com.organizer3.web.routes.UtilitiesRoutes(
                 volumeStateService, staleLocationsService, actressCatalogService, yamlLoader,
                 backupCatalogService, backupService, libraryHealthService, orphanedCoversService,
                 taskRegistry, taskRunner));
+        webServer.registerAvStars(new com.organizer3.web.routes.AvStarsRoutes(
+                avStarsCatalog, avBrowseService, iafdResolver));
 
         webServer.registerBgThumbnails(new com.organizer3.web.routes.BgThumbnailsRoutes(
                 bgWorker, bgThumbnailsState));
