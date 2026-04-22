@@ -131,6 +131,8 @@ public final class TaskRunner {
         private final TaskRun run;
         private final String taskId;
         private final Map<String, Instant> phaseStartedAt = new ConcurrentHashMap<>();
+        /** Last logged decile (0–10) per phase, for throttled progress logging. */
+        private final Map<String, Integer> lastLoggedDecile = new ConcurrentHashMap<>();
 
         RecordingTaskIO(TaskRun run, String taskId) {
             this.run = run;
@@ -146,6 +148,16 @@ public final class TaskRunner {
 
         @Override
         public void phaseProgress(String phaseId, int current, int total, String detail) {
+            // Throttled progress log: one line per 10% advance, not per advance(1).
+            if (total > 0) {
+                int decile = Math.min(10, Math.max(0, (int) ((long) current * 10 / total)));
+                Integer prev = lastLoggedDecile.get(phaseId);
+                if (prev == null || decile > prev) {
+                    lastLoggedDecile.put(phaseId, decile);
+                    log.info("Task {} phase '{}' progress {}% ({}/{}) (run={})",
+                            taskId, phaseId, decile * 10, current, total, run.runId());
+                }
+            }
             run.append(new TaskEvent.PhaseProgress(Instant.now(), phaseId, current, total,
                     detail == null ? "" : detail));
         }

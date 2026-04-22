@@ -5,8 +5,25 @@
 // via SSE on /api/utilities/runs/{runId}/events. See spec/UTILITIES_VOLUMES.md.
 
 import { esc } from './utils.js';
+import * as taskCenter from './task-center.js';
 
 const SELECTION_KEY = 'utilities.volumes.selection';
+
+// When the user clicks the floating task pill elsewhere in the app, they want
+// to come back here and see the run. Register a callback once at module load.
+taskCenter.onOpenRequested((state) => {
+  if (!state) return;
+  const volumesBtn = document.getElementById('tools-volumes-btn');
+  if (volumesBtn) volumesBtn.click();
+});
+
+// If the detail view is showing and a task finishes (or starts) elsewhere,
+// re-render so the Sync button's disabled state is current.
+taskCenter.subscribe(() => {
+  if (viewEl().style.display !== 'none' && detailEl().style.display !== 'none' && selectedId) {
+    showDetail(selectedId);
+  }
+});
 
 const listEl    = () => document.getElementById('volumes-list');
 const emptyEl   = () => document.getElementById('volumes-empty');
@@ -22,6 +39,21 @@ export async function showVolumesView() {
   viewEl().style.display = 'flex';
   selectedId = localStorage.getItem(SELECTION_KEY);
   await refreshVolumes();
+
+  // If a task is still running from a previous navigation, return the user to
+  // that run view regardless of what's currently selected. They expect
+  // continuity.
+  if (activeRun && activeRun.taskStatus === 'running') {
+    selectedId = activeRun.volumeId;
+    localStorage.setItem(SELECTION_KEY, selectedId);
+    renderList();
+    detailEl().style.display = 'none';
+    emptyEl().style.display = 'none';
+    runEl().style.display = '';
+    renderRun();
+    return;
+  }
+
   if (selectedId && volumes.some(v => v.id === selectedId)) {
     showDetail(selectedId);
   } else {
@@ -30,11 +62,10 @@ export async function showVolumesView() {
 }
 
 export function hideVolumesView() {
+  // Intentionally leave the EventSource and activeRun in place. A sync that
+  // kicks off here must keep streaming while the user browses elsewhere;
+  // the floating task pill surfaces state during that time.
   viewEl().style.display = 'none';
-  if (activeRun?.eventSource) {
-    activeRun.eventSource.close();
-    activeRun = null;
-  }
 }
 
 async function refreshVolumes() {
@@ -163,7 +194,8 @@ function showDetail(volumeId) {
     </div>
     <div class="vol-section">
       <div class="vol-section-heading">Operations</div>
-      <button type="button" class="vol-op-primary" id="vol-op-sync">Sync</button>
+      <button type="button" class="vol-op-primary" id="vol-op-sync"${taskCenter.isRunning() ? ' disabled' : ''}>Sync</button>
+      ${taskCenter.isRunning() ? '<div class="vol-op-blocked">Another utility task is running. Wait for it to finish.</div>' : ''}
     </div>
   `;
   document.getElementById('vol-op-sync').addEventListener('click', () => startSync(v.id));
@@ -186,6 +218,10 @@ function renderHealth(v) {
 }
 
 async function startSync(volumeId) {
+  if (taskCenter.isRunning()) {
+    alert('Another utility task is already running. Wait for it to finish before starting a new sync.');
+    return;
+  }
   try {
     const res = await fetch(`/api/utilities/tasks/volume.sync/run`, {
       method: 'POST',
@@ -194,6 +230,11 @@ async function startSync(volumeId) {
     });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const { runId } = await res.json();
+    taskCenter.start({
+      taskId: 'volume.sync',
+      runId,
+      label: `Syncing Volume ${volumeId.toUpperCase()}`,
+    });
     beginRunView(volumeId, runId);
   } catch (err) {
     alert('Failed to start sync: ' + err.message);
@@ -240,7 +281,10 @@ function handlePhaseStarted(ev) {
     current: 0,
     total: -1,
     lastTick: Date.now(),
-    logs: [],
+  });
+  taskCenter.updateProgress({
+    phaseLabel: ev.label,
+    overallPct: computeOverallPct(),
   });
   renderRun();
 }
@@ -257,15 +301,18 @@ function handlePhaseProgress(ev) {
     p.detail = ev.detail;
   }
   p.lastTick = Date.now();
+  taskCenter.updateProgress({
+    phaseLabel: p.label,
+    overallPct: computeOverallPct(),
+    detail: p.detail,
+  });
   renderRun();
 }
 
 function handlePhaseLog(ev) {
-  if (!activeRun) return;
-  const p = activeRun.phases.get(ev.phaseId);
-  if (!p) return;
-  p.logs.push(ev.line);
-  renderRunLog();
+  // Raw log lines no longer surfaced in the UI — users care about "scanned 120/1500",
+  // not per-file log noise. The task layer already emits structured progress events;
+  // raw log output lives in logs/organizer3.log for debugging.
 }
 
 function handlePhaseEnded(ev) {
@@ -275,6 +322,7 @@ function handlePhaseEnded(ev) {
   p.status = ev.status;
   p.durationMs = ev.durationMs;
   if (ev.summary) p.detail = ev.summary;
+  taskCenter.updateProgress({ overallPct: computeOverallPct() });
   renderRun();
 }
 
@@ -283,9 +331,29 @@ function handleTaskEnded(ev) {
   activeRun.taskStatus = ev.status;
   activeRun.taskSummary = ev.summary;
   if (activeRun.eventSource) { activeRun.eventSource.close(); activeRun.eventSource = null; }
+  taskCenter.finish({ status: ev.status, summary: ev.summary });
   renderRun();
   // Refresh volumes list so last-synced updates.
   refreshVolumes();
+}
+
+// Overall % across all known phases of the current run. Phases that have not
+// started yet count as 0, completed phases as 100, running as their current
+// ratio (or 50 if indeterminate — just so the pill moves).
+// Uses a fixed denominator equal to the expected phase count (4 for
+// SyncVolumeTask). Overestimates if a task has fewer actual phases; good
+// enough for a progress pill, not a billing system.
+function computeOverallPct() {
+  if (!activeRun) return 0;
+  const EXPECTED_PHASES = 4;
+  let sum = 0;
+  for (const [, p] of activeRun.phases) {
+    if (p.status === 'ok')      sum += 100;
+    else if (p.status === 'failed') sum += 100;
+    else if (p.total > 0)       sum += Math.min(100, (100 * p.current / p.total));
+    else                        sum += 50;
+  }
+  return Math.min(100, sum / EXPECTED_PHASES);
 }
 
 function renderRun() {
@@ -327,19 +395,15 @@ function renderRun() {
       <span class="vol-run-status ${activeRun.taskStatus}">${esc(statusLabel)}</span>
     </div>
     <div class="vol-run-phases">${phasesHTML}</div>
-    <button type="button" class="vol-run-log-toggle" id="vol-run-log-toggle">Show log output</button>
-    <div class="vol-run-log" id="vol-run-log" style="display:none"></div>
     ${actions}
   `;
 
-  document.getElementById('vol-run-log-toggle').addEventListener('click', toggleLog);
   if (activeRun.taskStatus !== 'running') {
     document.getElementById('vol-run-done').addEventListener('click', () => {
       activeRun = null;
       showDetail(v.id);
     });
   }
-  renderRunLog();
 }
 
 function renderPhaseBar(p) {
@@ -349,30 +413,6 @@ function renderPhaseBar(p) {
     return `<div class="vol-phase-bar"><div class="vol-phase-bar-fill" style="width:${pct}%"></div></div>`;
   }
   return `<div class="vol-phase-bar"><div class="vol-phase-bar-indet"></div></div>`;
-}
-
-function renderRunLog() {
-  const el = document.getElementById('vol-run-log');
-  if (!el || !activeRun) return;
-  const all = [];
-  for (const [, p] of activeRun.phases) {
-    for (const line of p.logs) all.push(line);
-  }
-  el.textContent = all.join('\n');
-  el.scrollTop = el.scrollHeight;
-}
-
-function toggleLog() {
-  const el = document.getElementById('vol-run-log');
-  const btn = document.getElementById('vol-run-log-toggle');
-  if (!el) return;
-  if (el.style.display === 'none') {
-    el.style.display = '';
-    btn.textContent = 'Hide log output';
-  } else {
-    el.style.display = 'none';
-    btn.textContent = 'Show log output';
-  }
 }
 
 function formatMs(ms) {
