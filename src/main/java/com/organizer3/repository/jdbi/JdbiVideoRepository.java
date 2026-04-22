@@ -63,6 +63,16 @@ public class JdbiVideoRepository implements VideoRepository {
     }
 
     @Override
+    public List<Video> findByVolume(String volumeId) {
+        return jdbi.withHandle(h ->
+                h.createQuery("SELECT * FROM videos WHERE volume_id = :vol ORDER BY title_id, filename")
+                        .bind("vol", volumeId)
+                        .map(MAPPER)
+                        .list()
+        );
+    }
+
+    @Override
     public Video save(Video video) {
         return jdbi.withHandle(h -> {
             if (video.getId() == null) {

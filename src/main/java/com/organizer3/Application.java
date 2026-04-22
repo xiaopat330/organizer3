@@ -448,9 +448,17 @@ public class Application {
                                 commandsByName, new com.organizer3.shell.SessionContext()));
         com.organizer3.utilities.task.volume.CleanStaleLocationsTask cleanStaleLocationsTask =
                 new com.organizer3.utilities.task.volume.CleanStaleLocationsTask(staleLocationsService);
+        com.organizer3.utilities.volume.MissingThumbnailsService missingThumbnailsService =
+                new com.organizer3.utilities.volume.MissingThumbnailsService(videoRepo, titleRepo, thumbnailService);
+        com.organizer3.utilities.task.volume.GenerateMissingThumbnailsTask generateMissingThumbnailsTask =
+                new com.organizer3.utilities.task.volume.GenerateMissingThumbnailsTask(
+                        () -> new com.organizer3.utilities.task.CommandInvoker(
+                                commandsByName, new com.organizer3.shell.SessionContext()),
+                        missingThumbnailsService,
+                        thumbnailService);
         com.organizer3.utilities.task.TaskRegistry taskRegistry =
                 new com.organizer3.utilities.task.TaskRegistry(
-                        java.util.List.of(syncVolumeTask, cleanStaleLocationsTask));
+                        java.util.List.of(syncVolumeTask, cleanStaleLocationsTask, generateMissingThumbnailsTask));
         com.organizer3.utilities.task.TaskRunner taskRunner =
                 new com.organizer3.utilities.task.TaskRunner(taskRegistry);
         webServer.registerUtilities(new com.organizer3.web.routes.UtilitiesRoutes(

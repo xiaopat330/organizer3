@@ -1854,6 +1854,27 @@
 .vol-op-primary:hover:not(:disabled) { background: #1d4ed8; }
 .vol-op-primary:disabled { opacity: 0.5; cursor: not-allowed; }
 
+.vol-op-row {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.vol-op-secondary {
+  background: #1e293b;
+  color: #e2e8f0;
+  border: 1px solid #334155;
+  padding: 10px 20px;
+  border-radius: 4px;
+  font-size: 13px;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.1s ease;
+}
+.vol-op-secondary:hover:not(:disabled) { background: #334155; }
+.vol-op-secondary:disabled { opacity: 0.5; cursor: not-allowed; }
+
 .vol-op-blocked {
   margin-top: 10px;
   font-size: 12px;
