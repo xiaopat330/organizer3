@@ -17,6 +17,51 @@ taskCenter.onOpenRequested((state) => {
   if (volumesBtn) volumesBtn.click();
 });
 
+// Pick up any server-side active run after a page refresh. The SSE stream will
+// replay history, so the pill + run view reconstruct themselves without the
+// user needing to be on Volumes at load time.
+(async function probeActiveRun() {
+  try {
+    const res = await fetch('/api/utilities/active');
+    if (!res.ok) return;
+    const body = await res.json();
+    if (!body.active) return;
+    // Best-effort: we don't know the originating volumeId for arbitrary tasks,
+    // but volume.sync encodes it in the run's first PhaseStarted. For now we
+    // adopt the run and let the SSE stream populate phases; if the user opens
+    // Volumes, showVolumesView will restore the pane. We just need the pill
+    // to show immediately.
+    const runId = body.runId;
+    taskCenter.start({
+      taskId: body.taskId,
+      runId,
+      label: labelFor(body.taskId),
+    });
+    // Adopt into the module's activeRun state so subsequent view-switches work.
+    activeRun = {
+      runId,
+      volumeId: null,   // unknown until we see the first phase log / task inputs
+      eventSource: null,
+      phases: new Map(),
+      taskStatus: body.status || 'running',
+      taskSummary: '',
+    };
+    const es = new EventSource(`/api/utilities/runs/${encodeURIComponent(runId)}/events`);
+    activeRun.eventSource = es;
+    es.addEventListener('task.started',  () => {});
+    es.addEventListener('phase.started', e => handlePhaseStarted(JSON.parse(e.data)));
+    es.addEventListener('phase.progress',e => handlePhaseProgress(JSON.parse(e.data)));
+    es.addEventListener('phase.log',     e => handlePhaseLog(JSON.parse(e.data)));
+    es.addEventListener('phase.ended',   e => handlePhaseEnded(JSON.parse(e.data)));
+    es.addEventListener('task.ended',    e => handleTaskEnded(JSON.parse(e.data)));
+  } catch { /* silently ignore — this is a convenience probe */ }
+})();
+
+function labelFor(taskId) {
+  if (taskId === 'volume.sync') return 'Syncing volume';
+  return taskId;
+}
+
 // If the detail view is showing and a task finishes (or starts) elsewhere,
 // re-render so the Sync button's disabled state is current.
 taskCenter.subscribe(() => {
@@ -228,6 +273,11 @@ async function startSync(volumeId) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ volumeId }),
     });
+    if (res.status === 409) {
+      const body = await res.json().catch(() => ({}));
+      alert(body.error || 'Another utility task is already running.');
+      return;
+    }
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const { runId } = await res.json();
     taskCenter.start({

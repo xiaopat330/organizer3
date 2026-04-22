@@ -26,6 +26,13 @@ public final class TaskRunner {
     private final TaskRegistry registry;
     private final ExecutorService executor;
     private final Map<String, TaskRun> runs = new ConcurrentHashMap<>();
+    /**
+     * Single-slot global lock. Utility tasks are atomic — at most one run is in flight at any
+     * time, across all tasks and all clients. The atomic reference ensures a clean compare-and-set
+     * on {@link #start} and can't race with concurrent callers (browser tab + MCP + etc.).
+     */
+    private final java.util.concurrent.atomic.AtomicReference<TaskRun> activeRun =
+            new java.util.concurrent.atomic.AtomicReference<>();
 
     public TaskRunner(TaskRegistry registry) {
         this.registry = registry;
@@ -35,18 +42,43 @@ public final class TaskRunner {
     /**
      * Starts the task identified by {@code taskId}. Returns the {@link TaskRun} that will
      * accumulate events; the caller can immediately inspect {@code runId()} and subscribe.
-     * Throws {@link IllegalArgumentException} if no such task is registered.
+     *
+     * <p>Fails with {@link TaskInFlightException} if any other utility task is already running.
+     * Utility tasks are atomic by policy — see {@code feedback_utilities_atomic}. Relax the lock
+     * only when truly independent task classes emerge.
      */
     public TaskRun start(String taskId, TaskInputs inputs) {
         Task task = registry.find(taskId)
                 .orElseThrow(() -> new IllegalArgumentException("Unknown task: " + taskId));
         TaskRun run = new TaskRun(taskId);
+        if (!activeRun.compareAndSet(null, run)) {
+            TaskRun current = activeRun.get();
+            throw new TaskInFlightException(current != null ? current.taskId() : "unknown",
+                    current != null ? current.runId() : "unknown");
+        }
         runs.put(run.runId(), run);
         TaskIO io = new RecordingTaskIO(run, taskId);
 
         log.info("Task {} started (run={}, inputs={})", taskId, run.runId(), inputs.values());
         executor.submit(() -> executeSafely(task, inputs, run, io));
         return run;
+    }
+
+    /** True when any utility task is running. Exposed for state endpoints and UI polling. */
+    public Optional<TaskRun> currentlyRunning() {
+        return Optional.ofNullable(activeRun.get());
+    }
+
+    /** Thrown by {@link #start} when the single-task-at-a-time policy rejects a new task. */
+    public static class TaskInFlightException extends RuntimeException {
+        public final String runningTaskId;
+        public final String runningRunId;
+        public TaskInFlightException(String runningTaskId, String runningRunId) {
+            super("A utility task (" + runningTaskId + ", run=" + runningRunId
+                    + ") is already running. Wait for it to finish.");
+            this.runningTaskId = runningTaskId;
+            this.runningRunId = runningRunId;
+        }
     }
 
     public Optional<TaskRun> findRun(String runId) {
@@ -74,6 +106,10 @@ public final class TaskRunner {
             String msg = "Task failed: " + e.getMessage();
             run.append(new TaskEvent.TaskEnded(Instant.now(), "failed", msg));
             run.markEnded(TaskRun.Status.FAILED, msg);
+        } finally {
+            // Release the atomic lock only if it still points to our run — defensive against
+            // a hypothetical future change that clears it earlier.
+            activeRun.compareAndSet(run, null);
         }
     }
 

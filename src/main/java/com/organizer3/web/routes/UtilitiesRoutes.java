@@ -60,10 +60,29 @@ public final class UtilitiesRoutes {
             try {
                 TaskRun run = runner.start(taskId, new TaskInputs(inputs));
                 ctx.json(Map.of("runId", run.runId(), "taskId", taskId));
+            } catch (TaskRunner.TaskInFlightException e) {
+                ctx.status(409);  // Conflict — a task is already in flight
+                ctx.json(Map.of(
+                        "error", e.getMessage(),
+                        "runningTaskId", e.runningTaskId,
+                        "runningRunId",  e.runningRunId));
             } catch (IllegalArgumentException e) {
                 ctx.status(400);
                 ctx.json(Map.of("error", e.getMessage()));
             }
+        });
+
+        // Global "is a task running?" probe for clients arriving mid-flight
+        // (new tab, refresh, pill was dismissed). Returns the active run if any.
+        app.get("/api/utilities/active", ctx -> {
+            var running = runner.currentlyRunning();
+            if (running.isEmpty()) { ctx.json(Map.of("active", false)); return; }
+            TaskRun r = running.get();
+            ctx.json(Map.of(
+                    "active",  true,
+                    "taskId",  r.taskId(),
+                    "runId",   r.runId(),
+                    "status",  r.status().name().toLowerCase()));
         });
 
         app.get("/api/utilities/runs/{runId}", ctx -> {

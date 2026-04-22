@@ -139,6 +139,35 @@ class TaskRunnerTest {
         }
     }
 
+    @Test
+    void rejectsSecondTaskWhileFirstIsRunning() throws Exception {
+        CountDownLatch releaseFirst = new CountDownLatch(1);
+        Task slow = new Task() {
+            @Override public TaskSpec spec() { return new TaskSpec("slow", "Slow", "", List.of()); }
+            @Override public void run(TaskInputs inputs, TaskIO io) throws InterruptedException {
+                releaseFirst.await();
+            }
+        };
+        Task fast = new Task() {
+            @Override public TaskSpec spec() { return new TaskSpec("fast", "Fast", "", List.of()); }
+            @Override public void run(TaskInputs inputs, TaskIO io) {}
+        };
+        TaskRunner runner = new TaskRunner(new TaskRegistry(List.of(slow, fast)));
+        try {
+            TaskRun first = runner.start("slow", new TaskInputs(Map.of()));
+            assertThrows(TaskRunner.TaskInFlightException.class,
+                    () -> runner.start("fast", new TaskInputs(Map.of())));
+            releaseFirst.countDown();
+            awaitCompletion(first);
+            // After completion the lock releases and the next start succeeds.
+            TaskRun second = runner.start("fast", new TaskInputs(Map.of()));
+            awaitCompletion(second);
+            assertEquals(TaskRun.Status.OK, second.status());
+        } finally {
+            runner.shutdown();
+        }
+    }
+
     private static void awaitCompletion(TaskRun run) throws InterruptedException {
         long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(5);
         while (run.status() == TaskRun.Status.RUNNING) {
