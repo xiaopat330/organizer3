@@ -85,6 +85,24 @@ public final class TaskRunner {
         return Optional.ofNullable(runs.get(runId));
     }
 
+    /**
+     * Request cancellation of a run. Returns the outcome so the HTTP layer can map it to a
+     * response: {@code NOT_FOUND} → 404, anything else → 204. Double-cancel and cancel of an
+     * already-ended run are no-ops (idempotent).
+     */
+    public CancelOutcome cancel(String runId) {
+        TaskRun run = runs.get(runId);
+        if (run == null) return CancelOutcome.NOT_FOUND;
+        if (run.status() != TaskRun.Status.RUNNING) return CancelOutcome.ALREADY_ENDED;
+        boolean flipped = run.requestCancellation();
+        if (flipped) {
+            log.info("Task {} cancel requested (run={})", run.taskId(), run.runId());
+        }
+        return flipped ? CancelOutcome.REQUESTED : CancelOutcome.ALREADY_REQUESTED;
+    }
+
+    public enum CancelOutcome { REQUESTED, ALREADY_REQUESTED, ALREADY_ENDED, NOT_FOUND }
+
     public void shutdown() {
         executor.shutdownNow();
     }
@@ -123,8 +141,11 @@ public final class TaskRunner {
                 else if ("ok".equals(pe.status())) anyPhaseOk = true;
             }
         }
-        if (anyPhaseFailed && anyPhaseOk) return TaskRun.Status.PARTIAL;
-        if (anyPhaseFailed) return TaskRun.Status.FAILED;
+        // A cancel request overrides otherwise-clean outcomes. If phases also failed, FAILED wins
+        // so the user sees what actually went wrong (e.g. unmount error) — cancellation-only is
+        // CANCELLED, cancel-plus-failure is still FAILED.
+        if (anyPhaseFailed) return anyPhaseOk ? TaskRun.Status.PARTIAL : TaskRun.Status.FAILED;
+        if (run.isCancellationRequested()) return TaskRun.Status.CANCELLED;
         return TaskRun.Status.OK;
     }
 
@@ -133,6 +154,7 @@ public final class TaskRunner {
             case OK -> "Task complete";
             case FAILED -> "Task failed";
             case PARTIAL -> "Task completed with failures";
+            case CANCELLED -> "Task cancelled";
             case RUNNING -> "Task still running";
         };
         return label + " (" + formatElapsed(elapsed) + ")";
@@ -149,6 +171,7 @@ public final class TaskRunner {
             case OK -> "ok";
             case FAILED -> "failed";
             case PARTIAL -> "partial";
+            case CANCELLED -> "cancelled";
             case RUNNING -> "running";
         };
     }
@@ -202,6 +225,9 @@ public final class TaskRunner {
         public void phaseLog(String phaseId, String line) {
             run.append(new TaskEvent.PhaseLog(Instant.now(), phaseId, line == null ? "" : line));
         }
+
+        @Override
+        public boolean isCancellationRequested() { return run.isCancellationRequested(); }
 
         @Override
         public void phaseEnd(String phaseId, String status, String summary) {

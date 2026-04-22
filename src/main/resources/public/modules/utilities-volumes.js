@@ -593,8 +593,9 @@ function renderRun() {
   const r = runEl();
   const v = volumes.find(x => x.id === activeRun.volumeId) || { id: activeRun.volumeId };
   const statusLabel = activeRun.taskStatus === 'running' ? 'running'
-      : activeRun.taskStatus === 'ok'      ? 'complete'
-      : activeRun.taskStatus === 'partial' ? 'partial'
+      : activeRun.taskStatus === 'ok'       ? 'complete'
+      : activeRun.taskStatus === 'partial'  ? 'partial'
+      : activeRun.taskStatus === 'cancelled' ? 'cancelled'
       : 'failed';
 
   const phasesHTML = Array.from(activeRun.phases.entries()).map(([id, p]) => {

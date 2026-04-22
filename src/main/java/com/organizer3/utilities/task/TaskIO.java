@@ -22,4 +22,11 @@ public interface TaskIO {
 
     /** Closes the active phase. {@code status} is {@code "ok"} or {@code "failed"}. */
     void phaseEnd(String phaseId, String status, String summary);
+
+    /**
+     * True once the run has been asked to cancel. Long-running tasks should poll this between
+     * phases or iterations and exit their work loop early (still running cleanup). Short tasks
+     * can ignore it.
+     */
+    default boolean isCancellationRequested() { return false; }
 }

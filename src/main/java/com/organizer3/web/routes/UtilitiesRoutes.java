@@ -207,7 +207,18 @@ public final class UtilitiesRoutes {
                     "active",  true,
                     "taskId",  r.taskId(),
                     "runId",   r.runId(),
-                    "status",  r.status().name().toLowerCase()));
+                    "status",  r.status().name().toLowerCase(),
+                    "cancelRequested", r.isCancellationRequested()));
+        });
+
+        app.post("/api/utilities/runs/{runId}/cancel", ctx -> {
+            String runId = ctx.pathParam("runId");
+            TaskRunner.CancelOutcome outcome = runner.cancel(runId);
+            switch (outcome) {
+                case NOT_FOUND -> { ctx.status(404); ctx.json(Map.of("error", "run not found")); }
+                case REQUESTED, ALREADY_REQUESTED, ALREADY_ENDED ->
+                        ctx.status(204);
+            }
         });
 
         app.get("/api/utilities/runs/{runId}", ctx -> {
@@ -281,6 +292,7 @@ public final class UtilitiesRoutes {
         out.put("runId", run.runId());
         out.put("taskId", run.taskId());
         out.put("status", run.status().name().toLowerCase());
+        out.put("cancelRequested", run.isCancellationRequested());
         out.put("summary", run.summary());
         out.put("startedAt", run.startedAt().toString());
         out.put("endedAt", run.endedAt() == null ? null : run.endedAt().toString());

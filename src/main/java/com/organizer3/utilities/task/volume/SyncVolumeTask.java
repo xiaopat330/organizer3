@@ -53,16 +53,19 @@ public final class SyncVolumeTask implements Task {
                         && invoker.session().isConnected());
 
         if (mounted) {
-            runPhase(io, "syncTitles", "Sync titles", () ->
-                    invoker.invoke("syncTitles", "sync all", new String[]{"sync all"}, io));
-
-            runPhase(io, "syncCovers", "Sync covers", () ->
-                    invoker.invoke("syncCovers", "sync covers", new String[]{"sync covers"}, io));
+            if (!io.isCancellationRequested()) {
+                runPhase(io, "syncTitles", "Sync titles", () ->
+                        invoker.invoke("syncTitles", "sync all", new String[]{"sync all"}, io));
+            }
+            if (!io.isCancellationRequested()) {
+                runPhase(io, "syncCovers", "Sync covers", () ->
+                        invoker.invoke("syncCovers", "sync covers", new String[]{"sync covers"}, io));
+            }
         } else {
             io.phaseLog("mount", "Skipping sync phases because mount failed.");
         }
 
-        // Unmount runs unconditionally so we never leave a dangling connection.
+        // Unmount runs unconditionally — even on cancel — so we never leave a dangling connection.
         runPhase(io, "unmount", "Unmount volume", () ->
                 invoker.invoke("unmount", "unmount", new String[]{"unmount"}, io));
     }

@@ -1932,6 +1932,36 @@
 .task-pill.ok     .task-pill-bar-fill { background: linear-gradient(90deg, #166534, #4ade80); }
 .task-pill.failed .task-pill-bar-fill { background: linear-gradient(90deg, #991b1b, #f87171); }
 .task-pill.partial .task-pill-bar-fill { background: linear-gradient(90deg, #92400e, #fbbf24); }
+.task-pill.cancelled { border-color: #475569; }
+.task-pill.cancelled .task-pill-spinner { border: 2px solid #475569; border-top-color: #94a3b8; animation: none; }
+.task-pill.cancelled .task-pill-pct { color: #94a3b8; }
+.task-pill.cancelled .task-pill-bar-fill { background: linear-gradient(90deg, #334155, #94a3b8); }
+
+/* "Cancelling…" state while cancel has been requested but task is still winding down. */
+.task-pill.cancelling { border-color: #64748b; }
+.task-pill.cancelling .task-pill-phase { color: #94a3b8; font-style: italic; }
+
+.task-pill-cancel {
+  margin-left: 6px;
+  padding: 0 6px;
+  background: transparent;
+  border: 1px solid #475569;
+  border-radius: 3px;
+  color: #cbd5e1;
+  font-size: 14px;
+  line-height: 18px;
+  cursor: pointer;
+}
+.task-pill-cancel:hover { background: #1e293b; color: #f87171; border-color: #7f1d1d; }
+
+/* Run pane: cancelled status pill */
+.vol-run-status.cancelled,
+.ad-run-status.cancelled,
+.bk-run-status.cancelled {
+  background: #1e293b;
+  color: #94a3b8;
+  border-color: #475569;
+}
 
 /* Run / progress pane */
 .volumes-run {
