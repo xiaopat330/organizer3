@@ -8,11 +8,13 @@ import { showTitleEditor, hideTitleEditorView } from './title-editor.js';
 import { showLogsView, hideLogsView } from './log-viewer.js';
 import { showVolumesView, hideVolumesView } from './utilities-volumes.js';
 import { showActressDataView, hideActressDataView } from './utilities-actress-data.js';
+import { showBackupView, hideBackupView } from './utilities-backup.js';
 
 // ── DOM refs ──────────────────────────────────────────────────────────────
 const actionBtn         = document.getElementById('action-btn');
 const volumesBtn        = document.getElementById('tools-volumes-btn');
 const actressDataBtn    = document.getElementById('tools-actress-data-btn');
+const backupBtn         = document.getElementById('tools-backup-btn');
 const duplicatesBtn     = document.getElementById('tools-duplicates-btn');
 const queueBtn          = document.getElementById('tools-queue-btn');
 const logsBtn           = document.getElementById('tools-logs-btn');
@@ -28,7 +30,7 @@ const dupDetailBody     = document.getElementById('dup-detail-body');
 const dupDetailClose    = document.getElementById('dup-detail-close');
 
 // ── Tool buttons ──────────────────────────────────────────────────────────
-const TOOL_BTNS = [volumesBtn, actressDataBtn, duplicatesBtn, queueBtn, logsBtn];
+const TOOL_BTNS = [volumesBtn, actressDataBtn, backupBtn, duplicatesBtn, queueBtn, logsBtn];
 
 function selectTool(btn) {
   TOOL_BTNS.forEach(b => b?.classList.remove('selected'));
@@ -41,6 +43,7 @@ function hideAllToolViews() {
   hideLogsView();
   hideVolumesView();
   hideActressDataView();
+  hideBackupView();
   duplicatesView.style.display    = 'none';
   duplicatesFilters.style.display = 'none';
 }
@@ -306,6 +309,14 @@ actressDataBtn.addEventListener('click', () => {
   updateBreadcrumb([{ label: 'Tools' }, { label: 'Actress data' }]);
   hideAllToolViews();
   showActressDataView();
+});
+
+backupBtn.addEventListener('click', () => {
+  showActionView('backup');
+  selectTool(backupBtn);
+  updateBreadcrumb([{ label: 'Tools' }, { label: 'Backup' }]);
+  hideAllToolViews();
+  showBackupView();
 });
 
 duplicatesBtn.addEventListener('click', showDuplicates);

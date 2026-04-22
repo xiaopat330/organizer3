@@ -5,8 +5,10 @@ import com.organizer3.utilities.task.TaskInputs;
 import com.organizer3.utilities.task.TaskRegistry;
 import com.organizer3.utilities.task.TaskRun;
 import com.organizer3.utilities.task.TaskRunner;
+import com.organizer3.backup.UserDataBackupService;
 import com.organizer3.enrichment.ActressYamlLoader;
 import com.organizer3.utilities.actress.ActressYamlCatalogService;
+import com.organizer3.utilities.backup.BackupCatalogService;
 import com.organizer3.utilities.volume.StaleLocationsService;
 import com.organizer3.utilities.volume.VolumeStateService;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -38,6 +40,8 @@ public final class UtilitiesRoutes {
     private final StaleLocationsService staleLocations;
     private final ActressYamlCatalogService actressCatalog;
     private final ActressYamlLoader actressLoader;
+    private final BackupCatalogService backupCatalog;
+    private final UserDataBackupService backupService;
     private final TaskRegistry registry;
     private final TaskRunner runner;
     private final ObjectMapper json = new ObjectMapper().registerModule(new JavaTimeModule());
@@ -45,11 +49,15 @@ public final class UtilitiesRoutes {
     public UtilitiesRoutes(VolumeStateService volumeState, StaleLocationsService staleLocations,
                            ActressYamlCatalogService actressCatalog,
                            ActressYamlLoader actressLoader,
+                           BackupCatalogService backupCatalog,
+                           UserDataBackupService backupService,
                            TaskRegistry registry, TaskRunner runner) {
         this.volumeState = volumeState;
         this.staleLocations = staleLocations;
         this.actressCatalog = actressCatalog;
         this.actressLoader = actressLoader;
+        this.backupCatalog = backupCatalog;
+        this.backupService = backupService;
         this.registry = registry;
         this.runner = runner;
     }
@@ -74,6 +82,25 @@ public final class UtilitiesRoutes {
                 ctx.json(Map.of("error", e.getMessage()));
             }
         });
+        // Backup — snapshot list + per-snapshot detail
+        app.get("/api/utilities/backup/snapshots", ctx -> ctx.json(backupCatalog.list()));
+        app.get("/api/utilities/backup/snapshots/{name}", ctx -> {
+            String name = ctx.pathParam("name");
+            var resolved = backupCatalog.resolve(name);
+            if (resolved.isEmpty()) {
+                ctx.status(404);
+                ctx.json(Map.of("error", "no such snapshot: " + name));
+                return;
+            }
+            try {
+                ctx.json(backupService.snapshotDetail(resolved.get()));
+            } catch (java.io.IOException e) {
+                log.error("Failed to read snapshot {}", name, e);
+                ctx.status(500);
+                ctx.json(Map.of("error", e.getMessage()));
+            }
+        });
+
         app.get("/api/utilities/actress-yamls/{slug}", ctx -> {
             String slug = ctx.pathParam("slug");
             try {
@@ -119,6 +146,26 @@ public final class UtilitiesRoutes {
                         ctx.json(Map.of("error", e.getMessage()));
                     } catch (Exception e) {
                         log.error("Failed to plan actress load for {}", slug, e);
+                        ctx.status(500);
+                        ctx.json(Map.of("error", e.getMessage()));
+                    }
+                }
+                case "backup.restore" -> {
+                    if (!(inputs.get("snapshotName") instanceof String name)) {
+                        ctx.status(400);
+                        ctx.json(Map.of("error", "snapshotName is required"));
+                        return;
+                    }
+                    var resolved = backupCatalog.resolve(name);
+                    if (resolved.isEmpty()) {
+                        ctx.status(404);
+                        ctx.json(Map.of("error", "no such snapshot: " + name));
+                        return;
+                    }
+                    try {
+                        ctx.json(backupService.previewRestore(resolved.get()));
+                    } catch (Exception e) {
+                        log.error("Failed to preview restore of {}", name, e);
                         ctx.status(500);
                         ctx.json(Map.of("error", e.getMessage()));
                     }

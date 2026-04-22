@@ -469,14 +469,26 @@ public class Application {
         com.organizer3.utilities.task.actress.LoadAllActressesTask loadAllActressesTask =
                 new com.organizer3.utilities.task.actress.LoadAllActressesTask(yamlLoader);
 
+        // Backup & restore — catalog + tasks.
+        com.organizer3.utilities.backup.BackupCatalogService backupCatalogService =
+                new com.organizer3.utilities.backup.BackupCatalogService(backupService, backupPath);
+        com.organizer3.utilities.task.backup.BackupNowTask backupNowTask =
+                new com.organizer3.utilities.task.backup.BackupNowTask(
+                        backupService, backupPath, snapshotCount);
+        com.organizer3.utilities.task.backup.RestoreSnapshotTask restoreSnapshotTask =
+                new com.organizer3.utilities.task.backup.RestoreSnapshotTask(
+                        backupService, backupCatalogService);
+
         com.organizer3.utilities.task.TaskRegistry taskRegistry =
                 new com.organizer3.utilities.task.TaskRegistry(
                         java.util.List.of(syncVolumeTask, cleanStaleLocationsTask,
-                                loadActressTask, loadAllActressesTask));
+                                loadActressTask, loadAllActressesTask,
+                                backupNowTask, restoreSnapshotTask));
         com.organizer3.utilities.task.TaskRunner taskRunner =
                 new com.organizer3.utilities.task.TaskRunner(taskRegistry);
         webServer.registerUtilities(new com.organizer3.web.routes.UtilitiesRoutes(
                 volumeStateService, staleLocationsService, actressCatalogService, yamlLoader,
+                backupCatalogService, backupService,
                 taskRegistry, taskRunner));
 
         webServer.registerBgThumbnails(new com.organizer3.web.routes.BgThumbnailsRoutes(
