@@ -28,6 +28,16 @@ public interface AvVideoRepository {
     long upsert(AvVideo video);
 
     /**
+     * Returns the IDs of videos on {@code volumeId} that would be deleted by a subsequent
+     * {@link #deleteOrphanedByVolume} call. Used so local screenshot files can be cleaned up
+     * before their DB rows disappear.
+     */
+    List<Long> findIdsOrphanedByVolume(String volumeId, LocalDateTime syncStart);
+
+    /** Returns the video IDs for a given actress. Used for on-disk screenshot cleanup before delete. */
+    List<Long> findIdsByActress(long avActressId);
+
+    /**
      * Deletes all videos for the given volume that were last seen before the given
      * timestamp (orphan cleanup after sync).
      */

@@ -268,7 +268,11 @@ public class Application {
         }
 
         // AV Stars commands
-        AvStarsSyncOperation avStarsSyncOp = new AvStarsSyncOperation(avActressRepo, avVideoRepo, volumeRepo);
+        Path avHeadshotDir    = dataDir.resolve("av_headshots");
+        Path avScreenshotDir  = dataDir.resolve("av_screenshots");
+        com.organizer3.avstars.cleanup.AvArtifactCleaner avArtifactCleaner =
+                new com.organizer3.avstars.cleanup.AvArtifactCleaner(avScreenshotDir, avHeadshotDir);
+        AvStarsSyncOperation avStarsSyncOp = new AvStarsSyncOperation(avActressRepo, avVideoRepo, volumeRepo, avArtifactCleaner);
         AvFilenameParser avFilenameParser = new AvFilenameParser();
         commands.add(new AvSyncCommand(avStarsSyncOp));
         commands.add(new AvActressesCommand(avActressRepo));
@@ -277,10 +281,8 @@ public class Application {
         commands.add(new AvCurateCommand(avActressRepo));
         commands.add(new AvMigrateActressCommand(avActressRepo));
         commands.add(new AvRenameActressCommand(avActressRepo));
-        commands.add(new AvDeleteActressCommand(avActressRepo));
+        commands.add(new AvDeleteActressCommand(avActressRepo, avVideoRepo, avArtifactCleaner));
         commands.add(new AvParseFilenamesCommand(avVideoRepo, avFilenameParser));
-        Path avHeadshotDir    = dataDir.resolve("av_headshots");
-        Path avScreenshotDir  = dataDir.resolve("av_screenshots");
         commands.add(new AvResolveCommand(avActressRepo, new HttpIafdClient(),
                 new IafdSearchParser(), new IafdProfileParser(), avHeadshotDir));
         AvScreenshotService avScreenshotService = new AvScreenshotService(avScreenshotRepo, avScreenshotDir, WebServer.DEFAULT_PORT);

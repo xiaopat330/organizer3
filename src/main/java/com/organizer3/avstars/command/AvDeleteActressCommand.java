@@ -1,7 +1,9 @@
 package com.organizer3.avstars.command;
 
+import com.organizer3.avstars.cleanup.AvArtifactCleaner;
 import com.organizer3.avstars.model.AvActress;
 import com.organizer3.avstars.repository.AvActressRepository;
+import com.organizer3.avstars.repository.AvVideoRepository;
 import com.organizer3.command.Command;
 import com.organizer3.shell.SessionContext;
 import com.organizer3.shell.io.CommandIO;
@@ -22,6 +24,8 @@ import java.util.Optional;
 public class AvDeleteActressCommand implements Command {
 
     private final AvActressRepository actressRepo;
+    private final AvVideoRepository videoRepo;
+    private final AvArtifactCleaner artifactCleaner;
 
     @Override
     public String name() {
@@ -61,8 +65,17 @@ public class AvDeleteActressCommand implements Command {
             return;
         }
 
+        // Capture artifact paths before the cascade delete — once the rows are gone we can't
+        // look them up. Screenshot dirs live per-video under screenshotDir/{videoId}/; the
+        // headshot path is stored on the actress row.
+        List<Long> videoIds = videoRepo.findIdsByActress(actress.getId());
+        int screenshotsCleared = artifactCleaner.deleteScreenshotsFor(videoIds);
+        boolean headshotDeleted = artifactCleaner.deleteHeadshot(actress.getHeadshotPath());
+
         actressRepo.delete(actress.getId());
-        io.println("Deleted: " + actress.getStageName());
+        io.println("Deleted: " + actress.getStageName()
+                + " · " + screenshotsCleared + " screenshot dir(s)"
+                + (headshotDeleted ? " · headshot removed" : ""));
     }
 
     private Optional<AvActress> findActress(String name) {

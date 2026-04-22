@@ -1,5 +1,6 @@
 package com.organizer3.avstars.sync;
 
+import com.organizer3.avstars.cleanup.AvArtifactCleaner;
 import com.organizer3.avstars.model.AvActress;
 import com.organizer3.avstars.model.AvVideo;
 import com.organizer3.avstars.repository.AvActressRepository;
@@ -43,6 +44,7 @@ public class AvStarsSyncOperation {
     private final AvActressRepository actressRepo;
     private final AvVideoRepository videoRepo;
     private final VolumeRepository volumeRepo;
+    private final AvArtifactCleaner artifactCleaner;
 
     public void execute(VolumeConfig volume, VolumeStructureDef structure,
                         VolumeFileSystem fs, SessionContext ctx, CommandIO io) throws IOException {
@@ -92,8 +94,16 @@ public class AvStarsSyncOperation {
             }
         }
 
-        // Orphan cleanup — remove video rows not touched during this sync run
+        // Orphan cleanup — delete local screenshot directories for videos about to be dropped,
+        // then remove the video rows themselves. Capturing the IDs first is what lets us clean
+        // the artifacts — once the rows are gone we can't map id → dir.
+        List<Long> orphanedVideoIds = videoRepo.findIdsOrphanedByVolume(volume.id(), syncStart);
+        int screenshotsCleared = artifactCleaner.deleteScreenshotsFor(orphanedVideoIds);
         videoRepo.deleteOrphanedByVolume(volume.id(), syncStart);
+        if (!orphanedVideoIds.isEmpty()) {
+            io.println("  Orphaned " + orphanedVideoIds.size() + " video row(s); removed "
+                    + screenshotsCleared + " screenshot dir(s).");
+        }
 
         // Stamp volume
         volumeRepo.updateLastSyncedAt(volume.id(), syncStart);
