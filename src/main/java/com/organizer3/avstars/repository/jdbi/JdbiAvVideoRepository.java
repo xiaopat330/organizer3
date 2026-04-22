@@ -108,6 +108,27 @@ public class JdbiAvVideoRepository implements AvVideoRepository {
     }
 
     @Override
+    public List<Long> findIdsOrphanedByVolume(String volumeId, LocalDateTime syncStart) {
+        return jdbi.withHandle(h -> h.createQuery("""
+                        SELECT id FROM av_videos
+                        WHERE volume_id = :volumeId AND last_seen_at < :syncStart
+                        """)
+                .bind("volumeId", volumeId)
+                .bind("syncStart", syncStart.toString())
+                .mapTo(Long.class)
+                .list());
+    }
+
+    @Override
+    public List<Long> findIdsByActress(long avActressId) {
+        return jdbi.withHandle(h -> h.createQuery(
+                        "SELECT id FROM av_videos WHERE av_actress_id = :aid")
+                .bind("aid", avActressId)
+                .mapTo(Long.class)
+                .list());
+    }
+
+    @Override
     public void deleteOrphanedByVolume(String volumeId, LocalDateTime syncStart) {
         jdbi.useHandle(h ->
                 h.createUpdate("""

@@ -1,7 +1,9 @@
 package com.organizer3.avstars.command;
 
+import com.organizer3.avstars.cleanup.AvArtifactCleaner;
 import com.organizer3.avstars.model.AvActress;
 import com.organizer3.avstars.repository.AvActressRepository;
+import com.organizer3.avstars.repository.AvVideoRepository;
 import com.organizer3.shell.SessionContext;
 import com.organizer3.shell.io.CommandIO;
 import org.junit.jupiter.api.BeforeEach;
@@ -20,6 +22,8 @@ import static org.mockito.Mockito.*;
 class AvDeleteActressCommandTest {
 
     @Mock AvActressRepository actressRepo;
+    @Mock AvVideoRepository videoRepo;
+    @Mock AvArtifactCleaner artifactCleaner;
     @Mock SessionContext ctx;
     @Mock CommandIO io;
 
@@ -27,7 +31,7 @@ class AvDeleteActressCommandTest {
 
     @BeforeEach
     void setUp() {
-        command = new AvDeleteActressCommand(actressRepo);
+        command = new AvDeleteActressCommand(actressRepo, videoRepo, artifactCleaner);
     }
 
     @Test
@@ -67,6 +71,23 @@ class AvDeleteActressCommandTest {
 
         verify(actressRepo).delete(1L);
         verify(io).println(contains("Deleted:"));
+    }
+
+    @Test
+    void confirmedDeletionCleansLocalArtifactsBeforeDbDelete() {
+        AvActress a = AvActress.builder().id(7L).stageName("Asa Akira").folderName("Asa Akira")
+                .volumeId("qnap_av").headshotPath("asa.jpg").build();
+        when(actressRepo.findAllByVideoCountDesc()).thenReturn(List.of(a));
+        when(videoRepo.findIdsByActress(7L)).thenReturn(List.of(10L, 11L));
+        when(io.pick(any())).thenReturn(Optional.of("Yes, delete permanently"));
+
+        command.execute(new String[]{"av delete", "asa"}, ctx, io);
+
+        // Files must be cleaned before the cascade delete so we still have the ID/path refs.
+        var order = inOrder(artifactCleaner, actressRepo);
+        order.verify(artifactCleaner).deleteScreenshotsFor(List.of(10L, 11L));
+        order.verify(artifactCleaner).deleteHeadshot("asa.jpg");
+        order.verify(actressRepo).delete(7L);
     }
 
     @Test

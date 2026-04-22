@@ -366,8 +366,8 @@ public class JdbiAvActressRepository implements AvActressRepository {
     public void delete(long actressId) {
         jdbi.useTransaction(h -> {
             // Delete child rows first (foreign_keys may not be enforced)
-            h.execute("DELETE FROM av_video_tags  WHERE av_video_id IN (SELECT id FROM av_videos WHERE av_actress_id = ?)", actressId);
-            h.execute("DELETE FROM av_screenshots WHERE av_video_id IN (SELECT id FROM av_videos WHERE av_actress_id = ?)", actressId);
+            h.execute("DELETE FROM av_video_tags        WHERE av_video_id IN (SELECT id FROM av_videos WHERE av_actress_id = ?)", actressId);
+            h.execute("DELETE FROM av_video_screenshots WHERE av_video_id IN (SELECT id FROM av_videos WHERE av_actress_id = ?)", actressId);
             h.execute("DELETE FROM av_videos WHERE av_actress_id = ?", actressId);
             h.execute("DELETE FROM av_actresses WHERE id = ?", actressId);
         });
