@@ -9,12 +9,14 @@ import { showLogsView, hideLogsView } from './log-viewer.js';
 import { showVolumesView, hideVolumesView } from './utilities-volumes.js';
 import { showActressDataView, hideActressDataView } from './utilities-actress-data.js';
 import { showBackupView, hideBackupView } from './utilities-backup.js';
+import { showLibraryHealthView, hideLibraryHealthView } from './utilities-library-health.js';
 
 // ── DOM refs ──────────────────────────────────────────────────────────────
 const actionBtn         = document.getElementById('action-btn');
 const volumesBtn        = document.getElementById('tools-volumes-btn');
 const actressDataBtn    = document.getElementById('tools-actress-data-btn');
 const backupBtn         = document.getElementById('tools-backup-btn');
+const libraryHealthBtn  = document.getElementById('tools-library-health-btn');
 const duplicatesBtn     = document.getElementById('tools-duplicates-btn');
 const queueBtn          = document.getElementById('tools-queue-btn');
 const logsBtn           = document.getElementById('tools-logs-btn');
@@ -30,7 +32,7 @@ const dupDetailBody     = document.getElementById('dup-detail-body');
 const dupDetailClose    = document.getElementById('dup-detail-close');
 
 // ── Tool buttons ──────────────────────────────────────────────────────────
-const TOOL_BTNS = [volumesBtn, actressDataBtn, backupBtn, duplicatesBtn, queueBtn, logsBtn];
+const TOOL_BTNS = [volumesBtn, actressDataBtn, backupBtn, libraryHealthBtn, duplicatesBtn, queueBtn, logsBtn];
 
 function selectTool(btn) {
   TOOL_BTNS.forEach(b => b?.classList.remove('selected'));
@@ -44,6 +46,7 @@ function hideAllToolViews() {
   hideVolumesView();
   hideActressDataView();
   hideBackupView();
+  hideLibraryHealthView();
   duplicatesView.style.display    = 'none';
   duplicatesFilters.style.display = 'none';
 }
@@ -317,6 +320,14 @@ backupBtn.addEventListener('click', () => {
   updateBreadcrumb([{ label: 'Tools' }, { label: 'Backup' }]);
   hideAllToolViews();
   showBackupView();
+});
+
+libraryHealthBtn.addEventListener('click', () => {
+  showActionView('library-health');
+  selectTool(libraryHealthBtn);
+  updateBreadcrumb([{ label: 'Tools' }, { label: 'Library Health' }]);
+  hideAllToolViews();
+  showLibraryHealthView();
 });
 
 duplicatesBtn.addEventListener('click', showDuplicates);
