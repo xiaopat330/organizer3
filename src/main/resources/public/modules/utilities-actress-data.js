@@ -247,10 +247,10 @@ function renderPlan(pane, slug, plan) {
     ${renderActressBlock(plan.actressChange)}
     ${renderPortfolioBlock(plan.portfolioChanges || [])}
     <div class="ad-visualize-actions">
-      <button type="button" class="ad-visualize-cancel">Cancel</button>
       <button type="button" class="ad-visualize-proceed"${nothingToDo ? ' disabled title="No changes to apply"' : ''}>
         ${nothingToDo ? 'No changes' : 'Proceed — apply'}
       </button>
+      <button type="button" class="ad-visualize-cancel">Cancel</button>
     </div>
   `;
   pane.querySelector('.ad-visualize-cancel').addEventListener('click', () => showDetail(slug));

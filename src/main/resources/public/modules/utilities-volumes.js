@@ -398,8 +398,8 @@ async function showStaleLocationsVisualize(volumeId) {
       </table>
     </div>
     <div class="vol-visualize-actions">
-      <button type="button" class="vol-visualize-cancel">Cancel</button>
       <button type="button" class="vol-visualize-proceed">Proceed — remove ${rows.length}</button>
+      <button type="button" class="vol-visualize-cancel">Cancel</button>
     </div>
   `;
   pane.querySelector('.vol-visualize-cancel').addEventListener('click', () => showDetail(volumeId));
