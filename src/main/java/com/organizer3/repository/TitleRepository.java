@@ -102,6 +102,16 @@ public interface TitleRepository {
     void deleteOrphaned();
 
     /**
+     * Returns a lightweight projection of every title that is currently orphaned — zero
+     * {@code title_locations} rows. Used by sync to enumerate covers to delete alongside the
+     * row drop. Call before {@link #deleteOrphaned}; after the delete the set is empty.
+     */
+    List<OrphanedTitleRef> findOrphanedTitles();
+
+    /** Lightweight {label, baseCode} projection for orphan cover cleanup. */
+    record OrphanedTitleRef(String label, String baseCode) {}
+
+    /**
      * Returns the top actresses by title count for titles whose label is in {@code labels}.
      * Each row is [actressId (Long), actressName (String), tier (String), count (Long)].
      */

@@ -17,6 +17,7 @@ import com.organizer3.repository.VolumeRepository;
 import com.organizer3.shell.SessionContext;
 import com.organizer3.shell.io.CommandIO;
 import com.organizer3.shell.io.PlainCommandIO;
+import com.organizer3.covers.CoverPath;
 import com.organizer3.sync.scanner.CollectionsScanner;
 import com.organizer3.sync.scanner.ConventionalScanner;
 import com.organizer3.sync.scanner.ExhibitionScanner;
@@ -93,9 +94,13 @@ class FullSyncOperationTest {
     }
 
     private FullSyncOperation newOp() {
-        return new FullSyncOperation(scannerRegistry, titleRepo, videoRepo, actressRepo,
-                volumeRepo, titleLocationRepo, titleActressRepo, indexLoader,
-                mock(com.organizer3.db.TitleEffectiveTagsService.class), mock(com.organizer3.db.ActressCompaniesService.class));
+        try {
+            java.nio.file.Path tmp = java.nio.file.Files.createTempDirectory("fsync-test");
+            return new FullSyncOperation(scannerRegistry, titleRepo, videoRepo, actressRepo,
+                    volumeRepo, titleLocationRepo, titleActressRepo, indexLoader,
+                    mock(com.organizer3.db.TitleEffectiveTagsService.class), mock(com.organizer3.db.ActressCompaniesService.class),
+                    new CoverPath(tmp));
+        } catch (IOException e) { throw new RuntimeException(e); }
     }
 
     // --- Clears data before scanning ---

@@ -391,11 +391,11 @@ public class Application {
                 case FULL ->
                     new FullSyncOperation(scannerRegistry, titleRepo, videoRepo, actressRepo,
                             volumeRepo, titleLocationRepo, titleActressRepo, indexLoader,
-                            titleEffectiveTagsService, actressCompaniesService);
+                            titleEffectiveTagsService, actressCompaniesService, coverPath);
                 case PARTITION ->
                     new PartitionSyncOperation(def.partitions(), titleRepo, videoRepo,
                             actressRepo, volumeRepo, titleLocationRepo, titleActressRepo, indexLoader,
-                            titleEffectiveTagsService, actressCompaniesService);
+                            titleEffectiveTagsService, actressCompaniesService, coverPath);
             };
             SyncCommand syncCmd = new SyncCommand(term, structureTypesByTerm.get(term), op);
             commands.add(syncCmd);

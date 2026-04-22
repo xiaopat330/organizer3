@@ -757,6 +757,22 @@ public class JdbiTitleRepository implements TitleRepository {
     }
 
     @Override
+    public List<TitleRepository.OrphanedTitleRef> findOrphanedTitles() {
+        return jdbi.withHandle(h -> h.createQuery("""
+                        SELECT t.label AS label, t.base_code AS base_code
+                        FROM titles t
+                        WHERE t.label IS NOT NULL
+                          AND t.base_code IS NOT NULL
+                          AND NOT EXISTS (
+                              SELECT 1 FROM title_locations tl WHERE tl.title_id = t.id
+                          )
+                        """)
+                .map((rs, ctx) -> new TitleRepository.OrphanedTitleRef(
+                        rs.getString("label"), rs.getString("base_code")))
+                .list());
+    }
+
+    @Override
     public List<Title> findLastVisited(int limit) {
         List<Title> titles = jdbi.withHandle(h ->
                 h.createQuery("SELECT * FROM titles WHERE visit_count > 0 ORDER BY last_visited_at DESC LIMIT :limit")

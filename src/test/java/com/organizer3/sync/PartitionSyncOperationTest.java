@@ -16,8 +16,10 @@ import com.organizer3.repository.VolumeRepository;
 import com.organizer3.shell.SessionContext;
 import com.organizer3.shell.io.CommandIO;
 import com.organizer3.shell.io.PlainCommandIO;
+import com.organizer3.covers.CoverPath;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 import java.io.IOException;
 import java.io.PrintWriter;
@@ -47,6 +49,8 @@ class PartitionSyncOperationTest {
     private SessionContext ctx;
     private StringWriter output;
     private CommandIO io;
+    @TempDir Path tmpDataDir;
+    private CoverPath coverPath;
 
     private static final VolumeConfig VOLUME = new VolumeConfig("a", "//pandora/jav_A", "conventional", "pandora", null);
 
@@ -77,6 +81,7 @@ class PartitionSyncOperationTest {
             Title t = inv.getArgument(0);
             return t.toBuilder().id(1L).build();
         });
+        coverPath = new CoverPath(tmpDataDir);
     }
 
     @Test
@@ -85,7 +90,7 @@ class PartitionSyncOperationTest {
 
         PartitionSyncOperation op = new PartitionSyncOperation(
                 List.of("queue"), titleRepo, videoRepo, actressRepo, volumeRepo, titleLocationRepo, titleActressRepo, indexLoader,
-                mock(com.organizer3.db.TitleEffectiveTagsService.class), mock(com.organizer3.db.ActressCompaniesService.class));
+                mock(com.organizer3.db.TitleEffectiveTagsService.class), mock(com.organizer3.db.ActressCompaniesService.class), coverPath);
         op.execute(VOLUME, STRUCTURE, fs, ctx, io);
 
         verify(videoRepo).deleteByVolumeAndPartition("a", "queue");
@@ -106,7 +111,7 @@ class PartitionSyncOperationTest {
 
         PartitionSyncOperation op = new PartitionSyncOperation(
                 List.of("queue"), titleRepo, videoRepo, actressRepo, volumeRepo, titleLocationRepo, titleActressRepo, indexLoader,
-                mock(com.organizer3.db.TitleEffectiveTagsService.class), mock(com.organizer3.db.ActressCompaniesService.class));
+                mock(com.organizer3.db.TitleEffectiveTagsService.class), mock(com.organizer3.db.ActressCompaniesService.class), coverPath);
         op.execute(VOLUME, STRUCTURE, fs, ctx, io);
 
         verify(titleRepo).findOrCreateByCode(argThat(t -> "ABP-001".equals(t.getCode())));
@@ -119,7 +124,7 @@ class PartitionSyncOperationTest {
 
         PartitionSyncOperation op = new PartitionSyncOperation(
                 List.of("queue", "attention"), titleRepo, videoRepo, actressRepo, volumeRepo, titleLocationRepo, titleActressRepo, indexLoader,
-                mock(com.organizer3.db.TitleEffectiveTagsService.class), mock(com.organizer3.db.ActressCompaniesService.class));
+                mock(com.organizer3.db.TitleEffectiveTagsService.class), mock(com.organizer3.db.ActressCompaniesService.class), coverPath);
         op.execute(VOLUME, STRUCTURE, fs, ctx, io);
 
         verify(videoRepo).deleteByVolumeAndPartition("a", "queue");
@@ -132,10 +137,31 @@ class PartitionSyncOperationTest {
     void throwsOnUnknownPartitionId() {
         PartitionSyncOperation op = new PartitionSyncOperation(
                 List.of("nonexistent"), titleRepo, videoRepo, actressRepo, volumeRepo, titleLocationRepo, titleActressRepo, indexLoader,
-                mock(com.organizer3.db.TitleEffectiveTagsService.class), mock(com.organizer3.db.ActressCompaniesService.class));
+                mock(com.organizer3.db.TitleEffectiveTagsService.class), mock(com.organizer3.db.ActressCompaniesService.class), coverPath);
 
         assertThrows(IllegalArgumentException.class,
                 () -> op.execute(VOLUME, STRUCTURE, fs, ctx, io));
+    }
+
+    @Test
+    void prunesCoverFilesForOrphanedTitles() throws IOException {
+        // Simulate a title that got orphaned by this sync: titleRepo.findOrphanedTitles()
+        // reports it, and its cover file exists on disk. After the op, the file is gone.
+        java.nio.file.Path labelDir = coverPath.root().resolve("ABP");
+        java.nio.file.Files.createDirectories(labelDir);
+        java.nio.file.Path coverFile = labelDir.resolve("ABP-00001.jpg");
+        java.nio.file.Files.writeString(coverFile, "x");
+        when(titleRepo.findOrphanedTitles()).thenReturn(
+                List.of(new TitleRepository.OrphanedTitleRef("ABP", "ABP-00001")));
+        when(fs.exists(Path.of("/queue"))).thenReturn(false);
+
+        PartitionSyncOperation op = new PartitionSyncOperation(
+                List.of("queue"), titleRepo, videoRepo, actressRepo, volumeRepo, titleLocationRepo, titleActressRepo, indexLoader,
+                mock(com.organizer3.db.TitleEffectiveTagsService.class), mock(com.organizer3.db.ActressCompaniesService.class), coverPath);
+        op.execute(VOLUME, STRUCTURE, fs, ctx, io);
+
+        assertFalse(java.nio.file.Files.exists(coverFile), "orphaned title's cover should be deleted");
+        verify(titleRepo).deleteOrphaned();
     }
 
     @Test
@@ -144,7 +170,7 @@ class PartitionSyncOperationTest {
 
         PartitionSyncOperation op = new PartitionSyncOperation(
                 List.of("queue"), titleRepo, videoRepo, actressRepo, volumeRepo, titleLocationRepo, titleActressRepo, indexLoader,
-                mock(com.organizer3.db.TitleEffectiveTagsService.class), mock(com.organizer3.db.ActressCompaniesService.class));
+                mock(com.organizer3.db.TitleEffectiveTagsService.class), mock(com.organizer3.db.ActressCompaniesService.class), coverPath);
         op.execute(VOLUME, STRUCTURE, fs, ctx, io);
 
         verify(volumeRepo).updateLastSyncedAt(eq("a"), any(LocalDateTime.class));
