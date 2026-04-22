@@ -183,8 +183,8 @@ function renderDetail(a) {
       <div class="al-editor-actions">
         <button type="button" id="al-add-btn" class="al-add-btn">+ Add alias</button>
         <div class="al-editor-actions-right">
-          <button type="button" id="al-cancel-btn" class="al-cancel-btn">Cancel</button>
           <button type="button" id="al-save-btn" class="al-save-btn">Save</button>
+          <button type="button" id="al-cancel-btn" class="al-cancel-btn">Cancel</button>
         </div>
       </div>
       <div id="al-error" class="al-error" style="display:none"></div>
