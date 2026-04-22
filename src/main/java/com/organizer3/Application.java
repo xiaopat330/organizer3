@@ -461,13 +461,23 @@ public class Application {
                                 commandsByName, new com.organizer3.shell.SessionContext()));
         com.organizer3.utilities.task.volume.CleanStaleLocationsTask cleanStaleLocationsTask =
                 new com.organizer3.utilities.task.volume.CleanStaleLocationsTask(staleLocationsService);
+        // Actress data — catalog + load tasks.
+        com.organizer3.utilities.actress.ActressYamlCatalogService actressCatalogService =
+                new com.organizer3.utilities.actress.ActressYamlCatalogService(yamlLoader, actressRepo);
+        com.organizer3.utilities.task.actress.LoadActressTask loadActressTask =
+                new com.organizer3.utilities.task.actress.LoadActressTask(yamlLoader);
+        com.organizer3.utilities.task.actress.LoadAllActressesTask loadAllActressesTask =
+                new com.organizer3.utilities.task.actress.LoadAllActressesTask(yamlLoader);
+
         com.organizer3.utilities.task.TaskRegistry taskRegistry =
                 new com.organizer3.utilities.task.TaskRegistry(
-                        java.util.List.of(syncVolumeTask, cleanStaleLocationsTask));
+                        java.util.List.of(syncVolumeTask, cleanStaleLocationsTask,
+                                loadActressTask, loadAllActressesTask));
         com.organizer3.utilities.task.TaskRunner taskRunner =
                 new com.organizer3.utilities.task.TaskRunner(taskRegistry);
         webServer.registerUtilities(new com.organizer3.web.routes.UtilitiesRoutes(
-                volumeStateService, staleLocationsService, taskRegistry, taskRunner));
+                volumeStateService, staleLocationsService, actressCatalogService,
+                taskRegistry, taskRunner));
 
         webServer.registerBgThumbnails(new com.organizer3.web.routes.BgThumbnailsRoutes(
                 bgWorker, bgThumbnailsState));

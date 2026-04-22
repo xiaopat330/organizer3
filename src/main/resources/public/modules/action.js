@@ -7,10 +7,12 @@ import { showAliasEditor, hideAliasEditorView } from './alias-editor.js';
 import { showTitleEditor, hideTitleEditorView } from './title-editor.js';
 import { showLogsView, hideLogsView } from './log-viewer.js';
 import { showVolumesView, hideVolumesView } from './utilities-volumes.js';
+import { showActressDataView, hideActressDataView } from './utilities-actress-data.js';
 
 // ── DOM refs ──────────────────────────────────────────────────────────────
 const actionBtn         = document.getElementById('action-btn');
 const volumesBtn        = document.getElementById('tools-volumes-btn');
+const actressDataBtn    = document.getElementById('tools-actress-data-btn');
 const aliasesBtn        = document.getElementById('tools-aliases-btn');
 const duplicatesBtn     = document.getElementById('tools-duplicates-btn');
 const queueBtn          = document.getElementById('tools-queue-btn');
@@ -27,7 +29,7 @@ const dupDetailBody     = document.getElementById('dup-detail-body');
 const dupDetailClose    = document.getElementById('dup-detail-close');
 
 // ── Tool buttons ──────────────────────────────────────────────────────────
-const TOOL_BTNS = [volumesBtn, aliasesBtn, duplicatesBtn, queueBtn, logsBtn];
+const TOOL_BTNS = [volumesBtn, actressDataBtn, aliasesBtn, duplicatesBtn, queueBtn, logsBtn];
 
 function selectTool(btn) {
   TOOL_BTNS.forEach(b => b?.classList.remove('selected'));
@@ -39,6 +41,7 @@ function hideAllToolViews() {
   hideTitleEditorView();
   hideLogsView();
   hideVolumesView();
+  hideActressDataView();
   duplicatesView.style.display    = 'none';
   duplicatesFilters.style.display = 'none';
 }
@@ -296,6 +299,14 @@ volumesBtn.addEventListener('click', () => {
   updateBreadcrumb([{ label: 'Tools' }, { label: 'Volumes' }]);
   hideAllToolViews();
   showVolumesView();
+});
+
+actressDataBtn.addEventListener('click', () => {
+  showActionView('actress-data');
+  selectTool(actressDataBtn);
+  updateBreadcrumb([{ label: 'Tools' }, { label: 'Actress data' }]);
+  hideAllToolViews();
+  showActressDataView();
 });
 
 aliasesBtn.addEventListener('click', () => {

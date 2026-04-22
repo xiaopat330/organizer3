@@ -236,6 +236,10 @@
       <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v6c0 1.66 4 3 9 3s9-1.34 9-3V5"/><path d="M3 11v6c0 1.66 4 3 9 3s9-1.34 9-3v-6"/></svg>
       Volumes
     </button>
+    <button type="button" id="tools-actress-data-btn" class="action-tool-btn tools-actress-data-btn">
+      <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="7" r="3.2"/><path d="M2 21v-1.5a4 4 0 0 1 4-4h6a4 4 0 0 1 4 4V21"/><circle cx="17" cy="8" r="2.5"/><path d="M14.5 21v-1a3.5 3.5 0 0 1 3.5-3.5h1a3.5 3.5 0 0 1 3.5 3.5V21"/></svg>
+      Actress data
+    </button>
     <button type="button" id="tools-aliases-btn" class="action-tool-btn tools-aliases-btn">
       <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="7" r="3"/><path d="M2 21v-2a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v2"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/><path d="M21 21v-2a4 4 0 0 0-3-3.87"/></svg>
       Aliases
@@ -272,6 +276,28 @@
     <div id="volumes-detail" class="volumes-detail" style="display:none"></div>
     <div id="volumes-visualize" class="volumes-visualize" style="display:none"></div>
     <div id="volumes-run" class="volumes-run" style="display:none"></div>
+  </section>
+</div>
+
+<!-- Actress Data tool content -->
+<div id="tools-actress-data-view" class="tools-actress-data-view" style="display:none">
+  <aside class="ad-left" id="ad-left">
+    <div class="ad-left-header">
+      <span>Actresses</span>
+      <button type="button" class="ad-load-all" id="ad-load-all">Load all</button>
+    </div>
+    <ul id="ad-list" class="ad-list"></ul>
+  </aside>
+  <section class="ad-right" id="ad-right">
+    <div id="ad-empty" class="ad-empty">
+      <div class="ad-empty-icon">
+        <svg viewBox="0 0 24 24" width="56" height="56" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="7" r="3.2"/><path d="M2 21v-1.5a4 4 0 0 1 4-4h6a4 4 0 0 1 4 4V21"/><circle cx="17" cy="8" r="2.5"/><path d="M14.5 21v-1a3.5 3.5 0 0 1 3.5-3.5h1a3.5 3.5 0 0 1 3.5 3.5V21"/></svg>
+      </div>
+      <div class="ad-empty-title">Pick an actress on the left</div>
+      <div class="ad-empty-sub">Use Load all to process every YAML in one task.</div>
+    </div>
+    <div id="ad-detail" class="ad-detail" style="display:none"></div>
+    <div id="ad-run"    class="ad-run"    style="display:none"></div>
   </section>
 </div>
 

@@ -87,6 +87,28 @@ public class ActressYamlLoader {
         return results;
     }
 
+    /**
+     * List every actress slug discoverable on the classpath under {@code actresses/}. Returns an
+     * empty list (not an exception) if the directory is missing, so callers can treat a fresh
+     * repo without YAMLs as a normal state. Used by the Utilities catalog service for the UI list.
+     */
+    public List<String> listSlugs() throws IOException {
+        URL dirUrl = getClass().getClassLoader().getResource(RESOURCE_PREFIX);
+        if (dirUrl == null) return List.of();
+        return discoverSlugs(dirUrl);
+    }
+
+    /**
+     * Parse a YAML for inspection without applying it to the DB. Returns {@code null} if no
+     * matching resource exists. Distinct from {@link #loadOne} in that it never writes.
+     */
+    public ActressYaml peek(String slug) throws IOException {
+        String resourcePath = RESOURCE_PREFIX + slug + ".yaml";
+        InputStream stream = getClass().getClassLoader().getResourceAsStream(resourcePath);
+        if (stream == null) return null;
+        return parseYaml(stream);
+    }
+
     private List<String> discoverSlugs(URL dirUrl) throws IOException {
         String protocol = dirUrl.getProtocol();
         if ("file".equals(protocol)) {

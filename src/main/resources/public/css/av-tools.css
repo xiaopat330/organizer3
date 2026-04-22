@@ -82,6 +82,16 @@
 }
 .tools-volumes-btn.selected svg { stroke: #93c5fd; }
 
+.tools-actress-data-btn        { color: #d946ef; }
+.tools-actress-data-btn svg    { stroke: #d946ef; }
+.tools-actress-data-btn:hover,
+.tools-actress-data-btn.selected {
+  color: #e879f9;
+  background: #1e0a1e;
+  border-color: #a21caf;
+}
+.tools-actress-data-btn.selected svg { stroke: #e879f9; }
+
 .tools-aliases-btn        { color: #2dd4bf; }
 .tools-aliases-btn svg    { stroke: #2dd4bf; }
 .tools-aliases-btn:hover,
@@ -2140,3 +2150,291 @@
 .bg-thumbnails-chip.on  .bg-chip-state { color: #4ade80; }
 .bg-thumbnails-chip.off .bg-chip-state { color: #64748b; }
 .bg-thumbnails-chip .bg-chip-meta { color: #64748b; }
+
+/* ── Actress data tool view ─────────────────────────────────────────── */
+.tools-actress-data-view {
+  display: flex;
+  gap: 0;
+  height: calc(100vh - 160px);
+  border: 1px solid #1e293b;
+  border-radius: 6px;
+  overflow: hidden;
+  background: #0b1220;
+}
+
+.ad-left {
+  width: 320px;
+  flex-shrink: 0;
+  border-right: 1px solid #1e293b;
+  overflow-y: auto;
+  background: #0a1220;
+  display: flex;
+  flex-direction: column;
+}
+.ad-left-header {
+  padding: 10px 14px;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #64748b;
+  border-bottom: 1px solid #1e293b;
+  background: #060b17;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.ad-load-all {
+  font-family: inherit;
+  font-size: 11px;
+  padding: 4px 10px;
+  background: #3b0764;
+  color: #e9d5ff;
+  border: 1px solid #6b21a8;
+  border-radius: 3px;
+  cursor: pointer;
+  letter-spacing: 0.04em;
+  transition: background 0.12s ease;
+}
+.ad-load-all:hover:not(:disabled) { background: #4c1d95; }
+.ad-load-all:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.ad-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  flex: 1;
+}
+.ad-list li {
+  padding: 10px 14px;
+  border-bottom: 1px solid #111827;
+  cursor: pointer;
+  transition: background 0.1s ease, border-left-color 0.1s ease;
+  border-left: 3px solid transparent;
+}
+.ad-list li:hover { background: #1a0a1a; }
+.ad-list li.selected {
+  background: #1a0a24;
+  border-left-color: #d946ef;
+}
+.ad-row-title {
+  font-size: 14px;
+  color: #e2e8f0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.ad-row-name { font-weight: 500; }
+.ad-row-check { color: #22c55e; font-weight: 600; cursor: default; }
+.ad-row-slug {
+  color: #64748b;
+  font-size: 11px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  margin-top: 2px;
+}
+.ad-row-meta {
+  color: #94a3b8;
+  font-size: 11px;
+  margin-top: 4px;
+}
+
+.ad-right {
+  flex: 1;
+  overflow-y: auto;
+  padding: 24px 32px;
+}
+
+.ad-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: #475569;
+  text-align: center;
+}
+.ad-empty-icon { color: #1e293b; margin-bottom: 16px; }
+.ad-empty-title { font-size: 16px; color: #94a3b8; margin-bottom: 4px; }
+.ad-empty-sub   { font-size: 13px; color: #64748b; }
+
+.ad-detail { display: flex; flex-direction: column; gap: 20px; }
+
+.ad-detail-head { display: flex; flex-direction: column; gap: 4px; }
+.ad-detail-name { font-size: 22px; color: #f1f5f9; font-weight: 600; }
+.ad-detail-slug {
+  font-size: 12px;
+  color: #64748b;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+.ad-detail-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  padding: 4px 10px;
+  border-radius: 3px;
+  width: fit-content;
+}
+.ad-detail-status.loaded  { background: #062818; color: #4ade80; }
+.ad-detail-status.unloaded{ background: #1e293b; color: #94a3b8; }
+
+.ad-detail-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 14px;
+}
+.ad-stat-label {
+  color: #64748b;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  display: block;
+  margin-bottom: 2px;
+}
+.ad-stat-value { color: #e2e8f0; font-size: 14px; }
+
+.ad-detail-studios { display: flex; flex-direction: column; gap: 6px; }
+.ad-chip-row { display: flex; flex-wrap: wrap; gap: 6px; }
+.ad-chip {
+  font-size: 11px;
+  color: #cbd5e1;
+  background: #1e293b;
+  border: 1px solid #334155;
+  padding: 3px 9px;
+  border-radius: 3px;
+}
+
+.ad-section {
+  border-top: 1px solid #1e293b;
+  padding-top: 18px;
+}
+.ad-section-heading {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #64748b;
+  margin-bottom: 12px;
+}
+
+.ad-op-primary {
+  background: #6b21a8;
+  color: #f5f3ff;
+  border: 1px solid #a21caf;
+  padding: 10px 24px;
+  border-radius: 4px;
+  font-size: 14px;
+  cursor: pointer;
+  font-family: inherit;
+  font-weight: 500;
+  transition: background 0.1s ease;
+}
+.ad-op-primary:hover:not(:disabled) { background: #7e22ce; }
+.ad-op-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+.ad-op-blocked {
+  margin-top: 10px;
+  font-size: 12px;
+  color: #94a3b8;
+  font-style: italic;
+}
+
+/* Run pane ─ mirrors the Volumes run pane styling with ad-* prefix. */
+.ad-run { display: flex; flex-direction: column; gap: 16px; }
+.ad-run-head {
+  font-size: 16px;
+  color: #f1f5f9;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.ad-run-status {
+  font-size: 12px;
+  padding: 2px 8px;
+  border-radius: 3px;
+}
+.ad-run-status.running { background: #3b0764; color: #e9d5ff; }
+.ad-run-status.ok      { background: #14532d; color: #86efac; }
+.ad-run-status.failed  { background: #7f1d1d; color: #fca5a5; }
+.ad-run-status.partial { background: #78350f; color: #fcd34d; }
+
+.ad-run-phases { display: flex; flex-direction: column; gap: 8px; }
+.ad-run-phase {
+  display: grid;
+  grid-template-columns: 24px 1fr auto;
+  gap: 12px;
+  padding: 10px 12px;
+  border: 1px solid #1e293b;
+  border-radius: 4px;
+  background: #0a1220;
+  align-items: center;
+}
+.ad-run-phase-icon { width: 20px; height: 20px; display: flex; align-items: center; justify-content: center; color: #64748b; font-size: 14px; }
+.ad-run-phase.running .ad-run-phase-icon { color: #d946ef; }
+.ad-run-phase.ok      .ad-run-phase-icon { color: #22c55e; }
+.ad-run-phase.failed  .ad-run-phase-icon { color: #ef4444; }
+
+.ad-run-spinner {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border: 2px solid #3b0764;
+  border-top-color: #d946ef;
+  border-radius: 50%;
+  animation: vol-spin 0.8s linear infinite;
+}
+
+.ad-run-phase-label { font-size: 13px; color: #e2e8f0; }
+.ad-run-phase-detail {
+  font-size: 12px;
+  color: #94a3b8;
+  margin-top: 2px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ad-run-phase-duration { font-size: 12px; color: #64748b; font-variant-numeric: tabular-nums; }
+
+.ad-phase-bar {
+  margin-top: 6px;
+  height: 4px;
+  background: #0f172a;
+  border-radius: 2px;
+  overflow: hidden;
+  position: relative;
+}
+.ad-phase-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #6b21a8, #d946ef);
+  transition: width 0.25s ease;
+}
+.ad-phase-bar-indet {
+  position: absolute;
+  top: 0; bottom: 0;
+  width: 35%;
+  background: linear-gradient(90deg, transparent, #d946ef, transparent);
+  animation: vol-indet 1.2s ease-in-out infinite;
+}
+
+.ad-run-summary {
+  padding: 12px 14px;
+  border: 1px solid #1e293b;
+  border-radius: 4px;
+  background: #0a1220;
+  font-size: 13px;
+  color: #cbd5e1;
+}
+
+.ad-run-actions { display: flex; gap: 10px; justify-content: flex-end; }
+.ad-run-actions button {
+  background: #1e293b;
+  color: #e2e8f0;
+  border: 1px solid #334155;
+  padding: 8px 18px;
+  border-radius: 4px;
+  font-size: 13px;
+  cursor: pointer;
+  font-family: inherit;
+}
+.ad-run-actions button:hover { background: #334155; }
