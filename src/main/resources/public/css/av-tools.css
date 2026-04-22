@@ -2153,13 +2153,48 @@
 
 /* ── Actress data tool view ─────────────────────────────────────────── */
 .tools-actress-data-view {
-  display: flex;
-  gap: 0;
+  display: block; /* outer stacks: sub-nav + active subview */
   height: calc(100vh - 160px);
+  background: transparent;
+}
+.ad-subnav {
+  display: flex;
+  gap: 4px;
+  padding: 6px 8px;
+  margin-bottom: 6px;
+  border-bottom: 1px solid #1e293b;
+}
+.ad-subtab {
+  background: transparent;
+  color: #64748b;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  padding: 6px 14px;
+  font-size: 12px;
+  font-family: inherit;
+  font-weight: 500;
+  letter-spacing: 0.03em;
+  cursor: pointer;
+  transition: background 0.12s ease, color 0.12s ease, border-color 0.12s ease;
+}
+.ad-subtab:hover { color: #cbd5e1; background: #0f172a; }
+.ad-subtab.selected {
+  color: #e879f9;
+  background: #1e0a1e;
+  border-color: #a21caf;
+}
+
+.ad-subview#ad-subview-yamls {
+  display: flex;
+  height: calc(100% - 44px);
   border: 1px solid #1e293b;
   border-radius: 6px;
   overflow: hidden;
   background: #0b1220;
+}
+.ad-subview#ad-subview-aliases {
+  height: calc(100% - 44px);
+  padding: 8px 0;
 }
 
 .ad-left {

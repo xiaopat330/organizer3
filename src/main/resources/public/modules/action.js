@@ -3,7 +3,7 @@ import { pushNav } from './nav.js';
 import { makeCompactTitleCard } from './cards.js';
 import { esc } from './utils.js';
 import { renderVideoSection } from './title-detail.js';
-import { showAliasEditor, hideAliasEditorView } from './alias-editor.js';
+import { hideAliasEditorView } from './alias-editor.js';
 import { showTitleEditor, hideTitleEditorView } from './title-editor.js';
 import { showLogsView, hideLogsView } from './log-viewer.js';
 import { showVolumesView, hideVolumesView } from './utilities-volumes.js';
@@ -13,7 +13,6 @@ import { showActressDataView, hideActressDataView } from './utilities-actress-da
 const actionBtn         = document.getElementById('action-btn');
 const volumesBtn        = document.getElementById('tools-volumes-btn');
 const actressDataBtn    = document.getElementById('tools-actress-data-btn');
-const aliasesBtn        = document.getElementById('tools-aliases-btn');
 const duplicatesBtn     = document.getElementById('tools-duplicates-btn');
 const queueBtn          = document.getElementById('tools-queue-btn');
 const logsBtn           = document.getElementById('tools-logs-btn');
@@ -29,7 +28,7 @@ const dupDetailBody     = document.getElementById('dup-detail-body');
 const dupDetailClose    = document.getElementById('dup-detail-close');
 
 // ── Tool buttons ──────────────────────────────────────────────────────────
-const TOOL_BTNS = [volumesBtn, actressDataBtn, aliasesBtn, duplicatesBtn, queueBtn, logsBtn];
+const TOOL_BTNS = [volumesBtn, actressDataBtn, duplicatesBtn, queueBtn, logsBtn];
 
 function selectTool(btn) {
   TOOL_BTNS.forEach(b => b?.classList.remove('selected'));
@@ -307,14 +306,6 @@ actressDataBtn.addEventListener('click', () => {
   updateBreadcrumb([{ label: 'Tools' }, { label: 'Actress data' }]);
   hideAllToolViews();
   showActressDataView();
-});
-
-aliasesBtn.addEventListener('click', () => {
-  showActionView('aliases');
-  selectTool(aliasesBtn);
-  updateBreadcrumb([{ label: 'Tools' }, { label: 'Aliases' }]);
-  hideAllToolViews();
-  showAliasEditor();
 });
 
 duplicatesBtn.addEventListener('click', showDuplicates);

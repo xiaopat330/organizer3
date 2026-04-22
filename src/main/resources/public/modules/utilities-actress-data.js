@@ -6,8 +6,10 @@
 
 import { esc } from './utils.js';
 import * as taskCenter from './task-center.js';
+import { showAliasEditor, hideAliasEditorView } from './alias-editor.js';
 
 const SELECTION_KEY = 'utilities.actress-data.selection';
+const SUBTAB_KEY    = 'utilities.actress-data.subtab';  // 'yamls' | 'aliases'
 
 const listEl      = () => document.getElementById('ad-list');
 const emptyEl     = () => document.getElementById('ad-empty');
@@ -29,11 +31,44 @@ let selectedSlug = null;
 let activeRun = null;
 
 export async function showActressDataView() {
-  viewEl().style.display = 'flex';
+  viewEl().style.display = 'block';
+  const subtab = localStorage.getItem(SUBTAB_KEY) || 'yamls';
+  selectSubtab(subtab);
+}
+
+export function hideActressDataView() {
+  // Keep EventSource + activeRun alive so the task pill stays accurate while
+  // the user is elsewhere in the app. Also dismiss the Aliases subview so its
+  // search / modal don't leak into other screens.
+  viewEl().style.display = 'none';
+  hideAliasEditorView();
+}
+
+/** Switch between the two sub-tabs ('yamls' and 'aliases'). */
+function selectSubtab(which) {
+  localStorage.setItem(SUBTAB_KEY, which);
+  const yamlsView   = document.getElementById('ad-subview-yamls');
+  const aliasesView = document.getElementById('ad-subview-aliases');
+  document.querySelectorAll('#ad-subnav .ad-subtab').forEach(btn =>
+      btn.classList.toggle('selected', btn.dataset.subtab === which));
+
+  if (which === 'aliases') {
+    yamlsView.style.display = 'none';
+    aliasesView.style.display = 'block';
+    showAliasEditor();
+  } else {
+    hideAliasEditorView();
+    aliasesView.style.display = 'none';
+    yamlsView.style.display = 'flex';
+    renderYamlsSubview();
+  }
+}
+
+/** Populate the YAMLs subview — list + appropriate right pane. */
+async function renderYamlsSubview() {
   selectedSlug = localStorage.getItem(SELECTION_KEY);
   await refreshEntries();
 
-  // Resume the run pane if an actress-data task is still running.
   if (activeRun && activeRun.taskStatus === 'running') {
     hideAllRightPanes();
     runEl().style.display = '';
@@ -48,11 +83,9 @@ export async function showActressDataView() {
   }
 }
 
-export function hideActressDataView() {
-  // Keep EventSource + activeRun alive so the task pill stays accurate while
-  // the user is elsewhere in the app.
-  viewEl().style.display = 'none';
-}
+// Sub-tab click wiring runs once at module load (buttons exist in the DOM).
+document.querySelectorAll('#ad-subnav .ad-subtab').forEach(btn =>
+    btn.addEventListener('click', () => selectSubtab(btn.dataset.subtab)));
 
 async function refreshEntries() {
   try {
