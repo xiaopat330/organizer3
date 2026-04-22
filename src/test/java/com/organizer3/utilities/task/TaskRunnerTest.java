@@ -168,6 +168,77 @@ class TaskRunnerTest {
         }
     }
 
+    @Test
+    void cooperativeCancelMarksTaskCancelled() throws Exception {
+        CountDownLatch started = new CountDownLatch(1);
+        Task task = new Task() {
+            @Override public TaskSpec spec() { return SPEC; }
+            @Override public void run(TaskInputs inputs, TaskIO io) throws InterruptedException {
+                io.phaseStart("p", "P");
+                started.countDown();
+                long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(2);
+                while (!io.isCancellationRequested()) {
+                    if (System.nanoTime() > deadline) fail("cancel flag never flipped");
+                    Thread.sleep(5);
+                }
+                io.phaseEnd("p", "ok", "cancelled at user request");
+            }
+        };
+        TaskRunner runner = new TaskRunner(new TaskRegistry(List.of(task)));
+        try {
+            TaskRun run = runner.start("test.noop", new TaskInputs(Map.of()));
+            assertTrue(started.await(2, TimeUnit.SECONDS));
+            assertEquals(TaskRunner.CancelOutcome.REQUESTED, runner.cancel(run.runId()));
+            assertEquals(TaskRunner.CancelOutcome.ALREADY_REQUESTED, runner.cancel(run.runId()));
+            awaitCompletion(run);
+            assertEquals(TaskRun.Status.CANCELLED, run.status());
+            assertTrue(run.isCancellationRequested());
+        } finally {
+            runner.shutdown();
+        }
+    }
+
+    @Test
+    void cancelOnFailedTaskPreservesFailedStatus() throws Exception {
+        CountDownLatch observed = new CountDownLatch(1);
+        Task task = new Task() {
+            @Override public TaskSpec spec() { return SPEC; }
+            @Override public void run(TaskInputs inputs, TaskIO io) throws InterruptedException {
+                io.phaseStart("p", "P");
+                observed.await();
+                io.phaseEnd("p", "failed", "boom");
+            }
+        };
+        TaskRunner runner = new TaskRunner(new TaskRegistry(List.of(task)));
+        try {
+            TaskRun run = runner.start("test.noop", new TaskInputs(Map.of()));
+            runner.cancel(run.runId());
+            observed.countDown();
+            awaitCompletion(run);
+            // Cancel-plus-failure reports as FAILED so the real problem surfaces in the UI.
+            assertEquals(TaskRun.Status.FAILED, run.status());
+        } finally {
+            runner.shutdown();
+        }
+    }
+
+    @Test
+    void cancelUnknownAndEndedRunsAreIdempotent() throws Exception {
+        Task task = new Task() {
+            @Override public TaskSpec spec() { return SPEC; }
+            @Override public void run(TaskInputs inputs, TaskIO io) {}
+        };
+        TaskRunner runner = new TaskRunner(new TaskRegistry(List.of(task)));
+        try {
+            assertEquals(TaskRunner.CancelOutcome.NOT_FOUND, runner.cancel("does-not-exist"));
+            TaskRun run = runner.start("test.noop", new TaskInputs(Map.of()));
+            awaitCompletion(run);
+            assertEquals(TaskRunner.CancelOutcome.ALREADY_ENDED, runner.cancel(run.runId()));
+        } finally {
+            runner.shutdown();
+        }
+    }
+
     private static void awaitCompletion(TaskRun run) throws InterruptedException {
         long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(5);
         while (run.status() == TaskRun.Status.RUNNING) {

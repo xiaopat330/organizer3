@@ -53,7 +53,13 @@ public final class LoadAllActressesTask implements Task {
         int titlesCreated = 0;
         int titlesEnriched = 0;
 
+        boolean cancelled = false;
         for (String slug : slugs) {
+            if (io.isCancellationRequested()) {
+                cancelled = true;
+                io.phaseLog("load_all", "Cancellation requested — stopping after " + done + " of " + total + ".");
+                break;
+            }
             io.phaseProgress("load_all", done, total, "processing " + slug);
             try {
                 ActressYamlLoader.LoadResult r = loader.loadOne(slug);
@@ -70,9 +76,10 @@ public final class LoadAllActressesTask implements Task {
 
         String summary = succeeded + " of " + total + " loaded · "
                 + titlesCreated + " titles created, " + titlesEnriched + " enriched"
-                + (failed > 0 ? " · " + failed + " failed" : "");
+                + (failed > 0 ? " · " + failed + " failed" : "")
+                + (cancelled ? " · cancelled" : "");
         String status = (total == 0) ? "ok"
-                : (succeeded == 0) ? "failed"
+                : (succeeded == 0 && !cancelled) ? "failed"
                 : "ok"; // partial is reflected in the summary text; phase-level ok covers "some work done"
         io.phaseEnd("load_all", status, summary);
     }

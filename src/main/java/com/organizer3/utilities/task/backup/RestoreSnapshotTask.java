@@ -56,6 +56,10 @@ public final class RestoreSnapshotTask implements Task {
         }
         try {
             UserDataBackup backup = service.read(resolved.get());
+            if (io.isCancellationRequested()) {
+                io.phaseEnd("restore", "ok", "Cancelled before writing any rows");
+                return;
+            }
             RestoreResult r = service.restore(backup);
             io.phaseEnd("restore", "ok", summaryFor(r));
         } catch (Exception e) {

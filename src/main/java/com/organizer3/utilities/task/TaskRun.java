@@ -5,6 +5,7 @@ import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CopyOnWriteArraySet;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 
 /**
@@ -17,7 +18,7 @@ import java.util.function.Consumer;
  */
 public final class TaskRun {
 
-    public enum Status { RUNNING, OK, FAILED, PARTIAL }
+    public enum Status { RUNNING, OK, FAILED, PARTIAL, CANCELLED }
 
     private final String runId = UUID.randomUUID().toString();
     private final String taskId;
@@ -25,6 +26,8 @@ public final class TaskRun {
     private volatile Instant endedAt;
     private volatile Status status = Status.RUNNING;
     private volatile String summary = "";
+
+    private final AtomicBoolean cancelRequested = new AtomicBoolean(false);
 
     private final CopyOnWriteArrayList<TaskEvent> events = new CopyOnWriteArrayList<>();
     private final CopyOnWriteArraySet<Consumer<TaskEvent>> subscribers = new CopyOnWriteArraySet<>();
@@ -47,6 +50,12 @@ public final class TaskRun {
     public Instant endedAt() { return endedAt; }
     public Status status() { return status; }
     public String summary() { return summary; }
+
+    /** True once {@link #requestCancellation} has been called; tasks poll this between phases. */
+    public boolean isCancellationRequested() { return cancelRequested.get(); }
+
+    /** Marks the run as cancel-requested. Returns true if this call flipped the flag. */
+    public boolean requestCancellation() { return cancelRequested.compareAndSet(false, true); }
 
     public List<TaskEvent> eventSnapshot() {
         return List.copyOf(events);
