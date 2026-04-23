@@ -1,0 +1,40 @@
+profile:
+  name:
+    family_name: "Mori"
+    given_name: "Hinako"
+    stage_name: "森日向子"
+    reading: "もり ひなこ"
+    alternate_names:
+    - name: "朝比奈えみり"
+      note: "alternate name used in some productions"
+  date_of_birth: 2000-09-09
+  birthplace: "Mie Prefecture, Japan"
+  blood_type: null
+  height_cm: 166
+  measurements:
+    bust: 75
+    waist: 57
+    hip: 84
+  cup: "A"
+  active_from: '2020-06-01'
+  active_to: null
+  biography: "Hinako Mori (森日向子) was born September 9, 2000 in Mie Prefecture and grew up as a fan of actress Yuna Ogura, whose influence inspired her interest in the AV industry. She made her AV debut in June 2020 as an exclusive actress under SOD Create's KMHR (キミホレ) label, affiliated with the agency NAX Promotion; after three exclusive titles she transitioned to working as a kikaku-tansoku actress. Also in June 2020 she entered the Kodansha Miss iD 2021 competition, advancing to the semi-finals. She is also active under the alternate name 朝比奈えみり."
+  primary_studios:
+  - name: "SOD Create (KMHR label)"
+    company: "Soft on Demand"
+    from: '2020-06-01'
+    to: null
+    role: "Exclusive contract actress (initial 3 titles), then kikaku-tansoku"
+  awards: []
+
+meta:
+  total_owned_titles: null
+  titles_with_japanese_title: null
+  titles_with_english_title: null
+  titles_with_release_date: null
+  total_known_releases: null
+  coverage_note: "Profile only; portfolio not yet researched"
+  confidence: "Profile data sourced from Japanese Wikipedia (森日向子). Blood type not listed in Wikipedia. Measurements confirmed from Wikipedia-sourced snippet. Debut month June 2020 confirmed; exact day unknown, first of month used as placeholder."
+  data_sources:
+  - "https://ja.wikipedia.org/wiki/森日向子"
+  portfolio_listed: 0
