@@ -1881,6 +1881,55 @@
   font-style: italic;
 }
 
+/* ── Volume detail tab bar ─────────────────────────────────────────── */
+.vol-tab-bar {
+  display: flex;
+  gap: 0;
+  border-bottom: 1px solid #1e293b;
+  margin-top: -8px;
+  position: sticky;
+  top: 0;
+  background: #0b1220;
+  z-index: 1;
+}
+.vol-tab {
+  background: transparent;
+  color: #64748b;
+  border: none;
+  border-bottom: 2px solid transparent;
+  border-radius: 0;
+  padding: 9px 18px;
+  font-size: 12px;
+  font-family: inherit;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  transition: color 0.12s ease, border-color 0.12s ease;
+  margin-bottom: -1px;
+}
+.vol-tab:hover { color: #cbd5e1; }
+.vol-tab.selected {
+  color: #60a5fa;
+  border-bottom-color: #60a5fa;
+}
+.vol-tab-badge {
+  display: inline-block;
+  background: #1e3a5f;
+  color: #93c5fd;
+  border-radius: 10px;
+  font-size: 10px;
+  font-weight: 600;
+  padding: 1px 6px;
+  margin-left: 4px;
+  line-height: 1.6;
+}
+.vol-tab-panels {
+  min-height: 0;
+}
+.vol-tab-panel {
+  padding-top: 20px;
+}
+
 /* ── Floating task pill (persists across navigation) ───────────────── */
 .task-pill {
   position: fixed;

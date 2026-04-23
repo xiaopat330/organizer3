@@ -100,10 +100,12 @@ function hideAllRightPanes() {
   runEl().style.display = 'none';
 }
 
-let volumes = [];        // last-known list from /api/utilities/volumes
-let selectedId = null;   // currently selected volume id
-let activeRun = null;    // { runId, eventSource, phases: Map<id,state>, logBuffer }
-let organizeFlow = null; // { volumeId, action, state, planResult, execResult, progress, error, eventSource }
+let volumes = [];              // last-known list from /api/utilities/volumes
+let selectedId = null;         // currently selected volume id
+let activeRun = null;          // { runId, eventSource, phases: Map<id,state>, logBuffer }
+let organizeFlow = null;       // { volumeId, action, state, planResult, execResult, progress, error, eventSource }
+let activeTab = 'health';      // current tab within the detail pane
+let lastDetailVolumeId = null; // tracks which volume showDetail last rendered
 
 export async function showVolumesView() {
   viewEl().style.display = 'flex';
@@ -251,10 +253,12 @@ function openVolume(volumeId) {
 }
 
 function showDetail(volumeId) {
-  // If switching to a different volume, close any in-progress organize flow.
-  if (organizeFlow && organizeFlow.volumeId !== volumeId) {
-    if (organizeFlow.eventSource) organizeFlow.eventSource.close();
+  // Detect volume switch — reset tab and any in-progress organize flow.
+  if (lastDetailVolumeId !== volumeId) {
+    if (organizeFlow?.eventSource) organizeFlow.eventSource.close();
     organizeFlow = null;
+    activeTab = 'health';
+    lastDetailVolumeId = volumeId;
   }
 
   const v = volumes.find(x => x.id === volumeId);
@@ -265,9 +269,8 @@ function showDetail(volumeId) {
   d.style.display = '';
 
   const color = hueFor(v.id);
-  const orgSectionHTML = v.queueCount > 0
-    ? `<div class="vol-section" id="org-section"></div>`
-    : '';
+  const orgBadge = v.queueCount > 0
+    ? ` <span class="vol-tab-badge">${v.queueCount}</span>` : '';
 
   d.innerHTML = `
     <div class="vol-detail-head">
@@ -282,32 +285,57 @@ function showDetail(volumeId) {
       <div><span class="vol-stat-label">Structure</span><span class="vol-stat-value">${esc(v.structureType || '—')}</span></div>
       <div><span class="vol-stat-label">Last synced</span><span class="vol-stat-value">${esc(formatLastSynced(v.lastSyncedAt))}</span></div>
     </div>
-    <div class="vol-section">
-      <div class="vol-section-heading">Health</div>
-      ${renderHealth(v)}
+    <nav class="vol-tab-bar">
+      <button type="button" class="vol-tab${activeTab === 'health'   ? ' selected' : ''}" data-tab="health">Health</button>
+      <button type="button" class="vol-tab${activeTab === 'sync'     ? ' selected' : ''}" data-tab="sync">Sync</button>
+      <button type="button" class="vol-tab${activeTab === 'organize' ? ' selected' : ''}" data-tab="organize">Organize${orgBadge}</button>
+    </nav>
+    <div class="vol-tab-panels">
+      <div class="vol-tab-panel" data-panel="health"${activeTab !== 'health'   ? ' style="display:none"' : ''}>
+        ${renderHealth(v)}
+      </div>
+      <div class="vol-tab-panel" data-panel="sync"${activeTab !== 'sync'     ? ' style="display:none"' : ''}>
+        ${renderSyncTab(v)}
+      </div>
+      <div class="vol-tab-panel" data-panel="organize"${activeTab !== 'organize' ? ' style="display:none"' : ''}>
+        <div id="org-section"></div>
+      </div>
     </div>
-    <div class="vol-section">
-      <div class="vol-section-heading">Operations</div>
-      <button type="button" class="vol-op-primary" id="vol-op-sync"${taskCenter.isRunning() ? ' disabled' : ''}>Sync</button>
-      ${taskCenter.isRunning() ? '<div class="vol-op-blocked">Another utility task is running. Wait for it to finish.</div>' : ''}
-    </div>
-    ${orgSectionHTML}
   `;
-  document.getElementById('vol-op-sync').addEventListener('click', () => startSync(v.id));
 
-  // Wire up any health-row action buttons. Each button's data-cat drives behavior.
-  d.querySelectorAll('.vol-health-action').forEach(btn => {
-    btn.addEventListener('click', async () => {
-      const cat = btn.getAttribute('data-cat');
-      if (cat === 'stale_locations') {
-        await showStaleLocationsVisualize(v.id);
-      }
+  // Wire tab switching.
+  d.querySelectorAll('.vol-tab').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const tab = btn.getAttribute('data-tab');
+      activeTab = tab;
+      d.querySelectorAll('.vol-tab').forEach(b => b.classList.toggle('selected', b === btn));
+      d.querySelectorAll('.vol-tab-panel').forEach(p => {
+        p.style.display = p.getAttribute('data-panel') === tab ? '' : 'none';
+      });
     });
   });
 
-  if (v.queueCount > 0) {
-    updateOrgSection(v.id);
-  }
+  // Wire health action buttons.
+  d.querySelectorAll('.vol-health-action').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const cat = btn.getAttribute('data-cat');
+      if (cat === 'stale_locations') await showStaleLocationsVisualize(v.id);
+    });
+  });
+
+  // Wire sync button.
+  document.getElementById('vol-op-sync')?.addEventListener('click', () => startSync(v.id));
+
+  // Populate organize tab panel (always in DOM, even when not visible).
+  updateOrgSection(v.id);
+}
+
+function renderSyncTab(v) {
+  const isBlocked = taskCenter.isRunning();
+  return `
+    <button type="button" class="vol-op-primary" id="vol-op-sync"${isBlocked ? ' disabled' : ''}>Sync</button>
+    ${isBlocked ? '<div class="vol-op-blocked">Another utility task is running. Wait for it to finish.</div>' : ''}
+  `;
 }
 
 function renderHealth(v) {
@@ -701,33 +729,36 @@ function updateOrgSection(volumeId) {
 }
 
 function renderOrgSectionHTML(v) {
-  const heading = `<div class="vol-section-heading">Organize queue</div>`;
   const isBlocked = taskCenter.isRunning();
 
   if (!organizeFlow) {
+    if (v.queueCount === 0) {
+      return `<div class="vol-health-healthy">
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+        No titles in queue
+      </div>`;
+    }
     const disabledAttr = isBlocked ? ' disabled' : '';
     const btns = ORGANIZE_ACTIONS.map(a =>
       `<button type="button" class="org-action-btn${a.id === 'all' ? ' org-action-all' : ''}" data-action="${esc(a.id)}"${disabledAttr}>${esc(a.label)}</button>`
     ).join('');
     const queueLine = `<div class="org-queue-count">${v.queueCount} title${v.queueCount === 1 ? '' : 's'} in queue</div>`;
     const blockedNote = isBlocked ? '<div class="vol-op-blocked">Another utility task is running. Wait for it to finish.</div>' : '';
-    return `${heading}${queueLine}<div class="org-actions">${btns}</div>${blockedNote}`;
+    return `${queueLine}<div class="org-actions">${btns}</div>${blockedNote}`;
   }
 
   const { action, state, planResult, execResult, progress, error } = organizeFlow;
   const actionLabel = esc(action.label);
 
   if (state === 'planning') {
-    return `${heading}
-      <div class="org-flow-head">${actionLabel} — Planning…</div>
+    return `<div class="org-flow-head">${actionLabel} — Planning…</div>
       <div class="org-spinner"></div>`;
   }
 
   if (state === 'plan-ready') {
     const titleCount = planResult?.titlesInSlice ?? 0;
     const planRows = planResult?.titles ? planResult.titles.map(renderPlanRow).join('') : '';
-    return `${heading}
-      <div class="org-flow-head">${actionLabel} — Plan — ${titleCount} title${titleCount === 1 ? '' : 's'}</div>
+    return `<div class="org-flow-head">${actionLabel} — Plan — ${titleCount} title${titleCount === 1 ? '' : 's'}</div>
       <div class="org-plan-list">${planRows}</div>
       <div class="org-flow-actions">
         <button type="button" class="org-execute-btn">Execute</button>
@@ -743,8 +774,7 @@ function renderOrgSectionHTML(v) {
       ? `<div class="vol-phase-bar"><div class="vol-phase-bar-fill" style="width:${pct}%"></div></div>`
       : `<div class="vol-phase-bar"><div class="vol-phase-bar-indet"></div></div>`;
     const progressText = tot > 0 ? `${cur} / ${tot}` : 'Working…';
-    return `${heading}
-      <div class="org-flow-head">${actionLabel} — Running…</div>
+    return `<div class="org-flow-head">${actionLabel} — Running…</div>
       <div class="org-progress">${esc(progressText)}</div>
       ${bar}`;
   }
@@ -754,8 +784,7 @@ function renderOrgSectionHTML(v) {
     const summaryHTML = result?.summary ? renderOrgSummaryHTML(result.summary) : '';
     const errorHTML = error ? `<div class="org-error">${esc(error)}</div>` : '';
     const statusLabel = error ? 'Failed' : 'Done';
-    return `${heading}
-      <div class="org-flow-head">${actionLabel} — ${statusLabel}</div>
+    return `<div class="org-flow-head">${actionLabel} — ${statusLabel}</div>
       ${errorHTML}
       ${summaryHTML}
       <div class="org-flow-actions">
@@ -764,7 +793,7 @@ function renderOrgSectionHTML(v) {
       </div>`;
   }
 
-  return heading;
+  return '';
 }
 
 function wireOrgSection(volumeId) {
