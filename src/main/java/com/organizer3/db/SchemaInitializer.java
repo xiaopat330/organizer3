@@ -339,12 +339,24 @@ public class SchemaInitializer {
             // so the inner UPDATE of favorite_cleared_at does not recurse.
             createFavoriteClearedAtTriggers(h);
 
+            // duplicate_decisions (v22): triage decisions for duplicate title locations.
+            h.execute("""
+                    CREATE TABLE IF NOT EXISTS duplicate_decisions (
+                        title_code   TEXT NOT NULL,
+                        volume_id    TEXT NOT NULL,
+                        nas_path     TEXT NOT NULL,
+                        decision     TEXT NOT NULL CHECK(decision IN ('KEEP','TRASH','VARIANT')),
+                        created_at   TEXT NOT NULL,
+                        executed_at  TEXT,
+                        PRIMARY KEY (title_code, volume_id, nas_path)
+                    )""");
+
             // Only stamp version on fresh installs (user_version = 0).
             // On an existing DB the CREATE TABLE statements above are all no-ops, so we must
             // leave the version alone and let SchemaUpgrader apply any missing migrations.
             int currentVersion = h.createQuery("PRAGMA user_version").mapTo(Integer.class).one();
             if (currentVersion == 0) {
-                h.execute("PRAGMA user_version = 21");
+                h.execute("PRAGMA user_version = 22");
             }
         });
         log.info("Schema initialization complete");

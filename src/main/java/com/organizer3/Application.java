@@ -535,6 +535,11 @@ public class Application {
         webServer.registerAvStars(new com.organizer3.web.routes.AvStarsRoutes(
                 avStarsCatalog, avBrowseService, iafdResolver));
 
+        com.organizer3.repository.DuplicateDecisionRepository dupDecisionRepo =
+                new com.organizer3.repository.jdbi.JdbiDuplicateDecisionRepository(jdbi);
+        webServer.registerDuplicateDecisions(
+                new com.organizer3.web.routes.DuplicateDecisionsRoutes(dupDecisionRepo));
+
         webServer.registerBgThumbnails(new com.organizer3.web.routes.BgThumbnailsRoutes(
                 bgWorker, bgThumbnailsState));
 

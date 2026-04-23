@@ -92,6 +92,7 @@ async function loadAll() {
 
     allDuplicates = all;
     buildActressGroups();
+    await loadDecisions();
     renderHeadline();
     // Restore or default actress selection
     if (!currentActressKey || !actressGroups.has(currentActressKey)) {
@@ -105,6 +106,45 @@ async function loadAll() {
   } catch (err) {
     headlineEl().textContent = 'Failed to load duplicates.';
     console.error('Duplicate triage load error', err);
+  }
+}
+
+async function loadDecisions() {
+  decisions = new Map();
+  try {
+    const res = await fetch('/api/tools/duplicates/decisions');
+    if (!res.ok) return;
+    const rows = await res.json();
+    for (const row of rows) {
+      const title = allDuplicates.find(t => t.code === row.titleCode);
+      if (!title) continue;
+      const locs = title.locationEntries || [];
+      const locIdx = locs.findIndex(l => l.volumeId === row.volumeId && l.nasPath === row.nasPath);
+      if (locIdx === -1) continue;
+      if (!decisions.has(row.titleCode)) decisions.set(row.titleCode, new Map());
+      decisions.get(row.titleCode).set(locIdx, row.decision);
+    }
+  } catch (err) {
+    console.warn('Failed to load saved decisions', err);
+  }
+}
+
+async function persistDecision(titleCode, loc, decision) {
+  try {
+    if (decision === null) {
+      await fetch(
+        `/api/tools/duplicates/decisions/${encodeURIComponent(titleCode)}/${encodeURIComponent(loc.volumeId)}?nasPath=${encodeURIComponent(loc.nasPath)}`,
+        { method: 'DELETE' }
+      );
+    } else {
+      await fetch('/api/tools/duplicates/decisions', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ titleCode, volumeId: loc.volumeId, nasPath: loc.nasPath, decision }),
+      });
+    }
+  } catch (err) {
+    console.error('Failed to persist decision for', titleCode, loc.nasPath, err);
   }
 }
 
@@ -550,6 +590,8 @@ function setDecision(title, locs, locIdx, decision) {
     dec.set(locIdx, decision);
   }
 
+  persistDecision(title.code, locs[locIdx], decision);
+
   // Auto-keep: if exactly one location remains non-trashed and has no decision, promote it
   if (decision === 'TRASH') {
     const survivors = locs.reduce((acc, _, i) => {
@@ -557,7 +599,9 @@ function setDecision(title, locs, locIdx, decision) {
       return acc;
     }, []);
     if (survivors.length === 1 && !dec.has(survivors[0])) {
-      dec.set(survivors[0], 'KEEP');
+      const autoIdx = survivors[0];
+      dec.set(autoIdx, 'KEEP');
+      persistDecision(title.code, locs[autoIdx], 'KEEP');
     }
   }
 
