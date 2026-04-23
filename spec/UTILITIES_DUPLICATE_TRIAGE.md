@@ -251,13 +251,218 @@ Things the POC puts in front of us so we can react:
 - How decisions should persist across sessions — depends on what we learn
   above.
 
-## Long-arc orientation (post-POC, subject to change)
+## POC → MVP transition (2026-04-22)
 
-Sketched only so POC choices don't corner future phases. Concrete design
-comes *after* POC feedback, when the actual shape is visible.
+POC is complete on branch `utilities-duplicate-triage` (commit `b180f3e`).
+The UX shape validated in the POC:
 
-- **Phase 2: SMB writes + trash.** Introduce `VolumeFileSystem.moveFolder`,
-  declare `trash/` partitions per volume, wire real destructive execute.
+- Per-actress grouping with alpha filter + name/count sort
+- Comparison grid with ranker-suggested canonical and visible rationale
+- KEEP / TRASH / VARIANT decisions per location; auto-keep last survivor
+- Closure per actress ("✓ Yua Aida — all duplicates resolved")
+- Percentage-pie resolution state on each actress tile in the sidebar
+- Inspect modal with HTML5 player + metadata for drill-in verification
+- Identical-copies detection across resolution · codec · size · file count · container
+
+What the POC deliberately left out, now Phase 2 scope: persistence, execute
+(SMB writes + trash), server-side invariant re-check, queue counter UX.
+
+## Phase 2 — MVP buildout plan
+
+### Infrastructure correction
+
+The POC memory and prior draft both flagged "introduce
+`VolumeFileSystem.moveFolder`" as a prerequisite. **This is stale.**
+`SmbFileSystem.move(source, destination)` (SmbFileSystem.java:161) already
+handles directory rename over SMB with the correct SMB2 `FILE_DIRECTORY_FILE`
+flag and minimal ACL rights (`DELETE + FILE_READ_ATTRIBUTES`). Phase 2 uses
+the existing API; no new filesystem primitive is required.
+
+### Sequencing (four independent, shippable sub-phases)
+
+The phases are ordered so each produces standalone value and has a clean test
+surface. The project remains demoable after each.
+
+#### Phase 2A — Persistence
+
+Decisions currently evaporate on refresh. This sub-phase stores them so the
+UI can reload the same state a user left.
+
+- **Schema migration v22.** New table:
+  ```
+  duplicate_decisions (
+    title_code   TEXT    NOT NULL,
+    volume_id    TEXT    NOT NULL REFERENCES volumes(id),
+    nas_path     TEXT    NOT NULL,
+    decision     TEXT    NOT NULL CHECK(decision IN ('KEEP','TRASH','VARIANT')),
+    note         TEXT,
+    created_at   TEXT    NOT NULL,
+    executed_at  TEXT,                    -- set when Phase 2C finalizes a TRASH
+    PRIMARY KEY (title_code, volume_id, nas_path)
+  )
+  ```
+  Separate from `title_locations` because: (a) decisions are *intent*, not
+  authoritative state; (b) a TRASH decision must outlive the `title_locations`
+  row it removed (audit trail / undo window); (c) sync logic stays clean —
+  decisions never participate in location dedup.
+- **`DuplicateDecisionRepository`** (interface + jdbi impl). CRUD plus
+  `listForTitle(titleCode)` and `listPending()` (decisions where
+  `executed_at IS NULL`).
+- **REST surface** (under `/api/tools/duplicates/decisions`):
+  - `GET /api/tools/duplicates/decisions` — all pending, for initial UI load
+  - `PUT /api/tools/duplicates/decisions` — upsert a single decision; body
+    `{titleCode, volumeId, nasPath, decision, note?}`
+  - `DELETE /api/tools/duplicates/decisions/{titleCode}/{volumeId}` — path
+    param uses encoded nas_path or just (titleCode, volumeId) — TBD in
+    implementation
+- **UI wiring**: `loadAll()` fetches pending decisions and hydrates the
+  `decisions` Map before first render; `setDecision()` fires the upsert/delete
+  alongside its UI update. Failure handling: toast + retry, but UI state
+  wins (optimistic).
+
+**User-visible payoff:** decisions survive reload and can be resumed across
+sessions. No execute yet.
+
+#### Phase 2B — Trash primitive contract update
+
+Infrastructure-only; no user-visible change.
+
+**Good news**: the trash primitive (`src/main/java/com/organizer3/trash/Trash.java`)
+already exists with mirrored-path layout, atomic SMB move, and JSON sidecar
+writing. Config is already declared per-server in `organizer-config.yaml`
+(`trash: _trash`). `TrashPathService` is effectively
+`Trash.mirrorUnderTrash()` — no new service needed.
+
+**What changes**:
+
+- **Rename sidecar field `entityType` → `reason`** to match the updated
+  global trash contract (`spec/PROPOSAL_TRASH.md` §5). `reason` is
+  free-form app-provided text explaining *why* the item was trashed,
+  not a structured type label. The four required fields are now
+  `originalPath`, `trashedAt`, `volumeId`, `reason`.
+- **Update `Trash.trashItem` signature**: replace the `String entityType`
+  parameter with `String reason`; callers pass a human-readable
+  explanation.
+- **Update existing call sites**: `TrashDuplicateVideoTool` and
+  `TrashDuplicateCoverTool` — these are greenfield MCP scaffolding
+  with no production consumers yet, so the change is safe.
+- **Tests**: update `TrashTest.java` for the new field name and
+  assertions; verify all four required fields are always present.
+
+#### Phase 2C — Execute task
+
+The destructive piece. Runs as a background task through the existing
+TaskRunner atomic lock, so it participates in the same UX as other
+Utilities tasks.
+
+- **`ExecuteDuplicateTrashTask`** (`utilities.task.duplicates`):
+  1. `phaseStart("plan", "Resolve queued trash actions")` — load all
+     decisions where `decision='TRASH' AND executed_at IS NULL`, optionally
+     filtered by the `actressKey` task input (empty = all). Compute
+     destination paths via `TrashPathService`. One phase-log line per
+     planned move.
+  2. For each decision (one phase each so failures don't block siblings):
+     - **Server-side invariant re-check**: re-query
+       `title_locations` for the title. If trashing this row would leave
+       zero locations, fail that phase with
+       `"Skipped: would leave {code} with zero locations"`. This is the
+       primary safety gate — stale client state cannot violate the
+       invariant.
+     - Call `trash.trashItem(sourcePath, reason)` where `reason` is
+       built from the ranker rationale when available, falling back to
+       `"Duplicate Triage — kept peer on volume {id}"` when not. The
+       primitive handles mirrored-path creation, atomic SMB move, and
+       sidecar write (with best-effort sidecar semantics — failure
+       logs a warning but doesn't roll back the move).
+     - Drop the `title_locations` row for (title_code, volume_id, nas_path).
+     - Stamp `duplicate_decisions.executed_at = now()`.
+  3. Summary phase: `N executed · M skipped (invariant) · K failed (I/O)`.
+- **Task inputs**: optional `actressKey` (STRING, `required=false`) — when
+  present, restricts execution to that actress's pending TRASH decisions.
+  Empty/absent → batch-all.
+- **REST surface**: `POST /api/utilities/tasks/duplicates.execute_trash/run`
+  — body `{}` for batch, `{"actressKey":"id:123"}` for per-actress. Uses
+  the existing task run endpoint — no new route needed.
+- **Registered in `TaskRegistry`** alongside backup/sync/etc.
+- **Never applies VARIANT or KEEP decisions** — those are metadata-only
+  and never move files. (VARIANT might later write a `reviewed` flag;
+  out of scope for MVP.)
+
+#### Phase 2D — UI integration
+
+The Phase 2A/B/C work ships user-visible behavior only if the screen
+surfaces it.
+
+- **Pending queue counter** in the headline row: `"14 actions queued"`
+  badge next to `"found · cleaned · remaining"`. Forward-motion copy per
+  spec §The feeling we're designing for.
+- **Global execute button** next to the counter: "Execute all (14)".
+  Disabled when queue is empty. Disabled + tooltip when any other
+  Utilities task is running (read `TaskRunner.currentlyRunning()` via
+  existing task-pill mechanism).
+- **Per-actress execute button** on the closure/progress region of each
+  actress card in the sidebar, visible only when that actress has ≥1
+  pending TRASH decision. Label: "Execute (3)". Clicking posts with
+  `actressKey` so only her queue drains.
+- **Task-pill integration**: re-use the existing pill for progress. SSE
+  events drive phase updates and the queue counter drains live.
+- **Post-execute reconcile**: after task ends OK/PARTIAL, re-fetch
+  duplicates (titles with zero or one location disappear from the list)
+  and pending decisions. Failed/skipped phases surface as a dismissable
+  banner inline with the affected title card.
+
+## Design decisions (resolved 2026-04-22)
+
+1. **Trash layout: mirrored source path.** A trashed folder lands at
+   `_trash/{original-relative-path}/`. Example:
+   `//pandora/jav_A/stars/library/Yua Aida/ONED-123` →
+   `//pandora/jav_A/_trash/stars/library/Yua Aida/ONED-123`.
+   Collisions handled by appending `__{timestamp}` only when a conflict
+   would occur (rare in practice — most collisions would require the same
+   title in the same actress folder to be trashed twice).
+2. **Sidecar metadata file.** Reuses the global trash contract defined
+   in `spec/PROPOSAL_TRASH.md`. Every trashed folder carries an
+   `ITEM.json` sidecar alongside it (mirrored path under `_trash/`) with
+   the four required fields: `originalPath`, `trashedAt`, `volumeId`,
+   `reason`. Duplicate triage fills `reason` with `"Duplicate Triage — {ranker rationale}"`,
+   falling back to `"Duplicate Triage — kept peer on volume {id}"` when
+   no rationale is available.
+
+   The DB `duplicate_decisions` row serves the *active triage session*
+   only. It and the sidecar are written together during execute and are
+   allowed to diverge afterward (sidecar survives even if the DB is
+   lost/restored; DB survives even if the volume is offline).
+3. **Execute scope: both.** The UI offers two execute affordances:
+   - **Per-actress**: a button on the closure banner (or near the
+     actress's pending count in the sidebar) — "Execute for Yua Aida
+     (3 queued)". Matches the per-actress rhythm.
+   - **Global batch**: a button in the headline — "Execute all N queued".
+     Matches the batch-execute spec language.
+   Both use the same task; the scope filter is a task input (`actressKey`
+   optional; empty = all).
+4. **VARIANT note: deferred.** v22 does not include a `note` column. If
+   POC/MVP use surfaces a real need, v23 adds it.
+5. **Re-scan resilience: leave as-is.** Existing decisions stay; new
+   locations show undecided; the title returns to "in progress" for
+   that actress. No decision invalidation on sync.
+6. **Trash on unstructured volumes: same convention.** `_trash/` at the
+   volume root, mirrored-path semantics. For a `queue/TITLE/` folder, the
+   mirrored trash path is `_trash/queue/TITLE/`.
+7. **Decision cleanup: never prune.** Rows stay forever. The future
+   Trash Management screen operates on sidecar files, not the DB.
+
+## Non-goals (regardless of phase)
+
+- Physical file deletion on a NAS (move-to-`_trash/` only; the user does
+  real disposal at their own cadence).
+- Auto-merging title rows — Phase 3 concern.
+- Automatic decisions without user review (except the ranker's *suggestion*,
+  which is always user-confirmable).
+- Cross-row detection surface (`ONED-01` vs `ONED-001`) — Phase 3.
+- Corruption / codec modernization — Phase 4.
+
+## Long-arc (post-MVP)
+
 - **Phase 3: merge candidates + layered detection.** The cross-row case —
   `ONED-01` vs `ONED-001`, typo'd names, wrong labels — produces *merge
   candidates*, not triage candidates. A separate surface (or a separate
@@ -270,20 +475,6 @@ comes *after* POC feedback, when the actual shape is visible.
 - **Phase 4: adjacent workflows.** Corruption auto-detect from ffprobe
   warnings during sync; an AVI/WMV modernization tool (related but separate
   from dedup).
-
-## Open questions (parked)
-
-- Ordering within a scope — by confidence? by code? by actress alphabetical?
-- Can decisions be revoked? How does a re-scan surface a newly added third
-  copy when the first two have decisions?
-- Per-location vs per-group decision grain?
-- Default scope on open?
-- Do we treat cross-row duplicates as a separate product surface (a
-  "suspicious-pairs" review) from same-row duplicates (this screen), or as a
-  unified queue?
-
-These do not need answers before the POC. They inform what to look at
-during feedback.
 
 ## Non-goals (regardless of phase)
 

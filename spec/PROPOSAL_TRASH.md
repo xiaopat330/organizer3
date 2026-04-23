@@ -1,6 +1,7 @@
 # Trash Mechanism
 
-> **Status: PROPOSAL — early design, not yet implemented**
+> **Status: Primitive implemented (`src/main/java/com/organizer3/trash/Trash.java`); contract updated 2026-04-22 to require a free-form `reason`.**
+> No production consumers yet — early MCP tool scaffolding (`TrashDuplicateVideoTool`, `TrashDuplicateCoverTool`) is greenfield and updates alongside contract changes.
 
 A general-purpose, volume-aware trash mechanism for safely removing any file or folder from the library. Applies to any entity with a physical path on a volume: title folders, actress folders, AV video files, cover images, etc.
 
@@ -55,27 +56,34 @@ The move is a single SMB2 `FileRenameInformation` round-trip — atomic, no data
 
 ## 5. Sidecar Metadata
 
-A JSON file co-located with the trashed item. Named `<item-name>.json` alongside the item, mirroring the same path structure under `_trash/`.
+A JSON file co-located with the trashed item. Named `<item-name>.json` alongside the item, mirroring the same path structure under `_trash/`. Works uniformly for both files and folders.
 
 ```json
 {
   "originalPath": "/stars/popular/MIDE-123",
   "trashedAt": "2026-04-14T10:22:00Z",
   "volumeId": "a",
-  "entityType": "title"
+  "reason": "Duplicate Triage — kept better copy on volume bg"
 }
 ```
 
-**Fields:**
+**Required fields** — all four are mandatory. Writers must populate every one.
 
-| Field | Description |
-|---|---|
-| `originalPath` | Share-relative path before trashing |
-| `trashedAt` | ISO-8601 UTC timestamp |
-| `volumeId` | Volume the item came from |
-| `entityType` | `title`, `actress`, `av-video`, etc. — informational only |
+| Field | Type | Description |
+|---|---|---|
+| `originalPath` | string | Share-relative absolute path before trashing |
+| `trashedAt` | string | ISO 8601 UTC timestamp, `Z`-terminated |
+| `volumeId` | string | Volume the item came from |
+| `reason` | string | App-provided free-form explanation of *why* the item was trashed |
 
-Sidecar loss is acceptable. If the user deletes the item manually from the NAS, the orphaned sidecar can be ignored or cleaned up separately.
+Writers MAY add additional app-specific fields. The Trash Management screen (future Utilities feature) will display the required fields and render unknown fields as extra key-value rows. Extra field names must not collide with the reserved four.
+
+**Feature-specific `reason` conventions** (established per-feature for consistency):
+
+- Duplicate Triage: `"Duplicate Triage — {ranker rationale or free text}"`
+- Future features set their own.
+
+Sidecar loss is acceptable. If the sidecar write fails after a successful move, log a warning and continue — the item is still safely in `_trash/`. If the user deletes the item manually from the NAS, the orphaned sidecar can be ignored or cleaned up separately.
 
 ---
 
