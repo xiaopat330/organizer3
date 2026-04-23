@@ -240,12 +240,18 @@ function actionSVG(paths) {
   return `<svg class="org-action-icon" viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${paths}</svg>`;
 }
 
-function diskIconSVG(color) {
-  return `<svg class="vol-icon" viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="${color}" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
-    <ellipse cx="12" cy="5" rx="9" ry="3"/>
-    <path d="M3 5v6c0 1.66 4 3 9 3s9-1.34 9-3V5"/>
-    <path d="M3 11v6c0 1.66 4 3 9 3s9-1.34 9-3v-6"/>
-  </svg>`;
+const STRUCTURE_ICON_PATHS = {
+  queue:        '<path d="M22 12h-6l-2 3H10l-2-3H2"/><path d="M5.45 5.11L2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/>',
+  conventional: '<path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>',
+  exhibition:   '<rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/>',
+  archive:      '<polyline points="21 8 21 21 3 21 3 8"/><rect x="1" y="3" width="22" height="5"/><line x1="10" y1="12" x2="14" y2="12"/>',
+  avstars:      '<rect x="2" y="2" width="20" height="20" rx="2.18" ry="2.18"/><line x1="7" y1="2" x2="7" y2="22"/><line x1="17" y1="2" x2="17" y2="22"/><line x1="2" y1="12" x2="22" y2="12"/><line x1="2" y1="7" x2="7" y2="7"/><line x1="2" y1="17" x2="7" y2="17"/><line x1="17" y1="17" x2="22" y2="17"/><line x1="17" y1="7" x2="22" y2="7"/>',
+  _default:     '<ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v6c0 1.66 4 3 9 3s9-1.34 9-3V5"/><path d="M3 11v6c0 1.66 4 3 9 3s9-1.34 9-3v-6"/>',
+};
+
+function volumeIconSVG(structureType, color) {
+  const paths = STRUCTURE_ICON_PATHS[structureType] || STRUCTURE_ICON_PATHS._default;
+  return `<svg class="vol-icon" viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="${color}" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">${paths}</svg>`;
 }
 
 function renderList() {
@@ -264,7 +270,7 @@ function renderList() {
     const color = hueFor(v.id);
     li.innerHTML = `
       <div class="vol-row">
-        <div class="vol-row-icon">${diskIconSVG(color)}</div>
+        <div class="vol-row-icon">${volumeIconSVG(v.structureType, color)}</div>
         <div class="vol-row-body">
           <div class="vol-row-title">
             <span class="vol-row-name" style="color:${color}">${esc(v.id.toUpperCase())}</span>
@@ -349,7 +355,7 @@ function showDetail(volumeId) {
   d.innerHTML = `
     <div class="vol-detail-head">
       <div class="vol-detail-name">
-        <span class="vol-detail-icon">${diskIconSVG(color)}</span>
+        <span class="vol-detail-icon">${volumeIconSVG(v.structureType, color)}</span>
         <span>Volume <span style="color:${color}">${esc(v.id.toUpperCase())}</span></span>
       </div>
       <div class="vol-detail-path">${esc(v.smbPath || '')}</div>
@@ -833,12 +839,12 @@ function renderOrgSectionHTML(v) {
     if (action.id === 'prep') {
       return `${descHTML}${renderPrepPlanReadyHTML(planResult)}`;
     }
-    const allRows = (planResult?.titles || []).map(renderPlanRow).filter(r => r);
+    const allRows = (planResult?.titles || []).map(renderPlanRows).filter(r => r);
     const titleCount = allRows.length;
-    const planRows = allRows.join('');
+    const tbody = allRows.join('');
     return `${descHTML}
       <div class="org-flow-head">Plan — ${titleCount} title${titleCount === 1 ? '' : 's'} with changes</div>
-      <div class="org-plan-list">${planRows}</div>
+      ${planTableHTML(tbody)}
       <div class="org-flow-actions">
         <button type="button" class="org-execute-btn">Execute</button>
         <button type="button" class="org-cancel-btn">Cancel</button>
@@ -913,52 +919,79 @@ function wireOrgSection(volumeId) {
   });
 }
 
-function renderPlanRow(t) {
-  const code = esc(t.titleCode || t.path?.split('/').pop() || '?');
+function renderPlanRows(t) {
+  const code = t.titleCode || t.path?.split('/').pop() || '?';
 
   if (t.error) {
-    return `<div class="org-plan-row org-plan-row-error">
-      <span class="org-plan-code">${code}</span>
-      <span class="org-plan-detail org-plan-err">${esc(t.error)}</span>
-    </div>`;
+    return `<tr class="org-plan-tr org-plan-tr-error">
+      <td class="org-plan-td-title">${esc(code)}</td>
+      <td class="org-plan-td-err" colspan="2">${esc(t.error)}</td>
+    </tr>`;
   }
 
-  const lines = [];
+  const ops = []; // {before, after}
 
   if (t.normalize?.planned?.length > 0) {
     for (const a of t.normalize.planned) {
-      const from = a.from?.split('/').pop() || a.from || '';
-      const to   = a.to?.split('/').pop()   || a.to   || '';
-      lines.push(`rename: ${from} → ${to}`);
+      ops.push({
+        before: a.from?.split('/').pop() || a.from || '',
+        after:  a.to?.split('/').pop()   || a.to   || '',
+      });
     }
   }
 
   if (t.restructure?.planned?.length > 0) {
     for (const a of t.restructure.planned) {
-      const from = a.from?.split('/').pop() || a.from || '';
-      lines.push(`move: ${from} → subfolder/`);
+      const segs = (a.to || '').split('/').filter(Boolean);
+      ops.push({
+        before: a.from?.split('/').pop() || a.from || '',
+        after:  segs.length >= 2 ? segs.slice(-2).join('/') : (a.to || ''),
+      });
     }
   }
 
   if (t.sort) {
     const s = t.sort;
+    const fromSegs = (t.path || '').split('/').filter(Boolean);
+    const before = fromSegs.length >= 2 ? fromSegs.slice(-2).join('/') : (t.path || '');
     if (s.outcome === 'WOULD_SORT') {
-      const parts = (s.to || '').split('/').filter(Boolean);
-      const starsIdx = parts.indexOf('stars');
-      const dest = starsIdx >= 0 ? parts.slice(starsIdx, starsIdx + 3).join('/') : (s.to || 'stars/…');
-      lines.push(`sort → ${dest}`);
+      const toSegs = (s.to || '').split('/').filter(Boolean);
+      const after = toSegs.length >= 3 ? toSegs.slice(-3).join('/') : (s.to || '');
+      ops.push({ before, after });
     } else if (s.outcome === 'WOULD_ROUTE_TO_ATTENTION') {
-      lines.push(`→ attention/ (${s.reason || ''})`);
+      ops.push({ before, after: `attention/ — ${s.reason || ''}` });
     }
   }
 
-  if (lines.length === 0) return '';
+  if (ops.length === 0) return '';
 
-  const detailHTML = lines.map(l => `<span class="org-plan-detail">${esc(l)}</span>`).join('');
+  return ops.map((op, i) => {
+    const titleCell = i === 0
+      ? `<td class="org-plan-td-title">${esc(code)}</td>`
+      : `<td class="org-plan-td-title org-plan-td-cont"></td>`;
+    return `<tr class="org-plan-tr">
+      ${titleCell}
+      <td class="org-plan-td-before">${esc(op.before)}</td>
+      <td class="org-plan-td-after">${esc(op.after)}</td>
+    </tr>`;
+  }).join('');
+}
 
-  return `<div class="org-plan-row">
-    <span class="org-plan-code">${code}</span>
-    <div class="org-plan-details">${detailHTML}</div>
+function planTableHTML(tbody) {
+  return `<div class="org-plan-wrap">
+    <table class="org-plan-table">
+      <colgroup>
+        <col style="width:22%">
+        <col style="width:39%">
+        <col style="width:39%">
+      </colgroup>
+      <thead><tr>
+        <th class="org-plan-th">Title</th>
+        <th class="org-plan-th">Before</th>
+        <th class="org-plan-th">After</th>
+      </tr></thead>
+      <tbody>${tbody}</tbody>
+    </table>
   </div>`;
 }
 
@@ -995,26 +1028,27 @@ function renderActionDescriptionHTML(action) {
 function renderPrepPlanReadyHTML(planResult) {
   const allPlanned = (planResult?.partitions || []).flatMap(p => p.planned || []);
   const allSkipped = (planResult?.partitions || []).flatMap(p => p.skipped || []);
-  const planRows = allPlanned.map(p => {
-    const src  = (p.sourcePath  || '').split('/').pop();
-    const dest = (p.targetVideoPath || '').split('/').slice(-3).join('/');
-    return `<div class="org-plan-row">
-      <span class="org-plan-code">${esc(p.code || '?')}</span>
-      <div class="org-plan-details">
-        <span class="org-plan-detail">${esc(src)} → ${esc(dest)}</span>
-      </div>
-    </div>`;
+  const planTrs = allPlanned.map(p => {
+    const before = (p.sourcePath || '').split('/').pop();
+    const toSegs = (p.targetVideoPath || '').split('/').filter(Boolean);
+    const after  = toSegs.length >= 3 ? toSegs.slice(-3).join('/') : (p.targetVideoPath || '');
+    return `<tr class="org-plan-tr">
+      <td class="org-plan-td-title">${esc(p.code || '?')}</td>
+      <td class="org-plan-td-before">${esc(before)}</td>
+      <td class="org-plan-td-after">${esc(after)}</td>
+    </tr>`;
   }).join('');
-  const skipRows = allSkipped.map(s =>
-    `<div class="org-plan-row org-plan-row-skipped">
-      <span class="org-plan-code">—</span>
-      <span class="org-plan-detail">${esc(s.filename || '')} — ${esc(s.reason || '')}</span>
-    </div>`
+  const skipTrs = allSkipped.map(s =>
+    `<tr class="org-plan-tr org-plan-tr-skipped">
+      <td class="org-plan-td-title">—</td>
+      <td class="org-plan-td-before">${esc(s.filename || '')}</td>
+      <td class="org-plan-td-after org-plan-td-skip">${esc(s.reason || '')}</td>
+    </tr>`
   ).join('');
   const count = allPlanned.length;
   const skipNote = allSkipped.length > 0 ? ` (${allSkipped.length} skipped)` : '';
   return `<div class="org-flow-head">Plan — ${count} file${count === 1 ? '' : 's'} to move${skipNote}</div>
-    <div class="org-plan-list">${planRows}${skipRows}</div>
+    ${planTableHTML(planTrs + skipTrs)}
     <div class="org-flow-actions">
       <button type="button" class="org-execute-btn">Execute</button>
       <button type="button" class="org-cancel-btn">Cancel</button>

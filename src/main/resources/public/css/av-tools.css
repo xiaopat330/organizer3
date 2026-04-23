@@ -4583,47 +4583,63 @@
   margin: 4px 0 8px;
 }
 
-.org-plan-list {
-  max-height: 280px;
+.org-plan-wrap {
+  max-height: 300px;
   overflow-y: auto;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
   margin-bottom: 14px;
   border: 1px solid #1e293b;
   border-radius: 4px;
-  padding: 6px;
   background: #060d18;
 }
-.org-plan-row {
-  display: flex;
-  align-items: flex-start;
-  gap: 10px;
-  padding: 5px 6px;
-  border-radius: 3px;
-}
-.org-plan-row:hover { background: #0a1628; }
-.org-plan-row-dim { opacity: 0.45; }
-.org-plan-row-error { background: rgba(127,29,29,0.15); border-radius: 3px; }
-.org-plan-code {
+.org-plan-table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
   font-size: 12px;
   font-family: monospace;
+}
+.org-plan-th {
+  position: sticky;
+  top: 0;
+  padding: 6px 10px;
+  text-align: left;
+  font-size: 10px;
+  font-family: inherit;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #475569;
+  background: #060d18;
+  border-bottom: 1px solid #1e293b;
+}
+.org-plan-tr:hover td { background: #0a1628; }
+.org-plan-tr-error td { background: rgba(127,29,29,0.15); }
+.org-plan-tr-skipped .org-plan-td-title,
+.org-plan-tr-skipped .org-plan-td-before { opacity: 0.45; }
+.org-plan-td-title {
+  padding: 5px 10px;
   color: #93c5fd;
   white-space: nowrap;
-  min-width: 80px;
-  flex-shrink: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  vertical-align: top;
+  border-right: 1px solid #0f172a;
 }
-.org-plan-details {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
+.org-plan-td-cont { border-right: 1px solid #0f172a; }
+.org-plan-td-before {
+  padding: 5px 10px;
+  color: #64748b;
+  word-break: break-all;
+  vertical-align: top;
 }
-.org-plan-detail {
-  font-size: 12px;
-  color: #cbd5e1;
+.org-plan-td-after {
+  padding: 5px 10px;
+  color: #e2e8f0;
+  word-break: break-all;
+  vertical-align: top;
 }
-.org-plan-detail.dim { color: #475569; }
-.org-plan-err { color: #f87171; }
+.org-plan-td-skip { color: #475569; font-family: sans-serif; }
+.org-plan-td-err  { color: #f87171; font-family: sans-serif; }
 
 .org-progress {
   font-size: 13px;
