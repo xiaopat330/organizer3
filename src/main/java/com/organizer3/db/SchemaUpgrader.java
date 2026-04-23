@@ -19,7 +19,7 @@ import org.jdbi.v3.core.Jdbi;
 public class SchemaUpgrader {
 
     /** Must match the version stamped by {@link SchemaInitializer}. */
-    private static final int CURRENT_VERSION = 22;
+    private static final int CURRENT_VERSION = 23;
 
     private final Jdbi jdbi;
 
@@ -133,7 +133,33 @@ public class SchemaUpgrader {
             setVersion(22);
         }
 
+        if (version < 23) {
+            applyV23();
+            setVersion(23);
+        }
+
         log.info("Schema upgrade complete");
+    }
+
+    /**
+     * v23: {@code merge_candidates} table for Duplicate Triage Phase 3A.
+     * Stores cross-row duplicate pairs detected by code normalization.
+     */
+    private void applyV23() {
+        log.info("Applying migration v23: merge_candidates table");
+        jdbi.useHandle(h -> h.execute("""
+                CREATE TABLE IF NOT EXISTS merge_candidates (
+                    id            INTEGER PRIMARY KEY AUTOINCREMENT,
+                    title_code_a  TEXT NOT NULL,
+                    title_code_b  TEXT NOT NULL,
+                    confidence    TEXT NOT NULL CHECK(confidence IN ('code-normalization','variant-suffix')),
+                    detected_at   TEXT NOT NULL,
+                    decision      TEXT CHECK(decision IN ('MERGE','DISMISS')),
+                    decided_at    TEXT,
+                    winner_code   TEXT,
+                    executed_at   TEXT,
+                    UNIQUE(title_code_a, title_code_b)
+                )"""));
     }
 
     /**

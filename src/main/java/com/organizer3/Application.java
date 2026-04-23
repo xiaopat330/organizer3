@@ -525,6 +525,11 @@ public class Application {
                 new com.organizer3.utilities.task.duplicates.ExecuteDuplicateTrashTask(
                         dupDecisionRepo, titleLocationRepo, config, smbConnectionFactory, jdbi);
 
+        com.organizer3.repository.MergeCandidateRepository mergeCandidateRepo =
+                new com.organizer3.repository.jdbi.JdbiMergeCandidateRepository(jdbi);
+        com.organizer3.utilities.task.duplicates.DetectMergeCandidatesTask detectMergeCandidatesTask =
+                new com.organizer3.utilities.task.duplicates.DetectMergeCandidatesTask(mergeCandidateRepo, jdbi);
+
         com.organizer3.utilities.task.TaskRegistry taskRegistry =
                 new com.organizer3.utilities.task.TaskRegistry(
                         java.util.List.of(syncVolumeTask, cleanStaleLocationsTask,
@@ -532,7 +537,7 @@ public class Application {
                                 backupNowTask, restoreSnapshotTask,
                                 scanLibraryTask, cleanOrphanedCoversTask,
                                 resolveIafdTask, renameAvActressTask, deleteAvActressTask, parseFilenamesTask,
-                                executeDuplicateTrashTask));
+                                executeDuplicateTrashTask, detectMergeCandidatesTask));
         com.organizer3.utilities.task.TaskRunner taskRunner =
                 new com.organizer3.utilities.task.TaskRunner(taskRegistry);
         webServer.registerUtilities(new com.organizer3.web.routes.UtilitiesRoutes(
@@ -544,6 +549,8 @@ public class Application {
 
         webServer.registerDuplicateDecisions(
                 new com.organizer3.web.routes.DuplicateDecisionsRoutes(dupDecisionRepo));
+        webServer.registerMergeCandidates(
+                new com.organizer3.web.routes.MergeCandidatesRoutes(mergeCandidateRepo));
 
         webServer.registerBgThumbnails(new com.organizer3.web.routes.BgThumbnailsRoutes(
                 bgWorker, bgThumbnailsState));

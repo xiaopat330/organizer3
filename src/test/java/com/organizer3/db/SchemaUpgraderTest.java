@@ -54,7 +54,7 @@ class SchemaUpgraderTest {
 
         new SchemaUpgrader(jdbi).upgrade();
 
-        assertEquals(22, currentVersion());
+        assertEquals(23, currentVersion());
         boolean present = jdbi.withHandle(h ->
                 h.createQuery("SELECT COUNT(*) FROM pragma_table_info('actresses') WHERE name='needs_profiling'")
                         .mapTo(Integer.class).one() > 0);
@@ -68,7 +68,7 @@ class SchemaUpgraderTest {
                 h.createQuery("SELECT COUNT(*) FROM pragma_table_info('actresses') WHERE name='needs_profiling'")
                         .mapTo(Integer.class).one() > 0);
         assertTrue(present, "fresh install should include needs_profiling");
-        assertEquals(22, currentVersion(), "fresh install should stamp current version");
+        assertEquals(23, currentVersion(), "fresh install should stamp current version");
     }
 
     @Test
@@ -84,7 +84,7 @@ class SchemaUpgraderTest {
 
         new SchemaUpgrader(jdbi).upgrade();
 
-        assertEquals(22, currentVersion());
+        assertEquals(23, currentVersion());
         boolean sizeBytesPresent = jdbi.withHandle(h ->
                 h.createQuery("SELECT COUNT(*) FROM pragma_table_info('videos') WHERE name='size_bytes'")
                         .mapTo(Integer.class).one() > 0);
@@ -106,7 +106,7 @@ class SchemaUpgraderTest {
 
         new SchemaUpgrader(jdbi).upgrade();
 
-        assertEquals(22, currentVersion());
+        assertEquals(23, currentVersion());
         assertTrue(columnExists("titles",    "favorite_cleared_at"));
         assertTrue(columnExists("actresses", "favorite_cleared_at"));
 
@@ -120,6 +120,23 @@ class SchemaUpgraderTest {
                 "SELECT favorite_cleared_at FROM titles WHERE id = ?")
                 .bind(0, id).mapTo(String.class).one());
         assertNotNull(stamp, "v21 trigger should stamp favorite_cleared_at on un-favorite");
+    }
+
+    @Test
+    void upgradeFromV22CreatesMergeCandidatesTable() {
+        new SchemaInitializer(jdbi).initialize();
+        jdbi.useHandle(h -> {
+            h.execute("DROP TABLE IF EXISTS merge_candidates");
+            h.execute("PRAGMA user_version = 22");
+        });
+
+        new SchemaUpgrader(jdbi).upgrade();
+
+        assertEquals(23, currentVersion());
+        boolean tableExists = jdbi.withHandle(h ->
+                h.createQuery("SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='merge_candidates'")
+                        .mapTo(Integer.class).one() > 0);
+        assertTrue(tableExists, "merge_candidates table should exist after v23 migration");
     }
 
     private boolean columnExists(String table, String column) {
