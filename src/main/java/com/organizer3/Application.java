@@ -299,6 +299,8 @@ public class Application {
         // Organize-pipeline commands — title-folder timestamp correction
         com.organizer3.organize.TitleTimestampService titleTimestampService =
                 new com.organizer3.organize.TitleTimestampService();
+        com.organizer3.organize.FixTimestampsVolumeService fixTimestampsVolumeService =
+                new com.organizer3.organize.FixTimestampsVolumeService(jdbi, titleTimestampService);
         commands.add(new com.organizer3.command.FixTitleTimestampsCommand(jdbi, titleTimestampService));
         commands.add(new com.organizer3.command.AuditTimestampsCommand(jdbi, titleTimestampService));
 
@@ -572,6 +574,12 @@ public class Application {
         com.organizer3.utilities.task.organize.OrganizeAllTask organizeAllTask =
                 new com.organizer3.utilities.task.organize.OrganizeAllTask(
                         organizeVolumeService, jdbi, config, organizeInvokerFactory);
+        com.organizer3.utilities.task.organize.FixTimestampsPreviewTask fixTimestampsPreviewTask =
+                new com.organizer3.utilities.task.organize.FixTimestampsPreviewTask(
+                        fixTimestampsVolumeService, config, organizeInvokerFactory);
+        com.organizer3.utilities.task.organize.FixTimestampsTask fixTimestampsTask =
+                new com.organizer3.utilities.task.organize.FixTimestampsTask(
+                        fixTimestampsVolumeService, config, organizeInvokerFactory);
 
         com.organizer3.utilities.task.TaskRegistry taskRegistry =
                 new com.organizer3.utilities.task.TaskRegistry(
@@ -586,7 +594,8 @@ public class Application {
                                 organizeRestructurePreviewTask, organizeRestructureTask,
                                 organizeSortPreviewTask, organizeSortTask,
                                 organizeClassifyPreviewTask, organizeClassifyTask,
-                                organizeAllPreviewTask, organizeAllTask));
+                                organizeAllPreviewTask, organizeAllTask,
+                                fixTimestampsPreviewTask, fixTimestampsTask));
         com.organizer3.utilities.task.TaskRunner taskRunner =
                 new com.organizer3.utilities.task.TaskRunner(taskRegistry);
         webServer.registerUtilities(new com.organizer3.web.routes.UtilitiesRoutes(

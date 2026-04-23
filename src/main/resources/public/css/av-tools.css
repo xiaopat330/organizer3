@@ -1880,6 +1880,12 @@
   color: #94a3b8;
   font-style: italic;
 }
+.org-no-actions {
+  font-size: 12px;
+  color: #475569;
+  font-style: italic;
+  padding: 8px 0;
+}
 
 /* ── Volume detail tab bar ─────────────────────────────────────────── */
 .vol-tab-bar {
