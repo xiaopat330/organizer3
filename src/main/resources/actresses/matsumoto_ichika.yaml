@@ -1,0 +1,38 @@
+profile:
+  name:
+    family_name: "Matsumoto"
+    given_name: "Ichika"
+    stage_name: "松本いちか"
+    reading: "まつもと いちか"
+    alternate_names: []
+  date_of_birth: 2000-02-19
+  birthplace: "Sendai, Miyagi Prefecture, Japan"
+  blood_type: "A"
+  height_cm: 153
+  measurements:
+    bust: 68
+    waist: 58
+    hip: 86
+  cup: "B"
+  active_from: '2019-09-01'
+  active_to: null
+  biography: "Ichika Matsumoto (松本いちか) was born February 19, 2000 in Sendai, Miyagi Prefecture, and made her AV debut in September 2019 as an exclusive actress for SOD Create's Seishun Jidai (青春時代) label. She transitioned from exclusive status in February 2020 and began working as a kikaku-tansoku actress, subsequently affiliating with the talent agency LIGHT. Known for her slender build and natural appeal, she has built a sustained social media following and continued releasing titles across multiple studios after going freelance."
+  primary_studios:
+  - name: "SOD Create (Seishun Jidai label)"
+    company: "Soft on Demand"
+    from: '2019-09-01'
+    to: '2020-02-01'
+    role: "Exclusive contract actress"
+  awards: []
+
+meta:
+  total_owned_titles: null
+  titles_with_japanese_title: null
+  titles_with_english_title: null
+  titles_with_release_date: null
+  total_known_releases: null
+  coverage_note: "Profile only; portfolio not yet researched"
+  confidence: "Profile data sourced from Japanese Wikipedia (松本いちか). Blood type A, height 153cm, measurements, birthplace, and debut info all confirmed from Wikipedia-sourced search snippets. Debut month September 2019 confirmed; exact day unknown, first of month used as placeholder."
+  data_sources:
+  - "https://ja.wikipedia.org/wiki/松本いちか"
+  portfolio_listed: 0
