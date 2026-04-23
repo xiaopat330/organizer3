@@ -3633,12 +3633,94 @@
 
 /* ── Actress sidebar ── */
 
-.dt-actress-sidebar {
+.dt-sidebar-wrapper {
   width: 200px;
   flex-shrink: 0;
   min-height: 0;
-  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
   border-right: 1px solid #1e293b;
+}
+
+.dt-alpha-bar {
+  flex-shrink: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+  padding: 7px 8px 6px;
+  border-bottom: 1px solid #1e293b;
+  background: #0d1829;
+}
+
+.dt-alpha-btn {
+  padding: 2px 5px;
+  font-size: 10px;
+  font-weight: 600;
+  font-family: inherit;
+  letter-spacing: 0.03em;
+  background: transparent;
+  border: 1px solid #1e293b;
+  border-radius: 3px;
+  color: #64748b;
+  cursor: pointer;
+  transition: background 0.1s, color 0.1s, border-color 0.1s;
+  line-height: 1.4;
+}
+.dt-alpha-btn:hover {
+  background: rgba(251, 146, 60, 0.08);
+  color: #94a3b8;
+  border-color: #334155;
+}
+.dt-alpha-btn.active {
+  background: rgba(251, 146, 60, 0.15);
+  color: #fb923c;
+  border-color: #fb923c;
+}
+
+.dt-sort-bar {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  padding: 5px 8px;
+  border-bottom: 1px solid #1e293b;
+  background: #0a1120;
+}
+
+.dt-sort-btn {
+  padding: 2px 7px;
+  font-size: 10px;
+  font-weight: 600;
+  font-family: inherit;
+  letter-spacing: 0.03em;
+  background: transparent;
+  border: 1px solid #1e293b;
+  border-radius: 3px;
+  color: #64748b;
+  cursor: pointer;
+  transition: background 0.1s, color 0.1s, border-color 0.1s;
+  line-height: 1.4;
+}
+.dt-sort-btn:hover {
+  background: rgba(255, 255, 255, 0.04);
+  color: #94a3b8;
+  border-color: #334155;
+}
+.dt-sort-btn.active {
+  background: rgba(148, 163, 184, 0.12);
+  color: #cbd5e1;
+  border-color: #475569;
+}
+.dt-sort-dir {
+  margin-left: auto;
+  font-size: 11px;
+  padding: 2px 6px;
+}
+
+.dt-actress-sidebar {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
 }
 
 .dt-actress-row {
@@ -3684,7 +3766,25 @@
   object-position: right center;
 }
 
-.dt-actress-info { min-width: 0; }
+.dt-actress-state {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+  margin-left: auto;
+}
+.dt-actress-state-complete {
+  color: #4ade80;
+}
+.dt-actress-state-partial {
+  color: #facc15;
+}
+
+.dt-actress-info { min-width: 0; flex: 1; }
+.dt-actress-progress {
+  font-size: 10px;
+  color: #ca8a04;
+  margin-top: 3px;
+}
 .dt-actress-name {
   font-size: 12px;
   color: #e2e8f0;

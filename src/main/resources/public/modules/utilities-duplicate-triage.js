@@ -7,27 +7,32 @@ import { updateBreadcrumb } from './grid.js';
 import { rankLocations } from './duplicate-ranker.js';
 
 // ── Cover tooltip ─────────────────────────────────────────────────────────────
-let _coverTip = null;
+let _coverTip   = null;
+let _coverTimer = null;
 
 function showCoverTip(src, anchor) {
-  if (!_coverTip) {
-    _coverTip = document.createElement('div');
-    _coverTip.className = 'dt-cover-tip';
-    document.body.appendChild(_coverTip);
-  }
-  _coverTip.innerHTML = `<img src="${esc(src)}" alt="">`;
-  _coverTip.style.display = 'block';
+  clearTimeout(_coverTimer);
+  _coverTimer = setTimeout(() => {
+    if (!_coverTip) {
+      _coverTip = document.createElement('div');
+      _coverTip.className = 'dt-cover-tip';
+      document.body.appendChild(_coverTip);
+    }
+    _coverTip.innerHTML = `<img src="${esc(src)}" alt="">`;
+    _coverTip.style.display = 'block';
 
-  const rect = anchor.getBoundingClientRect();
-  const tipW = Math.min(480, window.innerWidth * 0.45);
-  const left = (rect.right + 10 + tipW > window.innerWidth - 8)
-    ? rect.left - tipW - 10
-    : rect.right + 10;
-  _coverTip.style.left = left + 'px';
-  _coverTip.style.top  = rect.top  + 'px';
+    const rect = anchor.getBoundingClientRect();
+    const tipW = Math.min(480, window.innerWidth * 0.45);
+    const left = (rect.right + 10 + tipW > window.innerWidth - 8)
+      ? rect.left - tipW - 10
+      : rect.right + 10;
+    _coverTip.style.left = left + 'px';
+    _coverTip.style.top  = rect.top  + 'px';
+  }, 400);
 }
 
 function hideCoverTip() {
+  clearTimeout(_coverTimer);
   if (_coverTip) _coverTip.style.display = 'none';
 }
 
@@ -39,6 +44,8 @@ const ICON_FILE = `<svg class="dt-path-icon" viewBox="0 0 12 12" fill="none" str
 // ── DOM ───────────────────────────────────────────────────────────────────────
 const viewEl            = () => document.getElementById('tools-dup-triage-view');
 const headlineEl        = () => document.getElementById('dt-headline');
+const alphaBarEl        = () => document.getElementById('dt-alpha-bar');
+const sortBarEl         = () => document.getElementById('dt-sort-bar');
 const actressSidebarEl  = () => document.getElementById('dt-actress-sidebar');
 const groupsEl          = () => document.getElementById('dt-groups');
 
@@ -48,6 +55,9 @@ let allDuplicates = [];       // flat list of TitleSummary from API
 let actressGroups = new Map(); // actressKey → { name, titles: TitleSummary[] }
 let decisions = new Map();     // titleCode → Map<locIdx, decision>
 let currentActressKey = null;
+let currentLetterFilter = 'All';
+let sortField = 'count'; // 'count' | 'name'
+let sortDir   = 'desc';  // 'asc'  | 'desc'
 
 export async function showDupTriageView() {
   viewEl().style.display = 'flex';
@@ -87,6 +97,8 @@ async function loadAll() {
       currentActressKey = actressGroups.keys().next().value || null;
     }
 
+    renderAlphaBar();
+    renderSortBar();
     renderActressSidebar();
     renderGroups();
   } catch (err) {
@@ -108,10 +120,7 @@ function buildActressGroups() {
     actressGroups.get(key).titles.push(title);
   }
 
-  // Sort groups: most titles first
-  actressGroups = new Map(
-    [...actressGroups.entries()].sort((a, b) => b[1].titles.length - a[1].titles.length)
-  );
+  // Keep insertion order; sorting is applied in filteredGroups()
 }
 
 // ── Headlines ─────────────────────────────────────────────────────────────────
@@ -135,16 +144,141 @@ function countCleaned() {
   return n;
 }
 
+// ── Alpha filter bar ──────────────────────────────────────────────────────────
+
+function occupiedLetters() {
+  const seen = new Set();
+  for (const [, group] of actressGroups) {
+    const ch = group.name.charAt(0).toUpperCase();
+    if (ch >= 'A' && ch <= 'Z') seen.add(ch);
+  }
+  return [...seen].sort();
+}
+
+function filteredGroups() {
+  let entries = [...actressGroups.entries()];
+  if (currentLetterFilter !== 'All') {
+    entries = entries.filter(([, g]) => g.name.charAt(0).toUpperCase() === currentLetterFilter);
+  }
+  entries.sort(([, a], [, b]) => {
+    let cmp;
+    if (sortField === 'name') {
+      cmp = a.name.localeCompare(b.name);
+    } else {
+      cmp = a.titles.length - b.titles.length;
+    }
+    return sortDir === 'asc' ? cmp : -cmp;
+  });
+  return entries;
+}
+
+function renderAlphaBar() {
+  const bar = alphaBarEl();
+  bar.innerHTML = '';
+
+  const letters = occupiedLetters();
+  const all = ['All', ...letters];
+
+  for (const ltr of all) {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.textContent = ltr;
+    btn.className = 'dt-alpha-btn' + (ltr === currentLetterFilter ? ' active' : '');
+    btn.addEventListener('click', () => {
+      if (ltr === currentLetterFilter) return;
+      currentLetterFilter = ltr;
+      // If current actress no longer visible under new filter, pick first in filtered set
+      const visible = filteredGroups();
+      if (!visible.some(([k]) => k === currentActressKey)) {
+        currentActressKey = visible[0]?.[0] || null;
+      }
+      renderAlphaBar();
+      renderActressSidebar();
+      renderGroups();
+    });
+    bar.appendChild(btn);
+  }
+}
+
+function renderSortBar() {
+  const bar = sortBarEl();
+  bar.innerHTML = '';
+
+  const fields = [{ id: 'name', label: 'Name' }, { id: 'count', label: 'Count' }];
+  for (const f of fields) {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.textContent = f.label;
+    btn.className = 'dt-sort-btn' + (f.id === sortField ? ' active' : '');
+    btn.addEventListener('click', () => {
+      if (sortField === f.id) return;
+      sortField = f.id;
+      renderSortBar();
+      renderActressSidebar();
+    });
+    bar.appendChild(btn);
+  }
+
+  const dirBtn = document.createElement('button');
+  dirBtn.type = 'button';
+  dirBtn.className = 'dt-sort-btn dt-sort-dir';
+  dirBtn.title = sortDir === 'asc' ? 'Ascending' : 'Descending';
+  dirBtn.textContent = sortDir === 'asc' ? '↑' : '↓';
+  dirBtn.addEventListener('click', () => {
+    sortDir = sortDir === 'asc' ? 'desc' : 'asc';
+    renderSortBar();
+    renderActressSidebar();
+  });
+  bar.appendChild(dirBtn);
+}
+
 // ── Actress sidebar ───────────────────────────────────────────────────────────
+
+// Returns { state: 'complete'|'partial'|'none', pct: 0-1 }
+function groupResolutionState(group) {
+  let resolved = 0;
+  for (const t of group.titles) {
+    const locs = t.locationEntries || [];
+    const dec  = decisions.get(t.code);
+    if (dec && locs.every((_, i) => dec.has(i))) resolved++;
+  }
+  const total = group.titles.length;
+  const pct   = total > 0 ? resolved / total : 0;
+  if (pct >= 1)  return { state: 'complete', pct: 1 };
+  if (pct > 0)   return { state: 'partial',  pct };
+  return { state: 'none', pct: 0 };
+}
+
+function makePieSvg(pct) {
+  const r = 4.5, cx = 6, cy = 6;
+  const angle = 2 * Math.PI * pct;
+  const ex    = cx + r * Math.sin(angle);
+  const ey    = cy - r * Math.cos(angle);
+  const large = pct > 0.5 ? 1 : 0;
+  return `<svg class="dt-actress-state dt-actress-state-partial" viewBox="0 0 12 12" title="${Math.round(pct * 100)}% resolved">
+    <circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="currentColor" stroke-width="1.5" opacity="0.3"/>
+    <path d="M${cx},${cy} L${cx},${cy - r} A${r},${r} 0 ${large},1 ${ex.toFixed(2)},${ey.toFixed(2)} Z" fill="currentColor"/>
+  </svg>`;
+}
 
 function renderActressSidebar() {
   const el = actressSidebarEl();
   el.innerHTML = '';
 
-  for (const [key, group] of actressGroups) {
+  for (const [key, group] of filteredGroups()) {
     const repTitle = [...group.titles].sort((a, b) => b.code.localeCompare(a.code))[0];
     const coverUrl = repTitle?.coverUrl
       || (repTitle ? `/covers/${encodeURIComponent(repTitle.label || '')}/${encodeURIComponent(repTitle.code)}.jpg` : null);
+
+    const { state, pct } = groupResolutionState(group);
+    const stateIcon = state === 'complete'
+      ? `<svg class="dt-actress-state dt-actress-state-complete" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" title="All resolved"><polyline points="2,6 5,9 10,3"/></svg>`
+      : state === 'partial'
+      ? makePieSvg(pct)
+      : '';
+    const progressLine = state === 'partial'
+      ? `<div class="dt-actress-progress">${Math.round(pct * 100)}% resolved</div>`
+      : '';
 
     const row = document.createElement('div');
     row.className = 'dt-actress-row' + (key === currentActressKey ? ' selected' : '');
@@ -156,7 +290,9 @@ function renderActressSidebar() {
       <div class="dt-actress-info">
         <div class="dt-actress-name">${esc(group.name)}</div>
         <div class="dt-actress-count">${group.titles.length} title${group.titles.length !== 1 ? 's' : ''}</div>
+        ${progressLine}
       </div>
+      ${stateIcon}
     `;
     row.addEventListener('click', () => {
       currentActressKey = key;
@@ -399,7 +535,19 @@ function setDecision(title, locs, locIdx, decision) {
     dec.set(locIdx, decision);
   }
 
+  // Auto-keep: if exactly one location remains non-trashed and has no decision, promote it
+  if (decision === 'TRASH') {
+    const survivors = locs.reduce((acc, _, i) => {
+      if (dec.get(i) !== 'TRASH') acc.push(i);
+      return acc;
+    }, []);
+    if (survivors.length === 1 && !dec.has(survivors[0])) {
+      dec.set(survivors[0], 'KEEP');
+    }
+  }
+
   renderHeadline();
+  renderActressSidebar();
   renderGroups();
 }
 
