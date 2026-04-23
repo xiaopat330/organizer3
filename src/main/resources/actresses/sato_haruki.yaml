@@ -1,0 +1,41 @@
+profile:
+  name:
+    family_name: "Sato"
+    given_name: "Haruki"
+    stage_name: "さとう遥希"
+    reading: "さとう はるき"
+    alternate_names: []
+  date_of_birth: 1991-12-01
+  birthplace: "Kumamoto Prefecture, Japan"
+  blood_type: null
+  height_cm: 160
+  measurements:
+    bust: 89
+    waist: 59
+    hip: 88
+  cup: "F"
+  active_from: 2011-04-21
+  active_to: 2014-11-30
+  biography: "Haruki Sato (さとう遥希) was born December 1, 1991 in Kumamoto Prefecture and was scouted while working part-time at a crepe shop, making her AV debut on April 21, 2011 with SOD Create in the title 'Do You Like Girls Dressed as Boys? 5.' Affiliated with Lotus Group (ロータスグループ) as her talent agency, she built a top-tier reputation at SOD as a kikaku-tansoku actress across the early 2010s. In 2013 she received the SKY PerfecTV! Adult Broadcast Award for both Best Actress and the Cyzo Award, recognizing her broad commercial popularity. She retired from the AV industry at the end of November 2014 after approximately three and a half years of activity."
+  primary_studios:
+  - name: "SOD Create"
+    company: "Soft on Demand"
+    from: 2011-04-21
+    to: 2014-11-30
+    role: "Contract actress"
+  awards:
+  - event: "スカパー!アダルト放送大賞2013"
+    year: 2013
+    category: "女優賞・サイゾー賞"
+
+meta:
+  total_owned_titles: null
+  titles_with_japanese_title: null
+  titles_with_english_title: null
+  titles_with_release_date: null
+  total_known_releases: null
+  coverage_note: "Profile only; portfolio not yet researched"
+  confidence: "Profile data sourced from Japanese Wikipedia (さとう遥希). Blood type not listed in Wikipedia infobox. Measurements and height confirmed from Wikipedia-sourced search snippets. Retirement date is approximate (end of November 2014)."
+  data_sources:
+  - "https://ja.wikipedia.org/wiki/さとう遥希"
+  portfolio_listed: 0
