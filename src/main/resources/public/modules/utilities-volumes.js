@@ -10,11 +10,77 @@ import * as taskCenter from './task-center.js';
 const SELECTION_KEY = 'utilities.volumes.selection';
 
 const ORGANIZE_ACTIONS = [
-  { id: 'normalize',   label: 'Normalize',    icon: '<polyline points="4 7 4 4 20 4 20 7"/><line x1="9" y1="20" x2="15" y2="20"/><line x1="12" y1="4" x2="12" y2="20"/>',                                                                     previewId: 'organize.normalize.preview',   executeId: 'organize.normalize'   },
-  { id: 'restructure', label: 'Restructure',  icon: '<path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>',                                                                                                 previewId: 'organize.restructure.preview', executeId: 'organize.restructure' },
-  { id: 'sort',        label: 'Sort',         icon: '<polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/>',                                                                                                                             previewId: 'organize.sort.preview',        executeId: 'organize.sort'        },
-  { id: 'classify',    label: 'Classify',     icon: '<path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/>',                                                       previewId: 'organize.classify.preview',    executeId: 'organize.classify'    },
-  { id: 'all',         label: 'Organize all', icon: '<polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>',                                                                                                                                  previewId: 'organize.preview',             executeId: 'organize.queue'       },
+  {
+    id: 'prep', label: 'Prep',
+    icon: '<path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/>',
+    previewId: 'prep.preview', executeId: 'prep', structureTypes: ['queue'],
+    desc: 'Scans the queue partition for raw video files and organizes each one into a title folder skeleton.',
+    steps: [
+      'Parses each filename to extract the product code (e.g. PRED-848-h265.mkv → PRED-848)',
+      'Creates a title folder (PRED-848) with a subfolder matching the encoding (video/, h265/, 4K/)',
+      'Moves the video into that subfolder',
+      'Files that cannot be parsed are skipped and listed',
+    ],
+  },
+  {
+    id: 'normalize', label: 'Normalize',
+    icon: '<polyline points="4 7 4 4 20 4 20 7"/><line x1="9" y1="20" x2="15" y2="20"/><line x1="12" y1="4" x2="12" y2="20"/>',
+    previewId: 'organize.normalize.preview', executeId: 'organize.normalize',
+    desc: 'Renames the cover image and video file in each title folder to the standard CODE.ext filename.',
+    steps: [
+      'Renames the cover image to CODE.jpg (e.g. mide123pl.jpg → MIDE-123.jpg)',
+      'Renames the single video file to CODE.mkv, preserving quality suffixes like -h265 or _4K',
+      'Strips site watermark prefixes from filenames before renaming (e.g. hhd800.com@)',
+      'Skips titles with multiple covers or multiple video files — those need manual attention first',
+    ],
+  },
+  {
+    id: 'restructure', label: 'Restructure',
+    icon: '<path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>',
+    previewId: 'organize.restructure.preview', executeId: 'organize.restructure',
+    desc: 'Moves video files from the title folder root into a proper named subfolder.',
+    steps: [
+      'Finds video files sitting directly in the title folder alongside the cover image',
+      'Determines the correct subfolder name from quality markers in the filename (video/, h265/, 4K/)',
+      'Moves the video into that subfolder',
+    ],
+  },
+  {
+    id: 'sort', label: 'Sort',
+    icon: '<polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/>',
+    previewId: 'organize.sort.preview', executeId: 'organize.sort',
+    desc: 'Files each title into the permanent library under stars/{actress}/, organized by primary actress.',
+    steps: [
+      'Looks up the primary actress for each title in the database',
+      'Moves the title folder to its permanent home at stars/{actress-name}/',
+      'Sets the folder\'s timestamp to the earliest date found among its contents',
+      'Updates the database to reflect the new location',
+      'Titles with no known actress are routed to attention/ for manual review',
+    ],
+  },
+  {
+    id: 'classify', label: 'Classify',
+    icon: '<path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/>',
+    previewId: 'organize.classify.preview', executeId: 'organize.classify',
+    desc: 'Updates actress tier ratings (SSS / SS / S / A / B) based on their current title count and portfolio.',
+    steps: [
+      'Identifies actresses whose titles were touched in recent organize runs',
+      'Counts titles and evaluates portfolio scores for each',
+      'Promotes or adjusts each actress\'s tier in the database',
+    ],
+  },
+  {
+    id: 'all', label: 'Organize all',
+    icon: '<polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>',
+    previewId: 'organize.preview', executeId: 'organize.queue',
+    desc: 'Runs the full pipeline — Normalize, Restructure, Sort, and Classify — on every queued title in sequence.',
+    steps: [
+      'Normalize — renames covers and videos to CODE.ext',
+      'Restructure — moves loose videos from the folder root into named subfolders',
+      'Sort — files each title into stars/{actress}/ and corrects folder timestamps',
+      'Classify — updates actress tier ratings for all affected actresses',
+    ],
+  },
 ];
 
 // When the user clicks the floating task pill elsewhere in the app, they want
@@ -68,8 +134,8 @@ taskCenter.onOpenRequested((state) => {
 function labelFor(taskId) {
   if (taskId === 'volume.sync') return 'Syncing volume';
   if (taskId === 'volume.clean_stale_locations') return 'Cleaning stale locations';
-  const orgAction = ORGANIZE_ACTIONS.find(a => a.previewId === taskId || a.executeId === taskId);
-  if (orgAction) return orgAction.label;
+  const action = ORGANIZE_ACTIONS.find(a => a.previewId === taskId || a.executeId === taskId);
+  if (action) return action.label;
   return taskId;
 }
 
@@ -740,33 +806,38 @@ function renderOrgSectionHTML(v) {
   const isBlocked = taskCenter.isRunning();
 
   if (!organizeFlow) {
-    if (v.queueCount === 0) {
-      return `<div class="vol-health-healthy">
-        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-        No titles in queue
-      </div>`;
-    }
+    const structureType = v.structureType || '';
+    const visibleActions = ORGANIZE_ACTIONS.filter(a =>
+      !a.structureTypes || a.structureTypes.includes(structureType));
     const disabledAttr = isBlocked ? ' disabled' : '';
-    const btns = ORGANIZE_ACTIONS.map(a =>
+    const btns = visibleActions.map(a =>
       `<button type="button" class="org-action-btn${a.id === 'all' ? ' org-action-all' : ''}" data-action="${esc(a.id)}"${disabledAttr}>${actionSVG(a.icon)} ${esc(a.label)}</button>`
     ).join('');
-    const queueLine = `<div class="org-queue-count">${v.queueCount} title${v.queueCount === 1 ? '' : 's'} in queue</div>`;
+    const queueLine = v.queueCount > 0
+      ? `<div class="org-queue-count">${v.queueCount} title${v.queueCount === 1 ? '' : 's'} in queue</div>`
+      : '';
     const blockedNote = isBlocked ? '<div class="vol-op-blocked">Another utility task is running. Wait for it to finish.</div>' : '';
     return `${queueLine}<div class="org-actions">${btns}</div>${blockedNote}`;
   }
 
   const { action, state, planResult, execResult, progress, error } = organizeFlow;
-  const actionLabel = esc(action.label);
+  const descHTML = renderActionDescriptionHTML(action);
 
   if (state === 'planning') {
-    return `<div class="org-flow-head">${actionLabel} — Planning…</div>
+    return `${descHTML}
+      <div class="org-flow-head">Planning…</div>
       <div class="org-spinner"></div>`;
   }
 
   if (state === 'plan-ready') {
-    const titleCount = planResult?.titlesInSlice ?? 0;
-    const planRows = planResult?.titles ? planResult.titles.map(renderPlanRow).join('') : '';
-    return `<div class="org-flow-head">${actionLabel} — Plan — ${titleCount} title${titleCount === 1 ? '' : 's'}</div>
+    if (action.id === 'prep') {
+      return `${descHTML}${renderPrepPlanReadyHTML(planResult)}`;
+    }
+    const allRows = (planResult?.titles || []).map(renderPlanRow).filter(r => r);
+    const titleCount = allRows.length;
+    const planRows = allRows.join('');
+    return `${descHTML}
+      <div class="org-flow-head">Plan — ${titleCount} title${titleCount === 1 ? '' : 's'} with changes</div>
       <div class="org-plan-list">${planRows}</div>
       <div class="org-flow-actions">
         <button type="button" class="org-execute-btn">Execute</button>
@@ -782,17 +853,21 @@ function renderOrgSectionHTML(v) {
       ? `<div class="vol-phase-bar"><div class="vol-phase-bar-fill" style="width:${pct}%"></div></div>`
       : `<div class="vol-phase-bar"><div class="vol-phase-bar-indet"></div></div>`;
     const progressText = tot > 0 ? `${cur} / ${tot}` : 'Working…';
-    return `<div class="org-flow-head">${actionLabel} — Running…</div>
+    return `${descHTML}
+      <div class="org-flow-head">Running…</div>
       <div class="org-progress">${esc(progressText)}</div>
       ${bar}`;
   }
 
   if (state === 'done') {
     const result = execResult || planResult;
-    const summaryHTML = result?.summary ? renderOrgSummaryHTML(result.summary) : '';
+    const summaryHTML = action.id === 'prep'
+      ? (result?.summary ? renderPrepSummaryHTML(result.summary) : '')
+      : (result?.summary ? renderOrgSummaryHTML(result.summary) : '');
     const errorHTML = error ? `<div class="org-error">${esc(error)}</div>` : '';
     const statusLabel = error ? 'Failed' : 'Done';
-    return `<div class="org-flow-head">${actionLabel} — ${statusLabel}</div>
+    return `${descHTML}
+      <div class="org-flow-head">${statusLabel}</div>
       ${errorHTML}
       ${summaryHTML}
       <div class="org-flow-actions">
@@ -850,26 +925,18 @@ function renderPlanRow(t) {
 
   const lines = [];
 
-  if (t.normalize) {
-    if (t.normalize.planned?.length > 0) {
-      for (const a of t.normalize.planned) {
-        const from = a.from?.split('/').pop() || a.from || '';
-        const to   = a.to?.split('/').pop()   || a.to   || '';
-        lines.push({ text: `rename: ${from} → ${to}`, dim: false });
-      }
-    } else {
-      lines.push({ text: '(already normalized)', dim: true });
+  if (t.normalize?.planned?.length > 0) {
+    for (const a of t.normalize.planned) {
+      const from = a.from?.split('/').pop() || a.from || '';
+      const to   = a.to?.split('/').pop()   || a.to   || '';
+      lines.push(`rename: ${from} → ${to}`);
     }
   }
 
-  if (t.restructure) {
-    if (t.restructure.planned?.length > 0) {
-      for (const a of t.restructure.planned) {
-        const from = a.from?.split('/').pop() || a.from || '';
-        lines.push({ text: `move: ${from} → subfolder/`, dim: false });
-      }
-    } else {
-      lines.push({ text: '(already restructured)', dim: true });
+  if (t.restructure?.planned?.length > 0) {
+    for (const a of t.restructure.planned) {
+      const from = a.from?.split('/').pop() || a.from || '';
+      lines.push(`move: ${from} → subfolder/`);
     }
   }
 
@@ -879,20 +946,17 @@ function renderPlanRow(t) {
       const parts = (s.to || '').split('/').filter(Boolean);
       const starsIdx = parts.indexOf('stars');
       const dest = starsIdx >= 0 ? parts.slice(starsIdx, starsIdx + 3).join('/') : (s.to || 'stars/…');
-      lines.push({ text: `sort → ${dest}`, dim: false });
+      lines.push(`sort → ${dest}`);
     } else if (s.outcome === 'WOULD_ROUTE_TO_ATTENTION') {
-      lines.push({ text: `→ attention/ (${s.reason || ''})`, dim: false });
-    } else if (s.outcome === 'SKIPPED') {
-      lines.push({ text: '(already in place)', dim: true });
+      lines.push(`→ attention/ (${s.reason || ''})`);
     }
   }
 
-  const hasSubstantive = lines.some(l => !l.dim);
-  const detailHTML = lines.length > 0
-    ? lines.map(l => `<span class="org-plan-detail${l.dim ? ' dim' : ''}">${esc(l.text)}</span>`).join('')
-    : '<span class="org-plan-detail dim">(no changes)</span>';
+  if (lines.length === 0) return '';
 
-  return `<div class="org-plan-row${hasSubstantive ? '' : ' org-plan-row-dim'}">
+  const detailHTML = lines.map(l => `<span class="org-plan-detail">${esc(l)}</span>`).join('');
+
+  return `<div class="org-plan-row">
     <span class="org-plan-code">${code}</span>
     <div class="org-plan-details">${detailHTML}</div>
   </div>`;
@@ -909,6 +973,60 @@ function renderOrgSummaryHTML(s) {
   if (s.titlesWithErrors     > 0) rows.push(['Errors',              s.titlesWithErrors]);
   if (rows.length === 0)          rows.push(['Processed',           s.titlesProcessed]);
 
+  return `<div class="org-summary">
+    ${rows.map(([k, n]) =>
+      `<div class="org-summary-row">
+        <span class="org-summary-key">${esc(k)}</span>
+        <span class="org-summary-val">${n}</span>
+      </div>`
+    ).join('')}
+  </div>`;
+}
+
+function renderActionDescriptionHTML(action) {
+  if (!action.desc) return '';
+  const stepsHTML = (action.steps || []).map(s => `<li>${esc(s)}</li>`).join('');
+  return `<div class="org-action-desc">
+    <div class="org-action-desc-summary">${esc(action.desc)}</div>
+    ${stepsHTML ? `<ol class="org-action-desc-steps">${stepsHTML}</ol>` : ''}
+  </div>`;
+}
+
+function renderPrepPlanReadyHTML(planResult) {
+  const allPlanned = (planResult?.partitions || []).flatMap(p => p.planned || []);
+  const allSkipped = (planResult?.partitions || []).flatMap(p => p.skipped || []);
+  const planRows = allPlanned.map(p => {
+    const src  = (p.sourcePath  || '').split('/').pop();
+    const dest = (p.targetVideoPath || '').split('/').slice(-3).join('/');
+    return `<div class="org-plan-row">
+      <span class="org-plan-code">${esc(p.code || '?')}</span>
+      <div class="org-plan-details">
+        <span class="org-plan-detail">${esc(src)} → ${esc(dest)}</span>
+      </div>
+    </div>`;
+  }).join('');
+  const skipRows = allSkipped.map(s =>
+    `<div class="org-plan-row org-plan-row-skipped">
+      <span class="org-plan-code">—</span>
+      <span class="org-plan-detail">${esc(s.filename || '')} — ${esc(s.reason || '')}</span>
+    </div>`
+  ).join('');
+  const count = allPlanned.length;
+  const skipNote = allSkipped.length > 0 ? ` (${allSkipped.length} skipped)` : '';
+  return `<div class="org-flow-head">Plan — ${count} file${count === 1 ? '' : 's'} to move${skipNote}</div>
+    <div class="org-plan-list">${planRows}${skipRows}</div>
+    <div class="org-flow-actions">
+      <button type="button" class="org-execute-btn">Execute</button>
+      <button type="button" class="org-cancel-btn">Cancel</button>
+    </div>`;
+}
+
+function renderPrepSummaryHTML(s) {
+  const rows = [];
+  if (s.moved   > 0) rows.push(['Moved',   s.moved]);
+  if (s.skipped > 0) rows.push(['Skipped', s.skipped]);
+  if (s.failed  > 0) rows.push(['Failed',  s.failed]);
+  if (rows.length === 0) rows.push(['Total videos', s.totalVideos || 0]);
   return `<div class="org-summary">
     ${rows.map(([k, n]) =>
       `<div class="org-summary-row">
@@ -949,7 +1067,7 @@ async function beginOrgPreview(volumeId, action) {
 
     es.addEventListener('phase.ended', e => {
       const ev = JSON.parse(e.data);
-      if (ev.phaseId === 'organize' && ev.summary) {
+      if ((ev.phaseId === 'organize' || ev.phaseId === 'prep') && ev.summary) {
         try { organizeFlow.planResult = JSON.parse(ev.summary); } catch {}
       }
     });
@@ -1003,7 +1121,7 @@ async function beginOrgExecute(volumeId) {
 
     es.addEventListener('phase.progress', e => {
       const ev = JSON.parse(e.data);
-      if (ev.phaseId === 'organize') {
+      if (ev.phaseId === 'organize' || ev.phaseId === 'prep') {
         organizeFlow.progress = { current: ev.current, total: ev.total };
         if (ev.total > 0) taskCenter.updateProgress({ overallPct: Math.floor(100 * ev.current / ev.total) });
         updateOrgSection(volumeId);
@@ -1011,7 +1129,7 @@ async function beginOrgExecute(volumeId) {
     });
     es.addEventListener('phase.ended', e => {
       const ev = JSON.parse(e.data);
-      if (ev.phaseId === 'organize' && ev.summary) {
+      if ((ev.phaseId === 'organize' || ev.phaseId === 'prep') && ev.summary) {
         try { organizeFlow.execResult = JSON.parse(ev.summary); } catch {}
       }
     });

@@ -4541,6 +4541,32 @@
   border-color: #6366f1;
 }
 
+.org-action-desc {
+  margin-bottom: 16px;
+  padding: 11px 14px;
+  background: #060d18;
+  border: 1px solid #1e293b;
+  border-radius: 4px;
+}
+.org-action-desc-summary {
+  font-size: 13px;
+  color: #cbd5e1;
+  line-height: 1.5;
+  margin-bottom: 8px;
+}
+.org-action-desc-steps {
+  margin: 0;
+  padding: 0 0 0 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.org-action-desc-steps li {
+  font-size: 12px;
+  color: #64748b;
+  line-height: 1.5;
+}
+
 .org-flow-head {
   font-size: 13px;
   color: #e2e8f0;

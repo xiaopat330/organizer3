@@ -304,7 +304,7 @@ public class Application {
 
         // Organize-pipeline commands — phase 1: normalize filenames
         com.organizer3.organize.TitleNormalizerService titleNormalizerService =
-                new com.organizer3.organize.TitleNormalizerService(config.mediaOrDefaults());
+                new com.organizer3.organize.TitleNormalizerService(config.mediaOrDefaults(), config.normalizeOrEmpty());
         commands.add(new com.organizer3.command.NormalizeTitleCommand(jdbi, titleNormalizerService));
 
         // Organize-pipeline commands — phase 2: restructure title folder
@@ -536,6 +536,12 @@ public class Application {
         java.util.function.Supplier<com.organizer3.utilities.task.CommandInvoker> organizeInvokerFactory =
                 () -> new com.organizer3.utilities.task.CommandInvoker(
                         commandsByName, new com.organizer3.shell.SessionContext());
+        com.organizer3.utilities.task.organize.PrepPreviewTask prepPreviewTask =
+                new com.organizer3.utilities.task.organize.PrepPreviewTask(
+                        freshPrepService, config, organizeInvokerFactory);
+        com.organizer3.utilities.task.organize.PrepTask prepTask =
+                new com.organizer3.utilities.task.organize.PrepTask(
+                        freshPrepService, config, organizeInvokerFactory);
         com.organizer3.utilities.task.organize.OrganizeNormalizePreviewTask organizeNormalizePreviewTask =
                 new com.organizer3.utilities.task.organize.OrganizeNormalizePreviewTask(
                         organizeVolumeService, jdbi, config, organizeInvokerFactory);
@@ -575,6 +581,7 @@ public class Application {
                                 scanLibraryTask, cleanOrphanedCoversTask,
                                 resolveIafdTask, renameAvActressTask, deleteAvActressTask, parseFilenamesTask,
                                 executeDuplicateTrashTask, detectMergeCandidatesTask, executeMergeTask,
+                                prepPreviewTask, prepTask,
                                 organizeNormalizePreviewTask, organizeNormalizeTask,
                                 organizeRestructurePreviewTask, organizeRestructureTask,
                                 organizeSortPreviewTask, organizeSortTask,
