@@ -6,11 +6,41 @@ import { esc } from './utils.js';
 import { updateBreadcrumb } from './grid.js';
 import { rankLocations } from './duplicate-ranker.js';
 
+// ── Cover tooltip ─────────────────────────────────────────────────────────────
+let _coverTip = null;
+
+function showCoverTip(src, anchor) {
+  if (!_coverTip) {
+    _coverTip = document.createElement('div');
+    _coverTip.className = 'dt-cover-tip';
+    document.body.appendChild(_coverTip);
+  }
+  _coverTip.innerHTML = `<img src="${esc(src)}" alt="">`;
+  _coverTip.style.display = 'block';
+
+  const rect = anchor.getBoundingClientRect();
+  const tipW = Math.min(480, window.innerWidth * 0.45);
+  const left = (rect.right + 10 + tipW > window.innerWidth - 8)
+    ? rect.left - tipW - 10
+    : rect.right + 10;
+  _coverTip.style.left = left + 'px';
+  _coverTip.style.top  = rect.top  + 'px';
+}
+
+function hideCoverTip() {
+  if (_coverTip) _coverTip.style.display = 'none';
+}
+
+// ── Icons ─────────────────────────────────────────────────────────────────────
+const ICON_VOL  = `<svg class="dt-path-icon" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><rect x="1" y="2" width="10" height="8" rx="1"/><line x1="1" y1="7" x2="11" y2="7"/><circle cx="9" cy="9.2" r="0.7" fill="currentColor" stroke="none"/></svg>`;
+const ICON_DIR  = `<svg class="dt-path-icon" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><path d="M1 9V4.5C1 4 1.4 3.5 2 3.5h3L6 5h4c.6 0 1 .4 1 1V9c0 .6-.4 1-1 1H2c-.6 0-1-.4-1-1z"/></svg>`;
+const ICON_FILE = `<svg class="dt-path-icon" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 1h5l3 3v7H2V1z"/><path d="M7 1v3h3"/></svg>`;
+
 // ── DOM ───────────────────────────────────────────────────────────────────────
-const viewEl       = () => document.getElementById('tools-dup-triage-view');
-const headlineEl   = () => document.getElementById('dt-headline');
-const actressSelEl = () => document.getElementById('dt-actress-sel');
-const groupsEl     = () => document.getElementById('dt-groups');
+const viewEl            = () => document.getElementById('tools-dup-triage-view');
+const headlineEl        = () => document.getElementById('dt-headline');
+const actressSidebarEl  = () => document.getElementById('dt-actress-sidebar');
+const groupsEl          = () => document.getElementById('dt-groups');
 
 // ── State ─────────────────────────────────────────────────────────────────────
 // decisions: Map<titleCode, Map<locationIndex, 'KEEP'|'TRASH'|'VARIANT'>>
@@ -33,8 +63,8 @@ export function hideDupTriageView() {
 
 async function loadAll() {
   headlineEl().textContent = 'Loading…';
-  actressSelEl().innerHTML = '';
-  groupsEl().innerHTML     = '';
+  actressSidebarEl().innerHTML = '';
+  groupsEl().innerHTML = '<div class="dt-load-splash"><span class="dt-spinner"></span><span>Fetching duplicates…</span></div>';
 
   try {
     // Fetch all duplicates (no pagination — bounded dataset)
@@ -52,15 +82,12 @@ async function loadAll() {
     allDuplicates = all;
     buildActressGroups();
     renderHeadline();
-    populateActressDropdown();
-
     // Restore or default actress selection
-    if (currentActressKey && actressGroups.has(currentActressKey)) {
-      actressSelEl().value = currentActressKey;
-    } else {
-      currentActressKey = actressSelEl().value || null;
+    if (!currentActressKey || !actressGroups.has(currentActressKey)) {
+      currentActressKey = actressGroups.keys().next().value || null;
     }
 
+    renderActressSidebar();
     renderGroups();
   } catch (err) {
     headlineEl().textContent = 'Failed to load duplicates.';
@@ -108,18 +135,38 @@ function countCleaned() {
   return n;
 }
 
-// ── Actress dropdown ──────────────────────────────────────────────────────────
+// ── Actress sidebar ───────────────────────────────────────────────────────────
 
-function populateActressDropdown() {
-  const sel = actressSelEl();
-  sel.innerHTML = '';
+function renderActressSidebar() {
+  const el = actressSidebarEl();
+  el.innerHTML = '';
 
   for (const [key, group] of actressGroups) {
-    const opt = document.createElement('option');
-    opt.value       = key;
-    opt.textContent = `${group.name} (${group.titles.length})`;
-    sel.appendChild(opt);
+    const repTitle = [...group.titles].sort((a, b) => b.code.localeCompare(a.code))[0];
+    const coverUrl = repTitle?.coverUrl
+      || (repTitle ? `/covers/${encodeURIComponent(repTitle.label || '')}/${encodeURIComponent(repTitle.code)}.jpg` : null);
+
+    const row = document.createElement('div');
+    row.className = 'dt-actress-row' + (key === currentActressKey ? ' selected' : '');
+    row.innerHTML = `
+      <div class="dt-actress-portrait">
+        <div class="dt-portrait-fallback">${esc(group.name.charAt(0).toUpperCase())}</div>
+        ${coverUrl ? `<img src="${esc(coverUrl)}" alt="" onerror="this.style.display='none'">` : ''}
+      </div>
+      <div class="dt-actress-info">
+        <div class="dt-actress-name">${esc(group.name)}</div>
+        <div class="dt-actress-count">${group.titles.length} title${group.titles.length !== 1 ? 's' : ''}</div>
+      </div>
+    `;
+    row.addEventListener('click', () => {
+      currentActressKey = key;
+      renderActressSidebar();
+      renderGroups();
+    });
+    el.appendChild(row);
   }
+
+  el.querySelector('.dt-actress-row.selected')?.scrollIntoView({ block: 'nearest' });
 }
 
 // ── Group rendering ───────────────────────────────────────────────────────────
@@ -130,7 +177,7 @@ async function renderGroups() {
 
   if (!currentActressKey) return;
   const group = actressGroups.get(currentActressKey);
-  if (!group) return;
+  if (!group || group.titles.length === 0) return;
 
   // Closure badge
   const allResolved = group.titles.every(t => {
@@ -138,17 +185,24 @@ async function renderGroups() {
     const locs = t.locationEntries || [];
     return dec && locs.every((_, i) => dec.has(i));
   });
-
-  if (allResolved && group.titles.length > 0) {
+  if (allResolved) {
     const done = document.createElement('div');
     done.className = 'dt-closure';
     done.textContent = `✓ ${group.name} — all duplicates resolved`;
     el.appendChild(done);
   }
 
-  for (const title of group.titles) {
-    el.appendChild(await buildTitleCard(title));
+  const total = group.titles.length;
+  const prog  = document.createElement('div');
+  prog.className = 'dt-load-progress';
+  el.appendChild(prog);
+
+  for (let n = 0; n < total; n++) {
+    prog.innerHTML = `<span class="dt-spinner"></span><span>Loading ${n + 1} / ${total}…</span>`;
+    el.appendChild(await buildTitleCard(group.titles[n]));
   }
+
+  prog.remove();
 }
 
 async function buildTitleCard(title) {
@@ -161,14 +215,24 @@ async function buildTitleCard(title) {
   header.className = 'dt-card-header';
 
   const coverUrl = title.coverUrl || `/covers/${encodeURIComponent(title.label || '')}/${encodeURIComponent(title.code)}.jpg`;
-  header.innerHTML = `
-    <img class="dt-cover" src="${esc(coverUrl)}" alt="" onerror="this.style.display='none'">
-    <div class="dt-card-title">
-      <span class="dt-code">${esc(title.code)}</span>
-      ${title.titleEnglish ? `<span class="dt-title-en">${esc(title.titleEnglish)}</span>` : ''}
-      <span class="dt-loc-count">${locs.length} locations</span>
-    </div>
+
+  const coverImg = document.createElement('img');
+  coverImg.className = 'dt-cover';
+  coverImg.src = coverUrl;
+  coverImg.alt = '';
+  coverImg.onerror = () => { coverImg.style.display = 'none'; };
+  coverImg.addEventListener('mouseenter', () => showCoverTip(coverUrl, coverImg));
+  coverImg.addEventListener('mouseleave', hideCoverTip);
+  header.appendChild(coverImg);
+
+  const titleInfo = document.createElement('div');
+  titleInfo.className = 'dt-card-title';
+  titleInfo.innerHTML = `
+    <span class="dt-code">${esc(title.code)}</span>
+    ${title.titleEnglish ? `<span class="dt-title-en">${esc(title.titleEnglish)}</span>` : ''}
+    <span class="dt-loc-count">${locs.length} locations</span>
   `;
+  header.appendChild(titleInfo);
   card.appendChild(header);
 
   // Fetch videos for each location
@@ -208,13 +272,38 @@ function buildLocCell(title, locs, i, videos, suggestedIndex) {
   if (i === suggestedIndex) cell.classList.add('dt-cell-suggested');
 
   // Path
-  const parts   = (loc.nasPath || '').split('/');
-  const pathBase = parts.slice(0, 4).join('/');
-  const pathRest = parts.slice(4).join('/');
-  const pathEl   = document.createElement('div');
+  const fullPath   = loc.nasPath || '';
+  const parts      = fullPath.split('/');
+  const volPath    = parts.slice(0, 4).join('/');
+  const relParts   = parts.slice(4);
+  const titleFolder = relParts[relParts.length - 1] || '';
+  const relParent  = relParts.slice(0, -1).join('/');
+
+  function makeCopyRow(icon, text) {
+    const row = document.createElement('div');
+    row.className = 'dt-path-row dt-path-row-copy';
+    row.title = 'Click to copy full path';
+    row.innerHTML = `${icon}<span class="dt-path-rest">${esc(text)}</span>`;
+    row.addEventListener('click', () => {
+      navigator.clipboard.writeText(fullPath).then(() => {
+        row.classList.add('dt-path-copied');
+        setTimeout(() => row.classList.remove('dt-path-copied'), 1400);
+      });
+    });
+    return row;
+  }
+
+  const pathEl = document.createElement('div');
   pathEl.className = 'dt-cell-path';
-  pathEl.innerHTML = `<span class="dt-path-base">${esc(pathBase)}</span>`
-                   + (pathRest ? `<span class="dt-path-rest">/${esc(pathRest)}</span>` : '');
+
+  const volRow = document.createElement('div');
+  volRow.className = 'dt-path-row';
+  volRow.innerHTML = `${ICON_VOL}<span class="dt-path-base">${esc(volPath)}</span>`;
+  pathEl.appendChild(volRow);
+
+  if (relParent)   pathEl.appendChild(makeCopyRow(ICON_DIR,  relParent));
+  if (titleFolder) pathEl.appendChild(makeCopyRow(ICON_FILE, titleFolder));
+
   cell.appendChild(pathEl);
 
   // Video summary
@@ -236,21 +325,19 @@ function buildLocCell(title, locs, i, videos, suggestedIndex) {
   const actions = document.createElement('div');
   actions.className = 'dt-cell-actions';
 
-  // KEEP
-  const keepBtn = makeDecisionBtn('Keep', 'KEEP', current === 'KEEP');
+  const keepBtn = makeDecisionBtn('KEEP', current === 'KEEP');
   keepBtn.addEventListener('click', () => setDecision(title, locs, i, current === 'KEEP' ? null : 'KEEP'));
   actions.appendChild(keepBtn);
 
   // TRASH — disabled if it's the last non-trashed location
-  const trashBtn = makeDecisionBtn('Trash', 'TRASH', current === 'TRASH');
+  const trashBtn = makeDecisionBtn('TRASH', current === 'TRASH');
   const wouldTrashLast = isLastNonTrashed(title, locs, i);
   trashBtn.disabled = wouldTrashLast && current !== 'TRASH';
   if (trashBtn.disabled) trashBtn.title = 'Cannot trash the last copy';
   trashBtn.addEventListener('click', () => setDecision(title, locs, i, current === 'TRASH' ? null : 'TRASH'));
   actions.appendChild(trashBtn);
 
-  // VARIANT
-  const variantBtn = makeDecisionBtn('Variant', 'VARIANT', current === 'VARIANT');
+  const variantBtn = makeDecisionBtn('VARIANT', current === 'VARIANT');
   variantBtn.addEventListener('click', () => setDecision(title, locs, i, current === 'VARIANT' ? null : 'VARIANT'));
   actions.appendChild(variantBtn);
 
@@ -258,10 +345,18 @@ function buildLocCell(title, locs, i, videos, suggestedIndex) {
   return cell;
 }
 
-function makeDecisionBtn(label, decision, active) {
+function makeDecisionBtn(decision, active) {
+  const LABELS   = { KEEP: 'Keep', TRASH: 'Trash', VARIANT: 'Alt Copy' };
+  const ICONS    = { KEEP: '✓', TRASH: '✕', VARIANT: '⊕' };
+  const TOOLTIPS = {
+    KEEP:    'Keep this copy — mark it as the version to preserve',
+    TRASH:   'Trash this copy — mark it for deletion',
+    VARIANT: 'Alt Copy — keep as a separate version (different cut, format, or quality)',
+  };
   const btn = document.createElement('button');
   btn.type = 'button';
-  btn.textContent = label;
+  btn.title = TOOLTIPS[decision];
+  btn.innerHTML = `<span class="dt-btn-icon">${ICONS[decision]}</span>${LABELS[decision]}`;
   btn.className = `dt-dec-btn dt-dec-${decision.toLowerCase()}` + (active ? ' active' : '');
   return btn;
 }
@@ -327,8 +422,5 @@ async function fetchLocVideos(titleCode, locs) {
 // ── Event wiring ──────────────────────────────────────────────────────────────
 
 export function wireDupTriageEvents() {
-  actressSelEl()?.addEventListener('change', () => {
-    currentActressKey = actressSelEl().value;
-    renderGroups();
-  });
+  // Sidebar click events are bound per-row in renderActressSidebar
 }
