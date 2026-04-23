@@ -1,0 +1,40 @@
+profile:
+  name:
+    family_name: "Aoi"
+    given_name: "Ibuki"
+    stage_name: "葵いぶき"
+    reading: "あおい いぶき"
+    alternate_names:
+    - name: "翼あおい"
+      note: "name used January–October 2021 while at Bambi Promotion"
+  date_of_birth: 2001-05-18
+  birthplace: null
+  blood_type: null
+  height_cm: 162
+  measurements:
+    bust: 88
+    waist: 59
+    hip: 90
+  cup: "G"
+  active_from: '2020-07-01'
+  active_to: null
+  biography: "Ibuki Aoi (葵いぶき) was born May 18, 2001 and made her AV debut in mid-2020, with her debut title charting in the top 12 on FANZA's weekly video rankings and top 10 on the monthly actress rankings in July 2020. She is affiliated with the agency Attractive and built a following around her G-cup figure and 162cm frame. In January 2021 she transferred to Bambi Promotion and changed her stage name to Tsubasa Aoi (翼あおい), but returned to her original name and agency Attractive in October 2021. She has maintained an active career and social media presence since returning to her original identity."
+  primary_studios:
+  - name: "Attractive"
+    company: "Attractive"
+    from: '2020-07-01'
+    to: null
+    role: "Contract actress"
+  awards: []
+
+meta:
+  total_owned_titles: null
+  titles_with_japanese_title: null
+  titles_with_english_title: null
+  titles_with_release_date: null
+  total_known_releases: null
+  coverage_note: "Profile only; portfolio not yet researched"
+  confidence: "Profile data sourced from Japanese Wikipedia (葵いぶき). Birthplace and blood type not listed in Wikipedia. Height and measurements confirmed from Wikipedia-sourced search snippets. Debut month is July 2020 based on FANZA ranking appearance; exact day unknown, first of month used as placeholder."
+  data_sources:
+  - "https://ja.wikipedia.org/wiki/葵いぶき"
+  portfolio_listed: 0
