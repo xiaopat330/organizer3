@@ -532,6 +532,41 @@ public class Application {
         com.organizer3.utilities.task.duplicates.ExecuteMergeTask executeMergeTask =
                 new com.organizer3.utilities.task.duplicates.ExecuteMergeTask(mergeCandidateRepo, jdbi);
 
+        // Organize pipeline tasks — preview (dryRun) + execute for each phase action.
+        java.util.function.Supplier<com.organizer3.utilities.task.CommandInvoker> organizeInvokerFactory =
+                () -> new com.organizer3.utilities.task.CommandInvoker(
+                        commandsByName, new com.organizer3.shell.SessionContext());
+        com.organizer3.utilities.task.organize.OrganizeNormalizePreviewTask organizeNormalizePreviewTask =
+                new com.organizer3.utilities.task.organize.OrganizeNormalizePreviewTask(
+                        organizeVolumeService, jdbi, config, organizeInvokerFactory);
+        com.organizer3.utilities.task.organize.OrganizeNormalizeTask organizeNormalizeTask =
+                new com.organizer3.utilities.task.organize.OrganizeNormalizeTask(
+                        organizeVolumeService, jdbi, config, organizeInvokerFactory);
+        com.organizer3.utilities.task.organize.OrganizeRestructurePreviewTask organizeRestructurePreviewTask =
+                new com.organizer3.utilities.task.organize.OrganizeRestructurePreviewTask(
+                        organizeVolumeService, jdbi, config, organizeInvokerFactory);
+        com.organizer3.utilities.task.organize.OrganizeRestructureTask organizeRestructureTask =
+                new com.organizer3.utilities.task.organize.OrganizeRestructureTask(
+                        organizeVolumeService, jdbi, config, organizeInvokerFactory);
+        com.organizer3.utilities.task.organize.OrganizeSortPreviewTask organizeSortPreviewTask =
+                new com.organizer3.utilities.task.organize.OrganizeSortPreviewTask(
+                        organizeVolumeService, jdbi, config, organizeInvokerFactory);
+        com.organizer3.utilities.task.organize.OrganizeSortTask organizeSortTask =
+                new com.organizer3.utilities.task.organize.OrganizeSortTask(
+                        organizeVolumeService, jdbi, config, organizeInvokerFactory);
+        com.organizer3.utilities.task.organize.OrganizeClassifyPreviewTask organizeClassifyPreviewTask =
+                new com.organizer3.utilities.task.organize.OrganizeClassifyPreviewTask(
+                        organizeVolumeService, jdbi, config, organizeInvokerFactory);
+        com.organizer3.utilities.task.organize.OrganizeClassifyTask organizeClassifyTask =
+                new com.organizer3.utilities.task.organize.OrganizeClassifyTask(
+                        organizeVolumeService, jdbi, config, organizeInvokerFactory);
+        com.organizer3.utilities.task.organize.OrganizeAllPreviewTask organizeAllPreviewTask =
+                new com.organizer3.utilities.task.organize.OrganizeAllPreviewTask(
+                        organizeVolumeService, jdbi, config, organizeInvokerFactory);
+        com.organizer3.utilities.task.organize.OrganizeAllTask organizeAllTask =
+                new com.organizer3.utilities.task.organize.OrganizeAllTask(
+                        organizeVolumeService, jdbi, config, organizeInvokerFactory);
+
         com.organizer3.utilities.task.TaskRegistry taskRegistry =
                 new com.organizer3.utilities.task.TaskRegistry(
                         java.util.List.of(syncVolumeTask, cleanStaleLocationsTask,
@@ -539,7 +574,12 @@ public class Application {
                                 backupNowTask, restoreSnapshotTask,
                                 scanLibraryTask, cleanOrphanedCoversTask,
                                 resolveIafdTask, renameAvActressTask, deleteAvActressTask, parseFilenamesTask,
-                                executeDuplicateTrashTask, detectMergeCandidatesTask, executeMergeTask));
+                                executeDuplicateTrashTask, detectMergeCandidatesTask, executeMergeTask,
+                                organizeNormalizePreviewTask, organizeNormalizeTask,
+                                organizeRestructurePreviewTask, organizeRestructureTask,
+                                organizeSortPreviewTask, organizeSortTask,
+                                organizeClassifyPreviewTask, organizeClassifyTask,
+                                organizeAllPreviewTask, organizeAllTask));
         com.organizer3.utilities.task.TaskRunner taskRunner =
                 new com.organizer3.utilities.task.TaskRunner(taskRegistry);
         webServer.registerUtilities(new com.organizer3.web.routes.UtilitiesRoutes(
