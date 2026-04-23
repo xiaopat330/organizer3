@@ -12,6 +12,7 @@ import { showBackupView, hideBackupView } from './utilities-backup.js';
 import { showLibraryHealthView, hideLibraryHealthView } from './utilities-library-health.js';
 import { showAvStarsView, hideAvStarsView } from './utilities-av-stars.js';
 import { showDupTriageView, hideDupTriageView, wireDupTriageEvents } from './utilities-duplicate-triage.js';
+import { showMergeCandidatesView, hideMergeCandidatesView, wireMergeCandidatesEvents } from './utilities-merge-candidates.js';
 
 // ── DOM refs ──────────────────────────────────────────────────────────────
 const actionBtn         = document.getElementById('action-btn');
@@ -33,6 +34,9 @@ const dupDetailOverlay  = document.getElementById('dup-detail-overlay');
 const dupDetailHeading  = document.getElementById('dup-detail-heading');
 const dupDetailBody     = document.getElementById('dup-detail-body');
 const dupDetailClose    = document.getElementById('dup-detail-close');
+const dupSubnav         = document.getElementById('tools-dup-subnav');
+const dupTriageTab      = document.getElementById('tools-dup-triage-tab');
+const mergeCandidatesTab = document.getElementById('tools-merge-candidates-tab');
 
 // ── Tool buttons ──────────────────────────────────────────────────────────
 const TOOL_BTNS = [volumesBtn, actressDataBtn, backupBtn, libraryHealthBtn, avStarsBtn, duplicatesBtn, queueBtn, logsBtn];
@@ -52,6 +56,8 @@ function hideAllToolViews() {
   hideLibraryHealthView();
   hideAvStarsView();
   hideDupTriageView();
+  hideMergeCandidatesView();
+  dupSubnav.style.display         = 'none';
   duplicatesView.style.display    = 'none';
   duplicatesFilters.style.display = 'none';
 }
@@ -190,19 +196,36 @@ function initDupInfiniteScroll() {
 }
 
 let dupTriageWired = false;
+let mergeCandidatesWired = false;
+
+function selectDupTab(tab) {
+  dupTriageTab.classList.toggle('selected', tab === 'triage');
+  mergeCandidatesTab.classList.toggle('selected', tab === 'merge');
+}
+
+async function showDupTab(tab) {
+  selectDupTab(tab);
+  if (tab === 'triage') {
+    hideMergeCandidatesView();
+    if (!dupTriageWired) { wireDupTriageEvents(); dupTriageWired = true; }
+    await showDupTriageView();
+  } else {
+    hideDupTriageView();
+    if (!mergeCandidatesWired) { wireMergeCandidatesEvents(); mergeCandidatesWired = true; }
+    await showMergeCandidatesView();
+  }
+}
 
 export async function showDuplicates() {
   showActionView('duplicates');
   selectTool(duplicatesBtn);
-
   hideAllToolViews();
+  dupSubnav.style.display = 'flex';
 
-  if (!dupTriageWired) {
-    wireDupTriageEvents();
-    dupTriageWired = true;
-  }
+  dupTriageTab.onclick     = () => showDupTab('triage');
+  mergeCandidatesTab.onclick = () => showDupTab('merge');
 
-  await showDupTriageView();
+  await showDupTab('triage');
 }
 
 // ── Duplicate detail modal ────────────────────────────────────────────────
