@@ -5,6 +5,7 @@
 import { esc } from './utils.js';
 import { updateBreadcrumb } from './grid.js';
 import { rankLocations } from './duplicate-ranker.js';
+import * as taskCenter from './task-center.js';
 
 // ── Cover tooltip ─────────────────────────────────────────────────────────────
 let _coverTip   = null;
@@ -59,15 +60,23 @@ let currentActressKey = null;
 let currentLetterFilter = 'All';
 let sortField = 'count'; // 'count' | 'name'
 let sortDir   = 'desc';  // 'asc'  | 'desc'
+let taskCenterUnsub = null;
 
 export async function showDupTriageView() {
   viewEl().style.display = 'flex';
   updateBreadcrumb([{ label: 'Tools' }, { label: 'Duplicate Triage' }]);
   await loadAll();
+  taskCenterUnsub?.();
+  taskCenterUnsub = taskCenter.subscribe(() => {
+    renderHeadline();
+    renderActressSidebar();
+  });
 }
 
 export function hideDupTriageView() {
   viewEl().style.display = 'none';
+  taskCenterUnsub?.();
+  taskCenterUnsub = null;
 }
 
 // ── Data loading ──────────────────────────────────────────────────────────────
@@ -169,8 +178,25 @@ function buildActressGroups() {
 function renderHeadline() {
   const total   = allDuplicates.length;
   const cleaned = countCleaned();
-  headlineEl().textContent =
-    `${total} found · ${cleaned} cleaned · ${total - cleaned} remaining`;
+  const queued  = pendingTrashCount();
+  const el = headlineEl();
+
+  const stats = `${total} found · ${cleaned} cleaned · ${total - cleaned} remaining`;
+  const running = taskCenter.isRunning();
+
+  if (queued > 0) {
+    el.innerHTML = `
+      <span class="dt-headline-stats">${esc(stats)}</span>
+      <span class="dt-queue-badge">${queued} action${queued !== 1 ? 's' : ''} queued</span>
+      <button class="dt-exec-all-btn" type="button"
+        ${running ? 'disabled title="Another utility task is running"' : ''}>
+        Execute all (${queued})
+      </button>
+    `;
+    el.querySelector('.dt-exec-all-btn')?.addEventListener('click', () => runExecuteTask(null));
+  } else {
+    el.textContent = stats;
+  }
 }
 
 function countCleaned() {
@@ -181,6 +207,24 @@ function countCleaned() {
     if (!dec) continue;
     // A group is "cleaned" when every location has a decision
     if (locs.every((_, i) => dec.has(i))) n++;
+  }
+  return n;
+}
+
+function pendingTrashCount() {
+  let n = 0;
+  for (const [, dec] of decisions) {
+    for (const [, d] of dec) { if (d === 'TRASH') n++; }
+  }
+  return n;
+}
+
+function actressTrashCount(group) {
+  let n = 0;
+  for (const title of group.titles) {
+    const dec = decisions.get(title.code);
+    if (!dec) continue;
+    for (const [, d] of dec) { if (d === 'TRASH') n++; }
   }
   return n;
 }
@@ -321,6 +365,16 @@ function renderActressSidebar() {
       ? `<div class="dt-actress-progress">${Math.round(pct * 100)}% resolved</div>`
       : '';
 
+    const trashN  = actressTrashCount(group);
+    const running = taskCenter.isRunning();
+    const execBtn = trashN > 0
+      ? `<button class="dt-exec-actress-btn" type="button"
+           ${running ? 'disabled title="Another task is running"' : ''}
+           data-actress-key="${esc(key)}">
+           Execute (${trashN})
+         </button>`
+      : '';
+
     const row = document.createElement('div');
     row.className = 'dt-actress-row' + (key === currentActressKey ? ' selected' : '');
     row.innerHTML = `
@@ -332,6 +386,7 @@ function renderActressSidebar() {
         <div class="dt-actress-name">${esc(group.name)}</div>
         <div class="dt-actress-count">${group.titles.length} title${group.titles.length !== 1 ? 's' : ''}</div>
         ${progressLine}
+        ${execBtn}
       </div>
       ${stateIcon}
     `;
@@ -339,6 +394,10 @@ function renderActressSidebar() {
       currentActressKey = key;
       renderActressSidebar();
       renderGroups();
+    });
+    row.querySelector('.dt-exec-actress-btn')?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      runExecuteTask(e.currentTarget.dataset.actressKey);
     });
     el.appendChild(row);
   }
@@ -715,6 +774,84 @@ function loadInspectMeta(videoId) {
       const el = document.getElementById(`dt-inspect-meta-${videoId}`);
       if (el) el.textContent = '—';
     });
+}
+
+// ── Execute task ──────────────────────────────────────────────────────────────
+
+async function runExecuteTask(actressKey) {
+  if (taskCenter.isRunning()) return;
+  const body = actressKey ? { actressKey } : {};
+  let res;
+  try {
+    res = await fetch('/api/utilities/tasks/duplicates.execute_trash/run', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+  } catch (err) {
+    alert('Failed to start execute task: ' + err.message);
+    return;
+  }
+  const data = await res.json();
+  if (!res.ok) {
+    alert(data.error || 'Could not start task — another task may be running');
+    return;
+  }
+  const runId = data.runId;
+  const label = actressKey ? `Execute trash (${actressKey})` : 'Execute all trash';
+  taskCenter.start({ taskId: 'duplicates.execute_trash', runId, label });
+  subscribeToRun(runId);
+  renderHeadline();
+  renderActressSidebar();
+}
+
+function subscribeToRun(runId) {
+  const src = new EventSource(`/api/utilities/runs/${encodeURIComponent(runId)}/events`);
+  const failedPhases = [];
+
+  src.onmessage = e => {
+    let ev;
+    try { ev = JSON.parse(e.data); } catch { return; }
+
+    if (ev.type === 'PhaseStarted') {
+      taskCenter.updateProgress({ phaseLabel: ev.label });
+    } else if (ev.type === 'PhaseProgress' && ev.total > 0) {
+      taskCenter.updateProgress({ overallPct: Math.round((ev.current / ev.total) * 100) });
+    } else if (ev.type === 'PhaseEnded' && ev.status !== 'ok') {
+      failedPhases.push(ev.summary || ev.phaseId);
+    } else if (ev.type === 'TaskEnded') {
+      taskCenter.finish({ status: ev.status, summary: ev.summary });
+      src.close();
+      reconcileAfterExecute(ev.status, failedPhases);
+    }
+  };
+
+  src.onerror = () => {
+    src.close();
+    taskCenter.finish({ status: 'failed', summary: 'Connection lost' });
+    reconcileAfterExecute('failed', []);
+  };
+}
+
+async function reconcileAfterExecute(status, failedPhases) {
+  // Re-fetch everything — removed locations drop off the duplicates list naturally
+  await loadAll();
+
+  if (status !== 'ok' && failedPhases.length > 0) {
+    showExecBanner(`Some actions failed during execute. Check the task log for details.`);
+  }
+}
+
+function showExecBanner(message) {
+  groupsEl().querySelector('.dt-exec-banner')?.remove();
+  const banner = document.createElement('div');
+  banner.className = 'dt-exec-banner';
+  banner.innerHTML = `
+    <span>${esc(message)}</span>
+    <button class="dt-exec-banner-close" type="button">✕</button>
+  `;
+  banner.querySelector('.dt-exec-banner-close').addEventListener('click', () => banner.remove());
+  groupsEl().prepend(banner);
 }
 
 // ── Event wiring ──────────────────────────────────────────────────────────────
