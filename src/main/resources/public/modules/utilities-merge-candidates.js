@@ -15,7 +15,6 @@ const executeBtn = () => document.getElementById('mc-execute-btn');
 
 // ── State ─────────────────────────────────────────────────────────────────────
 let candidates = [];
-let taskCenterUnsub = null;
 
 // ── Public API ────────────────────────────────────────────────────────────────
 
@@ -23,38 +22,64 @@ export async function showMergeCandidatesView() {
   viewEl().style.display = 'flex';
   updateBreadcrumb([{ label: 'Tools' }, { label: 'Merge Candidates' }]);
   await reload();
-  taskCenterUnsub?.();
-  taskCenterUnsub = taskCenter.subscribe(onTaskUpdate);
 }
 
 export function hideMergeCandidatesView() {
   viewEl().style.display = 'none';
-  taskCenterUnsub?.();
-  taskCenterUnsub = null;
 }
 
 export function wireMergeCandidatesEvents() {
-  detectBtn().addEventListener('click', () => runTask('duplicates.detect_merge_candidates'));
-  executeBtn().addEventListener('click', () => runTask('duplicates.execute_merge'));
+  detectBtn().addEventListener('click', () => runTask('duplicates.detect_merge_candidates', 'Detect merge candidates'));
+  executeBtn().addEventListener('click', () => runTask('duplicates.execute_merge', 'Execute merges'));
 }
 
 // ── Task trigger ──────────────────────────────────────────────────────────────
 
-async function runTask(id) {
+async function runTask(taskId, label) {
+  if (taskCenter.isRunning()) return;
+  let res;
   try {
-    const res = await fetch(`/api/utilities/tasks/${id}/run`, { method: 'POST',
-      headers: { 'Content-Type': 'application/json' }, body: '{}' });
-    if (!res.ok) throw new Error(await res.text());
-    taskCenter.open();
+    res = await fetch(`/api/utilities/tasks/${taskId}/run`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: '{}',
+    });
   } catch (err) {
-    console.error('Failed to start task', id, err);
     alert('Failed to start task: ' + err.message);
+    return;
   }
+  const data = await res.json();
+  if (!res.ok) {
+    alert(data.error || 'Could not start task — another task may be running');
+    return;
+  }
+  const runId = data.runId;
+  taskCenter.start({ taskId, runId, label });
+  subscribeToRun(runId);
 }
 
-function onTaskUpdate() {
-  // Reload candidates after an execute-merge task finishes
-  reload();
+function subscribeToRun(runId) {
+  const src = new EventSource(`/api/utilities/runs/${encodeURIComponent(runId)}/events`);
+
+  src.onmessage = e => {
+    let ev;
+    try { ev = JSON.parse(e.data); } catch { return; }
+
+    if (ev.type === 'PhaseStarted') {
+      taskCenter.updateProgress({ phaseLabel: ev.label });
+    } else if (ev.type === 'PhaseProgress' && ev.total > 0) {
+      taskCenter.updateProgress({ overallPct: Math.round((ev.current / ev.total) * 100) });
+    } else if (ev.type === 'TaskEnded') {
+      taskCenter.finish({ status: ev.status, summary: ev.summary });
+      src.close();
+      reload();
+    }
+  };
+
+  src.onerror = () => {
+    src.close();
+    taskCenter.finish({ status: 'failed', summary: 'Connection lost' });
+  };
 }
 
 // ── Data ──────────────────────────────────────────────────────────────────────
