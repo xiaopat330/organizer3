@@ -1,0 +1,41 @@
+profile:
+  name:
+    family_name: "Kitagawa"
+    given_name: "Hitomi"
+    stage_name: "北川瞳"
+    reading: "きたがわ ひとみ"
+    alternate_names: []
+  date_of_birth: 1991-12-02
+  birthplace: "Niigata Prefecture, Japan"
+  blood_type: null
+  height_cm: 155
+  measurements:
+    bust: 88
+    waist: 57
+    hip: 85
+  cup: "G"
+  active_from: '2010-10-01'
+  active_to: null
+  biography: "Hitomi Kitagawa (北川瞳) was born December 2, 1991 in Niigata Prefecture and made her AV debut in October 2010 with Prestige, attracting attention for her youthful appearance combined with a G-cup figure. She received the SOD Award 2011 Outstanding Actress Award early in her career. In 2012 she became a founding member of the dance-vocal idol unit PINKEY, which gave her a profile beyond AV alone. She also conducted promotional activities in Taiwan, where she appeared in entertainment media coverage."
+  primary_studios:
+  - name: "Prestige"
+    company: "Prestige"
+    from: '2010-10-01'
+    to: null
+    role: "Contract actress"
+  awards:
+  - event: "SOD大賞2011"
+    year: 2011
+    category: "優秀女優賞"
+
+meta:
+  total_owned_titles: null
+  titles_with_japanese_title: null
+  titles_with_english_title: null
+  titles_with_release_date: null
+  total_known_releases: null
+  coverage_note: "Profile only; portfolio not yet researched"
+  confidence: "Profile data sourced from Japanese Wikipedia (北川瞳). Blood type not listed in Wikipedia. Height and measurements confirmed from Wikipedia-sourced search snippets. SOD Award 2011 noted but warrants verification given debut was with Prestige, not SOD — possible cross-studio award or later SOD affiliation. Retirement date not confirmed; described as 元AV女優 but specific date unknown."
+  data_sources:
+  - "https://ja.wikipedia.org/wiki/北川瞳"
+  portfolio_listed: 0
