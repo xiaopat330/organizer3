@@ -125,7 +125,7 @@ public class TrashDuplicateCoverTool implements Tool {
             for (String c : toTrash) {
                 Path src = folder.resolve(c);
                 try {
-                    Trash.Result r = trash.trashItem(src, "cover");
+                    Trash.Result r = trash.trashItem(src, "Duplicate cover — kept " + keep);
                     trashed.add(r.trashedPath().toString());
                 } catch (IOException e) {
                     failed.add(c + " → " + e.getMessage());
