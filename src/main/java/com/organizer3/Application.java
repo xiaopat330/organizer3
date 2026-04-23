@@ -457,7 +457,7 @@ public class Application {
         com.organizer3.utilities.volume.StaleLocationsService staleLocationsService =
                 new com.organizer3.utilities.volume.StaleLocationsService(jdbi);
         com.organizer3.utilities.volume.VolumeStateService volumeStateService =
-                new com.organizer3.utilities.volume.VolumeStateService(volumeRepo, titleRepo, staleLocationsService);
+                new com.organizer3.utilities.volume.VolumeStateService(volumeRepo, titleRepo, staleLocationsService, jdbi);
         com.organizer3.utilities.task.volume.SyncVolumeTask syncVolumeTask =
                 new com.organizer3.utilities.task.volume.SyncVolumeTask(() ->
                         new com.organizer3.utilities.task.CommandInvoker(
