@@ -287,7 +287,7 @@ function showDetail(volumeId) {
     </div>
     <nav class="vol-tab-bar">
       <button type="button" class="vol-tab${activeTab === 'health'   ? ' selected' : ''}" data-tab="health">Health</button>
-      <button type="button" class="vol-tab${activeTab === 'sync'     ? ' selected' : ''}" data-tab="sync">Sync</button>
+      <button type="button" class="vol-tab${activeTab === 'sync'     ? ' selected' : ''}" data-tab="sync">Operations</button>
       <button type="button" class="vol-tab${activeTab === 'organize' ? ' selected' : ''}" data-tab="organize">Organize${orgBadge}</button>
     </nav>
     <div class="vol-tab-panels">
