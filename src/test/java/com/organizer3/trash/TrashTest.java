@@ -58,6 +58,7 @@ class TrashTest {
         assertEquals("a", json.get("volumeId").asText());
         assertEquals("Duplicate Triage — kept peer on volume vol-b", json.get("reason").asText());
         assertFalse(json.has("entityType"), "entityType field must not appear in sidecar");
+        assertFalse(json.has("scheduledDeletionAt"), "scheduledDeletionAt must be absent on newly-trashed items");
     }
 
     @Test

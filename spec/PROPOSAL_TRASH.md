@@ -17,7 +17,7 @@ The app needs a way to remove files from the library without permanently deletin
 
 - **Trash is a move, not a delete.** Since moves are intra-volume and atomic, trashing is instantaneous and safe regardless of file size.
 - **Per-volume physically, per-server in config.** Each share gets its own `_trash` folder at its root — required by the intra-volume move constraint. The policy is configured once per server and applies uniformly to all volumes on that box.
-- **The app never deletes.** Permanent deletion is left entirely to the user via the NAS UI or OS. The app has no `rm` operation.
+- **Scheduled deletion is a floor, not a deadline.** A sidecar's `scheduledDeletionAt` guarantees the item will not be deleted *before* that time. Actual deletion runs as a periodic sweep that catches up on every app start — an offline app does not shorten or skip the holding period.
 - **Metadata is best-effort.** A JSON sidecar records context for each trashed item but its loss is tolerable — the folder is still in `_trash` and the user can still clean it up manually.
 
 ---
@@ -76,7 +76,13 @@ A JSON file co-located with the trashed item. Named `<item-name>.json` alongside
 | `volumeId` | string | Volume the item came from |
 | `reason` | string | App-provided free-form explanation of *why* the item was trashed |
 
-Writers MAY add additional app-specific fields. The Trash Management screen (future Utilities feature) will display the required fields and render unknown fields as extra key-value rows. Extra field names must not collide with the reserved four.
+**Optional fields** — absent when not applicable; omitted from newly-trashed items.
+
+| Field | Type | Description |
+|---|---|---|
+| `scheduledDeletionAt` | string | ISO 8601 UTC timestamp. Absent = not scheduled. Presence means "delete no earlier than this time." |
+
+Writers MAY add additional app-specific fields. The Trash Management screen (Utilities feature) will display the required fields and render unknown fields as extra key-value rows. Extra field names must not collide with the reserved five.
 
 **Feature-specific `reason` conventions** (established per-feature for consistency):
 
@@ -102,7 +108,7 @@ It is a file-level primitive. Higher-level commands (bulk move, reorganize, prun
 
 ## 7. Non-Goals
 
-- The app does not empty the trash
-- The app does not restore from trash (no undelete)
-- No cross-volume trash (physically impossible with intra-volume move constraint)
-- No quota tracking or trash size limits
+- The app does not perform immediate permanent deletion; deletion is always scheduled with a minimum 10-day holding period and runs asynchronously.
+- The app does not update the database on restore — restored items become orphaned until the next volume sync rediscovers them.
+- No cross-volume trash or restore (physically impossible with intra-volume move constraint).
+- No quota tracking or trash size limits.

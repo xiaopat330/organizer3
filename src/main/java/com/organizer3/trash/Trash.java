@@ -1,16 +1,12 @@
 package com.organizer3.trash;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.organizer3.filesystem.VolumeFileSystem;
 import lombok.extern.slf4j.Slf4j;
 
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.time.Clock;
 import java.time.format.DateTimeFormatter;
-import java.util.LinkedHashMap;
-import java.util.Map;
 
 /**
  * Trash primitive — a volume-aware, per-volume move-to-trash mechanism.
@@ -30,8 +26,6 @@ import java.util.Map;
  */
 @Slf4j
 public class Trash {
-
-    private static final ObjectMapper JSON = new ObjectMapper();
 
     private final VolumeFileSystem fs;
     private final String volumeId;
@@ -80,8 +74,14 @@ public class Trash {
 
         Path sidecar = trashParent.resolve(itemPath.getFileName().toString() + ".json");
         try {
-            byte[] json = buildSidecar(itemPath, reason).getBytes(StandardCharsets.UTF_8);
-            fs.writeFile(sidecar, json);
+            TrashSidecar sc = new TrashSidecar(
+                    itemPath.toString(),
+                    DateTimeFormatter.ISO_INSTANT.format(clock.instant()),
+                    volumeId,
+                    reason == null ? "unknown" : reason,
+                    null
+            );
+            sc.write(fs, sidecar);
         } catch (IOException e) {
             log.warn("Trash sidecar write failed (best-effort) for {}: {}", sidecar, e.getMessage());
         }
@@ -97,15 +97,6 @@ public class Trash {
         String stripped = originalParent.toString();
         if (stripped.startsWith("/")) stripped = stripped.substring(1);
         return trashRoot.resolve(stripped);
-    }
-
-    private String buildSidecar(Path originalPath, String reason) throws IOException {
-        Map<String, Object> meta = new LinkedHashMap<>();
-        meta.put("originalPath", originalPath.toString());
-        meta.put("trashedAt", DateTimeFormatter.ISO_INSTANT.format(clock.instant()));
-        meta.put("volumeId", volumeId);
-        meta.put("reason", reason == null ? "unknown" : reason);
-        return JSON.writerWithDefaultPrettyPrinter().writeValueAsString(meta);
     }
 
     public record Result(Path trashedPath, Path sidecarPath) {}
