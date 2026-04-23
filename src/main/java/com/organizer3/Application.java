@@ -529,6 +529,8 @@ public class Application {
                 new com.organizer3.repository.jdbi.JdbiMergeCandidateRepository(jdbi);
         com.organizer3.utilities.task.duplicates.DetectMergeCandidatesTask detectMergeCandidatesTask =
                 new com.organizer3.utilities.task.duplicates.DetectMergeCandidatesTask(mergeCandidateRepo, jdbi);
+        com.organizer3.utilities.task.duplicates.ExecuteMergeTask executeMergeTask =
+                new com.organizer3.utilities.task.duplicates.ExecuteMergeTask(mergeCandidateRepo, jdbi);
 
         com.organizer3.utilities.task.TaskRegistry taskRegistry =
                 new com.organizer3.utilities.task.TaskRegistry(
@@ -537,7 +539,7 @@ public class Application {
                                 backupNowTask, restoreSnapshotTask,
                                 scanLibraryTask, cleanOrphanedCoversTask,
                                 resolveIafdTask, renameAvActressTask, deleteAvActressTask, parseFilenamesTask,
-                                executeDuplicateTrashTask, detectMergeCandidatesTask));
+                                executeDuplicateTrashTask, detectMergeCandidatesTask, executeMergeTask));
         com.organizer3.utilities.task.TaskRunner taskRunner =
                 new com.organizer3.utilities.task.TaskRunner(taskRegistry);
         webServer.registerUtilities(new com.organizer3.web.routes.UtilitiesRoutes(
