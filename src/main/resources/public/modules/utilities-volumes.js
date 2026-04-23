@@ -1100,7 +1100,14 @@ function renderPrepSummaryHTML(s) {
 
 function fmtDate(iso) {
   if (!iso) return '—';
-  return iso.slice(0, 10);
+  try {
+    return new Date(iso).toLocaleString('en-US', {
+      year: 'numeric', month: 'short', day: 'numeric',
+      hour: 'numeric', minute: '2-digit', hour12: true,
+    });
+  } catch {
+    return iso.slice(0, 16).replace('T', ' ');
+  }
 }
 
 function renderTimestampsPlanReadyHTML(planResult) {

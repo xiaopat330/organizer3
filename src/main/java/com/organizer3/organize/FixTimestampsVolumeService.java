@@ -4,6 +4,8 @@ import com.organizer3.filesystem.VolumeFileSystem;
 import lombok.extern.slf4j.Slf4j;
 import org.jdbi.v3.core.Jdbi;
 
+import java.time.Instant;
+
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
@@ -47,12 +49,18 @@ public class FixTimestampsVolumeService {
             Path folder = Path.of(row.path());
             try {
                 TitleTimestampService.Result r = timestampService.apply(fs, folder, dryRun);
-                String current = r.plan().folderCurrent() != null && r.plan().folderCurrent().created() != null
-                        ? r.plan().folderCurrent().created().toString() : null;
-                String target = r.plan().earliestChildTime() != null
-                        ? r.plan().earliestChildTime().toString() : null;
+                Instant target = r.plan().earliestChildTime();
+                // Show whichever of created/modified differs most from the target — that's
+                // the meaningful "before" value. Using only created() misses cases where
+                // created already matches but modified is wrong.
+                Instant current = representativeCurrent(
+                        r.plan().folderCurrent() != null ? r.plan().folderCurrent().created()  : null,
+                        r.plan().folderCurrent() != null ? r.plan().folderCurrent().modified() : null,
+                        target);
 
-                results.add(new TitleResult(row.code(), row.path(), current, target,
+                results.add(new TitleResult(row.code(), row.path(),
+                        current != null ? current.toString() : null,
+                        target  != null ? target.toString()  : null,
                         r.plan().needsChange(), r.applied(), r.error()));
 
                 if (r.error() != null)        failed++;
@@ -66,6 +74,16 @@ public class FixTimestampsVolumeService {
         }
 
         return new Result(dryRun, volumeId, results, new Summary(rows.size(), changed, skipped, failed));
+    }
+
+    private static Instant representativeCurrent(Instant created, Instant modified, Instant target) {
+        if (created == null && modified == null) return null;
+        if (created == null)  return modified;
+        if (modified == null) return created;
+        if (target == null)   return created;
+        long diffC = Math.abs(created.toEpochMilli()  - target.toEpochMilli());
+        long diffM = Math.abs(modified.toEpochMilli() - target.toEpochMilli());
+        return diffM > diffC ? modified : created;
     }
 
     private static String describe(Throwable e) {
