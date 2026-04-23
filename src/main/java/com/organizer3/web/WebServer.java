@@ -149,6 +149,11 @@ public class WebServer {
         routes.register(app);
     }
 
+    /** Mounts the Duplicate Triage merge-candidates endpoints ({@code /api/tools/merge-candidates/*}). */
+    public void registerMergeCandidates(com.organizer3.web.routes.MergeCandidatesRoutes routes) {
+        routes.register(app);
+    }
+
     /**
      * Mounts the title-detail tag editor endpoints
      * ({@code GET /api/titles/{code}/tag-state}, {@code PUT /api/titles/{code}/tags}).

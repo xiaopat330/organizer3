@@ -417,6 +417,12 @@
   </section>
 </div>
 
+<!-- Duplicates sub-nav (tab bar shared by Triage and Merge Candidates) -->
+<div id="tools-dup-subnav" class="tools-subnav" style="display:none">
+  <button type="button" id="tools-dup-triage-tab" class="tools-subnav-tab selected">Duplicate Triage</button>
+  <button type="button" id="tools-merge-candidates-tab" class="tools-subnav-tab">Merge Candidates</button>
+</div>
+
 <!-- Duplicate Triage tool content -->
 <div id="tools-dup-triage-view" class="tools-dup-triage-view" style="display:none">
   <div id="dt-headline" class="dt-headline">—</div>
@@ -428,6 +434,18 @@
     </div>
     <div id="dt-groups" class="dt-groups"></div>
   </div>
+</div>
+
+<!-- Merge Candidates tool content -->
+<div id="tools-merge-candidates-view" class="tools-merge-candidates-view" style="display:none">
+  <div class="mc-header">
+    <div id="mc-headline" class="mc-headline">—</div>
+    <div class="mc-actions">
+      <button type="button" id="mc-detect-btn" class="mc-action-btn">Detect candidates</button>
+      <button type="button" id="mc-execute-btn" class="mc-action-btn mc-action-btn--primary">Execute merges</button>
+    </div>
+  </div>
+  <div id="mc-list" class="mc-list"></div>
 </div>
 
 <!-- Logs tool content -->

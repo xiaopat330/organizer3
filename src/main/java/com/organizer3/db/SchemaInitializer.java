@@ -351,12 +351,27 @@ public class SchemaInitializer {
                         PRIMARY KEY (title_code, volume_id, nas_path)
                     )""");
 
+            // merge_candidates (v23): cross-row duplicate pairs detected by code normalization.
+            h.execute("""
+                    CREATE TABLE IF NOT EXISTS merge_candidates (
+                        id            INTEGER PRIMARY KEY AUTOINCREMENT,
+                        title_code_a  TEXT NOT NULL,
+                        title_code_b  TEXT NOT NULL,
+                        confidence    TEXT NOT NULL CHECK(confidence IN ('code-normalization','variant-suffix')),
+                        detected_at   TEXT NOT NULL,
+                        decision      TEXT CHECK(decision IN ('MERGE','DISMISS')),
+                        decided_at    TEXT,
+                        winner_code   TEXT,
+                        executed_at   TEXT,
+                        UNIQUE(title_code_a, title_code_b)
+                    )""");
+
             // Only stamp version on fresh installs (user_version = 0).
             // On an existing DB the CREATE TABLE statements above are all no-ops, so we must
             // leave the version alone and let SchemaUpgrader apply any missing migrations.
             int currentVersion = h.createQuery("PRAGMA user_version").mapTo(Integer.class).one();
             if (currentVersion == 0) {
-                h.execute("PRAGMA user_version = 22");
+                h.execute("PRAGMA user_version = 23");
             }
         });
         log.info("Schema initialization complete");
