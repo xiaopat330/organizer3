@@ -9,6 +9,14 @@ import * as taskCenter from './task-center.js';
 
 const SELECTION_KEY = 'utilities.volumes.selection';
 
+const ORGANIZE_ACTIONS = [
+  { id: 'normalize',   label: 'Normalize',    previewId: 'organize.normalize.preview', executeId: 'organize.normalize'   },
+  { id: 'restructure', label: 'Restructure',  previewId: 'organize.restructure.preview', executeId: 'organize.restructure' },
+  { id: 'sort',        label: 'Sort',         previewId: 'organize.sort.preview',      executeId: 'organize.sort'        },
+  { id: 'classify',    label: 'Classify',     previewId: 'organize.classify.preview',  executeId: 'organize.classify'    },
+  { id: 'all',         label: 'Organize all', previewId: 'organize.preview',           executeId: 'organize.queue'       },
+];
+
 // When the user clicks the floating task pill elsewhere in the app, they want
 // to come back here and see the run. Register a callback once at module load.
 taskCenter.onOpenRequested((state) => {
@@ -60,14 +68,21 @@ taskCenter.onOpenRequested((state) => {
 function labelFor(taskId) {
   if (taskId === 'volume.sync') return 'Syncing volume';
   if (taskId === 'volume.clean_stale_locations') return 'Cleaning stale locations';
+  const orgAction = ORGANIZE_ACTIONS.find(a => a.previewId === taskId || a.executeId === taskId);
+  if (orgAction) return orgAction.label;
   return taskId;
 }
 
 // If the detail view is showing and a task finishes (or starts) elsewhere,
 // re-render so the Sync button's disabled state is current.
+// Skip re-render if an organize flow is active — it manages its own section updates.
 taskCenter.subscribe(() => {
   if (viewEl().style.display !== 'none' && detailEl().style.display !== 'none' && selectedId) {
-    showDetail(selectedId);
+    if (organizeFlow) {
+      updateOrgSection(selectedId);
+    } else {
+      showDetail(selectedId);
+    }
   }
 });
 
@@ -88,6 +103,7 @@ function hideAllRightPanes() {
 let volumes = [];        // last-known list from /api/utilities/volumes
 let selectedId = null;   // currently selected volume id
 let activeRun = null;    // { runId, eventSource, phases: Map<id,state>, logBuffer }
+let organizeFlow = null; // { volumeId, action, state, planResult, execResult, progress, error, eventSource }
 
 export async function showVolumesView() {
   viewEl().style.display = 'flex';
@@ -235,6 +251,12 @@ function openVolume(volumeId) {
 }
 
 function showDetail(volumeId) {
+  // If switching to a different volume, close any in-progress organize flow.
+  if (organizeFlow && organizeFlow.volumeId !== volumeId) {
+    if (organizeFlow.eventSource) organizeFlow.eventSource.close();
+    organizeFlow = null;
+  }
+
   const v = volumes.find(x => x.id === volumeId);
   if (!v) { showEmpty(); return; }
 
@@ -243,6 +265,10 @@ function showDetail(volumeId) {
   d.style.display = '';
 
   const color = hueFor(v.id);
+  const orgSectionHTML = v.queueCount > 0
+    ? `<div class="vol-section" id="org-section"></div>`
+    : '';
+
   d.innerHTML = `
     <div class="vol-detail-head">
       <div class="vol-detail-name">
@@ -265,6 +291,7 @@ function showDetail(volumeId) {
       <button type="button" class="vol-op-primary" id="vol-op-sync"${taskCenter.isRunning() ? ' disabled' : ''}>Sync</button>
       ${taskCenter.isRunning() ? '<div class="vol-op-blocked">Another utility task is running. Wait for it to finish.</div>' : ''}
     </div>
+    ${orgSectionHTML}
   `;
   document.getElementById('vol-op-sync').addEventListener('click', () => startSync(v.id));
 
@@ -277,6 +304,10 @@ function showDetail(volumeId) {
       }
     });
   });
+
+  if (v.queueCount > 0) {
+    updateOrgSection(v.id);
+  }
 }
 
 function renderHealth(v) {
@@ -657,4 +688,310 @@ function formatMs(ms) {
   if (ms < 60000) return (ms / 1000).toFixed(1) + 's';
   const s = Math.floor(ms / 1000);
   return Math.floor(s / 60) + 'm ' + (s % 60) + 's';
+}
+
+// ── Organize queue ─────────────────────────────────────────────────────────
+
+function updateOrgSection(volumeId) {
+  const el = document.getElementById('org-section');
+  if (!el) return;
+  const v = volumes.find(x => x.id === volumeId) || { id: volumeId, queueCount: 1 };
+  el.innerHTML = renderOrgSectionHTML(v);
+  wireOrgSection(volumeId);
+}
+
+function renderOrgSectionHTML(v) {
+  const heading = `<div class="vol-section-heading">Organize queue</div>`;
+  const isBlocked = taskCenter.isRunning();
+
+  if (!organizeFlow) {
+    const disabledAttr = isBlocked ? ' disabled' : '';
+    const btns = ORGANIZE_ACTIONS.map(a =>
+      `<button type="button" class="org-action-btn${a.id === 'all' ? ' org-action-all' : ''}" data-action="${esc(a.id)}"${disabledAttr}>${esc(a.label)}</button>`
+    ).join('');
+    const queueLine = `<div class="org-queue-count">${v.queueCount} title${v.queueCount === 1 ? '' : 's'} in queue</div>`;
+    const blockedNote = isBlocked ? '<div class="vol-op-blocked">Another utility task is running. Wait for it to finish.</div>' : '';
+    return `${heading}${queueLine}<div class="org-actions">${btns}</div>${blockedNote}`;
+  }
+
+  const { action, state, planResult, execResult, progress, error } = organizeFlow;
+  const actionLabel = esc(action.label);
+
+  if (state === 'planning') {
+    return `${heading}
+      <div class="org-flow-head">${actionLabel} — Planning…</div>
+      <div class="org-spinner"></div>`;
+  }
+
+  if (state === 'plan-ready') {
+    const titleCount = planResult?.titlesInSlice ?? 0;
+    const planRows = planResult?.titles ? planResult.titles.map(renderPlanRow).join('') : '';
+    return `${heading}
+      <div class="org-flow-head">${actionLabel} — Plan — ${titleCount} title${titleCount === 1 ? '' : 's'}</div>
+      <div class="org-plan-list">${planRows}</div>
+      <div class="org-flow-actions">
+        <button type="button" class="org-execute-btn">Execute</button>
+        <button type="button" class="org-cancel-btn">Cancel</button>
+      </div>`;
+  }
+
+  if (state === 'executing') {
+    const cur = progress?.current ?? 0;
+    const tot = progress?.total ?? 0;
+    const pct = tot > 0 ? Math.floor(100 * cur / tot) : 0;
+    const bar = tot > 0
+      ? `<div class="vol-phase-bar"><div class="vol-phase-bar-fill" style="width:${pct}%"></div></div>`
+      : `<div class="vol-phase-bar"><div class="vol-phase-bar-indet"></div></div>`;
+    const progressText = tot > 0 ? `${cur} / ${tot}` : 'Working…';
+    return `${heading}
+      <div class="org-flow-head">${actionLabel} — Running…</div>
+      <div class="org-progress">${esc(progressText)}</div>
+      ${bar}`;
+  }
+
+  if (state === 'done') {
+    const result = execResult || planResult;
+    const summaryHTML = result?.summary ? renderOrgSummaryHTML(result.summary) : '';
+    const errorHTML = error ? `<div class="org-error">${esc(error)}</div>` : '';
+    const statusLabel = error ? 'Failed' : 'Done';
+    return `${heading}
+      <div class="org-flow-head">${actionLabel} — ${statusLabel}</div>
+      ${errorHTML}
+      ${summaryHTML}
+      <div class="org-flow-actions">
+        <button type="button" class="org-runagain-btn">Run again</button>
+        <button type="button" class="org-back-btn">Back</button>
+      </div>`;
+  }
+
+  return heading;
+}
+
+function wireOrgSection(volumeId) {
+  const el = document.getElementById('org-section');
+  if (!el) return;
+
+  el.querySelectorAll('.org-action-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const actionId = btn.getAttribute('data-action');
+      const action = ORGANIZE_ACTIONS.find(a => a.id === actionId);
+      if (action) beginOrgPreview(volumeId, action);
+    });
+  });
+
+  el.querySelector('.org-execute-btn')?.addEventListener('click', () => beginOrgExecute(volumeId));
+
+  el.querySelector('.org-cancel-btn')?.addEventListener('click', () => {
+    if (organizeFlow?.eventSource) organizeFlow.eventSource.close();
+    organizeFlow = null;
+    updateOrgSection(volumeId);
+  });
+
+  el.querySelector('.org-back-btn')?.addEventListener('click', () => {
+    if (organizeFlow?.eventSource) organizeFlow.eventSource.close();
+    organizeFlow = null;
+    updateOrgSection(volumeId);
+  });
+
+  el.querySelector('.org-runagain-btn')?.addEventListener('click', () => {
+    const action = organizeFlow?.action;
+    if (!action) return;
+    organizeFlow = null;
+    beginOrgPreview(volumeId, action);
+  });
+}
+
+function renderPlanRow(t) {
+  const code = esc(t.titleCode || t.path?.split('/').pop() || '?');
+
+  if (t.error) {
+    return `<div class="org-plan-row org-plan-row-error">
+      <span class="org-plan-code">${code}</span>
+      <span class="org-plan-detail org-plan-err">${esc(t.error)}</span>
+    </div>`;
+  }
+
+  const lines = [];
+
+  if (t.normalize) {
+    if (t.normalize.planned?.length > 0) {
+      for (const a of t.normalize.planned) {
+        const from = a.from?.split('/').pop() || a.from || '';
+        const to   = a.to?.split('/').pop()   || a.to   || '';
+        lines.push({ text: `rename: ${from} → ${to}`, dim: false });
+      }
+    } else {
+      lines.push({ text: '(already normalized)', dim: true });
+    }
+  }
+
+  if (t.restructure) {
+    if (t.restructure.planned?.length > 0) {
+      for (const a of t.restructure.planned) {
+        const from = a.from?.split('/').pop() || a.from || '';
+        lines.push({ text: `move: ${from} → subfolder/`, dim: false });
+      }
+    } else {
+      lines.push({ text: '(already restructured)', dim: true });
+    }
+  }
+
+  if (t.sort) {
+    const s = t.sort;
+    if (s.outcome === 'WOULD_SORT') {
+      const parts = (s.to || '').split('/').filter(Boolean);
+      const starsIdx = parts.indexOf('stars');
+      const dest = starsIdx >= 0 ? parts.slice(starsIdx, starsIdx + 3).join('/') : (s.to || 'stars/…');
+      lines.push({ text: `sort → ${dest}`, dim: false });
+    } else if (s.outcome === 'WOULD_ROUTE_TO_ATTENTION') {
+      lines.push({ text: `→ attention/ (${s.reason || ''})`, dim: false });
+    } else if (s.outcome === 'SKIPPED') {
+      lines.push({ text: '(already in place)', dim: true });
+    }
+  }
+
+  const hasSubstantive = lines.some(l => !l.dim);
+  const detailHTML = lines.length > 0
+    ? lines.map(l => `<span class="org-plan-detail${l.dim ? ' dim' : ''}">${esc(l.text)}</span>`).join('')
+    : '<span class="org-plan-detail dim">(no changes)</span>';
+
+  return `<div class="org-plan-row${hasSubstantive ? '' : ' org-plan-row-dim'}">
+    <span class="org-plan-code">${code}</span>
+    <div class="org-plan-details">${detailHTML}</div>
+  </div>`;
+}
+
+function renderOrgSummaryHTML(s) {
+  const rows = [];
+  if (s.normalizeSuccesses   > 0) rows.push(['Renamed',             s.normalizeSuccesses]);
+  if (s.restructureSuccesses > 0) rows.push(['Restructured',        s.restructureSuccesses]);
+  if (s.sortedToStars        > 0) rows.push(['Filed to stars',      s.sortedToStars]);
+  if (s.sortedToAttention    > 0) rows.push(['Routed to attention', s.sortedToAttention]);
+  if (s.sortsSkipped         > 0) rows.push(['Already in place',    s.sortsSkipped]);
+  if (s.actressesPromoted    > 0) rows.push(['Actresses promoted',  s.actressesPromoted]);
+  if (s.titlesWithErrors     > 0) rows.push(['Errors',              s.titlesWithErrors]);
+  if (rows.length === 0)          rows.push(['Processed',           s.titlesProcessed]);
+
+  return `<div class="org-summary">
+    ${rows.map(([k, n]) =>
+      `<div class="org-summary-row">
+        <span class="org-summary-key">${esc(k)}</span>
+        <span class="org-summary-val">${n}</span>
+      </div>`
+    ).join('')}
+  </div>`;
+}
+
+async function beginOrgPreview(volumeId, action) {
+  if (taskCenter.isRunning()) {
+    alert('Another utility task is already running.');
+    return;
+  }
+  organizeFlow = { volumeId, action, state: 'planning', planResult: null, execResult: null, progress: null, error: null, eventSource: null };
+  updateOrgSection(volumeId);
+
+  try {
+    const res = await fetch(`/api/utilities/tasks/${encodeURIComponent(action.previewId)}/run`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ volumeId }),
+    });
+    if (res.status === 409) {
+      const body = await res.json().catch(() => ({}));
+      organizeFlow = null;
+      updateOrgSection(volumeId);
+      alert(body.error || 'Another utility task is already running.');
+      return;
+    }
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const { runId } = await res.json();
+    taskCenter.start({ taskId: action.previewId, runId, label: `Planning: ${action.label}` });
+
+    const es = new EventSource(`/api/utilities/runs/${encodeURIComponent(runId)}/events`);
+    organizeFlow.eventSource = es;
+
+    es.addEventListener('phase.ended', e => {
+      const ev = JSON.parse(e.data);
+      if (ev.phaseId === 'organize' && ev.summary) {
+        try { organizeFlow.planResult = JSON.parse(ev.summary); } catch {}
+      }
+    });
+    es.addEventListener('task.ended', e => {
+      const ev = JSON.parse(e.data);
+      es.close();
+      organizeFlow.eventSource = null;
+      taskCenter.finish({ status: ev.status, summary: '' });
+      if (ev.status === 'ok' && organizeFlow.planResult) {
+        organizeFlow.state = 'plan-ready';
+      } else {
+        organizeFlow.error = ev.status === 'ok' ? 'No plan data received' : (ev.summary || 'Preview failed');
+        organizeFlow.state = 'done';
+      }
+      updateOrgSection(volumeId);
+    });
+    es.onerror = () => {};
+  } catch (err) {
+    organizeFlow.error = err.message;
+    organizeFlow.state = 'done';
+    updateOrgSection(volumeId);
+  }
+}
+
+async function beginOrgExecute(volumeId) {
+  if (!organizeFlow) return;
+  const action = organizeFlow.action;
+  organizeFlow.state = 'executing';
+  organizeFlow.progress = { current: 0, total: 0 };
+  updateOrgSection(volumeId);
+
+  try {
+    const res = await fetch(`/api/utilities/tasks/${encodeURIComponent(action.executeId)}/run`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ volumeId }),
+    });
+    if (res.status === 409) {
+      const body = await res.json().catch(() => ({}));
+      organizeFlow.state = 'plan-ready';
+      updateOrgSection(volumeId);
+      alert(body.error || 'Another utility task is already running.');
+      return;
+    }
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const { runId } = await res.json();
+    taskCenter.start({ taskId: action.executeId, runId, label: `${action.label}…` });
+
+    const es = new EventSource(`/api/utilities/runs/${encodeURIComponent(runId)}/events`);
+    organizeFlow.eventSource = es;
+
+    es.addEventListener('phase.progress', e => {
+      const ev = JSON.parse(e.data);
+      if (ev.phaseId === 'organize') {
+        organizeFlow.progress = { current: ev.current, total: ev.total };
+        if (ev.total > 0) taskCenter.updateProgress({ overallPct: Math.floor(100 * ev.current / ev.total) });
+        updateOrgSection(volumeId);
+      }
+    });
+    es.addEventListener('phase.ended', e => {
+      const ev = JSON.parse(e.data);
+      if (ev.phaseId === 'organize' && ev.summary) {
+        try { organizeFlow.execResult = JSON.parse(ev.summary); } catch {}
+      }
+    });
+    es.addEventListener('task.ended', e => {
+      const ev = JSON.parse(e.data);
+      es.close();
+      organizeFlow.eventSource = null;
+      taskCenter.finish({ status: ev.status, summary: '' });
+      if (ev.status !== 'ok') organizeFlow.error = ev.summary || 'Execute failed';
+      organizeFlow.state = 'done';
+      updateOrgSection(volumeId);
+      refreshVolumes();
+    });
+    es.onerror = () => {};
+  } catch (err) {
+    organizeFlow.error = err.message;
+    organizeFlow.state = 'done';
+    updateOrgSection(volumeId);
+  }
 }
