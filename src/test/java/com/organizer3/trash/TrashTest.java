@@ -47,15 +47,17 @@ class TrashTest {
     void sidecarContainsRequiredMetadata() throws IOException {
         fs.mkdir("/stars/popular/MIDE-123");
 
-        Trash.Result r = trash.trashItem(Path.of("/stars/popular/MIDE-123"), "title");
+        Trash.Result r = trash.trashItem(Path.of("/stars/popular/MIDE-123"), "Duplicate Triage — kept peer on volume vol-b");
 
         byte[] body = fs.fileContents(r.sidecarPath());
         assertNotNull(body);
         JsonNode json = new ObjectMapper().readTree(new String(body, StandardCharsets.UTF_8));
+        // All four required fields per spec/PROPOSAL_TRASH.md §5
         assertEquals("/stars/popular/MIDE-123", json.get("originalPath").asText());
         assertEquals("2026-04-16T10:00:00Z", json.get("trashedAt").asText());
         assertEquals("a", json.get("volumeId").asText());
-        assertEquals("title", json.get("entityType").asText());
+        assertEquals("Duplicate Triage — kept peer on volume vol-b", json.get("reason").asText());
+        assertFalse(json.has("entityType"), "entityType field must not appear in sidecar");
     }
 
     @Test

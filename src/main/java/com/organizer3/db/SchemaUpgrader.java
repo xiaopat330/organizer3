@@ -19,7 +19,7 @@ import org.jdbi.v3.core.Jdbi;
 public class SchemaUpgrader {
 
     /** Must match the version stamped by {@link SchemaInitializer}. */
-    private static final int CURRENT_VERSION = 21;
+    private static final int CURRENT_VERSION = 22;
 
     private final Jdbi jdbi;
 
@@ -128,7 +128,31 @@ public class SchemaUpgrader {
             setVersion(21);
         }
 
+        if (version < 22) {
+            applyV22();
+            setVersion(22);
+        }
+
         log.info("Schema upgrade complete");
+    }
+
+    /**
+     * v22: {@code duplicate_decisions} table for Duplicate Triage MVP (Phase 2A).
+     * Stores per-location KEEP/TRASH/VARIANT decisions; {@code executed_at} remains
+     * NULL until Phase 2C when decisions are acted on.
+     */
+    private void applyV22() {
+        log.info("Applying migration v22: duplicate_decisions table");
+        jdbi.useHandle(h -> h.execute("""
+                CREATE TABLE IF NOT EXISTS duplicate_decisions (
+                    title_code   TEXT NOT NULL,
+                    volume_id    TEXT NOT NULL,
+                    nas_path     TEXT NOT NULL,
+                    decision     TEXT NOT NULL CHECK(decision IN ('KEEP','TRASH','VARIANT')),
+                    created_at   TEXT NOT NULL,
+                    executed_at  TEXT,
+                    PRIMARY KEY (title_code, volume_id, nas_path)
+                )"""));
     }
 
     /**

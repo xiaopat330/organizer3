@@ -46,6 +46,7 @@ class SchemaInitializerTest {
         assertEquals(
                 List.of("actress_aliases", "actress_companies", "actresses",
                         "av_actresses", "av_tag_definitions", "av_video_screenshots", "av_video_tags", "av_videos",
+                        "duplicate_decisions",
                         "label_tags", "labels", "tags",
                         "title_actresses", "title_effective_tags", "title_locations", "title_tags",
                         "titles", "videos", "volumes", "watch_history"),
@@ -150,7 +151,7 @@ class SchemaInitializerTest {
 
         int version = jdbi.withHandle(h ->
                 h.createQuery("PRAGMA user_version").mapTo(Integer.class).one());
-        assertEquals(21, version);
+        assertEquals(22, version);
     }
 
     @Test

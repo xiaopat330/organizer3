@@ -52,11 +52,11 @@ public class Trash {
      * Moves {@code itemPath} into the volume's trash folder, preserving its directory tree,
      * and writes a JSON sidecar next to the trashed item.
      *
-     * @param itemPath    share-relative absolute path of the item to trash (e.g. {@code /stars/popular/MIDE-123})
-     * @param entityType  informational metadata label (e.g. {@code "title"}, {@code "cover"})
+     * @param itemPath  share-relative absolute path of the item to trash (e.g. {@code /stars/popular/MIDE-123})
+     * @param reason    human-readable explanation of why the item was trashed (e.g. {@code "Duplicate Triage — kept peer on volume vol-a"})
      * @return the resulting paths inside the trash folder
      */
-    public Result trashItem(Path itemPath, String entityType) throws IOException {
+    public Result trashItem(Path itemPath, String reason) throws IOException {
         if (itemPath == null) throw new IllegalArgumentException("itemPath is required");
         if (!itemPath.isAbsolute()) {
             throw new IllegalArgumentException("itemPath must be absolute (rooted at /): " + itemPath);
@@ -75,12 +75,12 @@ public class Trash {
 
         Path trashed = trashParent.resolve(itemPath.getFileName().toString());
         fs.move(itemPath, trashed);
-        log.info("FS mutation [Trash.trash]: moved to trash — volume={} entityType={} from={} to={}",
-                volumeId, entityType, itemPath, trashed);
+        log.info("FS mutation [Trash.trash]: moved to trash — volume={} reason={} from={} to={}",
+                volumeId, reason, itemPath, trashed);
 
         Path sidecar = trashParent.resolve(itemPath.getFileName().toString() + ".json");
         try {
-            byte[] json = buildSidecar(itemPath, entityType).getBytes(StandardCharsets.UTF_8);
+            byte[] json = buildSidecar(itemPath, reason).getBytes(StandardCharsets.UTF_8);
             fs.writeFile(sidecar, json);
         } catch (IOException e) {
             log.warn("Trash sidecar write failed (best-effort) for {}: {}", sidecar, e.getMessage());
@@ -99,12 +99,12 @@ public class Trash {
         return trashRoot.resolve(stripped);
     }
 
-    private String buildSidecar(Path originalPath, String entityType) throws IOException {
+    private String buildSidecar(Path originalPath, String reason) throws IOException {
         Map<String, Object> meta = new LinkedHashMap<>();
         meta.put("originalPath", originalPath.toString());
         meta.put("trashedAt", DateTimeFormatter.ISO_INSTANT.format(clock.instant()));
         meta.put("volumeId", volumeId);
-        meta.put("entityType", entityType == null ? "unknown" : entityType);
+        meta.put("reason", reason == null ? "unknown" : reason);
         return JSON.writerWithDefaultPrettyPrinter().writeValueAsString(meta);
     }
 

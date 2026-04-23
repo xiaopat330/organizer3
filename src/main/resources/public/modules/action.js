@@ -11,6 +11,7 @@ import { showActressDataView, hideActressDataView } from './utilities-actress-da
 import { showBackupView, hideBackupView } from './utilities-backup.js';
 import { showLibraryHealthView, hideLibraryHealthView } from './utilities-library-health.js';
 import { showAvStarsView, hideAvStarsView } from './utilities-av-stars.js';
+import { showDupTriageView, hideDupTriageView, wireDupTriageEvents } from './utilities-duplicate-triage.js';
 
 // ── DOM refs ──────────────────────────────────────────────────────────────
 const actionBtn         = document.getElementById('action-btn');
@@ -50,6 +51,7 @@ function hideAllToolViews() {
   hideBackupView();
   hideLibraryHealthView();
   hideAvStarsView();
+  hideDupTriageView();
   duplicatesView.style.display    = 'none';
   duplicatesFilters.style.display = 'none';
 }
@@ -187,28 +189,20 @@ function initDupInfiniteScroll() {
   dupObserver.observe(dupSentinel);
 }
 
+let dupTriageWired = false;
+
 export async function showDuplicates() {
   showActionView('duplicates');
   selectTool(duplicatesBtn);
-  updateBreadcrumb([{ label: 'Tools' }, { label: 'Duplicates' }]);
 
   hideAllToolViews();
-  duplicatesFilters.style.display = 'flex';
-  duplicatesView.style.display    = '';
 
-  // Pin filter bar below header + action-landing
-  requestAnimationFrame(() => {
-    const header        = document.querySelector('header');
-    const actionLanding = document.getElementById('action-landing');
-    const headerH       = header        ? header.offsetHeight        : 0;
-    const alH           = actionLanding ? actionLanding.offsetHeight : 0;
-    duplicatesFilters.style.top = (headerH + alH) + 'px';
-  });
+  if (!dupTriageWired) {
+    wireDupTriageEvents();
+    dupTriageWired = true;
+  }
 
-  await ensureVolumesLoaded();
-  resetDuplicates();
-  initDupInfiniteScroll();
-  loadMoreDuplicates();
+  await showDupTriageView();
 }
 
 // ── Duplicate detail modal ────────────────────────────────────────────────

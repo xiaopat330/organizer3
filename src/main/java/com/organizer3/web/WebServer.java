@@ -144,6 +144,11 @@ public class WebServer {
         routes.register(app);
     }
 
+    /** Mounts the Duplicate Triage decisions endpoints ({@code /api/tools/duplicates/decisions/*}). */
+    public void registerDuplicateDecisions(com.organizer3.web.routes.DuplicateDecisionsRoutes routes) {
+        routes.register(app);
+    }
+
     /**
      * Mounts the title-detail tag editor endpoints
      * ({@code GET /api/titles/{code}/tag-state}, {@code PUT /api/titles/{code}/tags}).

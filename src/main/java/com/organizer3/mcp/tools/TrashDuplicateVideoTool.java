@@ -124,7 +124,7 @@ public class TrashDuplicateVideoTool implements Tool {
         for (Video v : toTrash) {
             Path filePath = v.getPath();
             try {
-                Trash.Result r = trash.trashItem(filePath, "video");
+                Trash.Result r = trash.trashItem(filePath, "Duplicate video — kept videoId " + keepId);
                 videoRepo.delete(v.getId());
                 log.info("MCP trash_duplicate_video: trashed + deleted row — titleCode={} videoId={} path={} trashedTo={}",
                         titleCode, v.getId(), filePath, r.trashedPath());
