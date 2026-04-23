@@ -67,7 +67,14 @@ export function rankLocations(locs) {
 
   const scored = locs.map((loc, i) => {
     const bv = bestVideo(loc.videos);
-    return { i, loc, bv, px: pixels(bv || {}), codec: codecScore(bv?.videoCodec), size: bv?.fileSize || 0 };
+    return {
+      i, loc, bv,
+      px:        pixels(bv || {}),
+      codec:     codecScore(bv?.videoCodec),
+      size:      bv?.fileSize || 0,
+      count:     loc.videos?.length || 0,
+      container: bv?.container?.toLowerCase() || '',
+    };
   });
 
   // Sort: resolution desc, then codec desc, then size desc
@@ -80,8 +87,12 @@ export function rankLocations(locs) {
   const best = sorted[0];
   const runner = sorted[1];
 
-  // Ambiguous if top two are identical on all signals
-  if (best.px === runner.px && best.codec === runner.codec && best.size === runner.size) {
+  // Ambiguous only if ALL locations are identical on all signals
+  const allIdentical = scored.every(s =>
+    s.px === best.px && s.codec === best.codec && s.size === best.size &&
+    s.count === best.count && s.container === best.container
+  );
+  if (allIdentical) {
     return { suggestedIndex: null, rationale: 'Copies appear identical — pick manually.' };
   }
 

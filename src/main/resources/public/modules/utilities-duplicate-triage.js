@@ -37,9 +37,10 @@ function hideCoverTip() {
 }
 
 // ── Icons ─────────────────────────────────────────────────────────────────────
-const ICON_VOL  = `<svg class="dt-path-icon" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><rect x="1" y="2" width="10" height="8" rx="1"/><line x1="1" y1="7" x2="11" y2="7"/><circle cx="9" cy="9.2" r="0.7" fill="currentColor" stroke="none"/></svg>`;
-const ICON_DIR  = `<svg class="dt-path-icon" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><path d="M1 9V4.5C1 4 1.4 3.5 2 3.5h3L6 5h4c.6 0 1 .4 1 1V9c0 .6-.4 1-1 1H2c-.6 0-1-.4-1-1z"/></svg>`;
-const ICON_FILE = `<svg class="dt-path-icon" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 1h5l3 3v7H2V1z"/><path d="M7 1v3h3"/></svg>`;
+const ICON_VOL     = `<svg class="dt-path-icon" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><rect x="1" y="2" width="10" height="8" rx="1"/><line x1="1" y1="7" x2="11" y2="7"/><circle cx="9" cy="9.2" r="0.7" fill="currentColor" stroke="none"/></svg>`;
+const ICON_DIR     = `<svg class="dt-path-icon" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><path d="M1 9V4.5C1 4 1.4 3.5 2 3.5h3L6 5h4c.6 0 1 .4 1 1V9c0 .6-.4 1-1 1H2c-.6 0-1-.4-1-1z"/></svg>`;
+const ICON_FILE    = `<svg class="dt-path-icon" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 1h5l3 3v7H2V1z"/><path d="M7 1v3h3"/></svg>`;
+const ICON_INSPECT = `<svg class="dt-inspect-icon" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"><circle cx="6" cy="6" r="4.5"/><polygon points="4.5,4 8.5,6 4.5,8" fill="currentColor" stroke="none"/></svg>`;
 
 // ── DOM ───────────────────────────────────────────────────────────────────────
 const viewEl            = () => document.getElementById('tools-dup-triage-view');
@@ -380,7 +381,7 @@ async function buildTitleCard(title) {
 
   if (rank.rationale) {
     const rat = document.createElement('div');
-    rat.className   = 'dt-rationale';
+    rat.className   = 'dt-rationale' + (rank.suggestedIndex === null ? ' dt-rationale-identical' : '');
     rat.textContent = rank.rationale;
     card.appendChild(rat);
   }
@@ -455,6 +456,20 @@ function buildLocCell(title, locs, i, videos, suggestedIndex) {
     badge.className = 'dt-suggested-badge';
     badge.textContent = 'Suggested keep';
     cell.appendChild(badge);
+  }
+
+  // Inspect button — opens video player modal for this location
+  if (videos.length > 0) {
+    const inspectBtn = document.createElement('button');
+    inspectBtn.type = 'button';
+    inspectBtn.className = 'dt-inspect-btn';
+    inspectBtn.title = 'Inspect videos in this folder';
+    inspectBtn.innerHTML = ICON_INSPECT;
+    inspectBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      openInspectModal(title, i, loc, videos);
+    });
+    cell.appendChild(inspectBtn);
   }
 
   // Decision buttons
@@ -565,6 +580,97 @@ async function fetchLocVideos(titleCode, locs) {
     })
   );
   return results;
+}
+
+// ── Inspect modal ─────────────────────────────────────────────────────────────
+
+function openInspectModal(title, locIdx, loc, videos) {
+  document.querySelector('.dt-inspect-overlay')?.remove();
+
+  const overlay = document.createElement('div');
+  overlay.className = 'dt-inspect-overlay';
+
+  const modal = document.createElement('div');
+  modal.className = 'dt-inspect-modal';
+
+  // Header
+  const header = document.createElement('div');
+  header.className = 'dt-inspect-header';
+  header.innerHTML = `
+    <div class="dt-inspect-header-info">
+      <span class="dt-inspect-code">${esc(title.code)}</span>
+      <span class="dt-inspect-loc-num">Location ${locIdx + 1} of ${(title.locationEntries || []).length}</span>
+    </div>
+    <div class="dt-inspect-path-line">${esc(loc.nasPath || '')}</div>
+  `;
+
+  const closeBtn = document.createElement('button');
+  closeBtn.type = 'button';
+  closeBtn.className = 'dt-inspect-close';
+  closeBtn.textContent = '✕';
+  header.appendChild(closeBtn);
+
+  modal.appendChild(header);
+
+  // Body
+  const body = document.createElement('div');
+  body.className = 'dt-inspect-body';
+  for (const v of videos) body.appendChild(buildInspectVideoSection(v));
+  modal.appendChild(body);
+
+  overlay.appendChild(modal);
+  document.body.appendChild(overlay);
+
+  const ac = new AbortController();
+  const close = () => { overlay.remove(); ac.abort(); };
+  closeBtn.addEventListener('click', close, { signal: ac.signal });
+  overlay.addEventListener('click', (e) => { if (e.target === overlay) close(); }, { signal: ac.signal });
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') close(); }, { signal: ac.signal });
+}
+
+function buildInspectVideoSection(v) {
+  const section = document.createElement('div');
+  section.className = 'dt-inspect-video-section';
+
+  const filename = v.filename || v.path?.split('/').pop() || `Video ${v.id}`;
+
+  section.innerHTML = `
+    <div class="dt-inspect-filename">${esc(filename)}</div>
+    <div class="dt-inspect-meta" id="dt-inspect-meta-${v.id}">…</div>
+    <div class="dt-inspect-player-wrap" id="dt-inspect-wrap-${v.id}">
+      <video class="dt-inspect-player" id="dt-inspect-player-${v.id}"
+             controls preload="none" src="/api/stream/${v.id}"></video>
+      <button class="dt-inspect-theater-btn" type="button">Theater</button>
+    </div>
+  `;
+
+  section.querySelector('.dt-inspect-theater-btn').addEventListener('click', () => {
+    const wrap = document.getElementById(`dt-inspect-wrap-${v.id}`);
+    const active = wrap.classList.toggle('theater-mode');
+    section.querySelector('.dt-inspect-theater-btn').textContent = active ? 'Exit Theater' : 'Theater';
+  });
+
+  loadInspectMeta(v.id);
+  return section;
+}
+
+function loadInspectMeta(videoId) {
+  fetch(`/api/videos/${videoId}/info`)
+    .then(r => r.json())
+    .then(info => {
+      const el = document.getElementById(`dt-inspect-meta-${videoId}`);
+      if (!el || !info) return;
+      const parts = [];
+      if (info.duration)    parts.push(info.duration);
+      if (info.resolution)  parts.push(info.resolution);
+      if (info.videoCodec)  parts.push(info.videoCodec);
+      if (info.bitrate)     parts.push(info.bitrate);
+      el.textContent = parts.join(' · ') || '—';
+    })
+    .catch(() => {
+      const el = document.getElementById(`dt-inspect-meta-${videoId}`);
+      if (el) el.textContent = '—';
+    });
 }
 
 // ── Event wiring ──────────────────────────────────────────────────────────────

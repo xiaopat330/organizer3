@@ -3933,6 +3933,11 @@
   font-style: italic;
 }
 
+.dt-rationale-identical {
+  color: #4ade80;
+  background: rgba(74, 222, 128, 0.05);
+}
+
 .dt-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
@@ -4054,3 +4059,175 @@
 .dt-dec-keep.active    { color: #4ade80; border-color: #166534; background: rgba(74, 222, 128, 0.1); }
 .dt-dec-trash.active   { color: #f87171; border-color: #7f1d1d; background: rgba(248, 113, 113, 0.1); }
 .dt-dec-variant.active { color: #93c5fd; border-color: #1d4ed8; background: rgba(147, 197, 253, 0.1); }
+
+/* ── Inspect button (per location cell) ────────────────────────────────────── */
+.dt-inspect-btn {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  background: none;
+  border: 1px solid #334155;
+  border-radius: 4px;
+  padding: 3px 5px;
+  cursor: pointer;
+  color: #64748b;
+  line-height: 0;
+  transition: color 0.15s, border-color 0.15s, background 0.15s;
+}
+.dt-inspect-btn:hover {
+  color: #cbd5e1;
+  border-color: #475569;
+  background: #1e293b;
+}
+.dt-inspect-icon { width: 12px; height: 12px; }
+
+/* ── Inspect modal overlay ─────────────────────────────────────────────────── */
+.dt-inspect-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.75);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.dt-inspect-modal {
+  background: #0d1829;
+  border: 1px solid #1e293b;
+  border-radius: 8px;
+  width: min(860px, 96vw);
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.6);
+}
+
+.dt-inspect-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px 16px;
+  border-bottom: 1px solid #1e293b;
+  flex-shrink: 0;
+}
+
+.dt-inspect-header-info {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.dt-inspect-code {
+  font-size: 14px;
+  font-weight: 600;
+  color: #e2e8f0;
+  letter-spacing: 0.04em;
+}
+
+.dt-inspect-loc-num {
+  font-size: 11px;
+  color: #64748b;
+}
+
+.dt-inspect-path-line {
+  font-size: 11px;
+  color: #475569;
+  word-break: break-all;
+  flex: 1;
+  line-height: 1.5;
+  align-self: center;
+}
+
+.dt-inspect-close {
+  flex-shrink: 0;
+  margin-left: auto;
+  background: none;
+  border: none;
+  color: #64748b;
+  font-size: 16px;
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 4px;
+  line-height: 1;
+}
+.dt-inspect-close:hover { color: #e2e8f0; background: #1e293b; }
+
+.dt-inspect-body {
+  overflow-y: auto;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+/* ── Per-video section inside modal ───────────────────────────────────────── */
+.dt-inspect-video-section {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.dt-inspect-filename {
+  font-size: 11px;
+  color: #94a3b8;
+  word-break: break-all;
+}
+
+.dt-inspect-meta {
+  font-size: 11px;
+  color: #64748b;
+  font-variant-numeric: tabular-nums;
+}
+
+.dt-inspect-player-wrap {
+  position: relative;
+  background: #000;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.dt-inspect-player {
+  display: block;
+  width: 100%;
+  max-height: 480px;
+  background: #000;
+}
+
+.dt-inspect-theater-btn {
+  position: absolute;
+  bottom: 10px;
+  right: 10px;
+  font-family: inherit;
+  font-size: 11px;
+  padding: 4px 10px;
+  background: rgba(0, 0, 0, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 4px;
+  color: #cbd5e1;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+.dt-inspect-player-wrap:hover .dt-inspect-theater-btn { opacity: 1; }
+
+/* Theater mode: expand player to full screen */
+.dt-inspect-player-wrap.theater-mode {
+  position: fixed;
+  inset: 0;
+  z-index: 1001;
+  border-radius: 0;
+  display: flex;
+  align-items: center;
+  background: #000;
+}
+.dt-inspect-player-wrap.theater-mode .dt-inspect-player {
+  max-height: 100vh;
+  height: 100%;
+  width: 100%;
+}
+.dt-inspect-player-wrap.theater-mode .dt-inspect-theater-btn {
+  opacity: 1;
+}
