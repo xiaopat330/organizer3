@@ -10,11 +10,11 @@ import * as taskCenter from './task-center.js';
 const SELECTION_KEY = 'utilities.volumes.selection';
 
 const ORGANIZE_ACTIONS = [
-  { id: 'normalize',   label: 'Normalize',    previewId: 'organize.normalize.preview', executeId: 'organize.normalize'   },
-  { id: 'restructure', label: 'Restructure',  previewId: 'organize.restructure.preview', executeId: 'organize.restructure' },
-  { id: 'sort',        label: 'Sort',         previewId: 'organize.sort.preview',      executeId: 'organize.sort'        },
-  { id: 'classify',    label: 'Classify',     previewId: 'organize.classify.preview',  executeId: 'organize.classify'    },
-  { id: 'all',         label: 'Organize all', previewId: 'organize.preview',           executeId: 'organize.queue'       },
+  { id: 'normalize',   label: 'Normalize',    icon: '<polyline points="4 7 4 4 20 4 20 7"/><line x1="9" y1="20" x2="15" y2="20"/><line x1="12" y1="4" x2="12" y2="20"/>',                                                                     previewId: 'organize.normalize.preview',   executeId: 'organize.normalize'   },
+  { id: 'restructure', label: 'Restructure',  icon: '<path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>',                                                                                                 previewId: 'organize.restructure.preview', executeId: 'organize.restructure' },
+  { id: 'sort',        label: 'Sort',         icon: '<polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/>',                                                                                                                             previewId: 'organize.sort.preview',        executeId: 'organize.sort'        },
+  { id: 'classify',    label: 'Classify',     icon: '<path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/>',                                                       previewId: 'organize.classify.preview',    executeId: 'organize.classify'    },
+  { id: 'all',         label: 'Organize all', icon: '<polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>',                                                                                                                                  previewId: 'organize.preview',             executeId: 'organize.queue'       },
 ];
 
 // When the user clicks the floating task pill elsewhere in the app, they want
@@ -166,6 +166,14 @@ function hueFor(id) {
   return VOLUME_HUES[Math.abs(h) % VOLUME_HUES.length];
 }
 
+function tabSVG(paths) {
+  return `<svg class="vol-tab-icon" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${paths}</svg>`;
+}
+
+function actionSVG(paths) {
+  return `<svg class="org-action-icon" viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${paths}</svg>`;
+}
+
 function diskIconSVG(color) {
   return `<svg class="vol-icon" viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="${color}" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
     <ellipse cx="12" cy="5" rx="9" ry="3"/>
@@ -286,9 +294,9 @@ function showDetail(volumeId) {
       <div><span class="vol-stat-label">Last synced</span><span class="vol-stat-value">${esc(formatLastSynced(v.lastSyncedAt))}</span></div>
     </div>
     <nav class="vol-tab-bar">
-      <button type="button" class="vol-tab${activeTab === 'health'   ? ' selected' : ''}" data-tab="health">Health</button>
-      <button type="button" class="vol-tab${activeTab === 'sync'     ? ' selected' : ''}" data-tab="sync">Operations</button>
-      <button type="button" class="vol-tab${activeTab === 'organize' ? ' selected' : ''}" data-tab="organize">Organize${orgBadge}</button>
+      <button type="button" class="vol-tab${activeTab === 'health'   ? ' selected' : ''}" data-tab="health">${tabSVG('<polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>')} Health</button>
+      <button type="button" class="vol-tab${activeTab === 'sync'     ? ' selected' : ''}" data-tab="sync">${tabSVG('<path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>')} Operations</button>
+      <button type="button" class="vol-tab${activeTab === 'organize' ? ' selected' : ''}" data-tab="organize">${tabSVG('<polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/>')} Organize${orgBadge}</button>
     </nav>
     <div class="vol-tab-panels">
       <div class="vol-tab-panel" data-panel="health"${activeTab !== 'health'   ? ' style="display:none"' : ''}>
@@ -740,7 +748,7 @@ function renderOrgSectionHTML(v) {
     }
     const disabledAttr = isBlocked ? ' disabled' : '';
     const btns = ORGANIZE_ACTIONS.map(a =>
-      `<button type="button" class="org-action-btn${a.id === 'all' ? ' org-action-all' : ''}" data-action="${esc(a.id)}"${disabledAttr}>${esc(a.label)}</button>`
+      `<button type="button" class="org-action-btn${a.id === 'all' ? ' org-action-all' : ''}" data-action="${esc(a.id)}"${disabledAttr}>${actionSVG(a.icon)} ${esc(a.label)}</button>`
     ).join('');
     const queueLine = `<div class="org-queue-count">${v.queueCount} title${v.queueCount === 1 ? '' : 's'} in queue</div>`;
     const blockedNote = isBlocked ? '<div class="vol-op-blocked">Another utility task is running. Wait for it to finish.</div>' : '';

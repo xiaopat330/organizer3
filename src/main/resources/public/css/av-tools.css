@@ -1912,6 +1912,7 @@
   color: #60a5fa;
   border-bottom-color: #60a5fa;
 }
+.vol-tab-icon { vertical-align: -2px; }
 .vol-tab-badge {
   display: inline-block;
   background: #1e3a5f;
@@ -4512,6 +4513,7 @@
   flex-wrap: wrap;
   gap: 8px;
 }
+.org-action-icon { vertical-align: -2px; }
 .org-action-btn {
   background: #0f1d2e;
   color: #93c5fd;
