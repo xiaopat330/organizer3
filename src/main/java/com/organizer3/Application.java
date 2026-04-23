@@ -519,13 +519,20 @@ public class Application {
         com.organizer3.utilities.task.avstars.ParseFilenamesTask parseFilenamesTask =
                 new com.organizer3.utilities.task.avstars.ParseFilenamesTask(avVideoRepo, avFilenameParser);
 
+        com.organizer3.repository.DuplicateDecisionRepository dupDecisionRepo =
+                new com.organizer3.repository.jdbi.JdbiDuplicateDecisionRepository(jdbi);
+        com.organizer3.utilities.task.duplicates.ExecuteDuplicateTrashTask executeDuplicateTrashTask =
+                new com.organizer3.utilities.task.duplicates.ExecuteDuplicateTrashTask(
+                        dupDecisionRepo, titleLocationRepo, config, smbConnectionFactory, jdbi);
+
         com.organizer3.utilities.task.TaskRegistry taskRegistry =
                 new com.organizer3.utilities.task.TaskRegistry(
                         java.util.List.of(syncVolumeTask, cleanStaleLocationsTask,
                                 loadActressTask, loadAllActressesTask,
                                 backupNowTask, restoreSnapshotTask,
                                 scanLibraryTask, cleanOrphanedCoversTask,
-                                resolveIafdTask, renameAvActressTask, deleteAvActressTask, parseFilenamesTask));
+                                resolveIafdTask, renameAvActressTask, deleteAvActressTask, parseFilenamesTask,
+                                executeDuplicateTrashTask));
         com.organizer3.utilities.task.TaskRunner taskRunner =
                 new com.organizer3.utilities.task.TaskRunner(taskRegistry);
         webServer.registerUtilities(new com.organizer3.web.routes.UtilitiesRoutes(
@@ -535,8 +542,6 @@ public class Application {
         webServer.registerAvStars(new com.organizer3.web.routes.AvStarsRoutes(
                 avStarsCatalog, avBrowseService, iafdResolver));
 
-        com.organizer3.repository.DuplicateDecisionRepository dupDecisionRepo =
-                new com.organizer3.repository.jdbi.JdbiDuplicateDecisionRepository(jdbi);
         webServer.registerDuplicateDecisions(
                 new com.organizer3.web.routes.DuplicateDecisionsRoutes(dupDecisionRepo));
 

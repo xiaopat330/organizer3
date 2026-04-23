@@ -58,4 +58,17 @@ public class JdbiDuplicateDecisionRepository implements DuplicateDecisionReposit
                 .bind("nasPath", nasPath)
                 .execute());
     }
+
+    @Override
+    public void markExecuted(String titleCode, String volumeId, String nasPath, String executedAt) {
+        jdbi.useHandle(h -> h.createUpdate("""
+                        UPDATE duplicate_decisions SET executed_at = :executedAt
+                        WHERE title_code = :titleCode AND volume_id = :volumeId AND nas_path = :nasPath
+                        """)
+                .bind("executedAt", executedAt)
+                .bind("titleCode", titleCode)
+                .bind("volumeId", volumeId)
+                .bind("nasPath", nasPath)
+                .execute());
+    }
 }

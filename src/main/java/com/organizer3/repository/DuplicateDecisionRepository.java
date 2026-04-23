@@ -14,4 +14,7 @@ public interface DuplicateDecisionRepository {
 
     /** Remove one location's decision by its full primary key. No-op if not found. */
     void delete(String titleCode, String volumeId, String nasPath);
+
+    /** Stamp executed_at on a decision row after it has been actioned. No-op if not found. */
+    void markExecuted(String titleCode, String volumeId, String nasPath, String executedAt);
 }

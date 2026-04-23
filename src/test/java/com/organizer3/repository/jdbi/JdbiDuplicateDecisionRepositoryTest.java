@@ -129,4 +129,20 @@ class JdbiDuplicateDecisionRepositoryTest {
         repo.upsert(decision("ABP-001", "vol-a", "/vol/stars/ABP-001", "KEEP"));
         assertNull(repo.listPending().get(0).getExecutedAt());
     }
+
+    @Test
+    void markExecutedStampsTimestampAndExcludesFromListPending() {
+        repo.upsert(decision("ABP-001", "vol-a", "/vol/stars/ABP-001", "TRASH"));
+        assertEquals(1, repo.listPending().size());
+
+        String stamp = Instant.now().toString();
+        repo.markExecuted("ABP-001", "vol-a", "/vol/stars/ABP-001", stamp);
+
+        assertTrue(repo.listPending().isEmpty(), "Marked-executed row must not appear in listPending");
+    }
+
+    @Test
+    void markExecutedIsNoOpWhenNotFound() {
+        assertDoesNotThrow(() -> repo.markExecuted("NONEXISTENT", "vol-a", "/path", Instant.now().toString()));
+    }
 }
