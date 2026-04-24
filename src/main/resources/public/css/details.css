@@ -1010,6 +1010,8 @@
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  padding: 12px 16px 16px;
+  box-sizing: border-box;
 }
 
 .title-detail-panel {
@@ -1018,23 +1020,26 @@
   flex: 1;
   min-height: 0;
   overflow: hidden;
+  border: 1px solid #1e293b;
+  border-radius: 6px;
 }
 
 .title-detail-left {
-  width: 25%;
+  width: 300px;
   flex-shrink: 0;
   display: flex;
   flex-direction: column;
   gap: 20px;
-  padding: 24px;
+  padding: 20px 16px;
   overflow-y: auto;
   box-sizing: border-box;
+  background: #0a1220;
 }
 
 .title-detail-right {
   flex: 1;
   min-width: 0;
-  border-left: 1px solid #222;
+  border-left: 1px solid #1e293b;
   overflow-y: auto;
   box-sizing: border-box;
   padding: 24px;
@@ -1047,7 +1052,7 @@
   width: 100%;
   aspect-ratio: var(--cover-card-ratio);
   overflow: hidden;
-  background: #1c1c1c;
+  background: #070d1a;
   border-radius: 4px;
 }
 #title-detail-cover img {
@@ -1086,12 +1091,12 @@
 }
 
 .title-detail-cover-placeholder {
-  background: #1c1c1c;
+  background: #070d1a;
   aspect-ratio: 17 / 12;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #333;
+  color: #1e293b;
   font-size: 0.75rem;
   border-radius: 4px;
   letter-spacing: 0.05em;
@@ -1112,7 +1117,7 @@
 }
 .title-action-btn {
   background: none;
-  border: 1px solid #444;
+  border: 1px solid #2d3748;
   border-radius: 6px;
   padding: 6px 10px;
   cursor: pointer;
@@ -1189,7 +1194,7 @@
 .title-detail-title-ja {
   font-size: 1.25rem;
   font-weight: 700;
-  color: #ffffff;
+  color: #f1f5f9;
   line-height: 1.4;
   margin-bottom: 8px;
 }
@@ -1197,7 +1202,7 @@
 .title-detail-title-en {
   font-size: 1rem;
   font-weight: 700;
-  color: #ffffff;
+  color: #f1f5f9;
   line-height: 1.45;
   margin-bottom: 6px;
 }
@@ -1205,7 +1210,7 @@
 .title-detail-title-en--secondary {
   font-size: 0.88rem;
   font-weight: 600;
-  color: #777;
+  color: #94a3b8;
   margin-bottom: 14px;
 }
 
@@ -1222,17 +1227,17 @@
 }
 
 .title-detail-label {
-  font-size: 0.62rem;
+  font-size: 11px;
   text-transform: uppercase;
-  letter-spacing: 0.09em;
-  color: #444;
+  letter-spacing: 0.08em;
+  color: #64748b;
   white-space: nowrap;
   min-width: 64px;
 }
 
 .title-detail-value {
   font-size: 0.82rem;
-  color: #aaa;
+  color: #e2e8f0;
 }
 
 .title-detail-cast {
@@ -1247,12 +1252,12 @@
 
 .title-detail-actress-first {
   font-weight: 700;
-  color: #ffffff;
+  color: #f1f5f9;
 }
 
 .title-detail-actress-last {
   font-weight: 400;
-  color: #888;
+  color: #94a3b8;
 }
 
 .title-detail-actress-link {
@@ -1261,7 +1266,7 @@
 
 .title-detail-actress-link:hover .title-detail-actress-first,
 .title-detail-actress-link:hover .title-detail-actress-last {
-  color: #ffffff;
+  color: #f1f5f9;
 }
 
 .title-detail-company {
@@ -1270,7 +1275,7 @@
 }
 
 .title-detail-label-name {
-  color: #777;
+  color: #94a3b8;
 }
 
 .title-detail-tags {
@@ -1292,7 +1297,7 @@
 .title-detail-grade-label {
   font-size: 0.75rem;
   font-weight: 700;
-  color: #555;
+  color: #64748b;
   letter-spacing: 0.1em;
 }
 
@@ -1359,7 +1364,7 @@
 }
 .video-divider {
   border: none;
-  border-top: 1px solid #333;
+  border-top: 1px solid #1e293b;
   margin: 32px 0;
 }
 .video-header {
@@ -1603,24 +1608,24 @@
 .more-from-loading {
   margin-top: 24px;
   padding-top: 16px;
-  border-top: 1px solid #222;
+  border-top: 1px solid #1e293b;
   font-size: 0.75rem;
-  color: #444;
+  color: #475569;
 }
 .more-from-section {
   margin-top: 24px;
   padding-top: 16px;
-  border-top: 1px solid #222;
+  border-top: 1px solid #1e293b;
 }
 .more-from-heading {
   font-size: 0.7rem;
-  color: #555;
+  color: #64748b;
   text-transform: uppercase;
   letter-spacing: 0.1em;
   margin-bottom: 12px;
 }
 .more-from-name {
-  color: #888;
+  color: #94a3b8;
 }
 .more-from-row {
   display: flex;
