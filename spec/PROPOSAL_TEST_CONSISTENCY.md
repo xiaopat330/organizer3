@@ -121,6 +121,29 @@ from the storage type. Add regression tests for each hit.
 Currently only has a sandbox test (requires VPN + real NAS). Extract the pure-DB logic into a
 unit-testable layer so CI can gate it without network access.
 
+**Deferred to a follow-up pass.** This service is not part of the 2026-04-23 incident's
+failure mode (it updates file mtimes, doesn't delete DB rows) and fixing requires an
+extract-refactor, which is a larger change than the other Phase 1/2 work. Tracking under
+`project_test_hardening_options` for the next hardening pass.
+
+## Guard design note — no override flag
+
+Both cascade guards (`TitleRepository.deleteOrphaned` and `StaleLocationsService.delete`)
+are intentionally unbypassable. There is no `deleteOrphanedUnchecked` variant. The
+reasoning:
+
+- Every current caller is a routine cleanup. Nothing in the product needs to delete
+  &gt;25% of titles or &gt;50% of a volume's locations in one shot under normal operation.
+- Legitimate mass-deletion flows exist via different paths: decommissioning a volume
+  uses `TitleLocationRepository.deleteByVolume` (scoped and intentional);
+  dropping a merged-loser title uses `ExecuteMergeTask` (scoped per-title).
+- An override flag invites accidental bypass. If a future flow genuinely needs one,
+  the right response is to raise the ceiling on that specific flow with a named path
+  (e.g. `decommissionVolume`) rather than widen the unguarded door.
+
+Revisit this if a legitimate use case surfaces that can't be served through a
+scoped operation.
+
 ---
 
 ## Acceptance Criteria
@@ -132,7 +155,7 @@ unit-testable layer so CI can gate it without network access.
 - Any new cascading destructive operation must include a catastrophic-count guard
   (Rule 4) and a regression test for that guard. **[TitleRepository.deleteOrphaned DONE]**
 - `FixTimestampsVolumeService` has at least one unit test not requiring the sandbox.
-  **[PENDING]**
+  **[DEFERRED — not incident-related; tracked for next hardening pass]**
 
 ## What landed (2026-04-24)
 
@@ -145,3 +168,6 @@ unit-testable layer so CI can gate it without network access.
   `deleteByVolumeAndPartition`.
 - Rule-3 guards added to `JdbiVideoRepositoryTest` and `JdbiAvVideoRepositoryTest`
   for volume-scoped destructive SQL.
+- Rule-4 guard on `StaleLocationsService.delete` with 50% per-volume threshold —
+  covers the function that actually caused the incident, so a future predicate bug
+  in the same service can't reproduce the failure.
