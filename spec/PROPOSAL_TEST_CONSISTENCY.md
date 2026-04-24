@@ -60,6 +60,26 @@ any other service: if it touches the DB, it has tests.
 | `UnloadedYamlsCheck` | Classpath enumeration + DB probe | 5 |
 | `OrphanedCoversCheck` | Thin wrapper over `OrphanedCoversService` (already tested) | 6 |
 
+### Rule 4 — Cascading destructive operations need a catastrophic-count guard
+
+The 2026-04-23 incident showed that a bug in one destructive operation can be amplified
+downstream into full data loss. The stale-locations SQL wiped `title_locations`; the next
+sync's `titleRepo.deleteOrphaned()` would then drop every title, and
+`pruneOrphanedTitlesAndCovers` would delete every cover file.
+
+Any cascade that can destroy a broad swath of rows in one shot must refuse to run when the
+count exceeds a plausibility threshold. The threshold is `max(ABS_FLOOR, total/FRAC)`:
+- The floor keeps small/dev DBs usable (no threshold trips below ABS_FLOOR).
+- The fraction scales with catalog size so the guard doesn't weaken on growth.
+
+Current guards:
+- `TitleRepository.deleteOrphaned` throws `CatastrophicDeleteException` when orphans
+  exceed `max(500, total/4)`. Caller runs check + delete in one transaction so the guard
+  can't race. A pre-cover-deletion check in `AbstractSyncOperation.pruneOrphanedTitlesAndCovers`
+  short-circuits before touching the cover cache, too.
+- Any new cascade of similar blast radius must add a comparable guard plus
+  a regression test that seeds the catastrophic case.
+
 ### Rule 3 — Destructive operations require a false-positive guard test
 
 For any method that deletes rows, the **first** test written must seed plausible data that
@@ -106,7 +126,22 @@ unit-testable layer so CI can gate it without network access.
 ## Acceptance Criteria
 
 - All 6 `LibraryHealthCheck` implementations have at least 3 tests each (happy path,
-  false-positive guard, edge case).
-- `StaleLocationsCheck` specifically includes a same-day datetime regression test.
+  false-positive guard, edge case). **[DONE 2026-04-24]**
+- `StaleLocationsCheck` specifically includes a same-day datetime regression test. **[DONE]**
 - Any new destructive operation must include a false-positive guard test before merge.
+- Any new cascading destructive operation must include a catastrophic-count guard
+  (Rule 4) and a regression test for that guard. **[TitleRepository.deleteOrphaned DONE]**
 - `FixTimestampsVolumeService` has at least one unit test not requiring the sandbox.
+  **[PENDING]**
+
+## What landed (2026-04-24)
+
+- 3-file `DATE()`-wrap SQL fix for stale-locations + service/tool/check tests.
+- `CatastrophicDeleteException` + cascade guard on `titleRepo.deleteOrphaned` with
+  `max(500, total/4)` threshold. Pre-cover pre-check in `pruneOrphanedTitlesAndCovers`.
+- 6 new `LibraryHealthCheck` test classes (Phase 1 of implementation plan).
+- New `JdbiTitleLocationRepositoryTest` — previously no coverage for the repo whose
+  wipe was the incident trigger. Rule-3 guards for `deleteByVolume` and
+  `deleteByVolumeAndPartition`.
+- Rule-3 guards added to `JdbiVideoRepositoryTest` and `JdbiAvVideoRepositoryTest`
+  for volume-scoped destructive SQL.
