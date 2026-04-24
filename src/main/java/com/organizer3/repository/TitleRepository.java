@@ -3,9 +3,11 @@ package com.organizer3.repository;
 import com.organizer3.model.Actress;
 import com.organizer3.model.Title;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 
 /**
  * Persistence operations for {@link Title} records.
@@ -100,6 +102,19 @@ public interface TitleRepository {
 
     /** Total number of rows in {@code titles}. Used by cascade-safety guards. */
     int countAll();
+
+    /**
+     * Returns the set of all {@code base_code} values in the titles table.
+     * Used by orphaned-covers detection to do a single bulk lookup instead of one query per file.
+     */
+    Set<String> allBaseCodes();
+
+    /**
+     * Batch-load titles for multiple actress IDs in a single query. Returns a map from actress ID
+     * to the list of titles attributed to that actress (via actress_id or title_actresses junction).
+     * Returns an empty map when the input collection is empty.
+     */
+    Map<Long, List<Title>> findByActressIds(Collection<Long> actressIds);
 
     /**
      * Delete titles that have zero locations (orphaned after location cleanup). Returns the

@@ -10,6 +10,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 
 /**
  * Finds and removes orphaned cover image files in the local covers cache — files under
@@ -60,6 +61,8 @@ public final class OrphanedCoversService {
         Path root = coverPath.root();
         if (!Files.isDirectory(root)) return new OrphanPreview(List.of(), 0);
 
+        Set<String> knownBaseCodes = titles.allBaseCodes();
+
         List<OrphanRow> rows = new ArrayList<>();
         long total = 0;
         try (DirectoryStream<Path> labelDirs = Files.newDirectoryStream(root)) {
@@ -72,7 +75,7 @@ public final class OrphanedCoversService {
                         String name = file.getFileName().toString();
                         if (!CoverPath.isImageFile(name)) continue;
                         String baseCode = stripExtension(name);
-                        if (titles.findByCode(baseCode).isPresent()) continue;
+                        if (knownBaseCodes.contains(baseCode)) continue;
                         long size = safeSize(file);
                         rows.add(new OrphanRow(label, name, file.toAbsolutePath().toString(), size));
                         if (size > 0) total += size;

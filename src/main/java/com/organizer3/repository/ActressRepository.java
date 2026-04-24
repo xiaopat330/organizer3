@@ -4,6 +4,7 @@ import com.organizer3.config.alias.AliasYamlEntry;
 import com.organizer3.model.ActressAlias;
 import com.organizer3.model.Actress;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -200,6 +201,26 @@ public interface ActressRepository {
     // --- Alias operations ---
 
     List<ActressAlias> findAliases(long actressId);
+
+    /**
+     * Batch-load aliases for multiple actress IDs in a single query.
+     * Returns an empty map when the input collection is empty.
+     */
+    Map<Long, List<ActressAlias>> findAliasesForActresses(Collection<Long> actressIds);
+
+    /**
+     * For each name in the collection that is the canonical name of an actress, returns
+     * a map of that name → actress id. Used to resolve AliasDto.actressId in batch.
+     * Returns an empty map when the input collection is empty.
+     */
+    Map<String, Long> findCanonicalNameIds(Collection<String> names);
+
+    /**
+     * For each canonical name in the collection that appears as an alias of another actress,
+     * returns a map of canonical name → primary actress. Used to resolve "primarily known as"
+     * relationships in batch. Returns an empty map when the input collection is empty.
+     */
+    Map<String, Actress> findPrimaryForAliases(Collection<String> canonicalNames);
 
     void saveAlias(ActressAlias alias);
 

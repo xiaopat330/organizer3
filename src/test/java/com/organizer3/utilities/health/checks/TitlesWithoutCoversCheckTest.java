@@ -12,6 +12,8 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -41,7 +43,7 @@ class TitlesWithoutCoversCheckTest {
         locationRepo = new JdbiTitleLocationRepository(jdbi);
         titleRepo = new JdbiTitleRepository(jdbi, locationRepo);
         coverPath = new CoverPath(tempDir);
-        check = new TitlesWithoutCoversCheck(titleRepo, locationRepo, coverPath);
+        check = new TitlesWithoutCoversCheck(titleRepo, coverPath);
     }
 
     @AfterEach
@@ -68,17 +70,27 @@ class TitlesWithoutCoversCheckTest {
     }
 
     /**
-     * Rule 3 false-positive guard: a title WITH a cover in a non-default extension
-     * (.png, .webp) must not be flagged just because .jpg doesn't exist — CoverPath.find
-     * probes all image extensions, and the health check must respect that.
+     * Rule 3 false-positive guard: a title with a cover in any recognized image extension
+     * must not be flagged — the bulk-scan index records all image files regardless of extension,
+     * so the check must not be biased toward .jpg.
      */
-    @Test
-    void nonJpgCoverExtensionIsRecognized() throws Exception {
+    @ParameterizedTest
+    @ValueSource(strings = {"jpg", "jpeg", "png", "webp", "gif"})
+    void anyImageExtensionIsRecognized(String ext) throws Exception {
         Title t = saveTitle("ABP-003");
-        writeCover(t, "webp");
+        writeCover(t, ext);
 
         LibraryHealthCheck.CheckResult result = check.run();
-        assertEquals(0, result.total(), "webp cover must count as present");
+        assertEquals(0, result.total(), ext + " cover must count as present");
+    }
+
+    @Test
+    void titlesCountedAsMissingWhenCoversRootAbsent() {
+        // No covers directory at all — should not throw, every title is uncovered.
+        saveTitle("ABP-006");
+        // covers root was never created (tempDir has no "covers" subdir yet for this test)
+        LibraryHealthCheck.CheckResult result = check.run();
+        assertEquals(1, result.total());
     }
 
     @Test

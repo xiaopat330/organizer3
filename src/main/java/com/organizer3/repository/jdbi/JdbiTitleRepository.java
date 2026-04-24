@@ -11,9 +11,14 @@ import org.jdbi.v3.core.Jdbi;
 import org.jdbi.v3.core.mapper.RowMapper;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 @RequiredArgsConstructor
@@ -139,6 +144,51 @@ public class JdbiTitleRepository implements TitleRepository {
                         .list()
         );
         return populateLocationsBatch(titles);
+    }
+
+    @Override
+    public Map<Long, List<Title>> findByActressIds(Collection<Long> actressIds) {
+        if (actressIds.isEmpty()) return Map.of();
+        return jdbi.withHandle(h -> {
+            List<Map.Entry<Long, Title>> pairs = h.createQuery("""
+                    SELECT k.actress_key, t.*
+                    FROM (
+                        SELECT actress_id AS actress_key, id AS title_id
+                        FROM titles WHERE actress_id IN (<ids>)
+                        UNION
+                        SELECT actress_id AS actress_key, title_id
+                        FROM title_actresses WHERE actress_id IN (<ids>)
+                    ) k
+                    JOIN titles t ON t.id = k.title_id
+                    ORDER BY k.actress_key, t.code
+                    """)
+                    .bindList("ids", actressIds)
+                    .map((rs, ctx) -> Map.entry(rs.getLong("actress_key"), MAPPER.map(rs, ctx)))
+                    .list();
+
+            Map<Long, List<Title>> grouped = new LinkedHashMap<>();
+            for (var pair : pairs) {
+                grouped.computeIfAbsent(pair.getKey(), k -> new ArrayList<>()).add(pair.getValue());
+            }
+
+            // Batch-populate locations for all unique titles in one query
+            Set<Long> titleIds = pairs.stream()
+                    .map(e -> e.getValue().getId())
+                    .collect(Collectors.toSet());
+            if (!titleIds.isEmpty()) {
+                List<TitleLocation> allLocations = locationRepo.findByTitleIds(new ArrayList<>(titleIds));
+                Map<Long, List<TitleLocation>> locationsByTitleId = allLocations.stream()
+                        .collect(Collectors.groupingBy(TitleLocation::getTitleId));
+                for (var entry : grouped.entrySet()) {
+                    grouped.put(entry.getKey(), entry.getValue().stream()
+                            .map(t -> t.toBuilder()
+                                    .locations(locationsByTitleId.getOrDefault(t.getId(), List.of()))
+                                    .build())
+                            .toList());
+                }
+            }
+            return grouped;
+        });
     }
 
     @Override
@@ -750,6 +800,14 @@ public class JdbiTitleRepository implements TitleRepository {
     public int countAll() {
         return jdbi.withHandle(h -> h.createQuery("SELECT COUNT(*) FROM titles")
                 .mapTo(Integer.class).one());
+    }
+
+    @Override
+    public Set<String> allBaseCodes() {
+        return jdbi.withHandle(h ->
+                new HashSet<>(h.createQuery("SELECT base_code FROM titles")
+                        .mapTo(String.class).list())
+        );
     }
 
     /** Floor threshold — small libraries never trip the guard below this absolute count. */

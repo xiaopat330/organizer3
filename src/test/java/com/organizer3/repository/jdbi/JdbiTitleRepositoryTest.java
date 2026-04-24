@@ -15,7 +15,9 @@ import java.sql.Connection;
 import java.sql.DriverManager;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -962,6 +964,67 @@ class JdbiTitleRepositoryTest {
 
         var counts = titleRepo.countTitlesByCompanies(List.of("Moodyz"));
         assertEquals(1L, counts.get("Moodyz"));
+    }
+
+    // --- allBaseCodes ---
+
+    @Test
+    void allBaseCodesReturnsEveryBaseCodeFromTitlesTable() {
+        titleRepo.save(Title.builder().code("ABP-123").baseCode("ABP-00123").label("ABP").seqNum(123).build());
+        titleRepo.save(Title.builder().code("XYZ-1").baseCode("XYZ-00001").label("XYZ").seqNum(1).build());
+
+        Set<String> codes = titleRepo.allBaseCodes();
+        assertEquals(Set.of("ABP-00123", "XYZ-00001"), codes);
+    }
+
+    @Test
+    void allBaseCodesReturnsEmptyWhenNoTitles() {
+        assertTrue(titleRepo.allBaseCodes().isEmpty());
+    }
+
+    // --- findByActressIds ---
+
+    @Test
+    void findByActressIdsReturnsEmptyMapForEmptyInput() {
+        assertTrue(titleRepo.findByActressIds(List.of()).isEmpty());
+    }
+
+    @Test
+    void findByActressIdsGroupsTitlesByActressId() {
+        Title t1 = titleRepo.save(Title.builder().code("ABP-001").baseCode("ABP-00001").label("ABP").seqNum(1).actressId(10L).build());
+        Title t2 = titleRepo.save(Title.builder().code("ABP-002").baseCode("ABP-00002").label("ABP").seqNum(2).actressId(10L).build());
+        Title t3 = titleRepo.save(Title.builder().code("SSIS-001").baseCode("SSIS-00001").label("SSIS").seqNum(1).actressId(20L).build());
+
+        Map<Long, List<Title>> result = titleRepo.findByActressIds(List.of(10L, 20L));
+
+        assertEquals(2, result.get(10L).size());
+        assertEquals(1, result.get(20L).size());
+        assertFalse(result.containsKey(99L));
+    }
+
+    @Test
+    void findByActressIdsIncludesTitleActressesJunctionRows() {
+        Title t = titleRepo.save(Title.builder().code("ABP-001").baseCode("ABP-00001").label("ABP").seqNum(1).build());
+        // Link via junction table, not actress_id FK
+        try (var stmt = connection.createStatement()) {
+            stmt.execute("INSERT INTO title_actresses (title_id, actress_id) VALUES (" + t.getId() + ", 30)");
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+
+        Map<Long, List<Title>> result = titleRepo.findByActressIds(List.of(30L));
+
+        assertEquals(1, result.get(30L).size());
+        assertEquals("ABP-001", result.get(30L).get(0).getCode());
+    }
+
+    @Test
+    void findByActressIdsExcludesActressesNotInInput() {
+        titleRepo.save(Title.builder().code("ABP-001").baseCode("ABP-00001").label("ABP").seqNum(1).actressId(10L).build());
+
+        Map<Long, List<Title>> result = titleRepo.findByActressIds(List.of(20L));
+
+        assertFalse(result.containsKey(10L));
     }
 
     // --- helpers ---

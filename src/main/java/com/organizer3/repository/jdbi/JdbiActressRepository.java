@@ -16,6 +16,7 @@ import org.jdbi.v3.core.mapper.RowMapper;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -790,6 +791,47 @@ public class JdbiActressRepository implements ActressRepository {
                         .map(ACTRESS_MAPPER)
                         .findFirst()
         );
+    }
+
+    @Override
+    public Map<Long, List<ActressAlias>> findAliasesForActresses(Collection<Long> actressIds) {
+        if (actressIds.isEmpty()) return Map.of();
+        List<ActressAlias> all = jdbi.withHandle(h ->
+                h.createQuery("SELECT * FROM actress_aliases WHERE actress_id IN (<ids>)")
+                        .bindList("ids", actressIds)
+                        .map(ALIAS_MAPPER)
+                        .list()
+        );
+        return all.stream().collect(Collectors.groupingBy(ActressAlias::actressId));
+    }
+
+    @Override
+    public Map<String, Long> findCanonicalNameIds(Collection<String> names) {
+        if (names.isEmpty()) return Map.of();
+        List<Map.Entry<String, Long>> pairs = jdbi.withHandle(h ->
+                h.createQuery("SELECT id, canonical_name FROM actresses WHERE canonical_name IN (<names>) COLLATE NOCASE")
+                        .bindList("names", names)
+                        .map((rs, ctx) -> Map.entry(rs.getString("canonical_name"), rs.getLong("id")))
+                        .list()
+        );
+        return pairs.stream().collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
+    }
+
+    @Override
+    public Map<String, Actress> findPrimaryForAliases(Collection<String> canonicalNames) {
+        if (canonicalNames.isEmpty()) return Map.of();
+        List<Map.Entry<String, Actress>> pairs = jdbi.withHandle(h ->
+                h.createQuery("""
+                        SELECT a.*, aa.alias_name AS _queried_name
+                        FROM actress_aliases aa
+                        JOIN actresses a ON a.id = aa.actress_id
+                        WHERE aa.alias_name IN (<names>) COLLATE NOCASE
+                        """)
+                        .bindList("names", canonicalNames)
+                        .map((rs, ctx) -> Map.entry(rs.getString("_queried_name"), ACTRESS_MAPPER.map(rs, ctx)))
+                        .list()
+        );
+        return pairs.stream().collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue, (a, b) -> a));
     }
 
     @Override
