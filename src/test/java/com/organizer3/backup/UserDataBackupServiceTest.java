@@ -659,6 +659,23 @@ class UserDataBackupServiceTest {
         assertEquals(1, result.avVideosSkipped());
     }
 
+    // ── previewRestore ───────────────────────────────────────────────────────
+
+    @Test
+    void previewRestoreExportedAtIsIsoString() throws Exception {
+        Path backupFile = tempDir.resolve("preview.json");
+        service.write(service.export(), backupFile);
+
+        RestorePreview preview = service.previewRestore(backupFile);
+
+        assertNotNull(preview.backupExportedAt());
+        assertInstanceOf(String.class, preview.backupExportedAt(),
+                "backupExportedAt must be a String so new Date() in JavaScript parses it correctly");
+        // Should be a parseable ISO-8601 date
+        assertTrue(preview.backupExportedAt().matches("\\d{4}-\\d{2}-\\d{2}T.*"),
+                "Expected ISO datetime, got: " + preview.backupExportedAt());
+    }
+
     // ── Backward compatibility ────────────────────────────────────────────────
 
     @Test
