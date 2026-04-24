@@ -1,6 +1,6 @@
 package com.organizer3.sandbox.trash;
 
-import com.organizer3.filesystem.LocalFileSystem;
+import com.organizer3.filesystem.VolumeFileSystem;
 import com.organizer3.trash.TrashSidecar;
 
 import java.io.IOException;
@@ -27,7 +27,7 @@ import java.time.Instant;
  */
 public class SandboxTrashBuilder {
 
-    private final LocalFileSystem fs;
+    private final VolumeFileSystem fs;
     private final Path trashRoot;
     private final String volumeId;
 
@@ -38,7 +38,7 @@ public class SandboxTrashBuilder {
     private boolean writeSidecar = true;
     private boolean asFolder = false;
 
-    public SandboxTrashBuilder(LocalFileSystem fs, Path trashRoot, String volumeId) {
+    public SandboxTrashBuilder(VolumeFileSystem fs, Path trashRoot, String volumeId) {
         this.fs = fs;
         this.trashRoot = trashRoot;
         this.volumeId = volumeId;
