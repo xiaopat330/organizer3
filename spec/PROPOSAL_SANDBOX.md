@@ -1,6 +1,6 @@
 # Sandbox Mechanism
 
-> **Status: PROPOSAL — peer to `PROPOSAL_TRASH.md`, not yet implemented**
+> **Status: IMPLEMENTED** (Sandbox.java primitive shipped alongside Trash)
 
 A per-volume scratch area owned exclusively by the app. Anything placed in sandbox is volatile by convention — the app may create, move, or overwrite items there at any time, and users are expected to treat its contents as disposable.
 

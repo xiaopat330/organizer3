@@ -1,7 +1,6 @@
 # Trash Mechanism
 
-> **Status: Primitive implemented (`src/main/java/com/organizer3/trash/Trash.java`); contract updated 2026-04-22 to require a free-form `reason`.**
-> No production consumers yet — early MCP tool scaffolding (`TrashDuplicateVideoTool`, `TrashDuplicateCoverTool`) is greenfield and updates alongside contract changes.
+> **Status: IMPLEMENTED** — all 4 phases shipped (sidecar contract, TrashService, TrashRoutes + UI, sweep scheduler).
 
 A general-purpose, volume-aware trash mechanism for safely removing any file or folder from the library. Applies to any entity with a physical path on a volume: title folders, actress folders, AV video files, cover images, etc.
 

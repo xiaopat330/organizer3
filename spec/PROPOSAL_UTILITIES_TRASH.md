@@ -1,6 +1,6 @@
 # Utilities — Trash Screen
 
-> **Status: DRAFT** (2026-04-23)
+> **Status: IMPLEMENTED**
 >
 > Concrete implementation proposal for a centralized trash-management utility. Extends `spec/PROPOSAL_TRASH.md` — see §2 for the spec amendments.
 

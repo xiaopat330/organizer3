@@ -1,6 +1,6 @@
 # Title Editor Design
 
-> **Status: PROPOSED**
+> **Status: COMPLETE**
 > Design spec for the Title Editor — a metadata preparation area for fully-structured titles in the unsorted (queue) volume.
 
 ## Purpose

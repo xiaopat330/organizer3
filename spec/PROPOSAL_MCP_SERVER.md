@@ -1,6 +1,6 @@
 # Proposal: Local MCP Server
 
-> **Status: PROPOSAL — early design, not yet implemented**
+> **Status: IMPLEMENTED** (Phase 1 + Phase 1b shipped; see PROPOSAL_MCP_PHASE2.md for mutations)
 
 Expose Organizer3's query and scan capabilities over the Model Context Protocol so that a local MCP client (Claude Desktop, Claude Code, or any MCP-aware agent) can investigate the JAV library and help diagnose data-quality issues — misspelled actresses, bad aliases, mislabeled titles, orphaned folders — by combining DB queries with live filesystem scans.
 

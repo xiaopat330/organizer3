@@ -1,6 +1,6 @@
 # Proposal: MCP Phase 2 — Mutations, Video Metadata, Folder Cleanup
 
-**Status:** Draft
+**Status:** IMPLEMENTED
 **Prereq:** `spec/PROPOSAL_MCP_SERVER.md` (Phase 1, shipped)
 **Blocked on for Phase 3:** `spec/PROPOSAL_TRASH.md` (undo path for file ops)
 

@@ -1,5 +1,7 @@
 # Background Thumbnail Sync
 
+> **Status: IMPLEMENTED**
+
 ## Motivation
 
 Thumbnails today are generated on-demand when a user opens a title in the web UI. First-view latency is bad because FFmpeg has to probe duration and seek across ~10-30 keyframes over SMB. The service is otherwise idle most of the time; we can pre-warm thumbnails for content the user is likely to revisit, making subsequent visits feel instant.

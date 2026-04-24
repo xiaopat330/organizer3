@@ -1,6 +1,6 @@
 # Proposal: Organize Pipeline
 
-**Status:** Draft
+**Status:** IMPLEMENTED
 **Prereq for multi-file work:** Probe-videos backfill (see `spec/MCP_NEXT_STEPS.md` option B)
 **Legacy reference:** `legacy/operation-config.yaml`
 

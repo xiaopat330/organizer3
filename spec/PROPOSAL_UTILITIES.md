@@ -1,6 +1,6 @@
 # Proposal: Utilities
 
-> **Status: DRAFT** (2026-04-21)
+> **Status: IMPLEMENTED**
 >
 > Design doc for the Utilities section of the web UI. The rest of the app is built for content consumption; Utilities is the maintenance and data-update surface. It is expected to be used occasionally, not daily.
 
