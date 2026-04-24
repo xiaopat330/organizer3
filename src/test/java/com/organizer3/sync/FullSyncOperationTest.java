@@ -524,19 +524,23 @@ class FullSyncOperationTest {
     void refusesToCascadeWhenOrphanDeleteIsCatastrophic() throws IOException {
         VolumeStructureDef structure = new VolumeStructureDef("queue", List.of(), null);
 
-        // Simulate every title having zero locations — repository throws the guard exception.
-        when(titleRepo.findOrphanedTitles()).thenReturn(List.of(
-                new TitleRepository.OrphanedTitleRef("ABP", "ABP-00001"),
-                new TitleRepository.OrphanedTitleRef("ABP", "ABP-00002")));
-        when(titleRepo.deleteOrphaned()).thenThrow(
-                new com.organizer3.repository.CatastrophicDeleteException(
-                        "deleteOrphaned(titles)", 50_000, 50_000, 12_500));
+        // Simulate every title being orphaned — 50,000 of 50,000 titles have zero locations,
+        // which exceeds the plausibility threshold max(500, total/4) = 12,500.
+        // Build the orphan list large enough that the pre-cover guard fires (>threshold).
+        List<TitleRepository.OrphanedTitleRef> orphans = new java.util.ArrayList<>();
+        for (int i = 0; i < 50_000; i++) {
+            orphans.add(new TitleRepository.OrphanedTitleRef("ABP", String.format("ABP-%05d", i + 1)));
+        }
+        when(titleRepo.findOrphanedTitles()).thenReturn(orphans);
+        when(titleRepo.countAll()).thenReturn(50_000);
 
         // Sync must complete without surfacing the exception upward.
         assertDoesNotThrow(() -> newOp().execute(QUEUE_VOLUME, structure, fs, ctx, io));
 
-        // The junction-table cascade must NOT run — it would just be zero-work anyway since
-        // we did not drop the titles, but the code path asserts we skip it.
+        // The pre-cover guard must fire BEFORE any cover deletion or DB delete. That means:
+        // - titleRepo.deleteOrphaned must NOT be called (guard is pre-check)
+        // - titleActressRepo.deleteOrphaned must NOT be called (cascade skipped)
+        verify(titleRepo, never()).deleteOrphaned();
         verify(titleActressRepo, never()).deleteOrphaned();
 
         // The user-visible log must mention the refusal so this doesn't fail silently.

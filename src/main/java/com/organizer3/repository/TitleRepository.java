@@ -98,6 +98,9 @@ public interface TitleRepository {
     /** Find titles in random order (ignores offset — each call returns a fresh random sample). */
     List<Title> findRandom(int limit);
 
+    /** Total number of rows in {@code titles}. Used by cascade-safety guards. */
+    int countAll();
+
     /**
      * Delete titles that have zero locations (orphaned after location cleanup). Returns the
      * number of rows deleted.

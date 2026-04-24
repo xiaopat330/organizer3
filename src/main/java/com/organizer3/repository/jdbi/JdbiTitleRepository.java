@@ -746,11 +746,22 @@ public class JdbiTitleRepository implements TitleRepository {
         );
     }
 
+    @Override
+    public int countAll() {
+        return jdbi.withHandle(h -> h.createQuery("SELECT COUNT(*) FROM titles")
+                .mapTo(Integer.class).one());
+    }
+
     /** Floor threshold — small libraries never trip the guard below this absolute count. */
-    static final int ORPHAN_DELETE_FLOOR = 500;
+    public static final int ORPHAN_DELETE_FLOOR = 500;
 
     /** Fractional threshold — guard trips if orphans exceed this share of the total. */
-    static final int ORPHAN_DELETE_FRACTION_DIVISOR = 4; // 25%
+    public static final int ORPHAN_DELETE_FRACTION_DIVISOR = 4; // 25%
+
+    /** Computes the same cascade-safety threshold used by {@link #deleteOrphaned}. */
+    public static int orphanDeleteThreshold(int total) {
+        return Math.max(ORPHAN_DELETE_FLOOR, total / ORPHAN_DELETE_FRACTION_DIVISOR);
+    }
 
     @Override
     public int deleteOrphaned() {
@@ -761,7 +772,7 @@ public class JdbiTitleRepository implements TitleRepository {
                         SELECT DISTINCT title_id FROM title_locations
                     )""").mapTo(Integer.class).one();
             if (orphans == 0) return 0;
-            int threshold = Math.max(ORPHAN_DELETE_FLOOR, total / ORPHAN_DELETE_FRACTION_DIVISOR);
+            int threshold = orphanDeleteThreshold(total);
             if (orphans > threshold) {
                 throw new CatastrophicDeleteException("deleteOrphaned(titles)", orphans, total, threshold);
             }
