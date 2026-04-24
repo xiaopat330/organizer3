@@ -53,6 +53,7 @@ public final class TrashRoutes {
 
     public void register(Javalin app) {
         app.get("/api/utilities/trash/volumes", this::handleListVolumes);
+        app.get("/api/utilities/trash/volumes/{id}/count", this::handleCountItems);
         app.get("/api/utilities/trash/volumes/{id}/items", this::handleListItems);
         app.post("/api/utilities/trash/schedule", this::handleSchedule);
         app.post("/api/utilities/trash/restore", this::handleRestore);
@@ -73,6 +74,20 @@ public final class TrashRoutes {
                 })
                 .toList();
         ctx.json(result);
+    }
+
+    private void handleCountItems(io.javalin.http.Context ctx) {
+        String volumeId = ctx.pathParam("id");
+        try (SmbConnectionFactory.SmbShareHandle handle = smbConnectionFactory.open(volumeId)) {
+            TrashListing listing = trashService.list(handle.fileSystem(), volumeId, TRASH_ROOT, 0, 0);
+            ctx.json(Map.of("count", listing.totalCount()));
+        } catch (IllegalArgumentException e) {
+            ctx.status(404);
+            ctx.json(Map.of("error", "volume not found: " + volumeId));
+        } catch (Exception e) {
+            log.warn("Failed to count trash for volume {}", volumeId, e.getMessage());
+            ctx.json(Map.of("count", -1));
+        }
     }
 
     private void handleListItems(io.javalin.http.Context ctx) {

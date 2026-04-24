@@ -4,6 +4,25 @@
 
 import { esc } from './utils.js';
 
+// ── Volume tile helpers (mirrors utilities-volumes.js) ────────────────────
+const VOLUME_HUES = [
+  '#60a5fa', '#4ade80', '#fbbf24', '#f472b6', '#a78bfa',
+  '#34d399', '#fb923c', '#22d3ee', '#e879f9', '#facc15',
+  '#2dd4bf', '#f87171',
+];
+function hueFor(id) {
+  let h = 0;
+  for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) | 0;
+  return VOLUME_HUES[Math.abs(h) % VOLUME_HUES.length];
+}
+function diskIconSVG(color) {
+  return `<svg class="vol-icon" viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="${color}" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+    <ellipse cx="12" cy="5" rx="9" ry="3"/>
+    <path d="M3 5v6c0 1.66 4 3 9 3s9-1.34 9-3V5"/>
+    <path d="M3 11v6c0 1.66 4 3 9 3s9-1.34 9-3v-6"/>
+  </svg>`;
+}
+
 // ── DOM refs ──────────────────────────────────────────────────────────────
 const trashView         = document.getElementById('tools-trash-view');
 const volumeList        = document.getElementById('trash-volume-list');
@@ -67,10 +86,46 @@ function renderVolumeList(volumes) {
     const li = document.createElement('li');
     li.className = 'trash-volume-item';
     li.dataset.volumeId = v.id;
-    li.innerHTML = `<span class="trash-vol-id">${esc(v.id)}</span>`;
+    const color = hueFor(v.id);
+    li.innerHTML = `
+      <div class="vol-row">
+        <div class="vol-row-icon">${diskIconSVG(color)}</div>
+        <div class="vol-row-body">
+          <div class="vol-row-title">
+            <span class="vol-row-name" style="color:${color}">${esc(v.id.toUpperCase())}</span>
+            <span class="trash-vol-count" data-vol="${esc(v.id)}">…</span>
+          </div>
+          <div class="vol-row-path">${esc(v.smbPath || '')}</div>
+        </div>
+      </div>
+    `;
     li.addEventListener('click', () => selectVolume(v.id, li));
     volumeList.appendChild(li);
   });
+  loadVolumeCounts(volumes);
+}
+
+function loadVolumeCounts(volumes) {
+  volumes.forEach(async v => {
+    try {
+      const res = await fetch(`/api/utilities/trash/volumes/${encodeURIComponent(v.id)}/count`);
+      if (!res.ok) return;
+      const data = await res.json();
+      updateVolumeCountBadge(v.id, data.count);
+    } catch { /* ignore */ }
+  });
+}
+
+function updateVolumeCountBadge(volumeId, count) {
+  const badge = volumeList.querySelector(`.trash-vol-count[data-vol="${CSS.escape(volumeId)}"]`);
+  if (!badge) return;
+  if (count <= 0) {
+    badge.textContent = 'empty';
+    badge.className = 'trash-vol-count empty';
+  } else {
+    badge.textContent = String(count);
+    badge.className = 'trash-vol-count has-items';
+  }
 }
 
 async function selectVolume(volumeId, li) {
@@ -101,6 +156,7 @@ async function loadItems() {
     const data = await res.json();
     state.items      = data.items || [];
     state.totalCount = data.totalCount || 0;
+    updateVolumeCountBadge(state.selectedVolumeId, state.totalCount);
     renderTable();
     renderPagination(data);
   } catch (err) {
