@@ -87,6 +87,22 @@ public interface VolumeFileSystem {
     void writeFile(Path path, byte[] contents) throws IOException;
 
     /**
+     * Deletes {@code path} from the filesystem.
+     *
+     * <p>If {@code path} is a directory, deletes it recursively (children first). If {@code path}
+     * does not exist, the call is a no-op. Must not throw if the path is already gone.
+     *
+     * <p>On SMB, directories must be empty before the server accepts a delete request, so
+     * implementations walk children first (leaf-first order).
+     *
+     * <p>Test-only fake implementations may leave this as the default (throws
+     * {@link UnsupportedOperationException}) unless delete is exercised by their tests.
+     */
+    default void delete(Path path) throws IOException {
+        throw new UnsupportedOperationException("delete not implemented for " + getClass().getSimpleName());
+    }
+
+    /**
      * Returns the file or folder's timestamps. Works for both files and directories.
      * Fields may be {@code null} if not supported by the underlying filesystem.
      */

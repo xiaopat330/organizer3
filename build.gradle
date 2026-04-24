@@ -90,7 +90,7 @@ run {
 
 test {
     useJUnitPlatform {
-        excludeTags 'ui'
+        excludeTags 'ui', 'sandbox'
     }
     finalizedBy jacocoTestReport
 }
@@ -101,6 +101,18 @@ jacocoTestReport {
         xml.required = true
         html.required = true
     }
+}
+
+// Sandbox tests — real-FS service tests using LocalFileSystem + @TempDir. Opt-in.
+tasks.register('sandboxTest', Test) {
+    description = 'Run sandbox service tests (tag: sandbox) against local filesystem.'
+    group = 'verification'
+    testClassesDirs = sourceSets.test.output.classesDirs
+    classpath = sourceSets.test.runtimeClasspath
+    useJUnitPlatform {
+        includeTags 'sandbox'
+    }
+    shouldRunAfter test
 }
 
 // Browser-driven smoke tests. Opt-in; downloads Chromium on first run.

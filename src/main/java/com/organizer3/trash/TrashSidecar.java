@@ -27,7 +27,9 @@ public record TrashSidecar(
         String trashedAt,
         String volumeId,
         String reason,
-        String scheduledDeletionAt
+        String scheduledDeletionAt,
+        String lastDeletionAttempt,   // nullable — absent when no failure
+        String lastDeletionError      // nullable — absent when no failure
 ) {
 
     private static final ObjectMapper JSON = new ObjectMapper();
@@ -45,6 +47,14 @@ public record TrashSidecar(
 
     public TrashSidecar withScheduledDeletionAt(Instant t) {
         String ts = t == null ? null : DateTimeFormatter.ISO_INSTANT.format(t);
-        return new TrashSidecar(originalPath, trashedAt, volumeId, reason, ts);
+        return new TrashSidecar(originalPath, trashedAt, volumeId, reason, ts,
+                lastDeletionAttempt, lastDeletionError);
+    }
+
+    public TrashSidecar withDeletionFailure(Instant attemptedAt, String error) {
+        String ts = DateTimeFormatter.ISO_INSTANT.format(attemptedAt);
+        String truncated = error != null && error.length() > 200 ? error.substring(0, 200) : error;
+        return new TrashSidecar(originalPath, trashedAt, volumeId, reason,
+                scheduledDeletionAt, ts, truncated);
     }
 }

@@ -79,7 +79,7 @@ public class Trash {
                     DateTimeFormatter.ISO_INSTANT.format(clock.instant()),
                     volumeId,
                     reason == null ? "unknown" : reason,
-                    null
+                    null, null, null
             );
             sc.write(fs, sidecar);
         } catch (IOException e) {

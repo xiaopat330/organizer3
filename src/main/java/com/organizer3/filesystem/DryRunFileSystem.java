@@ -108,6 +108,11 @@ public class DryRunFileSystem implements VolumeFileSystem {
     }
 
     @Override
+    public void delete(Path path) {
+        out.printf("[DRY RUN] delete: %s%n", path);
+    }
+
+    @Override
     public FileTimestamps getTimestamps(Path path) throws IOException {
         BasicFileAttributes a = Files.readAttributes(path, BasicFileAttributes.class);
         Instant created  = a.creationTime()     != null ? a.creationTime().toInstant()     : null;

@@ -230,6 +230,21 @@ class SmbFileSystem implements VolumeFileSystem {
     }
 
     @Override
+    public void delete(Path path) throws IOException {
+        String smbPath = toSmbPath(path);
+        try {
+            if (share.folderExists(smbPath)) {
+                share.rmdir(smbPath, true);
+            } else if (share.fileExists(smbPath)) {
+                share.rm(smbPath);
+            }
+            // if neither exists: no-op (already gone)
+        } catch (Exception e) {
+            throw new IOException("Failed to delete: " + path, e);
+        }
+    }
+
+    @Override
     public FileTimestamps getTimestamps(Path path) throws IOException {
         String smbPath = toSmbPath(path);
         boolean isDir = share.folderExists(smbPath);

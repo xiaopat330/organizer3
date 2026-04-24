@@ -25,7 +25,7 @@ class TrashSidecarTest {
                 "2026-04-23T10:00:00Z",
                 "a",
                 "Duplicate Triage — kept peer on volume vol-b",
-                null
+                null, null, null
         );
         Path sidecar = tempDir.resolve("MIDE-123.json");
 
@@ -46,7 +46,7 @@ class TrashSidecarTest {
                 "2026-04-23T10:00:00Z",
                 "bg",
                 "Duplicate Triage",
-                "2026-05-03T10:00:00Z"
+                "2026-05-03T10:00:00Z", null, null
         );
         Path sidecar = tempDir.resolve("MIDE-456.json");
 
@@ -58,7 +58,7 @@ class TrashSidecarTest {
 
     @Test
     void scheduledDeletionAt_absentFromJson_whenNull() throws Exception {
-        TrashSidecar sc = new TrashSidecar("/p", "2026-04-23T10:00:00Z", "a", "r", null);
+        TrashSidecar sc = new TrashSidecar("/p", "2026-04-23T10:00:00Z", "a", "r", null, null, null);
         Path sidecar = tempDir.resolve("item.json");
         sc.write(fs, sidecar);
 
@@ -68,7 +68,7 @@ class TrashSidecarTest {
 
     @Test
     void withScheduledDeletionAt_setsField() {
-        TrashSidecar sc = new TrashSidecar("/p", "2026-04-23T10:00:00Z", "a", "r", null);
+        TrashSidecar sc = new TrashSidecar("/p", "2026-04-23T10:00:00Z", "a", "r", null, null, null);
         Instant t = Instant.parse("2026-05-03T10:00:00Z");
 
         TrashSidecar scheduled = sc.withScheduledDeletionAt(t);
@@ -80,7 +80,7 @@ class TrashSidecarTest {
 
     @Test
     void withScheduledDeletionAt_null_clearsField() {
-        TrashSidecar sc = new TrashSidecar("/p", "2026-04-23T10:00:00Z", "a", "r", "2026-05-03T10:00:00Z");
+        TrashSidecar sc = new TrashSidecar("/p", "2026-04-23T10:00:00Z", "a", "r", "2026-05-03T10:00:00Z", null, null);
 
         TrashSidecar cleared = sc.withScheduledDeletionAt(null);
 
@@ -96,8 +96,9 @@ class TrashSidecarTest {
                   "trashedAt": "2026-04-23T10:00:00Z",
                   "volumeId": "a",
                   "reason": "test",
-                  "lastDeletionError": "some future field",
-                  "unknownField": 42
+                  "lastDeletionError": "SMB timeout",
+                  "lastDeletionAttempt": "2026-04-23T11:00:00Z",
+                  "futureUnknownField": 42
                 }
                 """;
         Path sidecar = tempDir.resolve("MIDE-789.json");
@@ -107,5 +108,7 @@ class TrashSidecarTest {
 
         assertEquals("/stars/foo/MIDE-789", read.originalPath());
         assertNull(read.scheduledDeletionAt());
+        assertEquals("SMB timeout", read.lastDeletionError());
+        assertEquals("2026-04-23T11:00:00Z", read.lastDeletionAttempt());
     }
 }

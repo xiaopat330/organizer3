@@ -11,6 +11,7 @@ import java.nio.file.attribute.FileTime;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
+import java.util.Comparator;
 import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -84,6 +85,20 @@ public class LocalFileSystem implements VolumeFileSystem {
     @Override
     public void writeFile(Path path, byte[] contents) throws IOException {
         Files.write(path, contents);
+    }
+
+    @Override
+    public void delete(Path path) throws IOException {
+        if (!Files.exists(path)) return;
+        if (Files.isDirectory(path)) {
+            try (Stream<Path> walk = Files.walk(path)) {
+                for (Path p : walk.sorted(Comparator.reverseOrder()).toList()) {
+                    Files.deleteIfExists(p);
+                }
+            }
+        } else {
+            Files.deleteIfExists(path);
+        }
     }
 
     @Override
