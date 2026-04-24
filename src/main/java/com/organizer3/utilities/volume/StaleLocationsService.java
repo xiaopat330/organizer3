@@ -1,5 +1,6 @@
 package com.organizer3.utilities.volume;
 
+import com.organizer3.repository.CatastrophicDeleteException;
 import org.jdbi.v3.core.Jdbi;
 
 import java.util.List;
@@ -77,23 +78,64 @@ public final class StaleLocationsService {
     }
 
     /**
+     * Rule 4 cascade-safety threshold. The stale-locations Clean action is per-volume and
+     * already narrowly scoped — but the 2026-04-23 incident showed the predicate itself can
+     * be wrong. This guard refuses to delete when the predicate would hit more than half of
+     * a volume's locations, on the assumption that a legitimate sync only leaves a small
+     * tail of stale rows and anything larger is a predicate bug.
+     *
+     * <p>50% is more conservative than the {@code deleteOrphaned} 25% threshold because
+     * per-volume scope narrows the blast radius per call — but a user running Clean on all
+     * five volumes in sequence (exactly what happened in the incident) can still wipe the
+     * whole catalog, so we don't get more permissive just because we're per-volume.
+     */
+    public static final int STALE_DELETE_FRACTION_PERCENT = 50;
+
+    /**
      * Delete every stale location on the given volume, re-evaluating the predicate server-side.
      * Returns the number of rows deleted.
+     *
+     * <p><b>Cascade safety:</b> throws {@link CatastrophicDeleteException} without deleting
+     * anything if the predicate would hit more than {@link #STALE_DELETE_FRACTION_PERCENT}%
+     * of the volume's locations. Legitimate sync cleanups leave a small tail; anything larger
+     * is almost certainly a predicate bug. The 2026-04-23 incident would have been stopped
+     * here if this guard had existed then.
      */
     public int delete(String volumeId) {
-        return jdbi.withHandle(h -> h.createUpdate("""
-                        DELETE FROM title_locations
-                        WHERE volume_id = :vol
-                          AND id IN (
-                            SELECT tl.id FROM title_locations tl
+        return jdbi.inTransaction(h -> {
+            int total = h.createQuery("SELECT COUNT(*) FROM title_locations WHERE volume_id = :vol")
+                    .bind("vol", volumeId).mapTo(Integer.class).one();
+            int stale = h.createQuery("""
+                            SELECT COUNT(*) FROM title_locations tl
                             JOIN volumes v ON v.id = tl.volume_id
                             WHERE v.last_synced_at IS NOT NULL
                               AND tl.volume_id = :vol
                               AND tl.last_seen_at < DATE(v.last_synced_at)
-                          )
-                        """)
-                .bind("vol", volumeId)
-                .execute());
+                            """)
+                    .bind("vol", volumeId).mapTo(Integer.class).one();
+            if (stale == 0) return 0;
+            // Threshold = (total * PCT) / 100, integer math. For total=1 the threshold is 0,
+            // so deleting the one stale row is still allowed — max(1, ...) ensures the guard
+            // never blocks a single-row cleanup.
+            int threshold = Math.max(1, (total * STALE_DELETE_FRACTION_PERCENT) / 100);
+            if (stale > threshold) {
+                throw new CatastrophicDeleteException(
+                        "stale-locations clean(" + volumeId + ")", stale, total, threshold);
+            }
+            return h.createUpdate("""
+                            DELETE FROM title_locations
+                            WHERE volume_id = :vol
+                              AND id IN (
+                                SELECT tl.id FROM title_locations tl
+                                JOIN volumes v ON v.id = tl.volume_id
+                                WHERE v.last_synced_at IS NOT NULL
+                                  AND tl.volume_id = :vol
+                                  AND tl.last_seen_at < DATE(v.last_synced_at)
+                              )
+                            """)
+                    .bind("vol", volumeId)
+                    .execute();
+        });
     }
 
     public record StaleRow(long locationId, long titleId, String titleCode,
