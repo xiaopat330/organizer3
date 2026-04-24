@@ -657,6 +657,7 @@ public class Application {
                 mcpTools.register(new com.organizer3.mcp.tools.ExecuteMergesTool(taskRunner));
                 mcpTools.register(new com.organizer3.mcp.tools.ScheduleTrashDeletionTool(taskRunner));
                 mcpTools.register(new com.organizer3.mcp.tools.CancelTaskRunTool(taskRunner));
+                mcpTools.register(new com.organizer3.mcp.tools.StartTaskTool(taskRegistry, taskRunner));
                 log.info("MCP mutation tools enabled");
             }
             if (mcpConfig.mutationsAllowed() && mcpConfig.fileOpsAllowed()) {

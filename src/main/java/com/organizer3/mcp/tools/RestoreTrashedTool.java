@@ -56,9 +56,14 @@ public class RestoreTrashedTool implements Tool {
                 "volumeId",     volumeId,
                 "sidecarPaths", sidecarPaths
         );
-        TaskRun run = taskRunner.start(TrashRestoreTask.ID, new TaskInputs(inputs));
-        return new Result(run.runId(), run.taskId(), volumeId, sidecarPaths.size());
+        try {
+            TaskRun run = taskRunner.start(TrashRestoreTask.ID, new TaskInputs(inputs));
+            return new Result(run.runId(), run.taskId(), volumeId, sidecarPaths.size());
+        } catch (TaskRunner.TaskInFlightException e) {
+            return new ConflictResult(true, e.runningTaskId, e.runningRunId, e.getMessage());
+        }
     }
 
     public record Result(String runId, String taskId, String volumeId, int itemCount) {}
+    public record ConflictResult(boolean conflict, String runningTaskId, String runningRunId, String message) {}
 }

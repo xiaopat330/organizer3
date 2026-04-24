@@ -66,10 +66,15 @@ public class ScheduleTrashDeletionTool implements Tool {
                 "sidecarPaths", sidecarPaths,
                 "scheduledAt",  scheduledAt
         );
-        TaskRun run = taskRunner.start(TrashScheduleTask.ID, new TaskInputs(inputs));
-        return new Result(run.runId(), run.taskId(), volumeId, sidecarPaths.size(), scheduledAt);
+        try {
+            TaskRun run = taskRunner.start(TrashScheduleTask.ID, new TaskInputs(inputs));
+            return new Result(run.runId(), run.taskId(), volumeId, sidecarPaths.size(), scheduledAt);
+        } catch (TaskRunner.TaskInFlightException e) {
+            return new ConflictResult(true, e.runningTaskId, e.runningRunId, e.getMessage());
+        }
     }
 
     public record Result(String runId, String taskId, String volumeId,
                          int itemCount, String scheduledAt) {}
+    public record ConflictResult(boolean conflict, String runningTaskId, String runningRunId, String message) {}
 }

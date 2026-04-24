@@ -40,9 +40,14 @@ public class ExecuteMergesTool implements Tool {
 
     @Override
     public Object call(JsonNode args) {
-        TaskRun run = taskRunner.start(ExecuteMergeTask.ID, new TaskInputs(Map.of()));
-        return new Result(run.runId(), run.taskId());
+        try {
+            TaskRun run = taskRunner.start(ExecuteMergeTask.ID, new TaskInputs(Map.of()));
+            return new Result(run.runId(), run.taskId());
+        } catch (TaskRunner.TaskInFlightException e) {
+            return new ConflictResult(true, e.runningTaskId, e.runningRunId, e.getMessage());
+        }
     }
 
     public record Result(String runId, String taskId) {}
+    public record ConflictResult(boolean conflict, String runningTaskId, String runningRunId, String message) {}
 }

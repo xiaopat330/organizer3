@@ -54,9 +54,14 @@ public class ExecuteDuplicateTrashTool implements Tool {
             inputs.put("actressKey", actressKey.trim());
         }
 
-        TaskRun run = taskRunner.start(ExecuteDuplicateTrashTask.ID, new TaskInputs(inputs));
-        return new Result(run.runId(), run.taskId(), actressKey);
+        try {
+            TaskRun run = taskRunner.start(ExecuteDuplicateTrashTask.ID, new TaskInputs(inputs));
+            return new Result(run.runId(), run.taskId(), actressKey);
+        } catch (TaskRunner.TaskInFlightException e) {
+            return new ConflictResult(true, e.runningTaskId, e.runningRunId, e.getMessage());
+        }
     }
 
     public record Result(String runId, String taskId, String actressKey) {}
+    public record ConflictResult(boolean conflict, String runningTaskId, String runningRunId, String message) {}
 }
