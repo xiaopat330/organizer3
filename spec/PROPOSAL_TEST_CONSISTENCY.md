@@ -171,3 +171,10 @@ scoped operation.
 - Rule-4 guard on `StaleLocationsService.delete` with 50% per-volume threshold —
   covers the function that actually caused the incident, so a future predicate bug
   in the same service can't reproduce the failure.
+- Rule-3 survivor guards audited and added for three per-entity destructive sites:
+  - `ExecuteMergeTask` — `mergeDoesNotDeleteWinnersExistingJunctionRows` seeds winner rows in
+    `title_tags`, `title_effective_tags`, and `title_actresses` and asserts they survive the merge.
+  - `DeleteTitleTool` — `deleteDoesNotTouchSurvivorTitle` seeds two titles and asserts the
+    survivor's locations, videos, and credits remain intact after the other is deleted.
+  - `MergeActressesTool` — `mergeDoesNotTouchUnrelatedActress` seeds a third actress with an
+    alias and a title credit and asserts all her rows survive a merge of two other actresses.
