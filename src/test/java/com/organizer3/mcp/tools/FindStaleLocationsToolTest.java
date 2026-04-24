@@ -65,6 +65,25 @@ class FindStaleLocationsToolTest {
     }
 
     @Test
+    void doesNotFlagLocationsSeenOnSameDayAsSync() throws Exception {
+        // last_synced_at is stored as a datetime (e.g. '2024-06-01T10:14:37');
+        // last_seen_at is stored as a date (e.g. '2024-06-01').
+        // String comparison '2024-06-01' < '2024-06-01T10:14:37' is TRUE in SQLite
+        // because the date is a prefix of the datetime, making the shorter string
+        // lexicographically lesser. DATE() wrapping prevents this false positive.
+        jdbi.useHandle(h -> h.execute(
+                "INSERT INTO volumes (id, structure_type, last_synced_at) VALUES ('vol-c', 'conventional', '2024-06-01T10:14:37')"));
+
+        long tid = titleRepo.save(title("SAME-001")).getId();
+        locationRepo.save(TitleLocation.builder()
+                .titleId(tid).volumeId("vol-c").partitionId("p1")
+                .path(Path.of("/same")).lastSeenAt(LocalDate.of(2024, 6, 1)).build());
+
+        var r = (FindStaleLocationsTool.Result) tool.call(args(null, 100));
+        assertEquals(0, r.count(), "Location seen on sync day must not be flagged as stale");
+    }
+
+    @Test
     void skipsVolumesWithNullLastSynced() throws Exception {
         jdbi.useHandle(h -> h.execute(
                 "INSERT INTO volumes (id, structure_type) VALUES ('vol-b', 'conventional')"));

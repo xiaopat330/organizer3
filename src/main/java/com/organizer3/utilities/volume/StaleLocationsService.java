@@ -43,7 +43,7 @@ public final class StaleLocationsService {
                         JOIN volumes v ON v.id = tl.volume_id
                         WHERE v.last_synced_at IS NOT NULL
                           AND tl.volume_id = :vol
-                          AND tl.last_seen_at < v.last_synced_at
+                          AND tl.last_seen_at < DATE(v.last_synced_at)
                         """)
                 .bind("vol", volumeId)
                 .mapTo(Integer.class)
@@ -60,7 +60,7 @@ public final class StaleLocationsService {
                         JOIN titles  t ON t.id = tl.title_id
                         WHERE v.last_synced_at IS NOT NULL
                           AND tl.volume_id = :vol
-                          AND tl.last_seen_at < v.last_synced_at
+                          AND tl.last_seen_at < DATE(v.last_synced_at)
                         ORDER BY tl.last_seen_at
                         LIMIT :lim
                         """)
@@ -89,7 +89,7 @@ public final class StaleLocationsService {
                             JOIN volumes v ON v.id = tl.volume_id
                             WHERE v.last_synced_at IS NOT NULL
                               AND tl.volume_id = :vol
-                              AND tl.last_seen_at < v.last_synced_at
+                              AND tl.last_seen_at < DATE(v.last_synced_at)
                           )
                         """)
                 .bind("vol", volumeId)
