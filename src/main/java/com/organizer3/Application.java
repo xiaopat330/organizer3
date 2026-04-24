@@ -620,6 +620,8 @@ public class Application {
                     .register(new com.organizer3.mcp.tools.AnalyzeTitleVideosTool(titleRepo, videoRepo))
                     .register(new com.organizer3.mcp.tools.FindDuplicateCandidatesTool(jdbi))
                     .register(new com.organizer3.mcp.tools.FindSizeVariantTitlesTool(jdbi))
+                    .register(new com.organizer3.mcp.tools.ListDuplicateDecisionsTool(dupDecisionRepo))
+                    .register(new com.organizer3.mcp.tools.ListMergeCandidatesTool(mergeCandidateRepo))
                     .register(new com.organizer3.mcp.tools.FindMultiCoverTitlesTool(session, jdbi))
                     .register(new com.organizer3.mcp.tools.FindMisfiledCoversTool(session, jdbi))
                     .register(new com.organizer3.mcp.tools.ScanTitleFolderAnomaliesTool(session, titleRepo, titleLocationRepo))
@@ -642,11 +644,19 @@ public class Application {
                     .register(new com.organizer3.mcp.tools.ListDirectoryTool(session))
                     .register(new com.organizer3.mcp.tools.ReadTextFileTool(session))
                     .register(new com.organizer3.mcp.tools.AuditFreshSkeletonsTool(session, config, freshAuditService))
-                    .register(new com.organizer3.mcp.tools.ExportAliasesTool(actressRepo, dataDir));
+                    .register(new com.organizer3.mcp.tools.ExportAliasesTool(actressRepo, dataDir))
+                    .register(new com.organizer3.mcp.tools.ListTrashItemsTool(trashService, smbConnectionFactory))
+                    .register(new com.organizer3.mcp.tools.ListTaskSpecsTool(taskRegistry))
+                    .register(new com.organizer3.mcp.tools.GetTaskRunStatusTool(taskRunner));
             if (mcpConfig.mutationsAllowed()) {
                 mcpTools.register(new com.organizer3.mcp.tools.SetActressAliasesTool(actressRepo));
                 mcpTools.register(new com.organizer3.mcp.tools.MergeActressesTool(jdbi, actressRepo));
                 mcpTools.register(new com.organizer3.mcp.tools.DeleteTitleTool(jdbi, titleRepo));
+                mcpTools.register(new com.organizer3.mcp.tools.SetDuplicateDecisionTool(dupDecisionRepo));
+                mcpTools.register(new com.organizer3.mcp.tools.DecideMergeCandidateTool(mergeCandidateRepo));
+                mcpTools.register(new com.organizer3.mcp.tools.ExecuteMergesTool(taskRunner));
+                mcpTools.register(new com.organizer3.mcp.tools.ScheduleTrashDeletionTool(taskRunner));
+                mcpTools.register(new com.organizer3.mcp.tools.CancelTaskRunTool(taskRunner));
                 log.info("MCP mutation tools enabled");
             }
             if (mcpConfig.mutationsAllowed() && mcpConfig.fileOpsAllowed()) {
@@ -662,6 +672,8 @@ public class Application {
                 mcpTools.register(new com.organizer3.mcp.tools.ClassifyActressTool(session, jdbi, config, actressClassifierService));
                 mcpTools.register(new com.organizer3.mcp.tools.OrganizeVolumeTool(session, jdbi, config, organizeVolumeService));
                 mcpTools.register(new com.organizer3.mcp.tools.PrepFreshVideosTool(session, config, freshPrepService));
+                mcpTools.register(new com.organizer3.mcp.tools.ExecuteDuplicateTrashTool(taskRunner));
+                mcpTools.register(new com.organizer3.mcp.tools.RestoreTrashedTool(taskRunner));
                 log.info("MCP file-op tools enabled");
             }
             com.organizer3.mcp.McpServer mcpServer = new com.organizer3.mcp.McpServer(
