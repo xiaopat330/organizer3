@@ -514,6 +514,37 @@ class FullSyncOperationTest {
         order.verify(titleActressRepo).deleteOrphaned();
     }
 
+    /**
+     * Cascade guard regression: if the orphan-title deletion is refused (because the count
+     * is catastrophic — exactly the failure mode from the 2026-04-23 incident), the sync
+     * must log a warning, NOT call {@code titleActressRepo.deleteOrphaned()}, and NOT crash
+     * the run. The title rows are preserved intact for a human to investigate.
+     */
+    @Test
+    void refusesToCascadeWhenOrphanDeleteIsCatastrophic() throws IOException {
+        VolumeStructureDef structure = new VolumeStructureDef("queue", List.of(), null);
+
+        // Simulate every title having zero locations — repository throws the guard exception.
+        when(titleRepo.findOrphanedTitles()).thenReturn(List.of(
+                new TitleRepository.OrphanedTitleRef("ABP", "ABP-00001"),
+                new TitleRepository.OrphanedTitleRef("ABP", "ABP-00002")));
+        when(titleRepo.deleteOrphaned()).thenThrow(
+                new com.organizer3.repository.CatastrophicDeleteException(
+                        "deleteOrphaned(titles)", 50_000, 50_000, 12_500));
+
+        // Sync must complete without surfacing the exception upward.
+        assertDoesNotThrow(() -> newOp().execute(QUEUE_VOLUME, structure, fs, ctx, io));
+
+        // The junction-table cascade must NOT run — it would just be zero-work anyway since
+        // we did not drop the titles, but the code path asserts we skip it.
+        verify(titleActressRepo, never()).deleteOrphaned();
+
+        // The user-visible log must mention the refusal so this doesn't fail silently.
+        String out = output.toString();
+        assertTrue(out.contains("Orphan prune refused"),
+                "Expected refusal message in output, got: " + out);
+    }
+
     // --- Volume record and finalize ---
 
     @Test

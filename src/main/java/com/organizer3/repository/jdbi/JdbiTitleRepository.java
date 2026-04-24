@@ -3,6 +3,7 @@ package com.organizer3.repository.jdbi;
 import com.organizer3.model.Actress;
 import com.organizer3.model.Title;
 import com.organizer3.model.TitleLocation;
+import com.organizer3.repository.CatastrophicDeleteException;
 import com.organizer3.repository.TitleLocationRepository;
 import com.organizer3.repository.TitleRepository;
 import lombok.RequiredArgsConstructor;
@@ -745,15 +746,30 @@ public class JdbiTitleRepository implements TitleRepository {
         );
     }
 
+    /** Floor threshold — small libraries never trip the guard below this absolute count. */
+    static final int ORPHAN_DELETE_FLOOR = 500;
+
+    /** Fractional threshold — guard trips if orphans exceed this share of the total. */
+    static final int ORPHAN_DELETE_FRACTION_DIVISOR = 4; // 25%
+
     @Override
-    public void deleteOrphaned() {
-        jdbi.useHandle(h ->
-                h.createUpdate("""
-                        DELETE FROM titles WHERE id NOT IN (
-                            SELECT DISTINCT title_id FROM title_locations
-                        )""")
-                        .execute()
-        );
+    public int deleteOrphaned() {
+        return jdbi.inTransaction(h -> {
+            int total = h.createQuery("SELECT COUNT(*) FROM titles").mapTo(Integer.class).one();
+            int orphans = h.createQuery("""
+                    SELECT COUNT(*) FROM titles WHERE id NOT IN (
+                        SELECT DISTINCT title_id FROM title_locations
+                    )""").mapTo(Integer.class).one();
+            if (orphans == 0) return 0;
+            int threshold = Math.max(ORPHAN_DELETE_FLOOR, total / ORPHAN_DELETE_FRACTION_DIVISOR);
+            if (orphans > threshold) {
+                throw new CatastrophicDeleteException("deleteOrphaned(titles)", orphans, total, threshold);
+            }
+            return h.createUpdate("""
+                    DELETE FROM titles WHERE id NOT IN (
+                        SELECT DISTINCT title_id FROM title_locations
+                    )""").execute();
+        });
     }
 
     @Override

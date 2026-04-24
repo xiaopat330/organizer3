@@ -13,6 +13,7 @@ import com.organizer3.model.TitleLocation;
 import com.organizer3.model.Video;
 import com.organizer3.model.Volume;
 import com.organizer3.repository.ActressRepository;
+import com.organizer3.repository.CatastrophicDeleteException;
 import com.organizer3.repository.TitleActressRepository;
 import com.organizer3.repository.TitleLocationRepository;
 import com.organizer3.repository.TitleRepository;
@@ -297,8 +298,21 @@ abstract class AbstractSyncOperation implements SyncOperation {
                 log.warn("Failed to delete orphan cover {} for {}-{}", found.get(), ref.label(), ref.baseCode(), e);
             }
         }
-        titleRepo.deleteOrphaned();
-        titleActressRepo.deleteOrphaned();
+        try {
+            titleRepo.deleteOrphaned();
+            titleActressRepo.deleteOrphaned();
+        } catch (CatastrophicDeleteException e) {
+            // Cascade guard tripped — the orphan count is implausibly high, almost certainly
+            // the downstream effect of a bug in an upstream location-cleanup predicate. Abort
+            // the prune and leave the row drop to a human. Covers we already deleted above
+            // will be re-fetched by `sync covers`.
+            log.error("Orphan prune refused: {}", e.getMessage(), e);
+            io.println("  ⚠ Orphan prune refused — " + e.wouldDelete() + " of "
+                    + e.total() + " titles would be deleted (threshold " + e.threshold() + ").");
+            io.println("  ⚠ This usually indicates a title_locations corruption."
+                    + " Investigate before re-running sync.");
+            return;
+        }
         if (!orphans.isEmpty() || coversDeleted > 0) {
             log.info("Pruned {} orphan title(s); deleted {} cover file(s)", orphans.size(), coversDeleted);
             io.println("  Pruned " + orphans.size() + " orphan title(s); deleted " + coversDeleted + " cover file(s).");

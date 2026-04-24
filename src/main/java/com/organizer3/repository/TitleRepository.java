@@ -98,8 +98,17 @@ public interface TitleRepository {
     /** Find titles in random order (ignores offset — each call returns a fresh random sample). */
     List<Title> findRandom(int limit);
 
-    /** Delete titles that have zero locations (orphaned after location cleanup). */
-    void deleteOrphaned();
+    /**
+     * Delete titles that have zero locations (orphaned after location cleanup). Returns the
+     * number of rows deleted.
+     *
+     * <p><b>Cascade safety:</b> throws {@link com.organizer3.repository.CatastrophicDeleteException}
+     * without deleting anything if the orphan count exceeds {@code max(500, total/4)}. That
+     * threshold catches the failure mode from the 2026-04-23 incident (bug in a location
+     * predicate wipes {@code title_locations}, then this method would drop every title) while
+     * leaving normal sync cleanups (a handful of orphans per run) unaffected.
+     */
+    int deleteOrphaned();
 
     /**
      * Returns a lightweight projection of every title that is currently orphaned — zero
