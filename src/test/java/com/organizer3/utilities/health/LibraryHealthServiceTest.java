@@ -1,7 +1,9 @@
 package com.organizer3.utilities.health;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -10,11 +12,18 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class LibraryHealthServiceTest {
 
+    @TempDir Path tempDir;
+
+    private LibraryHealthService service(LibraryHealthCheck... checks) {
+        return new LibraryHealthService(List.of(checks),
+                new LibraryHealthReportStore(tempDir.resolve("health.json")));
+    }
+
     @Test
     void runsEveryCheckAndStoresLatestReport() {
         LibraryHealthCheck c1 = stubCheck("a", "A", 3);
         LibraryHealthCheck c2 = stubCheck("b", "B", 0);
-        LibraryHealthService svc = new LibraryHealthService(List.of(c1, c2));
+        LibraryHealthService svc = service(c1, c2);
 
         List<String> visited = new ArrayList<>();
         AtomicInteger afterCount = new AtomicInteger();
@@ -40,7 +49,7 @@ class LibraryHealthServiceTest {
             @Override public CheckResult run() { throw new RuntimeException("kaboom"); }
         };
         LibraryHealthCheck ok = stubCheck("ok", "OK", 1);
-        LibraryHealthService svc = new LibraryHealthService(List.of(boom, ok));
+        LibraryHealthService svc = service(boom, ok);
 
         List<Exception> errors = new ArrayList<>();
         svc.scan("run-2",
@@ -56,7 +65,7 @@ class LibraryHealthServiceTest {
     @Test
     void findLooksUpByCheckId() {
         LibraryHealthCheck c1 = stubCheck("x", "X", 0);
-        LibraryHealthService svc = new LibraryHealthService(List.of(c1));
+        LibraryHealthService svc = service(c1);
         assertTrue(svc.find("x").isPresent());
         assertTrue(svc.find("missing").isEmpty());
     }

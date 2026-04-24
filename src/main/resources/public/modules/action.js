@@ -319,7 +319,7 @@ document.addEventListener('keydown', e => {
 });
 
 // ── Button wiring ─────────────────────────────────────────────────────────
-actionBtn.addEventListener('click', () => volumesBtn.click());
+actionBtn.addEventListener('click', () => libraryHealthBtn.click());
 
 volumesBtn.addEventListener('click', () => {
   showActionView('volumes');

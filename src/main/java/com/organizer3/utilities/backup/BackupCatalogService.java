@@ -65,7 +65,8 @@ public final class BackupCatalogService {
         String name = p.getFileName().toString();
         long size;
         try { size = Files.size(p); } catch (IOException e) { size = 0L; }
-        LocalDateTime timestamp = parseTimestamp(name);
+        LocalDateTime parsed = parseTimestamp(name);
+        String timestamp = parsed != null ? parsed.toString() : null;
         return new Snapshot(name, size, timestamp, latest);
     }
 
@@ -86,5 +87,5 @@ public final class BackupCatalogService {
         }
     }
 
-    public record Snapshot(String name, long sizeBytes, LocalDateTime timestamp, boolean latest) {}
+    public record Snapshot(String name, long sizeBytes, String timestamp, boolean latest) {}
 }

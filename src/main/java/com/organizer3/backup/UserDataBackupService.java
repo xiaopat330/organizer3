@@ -293,7 +293,7 @@ public class UserDataBackupService {
 
         return new RestorePreview(
                 backup.version(),
-                backup.exportedAt(),
+                backup.exportedAt() != null ? backup.exportedAt().toString() : null,
                 new RestorePreview.Category("actresses",     aExisting,   aMissing,   0,        aSample),
                 new RestorePreview.Category("titles",        tExisting,   tMissing,   0,        tSample),
                 new RestorePreview.Category("watchHistory",  whExisting,  0,          whInsert, whSample),
@@ -314,7 +314,7 @@ public class UserDataBackupService {
                 path.getFileName().toString(),
                 fileSize,
                 backup.version(),
-                backup.exportedAt(),
+                backup.exportedAt() != null ? backup.exportedAt().toString() : null,
                 backup.actresses().size(),
                 backup.titles().size(),
                 backup.watchHistory().size(),
@@ -325,7 +325,7 @@ public class UserDataBackupService {
     public record SnapshotDetail(String name,
                                  long sizeBytes,
                                  int version,
-                                 LocalDateTime createdAt,
+                                 String createdAt,
                                  int actresses,
                                  int titles,
                                  int watchHistory,

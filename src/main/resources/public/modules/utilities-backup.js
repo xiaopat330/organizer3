@@ -85,6 +85,13 @@ function renderList() {
       const abs = ts ? ts.toISOString().replace('T', ' ').slice(0, 19) : '';
       li.innerHTML = `
         <div class="bk-row">
+          <div class="bk-row-icon">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+              <polyline points="7 10 12 15 17 10"/>
+              <line x1="12" y1="15" x2="12" y2="3"/>
+            </svg>
+          </div>
           <div class="bk-row-body">
             <div class="bk-row-title">
               <span class="bk-row-when">${esc(rel)}</span>

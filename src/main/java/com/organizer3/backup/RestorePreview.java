@@ -1,6 +1,5 @@
 package com.organizer3.backup;
 
-import java.time.LocalDateTime;
 import java.util.List;
 
 /**
@@ -15,7 +14,7 @@ import java.util.List;
  */
 public record RestorePreview(
         int backupVersion,
-        LocalDateTime backupExportedAt,
+        String backupExportedAt,
         Category actresses,
         Category titles,
         Category watchHistory,

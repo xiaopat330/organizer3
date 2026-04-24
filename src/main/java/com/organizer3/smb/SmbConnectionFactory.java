@@ -81,17 +81,23 @@ public class SmbConnectionFactory {
      * operation fails with a broken-pipe / transport error (NAS dropped the idle
      * TCP connection), the stale entry is evicted, a fresh connection is dialled,
      * and the operation is retried exactly once.
+     *
+     * <p>Catches both {@link IOException} and unchecked {@code SMBRuntimeException}
+     * (thrown by methods like {@code share.folderExists()} that don't declare a
+     * checked exception) so that broken-pipe detection fires regardless of which
+     * SMB call fails first.
      */
     public <T> T withRetry(String volumeId, SmbOperation<T> op) throws IOException {
         try {
             return op.execute(open(volumeId));
-        } catch (IOException e) {
+        } catch (IOException | RuntimeException e) {
             if (isBrokenPipe(e)) {
                 log.info("SMB broken pipe on volume {}; evicting and retrying", volumeId);
                 evict(volumeId);
                 return op.execute(open(volumeId));
             }
-            throw e;
+            if (e instanceof IOException ioe) throw ioe;
+            throw (RuntimeException) e;
         }
     }
 

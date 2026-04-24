@@ -9,11 +9,14 @@ import * as taskCenter from './task-center.js';
 
 const SELECTION_KEY = 'utilities.libraryHealth.selection';
 
-const viewEl    = () => document.getElementById('tools-library-health-view');
-const listEl    = () => document.getElementById('lh-list');
-const emptyEl   = () => document.getElementById('lh-empty');
-const detailEl  = () => document.getElementById('lh-detail');
-const scanBtn   = () => document.getElementById('lh-scan');
+const viewEl     = () => document.getElementById('tools-library-health-view');
+const listEl     = () => document.getElementById('lh-list');
+const emptyEl    = () => document.getElementById('lh-empty');
+const detailEl   = () => document.getElementById('lh-detail');
+const scanBtn    = () => document.getElementById('lh-scan');
+const scanAgeEl  = () => document.getElementById('lh-scan-age');
+const emptyTitle = () => document.getElementById('lh-empty-title');
+const emptySub   = () => document.getElementById('lh-empty-sub');
 
 let checks = [];           // [{id, label, description, fixRouting}]
 let report = null;         // latest report summary { runId, scannedAt, checks: [{id,total,...}] }
@@ -24,6 +27,7 @@ export async function showLibraryHealthView() {
   viewEl().style.display = 'flex';
   selectedId = localStorage.getItem(SELECTION_KEY);
   await Promise.all([loadChecks(), loadLatestReport()]);
+  renderScanAge();
   renderList();
   if (selectedId) showDetail(selectedId);
   else showEmpty();
@@ -98,9 +102,39 @@ function renderList() {
   }
 }
 
+function renderScanAge() {
+  const el = scanAgeEl();
+  if (!report || !report.scannedAt) {
+    el.style.display = 'none';
+    return;
+  }
+  const scanned = new Date(report.scannedAt);
+  el.textContent = 'Last scan: ' + formatAge(scanned);
+  el.title = scanned.toLocaleString();
+  el.style.display = '';
+}
+
+function formatAge(date) {
+  const secs = Math.floor((Date.now() - date.getTime()) / 1000);
+  if (secs < 60)  return 'just now';
+  if (secs < 3600) return Math.floor(secs / 60) + 'm ago';
+  if (secs < 86400) return Math.floor(secs / 3600) + 'h ago';
+  const days = Math.floor(secs / 86400);
+  if (days === 1)  return 'yesterday';
+  if (days < 30)   return days + ' days ago';
+  return date.toLocaleDateString();
+}
+
 function showEmpty() {
   detailEl().style.display = 'none';
   emptyEl().style.display = '';
+  if (report) {
+    emptyTitle().textContent = 'Select a check to see its findings';
+    emptySub().textContent = 'Results are from the last scan. Rescan to refresh.';
+  } else {
+    emptyTitle().textContent = 'Run a scan to see health findings';
+    emptySub().textContent = 'Each check reports a count; click a check to see details.';
+  }
 }
 
 async function showDetail(checkId) {
@@ -369,6 +403,7 @@ function subscribeToScan(runId) {
     taskCenter.finish({ status: ev.status, summary: ev.summary });
     isScanning = false;
     await loadLatestReport();
+    renderScanAge();
     renderList();
     if (selectedId) showDetail(selectedId);
     es.close();
