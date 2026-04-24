@@ -61,6 +61,12 @@ public class SmbConnectionFactory {
         this.client = client;
     }
 
+    /** Operation over an SMB share that may produce a result and may throw IOException. */
+    @FunctionalInterface
+    public interface SmbOperation<T> {
+        T execute(SmbShareHandle handle) throws IOException;
+    }
+
     /**
      * Returns a handle backed by the pooled share for this volume, connecting
      * on first use and reusing subsequently.
@@ -68,6 +74,34 @@ public class SmbConnectionFactory {
     public SmbShareHandle open(String volumeId) throws IOException {
         PooledShare pooled = acquire(volumeId);
         return new SmbShareHandle(pooled.share, pooled.subPath);
+    }
+
+    /**
+     * Executes {@code op} with the pooled share for {@code volumeId}. If the
+     * operation fails with a broken-pipe / transport error (NAS dropped the idle
+     * TCP connection), the stale entry is evicted, a fresh connection is dialled,
+     * and the operation is retried exactly once.
+     */
+    public <T> T withRetry(String volumeId, SmbOperation<T> op) throws IOException {
+        try {
+            return op.execute(open(volumeId));
+        } catch (IOException e) {
+            if (isBrokenPipe(e)) {
+                log.info("SMB broken pipe on volume {}; evicting and retrying", volumeId);
+                evict(volumeId);
+                return op.execute(open(volumeId));
+            }
+            throw e;
+        }
+    }
+
+    /** Removes a volume's pooled connection so the next {@link #open} dials fresh. */
+    public synchronized void evict(String volumeId) {
+        PooledShare stale = pool.remove(volumeId);
+        if (stale != null) {
+            stale.closeQuietly();
+            log.info("Evicted SMB pool entry for volume {}", volumeId);
+        }
     }
 
     /** Closes all pooled connections and the underlying SMBClient. */
@@ -254,6 +288,23 @@ public class SmbConnectionFactory {
             try { session.close(); } catch (Exception ignored) { /* ignore */ }
             try { connection.close(); } catch (Exception ignored) { /* ignore */ }
         }
+    }
+
+    /** Walks the cause chain to detect broken-pipe / transport-level failures. */
+    private static boolean isBrokenPipe(Throwable t) {
+        for (Throwable cause = t; cause != null; cause = cause.getCause()) {
+            if (cause instanceof java.net.SocketException) {
+                String msg = cause.getMessage();
+                if (msg != null && (msg.contains("Broken pipe") || msg.contains("Connection reset"))) {
+                    return true;
+                }
+            }
+            String cn = cause.getClass().getName();
+            if (cn.contains("TransportException") || cn.contains("SMBRuntimeException")) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private static ParsedSmbPath parseSmbPath(String smbPath) {

@@ -155,6 +155,28 @@ public class TrashService {
     }
 
     /**
+     * Removes the scheduled-deletion date from the given sidecar items.
+     *
+     * @param fs           filesystem for the volume
+     * @param sidecarPaths sidecar paths of the items to unschedule
+     * @return result with success count and per-item failures
+     */
+    public BatchResult unschedule(VolumeFileSystem fs, List<Path> sidecarPaths) {
+        int successes = 0;
+        List<BatchResult.FailureDetail> failures = new ArrayList<>();
+        for (Path sidecarPath : sidecarPaths) {
+            try {
+                TrashSidecar sc = TrashSidecar.read(fs, sidecarPath);
+                sc.withScheduledDeletionAt(null).write(fs, sidecarPath);
+                successes++;
+            } catch (IOException e) {
+                failures.add(new BatchResult.FailureDetail(sidecarPath, e.getMessage()));
+            }
+        }
+        return new BatchResult(successes, failures);
+    }
+
+    /**
      * Restores trashed items to their original paths.
      *
      * <p>For each sidecar:

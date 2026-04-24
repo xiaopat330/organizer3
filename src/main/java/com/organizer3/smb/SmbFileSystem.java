@@ -147,7 +147,12 @@ class SmbFileSystem implements VolumeFileSystem {
                     EnumSet.of(SMB2ShareAccess.FILE_SHARE_READ),
                     SMB2CreateDisposition.FILE_OPEN,
                     EnumSet.noneOf(SMB2CreateOptions.class));
-            return f.getInputStream();
+            // Wrap so closing the stream also closes the SMB file handle; without this,
+            // a subsequent write to the same path fails because the dangling handle
+            // holds FILE_SHARE_READ (no write access) on the NAS side.
+            return new java.io.FilterInputStream(f.getInputStream()) {
+                @Override public void close() throws IOException { try { super.close(); } finally { f.close(); } }
+            };
         } catch (Exception e) {
             throw new IOException("Failed to open file: " + path, e);
         }

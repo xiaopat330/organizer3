@@ -10,35 +10,33 @@ import com.organizer3.utilities.task.TaskSpec;
 import lombok.extern.slf4j.Slf4j;
 
 import java.nio.file.Path;
-import java.time.Instant;
 import java.util.List;
 
 /**
- * Schedules a set of trashed items for permanent deletion at a specified time.
+ * Removes the scheduled-deletion date from a set of trashed items.
  *
  * <p>Inputs:
  * <ul>
  *   <li>{@code volumeId} — the volume on which the trash lives</li>
- *   <li>{@code sidecarPaths} — list of absolute sidecar paths (Strings) to schedule</li>
- *   <li>{@code scheduledAt} — ISO-8601 instant at which deletion becomes eligible</li>
+ *   <li>{@code sidecarPaths} — list of absolute sidecar paths (Strings) to unschedule</li>
  * </ul>
  */
 @Slf4j
-public final class TrashScheduleTask implements Task {
+public final class TrashUnscheduleTask implements Task {
 
-    public static final String ID = "trash.schedule";
+    public static final String ID = "trash.unschedule";
 
     private static final TaskSpec SPEC = new TaskSpec(
             ID,
-            "Schedule trash items for deletion",
-            "Sets a scheduled-deletion date on one or more trashed items.",
+            "Unschedule trash items",
+            "Removes the scheduled-deletion date from one or more trashed items.",
             List.of()
     );
 
     private final TrashService trashService;
     private final SmbConnectionFactory smbConnectionFactory;
 
-    public TrashScheduleTask(TrashService trashService, SmbConnectionFactory smbConnectionFactory) {
+    public TrashUnscheduleTask(TrashService trashService, SmbConnectionFactory smbConnectionFactory) {
         this.trashService = trashService;
         this.smbConnectionFactory = smbConnectionFactory;
     }
@@ -51,27 +49,25 @@ public final class TrashScheduleTask implements Task {
         String volumeId = (String) inputs.values().get("volumeId");
         @SuppressWarnings("unchecked")
         List<String> rawPaths = (List<String>) inputs.values().get("sidecarPaths");
-        String scheduledAtStr = (String) inputs.values().get("scheduledAt");
 
-        if (volumeId == null || rawPaths == null || scheduledAtStr == null) {
-            io.phaseStart("schedule", "Schedule items");
-            io.phaseEnd("schedule", "failed", "Missing required inputs: volumeId, sidecarPaths, scheduledAt");
+        if (volumeId == null || rawPaths == null) {
+            io.phaseStart("unschedule", "Unschedule items");
+            io.phaseEnd("unschedule", "failed", "Missing required inputs: volumeId, sidecarPaths");
             return;
         }
 
         List<Path> sidecarPaths = rawPaths.stream().map(Path::of).toList();
-        Instant scheduledAt = Instant.parse(scheduledAtStr);
 
-        io.phaseStart("schedule", "Schedule " + sidecarPaths.size() + " item(s) for deletion");
+        io.phaseStart("unschedule", "Unschedule " + sidecarPaths.size() + " item(s)");
         try {
             BatchResult result = smbConnectionFactory.withRetry(volumeId,
-                    handle -> trashService.scheduleForDeletion(handle.fileSystem(), sidecarPaths, scheduledAt));
-            String summary = result.successes() + " scheduled"
+                    handle -> trashService.unschedule(handle.fileSystem(), sidecarPaths));
+            String summary = result.successes() + " unscheduled"
                     + (result.hasFailures() ? " · " + result.failures().size() + " failed" : "");
-            io.phaseEnd("schedule", result.hasFailures() ? "failed" : "ok", summary);
+            io.phaseEnd("unschedule", result.hasFailures() ? "failed" : "ok", summary);
         } catch (Exception e) {
-            log.error("TrashScheduleTask failed for volume {}", volumeId, e);
-            io.phaseEnd("schedule", "failed", e.getMessage());
+            log.error("TrashUnscheduleTask failed for volume {}", volumeId, e);
+            io.phaseEnd("unschedule", "failed", e.getMessage());
         }
     }
 }

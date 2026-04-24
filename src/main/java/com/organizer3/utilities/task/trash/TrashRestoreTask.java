@@ -63,8 +63,9 @@ public final class TrashRestoreTask implements Task {
         Path trashRoot = Path.of("/_trash");
 
         io.phaseStart("restore", "Restore " + sidecarPaths.size() + " item(s)");
-        try (SmbConnectionFactory.SmbShareHandle handle = smbConnectionFactory.open(volumeId)) {
-            BatchResult result = trashService.restore(handle.fileSystem(), trashRoot, sidecarPaths);
+        try {
+            BatchResult result = smbConnectionFactory.withRetry(volumeId,
+                    handle -> trashService.restore(handle.fileSystem(), trashRoot, sidecarPaths));
             String summary = result.successes() + " restored"
                     + (result.hasFailures() ? " · " + result.failures().size() + " failed" : "");
             io.phaseEnd("restore", result.hasFailures() ? "failed" : "ok", summary);

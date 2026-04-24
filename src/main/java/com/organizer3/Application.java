@@ -537,6 +537,8 @@ public class Application {
                 new com.organizer3.utilities.task.trash.TrashScheduleTask(trashService, smbConnectionFactory);
         com.organizer3.utilities.task.trash.TrashRestoreTask trashRestoreTask =
                 new com.organizer3.utilities.task.trash.TrashRestoreTask(trashService, smbConnectionFactory);
+        com.organizer3.utilities.task.trash.TrashUnscheduleTask trashUnscheduleTask =
+                new com.organizer3.utilities.task.trash.TrashUnscheduleTask(trashService, smbConnectionFactory);
 
         com.organizer3.utilities.task.TaskRegistry taskRegistry =
                 new com.organizer3.utilities.task.TaskRegistry(
@@ -546,7 +548,7 @@ public class Application {
                                 scanLibraryTask, cleanOrphanedCoversTask,
                                 resolveIafdTask, renameAvActressTask, deleteAvActressTask, parseFilenamesTask,
                                 executeDuplicateTrashTask, detectMergeCandidatesTask, executeMergeTask,
-                                trashScheduleTask, trashRestoreTask));
+                                trashScheduleTask, trashRestoreTask, trashUnscheduleTask));
         com.organizer3.utilities.task.TaskRunner taskRunner =
                 new com.organizer3.utilities.task.TaskRunner(taskRegistry);
         webServer.registerUtilities(new com.organizer3.web.routes.UtilitiesRoutes(

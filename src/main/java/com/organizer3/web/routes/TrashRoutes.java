@@ -78,9 +78,12 @@ public final class TrashRoutes {
 
     private void handleCountItems(io.javalin.http.Context ctx) {
         String volumeId = ctx.pathParam("id");
-        try (SmbConnectionFactory.SmbShareHandle handle = smbConnectionFactory.open(volumeId)) {
-            TrashListing listing = trashService.list(handle.fileSystem(), volumeId, TRASH_ROOT, 0, 0);
-            ctx.json(Map.of("count", listing.totalCount()));
+        try {
+            int count = smbConnectionFactory.withRetry(volumeId, handle -> {
+                TrashListing listing = trashService.list(handle.fileSystem(), volumeId, TRASH_ROOT, 0, 0);
+                return listing.totalCount();
+            });
+            ctx.json(Map.of("count", count));
         } catch (IllegalArgumentException e) {
             ctx.status(404);
             ctx.json(Map.of("error", "volume not found: " + volumeId));
@@ -95,9 +98,12 @@ public final class TrashRoutes {
         int page = parseIntParam(ctx.queryParam("page"), 0);
         int pageSize = parseIntParam(ctx.queryParam("pageSize"), DEFAULT_PAGE_SIZE);
 
-        try (SmbConnectionFactory.SmbShareHandle handle = smbConnectionFactory.open(volumeId)) {
-            TrashListing listing = trashService.list(handle.fileSystem(), volumeId, TRASH_ROOT, page, pageSize);
-            ctx.json(toJson(listing));
+        try {
+            smbConnectionFactory.withRetry(volumeId, handle -> {
+                TrashListing listing = trashService.list(handle.fileSystem(), volumeId, TRASH_ROOT, page, pageSize);
+                ctx.json(toJson(listing));
+                return null;
+            });
         } catch (IllegalArgumentException e) {
             ctx.status(404);
             ctx.json(Map.of("error", "volume not found: " + volumeId));

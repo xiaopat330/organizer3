@@ -38,10 +38,17 @@ const prevBtn           = document.getElementById('trash-prev-btn');
 const nextBtn           = document.getElementById('trash-next-btn');
 const pageLabel         = document.getElementById('trash-page-label');
 
+const unscheduleBtn     = document.getElementById('trash-unschedule-btn');
+
 const scheduleDialog    = document.getElementById('trash-schedule-dialog');
 const scheduleBody      = document.getElementById('trash-schedule-body');
 const scheduleCancelBtn = document.getElementById('trash-schedule-cancel-btn');
 const scheduleConfirmBtn= document.getElementById('trash-schedule-confirm-btn');
+
+const unscheduleDialog      = document.getElementById('trash-unschedule-dialog');
+const unscheduleBody        = document.getElementById('trash-unschedule-body');
+const unscheduleCancelBtn   = document.getElementById('trash-unschedule-cancel-btn');
+const unscheduleConfirmBtn  = document.getElementById('trash-unschedule-confirm-btn');
 
 const restoreDialog     = document.getElementById('trash-restore-dialog');
 const restoreBody       = document.getElementById('trash-restore-body');
@@ -178,7 +185,7 @@ function renderTable() {
     tr.className = 'trash-row';
 
     const status = item.scheduledDeletionAt
-      ? `<span class="trash-status-scheduled">Scheduled ${formatDate(item.scheduledDeletionAt)}</span>`
+      ? buildScheduledStatus(item.scheduledDeletionAt)
       : `<span class="trash-status-none">—</span>`;
 
     tr.innerHTML = `
@@ -210,9 +217,15 @@ function renderPagination(data) {
 }
 
 function updateActionButtons() {
-  const checked = tableBody.querySelectorAll('.trash-row-check:checked').length;
-  scheduleBtn.disabled = checked === 0;
-  restoreBtn.disabled  = checked === 0;
+  const checkedBoxes = tableBody.querySelectorAll('.trash-row-check:checked');
+  const count = checkedBoxes.length;
+  scheduleBtn.disabled = count === 0;
+  restoreBtn.disabled  = count === 0;
+  const hasScheduled = Array.from(checkedBoxes).some(cb => {
+    const idx = parseInt(cb.dataset.idx, 10);
+    return !!(state.items[idx]?.scheduledDeletionAt);
+  });
+  unscheduleBtn.disabled = !hasScheduled;
 }
 
 function selectedSidecarPaths() {
@@ -259,6 +272,29 @@ scheduleConfirmBtn.addEventListener('click', async () => {
   await runTask('trash.schedule', { volumeId: state.selectedVolumeId, sidecarPaths: paths, scheduledAt });
 });
 
+// ── Unschedule dialog ─────────────────────────────────────────────────────
+unscheduleBtn.addEventListener('click', () => {
+  const paths = selectedSidecarPaths().filter(p => {
+    const idx = state.items.findIndex(it => it.sidecarPath === p);
+    return idx >= 0 && !!state.items[idx].scheduledDeletionAt;
+  });
+  if (paths.length === 0) return;
+  unscheduleBody.textContent =
+    `Remove deletion schedule from ${paths.length} item${paths.length !== 1 ? 's' : ''}? ` +
+    `They will remain in trash but won't be automatically deleted.`;
+  unscheduleDialog.style.display = 'flex';
+  unscheduleConfirmBtn.dataset.paths = JSON.stringify(paths);
+});
+
+unscheduleCancelBtn.addEventListener('click', () => { unscheduleDialog.style.display = 'none'; });
+unscheduleDialog.addEventListener('click', e => { if (e.target === unscheduleDialog) unscheduleDialog.style.display = 'none'; });
+
+unscheduleConfirmBtn.addEventListener('click', async () => {
+  unscheduleDialog.style.display = 'none';
+  const paths = JSON.parse(unscheduleConfirmBtn.dataset.paths);
+  await runTask('trash.unschedule', { volumeId: state.selectedVolumeId, sidecarPaths: paths });
+});
+
 // ── Restore dialog ────────────────────────────────────────────────────────
 restoreBtn.addEventListener('click', () => {
   const paths = selectedSidecarPaths();
@@ -299,7 +335,6 @@ async function runTask(taskId, body) {
     }
     const { runId } = await res.json();
     await awaitRun(runId);
-    // Refresh the table after the task completes
     await loadItems();
   } catch (err) {
     console.error('Trash: task failed', err);
@@ -313,6 +348,42 @@ function awaitRun(runId) {
     es.addEventListener('task.ended', () => { es.close(); resolve(); });
     es.addEventListener('error', () => { es.close(); resolve(); });
   });
+}
+
+// ── Scheduled-status cell ─────────────────────────────────────────────────
+// 10-day window assumed; ring fills day-by-day, hue slides yellow→red.
+const SCHEDULE_DAYS = 10;
+const RING_R = 6;
+const RING_CIRC = 2 * Math.PI * RING_R;
+
+function buildScheduledStatus(scheduledAt) {
+  const deadline = new Date(scheduledAt).getTime();
+  const now = Date.now();
+  const msRemaining = deadline - now;
+  const daysRemaining = msRemaining / 86400000;
+
+  // progress 0→1 over the 10-day window (clamp to [0,1])
+  const progress = Math.min(1, Math.max(0, (SCHEDULE_DAYS - daysRemaining) / SCHEDULE_DAYS));
+
+  // hue: 45 (yellow) → 0 (red)
+  const hue = Math.round(45 * (1 - progress));
+  const color = `hsl(${hue}, 90%, 58%)`;
+
+  const offset = RING_CIRC * (1 - progress);
+  const ring = `<svg class="trash-ring" viewBox="0 0 16 16" width="14" height="14" fill="none">
+    <circle cx="8" cy="8" r="${RING_R}" stroke="rgba(255,255,255,.12)" stroke-width="2.5"/>
+    <circle cx="8" cy="8" r="${RING_R}" stroke="${color}" stroke-width="2.5"
+      stroke-dasharray="${RING_CIRC.toFixed(2)}" stroke-dashoffset="${offset.toFixed(2)}"
+      stroke-linecap="round" transform="rotate(-90 8 8)"/>
+  </svg>`;
+
+  const label = daysRemaining <= 0
+    ? 'Overdue'
+    : daysRemaining < 1
+      ? 'Today'
+      : `${formatDate(scheduledAt)}`;
+
+  return `<span class="trash-status-scheduled" style="color:${color}">${ring}${label}</span>`;
 }
 
 // ── Date helpers ──────────────────────────────────────────────────────────
