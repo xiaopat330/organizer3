@@ -5,6 +5,7 @@ import com.organizer3.config.volume.VolumeConfig;
 import com.organizer3.model.Volume;
 import com.organizer3.repository.TitleRepository;
 import com.organizer3.repository.VolumeRepository;
+import org.jdbi.v3.core.Jdbi;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -20,12 +21,14 @@ public final class VolumeStateService {
     private final VolumeRepository volumeRepo;
     private final TitleRepository titleRepo;
     private final StaleLocationsService staleLocations;
+    private final Jdbi jdbi;
 
     public VolumeStateService(VolumeRepository volumeRepo, TitleRepository titleRepo,
-                              StaleLocationsService staleLocations) {
+                              StaleLocationsService staleLocations, Jdbi jdbi) {
         this.volumeRepo = volumeRepo;
         this.titleRepo = titleRepo;
         this.staleLocations = staleLocations;
+        this.jdbi = jdbi;
     }
 
     public List<VolumeStateDTO> list() {
@@ -40,12 +43,21 @@ public final class VolumeStateService {
         return AppConfig.get().volumes().findById(volumeId).map(this::dtoFor);
     }
 
+    private int countQueueTitles(String volumeId) {
+        return jdbi.withHandle(h -> h.createQuery(
+                        "SELECT COUNT(*) FROM title_locations WHERE volume_id = :vol AND partition_id = 'queue'")
+                .bind("vol", volumeId)
+                .mapTo(Integer.class)
+                .one());
+    }
+
     private VolumeStateDTO dtoFor(VolumeConfig config) {
         LocalDateTime lastSynced = volumeRepo.findById(config.id())
                 .map(Volume::getLastSyncedAt)
                 .orElse(null);
         String lastSyncedIso = lastSynced == null ? null : lastSynced.toString();
         int titleCount = titleRepo.countByVolume(config.id());
+        int queueCount = countQueueTitles(config.id());
 
         // Real health detection is being wired in one indicator at a time. First up: stale
         // locations — rows whose file wasn't observed during the last sync. More indicators
@@ -64,6 +76,7 @@ public final class VolumeStateService {
                 config.structureType(),
                 lastSyncedIso,
                 titleCount,
+                queueCount,
                 "online",
                 health);
     }

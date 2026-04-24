@@ -103,9 +103,9 @@ jacocoTestReport {
     }
 }
 
-// Sandbox tests — real-FS service tests using LocalFileSystem + @TempDir. Opt-in.
+// Sandbox E2E tests — run against the real NAS over SMB. Requires VPN + NAS access.
 tasks.register('sandboxTest', Test) {
-    description = 'Run sandbox service tests (tag: sandbox) against local filesystem.'
+    description = 'Run sandbox E2E organize tests against the real NAS (requires VPN + SMB access).'
     group = 'verification'
     testClassesDirs = sourceSets.test.output.classesDirs
     classpath = sourceSets.test.runtimeClasspath

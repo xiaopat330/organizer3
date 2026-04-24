@@ -10,6 +10,7 @@ import java.util.List;
  * @param structureType e.g. "conventional", "exhibition"
  * @param lastSyncedAt  ISO-8601 string (e.g. "2026-04-19T11:43:44.659488"), or null if never synced
  * @param titleCount    number of titles with at least one location on the volume
+ * @param queueCount    number of title_locations rows in the "queue" partition; 0 for non-queue volumes
  * @param status        "online" or "offline"
  * @param health        zero or more issues; empty list renders as "All healthy"
  */
@@ -19,6 +20,7 @@ public record VolumeStateDTO(
         String structureType,
         String lastSyncedAt,
         int titleCount,
+        int queueCount,
         String status,
         List<HealthIssue> health) {
 
