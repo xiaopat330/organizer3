@@ -1,6 +1,7 @@
 package com.organizer3.utilities.task.health;
 
 import com.organizer3.utilities.health.LibraryHealthCheck;
+import com.organizer3.utilities.health.LibraryHealthReportStore;
 import com.organizer3.utilities.health.LibraryHealthService;
 import com.organizer3.utilities.task.Task;
 import com.organizer3.utilities.task.TaskEvent;
@@ -9,7 +10,9 @@ import com.organizer3.utilities.task.TaskRegistry;
 import com.organizer3.utilities.task.TaskRun;
 import com.organizer3.utilities.task.TaskRunner;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
+import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
@@ -18,11 +21,18 @@ import static org.junit.jupiter.api.Assertions.*;
 
 class ScanLibraryTaskTest {
 
+    @TempDir Path tempDir;
+
+    private LibraryHealthService service(LibraryHealthCheck... checks) {
+        return new LibraryHealthService(List.of(checks),
+                new LibraryHealthReportStore(tempDir.resolve("health.json")));
+    }
+
     @Test
     void emitsOnePhasePerCheckAndCompletesOk() throws Exception {
         LibraryHealthCheck a = stub("a", 0);
         LibraryHealthCheck b = stub("b", 2);
-        LibraryHealthService svc = new LibraryHealthService(List.of(a, b));
+        LibraryHealthService svc = service(a, b);
         Task task = new ScanLibraryTask(svc);
         TaskRunner runner = new TaskRunner(new TaskRegistry(List.of(task)));
         try {
@@ -55,7 +65,7 @@ class ScanLibraryTaskTest {
             @Override public CheckResult run() { throw new RuntimeException("boom"); }
         };
         LibraryHealthCheck good = stub("good", 1);
-        LibraryHealthService svc = new LibraryHealthService(List.of(boom, good));
+        LibraryHealthService svc = service(boom, good);
         Task task = new ScanLibraryTask(svc);
         TaskRunner runner = new TaskRunner(new TaskRegistry(List.of(task)));
         try {

@@ -498,8 +498,11 @@ public class Application {
                         new com.organizer3.utilities.health.checks.UnloadedYamlsCheck(yamlLoader, actressRepo),
                         new com.organizer3.utilities.health.checks.UnresolvedAliasesCheck(jdbi),
                         new com.organizer3.utilities.health.checks.DuplicateCodesCheck(jdbi));
+        com.organizer3.utilities.health.LibraryHealthReportStore healthReportStore =
+                new com.organizer3.utilities.health.LibraryHealthReportStore(
+                        dataDir.resolve("library-health-report.json"));
         com.organizer3.utilities.health.LibraryHealthService libraryHealthService =
-                new com.organizer3.utilities.health.LibraryHealthService(healthChecks);
+                new com.organizer3.utilities.health.LibraryHealthService(healthChecks, healthReportStore);
         com.organizer3.utilities.task.health.ScanLibraryTask scanLibraryTask =
                 new com.organizer3.utilities.task.health.ScanLibraryTask(libraryHealthService);
 

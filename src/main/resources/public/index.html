@@ -369,8 +369,11 @@
 <div id="tools-library-health-view" class="tools-library-health-view" style="display:none">
   <aside class="lh-left" id="lh-left">
     <div class="lh-left-header">
-      <span>Health checks</span>
-      <button type="button" id="lh-scan" class="lh-scan">Scan library</button>
+      <div class="lh-left-header-top">
+        <span>Health checks</span>
+        <button type="button" id="lh-scan" class="lh-scan">Scan library</button>
+      </div>
+      <div id="lh-scan-age" class="lh-scan-age" style="display:none"></div>
     </div>
     <ul id="lh-list" class="lh-list"></ul>
   </aside>
@@ -379,8 +382,8 @@
       <div class="lh-empty-icon">
         <svg viewBox="0 0 24 24" width="56" height="56" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h4l2-6 4 12 2-6h6"/></svg>
       </div>
-      <div class="lh-empty-title">Run a scan to see health findings</div>
-      <div class="lh-empty-sub">Each check reports a count; click a check to see details.</div>
+      <div id="lh-empty-title" class="lh-empty-title">Run a scan to see health findings</div>
+      <div id="lh-empty-sub" class="lh-empty-sub">Each check reports a count; click a check to see details.</div>
     </div>
     <div id="lh-detail" class="lh-detail" style="display:none"></div>
   </section>

@@ -3160,16 +3160,29 @@
 }
 .lh-left-header {
   padding: 10px 14px;
-  font-size: 11px;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: #64748b;
   border-bottom: 1px solid #1e293b;
   background: #0a0704;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.lh-left-header-top {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 8px;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #64748b;
+}
+.lh-scan-age {
+  font-size: 10px;
+  color: #475569;
+  letter-spacing: 0;
+  text-transform: none;
+  font-style: italic;
+  cursor: default;
 }
 .lh-scan {
   font-family: inherit;

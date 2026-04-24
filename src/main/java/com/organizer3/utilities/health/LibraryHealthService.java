@@ -13,17 +13,20 @@ import java.util.concurrent.atomic.AtomicReference;
  * New checks are added by appending to the injected list in {@code Application} wiring.
  *
  * <p>The "latest report" is kept in a volatile reference so the right-pane detail endpoints
- * can serve consistent data without re-scanning. There is no TTL — the report stays until
- * the next scan replaces it or the process restarts. This matches the atomic task model
- * (one scan at a time) and the single-user app footprint.
+ * can serve consistent data without re-scanning. When a {@link LibraryHealthReportStore} is
+ * provided, the report is loaded from disk at construction and persisted after each scan, so
+ * findings survive app restarts with a visible {@code scannedAt} timestamp.
  */
 public final class LibraryHealthService {
 
     private final List<LibraryHealthCheck> checks;
     private final AtomicReference<LibraryHealthReport> latest = new AtomicReference<>();
+    private final LibraryHealthReportStore store;
 
-    public LibraryHealthService(List<LibraryHealthCheck> checks) {
+    public LibraryHealthService(List<LibraryHealthCheck> checks, LibraryHealthReportStore store) {
         this.checks = List.copyOf(checks);
+        this.store  = store;
+        store.load().ifPresent(latest::set);
     }
 
     /** Immutable check list — used by the UI to render empty rows before a scan has run. */
@@ -65,6 +68,7 @@ public final class LibraryHealthService {
         }
         LibraryHealthReport report = new LibraryHealthReport(runId, Instant.now(), entries);
         latest.set(report);
+        store.save(report);
         return report;
     }
 
