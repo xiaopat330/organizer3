@@ -533,6 +533,8 @@ public class Application {
                 new com.organizer3.utilities.task.duplicates.ExecuteMergeTask(mergeCandidateRepo, jdbi);
 
         com.organizer3.trash.TrashService trashService = new com.organizer3.trash.TrashService();
+        com.organizer3.trash.TrashSweepScheduler trashSweepScheduler =
+                new com.organizer3.trash.TrashSweepScheduler(trashService, smbConnectionFactory, config);
         com.organizer3.utilities.task.trash.TrashScheduleTask trashScheduleTask =
                 new com.organizer3.utilities.task.trash.TrashScheduleTask(trashService, smbConnectionFactory);
         com.organizer3.utilities.task.trash.TrashRestoreTask trashRestoreTask =
@@ -671,12 +673,14 @@ public class Application {
 
         webServer.start();
         bgWorker.start();
+        trashSweepScheduler.start(24);
 
         OrganizerShell shell = new OrganizerShell(session, dispatcher);
         shell.run();
 
         webServer.stop();
         bgWorker.stop();
+        trashSweepScheduler.stop();
         backupScheduler.stop();
         probeJobRunner.shutdown();
         thumbnailService.shutdown();
