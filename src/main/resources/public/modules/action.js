@@ -13,6 +13,7 @@ import { showLibraryHealthView, hideLibraryHealthView } from './utilities-librar
 import { showAvStarsView, hideAvStarsView } from './utilities-av-stars.js';
 import { showDupTriageView, hideDupTriageView, wireDupTriageEvents } from './utilities-duplicate-triage.js';
 import { showMergeCandidatesView, hideMergeCandidatesView, wireMergeCandidatesEvents } from './utilities-merge-candidates.js';
+import { showTrashView, hideTrashView } from './utilities-trash.js';
 
 // ── DOM refs ──────────────────────────────────────────────────────────────
 const actionBtn         = document.getElementById('action-btn');
@@ -22,6 +23,7 @@ const backupBtn         = document.getElementById('tools-backup-btn');
 const libraryHealthBtn  = document.getElementById('tools-library-health-btn');
 const avStarsBtn        = document.getElementById('tools-av-stars-btn');
 const duplicatesBtn     = document.getElementById('tools-duplicates-btn');
+const trashBtn          = document.getElementById('tools-trash-btn');
 const queueBtn          = document.getElementById('tools-queue-btn');
 const logsBtn           = document.getElementById('tools-logs-btn');
 const duplicatesView    = document.getElementById('tools-duplicates-view');
@@ -39,7 +41,7 @@ const dupTriageTab      = document.getElementById('tools-dup-triage-tab');
 const mergeCandidatesTab = document.getElementById('tools-merge-candidates-tab');
 
 // ── Tool buttons ──────────────────────────────────────────────────────────
-const TOOL_BTNS = [volumesBtn, actressDataBtn, backupBtn, libraryHealthBtn, avStarsBtn, duplicatesBtn, queueBtn, logsBtn];
+const TOOL_BTNS = [volumesBtn, actressDataBtn, backupBtn, libraryHealthBtn, avStarsBtn, duplicatesBtn, trashBtn, queueBtn, logsBtn];
 
 function selectTool(btn) {
   TOOL_BTNS.forEach(b => b?.classList.remove('selected'));
@@ -57,6 +59,7 @@ function hideAllToolViews() {
   hideAvStarsView();
   hideDupTriageView();
   hideMergeCandidatesView();
+  hideTrashView();
   dupSubnav.style.display         = 'none';
   duplicatesView.style.display    = 'none';
   duplicatesFilters.style.display = 'none';
@@ -359,6 +362,14 @@ avStarsBtn.addEventListener('click', () => {
 });
 
 duplicatesBtn.addEventListener('click', showDuplicates);
+
+trashBtn.addEventListener('click', () => {
+  showActionView('trash');
+  selectTool(trashBtn);
+  updateBreadcrumb([{ label: 'Tools' }, { label: 'Trash' }]);
+  hideAllToolViews();
+  showTrashView();
+});
 
 queueBtn.addEventListener('click', () => {
   showActionView('queue');

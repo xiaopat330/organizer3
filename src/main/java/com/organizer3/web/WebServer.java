@@ -144,6 +144,11 @@ public class WebServer {
         routes.register(app);
     }
 
+    /** Mounts the Utilities → Trash endpoints ({@code /api/utilities/trash/*}). */
+    public void registerTrash(com.organizer3.web.routes.TrashRoutes routes) {
+        routes.register(app);
+    }
+
     /** Mounts the Duplicate Triage decisions endpoints ({@code /api/tools/duplicates/decisions/*}). */
     public void registerDuplicateDecisions(com.organizer3.web.routes.DuplicateDecisionsRoutes routes) {
         routes.register(app);

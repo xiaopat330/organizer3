@@ -532,6 +532,12 @@ public class Application {
         com.organizer3.utilities.task.duplicates.ExecuteMergeTask executeMergeTask =
                 new com.organizer3.utilities.task.duplicates.ExecuteMergeTask(mergeCandidateRepo, jdbi);
 
+        com.organizer3.trash.TrashService trashService = new com.organizer3.trash.TrashService();
+        com.organizer3.utilities.task.trash.TrashScheduleTask trashScheduleTask =
+                new com.organizer3.utilities.task.trash.TrashScheduleTask(trashService, smbConnectionFactory);
+        com.organizer3.utilities.task.trash.TrashRestoreTask trashRestoreTask =
+                new com.organizer3.utilities.task.trash.TrashRestoreTask(trashService, smbConnectionFactory);
+
         com.organizer3.utilities.task.TaskRegistry taskRegistry =
                 new com.organizer3.utilities.task.TaskRegistry(
                         java.util.List.of(syncVolumeTask, cleanStaleLocationsTask,
@@ -539,7 +545,8 @@ public class Application {
                                 backupNowTask, restoreSnapshotTask,
                                 scanLibraryTask, cleanOrphanedCoversTask,
                                 resolveIafdTask, renameAvActressTask, deleteAvActressTask, parseFilenamesTask,
-                                executeDuplicateTrashTask, detectMergeCandidatesTask, executeMergeTask));
+                                executeDuplicateTrashTask, detectMergeCandidatesTask, executeMergeTask,
+                                trashScheduleTask, trashRestoreTask));
         com.organizer3.utilities.task.TaskRunner taskRunner =
                 new com.organizer3.utilities.task.TaskRunner(taskRegistry);
         webServer.registerUtilities(new com.organizer3.web.routes.UtilitiesRoutes(
@@ -548,6 +555,8 @@ public class Application {
                 taskRegistry, taskRunner));
         webServer.registerAvStars(new com.organizer3.web.routes.AvStarsRoutes(
                 avStarsCatalog, avBrowseService, iafdResolver));
+        webServer.registerTrash(new com.organizer3.web.routes.TrashRoutes(
+                trashService, smbConnectionFactory, taskRegistry, taskRunner));
 
         webServer.registerDuplicateDecisions(
                 new com.organizer3.web.routes.DuplicateDecisionsRoutes(dupDecisionRepo));
