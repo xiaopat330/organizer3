@@ -8,6 +8,7 @@ function createState() {
     selectedId: null,
     activeTab: 'titles',
     queuePollTimer: null,
+    paused: false,
   };
 }
 
@@ -15,14 +16,19 @@ const state = createState();
 
 // ── DOM refs ──────────────────────────────────────────────────────────────
 
-const view         = document.getElementById('tools-javdb-discovery-view');
-const queueBadge   = document.getElementById('jd-queue-badge');
-const actressList  = document.getElementById('jd-actress-list');
-const emptyMsg     = document.getElementById('jd-empty');
-const panel        = document.getElementById('jd-actress-panel');
-const subtabBtns   = panel?.querySelectorAll('.jd-subtab') ?? [];
-const titlesView   = document.getElementById('jd-subview-titles');
-const profileView  = document.getElementById('jd-subview-profile');
+const view              = document.getElementById('tools-javdb-discovery-view');
+const queueBadge        = document.getElementById('jd-queue-badge');
+const pauseBtn          = document.getElementById('jd-pause-btn');
+const cancelAllBtn      = document.getElementById('jd-cancel-all-btn');
+const actressList       = document.getElementById('jd-actress-list');
+const emptyMsg          = document.getElementById('jd-empty');
+const panel             = document.getElementById('jd-actress-panel');
+const enrichBtn         = document.getElementById('jd-enrich-btn');
+const cancelActressBtn  = document.getElementById('jd-cancel-actress-btn');
+const subtabBtns        = panel?.querySelectorAll('.jd-subtab') ?? [];
+const titlesView        = document.getElementById('jd-subview-titles');
+const profileView       = document.getElementById('jd-subview-profile');
+const errorsView        = document.getElementById('jd-subview-errors');
 
 // ── Public API ─────────────────────────────────────────────────────────────
 
@@ -52,7 +58,8 @@ async function refreshQueue() {
   try {
     const res = await fetch('/api/javdb/discovery/queue');
     if (!res.ok) return;
-    const { pending, inFlight, failed } = await res.json();
+    const { pending, inFlight, failed, paused } = await res.json();
+    state.paused = paused;
     const total = pending + inFlight + failed;
     if (total === 0) {
       queueBadge.style.display = 'none';
@@ -60,6 +67,8 @@ async function refreshQueue() {
       queueBadge.textContent = `${pending + inFlight} pending · ${failed} failed`;
       queueBadge.style.display = '';
     }
+    pauseBtn.textContent = paused ? 'Resume' : 'Pause';
+    pauseBtn.classList.toggle('jd-paused', paused);
   } catch (_) { /* ignore */ }
 }
 
@@ -128,16 +137,19 @@ async function selectActress(id) {
 async function renderActiveTab() {
   if (state.activeTab === 'titles') {
     await renderTitlesTab();
-  } else {
+  } else if (state.activeTab === 'profile') {
     await renderProfileTab();
+  } else {
+    await renderErrorsTab();
   }
 }
 
 // ── Titles tab ─────────────────────────────────────────────────────────────
 
 async function renderTitlesTab() {
-  titlesView.style.display  = '';
-  profileView.style.display = 'none';
+  titlesView.style.display   = '';
+  profileView.style.display  = 'none';
+  errorsView.style.display   = 'none';
   titlesView.innerHTML = '<div class="jd-loading">Loading…</div>';
   try {
     const res = await fetch(`/api/javdb/discovery/actresses/${state.selectedId}/titles`);
@@ -176,8 +188,9 @@ function titleRow(t) {
 // ── Profile tab ────────────────────────────────────────────────────────────
 
 async function renderProfileTab() {
-  profileView.style.display = '';
-  titlesView.style.display  = 'none';
+  profileView.style.display  = '';
+  titlesView.style.display   = 'none';
+  errorsView.style.display   = 'none';
   profileView.innerHTML = '<div class="jd-loading">Loading…</div>';
   try {
     const res = await fetch(`/api/javdb/discovery/actresses/${state.selectedId}/profile`);
@@ -206,7 +219,97 @@ async function renderProfileTab() {
   }
 }
 
-// ── Subtab wiring ──────────────────────────────────────────────────────────
+// ── Errors tab ─────────────────────────────────────────────────────────────
+
+async function renderErrorsTab() {
+  errorsView.style.display   = '';
+  titlesView.style.display   = 'none';
+  profileView.style.display  = 'none';
+  errorsView.innerHTML = '<div class="jd-loading">Loading…</div>';
+  try {
+    const res = await fetch(`/api/javdb/discovery/actresses/${state.selectedId}/errors`);
+    if (!res.ok) { errorsView.innerHTML = '<div class="jd-error">Failed to load errors.</div>'; return; }
+    const jobs = await res.json();
+    if (jobs.length === 0) {
+      errorsView.innerHTML = '<div class="jd-empty-tab">No failed jobs.</div>';
+      return;
+    }
+    errorsView.innerHTML = '';
+    const retryAllRow = document.createElement('div');
+    retryAllRow.className = 'jd-errors-actions';
+    const retryAllBtn = document.createElement('button');
+    retryAllBtn.type = 'button';
+    retryAllBtn.className = 'jd-action-btn jd-retry-btn';
+    retryAllBtn.textContent = `Retry All (${jobs.length})`;
+    retryAllBtn.addEventListener('click', () => retryActress());
+    retryAllRow.appendChild(retryAllBtn);
+    errorsView.appendChild(retryAllRow);
+
+    const list = document.createElement('ul');
+    list.className = 'jd-errors-list';
+    for (const job of jobs) {
+      const li = document.createElement('li');
+      li.className = 'jd-error-row';
+      li.innerHTML = `
+        <span class="jd-error-type">${esc(job.jobType)}</span>
+        <span class="jd-error-msg">${job.lastError ? esc(job.lastError) : '(no message)'}</span>
+        <span class="jd-error-attempts">${job.attempts} attempt${job.attempts !== 1 ? 's' : ''}</span>
+      `;
+      list.appendChild(li);
+    }
+    errorsView.appendChild(list);
+  } catch (_) {
+    errorsView.innerHTML = '<div class="jd-error">Network error.</div>';
+  }
+}
+
+// ── M3 actions ─────────────────────────────────────────────────────────────
+
+async function enrichActress() {
+  if (state.selectedId === null) return;
+  enrichBtn.disabled = true;
+  try {
+    await fetch(`/api/javdb/discovery/actresses/${state.selectedId}/enqueue`, { method: 'POST' });
+    await Promise.all([loadActresses(), refreshQueue()]);
+  } finally {
+    enrichBtn.disabled = false;
+  }
+}
+
+async function cancelActress() {
+  if (state.selectedId === null) return;
+  await fetch(`/api/javdb/discovery/actresses/${state.selectedId}/queue`, { method: 'DELETE' });
+  await refreshQueue();
+}
+
+async function cancelAll() {
+  if (!window.confirm('Cancel all pending javdb enrichment jobs?')) return;
+  await fetch('/api/javdb/discovery/queue', { method: 'DELETE' });
+  await refreshQueue();
+}
+
+async function togglePause() {
+  const newPaused = !state.paused;
+  await fetch('/api/javdb/discovery/queue/pause', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ paused: newPaused }),
+  });
+  await refreshQueue();
+}
+
+async function retryActress() {
+  if (state.selectedId === null) return;
+  await fetch(`/api/javdb/discovery/actresses/${state.selectedId}/retry`, { method: 'POST' });
+  await Promise.all([refreshQueue(), renderErrorsTab()]);
+}
+
+// ── Button wiring ──────────────────────────────────────────────────────────
+
+pauseBtn.addEventListener('click', togglePause);
+cancelAllBtn.addEventListener('click', cancelAll);
+enrichBtn.addEventListener('click', enrichActress);
+cancelActressBtn.addEventListener('click', cancelActress);
 
 subtabBtns.forEach(btn => {
   btn.addEventListener('click', async () => {

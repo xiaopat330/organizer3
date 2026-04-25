@@ -7,6 +7,7 @@ import org.jdbi.v3.core.Jdbi;
 
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
+import java.util.List;
 import java.util.Optional;
 
 /**
@@ -210,6 +211,30 @@ public class EnrichmentQueue {
         return jdbi.withHandle(h -> h.createQuery(
                 "SELECT COUNT(*) FROM javdb_enrichment_queue WHERE status IN ('pending', 'in_flight')")
                 .mapTo(Integer.class).one());
+    }
+
+    /** Returns all failed jobs for the given actress, ordered by updated_at desc. */
+    public List<EnrichmentJob> listFailedForActress(long actressId) {
+        return jdbi.withHandle(h -> h.createQuery("""
+                SELECT * FROM javdb_enrichment_queue
+                WHERE actress_id = :actressId AND status = 'failed'
+                ORDER BY updated_at DESC
+                """)
+                .bind("actressId", actressId)
+                .map(this::mapJob)
+                .list());
+    }
+
+    /** Resets all failed jobs for the actress back to pending so they will be retried. */
+    public void resetFailedForActress(long actressId) {
+        jdbi.useHandle(h -> h.createUpdate("""
+                UPDATE javdb_enrichment_queue
+                SET status = 'pending', next_attempt_at = :now, updated_at = :now
+                WHERE actress_id = :actressId AND status = 'failed'
+                """)
+                .bind("actressId", actressId)
+                .bind("now",       now())
+                .execute());
     }
 
     public int countPendingForActress(long actressId) {

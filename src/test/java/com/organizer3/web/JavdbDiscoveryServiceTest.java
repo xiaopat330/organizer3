@@ -1,10 +1,12 @@
 package com.organizer3.web;
 
 import com.organizer3.db.SchemaInitializer;
+import com.organizer3.javdb.enrichment.EnrichmentRunner;
 import org.jdbi.v3.core.Jdbi;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.Mockito;
 
 import java.sql.Connection;
 import java.sql.DriverManager;
@@ -23,7 +25,9 @@ class JavdbDiscoveryServiceTest {
         connection = DriverManager.getConnection("jdbc:sqlite::memory:");
         jdbi = Jdbi.create(connection);
         new SchemaInitializer(jdbi).initialize();
-        service = new JavdbDiscoveryService(jdbi);
+        EnrichmentRunner mockRunner = Mockito.mock(EnrichmentRunner.class);
+        Mockito.when(mockRunner.isPaused()).thenReturn(false);
+        service = new JavdbDiscoveryService(jdbi, mockRunner);
     }
 
     @AfterEach
@@ -249,6 +253,7 @@ class JavdbDiscoveryServiceTest {
         assertEquals(0, s.pending());
         assertEquals(0, s.inFlight());
         assertEquals(0, s.failed());
+        assertFalse(s.paused());
     }
 
     @Test

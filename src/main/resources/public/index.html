@@ -485,6 +485,10 @@
   <div class="jd-header">
     <span class="jd-title">javdb Discovery</span>
     <span class="jd-queue-badge" id="jd-queue-badge" style="display:none"></span>
+    <div class="jd-header-actions">
+      <button type="button" id="jd-pause-btn" class="jd-action-btn jd-pause-btn">Pause</button>
+      <button type="button" id="jd-cancel-all-btn" class="jd-action-btn jd-danger-btn">Cancel All</button>
+    </div>
   </div>
   <div class="jd-body">
     <aside class="jd-sidebar" id="jd-sidebar">
@@ -494,12 +498,18 @@
     <section class="jd-detail" id="jd-detail">
       <div class="jd-empty" id="jd-empty">Select an actress to view enrichment status.</div>
       <div class="jd-actress-panel" id="jd-actress-panel" style="display:none">
+        <div class="jd-panel-actions">
+          <button type="button" id="jd-enrich-btn" class="jd-action-btn jd-enrich-btn">Enrich All Titles</button>
+          <button type="button" id="jd-cancel-actress-btn" class="jd-action-btn jd-muted-btn">Cancel</button>
+        </div>
         <div class="jd-subnav">
           <button type="button" class="jd-subtab selected" data-tab="titles">Titles</button>
           <button type="button" class="jd-subtab" data-tab="profile">Profile</button>
+          <button type="button" class="jd-subtab" data-tab="errors">Errors</button>
         </div>
         <div class="jd-subview" id="jd-subview-titles"></div>
         <div class="jd-subview" id="jd-subview-profile" style="display:none"></div>
+        <div class="jd-subview" id="jd-subview-errors" style="display:none"></div>
       </div>
     </section>
   </div>

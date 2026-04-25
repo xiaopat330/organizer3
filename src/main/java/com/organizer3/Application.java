@@ -644,7 +644,8 @@ public class Application {
                 new com.organizer3.web.routes.MergeCandidatesRoutes(mergeCandidateRepo));
 
         webServer.registerJavdbDiscovery(new com.organizer3.web.routes.JavdbDiscoveryRoutes(
-                new com.organizer3.web.JavdbDiscoveryService(jdbi)));
+                new com.organizer3.web.JavdbDiscoveryService(jdbi, enrichmentRunner),
+                new com.organizer3.web.JavdbEnrichmentActionService(titleRepo, enrichmentQueue, enrichmentRunner)));
 
         webServer.registerBgThumbnails(new com.organizer3.web.routes.BgThumbnailsRoutes(
                 bgWorker, bgThumbnailsState));

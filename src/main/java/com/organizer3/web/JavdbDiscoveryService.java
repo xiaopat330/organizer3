@@ -1,6 +1,6 @@
 package com.organizer3.web;
 
-import lombok.RequiredArgsConstructor;
+import com.organizer3.javdb.enrichment.EnrichmentRunner;
 import org.jdbi.v3.core.Jdbi;
 
 import java.util.List;
@@ -11,10 +11,15 @@ import java.util.List;
  * Pulls from actresses, title_actresses, javdb_title_staging, javdb_actress_staging,
  * and javdb_enrichment_queue — no mutations.
  */
-@RequiredArgsConstructor
 public class JavdbDiscoveryService {
 
     private final Jdbi jdbi;
+    private final EnrichmentRunner runner;
+
+    public JavdbDiscoveryService(Jdbi jdbi, EnrichmentRunner runner) {
+        this.jdbi   = jdbi;
+        this.runner = runner;
+    }
 
     // ── Response records ───────────────────────────────────────────────────
 
@@ -49,7 +54,7 @@ public class JavdbDiscoveryService {
             Integer titleCount
     ) {}
 
-    public record QueueStatus(int pending, int inFlight, int failed) {}
+    public record QueueStatus(int pending, int inFlight, int failed, boolean paused) {}
 
     // ── Queries ────────────────────────────────────────────────────────────
 
@@ -148,6 +153,7 @@ public class JavdbDiscoveryService {
      * Returns current queue counts broken down by status.
      */
     public QueueStatus getQueueStatus() {
+        boolean isPaused = runner.isPaused();
         return jdbi.withHandle(h -> h.createQuery("""
                 SELECT
                   SUM(CASE WHEN status = 'pending'   THEN 1 ELSE 0 END) AS pending,
@@ -158,7 +164,8 @@ public class JavdbDiscoveryService {
                 .map((rs, ctx) -> new QueueStatus(
                         rs.getInt("pending"),
                         rs.getInt("in_flight"),
-                        rs.getInt("failed")
+                        rs.getInt("failed"),
+                        isPaused
                 ))
                 .one());
     }
