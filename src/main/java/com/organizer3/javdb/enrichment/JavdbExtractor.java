@@ -22,7 +22,7 @@ import java.util.regex.Pattern;
 public class JavdbExtractor {
 
     private static final Pattern DURATION_PATTERN = Pattern.compile("(\\d+)\\s*minute");
-    private static final Pattern RATING_AVG_PATTERN = Pattern.compile("([\\d.]+)\\s*/\\s*5");
+    private static final Pattern RATING_AVG_PATTERN = Pattern.compile("^\\s*([\\d.]+)");
     private static final Pattern RATING_COUNT_PATTERN = Pattern.compile("by\\s+(\\d+)\\s+user");
     private static final Pattern TITLE_COUNT_PATTERN = Pattern.compile("(\\d+)\\s*movie");
     private static final Pattern BACKGROUND_URL_PATTERN = Pattern.compile("url\\(([^)]+)\\)");
@@ -46,14 +46,13 @@ public class JavdbExtractor {
         String titleOriginal = extractCurrentTitle(doc);
         String coverUrl = extractCoverUrl(doc);
         List<String> thumbnailUrls = extractThumbnailUrls(doc);
-        Double ratingAvg = extractRatingAvg(doc);
-        Integer ratingCount = extractRatingCount(doc);
-
         String releaseDate = null;
         Integer durationMinutes = null;
         String maker = null;
         String publisher = null;
         String series = null;
+        Double ratingAvg = null;
+        Integer ratingCount = null;
         List<String> tags = new ArrayList<>();
         List<TitleExtract.CastEntry> cast = new ArrayList<>();
 
@@ -76,6 +75,19 @@ public class JavdbExtractor {
                 for (Element tag : block.select("a.tag, a[href*='/tags']")) {
                     String t = tag.text().trim();
                     if (!t.isEmpty()) tags.add(t);
+                }
+            } else if (labelText.startsWith("Rating")) {
+                Element valueSpan = block.selectFirst("span.value");
+                if (valueSpan != null) {
+                    String text = valueSpan.ownText().trim();
+                    Matcher mAvg = RATING_AVG_PATTERN.matcher(text);
+                    if (mAvg.find()) {
+                        try { ratingAvg = Double.parseDouble(mAvg.group(1)); } catch (NumberFormatException ignored) {}
+                    }
+                    Matcher mCnt = RATING_COUNT_PATTERN.matcher(text);
+                    if (mCnt.find()) {
+                        try { ratingCount = Integer.parseInt(mCnt.group(1)); } catch (NumberFormatException ignored) {}
+                    }
                 }
             } else if (labelText.contains("Actor")) {
                 cast = extractCast(block);
@@ -128,29 +140,6 @@ public class JavdbExtractor {
             if (!src.isEmpty()) urls.add(src);
         }
         return List.copyOf(urls);
-    }
-
-    private Double extractRatingAvg(Document doc) {
-        Element scoreTitle = doc.selectFirst(".score-title");
-        if (scoreTitle != null) {
-            try { return Double.parseDouble(scoreTitle.text().trim()); } catch (NumberFormatException ignored) {}
-        }
-        // Fallback: find text matching "X.X / 5"
-        String scoreText = doc.select(".score").text();
-        Matcher m = RATING_AVG_PATTERN.matcher(scoreText);
-        if (m.find()) {
-            try { return Double.parseDouble(m.group(1)); } catch (NumberFormatException ignored) {}
-        }
-        return null;
-    }
-
-    private Integer extractRatingCount(Document doc) {
-        String scoreText = doc.select(".score").text();
-        Matcher m = RATING_COUNT_PATTERN.matcher(scoreText);
-        if (m.find()) {
-            try { return Integer.parseInt(m.group(1)); } catch (NumberFormatException ignored) {}
-        }
-        return null;
     }
 
     private String panelValue(Element block) {
