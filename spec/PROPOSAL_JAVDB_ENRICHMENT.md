@@ -116,6 +116,7 @@ CREATE TABLE javdb_title_staging (
   raw_path            TEXT,                   -- relative to dataDir; NULL when not_found
   raw_fetched_at      TEXT,
   -- projected fields (re-derivable from raw JSON):
+  title_original      TEXT,                   -- Japanese title from javdb header
   release_date        TEXT,                   -- yyyy-mm-dd
   duration_minutes    INTEGER,
   maker               TEXT,
@@ -174,6 +175,7 @@ Existing canonical fields where staging *promotes* into the live tables:
 | Canonical field | Promote rule |
 |---|---|
 | `actresses.stage_name` | When `actresses.stage_name IS NULL`, set from any `cast_json` entry matching her slug. Auto-promote. |
+| `titles.title_original` | When `titles.title_original IS NULL`, set from `javdb_title_staging.title_original`. Auto-promote. |
 | `titles.release_date` | When `titles.release_date IS NULL`, set from `javdb_title_staging.release_date`. Auto-promote. |
 
 All other staged fields (duration, rating, series, maker, publisher, tags, avatar, socials, name variants, title count, cover URL, thumbnails) **never get promoted**. They live in staging and are read from staging by the Discovery screen and any future enriched views.
