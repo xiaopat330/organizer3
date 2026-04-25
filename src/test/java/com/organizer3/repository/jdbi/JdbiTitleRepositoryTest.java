@@ -451,6 +451,27 @@ class JdbiTitleRepositoryTest {
         assertEquals("ABP-003", page2.get(0).getCode());
     }
 
+    @Test
+    void findByVolumeAndPartitionExcludesUnderscorePrefixedFolders() {
+        saveWithLocation(titleInPartition("ABP-001", "pool"), "vol-pool", "pool", "/mnt/pool/ABP-001");
+        saveWithLocation(titleInPartition("ABP-002", "pool"), "vol-pool", "pool", "/mnt/pool/_sandbox");
+        saveWithLocation(titleInPartition("ABP-003", "pool"), "vol-pool", "pool", "/mnt/pool/_trash/ABP-003");
+
+        List<Title> results = titleRepo.findByVolumeAndPartition("vol-pool", "pool", 10, 0);
+        assertEquals(1, results.size());
+        assertEquals("ABP-001", results.get(0).getCode());
+    }
+
+    @Test
+    void findByVolumeAndPartitionFilteredExcludesUnderscorePrefixedFolders() {
+        saveWithLocation(titleInPartition("ABP-001", "pool"), "vol-pool", "pool", "/mnt/pool/ABP-001");
+        saveWithLocation(titleInPartition("ABP-002", "pool"), "vol-pool", "pool", "/mnt/pool/_sandbox");
+
+        List<Title> results = titleRepo.findByVolumeAndPartitionFiltered("vol-pool", "pool", List.of(), List.of(), 10, 0);
+        assertEquals(1, results.size());
+        assertEquals("ABP-001", results.get(0).getCode());
+    }
+
     // --- findByVolumePaged ---
 
     @Test

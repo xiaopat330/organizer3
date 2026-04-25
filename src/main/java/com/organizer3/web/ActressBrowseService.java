@@ -12,7 +12,9 @@ import com.organizer3.repository.LabelRepository;
 import com.organizer3.repository.TitleRepository;
 
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
@@ -36,7 +38,7 @@ import lombok.extern.slf4j.Slf4j;
 @RequiredArgsConstructor
 public class ActressBrowseService {
 
-    private static final int MAX_COVERS = 24;
+    private static final int MAX_COVERS = 12;
 
     private final ActressRepository actressRepo;
     private final TitleRepository titleRepo;
@@ -64,7 +66,7 @@ public class ActressBrowseService {
      */
     public List<ActressSummary> findRandom(int limit) {
         List<Actress> actresses = actressRepo.findRandom(limit);
-        return toSummaries(actresses);
+        return toSummaries(actresses, "random");
     }
 
     /**
@@ -72,7 +74,7 @@ public class ActressBrowseService {
      * title count, cover image URLs, and SMB folder paths.
      */
     public List<ActressSummary> findByPrefix(String prefix) {
-        return toSummaries(actressRepo.findByFirstNamePrefix(prefix));
+        return toSummaries(actressRepo.findByFirstNamePrefix(prefix), "prefix:" + prefix);
     }
 
     /**
@@ -91,7 +93,7 @@ public class ActressBrowseService {
         if (tierName != null && !tierName.isBlank()) {
             tier = Actress.Tier.valueOf(tierName.toUpperCase());
         }
-        return toSummaries(actressRepo.findByFirstNamePrefixPaged(letter, tier, limit, offset));
+        return toSummaries(actressRepo.findByFirstNamePrefixPaged(letter, tier, limit, offset), "prefix-paged:" + letter);
     }
 
     /**
@@ -100,10 +102,14 @@ public class ActressBrowseService {
      */
     public List<ActressSummary> findByVolumesPaged(List<String> volumeIds, String company,
                                                    int offset, int limit) {
+        long q0 = System.currentTimeMillis();
         List<Actress> hits = (company != null && !company.isBlank())
                 ? actressRepo.findByVolumesAndCompaniesPaged(volumeIds, List.of(company), limit, offset)
                 : actressRepo.findByVolumeIdsPaged(volumeIds, limit, offset);
-        return toSummaries(hits);
+        long q1 = System.currentTimeMillis();
+        log.warn(">>> PERF findByVolumesPaged volumes={} company={} offset={}: actressQuery={}ms",
+                volumeIds, company, offset, q1 - q0);
+        return toSummaries(hits, "volumes:" + String.join(",", volumeIds));
     }
 
     /**
@@ -114,7 +120,7 @@ public class ActressBrowseService {
      */
     public List<ActressSummary> findByTier(String tierName) {
         Actress.Tier tier = Actress.Tier.valueOf(tierName.toUpperCase());
-        return toSummaries(actressRepo.findByTier(tier));
+        return toSummaries(actressRepo.findByTier(tier), "tier:" + tierName);
     }
 
     /** Paginated tier query with optional company filter. */
@@ -123,32 +129,32 @@ public class ActressBrowseService {
         List<Actress> hits = (company != null && !company.isBlank())
                 ? actressRepo.findByTierAndCompaniesPaged(tier, List.of(company), limit, offset)
                 : actressRepo.findByTierPaged(tier, limit, offset);
-        return toSummaries(hits);
+        return toSummaries(hits, "tier-paged:" + tierName);
     }
 
     /** Paginated all-actresses query. */
     public List<ActressSummary> findAllPaged(int offset, int limit) {
-        return toSummaries(actressRepo.findAllPaged(limit, offset));
+        return toSummaries(actressRepo.findAllPaged(limit, offset), "all");
     }
 
     /** Paginated favorites query. */
     public List<ActressSummary> findFavoritesPaged(int offset, int limit) {
-        return toSummaries(actressRepo.findFavoritesPaged(limit, offset));
+        return toSummaries(actressRepo.findFavoritesPaged(limit, offset), "favorites");
     }
 
     /** Returns up to {@code limit} most recently visited actresses, newest visit first. */
     public List<ActressSummary> findLastVisited(int limit) {
-        return toSummaries(actressRepo.findLastVisited(limit));
+        return toSummaries(actressRepo.findLastVisited(limit), "last-visited");
     }
 
     /** Returns up to {@code limit} most-visited actresses, highest visit count first. */
     public List<ActressSummary> findMostVisited(int limit) {
-        return toSummaries(actressRepo.findMostVisited(limit));
+        return toSummaries(actressRepo.findMostVisited(limit), "most-visited");
     }
 
     /** Paginated bookmarks query. */
     public List<ActressSummary> findBookmarksPaged(int offset, int limit) {
-        return toSummaries(actressRepo.findBookmarksPaged(limit, offset));
+        return toSummaries(actressRepo.findBookmarksPaged(limit, offset), "bookmarks");
     }
 
     /**
@@ -162,7 +168,7 @@ public class ActressBrowseService {
                                                        int offset, int limit) {
         List<String> companies = resolveQueryCompanies(groupSlug, companyFilter);
         if (companies.isEmpty()) return List.of();
-        return toSummaries(actressRepo.findByStudioGroupCompaniesPaged(companies, limit, offset));
+        return toSummaries(actressRepo.findByStudioGroupCompaniesPaged(companies, limit, offset), "studio-group:" + groupSlug);
     }
 
     /**
@@ -211,7 +217,7 @@ public class ActressBrowseService {
      * starts with {@code query}, case-insensitively.
      */
     public List<ActressSummary> searchByNamePaged(String query, int offset, int limit) {
-        return toSummaries(actressRepo.searchByNamePrefixPaged(query, limit, offset));
+        return toSummaries(actressRepo.searchByNamePrefixPaged(query, limit, offset), "search:" + query);
     }
 
     /**
@@ -219,7 +225,7 @@ public class ActressBrowseService {
      */
     public Optional<ActressSummary> findById(long id) {
         return actressRepo.findById(id).map(a -> {
-            SummaryContext ctx = buildContext(List.of(a));
+            SummaryContext ctx = buildContext(List.of(a), "findById:" + id);
             return toSummary(a, ctx);
         });
     }
@@ -228,7 +234,7 @@ public class ActressBrowseService {
     public List<ActressSummary> findByIds(List<Long> ids) {
         if (ids == null || ids.isEmpty()) return List.of();
         List<Actress> actresses = actressRepo.findByIds(ids);
-        SummaryContext ctx = buildContext(actresses);
+        SummaryContext ctx = buildContext(actresses, "findByIds");
         Map<Long, ActressSummary> byId = actresses.stream()
                 .collect(Collectors.toMap(Actress::getId, a -> toSummary(a, ctx)));
         return ids.stream().map(byId::get).filter(Objects::nonNull).toList();
@@ -348,35 +354,45 @@ public class ActressBrowseService {
             Map<String, Actress> primaryByCanonicalName
     ) {}
 
-    private List<ActressSummary> toSummaries(List<Actress> actresses) {
+    private List<ActressSummary> toSummaries(List<Actress> actresses, String label) {
         if (actresses.isEmpty()) return List.of();
-        SummaryContext ctx = buildContext(actresses);
+        SummaryContext ctx = buildContext(actresses, label);
         return actresses.stream().map(a -> toSummary(a, ctx)).toList();
     }
 
-    private SummaryContext buildContext(List<Actress> actresses) {
+    private SummaryContext buildContext(List<Actress> actresses, String label) {
         List<Long> ids = actresses.stream().map(Actress::getId).toList();
+        long t0 = System.currentTimeMillis();
 
         // 1. All titles for all actresses in one UNION query.
         Map<Long, List<Title>> titlesByActress = titleRepo.findByActressIds(ids);
+        long t1 = System.currentTimeMillis();
 
-        // 2. Cover URLs: probe filesystem once per unique title.
+        // 2. Cover URLs: probe at most MAX_COVERS titles per actress in random order.
         Map<Long, String> coverUrlByTitleId = new HashMap<>();
         for (List<Title> titles : titlesByActress.values()) {
-            for (Title t : titles) {
+            List<Title> shuffled = new ArrayList<>(titles);
+            Collections.shuffle(shuffled);
+            int found = 0;
+            for (Title t : shuffled) {
+                if (found >= MAX_COVERS) break;
                 if (!coverUrlByTitleId.containsKey(t.getId())) {
                     coverPath.find(t).ifPresent(p ->
                             coverUrlByTitleId.put(t.getId(),
                                     "/covers/" + t.getLabel().toUpperCase() + "/" + p.getFileName()));
                 }
+                if (coverUrlByTitleId.containsKey(t.getId())) found++;
             }
         }
+        long t2 = System.currentTimeMillis();
 
         // 3. Label map — one query for the whole batch.
         Map<String, Label> labelMap = labelRepo.findAllAsMap();
+        long t3 = System.currentTimeMillis();
 
         // 4. Aliases — one query for the whole batch.
         Map<Long, List<ActressAlias>> aliasesByActress = actressRepo.findAliasesForActresses(ids);
+        long t4 = System.currentTimeMillis();
 
         // 5. alias name → actress id (for AliasDto.actressId resolution).
         List<String> allAliasNames = aliasesByActress.values().stream()
@@ -385,10 +401,17 @@ public class ActressBrowseService {
                 .distinct()
                 .toList();
         Map<String, Long> aliasNameToActressId = actressRepo.findCanonicalNameIds(allAliasNames);
+        long t5 = System.currentTimeMillis();
 
         // 6. canonical name → primary actress (for each actress's own canonical name).
         List<String> canonicalNames = actresses.stream().map(Actress::getCanonicalName).toList();
         Map<String, Actress> primaryByCanonicalName = actressRepo.findPrimaryForAliases(canonicalNames);
+        long t6 = System.currentTimeMillis();
+
+        int totalTitles = titlesByActress.values().stream().mapToInt(List::size).sum();
+        log.warn(">>> PERF buildContext [{}] n={} titles={}: findByActressIds={}ms covers={}ms labelMap={}ms aliases={}ms canonicalNameIds={}ms primaryForAliases={}ms TOTAL={}ms",
+                label, ids.size(), totalTitles,
+                t1-t0, t2-t1, t3-t2, t4-t3, t5-t4, t6-t5, t6-t0);
 
         return new SummaryContext(
                 titlesByActress, coverUrlByTitleId, labelMap,
@@ -807,7 +830,7 @@ public class ActressBrowseService {
         if (excludeId != null) exclude.add(excludeId);
         Actress picked = pickSpotlight(exclude);
         if (picked == null) return null;
-        SummaryContext ctx = buildContext(List.of(picked));
+        SummaryContext ctx = buildContext(List.of(picked), "spotlight");
         return toSummary(picked, ctx);
     }
 
@@ -869,7 +892,7 @@ public class ActressBrowseService {
                 .flatMap(Collection::stream)
                 .distinct()
                 .toList();
-        SummaryContext ctx = buildContext(allDashboardActresses);
+        SummaryContext ctx = buildContext(allDashboardActresses, "dashboard");
 
         List<ResearchGapEntry> researchGaps = gapActresses.stream()
                 .map(a -> {

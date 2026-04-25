@@ -420,11 +420,12 @@ public class JdbiActressRepository implements ActressRepository {
         return jdbi.withHandle(h ->
                 h.createQuery("""
                         SELECT a.* FROM actresses a
-                        WHERE EXISTS (
-                            SELECT 1 FROM titles t
-                            JOIN title_locations tl ON tl.title_id = t.id
-                            WHERE t.actress_id = a.id
-                              AND tl.volume_id IN (<volumeIds>)
+                        WHERE a.id IN (
+                            SELECT DISTINCT t.actress_id
+                            FROM title_locations tl
+                            JOIN titles t ON t.id = tl.title_id
+                            WHERE tl.volume_id IN (<volumeIds>)
+                              AND t.actress_id IS NOT NULL
                         )
                         ORDER BY (a.favorite + a.bookmark) DESC, a.canonical_name
                         LIMIT :limit OFFSET :offset
@@ -446,16 +447,16 @@ public class JdbiActressRepository implements ActressRepository {
                 h.createQuery("""
                         SELECT a.* FROM actresses a
                         WHERE a.rejected = 0
-                          AND EXISTS (
-                            SELECT 1 FROM titles t
-                            JOIN title_locations tl ON tl.title_id = t.id
-                            WHERE t.actress_id = a.id
-                              AND tl.volume_id IN (<volumeIds>)
+                          AND a.id IN (
+                            SELECT DISTINCT t.actress_id
+                            FROM title_locations tl
+                            JOIN titles t ON t.id = tl.title_id
+                            WHERE tl.volume_id IN (<volumeIds>)
+                              AND t.actress_id IS NOT NULL
                           )
-                          AND EXISTS (
-                            SELECT 1 FROM actress_companies ac
-                            WHERE ac.actress_id = a.id
-                              AND ac.company IN (<companies>)
+                          AND a.id IN (
+                            SELECT actress_id FROM actress_companies
+                            WHERE company IN (<companies>)
                           )
                         ORDER BY (a.favorite + a.bookmark) DESC, a.canonical_name
                         LIMIT :limit OFFSET :offset

@@ -518,6 +518,7 @@ public class JdbiTitleRepository implements TitleRepository {
                         SELECT t.* FROM titles t
                         JOIN title_locations tl ON t.id = tl.title_id
                         WHERE tl.volume_id = :volumeId AND tl.partition_id = :partitionId
+                          AND instr('/' || tl.path, '/_') = 0
                         GROUP BY t.id
                         ORDER BY t.favorite DESC, t.bookmark DESC, MIN(tl.added_date) DESC, t.id DESC
                         LIMIT :limit OFFSET :offset
@@ -569,6 +570,7 @@ public class JdbiTitleRepository implements TitleRepository {
             sql.append("JOIN title_effective_tags tet ON tet.title_id = t.id AND tet.tag IN (<tags>)\n");
         }
         sql.append("WHERE tl.volume_id = :volumeId AND tl.partition_id = :partitionId\n");
+        sql.append("  AND instr('/' || tl.path, '/_') = 0\n");
         if (!labels.isEmpty()) {
             sql.append("AND t.label IN (<labels>)\n");
         }
@@ -615,6 +617,7 @@ public class JdbiTitleRepository implements TitleRepository {
                         FROM title_effective_tags tet
                         JOIN title_locations tl ON tl.title_id = tet.title_id
                         WHERE tl.volume_id = :volumeId AND tl.partition_id = :partitionId
+                          AND instr('/' || tl.path, '/_') = 0
                         ORDER BY tet.tag
                         """)
                         .bind("volumeId", volumeId)
