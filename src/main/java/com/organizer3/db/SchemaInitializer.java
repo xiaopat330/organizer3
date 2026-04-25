@@ -366,12 +366,68 @@ public class SchemaInitializer {
                         UNIQUE(title_code_a, title_code_b)
                     )""");
 
+            // javdb_enrichment_queue (v24)
+            h.execute("""
+                    CREATE TABLE IF NOT EXISTS javdb_enrichment_queue (
+                        id              INTEGER PRIMARY KEY AUTOINCREMENT,
+                        job_type        TEXT NOT NULL,
+                        target_id       INTEGER NOT NULL,
+                        actress_id      INTEGER NOT NULL,
+                        status          TEXT NOT NULL,
+                        attempts        INTEGER NOT NULL DEFAULT 0,
+                        next_attempt_at TEXT NOT NULL,
+                        last_error      TEXT,
+                        created_at      TEXT NOT NULL,
+                        updated_at      TEXT NOT NULL
+                    )""");
+            h.execute("CREATE INDEX IF NOT EXISTS idx_jeq_claim   ON javdb_enrichment_queue(status, next_attempt_at)");
+            h.execute("CREATE INDEX IF NOT EXISTS idx_jeq_actress ON javdb_enrichment_queue(actress_id, status)");
+
+            // javdb_title_staging (v24)
+            h.execute("""
+                    CREATE TABLE IF NOT EXISTS javdb_title_staging (
+                        title_id            INTEGER PRIMARY KEY REFERENCES titles(id),
+                        status              TEXT NOT NULL,
+                        javdb_slug          TEXT,
+                        raw_path            TEXT,
+                        raw_fetched_at      TEXT,
+                        title_original      TEXT,
+                        release_date        TEXT,
+                        duration_minutes    INTEGER,
+                        maker               TEXT,
+                        publisher           TEXT,
+                        series              TEXT,
+                        rating_avg          REAL,
+                        rating_count        INTEGER,
+                        tags_json           TEXT,
+                        cast_json           TEXT,
+                        cover_url           TEXT,
+                        thumbnail_urls_json TEXT
+                    )""");
+
+            // javdb_actress_staging (v24)
+            h.execute("""
+                    CREATE TABLE IF NOT EXISTS javdb_actress_staging (
+                        actress_id          INTEGER PRIMARY KEY REFERENCES actresses(id),
+                        javdb_slug          TEXT NOT NULL,
+                        source_title_code   TEXT,
+                        status              TEXT NOT NULL,
+                        raw_path            TEXT,
+                        raw_fetched_at      TEXT,
+                        name_variants_json  TEXT,
+                        avatar_url          TEXT,
+                        twitter_handle      TEXT,
+                        instagram_handle    TEXT,
+                        title_count         INTEGER
+                    )""");
+            h.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_javdb_actress_slug ON javdb_actress_staging(javdb_slug)");
+
             // Only stamp version on fresh installs (user_version = 0).
             // On an existing DB the CREATE TABLE statements above are all no-ops, so we must
             // leave the version alone and let SchemaUpgrader apply any missing migrations.
             int currentVersion = h.createQuery("PRAGMA user_version").mapTo(Integer.class).one();
             if (currentVersion == 0) {
-                h.execute("PRAGMA user_version = 23");
+                h.execute("PRAGMA user_version = 24");
             }
         });
         log.info("Schema initialization complete");

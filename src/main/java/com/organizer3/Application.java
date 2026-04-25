@@ -48,6 +48,7 @@ import com.organizer3.command.ActressesCommand;
 
 import com.organizer3.command.Command;
 import com.organizer3.command.FavoritesCommand;
+import com.organizer3.command.EnrichActressCommand;
 import com.organizer3.command.LoadActressCommand;
 import com.organizer3.command.HelpCommand;
 import com.organizer3.command.BackgroundThumbsCommand;
@@ -374,6 +375,22 @@ public class Application {
                     dataDir.resolve("bg-thumbnails-state.json"), bgWorker.isEnabled());
         }
         commands.add(new BackgroundThumbsCommand(bgWorker));
+
+        // javdb enrichment runner — see spec/PROPOSAL_JAVDB_ENRICHMENT.md
+        com.organizer3.javdb.JavdbConfig javdbConfig = config.javdbOrDefaults();
+        com.fasterxml.jackson.databind.ObjectMapper jsonMapper = new com.fasterxml.jackson.databind.ObjectMapper();
+        com.organizer3.javdb.HttpJavdbClient javdbClient = new com.organizer3.javdb.HttpJavdbClient(javdbConfig);
+        com.organizer3.javdb.enrichment.JavdbStagingRepository javdbStagingRepo =
+                new com.organizer3.javdb.enrichment.JavdbStagingRepository(jdbi, jsonMapper, dataDir);
+        com.organizer3.javdb.enrichment.EnrichmentQueue enrichmentQueue =
+                new com.organizer3.javdb.enrichment.EnrichmentQueue(jdbi, javdbConfig);
+        com.organizer3.javdb.enrichment.EnrichmentRunner enrichmentRunner =
+                new com.organizer3.javdb.enrichment.EnrichmentRunner(
+                        javdbConfig, javdbClient,
+                        new com.organizer3.javdb.enrichment.JavdbExtractor(),
+                        new com.organizer3.javdb.enrichment.JavdbProjector(jsonMapper),
+                        javdbStagingRepo, enrichmentQueue, titleRepo, actressRepo);
+        commands.add(new EnrichActressCommand(actressRepo, titleRepo, enrichmentQueue));
 
         // Sync commands — registered dynamically from syncConfig.
         // Group by term so that a term shared across structure types (e.g. sync all)
@@ -745,6 +762,7 @@ public class Application {
 
         webServer.start();
         bgWorker.start();
+        if (javdbConfig.enabledOrDefault()) enrichmentRunner.start();
         trashSweepScheduler.start(24);
 
         OrganizerShell shell = new OrganizerShell(session, dispatcher);
@@ -752,6 +770,7 @@ public class Application {
 
         webServer.stop();
         bgWorker.stop();
+        enrichmentRunner.stop();
         trashSweepScheduler.stop();
         backupScheduler.stop();
         probeJobRunner.shutdown();
