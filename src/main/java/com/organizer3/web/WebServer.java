@@ -159,6 +159,11 @@ public class WebServer {
         routes.register(app);
     }
 
+    /** Mounts the javdb Discovery read-only endpoints ({@code /api/javdb/discovery/*}). */
+    public void registerJavdbDiscovery(com.organizer3.web.routes.JavdbDiscoveryRoutes routes) {
+        routes.register(app);
+    }
+
     /**
      * Mounts the title-detail tag editor endpoints
      * ({@code GET /api/titles/{code}/tag-state}, {@code PUT /api/titles/{code}/tags}).

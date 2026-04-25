@@ -268,6 +268,10 @@
       <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
       Logs
     </button>
+    <button type="button" id="tools-javdb-discovery-btn" class="action-tool-btn tools-javdb-discovery-btn">
+      <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      javdb
+    </button>
   </div>
 </div>
 
@@ -473,6 +477,31 @@
       <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
       Latest
     </button>
+  </div>
+</div>
+
+<!-- javdb Discovery tool content -->
+<div id="tools-javdb-discovery-view" class="tools-javdb-discovery-view" style="display:none">
+  <div class="jd-header">
+    <span class="jd-title">javdb Discovery</span>
+    <span class="jd-queue-badge" id="jd-queue-badge" style="display:none"></span>
+  </div>
+  <div class="jd-body">
+    <aside class="jd-sidebar" id="jd-sidebar">
+      <div class="jd-sidebar-header">Actresses</div>
+      <ul class="jd-actress-list" id="jd-actress-list"></ul>
+    </aside>
+    <section class="jd-detail" id="jd-detail">
+      <div class="jd-empty" id="jd-empty">Select an actress to view enrichment status.</div>
+      <div class="jd-actress-panel" id="jd-actress-panel" style="display:none">
+        <div class="jd-subnav">
+          <button type="button" class="jd-subtab selected" data-tab="titles">Titles</button>
+          <button type="button" class="jd-subtab" data-tab="profile">Profile</button>
+        </div>
+        <div class="jd-subview" id="jd-subview-titles"></div>
+        <div class="jd-subview" id="jd-subview-profile" style="display:none"></div>
+      </div>
+    </section>
   </div>
 </div>
 

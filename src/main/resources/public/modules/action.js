@@ -14,6 +14,7 @@ import { showAvStarsView, hideAvStarsView } from './utilities-av-stars.js';
 import { showDupTriageView, hideDupTriageView, wireDupTriageEvents } from './utilities-duplicate-triage.js';
 import { showMergeCandidatesView, hideMergeCandidatesView, wireMergeCandidatesEvents } from './utilities-merge-candidates.js';
 import { showTrashView, hideTrashView } from './utilities-trash.js';
+import { showJavdbDiscoveryView, hideJavdbDiscoveryView } from './utilities-javdb-discovery.js';
 
 // ── DOM refs ──────────────────────────────────────────────────────────────
 const actionBtn         = document.getElementById('action-btn');
@@ -25,7 +26,8 @@ const avStarsBtn        = document.getElementById('tools-av-stars-btn');
 const duplicatesBtn     = document.getElementById('tools-duplicates-btn');
 const trashBtn          = document.getElementById('tools-trash-btn');
 const queueBtn          = document.getElementById('tools-queue-btn');
-const logsBtn           = document.getElementById('tools-logs-btn');
+const logsBtn              = document.getElementById('tools-logs-btn');
+const javdbDiscoveryBtn    = document.getElementById('tools-javdb-discovery-btn');
 const duplicatesView    = document.getElementById('tools-duplicates-view');
 const duplicatesFilters = document.getElementById('tools-duplicates-filters');
 const duplicatesList    = document.getElementById('tools-duplicates-list');
@@ -41,7 +43,7 @@ const dupTriageTab      = document.getElementById('tools-dup-triage-tab');
 const mergeCandidatesTab = document.getElementById('tools-merge-candidates-tab');
 
 // ── Tool buttons ──────────────────────────────────────────────────────────
-const TOOL_BTNS = [volumesBtn, actressDataBtn, backupBtn, libraryHealthBtn, avStarsBtn, duplicatesBtn, trashBtn, queueBtn, logsBtn];
+const TOOL_BTNS = [volumesBtn, actressDataBtn, backupBtn, libraryHealthBtn, avStarsBtn, duplicatesBtn, trashBtn, queueBtn, logsBtn, javdbDiscoveryBtn];
 
 function selectTool(btn) {
   TOOL_BTNS.forEach(b => b?.classList.remove('selected'));
@@ -60,6 +62,7 @@ function hideAllToolViews() {
   hideDupTriageView();
   hideMergeCandidatesView();
   hideTrashView();
+  hideJavdbDiscoveryView();
   dupSubnav.style.display         = 'none';
   duplicatesView.style.display    = 'none';
   duplicatesFilters.style.display = 'none';
@@ -385,4 +388,12 @@ logsBtn.addEventListener('click', () => {
   updateBreadcrumb([{ label: 'Tools' }, { label: 'Logs' }]);
   hideAllToolViews();
   showLogsView();
+});
+
+javdbDiscoveryBtn.addEventListener('click', () => {
+  showActionView('javdb-discovery');
+  selectTool(javdbDiscoveryBtn);
+  updateBreadcrumb([{ label: 'Tools' }, { label: 'javdb Discovery' }]);
+  hideAllToolViews();
+  showJavdbDiscoveryView();
 });
