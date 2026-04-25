@@ -343,6 +343,55 @@ Each milestone is independently shippable.
 
 ---
 
+## Implementation guidance
+
+### Cast matching is trivial
+
+Title fetch jobs are always scoped to a specific actress — the queue row's `actress_id`. There is no need for a generic "match javdb actress to our DB" algorithm. When parsing `cast_json`, look for entries whose `kanji` matches the owning actress's `actresses.stage_name` or any `actress_aliases.alias`. If found, that javdb slug is hers — write/update `javdb_actress_staging` with the slug and `source_title_code`. If not found, the title doesn't help us discover her slug; `cast_json` is still saved verbatim for reference but no actress staging update happens.
+
+The runner can resolve the owning actress via `actress_id` (denormalized on the queue row) at job execution time; no need to also denormalize `canonical_name` into the queue.
+
+### Job chaining via completion hook
+
+The runner's per-job completion handler checks: *"if this was a `fetch_title` and it just produced a slug for actress X who has no `javdb_actress_staging.raw_path` populated and no `fetch_actress_profile` job already pending for her, enqueue one."* Keeps the dependency logic in code, not in the queue schema.
+
+### Conflict predicate (Conflicts tab query)
+
+A title is in conflict when it's been enriched but none of its javdb cast entries map back to the actress credited in our DB:
+
+```sql
+SELECT t.id, t.code, t.actress_id, ts.cast_json
+FROM javdb_title_staging ts
+JOIN titles t ON t.id = ts.title_id
+WHERE ts.status = 'fetched'
+  AND NOT EXISTS (
+    SELECT 1 FROM json_each(ts.cast_json) je
+    JOIN javdb_actress_staging a
+      ON a.javdb_slug = json_extract(je.value, '$.slug')
+    WHERE a.actress_id = t.actress_id
+  );
+```
+
+(The ONED-539 case: our DB credits Azusa Isshiki; javdb cast is Sora Aoi only; Sora's slug `8ORE` doesn't map to Azusa's row → conflict.)
+
+### Unrecognized actresses in cast
+
+If a cast entry's kanji doesn't match any actress in our DB (via `stage_name` or `actress_aliases`), we **ignore** it. Discovery is collection-scoped — we don't enrich actresses outside our collection.
+
+### Config schema (`organizer-config.yaml`)
+
+```yaml
+javdb:
+  enabled: true                       # whether the runner starts on boot
+  rate_limit_per_sec: 1               # token bucket fill rate in HttpJavdbClient
+  max_attempts: 3                     # before a job goes to status=failed
+  backoff_minutes: [1, 5, 30]         # per-attempt delays
+  rate_429_pause_minutes: 5           # global pause when 429 received
+  user_agent: "Mozilla/5.0 ..."       # optional override; sensible default in code
+```
+
+---
+
 ## Open items deferred to implementation time
 
 - **Schema migration version number** — picks up next `applyVN()` slot in `SchemaUpgrader`.
