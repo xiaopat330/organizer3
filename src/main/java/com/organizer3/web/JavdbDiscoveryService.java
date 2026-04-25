@@ -56,6 +56,13 @@ public class JavdbDiscoveryService {
 
     public record QueueStatus(int pending, int inFlight, int failed, boolean paused) {}
 
+    public record ConflictRow(
+            long titleId,
+            String code,
+            String ourActressName,
+            String castJson
+    ) {}
+
     // ── Queries ────────────────────────────────────────────────────────────
 
     /**
@@ -147,6 +154,36 @@ public class JavdbDiscoveryService {
                 ))
                 .findOne()
                 .orElse(null));
+    }
+
+    /**
+     * Returns titles in conflict for the actress: enriched titles where no javdb cast entry's
+     * slug maps back to this actress's javdb_actress_staging row.
+     */
+    public List<ConflictRow> getActressConflicts(long actressId) {
+        return jdbi.withHandle(h -> h.createQuery("""
+                SELECT t.id AS title_id, t.code, a.canonical_name AS our_actress_name, ts.cast_json
+                FROM javdb_title_staging ts
+                JOIN titles t ON t.id = ts.title_id
+                JOIN title_actresses ta ON ta.title_id = t.id AND ta.actress_id = :actressId
+                JOIN actresses a ON a.id = :actressId
+                WHERE ts.status = 'fetched'
+                  AND NOT EXISTS (
+                    SELECT 1 FROM json_each(ts.cast_json) je
+                    JOIN javdb_actress_staging jas
+                        ON jas.javdb_slug = json_extract(je.value, '$.slug')
+                    WHERE jas.actress_id = :actressId
+                  )
+                ORDER BY t.code
+                """)
+                .bind("actressId", actressId)
+                .map((rs, ctx) -> new ConflictRow(
+                        rs.getLong("title_id"),
+                        rs.getString("code"),
+                        rs.getString("our_actress_name"),
+                        rs.getString("cast_json")
+                ))
+                .list());
     }
 
     /**

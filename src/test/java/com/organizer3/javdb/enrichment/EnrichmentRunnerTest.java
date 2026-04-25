@@ -72,7 +72,8 @@ class EnrichmentRunnerTest {
         };
 
         EnrichmentRunner runner = new EnrichmentRunner(
-                CONFIG, fakeClient, extractor, projector, stagingRepo, queue, titleRepo, actressRepo);
+                CONFIG, fakeClient, extractor, projector, stagingRepo, queue, titleRepo, actressRepo,
+                new AutoPromoter(jdbi));
 
         queue.enqueueTitle(titleId, actressId);
         runner.runOneStep();
@@ -117,7 +118,8 @@ class EnrichmentRunnerTest {
         };
 
         EnrichmentRunner runner = new EnrichmentRunner(
-                CONFIG, fakeClient, extractor, projector, stagingRepo, queue, titleRepo, actressRepo);
+                CONFIG, fakeClient, extractor, projector, stagingRepo, queue, titleRepo, actressRepo,
+                new AutoPromoter(jdbi));
 
         queue.enqueueTitle(titleId, actressId);
         runner.runOneStep();

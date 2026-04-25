@@ -43,6 +43,7 @@ public class EnrichmentRunner {
     private final EnrichmentQueue queue;
     private final TitleRepository titleRepo;
     private final ActressRepository actressRepo;
+    private final AutoPromoter autoPromoter;
 
     private final AtomicBoolean stopRequested = new AtomicBoolean(false);
     private final AtomicBoolean paused = new AtomicBoolean(false);
@@ -59,7 +60,8 @@ public class EnrichmentRunner {
             JavdbStagingRepository stagingRepo,
             EnrichmentQueue queue,
             TitleRepository titleRepo,
-            ActressRepository actressRepo) {
+            ActressRepository actressRepo,
+            AutoPromoter autoPromoter) {
         this.config = config;
         this.client = client;
         this.searchParser = new JavdbSearchParser();
@@ -69,6 +71,7 @@ public class EnrichmentRunner {
         this.queue = queue;
         this.titleRepo = titleRepo;
         this.actressRepo = actressRepo;
+        this.autoPromoter = autoPromoter;
     }
 
     public synchronized void start() {
@@ -193,6 +196,7 @@ public class EnrichmentRunner {
         matchAndRecordActressSlug(actressId, title.getCode(), extract.cast());
 
         queue.markDone(job.id());
+        autoPromoter.promoteFromTitle(titleId, actressId);
 
         // Completion hook: enqueue fetch_actress_profile if we now have a slug but no profile
         triggerActressProfileIfNeeded(actressId);
@@ -225,6 +229,7 @@ public class EnrichmentRunner {
         stagingRepo.upsertActress(row);
 
         queue.markDone(job.id());
+        autoPromoter.promoteActressStageName(actressId);
     }
 
     private void matchAndRecordActressSlug(long actressId, String titleCode, List<TitleExtract.CastEntry> cast) {

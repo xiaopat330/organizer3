@@ -28,6 +28,7 @@ const cancelActressBtn  = document.getElementById('jd-cancel-actress-btn');
 const subtabBtns        = panel?.querySelectorAll('.jd-subtab') ?? [];
 const titlesView        = document.getElementById('jd-subview-titles');
 const profileView       = document.getElementById('jd-subview-profile');
+const conflictsView     = document.getElementById('jd-subview-conflicts');
 const errorsView        = document.getElementById('jd-subview-errors');
 
 // ── Public API ─────────────────────────────────────────────────────────────
@@ -139,6 +140,8 @@ async function renderActiveTab() {
     await renderTitlesTab();
   } else if (state.activeTab === 'profile') {
     await renderProfileTab();
+  } else if (state.activeTab === 'conflicts') {
+    await renderConflictsTab();
   } else {
     await renderErrorsTab();
   }
@@ -147,9 +150,10 @@ async function renderActiveTab() {
 // ── Titles tab ─────────────────────────────────────────────────────────────
 
 async function renderTitlesTab() {
-  titlesView.style.display   = '';
-  profileView.style.display  = 'none';
-  errorsView.style.display   = 'none';
+  titlesView.style.display    = '';
+  profileView.style.display   = 'none';
+  conflictsView.style.display = 'none';
+  errorsView.style.display    = 'none';
   titlesView.innerHTML = '<div class="jd-loading">Loading…</div>';
   try {
     const res = await fetch(`/api/javdb/discovery/actresses/${state.selectedId}/titles`);
@@ -188,9 +192,10 @@ function titleRow(t) {
 // ── Profile tab ────────────────────────────────────────────────────────────
 
 async function renderProfileTab() {
-  profileView.style.display  = '';
-  titlesView.style.display   = 'none';
-  errorsView.style.display   = 'none';
+  profileView.style.display   = '';
+  titlesView.style.display    = 'none';
+  conflictsView.style.display = 'none';
+  errorsView.style.display    = 'none';
   profileView.innerHTML = '<div class="jd-loading">Loading…</div>';
   try {
     const res = await fetch(`/api/javdb/discovery/actresses/${state.selectedId}/profile`);
@@ -221,10 +226,55 @@ async function renderProfileTab() {
 
 // ── Errors tab ─────────────────────────────────────────────────────────────
 
+async function renderConflictsTab() {
+  conflictsView.style.display = '';
+  titlesView.style.display    = 'none';
+  profileView.style.display   = 'none';
+  errorsView.style.display    = 'none';
+  conflictsView.innerHTML = '<div class="jd-loading">Loading…</div>';
+  try {
+    const res = await fetch(`/api/javdb/discovery/actresses/${state.selectedId}/conflicts`);
+    if (!res.ok) { conflictsView.innerHTML = '<div class="jd-error">Failed to load conflicts.</div>'; return; }
+    const rows = await res.json();
+    if (rows.length === 0) {
+      conflictsView.innerHTML = '<div class="jd-empty-tab">No conflicts — javdb cast matches for all enriched titles.</div>';
+      return;
+    }
+    conflictsView.innerHTML = `
+      <table class="jd-titles-table jd-conflicts-table">
+        <thead><tr>
+          <th>Code</th><th>Our Attribution</th><th>javdb Cast</th>
+        </tr></thead>
+        <tbody>${rows.map(conflictRow).join('')}</tbody>
+      </table>
+    `;
+  } catch (_) {
+    conflictsView.innerHTML = '<div class="jd-error">Network error.</div>';
+  }
+}
+
+function conflictRow(r) {
+  const cast = parseCast(r.castJson);
+  const castNames = cast.length > 0
+    ? cast.map(e => esc(e.name)).join(', ')
+    : '<span class="jd-muted">—</span>';
+  return `<tr>
+    <td class="jd-code">${esc(r.code)}</td>
+    <td>${esc(r.ourActressName)}</td>
+    <td class="jd-conflict-cast">${castNames}</td>
+  </tr>`;
+}
+
+function parseCast(castJson) {
+  if (!castJson) return [];
+  try { return JSON.parse(castJson); } catch (_) { return []; }
+}
+
 async function renderErrorsTab() {
-  errorsView.style.display   = '';
-  titlesView.style.display   = 'none';
-  profileView.style.display  = 'none';
+  errorsView.style.display    = '';
+  titlesView.style.display    = 'none';
+  profileView.style.display   = 'none';
+  conflictsView.style.display = 'none';
   errorsView.innerHTML = '<div class="jd-loading">Loading…</div>';
   try {
     const res = await fetch(`/api/javdb/discovery/actresses/${state.selectedId}/errors`);

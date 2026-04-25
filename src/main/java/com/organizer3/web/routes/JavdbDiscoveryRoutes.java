@@ -90,6 +90,12 @@ public class JavdbDiscoveryRoutes {
             if (id < 0) { ctx.status(400); return; }
             ctx.json(actionService.getErrorsForActress(id));
         });
+
+        app.get("/api/javdb/discovery/actresses/{id}/conflicts", ctx -> {
+            long id = parseId(ctx);
+            if (id < 0) { ctx.status(400); return; }
+            ctx.json(service.getActressConflicts(id));
+        });
     }
 
     private long parseId(io.javalin.http.Context ctx) {
