@@ -159,14 +159,23 @@ Two states for an actress staging row:
 - **Extract liberally** — pull every identifiable field from the page even if not currently projected. The JSON file is a faithful snapshot in stable shape; future field additions can re-project from disk without re-fetching javdb.
 - `staging.raw_path` holds the path **relative to dataDir** so dataDir relocations don't break references.
 
-### Two layers of "parsing"
+The JSON files are also a **deliberate data product**, not just a parser-recovery cache. Downstream content processors (translation services, AI enrichers like Haiku, taxonomy mappers, custom pipelines) consume the JSON directly. Examples of future processors:
 
-| Layer | Trigger | Re-runnable from cache? |
+- **Translator** — reads `title_original` from each title JSON, writes `title_translated_en` back into the JSON (and optionally projects into a `title_translated` column).
+- **Tag normalizer** — maps javdb's English tag strings into our internal tag taxonomy, writes `tags_normalized` back into the JSON.
+- **Summary generator** — reads cast + tags + series, produces a one-line description.
+
+Pattern: processors append derived fields into the JSON file; if a derived field becomes queryable / browsable, a new staging column is added and the projector picks it up.
+
+### Three stages of data flow
+
+| Stage | Trigger | Re-runnable from cache? |
 |---|---|---|
 | **Extraction** (HTML → JSON) | At fetch time, in the runner | No — needs javdb refetch |
-| **Projection** (JSON → typed columns) | At fetch time, also via one-shot "re-project all" command | Yes — reads from disk only |
+| **Projection** (JSON → typed columns) | At fetch time; also via one-shot "re-project all" command | Yes — reads from disk only |
+| **Processing** (JSON → enriched JSON, e.g. translation) | Future, on-demand or scheduled per processor | Yes — reads/writes JSON only |
 
-If a parser bug is fixed: re-project from disk, no network. If javdb adds a new field we want: refetch (rare).
+If a parser bug is fixed: re-project from disk, no network. If javdb adds a new field we want: refetch (rare). If a translator produces new fields: re-project to surface them in staging columns.
 
 ### Hybrid import: staging IS canonical for new fields
 
