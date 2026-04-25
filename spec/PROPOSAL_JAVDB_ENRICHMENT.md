@@ -18,6 +18,20 @@ Discovery is selective. Enrichment is reserved for elite actresses — Goddess /
 
 The current Actress Data screen (loads YAML profiles from AI research) is **renamed to Actress Import**. The new Actress Discovery screen takes its slot in the Utilities menu.
 
+### Position in the broader enrichment ecosystem
+
+javdb staging is **one source among several** for actress and title metadata, not a replacement for what we have:
+
+| Source | Strengths | Coverage |
+|---|---|---|
+| **AI skill–produced YAML** (existing) | Rich biographical profile, grading, curated narrative | High value, low volume — produced on demand for elite actresses |
+| **javdb staging** (this proposal) | Title-level metadata at scale, tags, cast, release dates, rating, kanji name variants | Broad, automatable, cheap |
+| *(future)* IAFD scrapes, Wikipedia pulls, fan-curated YAML, manual edits | — | Source-specific |
+
+The long-term picture: aggregate across all sources to populate the canonical actress and title metadata. Each source lives in its own staging area; a (future) merge/precedence layer decides which source wins for any given field. For v1, the only cross-source rule is the auto-promote-when-empty policy — javdb fills gaps but never overwrites curated data.
+
+This is why staging is canonical for *new* fields (no other source provides them) but only auto-promotes into existing canonical fields when those are empty (other sources may already have written there).
+
 ---
 
 ## Architecture overview
