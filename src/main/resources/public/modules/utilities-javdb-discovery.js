@@ -15,6 +15,7 @@ function createState() {
     selectedId: null,
     activeTab: 'titles',
     queuePollTimer: null,
+    queueItemsPollTimer: null,
     paused: false,
     lastActiveTotal: 0,   // pending+inFlight from previous poll, for transition detection
     alphaFilter: 'All',
@@ -54,12 +55,23 @@ const profileView       = document.getElementById('jd-subview-profile');
 const conflictsView     = document.getElementById('jd-subview-conflicts');
 const errorsView        = document.getElementById('jd-subview-errors');
 
+// ── Queue tab DOM refs ─────────────────────────────────────────────────────
+
+const enrichTab      = view.querySelector('[data-jd-tab="enrich"]');
+const queueTab       = view.querySelector('[data-jd-tab="queue"]');
+const jdBody         = view.querySelector('.jd-body');
+const queueBody      = document.getElementById('jd-queue-body');
+const queueEmpty     = document.getElementById('jd-queue-empty');
+const queueTableWrap = document.getElementById('jd-queue-table-wrap');
+const queueTableBody = document.getElementById('jd-queue-table-body');
+
 // ── Public API ─────────────────────────────────────────────────────────────
 
 export async function showJavdbDiscoveryView() {
   view.style.display = '';
   controlsPanel.classList.add('collapsed');
   controlsToggle.classList.add('collapsed');
+  switchJdTab('enrich');
   await Promise.all([loadActresses(), refreshQueue()]);
   startQueuePoll();
 }
@@ -67,6 +79,7 @@ export async function showJavdbDiscoveryView() {
 export function hideJavdbDiscoveryView() {
   view.style.display = 'none';
   stopQueuePoll();
+  stopQueueItemsPoll();
 }
 
 // ── Data loading ───────────────────────────────────────────────────────────
@@ -137,6 +150,18 @@ function stopQueuePoll() {
   if (state.queuePollTimer !== null) {
     clearInterval(state.queuePollTimer);
     state.queuePollTimer = null;
+  }
+}
+
+function startQueueItemsPoll() {
+  stopQueueItemsPoll();
+  state.queueItemsPollTimer = setInterval(loadQueueItems, 5_000);
+}
+
+function stopQueueItemsPoll() {
+  if (state.queueItemsPollTimer !== null) {
+    clearInterval(state.queueItemsPollTimer);
+    state.queueItemsPollTimer = null;
   }
 }
 
@@ -922,6 +947,96 @@ async function retryActress() {
   if (state.selectedId === null) return;
   await fetch(`/api/javdb/discovery/actresses/${state.selectedId}/retry`, { method: 'POST' });
   await Promise.all([refreshQueue(), renderErrorsTab()]);
+}
+
+// ── Tab switching ──────────────────────────────────────────────────────────
+
+function switchJdTab(tab) {
+  enrichTab.classList.toggle('selected', tab === 'enrich');
+  queueTab.classList.toggle('selected',  tab === 'queue');
+  jdBody.style.display    = tab === 'enrich' ? '' : 'none';
+  queueBody.style.display = tab === 'queue'  ? '' : 'none';
+  if (tab === 'queue') {
+    loadQueueItems();
+    startQueueItemsPoll();
+  } else {
+    stopQueueItemsPoll();
+  }
+}
+
+enrichTab.addEventListener('click', () => switchJdTab('enrich'));
+queueTab.addEventListener('click',  () => switchJdTab('queue'));
+
+// ── Queue items loader ─────────────────────────────────────────────────────
+
+async function loadQueueItems() {
+  try {
+    const res = await fetch('/api/javdb/discovery/queue/items');
+    const items = await res.json();
+    renderQueueItems(items);
+  } catch { /* ignore */ }
+}
+
+function renderQueueItems(items) {
+  if (items.length === 0) {
+    queueEmpty.style.display = '';
+    queueTableWrap.style.display = 'none';
+    return;
+  }
+  queueEmpty.style.display = 'none';
+  queueTableWrap.style.display = '';
+
+  queueTableBody.innerHTML = items.map(item => {
+    const typeLabel = item.jobType === 'fetch_actress_profile' ? 'profile' : 'title';
+    const titleCell = item.titleCode || '—';
+    const age = formatQueueAge(item.updatedAt);
+    const statusClass = item.status === 'in_flight' ? 'jd-qi-inflight'
+                      : item.status === 'failed'    ? 'jd-qi-failed' : 'jd-qi-pending';
+    return `<tr>
+      <td><button class="jd-qi-actress-link" data-actress-id="${item.actressId}">${esc(item.actressName)}</button></td>
+      <td class="jd-qi-code">${esc(titleCell)}</td>
+      <td>${typeLabel}</td>
+      <td><span class="jd-qi-status ${statusClass}">${item.status}</span></td>
+      <td>${item.attempts}</td>
+      <td class="jd-qi-age">${age}</td>
+    </tr>`;
+  }).join('');
+
+  // Wire actress-link clicks to navigate to Enrich tab
+  queueTableBody.querySelectorAll('.jd-qi-actress-link').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const actressId = parseInt(btn.dataset.actressId, 10);
+      navigateToActress(actressId);
+    });
+  });
+}
+
+async function navigateToActress(actressId) {
+  switchJdTab('enrich');
+  resetFiltersToAll();
+  await selectActress(actressId);
+  const li = actressList.querySelector(`.jd-actress-item[data-id="${actressId}"]`);
+  if (li) li.scrollIntoView({ block: 'nearest' });
+}
+
+function resetFiltersToAll() {
+  state.alphaFilter = 'All';
+  state.tierFilter = new Set();
+  state.favoritesOnly = false;
+  state.bookmarkedOnly = false;
+  renderAlphaBar();
+  renderFilterBar();
+  renderActressList();
+}
+
+function formatQueueAge(updatedAt) {
+  if (!updatedAt) return '—';
+  const ms = Date.now() - new Date(updatedAt).getTime();
+  const sec = Math.floor(ms / 1000);
+  if (sec < 60) return `${sec}s ago`;
+  const min = Math.floor(sec / 60);
+  if (min < 60) return `${min}m ago`;
+  return `${Math.floor(min / 60)}h ago`;
 }
 
 // ── Button wiring ──────────────────────────────────────────────────────────

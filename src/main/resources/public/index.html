@@ -322,8 +322,14 @@
 <!-- Actress Data tool content -->
 <div id="tools-actress-data-view" class="tools-actress-data-view" style="display:none">
   <div class="ad-subnav" id="ad-subnav">
-    <button type="button" class="ad-subtab selected" data-subtab="yamls">YAMLs</button>
-    <button type="button" class="ad-subtab"          data-subtab="aliases">Aliases</button>
+    <button type="button" class="ad-subtab ad-subtab-yamls selected" data-subtab="yamls">
+      <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="1.5" width="11" height="13" rx="1.5"/><path d="M5 5.5h6M5 8h6M5 10.5h4"/></svg>
+      YAMLs
+    </button>
+    <button type="button" class="ad-subtab ad-subtab-aliases" data-subtab="aliases">
+      <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="5" r="2.5"/><path d="M2.5 13.5c0-3 2.5-5 5.5-5s5.5 2 5.5 5"/><path d="M11.5 7.5l2 2-2 2"/></svg>
+      Aliases
+    </button>
   </div>
 
   <!-- YAMLs subview (default): load actress YAML files -->
@@ -454,8 +460,14 @@
 
 <!-- Duplicates sub-nav (tab bar shared by Triage and Merge Candidates) -->
 <div id="tools-dup-subnav" class="tools-subnav" style="display:none">
-  <button type="button" id="tools-dup-triage-tab" class="tools-subnav-tab selected">Duplicate Triage</button>
-  <button type="button" id="tools-merge-candidates-tab" class="tools-subnav-tab">Merge Candidates</button>
+  <button type="button" id="tools-dup-triage-tab" class="tools-subnav-tab tools-subnav-tab-triage selected">
+    <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M2 5l3 3-3 3M14 5l-3 3 3 3M8 2v5M8 9v5"/><circle cx="8" cy="8" r="1.5" fill="currentColor" stroke="none"/></svg>
+    Duplicate Triage
+  </button>
+  <button type="button" id="tools-merge-candidates-tab" class="tools-subnav-tab tools-subnav-tab-merge">
+    <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 2v7a3 3 0 0 0 3 3h1"/><path d="M12 2v4M12 10v4M9.5 9.5l2.5 2.5 2.5-2.5"/><circle cx="4" cy="13" r="1.5"/></svg>
+    Merge Candidates
+  </button>
 </div>
 
 <!-- Duplicate Triage tool content -->
@@ -509,6 +521,16 @@
   <div class="jd-header">
     <span class="jd-title">javdb Discovery</span>
     <span class="jd-queue-badge" id="jd-queue-badge" style="display:none"></span>
+    <div class="jd-tabs">
+      <button type="button" class="jd-tab jd-tab-enrich selected" data-jd-tab="enrich">
+        <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M8 1v3M8 12v3M1 8h3M12 8h3M3.5 3.5l2 2M10.5 10.5l2 2M10.5 3.5l-2 2M5.5 10.5l-2 2"/></svg>
+        Enrich
+      </button>
+      <button type="button" class="jd-tab jd-tab-queue" data-jd-tab="queue">
+        <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><circle cx="8" cy="8" r="6.5"/><path d="M8 4.5V8l2.5 2"/></svg>
+        Queue
+      </button>
+    </div>
     <div class="jd-header-actions">
       <button type="button" id="jd-pause-btn" class="jd-action-btn jd-pause-btn">Pause</button>
       <button type="button" id="jd-cancel-all-btn" class="jd-action-btn jd-danger-btn">⏹ Stop All Enrichment</button>
@@ -536,10 +558,22 @@
           <button type="button" id="jd-cancel-actress-btn" class="jd-action-btn jd-muted-btn">⏹ Stop Enrichment</button>
         </div>
         <div class="jd-subnav">
-          <button type="button" class="jd-subtab selected" data-tab="titles">Titles</button>
-          <button type="button" class="jd-subtab" data-tab="profile">Profile</button>
-          <button type="button" class="jd-subtab" data-tab="conflicts">Conflicts</button>
-          <button type="button" class="jd-subtab" data-tab="errors">Errors</button>
+          <button type="button" class="jd-subtab selected" data-tab="titles">
+            <svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M2 4h12M2 8h12M2 12h8"/></svg>
+            Titles
+          </button>
+          <button type="button" class="jd-subtab" data-tab="profile">
+            <svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><circle cx="8" cy="5.5" r="2.5"/><path d="M2 13.5c0-3 2.5-5 6-5s6 2 6 5"/></svg>
+            Profile
+          </button>
+          <button type="button" class="jd-subtab" data-tab="conflicts">
+            <svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2l6 10.5H2L8 2z"/><path d="M8 6.5v3M8 11h.01"/></svg>
+            Conflicts
+          </button>
+          <button type="button" class="jd-subtab" data-tab="errors">
+            <svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><circle cx="8" cy="8" r="6"/><path d="M5.5 5.5l5 5M10.5 5.5l-5 5"/></svg>
+            Errors
+          </button>
         </div>
         <div class="jd-subview" id="jd-subview-titles"></div>
         <div class="jd-subview" id="jd-subview-profile" style="display:none"></div>
@@ -547,6 +581,24 @@
         <div class="jd-subview" id="jd-subview-errors" style="display:none"></div>
       </div>
     </section>
+  </div>
+  <div class="jd-queue-body" id="jd-queue-body" style="display:none">
+    <div class="jd-queue-empty" id="jd-queue-empty" style="display:none">No active jobs in the enrichment queue.</div>
+    <div class="jd-queue-table-wrap" id="jd-queue-table-wrap" style="display:none">
+      <table class="jd-queue-table" id="jd-queue-table">
+        <thead>
+          <tr>
+            <th>Actress</th>
+            <th>Title</th>
+            <th>Type</th>
+            <th>Status</th>
+            <th>Attempts</th>
+            <th>Updated</th>
+          </tr>
+        </thead>
+        <tbody id="jd-queue-table-body"></tbody>
+      </table>
+    </div>
   </div>
 </div>
 

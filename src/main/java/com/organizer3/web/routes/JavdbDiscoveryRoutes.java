@@ -62,6 +62,9 @@ public class JavdbDiscoveryRoutes {
         app.get("/api/javdb/discovery/queue", ctx ->
                 ctx.json(service.getQueueStatus()));
 
+        app.get("/api/javdb/discovery/queue/items", ctx ->
+                ctx.json(service.getActiveQueueItems()));
+
         // ── M3 action endpoints ────────────────────────────────────────────
 
         app.post("/api/javdb/discovery/actresses/{id}/enqueue", ctx -> {

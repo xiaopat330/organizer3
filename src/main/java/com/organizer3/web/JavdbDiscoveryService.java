@@ -81,6 +81,13 @@ public class JavdbDiscoveryService {
             Integer titleCount
     ) {}
 
+    public record QueueItem(
+            long id, String jobType, String status, int attempts,
+            long actressId, String actressName,
+            Long titleId, String titleCode,
+            String updatedAt
+    ) {}
+
     public record QueueStatus(int pending, int inFlight, int failed, boolean paused,
                               String rateLimitPausedUntil, String rateLimitPauseReason,
                               int consecutiveRateLimitHits) {}
@@ -443,6 +450,39 @@ public class JavdbDiscoveryService {
                         rs.getString("our_actress_name"),
                         rs.getString("our_javdb_slug"),
                         rs.getString("cast_json")
+                ))
+                .list());
+    }
+
+    /**
+     * Returns active queue items (pending, in_flight, failed) for the Queue tab.
+     */
+    public List<QueueItem> getActiveQueueItems() {
+        return jdbi.withHandle(h -> h.createQuery("""
+                SELECT
+                  q.id, q.job_type, q.status, q.attempts,
+                  q.actress_id, a.canonical_name AS actress_name,
+                  CASE WHEN q.job_type = 'fetch_title' THEN q.target_id ELSE NULL END AS title_id,
+                  CASE WHEN q.job_type = 'fetch_title' THEN t.code ELSE NULL END AS title_code,
+                  q.updated_at
+                FROM javdb_enrichment_queue q
+                JOIN actresses a ON a.id = q.actress_id
+                LEFT JOIN titles t ON t.id = q.target_id AND q.job_type = 'fetch_title'
+                WHERE q.status IN ('pending', 'in_flight', 'failed')
+                ORDER BY
+                  CASE q.status WHEN 'in_flight' THEN 0 WHEN 'pending' THEN 1 ELSE 2 END,
+                  q.updated_at DESC
+                """)
+                .map((rs, ctx) -> new QueueItem(
+                        rs.getLong("id"),
+                        rs.getString("job_type"),
+                        rs.getString("status"),
+                        rs.getInt("attempts"),
+                        rs.getLong("actress_id"),
+                        rs.getString("actress_name"),
+                        rs.getObject("title_id") != null ? rs.getLong("title_id") : null,
+                        rs.getString("title_code"),
+                        rs.getString("updated_at")
                 ))
                 .list());
     }
