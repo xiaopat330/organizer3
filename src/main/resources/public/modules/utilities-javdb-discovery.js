@@ -479,6 +479,7 @@ async function fetchAndRenderTitles() {
     titlesView.innerHTML = filterBarHtml(facets, titles.length) + titlesTableHtml(titles);
     wireFilterBar();
     wireReenrichButtons();
+    wireEnrichmentDetailTriggers();
   } catch (_) {
     titlesView.innerHTML = '<div class="jd-error">Network error.</div>';
   }
@@ -576,6 +577,105 @@ function wireReenrichButtons() {
   });
 }
 
+function wireEnrichmentDetailTriggers() {
+  titlesView.querySelectorAll('.jd-enrich-detail-btn, .jd-status-clickable').forEach(el => {
+    el.addEventListener('click', e => {
+      e.stopPropagation();
+      openEnrichmentModal(Number(el.dataset.titleId));
+    });
+  });
+}
+
+// ── Enrichment detail modal ────────────────────────────────────────────────
+
+const enrichModalOverlay = document.getElementById('jd-enrich-modal-overlay');
+const enrichModalBody    = document.getElementById('jd-enrich-modal-body');
+const enrichModalHeading = document.getElementById('jd-enrich-modal-heading');
+const enrichModalClose   = document.getElementById('jd-enrich-modal-close');
+
+enrichModalClose.addEventListener('click', closeEnrichmentModal);
+enrichModalOverlay.addEventListener('click', e => {
+  if (e.target === enrichModalOverlay) closeEnrichmentModal();
+});
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape' && enrichModalOverlay.style.display !== 'none') closeEnrichmentModal();
+});
+
+function closeEnrichmentModal() {
+  enrichModalOverlay.style.display = 'none';
+  enrichModalBody.innerHTML = '';
+}
+
+async function openEnrichmentModal(titleId) {
+  enrichModalHeading.innerHTML = '<span class="jd-enrich-modal-code">Loading…</span>';
+  enrichModalBody.innerHTML = '<div class="jd-loading">Loading…</div>';
+  enrichModalOverlay.style.display = 'flex';
+  try {
+    const res = await fetch(`/api/javdb/discovery/titles/${titleId}/enrichment`);
+    if (!res.ok) { enrichModalBody.innerHTML = '<div class="jd-error">Failed to load enrichment data.</div>'; return; }
+    const d = await res.json();
+    renderEnrichmentModal(d);
+  } catch (_) {
+    enrichModalBody.innerHTML = '<div class="jd-error">Network error.</div>';
+  }
+}
+
+function renderEnrichmentModal(d) {
+  enrichModalHeading.innerHTML = `
+    <span class="jd-enrich-modal-code">${esc(d.code)}</span>
+    ${d.titleOriginal ? `<span class="jd-enrich-modal-title">${esc(d.titleOriginal)}</span>` : ''}
+  `;
+
+  const metaRows = [];
+  if (d.releaseDate)      metaRows.push(['Release', fmtDate(d.releaseDate)]);
+  if (d.durationMinutes)  metaRows.push(['Duration', `${d.durationMinutes} min`]);
+  if (d.maker)            metaRows.push(['Maker', esc(d.maker)]);
+  if (d.publisher && d.publisher !== d.maker) metaRows.push(['Publisher', esc(d.publisher)]);
+  if (d.series)           metaRows.push(['Series', esc(d.series)]);
+  if (d.ratingAvg != null) {
+    const votes = d.ratingCount != null ? ` · ${d.ratingCount} votes` : '';
+    metaRows.push(['Rating', `${d.ratingAvg.toFixed(2)} / 5${votes}`]);
+  }
+
+  const metaHtml = metaRows.length > 0
+    ? `<div>
+        <div class="jd-enrich-section-label">Details</div>
+        <div class="jd-enrich-meta-grid">
+          ${metaRows.map(([k, v]) => `<span class="jd-enrich-meta-label">${k}</span><span class="jd-enrich-meta-value">${v}</span>`).join('')}
+        </div>
+      </div>`
+    : '';
+
+  const cast = parseCast(d.castJson);
+  const castHtml = cast.length > 0
+    ? `<div>
+        <div class="jd-enrich-section-label">Cast</div>
+        <div class="jd-enrich-cast-list">
+          ${cast.map(e => `<span class="jd-enrich-cast-name">${esc(e.name)}</span>`).join('')}
+        </div>
+      </div>`
+    : '';
+
+  const tagsHtml = d.tags && d.tags.length > 0
+    ? `<div>
+        <div class="jd-enrich-section-label">Tags from javdb</div>
+        <div class="jd-enrich-tag-list">
+          ${d.tags.map(t => `<span class="jd-enrich-tag">${esc(t)}</span>`).join('')}
+        </div>
+      </div>`
+    : '';
+
+  const javdbUrl = d.javdbSlug ? `https://javdb.com/v/${esc(d.javdbSlug)}` : null;
+  const footerHtml = `
+    <div class="jd-enrich-footer">
+      ${javdbUrl ? `<a class="jd-enrich-source-link" href="${javdbUrl}" target="_blank" rel="noopener">View on javdb ↗</a>` : '<span></span>'}
+      ${d.fetchedAt ? `<span class="jd-enrich-fetched-at">Fetched ${fmtDate(d.fetchedAt.slice(0, 10))}</span>` : ''}
+    </div>
+  `;
+
+  enrichModalBody.innerHTML = metaHtml + castHtml + tagsHtml + footerHtml;
+}
+
 function titleEffectiveStatus(t) {
   if (t.queueStatus === 'in_flight') return { key: 'in_flight', label: '⟳ In Progress' };
   if (t.queueStatus === 'pending')   return { key: 'pending',   label: '◌ Queued' };
@@ -588,9 +688,15 @@ function titleEffectiveStatus(t) {
 
 function titleRow(t) {
   const { key, label } = titleEffectiveStatus(t);
-  const statusCell = `<span class="jd-status jd-status-${key}">${label}</span>`;
-  const canReenrich = key === 'fetched' || key === 'done' || key === 'failed' || t.status === 'not_found';
-  const actionCell = canReenrich
+  const isEnriched = key === 'fetched';
+  const statusCell = isEnriched
+    ? `<span class="jd-status jd-status-${key} jd-status-clickable" data-title-id="${t.titleId}" title="View enrichment details">${label}</span>`
+    : `<span class="jd-status jd-status-${key}">${label}</span>`;
+  const canReenrich = isEnriched || key === 'done' || key === 'failed' || t.status === 'not_found';
+  const infoBtn = isEnriched
+    ? `<button class="jd-enrich-detail-btn" data-title-id="${t.titleId}" title="View enrichment details">ⓘ</button>`
+    : '';
+  const reenrichBtn = canReenrich
     ? `<button class="jd-reenrich-btn" data-title-id="${t.titleId}" title="Force re-enrich">↺</button>`
     : '';
   const rating = (t.ratingAvg != null)
@@ -603,7 +709,7 @@ function titleRow(t) {
     <td>${fmtDate(t.releaseDate)}</td>
     <td>${t.maker ? esc(t.maker) : '—'}</td>
     <td class="jd-rating-cell">${rating}</td>
-    <td class="jd-action-cell">${actionCell}</td>
+    <td class="jd-action-cell">${infoBtn}${reenrichBtn}</td>
   </tr>`;
 }
 

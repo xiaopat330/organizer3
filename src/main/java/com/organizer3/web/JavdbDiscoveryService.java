@@ -91,6 +91,23 @@ public class JavdbDiscoveryService {
             String castJson
     ) {}
 
+    public record TitleEnrichmentDetail(
+            long titleId,
+            String code,
+            String javdbSlug,
+            String titleOriginal,
+            String releaseDate,
+            Integer durationMinutes,
+            String maker,
+            String publisher,
+            String series,
+            Double ratingAvg,
+            Integer ratingCount,
+            String castJson,
+            List<String> tags,
+            String fetchedAt
+    ) {}
+
     // ── Queries ────────────────────────────────────────────────────────────
 
     /**
@@ -256,6 +273,60 @@ public class JavdbDiscoveryService {
                 .bindList("ids", ids)
                 .map((rs, ctx) -> new TagFacet(rs.getString("name"), rs.getInt("cnt")))
                 .list());
+    }
+
+    /**
+     * Returns the full enrichment detail for a single title, or null if no enrichment row exists.
+     */
+    public TitleEnrichmentDetail getTitleEnrichmentDetail(long titleId) {
+        return jdbi.withHandle(h -> {
+            var row = h.createQuery("""
+                    SELECT t.code, tje.javdb_slug, tje.title_original, tje.release_date,
+                           tje.duration_minutes, tje.maker, tje.publisher, tje.series,
+                           tje.rating_avg, tje.rating_count, tje.cast_json, tje.fetched_at
+                    FROM title_javdb_enrichment tje
+                    JOIN titles t ON t.id = tje.title_id
+                    WHERE tje.title_id = :titleId
+                    """)
+                    .bind("titleId", titleId)
+                    .map((rs, ctx) -> new TitleEnrichmentDetail(
+                            titleId,
+                            rs.getString("code"),
+                            rs.getString("javdb_slug"),
+                            rs.getString("title_original"),
+                            rs.getString("release_date"),
+                            rs.getObject("duration_minutes") != null ? rs.getInt("duration_minutes") : null,
+                            rs.getString("maker"),
+                            rs.getString("publisher"),
+                            rs.getString("series"),
+                            rs.getObject("rating_avg")    != null ? rs.getDouble("rating_avg")   : null,
+                            rs.getObject("rating_count")  != null ? rs.getInt("rating_count")    : null,
+                            rs.getString("cast_json"),
+                            List.of(),   // tags filled below
+                            rs.getString("fetched_at")
+                    ))
+                    .findOne().orElse(null);
+
+            if (row == null) return null;
+
+            List<String> tags = h.createQuery("""
+                    SELECT etd.name
+                    FROM title_enrichment_tags tet
+                    JOIN enrichment_tag_definitions etd ON etd.id = tet.tag_id
+                    WHERE tet.title_id = :titleId
+                    ORDER BY etd.name
+                    """)
+                    .bind("titleId", titleId)
+                    .mapTo(String.class)
+                    .list();
+
+            return new TitleEnrichmentDetail(
+                    row.titleId(), row.code(), row.javdbSlug(), row.titleOriginal(),
+                    row.releaseDate(), row.durationMinutes(), row.maker(), row.publisher(),
+                    row.series(), row.ratingAvg(), row.ratingCount(), row.castJson(),
+                    tags, row.fetchedAt()
+            );
+        });
     }
 
     // ── Enrichment tag-health (Phase 3 maintenance dashboard) ─────────────────

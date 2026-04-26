@@ -2,6 +2,7 @@ package com.organizer3.javdb.enrichment;
 
 import com.organizer3.javdb.JavdbClient;
 import com.organizer3.javdb.JavdbConfig;
+import com.organizer3.javdb.JavdbForbiddenException;
 import com.organizer3.javdb.JavdbNotFoundException;
 import com.organizer3.javdb.JavdbRateLimitException;
 import com.organizer3.javdb.JavdbSearchParser;
@@ -81,6 +82,7 @@ public class EnrichmentRunner {
         if (thread != null && thread.isAlive()) return;
         stopRequested.set(false);
         queue.resetStuckInFlightJobs(STALL_MINUTES);
+        backfillActressSlugsFromEnrichment();
         thread = new Thread(this::runLoop, "javdb-enrichment");
         thread.setDaemon(true);
         thread.setPriority(Thread.MIN_PRIORITY);
@@ -148,7 +150,11 @@ public class EnrichmentRunner {
                 }
             }
         } catch (JavdbRateLimitException e) {
-            log.warn("javdb: rate-limited — pausing {}m", config.rate429PauseMinutesOrDefault());
+            log.warn("javdb: rate-limited (429) — pausing {}m", config.rate429PauseMinutesOrDefault());
+            pauseUntil = Instant.now().plus(config.rate429PauseMinutesOrDefault(), ChronoUnit.MINUTES);
+            queue.releaseToRetry(job.id());
+        } catch (JavdbForbiddenException e) {
+            log.warn("javdb: forbidden (403) — IP likely blocked, pausing {}m", config.rate429PauseMinutesOrDefault());
             pauseUntil = Instant.now().plus(config.rate429PauseMinutesOrDefault(), ChronoUnit.MINUTES);
             queue.releaseToRetry(job.id());
         } catch (JavdbNotFoundException e) {
@@ -237,15 +243,39 @@ public class EnrichmentRunner {
         if (maybeActress.isEmpty()) return;
         Actress actress = maybeActress.get();
 
-        // Collect all known names for this actress (stage name + aliases)
+        // Try name matching first — works when actress has a Japanese stage name or alias.
         Set<String> knownNames = buildKnownNames(actress, actressRepo.findAliases(actressId));
-
         for (TitleExtract.CastEntry entry : cast) {
             if (knownNames.contains(entry.name())) {
                 stagingRepo.upsertActressSlugOnly(actressId, entry.slug(), titleCode);
-                log.info("javdb: resolved slug {} for actress {} (via {})", entry.slug(), actressId, titleCode);
+                log.info("javdb: resolved slug {} for actress {} via name match ({})", entry.slug(), actressId, titleCode);
                 return;
             }
+        }
+
+        // Fallback: if the title has exactly one cast entry we can still assign the slug.
+        // Most JAV titles are single-actress, and name matching commonly fails because our
+        // DB stores romanized names while javdb uses Japanese.
+        if (cast.size() == 1) {
+            stagingRepo.upsertActressSlugOnly(actressId, cast.get(0).slug(), titleCode);
+            log.info("javdb: assigned slug {} to actress {} by single-cast assumption ({})", cast.get(0).slug(), actressId, titleCode);
+        }
+    }
+
+    /**
+     * On startup, scan existing {@code title_javdb_enrichment} cast data to write slug_only rows
+     * for actresses who were missed because their romanized DB name didn't match javdb's Japanese
+     * cast names. Only processes actresses where all enriched single-cast titles agree on the same
+     * slug (unambiguous). Enqueues a profile fetch for each newly written slug.
+     */
+    void backfillActressSlugsFromEnrichment() {
+        List<JavdbStagingRepository.BackfillEntry> entries = stagingRepo.findBackfillableActressSlugs();
+        if (entries.isEmpty()) return;
+        log.info("javdb: backfilling slugs for {} actresses from existing enrichment cast data", entries.size());
+        for (JavdbStagingRepository.BackfillEntry entry : entries) {
+            stagingRepo.upsertActressSlugOnly(entry.actressId(), entry.javdbSlug(), entry.sourceTitleCode());
+            queue.enqueueActressProfile(entry.actressId());
+            log.info("javdb: backfilled slug {} for actress {} (via {})", entry.javdbSlug(), entry.actressId(), entry.sourceTitleCode());
         }
     }
 

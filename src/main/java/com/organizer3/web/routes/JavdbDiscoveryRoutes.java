@@ -108,6 +108,15 @@ public class JavdbDiscoveryRoutes {
             ctx.json(service.getActressConflicts(id));
         });
 
+        app.get("/api/javdb/discovery/titles/{titleId}/enrichment", ctx -> {
+            long titleId;
+            try { titleId = Long.parseLong(ctx.pathParam("titleId")); }
+            catch (NumberFormatException e) { ctx.status(400); return; }
+            var detail = service.getTitleEnrichmentDetail(titleId);
+            if (detail == null) { ctx.status(404); return; }
+            ctx.json(detail);
+        });
+
         app.post("/api/javdb/discovery/actresses/{id}/titles/{titleId}/reenrich", ctx -> {
             long actressId = parseId(ctx);
             long titleId;

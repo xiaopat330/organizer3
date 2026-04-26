@@ -520,4 +520,65 @@ class JavdbDiscoveryServiceTest {
                 null, 4.5, null));
         assertTrue(facets.isEmpty());
     }
+
+    // ── getTitleEnrichmentDetail ───────────────────────────────────────────
+
+    @Test
+    void enrichmentDetail_returnsNullForMissingTitle() {
+        assertNull(service.getTitleEnrichmentDetail(999L));
+    }
+
+    @Test
+    void enrichmentDetail_returnsAllFields() {
+        long a = insertActress("Test Actress", "Test");
+        long titleId = insertTitle("ABC-001");
+        linkActressTitle(a, titleId);
+        jdbi.useHandle(h -> h.createUpdate("""
+                INSERT INTO title_javdb_enrichment
+                  (title_id, javdb_slug, fetched_at, title_original, release_date,
+                   duration_minutes, maker, publisher, series, rating_avg, rating_count,
+                   cast_json)
+                VALUES (?, 'AbCd01', '2026-04-25T10:00:00Z', 'テストタイトル', '2024-03-15',
+                        120, 'Test Maker', 'Test Publisher', 'Test Series', 4.25, 182,
+                        '[{"slug":"s1","name":"Alice","gender":"f"}]')
+                """).bind(0, titleId).execute());
+        jdbi.useHandle(h -> {
+            h.createUpdate("INSERT OR IGNORE INTO enrichment_tag_definitions(name) VALUES('Big Tits')").execute();
+            h.createUpdate("INSERT OR IGNORE INTO enrichment_tag_definitions(name) VALUES('POV')").execute();
+            h.execute("INSERT INTO title_enrichment_tags(title_id, tag_id) SELECT ?, id FROM enrichment_tag_definitions WHERE name='Big Tits'", titleId);
+            h.execute("INSERT INTO title_enrichment_tags(title_id, tag_id) SELECT ?, id FROM enrichment_tag_definitions WHERE name='POV'", titleId);
+        });
+
+        var d = service.getTitleEnrichmentDetail(titleId);
+
+        assertNotNull(d);
+        assertEquals("ABC-001",         d.code());
+        assertEquals("AbCd01",          d.javdbSlug());
+        assertEquals("テストタイトル",  d.titleOriginal());
+        assertEquals("2024-03-15",      d.releaseDate());
+        assertEquals(120,               d.durationMinutes());
+        assertEquals("Test Maker",      d.maker());
+        assertEquals("Test Publisher",  d.publisher());
+        assertEquals("Test Series",     d.series());
+        assertEquals(4.25,              d.ratingAvg(), 0.001);
+        assertEquals(182,               d.ratingCount());
+        assertNotNull(d.castJson());
+        assertTrue(d.castJson().contains("Alice"));
+        assertEquals(2, d.tags().size());
+        assertTrue(d.tags().containsAll(List.of("Big Tits", "POV")));
+        assertEquals("2026-04-25T10:00:00Z", d.fetchedAt());
+    }
+
+    @Test
+    void enrichmentDetail_returnsEmptyTagsWhenNone() {
+        long titleId = insertTitle("DEF-001");
+        jdbi.useHandle(h -> h.execute(
+                "INSERT INTO title_javdb_enrichment (title_id, javdb_slug, fetched_at) VALUES (?, 'xyz', '2026-01-01T00:00:00Z')",
+                titleId));
+
+        var d = service.getTitleEnrichmentDetail(titleId);
+
+        assertNotNull(d);
+        assertTrue(d.tags().isEmpty());
+    }
 }

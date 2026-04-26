@@ -4,6 +4,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.organizer3.db.SchemaInitializer;
 import com.organizer3.javdb.JavdbClient;
 import com.organizer3.javdb.JavdbConfig;
+import com.organizer3.javdb.JavdbForbiddenException;
+import com.organizer3.javdb.JavdbRateLimitException;
 import com.organizer3.repository.jdbi.JdbiActressRepository;
 import com.organizer3.repository.jdbi.JdbiTitleLocationRepository;
 import com.organizer3.repository.jdbi.JdbiTitleRepository;
@@ -38,7 +40,7 @@ class EnrichmentRunnerTest {
     private JavdbExtractor extractor;
     private JavdbProjector projector;
 
-    private static final JavdbConfig CONFIG = new JavdbConfig(true, 1.0, 3, new int[]{1, 5, 30}, 5, null);
+    private static final JavdbConfig CONFIG = new JavdbConfig(true, 1.0, 3, new int[]{1, 5, 30}, 5, null, null);
 
     @BeforeEach
     void setUp() throws Exception {
@@ -145,6 +147,59 @@ class EnrichmentRunnerTest {
         assertEquals(0, queue.countPending());
     }
 
+    // ── 403 / 429 pause ────────────────────────────────────────────────────────
+
+    @Test
+    void fetchTitle_pausesAndReleasesToRetry_on403() throws Exception {
+        long titleId = jdbi.withHandle(h ->
+                h.createUpdate("INSERT INTO titles (code, base_code, label, seq_num) VALUES ('ABC-001', 'ABC', 'ABC', 1)")
+                        .executeAndReturnGeneratedKeys("id").mapTo(Long.class).one());
+        long actressId = jdbi.withHandle(h ->
+                h.createUpdate("INSERT INTO actresses (canonical_name, stage_name, tier, first_seen_at) VALUES ('Test', 'Test', 'LIBRARY', '2024-01-01')")
+                        .executeAndReturnGeneratedKeys("id").mapTo(Long.class).one());
+
+        JavdbClient fakeClient = new JavdbClient() {
+            @Override public String searchByCode(String code) { throw new JavdbForbiddenException("https://javdb.com/search?q=" + code); }
+            @Override public String fetchTitlePage(String slug) { throw new AssertionError("not expected"); }
+            @Override public String fetchActressPage(String slug) { throw new AssertionError("not expected"); }
+        };
+
+        EnrichmentRunner runner = new EnrichmentRunner(
+                CONFIG, fakeClient, extractor, projector, stagingRepo, enrichmentRepo, queue, titleRepo, actressRepo,
+                new AutoPromoter(jdbi));
+
+        queue.enqueueTitle(titleId, actressId);
+        runner.runOneStep();
+
+        // Job should be released back to pending (not permanently failed)
+        assertEquals(1, queue.countPending(), "403 should release job to retry, not permanently fail it");
+    }
+
+    @Test
+    void fetchTitle_pausesAndReleasesToRetry_on429() throws Exception {
+        long titleId = jdbi.withHandle(h ->
+                h.createUpdate("INSERT INTO titles (code, base_code, label, seq_num) VALUES ('ABC-002', 'ABC', 'ABC', 2)")
+                        .executeAndReturnGeneratedKeys("id").mapTo(Long.class).one());
+        long actressId = jdbi.withHandle(h ->
+                h.createUpdate("INSERT INTO actresses (canonical_name, stage_name, tier, first_seen_at) VALUES ('Test2', 'Test2', 'LIBRARY', '2024-01-01')")
+                        .executeAndReturnGeneratedKeys("id").mapTo(Long.class).one());
+
+        JavdbClient fakeClient = new JavdbClient() {
+            @Override public String searchByCode(String code) { throw new JavdbRateLimitException("https://javdb.com/search?q=" + code); }
+            @Override public String fetchTitlePage(String slug) { throw new AssertionError("not expected"); }
+            @Override public String fetchActressPage(String slug) { throw new AssertionError("not expected"); }
+        };
+
+        EnrichmentRunner runner = new EnrichmentRunner(
+                CONFIG, fakeClient, extractor, projector, stagingRepo, enrichmentRepo, queue, titleRepo, actressRepo,
+                new AutoPromoter(jdbi));
+
+        queue.enqueueTitle(titleId, actressId);
+        runner.runOneStep();
+
+        assertEquals(1, queue.countPending(), "429 should release job to retry, not permanently fail it");
+    }
+
     // ── lookupCode ─────────────────────────────────────────────────────────────
 
     @Test
@@ -194,6 +249,100 @@ class EnrichmentRunnerTest {
         runner.runOneStep();
 
         assertEquals("SONE-038", capturedCode[0]);
+    }
+
+    // ── single-cast slug fallback ───────────────────────────────────────────────
+
+    @Test
+    void fetchTitle_assignsSlug_bySingleCastAssumption_whenNameDoesNotMatch() throws Exception {
+        // Actress has a romanized name that won't match the Japanese cast entry
+        long titleId = jdbi.withHandle(h ->
+                h.createUpdate("INSERT INTO titles (code, base_code, label, seq_num) VALUES ('XYZ-001', 'XYZ', 'XYZ', 1)")
+                        .executeAndReturnGeneratedKeys("id").mapTo(Long.class).one());
+        long actressId = jdbi.withHandle(h ->
+                h.createUpdate("INSERT INTO actresses (canonical_name, stage_name, tier, first_seen_at) VALUES ('Yuma Asami', 'Yuma Asami', 'LIBRARY', '2024-01-01')")
+                        .executeAndReturnGeneratedKeys("id").mapTo(Long.class).one());
+
+        // Seed an enrichment row directly with a single-entry cast_json (Japanese name won't
+        // match "Yuma Asami"), then test the backfill path
+        String castJson = "[{\"slug\":\"ab12\",\"name\":\"あさみゆま\",\"gender\":\"F\"}]";
+        jdbi.useHandle(h -> h.execute(
+                "INSERT INTO title_javdb_enrichment (title_id, javdb_slug, fetched_at, cast_json) VALUES (?, 'ab99', '2026-04-26T00:00:00Z', ?)",
+                titleId, castJson));
+        jdbi.useHandle(h -> h.execute(
+                "INSERT INTO title_actresses (actress_id, title_id) VALUES (?, ?)", actressId, titleId));
+
+        EnrichmentRunner runner = new EnrichmentRunner(
+                CONFIG, null, extractor, projector, stagingRepo, enrichmentRepo, queue, titleRepo, actressRepo,
+                new AutoPromoter(jdbi));
+
+        runner.backfillActressSlugsFromEnrichment();
+
+        Optional<JavdbActressStagingRow> staging = stagingRepo.findActressStaging(actressId);
+        assertTrue(staging.isPresent(), "slug should be backfilled from single-cast enrichment");
+        assertEquals("ab12", staging.get().javdbSlug());
+
+        // Profile fetch should be enqueued
+        Optional<EnrichmentJob> profileJob = queue.claimNextJob();
+        assertTrue(profileJob.isPresent());
+        assertEquals(EnrichmentJob.FETCH_ACTRESS_PROFILE, profileJob.get().jobType());
+        assertEquals(actressId, profileJob.get().actressId());
+    }
+
+    @Test
+    void backfill_skipsActressesAlreadyHavingStaging() throws Exception {
+        long titleId = jdbi.withHandle(h ->
+                h.createUpdate("INSERT INTO titles (code, base_code, label, seq_num) VALUES ('XYZ-002', 'XYZ', 'XYZ', 2)")
+                        .executeAndReturnGeneratedKeys("id").mapTo(Long.class).one());
+        long actressId = jdbi.withHandle(h ->
+                h.createUpdate("INSERT INTO actresses (canonical_name, stage_name, tier, first_seen_at) VALUES ('Already Staged', 'Already Staged', 'LIBRARY', '2024-01-01')")
+                        .executeAndReturnGeneratedKeys("id").mapTo(Long.class).one());
+
+        jdbi.useHandle(h -> h.execute(
+                "INSERT INTO title_javdb_enrichment (title_id, javdb_slug, fetched_at, cast_json) VALUES (?, 'xx99', '2026-04-26T00:00:00Z', '[{\"slug\":\"xx12\",\"name\":\"テスト\",\"gender\":\"F\"}]')",
+                titleId));
+        jdbi.useHandle(h -> h.execute(
+                "INSERT INTO title_actresses (actress_id, title_id) VALUES (?, ?)", actressId, titleId));
+        // Pre-existing staging row
+        stagingRepo.upsertActressSlugOnly(actressId, "existing-slug", "XYZ-002");
+
+        EnrichmentRunner runner = new EnrichmentRunner(
+                CONFIG, null, extractor, projector, stagingRepo, enrichmentRepo, queue, titleRepo, actressRepo,
+                new AutoPromoter(jdbi));
+
+        runner.backfillActressSlugsFromEnrichment();
+
+        // Existing slug should be unchanged
+        assertEquals("existing-slug", stagingRepo.findActressStaging(actressId).orElseThrow().javdbSlug());
+        // No profile job enqueued (actress already had staging)
+        assertEquals(0, queue.countPending());
+    }
+
+    @Test
+    void backfill_skipsAmbiguousMultiCastTitles() throws Exception {
+        long titleId = jdbi.withHandle(h ->
+                h.createUpdate("INSERT INTO titles (code, base_code, label, seq_num) VALUES ('XYZ-003', 'XYZ', 'XYZ', 3)")
+                        .executeAndReturnGeneratedKeys("id").mapTo(Long.class).one());
+        long actressId = jdbi.withHandle(h ->
+                h.createUpdate("INSERT INTO actresses (canonical_name, stage_name, tier, first_seen_at) VALUES ('Multi Cast', 'Multi Cast', 'LIBRARY', '2024-01-01')")
+                        .executeAndReturnGeneratedKeys("id").mapTo(Long.class).one());
+
+        String multiCastJson = "[{\"slug\":\"aa1\",\"name\":\"女優A\",\"gender\":\"F\"},{\"slug\":\"bb2\",\"name\":\"女優B\",\"gender\":\"F\"}]";
+        jdbi.useHandle(h -> h.execute(
+                "INSERT INTO title_javdb_enrichment (title_id, javdb_slug, fetched_at, cast_json) VALUES (?, 'mc99', '2026-04-26T00:00:00Z', ?)",
+                titleId, multiCastJson));
+        jdbi.useHandle(h -> h.execute(
+                "INSERT INTO title_actresses (actress_id, title_id) VALUES (?, ?)", actressId, titleId));
+
+        EnrichmentRunner runner = new EnrichmentRunner(
+                CONFIG, null, extractor, projector, stagingRepo, enrichmentRepo, queue, titleRepo, actressRepo,
+                new AutoPromoter(jdbi));
+
+        runner.backfillActressSlugsFromEnrichment();
+
+        // Multi-cast title — ambiguous, should not be backfilled
+        assertTrue(stagingRepo.findActressStaging(actressId).isEmpty());
+        assertEquals(0, queue.countPending());
     }
 
     private String loadFixture(String name) throws IOException, URISyntaxException {

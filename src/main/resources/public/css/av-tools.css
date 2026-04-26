@@ -5362,13 +5362,21 @@
   vertical-align: middle;
 }
 .jd-titles-table tr:hover td { background: #0a1220; }
-.jd-action-cell { width: 28px; text-align: center; padding: 0 4px; }
+.jd-action-cell { width: 52px; text-align: center; padding: 0 4px; white-space: nowrap; }
 .jd-reenrich-btn {
   background: none; border: 1px solid #1e293b; border-radius: 4px;
   color: #475569; cursor: pointer; font-size: 13px; padding: 1px 5px; line-height: 1;
 }
 .jd-reenrich-btn:hover { border-color: #334155; color: #94a3b8; }
 .jd-reenrich-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.jd-enrich-detail-btn {
+  background: none; border: 1px solid #1e293b; border-radius: 4px;
+  color: #475569; cursor: pointer; font-size: 12px; padding: 1px 5px; line-height: 1;
+  margin-right: 3px;
+}
+.jd-enrich-detail-btn:hover { border-color: #3b82f6; color: #7dd3fc; }
+.jd-status-clickable { cursor: pointer; }
+.jd-status-clickable:hover { filter: brightness(1.2); }
 .jd-profile-actions { margin-top: 12px; }
 .jd-code { font-family: monospace; font-size: 12px; color: #94a3b8; }
 
@@ -5676,3 +5684,153 @@
   font-family: monospace;
 }
 .jd-muted { color: #475569; }
+
+/* ── Enrichment detail modal ─────────────────────────────────────────────── */
+.jd-enrich-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.78);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px 16px;
+}
+
+.jd-enrich-modal {
+  background: #0d1829;
+  border: 1px solid #1e293b;
+  border-radius: 8px;
+  width: min(680px, 96vw);
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.6);
+}
+
+.jd-enrich-modal-header {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  padding: 14px 16px 12px;
+  border-bottom: 1px solid #1e293b;
+  flex-shrink: 0;
+}
+
+.jd-enrich-modal-heading {
+  flex: 1;
+  min-width: 0;
+}
+
+.jd-enrich-modal-code {
+  font-size: 14px;
+  font-weight: 600;
+  color: #e2e8f0;
+  letter-spacing: 0.04em;
+  font-family: monospace;
+  flex-shrink: 0;
+}
+
+.jd-enrich-modal-title {
+  font-size: 13px;
+  color: #94a3b8;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.jd-enrich-modal-close {
+  flex-shrink: 0;
+  background: none;
+  border: none;
+  color: #64748b;
+  font-size: 16px;
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 4px;
+  line-height: 1;
+}
+.jd-enrich-modal-close:hover { color: #e2e8f0; background: #1e293b; }
+
+.jd-enrich-modal-body {
+  overflow-y: auto;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.jd-enrich-section-label {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #475569;
+  margin-bottom: 8px;
+}
+
+.jd-enrich-meta-grid {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 5px 16px;
+  font-size: 13px;
+}
+
+.jd-enrich-meta-label {
+  color: #64748b;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.jd-enrich-meta-value {
+  color: #cbd5e1;
+}
+
+.jd-enrich-cast-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.jd-enrich-cast-name {
+  font-size: 12px;
+  color: #fb923c;
+  background: rgba(251,146,60,0.1);
+  padding: 2px 8px;
+  border-radius: 12px;
+}
+
+.jd-enrich-tag-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.jd-enrich-tag {
+  font-size: 11px;
+  color: #7dd3fc;
+  background: rgba(125,211,252,0.08);
+  border: 1px solid rgba(125,211,252,0.15);
+  padding: 2px 7px;
+  border-radius: 10px;
+}
+
+.jd-enrich-footer {
+  padding-top: 4px;
+  border-top: 1px solid #1e293b;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 11px;
+  color: #475569;
+}
+
+.jd-enrich-source-link {
+  color: #3b82f6;
+  text-decoration: none;
+}
+.jd-enrich-source-link:hover { text-decoration: underline; }
+
+.jd-enrich-fetched-at { color: #475569; }
