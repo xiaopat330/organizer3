@@ -46,7 +46,7 @@ public class JdbiTitleRepository implements TitleRepository {
                 .rejected(rs.getBoolean("rejected"))
                 .titleOriginal(rs.getString("title_original"))
                 .titleEnglish(rs.getString("title_english"))
-                .releaseDate(releaseDateStr != null ? java.time.LocalDate.parse(releaseDateStr) : null)
+                .releaseDate(releaseDateStr != null && !releaseDateStr.isEmpty() ? java.time.LocalDate.parse(releaseDateStr) : null)
                 .notes(rs.getString("notes"))
                 .visitCount(rs.getInt("visit_count"))
                 .lastVisitedAt(lastVisitedStr != null ? LocalDateTime.parse(lastVisitedStr) : null)

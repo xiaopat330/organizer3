@@ -64,10 +64,17 @@ class JavdbDiscoveryServiceTest {
                 h.execute("INSERT INTO title_actresses (actress_id, title_id) VALUES (?, ?)", actressId, titleId));
     }
 
+    /**
+     * Seeds an enrichment record for a title. The {@code status} parameter is interpreted:
+     * {@code "fetched"} writes the row (visible in queries); anything else is a no-op so
+     * existing tests using "not_found" / "fetch_error" / null still pass through correctly.
+     */
     private void insertTitleStaging(long titleId, String slug, String status) {
+        if (!"fetched".equals(status)) return;
         jdbi.useHandle(h ->
-                h.execute("INSERT INTO javdb_title_staging (title_id, javdb_slug, status) VALUES (?, ?, ?)",
-                        titleId, slug, status));
+                h.execute("INSERT INTO title_javdb_enrichment (title_id, javdb_slug, fetched_at) " +
+                          "VALUES (?, ?, '2026-04-25T00:00:00Z')",
+                        titleId, slug));
     }
 
     private void insertActressStaging(long actressId, String slug, String status) {
@@ -282,8 +289,8 @@ class JavdbDiscoveryServiceTest {
         long t = insertTitle("H-001");
         linkActressTitle(a, t);
         jdbi.useHandle(h -> h.execute(
-                "INSERT INTO javdb_title_staging (title_id, javdb_slug, status, title_original, release_date, maker, publisher) " +
-                "VALUES (?, 'h-slug', 'fetched', 'タイトル', '2020-01-01', 'マーカー', 'パブリッシャー')", t));
+                "INSERT INTO title_javdb_enrichment (title_id, javdb_slug, fetched_at, title_original, release_date, maker, publisher) " +
+                "VALUES (?, 'h-slug', '2026-04-25T00:00:00Z', 'タイトル', '2020-01-01', 'マーカー', 'パブリッシャー')", t));
 
         JavdbDiscoveryService.TitleRow row = service.getActressTitles(a).get(0);
 
@@ -378,5 +385,200 @@ class JavdbDiscoveryServiceTest {
         assertEquals(0, s.pending());
         assertEquals(0, s.inFlight());
         assertEquals(0, s.failed());
+    }
+
+    // ── filtered getActressTitles + tag facets (Phase 3 surfacing) ────────────
+
+    /** Seeds an enrichment row + tag assignments. Refreshes title_count denorm. */
+    private void seedEnrichment(long titleId, String slug, Double ratingAvg, Integer ratingCount, String... tags) {
+        jdbi.useHandle(h -> {
+            h.createUpdate("""
+                    INSERT INTO title_javdb_enrichment (title_id, javdb_slug, fetched_at, rating_avg, rating_count)
+                    VALUES (:id, :slug, '2026-04-25T00:00:00Z', :avg, :cnt)
+                    """)
+                    .bind("id", titleId).bind("slug", slug)
+                    .bind("avg", ratingAvg).bind("cnt", ratingCount)
+                    .execute();
+            for (String tag : tags) {
+                h.createUpdate("INSERT OR IGNORE INTO enrichment_tag_definitions(name) VALUES(:n)").bind("n", tag).execute();
+                h.createUpdate("""
+                        INSERT INTO title_enrichment_tags(title_id, tag_id)
+                        SELECT :id, id FROM enrichment_tag_definitions WHERE name = :n
+                        """).bind("id", titleId).bind("n", tag).execute();
+            }
+            h.execute("""
+                    UPDATE enrichment_tag_definitions SET title_count = (
+                        SELECT COUNT(*) FROM title_enrichment_tags WHERE tag_id = enrichment_tag_definitions.id)
+                    """);
+        });
+    }
+
+    @Test
+    void filter_tagsAnd_requiresAllTagsPresent() {
+        long a = insertActress("A", "A");
+        long t1 = insertTitle("F-1"); linkActressTitle(a, t1); seedEnrichment(t1, "s1", 4.5, 100, "Big Tits", "Cowgirl");
+        long t2 = insertTitle("F-2"); linkActressTitle(a, t2); seedEnrichment(t2, "s2", 4.0, 50, "Big Tits");
+        long t3 = insertTitle("F-3"); linkActressTitle(a, t3); seedEnrichment(t3, "s3", 4.2, 80, "Cowgirl");
+
+        var both = service.getActressTitles(a, new JavdbDiscoveryService.TitleFilter(
+                List.of("Big Tits", "Cowgirl"), null, null));
+        assertEquals(1, both.size(), "AND of two tags should match only the title carrying both");
+        assertEquals("F-1", both.get(0).code());
+    }
+
+    @Test
+    void filter_minRatingAvg_excludesLowRated() {
+        long a = insertActress("A", "A");
+        long t1 = insertTitle("F-1"); linkActressTitle(a, t1); seedEnrichment(t1, "s1", 4.5, 100, "X");
+        long t2 = insertTitle("F-2"); linkActressTitle(a, t2); seedEnrichment(t2, "s2", 3.5, 100, "X");
+
+        var rows = service.getActressTitles(a, new JavdbDiscoveryService.TitleFilter(
+                null, 4.0, null));
+        assertEquals(1, rows.size());
+        assertEquals("F-1", rows.get(0).code());
+    }
+
+    @Test
+    void filter_minRatingCount_excludesLowSampleSize() {
+        long a = insertActress("A", "A");
+        long t1 = insertTitle("F-1"); linkActressTitle(a, t1); seedEnrichment(t1, "s1", 4.9, 5,   "X");
+        long t2 = insertTitle("F-2"); linkActressTitle(a, t2); seedEnrichment(t2, "s2", 4.5, 100, "X");
+
+        var rows = service.getActressTitles(a, new JavdbDiscoveryService.TitleFilter(
+                null, null, 50));
+        assertEquals(1, rows.size());
+        assertEquals("F-2", rows.get(0).code());
+    }
+
+    @Test
+    void filter_combined_appliesAllPredicates() {
+        long a = insertActress("A", "A");
+        long t1 = insertTitle("F-1"); linkActressTitle(a, t1); seedEnrichment(t1, "s1", 4.5, 100, "Big Tits", "POV");
+        long t2 = insertTitle("F-2"); linkActressTitle(a, t2); seedEnrichment(t2, "s2", 4.5, 100, "Big Tits");
+        long t3 = insertTitle("F-3"); linkActressTitle(a, t3); seedEnrichment(t3, "s3", 3.0, 100, "Big Tits", "POV");
+
+        var rows = service.getActressTitles(a, new JavdbDiscoveryService.TitleFilter(
+                List.of("Big Tits", "POV"), 4.0, 50));
+        assertEquals(1, rows.size());
+        assertEquals("F-1", rows.get(0).code());
+    }
+
+    @Test
+    void filter_emptyExcludesUnenriched_butNoFilterIncludesThem() {
+        long a = insertActress("A", "A");
+        long t1 = insertTitle("F-1"); linkActressTitle(a, t1); seedEnrichment(t1, "s1", 4.5, 100, "X");
+        long t2 = insertTitle("F-2"); linkActressTitle(a, t2);   // un-enriched
+        long t3 = insertTitle("F-3"); linkActressTitle(a, t3);   // un-enriched
+
+        // No filter → all titles surface (current behavior)
+        assertEquals(3, service.getActressTitles(a, JavdbDiscoveryService.TitleFilter.none()).size());
+
+        // Any active filter → un-enriched are dropped
+        assertEquals(1, service.getActressTitles(a, new JavdbDiscoveryService.TitleFilter(
+                List.of("X"), null, null)).size());
+    }
+
+    @Test
+    void tagFacets_countsAcrossMatchingTitlesOnly() {
+        long a = insertActress("A", "A");
+        long t1 = insertTitle("F-1"); linkActressTitle(a, t1); seedEnrichment(t1, "s1", 4.5, 100, "Big Tits", "POV");
+        long t2 = insertTitle("F-2"); linkActressTitle(a, t2); seedEnrichment(t2, "s2", 4.5, 100, "Big Tits", "Cowgirl");
+        long t3 = insertTitle("F-3"); linkActressTitle(a, t3); seedEnrichment(t3, "s3", 3.0, 100, "Big Tits", "POV");
+
+        // No filter — both POV and Cowgirl present, Big Tits in all 3
+        var unfiltered = service.getActressTagFacets(a, JavdbDiscoveryService.TitleFilter.none());
+        var unfilteredMap = unfiltered.stream().collect(java.util.stream.Collectors.toMap(
+                JavdbDiscoveryService.TagFacet::name, JavdbDiscoveryService.TagFacet::count));
+        assertEquals(3, unfilteredMap.get("Big Tits"));
+        assertEquals(2, unfilteredMap.get("POV"));
+        assertEquals(1, unfilteredMap.get("Cowgirl"));
+
+        // Filter: rating >= 4.0 → only t1 and t2 match. Cowgirl now 1, POV now 1, Big Tits 2.
+        var filtered = service.getActressTagFacets(a, new JavdbDiscoveryService.TitleFilter(
+                null, 4.0, null));
+        var filteredMap = filtered.stream().collect(java.util.stream.Collectors.toMap(
+                JavdbDiscoveryService.TagFacet::name, JavdbDiscoveryService.TagFacet::count));
+        assertEquals(2, filteredMap.get("Big Tits"));
+        assertEquals(1, filteredMap.get("POV"));
+        assertEquals(1, filteredMap.get("Cowgirl"));
+
+        // Filter: tag conjunction Big Tits + POV → only t1 and t3, but Cowgirl wasn't on either
+        var both = service.getActressTagFacets(a, new JavdbDiscoveryService.TitleFilter(
+                List.of("Big Tits", "POV"), null, null));
+        var bothMap = both.stream().collect(java.util.stream.Collectors.toMap(
+                JavdbDiscoveryService.TagFacet::name, JavdbDiscoveryService.TagFacet::count));
+        assertEquals(2, bothMap.get("Big Tits"));
+        assertEquals(2, bothMap.get("POV"));
+        assertNull(bothMap.get("Cowgirl"), "tags not on any matching title should be absent from facets");
+    }
+
+    @Test
+    void tagFacets_emptyWhenNoMatches() {
+        long a = insertActress("A", "A");
+        long t = insertTitle("F-1"); linkActressTitle(a, t); seedEnrichment(t, "s", 3.0, 10, "Big Tits");
+        var facets = service.getActressTagFacets(a, new JavdbDiscoveryService.TitleFilter(
+                null, 4.5, null));
+        assertTrue(facets.isEmpty());
+    }
+
+    // ── getTitleEnrichmentDetail ───────────────────────────────────────────
+
+    @Test
+    void enrichmentDetail_returnsNullForMissingTitle() {
+        assertNull(service.getTitleEnrichmentDetail(999L));
+    }
+
+    @Test
+    void enrichmentDetail_returnsAllFields() {
+        long a = insertActress("Test Actress", "Test");
+        long titleId = insertTitle("ABC-001");
+        linkActressTitle(a, titleId);
+        jdbi.useHandle(h -> h.createUpdate("""
+                INSERT INTO title_javdb_enrichment
+                  (title_id, javdb_slug, fetched_at, title_original, release_date,
+                   duration_minutes, maker, publisher, series, rating_avg, rating_count,
+                   cast_json)
+                VALUES (?, 'AbCd01', '2026-04-25T10:00:00Z', 'テストタイトル', '2024-03-15',
+                        120, 'Test Maker', 'Test Publisher', 'Test Series', 4.25, 182,
+                        '[{"slug":"s1","name":"Alice","gender":"f"}]')
+                """).bind(0, titleId).execute());
+        jdbi.useHandle(h -> {
+            h.createUpdate("INSERT OR IGNORE INTO enrichment_tag_definitions(name) VALUES('Big Tits')").execute();
+            h.createUpdate("INSERT OR IGNORE INTO enrichment_tag_definitions(name) VALUES('POV')").execute();
+            h.execute("INSERT INTO title_enrichment_tags(title_id, tag_id) SELECT ?, id FROM enrichment_tag_definitions WHERE name='Big Tits'", titleId);
+            h.execute("INSERT INTO title_enrichment_tags(title_id, tag_id) SELECT ?, id FROM enrichment_tag_definitions WHERE name='POV'", titleId);
+        });
+
+        var d = service.getTitleEnrichmentDetail(titleId);
+
+        assertNotNull(d);
+        assertEquals("ABC-001",         d.code());
+        assertEquals("AbCd01",          d.javdbSlug());
+        assertEquals("テストタイトル",  d.titleOriginal());
+        assertEquals("2024-03-15",      d.releaseDate());
+        assertEquals(120,               d.durationMinutes());
+        assertEquals("Test Maker",      d.maker());
+        assertEquals("Test Publisher",  d.publisher());
+        assertEquals("Test Series",     d.series());
+        assertEquals(4.25,              d.ratingAvg(), 0.001);
+        assertEquals(182,               d.ratingCount());
+        assertNotNull(d.castJson());
+        assertTrue(d.castJson().contains("Alice"));
+        assertEquals(2, d.tags().size());
+        assertTrue(d.tags().containsAll(List.of("Big Tits", "POV")));
+        assertEquals("2026-04-25T10:00:00Z", d.fetchedAt());
+    }
+
+    @Test
+    void enrichmentDetail_returnsEmptyTagsWhenNone() {
+        long titleId = insertTitle("DEF-001");
+        jdbi.useHandle(h -> h.execute(
+                "INSERT INTO title_javdb_enrichment (title_id, javdb_slug, fetched_at) VALUES (?, 'xyz', '2026-01-01T00:00:00Z')",
+                titleId));
+
+        var d = service.getTitleEnrichmentDetail(titleId);
+
+        assertNotNull(d);
+        assertTrue(d.tags().isEmpty());
     }
 }

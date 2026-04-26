@@ -8,7 +8,7 @@ import java.util.List;
 /**
  * Read-only queries for the javdb Discovery screen.
  *
- * Pulls from actresses, title_actresses, javdb_title_staging, javdb_actress_staging,
+ * Pulls from actresses, title_actresses, title_javdb_enrichment, javdb_actress_staging,
  * and javdb_enrichment_queue — no mutations.
  */
 public class JavdbDiscoveryService {
@@ -38,14 +38,37 @@ public class JavdbDiscoveryService {
     public record TitleRow(
             long titleId,
             String code,
-            String status,         // null when no staging row
+            String status,         // null when no enrichment row
             String javdbSlug,
             String titleOriginal,
             String releaseDate,
             String maker,
             String publisher,
+            Double ratingAvg,
+            Integer ratingCount,
             String queueStatus     // null | 'pending' | 'in_flight' | 'failed' | 'done'
     ) {}
+
+    /**
+     * Filter parameters for the per-actress surfacing query.
+     * All fields are optional; null/empty means "no filter on this axis".
+     * When ANY filter is non-null, un-enriched titles are excluded automatically
+     * (they have no row in title_javdb_enrichment to match against).
+     */
+    public record TitleFilter(
+            List<String> requireTags,   // tags AND (conjunction)
+            Double minRatingAvg,
+            Integer minRatingCount
+    ) {
+        public boolean isEmpty() {
+            return (requireTags == null || requireTags.isEmpty())
+                && minRatingAvg == null && minRatingCount == null;
+        }
+        public static TitleFilter none() { return new TitleFilter(List.of(), null, null); }
+    }
+
+    /** A single facet entry returned alongside filtered title results. */
+    public record TagFacet(String name, int count) {}
 
     public record ProfileRow(
             String javdbSlug,
@@ -68,6 +91,23 @@ public class JavdbDiscoveryService {
             String castJson
     ) {}
 
+    public record TitleEnrichmentDetail(
+            long titleId,
+            String code,
+            String javdbSlug,
+            String titleOriginal,
+            String releaseDate,
+            Integer durationMinutes,
+            String maker,
+            String publisher,
+            String series,
+            Double ratingAvg,
+            Integer ratingCount,
+            String castJson,
+            List<String> tags,
+            String fetchedAt
+    ) {}
+
     // ── Queries ────────────────────────────────────────────────────────────
 
     /**
@@ -83,12 +123,12 @@ public class JavdbDiscoveryService {
                   a.favorite,
                   a.bookmark,
                   COUNT(DISTINCT ta.title_id)                                                       AS total_titles,
-                  COUNT(DISTINCT CASE WHEN jts.status = 'fetched' THEN ta.title_id END)             AS enriched_titles,
+                  COUNT(DISTINCT CASE WHEN tje.title_id IS NOT NULL THEN ta.title_id END)           AS enriched_titles,
                   jas.status                                                                         AS actress_status,
                   COALESCE(MAX(jeq.active_jobs), 0)                                                 AS active_jobs
                 FROM actresses a
                 JOIN title_actresses ta ON ta.actress_id = a.id
-                LEFT JOIN javdb_title_staging jts ON jts.title_id = ta.title_id
+                LEFT JOIN title_javdb_enrichment tje ON tje.title_id = ta.title_id
                 LEFT JOIN javdb_actress_staging jas ON jas.actress_id = a.id
                 LEFT JOIN (
                     SELECT actress_id, COUNT(*) AS active_jobs
@@ -115,24 +155,37 @@ public class JavdbDiscoveryService {
     }
 
     /**
-     * Returns the title staging rows for the actress's titles, null status when no
-     * staging row has been created for a given title yet.
+     * Returns title rows for the actress's titles. When {@code filter} is non-empty,
+     * un-enriched titles are excluded automatically (they cannot match any enrichment
+     * predicate). Tag conjunction uses GROUP BY ... HAVING COUNT to require all listed tags.
      */
-    public List<TitleRow> getActressTitles(long actressId) {
-        return jdbi.withHandle(h -> h.createQuery("""
+    public List<TitleRow> getActressTitles(long actressId, TitleFilter filter) {
+        boolean filtering = filter != null && !filter.isEmpty();
+        boolean tagFiltering = filtering && filter.requireTags() != null && !filter.requireTags().isEmpty();
+
+        StringBuilder sql = new StringBuilder("""
                 SELECT
                   t.id   AS title_id,
                   t.code,
-                  jts.status,
-                  jts.javdb_slug,
-                  jts.title_original,
-                  jts.release_date,
-                  jts.maker,
-                  jts.publisher,
+                  CASE WHEN tje.title_id IS NOT NULL THEN 'fetched' ELSE NULL END AS status,
+                  tje.javdb_slug,
+                  tje.title_original,
+                  tje.release_date,
+                  tje.maker,
+                  tje.publisher,
+                  tje.rating_avg,
+                  tje.rating_count,
                   jeq.effective_queue_status AS queue_status
                 FROM title_actresses ta
                 JOIN titles t ON t.id = ta.title_id
-                LEFT JOIN javdb_title_staging jts ON jts.title_id = ta.title_id
+                """);
+        // When filtering on enrichment predicates, only enriched titles can possibly match,
+        // so an INNER JOIN is more efficient than LEFT + WHERE. Otherwise LEFT to preserve
+        // the un-enriched rows in the listing.
+        sql.append(filtering
+                ? "JOIN title_javdb_enrichment tje ON tje.title_id = ta.title_id\n"
+                : "LEFT JOIN title_javdb_enrichment tje ON tje.title_id = ta.title_id\n");
+        sql.append("""
                 LEFT JOIN (
                     SELECT target_id,
                            CASE
@@ -147,21 +200,192 @@ public class JavdbDiscoveryService {
                     GROUP BY target_id
                 ) jeq ON jeq.target_id = t.id
                 WHERE ta.actress_id = :actressId
-                ORDER BY t.code
+                """);
+        if (filtering && filter.minRatingAvg() != null)   sql.append("  AND tje.rating_avg   >= :minRatingAvg\n");
+        if (filtering && filter.minRatingCount() != null) sql.append("  AND tje.rating_count >= :minRatingCount\n");
+        if (tagFiltering) {
+            sql.append("""
+                      AND t.id IN (
+                        SELECT tet.title_id
+                        FROM title_enrichment_tags tet
+                        JOIN enrichment_tag_definitions etd ON etd.id = tet.tag_id
+                        WHERE etd.name IN (<tags>)
+                        GROUP BY tet.title_id
+                        HAVING COUNT(DISTINCT etd.id) = :tagCount
+                      )
+                    """);
+        }
+        sql.append("ORDER BY t.code");
+
+        return jdbi.withHandle(h -> {
+            var query = h.createQuery(sql.toString())
+                    .bind("actressId", actressId);
+            if (filtering && filter.minRatingAvg() != null)   query.bind("minRatingAvg",   filter.minRatingAvg());
+            if (filtering && filter.minRatingCount() != null) query.bind("minRatingCount", filter.minRatingCount());
+            if (tagFiltering) {
+                query.bindList("tags", filter.requireTags())
+                     .bind("tagCount", filter.requireTags().size());
+            }
+            return query.map((rs, ctx) -> new TitleRow(
+                    rs.getLong("title_id"),
+                    rs.getString("code"),
+                    rs.getString("status"),
+                    rs.getString("javdb_slug"),
+                    rs.getString("title_original"),
+                    rs.getString("release_date"),
+                    rs.getString("maker"),
+                    rs.getString("publisher"),
+                    rs.getObject("rating_avg")   != null ? rs.getDouble("rating_avg")   : null,
+                    rs.getObject("rating_count") != null ? rs.getInt("rating_count")    : null,
+                    rs.getString("queue_status")
+            )).list();
+        });
+    }
+
+    /** Backwards-compatible no-filter overload. */
+    public List<TitleRow> getActressTitles(long actressId) {
+        return getActressTitles(actressId, TitleFilter.none());
+    }
+
+    /**
+     * Returns enrichment-tag facets for the actress: for each tag that appears on at least
+     * one of her enriched titles after applying {@code filter}, the count of currently-matching
+     * titles that carry that tag. Drives the faceted picker.
+     *
+     * <p>The tag the user has already selected is included in the result with its current count,
+     * so the UI can show "(N)" next to selected chips.
+     */
+    public List<TagFacet> getActressTagFacets(long actressId, TitleFilter filter) {
+        // Reuse getActressTitles to determine the matching set, then count tags across just those titles.
+        // The MVP keeps it simple: a single follow-up query joining the matching title ids to tag rows.
+        List<TitleRow> matching = getActressTitles(actressId, filter);
+        List<Long> ids = matching.stream().map(TitleRow::titleId).toList();
+        if (ids.isEmpty()) return List.of();
+        return jdbi.withHandle(h -> h.createQuery("""
+                SELECT etd.name AS name, COUNT(*) AS cnt
+                FROM title_enrichment_tags tet
+                JOIN enrichment_tag_definitions etd ON etd.id = tet.tag_id
+                WHERE tet.title_id IN (<ids>)
+                  AND etd.surface = 1
+                GROUP BY etd.id, etd.name
+                ORDER BY cnt DESC, etd.name
                 """)
-                .bind("actressId", actressId)
-                .map((rs, ctx) -> new TitleRow(
-                        rs.getLong("title_id"),
-                        rs.getString("code"),
-                        rs.getString("status"),
-                        rs.getString("javdb_slug"),
-                        rs.getString("title_original"),
-                        rs.getString("release_date"),
-                        rs.getString("maker"),
-                        rs.getString("publisher"),
-                        rs.getString("queue_status")
-                ))
+                .bindList("ids", ids)
+                .map((rs, ctx) -> new TagFacet(rs.getString("name"), rs.getInt("cnt")))
                 .list());
+    }
+
+    /**
+     * Returns the full enrichment detail for a single title, or null if no enrichment row exists.
+     */
+    public TitleEnrichmentDetail getTitleEnrichmentDetail(long titleId) {
+        return jdbi.withHandle(h -> {
+            var row = h.createQuery("""
+                    SELECT t.code, tje.javdb_slug, tje.title_original, tje.release_date,
+                           tje.duration_minutes, tje.maker, tje.publisher, tje.series,
+                           tje.rating_avg, tje.rating_count, tje.cast_json, tje.fetched_at
+                    FROM title_javdb_enrichment tje
+                    JOIN titles t ON t.id = tje.title_id
+                    WHERE tje.title_id = :titleId
+                    """)
+                    .bind("titleId", titleId)
+                    .map((rs, ctx) -> new TitleEnrichmentDetail(
+                            titleId,
+                            rs.getString("code"),
+                            rs.getString("javdb_slug"),
+                            rs.getString("title_original"),
+                            rs.getString("release_date"),
+                            rs.getObject("duration_minutes") != null ? rs.getInt("duration_minutes") : null,
+                            rs.getString("maker"),
+                            rs.getString("publisher"),
+                            rs.getString("series"),
+                            rs.getObject("rating_avg")    != null ? rs.getDouble("rating_avg")   : null,
+                            rs.getObject("rating_count")  != null ? rs.getInt("rating_count")    : null,
+                            rs.getString("cast_json"),
+                            List.of(),   // tags filled below
+                            rs.getString("fetched_at")
+                    ))
+                    .findOne().orElse(null);
+
+            if (row == null) return null;
+
+            List<String> tags = h.createQuery("""
+                    SELECT etd.name
+                    FROM title_enrichment_tags tet
+                    JOIN enrichment_tag_definitions etd ON etd.id = tet.tag_id
+                    WHERE tet.title_id = :titleId
+                    ORDER BY etd.name
+                    """)
+                    .bind("titleId", titleId)
+                    .mapTo(String.class)
+                    .list();
+
+            return new TitleEnrichmentDetail(
+                    row.titleId(), row.code(), row.javdbSlug(), row.titleOriginal(),
+                    row.releaseDate(), row.durationMinutes(), row.maker(), row.publisher(),
+                    row.series(), row.ratingAvg(), row.ratingCount(), row.castJson(),
+                    tags, row.fetchedAt()
+            );
+        });
+    }
+
+    // ── Enrichment tag-health (Phase 3 maintenance dashboard) ─────────────────
+
+    public record TagHealthSummary(
+            int totalEnrichmentRows,
+            int totalDefinitions,
+            int mappedDefinitions,        // curated_alias IS NOT NULL
+            int unmappedDefinitions,      // curated_alias IS NULL
+            int suppressedDefinitions     // surface = 0
+    ) {}
+
+    public record TagHealthRow(
+            long id,
+            String name,
+            String curatedAlias,    // nullable
+            int titleCount,
+            double libraryPct,      // 0.0–1.0; titleCount / totalEnrichmentRows
+            boolean surface
+    ) {}
+
+    public record TagHealthReport(TagHealthSummary summary, List<TagHealthRow> definitions) {}
+
+    /** Returns full snapshot for the Tag Health view. */
+    public TagHealthReport getTagHealthReport() {
+        return jdbi.withHandle(h -> {
+            int totalRows = h.createQuery("SELECT COUNT(*) FROM title_javdb_enrichment").mapTo(Integer.class).one();
+            int total     = h.createQuery("SELECT COUNT(*) FROM enrichment_tag_definitions").mapTo(Integer.class).one();
+            int mapped    = h.createQuery("SELECT COUNT(*) FROM enrichment_tag_definitions WHERE curated_alias IS NOT NULL").mapTo(Integer.class).one();
+            int suppressed = h.createQuery("SELECT COUNT(*) FROM enrichment_tag_definitions WHERE surface = 0").mapTo(Integer.class).one();
+            double safeTotal = totalRows > 0 ? (double) totalRows : 1.0;
+            List<TagHealthRow> rows = h.createQuery("""
+                    SELECT id, name, curated_alias, title_count, surface
+                    FROM enrichment_tag_definitions
+                    ORDER BY title_count DESC, name
+                    """)
+                    .map((rs, ctx) -> new TagHealthRow(
+                            rs.getLong("id"),
+                            rs.getString("name"),
+                            rs.getString("curated_alias"),
+                            rs.getInt("title_count"),
+                            rs.getInt("title_count") / safeTotal,
+                            rs.getInt("surface") != 0
+                    ))
+                    .list();
+            return new TagHealthReport(
+                    new TagHealthSummary(totalRows, total, mapped, total - mapped, suppressed),
+                    rows
+            );
+        });
+    }
+
+    /** Toggles the surface flag on a single definition. */
+    public void setEnrichmentTagSurface(long tagId, boolean surface) {
+        jdbi.useHandle(h -> h.createUpdate(
+                "UPDATE enrichment_tag_definitions SET surface = :s WHERE id = :id")
+                .bind("s", surface ? 1 : 0)
+                .bind("id", tagId)
+                .execute());
     }
 
     /**
@@ -196,15 +420,14 @@ public class JavdbDiscoveryService {
     public List<ConflictRow> getActressConflicts(long actressId) {
         return jdbi.withHandle(h -> h.createQuery("""
                 SELECT t.id AS title_id, t.code, a.canonical_name AS our_actress_name,
-                       jas.javdb_slug AS our_javdb_slug, ts.cast_json
-                FROM javdb_title_staging ts
-                JOIN titles t ON t.id = ts.title_id
+                       jas.javdb_slug AS our_javdb_slug, tje.cast_json
+                FROM title_javdb_enrichment tje
+                JOIN titles t ON t.id = tje.title_id
                 JOIN title_actresses ta ON ta.title_id = t.id AND ta.actress_id = :actressId
                 JOIN actresses a ON a.id = :actressId
                 LEFT JOIN javdb_actress_staging jas ON jas.actress_id = :actressId
-                WHERE ts.status = 'fetched'
-                  AND NOT EXISTS (
-                    SELECT 1 FROM json_each(ts.cast_json) je
+                WHERE NOT EXISTS (
+                    SELECT 1 FROM json_each(tje.cast_json) je
                     JOIN javdb_actress_staging jas2
                         ON jas2.javdb_slug = json_extract(je.value, '$.slug')
                     WHERE jas2.actress_id = :actressId

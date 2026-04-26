@@ -20,7 +20,7 @@ class EnrichmentQueueTest {
     private EnrichmentQueue queue;
     private Connection connection;
 
-    private static final JavdbConfig CONFIG = new JavdbConfig(true, 1.0, 3, new int[]{1, 5, 30}, 5, null);
+    private static final JavdbConfig CONFIG = new JavdbConfig(true, 1.0, 3, new int[]{1, 5, 30}, 5, null, null);
 
     @BeforeEach
     void setUp() throws Exception {
@@ -99,7 +99,7 @@ class EnrichmentQueueTest {
 
     @Test
     void markAttemptFailed_atMaxAttempts_setsFailedStatus() {
-        JavdbConfig tightConfig = new JavdbConfig(true, 1.0, 1, new int[]{1}, 5, null);
+        JavdbConfig tightConfig = new JavdbConfig(true, 1.0, 1, new int[]{1}, 5, null, null);
         EnrichmentQueue tightQueue = new EnrichmentQueue(
                 Jdbi.create(connection), tightConfig);
 

@@ -255,7 +255,7 @@ class WebServerTest {
         when(actressRepo.findAll()).thenReturn(List.of(aya, mia));
 
         ActressBrowseService actressBrowse = new ActressBrowseService(
-                actressRepo, titleRepo, coverPath, Map.of(), labelRepo, mock(ActressNameLookup.class), null);
+                actressRepo, titleRepo, coverPath, Map.of(), labelRepo, mock(ActressNameLookup.class), null, null);
         server = new WebServer(0, null, actressBrowse, null, null, null, null, null, null, null);
         server.start();
 
@@ -281,7 +281,7 @@ class WebServerTest {
         when(titleRepo.findByActress(1L)).thenReturn(List.of());
 
         ActressBrowseService actressBrowse = new ActressBrowseService(
-                actressRepo, titleRepo, coverPath, Map.of(), labelRepo, mock(ActressNameLookup.class), null);
+                actressRepo, titleRepo, coverPath, Map.of(), labelRepo, mock(ActressNameLookup.class), null, null);
         server = new WebServer(0, null, actressBrowse, null, null, null, null, null, null, null);
         server.start();
 
@@ -307,7 +307,7 @@ class WebServerTest {
         when(titleRepo.findByActress(1L)).thenReturn(List.of());
 
         ActressBrowseService actressBrowse = new ActressBrowseService(
-                actressRepo, titleRepo, coverPath, Map.of(), labelRepo, mock(ActressNameLookup.class), null);
+                actressRepo, titleRepo, coverPath, Map.of(), labelRepo, mock(ActressNameLookup.class), null, null);
         server = new WebServer(0, null, actressBrowse, null, null, null, null, null, null, null);
         server.start();
 
@@ -327,7 +327,7 @@ class WebServerTest {
         CoverPath coverPath = mock(CoverPath.class);
 
         ActressBrowseService actressBrowse = new ActressBrowseService(
-                actressRepo, titleRepo, coverPath, Map.of(), labelRepo, mock(ActressNameLookup.class), null);
+                actressRepo, titleRepo, coverPath, Map.of(), labelRepo, mock(ActressNameLookup.class), null, null);
         server = new WebServer(0, null, actressBrowse, null, null, null, null, null, null, null);
         server.start();
 
@@ -348,7 +348,7 @@ class WebServerTest {
         when(titleRepo.findByActress(42L)).thenReturn(List.of());
 
         ActressBrowseService actressBrowse = new ActressBrowseService(
-                actressRepo, titleRepo, coverPath, Map.of(), labelRepo, mock(ActressNameLookup.class), null);
+                actressRepo, titleRepo, coverPath, Map.of(), labelRepo, mock(ActressNameLookup.class), null, null);
         server = new WebServer(0, null, actressBrowse, null, null, null, null, null, null, null);
         server.start();
 
@@ -369,7 +369,7 @@ class WebServerTest {
         when(actressRepo.findById(999L)).thenReturn(Optional.empty());
 
         ActressBrowseService actressBrowse = new ActressBrowseService(
-                actressRepo, titleRepo, coverPath, Map.of(), labelRepo, mock(ActressNameLookup.class), null);
+                actressRepo, titleRepo, coverPath, Map.of(), labelRepo, mock(ActressNameLookup.class), null, null);
         server = new WebServer(0, null, actressBrowse, null, null, null, null, null, null, null);
         server.start();
 
@@ -385,7 +385,7 @@ class WebServerTest {
         CoverPath coverPath = mock(CoverPath.class);
 
         ActressBrowseService actressBrowse = new ActressBrowseService(
-                actressRepo, titleRepo, coverPath, Map.of(), labelRepo, mock(ActressNameLookup.class), null);
+                actressRepo, titleRepo, coverPath, Map.of(), labelRepo, mock(ActressNameLookup.class), null, null);
         server = new WebServer(0, null, actressBrowse, null, null, null, null, null, null, null);
         server.start();
 

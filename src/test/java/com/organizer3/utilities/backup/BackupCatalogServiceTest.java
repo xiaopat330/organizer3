@@ -125,8 +125,8 @@ class BackupCatalogServiceTest {
         assertNotNull(detail.createdAt());
         assertInstanceOf(String.class, detail.createdAt(),
                 "createdAt must be a String so new Date() in JavaScript parses it correctly");
-        assertTrue(detail.createdAt().startsWith("2026-04-24"),
-                "Expected ISO date prefix, got: " + detail.createdAt());
+        assertTrue(detail.createdAt().matches("\\d{4}-\\d{2}-\\d{2}.*"),
+                "Expected ISO date format (YYYY-MM-DD...), got: " + detail.createdAt());
     }
 
     @Test

@@ -29,7 +29,18 @@ public class JavdbDiscoveryRoutes {
                 ctx.status(400);
                 return;
             }
-            ctx.json(service.getActressTitles(id));
+            ctx.json(service.getActressTitles(id, parseFilter(ctx)));
+        });
+
+        app.get("/api/javdb/discovery/actresses/{id}/tag-facets", ctx -> {
+            long id;
+            try {
+                id = Long.parseLong(ctx.pathParam("id"));
+            } catch (NumberFormatException e) {
+                ctx.status(400);
+                return;
+            }
+            ctx.json(service.getActressTagFacets(id, parseFilter(ctx)));
         });
 
         app.get("/api/javdb/discovery/actresses/{id}/profile", ctx -> {
@@ -97,6 +108,15 @@ public class JavdbDiscoveryRoutes {
             ctx.json(service.getActressConflicts(id));
         });
 
+        app.get("/api/javdb/discovery/titles/{titleId}/enrichment", ctx -> {
+            long titleId;
+            try { titleId = Long.parseLong(ctx.pathParam("titleId")); }
+            catch (NumberFormatException e) { ctx.status(400); return; }
+            var detail = service.getTitleEnrichmentDetail(titleId);
+            if (detail == null) { ctx.status(404); return; }
+            ctx.json(detail);
+        });
+
         app.post("/api/javdb/discovery/actresses/{id}/titles/{titleId}/reenrich", ctx -> {
             long actressId = parseId(ctx);
             long titleId;
@@ -113,7 +133,23 @@ public class JavdbDiscoveryRoutes {
             actionService.reEnqueueActressProfile(id);
             ctx.status(204);
         });
+
+        // ── Tag-health (Phase 3 maintenance dashboard) ─────────────────────
+
+        app.get("/api/javdb/discovery/tag-health", ctx ->
+                ctx.json(service.getTagHealthReport()));
+
+        app.post("/api/javdb/discovery/tag-health/{tagId}/surface", ctx -> {
+            long tagId;
+            try { tagId = Long.parseLong(ctx.pathParam("tagId")); }
+            catch (NumberFormatException e) { ctx.status(400); return; }
+            var body = ctx.bodyAsClass(SurfaceRequest.class);
+            service.setEnrichmentTagSurface(tagId, body.surface());
+            ctx.status(204);
+        });
     }
+
+    private record SurfaceRequest(boolean surface) {}
 
     private long parseId(io.javalin.http.Context ctx) {
         try {
@@ -121,6 +157,34 @@ public class JavdbDiscoveryRoutes {
         } catch (NumberFormatException e) {
             return -1;
         }
+    }
+
+    /**
+     * Parses the surfacing filter from query params. Recognised:
+     * - {@code tags=Big Tits,Solowork} (comma-separated, AND semantics)
+     * - {@code minRatingAvg=4.2}
+     * - {@code minRatingCount=50}
+     * Missing/blank params are treated as "no filter on that axis".
+     */
+    private JavdbDiscoveryService.TitleFilter parseFilter(io.javalin.http.Context ctx) {
+        String tagsParam = ctx.queryParam("tags");
+        java.util.List<String> tags = (tagsParam == null || tagsParam.isBlank())
+                ? java.util.List.of()
+                : java.util.Arrays.stream(tagsParam.split(","))
+                        .map(String::trim).filter(s -> !s.isEmpty()).toList();
+        Double minAvg = parseDoubleOrNull(ctx.queryParam("minRatingAvg"));
+        Integer minCnt = parseIntOrNull(ctx.queryParam("minRatingCount"));
+        return new JavdbDiscoveryService.TitleFilter(tags, minAvg, minCnt);
+    }
+
+    private static Double parseDoubleOrNull(String s) {
+        if (s == null || s.isBlank()) return null;
+        try { return Double.parseDouble(s); } catch (NumberFormatException e) { return null; }
+    }
+
+    private static Integer parseIntOrNull(String s) {
+        if (s == null || s.isBlank()) return null;
+        try { return Integer.parseInt(s); } catch (NumberFormatException e) { return null; }
     }
 
     private record PauseRequest(boolean paused) {}

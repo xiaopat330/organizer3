@@ -272,7 +272,31 @@
       <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
       Discovery
     </button>
+    <button type="button" id="tools-tag-health-btn" class="action-tool-btn tools-tag-health-btn">
+      <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 12V8H6a2 2 0 0 1 0-4h12v4"/><path d="M4 6v12a2 2 0 0 0 2 2h14v-4"/><path d="M18 12h.01"/></svg>
+      Tag Health
+    </button>
   </div>
+</div>
+
+<!-- Tag Health tool content -->
+<div id="tools-tag-health-view" class="tools-tag-health-view" style="display:none">
+  <div class="th-header">
+    <h2>Enrichment Tag Health</h2>
+    <div id="th-summary" class="th-summary">Loading…</div>
+  </div>
+  <div class="th-controls">
+    <input id="th-filter" type="text" placeholder="Filter by name…" class="th-filter-input">
+    <label class="th-show-toggle"><input id="th-show-unmapped-only" type="checkbox"> Unmapped only</label>
+    <label class="th-show-toggle"><input id="th-show-suppressed" type="checkbox"> Show suppressed</label>
+    <span id="th-loaded-stamp" class="th-stamp"></span>
+  </div>
+  <table id="th-table" class="th-table">
+    <thead><tr>
+      <th>Tag</th><th>Title count</th><th>% of enriched</th><th>Curated alias</th><th>Surface</th>
+    </tr></thead>
+    <tbody></tbody>
+  </table>
 </div>
 
 <!-- Volumes tool content -->
@@ -726,6 +750,17 @@
       <button class="dup-detail-close" id="dup-detail-close" aria-label="Close">✕</button>
     </div>
     <div id="dup-detail-body" class="dup-detail-body"></div>
+  </div>
+</div>
+
+<!-- javdb enrichment detail modal -->
+<div id="jd-enrich-modal-overlay" class="jd-enrich-modal-overlay" style="display:none">
+  <div class="jd-enrich-modal" role="dialog" aria-modal="true">
+    <div class="jd-enrich-modal-header">
+      <div id="jd-enrich-modal-heading" class="jd-enrich-modal-heading"></div>
+      <button class="jd-enrich-modal-close" id="jd-enrich-modal-close" aria-label="Close">✕</button>
+    </div>
+    <div id="jd-enrich-modal-body" class="jd-enrich-modal-body"></div>
   </div>
 </div>
 

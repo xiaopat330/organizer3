@@ -213,6 +213,7 @@ function buildInitialState(detail) {
     descriptor,
     directTags: new Set(directTags),
     labelImpliedTags: new Set(detail.labelImpliedTags || []),
+    enrichmentImpliedTags: new Set(detail.enrichmentImpliedTags || []),
     coverStaged: null,
     coverDirty: false,
     hasExistingCover: !!detail.hasCover,
@@ -258,23 +259,28 @@ function renderEditor() {
 function renderTags() {
   if (!editorState || !tagsCatalog) { tagsPanel.innerHTML = ''; return; }
   const dup = isDuplicate();
-  const direct  = editorState.directTags;
-  const implied = editorState.labelImpliedTags;
+  const direct      = editorState.directTags;
+  const implied     = editorState.labelImpliedTags;
+  const enrImplied  = editorState.enrichmentImpliedTags;
 
   tagsPanel.innerHTML = tagsCatalog.map(group => `
     <div class="queue-tag-group tag-cat-${esc(group.category)}">
       <div class="queue-tag-group-label">${esc(group.label)}</div>
       <div class="queue-tag-row">
         ${group.tags.map(t => {
-          const isImplied = implied.has(t.name);
-          const isActive  = direct.has(t.name) || isImplied;
+          const isLabelImplied = implied.has(t.name);
+          const isEnrImplied   = enrImplied.has(t.name);
+          const isImplied      = isLabelImplied || isEnrImplied;
+          const isActive       = direct.has(t.name) || isImplied;
           const cls = 'queue-tag-toggle'
                     + (isActive  ? ' active'    : '')
                     + (isImplied ? ' implicit'  : '')
                     + (dup       ? ' disabled'  : '');
-          const title = isImplied
+          const title = isLabelImplied
               ? `Implied by label (${esc(t.description || '')})`
-              : esc(t.description || '');
+              : isEnrImplied
+                ? `Implied by enrichment (${esc(t.description || '')})`
+                : esc(t.description || '');
           return `<button type="button" class="${cls}" data-tag="${esc(t.name)}" ${isImplied || dup ? 'disabled' : ''} title="${title}">${esc(t.name)}</button>`;
         }).join('')}
       </div>

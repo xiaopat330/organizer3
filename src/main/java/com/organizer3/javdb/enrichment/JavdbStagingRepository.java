@@ -8,6 +8,7 @@ import org.jdbi.v3.core.Jdbi;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.List;
 import java.util.Optional;
 
 /**
@@ -176,6 +177,41 @@ public class JavdbStagingRepository {
                 .bind("instagramHandle", row.instagramHandle())
                 .bind("titleCount",      row.titleCount())
                 .execute());
+    }
+
+    /** Actress-slug pair derived from existing enrichment cast data, used for the startup backfill. */
+    public record BackfillEntry(long actressId, String javdbSlug, String sourceTitleCode) {}
+
+    /**
+     * Returns actresses that have no staging row yet but whose enriched titles all share a single
+     * consistent cast slug. This happens when the actress's name in our DB is romanized but javdb's
+     * cast entries use Japanese — name matching fails, but the cast structure still identifies her.
+     * Only actresses where every enriched single-cast title agrees on the same slug are returned
+     * (HAVING COUNT(DISTINCT slug) = 1), so there is no ambiguity.
+     */
+    public List<BackfillEntry> findBackfillableActressSlugs() {
+        return jdbi.withHandle(h -> h.createQuery("""
+                SELECT ta.actress_id,
+                       json_extract(tje.cast_json, '$[0].slug') AS javdb_slug,
+                       MIN(t.code)                              AS title_code
+                FROM title_actresses ta
+                JOIN title_javdb_enrichment tje ON tje.title_id = ta.title_id
+                JOIN titles t ON t.id = ta.title_id
+                LEFT JOIN javdb_actress_staging jas ON jas.actress_id = ta.actress_id
+                WHERE jas.actress_id IS NULL
+                  AND json_array_length(tje.cast_json) = 1
+                  AND json_extract(tje.cast_json, '$[0].slug') IS NOT NULL
+                  AND json_extract(tje.cast_json, '$[0].slug') NOT IN (
+                      SELECT javdb_slug FROM javdb_actress_staging WHERE javdb_slug IS NOT NULL
+                  )
+                GROUP BY ta.actress_id
+                HAVING COUNT(DISTINCT json_extract(tje.cast_json, '$[0].slug')) = 1
+                """)
+                .map((rs, ctx) -> new BackfillEntry(
+                        rs.getLong("actress_id"),
+                        rs.getString("javdb_slug"),
+                        rs.getString("title_code")))
+                .list());
     }
 
     public Optional<JavdbActressStagingRow> findActressStaging(long actressId) {
