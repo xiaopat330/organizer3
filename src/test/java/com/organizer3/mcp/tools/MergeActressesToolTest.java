@@ -172,6 +172,31 @@ class MergeActressesToolTest {
         assertEquals(Actress.Grade.SSS, MergeActressesTool.mergeFlags(into, from).grade());
     }
 
+    // ── false-positive guard ────────────────────────────────────────────────
+
+    @Test
+    void mergeDoesNotTouchUnrelatedActress() {
+        long into      = actressRepo.save(mk("Nami Aino")).getId();
+        long from      = actressRepo.save(mk("Aino Nami")).getId();
+        long unrelated = actressRepo.save(mk("Unrelated Actress")).getId();
+
+        actressRepo.saveAlias(new ActressAlias(unrelated, "Unrelated Alias"));
+        long titleId = titleRepo.save(title("UNR-001", unrelated)).getId();
+        titleActressRepo.linkAll(titleId, List.of(unrelated));
+
+        tool.call(args(into, from, false));
+
+        // A missing WHERE clause in any delete step would wipe these rows
+        assertTrue(actressRepo.findById(unrelated).isPresent(),
+                "unrelated actress row must not be deleted");
+        List<String> aliases = actressRepo.findAliases(unrelated).stream()
+                .map(ActressAlias::aliasName).toList();
+        assertTrue(aliases.contains("Unrelated Alias"),
+                "unrelated actress's aliases must survive merge");
+        assertTrue(titleActressRepo.findActressIdsByTitle(titleId).contains(unrelated),
+                "unrelated actress's title credits must survive merge");
+    }
+
     // ── validation ─────────────────────────────────────────────────────────
 
     @Test

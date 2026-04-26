@@ -16,6 +16,7 @@ import org.jdbi.v3.core.mapper.RowMapper;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -419,11 +420,12 @@ public class JdbiActressRepository implements ActressRepository {
         return jdbi.withHandle(h ->
                 h.createQuery("""
                         SELECT a.* FROM actresses a
-                        WHERE EXISTS (
-                            SELECT 1 FROM titles t
-                            JOIN title_locations tl ON tl.title_id = t.id
-                            WHERE t.actress_id = a.id
-                              AND tl.volume_id IN (<volumeIds>)
+                        WHERE a.id IN (
+                            SELECT DISTINCT t.actress_id
+                            FROM title_locations tl
+                            JOIN titles t ON t.id = tl.title_id
+                            WHERE tl.volume_id IN (<volumeIds>)
+                              AND t.actress_id IS NOT NULL
                         )
                         ORDER BY (a.favorite + a.bookmark) DESC, a.canonical_name
                         LIMIT :limit OFFSET :offset
@@ -445,16 +447,16 @@ public class JdbiActressRepository implements ActressRepository {
                 h.createQuery("""
                         SELECT a.* FROM actresses a
                         WHERE a.rejected = 0
-                          AND EXISTS (
-                            SELECT 1 FROM titles t
-                            JOIN title_locations tl ON tl.title_id = t.id
-                            WHERE t.actress_id = a.id
-                              AND tl.volume_id IN (<volumeIds>)
+                          AND a.id IN (
+                            SELECT DISTINCT t.actress_id
+                            FROM title_locations tl
+                            JOIN titles t ON t.id = tl.title_id
+                            WHERE tl.volume_id IN (<volumeIds>)
+                              AND t.actress_id IS NOT NULL
                           )
-                          AND EXISTS (
-                            SELECT 1 FROM actress_companies ac
-                            WHERE ac.actress_id = a.id
-                              AND ac.company IN (<companies>)
+                          AND a.id IN (
+                            SELECT actress_id FROM actress_companies
+                            WHERE company IN (<companies>)
                           )
                         ORDER BY (a.favorite + a.bookmark) DESC, a.canonical_name
                         LIMIT :limit OFFSET :offset
@@ -790,6 +792,47 @@ public class JdbiActressRepository implements ActressRepository {
                         .map(ACTRESS_MAPPER)
                         .findFirst()
         );
+    }
+
+    @Override
+    public Map<Long, List<ActressAlias>> findAliasesForActresses(Collection<Long> actressIds) {
+        if (actressIds.isEmpty()) return Map.of();
+        List<ActressAlias> all = jdbi.withHandle(h ->
+                h.createQuery("SELECT * FROM actress_aliases WHERE actress_id IN (<ids>)")
+                        .bindList("ids", actressIds)
+                        .map(ALIAS_MAPPER)
+                        .list()
+        );
+        return all.stream().collect(Collectors.groupingBy(ActressAlias::actressId));
+    }
+
+    @Override
+    public Map<String, Long> findCanonicalNameIds(Collection<String> names) {
+        if (names.isEmpty()) return Map.of();
+        List<Map.Entry<String, Long>> pairs = jdbi.withHandle(h ->
+                h.createQuery("SELECT id, canonical_name FROM actresses WHERE canonical_name IN (<names>) COLLATE NOCASE")
+                        .bindList("names", names)
+                        .map((rs, ctx) -> Map.entry(rs.getString("canonical_name"), rs.getLong("id")))
+                        .list()
+        );
+        return pairs.stream().collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
+    }
+
+    @Override
+    public Map<String, Actress> findPrimaryForAliases(Collection<String> canonicalNames) {
+        if (canonicalNames.isEmpty()) return Map.of();
+        List<Map.Entry<String, Actress>> pairs = jdbi.withHandle(h ->
+                h.createQuery("""
+                        SELECT a.*, aa.alias_name AS _queried_name
+                        FROM actress_aliases aa
+                        JOIN actresses a ON a.id = aa.actress_id
+                        WHERE aa.alias_name IN (<names>) COLLATE NOCASE
+                        """)
+                        .bindList("names", canonicalNames)
+                        .map((rs, ctx) -> Map.entry(rs.getString("_queried_name"), ACTRESS_MAPPER.map(rs, ctx)))
+                        .list()
+        );
+        return pairs.stream().collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue, (a, b) -> a));
     }
 
     @Override

@@ -23,11 +23,12 @@ class JdbiAvVideoRepositoryTest {
     private JdbiAvVideoRepository repo;
     private long actressId;
     private Connection connection;
+    private Jdbi jdbi;
 
     @BeforeEach
     void setUp() throws Exception {
         connection = DriverManager.getConnection("jdbc:sqlite::memory:");
-        Jdbi jdbi = Jdbi.create(connection);
+        jdbi = Jdbi.create(connection);
         new SchemaInitializer(jdbi).initialize();
         jdbi.useHandle(h -> {
             h.execute("INSERT INTO volumes (id, structure_type) VALUES ('qnap_av', 'avstars')");
@@ -171,6 +172,51 @@ class JdbiAvVideoRepositoryTest {
 
         repo.deleteOrphanedByVolume("qnap_av", syncStart.minusSeconds(1));
         assertEquals(1, repo.findByVolume("qnap_av").size());
+    }
+
+    /**
+     * Rule 3 boundary guard: a video with last_seen_at == syncStart must NOT be deleted.
+     * The predicate uses {@code <}, not {@code <=}, so the exact timestamp survives. If this
+     * ever flips (e.g. to {@code <=} during a refactor), every just-rescanned video would
+     * be wiped on the very sync that rescanned it.
+     */
+    @Test
+    void deleteOrphanedKeepsVideoSeenAtExactlySyncStart() {
+        LocalDateTime syncStart = LocalDateTime.of(2024, 6, 1, 10, 0, 0);
+        repo.upsert(AvVideo.builder()
+                .avActressId(actressId).volumeId("qnap_av")
+                .relativePath("boundary.mp4").filename("boundary.mp4").extension("mp4")
+                .lastSeenAt(syncStart)
+                .build());
+
+        repo.deleteOrphanedByVolume("qnap_av", syncStart);
+        assertEquals(1, repo.findByVolume("qnap_av").size(),
+                "video last-seen at exact syncStart must survive");
+    }
+
+    /**
+     * Rule 3 false-positive guard: deleting orphans on volume A must not touch volume B,
+     * even if B has equally-old rows.
+     */
+    @Test
+    void deleteOrphanedDoesNotTouchOtherVolumes() {
+        jdbi.useHandle(h -> h.execute(
+                "INSERT INTO volumes (id, structure_type) VALUES ('other_vol', 'avstars')"));
+        LocalDateTime syncStart = LocalDateTime.now();
+        repo.upsert(AvVideo.builder()
+                .avActressId(actressId).volumeId("qnap_av")
+                .relativePath("qnap-old.mp4").filename("qnap-old.mp4").extension("mp4")
+                .lastSeenAt(syncStart.minusHours(1)).build());
+        repo.upsert(AvVideo.builder()
+                .avActressId(actressId).volumeId("other_vol")
+                .relativePath("other-old.mp4").filename("other-old.mp4").extension("mp4")
+                .lastSeenAt(syncStart.minusHours(1)).build());
+
+        repo.deleteOrphanedByVolume("qnap_av", syncStart);
+
+        assertEquals(0, repo.findByVolume("qnap_av").size());
+        assertEquals(1, repo.findByVolume("other_vol").size(),
+                "other volume must be untouched");
     }
 
     // --- helpers ---

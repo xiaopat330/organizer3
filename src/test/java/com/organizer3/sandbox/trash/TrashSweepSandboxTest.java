@@ -1,6 +1,5 @@
 package com.organizer3.sandbox.trash;
 
-import com.organizer3.filesystem.LocalFileSystem;
 import com.organizer3.filesystem.VolumeFileSystem;
 import com.organizer3.sandbox.SandboxTestBase;
 import com.organizer3.trash.SweepReport;
@@ -168,10 +167,10 @@ class TrashSweepSandboxTest extends SandboxTestBase {
 
     static class FaultInjectingFS implements VolumeFileSystem {
 
-        private final LocalFileSystem delegate;
+        private final VolumeFileSystem delegate;
         private final Set<Path> failOnDelete;
 
-        FaultInjectingFS(LocalFileSystem delegate, Set<Path> failOnDelete) {
+        FaultInjectingFS(VolumeFileSystem delegate, Set<Path> failOnDelete) {
             this.delegate = delegate;
             this.failOnDelete = new CopyOnWriteArraySet<>(failOnDelete);
         }

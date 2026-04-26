@@ -2,6 +2,7 @@ package com.organizer3.config.volume;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.organizer3.config.sync.StructureSyncConfig;
+import com.organizer3.javdb.JavdbConfig;
 import com.organizer3.mcp.McpConfig;
 
 import java.util.List;
@@ -28,7 +29,8 @@ public record OrganizerConfig(
         @JsonProperty("library")         LibraryConfig library,
         @JsonProperty("normalize")       NormalizeConfig normalize,
         @JsonProperty("media")           MediaConfig media,
-        @JsonProperty("backgroundThumbnails") BackgroundThumbnailConfig backgroundThumbnails
+        @JsonProperty("backgroundThumbnails") BackgroundThumbnailConfig backgroundThumbnails,
+        @JsonProperty("javdb")               JavdbConfig javdb
 ) {
     /** Legacy ctor for tests that predate the organize-pipeline blocks. */
     public OrganizerConfig(String appName, String dataDir,
@@ -39,7 +41,7 @@ public record OrganizerConfig(
                            BackupConfig backup, McpConfig mcp) {
         this(appName, dataDir, maxBrowseTitles, maxRandomTitles, maxRandomActresses,
              thumbnailInterval, thumbnailColumns, coverCropPercent,
-             servers, volumes, structures, syncConfig, backup, mcp, null, null, null, null);
+             servers, volumes, structures, syncConfig, backup, mcp, null, null, null, null, null);
     }
 
     /** Legacy ctor for test sites that predate the {@code mcp:} block. */
@@ -51,7 +53,7 @@ public record OrganizerConfig(
                            BackupConfig backup) {
         this(appName, dataDir, maxBrowseTitles, maxRandomTitles, maxRandomActresses,
              thumbnailInterval, thumbnailColumns, coverCropPercent,
-             servers, volumes, structures, syncConfig, backup, null, null, null, null, null);
+             servers, volumes, structures, syncConfig, backup, null, null, null, null, null, null);
     }
 
     /** Returns the background-thumbnail config, or defaults (disabled) if unset. */
@@ -72,6 +74,11 @@ public record OrganizerConfig(
     /** Returns the media config, or defaults if unset. */
     public MediaConfig mediaOrDefaults() {
         return media != null ? media : MediaConfig.DEFAULTS;
+    }
+
+    /** Returns the javdb config, or defaults if unset. */
+    public JavdbConfig javdbOrDefaults() {
+        return javdb != null ? javdb : JavdbConfig.DEFAULTS;
     }
 
     public Optional<VolumeConfig> findById(String id) {

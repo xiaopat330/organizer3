@@ -35,7 +35,7 @@ public final class StaleLocationsCheck implements LibraryHealthCheck {
                         FROM title_locations tl
                         JOIN volumes v ON v.id = tl.volume_id
                         WHERE v.last_synced_at IS NOT NULL
-                          AND tl.last_seen_at < v.last_synced_at
+                          AND tl.last_seen_at < DATE(v.last_synced_at)
                         GROUP BY tl.volume_id
                         ORDER BY n DESC
                         LIMIT :lim
@@ -50,7 +50,7 @@ public final class StaleLocationsCheck implements LibraryHealthCheck {
                         SELECT COUNT(*) FROM title_locations tl
                         JOIN volumes v ON v.id = tl.volume_id
                         WHERE v.last_synced_at IS NOT NULL
-                          AND tl.last_seen_at < v.last_synced_at
+                          AND tl.last_seen_at < DATE(v.last_synced_at)
                         """).mapTo(Integer.class).one());
         return new CheckResult(total, new ArrayList<>(rows));
     }

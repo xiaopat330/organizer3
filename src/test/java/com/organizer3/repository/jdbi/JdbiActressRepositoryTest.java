@@ -145,6 +145,74 @@ class JdbiActressRepositoryTest {
         assertTrue(aliases.stream().noneMatch(a -> a.aliasName().equals("Old Alias")));
     }
 
+    // --- batch alias queries ---
+
+    @Test
+    void findAliasesForActressesGroupsByActressId() {
+        Actress a1 = repo.save(actress("Aya Sazanami"));
+        Actress a2 = repo.save(actress("Hibiki Otsuki"));
+        repo.saveAlias(new ActressAlias(a1.getId(), "Alias A"));
+        repo.saveAlias(new ActressAlias(a1.getId(), "Alias B"));
+        repo.saveAlias(new ActressAlias(a2.getId(), "Alias C"));
+
+        Map<Long, List<ActressAlias>> result = repo.findAliasesForActresses(List.of(a1.getId(), a2.getId()));
+
+        assertEquals(2, result.get(a1.getId()).size());
+        assertEquals(1, result.get(a2.getId()).size());
+    }
+
+    @Test
+    void findAliasesForActressesReturnsEmptyMapForEmptyInput() {
+        assertTrue(repo.findAliasesForActresses(List.of()).isEmpty());
+    }
+
+    @Test
+    void findAliasesForActressesExcludesActressesNotInInput() {
+        Actress a1 = repo.save(actress("Aya Sazanami"));
+        Actress a2 = repo.save(actress("Hibiki Otsuki"));
+        repo.saveAlias(new ActressAlias(a2.getId(), "Some Alias"));
+
+        // Only ask for a1 — a2's aliases must not appear.
+        Map<Long, List<ActressAlias>> result = repo.findAliasesForActresses(List.of(a1.getId()));
+
+        assertFalse(result.containsKey(a2.getId()));
+    }
+
+    @Test
+    void findCanonicalNameIdsReturnsIdsByName() {
+        Actress a1 = repo.save(actress("Aya Sazanami"));
+        Actress a2 = repo.save(actress("Hibiki Otsuki"));
+
+        Map<String, Long> result = repo.findCanonicalNameIds(List.of("Aya Sazanami", "Hibiki Otsuki", "Unknown"));
+
+        assertEquals(a1.getId(), result.get("Aya Sazanami"));
+        assertEquals(a2.getId(), result.get("Hibiki Otsuki"));
+        assertFalse(result.containsKey("Unknown"));
+    }
+
+    @Test
+    void findCanonicalNameIdsReturnsEmptyMapForEmptyInput() {
+        assertTrue(repo.findCanonicalNameIds(List.of()).isEmpty());
+    }
+
+    @Test
+    void findPrimaryForAliasesReturnsPrimaryByQueriedName() {
+        Actress primary = repo.save(actress("Aya Sazanami"));
+        repo.saveAlias(new ActressAlias(primary.getId(), "Haruka Suzumiya"));
+        repo.saveAlias(new ActressAlias(primary.getId(), "Aya Konami"));
+
+        Map<String, Actress> result = repo.findPrimaryForAliases(List.of("Haruka Suzumiya", "Aya Konami", "Nobody"));
+
+        assertEquals("Aya Sazanami", result.get("Haruka Suzumiya").getCanonicalName());
+        assertEquals("Aya Sazanami", result.get("Aya Konami").getCanonicalName());
+        assertFalse(result.containsKey("Nobody"));
+    }
+
+    @Test
+    void findPrimaryForAliasesReturnsEmptyMapForEmptyInput() {
+        assertTrue(repo.findPrimaryForAliases(List.of()).isEmpty());
+    }
+
     // --- importFromYaml ---
 
     @Test

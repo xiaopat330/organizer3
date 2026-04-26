@@ -15,7 +15,9 @@ import java.sql.Connection;
 import java.sql.DriverManager;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -30,11 +32,12 @@ class JdbiTitleRepositoryTest {
     private JdbiActressRepository actressRepo;
     private JdbiTitleActressRepository titleActressRepo;
     private Connection connection;
+    private Jdbi jdbi;
 
     @BeforeEach
     void setUp() throws Exception {
         connection = DriverManager.getConnection("jdbc:sqlite::memory:");
-        Jdbi jdbi = Jdbi.create(connection);
+        jdbi = Jdbi.create(connection);
         new SchemaInitializer(jdbi).initialize();
         // Insert volume rows to satisfy the FK constraint on title_locations
         jdbi.useHandle(h -> {
@@ -448,6 +451,27 @@ class JdbiTitleRepositoryTest {
         assertEquals("ABP-003", page2.get(0).getCode());
     }
 
+    @Test
+    void findByVolumeAndPartitionExcludesUnderscorePrefixedFolders() {
+        saveWithLocation(titleInPartition("ABP-001", "pool"), "vol-pool", "pool", "/mnt/pool/ABP-001");
+        saveWithLocation(titleInPartition("ABP-002", "pool"), "vol-pool", "pool", "/mnt/pool/_sandbox");
+        saveWithLocation(titleInPartition("ABP-003", "pool"), "vol-pool", "pool", "/mnt/pool/_trash/ABP-003");
+
+        List<Title> results = titleRepo.findByVolumeAndPartition("vol-pool", "pool", 10, 0);
+        assertEquals(1, results.size());
+        assertEquals("ABP-001", results.get(0).getCode());
+    }
+
+    @Test
+    void findByVolumeAndPartitionFilteredExcludesUnderscorePrefixedFolders() {
+        saveWithLocation(titleInPartition("ABP-001", "pool"), "vol-pool", "pool", "/mnt/pool/ABP-001");
+        saveWithLocation(titleInPartition("ABP-002", "pool"), "vol-pool", "pool", "/mnt/pool/_sandbox");
+
+        List<Title> results = titleRepo.findByVolumeAndPartitionFiltered("vol-pool", "pool", List.of(), List.of(), 10, 0);
+        assertEquals(1, results.size());
+        assertEquals("ABP-001", results.get(0).getCode());
+    }
+
     // --- findByVolumePaged ---
 
     @Test
@@ -690,6 +714,85 @@ class JdbiTitleRepositoryTest {
         assertTrue(titleRepo.findById(t.getId()).isPresent());
     }
 
+    @Test
+    void deleteOrphanedReturnsNumberRemoved() {
+        // One with location, two without
+        Title keep = titleRepo.save(Title.builder()
+                .code("ABP-001").baseCode("ABP-00001").label("ABP").seqNum(1).build());
+        locationRepo.save(TitleLocation.builder().titleId(keep.getId())
+                .volumeId("vol-a").partitionId("queue").path(Path.of("/queue/ABP-001"))
+                .lastSeenAt(LocalDate.now()).build());
+        titleRepo.save(Title.builder().code("ABP-002").baseCode("ABP-00002").label("ABP").seqNum(2).build());
+        titleRepo.save(Title.builder().code("ABP-003").baseCode("ABP-00003").label("ABP").seqNum(3).build());
+
+        assertEquals(2, titleRepo.deleteOrphaned());
+        assertEquals(0, titleRepo.deleteOrphaned()); // idempotent — nothing left to drop
+    }
+
+    // --- cascade guard: CatastrophicDeleteException ---
+
+    /**
+     * Regression for 2026-04-23 incident. A buggy predicate wiped every title_locations
+     * row; the next sync's {@code deleteOrphaned()} would then have dropped every title.
+     * The guard must refuse to run when the orphan count exceeds the plausibility
+     * threshold, leaving all rows intact for a human to investigate.
+     */
+    @Test
+    void deleteOrphanedRefusesWhenEveryTitleIsOrphaned() {
+        int count = com.organizer3.repository.jdbi.JdbiTitleRepository.ORPHAN_DELETE_FLOOR + 10;
+        for (int i = 0; i < count; i++) {
+            String code = String.format("ABP-%04d", i + 1);
+            String base = String.format("ABP-%05d", i + 1);
+            titleRepo.save(Title.builder().code(code).baseCode(base).label("ABP").seqNum(i + 1).build());
+        }
+        // No locations at all → every title is "orphaned". A naive deleteOrphaned would
+        // drop all of them. The guard must throw, and NOTHING must be deleted.
+
+        com.organizer3.repository.CatastrophicDeleteException ex =
+                assertThrows(com.organizer3.repository.CatastrophicDeleteException.class,
+                        () -> titleRepo.deleteOrphaned());
+        assertEquals(count, ex.wouldDelete());
+        assertEquals(count, ex.total());
+
+        // Nothing was deleted — the transaction rolled back on throw.
+        assertEquals(count, countAllTitles());
+    }
+
+    /**
+     * Boundary: orphan count at the 500 floor must still delete (just barely plausible).
+     * This is the false-positive side of the guard — a legitimately large cleanup on a
+     * still-modest library should not be blocked.
+     */
+    @Test
+    void deleteOrphanedAllowsUpToFloor() {
+        int floor = com.organizer3.repository.jdbi.JdbiTitleRepository.ORPHAN_DELETE_FLOOR;
+        // Seed enough titles-with-locations that the 25% ratio gate isn't the binding
+        // constraint (total = 4*floor → ratio threshold = floor). Then add exactly floor
+        // more orphans: orphans(floor) <= threshold(floor), guard must allow.
+        int keepers = 3 * floor;
+        for (int i = 0; i < keepers; i++) {
+            String code = String.format("ABP-%04d", i + 1);
+            String base = String.format("ABP-%05d", i + 1);
+            Title kept = titleRepo.save(Title.builder().code(code).baseCode(base).label("ABP").seqNum(i + 1).build());
+            locationRepo.save(TitleLocation.builder().titleId(kept.getId())
+                    .volumeId("vol-a").partitionId("queue").path(Path.of("/queue/" + code))
+                    .lastSeenAt(LocalDate.now()).build());
+        }
+        for (int i = 0; i < floor; i++) {
+            String code = String.format("CJD-%04d", i + 1);
+            String base = String.format("CJD-%05d", i + 1);
+            titleRepo.save(Title.builder().code(code).baseCode(base).label("CJD").seqNum(i + 1).build());
+        }
+
+        assertEquals(floor, titleRepo.deleteOrphaned());
+        assertEquals(keepers, countAllTitles());
+    }
+
+    private int countAllTitles() {
+        return jdbi.withHandle(h -> h.createQuery("SELECT COUNT(*) FROM titles")
+                .mapTo(Integer.class).one());
+    }
+
     // --- cross-volume: findByActress and countByActress via title_actresses ---
 
     @Test
@@ -882,6 +985,67 @@ class JdbiTitleRepositoryTest {
 
         var counts = titleRepo.countTitlesByCompanies(List.of("Moodyz"));
         assertEquals(1L, counts.get("Moodyz"));
+    }
+
+    // --- allBaseCodes ---
+
+    @Test
+    void allBaseCodesReturnsEveryBaseCodeFromTitlesTable() {
+        titleRepo.save(Title.builder().code("ABP-123").baseCode("ABP-00123").label("ABP").seqNum(123).build());
+        titleRepo.save(Title.builder().code("XYZ-1").baseCode("XYZ-00001").label("XYZ").seqNum(1).build());
+
+        Set<String> codes = titleRepo.allBaseCodes();
+        assertEquals(Set.of("ABP-00123", "XYZ-00001"), codes);
+    }
+
+    @Test
+    void allBaseCodesReturnsEmptyWhenNoTitles() {
+        assertTrue(titleRepo.allBaseCodes().isEmpty());
+    }
+
+    // --- findByActressIds ---
+
+    @Test
+    void findByActressIdsReturnsEmptyMapForEmptyInput() {
+        assertTrue(titleRepo.findByActressIds(List.of()).isEmpty());
+    }
+
+    @Test
+    void findByActressIdsGroupsTitlesByActressId() {
+        Title t1 = titleRepo.save(Title.builder().code("ABP-001").baseCode("ABP-00001").label("ABP").seqNum(1).actressId(10L).build());
+        Title t2 = titleRepo.save(Title.builder().code("ABP-002").baseCode("ABP-00002").label("ABP").seqNum(2).actressId(10L).build());
+        Title t3 = titleRepo.save(Title.builder().code("SSIS-001").baseCode("SSIS-00001").label("SSIS").seqNum(1).actressId(20L).build());
+
+        Map<Long, List<Title>> result = titleRepo.findByActressIds(List.of(10L, 20L));
+
+        assertEquals(2, result.get(10L).size());
+        assertEquals(1, result.get(20L).size());
+        assertFalse(result.containsKey(99L));
+    }
+
+    @Test
+    void findByActressIdsIncludesTitleActressesJunctionRows() {
+        Title t = titleRepo.save(Title.builder().code("ABP-001").baseCode("ABP-00001").label("ABP").seqNum(1).build());
+        // Link via junction table, not actress_id FK
+        try (var stmt = connection.createStatement()) {
+            stmt.execute("INSERT INTO title_actresses (title_id, actress_id) VALUES (" + t.getId() + ", 30)");
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+
+        Map<Long, List<Title>> result = titleRepo.findByActressIds(List.of(30L));
+
+        assertEquals(1, result.get(30L).size());
+        assertEquals("ABP-001", result.get(30L).get(0).getCode());
+    }
+
+    @Test
+    void findByActressIdsExcludesActressesNotInInput() {
+        titleRepo.save(Title.builder().code("ABP-001").baseCode("ABP-00001").label("ABP").seqNum(1).actressId(10L).build());
+
+        Map<Long, List<Title>> result = titleRepo.findByActressIds(List.of(20L));
+
+        assertFalse(result.containsKey(10L));
     }
 
     // --- helpers ---

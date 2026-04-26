@@ -53,7 +53,7 @@ public class FindStaleLocationsTool implements Tool {
                     JOIN volumes v ON v.id = tl.volume_id
                     JOIN titles  t ON t.id = tl.title_id
                     WHERE v.last_synced_at IS NOT NULL
-                      AND tl.last_seen_at < v.last_synced_at
+                      AND tl.last_seen_at < DATE(v.last_synced_at)
                     """);
             if (volumeId != null && !volumeId.isBlank()) {
                 sql.append("  AND tl.volume_id = :vol\n");

@@ -13,6 +13,7 @@ import com.organizer3.model.TitleLocation;
 import com.organizer3.model.Video;
 import com.organizer3.model.Volume;
 import com.organizer3.repository.ActressRepository;
+import com.organizer3.repository.CatastrophicDeleteException;
 import com.organizer3.repository.TitleActressRepository;
 import com.organizer3.repository.TitleLocationRepository;
 import com.organizer3.repository.TitleRepository;
@@ -285,6 +286,26 @@ abstract class AbstractSyncOperation implements SyncOperation {
      */
     protected void pruneOrphanedTitlesAndCovers(CommandIO io) {
         List<TitleRepository.OrphanedTitleRef> orphans = titleRepo.findOrphanedTitles();
+
+        // Cascade guard (pre-cover): check before deleting any cover files. The repo-level
+        // guard in deleteOrphaned() is defense-in-depth, but cover deletion runs first and
+        // a bug that orphans every title would otherwise nuke the local cover cache before
+        // the DB guard could stop it — thousands of SMB round trips to re-fetch on recovery.
+        if (!orphans.isEmpty()) {
+            int total = titleRepo.countAll();
+            int threshold = com.organizer3.repository.jdbi.JdbiTitleRepository.orphanDeleteThreshold(total);
+            if (orphans.size() > threshold) {
+                log.error("Orphan prune refused (pre-cover): {} of {} titles would be deleted (threshold {}). "
+                        + "title_locations may be corrupted — investigate before re-running sync.",
+                        orphans.size(), total, threshold);
+                io.println("  ⚠ Orphan prune refused — " + orphans.size() + " of " + total
+                        + " titles would be deleted (threshold " + threshold + ").");
+                io.println("  ⚠ This usually indicates a title_locations corruption."
+                        + " Investigate before re-running sync.");
+                return;
+            }
+        }
+
         int coversDeleted = 0;
         for (TitleRepository.OrphanedTitleRef ref : orphans) {
             // Build a minimal synthetic title so CoverPath.find() can probe extensions.
@@ -297,8 +318,19 @@ abstract class AbstractSyncOperation implements SyncOperation {
                 log.warn("Failed to delete orphan cover {} for {}-{}", found.get(), ref.label(), ref.baseCode(), e);
             }
         }
-        titleRepo.deleteOrphaned();
-        titleActressRepo.deleteOrphaned();
+        try {
+            titleRepo.deleteOrphaned();
+            titleActressRepo.deleteOrphaned();
+        } catch (CatastrophicDeleteException e) {
+            // Repo-level guard tripped despite the pre-check — total/orphan counts must have
+            // shifted mid-prune (unlikely under normal sync serialization, but possible).
+            log.error("Orphan prune refused (repo-guard): {}", e.getMessage(), e);
+            io.println("  ⚠ Orphan prune refused — " + e.wouldDelete() + " of "
+                    + e.total() + " titles would be deleted (threshold " + e.threshold() + ").");
+            io.println("  ⚠ This usually indicates a title_locations corruption."
+                    + " Investigate before re-running sync.");
+            return;
+        }
         if (!orphans.isEmpty() || coversDeleted > 0) {
             log.info("Pruned {} orphan title(s); deleted {} cover file(s)", orphans.size(), coversDeleted);
             io.println("  Pruned " + orphans.size() + " orphan title(s); deleted " + coversDeleted + " cover file(s).");

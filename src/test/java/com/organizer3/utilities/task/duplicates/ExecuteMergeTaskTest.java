@@ -250,6 +250,51 @@ class ExecuteMergeTaskTest {
     }
 
     @Test
+    void mergeDoesNotDeleteWinnersExistingJunctionRows() throws Exception {
+        long winnerId = insertTitle("ABP-001");
+        long loserId  = insertTitle("ABP-01");
+
+        // Winner's pre-existing rows in every junction table that the merge DELETEs
+        jdbi.useHandle(h -> h.execute(
+                "INSERT INTO title_tags (title_id, tag) VALUES (?, ?)", winnerId, "exclusive"));
+        jdbi.useHandle(h -> h.execute(
+                "INSERT INTO title_effective_tags (title_id, tag, source) VALUES (?, ?, ?)",
+                winnerId, "exclusive", "direct"));
+        insertActress(winnerId, "Star Actress");
+
+        // Loser also has junction rows (will be merged then deleted)
+        jdbi.useHandle(h -> h.execute(
+                "INSERT INTO title_tags (title_id, tag) VALUES (?, ?)", loserId, "censored"));
+        insertActress(loserId, "Loser Actress");
+
+        repo.insertIfAbsent("ABP-001", "ABP-01", "code-normalization", "2026-04-23T00:00:00Z");
+        long id = repo.listPending().get(0).getId();
+        decideMerge(id, "ABP-001");
+
+        task.run(emptyInputs(), new CapturingIO());
+
+        // A wrong WHERE (title_id = :winner instead of :loser) would delete these rows
+        int winnerTags = jdbi.withHandle(h ->
+                h.createQuery("SELECT COUNT(*) FROM title_tags WHERE title_id = ? AND tag = 'exclusive'")
+                        .bind(0, winnerId).mapTo(Integer.class).one());
+        assertEquals(1, winnerTags, "winner's pre-existing title_tags must survive merge");
+
+        int winnerEffTags = jdbi.withHandle(h ->
+                h.createQuery("SELECT COUNT(*) FROM title_effective_tags WHERE title_id = ? AND tag = 'exclusive'")
+                        .bind(0, winnerId).mapTo(Integer.class).one());
+        assertEquals(1, winnerEffTags, "winner's pre-existing title_effective_tags must survive merge");
+
+        int winnerActresses = jdbi.withHandle(h ->
+                h.createQuery("""
+                        SELECT COUNT(*) FROM title_actresses ta
+                        JOIN actresses a ON a.id = ta.actress_id
+                        WHERE ta.title_id = ? AND a.canonical_name = 'Star Actress'
+                        """)
+                        .bind(0, winnerId).mapTo(Integer.class).one());
+        assertEquals(1, winnerActresses, "winner's pre-existing title_actresses must survive merge");
+    }
+
+    @Test
     void staleMergeCandidatesForLoser_deleted() throws Exception {
         insertTitle("ABP-001");
         insertTitle("ABP-01");

@@ -151,6 +151,27 @@ class JdbiVideoRepositoryTest {
         assertTrue(videoRepo.findByTitle(t1.getId()).isEmpty());
     }
 
+    /**
+     * Rule 3 false-positive guard: deleting videos for vol-a must not touch vol-b. A bad
+     * predicate or mis-bound volumeId that dropped the WHERE clause would wipe videos
+     * across the whole catalog.
+     */
+    @Test
+    void deleteByVolumeDoesNotTouchOtherVolumes() {
+        jdbi.useHandle(h -> h.execute(
+                "INSERT INTO volumes (id, structure_type) VALUES ('vol-b', 'conventional')"));
+        Title shared = saveTitle("ABP-001");
+        videoRepo.save(video(shared.getId(), "a.mp4", "/a.mp4"));
+        videoRepo.save(Video.builder().titleId(shared.getId()).volumeId("vol-b")
+                .filename("b.mp4").path(Path.of("/b.mp4")).lastSeenAt(LocalDate.now()).build());
+
+        videoRepo.deleteByVolume("vol-a");
+
+        List<Video> survivors = videoRepo.findByTitle(shared.getId());
+        assertEquals(1, survivors.size(), "vol-b video must survive delete of vol-a");
+        assertEquals("vol-b", survivors.get(0).getVolumeId());
+    }
+
     // --- deleteByVolumeAndPartition ---
 
     @Test

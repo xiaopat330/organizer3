@@ -81,6 +81,22 @@ class DeleteTitleToolTest {
     }
 
     @Test
+    void deleteDoesNotTouchSurvivorTitle() {
+        long targetId   = givenTitleWith("DEL-001", "Delete Actress");
+        long survivorId = givenTitleWith("SUR-001", "Survivor Actress");
+
+        tool.call(args(targetId, false));
+
+        assertTrue(titleRepo.findById(survivorId).isPresent(), "survivor title must not be deleted");
+        assertEquals(1, titleLocationRepo.findByTitle(survivorId).size(),
+                "survivor locations must survive");
+        assertEquals(1, videoRepo.findByTitle(survivorId).size(),
+                "survivor videos must survive");
+        assertEquals(1, titleActressRepo.findActressIdsByTitle(survivorId).size(),
+                "survivor credits must survive");
+    }
+
+    @Test
     void rejectsMissingTitle() {
         assertThrows(IllegalArgumentException.class, () -> tool.call(args(9999L, true)));
     }
@@ -101,15 +117,20 @@ class DeleteTitleToolTest {
 
     /** Creates a title with: 1 actress, 1 credit row, 1 location, 1 video. Returns title id. */
     private long givenTitleWithEverything() {
+        return givenTitleWith("XYZ-001", "Test Actress");
+    }
+
+    private long givenTitleWith(String code, String actressName) {
         long actressId = actressRepo.save(Actress.builder()
-                .canonicalName("Test Actress")
+                .canonicalName(actressName)
                 .tier(Actress.Tier.LIBRARY)
                 .firstSeenAt(LocalDate.of(2024, 1, 1))
                 .build()).getId();
+        String slug = code.toLowerCase().replace("-", "");
         Title t = titleRepo.save(Title.builder()
-                .code("XYZ-001")
-                .baseCode("XYZ-00001")
-                .label("XYZ")
+                .code(code)
+                .baseCode(code.replace("-", "-0"))
+                .label(code.split("-")[0])
                 .seqNum(1)
                 .actressId(actressId)
                 .build());
@@ -117,15 +138,15 @@ class DeleteTitleToolTest {
                 .titleId(t.getId())
                 .volumeId("a")
                 .partitionId("library")
-                .path(java.nio.file.Path.of("/stars/library/Test Actress/Test Actress (XYZ-001)"))
+                .path(java.nio.file.Path.of("/stars/library/" + actressName + "/" + actressName + " (" + code + ")"))
                 .addedDate(LocalDate.of(2024, 1, 2))
                 .lastSeenAt(LocalDate.of(2024, 1, 2))
                 .build());
         videoRepo.save(Video.builder()
                 .titleId(t.getId())
                 .volumeId("a")
-                .filename("xyz001.mkv")
-                .path(java.nio.file.Path.of("/stars/library/Test Actress/Test Actress (XYZ-001)/video"))
+                .filename(slug + ".mkv")
+                .path(java.nio.file.Path.of("/stars/library/" + actressName + "/" + actressName + " (" + code + ")/video"))
                 .lastSeenAt(LocalDate.of(2024, 1, 2))
                 .build());
         titleActressRepo.linkAll(t.getId(), java.util.List.of(actressId));

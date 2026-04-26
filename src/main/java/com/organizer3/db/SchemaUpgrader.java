@@ -19,7 +19,7 @@ import org.jdbi.v3.core.Jdbi;
 public class SchemaUpgrader {
 
     /** Must match the version stamped by {@link SchemaInitializer}. */
-    private static final int CURRENT_VERSION = 23;
+    private static final int CURRENT_VERSION = 24;
 
     private final Jdbi jdbi;
 
@@ -138,7 +138,69 @@ public class SchemaUpgrader {
             setVersion(23);
         }
 
+        if (version < 24) {
+            applyV24();
+            setVersion(24);
+        }
+
         log.info("Schema upgrade complete");
+    }
+
+    /** v24: javdb enrichment queue + staging tables. */
+    private void applyV24() {
+        log.info("Applying migration v24: javdb enrichment queue and staging tables");
+        jdbi.useHandle(h -> {
+            h.execute("""
+                    CREATE TABLE IF NOT EXISTS javdb_enrichment_queue (
+                        id              INTEGER PRIMARY KEY AUTOINCREMENT,
+                        job_type        TEXT NOT NULL,
+                        target_id       INTEGER NOT NULL,
+                        actress_id      INTEGER NOT NULL,
+                        status          TEXT NOT NULL,
+                        attempts        INTEGER NOT NULL DEFAULT 0,
+                        next_attempt_at TEXT NOT NULL,
+                        last_error      TEXT,
+                        created_at      TEXT NOT NULL,
+                        updated_at      TEXT NOT NULL
+                    )""");
+            h.execute("CREATE INDEX IF NOT EXISTS idx_jeq_claim   ON javdb_enrichment_queue(status, next_attempt_at)");
+            h.execute("CREATE INDEX IF NOT EXISTS idx_jeq_actress ON javdb_enrichment_queue(actress_id, status)");
+            h.execute("""
+                    CREATE TABLE IF NOT EXISTS javdb_title_staging (
+                        title_id            INTEGER PRIMARY KEY REFERENCES titles(id),
+                        status              TEXT NOT NULL,
+                        javdb_slug          TEXT,
+                        raw_path            TEXT,
+                        raw_fetched_at      TEXT,
+                        title_original      TEXT,
+                        release_date        TEXT,
+                        duration_minutes    INTEGER,
+                        maker               TEXT,
+                        publisher           TEXT,
+                        series              TEXT,
+                        rating_avg          REAL,
+                        rating_count        INTEGER,
+                        tags_json           TEXT,
+                        cast_json           TEXT,
+                        cover_url           TEXT,
+                        thumbnail_urls_json TEXT
+                    )""");
+            h.execute("""
+                    CREATE TABLE IF NOT EXISTS javdb_actress_staging (
+                        actress_id          INTEGER PRIMARY KEY REFERENCES actresses(id),
+                        javdb_slug          TEXT NOT NULL,
+                        source_title_code   TEXT,
+                        status              TEXT NOT NULL,
+                        raw_path            TEXT,
+                        raw_fetched_at      TEXT,
+                        name_variants_json  TEXT,
+                        avatar_url          TEXT,
+                        twitter_handle      TEXT,
+                        instagram_handle    TEXT,
+                        title_count         INTEGER
+                    )""");
+            h.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_javdb_actress_slug ON javdb_actress_staging(javdb_slug)");
+        });
     }
 
     /**

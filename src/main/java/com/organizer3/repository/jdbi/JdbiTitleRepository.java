@@ -3,6 +3,7 @@ package com.organizer3.repository.jdbi;
 import com.organizer3.model.Actress;
 import com.organizer3.model.Title;
 import com.organizer3.model.TitleLocation;
+import com.organizer3.repository.CatastrophicDeleteException;
 import com.organizer3.repository.TitleLocationRepository;
 import com.organizer3.repository.TitleRepository;
 import lombok.RequiredArgsConstructor;
@@ -10,9 +11,14 @@ import org.jdbi.v3.core.Jdbi;
 import org.jdbi.v3.core.mapper.RowMapper;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 @RequiredArgsConstructor
@@ -138,6 +144,51 @@ public class JdbiTitleRepository implements TitleRepository {
                         .list()
         );
         return populateLocationsBatch(titles);
+    }
+
+    @Override
+    public Map<Long, List<Title>> findByActressIds(Collection<Long> actressIds) {
+        if (actressIds.isEmpty()) return Map.of();
+        return jdbi.withHandle(h -> {
+            List<Map.Entry<Long, Title>> pairs = h.createQuery("""
+                    SELECT k.actress_key, t.*
+                    FROM (
+                        SELECT actress_id AS actress_key, id AS title_id
+                        FROM titles WHERE actress_id IN (<ids>)
+                        UNION
+                        SELECT actress_id AS actress_key, title_id
+                        FROM title_actresses WHERE actress_id IN (<ids>)
+                    ) k
+                    JOIN titles t ON t.id = k.title_id
+                    ORDER BY k.actress_key, t.code
+                    """)
+                    .bindList("ids", actressIds)
+                    .map((rs, ctx) -> Map.entry(rs.getLong("actress_key"), MAPPER.map(rs, ctx)))
+                    .list();
+
+            Map<Long, List<Title>> grouped = new LinkedHashMap<>();
+            for (var pair : pairs) {
+                grouped.computeIfAbsent(pair.getKey(), k -> new ArrayList<>()).add(pair.getValue());
+            }
+
+            // Batch-populate locations for all unique titles in one query
+            Set<Long> titleIds = pairs.stream()
+                    .map(e -> e.getValue().getId())
+                    .collect(Collectors.toSet());
+            if (!titleIds.isEmpty()) {
+                List<TitleLocation> allLocations = locationRepo.findByTitleIds(new ArrayList<>(titleIds));
+                Map<Long, List<TitleLocation>> locationsByTitleId = allLocations.stream()
+                        .collect(Collectors.groupingBy(TitleLocation::getTitleId));
+                for (var entry : grouped.entrySet()) {
+                    grouped.put(entry.getKey(), entry.getValue().stream()
+                            .map(t -> t.toBuilder()
+                                    .locations(locationsByTitleId.getOrDefault(t.getId(), List.of()))
+                                    .build())
+                            .toList());
+                }
+            }
+            return grouped;
+        });
     }
 
     @Override
@@ -467,6 +518,7 @@ public class JdbiTitleRepository implements TitleRepository {
                         SELECT t.* FROM titles t
                         JOIN title_locations tl ON t.id = tl.title_id
                         WHERE tl.volume_id = :volumeId AND tl.partition_id = :partitionId
+                          AND instr('/' || tl.path, '/_') = 0
                         GROUP BY t.id
                         ORDER BY t.favorite DESC, t.bookmark DESC, MIN(tl.added_date) DESC, t.id DESC
                         LIMIT :limit OFFSET :offset
@@ -518,6 +570,7 @@ public class JdbiTitleRepository implements TitleRepository {
             sql.append("JOIN title_effective_tags tet ON tet.title_id = t.id AND tet.tag IN (<tags>)\n");
         }
         sql.append("WHERE tl.volume_id = :volumeId AND tl.partition_id = :partitionId\n");
+        sql.append("  AND instr('/' || tl.path, '/_') = 0\n");
         if (!labels.isEmpty()) {
             sql.append("AND t.label IN (<labels>)\n");
         }
@@ -564,6 +617,7 @@ public class JdbiTitleRepository implements TitleRepository {
                         FROM title_effective_tags tet
                         JOIN title_locations tl ON tl.title_id = tet.title_id
                         WHERE tl.volume_id = :volumeId AND tl.partition_id = :partitionId
+                          AND instr('/' || tl.path, '/_') = 0
                         ORDER BY tet.tag
                         """)
                         .bind("volumeId", volumeId)
@@ -746,14 +800,48 @@ public class JdbiTitleRepository implements TitleRepository {
     }
 
     @Override
-    public void deleteOrphaned() {
-        jdbi.useHandle(h ->
-                h.createUpdate("""
-                        DELETE FROM titles WHERE id NOT IN (
-                            SELECT DISTINCT title_id FROM title_locations
-                        )""")
-                        .execute()
+    public int countAll() {
+        return jdbi.withHandle(h -> h.createQuery("SELECT COUNT(*) FROM titles")
+                .mapTo(Integer.class).one());
+    }
+
+    @Override
+    public Set<String> allBaseCodes() {
+        return jdbi.withHandle(h ->
+                new HashSet<>(h.createQuery("SELECT base_code FROM titles")
+                        .mapTo(String.class).list())
         );
+    }
+
+    /** Floor threshold — small libraries never trip the guard below this absolute count. */
+    public static final int ORPHAN_DELETE_FLOOR = 500;
+
+    /** Fractional threshold — guard trips if orphans exceed this share of the total. */
+    public static final int ORPHAN_DELETE_FRACTION_DIVISOR = 4; // 25%
+
+    /** Computes the same cascade-safety threshold used by {@link #deleteOrphaned}. */
+    public static int orphanDeleteThreshold(int total) {
+        return Math.max(ORPHAN_DELETE_FLOOR, total / ORPHAN_DELETE_FRACTION_DIVISOR);
+    }
+
+    @Override
+    public int deleteOrphaned() {
+        return jdbi.inTransaction(h -> {
+            int total = h.createQuery("SELECT COUNT(*) FROM titles").mapTo(Integer.class).one();
+            int orphans = h.createQuery("""
+                    SELECT COUNT(*) FROM titles WHERE id NOT IN (
+                        SELECT DISTINCT title_id FROM title_locations
+                    )""").mapTo(Integer.class).one();
+            if (orphans == 0) return 0;
+            int threshold = orphanDeleteThreshold(total);
+            if (orphans > threshold) {
+                throw new CatastrophicDeleteException("deleteOrphaned(titles)", orphans, total, threshold);
+            }
+            return h.createUpdate("""
+                    DELETE FROM titles WHERE id NOT IN (
+                        SELECT DISTINCT title_id FROM title_locations
+                    )""").execute();
+        });
     }
 
     @Override

@@ -49,8 +49,12 @@ class ActressBrowseServiceTest {
     void setUp() {
         service = new ActressBrowseService(actressRepo, titleRepo, coverPath,
                 Map.of("vol-a", "//pandora/jav_A"), labelRepo, nameLookup, null);
-        lenient().when(actressRepo.findAliases(anyLong())).thenReturn(List.of());
+        lenient().when(titleRepo.findByActressIds(any())).thenReturn(Map.of());
+        lenient().when(actressRepo.findAliasesForActresses(any())).thenReturn(Map.of());
+        lenient().when(actressRepo.findCanonicalNameIds(any())).thenReturn(Map.of());
+        lenient().when(actressRepo.findPrimaryForAliases(any())).thenReturn(Map.of());
         lenient().when(labelRepo.findAllAsMap()).thenReturn(Map.of());
+        lenient().when(coverPath.find(any())).thenReturn(Optional.empty());
     }
 
     // ── Prefix index ──────────────────────────────────────────────────────
@@ -110,8 +114,7 @@ class ActressBrowseServiceTest {
         Title t2 = title(a.getId(), "vol-a", "stars/popular", "/stars/popular/Mai Hagiwara/ABP-00002");
 
         when(actressRepo.findByFirstNamePrefix("MA")).thenReturn(List.of(a));
-        when(titleRepo.findByActress(a.getId())).thenReturn(List.of(t1, t2));
-        when(coverPath.find(any())).thenReturn(Optional.empty());
+        when(titleRepo.findByActressIds(any())).thenReturn(Map.of(a.getId(), List.of(t1, t2)));
 
         List<ActressSummary> results = service.findByPrefix("MA");
 
@@ -130,7 +133,7 @@ class ActressBrowseServiceTest {
         Path coverFile = Path.of("/data/covers/ABP/ABP-00001.jpg");
 
         when(actressRepo.findByFirstNamePrefix("Y")).thenReturn(List.of(a));
-        when(titleRepo.findByActress(a.getId())).thenReturn(List.of(t));
+        when(titleRepo.findByActressIds(any())).thenReturn(Map.of(a.getId(), List.of(t)));
         when(coverPath.find(t)).thenReturn(Optional.of(coverFile));
 
         ActressSummary s = service.findByPrefix("Y").get(0);
@@ -144,8 +147,7 @@ class ActressBrowseServiceTest {
         Title t = title(a.getId(), "vol-a", "stars/popular", "/stars/popular/Yui Hatano/ABP-00001");
 
         when(actressRepo.findByFirstNamePrefix("Y")).thenReturn(List.of(a));
-        when(titleRepo.findByActress(a.getId())).thenReturn(List.of(t));
-        when(coverPath.find(any())).thenReturn(Optional.empty());
+        when(titleRepo.findByActressIds(any())).thenReturn(Map.of(a.getId(), List.of(t)));
 
         ActressSummary s = service.findByPrefix("Y").get(0);
 
@@ -159,8 +161,7 @@ class ActressBrowseServiceTest {
         Title t = title(a.getId(), "vol-a", "queue", "/queue/ABP-00001");
 
         when(actressRepo.findByFirstNamePrefix("Y")).thenReturn(List.of(a));
-        when(titleRepo.findByActress(a.getId())).thenReturn(List.of(t));
-        when(coverPath.find(any())).thenReturn(Optional.empty());
+        when(titleRepo.findByActressIds(any())).thenReturn(Map.of(a.getId(), List.of(t)));
 
         ActressSummary s = service.findByPrefix("Y").get(0);
 
@@ -175,8 +176,7 @@ class ActressBrowseServiceTest {
         Title t2 = title(a.getId(), "vol-a", "stars/popular", "/stars/popular/Yui Hatano/ABP-00002");
 
         when(actressRepo.findByFirstNamePrefix("Y")).thenReturn(List.of(a));
-        when(titleRepo.findByActress(a.getId())).thenReturn(List.of(t1, t2));
-        when(coverPath.find(any())).thenReturn(Optional.empty());
+        when(titleRepo.findByActressIds(any())).thenReturn(Map.of(a.getId(), List.of(t1, t2)));
 
         ActressSummary s = service.findByPrefix("Y").get(0);
 
@@ -190,7 +190,6 @@ class ActressBrowseServiceTest {
                 .favorite(true).firstSeenAt(LocalDate.of(2023, 1, 1)).build();
 
         when(actressRepo.findByFirstNamePrefix("Y")).thenReturn(List.of(fav));
-        when(titleRepo.findByActress(1L)).thenReturn(List.of());
 
         assertTrue(service.findByPrefix("Y").get(0).isFavorite());
     }
@@ -204,7 +203,6 @@ class ActressBrowseServiceTest {
                 .favorite(true).firstSeenAt(LocalDate.of(2020, 1, 1)).build();
 
         when(actressRepo.findByTier(Actress.Tier.GODDESS)).thenReturn(List.of(goddess));
-        when(titleRepo.findByActress(2L)).thenReturn(List.of());
 
         List<ActressSummary> results = service.findByTier("GODDESS");
 
@@ -288,8 +286,7 @@ class ActressBrowseServiceTest {
                 .build();
 
         when(actressRepo.findById(a.getId())).thenReturn(Optional.of(a));
-        when(titleRepo.findByActress(a.getId())).thenReturn(List.of(t1, t2WithLabel));
-        when(coverPath.find(any())).thenReturn(Optional.empty());
+        when(titleRepo.findByActressIds(any())).thenReturn(Map.of(a.getId(), List.of(t1, t2WithLabel)));
         when(labelRepo.findAllAsMap()).thenReturn(Map.of(
                 "ABP", new Label("ABP", "Absolutely Perfect", "Prestige", null, null),
                 "SSIS", new Label("SSIS", "S1 Special", "S1", null, null)
@@ -305,11 +302,10 @@ class ActressBrowseServiceTest {
         Actress a = actress("Yui Hatano");
 
         when(actressRepo.findById(a.getId())).thenReturn(Optional.of(a));
-        when(titleRepo.findByActress(a.getId())).thenReturn(List.of());
-        when(actressRepo.findAliases(a.getId())).thenReturn(List.of(
+        when(actressRepo.findAliasesForActresses(any())).thenReturn(Map.of(a.getId(), List.of(
                 new ActressAlias(a.getId(), "Hatano Yui"),
                 new ActressAlias(a.getId(), "波多野結衣")
-        ));
+        )));
 
         ActressSummary s = service.findById(a.getId()).orElseThrow();
 
@@ -323,7 +319,6 @@ class ActressBrowseServiceTest {
         Actress a = actress("Yui Hatano");
 
         when(actressRepo.findById(a.getId())).thenReturn(Optional.of(a));
-        when(titleRepo.findByActress(a.getId())).thenReturn(List.of());
 
         ActressSummary s = service.findById(a.getId()).orElseThrow();
 
@@ -466,7 +461,6 @@ class ActressBrowseServiceTest {
         when(actressRepo.findActressLabelEngagements()).thenReturn(List.of());
         when(actressRepo.computeActressLibraryStats()).thenReturn(
                 new ActressRepository.ActressLibraryStats(100, 12, 5, 4, 2, 3, 6));
-        when(titleRepo.findByActress(anyLong())).thenReturn(List.of());
 
         ActressBrowseService.ActressDashboard d = service.buildDashboard();
 
@@ -497,7 +491,6 @@ class ActressBrowseServiceTest {
         when(actressRepo.findActressLabelEngagements()).thenReturn(List.of());
         when(actressRepo.computeActressLibraryStats()).thenReturn(
                 new ActressRepository.ActressLibraryStats(0, 0, 0, 0, 0, 0, 0));
-        when(titleRepo.findByActress(anyLong())).thenReturn(List.of());
 
         service.buildDashboard();
 
@@ -520,7 +513,6 @@ class ActressBrowseServiceTest {
         when(actressRepo.findActressLabelEngagements()).thenReturn(List.of());
         when(actressRepo.computeActressLibraryStats()).thenReturn(
                 new ActressRepository.ActressLibraryStats(0, 0, 0, 0, 0, 0, 0));
-        when(titleRepo.findByActress(anyLong())).thenReturn(List.of());
 
         ActressBrowseService.ActressDashboard d = service.buildDashboard();
 
@@ -560,7 +552,6 @@ class ActressBrowseServiceTest {
         Actress spot = elite(20L, "Other");
         when(actressRepo.findSpotlightCandidates(any(), anyInt(), eq(java.util.Set.of(99L))))
                 .thenReturn(List.of(spot));
-        when(titleRepo.findByActress(20L)).thenReturn(List.of());
 
         ActressSummary result = service.getSpotlight(99L);
         assertNotNull(result);
@@ -595,9 +586,7 @@ class ActressBrowseServiceTest {
         when(actressRepo.computeActressLibraryStats()).thenReturn(
                 new ActressRepository.ActressLibraryStats(0, 0, 0, 0, 0, 0, 0));
         Title t = title(50L, "vol-a", "stars/popular", "/stars/popular/Complete/ABP-001");
-        when(titleRepo.findByActress(50L)).thenReturn(List.of(t));
-        when(titleRepo.findByActress(51L)).thenReturn(List.of());
-        when(coverPath.find(any())).thenReturn(Optional.empty());
+        when(titleRepo.findByActressIds(any())).thenReturn(Map.of(50L, List.of(t)));
 
         ActressBrowseService.ActressDashboard d = service.buildDashboard();
 

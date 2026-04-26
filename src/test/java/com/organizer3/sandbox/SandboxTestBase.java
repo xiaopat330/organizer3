@@ -124,6 +124,11 @@ public abstract class SandboxTestBase {
                 testVolume.id(), testVolume.structureType()));
     }
 
+    /** Per-method trash root: {@code methodRunDir/_trash}. */
+    protected Path trashRoot() {
+        return methodRunDir.resolve("_trash");
+    }
+
     static String shortUuid() {
         return UUID.randomUUID().toString().substring(0, 8);
     }
