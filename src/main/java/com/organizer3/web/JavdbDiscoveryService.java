@@ -8,7 +8,7 @@ import java.util.List;
 /**
  * Read-only queries for the javdb Discovery screen.
  *
- * Pulls from actresses, title_actresses, javdb_title_staging, javdb_actress_staging,
+ * Pulls from actresses, title_actresses, title_javdb_enrichment, javdb_actress_staging,
  * and javdb_enrichment_queue — no mutations.
  */
 public class JavdbDiscoveryService {
@@ -83,12 +83,12 @@ public class JavdbDiscoveryService {
                   a.favorite,
                   a.bookmark,
                   COUNT(DISTINCT ta.title_id)                                                       AS total_titles,
-                  COUNT(DISTINCT CASE WHEN jts.status = 'fetched' THEN ta.title_id END)             AS enriched_titles,
+                  COUNT(DISTINCT CASE WHEN tje.title_id IS NOT NULL THEN ta.title_id END)           AS enriched_titles,
                   jas.status                                                                         AS actress_status,
                   COALESCE(MAX(jeq.active_jobs), 0)                                                 AS active_jobs
                 FROM actresses a
                 JOIN title_actresses ta ON ta.actress_id = a.id
-                LEFT JOIN javdb_title_staging jts ON jts.title_id = ta.title_id
+                LEFT JOIN title_javdb_enrichment tje ON tje.title_id = ta.title_id
                 LEFT JOIN javdb_actress_staging jas ON jas.actress_id = a.id
                 LEFT JOIN (
                     SELECT actress_id, COUNT(*) AS active_jobs
@@ -123,16 +123,16 @@ public class JavdbDiscoveryService {
                 SELECT
                   t.id   AS title_id,
                   t.code,
-                  jts.status,
-                  jts.javdb_slug,
-                  jts.title_original,
-                  jts.release_date,
-                  jts.maker,
-                  jts.publisher,
+                  CASE WHEN tje.title_id IS NOT NULL THEN 'fetched' ELSE NULL END AS status,
+                  tje.javdb_slug,
+                  tje.title_original,
+                  tje.release_date,
+                  tje.maker,
+                  tje.publisher,
                   jeq.effective_queue_status AS queue_status
                 FROM title_actresses ta
                 JOIN titles t ON t.id = ta.title_id
-                LEFT JOIN javdb_title_staging jts ON jts.title_id = ta.title_id
+                LEFT JOIN title_javdb_enrichment tje ON tje.title_id = ta.title_id
                 LEFT JOIN (
                     SELECT target_id,
                            CASE
@@ -196,15 +196,14 @@ public class JavdbDiscoveryService {
     public List<ConflictRow> getActressConflicts(long actressId) {
         return jdbi.withHandle(h -> h.createQuery("""
                 SELECT t.id AS title_id, t.code, a.canonical_name AS our_actress_name,
-                       jas.javdb_slug AS our_javdb_slug, ts.cast_json
-                FROM javdb_title_staging ts
-                JOIN titles t ON t.id = ts.title_id
+                       jas.javdb_slug AS our_javdb_slug, tje.cast_json
+                FROM title_javdb_enrichment tje
+                JOIN titles t ON t.id = tje.title_id
                 JOIN title_actresses ta ON ta.title_id = t.id AND ta.actress_id = :actressId
                 JOIN actresses a ON a.id = :actressId
                 LEFT JOIN javdb_actress_staging jas ON jas.actress_id = :actressId
-                WHERE ts.status = 'fetched'
-                  AND NOT EXISTS (
-                    SELECT 1 FROM json_each(ts.cast_json) je
+                WHERE NOT EXISTS (
+                    SELECT 1 FROM json_each(tje.cast_json) je
                     JOIN javdb_actress_staging jas2
                         ON jas2.javdb_slug = json_extract(je.value, '$.slug')
                     WHERE jas2.actress_id = :actressId

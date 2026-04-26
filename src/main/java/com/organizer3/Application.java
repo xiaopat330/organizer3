@@ -382,6 +382,8 @@ public class Application {
         com.organizer3.javdb.HttpJavdbClient javdbClient = new com.organizer3.javdb.HttpJavdbClient(javdbConfig);
         com.organizer3.javdb.enrichment.JavdbStagingRepository javdbStagingRepo =
                 new com.organizer3.javdb.enrichment.JavdbStagingRepository(jdbi, jsonMapper, dataDir);
+        com.organizer3.javdb.enrichment.JavdbEnrichmentRepository javdbEnrichmentRepo =
+                new com.organizer3.javdb.enrichment.JavdbEnrichmentRepository(jdbi, jsonMapper);
         com.organizer3.javdb.enrichment.EnrichmentQueue enrichmentQueue =
                 new com.organizer3.javdb.enrichment.EnrichmentQueue(jdbi, javdbConfig);
         com.organizer3.javdb.enrichment.AutoPromoter autoPromoter =
@@ -391,7 +393,8 @@ public class Application {
                         javdbConfig, javdbClient,
                         new com.organizer3.javdb.enrichment.JavdbExtractor(),
                         new com.organizer3.javdb.enrichment.JavdbProjector(jsonMapper),
-                        javdbStagingRepo, enrichmentQueue, titleRepo, actressRepo, autoPromoter);
+                        javdbStagingRepo, javdbEnrichmentRepo,
+                        enrichmentQueue, titleRepo, actressRepo, autoPromoter);
         commands.add(new EnrichActressCommand(actressRepo, titleRepo, enrichmentQueue));
 
         // Sync commands — registered dynamically from syncConfig.

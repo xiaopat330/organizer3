@@ -64,10 +64,17 @@ class JavdbDiscoveryServiceTest {
                 h.execute("INSERT INTO title_actresses (actress_id, title_id) VALUES (?, ?)", actressId, titleId));
     }
 
+    /**
+     * Seeds an enrichment record for a title. The {@code status} parameter is interpreted:
+     * {@code "fetched"} writes the row (visible in queries); anything else is a no-op so
+     * existing tests using "not_found" / "fetch_error" / null still pass through correctly.
+     */
     private void insertTitleStaging(long titleId, String slug, String status) {
+        if (!"fetched".equals(status)) return;
         jdbi.useHandle(h ->
-                h.execute("INSERT INTO javdb_title_staging (title_id, javdb_slug, status) VALUES (?, ?, ?)",
-                        titleId, slug, status));
+                h.execute("INSERT INTO title_javdb_enrichment (title_id, javdb_slug, fetched_at) " +
+                          "VALUES (?, ?, '2026-04-25T00:00:00Z')",
+                        titleId, slug));
     }
 
     private void insertActressStaging(long actressId, String slug, String status) {
@@ -282,8 +289,8 @@ class JavdbDiscoveryServiceTest {
         long t = insertTitle("H-001");
         linkActressTitle(a, t);
         jdbi.useHandle(h -> h.execute(
-                "INSERT INTO javdb_title_staging (title_id, javdb_slug, status, title_original, release_date, maker, publisher) " +
-                "VALUES (?, 'h-slug', 'fetched', 'タイトル', '2020-01-01', 'マーカー', 'パブリッシャー')", t));
+                "INSERT INTO title_javdb_enrichment (title_id, javdb_slug, fetched_at, title_original, release_date, maker, publisher) " +
+                "VALUES (?, 'h-slug', '2026-04-25T00:00:00Z', 'タイトル', '2020-01-01', 'マーカー', 'パブリッシャー')", t));
 
         JavdbDiscoveryService.TitleRow row = service.getActressTitles(a).get(0);
 

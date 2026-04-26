@@ -53,16 +53,16 @@ class AutoPromoterTest {
 
     private void insertTitleStaging(long titleId, String titleOriginal, String releaseDate) {
         jdbi.useHandle(h -> h.execute(
-                "INSERT INTO javdb_title_staging (title_id, status, title_original, release_date) " +
-                "VALUES (?, 'fetched', ?, ?)",
-                titleId, titleOriginal, releaseDate));
+                "INSERT INTO title_javdb_enrichment (title_id, javdb_slug, fetched_at, title_original, release_date) " +
+                "VALUES (?, 'slug-' || ?, '2026-04-25T00:00:00Z', ?, ?)",
+                titleId, titleId, titleOriginal, releaseDate));
     }
 
     private void insertTitleStagingWithCast(long titleId, String castJson) {
         jdbi.useHandle(h -> h.execute(
-                "INSERT INTO javdb_title_staging (title_id, status, cast_json) " +
-                "VALUES (?, 'fetched', ?)",
-                titleId, castJson));
+                "INSERT INTO title_javdb_enrichment (title_id, javdb_slug, fetched_at, cast_json) " +
+                "VALUES (?, 'slug-' || ?, '2026-04-25T00:00:00Z', ?)",
+                titleId, titleId, castJson));
     }
 
     private void insertActressStaging(long actressId, String slug) {
@@ -210,7 +210,7 @@ class AutoPromoterTest {
         insertTitleStaging(t, "相田ゆあ作品", "2023-06-01");
         // Cast is in the staging row already — update it to add cast_json
         jdbi.useHandle(h -> h.execute(
-                "UPDATE javdb_title_staging SET cast_json = ? WHERE title_id = ?",
+                "UPDATE title_javdb_enrichment SET cast_json = ? WHERE title_id = ?",
                 """
                 [{"slug":"YSLUG","name":"相田ゆあ","gender":"female"}]
                 """, t));

@@ -40,6 +40,7 @@ public class EnrichmentRunner {
     private final JavdbExtractor extractor;
     private final JavdbProjector projector;
     private final JavdbStagingRepository stagingRepo;
+    private final JavdbEnrichmentRepository enrichmentRepo;
     private final EnrichmentQueue queue;
     private final TitleRepository titleRepo;
     private final ActressRepository actressRepo;
@@ -58,6 +59,7 @@ public class EnrichmentRunner {
             JavdbExtractor extractor,
             JavdbProjector projector,
             JavdbStagingRepository stagingRepo,
+            JavdbEnrichmentRepository enrichmentRepo,
             EnrichmentQueue queue,
             TitleRepository titleRepo,
             ActressRepository actressRepo,
@@ -68,6 +70,7 @@ public class EnrichmentRunner {
         this.extractor = extractor;
         this.projector = projector;
         this.stagingRepo = stagingRepo;
+        this.enrichmentRepo = enrichmentRepo;
         this.queue = queue;
         this.titleRepo = titleRepo;
         this.actressRepo = actressRepo;
@@ -151,9 +154,6 @@ public class EnrichmentRunner {
         } catch (JavdbNotFoundException e) {
             log.warn("javdb: not found for job {} ({})", job.id(), job.jobType());
             queue.markPermanentlyFailed(job.id(), "not_found");
-            if (EnrichmentJob.FETCH_TITLE.equals(job.jobType())) {
-                stagingRepo.upsertTitleNotFound(job.targetId());
-            }
         } catch (Exception e) {
             String msg = e.getMessage() != null ? e.getMessage() : e.getClass().getSimpleName();
             log.warn("javdb: failed job {} ({}): {}", job.id(), job.jobType(), msg);
@@ -180,7 +180,6 @@ public class EnrichmentRunner {
         if (maybeSlug.isEmpty()) {
             log.warn("javdb: no results for {} — marking not_found", title.getCode());
             queue.markPermanentlyFailed(job.id(), "not_found");
-            stagingRepo.upsertTitleNotFound(titleId);
             return;
         }
         String slug = maybeSlug.get();
@@ -189,8 +188,7 @@ public class EnrichmentRunner {
         TitleExtract extract = extractor.extractTitle(html, title.getCode(), slug);
 
         String rawPath = stagingRepo.saveTitleRaw(slug, extract);
-        JavdbTitleStagingRow row = projector.projectTitle(titleId, extract, rawPath);
-        stagingRepo.upsertTitle(row);
+        enrichmentRepo.upsertEnrichment(titleId, slug, rawPath, extract);
 
         // Cast matching: look for the owning actress in the cast list
         matchAndRecordActressSlug(actressId, title.getCode(), extract.cast());

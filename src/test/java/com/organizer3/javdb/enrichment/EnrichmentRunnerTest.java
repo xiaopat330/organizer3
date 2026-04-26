@@ -32,6 +32,7 @@ class EnrichmentRunnerTest {
     private Connection connection;
     private EnrichmentQueue queue;
     private JavdbStagingRepository stagingRepo;
+    private JavdbEnrichmentRepository enrichmentRepo;
     private JdbiTitleRepository titleRepo;
     private JdbiActressRepository actressRepo;
     private JavdbExtractor extractor;
@@ -45,15 +46,17 @@ class EnrichmentRunnerTest {
         jdbi = Jdbi.create(connection);
         new SchemaInitializer(jdbi).initialize();
         queue = new EnrichmentQueue(jdbi, CONFIG);
-        stagingRepo = new JavdbStagingRepository(jdbi, new ObjectMapper(), dataDir);
+        ObjectMapper mapper = new ObjectMapper();
+        stagingRepo = new JavdbStagingRepository(jdbi, mapper, dataDir);
+        enrichmentRepo = new JavdbEnrichmentRepository(jdbi, mapper);
         titleRepo = new JdbiTitleRepository(jdbi, new JdbiTitleLocationRepository(jdbi));
         actressRepo = new JdbiActressRepository(jdbi);
         extractor = new JavdbExtractor();
-        projector = new JavdbProjector(new ObjectMapper());
+        projector = new JavdbProjector(mapper);
     }
 
     @Test
-    void fetchTitle_writesStaging_andRecordsActressSlug() throws Exception {
+    void fetchTitle_writesEnrichment_andRecordsActressSlug() throws Exception {
         // Seed a title and actress whose stage name matches the cast in title_detail.html
         long titleId = jdbi.withHandle(h ->
                 h.createUpdate("INSERT INTO titles (code, base_code, label, seq_num) VALUES ('DV-948', 'DV', 'DV', 948)")
@@ -72,22 +75,32 @@ class EnrichmentRunnerTest {
         };
 
         EnrichmentRunner runner = new EnrichmentRunner(
-                CONFIG, fakeClient, extractor, projector, stagingRepo, queue, titleRepo, actressRepo,
+                CONFIG, fakeClient, extractor, projector, stagingRepo, enrichmentRepo, queue, titleRepo, actressRepo,
                 new AutoPromoter(jdbi));
 
         queue.enqueueTitle(titleId, actressId);
         runner.runOneStep();
 
-        // Title staging row was created
-        Optional<JavdbTitleStagingRow> titleRow = stagingRepo.findTitleStaging(titleId);
-        assertTrue(titleRow.isPresent());
-        assertEquals(JavdbTitleStagingRow.STATUS_FETCHED, titleRow.get().status());
-        assertEquals("deD0v", titleRow.get().javdbSlug());
-        assertNotNull(titleRow.get().rawPath());
+        // Enrichment row was created
+        var enrichRow = jdbi.withHandle(h -> h.createQuery(
+                "SELECT javdb_slug, raw_path FROM title_javdb_enrichment WHERE title_id = :id")
+                .bind("id", titleId)
+                .mapToMap()
+                .findOne());
+        assertTrue(enrichRow.isPresent(), "title_javdb_enrichment row should exist");
+        assertEquals("deD0v", enrichRow.get().get("javdb_slug"));
+        String rawPath = (String) enrichRow.get().get("raw_path");
+        assertNotNull(rawPath);
 
         // Raw JSON file was written to disk
-        Path rawFile = dataDir.resolve(titleRow.get().rawPath());
+        Path rawFile = dataDir.resolve(rawPath);
         assertTrue(Files.exists(rawFile));
+
+        // Tag rows were normalized: at least one tag definition + one assignment exist
+        int tagAssignments = jdbi.withHandle(h -> h.createQuery(
+                "SELECT COUNT(*) FROM title_enrichment_tags WHERE title_id = :id")
+                .bind("id", titleId).mapTo(Integer.class).one());
+        assertTrue(tagAssignments > 0, "tag assignments should be populated from extract.tags()");
 
         // Actress slug was resolved from cast list
         Optional<JavdbActressStagingRow> actressRow = stagingRepo.findActressStaging(actressId);
@@ -118,15 +131,17 @@ class EnrichmentRunnerTest {
         };
 
         EnrichmentRunner runner = new EnrichmentRunner(
-                CONFIG, fakeClient, extractor, projector, stagingRepo, queue, titleRepo, actressRepo,
+                CONFIG, fakeClient, extractor, projector, stagingRepo, enrichmentRepo, queue, titleRepo, actressRepo,
                 new AutoPromoter(jdbi));
 
         queue.enqueueTitle(titleId, actressId);
         runner.runOneStep();
 
-        Optional<JavdbTitleStagingRow> titleRow = stagingRepo.findTitleStaging(titleId);
-        assertTrue(titleRow.isPresent());
-        assertEquals(JavdbTitleStagingRow.STATUS_NOT_FOUND, titleRow.get().status());
+        // No enrichment row is created for not_found (queue tracks the failure)
+        int enrichRows = jdbi.withHandle(h -> h.createQuery(
+                "SELECT COUNT(*) FROM title_javdb_enrichment WHERE title_id = :id")
+                .bind("id", titleId).mapTo(Integer.class).one());
+        assertEquals(0, enrichRows, "no enrichment row should be created for not_found");
         assertEquals(0, queue.countPending());
     }
 
@@ -172,7 +187,7 @@ class EnrichmentRunnerTest {
         };
 
         EnrichmentRunner runner = new EnrichmentRunner(
-                CONFIG, fakeClient, extractor, projector, stagingRepo, queue, titleRepo, actressRepo,
+                CONFIG, fakeClient, extractor, projector, stagingRepo, enrichmentRepo, queue, titleRepo, actressRepo,
                 new AutoPromoter(jdbi));
 
         queue.enqueueTitle(titleId, actressId);

@@ -5,14 +5,14 @@ import lombok.extern.slf4j.Slf4j;
 import org.jdbi.v3.core.Jdbi;
 
 /**
- * Applies auto-promote rules from javdb staging to canonical tables.
+ * Applies auto-promote rules from javdb enrichment data to canonical tables.
  *
  * <p>Rules (spec §Hybrid import):
  * <ul>
- *   <li>{@code titles.title_original} — when NULL, fill from javdb_title_staging.</li>
- *   <li>{@code titles.release_date}   — when NULL, fill from javdb_title_staging.</li>
+ *   <li>{@code titles.title_original} — when NULL, fill from {@code title_javdb_enrichment}.</li>
+ *   <li>{@code titles.release_date}   — when NULL, fill from {@code title_javdb_enrichment}.</li>
  *   <li>{@code actresses.stage_name}  — when NULL, fill from the first cast_json entry
- *       whose javdb slug matches the actress's javdb_actress_staging row.</li>
+ *       whose javdb slug matches the actress's {@code javdb_actress_staging} row.</li>
  * </ul>
  * All three rules are idempotent and never overwrite an existing non-null value.
  */
@@ -29,18 +29,18 @@ public class AutoPromoter {
     public void promoteFromTitle(long titleId, long actressId) {
         int titleOriginalUpdated = jdbi.withHandle(h -> h.createUpdate("""
                 UPDATE titles
-                SET title_original = (SELECT title_original FROM javdb_title_staging WHERE title_id = :titleId)
+                SET title_original = (SELECT title_original FROM title_javdb_enrichment WHERE title_id = :titleId)
                 WHERE id = :titleId AND title_original IS NULL
-                  AND (SELECT title_original FROM javdb_title_staging WHERE title_id = :titleId) IS NOT NULL
+                  AND (SELECT title_original FROM title_javdb_enrichment WHERE title_id = :titleId) IS NOT NULL
                 """)
                 .bind("titleId", titleId)
                 .execute());
 
         int releaseDateUpdated = jdbi.withHandle(h -> h.createUpdate("""
                 UPDATE titles
-                SET release_date = (SELECT release_date FROM javdb_title_staging WHERE title_id = :titleId)
+                SET release_date = (SELECT release_date FROM title_javdb_enrichment WHERE title_id = :titleId)
                 WHERE id = :titleId AND release_date IS NULL
-                  AND (SELECT release_date FROM javdb_title_staging WHERE title_id = :titleId) IS NOT NULL
+                  AND (SELECT release_date FROM title_javdb_enrichment WHERE title_id = :titleId) IS NOT NULL
                 """)
                 .bind("titleId", titleId)
                 .execute());
@@ -61,12 +61,12 @@ public class AutoPromoter {
                 SET stage_name = (
                     SELECT json_extract(je.value, '$.name')
                     FROM title_actresses ta
-                    JOIN javdb_title_staging jts ON jts.title_id = ta.title_id
+                    JOIN title_javdb_enrichment tje ON tje.title_id = ta.title_id
                     JOIN javdb_actress_staging jas ON jas.actress_id = :actressId
-                    JOIN json_each(jts.cast_json) je
+                    JOIN json_each(tje.cast_json) je
                         ON json_extract(je.value, '$.slug') = jas.javdb_slug
                     WHERE ta.actress_id = :actressId
-                      AND jts.cast_json IS NOT NULL
+                      AND tje.cast_json IS NOT NULL
                       AND jas.javdb_slug IS NOT NULL
                     LIMIT 1
                 )
@@ -74,12 +74,12 @@ public class AutoPromoter {
                   AND EXISTS (
                     SELECT 1
                     FROM title_actresses ta
-                    JOIN javdb_title_staging jts ON jts.title_id = ta.title_id
+                    JOIN title_javdb_enrichment tje ON tje.title_id = ta.title_id
                     JOIN javdb_actress_staging jas ON jas.actress_id = :actressId
-                    JOIN json_each(jts.cast_json) je
+                    JOIN json_each(tje.cast_json) je
                         ON json_extract(je.value, '$.slug') = jas.javdb_slug
                     WHERE ta.actress_id = :actressId
-                      AND jts.cast_json IS NOT NULL
+                      AND tje.cast_json IS NOT NULL
                       AND jas.javdb_slug IS NOT NULL
                 )
                 """)
