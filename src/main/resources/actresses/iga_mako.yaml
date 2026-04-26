@@ -1,0 +1,40 @@
+profile:
+  name:
+    family_name: Iga
+    given_name: Mako
+    stage_name: 伊賀まこ
+    reading: いが まこ
+    alternate_names: []
+  date_of_birth: 1997-11-11
+  birthplace: null
+  blood_type: null
+  height_cm: 161
+  measurements:
+    bust: 82
+    waist: 57
+    hip: 83
+  cup: D
+  active_from: 2019-03-01
+  active_to: 2022-03-01
+  retirement_announced: 2022-03-01
+  biography: "Iga Mako chose her stage name from two fictional sources she loved — the 伊賀 ninja of the manga Basilisk: Kouga Ninpo Chou, and the character Mako Mori from the film Pacific Rim. Before her AV debut she appeared in Shogakukan's Weekly Post (January 11, 2019 issue) in its 'First Nude' (初脱ぎ) feature. She debuted in March 2019 as an exclusive actress for S1 NO.1 STYLE with the title 『新人NO.1STYLE 伊賀まこAVデビュー』, directed by うさぴょん。, represented throughout her career by Prime Agency (プライムエージェンシー). She released a 1-year anniversary best compilation in March 2020 and published a printed photo book 『I feel good』 (G-Walk, 2020) along with a three-part autobiographical digital series. In November 2021 she transferred her exclusivity to Attackers (アタッカーズ), retiring on March 1, 2022, with her final title released the same day: 『引退 地味な医学部の女子大生と四畳半の狭い部屋でヤリまくった。』."
+  primary_studios:
+  - name: S1 NO.1 STYLE
+    company: S1
+    from: 2019-03-01
+    to: 2021-10-31
+    role: Exclusive contract actress
+  - name: Attackers
+    company: Attackers (アタッカーズ)
+    from: 2021-11-01
+    to: 2022-03-01
+    role: Exclusive contract actress
+  awards: null
+  legacy: null
+
+meta:
+  confidence: "High on DOB, height, measurements, cup, debut date, retirement date, studio sequence, and agency — sourced from Japanese Wikipedia, Weblio, Amazon listings, and multiple corroborating sources. Birthplace and blood type were not publicly disclosed and are absent from all sources searched. Stage name etymology confirmed by Wikipedia."
+  data_sources:
+  - https://ja.wikipedia.org/wiki/%E4%BC%8A%E8%B3%80%E3%81%BE%E3%81%93
+  - https://www.weblio.jp/wkpja/content/%E4%BC%8A%E8%B3%80%E3%81%BE%E3%81%93_%E7%B5%8C%E6%AD%B4
+  - https://www.wikidata.org/wiki/Q64784558
