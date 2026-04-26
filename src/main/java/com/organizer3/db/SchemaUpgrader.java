@@ -19,7 +19,7 @@ import org.jdbi.v3.core.Jdbi;
 public class SchemaUpgrader {
 
     /** Must match the version stamped by {@link SchemaInitializer}. */
-    private static final int CURRENT_VERSION = 24;
+    private static final int CURRENT_VERSION = 25;
 
     private final Jdbi jdbi;
 
@@ -143,7 +143,124 @@ public class SchemaUpgrader {
             setVersion(24);
         }
 
+        if (version < 25) {
+            applyV25();
+            setVersion(25);
+        }
+
         log.info("Schema upgrade complete");
+    }
+
+    /**
+     * v25: title_javdb_enrichment + enrichment tag tables. Backfills from javdb_title_staging
+     * so existing enriched titles immediately have queryable enrichment rows + normalized tags.
+     * The staging table is left in place — Phase 2 will retire it.
+     */
+    private void applyV25() {
+        log.info("Applying migration v25: title_javdb_enrichment + enrichment tag tables (with backfill)");
+        jdbi.useHandle(h -> {
+            // Schema
+            h.execute("""
+                    CREATE TABLE IF NOT EXISTS title_javdb_enrichment (
+                        title_id            INTEGER PRIMARY KEY REFERENCES titles(id) ON DELETE CASCADE,
+                        javdb_slug          TEXT NOT NULL,
+                        fetched_at          TEXT NOT NULL,
+                        release_date        TEXT,
+                        rating_avg          REAL,
+                        rating_count        INTEGER,
+                        maker               TEXT,
+                        publisher           TEXT,
+                        series              TEXT,
+                        title_original      TEXT,
+                        duration_minutes    INTEGER,
+                        cover_url           TEXT,
+                        thumbnail_urls_json TEXT,
+                        cast_json           TEXT,
+                        raw_path            TEXT
+                    )""");
+            h.execute("CREATE INDEX IF NOT EXISTS idx_tje_rating_avg   ON title_javdb_enrichment(rating_avg)");
+            h.execute("CREATE INDEX IF NOT EXISTS idx_tje_release_date ON title_javdb_enrichment(release_date)");
+            h.execute("CREATE INDEX IF NOT EXISTS idx_tje_maker        ON title_javdb_enrichment(maker)");
+
+            h.execute("""
+                    CREATE TABLE IF NOT EXISTS enrichment_tag_definitions (
+                        id              INTEGER PRIMARY KEY AUTOINCREMENT,
+                        name            TEXT NOT NULL UNIQUE,
+                        curated_alias   TEXT REFERENCES tags(name),
+                        title_count     INTEGER NOT NULL DEFAULT 0,
+                        surface         INTEGER NOT NULL DEFAULT 1
+                    )""");
+            h.execute("CREATE INDEX IF NOT EXISTS idx_etd_title_count ON enrichment_tag_definitions(title_count)");
+
+            h.execute("""
+                    CREATE TABLE IF NOT EXISTS title_enrichment_tags (
+                        title_id  INTEGER NOT NULL REFERENCES title_javdb_enrichment(title_id) ON DELETE CASCADE,
+                        tag_id    INTEGER NOT NULL REFERENCES enrichment_tag_definitions(id),
+                        PRIMARY KEY (title_id, tag_id)
+                    )""");
+            h.execute("CREATE INDEX IF NOT EXISTS idx_tet_tag ON title_enrichment_tags(tag_id)");
+
+            // Backfill — only run if the staging table exists (it does post-v24, but be defensive).
+            int hasStaging = h.createQuery(
+                    "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='javdb_title_staging'")
+                    .mapTo(Integer.class).one();
+            if (hasStaging == 0) {
+                log.info("v25 backfill skipped: javdb_title_staging not present");
+                return;
+            }
+
+            // Step A: enrichment rows from fetched staging rows.
+            int enrichmentRows = h.execute("""
+                    INSERT OR IGNORE INTO title_javdb_enrichment (
+                        title_id, javdb_slug, fetched_at, release_date, rating_avg, rating_count,
+                        maker, publisher, series, title_original, duration_minutes,
+                        cover_url, thumbnail_urls_json, cast_json, raw_path
+                    )
+                    SELECT title_id, javdb_slug, raw_fetched_at, release_date, rating_avg, rating_count,
+                           maker, publisher, series, title_original, duration_minutes,
+                           cover_url, thumbnail_urls_json, cast_json, raw_path
+                    FROM javdb_title_staging
+                    WHERE status = 'fetched' AND javdb_slug IS NOT NULL
+                    """);
+            log.info("v25 backfill: inserted {} title_javdb_enrichment rows", enrichmentRows);
+
+            // Step B: distinct tag definitions from all fetched staging tags_json.
+            // Guard with json_valid() so a single malformed row can't tank the migration.
+            int tagDefs = h.execute("""
+                    INSERT OR IGNORE INTO enrichment_tag_definitions (name)
+                    SELECT DISTINCT TRIM(je.value)
+                    FROM javdb_title_staging s, json_each(s.tags_json) je
+                    WHERE s.status = 'fetched'
+                      AND s.tags_json IS NOT NULL
+                      AND json_valid(s.tags_json)
+                      AND TRIM(je.value) != ''
+                    """);
+            log.info("v25 backfill: inserted {} enrichment_tag_definitions rows", tagDefs);
+
+            // Step C: title→tag assignments.
+            int assignments = h.execute("""
+                    INSERT OR IGNORE INTO title_enrichment_tags (title_id, tag_id)
+                    SELECT s.title_id, etd.id
+                    FROM javdb_title_staging s, json_each(s.tags_json) je
+                    JOIN enrichment_tag_definitions etd ON etd.name = TRIM(je.value)
+                    WHERE s.status = 'fetched'
+                      AND s.tags_json IS NOT NULL
+                      AND json_valid(s.tags_json)
+                      AND TRIM(je.value) != ''
+                    """);
+            log.info("v25 backfill: inserted {} title_enrichment_tags rows", assignments);
+
+            // Step D: refresh title_count on definitions. Same code path the future
+            // service-managed maintenance will use; bulk-applied here on first run.
+            h.execute("""
+                    UPDATE enrichment_tag_definitions
+                    SET title_count = (
+                        SELECT COUNT(*) FROM title_enrichment_tags
+                        WHERE tag_id = enrichment_tag_definitions.id
+                    )
+                    """);
+            log.info("v25 backfill: title_count refresh complete");
+        });
     }
 
     /** v24: javdb enrichment queue + staging tables. */

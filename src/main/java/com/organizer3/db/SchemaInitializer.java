@@ -422,12 +422,55 @@ public class SchemaInitializer {
                     )""");
             h.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_javdb_actress_slug ON javdb_actress_staging(javdb_slug)");
 
+            // title_javdb_enrichment + enrichment tag tables (v25).
+            // Canonical home for javdb-derived per-title metadata. Replaces javdb_title_staging
+            // semantically; staging is retained until the Phase 2 cutover.
+            h.execute("""
+                    CREATE TABLE IF NOT EXISTS title_javdb_enrichment (
+                        title_id            INTEGER PRIMARY KEY REFERENCES titles(id) ON DELETE CASCADE,
+                        javdb_slug          TEXT NOT NULL,
+                        fetched_at          TEXT NOT NULL,
+                        release_date        TEXT,
+                        rating_avg          REAL,
+                        rating_count        INTEGER,
+                        maker               TEXT,
+                        publisher           TEXT,
+                        series              TEXT,
+                        title_original      TEXT,
+                        duration_minutes    INTEGER,
+                        cover_url           TEXT,
+                        thumbnail_urls_json TEXT,
+                        cast_json           TEXT,
+                        raw_path            TEXT
+                    )""");
+            h.execute("CREATE INDEX IF NOT EXISTS idx_tje_rating_avg   ON title_javdb_enrichment(rating_avg)");
+            h.execute("CREATE INDEX IF NOT EXISTS idx_tje_release_date ON title_javdb_enrichment(release_date)");
+            h.execute("CREATE INDEX IF NOT EXISTS idx_tje_maker        ON title_javdb_enrichment(maker)");
+
+            h.execute("""
+                    CREATE TABLE IF NOT EXISTS enrichment_tag_definitions (
+                        id              INTEGER PRIMARY KEY AUTOINCREMENT,
+                        name            TEXT NOT NULL UNIQUE,
+                        curated_alias   TEXT REFERENCES tags(name),
+                        title_count     INTEGER NOT NULL DEFAULT 0,
+                        surface         INTEGER NOT NULL DEFAULT 1
+                    )""");
+            h.execute("CREATE INDEX IF NOT EXISTS idx_etd_title_count ON enrichment_tag_definitions(title_count)");
+
+            h.execute("""
+                    CREATE TABLE IF NOT EXISTS title_enrichment_tags (
+                        title_id  INTEGER NOT NULL REFERENCES title_javdb_enrichment(title_id) ON DELETE CASCADE,
+                        tag_id    INTEGER NOT NULL REFERENCES enrichment_tag_definitions(id),
+                        PRIMARY KEY (title_id, tag_id)
+                    )""");
+            h.execute("CREATE INDEX IF NOT EXISTS idx_tet_tag ON title_enrichment_tags(tag_id);");
+
             // Only stamp version on fresh installs (user_version = 0).
             // On an existing DB the CREATE TABLE statements above are all no-ops, so we must
             // leave the version alone and let SchemaUpgrader apply any missing migrations.
             int currentVersion = h.createQuery("PRAGMA user_version").mapTo(Integer.class).one();
             if (currentVersion == 0) {
-                h.execute("PRAGMA user_version = 24");
+                h.execute("PRAGMA user_version = 25");
             }
         });
         log.info("Schema initialization complete");

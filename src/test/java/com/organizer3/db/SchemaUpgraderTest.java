@@ -54,7 +54,7 @@ class SchemaUpgraderTest {
 
         new SchemaUpgrader(jdbi).upgrade();
 
-        assertEquals(24, currentVersion());
+        assertEquals(25, currentVersion());
         boolean present = jdbi.withHandle(h ->
                 h.createQuery("SELECT COUNT(*) FROM pragma_table_info('actresses') WHERE name='needs_profiling'")
                         .mapTo(Integer.class).one() > 0);
@@ -68,7 +68,7 @@ class SchemaUpgraderTest {
                 h.createQuery("SELECT COUNT(*) FROM pragma_table_info('actresses') WHERE name='needs_profiling'")
                         .mapTo(Integer.class).one() > 0);
         assertTrue(present, "fresh install should include needs_profiling");
-        assertEquals(24, currentVersion(), "fresh install should stamp current version");
+        assertEquals(25, currentVersion(), "fresh install should stamp current version");
     }
 
     @Test
@@ -84,7 +84,7 @@ class SchemaUpgraderTest {
 
         new SchemaUpgrader(jdbi).upgrade();
 
-        assertEquals(24, currentVersion());
+        assertEquals(25, currentVersion());
         boolean sizeBytesPresent = jdbi.withHandle(h ->
                 h.createQuery("SELECT COUNT(*) FROM pragma_table_info('videos') WHERE name='size_bytes'")
                         .mapTo(Integer.class).one() > 0);
@@ -106,7 +106,7 @@ class SchemaUpgraderTest {
 
         new SchemaUpgrader(jdbi).upgrade();
 
-        assertEquals(24, currentVersion());
+        assertEquals(25, currentVersion());
         assertTrue(columnExists("titles",    "favorite_cleared_at"));
         assertTrue(columnExists("actresses", "favorite_cleared_at"));
 
@@ -132,11 +132,141 @@ class SchemaUpgraderTest {
 
         new SchemaUpgrader(jdbi).upgrade();
 
-        assertEquals(24, currentVersion());
+        assertEquals(25, currentVersion());
         boolean tableExists = jdbi.withHandle(h ->
                 h.createQuery("SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='merge_candidates'")
                         .mapTo(Integer.class).one() > 0);
         assertTrue(tableExists, "merge_candidates table should exist after v23 migration");
+    }
+
+    @Test
+    void upgradeFromV24BackfillsEnrichmentFromStaging() throws Exception {
+        // Start with the current schema, drop the v25 tables, re-stamp at v24, seed staging
+        // with real javdb fixture payloads, and verify the v25 backfill produces correct
+        // enrichment rows + normalized tag rows + accurate title_count values.
+        new SchemaInitializer(jdbi).initialize();
+        jdbi.useHandle(h -> {
+            try { h.execute("DROP TABLE IF EXISTS title_enrichment_tags"); } catch (Exception ignore) {}
+            try { h.execute("DROP TABLE IF EXISTS enrichment_tag_definitions"); } catch (Exception ignore) {}
+            try { h.execute("DROP TABLE IF EXISTS title_javdb_enrichment"); } catch (Exception ignore) {}
+            h.execute("PRAGMA user_version = 24");
+        });
+
+        // Seed titles + staging rows from the on-disk fixtures. The fixture filename is the
+        // javdb slug; we synthesize a code/label/seq from the slug for the titles row.
+        com.fasterxml.jackson.databind.ObjectMapper json = new com.fasterxml.jackson.databind.ObjectMapper();
+        String[] slugs = {"J270dd", "2JyWq", "XeYQzG", "MbABk", "ZNp6J"};
+        for (int i = 0; i < slugs.length; i++) {
+            String slug = slugs[i];
+            String resourcePath = "/javdb/migration-fixtures/" + slug + ".json";
+            try (var stream = getClass().getResourceAsStream(resourcePath)) {
+                assertNotNull(stream, "missing fixture: " + resourcePath);
+                com.fasterxml.jackson.databind.JsonNode node = json.readTree(stream);
+                long titleId = i + 1L;
+                String code = "FIX-" + (i + 1);
+                jdbi.useHandle(h -> {
+                    h.createUpdate("INSERT INTO titles(id, code, base_code, label, seq_num) VALUES (?,?,?,?,?)")
+                            .bind(0, titleId).bind(1, code).bind(2, code).bind(3, "FIX")
+                            .bind(4, (int)(titleId)).execute();
+                    h.createUpdate("""
+                            INSERT INTO javdb_title_staging (
+                                title_id, status, javdb_slug, raw_path, raw_fetched_at,
+                                title_original, release_date, duration_minutes,
+                                maker, publisher, series, rating_avg, rating_count,
+                                tags_json, cast_json, cover_url, thumbnail_urls_json
+                            ) VALUES (
+                                :tid, 'fetched', :slug, :rp, :fa,
+                                :to, :rd, :dm,
+                                :mk, :pb, :sr, :ra, :rc,
+                                :tj, :cj, :cu, :tu
+                            )""")
+                            .bind("tid", titleId)
+                            .bind("slug", slug)
+                            .bind("rp", "javdb_raw/title/" + slug + ".json")
+                            .bind("fa", textOrNull(node, "fetchedAt"))
+                            .bind("to", textOrNull(node, "titleOriginal"))
+                            .bind("rd", textOrNull(node, "releaseDate"))
+                            .bind("dm", intOrNull(node, "durationMinutes"))
+                            .bind("mk", textOrNull(node, "maker"))
+                            .bind("pb", textOrNull(node, "publisher"))
+                            .bind("sr", textOrNull(node, "series"))
+                            .bind("ra", doubleOrNull(node, "ratingAvg"))
+                            .bind("rc", intOrNull(node, "ratingCount"))
+                            .bind("tj", node.has("tags") ? node.get("tags").toString() : null)
+                            .bind("cj", node.has("cast") ? node.get("cast").toString() : null)
+                            .bind("cu", textOrNull(node, "coverUrl"))
+                            .bind("tu", node.has("thumbnailUrls") ? node.get("thumbnailUrls").toString() : null)
+                            .execute();
+                });
+            }
+        }
+
+        // Also seed one not_found and one with malformed tags_json — both should be tolerated.
+        jdbi.useHandle(h -> {
+            h.execute("INSERT INTO titles(id, code, base_code, label, seq_num) VALUES (99, 'NOT-FOUND','NOT-FOUND','NOT',1)");
+            h.execute("""
+                    INSERT INTO javdb_title_staging (title_id, status, javdb_slug, raw_path, raw_fetched_at)
+                    VALUES (99, 'not_found', NULL, NULL, '2026-04-01T00:00:00Z')
+                    """);
+            h.execute("INSERT INTO titles(id, code, base_code, label, seq_num) VALUES (100, 'BAD-TAGS','BAD-TAGS','BAD',1)");
+            h.execute("""
+                    INSERT INTO javdb_title_staging (title_id, status, javdb_slug, raw_fetched_at, tags_json)
+                    VALUES (100, 'fetched', 'badslug', '2026-04-01T00:00:00Z', 'this-is-not-json')
+                    """);
+        });
+
+        // Run the migration.
+        new SchemaUpgrader(jdbi).upgrade();
+        assertEquals(25, currentVersion());
+
+        // Enrichment rows: 5 fixture titles + the malformed-tags title (it still has slug + status='fetched');
+        // not_found row should be excluded.
+        int enrichCount = jdbi.withHandle(h ->
+                h.createQuery("SELECT COUNT(*) FROM title_javdb_enrichment").mapTo(Integer.class).one());
+        assertEquals(6, enrichCount, "5 fixtures + 1 malformed-tags row should produce enrichment rows; not_found is skipped");
+
+        // Tag definitions exist for the unique tag set across the 5 fixtures (malformed row contributes none).
+        int tagDefCount = jdbi.withHandle(h ->
+                h.createQuery("SELECT COUNT(*) FROM enrichment_tag_definitions").mapTo(Integer.class).one());
+        assertTrue(tagDefCount > 0, "should have produced enrichment tag definitions from fixtures");
+
+        // Spot-check a known tag from the fixtures: 'Solowork' appears in multiple of the chosen samples.
+        Integer soloworkCount = jdbi.withHandle(h ->
+                h.createQuery("SELECT title_count FROM enrichment_tag_definitions WHERE name = 'Solowork'")
+                        .mapTo(Integer.class).findOne().orElse(null));
+        assertNotNull(soloworkCount, "'Solowork' tag should be present");
+        assertTrue(soloworkCount >= 1, "'Solowork' title_count should match assignments");
+
+        // title_count must equal actual assignment count for every definition.
+        int mismatches = jdbi.withHandle(h ->
+                h.createQuery("""
+                        SELECT COUNT(*) FROM enrichment_tag_definitions etd
+                        WHERE etd.title_count != (SELECT COUNT(*) FROM title_enrichment_tags WHERE tag_id = etd.id)
+                        """).mapTo(Integer.class).one());
+        assertEquals(0, mismatches, "title_count must match assignment count for every definition");
+
+        // Defaults: every definition starts with curated_alias=NULL, surface=1.
+        int badDefaults = jdbi.withHandle(h ->
+                h.createQuery("SELECT COUNT(*) FROM enrichment_tag_definitions WHERE curated_alias IS NOT NULL OR surface != 1")
+                        .mapTo(Integer.class).one());
+        assertEquals(0, badDefaults, "fresh definitions must have curated_alias NULL and surface=1");
+
+        // Re-running upgrade is a no-op (version stays at 25, no duplicate rows).
+        int enrichBefore = enrichCount;
+        new SchemaUpgrader(jdbi).upgrade();
+        int enrichAfter = jdbi.withHandle(h ->
+                h.createQuery("SELECT COUNT(*) FROM title_javdb_enrichment").mapTo(Integer.class).one());
+        assertEquals(enrichBefore, enrichAfter, "re-running upgrade should not duplicate rows");
+    }
+
+    private static String textOrNull(com.fasterxml.jackson.databind.JsonNode n, String f) {
+        return n.has(f) && !n.get(f).isNull() ? n.get(f).asText() : null;
+    }
+    private static Integer intOrNull(com.fasterxml.jackson.databind.JsonNode n, String f) {
+        return n.has(f) && !n.get(f).isNull() ? n.get(f).asInt() : null;
+    }
+    private static Double doubleOrNull(com.fasterxml.jackson.databind.JsonNode n, String f) {
+        return n.has(f) && !n.get(f).isNull() ? n.get(f).asDouble() : null;
     }
 
     private boolean columnExists(String table, String column) {
