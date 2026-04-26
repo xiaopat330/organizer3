@@ -1,0 +1,62 @@
+profile:
+  name:
+    family_name: null
+    given_name: Mihiro
+    stage_name: みひろ
+    reading: みひろ
+    alternate_names:
+    - name: 金子みひろ
+      note: acting stage name adopted May 19, 2021 for mainstream career; "みひろ" retained for music/talent work
+  date_of_birth: 1982-05-19
+  birthplace: Kashiwazaki City, Niigata Prefecture, Japan
+  blood_type: A
+  height_cm: 153
+  measurements:
+    bust: 82
+    waist: 59
+    hip: 84
+  cup: B
+  active_from: 2005-01-01
+  active_to: 2010-06-19
+  retirement_announced: 2010-06-19
+  biography: "Mihiro (born Yamase Hiromi, May 19, 1982, Kashiwazaki, Niigata — stage name an anagram of her given name) entered entertainment in May 2001 as a gravure/softcore model and released her debut photobook in August 2002. Her J-pop debut single 'ヒマワリ' followed in October 2004. AV debut came in January 2005 with Alice Japan's title 『リトルエンジェル』, and she simultaneously held a co-exclusive arrangement with MAX-A from February 2005, producing roughly one title per month across both labels for approximately 2.5 years. She broke into mainstream television in early 2006 with the role of Chiba Kasumi in the TV Tokyo drama 『2ndハウス』 (drama 24 timeslot). In mid-2007 she transitioned to Maxing (MXGS label) and S1 No.1 Style; her S1 debut 4-hour title 『ハイパーギリギリモザイク みひろ』 won Best Title at the 2007 Moodyz year-end awards. From April 2008 through March 2010 she was a regular cast member of the TV Osaka variety show 『おねがい！マスカット』 alongside S1 actresses Sora Aoi, Yuma Asami, and Rio, and became a member of the idol group Ebisu Muscats (恵比寿★マスカッツ) that emerged from the show. She published an autobiographical novel 『NUDE』 in 2009, adapted into the 2010 biopic film 『ヌード』 starring Naoko Watanabe. She retired from AV on June 19, 2010, with simultaneous final works from Maxing and S1. She married actor Shinya Shimokawa in May 2015 and divorced in 2018. Continuing as a mainstream actress and YouTuber, she formally adopted the acting name 金子みひろ in May 2021 and appeared in Netflix's The Naked Director season 2."
+  primary_studios:
+  - name: Alice Japan
+    company: Alice Japan (Japan Home Video)
+    from: 2005-01-01
+    to: 2007-06-01
+    role: Co-exclusive contract actress (dual with MAX-A)
+  - name: MAX-A
+    company: MAX-A
+    from: 2005-02-01
+    to: 2007-06-01
+    role: Co-exclusive contract actress (dual with Alice Japan)
+  - name: Maxing
+    company: Maxing
+    from: 2007-07-01
+    to: 2010-06-19
+    role: Exclusive contract actress (MXGS label)
+  - name: S1 No.1 Style
+    company: S1
+    from: 2007-10-01
+    to: 2010-06-19
+    role: Exclusive contract actress (ONED label)
+  awards:
+  - year: 2007
+    ceremony: Vegas Night Moodyz Awards
+    category: Best Title
+    result: Won (for ハイパーギリギリモザイク みひろ)
+  - year: 2007
+    ceremony: Vegas Night Moodyz Awards
+    category: Best Actress (2nd place)
+    result: Runner-up
+  legacy: "One of the most prominent AV-to-mainstream crossover actresses of the 2000s, bridging AV production, J-pop, television drama, and variety through a single coherent public persona. Her Ebisu Muscats membership brought her to prime-time variety television, and her autobiographical novel and its film adaptation gave her an unusual literary/cinematic legacy. Continues as an active mainstream actress under 金子みひろ."
+
+meta:
+  confidence: "High on DOB, birthplace (Kashiwazaki, Niigata), height, all studio/career dates, mainstream crossover activities, and retirement date — sourced from Japanese Wikipedia, English Wikipedia, official m-voice agency page, IMDb, and multiple corroborating sources. Blood type A is medium-high confidence from Excite News profile and Nihon Tarento Meikan. Measurements 82/59/84 are medium confidence from fan/agency-compiled profile data circa 2007; cup B is inferred rather than explicitly stated. The surname Yamase is the birth name per English Wikipedia."
+  data_sources:
+  - https://ja.wikipedia.org/wiki/%E9%87%91%E5%AD%90%E3%81%BF%E3%81%B2%E3%82%8D
+  - https://en.wikipedia.org/wiki/Mihiro
+  - https://www.m-voice.co.jp/talent/mihiro/
+  - https://www.wikidata.org/wiki/Q1319455
+  - https://www.imdb.com/name/nm2419919/
