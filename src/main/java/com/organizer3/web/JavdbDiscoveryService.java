@@ -81,7 +81,9 @@ public class JavdbDiscoveryService {
             Integer titleCount
     ) {}
 
-    public record QueueStatus(int pending, int inFlight, int failed, boolean paused) {}
+    public record QueueStatus(int pending, int inFlight, int failed, boolean paused,
+                              String rateLimitPausedUntil, String rateLimitPauseReason,
+                              int consecutiveRateLimitHits) {}
 
     public record ConflictRow(
             long titleId,
@@ -450,6 +452,11 @@ public class JavdbDiscoveryService {
      */
     public QueueStatus getQueueStatus() {
         boolean isPaused = runner.isPaused();
+        java.time.Instant pauseUntil = runner.getPauseUntil();
+        String rateLimitPausedUntil = java.time.Instant.now().isBefore(pauseUntil)
+                ? pauseUntil.toString() : null;
+        String rateLimitPauseReason = runner.getPauseReason();
+        int consecutiveHits = runner.getConsecutiveRateLimitHits();
         return jdbi.withHandle(h -> h.createQuery("""
                 SELECT
                   SUM(CASE WHEN status = 'pending'   THEN 1 ELSE 0 END) AS pending,
@@ -461,7 +468,10 @@ public class JavdbDiscoveryService {
                         rs.getInt("pending"),
                         rs.getInt("in_flight"),
                         rs.getInt("failed"),
-                        isPaused
+                        isPaused,
+                        rateLimitPausedUntil,
+                        rateLimitPauseReason,
+                        consecutiveHits
                 ))
                 .one());
     }

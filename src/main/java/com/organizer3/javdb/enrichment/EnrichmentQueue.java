@@ -208,6 +208,25 @@ public class EnrichmentQueue {
                 .execute());
     }
 
+    /**
+     * Resets ALL in_flight jobs to pending on startup. Any job still in_flight at boot was
+     * orphaned by the previous process dying — no worker is executing it, so the time-based
+     * stall guard used by {@link #resetStuckInFlightJobs} is irrelevant here.
+     */
+    public int resetOrphanedInFlightJobs() {
+        int count = jdbi.withHandle(h -> h.createUpdate("""
+                UPDATE javdb_enrichment_queue
+                SET status = 'pending', updated_at = :now
+                WHERE status = 'in_flight'
+                """)
+                .bind("now", now())
+                .execute());
+        if (count > 0) {
+            log.warn("javdb: reset {} orphaned in_flight jobs on startup", count);
+        }
+        return count;
+    }
+
     /** Resets jobs stuck in in_flight for longer than {@code stallMinutes}. */
     public void resetStuckInFlightJobs(int stallMinutes) {
         String threshold = Instant.now().minus(stallMinutes, ChronoUnit.MINUTES).toString();
@@ -220,7 +239,7 @@ public class EnrichmentQueue {
                 .bind("now",       now())
                 .execute());
         if (count > 0) {
-            log.warn("javdb: reset {} stuck in_flight jobs on boot", count);
+            log.warn("javdb: reset {} stuck in_flight jobs", count);
         }
     }
 

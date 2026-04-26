@@ -296,6 +296,14 @@ public class ActressBrowseService {
         Actress actress = actressRepo.findById(actressId).orElse(null);
         String actressName = actress != null ? actress.getCanonicalName() : null;
         String actressTier = actress != null && actress.getTier() != null ? actress.getTier().name() : null;
+
+        List<Long> titleIds = titles.stream()
+                .map(Title::getId)
+                .filter(Objects::nonNull)
+                .toList();
+        Map<Long, List<TitleSummary.EnrichmentTagEntry>> enrichmentTagsMap =
+                titleRepo.findEnrichmentTagsByTitleIds(titleIds);
+
         return titles.stream()
                 .map(t -> {
                     Label lbl = t.getLabel() != null ? labelMap.get(t.getLabel().toUpperCase()) : null;
@@ -335,6 +343,9 @@ public class ActressBrowseService {
                             .releaseDate(t.getReleaseDate() != null ? t.getReleaseDate().toString() : null)
                             .grade(t.getGrade() != null ? t.getGrade().display : null)
                             .tags(allTags)
+                            .enrichmentTags(t.getId() != null
+                                    ? enrichmentTagsMap.getOrDefault(t.getId(), List.of())
+                                    : List.of())
                             .visitCount(t.getVisitCount())
                             .lastVisitedAt(t.getLastVisitedAt() != null ? t.getLastVisitedAt().toString() : null)
                             .build();

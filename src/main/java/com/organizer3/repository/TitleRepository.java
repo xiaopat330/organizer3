@@ -2,6 +2,7 @@ package com.organizer3.repository;
 
 import com.organizer3.model.Actress;
 import com.organizer3.model.Title;
+import com.organizer3.web.TitleSummary;
 
 import java.util.Collection;
 import java.util.List;
@@ -395,4 +396,11 @@ public interface TitleRepository {
                          java.time.LocalDateTime bookmarkedAt, String grade,
                          boolean rejected, int visitCount,
                          java.time.LocalDateTime lastVisitedAt, String notes);
+
+    /**
+     * Returns all enrichment tag name/curatedAlias pairs for the given title IDs,
+     * keyed by title ID. Used for batch-loading enrichment tags onto title cards.
+     */
+    Map<Long, List<TitleSummary.EnrichmentTagEntry>> findEnrichmentTagsByTitleIds(
+            Collection<Long> titleIds);
 }

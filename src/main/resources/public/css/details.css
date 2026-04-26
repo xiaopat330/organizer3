@@ -995,6 +995,13 @@
   margin-top: 5px;
 }
 
+.title-tags-enrichment {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 3px;
+}
+
 .tag-badge {
   font-size: 0.63rem;
   font-weight: 600;

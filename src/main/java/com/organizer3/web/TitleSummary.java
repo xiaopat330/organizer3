@@ -50,6 +50,8 @@ public class TitleSummary {
     String lastVisitedAt;  // ISO datetime string, null until first visit
     @Builder.Default
     List<String> tags = List.of();
+    @Builder.Default
+    List<EnrichmentTagEntry> enrichmentTags = List.of();
 
     /** Pairs a volumeId with the full NAS SMB path for one title location. */
     @Value
@@ -57,6 +59,13 @@ public class TitleSummary {
     public static class LocationEntry {
         String volumeId;
         String nasPath;
+    }
+
+    /** One raw JavDB enrichment tag for a title card. */
+    @Value
+    public static class EnrichmentTagEntry {
+        String name;
+        String curatedAlias;
     }
 
     /** Lightweight actress reference for multi-actress title cards. */

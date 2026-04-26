@@ -32,7 +32,6 @@ import java.util.concurrent.atomic.AtomicBoolean;
 @Slf4j
 public class EnrichmentRunner {
 
-    private static final int STALL_MINUTES = 5;
     private static final long LOOP_SLEEP_MS = 1_000;
 
     private final JavdbConfig config;
@@ -49,8 +48,15 @@ public class EnrichmentRunner {
 
     private final AtomicBoolean stopRequested = new AtomicBoolean(false);
     private final AtomicBoolean paused = new AtomicBoolean(false);
-    // When > now, the runner is in a 429-triggered global pause.
+    // When > now, the runner is in a rate-limit triggered global pause.
     private volatile Instant pauseUntil = Instant.EPOCH;
+    private volatile String pauseReason = null;
+    // Prevents spamming the "pause active" log on every sleep tick.
+    private volatile boolean pauseLoggedThisCycle = false;
+    // Consecutive rate-limit hits; used for exponential backoff. Reset after successful fetches.
+    private int consecutiveRateLimitHits = 0;
+    private int successfulFetchesSinceRateLimit = 0;
+    private static final int SUCCESSES_TO_RESET = 10;
 
     private Thread thread;
 
@@ -81,7 +87,7 @@ public class EnrichmentRunner {
     public synchronized void start() {
         if (thread != null && thread.isAlive()) return;
         stopRequested.set(false);
-        queue.resetStuckInFlightJobs(STALL_MINUTES);
+        queue.resetOrphanedInFlightJobs();
         backfillActressSlugsFromEnrichment();
         thread = new Thread(this::runLoop, "javdb-enrichment");
         thread.setDaemon(true);
@@ -102,6 +108,21 @@ public class EnrichmentRunner {
 
     public boolean isPaused() {
         return paused.get();
+    }
+
+    /** Returns the instant until which the runner is rate-limit paused, or {@code Instant.EPOCH} if not paused. */
+    public Instant getPauseUntil() {
+        return pauseUntil;
+    }
+
+    /** Returns a human-readable reason for the current rate-limit pause, or null if not paused. */
+    public String getPauseReason() {
+        return Instant.now().isBefore(pauseUntil) ? pauseReason : null;
+    }
+
+    /** Returns the number of consecutive rate-limit hits since the last clean run. */
+    public int getConsecutiveRateLimitHits() {
+        return consecutiveRateLimitHits;
     }
 
     private void runLoop() {
@@ -127,10 +148,18 @@ public class EnrichmentRunner {
 
         Instant now = Instant.now();
         if (now.isBefore(pauseUntil)) {
-            long waitMs = ChronoUnit.MILLIS.between(now, pauseUntil);
-            log.info("javdb: rate-limit pause active, sleeping {}s", waitMs / 1000);
-            sleepInterruptibly(Math.min(waitMs, 30_000));
+            if (!pauseLoggedThisCycle) {
+                long waitMs = ChronoUnit.MILLIS.between(now, pauseUntil);
+                log.warn("javdb: *** RATE LIMIT PAUSE ACTIVE *** reason={} resuming in {}s (at {})",
+                        pauseReason, waitMs / 1000, pauseUntil);
+                pauseLoggedThisCycle = true;
+            }
+            sleepInterruptibly(Math.min(ChronoUnit.MILLIS.between(Instant.now(), pauseUntil), 30_000));
             return;
+        }
+        if (pauseLoggedThisCycle) {
+            log.info("javdb: rate-limit pause lifted — resuming enrichment");
+            pauseLoggedThisCycle = false;
         }
 
         Optional<EnrichmentJob> maybeJob = queue.claimNextJob();
@@ -149,13 +178,34 @@ public class EnrichmentRunner {
                     queue.markPermanentlyFailed(job.id(), "unknown_job_type");
                 }
             }
+            // Track successful fetches so we can reset the rate-limit backoff counter
+            successfulFetchesSinceRateLimit++;
+            if (successfulFetchesSinceRateLimit >= SUCCESSES_TO_RESET && consecutiveRateLimitHits > 0) {
+                log.info("javdb: {} successful fetches — resetting rate-limit backoff counter", SUCCESSES_TO_RESET);
+                consecutiveRateLimitHits = 0;
+                successfulFetchesSinceRateLimit = 0;
+            }
         } catch (JavdbRateLimitException e) {
-            log.warn("javdb: rate-limited (429) — pausing {}m", config.rate429PauseMinutesOrDefault());
-            pauseUntil = Instant.now().plus(config.rate429PauseMinutesOrDefault(), ChronoUnit.MINUTES);
+            consecutiveRateLimitHits++;
+            successfulFetchesSinceRateLimit = 0;
+            int basePause = config.rate429PauseMinutesOrDefault();
+            int pauseMinutes = Math.min(basePause * (1 << (consecutiveRateLimitHits - 1)), 120);
+            pauseReason = "HTTP 429 — rate limited (hit #" + consecutiveRateLimitHits + ")";
+            pauseUntil = Instant.now().plus(pauseMinutes, ChronoUnit.MINUTES);
+            pauseLoggedThisCycle = false;
+            log.warn("javdb: *** RATE LIMITED (429) *** hit #{}, pausing {}m (base {}m × 2^{}) — consider switching VPN if this persists",
+                    consecutiveRateLimitHits, pauseMinutes, basePause, consecutiveRateLimitHits - 1);
             queue.releaseToRetry(job.id());
         } catch (JavdbForbiddenException e) {
-            log.warn("javdb: forbidden (403) — IP likely blocked, pausing {}m", config.rate429PauseMinutesOrDefault());
-            pauseUntil = Instant.now().plus(config.rate429PauseMinutesOrDefault(), ChronoUnit.MINUTES);
+            consecutiveRateLimitHits++;
+            successfulFetchesSinceRateLimit = 0;
+            int basePause = config.rate429PauseMinutesOrDefault();
+            int pauseMinutes = Math.min(basePause * (1 << (consecutiveRateLimitHits - 1)), 120);
+            pauseReason = "HTTP 403 — access forbidden, IP may be blocked (hit #" + consecutiveRateLimitHits + ")";
+            pauseUntil = Instant.now().plus(pauseMinutes, ChronoUnit.MINUTES);
+            pauseLoggedThisCycle = false;
+            log.warn("javdb: *** FORBIDDEN (403) *** IP likely blocked — hit #{}, pausing {}m — switch VPN to resume",
+                    consecutiveRateLimitHits, pauseMinutes);
             queue.releaseToRetry(job.id());
         } catch (JavdbNotFoundException e) {
             log.warn("javdb: not found for job {} ({})", job.id(), job.jobType());

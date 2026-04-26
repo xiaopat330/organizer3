@@ -35,6 +35,7 @@ const state = createState();
 
 const view              = document.getElementById('tools-javdb-discovery-view');
 const queueBadge        = document.getElementById('jd-queue-badge');
+const rateLimitBanner   = document.getElementById('jd-rate-limit-banner');
 const pauseBtn          = document.getElementById('jd-pause-btn');
 const cancelAllBtn      = document.getElementById('jd-cancel-all-btn');
 const controlsToggle    = document.getElementById('jd-controls-toggle');
@@ -87,7 +88,7 @@ async function refreshQueue() {
   try {
     const res = await fetch('/api/javdb/discovery/queue');
     if (!res.ok) return;
-    const { pending, inFlight, failed, paused } = await res.json();
+    const { pending, inFlight, failed, paused, rateLimitPausedUntil, rateLimitPauseReason, consecutiveRateLimitHits } = await res.json();
     state.paused = paused;
     const activeTotal = pending + inFlight;
     const total = activeTotal + failed;
@@ -99,6 +100,21 @@ async function refreshQueue() {
     }
     pauseBtn.textContent = paused ? 'Resume' : 'Pause';
     pauseBtn.classList.toggle('jd-paused', paused);
+
+    if (rateLimitPausedUntil) {
+      const resumeTime = new Date(rateLimitPausedUntil);
+      const resumeStr = resumeTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      const reason = rateLimitPauseReason || 'Rate limited';
+      const hitNote = consecutiveRateLimitHits > 1
+        ? ` (${consecutiveRateLimitHits} consecutive hits — pause doubled each time)`
+        : '';
+      rateLimitBanner.innerHTML =
+        `⚠ Enrichment paused — ${esc(reason)}${esc(hitNote)}. Resuming at ${esc(resumeStr)}. ` +
+        `<span class="jd-banner-hint">Try switching VPN or pausing enrichment manually until the block clears.</span>`;
+      rateLimitBanner.style.display = '';
+    } else {
+      rateLimitBanner.style.display = 'none';
+    }
 
     // Refresh actress dots and title statuses while jobs are running, and once
     // more on the tick they all clear (so yellow dots transition to green/grey).

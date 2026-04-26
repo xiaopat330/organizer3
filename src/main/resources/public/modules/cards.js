@@ -1,5 +1,5 @@
 import { esc, splitName, renderDateRange, timeAgoShort } from './utils.js';
-import { ICON_FAV_SM, ICON_BM_SM, ICON_BM_SM_OFF, titleCodeClass, gradeBadgeHtml, tagBadgeHtml } from './icons.js';
+import { ICON_FAV_SM, ICON_BM_SM, ICON_BM_SM_OFF, titleCodeClass, gradeBadgeHtml, tagBadgeHtml, javdbRawTagHtml } from './icons.js';
 import { activeIntervals, activeObservers } from './grid.js';
 
 // ── Callbacks registered by app.js after all modules load ─────────────────
@@ -74,6 +74,11 @@ export function makeTitleCard(t) {
     ? `<div class="title-tags">${tags.map(tagBadgeHtml).join('')}</div>`
     : '';
 
+  const enrichmentTags = t.enrichmentTags || [];
+  const enrichmentTagsHtml = enrichmentTags.length > 0
+    ? `<div class="title-tags-enrichment">${enrichmentTags.map(e => javdbRawTagHtml(e.name, e.curatedAlias)).join('')}</div>`
+    : '';
+
   const bmIconHtml = t.bookmark ? ICON_BM_SM : ICON_BM_SM_OFF;
   const favIcon    = t.favorite ? ICON_FAV_SM : '';
   const titleCodeHtml = `<div class="${titleCodeClass(t.favorite, t.bookmark)}"><button type="button" class="card-bm-btn${t.bookmark ? ' card-bm-active' : ''}">${bmIconHtml}</button>${favIcon}<span class="title-code-text">${esc(t.code)}</span>${gradeBadgeHtml(t.grade)}</div>`;
@@ -86,7 +91,7 @@ export function makeTitleCard(t) {
     ? `<div class="title-card-visited">${t.visitCount === 1 ? '1 view' : `${t.visitCount} views`}${t.lastVisitedAt ? ` · ${timeAgoShort(t.lastVisitedAt)}` : ''}</div>`
     : '';
 
-  card.innerHTML = `${coverHtml}<div class="card-info">${titleCodeHtml}${actressHtml}${titleEnHtml}${titleJaHtml}${metaLineHtml}${visitedHtml}${tagsHtml}${watchedHtml}</div>`;
+  card.innerHTML = `${coverHtml}<div class="card-info">${titleCodeHtml}${actressHtml}${titleEnHtml}${titleJaHtml}${metaLineHtml}${visitedHtml}${tagsHtml}${enrichmentTagsHtml}${watchedHtml}</div>`;
 
   // Bookmark toggle — optimistic UI, debounced API call
   let bookmarkState = !!t.bookmark;

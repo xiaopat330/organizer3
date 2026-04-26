@@ -17,11 +17,11 @@ public record JavdbConfig(
         @JsonProperty("sessionCookie")          String sessionCookie
 ) {
 
-    public static final JavdbConfig DEFAULTS = new JavdbConfig(true, 0.2, 3, new int[]{1, 5, 30}, 5, null, null);
+    public static final JavdbConfig DEFAULTS = new JavdbConfig(true, 0.2, 3, new int[]{1, 5, 30}, 15, null, null);
 
     public boolean enabledOrDefault()           { return enabled != null ? enabled : true; }
     public double rateLimitPerSecOrDefault()    { return rateLimitPerSec != null ? rateLimitPerSec : 0.2; }
     public int maxAttemptsOrDefault()           { return maxAttempts != null ? maxAttempts : 3; }
     public int[] backoffMinutesOrDefault()      { return backoffMinutes != null ? backoffMinutes : new int[]{1, 5, 30}; }
-    public int rate429PauseMinutesOrDefault()   { return rate429PauseMinutes != null ? rate429PauseMinutes : 5; }
+    public int rate429PauseMinutesOrDefault()   { return rate429PauseMinutes != null ? rate429PauseMinutes : 15; }
 }

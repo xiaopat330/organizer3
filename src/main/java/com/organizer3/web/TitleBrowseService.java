@@ -309,6 +309,10 @@ public class TitleBrowseService {
         List<String> codes = titles.stream().map(Title::getCode).toList();
         Map<String, WatchHistoryRepository.WatchStats> watchStatsMap = watchHistoryRepo.findWatchStatsBatch(codes);
 
+        List<Long> titleIds = titles.stream().map(Title::getId).filter(Objects::nonNull).toList();
+        Map<Long, List<TitleSummary.EnrichmentTagEntry>> enrichmentTagsMap =
+                titleRepo.findEnrichmentTagsByTitleIds(titleIds);
+
         return titles.stream()
                 .map(t -> {
                     Label lbl = t.getLabel() != null ? labelMap.get(t.getLabel().toUpperCase()) : null;
@@ -391,6 +395,9 @@ public class TitleBrowseService {
                             .visitCount(t.getVisitCount())
                             .lastVisitedAt(t.getLastVisitedAt() != null ? t.getLastVisitedAt().toString() : null)
                             .tags(allTags)
+                            .enrichmentTags(t.getId() != null
+                                    ? enrichmentTagsMap.getOrDefault(t.getId(), List.of())
+                                    : List.of())
                             .build();
                 })
                 .toList();

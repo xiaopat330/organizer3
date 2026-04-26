@@ -6,6 +6,7 @@ import com.organizer3.model.TitleLocation;
 import com.organizer3.repository.CatastrophicDeleteException;
 import com.organizer3.repository.TitleLocationRepository;
 import com.organizer3.repository.TitleRepository;
+import com.organizer3.web.TitleSummary;
 import lombok.RequiredArgsConstructor;
 import org.jdbi.v3.core.Jdbi;
 import org.jdbi.v3.core.mapper.RowMapper;
@@ -1444,5 +1445,33 @@ public class JdbiTitleRepository implements TitleRepository {
                         .bind("notes", notes)
                         .execute()
         );
+    }
+
+    @Override
+    public Map<Long, List<TitleSummary.EnrichmentTagEntry>> findEnrichmentTagsByTitleIds(
+            Collection<Long> titleIds) {
+        if (titleIds == null || titleIds.isEmpty()) return Map.of();
+        List<Long> ids = new ArrayList<>(titleIds);
+        return jdbi.withHandle(h -> {
+            List<Map<String, Object>> rows = h.createQuery("""
+                    SELECT tet.title_id, etd.name, etd.curated_alias
+                    FROM title_enrichment_tags tet
+                    JOIN enrichment_tag_definitions etd ON etd.id = tet.tag_id
+                    WHERE tet.title_id IN (<ids>)
+                    ORDER BY tet.title_id, etd.name
+                    """)
+                    .bindList("ids", ids)
+                    .mapToMap()
+                    .list();
+            Map<Long, List<TitleSummary.EnrichmentTagEntry>> result = new LinkedHashMap<>();
+            for (Map<String, Object> row : rows) {
+                long titleId = ((Number) row.get("title_id")).longValue();
+                String name = (String) row.get("name");
+                String curatedAlias = (String) row.get("curated_alias");
+                result.computeIfAbsent(titleId, k -> new ArrayList<>())
+                        .add(new TitleSummary.EnrichmentTagEntry(name, curatedAlias));
+            }
+            return result;
+        });
     }
 }

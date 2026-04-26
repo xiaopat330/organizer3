@@ -785,10 +785,11 @@ async function renderLibraryFilterPanel() {
     groups = catalog || [];
     tagCounts = countData?.counts || {};
     totalTitles = countData?.totalTitles || 0;
-    // Filter enrichment tags: surface=true, 1% <= libraryPct <= 50%
-    enrichmentDefs = (healthData?.definitions || []).filter(d =>
-      d.surface && d.libraryPct >= 0.01 && d.libraryPct <= 0.50
-    );
+    // Filter enrichment tags: surface=true, no curatedAlias (those are already in curated section),
+    // 1% <= libraryPct <= 50%. Sort alphabetically so the flat list is scannable.
+    enrichmentDefs = (healthData?.definitions || [])
+      .filter(d => d.surface && !d.curatedAlias && d.libraryPct >= 0.01 && d.libraryPct <= 0.50)
+      .sort((a, b) => a.name.localeCompare(b.name));
   } catch { /* ignore */ }
 
   // Build curated tag groups, omitting tags with zero count
