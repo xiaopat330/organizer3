@@ -38,6 +38,27 @@ public class EnrichmentQueue {
                 .execute());
     }
 
+    /**
+     * Force-enqueues a fetch_title job even if a done job already exists.
+     * Only blocks if the title is already pending or in_flight.
+     */
+    public void enqueueTitleForce(long titleId, long actressId) {
+        jdbi.useHandle(h -> h.createUpdate("""
+                INSERT INTO javdb_enrichment_queue
+                    (job_type, target_id, actress_id, status, attempts, next_attempt_at, created_at, updated_at)
+                SELECT 'fetch_title', :targetId, :actressId, 'pending', 0, :now, :now, :now
+                WHERE NOT EXISTS (
+                    SELECT 1 FROM javdb_enrichment_queue
+                    WHERE job_type = 'fetch_title' AND target_id = :targetId
+                      AND status IN ('pending', 'in_flight')
+                )
+                """)
+                .bind("targetId",  titleId)
+                .bind("actressId", actressId)
+                .bind("now",       now())
+                .execute());
+    }
+
     /** Enqueues a fetch_actress_profile job if no active/done one already exists. */
     public void enqueueActressProfile(long actressId) {
         jdbi.useHandle(h -> h.createUpdate("""
@@ -48,6 +69,23 @@ public class EnrichmentQueue {
                     SELECT 1 FROM javdb_enrichment_queue
                     WHERE job_type = 'fetch_actress_profile' AND actress_id = :actressId
                       AND status IN ('pending', 'in_flight', 'done')
+                )
+                """)
+                .bind("actressId", actressId)
+                .bind("now",       now())
+                .execute());
+    }
+
+    /** Force-enqueues a fetch_actress_profile job even if a done job already exists. */
+    public void enqueueActressProfileForce(long actressId) {
+        jdbi.useHandle(h -> h.createUpdate("""
+                INSERT INTO javdb_enrichment_queue
+                    (job_type, target_id, actress_id, status, attempts, next_attempt_at, created_at, updated_at)
+                SELECT 'fetch_actress_profile', :actressId, :actressId, 'pending', 0, :now, :now, :now
+                WHERE NOT EXISTS (
+                    SELECT 1 FROM javdb_enrichment_queue
+                    WHERE job_type = 'fetch_actress_profile' AND actress_id = :actressId
+                      AND status IN ('pending', 'in_flight')
                 )
                 """)
                 .bind("actressId", actressId)

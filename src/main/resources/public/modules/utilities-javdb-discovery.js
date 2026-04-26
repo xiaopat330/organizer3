@@ -459,11 +459,20 @@ async function fetchAndRenderTitles() {
     titlesView.innerHTML = `
       <table class="jd-titles-table">
         <thead><tr>
-          <th>Code</th><th>Status</th><th>Original Title</th><th>Release</th><th>Maker</th>
+          <th>Code</th><th>Status</th><th>Original Title</th><th>Release</th><th>Maker</th><th></th>
         </tr></thead>
         <tbody>${titles.map(titleRow).join('')}</tbody>
       </table>
     `;
+    titlesView.querySelectorAll('.jd-reenrich-btn').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const titleId = btn.dataset.titleId;
+        btn.textContent = '…';
+        btn.disabled = true;
+        await fetch(`/api/javdb/discovery/actresses/${state.selectedId}/titles/${titleId}/reenrich`, { method: 'POST' });
+        await renderTitlesTabSilent();
+      });
+    });
   } catch (_) {
     titlesView.innerHTML = '<div class="jd-error">Network error.</div>';
   }
@@ -482,12 +491,17 @@ function titleEffectiveStatus(t) {
 function titleRow(t) {
   const { key, label } = titleEffectiveStatus(t);
   const statusCell = `<span class="jd-status jd-status-${key}">${label}</span>`;
+  const canReenrich = key === 'fetched' || key === 'done' || key === 'failed' || t.status === 'not_found';
+  const actionCell = canReenrich
+    ? `<button class="jd-reenrich-btn" data-title-id="${t.titleId}" title="Force re-enrich">↺</button>`
+    : '';
   return `<tr>
     <td class="jd-code">${esc(t.code)}</td>
     <td>${statusCell}</td>
     <td>${t.titleOriginal ? esc(t.titleOriginal) : '—'}</td>
     <td>${fmtDate(t.releaseDate)}</td>
     <td>${t.maker ? esc(t.maker) : '—'}</td>
+    <td class="jd-action-cell">${actionCell}</td>
   </tr>`;
 }
 
@@ -519,8 +533,18 @@ async function renderProfileTab() {
           <dt>Instagram</dt><dd>${p.instagramHandle ? esc(p.instagramHandle) : '—'}</dd>
           ${p.nameVariantsJson ? `<dt>Name variants</dt><dd class="jd-variants">${esc(p.nameVariantsJson)}</dd>` : ''}
         </dl>
+        <div class="jd-profile-actions">
+          <button id="jd-refetch-profile-btn" class="jd-action-btn jd-muted-btn">↺ Re-fetch Profile</button>
+        </div>
       </div>
     `;
+    document.getElementById('jd-refetch-profile-btn').addEventListener('click', async () => {
+      const btn = document.getElementById('jd-refetch-profile-btn');
+      btn.textContent = '…';
+      btn.disabled = true;
+      await fetch(`/api/javdb/discovery/actresses/${state.selectedId}/profile/reenrich`, { method: 'POST' });
+      await renderProfileTab();
+    });
   } catch (_) {
     profileView.innerHTML = '<div class="jd-error">Network error.</div>';
   }

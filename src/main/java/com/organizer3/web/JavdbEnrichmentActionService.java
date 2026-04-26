@@ -64,4 +64,14 @@ public class JavdbEnrichmentActionService {
     public List<EnrichmentJob> getErrorsForActress(long actressId) {
         return queue.listFailedForActress(actressId);
     }
+
+    /** Force re-enqueues a single title even if it was already successfully enriched. */
+    public void reEnqueueTitle(long titleId, long actressId) {
+        queue.enqueueTitleForce(titleId, actressId);
+    }
+
+    /** Force re-enqueues the actress profile even if it was already successfully fetched. */
+    public void reEnqueueActressProfile(long actressId) {
+        queue.enqueueActressProfileForce(actressId);
+    }
 }

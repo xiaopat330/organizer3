@@ -96,6 +96,23 @@ public class JavdbDiscoveryRoutes {
             if (id < 0) { ctx.status(400); return; }
             ctx.json(service.getActressConflicts(id));
         });
+
+        app.post("/api/javdb/discovery/actresses/{id}/titles/{titleId}/reenrich", ctx -> {
+            long actressId = parseId(ctx);
+            long titleId;
+            try { titleId = Long.parseLong(ctx.pathParam("titleId")); }
+            catch (NumberFormatException e) { ctx.status(400); return; }
+            if (actressId < 0) { ctx.status(400); return; }
+            actionService.reEnqueueTitle(titleId, actressId);
+            ctx.status(204);
+        });
+
+        app.post("/api/javdb/discovery/actresses/{id}/profile/reenrich", ctx -> {
+            long id = parseId(ctx);
+            if (id < 0) { ctx.status(400); return; }
+            actionService.reEnqueueActressProfile(id);
+            ctx.status(204);
+        });
     }
 
     private long parseId(io.javalin.http.Context ctx) {

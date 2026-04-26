@@ -5353,6 +5353,14 @@
   vertical-align: middle;
 }
 .jd-titles-table tr:hover td { background: #0a1220; }
+.jd-action-cell { width: 28px; text-align: center; padding: 0 4px; }
+.jd-reenrich-btn {
+  background: none; border: 1px solid #1e293b; border-radius: 4px;
+  color: #475569; cursor: pointer; font-size: 13px; padding: 1px 5px; line-height: 1;
+}
+.jd-reenrich-btn:hover { border-color: #334155; color: #94a3b8; }
+.jd-reenrich-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.jd-profile-actions { margin-top: 12px; }
 .jd-code { font-family: monospace; font-size: 12px; color: #94a3b8; }
 
 .jd-status {

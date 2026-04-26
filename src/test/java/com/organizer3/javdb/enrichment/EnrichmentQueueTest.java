@@ -187,4 +187,42 @@ class EnrichmentQueueTest {
         queue.enqueueActressProfile(10L);
         assertEquals(1, queue.countPendingForActress(10L));
     }
+
+    @Test
+    void enqueueTitleForce_reenqueuesOverDoneJob() {
+        queue.enqueueTitle(1L, 10L);
+        Optional<EnrichmentJob> job = queue.claimNextJob();
+        assertTrue(job.isPresent());
+        queue.markDone(job.get().id());
+        assertEquals(0, queue.countPending());
+
+        queue.enqueueTitleForce(1L, 10L);
+        assertEquals(1, queue.countPending());
+    }
+
+    @Test
+    void enqueueTitleForce_noopWhenPendingOrInFlight() {
+        queue.enqueueTitleForce(1L, 10L);
+        queue.enqueueTitleForce(1L, 10L);
+        assertEquals(1, queue.countPending());
+    }
+
+    @Test
+    void enqueueActressProfileForce_reenqueuesOverDoneJob() {
+        queue.enqueueActressProfile(10L);
+        Optional<EnrichmentJob> job = queue.claimNextJob();
+        assertTrue(job.isPresent());
+        queue.markDone(job.get().id());
+        assertEquals(0, queue.countPendingForActress(10L));
+
+        queue.enqueueActressProfileForce(10L);
+        assertEquals(1, queue.countPendingForActress(10L));
+    }
+
+    @Test
+    void enqueueActressProfileForce_noopWhenPendingOrInFlight() {
+        queue.enqueueActressProfileForce(10L);
+        queue.enqueueActressProfileForce(10L);
+        assertEquals(1, queue.countPendingForActress(10L));
+    }
 }
