@@ -1284,6 +1284,33 @@
   gap: 4px;
 }
 
+/* Raw javdb tag chips — shown in the "Javdb" row when a title has enrichment data. */
+.title-detail-enrichment-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  align-items: center;
+}
+
+.javdb-raw-tag {
+  font-size: 0.63rem;
+  font-weight: 500;
+  letter-spacing: 0.03em;
+  border-radius: 3px;
+  padding: 2px 6px;
+  color: #3e5570;
+  background: transparent;
+  border: 1px solid #1e3248;
+  white-space: nowrap;
+  cursor: default;
+}
+
+/* Mapped tags (have a curated alias) are slightly brighter to signal they carry semantic weight. */
+.javdb-raw-tag--mapped {
+  color: #566e90;
+  border-color: #2a4462;
+}
+
 .title-detail-grade-row {
   margin-top: 8px;
   align-items: center;

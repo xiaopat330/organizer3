@@ -45,7 +45,7 @@ final class UiTestFixture {
         when(titleBrowse.listLabels()).thenReturn(List.of());
         when(titleBrowse.listStudioGroups()).thenReturn(List.of());
         when(titleBrowse.listAllCompanies()).thenReturn(List.of("Prestige", "S1 No.1 Style"));
-        when(titleBrowse.findLibraryPaged(any(), any(), any(), any(), any(), anyInt(), anyInt()))
+        when(titleBrowse.findLibraryPaged(any(), any(), any(), any(), any(), any(), anyInt(), anyInt()))
                 .thenReturn(List.of(sampleTitle()));
         when(titleBrowse.findRandom(anyInt())).thenReturn(List.of(sampleTitle()));
         when(titleBrowse.findLastVisited(anyInt())).thenReturn(List.of());

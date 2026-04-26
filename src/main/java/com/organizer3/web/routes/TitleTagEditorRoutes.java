@@ -136,5 +136,28 @@ public class TitleTagEditorRoutes {
             result.put("effectiveTags", new ArrayList<>(effective));
             ctx.json(result);
         });
+
+        // Returns the raw javdb enrichment tags for a title, with their curated alias (if mapped).
+        // Used by the title detail panel to render the "Javdb" tags row.
+        app.get("/api/titles/{code}/enrichment-tags", ctx -> {
+            Title t = titleRepo.findByCode(ctx.pathParam("code")).orElse(null);
+            if (t == null) { ctx.status(404); return; }
+            List<Map<String, Object>> tags = jdbi.withHandle(h -> h.createQuery("""
+                    SELECT etd.name, etd.curated_alias
+                    FROM title_enrichment_tags tet
+                    JOIN enrichment_tag_definitions etd ON etd.id = tet.tag_id
+                    WHERE tet.title_id = :id
+                    ORDER BY etd.name
+                    """)
+                    .bind("id", t.getId())
+                    .map((rs, rctx) -> {
+                        var m = new LinkedHashMap<String, Object>();
+                        m.put("name", rs.getString("name"));
+                        m.put("curatedAlias", rs.getString("curated_alias"));
+                        return (Map<String, Object>) m;
+                    })
+                    .list());
+            ctx.json(Map.of("isEnriched", !tags.isEmpty(), "tags", tags));
+        });
     }
 }

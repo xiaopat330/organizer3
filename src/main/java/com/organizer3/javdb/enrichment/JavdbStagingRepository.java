@@ -126,18 +126,33 @@ public class JavdbStagingRepository {
      * If a row already exists with status='fetched', the slug and source_title_code
      * are updated but status remains 'fetched'.
      */
-    public void upsertActressSlugOnly(long actressId, String javdbSlug, String sourceTitleCode) {
-        jdbi.useHandle(h -> h.createUpdate("""
-                INSERT INTO javdb_actress_staging (actress_id, javdb_slug, source_title_code, status)
-                VALUES (:actressId, :slug, :sourceTitleCode, 'slug_only')
-                ON CONFLICT(actress_id) DO UPDATE SET
-                    javdb_slug        = excluded.javdb_slug,
-                    source_title_code = excluded.source_title_code
-                """)
-                .bind("actressId",      actressId)
-                .bind("slug",           javdbSlug)
-                .bind("sourceTitleCode", sourceTitleCode)
-                .execute());
+    /**
+     * Returns false if the slug is already claimed by a different actress (slug collision —
+     * two DB actresses mapping to the same JavDB page). Caller should log and skip.
+     */
+    public boolean upsertActressSlugOnly(long actressId, String javdbSlug, String sourceTitleCode) {
+        try {
+            jdbi.useHandle(h -> h.createUpdate("""
+                    INSERT INTO javdb_actress_staging (actress_id, javdb_slug, source_title_code, status)
+                    VALUES (:actressId, :slug, :sourceTitleCode, 'slug_only')
+                    ON CONFLICT(actress_id) DO UPDATE SET
+                        javdb_slug        = excluded.javdb_slug,
+                        source_title_code = excluded.source_title_code
+                    """)
+                    .bind("actressId",      actressId)
+                    .bind("slug",           javdbSlug)
+                    .bind("sourceTitleCode", sourceTitleCode)
+                    .execute());
+            return true;
+        } catch (org.jdbi.v3.core.statement.UnableToExecuteStatementException ex) {
+            if (ex.getMessage() != null && ex.getMessage().contains("SQLITE_CONSTRAINT_UNIQUE")
+                    && ex.getMessage().contains("javdb_actress_staging.javdb_slug")) {
+                log.warn("javdb: slug {} already claimed by another actress — skipping actress {} ({})",
+                        javdbSlug, actressId, sourceTitleCode);
+                return false;
+            }
+            throw ex;
+        }
     }
 
     /** Upserts a fully fetched actress staging row. */

@@ -394,6 +394,43 @@
   color: #70e898;
 }
 
+.tag-toggle-count {
+  display: inline-block;
+  margin-left: 4px;
+  font-size: 0.62rem;
+  opacity: 0.55;
+  font-variant-numeric: tabular-nums;
+}
+
+.tag-toggle.active .tag-toggle-count {
+  opacity: 0.75;
+}
+
+.tag-toggle--enrichment {
+  border-style: dashed;
+}
+
+.tag-toggle--enrichment.active {
+  background: #0a1822;
+  border-color: #4aa0d0;
+  color: #70c8f0;
+  border-style: dashed;
+}
+
+.tags-group--enrichment .tags-group-label {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.tags-group-sublabel {
+  font-size: 0.60rem;
+  color: #333;
+  text-transform: none;
+  letter-spacing: 0;
+  font-weight: 400;
+}
+
 .actress-landing-tier-row {
   gap: 4px;
   flex-wrap: nowrap;

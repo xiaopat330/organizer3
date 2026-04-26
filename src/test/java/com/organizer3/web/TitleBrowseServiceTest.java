@@ -414,12 +414,12 @@ class TitleBrowseServiceTest {
     @Test
     void findLibraryPagedPassesNullCompanyListWhenCompanyBlank() {
         when(labelRepo.findAllAsMap()).thenReturn(Map.of());
-        when(titleRepo.findLibraryPaged(any(), any(), eq(List.of()), eq(List.of()), any(), anyBoolean(), anyInt(), anyInt()))
+        when(titleRepo.findLibraryPaged(any(), any(), eq(List.of()), eq(List.of()), eq(List.of()), any(), anyBoolean(), anyInt(), anyInt()))
                 .thenReturn(List.of());
 
-        service.findLibraryPaged(null, null, List.of(), "addedDate", "desc", 0, 24);
+        service.findLibraryPaged(null, null, List.of(), List.of(), "addedDate", "desc", 0, 24);
 
-        verify(titleRepo).findLibraryPaged(any(), any(), eq(List.of()), eq(List.of()), eq("addedDate"), eq(false), eq(24), eq(0));
+        verify(titleRepo).findLibraryPaged(any(), any(), eq(List.of()), eq(List.of()), eq(List.of()), eq("addedDate"), eq(false), eq(24), eq(0));
     }
 
     @Test
@@ -427,42 +427,42 @@ class TitleBrowseServiceTest {
         Label abp = new Label("ABP", "Prestige Label", "Prestige", null, null, null, null, null, null, List.of());
         Label mdvr = new Label("MDVR", "Moodyz VR", "Moodyz", null, null, null, null, null, null, List.of());
         when(labelRepo.findAllAsMap()).thenReturn(Map.of("ABP", abp, "MDVR", mdvr));
-        when(titleRepo.findLibraryPaged(any(), any(), eq(List.of("ABP")), eq(List.of()), any(), anyBoolean(), anyInt(), anyInt()))
+        when(titleRepo.findLibraryPaged(any(), any(), eq(List.of("ABP")), eq(List.of()), eq(List.of()), any(), anyBoolean(), anyInt(), anyInt()))
                 .thenReturn(List.of());
 
-        service.findLibraryPaged(null, "Prestige", List.of(), null, null, 0, 24);
+        service.findLibraryPaged(null, "Prestige", List.of(), List.of(), null, null, 0, 24);
 
-        verify(titleRepo).findLibraryPaged(any(), any(), eq(List.of("ABP")), eq(List.of()), any(), anyBoolean(), anyInt(), anyInt());
+        verify(titleRepo).findLibraryPaged(any(), any(), eq(List.of("ABP")), eq(List.of()), eq(List.of()), any(), anyBoolean(), anyInt(), anyInt());
     }
 
     @Test
     void findLibraryPagedReturnsEmptyWhenCompanyHasNoLabels() {
         when(labelRepo.findAllAsMap()).thenReturn(Map.of());
 
-        assertTrue(service.findLibraryPaged(null, "NonExistentCompany", List.of(), null, null, 0, 24).isEmpty());
-        verify(titleRepo, never()).findLibraryPaged(any(), any(), anyList(), anyList(), any(), anyBoolean(), anyInt(), anyInt());
+        assertTrue(service.findLibraryPaged(null, "NonExistentCompany", List.of(), List.of(), null, null, 0, 24).isEmpty());
+        verify(titleRepo, never()).findLibraryPaged(any(), any(), anyList(), anyList(), anyList(), any(), anyBoolean(), anyInt(), anyInt());
     }
 
     @Test
     void findLibraryPagedPassesAscOrder() {
         when(labelRepo.findAllAsMap()).thenReturn(Map.of());
-        when(titleRepo.findLibraryPaged(any(), any(), anyList(), anyList(), any(), eq(true), anyInt(), anyInt()))
+        when(titleRepo.findLibraryPaged(any(), any(), anyList(), anyList(), anyList(), any(), eq(true), anyInt(), anyInt()))
                 .thenReturn(List.of());
 
-        service.findLibraryPaged(null, null, List.of(), "productCode", "asc", 0, 24);
+        service.findLibraryPaged(null, null, List.of(), List.of(), "productCode", "asc", 0, 24);
 
-        verify(titleRepo).findLibraryPaged(any(), any(), anyList(), anyList(), eq("productCode"), eq(true), anyInt(), anyInt());
+        verify(titleRepo).findLibraryPaged(any(), any(), anyList(), anyList(), anyList(), eq("productCode"), eq(true), anyInt(), anyInt());
     }
 
     @Test
     void findLibraryPagedTreatsNullTagsAsEmpty() {
         when(labelRepo.findAllAsMap()).thenReturn(Map.of());
-        when(titleRepo.findLibraryPaged(any(), any(), anyList(), eq(List.of()), any(), anyBoolean(), anyInt(), anyInt()))
+        when(titleRepo.findLibraryPaged(any(), any(), anyList(), eq(List.of()), eq(List.of()), any(), anyBoolean(), anyInt(), anyInt()))
                 .thenReturn(List.of());
 
-        service.findLibraryPaged(null, null, null, null, null, 0, 24);
+        service.findLibraryPaged(null, null, null, null, null, null, 0, 24);
 
-        verify(titleRepo).findLibraryPaged(any(), any(), anyList(), eq(List.of()), any(), anyBoolean(), anyInt(), anyInt());
+        verify(titleRepo).findLibraryPaged(any(), any(), anyList(), eq(List.of()), eq(List.of()), any(), anyBoolean(), anyInt(), anyInt());
     }
 
     // ── findByTagsPaged / findRandom ───────────────────────────────────────

@@ -134,7 +134,8 @@ public class TitleBrowseService {
      * @param order   "asc" | "desc" (null → desc)
      */
     public List<TitleSummary> findLibraryPaged(String code, String company,
-                                                List<String> tags, String sort, String order,
+                                                List<String> tags, List<Long> enrichmentTagIds,
+                                                String sort, String order,
                                                 int offset, int limit) {
         limit = cappedLimit(limit);
         com.organizer3.sync.TitleCodeQuery.ParsedQuery parsed =
@@ -146,7 +147,18 @@ public class TitleBrowseService {
         return toSummaries(titleRepo.findLibraryPaged(
                 parsed.labelPrefix(), parsed.seqPrefix(),
                 companyLabels, tags != null ? tags : List.of(),
+                enrichmentTagIds != null ? enrichmentTagIds : List.of(),
                 sort, asc, limit, offset));
+    }
+
+    /** Returns a map of curated tag name → distinct title count from {@code title_effective_tags}. */
+    public Map<String, Long> getTagCounts() {
+        return titleRepo.getTagCounts();
+    }
+
+    /** Total number of rows in the titles table. */
+    public long countAll() {
+        return titleRepo.countAll();
     }
 
     /** Returns titles having ALL of the given tags, ordered newest-first. */

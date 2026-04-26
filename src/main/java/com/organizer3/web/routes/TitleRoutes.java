@@ -36,18 +36,20 @@ public class TitleRoutes {
 
     public void register(Javalin app) {
         app.get("/api/titles", ctx -> {
-            String search    = ctx.queryParam("search");
-            String favorites = ctx.queryParam("favorites");
-            String bookmarks = ctx.queryParam("bookmarks");
-            String tagsParam = ctx.queryParam("tags");
-            String codeParam = ctx.queryParam("code");
-            String company   = ctx.queryParam("company");
-            String sort      = ctx.queryParam("sort");
-            String order     = ctx.queryParam("order");
+            String search              = ctx.queryParam("search");
+            String favorites           = ctx.queryParam("favorites");
+            String bookmarks           = ctx.queryParam("bookmarks");
+            String tagsParam           = ctx.queryParam("tags");
+            String enrichTagIdsParam   = ctx.queryParam("enrichmentTagIds");
+            String codeParam           = ctx.queryParam("code");
+            String company             = ctx.queryParam("company");
+            String sort                = ctx.queryParam("sort");
+            String order               = ctx.queryParam("order");
             int offset = ctx.queryParamAsClass("offset", Integer.class).getOrDefault(0);
             int limit  = ctx.queryParamAsClass("limit",  Integer.class).getOrDefault(24);
             offset = Math.max(offset, 0);
             limit  = Math.max(1, Math.min(limit, TitleBrowseService.MAX_LIMIT));
+            boolean hasEnrichTags = enrichTagIdsParam != null && !enrichTagIdsParam.isBlank();
             if (search != null && !search.isBlank()) {
                 ctx.json(browseService.searchByCodePaged(search.trim(), offset, limit));
             } else if ("true".equals(favorites)) {
@@ -55,13 +57,24 @@ public class TitleRoutes {
             } else if ("true".equals(bookmarks)) {
                 ctx.json(browseService.findBookmarksPaged(offset, limit));
             } else if (codeParam != null || company != null || sort != null || order != null
-                       || (tagsParam != null && !tagsParam.isBlank())) {
+                       || (tagsParam != null && !tagsParam.isBlank()) || hasEnrichTags) {
                 List<String> tags = (tagsParam != null && !tagsParam.isBlank())
                         ? List.of(tagsParam.split(",")) : List.of();
-                ctx.json(browseService.findLibraryPaged(codeParam, company, tags, sort, order, offset, limit));
+                List<Long> enrichmentTagIds = (enrichTagIdsParam != null && !enrichTagIdsParam.isBlank())
+                        ? java.util.Arrays.stream(enrichTagIdsParam.split(","))
+                            .map(String::trim).filter(s -> !s.isEmpty())
+                            .map(Long::parseLong).toList()
+                        : List.of();
+                ctx.json(browseService.findLibraryPaged(codeParam, company, tags, enrichmentTagIds, sort, order, offset, limit));
             } else {
                 ctx.json(browseService.findRecent(offset, limit));
             }
+        });
+
+        app.get("/api/titles/tag-counts", ctx -> {
+            long totalTitles = browseService.countAll();
+            Map<String, Long> counts = browseService.getTagCounts();
+            ctx.json(Map.of("totalTitles", totalTitles, "counts", counts));
         });
 
         app.get("/api/labels/autocomplete", ctx -> {

@@ -31,3 +31,18 @@ export function tagBadgeHtml(tag) {
   const style = `color:hsl(${hue},65%,65%);background:hsl(${hue},40%,12%);border:1px solid hsl(${hue},50%,38%)`;
   return `<span class="tag-badge" style="${style}">${esc(tag)}</span>`;
 }
+
+// Derived tags (label-implied or enrichment-implied): dashed border signals inherited, not user-applied.
+export function tagBadgeDerivedHtml(tag, source) {
+  const hue = tagHue(tag);
+  const style = `color:hsl(${hue},42%,54%);background:hsl(${hue},22%,10%);border:1px dashed hsl(${hue},32%,30%)`;
+  const title = source === 'label' ? 'Implied by label' : 'Implied by enrichment';
+  return `<span class="tag-badge tag-badge--derived" style="${style}" title="${esc(title)}">${esc(tag)}</span>`;
+}
+
+// Raw javdb tag chip — monochrome outlined; mapped ones (with a curated alias) are slightly brighter.
+export function javdbRawTagHtml(name, curatedAlias) {
+  const cls = 'javdb-raw-tag' + (curatedAlias ? ' javdb-raw-tag--mapped' : '');
+  const title = curatedAlias ? ` title="→ ${esc(curatedAlias)}"` : '';
+  return `<span class="${cls}"${title}>${esc(name)}</span>`;
+}

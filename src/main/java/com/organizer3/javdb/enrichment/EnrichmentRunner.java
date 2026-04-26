@@ -247,8 +247,9 @@ public class EnrichmentRunner {
         Set<String> knownNames = buildKnownNames(actress, actressRepo.findAliases(actressId));
         for (TitleExtract.CastEntry entry : cast) {
             if (knownNames.contains(entry.name())) {
-                stagingRepo.upsertActressSlugOnly(actressId, entry.slug(), titleCode);
-                log.info("javdb: resolved slug {} for actress {} via name match ({})", entry.slug(), actressId, titleCode);
+                if (stagingRepo.upsertActressSlugOnly(actressId, entry.slug(), titleCode)) {
+                    log.info("javdb: resolved slug {} for actress {} via name match ({})", entry.slug(), actressId, titleCode);
+                }
                 return;
             }
         }
@@ -257,8 +258,9 @@ public class EnrichmentRunner {
         // Most JAV titles are single-actress, and name matching commonly fails because our
         // DB stores romanized names while javdb uses Japanese.
         if (cast.size() == 1) {
-            stagingRepo.upsertActressSlugOnly(actressId, cast.get(0).slug(), titleCode);
-            log.info("javdb: assigned slug {} to actress {} by single-cast assumption ({})", cast.get(0).slug(), actressId, titleCode);
+            if (stagingRepo.upsertActressSlugOnly(actressId, cast.get(0).slug(), titleCode)) {
+                log.info("javdb: assigned slug {} to actress {} by single-cast assumption ({})", cast.get(0).slug(), actressId, titleCode);
+            }
         }
     }
 
@@ -273,9 +275,10 @@ public class EnrichmentRunner {
         if (entries.isEmpty()) return;
         log.info("javdb: backfilling slugs for {} actresses from existing enrichment cast data", entries.size());
         for (JavdbStagingRepository.BackfillEntry entry : entries) {
-            stagingRepo.upsertActressSlugOnly(entry.actressId(), entry.javdbSlug(), entry.sourceTitleCode());
-            queue.enqueueActressProfile(entry.actressId());
-            log.info("javdb: backfilled slug {} for actress {} (via {})", entry.javdbSlug(), entry.actressId(), entry.sourceTitleCode());
+            if (stagingRepo.upsertActressSlugOnly(entry.actressId(), entry.javdbSlug(), entry.sourceTitleCode())) {
+                queue.enqueueActressProfile(entry.actressId());
+                log.info("javdb: backfilled slug {} for actress {} (via {})", entry.javdbSlug(), entry.actressId(), entry.sourceTitleCode());
+            }
         }
     }
 

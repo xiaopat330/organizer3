@@ -320,17 +320,34 @@ public interface TitleRepository {
     /**
      * Full-library paged query with all optional filters combined via AND.
      *
-     * @param labelPrefix   label code prefix from TitleCodeQuery (empty = no filter)
-     * @param seqPrefix     sequence number prefix, leading zeros stripped (empty = no filter)
-     * @param companyLabels label codes belonging to the selected company (empty = no filter)
-     * @param tags          tag names that must ALL be present (empty = no filter)
-     * @param sort          "productCode" | "actressName" | "addedDate" (null → addedDate)
-     * @param asc           true for ascending, false for descending
+     * @param labelPrefix        label code prefix from TitleCodeQuery (empty = no filter)
+     * @param seqPrefix          sequence number prefix, leading zeros stripped (empty = no filter)
+     * @param companyLabels      label codes belonging to the selected company (empty = no filter)
+     * @param tags               curated tag names that must ALL be present (empty = no filter)
+     * @param enrichmentTagIds   raw enrichment_tag_definition IDs that must ALL be present (empty = no filter)
+     * @param sort               "productCode" | "actressName" | "addedDate" (null → addedDate)
+     * @param asc                true for ascending, false for descending
      */
     List<Title> findLibraryPaged(String labelPrefix, String seqPrefix,
                                   List<String> companyLabels, List<String> tags,
+                                  List<Long> enrichmentTagIds,
                                   String sort, boolean asc,
                                   int limit, int offset);
+
+    /** Convenience overload that forwards with an empty enrichmentTagIds list. */
+    default List<Title> findLibraryPaged(String labelPrefix, String seqPrefix,
+                                          List<String> companyLabels, List<String> tags,
+                                          String sort, boolean asc,
+                                          int limit, int offset) {
+        return findLibraryPaged(labelPrefix, seqPrefix, companyLabels, tags,
+                List.of(), sort, asc, limit, offset);
+    }
+
+    /**
+     * Returns effective tag counts across the library.
+     * Map key is the curated tag name; value is the count of distinct titles bearing that tag.
+     */
+    Map<String, Long> getTagCounts();
 
     // ── Duplication management ───────────────────────────────────────────────
 

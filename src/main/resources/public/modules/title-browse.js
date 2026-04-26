@@ -88,8 +88,11 @@ function createTitleBrowseState() {
   return {
     mode: null,
     activeTags: new Set(),
+    activeEnrichmentTagIds: new Set(),
     tagsDebounceTimer: null,
     tagsCatalog: null,
+    tagCounts: null,
+    enrichmentTagFilters: null,
     tagsBarOpen: false,
     tagsPendingChanged: false,
     chipsHideTimer: null,
@@ -173,11 +176,12 @@ export const allTitlesGrid = new ScrollingGrid(
     }
     if (state.mode === 'library') {
       const params = new URLSearchParams({ offset: o, limit: l });
-      if (state.libraryCode.trim())     params.set('code',    state.libraryCode.trim());
-      if (state.libraryCompany)         params.set('company', state.libraryCompany);
-      if (state.activeTags.size > 0)    params.set('tags',    [...state.activeTags].join(','));
-      if (state.librarySort !== 'addedDate') params.set('sort', state.librarySort);
-      if (state.libraryOrder !== 'desc')     params.set('order', state.libraryOrder);
+      if (state.libraryCode.trim())                 params.set('code',             state.libraryCode.trim());
+      if (state.libraryCompany)                     params.set('company',          state.libraryCompany);
+      if (state.activeTags.size > 0)                params.set('tags',             [...state.activeTags].join(','));
+      if (state.activeEnrichmentTagIds.size > 0)    params.set('enrichmentTagIds', [...state.activeEnrichmentTagIds].join(','));
+      if (state.librarySort !== 'addedDate')         params.set('sort',             state.librarySort);
+      if (state.libraryOrder !== 'desc')             params.set('order',            state.libraryOrder);
       return `/api/titles?${params}`;
     }
     return `/api/titles?offset=${o}&limit=${l}`;
@@ -233,7 +237,8 @@ function updateTitleBreadcrumb() {
     const parts = [];
     if (state.libraryCode.trim())  parts.push(state.libraryCode.trim().toUpperCase());
     if (state.libraryCompany)      parts.push(state.libraryCompany);
-    if (state.activeTags.size > 0) parts.push(`${state.activeTags.size} tag${state.activeTags.size > 1 ? 's' : ''}`);
+    const totalTagSel = state.activeTags.size + state.activeEnrichmentTagIds.size;
+    if (totalTagSel > 0) parts.push(`${totalTagSel} tag${totalTagSel > 1 ? 's' : ''}`);
     crumbs.push({ label: parts.length > 0 ? `Library (${parts.join(', ')})` : 'Library' });
   }
   updateBreadcrumb(crumbs);
@@ -496,6 +501,7 @@ export function showTitlesBrowse() {
   if (state.libraryAutoTimer)    { clearTimeout(state.libraryAutoTimer);   state.libraryAutoTimer   = null; }
   state.mode = null;
   state.activeTags.clear();
+  state.activeEnrichmentTagIds.clear();
   state.libraryCode    = '';
   state.libraryCompany = null;
   state.librarySort    = 'addedDate';
@@ -560,6 +566,19 @@ async function ensureTagsCatalog() {
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   state.tagsCatalog = await res.json();
   return state.tagsCatalog;
+}
+
+async function ensureTagPanelData() {
+  // Fetch catalog, counts, and enrichment filters in parallel if not cached.
+  const [catalog, countData, healthData] = await Promise.all([
+    state.tagsCatalog      ? Promise.resolve(state.tagsCatalog)        : fetch('/api/tags').then(r => r.ok ? r.json() : []),
+    state.tagCounts        ? Promise.resolve(state.tagCounts)          : fetch('/api/titles/tag-counts').then(r => r.ok ? r.json() : { totalTitles: 0, counts: {} }),
+    state.enrichmentTagFilters ? Promise.resolve(state.enrichmentTagFilters) : fetch('/api/javdb/discovery/tag-health').then(r => r.ok ? r.json() : { definitions: [] }),
+  ]);
+  if (!state.tagsCatalog)          state.tagsCatalog          = catalog;
+  if (!state.tagCounts)            state.tagCounts            = countData;
+  if (!state.enrichmentTagFilters) state.enrichmentTagFilters = healthData;
+  return { catalog: state.tagsCatalog, countData: state.tagCounts, healthData: state.enrichmentTagFilters };
 }
 
 const LIBRARY_DEBOUNCE_MS = 350;
@@ -629,22 +648,37 @@ function scheduleChipsBarHide() {
 function renderTagChips() {
   const container = document.getElementById('library-tag-chips');
   if (!container) return;
-  if (state.activeTags.size === 0) {
+  const hasAny = state.activeTags.size > 0 || state.activeEnrichmentTagIds.size > 0;
+  if (!hasAny) {
     container.innerHTML = '';
     scheduleChipsBarHide();
     return;
   }
   showChipsBar();
-  container.innerHTML = [...state.activeTags].map(tag =>
+  const curatedChips = [...state.activeTags].map(tag =>
     `<span class="library-tag-chip" data-tag="${esc(tag)}" style="${tagChipStyle(tag)}"><button type="button" class="library-tag-chip-remove" data-tag="${esc(tag)}" title="Remove tag">&#x2296;</button>${esc(tag)}</span>`
-  ).join('');
+  );
+  const enrichDefs = state.enrichmentTagFilters?.definitions || [];
+  const enrichChips = [...state.activeEnrichmentTagIds].map(id => {
+    const def = enrichDefs.find(d => d.id === id);
+    const label = def ? (def.curatedAlias || def.name) : String(id);
+    return `<span class="library-tag-chip library-tag-chip--enrichment" data-enrichment-id="${id}" style="${tagChipStyle(label)}"><button type="button" class="library-tag-chip-remove" data-enrichment-id="${id}" title="Remove tag">&#x2296;</button>${esc(label)}</span>`;
+  });
+  container.innerHTML = [...curatedChips, ...enrichChips].join('');
   container.querySelectorAll('.library-tag-chip-remove').forEach(btn => {
     btn.addEventListener('click', e => {
       e.stopPropagation();
-      const tag = btn.dataset.tag;
-      state.activeTags.delete(tag);
-      const toggleEl = titleTagsPanel.querySelector(`.tag-toggle[data-tag="${CSS.escape(tag)}"]`);
-      if (toggleEl) toggleEl.classList.remove('active');
+      if (btn.dataset.tag) {
+        const tag = btn.dataset.tag;
+        state.activeTags.delete(tag);
+        const toggleEl = titleTagsPanel.querySelector(`.tag-toggle[data-tag="${CSS.escape(tag)}"]`);
+        if (toggleEl) toggleEl.classList.remove('active');
+      } else if (btn.dataset.enrichmentId) {
+        const id = parseInt(btn.dataset.enrichmentId, 10);
+        state.activeEnrichmentTagIds.delete(id);
+        const toggleEl = titleTagsPanel.querySelector(`.tag-toggle[data-enrichment-id="${id}"]`);
+        if (toggleEl) toggleEl.classList.remove('active');
+      }
       renderTagChips();
       scheduleLibraryQuery();
     });
@@ -743,7 +777,52 @@ async function renderLibraryFilterPanel() {
   } catch { /* ignore */ }
 
   let groups = [];
-  try { groups = await ensureTagsCatalog(); } catch { /* ignore */ }
+  let tagCounts = {};
+  let totalTitles = 0;
+  let enrichmentDefs = [];
+  try {
+    const { catalog, countData, healthData } = await ensureTagPanelData();
+    groups = catalog || [];
+    tagCounts = countData?.counts || {};
+    totalTitles = countData?.totalTitles || 0;
+    // Filter enrichment tags: surface=true, 1% <= libraryPct <= 50%
+    enrichmentDefs = (healthData?.definitions || []).filter(d =>
+      d.surface && d.libraryPct >= 0.01 && d.libraryPct <= 0.50
+    );
+  } catch { /* ignore */ }
+
+  // Build curated tag groups, omitting tags with zero count
+  function curatedTagHtml(t) {
+    const count = tagCounts[t.name] || 0;
+    if (count === 0) return '';
+    const active = state.activeTags.has(t.name) ? ' active' : '';
+    const countBadge = `<span class="tag-toggle-count">${count}</span>`;
+    return `<button type="button" class="tag-toggle${active}" data-tag="${esc(t.name)}" title="${esc(t.description || '')}">${esc(t.name)}${countBadge}</button>`;
+  }
+
+  function enrichmentTagHtml(d) {
+    const active = state.activeEnrichmentTagIds.has(d.id) ? ' active' : '';
+    const pct = (d.libraryPct * 100).toFixed(0);
+    const label = d.curatedAlias ? esc(d.curatedAlias) : esc(d.name);
+    const title = d.curatedAlias ? `${d.name} → ${d.curatedAlias}` : d.name;
+    const countBadge = `<span class="tag-toggle-count">${d.titleCount}</span>`;
+    return `<button type="button" class="tag-toggle tag-toggle--enrichment${active}" data-enrichment-id="${d.id}" title="${esc(title)}">${label}${countBadge}</button>`;
+  }
+
+  const curatedGroupsHtml = groups.map(g => {
+    const tagsHtml = g.tags.map(curatedTagHtml).join('');
+    if (!tagsHtml) return ''; // skip empty group
+    return `<div class="tags-group">
+      <div class="tags-group-label">${esc(g.label)}</div>
+      <div class="tags-row">${tagsHtml}</div>
+    </div>`;
+  }).join('');
+
+  const enrichmentGroupHtml = enrichmentDefs.length === 0 ? '' : `
+    <div class="tags-group tags-group--enrichment">
+      <div class="tags-group-label">Enrichment <span class="tags-group-sublabel">% of enriched titles</span></div>
+      <div class="tags-row">${enrichmentDefs.map(enrichmentTagHtml).join('')}</div>
+    </div>`;
 
   // Build the panel HTML
   const sortOptions = [
@@ -776,14 +855,8 @@ async function renderLibraryFilterPanel() {
       <div class="library-tag-chips" id="library-tag-chips"></div>
     </div>
     <div class="library-tags-section" id="library-tags-section" style="display:none">
-      ${groups.map(g => `
-        <div class="tags-group">
-          <div class="tags-group-label">${esc(g.label)}</div>
-          <div class="tags-row">
-            ${g.tags.map(t => `<button type="button" class="tag-toggle${state.activeTags.has(t.name) ? ' active' : ''}" data-tag="${esc(t.name)}" title="${esc(t.description || '')}">${esc(t.name)}</button>`).join('')}
-          </div>
-        </div>
-      `).join('')}
+      ${curatedGroupsHtml}
+      ${enrichmentGroupHtml}
     </div>
   `;
 
@@ -864,12 +937,23 @@ async function renderLibraryFilterPanel() {
   // Render any already-active tags as chips
   renderTagChips();
 
-  // Wire tag toggles — deferred execution: accumulate changes, run query on panel close
-  titleTagsPanel.querySelectorAll('.tag-toggle').forEach(btn => {
+  // Wire curated tag toggles — deferred execution: accumulate changes, run query on panel close
+  titleTagsPanel.querySelectorAll('.tag-toggle[data-tag]').forEach(btn => {
     btn.addEventListener('click', () => {
       const tag = btn.dataset.tag;
       if (state.activeTags.has(tag)) { state.activeTags.delete(tag); btn.classList.remove('active'); }
-      else                     { state.activeTags.add(tag);    btn.classList.add('active'); }
+      else                           { state.activeTags.add(tag);    btn.classList.add('active'); }
+      state.tagsPendingChanged = true;
+      renderTagChips();
+    });
+  });
+
+  // Wire enrichment tag toggles
+  titleTagsPanel.querySelectorAll('.tag-toggle[data-enrichment-id]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const id = parseInt(btn.dataset.enrichmentId, 10);
+      if (state.activeEnrichmentTagIds.has(id)) { state.activeEnrichmentTagIds.delete(id); btn.classList.remove('active'); }
+      else                                       { state.activeEnrichmentTagIds.add(id);    btn.classList.add('active'); }
       state.tagsPendingChanged = true;
       renderTagChips();
     });

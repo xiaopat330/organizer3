@@ -1,5 +1,5 @@
 import { esc, fmtDate, timeAgo } from './utils.js';
-import { ICON_FAV_LG, ICON_BM_LG, gradeBadgeHtml, tagBadgeHtml } from './icons.js';
+import { ICON_FAV_LG, ICON_BM_LG, gradeBadgeHtml, tagBadgeHtml, tagBadgeDerivedHtml, javdbRawTagHtml } from './icons.js';
 import { showView, updateBreadcrumb, mode } from './grid.js';
 import { makeTitleCard, updateCardIndicators } from './cards.js';
 import { getActressBrowseMode, actressBrowseLabel, selectActressBrowseMode, showActressLanding } from './actress-browse.js';
@@ -114,8 +114,49 @@ export function cancelPendingVisit() {
   }
 }
 
+// ── Source-aware tag rendering ─────────────────────────────────────────────
+// Tracks which title is currently displayed; used to discard stale async responses.
+let _currentDetailCode = null;
+
+function renderTagStateBadges(tagState) {
+  const valueEl = document.getElementById('title-detail-tags-value');
+  if (!valueEl) return;
+  const direct     = (tagState.directTags           || []).map(t => tagBadgeHtml(t));
+  const label      = (tagState.labelImpliedTags      || []).map(t => tagBadgeDerivedHtml(t, 'label'));
+  const enrichment = (tagState.enrichmentImpliedTags || []).map(t => tagBadgeDerivedHtml(t, 'enrichment'));
+  const all = [...direct, ...label, ...enrichment];
+  valueEl.innerHTML = all.length > 0
+      ? all.join('')
+      : `<span class="title-detail-tags-empty">No tags — click to add</span>`;
+}
+
+async function loadTagState(code) {
+  try {
+    const res = await fetch(`/api/titles/${encodeURIComponent(code)}/tag-state`);
+    if (!res.ok || _currentDetailCode !== code) return;
+    const state = await res.json();
+    if (_currentDetailCode !== code) return;
+    renderTagStateBadges(state);
+  } catch { /* ignore */ }
+}
+
+async function loadEnrichmentTags(code) {
+  try {
+    const res = await fetch(`/api/titles/${encodeURIComponent(code)}/enrichment-tags`);
+    if (!res.ok || _currentDetailCode !== code) return;
+    const data = await res.json();
+    if (_currentDetailCode !== code || !data.isEnriched) return;
+    const row = document.getElementById('title-detail-enrichment-row');
+    const val = document.getElementById('title-detail-enrichment-value');
+    if (!row || !val || !data.tags || data.tags.length === 0) return;
+    val.innerHTML = data.tags.map(e => javdbRawTagHtml(e.name, e.curatedAlias)).join('');
+    row.style.display = '';
+  } catch { /* ignore */ }
+}
+
 // ── Open title detail ─────────────────────────────────────────────────────
 export async function openTitleDetail(t) {
+  _currentDetailCode = t.code;
   pushNav({ view: 'title-detail', title: t }, 'title/' + encodeURIComponent(t.code));
   cancelPendingVisit();
   cancelVideoPolling();
@@ -145,6 +186,8 @@ export async function openTitleDetail(t) {
     '<div id="title-video-container"></div><div id="title-more-container"></div>';
 
   renderTitleDetail(t);
+  loadTagState(t.code);
+  loadEnrichmentTags(t.code);
   loadLastWatched(t.code);
   loadTitleVideos(t.code);
   loadMoreFromActress(t);
@@ -256,6 +299,7 @@ function renderTitleDetail(t) {
   </div>` : '';
 
   // Tags — always render so the user can open the editor even when no tags are set.
+  // loadTagState() will replace the initial flat list with source-aware badges asynchronously.
   const tags = t.tags || [];
   const tagsInner = tags.length > 0
       ? tags.map(tagBadgeHtml).join('')
@@ -263,6 +307,10 @@ function renderTitleDetail(t) {
   const tagsHtml = `<div class="title-detail-row">
     <button type="button" class="title-detail-label title-detail-tags-btn" id="title-detail-tags-btn" title="Edit tags">Tags<svg class="title-detail-tags-btn-icon" viewBox="0 0 16 16" width="11" height="11" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M11.5 2.5a1.8 1.8 0 0 1 2.5 2.5L5 14l-3 .8.8-3L11.5 2.5z"/></svg></button>
     <span class="title-detail-value title-detail-tags" id="title-detail-tags-value">${tagsInner}</span>
+  </div>
+  <div class="title-detail-row" id="title-detail-enrichment-row" style="display:none">
+    <span class="title-detail-label">Javdb</span>
+    <span class="title-detail-value title-detail-enrichment-tags" id="title-detail-enrichment-value"></span>
   </div>`;
 
   // Grade
@@ -329,11 +377,11 @@ function renderTitleDetail(t) {
       const result = await openTitleTagEditor(t.code);
       if (!result) return;  // cancelled
       t.tags = result.effectiveTags || [];
-      const valueEl = document.getElementById('title-detail-tags-value');
-      if (!valueEl) return;
-      valueEl.innerHTML = t.tags.length > 0
-          ? t.tags.map(tagBadgeHtml).join('')
-          : `<span class="title-detail-tags-empty">No tags — click to add</span>`;
+      renderTagStateBadges({
+        directTags:            result.directTags            || [],
+        labelImpliedTags:      result.labelImpliedTags      || [],
+        enrichmentImpliedTags: result.enrichmentImpliedTags || [],
+      });
     } catch (err) {
       console.error('tag editor failed', err);
     }

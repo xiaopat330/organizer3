@@ -671,6 +671,47 @@ class JdbiTitleRepositoryTest {
         assertNotEquals(page1.get(0).getCode(), page2.get(0).getCode());
     }
 
+    @Test
+    void findLibraryPagedFiltersOnEnrichmentTagIds() {
+        Title t1 = saveWithLocation(titleFull("ABP-001", "ABP", 1), "vol-a", "stars/library", "/a1");
+        Title t2 = saveWithLocation(titleFull("ABP-002", "ABP", 2), "vol-a", "stars/library", "/a2");
+        saveWithLocation(titleFull("ABP-003", "ABP", 3), "vol-a", "stars/library", "/a3"); // no enrichment tags
+        jdbi.useHandle(h -> {
+            h.execute("INSERT INTO enrichment_tag_definitions (id, name) VALUES (10, 'vibrator')");
+            h.execute("INSERT INTO enrichment_tag_definitions (id, name) VALUES (11, 'cosplay')");
+            h.execute("INSERT INTO title_enrichment_tags (title_id, tag_id) VALUES (" + t1.getId() + ", 10)");
+            h.execute("INSERT INTO title_enrichment_tags (title_id, tag_id) VALUES (" + t2.getId() + ", 10)");
+            h.execute("INSERT INTO title_enrichment_tags (title_id, tag_id) VALUES (" + t2.getId() + ", 11)");
+        });
+
+        // Filter by tag 10 (vibrator) — should return t1 and t2
+        List<Title> results = titleRepo.findLibraryPaged("", "", List.of(), List.of(), List.of(10L), null, false, 10, 0);
+        assertEquals(2, results.size());
+        var codes = results.stream().map(Title::getCode).toList();
+        assertTrue(codes.contains("ABP-001") && codes.contains("ABP-002"));
+
+        // Filter by both tags (AND semantics) — only t2 has both
+        List<Title> andResults = titleRepo.findLibraryPaged("", "", List.of(), List.of(), List.of(10L, 11L), null, false, 10, 0);
+        assertEquals(1, andResults.size());
+        assertEquals("ABP-002", andResults.get(0).getCode());
+    }
+
+    @Test
+    void getTagCountsReturnsCountsFromEffectiveTags() {
+        Title t1 = saveWithLocation(titleFull("ABP-001", "ABP", 1), "vol-a", "stars/library", "/a1");
+        Title t2 = saveWithLocation(titleFull("ABP-002", "ABP", 2), "vol-a", "stars/library", "/a2");
+        jdbi.useHandle(h -> {
+            h.execute("INSERT INTO tags (name, category) VALUES ('4K', 'format'), ('POV', 'production_style')");
+            h.execute("INSERT INTO title_effective_tags (title_id, tag, source) VALUES (" + t1.getId() + ", '4K', 'direct')");
+            h.execute("INSERT INTO title_effective_tags (title_id, tag, source) VALUES (" + t2.getId() + ", '4K', 'direct')");
+            h.execute("INSERT INTO title_effective_tags (title_id, tag, source) VALUES (" + t1.getId() + ", 'POV', 'direct')");
+        });
+        var counts = titleRepo.getTagCounts();
+        assertEquals(2L, counts.get("4K"));
+        assertEquals(1L, counts.get("POV"));
+        assertFalse(counts.containsKey("nonexistent"));
+    }
+
     // --- deleteOrphaned ---
 
     @Test

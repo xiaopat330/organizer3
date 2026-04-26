@@ -1244,18 +1244,21 @@ public class JdbiTitleRepository implements TitleRepository {
     @Override
     public List<Title> findLibraryPaged(String labelPrefix, String seqPrefix,
                                          List<String> companyLabels, List<String> tags,
+                                         List<Long> enrichmentTagIds,
                                          String sort, boolean asc,
                                          int limit, int offset) {
         String safeLabel   = labelPrefix   != null ? labelPrefix   : "";
         String safeSeq     = seqPrefix     != null ? seqPrefix     : "";
-        List<String> safeCompany = companyLabels != null ? companyLabels : List.of();
-        List<String> safeTags    = tags          != null ? tags          : List.of();
-        boolean hasLabelPrefix  = !safeLabel.isBlank();
-        boolean hasSeqPrefix    = !safeSeq.isBlank();
-        boolean hasCompany      = !safeCompany.isEmpty();
-        boolean hasTags         = !safeTags.isEmpty();
-        boolean sortByActress   = "actressName".equals(sort);
-        boolean sortByProduct   = "productCode".equals(sort);
+        List<String> safeCompany       = companyLabels    != null ? companyLabels    : List.of();
+        List<String> safeTags          = tags             != null ? tags             : List.of();
+        List<Long>   safeEnrichTags    = enrichmentTagIds != null ? enrichmentTagIds : List.of();
+        boolean hasLabelPrefix    = !safeLabel.isBlank();
+        boolean hasSeqPrefix      = !safeSeq.isBlank();
+        boolean hasCompany        = !safeCompany.isEmpty();
+        boolean hasTags           = !safeTags.isEmpty();
+        boolean hasEnrichmentTags = !safeEnrichTags.isEmpty();
+        boolean sortByActress     = "actressName".equals(sort);
+        boolean sortByProduct     = "productCode".equals(sort);
         // default is "addedDate"
 
         StringBuilder sql = new StringBuilder("SELECT t.* FROM titles t\n");
@@ -1265,6 +1268,9 @@ public class JdbiTitleRepository implements TitleRepository {
         }
         if (hasTags) {
             sql.append("JOIN title_effective_tags tet ON tet.title_id = t.id AND tet.tag IN (<tags>)\n");
+        }
+        if (hasEnrichmentTags) {
+            sql.append("JOIN title_enrichment_tags tet_e ON tet_e.title_id = t.id AND tet_e.tag_id IN (<enrichmentTagIds>)\n");
         }
         sql.append("WHERE 1=1\n");
         if (hasLabelPrefix) {
@@ -1277,8 +1283,11 @@ public class JdbiTitleRepository implements TitleRepository {
             sql.append("AND UPPER(t.label) IN (<companyLabels>)\n");
         }
         sql.append("GROUP BY t.id\n");
-        if (hasTags) {
-            sql.append("HAVING COUNT(DISTINCT tet.tag) = :tagCount\n");
+        if (hasTags || hasEnrichmentTags) {
+            List<String> havingClauses = new java.util.ArrayList<>();
+            if (hasTags)           havingClauses.add("COUNT(DISTINCT tet.tag) = :tagCount");
+            if (hasEnrichmentTags) havingClauses.add("COUNT(DISTINCT tet_e.tag_id) = :enrichmentTagCount");
+            sql.append("HAVING ").append(String.join(" AND ", havingClauses)).append("\n");
         }
 
         String dir = asc ? "ASC" : "DESC";
@@ -1301,13 +1310,28 @@ public class JdbiTitleRepository implements TitleRepository {
             var q = h.createQuery(sql.toString())
                     .bind("limit", limit)
                     .bind("offset", offset);
-            if (hasLabelPrefix)  q = q.bind("labelPrefix", safeLabel.toUpperCase());
-            if (hasSeqPrefix)    q = q.bind("seqPrefix", safeSeq);
-            if (hasCompany)      q = q.bindList("companyLabels", safeCompany.stream().map(String::toUpperCase).toList());
-            if (hasTags)         q = q.bindList("tags", safeTags).bind("tagCount", safeTags.size());
+            if (hasLabelPrefix)    q = q.bind("labelPrefix", safeLabel.toUpperCase());
+            if (hasSeqPrefix)      q = q.bind("seqPrefix", safeSeq);
+            if (hasCompany)        q = q.bindList("companyLabels", safeCompany.stream().map(String::toUpperCase).toList());
+            if (hasTags)           q = q.bindList("tags", safeTags).bind("tagCount", safeTags.size());
+            if (hasEnrichmentTags) q = q.bindList("enrichmentTagIds", safeEnrichTags).bind("enrichmentTagCount", safeEnrichTags.size());
             return q.map(MAPPER).list();
         });
         return populateLocationsBatch(titles);
+    }
+
+    @Override
+    public Map<String, Long> getTagCounts() {
+        return jdbi.withHandle(h -> h.createQuery("""
+                SELECT tag, COUNT(DISTINCT title_id) AS cnt
+                FROM title_effective_tags
+                GROUP BY tag
+                ORDER BY tag
+                """)
+                .reduceRows(new java.util.LinkedHashMap<>(), (acc, row) -> {
+                    acc.put(row.getColumn("tag", String.class), row.getColumn("cnt", Long.class));
+                    return acc;
+                }));
     }
 
     // ── Duplication management ────────────────────────────────────────────────
