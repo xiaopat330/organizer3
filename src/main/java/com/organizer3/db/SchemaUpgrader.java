@@ -19,7 +19,7 @@ import org.jdbi.v3.core.Jdbi;
 public class SchemaUpgrader {
 
     /** Must match the version stamped by {@link SchemaInitializer}. */
-    private static final int CURRENT_VERSION = 25;
+    private static final int CURRENT_VERSION = 26;
 
     private final Jdbi jdbi;
 
@@ -148,7 +148,58 @@ public class SchemaUpgrader {
             setVersion(25);
         }
 
+        if (version < 26) {
+            applyV26();
+            setVersion(26);
+        }
+
         log.info("Schema upgrade complete");
+    }
+
+    /**
+     * v26: relax title_effective_tags.source CHECK to include 'enrichment', and backfill
+     * enrichment-derived rows from title_enrichment_tags via curated_alias. Phase 4
+     * integration — see spec/PROPOSAL_ENRICHMENT_TAG_INTEGRATION.md.
+     */
+    private void applyV26() {
+        log.info("Applying migration v26: title_effective_tags accepts 'enrichment' source + backfill");
+        jdbi.useHandle(h -> {
+            // SQLite cannot ALTER an existing CHECK; rebuild the table preserving rows.
+            h.execute("DROP INDEX IF EXISTS idx_title_effective_tags_tag");
+            h.execute("ALTER TABLE title_effective_tags RENAME TO title_effective_tags_old");
+            h.execute("""
+                    CREATE TABLE title_effective_tags (
+                        title_id  INTEGER NOT NULL REFERENCES titles(id) ON DELETE CASCADE,
+                        tag       TEXT NOT NULL,
+                        source    TEXT NOT NULL CHECK(source IN ('direct', 'label', 'enrichment')),
+                        PRIMARY KEY (title_id, tag)
+                    )""");
+            h.execute("""
+                    INSERT INTO title_effective_tags (title_id, tag, source)
+                    SELECT title_id, tag, source FROM title_effective_tags_old
+                    """);
+            h.execute("DROP TABLE title_effective_tags_old");
+            h.execute("CREATE INDEX IF NOT EXISTS idx_title_effective_tags_tag ON title_effective_tags(tag)");
+
+            // Backfill enrichment-derived rows. Skipped silently if the v25 enrichment tables
+            // aren't present (defensive — they should be after applyV25, but apply guards anyway).
+            int hasEtags = h.createQuery(
+                    "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='title_enrichment_tags'")
+                    .mapTo(Integer.class).one();
+            if (hasEtags == 0) {
+                log.info("v26 backfill skipped: title_enrichment_tags not present");
+                return;
+            }
+            int inserted = h.execute("""
+                    INSERT OR IGNORE INTO title_effective_tags (title_id, tag, source)
+                    SELECT tet.title_id, etd.curated_alias, 'enrichment'
+                    FROM title_enrichment_tags tet
+                    JOIN enrichment_tag_definitions etd ON etd.id = tet.tag_id
+                    WHERE etd.curated_alias IS NOT NULL
+                      AND etd.curated_alias IN (SELECT name FROM tags)
+                    """);
+            log.info("v26 backfill: inserted {} enrichment-derived title_effective_tags rows", inserted);
+        });
     }
 
     /**

@@ -1,5 +1,6 @@
 package com.organizer3.web.routes;
 
+import com.organizer3.db.TitleEffectiveTagsService;
 import com.organizer3.model.Title;
 import com.organizer3.repository.TitleRepository;
 import io.javalin.Javalin;
@@ -28,10 +29,26 @@ public class TitleTagEditorRoutes {
 
     private final Jdbi jdbi;
     private final TitleRepository titleRepo;
+    private final TitleEffectiveTagsService effectiveTags;
 
-    public TitleTagEditorRoutes(Jdbi jdbi, TitleRepository titleRepo) {
+    public TitleTagEditorRoutes(Jdbi jdbi, TitleRepository titleRepo, TitleEffectiveTagsService effectiveTags) {
         this.jdbi = jdbi;
         this.titleRepo = titleRepo;
+        this.effectiveTags = effectiveTags;
+    }
+
+    private List<String> enrichmentImpliedTagsFor(long titleId) {
+        return jdbi.withHandle(h -> h.createQuery("""
+                SELECT DISTINCT etd.curated_alias
+                FROM title_enrichment_tags tet
+                JOIN enrichment_tag_definitions etd ON etd.id = tet.tag_id
+                WHERE tet.title_id = :id
+                  AND etd.curated_alias IS NOT NULL
+                  AND etd.curated_alias IN (SELECT name FROM tags)
+                ORDER BY etd.curated_alias
+                """)
+                .bind("id", titleId)
+                .mapTo(String.class).list());
     }
 
     public void register(Javalin app) {
@@ -49,12 +66,14 @@ public class TitleTagEditorRoutes {
                         "SELECT tag FROM label_tags WHERE label_code = :label ORDER BY tag")
                         .bind("label", t.getLabel())
                         .mapTo(String.class).list());
+            List<String> enrichmentImplied = enrichmentImpliedTagsFor(t.getId());
 
             Map<String, Object> result = new LinkedHashMap<>();
             result.put("code", t.getCode());
             result.put("label", t.getLabel());
             result.put("directTags", direct);
             result.put("labelImpliedTags", implied);
+            result.put("enrichmentImpliedTags", enrichmentImplied);
             ctx.json(result);
         });
 
@@ -90,21 +109,10 @@ public class TitleTagEditorRoutes {
                     h.createUpdate("INSERT OR IGNORE INTO title_tags (title_id, tag) VALUES (:id, :t)")
                             .bind("id", titleId).bind("t", tag).execute();
                 }
-                // Rebuild denormalized effective tags: direct + label-implied.
-                h.createUpdate("DELETE FROM title_effective_tags WHERE title_id = :id")
-                        .bind("id", titleId).execute();
-                h.createUpdate("""
-                        INSERT OR IGNORE INTO title_effective_tags (title_id, tag, source)
-                        SELECT :id, tag, 'direct' FROM title_tags WHERE title_id = :id
-                        """).bind("id", titleId).execute();
-                h.createUpdate("""
-                        INSERT OR IGNORE INTO title_effective_tags (title_id, tag, source)
-                        SELECT t.id, lt.tag, 'label'
-                        FROM titles t
-                        JOIN label_tags lt ON lt.label_code = t.label
-                        WHERE t.id = :id AND t.label IS NOT NULL AND t.label != ''
-                        """).bind("id", titleId).execute();
             });
+            // Effective-tag rebuild lives in TitleEffectiveTagsService (handles all three sources:
+            // direct, label, enrichment). Synchronous so the response below sees the freshly-derived state.
+            effectiveTags.recomputeForTitle(titleId);
 
             log.info("Title modified — code={} directTags={}", t.getCode(), tagsToSave);
 
@@ -115,13 +123,16 @@ public class TitleTagEditorRoutes {
                         "SELECT tag FROM label_tags WHERE label_code = :label ORDER BY tag")
                         .bind("label", t.getLabel())
                         .mapTo(String.class).list());
+            List<String> enrichmentImplied = enrichmentImpliedTagsFor(titleId);
             var effective = new TreeSet<String>();
             effective.addAll(tagsToSave);
             effective.addAll(implied);
+            effective.addAll(enrichmentImplied);
 
             Map<String, Object> result = new LinkedHashMap<>();
             result.put("directTags", tagsToSave);
             result.put("labelImpliedTags", implied);
+            result.put("enrichmentImpliedTags", enrichmentImplied);
             result.put("effectiveTags", new ArrayList<>(effective));
             ctx.json(result);
         });

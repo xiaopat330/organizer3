@@ -48,7 +48,7 @@ class ActressBrowseServiceTest {
     @BeforeEach
     void setUp() {
         service = new ActressBrowseService(actressRepo, titleRepo, coverPath,
-                Map.of("vol-a", "//pandora/jav_A"), labelRepo, nameLookup, null);
+                Map.of("vol-a", "//pandora/jav_A"), labelRepo, nameLookup, null, null);
         lenient().when(titleRepo.findByActressIds(any())).thenReturn(Map.of());
         lenient().when(actressRepo.findAliasesForActresses(any())).thenReturn(Map.of());
         lenient().when(actressRepo.findCanonicalNameIds(any())).thenReturn(Map.of());

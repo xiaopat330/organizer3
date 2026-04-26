@@ -167,21 +167,56 @@ This is the first place to look during routine maintenance — it summarizes the
 - **Un-enriched titles are hidden** when any filter is active (they can't possibly match an enrichment predicate).
 - **Counts are honest:** "X of N enriched titles" — never claim whole-library coverage from enrichment-only filters.
 
+## Phase 4 integration with the curated tag UI
+
+`title_effective_tags` now carries a third source value, `'enrichment'`, populated from
+`title_enrichment_tags` joined through `curated_alias`. This means the existing curated-tag
+UIs all light up with enrichment-derived tags automatically:
+
+| Surface | Where it appears now |
+|---|---|
+| Actress detail Tags panel | Mixed list — curated, label-derived, and enrichment-derived all shown together |
+| Title detail Tags badges (cards) | Same — unified set |
+| Title browse tag filter | Filtering by `busty` matches every title carrying it from any source |
+| Title editor modal | Enrichment-derived tags appear as **red immutable toggles** with tooltip "Implied by enrichment (…)" — same UX as label-implied tags |
+
+The default UX is **blurred** — the user cannot tell from a tag badge whether it came from
+their curation, the label taxonomy, or javdb enrichment. The alias asserts they mean the
+same concept; the UI honors that. The only place provenance shows is the editor's tooltip.
+
+### Lifecycle — when `title_effective_tags` gets recomputed
+
+| Event | Recompute trigger |
+|---|---|
+| User edits direct tags | `TitleTagEditorRoutes.PUT` calls `recomputeForTitle` |
+| Label tag taxonomy change | Existing `recomputeAll` hook |
+| **Enrichment row written** | `JavdbEnrichmentRepository.upsertEnrichment` calls `recomputeForTitle` |
+| **Enrichment row deleted** | `JavdbEnrichmentRepository.deleteEnrichment` calls `recomputeForTitle` |
+| **`curated_alias` change via seed script `--apply`** | **Not automatic.** Run `recomputeAll` afterward (TODO: extend the script with a `--rebuild-effective-tags` follow-up flag, or use a CLI command) |
+
+For the curated_alias-after-apply case today, the simplest path is to restart the app —
+the v26 backfill runs only on first migration, but a future maintenance command should
+expose `recomputeAll` directly. See `spec/PROPOSAL_ENRICHMENT_TAG_INTEGRATION.md`.
+
 ## What's deferred
 
-- **Cross-library ("B") surfacing screen** — same filter axes, but unscoped to one actress. The `curated_alias` bridge is what makes this useful at the library scale.
-- **Maker / release-date / tag-exclusion** as first-class filter axes — backend supports them via similar predicates; UI hasn't been added.
+- **Cross-library ("B") surfacing screen** — Phase 4 reduces the urgency: the curated UI
+  is now the integrated entry point for enrichment-derived tags at library scale.
+- **Maker / release-date / tag-exclusion** as first-class Discovery filter axes — backend supports them via similar predicates; UI hasn't been added.
 - **Surface flag visualization in Discovery** — currently the picker just hides suppressed tags silently. Could surface a "12 hidden" affordance.
 - **Auto-prompt** when unmapped count crosses a threshold.
+- **CLI rebuild command** — currently no clean way to bulk-rebuild `title_effective_tags` after changing aliases without restarting the app.
 
 These are tracked informally in this file and in the proposal's "Open Questions" section.
 
 ## Branch + commit history (for context)
 
 ```
-22141f9 Phase 3c — curated_alias seeding script + initial proposal
-452d037 Phase 3 MVP — per-actress surfacing filter (tags + rating)
-cb2ba5a Phase 2 — cut writers and readers over to title_javdb_enrichment
-a40e1ca Phase 1 — title_javdb_enrichment + normalized tag tables
-48f71ac Spec: tag system revamp — enrichment-backed surfacing
+Phase 4   — enrichment-tag integration via curated_alias (effective_tags + editor)
+addfce2   — Tag Health dashboard + surface honoring + diff mode
+22141f9   — Phase 3c — curated_alias seeding script + initial proposal
+452d037   — Phase 3 MVP — per-actress surfacing filter (tags + rating)
+cb2ba5a   — Phase 2 — cut writers and readers over to title_javdb_enrichment
+a40e1ca   — Phase 1 — title_javdb_enrichment + normalized tag tables
+48f71ac   — Spec: tag system revamp — enrichment-backed surfacing
 ```

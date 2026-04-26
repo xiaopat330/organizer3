@@ -24,9 +24,10 @@ export async function openTitleTagEditor(code) {
   ]);
   if (!stateRes.ok) throw new Error(`tag-state HTTP ${stateRes.status}`);
   const state = await stateRes.json();
-  const direct  = new Set(state.directTags || []);
-  const implied = new Set(state.labelImpliedTags || []);
-  const initial = new Set(direct);
+  const direct     = new Set(state.directTags || []);
+  const implied    = new Set(state.labelImpliedTags || []);
+  const enrImplied = new Set(state.enrichmentImpliedTags || []);
+  const initial    = new Set(direct);
 
   return new Promise(resolve => {
     const overlay = document.createElement('div');
@@ -39,7 +40,7 @@ export async function openTitleTagEditor(code) {
     header.className = 'tag-modal-header';
     header.innerHTML = `
       <span class="tag-modal-title">Edit tags — <strong>${esc(code)}</strong></span>
-      <span class="tag-modal-note">click to toggle · <span class="queue-tag-implicit-sample">red</span> = implied by label (not editable)</span>
+      <span class="tag-modal-note">click to toggle · <span class="queue-tag-implicit-sample">red</span> = implied by label or enrichment (not editable)</span>
     `;
     modal.appendChild(header);
 
@@ -50,14 +51,18 @@ export async function openTitleTagEditor(code) {
         <div class="queue-tag-group-label">${esc(group.label)}</div>
         <div class="queue-tag-row">
           ${group.tags.map(t => {
-            const isImplied = implied.has(t.name);
-            const isActive  = direct.has(t.name) || isImplied;
+            const isLabelImplied = implied.has(t.name);
+            const isEnrImplied   = enrImplied.has(t.name);
+            const isImplied      = isLabelImplied || isEnrImplied;
+            const isActive       = direct.has(t.name) || isImplied;
             const cls = 'queue-tag-toggle'
                       + (isActive  ? ' active'    : '')
                       + (isImplied ? ' implicit'  : '');
-            const title = isImplied
+            const title = isLabelImplied
                 ? `Implied by label (${esc(t.description || '')})`
-                : esc(t.description || '');
+                : isEnrImplied
+                  ? `Implied by enrichment (${esc(t.description || '')})`
+                  : esc(t.description || '');
             return `<button type="button" class="${cls}" data-tag="${esc(t.name)}" ${isImplied ? 'disabled' : ''} title="${title}">${esc(t.name)}</button>`;
           }).join('')}
         </div>
@@ -124,10 +129,11 @@ export async function openTitleTagEditor(code) {
         const data = await res.json().catch(() => ({}));
         // Always hand back a locally-computed effective set so the caller
         // doesn't depend on the server's response shape.
-        const effective = [...new Set([...direct, ...implied])].sort();
+        const effective = [...new Set([...direct, ...implied, ...enrImplied])].sort();
         close({
           directTags: [...direct].sort(),
           labelImpliedTags: [...implied].sort(),
+          enrichmentImpliedTags: [...enrImplied].sort(),
           effectiveTags: effective,
           server: data
         });

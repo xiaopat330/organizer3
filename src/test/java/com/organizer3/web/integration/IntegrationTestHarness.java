@@ -76,7 +76,7 @@ public final class IntegrationTestHarness implements AutoCloseable {
 
         ActressBrowseService actressBrowse = new ActressBrowseService(
                 actressRepo, titleRepo, coverPath, volumeSmbPaths,
-                labelRepo, nameLookup, null);
+                labelRepo, nameLookup, null, jdbi);
 
         SearchService searchService = new SearchService(
                 actressRepo, titleRepo, labelRepo, coverPath, null);

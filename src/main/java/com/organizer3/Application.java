@@ -383,7 +383,7 @@ public class Application {
         com.organizer3.javdb.enrichment.JavdbStagingRepository javdbStagingRepo =
                 new com.organizer3.javdb.enrichment.JavdbStagingRepository(jdbi, jsonMapper, dataDir);
         com.organizer3.javdb.enrichment.JavdbEnrichmentRepository javdbEnrichmentRepo =
-                new com.organizer3.javdb.enrichment.JavdbEnrichmentRepository(jdbi, jsonMapper);
+                new com.organizer3.javdb.enrichment.JavdbEnrichmentRepository(jdbi, jsonMapper, titleEffectiveTagsService);
         com.organizer3.javdb.enrichment.EnrichmentQueue enrichmentQueue =
                 new com.organizer3.javdb.enrichment.EnrichmentQueue(jdbi, javdbConfig);
         com.organizer3.javdb.enrichment.AutoPromoter autoPromoter =
@@ -445,7 +445,7 @@ public class Application {
         StageNameBackupFile stageNameBackup = new StageNameBackupFile(
                 dbDir.resolve("stagenames.yaml"));
         ActressBrowseService actressBrowseService = new ActressBrowseService(
-                actressRepo, titleRepo, coverPath, volumeSmbPaths, labelRepo, nameLookup, stageNameBackup);
+                actressRepo, titleRepo, coverPath, volumeSmbPaths, labelRepo, nameLookup, stageNameBackup, jdbi);
         SearchService searchService = new SearchService(actressRepo, titleRepo, labelRepo, coverPath, avActressRepo);
 
         // Video streaming + metadata
@@ -657,7 +657,7 @@ public class Application {
 
         // Title-detail tag editor (direct + label-implied state, save direct tags).
         webServer.registerTitleTagEditor(
-                new com.organizer3.web.routes.TitleTagEditorRoutes(jdbi, titleRepo));
+                new com.organizer3.web.routes.TitleTagEditorRoutes(jdbi, titleRepo, titleEffectiveTagsService));
 
         // Title Editor — metadata preparation for fully-structured titles in the unsorted volume.
         // See spec/PROPOSAL_TITLE_EDITOR.md.

@@ -24,7 +24,7 @@ class JavdbEnrichmentRepositoryTest {
         connection = DriverManager.getConnection("jdbc:sqlite::memory:");
         jdbi = Jdbi.create(connection);
         new SchemaInitializer(jdbi).initialize();
-        repo = new JavdbEnrichmentRepository(jdbi, new ObjectMapper());
+        repo = new JavdbEnrichmentRepository(jdbi, new ObjectMapper(), new com.organizer3.db.TitleEffectiveTagsService(jdbi));
         // Foreign key from title_javdb_enrichment.title_id requires a titles row.
         jdbi.useHandle(h -> {
             h.execute("INSERT INTO titles(id, code, base_code, label, seq_num) VALUES (1, 'TST-1', 'TST-1', 'TST', 1)");

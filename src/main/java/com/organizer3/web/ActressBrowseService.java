@@ -49,6 +49,7 @@ public class ActressBrowseService {
     private final ActressNameLookup nameLookup;
     /** Nullable — backup is skipped if not configured. */
     private final StageNameBackupFile backupFile;
+    private final org.jdbi.v3.core.Jdbi jdbi;
 
     public List<String> findPrefixIndex() {
         List<Actress> all = actressRepo.findAll();
@@ -241,21 +242,21 @@ public class ActressBrowseService {
     }
 
     /**
-     * Returns all tags (direct and label-derived) that appear across any of the given actress's
-     * titles, sorted alphabetically. Used to populate the actress detail page tag filter.
+     * Returns all effective tags that appear across any of the given actress's titles,
+     * sorted alphabetically. Reads from {@code title_effective_tags} so all three sources
+     * (direct, label, enrichment) are included in a single union query.
      */
     public List<String> findTagsForActress(long actressId) {
-        Map<String, Label> labelMap = labelRepo.findAllAsMap();
-        return titleRepo.findByActress(actressId).stream()
-                .flatMap(t -> {
-                    List<String> direct = t.getTags() != null ? t.getTags() : List.of();
-                    Label lbl = t.getLabel() != null ? labelMap.get(t.getLabel().toUpperCase()) : null;
-                    List<String> labelTags = lbl != null ? lbl.tags() : List.of();
-                    return Stream.concat(direct.stream(), labelTags.stream());
-                })
-                .distinct()
-                .sorted()
-                .toList();
+        return jdbi.withHandle(h -> h.createQuery("""
+                SELECT DISTINCT tet.tag
+                FROM title_effective_tags tet
+                JOIN title_actresses ta ON ta.title_id = tet.title_id
+                WHERE ta.actress_id = :actressId
+                ORDER BY tet.tag
+                """)
+                .bind("actressId", actressId)
+                .mapTo(String.class)
+                .list());
     }
 
     /**

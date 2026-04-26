@@ -2,6 +2,7 @@ package com.organizer3.javdb.enrichment;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.organizer3.db.TitleEffectiveTagsService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.jdbi.v3.core.Jdbi;
@@ -25,6 +26,7 @@ public class JavdbEnrichmentRepository {
 
     private final Jdbi jdbi;
     private final ObjectMapper json;
+    private final TitleEffectiveTagsService effectiveTags;
 
     /**
      * Atomically writes (or replaces) the enrichment record + tag assignments for a title.
@@ -104,6 +106,12 @@ public class JavdbEnrichmentRepository {
 
         log.info("javdb: wrote enrichment row for title {} (slug={}, tags={})",
                 titleId, slug, extract.tags() == null ? 0 : extract.tags().size());
+
+        // Phase 4 integration: enrichment-derived effective tags must be re-derived now
+        // so the curated tag UIs (actress detail Tags panel, title cards, browse filter)
+        // immediately reflect the new alias-bridged tags. Synchronous to keep the read
+        // model consistent with the just-completed write.
+        effectiveTags.recomputeForTitle(titleId);
     }
 
     /**
@@ -129,6 +137,8 @@ public class JavdbEnrichmentRepository {
                         """);
             }
         });
+        // Recompute the title's effective tags so any enrichment-derived rows are cleared.
+        effectiveTags.recomputeForTitle(titleId);
     }
 
     private String serialize(Object value) {

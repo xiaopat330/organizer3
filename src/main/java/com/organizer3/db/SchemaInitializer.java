@@ -177,7 +177,7 @@ public class SchemaInitializer {
                     CREATE TABLE IF NOT EXISTS title_effective_tags (
                         title_id  INTEGER NOT NULL REFERENCES titles(id) ON DELETE CASCADE,
                         tag       TEXT NOT NULL,
-                        source    TEXT NOT NULL CHECK(source IN ('direct', 'label')),
+                        source    TEXT NOT NULL CHECK(source IN ('direct', 'label', 'enrichment')),
                         PRIMARY KEY (title_id, tag)
                     )""");
             h.execute("CREATE INDEX IF NOT EXISTS idx_title_effective_tags_tag ON title_effective_tags(tag)");
@@ -470,7 +470,7 @@ public class SchemaInitializer {
             // leave the version alone and let SchemaUpgrader apply any missing migrations.
             int currentVersion = h.createQuery("PRAGMA user_version").mapTo(Integer.class).one();
             if (currentVersion == 0) {
-                h.execute("PRAGMA user_version = 25");
+                h.execute("PRAGMA user_version = 26");
             }
         });
         log.info("Schema initialization complete");
