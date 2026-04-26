@@ -1,0 +1,37 @@
+profile:
+  name:
+    family_name: Natsuki
+    given_name: Maron
+    stage_name: 夏希まろん
+    reading: なつき まろん
+    alternate_names:
+    - name: 夏夜える
+      note: stage name used May 2023 – March 2024 while under Arrows agency
+  date_of_birth: 1996-12-25
+  birthplace: Tokyo, Japan
+  blood_type: O
+  height_cm: 164
+  measurements:
+    bust: 88
+    waist: 58
+    hip: 88
+  cup: G
+  active_from: 2019-08-13
+  active_to: null
+  retirement_announced: null
+  biography: "Natsuki Maron debuted on August 13, 2019, as an exclusive actress for Idea Pocket (IPX), with her debut title tagline describing her as 'the former dancer member who caused a sensation in clubs across Japan' — widely interpreted by fans as a reference to the CYBERJAPAN DANCERS troupe, though no official confirmation has been made. She transitioned from exclusive to non-exclusive (企画単体) status in June 2020 while remaining represented by T-Powers agency. In March 2021 she moved to Clowne agency, and in May 2023 she joined Arrows, simultaneously adopting the stage name 夏夜える (Natsuyo Eru). She returned to the Natsuki Maron name in March 2024 upon joining NAX agency, then departed NAX in August 2024 to become freelance. She has not announced retirement and remained active through at least 2025, maintaining social media presence on Instagram and X and a YouTube channel 'なつきまろん♡'."
+  primary_studios:
+  - name: Idea Pocket
+    company: Idea Pocket (IPX)
+    from: 2019-08-13
+    to: 2020-06-01
+    role: Exclusive contract actress
+  awards: null
+  legacy: null
+
+meta:
+  confidence: "High confidence on DOB, birthplace, blood type, height, measurements, cup, debut date, and all agency/name-change dates — sourced from Japanese Wikipedia, Yourpedia, and multiple fan databases consistently. The CYBERJAPAN DANCERS connection is strongly implied by debut marketing but not officially confirmed (low confidence). Exact Tokyo ward/city of birth not disclosed."
+  data_sources:
+  - https://ja.wikipedia.org/wiki/%E5%A4%8F%E5%B8%8C%E3%81%BE%E3%82%8D%E3%82%93
+  - https://ja.yourpedia.org/wiki/%E5%A4%8F%E5%B8%8C%E3%81%BE%E3%82%8D%E3%82%93
+  - https://www.imdb.com/name/nm13324066/
