@@ -1,0 +1,43 @@
+profile:
+  name:
+    family_name: Amane
+    given_name: Mahina
+    stage_name: 天音まひな
+    reading: あまね まひな
+    alternate_names:
+    - name: 星まりあ
+      note: stage name adopted from 2022-07-31 after leaving Forty Four Management and joining エイトマン agency
+  date_of_birth: 1999-07-16
+  birthplace: Tokyo, Japan
+  blood_type: null
+  height_cm: 145
+  measurements:
+    bust: 78
+    waist: 58
+    hip: 82
+  cup: G
+  active_from: 2020-06-01
+  active_to: null
+  retirement_announced: null
+  biography: "Amane Mahina debuted in June 2020 as an exclusive actress at S1 NO.1 STYLE, represented by Forty Four Management (フォーティーフォーマネジメント). Her debut work entered the FANZA 2020 annual sales ranking at #15 — an exceptional result for a newcomer — and through 2021 she released six titles each exceeding 10,000 FANZA favorites registrations, establishing her as one of S1's top earners. On July 31, 2022, she announced her departure from Forty Four Management, adopted the new stage name 星まりあ (Hoshi Maria), and transferred to エイトマン (8MAN) agency; subsequent releases appeared on Outervision, an S1-group sub-label. Activity slowed through 2023 and she deleted all social media accounts, a period later attributed in part to tax and management problems at Forty Four Management that affected multiple actresses including Eimi Fukada. She staged a comeback in September 2024, confirmed by a SODLAND event appearance, indicating she continued under the 星まりあ name with SOD-group studios."
+  primary_studios:
+  - name: S1 NO.1 STYLE
+    company: S1
+    from: 2020-06-01
+    to: 2022-07-31
+    role: Exclusive contract actress
+  - name: SODLAND / SOD group
+    company: Soft on Demand
+    from: 2024-09-01
+    to: null
+    role: Label actress (as 星まりあ)
+  awards: null
+  legacy: "Among the strongest S1 debuts of 2020, with a top-15 FANZA annual ranking in her debut year and six titles clearing the 10,000-favorites threshold in 2021. Her career was significantly disrupted by the Forty Four Management agency crisis in 2022–2023 before a confirmed comeback in 2024."
+
+meta:
+  confidence: "High on DOB, height, cup, birthplace, debut studio, and studio timeline. Measurements B78-W58-H82 sourced from two independent aggregators (medium-high). Blood type was not found in any indexed source. The kanji 真比奈 for the given name appears only in Chinese Wikipedia; Japanese Wikipedia uses kana only — treat as provisional."
+  data_sources:
+  - https://ja.wikipedia.org/wiki/%E5%A4%A9%E9%9F%B3%E3%81%BE%E3%81%B2%E3%81%AA
+  - https://zh.wikipedia.org/zh-tw/%E5%A4%A9%E9%9F%B3%E7%9C%9F%E6%AF%94%E5%A5%88
+  - https://www.wikidata.org/wiki/Q104538671
+  - https://www.imdb.com/name/nm16938010/bio/
