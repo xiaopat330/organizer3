@@ -5363,6 +5363,82 @@
 .jd-profile-actions { margin-top: 12px; }
 .jd-code { font-family: monospace; font-size: 12px; color: #94a3b8; }
 
+/* ── Phase 3 surfacing filter (per-actress titles tab) ─────────────── */
+.jd-filter-bar {
+  border: 1px solid #1f2a3a;
+  background: #0a1018;
+  border-radius: 6px;
+  padding: 10px 12px;
+  margin-bottom: 10px;
+}
+.jd-filter-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.jd-filter-row + .jd-filter-row { margin-top: 8px; }
+.jd-filter-label {
+  font-size: 11px;
+  color: #94a3b8;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.jd-filter-num {
+  width: 80px;
+  background: #0f172a;
+  color: #e2e8f0;
+  border: 1px solid #334155;
+  border-radius: 4px;
+  padding: 4px 6px;
+  font-size: 12px;
+}
+.jd-filter-num:focus { outline: none; border-color: #3b82f6; }
+.jd-filter-summary {
+  margin-left: auto;
+  font-size: 11px;
+  color: #94a3b8;
+}
+.jd-filter-clear {
+  background: transparent;
+  color: #f87171;
+  border: 1px solid #7f1d1d;
+  border-radius: 4px;
+  padding: 3px 8px;
+  font-size: 11px;
+  cursor: pointer;
+}
+.jd-filter-clear:hover { background: rgba(248,113,113,0.08); }
+.jd-filter-hint { font-size: 11px; color: #475569; font-style: italic; }
+.jd-tag-chip {
+  background: #0f172a;
+  color: #cbd5e1;
+  border: 1px solid #1f2a3a;
+  border-radius: 12px;
+  padding: 2px 8px;
+  font-size: 11px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.jd-tag-chip:hover { border-color: #475569; color: #e2e8f0; }
+.jd-tag-chip.selected {
+  background: rgba(59,130,246,0.16);
+  border-color: #3b82f6;
+  color: #93c5fd;
+}
+.jd-tag-count {
+  font-size: 10px;
+  color: #64748b;
+  background: #0a1018;
+  border-radius: 8px;
+  padding: 0 5px;
+}
+.jd-tag-chip.selected .jd-tag-count { color: #93c5fd; background: rgba(59,130,246,0.08); }
+.jd-rating-cell { font-family: monospace; font-size: 12px; color: #cbd5e1; white-space: nowrap; }
+.jd-rating-count { color: #64748b; font-size: 11px; }
+
 .jd-status {
   display: inline-block;
   font-size: 11px;

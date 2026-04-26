@@ -23,6 +23,9 @@ function createState() {
     bookmarkedOnly: false,
     sortField: 'name',   // 'name' | 'titles'
     sortDir: 'asc',
+    // Phase 3 surfacing filter — per-actress, applied to the Titles tab.
+    // Cleared whenever the selected actress changes.
+    titleFilter: { tags: [], minRatingAvg: null, minRatingCount: null },
   };
 }
 
@@ -411,6 +414,8 @@ function highlightSelected(id) {
 
 async function selectActress(id) {
   state.selectedId = id;
+  // Filter is per-actress — reset whenever a different actress is selected.
+  state.titleFilter = { tags: [], minRatingAvg: null, minRatingCount: null };
   highlightSelected(id);
   emptyMsg.style.display = 'none';
   panel.style.display = '';
@@ -447,35 +452,128 @@ async function renderTitlesTabSilent() {
   await fetchAndRenderTitles();
 }
 
+function buildFilterQueryString() {
+  const f = state.titleFilter;
+  const parts = [];
+  if (f.tags.length > 0)              parts.push(`tags=${encodeURIComponent(f.tags.join(','))}`);
+  if (f.minRatingAvg   !== null)      parts.push(`minRatingAvg=${f.minRatingAvg}`);
+  if (f.minRatingCount !== null)      parts.push(`minRatingCount=${f.minRatingCount}`);
+  return parts.length > 0 ? '?' + parts.join('&') : '';
+}
+
+function isFilterActive() {
+  const f = state.titleFilter;
+  return f.tags.length > 0 || f.minRatingAvg !== null || f.minRatingCount !== null;
+}
+
 async function fetchAndRenderTitles() {
   try {
-    const res = await fetch(`/api/javdb/discovery/actresses/${state.selectedId}/titles`);
-    if (!res.ok) { titlesView.innerHTML = '<div class="jd-error">Failed to load titles.</div>'; return; }
-    const titles = await res.json();
-    if (titles.length === 0) {
-      titlesView.innerHTML = '<div class="jd-empty-tab">No titles found.</div>';
-      return;
-    }
-    titlesView.innerHTML = `
-      <table class="jd-titles-table">
-        <thead><tr>
-          <th>Code</th><th>Status</th><th>Original Title</th><th>Release</th><th>Maker</th><th></th>
-        </tr></thead>
-        <tbody>${titles.map(titleRow).join('')}</tbody>
-      </table>
-    `;
-    titlesView.querySelectorAll('.jd-reenrich-btn').forEach(btn => {
-      btn.addEventListener('click', async () => {
-        const titleId = btn.dataset.titleId;
-        btn.textContent = '…';
-        btn.disabled = true;
-        await fetch(`/api/javdb/discovery/actresses/${state.selectedId}/titles/${titleId}/reenrich`, { method: 'POST' });
-        await renderTitlesTabSilent();
-      });
-    });
+    const qs = buildFilterQueryString();
+    const [titlesRes, facetsRes] = await Promise.all([
+      fetch(`/api/javdb/discovery/actresses/${state.selectedId}/titles${qs}`),
+      fetch(`/api/javdb/discovery/actresses/${state.selectedId}/tag-facets${qs}`),
+    ]);
+    if (!titlesRes.ok) { titlesView.innerHTML = '<div class="jd-error">Failed to load titles.</div>'; return; }
+    const titles = await titlesRes.json();
+    const facets = facetsRes.ok ? await facetsRes.json() : [];
+    titlesView.innerHTML = filterBarHtml(facets, titles.length) + titlesTableHtml(titles);
+    wireFilterBar();
+    wireReenrichButtons();
   } catch (_) {
     titlesView.innerHTML = '<div class="jd-error">Network error.</div>';
   }
+}
+
+function filterBarHtml(facets, matchCount) {
+  const f = state.titleFilter;
+  const selectedTagsSet = new Set(f.tags);
+  // Selected tags first (so they remain visible after selection), then top facets by count.
+  const facetOrder = [
+    ...facets.filter(x => selectedTagsSet.has(x.name)),
+    ...facets.filter(x => !selectedTagsSet.has(x.name)),
+  ];
+  const tagChips = facetOrder.slice(0, 30).map(x => {
+    const sel = selectedTagsSet.has(x.name);
+    return `<button type="button" class="jd-tag-chip${sel ? ' selected' : ''}" data-tag="${esc(x.name)}">
+      ${esc(x.name)} <span class="jd-tag-count">${x.count}</span>
+    </button>`;
+  }).join('');
+  const summary = isFilterActive()
+    ? `<span class="jd-filter-summary">${matchCount} matching</span>`
+    : '';
+  const clearBtn = isFilterActive()
+    ? `<button type="button" id="jd-filter-clear" class="jd-filter-clear">Clear filters</button>`
+    : '';
+  return `
+    <div class="jd-filter-bar">
+      <div class="jd-filter-row">
+        <label class="jd-filter-label">Min rating</label>
+        <input id="jd-min-avg" type="number" step="0.1" min="0" max="5" placeholder="e.g. 4.2"
+               value="${f.minRatingAvg ?? ''}" class="jd-filter-num">
+        <label class="jd-filter-label">Min votes</label>
+        <input id="jd-min-cnt" type="number" step="1" min="0" placeholder="e.g. 50"
+               value="${f.minRatingCount ?? ''}" class="jd-filter-num">
+        ${summary}
+        ${clearBtn}
+      </div>
+      <div class="jd-filter-row jd-tag-chips">${tagChips || '<span class="jd-filter-hint">No tags on this actress\'s enriched titles.</span>'}</div>
+    </div>
+  `;
+}
+
+function titlesTableHtml(titles) {
+  if (titles.length === 0) {
+    return '<div class="jd-empty-tab">No titles match the current filter.</div>';
+  }
+  return `
+    <table class="jd-titles-table">
+      <thead><tr>
+        <th>Code</th><th>Status</th><th>Original Title</th><th>Release</th><th>Maker</th><th>Rating</th><th></th>
+      </tr></thead>
+      <tbody>${titles.map(titleRow).join('')}</tbody>
+    </table>
+  `;
+}
+
+function wireFilterBar() {
+  const minAvg = document.getElementById('jd-min-avg');
+  const minCnt = document.getElementById('jd-min-cnt');
+  if (minAvg) minAvg.addEventListener('change', () => {
+    const v = minAvg.value.trim();
+    state.titleFilter.minRatingAvg = v === '' ? null : parseFloat(v);
+    fetchAndRenderTitles();
+  });
+  if (minCnt) minCnt.addEventListener('change', () => {
+    const v = minCnt.value.trim();
+    state.titleFilter.minRatingCount = v === '' ? null : parseInt(v, 10);
+    fetchAndRenderTitles();
+  });
+  document.querySelectorAll('.jd-tag-chip').forEach(chip => {
+    chip.addEventListener('click', () => {
+      const tag = chip.dataset.tag;
+      const idx = state.titleFilter.tags.indexOf(tag);
+      if (idx >= 0) state.titleFilter.tags.splice(idx, 1);
+      else state.titleFilter.tags.push(tag);
+      fetchAndRenderTitles();
+    });
+  });
+  const clearBtn = document.getElementById('jd-filter-clear');
+  if (clearBtn) clearBtn.addEventListener('click', () => {
+    state.titleFilter = { tags: [], minRatingAvg: null, minRatingCount: null };
+    fetchAndRenderTitles();
+  });
+}
+
+function wireReenrichButtons() {
+  titlesView.querySelectorAll('.jd-reenrich-btn').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const titleId = btn.dataset.titleId;
+      btn.textContent = '…';
+      btn.disabled = true;
+      await fetch(`/api/javdb/discovery/actresses/${state.selectedId}/titles/${titleId}/reenrich`, { method: 'POST' });
+      await renderTitlesTabSilent();
+    });
+  });
 }
 
 function titleEffectiveStatus(t) {
@@ -495,12 +593,16 @@ function titleRow(t) {
   const actionCell = canReenrich
     ? `<button class="jd-reenrich-btn" data-title-id="${t.titleId}" title="Force re-enrich">↺</button>`
     : '';
+  const rating = (t.ratingAvg != null)
+    ? `<span class="jd-rating">${t.ratingAvg.toFixed(2)}<span class="jd-rating-count"> · ${t.ratingCount ?? 0}</span></span>`
+    : '—';
   return `<tr>
     <td class="jd-code">${esc(t.code)}</td>
     <td>${statusCell}</td>
     <td>${t.titleOriginal ? esc(t.titleOriginal) : '—'}</td>
     <td>${fmtDate(t.releaseDate)}</td>
     <td>${t.maker ? esc(t.maker) : '—'}</td>
+    <td class="jd-rating-cell">${rating}</td>
     <td class="jd-action-cell">${actionCell}</td>
   </tr>`;
 }

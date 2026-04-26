@@ -38,14 +38,37 @@ public class JavdbDiscoveryService {
     public record TitleRow(
             long titleId,
             String code,
-            String status,         // null when no staging row
+            String status,         // null when no enrichment row
             String javdbSlug,
             String titleOriginal,
             String releaseDate,
             String maker,
             String publisher,
+            Double ratingAvg,
+            Integer ratingCount,
             String queueStatus     // null | 'pending' | 'in_flight' | 'failed' | 'done'
     ) {}
+
+    /**
+     * Filter parameters for the per-actress surfacing query.
+     * All fields are optional; null/empty means "no filter on this axis".
+     * When ANY filter is non-null, un-enriched titles are excluded automatically
+     * (they have no row in title_javdb_enrichment to match against).
+     */
+    public record TitleFilter(
+            List<String> requireTags,   // tags AND (conjunction)
+            Double minRatingAvg,
+            Integer minRatingCount
+    ) {
+        public boolean isEmpty() {
+            return (requireTags == null || requireTags.isEmpty())
+                && minRatingAvg == null && minRatingCount == null;
+        }
+        public static TitleFilter none() { return new TitleFilter(List.of(), null, null); }
+    }
+
+    /** A single facet entry returned alongside filtered title results. */
+    public record TagFacet(String name, int count) {}
 
     public record ProfileRow(
             String javdbSlug,
@@ -115,11 +138,15 @@ public class JavdbDiscoveryService {
     }
 
     /**
-     * Returns the title staging rows for the actress's titles, null status when no
-     * staging row has been created for a given title yet.
+     * Returns title rows for the actress's titles. When {@code filter} is non-empty,
+     * un-enriched titles are excluded automatically (they cannot match any enrichment
+     * predicate). Tag conjunction uses GROUP BY ... HAVING COUNT to require all listed tags.
      */
-    public List<TitleRow> getActressTitles(long actressId) {
-        return jdbi.withHandle(h -> h.createQuery("""
+    public List<TitleRow> getActressTitles(long actressId, TitleFilter filter) {
+        boolean filtering = filter != null && !filter.isEmpty();
+        boolean tagFiltering = filtering && filter.requireTags() != null && !filter.requireTags().isEmpty();
+
+        StringBuilder sql = new StringBuilder("""
                 SELECT
                   t.id   AS title_id,
                   t.code,
@@ -129,10 +156,19 @@ public class JavdbDiscoveryService {
                   tje.release_date,
                   tje.maker,
                   tje.publisher,
+                  tje.rating_avg,
+                  tje.rating_count,
                   jeq.effective_queue_status AS queue_status
                 FROM title_actresses ta
                 JOIN titles t ON t.id = ta.title_id
-                LEFT JOIN title_javdb_enrichment tje ON tje.title_id = ta.title_id
+                """);
+        // When filtering on enrichment predicates, only enriched titles can possibly match,
+        // so an INNER JOIN is more efficient than LEFT + WHERE. Otherwise LEFT to preserve
+        // the un-enriched rows in the listing.
+        sql.append(filtering
+                ? "JOIN title_javdb_enrichment tje ON tje.title_id = ta.title_id\n"
+                : "LEFT JOIN title_javdb_enrichment tje ON tje.title_id = ta.title_id\n");
+        sql.append("""
                 LEFT JOIN (
                     SELECT target_id,
                            CASE
@@ -147,20 +183,77 @@ public class JavdbDiscoveryService {
                     GROUP BY target_id
                 ) jeq ON jeq.target_id = t.id
                 WHERE ta.actress_id = :actressId
-                ORDER BY t.code
+                """);
+        if (filtering && filter.minRatingAvg() != null)   sql.append("  AND tje.rating_avg   >= :minRatingAvg\n");
+        if (filtering && filter.minRatingCount() != null) sql.append("  AND tje.rating_count >= :minRatingCount\n");
+        if (tagFiltering) {
+            sql.append("""
+                      AND t.id IN (
+                        SELECT tet.title_id
+                        FROM title_enrichment_tags tet
+                        JOIN enrichment_tag_definitions etd ON etd.id = tet.tag_id
+                        WHERE etd.name IN (<tags>)
+                        GROUP BY tet.title_id
+                        HAVING COUNT(DISTINCT etd.id) = :tagCount
+                      )
+                    """);
+        }
+        sql.append("ORDER BY t.code");
+
+        return jdbi.withHandle(h -> {
+            var query = h.createQuery(sql.toString())
+                    .bind("actressId", actressId);
+            if (filtering && filter.minRatingAvg() != null)   query.bind("minRatingAvg",   filter.minRatingAvg());
+            if (filtering && filter.minRatingCount() != null) query.bind("minRatingCount", filter.minRatingCount());
+            if (tagFiltering) {
+                query.bindList("tags", filter.requireTags())
+                     .bind("tagCount", filter.requireTags().size());
+            }
+            return query.map((rs, ctx) -> new TitleRow(
+                    rs.getLong("title_id"),
+                    rs.getString("code"),
+                    rs.getString("status"),
+                    rs.getString("javdb_slug"),
+                    rs.getString("title_original"),
+                    rs.getString("release_date"),
+                    rs.getString("maker"),
+                    rs.getString("publisher"),
+                    rs.getObject("rating_avg")   != null ? rs.getDouble("rating_avg")   : null,
+                    rs.getObject("rating_count") != null ? rs.getInt("rating_count")    : null,
+                    rs.getString("queue_status")
+            )).list();
+        });
+    }
+
+    /** Backwards-compatible no-filter overload. */
+    public List<TitleRow> getActressTitles(long actressId) {
+        return getActressTitles(actressId, TitleFilter.none());
+    }
+
+    /**
+     * Returns enrichment-tag facets for the actress: for each tag that appears on at least
+     * one of her enriched titles after applying {@code filter}, the count of currently-matching
+     * titles that carry that tag. Drives the faceted picker.
+     *
+     * <p>The tag the user has already selected is included in the result with its current count,
+     * so the UI can show "(N)" next to selected chips.
+     */
+    public List<TagFacet> getActressTagFacets(long actressId, TitleFilter filter) {
+        // Reuse getActressTitles to determine the matching set, then count tags across just those titles.
+        // The MVP keeps it simple: a single follow-up query joining the matching title ids to tag rows.
+        List<TitleRow> matching = getActressTitles(actressId, filter);
+        List<Long> ids = matching.stream().map(TitleRow::titleId).toList();
+        if (ids.isEmpty()) return List.of();
+        return jdbi.withHandle(h -> h.createQuery("""
+                SELECT etd.name AS name, COUNT(*) AS cnt
+                FROM title_enrichment_tags tet
+                JOIN enrichment_tag_definitions etd ON etd.id = tet.tag_id
+                WHERE tet.title_id IN (<ids>)
+                GROUP BY etd.id, etd.name
+                ORDER BY cnt DESC, etd.name
                 """)
-                .bind("actressId", actressId)
-                .map((rs, ctx) -> new TitleRow(
-                        rs.getLong("title_id"),
-                        rs.getString("code"),
-                        rs.getString("status"),
-                        rs.getString("javdb_slug"),
-                        rs.getString("title_original"),
-                        rs.getString("release_date"),
-                        rs.getString("maker"),
-                        rs.getString("publisher"),
-                        rs.getString("queue_status")
-                ))
+                .bindList("ids", ids)
+                .map((rs, ctx) -> new TagFacet(rs.getString("name"), rs.getInt("cnt")))
                 .list());
     }
 

@@ -29,7 +29,18 @@ public class JavdbDiscoveryRoutes {
                 ctx.status(400);
                 return;
             }
-            ctx.json(service.getActressTitles(id));
+            ctx.json(service.getActressTitles(id, parseFilter(ctx)));
+        });
+
+        app.get("/api/javdb/discovery/actresses/{id}/tag-facets", ctx -> {
+            long id;
+            try {
+                id = Long.parseLong(ctx.pathParam("id"));
+            } catch (NumberFormatException e) {
+                ctx.status(400);
+                return;
+            }
+            ctx.json(service.getActressTagFacets(id, parseFilter(ctx)));
         });
 
         app.get("/api/javdb/discovery/actresses/{id}/profile", ctx -> {
@@ -121,6 +132,34 @@ public class JavdbDiscoveryRoutes {
         } catch (NumberFormatException e) {
             return -1;
         }
+    }
+
+    /**
+     * Parses the surfacing filter from query params. Recognised:
+     * - {@code tags=Big Tits,Solowork} (comma-separated, AND semantics)
+     * - {@code minRatingAvg=4.2}
+     * - {@code minRatingCount=50}
+     * Missing/blank params are treated as "no filter on that axis".
+     */
+    private JavdbDiscoveryService.TitleFilter parseFilter(io.javalin.http.Context ctx) {
+        String tagsParam = ctx.queryParam("tags");
+        java.util.List<String> tags = (tagsParam == null || tagsParam.isBlank())
+                ? java.util.List.of()
+                : java.util.Arrays.stream(tagsParam.split(","))
+                        .map(String::trim).filter(s -> !s.isEmpty()).toList();
+        Double minAvg = parseDoubleOrNull(ctx.queryParam("minRatingAvg"));
+        Integer minCnt = parseIntOrNull(ctx.queryParam("minRatingCount"));
+        return new JavdbDiscoveryService.TitleFilter(tags, minAvg, minCnt);
+    }
+
+    private static Double parseDoubleOrNull(String s) {
+        if (s == null || s.isBlank()) return null;
+        try { return Double.parseDouble(s); } catch (NumberFormatException e) { return null; }
+    }
+
+    private static Integer parseIntOrNull(String s) {
+        if (s == null || s.isBlank()) return null;
+        try { return Integer.parseInt(s); } catch (NumberFormatException e) { return null; }
     }
 
     private record PauseRequest(boolean paused) {}
