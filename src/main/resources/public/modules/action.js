@@ -15,6 +15,7 @@ import { showDupTriageView, hideDupTriageView, wireDupTriageEvents } from './uti
 import { showMergeCandidatesView, hideMergeCandidatesView, wireMergeCandidatesEvents } from './utilities-merge-candidates.js';
 import { showTrashView, hideTrashView } from './utilities-trash.js';
 import { showJavdbDiscoveryView, hideJavdbDiscoveryView } from './utilities-javdb-discovery.js';
+import { showTagHealthView, hideTagHealthView } from './utilities-tag-health.js';
 
 // ── DOM refs ──────────────────────────────────────────────────────────────
 const actionBtn         = document.getElementById('action-btn');
@@ -28,6 +29,7 @@ const trashBtn          = document.getElementById('tools-trash-btn');
 const queueBtn          = document.getElementById('tools-queue-btn');
 const logsBtn              = document.getElementById('tools-logs-btn');
 const javdbDiscoveryBtn    = document.getElementById('tools-javdb-discovery-btn');
+const tagHealthBtn         = document.getElementById('tools-tag-health-btn');
 const duplicatesView    = document.getElementById('tools-duplicates-view');
 const duplicatesFilters = document.getElementById('tools-duplicates-filters');
 const duplicatesList    = document.getElementById('tools-duplicates-list');
@@ -43,7 +45,7 @@ const dupTriageTab      = document.getElementById('tools-dup-triage-tab');
 const mergeCandidatesTab = document.getElementById('tools-merge-candidates-tab');
 
 // ── Tool buttons ──────────────────────────────────────────────────────────
-const TOOL_BTNS = [volumesBtn, actressDataBtn, backupBtn, libraryHealthBtn, avStarsBtn, duplicatesBtn, trashBtn, queueBtn, logsBtn, javdbDiscoveryBtn];
+const TOOL_BTNS = [volumesBtn, actressDataBtn, backupBtn, libraryHealthBtn, avStarsBtn, duplicatesBtn, trashBtn, queueBtn, logsBtn, javdbDiscoveryBtn, tagHealthBtn];
 
 function selectTool(btn) {
   TOOL_BTNS.forEach(b => b?.classList.remove('selected'));
@@ -63,6 +65,7 @@ function hideAllToolViews() {
   hideMergeCandidatesView();
   hideTrashView();
   hideJavdbDiscoveryView();
+  hideTagHealthView();
   dupSubnav.style.display         = 'none';
   duplicatesView.style.display    = 'none';
   duplicatesFilters.style.display = 'none';
@@ -396,4 +399,12 @@ javdbDiscoveryBtn.addEventListener('click', () => {
   updateBreadcrumb([{ label: 'Tools' }, { label: 'javdb Discovery' }]);
   hideAllToolViews();
   showJavdbDiscoveryView();
+});
+
+tagHealthBtn.addEventListener('click', () => {
+  showActionView('tag-health');
+  selectTool(tagHealthBtn);
+  updateBreadcrumb([{ label: 'Tools' }, { label: 'Tag Health' }]);
+  hideAllToolViews();
+  showTagHealthView();
 });

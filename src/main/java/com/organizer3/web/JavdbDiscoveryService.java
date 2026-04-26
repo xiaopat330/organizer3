@@ -249,12 +249,72 @@ public class JavdbDiscoveryService {
                 FROM title_enrichment_tags tet
                 JOIN enrichment_tag_definitions etd ON etd.id = tet.tag_id
                 WHERE tet.title_id IN (<ids>)
+                  AND etd.surface = 1
                 GROUP BY etd.id, etd.name
                 ORDER BY cnt DESC, etd.name
                 """)
                 .bindList("ids", ids)
                 .map((rs, ctx) -> new TagFacet(rs.getString("name"), rs.getInt("cnt")))
                 .list());
+    }
+
+    // ── Enrichment tag-health (Phase 3 maintenance dashboard) ─────────────────
+
+    public record TagHealthSummary(
+            int totalEnrichmentRows,
+            int totalDefinitions,
+            int mappedDefinitions,        // curated_alias IS NOT NULL
+            int unmappedDefinitions,      // curated_alias IS NULL
+            int suppressedDefinitions     // surface = 0
+    ) {}
+
+    public record TagHealthRow(
+            long id,
+            String name,
+            String curatedAlias,    // nullable
+            int titleCount,
+            double libraryPct,      // 0.0–1.0; titleCount / totalEnrichmentRows
+            boolean surface
+    ) {}
+
+    public record TagHealthReport(TagHealthSummary summary, List<TagHealthRow> definitions) {}
+
+    /** Returns full snapshot for the Tag Health view. */
+    public TagHealthReport getTagHealthReport() {
+        return jdbi.withHandle(h -> {
+            int totalRows = h.createQuery("SELECT COUNT(*) FROM title_javdb_enrichment").mapTo(Integer.class).one();
+            int total     = h.createQuery("SELECT COUNT(*) FROM enrichment_tag_definitions").mapTo(Integer.class).one();
+            int mapped    = h.createQuery("SELECT COUNT(*) FROM enrichment_tag_definitions WHERE curated_alias IS NOT NULL").mapTo(Integer.class).one();
+            int suppressed = h.createQuery("SELECT COUNT(*) FROM enrichment_tag_definitions WHERE surface = 0").mapTo(Integer.class).one();
+            double safeTotal = totalRows > 0 ? (double) totalRows : 1.0;
+            List<TagHealthRow> rows = h.createQuery("""
+                    SELECT id, name, curated_alias, title_count, surface
+                    FROM enrichment_tag_definitions
+                    ORDER BY title_count DESC, name
+                    """)
+                    .map((rs, ctx) -> new TagHealthRow(
+                            rs.getLong("id"),
+                            rs.getString("name"),
+                            rs.getString("curated_alias"),
+                            rs.getInt("title_count"),
+                            rs.getInt("title_count") / safeTotal,
+                            rs.getInt("surface") != 0
+                    ))
+                    .list();
+            return new TagHealthReport(
+                    new TagHealthSummary(totalRows, total, mapped, total - mapped, suppressed),
+                    rows
+            );
+        });
+    }
+
+    /** Toggles the surface flag on a single definition. */
+    public void setEnrichmentTagSurface(long tagId, boolean surface) {
+        jdbi.useHandle(h -> h.createUpdate(
+                "UPDATE enrichment_tag_definitions SET surface = :s WHERE id = :id")
+                .bind("s", surface ? 1 : 0)
+                .bind("id", tagId)
+                .execute());
     }
 
     /**

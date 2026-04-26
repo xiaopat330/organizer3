@@ -262,6 +262,67 @@ def apply_aliases(db_path: Path, proposal_path: Path, only_section: Optional[str
         con.close()
 
 
+def report_diff(db_path: Path, prior_path: Path) -> None:
+    """Compare the current DB to a prior proposal and print what's new.
+
+    Reports:
+      - tags newly present in the DB but absent from the prior proposal
+      - tags whose title_count has grown >= 50% (signal that vocabulary is
+        shifting — may warrant a re-look at curated_alias quality)
+    """
+    if not prior_path.exists():
+        print(f"Prior proposal not found: {prior_path}", file=sys.stderr)
+        sys.exit(2)
+    # Parse prior proposal — capture name + title_count from any section.
+    prior = {}  # name -> title_count
+    cur_name = None
+    cur_count = None
+    with prior_path.open() as f:
+        for raw in f:
+            line = raw.rstrip("\n")
+            if line.lstrip().startswith("#") or not line.strip():
+                continue
+            m = re.match(r'\s+- enrichment_tag:\s+"((?:[^"\\]|\\.)*)"\s*$', line)
+            if m:
+                if cur_name is not None and cur_count is not None:
+                    prior[cur_name] = cur_count
+                cur_name = m.group(1).replace('\\"', '"').replace("\\\\", "\\")
+                cur_count = None
+                continue
+            m = re.match(r'\s+title_count:\s+(\d+)\s*$', line)
+            if m and cur_name is not None:
+                cur_count = int(m.group(1))
+        if cur_name is not None and cur_count is not None:
+            prior[cur_name] = cur_count
+
+    current = dict(load_enrichment_tags(db_path))
+    newly_added = sorted(
+        [(n, c) for n, c in current.items() if n not in prior],
+        key=lambda x: -x[1])
+    grown = sorted(
+        [(n, prior[n], c) for n, c in current.items()
+         if n in prior and prior[n] > 0 and (c - prior[n]) / prior[n] >= 0.5],
+        key=lambda x: -(x[2] - x[1]))
+
+    print(f"Diff against {prior_path.name}:")
+    print(f"  prior had {len(prior)} tag definitions, current has {len(current)}")
+    print()
+    if newly_added:
+        print(f"NEW TAGS ({len(newly_added)} tags absent from prior proposal):")
+        for n, c in newly_added:
+            print(f"  {n!r:35} count={c}")
+        print()
+    else:
+        print("No new tag names since last run.\n")
+    if grown:
+        print(f"GROWN TAGS ({len(grown)} tags with >=50% count growth):")
+        for n, before, now in grown:
+            print(f"  {n!r:35} {before} → {now} (+{now-before})")
+        print()
+    else:
+        print("No significant count growth on existing tags.")
+
+
 def main():
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     p.add_argument("--db",    default=str(Path.home() / ".organizer3" / "organizer.db"),
@@ -275,6 +336,10 @@ def main():
     p.add_argument("--only-section", metavar="SECTION", default=None,
                    help="When applying, only consider entries inside this top-level section "
                         "(e.g. 'high_confidence' to skip the review section)")
+    p.add_argument("--diff", metavar="PRIOR_PROPOSAL", default=None,
+                   help="Compare current DB state against a previous proposal file and "
+                        "print only what's NEW (added unmapped tags, count growth >= 50%%). "
+                        "Useful for spotting drift after a batch of new enrichments.")
     args = p.parse_args()
 
     db = Path(args.db)
@@ -284,6 +349,10 @@ def main():
 
     if args.apply:
         apply_aliases(db, Path(args.apply), only_section=args.only_section)
+        return
+
+    if args.diff:
+        report_diff(db, Path(args.diff))
         return
 
     yaml_path = Path(args.yaml)

@@ -124,7 +124,23 @@ public class JavdbDiscoveryRoutes {
             actionService.reEnqueueActressProfile(id);
             ctx.status(204);
         });
+
+        // ── Tag-health (Phase 3 maintenance dashboard) ─────────────────────
+
+        app.get("/api/javdb/discovery/tag-health", ctx ->
+                ctx.json(service.getTagHealthReport()));
+
+        app.post("/api/javdb/discovery/tag-health/{tagId}/surface", ctx -> {
+            long tagId;
+            try { tagId = Long.parseLong(ctx.pathParam("tagId")); }
+            catch (NumberFormatException e) { ctx.status(400); return; }
+            var body = ctx.bodyAsClass(SurfaceRequest.class);
+            service.setEnrichmentTagSurface(tagId, body.surface());
+            ctx.status(204);
+        });
     }
+
+    private record SurfaceRequest(boolean surface) {}
 
     private long parseId(io.javalin.http.Context ctx) {
         try {
