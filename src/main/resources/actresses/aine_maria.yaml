@@ -1,0 +1,46 @@
+profile:
+  name:
+    family_name: Aine
+    given_name: Maria
+    stage_name: 愛音まりあ
+    reading: あいね まりあ
+    alternate_names:
+    - name: まりあ
+      note: pre-debut alias used on Niconico Douga and Niconico Live for cosplay streams
+  date_of_birth: 1996-02-22
+  birthplace: Kanagawa Prefecture, Japan
+  blood_type: A
+  height_cm: 165
+  measurements:
+    bust: 86
+    waist: 59
+    hip: 88
+  cup: E
+  active_from: 2017-01-06
+  active_to: 2021-09-07
+  retirement_announced: 2021-08-06
+  biography: "Aine Maria built an online following before her industry debut as a cosplay streamer under the name 'まりあ' on Niconico Douga and Niconico Live, frequently changing costumes during broadcasts. Recruited from this fan base, she debuted on January 6, 2017, as an exclusive actress for PRESTIGE (BGN-041, 新人 プレステージ専属デビュー), represented by T-Powers (ティーパワーズ). She remained exclusively with PRESTIGE across its ABP and related sub-labels for her entire career of approximately four years and eight months. She was nominated for Best New Actress at the 2018 FANZA Adult Award and received an Excellent Actress Award at the 2019 FANZA Adult Award. She also made appearances on the Sun Television late-night variety program ケンコバのバコバコテレビ and published four photo books through GRAPHIS and REbecca. On August 6, 2021, she announced her retirement on Twitter, citing personal circumstances causing difficulties for those around her, with her final work ABP-772 released September 7, 2021."
+  primary_studios:
+  - name: PRESTIGE
+    company: PRESTIGE (プレステージ)
+    from: 2017-01-06
+    to: 2021-09-07
+    role: Exclusive contract actress
+  awards:
+  - year: 2018
+    ceremony: DMMアダルトアワード (FANZA Adult Award)
+    category: 最優秀新人女優賞
+    result: Nominated (did not win)
+  - year: 2019
+    ceremony: FANZAアダルトアワード
+    category: 優秀女優賞
+    result: Won
+  legacy: "One of PRESTIGE's flagship exclusive actresses during the 2017–2021 period, with a pre-industry Niconico fan base that gave her debut unusual marketing momentum. Published four photo books across her career and crossed over into mainstream variety television."
+
+meta:
+  confidence: "High confidence on all physical stats (from Japanese Wikipedia infobox), DOB, birthplace (Kanagawa), blood type A, debut date, studio, agency, and retirement announcement. Debut title code BGN-041 and final title code ABP-772 are from search-engine summaries of her Wikipedia filmography (medium-high confidence). The 2019 FANZA Excellent Actress Award is mentioned by multiple aggregators but could not be confirmed from the primary FANZA Wikipedia article directly (medium confidence)."
+  data_sources:
+  - https://ja.wikipedia.org/wiki/%E6%84%9B%E9%9F%B3%E3%81%BE%E3%82%8A%E3%81%82
+  - https://www.oricon.co.jp/prof/703152/
+  - https://www.wikidata.org/wiki/Q47582662
+  - https://www.talent-databank.co.jp/search/profile/2000097492
