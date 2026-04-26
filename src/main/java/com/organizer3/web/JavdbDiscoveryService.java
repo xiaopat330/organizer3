@@ -29,7 +29,10 @@ public class JavdbDiscoveryService {
             String stageName,
             int totalTitles,
             int enrichedTitles,
-            String actressStatus   // null | 'slug_only' | 'fetched'
+            String actressStatus,  // null | 'slug_only' | 'fetched'
+            boolean favorite,
+            boolean bookmark,
+            int activeJobs         // count of pending + in_flight fetch_title jobs for this actress
     ) {}
 
     public record TitleRow(
@@ -40,7 +43,8 @@ public class JavdbDiscoveryService {
             String titleOriginal,
             String releaseDate,
             String maker,
-            String publisher
+            String publisher,
+            String queueStatus     // null | 'pending' | 'in_flight' | 'failed' | 'done'
     ) {}
 
     public record ProfileRow(
@@ -60,6 +64,7 @@ public class JavdbDiscoveryService {
             long titleId,
             String code,
             String ourActressName,
+            String ourJavdbSlug,   // null if no staging profile yet
             String castJson
     ) {}
 
@@ -75,14 +80,24 @@ public class JavdbDiscoveryService {
                   a.id,
                   a.canonical_name,
                   a.stage_name,
+                  a.favorite,
+                  a.bookmark,
                   COUNT(DISTINCT ta.title_id)                                                       AS total_titles,
                   COUNT(DISTINCT CASE WHEN jts.status = 'fetched' THEN ta.title_id END)             AS enriched_titles,
-                  jas.status                                                                         AS actress_status
+                  jas.status                                                                         AS actress_status,
+                  COALESCE(MAX(jeq.active_jobs), 0)                                                 AS active_jobs
                 FROM actresses a
                 JOIN title_actresses ta ON ta.actress_id = a.id
                 LEFT JOIN javdb_title_staging jts ON jts.title_id = ta.title_id
                 LEFT JOIN javdb_actress_staging jas ON jas.actress_id = a.id
-                GROUP BY a.id, a.canonical_name, a.stage_name, jas.status
+                LEFT JOIN (
+                    SELECT actress_id, COUNT(*) AS active_jobs
+                    FROM javdb_enrichment_queue
+                    WHERE job_type = 'fetch_title'
+                      AND status IN ('pending', 'in_flight')
+                    GROUP BY actress_id
+                ) jeq ON jeq.actress_id = a.id
+                GROUP BY a.id, a.canonical_name, a.stage_name, a.favorite, a.bookmark, jas.status
                 ORDER BY a.canonical_name
                 """)
                 .map((rs, ctx) -> new ActressRow(
@@ -91,7 +106,10 @@ public class JavdbDiscoveryService {
                         rs.getString("stage_name"),
                         rs.getInt("total_titles"),
                         rs.getInt("enriched_titles"),
-                        rs.getString("actress_status")
+                        rs.getString("actress_status"),
+                        rs.getInt("favorite") != 0,
+                        rs.getInt("bookmark") != 0,
+                        rs.getInt("active_jobs")
                 ))
                 .list());
     }
@@ -110,10 +128,24 @@ public class JavdbDiscoveryService {
                   jts.title_original,
                   jts.release_date,
                   jts.maker,
-                  jts.publisher
+                  jts.publisher,
+                  jeq.effective_queue_status AS queue_status
                 FROM title_actresses ta
                 JOIN titles t ON t.id = ta.title_id
                 LEFT JOIN javdb_title_staging jts ON jts.title_id = ta.title_id
+                LEFT JOIN (
+                    SELECT target_id,
+                           CASE
+                             WHEN SUM(CASE WHEN status = 'in_flight' THEN 1 ELSE 0 END) > 0 THEN 'in_flight'
+                             WHEN SUM(CASE WHEN status = 'pending'   THEN 1 ELSE 0 END) > 0 THEN 'pending'
+                             WHEN SUM(CASE WHEN status = 'failed'    THEN 1 ELSE 0 END) > 0 THEN 'failed'
+                             WHEN SUM(CASE WHEN status = 'done'      THEN 1 ELSE 0 END) > 0 THEN 'done'
+                             ELSE NULL
+                           END AS effective_queue_status
+                    FROM javdb_enrichment_queue
+                    WHERE job_type = 'fetch_title'
+                    GROUP BY target_id
+                ) jeq ON jeq.target_id = t.id
                 WHERE ta.actress_id = :actressId
                 ORDER BY t.code
                 """)
@@ -126,7 +158,8 @@ public class JavdbDiscoveryService {
                         rs.getString("title_original"),
                         rs.getString("release_date"),
                         rs.getString("maker"),
-                        rs.getString("publisher")
+                        rs.getString("publisher"),
+                        rs.getString("queue_status")
                 ))
                 .list());
     }
@@ -162,17 +195,19 @@ public class JavdbDiscoveryService {
      */
     public List<ConflictRow> getActressConflicts(long actressId) {
         return jdbi.withHandle(h -> h.createQuery("""
-                SELECT t.id AS title_id, t.code, a.canonical_name AS our_actress_name, ts.cast_json
+                SELECT t.id AS title_id, t.code, a.canonical_name AS our_actress_name,
+                       jas.javdb_slug AS our_javdb_slug, ts.cast_json
                 FROM javdb_title_staging ts
                 JOIN titles t ON t.id = ts.title_id
                 JOIN title_actresses ta ON ta.title_id = t.id AND ta.actress_id = :actressId
                 JOIN actresses a ON a.id = :actressId
+                LEFT JOIN javdb_actress_staging jas ON jas.actress_id = :actressId
                 WHERE ts.status = 'fetched'
                   AND NOT EXISTS (
                     SELECT 1 FROM json_each(ts.cast_json) je
-                    JOIN javdb_actress_staging jas
-                        ON jas.javdb_slug = json_extract(je.value, '$.slug')
-                    WHERE jas.actress_id = :actressId
+                    JOIN javdb_actress_staging jas2
+                        ON jas2.javdb_slug = json_extract(je.value, '$.slug')
+                    WHERE jas2.actress_id = :actressId
                   )
                 ORDER BY t.code
                 """)
@@ -181,6 +216,7 @@ public class JavdbDiscoveryService {
                         rs.getLong("title_id"),
                         rs.getString("code"),
                         rs.getString("our_actress_name"),
+                        rs.getString("our_javdb_slug"),
                         rs.getString("cast_json")
                 ))
                 .list());

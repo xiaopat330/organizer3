@@ -38,11 +38,17 @@ class JavdbDiscoveryServiceTest {
     // ── helpers ────────────────────────────────────────────────────────────
 
     private long insertActress(String canonicalName, String stageName) {
+        return insertActressWithFlags(canonicalName, stageName, false, false);
+    }
+
+    private long insertActressWithFlags(String canonicalName, String stageName, boolean favorite, boolean bookmark) {
         return jdbi.withHandle(h ->
-                h.createUpdate("INSERT INTO actresses (canonical_name, stage_name, tier, first_seen_at) " +
-                               "VALUES (:cn, :sn, 'LIBRARY', '2024-01-01')")
+                h.createUpdate("INSERT INTO actresses (canonical_name, stage_name, tier, first_seen_at, favorite, bookmark) " +
+                               "VALUES (:cn, :sn, 'LIBRARY', '2024-01-01', :fav, :bkm)")
                         .bind("cn", canonicalName)
                         .bind("sn", stageName)
+                        .bind("fav", favorite ? 1 : 0)
+                        .bind("bkm", bookmark ? 1 : 0)
                         .executeAndReturnGeneratedKeys("id").mapTo(Long.class).one());
     }
 
@@ -76,6 +82,14 @@ class JavdbDiscoveryServiceTest {
                           "(job_type, target_id, actress_id, status, attempts, next_attempt_at, created_at, updated_at) " +
                           "VALUES ('actress', ?, ?, ?, 0, '2024-01-01T00:00:00Z', '2024-01-01T00:00:00Z', '2024-01-01T00:00:00Z')",
                         actressId, actressId, status));
+    }
+
+    private void insertTitleQueueRow(long titleId, long actressId, String status) {
+        jdbi.useHandle(h ->
+                h.execute("INSERT INTO javdb_enrichment_queue " +
+                          "(job_type, target_id, actress_id, status, attempts, next_attempt_at, created_at, updated_at) " +
+                          "VALUES ('fetch_title', ?, ?, ?, 0, '2024-01-01T00:00:00Z', '2024-01-01T00:00:00Z', '2024-01-01T00:00:00Z')",
+                        titleId, actressId, status));
     }
 
     // ── listActresses ──────────────────────────────────────────────────────
@@ -154,6 +168,52 @@ class JavdbDiscoveryServiceTest {
         assertNull(row.actressStatus());
     }
 
+    @Test
+    void listActresses_returnsFavoriteAndBookmarkFlags() {
+        long a1 = insertActressWithFlags("Favorite One", "F1", true, false);
+        long a2 = insertActressWithFlags("Bookmarked One", "B1", false, true);
+        long t1 = insertTitle("FAV-001");
+        long t2 = insertTitle("BKM-001");
+        linkActressTitle(a1, t1);
+        linkActressTitle(a2, t2);
+
+        List<JavdbDiscoveryService.ActressRow> rows = service.listActresses();
+        JavdbDiscoveryService.ActressRow fav = rows.stream().filter(r -> r.id() == a1).findFirst().orElseThrow();
+        JavdbDiscoveryService.ActressRow bkm = rows.stream().filter(r -> r.id() == a2).findFirst().orElseThrow();
+
+        assertTrue(fav.favorite());
+        assertFalse(fav.bookmark());
+        assertFalse(bkm.favorite());
+        assertTrue(bkm.bookmark());
+    }
+
+    @Test
+    void listActresses_countsActiveTitleQueueJobsOnly() {
+        long a = insertActress("Queued", "Q");
+        long t1 = insertTitle("QQ-001");
+        long t2 = insertTitle("QQ-002");
+        long t3 = insertTitle("QQ-003");
+        linkActressTitle(a, t1);
+        linkActressTitle(a, t2);
+        linkActressTitle(a, t3);
+        insertTitleQueueRow(t1, a, "pending");
+        insertTitleQueueRow(t2, a, "in_flight");
+        insertTitleQueueRow(t3, a, "done");       // done should not count
+
+        JavdbDiscoveryService.ActressRow row = service.listActresses().get(0);
+
+        assertEquals(2, row.activeJobs());
+    }
+
+    @Test
+    void listActresses_activeJobsZeroWhenNoneQueued() {
+        long a = insertActress("NoQueue", "NQ");
+        long t = insertTitle("NQ-001");
+        linkActressTitle(a, t);
+
+        assertEquals(0, service.listActresses().get(0).activeJobs());
+    }
+
     // ── getActressTitles ───────────────────────────────────────────────────
 
     @Test
@@ -182,6 +242,38 @@ class JavdbDiscoveryServiceTest {
         assertNull(row.status());
         assertNull(row.javdbSlug());
         assertNull(row.titleOriginal());
+        assertNull(row.queueStatus());
+    }
+
+    @Test
+    void getActressTitles_prioritisesInFlightOverPending() {
+        long a = insertActress("A", "A");
+        long t = insertTitle("QS-001");
+        linkActressTitle(a, t);
+        insertTitleQueueRow(t, a, "pending");
+        insertTitleQueueRow(t, a, "in_flight");
+
+        assertEquals("in_flight", service.getActressTitles(a).get(0).queueStatus());
+    }
+
+    @Test
+    void getActressTitles_showsPendingQueueStatus() {
+        long a = insertActress("A", "A");
+        long t = insertTitle("QS-002");
+        linkActressTitle(a, t);
+        insertTitleQueueRow(t, a, "pending");
+
+        assertEquals("pending", service.getActressTitles(a).get(0).queueStatus());
+    }
+
+    @Test
+    void getActressTitles_showsDoneQueueStatusWhenOnlyDone() {
+        long a = insertActress("A", "A");
+        long t = insertTitle("QS-003");
+        linkActressTitle(a, t);
+        insertTitleQueueRow(t, a, "done");
+
+        assertEquals("done", service.getActressTitles(a).get(0).queueStatus());
     }
 
     @Test

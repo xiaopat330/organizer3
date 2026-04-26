@@ -270,7 +270,7 @@
     </button>
     <button type="button" id="tools-javdb-discovery-btn" class="action-tool-btn tools-javdb-discovery-btn">
       <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-      javdb
+      Discovery
     </button>
   </div>
 </div>
@@ -487,20 +487,28 @@
     <span class="jd-queue-badge" id="jd-queue-badge" style="display:none"></span>
     <div class="jd-header-actions">
       <button type="button" id="jd-pause-btn" class="jd-action-btn jd-pause-btn">Pause</button>
-      <button type="button" id="jd-cancel-all-btn" class="jd-action-btn jd-danger-btn">Cancel All</button>
+      <button type="button" id="jd-cancel-all-btn" class="jd-action-btn jd-danger-btn">⏹ Stop All Enrichment</button>
     </div>
   </div>
   <div class="jd-body">
     <aside class="jd-sidebar" id="jd-sidebar">
-      <div class="jd-sidebar-header">Actresses</div>
+      <div class="jd-sidebar-header">
+        Actresses
+        <button type="button" id="jd-controls-toggle" class="jd-controls-toggle" title="Toggle filters">▾</button>
+      </div>
+      <div id="jd-controls" class="jd-controls">
+        <div id="jd-alpha-bar" class="jd-alpha-bar"></div>
+        <div id="jd-filter-bar" class="jd-filter-bar"></div>
+        <div id="jd-sort-bar" class="jd-sort-bar"></div>
+      </div>
       <ul class="jd-actress-list" id="jd-actress-list"></ul>
     </aside>
     <section class="jd-detail" id="jd-detail">
       <div class="jd-empty" id="jd-empty">Select an actress to view enrichment status.</div>
       <div class="jd-actress-panel" id="jd-actress-panel" style="display:none">
         <div class="jd-panel-actions">
-          <button type="button" id="jd-enrich-btn" class="jd-action-btn jd-enrich-btn">Enrich All Titles</button>
-          <button type="button" id="jd-cancel-actress-btn" class="jd-action-btn jd-muted-btn">Cancel</button>
+          <button type="button" id="jd-enrich-btn" class="jd-action-btn jd-enrich-btn">▶ Enrich All Titles</button>
+          <button type="button" id="jd-cancel-actress-btn" class="jd-action-btn jd-muted-btn">⏹ Stop Enrichment</button>
         </div>
         <div class="jd-subnav">
           <button type="button" class="jd-subtab selected" data-tab="titles">Titles</button>
