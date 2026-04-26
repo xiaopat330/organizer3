@@ -154,17 +154,17 @@ For every aliased enrichment tag on every enriched title, one new row is added t
 - **Phase 3c seeding script** — operates on `enrichment_tag_definitions.curated_alias` only; no schema change. The user's workflow is unchanged.
 - **AV Stars system** — out of scope. Its parallel tag tables stay parallel.
 
-## Open Questions
+## Open Questions — Resolved
 
-1. **Surface visibility — keep blurred?** Recommendation: yes, ship blurred; add source-aware rendering later only if needed. Confirm.
+1. **Surface visibility** — ship blurred. No provenance in the default UI; add source-aware rendering later only if a real need emerges.
 
-2. **Bulk-rebuild trigger after `--apply`** — should the seed script automatically run the rebuild as a final step (one less user action), or stay as a separate step (more explicit)? Recommendation: separate, but print a hint at the end of `--apply` saying "now run `rebuild-effective-tags`".
+2. **Bulk-rebuild trigger after `--apply`** — keep the rebuild as a separate explicit step. The script's `--apply` will print a hint at the end pointing at the rebuild command.
 
-3. **What about enrichment tags whose `curated_alias` points to a tag that's in `reference/tags.yaml` but hasn't been loaded into the `tags` table?** The script's `--apply` already warns about this. The integration's `IN (SELECT name FROM tags)` guard silently skips those rows. Should we instead auto-load `tags.yaml` into `tags` as part of `--apply`, or rebuild? Recommendation: leave separate — tag loading is its own existing concern.
+3. **Auto-load `tags.yaml` on `--apply`** — leave separate; tag loading is its own concern with its own command.
 
-4. **Editing tags in the title editor** — the editor currently writes to `title_tags`. After Phase 4, a title may show `busty` in its badges purely from enrichment derivation. If a user clicks "Tags" to edit and removes `busty`, what happens? The direct row gets removed (or stays absent), but the enrichment-derived row keeps showing it. Does the user need to know they can't "really" remove it from there? Recommendation: out-of-scope for this proposal; tag editor remains direct-only and the UX clarification can come later if it confuses users.
+4. **Editing tags in the title editor — enrichment-derived rows visible but not editable.** Apply the same rule as label-inherited tags: any tag from a read-only source (label or enrichment) appears as an immutable always-on toggle in the editor. User cannot uncheck it; the only way to "remove" it is to remove the underlying source (the label tag, or the enrichment alias). This unifies the editor UX across both derived sources.
 
-5. **`title_effective_tags` rebuild perf at full library scale** — the existing `recomputeAll` is single-threaded, per-title. With ~50K titles eventually, this could take minutes. We may need to convert the bulk rebuild to a single bulk-INSERT-from-SELECT statement. Recommendation: the new INSERT can be written as a single bulk statement now (the existing per-title pattern is for incremental recompute). Worth doing in this phase.
+5. **`title_effective_tags` rebuild perf** — write the new INSERT as a single bulk statement (one `INSERT … SELECT` per source), not per-title. Avoids the future scaling cliff at full library size.
 
 ## Estimated Scope
 
