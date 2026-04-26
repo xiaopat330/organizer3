@@ -176,7 +176,7 @@ public class EnrichmentRunner {
         Title title = maybeTitle.get();
         log.info("javdb: fetching {}", title.getCode());
 
-        Optional<String> maybeSlug = searchParser.parseFirstSlug(client.searchByCode(title.getCode()));
+        Optional<String> maybeSlug = searchParser.parseFirstSlug(client.searchByCode(lookupCode(title.getCode())));
         if (maybeSlug.isEmpty()) {
             log.warn("javdb: no results for {} — marking not_found", title.getCode());
             queue.markPermanentlyFailed(job.id(), "not_found");
@@ -270,6 +270,14 @@ public class EnrichmentRunner {
         // title jobs finish. Fire on first slug discovery.
         queue.enqueueActressProfile(actressId);
         log.info("javdb: enqueued fetch_actress_profile for actress {}", actressId);
+    }
+
+    /**
+     * Strips variant suffixes from a title code before searching javdb.
+     * e.g. "SONE-038_4K" → "SONE-038", "SONE-038-4K" → "SONE-038", "DV-948" → "DV-948".
+     */
+    static String lookupCode(String code) {
+        return code.replaceFirst("(?i)(^[A-Za-z]+-\\d+)[-_].+$", "$1");
     }
 
     private void sleepInterruptibly(long ms) {

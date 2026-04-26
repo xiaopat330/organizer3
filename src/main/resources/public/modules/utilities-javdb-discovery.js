@@ -472,8 +472,8 @@ async function fetchAndRenderTitles() {
 function titleEffectiveStatus(t) {
   if (t.queueStatus === 'in_flight') return { key: 'in_flight', label: '⟳ In Progress' };
   if (t.queueStatus === 'pending')   return { key: 'pending',   label: '◌ Queued' };
-  if (t.queueStatus === 'failed')    return { key: 'failed',    label: '✗ Failed' };
   if (t.status === 'fetched')        return { key: 'fetched',   label: '✓ Enriched' };
+  if (t.queueStatus === 'failed')    return { key: 'failed',    label: '✗ Failed' };
   if (t.status === 'slug_only')      return { key: 'slug_only', label: '⌁ Slug Only' };
   if (t.queueStatus === 'done')      return { key: 'done',      label: '✓ Done' };
   return { key: 'none', label: '— Not Started' };

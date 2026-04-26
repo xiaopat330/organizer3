@@ -130,6 +130,57 @@ class EnrichmentRunnerTest {
         assertEquals(0, queue.countPending());
     }
 
+    // ── lookupCode ─────────────────────────────────────────────────────────────
+
+    @Test
+    void lookupCode_stripsUnderscoreSuffix() {
+        assertEquals("SONE-038", EnrichmentRunner.lookupCode("SONE-038_4K"));
+    }
+
+    @Test
+    void lookupCode_stripsDashSuffix() {
+        assertEquals("SONE-038", EnrichmentRunner.lookupCode("SONE-038-4K"));
+    }
+
+    @Test
+    void lookupCode_leavesPlainCodeUnchanged() {
+        assertEquals("DV-948", EnrichmentRunner.lookupCode("DV-948"));
+    }
+
+    @Test
+    void lookupCode_leavesMultiDigitCodeUnchanged() {
+        assertEquals("ABP-123", EnrichmentRunner.lookupCode("ABP-123"));
+    }
+
+    @Test
+    void fetchTitle_searchesWithStrippedCode_whenTitleHasSuffix() throws Exception {
+        long titleId = jdbi.withHandle(h ->
+                h.createUpdate("INSERT INTO titles (code, base_code, label, seq_num) VALUES ('SONE-038_4K', 'SONE', 'SONE', 38)")
+                        .executeAndReturnGeneratedKeys("id").mapTo(Long.class).one());
+        long actressId = jdbi.withHandle(h ->
+                h.createUpdate("INSERT INTO actresses (canonical_name, stage_name, tier, first_seen_at) VALUES ('Test', 'Test', 'LIBRARY', '2024-01-01')")
+                        .executeAndReturnGeneratedKeys("id").mapTo(Long.class).one());
+
+        var capturedCode = new String[1];
+        JavdbClient fakeClient = new JavdbClient() {
+            @Override public String searchByCode(String code) {
+                capturedCode[0] = code;
+                return "<html><body>no results</body></html>";
+            }
+            @Override public String fetchTitlePage(String slug) { throw new AssertionError("not expected"); }
+            @Override public String fetchActressPage(String slug) { throw new AssertionError("not expected"); }
+        };
+
+        EnrichmentRunner runner = new EnrichmentRunner(
+                CONFIG, fakeClient, extractor, projector, stagingRepo, queue, titleRepo, actressRepo,
+                new AutoPromoter(jdbi));
+
+        queue.enqueueTitle(titleId, actressId);
+        runner.runOneStep();
+
+        assertEquals("SONE-038", capturedCode[0]);
+    }
+
     private String loadFixture(String name) throws IOException, URISyntaxException {
         var url = getClass().getClassLoader().getResource("javdb/" + name);
         assertNotNull(url, "fixture not found: " + name);
