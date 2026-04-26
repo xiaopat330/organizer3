@@ -1,0 +1,44 @@
+profile:
+  name:
+    family_name: Hanano
+    given_name: Mai
+    stage_name: 花野真衣
+    reading: はなの まい
+    alternate_names:
+    - name: SHIHO
+      note: mid-career stage name used after S1 exclusive period
+    - name: 黒木麻衣
+      note: final stage name adopted October 2009; used until retirement in 2010
+  date_of_birth: 1983-10-21
+  birthplace: Tokyo, Japan
+  blood_type: null
+  height_cm: 168
+  measurements:
+    bust: 90
+    waist: 57
+    hip: 88
+  cup: null
+  active_from: 2004-12-01
+  active_to: 2010-12-31
+  retirement_announced: 2010-07-31
+  biography: "Hanano Mai debuted in December 2004 with the title 『艶色BODY 悩殺く・び・れ』 under an exclusive contract with h.m.p. In May 2005 she moved to S1 No.1 Style, debuting there with 『セル初×ギリギリモザイク』 as an exclusive actress. She transitioned to freelance status in 2007, working across multiple studios under both the Hanano Mai and SHIHO names. In October 2009 she adopted the final stage name 黒木麻衣 (Kuroki Mai). On July 31, 2010, she announced her retirement on her official blog, effective end of 2010; the blog was subsequently closed. Her career spanned approximately six years across all three names."
+  primary_studios:
+  - name: h.m.p.
+    company: h.m.p.
+    from: 2004-12-01
+    to: 2005-04-30
+    role: Exclusive contract actress
+  - name: S1 No.1 Style
+    company: S1
+    from: 2005-05-01
+    to: 2007-01-01
+    role: Exclusive contract actress
+  awards: null
+  legacy: null
+
+meta:
+  confidence: "High confidence on all three stage names, DOB (1983-10-21), birthplace (Tokyo), debut date, debut studio, S1 exclusive period, freelance transition, name change dates, retirement announcement. Height 168 cm and measurements B90/W57/H88 are medium confidence — sourced from a fan-compiled Flickr group profile panel; no official agency source was accessible. Blood type and cup size not found in any source."
+  data_sources:
+  - https://ja.wikipedia.org/wiki/%E9%BB%92%E6%9C%A8%E9%BA%BB%E8%A1%A3
+  - https://www.wikidata.org/wiki/Q8972331
+  - https://www.hmv.co.jp/en/artist_%E9%BB%92%E6%9C%A8%E9%BA%BB%E8%A1%A3%EF%BC%88%E8%8A%B1%E9%87%8E%E7%9C%9F%E8%A1%A3%E3%80%81SHIHO%EF%BC%89_600000000000063/
