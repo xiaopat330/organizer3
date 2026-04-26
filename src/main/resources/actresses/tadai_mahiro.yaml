@@ -1,0 +1,49 @@
+profile:
+  name:
+    family_name: Tadai
+    given_name: Mahiro
+    stage_name: 唯井まひろ
+    reading: ただい まひろ
+    alternate_names:
+    - name: まひろ
+      note: solo hiragana stage name used for gravure debut before AV debut (April 2018)
+  date_of_birth: 2000-03-04
+  birthplace: Tokyo, Japan
+  blood_type: AB
+  height_cm: 156
+  measurements:
+    bust: 90
+    waist: 58
+    hip: 97
+  cup: F
+  active_from: 2018-06-01
+  active_to: null
+  retirement_announced: null
+  biography: "Tadai Mahiro debuted in gravure on April 16, 2018, appearing in a nude spread in Shueisha's Weekly Playboy No. 18 under the name 'まひろ'. She transitioned to AV on May 14, 2018, adopting the stage name 唯井まひろ and signing exclusively with SOD Create under the SODstar label; her debut title 'SODstar 唯井まひろ 18歳 AV DEBUT' was the first SOD Blu-ray debut release since September 2014. She swept the newcomer awards season: she won Best Newcomer at the スカパー!アダルト放送大賞 2019 (March 12, 2019), shared the 最優秀新人賞 at SOD AWARD 2019 with 本庄鈴 (March 21, 2019), and received the 話題賞 at the FANZA Adult Award 2019 (May 12, 2019). Alongside her AV career she built a substantial presence as a YouTube gaming streamer, operating the channel 'まひろにあ帝国' with a focus on League of Legends; she reached top ranking among Japanese LoL streamers while disabling donation features. She has continued releasing titles exclusively with SODstar through at least 2025, holding anniversary events annually in Tokyo."
+  primary_studios:
+  - name: SOD Create / SODstar
+    company: Soft on Demand
+    from: 2018-06-01
+    to: null
+    role: Exclusive contract actress (SODstar label)
+  awards:
+  - year: 2019
+    ceremony: スカパー!アダルト放送大賞
+    category: 新人女優賞
+    result: Won
+  - year: 2019
+    ceremony: SOD AWARD 2019
+    category: 最優秀新人賞
+    result: Won (shared with 本庄鈴)
+  - year: 2019
+    ceremony: FANZA Adult Award
+    category: 最優秀新人女優賞
+    result: Nominated; won 話題賞
+  legacy: "One of the most decorated SODstar newcomers of the 2018–2019 era, sweeping all three major newcomer awards. Her dual career as a top-ranked League of Legends streamer and AV actress gave her an unusually broad cross-demographic following, with approximately 378,000 YouTube subscribers and 440,000 Twitter followers by 2025."
+
+meta:
+  confidence: "High on DOB, height, measurements (from Mines official profile), studio, and award results. Blood type AB reported by aggregator databases (medium confidence — not directly confirmed on Mines or Wikipedia). The SODstar label relationship is confirmed throughout career with no studio change found."
+  data_sources:
+  - https://ja.wikipedia.org/wiki/%E5%94%AF%E4%BA%95%E3%81%BE%E3%81%B2%E3%82%8D
+  - https://mines-pro.jp/model/10713
+  - https://www.wikidata.org/wiki/Q54863030
