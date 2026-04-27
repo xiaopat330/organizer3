@@ -19,7 +19,7 @@ import org.jdbi.v3.core.Jdbi;
 public class SchemaUpgrader {
 
     /** Must match the version stamped by {@link SchemaInitializer}. */
-    private static final int CURRENT_VERSION = 26;
+    private static final int CURRENT_VERSION = 27;
 
     private final Jdbi jdbi;
 
@@ -153,7 +153,21 @@ public class SchemaUpgrader {
             setVersion(26);
         }
 
+        if (version < 27) {
+            applyV27();
+            setVersion(27);
+        }
+
         log.info("Schema upgrade complete");
+    }
+
+    /**
+     * v27: javdb_actress_staging.local_avatar_path — stores the relative path
+     * (under dataDir) to a locally cached actress avatar. See spec/PROPOSAL_ACTRESS_AVATARS.md.
+     */
+    private void applyV27() {
+        log.info("Applying migration v27: javdb_actress_staging.local_avatar_path");
+        jdbi.useHandle(h -> addColumnIfMissing(h, "javdb_actress_staging", "local_avatar_path", "TEXT"));
     }
 
     /**

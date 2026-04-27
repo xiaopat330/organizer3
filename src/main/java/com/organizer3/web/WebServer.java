@@ -181,6 +181,14 @@ public class WebServer {
         mcp.register(app);
     }
 
+    /**
+     * Mounts {@code /actress-avatars/{file}} serving locally cached actress avatars.
+     * See {@code spec/PROPOSAL_ACTRESS_AVATARS.md}.
+     */
+    public void registerAvatarRoutes(com.organizer3.web.routes.AvatarRoutes routes) {
+        routes.register(app);
+    }
+
     private void registerRoutes(TitleBrowseService browseService,
                                 ActressBrowseService actressBrowseService, Path coversRoot,
                                 VideoStreamService videoStreamService,

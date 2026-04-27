@@ -394,7 +394,8 @@ public class ActressBrowseService {
             Map<String, Label> labelMap,
             Map<Long, List<ActressAlias>> aliasesByActress,
             Map<String, Long> aliasNameToActressId,
-            Map<String, Actress> primaryByCanonicalName
+            Map<String, Actress> primaryByCanonicalName,
+            Map<Long, String> localAvatarUrlByActress
     ) {}
 
     private List<ActressSummary> toSummaries(List<Actress> actresses, String label) {
@@ -456,9 +457,26 @@ public class ActressBrowseService {
                 label, ids.size(), totalTitles,
                 t1-t0, t2-t1, t3-t2, t4-t3, t5-t4, t6-t5, t6-t0);
 
+        // 7. Local avatar URLs from javdb_actress_staging — used by the actress detail page.
+        Map<Long, String> localAvatarUrlByActress = ids.isEmpty()
+                ? java.util.Map.of()
+                : jdbi.withHandle(h -> h.createQuery("""
+                        SELECT actress_id, local_avatar_path
+                        FROM javdb_actress_staging
+                        WHERE actress_id IN (<ids>)
+                          AND local_avatar_path IS NOT NULL
+                        """)
+                        .bindList("ids", ids)
+                        .map((rs, c) -> Map.entry(rs.getLong("actress_id"),
+                                "/" + rs.getString("local_avatar_path")))
+                        .list()
+                        .stream()
+                        .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue)));
+
         return new SummaryContext(
                 titlesByActress, coverUrlByTitleId, labelMap,
-                aliasesByActress, aliasNameToActressId, primaryByCanonicalName);
+                aliasesByActress, aliasNameToActressId, primaryByCanonicalName,
+                localAvatarUrlByActress);
     }
 
     private ActressSummary toSummary(Actress actress, SummaryContext ctx) {
@@ -594,6 +612,7 @@ public class ActressBrowseService {
                 .primaryActressName(primaryActress != null ? primaryActress.getCanonicalName() : null)
                 .visitCount(actress.getVisitCount())
                 .lastVisitedAt(actress.getLastVisitedAt() != null ? actress.getLastVisitedAt().toString() : null)
+                .localAvatarUrl(ctx.localAvatarUrlByActress().get(actress.getId()))
                 .build();
     }
 

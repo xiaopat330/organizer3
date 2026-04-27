@@ -162,12 +162,12 @@ public class JavdbStagingRepository {
                     actress_id, javdb_slug, source_title_code, status,
                     raw_path, raw_fetched_at,
                     name_variants_json, avatar_url,
-                    twitter_handle, instagram_handle, title_count
+                    twitter_handle, instagram_handle, title_count, local_avatar_path
                 ) VALUES (
                     :actressId, :javdbSlug, :sourceTitleCode, :status,
                     :rawPath, :rawFetchedAt,
                     :nameVariantsJson, :avatarUrl,
-                    :twitterHandle, :instagramHandle, :titleCount
+                    :twitterHandle, :instagramHandle, :titleCount, :localAvatarPath
                 )
                 ON CONFLICT(actress_id) DO UPDATE SET
                     javdb_slug         = excluded.javdb_slug,
@@ -178,7 +178,8 @@ public class JavdbStagingRepository {
                     avatar_url         = excluded.avatar_url,
                     twitter_handle     = excluded.twitter_handle,
                     instagram_handle   = excluded.instagram_handle,
-                    title_count        = excluded.title_count
+                    title_count        = excluded.title_count,
+                    local_avatar_path  = COALESCE(excluded.local_avatar_path, javdb_actress_staging.local_avatar_path)
                 """)
                 .bind("actressId",       row.actressId())
                 .bind("javdbSlug",       row.javdbSlug())
@@ -191,6 +192,16 @@ public class JavdbStagingRepository {
                 .bind("twitterHandle",   row.twitterHandle())
                 .bind("instagramHandle", row.instagramHandle())
                 .bind("titleCount",      row.titleCount())
+                .bind("localAvatarPath", row.localAvatarPath())
+                .execute());
+    }
+
+    /** Sets the local_avatar_path on an existing actress staging row. */
+    public void updateLocalAvatarPath(long actressId, String localAvatarPath) {
+        jdbi.useHandle(h -> h.createUpdate(
+                "UPDATE javdb_actress_staging SET local_avatar_path = :path WHERE actress_id = :actressId")
+                .bind("actressId", actressId)
+                .bind("path", localAvatarPath)
                 .execute());
     }
 
@@ -229,6 +240,53 @@ public class JavdbStagingRepository {
                 .list());
     }
 
+    /**
+     * For an actress whose titles have been (partly) enriched, returns the count of
+     * her enriched titles per cast-slug that appears in their cast_json. Used to derive
+     * a javdb slug from cast structure when name-matching has failed.
+     *
+     * <p>Result is sorted by count descending. The slug with the highest count across
+     * her titles is the strongest candidate (it's the only constant cast member across
+     * her varied co-stars). Returns empty if she has no enriched titles.
+     */
+    public record CastSlugCount(String slug, String name, int titleCount, String sampleTitleCode) {}
+    public List<CastSlugCount> findEnrichedCastSlugCounts(long actressId) {
+        return jdbi.withHandle(h -> h.createQuery("""
+                SELECT json_extract(je.value, '$.slug') AS slug,
+                       MAX(json_extract(je.value, '$.name')) AS name,
+                       COUNT(DISTINCT t.id)              AS title_count,
+                       MIN(t.code)                       AS sample_code
+                FROM title_actresses ta
+                JOIN titles t ON t.id = ta.title_id
+                JOIN title_javdb_enrichment tje ON tje.title_id = ta.title_id
+                JOIN json_each(tje.cast_json) je
+                WHERE ta.actress_id = :actressId
+                  AND json_extract(je.value, '$.slug') IS NOT NULL
+                GROUP BY slug
+                ORDER BY title_count DESC, slug
+                """)
+                .bind("actressId", actressId)
+                .map((rs, ctx) -> new CastSlugCount(
+                        rs.getString("slug"),
+                        rs.getString("name"),
+                        rs.getInt("title_count"),
+                        rs.getString("sample_code")))
+                .list());
+    }
+
+    /** Total count of enriched titles for the given actress. */
+    public int countEnrichedTitlesForActress(long actressId) {
+        return jdbi.withHandle(h -> h.createQuery("""
+                SELECT COUNT(*)
+                FROM title_actresses ta
+                JOIN title_javdb_enrichment tje ON tje.title_id = ta.title_id
+                WHERE ta.actress_id = :actressId
+                """)
+                .bind("actressId", actressId)
+                .mapTo(Integer.class)
+                .one());
+    }
+
     public Optional<JavdbActressStagingRow> findActressStaging(long actressId) {
         return jdbi.withHandle(h -> h.createQuery(
                 "SELECT * FROM javdb_actress_staging WHERE actress_id = :actressId")
@@ -244,7 +302,8 @@ public class JavdbStagingRepository {
                         rs.getString("avatar_url"),
                         rs.getString("twitter_handle"),
                         rs.getString("instagram_handle"),
-                        rs.getObject("title_count") != null ? rs.getInt("title_count") : null
+                        rs.getObject("title_count") != null ? rs.getInt("title_count") : null,
+                        rs.getString("local_avatar_path")
                 ))
                 .findOne());
     }

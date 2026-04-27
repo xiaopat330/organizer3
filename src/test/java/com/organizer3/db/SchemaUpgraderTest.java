@@ -54,7 +54,7 @@ class SchemaUpgraderTest {
 
         new SchemaUpgrader(jdbi).upgrade();
 
-        assertEquals(26, currentVersion());
+        assertEquals(27, currentVersion());
         boolean present = jdbi.withHandle(h ->
                 h.createQuery("SELECT COUNT(*) FROM pragma_table_info('actresses') WHERE name='needs_profiling'")
                         .mapTo(Integer.class).one() > 0);
@@ -68,7 +68,7 @@ class SchemaUpgraderTest {
                 h.createQuery("SELECT COUNT(*) FROM pragma_table_info('actresses') WHERE name='needs_profiling'")
                         .mapTo(Integer.class).one() > 0);
         assertTrue(present, "fresh install should include needs_profiling");
-        assertEquals(26, currentVersion(), "fresh install should stamp current version");
+        assertEquals(27, currentVersion(), "fresh install should stamp current version");
     }
 
     @Test
@@ -84,7 +84,7 @@ class SchemaUpgraderTest {
 
         new SchemaUpgrader(jdbi).upgrade();
 
-        assertEquals(26, currentVersion());
+        assertEquals(27, currentVersion());
         boolean sizeBytesPresent = jdbi.withHandle(h ->
                 h.createQuery("SELECT COUNT(*) FROM pragma_table_info('videos') WHERE name='size_bytes'")
                         .mapTo(Integer.class).one() > 0);
@@ -106,7 +106,7 @@ class SchemaUpgraderTest {
 
         new SchemaUpgrader(jdbi).upgrade();
 
-        assertEquals(26, currentVersion());
+        assertEquals(27, currentVersion());
         assertTrue(columnExists("titles",    "favorite_cleared_at"));
         assertTrue(columnExists("actresses", "favorite_cleared_at"));
 
@@ -132,7 +132,7 @@ class SchemaUpgraderTest {
 
         new SchemaUpgrader(jdbi).upgrade();
 
-        assertEquals(26, currentVersion());
+        assertEquals(27, currentVersion());
         boolean tableExists = jdbi.withHandle(h ->
                 h.createQuery("SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='merge_candidates'")
                         .mapTo(Integer.class).one() > 0);
@@ -217,7 +217,7 @@ class SchemaUpgraderTest {
 
         // Run the migration.
         new SchemaUpgrader(jdbi).upgrade();
-        assertEquals(26, currentVersion());
+        assertEquals(27, currentVersion());
 
         // Enrichment rows: 5 fixture titles + the malformed-tags title (it still has slug + status='fetched');
         // not_found row should be excluded.

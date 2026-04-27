@@ -51,7 +51,8 @@ public class JavdbProjector {
                 extract.avatarUrl(),
                 extract.twitterHandle(),
                 extract.instagramHandle(),
-                extract.titleCount()
+                extract.titleCount(),
+                null // localAvatarPath set after avatar download
         );
     }
 

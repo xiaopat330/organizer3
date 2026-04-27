@@ -110,7 +110,7 @@ class JavdbStagingRepositoryTest {
                 10L, "ex3z", "DV-948", "fetched",
                 "javdb_raw/actress/ex3z.json", "2024-01-01T00:00:00Z",
                 "[\"麻美ゆま\"]", "https://cdn.example.com/avatar.jpg",
-                "yuma_asami", "yuma_asami_ig", 870);
+                "yuma_asami", "yuma_asami_ig", 870, null);
         repo.upsertActress(row);
 
         Optional<JavdbActressStagingRow> found = repo.findActressStaging(10L);
@@ -118,6 +118,40 @@ class JavdbStagingRepositoryTest {
         assertEquals("fetched", found.get().status());
         assertEquals("[\"麻美ゆま\"]", found.get().nameVariantsJson());
         assertEquals(870, found.get().titleCount());
+        assertNull(found.get().localAvatarPath());
+    }
+
+    @Test
+    void updateLocalAvatarPath_setsPath() {
+        JavdbActressStagingRow row = new JavdbActressStagingRow(
+                11L, "ex3z", "DV-948", "fetched",
+                "javdb_raw/actress/ex3z.json", "2024-01-01T00:00:00Z",
+                null, "https://cdn.example.com/avatar.jpg", null, null, 0, null);
+        repo.upsertActress(row);
+
+        repo.updateLocalAvatarPath(11L, "actress-avatars/ex3z.jpg");
+
+        Optional<JavdbActressStagingRow> found = repo.findActressStaging(11L);
+        assertTrue(found.isPresent());
+        assertEquals("actress-avatars/ex3z.jpg", found.get().localAvatarPath());
+    }
+
+    @Test
+    void upsertActress_preservesLocalAvatarPathOnConflict() {
+        JavdbActressStagingRow first = new JavdbActressStagingRow(
+                12L, "abcd", null, "fetched", null, null, null,
+                "https://cdn.example.com/a.jpg", null, null, 0, null);
+        repo.upsertActress(first);
+        repo.updateLocalAvatarPath(12L, "actress-avatars/abcd.jpg");
+
+        // Simulate a re-fetch — the new row carries no localAvatarPath, but the existing
+        // value should be preserved (download is idempotent and runs separately).
+        repo.upsertActress(new JavdbActressStagingRow(
+                12L, "abcd", null, "fetched", "newpath.json", "2024-02-01T00:00:00Z", null,
+                "https://cdn.example.com/a.jpg", null, null, 0, null));
+
+        assertEquals("actress-avatars/abcd.jpg",
+                repo.findActressStaging(12L).orElseThrow().localAvatarPath());
     }
 
     @Test
