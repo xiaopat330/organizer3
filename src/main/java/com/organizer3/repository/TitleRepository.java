@@ -174,7 +174,7 @@ public interface TitleRepository {
      * all of the given tags (direct or label-derived). Pass empty lists to skip that dimension.
      * Ordered by favorite → bookmark → newest first.
      */
-    List<Title> findByActressTagsFiltered(long actressId, List<String> labels, List<String> tags, int limit, int offset);
+    List<Title> findByActressTagsFiltered(long actressId, List<String> labels, List<String> tags, List<Long> enrichmentTagIds, int limit, int offset);
 
     /**
      * Find titles on a volume, optionally restricted to label codes and/or requiring all tags.

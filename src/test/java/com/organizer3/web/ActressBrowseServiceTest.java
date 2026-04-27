@@ -235,7 +235,7 @@ class ActressBrowseServiceTest {
         when(labelRepo.findAllAsMap()).thenReturn(
                 Map.of("ABP", new Label("ABP", "Absolutely Perfect", "Prestige", null, null)));
 
-        TitleSummary s = service.findTitlesByActress(1L, 0, 24, null, List.of()).get(0);
+        TitleSummary s = service.findTitlesByActress(1L, 0, 24, null, List.of(), List.of()).get(0);
         assertEquals("Prestige", s.getCompanyName());
         assertEquals("Absolutely Perfect", s.getLabelName());
         assertEquals(1L, s.getActressId());
@@ -260,7 +260,7 @@ class ActressBrowseServiceTest {
         when(coverPath.find(any())).thenReturn(Optional.empty());
         when(labelRepo.findAllAsMap()).thenReturn(Map.of("ABP", label));
 
-        List<String> tags = service.findTitlesByActress(1L, 0, 24, null, List.of()).get(0).getTags();
+        List<String> tags = service.findTitlesByActress(1L, 0, 24, null, List.of(), List.of()).get(0).getTags();
         assertEquals(1, tags.stream().filter("solo-actress"::equals).count(), "solo-actress must appear once");
         assertTrue(tags.contains("creampie"));
         assertTrue(tags.contains("exclusive-actress"));

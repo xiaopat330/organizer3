@@ -259,13 +259,40 @@ public class ActressBrowseService {
                 .list());
     }
 
+    public record ActressEnrichmentTag(long id, String name, String curatedAlias, boolean surface, int titleCount) {}
+
+    /**
+     * Returns enrichment tag definitions that appear on at least one of the actress's titles,
+     * with a title count scoped to this actress. Sorted by name.
+     */
+    public List<ActressEnrichmentTag> findEnrichmentTagsForActress(long actressId) {
+        return jdbi.withHandle(h -> h.createQuery("""
+                SELECT etd.id, etd.name, etd.curated_alias, etd.surface, COUNT(DISTINCT tet.title_id) AS title_count
+                FROM enrichment_tag_definitions etd
+                JOIN title_enrichment_tags tet ON tet.tag_id = etd.id
+                JOIN title_actresses ta ON ta.title_id = tet.title_id
+                WHERE ta.actress_id = :actressId
+                GROUP BY etd.id
+                ORDER BY etd.name
+                """)
+                .bind("actressId", actressId)
+                .map((rs, ctx) -> new ActressEnrichmentTag(
+                        rs.getLong("id"),
+                        rs.getString("name"),
+                        rs.getString("curated_alias"),
+                        rs.getInt("surface") != 0,
+                        rs.getInt("title_count")
+                ))
+                .list());
+    }
+
     /**
      * Returns a paginated list of title summaries for the given actress, ordered newest-first.
      * If {@code company} is non-null, only titles whose label belongs to that company are returned.
      * If {@code tags} is non-empty, only titles carrying all of those tags (direct or label-derived)
      * are returned. The two filters are combined with AND.
      */
-    public List<TitleSummary> findTitlesByActress(long actressId, int offset, int limit, String company, List<String> tags) {
+    public List<TitleSummary> findTitlesByActress(long actressId, int offset, int limit, String company, List<String> tags, List<Long> enrichmentTagIds) {
         Map<String, Label> labelMap = labelRepo.findAllAsMap();
 
         List<String> matchingLabels = List.of();
@@ -277,15 +304,19 @@ public class ActressBrowseService {
         }
 
         List<Title> titles;
-        boolean hasTags   = tags != null && !tags.isEmpty();
-        boolean hasLabels = !matchingLabels.isEmpty();
+        boolean hasTags        = tags != null && !tags.isEmpty();
+        boolean hasEnrichTags  = enrichmentTagIds != null && !enrichmentTagIds.isEmpty();
+        boolean hasLabels      = !matchingLabels.isEmpty();
 
-        if (hasTags) {
-            // new path: use the combined filter (handles optional labels too)
+        if (hasTags || hasEnrichTags) {
+            // use the combined filter (handles optional labels too)
             if (company != null && !company.isBlank() && matchingLabels.isEmpty()) {
                 titles = List.of(); // company specified but no known labels → no results
             } else {
-                titles = titleRepo.findByActressTagsFiltered(actressId, matchingLabels, tags, limit, offset);
+                titles = titleRepo.findByActressTagsFiltered(actressId, matchingLabels,
+                        tags != null ? tags : List.of(),
+                        enrichmentTagIds != null ? enrichmentTagIds : List.of(),
+                        limit, offset);
             }
         } else if (hasLabels) {
             titles = titleRepo.findByActressAndLabelsPaged(actressId, matchingLabels, limit, offset);

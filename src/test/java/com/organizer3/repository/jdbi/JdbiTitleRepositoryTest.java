@@ -282,6 +282,54 @@ class JdbiTitleRepositoryTest {
         assertEquals("ABP-001", results.get(0).getCode());
     }
 
+    // --- findByActressTagsFiltered with enrichment tags ---
+
+    @Test
+    void findByActressTagsFilteredEnrichmentTagIdsFiltersCorrectly() {
+        Actress aya = actressRepo.save(actress("Aya Sazanami"));
+        Actress hibiki = actressRepo.save(actress("Hibiki Otsuki"));
+        Title t1 = saveWithLocation(title("ABP-001", aya.getId()), "vol-a", "stars/library", "/mnt/vol-a/stars/library/ABP-001");
+        Title t2 = saveWithLocation(title("ABP-002", aya.getId()), "vol-a", "stars/library", "/mnt/vol-a/stars/library/ABP-002");
+        saveWithLocation(title("SSIS-001", hibiki.getId()), "vol-a", "stars/library", "/mnt/vol-a/stars/library/SSIS-001");
+
+        // Insert enrichment tag definition and wire t1 to it
+        jdbi.useHandle(h -> {
+            h.execute("INSERT INTO enrichment_tag_definitions (id, name, title_count, surface) VALUES (10, 'big-tits', 1, 1)");
+            h.execute("INSERT INTO enrichment_tag_definitions (id, name, title_count, surface) VALUES (11, 'cosplay', 1, 1)");
+            // Link title_actresses (needed for findEnrichmentTagsForActress)
+            h.execute("INSERT INTO title_actresses (title_id, actress_id) VALUES (" + t1.getId() + ", " + aya.getId() + ")");
+            h.execute("INSERT INTO title_actresses (title_id, actress_id) VALUES (" + t2.getId() + ", " + aya.getId() + ")");
+            // t1 has tag 10; t2 has tags 10 and 11
+            h.execute("INSERT INTO title_enrichment_tags (title_id, tag_id) VALUES (" + t1.getId() + ", 10)");
+            h.execute("INSERT INTO title_enrichment_tags (title_id, tag_id) VALUES (" + t2.getId() + ", 10)");
+            h.execute("INSERT INTO title_enrichment_tags (title_id, tag_id) VALUES (" + t2.getId() + ", 11)");
+        });
+
+        // Filter by tag 10 only → both t1 and t2
+        List<Title> results = titleRepo.findByActressTagsFiltered(aya.getId(), List.of(), List.of(), List.of(10L), 10, 0);
+        assertEquals(2, results.size());
+
+        // Filter by tags 10 AND 11 → only t2
+        results = titleRepo.findByActressTagsFiltered(aya.getId(), List.of(), List.of(), List.of(10L, 11L), 10, 0);
+        assertEquals(1, results.size());
+        assertEquals("ABP-002", results.get(0).getCode());
+
+        // Hibiki's title not returned
+        results = titleRepo.findByActressTagsFiltered(hibiki.getId(), List.of(), List.of(), List.of(10L), 10, 0);
+        assertEquals(0, results.size());
+    }
+
+    @Test
+    void findByActressTagsFilteredEmptyEnrichmentTagIdsBehavesLikePaged() {
+        Actress aya = actressRepo.save(actress("Aya Sazanami"));
+        saveWithLocation(title("ABP-001", aya.getId()), "vol-a", "stars/library", "/mnt/vol-a/stars/library/ABP-001");
+        saveWithLocation(title("ABP-002", aya.getId()), "vol-a", "stars/library", "/mnt/vol-a/stars/library/ABP-002");
+
+        List<Title> filtered = titleRepo.findByActressTagsFiltered(aya.getId(), List.of(), List.of(), List.of(), 10, 0);
+        List<Title> paged    = titleRepo.findByActressPaged(aya.getId(), 10, 0);
+        assertEquals(paged.size(), filtered.size());
+    }
+
     // --- findByCodePrefixPaged ---
 
     @Test

@@ -8,10 +8,12 @@ import { pushNav } from './nav.js';
 // ── State ─────────────────────────────────────────────────────────────────
 export let detailActressId    = null;
 export let detailCompanyFilter = null;
-let detailActiveTags  = new Set();
-let detailFilterTimer = null;
-let detailActressTags = null;   // lazy-loaded tag list for current actress
-let coverRotateTimer  = null;
+let detailActiveTags           = new Set();
+let detailActiveEnrichmentTagIds = new Set();
+let detailFilterTimer          = null;
+let detailActressTags          = null;   // lazy-loaded curated tag list for current actress
+let detailEnrichmentTags       = null;   // lazy-loaded enrichment tag list for current actress
+let coverRotateTimer           = null;
 
 function cancelCoverRotation() {
   if (coverRotateTimer !== null) {
@@ -38,6 +40,7 @@ export const actressDetailGrid = new ScrollingGrid(
     let url = `/api/actresses/${detailActressId}/titles?offset=${o}&limit=${l}`;
     if (detailCompanyFilter) url += `&company=${encodeURIComponent(detailCompanyFilter)}`;
     if (detailActiveTags.size > 0) url += `&tags=${encodeURIComponent([...detailActiveTags].join(','))}`;
+    if (detailActiveEnrichmentTagIds.size > 0) url += `&enrichmentTagIds=${[...detailActiveEnrichmentTagIds].join(',')}`;
     return url;
   },
   makeTitleCard,
@@ -54,10 +57,12 @@ export async function openActressDetail(actressId) {
   const sourceMode    = mode;
   const sourceHomeTab = window._homeTab || 'latest'; // set by home.js
 
-  detailActressId     = actressId;
-  detailCompanyFilter = null;
-  detailActiveTags    = new Set();
-  detailActressTags   = null;
+  detailActressId              = actressId;
+  detailCompanyFilter          = null;
+  detailActiveTags             = new Set();
+  detailActiveEnrichmentTagIds = new Set();
+  detailActressTags            = null;
+  detailEnrichmentTags         = null;
   showView('actress-detail');
   setActiveGrid(actressDetailGrid);
   document.getElementById('sentinel')?.remove();
@@ -637,14 +642,15 @@ function scheduleFilteredQuery() {
 function updateTagsBtn() {
   const countEl = document.getElementById('detail-tags-count');
   if (!countEl) return;
-  if (detailActiveTags.size > 0) {
-    countEl.textContent = detailActiveTags.size;
+  const total = detailActiveTags.size + detailActiveEnrichmentTagIds.size;
+  if (total > 0) {
+    countEl.textContent = total;
     countEl.style.display = '';
   } else {
     countEl.style.display = 'none';
   }
   const btn = document.getElementById('detail-tags-btn');
-  if (btn) btn.classList.toggle('has-active', detailActiveTags.size > 0);
+  if (btn) btn.classList.toggle('has-active', total > 0);
 }
 
 async function toggleTagsPanel() {
@@ -656,14 +662,17 @@ async function toggleTagsPanel() {
     return;
   }
 
-  // Load tags if not yet cached
-  if (!detailActressTags) {
+  // Fetch curated tags and enrichment tags in parallel if not yet cached
+  if (!detailActressTags || !detailEnrichmentTags) {
     panel.innerHTML = '<div class="detail-tags-loading">Loading tags\u2026</div>';
     panel.style.display = '';
     try {
-      const res = await fetch(`/api/actresses/${detailActressId}/tags`);
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      detailActressTags = await res.json();
+      const fetches = await Promise.all([
+        detailActressTags   ? Promise.resolve(detailActressTags)   : fetch(`/api/actresses/${detailActressId}/tags`).then(r => r.ok ? r.json() : []),
+        detailEnrichmentTags ? Promise.resolve(detailEnrichmentTags) : fetch(`/api/actresses/${detailActressId}/enrichment-tags`).then(r => r.ok ? r.json() : []),
+      ]);
+      detailActressTags    = fetches[0];
+      detailEnrichmentTags = fetches[1];
     } catch (err) {
       panel.innerHTML = '<div class="detail-tags-loading">Could not load tags</div>';
       return;
@@ -676,19 +685,52 @@ async function toggleTagsPanel() {
 
 function renderTagsPanel(panel) {
   const tags = detailActressTags || [];
-  if (tags.length === 0) {
+  // Filter enrichment tags: surface=true, no curatedAlias (those show in curated section), at least 1 title
+  const enrichmentDefs = (detailEnrichmentTags || [])
+    .filter(d => d.surface && !d.curatedAlias && d.titleCount >= 1)
+    .sort((a, b) => a.name.localeCompare(b.name));
+
+  if (tags.length === 0 && enrichmentDefs.length === 0) {
     panel.innerHTML = '<div class="detail-tags-loading">No tags available</div>';
     return;
   }
-  panel.innerHTML = `
-    <div class="detail-tags-inner">
-      ${tags.map(t => `<button type="button" class="tag-toggle${detailActiveTags.has(t) ? ' active' : ''}" data-tag="${esc(t)}">${esc(t)}</button>`).join('')}
+
+  const curatedHtml = tags.length === 0 ? '' : `
+    <div class="tags-group">
+      <div class="tags-row">
+        ${tags.map(t => `<button type="button" class="tag-toggle${detailActiveTags.has(t) ? ' active' : ''}" data-tag="${esc(t)}">${esc(t)}</button>`).join('')}
+      </div>
     </div>`;
-  panel.querySelectorAll('.tag-toggle').forEach(btn => {
+
+  const enrichmentHtml = enrichmentDefs.length === 0 ? '' : `
+    <div class="tags-group tags-group--enrichment">
+      <div class="tags-group-label">Enrichment <span class="tags-group-sublabel">titles</span></div>
+      <div class="tags-row">
+        ${enrichmentDefs.map(d => {
+          const active = detailActiveEnrichmentTagIds.has(d.id) ? ' active' : '';
+          const label  = d.curatedAlias ? esc(d.curatedAlias) : esc(d.name);
+          const title  = d.curatedAlias ? `${d.name} \u2192 ${d.curatedAlias}` : d.name;
+          return `<button type="button" class="tag-toggle tag-toggle--enrichment${active}" data-enrichment-id="${d.id}" title="${esc(title)}">${label}<span class="tag-toggle-count">${d.titleCount}</span></button>`;
+        }).join('')}
+      </div>
+    </div>`;
+
+  panel.innerHTML = `<div class="detail-tags-inner">${curatedHtml}${enrichmentHtml}</div>`;
+
+  panel.querySelectorAll('.tag-toggle[data-tag]').forEach(btn => {
     btn.addEventListener('click', () => {
       const tag = btn.dataset.tag;
       if (detailActiveTags.has(tag)) { detailActiveTags.delete(tag); btn.classList.remove('active'); }
       else                           { detailActiveTags.add(tag);    btn.classList.add('active'); }
+      scheduleFilteredQuery();
+    });
+  });
+
+  panel.querySelectorAll('.tag-toggle[data-enrichment-id]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const id = parseInt(btn.dataset.enrichmentId, 10);
+      if (detailActiveEnrichmentTagIds.has(id)) { detailActiveEnrichmentTagIds.delete(id); btn.classList.remove('active'); }
+      else                                       { detailActiveEnrichmentTagIds.add(id);    btn.classList.add('active'); }
       scheduleFilteredQuery();
     });
   });

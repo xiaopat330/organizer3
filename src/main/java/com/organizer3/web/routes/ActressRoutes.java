@@ -4,6 +4,7 @@ import com.organizer3.web.ActressBrowseService;
 import com.organizer3.web.TitleBrowseService;
 import io.javalin.Javalin;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -153,9 +154,16 @@ public class ActressRoutes {
             List<String> tags = (tagsParam != null && !tagsParam.isBlank())
                     ? List.of(tagsParam.split(","))
                     : List.of();
+            String enrichTagIdsParam = ctx.queryParam("enrichmentTagIds");
+            List<Long> enrichmentTagIds = (enrichTagIdsParam != null && !enrichTagIdsParam.isBlank())
+                    ? Arrays.stream(enrichTagIdsParam.split(","))
+                             .map(String::trim).filter(s -> !s.isEmpty())
+                             .map(Long::parseLong)
+                             .toList()
+                    : List.of();
             offset = Math.max(offset, 0);
             limit  = Math.max(1, Math.min(limit, TitleBrowseService.MAX_LIMIT));
-            ctx.json(actressBrowseService.findTitlesByActress(id, offset, limit, company, tags));
+            ctx.json(actressBrowseService.findTitlesByActress(id, offset, limit, company, tags, enrichmentTagIds));
         });
 
         app.get("/api/actresses/{id}/tags", ctx -> {
@@ -163,6 +171,13 @@ public class ActressRoutes {
             try { id = Long.parseLong(ctx.pathParam("id")); }
             catch (NumberFormatException e) { ctx.status(400); return; }
             ctx.json(actressBrowseService.findTagsForActress(id));
+        });
+
+        app.get("/api/actresses/{id}/enrichment-tags", ctx -> {
+            long id;
+            try { id = Long.parseLong(ctx.pathParam("id")); }
+            catch (NumberFormatException e) { ctx.status(400); return; }
+            ctx.json(actressBrowseService.findEnrichmentTagsForActress(id));
         });
 
         app.post("/api/actresses/{id}/favorite", ctx -> {

@@ -552,7 +552,7 @@ class WebServerTest {
     @Test
     void actressTitlesEndpointDelegates() throws IOException, InterruptedException {
         ActressBrowseService actressBrowse = mock(ActressBrowseService.class);
-        when(actressBrowse.findTitlesByActress(eq(42L), eq(0), eq(24), any(), any())).thenReturn(List.of());
+        when(actressBrowse.findTitlesByActress(eq(42L), eq(0), eq(24), any(), any(), any())).thenReturn(List.of());
 
         server = new WebServer(0, null, actressBrowse, null, null, null, null, null, null, null);
         server.start();

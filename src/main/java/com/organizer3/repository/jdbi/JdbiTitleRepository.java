@@ -464,19 +464,30 @@ public class JdbiTitleRepository implements TitleRepository {
     }
 
     @Override
-    public List<Title> findByActressTagsFiltered(long actressId, List<String> labels, List<String> tags, int limit, int offset) {
+    public List<Title> findByActressTagsFiltered(long actressId, List<String> labels, List<String> tags, List<Long> enrichmentTagIds, int limit, int offset) {
+        List<Long> safeEnrichTags = enrichmentTagIds != null ? enrichmentTagIds : List.of();
+        boolean hasTags         = !tags.isEmpty();
+        boolean hasEnrichTags   = !safeEnrichTags.isEmpty();
+
         StringBuilder sql = new StringBuilder("SELECT t.* FROM titles t\n");
         sql.append("LEFT JOIN title_locations tl ON t.id = tl.title_id\n");
-        if (!tags.isEmpty()) {
+        if (hasTags) {
             sql.append("JOIN title_effective_tags tet ON tet.title_id = t.id AND tet.tag IN (<tags>)\n");
+        }
+        if (hasEnrichTags) {
+            sql.append("JOIN title_enrichment_tags tet_e ON tet_e.title_id = t.id AND tet_e.tag_id IN (<enrichmentTagIds>)\n");
         }
         sql.append("WHERE t.actress_id = :actressId\n");
         if (!labels.isEmpty()) {
             sql.append("AND t.label IN (<labels>)\n");
         }
         sql.append("GROUP BY t.id\n");
-        if (!tags.isEmpty()) {
-            sql.append("HAVING COUNT(DISTINCT tet.tag) = :tagCount\n");
+        if (hasTags || hasEnrichTags) {
+            sql.append("HAVING ");
+            if (hasTags)       sql.append("COUNT(DISTINCT tet.tag) = :tagCount");
+            if (hasTags && hasEnrichTags) sql.append(" AND ");
+            if (hasEnrichTags) sql.append("COUNT(DISTINCT tet_e.tag_id) = :enrichmentTagCount");
+            sql.append("\n");
         }
         sql.append("ORDER BY t.favorite DESC, t.bookmark DESC, MIN(tl.added_date) DESC, t.id DESC LIMIT :limit OFFSET :offset");
 
@@ -485,8 +496,9 @@ public class JdbiTitleRepository implements TitleRepository {
                     .bind("actressId", actressId)
                     .bind("limit", limit)
                     .bind("offset", offset);
-            if (!labels.isEmpty()) q = q.bindList("labels", labels.stream().map(String::toUpperCase).toList());
-            if (!tags.isEmpty())   q = q.bindList("tags", tags).bind("tagCount", tags.size());
+            if (!labels.isEmpty())   q = q.bindList("labels", labels.stream().map(String::toUpperCase).toList());
+            if (hasTags)             q = q.bindList("tags", tags).bind("tagCount", tags.size());
+            if (hasEnrichTags)       q = q.bindList("enrichmentTagIds", safeEnrichTags).bind("enrichmentTagCount", safeEnrichTags.size());
             return q.map(MAPPER).list();
         });
         return populateLocationsBatch(titles);
