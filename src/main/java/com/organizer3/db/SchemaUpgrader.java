@@ -19,7 +19,7 @@ import org.jdbi.v3.core.Jdbi;
 public class SchemaUpgrader {
 
     /** Must match the version stamped by {@link SchemaInitializer}. */
-    private static final int CURRENT_VERSION = 31;
+    private static final int CURRENT_VERSION = 32;
 
     private final Jdbi jdbi;
 
@@ -178,7 +178,26 @@ public class SchemaUpgrader {
             setVersion(31);
         }
 
+        if (version < 32) {
+            applyV32();
+            setVersion(32);
+        }
+
         log.info("Schema upgrade complete");
+    }
+
+    /**
+     * v32: corrects the v31 sentinel backfill, which matched {@code stage_name} but the
+     * sentinel rows ({@code Various}, {@code Unknown}, {@code Amateur}) live under
+     * {@code canonical_name} with {@code stage_name = NULL}. Re-runs the backfill against
+     * {@code canonical_name}. Idempotent.
+     */
+    private void applyV32() {
+        log.info("Applying migration v32: fix sentinel backfill (match canonical_name)");
+        jdbi.useHandle(h -> h.execute("""
+                UPDATE actresses SET is_sentinel = 1
+                WHERE LOWER(canonical_name) IN ('various', 'unknown', 'amateur')
+                """));
     }
 
     /**
@@ -189,7 +208,9 @@ public class SchemaUpgrader {
      * preserved with {@code source='actress'}. Indexes are recreated.
      *
      * <p>(b) Adds {@code actresses.is_sentinel} and backfills: Various / Unknown / Amateur
-     * (canonical {@code stage_name} only — aliases are not matched).
+     * by {@code canonical_name} (aliases are not matched). Note: an earlier revision matched
+     * {@code stage_name}, which missed real-world rows where {@code stage_name IS NULL};
+     * v32 re-applies the corrected backfill for DBs that already advanced to v31.
      */
     private void applyV31() {
         log.info("Applying migration v31: title-driven enrichment (nullable actress_id + source, is_sentinel)");
@@ -228,7 +249,7 @@ public class SchemaUpgrader {
             addColumnIfMissing(h, "actresses", "is_sentinel", "INTEGER NOT NULL DEFAULT 0");
             h.execute("""
                     UPDATE actresses SET is_sentinel = 1
-                    WHERE LOWER(stage_name) IN ('various', 'unknown', 'amateur')
+                    WHERE LOWER(canonical_name) IN ('various', 'unknown', 'amateur')
                     """);
         });
     }
