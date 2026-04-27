@@ -166,6 +166,15 @@ public interface TitleRepository {
     void enrichTitle(long titleId, String titleOriginal, String titleEnglish,
                      java.time.LocalDate releaseDate, String notes, Actress.Grade grade);
 
+    /** Stamp a title's grade from enrichment. No-op if grade_source = 'manual'. */
+    void setGradeFromEnrichment(long titleId, Actress.Grade grade);
+
+    /** Manual user override. Always wins regardless of current grade_source. */
+    void setGradeManual(long titleId, Actress.Grade grade);
+
+    /** Clear an enrichment-derived grade (e.g. when enrichment data is removed). */
+    void clearEnrichmentGrade(long titleId);
+
     /** Find titles having ALL of the given tags, ordered newest-first. */
     List<Title> findByTagsPaged(List<String> tags, int limit, int offset);
 

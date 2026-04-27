@@ -690,7 +690,8 @@ public class JdbiTitleRepository implements TitleRepository {
                             title_english = :titleEnglish,
                             release_date = :releaseDate,
                             notes = :notes,
-                            grade = :grade
+                            grade = :grade,
+                            grade_source = CASE WHEN :grade IS NOT NULL THEN 'ai' ELSE grade_source END
                         WHERE id = :id
                         """)
                         .bind("id", titleId)
@@ -699,6 +700,41 @@ public class JdbiTitleRepository implements TitleRepository {
                         .bind("releaseDate", releaseDate != null ? releaseDate.toString() : null)
                         .bind("notes", notes)
                         .bind("grade", grade != null ? grade.display : null)
+                        .execute()
+        );
+    }
+
+    @Override
+    public void setGradeFromEnrichment(long titleId, Actress.Grade grade) {
+        jdbi.useHandle(h ->
+                h.createUpdate("""
+                        UPDATE titles SET grade = :grade, grade_source = 'enrichment'
+                        WHERE id = :id AND (grade_source IS NULL OR grade_source != 'manual')
+                        """)
+                        .bind("grade", grade.display)
+                        .bind("id", titleId)
+                        .execute()
+        );
+    }
+
+    @Override
+    public void setGradeManual(long titleId, Actress.Grade grade) {
+        jdbi.useHandle(h ->
+                h.createUpdate("UPDATE titles SET grade = :grade, grade_source = 'manual' WHERE id = :id")
+                        .bind("grade", grade.display)
+                        .bind("id", titleId)
+                        .execute()
+        );
+    }
+
+    @Override
+    public void clearEnrichmentGrade(long titleId) {
+        jdbi.useHandle(h ->
+                h.createUpdate("""
+                        UPDATE titles SET grade = NULL, grade_source = NULL
+                        WHERE id = :id AND grade_source = 'enrichment'
+                        """)
+                        .bind("id", titleId)
                         .execute()
         );
     }
