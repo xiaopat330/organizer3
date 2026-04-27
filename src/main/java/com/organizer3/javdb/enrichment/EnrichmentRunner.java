@@ -9,6 +9,8 @@ import com.organizer3.javdb.JavdbSearchParser;
 import com.organizer3.model.Actress;
 import com.organizer3.model.ActressAlias;
 import com.organizer3.model.Title;
+import com.organizer3.rating.EnrichmentGradeStamper;
+import com.organizer3.rating.RatingCurveRecomputer;
 import com.organizer3.repository.ActressRepository;
 import com.organizer3.repository.TitleRepository;
 import lombok.extern.slf4j.Slf4j;
@@ -47,6 +49,11 @@ public class EnrichmentRunner {
     private final ActressRepository actressRepo;
     private final AutoPromoter autoPromoter;
     private final ActressAvatarStore avatarStore;
+    private final EnrichmentGradeStamper gradeStamper;
+    private final RatingCurveRecomputer ratingCurveRecomputer;
+
+    // Tracks titles fetched since the queue last became empty; triggers batch recompute on drain.
+    private int processedThisBatch = 0;
 
     private final AtomicBoolean stopRequested = new AtomicBoolean(false);
     private final AtomicBoolean paused = new AtomicBoolean(false);
@@ -77,7 +84,9 @@ public class EnrichmentRunner {
             TitleRepository titleRepo,
             ActressRepository actressRepo,
             AutoPromoter autoPromoter,
-            ActressAvatarStore avatarStore) {
+            ActressAvatarStore avatarStore,
+            EnrichmentGradeStamper gradeStamper,
+            RatingCurveRecomputer ratingCurveRecomputer) {
         this.config = config;
         this.client = client;
         this.searchParser = new JavdbSearchParser();
@@ -90,6 +99,8 @@ public class EnrichmentRunner {
         this.actressRepo = actressRepo;
         this.autoPromoter = autoPromoter;
         this.avatarStore = avatarStore;
+        this.gradeStamper = gradeStamper;
+        this.ratingCurveRecomputer = ratingCurveRecomputer;
     }
 
     public synchronized void start() {
@@ -197,6 +208,18 @@ public class EnrichmentRunner {
 
         Optional<EnrichmentJob> maybeJob = queue.claimNextJob();
         if (maybeJob.isEmpty()) {
+            if (processedThisBatch > 0 && ratingCurveRecomputer != null) {
+                log.info("javdb: queue drained ({} titles fetched) — running rating curve recompute", processedThisBatch);
+                try {
+                    RatingCurveRecomputer.RecomputeResult result = ratingCurveRecomputer.recompute();
+                    log.info("javdb: recompute complete — updated={}, skippedManual={}", result.updatedCount(), result.skippedManualCount());
+                } catch (Exception e) {
+                    log.error("javdb: rating curve recompute failed: {}", e.getMessage(), e);
+                }
+                processedThisBatch = 0;
+            } else if (processedThisBatch > 0) {
+                processedThisBatch = 0;
+            }
             sleepInterruptibly(LOOP_SLEEP_MS);
             return;
         }
@@ -291,6 +314,12 @@ public class EnrichmentRunner {
 
         String rawPath = stagingRepo.saveTitleRaw(slug, extract);
         enrichmentRepo.upsertEnrichment(titleId, slug, rawPath, extract);
+
+        // Per-title grade stamp using cached curve (no-op if curve not yet computed)
+        if (gradeStamper != null) {
+            gradeStamper.stampIfRated(titleId, extract.ratingAvg(), extract.ratingCount());
+        }
+        processedThisBatch++;
 
         // Cast matching: look for the owning actress in the cast list
         matchAndRecordActressSlug(actressId, title.getCode(), extract.cast());

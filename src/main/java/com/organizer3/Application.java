@@ -396,15 +396,20 @@ public class Application {
                 new com.organizer3.javdb.enrichment.ActressAvatarStore(dataDir);
         com.organizer3.rating.RatingCurveRepository ratingCurveRepo =
                 new com.organizer3.rating.JdbiRatingCurveRepository(jdbi);
+        com.organizer3.rating.RatingScoreCalculator ratingScoreCalculator =
+                new com.organizer3.rating.RatingScoreCalculator();
         com.organizer3.rating.RatingCurveRecomputer ratingCurveRecomputer =
-                new com.organizer3.rating.RatingCurveRecomputer(jdbi, ratingCurveRepo, new com.organizer3.rating.RatingScoreCalculator());
+                new com.organizer3.rating.RatingCurveRecomputer(jdbi, ratingCurveRepo, ratingScoreCalculator);
+        com.organizer3.rating.EnrichmentGradeStamper enrichmentGradeStamper =
+                new com.organizer3.rating.EnrichmentGradeStamper(ratingCurveRepo, ratingScoreCalculator, titleRepo);
         com.organizer3.javdb.enrichment.EnrichmentRunner enrichmentRunner =
                 new com.organizer3.javdb.enrichment.EnrichmentRunner(
                         javdbConfig, javdbClient,
                         new com.organizer3.javdb.enrichment.JavdbExtractor(),
                         new com.organizer3.javdb.enrichment.JavdbProjector(jsonMapper),
                         javdbStagingRepo, javdbEnrichmentRepo,
-                        enrichmentQueue, titleRepo, actressRepo, autoPromoter, avatarStore);
+                        enrichmentQueue, titleRepo, actressRepo, autoPromoter, avatarStore,
+                        enrichmentGradeStamper, ratingCurveRecomputer);
         commands.add(new EnrichActressCommand(actressRepo, titleRepo, enrichmentQueue));
 
         // Sync commands — registered dynamically from syncConfig.
