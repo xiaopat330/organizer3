@@ -379,7 +379,8 @@ public class SchemaInitializer {
                         next_attempt_at TEXT NOT NULL,
                         last_error      TEXT,
                         created_at      TEXT NOT NULL,
-                        updated_at      TEXT NOT NULL
+                        updated_at      TEXT NOT NULL,
+                        sort_order      INTEGER
                     )""");
             h.execute("CREATE INDEX IF NOT EXISTS idx_jeq_claim   ON javdb_enrichment_queue(status, next_attempt_at)");
             h.execute("CREATE INDEX IF NOT EXISTS idx_jeq_actress ON javdb_enrichment_queue(actress_id, status)");
@@ -483,7 +484,7 @@ public class SchemaInitializer {
             // leave the version alone and let SchemaUpgrader apply any missing migrations.
             int currentVersion = h.createQuery("PRAGMA user_version").mapTo(Integer.class).one();
             if (currentVersion == 0) {
-                h.execute("PRAGMA user_version = 28");
+                h.execute("PRAGMA user_version = 30");
             }
         });
         log.info("Schema initialization complete");

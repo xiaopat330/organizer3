@@ -79,6 +79,27 @@ public class JavdbEnrichmentActionService {
         return queue.listFailedForActress(actressId);
     }
 
+    /** Pauses a pending item (no-op if already in_flight or not found). */
+    public void pauseItem(long id) { queue.pauseItem(id); }
+
+    /** Resumes a paused item back to pending. */
+    public void resumeItem(long id) { queue.resumeItem(id); }
+
+    /** Moves a pending/paused item to the front of the queue. */
+    public void moveToTop(long id) { queue.moveToTop(id); }
+
+    /** Moves a pending/paused item to the back of the queue. */
+    public void moveToBottom(long id) { queue.moveToBottom(id); }
+
+    /** Moves a pending/paused item one position earlier in the queue. */
+    public void promoteItem(long id) { queue.promoteItem(id); }
+
+    /** Moves a pending/paused item one position later in the queue. */
+    public void demoteItem(long id) { queue.demoteItem(id); }
+
+    /** Re-queues a failed item as pending, appended to the end of the queue. */
+    public void requeueItem(long id) { queue.requeueItem(id); }
+
     /** Force re-enqueues a single title even if it was already successfully enriched. */
     public void reEnqueueTitle(long titleId, long actressId) {
         queue.enqueueTitleForce(titleId, actressId);
