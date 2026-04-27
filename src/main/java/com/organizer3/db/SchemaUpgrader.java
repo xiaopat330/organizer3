@@ -19,7 +19,7 @@ import org.jdbi.v3.core.Jdbi;
 public class SchemaUpgrader {
 
     /** Must match the version stamped by {@link SchemaInitializer}. */
-    private static final int CURRENT_VERSION = 29;
+    private static final int CURRENT_VERSION = 30;
 
     private final Jdbi jdbi;
 
@@ -168,7 +168,45 @@ public class SchemaUpgrader {
             setVersion(29);
         }
 
+        if (version < 30) {
+            applyV30();
+            setVersion(30);
+        }
+
         log.info("Schema upgrade complete");
+    }
+
+    /**
+     * v30: remove duplicate javdb_enrichment_queue rows caused by the pre-fix enqueue bug
+     * where re-enqueueing a failed title inserted a new pending row instead of replacing it.
+     * Keeps the most recent row per (job_type, target_id, actress_id) group, preferring
+     * active statuses (pending, in_flight) over terminal ones (done, failed, cancelled).
+     */
+    private void applyV30() {
+        log.info("Applying migration v30: dedup javdb_enrichment_queue");
+        jdbi.useHandle(h -> h.execute("""
+                DELETE FROM javdb_enrichment_queue
+                WHERE id NOT IN (
+                    SELECT id FROM (
+                        SELECT id,
+                               ROW_NUMBER() OVER (
+                                   PARTITION BY job_type, target_id, actress_id
+                                   ORDER BY
+                                     CASE status
+                                       WHEN 'in_flight' THEN 0
+                                       WHEN 'pending'   THEN 1
+                                       WHEN 'paused'    THEN 2
+                                       WHEN 'done'      THEN 3
+                                       WHEN 'failed'    THEN 4
+                                       ELSE 5
+                                     END ASC,
+                                     updated_at DESC
+                               ) AS rn
+                        FROM javdb_enrichment_queue
+                    ) ranked
+                    WHERE rn = 1
+                )
+                """));
     }
 
     /**

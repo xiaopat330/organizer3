@@ -435,6 +435,61 @@ class EnrichmentQueueTest {
         assertEquals(orderBefore, orderAfter, "sort_order must be preserved through pause/resume");
     }
 
+    // ── duplicate-prevention regression tests ─────────────────────────────
+
+    @Test
+    void enqueueTitle_afterFailed_replacesNotDuplicates() {
+        queue.enqueueTitle(1L, 10L);
+        EnrichmentJob job = queue.claimNextJob().get();
+        queue.markPermanentlyFailed(job.id(), "not found");
+
+        // Re-enqueue — should replace the failed row, not add a second one
+        queue.enqueueTitle(1L, 10L);
+
+        assertEquals(1, queue.countPending(), "must have exactly one pending row, not two");
+        Jdbi jdbi = Jdbi.create(connection);
+        long total = jdbi.withHandle(h -> h.createQuery(
+                "SELECT COUNT(*) FROM javdb_enrichment_queue WHERE target_id = 1 AND job_type = 'fetch_title'")
+                .mapTo(Long.class).one());
+        assertEquals(1, total, "failed row must be replaced, not kept alongside new pending row");
+    }
+
+    @Test
+    void enqueueTitleForce_afterFailed_replacesNotDuplicates() {
+        queue.enqueueTitle(1L, 10L);
+        EnrichmentJob job = queue.claimNextJob().get();
+        queue.markPermanentlyFailed(job.id(), "parse error");
+
+        queue.enqueueTitleForce(1L, 10L);
+
+        assertEquals(1, queue.countPending());
+        Jdbi jdbi = Jdbi.create(connection);
+        long total = jdbi.withHandle(h -> h.createQuery(
+                "SELECT COUNT(*) FROM javdb_enrichment_queue WHERE target_id = 1 AND job_type = 'fetch_title'")
+                .mapTo(Long.class).one());
+        assertEquals(1, total);
+    }
+
+    @Test
+    void resetFailedForActress_withPreexistingPending_doesNotCreateDuplicate() {
+        // Simulate the pre-fix scenario: a failed row AND a pending row both exist for the same title
+        queue.enqueueTitle(1L, 10L);
+        EnrichmentJob job = queue.claimNextJob().get();
+        queue.markPermanentlyFailed(job.id(), "error");
+        // Manually insert a pending row to simulate the old duplicate state
+        Jdbi jdbi = Jdbi.create(connection);
+        jdbi.useHandle(h -> h.execute(
+                "INSERT INTO javdb_enrichment_queue (job_type, target_id, actress_id, status, attempts, next_attempt_at, created_at, updated_at) " +
+                "VALUES ('fetch_title', 1, 10, 'pending', 0, datetime('now'), datetime('now'), datetime('now'))"));
+
+        queue.resetFailedForActress(10L);
+
+        long pendingCount = jdbi.withHandle(h -> h.createQuery(
+                "SELECT COUNT(*) FROM javdb_enrichment_queue WHERE target_id = 1 AND status = 'pending'")
+                .mapTo(Long.class).one());
+        assertEquals(1, pendingCount, "failed row should be removed, not reset, when a pending row already exists");
+    }
+
     @Test
     void cancelForActress_alsoCancelsPausedItems() {
         queue.enqueueTitle(1L, 10L);
