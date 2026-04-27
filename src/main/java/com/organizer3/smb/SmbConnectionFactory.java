@@ -49,16 +49,26 @@ public class SmbConnectionFactory {
 
     private final OrganizerConfig config;
     private final SMBClient client;
+    private final NasAvailabilityMonitor monitor;
     private final Map<String, PooledShare> pool = new ConcurrentHashMap<>();
 
     public SmbConnectionFactory(OrganizerConfig config) {
-        this(config, new SMBClient());
+        this(config, new SMBClient(), null);
+    }
+
+    public SmbConnectionFactory(OrganizerConfig config, NasAvailabilityMonitor monitor) {
+        this(config, new SMBClient(), monitor);
     }
 
     /** Visible for testing. */
     SmbConnectionFactory(OrganizerConfig config, SMBClient client) {
+        this(config, client, null);
+    }
+
+    SmbConnectionFactory(OrganizerConfig config, SMBClient client, NasAvailabilityMonitor monitor) {
         this.config = config;
         this.client = client;
+        this.monitor = monitor;
     }
 
     /** Operation over an SMB share that may produce a result and may throw IOException. */
@@ -142,6 +152,10 @@ public class SmbConnectionFactory {
                 .orElseThrow(() -> new IOException("Unknown server for volume: " + volumeId));
 
         ParsedSmbPath parsed = parseSmbPath(volume.smbPath());
+
+        if (monitor != null && !monitor.isHostAvailable(parsed.host)) {
+            throw new IOException("NAS host '" + parsed.host + "' is currently unreachable");
+        }
 
         Connection connection = null;
         try {

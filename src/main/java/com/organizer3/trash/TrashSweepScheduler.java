@@ -3,6 +3,7 @@ package com.organizer3.trash;
 import com.organizer3.config.volume.OrganizerConfig;
 import com.organizer3.config.volume.ServerConfig;
 import com.organizer3.config.volume.VolumeConfig;
+import com.organizer3.smb.NasAvailabilityMonitor;
 import com.organizer3.smb.SmbConnectionFactory;
 import lombok.extern.slf4j.Slf4j;
 
@@ -31,6 +32,7 @@ public class TrashSweepScheduler {
     private final TrashService trashService;
     private final SmbConnectionFactory smbConnectionFactory;
     private final OrganizerConfig config;
+    private final NasAvailabilityMonitor monitor;
     private final ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor(r -> {
         Thread t = new Thread(r, "trash-sweep");
         t.setDaemon(true);
@@ -39,10 +41,12 @@ public class TrashSweepScheduler {
 
     public TrashSweepScheduler(TrashService trashService,
                                 SmbConnectionFactory smbConnectionFactory,
-                                OrganizerConfig config) {
+                                OrganizerConfig config,
+                                NasAvailabilityMonitor monitor) {
         this.trashService = trashService;
         this.smbConnectionFactory = smbConnectionFactory;
         this.config = config;
+        this.monitor = monitor;
     }
 
     /**
@@ -76,6 +80,11 @@ public class TrashSweepScheduler {
         for (VolumeConfig volume : volumes) {
             Optional<ServerConfig> serverOpt = config.findServerById(volume.server());
             if (serverOpt.isEmpty() || serverOpt.get().trash() == null) continue;
+
+            if (!monitor.isVolumeAvailable(volume.id())) {
+                log.debug("Trash sweep skipping volume {} — NAS host is unreachable", volume.id());
+                continue;
+            }
 
             String trashFolder = serverOpt.get().trash();
             Path trashRoot = Path.of("/").resolve(trashFolder);

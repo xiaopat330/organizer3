@@ -3,6 +3,7 @@ package com.organizer3.media;
 import com.organizer3.config.volume.BackgroundThumbnailConfig;
 import com.organizer3.model.Video;
 import com.organizer3.repository.VideoRepository;
+import com.organizer3.smb.NasAvailabilityMonitor;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
@@ -48,6 +49,7 @@ public class BackgroundThumbnailWorker {
     private final ThumbnailEvictor evictor;
     private final VideoRepository videoRepo;
     private final UserActivityTracker activityTracker;
+    private final NasAvailabilityMonitor monitor;
 
     private final AtomicBoolean enabled = new AtomicBoolean();
     private final AtomicBoolean stopRequested = new AtomicBoolean(false);
@@ -73,12 +75,24 @@ public class BackgroundThumbnailWorker {
                                      ThumbnailEvictor evictor,
                                      VideoRepository videoRepo,
                                      UserActivityTracker activityTracker) {
+        this(config, queue, thumbnailService, evictor, videoRepo, activityTracker,
+                NasAvailabilityMonitor.alwaysAvailable());
+    }
+
+    public BackgroundThumbnailWorker(BackgroundThumbnailConfig config,
+                                     BackgroundThumbnailQueue queue,
+                                     ThumbnailService thumbnailService,
+                                     ThumbnailEvictor evictor,
+                                     VideoRepository videoRepo,
+                                     UserActivityTracker activityTracker,
+                                     NasAvailabilityMonitor monitor) {
         this.config = config;
         this.queue = queue;
         this.thumbnailService = thumbnailService;
         this.evictor = evictor;
         this.videoRepo = videoRepo;
         this.activityTracker = activityTracker;
+        this.monitor = monitor;
         this.enabled.set(config.enabledOrDefault());
         this.generationExecutor = newGenerationExecutor();
     }
@@ -125,11 +139,24 @@ public class BackgroundThumbnailWorker {
         // Startup delay — give the user a quiet boot.
         if (!sleepInterruptibly(config.startupDelaySecOrDefault() * 1000L)) return;
 
+        boolean nasPaused = false;
         while (!stopRequested.get()) {
             try {
                 if (!enabled.get()) {
                     if (!sleepInterruptibly(60_000)) return;
                     continue;
+                }
+                if (!monitor.areAllHostsAvailable()) {
+                    if (!nasPaused) {
+                        log.info("Background thumbnail worker paused — NAS host(s) unreachable");
+                        nasPaused = true;
+                    }
+                    if (!sleepInterruptibly(60_000)) return;
+                    continue;
+                }
+                if (nasPaused) {
+                    log.info("Background thumbnail worker resuming — NAS host(s) reachable");
+                    nasPaused = false;
                 }
                 runOneCycle();
             } catch (Throwable t) {

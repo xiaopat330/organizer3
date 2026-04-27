@@ -358,13 +358,19 @@ public class Application {
         commands.add(new PruneThumbnailsCommand(titleRepo, thumbnailService));
         commands.add(new ClearThumbnailsCommand(thumbnailService));
 
+        // NAS availability monitor — probes SMB port 445 on each host so background tasks
+        // can pause gracefully when a NAS is unreachable instead of flooding logs.
+        com.organizer3.smb.NasAvailabilityMonitor nasMonitor =
+                new com.organizer3.smb.NasAvailabilityMonitor(config);
+        nasMonitor.start(); // synchronous initial probe — gives accurate state before background tasks start
+
         // Background thumbnail sync — see spec/PROPOSAL_BACKGROUND_THUMBNAILS.md
         UserActivityTracker activityTracker = new UserActivityTracker();
         BackgroundThumbnailQueue bgQueue = new BackgroundThumbnailQueue(jdbi);
         ThumbnailEvictor bgEvictor = new ThumbnailEvictor(jdbi, thumbnailService);
         BackgroundThumbnailWorker bgWorker = new BackgroundThumbnailWorker(
                 config.backgroundThumbnailsOrDefaults(),
-                bgQueue, thumbnailService, bgEvictor, videoRepo, activityTracker);
+                bgQueue, thumbnailService, bgEvictor, videoRepo, activityTracker, nasMonitor);
         // Apply persisted enable-state (set via the web chip) over the YAML default, so the
         // user doesn't have to re-enable after every restart.
         com.organizer3.media.BgThumbnailsState bgThumbnailsState =
@@ -464,7 +470,7 @@ public class Application {
         SearchService searchService = new SearchService(actressRepo, titleRepo, labelRepo, coverPath, avActressRepo);
 
         // Video streaming + metadata
-        SmbConnectionFactory smbConnectionFactory = new SmbConnectionFactory(config);
+        SmbConnectionFactory smbConnectionFactory = new SmbConnectionFactory(config, nasMonitor);
         VideoStreamService videoStreamService = new VideoStreamService(titleRepo, videoRepo, smbConnectionFactory);
         VideoProbe videoProbe = new VideoProbe(WebServer.DEFAULT_PORT);
         commands.add(new com.organizer3.command.ProbeVideosCommand(videoRepo, videoProbe::probe));
@@ -578,7 +584,7 @@ public class Application {
 
         com.organizer3.trash.TrashService trashService = new com.organizer3.trash.TrashService();
         com.organizer3.trash.TrashSweepScheduler trashSweepScheduler =
-                new com.organizer3.trash.TrashSweepScheduler(trashService, smbConnectionFactory, config);
+                new com.organizer3.trash.TrashSweepScheduler(trashService, smbConnectionFactory, config, nasMonitor);
         com.organizer3.utilities.task.trash.TrashScheduleTask trashScheduleTask =
                 new com.organizer3.utilities.task.trash.TrashScheduleTask(trashService, smbConnectionFactory);
         com.organizer3.utilities.task.trash.TrashRestoreTask trashRestoreTask =
@@ -809,6 +815,7 @@ public class Application {
         probeJobRunner.shutdown();
         thumbnailService.shutdown();
         smbConnectionFactory.shutdown();
+        nasMonitor.stop();
         if (mcpRoDb != null) mcpRoDb.close();
         log.info("Organizer3 exiting");
     }
