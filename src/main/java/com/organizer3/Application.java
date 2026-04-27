@@ -11,7 +11,9 @@ import com.organizer3.command.RestoreCommand;
 import com.organizer3.ai.ClaudeActressNameLookup;
 import com.organizer3.command.ActressNameCheckService;
 import com.organizer3.command.ActressSearchCommand;
+import com.organizer3.command.ActressMergeService;
 import com.organizer3.command.CheckNamesCommand;
+import com.organizer3.command.MergeActressCommand;
 import com.organizer3.command.ErrorScanService;
 import com.organizer3.command.ScanErrorsCommand;
 import com.organizer3.avstars.command.AvActressCommand;
@@ -231,6 +233,8 @@ public class Application {
         ActressYamlLoader yamlLoader = new ActressYamlLoader(actressRepo, titleRepo, tagRepo);
         commands.add(new LoadActressCommand(yamlLoader));
         commands.add(new CheckNamesCommand(actressRepo, new ActressNameCheckService()));
+        ActressMergeService actressMergeService = new ActressMergeService(jdbi, titleLocationRepo, actressRepo);
+        commands.add(new MergeActressCommand(actressRepo, actressMergeService));
         commands.add(new ScanErrorsCommand(actressRepo, new ErrorScanService()));
 
         // Scanner registry — maps structure types to their filesystem scanners
@@ -758,6 +762,7 @@ public class Application {
                 mcpTools.register(new com.organizer3.mcp.tools.ClassifyActressTool(session, jdbi, config, actressClassifierService));
                 mcpTools.register(new com.organizer3.mcp.tools.OrganizeVolumeTool(session, jdbi, config, organizeVolumeService));
                 mcpTools.register(new com.organizer3.mcp.tools.PrepFreshVideosTool(session, config, freshPrepService));
+                mcpTools.register(new com.organizer3.mcp.tools.RenameActressFoldersTool(session, actressRepo, actressMergeService));
                 mcpTools.register(new com.organizer3.mcp.tools.ExecuteDuplicateTrashTool(taskRunner));
                 mcpTools.register(new com.organizer3.mcp.tools.RestoreTrashedTool(taskRunner));
                 log.info("MCP file-op tools enabled");

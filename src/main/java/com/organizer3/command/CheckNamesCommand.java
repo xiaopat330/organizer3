@@ -68,6 +68,7 @@ public class CheckNamesCommand implements Command {
                         + ActressNameCheckService.SUSPECT_THRESHOLD + " titles)");
                 io.println("");
                 io.println("Use 'check names swaps' or 'check names typos' to see details.");
+                io.println("Use 'actress merge <suspect> > <canonical>' to fix a typo.");
             }
         }
     }
