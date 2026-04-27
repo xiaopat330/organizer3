@@ -233,7 +233,7 @@ public class Application {
         ActressYamlLoader yamlLoader = new ActressYamlLoader(actressRepo, titleRepo, tagRepo);
         commands.add(new LoadActressCommand(yamlLoader));
         commands.add(new CheckNamesCommand(actressRepo, new ActressNameCheckService()));
-        commands.add(new MergeActressCommand(actressRepo, new ActressMergeService(jdbi, titleLocationRepo)));
+        commands.add(new MergeActressCommand(actressRepo, new ActressMergeService(jdbi, titleLocationRepo, actressRepo)));
         commands.add(new ScanErrorsCommand(actressRepo, new ErrorScanService()));
 
         // Scanner registry — maps structure types to their filesystem scanners

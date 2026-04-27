@@ -1,6 +1,8 @@
 package com.organizer3.command;
 
 import com.organizer3.db.SchemaInitializer;
+import com.organizer3.filesystem.FileTimestamps;
+import com.organizer3.filesystem.VolumeFileSystem;
 import com.organizer3.model.Actress;
 import com.organizer3.model.Title;
 import com.organizer3.model.TitleLocation;
@@ -13,10 +15,14 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.io.InputStream;
 import java.nio.file.Path;
 import java.sql.Connection;
 import java.sql.DriverManager;
+import java.time.Instant;
 import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -42,7 +48,7 @@ class ActressMergeServiceTest {
         actressRepo = new JdbiActressRepository(jdbi);
         locationRepo = new JdbiTitleLocationRepository(jdbi);
         titleRepo = new JdbiTitleRepository(jdbi, locationRepo);
-        service = new ActressMergeService(jdbi, locationRepo);
+        service = new ActressMergeService(jdbi, locationRepo, actressRepo);
     }
 
     @AfterEach
@@ -253,6 +259,165 @@ class ActressMergeServiceTest {
         assertEquals(List.of(suspect.getId()), actressIds);
     }
 
+    // ── execute() with a real FS (rename loop) ───────────────────────────────
+
+    @Test
+    void execute_renamesFolder_onMountedVolume() throws Exception {
+        Actress suspect = actressRepo.save(mkActress("Rin Hatchimitsu"));
+        Actress canonical = actressRepo.save(mkActress("Rin Hachimitsu"));
+        saveTitleFiled("FNS-052", suspect.getId(), "/queue/Rin Hatchimitsu (FNS-052)", "pool");
+
+        FakeFs fs = new FakeFs();
+        ActressMergeService.MergePreview preview = service.preview(suspect, canonical);
+        ActressMergeService.MergeResult result = service.execute(preview, "pool", fs, false);
+
+        assertEquals(1, result.renamedPaths().size());
+        assertEquals(0, result.skipped().size());
+        assertEquals(1, fs.renameCalls.size());
+        assertEquals(Path.of("/queue/Rin Hatchimitsu (FNS-052)"), fs.renameCalls.get(0).path);
+        assertEquals("Rin Hachimitsu (FNS-052)", fs.renameCalls.get(0).newName);
+    }
+
+    @Test
+    void execute_dryRun_doesNotCallFs() throws Exception {
+        Actress suspect = actressRepo.save(mkActress("Rin Hatchimitsu"));
+        Actress canonical = actressRepo.save(mkActress("Rin Hachimitsu"));
+        saveTitleFiled("FNS-052", suspect.getId(), "/queue/Rin Hatchimitsu (FNS-052)", "pool");
+
+        FakeFs fs = new FakeFs();
+        ActressMergeService.MergePreview preview = service.preview(suspect, canonical);
+        service.execute(preview, "pool", fs, true);
+
+        assertTrue(fs.renameCalls.isEmpty());
+    }
+
+    // ── renameOnly / planRenamesFor (post-merge cleanup) ─────────────────────
+
+    @Test
+    void planRenamesFor_matchesAlias() {
+        Actress canonical = actressRepo.save(mkActress("Rin Hachimitsu"));
+        addAlias(canonical.getId(), "Rin Hatchimitsu");
+
+        // Filing title for canonical, but folder still uses the alias name
+        saveTitleFiled("FNS-052", canonical.getId(), "/queue/Rin Hatchimitsu (FNS-052)", "pool");
+
+        ActressMergeService.RenamePlan plan = service.planRenamesFor(canonical);
+
+        assertEquals(1, plan.renames().size());
+        assertEquals(0, plan.unresolved().size());
+        assertEquals(Path.of("/queue/Rin Hachimitsu (FNS-052)"), plan.renames().get(0).newPath());
+    }
+
+    @Test
+    void planRenamesFor_excludesFolderAlreadyContainingCanonical() {
+        Actress canonical = actressRepo.save(mkActress("Rin Hachimitsu"));
+        addAlias(canonical.getId(), "Rin Hatchimitsu");
+        saveTitleFiled("FNS-052", canonical.getId(), "/queue/Rin Hachimitsu (FNS-052)", "pool");
+
+        ActressMergeService.RenamePlan plan = service.planRenamesFor(canonical);
+
+        assertEquals(0, plan.renames().size());
+        assertEquals(0, plan.unresolved().size());
+    }
+
+    @Test
+    void planRenamesFor_unresolvedWhenNoAliasMatches() {
+        Actress canonical = actressRepo.save(mkActress("Rin Hachimitsu"));
+        addAlias(canonical.getId(), "Rin Hatchimitsu");
+        // Folder name doesn't start with any known alias
+        saveTitleFiled("FNS-052", canonical.getId(), "/queue/FNS-052", "pool");
+
+        ActressMergeService.RenamePlan plan = service.planRenamesFor(canonical);
+
+        assertEquals(0, plan.renames().size());
+        assertEquals(1, plan.unresolved().size());
+        assertEquals(Path.of("/queue/FNS-052"), plan.unresolved().get(0).currentPath());
+    }
+
+    @Test
+    void planRenamesFor_picksLongestMatchingAliasFirst() {
+        // Two aliases where one is a prefix of the other — longest must win
+        Actress canonical = actressRepo.save(mkActress("Hachimitsu"));
+        addAlias(canonical.getId(), "Rin");
+        addAlias(canonical.getId(), "Rin Hatchimitsu");
+        saveTitleFiled("FNS-052", canonical.getId(), "/queue/Rin Hatchimitsu (FNS-052)", "pool");
+
+        ActressMergeService.RenamePlan plan = service.planRenamesFor(canonical);
+
+        assertEquals(1, plan.renames().size());
+        // Longest alias "Rin Hatchimitsu" replaced — not just "Rin"
+        assertEquals(Path.of("/queue/Hachimitsu (FNS-052)"), plan.renames().get(0).newPath());
+    }
+
+    @Test
+    void renameOnly_executesRenameAndUpdatesPath() throws Exception {
+        Actress canonical = actressRepo.save(mkActress("Rin Hachimitsu"));
+        addAlias(canonical.getId(), "Rin Hatchimitsu");
+        Title t = saveTitleFiled("FNS-052", canonical.getId(), "/queue/Rin Hatchimitsu (FNS-052)", "pool");
+
+        FakeFs fs = new FakeFs();
+        ActressMergeService.RenamePlan plan = service.planRenamesFor(canonical);
+        ActressMergeService.RenameResult result = service.renameOnly(plan, "pool", fs, false);
+
+        assertEquals(1, result.renamedPaths().size());
+        assertEquals(0, result.skipped().size());
+        assertEquals(1, fs.renameCalls.size());
+
+        // DB path was updated
+        String newPath = jdbi.withHandle(h ->
+                h.createQuery("SELECT path FROM title_locations WHERE title_id = :id")
+                        .bind("id", t.getId()).mapTo(String.class).one());
+        assertEquals("/queue/Rin Hachimitsu (FNS-052)", newPath);
+    }
+
+    @Test
+    void renameOnly_skipsUnmountedVolume() throws Exception {
+        Actress canonical = actressRepo.save(mkActress("Rin Hachimitsu"));
+        addAlias(canonical.getId(), "Rin Hatchimitsu");
+        saveTitleFiled("FNS-052", canonical.getId(), "/queue/Rin Hatchimitsu (FNS-052)", "pool");
+
+        FakeFs fs = new FakeFs();
+        ActressMergeService.RenamePlan plan = service.planRenamesFor(canonical);
+        // "r" is mounted, but the location is on "pool"
+        ActressMergeService.RenameResult result = service.renameOnly(plan, "r", fs, false);
+
+        assertEquals(0, result.renamedPaths().size());
+        assertEquals(1, result.skipped().size());
+        assertTrue(fs.renameCalls.isEmpty());
+    }
+
+    @Test
+    void renameOnly_dryRun_doesNotCallFs() throws Exception {
+        Actress canonical = actressRepo.save(mkActress("Rin Hachimitsu"));
+        addAlias(canonical.getId(), "Rin Hatchimitsu");
+        saveTitleFiled("FNS-052", canonical.getId(), "/queue/Rin Hatchimitsu (FNS-052)", "pool");
+
+        FakeFs fs = new FakeFs();
+        ActressMergeService.RenamePlan plan = service.planRenamesFor(canonical);
+        ActressMergeService.RenameResult result = service.renameOnly(plan, "pool", fs, true);
+
+        assertEquals(1, result.renamedPaths().size());
+        assertTrue(fs.renameCalls.isEmpty());
+    }
+
+    @Test
+    void renameOnly_propagatesUnresolved() throws Exception {
+        Actress canonical = actressRepo.save(mkActress("Rin Hachimitsu"));
+        addAlias(canonical.getId(), "Rin Hatchimitsu");
+        saveTitleFiled("FNS-052", canonical.getId(), "/queue/FNS-052", "pool");
+
+        ActressMergeService.RenamePlan plan = service.planRenamesFor(canonical);
+        ActressMergeService.RenameResult result = service.renameOnly(plan, "pool", new FakeFs(), false);
+
+        assertEquals(1, result.unresolved().size());
+    }
+
+    private void addAlias(long actressId, String aliasName) {
+        jdbi.useHandle(h -> h.createUpdate(
+                "INSERT INTO actress_aliases (actress_id, alias_name) VALUES (:id, :name)")
+                .bind("id", actressId).bind("name", aliasName).execute());
+    }
+
     // ── MergeActressCommand arg parsing ──────────────────────────────────────
 
     @Test
@@ -329,5 +494,26 @@ class ActressMergeServiceTest {
         jdbi.useHandle(h -> h.createUpdate(
                 "INSERT OR IGNORE INTO title_actresses (title_id, actress_id) VALUES (:t, :a)")
                 .bind("t", titleId).bind("a", actressId).execute());
+    }
+
+    /** Minimal VolumeFileSystem fake — only records rename() calls. */
+    static final class FakeFs implements VolumeFileSystem {
+        record RenameCall(Path path, String newName) {}
+        final List<RenameCall> renameCalls = new ArrayList<>();
+
+        @Override public void rename(Path path, String newName) { renameCalls.add(new RenameCall(path, newName)); }
+
+        @Override public List<Path> listDirectory(Path path) { return Collections.emptyList(); }
+        @Override public List<Path> walk(Path root) { return Collections.emptyList(); }
+        @Override public boolean exists(Path path) { return false; }
+        @Override public boolean isDirectory(Path path) { return false; }
+        @Override public LocalDate getLastModifiedDate(Path path) { return null; }
+        @Override public InputStream openFile(Path path) { throw new UnsupportedOperationException(); }
+        @Override public long size(Path path) { return 0; }
+        @Override public void move(Path source, Path destination) { throw new UnsupportedOperationException(); }
+        @Override public void createDirectories(Path path) { throw new UnsupportedOperationException(); }
+        @Override public void writeFile(Path path, byte[] contents) { throw new UnsupportedOperationException(); }
+        @Override public FileTimestamps getTimestamps(Path path) { return null; }
+        @Override public void setTimestamps(Path path, Instant created, Instant modified) {}
     }
 }

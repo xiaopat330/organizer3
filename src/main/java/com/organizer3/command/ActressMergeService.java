@@ -2,6 +2,8 @@ package com.organizer3.command;
 
 import com.organizer3.filesystem.VolumeFileSystem;
 import com.organizer3.model.Actress;
+import com.organizer3.model.ActressAlias;
+import com.organizer3.repository.ActressRepository;
 import com.organizer3.repository.TitleLocationRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -10,6 +12,7 @@ import org.jdbi.v3.core.Jdbi;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 
 /**
@@ -28,6 +31,7 @@ public class ActressMergeService {
 
     private final Jdbi jdbi;
     private final TitleLocationRepository locationRepo;
+    private final ActressRepository actressRepo;
 
     // ── Public records ───────────────────────────────────────────────────────
 
@@ -52,6 +56,20 @@ public class ActressMergeService {
             int filingTitlesUpdated,
             List<Path> renamedPaths,
             List<LocationRename> skipped
+    ) {}
+
+    public record UnresolvedPath(long locationId, String volumeId, Path currentPath) {}
+
+    public record RenamePlan(
+            Actress actress,
+            List<LocationRename> renames,
+            List<UnresolvedPath> unresolved
+    ) {}
+
+    public record RenameResult(
+            List<Path> renamedPaths,
+            List<LocationRename> skipped,
+            List<UnresolvedPath> unresolved
     ) {}
 
     // ── Preview ──────────────────────────────────────────────────────────────
@@ -107,33 +125,11 @@ public class ActressMergeService {
         long suspectId = preview.suspect().getId();
         long canonicalId = preview.canonical().getId();
 
-        List<Path> renamed = new ArrayList<>();
-        List<LocationRename> skipped = new ArrayList<>();
-
         // Step 1: rename folders on mounted volume (filesystem first, then DB path)
-        for (LocationRename rename : preview.renames()) {
-            boolean onMountedVolume = rename.volumeId().equals(mountedVolumeId) && fs != null;
-            if (!onMountedVolume) {
-                skipped.add(rename);
-                continue;
-            }
-            if (dry) {
-                renamed.add(rename.newPath());
-            } else {
-                try {
-                    fs.rename(rename.currentPath(), rename.newPath().getFileName().toString());
-                    locationRepo.updatePathAndPartition(rename.locationId(), rename.newPath(), rename.partitionId());
-                    renamed.add(rename.newPath());
-                    log.info("Renamed folder: {} → {}", rename.currentPath(), rename.newPath());
-                } catch (IOException e) {
-                    log.warn("Failed to rename {}: {}", rename.currentPath(), e.getMessage());
-                    skipped.add(rename);
-                }
-            }
-        }
+        FsRenameOutcome rn = performFsRenames(preview.renames(), mountedVolumeId, fs, dry);
 
         if (dry) {
-            return new MergeResult(preview.castTitleCount(), preview.filingTitleCount(), renamed, skipped);
+            return new MergeResult(preview.castTitleCount(), preview.filingTitleCount(), rn.renamed, rn.skipped);
         }
 
         // Step 2: DB merge in a single transaction
@@ -173,7 +169,108 @@ public class ActressMergeService {
                     .execute();
         });
 
-        return new MergeResult(preview.castTitleCount(), preview.filingTitleCount(), renamed, skipped);
+        return new MergeResult(preview.castTitleCount(), preview.filingTitleCount(), rn.renamed, rn.skipped);
+    }
+
+    // ── Rename-only (post-merge cleanup) ─────────────────────────────────────
+
+    /**
+     * Build the rename plan for one actress by scanning her filing title_locations
+     * for folder names that start with any of her aliases (or canonical name) but
+     * don't already use the canonical name.
+     *
+     * <p>Locations whose folder name doesn't match any known alias appear in
+     * {@link RenamePlan#unresolved()} for manual inspection.
+     */
+    public RenamePlan planRenamesFor(Actress actress) {
+        long actressId = actress.getId();
+        String canonical = actress.getCanonicalName();
+
+        // Aliases sorted longest-first so multi-token aliases match before shorter prefixes
+        List<String> aliasNames = new ArrayList<>();
+        for (ActressAlias a : actressRepo.findAliases(actressId)) {
+            aliasNames.add(a.aliasName());
+        }
+        aliasNames.sort(Comparator.comparingInt(String::length).reversed());
+
+        record FilingRow(long locId, String volumeId, String partitionId, String path) {}
+
+        List<FilingRow> rows = jdbi.withHandle(h ->
+                h.createQuery("""
+                        SELECT tl.id, tl.volume_id, tl.partition_id, tl.path
+                        FROM titles t
+                        JOIN title_locations tl ON tl.title_id = t.id
+                        WHERE t.actress_id = :actressId
+                          AND instr(LOWER(tl.path), LOWER(:canonical)) = 0
+                        """)
+                        .bind("actressId", actressId)
+                        .bind("canonical", canonical)
+                        .map((rs, ctx) -> new FilingRow(
+                                rs.getLong("id"),
+                                rs.getString("volume_id"),
+                                rs.getString("partition_id"),
+                                rs.getString("path")))
+                        .list());
+
+        List<LocationRename> renames = new ArrayList<>();
+        List<UnresolvedPath> unresolved = new ArrayList<>();
+        for (FilingRow row : rows) {
+            Path current = Path.of(row.path());
+            Path newPath = null;
+            for (String alias : aliasNames) {
+                newPath = computeNewPath(current, alias, canonical);
+                if (newPath != null) break;
+            }
+            if (newPath != null) {
+                renames.add(new LocationRename(row.locId(), row.volumeId(), row.partitionId(), current, newPath));
+            } else {
+                unresolved.add(new UnresolvedPath(row.locId(), row.volumeId(), current));
+            }
+        }
+
+        return new RenamePlan(actress, renames, unresolved);
+    }
+
+    /**
+     * Execute (or preview) folder renames for one actress, without touching the DB merge
+     * tables. Use this after a {@code merge_actresses} call when only the filesystem
+     * still reflects the old name.
+     */
+    public RenameResult renameOnly(RenamePlan plan, String mountedVolumeId,
+                                   VolumeFileSystem fs, boolean dry) throws IOException {
+        FsRenameOutcome rn = performFsRenames(plan.renames(), mountedVolumeId, fs, dry);
+        return new RenameResult(rn.renamed, rn.skipped, plan.unresolved());
+    }
+
+    // ── Shared FS rename loop ────────────────────────────────────────────────
+
+    private record FsRenameOutcome(List<Path> renamed, List<LocationRename> skipped) {}
+
+    private FsRenameOutcome performFsRenames(List<LocationRename> renames, String mountedVolumeId,
+                                             VolumeFileSystem fs, boolean dry) throws IOException {
+        List<Path> renamed = new ArrayList<>();
+        List<LocationRename> skipped = new ArrayList<>();
+        for (LocationRename rename : renames) {
+            boolean onMountedVolume = rename.volumeId().equals(mountedVolumeId) && fs != null;
+            if (!onMountedVolume) {
+                skipped.add(rename);
+                continue;
+            }
+            if (dry) {
+                renamed.add(rename.newPath());
+            } else {
+                try {
+                    fs.rename(rename.currentPath(), rename.newPath().getFileName().toString());
+                    locationRepo.updatePathAndPartition(rename.locationId(), rename.newPath(), rename.partitionId());
+                    renamed.add(rename.newPath());
+                    log.info("Renamed folder: {} → {}", rename.currentPath(), rename.newPath());
+                } catch (IOException e) {
+                    log.warn("Failed to rename {}: {}", rename.currentPath(), e.getMessage());
+                    skipped.add(rename);
+                }
+            }
+        }
+        return new FsRenameOutcome(renamed, skipped);
     }
 
     // ── Path computation ─────────────────────────────────────────────────────
