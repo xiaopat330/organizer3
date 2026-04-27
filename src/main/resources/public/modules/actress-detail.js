@@ -235,8 +235,13 @@ function renderIdentitySection(a) {
   const tierBadge = `<span class="tier-badge tier-${esc(a.tier)}">${esc(a.tier.toLowerCase())}</span>`;
   const gradeBadge = a.grade ? `<span class="detail-grade">${esc(a.grade)}</span>` : '';
 
+  const avatarHtml = a.localAvatarUrl
+    ? `<img class="detail-actress-avatar" src="${esc(a.localAvatarUrl)}" alt="avatar">`
+    : '';
+
   return `
     <section class="detail-section detail-section-identity">
+      ${avatarHtml}
       <div class="detail-name">
         <span class="detail-first-name">${esc(firstName)}</span>
         ${lastName ? `<span class="detail-last-name">${esc(lastName)}</span>` : ''}

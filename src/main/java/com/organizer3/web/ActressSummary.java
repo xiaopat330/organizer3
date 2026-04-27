@@ -61,6 +61,9 @@ public class ActressSummary {
     int visitCount;
     String lastVisitedAt;  // ISO datetime string, null until first visit
 
+    /** URL to the locally cached actress avatar (from javdb enrichment), or null if none. */
+    String localAvatarUrl;
+
     // --- Nested DTOs ------------------------------------------------------
 
     @Value

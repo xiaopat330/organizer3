@@ -392,13 +392,15 @@ public class Application {
                 new com.organizer3.javdb.enrichment.EnrichmentQueue(jdbi, javdbConfig);
         com.organizer3.javdb.enrichment.AutoPromoter autoPromoter =
                 new com.organizer3.javdb.enrichment.AutoPromoter(jdbi);
+        com.organizer3.javdb.enrichment.ActressAvatarStore avatarStore =
+                new com.organizer3.javdb.enrichment.ActressAvatarStore(dataDir);
         com.organizer3.javdb.enrichment.EnrichmentRunner enrichmentRunner =
                 new com.organizer3.javdb.enrichment.EnrichmentRunner(
                         javdbConfig, javdbClient,
                         new com.organizer3.javdb.enrichment.JavdbExtractor(),
                         new com.organizer3.javdb.enrichment.JavdbProjector(jsonMapper),
                         javdbStagingRepo, javdbEnrichmentRepo,
-                        enrichmentQueue, titleRepo, actressRepo, autoPromoter);
+                        enrichmentQueue, titleRepo, actressRepo, autoPromoter, avatarStore);
         commands.add(new EnrichActressCommand(actressRepo, titleRepo, enrichmentQueue));
 
         // Sync commands — registered dynamically from syncConfig.
@@ -472,6 +474,8 @@ public class Application {
         webServer.registerActivityTracker(activityTracker);
         webServer.registerActressMerge(
                 new com.organizer3.web.routes.ActressMergeRoutes(jdbi, actressRepo));
+        webServer.registerAvatarRoutes(
+                new com.organizer3.web.routes.AvatarRoutes(dataDir.resolve("actress-avatars")));
 
         // In-app log viewer (Tools → Logs). Path matches logback.xml's RollingFileAppender.
         webServer.registerLogRoutes(
@@ -654,7 +658,8 @@ public class Application {
 
         webServer.registerJavdbDiscovery(new com.organizer3.web.routes.JavdbDiscoveryRoutes(
                 new com.organizer3.web.JavdbDiscoveryService(jdbi, enrichmentRunner),
-                new com.organizer3.web.JavdbEnrichmentActionService(titleRepo, enrichmentQueue, enrichmentRunner)));
+                new com.organizer3.web.JavdbEnrichmentActionService(titleRepo, enrichmentQueue, enrichmentRunner,
+                        javdbStagingRepo, avatarStore)));
 
         webServer.registerBgThumbnails(new com.organizer3.web.routes.BgThumbnailsRoutes(
                 bgWorker, bgThumbnailsState));

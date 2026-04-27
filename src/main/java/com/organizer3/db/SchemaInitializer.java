@@ -418,7 +418,8 @@ public class SchemaInitializer {
                         avatar_url          TEXT,
                         twitter_handle      TEXT,
                         instagram_handle    TEXT,
-                        title_count         INTEGER
+                        title_count         INTEGER,
+                        local_avatar_path   TEXT
                     )""");
             h.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_javdb_actress_slug ON javdb_actress_staging(javdb_slug)");
 
@@ -470,7 +471,7 @@ public class SchemaInitializer {
             // leave the version alone and let SchemaUpgrader apply any missing migrations.
             int currentVersion = h.createQuery("PRAGMA user_version").mapTo(Integer.class).one();
             if (currentVersion == 0) {
-                h.execute("PRAGMA user_version = 26");
+                h.execute("PRAGMA user_version = 27");
             }
         });
         log.info("Schema initialization complete");

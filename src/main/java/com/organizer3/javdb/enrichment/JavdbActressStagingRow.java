@@ -14,7 +14,8 @@ public record JavdbActressStagingRow(
         String avatarUrl,
         String twitterHandle,
         String instagramHandle,
-        Integer titleCount
+        Integer titleCount,
+        String localAvatarPath
 ) {
     public static final String STATUS_SLUG_ONLY = "slug_only";
     public static final String STATUS_FETCHED = "fetched";
