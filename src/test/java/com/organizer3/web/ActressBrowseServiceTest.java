@@ -9,6 +9,7 @@ import com.organizer3.model.TitleLocation;
 import com.organizer3.repository.ActressRepository;
 import com.organizer3.repository.LabelRepository;
 import com.organizer3.repository.TitleRepository;
+import org.jdbi.v3.core.Jdbi;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -42,19 +43,21 @@ class ActressBrowseServiceTest {
     @Mock CoverPath coverPath;
     @Mock LabelRepository labelRepo;
     @Mock ActressNameLookup nameLookup;
+    @Mock Jdbi jdbi;
 
     ActressBrowseService service;
 
     @BeforeEach
     void setUp() {
         service = new ActressBrowseService(actressRepo, titleRepo, coverPath,
-                Map.of("vol-a", "//pandora/jav_A"), labelRepo, nameLookup, null, null);
+                Map.of("vol-a", "//pandora/jav_A"), labelRepo, nameLookup, null, jdbi);
         lenient().when(titleRepo.findByActressIds(any())).thenReturn(Map.of());
         lenient().when(actressRepo.findAliasesForActresses(any())).thenReturn(Map.of());
         lenient().when(actressRepo.findCanonicalNameIds(any())).thenReturn(Map.of());
         lenient().when(actressRepo.findPrimaryForAliases(any())).thenReturn(Map.of());
         lenient().when(labelRepo.findAllAsMap()).thenReturn(Map.of());
         lenient().when(coverPath.find(any())).thenReturn(Optional.empty());
+        lenient().when(jdbi.withHandle(any())).thenReturn(Map.of());
     }
 
     // ── Prefix index ──────────────────────────────────────────────────────

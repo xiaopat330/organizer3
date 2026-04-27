@@ -408,6 +408,8 @@ public class Application {
                 new com.organizer3.rating.RatingCurveRecomputer(jdbi, ratingCurveRepo, ratingScoreCalculator);
         com.organizer3.rating.EnrichmentGradeStamper enrichmentGradeStamper =
                 new com.organizer3.rating.EnrichmentGradeStamper(ratingCurveRepo, ratingScoreCalculator, titleRepo);
+        com.organizer3.javdb.enrichment.ProfileChainGate profileChainGate =
+                new com.organizer3.javdb.enrichment.ProfileChainGate(jdbi, javdbConfig);
         com.organizer3.javdb.enrichment.EnrichmentRunner enrichmentRunner =
                 new com.organizer3.javdb.enrichment.EnrichmentRunner(
                         javdbConfig, javdbClient,
@@ -415,7 +417,7 @@ public class Application {
                         new com.organizer3.javdb.enrichment.JavdbProjector(jsonMapper),
                         javdbStagingRepo, javdbEnrichmentRepo,
                         enrichmentQueue, titleRepo, actressRepo, autoPromoter, avatarStore,
-                        enrichmentGradeStamper, ratingCurveRecomputer);
+                        enrichmentGradeStamper, ratingCurveRecomputer, profileChainGate);
         commands.add(new EnrichActressCommand(actressRepo, titleRepo, enrichmentQueue));
 
         // Sync commands — registered dynamically from syncConfig.

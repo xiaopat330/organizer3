@@ -40,7 +40,7 @@ class EnrichmentRunnerTest {
     private JavdbExtractor extractor;
     private JavdbProjector projector;
 
-    private static final JavdbConfig CONFIG = new JavdbConfig(true, 1.0, 3, new int[]{1, 5, 30}, 5, null, null, null, null);
+    private static final JavdbConfig CONFIG = new JavdbConfig(true, 1.0, 3, new int[]{1, 5, 30}, 5, null, null, null, null, 3);
 
     @BeforeEach
     void setUp() throws Exception {
@@ -78,7 +78,7 @@ class EnrichmentRunnerTest {
 
         EnrichmentRunner runner = new EnrichmentRunner(
                 CONFIG, fakeClient, extractor, projector, stagingRepo, enrichmentRepo, queue, titleRepo, actressRepo,
-                new AutoPromoter(jdbi), null, null, null);
+                new AutoPromoter(jdbi), null, null, null, null);
 
         queue.enqueueTitle(titleId, actressId);
         runner.runOneStep();
@@ -134,7 +134,7 @@ class EnrichmentRunnerTest {
 
         EnrichmentRunner runner = new EnrichmentRunner(
                 CONFIG, fakeClient, extractor, projector, stagingRepo, enrichmentRepo, queue, titleRepo, actressRepo,
-                new AutoPromoter(jdbi), null, null, null);
+                new AutoPromoter(jdbi), null, null, null, null);
 
         queue.enqueueTitle(titleId, actressId);
         runner.runOneStep();
@@ -166,7 +166,7 @@ class EnrichmentRunnerTest {
 
         EnrichmentRunner runner = new EnrichmentRunner(
                 CONFIG, fakeClient, extractor, projector, stagingRepo, enrichmentRepo, queue, titleRepo, actressRepo,
-                new AutoPromoter(jdbi), null, null, null);
+                new AutoPromoter(jdbi), null, null, null, null);
 
         queue.enqueueTitle(titleId, actressId);
         runner.runOneStep();
@@ -192,7 +192,7 @@ class EnrichmentRunnerTest {
 
         EnrichmentRunner runner = new EnrichmentRunner(
                 CONFIG, fakeClient, extractor, projector, stagingRepo, enrichmentRepo, queue, titleRepo, actressRepo,
-                new AutoPromoter(jdbi), null, null, null);
+                new AutoPromoter(jdbi), null, null, null, null);
 
         queue.enqueueTitle(titleId, actressId);
         runner.runOneStep();
@@ -217,7 +217,7 @@ class EnrichmentRunnerTest {
 
         EnrichmentRunner runner = new EnrichmentRunner(
                 CONFIG, rateLimitClient, extractor, projector, stagingRepo, enrichmentRepo, queue, titleRepo, actressRepo,
-                new AutoPromoter(jdbi), null, null, null);
+                new AutoPromoter(jdbi), null, null, null, null);
 
         queue.enqueueTitle(titleId, actressId);
         runner.runOneStep();
@@ -277,7 +277,7 @@ class EnrichmentRunnerTest {
 
         EnrichmentRunner runner = new EnrichmentRunner(
                 CONFIG, fakeClient, extractor, projector, stagingRepo, enrichmentRepo, queue, titleRepo, actressRepo,
-                new AutoPromoter(jdbi), null, null, null);
+                new AutoPromoter(jdbi), null, null, null, null);
 
         queue.enqueueTitle(titleId, actressId);
         runner.runOneStep();
@@ -308,7 +308,7 @@ class EnrichmentRunnerTest {
 
         EnrichmentRunner runner = new EnrichmentRunner(
                 CONFIG, null, extractor, projector, stagingRepo, enrichmentRepo, queue, titleRepo, actressRepo,
-                new AutoPromoter(jdbi), null, null, null);
+                new AutoPromoter(jdbi), null, null, null, null);
 
         runner.backfillActressSlugsFromEnrichment();
 
@@ -342,7 +342,7 @@ class EnrichmentRunnerTest {
 
         EnrichmentRunner runner = new EnrichmentRunner(
                 CONFIG, null, extractor, projector, stagingRepo, enrichmentRepo, queue, titleRepo, actressRepo,
-                new AutoPromoter(jdbi), null, null, null);
+                new AutoPromoter(jdbi), null, null, null, null);
 
         runner.backfillActressSlugsFromEnrichment();
 
@@ -370,13 +370,147 @@ class EnrichmentRunnerTest {
 
         EnrichmentRunner runner = new EnrichmentRunner(
                 CONFIG, null, extractor, projector, stagingRepo, enrichmentRepo, queue, titleRepo, actressRepo,
-                new AutoPromoter(jdbi), null, null, null);
+                new AutoPromoter(jdbi), null, null, null, null);
 
         runner.backfillActressSlugsFromEnrichment();
 
         // Multi-cast title — ambiguous, should not be backfilled
         assertTrue(stagingRepo.findActressStaging(actressId).isEmpty());
         assertEquals(0, queue.countPending());
+    }
+
+    // ── ProfileChainGate integration ──────────────────────────────────────────
+
+    /**
+     * Regression: actress-driven flow still auto-chains a profile fetch even when the
+     * actress would fail the title-driven gate (sentinel or below threshold).
+     */
+    @Test
+    void actressDrivenJob_alwaysChains_regardlessOfGate() throws Exception {
+        // Sentinel actress (would fail gate), but job is actress-driven → chain still fires.
+        long actressId = jdbi.withHandle(h ->
+                h.createUpdate("INSERT INTO actresses (canonical_name, stage_name, tier, first_seen_at, is_sentinel) " +
+                               "VALUES ('Various', 'Various', 'LIBRARY', '2024-01-01', 1)")
+                        .executeAndReturnGeneratedKeys("id").mapTo(Long.class).one());
+        long titleId = jdbi.withHandle(h ->
+                h.createUpdate("INSERT INTO titles (code, base_code, label, seq_num) VALUES ('VAR-001', 'VAR', 'VAR', 1)")
+                        .executeAndReturnGeneratedKeys("id").mapTo(Long.class).one());
+        jdbi.useHandle(h -> h.execute("INSERT INTO title_actresses (actress_id, title_id) VALUES (?,?)", actressId, titleId));
+
+        // Title page returns a single cast entry whose name matches the actress's stage name.
+        String searchHtml = "<a href=\"/v/var01\">VAR-001</a>";
+        String titleHtml = buildFakeTitleHtml("Various");
+        JavdbClient fakeClient = new JavdbClient() {
+            @Override public String searchByCode(String code) { return searchHtml; }
+            @Override public String fetchTitlePage(String slug) { return titleHtml; }
+            @Override public String fetchActressPage(String slug) { throw new AssertionError("not expected"); }
+        };
+
+        ProfileChainGate gate = new ProfileChainGate(jdbi, CONFIG);
+        EnrichmentRunner runner = new EnrichmentRunner(
+                CONFIG, fakeClient, extractor, projector, stagingRepo, enrichmentRepo, queue, titleRepo, actressRepo,
+                new AutoPromoter(jdbi), null, null, null, gate);
+
+        // Actress-driven enqueue (existing method).
+        queue.enqueueTitle(titleId, actressId);
+        runner.runOneStep();
+
+        // Profile fetch must be enqueued — actress-driven flow bypasses the gate.
+        Optional<EnrichmentJob> profileJob = queue.claimNextJob();
+        assertTrue(profileJob.isPresent(), "actress-driven job should always chain profile fetch");
+        assertEquals(EnrichmentJob.FETCH_ACTRESS_PROFILE, profileJob.get().jobType());
+    }
+
+    /**
+     * Title-driven job: sentinel actress in cast → profile fetch NOT chained.
+     */
+    @Test
+    void titleDrivenJob_sentinelActress_doesNotChainProfileFetch() throws Exception {
+        long actressId = jdbi.withHandle(h ->
+                h.createUpdate("INSERT INTO actresses (canonical_name, stage_name, tier, first_seen_at, is_sentinel) " +
+                               "VALUES ('Amateur', 'Amateur', 'LIBRARY', '2024-01-01', 1)")
+                        .executeAndReturnGeneratedKeys("id").mapTo(Long.class).one());
+        long titleId = jdbi.withHandle(h ->
+                h.createUpdate("INSERT INTO titles (code, base_code, label, seq_num) VALUES ('AMT-001', 'AMT', 'AMT', 1)")
+                        .executeAndReturnGeneratedKeys("id").mapTo(Long.class).one());
+        jdbi.useHandle(h -> h.execute("INSERT INTO title_actresses (actress_id, title_id) VALUES (?,?)", actressId, titleId));
+
+        String searchHtml = "<a href=\"/v/amt01\">AMT-001</a>";
+        JavdbClient fakeClient = new JavdbClient() {
+            @Override public String searchByCode(String code) { return searchHtml; }
+            @Override public String fetchTitlePage(String slug) { return buildFakeTitleHtml("Amateur"); }
+            @Override public String fetchActressPage(String slug) { throw new AssertionError("not expected"); }
+        };
+
+        ProfileChainGate gate = new ProfileChainGate(jdbi, CONFIG);
+        EnrichmentRunner runner = new EnrichmentRunner(
+                CONFIG, fakeClient, extractor, projector, stagingRepo, enrichmentRepo, queue, titleRepo, actressRepo,
+                new AutoPromoter(jdbi), null, null, null, gate);
+
+        queue.enqueueTitle(EnrichmentJob.SOURCE_POOL, titleId, actressId);
+        runner.runOneStep();
+
+        // Sentinel → no profile chain.
+        assertEquals(0, queue.countPending(), "sentinel actress in title-driven flow must not trigger profile chain");
+    }
+
+    /**
+     * Title-driven job: real actress with ≥3 titles → profile fetch chained.
+     */
+    @Test
+    void titleDrivenJob_eligibleActress_chainsProfileFetch() throws Exception {
+        long actressId = jdbi.withHandle(h ->
+                h.createUpdate("INSERT INTO actresses (canonical_name, stage_name, tier, first_seen_at, is_sentinel) " +
+                               "VALUES ('Yui Hatano', 'Yui Hatano', 'LIBRARY', '2024-01-01', 0)")
+                        .executeAndReturnGeneratedKeys("id").mapTo(Long.class).one());
+        // Seed 3 titles so the actress meets the threshold.
+        for (int i = 1; i <= 3; i++) {
+            final int seq = i;
+            long tid = jdbi.withHandle(h ->
+                    h.createUpdate("INSERT INTO titles (code, base_code, label, seq_num) VALUES (:c,:c,'PRED',:s)")
+                            .bind("c", "PRED-00" + seq)
+                            .bind("s", seq)
+                            .executeAndReturnGeneratedKeys("id").mapTo(Long.class).one());
+            jdbi.useHandle(h -> h.execute("INSERT INTO title_actresses (actress_id, title_id) VALUES (?,?)", actressId, tid));
+        }
+        // The title being enriched is one of those three.
+        long enrichTitleId = jdbi.withHandle(h -> h.createQuery(
+                "SELECT id FROM titles WHERE code = 'PRED-001'").mapTo(Long.class).one());
+
+        String searchHtml = "<a href=\"/v/pred01\">PRED-001</a>";
+        JavdbClient fakeClient = new JavdbClient() {
+            @Override public String searchByCode(String code) { return searchHtml; }
+            @Override public String fetchTitlePage(String slug) { return buildFakeTitleHtml("Yui Hatano"); }
+            @Override public String fetchActressPage(String slug) { throw new AssertionError("not expected"); }
+        };
+
+        ProfileChainGate gate = new ProfileChainGate(jdbi, CONFIG);
+        EnrichmentRunner runner = new EnrichmentRunner(
+                CONFIG, fakeClient, extractor, projector, stagingRepo, enrichmentRepo, queue, titleRepo, actressRepo,
+                new AutoPromoter(jdbi), null, null, null, gate);
+
+        queue.enqueueTitle(EnrichmentJob.SOURCE_RECENT, enrichTitleId, actressId);
+        runner.runOneStep();
+
+        Optional<EnrichmentJob> profileJob = queue.claimNextJob();
+        assertTrue(profileJob.isPresent(), "eligible actress in title-driven flow should chain profile fetch");
+        assertEquals(EnrichmentJob.FETCH_ACTRESS_PROFILE, profileJob.get().jobType());
+        assertEquals(actressId, profileJob.get().actressId());
+    }
+
+    /**
+     * Builds a minimal fake javdb title page HTML with a single cast member.
+     * The name is used verbatim so that {@code matchAndRecordActressSlug} can match it.
+     */
+    private String buildFakeTitleHtml(String actressName) {
+        return """
+                <html><body>
+                  <div class="movie-panel-info">
+                    <div class="panel-block"><strong>Release Date:</strong><span>2024-01-01</span></div>
+                    <div class="panel-block"><strong>Actors:</strong>
+                      <span class="value">
+                        <a href="/actors/fk01">""" + actressName + """
+                </a></span></div></div></body></html>""";
     }
 
     private String loadFixture(String name) throws IOException, URISyntaxException {

@@ -54,7 +54,7 @@ class SchemaUpgraderTest {
 
         new SchemaUpgrader(jdbi).upgrade();
 
-        assertEquals(28, currentVersion());
+        assertEquals(31, currentVersion());
         boolean present = jdbi.withHandle(h ->
                 h.createQuery("SELECT COUNT(*) FROM pragma_table_info('actresses') WHERE name='needs_profiling'")
                         .mapTo(Integer.class).one() > 0);
@@ -68,7 +68,7 @@ class SchemaUpgraderTest {
                 h.createQuery("SELECT COUNT(*) FROM pragma_table_info('actresses') WHERE name='needs_profiling'")
                         .mapTo(Integer.class).one() > 0);
         assertTrue(present, "fresh install should include needs_profiling");
-        assertEquals(28, currentVersion(), "fresh install should stamp current version (28)");
+        assertEquals(31, currentVersion(), "fresh install should stamp current version (31)");
     }
 
     @Test
@@ -84,7 +84,7 @@ class SchemaUpgraderTest {
 
         new SchemaUpgrader(jdbi).upgrade();
 
-        assertEquals(28, currentVersion());
+        assertEquals(31, currentVersion());
         boolean sizeBytesPresent = jdbi.withHandle(h ->
                 h.createQuery("SELECT COUNT(*) FROM pragma_table_info('videos') WHERE name='size_bytes'")
                         .mapTo(Integer.class).one() > 0);
@@ -106,7 +106,7 @@ class SchemaUpgraderTest {
 
         new SchemaUpgrader(jdbi).upgrade();
 
-        assertEquals(28, currentVersion());
+        assertEquals(31, currentVersion());
         assertTrue(columnExists("titles",    "favorite_cleared_at"));
         assertTrue(columnExists("actresses", "favorite_cleared_at"));
 
@@ -132,7 +132,7 @@ class SchemaUpgraderTest {
 
         new SchemaUpgrader(jdbi).upgrade();
 
-        assertEquals(28, currentVersion());
+        assertEquals(31, currentVersion());
         boolean tableExists = jdbi.withHandle(h ->
                 h.createQuery("SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='merge_candidates'")
                         .mapTo(Integer.class).one() > 0);
@@ -217,7 +217,7 @@ class SchemaUpgraderTest {
 
         // Run the migration.
         new SchemaUpgrader(jdbi).upgrade();
-        assertEquals(28, currentVersion());
+        assertEquals(31, currentVersion());
 
         // Enrichment rows: 5 fixture titles + the malformed-tags title (it still has slug + status='fetched');
         // not_found row should be excluded.
@@ -283,7 +283,7 @@ class SchemaUpgraderTest {
 
         new SchemaUpgrader(jdbi).upgrade();
 
-        assertEquals(28, currentVersion());
+        assertEquals(31, currentVersion());
         assertTrue(columnExists("titles", "grade_source"), "grade_source column should exist");
 
         // Backfill: grade != null → grade_source = 'ai'; grade is null → grade_source stays null.
@@ -305,6 +305,62 @@ class SchemaUpgraderTest {
         String gradedAfter = jdbi.withHandle(h ->
                 h.createQuery("SELECT grade_source FROM titles WHERE id = 1").mapTo(String.class).one());
         assertEquals("ai", gradedAfter, "re-running upgrade must not corrupt grade_source");
+    }
+
+    @Test
+    void upgradeFromV30AppliesV31_nullableActressIdSourceAndSentinel() {
+        new SchemaInitializer(jdbi).initialize();
+
+        // Seed an actress-driven queue row and sentinel candidates before forcing version=30.
+        jdbi.useHandle(h -> {
+            h.execute("INSERT INTO actresses(id, canonical_name, tier, first_seen_at) VALUES (1,'Various','LIBRARY','2024-01-01')");
+            h.execute("INSERT INTO actresses(id, canonical_name, stage_name, tier, first_seen_at) VALUES (2,'Unknown','unknown','LIBRARY','2024-01-01')");
+            h.execute("INSERT INTO actresses(id, canonical_name, stage_name, tier, first_seen_at) VALUES (3,'Real Actress','Real Actress','LIBRARY','2024-01-01')");
+            // Seed a queue row (actress-driven) — will be preserved and get source='actress'.
+            h.execute("INSERT INTO javdb_enrichment_queue(job_type, target_id, actress_id, status, attempts, next_attempt_at, created_at, updated_at) " +
+                      "VALUES ('fetch_title', 42, 3, 'pending', 0, '2026-01-01', '2026-01-01', '2026-01-01')");
+            h.execute("PRAGMA user_version = 30");
+        });
+
+        new SchemaUpgrader(jdbi).upgrade();
+
+        assertEquals(31, currentVersion());
+
+        // actress_id is now nullable and source column exists.
+        assertTrue(columnExists("javdb_enrichment_queue", "source"));
+
+        // Existing row preserved with source='actress'.
+        String source = jdbi.withHandle(h -> h.createQuery(
+                "SELECT source FROM javdb_enrichment_queue WHERE target_id = 42")
+                .mapTo(String.class).one());
+        assertEquals("actress", source);
+
+        Long actressId = jdbi.withHandle(h -> h.createQuery(
+                "SELECT actress_id FROM javdb_enrichment_queue WHERE target_id = 42")
+                .mapTo(Long.class).one());
+        assertEquals(3L, actressId);
+
+        // is_sentinel column exists.
+        assertTrue(columnExists("actresses", "is_sentinel"));
+
+        // Sentinel backfill: actress with stage_name='unknown' (case-insensitive) → is_sentinel=1.
+        int unknownSentinel = jdbi.withHandle(h -> h.createQuery(
+                "SELECT is_sentinel FROM actresses WHERE id = 2").mapTo(Integer.class).one());
+        assertEquals(1, unknownSentinel);
+
+        // Real actress → not a sentinel.
+        int realSentinel = jdbi.withHandle(h -> h.createQuery(
+                "SELECT is_sentinel FROM actresses WHERE id = 3").mapTo(Integer.class).one());
+        assertEquals(0, realSentinel);
+
+        // Actress without stage_name (Various row has stage_name=NULL) → not flagged (NULL doesn't match).
+        int variousSentinel = jdbi.withHandle(h -> h.createQuery(
+                "SELECT is_sentinel FROM actresses WHERE id = 1").mapTo(Integer.class).one());
+        assertEquals(0, variousSentinel, "actress with NULL stage_name should not be flagged sentinel");
+
+        // Idempotent: running again must not change state.
+        new SchemaUpgrader(jdbi).upgrade();
+        assertEquals(31, currentVersion());
     }
 
     private boolean columnExists(String table, String column) {

@@ -573,6 +573,121 @@ class JavdbDiscoveryServiceTest {
         assertEquals("2026-04-25T10:00:00Z", d.fetchedAt());
     }
 
+    // ── sentinel filtering ────────────────────────────────────────────────────
+
+    @Test
+    void listActresses_excludesSentinelActresses() {
+        // Real actress with titles — should appear.
+        long realId = jdbi.withHandle(h ->
+                h.createUpdate("INSERT INTO actresses (canonical_name, stage_name, tier, first_seen_at, is_sentinel) " +
+                               "VALUES ('Real One', 'Real One', 'LIBRARY', '2024-01-01', 0)")
+                        .executeAndReturnGeneratedKeys("id").mapTo(Long.class).one());
+        // Sentinel actress with titles — must be excluded.
+        long sentId = jdbi.withHandle(h ->
+                h.createUpdate("INSERT INTO actresses (canonical_name, stage_name, tier, first_seen_at, is_sentinel) " +
+                               "VALUES ('Various', 'Various', 'LIBRARY', '2024-01-01', 1)")
+                        .executeAndReturnGeneratedKeys("id").mapTo(Long.class).one());
+
+        long t1 = insertTitle("SENT-001");
+        long t2 = insertTitle("SENT-002");
+        linkActressTitle(realId, t1);
+        linkActressTitle(sentId, t2);
+
+        List<JavdbDiscoveryService.ActressRow> rows = service.listActresses();
+
+        assertEquals(1, rows.size());
+        assertEquals("Real One", rows.get(0).canonicalName());
+    }
+
+    @Test
+    void listActresses_nonSentinelActress_isNotFiltered() {
+        long aId = jdbi.withHandle(h ->
+                h.createUpdate("INSERT INTO actresses (canonical_name, stage_name, tier, first_seen_at, is_sentinel) " +
+                               "VALUES ('Known Actress', 'Known Actress', 'LIBRARY', '2024-01-01', 0)")
+                        .executeAndReturnGeneratedKeys("id").mapTo(Long.class).one());
+        linkActressTitle(aId, insertTitle("KA-001"));
+
+        List<JavdbDiscoveryService.ActressRow> rows = service.listActresses();
+
+        assertEquals(1, rows.size());
+        assertEquals("Known Actress", rows.get(0).canonicalName());
+    }
+
+    // ── conflict predicate ────────────────────────────────────────────────────
+
+    @Test
+    void getActressConflicts_singleActress_matchingCast_notInConflict() {
+        long aId = jdbi.withHandle(h ->
+                h.createUpdate("INSERT INTO actresses (canonical_name, stage_name, tier, first_seen_at) " +
+                               "VALUES ('Sora Aoi', 'Sora Aoi', 'LIBRARY', '2024-01-01')")
+                        .executeAndReturnGeneratedKeys("id").mapTo(Long.class).one());
+        long tId = insertTitle("SOA-001");
+        linkActressTitle(aId, tId);
+        // Actress has a staging slug.
+        jdbi.useHandle(h -> h.execute(
+                "INSERT INTO javdb_actress_staging (actress_id, javdb_slug, status) VALUES (?, '8ORE', 'fetched')", aId));
+        // Title is enriched with cast that includes her slug.
+        jdbi.useHandle(h -> h.execute(
+                "INSERT INTO title_javdb_enrichment (title_id, javdb_slug, fetched_at, cast_json) " +
+                "VALUES (?, 'abcd', '2026-01-01T00:00:00Z', '[{\"slug\":\"8ORE\",\"name\":\"蒼井そら\",\"gender\":\"F\"}]')", tId));
+
+        List<JavdbDiscoveryService.ConflictRow> conflicts = service.getActressConflicts(aId);
+
+        assertTrue(conflicts.isEmpty(), "matching cast slug should not be a conflict");
+    }
+
+    @Test
+    void getActressConflicts_singleActress_nonMatchingCast_inConflict() {
+        long aId = jdbi.withHandle(h ->
+                h.createUpdate("INSERT INTO actresses (canonical_name, stage_name, tier, first_seen_at) " +
+                               "VALUES ('Azusa Isshiki', 'Azusa Isshiki', 'LIBRARY', '2024-01-01')")
+                        .executeAndReturnGeneratedKeys("id").mapTo(Long.class).one());
+        long tId = insertTitle("ONED-539");
+        linkActressTitle(aId, tId);
+        jdbi.useHandle(h -> h.execute(
+                "INSERT INTO javdb_actress_staging (actress_id, javdb_slug, status) VALUES (?, 'aKzr', 'slug_only')", aId));
+        // Cast only contains Sora Aoi's slug, not Azusa's.
+        jdbi.useHandle(h -> h.execute(
+                "INSERT INTO title_javdb_enrichment (title_id, javdb_slug, fetched_at, cast_json) " +
+                "VALUES (?, 'zz99', '2026-01-01T00:00:00Z', '[{\"slug\":\"8ORE\",\"name\":\"蒼井そら\",\"gender\":\"F\"}]')", tId));
+
+        List<JavdbDiscoveryService.ConflictRow> conflicts = service.getActressConflicts(aId);
+
+        assertEquals(1, conflicts.size());
+        assertEquals("ONED-539", conflicts.get(0).code());
+    }
+
+    @Test
+    void getActressConflicts_multiActressTitle_matchingCreditedActress_notInConflict() {
+        // Two actresses both credited for a multi-actress title.
+        long a1 = jdbi.withHandle(h ->
+                h.createUpdate("INSERT INTO actresses (canonical_name, stage_name, tier, first_seen_at) " +
+                               "VALUES ('Ai Mukai', 'Ai Mukai', 'LIBRARY', '2024-01-01')")
+                        .executeAndReturnGeneratedKeys("id").mapTo(Long.class).one());
+        long a2 = jdbi.withHandle(h ->
+                h.createUpdate("INSERT INTO actresses (canonical_name, stage_name, tier, first_seen_at) " +
+                               "VALUES ('Yua Mikami', 'Yua Mikami', 'LIBRARY', '2024-01-01')")
+                        .executeAndReturnGeneratedKeys("id").mapTo(Long.class).one());
+        long tId = insertTitle("MVSD-503");
+        linkActressTitle(a1, tId);
+        linkActressTitle(a2, tId);
+
+        jdbi.useHandle(h -> h.execute(
+                "INSERT INTO javdb_actress_staging (actress_id, javdb_slug, status) VALUES (?, 'aiM1', 'slug_only')", a1));
+        jdbi.useHandle(h -> h.execute(
+                "INSERT INTO javdb_actress_staging (actress_id, javdb_slug, status) VALUES (?, 'yuM2', 'slug_only')", a2));
+
+        // Cast contains both slugs.
+        String castJson = "[{\"slug\":\"aiM1\",\"name\":\"葵むぎ\",\"gender\":\"F\"},{\"slug\":\"yuM2\",\"name\":\"三上悠亜\",\"gender\":\"F\"}]";
+        jdbi.useHandle(h -> h.execute(
+                "INSERT INTO title_javdb_enrichment (title_id, javdb_slug, fetched_at, cast_json) " +
+                "VALUES (?, 'mvsd03', '2026-01-01T00:00:00Z', ?)", tId, castJson));
+
+        // Neither actress should be in conflict.
+        assertTrue(service.getActressConflicts(a1).isEmpty());
+        assertTrue(service.getActressConflicts(a2).isEmpty());
+    }
+
     @Test
     void enrichmentDetail_returnsEmptyTagsWhenNone() {
         long titleId = insertTitle("DEF-001");

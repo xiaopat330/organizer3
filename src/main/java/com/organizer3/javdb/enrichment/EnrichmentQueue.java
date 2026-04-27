@@ -20,8 +20,20 @@ public class EnrichmentQueue {
     private final Jdbi jdbi;
     private final JavdbConfig config;
 
-    /** Enqueues a fetch_title job. No-op if a job for this title already exists and is not cancelled/failed. */
+    /**
+     * Enqueues a fetch_title job for the actress-driven flow.
+     * No-op if a job for this title already exists and is not cancelled/failed.
+     */
     public void enqueueTitle(long titleId, long actressId) {
+        enqueueTitle(EnrichmentJob.SOURCE_ACTRESS, titleId, actressId);
+    }
+
+    /**
+     * Enqueues a fetch_title job for a title-driven flow (recent, pool, collection).
+     * {@code actressId} may be null when the title has no single owning actress.
+     * No-op if a job for this title already exists and is not cancelled/failed.
+     */
+    public void enqueueTitle(String source, long titleId, Long actressId) {
         jdbi.useTransaction(h -> {
             // Remove stale failed/cancelled rows so the INSERT below won't create a duplicate.
             h.createUpdate("""
@@ -31,8 +43,8 @@ public class EnrichmentQueue {
                     """).bind("targetId", titleId).execute();
             h.createUpdate("""
                     INSERT INTO javdb_enrichment_queue
-                        (job_type, target_id, actress_id, status, attempts, next_attempt_at, created_at, updated_at, sort_order)
-                    SELECT 'fetch_title', :targetId, :actressId, 'pending', 0, :now, :now, :now,
+                        (job_type, target_id, actress_id, source, status, attempts, next_attempt_at, created_at, updated_at, sort_order)
+                    SELECT 'fetch_title', :targetId, :actressId, :source, 'pending', 0, :now, :now, :now,
                            (SELECT COALESCE(MAX(sort_order), 0) + 1 FROM javdb_enrichment_queue WHERE status IN ('pending', 'paused'))
                     WHERE NOT EXISTS (
                         SELECT 1 FROM javdb_enrichment_queue
@@ -42,6 +54,7 @@ public class EnrichmentQueue {
                     """)
                     .bind("targetId",  titleId)
                     .bind("actressId", actressId)
+                    .bind("source",    source)
                     .bind("now",       now())
                     .execute();
         });
@@ -60,8 +73,8 @@ public class EnrichmentQueue {
                     """).bind("targetId", titleId).execute();
             h.createUpdate("""
                     INSERT INTO javdb_enrichment_queue
-                        (job_type, target_id, actress_id, status, attempts, next_attempt_at, created_at, updated_at, sort_order)
-                    SELECT 'fetch_title', :targetId, :actressId, 'pending', 0, :now, :now, :now,
+                        (job_type, target_id, actress_id, source, status, attempts, next_attempt_at, created_at, updated_at, sort_order)
+                    SELECT 'fetch_title', :targetId, :actressId, 'actress', 'pending', 0, :now, :now, :now,
                            (SELECT COALESCE(MAX(sort_order), 0) + 1 FROM javdb_enrichment_queue WHERE status IN ('pending', 'paused'))
                     WHERE NOT EXISTS (
                         SELECT 1 FROM javdb_enrichment_queue
@@ -459,7 +472,8 @@ public class EnrichmentQueue {
                 rs.getLong("id"),
                 rs.getString("job_type"),
                 rs.getLong("target_id"),
-                rs.getLong("actress_id"),
+                rs.getLong("actress_id"),   // returns 0 when NULL (title-driven jobs)
+                rs.getString("source"),
                 rs.getString("status"),
                 rs.getInt("attempts"),
                 rs.getString("next_attempt_at"),

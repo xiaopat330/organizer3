@@ -148,6 +148,7 @@ public class JavdbDiscoveryService {
                       AND status IN ('pending', 'in_flight')
                     GROUP BY actress_id
                 ) jeq ON jeq.actress_id = a.id
+                WHERE a.is_sentinel = 0
                 GROUP BY a.id, a.canonical_name, a.stage_name, a.favorite, a.bookmark, jas.status
                 ORDER BY a.canonical_name
                 """)

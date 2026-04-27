@@ -346,6 +346,18 @@ media:
   videoExtensions: [asf, wma, wmv, wm, avi, mpg, mpeg, mkv, mov, rmvb, mp4, m4v, mp4v, m2ts, ts, divx]
   coverExtensions: [jpg, jpeg, png, webp]
 
+# javdb enrichment runner — see spec/PROPOSAL_JAVDB_ENRICHMENT.md.
+# All keys are optional; the values shown below are the code defaults.
+# javdb:
+#   enabled: true
+#   rateLimitPerSec: 0.1
+#   maxAttempts: 3
+#   backoffMinutes: [1, 5, 30]
+#   rate429PauseMinutes: 15
+#   burstSize: 4
+#   burstBreakMinutes: 30
+#   profileChainMinTitles: 3   # minimum title count before a title-driven job auto-chains a profile fetch
+
 # MCP server — enable mutation + network-op tools for smoke-testing.
 # Roll back by flipping the relevant flag to false or removing this block.
 mcp:

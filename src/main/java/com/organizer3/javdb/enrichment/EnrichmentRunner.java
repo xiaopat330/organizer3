@@ -55,6 +55,8 @@ public class EnrichmentRunner {
     // Tracks titles fetched since the queue last became empty; triggers batch recompute on drain.
     private int processedThisBatch = 0;
 
+    private final ProfileChainGate profileChainGate;
+
     private final AtomicBoolean stopRequested = new AtomicBoolean(false);
     private final AtomicBoolean paused = new AtomicBoolean(false);
     // When > now, the runner is in a rate-limit triggered global pause.
@@ -86,7 +88,8 @@ public class EnrichmentRunner {
             AutoPromoter autoPromoter,
             ActressAvatarStore avatarStore,
             EnrichmentGradeStamper gradeStamper,
-            RatingCurveRecomputer ratingCurveRecomputer) {
+            RatingCurveRecomputer ratingCurveRecomputer,
+            ProfileChainGate profileChainGate) {
         this.config = config;
         this.client = client;
         this.searchParser = new JavdbSearchParser();
@@ -101,6 +104,7 @@ public class EnrichmentRunner {
         this.avatarStore = avatarStore;
         this.gradeStamper = gradeStamper;
         this.ratingCurveRecomputer = ratingCurveRecomputer;
+        this.profileChainGate = profileChainGate;
     }
 
     public synchronized void start() {
@@ -327,8 +331,11 @@ public class EnrichmentRunner {
         queue.markDone(job.id());
         autoPromoter.promoteFromTitle(titleId, actressId);
 
-        // Completion hook: enqueue fetch_actress_profile if we now have a slug but no profile
-        triggerActressProfileIfNeeded(actressId);
+        // Completion hook: enqueue fetch_actress_profile if we now have a slug but no profile.
+        // For title-driven flows, gate against sentinel/threshold/existence checks first.
+        if (job.isActressDriven() || profileChainGate.shouldChainProfile(actressId)) {
+            triggerActressProfileIfNeeded(actressId);
+        }
     }
 
     private void executeFetchActressProfile(EnrichmentJob job) {
