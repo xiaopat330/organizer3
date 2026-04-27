@@ -13,7 +13,8 @@ const viewEl     = () => document.getElementById('tools-library-health-view');
 const listEl     = () => document.getElementById('lh-list');
 const emptyEl    = () => document.getElementById('lh-empty');
 const detailEl   = () => document.getElementById('lh-detail');
-const scanBtn    = () => document.getElementById('lh-scan');
+const scanBtn           = () => document.getElementById('lh-scan');
+const recomputeRatingsBtn = () => document.getElementById('lh-recompute-ratings');
 const scanAgeEl  = () => document.getElementById('lh-scan-age');
 const emptyTitle = () => document.getElementById('lh-empty-title');
 const emptySub   = () => document.getElementById('lh-empty-sub');
@@ -32,6 +33,7 @@ export async function showLibraryHealthView() {
   if (selectedId) showDetail(selectedId);
   else showEmpty();
   wireScanButton();
+  wireRecomputeRatingsButton();
 }
 
 export function hideLibraryHealthView() {
@@ -414,9 +416,53 @@ function subscribeToScan(runId) {
   };
 }
 
-// Keep the scan button's disabled state in sync with any other running task.
-taskCenter.subscribe(() => {
-  const btn = scanBtn();
-  if (!btn) return;
+// ── Recompute ratings ─────────────────────────────────────────────────────
+
+function wireRecomputeRatingsButton() {
+  const btn = recomputeRatingsBtn();
+  btn.onclick = startRecomputeRatings;
   btn.disabled = taskCenter.isRunning();
+}
+
+async function startRecomputeRatings() {
+  if (taskCenter.isRunning()) return;
+  try {
+    const res = await fetch('/api/utilities/tasks/rating.recompute_curve/run', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: '{}'
+    });
+    if (!res.ok) {
+      if (res.status === 409) {
+        const body = await res.json();
+        alert(`Another task is already running: ${body.runningTaskId}`);
+      } else {
+        alert(`Recompute failed to start (${res.status})`);
+      }
+      return;
+    }
+    const { runId } = await res.json();
+    taskCenter.start({ taskId: 'rating.recompute_curve', runId, label: 'Recomputing rating curve' });
+    subscribeToRecompute(runId);
+  } catch (e) {
+    console.error('Recompute ratings start failed', e);
+  }
+}
+
+function subscribeToRecompute(runId) {
+  const es = new EventSource(`/api/utilities/runs/${encodeURIComponent(runId)}/events`);
+  es.addEventListener('task.ended', e => {
+    const ev = JSON.parse(e.data);
+    taskCenter.finish({ status: ev.status, summary: ev.summary });
+    es.close();
+  });
+  es.onerror = () => { es.close(); };
+}
+
+// Keep both buttons' disabled state in sync with any other running task.
+taskCenter.subscribe(() => {
+  const scan = scanBtn();
+  if (scan) scan.disabled = taskCenter.isRunning();
+  const recompute = recomputeRatingsBtn();
+  if (recompute) recompute.disabled = taskCenter.isRunning();
 });
