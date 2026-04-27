@@ -394,6 +394,10 @@ public class Application {
                 new com.organizer3.javdb.enrichment.AutoPromoter(jdbi);
         com.organizer3.javdb.enrichment.ActressAvatarStore avatarStore =
                 new com.organizer3.javdb.enrichment.ActressAvatarStore(dataDir);
+        com.organizer3.rating.RatingCurveRepository ratingCurveRepo =
+                new com.organizer3.rating.JdbiRatingCurveRepository(jdbi);
+        com.organizer3.rating.RatingCurveRecomputer ratingCurveRecomputer =
+                new com.organizer3.rating.RatingCurveRecomputer(jdbi, ratingCurveRepo, new com.organizer3.rating.RatingScoreCalculator());
         com.organizer3.javdb.enrichment.EnrichmentRunner enrichmentRunner =
                 new com.organizer3.javdb.enrichment.EnrichmentRunner(
                         javdbConfig, javdbClient,
