@@ -10,7 +10,6 @@ import { showVolumesView, hideVolumesView } from './utilities-volumes.js';
 import { showActressDataView, hideActressDataView } from './utilities-actress-data.js';
 import { showBackupView, hideBackupView } from './utilities-backup.js';
 import { showLibraryHealthView, hideLibraryHealthView } from './utilities-library-health.js';
-import { showAvStarsView, hideAvStarsView } from './utilities-av-stars.js';
 import { showDupTriageView, hideDupTriageView, wireDupTriageEvents } from './utilities-duplicate-triage.js';
 import { showMergeCandidatesView, hideMergeCandidatesView, wireMergeCandidatesEvents } from './utilities-merge-candidates.js';
 import { showTrashView, hideTrashView } from './utilities-trash.js';
@@ -19,17 +18,20 @@ import { showTagHealthView, hideTagHealthView } from './utilities-tag-health.js'
 
 // ── DOM refs ──────────────────────────────────────────────────────────────
 const actionBtn         = document.getElementById('action-btn');
-const volumesBtn        = document.getElementById('tools-volumes-btn');
+const healthBtn         = document.getElementById('tools-health-btn');
+const utilitiesBtn      = document.getElementById('tools-utilities-btn');
 const actressDataBtn    = document.getElementById('tools-actress-data-btn');
-const backupBtn         = document.getElementById('tools-backup-btn');
-const libraryHealthBtn  = document.getElementById('tools-library-health-btn');
-const avStarsBtn        = document.getElementById('tools-av-stars-btn');
 const duplicatesBtn     = document.getElementById('tools-duplicates-btn');
 const trashBtn          = document.getElementById('tools-trash-btn');
 const queueBtn          = document.getElementById('tools-queue-btn');
-const logsBtn              = document.getElementById('tools-logs-btn');
 const javdbDiscoveryBtn    = document.getElementById('tools-javdb-discovery-btn');
-const tagHealthBtn         = document.getElementById('tools-tag-health-btn');
+const utilitiesSubnav      = document.getElementById('tools-utilities-subnav');
+const utilitiesBackupTab   = document.getElementById('tools-utilities-backup-tab');
+const utilitiesLogsTab     = document.getElementById('tools-utilities-logs-tab');
+const healthSubnav         = document.getElementById('tools-health-subnav');
+const healthLibraryTab     = document.getElementById('tools-health-library-tab');
+const healthVolumesTab     = document.getElementById('tools-health-volumes-tab');
+const healthTagsTab        = document.getElementById('tools-health-tags-tab');
 const duplicatesView    = document.getElementById('tools-duplicates-view');
 const duplicatesFilters = document.getElementById('tools-duplicates-filters');
 const duplicatesList    = document.getElementById('tools-duplicates-list');
@@ -45,7 +47,7 @@ const dupTriageTab      = document.getElementById('tools-dup-triage-tab');
 const mergeCandidatesTab = document.getElementById('tools-merge-candidates-tab');
 
 // ── Tool buttons ──────────────────────────────────────────────────────────
-const TOOL_BTNS = [volumesBtn, actressDataBtn, backupBtn, libraryHealthBtn, avStarsBtn, duplicatesBtn, trashBtn, queueBtn, logsBtn, javdbDiscoveryBtn, tagHealthBtn];
+const TOOL_BTNS = [healthBtn, utilitiesBtn, actressDataBtn, duplicatesBtn, trashBtn, queueBtn, javdbDiscoveryBtn];
 
 function selectTool(btn) {
   TOOL_BTNS.forEach(b => b?.classList.remove('selected'));
@@ -60,15 +62,16 @@ function hideAllToolViews() {
   hideActressDataView();
   hideBackupView();
   hideLibraryHealthView();
-  hideAvStarsView();
   hideDupTriageView();
   hideMergeCandidatesView();
   hideTrashView();
   hideJavdbDiscoveryView();
   hideTagHealthView();
-  dupSubnav.style.display         = 'none';
-  duplicatesView.style.display    = 'none';
-  duplicatesFilters.style.display = 'none';
+  dupSubnav.style.display          = 'none';
+  healthSubnav.style.display       = 'none';
+  utilitiesSubnav.style.display    = 'none';
+  duplicatesView.style.display     = 'none';
+  duplicatesFilters.style.display  = 'none';
 }
 
 // ── Show Tools landing ────────────────────────────────────────────────────
@@ -225,6 +228,69 @@ async function showDupTab(tab) {
   }
 }
 
+// ── Utilities tab ─────────────────────────────────────────────────────────
+function selectUtilitiesTab(tab) {
+  utilitiesBackupTab.classList.toggle('selected', tab === 'backup');
+  utilitiesLogsTab.classList.toggle('selected', tab === 'logs');
+}
+
+function showUtilitiesTab(tab) {
+  selectUtilitiesTab(tab);
+  hideBackupView();
+  hideLogsView();
+  if (tab === 'backup') {
+    showBackupView();
+  } else {
+    showLogsView();
+  }
+}
+
+export function showUtilities() {
+  showActionView('utilities');
+  selectTool(utilitiesBtn);
+  hideAllToolViews();
+  utilitiesSubnav.style.display = 'flex';
+
+  utilitiesBackupTab.onclick = () => showUtilitiesTab('backup');
+  utilitiesLogsTab.onclick   = () => showUtilitiesTab('logs');
+
+  showUtilitiesTab('backup');
+}
+
+// ── Health tab ────────────────────────────────────────────────────────────
+function selectHealthTab(tab) {
+  healthLibraryTab.classList.toggle('selected', tab === 'library');
+  healthVolumesTab.classList.toggle('selected', tab === 'volumes');
+  healthTagsTab.classList.toggle('selected', tab === 'tags');
+}
+
+function showHealthTab(tab) {
+  selectHealthTab(tab);
+  hideLibraryHealthView();
+  hideVolumesView();
+  hideTagHealthView();
+  if (tab === 'library') {
+    showLibraryHealthView();
+  } else if (tab === 'volumes') {
+    showVolumesView();
+  } else {
+    showTagHealthView();
+  }
+}
+
+export function showHealth() {
+  showActionView('health');
+  selectTool(healthBtn);
+  hideAllToolViews();
+  healthSubnav.style.display = 'flex';
+
+  healthLibraryTab.onclick = () => showHealthTab('library');
+  healthVolumesTab.onclick = () => showHealthTab('volumes');
+  healthTagsTab.onclick    = () => showHealthTab('tags');
+
+  showHealthTab('library');
+}
+
 export async function showDuplicates() {
   showActionView('duplicates');
   selectTool(duplicatesBtn);
@@ -325,15 +391,11 @@ document.addEventListener('keydown', e => {
 });
 
 // ── Button wiring ─────────────────────────────────────────────────────────
-actionBtn.addEventListener('click', () => libraryHealthBtn.click());
+actionBtn.addEventListener('click', () => healthBtn.click());
 
-volumesBtn.addEventListener('click', () => {
-  showActionView('volumes');
-  selectTool(volumesBtn);
-  updateBreadcrumb([{ label: 'Tools' }, { label: 'Volumes' }]);
-  hideAllToolViews();
-  showVolumesView();
-});
+healthBtn.addEventListener('click', showHealth);
+
+utilitiesBtn.addEventListener('click', showUtilities);
 
 actressDataBtn.addEventListener('click', () => {
   showActionView('actress-data');
@@ -341,30 +403,6 @@ actressDataBtn.addEventListener('click', () => {
   updateBreadcrumb([{ label: 'Tools' }, { label: 'Actress data' }]);
   hideAllToolViews();
   showActressDataView();
-});
-
-backupBtn.addEventListener('click', () => {
-  showActionView('backup');
-  selectTool(backupBtn);
-  updateBreadcrumb([{ label: 'Tools' }, { label: 'Backup' }]);
-  hideAllToolViews();
-  showBackupView();
-});
-
-libraryHealthBtn.addEventListener('click', () => {
-  showActionView('library-health');
-  selectTool(libraryHealthBtn);
-  updateBreadcrumb([{ label: 'Tools' }, { label: 'Library Health' }]);
-  hideAllToolViews();
-  showLibraryHealthView();
-});
-
-avStarsBtn.addEventListener('click', () => {
-  showActionView('av-stars');
-  selectTool(avStarsBtn);
-  updateBreadcrumb([{ label: 'Tools' }, { label: 'AV Stars' }]);
-  hideAllToolViews();
-  showAvStarsView();
 });
 
 duplicatesBtn.addEventListener('click', showDuplicates);
@@ -385,14 +423,6 @@ queueBtn.addEventListener('click', () => {
   showTitleEditor();
 });
 
-logsBtn.addEventListener('click', () => {
-  showActionView('logs');
-  selectTool(logsBtn);
-  updateBreadcrumb([{ label: 'Tools' }, { label: 'Logs' }]);
-  hideAllToolViews();
-  showLogsView();
-});
-
 javdbDiscoveryBtn.addEventListener('click', () => {
   showActionView('javdb-discovery');
   selectTool(javdbDiscoveryBtn);
@@ -401,10 +431,3 @@ javdbDiscoveryBtn.addEventListener('click', () => {
   showJavdbDiscoveryView();
 });
 
-tagHealthBtn.addEventListener('click', () => {
-  showActionView('tag-health');
-  selectTool(tagHealthBtn);
-  updateBreadcrumb([{ label: 'Tools' }, { label: 'Tag Health' }]);
-  hideAllToolViews();
-  showTagHealthView();
-});

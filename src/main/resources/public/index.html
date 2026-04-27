@@ -232,21 +232,17 @@
 <!-- Tools landing sub-nav -->
 <div id="action-landing" class="action-landing" style="display:none">
   <div class="action-landing-row" id="action-landing-tools-row">
-    <button type="button" id="tools-library-health-btn" class="action-tool-btn tools-library-health-btn">
-      <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h4l2-6 4 12 2-6h6"/></svg>
-      Library Health
+    <button type="button" id="tools-health-btn" class="action-tool-btn tools-health-btn">
+      <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+      Health
     </button>
     <button type="button" id="tools-actress-data-btn" class="action-tool-btn tools-actress-data-btn">
       <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="7" r="3.2"/><path d="M2 21v-1.5a4 4 0 0 1 4-4h6a4 4 0 0 1 4 4V21"/><circle cx="17" cy="8" r="2.5"/><path d="M14.5 21v-1a3.5 3.5 0 0 1 3.5-3.5h1a3.5 3.5 0 0 1 3.5 3.5V21"/></svg>
       Actress data
     </button>
-    <button type="button" id="tools-av-stars-btn" class="action-tool-btn tools-av-stars-btn">
-      <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M6 21v-1.5a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4V21"/><polygon points="18 4 19 6 21 6.3 19.5 8 19.8 10 18 9 16.2 10 16.5 8 15 6.3 17 6 "/></svg>
-      AV Stars
-    </button>
-    <button type="button" id="tools-volumes-btn" class="action-tool-btn tools-volumes-btn">
-      <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v6c0 1.66 4 3 9 3s9-1.34 9-3V5"/><path d="M3 11v6c0 1.66 4 3 9 3s9-1.34 9-3v-6"/></svg>
-      Volumes
+    <button type="button" id="tools-javdb-discovery-btn" class="action-tool-btn tools-javdb-discovery-btn">
+      <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      Discovery
     </button>
     <button type="button" id="tools-queue-btn" class="action-tool-btn tools-queue-btn">
       <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
@@ -256,27 +252,43 @@
       <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="8" width="13" height="13" rx="2"/><path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h3"/></svg>
       Duplicates
     </button>
-    <button type="button" id="tools-backup-btn" class="action-tool-btn tools-backup-btn">
-      <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 14"/><path d="M3 12a9 9 0 0 1 14.5-7.1"/></svg>
-      Backup
+    <button type="button" id="tools-utilities-btn" class="action-tool-btn tools-utilities-btn">
+      <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/><path d="M4.93 4.93a10 10 0 0 0 0 14.14"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/><path d="M8.46 8.46a5 5 0 0 0 0 7.07"/></svg>
+      Utilities
     </button>
     <button type="button" id="tools-trash-btn" class="action-tool-btn tools-trash-btn">
       <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
       Trash
     </button>
-    <button type="button" id="tools-logs-btn" class="action-tool-btn tools-logs-btn">
-      <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
-      Logs
-    </button>
-    <button type="button" id="tools-javdb-discovery-btn" class="action-tool-btn tools-javdb-discovery-btn">
-      <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-      Discovery
-    </button>
-    <button type="button" id="tools-tag-health-btn" class="action-tool-btn tools-tag-health-btn">
-      <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 12V8H6a2 2 0 0 1 0-4h12v4"/><path d="M4 6v12a2 2 0 0 0 2 2h14v-4"/><path d="M18 12h.01"/></svg>
-      Tag Health
-    </button>
   </div>
+</div>
+
+<!-- Utilities sub-nav (Backup / Logs tabs) -->
+<div id="tools-utilities-subnav" class="tools-subnav" style="display:none">
+  <button type="button" id="tools-utilities-backup-tab" class="tools-subnav-tab tools-subnav-tab-utilities-backup selected">
+    <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 14"/><path d="M3 12a9 9 0 0 1 14.5-7.1"/></svg>
+    Backup
+  </button>
+  <button type="button" id="tools-utilities-logs-tab" class="tools-subnav-tab tools-subnav-tab-utilities-logs">
+    <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
+    Logs
+  </button>
+</div>
+
+<!-- Health sub-nav (Library / Volumes / Tags tabs) -->
+<div id="tools-health-subnav" class="tools-subnav" style="display:none">
+  <button type="button" id="tools-health-library-tab" class="tools-subnav-tab tools-subnav-tab-health-library selected">
+    <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h4l2-6 4 12 2-6h6"/></svg>
+    Library
+  </button>
+  <button type="button" id="tools-health-volumes-tab" class="tools-subnav-tab tools-subnav-tab-health-volumes">
+    <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v6c0 1.66 4 3 9 3s9-1.34 9-3V5"/><path d="M3 11v6c0 1.66 4 3 9 3s9-1.34 9-3v-6"/></svg>
+    Volumes
+  </button>
+  <button type="button" id="tools-health-tags-tab" class="tools-subnav-tab tools-subnav-tab-health-tags">
+    <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 12V8H6a2 2 0 0 1 0-4h12v4"/><path d="M4 6v12a2 2 0 0 0 2 2h14v-4"/><path d="M18 12h.01"/></svg>
+    Tags
+  </button>
 </div>
 
 <!-- Tag Health tool content -->
@@ -423,40 +435,6 @@
   </section>
 </div>
 
-<!-- AV Stars tool content -->
-<div id="tools-av-stars-view" class="tools-av-stars-view" style="display:none">
-  <aside class="as-left" id="as-left">
-    <div class="as-left-header">
-      <span id="as-counts" class="as-counts">—</span>
-    </div>
-    <div class="as-filters">
-      <select id="as-filter" class="as-select">
-        <option value="ALL">All</option>
-        <option value="UNRESOLVED">Unresolved</option>
-        <option value="FAVORITES">Favorites</option>
-        <option value="BOOKMARKS">Bookmarks</option>
-        <option value="REJECTED">Rejected</option>
-      </select>
-      <select id="as-sort" class="as-select">
-        <option value="VIDEO_COUNT_DESC">Videos ↓</option>
-        <option value="STAGE_NAME_ASC">Name A→Z</option>
-        <option value="LAST_SCANNED_DESC">Recently scanned</option>
-      </select>
-    </div>
-    <ul id="as-list" class="as-list"></ul>
-  </aside>
-  <section class="as-right" id="as-right">
-    <div id="as-empty" class="as-empty">
-      <div class="as-empty-icon">
-        <svg viewBox="0 0 24 24" width="56" height="56" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M6 21v-1.5a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4V21"/></svg>
-      </div>
-      <div class="as-empty-title">Pick an actress on the left</div>
-      <div class="as-empty-sub">Resolve via IAFD, rename, or curate.</div>
-    </div>
-    <div id="as-detail" class="as-detail" style="display:none"></div>
-    <div id="as-picker" class="as-picker" style="display:none"></div>
-  </section>
-</div>
 
 <!-- Duplicates sub-nav (tab bar shared by Triage and Merge Candidates) -->
 <div id="tools-dup-subnav" class="tools-subnav" style="display:none">
@@ -836,11 +814,50 @@
       <svg class="av-landing-index-icon" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
       Index
     </button>
+    <button type="button" id="av-utilities-btn" class="actress-landing-special av-landing-utilities">
+      <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M6 21v-1.5a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4V21"/><polygon points="18 4 19 6 21 6.3 19.5 8 19.8 10 18 9 16.2 10 16.5 8 15 6.3 17 6 "/></svg>
+      Utilities
+    </button>
   </div>
 </div>
 <!-- AV dashboard (blank slate) -->
 <div id="av-dashboard" style="display:none">
   <div class="av-dashboard-empty">AV Dashboard coming soon.</div>
+</div>
+
+<!-- AV Stars tool content -->
+<div id="tools-av-stars-view" class="tools-av-stars-view" style="display:none">
+  <aside class="as-left" id="as-left">
+    <div class="as-left-header">
+      <span id="as-counts" class="as-counts">—</span>
+    </div>
+    <div class="as-filters">
+      <select id="as-filter" class="as-select">
+        <option value="ALL">All</option>
+        <option value="UNRESOLVED">Unresolved</option>
+        <option value="FAVORITES">Favorites</option>
+        <option value="BOOKMARKS">Bookmarks</option>
+        <option value="REJECTED">Rejected</option>
+      </select>
+      <select id="as-sort" class="as-select">
+        <option value="VIDEO_COUNT_DESC">Videos ↓</option>
+        <option value="STAGE_NAME_ASC">Name A→Z</option>
+        <option value="LAST_SCANNED_DESC">Recently scanned</option>
+      </select>
+    </div>
+    <ul id="as-list" class="as-list"></ul>
+  </aside>
+  <section class="as-right" id="as-right">
+    <div id="as-empty" class="as-empty">
+      <div class="as-empty-icon">
+        <svg viewBox="0 0 24 24" width="56" height="56" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M6 21v-1.5a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4V21"/></svg>
+      </div>
+      <div class="as-empty-title">Pick an actress on the left</div>
+      <div class="as-empty-sub">Resolve via IAFD, rename, or curate.</div>
+    </div>
+    <div id="as-detail" class="as-detail" style="display:none"></div>
+    <div id="as-picker" class="as-picker" style="display:none"></div>
+  </section>
 </div>
 <!-- AV actress index grid -->
 <div id="av-grid" class="grid" style="display:none"></div>

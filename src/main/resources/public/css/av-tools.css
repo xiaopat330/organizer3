@@ -35,6 +35,15 @@
 }
 .av-landing-index.selected .av-landing-index-icon { stroke: #70e898; }
 
+.av-landing-utilities        { color: #a78bfa; }
+.av-landing-utilities svg    { stroke: #a78bfa; }
+.av-landing-utilities:hover,
+.av-landing-utilities.selected {
+  background: rgba(167, 139, 250, 0.12);
+  color: #c4b5fd;
+}
+.av-landing-utilities.selected svg { stroke: #c4b5fd; }
+
 /* ── Action! landing sub-nav ─────────────────────────────────────────── */
 .action-landing {
   display: none;
@@ -171,6 +180,26 @@
   color: #c4b5fd;
 }
 .tools-tag-health-btn.selected svg { stroke: #c4b5fd; }
+.tools-utilities-btn        { color: #fb923c; }
+.tools-utilities-btn svg    { stroke: #fb923c; }
+.tools-utilities-btn:hover,
+.tools-utilities-btn.selected {
+  color: #fdba74;
+  background: #1e0d00;
+  border-color: #9a3412;
+}
+.tools-utilities-btn.selected svg { stroke: #fdba74; }
+
+.tools-health-btn        { color: #06b6d4; }
+.tools-health-btn svg    { stroke: #06b6d4; }
+.tools-health-btn:hover,
+.tools-health-btn.selected {
+  color: #22d3ee;
+  background: #011920;
+  border-color: #0e7490;
+}
+.tools-health-btn.selected svg { stroke: #22d3ee; }
+
 .tools-javdb-discovery-btn        { color: #38bdf8; }
 .tools-javdb-discovery-btn svg    { stroke: #38bdf8; }
 .tools-javdb-discovery-btn:hover,
@@ -4452,6 +4481,37 @@
   background: #061e12;
   border-color: #065f46;
   border-bottom-color: #34d399;
+}
+.tools-subnav-tab-utilities-backup.selected {
+  color: #5eead4;
+  background: #042320;
+  border-color: #0f766e;
+  border-bottom-color: #2dd4bf;
+}
+.tools-subnav-tab-utilities-logs.selected {
+  color: #bef264;
+  background: #0d1a00;
+  border-color: #3f6212;
+  border-bottom-color: #a3e635;
+}
+
+.tools-subnav-tab-health-library.selected {
+  color: #fde68a;
+  background: #1c1403;
+  border-color: #92400e;
+  border-bottom-color: #fbbf24;
+}
+.tools-subnav-tab-health-volumes.selected {
+  color: #7dd3fc;
+  background: #012030;
+  border-color: #0369a1;
+  border-bottom-color: #38bdf8;
+}
+.tools-subnav-tab-health-tags.selected {
+  color: #c4b5fd;
+  background: #0d0a1f;
+  border-color: #5b21b6;
+  border-bottom-color: #a78bfa;
 }
 
 /* ── Merge Candidates view ───────────────────────────────────────── */
