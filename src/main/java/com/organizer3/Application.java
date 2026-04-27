@@ -633,6 +633,9 @@ public class Application {
                 new com.organizer3.utilities.task.organize.FixTimestampsTask(
                         fixTimestampsVolumeService, config, organizeInvokerFactory);
 
+        com.organizer3.utilities.task.rating.RecomputeRatingCurveTask recomputeRatingCurveTask =
+                new com.organizer3.utilities.task.rating.RecomputeRatingCurveTask(ratingCurveRecomputer);
+
         com.organizer3.utilities.task.TaskRegistry taskRegistry =
                 new com.organizer3.utilities.task.TaskRegistry(
                         java.util.List.of(syncVolumeTask, cleanStaleLocationsTask,
@@ -648,7 +651,8 @@ public class Application {
                                 organizeSortPreviewTask, organizeSortTask,
                                 organizeClassifyPreviewTask, organizeClassifyTask,
                                 organizeAllPreviewTask, organizeAllTask,
-                                fixTimestampsPreviewTask, fixTimestampsTask));
+                                fixTimestampsPreviewTask, fixTimestampsTask,
+                                recomputeRatingCurveTask));
         com.organizer3.utilities.task.TaskRunner taskRunner =
                 new com.organizer3.utilities.task.TaskRunner(taskRegistry);
         webServer.registerUtilities(new com.organizer3.web.routes.UtilitiesRoutes(
