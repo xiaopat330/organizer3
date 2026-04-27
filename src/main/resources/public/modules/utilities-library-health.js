@@ -15,7 +15,8 @@ const emptyEl    = () => document.getElementById('lh-empty');
 const detailEl   = () => document.getElementById('lh-detail');
 const scanBtn           = () => document.getElementById('lh-scan');
 const recomputeRatingsBtn = () => document.getElementById('lh-recompute-ratings');
-const scanAgeEl  = () => document.getElementById('lh-scan-age');
+const scanAgeEl       = () => document.getElementById('lh-scan-age');
+const ratingStatusEl  = () => document.getElementById('lh-rating-status');
 const emptyTitle = () => document.getElementById('lh-empty-title');
 const emptySub   = () => document.getElementById('lh-empty-sub');
 
@@ -27,7 +28,7 @@ let isScanning = false;
 export async function showLibraryHealthView() {
   viewEl().style.display = 'flex';
   selectedId = localStorage.getItem(SELECTION_KEY);
-  await Promise.all([loadChecks(), loadLatestReport()]);
+  await Promise.all([loadChecks(), loadLatestReport(), loadRatingCurveStatus()]);
   renderScanAge();
   renderList();
   if (selectedId) showDetail(selectedId);
@@ -416,6 +417,40 @@ function subscribeToScan(runId) {
   };
 }
 
+// ── Rating curve status ───────────────────────────────────────────────────
+
+async function loadRatingCurveStatus() {
+  try {
+    const res = await fetch('/api/utilities/rating-curve/status');
+    if (!res.ok) return;
+    const data = await res.json();
+    renderRatingStatus(data);
+  } catch (e) {
+    // Non-fatal — status line just stays empty
+  }
+}
+
+function renderRatingStatus(data) {
+  const el = ratingStatusEl();
+  if (!el) return;
+  if (!data.computedAt) {
+    el.textContent = 'Rating curve: not computed';
+    return;
+  }
+  const when = formatRelativeAge(new Date(data.computedAt));
+  el.textContent = `Rating curve: ${data.population.toLocaleString()} titles graded · ${when}`;
+}
+
+function formatRelativeAge(date) {
+  const diffMs = Date.now() - date.getTime();
+  const diffMin = Math.round(diffMs / 60000);
+  if (diffMin < 1) return 'just now';
+  if (diffMin < 60) return `${diffMin}m ago`;
+  const diffH = Math.round(diffMin / 60);
+  if (diffH < 24) return `${diffH}h ago`;
+  return `${Math.round(diffH / 24)}d ago`;
+}
+
 // ── Recompute ratings ─────────────────────────────────────────────────────
 
 function wireRecomputeRatingsButton() {
@@ -426,6 +461,10 @@ function wireRecomputeRatingsButton() {
 
 async function startRecomputeRatings() {
   if (taskCenter.isRunning()) return;
+  const btn = recomputeRatingsBtn();
+  const originalText = btn.textContent;
+  btn.textContent = 'Recomputing…';
+  btn.disabled = true;
   try {
     const res = await fetch('/api/utilities/tasks/rating.recompute_curve/run', {
       method: 'POST',
@@ -433,6 +472,8 @@ async function startRecomputeRatings() {
       body: '{}'
     });
     if (!res.ok) {
+      btn.textContent = originalText;
+      btn.disabled = taskCenter.isRunning();
       if (res.status === 409) {
         const body = await res.json();
         alert(`Another task is already running: ${body.runningTaskId}`);
@@ -443,17 +484,34 @@ async function startRecomputeRatings() {
     }
     const { runId } = await res.json();
     taskCenter.start({ taskId: 'rating.recompute_curve', runId, label: 'Recomputing rating curve' });
-    subscribeToRecompute(runId);
+    subscribeToRecompute(runId, originalText);
   } catch (e) {
     console.error('Recompute ratings start failed', e);
+    btn.textContent = originalText;
+    btn.disabled = taskCenter.isRunning();
   }
 }
 
-function subscribeToRecompute(runId) {
+function subscribeToRecompute(runId, originalBtnText) {
   const es = new EventSource(`/api/utilities/runs/${encodeURIComponent(runId)}/events`);
-  es.addEventListener('task.ended', e => {
+  es.addEventListener('task.ended', async e => {
     const ev = JSON.parse(e.data);
     taskCenter.finish({ status: ev.status, summary: ev.summary });
+
+    const btn = recomputeRatingsBtn();
+    if (btn) {
+      const succeeded = ev.status === 'ok';
+      btn.textContent = succeeded ? 'Done ✓' : 'Failed ✗';
+      btn.classList.toggle('lh-scan--error', !succeeded);
+      setTimeout(() => {
+        btn.textContent = originalBtnText;
+        btn.classList.remove('lh-scan--error');
+        btn.disabled = taskCenter.isRunning();
+      }, 3000);
+    }
+
+    // Refresh status line to show updated population + timestamp.
+    await loadRatingCurveStatus();
     es.close();
   });
   es.onerror = () => { es.close(); };
@@ -464,5 +522,7 @@ taskCenter.subscribe(() => {
   const scan = scanBtn();
   if (scan) scan.disabled = taskCenter.isRunning();
   const recompute = recomputeRatingsBtn();
-  if (recompute) recompute.disabled = taskCenter.isRunning();
+  if (recompute && recompute.textContent !== 'Recomputing…') {
+    recompute.disabled = taskCenter.isRunning();
+  }
 });

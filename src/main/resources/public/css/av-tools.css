@@ -3321,7 +3321,17 @@
   border-color: #1e293b;
 }
 .lh-scan--secondary:hover:not(:disabled) { background: #161b22; color: #cbd5e1; }
+.lh-scan--error { color: #f87171; border-color: #7f1d1d; background: #1a0808; }
 .lh-header-actions { display: flex; gap: 6px; align-items: center; }
+.lh-rating-status {
+  font-size: 10px;
+  color: #475569;
+  letter-spacing: 0;
+  text-transform: none;
+  font-style: italic;
+  cursor: default;
+  min-height: 14px;
+}
 
 .lh-list {
   list-style: none;
