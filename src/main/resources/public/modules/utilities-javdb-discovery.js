@@ -18,6 +18,7 @@ function createState() {
     queueItemsPollTimer: null,
     paused: false,
     lastActiveTotal: 0,   // pending+inFlight from previous poll, for transition detection
+    rateLimitPausedUntil: null,   // ISO string or null; used to compute queue ETAs
     alphaFilter: 'All',
     tierFilter: new Set(),
     favoritesOnly: true,
@@ -103,6 +104,7 @@ async function refreshQueue() {
     if (!res.ok) return;
     const { pending, inFlight, failed, paused, rateLimitPausedUntil, rateLimitPauseReason, consecutiveRateLimitHits, pauseType } = await res.json();
     state.paused = paused;
+    state.rateLimitPausedUntil = rateLimitPausedUntil || null;
     const activeTotal = pending + inFlight;
     const total = activeTotal + failed;
     if (total === 0) {
@@ -120,7 +122,7 @@ async function refreshQueue() {
       if (pauseType === 'burst') {
         rateLimitBanner.className = 'jd-rate-limit-banner jd-banner-burst';
         rateLimitBanner.innerHTML =
-          `↻ Taking a burst break — resuming at ${esc(resumeStr)}.`;
+          `↻ Taking a burst break — resuming at <span class="jd-banner-time">${esc(resumeStr)}</span>.`;
       } else {
         const reason = rateLimitPauseReason || 'Rate limited';
         const hitNote = consecutiveRateLimitHits > 1
@@ -128,7 +130,7 @@ async function refreshQueue() {
           : '';
         rateLimitBanner.className = 'jd-rate-limit-banner jd-banner-rate-limit';
         rateLimitBanner.innerHTML =
-          `⚠ Rate limited — ${esc(reason)}${esc(hitNote)}. Resuming at ${esc(resumeStr)}. ` +
+          `⚠ Rate limited — ${esc(reason)}${esc(hitNote)}. Resuming at <strong class="jd-banner-time">${esc(resumeStr)}</strong>. ` +
           `<span class="jd-banner-hint">Try switching VPN or pausing enrichment manually until the block clears.</span>`;
       }
       rateLimitBanner.style.display = '';
@@ -984,6 +986,28 @@ async function loadQueueItems() {
   } catch { /* ignore */ }
 }
 
+// Average time between job completions (sleep + network). Conservative estimate used for ETAs.
+const AVG_JOB_MS = 3_500;
+// Show ETA only for the first N pending items — beyond that it's too imprecise.
+const ETA_WINDOW = 8;
+
+function computeEta(queuePosition) {
+  if (!queuePosition) return null;
+  const pauseRemainingMs = state.rateLimitPausedUntil
+    ? Math.max(0, new Date(state.rateLimitPausedUntil).getTime() - Date.now())
+    : 0;
+  return new Date(Date.now() + pauseRemainingMs + (queuePosition - 1) * AVG_JOB_MS);
+}
+
+function formatEta(queuePosition) {
+  if (!queuePosition || queuePosition > ETA_WINDOW) return '—';
+  const eta = computeEta(queuePosition);
+  const diffMs = eta.getTime() - Date.now();
+  if (diffMs < 15_000) return '<span class="jd-qi-eta-soon">soon</span>';
+  if (diffMs < 90_000) return `<span class="jd-qi-eta">~${Math.round(diffMs / 1000)}s</span>`;
+  return `<span class="jd-qi-eta">${eta.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>`;
+}
+
 function renderQueueItems(items) {
   if (items.length === 0) {
     queueEmpty.style.display = '';
@@ -999,12 +1023,14 @@ function renderQueueItems(items) {
     const age = formatQueueAge(item.updatedAt);
     const statusClass = item.status === 'in_flight' ? 'jd-qi-inflight'
                       : item.status === 'failed'    ? 'jd-qi-failed' : 'jd-qi-pending';
+    const etaCell = item.status === 'pending' ? formatEta(item.queuePosition) : '—';
     return `<tr>
       <td><button class="jd-qi-actress-link" data-actress-id="${item.actressId}">${esc(item.actressName)}</button></td>
       <td class="jd-qi-code">${esc(titleCell)}</td>
       <td>${typeLabel}</td>
       <td><span class="jd-qi-status ${statusClass}">${item.status}</span></td>
       <td>${item.attempts}</td>
+      <td class="jd-qi-eta-cell">${etaCell}</td>
       <td class="jd-qi-age">${age}</td>
     </tr>`;
   }).join('');

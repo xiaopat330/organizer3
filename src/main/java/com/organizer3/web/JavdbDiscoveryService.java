@@ -85,7 +85,8 @@ public class JavdbDiscoveryService {
             long id, String jobType, String status, int attempts,
             long actressId, String actressName,
             Long titleId, String titleCode,
-            String updatedAt
+            String updatedAt,
+            Integer queuePosition   // 1-based position among pending items; null for in_flight/failed
     ) {}
 
     public record QueueStatus(int pending, int inFlight, int failed, boolean paused,
@@ -458,7 +459,7 @@ public class JavdbDiscoveryService {
      * Returns active queue items (pending, in_flight, failed) for the Queue tab.
      */
     public List<QueueItem> getActiveQueueItems() {
-        return jdbi.withHandle(h -> h.createQuery("""
+        List<QueueItem> raw = jdbi.withHandle(h -> h.createQuery("""
                 SELECT
                   q.id, q.job_type, q.status, q.attempts,
                   q.actress_id, a.canonical_name AS actress_name,
@@ -482,9 +483,24 @@ public class JavdbDiscoveryService {
                         rs.getString("actress_name"),
                         rs.getObject("title_id") != null ? rs.getLong("title_id") : null,
                         rs.getString("title_code"),
-                        rs.getString("updated_at")
+                        rs.getString("updated_at"),
+                        null
                 ))
                 .list());
+
+        // Assign 1-based positions to pending items in their rendered order.
+        int pendingPos = 0;
+        List<QueueItem> result = new java.util.ArrayList<>(raw.size());
+        for (QueueItem item : raw) {
+            if ("pending".equals(item.status())) {
+                result.add(new QueueItem(item.id(), item.jobType(), item.status(), item.attempts(),
+                        item.actressId(), item.actressName(), item.titleId(), item.titleCode(),
+                        item.updatedAt(), ++pendingPos));
+            } else {
+                result.add(item);
+            }
+        }
+        return result;
     }
 
     /**

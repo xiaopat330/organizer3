@@ -5204,6 +5204,8 @@
   color: #a87c2a;
   font-size: 12px;
 }
+.jd-banner-burst  .jd-banner-time { color: #94a3b8; font-weight: 700; }
+.jd-banner-rate-limit .jd-banner-time { color: #fde68a; font-weight: 700; font-size: 14px; }
 
 .jd-body {
   display: flex;
@@ -6051,6 +6053,9 @@
 .jd-qi-actress-link:hover { text-decoration: underline; color: #a0c0f0; }
 .jd-qi-code { font-family: monospace; color: #aaa; }
 .jd-qi-age  { color: #666; font-size: 12px; }
+.jd-qi-eta-cell { font-size: 12px; min-width: 56px; }
+.jd-qi-eta      { color: #7ca8d8; font-variant-numeric: tabular-nums; }
+.jd-qi-eta-soon { color: #4ade80; font-weight: 600; }
 .jd-qi-status {
   display: inline-block;
   padding: 1px 8px;

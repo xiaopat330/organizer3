@@ -103,7 +103,7 @@ public class EnrichmentQueue {
             Optional<Long> id = h.createQuery("""
                     SELECT id FROM javdb_enrichment_queue
                     WHERE status = 'pending' AND next_attempt_at <= :now
-                    ORDER BY next_attempt_at ASC
+                    ORDER BY next_attempt_at ASC, id ASC
                     LIMIT 1
                     """)
                     .bind("now", now())
@@ -138,8 +138,13 @@ public class EnrichmentQueue {
     }
 
     /**
-     * Records a transient failure. Applies exponential backoff; promotes to permanent
-     * 'failed' once max attempts is reached.
+     * Records a transient failure with exponential backoff. The item always returns to
+     * {@code pending} — there is no terminal failure from this path. Once the backoff
+     * schedule is exhausted the last interval is repeated indefinitely, so the job keeps
+     * cycling until it succeeds or is explicitly cancelled.
+     *
+     * <p>Terminal {@code failed} status is reserved for definitively unretryable outcomes
+     * (404, title not in DB, etc.) via {@link #markPermanentlyFailed}.
      */
     public void markAttemptFailed(long id, String error) {
         jdbi.useHandle(h -> {
@@ -147,36 +152,21 @@ public class EnrichmentQueue {
                     .bind("id", id).mapTo(Integer.class).one();
 
             int newAttempts = attempts + 1;
-            int maxAttempts = config.maxAttemptsOrDefault();
             int[] backoff = config.backoffMinutesOrDefault();
-
-            if (newAttempts >= maxAttempts) {
-                h.createUpdate("""
-                        UPDATE javdb_enrichment_queue
-                        SET status = 'failed', attempts = :attempts, last_error = :error, updated_at = :now
-                        WHERE id = :id
-                        """)
-                        .bind("id",       id)
-                        .bind("attempts", newAttempts)
-                        .bind("error",    error)
-                        .bind("now",      now())
-                        .execute();
-            } else {
-                int backoffIdx = Math.min(newAttempts - 1, backoff.length - 1);
-                String nextAttempt = Instant.now().plus(backoff[backoffIdx], ChronoUnit.MINUTES).toString();
-                h.createUpdate("""
-                        UPDATE javdb_enrichment_queue
-                        SET status = 'pending', attempts = :attempts, last_error = :error,
-                            next_attempt_at = :nextAttempt, updated_at = :now
-                        WHERE id = :id
-                        """)
-                        .bind("id",          id)
-                        .bind("attempts",    newAttempts)
-                        .bind("error",       error)
-                        .bind("nextAttempt", nextAttempt)
-                        .bind("now",         now())
-                        .execute();
-            }
+            int backoffIdx = Math.min(newAttempts - 1, backoff.length - 1);
+            String nextAttempt = Instant.now().plus(backoff[backoffIdx], ChronoUnit.MINUTES).toString();
+            h.createUpdate("""
+                    UPDATE javdb_enrichment_queue
+                    SET status = 'pending', attempts = :attempts, last_error = :error,
+                        next_attempt_at = :nextAttempt, updated_at = :now
+                    WHERE id = :id
+                    """)
+                    .bind("id",          id)
+                    .bind("attempts",    newAttempts)
+                    .bind("error",       error)
+                    .bind("nextAttempt", nextAttempt)
+                    .bind("now",         now())
+                    .execute();
         });
     }
 

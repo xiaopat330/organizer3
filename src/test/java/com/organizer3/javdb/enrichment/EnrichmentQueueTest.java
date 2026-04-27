@@ -98,16 +98,18 @@ class EnrichmentQueueTest {
     }
 
     @Test
-    void markAttemptFailed_atMaxAttempts_setsFailedStatus() {
+    void markAttemptFailed_beyondBackoffSchedule_repeatsLastIntervalStaysPending() {
+        // With a one-step backoff schedule, subsequent failures should keep repeating
+        // the last interval rather than terminating as failed.
         JavdbConfig tightConfig = new JavdbConfig(true, 1.0, 1, new int[]{1}, 5, null, null, null, null);
-        EnrichmentQueue tightQueue = new EnrichmentQueue(
-                Jdbi.create(connection), tightConfig);
+        EnrichmentQueue tightQueue = new EnrichmentQueue(Jdbi.create(connection), tightConfig);
 
         tightQueue.enqueueTitle(2L, 20L);
         EnrichmentJob job = tightQueue.claimNextJob().get();
-        tightQueue.markAttemptFailed(job.id(), "permanent failure");
+        tightQueue.markAttemptFailed(job.id(), "transient error");
 
-        assertEquals(0, tightQueue.countPending());
+        // Item must stay in the pending pool (with a future next_attempt_at), not become failed.
+        assertEquals(1, tightQueue.countPending());
     }
 
     @Test
@@ -173,6 +175,24 @@ class EnrichmentQueueTest {
 
         assertEquals(2, queue.countPendingForActress(10L));
         assertEquals(1, queue.countPendingForActress(20L));
+    }
+
+    @Test
+    void claimNextJob_fifoByInsertionOrder() {
+        // Items enqueued first must be claimed first, regardless of actress.
+        queue.enqueueTitle(1L, 10L);
+        queue.enqueueTitle(2L, 20L);
+        queue.enqueueTitle(3L, 10L);
+
+        EnrichmentJob first  = queue.claimNextJob().get();
+        queue.markDone(first.id());
+        EnrichmentJob second = queue.claimNextJob().get();
+        queue.markDone(second.id());
+        EnrichmentJob third  = queue.claimNextJob().get();
+
+        assertEquals(1L, first.targetId());
+        assertEquals(2L, second.targetId());
+        assertEquals(3L, third.targetId());
     }
 
     @Test
