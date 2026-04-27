@@ -130,6 +130,16 @@ public class EnrichmentRunner {
         return consecutiveRateLimitHits;
     }
 
+    /**
+     * Returns {@code "burst"} when the current pause is a proactive burst break,
+     * {@code "rate_limit"} when caused by a 429/403 response, or {@code null} if
+     * there is no active pause.
+     */
+    public String getPauseType() {
+        if (getPauseReason() == null) return null;
+        return pauseReason != null && pauseReason.startsWith("burst break") ? "burst" : "rate_limit";
+    }
+
     private void runLoop() {
         while (!stopRequested.get()) {
             try {

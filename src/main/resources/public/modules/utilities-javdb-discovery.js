@@ -101,7 +101,7 @@ async function refreshQueue() {
   try {
     const res = await fetch('/api/javdb/discovery/queue');
     if (!res.ok) return;
-    const { pending, inFlight, failed, paused, rateLimitPausedUntil, rateLimitPauseReason, consecutiveRateLimitHits } = await res.json();
+    const { pending, inFlight, failed, paused, rateLimitPausedUntil, rateLimitPauseReason, consecutiveRateLimitHits, pauseType } = await res.json();
     state.paused = paused;
     const activeTotal = pending + inFlight;
     const total = activeTotal + failed;
@@ -117,13 +117,20 @@ async function refreshQueue() {
     if (rateLimitPausedUntil) {
       const resumeTime = new Date(rateLimitPausedUntil);
       const resumeStr = resumeTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-      const reason = rateLimitPauseReason || 'Rate limited';
-      const hitNote = consecutiveRateLimitHits > 1
-        ? ` (${consecutiveRateLimitHits} consecutive hits — pause doubled each time)`
-        : '';
-      rateLimitBanner.innerHTML =
-        `⚠ Enrichment paused — ${esc(reason)}${esc(hitNote)}. Resuming at ${esc(resumeStr)}. ` +
-        `<span class="jd-banner-hint">Try switching VPN or pausing enrichment manually until the block clears.</span>`;
+      if (pauseType === 'burst') {
+        rateLimitBanner.className = 'jd-rate-limit-banner jd-banner-burst';
+        rateLimitBanner.innerHTML =
+          `↻ Taking a burst break — resuming at ${esc(resumeStr)}.`;
+      } else {
+        const reason = rateLimitPauseReason || 'Rate limited';
+        const hitNote = consecutiveRateLimitHits > 1
+          ? ` (${consecutiveRateLimitHits} consecutive hits — pause doubled each time)`
+          : '';
+        rateLimitBanner.className = 'jd-rate-limit-banner jd-banner-rate-limit';
+        rateLimitBanner.innerHTML =
+          `⚠ Rate limited — ${esc(reason)}${esc(hitNote)}. Resuming at ${esc(resumeStr)}. ` +
+          `<span class="jd-banner-hint">Try switching VPN or pausing enrichment manually until the block clears.</span>`;
+      }
       rateLimitBanner.style.display = '';
     } else {
       rateLimitBanner.style.display = 'none';
