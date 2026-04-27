@@ -1034,9 +1034,6 @@
 .title-detail-left {
   width: 300px;
   flex-shrink: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
   padding: 20px 16px;
   overflow-y: auto;
   box-sizing: border-box;
@@ -1061,6 +1058,7 @@
   overflow: hidden;
   background: #070d1a;
   border-radius: 4px;
+  margin-bottom: 20px;
 }
 #title-detail-cover img {
   position: absolute;
