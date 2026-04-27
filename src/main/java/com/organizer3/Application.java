@@ -682,6 +682,9 @@ public class Application {
                 new com.organizer3.web.JavdbEnrichmentActionService(titleRepo, enrichmentQueue, enrichmentRunner,
                         javdbStagingRepo, avatarStore)));
 
+        webServer.registerTitleDiscovery(new com.organizer3.web.routes.TitleDiscoveryRoutes(
+                new com.organizer3.web.TitleDiscoveryService(jdbi, config, profileChainGate, enrichmentQueue)));
+
         webServer.registerBgThumbnails(new com.organizer3.web.routes.BgThumbnailsRoutes(
                 bgWorker, bgThumbnailsState));
 
