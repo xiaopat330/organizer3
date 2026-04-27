@@ -1,7 +1,6 @@
 # Proposal: Agentic Actress Name Typo Fix via MCP
 
-**Status:** Code shipped + config wired — 2026-04-26
-**Remaining:** one-shot manual smoke test, then merge to main
+**Status:** Complete — merged to main 2026-04-26
 **Scope:** Detection → DB merge → folder rename, orchestrated by Claude via organizer3 MCP
 
 ---
@@ -190,5 +189,5 @@ Only one volume is mountable at a time in organizer3. The tool respects this con
 - [x] Document `actress merge` in `spec/USAGE.md`
 - [x] Add `organizer3` MCP server entry to `~/.claude.json` under `projects["/Users/pyoung/workspace/organizer3"].mcpServers` (done — `type: http, url: http://localhost:8080/mcp`)
 - [x] Enable `mcp.allowMutations: true` and `mcp.allowFileOps: true` in `organizer-config.yaml` (already present in `src/main/resources/`)
-- [ ] Smoke test the full agentic flow against a real mounted volume
-- [ ] Merge `actress-merge-command` → `main`
+- [x] Smoke test: `merge_actresses` + `rename_actress_folders` verified against live server (Erina Fujsaki → Erina Fujisaki, 10 titles reassigned, 0 renames needed)
+- [x] Merge `actress-merge-command` → `main`
