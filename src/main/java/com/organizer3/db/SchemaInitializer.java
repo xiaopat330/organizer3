@@ -79,6 +79,7 @@ public class SchemaInitializer {
                         bookmark        INTEGER NOT NULL DEFAULT 0,
                         bookmarked_at   TEXT,
                         grade           TEXT,
+                        grade_source    TEXT,
                         rejected        INTEGER NOT NULL DEFAULT 0,
                         title_original  TEXT,
                         title_english   TEXT,
@@ -466,12 +467,23 @@ public class SchemaInitializer {
                     )""");
             h.execute("CREATE INDEX IF NOT EXISTS idx_tet_tag ON title_enrichment_tags(tag_id);");
 
+            // rating_curve: single-row config persisting Bayesian grade cutoffs (v28).
+            h.execute("""
+                    CREATE TABLE IF NOT EXISTS rating_curve (
+                        id                  INTEGER PRIMARY KEY CHECK (id = 1),
+                        global_mean         REAL    NOT NULL,
+                        global_count        INTEGER NOT NULL,
+                        min_credible_votes  INTEGER NOT NULL,
+                        cutoffs_json        TEXT    NOT NULL,
+                        computed_at         TEXT    NOT NULL
+                    )""");
+
             // Only stamp version on fresh installs (user_version = 0).
             // On an existing DB the CREATE TABLE statements above are all no-ops, so we must
             // leave the version alone and let SchemaUpgrader apply any missing migrations.
             int currentVersion = h.createQuery("PRAGMA user_version").mapTo(Integer.class).one();
             if (currentVersion == 0) {
-                h.execute("PRAGMA user_version = 27");
+                h.execute("PRAGMA user_version = 28");
             }
         });
         log.info("Schema initialization complete");

@@ -19,7 +19,7 @@ import org.jdbi.v3.core.Jdbi;
 public class SchemaUpgrader {
 
     /** Must match the version stamped by {@link SchemaInitializer}. */
-    private static final int CURRENT_VERSION = 27;
+    private static final int CURRENT_VERSION = 28;
 
     private final Jdbi jdbi;
 
@@ -158,7 +158,36 @@ public class SchemaUpgrader {
             setVersion(27);
         }
 
+        if (version < 28) {
+            applyV28();
+            setVersion(28);
+        }
+
         log.info("Schema upgrade complete");
+    }
+
+    /**
+     * v28: titles.grade_source provenance column + rating_curve single-row config table.
+     *
+     * <p>grade_source tracks whether a title's grade was set by enrichment, AI-derived YAML
+     * loading, or manual user override. Existing non-null grade rows are backfilled to 'ai'.
+     * rating_curve persists the Bayesian cutoffs computed from the javdb-enriched population.
+     */
+    private void applyV28() {
+        log.info("Applying migration v28: titles.grade_source + rating_curve table");
+        jdbi.useHandle(h -> {
+            addColumnIfMissing(h, "titles", "grade_source", "TEXT");
+            h.execute("UPDATE titles SET grade_source = 'ai' WHERE grade IS NOT NULL AND grade_source IS NULL");
+            h.execute("""
+                    CREATE TABLE IF NOT EXISTS rating_curve (
+                        id                  INTEGER PRIMARY KEY CHECK (id = 1),
+                        global_mean         REAL    NOT NULL,
+                        global_count        INTEGER NOT NULL,
+                        min_credible_votes  INTEGER NOT NULL,
+                        cutoffs_json        TEXT    NOT NULL,
+                        computed_at         TEXT    NOT NULL
+                    )""");
+        });
     }
 
     /**
