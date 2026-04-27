@@ -394,13 +394,22 @@ public class Application {
                 new com.organizer3.javdb.enrichment.AutoPromoter(jdbi);
         com.organizer3.javdb.enrichment.ActressAvatarStore avatarStore =
                 new com.organizer3.javdb.enrichment.ActressAvatarStore(dataDir);
+        com.organizer3.rating.RatingCurveRepository ratingCurveRepo =
+                new com.organizer3.rating.JdbiRatingCurveRepository(jdbi);
+        com.organizer3.rating.RatingScoreCalculator ratingScoreCalculator =
+                new com.organizer3.rating.RatingScoreCalculator();
+        com.organizer3.rating.RatingCurveRecomputer ratingCurveRecomputer =
+                new com.organizer3.rating.RatingCurveRecomputer(jdbi, ratingCurveRepo, ratingScoreCalculator);
+        com.organizer3.rating.EnrichmentGradeStamper enrichmentGradeStamper =
+                new com.organizer3.rating.EnrichmentGradeStamper(ratingCurveRepo, ratingScoreCalculator, titleRepo);
         com.organizer3.javdb.enrichment.EnrichmentRunner enrichmentRunner =
                 new com.organizer3.javdb.enrichment.EnrichmentRunner(
                         javdbConfig, javdbClient,
                         new com.organizer3.javdb.enrichment.JavdbExtractor(),
                         new com.organizer3.javdb.enrichment.JavdbProjector(jsonMapper),
                         javdbStagingRepo, javdbEnrichmentRepo,
-                        enrichmentQueue, titleRepo, actressRepo, autoPromoter, avatarStore);
+                        enrichmentQueue, titleRepo, actressRepo, autoPromoter, avatarStore,
+                        enrichmentGradeStamper, ratingCurveRecomputer);
         commands.add(new EnrichActressCommand(actressRepo, titleRepo, enrichmentQueue));
 
         // Sync commands — registered dynamically from syncConfig.
@@ -624,6 +633,9 @@ public class Application {
                 new com.organizer3.utilities.task.organize.FixTimestampsTask(
                         fixTimestampsVolumeService, config, organizeInvokerFactory);
 
+        com.organizer3.utilities.task.rating.RecomputeRatingCurveTask recomputeRatingCurveTask =
+                new com.organizer3.utilities.task.rating.RecomputeRatingCurveTask(ratingCurveRecomputer);
+
         com.organizer3.utilities.task.TaskRegistry taskRegistry =
                 new com.organizer3.utilities.task.TaskRegistry(
                         java.util.List.of(syncVolumeTask, cleanStaleLocationsTask,
@@ -639,13 +651,14 @@ public class Application {
                                 organizeSortPreviewTask, organizeSortTask,
                                 organizeClassifyPreviewTask, organizeClassifyTask,
                                 organizeAllPreviewTask, organizeAllTask,
-                                fixTimestampsPreviewTask, fixTimestampsTask));
+                                fixTimestampsPreviewTask, fixTimestampsTask,
+                                recomputeRatingCurveTask));
         com.organizer3.utilities.task.TaskRunner taskRunner =
                 new com.organizer3.utilities.task.TaskRunner(taskRegistry);
         webServer.registerUtilities(new com.organizer3.web.routes.UtilitiesRoutes(
                 volumeStateService, staleLocationsService, actressCatalogService, yamlLoader,
                 backupCatalogService, backupService, libraryHealthService, orphanedCoversService,
-                taskRegistry, taskRunner));
+                ratingCurveRepo, taskRegistry, taskRunner));
         webServer.registerAvStars(new com.organizer3.web.routes.AvStarsRoutes(
                 avStarsCatalog, avBrowseService, iafdResolver));
         webServer.registerTrash(new com.organizer3.web.routes.TrashRoutes(

@@ -166,6 +166,15 @@ public interface TitleRepository {
     void enrichTitle(long titleId, String titleOriginal, String titleEnglish,
                      java.time.LocalDate releaseDate, String notes, Actress.Grade grade);
 
+    /** Stamp a title's grade from enrichment. No-op if grade_source = 'manual'. */
+    void setGradeFromEnrichment(long titleId, Actress.Grade grade);
+
+    /** Manual user override. Always wins regardless of current grade_source. */
+    void setGradeManual(long titleId, Actress.Grade grade);
+
+    /** Clear an enrichment-derived grade (e.g. when enrichment data is removed). */
+    void clearEnrichmentGrade(long titleId);
+
     /** Find titles having ALL of the given tags, ordered newest-first. */
     List<Title> findByTagsPaged(List<String> tags, int limit, int offset);
 
@@ -403,4 +412,13 @@ public interface TitleRepository {
      */
     Map<Long, List<TitleSummary.EnrichmentTagEntry>> findEnrichmentTagsByTitleIds(
             Collection<Long> titleIds);
+
+    /** Lightweight rating data from title_javdb_enrichment, keyed by title ID. */
+    record RatingData(Double ratingAvg, Integer ratingCount) {}
+
+    /** Batch-load javdb rating data for the given title IDs. Titles with no enrichment row are absent. */
+    Map<Long, RatingData> findRatingDataByTitleIds(Collection<Long> titleIds);
+
+    /** Returns grade_source for a single title, or null if not found. */
+    String findGradeSource(long titleId);
 }

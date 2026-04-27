@@ -49,7 +49,7 @@ class SchemaInitializerTest {
                         "duplicate_decisions",
                         "enrichment_tag_definitions",
                         "javdb_actress_staging", "javdb_enrichment_queue", "javdb_title_staging",
-                        "label_tags", "labels", "merge_candidates", "tags",
+                        "label_tags", "labels", "merge_candidates", "rating_curve", "tags",
                         "title_actresses", "title_effective_tags", "title_enrichment_tags",
                         "title_javdb_enrichment", "title_locations", "title_tags",
                         "titles", "videos", "volumes", "watch_history"),
@@ -158,7 +158,27 @@ class SchemaInitializerTest {
 
         int version = jdbi.withHandle(h ->
                 h.createQuery("PRAGMA user_version").mapTo(Integer.class).one());
-        assertEquals(27, version);
+        assertEquals(28, version);
+    }
+
+    @Test
+    void titlesTableHasGradeSourceColumn() {
+        new SchemaInitializer(jdbi).initialize();
+
+        boolean hasCol = jdbi.withHandle(h ->
+                h.createQuery("SELECT COUNT(*) FROM pragma_table_info('titles') WHERE name='grade_source'")
+                        .mapTo(Integer.class).one() > 0);
+        assertTrue(hasCol, "fresh install should include titles.grade_source");
+    }
+
+    @Test
+    void ratingCurveTableExists() {
+        new SchemaInitializer(jdbi).initialize();
+
+        boolean exists = jdbi.withHandle(h ->
+                h.createQuery("SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='rating_curve'")
+                        .mapTo(Integer.class).one() > 0);
+        assertTrue(exists, "fresh install should include rating_curve table");
     }
 
     @Test

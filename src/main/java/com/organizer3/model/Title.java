@@ -42,6 +42,7 @@ public class Title {
     boolean bookmark;
     LocalDateTime bookmarkedAt;  // set when bookmark is toggled on; null when not bookmarked
     Actress.Grade grade;
+    String gradeSource;
     boolean rejected;
 
     // --- Enrichment fields (populated via load actress command) ---

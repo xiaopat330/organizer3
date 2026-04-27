@@ -1212,4 +1212,95 @@ class JdbiTitleRepositoryTest {
                 .build());
         return saved;
     }
+
+    // --- grade source methods ---
+
+    @Test
+    void setGradeFromEnrichmentWritesGradeAndSource() {
+        Title t = titleRepo.save(titleFull("GRD-001", "GRD", 1));
+        titleRepo.setGradeFromEnrichment(t.getId(), Actress.Grade.A_PLUS);
+
+        Map<String, Object> row = jdbi.withHandle(h ->
+                h.createQuery("SELECT grade, grade_source FROM titles WHERE id = ?")
+                        .bind(0, t.getId()).mapToMap().one());
+        assertEquals("A+", row.get("grade"));
+        assertEquals("enrichment", row.get("grade_source"));
+    }
+
+    @Test
+    void setGradeFromEnrichmentIsNoOpWhenManual() {
+        Title t = titleRepo.save(titleFull("GRD-002", "GRD", 2));
+        // Set manual grade first
+        titleRepo.setGradeManual(t.getId(), Actress.Grade.SSS);
+        // Enrichment should not overwrite
+        titleRepo.setGradeFromEnrichment(t.getId(), Actress.Grade.B);
+
+        Map<String, Object> row = jdbi.withHandle(h ->
+                h.createQuery("SELECT grade, grade_source FROM titles WHERE id = ?")
+                        .bind(0, t.getId()).mapToMap().one());
+        assertEquals("SSS", row.get("grade"), "manual grade must not be overwritten by enrichment");
+        assertEquals("manual", row.get("grade_source"));
+    }
+
+    @Test
+    void setGradeManualAlwaysWins() {
+        Title t = titleRepo.save(titleFull("GRD-003", "GRD", 3));
+        titleRepo.setGradeFromEnrichment(t.getId(), Actress.Grade.A);
+        titleRepo.setGradeManual(t.getId(), Actress.Grade.SSS);
+
+        Map<String, Object> row = jdbi.withHandle(h ->
+                h.createQuery("SELECT grade, grade_source FROM titles WHERE id = ?")
+                        .bind(0, t.getId()).mapToMap().one());
+        assertEquals("SSS", row.get("grade"));
+        assertEquals("manual", row.get("grade_source"));
+    }
+
+    @Test
+    void clearEnrichmentGradeClearsOnlyEnrichmentRows() {
+        Title t1 = titleRepo.save(titleFull("GRD-004", "GRD", 4));
+        Title t2 = titleRepo.save(titleFull("GRD-005", "GRD", 5));
+        titleRepo.setGradeFromEnrichment(t1.getId(), Actress.Grade.S);
+        titleRepo.setGradeManual(t2.getId(), Actress.Grade.SS);
+
+        titleRepo.clearEnrichmentGrade(t1.getId());
+        titleRepo.clearEnrichmentGrade(t2.getId()); // no-op: grade_source='manual'
+
+        Map<String, Object> r1 = jdbi.withHandle(h ->
+                h.createQuery("SELECT grade, grade_source FROM titles WHERE id = ?")
+                        .bind(0, t1.getId()).mapToMap().one());
+        assertNull(r1.get("grade"), "enrichment grade should be cleared");
+        assertNull(r1.get("grade_source"));
+
+        Map<String, Object> r2 = jdbi.withHandle(h ->
+                h.createQuery("SELECT grade, grade_source FROM titles WHERE id = ?")
+                        .bind(0, t2.getId()).mapToMap().one());
+        assertEquals("SS", r2.get("grade"), "manual grade must not be touched by clearEnrichmentGrade");
+        assertEquals("manual", r2.get("grade_source"));
+    }
+
+    @Test
+    void enrichTitleSetsGradeSourceAi() {
+        Title t = titleRepo.save(titleFull("GRD-006", "GRD", 6));
+        titleRepo.enrichTitle(t.getId(), "タイトル", null, null, null, Actress.Grade.A_MINUS);
+
+        Map<String, Object> row = jdbi.withHandle(h ->
+                h.createQuery("SELECT grade, grade_source FROM titles WHERE id = ?")
+                        .bind(0, t.getId()).mapToMap().one());
+        assertEquals("A-", row.get("grade"));
+        assertEquals("ai", row.get("grade_source"));
+    }
+
+    @Test
+    void enrichTitleNullGradeDoesNotChangeGradeSource() {
+        Title t = titleRepo.save(titleFull("GRD-007", "GRD", 7));
+        titleRepo.setGradeFromEnrichment(t.getId(), Actress.Grade.A);
+        // enrich with null grade — should not clobber grade_source
+        titleRepo.enrichTitle(t.getId(), "タイトル", null, null, null, null);
+
+        Map<String, Object> row = jdbi.withHandle(h ->
+                h.createQuery("SELECT grade, grade_source FROM titles WHERE id = ?")
+                        .bind(0, t.getId()).mapToMap().one());
+        assertNull(row.get("grade"), "null grade should clear the grade column");
+        assertEquals("enrichment", row.get("grade_source"), "grade_source must not change when enrichTitle grade is null");
+    }
 }

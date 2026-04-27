@@ -1,5 +1,7 @@
 package com.organizer3.web.routes;
 
+import com.organizer3.rating.RatingCurve;
+import com.organizer3.rating.RatingCurveRepository;
 import com.organizer3.utilities.task.TaskEvent;
 import com.organizer3.utilities.task.TaskInputs;
 import com.organizer3.utilities.task.TaskRegistry;
@@ -49,6 +51,7 @@ public final class UtilitiesRoutes {
     private final UserDataBackupService backupService;
     private final LibraryHealthService healthService;
     private final OrphanedCoversService orphanedCoversService;
+    private final RatingCurveRepository ratingCurveRepo;
     private final TaskRegistry registry;
     private final TaskRunner runner;
     private final ObjectMapper json = new ObjectMapper().registerModule(new JavaTimeModule());
@@ -60,6 +63,7 @@ public final class UtilitiesRoutes {
                            UserDataBackupService backupService,
                            LibraryHealthService healthService,
                            OrphanedCoversService orphanedCoversService,
+                           RatingCurveRepository ratingCurveRepo,
                            TaskRegistry registry, TaskRunner runner) {
         this.volumeState = volumeState;
         this.staleLocations = staleLocations;
@@ -69,6 +73,7 @@ public final class UtilitiesRoutes {
         this.backupService = backupService;
         this.healthService = healthService;
         this.orphanedCoversService = orphanedCoversService;
+        this.ratingCurveRepo = ratingCurveRepo;
         this.registry = registry;
         this.runner = runner;
     }
@@ -145,6 +150,18 @@ public final class UtilitiesRoutes {
             var entry = latest.get().checks().get(checkId);
             if (entry == null) { ctx.status(404); ctx.json(Map.of("error", "no such check: " + checkId)); return; }
             ctx.json(entry);
+        });
+
+        // Rating curve — lightweight status (computed_at + population) for the Library Health header.
+        app.get("/api/utilities/rating-curve/status", ctx -> {
+            ratingCurveRepo.find().ifPresentOrElse(
+                    c -> ctx.json(Map.of(
+                            "computedAt",  c.computedAt().toString(),
+                            "population",  c.globalCount(),
+                            "boundaries",  c.boundaries().size()
+                    )),
+                    () -> ctx.json(Map.of("computedAt", (Object) null, "population", 0, "boundaries", 0))
+            );
         });
 
         // Preview for visualize-then-confirm. Currently only volume.clean_stale_locations is

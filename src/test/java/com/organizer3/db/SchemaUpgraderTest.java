@@ -54,7 +54,7 @@ class SchemaUpgraderTest {
 
         new SchemaUpgrader(jdbi).upgrade();
 
-        assertEquals(27, currentVersion());
+        assertEquals(28, currentVersion());
         boolean present = jdbi.withHandle(h ->
                 h.createQuery("SELECT COUNT(*) FROM pragma_table_info('actresses') WHERE name='needs_profiling'")
                         .mapTo(Integer.class).one() > 0);
@@ -68,7 +68,7 @@ class SchemaUpgraderTest {
                 h.createQuery("SELECT COUNT(*) FROM pragma_table_info('actresses') WHERE name='needs_profiling'")
                         .mapTo(Integer.class).one() > 0);
         assertTrue(present, "fresh install should include needs_profiling");
-        assertEquals(27, currentVersion(), "fresh install should stamp current version");
+        assertEquals(28, currentVersion(), "fresh install should stamp current version (28)");
     }
 
     @Test
@@ -84,7 +84,7 @@ class SchemaUpgraderTest {
 
         new SchemaUpgrader(jdbi).upgrade();
 
-        assertEquals(27, currentVersion());
+        assertEquals(28, currentVersion());
         boolean sizeBytesPresent = jdbi.withHandle(h ->
                 h.createQuery("SELECT COUNT(*) FROM pragma_table_info('videos') WHERE name='size_bytes'")
                         .mapTo(Integer.class).one() > 0);
@@ -106,7 +106,7 @@ class SchemaUpgraderTest {
 
         new SchemaUpgrader(jdbi).upgrade();
 
-        assertEquals(27, currentVersion());
+        assertEquals(28, currentVersion());
         assertTrue(columnExists("titles",    "favorite_cleared_at"));
         assertTrue(columnExists("actresses", "favorite_cleared_at"));
 
@@ -132,7 +132,7 @@ class SchemaUpgraderTest {
 
         new SchemaUpgrader(jdbi).upgrade();
 
-        assertEquals(27, currentVersion());
+        assertEquals(28, currentVersion());
         boolean tableExists = jdbi.withHandle(h ->
                 h.createQuery("SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='merge_candidates'")
                         .mapTo(Integer.class).one() > 0);
@@ -217,7 +217,7 @@ class SchemaUpgraderTest {
 
         // Run the migration.
         new SchemaUpgrader(jdbi).upgrade();
-        assertEquals(27, currentVersion());
+        assertEquals(28, currentVersion());
 
         // Enrichment rows: 5 fixture titles + the malformed-tags title (it still has slug + status='fetched');
         // not_found row should be excluded.
@@ -267,6 +267,44 @@ class SchemaUpgraderTest {
     }
     private static Double doubleOrNull(com.fasterxml.jackson.databind.JsonNode n, String f) {
         return n.has(f) && !n.get(f).isNull() ? n.get(f).asDouble() : null;
+    }
+
+    @Test
+    void upgradeFromV27AddsGradeSourceAndRatingCurveTable() {
+        new SchemaInitializer(jdbi).initialize();
+        // Seed a title with a grade to verify backfill, and one without.
+        jdbi.useHandle(h -> {
+            h.execute("INSERT INTO titles(id, code, base_code, label, seq_num, grade) VALUES (1,'T-001','T-001','T',1,'A+')");
+            h.execute("INSERT INTO titles(id, code, base_code, label, seq_num) VALUES (2,'T-002','T-002','T',2)");
+            try { h.execute("ALTER TABLE titles DROP COLUMN grade_source"); } catch (Exception ignore) {}
+            try { h.execute("DROP TABLE IF EXISTS rating_curve"); } catch (Exception ignore) {}
+            h.execute("PRAGMA user_version = 27");
+        });
+
+        new SchemaUpgrader(jdbi).upgrade();
+
+        assertEquals(28, currentVersion());
+        assertTrue(columnExists("titles", "grade_source"), "grade_source column should exist");
+
+        // Backfill: grade != null → grade_source = 'ai'; grade is null → grade_source stays null.
+        String graded = jdbi.withHandle(h ->
+                h.createQuery("SELECT grade_source FROM titles WHERE id = 1").mapTo(String.class).one());
+        assertEquals("ai", graded, "existing grade row should be backfilled to grade_source='ai'");
+
+        String ungraded = jdbi.withHandle(h ->
+                h.createQuery("SELECT grade_source FROM titles WHERE id = 2").mapTo(String.class).findOne().orElse(null));
+        assertNull(ungraded, "null-grade row should remain grade_source=null");
+
+        boolean ratingCurveExists = jdbi.withHandle(h ->
+                h.createQuery("SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='rating_curve'")
+                        .mapTo(Integer.class).one() > 0);
+        assertTrue(ratingCurveExists, "rating_curve table should exist after v28 migration");
+
+        // Idempotent: running upgrade again must not change row counts or source values.
+        new SchemaUpgrader(jdbi).upgrade();
+        String gradedAfter = jdbi.withHandle(h ->
+                h.createQuery("SELECT grade_source FROM titles WHERE id = 1").mapTo(String.class).one());
+        assertEquals("ai", gradedAfter, "re-running upgrade must not corrupt grade_source");
     }
 
     private boolean columnExists(String table, String column) {
