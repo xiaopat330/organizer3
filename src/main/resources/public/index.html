@@ -232,17 +232,13 @@
 <!-- Tools landing sub-nav -->
 <div id="action-landing" class="action-landing" style="display:none">
   <div class="action-landing-row" id="action-landing-tools-row">
-    <button type="button" id="tools-library-health-btn" class="action-tool-btn tools-library-health-btn">
-      <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h4l2-6 4 12 2-6h6"/></svg>
-      Library Health
+    <button type="button" id="tools-health-btn" class="action-tool-btn tools-health-btn">
+      <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+      Health
     </button>
     <button type="button" id="tools-actress-data-btn" class="action-tool-btn tools-actress-data-btn">
       <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="7" r="3.2"/><path d="M2 21v-1.5a4 4 0 0 1 4-4h6a4 4 0 0 1 4 4V21"/><circle cx="17" cy="8" r="2.5"/><path d="M14.5 21v-1a3.5 3.5 0 0 1 3.5-3.5h1a3.5 3.5 0 0 1 3.5 3.5V21"/></svg>
       Actress data
-    </button>
-    <button type="button" id="tools-volumes-btn" class="action-tool-btn tools-volumes-btn">
-      <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v6c0 1.66 4 3 9 3s9-1.34 9-3V5"/><path d="M3 11v6c0 1.66 4 3 9 3s9-1.34 9-3v-6"/></svg>
-      Volumes
     </button>
     <button type="button" id="tools-queue-btn" class="action-tool-btn tools-queue-btn">
       <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
@@ -268,11 +264,23 @@
       <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
       Discovery
     </button>
-    <button type="button" id="tools-tag-health-btn" class="action-tool-btn tools-tag-health-btn">
-      <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 12V8H6a2 2 0 0 1 0-4h12v4"/><path d="M4 6v12a2 2 0 0 0 2 2h14v-4"/><path d="M18 12h.01"/></svg>
-      Tag Health
-    </button>
   </div>
+</div>
+
+<!-- Health sub-nav (Library / Volumes / Tags tabs) -->
+<div id="tools-health-subnav" class="tools-subnav" style="display:none">
+  <button type="button" id="tools-health-library-tab" class="tools-subnav-tab tools-subnav-tab-health-library selected">
+    <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h4l2-6 4 12 2-6h6"/></svg>
+    Library
+  </button>
+  <button type="button" id="tools-health-volumes-tab" class="tools-subnav-tab tools-subnav-tab-health-volumes">
+    <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v6c0 1.66 4 3 9 3s9-1.34 9-3V5"/><path d="M3 11v6c0 1.66 4 3 9 3s9-1.34 9-3v-6"/></svg>
+    Volumes
+  </button>
+  <button type="button" id="tools-health-tags-tab" class="tools-subnav-tab tools-subnav-tab-health-tags">
+    <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 12V8H6a2 2 0 0 1 0-4h12v4"/><path d="M4 6v12a2 2 0 0 0 2 2h14v-4"/><path d="M18 12h.01"/></svg>
+    Tags
+  </button>
 </div>
 
 <!-- Tag Health tool content -->

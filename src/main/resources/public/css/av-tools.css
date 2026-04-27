@@ -180,6 +180,16 @@
   color: #c4b5fd;
 }
 .tools-tag-health-btn.selected svg { stroke: #c4b5fd; }
+.tools-health-btn        { color: #06b6d4; }
+.tools-health-btn svg    { stroke: #06b6d4; }
+.tools-health-btn:hover,
+.tools-health-btn.selected {
+  color: #22d3ee;
+  background: #011920;
+  border-color: #0e7490;
+}
+.tools-health-btn.selected svg { stroke: #22d3ee; }
+
 .tools-javdb-discovery-btn        { color: #38bdf8; }
 .tools-javdb-discovery-btn svg    { stroke: #38bdf8; }
 .tools-javdb-discovery-btn:hover,
@@ -4461,6 +4471,24 @@
   background: #061e12;
   border-color: #065f46;
   border-bottom-color: #34d399;
+}
+.tools-subnav-tab-health-library.selected {
+  color: #fde68a;
+  background: #1c1403;
+  border-color: #92400e;
+  border-bottom-color: #fbbf24;
+}
+.tools-subnav-tab-health-volumes.selected {
+  color: #7dd3fc;
+  background: #012030;
+  border-color: #0369a1;
+  border-bottom-color: #38bdf8;
+}
+.tools-subnav-tab-health-tags.selected {
+  color: #c4b5fd;
+  background: #0d0a1f;
+  border-color: #5b21b6;
+  border-bottom-color: #a78bfa;
 }
 
 /* ── Merge Candidates view ───────────────────────────────────────── */
