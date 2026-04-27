@@ -234,6 +234,31 @@ actress merge "Rin Hatchimitsu" > "Rin Hachimitsu"
 
 ---
 
+### MCP: `rename_actress_folders`
+
+Renames every misnamed title folder for one actress on the mounted volume to use her canonical
+name. Call this after `actress merge` (or `merge_actresses`) to clean up the filesystem.
+Locations on other volumes are returned as `skipped` — mount and re-run per volume.
+Default `dryRun:true`.
+
+---
+
+### MCP: `move_actress_folder_to_attention`
+
+Moves the actress-level folder (e.g. `/stars/minor/OldName/`) to `/attention/<canonicalName>/`
+on the mounted volume and writes a `REASON.txt` sidecar. Updates all `title_locations` paths
+and `partition_id` in the DB. Use this after `rename_actress_folders` when the parent actress
+folder itself still carries the old name.
+
+**Post-move workflow:**
+1. In Finder on the volume, find `/attention/<canonicalName>/`
+2. Move it to the correct `stars/<tier>/` location
+3. Run `sync all` on that volume to restore correct DB paths
+
+Only works on conventional volumes. Default `dryRun:true`.
+
+---
+
 ### `scan-errors`
 
 Reports data integrity issues (titles with bad codes, missing locations, etc.).

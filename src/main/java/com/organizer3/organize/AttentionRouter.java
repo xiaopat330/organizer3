@@ -61,16 +61,36 @@ public class AttentionRouter {
      */
     public Result route(Path source, String reasonCode,
                         Map<String, String> headers, String body) throws IOException {
+        Path name = source == null ? null : source.getFileName();
+        if (name == null) throw new IllegalArgumentException("source must be an absolute path with a file name");
+        return route(source, name.toString(), reasonCode, headers, body);
+    }
+
+    /**
+     * Moves {@code source} to {@code /attention/<targetName>/} and drops a
+     * {@code REASON.txt} sidecar inside. Use this overload when the attention folder
+     * should be named differently from the source (e.g., renaming to the canonical
+     * actress name).
+     *
+     * @param source       folder to route (path on this volume)
+     * @param targetName   basename to use for the destination under {@code /attention/}
+     * @param reasonCode   short identifier, e.g. {@code "actress-folder-old-name"}
+     * @param headers      additional key/value pairs for the sidecar's machine block
+     * @param body         human-readable explanation paragraph (no trailing newline)
+     */
+    public Result route(Path source, String targetName, String reasonCode,
+                        Map<String, String> headers, String body) throws IOException {
         if (source == null || !source.isAbsolute()) {
             throw new IllegalArgumentException("source must be an absolute path");
         }
         if (!fs.exists(source) || !fs.isDirectory(source)) {
             throw new IllegalArgumentException("source does not exist or is not a directory: " + source);
         }
-        Path name = source.getFileName();
-        if (name == null) throw new IllegalArgumentException("source has no file name: " + source);
+        if (targetName == null || targetName.isBlank()) {
+            throw new IllegalArgumentException("targetName must not be blank");
+        }
 
-        Path target = ATTENTION_ROOT.resolve(name.toString());
+        Path target = ATTENTION_ROOT.resolve(targetName);
         if (fs.exists(target)) {
             throw new IOException("attention target already exists: " + target);
         }

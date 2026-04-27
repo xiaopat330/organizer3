@@ -273,6 +273,101 @@ public class ActressMergeService {
         return new FsRenameOutcome(renamed, skipped);
     }
 
+    // ── Actress-folder move to attention ────────────────────────────────────
+
+    public record LocationEntry(long locationId, String partitionId, Path currentPath, Path newPath) {}
+
+    public record ActressFolderEntry(
+            Path actressFolder,
+            String oldName,
+            List<LocationEntry> locations
+    ) {}
+
+    public record ActressFolderPlan(
+            Actress actress,
+            List<ActressFolderEntry> entries
+    ) {}
+
+    /**
+     * Finds actress-level folders on {@code volumeId} whose basename matches one of the actress's
+     * aliases (not the canonical name), and computes the target path for each contained
+     * title_location under {@code /attention/<canonicalName>/}.
+     *
+     * <p>Returns an empty plan (no entries) when all folders already use the canonical name.
+     */
+    public ActressFolderPlan planActressFolderMoveFor(Actress actress, String volumeId) {
+        if (volumeId == null) return new ActressFolderPlan(actress, List.of());
+
+        String canonical = actress.getCanonicalName();
+
+        List<String> aliasNames = new ArrayList<>();
+        for (ActressAlias a : actressRepo.findAliases(actress.getId())) {
+            aliasNames.add(a.aliasName().toLowerCase());
+        }
+
+        record Row(long locId, String partId, String path) {}
+        List<Row> rows = jdbi.withHandle(h ->
+                h.createQuery("""
+                        SELECT tl.id, tl.partition_id, tl.path
+                        FROM titles t
+                        JOIN title_locations tl ON tl.title_id = t.id
+                        WHERE t.actress_id = :actressId AND tl.volume_id = :volumeId
+                        """)
+                        .bind("actressId", actress.getId())
+                        .bind("volumeId", volumeId)
+                        .map((rs, ctx) -> new Row(rs.getLong("id"), rs.getString("partition_id"), rs.getString("path")))
+                        .list());
+
+        // Group rows by parent folder; include only parents whose basename is an alias
+        java.util.LinkedHashMap<Path, List<Row>> byParent = new java.util.LinkedHashMap<>();
+        for (Row row : rows) {
+            Path parent = Path.of(row.path()).getParent();
+            if (parent == null) continue;
+            String parentBasename = parent.getFileName().toString().toLowerCase();
+            if (aliasNames.contains(parentBasename)) {
+                byParent.computeIfAbsent(parent, k -> new ArrayList<>()).add(row);
+            }
+        }
+
+        Path attentionBase = Path.of("/attention", canonical);
+        List<ActressFolderEntry> entries = new ArrayList<>();
+        for (java.util.Map.Entry<Path, List<Row>> e : byParent.entrySet()) {
+            Path actressFolder = e.getKey();
+            String oldName = actressFolder.getFileName().toString();
+            List<LocationEntry> locs = new ArrayList<>();
+            for (Row row : e.getValue()) {
+                Path current = Path.of(row.path());
+                Path newPath = attentionBase.resolve(actressFolder.relativize(current));
+                locs.add(new LocationEntry(row.locId(), row.partId(), current, newPath));
+            }
+            entries.add(new ActressFolderEntry(actressFolder, oldName, locs));
+        }
+
+        return new ActressFolderPlan(actress, entries);
+    }
+
+    /**
+     * Updates all title_location paths recorded in the plan to their {@code newPath}
+     * and sets {@code partition_id = "attention"}. Call this after a successful
+     * {@link com.organizer3.organize.AttentionRouter#route} to keep the DB in sync.
+     */
+    public void applyActressFolderMove(ActressFolderPlan plan) {
+        jdbi.useTransaction(h -> {
+            for (ActressFolderEntry entry : plan.entries()) {
+                for (LocationEntry loc : entry.locations()) {
+                    h.createUpdate("""
+                            UPDATE title_locations
+                            SET path = :path, partition_id = 'attention'
+                            WHERE id = :id
+                            """)
+                            .bind("path", loc.newPath().toString())
+                            .bind("id", loc.locationId())
+                            .execute();
+                }
+            }
+        });
+    }
+
     // ── Path computation ─────────────────────────────────────────────────────
 
     /**
