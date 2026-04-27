@@ -1,7 +1,7 @@
 # Proposal: Agentic Actress Name Typo Fix via MCP
 
-**Status:** Code shipped on `actress-merge-command` — 2026-04-26
-**Remaining for handoff:** local config wiring (`.claude/settings.json`, `organizer-config.yaml`) + one-shot manual smoke test
+**Status:** Code shipped + config wired — 2026-04-26
+**Remaining:** one-shot manual smoke test, then merge to main
 **Scope:** Detection → DB merge → folder rename, orchestrated by Claude via organizer3 MCP
 
 ---
@@ -102,37 +102,9 @@ dryRun       boolean   Default true.
 
 ## Remaining Work
 
-These are **local user-config edits** — they cannot live in the repo because the files are either outside it or gitignored. The next session/operator should:
+Config wiring is done. Only the smoke test + merge remain.
 
-### 1. Wire organizer3 MCP into Claude Code
-
-Edit `.claude/settings.json` (currently only has `permissions`):
-
-```json
-{
-  "permissions": { "defaultMode": "bypassPermissions" },
-  "mcpServers": {
-    "organizer3": {
-      "type": "http",
-      "url": "http://localhost:8080/mcp"
-    }
-  }
-}
-```
-
-### 2. Enable file ops in organizer-config.yaml
-
-The active config is gitignored. Add (or confirm):
-
-```yaml
-mcp:
-  allowMutations: true
-  allowFileOps: true
-```
-
-Both flags are required: `rename_actress_folders` is registered inside the `mutationsAllowed && fileOpsAllowed` block in `Application.java`.
-
-### 3. Smoke test
+### 1. Smoke test
 
 With organizer3 running and a volume mounted:
 
@@ -143,7 +115,7 @@ With organizer3 running and a volume mounted:
 5. `rename_actress_folders(name="<canonical>", dryRun=false)` to execute.
 6. Verify on disk + via DB that `title_locations.path` was updated.
 
-### 4. Merge the branch
+### 2. Merge the branch
 
 `actress-merge-command` → `main` once the smoke test passes.
 
@@ -216,7 +188,7 @@ Only one volume is mountable at a time in organizer3. The tool respects this con
 - [x] Register tool in `Application.java` (same pattern as other fileOps tools)
 - [x] Tests: unit tests for path-resolution logic; integration test for the full rename path with in-memory SQLite + mock `VolumeFileSystem` — 27 service tests + 9 tool tests
 - [x] Document `actress merge` in `spec/USAGE.md`
-- [ ] Update `.claude/settings.json` with `mcpServers.organizer3` entry (user config — outside repo)
-- [ ] Enable `mcp.allowMutations: true` and `mcp.allowFileOps: true` in `organizer-config.yaml` (user config — gitignored)
+- [x] Add `organizer3` MCP server entry to `~/.claude.json` under `projects["/Users/pyoung/workspace/organizer3"].mcpServers` (done — `type: http, url: http://localhost:8080/mcp`)
+- [x] Enable `mcp.allowMutations: true` and `mcp.allowFileOps: true` in `organizer-config.yaml` (already present in `src/main/resources/`)
 - [ ] Smoke test the full agentic flow against a real mounted volume
 - [ ] Merge `actress-merge-command` → `main`
