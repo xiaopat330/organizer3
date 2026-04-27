@@ -6107,5 +6107,20 @@
 .jd-qi-inflight { background: #1a3a1a; color: #4ade80; }
 .jd-qi-pending  { background: #1a2a3a; color: #60a5fa; }
 .jd-qi-failed   { background: #3a1a1a; color: #f87171; }
+.jd-qi-paused   { background: #2a2a1a; color: #facc15; }
+
+.jd-qi-actions-cell { white-space: nowrap; padding: 4px 8px; }
+.jd-qi-actions { display: inline-flex; gap: 2px; }
+.jd-qi-action-btn {
+  background: none;
+  border: 1px solid #333;
+  border-radius: 3px;
+  color: #888;
+  cursor: pointer;
+  font-size: 11px;
+  line-height: 1;
+  padding: 2px 5px;
+}
+.jd-qi-action-btn:hover { border-color: #555; color: #bbb; background: #1e1e1e; }
 
 .jd-enrich-fetched-at { color: #475569; }

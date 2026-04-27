@@ -245,4 +245,206 @@ class EnrichmentQueueTest {
         queue.enqueueActressProfileForce(10L);
         assertEquals(1, queue.countPendingForActress(10L));
     }
+
+    // ── sort_order / prioritization tests ─────────────────────────────────
+
+    @Test
+    void enqueue_assignsIncreasingSort_order() {
+        queue.enqueueTitle(1L, 10L);
+        queue.enqueueTitle(2L, 10L);
+        queue.enqueueTitle(3L, 10L);
+        Jdbi jdbi = Jdbi.create(connection);
+        var orders = jdbi.withHandle(h -> h.createQuery(
+                "SELECT sort_order FROM javdb_enrichment_queue ORDER BY id")
+                .mapTo(Long.class).list());
+        assertEquals(3, orders.size());
+        assertTrue(orders.get(0) < orders.get(1), "sort_order should increase");
+        assertTrue(orders.get(1) < orders.get(2), "sort_order should increase");
+    }
+
+    @Test
+    void claimNextJob_respectsSortOrder() {
+        // Enqueue titles, then move title 3 to the front
+        queue.enqueueTitle(1L, 10L);
+        queue.enqueueTitle(2L, 10L);
+        queue.enqueueTitle(3L, 10L);
+
+        // Find item id for title 3 and move to top
+        Jdbi jdbi = Jdbi.create(connection);
+        long itemId = jdbi.withHandle(h -> h.createQuery(
+                "SELECT id FROM javdb_enrichment_queue WHERE target_id = 3")
+                .mapTo(Long.class).one());
+        queue.moveToTop(itemId);
+
+        EnrichmentJob first = queue.claimNextJob().get();
+        assertEquals(3L, first.targetId(), "title 3 should be claimed first after moveToTop");
+    }
+
+    @Test
+    void moveToTop_placesItemFirst() {
+        queue.enqueueTitle(1L, 10L);
+        queue.enqueueTitle(2L, 10L);
+        queue.enqueueTitle(3L, 10L);
+        Jdbi jdbi = Jdbi.create(connection);
+        long itemId = jdbi.withHandle(h -> h.createQuery(
+                "SELECT id FROM javdb_enrichment_queue WHERE target_id = 3")
+                .mapTo(Long.class).one());
+        queue.moveToTop(itemId);
+        long topSortOrder = jdbi.withHandle(h -> h.createQuery(
+                "SELECT sort_order FROM javdb_enrichment_queue WHERE id = :id")
+                .bind("id", itemId).mapTo(Long.class).one());
+        long minOthers = jdbi.withHandle(h -> h.createQuery(
+                "SELECT MIN(sort_order) FROM javdb_enrichment_queue WHERE id != :id")
+                .bind("id", itemId).mapTo(Long.class).one());
+        assertTrue(topSortOrder < minOthers, "moved-to-top item should have lowest sort_order");
+    }
+
+    @Test
+    void moveToBottom_placesItemLast() {
+        queue.enqueueTitle(1L, 10L);
+        queue.enqueueTitle(2L, 10L);
+        queue.enqueueTitle(3L, 10L);
+        Jdbi jdbi = Jdbi.create(connection);
+        long itemId = jdbi.withHandle(h -> h.createQuery(
+                "SELECT id FROM javdb_enrichment_queue WHERE target_id = 1")
+                .mapTo(Long.class).one());
+        queue.moveToBottom(itemId);
+        long bottomOrder = jdbi.withHandle(h -> h.createQuery(
+                "SELECT sort_order FROM javdb_enrichment_queue WHERE id = :id")
+                .bind("id", itemId).mapTo(Long.class).one());
+        long maxOthers = jdbi.withHandle(h -> h.createQuery(
+                "SELECT MAX(sort_order) FROM javdb_enrichment_queue WHERE id != :id")
+                .bind("id", itemId).mapTo(Long.class).one());
+        assertTrue(bottomOrder > maxOthers, "moved-to-bottom item should have highest sort_order");
+    }
+
+    @Test
+    void promoteItem_swapsWithPredecessor() {
+        queue.enqueueTitle(1L, 10L);
+        queue.enqueueTitle(2L, 10L);
+        Jdbi jdbi = Jdbi.create(connection);
+        long id1 = jdbi.withHandle(h -> h.createQuery(
+                "SELECT id FROM javdb_enrichment_queue WHERE target_id = 1").mapTo(Long.class).one());
+        long id2 = jdbi.withHandle(h -> h.createQuery(
+                "SELECT id FROM javdb_enrichment_queue WHERE target_id = 2").mapTo(Long.class).one());
+        long order1Before = jdbi.withHandle(h -> h.createQuery(
+                "SELECT sort_order FROM javdb_enrichment_queue WHERE id = :id")
+                .bind("id", id1).mapTo(Long.class).one());
+        long order2Before = jdbi.withHandle(h -> h.createQuery(
+                "SELECT sort_order FROM javdb_enrichment_queue WHERE id = :id")
+                .bind("id", id2).mapTo(Long.class).one());
+
+        queue.promoteItem(id2); // title 2 was after title 1; promote it
+
+        long order1After = jdbi.withHandle(h -> h.createQuery(
+                "SELECT sort_order FROM javdb_enrichment_queue WHERE id = :id")
+                .bind("id", id1).mapTo(Long.class).one());
+        long order2After = jdbi.withHandle(h -> h.createQuery(
+                "SELECT sort_order FROM javdb_enrichment_queue WHERE id = :id")
+                .bind("id", id2).mapTo(Long.class).one());
+        assertEquals(order1Before, order2After, "title 2 should take title 1's original sort_order");
+        assertEquals(order2Before, order1After, "title 1 should take title 2's original sort_order");
+    }
+
+    @Test
+    void demoteItem_swapsWithSuccessor() {
+        queue.enqueueTitle(1L, 10L);
+        queue.enqueueTitle(2L, 10L);
+        Jdbi jdbi = Jdbi.create(connection);
+        long id1 = jdbi.withHandle(h -> h.createQuery(
+                "SELECT id FROM javdb_enrichment_queue WHERE target_id = 1").mapTo(Long.class).one());
+        long id2 = jdbi.withHandle(h -> h.createQuery(
+                "SELECT id FROM javdb_enrichment_queue WHERE target_id = 2").mapTo(Long.class).one());
+        long order1Before = jdbi.withHandle(h -> h.createQuery(
+                "SELECT sort_order FROM javdb_enrichment_queue WHERE id = :id")
+                .bind("id", id1).mapTo(Long.class).one());
+        long order2Before = jdbi.withHandle(h -> h.createQuery(
+                "SELECT sort_order FROM javdb_enrichment_queue WHERE id = :id")
+                .bind("id", id2).mapTo(Long.class).one());
+
+        queue.demoteItem(id1); // title 1 was before title 2; demote it
+
+        long order1After = jdbi.withHandle(h -> h.createQuery(
+                "SELECT sort_order FROM javdb_enrichment_queue WHERE id = :id")
+                .bind("id", id1).mapTo(Long.class).one());
+        long order2After = jdbi.withHandle(h -> h.createQuery(
+                "SELECT sort_order FROM javdb_enrichment_queue WHERE id = :id")
+                .bind("id", id2).mapTo(Long.class).one());
+        assertEquals(order2Before, order1After, "title 1 should take title 2's original sort_order");
+        assertEquals(order1Before, order2After, "title 2 should take title 1's original sort_order");
+    }
+
+    @Test
+    void pauseItem_changesPendingToPaused() {
+        queue.enqueueTitle(1L, 10L);
+        Jdbi jdbi = Jdbi.create(connection);
+        long itemId = jdbi.withHandle(h -> h.createQuery(
+                "SELECT id FROM javdb_enrichment_queue WHERE target_id = 1").mapTo(Long.class).one());
+        queue.pauseItem(itemId);
+        String status = jdbi.withHandle(h -> h.createQuery(
+                "SELECT status FROM javdb_enrichment_queue WHERE id = :id")
+                .bind("id", itemId).mapTo(String.class).one());
+        assertEquals("paused", status);
+    }
+
+    @Test
+    void pauseItem_noopOnInFlight() {
+        queue.enqueueTitle(1L, 10L);
+        queue.claimNextJob(); // now in_flight
+        Jdbi jdbi = Jdbi.create(connection);
+        long itemId = jdbi.withHandle(h -> h.createQuery(
+                "SELECT id FROM javdb_enrichment_queue WHERE target_id = 1").mapTo(Long.class).one());
+        queue.pauseItem(itemId); // should be ignored
+        String status = jdbi.withHandle(h -> h.createQuery(
+                "SELECT status FROM javdb_enrichment_queue WHERE id = :id")
+                .bind("id", itemId).mapTo(String.class).one());
+        assertEquals("in_flight", status, "in_flight items must not be paused");
+    }
+
+    @Test
+    void pausedItem_notClaimed() {
+        queue.enqueueTitle(1L, 10L);
+        queue.enqueueTitle(2L, 10L);
+        Jdbi jdbi = Jdbi.create(connection);
+        long firstItemId = jdbi.withHandle(h -> h.createQuery(
+                "SELECT id FROM javdb_enrichment_queue ORDER BY sort_order LIMIT 1").mapTo(Long.class).one());
+        queue.pauseItem(firstItemId);
+
+        EnrichmentJob claimed = queue.claimNextJob().get();
+        assertEquals(2L, claimed.targetId(), "paused item should be skipped; second item claimed");
+    }
+
+    @Test
+    void resumeItem_restoresToPending() {
+        queue.enqueueTitle(1L, 10L);
+        Jdbi jdbi = Jdbi.create(connection);
+        long itemId = jdbi.withHandle(h -> h.createQuery(
+                "SELECT id FROM javdb_enrichment_queue WHERE target_id = 1").mapTo(Long.class).one());
+        long orderBefore = jdbi.withHandle(h -> h.createQuery(
+                "SELECT sort_order FROM javdb_enrichment_queue WHERE id = :id")
+                .bind("id", itemId).mapTo(Long.class).one());
+        queue.pauseItem(itemId);
+        queue.resumeItem(itemId);
+        String status = jdbi.withHandle(h -> h.createQuery(
+                "SELECT status FROM javdb_enrichment_queue WHERE id = :id")
+                .bind("id", itemId).mapTo(String.class).one());
+        long orderAfter = jdbi.withHandle(h -> h.createQuery(
+                "SELECT sort_order FROM javdb_enrichment_queue WHERE id = :id")
+                .bind("id", itemId).mapTo(Long.class).one());
+        assertEquals("pending", status);
+        assertEquals(orderBefore, orderAfter, "sort_order must be preserved through pause/resume");
+    }
+
+    @Test
+    void cancelForActress_alsoCancelsPausedItems() {
+        queue.enqueueTitle(1L, 10L);
+        queue.enqueueTitle(2L, 10L);
+        Jdbi jdbi = Jdbi.create(connection);
+        long itemId = jdbi.withHandle(h -> h.createQuery(
+                "SELECT id FROM javdb_enrichment_queue WHERE target_id = 1").mapTo(Long.class).one());
+        queue.pauseItem(itemId);
+        queue.cancelForActress(10L);
+        assertEquals(0, queue.countPendingForActress(10L));
+        assertEquals(0, queue.countPaused());
+    }
 }

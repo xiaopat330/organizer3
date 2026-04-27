@@ -90,7 +90,7 @@ public class JavdbDiscoveryService {
             Integer queuePosition   // 1-based position among pending items; null for in_flight/failed
     ) {}
 
-    public record QueueStatus(int pending, int inFlight, int failed, boolean paused,
+    public record QueueStatus(int pending, int inFlight, int failed, int pausedItems, boolean paused,
                               String rateLimitPausedUntil, String rateLimitPauseReason,
                               int consecutiveRateLimitHits, String pauseType) {}
 
@@ -473,10 +473,10 @@ public class JavdbDiscoveryService {
                 FROM javdb_enrichment_queue q
                 JOIN actresses a ON a.id = q.actress_id
                 LEFT JOIN titles t ON t.id = q.target_id AND q.job_type = 'fetch_title'
-                WHERE q.status IN ('pending', 'in_flight', 'failed')
+                WHERE q.status IN ('pending', 'in_flight', 'failed', 'paused')
                 ORDER BY
-                  CASE q.status WHEN 'in_flight' THEN 0 WHEN 'pending' THEN 1 ELSE 2 END,
-                  q.next_attempt_at ASC,
+                  CASE q.status WHEN 'in_flight' THEN 0 WHEN 'pending' THEN 1 WHEN 'paused' THEN 2 ELSE 3 END,
+                  COALESCE(q.sort_order, 9223372036854775807) ASC,
                   q.id ASC
                 """)
                 .map((rs, ctx) -> new QueueItem(
@@ -523,13 +523,15 @@ public class JavdbDiscoveryService {
                 SELECT
                   SUM(CASE WHEN status = 'pending'   THEN 1 ELSE 0 END) AS pending,
                   SUM(CASE WHEN status = 'in_flight' THEN 1 ELSE 0 END) AS in_flight,
-                  SUM(CASE WHEN status = 'failed'    THEN 1 ELSE 0 END) AS failed
+                  SUM(CASE WHEN status = 'failed'    THEN 1 ELSE 0 END) AS failed,
+                  SUM(CASE WHEN status = 'paused'    THEN 1 ELSE 0 END) AS paused_items
                 FROM javdb_enrichment_queue
                 """)
                 .map((rs, ctx) -> new QueueStatus(
                         rs.getInt("pending"),
                         rs.getInt("in_flight"),
                         rs.getInt("failed"),
+                        rs.getInt("paused_items"),
                         isPaused,
                         rateLimitPausedUntil,
                         rateLimitPauseReason,

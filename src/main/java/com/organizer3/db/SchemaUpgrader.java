@@ -19,7 +19,7 @@ import org.jdbi.v3.core.Jdbi;
 public class SchemaUpgrader {
 
     /** Must match the version stamped by {@link SchemaInitializer}. */
-    private static final int CURRENT_VERSION = 28;
+    private static final int CURRENT_VERSION = 29;
 
     private final Jdbi jdbi;
 
@@ -163,7 +163,28 @@ public class SchemaUpgrader {
             setVersion(28);
         }
 
+        if (version < 29) {
+            applyV29();
+            setVersion(29);
+        }
+
         log.info("Schema upgrade complete");
+    }
+
+    /**
+     * v29: javdb_enrichment_queue.sort_order — explicit queue ordering for promote/demote
+     * and item-level pause support. Backfills pending rows to preserve FIFO order.
+     */
+    private void applyV29() {
+        log.info("Applying migration v29: javdb_enrichment_queue.sort_order");
+        jdbi.useHandle(h -> {
+            addColumnIfMissing(h, "javdb_enrichment_queue", "sort_order", "INTEGER");
+            h.execute("""
+                    UPDATE javdb_enrichment_queue
+                    SET sort_order = id
+                    WHERE status IN ('pending', 'paused') AND sort_order IS NULL
+                    """);
+        });
     }
 
     /**

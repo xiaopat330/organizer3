@@ -97,6 +97,34 @@ public class JavdbDiscoveryRoutes {
             ctx.status(204);
         });
 
+        app.post("/api/javdb/discovery/queue/items/{itemId}/move", ctx -> {
+            long id = parseItemId(ctx);
+            if (id < 0) { ctx.status(400); return; }
+            var body = ctx.bodyAsClass(MoveRequest.class);
+            switch (body.action()) {
+                case "promote" -> actionService.promoteItem(id);
+                case "demote"  -> actionService.demoteItem(id);
+                case "top"     -> actionService.moveToTop(id);
+                case "bottom"  -> actionService.moveToBottom(id);
+                default        -> { ctx.status(400); return; }
+            }
+            ctx.status(204);
+        });
+
+        app.post("/api/javdb/discovery/queue/items/{itemId}/pause", ctx -> {
+            long id = parseItemId(ctx);
+            if (id < 0) { ctx.status(400); return; }
+            actionService.pauseItem(id);
+            ctx.status(204);
+        });
+
+        app.post("/api/javdb/discovery/queue/items/{itemId}/resume", ctx -> {
+            long id = parseItemId(ctx);
+            if (id < 0) { ctx.status(400); return; }
+            actionService.resumeItem(id);
+            ctx.status(204);
+        });
+
         app.post("/api/javdb/discovery/actresses/{id}/retry", ctx -> {
             long id = parseId(ctx);
             if (id < 0) { ctx.status(400); return; }
@@ -184,6 +212,7 @@ public class JavdbDiscoveryRoutes {
     }
 
     private record SurfaceRequest(boolean surface) {}
+    private record MoveRequest(String action) {}
 
     private long parseId(io.javalin.http.Context ctx) {
         try {
@@ -209,6 +238,14 @@ public class JavdbDiscoveryRoutes {
         Double minAvg = parseDoubleOrNull(ctx.queryParam("minRatingAvg"));
         Integer minCnt = parseIntOrNull(ctx.queryParam("minRatingCount"));
         return new JavdbDiscoveryService.TitleFilter(tags, minAvg, minCnt);
+    }
+
+    private long parseItemId(io.javalin.http.Context ctx) {
+        try {
+            return Long.parseLong(ctx.pathParam("itemId"));
+        } catch (NumberFormatException e) {
+            return -1;
+        }
     }
 
     private static Double parseDoubleOrNull(String s) {

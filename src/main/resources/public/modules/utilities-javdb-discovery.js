@@ -102,15 +102,19 @@ async function refreshQueue() {
   try {
     const res = await fetch('/api/javdb/discovery/queue');
     if (!res.ok) return;
-    const { pending, inFlight, failed, paused, rateLimitPausedUntil, rateLimitPauseReason, consecutiveRateLimitHits, pauseType } = await res.json();
+    const { pending, inFlight, failed, pausedItems, paused, rateLimitPausedUntil, rateLimitPauseReason, consecutiveRateLimitHits, pauseType } = await res.json();
     state.paused = paused;
     state.rateLimitPausedUntil = rateLimitPausedUntil || null;
     const activeTotal = pending + inFlight;
-    const total = activeTotal + failed;
+    const total = activeTotal + failed + (pausedItems || 0);
     if (total === 0) {
       queueBadge.style.display = 'none';
     } else {
-      queueBadge.textContent = `${activeTotal} pending · ${failed} failed`;
+      const parts = [];
+      if (activeTotal > 0) parts.push(`${activeTotal} pending`);
+      if (pausedItems > 0) parts.push(`${pausedItems} paused`);
+      if (failed > 0) parts.push(`${failed} failed`);
+      queueBadge.textContent = parts.join(' · ');
       queueBadge.style.display = '';
     }
     pauseBtn.textContent = paused ? 'Resume' : 'Pause';
@@ -1198,26 +1202,38 @@ function renderQueueItems(items) {
     const titleCell = item.titleCode || '—';
     const age = formatQueueAge(item.updatedAt);
     const statusClass = item.status === 'in_flight' ? 'jd-qi-inflight'
-                      : item.status === 'failed'    ? 'jd-qi-failed' : 'jd-qi-pending';
+                      : item.status === 'failed'    ? 'jd-qi-failed'
+                      : item.status === 'paused'    ? 'jd-qi-paused' : 'jd-qi-pending';
+    const statusLabel = item.status === 'in_flight' ? 'in flight'
+                      : item.status === 'paused'    ? '⏸ paused' : item.status;
     const etaCell = item.status === 'pending' ? formatEta(item.queuePosition) : '—';
+    const actions = renderQueueItemActions(item);
     return `<tr>
       <td><button class="jd-qi-actress-link" data-actress-id="${item.actressId}">${esc(item.actressName)}</button></td>
       <td class="jd-qi-code">${esc(titleCell)}</td>
       <td>${typeLabel}</td>
-      <td><span class="jd-qi-status ${statusClass}">${item.status}</span></td>
+      <td><span class="jd-qi-status ${statusClass}">${statusLabel}</span></td>
       <td>${item.attempts}</td>
       <td class="jd-qi-eta-cell">${etaCell}</td>
       <td class="jd-qi-age">${age}</td>
+      <td class="jd-qi-actions-cell">${actions}</td>
     </tr>`;
   }).join('');
+}
 
-  // Wire actress-link clicks to navigate to Enrich tab
-  queueTableBody.querySelectorAll('.jd-qi-actress-link').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const actressId = parseInt(btn.dataset.actressId, 10);
-      navigateToActress(actressId);
-    });
-  });
+function renderQueueItemActions(item) {
+  if (item.status !== 'pending' && item.status !== 'paused') return '';
+  const id = item.id;
+  const pauseBtn = item.status === 'paused'
+    ? `<button class="jd-qi-action-btn" data-item-id="${id}" data-action="resume" title="Resume">▶</button>`
+    : `<button class="jd-qi-action-btn" data-item-id="${id}" data-action="pause" title="Pause">⏸</button>`;
+  return `<span class="jd-qi-actions">` +
+    `<button class="jd-qi-action-btn" data-item-id="${id}" data-action="top"     title="Move to top">⇑</button>` +
+    `<button class="jd-qi-action-btn" data-item-id="${id}" data-action="promote" title="Move up">↑</button>` +
+    `<button class="jd-qi-action-btn" data-item-id="${id}" data-action="demote"  title="Move down">↓</button>` +
+    `<button class="jd-qi-action-btn" data-item-id="${id}" data-action="bottom"  title="Move to bottom">⇓</button>` +
+    pauseBtn +
+    `</span>`;
 }
 
 async function navigateToActress(actressId) {
@@ -1246,6 +1262,37 @@ function formatQueueAge(updatedAt) {
   const min = Math.floor(sec / 60);
   if (min < 60) return `${min}m ago`;
   return `${Math.floor(min / 60)}h ago`;
+}
+
+// ── Queue table event delegation ───────────────────────────────────────────
+
+queueTableBody.addEventListener('click', async e => {
+  const actressBtn = e.target.closest('.jd-qi-actress-link');
+  if (actressBtn) {
+    const actressId = parseInt(actressBtn.dataset.actressId, 10);
+    await navigateToActress(actressId);
+    return;
+  }
+
+  const actionBtn = e.target.closest('.jd-qi-action-btn');
+  if (actionBtn) {
+    const itemId = actionBtn.dataset.itemId;
+    const action = actionBtn.dataset.action;
+    await handleQueueItemAction(itemId, action);
+  }
+});
+
+async function handleQueueItemAction(itemId, action) {
+  if (action === 'pause' || action === 'resume') {
+    await fetch(`/api/javdb/discovery/queue/items/${itemId}/${action}`, { method: 'POST' });
+  } else {
+    await fetch(`/api/javdb/discovery/queue/items/${itemId}/move`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action }),
+    });
+  }
+  await loadQueueItems();
 }
 
 // ── Button wiring ──────────────────────────────────────────────────────────
