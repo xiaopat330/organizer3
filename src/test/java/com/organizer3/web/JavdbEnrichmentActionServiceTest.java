@@ -36,7 +36,7 @@ class JavdbEnrichmentActionServiceTest {
         queue         = new EnrichmentQueue(jdbi, JavdbConfig.DEFAULTS);
         mockRunner    = Mockito.mock(EnrichmentRunner.class);
         mockTitleRepo = Mockito.mock(TitleRepository.class);
-        service       = new JavdbEnrichmentActionService(mockTitleRepo, queue, mockRunner);
+        service       = new JavdbEnrichmentActionService(mockTitleRepo, queue, mockRunner, null, null);
     }
 
     @AfterEach
@@ -138,7 +138,7 @@ class JavdbEnrichmentActionServiceTest {
         assertEquals(0, queue.countPendingForActress(11L));
     }
 
-    // ── setPaused / isPaused ───────────────────────────────────────────────
+    // ── setPaused / isPaused / forceResume ────────────────────────────────
 
     @Test
     void setPaused_delegatesToRunner() {
@@ -150,6 +150,12 @@ class JavdbEnrichmentActionServiceTest {
     void isPaused_delegatesToRunner() {
         Mockito.when(mockRunner.isPaused()).thenReturn(true);
         assertTrue(service.isPaused());
+    }
+
+    @Test
+    void forceResume_delegatesToRunner() {
+        service.forceResume();
+        Mockito.verify(mockRunner).forceResume();
     }
 
     // ── retryFailedForActress ──────────────────────────────────────────────

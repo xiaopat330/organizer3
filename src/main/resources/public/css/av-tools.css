@@ -5206,6 +5206,19 @@
 }
 .jd-banner-burst  .jd-banner-time { color: #94a3b8; font-weight: 700; }
 .jd-banner-rate-limit .jd-banner-time { color: #fde68a; font-weight: 700; font-size: 14px; }
+.jd-banner-resume-btn {
+  margin-left: 8px;
+  padding: 2px 10px;
+  border-radius: 4px;
+  border: 1px solid currentColor;
+  background: transparent;
+  color: inherit;
+  font-size: 12px;
+  cursor: pointer;
+  opacity: 0.85;
+}
+.jd-banner-resume-btn:hover { opacity: 1; }
+.jd-banner-resume-btn:disabled { opacity: 0.4; cursor: default; }
 
 .jd-body {
   display: flex;
@@ -5751,6 +5764,17 @@
 
 .jd-retry-btn       { color: #fb923c; border-color: #7c2d12; }
 .jd-retry-btn:hover:not(:disabled) { background: #431407; color: #fdba74; }
+
+.jd-btn-busy    { color: #fbbf24 !important; border-color: #78350f !important; background: #1c1917 !important; }
+.jd-btn-success { color: #34d399 !important; border-color: #065f46 !important; background: #052e2b !important; }
+.jd-btn-error   { color: #fca5a5 !important; border-color: #7f1d1d !important; background: #2c0f10 !important; }
+
+.jd-derive-help { margin: 12px 0; color: #94a3b8; font-size: 13px; }
+.jd-derive-success { margin-top: 12px; color: #6ee7b7; font-size: 13px; }
+.jd-derive-error   { margin-top: 12px; color: #fca5a5; font-size: 13px; }
+.jd-derive-candidates { margin-top: 8px; border-collapse: collapse; }
+.jd-derive-candidates th, .jd-derive-candidates td { padding: 4px 12px; border-bottom: 1px solid #1e293b; }
+.jd-derive-candidates code { color: #c4b5fd; }
 
 /* ── Per-actress panel action row ────────────────────────────────────────── */
 .jd-panel-actions {
