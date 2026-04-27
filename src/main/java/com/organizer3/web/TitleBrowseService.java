@@ -312,6 +312,8 @@ public class TitleBrowseService {
         List<Long> titleIds = titles.stream().map(Title::getId).filter(Objects::nonNull).toList();
         Map<Long, List<TitleSummary.EnrichmentTagEntry>> enrichmentTagsMap =
                 titleRepo.findEnrichmentTagsByTitleIds(titleIds);
+        Map<Long, com.organizer3.repository.TitleRepository.RatingData> ratingDataMap =
+                titleRepo.findRatingDataByTitleIds(titleIds);
 
         return titles.stream()
                 .map(t -> {
@@ -368,6 +370,9 @@ public class TitleBrowseService {
                             .sorted()
                             .toList();
 
+                    com.organizer3.repository.TitleRepository.RatingData rd =
+                            t.getId() != null ? ratingDataMap.get(t.getId()) : null;
+
                     return TitleSummary.builder()
                             .code(t.getCode())
                             .baseCode(t.getBaseCode())
@@ -388,6 +393,9 @@ public class TitleBrowseService {
                             .titleOriginal(t.getTitleOriginal())
                             .releaseDate(t.getReleaseDate() != null ? t.getReleaseDate().toString() : null)
                             .grade(t.getGrade() != null ? t.getGrade().display : null)
+                            .gradeSource(t.getGradeSource())
+                            .ratingAvg(rd != null ? rd.ratingAvg() : null)
+                            .ratingCount(rd != null ? rd.ratingCount() : null)
                             .favorite(t.isFavorite())
                             .bookmark(t.isBookmark())
                             .lastWatchedAt(watchStatsMap.containsKey(t.getCode()) ? watchStatsMap.get(t.getCode()).lastWatchedAt().toString() : null)

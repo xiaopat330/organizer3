@@ -314,10 +314,24 @@ function renderTitleDetail(t) {
   </div>`;
 
   // Grade
-  const gradeHtml = t.grade ? `<div class="title-detail-row title-detail-grade-row">
+  let gradeHtml = '';
+  if (t.grade) {
+    let gradeValue = gradeBadgeHtml(t.grade);
+    if (t.ratingAvg != null && t.ratingCount != null) {
+      const avg = t.ratingAvg.toFixed(2);
+      const votes = t.ratingCount.toLocaleString();
+      gradeValue += ` <span class="title-detail-grade-rating">(${avg} · ${votes} votes)</span>`;
+    }
+    gradeHtml = `<div class="title-detail-row title-detail-grade-row">
     <span class="title-detail-label title-detail-grade-label">Grade</span>
-    <span class="title-detail-value">${gradeBadgeHtml(t.grade)}</span>
-  </div>` : '';
+    <span class="title-detail-value">${gradeValue}</span>
+  </div>`;
+  } else {
+    gradeHtml = `<div class="title-detail-row title-detail-grade-row">
+    <span class="title-detail-label title-detail-grade-label">Grade</span>
+    <span class="title-detail-value title-detail-not-rated">Not rated</span>
+  </div>`;
+  }
 
   // NAS paths
   const paths = t.nasPaths || [];

@@ -14,6 +14,7 @@ import org.jdbi.v3.core.mapper.RowMapper;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -44,6 +45,7 @@ public class JdbiTitleRepository implements TitleRepository {
                 .bookmark(rs.getBoolean("bookmark"))
                 .bookmarkedAt(bookmarkedAtStr != null ? LocalDateTime.parse(bookmarkedAtStr) : null)
                 .grade(gradeStr != null ? Actress.Grade.fromDisplay(gradeStr) : null)
+                .gradeSource(rs.getString("grade_source"))
                 .rejected(rs.getBoolean("rejected"))
                 .titleOriginal(rs.getString("title_original"))
                 .titleEnglish(rs.getString("title_english"))
@@ -1496,6 +1498,36 @@ public class JdbiTitleRepository implements TitleRepository {
     }
 
     @Override
+    public Map<Long, TitleRepository.RatingData> findRatingDataByTitleIds(Collection<Long> titleIds) {
+        if (titleIds == null || titleIds.isEmpty()) return Map.of();
+        List<Long> ids = new ArrayList<>(titleIds);
+        return jdbi.withHandle(h -> {
+            List<Map<String, Object>> rows = h.createQuery(
+                    "SELECT title_id, rating_avg, rating_count FROM title_javdb_enrichment WHERE title_id IN (<ids>)")
+                    .bindList("ids", ids)
+                    .mapToMap()
+                    .list();
+            Map<Long, TitleRepository.RatingData> result = new HashMap<>();
+            for (Map<String, Object> row : rows) {
+                long titleId = ((Number) row.get("title_id")).longValue();
+                Double ratingAvg = row.get("rating_avg") != null ? ((Number) row.get("rating_avg")).doubleValue() : null;
+                Integer ratingCount = row.get("rating_count") != null ? ((Number) row.get("rating_count")).intValue() : null;
+                result.put(titleId, new TitleRepository.RatingData(ratingAvg, ratingCount));
+            }
+            return result;
+        });
+    }
+
+    @Override
+    public String findGradeSource(long titleId) {
+        return jdbi.withHandle(h ->
+                h.createQuery("SELECT grade_source FROM titles WHERE id = ?")
+                        .bind(0, titleId)
+                        .mapTo(String.class)
+                        .findOne()
+                        .orElse(null));
+    }
+
     public Map<Long, List<TitleSummary.EnrichmentTagEntry>> findEnrichmentTagsByTitleIds(
             Collection<Long> titleIds) {
         if (titleIds == null || titleIds.isEmpty()) return Map.of();

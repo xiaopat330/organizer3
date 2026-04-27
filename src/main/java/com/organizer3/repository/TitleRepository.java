@@ -412,4 +412,13 @@ public interface TitleRepository {
      */
     Map<Long, List<TitleSummary.EnrichmentTagEntry>> findEnrichmentTagsByTitleIds(
             Collection<Long> titleIds);
+
+    /** Lightweight rating data from title_javdb_enrichment, keyed by title ID. */
+    record RatingData(Double ratingAvg, Integer ratingCount) {}
+
+    /** Batch-load javdb rating data for the given title IDs. Titles with no enrichment row are absent. */
+    Map<Long, RatingData> findRatingDataByTitleIds(Collection<Long> titleIds);
+
+    /** Returns grade_source for a single title, or null if not found. */
+    String findGradeSource(long titleId);
 }

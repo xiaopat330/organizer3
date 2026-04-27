@@ -42,6 +42,12 @@ public class TitleSummary {
     String titleOriginal;
     String releaseDate;
     String grade;
+    /** 'enrichment', 'ai', or 'manual'. Null when ungraded. */
+    String gradeSource;
+    /** Raw javdb rating average (null when not enriched). */
+    Double ratingAvg;
+    /** Number of votes contributing to ratingAvg (null when not enriched). */
+    Integer ratingCount;
     boolean favorite;
     boolean bookmark;
     String lastWatchedAt;
