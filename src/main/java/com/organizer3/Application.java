@@ -163,8 +163,8 @@ public class Application {
         Path dbDir = Path.of(System.getProperty("user.home"), ".organizer3");
         Files.createDirectories(dbDir);
         Jdbi jdbi = Jdbi.create("jdbc:sqlite:" + dbDir.resolve("organizer.db"));
-        new SchemaInitializer(jdbi).initialize();
         new SchemaUpgrader(jdbi).upgrade();
+        new SchemaInitializer(jdbi).initialize();
         new TagSeeder(jdbi).seedIfEmpty();
         TitleEffectiveTagsService titleEffectiveTagsService = new TitleEffectiveTagsService(jdbi);
         ActressCompaniesService   actressCompaniesService   = new ActressCompaniesService(jdbi);
