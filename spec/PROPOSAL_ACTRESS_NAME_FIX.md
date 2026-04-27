@@ -1,7 +1,26 @@
 # Proposal: Agentic Actress Name Typo Fix via MCP
 
-**Status:** Draft — 2026-04-26
+**Status:** Code shipped on `actress-merge-command` — 2026-04-26
+**Remaining for handoff:** local config wiring (`.claude/settings.json`, `organizer-config.yaml`) + one-shot manual smoke test
 **Scope:** Detection → DB merge → folder rename, orchestrated by Claude via organizer3 MCP
+
+---
+
+## Status Summary
+
+The code half of this proposal has shipped in three commits on the
+`actress-merge-command` branch (not yet merged to `main`):
+
+| Commit | What it adds |
+|--------|-------------|
+| `feat(actress): add 'actress merge' command for typo cleanup` | Shell command `actress merge <suspect> > <canonical>` + `ActressMergeService` (DB merge + folder rename in one shot) + 13 service tests |
+| `refactor(actress): extract renameOnly + planRenamesFor for post-merge cleanup` | Splits the FS rename half into reusable `planRenamesFor()` / `renameOnly()` so it can run without re-doing the DB merge; alias-aware folder matching (longest-prefix wins); +14 tests |
+| `feat(mcp): add rename_actress_folders tool` | MCP tool wired into `Application.java` under `fileOpsAllowed`; +9 tool tests with fake `SessionContext` + `VolumeFileSystem` |
+
+All 36 new tests pass. Full suite is green.
+
+What's NOT done (and why it can't be code): see [§Remaining work](#remaining-work) — both items live in user-local files that are gitignored or
+outside the repo.
 
 ---
 
@@ -12,13 +31,13 @@ Actress name typos appear in two places:
 1. **The database** — a misspelled canonical name on an `actresses` row, with titles incorrectly attributed to it.
 2. **The filesystem** — title folders named after the typo actress (`Rin Hatchimitsu (FNS-052)/`) that remain after (or instead of) a DB correction.
 
-Both are currently manual. The DB side already has tooling (`merge_actresses`), but there is no tool that renames the actual folders on disk. Scanning for typos across a large collection is also tedious without automated detection.
+Both were manual. The DB side already had `merge_actresses`, but no tool renamed the actual folders on disk. Scanning for typos across a large collection was also tedious without automated detection.
 
 ---
 
-## What Already Exists
+## What Now Exists
 
-The MCP server already has the pieces for detection and DB correction:
+### MCP tools (read-only — already shipped before this branch)
 
 | Tool | What it does |
 |------|-------------|
@@ -28,46 +47,66 @@ The MCP server already has the pieces for detection and DB correction:
 | `list_actresses_with_misnamed_folders` | Returns actresses whose filed-title folder paths don't contain their canonical name — the post-merge cleanup worklist, ranked by mismatch count. |
 | `find_misnamed_folders_for_actress` | Drills into a single actress: returns each mismatched path, flagging which alias (if any) appears in it. |
 
-**The gap:** There is no tool to rename the folders on disk. After a `merge_actresses` call, the DB is correct but the folders still reflect the old name. A volume must be mounted and a `VolumeFileSystem` must be wired in to execute renames.
+### MCP tool added on this branch
+
+| Tool | What it does |
+|------|-------------|
+| `rename_actress_folders` | Renames every misnamed title folder for one actress on the currently mounted volume. Locations on other volumes appear in `skipped`; folders whose names don't start with any known alias appear in `unresolvable`. Default `dryRun:true`, gated on `fileOpsAllowed`. |
+
+### Shell command added on this branch
+
+`actress merge <suspect> > <canonical>` — same end-to-end flow as the MCP path, usable from the interactive shell. Documented in `spec/USAGE.md`. Honours session dry-run.
 
 ---
 
-## Proposed Changes
+## Code Map (for picking up the work)
 
-### 1. New tool: `rename_actress_folders`
+| Concern | File |
+|---------|------|
+| Service (DB merge + FS rename) | `src/main/java/com/organizer3/command/ActressMergeService.java` |
+| Shell command | `src/main/java/com/organizer3/command/MergeActressCommand.java` |
+| MCP tool | `src/main/java/com/organizer3/mcp/tools/RenameActressFoldersTool.java` |
+| Tool registration | `Application.java` line ~764 (under `mutationsAllowed && fileOpsAllowed` block) |
+| Service tests | `src/test/java/com/organizer3/command/ActressMergeServiceTest.java` (27 tests) |
+| Tool tests | `src/test/java/com/organizer3/mcp/tools/RenameActressFoldersToolTest.java` (9 tests) |
+| User docs | `spec/USAGE.md` — `actress merge` section |
 
-A new `fileOpsAllowed` tool that renames every misnamed title folder for one actress on the currently mounted volume.
+### Service API surface (what the MCP tool calls)
 
-**Input schema:**
+```java
+public class ActressMergeService {
+    // Existing — full merge: DB rewrites + folder renames in one transaction-ish flow
+    MergePreview preview(Actress suspect, Actress canonical);
+    MergeResult execute(MergePreview, mountedVolumeId, VolumeFileSystem, boolean dry);
 
+    // New — post-merge cleanup: folder renames only, alias-aware
+    RenamePlan planRenamesFor(Actress actress);
+    RenameResult renameOnly(RenamePlan, mountedVolumeId, VolumeFileSystem, boolean dry);
+}
 ```
-actress_id   integer   Actress id to fix. Either this or 'name' required.
+
+`planRenamesFor` queries filing `title_locations` for the actress where the path doesn't contain her canonical name (`instr(LOWER(path), LOWER(canonical)) = 0`), then matches each folder name against her aliases longest-first to compute a new path. Unmatched paths land in `RenamePlan.unresolved()`.
+
+### `rename_actress_folders` input/output
+
+**Input:**
+```
+actress_id   integer   Either this or 'name' required.
 name         string    Canonical name or alias to resolve.
-dry_run      boolean   If true (default), return the plan without executing.
+dryRun       boolean   Default true.
 ```
 
-**Logic:**
+**Output:** `Result { actressId, canonicalName, dryRun, mountedVolumeId, renamedCount, skippedCount, unresolvableCount, renamed[], skipped[], unresolvable[] }`
 
-1. Resolve actress + fetch all her aliases from the DB.
-2. Query every `title_locations` row where `path` does not contain the actress's canonical name (`instr(LOWER(path), LOWER(canonical)) = 0`).
-3. For each row, scan the folder name for any known alias. Compute the new folder name by replacing the matched alias with the canonical name.
-4. Partition results by volume: rows on the currently mounted volume are `actionable`; others are `skipped`.
-5. On `dry_run:false`: for each actionable row, call `VolumeFileSystem.rename(currentPath, newFolderName)`, then update `title_locations.path` in the DB.
-6. Return `{renamed: [...], skipped: [...], unresolvable: [...]}` where `unresolvable` contains paths that don't match any known alias (needs manual inspection).
+---
 
-**Permission gate:** `fileOpsAllowed` — same gate as other FS-mutating tools.
+## Remaining Work
 
-**Implementation note:** This tool needs a reference to `SessionContext` (for the active `VolumeFileSystem` and mounted volume id), which is already the pattern used by `MountVolumeTool` and `OrganizeVolumeTool`.
+These are **local user-config edits** — they cannot live in the repo because the files are either outside it or gitignored. The next session/operator should:
 
-### 2. Wire `ActressMergeService` to the MCP layer
+### 1. Wire organizer3 MCP into Claude Code
 
-`ActressMergeService` (introduced on the `actress-merge-command` branch) already contains the filesystem rename logic and the `computeNewPath` pure function. The new tool should delegate to it rather than duplicate the path-computation logic. The service's `execute()` method can be called with the actresses resolved to the same record (merge with `suspect == canonical`) or we can expose just the rename half as a dedicated method on the service.
-
-The cleanest option: add a `renameOnly(Actress actress, String mountedVolumeId, VolumeFileSystem fs, boolean dry)` method to `ActressMergeService` that skips the DB merge step and only handles filesystem renames + path updates. The new MCP tool calls that.
-
-### 3. Connect organizer3 MCP to Claude Code
-
-Add the MCP server entry to `.claude/settings.json`:
+Edit `.claude/settings.json` (currently only has `permissions`):
 
 ```json
 {
@@ -81,7 +120,9 @@ Add the MCP server entry to `.claude/settings.json`:
 }
 ```
 
-In `organizer-config.yaml`, enable file ops:
+### 2. Enable file ops in organizer-config.yaml
+
+The active config is gitignored. Add (or confirm):
 
 ```yaml
 mcp:
@@ -89,11 +130,26 @@ mcp:
   allowFileOps: true
 ```
 
-**Prerequisites at session time:** organizer3 must be running, and (for folder renames) a volume must be mounted. Use the `mount_status` tool to check the current state; `mount_volume` to mount one.
+Both flags are required: `rename_actress_folders` is registered inside the `mutationsAllowed && fileOpsAllowed` block in `Application.java`.
+
+### 3. Smoke test
+
+With organizer3 running and a volume mounted:
+
+1. From Claude Code, call `find_similar_actresses` to surface a known-typo pair.
+2. `merge_actresses(from=..., into=..., dryRun=true)` then `dryRun=false`.
+3. `find_misnamed_folders_for_actress(name="<canonical>")` to confirm leftover folders.
+4. `rename_actress_folders(name="<canonical>", dryRun=true)` to preview.
+5. `rename_actress_folders(name="<canonical>", dryRun=false)` to execute.
+6. Verify on disk + via DB that `title_locations.path` was updated.
+
+### 4. Merge the branch
+
+`actress-merge-command` → `main` once the smoke test passes.
 
 ---
 
-## End-to-End Workflow
+## End-to-End Workflows (already supported by the shipped tools)
 
 ### Case A: Known typo, one actress
 
@@ -105,10 +161,12 @@ User says: *"actress merge Rin Hatchimitsu → Rin Hachimitsu"*
 4. `find_misnamed_folders_for_actress(name="Rin Hachimitsu")` — shows which folder paths still need renaming and on which volumes.
 5. For each volume with mismatches:
    - `mount_volume(volume_id=...)` if not already mounted.
-   - `rename_actress_folders(name="Rin Hachimitsu", dry_run=true)` — preview renames.
+   - `rename_actress_folders(name="Rin Hachimitsu", dryRun=true)` — preview renames.
    - User confirms.
-   - `rename_actress_folders(name="Rin Hachimitsu", dry_run=false)` — renames executed.
+   - `rename_actress_folders(name="Rin Hachimitsu", dryRun=false)` — renames executed.
 6. Report any volumes that couldn't be reached (user mounts and re-runs later).
+
+**Shell shortcut:** `actress merge "Rin Hatchimitsu" > "Rin Hachimitsu"` does steps 1–5 in one go for the currently mounted volume.
 
 ### Case B: Full typo sweep (agentic loop)
 
@@ -160,3 +218,5 @@ Only one volume is mountable at a time in organizer3. The tool respects this con
 - [x] Document `actress merge` in `spec/USAGE.md`
 - [ ] Update `.claude/settings.json` with `mcpServers.organizer3` entry (user config — outside repo)
 - [ ] Enable `mcp.allowMutations: true` and `mcp.allowFileOps: true` in `organizer-config.yaml` (user config — gitignored)
+- [ ] Smoke test the full agentic flow against a real mounted volume
+- [ ] Merge `actress-merge-command` → `main`
