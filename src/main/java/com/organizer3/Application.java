@@ -11,7 +11,9 @@ import com.organizer3.command.RestoreCommand;
 import com.organizer3.ai.ClaudeActressNameLookup;
 import com.organizer3.command.ActressNameCheckService;
 import com.organizer3.command.ActressSearchCommand;
+import com.organizer3.command.ActressMergeService;
 import com.organizer3.command.CheckNamesCommand;
+import com.organizer3.command.MergeActressCommand;
 import com.organizer3.command.ErrorScanService;
 import com.organizer3.command.ScanErrorsCommand;
 import com.organizer3.avstars.command.AvActressCommand;
@@ -231,6 +233,7 @@ public class Application {
         ActressYamlLoader yamlLoader = new ActressYamlLoader(actressRepo, titleRepo, tagRepo);
         commands.add(new LoadActressCommand(yamlLoader));
         commands.add(new CheckNamesCommand(actressRepo, new ActressNameCheckService()));
+        commands.add(new MergeActressCommand(actressRepo, new ActressMergeService(jdbi, titleLocationRepo)));
         commands.add(new ScanErrorsCommand(actressRepo, new ErrorScanService()));
 
         // Scanner registry — maps structure types to their filesystem scanners
