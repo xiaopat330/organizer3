@@ -183,6 +183,10 @@ public class ActressMergeService {
      * {@link RenamePlan#unresolved()} for manual inspection.
      */
     public RenamePlan planRenamesFor(Actress actress) {
+        return planRenamesFor(actress, null);
+    }
+
+    public RenamePlan planRenamesFor(Actress actress, String fromName) {
         long actressId = actress.getId();
         String canonical = actress.getCanonicalName();
 
@@ -190,6 +194,9 @@ public class ActressMergeService {
         List<String> aliasNames = new ArrayList<>();
         for (ActressAlias a : actressRepo.findAliases(actressId)) {
             aliasNames.add(a.aliasName());
+        }
+        if (fromName != null && !fromName.isBlank()) {
+            aliasNames.add(fromName);
         }
         aliasNames.sort(Comparator.comparingInt(String::length).reversed());
 

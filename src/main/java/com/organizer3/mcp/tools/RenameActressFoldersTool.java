@@ -51,15 +51,17 @@ public class RenameActressFoldersTool implements Tool {
         return Schemas.object()
                 .prop("actress_id", "integer", "Actress id to fix. Either this or 'name' is required.")
                 .prop("name",       "string",  "Canonical name or alias to resolve. Either this or 'actress_id' is required.")
+                .prop("fromName",   "string",  "Optional extra source name to match against folder names. Use when the misspelled name can't be registered as an alias (e.g. it's another actress's canonical name).")
                 .prop("dryRun",     "boolean", "If true (default), return the plan without renaming.", true)
                 .build();
     }
 
     @Override
     public Object call(JsonNode args) {
-        long idArg     = Schemas.optLong(args, "actress_id", -1);
-        String nameArg = Schemas.optString(args, "name", null);
-        boolean dryRun = Schemas.optBoolean(args, "dryRun", true);
+        long idArg       = Schemas.optLong(args, "actress_id", -1);
+        String nameArg   = Schemas.optString(args, "name", null);
+        String fromName  = Schemas.optString(args, "fromName", null);
+        boolean dryRun   = Schemas.optBoolean(args, "dryRun", true);
 
         if (idArg < 0 && (nameArg == null || nameArg.isBlank())) {
             throw new IllegalArgumentException("Must provide either 'actress_id' or 'name'");
@@ -75,7 +77,7 @@ public class RenameActressFoldersTool implements Tool {
         VolumeConnection conn  = session.getActiveConnection();
         VolumeFileSystem fs    = (conn != null && conn.isConnected()) ? conn.fileSystem() : null;
 
-        RenamePlan plan = mergeService.planRenamesFor(actress);
+        RenamePlan plan = mergeService.planRenamesFor(actress, fromName);
         try {
             RenameResult result = mergeService.renameOnly(plan, mountedVolumeId, fs, dryRun);
             return toResponse(actress, mountedVolumeId, dryRun, result);

@@ -151,6 +151,33 @@ class RenameActressFoldersToolTest {
     }
 
     @Test
+    void fromName_matchesFolderWhenNoAliasRegistered() {
+        // Actress has no aliases; folder uses a conflicting name that can't be registered
+        Actress a = actressRepo.save(Actress.builder()
+                .canonicalName("Yuzu Ogura").tier(Actress.Tier.POPULAR)
+                .firstSeenAt(LocalDate.now()).build());
+        long titleId = jdbi.withHandle(h ->
+                h.createQuery("INSERT INTO titles (code, actress_id) VALUES ('YUM-001', :a) RETURNING id")
+                        .bind("a", a.getId()).mapTo(Long.class).one());
+        jdbi.useHandle(h -> h.createUpdate("""
+                INSERT INTO title_locations (title_id, volume_id, partition_id, path, last_seen_at)
+                VALUES (:t, 'pool', 'queue', '/stars/Yuko Ogura/Yuko Ogura (YUM-001)', '2024-01-01')
+                """).bind("t", titleId).execute());
+
+        ObjectNode args = M.createObjectNode();
+        args.put("actress_id", a.getId());
+        args.put("fromName", "Yuko Ogura");
+        args.put("dryRun", false);
+
+        var r = (RenameActressFoldersTool.Result) tool.call(args);
+
+        assertEquals(1, r.renamedCount());
+        assertEquals(0, r.unresolvableCount());
+        assertEquals(Path.of("/stars/Yuko Ogura/Yuko Ogura (YUM-001)"), fs.renameCalls.get(0).path());
+        assertEquals("Yuzu Ogura (YUM-001)", fs.renameCalls.get(0).newName());
+    }
+
+    @Test
     void rejectsWhenNoIdAndNoName() {
         ObjectNode args = M.createObjectNode();
         args.put("dryRun", true);
