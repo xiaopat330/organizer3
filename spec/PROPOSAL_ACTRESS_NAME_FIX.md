@@ -153,9 +153,10 @@ Only one volume is mountable at a time in organizer3. The tool respects this con
 
 ## Implementation Checklist
 
-- [ ] Add `renameOnly(...)` method to `ActressMergeService` (or expose rename logic separately)
-- [ ] Implement `RenameActressFoldersTool` under `fileOpsAllowed`
-- [ ] Register tool in `Application.java` (same pattern as other fileOps tools)
-- [ ] Tests: unit tests for path-resolution logic; integration test for the full rename path with in-memory SQLite + mock `VolumeFileSystem`
-- [ ] Update `.claude/settings.json` with `mcpServers.organizer3` entry
-- [ ] Document `rename_actress_folders` in `spec/USAGE.md`
+- [x] Add `renameOnly(...)` method to `ActressMergeService` (or expose rename logic separately) — `planRenamesFor()` + `renameOnly()`, sharing a private `performFsRenames` helper with `execute()`
+- [x] Implement `RenameActressFoldersTool` under `fileOpsAllowed`
+- [x] Register tool in `Application.java` (same pattern as other fileOps tools)
+- [x] Tests: unit tests for path-resolution logic; integration test for the full rename path with in-memory SQLite + mock `VolumeFileSystem` — 27 service tests + 9 tool tests
+- [x] Document `actress merge` in `spec/USAGE.md`
+- [ ] Update `.claude/settings.json` with `mcpServers.organizer3` entry (user config — outside repo)
+- [ ] Enable `mcp.allowMutations: true` and `mcp.allowFileOps: true` in `organizer-config.yaml` (user config — gitignored)

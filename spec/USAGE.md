@@ -216,7 +216,21 @@ Searches for a JAV actress by name. Uses the Claude API for name lookups when `A
 
 ### `check-names`
 
-Validates actress name formatting in the database and reports inconsistencies.
+Validates actress name formatting in the database and reports inconsistencies. Suggests `actress merge` for confirmed typos.
+
+---
+
+### `actress merge <suspect> > <canonical>`
+
+Fixes an actress name typo by merging the suspect record into the canonical one.
+Reassigns `title_actresses` rows, updates filing `actress_id`, cleans dependent
+tables, and renames affected title folders on the currently mounted volume.
+Folders on unmounted volumes are listed as needing manual attention. Honours
+the session's dry-run flag — preview first, then run armed to execute.
+
+```
+actress merge "Rin Hatchimitsu" > "Rin Hachimitsu"
+```
 
 ---
 
