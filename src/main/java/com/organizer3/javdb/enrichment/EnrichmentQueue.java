@@ -440,6 +440,19 @@ public class EnrichmentQueue {
                 .mapTo(Integer.class).one());
     }
 
+    /** Re-queues a failed item as pending, appended to the end of the queue. No-op if not failed. */
+    public void requeueItem(long id) {
+        jdbi.useHandle(h -> h.createUpdate("""
+                UPDATE javdb_enrichment_queue
+                SET status = 'pending', attempts = 0, last_error = NULL, next_attempt_at = :now,
+                    sort_order = (SELECT COALESCE(MAX(sort_order), 0) + 1
+                                  FROM javdb_enrichment_queue
+                                  WHERE status IN ('pending', 'paused')),
+                    updated_at = :now
+                WHERE id = :id AND status = 'failed'
+                """).bind("id", id).bind("now", now()).execute());
+    }
+
     private EnrichmentJob mapJob(java.sql.ResultSet rs, org.jdbi.v3.core.statement.StatementContext ctx)
             throws java.sql.SQLException {
         return new EnrichmentJob(

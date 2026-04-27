@@ -97,6 +97,9 @@ public class JavdbEnrichmentActionService {
     /** Moves a pending/paused item one position later in the queue. */
     public void demoteItem(long id) { queue.demoteItem(id); }
 
+    /** Re-queues a failed item as pending, appended to the end of the queue. */
+    public void requeueItem(long id) { queue.requeueItem(id); }
+
     /** Force re-enqueues a single title even if it was already successfully enriched. */
     public void reEnqueueTitle(long titleId, long actressId) {
         queue.enqueueTitleForce(titleId, actressId);

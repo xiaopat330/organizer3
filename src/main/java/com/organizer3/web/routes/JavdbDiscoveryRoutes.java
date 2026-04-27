@@ -125,6 +125,13 @@ public class JavdbDiscoveryRoutes {
             ctx.status(204);
         });
 
+        app.post("/api/javdb/discovery/queue/items/{itemId}/requeue", ctx -> {
+            long id = parseItemId(ctx);
+            if (id < 0) { ctx.status(400); return; }
+            actionService.requeueItem(id);
+            ctx.status(204);
+        });
+
         app.post("/api/javdb/discovery/actresses/{id}/retry", ctx -> {
             long id = parseId(ctx);
             if (id < 0) { ctx.status(400); return; }

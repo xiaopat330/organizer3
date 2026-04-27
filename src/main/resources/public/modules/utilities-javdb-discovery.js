@@ -1222,8 +1222,13 @@ function renderQueueItems(items) {
 }
 
 function renderQueueItemActions(item) {
-  if (item.status !== 'pending' && item.status !== 'paused') return '';
   const id = item.id;
+  if (item.status === 'failed') {
+    return `<span class="jd-qi-actions">` +
+      `<button class="jd-qi-action-btn" data-item-id="${id}" data-action="requeue" title="Re-queue">↺</button>` +
+      `</span>`;
+  }
+  if (item.status !== 'pending' && item.status !== 'paused') return '';
   const pauseBtn = item.status === 'paused'
     ? `<button class="jd-qi-action-btn" data-item-id="${id}" data-action="resume" title="Resume">▶</button>`
     : `<button class="jd-qi-action-btn" data-item-id="${id}" data-action="pause" title="Pause">⏸</button>`;
@@ -1283,7 +1288,7 @@ queueTableBody.addEventListener('click', async e => {
 });
 
 async function handleQueueItemAction(itemId, action) {
-  if (action === 'pause' || action === 'resume') {
+  if (action === 'pause' || action === 'resume' || action === 'requeue') {
     await fetch(`/api/javdb/discovery/queue/items/${itemId}/${action}`, { method: 'POST' });
   } else {
     await fetch(`/api/javdb/discovery/queue/items/${itemId}/move`, {

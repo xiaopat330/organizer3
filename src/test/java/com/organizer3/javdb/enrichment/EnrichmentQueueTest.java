@@ -502,4 +502,43 @@ class EnrichmentQueueTest {
         assertEquals(0, queue.countPendingForActress(10L));
         assertEquals(0, queue.countPaused());
     }
+
+    @Test
+    void requeueItem_makesPendingAndAppendsToQueue() {
+        queue.enqueueTitle(1L, 10L);
+        queue.enqueueTitle(2L, 10L);
+        Jdbi jdbi = Jdbi.create(connection);
+        // Fail the first item
+        EnrichmentJob job = queue.claimNextJob().get();
+        queue.markPermanentlyFailed(job.id(), "test error");
+        // There's now one pending and one failed
+        assertEquals(1, queue.countPendingForActress(10L));
+        // Requeue the failed item
+        queue.requeueItem(job.id());
+        // Both should now be pending
+        assertEquals(2, queue.countPendingForActress(10L));
+        // The re-queued item should have been appended (higher sort_order than the remaining item)
+        long requeued = jdbi.withHandle(h -> h.createQuery(
+                "SELECT sort_order FROM javdb_enrichment_queue WHERE id = :id")
+                .bind("id", job.id()).mapTo(Long.class).one());
+        long other = jdbi.withHandle(h -> h.createQuery(
+                "SELECT sort_order FROM javdb_enrichment_queue WHERE id != :id AND status = 'pending'")
+                .bind("id", job.id()).mapTo(Long.class).one());
+        assertTrue(requeued > other, "re-queued item should be appended after the existing pending item");
+        // attempts and last_error should be cleared
+        String lastError = jdbi.withHandle(h -> h.createQuery(
+                "SELECT last_error FROM javdb_enrichment_queue WHERE id = :id")
+                .bind("id", job.id()).mapTo(String.class).findOne().orElse(null));
+        assertNull(lastError, "last_error should be cleared after requeue");
+    }
+
+    @Test
+    void requeueItem_noopOnNonFailed() {
+        queue.enqueueTitle(1L, 10L);
+        Jdbi jdbi = Jdbi.create(connection);
+        long itemId = jdbi.withHandle(h -> h.createQuery(
+                "SELECT id FROM javdb_enrichment_queue WHERE target_id = 1").mapTo(Long.class).one());
+        queue.requeueItem(itemId); // should be a no-op on a pending item
+        assertEquals(1, queue.countPendingForActress(10L));
+    }
 }
