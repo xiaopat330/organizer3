@@ -435,40 +435,6 @@
   </section>
 </div>
 
-<!-- AV Stars tool content -->
-<div id="tools-av-stars-view" class="tools-av-stars-view" style="display:none">
-  <aside class="as-left" id="as-left">
-    <div class="as-left-header">
-      <span id="as-counts" class="as-counts">—</span>
-    </div>
-    <div class="as-filters">
-      <select id="as-filter" class="as-select">
-        <option value="ALL">All</option>
-        <option value="UNRESOLVED">Unresolved</option>
-        <option value="FAVORITES">Favorites</option>
-        <option value="BOOKMARKS">Bookmarks</option>
-        <option value="REJECTED">Rejected</option>
-      </select>
-      <select id="as-sort" class="as-select">
-        <option value="VIDEO_COUNT_DESC">Videos ↓</option>
-        <option value="STAGE_NAME_ASC">Name A→Z</option>
-        <option value="LAST_SCANNED_DESC">Recently scanned</option>
-      </select>
-    </div>
-    <ul id="as-list" class="as-list"></ul>
-  </aside>
-  <section class="as-right" id="as-right">
-    <div id="as-empty" class="as-empty">
-      <div class="as-empty-icon">
-        <svg viewBox="0 0 24 24" width="56" height="56" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M6 21v-1.5a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4V21"/></svg>
-      </div>
-      <div class="as-empty-title">Pick an actress on the left</div>
-      <div class="as-empty-sub">Resolve via IAFD, rename, or curate.</div>
-    </div>
-    <div id="as-detail" class="as-detail" style="display:none"></div>
-    <div id="as-picker" class="as-picker" style="display:none"></div>
-  </section>
-</div>
 
 <!-- Duplicates sub-nav (tab bar shared by Triage and Merge Candidates) -->
 <div id="tools-dup-subnav" class="tools-subnav" style="display:none">
@@ -857,6 +823,41 @@
 <!-- AV dashboard (blank slate) -->
 <div id="av-dashboard" style="display:none">
   <div class="av-dashboard-empty">AV Dashboard coming soon.</div>
+</div>
+
+<!-- AV Stars tool content -->
+<div id="tools-av-stars-view" class="tools-av-stars-view" style="display:none">
+  <aside class="as-left" id="as-left">
+    <div class="as-left-header">
+      <span id="as-counts" class="as-counts">—</span>
+    </div>
+    <div class="as-filters">
+      <select id="as-filter" class="as-select">
+        <option value="ALL">All</option>
+        <option value="UNRESOLVED">Unresolved</option>
+        <option value="FAVORITES">Favorites</option>
+        <option value="BOOKMARKS">Bookmarks</option>
+        <option value="REJECTED">Rejected</option>
+      </select>
+      <select id="as-sort" class="as-select">
+        <option value="VIDEO_COUNT_DESC">Videos ↓</option>
+        <option value="STAGE_NAME_ASC">Name A→Z</option>
+        <option value="LAST_SCANNED_DESC">Recently scanned</option>
+      </select>
+    </div>
+    <ul id="as-list" class="as-list"></ul>
+  </aside>
+  <section class="as-right" id="as-right">
+    <div id="as-empty" class="as-empty">
+      <div class="as-empty-icon">
+        <svg viewBox="0 0 24 24" width="56" height="56" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M6 21v-1.5a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4V21"/></svg>
+      </div>
+      <div class="as-empty-title">Pick an actress on the left</div>
+      <div class="as-empty-sub">Resolve via IAFD, rename, or curate.</div>
+    </div>
+    <div id="as-detail" class="as-detail" style="display:none"></div>
+    <div id="as-picker" class="as-picker" style="display:none"></div>
+  </section>
 </div>
 <!-- AV actress index grid -->
 <div id="av-grid" class="grid" style="display:none"></div>
