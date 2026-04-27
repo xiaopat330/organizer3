@@ -10,7 +10,6 @@ import { showVolumesView, hideVolumesView } from './utilities-volumes.js';
 import { showActressDataView, hideActressDataView } from './utilities-actress-data.js';
 import { showBackupView, hideBackupView } from './utilities-backup.js';
 import { showLibraryHealthView, hideLibraryHealthView } from './utilities-library-health.js';
-import { showAvStarsView, hideAvStarsView } from './utilities-av-stars.js';
 import { showDupTriageView, hideDupTriageView, wireDupTriageEvents } from './utilities-duplicate-triage.js';
 import { showMergeCandidatesView, hideMergeCandidatesView, wireMergeCandidatesEvents } from './utilities-merge-candidates.js';
 import { showTrashView, hideTrashView } from './utilities-trash.js';
@@ -23,7 +22,6 @@ const volumesBtn        = document.getElementById('tools-volumes-btn');
 const actressDataBtn    = document.getElementById('tools-actress-data-btn');
 const backupBtn         = document.getElementById('tools-backup-btn');
 const libraryHealthBtn  = document.getElementById('tools-library-health-btn');
-const avStarsBtn        = document.getElementById('tools-av-stars-btn');
 const duplicatesBtn     = document.getElementById('tools-duplicates-btn');
 const trashBtn          = document.getElementById('tools-trash-btn');
 const queueBtn          = document.getElementById('tools-queue-btn');
@@ -45,7 +43,7 @@ const dupTriageTab      = document.getElementById('tools-dup-triage-tab');
 const mergeCandidatesTab = document.getElementById('tools-merge-candidates-tab');
 
 // ── Tool buttons ──────────────────────────────────────────────────────────
-const TOOL_BTNS = [volumesBtn, actressDataBtn, backupBtn, libraryHealthBtn, avStarsBtn, duplicatesBtn, trashBtn, queueBtn, logsBtn, javdbDiscoveryBtn, tagHealthBtn];
+const TOOL_BTNS = [volumesBtn, actressDataBtn, backupBtn, libraryHealthBtn, duplicatesBtn, trashBtn, queueBtn, logsBtn, javdbDiscoveryBtn, tagHealthBtn];
 
 function selectTool(btn) {
   TOOL_BTNS.forEach(b => b?.classList.remove('selected'));
@@ -60,7 +58,6 @@ function hideAllToolViews() {
   hideActressDataView();
   hideBackupView();
   hideLibraryHealthView();
-  hideAvStarsView();
   hideDupTriageView();
   hideMergeCandidatesView();
   hideTrashView();
@@ -357,14 +354,6 @@ libraryHealthBtn.addEventListener('click', () => {
   updateBreadcrumb([{ label: 'Tools' }, { label: 'Library Health' }]);
   hideAllToolViews();
   showLibraryHealthView();
-});
-
-avStarsBtn.addEventListener('click', () => {
-  showActionView('av-stars');
-  selectTool(avStarsBtn);
-  updateBreadcrumb([{ label: 'Tools' }, { label: 'AV Stars' }]);
-  hideAllToolViews();
-  showAvStarsView();
 });
 
 duplicatesBtn.addEventListener('click', showDuplicates);

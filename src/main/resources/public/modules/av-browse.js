@@ -1,6 +1,7 @@
 import { showView, updateBreadcrumb } from './grid.js';
 import { esc, timeAgoShort } from './utils.js';
 import { pushNav } from './nav.js';
+import { showAvStarsView, hideAvStarsView } from './utilities-av-stars.js';
 import { ICON_FAV_SM, ICON_BM_SM, ICON_BM_SM_OFF } from './icons.js';
 
 // ── DOM refs ──────────────────────────────────────────────────────────────
@@ -10,6 +11,7 @@ const avDashboardBtn        = document.getElementById('av-dashboard-btn');
 const avFavoritesBtn        = document.getElementById('av-favorites-btn');
 const avBookmarksBtn        = document.getElementById('av-bookmarks-btn');
 const avIndexBtn            = document.getElementById('av-index-btn');
+const avUtilitiesBtn        = document.getElementById('av-utilities-btn');
 const avDashboardEl         = document.getElementById('av-dashboard');
 const avGridEl              = document.getElementById('av-grid');
 
@@ -29,10 +31,11 @@ export async function selectAvBrowseMode(mode) {
   document.getElementById('titles-browse-btn')?.classList.remove('active');
   document.getElementById('action-btn')?.classList.remove('active');
 
-  [avDashboardBtn, avFavoritesBtn, avBookmarksBtn, avIndexBtn].forEach(b => b?.classList.remove('selected'));
+  [avDashboardBtn, avFavoritesBtn, avBookmarksBtn, avIndexBtn, avUtilitiesBtn].forEach(b => b?.classList.remove('selected'));
 
   if (avDashboardEl) avDashboardEl.style.display = 'none';
   if (avGridEl)      avGridEl.style.display = 'none';
+  hideAvStarsView();
 
   switch (mode) {
     case 'dashboard':
@@ -65,6 +68,14 @@ export async function selectAvBrowseMode(mode) {
       pushNav({ view: 'av', mode: 'index' }, 'av/index');
       updateBreadcrumb([{ label: 'AV' }, { label: 'Index' }]);
       await loadActressGrid('all');
+      break;
+
+    case 'utilities':
+      avUtilitiesBtn?.classList.add('selected');
+      showView('av');
+      pushNav({ view: 'av', mode: 'utilities' }, 'av/utilities');
+      updateBreadcrumb([{ label: 'AV' }, { label: 'Utilities' }]);
+      showAvStarsView();
       break;
   }
 }
@@ -251,10 +262,11 @@ function _openDetail(id) {
 }
 
 // ── Button click handlers ─────────────────────────────────────────────────
-avDashboardBtn?.addEventListener('click', () => selectAvBrowseMode('dashboard'));
-avFavoritesBtn?.addEventListener('click', () => selectAvBrowseMode('favorites'));
-avBookmarksBtn?.addEventListener('click', () => selectAvBrowseMode('bookmarks'));
-avIndexBtn?.addEventListener('click',     () => selectAvBrowseMode('index'));
+avDashboardBtn?.addEventListener('click',  () => selectAvBrowseMode('dashboard'));
+avFavoritesBtn?.addEventListener('click',  () => selectAvBrowseMode('favorites'));
+avBookmarksBtn?.addEventListener('click',  () => selectAvBrowseMode('bookmarks'));
+avIndexBtn?.addEventListener('click',      () => selectAvBrowseMode('index'));
+avUtilitiesBtn?.addEventListener('click',  () => selectAvBrowseMode('utilities'));
 
 avBtn?.addEventListener('click', e => {
   e.stopPropagation();
