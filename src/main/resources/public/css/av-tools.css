@@ -35,6 +35,15 @@
 }
 .av-landing-index.selected .av-landing-index-icon { stroke: #70e898; }
 
+.av-landing-utilities        { color: #a78bfa; }
+.av-landing-utilities svg    { stroke: #a78bfa; }
+.av-landing-utilities:hover,
+.av-landing-utilities.selected {
+  background: rgba(167, 139, 250, 0.12);
+  color: #c4b5fd;
+}
+.av-landing-utilities.selected svg { stroke: #c4b5fd; }
+
 /* ── Action! landing sub-nav ─────────────────────────────────────────── */
 .action-landing {
   display: none;
