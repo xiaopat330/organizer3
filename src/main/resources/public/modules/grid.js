@@ -14,7 +14,7 @@ export const VIEWS = {
   'action':         ['action-landing'],
 };
 export const HOME_GRID_IDS   = [];
-export const EXTRA_PANEL_IDS = ['title-studio-labels', 'title-tags-panel', 'title-browse-filter-bar', 'title-browse-tags-panel', 'actress-studio-labels', 'actress-dashboard', 'title-dashboard', 'actress-browse-filter-bar', 'av-dashboard', 'av-index-filter-bar', 'tools-duplicates-view', 'tools-duplicates-filters', 'tools-aliases-view', 'tools-queue-view', 'tools-logs-view', 'tools-volumes-view', 'tools-actress-data-view', 'tools-backup-view', 'tools-library-health-view', 'tools-av-stars-view', 'tools-dup-triage-view', 'tools-dup-subnav', 'tools-merge-candidates-view', 'tools-javdb-discovery-view', 'tools-tag-health-view', 'tools-health-subnav'];
+export const EXTRA_PANEL_IDS = ['title-studio-labels', 'title-tags-panel', 'title-browse-filter-bar', 'title-browse-tags-panel', 'actress-studio-labels', 'actress-dashboard', 'title-dashboard', 'actress-browse-filter-bar', 'av-dashboard', 'av-index-filter-bar', 'tools-duplicates-view', 'tools-duplicates-filters', 'tools-aliases-view', 'tools-queue-view', 'tools-logs-view', 'tools-volumes-view', 'tools-actress-data-view', 'tools-backup-view', 'tools-library-health-view', 'tools-av-stars-view', 'tools-dup-triage-view', 'tools-dup-subnav', 'tools-merge-candidates-view', 'tools-javdb-discovery-view', 'tools-tag-health-view', 'tools-health-subnav', 'tools-utilities-subnav'];
 export const ALL_PANEL_IDS   = [...Object.values(VIEWS).flat(), ...HOME_GRID_IDS, ...EXTRA_PANEL_IDS];
 
 // Views where the body must not scroll (they fill the viewport themselves)

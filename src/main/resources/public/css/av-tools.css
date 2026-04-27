@@ -180,6 +180,16 @@
   color: #c4b5fd;
 }
 .tools-tag-health-btn.selected svg { stroke: #c4b5fd; }
+.tools-utilities-btn        { color: #fb923c; }
+.tools-utilities-btn svg    { stroke: #fb923c; }
+.tools-utilities-btn:hover,
+.tools-utilities-btn.selected {
+  color: #fdba74;
+  background: #1e0d00;
+  border-color: #9a3412;
+}
+.tools-utilities-btn.selected svg { stroke: #fdba74; }
+
 .tools-health-btn        { color: #06b6d4; }
 .tools-health-btn svg    { stroke: #06b6d4; }
 .tools-health-btn:hover,
@@ -4472,6 +4482,19 @@
   border-color: #065f46;
   border-bottom-color: #34d399;
 }
+.tools-subnav-tab-utilities-backup.selected {
+  color: #5eead4;
+  background: #042320;
+  border-color: #0f766e;
+  border-bottom-color: #2dd4bf;
+}
+.tools-subnav-tab-utilities-logs.selected {
+  color: #bef264;
+  background: #0d1a00;
+  border-color: #3f6212;
+  border-bottom-color: #a3e635;
+}
+
 .tools-subnav-tab-health-library.selected {
   color: #fde68a;
   background: #1c1403;
