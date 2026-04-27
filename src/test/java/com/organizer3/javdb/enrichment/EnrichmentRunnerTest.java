@@ -78,7 +78,7 @@ class EnrichmentRunnerTest {
 
         EnrichmentRunner runner = new EnrichmentRunner(
                 CONFIG, fakeClient, extractor, projector, stagingRepo, enrichmentRepo, queue, titleRepo, actressRepo,
-                new AutoPromoter(jdbi));
+                new AutoPromoter(jdbi), null);
 
         queue.enqueueTitle(titleId, actressId);
         runner.runOneStep();
@@ -134,7 +134,7 @@ class EnrichmentRunnerTest {
 
         EnrichmentRunner runner = new EnrichmentRunner(
                 CONFIG, fakeClient, extractor, projector, stagingRepo, enrichmentRepo, queue, titleRepo, actressRepo,
-                new AutoPromoter(jdbi));
+                new AutoPromoter(jdbi), null);
 
         queue.enqueueTitle(titleId, actressId);
         runner.runOneStep();
@@ -166,7 +166,7 @@ class EnrichmentRunnerTest {
 
         EnrichmentRunner runner = new EnrichmentRunner(
                 CONFIG, fakeClient, extractor, projector, stagingRepo, enrichmentRepo, queue, titleRepo, actressRepo,
-                new AutoPromoter(jdbi));
+                new AutoPromoter(jdbi), null);
 
         queue.enqueueTitle(titleId, actressId);
         runner.runOneStep();
@@ -192,12 +192,46 @@ class EnrichmentRunnerTest {
 
         EnrichmentRunner runner = new EnrichmentRunner(
                 CONFIG, fakeClient, extractor, projector, stagingRepo, enrichmentRepo, queue, titleRepo, actressRepo,
-                new AutoPromoter(jdbi));
+                new AutoPromoter(jdbi), null);
 
         queue.enqueueTitle(titleId, actressId);
         runner.runOneStep();
 
         assertEquals(1, queue.countPending(), "429 should release job to retry, not permanently fail it");
+    }
+
+    @Test
+    void forceResume_clearsPauseAndBackoffCounters_after429() throws Exception {
+        long titleId = jdbi.withHandle(h ->
+                h.createUpdate("INSERT INTO titles (code, base_code, label, seq_num) VALUES ('ABC-003', 'ABC', 'ABC', 3)")
+                        .executeAndReturnGeneratedKeys("id").mapTo(Long.class).one());
+        long actressId = jdbi.withHandle(h ->
+                h.createUpdate("INSERT INTO actresses (canonical_name, stage_name, tier, first_seen_at) VALUES ('Test3', 'Test3', 'LIBRARY', '2024-01-01')")
+                        .executeAndReturnGeneratedKeys("id").mapTo(Long.class).one());
+
+        JavdbClient rateLimitClient = new JavdbClient() {
+            @Override public String searchByCode(String code) { throw new JavdbRateLimitException("https://javdb.com/search?q=" + code); }
+            @Override public String fetchTitlePage(String slug) { throw new AssertionError("not expected"); }
+            @Override public String fetchActressPage(String slug) { throw new AssertionError("not expected"); }
+        };
+
+        EnrichmentRunner runner = new EnrichmentRunner(
+                CONFIG, rateLimitClient, extractor, projector, stagingRepo, enrichmentRepo, queue, titleRepo, actressRepo,
+                new AutoPromoter(jdbi), null);
+
+        queue.enqueueTitle(titleId, actressId);
+        runner.runOneStep();
+
+        // Verify pause was set
+        assertTrue(java.time.Instant.now().isBefore(runner.getPauseUntil()), "pause should be active after 429");
+        assertEquals(1, runner.getConsecutiveRateLimitHits());
+        assertNotNull(runner.getPauseReason());
+
+        runner.forceResume();
+
+        assertFalse(java.time.Instant.now().isBefore(runner.getPauseUntil()), "pause should be cleared after forceResume");
+        assertEquals(0, runner.getConsecutiveRateLimitHits());
+        assertNull(runner.getPauseReason());
     }
 
     // ── lookupCode ─────────────────────────────────────────────────────────────
@@ -243,7 +277,7 @@ class EnrichmentRunnerTest {
 
         EnrichmentRunner runner = new EnrichmentRunner(
                 CONFIG, fakeClient, extractor, projector, stagingRepo, enrichmentRepo, queue, titleRepo, actressRepo,
-                new AutoPromoter(jdbi));
+                new AutoPromoter(jdbi), null);
 
         queue.enqueueTitle(titleId, actressId);
         runner.runOneStep();
@@ -274,7 +308,7 @@ class EnrichmentRunnerTest {
 
         EnrichmentRunner runner = new EnrichmentRunner(
                 CONFIG, null, extractor, projector, stagingRepo, enrichmentRepo, queue, titleRepo, actressRepo,
-                new AutoPromoter(jdbi));
+                new AutoPromoter(jdbi), null);
 
         runner.backfillActressSlugsFromEnrichment();
 
@@ -308,7 +342,7 @@ class EnrichmentRunnerTest {
 
         EnrichmentRunner runner = new EnrichmentRunner(
                 CONFIG, null, extractor, projector, stagingRepo, enrichmentRepo, queue, titleRepo, actressRepo,
-                new AutoPromoter(jdbi));
+                new AutoPromoter(jdbi), null);
 
         runner.backfillActressSlugsFromEnrichment();
 
@@ -336,7 +370,7 @@ class EnrichmentRunnerTest {
 
         EnrichmentRunner runner = new EnrichmentRunner(
                 CONFIG, null, extractor, projector, stagingRepo, enrichmentRepo, queue, titleRepo, actressRepo,
-                new AutoPromoter(jdbi));
+                new AutoPromoter(jdbi), null);
 
         runner.backfillActressSlugsFromEnrichment();
 

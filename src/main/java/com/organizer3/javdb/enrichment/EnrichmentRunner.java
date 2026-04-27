@@ -46,6 +46,7 @@ public class EnrichmentRunner {
     private final TitleRepository titleRepo;
     private final ActressRepository actressRepo;
     private final AutoPromoter autoPromoter;
+    private final ActressAvatarStore avatarStore;
 
     private final AtomicBoolean stopRequested = new AtomicBoolean(false);
     private final AtomicBoolean paused = new AtomicBoolean(false);
@@ -75,7 +76,8 @@ public class EnrichmentRunner {
             EnrichmentQueue queue,
             TitleRepository titleRepo,
             ActressRepository actressRepo,
-            AutoPromoter autoPromoter) {
+            AutoPromoter autoPromoter,
+            ActressAvatarStore avatarStore) {
         this.config = config;
         this.client = client;
         this.searchParser = new JavdbSearchParser();
@@ -87,6 +89,7 @@ public class EnrichmentRunner {
         this.titleRepo = titleRepo;
         this.actressRepo = actressRepo;
         this.autoPromoter = autoPromoter;
+        this.avatarStore = avatarStore;
     }
 
     public synchronized void start() {
@@ -128,6 +131,21 @@ public class EnrichmentRunner {
     /** Returns the number of consecutive rate-limit hits since the last clean run. */
     public int getConsecutiveRateLimitHits() {
         return consecutiveRateLimitHits;
+    }
+
+    /**
+     * Immediately lifts any active rate-limit or burst pause and resets all backoff counters.
+     * Intended for manual use after switching VPN — the runner will pick up the next job on
+     * its next loop tick (within ~30s at most).
+     */
+    public void forceResume() {
+        pauseUntil = Instant.EPOCH;
+        pauseReason = null;
+        consecutiveRateLimitHits = 0;
+        successfulFetchesSinceRateLimit = 0;
+        requestsInCurrentBurst = 0;
+        nextBurstTarget = 0;
+        log.info("javdb: force-resumed by user — pause and rate-limit backoff cleared");
     }
 
     /**
@@ -306,9 +324,17 @@ public class EnrichmentRunner {
         row = new JavdbActressStagingRow(
                 row.actressId(), row.javdbSlug(), sourceTitleCode, row.status(),
                 row.rawPath(), row.rawFetchedAt(), row.nameVariantsJson(), row.avatarUrl(),
-                row.twitterHandle(), row.instagramHandle(), row.titleCount()
+                row.twitterHandle(), row.instagramHandle(), row.titleCount(),
+                row.localAvatarPath()
         );
         stagingRepo.upsertActress(row);
+
+        if (avatarStore != null && row.avatarUrl() != null) {
+            String relPath = avatarStore.download(slug, row.avatarUrl());
+            if (relPath != null) {
+                stagingRepo.updateLocalAvatarPath(actressId, relPath);
+            }
+        }
 
         queue.markDone(job.id());
         autoPromoter.promoteActressStageName(actressId);

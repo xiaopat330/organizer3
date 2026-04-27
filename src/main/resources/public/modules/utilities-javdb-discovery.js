@@ -122,7 +122,8 @@ async function refreshQueue() {
       if (pauseType === 'burst') {
         rateLimitBanner.className = 'jd-rate-limit-banner jd-banner-burst';
         rateLimitBanner.innerHTML =
-          `↻ Taking a burst break — resuming at <span class="jd-banner-time">${esc(resumeStr)}</span>.`;
+          `↻ Taking a burst break — resuming at <span class="jd-banner-time">${esc(resumeStr)}</span>. ` +
+          `<button type="button" class="jd-banner-resume-btn" id="jd-force-resume-btn">Resume Now</button>`;
       } else {
         const reason = rateLimitPauseReason || 'Rate limited';
         const hitNote = consecutiveRateLimitHits > 1
@@ -131,9 +132,11 @@ async function refreshQueue() {
         rateLimitBanner.className = 'jd-rate-limit-banner jd-banner-rate-limit';
         rateLimitBanner.innerHTML =
           `⚠ Rate limited — ${esc(reason)}${esc(hitNote)}. Resuming at <strong class="jd-banner-time">${esc(resumeStr)}</strong>. ` +
-          `<span class="jd-banner-hint">Try switching VPN or pausing enrichment manually until the block clears.</span>`;
+          `<span class="jd-banner-hint">Switch VPN then </span>` +
+          `<button type="button" class="jd-banner-resume-btn" id="jd-force-resume-btn">Resume Now</button>`;
       }
       rateLimitBanner.style.display = '';
+      document.getElementById('jd-force-resume-btn')?.addEventListener('click', forceResume);
     } else {
       rateLimitBanner.style.display = 'none';
     }
@@ -619,10 +622,28 @@ function wireReenrichButtons() {
   titlesView.querySelectorAll('.jd-reenrich-btn').forEach(btn => {
     btn.addEventListener('click', async () => {
       const titleId = btn.dataset.titleId;
-      btn.textContent = '…';
+      const original = btn.textContent;
+      btn.textContent = '⌛';
       btn.disabled = true;
-      await fetch(`/api/javdb/discovery/actresses/${state.selectedId}/titles/${titleId}/reenrich`, { method: 'POST' });
-      await renderTitlesTabSilent();
+      btn.classList.add('jd-btn-busy');
+      try {
+        const r = await fetch(`/api/javdb/discovery/actresses/${state.selectedId}/titles/${titleId}/reenrich`, { method: 'POST' });
+        if (!r.ok) throw new Error('http ' + r.status);
+        btn.classList.remove('jd-btn-busy');
+        btn.classList.add('jd-btn-success');
+        btn.textContent = '✓';
+        btn.title = 'Queued — see Queue tab';
+        setTimeout(() => { renderTitlesTabSilent(); }, 800);
+      } catch (e) {
+        btn.classList.remove('jd-btn-busy');
+        btn.classList.add('jd-btn-error');
+        btn.textContent = '✗';
+        setTimeout(() => {
+          btn.classList.remove('jd-btn-error');
+          btn.textContent = original;
+          btn.disabled = false;
+        }, 2500);
+      }
     });
   });
 }
@@ -774,14 +795,36 @@ async function renderProfileTab() {
   try {
     const res = await fetch(`/api/javdb/discovery/actresses/${state.selectedId}/profile`);
     if (res.status === 404) {
-      profileView.innerHTML = '<div class="jd-empty-tab">No staging profile yet.</div>';
+      const selected = state.actresses?.find(a => a.id === state.selectedId);
+      const enriched = selected?.enrichedTitles ?? 0;
+      const canDerive = enriched > 0;
+      profileView.innerHTML = `
+        <div class="jd-empty-tab">
+          <div>No staging profile yet.</div>
+          ${canDerive ? `
+            <div class="jd-derive-help">
+              ${enriched} title(s) enriched but no slug recorded. Derive the slug from her co-stars'
+              cast lists and queue a profile fetch:
+            </div>
+            <div class="jd-profile-actions">
+              <button id="jd-derive-slug-btn" class="jd-action-btn jd-muted-btn">⚡ Find Slug from Titles</button>
+            </div>
+            <div id="jd-derive-result"></div>
+          ` : `
+            <div class="jd-derive-help">No enriched titles yet — no cast data to derive a slug from.</div>
+          `}
+        </div>`;
+      const dBtn = document.getElementById('jd-derive-slug-btn');
+      if (dBtn) {
+        dBtn.addEventListener('click', () => deriveSlugForSelected(dBtn));
+      }
       return;
     }
     if (!res.ok) { profileView.innerHTML = '<div class="jd-error">Failed to load profile.</div>'; return; }
     const p = await res.json();
     profileView.innerHTML = `
       <div class="jd-profile">
-        ${p.avatarUrl ? `<img class="jd-avatar" src="${esc(p.avatarUrl)}" alt="avatar">` : ''}
+        ${(p.localAvatarUrl || p.avatarUrl) ? `<img class="jd-avatar" src="${esc(p.localAvatarUrl || p.avatarUrl)}" alt="avatar">` : ''}
         <dl class="jd-profile-fields">
           <dt>Slug</dt><dd>${p.javdbSlug ? esc(p.javdbSlug) : '—'}</dd>
           <dt>Status</dt><dd><span class="jd-status jd-status-${esc(p.status ?? 'none')}">${esc(p.status ?? '—')}</span></dd>
@@ -793,18 +836,144 @@ async function renderProfileTab() {
         </dl>
         <div class="jd-profile-actions">
           <button id="jd-refetch-profile-btn" class="jd-action-btn jd-muted-btn">↺ Re-fetch Profile</button>
+          ${(p.avatarUrl && !p.localAvatarUrl)
+            ? `<button id="jd-download-avatar-btn" class="jd-action-btn jd-muted-btn">⬇ Download Avatar</button>`
+            : ''}
         </div>
       </div>
     `;
     document.getElementById('jd-refetch-profile-btn').addEventListener('click', async () => {
       const btn = document.getElementById('jd-refetch-profile-btn');
-      btn.textContent = '…';
+      const original = btn.textContent;
+      btn.textContent = '⌛ Enqueuing…';
       btn.disabled = true;
-      await fetch(`/api/javdb/discovery/actresses/${state.selectedId}/profile/reenrich`, { method: 'POST' });
-      await renderProfileTab();
+      btn.classList.add('jd-btn-busy');
+      try {
+        const r = await fetch(`/api/javdb/discovery/actresses/${state.selectedId}/profile/reenrich`, { method: 'POST' });
+        if (!r.ok) throw new Error('http ' + r.status);
+        btn.classList.remove('jd-btn-busy');
+        btn.classList.add('jd-btn-success');
+        btn.textContent = '✓ Queued — see Queue tab';
+        setTimeout(() => {
+          btn.classList.remove('jd-btn-success');
+          btn.textContent = original;
+          btn.disabled = false;
+        }, 2500);
+      } catch (e) {
+        btn.classList.remove('jd-btn-busy');
+        btn.classList.add('jd-btn-error');
+        btn.textContent = '✗ Failed';
+        setTimeout(() => {
+          btn.classList.remove('jd-btn-error');
+          btn.textContent = original;
+          btn.disabled = false;
+        }, 2500);
+      }
     });
+    const dlBtn = document.getElementById('jd-download-avatar-btn');
+    if (dlBtn) {
+      dlBtn.addEventListener('click', async () => {
+        const original = dlBtn.textContent;
+        dlBtn.textContent = '⌛ Downloading…';
+        dlBtn.disabled = true;
+        dlBtn.classList.add('jd-btn-busy');
+        try {
+          const r = await fetch(`/api/javdb/discovery/actresses/${state.selectedId}/avatar/download`, { method: 'POST' });
+          const body = await r.json().catch(() => ({}));
+          if (!r.ok) {
+            const reason = body.status === 'no_url'  ? 'no avatar URL on profile'
+                         : body.status === 'failed'  ? 'CDN download failed'
+                         : body.status === 'no_profile' ? 'no profile yet'
+                         : `error (${r.status})`;
+            dlBtn.classList.remove('jd-btn-busy');
+            dlBtn.classList.add('jd-btn-error');
+            dlBtn.textContent = `✗ ${reason}`;
+            setTimeout(() => {
+              dlBtn.classList.remove('jd-btn-error');
+              dlBtn.textContent = original;
+              dlBtn.disabled = false;
+            }, 2500);
+            return;
+          }
+          dlBtn.classList.remove('jd-btn-busy');
+          dlBtn.classList.add('jd-btn-success');
+          dlBtn.textContent = '✓ Downloaded';
+          setTimeout(() => { renderProfileTab(); }, 700);
+        } catch (e) {
+          dlBtn.classList.remove('jd-btn-busy');
+          dlBtn.classList.add('jd-btn-error');
+          dlBtn.textContent = '✗ network error';
+          setTimeout(() => {
+            dlBtn.classList.remove('jd-btn-error');
+            dlBtn.textContent = original;
+            dlBtn.disabled = false;
+          }, 2500);
+        }
+      });
+    }
   } catch (_) {
     profileView.innerHTML = '<div class="jd-error">Network error.</div>';
+  }
+}
+
+async function deriveSlugForSelected(btn) {
+  const original = btn.textContent;
+  btn.textContent = '⌛ Deriving…';
+  btn.disabled = true;
+  btn.classList.add('jd-btn-busy');
+  const out = document.getElementById('jd-derive-result');
+  try {
+    const r = await fetch(`/api/javdb/discovery/actresses/${state.selectedId}/profile/derive-slug`, { method: 'POST' });
+    const body = await r.json().catch(() => ({}));
+    if (r.ok) {
+      btn.classList.remove('jd-btn-busy');
+      btn.classList.add('jd-btn-success');
+      btn.textContent = body.status === 'already_resolved' ? '✓ Already had slug — re-queued' : '✓ Slug found — queued';
+      if (out) {
+        out.innerHTML = `
+          <div class="jd-derive-success">
+            Picked slug <code>${esc(body.chosenSlug)}</code>${body.chosenName ? ` (${esc(body.chosenName)})` : ''}
+            ${body.chosenTitleCount ? ` — appears in ${body.chosenTitleCount} of her ${body.totalEnrichedTitles} enriched titles.` : ''}
+            See Queue tab for fetch progress.
+          </div>`;
+      }
+      setTimeout(() => renderProfileTab(), 1500);
+      return;
+    }
+    btn.classList.remove('jd-btn-busy');
+    btn.classList.add('jd-btn-error');
+    if (body.status === 'ambiguous' && out) {
+      const rows = (body.candidates || []).slice(0, 5).map(c =>
+        `<tr><td><code>${esc(c.slug)}</code></td><td>${esc(c.name || '—')}</td><td>${c.titleCount}</td></tr>`).join('');
+      btn.textContent = '✗ Ambiguous';
+      out.innerHTML = `
+        <div class="jd-derive-error">
+          Top candidates are tied. Manual selection needed:
+          <table class="jd-derive-candidates">
+            <thead><tr><th>Slug</th><th>Name</th><th>Title count</th></tr></thead>
+            <tbody>${rows}</tbody>
+          </table>
+        </div>`;
+    } else if (body.status === 'no_data') {
+      btn.textContent = '✗ No cast data';
+      if (out) out.innerHTML = `<div class="jd-derive-error">Enriched titles have no cast data with slugs.</div>`;
+    } else {
+      btn.textContent = `✗ Error (${r.status})`;
+    }
+    setTimeout(() => {
+      btn.classList.remove('jd-btn-error');
+      btn.textContent = original;
+      btn.disabled = false;
+    }, 3500);
+  } catch (e) {
+    btn.classList.remove('jd-btn-busy');
+    btn.classList.add('jd-btn-error');
+    btn.textContent = '✗ Network error';
+    setTimeout(() => {
+      btn.classList.remove('jd-btn-error');
+      btn.textContent = original;
+      btn.disabled = false;
+    }, 2500);
   }
 }
 
@@ -949,6 +1118,13 @@ async function togglePause() {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ paused: newPaused }),
   });
+  await refreshQueue();
+}
+
+async function forceResume() {
+  const btn = document.getElementById('jd-force-resume-btn');
+  if (btn) { btn.disabled = true; btn.textContent = '…'; }
+  await fetch('/api/javdb/discovery/queue/resume', { method: 'POST' });
   await refreshQueue();
 }
 

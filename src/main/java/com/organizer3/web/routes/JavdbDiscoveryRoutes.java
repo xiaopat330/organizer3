@@ -92,6 +92,11 @@ public class JavdbDiscoveryRoutes {
             ctx.status(204);
         });
 
+        app.post("/api/javdb/discovery/queue/resume", ctx -> {
+            actionService.forceResume();
+            ctx.status(204);
+        });
+
         app.post("/api/javdb/discovery/actresses/{id}/retry", ctx -> {
             long id = parseId(ctx);
             if (id < 0) { ctx.status(400); return; }
@@ -135,6 +140,32 @@ public class JavdbDiscoveryRoutes {
             if (id < 0) { ctx.status(400); return; }
             actionService.reEnqueueActressProfile(id);
             ctx.status(204);
+        });
+
+        app.post("/api/javdb/discovery/actresses/{id}/profile/derive-slug", ctx -> {
+            long id = parseId(ctx);
+            if (id < 0) { ctx.status(400); return; }
+            var result = actionService.deriveSlugAndEnqueueProfile(id);
+            int status = switch (result.status()) {
+                case "ok", "already_resolved" -> 200;
+                case "ambiguous"              -> 409;
+                case "no_data"                -> 404;
+                default                       -> 500;
+            };
+            ctx.status(status).json(result);
+        });
+
+        app.post("/api/javdb/discovery/actresses/{id}/avatar/download", ctx -> {
+            long id = parseId(ctx);
+            if (id < 0) { ctx.status(400); return; }
+            var result = actionService.downloadAvatarForActress(id);
+            int status = switch (result.status()) {
+                case "ok"         -> 200;
+                case "no_profile" -> 404;
+                case "no_url"     -> 409;
+                default           -> 502; // "failed"
+            };
+            ctx.status(status).json(result);
         });
 
         // ── Tag-health (Phase 3 maintenance dashboard) ─────────────────────

@@ -27,6 +27,10 @@ class JavdbDiscoveryServiceTest {
         new SchemaInitializer(jdbi).initialize();
         EnrichmentRunner mockRunner = Mockito.mock(EnrichmentRunner.class);
         Mockito.when(mockRunner.isPaused()).thenReturn(false);
+        Mockito.when(mockRunner.getPauseUntil()).thenReturn(java.time.Instant.EPOCH);
+        Mockito.when(mockRunner.getPauseReason()).thenReturn(null);
+        Mockito.when(mockRunner.getConsecutiveRateLimitHits()).thenReturn(0);
+        Mockito.when(mockRunner.getPauseType()).thenReturn(null);
         service = new JavdbDiscoveryService(jdbi, mockRunner);
     }
 

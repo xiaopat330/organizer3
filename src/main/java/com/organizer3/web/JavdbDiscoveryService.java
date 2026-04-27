@@ -76,6 +76,7 @@ public class JavdbDiscoveryService {
             String rawFetchedAt,
             String nameVariantsJson,
             String avatarUrl,
+            String localAvatarUrl,
             String twitterHandle,
             String instagramHandle,
             Integer titleCount
@@ -404,21 +405,24 @@ public class JavdbDiscoveryService {
     public ProfileRow getActressProfile(long actressId) {
         return jdbi.withHandle(h -> h.createQuery("""
                 SELECT javdb_slug, status, raw_fetched_at, name_variants_json,
-                       avatar_url, twitter_handle, instagram_handle, title_count
+                       avatar_url, local_avatar_path, twitter_handle, instagram_handle, title_count
                 FROM javdb_actress_staging
                 WHERE actress_id = :actressId
                 """)
                 .bind("actressId", actressId)
-                .map((rs, ctx) -> new ProfileRow(
+                .map((rs, ctx) -> {
+                    String localPath = rs.getString("local_avatar_path");
+                    return new ProfileRow(
                         rs.getString("javdb_slug"),
                         rs.getString("status"),
                         rs.getString("raw_fetched_at"),
                         rs.getString("name_variants_json"),
                         rs.getString("avatar_url"),
+                        localPath != null ? "/" + localPath : null,
                         rs.getString("twitter_handle"),
                         rs.getString("instagram_handle"),
                         rs.getObject("title_count") != null ? rs.getInt("title_count") : null
-                ))
+                );})
                 .findOne()
                 .orElse(null));
     }
@@ -472,7 +476,8 @@ public class JavdbDiscoveryService {
                 WHERE q.status IN ('pending', 'in_flight', 'failed')
                 ORDER BY
                   CASE q.status WHEN 'in_flight' THEN 0 WHEN 'pending' THEN 1 ELSE 2 END,
-                  q.updated_at DESC
+                  q.next_attempt_at ASC,
+                  q.id ASC
                 """)
                 .map((rs, ctx) -> new QueueItem(
                         rs.getLong("id"),
