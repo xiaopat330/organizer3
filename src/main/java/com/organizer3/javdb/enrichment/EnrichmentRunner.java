@@ -18,6 +18,7 @@ import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
@@ -57,6 +58,10 @@ public class EnrichmentRunner {
     private int consecutiveRateLimitHits = 0;
     private int successfulFetchesSinceRateLimit = 0;
     private static final int SUCCESSES_TO_RESET = 10;
+
+    // Burst tracking: fetch a random number of titles then take a long break.
+    private int requestsInCurrentBurst = 0;
+    private int nextBurstTarget = 0; // drawn lazily on first use
 
     private Thread thread;
 
@@ -184,6 +189,19 @@ public class EnrichmentRunner {
                 log.info("javdb: {} successful fetches — resetting rate-limit backoff counter", SUCCESSES_TO_RESET);
                 consecutiveRateLimitHits = 0;
                 successfulFetchesSinceRateLimit = 0;
+            }
+
+            // Burst tracking: after N requests, take a randomised long break
+            if (nextBurstTarget == 0) nextBurstTarget = randomBurstSize();
+            requestsInCurrentBurst++;
+            if (requestsInCurrentBurst >= nextBurstTarget) {
+                int breakMinutes = randomBurstBreak();
+                pauseReason = "burst break (" + requestsInCurrentBurst + " requests fetched)";
+                pauseUntil = Instant.now().plus(breakMinutes, ChronoUnit.MINUTES);
+                pauseLoggedThisCycle = false;
+                log.info("javdb: burst of {} complete — taking {}m break before next burst", requestsInCurrentBurst, breakMinutes);
+                requestsInCurrentBurst = 0;
+                nextBurstTarget = randomBurstSize();
             }
         } catch (JavdbRateLimitException e) {
             consecutiveRateLimitHits++;
@@ -359,6 +377,20 @@ public class EnrichmentRunner {
      */
     static String lookupCode(String code) {
         return code.replaceFirst("(?i)(^[A-Za-z]+-\\d+)[-_].+$", "$1");
+    }
+
+    private int randomBurstSize() {
+        int base = config.burstSizeOrDefault();
+        int lo = Math.max(2, (int)(base * 0.6));
+        int hi = (int)(base * 1.5) + 1;
+        return ThreadLocalRandom.current().nextInt(lo, hi);
+    }
+
+    private int randomBurstBreak() {
+        int base = config.burstBreakMinutesOrDefault();
+        int lo = Math.max(10, (int)(base * 0.6));
+        int hi = (int)(base * 1.5) + 1;
+        return ThreadLocalRandom.current().nextInt(lo, hi);
     }
 
     private void sleepInterruptibly(long ms) {

@@ -98,8 +98,8 @@ public class HttpJavdbClient implements JavdbClient {
             next = nextAllowedNanos.get();
             long delay = next - now;
             if (delay <= 0) {
-                // Slot is free — claim it and advance by interval ± 30% jitter
-                long jitter = (long) (intervalNanos * (ThreadLocalRandom.current().nextDouble() * 0.6 - 0.3));
+                // Slot is free — claim it and advance by interval ± 50% jitter
+                long jitter = (long) (intervalNanos * (ThreadLocalRandom.current().nextDouble() * 1.0 - 0.5));
                 if (nextAllowedNanos.compareAndSet(next, now + intervalNanos + jitter)) return;
                 // Another thread beat us; re-read
                 now = System.nanoTime();

@@ -40,7 +40,7 @@ class EnrichmentRunnerTest {
     private JavdbExtractor extractor;
     private JavdbProjector projector;
 
-    private static final JavdbConfig CONFIG = new JavdbConfig(true, 1.0, 3, new int[]{1, 5, 30}, 5, null, null);
+    private static final JavdbConfig CONFIG = new JavdbConfig(true, 1.0, 3, new int[]{1, 5, 30}, 5, null, null, null, null);
 
     @BeforeEach
     void setUp() throws Exception {
