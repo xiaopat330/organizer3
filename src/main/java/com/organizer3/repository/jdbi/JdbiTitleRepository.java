@@ -720,6 +720,19 @@ public class JdbiTitleRepository implements TitleRepository {
     }
 
     @Override
+    public void setGradeFromYaml(long titleId, Actress.Grade grade) {
+        jdbi.useHandle(h ->
+                h.createUpdate("""
+                        UPDATE titles SET grade = :grade, grade_source = 'ai'
+                        WHERE id = :id AND (grade_source IS NULL OR grade_source IN ('enrichment','ai'))
+                        """)
+                        .bind("grade", grade.display)
+                        .bind("id", titleId)
+                        .execute()
+        );
+    }
+
+    @Override
     public void setGradeManual(long titleId, Actress.Grade grade) {
         jdbi.useHandle(h ->
                 h.createUpdate("UPDATE titles SET grade = :grade, grade_source = 'manual' WHERE id = :id")

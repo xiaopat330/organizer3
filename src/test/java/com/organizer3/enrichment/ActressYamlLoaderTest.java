@@ -230,4 +230,86 @@ class ActressYamlLoaderTest {
         assertEquals(2012, first.year());
         assertEquals("Best New Actress", first.category());
     }
+
+    // ─────────────────────────────────────────────────────────────────────
+    //  Grade-only sync (syncGradesFromYaml)
+    // ─────────────────────────────────────────────────────────────────────
+
+    @Test
+    void syncGradesWritesGradesForExistingTitlesWithoutCreatingStubs() throws Exception {
+        // TEST-001 exists, TEST-002 does not — sync should not create stubs.
+        titleRepo.save(Title.builder().code("TEST-001").baseCode("TEST-001").build());
+
+        ActressYamlLoader.SyncGradesResult r = loader.syncGradesFromYaml("test_actress");
+
+        assertEquals("test_actress", r.slug());
+        assertEquals(2, r.scanned());
+        assertEquals(1, r.written());
+        assertEquals(1, r.missingTitle());
+        assertEquals(0, r.noGrade());
+
+        Title t1 = titleRepo.findByCode("TEST-001").orElseThrow();
+        assertEquals(Actress.Grade.S, t1.getGrade());
+        assertEquals("ai", t1.getGradeSource());
+        // Stub was not created for TEST-002
+        assertTrue(titleRepo.findByCode("TEST-002").isEmpty());
+    }
+
+    @Test
+    void syncGradesDoesNotTouchTitleOriginalOrTags() throws Exception {
+        long id = titleRepo.save(Title.builder().code("TEST-001").baseCode("TEST-001").build()).getId();
+        titleRepo.enrichTitle(id, "preexisting original", null, null, null, null);
+        tagRepo.replaceTagsForTitle(id, List.of("preexisting-tag"));
+
+        loader.syncGradesFromYaml("test_actress");
+
+        Title t = titleRepo.findByCode("TEST-001").orElseThrow();
+        assertEquals("preexisting original", t.getTitleOriginal());
+        assertEquals(Actress.Grade.S, t.getGrade());
+        assertEquals(List.of("preexisting-tag"), tagRepo.findTagsForTitle(id));
+    }
+
+    @Test
+    void syncGradesOverwritesEnrichmentGrade() throws Exception {
+        long id = titleRepo.save(Title.builder().code("TEST-001").baseCode("TEST-001").build()).getId();
+        titleRepo.setGradeFromEnrichment(id, Actress.Grade.B);
+
+        loader.syncGradesFromYaml("test_actress");
+
+        Title t = titleRepo.findByCode("TEST-001").orElseThrow();
+        assertEquals(Actress.Grade.S, t.getGrade());
+        assertEquals("ai", t.getGradeSource());
+    }
+
+    @Test
+    void syncGradesSkipsManualGrade() throws Exception {
+        long id = titleRepo.save(Title.builder().code("TEST-001").baseCode("TEST-001").build()).getId();
+        titleRepo.setGradeManual(id, Actress.Grade.SSS);
+
+        loader.syncGradesFromYaml("test_actress");
+
+        Title t = titleRepo.findByCode("TEST-001").orElseThrow();
+        assertEquals(Actress.Grade.SSS, t.getGrade(), "manual grade must not be overwritten");
+        assertEquals("manual", t.getGradeSource());
+    }
+
+    @Test
+    void syncGradesIsIdempotent() throws Exception {
+        titleRepo.save(Title.builder().code("TEST-001").baseCode("TEST-001").build());
+        titleRepo.save(Title.builder().code("TEST-002").baseCode("TEST-002").build());
+
+        ActressYamlLoader.SyncGradesResult first = loader.syncGradesFromYaml("test_actress");
+        ActressYamlLoader.SyncGradesResult second = loader.syncGradesFromYaml("test_actress");
+
+        assertEquals(2, first.written());
+        assertEquals(2, second.written(), "re-running re-writes 'ai' grades — re-loadable by design");
+        assertEquals(Actress.Grade.S, titleRepo.findByCode("TEST-001").orElseThrow().getGrade());
+        assertEquals(Actress.Grade.A, titleRepo.findByCode("TEST-002").orElseThrow().getGrade());
+    }
+
+    @Test
+    void syncGradesThrowsForUnknownSlug() {
+        assertThrows(IllegalArgumentException.class,
+                () -> loader.syncGradesFromYaml("no_such_actress"));
+    }
 }

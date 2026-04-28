@@ -169,6 +169,12 @@ public interface TitleRepository {
     /** Stamp a title's grade from enrichment. No-op if grade_source = 'manual'. */
     void setGradeFromEnrichment(long titleId, Actress.Grade grade);
 
+    /**
+     * Stamp a YAML-derived grade with source = 'ai'. Writes when current source is NULL,
+     * 'enrichment', or 'ai' (YAML wins over enrichment, idempotent for re-loads). Skips 'manual'.
+     */
+    void setGradeFromYaml(long titleId, Actress.Grade grade);
+
     /** Manual user override. Always wins regardless of current grade_source. */
     void setGradeManual(long titleId, Actress.Grade grade);
 

@@ -4,6 +4,7 @@ import lombok.Builder;
 import lombok.Value;
 
 import java.util.List;
+import java.util.Map;
 
 /**
  * Lightweight actress projection for the web browse UI.
@@ -22,6 +23,10 @@ public class ActressSummary {
     String grade;
     boolean rejected;
     int titleCount;
+    /** Number of this actress's titles that have a non-null grade in the DB. */
+    int gradedTitleCount;
+    /** grade-display → count, only for grades present in this actress's titles. Insertion-ordered SSS→F. */
+    Map<String, Integer> gradeBreakdown;
     List<String> coverUrls;
     List<String> folderPaths;
     String firstAddedDate;

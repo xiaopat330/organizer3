@@ -132,6 +132,66 @@ public class ActressYamlLoader {
         return buildPlan(slug, yaml);
     }
 
+    /**
+     * Apply only the grade field from a YAML's portfolio entries to existing DB titles.
+     *
+     * <p>Lighter-weight than {@link #loadOne}: does not create stubs, does not touch
+     * title_original / title_english / release_date / notes / tags. Skips entries with no grade
+     * or whose code is not yet in the DB (counted as {@code missingTitle}). Repository call
+     * skips titles with {@code grade_source = 'manual'}; YAML wins over enrichment and refreshes
+     * existing 'ai' grades.
+     *
+     * <p>Use this to bring DB grades back in sync after new titles have been imported by volume
+     * sync since the last full {@link #loadOne}.
+     */
+    public SyncGradesResult syncGradesFromYaml(String slug) throws IOException {
+        ActressYaml data = peek(slug);
+        if (data == null) {
+            throw new IllegalArgumentException("No actress YAML found at classpath:" + RESOURCE_PREFIX + slug + ".yaml");
+        }
+        if (data.portfolio() == null) {
+            return new SyncGradesResult(slug, 0, 0, 0, 0);
+        }
+
+        int scanned = 0;
+        int written = 0;
+        int missingTitle = 0;
+        int noGrade = 0;
+
+        for (ActressYaml.PortfolioEntry entry : data.portfolio()) {
+            if (entry.code() == null || entry.code().isBlank()) continue;
+            scanned++;
+
+            if (entry.grade() == null || entry.grade().isBlank()) {
+                noGrade++;
+                continue;
+            }
+
+            Actress.Grade grade;
+            try {
+                grade = Actress.Grade.fromDisplay(entry.grade().trim());
+            } catch (IllegalArgumentException e) {
+                log.warn("Unknown grade '{}' for code {} in {}, skipping", entry.grade(), entry.code(), slug);
+                noGrade++;
+                continue;
+            }
+
+            String code = entry.code().trim();
+            Optional<Title> existing = titleRepo.findByCode(code);
+            if (existing.isEmpty()) {
+                missingTitle++;
+                continue;
+            }
+
+            titleRepo.setGradeFromYaml(existing.get().getId(), grade);
+            written++;
+        }
+
+        log.info("sync-grades [{}]: scanned={} written={} missingTitle={} noGrade={}",
+                slug, scanned, written, missingTitle, noGrade);
+        return new SyncGradesResult(slug, scanned, written, missingTitle, noGrade);
+    }
+
     private List<String> discoverSlugs(URL dirUrl) throws IOException {
         String protocol = dirUrl.getProtocol();
         if ("file".equals(protocol)) {
@@ -505,5 +565,18 @@ public class ActressYamlLoader {
             int titlesCreated,
             int titlesEnriched,
             List<String> unresolvedCodes
+    ) {}
+
+    /**
+     * Summary of a grade-only YAML→DB sync. {@code missingTitle} counts portfolio entries
+     * whose code has no row in the {@code titles} table; {@code noGrade} counts entries
+     * with no grade in the YAML (or an unparseable grade value).
+     */
+    public record SyncGradesResult(
+            String slug,
+            int scanned,
+            int written,
+            int missingTitle,
+            int noGrade
     ) {}
 }

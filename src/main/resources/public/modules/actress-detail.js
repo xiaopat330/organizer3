@@ -200,6 +200,7 @@ function renderSidebarSections(a) {
     renderCareerSection(a),
     renderVitalsSection(a),
     renderLibrarySection(a),
+    renderGradesSection(a),
     renderStudiosSection(a),
     renderAwardsSection(a),
     renderBiographySection(a),
@@ -422,6 +423,53 @@ function renderLibrarySection(a) {
 
   if (rows.length === 0) return '';
   return sectionShell('Library', `<div class="detail-vitals">${rows.join('')}</div>`);
+}
+
+// ── Section: Grade distribution ──────────────────────────────────────────
+// Grades roll up into six visual buckets (S/A/B/C/D/F) so the histogram is
+// readable in the constrained sidebar width. Granular grades exist server-side
+// and on title pages — this section is the at-a-glance summary only.
+const GRADE_GROUPS = [
+  { key: 'S', members: ['SSS', 'SS', 'S'] },
+  { key: 'A', members: ['A+', 'A', 'A-'] },
+  { key: 'B', members: ['B+', 'B', 'B-'] },
+  { key: 'C', members: ['C+', 'C', 'C-', 'D', 'F'] },
+];
+
+function renderGradesSection(a) {
+  const breakdown = a.gradeBreakdown || {};
+  const graded = a.gradedTitleCount || 0;
+  const total = a.titleCount || 0;
+  if (graded === 0) return '';
+
+  const segments = GRADE_GROUPS
+    .map(group => {
+      const count = group.members.reduce((sum, g) => sum + (breakdown[g] || 0), 0);
+      if (count === 0) return null;
+      const detail = group.members
+        .filter(g => breakdown[g])
+        .map(g => `${g}:${breakdown[g]}`)
+        .join(' ');
+      return `<span class="grade-bar-segment grade-badge" data-grade="${group.key}" style="flex:${count}" title="${esc(detail)}">${group.key}</span>`;
+    })
+    .filter(Boolean)
+    .join('');
+
+  const ungraded = Math.max(0, total - graded);
+  const ungradedLabel = ungraded > 0
+    ? ` <span class="vital-subtle">· ${ungraded} ungraded</span>`
+    : '';
+
+  const inner = `
+    <div class="detail-vitals">
+      <div class="detail-vital-row">
+        <span class="detail-vital-label">Graded</span>
+        <span class="detail-vital-value">${graded} of ${total}${ungradedLabel}</span>
+      </div>
+    </div>
+    <div class="grade-bar">${segments}</div>
+  `;
+  return sectionShell('Grades', inner);
 }
 
 // ── Section: Studio tenures (YAML primary_studios) ───────────────────────

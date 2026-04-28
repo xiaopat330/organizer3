@@ -18,6 +18,7 @@ const visualizeEl = () => document.getElementById('ad-visualize');
 const runEl       = () => document.getElementById('ad-run');
 const viewEl      = () => document.getElementById('tools-actress-data-view');
 const loadAllEl   = () => document.getElementById('ad-load-all');
+const syncGradesEl = () => document.getElementById('ad-sync-grades');
 
 function hideAllRightPanes() {
   emptyEl().style.display = 'none';
@@ -126,8 +127,10 @@ function renderList() {
     ul.appendChild(li);
   }
 
-  // Load All button disables while any task is running.
-  loadAllEl().disabled = !!taskCenter.isRunning();
+  // Load All / Sync Grades buttons disable while any task is running.
+  const running = !!taskCenter.isRunning();
+  loadAllEl().disabled = running;
+  syncGradesEl().disabled = running;
 }
 
 function showEmpty() {
@@ -437,6 +440,35 @@ async function startLoadAll() {
   }
 }
 
+async function startSyncGrades() {
+  if (taskCenter.isRunning()) {
+    alert('Another utility task is already running.');
+    return;
+  }
+  try {
+    const res = await fetch('/api/utilities/tasks/actress.sync_yaml_grades/run', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({}),
+    });
+    if (res.status === 409) {
+      const body = await res.json().catch(() => ({}));
+      alert(body.error || 'Another utility task is already running.');
+      return;
+    }
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const { runId } = await res.json();
+    taskCenter.start({
+      taskId: 'actress.sync_yaml_grades',
+      runId,
+      label: 'Syncing YAML grades',
+    });
+    beginRunView('actress.sync_yaml_grades', null, runId);
+  } catch (err) {
+    alert('Failed to start sync-grades: ' + err.message);
+  }
+}
+
 function beginRunView(taskId, slug, runId) {
   if (activeRun?.eventSource) activeRun.eventSource.close();
   activeRun = {
@@ -530,7 +562,9 @@ function renderRun() {
   if (!activeRun) return;
   const heading = activeRun.taskId === 'actress.load_all'
       ? 'Loading all actress YAMLs'
-      : `Loading ${activeRun.slug || 'actress'}`;
+      : activeRun.taskId === 'actress.sync_yaml_grades'
+        ? 'Syncing YAML grades'
+        : `Loading ${activeRun.slug || 'actress'}`;
 
   const statusLabel = activeRun.taskStatus === 'running' ? 'running'
       : activeRun.taskStatus === 'ok' ? 'complete'
@@ -590,6 +624,7 @@ function formatMs(ms) {
 
 // Load All button is always reachable in the header.
 loadAllEl().addEventListener('click', startLoadAll);
+syncGradesEl().addEventListener('click', startSyncGrades);
 
 // Re-render detail when task-center state flips, so the Load button's disabled
 // state stays current even when the state change originates elsewhere.

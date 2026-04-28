@@ -513,6 +513,22 @@ public class ActressBrowseService {
 
         String gradeDisplay = actress.getGrade() != null ? actress.getGrade().display : null;
 
+        // Grade rollup over this actress's titles. Insertion-ordered SSS→F using the enum order
+        // so the UI can render the histogram without re-sorting; only grades present are kept.
+        java.util.EnumMap<Actress.Grade, Integer> gradeCounts = new java.util.EnumMap<>(Actress.Grade.class);
+        int gradedCount = 0;
+        for (Title t : titles) {
+            Actress.Grade g = t.getGrade();
+            if (g == null) continue;
+            gradeCounts.merge(g, 1, Integer::sum);
+            gradedCount++;
+        }
+        java.util.LinkedHashMap<String, Integer> gradeBreakdown = new java.util.LinkedHashMap<>();
+        for (Actress.Grade g : Actress.Grade.values()) {
+            Integer n = gradeCounts.get(g);
+            if (n != null) gradeBreakdown.put(g.display, n);
+        }
+
         List<String> companies = titles.stream()
                 .filter(t -> t.getLabel() != null)
                 .map(t -> {
@@ -585,6 +601,8 @@ public class ActressBrowseService {
                 .grade(gradeDisplay)
                 .rejected(actress.isRejected())
                 .titleCount(titles.size())
+                .gradedTitleCount(gradedCount)
+                .gradeBreakdown(gradeBreakdown)
                 .coverUrls(coverUrls)
                 .folderPaths(folderPaths)
                 .firstAddedDate(firstAdded)

@@ -520,6 +520,8 @@ public class Application {
                 new com.organizer3.utilities.task.actress.LoadActressTask(yamlLoader);
         com.organizer3.utilities.task.actress.LoadAllActressesTask loadAllActressesTask =
                 new com.organizer3.utilities.task.actress.LoadAllActressesTask(yamlLoader);
+        com.organizer3.utilities.task.actress.SyncYamlGradesTask syncYamlGradesTask =
+                new com.organizer3.utilities.task.actress.SyncYamlGradesTask(yamlLoader);
 
         // Backup & restore — catalog + tasks.
         com.organizer3.utilities.backup.BackupCatalogService backupCatalogService =
@@ -647,7 +649,7 @@ public class Application {
         com.organizer3.utilities.task.TaskRegistry taskRegistry =
                 new com.organizer3.utilities.task.TaskRegistry(
                         java.util.List.of(syncVolumeTask, cleanStaleLocationsTask,
-                                loadActressTask, loadAllActressesTask,
+                                loadActressTask, loadAllActressesTask, syncYamlGradesTask,
                                 backupNowTask, restoreSnapshotTask,
                                 scanLibraryTask, cleanOrphanedCoversTask,
                                 resolveIafdTask, renameAvActressTask, deleteAvActressTask, parseFilenamesTask,

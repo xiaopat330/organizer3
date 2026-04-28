@@ -977,14 +977,45 @@
 .grade-badge[data-grade="A+"]  { color: #0a0a18; background: linear-gradient(160deg, #eeeef6 0%, #b8b8cc 55%, #8888a4 100%); border: 1px solid rgba(180,180,200,0.6); box-shadow: inset 0 1px 2px rgba(255,255,255,0.9), 0 4px 14px rgba(0,0,0,0.8); }
 .grade-badge[data-grade="A"]   { color: #0a0a18; background: linear-gradient(160deg, #eeeef6 0%, #b8b8cc 55%, #8888a4 100%); border: 1px solid rgba(180,180,200,0.6); box-shadow: inset 0 1px 2px rgba(255,255,255,0.9), 0 4px 14px rgba(0,0,0,0.8); }
 .grade-badge[data-grade="A-"]  { color: #0a0a18; background: linear-gradient(160deg, #eeeef6 0%, #b8b8cc 55%, #8888a4 100%); border: 1px solid rgba(180,180,200,0.6); box-shadow: inset 0 1px 2px rgba(255,255,255,0.9), 0 4px 14px rgba(0,0,0,0.8); }
-.grade-badge[data-grade="B+"]  { color: #50b0d0; background: #081820; }
-.grade-badge[data-grade="B"]   { color: #4090b8; background: #081018; }
-.grade-badge[data-grade="B-"]  { color: #5888a0; background: #080e14; }
+/* B-tier: bronze background, dark text — third-tier medal metaphor (gold/silver/bronze) */
+.grade-badge[data-grade="B+"]  { color: #1a0a00; background: linear-gradient(160deg, #f4c896 0%, #cd7f32 55%, #7a4615 100%); border: 1px solid rgba(160,100,40,0.5); box-shadow: inset 0 1px 2px rgba(255,220,180,0.4), 0 2px 6px rgba(0,0,0,0.55); }
+.grade-badge[data-grade="B"]   { color: #1a0a00; background: linear-gradient(160deg, #f4c896 0%, #cd7f32 55%, #7a4615 100%); border: 1px solid rgba(160,100,40,0.5); box-shadow: inset 0 1px 2px rgba(255,220,180,0.4), 0 2px 6px rgba(0,0,0,0.5); }
+.grade-badge[data-grade="B-"]  { color: #1a0a00; background: linear-gradient(160deg, #f4c896 0%, #cd7f32 55%, #7a4615 100%); border: 1px solid rgba(160,100,40,0.5); box-shadow: inset 0 1px 2px rgba(255,220,180,0.4), 0 2px 6px rgba(0,0,0,0.5); }
 .grade-badge[data-grade="C+"]  { color: #607888; background: #0c1010; }
 .grade-badge[data-grade="C"]   { color: #587070; background: #0c0e0e; }
 .grade-badge[data-grade="C-"]  { color: #4a6060; background: #0a0c0c; }
 .grade-badge[data-grade="D"]   { color: #505050; background: #0c0c0c; }
 .grade-badge[data-grade="F"]   { color: #885050; background: #100a0a; }
+
+/* ── Grade distribution bar (actress detail) ─────────────────────────────── */
+
+.grade-bar {
+  display: flex;
+  width: 100%;
+  margin-top: 8px;
+  gap: 2px;
+  height: 22px;
+  align-items: stretch;
+}
+
+.grade-bar .grade-bar-segment {
+  margin: 0;
+  border-radius: 2px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.6rem;
+  letter-spacing: 0.04em;
+  padding: 0 4px;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+/* Hide the inline label when the segment is too narrow to fit it. */
+.grade-bar .grade-bar-segment {
+  text-overflow: clip;
+}
 
 /* ── Title translations ──────────────────────────────────────────────────── */
 
