@@ -120,6 +120,10 @@ public class JavdbSlugResolver {
      * applies to each call. Stops when {@link FilmographyPage#hasNextPage()} returns false
      * or a hard cap of {@link #MAX_PAGES} is reached (defensive — should never hit in practice).
      */
+    public Map<String, String> filmographyOf(String actressSlug) {
+        return fetchFilmography(actressSlug);
+    }
+
     private Map<String, String> fetchFilmography(String actressSlug) {
         Map<String, String> codeToSlug = new HashMap<>();
         int page = 1;

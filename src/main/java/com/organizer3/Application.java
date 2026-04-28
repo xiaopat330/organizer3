@@ -646,6 +646,12 @@ public class Application {
         com.organizer3.utilities.task.rating.RecomputeRatingCurveTask recomputeRatingCurveTask =
                 new com.organizer3.utilities.task.rating.RecomputeRatingCurveTask(ratingCurveRecomputer);
 
+        com.organizer3.utilities.task.javdb.EnrichmentClearMismatchedTask enrichmentClearMismatchedTask =
+                new com.organizer3.utilities.task.javdb.EnrichmentClearMismatchedTask(
+                        jdbi,
+                        new com.organizer3.javdb.enrichment.JavdbSlugResolver(javdbClient),
+                        enrichmentQueue);
+
         com.organizer3.utilities.task.TaskRegistry taskRegistry =
                 new com.organizer3.utilities.task.TaskRegistry(
                         java.util.List.of(syncVolumeTask, cleanStaleLocationsTask,
@@ -662,7 +668,7 @@ public class Application {
                                 organizeClassifyPreviewTask, organizeClassifyTask,
                                 organizeAllPreviewTask, organizeAllTask,
                                 fixTimestampsPreviewTask, fixTimestampsTask,
-                                recomputeRatingCurveTask));
+                                recomputeRatingCurveTask, enrichmentClearMismatchedTask));
         com.organizer3.utilities.task.TaskRunner taskRunner =
                 new com.organizer3.utilities.task.TaskRunner(taskRegistry);
         webServer.registerUtilities(new com.organizer3.web.routes.UtilitiesRoutes(
