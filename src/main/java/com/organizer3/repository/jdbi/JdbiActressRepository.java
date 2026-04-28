@@ -41,6 +41,11 @@ public class JdbiActressRepository implements ActressRepository {
 
     private static final RowMapper<Actress> ACTRESS_MAPPER = (rs, ctx) -> {
         String gradeStr = rs.getString("grade");
+        String computedGradeStr = rs.getString("computed_grade");
+        double computedGradeScore = rs.getDouble("computed_grade_score");
+        boolean computedGradeScoreNull = rs.wasNull();
+        int computedGradeNVal = rs.getInt("computed_grade_n");
+        boolean computedGradeNNull = rs.wasNull();
         String dobStr = rs.getString("date_of_birth");
         String activeFromStr = rs.getString("active_from");
         String activeToStr = rs.getString("active_to");
@@ -61,6 +66,9 @@ public class JdbiActressRepository implements ActressRepository {
                 .bookmark(rs.getInt("bookmark") != 0)
                 .bookmarkedAt(bookmarkedAtStr != null ? LocalDateTime.parse(bookmarkedAtStr) : null)
                 .grade(gradeStr != null ? Actress.Grade.fromDisplay(gradeStr) : null)
+                .computedGrade(computedGradeStr != null ? Actress.Grade.fromDisplay(computedGradeStr) : null)
+                .computedGradeScore(computedGradeScoreNull ? null : computedGradeScore)
+                .computedGradeN(computedGradeNNull ? null : computedGradeNVal)
                 .rejected(rs.getInt("rejected") != 0)
                 .firstSeenAt(LocalDate.parse(rs.getString("first_seen_at")))
                 .dateOfBirth(dobStr != null ? LocalDate.parse(dobStr) : null)
@@ -624,6 +632,24 @@ public class JdbiActressRepository implements ActressRepository {
         jdbi.useHandle(h ->
                 h.createUpdate("UPDATE actresses SET grade = :grade WHERE id = :id")
                         .bind("grade", grade != null ? grade.display : null)
+                        .bind("id", actressId)
+                        .execute()
+        );
+    }
+
+    @Override
+    public void setComputedGrade(long actressId, Actress.Grade grade, Double score, Integer n) {
+        jdbi.useHandle(h ->
+                h.createUpdate("""
+                        UPDATE actresses SET
+                            computed_grade = :grade,
+                            computed_grade_score = :score,
+                            computed_grade_n = :n
+                        WHERE id = :id
+                        """)
+                        .bind("grade", grade != null ? grade.display : null)
+                        .bind("score", score)
+                        .bind("n", n)
                         .bind("id", actressId)
                         .execute()
         );

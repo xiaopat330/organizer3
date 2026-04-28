@@ -19,7 +19,7 @@ import org.jdbi.v3.core.Jdbi;
 public class SchemaUpgrader {
 
     /** Must match the version stamped by {@link SchemaInitializer}. */
-    private static final int CURRENT_VERSION = 32;
+    private static final int CURRENT_VERSION = 33;
 
     private final Jdbi jdbi;
 
@@ -183,7 +183,38 @@ public class SchemaUpgrader {
             setVersion(32);
         }
 
+        if (version < 33) {
+            applyV33();
+            setVersion(33);
+        }
+
         log.info("Schema upgrade complete");
+    }
+
+    /**
+     * v33: actress-level computed grade derived from her titles' javdb ratings.
+     *
+     * <p>Adds three columns to actresses ({@code computed_grade}, {@code computed_grade_score},
+     * {@code computed_grade_n}) for the Bayesian rollup result, and a parallel
+     * {@code actress_rating_curve} table for the percentile cutoffs computed across the
+     * qualifying-actress population (N≥5 enriched-rated titles).
+     */
+    private void applyV33() {
+        log.info("Applying migration v33: actresses computed_grade columns + actress_rating_curve");
+        jdbi.useHandle(h -> {
+            addColumnIfMissing(h, "actresses", "computed_grade", "TEXT");
+            addColumnIfMissing(h, "actresses", "computed_grade_score", "REAL");
+            addColumnIfMissing(h, "actresses", "computed_grade_n", "INTEGER");
+            h.execute("""
+                    CREATE TABLE IF NOT EXISTS actress_rating_curve (
+                        id                  INTEGER PRIMARY KEY CHECK (id = 1),
+                        global_mean         REAL    NOT NULL,
+                        global_count        INTEGER NOT NULL,
+                        min_credible_votes  INTEGER NOT NULL,
+                        cutoffs_json        TEXT    NOT NULL,
+                        computed_at         TEXT    NOT NULL
+                    )""");
+        });
     }
 
     /**

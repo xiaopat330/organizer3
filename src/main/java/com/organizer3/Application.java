@@ -406,6 +406,13 @@ public class Application {
                 new com.organizer3.rating.RatingScoreCalculator();
         com.organizer3.rating.RatingCurveRecomputer ratingCurveRecomputer =
                 new com.organizer3.rating.RatingCurveRecomputer(jdbi, ratingCurveRepo, ratingScoreCalculator);
+        com.organizer3.rating.ActressRatingCurveRepository actressRatingCurveRepo =
+                new com.organizer3.rating.JdbiActressRatingCurveRepository(jdbi);
+        com.organizer3.rating.ActressRatingCalculator actressRatingCalculator =
+                new com.organizer3.rating.ActressRatingCalculator();
+        com.organizer3.rating.ActressRatingCurveRecomputer actressRatingCurveRecomputer =
+                new com.organizer3.rating.ActressRatingCurveRecomputer(
+                        jdbi, actressRatingCurveRepo, actressRepo, actressRatingCalculator);
         com.organizer3.rating.EnrichmentGradeStamper enrichmentGradeStamper =
                 new com.organizer3.rating.EnrichmentGradeStamper(ratingCurveRepo, ratingScoreCalculator, titleRepo);
         com.organizer3.javdb.enrichment.ProfileChainGate profileChainGate =
@@ -645,6 +652,8 @@ public class Application {
 
         com.organizer3.utilities.task.rating.RecomputeRatingCurveTask recomputeRatingCurveTask =
                 new com.organizer3.utilities.task.rating.RecomputeRatingCurveTask(ratingCurveRecomputer);
+        com.organizer3.utilities.task.rating.RecomputeActressRatingCurveTask recomputeActressRatingCurveTask =
+                new com.organizer3.utilities.task.rating.RecomputeActressRatingCurveTask(actressRatingCurveRecomputer);
 
         com.organizer3.utilities.task.TaskRegistry taskRegistry =
                 new com.organizer3.utilities.task.TaskRegistry(
@@ -662,7 +671,7 @@ public class Application {
                                 organizeClassifyPreviewTask, organizeClassifyTask,
                                 organizeAllPreviewTask, organizeAllTask,
                                 fixTimestampsPreviewTask, fixTimestampsTask,
-                                recomputeRatingCurveTask));
+                                recomputeRatingCurveTask, recomputeActressRatingCurveTask));
         com.organizer3.utilities.task.TaskRunner taskRunner =
                 new com.organizer3.utilities.task.TaskRunner(taskRegistry);
         webServer.registerUtilities(new com.organizer3.web.routes.UtilitiesRoutes(

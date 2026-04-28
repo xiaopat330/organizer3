@@ -22,6 +22,12 @@ public class ActressSummary {
     boolean bookmark;
     String grade;
     boolean rejected;
+    /** Bayesian-derived grade from her enriched titles' javdb ratings. Null if she didn't qualify. */
+    String computedGrade;
+    /** Raw shrunken score that {@link #computedGrade} maps from. Null if no computed grade. */
+    Double computedGradeScore;
+    /** Number of enriched-rated titles that fed the computed grade. */
+    Integer computedGradeN;
     int titleCount;
     /** Number of this actress's titles that have a non-null grade in the DB. */
     int gradedTitleCount;

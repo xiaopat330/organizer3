@@ -30,7 +30,13 @@ public class Actress implements Comparable<Actress> {
     boolean favorite;
     boolean bookmark;
     LocalDateTime bookmarkedAt;   // null when not bookmarked; stamped when bookmark flips on
-    Grade grade;           // nullable
+    Grade grade;           // nullable — manually-set quality grade
+    /** Bayesian-derived grade from her titles' javdb ratings. Distinct from manual {@link #grade}. */
+    Grade computedGrade;
+    /** Raw shrunken-mean score that {@link #computedGrade} maps from. Useful for tooltips/debug. */
+    Double computedGradeScore;
+    /** Number of enriched-rated titles that fed the computed grade. */
+    Integer computedGradeN;
     boolean rejected;
     LocalDate firstSeenAt;
 

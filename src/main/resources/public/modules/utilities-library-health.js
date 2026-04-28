@@ -15,6 +15,7 @@ const emptyEl    = () => document.getElementById('lh-empty');
 const detailEl   = () => document.getElementById('lh-detail');
 const scanBtn           = () => document.getElementById('lh-scan');
 const recomputeRatingsBtn = () => document.getElementById('lh-recompute-ratings');
+const recomputeActressRatingsBtn = () => document.getElementById('lh-recompute-actress-ratings');
 const scanAgeEl       = () => document.getElementById('lh-scan-age');
 const ratingStatusEl  = () => document.getElementById('lh-rating-status');
 const emptyTitle = () => document.getElementById('lh-empty-title');
@@ -35,6 +36,7 @@ export async function showLibraryHealthView() {
   else showEmpty();
   wireScanButton();
   wireRecomputeRatingsButton();
+  wireRecomputeActressRatingsButton();
 }
 
 export function hideLibraryHealthView() {
@@ -525,4 +527,72 @@ taskCenter.subscribe(() => {
   if (recompute && recompute.textContent !== 'Recomputing…') {
     recompute.disabled = taskCenter.isRunning();
   }
+  const recomputeActress = recomputeActressRatingsBtn();
+  if (recomputeActress && recomputeActress.textContent !== 'Recomputing…') {
+    recomputeActress.disabled = taskCenter.isRunning();
+  }
 });
+
+// ── Recompute actress ratings ────────────────────────────────────────────
+
+function wireRecomputeActressRatingsButton() {
+  const btn = recomputeActressRatingsBtn();
+  if (!btn) return;
+  btn.onclick = startRecomputeActressRatings;
+  btn.disabled = taskCenter.isRunning();
+}
+
+async function startRecomputeActressRatings() {
+  if (taskCenter.isRunning()) return;
+  const btn = recomputeActressRatingsBtn();
+  const originalText = btn.textContent;
+  btn.textContent = 'Recomputing…';
+  btn.disabled = true;
+  try {
+    const res = await fetch('/api/utilities/tasks/rating.recompute_actress_curve/run', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: '{}'
+    });
+    if (!res.ok) {
+      btn.textContent = originalText;
+      btn.disabled = taskCenter.isRunning();
+      if (res.status === 409) {
+        const body = await res.json();
+        alert(`Another task is already running: ${body.runningTaskId}`);
+      } else {
+        alert(`Recompute failed to start (${res.status})`);
+      }
+      return;
+    }
+    const { runId } = await res.json();
+    taskCenter.start({ taskId: 'rating.recompute_actress_curve', runId, label: 'Recomputing actress rating curve' });
+    subscribeToRecomputeActress(runId, originalText);
+  } catch (e) {
+    console.error('Recompute actress ratings start failed', e);
+    btn.textContent = originalText;
+    btn.disabled = taskCenter.isRunning();
+  }
+}
+
+function subscribeToRecomputeActress(runId, originalBtnText) {
+  const es = new EventSource(`/api/utilities/runs/${encodeURIComponent(runId)}/events`);
+  es.addEventListener('task.ended', async e => {
+    const ev = JSON.parse(e.data);
+    taskCenter.finish({ status: ev.status, summary: ev.summary });
+
+    const btn = recomputeActressRatingsBtn();
+    if (btn) {
+      const succeeded = ev.status === 'ok';
+      btn.textContent = succeeded ? 'Done ✓' : 'Failed ✗';
+      btn.classList.toggle('lh-scan--error', !succeeded);
+      setTimeout(() => {
+        btn.textContent = originalBtnText;
+        btn.classList.remove('lh-scan--error');
+        btn.disabled = taskCenter.isRunning();
+      }, 3000);
+    }
+    es.close();
+  });
+  es.onerror = () => { es.close(); };
+}

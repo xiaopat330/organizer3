@@ -58,7 +58,10 @@ public class SchemaInitializer {
                         last_visited_at      TEXT,
                         needs_profiling      INTEGER NOT NULL DEFAULT 0,
                         favorite_cleared_at  TEXT,
-                        is_sentinel          INTEGER NOT NULL DEFAULT 0
+                        is_sentinel          INTEGER NOT NULL DEFAULT 0,
+                        computed_grade       TEXT,
+                        computed_grade_score REAL,
+                        computed_grade_n     INTEGER
                     )""");
 
             h.execute("""
@@ -482,12 +485,23 @@ public class SchemaInitializer {
                         computed_at         TEXT    NOT NULL
                     )""");
 
+            // actress_rating_curve: parallel single-row config for actress-level grades (v33).
+            h.execute("""
+                    CREATE TABLE IF NOT EXISTS actress_rating_curve (
+                        id                  INTEGER PRIMARY KEY CHECK (id = 1),
+                        global_mean         REAL    NOT NULL,
+                        global_count        INTEGER NOT NULL,
+                        min_credible_votes  INTEGER NOT NULL,
+                        cutoffs_json        TEXT    NOT NULL,
+                        computed_at         TEXT    NOT NULL
+                    )""");
+
             // Only stamp version on fresh installs (user_version = 0).
             // On an existing DB the CREATE TABLE statements above are all no-ops, so we must
             // leave the version alone and let SchemaUpgrader apply any missing migrations.
             int currentVersion = h.createQuery("PRAGMA user_version").mapTo(Integer.class).one();
             if (currentVersion == 0) {
-                h.execute("PRAGMA user_version = 32");
+                h.execute("PRAGMA user_version = 33");
             }
         });
         log.info("Schema initialization complete");

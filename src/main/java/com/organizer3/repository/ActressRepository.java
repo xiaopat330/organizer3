@@ -183,6 +183,13 @@ public interface ActressRepository {
 
     void setGrade(long actressId, Actress.Grade grade);
 
+    /**
+     * Set the actress's computed-grade triple (grade letter, raw shrunken score, sample size N).
+     * Pass {@code null} for {@code grade} to clear the computed grade. Independent of the
+     * manual {@link #setGrade(long, Actress.Grade)} field — never overwrites it.
+     */
+    void setComputedGrade(long actressId, Actress.Grade grade, Double score, Integer n);
+
     void toggleRejected(long actressId, boolean rejected);
 
     /**
