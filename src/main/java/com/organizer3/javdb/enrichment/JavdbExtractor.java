@@ -199,7 +199,8 @@ public class JavdbExtractor {
     }
 
     private String extractAvatarUrl(Document doc) {
-        Element el = doc.selectFirst(".actor-section-avatar");
+        Element el = doc.selectFirst(".actor-avatar .avatar[style]");
+        if (el == null) el = doc.selectFirst(".actor-section-avatar");
         if (el == null) return null;
         String style = el.attr("style");
         Matcher m = BACKGROUND_URL_PATTERN.matcher(style);

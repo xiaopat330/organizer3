@@ -122,7 +122,7 @@ class SearchServiceTest {
         stubEmpty();
         FederatedActressResult row = new FederatedActressResult(
                 42L, "Yua Mikami", "Mikami", "GODDESS", "SSS",
-                true, false, null, 147, null);
+                true, false, null, 147, null, null);
         when(actressRepo.searchForFederated(anyString(), anyBoolean(), anyInt())).thenReturn(List.of(row));
 
         @SuppressWarnings("unchecked")
@@ -145,7 +145,7 @@ class SearchServiceTest {
         stubEmpty();
         FederatedActressResult row = new FederatedActressResult(
                 1L, "A", null, "POPULAR", null, false, false, null, 10,
-                "ABP:ABP-001|SSIS:SSIS-002|MIDV:MIDV-003");
+                "ABP:ABP-001|SSIS:SSIS-002|MIDV:MIDV-003", null);
         when(actressRepo.searchForFederated(anyString(), anyBoolean(), anyInt())).thenReturn(List.of(row));
         when(coverPath.find(argThat(t -> t != null && "ABP".equals(t.getLabel())))).thenReturn(Optional.empty());
         when(coverPath.find(argThat(t -> t != null && "SSIS".equals(t.getLabel()))))
@@ -163,7 +163,7 @@ class SearchServiceTest {
     void actressCoverUrlNullWhenCandidatesEmpty() {
         stubEmpty();
         FederatedActressResult row = new FederatedActressResult(
-                1L, "A", null, "POPULAR", null, false, false, null, 10, null);
+                1L, "A", null, "POPULAR", null, false, false, null, 10, null, null);
         when(actressRepo.searchForFederated(anyString(), anyBoolean(), anyInt())).thenReturn(List.of(row));
 
         @SuppressWarnings("unchecked")
@@ -174,11 +174,26 @@ class SearchServiceTest {
     }
 
     @Test
+    void actressLocalAvatarPreferredOverCoverCandidates() {
+        stubEmpty();
+        FederatedActressResult row = new FederatedActressResult(
+                1L, "A", null, "POPULAR", null, false, false, null, 10,
+                "ABP:ABP-001", "actress-avatars/abc.jpg");
+        when(actressRepo.searchForFederated(anyString(), anyBoolean(), anyInt())).thenReturn(List.of(row));
+
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> actresses = (List<Map<String, Object>>) service.search("a", false, false).get("actresses");
+
+        assertEquals("/actress-avatars/abc.jpg", actresses.get(0).get("coverUrl"));
+        verifyNoInteractions(coverPath);
+    }
+
+    @Test
     void actressCoverCandidateWithoutColonIsSkipped() {
         stubEmpty();
         FederatedActressResult row = new FederatedActressResult(
                 1L, "A", null, "POPULAR", null, false, false, null, 10,
-                "malformed|ABP:ABP-001");
+                "malformed|ABP:ABP-001", null);
         when(actressRepo.searchForFederated(anyString(), anyBoolean(), anyInt())).thenReturn(List.of(row));
         when(coverPath.find(argThat(t -> t != null && "ABP".equals(t.getLabel()))))
                 .thenReturn(Optional.of(Path.of("/covers/ABP/ABP-001.jpg")));

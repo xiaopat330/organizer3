@@ -1281,9 +1281,11 @@ public class JdbiActressRepository implements ActressRepository {
                                       WHERE tc.actress_id = r.id
                                         AND tc.base_code IS NOT NULL AND tc.label IS NOT NULL
                                       ORDER BY tc.id DESC LIMIT 5) sub
-                               ) AS cover_candidates
+                               ) AS cover_candidates,
+                               s.local_avatar_path AS local_avatar_path
                         FROM ranked r
                         LEFT JOIN titles t ON t.actress_id = r.id
+                        LEFT JOIN javdb_actress_staging s ON s.actress_id = r.id
                         WHERE r.rn = 1
                         GROUP BY r.id
                         ORDER BY r.favorite DESC, r.bookmark DESC, r.canonical_name
@@ -1301,7 +1303,8 @@ public class JdbiActressRepository implements ActressRepository {
                                 rs.getInt("bookmark") != 0,
                                 rs.getString("matched_alias"),
                                 rs.getInt("title_count"),
-                                rs.getString("cover_candidates")
+                                rs.getString("cover_candidates"),
+                                rs.getString("local_avatar_path")
                         ))
                         .list()
         );
@@ -1338,9 +1341,11 @@ public class JdbiActressRepository implements ActressRepository {
                                       WHERE tc.actress_id = r.id
                                         AND tc.base_code IS NOT NULL AND tc.label IS NOT NULL
                                       ORDER BY tc.id DESC LIMIT 5) sub
-                               ) AS cover_candidates
+                               ) AS cover_candidates,
+                               s.local_avatar_path AS local_avatar_path
                         FROM ranked r
                         LEFT JOIN titles t ON t.actress_id = r.id
+                        LEFT JOIN javdb_actress_staging s ON s.actress_id = r.id
                         WHERE r.rn = 1
                         GROUP BY r.id
                         HAVING COUNT(t.id) >= 2
@@ -1359,7 +1364,8 @@ public class JdbiActressRepository implements ActressRepository {
                                 rs.getInt("bookmark") != 0,
                                 rs.getString("matched_alias"),
                                 rs.getInt("title_count"),
-                                rs.getString("cover_candidates")
+                                rs.getString("cover_candidates"),
+                                rs.getString("local_avatar_path")
                         ))
                         .list()
         );

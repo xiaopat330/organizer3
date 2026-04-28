@@ -26,6 +26,10 @@ import java.time.Duration;
 public class ActressAvatarStore {
 
     private static final String SUBDIR = "actress-avatars";
+    private static final String USER_AGENT =
+            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+            + "AppleWebKit/537.36 (KHTML, like Gecko) "
+            + "Chrome/124.0.0.0 Safari/537.36";
 
     private final Path dataDir;
     private final HttpClient http;
@@ -57,6 +61,8 @@ public class ActressAvatarStore {
 
             HttpRequest req = HttpRequest.newBuilder(URI.create(avatarUrl))
                     .timeout(Duration.ofSeconds(20))
+                    .header("User-Agent", USER_AGENT)
+                    .header("Referer", "https://javdb.com/")
                     .GET()
                     .build();
             HttpResponse<byte[]> resp = http.send(req, HttpResponse.BodyHandlers.ofByteArray());

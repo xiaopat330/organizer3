@@ -120,6 +120,23 @@ class JavdbExtractorTest {
     }
 
     @Test
+    void extractActress_avatarFromLiveMarkup() {
+        String html = """
+                <html><body>
+                  <section class="section actor-section">
+                    <div class="column actor-avatar">
+                      <div class="image">
+                        <span class="avatar" style="background-image: url(https://c0.jdbstatic.com/avatars/mq/MqQQ.jpg)"></span>
+                      </div>
+                    </div>
+                  </section>
+                </body></html>
+                """;
+        ActressExtract result = extractor.extractActress(html, "MqQQ");
+        assertEquals("https://c0.jdbstatic.com/avatars/mq/MqQQ.jpg", result.avatarUrl());
+    }
+
+    @Test
     void extractActress_nullInput_returnsEmptyExtract() {
         ActressExtract result = extractor.extractActress(null, "ex3z");
         assertEquals("ex3z", result.slug());
