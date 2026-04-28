@@ -734,6 +734,7 @@ public class Application {
                     .register(new com.organizer3.mcp.tools.FindDuplicateBaseCodesTool(jdbi))
                     .register(new com.organizer3.mcp.tools.FindLabelMismatchesTool(jdbi))
                     .register(new com.organizer3.mcp.tools.FindEnrichmentCastMismatchesTool(jdbi))
+                    .register(new com.organizer3.mcp.tools.BackfillActressSlugsFromCastTool(jdbi))
                     .register(new com.organizer3.mcp.tools.FindStaleLocationsTool(jdbi))
                     .register(new com.organizer3.mcp.tools.ListActressesWithMisnamedFoldersTool(jdbi))
                     .register(new com.organizer3.mcp.tools.FindMisnamedFoldersForActressTool(jdbi, actressRepo))
