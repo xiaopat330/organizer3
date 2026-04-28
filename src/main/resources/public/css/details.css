@@ -46,6 +46,7 @@
   justify-content: center;
   flex-shrink: 0;
   border-bottom: 1px solid #1e293b;
+  position: relative; /* anchor for the .actress-cover-grade overlay */
 }
 
 .detail-cover-col img {
@@ -986,6 +987,58 @@
 .grade-badge[data-grade="C-"]  { color: #4a6060; background: #0a0c0c; }
 .grade-badge[data-grade="D"]   { color: #505050; background: #0c0c0c; }
 .grade-badge[data-grade="F"]   { color: #885050; background: #100a0a; }
+
+/* ── Actress computed-grade badge (overlay on the rotating cover image) ───── */
+
+/* Bottom-right of the cover, tiered by rank — same pattern as title cover-grade. */
+.actress-cover-grade {
+  position: absolute;
+  bottom: 10px;
+  right: 10px;
+  z-index: 2;
+  pointer-events: none;
+}
+
+.actress-cover-grade .grade-badge {
+  margin-left: 0;
+  border-radius: 999px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.75);
+}
+
+.actress-grade-mark--normal .grade-badge {
+  font-size: 1.1rem;
+  padding: 5px 14px;
+}
+
+.actress-grade-mark--large .grade-badge {
+  font-size: 1.6rem;
+  padding: 7px 18px;
+}
+
+.actress-grade-mark--huge .grade-badge {
+  font-size: 2.2rem;
+  padding: 10px 24px;
+}
+
+/* Smaller scale for the actress browse cards — same tier ratio, fits the cover. */
+.actress-card .actress-cover-grade {
+  bottom: 6px;
+  right: 6px;
+}
+.actress-card .actress-grade-mark--normal .grade-badge {
+  font-size: 0.7rem;
+  padding: 3px 9px;
+}
+.actress-card .actress-grade-mark--large .grade-badge {
+  font-size: 1.0rem;
+  padding: 4px 11px;
+}
+.actress-card .actress-grade-mark--huge .grade-badge {
+  font-size: 1.4rem;
+  padding: 5px 14px;
+}
 
 /* ── Grade distribution bar (actress detail) ─────────────────────────────── */
 

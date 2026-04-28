@@ -170,13 +170,18 @@ function renderDetailPanel(a) {
 function renderCover(a) {
   const coverCol = document.getElementById('detail-cover');
   const covers = a.coverUrls || [];
+  // Computed-grade overlay (bottom-right of the cover image), tiered by rank — same
+  // pattern as the per-title cover-grade overlays in the browse grid.
+  const gradeOverlay = a.computedGrade
+    ? `<div class="actress-cover-grade ${actressGradeSizeClass(a.computedGrade)}"><span class="grade-badge" data-grade="${esc(a.computedGrade)}">${esc(a.computedGrade)}</span></div>`
+    : '';
   if (covers.length === 0) {
-    coverCol.innerHTML = `<div class="detail-cover-placeholder">—</div>`;
+    coverCol.innerHTML = `<div class="detail-cover-placeholder">—</div>${gradeOverlay}`;
     return;
   }
 
   let currentIdx = Math.floor(Math.random() * covers.length);
-  coverCol.innerHTML = `<img src="${esc(covers[currentIdx])}" alt="${esc(a.canonicalName)}" loading="lazy">`;
+  coverCol.innerHTML = `<img src="${esc(covers[currentIdx])}" alt="${esc(a.canonicalName)}" loading="lazy">${gradeOverlay}`;
 
   if (covers.length < 2) return;
 
@@ -435,6 +440,13 @@ const GRADE_GROUPS = [
   { key: 'B', members: ['B+', 'B', 'B-'] },
   { key: 'C', members: ['C+', 'C', 'C-', 'D', 'F'] },
 ];
+
+// Tiered sizing for the actress's signature grade badge — same rules as title cover overlays.
+function actressGradeSizeClass(grade) {
+  if (grade === 'SSS' || grade === 'SS' || grade === 'S') return 'actress-grade-mark--huge';
+  if (grade === 'A+'  || grade === 'A'  || grade === 'A-') return 'actress-grade-mark--large';
+  return 'actress-grade-mark--normal';
+}
 
 function renderGradesSection(a) {
   const breakdown = a.gradeBreakdown || {};

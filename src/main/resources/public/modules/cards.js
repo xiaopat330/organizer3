@@ -244,6 +244,13 @@ export function actressNameClass(a) {
   return 'actress-card-name';
 }
 
+// Tiered sizing for the actress signature grade badge — same rules as title cover overlays.
+function actressGradeSizeClass(grade) {
+  if (grade === 'SSS' || grade === 'SS' || grade === 'S') return 'actress-grade-mark--huge';
+  if (grade === 'A+'  || grade === 'A'  || grade === 'A-') return 'actress-grade-mark--large';
+  return 'actress-grade-mark--normal';
+}
+
 export function updateActressCardIndicators(id, favorite, bookmark, rejected) {
   const card = document.querySelector(`.actress-card[data-actress-id="${id}"]`);
   if (!card) return;
@@ -355,6 +362,14 @@ export function makeActressCard(a) {
     }
     activeObservers.add(obs);
   }
+  // Computed-grade overlay (bottom-right of cover), tiered by rank.
+  if (a.computedGrade) {
+    const overlay = document.createElement('div');
+    overlay.className = `actress-cover-grade ${actressGradeSizeClass(a.computedGrade)}`;
+    overlay.innerHTML = `<span class="grade-badge" data-grade="${esc(a.computedGrade)}">${esc(a.computedGrade)}</span>`;
+    coverWrap.appendChild(overlay);
+  }
+
   card.appendChild(coverWrap);
 
   const { first: firstName, last: lastName } = splitName(a.canonicalName);
