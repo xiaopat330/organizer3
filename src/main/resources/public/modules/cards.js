@@ -24,9 +24,10 @@ export function makeTitleCard(t) {
   card.className = 'card';
   card.dataset.code = t.code;
 
+  const gradeOverlayHtml = t.grade ? `<div class="cover-grade">${gradeBadgeHtml(t.grade)}</div>` : '';
   const coverHtml = t.coverUrl
-    ? `<div class="cover-wrap"><img class="cover-img" src="${esc(t.coverUrl)}" alt="${esc(t.code)}" loading="lazy"></div>`
-    : `<div class="cover-wrap"><div class="cover-placeholder">${esc(t.code)}</div></div>`;
+    ? `<div class="cover-wrap"><img class="cover-img" src="${esc(t.coverUrl)}" alt="${esc(t.code)}" loading="lazy">${gradeOverlayHtml}</div>`
+    : `<div class="cover-wrap"><div class="cover-placeholder">${esc(t.code)}</div>${gradeOverlayHtml}</div>`;
 
   let actressHtml;
   if (t.actresses && t.actresses.length > 1) {
@@ -81,7 +82,7 @@ export function makeTitleCard(t) {
 
   const bmIconHtml = t.bookmark ? ICON_BM_SM : ICON_BM_SM_OFF;
   const favIcon    = t.favorite ? ICON_FAV_SM : '';
-  const titleCodeHtml = `<div class="${titleCodeClass(t.favorite, t.bookmark)}"><button type="button" class="card-bm-btn${t.bookmark ? ' card-bm-active' : ''}">${bmIconHtml}</button>${favIcon}<span class="title-code-text">${esc(t.code)}</span>${gradeBadgeHtml(t.grade)}</div>`;
+  const titleCodeHtml = `<div class="${titleCodeClass(t.favorite, t.bookmark)}"><button type="button" class="card-bm-btn${t.bookmark ? ' card-bm-active' : ''}">${bmIconHtml}</button>${favIcon}<span class="title-code-text">${esc(t.code)}</span></div>`;
 
   const watchedHtml = t.lastWatchedAt
     ? `<div class="card-watched">watched ${timeAgoShort(t.lastWatchedAt)}${t.watchCount > 1 ? ` (${t.watchCount}x)` : ''}</div>`

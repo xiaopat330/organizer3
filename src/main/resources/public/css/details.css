@@ -969,12 +969,14 @@
   background: #1a1a1a;
 }
 
-.grade-badge[data-grade="SSS"] { color: #f0a0d8; background: #200818; box-shadow: var(--tier-goddess-glow); }
-.grade-badge[data-grade="SS"]  { color: #e8c050; background: #201a08; }
-.grade-badge[data-grade="S"]   { color: #b0d870; background: #141e06; }
-.grade-badge[data-grade="A+"]  { color: #50d880; background: #082010; }
-.grade-badge[data-grade="A"]   { color: #40c870; background: #071a0c; }
-.grade-badge[data-grade="A-"]  { color: #60b888; background: #091410; }
+/* S-tier: gold background, dark text */
+.grade-badge[data-grade="SSS"] { color: #1a0c00; background: linear-gradient(160deg, #ffe066 0%, #e8a800 55%, #c07800 100%); box-shadow: 0 0 10px rgba(232,168,0,0.55), 0 2px 6px rgba(0,0,0,0.6); }
+.grade-badge[data-grade="SS"]  { color: #1a0c00; background: linear-gradient(160deg, #ffe066 0%, #e8a800 55%, #c07800 100%); box-shadow: 0 2px 6px rgba(0,0,0,0.5); }
+.grade-badge[data-grade="S"]   { color: #1a0c00; background: linear-gradient(160deg, #ffe066 0%, #e8a800 55%, #c07800 100%); box-shadow: 0 2px 6px rgba(0,0,0,0.5); }
+/* A-tier: chrome-silver background, dark text, metallic sheen */
+.grade-badge[data-grade="A+"]  { color: #0a0a18; background: linear-gradient(160deg, #eeeef6 0%, #b8b8cc 55%, #8888a4 100%); border: 1px solid rgba(180,180,200,0.6); box-shadow: inset 0 1px 2px rgba(255,255,255,0.9), 0 4px 14px rgba(0,0,0,0.8); }
+.grade-badge[data-grade="A"]   { color: #0a0a18; background: linear-gradient(160deg, #eeeef6 0%, #b8b8cc 55%, #8888a4 100%); border: 1px solid rgba(180,180,200,0.6); box-shadow: inset 0 1px 2px rgba(255,255,255,0.9), 0 4px 14px rgba(0,0,0,0.8); }
+.grade-badge[data-grade="A-"]  { color: #0a0a18; background: linear-gradient(160deg, #eeeef6 0%, #b8b8cc 55%, #8888a4 100%); border: 1px solid rgba(180,180,200,0.6); box-shadow: inset 0 1px 2px rgba(255,255,255,0.9), 0 4px 14px rgba(0,0,0,0.8); }
 .grade-badge[data-grade="B+"]  { color: #50b0d0; background: #081820; }
 .grade-badge[data-grade="B"]   { color: #4090b8; background: #081018; }
 .grade-badge[data-grade="B-"]  { color: #5888a0; background: #080e14; }

@@ -900,6 +900,38 @@
   object-fit: unset;
 }
 
+/* Grade badge overlay — bottom-right corner of the cover image. */
+.cover-grade {
+  position: absolute;
+  bottom: 7px;
+  right: 7px;
+  z-index: 2;
+}
+
+.cover-grade .grade-badge {
+  font-size: 1.2rem;
+  font-weight: 800;
+  padding: 5px 13px;
+  margin-left: 0;
+  letter-spacing: 0.08em;
+  border-radius: 50px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.75);
+}
+
+.cover-grade .grade-badge[data-grade="A-"],
+.cover-grade .grade-badge[data-grade="A"],
+.cover-grade .grade-badge[data-grade="A+"] {
+  font-size: 1.4rem;
+  padding: 5px 15px;
+}
+
+.cover-grade .grade-badge[data-grade="S"],
+.cover-grade .grade-badge[data-grade="SS"],
+.cover-grade .grade-badge[data-grade="SSS"] {
+  font-size: 1.7rem;
+  padding: 6px 17px;
+}
+
 /* Actress card cover marquee.
    The track is an absolutely-positioned flex row of tiles, each tile exactly
    the width of the cover-wrap. Animation scrolls the track from 0 to -50%,
