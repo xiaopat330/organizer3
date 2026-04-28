@@ -63,7 +63,7 @@ class TitleDiscoveryRoutesTest {
                 42L, "ABC-001", "Some Title",
                 new TitleDiscoveryService.ActressCredit(7L, "Alice", "eligible"),
                 "vol-a", "2026-04-27", null, null);
-        when(service.listRecent(0, 50)).thenReturn(
+        when(service.listRecent(isNull(), eq(0), eq(50))).thenReturn(
                 new TitleDiscoveryService.TitlePage(List.of(row), 0, 50, false, 1));
 
         HttpResponse<String> res = get("/api/javdb/discovery/titles?source=recent");
@@ -75,7 +75,7 @@ class TitleDiscoveryRoutesTest {
         assertEquals("Alice", body.get("rows").get(0).get("actress").get("name").asText());
         assertEquals("eligible", body.get("rows").get(0).get("actress").get("eligibility").asText());
         assertFalse(body.get("hasMore").asBoolean());
-        verify(service).listRecent(0, 50);
+        verify(service).listRecent(null, 0, 50);
     }
 
     @Test
@@ -83,18 +83,18 @@ class TitleDiscoveryRoutesTest {
         HttpResponse<String> res = get("/api/javdb/discovery/titles?source=pool");
 
         assertEquals(400, res.statusCode());
-        verify(service, never()).listPool(anyString(), anyInt(), anyInt());
+        verify(service, never()).listPool(anyString(), any(), anyInt(), anyInt());
     }
 
     @Test
     void getTitles_poolPassesVolumeId() throws Exception {
-        when(service.listPool(eq("pool-jav"), eq(2), eq(25))).thenReturn(
+        when(service.listPool(eq("pool-jav"), isNull(), eq(2), eq(25))).thenReturn(
                 new TitleDiscoveryService.TitlePage(List.of(), 2, 25, false, 0));
 
         HttpResponse<String> res = get("/api/javdb/discovery/titles?source=pool&volumeId=pool-jav&page=2&pageSize=25");
 
         assertEquals(200, res.statusCode());
-        verify(service).listPool("pool-jav", 2, 25);
+        verify(service).listPool("pool-jav", null, 2, 25);
     }
 
     @Test
@@ -112,7 +112,7 @@ class TitleDiscoveryRoutesTest {
         var row = new TitleDiscoveryService.CollectionRow(
                 42L, "COL-001", "Cool Compilation",
                 castMixed, "vol-a", "2026-04-27", null);
-        when(service.listCollections(0, 50)).thenReturn(
+        when(service.listCollections(isNull(), eq(0), eq(50))).thenReturn(
                 new TitleDiscoveryService.CollectionPage(List.of(row), 0, 50, false, 1));
 
         HttpResponse<String> res = get("/api/javdb/discovery/titles?source=collection");
@@ -128,12 +128,23 @@ class TitleDiscoveryRoutesTest {
 
     @Test
     void getTitles_clampsPageSize() throws Exception {
-        when(service.listRecent(eq(0), eq(200))).thenReturn(
+        when(service.listRecent(isNull(), eq(0), eq(200))).thenReturn(
                 new TitleDiscoveryService.TitlePage(List.of(), 0, 200, false, 0));
         // 9999 should be clamped to 200.
         HttpResponse<String> res = get("/api/javdb/discovery/titles?source=recent&pageSize=9999");
         assertEquals(200, res.statusCode());
-        verify(service).listRecent(0, 200);
+        verify(service).listRecent(null, 0, 200);
+    }
+
+    @Test
+    void getTitles_passesFilterParam() throws Exception {
+        when(service.listRecent(eq("ABC"), eq(0), eq(50))).thenReturn(
+                new TitleDiscoveryService.TitlePage(List.of(), 0, 50, false, 0));
+
+        HttpResponse<String> res = get("/api/javdb/discovery/titles?source=recent&filter=ABC");
+
+        assertEquals(200, res.statusCode());
+        verify(service).listRecent("ABC", 0, 50);
     }
 
     // ── GET /api/javdb/discovery/titles/pools ──────────────────────────────

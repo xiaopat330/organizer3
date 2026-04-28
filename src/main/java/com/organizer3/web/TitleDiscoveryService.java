@@ -87,15 +87,24 @@ public class TitleDiscoveryService {
 
     /** Recently-added unenriched titles, sorted by latest title_locations.added_date desc. */
     public TitlePage listRecent(int page, int pageSize) {
-        return listInternal(/*volumeId*/ null, page, pageSize);
+        return listRecent(null, page, pageSize);
+    }
+
+    /** Recently-added unenriched titles, optionally filtered by case-insensitive code prefix. */
+    public TitlePage listRecent(String codeFilter, int page, int pageSize) {
+        return listInternal(/*volumeId*/ null, codeFilter, page, pageSize);
     }
 
     /** Unenriched titles in a single sort_pool volume, sorted by titles.code asc. */
     public TitlePage listPool(String volumeId, int page, int pageSize) {
+        return listPool(volumeId, null, page, pageSize);
+    }
+
+    public TitlePage listPool(String volumeId, String codeFilter, int page, int pageSize) {
         if (volumeId == null || volumeId.isBlank()) {
             throw new IllegalArgumentException("volumeId is required for listPool");
         }
-        return listInternal(volumeId, page, pageSize);
+        return listInternal(volumeId, codeFilter, page, pageSize);
     }
 
     /**
@@ -140,10 +149,17 @@ public class TitleDiscoveryService {
      * exposes the source so the user can spot misplaced titles.
      */
     public CollectionPage listCollections(int page, int pageSize) {
+        return listCollections(null, page, pageSize);
+    }
+
+    public CollectionPage listCollections(String codeFilter, int page, int pageSize) {
         int p  = Math.max(page, 0);
         int ps = Math.max(pageSize, 1);
         int offset = p * ps;
         int limit = ps + 1;
+        String filter = (codeFilter == null || codeFilter.isBlank()) ? null : codeFilter.trim();
+        boolean filtering = filter != null;
+        String filterPattern = filtering ? filter.toUpperCase() + "%" : null;
 
         // One row per title (groups via title_id). cast is collected in a follow-up query
         // because grouping a chip-list on the SQL side is awkward.
@@ -181,6 +197,9 @@ public class TitleDiscoveryService {
                   AND (SELECT COUNT(*) FROM title_actresses WHERE title_id = t.id) >= 2
                   AND t.code NOT LIKE '\\_%' ESCAPE '\\'
                   AND loc.title_id IS NOT NULL
+                """
+                + (filtering ? "  AND t.code LIKE :codePattern COLLATE NOCASE\n" : "")
+                + """
                 ORDER BY t.code ASC
                 LIMIT :limit OFFSET :offset
                 """;
@@ -188,19 +207,21 @@ public class TitleDiscoveryService {
         // Skeleton rows (no cast yet).
         record Skeleton(long titleId, String code, String titleEnglish,
                         String addedDate, String volumeId, String queueStatus) {}
-        List<Skeleton> skel = jdbi.withHandle(h -> h.createQuery(sql)
-                .bind("limit", limit).bind("offset", offset)
-                .map((rs, ctx) -> new Skeleton(
-                        rs.getLong("title_id"),
-                        rs.getString("code"),
-                        rs.getString("title_english"),
-                        rs.getString("added_date"),
-                        rs.getString("volume_id"),
-                        rs.getString("queue_status")))
-                .list());
+        List<Skeleton> skel = jdbi.withHandle(h -> {
+            var q = h.createQuery(sql).bind("limit", limit).bind("offset", offset);
+            if (filtering) q.bind("codePattern", filterPattern);
+            return q.map((rs, ctx) -> new Skeleton(
+                    rs.getLong("title_id"),
+                    rs.getString("code"),
+                    rs.getString("title_english"),
+                    rs.getString("added_date"),
+                    rs.getString("volume_id"),
+                    rs.getString("queue_status")))
+                    .list();
+        });
 
         // Count query for totalPages.
-        int total = jdbi.withHandle(h -> h.createQuery("""
+        String countSql = """
                 SELECT COUNT(*) FROM (
                     SELECT t.id FROM titles t
                     LEFT JOIN (
@@ -216,8 +237,14 @@ public class TitleDiscoveryService {
                       AND (SELECT COUNT(*) FROM title_actresses WHERE title_id = t.id) >= 2
                       AND t.code NOT LIKE '\\_%' ESCAPE '\\'
                       AND loc.title_id IS NOT NULL
-                )
-                """).mapTo(Integer.class).one());
+                """
+                + (filtering ? "      AND t.code LIKE :codePattern COLLATE NOCASE\n" : "")
+                + ")";
+        int total = jdbi.withHandle(h -> {
+            var q = h.createQuery(countSql);
+            if (filtering) q.bind("codePattern", filterPattern);
+            return q.mapTo(Integer.class).one();
+        });
         int totalPages = total == 0 ? 0 : (total + ps - 1) / ps;
 
         if (skel.isEmpty()) {
@@ -287,7 +314,7 @@ public class TitleDiscoveryService {
 
     // ── Internals ──────────────────────────────────────────────────────────
 
-    private TitlePage listInternal(String volumeId, int page, int pageSize) {
+    private TitlePage listInternal(String volumeId, String codeFilter, int page, int pageSize) {
         int p  = Math.max(page, 0);
         int ps = Math.max(pageSize, 1);
         int offset = p * ps;
@@ -295,6 +322,9 @@ public class TitleDiscoveryService {
         int limit = ps + 1;
 
         boolean isPool = volumeId != null;
+        String filter = (codeFilter == null || codeFilter.isBlank()) ? null : codeFilter.trim();
+        boolean filtering = filter != null;
+        String filterPattern = filtering ? filter.toUpperCase() + "%" : null;
 
         // Latest location per title — for the recent view we sort/display by this.
         // For the pool view we restrict to a single volume_id directly in WHERE.
@@ -344,6 +374,7 @@ public class TitleDiscoveryService {
                 + (isPool
                     ? "  AND loc.volume_id = :volumeId\n"
                     : "  AND loc.title_id IS NOT NULL\n  AND v.structure_type <> '" + STRUCTURE_QUEUE + "'\n")
+                + (filtering ? "  AND t.code LIKE :codePattern COLLATE NOCASE\n" : "")
                 + (isPool ? "ORDER BY t.code ASC\n" : "ORDER BY loc.added_date DESC\n")
                 + "LIMIT :limit OFFSET :offset";
 
@@ -352,6 +383,7 @@ public class TitleDiscoveryService {
                     .bind("limit", limit)
                     .bind("offset", offset);
             if (isPool) q.bind("volumeId", volumeId);
+            if (filtering) q.bind("codePattern", filterPattern);
             return q.map((rs, ctx) -> {
                 long actressId = rs.getLong("actress_id");
                 boolean actressNull = rs.wasNull();
@@ -401,10 +433,12 @@ public class TitleDiscoveryService {
                 + (isPool
                     ? "      AND loc.volume_id = :volumeId\n"
                     : "      AND loc.title_id IS NOT NULL\n      AND v.structure_type <> '" + STRUCTURE_QUEUE + "'\n")
+                + (filtering ? "      AND t.code LIKE :codePattern COLLATE NOCASE\n" : "")
                 + ")";
         int total = jdbi.withHandle(h -> {
             var q = h.createQuery(countSql);
             if (isPool) q.bind("volumeId", volumeId);
+            if (filtering) q.bind("codePattern", filterPattern);
             return q.mapTo(Integer.class).one();
         });
         int totalPages = total == 0 ? 0 : (total + ps - 1) / ps;

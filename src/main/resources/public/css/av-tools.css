@@ -6125,6 +6125,44 @@
 
 .jd-enrich-fetched-at { color: #475569; }
 
+/* ── Tab subtoolbar (filter input) ─────────────────────────────────── */
+
+.jd-titles-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 8px;
+  position: relative;
+}
+.jd-filter-input {
+  flex: 0 0 280px;
+  background: #0f172a;
+  border: 1px solid #2a3a50;
+  border-radius: 4px;
+  color: #cbd5e1;
+  padding: 5px 26px 5px 10px;
+  font-size: 12px;
+  outline: none;
+}
+.jd-filter-input:focus {
+  border-color: #475569;
+}
+.jd-filter-input::placeholder { color: #475569; }
+.jd-filter-clear {
+  background: transparent;
+  border: none;
+  color: #64748b;
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 1;
+  padding: 0 4px;
+  position: absolute;
+  left: 256px;
+  top: 50%;
+  transform: translateY(-50%);
+}
+.jd-filter-clear:hover { color: #cbd5e1; }
+
 /* ── Titles tab (M2) ──────────────────────────────────────────────────── */
 
 .jd-tab-titles.selected {

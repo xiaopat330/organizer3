@@ -327,6 +327,58 @@ class TitleDiscoveryServiceTest {
                 "empty pools must still appear so they can be greyed out in the UI");
     }
 
+    // ── code-prefix filter (case-insensitive) ──────────────────────────────
+
+    @Test
+    void listRecent_filtersByCaseInsensitiveCodePrefix() {
+        long abc1 = insertTitle("ABC-001");
+        long abc2 = insertTitle("ABC-002");
+        long xyz  = insertTitle("XYZ-001");
+        insertLocation(abc1, "vol-recent", "/1", "2026-04-25");
+        insertLocation(abc2, "vol-recent", "/2", "2026-04-26");
+        insertLocation(xyz,  "vol-recent", "/3", "2026-04-27");
+
+        // Lowercase input — must match uppercase codes via COLLATE NOCASE.
+        var page = service.listRecent("abc", 0, 50);
+        var codes = page.rows().stream().map(TitleDiscoveryService.TitleRow::code).toList();
+        assertEquals(2, codes.size());
+        assertTrue(codes.contains("ABC-001"));
+        assertTrue(codes.contains("ABC-002"));
+        assertFalse(codes.contains("XYZ-001"));
+        assertEquals(1, page.totalPages(), "totalPages reflects the filtered count, not the total");
+    }
+
+    @Test
+    void listRecent_emptyOrBlankFilter_returnsEverything() {
+        long t1 = insertTitle("ABC-001");
+        long t2 = insertTitle("XYZ-001");
+        insertLocation(t1, "vol-recent", "/1", "2026-04-26");
+        insertLocation(t2, "vol-recent", "/2", "2026-04-27");
+
+        var unfiltered = service.listRecent(null, 0, 50);
+        var blank      = service.listRecent("   ", 0, 50);
+        assertEquals(2, unfiltered.rows().size());
+        assertEquals(2, blank.rows().size(),
+                "blank filter must behave the same as no filter");
+    }
+
+    @Test
+    void listCollections_filtersByCaseInsensitiveCodePrefix() {
+        long alice = insertActress("Alice");
+        long bob   = insertActress("Bob");
+        long abc = insertTitle("ABC-001");
+        long xyz = insertTitle("XYZ-001");
+        for (long t : new long[] {abc, xyz}) {
+            insertCredit(t, alice);
+            insertCredit(t, bob);
+            insertLocation(t, "vol-recent", "/" + t, "2026-04-26");
+        }
+
+        var codes = service.listCollections("abc", 0, 50).rows().stream()
+                .map(TitleDiscoveryService.CollectionRow::code).toList();
+        assertEquals(List.of("ABC-001"), codes);
+    }
+
     // ── listCollections: filter, cast eligibility, ordering ────────────────
 
     @Test

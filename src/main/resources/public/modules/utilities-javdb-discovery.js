@@ -36,6 +36,8 @@ function createState() {
       page: 0,
       pageSize: 50,
       totalPages: 0,
+      filter: '',                // code-prefix filter (case-insensitive); empty = no filter
+      filterDebounce: null,
       rows: [],
       hasMore: false,
       selected: new Set(),       // selected titleIds (numbers)
@@ -46,6 +48,8 @@ function createState() {
       page: 0,
       pageSize: 50,
       totalPages: 0,
+      filter: '',
+      filterDebounce: null,
       rows: [],
       hasMore: false,
       selected: new Set(),
@@ -101,6 +105,8 @@ const titlesFooter     = document.getElementById('jd-titles-footer');
 const titlesFooterCnt  = document.getElementById('jd-titles-footer-count');
 const titlesEnqueueBtn = document.getElementById('jd-titles-enqueue-btn');
 const titlesClearBtn   = document.getElementById('jd-titles-clear-btn');
+const titlesFilterInput = document.getElementById('jd-titles-filter-input');
+const titlesFilterClearBtn = document.getElementById('jd-titles-filter-clear');
 
 const collectionsBody       = document.getElementById('jd-collections-body');
 const collectionsEmpty      = document.getElementById('jd-collections-empty');
@@ -111,6 +117,8 @@ const collectionsFooter     = document.getElementById('jd-collections-footer');
 const collectionsFooterCnt  = document.getElementById('jd-collections-footer-count');
 const collectionsEnqueueBtn = document.getElementById('jd-collections-enqueue-btn');
 const collectionsClearBtn   = document.getElementById('jd-collections-clear-btn');
+const collectionsFilterInput    = document.getElementById('jd-collections-filter-input');
+const collectionsFilterClearBtn = document.getElementById('jd-collections-filter-clear');
 
 // ── Public API ─────────────────────────────────────────────────────────────
 
@@ -1379,6 +1387,7 @@ async function loadTitlesPage() {
     pageSize: String(t.pageSize),
   });
   if (t.source === 'pool' && t.poolVolumeId) params.set('volumeId', t.poolVolumeId);
+  if (t.filter && t.filter.trim()) params.set('filter', t.filter.trim());
   try {
     const res = await fetch(`/api/javdb/discovery/titles?${params}`);
     if (!res.ok) {
@@ -1673,6 +1682,7 @@ async function loadCollectionsTab() {
     page:   String(c.page),
     pageSize: String(c.pageSize),
   });
+  if (c.filter && c.filter.trim()) params.set('filter', c.filter.trim());
   try {
     const res = await fetch(`/api/javdb/discovery/titles?${params}`);
     if (!res.ok) {
@@ -1904,6 +1914,71 @@ function closeTitlePeekModal() {
 function titlePeekKeydownHandler(e) {
   if (e.key === 'Escape') closeTitlePeekModal();
 }
+
+// ── Filter inputs (Titles + Collections) ───────────────────────────────────
+
+const FILTER_DEBOUNCE_MS = 300;
+
+/**
+ * Wires a search input + clear button to a tab's state. Debounces on input,
+ * resets to page 0 on each new query, and clears selection (the selected ids
+ * may be filtered out, leaving stale references in the set).
+ */
+function attachFilterHandlers(input, clearBtn, getState, onChange) {
+  input.addEventListener('input', () => {
+    const st = getState();
+    const v = input.value;
+    clearBtn.style.display = v.length > 0 ? '' : 'none';
+    if (st.filterDebounce) clearTimeout(st.filterDebounce);
+    st.filterDebounce = setTimeout(() => {
+      st.filterDebounce = null;
+      st.filter = v;
+      st.page = 0;
+      st.selected.clear();
+      onChange();
+    }, FILTER_DEBOUNCE_MS);
+  });
+  input.addEventListener('keydown', e => {
+    if (e.key === 'Escape') {
+      input.value = '';
+      clearBtn.style.display = 'none';
+      const st = getState();
+      if (st.filterDebounce) { clearTimeout(st.filterDebounce); st.filterDebounce = null; }
+      if (st.filter) {
+        st.filter = '';
+        st.page = 0;
+        st.selected.clear();
+        onChange();
+      }
+    }
+  });
+  clearBtn.addEventListener('click', () => {
+    input.value = '';
+    clearBtn.style.display = 'none';
+    const st = getState();
+    if (st.filterDebounce) { clearTimeout(st.filterDebounce); st.filterDebounce = null; }
+    if (st.filter) {
+      st.filter = '';
+      st.page = 0;
+      st.selected.clear();
+      onChange();
+    }
+    input.focus();
+  });
+}
+
+attachFilterHandlers(titlesFilterInput, titlesFilterClearBtn,
+    () => state.titles, async () => {
+      await loadTitlesPage();
+      // Pool counts may shift if user is filtering across pools — re-fetch chips for accuracy.
+      // (No-op when source !== 'pool', but cheap.)
+      renderTitlesChips();
+    });
+
+attachFilterHandlers(collectionsFilterInput, collectionsFilterClearBtn,
+    () => state.collections, async () => {
+      await loadCollectionsTab();
+    });
 
 // ── Button wiring ──────────────────────────────────────────────────────────
 

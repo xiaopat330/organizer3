@@ -24,20 +24,21 @@ public class TitleDiscoveryRoutes {
         app.get("/api/javdb/discovery/titles", ctx -> {
             String source   = ctx.queryParam("source");
             String volumeId = ctx.queryParam("volumeId");
+            String filter   = ctx.queryParam("filter");
             int page     = parseInt(ctx.queryParam("page"),     0);
             int pageSize = clamp(parseInt(ctx.queryParam("pageSize"), DEFAULT_PAGE_SIZE), 1, MAX_PAGE_SIZE);
 
             if ("recent".equals(source)) {
-                ctx.json(service.listRecent(page, pageSize));
+                ctx.json(service.listRecent(filter, page, pageSize));
             } else if ("pool".equals(source)) {
                 if (volumeId == null || volumeId.isBlank()) {
                     ctx.status(400);
                     ctx.json(java.util.Map.of("error", "volumeId is required when source=pool"));
                     return;
                 }
-                ctx.json(service.listPool(volumeId, page, pageSize));
+                ctx.json(service.listPool(volumeId, filter, page, pageSize));
             } else if ("collection".equals(source)) {
-                ctx.json(service.listCollections(page, pageSize));
+                ctx.json(service.listCollections(filter, page, pageSize));
             } else {
                 ctx.status(400);
                 ctx.json(java.util.Map.of("error", "source must be 'recent', 'pool', or 'collection'"));
