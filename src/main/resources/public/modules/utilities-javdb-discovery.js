@@ -1498,8 +1498,15 @@ titlesTableBody.addEventListener('click', async e => {
   const titleId = parseInt(codeEl.dataset.titleId, 10);
   const row = state.titles.rows.find(r => r.titleId === titleId);
   if (!row) return;
+  // openTitleDetail expects a full title record (cover-resolution needs label/seqNum/etc).
+  // Match the search-bar pattern: fetch by-code first, fall back to a minimal object.
+  let titleData = { code: row.code };
+  try {
+    const res = await fetch(`/api/titles/by-code/${encodeURIComponent(row.code)}`);
+    if (res.ok) titleData = await res.json();
+  } catch (_) { /* fall through with minimal data */ }
   const { openTitleDetail } = await import('./title-detail.js');
-  await openTitleDetail({ code: row.code });
+  await openTitleDetail(titleData);
 });
 
 // Event delegation: pager
