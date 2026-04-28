@@ -20,7 +20,7 @@ public record JavdbConfig(
         @JsonProperty("profileChainMinTitles")   Integer profileChainMinTitles
 ) {
 
-    public static final JavdbConfig DEFAULTS = new JavdbConfig(true, 0.1, 3, new int[]{1, 5, 30}, 15, null, null, 4, 30, 3);
+    public static final JavdbConfig DEFAULTS = new JavdbConfig(true, 0.33, 3, new int[]{1, 5, 30}, 15, null, null, 8, 15, 3);
 
     public boolean enabledOrDefault()               { return enabled != null ? enabled : true; }
     public double rateLimitPerSecOrDefault()        { return rateLimitPerSec != null ? rateLimitPerSec : 0.1; }

@@ -350,12 +350,12 @@ media:
 # All keys are optional; the values shown below are the code defaults.
 # javdb:
 #   enabled: true
-#   rateLimitPerSec: 0.1
+#   rateLimitPerSec: 0.33
 #   maxAttempts: 3
 #   backoffMinutes: [1, 5, 30]
 #   rate429PauseMinutes: 15
-#   burstSize: 4
-#   burstBreakMinutes: 30
+#   burstSize: 8
+#   burstBreakMinutes: 15
 #   profileChainMinTitles: 3   # minimum title count before a title-driven job auto-chains a profile fetch
 
 # MCP server — enable mutation + network-op tools for smoke-testing.
