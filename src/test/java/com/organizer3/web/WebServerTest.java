@@ -23,6 +23,7 @@ import com.organizer3.media.ThumbnailService;
 import com.organizer3.media.VideoProbe;
 import com.organizer3.model.Video;
 import com.organizer3.model.WatchHistory;
+import org.jdbi.v3.core.Jdbi;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
@@ -52,6 +53,16 @@ class WebServerTest {
             server.stop();
         }
         AppConfig.reset();
+    }
+
+    /** Creates an ActressBrowseService with a mocked Jdbi so avatar-URL lookups don't NPE. */
+    private static ActressBrowseService browseService(
+            ActressRepository actressRepo, TitleRepository titleRepo,
+            CoverPath coverPath, LabelRepository labelRepo) {
+        Jdbi jdbi = mock(Jdbi.class);
+        when(jdbi.withHandle(any())).thenReturn(Map.of());
+        return new ActressBrowseService(actressRepo, titleRepo, coverPath,
+                Map.of(), labelRepo, mock(ActressNameLookup.class), null, jdbi);
     }
 
     @Test
@@ -278,10 +289,8 @@ class WebServerTest {
                 .tier(Actress.Tier.LIBRARY).firstSeenAt(LocalDate.of(2025, 1, 1)).build();
         when(actressRepo.findByFirstNamePrefixPaged(eq("A"), isNull(), anyInt(), anyInt()))
                 .thenReturn(List.of(aya));
-        when(titleRepo.findByActress(1L)).thenReturn(List.of());
 
-        ActressBrowseService actressBrowse = new ActressBrowseService(
-                actressRepo, titleRepo, coverPath, Map.of(), labelRepo, mock(ActressNameLookup.class), null, null);
+        ActressBrowseService actressBrowse = browseService(actressRepo, titleRepo, coverPath, labelRepo);
         server = new WebServer(0, null, actressBrowse, null, null, null, null, null, null, null);
         server.start();
 
@@ -304,10 +313,8 @@ class WebServerTest {
         Actress goddess = Actress.builder().id(1L).canonicalName("Yua Mikami")
                 .tier(Actress.Tier.GODDESS).firstSeenAt(LocalDate.of(2024, 1, 1)).build();
         when(actressRepo.findByTierPaged(Actress.Tier.GODDESS, 24, 0)).thenReturn(List.of(goddess));
-        when(titleRepo.findByActress(1L)).thenReturn(List.of());
 
-        ActressBrowseService actressBrowse = new ActressBrowseService(
-                actressRepo, titleRepo, coverPath, Map.of(), labelRepo, mock(ActressNameLookup.class), null, null);
+        ActressBrowseService actressBrowse = browseService(actressRepo, titleRepo, coverPath, labelRepo);
         server = new WebServer(0, null, actressBrowse, null, null, null, null, null, null, null);
         server.start();
 
@@ -345,10 +352,8 @@ class WebServerTest {
         Actress aya = Actress.builder().id(42L).canonicalName("Aya Sazanami")
                 .tier(Actress.Tier.LIBRARY).firstSeenAt(LocalDate.of(2025, 1, 1)).build();
         when(actressRepo.findById(42L)).thenReturn(Optional.of(aya));
-        when(titleRepo.findByActress(42L)).thenReturn(List.of());
 
-        ActressBrowseService actressBrowse = new ActressBrowseService(
-                actressRepo, titleRepo, coverPath, Map.of(), labelRepo, mock(ActressNameLookup.class), null, null);
+        ActressBrowseService actressBrowse = browseService(actressRepo, titleRepo, coverPath, labelRepo);
         server = new WebServer(0, null, actressBrowse, null, null, null, null, null, null, null);
         server.start();
 

@@ -47,6 +47,7 @@ public class EnrichmentRunner {
     private final EnrichmentQueue queue;
     private final TitleRepository titleRepo;
     private final ActressRepository actressRepo;
+    private final com.organizer3.repository.TitleActressRepository titleActressRepo;
     private final AutoPromoter autoPromoter;
     private final ActressAvatarStore avatarStore;
     private final EnrichmentGradeStamper gradeStamper;
@@ -54,6 +55,8 @@ public class EnrichmentRunner {
 
     // Tracks titles fetched since the queue last became empty; triggers batch recompute on drain.
     private int processedThisBatch = 0;
+
+    private final ProfileChainGate profileChainGate;
 
     private final AtomicBoolean stopRequested = new AtomicBoolean(false);
     private final AtomicBoolean paused = new AtomicBoolean(false);
@@ -86,7 +89,9 @@ public class EnrichmentRunner {
             AutoPromoter autoPromoter,
             ActressAvatarStore avatarStore,
             EnrichmentGradeStamper gradeStamper,
-            RatingCurveRecomputer ratingCurveRecomputer) {
+            RatingCurveRecomputer ratingCurveRecomputer,
+            ProfileChainGate profileChainGate,
+            com.organizer3.repository.TitleActressRepository titleActressRepo) {
         this.config = config;
         this.client = client;
         this.searchParser = new JavdbSearchParser();
@@ -101,6 +106,8 @@ public class EnrichmentRunner {
         this.avatarStore = avatarStore;
         this.gradeStamper = gradeStamper;
         this.ratingCurveRecomputer = ratingCurveRecomputer;
+        this.profileChainGate = profileChainGate;
+        this.titleActressRepo = titleActressRepo;
     }
 
     public synchronized void start() {
@@ -321,14 +328,38 @@ public class EnrichmentRunner {
         }
         processedThisBatch++;
 
-        // Cast matching: look for the owning actress in the cast list
+        boolean isCollectionJob = EnrichmentJob.SOURCE_COLLECTION.equals(job.source());
+
+        if (isCollectionJob) {
+            // Multi-cast title: match a slug for every DB-known credited actress (no single-cast
+            // fallback — see matchAndRecordActressSlug Javadoc) and gate-and-chain per cast member.
+            List<Long> castIds = titleActressRepo == null
+                    ? List.of()
+                    : titleActressRepo.findActressIdsByTitle(titleId);
+            for (Long castActressId : castIds) {
+                matchAndRecordActressSlug(castActressId, title.getCode(), extract.cast(), /*allowSingleCastFallback*/ false);
+            }
+            queue.markDone(job.id());
+            // No autoPromoter on collection — the title has no single owning actress.
+            for (Long castActressId : castIds) {
+                if (profileChainGate.shouldChainProfile(castActressId)) {
+                    triggerActressProfileIfNeeded(castActressId);
+                }
+            }
+            return;
+        }
+
+        // Single-actress path (actress-driven, recent, pool): look for the owning actress in the cast list.
         matchAndRecordActressSlug(actressId, title.getCode(), extract.cast());
 
         queue.markDone(job.id());
         autoPromoter.promoteFromTitle(titleId, actressId);
 
-        // Completion hook: enqueue fetch_actress_profile if we now have a slug but no profile
-        triggerActressProfileIfNeeded(actressId);
+        // Completion hook: enqueue fetch_actress_profile if we now have a slug but no profile.
+        // For title-driven flows, gate against sentinel/threshold/existence checks first.
+        if (job.isActressDriven() || profileChainGate.shouldChainProfile(actressId)) {
+            triggerActressProfileIfNeeded(actressId);
+        }
     }
 
     private void executeFetchActressProfile(EnrichmentJob job) {
@@ -369,7 +400,22 @@ public class EnrichmentRunner {
         autoPromoter.promoteActressStageName(actressId);
     }
 
+    /** Default-true wrapper preserving the legacy single-cast fallback behavior. */
     private void matchAndRecordActressSlug(long actressId, String titleCode, List<TitleExtract.CastEntry> cast) {
+        matchAndRecordActressSlug(actressId, titleCode, cast, /*allowSingleCastFallback*/ true);
+    }
+
+    /**
+     * Resolves the javdb slug for one credited actress by matching against the title's cast list.
+     *
+     * @param allowSingleCastFallback when true, a 1-entry cast list assigns its only slug to the
+     *        target actress regardless of name match (legacy behavior — safe for single-actress jobs).
+     *        Collection-source jobs MUST pass {@code false}, because iterating over multiple credited
+     *        actresses would otherwise stamp the same lone slug onto every one of them.
+     */
+    private void matchAndRecordActressSlug(long actressId, String titleCode,
+                                           List<TitleExtract.CastEntry> cast,
+                                           boolean allowSingleCastFallback) {
         if (cast.isEmpty()) return;
 
         Optional<Actress> maybeActress = actressRepo.findById(actressId);
@@ -390,7 +436,7 @@ public class EnrichmentRunner {
         // Fallback: if the title has exactly one cast entry we can still assign the slug.
         // Most JAV titles are single-actress, and name matching commonly fails because our
         // DB stores romanized names while javdb uses Japanese.
-        if (cast.size() == 1) {
+        if (allowSingleCastFallback && cast.size() == 1) {
             if (stagingRepo.upsertActressSlugOnly(actressId, cast.get(0).slug(), titleCode)) {
                 log.info("javdb: assigned slug {} to actress {} by single-cast assumption ({})", cast.get(0).slug(), actressId, titleCode);
             }

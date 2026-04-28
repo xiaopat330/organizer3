@@ -65,6 +65,10 @@ window.addEventListener('popstate', async (e) => {
         break;
       case 'action':
         showActionView();
+        if (state.tool === 'javdb-discovery') {
+          const m = await import('./modules/utilities-javdb-discovery.js');
+          await m.showJavdbDiscoveryView();
+        }
         break;
     }
   } finally {

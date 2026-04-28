@@ -19,7 +19,7 @@ import org.jdbi.v3.core.Jdbi;
 public class SchemaUpgrader {
 
     /** Must match the version stamped by {@link SchemaInitializer}. */
-    private static final int CURRENT_VERSION = 30;
+    private static final int CURRENT_VERSION = 32;
 
     private final Jdbi jdbi;
 
@@ -173,7 +173,85 @@ public class SchemaUpgrader {
             setVersion(30);
         }
 
+        if (version < 31) {
+            applyV31();
+            setVersion(31);
+        }
+
+        if (version < 32) {
+            applyV32();
+            setVersion(32);
+        }
+
         log.info("Schema upgrade complete");
+    }
+
+    /**
+     * v32: corrects the v31 sentinel backfill, which matched {@code stage_name} but the
+     * sentinel rows ({@code Various}, {@code Unknown}, {@code Amateur}) live under
+     * {@code canonical_name} with {@code stage_name = NULL}. Re-runs the backfill against
+     * {@code canonical_name}. Idempotent.
+     */
+    private void applyV32() {
+        log.info("Applying migration v32: fix sentinel backfill (match canonical_name)");
+        jdbi.useHandle(h -> h.execute("""
+                UPDATE actresses SET is_sentinel = 1
+                WHERE LOWER(canonical_name) IN ('various', 'unknown', 'amateur')
+                """));
+    }
+
+    /**
+     * v31: title-driven enrichment schema.
+     *
+     * <p>(a) Rebuilds {@code javdb_enrichment_queue}: makes {@code actress_id} nullable
+     * and adds {@code source TEXT NOT NULL DEFAULT 'actress'}. All existing rows are
+     * preserved with {@code source='actress'}. Indexes are recreated.
+     *
+     * <p>(b) Adds {@code actresses.is_sentinel} and backfills: Various / Unknown / Amateur
+     * by {@code canonical_name} (aliases are not matched). Note: an earlier revision matched
+     * {@code stage_name}, which missed real-world rows where {@code stage_name IS NULL};
+     * v32 re-applies the corrected backfill for DBs that already advanced to v31.
+     */
+    private void applyV31() {
+        log.info("Applying migration v31: title-driven enrichment (nullable actress_id + source, is_sentinel)");
+        jdbi.useHandle(h -> {
+            // ── (a) Rebuild javdb_enrichment_queue ────────────────────────────────
+            h.execute("""
+                    CREATE TABLE IF NOT EXISTS javdb_enrichment_queue_v31 (
+                        id              INTEGER PRIMARY KEY AUTOINCREMENT,
+                        job_type        TEXT NOT NULL,
+                        target_id       INTEGER NOT NULL,
+                        actress_id      INTEGER,
+                        source          TEXT NOT NULL DEFAULT 'actress',
+                        status          TEXT NOT NULL,
+                        attempts        INTEGER NOT NULL DEFAULT 0,
+                        next_attempt_at TEXT NOT NULL,
+                        last_error      TEXT,
+                        created_at      TEXT NOT NULL,
+                        updated_at      TEXT NOT NULL,
+                        sort_order      INTEGER
+                    )""");
+            h.execute("""
+                    INSERT INTO javdb_enrichment_queue_v31
+                        (id, job_type, target_id, actress_id, source, status, attempts,
+                         next_attempt_at, last_error, created_at, updated_at, sort_order)
+                    SELECT id, job_type, target_id, actress_id, 'actress', status, attempts,
+                           next_attempt_at, last_error, created_at, updated_at, sort_order
+                    FROM javdb_enrichment_queue
+                    """);
+            h.execute("DROP TABLE javdb_enrichment_queue");
+            h.execute("ALTER TABLE javdb_enrichment_queue_v31 RENAME TO javdb_enrichment_queue");
+            h.execute("CREATE INDEX IF NOT EXISTS idx_jeq_claim   ON javdb_enrichment_queue(status, next_attempt_at)");
+            h.execute("CREATE INDEX IF NOT EXISTS idx_jeq_actress ON javdb_enrichment_queue(actress_id, status)");
+            h.execute("CREATE INDEX IF NOT EXISTS idx_jeq_source  ON javdb_enrichment_queue(source, status)");
+
+            // ── (b) Add is_sentinel + backfill ────────────────────────────────────
+            addColumnIfMissing(h, "actresses", "is_sentinel", "INTEGER NOT NULL DEFAULT 0");
+            h.execute("""
+                    UPDATE actresses SET is_sentinel = 1
+                    WHERE LOWER(canonical_name) IN ('various', 'unknown', 'amateur')
+                    """);
+        });
     }
 
     /**

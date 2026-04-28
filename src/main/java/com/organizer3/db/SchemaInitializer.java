@@ -57,7 +57,8 @@ public class SchemaInitializer {
                         visit_count          INTEGER NOT NULL DEFAULT 0,
                         last_visited_at      TEXT,
                         needs_profiling      INTEGER NOT NULL DEFAULT 0,
-                        favorite_cleared_at  TEXT
+                        favorite_cleared_at  TEXT,
+                        is_sentinel          INTEGER NOT NULL DEFAULT 0
                     )""");
 
             h.execute("""
@@ -367,13 +368,14 @@ public class SchemaInitializer {
                         UNIQUE(title_code_a, title_code_b)
                     )""");
 
-            // javdb_enrichment_queue (v24)
+            // javdb_enrichment_queue (v24, updated v31: nullable actress_id + source)
             h.execute("""
                     CREATE TABLE IF NOT EXISTS javdb_enrichment_queue (
                         id              INTEGER PRIMARY KEY AUTOINCREMENT,
                         job_type        TEXT NOT NULL,
                         target_id       INTEGER NOT NULL,
-                        actress_id      INTEGER NOT NULL,
+                        actress_id      INTEGER,
+                        source          TEXT NOT NULL DEFAULT 'actress',
                         status          TEXT NOT NULL,
                         attempts        INTEGER NOT NULL DEFAULT 0,
                         next_attempt_at TEXT NOT NULL,
@@ -384,6 +386,7 @@ public class SchemaInitializer {
                     )""");
             h.execute("CREATE INDEX IF NOT EXISTS idx_jeq_claim   ON javdb_enrichment_queue(status, next_attempt_at)");
             h.execute("CREATE INDEX IF NOT EXISTS idx_jeq_actress ON javdb_enrichment_queue(actress_id, status)");
+            h.execute("CREATE INDEX IF NOT EXISTS idx_jeq_source  ON javdb_enrichment_queue(source, status)");
 
             // javdb_title_staging (v24)
             h.execute("""
@@ -484,7 +487,7 @@ public class SchemaInitializer {
             // leave the version alone and let SchemaUpgrader apply any missing migrations.
             int currentVersion = h.createQuery("PRAGMA user_version").mapTo(Integer.class).one();
             if (currentVersion == 0) {
-                h.execute("PRAGMA user_version = 30");
+                h.execute("PRAGMA user_version = 32");
             }
         });
         log.info("Schema initialization complete");

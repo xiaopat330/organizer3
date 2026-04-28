@@ -164,6 +164,11 @@ public class WebServer {
         routes.register(app);
     }
 
+    /** Mounts the Titles-tab endpoints ({@code /api/javdb/discovery/titles*}). */
+    public void registerTitleDiscovery(com.organizer3.web.routes.TitleDiscoveryRoutes routes) {
+        routes.register(app);
+    }
+
     /**
      * Mounts the title-detail tag editor endpoints
      * ({@code GET /api/titles/{code}/tag-state}, {@code PUT /api/titles/{code}/tags}).

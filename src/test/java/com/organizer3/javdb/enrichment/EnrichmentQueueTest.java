@@ -20,7 +20,7 @@ class EnrichmentQueueTest {
     private EnrichmentQueue queue;
     private Connection connection;
 
-    private static final JavdbConfig CONFIG = new JavdbConfig(true, 1.0, 3, new int[]{1, 5, 30}, 5, null, null, null, null);
+    private static final JavdbConfig CONFIG = new JavdbConfig(true, 1.0, 3, new int[]{1, 5, 30}, 5, null, null, null, null, 3);
 
     @BeforeEach
     void setUp() throws Exception {
@@ -101,7 +101,7 @@ class EnrichmentQueueTest {
     void markAttemptFailed_beyondBackoffSchedule_repeatsLastIntervalStaysPending() {
         // With a one-step backoff schedule, subsequent failures should keep repeating
         // the last interval rather than terminating as failed.
-        JavdbConfig tightConfig = new JavdbConfig(true, 1.0, 1, new int[]{1}, 5, null, null, null, null);
+        JavdbConfig tightConfig = new JavdbConfig(true, 1.0, 1, new int[]{1}, 5, null, null, null, null, 3);
         EnrichmentQueue tightQueue = new EnrichmentQueue(Jdbi.create(connection), tightConfig);
 
         tightQueue.enqueueTitle(2L, 20L);

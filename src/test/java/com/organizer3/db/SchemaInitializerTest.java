@@ -79,7 +79,7 @@ class SchemaInitializerTest {
                         "idx_av_videos_actress", "idx_av_videos_bucket",
                         "idx_av_videos_studio", "idx_av_videos_volume",
                         "idx_etd_title_count",
-                        "idx_javdb_actress_slug", "idx_jeq_actress", "idx_jeq_claim",
+                        "idx_javdb_actress_slug", "idx_jeq_actress", "idx_jeq_claim", "idx_jeq_source",
                         "idx_label_tags_tag",
                         "idx_tet_tag",
                         "idx_title_actresses_actress", "idx_title_actresses_title",
@@ -158,7 +158,7 @@ class SchemaInitializerTest {
 
         int version = jdbi.withHandle(h ->
                 h.createQuery("PRAGMA user_version").mapTo(Integer.class).one());
-        assertEquals(28, version);
+        assertEquals(32, version);
     }
 
     @Test

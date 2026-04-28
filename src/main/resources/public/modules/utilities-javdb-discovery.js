@@ -28,6 +28,33 @@ function createState() {
     // Phase 3 surfacing filter — per-actress, applied to the Titles tab.
     // Cleared whenever the selected actress changes.
     titleFilter: { tags: [], minRatingAvg: null, minRatingCount: null },
+    // Titles tab (M2) — title-driven enrichment surface.
+    titles: {
+      source: 'recent',          // 'recent' | 'pool'
+      poolVolumeId: null,        // when source==='pool'
+      pools: [],                 // [{volumeId, unenrichedCount}]
+      page: 0,
+      pageSize: 50,
+      totalPages: 0,
+      filter: '',                // code-prefix filter (case-insensitive); empty = no filter
+      filterDebounce: null,
+      rows: [],
+      hasMore: false,
+      selected: new Set(),       // selected titleIds (numbers)
+      loading: false,
+    },
+    // Collections tab (M3) — multi-cast titles.
+    collections: {
+      page: 0,
+      pageSize: 50,
+      totalPages: 0,
+      filter: '',
+      filterDebounce: null,
+      rows: [],
+      hasMore: false,
+      selected: new Set(),
+      loading: false,
+    },
   };
 }
 
@@ -59,12 +86,41 @@ const errorsView        = document.getElementById('jd-subview-errors');
 // ── Queue tab DOM refs ─────────────────────────────────────────────────────
 
 const enrichTab      = view.querySelector('[data-jd-tab="enrich"]');
+const titlesTab      = view.querySelector('[data-jd-tab="titles"]');
+const collectionsTab = view.querySelector('[data-jd-tab="collections"]');
 const queueTab       = view.querySelector('[data-jd-tab="queue"]');
 const jdBody         = view.querySelector('.jd-body');
 const queueBody      = document.getElementById('jd-queue-body');
 const queueEmpty     = document.getElementById('jd-queue-empty');
 const queueTableWrap = document.getElementById('jd-queue-table-wrap');
 const queueTableBody = document.getElementById('jd-queue-table-body');
+
+const titlesBody       = document.getElementById('jd-titles-body');
+const titlesChips      = document.getElementById('jd-titles-chips');
+const titlesEmpty      = document.getElementById('jd-titles-empty');
+const titlesTableWrap  = document.getElementById('jd-titles-table-wrap');
+const titlesTableBody  = document.getElementById('jd-titles-table-body');
+const titlesPager      = document.getElementById('jd-titles-pager');
+const titlesFooter     = document.getElementById('jd-titles-footer');
+const titlesFooterCnt  = document.getElementById('jd-titles-footer-count');
+const titlesEnqueueBtn = document.getElementById('jd-titles-enqueue-btn');
+const titlesClearBtn   = document.getElementById('jd-titles-clear-btn');
+const titlesFilterInput = document.getElementById('jd-titles-filter-input');
+const titlesFilterClearBtn = document.getElementById('jd-titles-filter-clear');
+const titlesFilterAutocomplete = document.getElementById('jd-titles-filter-autocomplete');
+
+const collectionsBody       = document.getElementById('jd-collections-body');
+const collectionsEmpty      = document.getElementById('jd-collections-empty');
+const collectionsTableWrap  = document.getElementById('jd-collections-table-wrap');
+const collectionsTableBody  = document.getElementById('jd-collections-table-body');
+const collectionsPager      = document.getElementById('jd-collections-pager');
+const collectionsFooter     = document.getElementById('jd-collections-footer');
+const collectionsFooterCnt  = document.getElementById('jd-collections-footer-count');
+const collectionsEnqueueBtn = document.getElementById('jd-collections-enqueue-btn');
+const collectionsClearBtn   = document.getElementById('jd-collections-clear-btn');
+const collectionsFilterInput    = document.getElementById('jd-collections-filter-input');
+const collectionsFilterClearBtn = document.getElementById('jd-collections-filter-clear');
+const collectionsFilterAutocomplete = document.getElementById('jd-collections-filter-autocomplete');
 
 // ── Public API ─────────────────────────────────────────────────────────────
 
@@ -1141,20 +1197,28 @@ async function retryActress() {
 // ── Tab switching ──────────────────────────────────────────────────────────
 
 function switchJdTab(tab) {
-  enrichTab.classList.toggle('selected', tab === 'enrich');
-  queueTab.classList.toggle('selected',  tab === 'queue');
-  jdBody.style.display    = tab === 'enrich' ? '' : 'none';
-  queueBody.style.display = tab === 'queue'  ? '' : 'none';
+  enrichTab.classList.toggle('selected',      tab === 'enrich');
+  titlesTab.classList.toggle('selected',      tab === 'titles');
+  collectionsTab.classList.toggle('selected', tab === 'collections');
+  queueTab.classList.toggle('selected',       tab === 'queue');
+  jdBody.style.display          = tab === 'enrich'      ? '' : 'none';
+  titlesBody.style.display      = tab === 'titles'      ? '' : 'none';
+  collectionsBody.style.display = tab === 'collections' ? '' : 'none';
+  queueBody.style.display       = tab === 'queue'       ? '' : 'none';
   if (tab === 'queue') {
     loadQueueItems();
     startQueueItemsPoll();
   } else {
     stopQueueItemsPoll();
   }
+  if (tab === 'titles')      loadTitlesTab();
+  if (tab === 'collections') loadCollectionsTab();
 }
 
-enrichTab.addEventListener('click', () => switchJdTab('enrich'));
-queueTab.addEventListener('click',  () => switchJdTab('queue'));
+enrichTab.addEventListener('click',      () => switchJdTab('enrich'));
+titlesTab.addEventListener('click',      () => switchJdTab('titles'));
+collectionsTab.addEventListener('click', () => switchJdTab('collections'));
+queueTab.addEventListener('click',       () => switchJdTab('queue'));
 
 // ── Queue items loader ─────────────────────────────────────────────────────
 
@@ -1299,6 +1363,720 @@ async function handleQueueItemAction(itemId, action) {
   }
   await loadQueueItems();
 }
+
+// ── Titles tab (M2) ────────────────────────────────────────────────────────
+
+async function loadTitlesTab() {
+  await loadTitlesPools();
+  await loadTitlesPage();
+}
+
+async function loadTitlesPools() {
+  try {
+    const res = await fetch('/api/javdb/discovery/titles/pools');
+    if (!res.ok) return;
+    state.titles.pools = await res.json();
+    renderTitlesChips();
+  } catch (_) { /* ignore */ }
+}
+
+async function loadTitlesPage() {
+  state.titles.loading = true;
+  const t = state.titles;
+  const params = new URLSearchParams({
+    source: t.source,
+    page:   String(t.page),
+    pageSize: String(t.pageSize),
+  });
+  if (t.source === 'pool' && t.poolVolumeId) params.set('volumeId', t.poolVolumeId);
+  if (t.filter && t.filter.trim()) params.set('filter', t.filter.trim());
+  try {
+    const res = await fetch(`/api/javdb/discovery/titles?${params}`);
+    if (!res.ok) {
+      t.rows = [];
+      t.hasMore = false;
+      t.totalPages = 0;
+    } else {
+      const page = await res.json();
+      t.rows = Array.isArray(page.rows) ? page.rows : [];
+      t.hasMore = !!page.hasMore;
+      t.totalPages = page.totalPages || 0;
+    }
+  } catch (_) {
+    t.rows = [];
+    t.hasMore = false;
+    t.totalPages = 0;
+  }
+  state.titles.loading = false;
+  renderTitlesTable();
+  renderTitlesPager();
+  renderTitlesFooter();
+}
+
+function renderTitlesChips() {
+  const t = state.titles;
+  const recentSelected = t.source === 'recent';
+  const chips = [
+    `<button type="button" class="jd-titles-chip ${recentSelected ? 'selected' : ''}" data-titles-chip="recent">All recent</button>`,
+  ];
+  for (const p of t.pools) {
+    const sel = t.source === 'pool' && t.poolVolumeId === p.volumeId;
+    const empty = (p.unenrichedCount || 0) === 0;
+    chips.push(
+      `<button type="button" class="jd-titles-chip ${sel ? 'selected' : ''} ${empty ? 'empty' : ''}" ` +
+      `data-titles-chip="pool" data-volume-id="${esc(p.volumeId)}" ${empty ? 'disabled' : ''}>` +
+        `Pool: ${esc(p.volumeId)}` +
+        `<span class="jd-titles-chip-count">${p.unenrichedCount}</span>` +
+      `</button>`
+    );
+  }
+  titlesChips.innerHTML = chips.join('');
+}
+
+function renderTitlesTable() {
+  const t = state.titles;
+  if (t.rows.length === 0) {
+    titlesEmpty.style.display = '';
+    titlesTableWrap.style.display = 'none';
+    return;
+  }
+  titlesEmpty.style.display = 'none';
+  titlesTableWrap.style.display = '';
+
+  titlesTableBody.innerHTML = t.rows.map(r => {
+    const blocked = r.queueStatus === 'pending' || r.queueStatus === 'in_flight';
+    const checked = t.selected.has(r.titleId);
+    const cb = blocked
+      ? '<span class="jd-titles-cb-blocked" aria-hidden="true">·</span>'
+      : `<input type="checkbox" class="jd-titles-cb" data-title-id="${r.titleId}" ${checked ? 'checked' : ''}>`;
+    const codeCell = `<span class="jd-titles-code" data-title-id="${r.titleId}">${esc(r.code)}</span>`;
+    const actressCell = r.actress
+      ? `<span class="jd-titles-actress">` +
+        `<span class="jd-titles-elig-dot ${r.actress.eligibility === 'eligible' ? 'jd-titles-elig-yes' : 'jd-titles-elig-no'}" ` +
+              `title="${r.actress.eligibility === 'eligible' ? 'Will chain a profile fetch' : 'Title-only fetch (no profile chain)'}"></span>` +
+        `<span>${esc(r.actress.name)}</span>` +
+        `</span>`
+      : '<span class="jd-titles-actress" style="color:#475569">—</span>';
+    const statusCell = renderTitlesStatusBadge(r);
+    return `<tr>
+      <td class="jd-titles-cb-col">${cb}</td>
+      <td>${codeCell}</td>
+      <td>${esc(r.titleEnglish || '')}</td>
+      <td>${actressCell}</td>
+      <td class="jd-titles-volume">${esc(r.volumeId || '')}</td>
+      <td class="jd-titles-date">${fmtDate(r.addedDate)}</td>
+      <td>${statusCell}</td>
+    </tr>`;
+  }).join('');
+}
+
+function renderTitlesStatusBadge(r) {
+  if (r.queueStatus === 'in_flight') return '<span class="jd-titles-status jd-titles-status-inflight">in flight</span>';
+  if (r.queueStatus === 'pending')   return '<span class="jd-titles-status jd-titles-status-pending">pending</span>';
+  if (r.queueStatus === 'failed')    return '<span class="jd-titles-status jd-titles-status-failed">failed</span>';
+  if (r.stagingStatus === 'slug_only') return '<span class="jd-titles-status jd-titles-status-pending">slug only</span>';
+  return '<span style="color:#475569">—</span>';
+}
+
+function renderTitlesPager() {
+  renderPagerInto(titlesPager, state.titles, 'titles');
+}
+
+/**
+ * Shared pager renderer used by both Titles and Collections tabs.
+ * Layout: «  -10  ←  [page input] of N  →  +10  »
+ * Disables individual controls when they would be no-ops at page boundaries.
+ */
+function renderPagerInto(el, st, kind) {
+  const total = Math.max(st.totalPages || 0, 1);
+  const cur = (st.page || 0) + 1;   // 1-indexed for display
+  const atStart = cur <= 1;
+  const atEnd   = cur >= total;
+  const dis = (b) => b ? 'disabled' : '';
+  el.innerHTML =
+    `<button type="button" class="jd-titles-pager-btn" data-${kind}-pager="first" ${dis(atStart)} title="First page">«</button>` +
+    `<button type="button" class="jd-titles-pager-btn" data-${kind}-pager="back10" ${dis(atStart)} title="Back 10 pages">−10</button>` +
+    `<button type="button" class="jd-titles-pager-btn" data-${kind}-pager="prev" ${dis(atStart)}>←</button>` +
+    `<span class="jd-pager-input-wrap">` +
+      `<input type="text" class="jd-pager-input" data-${kind}-pager-input value="${cur}" ` +
+        `inputmode="numeric" pattern="[0-9]*" maxlength="6" ` +
+        `aria-label="Page number">` +
+      `<span class="jd-pager-of">of ${total}</span>` +
+    `</span>` +
+    `<button type="button" class="jd-titles-pager-btn" data-${kind}-pager="next" ${dis(atEnd)}>→</button>` +
+    `<button type="button" class="jd-titles-pager-btn" data-${kind}-pager="forward10" ${dis(atEnd)} title="Forward 10 pages">+10</button>` +
+    `<button type="button" class="jd-titles-pager-btn" data-${kind}-pager="last" ${dis(atEnd)} title="Last page">»</button>`;
+}
+
+/**
+ * Wires up event delegation on a pager container. {@code onJump(newPage)} runs after each
+ * navigation; the caller is expected to update state and reload data.
+ */
+function attachPagerHandlers(container, kind, getState, onJump) {
+  // Button clicks.
+  container.addEventListener('click', e => {
+    const btn = e.target.closest(`[data-${kind}-pager]`);
+    if (!btn || btn.disabled) return;
+    const action = btn.dataset[`${kind}Pager`];
+    const st = getState();
+    const total = Math.max(st.totalPages || 0, 1);
+    let target = st.page;
+    switch (action) {
+      case 'first':     target = 0; break;
+      case 'back10':    target = Math.max(0, st.page - 10); break;
+      case 'prev':      target = Math.max(0, st.page - 1); break;
+      case 'next':      target = Math.min(total - 1, st.page + 1); break;
+      case 'forward10': target = Math.min(total - 1, st.page + 10); break;
+      case 'last':      target = total - 1; break;
+    }
+    if (target !== st.page) onJump(target);
+  });
+
+  // Input handling: digits only (sanitize on input), debounce 500ms before jumping,
+  // Enter triggers immediate jump, invalid values flag the input red and are no-op.
+  let debounce = null;
+  container.addEventListener('input', e => {
+    const input = e.target.closest(`[data-${kind}-pager-input]`);
+    if (!input) return;
+    // Sanitize: keep digits only, no leading zeros allowed beyond the first character.
+    const cleaned = input.value.replace(/[^0-9]/g, '');
+    if (cleaned !== input.value) input.value = cleaned;
+    if (debounce) clearTimeout(debounce);
+    debounce = setTimeout(() => attemptInputJump(input, kind, getState, onJump), 500);
+  });
+  container.addEventListener('keydown', e => {
+    const input = e.target.closest(`[data-${kind}-pager-input]`);
+    if (!input) return;
+    if (e.key === 'Enter') {
+      if (debounce) { clearTimeout(debounce); debounce = null; }
+      attemptInputJump(input, kind, getState, onJump);
+      input.blur();
+    }
+  });
+  // On blur, restore the actual page number if the input is empty/invalid (don't strand the user
+  // on a broken visual state).
+  container.addEventListener('focusout', e => {
+    const input = e.target.closest(`[data-${kind}-pager-input]`);
+    if (!input) return;
+    const st = getState();
+    const total = Math.max(st.totalPages || 0, 1);
+    const v = parseInt(input.value, 10);
+    if (!Number.isFinite(v) || v < 1 || v > total) {
+      input.value = String(st.page + 1);
+      input.classList.remove('jd-pager-input-invalid');
+    }
+  });
+}
+
+function attemptInputJump(input, kind, getState, onJump) {
+  const st = getState();
+  const total = Math.max(st.totalPages || 0, 1);
+  const raw = input.value;
+  // Strict validation: digits only, in range [1, total].
+  const valid = /^[0-9]+$/.test(raw);
+  const v = valid ? parseInt(raw, 10) : NaN;
+  if (!valid || !Number.isFinite(v) || v < 1 || v > total) {
+    input.classList.add('jd-pager-input-invalid');
+    return;
+  }
+  input.classList.remove('jd-pager-input-invalid');
+  const target = v - 1;
+  if (target !== st.page) onJump(target);
+}
+
+function renderTitlesFooter() {
+  const n = state.titles.selected.size;
+  if (n === 0) {
+    titlesFooter.style.display = 'none';
+    return;
+  }
+  titlesFooter.style.display = '';
+  titlesFooterCnt.textContent = `${n} selected`;
+  titlesEnqueueBtn.disabled = false;
+  titlesEnqueueBtn.textContent = `Enqueue ${n}`;
+}
+
+// Event delegation: chip strip
+titlesChips.addEventListener('click', async e => {
+  const btn = e.target.closest('[data-titles-chip]');
+  if (!btn || btn.disabled) return;
+  const t = state.titles;
+  if (btn.dataset.titlesChip === 'recent') {
+    t.source = 'recent';
+    t.poolVolumeId = null;
+  } else {
+    t.source = 'pool';
+    t.poolVolumeId = btn.dataset.volumeId;
+  }
+  t.page = 0;
+  t.selected.clear();
+  renderTitlesChips();
+  await loadTitlesPage();
+});
+
+// Event delegation: row checkboxes
+titlesTableBody.addEventListener('change', e => {
+  const cb = e.target.closest('.jd-titles-cb');
+  if (!cb) return;
+  const id = parseInt(cb.dataset.titleId, 10);
+  if (cb.checked) state.titles.selected.add(id);
+  else            state.titles.selected.delete(id);
+  renderTitlesFooter();
+});
+
+// Event delegation: click on code → open lightweight peek modal (no nav, no
+// history push — keeps tab + selection state intact).
+titlesTableBody.addEventListener('click', async e => {
+  const codeEl = e.target.closest('.jd-titles-code');
+  if (!codeEl) return;
+  const titleId = parseInt(codeEl.dataset.titleId, 10);
+  const row = state.titles.rows.find(r => r.titleId === titleId);
+  if (!row) return;
+  await openTitlePeekModal(row.code);
+});
+
+// Pager handlers: shared logic via attachPagerHandlers.
+attachPagerHandlers(titlesPager, 'titles', () => state.titles, async (newPage) => {
+  state.titles.page = newPage;
+  await loadTitlesPage();
+});
+
+// Clear selection
+titlesClearBtn.addEventListener('click', () => {
+  state.titles.selected.clear();
+  renderTitlesTable();
+  renderTitlesFooter();
+});
+
+// Enqueue selected
+titlesEnqueueBtn.addEventListener('click', async () => {
+  const t = state.titles;
+  const ids = Array.from(t.selected);
+  if (ids.length === 0) return;
+  titlesEnqueueBtn.disabled = true;
+  try {
+    const res = await fetch('/api/javdb/discovery/titles/enqueue', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ source: t.source, titleIds: ids }),
+    });
+    if (!res.ok) {
+      titlesEnqueueBtn.disabled = false;
+      return;
+    }
+    t.selected.clear();
+    // Refresh chip counts (those titles drop out of unenriched once queued + done) and the
+    // current page (rows now show queue badges instead of checkboxes).
+    await loadTitlesPools();
+    await loadTitlesPage();
+  } catch (_) {
+    titlesEnqueueBtn.disabled = false;
+  }
+});
+
+// ── Collections tab (M3) ───────────────────────────────────────────────────
+
+async function loadCollectionsTab() {
+  const c = state.collections;
+  c.loading = true;
+  const params = new URLSearchParams({
+    source: 'collection',
+    page:   String(c.page),
+    pageSize: String(c.pageSize),
+  });
+  if (c.filter && c.filter.trim()) params.set('filter', c.filter.trim());
+  try {
+    const res = await fetch(`/api/javdb/discovery/titles?${params}`);
+    if (!res.ok) {
+      c.rows = []; c.hasMore = false; c.totalPages = 0;
+    } else {
+      const page = await res.json();
+      c.rows = Array.isArray(page.rows) ? page.rows : [];
+      c.hasMore = !!page.hasMore;
+      c.totalPages = page.totalPages || 0;
+    }
+  } catch (_) {
+    c.rows = []; c.hasMore = false; c.totalPages = 0;
+  }
+  c.loading = false;
+  renderCollectionsTable();
+  renderCollectionsPager();
+  renderCollectionsFooter();
+}
+
+function renderCollectionsTable() {
+  const c = state.collections;
+  if (c.rows.length === 0) {
+    collectionsEmpty.style.display = '';
+    collectionsTableWrap.style.display = 'none';
+    return;
+  }
+  collectionsEmpty.style.display = 'none';
+  collectionsTableWrap.style.display = '';
+
+  collectionsTableBody.innerHTML = c.rows.map(r => {
+    const blocked = r.queueStatus === 'pending' || r.queueStatus === 'in_flight';
+    const checked = c.selected.has(r.titleId);
+    const cb = blocked
+      ? '<span class="jd-titles-cb-blocked" aria-hidden="true">·</span>'
+      : `<input type="checkbox" class="jd-collections-cb" data-title-id="${r.titleId}" ${checked ? 'checked' : ''}>`;
+    const codeCell = `<span class="jd-titles-code" data-title-id="${r.titleId}">${esc(r.code)}</span>`;
+    const castCell = renderCastChips(r.cast || []);
+    const statusCell = renderTitlesStatusBadge(r);
+    return `<tr>
+      <td class="jd-titles-cb-col">${cb}</td>
+      <td>${codeCell}</td>
+      <td>${esc(r.titleEnglish || '')}</td>
+      <td>${castCell}</td>
+      <td class="jd-titles-volume">${esc(r.volumeId || '')}</td>
+      <td class="jd-titles-date">${fmtDate(r.addedDate)}</td>
+      <td>${statusCell}</td>
+    </tr>`;
+  }).join('');
+}
+
+function renderCastChips(cast) {
+  if (!cast.length) return '<span style="color:#475569">—</span>';
+  const chips = cast.map(a => {
+    const cls = a.eligibility === 'eligible'        ? 'jd-cast-chip-elig'
+              : a.eligibility === 'sentinel'        ? 'jd-cast-chip-sentinel'
+              :                                       'jd-cast-chip-below';
+    const icon = a.eligibility === 'eligible'  ? '✓'
+               : a.eligibility === 'sentinel'  ? '✗'
+               :                                 '◌';
+    const tip = a.eligibility === 'eligible'  ? 'Will chain a profile fetch'
+              : a.eligibility === 'sentinel'  ? 'Sentinel actress (no chain)'
+              :                                 'Below threshold (no chain)';
+    return `<span class="jd-cast-chip ${cls}" title="${esc(tip)}">` +
+           `<span class="jd-cast-chip-icon">${icon}</span>${esc(a.name)}</span>`;
+  });
+  return `<span class="jd-cast-strip">${chips.join('')}</span>`;
+}
+
+function renderCollectionsPager() {
+  renderPagerInto(collectionsPager, state.collections, 'collections');
+}
+
+function renderCollectionsFooter() {
+  const n = state.collections.selected.size;
+  if (n === 0) {
+    collectionsFooter.style.display = 'none';
+    return;
+  }
+  collectionsFooter.style.display = '';
+  collectionsFooterCnt.textContent = `${n} selected`;
+  collectionsEnqueueBtn.disabled = false;
+  collectionsEnqueueBtn.textContent = `Enqueue ${n}`;
+}
+
+// Event delegation: row checkboxes
+collectionsTableBody.addEventListener('change', e => {
+  const cb = e.target.closest('.jd-collections-cb');
+  if (!cb) return;
+  const id = parseInt(cb.dataset.titleId, 10);
+  if (cb.checked) state.collections.selected.add(id);
+  else            state.collections.selected.delete(id);
+  renderCollectionsFooter();
+});
+
+// Event delegation: code click → open title detail (mirrors Titles tab pattern).
+collectionsTableBody.addEventListener('click', async e => {
+  const codeEl = e.target.closest('.jd-titles-code');
+  if (!codeEl) return;
+  const titleId = parseInt(codeEl.dataset.titleId, 10);
+  const row = state.collections.rows.find(r => r.titleId === titleId);
+  if (!row) return;
+  await openTitlePeekModal(row.code);
+});
+
+// Pager: shared handler, navigates via state.collections.
+attachPagerHandlers(collectionsPager, 'collections', () => state.collections, async (newPage) => {
+  state.collections.page = newPage;
+  await loadCollectionsTab();
+});
+
+// Clear
+collectionsClearBtn.addEventListener('click', () => {
+  state.collections.selected.clear();
+  renderCollectionsTable();
+  renderCollectionsFooter();
+});
+
+// Enqueue
+collectionsEnqueueBtn.addEventListener('click', async () => {
+  const c = state.collections;
+  const ids = Array.from(c.selected);
+  if (ids.length === 0) return;
+  collectionsEnqueueBtn.disabled = true;
+  try {
+    const res = await fetch('/api/javdb/discovery/titles/enqueue', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ source: 'collection', titleIds: ids }),
+    });
+    if (!res.ok) {
+      collectionsEnqueueBtn.disabled = false;
+      return;
+    }
+    c.selected.clear();
+    await loadCollectionsTab();
+  } catch (_) {
+    collectionsEnqueueBtn.disabled = false;
+  }
+});
+
+// ── Title peek modal (M3) ──────────────────────────────────────────────────
+
+/**
+ * Lightweight read-only modal showing cover + key info for one title. Used by the
+ * Titles and Collections tabs so the user can peek without losing tab state or
+ * pushing history. No video, no edit affordances, no visit tracking.
+ */
+async function openTitlePeekModal(code) {
+  // Avoid stacking duplicate modals.
+  closeTitlePeekModal();
+  let t = null;
+  try {
+    const res = await fetch(`/api/titles/by-code/${encodeURIComponent(code)}`);
+    if (res.ok) t = await res.json();
+  } catch (_) { /* render with what we have */ }
+  if (!t) t = { code };
+
+  const backdrop = document.createElement('div');
+  backdrop.className = 'jd-peek-backdrop';
+  backdrop.id = 'jd-peek-backdrop';
+
+  const cast = (t.actresses && t.actresses.length > 0)
+    ? t.actresses
+    : (t.actressName ? [{ id: t.actressId, name: t.actressName, tier: t.actressTier }] : []);
+  const castHtml = cast.length === 0
+    ? '<span style="color:#475569">—</span>'
+    : cast.map(a => `<span class="jd-peek-cast-chip">${esc(a.name || '')}</span>`).join('');
+
+  const labelText = [t.companyName, t.labelName].filter(Boolean).join(' · ');
+  const dateLabel = t.releaseDate ? 'Released' : (t.addedDate ? 'Added' : null);
+  const dateValue = t.releaseDate || t.addedDate;
+
+  let gradeHtml = '';
+  if (t.grade) {
+    gradeHtml = `<span class="jd-peek-grade tier-${esc(String(t.grade))}">${esc(String(t.grade))}</span>`;
+    if (t.ratingAvg != null && t.ratingCount != null) {
+      gradeHtml += `<span class="jd-peek-rating">${t.ratingAvg.toFixed(2)} · ${t.ratingCount.toLocaleString()} votes</span>`;
+    }
+  }
+
+  const tags = (t.tags || []).filter(Boolean);
+  const tagsHtml = tags.length === 0
+    ? '<span style="color:#475569">—</span>'
+    : tags.map(tag => `<span class="jd-peek-tag">${esc(tag)}</span>`).join('');
+
+  const nas = t.nasPaths || [];
+  const nasHtml = nas.length === 0
+    ? '<span style="color:#475569">—</span>'
+    : nas.map(p => `<span class="jd-peek-nas">${esc(p)}</span>`).join('');
+
+  const coverHtml = t.coverUrl
+    ? `<div class="jd-peek-cover-wrap"><img class="jd-peek-cover" src="${esc(t.coverUrl)}" alt="${esc(t.code)}"></div>`
+    : '';
+
+  const titleJaHtml = t.titleOriginal ? `<div class="jd-peek-title-ja">${esc(t.titleOriginal)}</div>` : '';
+  const titleEnHtml = t.titleEnglish  ? `<div class="jd-peek-title-en">${esc(t.titleEnglish)}</div>`  : '';
+
+  backdrop.innerHTML = `
+    <div class="jd-peek-modal" role="dialog" aria-label="Title preview" tabindex="-1">
+      <button type="button" class="jd-peek-close" id="jd-peek-close" title="Close (Esc)">×</button>
+      ${coverHtml}
+      <div class="jd-peek-code">${esc(t.code)}</div>
+      ${titleJaHtml}
+      ${titleEnHtml}
+      <div class="jd-peek-rows">
+        <div class="jd-peek-row"><span class="jd-peek-row-label">Cast</span><span class="jd-peek-row-value">${castHtml}</span></div>
+        ${labelText ? `<div class="jd-peek-row"><span class="jd-peek-row-label">Label</span><span class="jd-peek-row-value">${esc(labelText)}</span></div>` : ''}
+        ${dateLabel ? `<div class="jd-peek-row"><span class="jd-peek-row-label">${dateLabel}</span><span class="jd-peek-row-value">${esc(fmtDate(dateValue))}</span></div>` : ''}
+        ${gradeHtml ? `<div class="jd-peek-row"><span class="jd-peek-row-label">Grade</span><span class="jd-peek-row-value">${gradeHtml}</span></div>` : ''}
+        <div class="jd-peek-row"><span class="jd-peek-row-label">Tags</span><span class="jd-peek-row-value">${tagsHtml}</span></div>
+        <div class="jd-peek-row"><span class="jd-peek-row-label">Location</span><span class="jd-peek-row-value">${nasHtml}</span></div>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(backdrop);
+
+  // Dismiss handlers.
+  backdrop.addEventListener('click', e => { if (e.target === backdrop) closeTitlePeekModal(); });
+  document.getElementById('jd-peek-close').addEventListener('click', closeTitlePeekModal);
+  document.addEventListener('keydown', titlePeekKeydownHandler);
+}
+
+function closeTitlePeekModal() {
+  const el = document.getElementById('jd-peek-backdrop');
+  if (el) el.remove();
+  document.removeEventListener('keydown', titlePeekKeydownHandler);
+}
+
+function titlePeekKeydownHandler(e) {
+  if (e.key === 'Escape') closeTitlePeekModal();
+}
+
+// ── Filter inputs (Titles + Collections) ───────────────────────────────────
+
+const FILTER_DEBOUNCE_MS = 300;
+const FILTER_AUTOCOMPLETE_DEBOUNCE_MS = 200;
+
+/**
+ * Wires a search input + clear button + autocomplete dropdown to a tab's state.
+ * Mimics the library code-input on the Titles browse screen: prefix-only matches
+ * (e.g. 'AB', 'ABP', 'ABP-') trigger an /api/labels/autocomplete fetch and open
+ * a dropdown of suggested label codes. Once digits start to appear (e.g. 'ABP-001')
+ * the dropdown closes — the user is past the label-prefix phase.
+ */
+function attachFilterHandlers(input, clearBtn, dropEl, getState, onChange) {
+  // Internal state for autocomplete (closure-scoped per attachment).
+  let autoTimer = null;
+  let autoVisible = false;
+
+  function closeAutocomplete() {
+    autoVisible = false;
+    if (autoTimer) { clearTimeout(autoTimer); autoTimer = null; }
+    if (dropEl) { dropEl.innerHTML = ''; dropEl.classList.remove('open'); }
+  }
+  function openAutocomplete(items) {
+    if (!dropEl || items.length === 0) { closeAutocomplete(); return; }
+    autoVisible = true;
+    dropEl.innerHTML = '';
+    items.forEach((code, i) => {
+      const el = document.createElement('div');
+      el.className = 'jd-filter-autocomplete-item';
+      el.textContent = code;
+      el.dataset.idx = String(i);
+      el.addEventListener('mousedown', e => {
+        e.preventDefault();           // don't blur the input first
+        selectAutocompleteItem(code);
+      });
+      dropEl.appendChild(el);
+    });
+    dropEl.classList.add('open');
+  }
+  function moveAutocompleteSelection(dir) {
+    if (!dropEl || !autoVisible) return;
+    const items = dropEl.querySelectorAll('.jd-filter-autocomplete-item');
+    if (items.length === 0) return;
+    const cur = dropEl.querySelector('.jd-filter-autocomplete-item.focused');
+    let idx = cur ? parseInt(cur.dataset.idx, 10) + dir : (dir > 0 ? 0 : items.length - 1);
+    idx = Math.max(0, Math.min(items.length - 1, idx));
+    items.forEach(el => el.classList.remove('focused'));
+    items[idx]?.classList.add('focused');
+  }
+  function selectAutocompleteItem(code) {
+    input.value = code;
+    clearBtn.style.display = code.length > 0 ? '' : 'none';
+    closeAutocomplete();
+    // Apply immediately — mirrors the library code-input behavior on item-select.
+    const st = getState();
+    if (st.filterDebounce) { clearTimeout(st.filterDebounce); st.filterDebounce = null; }
+    st.filter = code;
+    st.page = 0;
+    st.selected.clear();
+    onChange();
+  }
+  async function fetchAutocomplete(prefix) {
+    if (!prefix || prefix.length < 1) { closeAutocomplete(); return; }
+    try {
+      const res = await fetch(`/api/labels/autocomplete?prefix=${encodeURIComponent(prefix)}`);
+      if (!res.ok) return;
+      const items = await res.json();
+      // Only open if the input is still in the label-prefix phase (user hasn't moved on).
+      if (document.activeElement !== input) return;
+      openAutocomplete(items);
+    } catch { /* ignore */ }
+  }
+
+  input.addEventListener('input', () => {
+    const st = getState();
+    const v = input.value;
+    clearBtn.style.display = v.length > 0 ? '' : 'none';
+
+    // Autocomplete: trigger only when the user is still typing a label prefix
+    // (e.g. 'AB', 'ABP', 'ABP-'). Once digits follow ('ABP-001'), close.
+    const upper = v.trim().toUpperCase().replace(/\s+/g, '');
+    const isLabelPrefixOnly = upper.length > 0 && /^[A-Z][A-Z0-9]*-?$/.test(upper);
+    if (isLabelPrefixOnly) {
+      if (autoTimer) clearTimeout(autoTimer);
+      autoTimer = setTimeout(() => {
+        autoTimer = null;
+        fetchAutocomplete(upper.replace(/-+$/, ''));
+      }, FILTER_AUTOCOMPLETE_DEBOUNCE_MS);
+    } else {
+      closeAutocomplete();
+    }
+
+    // Filter debounce (independent of autocomplete) — re-query after user stops typing.
+    if (st.filterDebounce) clearTimeout(st.filterDebounce);
+    st.filterDebounce = setTimeout(() => {
+      st.filterDebounce = null;
+      st.filter = v;
+      st.page = 0;
+      st.selected.clear();
+      onChange();
+    }, FILTER_DEBOUNCE_MS);
+  });
+
+  input.addEventListener('keydown', e => {
+    if (e.key === 'ArrowDown') { e.preventDefault(); moveAutocompleteSelection(1); }
+    else if (e.key === 'ArrowUp') { e.preventDefault(); moveAutocompleteSelection(-1); }
+    else if (e.key === 'Enter') {
+      if (autoVisible) {
+        const focused = dropEl.querySelector('.jd-filter-autocomplete-item.focused');
+        if (focused) { e.preventDefault(); selectAutocompleteItem(focused.textContent); return; }
+      }
+      closeAutocomplete();
+    }
+    else if (e.key === 'Escape') {
+      // ESC behavior: if dropdown open, just close it; otherwise clear the filter.
+      if (autoVisible) { closeAutocomplete(); return; }
+      input.value = '';
+      clearBtn.style.display = 'none';
+      const st = getState();
+      if (st.filterDebounce) { clearTimeout(st.filterDebounce); st.filterDebounce = null; }
+      if (st.filter) {
+        st.filter = '';
+        st.page = 0;
+        st.selected.clear();
+        onChange();
+      }
+    }
+  });
+
+  // Small delay so mousedown on dropdown item fires before the close.
+  input.addEventListener('blur', () => { setTimeout(closeAutocomplete, 150); });
+
+  clearBtn.addEventListener('click', () => {
+    input.value = '';
+    clearBtn.style.display = 'none';
+    closeAutocomplete();
+    const st = getState();
+    if (st.filterDebounce) { clearTimeout(st.filterDebounce); st.filterDebounce = null; }
+    if (st.filter) {
+      st.filter = '';
+      st.page = 0;
+      st.selected.clear();
+      onChange();
+    }
+    input.focus();
+  });
+}
+
+attachFilterHandlers(titlesFilterInput, titlesFilterClearBtn, titlesFilterAutocomplete,
+    () => state.titles, async () => {
+      await loadTitlesPage();
+      // Pool counts may shift if user is filtering across pools — re-fetch chips for accuracy.
+      // (No-op when source !== 'pool', but cheap.)
+      renderTitlesChips();
+    });
+
+attachFilterHandlers(collectionsFilterInput, collectionsFilterClearBtn, collectionsFilterAutocomplete,
+    () => state.collections, async () => {
+      await loadCollectionsTab();
+    });
 
 // ── Button wiring ──────────────────────────────────────────────────────────
 

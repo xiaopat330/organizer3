@@ -163,8 +163,8 @@ public class Application {
         Path dbDir = Path.of(System.getProperty("user.home"), ".organizer3");
         Files.createDirectories(dbDir);
         Jdbi jdbi = Jdbi.create("jdbc:sqlite:" + dbDir.resolve("organizer.db"));
-        new SchemaInitializer(jdbi).initialize();
         new SchemaUpgrader(jdbi).upgrade();
+        new SchemaInitializer(jdbi).initialize();
         new TagSeeder(jdbi).seedIfEmpty();
         TitleEffectiveTagsService titleEffectiveTagsService = new TitleEffectiveTagsService(jdbi);
         ActressCompaniesService   actressCompaniesService   = new ActressCompaniesService(jdbi);
@@ -408,6 +408,8 @@ public class Application {
                 new com.organizer3.rating.RatingCurveRecomputer(jdbi, ratingCurveRepo, ratingScoreCalculator);
         com.organizer3.rating.EnrichmentGradeStamper enrichmentGradeStamper =
                 new com.organizer3.rating.EnrichmentGradeStamper(ratingCurveRepo, ratingScoreCalculator, titleRepo);
+        com.organizer3.javdb.enrichment.ProfileChainGate profileChainGate =
+                new com.organizer3.javdb.enrichment.ProfileChainGate(jdbi, javdbConfig);
         com.organizer3.javdb.enrichment.EnrichmentRunner enrichmentRunner =
                 new com.organizer3.javdb.enrichment.EnrichmentRunner(
                         javdbConfig, javdbClient,
@@ -415,7 +417,7 @@ public class Application {
                         new com.organizer3.javdb.enrichment.JavdbProjector(jsonMapper),
                         javdbStagingRepo, javdbEnrichmentRepo,
                         enrichmentQueue, titleRepo, actressRepo, autoPromoter, avatarStore,
-                        enrichmentGradeStamper, ratingCurveRecomputer);
+                        enrichmentGradeStamper, ratingCurveRecomputer, profileChainGate, titleActressRepo);
         commands.add(new EnrichActressCommand(actressRepo, titleRepo, enrichmentQueue));
 
         // Sync commands — registered dynamically from syncConfig.
@@ -679,6 +681,9 @@ public class Application {
                 new com.organizer3.web.JavdbDiscoveryService(jdbi, enrichmentRunner),
                 new com.organizer3.web.JavdbEnrichmentActionService(titleRepo, enrichmentQueue, enrichmentRunner,
                         javdbStagingRepo, avatarStore)));
+
+        webServer.registerTitleDiscovery(new com.organizer3.web.routes.TitleDiscoveryRoutes(
+                new com.organizer3.web.TitleDiscoveryService(jdbi, config, profileChainGate, enrichmentQueue)));
 
         webServer.registerBgThumbnails(new com.organizer3.web.routes.BgThumbnailsRoutes(
                 bgWorker, bgThumbnailsState));

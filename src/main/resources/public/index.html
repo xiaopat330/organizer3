@@ -504,9 +504,17 @@
     <span class="jd-title">javdb Discovery</span>
     <span class="jd-queue-badge" id="jd-queue-badge" style="display:none"></span>
     <div class="jd-tabs">
-      <button type="button" class="jd-tab jd-tab-enrich selected" data-jd-tab="enrich">
-        <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M8 1v3M8 12v3M1 8h3M12 8h3M3.5 3.5l2 2M10.5 10.5l2 2M10.5 3.5l-2 2M5.5 10.5l-2 2"/></svg>
-        Enrich
+      <button type="button" class="jd-tab jd-tab-enrich selected" data-jd-tab="enrich" title="Actress-driven enrichment">
+        <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="5.5" r="2.5"/><path d="M2 13.5c0-3 2.5-5 6-5s6 2 6 5"/></svg>
+        Actresses
+      </button>
+      <button type="button" class="jd-tab jd-tab-titles" data-jd-tab="titles">
+        <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M2 4h12M2 8h12M2 12h12"/></svg>
+        Titles
+      </button>
+      <button type="button" class="jd-tab jd-tab-collections" data-jd-tab="collections">
+        <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="5" cy="6" r="2"/><circle cx="11" cy="6" r="2"/><path d="M2 13c0-2 1.5-3 3-3s3 1 3 3M8 13c0-2 1.5-3 3-3s3 1 3 3"/></svg>
+        Collections
       </button>
       <button type="button" class="jd-tab jd-tab-queue" data-jd-tab="queue">
         <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><circle cx="8" cy="8" r="6.5"/><path d="M8 4.5V8l2.5 2"/></svg>
@@ -563,6 +571,75 @@
         <div class="jd-subview" id="jd-subview-errors" style="display:none"></div>
       </div>
     </section>
+  </div>
+  <div class="jd-titles-body" id="jd-titles-body" style="display:none">
+    <div class="jd-titles-toolbar">
+      <div class="jd-filter-wrap">
+        <input type="text" id="jd-titles-filter-input" class="jd-filter-input"
+               placeholder="filter by code (e.g. SSIS, ABP-001)"
+               autocomplete="off" spellcheck="false">
+        <button type="button" id="jd-titles-filter-clear" class="jd-filter-clear" title="Clear filter" style="display:none">×</button>
+        <div class="jd-filter-autocomplete" id="jd-titles-filter-autocomplete"></div>
+      </div>
+    </div>
+    <div class="jd-titles-chips" id="jd-titles-chips"></div>
+    <div class="jd-titles-empty" id="jd-titles-empty" style="display:none">No unenriched titles for this source.</div>
+    <div class="jd-titles-table-wrap" id="jd-titles-table-wrap" style="display:none">
+      <table class="jd-titles-table" id="jd-titles-table">
+        <thead>
+          <tr>
+            <th class="jd-titles-cb-col"></th>
+            <th>Code</th>
+            <th>Title</th>
+            <th>Actress</th>
+            <th>Volume</th>
+            <th>Added</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody id="jd-titles-table-body"></tbody>
+      </table>
+      <div class="jd-titles-pager" id="jd-titles-pager"></div>
+    </div>
+    <div class="jd-titles-footer" id="jd-titles-footer" style="display:none">
+      <span class="jd-titles-footer-count" id="jd-titles-footer-count"></span>
+      <button type="button" class="jd-action-btn jd-titles-enqueue-btn" id="jd-titles-enqueue-btn">Enqueue Selected</button>
+      <button type="button" class="jd-action-btn jd-titles-clear-btn" id="jd-titles-clear-btn" title="Clear all selected">Clear</button>
+    </div>
+  </div>
+  <div class="jd-collections-body" id="jd-collections-body" style="display:none">
+    <div class="jd-titles-toolbar">
+      <div class="jd-filter-wrap">
+        <input type="text" id="jd-collections-filter-input" class="jd-filter-input"
+               placeholder="filter by code (e.g. ABS, GVH-100)"
+               autocomplete="off" spellcheck="false">
+        <button type="button" id="jd-collections-filter-clear" class="jd-filter-clear" title="Clear filter" style="display:none">×</button>
+        <div class="jd-filter-autocomplete" id="jd-collections-filter-autocomplete"></div>
+      </div>
+    </div>
+    <div class="jd-collections-empty" id="jd-collections-empty" style="display:none">No unenriched multi-cast titles.</div>
+    <div class="jd-collections-table-wrap" id="jd-collections-table-wrap" style="display:none">
+      <table class="jd-titles-table jd-collections-table" id="jd-collections-table">
+        <thead>
+          <tr>
+            <th class="jd-titles-cb-col"></th>
+            <th>Code</th>
+            <th>Title</th>
+            <th>Cast</th>
+            <th>Volume</th>
+            <th>Added</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody id="jd-collections-table-body"></tbody>
+      </table>
+      <div class="jd-titles-pager" id="jd-collections-pager"></div>
+    </div>
+    <div class="jd-titles-footer" id="jd-collections-footer" style="display:none">
+      <span class="jd-titles-footer-count" id="jd-collections-footer-count"></span>
+      <button type="button" class="jd-action-btn jd-titles-enqueue-btn" id="jd-collections-enqueue-btn">Enqueue Selected</button>
+      <button type="button" class="jd-action-btn jd-titles-clear-btn" id="jd-collections-clear-btn" title="Clear all selected">Clear</button>
+    </div>
   </div>
   <div class="jd-queue-body" id="jd-queue-body" style="display:none">
     <div class="jd-queue-empty" id="jd-queue-empty" style="display:none">No active jobs in the enrichment queue.</div>
