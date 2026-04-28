@@ -6290,3 +6290,12 @@
   opacity: 0.5;
   cursor: default;
 }
+.jd-titles-clear-btn {
+  background: transparent;
+  border: 1px solid #334155;
+  color: #94a3b8;
+}
+.jd-titles-clear-btn:hover {
+  background: #1e2d42;
+  color: #cbd5e1;
+}

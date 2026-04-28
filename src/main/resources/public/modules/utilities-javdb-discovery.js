@@ -88,6 +88,7 @@ const titlesPager      = document.getElementById('jd-titles-pager');
 const titlesFooter     = document.getElementById('jd-titles-footer');
 const titlesFooterCnt  = document.getElementById('jd-titles-footer-count');
 const titlesEnqueueBtn = document.getElementById('jd-titles-enqueue-btn');
+const titlesClearBtn   = document.getElementById('jd-titles-clear-btn');
 
 // ── Public API ─────────────────────────────────────────────────────────────
 
@@ -1508,6 +1509,13 @@ titlesPager.addEventListener('click', async e => {
   if (btn.dataset.titlesPager === 'next' && state.titles.hasMore) state.titles.page += 1;
   if (btn.dataset.titlesPager === 'prev' && state.titles.page > 0) state.titles.page -= 1;
   await loadTitlesPage();
+});
+
+// Clear selection
+titlesClearBtn.addEventListener('click', () => {
+  state.titles.selected.clear();
+  renderTitlesTable();
+  renderTitlesFooter();
 });
 
 // Enqueue selected
