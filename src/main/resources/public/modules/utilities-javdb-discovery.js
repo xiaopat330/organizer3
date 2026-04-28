@@ -1613,23 +1613,15 @@ titlesTableBody.addEventListener('change', e => {
   renderTitlesFooter();
 });
 
-// Event delegation: click on code → open title detail in-app.
-// (Dynamic import avoids loading title-detail until needed.)
+// Event delegation: click on code → open lightweight peek modal (no nav, no
+// history push — keeps tab + selection state intact).
 titlesTableBody.addEventListener('click', async e => {
   const codeEl = e.target.closest('.jd-titles-code');
   if (!codeEl) return;
   const titleId = parseInt(codeEl.dataset.titleId, 10);
   const row = state.titles.rows.find(r => r.titleId === titleId);
   if (!row) return;
-  // openTitleDetail expects a full title record (cover-resolution needs label/seqNum/etc).
-  // Match the search-bar pattern: fetch by-code first, fall back to a minimal object.
-  let titleData = { code: row.code };
-  try {
-    const res = await fetch(`/api/titles/by-code/${encodeURIComponent(row.code)}`);
-    if (res.ok) titleData = await res.json();
-  } catch (_) { /* fall through with minimal data */ }
-  const { openTitleDetail } = await import('./title-detail.js');
-  await openTitleDetail(titleData);
+  await openTitlePeekModal(row.code);
 });
 
 // Pager handlers: shared logic via attachPagerHandlers.
@@ -1782,13 +1774,7 @@ collectionsTableBody.addEventListener('click', async e => {
   const titleId = parseInt(codeEl.dataset.titleId, 10);
   const row = state.collections.rows.find(r => r.titleId === titleId);
   if (!row) return;
-  let titleData = { code: row.code };
-  try {
-    const res = await fetch(`/api/titles/by-code/${encodeURIComponent(row.code)}`);
-    if (res.ok) titleData = await res.json();
-  } catch (_) { /* fall through */ }
-  const { openTitleDetail } = await import('./title-detail.js');
-  await openTitleDetail(titleData);
+  await openTitlePeekModal(row.code);
 });
 
 // Pager: shared handler, navigates via state.collections.
@@ -1826,6 +1812,98 @@ collectionsEnqueueBtn.addEventListener('click', async () => {
     collectionsEnqueueBtn.disabled = false;
   }
 });
+
+// ── Title peek modal (M3) ──────────────────────────────────────────────────
+
+/**
+ * Lightweight read-only modal showing cover + key info for one title. Used by the
+ * Titles and Collections tabs so the user can peek without losing tab state or
+ * pushing history. No video, no edit affordances, no visit tracking.
+ */
+async function openTitlePeekModal(code) {
+  // Avoid stacking duplicate modals.
+  closeTitlePeekModal();
+  let t = null;
+  try {
+    const res = await fetch(`/api/titles/by-code/${encodeURIComponent(code)}`);
+    if (res.ok) t = await res.json();
+  } catch (_) { /* render with what we have */ }
+  if (!t) t = { code };
+
+  const backdrop = document.createElement('div');
+  backdrop.className = 'jd-peek-backdrop';
+  backdrop.id = 'jd-peek-backdrop';
+
+  const cast = (t.actresses && t.actresses.length > 0)
+    ? t.actresses
+    : (t.actressName ? [{ id: t.actressId, name: t.actressName, tier: t.actressTier }] : []);
+  const castHtml = cast.length === 0
+    ? '<span style="color:#475569">—</span>'
+    : cast.map(a => `<span class="jd-peek-cast-chip">${esc(a.name || '')}</span>`).join('');
+
+  const labelText = [t.companyName, t.labelName].filter(Boolean).join(' · ');
+  const dateLabel = t.releaseDate ? 'Released' : (t.addedDate ? 'Added' : null);
+  const dateValue = t.releaseDate || t.addedDate;
+
+  let gradeHtml = '';
+  if (t.grade) {
+    gradeHtml = `<span class="jd-peek-grade tier-${esc(String(t.grade))}">${esc(String(t.grade))}</span>`;
+    if (t.ratingAvg != null && t.ratingCount != null) {
+      gradeHtml += `<span class="jd-peek-rating">${t.ratingAvg.toFixed(2)} · ${t.ratingCount.toLocaleString()} votes</span>`;
+    }
+  }
+
+  const tags = (t.tags || []).filter(Boolean);
+  const tagsHtml = tags.length === 0
+    ? '<span style="color:#475569">—</span>'
+    : tags.map(tag => `<span class="jd-peek-tag">${esc(tag)}</span>`).join('');
+
+  const nas = t.nasPaths || [];
+  const nasHtml = nas.length === 0
+    ? '<span style="color:#475569">—</span>'
+    : nas.map(p => `<span class="jd-peek-nas">${esc(p)}</span>`).join('');
+
+  const coverHtml = t.coverUrl
+    ? `<div class="jd-peek-cover-wrap"><img class="jd-peek-cover" src="${esc(t.coverUrl)}" alt="${esc(t.code)}"></div>`
+    : '';
+
+  const titleJaHtml = t.titleOriginal ? `<div class="jd-peek-title-ja">${esc(t.titleOriginal)}</div>` : '';
+  const titleEnHtml = t.titleEnglish  ? `<div class="jd-peek-title-en">${esc(t.titleEnglish)}</div>`  : '';
+
+  backdrop.innerHTML = `
+    <div class="jd-peek-modal" role="dialog" aria-label="Title preview" tabindex="-1">
+      <button type="button" class="jd-peek-close" id="jd-peek-close" title="Close (Esc)">×</button>
+      ${coverHtml}
+      <div class="jd-peek-code">${esc(t.code)}</div>
+      ${titleJaHtml}
+      ${titleEnHtml}
+      <div class="jd-peek-rows">
+        <div class="jd-peek-row"><span class="jd-peek-row-label">Cast</span><span class="jd-peek-row-value">${castHtml}</span></div>
+        ${labelText ? `<div class="jd-peek-row"><span class="jd-peek-row-label">Label</span><span class="jd-peek-row-value">${esc(labelText)}</span></div>` : ''}
+        ${dateLabel ? `<div class="jd-peek-row"><span class="jd-peek-row-label">${dateLabel}</span><span class="jd-peek-row-value">${esc(fmtDate(dateValue))}</span></div>` : ''}
+        ${gradeHtml ? `<div class="jd-peek-row"><span class="jd-peek-row-label">Grade</span><span class="jd-peek-row-value">${gradeHtml}</span></div>` : ''}
+        <div class="jd-peek-row"><span class="jd-peek-row-label">Tags</span><span class="jd-peek-row-value">${tagsHtml}</span></div>
+        <div class="jd-peek-row"><span class="jd-peek-row-label">Location</span><span class="jd-peek-row-value">${nasHtml}</span></div>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(backdrop);
+
+  // Dismiss handlers.
+  backdrop.addEventListener('click', e => { if (e.target === backdrop) closeTitlePeekModal(); });
+  document.getElementById('jd-peek-close').addEventListener('click', closeTitlePeekModal);
+  document.addEventListener('keydown', titlePeekKeydownHandler);
+}
+
+function closeTitlePeekModal() {
+  const el = document.getElementById('jd-peek-backdrop');
+  if (el) el.remove();
+  document.removeEventListener('keydown', titlePeekKeydownHandler);
+}
+
+function titlePeekKeydownHandler(e) {
+  if (e.key === 'Escape') closeTitlePeekModal();
+}
 
 // ── Button wiring ──────────────────────────────────────────────────────────
 
