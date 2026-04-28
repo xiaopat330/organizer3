@@ -129,8 +129,8 @@ class EnrichmentClearMismatchedTaskTest {
         assertEquals("wrong", getEnrichmentSlug(titleId));
         assertEquals("B", readTitle(titleId).get("grade"));
         assertFalse(hasPendingFetchJob(titleId), "dryRun must not enqueue");
-        assertTrue(io.summary("execute").contains("dryRun"),
-                "execute phase summary should call out dryRun");
+        assertTrue(io.summary("dryrun").contains("would clear"),
+                "dryrun phase summary should report what would happen");
     }
 
     @Test
@@ -185,6 +185,45 @@ class EnrichmentClearMismatchedTaskTest {
 
         assertEquals("collabSlug", getEnrichmentSlug(titleId),
                 "title must survive when at least one actress's filmography confirms the slug");
+    }
+
+    @Test
+    void resumesAfterCancellation_perActressCommitsArePersistent() {
+        // Two actresses, each with a wrong-slug title. Cancel after the first actress.
+        // The first actress's title must already be cleared & re-enqueued (per-title commit
+        // happened before cancellation took effect); the second's stays untouched.
+        long manaId = seedActress("Aaa First",  "紗倉まな", "J9dd", false);
+        long aoiId  = seedActress("Zzz Second", "蒼井そら", "K1aa", false);
+
+        long firstTitle = seedTitle("STAR-1");
+        link(firstTitle, manaId);
+        seedEnrichment(firstTitle, "wrong1",
+                "[{\"slug\":\"wrong1\",\"name\":\"X\"}]", "wrong1");
+        long secondTitle = seedTitle("STAR-2");
+        link(secondTitle, aoiId);
+        seedEnrichment(secondTitle, "wrong2",
+                "[{\"slug\":\"wrong2\",\"name\":\"X\"}]", "wrong2");
+
+        client.actressPage("J9dd", 1, html(false));   // empty filmographies → mismatches
+        client.actressPage("K1aa", 1, html(false));
+
+        // Cancel-after-N=1: cancellation flag becomes true once the first actress is processed.
+        CancellingIO io = new CancellingIO(1);
+        task.run(args(false), io);
+
+        // First title cleared (committed before cancel) — durable across simulated process death.
+        assertNull(getEnrichmentSlug(firstTitle),
+                "per-title commit must persist before cancellation interrupts the loop");
+        assertTrue(hasPendingFetchJob(firstTitle));
+
+        // Second title still has its (wrong) row; will be cleaned by the next run.
+        assertEquals("wrong2", getEnrichmentSlug(secondTitle));
+        assertFalse(hasPendingFetchJob(secondTitle));
+
+        // Re-running picks up the remaining work.
+        task.run(args(false), new CapturingIO());
+        assertNull(getEnrichmentSlug(secondTitle), "re-run must clean the leftover");
+        assertTrue(hasPendingFetchJob(secondTitle));
     }
 
     // ── helpers ─────────────────────────────────────────────────────────────
@@ -296,7 +335,20 @@ class EnrichmentClearMismatchedTaskTest {
         }
     }
 
-    static final class CapturingIO implements TaskIO {
+    /** Returns true once {@code phaseProgress} has been called {@code triggerAt} times. */
+    static final class CancellingIO extends CapturingIO {
+        private final int triggerAt;
+        private int progressCalls = 0;
+        private boolean cancelled = false;
+        CancellingIO(int triggerAt) { this.triggerAt = triggerAt; }
+        @Override public void phaseProgress(String id, int c, int t, String detail) {
+            progressCalls++;
+            if (progressCalls >= triggerAt) cancelled = true;
+        }
+        @Override public boolean isCancellationRequested() { return cancelled; }
+    }
+
+    static class CapturingIO implements TaskIO {
         private final Map<String, String> statuses  = new HashMap<>();
         private final Map<String, String> summaries = new HashMap<>();
         private final Map<String, List<String>> logs = new HashMap<>();

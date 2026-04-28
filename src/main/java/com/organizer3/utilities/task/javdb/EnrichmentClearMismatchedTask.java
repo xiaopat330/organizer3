@@ -10,40 +10,36 @@ import lombok.extern.slf4j.Slf4j;
 import org.jdbi.v3.core.Jdbi;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 
 /**
  * Clears javdb enrichment rows whose chosen slug doesn't match the linked actress's
  * filmography (Step 5 of {@code spec/PROPOSAL_JAVDB_SLUG_VERIFICATION.md}).
  *
- * <p>Two sources of cleanup candidates:
- * <ol>
- *   <li><b>Authoritative</b>: every actress with a known {@code javdb_actress_staging.javdb_slug}
- *       has her filmography fetched once. Any of her enriched titles whose stored slug differs
- *       from {@code filmography[code]} (or whose code isn't in her filmography at all) is a
- *       cleanup target.</li>
- *   <li><b>Heuristic backstop</b>: titles flagged by the cast-mismatch detection query
- *       (see {@link com.organizer3.mcp.tools.FindEnrichmentCastMismatchesTool}) but whose
- *       linked actresses have no filmography available — we can't authoritatively re-resolve
- *       these, but we know the current row is wrong, so we still clear it.</li>
- * </ol>
+ * <p><b>Resumability:</b> processes one actress at a time. Each title's clear + re-enqueue
+ * commits in its own transaction <i>before</i> moving on. If the JVM dies (laptop crash,
+ * battery, etc.) mid-run, every cleanup that already committed survives, and a re-run
+ * resumes naturally — cleared titles are no longer in the enriched-titles list, so they
+ * just don't appear as candidates the second time around.
  *
- * <p>For each cleanup target, the task:
- * <ul>
- *   <li>Deletes the {@code title_javdb_enrichment} row (cascades to {@code title_enrichment_tags}).</li>
- *   <li>NULLs {@code title_original}, {@code title_english}, {@code release_date}, {@code notes}.</li>
- *   <li>NULLs {@code grade}/{@code grade_source} <i>only when {@code grade_source = 'enrichment'}</i> —
- *       manual and AI grades are preserved.</li>
- *   <li>Force-enqueues a {@code fetch_title} job so the runner re-resolves via the new
- *       actress-anchored path.</li>
- * </ul>
+ * <p><b>Collab handling:</b> a title with multiple slug-bearing actresses is only evaluated
+ * once <i>all</i> of those actresses' filmographies have been fetched. If <i>any</i> of them
+ * confirms the stored slug (her filmography contains {@code code → storedSlug}), the title
+ * is left intact — it's correctly attributed to that collab partner.
  *
- * <p>Honors {@code dryRun} — when true, no DB writes; the summary lists what would happen.
- * Cancellation: polled between actresses and between cleanup writes.
+ * <p><b>Heuristic backstop:</b> after the streaming pass, a final SQL query catches any
+ * still-enriched titles whose linked actresses have no javdb slug at all (so they were never
+ * filmography-validated) and which the cast-mismatch heuristic flagged. Those rows are
+ * cleared as well — bad enrichment beats missing enrichment.
+ *
+ * <p>Honors {@code dryRun}: when {@code "true"}, the streaming pass still fetches all
+ * filmographies (there's no preview without the HTTP cost) but skips DB writes.
  */
 @Slf4j
 public final class EnrichmentClearMismatchedTask implements Task {
@@ -53,9 +49,9 @@ public final class EnrichmentClearMismatchedTask implements Task {
     private static final TaskSpec SPEC = new TaskSpec(
             ID,
             "Clear mismatched javdb enrichments",
-            "Re-validate enriched titles against each actress's javdb filmography. Clears wrong-slug "
-                    + "rows + their grades (only when grade_source='enrichment') and re-enqueues the "
-                    + "title for actress-anchored re-fetch. Use dryRun=true to preview scope.",
+            "Validate enriched titles against each actress's javdb filmography. Clears wrong-slug "
+                    + "rows + their grades (only when grade_source='enrichment') and re-enqueues for "
+                    + "actress-anchored re-fetch. Resumable: per-title commits.",
             List.of(new TaskSpec.InputSpec(
                     "dryRun", "Preview only — when 'true', no DB writes",
                     TaskSpec.InputSpec.InputType.STRING, false))
@@ -80,118 +76,157 @@ public final class EnrichmentClearMismatchedTask implements Task {
         boolean dryRun = inputs.values().containsKey("dryRun")
                 && "true".equalsIgnoreCase(inputs.getString("dryRun"));
 
-        // ── Plan: gather actresses whose filmography we'll fetch ───────────────
-        io.phaseStart("plan", "Loading actresses with enriched titles");
-        List<ActressTarget> actresses = loadActressesWithEnrichments();
+        // ── Plan: load every actress with slug + every enriched title's actress set ──
+        io.phaseStart("plan", "Loading actresses and enriched titles");
+        List<ActressEntry> actresses = loadActressesWithSlug();
+        Map<Long, TitleEntry> titles = loadEnrichedTitlesByActressSet(actresses);
         io.phaseEnd("plan", "ok",
-                actresses.size() + " actress(es) with enriched titles + javdb slug");
+                actresses.size() + " actress(es) · " + titles.size() + " enriched title(s) to validate");
 
-        // ── Validate: fetch each filmography, walk her titles ──────────────────
-        io.phaseStart("validate", "Fetching filmographies + validating slugs");
-        Map<Long, CleanupTarget> targets = new LinkedHashMap<>();
-        Set<Long> confirmedCorrect = new LinkedHashSet<>();
-        int fetched = 0;
+        // ── Stream: fetch one actress at a time, evaluate ready titles, commit per-title ──
+        io.phaseStart("stream", "Streaming filmographies + per-title cleanups");
+        Map<Long, Map<String, String>> filmographies = new HashMap<>();
+        Counters c = new Counters();
         for (int i = 0; i < actresses.size(); i++) {
             if (io.isCancellationRequested()) {
-                io.phaseLog("validate", "Cancelled after " + i + " actress(es)");
+                io.phaseLog("stream", "Cancelled after " + i + " of " + actresses.size() + " actress(es)");
                 break;
             }
-            ActressTarget at = actresses.get(i);
-            io.phaseProgress("validate", i, actresses.size(),
-                    at.canonicalName + " (" + at.javdbSlug + ")");
-            Map<String, String> filmography;
+            ActressEntry a = actresses.get(i);
+            io.phaseProgress("stream", i, actresses.size(),
+                    a.canonicalName + " (" + a.javdbSlug + ")");
+            Map<String, String> film;
             try {
-                filmography = slugResolver.filmographyOf(at.javdbSlug);
-                fetched++;
+                film = slugResolver.filmographyOf(a.javdbSlug);
             } catch (RuntimeException e) {
-                io.phaseLog("validate",
-                        "FAIL filmography fetch for " + at.canonicalName + ": " + e.getMessage());
+                io.phaseLog("stream",
+                        "FAIL filmography fetch for " + a.canonicalName + ": " + e.getMessage());
+                c.fetchFails++;
                 continue;
             }
+            filmographies.put(a.actressId, film);
+            c.fetched++;
 
-            for (EnrichedTitle et : at.titles) {
-                String correctSlug = filmography.get(et.code);
-                if (correctSlug != null && correctSlug.equals(et.currentSlug)) {
-                    confirmedCorrect.add(et.titleId);
-                    continue;
-                }
-                String reason = correctSlug == null
-                        ? "code not in filmography"
-                        : "wrong slug: stored=" + et.currentSlug + " filmography=" + correctSlug;
-                targets.computeIfAbsent(et.titleId,
-                                tid -> new CleanupTarget(tid, et.code, at.actressId, reason))
-                        .actressIds.add(at.actressId);
+            // Try to resolve every title linked to her — and any other title whose set is now complete.
+            for (Long titleId : a.titleIds) {
+                TitleEntry te = titles.get(titleId);
+                if (te == null || te.resolved) continue;
+                te.pendingActresses.remove(a.actressId);
+                if (!te.pendingActresses.isEmpty()) continue;
+                evaluateAndMaybeCleanup(te, filmographies, dryRun, c, io);
             }
         }
-        // A title may have been marked as a target via one actress but confirmed correct via
-        // another (collab title): exclude any titleId that any other actress confirmed.
-        targets.keySet().removeAll(confirmedCorrect);
-        io.phaseEnd("validate", "ok",
-                fetched + " filmography fetch(es) · " + targets.size() + " mismatch(es) found");
+        io.phaseEnd("stream", "ok",
+                c.fetched + " filmography(ies) · " + c.cleared + " cleared · "
+                        + c.gradesCleared + " grade(s) reset · " + c.reenqueued + " re-enqueued"
+                        + (c.fetchFails > 0 ? " · " + c.fetchFails + " fetch failure(s)" : ""));
 
-        // ── Backstop: heuristic-detected mismatches we couldn't validate ───────
-        io.phaseStart("backstop", "Adding heuristic-detected mismatches without filmography coverage");
-        List<HeuristicTarget> heuristic = loadHeuristicMismatches();
-        int added = 0;
-        for (HeuristicTarget ht : heuristic) {
-            if (confirmedCorrect.contains(ht.titleId)) continue;
-            if (targets.containsKey(ht.titleId)) continue;
-            targets.put(ht.titleId, new CleanupTarget(
-                    ht.titleId, ht.code, ht.actressId, "heuristic cast-mismatch"));
-            targets.get(ht.titleId).actressIds.add(ht.actressId);
-            added++;
-        }
-        io.phaseEnd("backstop", "ok", added + " heuristic mismatch(es) added");
+        // ── Backstop: heuristic-flagged titles that were never resolved by streaming ──
+        io.phaseStart("backstop", "Heuristic-flagged titles with no filmography coverage");
+        int backstop = runBackstop(titles, dryRun, c, io);
+        io.phaseEnd("backstop", "ok", backstop + " heuristic mismatch(es) cleared");
 
-        // ── Execute ────────────────────────────────────────────────────────────
         if (dryRun) {
-            io.phaseStart("execute", "Dry run — no writes");
-            int gradesCleared = countGradesThatWouldClear(targets.keySet());
-            io.phaseEnd("execute", "ok",
-                    "dryRun: would clear " + targets.size() + " enrichment(s), "
-                            + gradesCleared + " enrichment-source grade(s)");
-            return;
+            io.phaseStart("dryrun", "Dry run summary");
+            io.phaseEnd("dryrun", "ok",
+                    "would clear " + c.cleared + " enrichment(s), " + c.gradesCleared
+                            + " enrichment-source grade(s), " + c.reenqueued + " re-enqueue(s)");
         }
-
-        io.phaseStart("execute", "Clearing rows + re-enqueueing");
-        int cleared = 0;
-        int gradesCleared = 0;
-        int reenqueued = 0;
-        int n = 0;
-        for (CleanupTarget t : targets.values()) {
-            if (io.isCancellationRequested()) {
-                io.phaseLog("execute", "Cancelled after " + n + " of " + targets.size());
-                break;
-            }
-            try {
-                int gradeNulled = clearOne(t.titleId);
-                cleared++;
-                gradesCleared += gradeNulled;
-                long actressForReenqueue = t.actressIds.iterator().next();
-                queue.enqueueTitleForce(t.titleId, actressForReenqueue);
-                reenqueued++;
-            } catch (RuntimeException e) {
-                log.warn("EnrichmentClearMismatchedTask: failed for titleId={}: {}",
-                        t.titleId, e.getMessage());
-                io.phaseLog("execute", "FAIL titleId=" + t.titleId + " — " + e.getMessage());
-            }
-            n++;
-        }
-        io.phaseEnd("execute", "ok",
-                cleared + " cleared · " + gradesCleared + " grade(s) reset · "
-                        + reenqueued + " re-enqueued");
     }
 
-    /** Load every actress with a javdb_slug who has at least one enriched title. */
-    private List<ActressTarget> loadActressesWithEnrichments() {
-        Map<Long, ActressTarget> byId = new LinkedHashMap<>();
+    /**
+     * Validate one fully-coverable title against all its slug-bearing actresses' filmographies.
+     * If any filmography confirms the stored slug, leave the row intact; otherwise clear + enqueue.
+     */
+    private void evaluateAndMaybeCleanup(TitleEntry te,
+                                         Map<Long, Map<String, String>> filmographies,
+                                         boolean dryRun,
+                                         Counters c,
+                                         TaskIO io) {
+        boolean confirmed = false;
+        long anyActressId = -1L;
+        for (Long actId : te.slugBearingActresses) {
+            Map<String, String> f = filmographies.get(actId);
+            if (f == null) continue;
+            anyActressId = actId;
+            if (Objects.equals(f.get(te.code), te.currentSlug)) {
+                confirmed = true;
+                break;
+            }
+        }
+        te.resolved = true;
+        if (confirmed) {
+            c.confirmed++;
+            return;
+        }
+        if (anyActressId < 0) return;   // shouldn't happen — defensive
+
+        if (dryRun) {
+            c.cleared++;
+            c.gradesCleared += countEnrichmentGrade(te.titleId);
+            c.reenqueued++;
+            return;
+        }
+        try {
+            int gradeNulled = clearOne(te.titleId);
+            queue.enqueueTitleForce(te.titleId, anyActressId);
+            c.cleared++;
+            c.gradesCleared += gradeNulled;
+            c.reenqueued++;
+        } catch (RuntimeException e) {
+            log.warn("EnrichmentClearMismatchedTask: failed for titleId={}: {}",
+                    te.titleId, e.getMessage());
+            io.phaseLog("stream", "FAIL titleId=" + te.titleId + " — " + e.getMessage());
+        }
+    }
+
+    /**
+     * Heuristic backstop: titles where the cast doesn't include the linked actress, AND the
+     * title was never resolved by the streaming pass (typically because no linked actress has
+     * a known javdb slug).
+     */
+    private int runBackstop(Map<Long, TitleEntry> titles, boolean dryRun, Counters c, TaskIO io) {
+        List<HeuristicTarget> heuristic = loadHeuristicMismatches();
+        int processed = 0;
+        for (HeuristicTarget ht : heuristic) {
+            if (io.isCancellationRequested()) {
+                io.phaseLog("backstop", "Cancelled mid-backstop");
+                break;
+            }
+            TitleEntry te = titles.get(ht.titleId);
+            if (te != null && te.resolved) continue;   // already handled by streaming pass
+            // Mark resolved so re-runs of the streaming pass won't attempt it.
+            if (te != null) te.resolved = true;
+
+            if (dryRun) {
+                c.cleared++;
+                c.gradesCleared += countEnrichmentGrade(ht.titleId);
+                c.reenqueued++;
+                processed++;
+                continue;
+            }
+            try {
+                int gradeNulled = clearOne(ht.titleId);
+                queue.enqueueTitleForce(ht.titleId, ht.actressId);
+                c.cleared++;
+                c.gradesCleared += gradeNulled;
+                c.reenqueued++;
+                processed++;
+            } catch (RuntimeException e) {
+                io.phaseLog("backstop", "FAIL titleId=" + ht.titleId + " — " + e.getMessage());
+            }
+        }
+        return processed;
+    }
+
+    /** Load every non-sentinel actress with a javdb slug + at least one enriched linked title. */
+    private List<ActressEntry> loadActressesWithSlug() {
+        Map<Long, ActressEntry> byId = new LinkedHashMap<>();
         jdbi.useHandle(h -> h.createQuery("""
                 SELECT a.id            AS actress_id,
                        a.canonical_name AS canonical_name,
                        jas.javdb_slug  AS javdb_slug,
-                       t.id            AS title_id,
-                       t.code          AS code,
-                       e.javdb_slug    AS title_slug
+                       t.id            AS title_id
                 FROM actresses a
                 JOIN javdb_actress_staging jas ON jas.actress_id = a.id
                 JOIN title_actresses ta ON ta.actress_id = a.id
@@ -206,23 +241,55 @@ public final class EnrichmentClearMismatchedTask implements Task {
                         rs.getLong("actress_id"),
                         rs.getString("canonical_name"),
                         rs.getString("javdb_slug"),
-                        rs.getLong("title_id"),
-                        rs.getString("code"),
-                        rs.getString("title_slug")
+                        rs.getLong("title_id")
                 })
                 .forEach(row -> {
                     long actressId = (Long) row[0];
-                    ActressTarget at = byId.computeIfAbsent(actressId,
-                            id -> new ActressTarget(id, (String) row[1], (String) row[2]));
-                    at.titles.add(new EnrichedTitle((Long) row[3], (String) row[4], (String) row[5]));
+                    ActressEntry a = byId.computeIfAbsent(actressId,
+                            id -> new ActressEntry(id, (String) row[1], (String) row[2]));
+                    a.titleIds.add((Long) row[3]);
                 }));
         return new ArrayList<>(byId.values());
     }
 
     /**
-     * Fallback list: titles flagged by the cast heuristic that we cannot authoritatively re-resolve
-     * because none of their linked actresses has a known javdb slug. Mirrors the WHERE clause of
-     * {@link com.organizer3.mcp.tools.FindEnrichmentCastMismatchesTool}.
+     * For every enriched title that has at least one slug-bearing actress, build a TitleEntry
+     * with its slug-bearing actress set (the gate for collab evaluation).
+     */
+    private Map<Long, TitleEntry> loadEnrichedTitlesByActressSet(List<ActressEntry> actresses) {
+        Map<Long, TitleEntry> titles = new LinkedHashMap<>();
+        jdbi.useHandle(h -> h.createQuery("""
+                SELECT t.id AS title_id, t.code AS code,
+                       e.javdb_slug AS current_slug,
+                       a.id AS actress_id
+                FROM titles t
+                JOIN title_javdb_enrichment e ON e.title_id = t.id
+                JOIN title_actresses ta ON ta.title_id = t.id
+                JOIN actresses a ON a.id = ta.actress_id
+                JOIN javdb_actress_staging jas ON jas.actress_id = a.id
+                WHERE COALESCE(a.is_sentinel, 0) = 0
+                  AND jas.javdb_slug IS NOT NULL
+                  AND jas.javdb_slug != ''
+                """)
+                .map((rs, ctx) -> new Object[]{
+                        rs.getLong("title_id"),
+                        rs.getString("code"),
+                        rs.getString("current_slug"),
+                        rs.getLong("actress_id")
+                })
+                .forEach(row -> {
+                    long titleId = (Long) row[0];
+                    TitleEntry te = titles.computeIfAbsent(titleId,
+                            id -> new TitleEntry(id, (String) row[1], (String) row[2]));
+                    te.slugBearingActresses.add((Long) row[3]);
+                    te.pendingActresses.add((Long) row[3]);
+                }));
+        return titles;
+    }
+
+    /**
+     * Heuristic-flagged titles (cast doesn't contain linked actress). Mirrors
+     * {@link com.organizer3.mcp.tools.FindEnrichmentCastMismatchesTool}. Used by the backstop.
      */
     private List<HeuristicTarget> loadHeuristicMismatches() {
         List<HeuristicTarget> out = new ArrayList<>();
@@ -253,8 +320,9 @@ public final class EnrichmentClearMismatchedTask implements Task {
     }
 
     /**
-     * Clears one title's enrichment + cached fields. Returns 1 if the grade was reset
-     * (was {@code grade_source='enrichment'}), 0 otherwise.
+     * Per-title transactional clear: deletes the enrichment row, NULLs cached scalars on
+     * {@code titles}, and resets the grade if it came from enrichment. Returns 1 if a grade
+     * was reset, 0 otherwise. Each call commits independently — that's the resumability lever.
      */
     private int clearOne(long titleId) {
         return jdbi.inTransaction(h -> {
@@ -265,57 +333,55 @@ public final class EnrichmentClearMismatchedTask implements Task {
                                       release_date = NULL, notes = NULL
                     WHERE id = :id
                     """).bind("id", titleId).execute();
-            int gradeNulled = h.createUpdate("""
+            return h.createUpdate("""
                     UPDATE titles SET grade = NULL, grade_source = NULL
                     WHERE id = :id AND grade_source = 'enrichment'
                     """).bind("id", titleId).execute();
-            // title_enrichment_tags cascades via FK.
-            return gradeNulled;
         });
     }
 
-    private int countGradesThatWouldClear(Set<Long> titleIds) {
-        if (titleIds.isEmpty()) return 0;
-        return jdbi.withHandle(h -> {
-            int n = 0;
-            for (Long id : titleIds) {
-                n += h.createQuery(
-                        "SELECT COUNT(*) FROM titles WHERE id = :id AND grade_source = 'enrichment'")
-                        .bind("id", id).mapTo(Integer.class).one();
-            }
-            return n;
-        });
+    private int countEnrichmentGrade(long titleId) {
+        return jdbi.withHandle(h -> h.createQuery(
+                "SELECT COUNT(*) FROM titles WHERE id = :id AND grade_source = 'enrichment'")
+                .bind("id", titleId).mapTo(Integer.class).one());
     }
 
     // ── value types ────────────────────────────────────────────────────────────
 
-    private static final class ActressTarget {
+    private static final class ActressEntry {
         final long actressId;
         final String canonicalName;
         final String javdbSlug;
-        final List<EnrichedTitle> titles = new ArrayList<>();
-        ActressTarget(long actressId, String canonicalName, String javdbSlug) {
+        final List<Long> titleIds = new ArrayList<>();
+        ActressEntry(long actressId, String canonicalName, String javdbSlug) {
             this.actressId = actressId;
             this.canonicalName = canonicalName;
             this.javdbSlug = javdbSlug;
         }
     }
 
-    private record EnrichedTitle(long titleId, String code, String currentSlug) {}
+    private static final class TitleEntry {
+        final long titleId;
+        final String code;
+        final String currentSlug;
+        final Set<Long> slugBearingActresses = new LinkedHashSet<>();
+        final Set<Long> pendingActresses = new LinkedHashSet<>();
+        boolean resolved = false;
+        TitleEntry(long titleId, String code, String currentSlug) {
+            this.titleId = titleId;
+            this.code = code;
+            this.currentSlug = currentSlug;
+        }
+    }
 
     private record HeuristicTarget(long titleId, String code, long actressId) {}
 
-    private static final class CleanupTarget {
-        final long titleId;
-        final String code;
-        @SuppressWarnings("unused") final long firstActressId;
-        final String reason;
-        final Set<Long> actressIds = new LinkedHashSet<>();
-        CleanupTarget(long titleId, String code, long firstActressId, String reason) {
-            this.titleId = titleId;
-            this.code = code;
-            this.firstActressId = firstActressId;
-            this.reason = reason;
-        }
+    private static final class Counters {
+        int fetched = 0;
+        int fetchFails = 0;
+        int cleared = 0;
+        int gradesCleared = 0;
+        int reenqueued = 0;
+        int confirmed = 0;
     }
 }
