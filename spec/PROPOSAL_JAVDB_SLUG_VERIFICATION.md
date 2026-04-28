@@ -1,6 +1,6 @@
 # Proposal: javdb Slug Verification — Stop Picking the Wrong Title
 
-**Status:** Aligned 2026-04-29 — ready to implement
+**Status:** Steps 1, 2, 3, 5, 7 implemented (commits on `feat/javdb-slug-verification`). Step 4 (filmography disk cache) deferred. Step 6 = run the existing recompute task after cleanup settles. Step 8 (no_match resolver UI) gated on cleanup outcome.
 **Scope:** Fix the cast-mismatch enrichment bug discovered 2026-04-28; clean up ~232 contaminated rows + opportunistically validated extras; recompute the actress rating curve; add a triage UI for unresolvable rows.
 
 ## Decisions locked in (Q&A 2026-04-29)
