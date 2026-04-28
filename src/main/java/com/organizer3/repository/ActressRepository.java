@@ -284,7 +284,12 @@ public interface ActressRepository {
              * recent titles. {@code SearchService} tries each in order until a local cover file
              * is found, so stale/missing covers on any single title don't blank the result.
              */
-            String coverCandidates
+            String coverCandidates,
+            /**
+             * Local profile avatar path (relative to dataDir, e.g. {@code actress-avatars/foo.jpg}),
+             * or null. When present, {@code SearchService} prefers this over a cover candidate.
+             */
+            String localAvatarPath
     ) {}
 
     /**

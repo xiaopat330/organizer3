@@ -104,9 +104,11 @@ public class SearchService {
         m.put("matchedAlias",  r.matchedAlias());
         m.put("titleCount",    r.titleCount());
 
-        // Try each "label:baseCode" candidate in order until a local cover file is found.
+        // Prefer the local actress profile avatar when available; fall back to a cover.
         String coverUrl = null;
-        if (r.coverCandidates() != null) {
+        if (r.localAvatarPath() != null && !r.localAvatarPath().isBlank()) {
+            coverUrl = "/" + r.localAvatarPath();
+        } else if (r.coverCandidates() != null) {
             for (String candidate : r.coverCandidates().split("\\|")) {
                 int colon = candidate.indexOf(':');
                 if (colon < 0) continue;

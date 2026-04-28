@@ -95,6 +95,29 @@
 
 /* ── Identity section ───────────────────────────────────────────────── */
 
+.detail-identity-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.detail-identity-text {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+/* Profile avatar from javdb is ~150×150. Render at native size — upscaling
+   pixelates it badly. flex-shrink: 0 keeps it from being squeezed. */
+.detail-actress-avatar {
+  display: block;
+  width: auto;
+  height: auto;
+  flex-shrink: 0;
+  border-radius: 4px;
+}
+
 .detail-name {
   line-height: 1.2;
 }
