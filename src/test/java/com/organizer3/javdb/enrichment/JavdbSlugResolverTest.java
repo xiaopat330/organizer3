@@ -70,6 +70,32 @@ class JavdbSlugResolverTest {
     }
 
     @Test
+    void filmographyIsCachedPerActressAcrossResolveCalls() {
+        // 2-page filmography. Two resolves for two of her titles must only fetch the pages once.
+        client.actressPage("J9dd", 1, html(true, entry("STAR-1", "s1")));
+        client.actressPage("J9dd", 2, html(false, entry("STAR-2", "s2")));
+
+        var r1 = resolver.resolve("STAR-1", "J9dd");
+        var r2 = resolver.resolve("STAR-2", "J9dd");
+
+        assertInstanceOf(JavdbSlugResolver.Success.class, r1);
+        assertInstanceOf(JavdbSlugResolver.Success.class, r2);
+        assertEquals(2, client.actressPageCalls.size(),
+                "filmography pages must be fetched once total — second resolve uses the cache");
+    }
+
+    @Test
+    void clearFilmographyCacheForcesRefetch() {
+        client.actressPage("J9dd", 1, html(false, entry("STAR-1", "s1")));
+
+        resolver.resolve("STAR-1", "J9dd");
+        resolver.clearFilmographyCache();
+        resolver.resolve("STAR-1", "J9dd");
+
+        assertEquals(2, client.actressPageCalls.size(), "post-clear resolve must re-fetch");
+    }
+
+    @Test
     void codeSearchFallbackUsedWhenNoActressSlug() {
         client.searchResult("XYZ-001", "fallbackSlug");
 

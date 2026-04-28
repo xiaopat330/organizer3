@@ -7,6 +7,7 @@ import lombok.extern.slf4j.Slf4j;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Picks the correct javdb title slug for a product code, anchoring on the linked actress
@@ -36,6 +37,21 @@ public class JavdbSlugResolver {
     private final JavdbClient client;
     private final JavdbFilmographyParser filmographyParser;
     private final JavdbSearchParser searchParser;
+
+    /**
+     * Per-process filmography cache. An actress's full {@code code → slug} map is fetched once
+     * and reused for the rest of the JVM's lifetime. Eliminates the N×{@code filmography pages}
+     * cost during bulk re-enrichment of titles whose actress already had her filmography fetched.
+     *
+     * <p>{@code computeIfAbsent} on {@code ConcurrentHashMap} coalesces concurrent fetches for
+     * the same actress: the second caller blocks until the first completes, then both see the
+     * cached result. Single fetch per actress per process.
+     *
+     * <p>Trade-off: a title published on javdb mid-run stays invisible until app restart.
+     * Acceptable for the slug-verification cleanup; a TTL'd disk cache (Step 4 of the proposal)
+     * is the durable answer.
+     */
+    private final Map<String, Map<String, String>> filmographyCache = new ConcurrentHashMap<>();
 
     public JavdbSlugResolver(JavdbClient client) {
         this(client, new JavdbFilmographyParser(), new JavdbSearchParser());
@@ -86,7 +102,7 @@ public class JavdbSlugResolver {
      */
     public Resolution resolve(String productCode, String actressJavdbSlug) {
         if (actressJavdbSlug != null && !actressJavdbSlug.isBlank()) {
-            Map<String, String> filmography = fetchFilmography(actressJavdbSlug);
+            Map<String, String> filmography = filmographyOf(actressJavdbSlug);
             String slug = filmography.get(productCode);
             if (slug != null) {
                 log.info("javdb: resolved {} via filmography of actress {} → {}",
@@ -121,7 +137,12 @@ public class JavdbSlugResolver {
      * or a hard cap of {@link #MAX_PAGES} is reached (defensive — should never hit in practice).
      */
     public Map<String, String> filmographyOf(String actressSlug) {
-        return fetchFilmography(actressSlug);
+        return filmographyCache.computeIfAbsent(actressSlug, this::fetchFilmography);
+    }
+
+    /** Test/admin hook: drop the in-memory filmography cache. */
+    public void clearFilmographyCache() {
+        filmographyCache.clear();
     }
 
     private Map<String, String> fetchFilmography(String actressSlug) {
