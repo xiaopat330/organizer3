@@ -78,8 +78,8 @@ public class TitleDiscoveryService {
             String queueStatus
     ) {}
 
-    public record TitlePage(List<TitleRow> rows, int page, int pageSize, boolean hasMore) {}
-    public record CollectionPage(List<CollectionRow> rows, int page, int pageSize, boolean hasMore) {}
+    public record TitlePage(List<TitleRow> rows, int page, int pageSize, boolean hasMore, int totalPages) {}
+    public record CollectionPage(List<CollectionRow> rows, int page, int pageSize, boolean hasMore, int totalPages) {}
 
     public record PoolChip(String volumeId, int unenrichedCount) {}
 
@@ -199,8 +199,29 @@ public class TitleDiscoveryService {
                         rs.getString("queue_status")))
                 .list());
 
+        // Count query for totalPages.
+        int total = jdbi.withHandle(h -> h.createQuery("""
+                SELECT COUNT(*) FROM (
+                    SELECT t.id FROM titles t
+                    LEFT JOIN (
+                        SELECT title_id, volume_id, added_date,
+                               ROW_NUMBER() OVER (
+                                   PARTITION BY title_id
+                                   ORDER BY (added_date IS NULL), added_date DESC
+                               ) AS rn
+                        FROM title_locations
+                    ) loc ON loc.title_id = t.id AND loc.rn = 1
+                    LEFT JOIN title_javdb_enrichment tje ON tje.title_id = t.id
+                    WHERE tje.title_id IS NULL
+                      AND (SELECT COUNT(*) FROM title_actresses WHERE title_id = t.id) >= 2
+                      AND t.code NOT LIKE '\\_%' ESCAPE '\\'
+                      AND loc.title_id IS NOT NULL
+                )
+                """).mapTo(Integer.class).one());
+        int totalPages = total == 0 ? 0 : (total + ps - 1) / ps;
+
         if (skel.isEmpty()) {
-            return new CollectionPage(List.of(), p, ps, false);
+            return new CollectionPage(List.of(), p, ps, false, totalPages);
         }
 
         boolean hasMore = skel.size() > ps;
@@ -234,7 +255,7 @@ public class TitleDiscoveryService {
                     cast.getOrDefault(s.titleId(), List.of()),
                     s.volumeId(), s.addedDate(), s.queueStatus()));
         }
-        return new CollectionPage(List.copyOf(rows), p, ps, hasMore);
+        return new CollectionPage(List.copyOf(rows), p, ps, hasMore, totalPages);
     }
 
     /**
@@ -354,7 +375,40 @@ public class TitleDiscoveryService {
 
         boolean hasMore = raw.size() > ps;
         List<TitleRow> rows = hasMore ? raw.subList(0, ps) : raw;
-        return new TitlePage(List.copyOf(rows), p, ps, hasMore);
+
+        // Count query — mirrors the data query's filter clause but without ORDER/LIMIT and
+        // without joining queue/staging/actress tables (those don't affect inclusion).
+        String countSql = """
+                SELECT COUNT(*) FROM (
+                    SELECT t.id
+                    FROM titles t
+                    LEFT JOIN (
+                        SELECT title_id, volume_id, added_date,
+                               ROW_NUMBER() OVER (
+                                   PARTITION BY title_id
+                                   ORDER BY (added_date IS NULL), added_date DESC
+                               ) AS rn
+                        FROM title_locations
+                """ + (isPool ? "WHERE volume_id = :volumeId\n" : "")
+                + """
+                    ) loc ON loc.title_id = t.id AND loc.rn = 1
+                    LEFT JOIN volumes v ON v.id = loc.volume_id
+                    LEFT JOIN title_javdb_enrichment tje ON tje.title_id = t.id
+                    WHERE tje.title_id IS NULL
+                      AND (SELECT COUNT(*) FROM title_actresses WHERE title_id = t.id) <= 1
+                      AND t.code NOT LIKE '\\_%' ESCAPE '\\'
+                """
+                + (isPool
+                    ? "      AND loc.volume_id = :volumeId\n"
+                    : "      AND loc.title_id IS NOT NULL\n      AND v.structure_type <> '" + STRUCTURE_QUEUE + "'\n")
+                + ")";
+        int total = jdbi.withHandle(h -> {
+            var q = h.createQuery(countSql);
+            if (isPool) q.bind("volumeId", volumeId);
+            return q.mapTo(Integer.class).one();
+        });
+        int totalPages = total == 0 ? 0 : (total + ps - 1) / ps;
+        return new TitlePage(List.copyOf(rows), p, ps, hasMore, totalPages);
     }
 
     /** Returns the single credited actress's id, or null when 0 or >1 actresses are credited. */

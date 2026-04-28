@@ -64,7 +64,7 @@ class TitleDiscoveryRoutesTest {
                 new TitleDiscoveryService.ActressCredit(7L, "Alice", "eligible"),
                 "vol-a", "2026-04-27", null, null);
         when(service.listRecent(0, 50)).thenReturn(
-                new TitleDiscoveryService.TitlePage(List.of(row), 0, 50, false));
+                new TitleDiscoveryService.TitlePage(List.of(row), 0, 50, false, 1));
 
         HttpResponse<String> res = get("/api/javdb/discovery/titles?source=recent");
 
@@ -89,7 +89,7 @@ class TitleDiscoveryRoutesTest {
     @Test
     void getTitles_poolPassesVolumeId() throws Exception {
         when(service.listPool(eq("pool-jav"), eq(2), eq(25))).thenReturn(
-                new TitleDiscoveryService.TitlePage(List.of(), 2, 25, false));
+                new TitleDiscoveryService.TitlePage(List.of(), 2, 25, false, 0));
 
         HttpResponse<String> res = get("/api/javdb/discovery/titles?source=pool&volumeId=pool-jav&page=2&pageSize=25");
 
@@ -113,7 +113,7 @@ class TitleDiscoveryRoutesTest {
                 42L, "COL-001", "Cool Compilation",
                 castMixed, "vol-a", "2026-04-27", null);
         when(service.listCollections(0, 50)).thenReturn(
-                new TitleDiscoveryService.CollectionPage(List.of(row), 0, 50, false));
+                new TitleDiscoveryService.CollectionPage(List.of(row), 0, 50, false, 1));
 
         HttpResponse<String> res = get("/api/javdb/discovery/titles?source=collection");
 
@@ -129,7 +129,7 @@ class TitleDiscoveryRoutesTest {
     @Test
     void getTitles_clampsPageSize() throws Exception {
         when(service.listRecent(eq(0), eq(200))).thenReturn(
-                new TitleDiscoveryService.TitlePage(List.of(), 0, 200, false));
+                new TitleDiscoveryService.TitlePage(List.of(), 0, 200, false, 0));
         // 9999 should be clamped to 200.
         HttpResponse<String> res = get("/api/javdb/discovery/titles?source=recent&pageSize=9999");
         assertEquals(200, res.statusCode());

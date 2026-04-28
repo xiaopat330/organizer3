@@ -192,9 +192,19 @@ class TitleDiscoveryServiceTest {
         var p0 = service.listRecent(0, 2);
         assertEquals(2, p0.rows().size());
         assertTrue(p0.hasMore());
+        // 5 rows / pageSize 2 → 3 total pages.
+        assertEquals(3, p0.totalPages());
         var p2 = service.listRecent(2, 2);
         assertEquals(1, p2.rows().size());
         assertFalse(p2.hasMore(), "last page must report hasMore=false");
+        assertEquals(3, p2.totalPages(), "totalPages stays consistent across page indices");
+    }
+
+    @Test
+    void listRecent_totalPagesIsZeroWhenEmpty() {
+        var p = service.listRecent(0, 50);
+        assertTrue(p.rows().isEmpty());
+        assertEquals(0, p.totalPages());
     }
 
     @Test

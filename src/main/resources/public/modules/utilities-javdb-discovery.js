@@ -35,6 +35,7 @@ function createState() {
       pools: [],                 // [{volumeId, unenrichedCount}]
       page: 0,
       pageSize: 50,
+      totalPages: 0,
       rows: [],
       hasMore: false,
       selected: new Set(),       // selected titleIds (numbers)
@@ -44,6 +45,7 @@ function createState() {
     collections: {
       page: 0,
       pageSize: 50,
+      totalPages: 0,
       rows: [],
       hasMore: false,
       selected: new Set(),
@@ -1382,14 +1384,17 @@ async function loadTitlesPage() {
     if (!res.ok) {
       t.rows = [];
       t.hasMore = false;
+      t.totalPages = 0;
     } else {
       const page = await res.json();
       t.rows = Array.isArray(page.rows) ? page.rows : [];
       t.hasMore = !!page.hasMore;
+      t.totalPages = page.totalPages || 0;
     }
   } catch (_) {
     t.rows = [];
     t.hasMore = false;
+    t.totalPages = 0;
   }
   state.titles.loading = false;
   renderTitlesTable();
@@ -1463,13 +1468,109 @@ function renderTitlesStatusBadge(r) {
 }
 
 function renderTitlesPager() {
-  const t = state.titles;
-  const prevDisabled = t.page === 0;
-  const nextDisabled = !t.hasMore;
-  titlesPager.innerHTML =
-    `<button type="button" class="jd-titles-pager-btn" data-titles-pager="prev" ${prevDisabled ? 'disabled' : ''}>← Prev</button>` +
-    `<span>Page ${t.page + 1}</span>` +
-    `<button type="button" class="jd-titles-pager-btn" data-titles-pager="next" ${nextDisabled ? 'disabled' : ''}>Next →</button>`;
+  renderPagerInto(titlesPager, state.titles, 'titles');
+}
+
+/**
+ * Shared pager renderer used by both Titles and Collections tabs.
+ * Layout: «  -10  ←  [page input] of N  →  +10  »
+ * Disables individual controls when they would be no-ops at page boundaries.
+ */
+function renderPagerInto(el, st, kind) {
+  const total = Math.max(st.totalPages || 0, 1);
+  const cur = (st.page || 0) + 1;   // 1-indexed for display
+  const atStart = cur <= 1;
+  const atEnd   = cur >= total;
+  const dis = (b) => b ? 'disabled' : '';
+  el.innerHTML =
+    `<button type="button" class="jd-titles-pager-btn" data-${kind}-pager="first" ${dis(atStart)} title="First page">«</button>` +
+    `<button type="button" class="jd-titles-pager-btn" data-${kind}-pager="back10" ${dis(atStart)} title="Back 10 pages">−10</button>` +
+    `<button type="button" class="jd-titles-pager-btn" data-${kind}-pager="prev" ${dis(atStart)}>←</button>` +
+    `<span class="jd-pager-input-wrap">` +
+      `<input type="text" class="jd-pager-input" data-${kind}-pager-input value="${cur}" ` +
+        `inputmode="numeric" pattern="[0-9]*" maxlength="6" ` +
+        `aria-label="Page number">` +
+      `<span class="jd-pager-of">of ${total}</span>` +
+    `</span>` +
+    `<button type="button" class="jd-titles-pager-btn" data-${kind}-pager="next" ${dis(atEnd)}>→</button>` +
+    `<button type="button" class="jd-titles-pager-btn" data-${kind}-pager="forward10" ${dis(atEnd)} title="Forward 10 pages">+10</button>` +
+    `<button type="button" class="jd-titles-pager-btn" data-${kind}-pager="last" ${dis(atEnd)} title="Last page">»</button>`;
+}
+
+/**
+ * Wires up event delegation on a pager container. {@code onJump(newPage)} runs after each
+ * navigation; the caller is expected to update state and reload data.
+ */
+function attachPagerHandlers(container, kind, getState, onJump) {
+  // Button clicks.
+  container.addEventListener('click', e => {
+    const btn = e.target.closest(`[data-${kind}-pager]`);
+    if (!btn || btn.disabled) return;
+    const action = btn.dataset[`${kind}Pager`];
+    const st = getState();
+    const total = Math.max(st.totalPages || 0, 1);
+    let target = st.page;
+    switch (action) {
+      case 'first':     target = 0; break;
+      case 'back10':    target = Math.max(0, st.page - 10); break;
+      case 'prev':      target = Math.max(0, st.page - 1); break;
+      case 'next':      target = Math.min(total - 1, st.page + 1); break;
+      case 'forward10': target = Math.min(total - 1, st.page + 10); break;
+      case 'last':      target = total - 1; break;
+    }
+    if (target !== st.page) onJump(target);
+  });
+
+  // Input handling: digits only (sanitize on input), debounce 500ms before jumping,
+  // Enter triggers immediate jump, invalid values flag the input red and are no-op.
+  let debounce = null;
+  container.addEventListener('input', e => {
+    const input = e.target.closest(`[data-${kind}-pager-input]`);
+    if (!input) return;
+    // Sanitize: keep digits only, no leading zeros allowed beyond the first character.
+    const cleaned = input.value.replace(/[^0-9]/g, '');
+    if (cleaned !== input.value) input.value = cleaned;
+    if (debounce) clearTimeout(debounce);
+    debounce = setTimeout(() => attemptInputJump(input, kind, getState, onJump), 500);
+  });
+  container.addEventListener('keydown', e => {
+    const input = e.target.closest(`[data-${kind}-pager-input]`);
+    if (!input) return;
+    if (e.key === 'Enter') {
+      if (debounce) { clearTimeout(debounce); debounce = null; }
+      attemptInputJump(input, kind, getState, onJump);
+      input.blur();
+    }
+  });
+  // On blur, restore the actual page number if the input is empty/invalid (don't strand the user
+  // on a broken visual state).
+  container.addEventListener('focusout', e => {
+    const input = e.target.closest(`[data-${kind}-pager-input]`);
+    if (!input) return;
+    const st = getState();
+    const total = Math.max(st.totalPages || 0, 1);
+    const v = parseInt(input.value, 10);
+    if (!Number.isFinite(v) || v < 1 || v > total) {
+      input.value = String(st.page + 1);
+      input.classList.remove('jd-pager-input-invalid');
+    }
+  });
+}
+
+function attemptInputJump(input, kind, getState, onJump) {
+  const st = getState();
+  const total = Math.max(st.totalPages || 0, 1);
+  const raw = input.value;
+  // Strict validation: digits only, in range [1, total].
+  const valid = /^[0-9]+$/.test(raw);
+  const v = valid ? parseInt(raw, 10) : NaN;
+  if (!valid || !Number.isFinite(v) || v < 1 || v > total) {
+    input.classList.add('jd-pager-input-invalid');
+    return;
+  }
+  input.classList.remove('jd-pager-input-invalid');
+  const target = v - 1;
+  if (target !== st.page) onJump(target);
 }
 
 function renderTitlesFooter() {
@@ -1531,12 +1632,9 @@ titlesTableBody.addEventListener('click', async e => {
   await openTitleDetail(titleData);
 });
 
-// Event delegation: pager
-titlesPager.addEventListener('click', async e => {
-  const btn = e.target.closest('[data-titles-pager]');
-  if (!btn || btn.disabled) return;
-  if (btn.dataset.titlesPager === 'next' && state.titles.hasMore) state.titles.page += 1;
-  if (btn.dataset.titlesPager === 'prev' && state.titles.page > 0) state.titles.page -= 1;
+// Pager handlers: shared logic via attachPagerHandlers.
+attachPagerHandlers(titlesPager, 'titles', () => state.titles, async (newPage) => {
+  state.titles.page = newPage;
   await loadTitlesPage();
 });
 
@@ -1586,14 +1684,15 @@ async function loadCollectionsTab() {
   try {
     const res = await fetch(`/api/javdb/discovery/titles?${params}`);
     if (!res.ok) {
-      c.rows = []; c.hasMore = false;
+      c.rows = []; c.hasMore = false; c.totalPages = 0;
     } else {
       const page = await res.json();
       c.rows = Array.isArray(page.rows) ? page.rows : [];
       c.hasMore = !!page.hasMore;
+      c.totalPages = page.totalPages || 0;
     }
   } catch (_) {
-    c.rows = []; c.hasMore = false;
+    c.rows = []; c.hasMore = false; c.totalPages = 0;
   }
   c.loading = false;
   renderCollectionsTable();
@@ -1651,13 +1750,7 @@ function renderCastChips(cast) {
 }
 
 function renderCollectionsPager() {
-  const c = state.collections;
-  const prevDisabled = c.page === 0;
-  const nextDisabled = !c.hasMore;
-  collectionsPager.innerHTML =
-    `<button type="button" class="jd-titles-pager-btn" data-collections-pager="prev" ${prevDisabled ? 'disabled' : ''}>← Prev</button>` +
-    `<span>Page ${c.page + 1}</span>` +
-    `<button type="button" class="jd-titles-pager-btn" data-collections-pager="next" ${nextDisabled ? 'disabled' : ''}>Next →</button>`;
+  renderPagerInto(collectionsPager, state.collections, 'collections');
 }
 
 function renderCollectionsFooter() {
@@ -1698,12 +1791,9 @@ collectionsTableBody.addEventListener('click', async e => {
   await openTitleDetail(titleData);
 });
 
-// Pager
-collectionsPager.addEventListener('click', async e => {
-  const btn = e.target.closest('[data-collections-pager]');
-  if (!btn || btn.disabled) return;
-  if (btn.dataset.collectionsPager === 'next' && state.collections.hasMore) state.collections.page += 1;
-  if (btn.dataset.collectionsPager === 'prev' && state.collections.page > 0) state.collections.page -= 1;
+// Pager: shared handler, navigates via state.collections.
+attachPagerHandlers(collectionsPager, 'collections', () => state.collections, async (newPage) => {
+  state.collections.page = newPage;
   await loadCollectionsTab();
 });
 
