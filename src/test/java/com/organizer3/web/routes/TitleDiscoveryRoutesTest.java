@@ -61,7 +61,7 @@ class TitleDiscoveryRoutesTest {
     void getTitles_recentReturnsServicePage() throws Exception {
         var row = new TitleDiscoveryService.TitleRow(
                 42L, "ABC-001", "Some Title",
-                new TitleDiscoveryService.ActressCredit(7L, "Alice", true),
+                new TitleDiscoveryService.ActressCredit(7L, "Alice", "eligible"),
                 "vol-a", "2026-04-27", null, null);
         when(service.listRecent(0, 50)).thenReturn(
                 new TitleDiscoveryService.TitlePage(List.of(row), 0, 50, false));
@@ -73,7 +73,7 @@ class TitleDiscoveryRoutesTest {
         assertEquals(1, body.get("rows").size());
         assertEquals("ABC-001", body.get("rows").get(0).get("code").asText());
         assertEquals("Alice", body.get("rows").get(0).get("actress").get("name").asText());
-        assertTrue(body.get("rows").get(0).get("actress").get("eligible").asBoolean());
+        assertEquals("eligible", body.get("rows").get(0).get("actress").get("eligibility").asText());
         assertFalse(body.get("hasMore").asBoolean());
         verify(service).listRecent(0, 50);
     }
@@ -99,8 +99,31 @@ class TitleDiscoveryRoutesTest {
 
     @Test
     void getTitles_rejectsUnknownSource() throws Exception {
-        HttpResponse<String> res = get("/api/javdb/discovery/titles?source=collection");
+        HttpResponse<String> res = get("/api/javdb/discovery/titles?source=nonsense");
         assertEquals(400, res.statusCode());
+    }
+
+    @Test
+    void getTitles_collectionReturnsServicePage() throws Exception {
+        var castMixed = List.of(
+                new TitleDiscoveryService.ActressCredit(7L, "Alice",   "eligible"),
+                new TitleDiscoveryService.ActressCredit(8L, "Bob",     "below_threshold"),
+                new TitleDiscoveryService.ActressCredit(9L, "Various", "sentinel"));
+        var row = new TitleDiscoveryService.CollectionRow(
+                42L, "COL-001", "Cool Compilation",
+                castMixed, "vol-a", "2026-04-27", null);
+        when(service.listCollections(0, 50)).thenReturn(
+                new TitleDiscoveryService.CollectionPage(List.of(row), 0, 50, false));
+
+        HttpResponse<String> res = get("/api/javdb/discovery/titles?source=collection");
+
+        assertEquals(200, res.statusCode());
+        JsonNode body = mapper.readTree(res.body());
+        var castNode = body.get("rows").get(0).get("cast");
+        assertEquals(3, castNode.size());
+        assertEquals("eligible",        castNode.get(0).get("eligibility").asText());
+        assertEquals("below_threshold", castNode.get(1).get("eligibility").asText());
+        assertEquals("sentinel",        castNode.get(2).get("eligibility").asText());
     }
 
     @Test
@@ -147,12 +170,23 @@ class TitleDiscoveryRoutesTest {
     }
 
     @Test
-    void postEnqueue_returns400OnInvalidSource() throws Exception {
-        when(service.enqueue(anyString(), anyList()))
-                .thenThrow(new IllegalArgumentException("source must be 'recent' or 'pool'"));
+    void postEnqueue_acceptsCollectionSource() throws Exception {
+        when(service.enqueue("collection", List.of(1L, 2L))).thenReturn(2);
 
         HttpResponse<String> res = post("/api/javdb/discovery/titles/enqueue",
-                "{\"source\":\"collection\",\"titleIds\":[1]}");
+                "{\"source\":\"collection\",\"titleIds\":[1,2]}");
+
+        assertEquals(200, res.statusCode());
+        verify(service).enqueue("collection", List.of(1L, 2L));
+    }
+
+    @Test
+    void postEnqueue_returns400OnInvalidSource() throws Exception {
+        when(service.enqueue(anyString(), anyList()))
+                .thenThrow(new IllegalArgumentException("source must be 'recent', 'pool', or 'collection'"));
+
+        HttpResponse<String> res = post("/api/javdb/discovery/titles/enqueue",
+                "{\"source\":\"nonsense\",\"titleIds\":[1]}");
 
         assertEquals(400, res.statusCode());
     }

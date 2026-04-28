@@ -40,6 +40,15 @@ function createState() {
       selected: new Set(),       // selected titleIds (numbers)
       loading: false,
     },
+    // Collections tab (M3) — multi-cast titles.
+    collections: {
+      page: 0,
+      pageSize: 50,
+      rows: [],
+      hasMore: false,
+      selected: new Set(),
+      loading: false,
+    },
   };
 }
 
@@ -72,6 +81,7 @@ const errorsView        = document.getElementById('jd-subview-errors');
 
 const enrichTab      = view.querySelector('[data-jd-tab="enrich"]');
 const titlesTab      = view.querySelector('[data-jd-tab="titles"]');
+const collectionsTab = view.querySelector('[data-jd-tab="collections"]');
 const queueTab       = view.querySelector('[data-jd-tab="queue"]');
 const jdBody         = view.querySelector('.jd-body');
 const queueBody      = document.getElementById('jd-queue-body');
@@ -89,6 +99,16 @@ const titlesFooter     = document.getElementById('jd-titles-footer');
 const titlesFooterCnt  = document.getElementById('jd-titles-footer-count');
 const titlesEnqueueBtn = document.getElementById('jd-titles-enqueue-btn');
 const titlesClearBtn   = document.getElementById('jd-titles-clear-btn');
+
+const collectionsBody       = document.getElementById('jd-collections-body');
+const collectionsEmpty      = document.getElementById('jd-collections-empty');
+const collectionsTableWrap  = document.getElementById('jd-collections-table-wrap');
+const collectionsTableBody  = document.getElementById('jd-collections-table-body');
+const collectionsPager      = document.getElementById('jd-collections-pager');
+const collectionsFooter     = document.getElementById('jd-collections-footer');
+const collectionsFooterCnt  = document.getElementById('jd-collections-footer-count');
+const collectionsEnqueueBtn = document.getElementById('jd-collections-enqueue-btn');
+const collectionsClearBtn   = document.getElementById('jd-collections-clear-btn');
 
 // ── Public API ─────────────────────────────────────────────────────────────
 
@@ -1165,26 +1185,28 @@ async function retryActress() {
 // ── Tab switching ──────────────────────────────────────────────────────────
 
 function switchJdTab(tab) {
-  enrichTab.classList.toggle('selected', tab === 'enrich');
-  titlesTab.classList.toggle('selected', tab === 'titles');
-  queueTab.classList.toggle('selected',  tab === 'queue');
-  jdBody.style.display     = tab === 'enrich' ? '' : 'none';
-  titlesBody.style.display = tab === 'titles' ? '' : 'none';
-  queueBody.style.display  = tab === 'queue'  ? '' : 'none';
+  enrichTab.classList.toggle('selected',      tab === 'enrich');
+  titlesTab.classList.toggle('selected',      tab === 'titles');
+  collectionsTab.classList.toggle('selected', tab === 'collections');
+  queueTab.classList.toggle('selected',       tab === 'queue');
+  jdBody.style.display          = tab === 'enrich'      ? '' : 'none';
+  titlesBody.style.display      = tab === 'titles'      ? '' : 'none';
+  collectionsBody.style.display = tab === 'collections' ? '' : 'none';
+  queueBody.style.display       = tab === 'queue'       ? '' : 'none';
   if (tab === 'queue') {
     loadQueueItems();
     startQueueItemsPoll();
   } else {
     stopQueueItemsPoll();
   }
-  if (tab === 'titles') {
-    loadTitlesTab();
-  }
+  if (tab === 'titles')      loadTitlesTab();
+  if (tab === 'collections') loadCollectionsTab();
 }
 
-enrichTab.addEventListener('click', () => switchJdTab('enrich'));
-titlesTab.addEventListener('click', () => switchJdTab('titles'));
-queueTab.addEventListener('click',  () => switchJdTab('queue'));
+enrichTab.addEventListener('click',      () => switchJdTab('enrich'));
+titlesTab.addEventListener('click',      () => switchJdTab('titles'));
+collectionsTab.addEventListener('click', () => switchJdTab('collections'));
+queueTab.addEventListener('click',       () => switchJdTab('queue'));
 
 // ── Queue items loader ─────────────────────────────────────────────────────
 
@@ -1414,8 +1436,8 @@ function renderTitlesTable() {
     const codeCell = `<span class="jd-titles-code" data-title-id="${r.titleId}">${esc(r.code)}</span>`;
     const actressCell = r.actress
       ? `<span class="jd-titles-actress">` +
-        `<span class="jd-titles-elig-dot ${r.actress.eligible ? 'jd-titles-elig-yes' : 'jd-titles-elig-no'}" ` +
-              `title="${r.actress.eligible ? 'Will chain a profile fetch' : 'Title-only fetch (no profile chain)'}"></span>` +
+        `<span class="jd-titles-elig-dot ${r.actress.eligibility === 'eligible' ? 'jd-titles-elig-yes' : 'jd-titles-elig-no'}" ` +
+              `title="${r.actress.eligibility === 'eligible' ? 'Will chain a profile fetch' : 'Title-only fetch (no profile chain)'}"></span>` +
         `<span>${esc(r.actress.name)}</span>` +
         `</span>`
       : '<span class="jd-titles-actress" style="color:#475569">—</span>';
@@ -1548,6 +1570,170 @@ titlesEnqueueBtn.addEventListener('click', async () => {
     await loadTitlesPage();
   } catch (_) {
     titlesEnqueueBtn.disabled = false;
+  }
+});
+
+// ── Collections tab (M3) ───────────────────────────────────────────────────
+
+async function loadCollectionsTab() {
+  const c = state.collections;
+  c.loading = true;
+  const params = new URLSearchParams({
+    source: 'collection',
+    page:   String(c.page),
+    pageSize: String(c.pageSize),
+  });
+  try {
+    const res = await fetch(`/api/javdb/discovery/titles?${params}`);
+    if (!res.ok) {
+      c.rows = []; c.hasMore = false;
+    } else {
+      const page = await res.json();
+      c.rows = Array.isArray(page.rows) ? page.rows : [];
+      c.hasMore = !!page.hasMore;
+    }
+  } catch (_) {
+    c.rows = []; c.hasMore = false;
+  }
+  c.loading = false;
+  renderCollectionsTable();
+  renderCollectionsPager();
+  renderCollectionsFooter();
+}
+
+function renderCollectionsTable() {
+  const c = state.collections;
+  if (c.rows.length === 0) {
+    collectionsEmpty.style.display = '';
+    collectionsTableWrap.style.display = 'none';
+    return;
+  }
+  collectionsEmpty.style.display = 'none';
+  collectionsTableWrap.style.display = '';
+
+  collectionsTableBody.innerHTML = c.rows.map(r => {
+    const blocked = r.queueStatus === 'pending' || r.queueStatus === 'in_flight';
+    const checked = c.selected.has(r.titleId);
+    const cb = blocked
+      ? '<span class="jd-titles-cb-blocked" aria-hidden="true">·</span>'
+      : `<input type="checkbox" class="jd-collections-cb" data-title-id="${r.titleId}" ${checked ? 'checked' : ''}>`;
+    const codeCell = `<span class="jd-titles-code" data-title-id="${r.titleId}">${esc(r.code)}</span>`;
+    const castCell = renderCastChips(r.cast || []);
+    const statusCell = renderTitlesStatusBadge(r);
+    return `<tr>
+      <td class="jd-titles-cb-col">${cb}</td>
+      <td>${codeCell}</td>
+      <td>${esc(r.titleEnglish || '')}</td>
+      <td>${castCell}</td>
+      <td class="jd-titles-volume">${esc(r.volumeId || '')}</td>
+      <td class="jd-titles-date">${fmtDate(r.addedDate)}</td>
+      <td>${statusCell}</td>
+    </tr>`;
+  }).join('');
+}
+
+function renderCastChips(cast) {
+  if (!cast.length) return '<span style="color:#475569">—</span>';
+  const chips = cast.map(a => {
+    const cls = a.eligibility === 'eligible'        ? 'jd-cast-chip-elig'
+              : a.eligibility === 'sentinel'        ? 'jd-cast-chip-sentinel'
+              :                                       'jd-cast-chip-below';
+    const icon = a.eligibility === 'eligible'  ? '✓'
+               : a.eligibility === 'sentinel'  ? '✗'
+               :                                 '◌';
+    const tip = a.eligibility === 'eligible'  ? 'Will chain a profile fetch'
+              : a.eligibility === 'sentinel'  ? 'Sentinel actress (no chain)'
+              :                                 'Below threshold (no chain)';
+    return `<span class="jd-cast-chip ${cls}" title="${esc(tip)}">` +
+           `<span class="jd-cast-chip-icon">${icon}</span>${esc(a.name)}</span>`;
+  });
+  return `<span class="jd-cast-strip">${chips.join('')}</span>`;
+}
+
+function renderCollectionsPager() {
+  const c = state.collections;
+  const prevDisabled = c.page === 0;
+  const nextDisabled = !c.hasMore;
+  collectionsPager.innerHTML =
+    `<button type="button" class="jd-titles-pager-btn" data-collections-pager="prev" ${prevDisabled ? 'disabled' : ''}>← Prev</button>` +
+    `<span>Page ${c.page + 1}</span>` +
+    `<button type="button" class="jd-titles-pager-btn" data-collections-pager="next" ${nextDisabled ? 'disabled' : ''}>Next →</button>`;
+}
+
+function renderCollectionsFooter() {
+  const n = state.collections.selected.size;
+  if (n === 0) {
+    collectionsFooter.style.display = 'none';
+    return;
+  }
+  collectionsFooter.style.display = '';
+  collectionsFooterCnt.textContent = `${n} selected`;
+  collectionsEnqueueBtn.disabled = false;
+  collectionsEnqueueBtn.textContent = `Enqueue ${n}`;
+}
+
+// Event delegation: row checkboxes
+collectionsTableBody.addEventListener('change', e => {
+  const cb = e.target.closest('.jd-collections-cb');
+  if (!cb) return;
+  const id = parseInt(cb.dataset.titleId, 10);
+  if (cb.checked) state.collections.selected.add(id);
+  else            state.collections.selected.delete(id);
+  renderCollectionsFooter();
+});
+
+// Event delegation: code click → open title detail (mirrors Titles tab pattern).
+collectionsTableBody.addEventListener('click', async e => {
+  const codeEl = e.target.closest('.jd-titles-code');
+  if (!codeEl) return;
+  const titleId = parseInt(codeEl.dataset.titleId, 10);
+  const row = state.collections.rows.find(r => r.titleId === titleId);
+  if (!row) return;
+  let titleData = { code: row.code };
+  try {
+    const res = await fetch(`/api/titles/by-code/${encodeURIComponent(row.code)}`);
+    if (res.ok) titleData = await res.json();
+  } catch (_) { /* fall through */ }
+  const { openTitleDetail } = await import('./title-detail.js');
+  await openTitleDetail(titleData);
+});
+
+// Pager
+collectionsPager.addEventListener('click', async e => {
+  const btn = e.target.closest('[data-collections-pager]');
+  if (!btn || btn.disabled) return;
+  if (btn.dataset.collectionsPager === 'next' && state.collections.hasMore) state.collections.page += 1;
+  if (btn.dataset.collectionsPager === 'prev' && state.collections.page > 0) state.collections.page -= 1;
+  await loadCollectionsTab();
+});
+
+// Clear
+collectionsClearBtn.addEventListener('click', () => {
+  state.collections.selected.clear();
+  renderCollectionsTable();
+  renderCollectionsFooter();
+});
+
+// Enqueue
+collectionsEnqueueBtn.addEventListener('click', async () => {
+  const c = state.collections;
+  const ids = Array.from(c.selected);
+  if (ids.length === 0) return;
+  collectionsEnqueueBtn.disabled = true;
+  try {
+    const res = await fetch('/api/javdb/discovery/titles/enqueue', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ source: 'collection', titleIds: ids }),
+    });
+    if (!res.ok) {
+      collectionsEnqueueBtn.disabled = false;
+      return;
+    }
+    c.selected.clear();
+    await loadCollectionsTab();
+  } catch (_) {
+    collectionsEnqueueBtn.disabled = false;
   }
 });
 

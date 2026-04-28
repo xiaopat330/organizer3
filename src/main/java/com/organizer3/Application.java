@@ -417,7 +417,7 @@ public class Application {
                         new com.organizer3.javdb.enrichment.JavdbProjector(jsonMapper),
                         javdbStagingRepo, javdbEnrichmentRepo,
                         enrichmentQueue, titleRepo, actressRepo, autoPromoter, avatarStore,
-                        enrichmentGradeStamper, ratingCurveRecomputer, profileChainGate);
+                        enrichmentGradeStamper, ratingCurveRecomputer, profileChainGate, titleActressRepo);
         commands.add(new EnrichActressCommand(actressRepo, titleRepo, enrichmentQueue));
 
         // Sync commands — registered dynamically from syncConfig.

@@ -36,9 +36,11 @@ public class TitleDiscoveryRoutes {
                     return;
                 }
                 ctx.json(service.listPool(volumeId, page, pageSize));
+            } else if ("collection".equals(source)) {
+                ctx.json(service.listCollections(page, pageSize));
             } else {
                 ctx.status(400);
-                ctx.json(java.util.Map.of("error", "source must be 'recent' or 'pool'"));
+                ctx.json(java.util.Map.of("error", "source must be 'recent', 'pool', or 'collection'"));
             }
         });
 

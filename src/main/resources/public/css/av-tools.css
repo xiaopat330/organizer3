@@ -6299,3 +6299,63 @@
   background: #1e2d42;
   color: #cbd5e1;
 }
+
+/* ── Collections tab (M3) ────────────────────────────────────────────── */
+
+.jd-tab-collections.selected {
+  color: #c084fc;
+  background: #1e1530;
+  border-color: #6b21a8;
+  border-bottom-color: #a855f7;
+}
+.jd-collections-body {
+  padding: 16px;
+  overflow-y: auto;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+.jd-collections-empty {
+  color: #666;
+  font-size: 14px;
+  padding: 24px 0;
+  text-align: center;
+}
+.jd-collections-table-wrap { overflow-x: auto; }
+
+/* Cast chip strip per row. Three eligibility states: green / grey / red. */
+.jd-cast-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  align-items: center;
+}
+.jd-cast-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 1px 8px;
+  border-radius: 11px;
+  font-size: 11px;
+  border: 1px solid;
+  white-space: nowrap;
+}
+.jd-cast-chip-elig {
+  background: #0c2616;
+  color: #4ade80;
+  border-color: #166534;
+}
+.jd-cast-chip-below {
+  background: #1f2937;
+  color: #94a3b8;
+  border-color: #334155;
+}
+.jd-cast-chip-sentinel {
+  background: #2a1010;
+  color: #f87171;
+  border-color: #7f1d1d;
+}
+.jd-cast-chip-icon {
+  font-size: 9px;
+  line-height: 1;
+}

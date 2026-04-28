@@ -251,7 +251,8 @@ class TitleDiscoveryServiceTest {
         for (var row : rows) {
             assertNotNull(row.actress());
             assertEquals("Alice", row.actress().name());
-            assertTrue(row.actress().eligible(), "Alice has 2 titles ≥ threshold 2 → eligible");
+            assertEquals("eligible", row.actress().eligibility(),
+                    "Alice has 2 titles ≥ threshold 2 → eligible");
         }
     }
 
@@ -265,8 +266,8 @@ class TitleDiscoveryServiceTest {
         var rows = service.listRecent(0, 50).rows();
         assertEquals(1, rows.size());
         assertNotNull(rows.get(0).actress());
-        assertFalse(rows.get(0).actress().eligible(),
-                "sentinel actress must be ineligible regardless of title count");
+        assertEquals("sentinel", rows.get(0).actress().eligibility(),
+                "sentinel actress is its own eligibility code (red badge)");
     }
 
     @Test
@@ -316,6 +317,94 @@ class TitleDiscoveryServiceTest {
                 "empty pools must still appear so they can be greyed out in the UI");
     }
 
+    // ── listCollections: filter, cast eligibility, ordering ────────────────
+
+    @Test
+    void listCollections_includesOnlyMultiActressTitles() {
+        long alice = insertActress("Alice");
+        long bob   = insertActress("Bob");
+        long solo  = insertTitle("SOLO-001");
+        long duo   = insertTitle("DUO-001");
+        insertCredit(solo, alice);
+        insertCredit(duo,  alice);
+        insertCredit(duo,  bob);
+        insertLocation(solo, "vol-recent", "/s", "2026-04-25");
+        insertLocation(duo,  "vol-recent", "/d", "2026-04-26");
+
+        var page = service.listCollections(0, 50);
+
+        assertEquals(1, page.rows().size(), "single-actress titles must be excluded");
+        assertEquals("DUO-001", page.rows().get(0).code());
+    }
+
+    @Test
+    void listCollections_visibleAcrossAllStructureTypes_optionB() {
+        // Option B from the design discussion: multi-actress titles surface here regardless
+        // of the volume's structure_type. The volume column tells the user where the title is.
+        long a1 = insertActress("Alice");
+        long a2 = insertActress("Bob");
+        long onColl = insertTitle("COL-001");
+        long onConv = insertTitle("CONV-001");
+        long onPool = insertTitle("POOL-001");
+        for (long t : new long[] {onColl, onConv, onPool}) {
+            insertCredit(t, a1);
+            insertCredit(t, a2);
+        }
+        insertLocation(onColl, "pool-jav", "/c", "2026-04-25");      // sort_pool here for variety
+        insertLocation(onConv, "vol-recent", "/v", "2026-04-26");    // conventional
+        insertLocation(onPool, "pool-av", "/p", "2026-04-27");
+
+        var codes = service.listCollections(0, 50).rows().stream()
+                .map(TitleDiscoveryService.CollectionRow::code).toList();
+        assertEquals(3, codes.size(), "multi-actress titles surface from all structure types");
+        // Sort: code asc.
+        assertEquals(List.of("COL-001", "CONV-001", "POOL-001"), codes);
+    }
+
+    @Test
+    void listCollections_castShowsThreeStateEligibility() {
+        long realEligible    = insertActress("Eligible");        // 2 titles → eligible
+        long realIneligible  = insertActress("Ineligible");      // 1 title → below_threshold
+        long sentinel        = insertSentinelActress("Various"); // sentinel
+        long t = insertTitle("MIX-001");
+        long padding = insertTitle("PAD-001");
+        insertCredit(t, realEligible);
+        insertCredit(t, realIneligible);
+        insertCredit(t, sentinel);
+        // Give realEligible a second credit so she meets the threshold of 2.
+        insertCredit(padding, realEligible);
+        insertLocation(t,       "vol-recent", "/m", "2026-04-27");
+        insertLocation(padding, "vol-recent", "/p", "2026-04-26");
+
+        var rows = service.listCollections(0, 50).rows();
+        var mix = rows.stream().filter(r -> r.code().equals("MIX-001")).findFirst().orElseThrow();
+        assertEquals(3, mix.cast().size());
+        var byName = mix.cast().stream().collect(java.util.stream.Collectors.toMap(
+                TitleDiscoveryService.ActressCredit::name, c -> c));
+        assertEquals("eligible",        byName.get("Eligible").eligibility());
+        assertEquals("below_threshold", byName.get("Ineligible").eligibility());
+        assertEquals("sentinel",        byName.get("Various").eligibility());
+    }
+
+    @Test
+    void listCollections_excludesEnrichedAndUnderscoreCodes() {
+        long a1 = insertActress("A");
+        long a2 = insertActress("B");
+        long enriched  = insertTitle("ENR-001");
+        long sandbox   = insertTitle("_sandbox");
+        long shown     = insertTitle("SHOW-001");
+        for (long t : new long[] {enriched, sandbox, shown}) {
+            insertCredit(t, a1);
+            insertCredit(t, a2);
+            insertLocation(t, "vol-recent", "/x" + t, "2026-04-26");
+        }
+        insertEnrichment(enriched, "slug-x");
+
+        var codes = service.listCollections(0, 50).rows().stream()
+                .map(TitleDiscoveryService.CollectionRow::code).toList();
+        assertEquals(List.of("SHOW-001"), codes);
+    }
+
     // ── enqueue: source validation, cap, actress lookup ────────────────────
 
     @Test
@@ -323,7 +412,31 @@ class TitleDiscoveryServiceTest {
         assertThrows(IllegalArgumentException.class,
                 () -> service.enqueue("actress", List.of(1L)));
         assertThrows(IllegalArgumentException.class,
-                () -> service.enqueue("collection", List.of(1L)));
+                () -> service.enqueue("nonsense", List.of(1L)));
+    }
+
+    @Test
+    void enqueue_collection_passesNullActressId() {
+        long alice = insertActress("Alice");
+        long bob   = insertActress("Bob");
+        long t     = insertTitle("COL-001");
+        insertCredit(t, alice);
+        insertCredit(t, bob);
+        insertLocation(t, "vol-recent", "/c", "2026-04-27");
+
+        int n = service.enqueue("collection", List.of(t));
+        assertEquals(1, n);
+
+        Long actressId = jdbi.withHandle(h -> h.createQuery(
+                "SELECT actress_id FROM javdb_enrichment_queue WHERE target_id = :t")
+                .bind("t", t).mapTo(Long.class).findOne().orElse(null));
+        assertNull(actressId,
+                "collection-source enqueues never bind a single actress; chain decision is per-cast at runtime");
+
+        String src = jdbi.withHandle(h -> h.createQuery(
+                "SELECT source FROM javdb_enrichment_queue WHERE target_id = :t")
+                .bind("t", t).mapTo(String.class).one());
+        assertEquals(EnrichmentJob.SOURCE_COLLECTION, src);
     }
 
     @Test

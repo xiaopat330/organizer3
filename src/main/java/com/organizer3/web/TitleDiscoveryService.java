@@ -51,7 +51,9 @@ public class TitleDiscoveryService {
 
     // ── Records ────────────────────────────────────────────────────────────
 
-    public record ActressCredit(long id, String name, boolean eligible) {}
+    /** A single credited actress on a title. {@code eligibility} is one of the
+     *  {@link ProfileChainGate} codes: {@code eligible} | {@code below_threshold} | {@code sentinel}. */
+    public record ActressCredit(long id, String name, String eligibility) {}
 
     public record TitleRow(
             long titleId,
@@ -64,7 +66,20 @@ public class TitleDiscoveryService {
             String queueStatus       // null | 'pending' | 'in_flight' | 'failed'
     ) {}
 
+    /** Multi-actress row for the Collections tab. {@code cast} contains all credited
+     *  actresses (size >= 2). */
+    public record CollectionRow(
+            long titleId,
+            String code,
+            String titleEnglish,
+            List<ActressCredit> cast,
+            String volumeId,
+            String addedDate,
+            String queueStatus
+    ) {}
+
     public record TitlePage(List<TitleRow> rows, int page, int pageSize, boolean hasMore) {}
+    public record CollectionPage(List<CollectionRow> rows, int page, int pageSize, boolean hasMore) {}
 
     public record PoolChip(String volumeId, int unenrichedCount) {}
 
@@ -116,23 +131,134 @@ public class TitleDiscoveryService {
     }
 
     /**
+     * Multi-actress unenriched titles, regardless of volume structure type. Sorted by
+     * {@code titles.code} ascending for linear curation.
+     *
+     * <p>The intentional volume scope is "anywhere" — multi-actress titles on conventional /
+     * sort_pool / exhibition volumes are real and surfacing them here keeps them enrichable
+     * without forcing a volume-classification change first. The volume column on each row
+     * exposes the source so the user can spot misplaced titles.
+     */
+    public CollectionPage listCollections(int page, int pageSize) {
+        int p  = Math.max(page, 0);
+        int ps = Math.max(pageSize, 1);
+        int offset = p * ps;
+        int limit = ps + 1;
+
+        // One row per title (groups via title_id). cast is collected in a follow-up query
+        // because grouping a chip-list on the SQL side is awkward.
+        String sql = """
+                SELECT
+                  t.id            AS title_id,
+                  t.code          AS code,
+                  t.title_english AS title_english,
+                  loc.added_date  AS added_date,
+                  loc.volume_id   AS volume_id,
+                  jeq.queue_status AS queue_status
+                FROM titles t
+                LEFT JOIN (
+                    SELECT title_id, volume_id, added_date,
+                           ROW_NUMBER() OVER (
+                               PARTITION BY title_id
+                               ORDER BY (added_date IS NULL), added_date DESC
+                           ) AS rn
+                    FROM title_locations
+                ) loc ON loc.title_id = t.id AND loc.rn = 1
+                LEFT JOIN title_javdb_enrichment tje ON tje.title_id = t.id
+                LEFT JOIN (
+                    SELECT target_id,
+                           CASE
+                             WHEN SUM(CASE WHEN status = 'in_flight' THEN 1 ELSE 0 END) > 0 THEN 'in_flight'
+                             WHEN SUM(CASE WHEN status = 'pending'   THEN 1 ELSE 0 END) > 0 THEN 'pending'
+                             WHEN SUM(CASE WHEN status = 'failed'    THEN 1 ELSE 0 END) > 0 THEN 'failed'
+                             ELSE NULL
+                           END AS queue_status
+                    FROM javdb_enrichment_queue
+                    WHERE job_type = 'fetch_title'
+                    GROUP BY target_id
+                ) jeq ON jeq.target_id = t.id
+                WHERE tje.title_id IS NULL
+                  AND (SELECT COUNT(*) FROM title_actresses WHERE title_id = t.id) >= 2
+                  AND t.code NOT LIKE '\\_%' ESCAPE '\\'
+                  AND loc.title_id IS NOT NULL
+                ORDER BY t.code ASC
+                LIMIT :limit OFFSET :offset
+                """;
+
+        // Skeleton rows (no cast yet).
+        record Skeleton(long titleId, String code, String titleEnglish,
+                        String addedDate, String volumeId, String queueStatus) {}
+        List<Skeleton> skel = jdbi.withHandle(h -> h.createQuery(sql)
+                .bind("limit", limit).bind("offset", offset)
+                .map((rs, ctx) -> new Skeleton(
+                        rs.getLong("title_id"),
+                        rs.getString("code"),
+                        rs.getString("title_english"),
+                        rs.getString("added_date"),
+                        rs.getString("volume_id"),
+                        rs.getString("queue_status")))
+                .list());
+
+        if (skel.isEmpty()) {
+            return new CollectionPage(List.of(), p, ps, false);
+        }
+
+        boolean hasMore = skel.size() > ps;
+        if (hasMore) skel = skel.subList(0, ps);
+
+        // Batch-fetch cast for all visible titles, then attach per-actress eligibility.
+        List<Long> ids = skel.stream().map(Skeleton::titleId).toList();
+        java.util.Map<Long, List<ActressCredit>> cast = new java.util.LinkedHashMap<>();
+        jdbi.useHandle(h -> h.createQuery("""
+                SELECT ta.title_id, a.id AS actress_id, a.canonical_name AS name
+                FROM title_actresses ta
+                JOIN actresses a ON a.id = ta.actress_id
+                WHERE ta.title_id IN (<ids>)
+                ORDER BY ta.title_id, a.canonical_name
+                """)
+                .bindList("ids", ids)
+                .map((rs, ctx) -> {
+                    long titleId = rs.getLong("title_id");
+                    long actressId = rs.getLong("actress_id");
+                    String name = rs.getString("name");
+                    cast.computeIfAbsent(titleId, k -> new ArrayList<>())
+                            .add(new ActressCredit(actressId, name, gate.eligibility(actressId)));
+                    return null;
+                })
+                .list());
+
+        List<CollectionRow> rows = new ArrayList<>(skel.size());
+        for (Skeleton s : skel) {
+            rows.add(new CollectionRow(
+                    s.titleId(), s.code(), s.titleEnglish(),
+                    cast.getOrDefault(s.titleId(), List.of()),
+                    s.volumeId(), s.addedDate(), s.queueStatus()));
+        }
+        return new CollectionPage(List.copyOf(rows), p, ps, hasMore);
+    }
+
+    /**
      * Bulk-enqueue title-driven fetch_title jobs.
      *
-     * @param source one of {@code 'recent'} or {@code 'pool'}
+     * @param source one of {@code 'recent'}, {@code 'pool'}, or {@code 'collection'}
      * @param titleIds list of title ids; truncated to {@link #ENQUEUE_CAP}
      * @return number of titles processed (after cap)
      */
     public int enqueue(String source, List<Long> titleIds) {
-        if (!EnrichmentJob.SOURCE_RECENT.equals(source) && !EnrichmentJob.SOURCE_POOL.equals(source)) {
-            throw new IllegalArgumentException("source must be 'recent' or 'pool', got: " + source);
+        if (!EnrichmentJob.SOURCE_RECENT.equals(source)
+                && !EnrichmentJob.SOURCE_POOL.equals(source)
+                && !EnrichmentJob.SOURCE_COLLECTION.equals(source)) {
+            throw new IllegalArgumentException("source must be 'recent', 'pool', or 'collection', got: " + source);
         }
         if (titleIds == null || titleIds.isEmpty()) return 0;
         List<Long> trimmed = titleIds.size() > ENQUEUE_CAP
                 ? titleIds.subList(0, ENQUEUE_CAP)
                 : titleIds;
 
+        boolean isCollection = EnrichmentJob.SOURCE_COLLECTION.equals(source);
         for (Long titleId : trimmed) {
-            Long actressId = lookupSingleActressId(titleId);
+            // Collection jobs always pass actressId=null — the runner handles per-cast chaining.
+            Long actressId = isCollection ? null : lookupSingleActressId(titleId);
             queue.enqueueTitle(source, titleId, actressId);
         }
         return trimmed.size();
@@ -211,7 +337,7 @@ public class TitleDiscoveryService {
                 ActressCredit credit = actressNull ? null : new ActressCredit(
                         actressId,
                         rs.getString("actress_name"),
-                        gate.shouldChainProfile(actressId)
+                        gate.eligibility(actressId)
                 );
                 return new TitleRow(
                         rs.getLong("title_id"),
