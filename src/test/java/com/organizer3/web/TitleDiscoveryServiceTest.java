@@ -61,7 +61,10 @@ class TitleDiscoveryServiceTest {
     // ── listRecent: filter, sort, pagination, status mapping ───────────────
 
     @Test
-    void listRecent_excludesFetchedAndIncludesNullOrSlugOnlyStaging() {
+    void listRecent_excludesEnrichedTitlesNotStagingFetched() {
+        // The authoritative "enriched" signal is presence of a row in title_javdb_enrichment,
+        // not staging.status='fetched'. Staging may be NULL even after a successful enrichment
+        // (the staging row can be cleaned up post-promotion or never written for that path).
         long t1 = insertTitle("CODE-001");
         long t2 = insertTitle("CODE-002");
         long t3 = insertTitle("CODE-003");
@@ -69,17 +72,31 @@ class TitleDiscoveryServiceTest {
         insertLocation(t2, "vol-recent", "/b", "2026-04-26");
         insertLocation(t3, "vol-recent", "/c", "2026-04-27");
 
-        // t1: no staging → unenriched. t2: status='slug_only' → unenriched. t3: 'fetched' → hidden.
+        // t1: no enrichment row → unenriched (visible).
+        // t2: staging='slug_only' but no enrichment row → unenriched (visible, staging badge).
         insertStaging(t2, "slug_only");
-        insertStaging(t3, "fetched");
+        // t3: enriched (in title_javdb_enrichment), staging is NULL → must be hidden.
+        insertEnrichment(t3, "abc123");
 
         var page = service.listRecent(0, 50);
 
-        assertEquals(2, page.rows().size(), "fetched titles must be excluded");
-        // Sort: most recent added_date first.
-        assertEquals("CODE-002", page.rows().get(0).code());
-        assertEquals("CODE-001", page.rows().get(1).code());
+        var codes = page.rows().stream().map(TitleDiscoveryService.TitleRow::code).toList();
+        assertEquals(List.of("CODE-002", "CODE-001"), codes,
+                "enriched titles must be excluded; sort is added_date desc");
         assertFalse(page.hasMore());
+    }
+
+    @Test
+    void listRecent_excludesEnrichedEvenWhenStagingIsNull() {
+        // Real-world repro: title is fully enriched (title_javdb_enrichment present) but the
+        // staging row is absent. The earlier filter only checked staging and surfaced the row.
+        long t = insertTitle("ENRICHED-001");
+        insertLocation(t, "vol-recent", "/e", "2026-04-27");
+        insertEnrichment(t, "slug-x");
+        // No insertStaging — javdb_title_staging.title_id IS NULL for this row.
+
+        assertEquals(0, service.listRecent(0, 50).rows().size(),
+                "enriched title with NULL staging must be hidden from Titles tab");
     }
 
     @Test
@@ -398,6 +415,14 @@ class TitleDiscoveryServiceTest {
                 "INSERT INTO title_locations(title_id, volume_id, partition_id, path, last_seen_at, added_date) " +
                 "VALUES (:t, :v, 'p1', :p, :d, :d)")
                 .bind("t", titleId).bind("v", volumeId).bind("p", path).bind("d", addedDate)
+                .execute());
+    }
+
+    private void insertEnrichment(long titleId, String slug) {
+        jdbi.useHandle(h -> h.createUpdate(
+                "INSERT INTO title_javdb_enrichment(title_id, javdb_slug, fetched_at) " +
+                "VALUES (:t, :s, :now)")
+                .bind("t", titleId).bind("s", slug).bind("now", "2026-04-27T00:00:00Z")
                 .execute());
     }
 

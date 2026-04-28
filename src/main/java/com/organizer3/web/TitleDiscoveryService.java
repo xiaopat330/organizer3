@@ -18,9 +18,11 @@ import java.util.List;
  * {@code sort_pool} volumes. Titles with two or more credited actresses are excluded
  * (those belong to the Collections tab — M3).
  *
- * <p>"Unenriched" here means {@code javdb_title_staging.status} is NULL or any value
- * other than {@code 'fetched'}. Queue state is reported separately and does not gate
- * row visibility.
+ * <p>"Unenriched" here means there is no row in {@code title_javdb_enrichment} for the
+ * title — that table is the authoritative post-promotion enrichment record. The raw
+ * staging table ({@code javdb_title_staging}) is reported in the {@code stagingStatus}
+ * field for UI badging (e.g. "slug only") but does not gate row visibility, since a
+ * staging row may be absent or cleaned up after a successful promotion.
  */
 public class TitleDiscoveryService {
 
@@ -99,8 +101,8 @@ public class TitleDiscoveryService {
                         SELECT COUNT(DISTINCT t.id)
                         FROM titles t
                         JOIN title_locations tl ON tl.title_id = t.id AND tl.volume_id = :volumeId
-                        LEFT JOIN javdb_title_staging jts ON jts.title_id = t.id
-                        WHERE (jts.status IS NULL OR jts.status <> 'fetched')
+                        LEFT JOIN title_javdb_enrichment tje ON tje.title_id = t.id
+                        WHERE tje.title_id IS NULL
                           AND (SELECT COUNT(*) FROM title_actresses ta WHERE ta.title_id = t.id) <= 1
                           AND t.code NOT LIKE '\\_%' ESCAPE '\\'
                         """)
@@ -175,6 +177,7 @@ public class TitleDiscoveryService {
                 ) loc ON loc.title_id = t.id AND loc.rn = 1
                 LEFT JOIN volumes v ON v.id = loc.volume_id
                 LEFT JOIN javdb_title_staging jts ON jts.title_id = t.id
+                LEFT JOIN title_javdb_enrichment tje ON tje.title_id = t.id
                 LEFT JOIN (
                     SELECT target_id,
                            CASE
@@ -187,7 +190,7 @@ public class TitleDiscoveryService {
                     WHERE job_type = 'fetch_title'
                     GROUP BY target_id
                 ) jeq ON jeq.target_id = t.id
-                WHERE (jts.status IS NULL OR jts.status <> 'fetched')
+                WHERE tje.title_id IS NULL
                   AND (SELECT COUNT(*) FROM title_actresses WHERE title_id = t.id) <= 1
                   AND t.code NOT LIKE '\\_%' ESCAPE '\\'
                 """
