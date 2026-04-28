@@ -18,6 +18,8 @@ public class TitleSummary {
     Long actressId;
     String actressName;
     String actressTier;
+    /** ISO date of birth for the primary actress, when known — used to compute age at release. */
+    String actressDateOfBirth;
     String addedDate;
     String coverUrl;
     String companyName;
@@ -81,5 +83,7 @@ public class TitleSummary {
         long id;
         String name;
         String tier;
+        /** ISO date of birth, when known — used to compute age at title release. */
+        String dateOfBirth;
     }
 }

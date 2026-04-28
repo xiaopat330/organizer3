@@ -903,9 +903,27 @@
 /* Grade badge overlay — bottom-right corner of the cover image. */
 .cover-grade {
   position: absolute;
-  bottom: 7px;
+  bottom: 14px;
   right: 7px;
   z-index: 2;
+}
+
+/* Age-at-release pill — bottom-left corner of the cover. Positioning only;
+   color/tier styling comes from the .age-pill[data-age-tier] rules. */
+.cover-age {
+  position: absolute;
+  bottom: 14px;
+  left: 7px;
+  z-index: 2;
+  pointer-events: none;
+}
+
+/* Larger size + reset margin in the cover-overlay context. */
+.cover-age.age-pill {
+  margin-left: 0;
+  font-size: 0.95rem;
+  padding: 3px 11px;
+  border-radius: 999px;
 }
 
 .cover-grade .grade-badge {

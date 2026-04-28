@@ -327,6 +327,7 @@ public class ActressBrowseService {
         Actress actress = actressRepo.findById(actressId).orElse(null);
         String actressName = actress != null ? actress.getCanonicalName() : null;
         String actressTier = actress != null && actress.getTier() != null ? actress.getTier().name() : null;
+        String actressDob = actress != null && actress.getDateOfBirth() != null ? actress.getDateOfBirth().toString() : null;
 
         List<Long> titleIds = titles.stream()
                 .map(Title::getId)
@@ -360,6 +361,7 @@ public class ActressBrowseService {
                             .actressId(actressId)
                             .actressName(actressName)
                             .actressTier(actressTier)
+                            .actressDateOfBirth(actressDob)
                             .addedDate(t.getAddedDate() != null ? t.getAddedDate().toString() : null)
                             .coverUrl(coverPath.find(t)
                                     .map(p -> "/covers/" + t.getLabel().toUpperCase() + "/" + p.getFileName())

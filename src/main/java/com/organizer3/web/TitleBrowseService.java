@@ -290,7 +290,7 @@ public class TitleBrowseService {
     }
 
     private List<TitleSummary> toSummaries(List<Title> titles) {
-        record ActressInfo(String name, String tier) {}
+        record ActressInfo(String name, String tier, String dateOfBirth) {}
 
         Map<Long, ActressInfo> actressInfo = new HashMap<>(titles.stream()
                 .map(Title::getActressId)
@@ -300,8 +300,9 @@ public class TitleBrowseService {
                         id -> id,
                         id -> actressRepo.findById(id)
                                 .map(a -> new ActressInfo(a.getCanonicalName(),
-                                        a.getTier() != null ? a.getTier().name() : null))
-                                .orElse(new ActressInfo(null, null))
+                                        a.getTier() != null ? a.getTier().name() : null,
+                                        a.getDateOfBirth() != null ? a.getDateOfBirth().toString() : null))
+                                .orElse(new ActressInfo(null, null, null))
                 )));
 
         Map<String, Label> labelMap = labelRepo.findAllAsMap();
@@ -349,12 +350,14 @@ public class TitleBrowseService {
                                         ActressInfo linked = actressInfo.computeIfAbsent(id,
                                                 k -> actressRepo.findById(k)
                                                         .map(a -> new ActressInfo(a.getCanonicalName(),
-                                                                a.getTier() != null ? a.getTier().name() : null))
-                                                        .orElse(new ActressInfo(null, null)));
+                                                                a.getTier() != null ? a.getTier().name() : null,
+                                                                a.getDateOfBirth() != null ? a.getDateOfBirth().toString() : null))
+                                                        .orElse(new ActressInfo(null, null, null)));
                                         return TitleSummary.ActressEntry.builder()
                                                 .id(id)
                                                 .name(linked.name())
                                                 .tier(linked.tier())
+                                                .dateOfBirth(linked.dateOfBirth())
                                                 .build();
                                     })
                                     .filter(e -> e.getName() != null)
@@ -380,6 +383,7 @@ public class TitleBrowseService {
                             .actressId(t.getActressId())
                             .actressName(ai != null ? ai.name() : null)
                             .actressTier(ai != null ? ai.tier() : null)
+                            .actressDateOfBirth(ai != null ? ai.dateOfBirth() : null)
                             .addedDate(t.getAddedDate() != null ? t.getAddedDate().toString() : null)
                             .coverUrl(coverUrl)
                             .companyName(lbl != null ? lbl.company() : null)

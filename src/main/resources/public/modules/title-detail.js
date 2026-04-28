@@ -1,4 +1,4 @@
-import { esc, fmtDate, timeAgo } from './utils.js';
+import { esc, fmtDate, timeAgo, ageAtDate } from './utils.js';
 import { ICON_FAV_LG, ICON_BM_LG, gradeBadgeHtml, tagBadgeHtml, tagBadgeDerivedHtml, javdbRawTagHtml } from './icons.js';
 import { showView, updateBreadcrumb, mode } from './grid.js';
 import { makeTitleCard, updateCardIndicators } from './cards.js';
@@ -250,7 +250,7 @@ function renderTitleDetail(t) {
   // Actresses — prefer multi-actress list, fall back to single actressId
   const actresses = (t.actresses && t.actresses.length > 0)
     ? t.actresses
-    : (t.actressId ? [{ id: t.actressId, name: t.actressName, tier: t.actressTier }] : []);
+    : (t.actressId ? [{ id: t.actressId, name: t.actressName, tier: t.actressTier, dateOfBirth: t.actressDateOfBirth }] : []);
 
   let actressesHtml = '';
   if (actresses.length > 0) {
@@ -269,7 +269,11 @@ function renderTitleDetail(t) {
         const tierHtml = a.tier
           ? ` <span class="tier-badge tier-${esc(a.tier)}">${esc(a.tier.toLowerCase())}</span>`
           : '';
-        return `<div class="title-detail-actress-row"><a class="actress-link title-detail-actress-link" href="#" data-actress-id="${a.id}">${nameHtml}${tierHtml}</a></div>`;
+        const age = ageAtDate(a.dateOfBirth, t.releaseDate);
+        const ageHtml = age != null
+          ? ` <span class="title-detail-actress-age">age ${age}</span>`
+          : '';
+        return `<div class="title-detail-actress-row"><a class="actress-link title-detail-actress-link" href="#" data-actress-id="${a.id}">${nameHtml}${tierHtml}</a>${ageHtml}</div>`;
       })
       .join('');
     actressesHtml = `<div class="title-detail-row">
