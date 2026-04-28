@@ -1,4 +1,4 @@
-import { esc, splitName, renderDateRange, timeAgoShort } from './utils.js';
+import { esc, splitName, renderDateRange, timeAgoShort, ageAtDate, agePillTier } from './utils.js';
 import { ICON_FAV_SM, ICON_BM_SM, ICON_BM_SM_OFF, titleCodeClass, gradeBadgeHtml, tagBadgeHtml, javdbRawTagHtml } from './icons.js';
 import { activeIntervals, activeObservers } from './grid.js';
 
@@ -25,9 +25,16 @@ export function makeTitleCard(t) {
   card.dataset.code = t.code;
 
   const gradeOverlayHtml = t.grade ? `<div class="cover-grade">${gradeBadgeHtml(t.grade)}</div>` : '';
+  // Single-actress age pill at bottom-left of the cover. Multi-actress tickers stay inline.
+  const cardAge = (t.actresses && t.actresses.length > 1)
+    ? null
+    : ageAtDate(t.actressDateOfBirth, t.releaseDate);
+  const ageOverlayHtml = cardAge != null
+    ? `<div class="cover-age age-pill" data-age-tier="${agePillTier(cardAge)}">${cardAge}</div>`
+    : '';
   const coverHtml = t.coverUrl
-    ? `<div class="cover-wrap"><img class="cover-img" src="${esc(t.coverUrl)}" alt="${esc(t.code)}" loading="lazy">${gradeOverlayHtml}</div>`
-    : `<div class="cover-wrap"><div class="cover-placeholder">${esc(t.code)}</div>${gradeOverlayHtml}</div>`;
+    ? `<div class="cover-wrap"><img class="cover-img" src="${esc(t.coverUrl)}" alt="${esc(t.code)}" loading="lazy">${gradeOverlayHtml}${ageOverlayHtml}</div>`
+    : `<div class="cover-wrap"><div class="cover-placeholder">${esc(t.code)}</div>${gradeOverlayHtml}${ageOverlayHtml}</div>`;
 
   let actressHtml;
   if (t.actresses && t.actresses.length > 1) {
@@ -36,7 +43,9 @@ export function makeTitleCard(t) {
       const nameHtml = ln
         ? `<span class="ticker-first">${esc(fn)}</span> <span class="ticker-last">${esc(ln)}</span>`
         : `<span class="ticker-first">${esc(fn)}</span>`;
-      return `<a class="actress-link ticker-name" href="#" data-actress-id="${a.id}">${nameHtml}</a>`;
+      const age = ageAtDate(a.dateOfBirth, t.releaseDate);
+      const ageInner = age != null ? `<span class="ticker-age"> · ${age}</span>` : '';
+      return `<a class="actress-link ticker-name" href="#" data-actress-id="${a.id}">${nameHtml}${ageInner}</a>`;
     });
     const tickerContent = names.join('<span class="ticker-sep">, </span>');
     actressHtml = `<div class="actress-name actress-ticker">

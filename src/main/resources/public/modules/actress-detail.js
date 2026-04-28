@@ -1,4 +1,4 @@
-import { esc, fmtDate, isStale, setStatus, splitName, timeAgo } from './utils.js';
+import { esc, fmtDate, isStale, setStatus, splitName, timeAgo, agePillTier } from './utils.js';
 import { ICON_FAV_LG, ICON_BM_LG, ICON_REJ_LG } from './icons.js';
 import { showView, setActiveGrid, ensureActressDetailSentinel, ScrollingGrid, updateBreadcrumb, mode } from './grid.js';
 import { makeTitleCard, updateActressCardIndicators } from './cards.js';
@@ -382,7 +382,7 @@ function renderVitalsSection(a) {
   if (a.dateOfBirth) {
     const age = computeAge(a.dateOfBirth, a.activeTo);
     const ageLabel = age != null
-      ? (a.activeTo ? ` <span class="vital-subtle">age ${age} at retirement</span>` : ` <span class="vital-subtle">age ${age}</span>`)
+      ? ` <span class="age-pill" data-age-tier="${agePillTier(age)}">${a.activeTo ? `age ${age} at retirement` : `age ${age}`}</span>`
       : '';
     rows.push(vitalRow('Born', `${esc(fmtDate(a.dateOfBirth))}${ageLabel}`));
   }
