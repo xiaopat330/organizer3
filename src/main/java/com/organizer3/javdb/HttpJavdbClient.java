@@ -90,6 +90,12 @@ public class HttpJavdbClient implements JavdbClient {
         return fetch(BASE_URL + "/actors/" + slug);
     }
 
+    @Override
+    public String fetchActressPage(String slug, int page) {
+        if (page <= 1) return fetchActressPage(slug);
+        return fetch(BASE_URL + "/actors/" + slug + "?page=" + page);
+    }
+
     private void acquireRateLimit() {
         if (intervalNanos <= 0) return;
         long now = System.nanoTime();
