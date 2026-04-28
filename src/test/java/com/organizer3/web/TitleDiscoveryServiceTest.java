@@ -36,9 +36,10 @@ class TitleDiscoveryServiceTest {
         jdbi = Jdbi.create(connection);
         new SchemaInitializer(jdbi).initialize();
 
-        seedVolumes("vol-recent", "structureType-doesnt-matter");
+        seedVolumes("vol-recent", "conventional");
         seedVolumes("pool-jav",   "sort_pool");
         seedVolumes("pool-av",    "sort_pool");
+        seedVolumes("unsorted",   "queue");
 
         OrganizerConfig config = mock(OrganizerConfig.class);
         when(config.volumes()).thenReturn(List.of(
@@ -102,6 +103,67 @@ class TitleDiscoveryServiceTest {
         assertTrue(codes.contains("SOLO-001"));
         assertTrue(codes.contains("ORPHAN-001"), "no-credit titles still appear in Titles tab");
         assertFalse(codes.contains("DUO-001"),   "multi-actress titles belong to Collections tab");
+    }
+
+    @Test
+    void listRecent_excludesQueueStructureTypeVolumes() {
+        // Titles whose latest location is on a queue-type volume (e.g. 'unsorted')
+        // are not yet ready for enrichment — they need curation first.
+        long t1 = insertTitle("LIB-001");
+        long t2 = insertTitle("UNS-001");
+        insertLocation(t1, "vol-recent", "/lib", "2026-04-26");
+        insertLocation(t2, "unsorted",   "/uns", "2026-04-27");
+
+        var page = service.listRecent(0, 50);
+
+        var codes = page.rows().stream().map(TitleDiscoveryService.TitleRow::code).toList();
+        assertTrue(codes.contains("LIB-001"));
+        assertFalse(codes.contains("UNS-001"),
+                "queue-type volume titles must be excluded from All recent");
+    }
+
+    @Test
+    void listRecent_excludesUnderscorePrefixedCodes() {
+        // System folders (_sandbox, _trash, _JAV_xxx, etc.) are tracked as titles
+        // but should never appear in the enrichment surface.
+        long real     = insertTitle("REAL-001");
+        long sandbox  = insertTitle("_sandbox");
+        long trash    = insertTitle("_trash");
+        long jav      = insertTitle("_JAV_Whoever");
+        insertLocation(real,    "vol-recent", "/r",  "2026-04-27");
+        insertLocation(sandbox, "vol-recent", "/s",  "2026-04-27");
+        insertLocation(trash,   "vol-recent", "/tr", "2026-04-27");
+        insertLocation(jav,     "vol-recent", "/j",  "2026-04-27");
+
+        var codes = service.listRecent(0, 50).rows().stream()
+                .map(TitleDiscoveryService.TitleRow::code).toList();
+        assertEquals(List.of("REAL-001"), codes);
+    }
+
+    @Test
+    void listPool_excludesUnderscorePrefixedCodes() {
+        long real    = insertTitle("ABC-001");
+        long sandbox = insertTitle("_sandbox");
+        insertLocation(real,    "pool-jav", "/A", "2026-04-25");
+        insertLocation(sandbox, "pool-jav", "/B", "2026-04-26");
+
+        var codes = service.listPool("pool-jav", 0, 50).rows().stream()
+                .map(TitleDiscoveryService.TitleRow::code).toList();
+        assertEquals(List.of("ABC-001"), codes);
+    }
+
+    @Test
+    void listPools_countExcludesUnderscorePrefixedCodes() {
+        long real    = insertTitle("ABC-001");
+        long sandbox = insertTitle("_sandbox");
+        insertLocation(real,    "pool-jav", "/A", "2026-04-25");
+        insertLocation(sandbox, "pool-jav", "/B", "2026-04-26");
+
+        var chip = service.listPools().stream()
+                .filter(c -> c.volumeId().equals("pool-jav"))
+                .findFirst().orElseThrow();
+        assertEquals(1, chip.unenrichedCount(),
+                "_sandbox must not be counted in the pool chip badge");
     }
 
     @Test

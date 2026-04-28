@@ -27,6 +27,12 @@ public class TitleDiscoveryService {
     /** Hard cap on a single bulk enqueue request. */
     public static final int ENQUEUE_CAP = 100;
     private static final String STRUCTURE_SORT_POOL = "sort_pool";
+    /**
+     * Structure types whose titles are excluded from "All recent". {@code queue}-type volumes
+     * (e.g. {@code unsorted}) hold titles that aren't yet ready for enrichment — they need
+     * curation first. Pool views remain unaffected (the chip explicitly scopes to one volume).
+     */
+    private static final String STRUCTURE_QUEUE = "queue";
 
     private final Jdbi jdbi;
     private final OrganizerConfig config;
@@ -96,6 +102,7 @@ public class TitleDiscoveryService {
                         LEFT JOIN javdb_title_staging jts ON jts.title_id = t.id
                         WHERE (jts.status IS NULL OR jts.status <> 'fetched')
                           AND (SELECT COUNT(*) FROM title_actresses ta WHERE ta.title_id = t.id) <= 1
+                          AND t.code NOT LIKE '\\_%' ESCAPE '\\'
                         """)
                         .bind("volumeId", id)
                         .mapTo(Integer.class)
@@ -166,6 +173,7 @@ public class TitleDiscoveryService {
                 """ + (isPool ? "WHERE volume_id = :volumeId\n" : "")
                 + """
                 ) loc ON loc.title_id = t.id AND loc.rn = 1
+                LEFT JOIN volumes v ON v.id = loc.volume_id
                 LEFT JOIN javdb_title_staging jts ON jts.title_id = t.id
                 LEFT JOIN (
                     SELECT target_id,
@@ -181,8 +189,11 @@ public class TitleDiscoveryService {
                 ) jeq ON jeq.target_id = t.id
                 WHERE (jts.status IS NULL OR jts.status <> 'fetched')
                   AND (SELECT COUNT(*) FROM title_actresses WHERE title_id = t.id) <= 1
+                  AND t.code NOT LIKE '\\_%' ESCAPE '\\'
                 """
-                + (isPool ? "  AND loc.volume_id = :volumeId\n" : "  AND loc.title_id IS NOT NULL\n")
+                + (isPool
+                    ? "  AND loc.volume_id = :volumeId\n"
+                    : "  AND loc.title_id IS NOT NULL\n  AND v.structure_type <> '" + STRUCTURE_QUEUE + "'\n")
                 + (isPool ? "ORDER BY t.code ASC\n" : "ORDER BY loc.added_date DESC\n")
                 + "LIMIT :limit OFFSET :offset";
 
