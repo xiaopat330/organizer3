@@ -107,6 +107,7 @@ const titlesEnqueueBtn = document.getElementById('jd-titles-enqueue-btn');
 const titlesClearBtn   = document.getElementById('jd-titles-clear-btn');
 const titlesFilterInput = document.getElementById('jd-titles-filter-input');
 const titlesFilterClearBtn = document.getElementById('jd-titles-filter-clear');
+const titlesFilterAutocomplete = document.getElementById('jd-titles-filter-autocomplete');
 
 const collectionsBody       = document.getElementById('jd-collections-body');
 const collectionsEmpty      = document.getElementById('jd-collections-empty');
@@ -119,6 +120,7 @@ const collectionsEnqueueBtn = document.getElementById('jd-collections-enqueue-bt
 const collectionsClearBtn   = document.getElementById('jd-collections-clear-btn');
 const collectionsFilterInput    = document.getElementById('jd-collections-filter-input');
 const collectionsFilterClearBtn = document.getElementById('jd-collections-filter-clear');
+const collectionsFilterAutocomplete = document.getElementById('jd-collections-filter-autocomplete');
 
 // ── Public API ─────────────────────────────────────────────────────────────
 
@@ -1918,17 +1920,96 @@ function titlePeekKeydownHandler(e) {
 // ── Filter inputs (Titles + Collections) ───────────────────────────────────
 
 const FILTER_DEBOUNCE_MS = 300;
+const FILTER_AUTOCOMPLETE_DEBOUNCE_MS = 200;
 
 /**
- * Wires a search input + clear button to a tab's state. Debounces on input,
- * resets to page 0 on each new query, and clears selection (the selected ids
- * may be filtered out, leaving stale references in the set).
+ * Wires a search input + clear button + autocomplete dropdown to a tab's state.
+ * Mimics the library code-input on the Titles browse screen: prefix-only matches
+ * (e.g. 'AB', 'ABP', 'ABP-') trigger an /api/labels/autocomplete fetch and open
+ * a dropdown of suggested label codes. Once digits start to appear (e.g. 'ABP-001')
+ * the dropdown closes — the user is past the label-prefix phase.
  */
-function attachFilterHandlers(input, clearBtn, getState, onChange) {
+function attachFilterHandlers(input, clearBtn, dropEl, getState, onChange) {
+  // Internal state for autocomplete (closure-scoped per attachment).
+  let autoTimer = null;
+  let autoVisible = false;
+
+  function closeAutocomplete() {
+    autoVisible = false;
+    if (autoTimer) { clearTimeout(autoTimer); autoTimer = null; }
+    if (dropEl) { dropEl.innerHTML = ''; dropEl.classList.remove('open'); }
+  }
+  function openAutocomplete(items) {
+    if (!dropEl || items.length === 0) { closeAutocomplete(); return; }
+    autoVisible = true;
+    dropEl.innerHTML = '';
+    items.forEach((code, i) => {
+      const el = document.createElement('div');
+      el.className = 'jd-filter-autocomplete-item';
+      el.textContent = code;
+      el.dataset.idx = String(i);
+      el.addEventListener('mousedown', e => {
+        e.preventDefault();           // don't blur the input first
+        selectAutocompleteItem(code);
+      });
+      dropEl.appendChild(el);
+    });
+    dropEl.classList.add('open');
+  }
+  function moveAutocompleteSelection(dir) {
+    if (!dropEl || !autoVisible) return;
+    const items = dropEl.querySelectorAll('.jd-filter-autocomplete-item');
+    if (items.length === 0) return;
+    const cur = dropEl.querySelector('.jd-filter-autocomplete-item.focused');
+    let idx = cur ? parseInt(cur.dataset.idx, 10) + dir : (dir > 0 ? 0 : items.length - 1);
+    idx = Math.max(0, Math.min(items.length - 1, idx));
+    items.forEach(el => el.classList.remove('focused'));
+    items[idx]?.classList.add('focused');
+  }
+  function selectAutocompleteItem(code) {
+    input.value = code;
+    clearBtn.style.display = code.length > 0 ? '' : 'none';
+    closeAutocomplete();
+    // Apply immediately — mirrors the library code-input behavior on item-select.
+    const st = getState();
+    if (st.filterDebounce) { clearTimeout(st.filterDebounce); st.filterDebounce = null; }
+    st.filter = code;
+    st.page = 0;
+    st.selected.clear();
+    onChange();
+  }
+  async function fetchAutocomplete(prefix) {
+    if (!prefix || prefix.length < 1) { closeAutocomplete(); return; }
+    try {
+      const res = await fetch(`/api/labels/autocomplete?prefix=${encodeURIComponent(prefix)}`);
+      if (!res.ok) return;
+      const items = await res.json();
+      // Only open if the input is still in the label-prefix phase (user hasn't moved on).
+      if (document.activeElement !== input) return;
+      openAutocomplete(items);
+    } catch { /* ignore */ }
+  }
+
   input.addEventListener('input', () => {
     const st = getState();
     const v = input.value;
     clearBtn.style.display = v.length > 0 ? '' : 'none';
+
+    // Autocomplete: trigger only when the user is still typing a label prefix
+    // (e.g. 'AB', 'ABP', 'ABP-'). Once digits follow ('ABP-001'), close.
+    const upper = v.trim().toUpperCase().replace(/\s+/g, '');
+    const isLabelPrefixOnly = upper.length > 0 && /^[A-Z][A-Z0-9]*-?$/.test(upper);
+    if (isLabelPrefixOnly) {
+      if (autoTimer) clearTimeout(autoTimer);
+      autoTimer = setTimeout(() => {
+        autoTimer = null;
+        fetchAutocomplete(upper.replace(/-+$/, ''));
+      }, FILTER_AUTOCOMPLETE_DEBOUNCE_MS);
+    } else {
+      closeAutocomplete();
+    }
+
+    // Filter debounce (independent of autocomplete) — re-query after user stops typing.
     if (st.filterDebounce) clearTimeout(st.filterDebounce);
     st.filterDebounce = setTimeout(() => {
       st.filterDebounce = null;
@@ -1938,8 +2019,20 @@ function attachFilterHandlers(input, clearBtn, getState, onChange) {
       onChange();
     }, FILTER_DEBOUNCE_MS);
   });
+
   input.addEventListener('keydown', e => {
-    if (e.key === 'Escape') {
+    if (e.key === 'ArrowDown') { e.preventDefault(); moveAutocompleteSelection(1); }
+    else if (e.key === 'ArrowUp') { e.preventDefault(); moveAutocompleteSelection(-1); }
+    else if (e.key === 'Enter') {
+      if (autoVisible) {
+        const focused = dropEl.querySelector('.jd-filter-autocomplete-item.focused');
+        if (focused) { e.preventDefault(); selectAutocompleteItem(focused.textContent); return; }
+      }
+      closeAutocomplete();
+    }
+    else if (e.key === 'Escape') {
+      // ESC behavior: if dropdown open, just close it; otherwise clear the filter.
+      if (autoVisible) { closeAutocomplete(); return; }
       input.value = '';
       clearBtn.style.display = 'none';
       const st = getState();
@@ -1952,9 +2045,14 @@ function attachFilterHandlers(input, clearBtn, getState, onChange) {
       }
     }
   });
+
+  // Small delay so mousedown on dropdown item fires before the close.
+  input.addEventListener('blur', () => { setTimeout(closeAutocomplete, 150); });
+
   clearBtn.addEventListener('click', () => {
     input.value = '';
     clearBtn.style.display = 'none';
+    closeAutocomplete();
     const st = getState();
     if (st.filterDebounce) { clearTimeout(st.filterDebounce); st.filterDebounce = null; }
     if (st.filter) {
@@ -1967,7 +2065,7 @@ function attachFilterHandlers(input, clearBtn, getState, onChange) {
   });
 }
 
-attachFilterHandlers(titlesFilterInput, titlesFilterClearBtn,
+attachFilterHandlers(titlesFilterInput, titlesFilterClearBtn, titlesFilterAutocomplete,
     () => state.titles, async () => {
       await loadTitlesPage();
       // Pool counts may shift if user is filtering across pools — re-fetch chips for accuracy.
@@ -1975,7 +2073,7 @@ attachFilterHandlers(titlesFilterInput, titlesFilterClearBtn,
       renderTitlesChips();
     });
 
-attachFilterHandlers(collectionsFilterInput, collectionsFilterClearBtn,
+attachFilterHandlers(collectionsFilterInput, collectionsFilterClearBtn, collectionsFilterAutocomplete,
     () => state.collections, async () => {
       await loadCollectionsTab();
     });

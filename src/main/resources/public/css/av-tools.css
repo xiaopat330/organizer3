@@ -6132,10 +6132,13 @@
   align-items: center;
   gap: 6px;
   margin-bottom: 8px;
+}
+.jd-filter-wrap {
   position: relative;
+  width: 280px;
 }
 .jd-filter-input {
-  flex: 0 0 280px;
+  width: 100%;
   background: #0f172a;
   border: 1px solid #2a3a50;
   border-radius: 4px;
@@ -6143,6 +6146,7 @@
   padding: 5px 26px 5px 10px;
   font-size: 12px;
   outline: none;
+  box-sizing: border-box;
 }
 .jd-filter-input:focus {
   border-color: #475569;
@@ -6157,11 +6161,41 @@
   line-height: 1;
   padding: 0 4px;
   position: absolute;
-  left: 256px;
+  right: 4px;
   top: 50%;
   transform: translateY(-50%);
 }
 .jd-filter-clear:hover { color: #cbd5e1; }
+
+/* Autocomplete dropdown — opens below the input. */
+.jd-filter-autocomplete {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  margin-top: 2px;
+  background: #0f172a;
+  border: 1px solid #334155;
+  border-radius: 4px;
+  z-index: 50;
+  max-height: 240px;
+  overflow-y: auto;
+  display: none;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.4);
+}
+.jd-filter-autocomplete.open { display: block; }
+.jd-filter-autocomplete-item {
+  padding: 5px 10px;
+  font-family: monospace;
+  font-size: 12px;
+  color: #cbd5e1;
+  cursor: pointer;
+}
+.jd-filter-autocomplete-item:hover,
+.jd-filter-autocomplete-item.focused {
+  background: #1e293b;
+  color: #f1f5f9;
+}
 
 /* ── Titles tab (M2) ──────────────────────────────────────────────────── */
 
