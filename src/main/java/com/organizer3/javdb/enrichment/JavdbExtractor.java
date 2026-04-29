@@ -39,7 +39,7 @@ public class JavdbExtractor {
     public TitleExtract extractTitle(String html, String code, String slug) {
         if (html == null || html.isBlank()) {
             return new TitleExtract(code, slug, null, null, null, null, null, null,
-                    null, null, List.of(), List.of(), null, List.of(), now());
+                    null, null, List.of(), List.of(), null, List.of(), now(), false, false);
         }
 
         Document doc = Jsoup.parse(html);
@@ -55,6 +55,8 @@ public class JavdbExtractor {
         Integer ratingCount = null;
         List<String> tags = new ArrayList<>();
         List<TitleExtract.CastEntry> cast = new ArrayList<>();
+        boolean castEmpty = false;
+        boolean castParseFailed = false;
 
         for (Element block : doc.select(".panel-block")) {
             Element label = block.selectFirst("strong");
@@ -90,13 +92,19 @@ public class JavdbExtractor {
                     }
                 }
             } else if (labelText.contains("Actor")) {
-                cast = extractCast(block);
+                try {
+                    cast = extractCast(block);
+                    castEmpty = cast.isEmpty();
+                } catch (Exception e) {
+                    castParseFailed = true;
+                }
             }
         }
 
         return new TitleExtract(code, slug, titleOriginal, releaseDate, durationMinutes,
                 maker, publisher, series, ratingAvg, ratingCount,
-                List.copyOf(tags), List.copyOf(cast), coverUrl, thumbnailUrls, now());
+                List.copyOf(tags), List.copyOf(cast), coverUrl, thumbnailUrls, now(),
+                castEmpty, castParseFailed);
     }
 
     /**

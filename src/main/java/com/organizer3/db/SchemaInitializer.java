@@ -510,12 +510,29 @@ public class SchemaInitializer {
                     CREATE INDEX IF NOT EXISTS idx_filmography_entry_code
                         ON javdb_actress_filmography_entry(product_code)""");
 
+            h.execute("""
+                    CREATE TABLE IF NOT EXISTS enrichment_review_queue (
+                        id              INTEGER PRIMARY KEY AUTOINCREMENT,
+                        title_id        INTEGER NOT NULL REFERENCES titles(id) ON DELETE CASCADE,
+                        slug            TEXT,
+                        reason          TEXT    NOT NULL,
+                        resolver_source TEXT,
+                        created_at      TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+                        resolved_at     TEXT,
+                        resolution      TEXT
+                    )""");
+            h.execute("CREATE INDEX IF NOT EXISTS idx_erq_title ON enrichment_review_queue(title_id)");
+            h.execute("CREATE INDEX IF NOT EXISTS idx_erq_open  ON enrichment_review_queue(reason) WHERE resolved_at IS NULL");
+            h.execute("""
+                    CREATE UNIQUE INDEX IF NOT EXISTS idx_erq_open_unique
+                        ON enrichment_review_queue(title_id, reason) WHERE resolved_at IS NULL""");
+
             // Only stamp version on fresh installs (user_version = 0).
             // On an existing DB the CREATE TABLE statements above are all no-ops, so we must
             // leave the version alone and let SchemaUpgrader apply any missing migrations.
             int currentVersion = h.createQuery("PRAGMA user_version").mapTo(Integer.class).one();
             if (currentVersion == 0) {
-                h.execute("PRAGMA user_version = 35");
+                h.execute("PRAGMA user_version = 36");
             }
         });
         log.info("Schema initialization complete");

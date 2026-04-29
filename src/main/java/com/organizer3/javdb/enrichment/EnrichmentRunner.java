@@ -14,6 +14,7 @@ import com.organizer3.rating.RatingCurveRecomputer;
 import com.organizer3.repository.ActressRepository;
 import com.organizer3.repository.TitleRepository;
 import lombok.extern.slf4j.Slf4j;
+import org.jdbi.v3.core.Jdbi;
 
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
@@ -57,6 +58,9 @@ public class EnrichmentRunner {
     private int processedThisBatch = 0;
 
     private final ProfileChainGate profileChainGate;
+    private final EnrichmentReviewQueueRepository reviewQueueRepo;
+    private final CastMatcher castMatcher;
+    private final Jdbi jdbi;
 
     private final AtomicBoolean stopRequested = new AtomicBoolean(false);
     private final AtomicBoolean paused = new AtomicBoolean(false);
@@ -92,7 +96,10 @@ public class EnrichmentRunner {
             EnrichmentGradeStamper gradeStamper,
             RatingCurveRecomputer ratingCurveRecomputer,
             ProfileChainGate profileChainGate,
-            com.organizer3.repository.TitleActressRepository titleActressRepo) {
+            com.organizer3.repository.TitleActressRepository titleActressRepo,
+            EnrichmentReviewQueueRepository reviewQueueRepo,
+            CastMatcher castMatcher,
+            Jdbi jdbi) {
         this.config = config;
         this.client = client;
         this.slugResolver = slugResolver;
@@ -109,6 +116,9 @@ public class EnrichmentRunner {
         this.ratingCurveRecomputer = ratingCurveRecomputer;
         this.profileChainGate = profileChainGate;
         this.titleActressRepo = titleActressRepo;
+        this.reviewQueueRepo = reviewQueueRepo;
+        this.castMatcher = castMatcher;
+        this.jdbi = jdbi;
     }
 
     public synchronized void start() {
@@ -309,6 +319,19 @@ public class EnrichmentRunner {
         Title title = maybeTitle.get();
         log.info("javdb: fetching {}", title.getCode());
 
+        // 1D — Sentinel short-circuit: skip HTTP fetch entirely for sentinel actresses
+        // (Various, Unknown, Amateur). Sentinels are never real performers; fetching title
+        // pages for them produces unreliable cast-validation signals.
+        if (actressId > 0 && isSentinelActress(actressId)) {
+            log.info("javdb: actress {} is sentinel — routing {} to ambiguous queue without fetch",
+                    actressId, title.getCode());
+            if (reviewQueueRepo != null) {
+                reviewQueueRepo.enqueue(titleId, null, "ambiguous", "sentinel_short_circuit");
+            }
+            queue.markPermanentlyFailed(job.id(), "sentinel_actress");
+            return;
+        }
+
         // Slug resolution: anchored on the linked actress's javdb slug when available.
         // Fixes the code-reuse mismatch bug — see spec/PROPOSAL_JAVDB_SLUG_VERIFICATION.md.
         String actressJavdbSlug = null;
@@ -320,8 +343,10 @@ public class EnrichmentRunner {
         JavdbSlugResolver.Resolution resolution = slugResolver.resolve(
                 lookupCode(title.getCode()), actressJavdbSlug);
         String slug;
+        JavdbSlugResolver.Source resolverSource;
         if (resolution instanceof JavdbSlugResolver.Success success) {
             slug = success.slug();
+            resolverSource = success.source();
         } else if (resolution instanceof JavdbSlugResolver.NoMatchInFilmography nm) {
             log.warn("javdb: {} not in filmography of actress slug {} — marking no_match",
                     title.getCode(), nm.actressSlug());
@@ -337,8 +362,22 @@ public class EnrichmentRunner {
         String html = client.fetchTitlePage(slug);
         TitleExtract extract = extractor.extractTitle(html, title.getCode(), slug);
 
+        // 1C — Write-time gate: decide confidence/cast_validated, or skip write for certain outcomes.
+        GateResult gateResult = applyWriteGate(titleId, actressId, resolverSource, extract, slug);
+        if (!gateResult.write()) {
+            log.info("javdb: gate blocked write for {} (reason={}) — marking {}",
+                    title.getCode(), gateResult.queueReason(), gateResult.queueReason());
+            if ("fetch_failed".equals(gateResult.queueReason())) {
+                queue.markAttemptFailed(job.id(), "cast_parse_failed");
+            } else {
+                queue.markPermanentlyFailed(job.id(), gateResult.queueReason());
+            }
+            return;
+        }
+
         String rawPath = stagingRepo.saveTitleRaw(slug, extract);
-        enrichmentRepo.upsertEnrichment(titleId, slug, rawPath, extract);
+        enrichmentRepo.upsertEnrichment(titleId, slug, rawPath, extract,
+                resolverSourceLabel(resolverSource), gateResult.confidence(), gateResult.castValidated());
 
         // Per-title grade stamp using cached curve (no-op if curve not yet computed)
         if (gradeStamper != null) {
@@ -506,6 +545,109 @@ public class EnrichmentRunner {
      */
     static String lookupCode(String code) {
         return code.replaceFirst("(?i)(^[A-Za-z]+-\\d+)[-_].+$", "$1");
+    }
+
+    /** Outcome of the write-time gate. */
+    record GateResult(boolean write, String confidence, boolean castValidated, String queueReason) {
+        static GateResult write(String confidence, boolean castValidated) {
+            return new GateResult(true, confidence, castValidated, null);
+        }
+        static GateResult skip(String queueReason) {
+            return new GateResult(false, null, false, queueReason);
+        }
+    }
+
+    /**
+     * 1C write-time gate — decides confidence tier, cast_validated, and whether to proceed.
+     *
+     * <p>Decision table (7 rows):
+     * <ol>
+     *   <li>castParseFailed → skip, route to fetch_failed (retryable)</li>
+     *   <li>ACTRESS_FILMOGRAPHY + castEmpty → write HIGH, cast_validated=1</li>
+     *   <li>ACTRESS_FILMOGRAPHY + !castEmpty + actress in cast → write HIGH, cast_validated=1</li>
+     *   <li>ACTRESS_FILMOGRAPHY + !castEmpty + actress NOT in cast → write LOW, cast_validated=0, cast_anomaly queue</li>
+     *   <li>CODE_SEARCH_FALLBACK + no real linked actress → write MEDIUM, cast_validated=0</li>
+     *   <li>CODE_SEARCH_FALLBACK + real linked actress in cast → write MEDIUM, cast_validated=0</li>
+     *   <li>CODE_SEARCH_FALLBACK + real linked actress NOT in cast → skip, route to ambiguous</li>
+     * </ol>
+     *
+     * <p>Sentinel actresses are short-circuited before this method is called (see 1D).
+     */
+    private GateResult applyWriteGate(long titleId, long actressId,
+                                      JavdbSlugResolver.Source resolverSource,
+                                      TitleExtract extract, String slug) {
+        // Row 1: parse failure — retryable
+        if (extract.castParseFailed()) {
+            if (reviewQueueRepo != null) {
+                reviewQueueRepo.enqueue(titleId, slug, "fetch_failed", resolverSourceLabel(resolverSource));
+            }
+            return GateResult.skip("fetch_failed");
+        }
+
+        if (resolverSource == JavdbSlugResolver.Source.ACTRESS_FILMOGRAPHY) {
+            // Row 2: genuine empty cast with actress anchor → highest confidence
+            if (extract.castEmpty()) {
+                return GateResult.write("HIGH", true);
+            }
+            // Rows 3/4: non-empty cast — check for actress presence
+            if (castMatcher != null && actressId > 0) {
+                CastMatcher.MatchResult match = castMatcher.match(actressId, extract.cast());
+                if (match.matched()) {
+                    return GateResult.write("HIGH", true);
+                } else {
+                    if (reviewQueueRepo != null) {
+                        reviewQueueRepo.enqueue(titleId, slug, "cast_anomaly", resolverSourceLabel(resolverSource));
+                    }
+                    return GateResult.write("LOW", false);
+                }
+            }
+            // castMatcher null (test) or actressId=0 edge-case: still write but unvalidated
+            return GateResult.write("MEDIUM", false);
+        }
+
+        // CODE_SEARCH_FALLBACK path
+        if (titleActressRepo != null && castMatcher != null) {
+            List<Long> linkedIds = titleActressRepo.findActressIdsByTitle(titleId).stream()
+                    .filter(id -> !isSentinelActress(id))
+                    .toList();
+            if (!linkedIds.isEmpty()) {
+                for (long linkedId : linkedIds) {
+                    if (castMatcher.match(linkedId, extract.cast()).matched()) {
+                        // Row 6: linked actress found in cast → MEDIUM
+                        return GateResult.write("MEDIUM", false);
+                    }
+                }
+                // Row 7: real linked actress exists but none in cast → ambiguous
+                log.info("javdb: code-search fallback cast mismatch for title {} — routing to ambiguous", titleId);
+                if (reviewQueueRepo != null) {
+                    reviewQueueRepo.enqueue(titleId, slug, "ambiguous", resolverSourceLabel(resolverSource));
+                }
+                return GateResult.skip("ambiguous");
+            }
+        }
+
+        // Row 5: no non-sentinel linked actress to validate against → MEDIUM, unvalidated
+        return GateResult.write("MEDIUM", false);
+    }
+
+    /** Returns {@code true} if the given actress has {@code is_sentinel = 1}. */
+    private boolean isSentinelActress(long actressId) {
+        if (actressId <= 0) return false;
+        return jdbi.withHandle(h ->
+                h.createQuery("SELECT is_sentinel FROM actresses WHERE id = :id")
+                        .bind("id", actressId)
+                        .mapTo(Integer.class)
+                        .findOne()
+                        .map(v -> v != 0)
+                        .orElse(false));
+    }
+
+    private static String resolverSourceLabel(JavdbSlugResolver.Source source) {
+        if (source == null) return "unknown";
+        return switch (source) {
+            case ACTRESS_FILMOGRAPHY   -> "actress_filmography";
+            case CODE_SEARCH_FALLBACK  -> "code_search_fallback";
+        };
     }
 
     private int randomBurstSize() {

@@ -29,9 +29,18 @@ public class JavdbEnrichmentRepository {
     private final TitleEffectiveTagsService effectiveTags;
 
     /**
-     * Atomically writes (or replaces) the enrichment record + tag assignments for a title.
+     * Atomically writes (or replaces) the enrichment record + tag assignments for a title,
+     * stamping the provenance columns supplied by the write-time gate.
+     *
+     * <p><b>Gate-bypass policy:</b> the only caller that may pass {@code resolverSource='manual_picker'}
+     * is the future Wave 3A manual-picker UI. All automated paths (actress_filmography,
+     * code_search_fallback, unknown) must be validated by {@code EnrichmentRunner.applyWriteGate}
+     * before calling this method. Never call this method directly with automated provenance
+     * values without running the gate — doing so would silently write unvalidated rows with
+     * misleading confidence stamps.
      */
-    public void upsertEnrichment(long titleId, String slug, String rawPath, TitleExtract extract) {
+    public void upsertEnrichment(long titleId, String slug, String rawPath, TitleExtract extract,
+                                 String resolverSource, String confidence, boolean castValidated) {
         String thumbsJson = serialize(extract.thumbnailUrls());
         String castJson   = serialize(extract.cast());
 
@@ -50,11 +59,13 @@ public class JavdbEnrichmentRepository {
                     INSERT INTO title_javdb_enrichment (
                         title_id, javdb_slug, fetched_at, release_date, rating_avg, rating_count,
                         maker, publisher, series, title_original, duration_minutes,
-                        cover_url, thumbnail_urls_json, cast_json, raw_path
+                        cover_url, thumbnail_urls_json, cast_json, raw_path,
+                        resolver_source, confidence, cast_validated
                     ) VALUES (
                         :titleId, :slug, :fetchedAt, :releaseDate, :ratingAvg, :ratingCount,
                         :maker, :publisher, :series, :titleOriginal, :durationMinutes,
-                        :coverUrl, :thumbnailsJson, :castJson, :rawPath
+                        :coverUrl, :thumbnailsJson, :castJson, :rawPath,
+                        :resolverSource, :confidence, :castValidated
                     )""")
                     .bind("titleId",         titleId)
                     .bind("slug",            slug)
@@ -71,6 +82,9 @@ public class JavdbEnrichmentRepository {
                     .bind("thumbnailsJson",  thumbsJson)
                     .bind("castJson",        castJson)
                     .bind("rawPath",         rawPath)
+                    .bind("resolverSource",  resolverSource)
+                    .bind("confidence",      confidence)
+                    .bind("castValidated",   castValidated ? 1 : 0)
                     .execute();
 
             // Tag normalization: insert any new tag definitions, then assignments.
