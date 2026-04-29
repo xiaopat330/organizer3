@@ -50,7 +50,7 @@ class EnrichmentRunnerTest {
         queue = new EnrichmentQueue(jdbi, CONFIG);
         ObjectMapper mapper = new ObjectMapper();
         stagingRepo = new JavdbStagingRepository(jdbi, mapper, dataDir);
-        enrichmentRepo = new JavdbEnrichmentRepository(jdbi, mapper, new com.organizer3.db.TitleEffectiveTagsService(jdbi));
+        enrichmentRepo = new JavdbEnrichmentRepository(jdbi, mapper, new com.organizer3.db.TitleEffectiveTagsService(jdbi), new EnrichmentHistoryRepository(jdbi, mapper));
         titleRepo = new JdbiTitleRepository(jdbi, new JdbiTitleLocationRepository(jdbi));
         actressRepo = new JdbiActressRepository(jdbi);
         extractor = new JavdbExtractor();

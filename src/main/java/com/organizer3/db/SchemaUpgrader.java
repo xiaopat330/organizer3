@@ -19,7 +19,7 @@ import org.jdbi.v3.core.Jdbi;
 public class SchemaUpgrader {
 
     /** Must match the version stamped by {@link SchemaInitializer}. */
-    private static final int CURRENT_VERSION = 36;
+    private static final int CURRENT_VERSION = 37;
 
     private final Jdbi jdbi;
 
@@ -203,7 +203,37 @@ public class SchemaUpgrader {
             setVersion(36);
         }
 
+        if (version < 37) {
+            applyV37();
+            setVersion(37);
+        }
+
         log.info("Schema upgrade complete");
+    }
+
+    /**
+     * v37: {@code title_javdb_enrichment_history} — append-only audit log.
+     *
+     * <p>Snapshots the prior enrichment row on every overwrite ({@code enrichment_runner}),
+     * manual clear ({@code cleanup}), and title delete ({@code title_deleted}). Intentionally
+     * has no FK on {@code title_id} so history outlives its title row.
+     */
+    private void applyV37() {
+        log.info("Applying migration v37: title_javdb_enrichment_history audit log");
+        jdbi.useHandle(h -> {
+            h.execute("""
+                    CREATE TABLE IF NOT EXISTS title_javdb_enrichment_history (
+                        id              INTEGER PRIMARY KEY AUTOINCREMENT,
+                        title_id        INTEGER NOT NULL,
+                        title_code      TEXT    NOT NULL,
+                        changed_at      TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+                        reason          TEXT,
+                        prior_slug      TEXT,
+                        prior_payload   TEXT
+                    )""");
+            h.execute("CREATE INDEX IF NOT EXISTS idx_tjeh_title ON title_javdb_enrichment_history(title_id)");
+            h.execute("CREATE INDEX IF NOT EXISTS idx_tjeh_code  ON title_javdb_enrichment_history(title_code)");
+        });
     }
 
     /**

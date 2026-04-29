@@ -18,13 +18,16 @@ class JavdbEnrichmentRepositoryTest {
     private Jdbi jdbi;
     private Connection connection;
     private JavdbEnrichmentRepository repo;
+    private EnrichmentHistoryRepository historyRepo;
 
     @BeforeEach
     void setUp() throws Exception {
         connection = DriverManager.getConnection("jdbc:sqlite::memory:");
         jdbi = Jdbi.create(connection);
         new SchemaInitializer(jdbi).initialize();
-        repo = new JavdbEnrichmentRepository(jdbi, new ObjectMapper(), new com.organizer3.db.TitleEffectiveTagsService(jdbi));
+        ObjectMapper om = new ObjectMapper();
+        historyRepo = new EnrichmentHistoryRepository(jdbi, om);
+        repo = new JavdbEnrichmentRepository(jdbi, om, new com.organizer3.db.TitleEffectiveTagsService(jdbi), historyRepo);
         // Foreign key from title_javdb_enrichment.title_id requires a titles row.
         jdbi.useHandle(h -> {
             h.execute("INSERT INTO titles(id, code, base_code, label, seq_num) VALUES (1, 'TST-1', 'TST-1', 'TST', 1)");
@@ -192,5 +195,42 @@ class JavdbEnrichmentRepositoryTest {
                 "SELECT title_count FROM enrichment_tag_definitions WHERE name = 'Big Tits'")
                 .mapTo(Integer.class).one());
         assertEquals(1, bigTitsCount, "title_count drops to 1 after deleting the other holder");
+    }
+
+    @Test
+    void upsertEnrichment_firstWrite_historyIsEmpty() {
+        repo.upsertEnrichment(1L, "slug1", "rp", sampleExtract("TST-1", "slug1", List.of("Big Tits"), 4.0),
+                "actress_filmography", "HIGH", true);
+        assertEquals(0, historyRepo.countForTitle(1L),
+                "first write has no prior state — history must remain empty");
+    }
+
+    @Test
+    void upsertEnrichment_secondWrite_writesOneHistoryRow() {
+        repo.upsertEnrichment(1L, "slug-original", "rp",
+                sampleExtract("TST-1", "slug-original", List.of("Big Tits"), 4.0),
+                "actress_filmography", "HIGH", true);
+        repo.upsertEnrichment(1L, "slug-updated", "rp",
+                sampleExtract("TST-1", "slug-updated", List.of("POV"), 4.8),
+                "code_search_fallback", "MEDIUM", false);
+
+        assertEquals(1, historyRepo.countForTitle(1L));
+        var rows = historyRepo.recentForTitle(1L, 5);
+        assertEquals(1, rows.size());
+        assertEquals("enrichment_runner", rows.get(0).reason());
+        assertEquals("slug-original", rows.get(0).priorSlug());
+    }
+
+    @Test
+    void deleteEnrichment_writesCleanupHistoryRow() {
+        repo.upsertEnrichment(1L, "slug1", "rp",
+                sampleExtract("TST-1", "slug1", List.of("Solowork"), 4.2),
+                "actress_filmography", "HIGH", true);
+        repo.deleteEnrichment(1L);
+
+        assertEquals(1, historyRepo.countForTitle(1L));
+        var rows = historyRepo.recentForTitle(1L, 5);
+        assertEquals("cleanup", rows.get(0).reason());
+        assertEquals("slug1", rows.get(0).priorSlug());
     }
 }

@@ -392,8 +392,10 @@ public class Application {
         com.organizer3.javdb.HttpJavdbClient javdbClient = new com.organizer3.javdb.HttpJavdbClient(javdbConfig);
         com.organizer3.javdb.enrichment.JavdbStagingRepository javdbStagingRepo =
                 new com.organizer3.javdb.enrichment.JavdbStagingRepository(jdbi, jsonMapper, dataDir);
+        com.organizer3.javdb.enrichment.EnrichmentHistoryRepository enrichmentHistoryRepo =
+                new com.organizer3.javdb.enrichment.EnrichmentHistoryRepository(jdbi, jsonMapper);
         com.organizer3.javdb.enrichment.JavdbEnrichmentRepository javdbEnrichmentRepo =
-                new com.organizer3.javdb.enrichment.JavdbEnrichmentRepository(jdbi, jsonMapper, titleEffectiveTagsService);
+                new com.organizer3.javdb.enrichment.JavdbEnrichmentRepository(jdbi, jsonMapper, titleEffectiveTagsService, enrichmentHistoryRepo);
         com.organizer3.javdb.enrichment.EnrichmentQueue enrichmentQueue =
                 new com.organizer3.javdb.enrichment.EnrichmentQueue(jdbi, javdbConfig);
         com.organizer3.javdb.enrichment.AutoPromoter autoPromoter =
@@ -794,7 +796,7 @@ public class Application {
                 mcpTools.register(new com.organizer3.mcp.tools.ImportFilmographyBackupTool(filmographyBackupWriter, filmographyRepo, slugResolver));
                 mcpTools.register(new com.organizer3.mcp.tools.SetActressAliasesTool(actressRepo));
                 mcpTools.register(new com.organizer3.mcp.tools.MergeActressesTool(jdbi, actressRepo));
-                mcpTools.register(new com.organizer3.mcp.tools.DeleteTitleTool(jdbi, titleRepo));
+                mcpTools.register(new com.organizer3.mcp.tools.DeleteTitleTool(jdbi, titleRepo, enrichmentHistoryRepo));
                 mcpTools.register(new com.organizer3.mcp.tools.SetDuplicateDecisionTool(dupDecisionRepo));
                 mcpTools.register(new com.organizer3.mcp.tools.DecideMergeCandidateTool(mergeCandidateRepo));
                 mcpTools.register(new com.organizer3.mcp.tools.ExecuteMergesTool(taskRunner));
