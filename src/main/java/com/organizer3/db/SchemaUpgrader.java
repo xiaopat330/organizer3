@@ -19,7 +19,7 @@ import org.jdbi.v3.core.Jdbi;
 public class SchemaUpgrader {
 
     /** Must match the version stamped by {@link SchemaInitializer}. */
-    private static final int CURRENT_VERSION = 32;
+    private static final int CURRENT_VERSION = 33;
 
     private final Jdbi jdbi;
 
@@ -183,7 +183,47 @@ public class SchemaUpgrader {
             setVersion(32);
         }
 
+        if (version < 33) {
+            applyV33();
+            setVersion(33);
+        }
+
         log.info("Schema upgrade complete");
+    }
+
+    /**
+     * v33: per-actress javdb filmography cache tables.
+     *
+     * <p>{@code javdb_actress_filmography} — one metadata row per actress (slug, fetch time,
+     * page count, last release date, source). {@code javdb_actress_filmography_entry} — one
+     * (actress_slug, product_code, title_slug) row per filmography entry. These tables back
+     * the L2 disk cache used by {@code JavdbSlugResolver} to avoid repeated HTTP fetches
+     * of the same actress's filmography. See spec/PROPOSAL_ENRICHMENT_HARDENING.md §1A.
+     */
+    private void applyV33() {
+        log.info("Applying migration v33: javdb_actress_filmography + entry tables");
+        jdbi.useHandle(h -> {
+            h.execute("""
+                    CREATE TABLE IF NOT EXISTS javdb_actress_filmography (
+                        actress_slug      TEXT PRIMARY KEY,
+                        fetched_at        TEXT NOT NULL,
+                        page_count        INTEGER NOT NULL,
+                        last_release_date TEXT,
+                        source            TEXT NOT NULL
+                    )""");
+            h.execute("""
+                    CREATE TABLE IF NOT EXISTS javdb_actress_filmography_entry (
+                        actress_slug TEXT NOT NULL,
+                        product_code TEXT NOT NULL,
+                        title_slug   TEXT NOT NULL,
+                        PRIMARY KEY (actress_slug, product_code),
+                        FOREIGN KEY (actress_slug) REFERENCES javdb_actress_filmography(actress_slug)
+                            ON DELETE CASCADE
+                    )""");
+            h.execute("""
+                    CREATE INDEX IF NOT EXISTS idx_filmography_entry_code
+                        ON javdb_actress_filmography_entry(product_code)""");
+        });
     }
 
     /**

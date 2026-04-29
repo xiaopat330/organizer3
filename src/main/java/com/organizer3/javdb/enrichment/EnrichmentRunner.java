@@ -79,6 +79,7 @@ public class EnrichmentRunner {
     public EnrichmentRunner(
             JavdbConfig config,
             JavdbClient client,
+            JavdbSlugResolver slugResolver,
             JavdbExtractor extractor,
             JavdbProjector projector,
             JavdbStagingRepository stagingRepo,
@@ -94,7 +95,7 @@ public class EnrichmentRunner {
             com.organizer3.repository.TitleActressRepository titleActressRepo) {
         this.config = config;
         this.client = client;
-        this.slugResolver = new JavdbSlugResolver(client);
+        this.slugResolver = slugResolver;
         this.extractor = extractor;
         this.projector = projector;
         this.stagingRepo = stagingRepo;
