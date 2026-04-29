@@ -27,6 +27,7 @@ public class JavdbEnrichmentRepository {
     private final Jdbi jdbi;
     private final ObjectMapper json;
     private final TitleEffectiveTagsService effectiveTags;
+    private final EnrichmentHistoryRepository historyRepo;
 
     /**
      * Atomically writes (or replaces) the enrichment record + tag assignments for a title,
@@ -45,6 +46,9 @@ public class JavdbEnrichmentRepository {
         String castJson   = serialize(extract.cast());
 
         jdbi.useTransaction(h -> {
+            // Snapshot prior state before any mutation so the audit trail is accurate.
+            historyRepo.appendIfExists(titleId, "enrichment_runner", h);
+
             // Atomic replace: clear the old assignments first (FK ON DELETE CASCADE is
             // declared in the schema but not enforced — SQLite requires PRAGMA foreign_keys
             // = ON, which the application does not enable, so the cascade is explicit).
@@ -135,6 +139,9 @@ public class JavdbEnrichmentRepository {
      */
     public void deleteEnrichment(long titleId) {
         jdbi.useTransaction(h -> {
+            // Snapshot prior state before clearing.
+            historyRepo.appendIfExists(titleId, "cleanup", h);
+
             h.createUpdate("DELETE FROM title_enrichment_tags WHERE title_id = :titleId")
                     .bind("titleId", titleId)
                     .execute();

@@ -3,6 +3,7 @@ package com.organizer3.mcp.tools;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.organizer3.db.SchemaInitializer;
+import com.organizer3.javdb.enrichment.EnrichmentHistoryRepository;
 import com.organizer3.model.Actress;
 import com.organizer3.model.Title;
 import com.organizer3.model.TitleLocation;
@@ -34,6 +35,7 @@ class DeleteTitleToolTest {
     private JdbiActressRepository actressRepo;
     private JdbiTitleActressRepository titleActressRepo;
     private JdbiVideoRepository videoRepo;
+    private EnrichmentHistoryRepository historyRepo;
     private DeleteTitleTool tool;
 
     @BeforeEach
@@ -47,7 +49,8 @@ class DeleteTitleToolTest {
         actressRepo = new JdbiActressRepository(jdbi);
         titleActressRepo = new JdbiTitleActressRepository(jdbi);
         videoRepo = new JdbiVideoRepository(jdbi);
-        tool = new DeleteTitleTool(jdbi, titleRepo);
+        historyRepo = new EnrichmentHistoryRepository(jdbi, M);
+        tool = new DeleteTitleTool(jdbi, titleRepo, historyRepo);
     }
 
     @AfterEach
@@ -151,6 +154,38 @@ class DeleteTitleToolTest {
                 .build());
         titleActressRepo.linkAll(t.getId(), java.util.List.of(actressId));
         return t.getId();
+    }
+
+    @Test
+    void deleteTitle_snapshotsEnrichmentRowIntoHistory() throws Exception {
+        long titleId = givenTitleWithEverything();
+
+        // Seed an enrichment row for the title.
+        jdbi.useHandle(h -> h.execute("""
+                INSERT INTO title_javdb_enrichment
+                    (title_id, javdb_slug, fetched_at, confidence, resolver_source)
+                VALUES (?, 'xyz001', '2024-01-01T00:00:00Z', 'HIGH', 'actress_filmography')
+                """, titleId));
+
+        tool.call(args(titleId, false));
+
+        // Title and enrichment row should be gone.
+        assertTrue(titleRepo.findById(titleId).isEmpty(), "title row should be deleted");
+        int enrichCount = jdbi.withHandle(h -> h.createQuery(
+                "SELECT COUNT(*) FROM title_javdb_enrichment WHERE title_id = :id")
+                .bind("id", titleId)
+                .mapTo(Integer.class).one());
+        assertEquals(0, enrichCount, "enrichment row should cascade away with the title");
+
+        // History row must survive.
+        var history = historyRepo.recentForTitle(titleId, 5);
+        assertEquals(1, history.size(), "one history row should have been written");
+        assertEquals("title_deleted", history.get(0).reason());
+        assertEquals("XYZ-001",       history.get(0).titleCode());
+        assertEquals("xyz001",        history.get(0).priorSlug());
+        assertNotNull(history.get(0).priorPayload(), "prior_payload must be non-null JSON");
+        var node = M.readTree(history.get(0).priorPayload());
+        assertEquals("xyz001", node.path("javdb_slug").asText());
     }
 
     private ObjectNode args(long id, boolean dryRun) {

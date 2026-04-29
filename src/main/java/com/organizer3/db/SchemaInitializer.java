@@ -527,12 +527,27 @@ public class SchemaInitializer {
                     CREATE UNIQUE INDEX IF NOT EXISTS idx_erq_open_unique
                         ON enrichment_review_queue(title_id, reason) WHERE resolved_at IS NULL""");
 
+            // title_javdb_enrichment_history: append-only audit log (v37).
+            // No FK on title_id — history must outlive its title row.
+            h.execute("""
+                    CREATE TABLE IF NOT EXISTS title_javdb_enrichment_history (
+                        id              INTEGER PRIMARY KEY AUTOINCREMENT,
+                        title_id        INTEGER NOT NULL,
+                        title_code      TEXT    NOT NULL,
+                        changed_at      TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+                        reason          TEXT,
+                        prior_slug      TEXT,
+                        prior_payload   TEXT
+                    )""");
+            h.execute("CREATE INDEX IF NOT EXISTS idx_tjeh_title ON title_javdb_enrichment_history(title_id)");
+            h.execute("CREATE INDEX IF NOT EXISTS idx_tjeh_code  ON title_javdb_enrichment_history(title_code)");
+
             // Only stamp version on fresh installs (user_version = 0).
             // On an existing DB the CREATE TABLE statements above are all no-ops, so we must
             // leave the version alone and let SchemaUpgrader apply any missing migrations.
             int currentVersion = h.createQuery("PRAGMA user_version").mapTo(Integer.class).one();
             if (currentVersion == 0) {
-                h.execute("PRAGMA user_version = 36");
+                h.execute("PRAGMA user_version = 37");
             }
         });
         log.info("Schema initialization complete");

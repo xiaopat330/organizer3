@@ -1,6 +1,7 @@
 package com.organizer3.mcp.tools;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import com.organizer3.javdb.enrichment.EnrichmentHistoryRepository;
 import com.organizer3.mcp.Schemas;
 import com.organizer3.mcp.Tool;
 import com.organizer3.model.Title;
@@ -36,10 +37,12 @@ public class DeleteTitleTool implements Tool {
 
     private final Jdbi jdbi;
     private final TitleRepository titleRepo;
+    private final EnrichmentHistoryRepository historyRepo;
 
-    public DeleteTitleTool(Jdbi jdbi, TitleRepository titleRepo) {
+    public DeleteTitleTool(Jdbi jdbi, TitleRepository titleRepo, EnrichmentHistoryRepository historyRepo) {
         this.jdbi = jdbi;
         this.titleRepo = titleRepo;
+        this.historyRepo = historyRepo;
     }
 
     @Override public String name()        { return "delete_title"; }
@@ -83,24 +86,28 @@ public class DeleteTitleTool implements Tool {
     private static Plan buildPlan(Handle h, Title title) {
         long id = title.getId();
 
-        int tagRows        = countRows(h, "title_tags",           id);
-        int locationRows   = countRows(h, "title_locations",      id);
-        int videoRows      = countRows(h, "videos",               id);
-        int creditRows     = countRows(h, "title_actresses",      id);
-        int effectiveRows  = countRows(h, "title_effective_tags", id);
+        int tagRows          = countRows(h, "title_tags",             id);
+        int locationRows     = countRows(h, "title_locations",        id);
+        int videoRows        = countRows(h, "videos",                 id);
+        int creditRows       = countRows(h, "title_actresses",        id);
+        int effectiveRows    = countRows(h, "title_effective_tags",   id);
+        int enrichmentRows   = countRows(h, "title_javdb_enrichment", id);
+        int enrichTagRows    = countRows(h, "title_enrichment_tags",  id);
 
         List<Change> changes = new ArrayList<>();
-        changes.add(new Change("delete", "title_tags",           tagRows));
-        changes.add(new Change("delete", "title_locations",      locationRows));
-        changes.add(new Change("delete", "videos",               videoRows));
-        changes.add(new Change("delete", "title_actresses",      creditRows));
-        changes.add(new Change("delete", "title_effective_tags", effectiveRows));
-        changes.add(new Change("delete", "titles",               1));
+        changes.add(new Change("delete", "title_tags",             tagRows));
+        changes.add(new Change("delete", "title_locations",        locationRows));
+        changes.add(new Change("delete", "videos",                 videoRows));
+        changes.add(new Change("delete", "title_actresses",        creditRows));
+        changes.add(new Change("delete", "title_effective_tags",   effectiveRows));
+        changes.add(new Change("delete", "title_enrichment_tags",  enrichTagRows));
+        changes.add(new Change("delete", "title_javdb_enrichment", enrichmentRows));
+        changes.add(new Change("delete", "titles",                 1));
 
         String summary = String.format(
-                "Delete title id=%d code='%s' — %d location(s), %d video(s), %d credit(s), %d tag row(s)",
+                "Delete title id=%d code='%s' — %d location(s), %d video(s), %d credit(s), %d tag row(s), %d enrichment row(s)",
                 id, title.getCode(),
-                locationRows, videoRows, creditRows, tagRows + effectiveRows);
+                locationRows, videoRows, creditRows, tagRows + effectiveRows + enrichTagRows, enrichmentRows);
 
         return new Plan(summary, changes);
     }
@@ -112,12 +119,18 @@ public class DeleteTitleTool implements Tool {
                 .one();
     }
 
-    private static void execute(Handle h, long id) {
-        deleteRows(h, "title_tags",           id);
-        deleteRows(h, "title_locations",      id);
-        deleteRows(h, "videos",               id);
-        deleteRows(h, "title_actresses",      id);
-        deleteRows(h, "title_effective_tags", id);
+    private void execute(Handle h, long id) {
+        // Snapshot enrichment row before deleting it. Must run first.
+        historyRepo.appendIfExists(id, "title_deleted", h);
+
+        deleteRows(h, "title_tags",              id);
+        deleteRows(h, "title_locations",         id);
+        deleteRows(h, "videos",                  id);
+        deleteRows(h, "title_actresses",         id);
+        deleteRows(h, "title_effective_tags",    id);
+        // Enrichment rows are not cascade-deleted because PRAGMA foreign_keys is off.
+        deleteRows(h, "title_enrichment_tags",   id);
+        deleteRows(h, "title_javdb_enrichment",  id);
         h.createUpdate("DELETE FROM titles WHERE id = :id").bind("id", id).execute();
     }
 

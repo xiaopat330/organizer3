@@ -54,7 +54,7 @@ class EnrichmentRunnerWriteGateTest {
         ObjectMapper mapper = new ObjectMapper();
         queue = new EnrichmentQueue(jdbi, CONFIG);
         stagingRepo = new JavdbStagingRepository(jdbi, mapper, dataDir);
-        enrichmentRepo = new JavdbEnrichmentRepository(jdbi, mapper, new TitleEffectiveTagsService(jdbi));
+        enrichmentRepo = new JavdbEnrichmentRepository(jdbi, mapper, new TitleEffectiveTagsService(jdbi), new EnrichmentHistoryRepository(jdbi, mapper));
         titleRepo = new JdbiTitleRepository(jdbi, new JdbiTitleLocationRepository(jdbi));
         actressRepo = new JdbiActressRepository(jdbi);
         titleActressRepo = new JdbiTitleActressRepository(jdbi);
