@@ -7,6 +7,7 @@ import com.organizer3.covers.CoverPath;
 import com.organizer3.db.ActressCompaniesService;
 import com.organizer3.db.TitleEffectiveTagsService;
 import com.organizer3.filesystem.VolumeFileSystem;
+import com.organizer3.javdb.enrichment.RevalidationPendingRepository;
 import com.organizer3.model.Actress;
 import com.organizer3.model.Title;
 import com.organizer3.model.TitleLocation;
@@ -23,8 +24,6 @@ import com.organizer3.shell.SessionContext;
 import com.organizer3.shell.io.CommandIO;
 import com.organizer3.shell.io.Progress;
 
-import lombok.AccessLevel;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 import java.io.IOException;
@@ -47,7 +46,6 @@ import static com.organizer3.sync.scanner.ScannerSupport.extractActressName;
  * a partition folder, parsing title codes, and persisting titles, videos, and cast links.
  */
 @Slf4j
-@RequiredArgsConstructor(access = AccessLevel.PROTECTED)
 abstract class AbstractSyncOperation implements SyncOperation {
 
     protected final TitleRepository titleRepo;
@@ -60,7 +58,30 @@ abstract class AbstractSyncOperation implements SyncOperation {
     protected final TitleEffectiveTagsService titleEffectiveTagsService;
     protected final ActressCompaniesService actressCompaniesService;
     protected final CoverPath coverPath;
+    private final RevalidationPendingRepository revalidationPendingRepo;
     private final TitleCodeParser codeParser = new TitleCodeParser();
+
+    protected AbstractSyncOperation(TitleRepository titleRepo, VideoRepository videoRepo,
+                                    ActressRepository actressRepo, VolumeRepository volumeRepo,
+                                    TitleLocationRepository titleLocationRepo,
+                                    TitleActressRepository titleActressRepo,
+                                    IndexLoader indexLoader,
+                                    TitleEffectiveTagsService titleEffectiveTagsService,
+                                    ActressCompaniesService actressCompaniesService,
+                                    CoverPath coverPath,
+                                    RevalidationPendingRepository revalidationPendingRepo) {
+        this.titleRepo = titleRepo;
+        this.videoRepo = videoRepo;
+        this.actressRepo = actressRepo;
+        this.volumeRepo = volumeRepo;
+        this.titleLocationRepo = titleLocationRepo;
+        this.titleActressRepo = titleActressRepo;
+        this.indexLoader = indexLoader;
+        this.titleEffectiveTagsService = titleEffectiveTagsService;
+        this.actressCompaniesService = actressCompaniesService;
+        this.coverPath = coverPath;
+        this.revalidationPendingRepo = revalidationPendingRepo;
+    }
 
     /** Subdirectories inside a title folder that may contain video files. */
     private static final List<String> VIDEO_SUBDIRECTORIES = List.of("video", "h265");
@@ -346,6 +367,11 @@ abstract class AbstractSyncOperation implements SyncOperation {
         actressRepo.recalcTiers();
         titleEffectiveTagsService.recomputeForTitles(stats.touchedTitleIds());
         actressCompaniesService.recomputeForActresses(stats.touchedActressIds());
+        if (revalidationPendingRepo != null && !stats.touchedTitleIds().isEmpty()) {
+            for (long titleId : stats.touchedTitleIds()) {
+                revalidationPendingRepo.enqueue(titleId, "sync");
+            }
+        }
         ctx.setIndex(indexLoader.load(volumeId));
         log.info("Sync finalized — volume={} actresses={} queue={} attention={} total={} touchedTitles={} touchedActresses={}",
                 volumeId, stats.actressCount(), stats.queue, stats.attention, stats.total,

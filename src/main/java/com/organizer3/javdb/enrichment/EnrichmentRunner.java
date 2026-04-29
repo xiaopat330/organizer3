@@ -61,6 +61,7 @@ public class EnrichmentRunner {
     private final EnrichmentReviewQueueRepository reviewQueueRepo;
     private final CastMatcher castMatcher;
     private final Jdbi jdbi;
+    private final RevalidationPendingRepository revalidationPendingRepo;
 
     private final AtomicBoolean stopRequested = new AtomicBoolean(false);
     private final AtomicBoolean paused = new AtomicBoolean(false);
@@ -99,7 +100,8 @@ public class EnrichmentRunner {
             com.organizer3.repository.TitleActressRepository titleActressRepo,
             EnrichmentReviewQueueRepository reviewQueueRepo,
             CastMatcher castMatcher,
-            Jdbi jdbi) {
+            Jdbi jdbi,
+            RevalidationPendingRepository revalidationPendingRepo) {
         this.config = config;
         this.client = client;
         this.slugResolver = slugResolver;
@@ -119,6 +121,7 @@ public class EnrichmentRunner {
         this.reviewQueueRepo = reviewQueueRepo;
         this.castMatcher = castMatcher;
         this.jdbi = jdbi;
+        this.revalidationPendingRepo = revalidationPendingRepo;
     }
 
     public synchronized void start() {
@@ -378,6 +381,9 @@ public class EnrichmentRunner {
         String rawPath = stagingRepo.saveTitleRaw(slug, extract);
         enrichmentRepo.upsertEnrichment(titleId, slug, rawPath, extract,
                 resolverSourceLabel(resolverSource), gateResult.confidence(), gateResult.castValidated());
+        if (revalidationPendingRepo != null) {
+            revalidationPendingRepo.enqueue(titleId, "queue_drain");
+        }
 
         // Per-title grade stamp using cached curve (no-op if curve not yet computed)
         if (gradeStamper != null) {

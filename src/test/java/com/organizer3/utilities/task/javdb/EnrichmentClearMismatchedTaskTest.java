@@ -5,6 +5,7 @@ import com.organizer3.javdb.JavdbClient;
 import com.organizer3.javdb.JavdbConfig;
 import com.organizer3.javdb.enrichment.EnrichmentQueue;
 import com.organizer3.javdb.enrichment.JavdbSlugResolver;
+import com.organizer3.javdb.enrichment.RevalidationPendingRepository;
 import com.organizer3.utilities.task.TaskIO;
 import com.organizer3.utilities.task.TaskInputs;
 import org.jdbi.v3.core.Jdbi;
@@ -28,6 +29,7 @@ class EnrichmentClearMismatchedTaskTest {
     private FakeJavdbClient client;
     private JavdbSlugResolver resolver;
     private EnrichmentQueue queue;
+    private RevalidationPendingRepository revalidationPendingRepo;
     private EnrichmentClearMismatchedTask task;
 
     @BeforeEach
@@ -38,7 +40,8 @@ class EnrichmentClearMismatchedTaskTest {
         client = new FakeJavdbClient();
         resolver = new JavdbSlugResolver(client);
         queue = new EnrichmentQueue(jdbi, JavdbConfig.DEFAULTS);
-        task = new EnrichmentClearMismatchedTask(jdbi, resolver, queue);
+        revalidationPendingRepo = new RevalidationPendingRepository(jdbi);
+        task = new EnrichmentClearMismatchedTask(jdbi, resolver, queue, revalidationPendingRepo);
     }
 
     @AfterEach
@@ -224,6 +227,24 @@ class EnrichmentClearMismatchedTaskTest {
         task.run(args(false), new CapturingIO());
         assertNull(getEnrichmentSlug(secondTitle), "re-run must clean the leftover");
         assertTrue(hasPendingFetchJob(secondTitle));
+    }
+
+    @Test
+    void clearedTitleIsEnqueuedForRevalidation() {
+        long manaId = seedActress("Mana Sakura", "紗倉まな", "J9dd", false);
+        long titleId = seedTitle("STAR-555");
+        link(titleId, manaId);
+        seedEnrichment(titleId, "wrongSlug",
+                "[{\"slug\":\"wrongSlug\",\"name\":\"X\"}]", "wrong title");
+        client.actressPage("J9dd", 1, html(false)); // empty filmography → mismatch
+
+        task.run(args(false), new CapturingIO());
+
+        assertNull(getEnrichmentSlug(titleId), "enrichment must be cleared");
+        int pendingCount = jdbi.withHandle(h -> h.createQuery(
+                "SELECT COUNT(*) FROM revalidation_pending WHERE title_id = ? AND reason = 'cleanup'")
+                .bind(0, titleId).mapTo(Integer.class).one());
+        assertEquals(1, pendingCount, "cleared title must be enqueued for revalidation with reason=cleanup");
     }
 
     // ── helpers ─────────────────────────────────────────────────────────────

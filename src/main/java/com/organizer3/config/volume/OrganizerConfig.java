@@ -30,7 +30,8 @@ public record OrganizerConfig(
         @JsonProperty("normalize")       NormalizeConfig normalize,
         @JsonProperty("media")           MediaConfig media,
         @JsonProperty("backgroundThumbnails") BackgroundThumbnailConfig backgroundThumbnails,
-        @JsonProperty("javdb")               JavdbConfig javdb
+        @JsonProperty("javdb")               JavdbConfig javdb,
+        @JsonProperty("enrichment")          EnrichmentConfig enrichment
 ) {
     /** Legacy ctor for tests that predate the organize-pipeline blocks. */
     public OrganizerConfig(String appName, String dataDir,
@@ -41,7 +42,7 @@ public record OrganizerConfig(
                            BackupConfig backup, McpConfig mcp) {
         this(appName, dataDir, maxBrowseTitles, maxRandomTitles, maxRandomActresses,
              thumbnailInterval, thumbnailColumns, coverCropPercent,
-             servers, volumes, structures, syncConfig, backup, mcp, null, null, null, null, null);
+             servers, volumes, structures, syncConfig, backup, mcp, null, null, null, null, null, null);
     }
 
     /** Legacy ctor for test sites that predate the {@code mcp:} block. */
@@ -53,7 +54,7 @@ public record OrganizerConfig(
                            BackupConfig backup) {
         this(appName, dataDir, maxBrowseTitles, maxRandomTitles, maxRandomActresses,
              thumbnailInterval, thumbnailColumns, coverCropPercent,
-             servers, volumes, structures, syncConfig, backup, null, null, null, null, null, null);
+             servers, volumes, structures, syncConfig, backup, null, null, null, null, null, null, null);
     }
 
     /** Returns the background-thumbnail config, or defaults (disabled) if unset. */
@@ -79,6 +80,11 @@ public record OrganizerConfig(
     /** Returns the javdb config, or defaults if unset. */
     public JavdbConfig javdbOrDefaults() {
         return javdb != null ? javdb : JavdbConfig.DEFAULTS;
+    }
+
+    /** Returns the enrichment config, or defaults if unset. */
+    public EnrichmentConfig enrichmentOrDefaults() {
+        return enrichment != null ? enrichment : EnrichmentConfig.DEFAULTS;
     }
 
     public Optional<VolumeConfig> findById(String id) {

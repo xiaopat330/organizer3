@@ -2,6 +2,7 @@ package com.organizer3.utilities.task.javdb;
 
 import com.organizer3.javdb.enrichment.EnrichmentQueue;
 import com.organizer3.javdb.enrichment.JavdbSlugResolver;
+import com.organizer3.javdb.enrichment.RevalidationPendingRepository;
 import com.organizer3.utilities.task.Task;
 import com.organizer3.utilities.task.TaskIO;
 import com.organizer3.utilities.task.TaskInputs;
@@ -60,13 +61,16 @@ public final class EnrichmentClearMismatchedTask implements Task {
     private final Jdbi jdbi;
     private final JavdbSlugResolver slugResolver;
     private final EnrichmentQueue queue;
+    private final RevalidationPendingRepository revalidationPendingRepo;
 
     public EnrichmentClearMismatchedTask(Jdbi jdbi,
                                          JavdbSlugResolver slugResolver,
-                                         EnrichmentQueue queue) {
+                                         EnrichmentQueue queue,
+                                         RevalidationPendingRepository revalidationPendingRepo) {
         this.jdbi = jdbi;
         this.slugResolver = slugResolver;
         this.queue = queue;
+        this.revalidationPendingRepo = revalidationPendingRepo;
     }
 
     @Override public TaskSpec spec() { return SPEC; }
@@ -170,6 +174,9 @@ public final class EnrichmentClearMismatchedTask implements Task {
         try {
             int gradeNulled = clearOne(te.titleId);
             queue.enqueueTitleForce(te.titleId, anyActressId);
+            if (revalidationPendingRepo != null) {
+                revalidationPendingRepo.enqueue(te.titleId, "cleanup");
+            }
             c.cleared++;
             c.gradesCleared += gradeNulled;
             c.reenqueued++;
@@ -208,6 +215,9 @@ public final class EnrichmentClearMismatchedTask implements Task {
             try {
                 int gradeNulled = clearOne(ht.titleId);
                 queue.enqueueTitleForce(ht.titleId, ht.actressId);
+                if (revalidationPendingRepo != null) {
+                    revalidationPendingRepo.enqueue(ht.titleId, "cleanup");
+                }
                 c.cleared++;
                 c.gradesCleared += gradeNulled;
                 c.reenqueued++;
