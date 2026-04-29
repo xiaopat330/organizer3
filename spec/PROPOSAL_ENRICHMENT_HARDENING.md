@@ -303,6 +303,54 @@ When the gate first runs over the existing ~1500 enriched rows (after rollout), 
 
 ---
 
+## Forward-looking: Queue "Enrich" button (next big feature)
+
+Captured 2026-04-28 — not part of this proposal's deliverables, but the hardening design must keep this future feature tractable.
+
+### Vision
+
+The Queue screen lists uncurated titles with proper folder structure but no metadata — just a product code (e.g., `ONED-123/`). Today the user manually adds cover, actresses, and metadata via the Unsorted Editor. The future feature adds an **"Enrich"** button that, given just the product code:
+
+- Resolves to a javdb slug via the Q1 pipeline
+- Auto-fills actresses (with reconciliation against existing canonical actresses)
+- Downloads the cover image into the title folder
+- Writes all enrichment metadata
+- Leaves the user in the editor to review + override
+
+This makes the editor a **power-assisted workflow** rather than fully manual, while preserving manual control where javdb is wrong or incomplete.
+
+### Why hardening makes this safe
+
+Without today's hardening, "one-click Enrich" with code-only input would be the **single biggest source** of the corruption we just cleaned up. Queue titles have no actress anchor → resolver falls through to code-search → original bug surface. Stamping silent enrichment from there at scale would be catastrophic.
+
+With hardening:
+- Code-only runs the Q1 pipeline (filmography cache → cast verify → ambiguous picker)
+- Ambiguous cases trigger the **picker UI inline in the Queue editor** — same component as Tools → Step 8, no context switch. The Queue "Enrich" button becomes a consumer of the same pipeline, not a special case.
+- Confidence stamps make it clear which fields were auto-filled and which were user-confirmed.
+
+### Open design questions (defer)
+
+The hardening should leave these tractable; we'll answer them when the feature is scoped:
+
+1. **Actress reconciliation.** javdb stage names (`紗倉まな`) vs our canonical (`Mana Sakura`). Resolve via existing `actress_aliases` → fuzzy match → if no match: auto-create new actress, or surface for user confirmation?
+2. **Cover image fetch.** Generalize `CoverWriteService` (used by Unsorted Editor) to accept a remote URL. Download + place in title folder.
+3. **Tag application.** Auto-apply enrichment tags + cast, or stage for user approval before write?
+4. **Provenance after manual edit.** User pressed Enrich, got 80% right, edits a field. Provenance: `resolver_source='auto_enriched_then_edited'`. Audit log records the auto-filled prior values.
+5. **Bulk Enrich.** "Enrich all visible" — interact with rate limiter + ambiguous queue. Probably surfaces as a Utilities task with progress + cancel; ambiguous results land in the queue for later triage.
+
+### Compatibility checks against the hardening design
+
+The hardening design holds up:
+- **Filmography persistence (1A)** — directly accelerates Queue Enrich (no per-click filmography refetch)
+- **Provenance (1B)** — stamps `resolver_source` so the editor can show "auto-enriched" vs "manual" badges
+- **Write-time gate (1C)** — refuses bad enrichment, falls through to picker. The Queue "Enrich" button can't write corruption.
+- **Ambiguous picker (3A)** — already designed multi-surface; "in-line in Queue editor" is just another consumer
+- **Audit log (2B)** — captures Enrich → user-edit transitions for forensic value
+
+The only new infrastructure the future feature would need: **cover-image fetcher + actress reconciliation**. Both are well-bounded and independent.
+
+---
+
 ## Estimated effort
 
 | Item | Sessions |
