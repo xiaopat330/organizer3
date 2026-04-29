@@ -447,7 +447,10 @@ public class SchemaInitializer {
                         cover_url           TEXT,
                         thumbnail_urls_json TEXT,
                         cast_json           TEXT,
-                        raw_path            TEXT
+                        raw_path            TEXT,
+                        resolver_source     TEXT,
+                        confidence          TEXT,
+                        cast_validated      INTEGER
                     )""");
             h.execute("CREATE INDEX IF NOT EXISTS idx_tje_rating_avg   ON title_javdb_enrichment(rating_avg)");
             h.execute("CREATE INDEX IF NOT EXISTS idx_tje_release_date ON title_javdb_enrichment(release_date)");
@@ -512,7 +515,7 @@ public class SchemaInitializer {
             // leave the version alone and let SchemaUpgrader apply any missing migrations.
             int currentVersion = h.createQuery("PRAGMA user_version").mapTo(Integer.class).one();
             if (currentVersion == 0) {
-                h.execute("PRAGMA user_version = 34");
+                h.execute("PRAGMA user_version = 35");
             }
         });
         log.info("Schema initialization complete");

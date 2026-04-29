@@ -141,6 +141,30 @@ class JavdbEnrichmentRepositoryTest {
     }
 
     @Test
+    void countByConfidence_returnsCorrectCount() {
+        jdbi.useHandle(h -> {
+            h.execute("INSERT INTO title_javdb_enrichment(title_id, javdb_slug, fetched_at, confidence) VALUES (1, 's1', '2024-01-01T00:00:00Z', 'HIGH')");
+            h.execute("INSERT INTO title_javdb_enrichment(title_id, javdb_slug, fetched_at, confidence) VALUES (2, 's2', '2024-01-01T00:00:00Z', 'UNKNOWN')");
+        });
+
+        assertEquals(1, repo.countByConfidence("HIGH"));
+        assertEquals(1, repo.countByConfidence("UNKNOWN"));
+        assertEquals(0, repo.countByConfidence("LOW"));
+    }
+
+    @Test
+    void countByResolverSource_returnsCorrectCount() {
+        jdbi.useHandle(h -> {
+            h.execute("INSERT INTO title_javdb_enrichment(title_id, javdb_slug, fetched_at, resolver_source) VALUES (1, 's1', '2024-01-01T00:00:00Z', 'actress_filmography')");
+            h.execute("INSERT INTO title_javdb_enrichment(title_id, javdb_slug, fetched_at, resolver_source) VALUES (2, 's2', '2024-01-01T00:00:00Z', 'unknown')");
+        });
+
+        assertEquals(1, repo.countByResolverSource("actress_filmography"));
+        assertEquals(1, repo.countByResolverSource("unknown"));
+        assertEquals(0, repo.countByResolverSource("code_search"));
+    }
+
+    @Test
     void deleteEnrichment_removesRowAndTagsAndRefreshesCounts() {
         repo.upsertEnrichment(1L, "slug1", "rp", sampleExtract("TST-1", "slug1", List.of("Big Tits"), 4.0));
         repo.upsertEnrichment(2L, "slug2", "rp", sampleExtract("TST-2", "slug2", List.of("Big Tits"), 4.0));
