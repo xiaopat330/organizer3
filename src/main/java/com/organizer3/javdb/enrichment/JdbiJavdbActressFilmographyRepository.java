@@ -204,6 +204,14 @@ public class JdbiJavdbActressFilmographyRepository implements JavdbActressFilmog
     }
 
     @Override
+    public java.util.List<String> findAllActressSlugs() {
+        return jdbi.withHandle(h ->
+                h.createQuery("SELECT actress_slug FROM javdb_actress_filmography ORDER BY actress_slug")
+                        .mapTo(String.class)
+                        .list());
+    }
+
+    @Override
     public void evict(String actressSlug) {
         jdbi.useHandle(h -> {
             h.createUpdate("DELETE FROM javdb_actress_filmography_entry WHERE actress_slug = :slug")

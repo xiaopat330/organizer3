@@ -47,6 +47,12 @@ public interface JavdbActressFilmographyRepository {
     int markNotFound(String actressSlug, String fetchedAt);
 
     /**
+     * Returns all actress slugs that have a persisted metadata row, in no particular order.
+     * Used by export/archive tools that operate across the full filmography cache.
+     */
+    java.util.List<String> findAllActressSlugs();
+
+    /**
      * Returns {@code true} if this actress's cached filmography is absent or past its TTL.
      *
      * <p>TTL is soft: if {@code lastReleaseDate} is more than 2 years ago the actress is

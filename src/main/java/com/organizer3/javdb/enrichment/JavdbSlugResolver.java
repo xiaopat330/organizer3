@@ -51,6 +51,7 @@ public class JavdbSlugResolver {
     private final JavdbFilmographyParser filmographyParser;
     private final JavdbSearchParser searchParser;
     private final JavdbActressFilmographyRepository filmographyRepo;
+    private final FilmographyBackupWriter backupWriter;
     private final int ttlDays;
     private final int maxPages;
     private final Clock clock;
@@ -77,6 +78,7 @@ public class JavdbSlugResolver {
     public JavdbSlugResolver(JavdbClient client) {
         this(client, new JavdbFilmographyParser(), new JavdbSearchParser(),
                 NoOpJavdbActressFilmographyRepository.INSTANCE,
+                null,
                 JavdbConfig.DEFAULTS.filmographyTtlDaysOrDefault(),
                 JavdbConfig.DEFAULTS.filmographyMaxPagesOrDefault(),
                 Clock.systemUTC());
@@ -88,16 +90,31 @@ public class JavdbSlugResolver {
                              JavdbConfig config) {
         this(client, new JavdbFilmographyParser(), new JavdbSearchParser(),
                 filmographyRepo,
+                null,
+                config.filmographyTtlDaysOrDefault(),
+                config.filmographyMaxPagesOrDefault(),
+                Clock.systemUTC());
+    }
+
+    /** Production constructor with backup writer: wires L2 persistence, backup, TTL, and max-pages from config. */
+    public JavdbSlugResolver(JavdbClient client,
+                             JavdbActressFilmographyRepository filmographyRepo,
+                             JavdbConfig config,
+                             FilmographyBackupWriter backupWriter) {
+        this(client, new JavdbFilmographyParser(), new JavdbSearchParser(),
+                filmographyRepo,
+                backupWriter,
                 config.filmographyTtlDaysOrDefault(),
                 config.filmographyMaxPagesOrDefault(),
                 Clock.systemUTC());
     }
 
     /** Full constructor for testing — all dependencies injectable. */
-    JavdbSlugResolver(JavdbClient client,
+    public JavdbSlugResolver(JavdbClient client,
                       JavdbFilmographyParser filmographyParser,
                       JavdbSearchParser searchParser,
                       JavdbActressFilmographyRepository filmographyRepo,
+                      FilmographyBackupWriter backupWriter,
                       int ttlDays,
                       int maxPages,
                       Clock clock) {
@@ -105,6 +122,7 @@ public class JavdbSlugResolver {
         this.filmographyParser = filmographyParser;
         this.searchParser = searchParser;
         this.filmographyRepo = filmographyRepo;
+        this.backupWriter = backupWriter;
         this.ttlDays = ttlDays;
         this.maxPages = maxPages;
         this.clock = clock;
@@ -209,9 +227,23 @@ public class JavdbSlugResolver {
         }
     }
 
-    /** Test/admin hook: drop the in-memory (L1) filmography cache. */
+    /** Drop the in-memory (L1) filmography cache for all actresses. */
     public void clearFilmographyCache() {
         filmographyCache.clear();
+    }
+
+    /**
+     * Drop the in-memory (L1) entry for one actress.
+     * Does not touch fetchLocks: a thread waiting on the lock for this actress will
+     * re-check L1 after acquiring it and find a miss, then hit L2 or HTTP normally.
+     */
+    public void evictL1(String actressSlug) {
+        filmographyCache.remove(actressSlug);
+    }
+
+    /** Expose the underlying filmography repository (for MCP tools that need direct repo access). */
+    public JavdbActressFilmographyRepository filmographyRepo() {
+        return filmographyRepo;
     }
 
     /**
@@ -269,6 +301,14 @@ public class JavdbSlugResolver {
         // so this is null for all HTTP fetches. A future parser enhancement can populate it.
         FetchResult result = new FetchResult(fetchedAt, pageCount, null, "http", entries);
         filmographyRepo.upsertFilmography(actressSlug, result);
+
+        if (backupWriter != null) {
+            try {
+                backupWriter.write(actressSlug, result);
+            } catch (Exception e) {
+                log.warn("javdb: backup write failed for {} — {}", actressSlug, e.getMessage(), e);
+            }
+        }
 
         log.info("javdb: fetched filmography for {} — {} pages, {} entries",
                 actressSlug, pageCount, codeToSlug.size());

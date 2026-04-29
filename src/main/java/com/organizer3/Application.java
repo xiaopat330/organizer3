@@ -412,8 +412,10 @@ public class Application {
                 new com.organizer3.javdb.enrichment.ProfileChainGate(jdbi, javdbConfig);
         com.organizer3.javdb.enrichment.JavdbActressFilmographyRepository filmographyRepo =
                 new com.organizer3.javdb.enrichment.JdbiJavdbActressFilmographyRepository(jdbi);
+        com.organizer3.javdb.enrichment.FilmographyBackupWriter filmographyBackupWriter =
+                new com.organizer3.javdb.enrichment.FilmographyBackupWriter(dataDir);
         com.organizer3.javdb.enrichment.JavdbSlugResolver slugResolver =
-                new com.organizer3.javdb.enrichment.JavdbSlugResolver(javdbClient, filmographyRepo, javdbConfig);
+                new com.organizer3.javdb.enrichment.JavdbSlugResolver(javdbClient, filmographyRepo, javdbConfig, filmographyBackupWriter);
         com.organizer3.javdb.enrichment.EnrichmentRunner enrichmentRunner =
                 new com.organizer3.javdb.enrichment.EnrichmentRunner(
                         javdbConfig, javdbClient, slugResolver,
@@ -777,8 +779,13 @@ public class Application {
                     .register(new com.organizer3.mcp.tools.ExportAliasesTool(actressRepo, dataDir))
                     .register(new com.organizer3.mcp.tools.ListTrashItemsTool(trashService, smbConnectionFactory))
                     .register(new com.organizer3.mcp.tools.ListTaskSpecsTool(taskRegistry))
-                    .register(new com.organizer3.mcp.tools.GetTaskRunStatusTool(taskRunner));
+                    .register(new com.organizer3.mcp.tools.GetTaskRunStatusTool(taskRunner))
+                    .register(new com.organizer3.mcp.tools.ExportFilmographyBackupTool(filmographyBackupWriter, filmographyRepo))
+                    .register(new com.organizer3.mcp.tools.ArchiveFilmographyBackupsTool(filmographyBackupWriter));
             if (mcpConfig.mutationsAllowed()) {
+                mcpTools.register(new com.organizer3.mcp.tools.RefreshFilmographyTool(slugResolver));
+                mcpTools.register(new com.organizer3.mcp.tools.EvictFilmographyTool(slugResolver));
+                mcpTools.register(new com.organizer3.mcp.tools.ImportFilmographyBackupTool(filmographyBackupWriter, filmographyRepo, slugResolver));
                 mcpTools.register(new com.organizer3.mcp.tools.SetActressAliasesTool(actressRepo));
                 mcpTools.register(new com.organizer3.mcp.tools.MergeActressesTool(jdbi, actressRepo));
                 mcpTools.register(new com.organizer3.mcp.tools.DeleteTitleTool(jdbi, titleRepo));

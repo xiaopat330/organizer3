@@ -24,5 +24,6 @@ final class NoOpJavdbActressFilmographyRepository implements JavdbActressFilmogr
     @Override public void upsertFilmography(String actressSlug, FetchResult result)       {}
     @Override public void evict(String actressSlug)                                        {}
     @Override public int markNotFound(String actressSlug, String fetchedAt)               { return 0; }
+    @Override public java.util.List<String> findAllActressSlugs()                         { return java.util.List.of(); }
     @Override public boolean isStale(String actressSlug, int ttlDays, Clock clock)        { return true; }
 }

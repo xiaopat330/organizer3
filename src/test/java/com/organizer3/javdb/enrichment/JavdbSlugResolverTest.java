@@ -196,7 +196,7 @@ class JavdbSlugResolverTest {
 
         private JavdbSlugResolver resolverWithClock(Clock clock) {
             return new JavdbSlugResolver(l2Client, new JavdbFilmographyParser(),
-                    new JavdbSearchParser(), filmographyRepo, 90, 50, clock);
+                    new JavdbSearchParser(), filmographyRepo, null, 90, 50, clock);
         }
 
         private static Clock fixedClock(String instant) {
@@ -270,7 +270,7 @@ class JavdbSlugResolverTest {
                 }
             };
             JavdbSlugResolver r2 = new JavdbSlugResolver(countingClient, new JavdbFilmographyParser(),
-                    new JavdbSearchParser(), filmographyRepo, 90, 50, fixedClock("2026-04-29T10:00:00Z"));
+                    new JavdbSearchParser(), filmographyRepo, null, 90, 50, fixedClock("2026-04-29T10:00:00Z"));
 
             CompletableFuture<Map<String, String>> t1 = CompletableFuture.supplyAsync(() -> {
                 try { startGate.await(); } catch (InterruptedException e) { Thread.currentThread().interrupt(); }
