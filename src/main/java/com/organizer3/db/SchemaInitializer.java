@@ -447,7 +447,10 @@ public class SchemaInitializer {
                         cover_url           TEXT,
                         thumbnail_urls_json TEXT,
                         cast_json           TEXT,
-                        raw_path            TEXT
+                        raw_path            TEXT,
+                        resolver_source     TEXT,
+                        confidence          TEXT,
+                        cast_validated      INTEGER
                     )""");
             h.execute("CREATE INDEX IF NOT EXISTS idx_tje_rating_avg   ON title_javdb_enrichment(rating_avg)");
             h.execute("CREATE INDEX IF NOT EXISTS idx_tje_release_date ON title_javdb_enrichment(release_date)");

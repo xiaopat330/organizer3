@@ -141,6 +141,22 @@ public class JavdbEnrichmentRepository {
         effectiveTags.recomputeForTitle(titleId);
     }
 
+    /** Count of enrichment rows with the given confidence value (HIGH/MEDIUM/LOW/UNKNOWN). */
+    public int countByConfidence(String confidence) {
+        return jdbi.withHandle(h ->
+                h.createQuery("SELECT COUNT(*) FROM title_javdb_enrichment WHERE confidence = :confidence")
+                        .bind("confidence", confidence)
+                        .mapTo(Integer.class).one());
+    }
+
+    /** Count of enrichment rows with the given resolver_source value. */
+    public int countByResolverSource(String source) {
+        return jdbi.withHandle(h ->
+                h.createQuery("SELECT COUNT(*) FROM title_javdb_enrichment WHERE resolver_source = :source")
+                        .bind("source", source)
+                        .mapTo(Integer.class).one());
+    }
+
     /**
      * Returns {@code true} if at least one {@code title_javdb_enrichment} row references
      * the given javdb title slug. Used by drift detection to decide whether a vanished

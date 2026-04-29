@@ -19,7 +19,7 @@ import org.jdbi.v3.core.Jdbi;
 public class SchemaUpgrader {
 
     /** Must match the version stamped by {@link SchemaInitializer}. */
-    private static final int CURRENT_VERSION = 34;
+    private static final int CURRENT_VERSION = 35;
 
     private final Jdbi jdbi;
 
@@ -193,7 +193,29 @@ public class SchemaUpgrader {
             setVersion(34);
         }
 
+        if (version < 35) {
+            applyV35();
+            setVersion(35);
+        }
+
         log.info("Schema upgrade complete");
+    }
+
+    /**
+     * v35: provenance columns on {@code title_javdb_enrichment}.
+     *
+     * <p>Adds {@code resolver_source} (how the slug was resolved), {@code confidence}
+     * (HIGH/MEDIUM/LOW/UNKNOWN tiering), and {@code cast_validated} (write-time gate result).
+     * No backfill here — the one-shot {@code EnrichmentProvenanceBackfillTask} stamps
+     * existing rows at startup.
+     */
+    private void applyV35() {
+        log.info("Applying migration v35: provenance columns on title_javdb_enrichment");
+        jdbi.useHandle(h -> {
+            addColumnIfMissing(h, "title_javdb_enrichment", "resolver_source", "TEXT");
+            addColumnIfMissing(h, "title_javdb_enrichment", "confidence",      "TEXT");
+            addColumnIfMissing(h, "title_javdb_enrichment", "cast_validated",  "INTEGER");
+        });
     }
 
     /**

@@ -424,6 +424,7 @@ public class Application {
                         javdbStagingRepo, javdbEnrichmentRepo,
                         enrichmentQueue, titleRepo, actressRepo, autoPromoter, avatarStore,
                         enrichmentGradeStamper, ratingCurveRecomputer, profileChainGate, titleActressRepo);
+        new com.organizer3.javdb.enrichment.EnrichmentProvenanceBackfillTask(jdbi).run();
         commands.add(new EnrichActressCommand(actressRepo, titleRepo, enrichmentQueue));
 
         // Sync commands — registered dynamically from syncConfig.
