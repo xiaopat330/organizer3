@@ -148,7 +148,7 @@ class EnrichmentRunnerWriteGateTest {
         stagingRepo.upsertActressSlugOnly(actressId, "yui01", "YUI-001");
 
         // Build a filmography that maps the code to a slug
-        var filmographyRepo = new JdbiJavdbActressFilmographyRepository(jdbi);
+        var filmographyRepo = new JdbiJavdbActressFilmographyRepository(jdbi, new RevalidationPendingRepository(jdbi));
         filmographyRepo.upsertFilmography("yui01", new FetchResult(
                 java.time.Instant.now().toString(), 1, null, "http",
                 java.util.List.of(new FilmographyEntry("YUI-001", "yui_slug"))));
@@ -197,7 +197,7 @@ class EnrichmentRunnerWriteGateTest {
         link(titleId, actressId);
 
         stagingRepo.upsertActressSlugOnly(actressId, "mana01", "IPX-100");
-        var filmographyRepo = new JdbiJavdbActressFilmographyRepository(jdbi);
+        var filmographyRepo = new JdbiJavdbActressFilmographyRepository(jdbi, new RevalidationPendingRepository(jdbi));
         filmographyRepo.upsertFilmography("mana01", new FetchResult(
                 java.time.Instant.now().toString(), 1, null, "http",
                 java.util.List.of(new FilmographyEntry("IPX-100", "ipx100"))));
@@ -231,7 +231,7 @@ class EnrichmentRunnerWriteGateTest {
         link(titleId, actressId);
 
         stagingRepo.upsertActressSlugOnly(actressId, "yui01", "PRED-100");
-        var filmographyRepo = new JdbiJavdbActressFilmographyRepository(jdbi);
+        var filmographyRepo = new JdbiJavdbActressFilmographyRepository(jdbi, new RevalidationPendingRepository(jdbi));
         filmographyRepo.upsertFilmography("yui01", new FetchResult(
                 java.time.Instant.now().toString(), 1, null, "http",
                 java.util.List.of(new FilmographyEntry("PRED-100", "pred100"))));
@@ -264,7 +264,7 @@ class EnrichmentRunnerWriteGateTest {
         link(titleId, actressId);
 
         stagingRepo.upsertActressSlugOnly(actressId, "yui01", "PRED-200");
-        var filmographyRepo = new JdbiJavdbActressFilmographyRepository(jdbi);
+        var filmographyRepo = new JdbiJavdbActressFilmographyRepository(jdbi, new RevalidationPendingRepository(jdbi));
         filmographyRepo.upsertFilmography("yui01", new FetchResult(
                 java.time.Instant.now().toString(), 1, null, "http",
                 java.util.List.of(new FilmographyEntry("PRED-200", "pred200"))));

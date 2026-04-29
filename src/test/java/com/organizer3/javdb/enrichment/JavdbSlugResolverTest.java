@@ -185,7 +185,7 @@ class JavdbSlugResolverTest {
             connection = DriverManager.getConnection("jdbc:sqlite::memory:");
             Jdbi jdbi = Jdbi.create(connection);
             new SchemaInitializer(jdbi).initialize();
-            filmographyRepo = new JdbiJavdbActressFilmographyRepository(jdbi);
+            filmographyRepo = new JdbiJavdbActressFilmographyRepository(jdbi, new RevalidationPendingRepository(jdbi));
             l2Client = new FakeJavdbClient();
         }
 

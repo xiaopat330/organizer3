@@ -7,6 +7,7 @@ import com.organizer3.javdb.enrichment.FetchResult;
 import com.organizer3.javdb.enrichment.FilmographyBackupWriter;
 import com.organizer3.javdb.enrichment.FilmographyEntry;
 import com.organizer3.javdb.enrichment.JdbiJavdbActressFilmographyRepository;
+import com.organizer3.javdb.enrichment.RevalidationPendingRepository;
 import com.organizer3.javdb.enrichment.JavdbActressFilmographyRepository;
 import com.organizer3.javdb.enrichment.JavdbFilmographyParser;
 import com.organizer3.javdb.JavdbSearchParser;
@@ -42,7 +43,7 @@ class EvictFilmographyToolTest {
         connection = DriverManager.getConnection("jdbc:sqlite::memory:");
         Jdbi jdbi = Jdbi.create(connection);
         new SchemaInitializer(jdbi).initialize();
-        repo = new JdbiJavdbActressFilmographyRepository(jdbi);
+        repo = new JdbiJavdbActressFilmographyRepository(jdbi, new RevalidationPendingRepository(jdbi));
 
         repo.upsertFilmography("J9dd", new FetchResult(
                 "2026-01-01T00:00:00Z", 1, null, "http",

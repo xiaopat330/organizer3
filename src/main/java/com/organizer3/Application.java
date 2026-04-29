@@ -412,8 +412,12 @@ public class Application {
                 new com.organizer3.rating.EnrichmentGradeStamper(ratingCurveRepo, ratingScoreCalculator, titleRepo);
         com.organizer3.javdb.enrichment.ProfileChainGate profileChainGate =
                 new com.organizer3.javdb.enrichment.ProfileChainGate(jdbi, javdbConfig);
+        com.organizer3.javdb.enrichment.RevalidationPendingRepository revalidationPendingRepo =
+                new com.organizer3.javdb.enrichment.RevalidationPendingRepository(jdbi);
+        com.organizer3.javdb.enrichment.RevalidationService revalidationService =
+                new com.organizer3.javdb.enrichment.RevalidationService(jdbi);
         com.organizer3.javdb.enrichment.JavdbActressFilmographyRepository filmographyRepo =
-                new com.organizer3.javdb.enrichment.JdbiJavdbActressFilmographyRepository(jdbi);
+                new com.organizer3.javdb.enrichment.JdbiJavdbActressFilmographyRepository(jdbi, revalidationPendingRepo);
         com.organizer3.javdb.enrichment.FilmographyBackupWriter filmographyBackupWriter =
                 new com.organizer3.javdb.enrichment.FilmographyBackupWriter(dataDir);
         com.organizer3.javdb.enrichment.JavdbSlugResolver slugResolver =
@@ -797,6 +801,7 @@ public class Application {
                 mcpTools.register(new com.organizer3.mcp.tools.SetActressAliasesTool(actressRepo));
                 mcpTools.register(new com.organizer3.mcp.tools.MergeActressesTool(jdbi, actressRepo));
                 mcpTools.register(new com.organizer3.mcp.tools.DeleteTitleTool(jdbi, titleRepo, enrichmentHistoryRepo));
+                mcpTools.register(new com.organizer3.mcp.tools.RevalidateEnrichmentTool(revalidationService, revalidationPendingRepo));
                 mcpTools.register(new com.organizer3.mcp.tools.SetDuplicateDecisionTool(dupDecisionRepo));
                 mcpTools.register(new com.organizer3.mcp.tools.DecideMergeCandidateTool(mergeCandidateRepo));
                 mcpTools.register(new com.organizer3.mcp.tools.ExecuteMergesTool(taskRunner));

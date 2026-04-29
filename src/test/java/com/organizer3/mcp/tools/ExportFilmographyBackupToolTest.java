@@ -7,6 +7,7 @@ import com.organizer3.javdb.enrichment.FetchResult;
 import com.organizer3.javdb.enrichment.FilmographyBackupWriter;
 import com.organizer3.javdb.enrichment.FilmographyEntry;
 import com.organizer3.javdb.enrichment.JdbiJavdbActressFilmographyRepository;
+import com.organizer3.javdb.enrichment.RevalidationPendingRepository;
 import com.organizer3.javdb.enrichment.JavdbActressFilmographyRepository;
 import org.jdbi.v3.core.Jdbi;
 import org.junit.jupiter.api.AfterEach;
@@ -36,7 +37,7 @@ class ExportFilmographyBackupToolTest {
         connection = DriverManager.getConnection("jdbc:sqlite::memory:");
         Jdbi jdbi = Jdbi.create(connection);
         new SchemaInitializer(jdbi).initialize();
-        repo = new JdbiJavdbActressFilmographyRepository(jdbi);
+        repo = new JdbiJavdbActressFilmographyRepository(jdbi, new RevalidationPendingRepository(jdbi));
         backupWriter = new FilmographyBackupWriter(tempDir);
         tool = new ExportFilmographyBackupTool(backupWriter, repo);
     }
