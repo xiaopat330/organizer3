@@ -94,12 +94,16 @@ class FullSyncOperationTest {
     }
 
     private FullSyncOperation newOp() {
+        return newOp(null);
+    }
+
+    private FullSyncOperation newOp(com.organizer3.javdb.enrichment.RevalidationPendingRepository revalidationPendingRepo) {
         try {
             java.nio.file.Path tmp = java.nio.file.Files.createTempDirectory("fsync-test");
             return new FullSyncOperation(scannerRegistry, titleRepo, videoRepo, actressRepo,
                     volumeRepo, titleLocationRepo, titleActressRepo, indexLoader,
                     mock(com.organizer3.db.TitleEffectiveTagsService.class), mock(com.organizer3.db.ActressCompaniesService.class),
-                    new CoverPath(tmp));
+                    new CoverPath(tmp), revalidationPendingRepo);
         } catch (IOException e) { throw new RuntimeException(e); }
     }
 
@@ -638,6 +642,31 @@ class FullSyncOperationTest {
         newOp().execute(QUEUE_VOLUME, structure, fs, ctx, io);
 
         verify(videoRepo).save(argThat(v -> "ABP-001.mkv".equals(v.getFilename())));
+    }
+
+    // --- Revalidation enqueue hook ---
+
+    @Test
+    void enqueuesTouchedTitlesForRevalidationAfterSync() throws IOException {
+        VolumeStructureDef structure = new VolumeStructureDef(
+                "queue", List.of(new PartitionDef("queue", "fresh")), null);
+
+        Path queueRoot = Path.of("/fresh");
+        Path titleDir  = queueRoot.resolve("ABP-001");
+        when(fs.exists(queueRoot)).thenReturn(true);
+        when(fs.listDirectory(queueRoot)).thenReturn(List.of(titleDir));
+        when(fs.isDirectory(titleDir)).thenReturn(true);
+        when(fs.listDirectory(titleDir)).thenReturn(List.of());
+        // findOrCreateByCode returns title with id=42
+        when(titleRepo.findOrCreateByCode(any(Title.class))).thenReturn(
+                Title.builder().id(42L).code("ABP-001").build());
+
+        com.organizer3.javdb.enrichment.RevalidationPendingRepository mockRepo =
+                mock(com.organizer3.javdb.enrichment.RevalidationPendingRepository.class);
+
+        newOp(mockRepo).execute(QUEUE_VOLUME, structure, fs, ctx, io);
+
+        verify(mockRepo).enqueue(42L, "sync");
     }
 
     // --- helpers ---

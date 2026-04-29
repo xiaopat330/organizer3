@@ -89,12 +89,16 @@ class EnrichmentRunnerWriteGateTest {
     }
 
     private EnrichmentRunner makeRunner(JavdbClient client) {
+        return makeRunner(client, new RevalidationPendingRepository(jdbi));
+    }
+
+    private EnrichmentRunner makeRunner(JavdbClient client, RevalidationPendingRepository revalidationPendingRepo) {
         return new EnrichmentRunner(
                 CONFIG, client, new JavdbSlugResolver(client),
                 new JavdbExtractor(), new JavdbProjector(new ObjectMapper()),
                 stagingRepo, enrichmentRepo, queue, titleRepo, actressRepo,
                 new AutoPromoter(jdbi), null, null, null, null,
-                titleActressRepo, reviewQueueRepo, castMatcher, jdbi);
+                titleActressRepo, reviewQueueRepo, castMatcher, jdbi, revalidationPendingRepo);
     }
 
     /** Builds HTML for a title page with the given cast names (Actors block). */
@@ -179,7 +183,7 @@ class EnrichmentRunnerWriteGateTest {
                 failingExtractor, new JavdbProjector(new ObjectMapper()),
                 stagingRepo, enrichmentRepo, queue, titleRepo, actressRepo,
                 new AutoPromoter(jdbi), null, null, null, null,
-                titleActressRepo, reviewQueueRepo, castMatcher, jdbi);
+                titleActressRepo, reviewQueueRepo, castMatcher, jdbi, null);
 
         queue.enqueueTitle(titleId, actressId);
         runner.runOneStep();
@@ -210,7 +214,7 @@ class EnrichmentRunnerWriteGateTest {
                 new JavdbExtractor(), new JavdbProjector(new ObjectMapper()),
                 stagingRepo, enrichmentRepo, queue, titleRepo, actressRepo,
                 new AutoPromoter(jdbi), null, null, null, null,
-                titleActressRepo, reviewQueueRepo, castMatcher, jdbi);
+                titleActressRepo, reviewQueueRepo, castMatcher, jdbi, null);
 
         queue.enqueueTitle(titleId, actressId);
         runner.runOneStep();
@@ -244,7 +248,7 @@ class EnrichmentRunnerWriteGateTest {
                 new JavdbExtractor(), new JavdbProjector(new ObjectMapper()),
                 stagingRepo, enrichmentRepo, queue, titleRepo, actressRepo,
                 new AutoPromoter(jdbi), null, null, null, null,
-                titleActressRepo, reviewQueueRepo, castMatcher, jdbi);
+                titleActressRepo, reviewQueueRepo, castMatcher, jdbi, null);
 
         queue.enqueueTitle(titleId, actressId);
         runner.runOneStep();
@@ -278,7 +282,7 @@ class EnrichmentRunnerWriteGateTest {
                 new JavdbExtractor(), new JavdbProjector(new ObjectMapper()),
                 stagingRepo, enrichmentRepo, queue, titleRepo, actressRepo,
                 new AutoPromoter(jdbi), null, null, null, null,
-                titleActressRepo, reviewQueueRepo, castMatcher, jdbi);
+                titleActressRepo, reviewQueueRepo, castMatcher, jdbi, null);
 
         queue.enqueueTitle(titleId, actressId);
         runner.runOneStep();
@@ -392,5 +396,26 @@ class EnrichmentRunnerWriteGateTest {
 
         // Enrichment proceeds normally — code-search fallback with real actress in cast → MEDIUM
         assertTrue(enrichmentRow(titleId).isPresent(), "collection job should not be blocked by sentinel");
+    }
+
+    // ─── Revalidation enqueue hook ────────────────────────────────────────────────
+
+    @Test
+    void writingEnrichmentEnqueuesForRevalidation() throws InterruptedException {
+        // Uses code-search path (no actress link) → row 5 → writes MEDIUM, no linked actress.
+        // The key behaviour: a gate-passing write must enqueue the title for revalidation.
+        long titleId = seedTitle("ENQ-001");
+
+        JavdbClient client = fakeClient("enq001", titleHtmlNoCast());
+        EnrichmentRunner runner = makeRunner(client);
+
+        queue.enqueueTitle(EnrichmentJob.SOURCE_RECENT, titleId, 0L);
+        runner.runOneStep();
+
+        assertTrue(enrichmentRow(titleId).isPresent(), "enrichment must be written (row 5 gate path)");
+        int pendingCount = jdbi.withHandle(h -> h.createQuery(
+                "SELECT COUNT(*) FROM revalidation_pending WHERE title_id = :id AND reason = 'queue_drain'")
+                .bind("id", titleId).mapTo(Integer.class).one());
+        assertEquals(1, pendingCount, "title must be enqueued for revalidation after write");
     }
 }

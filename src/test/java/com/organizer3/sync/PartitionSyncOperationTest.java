@@ -90,7 +90,7 @@ class PartitionSyncOperationTest {
 
         PartitionSyncOperation op = new PartitionSyncOperation(
                 List.of("queue"), titleRepo, videoRepo, actressRepo, volumeRepo, titleLocationRepo, titleActressRepo, indexLoader,
-                mock(com.organizer3.db.TitleEffectiveTagsService.class), mock(com.organizer3.db.ActressCompaniesService.class), coverPath);
+                mock(com.organizer3.db.TitleEffectiveTagsService.class), mock(com.organizer3.db.ActressCompaniesService.class), coverPath, null);
         op.execute(VOLUME, STRUCTURE, fs, ctx, io);
 
         verify(videoRepo).deleteByVolumeAndPartition("a", "queue");
@@ -111,7 +111,7 @@ class PartitionSyncOperationTest {
 
         PartitionSyncOperation op = new PartitionSyncOperation(
                 List.of("queue"), titleRepo, videoRepo, actressRepo, volumeRepo, titleLocationRepo, titleActressRepo, indexLoader,
-                mock(com.organizer3.db.TitleEffectiveTagsService.class), mock(com.organizer3.db.ActressCompaniesService.class), coverPath);
+                mock(com.organizer3.db.TitleEffectiveTagsService.class), mock(com.organizer3.db.ActressCompaniesService.class), coverPath, null);
         op.execute(VOLUME, STRUCTURE, fs, ctx, io);
 
         verify(titleRepo).findOrCreateByCode(argThat(t -> "ABP-001".equals(t.getCode())));
@@ -124,7 +124,7 @@ class PartitionSyncOperationTest {
 
         PartitionSyncOperation op = new PartitionSyncOperation(
                 List.of("queue", "attention"), titleRepo, videoRepo, actressRepo, volumeRepo, titleLocationRepo, titleActressRepo, indexLoader,
-                mock(com.organizer3.db.TitleEffectiveTagsService.class), mock(com.organizer3.db.ActressCompaniesService.class), coverPath);
+                mock(com.organizer3.db.TitleEffectiveTagsService.class), mock(com.organizer3.db.ActressCompaniesService.class), coverPath, null);
         op.execute(VOLUME, STRUCTURE, fs, ctx, io);
 
         verify(videoRepo).deleteByVolumeAndPartition("a", "queue");
@@ -137,7 +137,7 @@ class PartitionSyncOperationTest {
     void throwsOnUnknownPartitionId() {
         PartitionSyncOperation op = new PartitionSyncOperation(
                 List.of("nonexistent"), titleRepo, videoRepo, actressRepo, volumeRepo, titleLocationRepo, titleActressRepo, indexLoader,
-                mock(com.organizer3.db.TitleEffectiveTagsService.class), mock(com.organizer3.db.ActressCompaniesService.class), coverPath);
+                mock(com.organizer3.db.TitleEffectiveTagsService.class), mock(com.organizer3.db.ActressCompaniesService.class), coverPath, null);
 
         assertThrows(IllegalArgumentException.class,
                 () -> op.execute(VOLUME, STRUCTURE, fs, ctx, io));
@@ -157,7 +157,7 @@ class PartitionSyncOperationTest {
 
         PartitionSyncOperation op = new PartitionSyncOperation(
                 List.of("queue"), titleRepo, videoRepo, actressRepo, volumeRepo, titleLocationRepo, titleActressRepo, indexLoader,
-                mock(com.organizer3.db.TitleEffectiveTagsService.class), mock(com.organizer3.db.ActressCompaniesService.class), coverPath);
+                mock(com.organizer3.db.TitleEffectiveTagsService.class), mock(com.organizer3.db.ActressCompaniesService.class), coverPath, null);
         op.execute(VOLUME, STRUCTURE, fs, ctx, io);
 
         assertFalse(java.nio.file.Files.exists(coverFile), "orphaned title's cover should be deleted");
@@ -170,7 +170,7 @@ class PartitionSyncOperationTest {
 
         PartitionSyncOperation op = new PartitionSyncOperation(
                 List.of("queue"), titleRepo, videoRepo, actressRepo, volumeRepo, titleLocationRepo, titleActressRepo, indexLoader,
-                mock(com.organizer3.db.TitleEffectiveTagsService.class), mock(com.organizer3.db.ActressCompaniesService.class), coverPath);
+                mock(com.organizer3.db.TitleEffectiveTagsService.class), mock(com.organizer3.db.ActressCompaniesService.class), coverPath, null);
         op.execute(VOLUME, STRUCTURE, fs, ctx, io);
 
         verify(volumeRepo).updateLastSyncedAt(eq("a"), any(LocalDateTime.class));

@@ -38,9 +38,11 @@ public class FullSyncOperation extends AbstractSyncOperation {
                              IndexLoader indexLoader,
                              TitleEffectiveTagsService titleEffectiveTagsService,
                              ActressCompaniesService actressCompaniesService,
-                             com.organizer3.covers.CoverPath coverPath) {
+                             com.organizer3.covers.CoverPath coverPath,
+                             com.organizer3.javdb.enrichment.RevalidationPendingRepository revalidationPendingRepo) {
         super(titleRepo, videoRepo, actressRepo, volumeRepo, titleLocationRepo, titleActressRepo,
-                indexLoader, titleEffectiveTagsService, actressCompaniesService, coverPath);
+                indexLoader, titleEffectiveTagsService, actressCompaniesService, coverPath,
+                revalidationPendingRepo);
         this.scannerRegistry = scannerRegistry;
     }
 

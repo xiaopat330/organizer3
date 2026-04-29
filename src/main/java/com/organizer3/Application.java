@@ -416,6 +416,12 @@ public class Application {
                 new com.organizer3.javdb.enrichment.RevalidationPendingRepository(jdbi);
         com.organizer3.javdb.enrichment.RevalidationService revalidationService =
                 new com.organizer3.javdb.enrichment.RevalidationService(jdbi);
+        com.organizer3.config.volume.EnrichmentConfig enrichmentConfig = config.enrichmentOrDefaults();
+        com.organizer3.javdb.enrichment.RevalidationCronScheduler revalidationCronScheduler =
+                new com.organizer3.javdb.enrichment.RevalidationCronScheduler(
+                        revalidationService, revalidationPendingRepo,
+                        enrichmentConfig.revalidationCronOrDefaults().drainBatchSizeOrDefault(),
+                        enrichmentConfig.revalidationCronOrDefaults().safetyNetBatchSizeOrDefault());
         com.organizer3.javdb.enrichment.JavdbActressFilmographyRepository filmographyRepo =
                 new com.organizer3.javdb.enrichment.JdbiJavdbActressFilmographyRepository(jdbi, revalidationPendingRepo);
         com.organizer3.javdb.enrichment.FilmographyBackupWriter filmographyBackupWriter =
@@ -434,7 +440,7 @@ public class Application {
                         javdbStagingRepo, javdbEnrichmentRepo,
                         enrichmentQueue, titleRepo, actressRepo, autoPromoter, avatarStore,
                         enrichmentGradeStamper, ratingCurveRecomputer, profileChainGate, titleActressRepo,
-                        enrichmentReviewQueueRepo, castMatcher, jdbi);
+                        enrichmentReviewQueueRepo, castMatcher, jdbi, revalidationPendingRepo);
         new com.organizer3.javdb.enrichment.EnrichmentProvenanceBackfillTask(jdbi).run();
         commands.add(new EnrichActressCommand(actressRepo, titleRepo, enrichmentQueue));
 
@@ -458,11 +464,13 @@ public class Application {
                 case FULL ->
                     new FullSyncOperation(scannerRegistry, titleRepo, videoRepo, actressRepo,
                             volumeRepo, titleLocationRepo, titleActressRepo, indexLoader,
-                            titleEffectiveTagsService, actressCompaniesService, coverPath);
+                            titleEffectiveTagsService, actressCompaniesService, coverPath,
+                            revalidationPendingRepo);
                 case PARTITION ->
                     new PartitionSyncOperation(def.partitions(), titleRepo, videoRepo,
                             actressRepo, volumeRepo, titleLocationRepo, titleActressRepo, indexLoader,
-                            titleEffectiveTagsService, actressCompaniesService, coverPath);
+                            titleEffectiveTagsService, actressCompaniesService, coverPath,
+                            revalidationPendingRepo);
             };
             SyncCommand syncCmd = new SyncCommand(term, structureTypesByTerm.get(term), op);
             commands.add(syncCmd);
@@ -666,7 +674,7 @@ public class Application {
 
         com.organizer3.utilities.task.javdb.EnrichmentClearMismatchedTask enrichmentClearMismatchedTask =
                 new com.organizer3.utilities.task.javdb.EnrichmentClearMismatchedTask(
-                        jdbi, slugResolver, enrichmentQueue);
+                        jdbi, slugResolver, enrichmentQueue, revalidationPendingRepo);
 
         com.organizer3.utilities.task.TaskRegistry taskRegistry =
                 new com.organizer3.utilities.task.TaskRegistry(
@@ -840,6 +848,9 @@ public class Application {
         bgWorker.start();
         if (javdbConfig.enabledOrDefault()) enrichmentRunner.start();
         trashSweepScheduler.start(24);
+        if (enrichmentConfig.revalidationCronOrDefaults().enabledOrDefault()) {
+            revalidationCronScheduler.start(enrichmentConfig.revalidationCronOrDefaults().intervalHoursOrDefault());
+        }
 
         OrganizerShell shell = new OrganizerShell(session, dispatcher);
         shell.run();
@@ -848,6 +859,7 @@ public class Application {
         bgWorker.stop();
         enrichmentRunner.stop();
         trashSweepScheduler.stop();
+        revalidationCronScheduler.stop(10);
         backupScheduler.stop();
         probeJobRunner.shutdown();
         thumbnailService.shutdown();
