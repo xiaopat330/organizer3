@@ -328,15 +328,328 @@ With hardening:
 - Ambiguous cases trigger the **picker UI inline in the Queue editor** — same component as Tools → Step 8, no context switch. The Queue "Enrich" button becomes a consumer of the same pipeline, not a special case.
 - Confidence stamps make it clear which fields were auto-filled and which were user-confirmed.
 
-### Open design questions (defer)
+### Open design questions
 
-The hardening should leave these tractable; we'll answer them when the feature is scoped:
+#### Q1: Actress reconciliation — **resolved 2026-04-28: draft mode (revised)**
 
-1. **Actress reconciliation.** javdb stage names (`紗倉まな`) vs our canonical (`Mana Sakura`). Resolve via existing `actress_aliases` → fuzzy match → if no match: auto-create new actress, or surface for user confirmation?
-2. **Cover image fetch.** Generalize `CoverWriteService` (used by Unsorted Editor) to accept a remote URL. Download + place in title folder.
-3. **Tag application.** Auto-apply enrichment tags + cast, or stage for user approval before write?
-4. **Provenance after manual edit.** User pressed Enrich, got 80% right, edits a field. Provenance: `resolver_source='auto_enriched_then_edited'`. Audit log records the auto-filled prior values.
-5. **Bulk Enrich.** "Enrich all visible" — interact with rate limiter + ambiguous queue. Probably surfaces as a Utilities task with progress + cancel; ambiguous results land in the queue for later triage.
+(Earlier "block-and-ask inline reconciler" approach was superseded by the Draft Mode pattern below. The reconciler still exists but operates on draft tables, not real ones. See "Draft Mode design" further down.)
+
+**Cast validation rule** (locked, with multi-actress exception 2026-04-28):
+
+Three modes, gated by how many stage_names javdb returned:
+
+| stage_names returned by javdb | mode | rules |
+|---|---|---|
+| **0** | **sentinel-only** (default) | Resolved cast = exactly 1 sentinel (Amateur / Unknown / Various). No other path available. |
+| **1** | **strict** | Must resolve to ≥1 real actress (linked or newly created). Sentinel forbidden. SKIP forbidden. |
+| **≥2** | **multi-actress (relaxed)** | Either Path A (≥1 real actress, with optional SKIPs of individual stage_names) OR Path B (exactly 1 sentinel, all stage_names discarded). Mixing real + sentinel is **forbidden**. |
+
+Per-cast-slot actions in the picker:
+- `PICK` → link to existing actress
+- `CREATE NEW` → make new actress with English name (last_name required, first_name optional for mononyms)
+- `SKIP` → discard this stage_name, no `title_actresses` link (only available in multi-actress mode)
+
+Cast-section actions:
+- "Replace all with sentinel" → collapses to Path B (only available in multi-actress mode)
+
+**Forensic preservation (no data loss):**
+- `title_javdb_enrichment.cast_json` retains the full original javdb cast verbatim — including SKIPped stage_names — because enrichment data is immutable (Q3).
+- `title_actresses` only contains the resolved entries.
+- Clean separation: `cast_json` = what javdb said, `title_actresses` = what we chose to track. The user can re-enrich later and re-evaluate SKIPped stage_names if needed.
+- Audit log captures SKIP actions as part of the promotion's history row, so we can answer "which stage_names did the user choose not to track on this title?"
+
+**Mononym handling:**
+- `actresses.first_name` is nullable; picker accepts `{last_name: "Aika", first_name: null}` → canonical = "Aika"
+
+When javdb returns a cast member we can't match, **block enrichment write and open an inline reconciler** rather than auto-creating an actress. Workflow:
+
+```
+For each cast entry returned by javdb:
+  1. javdb_slug match in javdb_actress_staging → link, done (HIGH confidence)
+  2. stage_name / alias / canonical_name match (whitespace-stripped, fuzzy) → link, done (MEDIUM)
+  3. NO MATCH → block enrichment, open inline reconciler:
+     (a) Search existing actresses (typeahead, in case manual lookup finds her)
+     (b) Create new actress — user enters English canonical name
+     (c) Use sentinel — Amateur / Unknown / Various
+
+Once all cast reconciled → write title_actresses + enrichment row.
+New actresses (3b) get needs_review=1.
+Sentinel fallbacks (3c) get an entry in enrichment_review_queue
+  (category='unidentified_cast') so they can be reassigned later.
+```
+
+**Schema additions:**
+```sql
+ALTER TABLE actresses
+  ADD COLUMN created_via   TEXT,            -- 'manual' | 'sync' | 'yaml_load' | 'enrichment_picker'
+  ADD COLUMN created_at    TEXT,
+  ADD COLUMN needs_review  INTEGER NOT NULL DEFAULT 0;
+```
+
+**New surface:** `actresses.list_needs_review` — list of auto-created actresses awaiting curator confirmation. Sortable by `created_at`. Confirm or merge-into-existing. Surfaces in Library Health.
+
+**Reasoning:** auto-create with javdb-side stage names would salt the DB with low-quality, potentially-duplicate canonical rows. Block-and-ask trades user friction (~20-30 min for a batch of 50) for DB integrity. Acceptable because the alternative today is fully manual — any automation is net positive even with reconciliation interruptions.
+
+**Edge cases handled:**
+- Name collision on "create new" — warn + suggest linking to existing
+- Fuzzy-match (Levenshtein over normalized forms) before declaring "no match" — reduces reconciler churn for cosmetic mismatches (full-width vs half-width katakana, stylization variants)
+- Sentinel fallback creates `enrichment_review_queue` entry with javdb name + slug stored in `detail`, so a future reassignment is trivial
+- Bulk Enrich (Q5) needs to either pause-per-unknown or sentinel-bomb-then-batch-reconcile — see Q5
+
+#### Q2: Cover image fetch — **resolved 2026-04-28**
+
+Compose existing `ImageFetcher` + `CoverWriteService` (both already used by Unsorted Editor). Synchronous, best-effort.
+
+| sub-question | decision |
+|---|---|
+| (a) Existing cover present? | **Preserve** — autofill never overwrites a manually-placed cover |
+| (b) Filename convention | `<code>.jpg` (e.g. `STAR-334.jpg`) — matches title folder identity |
+| (c) Thumbnails (`thumbnail_urls_json`) | **Discard entirely** — neither fetch nor store. Drop `thumbnail_urls_json` population from enrichment write. |
+| (d) Failure mode | **Soft warning** — enrichment row + metadata write atomically; cover fetch is best-effort. Failure surfaces in editor as "retry?" without blocking the Enrich completion. (Queue editor already tolerates incompleteness.) |
+| (e) Rate limit | **Free fetch** — separate `HttpClient` for `c0.jdbstatic.com`, no rate limiter. Add a CDN limiter only if 429s appear in logs. |
+| (f) Sync vs async | **Synchronous** — Enrich click handler waits for cover fetch (~2-3s typical). Async infra not worth it for short ops. |
+
+Flow:
+```
+After enrichment row + metadata write succeeds:
+  if enrichment.cover_url and !title.has_cover_at_base:
+      try:
+          bytes = imageFetcher.fetch(cover_url)        // free fetch, no limiter
+          coverWriteService.write(title, bytes,
+                                  filename = title.code + ".jpg")
+      except FetchOrWriteError as e:
+          log.warn(...)
+          surface_in_editor("cover not fetched — retry?", error=e)
+          // enrichment write itself stays committed
+```
+
+No new schema, no new queue category. Reuses existing services.
+
+#### Q3: Tag application — **resolved 2026-04-28: enrichment data is immutable**
+
+The original "auto-apply with editor visibility / X-to-remove" decision was superseded by a stronger rule: **all javdb-sourced data is absolute and immutable**, not just tags.
+
+Three tag classes with distinct mutability:
+
+| class | source | user can toggle? |
+|---|---|---|
+| **Enrichment tags** | from javdb during Enrich | **No** — immutable, locked |
+| **Label/code-derived tags** | derived from `label_tags` + product code | **No** — auto-derived |
+| **Intrinsic user tags** | user-applied | **Yes** — toggleable |
+
+Editor renders enrichment + derived tags with a 🔒 lock icon (no X-to-remove); intrinsic tags rendered as today.
+
+**Reasoning:** allowing edits to javdb-sourced data lets the user diverge from javdb's view, defeating the entire premise of having javdb as the source of truth. If javdb is wrong, the user re-enriches (replacing the draft) — they don't override field-by-field. Enforces consistency across re-enrich cycles.
+
+#### Q4: Provenance after manual edit — **resolved 2026-04-28 (simplified)**
+
+Because enrichment data is immutable (Q3), there is no "user edited a field after auto-enrich" state to track. `resolver_source` becomes a pure provenance field.
+
+**`resolver_source` values** on `title_javdb_enrichment`:
+| value | meaning |
+|---|---|
+| `auto_enriched` | Came from a draft promotion (user-validated Enrich result) |
+| `manual_picker` | User picked from ambiguous-resolution picker |
+| `discovery_feed` | Slug from javdb's recent-releases scrape (already canonical) |
+| `actress_filmography` | Background runner via filmography lookup |
+| `code_search` | Background runner via code-search + cast verify |
+| `cleanup_cleared` | Cleanup task cleared this row, awaiting re-enrich |
+
+**Audit log** still captures every write (per topic 2B's forever-retention rule). Volume is small — only resolver-driven writes occur, since user edits to enrichment fields are forbidden.
+
+**Re-enrich is wholesale replacement:** a new draft is created, user validates, promotion replaces the existing real row entirely. No per-field merge logic. Simpler than the earlier conservative-auto-merge model and consistent with the immutability rule.
+
+**Diff-and-pick UI** (side-by-side comparison of old real row vs new draft) is a useful affordance during validation — user can see what's changing before they hit Promote. Deferred to feature scoping; not load-bearing for v1.
+
+#### Draft Mode design — **adopted 2026-04-28 as the foundational pattern**
+
+Bulk Enrich (and ultimately single Enrich too) does not write directly to canonical tables. It writes to **mirror "draft" tables** that the user must validate before promotion.
+
+**Schema:**
+```sql
+CREATE TABLE draft_titles (                  -- mirrors `titles`, columns nullable
+  id                       INTEGER PRIMARY KEY AUTOINCREMENT,
+  code                     TEXT NOT NULL,
+  -- ... (mirror of titles columns, all nullable except code) ...
+  last_validation_error    TEXT,
+  updated_at               TEXT NOT NULL     -- optimistic-lock token
+);
+
+CREATE TABLE draft_actresses (
+  javdb_slug               TEXT PRIMARY KEY, -- shared globally across drafts (Q3 decision)
+  stage_name               TEXT,             -- from javdb (immutable once first written)
+  english_first_name       TEXT,             -- user-supplied; nullable for mononyms
+  english_last_name        TEXT,             -- user-supplied; required for "create new"
+  link_to_existing_id      INTEGER REFERENCES actresses(id),  -- when user picks "link to existing"
+  created_at               TEXT NOT NULL,
+  updated_at               TEXT NOT NULL,    -- optimistic-lock token
+  last_validation_error    TEXT
+);
+
+CREATE TABLE draft_title_actresses (
+  draft_title_id           INTEGER NOT NULL REFERENCES draft_titles(id) ON DELETE CASCADE,
+  javdb_slug               TEXT NOT NULL REFERENCES draft_actresses(javdb_slug),
+  resolution               TEXT NOT NULL,    -- 'pick' | 'create_new' | 'skip' | 'sentinel:<actress_id>'
+  PRIMARY KEY (draft_title_id, javdb_slug)
+);
+-- draft_actresses ref-counted via draft_title_actresses; orphan rows removed when last reference drops.
+
+CREATE TABLE draft_title_javdb_enrichment    -- mirrors enrichment row
+CREATE TABLE draft_title_enrichment_tags     -- mirrors enrichment tag links
+```
+
+**Concurrency** (Q3 decision 2026-04-28): no concurrent edit support. Both `draft_titles` and `draft_actresses` carry an `updated_at` token; writes include the token they read, and the server rejects stale writes with a "draft modified elsewhere — reload" error. No locking, no merge UI; user reloads the draft.
+
+**Ref-counting on discard:** Discarding draft #N drops only its `draft_title_actresses` rows (cascade) — shared `draft_actresses` rows survive while other drafts still reference them. The `draft_actresses` row is reaped when the last `draft_title_actresses` referencing it is gone.
+
+**Stage_name conflict** (rare): if two drafts return slightly different `stage_name` for the same `javdb_slug`, first-write-wins; subsequent draft writes confirm the existing row without overwriting `stage_name`.
+
+**Auto-link to existing real actresses** (Q4 decision 2026-04-28):
+
+| match type | trigger | action |
+|---|---|---|
+| **Slug match** (deterministic) — `javdb_actress_staging.javdb_slug` already maps to an existing `actresses.id` | At draft creation **and** at pre-flight validation | Worker writes `draft_actresses.link_to_existing_id` directly. Cast slot renders as "✓ Mana Sakura (resolved)" — no user action needed. |
+| **Name match** (heuristic) — user types a name in picker that matches an existing canonical or alias | Editor suggests inline | Banner: "Likely match: [name]. [Link] [Override]" — user confirms. |
+
+**Override affordance:** every auto-linked cast slot has an "Unlink and pick different" action. Auto-link must not trap the user — the picker is always one click away.
+
+**Cross-session persistence:** draft_actresses with `link_to_existing_id` stay in the table until promotion. User can leave and return; the draft's auto-link decision survives. Promotion is the big event that consumes drafts.
+
+**Edge cases handled:**
+- Stale slug staging (slug mapping but real actress deleted): auto-link fails at pre-flight; downgrade to name-match suggestion or force user resolution.
+- Existing actress has a different stale slug: slug-match fails; name match still surfaces as suggestion.
+- Multiple name-match candidates: editor renders a chooser inline.
+- Slug-match becomes available between creation and validation (e.g., user enriched another title meanwhile): pre-flight upgrades the draft to use the slug match.
+
+**Sync interaction** (Q5 decision 2026-04-28):
+
+Sync writes to real `titles` as today (folder identity, NULL metadata). Drafts are exclusively for **user-initiated mutations** (Enrich, manual Edit). Important rule: **editing always creates a draft.** When the user opens any title — curated or uncurated — for editing, the system clones the current state into a draft and the user works against the draft. Real tables are never directly mutated by user edits.
+
+- Background EnrichmentRunner writes directly to real tables, gated by write-time validation (Q1c). Ambiguous results go to `enrichment_review_queue`. Drafts are not involved in the autonomous path.
+- Sync writes folder-identity facts (`titles.code`, `title_locations`) directly to real tables. Sync does not interact with drafts.
+
+**Sync rediscovering a title that already has an active draft:** sync only updates real-table sync facts (`last_seen_at`, locations). The draft is left untouched, but a flag is set on the draft (`draft_titles.upstream_changed = 1`) and the editor surfaces a banner: "The underlying title was re-synced after this draft started. Discard and restart? [Discard] [Continue anyway]".
+
+**Sync deletes a title:** `draft_title.title_id REFERENCES titles(id) ON DELETE CASCADE` — drafts have no value beyond editing the underlying title. If the title is gone, the draft has nothing to promote into.
+
+**Garbage collection (decision 2026-04-28):**
+- Drafts have a 30-day lifetime. If `draft_titles.updated_at` is older than 30 days and the draft has not been promoted or discarded, it's GC'd automatically by a background sweep. Acts as a safety net for forgotten work and prevents draft accumulation.
+- `draft_actresses` rows whose ref-count (number of `draft_title_actresses` rows referencing them) drops to zero are GC'd in the same sweep. This handles cleanup after individual draft discards naturally.
+- GC sweep runs daily (or weekly — TBD; small operation).
+
+**Discovery feed scope** (Q6 decision 2026-04-28): drafts only exist for titles we own (i.e., a real `titles` row exists). Discovery feed remains browse-only for unowned titles; favorites continue to work as today and are unrelated to drafts. No "orphan drafts" before the file is on disk. Reasoning: drafts are a curation surface — without something to promote into, drafts have nothing to do.
+
+- Acquisition lag (user scouted via Discovery 6 months ago, finally acquires + syncs the file): no auto-Enrich. Sync creates the real `titles` row with NULL metadata; user invokes Enrich deliberately. Favorites stays as a separate wishlist concept.
+- Cover prefetch from Discovery: deferred — not a correctness concern.
+- Existing favorite mechanism: unchanged. Drafts and favorites remain separate concepts for separate purposes.
+
+**Audit log scope on drafts** (Q7 decision 2026-04-28): drafts do not generate audit log rows. The audit log captures **changes to canonical state only**.
+
+- Mid-draft edits (typing names, picking actresses, retrying covers) are not logged — drafts are transient by definition.
+- A **promotion event** writes one comprehensive history row capturing:
+  - Prior real-row state (`prior_payload`, per topic 2B)
+  - New canonical state (the post-promotion row contents)
+  - **`promotion_metadata` JSON** — the decisions made during draft validation: cast resolutions (`pick` / `create_new` / `skip` / `sentinel`), resolved actress IDs, the resolution path (`manual_picker` / `auto`). Cheap forensic context for "what choices led to this state."
+- **Discards are silent** — no audit log row when a draft is discarded. Common workflow event with no canonical-state impact; logging would clutter the forensic record.
+- **Per-session undo within a draft** (typing-level undo for the user's convenience): out of scope for this proposal; revisit if it becomes a UX pain point.
+
+**Lifecycle:**
+1. User clicks Enrich (single or bulk) on a Queue title.
+2. Worker populates `draft_*` tables — fills as much as possible from javdb.
+3. Title surfaces in Queue editor with a DRAFT badge.
+4. User opens the draft, fills any gaps (resolves ambiguous slugs via picker, picks/creates actresses, retries cover, etc.).
+5. User clicks **Validate** — pre-flight check (runs *before* opening the promotion transaction; cleaner error UX than relying on DB constraint failures):
+   - Cast rule check (mode-by-stage-name-count table)
+   - All actress slots resolved (no unresolved javdb stage_names without a SKIP)
+   - New actresses have non-empty English last_name
+   - Validation failures surface in the editor inline; promotion is not attempted.
+6. User clicks **Promote** (or "Validate & Promote" combined). Promotion is **one DB transaction** wrapping all writes:
+   - INSERT new `actresses` rows for newly-created drafts; bind generated IDs back
+   - INSERT/UPDATE `titles` from `draft_title`
+   - INSERT real `title_actresses` rows
+   - INSERT/UPDATE `title_javdb_enrichment` from `draft_title_javdb_enrichment`
+   - INSERT real `title_enrichment_tags`
+   - Append audit log row(s) for the promotion (per Q4)
+   - DELETE all draft rows for this title
+   - Single COMMIT. Any failure → full ROLLBACK; real tables untouched, drafts intact for retry.
+7. **On promotion failure**: write the error message to `draft_titles.last_validation_error` so the user can see what went wrong. Draft stays put for retry.
+8. **No bulk Validate-and-Promote.** Decision 2026-04-28: every draft requires individual review and Promote click. Bulk Enrich populates many drafts at once, but each draft must be opened, validated, and promoted one at a time. Enforces the "user must see every change before it lands in real tables" principle.
+9. Or user clicks **Discard** → drops all draft rows associated with this title; title returns to Queue, ready for re-enrich.
+
+**Editor under Draft Mode is a constrained resolution surface, not a free-form editor:**
+
+| field | editability in draft |
+|---|---|
+| Product code (immutable from folder) | read-only |
+| Title metadata (`title_original`, `release_date`, `maker`, `series`, etc.) | **read-only** — from javdb, frozen |
+| Cast slot resolution (existing actress link) | **action required** when ambiguous: PICK from existing or "create new" via picker |
+| New actress English name | editable — last_name (required), first_name (optional, supports mononyms) |
+| Sentinel selection | editable when the cast slot has no stage_name |
+| Cover image | limited: clear / refetch only |
+| Enrichment tags | read-only / 🔒 locked |
+| Label/code-derived tags | read-only / auto-derived |
+| Intrinsic user tags | editable — toggle freely |
+
+**Properties of the pattern:**
+- Real `titles` and `actresses` tables only ever hold validated, complete entities.
+- "Discard" is cheap and clean — no DELETE-cleanup cascade through real tables.
+- Enrichment immutability (Q3) is enforced at validation time, not after-the-fact.
+- Re-enrich on an already-promoted title creates a NEW draft alongside the real row; user reviews diff during validation, promotion replaces the real row.
+- Manual editing without Enrich works on drafts the same way — Enrich is just one input source.
+
+**This pattern replaces** the earlier `actresses.needs_review` flag and `actresses.list_needs_review` surface from the original Q1 design. Drafts ARE the review surface. Cleaner.
+
+**Refactor scope:** the existing Queue title editor is rewritten to operate on `draft_*` tables. User noted (2026-04-28) the existing editor has not been used yet, so the retrofit cost is acceptable.
+
+#### Q5: Bulk Enrich — **resolved 2026-04-28**
+
+Bulk Enrich is a Utilities task that walks a filtered set of Queue titles and populates drafts (via the separated pipeline below). Drafts handle all reconciliation/ambiguity work asynchronously; the bulk task itself only fetches and writes drafts.
+
+**Architecture (Q5b decision — separated pipeline):**
+
+```
+                  ┌──────────────────┐
+                  │ JavdbSlugResolver│
+                  │ JavdbClient      │   ← shared parsing/resolution components
+                  │ JavdbExtractor   │     (one path through javdb data,
+                  │ JavdbProjector   │     no drift between bulk and runner)
+                  └──────────────────┘
+                          ▲
+              ┌───────────┴───────────┐
+              │                       │
+      ┌───────────────┐       ┌──────────────────────┐
+      │ Background    │       │ BulkEnrichToDraftTask│
+      │ Enrichment    │       │ (Utilities task)     │
+      │ Runner        │       │                      │
+      │ writes REAL   │       │ writes DRAFT tables  │
+      └───────────────┘       └──────────────────────┘
+              │                       │
+              ▼                       ▼
+   title_javdb_enrichment    draft_title_javdb_enrichment
+   ...                        ...
+```
+
+Shared components: resolver (with filmography cache 1A), extractor, projector, HTTP client + rate limiter, write-time validation gate (1C).
+Bulk-specific: a new `DraftEnrichmentRepository` (mirrors `JavdbEnrichmentRepository` but writes draft tables) and the task class itself.
+
+**Where it runs (Q5a):** backend Utilities task with phases, cancellable, status checkable. Same pattern as `enrichment.clear_mismatched`. User can navigate away during the run; banner in the Queue screen shows progress.
+
+**Rate-limit interaction (Q5b):** task pauses the background `EnrichmentRunner` for its duration (start of task → unpause on completion/cancel). Bulk gets 100% of the rate budget while running; the runner's pending queue waits. Same rate limiter, no separate budget, no risk to the rate-limit experiment.
+
+**Scope — "Enrich all visible" (Q5c):**
+- Acts on the user's currently-filtered Queue view
+- Excludes titles already curated (have validated `title_javdb_enrichment`)
+- Excludes titles with an active draft — to re-curate, user must explicitly Discard the draft first
+- Button label shows eligible count (e.g. "Enrich 47 titles")
+- Confirmation modal lists exclusions explicitly: "47 titles will be enriched. (3 already have drafts, 2 already curated — excluded.) Background runner will be paused. Proceed?"
+
+**Cancel behavior (Q5d):**
+- Cancel signal: in-flight fetch is allowed to complete → its draft writes → task tears down. Avoids wasting rate budget already spent.
+- Drafts written so far persist regardless of cancel.
+- No formal resume — re-running Bulk Enrich is idempotent because the exclusion rules naturally skip already-drafted titles. The user simply re-clicks the button to continue where they left off.
+- Pause is not a separate concept — only cancel exists. Cancel + re-run = pause + resume in effect.
+
+**Concurrency:** only one Bulk Enrich task at a time; `TaskRunner` already enforces single-task-per-utility semantics.
 
 ### Compatibility checks against the hardening design
 
