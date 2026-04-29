@@ -489,13 +489,16 @@ public class SchemaInitializer {
                         fetched_at        TEXT NOT NULL,
                         page_count        INTEGER NOT NULL,
                         last_release_date TEXT,
-                        source            TEXT NOT NULL
+                        source            TEXT NOT NULL,
+                        last_drift_count  INTEGER NOT NULL DEFAULT 0,
+                        last_fetch_status TEXT    NOT NULL DEFAULT 'ok'
                     )""");
             h.execute("""
                     CREATE TABLE IF NOT EXISTS javdb_actress_filmography_entry (
-                        actress_slug TEXT NOT NULL,
-                        product_code TEXT NOT NULL,
-                        title_slug   TEXT NOT NULL,
+                        actress_slug TEXT    NOT NULL,
+                        product_code TEXT    NOT NULL,
+                        title_slug   TEXT    NOT NULL,
+                        stale        INTEGER NOT NULL DEFAULT 0,
                         PRIMARY KEY (actress_slug, product_code),
                         FOREIGN KEY (actress_slug) REFERENCES javdb_actress_filmography(actress_slug)
                             ON DELETE CASCADE
@@ -509,7 +512,7 @@ public class SchemaInitializer {
             // leave the version alone and let SchemaUpgrader apply any missing migrations.
             int currentVersion = h.createQuery("PRAGMA user_version").mapTo(Integer.class).one();
             if (currentVersion == 0) {
-                h.execute("PRAGMA user_version = 33");
+                h.execute("PRAGMA user_version = 34");
             }
         });
         log.info("Schema initialization complete");

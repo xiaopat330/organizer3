@@ -8,11 +8,15 @@ package com.organizer3.javdb.enrichment;
  * @param pageCount       number of actress pages consumed on the last fetch
  * @param lastReleaseDate ISO date of the most recent title in the filmography, or null if unknown
  * @param source          {@code "http"} or {@code "imported_backup"}
+ * @param lastDriftCount  number of drift events (changed/vanished-but-referenced pairs) on last re-fetch
+ * @param lastFetchStatus last fetch outcome: {@code "ok"} | {@code "not_found"} | {@code "fetch_failed"}
  */
 public record FilmographyMeta(
         String actressSlug,
         String fetchedAt,
         int pageCount,
         String lastReleaseDate,
-        String source
+        String source,
+        int lastDriftCount,
+        String lastFetchStatus
 ) {}
