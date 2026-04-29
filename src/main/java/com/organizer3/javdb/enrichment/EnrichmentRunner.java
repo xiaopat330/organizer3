@@ -5,7 +5,7 @@ import com.organizer3.javdb.JavdbConfig;
 import com.organizer3.javdb.JavdbForbiddenException;
 import com.organizer3.javdb.JavdbNotFoundException;
 import com.organizer3.javdb.JavdbRateLimitException;
-import com.organizer3.javdb.JavdbSearchParser;
+// JavdbSearchParser is no longer used directly — slug resolution flows through JavdbSlugResolver.
 import com.organizer3.model.Actress;
 import com.organizer3.model.ActressAlias;
 import com.organizer3.model.Title;
@@ -39,7 +39,7 @@ public class EnrichmentRunner {
 
     private final JavdbConfig config;
     private final JavdbClient client;
-    private final JavdbSearchParser searchParser;
+    private final JavdbSlugResolver slugResolver;
     private final JavdbExtractor extractor;
     private final JavdbProjector projector;
     private final JavdbStagingRepository stagingRepo;
@@ -94,7 +94,7 @@ public class EnrichmentRunner {
             com.organizer3.repository.TitleActressRepository titleActressRepo) {
         this.config = config;
         this.client = client;
-        this.searchParser = new JavdbSearchParser();
+        this.slugResolver = new JavdbSlugResolver(client);
         this.extractor = extractor;
         this.projector = projector;
         this.stagingRepo = stagingRepo;
@@ -308,13 +308,30 @@ public class EnrichmentRunner {
         Title title = maybeTitle.get();
         log.info("javdb: fetching {}", title.getCode());
 
-        Optional<String> maybeSlug = searchParser.parseFirstSlug(client.searchByCode(lookupCode(title.getCode())));
-        if (maybeSlug.isEmpty()) {
+        // Slug resolution: anchored on the linked actress's javdb slug when available.
+        // Fixes the code-reuse mismatch bug — see spec/PROPOSAL_JAVDB_SLUG_VERIFICATION.md.
+        String actressJavdbSlug = null;
+        if (actressId > 0) {
+            actressJavdbSlug = stagingRepo.findActressStaging(actressId)
+                    .map(JavdbActressStagingRow::javdbSlug)
+                    .orElse(null);
+        }
+        JavdbSlugResolver.Resolution resolution = slugResolver.resolve(
+                lookupCode(title.getCode()), actressJavdbSlug);
+        String slug;
+        if (resolution instanceof JavdbSlugResolver.Success success) {
+            slug = success.slug();
+        } else if (resolution instanceof JavdbSlugResolver.NoMatchInFilmography nm) {
+            log.warn("javdb: {} not in filmography of actress slug {} — marking no_match",
+                    title.getCode(), nm.actressSlug());
+            queue.markPermanentlyFailed(job.id(), "no_match_in_filmography");
+            return;
+        } else {
+            // CodeNotFound — preserve the pre-fix terminal status so callers don't see new behavior.
             log.warn("javdb: no results for {} — marking not_found", title.getCode());
             queue.markPermanentlyFailed(job.id(), "not_found");
             return;
         }
-        String slug = maybeSlug.get();
 
         String html = client.fetchTitlePage(slug);
         TitleExtract extract = extractor.extractTitle(html, title.getCode(), slug);
