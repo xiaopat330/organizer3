@@ -1,10 +1,15 @@
 package com.organizer3.javdb.enrichment;
 
 import com.organizer3.javdb.JavdbClient;
+import com.organizer3.javdb.JavdbConfig;
 import com.organizer3.javdb.JavdbSearchParser;
 import lombok.extern.slf4j.Slf4j;
 
+import java.time.Clock;
+import java.time.Instant;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
@@ -28,8 +33,11 @@ import java.util.concurrent.ConcurrentHashMap;
  *     for titles that can't use the actress anchor.</li>
  * </ul>
  *
- * <p>Pagination caveat: the actress filmography is fetched eagerly (all pages) on each
- * call. The disk cache in step 4 of the proposal will memoize across calls.
+ * <p>Two-level cache: an in-process {@code ConcurrentHashMap} (L1) avoids repeated lookups
+ * within the same JVM; a persistent SQLite table (L2) avoids repeated HTTP fetches across
+ * sessions. L1 is always checked first; on a miss, L2 is consulted if the entry is within
+ * the configured TTL; otherwise the filmography is re-fetched over HTTP and both levels
+ * are populated.
  */
 @Slf4j
 public class JavdbSlugResolver {
@@ -37,32 +45,55 @@ public class JavdbSlugResolver {
     private final JavdbClient client;
     private final JavdbFilmographyParser filmographyParser;
     private final JavdbSearchParser searchParser;
+    private final JavdbActressFilmographyRepository filmographyRepo;
+    private final int ttlDays;
+    private final int maxPages;
+    private final Clock clock;
 
     /**
-     * Per-process filmography cache. An actress's full {@code code → slug} map is fetched once
-     * and reused for the rest of the JVM's lifetime. Eliminates the N×{@code filmography pages}
-     * cost during bulk re-enrichment of titles whose actress already had her filmography fetched.
-     *
-     * <p>{@code computeIfAbsent} on {@code ConcurrentHashMap} coalesces concurrent fetches for
-     * the same actress: the second caller blocks until the first completes, then both see the
-     * cached result. Single fetch per actress per process.
-     *
-     * <p>Trade-off: a title published on javdb mid-run stays invisible until app restart.
-     * Acceptable for the slug-verification cleanup; a TTL'd disk cache (Step 4 of the proposal)
-     * is the durable answer.
+     * Per-process filmography cache (L1). An actress's full {@code code → slug} map is
+     * kept here for the JVM's lifetime once loaded. Checked before hitting L2 or HTTP.
      */
     private final Map<String, Map<String, String>> filmographyCache = new ConcurrentHashMap<>();
 
+    /**
+     * Convenience constructor for tests and callers that don't need L2 persistence.
+     * Uses a no-op repository — filmography is cached only in L1 for the JVM lifetime.
+     */
     public JavdbSlugResolver(JavdbClient client) {
-        this(client, new JavdbFilmographyParser(), new JavdbSearchParser());
+        this(client, new JavdbFilmographyParser(), new JavdbSearchParser(),
+                NoOpJavdbActressFilmographyRepository.INSTANCE,
+                JavdbConfig.DEFAULTS.filmographyTtlDaysOrDefault(),
+                JavdbConfig.DEFAULTS.filmographyMaxPagesOrDefault(),
+                Clock.systemUTC());
     }
 
+    /** Production constructor: wires L2 persistence, TTL, and max-pages from config. */
+    public JavdbSlugResolver(JavdbClient client,
+                             JavdbActressFilmographyRepository filmographyRepo,
+                             JavdbConfig config) {
+        this(client, new JavdbFilmographyParser(), new JavdbSearchParser(),
+                filmographyRepo,
+                config.filmographyTtlDaysOrDefault(),
+                config.filmographyMaxPagesOrDefault(),
+                Clock.systemUTC());
+    }
+
+    /** Full constructor for testing — all dependencies injectable. */
     JavdbSlugResolver(JavdbClient client,
                       JavdbFilmographyParser filmographyParser,
-                      JavdbSearchParser searchParser) {
+                      JavdbSearchParser searchParser,
+                      JavdbActressFilmographyRepository filmographyRepo,
+                      int ttlDays,
+                      int maxPages,
+                      Clock clock) {
         this.client = client;
         this.filmographyParser = filmographyParser;
         this.searchParser = searchParser;
+        this.filmographyRepo = filmographyRepo;
+        this.ttlDays = ttlDays;
+        this.maxPages = maxPages;
+        this.clock = clock;
     }
 
     /** Outcome of a slug-resolution attempt. */
@@ -130,42 +161,65 @@ public class JavdbSlugResolver {
     }
 
     /**
-     * Eagerly fetch all pages of an actress's filmography and build a {@code code → slug} map.
-     *
-     * <p>Pages are fetched sequentially; the runner's rate limiter (in {@link JavdbClient})
-     * applies to each call. Stops when {@link FilmographyPage#hasNextPage()} returns false
-     * or a hard cap of {@link #MAX_PAGES} is reached (defensive — should never hit in practice).
+     * Returns the full {@code code → slug} map for an actress, using the two-level cache:
+     * L1 (in-memory) → L2 (database, if within TTL) → HTTP fetch (+ persist to both levels).
      */
     public Map<String, String> filmographyOf(String actressSlug) {
-        return filmographyCache.computeIfAbsent(actressSlug, this::fetchFilmography);
+        // L1 hit — fastest path, no DB or network touch.
+        Map<String, String> l1 = filmographyCache.get(actressSlug);
+        if (l1 != null) return l1;
+
+        // L2 hit — valid cached data in the DB; populate L1 and return.
+        if (!filmographyRepo.isStale(actressSlug, ttlDays, clock)) {
+            Map<String, String> l2 = filmographyRepo.getCodeToSlug(actressSlug);
+            log.debug("javdb: filmography for {} loaded from L2 ({} entries)", actressSlug, l2.size());
+            filmographyCache.put(actressSlug, l2);
+            return l2;
+        }
+
+        // L2 miss or stale — fetch from HTTP, persist to L2, populate L1.
+        Map<String, String> fetched = fetchAndPersist(actressSlug);
+        filmographyCache.put(actressSlug, fetched);
+        return fetched;
     }
 
-    /** Test/admin hook: drop the in-memory filmography cache. */
+    /** Test/admin hook: drop the in-memory (L1) filmography cache. */
     public void clearFilmographyCache() {
         filmographyCache.clear();
     }
 
-    private Map<String, String> fetchFilmography(String actressSlug) {
+    private Map<String, String> fetchAndPersist(String actressSlug) {
         Map<String, String> codeToSlug = new HashMap<>();
+        List<FilmographyEntry> entries = new ArrayList<>();
+        int pageCount = 0;
         int page = 1;
-        while (page <= MAX_PAGES) {
+
+        while (page <= maxPages) {
             String html = client.fetchActressPage(actressSlug, page);
             FilmographyPage parsed = filmographyParser.parsePage(html);
             for (FilmographyEntry entry : parsed.entries()) {
                 // putIfAbsent: if the same code shows up across pages (shouldn't happen but
                 // defensive), keep the first occurrence — actress pages are typically newest-first.
-                codeToSlug.putIfAbsent(entry.productCode(), entry.titleSlug());
+                if (codeToSlug.putIfAbsent(entry.productCode(), entry.titleSlug()) == null) {
+                    entries.add(entry);
+                }
             }
+            pageCount = page;
             if (!parsed.hasNextPage()) break;
             page++;
         }
-        if (page > MAX_PAGES) {
-            log.warn("javdb: filmography for {} hit MAX_PAGES={} cap — truncating",
-                    actressSlug, MAX_PAGES);
+        if (page > maxPages) {
+            log.warn("javdb: filmography for {} hit maxPages={} cap — truncating", actressSlug, maxPages);
         }
+
+        String fetchedAt = Instant.now(clock).toString();
+        // lastReleaseDate: the current FilmographyParser doesn't extract release dates,
+        // so this is null for all HTTP fetches. A future parser enhancement can populate it.
+        FetchResult result = new FetchResult(fetchedAt, pageCount, null, "http", entries);
+        filmographyRepo.upsertFilmography(actressSlug, result);
+
+        log.info("javdb: fetched filmography for {} — {} pages, {} entries",
+                actressSlug, pageCount, codeToSlug.size());
         return codeToSlug;
     }
-
-    /** Defensive cap on filmography pages — even the most prolific actresses are well under this. */
-    private static final int MAX_PAGES = 50;
 }

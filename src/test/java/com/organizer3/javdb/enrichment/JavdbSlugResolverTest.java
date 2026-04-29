@@ -1,13 +1,24 @@
 package com.organizer3.javdb.enrichment;
 
+import com.organizer3.db.SchemaInitializer;
 import com.organizer3.javdb.JavdbClient;
+import com.organizer3.javdb.JavdbSearchParser;
+import org.jdbi.v3.core.Jdbi;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.time.Clock;
+import java.time.Instant;
+import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -149,6 +160,106 @@ class JavdbSlugResolverTest {
               </a>
             </div>
             """.formatted(slug, code);
+    }
+
+    // ── L2 integration tests ─────────────────────────────────────────────────
+
+    /**
+     * Tests that require a real in-memory SQLite database to verify the two-level
+     * (L1 in-memory + L2 database) caching behaviour of {@link JavdbSlugResolver}.
+     */
+    @Nested
+    class L2CacheIntegrationTest {
+
+        private Connection connection;
+        private JdbiJavdbActressFilmographyRepository filmographyRepo;
+        private FakeJavdbClient l2Client;
+
+        @BeforeEach
+        void setUp() throws Exception {
+            connection = DriverManager.getConnection("jdbc:sqlite::memory:");
+            Jdbi jdbi = Jdbi.create(connection);
+            new SchemaInitializer(jdbi).initialize();
+            filmographyRepo = new JdbiJavdbActressFilmographyRepository(jdbi);
+            l2Client = new FakeJavdbClient();
+        }
+
+        @AfterEach
+        void tearDown() throws Exception {
+            connection.close();
+        }
+
+        private JavdbSlugResolver resolverWithClock(Clock clock) {
+            return new JavdbSlugResolver(l2Client, new JavdbFilmographyParser(),
+                    new JavdbSearchParser(), filmographyRepo, 90, 50, clock);
+        }
+
+        private static Clock fixedClock(String instant) {
+            return Clock.fixed(Instant.parse(instant), ZoneOffset.UTC);
+        }
+
+        @Test
+        void firstResolveHitsHttpAndPersistsToDb() {
+            l2Client.actressPage("J9dd", 1, html(false, entry("STAR-334", "correctSlug")));
+            JavdbSlugResolver r = resolverWithClock(fixedClock("2026-04-29T10:00:00Z"));
+
+            var result = r.resolve("STAR-334", "J9dd");
+
+            assertInstanceOf(JavdbSlugResolver.Success.class, result);
+            assertEquals("correctSlug", ((JavdbSlugResolver.Success) result).slug());
+            assertEquals(1, l2Client.actressPageCalls.size(), "should have fetched from HTTP");
+
+            // L2 must have the data now
+            assertEquals(Optional.of("correctSlug"), filmographyRepo.findTitleSlug("J9dd", "STAR-334"));
+        }
+
+        @Test
+        void secondResolveInSameJvmHitsL1NotDb() {
+            l2Client.actressPage("J9dd", 1, html(false, entry("STAR-334", "slug1")));
+            JavdbSlugResolver r = resolverWithClock(fixedClock("2026-04-29T10:00:00Z"));
+
+            r.resolve("STAR-334", "J9dd");
+            // Second resolve — L1 is populated, no DB or HTTP should be touched.
+            var result = r.resolve("STAR-334", "J9dd");
+
+            assertInstanceOf(JavdbSlugResolver.Success.class, result);
+            assertEquals(1, l2Client.actressPageCalls.size(), "L1 hit must not re-fetch HTTP");
+        }
+
+        @Test
+        void resolverWithPrePopulatedDbButEmptyL1LoadsFromDbWithoutHttp() {
+            // Pre-populate L2 with a fresh entry (TTL not exceeded)
+            String fetchedAt = "2026-04-29T09:00:00Z";
+            filmographyRepo.upsertFilmography("J9dd", new FetchResult(
+                    fetchedAt, 1, null, "http",
+                    List.of(new FilmographyEntry("STAR-334", "slugFromDb"))));
+
+            // Resolver starts with empty L1 — should load from L2.
+            JavdbSlugResolver r = resolverWithClock(fixedClock("2026-04-29T10:00:00Z"));
+            var result = r.resolve("STAR-334", "J9dd");
+
+            assertInstanceOf(JavdbSlugResolver.Success.class, result);
+            assertEquals("slugFromDb", ((JavdbSlugResolver.Success) result).slug());
+            assertEquals(0, l2Client.actressPageCalls.size(), "must not hit HTTP when L2 is fresh");
+        }
+
+        @Test
+        void staleL2EntryTriggesHttpRefetch() {
+            // L2 has an entry fetched 200 days ago — past the 90-day TTL.
+            filmographyRepo.upsertFilmography("J9dd", new FetchResult(
+                    "2025-10-11T00:00:00Z", 1, null, "http",
+                    List.of(new FilmographyEntry("STAR-334", "oldSlug"))));
+
+            l2Client.actressPage("J9dd", 1, html(false, entry("STAR-334", "freshSlug")));
+            // "now" is 2026-04-29 — 200 days after the 2025-10-11 fetch, > 90-day TTL
+            JavdbSlugResolver r = resolverWithClock(fixedClock("2026-04-29T00:00:00Z"));
+
+            var result = r.resolve("STAR-334", "J9dd");
+
+            assertInstanceOf(JavdbSlugResolver.Success.class, result);
+            assertEquals("freshSlug", ((JavdbSlugResolver.Success) result).slug());
+            assertEquals(1, l2Client.actressPageCalls.size(), "stale L2 must trigger HTTP re-fetch");
+        }
     }
 
     /** Stub client that returns canned HTML for predetermined inputs. */

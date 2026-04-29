@@ -19,7 +19,7 @@ class ProfileChainGateTest {
     private ProfileChainGate gate;
 
     private static final JavdbConfig CONFIG_MIN3 =
-            new JavdbConfig(true, 1.0, 3, new int[]{1, 5, 30}, 5, null, null, null, null, 3);
+            new JavdbConfig(true, 1.0, 3, new int[]{1, 5, 30}, 5, null, null, null, null, 3, null, null);
 
     @BeforeEach
     void setUp() throws Exception {
@@ -126,7 +126,7 @@ class ProfileChainGateTest {
 
     @Test
     void configurable_thresholdOf1_passesWithOneTitle() {
-        JavdbConfig min1 = new JavdbConfig(true, 1.0, 3, new int[]{1}, 5, null, null, null, null, 1);
+        JavdbConfig min1 = new JavdbConfig(true, 1.0, 3, new int[]{1}, 5, null, null, null, null, 1, null, null);
         ProfileChainGate gateMin1 = new ProfileChainGate(jdbi, min1);
 
         long aId = insertActress("Sola Aoi", false);

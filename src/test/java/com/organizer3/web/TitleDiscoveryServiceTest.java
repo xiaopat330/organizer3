@@ -23,7 +23,7 @@ class TitleDiscoveryServiceTest {
 
     /** profileChainMinTitles=2 keeps fixtures small while still exercising the threshold. */
     private static final JavdbConfig CONFIG_MIN2 =
-            new JavdbConfig(true, 1.0, 3, new int[]{1, 5, 30}, 5, null, null, null, null, 2);
+            new JavdbConfig(true, 1.0, 3, new int[]{1, 5, 30}, 5, null, null, null, null, 2, null, null);
 
     private Connection connection;
     private Jdbi jdbi;

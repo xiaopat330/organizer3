@@ -410,9 +410,13 @@ public class Application {
                 new com.organizer3.rating.EnrichmentGradeStamper(ratingCurveRepo, ratingScoreCalculator, titleRepo);
         com.organizer3.javdb.enrichment.ProfileChainGate profileChainGate =
                 new com.organizer3.javdb.enrichment.ProfileChainGate(jdbi, javdbConfig);
+        com.organizer3.javdb.enrichment.JavdbActressFilmographyRepository filmographyRepo =
+                new com.organizer3.javdb.enrichment.JdbiJavdbActressFilmographyRepository(jdbi);
+        com.organizer3.javdb.enrichment.JavdbSlugResolver slugResolver =
+                new com.organizer3.javdb.enrichment.JavdbSlugResolver(javdbClient, filmographyRepo, javdbConfig);
         com.organizer3.javdb.enrichment.EnrichmentRunner enrichmentRunner =
                 new com.organizer3.javdb.enrichment.EnrichmentRunner(
-                        javdbConfig, javdbClient,
+                        javdbConfig, javdbClient, slugResolver,
                         new com.organizer3.javdb.enrichment.JavdbExtractor(),
                         new com.organizer3.javdb.enrichment.JavdbProjector(jsonMapper),
                         javdbStagingRepo, javdbEnrichmentRepo,
@@ -648,9 +652,7 @@ public class Application {
 
         com.organizer3.utilities.task.javdb.EnrichmentClearMismatchedTask enrichmentClearMismatchedTask =
                 new com.organizer3.utilities.task.javdb.EnrichmentClearMismatchedTask(
-                        jdbi,
-                        new com.organizer3.javdb.enrichment.JavdbSlugResolver(javdbClient),
-                        enrichmentQueue);
+                        jdbi, slugResolver, enrichmentQueue);
 
         com.organizer3.utilities.task.TaskRegistry taskRegistry =
                 new com.organizer3.utilities.task.TaskRegistry(

@@ -482,12 +482,34 @@ public class SchemaInitializer {
                         computed_at         TEXT    NOT NULL
                     )""");
 
+            // javdb_actress_filmography + entries: L2 disk cache for per-actress filmographies (v33).
+            h.execute("""
+                    CREATE TABLE IF NOT EXISTS javdb_actress_filmography (
+                        actress_slug      TEXT PRIMARY KEY,
+                        fetched_at        TEXT NOT NULL,
+                        page_count        INTEGER NOT NULL,
+                        last_release_date TEXT,
+                        source            TEXT NOT NULL
+                    )""");
+            h.execute("""
+                    CREATE TABLE IF NOT EXISTS javdb_actress_filmography_entry (
+                        actress_slug TEXT NOT NULL,
+                        product_code TEXT NOT NULL,
+                        title_slug   TEXT NOT NULL,
+                        PRIMARY KEY (actress_slug, product_code),
+                        FOREIGN KEY (actress_slug) REFERENCES javdb_actress_filmography(actress_slug)
+                            ON DELETE CASCADE
+                    )""");
+            h.execute("""
+                    CREATE INDEX IF NOT EXISTS idx_filmography_entry_code
+                        ON javdb_actress_filmography_entry(product_code)""");
+
             // Only stamp version on fresh installs (user_version = 0).
             // On an existing DB the CREATE TABLE statements above are all no-ops, so we must
             // leave the version alone and let SchemaUpgrader apply any missing migrations.
             int currentVersion = h.createQuery("PRAGMA user_version").mapTo(Integer.class).one();
             if (currentVersion == 0) {
-                h.execute("PRAGMA user_version = 32");
+                h.execute("PRAGMA user_version = 33");
             }
         });
         log.info("Schema initialization complete");

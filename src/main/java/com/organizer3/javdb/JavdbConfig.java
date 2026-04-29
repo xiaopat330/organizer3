@@ -17,10 +17,12 @@ public record JavdbConfig(
         @JsonProperty("sessionCookie")           String sessionCookie,
         @JsonProperty("burstSize")               Integer burstSize,
         @JsonProperty("burstBreakMinutes")       Integer burstBreakMinutes,
-        @JsonProperty("profileChainMinTitles")   Integer profileChainMinTitles
+        @JsonProperty("profileChainMinTitles")   Integer profileChainMinTitles,
+        @JsonProperty("filmographyTtlDays")      Integer filmographyTtlDays,
+        @JsonProperty("filmographyMaxPages")     Integer filmographyMaxPages
 ) {
 
-    public static final JavdbConfig DEFAULTS = new JavdbConfig(true, 0.33, 3, new int[]{1, 5, 30}, 15, null, null, 8, 15, 3);
+    public static final JavdbConfig DEFAULTS = new JavdbConfig(true, 0.33, 3, new int[]{1, 5, 30}, 15, null, null, 8, 15, 3, 90, 50);
 
     public boolean enabledOrDefault()               { return enabled != null ? enabled : true; }
     public double rateLimitPerSecOrDefault()        { return rateLimitPerSec != null ? rateLimitPerSec : 0.1; }
@@ -30,4 +32,6 @@ public record JavdbConfig(
     public int burstSizeOrDefault()                 { return burstSize != null ? burstSize : 4; }
     public int burstBreakMinutesOrDefault()         { return burstBreakMinutes != null ? burstBreakMinutes : 30; }
     public int profileChainMinTitlesOrDefault()     { return profileChainMinTitles != null ? profileChainMinTitles : 3; }
+    public int filmographyTtlDaysOrDefault()        { return filmographyTtlDays != null ? filmographyTtlDays : 90; }
+    public int filmographyMaxPagesOrDefault()       { return filmographyMaxPages != null ? filmographyMaxPages : 50; }
 }
