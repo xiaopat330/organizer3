@@ -84,28 +84,69 @@ The columnar `_entry` table is what makes Step 8's "which actresses' filmographi
 
 **Eliminates:** the "drain re-fetches every actress's filmography per title" cost (today's session lost ~5-10x amplification on this).
 
+**Drift handling on re-fetch** (decided 2026-04-28):
+
+A re-fetch can return three kinds of change relative to cache:
+
+| change | rule |
+|---|---|
+| New `(code, slug)` pair appears | Insert. No further action. |
+| Existing pair's `slug` differs from cache | **Trust the new value** (filmography is current truth). Overwrite. **`INSERT OR IGNORE INTO revalidation_pending (title_id, reason='drift')` for every enriched title that referenced the old slug** — most resolve cleanly to the new slug; genuinely orphaned ones surface as `no_match` via the re-validation cron (2C). No manual queue entry at the drift moment itself. |
+| Cached pair is missing from the new fetch | **Conditional delete.** If no `title_javdb_enrichment` row references the missing slug → drop from cache (normal pruning). If at least one enriched title references it → pin the entry with `stale=1`, do NOT delete, and `INSERT OR IGNORE INTO revalidation_pending (title_id, reason='drift')` for those titles. The vanished-but-still-referenced case is information worth preserving; only re-validation can decide whether the title is genuinely orphaned or just needs a fresh slug. |
+
+Schema addition for the third case:
+```sql
+ALTER TABLE javdb_actress_filmography_entry
+  ADD COLUMN stale INTEGER NOT NULL DEFAULT 0;  -- 1 = present in older fetch but missing from current
+```
+
+**Drift telemetry:** every re-fetch counts `pairs_changed` and `pairs_vanished_referenced`, persisted on `javdb_actress_filmography` (`last_drift_count INTEGER`) and surfaced in Library Health. Cheap to compute; valuable as an early warning for mass javdb re-slugging events. Expected to be zero or near-zero in normal operation; a non-trivial spike is a signal worth investigating.
+
+**Fetch atomicity** (decided 2026-04-28):
+
+A multi-page fetch must never leave partial state in the DB. Three rules:
+
+| concern | rule |
+|---|---|
+| **Transaction granularity** | **One transaction wraps the entire multi-page fetch.** All pages parsed and merged in memory first; commit in a single transaction at the end. The DB only ever holds either the previous complete fetch or the new complete fetch — never an in-progress hybrid. |
+| **Failure recovery** | **Roll back on any failure** (page-fetch error, parse exception, process death mid-fetch). No `fetch_in_progress` flag, no partial-state tracking. Next call retries from page 1; cheap and always correct. SQLite's transaction guarantees + JVM crash → uncommitted txn discarded. |
+| **Concurrent fetch safety** | **In-memory per-actress mutex** keyed by `actress_slug`, wrapping the fetch + persist sequence. Prevents two callers from racing on the same actress. The existing `ConcurrentHashMap.computeIfAbsent` already coalesces in-memory; the mutex extends that guarantee across the DB write. No DB-level locking needed — fetches are rare enough that contention is theoretical. |
+
+**Actress 404 handling:** if page 1 returns 404 (actress no longer exists on javdb), do **not** delete cached entries. Set `last_fetch_status = 'not_found'` and timestamp on `javdb_actress_filmography`, mark all entries `stale=1`, and surface the actress in Library Health for triage. Same preservation principle as the drift "vanished but referenced" rule — javdb dropping an actress is information worth keeping until we know what to do with the affected titles.
+
+Schema additions:
+```sql
+ALTER TABLE javdb_actress_filmography
+  ADD COLUMN last_fetch_status TEXT NOT NULL DEFAULT 'ok';   -- 'ok' | 'not_found' | 'fetch_failed'
+```
+
 #### 1B: Provenance columns on `title_javdb_enrichment`
 
 ```sql
 ALTER TABLE title_javdb_enrichment
-  ADD COLUMN resolver_source TEXT,    -- 'actress_filmography' | 'code_search' | 'manual'
-  ADD COLUMN confidence      TEXT,    -- 'HIGH' | 'MEDIUM' | 'LOW'
+  ADD COLUMN resolver_source TEXT,    -- enumerated values; see Q4 in Forward-looking section for full list
+                                       -- ('actress_filmography' | 'code_search' | 'discovery_feed' |
+                                       --  'manual_picker' | 'auto_enriched' | 'cleanup_cleared')
+  ADD COLUMN confidence      TEXT,    -- 'HIGH' | 'MEDIUM' | 'LOW' | 'UNKNOWN'
   ADD COLUMN cast_validated  INTEGER  -- 0/1: did write-time cast gate pass
 ```
 
 **Confidence tiering rules:**
-| Path | cast_json contains anchor actress? | confidence |
-|---|---|---|
-| actress_filmography | yes | HIGH |
-| actress_filmography | no | LOW (logged as anomaly) |
-| code_search | yes | MEDIUM |
-| code_search | no | (refused — see 1C) |
-| manual | n/a | HIGH |
+| Path | cast_json contains anchor actress? | confidence | side effect |
+|---|---|---|---|
+| actress_filmography | yes | HIGH | — |
+| actress_filmography | no | LOW | open `cast_anomaly` queue entry (see 1C / Gap 6) |
+| code_search | yes | MEDIUM | — |
+| code_search | no | (refused — see 1C) | open `ambiguous` queue entry |
+| manual_picker | n/a | HIGH | gate-bypass by design (see 1C gate-bypass policy) |
+| manual (force_enrich) | n/a | HIGH | runs through 1C gate |
 
 **Backfill strategy** (decided 2026-04-28): UNKNOWN-by-default with a fast LOW-only initial scan.
 
 - Every existing pre-provenance row gets `resolver_source = 'unknown'`, `confidence = 'UNKNOWN'`.
 - A one-shot initial scan runs the cast-doesn't-contain-actress heuristic (mirrors `find_enrichment_cast_mismatches`) and stamps those rows `confidence = 'LOW'` immediately. This surfaces the suspicious rows day 1 without claiming confidence we haven't earned.
+- **Empty-cast exception:** rows where `cast_json IS NULL OR json_array_length(cast_json) = 0` are explicitly skipped by the LOW-only scan and left at UNKNOWN. Per 1E rule (a), an empty cast on a filmography-confirmed title is HIGH, not LOW — stamping these LOW would generate false-positive "suspicious enrichment" signals exactly where there's nothing wrong. Re-validation cron classifies them properly later (HIGH if any anchor actress's cached filmography contains the slug; UNKNOWN otherwise).
+- **Malformed cast_json** (non-empty but unparseable as a JSON array of cast entries) is *not* exempt — gets stamped LOW. Malformed payload is itself a suspicious signal worth surfacing.
 - The re-validation cron (2C) walks remaining UNKNOWNs over time, validating each against cached filmography and stamping the real value (HIGH if filmography confirms, LOW if not).
 
 The asymmetry is intentional: cast-doesn't-contain is a strong "this is wrong" signal (~92% true positive in the 2026-04-28 incident), but cast-contains is a weak "this is right" signal — wrong-slug rows can coincidentally mention the actress under an alias variant. Stamping those MEDIUM would be overconfident; UNKNOWN until filmography-verified is honest.
@@ -113,12 +154,38 @@ The asymmetry is intentional: cast-doesn't-contain is a strong "this is wrong" s
 #### 1C: Write-time cast-validation gate
 
 Before any `INSERT` into `title_javdb_enrichment`:
-- Actress-anchored path: log if cast doesn't contain anchor (HIGH→LOW), but still write — filmography is authoritative.
+- Actress-anchored path: write at HIGH if cast contains the anchor. If cast doesn't contain anchor: **write at LOW and open a `cast_anomaly` review queue entry** — filmography is authoritative so the row still lands, but the javdb-internal inconsistency (filmography page lists her, title page doesn't credit her) is surfaced for triage rather than buried at LOW silently. Common cause is javdb crediting her under an unmapped stage_name; the queue entry preserves the signal so the alias map can be extended.
 - Code-search path: **refuse to write** if cast doesn't contain *any* known linked actress. Route to a new `ambiguous` status in the staging queue. Surfaces in resolver UI.
+
+**Gate-bypass policy:** the only legitimate path that writes to `title_javdb_enrichment` *without* running the cast gate is `resolver_source = 'manual_picker'`. The picker is itself the gate — a user-confirmed override. All other write paths (autonomous runner, code-search fallback, force-enrich) must run through 1C. Document this invariant in the resolver code so future contributors don't accidentally add another bypass.
+
+**`cast_anomaly` resolution actions** (in the picker UI):
+- **Confirm correct (alias drift)** — accept enrichment, no row change. User extends alias map separately via existing actress-edit screens (alias-extension UX inside the picker is deferred — revisit after v1 testing).
+- **Confirm incorrect (javdb error)** — drop the affected `title_actresses` link, keep enrichment row, mark queue entry resolved as `not_actually_her`.
+- **Accept as javdb gap** — leave everything as-is; mark resolved.
 
 #### 1D: Strict sentinel handling
 
 Sentinel actresses (`is_sentinel=1`: Various, Unknown, Amateur) currently fall through to code-search via the resolver. Instead: short-circuit at the resolver entry point and route to ambiguous queue without an HTTP fetch. (No real javdb identity to anchor on.)
+
+#### 1E: Empty-cast handling
+
+When javdb returns no stage_names for a title, three sub-cases must be distinguished:
+
+**(a) Genuine empty cast, real-actress anchor (autonomous runner):**
+The slug is filmography-confirmed but javdb lists no cast. Write the enrichment row with `cast_json = []`. Do not create `title_actresses` rows beyond the existing folder-anchored link. `confidence = HIGH` (filmography is authoritative). No `enrichment_review_queue` entry — folder attribution already stands.
+
+**(b) Genuine empty cast, sentinel/unanchored (autonomous runner):**
+Already short-circuited by 1D to `ambiguous` before any fetch occurs. Empty-cast path is unreachable here.
+
+**(c) Parse failure (cast HTML malformed, fetcher exception):**
+Distinct outcome from genuine-empty. Routed to `fetch_failed` queue (retryable). The extractor must expose the distinction explicitly — e.g., separate `castParseFailed` and `castEmpty` flags — so the runner doesn't conflate transient infrastructure issues with javdb editorial gaps.
+
+**Draft Mode (user-initiated Enrich):**
+- Genuine empty (a) renders the cast section as: *"javdb returned no cast — pick a sentinel: [Amateur / Unknown / Various]"*. User must choose; pre-flight validation requires exactly 1 sentinel and forbids real-actress assignment (sentinel-only mode per Q1 cast-rule table).
+- Parse failure (c) blocks Validate with a *"cast could not be parsed — retry fetch?"* banner. No promotion until cast is either successfully parsed (then proceed normally) or the user explicitly accepts the empty result.
+
+**Default sentinel choice:** none — neither path auto-picks. The autonomous runner never reaches a sentinel-pick decision (case b is excluded by 1D); Draft Mode requires deliberate user selection. This keeps "no actresses linked" from ever being a silent default.
 
 ---
 
@@ -137,13 +204,15 @@ Surfaces:
 ```sql
 CREATE TABLE title_javdb_enrichment_history (
   id              INTEGER PRIMARY KEY AUTOINCREMENT,
-  title_id        INTEGER NOT NULL,
+  title_id        INTEGER NOT NULL,                        -- no FK; survives title deletion
+  title_code      TEXT NOT NULL,                           -- snapshotted at write time for self-readable history
   changed_at      TEXT NOT NULL,
-  reason          TEXT,            -- 'enrichment_runner' | 'cleanup' | 'manual_override'
+  reason          TEXT,            -- 'enrichment_runner' | 'cleanup' | 'manual_override' | 'title_deleted'
   prior_slug      TEXT,
   prior_payload   TEXT             -- full JSON snapshot of the prior row
 );
 CREATE INDEX idx_tjeh_title ON title_javdb_enrichment_history(title_id);
+CREATE INDEX idx_tjeh_code  ON title_javdb_enrichment_history(title_code);
 ```
 
 Append-only. Triggered on `clearOne()` and on every fresh enrichment write.
@@ -152,22 +221,53 @@ Append-only. Triggered on `clearOne()` and on every fresh enrichment write.
 
 **Snapshot format** (decided 2026-04-28): full prior-row JSON in `prior_payload`. Captures every column (cast_json, release_date, grade, etc.) so any future question can be answered by `json_extract` on the snapshot without walking history to reconstruct state.
 
+**Title-delete handling** (decided 2026-04-28): history must outlive its title.
+- **No FK on `title_id`** (intentional). Title deletion does not cascade to history. Joins to `titles` from history may return null; that's fine — the history is its own source of truth.
+- **`title_code` snapshotted at write time** so dangling history rows remain self-readable years later ("which title was id=12345?" → check `title_code` on any of its rows).
+- **`delete_title` writes a final history row** with `reason='title_deleted'` and the last enrichment state in `prior_payload`. Provides a definitive closing event for the title's audit trail rather than trailing off mid-story.
+
 #### 2C: Re-validation pass — hybrid (event-driven + weekly safety net)
 
-A re-validation pass is **pure SQL** (after 1A lands — every actress's filmography is already in `javdb_actress_filmography_entry`). The pass walks every enriched title, checks whether its stored slug appears in any of its slug-bearing actresses' cached filmographies, and:
+A re-validation pass is **pure SQL** (after 1A lands — every actress's filmography is already in `javdb_actress_filmography_entry`). For each title in scope, the pass checks whether its stored slug appears in any of its slug-bearing actresses' cached filmographies, and:
 - Stamps `confidence` for any UNKNOWN row (topic 2's gradual classifier)
 - Drops HIGH → LOW for any row whose filmography no longer confirms; opens a `no_match` entry in `enrichment_review_queue`
+- Updates `title_javdb_enrichment.last_revalidated_at`
 - Counts drift since last pass; surfaces in Library Health if exceeded threshold
 
-Cadence (decided 2026-04-28): **hybrid event-driven + calendar safety net**.
+**Scope tracking — dirty queue + delta-aware safety net** (decided 2026-04-28):
 
-**Event triggers** (fire a full pass automatically — these catch ~all real drift sources at the moment they happen):
-- After `sync` completes (new titles → may be enriched → re-check)
-- After enrichment runner queue drains (just wrote N rows; verify)
-- After `enrichment.clear_mismatched` task completes (just changed things; verify result)
-- After manual override (`force_enrich_title`)
+Re-validation is never a blind full-walk. Two scopes drive each pass:
 
-**Calendar safety net**: weekly, Sunday 3am (or wherever activity is lowest). Catches anything the event hooks miss — manual SQL inserts, javdb-side edits over time, future code regressions that bypass the event triggers. With well-instrumented events, the safety net is usually a no-op; that's fine.
+```sql
+ALTER TABLE title_javdb_enrichment
+  ADD COLUMN last_revalidated_at TEXT;
+CREATE INDEX idx_tje_revalidated ON title_javdb_enrichment(last_revalidated_at);
+
+CREATE TABLE revalidation_pending (
+  title_id    INTEGER PRIMARY KEY REFERENCES titles(id) ON DELETE CASCADE,
+  enqueued_at TEXT NOT NULL,
+  reason      TEXT NOT NULL    -- 'sync' | 'queue_drain' | 'cleanup' | 'manual_override' | 'drift'
+);
+```
+
+| pass type | scope query |
+|---|---|
+| Event-driven | Drain `revalidation_pending` FIFO. Events enqueue dirty title IDs; cron processes them on its next tick. Multiple back-to-back events coalesce naturally — INSERT OR IGNORE on the PK collapses duplicates. |
+| Safety-net (weekly) | `confidence = 'UNKNOWN' OR last_revalidated_at IS NULL OR last_revalidated_at < now() - 30 days`. Catches the long tail without a full walk; queryable via the new index. At 10K+ titles this stays cheap. |
+
+**Event-source enqueue points** (each writes to `revalidation_pending` instead of triggering a synchronous full walk):
+- After `sync` completes — enqueue newly-synced/updated titles
+- After enrichment runner drains — enqueue the rows just written
+- After `enrichment.clear_mismatched` completes — enqueue affected titles
+- After manual override (`force_enrich_title`) — enqueue that title
+- During filmography drift handling (Gap 1) — enqueue titles that referenced changed slugs
+
+**Cron flow:**
+1. Drain `revalidation_pending` in batches (FIFO). Per row: run SQL re-check, update `confidence` + `last_revalidated_at`, delete queue row.
+2. If this is a safety-net invocation: also process the delta query above, batched.
+3. Update Library Health drift count.
+
+**Calendar cadence:** weekly, Sunday 3am. With well-instrumented events the safety-net pass is mostly a no-op (it only finds rows that slipped past event hooks or aged past 30 days).
 
 Tunable in config: `enrichment.revalidationCron: "0 3 * * 0"` (cron expression). Default Sunday 3am UTC; user can flip to daily during high-churn periods.
 
@@ -183,12 +283,12 @@ Decision (2026-04-28): backend stays unified (one `enrichment_review_queue` tabl
 CREATE TABLE enrichment_review_queue (
   id              INTEGER PRIMARY KEY AUTOINCREMENT,
   title_id        INTEGER NOT NULL REFERENCES titles(id) ON DELETE CASCADE,
-  category        TEXT NOT NULL,        -- 'no_match' | 'ambiguous' | 'fetch_failed' | 'permanently_failed'
+  category        TEXT NOT NULL,        -- 'no_match' | 'ambiguous' | 'fetch_failed' | 'permanently_failed' | 'cast_anomaly'
   detail          TEXT,                 -- per-category context (candidate slugs JSON for ambiguous, error msg for fetch_failed, etc.)
   first_seen_at   TEXT NOT NULL,
   last_seen_at    TEXT NOT NULL,
   resolved_at     TEXT,                 -- null = open
-  resolution      TEXT                  -- 'matched' | 'manual_slug' | 'accepted_gap' | 'reassigned'
+  resolution      TEXT                  -- 'matched' | 'manual_slug' | 'accepted_gap' | 'reassigned' | 'not_actually_her'
 );
 CREATE INDEX idx_review_open  ON enrichment_review_queue(category, resolved_at);
 CREATE INDEX idx_review_title ON enrichment_review_queue(title_id);
@@ -201,6 +301,7 @@ CREATE INDEX idx_review_title ON enrichment_review_queue(title_id);
 | `ambiguous` | Code-search returned a slug, write-time cast gate refused | Pick from candidate slugs, paste manual slug |
 | `fetch_failed` | Transient HTTP/parse error | Retry, give up |
 | `permanently_failed` | Definitive 404 | Mark resolved (one-click) |
+| `cast_anomaly` | Filmography confirmed slug, but title page cast doesn't credit anchor actress | Confirm correct (alias drift), confirm incorrect (drop title_actresses link, mark `not_actually_her`), or accept javdb gap. Picker shows title page cast for context. |
 
 **Multiple consumer surfaces** (intentional design — schema-decoupled-from-UI):
 - **Tools → Step 8**: bulk triage, four sub-pages.
@@ -264,11 +365,14 @@ When the gate refuses and writes an `ambiguous` queue entry, the disambiguation 
 
 **Picker UI:**
 - Side-by-side cards (one per candidate): cover image, title, release date, maker, full cast list (linked-actress names highlighted)
-- Per-card action: **"Pick this"** → writes enrichment with `resolver_source='manual_picker'`, `confidence=HIGH`, copies snapshot data into `title_javdb_enrichment`
+- **Snapshot age indicator** at the top: "Candidates fetched 3 days ago" (computed from `fetched_at`). Visual cue prompts the user to consider refreshing if the data looks stale; no auto-block, no auto-refresh — the user decides.
+- Per-card action: **"Pick this"** → writes enrichment with `resolver_source='manual_picker'`, `confidence=HIGH`, copies snapshot data into `title_javdb_enrichment`. **Bypasses the write-time cast gate by design** (per 1C gate-bypass policy — picker is itself the gate; user-confirmed override is the whole point).
 - **"None of these"** → marks `permanently_failed` or `accepted_gap`, no enrichment written
 - **"Refresh candidates"** → re-runs the pipeline and snapshots fresh data (covers javdb updates)
 
 **Cover images** load directly from `cover_url` (javdb CDN); no server-side mirroring needed unless rate-limited later.
+
+**Tolerance for stale references** (decided 2026-04-28): `enrichment_review_queue.detail` JSON may reference actresses (cast lists, anchor slugs) that get deleted later — typically via merge or manual cleanup. The picker handles this **lazily at read time**: every actress lookup uses a safe helper that returns a `[deleted actress]` placeholder for missing IDs, never crashes. No post-delete sweep, no merge-time rewrite of `detail` — both are deferred until they become a real ops problem. Concrete v1 requirement: picker rendering uses `actresses.findById(id).orElse(DELETED_PLACEHOLDER)` consistently; a lookup helper enforces this.
 
 **Where the picker lives** (intentionally multi-surface, mirroring 3A's design):
 - **Tools → Step 8 → Ambiguous sub-page** (bulk triage)
@@ -292,6 +396,48 @@ The user-visible difference: titles that previously enriched silently-and-wrongl
 ### Migration concern
 
 When the gate first runs over the existing ~1500 enriched rows (after rollout), the `ambiguous` queue may balloon. Today's heuristic detected 232; the strict gate could find more because it's stricter than the cast-presence heuristic. Plan time for the initial triage wave; the picker UI makes this tractable but not free.
+
+---
+
+## Configuration
+
+All tunable values for the hardening pipeline live under `enrichment:` in `organizer-config.yaml`. This section is the canonical reference; subsection mentions of defaults must agree with this list. Anything **not** listed here is intentionally hardcoded (semantic constants, not user-tunable policy).
+
+```yaml
+enrichment:
+  # 1A — filmography persistence
+  filmographyTtlDays: 90               # soft TTL; skipped if last_release_date >2y old (settled catalog)
+  filmographyMaxPages: 50              # defensive cap on pagination
+
+  # 2C — re-validation pass
+  revalidationCron: "0 3 * * 0"        # cron expression; default Sunday 3am UTC
+  revalidationStaleAfterDays: 30       # safety-net delta-query threshold
+
+  # Draft mode (Q-section / Draft Mode design)
+  draftLifetimeDays: 30                # GC threshold for forgotten/abandoned drafts
+  draftGcCron: "0 2 * * *"             # cron expression; default daily 2am UTC
+
+  # Rate limit (carries over the 2026-04-28 experiment values; consolidate from current location)
+  rateLimit:
+    burstSize: 8
+    breakMinutes: 15
+    perSecond: 0.33
+
+  # Cover fetch (Q2)
+  coverCdnRateLimit: null              # null = no limiter; populate if 429s ever appear from c0.jdbstatic.com
+```
+
+**Hardcoded — deliberately not config:**
+| value | location | why not config |
+|---|---|---|
+| Levenshtein threshold N=1 (stage-name fuzzy match) | matcher | Changing this changes correctness semantics, not a tuning knob |
+| Match-pass priority order (1: canonical exact → 2: alias → 3: slug-anchored → 4: fuzzy → 5: no-match) | matcher | Same — semantic, not policy |
+| Sentinel slug list (Various / Unknown / Amateur) | sentinel module | Domain identities, not knobs |
+| Confidence tier rules (HIGH/MEDIUM/LOW/UNKNOWN derivation) | resolver | Derived from data shape, not user policy |
+| Schema-level constants (table/column names, indices) | migrations | Not policy |
+| Pause-issuing task list (currently `enrichment.bulk_enrich_to_draft` only) | runner | Code-level coupling between specific tasks and runner pause behavior |
+
+If a value listed as "hardcoded" later proves to need tuning, the fix is to promote it into the config block above — not to add a one-off override mechanism.
 
 ---
 
@@ -361,40 +507,74 @@ Cast-section actions:
 **Mononym handling:**
 - `actresses.first_name` is nullable; picker accepts `{last_name: "Aika", first_name: null}` → canonical = "Aika"
 
-When javdb returns a cast member we can't match, **block enrichment write and open an inline reconciler** rather than auto-creating an actress. Workflow:
+**Reconciler flow (under Draft Mode — supersedes the original block-and-ask design):**
+
+When the autonomous draft populator encounters a cast member it cannot match, the cast slot is written to the draft as **unresolved** (resolution=null). The user then resolves each unresolved slot in the editor before Validate. Workflow per cast entry:
 
 ```
-For each cast entry returned by javdb:
-  1. javdb_slug match in javdb_actress_staging → link, done (HIGH confidence)
-  2. stage_name / alias / canonical_name match (whitespace-stripped, fuzzy) → link, done (MEDIUM)
-  3. NO MATCH → block enrichment, open inline reconciler:
-     (a) Search existing actresses (typeahead, in case manual lookup finds her)
-     (b) Create new actress — user enters English canonical name
-     (c) Use sentinel — Amateur / Unknown / Various
-
-Once all cast reconciled → write title_actresses + enrichment row.
-New actresses (3b) get needs_review=1.
-Sentinel fallbacks (3c) get an entry in enrichment_review_queue
-  (category='unidentified_cast') so they can be reassigned later.
+For each cast entry returned by javdb (during draft populate):
+  Pass 1: javdb_slug exact match in javdb_actress_staging → set draft_actresses.link_to_existing_id (auto-link, HIGH)
+  Pass 2: canonical_name exact match (after normalization, see Stage-name canonicalization) → auto-link
+  Pass 3: alias exact match (after normalization)                                          → auto-link
+  Pass 4: Levenshtein ≤ 1                                                                   → DO NOT auto-link;
+            store as suggestion in draft, surfaced in editor as "Did you mean X? [Link] [Different person]"
+  Pass 5: no match                                                                          → unresolved slot;
+            editor requires user PICK / CREATE NEW / SKIP / sentinel-collapse before Validate
 ```
 
-**Schema additions:**
+The autonomous background runner (writing real tables, not drafts) is stricter: it uses passes 1–3 only. Passes 4–5 cause the runner to open an `enrichment_review_queue` entry instead of writing.
+
+**Schema additions to `actresses` for tracking provenance of newly-created rows** (Draft Mode promotion path):
 ```sql
 ALTER TABLE actresses
-  ADD COLUMN created_via   TEXT,            -- 'manual' | 'sync' | 'yaml_load' | 'enrichment_picker'
-  ADD COLUMN created_at    TEXT,
-  ADD COLUMN needs_review  INTEGER NOT NULL DEFAULT 0;
+  ADD COLUMN created_via TEXT,    -- 'manual' | 'sync' | 'yaml_load' | 'draft_promotion'
+  ADD COLUMN created_at  TEXT;
 ```
 
-**New surface:** `actresses.list_needs_review` — list of auto-created actresses awaiting curator confirmation. Sortable by `created_at`. Confirm or merge-into-existing. Surfaces in Library Health.
+(The earlier `needs_review` flag and `actresses.list_needs_review` surface are **not** added — drafts ARE the review surface; see Draft Mode design.)
 
-**Reasoning:** auto-create with javdb-side stage names would salt the DB with low-quality, potentially-duplicate canonical rows. Block-and-ask trades user friction (~20-30 min for a batch of 50) for DB integrity. Acceptable because the alternative today is fully manual — any automation is net positive even with reconciliation interruptions.
+**Reasoning:** auto-create with javdb-side stage names directly into real `actresses` would salt the DB with low-quality, potentially-duplicate canonical rows. Drafts trade user friction (~20–30 min for a batch of 50) for DB integrity. Acceptable because the alternative today is fully manual — any automation is net positive even with reconciliation interruptions.
 
 **Edge cases handled:**
 - Name collision on "create new" — warn + suggest linking to existing
-- Fuzzy-match (Levenshtein over normalized forms) before declaring "no match" — reduces reconciler churn for cosmetic mismatches (full-width vs half-width katakana, stylization variants)
+- Fuzzy-match for cosmetic mismatches — algorithm spec below
 - Sentinel fallback creates `enrichment_review_queue` entry with javdb name + slug stored in `detail`, so a future reassignment is trivial
 - Bulk Enrich (Q5) needs to either pause-per-unknown or sentinel-bomb-then-batch-reconcile — see Q5
+
+**Stage-name canonicalization algorithm** (decided 2026-04-28):
+
+Normalization (applied before any comparison):
+1. **NFKC unicode normalization** — collapses full-width/half-width into canonical forms (`Ｓｏｌａ` → `Sola`).
+2. **Whitespace normalization** — collapse runs of whitespace to single space, trim. For CJK-only strings, also strip all internal whitespace (`坂咲 みほ` ≡ `坂咲みほ`).
+3. **Lowercase** — Latin-script characters only; no-op on kanji/hiragana/katakana.
+4. **No honorific stripping** — rare in our data; keeps the algorithm predictable.
+
+Match passes, applied in priority order; first hit wins:
+
+| pass | rule | outcome |
+|---|---|---|
+| 1 | Exact match on normalized `actresses.canonical_name` | **MATCH** (auto-link) |
+| 2 | Exact match on normalized `actress_aliases.alias` | **MATCH** (auto-link) |
+| 3 | Exact match on `javdb_actress_staging.stage_name` for same `javdb_slug` (slug-anchored) | **MATCH** (auto-link, strongest signal — slug ties identity) |
+| 4 | Levenshtein distance ≤ **1** over normalized forms (single-character edit) | **SUGGEST only** (never auto-link) |
+| 5 | No match | Reconciler opens |
+
+**Fuzzy is suggestion-only, never auto-link** (Q9.3 decision):
+- Autonomous background runner uses passes 1–3 only. No fuzzy fallback. Pass 4/5 → opens `enrichment_review_queue` entry; runner does not link.
+- Draft Mode picker uses pass 4 to surface "Did you mean [name]? [Link] [Different person]" suggestions to the user. User must confirm.
+
+**Why N=1:** catches typos and trailing-character differences while rejecting "Aino vs Aimi" (distance 2). CJK typo risk is asymmetric — one stroke difference = different character entirely — so loose Levenshtein is more dangerous than in Latin scripts. N=1 keeps us honest.
+
+**Special case — token count mismatch on multi-token names:** if javdb returns a single token (`Mana`) and DB has a two-token name (`Mana Sakura`), pass 4 is **disabled** for that pair (mononym vs full name is too easy to false-positive). User must use the picker's existing-actress search to link manually.
+
+**Test cases (lock as unit tests):**
+- Whitespace variations → match (pass 1 + normalization)
+- Full-width vs half-width Latin/katakana → match (NFKC)
+- Existing alias resolves → match (pass 2)
+- Slug-anchored stage_name match → match (pass 3)
+- Levenshtein-1 → suggest only, NOT auto-link (pass 4 + Q9.3 rule)
+- Levenshtein-2+ → no match, reconciler opens (pass 5)
+- Mononym vs full name → no fuzzy match (token-count special case)
 
 #### Q2: Cover image fetch — **resolved 2026-04-28**
 
@@ -424,6 +604,21 @@ After enrichment row + metadata write succeeds:
 ```
 
 No new schema, no new queue category. Reuses existing services.
+
+**Draft Mode timing** (decided 2026-04-28): under Draft Mode, cover fetch is **two-phase** — fetch-to-scratch at draft populate, copy-to-title-folder at promote.
+
+- **Populate (bulk or single Enrich):** fetch bytes synchronously → write to `_sandbox/draft_covers/<draft_title_id>.jpg`. The `_sandbox` area is reserved for app use and freely managed (no `_trash` lifecycle).
+- **Editor preview:** renders the scratch file. User can refetch to retry a failed download (rewrites the scratch file).
+- **Promote:** inside the promotion transaction's tail, copy scratch → title folder as `<code>.jpg`, preserving any existing cover at base (Q2(a) rule unchanged). Then delete the scratch file.
+- **Discard:** drop the scratch file alongside the draft rows. No `_trash`, no orphan; sandbox is the right place for transient app artifacts.
+- **GC sweep:** the daily/weekly draft sweep also reaps any scratch files whose owning `draft_titles.id` no longer exists. Prevents leakage from crashed populate runs.
+
+Failure modes:
+- Scratch write fails at populate → record `last_validation_error` on draft, no scratch file. Editor shows "cover not fetched — retry?" — same UX as today's post-write failure, just earlier.
+- Promote-time copy fails → promotion transaction rolls back. Scratch and draft rows survive for retry.
+- Title folder already has a cover at promote → skip the copy (preserve rule), still delete scratch.
+
+The autonomous background runner path is **unchanged** from the original Q2 flow — it writes directly to the title folder because there's no draft to scratch into. The scratch detour is exclusively a Draft Mode mechanism.
 
 #### Q3: Tag application — **resolved 2026-04-28: enrichment data is immutable**
 
@@ -459,7 +654,15 @@ Because enrichment data is immutable (Q3), there is no "user edited a field afte
 
 **Re-enrich is wholesale replacement:** a new draft is created, user validates, promotion replaces the existing real row entirely. No per-field merge logic. Simpler than the earlier conservative-auto-merge model and consistent with the immutability rule.
 
-**Diff-and-pick UI** (side-by-side comparison of old real row vs new draft) is a useful affordance during validation — user can see what's changing before they hit Promote. Deferred to feature scoping; not load-bearing for v1.
+**Diff-and-pick UI on re-enrich** (decided 2026-04-28):
+
+| sub-question | decision |
+|---|---|
+| v1 vs post-v1? | **Post-v1.** Re-enrich in v1 shows the new draft only; user accepts or discards as a whole. No old-vs-new diff view. Add later if silent regressions become a real pain point. |
+| Field-level cherry-pick? | **No — strict whole-row replacement.** Per Q3, enrichment data is immutable; letting the user keep some old fields and take some new ones is conceptually field-level editing of canonical data, which Q3 forbids. The user's choice is binary: take the new draft wholesale, or discard. |
+| Diff algorithm (when added post-v1) | **Simple column-by-column.** Semantic highlighting (cast added/removed, tag deltas, grade jumps) is a future polish — not load-bearing. |
+
+The audit log (2B) preserves the prior real-row state forever, so any regression accidentally promoted is recoverable forensically. That safety net lowers the urgency of a v1 diff view.
 
 #### Draft Mode design — **adopted 2026-04-28 as the foundational pattern**
 
@@ -469,11 +672,17 @@ Bulk Enrich (and ultimately single Enrich too) does not write directly to canoni
 ```sql
 CREATE TABLE draft_titles (                  -- mirrors `titles`, columns nullable
   id                       INTEGER PRIMARY KEY AUTOINCREMENT,
-  code                     TEXT NOT NULL,
-  -- ... (mirror of titles columns, all nullable except code) ...
+  title_id                 INTEGER NOT NULL REFERENCES titles(id) ON DELETE CASCADE,
+                                              -- the real titles row this draft edits;
+                                              -- promotion UPDATEs that row, ROLLBACK on missing.
+  code                     TEXT NOT NULL,    -- snapshot of titles.code at draft creation
+  -- ... (mirror of titles columns, all nullable; user-editable in editor) ...
+  upstream_changed         INTEGER NOT NULL DEFAULT 0,  -- 1 if sync touched titles row after draft start
   last_validation_error    TEXT,
+  created_at               TEXT NOT NULL,
   updated_at               TEXT NOT NULL     -- optimistic-lock token
 );
+CREATE UNIQUE INDEX idx_draft_titles_title_id ON draft_titles(title_id);  -- one active draft per title
 
 CREATE TABLE draft_actresses (
   javdb_slug               TEXT PRIMARY KEY, -- shared globally across drafts (Q3 decision)
@@ -494,9 +703,21 @@ CREATE TABLE draft_title_actresses (
 );
 -- draft_actresses ref-counted via draft_title_actresses; orphan rows removed when last reference drops.
 
-CREATE TABLE draft_title_javdb_enrichment    -- mirrors enrichment row
-CREATE TABLE draft_title_enrichment_tags     -- mirrors enrichment tag links
+CREATE TABLE draft_title_javdb_enrichment (
+  draft_title_id  INTEGER PRIMARY KEY REFERENCES draft_titles(id) ON DELETE CASCADE,
+  -- mirror of title_javdb_enrichment columns (slug, cast_json, release_date, maker, series,
+  -- grade, cover_url, tags_json, etc.) — all nullable; populated by worker, edited by user.
+  tags_json       TEXT,                          -- raw javdb tags; resolved at promotion (see "Tag resolution timing")
+  updated_at      TEXT NOT NULL                  -- optimistic-lock token
+);
+-- NOTE: no draft_title_enrichment_tags table — tags are resolved at promotion, not at populate.
 ```
+
+**Tag resolution timing** (decided 2026-04-28): tags are resolved at **promote**, not at populate. Drafts store only the raw javdb tag payload (`tags_json` on `draft_title_javdb_enrichment`); the alias map is applied freshly during the promotion transaction and the resulting `title_enrichment_tags` rows are written then.
+
+Reasoning: tags are derived data, not source data. The alias map is the authoritative deriver. Storing resolved tags on drafts would let stale tag mappings ship to canonical state if the alias map changes between draft creation and promotion. Resolve-at-promote ensures every promotion uses the current taxonomy and that alias-map fixes propagate to subsequent promotions automatically.
+
+Editor preview of "what tags will land" computes live from `tags_json` + current alias map — same logic the promotion uses, just rendered without writing.
 
 **Concurrency** (Q3 decision 2026-04-28): no concurrent edit support. Both `draft_titles` and `draft_actresses` carry an `updated_at` token; writes include the token they read, and the server rejects stale writes with a "draft modified elsewhere — reload" error. No locking, no merge UI; user reloads the draft.
 
@@ -504,7 +725,7 @@ CREATE TABLE draft_title_enrichment_tags     -- mirrors enrichment tag links
 
 **Stage_name conflict** (rare): if two drafts return slightly different `stage_name` for the same `javdb_slug`, first-write-wins; subsequent draft writes confirm the existing row without overwriting `stage_name`.
 
-**Auto-link to existing real actresses** (Q4 decision 2026-04-28):
+**Auto-link to existing real actresses** (decided 2026-04-28):
 
 | match type | trigger | action |
 |---|---|---|
@@ -535,7 +756,7 @@ Sync writes to real `titles` as today (folder identity, NULL metadata). Drafts a
 **Garbage collection (decision 2026-04-28):**
 - Drafts have a 30-day lifetime. If `draft_titles.updated_at` is older than 30 days and the draft has not been promoted or discarded, it's GC'd automatically by a background sweep. Acts as a safety net for forgotten work and prevents draft accumulation.
 - `draft_actresses` rows whose ref-count (number of `draft_title_actresses` rows referencing them) drops to zero are GC'd in the same sweep. This handles cleanup after individual draft discards naturally.
-- GC sweep runs daily (or weekly — TBD; small operation).
+- GC sweep runs **daily at 2am UTC** (configurable via `enrichment.draftGcCron`; see Configuration section).
 
 **Discovery feed scope** (Q6 decision 2026-04-28): drafts only exist for titles we own (i.e., a real `titles` row exists). Discovery feed remains browse-only for unowned titles; favorites continue to work as today and are unrelated to drafts. No "orphan drafts" before the file is on disk. Reasoning: drafts are a curation surface — without something to promote into, drafts have nothing to do.
 
@@ -632,9 +853,41 @@ Bulk Enrich is a Utilities task that walks a filtered set of Queue titles and po
 Shared components: resolver (with filmography cache 1A), extractor, projector, HTTP client + rate limiter, write-time validation gate (1C).
 Bulk-specific: a new `DraftEnrichmentRepository` (mirrors `JavdbEnrichmentRepository` but writes draft tables) and the task class itself.
 
+**1C gate semantics differ between writers:**
+- **Autonomous runner** (writes real tables) — gate refuses on cast-mismatch / ambiguous code-search → opens `enrichment_review_queue` entry, no write.
+- **BulkEnrichToDraftTask / single-Enrich populator** (writes draft tables) — gate's "refuse" outcome instead becomes "**write the draft with the cast slot marked unresolved or ambiguous**". The picker UI in the editor handles resolution. No `enrichment_review_queue` entry — drafts ARE the resolution surface for user-initiated paths.
+
+The shared gate logic computes the same verdict (HIGH / MEDIUM / LOW / refuse); the writer-specific adapter translates "refuse" into the right action for its target table.
+
 **Where it runs (Q5a):** backend Utilities task with phases, cancellable, status checkable. Same pattern as `enrichment.clear_mismatched`. User can navigate away during the run; banner in the Queue screen shows progress.
 
 **Rate-limit interaction (Q5b):** task pauses the background `EnrichmentRunner` for its duration (start of task → unpause on completion/cancel). Bulk gets 100% of the rate budget while running; the runner's pending queue waits. Same rate limiter, no separate budget, no risk to the rate-limit experiment.
+
+**Pause/resume mechanism — derivative state, not stored flag** (decided 2026-04-28):
+
+To eliminate the "Bulk crashed, runner paused forever" bug class, the runner's paused/unpaused state is **derivative**, not an independent persisted flag. The source of truth is `task_runs` (the existing TaskRunner table):
+
+```
+runner.isPaused() := exists(task_runs row where task_id IN <pause-issuing-tasks>
+                            AND status = 'RUNNING')
+```
+
+Pause-issuing tasks (currently just `enrichment.bulk_enrich_to_draft`) are listed in code, not in DB.
+
+**How pause takes effect (fast path):**
+- TaskRunner emits a `task_started` event when a pause-issuing task transitions to RUNNING. Runner subscribes; on receipt, sets an in-memory pause flag.
+- TaskRunner emits a `task_ended` event on success / fail / cancel (in TaskRunner's own `finally`, outside the task body — survives task code crashes). Runner clears the flag.
+
+**How pause self-heals (slow path):**
+- If `task_ended` is missed (process killed between TaskRunner committing the status update and event emission, or runner subscriber crash), the next `runner.isPaused()` check falls back to a DB query against `task_runs`. Stale `RUNNING` rows are reaped by TaskRunner's existing startup cleanup pass (orphaned RUNNING → FAILED), which makes the query return "not paused" naturally.
+- The runner re-queries the DB on each tick (cheap — indexed lookup), so even a missed event resolves on the next tick once cleanup has run.
+
+**On JVM restart:**
+1. TaskRunner's startup cleanup marks orphaned RUNNING task_runs rows as FAILED (existing behavior).
+2. Runner starts; `isPaused()` queries `task_runs`; no RUNNING pause-issuers found; runner is unpaused.
+3. Self-heal complete with no special-case code.
+
+**Why not a `runner_state` table:** an independent persisted flag introduces a second source of truth that must be kept in sync with task lifecycle. The derivative pattern eliminates the sync problem by definition. The `task_runs` table is already the authority on task state; the runner just observes it.
 
 **Scope — "Enrich all visible" (Q5c):**
 - Acts on the user's currently-filtered Queue view
