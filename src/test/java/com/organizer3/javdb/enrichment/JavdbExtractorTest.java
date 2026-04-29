@@ -144,4 +144,50 @@ class JavdbExtractorTest {
         assertNull(result.avatarUrl());
         assertNull(result.titleCount());
     }
+
+    // ─── 1E: castEmpty / castParseFailed ──────────────────────────────────────
+
+    @Test
+    void extractTitle_emptyCast_setsCastEmptyTrue() {
+        String html = """
+                <html><body><div class="movie-panel-info">
+                  <div class="panel-block"><strong>Actors:</strong><span class="value"></span></div>
+                </div></body></html>
+                """;
+        TitleExtract result = extractor.extractTitle(html, "T-1", "t1");
+        assertTrue(result.castEmpty(), "castEmpty should be true when Actor block has no entries");
+        assertFalse(result.castParseFailed());
+        assertTrue(result.cast().isEmpty());
+    }
+
+    @Test
+    void extractTitle_nonEmptyCast_setsCastEmptyFalse() {
+        String html = """
+                <html><body><div class="movie-panel-info">
+                  <div class="panel-block"><strong>Actors:</strong><span class="value">
+                    <a href="/actors/ab1">女優A</a>
+                  </span></div>
+                </div></body></html>
+                """;
+        TitleExtract result = extractor.extractTitle(html, "T-1", "t1");
+        assertFalse(result.castEmpty(), "castEmpty should be false when cast has entries");
+        assertFalse(result.castParseFailed());
+        assertEquals(1, result.cast().size());
+    }
+
+    @Test
+    void extractTitle_nullInput_castEmptyAndParseFailed_areFalse() {
+        TitleExtract result = extractor.extractTitle(null, "T-1", "t1");
+        assertFalse(result.castEmpty());
+        assertFalse(result.castParseFailed());
+    }
+
+    @Test
+    void extractTitle_noActorBlock_castEmptyFalse() {
+        // No Actor block at all — not the same as genuine empty cast
+        String html = "<html><body><div class=\"movie-panel-info\"></div></body></html>";
+        TitleExtract result = extractor.extractTitle(html, "T-1", "t1");
+        assertFalse(result.castEmpty(), "castEmpty is false when there is no Actor block");
+        assertFalse(result.castParseFailed());
+    }
 }

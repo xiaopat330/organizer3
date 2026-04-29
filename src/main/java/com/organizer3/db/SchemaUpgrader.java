@@ -19,7 +19,7 @@ import org.jdbi.v3.core.Jdbi;
 public class SchemaUpgrader {
 
     /** Must match the version stamped by {@link SchemaInitializer}. */
-    private static final int CURRENT_VERSION = 35;
+    private static final int CURRENT_VERSION = 36;
 
     private final Jdbi jdbi;
 
@@ -198,7 +198,43 @@ public class SchemaUpgrader {
             setVersion(35);
         }
 
+        if (version < 36) {
+            applyV36();
+            setVersion(36);
+        }
+
         log.info("Schema upgrade complete");
+    }
+
+    /**
+     * v36: {@code enrichment_review_queue} table for write-time gate outcomes.
+     *
+     * <p>Rows are written when the gate cannot proceed with a normal enrichment write:
+     * sentinel short-circuit → {@code ambiguous}, cast mismatch → {@code cast_anomaly},
+     * cast parse failure → {@code fetch_failed}.
+     * A partial unique index on {@code (title_id, reason) WHERE resolved_at IS NULL}
+     * makes enqueue idempotent.
+     */
+    private void applyV36() {
+        log.info("Applying migration v36: enrichment_review_queue table");
+        jdbi.useHandle(h -> {
+            h.execute("""
+                    CREATE TABLE IF NOT EXISTS enrichment_review_queue (
+                        id              INTEGER PRIMARY KEY AUTOINCREMENT,
+                        title_id        INTEGER NOT NULL REFERENCES titles(id) ON DELETE CASCADE,
+                        slug            TEXT,
+                        reason          TEXT    NOT NULL,
+                        resolver_source TEXT,
+                        created_at      TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+                        resolved_at     TEXT,
+                        resolution      TEXT
+                    )""");
+            h.execute("CREATE INDEX IF NOT EXISTS idx_erq_title ON enrichment_review_queue(title_id)");
+            h.execute("CREATE INDEX IF NOT EXISTS idx_erq_open  ON enrichment_review_queue(reason) WHERE resolved_at IS NULL");
+            h.execute("""
+                    CREATE UNIQUE INDEX IF NOT EXISTS idx_erq_open_unique
+                        ON enrichment_review_queue(title_id, reason) WHERE resolved_at IS NULL""");
+        });
     }
 
     /**

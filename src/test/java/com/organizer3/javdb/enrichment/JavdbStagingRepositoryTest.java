@@ -166,7 +166,8 @@ class JavdbStagingRepositoryTest {
         TitleExtract extract = new TitleExtract(
                 "DV-948", "deD0v", "テスト", "2008-09-12", 180,
                 "Maker", "Publisher", null, 4.5, 29,
-                List.of("Solowork"), List.of(), "https://cover.jpg", List.of(), "2024-01-01T00:00:00Z");
+                List.of("Solowork"), List.of(), "https://cover.jpg", List.of(), "2024-01-01T00:00:00Z",
+                false, false);
 
         String relPath = repo.saveTitleRaw("deD0v", extract);
         assertEquals("javdb_raw/title/deD0v.json", relPath);

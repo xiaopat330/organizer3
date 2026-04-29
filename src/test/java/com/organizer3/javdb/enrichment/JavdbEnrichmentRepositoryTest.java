@@ -45,21 +45,26 @@ class JavdbEnrichmentRepositoryTest {
                 List.of(new TitleExtract.CastEntry("c1", "Cast One", "F")),
                 "https://example/cover.jpg",
                 List.of("https://example/t1.jpg"),
-                "2026-04-25T00:00:00Z"
+                "2026-04-25T00:00:00Z",
+                false, false
         );
     }
 
     @Test
     void upsertEnrichment_writesEnrichmentRowAndTags() {
         repo.upsertEnrichment(1L, "slug1", "javdb_raw/title/slug1.json",
-                sampleExtract("TST-1", "slug1", List.of("Big Tits", "Solowork", "Cowgirl"), 4.5));
+                sampleExtract("TST-1", "slug1", List.of("Big Tits", "Solowork", "Cowgirl"), 4.5),
+                "actress_filmography", "HIGH", true);
 
         var row = jdbi.withHandle(h -> h.createQuery(
-                "SELECT javdb_slug, rating_avg, maker FROM title_javdb_enrichment WHERE title_id = 1")
+                "SELECT javdb_slug, rating_avg, maker, resolver_source, confidence, cast_validated FROM title_javdb_enrichment WHERE title_id = 1")
                 .mapToMap().one());
         assertEquals("slug1", row.get("javdb_slug"));
         assertEquals(4.5, ((Number) row.get("rating_avg")).doubleValue());
         assertEquals("S1 NO.1 STYLE", row.get("maker"));
+        assertEquals("actress_filmography", row.get("resolver_source"));
+        assertEquals("HIGH", row.get("confidence"));
+        assertEquals(1, ((Number) row.get("cast_validated")).intValue());
 
         int assignmentCount = jdbi.withHandle(h -> h.createQuery(
                 "SELECT COUNT(*) FROM title_enrichment_tags WHERE title_id = 1")
@@ -78,11 +83,13 @@ class JavdbEnrichmentRepositoryTest {
     void upsertEnrichment_isAtomicReplace() {
         // Initial write: 3 tags
         repo.upsertEnrichment(1L, "slug1", "javdb_raw/title/slug1.json",
-                sampleExtract("TST-1", "slug1", List.of("Big Tits", "Solowork", "Cowgirl"), 4.0));
+                sampleExtract("TST-1", "slug1", List.of("Big Tits", "Solowork", "Cowgirl"), 4.0),
+                "actress_filmography", "HIGH", true);
 
         // Re-enrichment: completely different tag set + different slug + different rating
         repo.upsertEnrichment(1L, "slug1-v2", "javdb_raw/title/slug1-v2.json",
-                sampleExtract("TST-1", "slug1-v2", List.of("Slender", "POV"), 4.8));
+                sampleExtract("TST-1", "slug1-v2", List.of("Slender", "POV"), 4.8),
+                "code_search_fallback", "MEDIUM", false);
 
         // Enrichment row reflects the latest data (no merge)
         var row = jdbi.withHandle(h -> h.createQuery(
@@ -110,9 +117,11 @@ class JavdbEnrichmentRepositoryTest {
     @Test
     void upsertEnrichment_sharesTagDefinitionsAcrossTitles() {
         repo.upsertEnrichment(1L, "slug1", "javdb_raw/title/slug1.json",
-                sampleExtract("TST-1", "slug1", List.of("Big Tits", "Solowork"), 4.0));
+                sampleExtract("TST-1", "slug1", List.of("Big Tits", "Solowork"), 4.0),
+                "code_search_fallback", "MEDIUM", false);
         repo.upsertEnrichment(2L, "slug2", "javdb_raw/title/slug2.json",
-                sampleExtract("TST-2", "slug2", List.of("Big Tits", "Cowgirl"), 4.2));
+                sampleExtract("TST-2", "slug2", List.of("Big Tits", "Cowgirl"), 4.2),
+                "code_search_fallback", "MEDIUM", false);
 
         // Big Tits is a single definition shared across both titles
         Integer bigTitsCount = jdbi.withHandle(h -> h.createQuery(
@@ -128,13 +137,15 @@ class JavdbEnrichmentRepositoryTest {
 
     @Test
     void upsertEnrichment_handlesNullAndEmptyTagsGracefully() {
-        repo.upsertEnrichment(1L, "slug1", "rp", sampleExtract("TST-1", "slug1", null, null));
+        repo.upsertEnrichment(1L, "slug1", "rp", sampleExtract("TST-1", "slug1", null, null),
+                "code_search_fallback", "MEDIUM", false);
         int rows = jdbi.withHandle(h -> h.createQuery(
                 "SELECT COUNT(*) FROM title_javdb_enrichment WHERE title_id = 1")
                 .mapTo(Integer.class).one());
         assertEquals(1, rows);
 
-        repo.upsertEnrichment(2L, "slug2", "rp", sampleExtract("TST-2", "slug2", List.of("", "  "), null));
+        repo.upsertEnrichment(2L, "slug2", "rp", sampleExtract("TST-2", "slug2", List.of("", "  "), null),
+                "code_search_fallback", "MEDIUM", false);
         int defCount = jdbi.withHandle(h -> h.createQuery(
                 "SELECT COUNT(*) FROM enrichment_tag_definitions").mapTo(Integer.class).one());
         assertEquals(0, defCount, "blank tag strings should be filtered, no definitions inserted");
@@ -166,8 +177,10 @@ class JavdbEnrichmentRepositoryTest {
 
     @Test
     void deleteEnrichment_removesRowAndTagsAndRefreshesCounts() {
-        repo.upsertEnrichment(1L, "slug1", "rp", sampleExtract("TST-1", "slug1", List.of("Big Tits"), 4.0));
-        repo.upsertEnrichment(2L, "slug2", "rp", sampleExtract("TST-2", "slug2", List.of("Big Tits"), 4.0));
+        repo.upsertEnrichment(1L, "slug1", "rp", sampleExtract("TST-1", "slug1", List.of("Big Tits"), 4.0),
+                "code_search_fallback", "MEDIUM", false);
+        repo.upsertEnrichment(2L, "slug2", "rp", sampleExtract("TST-2", "slug2", List.of("Big Tits"), 4.0),
+                "code_search_fallback", "MEDIUM", false);
 
         repo.deleteEnrichment(1L);
 

@@ -416,6 +416,10 @@ public class Application {
                 new com.organizer3.javdb.enrichment.FilmographyBackupWriter(dataDir);
         com.organizer3.javdb.enrichment.JavdbSlugResolver slugResolver =
                 new com.organizer3.javdb.enrichment.JavdbSlugResolver(javdbClient, filmographyRepo, javdbConfig, filmographyBackupWriter);
+        com.organizer3.javdb.enrichment.EnrichmentReviewQueueRepository enrichmentReviewQueueRepo =
+                new com.organizer3.javdb.enrichment.EnrichmentReviewQueueRepository(jdbi);
+        com.organizer3.javdb.enrichment.CastMatcher castMatcher =
+                new com.organizer3.javdb.enrichment.CastMatcher(actressRepo);
         com.organizer3.javdb.enrichment.EnrichmentRunner enrichmentRunner =
                 new com.organizer3.javdb.enrichment.EnrichmentRunner(
                         javdbConfig, javdbClient, slugResolver,
@@ -423,7 +427,8 @@ public class Application {
                         new com.organizer3.javdb.enrichment.JavdbProjector(jsonMapper),
                         javdbStagingRepo, javdbEnrichmentRepo,
                         enrichmentQueue, titleRepo, actressRepo, autoPromoter, avatarStore,
-                        enrichmentGradeStamper, ratingCurveRecomputer, profileChainGate, titleActressRepo);
+                        enrichmentGradeStamper, ratingCurveRecomputer, profileChainGate, titleActressRepo,
+                        enrichmentReviewQueueRepo, castMatcher, jdbi);
         new com.organizer3.javdb.enrichment.EnrichmentProvenanceBackfillTask(jdbi).run();
         commands.add(new EnrichActressCommand(actressRepo, titleRepo, enrichmentQueue));
 
