@@ -2,6 +2,7 @@ package com.organizer3.javdb.enrichment;
 
 import com.organizer3.javdb.JavdbClient;
 import com.organizer3.javdb.JavdbConfig;
+import com.organizer3.javdb.JavdbNotFoundException;
 import com.organizer3.javdb.JavdbSearchParser;
 import lombok.extern.slf4j.Slf4j;
 
@@ -38,6 +39,10 @@ import java.util.concurrent.ConcurrentHashMap;
  * sessions. L1 is always checked first; on a miss, L2 is consulted if the entry is within
  * the configured TTL; otherwise the filmography is re-fetched over HTTP and both levels
  * are populated.
+ *
+ * <p>Fetch-and-persist is all-or-nothing — partial filmographies never reach the DB.
+ * Any exception during the multi-page fetch (network, parse, or DB) rolls back the
+ * transaction and the previous complete fetch remains intact.
  */
 @Slf4j
 public class JavdbSlugResolver {
@@ -55,6 +60,15 @@ public class JavdbSlugResolver {
      * kept here for the JVM's lifetime once loaded. Checked before hitting L2 or HTTP.
      */
     private final Map<String, Map<String, String>> filmographyCache = new ConcurrentHashMap<>();
+
+    /**
+     * Per-actress lock objects. One lock per actress slug, lazily created via
+     * {@code computeIfAbsent}. Prevents two threads from concurrently fetching the
+     * same actress's filmography over HTTP. L1 hits bypass this lock entirely.
+     * The map grows at most as large as the number of distinct actress slugs seen;
+     * cardinality is low enough that no cleanup is needed.
+     */
+    private final ConcurrentHashMap<String, Object> fetchLocks = new ConcurrentHashMap<>();
 
     /**
      * Convenience constructor for tests and callers that don't need L2 persistence.
@@ -161,26 +175,38 @@ public class JavdbSlugResolver {
     }
 
     /**
-     * Returns the full {@code code → slug} map for an actress, using the two-level cache:
-     * L1 (in-memory) → L2 (database, if within TTL) → HTTP fetch (+ persist to both levels).
+     * Returns the full {@code code → slug} map for an actress, using the two-level cache.
+     *
+     * <p>L1 (in-memory) is checked lock-free. On an L1 miss, a per-actress lock is acquired
+     * to prevent concurrent HTTP fetches for the same actress. L1 is re-checked inside the
+     * lock (double-checked locking) so a thread that waited while another fetched will find
+     * the populated L1 and skip the HTTP call.
      */
     public Map<String, String> filmographyOf(String actressSlug) {
-        // L1 hit — fastest path, no DB or network touch.
+        // L1 hit — fastest path, no DB or network touch, no lock.
         Map<String, String> l1 = filmographyCache.get(actressSlug);
         if (l1 != null) return l1;
 
-        // L2 hit — valid cached data in the DB; populate L1 and return.
-        if (!filmographyRepo.isStale(actressSlug, ttlDays, clock)) {
-            Map<String, String> l2 = filmographyRepo.getCodeToSlug(actressSlug);
-            log.debug("javdb: filmography for {} loaded from L2 ({} entries)", actressSlug, l2.size());
-            filmographyCache.put(actressSlug, l2);
-            return l2;
-        }
+        // L2/HTTP path — serialize per actress to prevent duplicate concurrent fetches.
+        synchronized (fetchLocks.computeIfAbsent(actressSlug, k -> new Object())) {
+            // Double-check L1 after acquiring the lock: another thread may have finished
+            // the fetch while we were waiting and already populated L1.
+            Map<String, String> l1Again = filmographyCache.get(actressSlug);
+            if (l1Again != null) return l1Again;
 
-        // L2 miss or stale — fetch from HTTP, persist to L2, populate L1.
-        Map<String, String> fetched = fetchAndPersist(actressSlug);
-        filmographyCache.put(actressSlug, fetched);
-        return fetched;
+            // L2 hit — valid cached data in the DB; populate L1 and return.
+            if (!filmographyRepo.isStale(actressSlug, ttlDays, clock)) {
+                Map<String, String> l2 = filmographyRepo.getCodeToSlug(actressSlug);
+                log.debug("javdb: filmography for {} loaded from L2 ({} entries)", actressSlug, l2.size());
+                filmographyCache.put(actressSlug, l2);
+                return l2;
+            }
+
+            // L2 miss or stale — fetch from HTTP, persist to L2, populate L1.
+            Map<String, String> fetched = fetchAndPersist(actressSlug);
+            filmographyCache.put(actressSlug, fetched);
+            return fetched;
+        }
     }
 
     /** Test/admin hook: drop the in-memory (L1) filmography cache. */
@@ -188,18 +214,41 @@ public class JavdbSlugResolver {
         filmographyCache.clear();
     }
 
+    /**
+     * Fetches the actress's filmography over HTTP and persists it to L2.
+     *
+     * <p>Fetch-and-persist is all-or-nothing: all pages are collected in memory before the
+     * single transaction commit. Any failure leaves the previous L2 state intact.
+     *
+     * <p>If page 1 returns HTTP 404 (actress no longer exists on javdb), cached entries are
+     * pinned as stale via {@link JavdbActressFilmographyRepository#markNotFound} and the
+     * stale map is returned. A 404 on page 2+ is treated as a generic fetch failure.
+     */
     private Map<String, String> fetchAndPersist(String actressSlug) {
+        // Page 1 separately: a 404 here means the actress no longer exists on javdb.
+        String firstHtml;
+        try {
+            firstHtml = client.fetchActressPage(actressSlug, 1);
+        } catch (JavdbNotFoundException e) {
+            String fetchedAt = Instant.now(clock).toString();
+            int staleCount = filmographyRepo.markNotFound(actressSlug, fetchedAt);
+            Map<String, String> pinned = filmographyRepo.getCodeToSlug(actressSlug);
+            log.warn("javdb: actress {} returned 404 — cache pinned, {} entries marked stale",
+                    actressSlug, staleCount);
+            return pinned;
+        }
+
         Map<String, String> codeToSlug = new HashMap<>();
         List<FilmographyEntry> entries = new ArrayList<>();
         int pageCount = 0;
         int page = 1;
+        String html = firstHtml;
 
         while (page <= maxPages) {
-            String html = client.fetchActressPage(actressSlug, page);
             FilmographyPage parsed = filmographyParser.parsePage(html);
             for (FilmographyEntry entry : parsed.entries()) {
-                // putIfAbsent: if the same code shows up across pages (shouldn't happen but
-                // defensive), keep the first occurrence — actress pages are typically newest-first.
+                // putIfAbsent: if the same code appears across pages (shouldn't happen but
+                // defensive), keep the first occurrence — actress pages are newest-first.
                 if (codeToSlug.putIfAbsent(entry.productCode(), entry.titleSlug()) == null) {
                     entries.add(entry);
                 }
@@ -207,6 +256,9 @@ public class JavdbSlugResolver {
             pageCount = page;
             if (!parsed.hasNextPage()) break;
             page++;
+            if (page <= maxPages) {
+                html = client.fetchActressPage(actressSlug, page);
+            }
         }
         if (page > maxPages) {
             log.warn("javdb: filmography for {} hit maxPages={} cap — truncating", actressSlug, maxPages);

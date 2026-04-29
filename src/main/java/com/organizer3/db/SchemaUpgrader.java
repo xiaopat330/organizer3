@@ -19,7 +19,7 @@ import org.jdbi.v3.core.Jdbi;
 public class SchemaUpgrader {
 
     /** Must match the version stamped by {@link SchemaInitializer}. */
-    private static final int CURRENT_VERSION = 33;
+    private static final int CURRENT_VERSION = 34;
 
     private final Jdbi jdbi;
 
@@ -188,7 +188,31 @@ public class SchemaUpgrader {
             setVersion(33);
         }
 
+        if (version < 34) {
+            applyV34();
+            setVersion(34);
+        }
+
         log.info("Schema upgrade complete");
+    }
+
+    /**
+     * v34: drift-detection columns for the filmography cache.
+     *
+     * <p>Adds {@code stale} on entries (set to 1 when the entry vanishes from a re-fetch
+     * but is still referenced by enriched titles), and {@code last_drift_count} +
+     * {@code last_fetch_status} on the metadata row (telemetry + 404 pin signal).
+     */
+    private void applyV34() {
+        log.info("Applying migration v34: drift-detection columns on filmography tables");
+        jdbi.useHandle(h -> {
+            addColumnIfMissing(h, "javdb_actress_filmography_entry",
+                    "stale", "INTEGER NOT NULL DEFAULT 0");
+            addColumnIfMissing(h, "javdb_actress_filmography",
+                    "last_drift_count", "INTEGER NOT NULL DEFAULT 0");
+            addColumnIfMissing(h, "javdb_actress_filmography",
+                    "last_fetch_status", "TEXT NOT NULL DEFAULT 'ok'");
+        });
     }
 
     /**

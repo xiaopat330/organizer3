@@ -37,6 +37,16 @@ public interface JavdbActressFilmographyRepository {
     void evict(String actressSlug);
 
     /**
+     * Records a 404 outcome for this actress: upserts the metadata row with
+     * {@code last_fetch_status = 'not_found'} and marks all cached entries {@code stale=1}.
+     * Does not delete any entries — cached data is preserved for triage.
+     *
+     * @param fetchedAt ISO-8601 timestamp of the failed fetch attempt
+     * @return number of entry rows marked stale
+     */
+    int markNotFound(String actressSlug, String fetchedAt);
+
+    /**
      * Returns {@code true} if this actress's cached filmography is absent or past its TTL.
      *
      * <p>TTL is soft: if {@code lastReleaseDate} is more than 2 years ago the actress is

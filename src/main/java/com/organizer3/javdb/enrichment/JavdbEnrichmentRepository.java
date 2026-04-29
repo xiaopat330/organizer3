@@ -141,6 +141,19 @@ public class JavdbEnrichmentRepository {
         effectiveTags.recomputeForTitle(titleId);
     }
 
+    /**
+     * Returns {@code true} if at least one {@code title_javdb_enrichment} row references
+     * the given javdb title slug. Used by drift detection to decide whether a vanished
+     * filmography entry should be deleted (no references) or pinned as stale (has references).
+     */
+    public boolean findEnrichmentReferences(String titleSlug) {
+        return jdbi.withHandle(h ->
+                h.createQuery("SELECT COUNT(*) FROM title_javdb_enrichment WHERE javdb_slug = :slug")
+                        .bind("slug", titleSlug)
+                        .mapTo(Integer.class)
+                        .one() > 0);
+    }
+
     private String serialize(Object value) {
         if (value == null) return null;
         try {

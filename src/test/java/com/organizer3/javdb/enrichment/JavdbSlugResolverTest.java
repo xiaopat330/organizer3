@@ -2,6 +2,8 @@ package com.organizer3.javdb.enrichment;
 
 import com.organizer3.db.SchemaInitializer;
 import com.organizer3.javdb.JavdbClient;
+import com.organizer3.javdb.JavdbFetchException;
+import com.organizer3.javdb.JavdbNotFoundException;
 import com.organizer3.javdb.JavdbSearchParser;
 import org.jdbi.v3.core.Jdbi;
 import org.junit.jupiter.api.AfterEach;
@@ -19,6 +21,9 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -244,6 +249,94 @@ class JavdbSlugResolverTest {
         }
 
         @Test
+        void concurrentFilmographyFetchCoalescesOneHttpRequest() throws Exception {
+            l2Client.actressPage("J9dd", 1, html(false, entry("STAR-334", "slug1")));
+            JavdbSlugResolver r = resolverWithClock(fixedClock("2026-04-29T10:00:00Z"));
+
+            // Start gate: release both threads simultaneously to maximize concurrency.
+            CountDownLatch startGate = new CountDownLatch(1);
+            AtomicInteger fetchCount = new AtomicInteger();
+
+            // Wrap the client to count actual HTTP calls.
+            JavdbClient countingClient = new FakeJavdbClient() {
+                {
+                    actressPage("J9dd", 1, html(false, entry("STAR-334", "slug1")));
+                }
+
+                @Override
+                public String fetchActressPage(String slug, int page) {
+                    fetchCount.incrementAndGet();
+                    return super.fetchActressPage(slug, page);
+                }
+            };
+            JavdbSlugResolver r2 = new JavdbSlugResolver(countingClient, new JavdbFilmographyParser(),
+                    new JavdbSearchParser(), filmographyRepo, 90, 50, fixedClock("2026-04-29T10:00:00Z"));
+
+            CompletableFuture<Map<String, String>> t1 = CompletableFuture.supplyAsync(() -> {
+                try { startGate.await(); } catch (InterruptedException e) { Thread.currentThread().interrupt(); }
+                return r2.filmographyOf("J9dd");
+            });
+            CompletableFuture<Map<String, String>> t2 = CompletableFuture.supplyAsync(() -> {
+                try { startGate.await(); } catch (InterruptedException e) { Thread.currentThread().interrupt(); }
+                return r2.filmographyOf("J9dd");
+            });
+
+            startGate.countDown(); // release both threads
+            Map<String, String> result1 = t1.join();
+            Map<String, String> result2 = t2.join();
+
+            assertEquals(1, fetchCount.get(), "per-actress mutex must coalesce concurrent fetches to one HTTP call");
+            assertEquals(result1, result2, "both threads must see the same map");
+            assertEquals("slug1", result1.get("STAR-334"));
+        }
+
+        @Test
+        void midPaginationFailureLeavesDatabaseClean() {
+            // Page 1 succeeds, page 2 throws — must not write anything to DB.
+            l2Client.actressPage("J9dd", 1, html(true, entry("STAR-334", "slug1")));
+            l2Client.failOnPage = 2;
+
+            JavdbSlugResolver r = resolverWithClock(fixedClock("2026-04-29T10:00:00Z"));
+            assertThrows(Exception.class, () -> r.filmographyOf("J9dd"),
+                    "mid-pagination failure must propagate");
+
+            // L2 must have no data — no partial state
+            assertTrue(filmographyRepo.findMeta("J9dd").isEmpty(),
+                    "no metadata row must be written after partial fetch");
+            assertTrue(filmographyRepo.getCodeToSlug("J9dd").isEmpty(),
+                    "no entry rows must be written after partial fetch");
+        }
+
+        @Test
+        void actress404WithPriorCache_returnsStaleMapAndPinsMetaAsNotFound() {
+            // Pre-populate L2 with 2 entries from a successful fetch
+            filmographyRepo.upsertFilmography("J9dd", new FetchResult(
+                    "2025-10-11T00:00:00Z", 1, null, "http",
+                    List.of(new FilmographyEntry("STAR-334", "slug1"),
+                            new FilmographyEntry("STAR-358", "slug2"))));
+
+            // Mock client now throws 404 on any actress page fetch
+            l2Client.throwNotFoundException = true;
+
+            // "now" is past TTL so L2 is stale and HTTP fetch is attempted
+            JavdbSlugResolver r = resolverWithClock(fixedClock("2026-04-29T00:00:00Z"));
+            Map<String, String> result = r.filmographyOf("J9dd");
+
+            // Resolver must still return the (now-stale) cached map
+            assertEquals(2, result.size());
+            assertEquals("slug1", result.get("STAR-334"));
+            assertEquals("slug2", result.get("STAR-358"));
+
+            // Metadata must reflect not_found
+            Optional<FilmographyMeta> meta = filmographyRepo.findMeta("J9dd");
+            assertTrue(meta.isPresent());
+            assertEquals("not_found", meta.get().lastFetchStatus());
+
+            // Entries still present but stale
+            assertEquals(2, filmographyRepo.getCodeToSlug("J9dd").size());
+        }
+
+        @Test
         void staleL2EntryTriggesHttpRefetch() {
             // L2 has an entry fetched 200 days ago — past the 90-day TTL.
             filmographyRepo.upsertFilmography("J9dd", new FetchResult(
@@ -263,11 +356,13 @@ class JavdbSlugResolverTest {
     }
 
     /** Stub client that returns canned HTML for predetermined inputs. */
-    private static class FakeJavdbClient implements JavdbClient {
+    static class FakeJavdbClient implements JavdbClient {
         private final Map<String, String> codeSearchResults = new HashMap<>();
         private final Map<String, String> actressPageResults = new HashMap<>();
         int searchByCodeCalls = 0;
         List<String> actressPageCalls = new ArrayList<>();
+        boolean throwNotFoundException = false;
+        int failOnPage = -1; // -1 = never fail
 
         void searchResult(String code, String slugInResult) {
             codeSearchResults.put(code, "<html><body><a href=\"/v/" + slugInResult + "\"></a></body></html>");
@@ -292,6 +387,8 @@ class JavdbSlugResolverTest {
 
         @Override public String fetchActressPage(String slug, int page) {
             actressPageCalls.add(slug + "?page=" + page);
+            if (throwNotFoundException) throw new JavdbNotFoundException("/actors/" + slug);
+            if (page == failOnPage) throw new JavdbFetchException("simulated failure on page " + page);
             return actressPageResults.getOrDefault(slug + "?page=" + page, "<html><body></body></html>");
         }
     }

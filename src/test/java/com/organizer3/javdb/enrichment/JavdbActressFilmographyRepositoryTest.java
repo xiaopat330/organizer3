@@ -15,6 +15,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
+import java.sql.ResultSet;
+import java.sql.Statement;
+
 import static org.junit.jupiter.api.Assertions.*;
 
 class JavdbActressFilmographyRepositoryTest {
@@ -176,6 +179,123 @@ class JavdbActressFilmographyRepositoryTest {
         // lastReleaseDate 2022-01-01 is >2 years before now → exemption applies.
         Clock clock = fixedClock("2026-04-29T00:00:00Z");
         assertFalse(repo.isStale("J9dd", 90, clock));
+    }
+
+    // ── drift detection tests ─────────────────────────────────────────────────
+
+    @Test
+    void drift_slugChangedForExistingCode_updatesRowAndBumpsDriftCount() {
+        repo.upsertFilmography("J9dd", sampleResult("2026-01-01T00:00:00Z", 1,
+                "STAR-334", "old-slug"));
+
+        repo.upsertFilmography("J9dd", sampleResult("2026-06-01T00:00:00Z", 1,
+                "STAR-334", "new-slug"));
+
+        assertEquals(Optional.of("new-slug"), repo.findTitleSlug("J9dd", "STAR-334"));
+        Optional<FilmographyMeta> meta = repo.findMeta("J9dd");
+        assertTrue(meta.isPresent());
+        assertEquals(1, meta.get().lastDriftCount(), "slug change must increment drift count");
+    }
+
+    @Test
+    void drift_vanishedUnreferencedEntry_deleted() {
+        repo.upsertFilmography("J9dd", sampleResult("2026-01-01T00:00:00Z", 1,
+                "STAR-334", "slug1", "STAR-999", "slugVanished"));
+
+        // Second fetch: STAR-999 is gone and no title_javdb_enrichment row references slugVanished
+        repo.upsertFilmography("J9dd", sampleResult("2026-06-01T00:00:00Z", 1,
+                "STAR-334", "slug1"));
+
+        Map<String, String> map = repo.getCodeToSlug("J9dd");
+        assertFalse(map.containsKey("STAR-999"), "unreferenced vanished entry must be deleted");
+        assertEquals(0, repo.findMeta("J9dd").get().lastDriftCount(), "unreferenced delete is not drift");
+    }
+
+    @Test
+    void drift_vanishedReferencedEntry_pinnedStale() throws Exception {
+        // Seed filmography
+        repo.upsertFilmography("J9dd", sampleResult("2026-01-01T00:00:00Z", 1,
+                "STAR-334", "slug1", "STAR-999", "slugVanished"));
+
+        // Insert a title_javdb_enrichment row referencing slugVanished (FK enforcement is off)
+        try (Statement stmt = connection.createStatement()) {
+            stmt.execute("INSERT INTO title_javdb_enrichment (title_id, javdb_slug, fetched_at) " +
+                         "VALUES (42, 'slugVanished', '2026-01-01T00:00:00Z')");
+        }
+
+        // Second fetch: STAR-999 is absent
+        repo.upsertFilmography("J9dd", sampleResult("2026-06-01T00:00:00Z", 1,
+                "STAR-334", "slug1"));
+
+        // slugVanished is still referenced → entry pinned stale, not deleted
+        Map<String, String> map = repo.getCodeToSlug("J9dd");
+        assertTrue(map.containsKey("STAR-999"), "referenced vanished entry must be retained");
+
+        // Verify stale=1 via direct DB query
+        try (Statement stmt = connection.createStatement();
+             ResultSet rs = stmt.executeQuery(
+                     "SELECT stale FROM javdb_actress_filmography_entry " +
+                     "WHERE actress_slug='J9dd' AND product_code='STAR-999'")) {
+            assertTrue(rs.next());
+            assertEquals(1, rs.getInt("stale"), "vanished+referenced entry must be marked stale=1");
+        }
+
+        assertEquals(1, repo.findMeta("J9dd").get().lastDriftCount(),
+                "vanished+referenced counts as drift");
+    }
+
+    @Test
+    void drift_staleEntryReappearsInFetch_restoredStale0() throws Exception {
+        // First fetch: STAR-334 is normal
+        repo.upsertFilmography("J9dd", sampleResult("2026-01-01T00:00:00Z", 1,
+                "STAR-334", "slug1"));
+
+        // Manually mark it stale (simulate a prior 404 or vanish cycle)
+        try (Statement stmt = connection.createStatement()) {
+            stmt.execute("UPDATE javdb_actress_filmography_entry SET stale=1 " +
+                         "WHERE actress_slug='J9dd' AND product_code='STAR-334'");
+        }
+
+        // Re-fetch includes STAR-334 again → should restore stale=0
+        repo.upsertFilmography("J9dd", sampleResult("2026-06-01T00:00:00Z", 1,
+                "STAR-334", "slug1"));
+
+        try (Statement stmt = connection.createStatement();
+             ResultSet rs = stmt.executeQuery(
+                     "SELECT stale FROM javdb_actress_filmography_entry " +
+                     "WHERE actress_slug='J9dd' AND product_code='STAR-334'")) {
+            assertTrue(rs.next());
+            assertEquals(0, rs.getInt("stale"), "reappearing entry must have stale reset to 0");
+        }
+    }
+
+    @Test
+    void markNotFound_updatesStatusAndMarksEntriesStale() {
+        repo.upsertFilmography("J9dd", sampleResult("2026-01-01T00:00:00Z", 1,
+                "STAR-334", "slug1", "STAR-358", "slug2"));
+
+        int count = repo.markNotFound("J9dd", "2026-06-01T00:00:00Z");
+
+        assertEquals(2, count, "both entries should be marked stale");
+
+        Optional<FilmographyMeta> meta = repo.findMeta("J9dd");
+        assertTrue(meta.isPresent());
+        assertEquals("not_found", meta.get().lastFetchStatus());
+        assertEquals("2026-06-01T00:00:00Z", meta.get().fetchedAt());
+
+        // Entries are still retrievable (not deleted)
+        assertEquals(2, repo.getCodeToSlug("J9dd").size());
+    }
+
+    @Test
+    void markNotFound_withNoPriorCache_createsMetaRow() {
+        // No prior data — markNotFound should upsert a fresh metadata row
+        int count = repo.markNotFound("newActress", "2026-06-01T00:00:00Z");
+
+        assertEquals(0, count, "no entries to mark stale for unknown actress");
+        Optional<FilmographyMeta> meta = repo.findMeta("newActress");
+        assertTrue(meta.isPresent());
+        assertEquals("not_found", meta.get().lastFetchStatus());
     }
 
     @Test
