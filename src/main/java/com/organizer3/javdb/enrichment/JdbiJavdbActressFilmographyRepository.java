@@ -9,6 +9,7 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
@@ -17,6 +18,7 @@ import java.util.Optional;
 public class JdbiJavdbActressFilmographyRepository implements JavdbActressFilmographyRepository {
 
     private final Jdbi jdbi;
+    private final RevalidationPendingRepository revalidationPendingRepo;
 
     @Override
     public Optional<FilmographyMeta> findMeta(String actressSlug) {
@@ -129,7 +131,14 @@ public class JdbiJavdbActressFilmographyRepository implements JavdbActressFilmog
                     if (!oldSlug.equals(newSlug)) {
                         driftCount++;
                         log.info("javdb: drift detected for {}: {} {} → {}", actressSlug, code, oldSlug, newSlug);
-                        // TODO(2C): enqueue revalidation_pending(title_id, reason='drift') for each title enriched at oldSlug
+                        List<Long> affectedTitleIds = h.createQuery(
+                                "SELECT title_id FROM title_javdb_enrichment WHERE javdb_slug = :slug")
+                                .bind("slug", oldSlug)
+                                .mapTo(Long.class)
+                                .list();
+                        for (long affectedId : affectedTitleIds) {
+                            revalidationPendingRepo.enqueue(affectedId, "drift", h);
+                        }
                     }
                     h.createUpdate("""
                             UPDATE javdb_actress_filmography_entry
@@ -149,17 +158,17 @@ public class JdbiJavdbActressFilmographyRepository implements JavdbActressFilmog
                 String oldSlug = old.getValue();
                 if (incoming.containsKey(code)) continue;
 
-                // Check if any enriched title currently references this title slug.
+                // Find any enriched titles that reference this (now-vanished) slug.
                 // Query runs on the same handle so it's within the same transaction.
                 // SQLite FK enforcement is off in this application; see JavdbEnrichmentRepository.
-                boolean hasRefs = h.createQuery("""
-                        SELECT COUNT(*) FROM title_javdb_enrichment WHERE javdb_slug = :slug
+                List<Long> refTitleIds = h.createQuery("""
+                        SELECT title_id FROM title_javdb_enrichment WHERE javdb_slug = :slug
                         """)
                         .bind("slug", oldSlug)
-                        .mapTo(Integer.class)
-                        .one() > 0;
+                        .mapTo(Long.class)
+                        .list();
 
-                if (hasRefs) {
+                if (!refTitleIds.isEmpty()) {
                     driftCount++;
                     h.createUpdate("""
                             UPDATE javdb_actress_filmography_entry SET stale = 1
@@ -168,7 +177,9 @@ public class JdbiJavdbActressFilmographyRepository implements JavdbActressFilmog
                             .bind("slug", actressSlug)
                             .bind("code", code)
                             .execute();
-                    // TODO(2C): enqueue revalidation_pending(title_id, reason='drift') for each title enriched at oldSlug
+                    for (long refId : refTitleIds) {
+                        revalidationPendingRepo.enqueue(refId, "drift", h);
+                    }
                 } else {
                     h.createUpdate("""
                             DELETE FROM javdb_actress_filmography_entry

@@ -23,14 +23,17 @@ import static org.junit.jupiter.api.Assertions.*;
 class JavdbActressFilmographyRepositoryTest {
 
     private Connection connection;
+    private Jdbi jdbi;
     private JdbiJavdbActressFilmographyRepository repo;
+    private RevalidationPendingRepository pendingRepo;
 
     @BeforeEach
     void setUp() throws Exception {
         connection = DriverManager.getConnection("jdbc:sqlite::memory:");
-        Jdbi jdbi = Jdbi.create(connection);
+        jdbi = Jdbi.create(connection);
         new SchemaInitializer(jdbi).initialize();
-        repo = new JdbiJavdbActressFilmographyRepository(jdbi);
+        pendingRepo = new RevalidationPendingRepository(jdbi);
+        repo = new JdbiJavdbActressFilmographyRepository(jdbi, pendingRepo);
     }
 
     @AfterEach
@@ -307,5 +310,54 @@ class JavdbActressFilmographyRepositoryTest {
 
         Clock clock = fixedClock("2026-04-29T00:00:00Z");
         assertTrue(repo.isStale("J9dd", 90, clock));
+    }
+
+    // ── drift-hook enqueue tests ──────────────────────────────────────────────
+
+    @Test
+    void drift_slugChange_enqueuesToRevalidationPending() {
+        // Seed a titles row and enrichment row referencing old-slug
+        jdbi.useHandle(h -> {
+            h.execute("INSERT INTO titles(id, code, base_code, label, seq_num) VALUES (1,'STAR-334','STAR-334','STAR',334)");
+            h.execute("INSERT INTO title_javdb_enrichment(title_id, javdb_slug, fetched_at) VALUES (1, 'old-slug', '2024-01-01T00:00:00Z')");
+        });
+
+        repo.upsertFilmography("J9dd", sampleResult("2026-01-01T00:00:00Z", 1, "STAR-334", "old-slug"));
+        // Second fetch: slug changed for STAR-334
+        repo.upsertFilmography("J9dd", sampleResult("2026-06-01T00:00:00Z", 1, "STAR-334", "new-slug"));
+
+        assertEquals(1, pendingRepo.countPending(), "slug change for enriched title must enqueue revalidation_pending");
+        var pending = pendingRepo.drainBatch(10);
+        assertEquals(1L, pending.get(0).titleId());
+        assertEquals("drift", pending.get(0).reason());
+    }
+
+    @Test
+    void drift_slugChange_noEnrichmentRows_noEnqueue() {
+        // No title_javdb_enrichment row references old-slug → nothing to enqueue
+        repo.upsertFilmography("J9dd", sampleResult("2026-01-01T00:00:00Z", 1, "STAR-334", "old-slug"));
+        repo.upsertFilmography("J9dd", sampleResult("2026-06-01T00:00:00Z", 1, "STAR-334", "new-slug"));
+
+        assertEquals(0, pendingRepo.countPending());
+    }
+
+    @Test
+    void drift_vanishedReferenced_enqueuesToRevalidationPending() throws Exception {
+        // Seed filmography with two entries
+        repo.upsertFilmography("J9dd", sampleResult("2026-01-01T00:00:00Z", 1,
+                "STAR-334", "slug1", "STAR-999", "slugVanished"));
+
+        // Seed a title referencing slugVanished (FK enforcement off — no titles row needed)
+        try (Statement stmt = connection.createStatement()) {
+            stmt.execute("INSERT INTO title_javdb_enrichment(title_id, javdb_slug, fetched_at) VALUES (99, 'slugVanished', '2024-01-01T00:00:00Z')");
+        }
+
+        // Second fetch: STAR-999 is absent → slugVanished vanished, still referenced → stale + enqueue
+        repo.upsertFilmography("J9dd", sampleResult("2026-06-01T00:00:00Z", 1, "STAR-334", "slug1"));
+
+        assertEquals(1, pendingRepo.countPending(), "vanished+referenced slug must enqueue revalidation_pending");
+        var pending = pendingRepo.drainBatch(10);
+        assertEquals(99L, pending.get(0).titleId());
+        assertEquals("drift", pending.get(0).reason());
     }
 }

@@ -450,11 +450,13 @@ public class SchemaInitializer {
                         raw_path            TEXT,
                         resolver_source     TEXT,
                         confidence          TEXT,
-                        cast_validated      INTEGER
+                        cast_validated      INTEGER,
+                        last_revalidated_at TEXT
                     )""");
             h.execute("CREATE INDEX IF NOT EXISTS idx_tje_rating_avg   ON title_javdb_enrichment(rating_avg)");
             h.execute("CREATE INDEX IF NOT EXISTS idx_tje_release_date ON title_javdb_enrichment(release_date)");
             h.execute("CREATE INDEX IF NOT EXISTS idx_tje_maker        ON title_javdb_enrichment(maker)");
+            h.execute("CREATE INDEX IF NOT EXISTS idx_tje_revalidated  ON title_javdb_enrichment(last_revalidated_at)");
 
             h.execute("""
                     CREATE TABLE IF NOT EXISTS enrichment_tag_definitions (
@@ -542,12 +544,22 @@ public class SchemaInitializer {
             h.execute("CREATE INDEX IF NOT EXISTS idx_tjeh_title ON title_javdb_enrichment_history(title_id)");
             h.execute("CREATE INDEX IF NOT EXISTS idx_tjeh_code  ON title_javdb_enrichment_history(title_code)");
 
+            // revalidation_pending: dirty queue for priority re-validation (v38).
+            // Enqueued on drift detection; drained by RevalidationService.
+            h.execute("""
+                    CREATE TABLE IF NOT EXISTS revalidation_pending (
+                        title_id    INTEGER PRIMARY KEY REFERENCES titles(id) ON DELETE CASCADE,
+                        enqueued_at TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+                        reason      TEXT    NOT NULL
+                    )""");
+            h.execute("CREATE INDEX IF NOT EXISTS idx_reval_enqueued ON revalidation_pending(enqueued_at)");
+
             // Only stamp version on fresh installs (user_version = 0).
             // On an existing DB the CREATE TABLE statements above are all no-ops, so we must
             // leave the version alone and let SchemaUpgrader apply any missing migrations.
             int currentVersion = h.createQuery("PRAGMA user_version").mapTo(Integer.class).one();
             if (currentVersion == 0) {
-                h.execute("PRAGMA user_version = 37");
+                h.execute("PRAGMA user_version = 38");
             }
         });
         log.info("Schema initialization complete");

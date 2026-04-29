@@ -19,7 +19,7 @@ import org.jdbi.v3.core.Jdbi;
 public class SchemaUpgrader {
 
     /** Must match the version stamped by {@link SchemaInitializer}. */
-    private static final int CURRENT_VERSION = 37;
+    private static final int CURRENT_VERSION = 38;
 
     private final Jdbi jdbi;
 
@@ -208,7 +208,35 @@ public class SchemaUpgrader {
             setVersion(37);
         }
 
+        if (version < 38) {
+            applyV38();
+            setVersion(38);
+        }
+
         log.info("Schema upgrade complete");
+    }
+
+    /**
+     * v38: revalidation queue and {@code last_revalidated_at} column.
+     *
+     * <p>Adds {@code last_revalidated_at} to {@code title_javdb_enrichment} so the safety-net
+     * sweep can efficiently find rows that have never been revalidated or are stale (>30 days).
+     * Creates {@code revalidation_pending} as the dirty queue: title IDs enqueued on drift
+     * detection (actress filmography slug change or entry vanish) for priority revalidation.
+     */
+    private void applyV38() {
+        log.info("Applying migration v38: revalidation_pending table + last_revalidated_at column");
+        jdbi.useHandle(h -> {
+            addColumnIfMissing(h, "title_javdb_enrichment", "last_revalidated_at", "TEXT");
+            h.execute("CREATE INDEX IF NOT EXISTS idx_tje_revalidated ON title_javdb_enrichment(last_revalidated_at)");
+            h.execute("""
+                    CREATE TABLE IF NOT EXISTS revalidation_pending (
+                        title_id    INTEGER PRIMARY KEY REFERENCES titles(id) ON DELETE CASCADE,
+                        enqueued_at TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+                        reason      TEXT    NOT NULL
+                    )""");
+            h.execute("CREATE INDEX IF NOT EXISTS idx_reval_enqueued ON revalidation_pending(enqueued_at)");
+        });
     }
 
     /**
