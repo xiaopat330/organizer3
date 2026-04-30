@@ -3,6 +3,7 @@ package com.organizer3.repository.jdbi;
 import com.organizer3.model.TitleLocation;
 import com.organizer3.repository.TitleLocationRepository;
 import lombok.RequiredArgsConstructor;
+import org.jdbi.v3.core.Handle;
 import org.jdbi.v3.core.Jdbi;
 import org.jdbi.v3.core.mapper.RowMapper;
 
@@ -122,5 +123,13 @@ public class JdbiTitleLocationRepository implements TitleLocationRepository {
                         .bind("partitionId", newPartitionId)
                         .execute()
         );
+    }
+
+    @Override
+    public void updatePath(long locationId, Path newPath, Handle h) {
+        h.createUpdate("UPDATE title_locations SET path = :path WHERE id = :id")
+                .bind("id", locationId)
+                .bind("path", newPath.toString())
+                .execute();
     }
 }

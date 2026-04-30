@@ -3,6 +3,7 @@ package com.organizer3.repository;
 import com.organizer3.config.alias.AliasYamlEntry;
 import com.organizer3.model.ActressAlias;
 import com.organizer3.model.Actress;
+import org.jdbi.v3.core.Handle;
 
 import java.util.Collection;
 import java.util.List;
@@ -197,6 +198,14 @@ public interface ActressRepository {
      * mutual-exclusion rules (e.g. rejected implies !favorite and !bookmark).
      */
     void setFlags(long actressId, boolean favorite, boolean bookmark, boolean rejected);
+
+    // --- Identity mutation (handle-scoped, for use inside caller-owned transactions) ---
+
+    /** Update canonical_name within an existing handle/transaction. */
+    void updateCanonicalName(long actressId, String newName, Handle h);
+
+    /** Insert alias (idempotent — INSERT OR IGNORE) within an existing handle/transaction. */
+    void addAlias(long actressId, String aliasName, Handle h);
 
     // --- Alias operations ---
 

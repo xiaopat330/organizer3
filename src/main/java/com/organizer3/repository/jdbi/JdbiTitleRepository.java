@@ -364,6 +364,20 @@ public class JdbiTitleRepository implements TitleRepository {
     }
 
     @Override
+    public void updateCode(long titleId, String code, String baseCode, String label, int seqNum, Handle h) {
+        h.createUpdate("""
+                UPDATE titles SET code = :code, base_code = :baseCode, label = :label, seq_num = :seqNum
+                WHERE id = :id
+                """)
+                .bind("id", titleId)
+                .bind("code", code)
+                .bind("baseCode", baseCode)
+                .bind("label", label)
+                .bind("seqNum", seqNum)
+                .execute();
+    }
+
+    @Override
     public List<Title> findRecent(int limit, int offset) {
         List<Title> titles = jdbi.withHandle(h ->
                 h.createQuery("""

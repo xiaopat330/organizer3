@@ -59,6 +59,8 @@ public final class UtilitiesRoutes {
     private final com.organizer3.mcp.tools.PickReviewCandidateTool pickCandidateTool;
     private final com.organizer3.mcp.tools.RefreshReviewCandidatesTool refreshCandidatesTool;
     private final com.organizer3.mcp.tools.ConfirmOrphanDeleteTool confirmOrphanDeleteTool;
+    private final com.organizer3.mcp.tools.RenameActressTool renameActressTool;
+    private final com.organizer3.mcp.tools.RecodeTitleTool recodeTitleTool;
     private final TaskRegistry registry;
     private final TaskRunner runner;
     private final ObjectMapper json = new ObjectMapper().registerModule(new JavaTimeModule());
@@ -76,6 +78,8 @@ public final class UtilitiesRoutes {
                            com.organizer3.mcp.tools.PickReviewCandidateTool pickCandidateTool,
                            com.organizer3.mcp.tools.RefreshReviewCandidatesTool refreshCandidatesTool,
                            com.organizer3.mcp.tools.ConfirmOrphanDeleteTool confirmOrphanDeleteTool,
+                           com.organizer3.mcp.tools.RenameActressTool renameActressTool,
+                           com.organizer3.mcp.tools.RecodeTitleTool recodeTitleTool,
                            TaskRegistry registry, TaskRunner runner) {
         this.volumeState = volumeState;
         this.staleLocations = staleLocations;
@@ -91,6 +95,8 @@ public final class UtilitiesRoutes {
         this.pickCandidateTool = pickCandidateTool;
         this.refreshCandidatesTool = refreshCandidatesTool;
         this.confirmOrphanDeleteTool = confirmOrphanDeleteTool;
+        this.renameActressTool = renameActressTool;
+        this.recodeTitleTool = recodeTitleTool;
         this.registry = registry;
         this.runner = runner;
     }
@@ -279,6 +285,59 @@ public final class UtilitiesRoutes {
             try {
                 Object result = confirmOrphanDeleteTool.call(args);
                 ctx.json(result);
+            } catch (IllegalArgumentException e) {
+                ctx.status(400); ctx.json(Map.of("ok", false, "error", e.getMessage()));
+            }
+        });
+
+        // Identity tools — rename actress and recode title (Wave 4B Phase 2)
+        app.post("/api/utilities/actress/{id}/rename", ctx -> {
+            long id;
+            try { id = Long.parseLong(ctx.pathParam("id")); }
+            catch (NumberFormatException e) {
+                ctx.status(400); ctx.json(Map.of("error", "id must be a long integer")); return;
+            }
+            @SuppressWarnings("unchecked")
+            Map<String, Object> body = ctx.bodyAsClass(Map.class);
+            if (body == null || !(body.get("newCanonicalName") instanceof String newName)) {
+                ctx.status(400); ctx.json(Map.of("error", "newCanonicalName is required")); return;
+            }
+            boolean dryRun     = body.get("dryRun") instanceof Boolean b ? b : true;
+            boolean renameDisk = body.get("renameDisk") instanceof Boolean b ? b : true;
+            com.fasterxml.jackson.databind.node.ObjectNode args =
+                    new com.fasterxml.jackson.databind.ObjectMapper().createObjectNode();
+            args.put("actress_id",        id);
+            args.put("new_canonical_name", newName);
+            args.put("dry_run",            dryRun);
+            args.put("rename_disk",        renameDisk);
+            try {
+                ctx.json(renameActressTool.call(args));
+            } catch (IllegalArgumentException e) {
+                ctx.status(400); ctx.json(Map.of("ok", false, "error", e.getMessage()));
+            }
+        });
+
+        app.post("/api/utilities/title/{id}/recode", ctx -> {
+            long id;
+            try { id = Long.parseLong(ctx.pathParam("id")); }
+            catch (NumberFormatException e) {
+                ctx.status(400); ctx.json(Map.of("error", "id must be a long integer")); return;
+            }
+            @SuppressWarnings("unchecked")
+            Map<String, Object> body = ctx.bodyAsClass(Map.class);
+            if (body == null || !(body.get("newCode") instanceof String newCode)) {
+                ctx.status(400); ctx.json(Map.of("error", "newCode is required")); return;
+            }
+            boolean dryRun     = body.get("dryRun") instanceof Boolean b ? b : true;
+            boolean renameDisk = body.get("renameDisk") instanceof Boolean b ? b : true;
+            com.fasterxml.jackson.databind.node.ObjectNode args =
+                    new com.fasterxml.jackson.databind.ObjectMapper().createObjectNode();
+            args.put("title_id",    id);
+            args.put("new_code",    newCode);
+            args.put("dry_run",     dryRun);
+            args.put("rename_disk", renameDisk);
+            try {
+                ctx.json(recodeTitleTool.call(args));
             } catch (IllegalArgumentException e) {
                 ctx.status(400); ctx.json(Map.of("ok", false, "error", e.getMessage()));
             }
