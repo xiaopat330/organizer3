@@ -432,6 +432,12 @@ public class Application {
                 new com.organizer3.javdb.enrichment.EnrichmentReviewQueueRepository(jdbi);
         com.organizer3.javdb.enrichment.CastMatcher castMatcher =
                 new com.organizer3.javdb.enrichment.CastMatcher(actressRepo);
+        com.organizer3.javdb.enrichment.DisambiguationSnapshotter disambiguationSnapshotter =
+                new com.organizer3.javdb.enrichment.DisambiguationSnapshotter(
+                        javdbClient,
+                        new com.organizer3.javdb.enrichment.JavdbExtractor(),
+                        new com.organizer3.javdb.JavdbSearchParser(),
+                        javdbStagingRepo, jdbi, jsonMapper);
         com.organizer3.javdb.enrichment.EnrichmentRunner enrichmentRunner =
                 new com.organizer3.javdb.enrichment.EnrichmentRunner(
                         javdbConfig, javdbClient, slugResolver,
@@ -440,7 +446,8 @@ public class Application {
                         javdbStagingRepo, javdbEnrichmentRepo,
                         enrichmentQueue, titleRepo, actressRepo, autoPromoter, avatarStore,
                         enrichmentGradeStamper, ratingCurveRecomputer, profileChainGate, titleActressRepo,
-                        enrichmentReviewQueueRepo, castMatcher, jdbi, revalidationPendingRepo);
+                        enrichmentReviewQueueRepo, castMatcher, jdbi, revalidationPendingRepo,
+                        disambiguationSnapshotter);
         new com.organizer3.javdb.enrichment.EnrichmentProvenanceBackfillTask(jdbi).run();
         commands.add(new EnrichActressCommand(actressRepo, titleRepo, enrichmentQueue));
 
@@ -704,10 +711,18 @@ public class Application {
                         new com.organizer3.javdb.enrichment.JavdbExtractor(),
                         javdbStagingRepo, javdbEnrichmentRepo,
                         enrichmentReviewQueueRepo, revalidationPendingRepo);
+        com.organizer3.mcp.tools.PickReviewCandidateTool pickReviewCandidateTool =
+                new com.organizer3.mcp.tools.PickReviewCandidateTool(
+                        jdbi, enrichmentReviewQueueRepo, javdbEnrichmentRepo,
+                        javdbStagingRepo, revalidationPendingRepo);
+        com.organizer3.mcp.tools.RefreshReviewCandidatesTool refreshReviewCandidatesTool =
+                new com.organizer3.mcp.tools.RefreshReviewCandidatesTool(
+                        enrichmentReviewQueueRepo, titleRepo, disambiguationSnapshotter);
         webServer.registerUtilities(new com.organizer3.web.routes.UtilitiesRoutes(
                 volumeStateService, staleLocationsService, actressCatalogService, yamlLoader,
                 backupCatalogService, backupService, libraryHealthService, orphanedCoversService,
                 ratingCurveRepo, enrichmentReviewQueueRepo, forceEnrichTitleTool,
+                pickReviewCandidateTool, refreshReviewCandidatesTool,
                 taskRegistry, taskRunner));
         webServer.registerAvStars(new com.organizer3.web.routes.AvStarsRoutes(
                 avStarsCatalog, avBrowseService, iafdResolver));
@@ -829,6 +844,8 @@ public class Application {
                 mcpTools.register(new com.organizer3.mcp.tools.StartTaskTool(taskRegistry, taskRunner));
                 mcpTools.register(new com.organizer3.mcp.tools.ResolveReviewQueueRowTool(enrichmentReviewQueueRepo));
                 mcpTools.register(forceEnrichTitleTool);
+                mcpTools.register(pickReviewCandidateTool);
+                mcpTools.register(refreshReviewCandidatesTool);
                 log.info("MCP mutation tools enabled");
             }
             if (mcpConfig.mutationsAllowed() && mcpConfig.fileOpsAllowed()) {

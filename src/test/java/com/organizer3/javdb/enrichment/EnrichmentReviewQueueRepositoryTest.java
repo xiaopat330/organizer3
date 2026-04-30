@@ -225,4 +225,117 @@ class EnrichmentReviewQueueRepositoryTest {
                         .bind("id", id).mapTo(String.class).one());
         assertEquals("accepted_gap", resolution, "already-resolved row must not be modified");
     }
+
+    // ── enqueueWithDetail ─────────────────────────────────────────────────────
+
+    @Test
+    void enqueueWithDetail_insertsRowWithDetail() {
+        String detail = "{\"code\":\"T-1\",\"candidates\":[]}";
+        repo.enqueueWithDetail(1L, "slug1", "ambiguous", "code_search_fallback", detail);
+
+        assertTrue(repo.hasOpen(1L, "ambiguous"));
+        String stored = jdbi.withHandle(h ->
+                h.createQuery("SELECT detail FROM enrichment_review_queue WHERE title_id = 1")
+                        .mapTo(String.class).one());
+        assertEquals(detail, stored);
+    }
+
+    @Test
+    void enqueueWithDetail_isIdempotent_doesNotOverwriteExistingDetail() {
+        String detail1 = "{\"code\":\"T-1\",\"candidates\":[{\"slug\":\"A\"}]}";
+        String detail2 = "{\"code\":\"T-1\",\"candidates\":[{\"slug\":\"B\"}]}";
+        repo.enqueueWithDetail(1L, "slug1", "ambiguous", "code_search_fallback", detail1);
+        // Second call: INSERT OR IGNORE fires, detail2 must NOT overwrite detail1
+        repo.enqueueWithDetail(1L, "slug1", "ambiguous", "code_search_fallback", detail2);
+
+        String stored = jdbi.withHandle(h ->
+                h.createQuery("SELECT detail FROM enrichment_review_queue WHERE title_id = 1")
+                        .mapTo(String.class).one());
+        assertEquals(detail1, stored, "existing detail must not be overwritten");
+        assertEquals(1, repo.countOpen("ambiguous"), "still only one open row");
+    }
+
+    @Test
+    void enqueueWithDetail_nullDetail_insertsRowWithoutDetail() {
+        repo.enqueueWithDetail(1L, "slug1", "ambiguous", "code_search_fallback", null);
+
+        assertTrue(repo.hasOpen(1L, "ambiguous"));
+        String stored = jdbi.withHandle(h ->
+                h.createQuery("SELECT detail FROM enrichment_review_queue WHERE title_id = 1")
+                        .mapTo(String.class).one());
+        assertNull(stored, "detail should remain NULL when null is supplied");
+    }
+
+    // ── findOpenById ──────────────────────────────────────────────────────────
+
+    @Test
+    void findOpenById_returnsRow_withDetail() {
+        String detail = "{\"code\":\"T-1\",\"candidates\":[]}";
+        repo.enqueueWithDetail(1L, "slug1", "ambiguous", "code_search_fallback", detail);
+        long id = jdbi.withHandle(h ->
+                h.createQuery("SELECT id FROM enrichment_review_queue WHERE title_id = 1")
+                        .mapTo(Long.class).one());
+
+        var found = repo.findOpenById(id);
+
+        assertTrue(found.isPresent());
+        assertEquals(1L, found.get().titleId());
+        assertEquals("ambiguous", found.get().reason());
+        assertEquals(detail, found.get().detail());
+    }
+
+    @Test
+    void findOpenById_returnsEmpty_forResolvedRow() {
+        repo.enqueue(1L, "slug1", "ambiguous", "code_search_fallback");
+        long id = jdbi.withHandle(h ->
+                h.createQuery("SELECT id FROM enrichment_review_queue WHERE title_id = 1")
+                        .mapTo(Long.class).one());
+        repo.resolveOne(id, "accepted_gap");
+
+        assertTrue(repo.findOpenById(id).isEmpty(), "resolved row must not be returned");
+    }
+
+    @Test
+    void findOpenById_returnsEmpty_forNonExistentId() {
+        assertTrue(repo.findOpenById(9999L).isEmpty());
+    }
+
+    // ── updateDetail ──────────────────────────────────────────────────────────
+
+    @Test
+    void updateDetail_setsDetailAndLastSeenAt() {
+        repo.enqueue(1L, "slug1", "ambiguous", "code_search_fallback");
+        long id = jdbi.withHandle(h ->
+                h.createQuery("SELECT id FROM enrichment_review_queue WHERE title_id = 1")
+                        .mapTo(Long.class).one());
+
+        String freshDetail = "{\"code\":\"T-1\",\"candidates\":[{\"slug\":\"Z\"}]}";
+        repo.updateDetail(id, freshDetail);
+
+        var row = repo.findOpenById(id);
+        assertTrue(row.isPresent());
+        assertEquals(freshDetail, row.get().detail());
+
+        String lastSeen = jdbi.withHandle(h ->
+                h.createQuery("SELECT last_seen_at FROM enrichment_review_queue WHERE id = :id")
+                        .bind("id", id).mapTo(String.class).one());
+        assertNotNull(lastSeen, "last_seen_at should be set after updateDetail");
+    }
+
+    @Test
+    void updateDetail_noopOnResolvedRow() {
+        repo.enqueue(1L, "slug1", "ambiguous", "code_search_fallback");
+        long id = jdbi.withHandle(h ->
+                h.createQuery("SELECT id FROM enrichment_review_queue WHERE title_id = 1")
+                        .mapTo(Long.class).one());
+        repo.resolveOne(id, "accepted_gap");
+
+        // updateDetail on a resolved row should not throw and should not update
+        repo.updateDetail(id, "{\"fresh\":true}");
+
+        String detail = jdbi.withHandle(h ->
+                h.createQuery("SELECT detail FROM enrichment_review_queue WHERE id = :id")
+                        .bind("id", id).mapTo(String.class).one());
+        assertNull(detail, "resolved row detail must remain unchanged");
+    }
 }
