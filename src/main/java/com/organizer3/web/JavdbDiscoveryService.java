@@ -1,6 +1,8 @@
 package com.organizer3.web;
 
+import com.organizer3.covers.CoverPath;
 import com.organizer3.javdb.enrichment.EnrichmentRunner;
+import com.organizer3.model.Title;
 import org.jdbi.v3.core.Jdbi;
 
 import java.util.List;
@@ -15,10 +17,12 @@ public class JavdbDiscoveryService {
 
     private final Jdbi jdbi;
     private final EnrichmentRunner runner;
+    private final CoverPath coverPath;
 
-    public JavdbDiscoveryService(Jdbi jdbi, EnrichmentRunner runner) {
-        this.jdbi   = jdbi;
-        this.runner = runner;
+    public JavdbDiscoveryService(Jdbi jdbi, EnrichmentRunner runner, CoverPath coverPath) {
+        this.jdbi      = jdbi;
+        this.runner    = runner;
+        this.coverPath = coverPath;
     }
 
     // ── Response records ───────────────────────────────────────────────────
@@ -99,7 +103,8 @@ public class JavdbDiscoveryService {
             String code,
             String ourActressName,
             String ourJavdbSlug,   // null if no staging profile yet
-            String castJson
+            String castJson,
+            String coverUrl        // null if no cover found locally
     ) {}
 
     public record TitleEnrichmentDetail(
@@ -434,7 +439,8 @@ public class JavdbDiscoveryService {
      */
     public List<ConflictRow> getActressConflicts(long actressId) {
         return jdbi.withHandle(h -> h.createQuery("""
-                SELECT t.id AS title_id, t.code, a.canonical_name AS our_actress_name,
+                SELECT t.id AS title_id, t.code, t.label, t.base_code,
+                       a.canonical_name AS our_actress_name,
                        jas.javdb_slug AS our_javdb_slug, tje.cast_json
                 FROM title_javdb_enrichment tje
                 JOIN titles t ON t.id = tje.title_id
@@ -450,13 +456,25 @@ public class JavdbDiscoveryService {
                 ORDER BY t.code
                 """)
                 .bind("actressId", actressId)
-                .map((rs, ctx) -> new ConflictRow(
-                        rs.getLong("title_id"),
-                        rs.getString("code"),
-                        rs.getString("our_actress_name"),
-                        rs.getString("our_javdb_slug"),
-                        rs.getString("cast_json")
-                ))
+                .map((rs, ctx) -> {
+                    String label    = rs.getString("label");
+                    String baseCode = rs.getString("base_code");
+                    String coverUrl = null;
+                    if (coverPath != null && label != null && baseCode != null) {
+                        Title synth = Title.builder().label(label).baseCode(baseCode).build();
+                        coverUrl = coverPath.find(synth)
+                                .map(p -> "/covers/" + label.toUpperCase() + "/" + p.getFileName())
+                                .orElse(null);
+                    }
+                    return new ConflictRow(
+                            rs.getLong("title_id"),
+                            rs.getString("code"),
+                            rs.getString("our_actress_name"),
+                            rs.getString("our_javdb_slug"),
+                            rs.getString("cast_json"),
+                            coverUrl
+                    );
+                })
                 .list());
     }
 

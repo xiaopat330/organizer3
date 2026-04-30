@@ -1,5 +1,18 @@
 import { esc } from './utils.js';
 
+function formatRelative(isoStr) {
+  if (!isoStr) return '—';
+  try {
+    const diff = Date.now() - new Date(isoStr).getTime();
+    const days = Math.floor(diff / 86400000);
+    if (days === 0) return 'Today';
+    if (days === 1) return 'Yesterday';
+    if (days < 30)  return `${days}d ago`;
+    if (days < 365) return `${Math.floor(days / 30)}mo ago`;
+    return `${Math.floor(days / 365)}y ago`;
+  } catch { return isoStr; }
+}
+
 function fmtDate(iso) {
   if (!iso) return '—';
   const [y, m, d] = iso.split('-');
@@ -1081,10 +1094,43 @@ function conflictRow(r) {
   const castEntries = cast.length > 0
     ? cast.map(e => `<span class="jd-cast-entry">${esc(e.name)}<span class="jd-cast-slug"> · ${esc(e.slug ?? '?')}</span></span>`).join('')
     : '<span class="jd-muted">— (empty cast)</span>';
+  const codeCell = r.coverUrl
+    ? `<button class="jd-cover-link" onclick="showJdCoverModal(${JSON.stringify(r.coverUrl)}, ${JSON.stringify(r.code)})">${esc(r.code)}</button>`
+    : esc(r.code);
   return `<tr>
-    <td class="jd-code">${esc(r.code)}</td>
+    <td class="jd-code">${codeCell}</td>
     <td class="jd-conflict-cast">${castEntries}</td>
   </tr>`;
+}
+
+// ── Cover preview modal ─────────────────────────────────────────────────────
+
+function showJdCoverModal(coverUrl, code) {
+  document.querySelector('.jd-cover-overlay')?.remove();
+
+  const overlay = document.createElement('div');
+  overlay.className = 'jd-cover-overlay';
+
+  const img = document.createElement('img');
+  img.className = 'jd-cover-modal-img';
+  img.src = coverUrl;
+  img.alt = code;
+
+  const label = document.createElement('div');
+  label.className = 'jd-cover-modal-label';
+  label.textContent = code;
+
+  const box = document.createElement('div');
+  box.className = 'jd-cover-modal-box';
+  box.appendChild(img);
+  box.appendChild(label);
+  overlay.appendChild(box);
+  document.body.appendChild(overlay);
+
+  const ac = new AbortController();
+  const close = () => { overlay.remove(); ac.abort(); };
+  overlay.addEventListener('click', e => { if (e.target === overlay) close(); }, { signal: ac.signal });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') close(); }, { signal: ac.signal });
 }
 
 function parseCast(castJson) {
@@ -1093,6 +1139,23 @@ function parseCast(castJson) {
 }
 
 // ── Errors tab ─────────────────────────────────────────────────────────────
+
+const ERROR_REASON_LABELS = {
+  ambiguous:                 'Ambiguous match',
+  no_match:                  'No match on JavDB',
+  fetch_failed:              'Fetch failed',
+  cast_anomaly:              'Cast anomaly',
+  not_found:                 'Not found',
+  sentinel_actress:          'Sentinel actress',
+  no_match_in_filmography:   'Not in filmography',
+  no_slug:                   'No slug available',
+  unknown_job_type:          'Unknown job type',
+  title_not_in_db:           'Title not in DB',
+};
+
+function errorReasonLabel(raw) {
+  return ERROR_REASON_LABELS[raw] || raw || '(unknown)';
+}
 
 async function renderErrorsTab() {
   errorsView.style.display    = '';
@@ -1109,31 +1172,289 @@ async function renderErrorsTab() {
       return;
     }
     errorsView.innerHTML = '';
-    const retryAllRow = document.createElement('div');
-    retryAllRow.className = 'jd-errors-actions';
+
+    const actionsBar = document.createElement('div');
+    actionsBar.className = 'jd-errors-actions';
     const retryAllBtn = document.createElement('button');
     retryAllBtn.type = 'button';
     retryAllBtn.className = 'jd-action-btn jd-retry-btn';
     retryAllBtn.textContent = `Retry All (${jobs.length})`;
     retryAllBtn.addEventListener('click', () => retryActress());
-    retryAllRow.appendChild(retryAllBtn);
-    errorsView.appendChild(retryAllRow);
+    actionsBar.appendChild(retryAllBtn);
+    errorsView.appendChild(actionsBar);
 
     const list = document.createElement('ul');
     list.className = 'jd-errors-list';
     for (const job of jobs) {
-      const li = document.createElement('li');
-      li.className = 'jd-error-row';
-      li.innerHTML = `
-        <span class="jd-error-type">${esc(job.jobType)}</span>
-        <span class="jd-error-msg">${job.lastError ? esc(job.lastError) : '(no message)'}</span>
-        <span class="jd-error-attempts">${job.attempts} attempt${job.attempts !== 1 ? 's' : ''}</span>
-      `;
-      list.appendChild(li);
+      list.appendChild(makeErrorRow(job, list));
     }
     errorsView.appendChild(list);
   } catch (_) {
     errorsView.innerHTML = '<div class="jd-error">Network error.</div>';
+  }
+}
+
+function makeErrorRow(job, list) {
+  const li = document.createElement('li');
+  li.className = 'jd-error-row';
+  const isAmbiguous = job.lastError === 'ambiguous';
+
+  let codeSpan;
+  if (job.coverUrl) {
+    codeSpan = document.createElement('button');
+    codeSpan.className = 'jd-error-code jd-cover-link';
+    codeSpan.addEventListener('click', () => showJdCoverModal(job.coverUrl, job.titleCode || ''));
+  } else {
+    codeSpan = document.createElement('span');
+    codeSpan.className = 'jd-error-code';
+  }
+  codeSpan.textContent = job.titleCode || '(unknown title)';
+
+  const reasonSpan = document.createElement('span');
+  reasonSpan.className = `jd-error-msg jd-error-reason-${esc(job.lastError || 'unknown')}`;
+  reasonSpan.textContent = errorReasonLabel(job.lastError);
+
+  const acts = document.createElement('span');
+  acts.className = 'jd-error-row-actions';
+
+  if (job.titleId) {
+    const retryBtn = document.createElement('button');
+    retryBtn.type = 'button';
+    retryBtn.className = 'jd-action-btn jd-retry-btn jd-error-retry-btn';
+    retryBtn.textContent = 'Retry';
+    retryBtn.addEventListener('click', async () => {
+      retryBtn.disabled = true;
+      retryBtn.textContent = 'Retrying…';
+      try {
+        const r = await fetch(
+          `/api/javdb/discovery/actresses/${state.selectedId}/titles/${job.titleId}/reenrich`,
+          { method: 'POST' }
+        );
+        if (r.ok) {
+          li.style.opacity = '0.4';
+          await Promise.all([refreshQueue(), renderErrorsTab()]);
+        } else {
+          retryBtn.disabled = false;
+          retryBtn.textContent = 'Retry';
+        }
+      } catch (_) {
+        retryBtn.disabled = false;
+        retryBtn.textContent = 'Retry';
+      }
+    });
+    acts.appendChild(retryBtn);
+  }
+
+  if (isAmbiguous && job.reviewQueueId) {
+    const pickerBtn = document.createElement('button');
+    pickerBtn.type = 'button';
+    pickerBtn.className = 'jd-action-btn jd-error-picker-btn';
+    pickerBtn.textContent = 'Open picker';
+    pickerBtn.addEventListener('click', () => toggleErrorPicker(job, li, list, pickerBtn));
+    acts.appendChild(pickerBtn);
+  }
+
+  li.appendChild(codeSpan);
+  li.appendChild(reasonSpan);
+  li.appendChild(acts);
+  return li;
+}
+
+function toggleErrorPicker(job, li, list, btn) {
+  const next = li.nextElementSibling;
+  if (next && next.classList.contains('jd-error-picker-li')) {
+    next.remove();
+    btn.classList.remove('jd-error-picker-btn-active');
+    return;
+  }
+  list.querySelectorAll('.jd-error-picker-li').forEach(el => el.remove());
+  list.querySelectorAll('.jd-error-picker-btn-active').forEach(b => b.classList.remove('jd-error-picker-btn-active'));
+  btn.classList.add('jd-error-picker-btn-active');
+
+  const pickerLi = document.createElement('li');
+  pickerLi.className = 'jd-error-picker-li';
+  const panel = document.createElement('div');
+  panel.className = 'er-picker-panel';
+  pickerLi.appendChild(panel);
+  li.insertAdjacentElement('afterend', pickerLi);
+
+  let detail = null;
+  try { detail = job.reviewDetail ? JSON.parse(job.reviewDetail) : null; } catch {}
+  if (!detail || !detail.candidates || detail.candidates.length === 0) {
+    renderErrorPickerMissing(panel, job, li, pickerLi);
+  } else {
+    renderErrorPickerContent(panel, job, detail, li, pickerLi);
+  }
+}
+
+function renderErrorPickerMissing(panel, job, li, pickerLi) {
+  panel.innerHTML = `
+    <div class="er-picker-missing">
+      <span>Candidates not yet loaded.</span>
+      <button type="button" class="er-picker-load-btn">Load candidates</button>
+    </div>
+  `;
+  panel.querySelector('.er-picker-load-btn').addEventListener('click', async () => {
+    await doErrorRefreshCandidates(panel, job, li, pickerLi);
+  });
+}
+
+function renderErrorPickerContent(panel, job, detail, li, pickerLi) {
+  const linkedSlugs = new Set(detail.linked_slugs || []);
+  const age = formatRelative(detail.fetched_at);
+  panel.innerHTML = '';
+
+  const header = document.createElement('div');
+  header.className = 'er-picker-header';
+  header.innerHTML = `
+    <span class="er-picker-age">Candidates fetched ${esc(age)}</span>
+    <button type="button" class="er-picker-refresh-btn">Refresh candidates</button>
+  `;
+  panel.appendChild(header);
+  header.querySelector('.er-picker-refresh-btn').addEventListener('click', async () => {
+    await doErrorRefreshCandidates(panel, job, li, pickerLi);
+  });
+
+  const cards = document.createElement('div');
+  cards.className = 'er-candidate-cards';
+  detail.candidates.forEach(c => {
+    cards.appendChild(buildErrorCandidateCard(job, c, linkedSlugs, li, pickerLi));
+  });
+  panel.appendChild(cards);
+
+  const footer = document.createElement('div');
+  footer.className = 'er-picker-footer';
+  const noneBtn = document.createElement('button');
+  noneBtn.type = 'button';
+  noneBtn.className = 'er-picker-none-btn';
+  noneBtn.textContent = 'None of these (accept as gap)';
+  noneBtn.addEventListener('click', async () => {
+    await doErrorResolve(job.reviewQueueId, 'accepted_gap', li, pickerLi);
+  });
+  footer.appendChild(noneBtn);
+  panel.appendChild(footer);
+}
+
+function buildErrorCandidateCard(job, candidate, linkedSlugs, li, pickerLi) {
+  const card = document.createElement('div');
+  card.className = 'er-candidate-card';
+
+  const cover = document.createElement('div');
+  cover.className = 'er-candidate-cover';
+  if (candidate.cover_url) {
+    const img = document.createElement('img');
+    img.src = candidate.cover_url;
+    img.alt = '';
+    img.loading = 'lazy';
+    img.className = 'er-candidate-img';
+    cover.appendChild(img);
+  } else {
+    cover.innerHTML = '<div class="er-candidate-no-cover">No cover</div>';
+  }
+  card.appendChild(cover);
+
+  const info = document.createElement('div');
+  info.className = 'er-candidate-info';
+
+  const titleEl = document.createElement('div');
+  titleEl.className = 'er-candidate-title';
+  titleEl.textContent = candidate.title_original || '(no title)';
+  info.appendChild(titleEl);
+
+  const meta = document.createElement('div');
+  meta.className = 'er-candidate-meta';
+  meta.textContent = [candidate.release_date, candidate.maker].filter(Boolean).join(' · ');
+  info.appendChild(meta);
+
+  const castEl = document.createElement('div');
+  castEl.className = 'er-candidate-cast';
+  (candidate.cast || []).forEach(ce => {
+    const span = document.createElement('span');
+    span.className = 'er-cast-name' + (linkedSlugs.has(ce.slug) ? ' er-cast-linked' : '');
+    span.textContent = ce.name || ce.slug || '?';
+    castEl.appendChild(span);
+  });
+  info.appendChild(castEl);
+
+  const pickBtn = document.createElement('button');
+  pickBtn.type = 'button';
+  pickBtn.className = 'er-pick-btn';
+  pickBtn.textContent = 'Pick this';
+  pickBtn.addEventListener('click', async () => {
+    pickBtn.disabled = true;
+    pickBtn.textContent = 'Picking…';
+    try {
+      const res = await fetch(`/api/utilities/enrichment-review/queue/${job.reviewQueueId}/pick`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ slug: candidate.slug }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.ok) {
+        alert('Pick failed: ' + (data.error || data.message || res.statusText));
+        pickBtn.disabled = false;
+        pickBtn.textContent = 'Pick this';
+      } else {
+        pickerLi.remove();
+        li.remove();
+        await Promise.all([refreshQueue(), renderErrorsTab()]);
+      }
+    } catch (err) {
+      alert('Pick failed: ' + err.message);
+      pickBtn.disabled = false;
+      pickBtn.textContent = 'Pick this';
+    }
+  });
+  info.appendChild(pickBtn);
+  card.appendChild(info);
+  return card;
+}
+
+async function doErrorRefreshCandidates(panel, job, li, pickerLi) {
+  const btn = panel.querySelector('.er-picker-refresh-btn, .er-picker-load-btn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Loading…'; }
+  try {
+    const res = await fetch(`/api/utilities/enrichment-review/queue/${job.reviewQueueId}/refresh`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+    });
+    const data = await res.json();
+    if (!res.ok || !data.ok) {
+      alert('Refresh failed: ' + (data.error || data.message || res.statusText));
+      if (btn) { btn.disabled = false; btn.textContent = 'Refresh candidates'; }
+      return;
+    }
+    job.reviewDetail = data.detailJson;
+    let freshDetail = null;
+    try { freshDetail = data.detailJson ? JSON.parse(data.detailJson) : null; } catch {}
+    panel.innerHTML = '';
+    if (!freshDetail || !freshDetail.candidates || freshDetail.candidates.length === 0) {
+      renderErrorPickerMissing(panel, job, li, pickerLi);
+    } else {
+      renderErrorPickerContent(panel, job, freshDetail, li, pickerLi);
+    }
+  } catch (err) {
+    alert('Refresh failed: ' + err.message);
+    if (btn) { btn.disabled = false; btn.textContent = 'Refresh candidates'; }
+  }
+}
+
+async function doErrorResolve(reviewQueueId, resolution, li, pickerLi) {
+  try {
+    const res = await fetch(`/api/utilities/enrichment-review/queue/${reviewQueueId}/resolve`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ resolution }),
+    });
+    const data = await res.json();
+    if (!res.ok || !data.ok) {
+      alert('Resolve failed: ' + (data.error || data.message || res.statusText));
+      return;
+    }
+    pickerLi.remove();
+    li.remove();
+  } catch (err) {
+    alert('Resolve failed: ' + err.message);
   }
 }
 

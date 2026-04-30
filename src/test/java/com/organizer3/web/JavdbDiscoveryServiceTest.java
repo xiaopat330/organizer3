@@ -31,7 +31,7 @@ class JavdbDiscoveryServiceTest {
         Mockito.when(mockRunner.getPauseReason()).thenReturn(null);
         Mockito.when(mockRunner.getConsecutiveRateLimitHits()).thenReturn(0);
         Mockito.when(mockRunner.getPauseType()).thenReturn(null);
-        service = new JavdbDiscoveryService(jdbi, mockRunner);
+        service = new JavdbDiscoveryService(jdbi, mockRunner, null);
     }
 
     @AfterEach

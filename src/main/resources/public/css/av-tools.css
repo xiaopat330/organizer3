@@ -5825,18 +5825,30 @@
 }
 .jd-error-row {
   display: grid;
-  grid-template-columns: 160px 1fr auto;
-  align-items: start;
-  gap: 8px;
+  grid-template-columns: 110px 1fr auto;
+  align-items: center;
+  gap: 10px;
   padding: 8px 12px;
   background: #0f172a;
   border: 1px solid #1e293b;
   border-radius: 4px;
   font-size: 12px;
 }
-.jd-error-type    { color: #94a3b8; font-weight: 500; }
-.jd-error-msg     { color: #fca5a5; word-break: break-word; }
-.jd-error-attempts { color: #475569; white-space: nowrap; }
+.jd-error-code { color: #e2e8f0; font-family: monospace; font-weight: 600; white-space: nowrap; }
+.jd-error-msg  { word-break: break-word; }
+.jd-error-reason-ambiguous          { color: #fbbf24; }
+.jd-error-reason-no_match           { color: #94a3b8; }
+.jd-error-reason-fetch_failed       { color: #fca5a5; }
+.jd-error-reason-cast_anomaly       { color: #fb923c; }
+.jd-error-reason-not_found          { color: #94a3b8; }
+.jd-error-reason-sentinel_actress   { color: #64748b; }
+.jd-error-reason-unknown            { color: #64748b; }
+.jd-error-row-actions { display: flex; gap: 6px; align-items: center; }
+.jd-error-retry-btn   { font-size: 11px; padding: 3px 8px; }
+.jd-error-picker-btn  { font-size: 11px; padding: 3px 8px; background: #1e3a5f; color: #93c5fd; border-color: #2563eb; }
+.jd-error-picker-btn:hover { background: #1d4ed8; color: #fff; }
+.jd-error-picker-btn-active { background: #1d4ed8; color: #fff; }
+.jd-error-picker-li   { list-style: none; padding: 0; }
 
 /* ── Conflicts tab ───────────────────────────────────────────────────────── */
 .jd-conflict-explainer {
@@ -5870,6 +5882,53 @@
   font-family: monospace;
 }
 .jd-muted { color: #475569; }
+
+/* ── Cover-link button (shared by error rows and conflict rows) ───────────── */
+.jd-cover-link {
+  background: none;
+  border: none;
+  padding: 0;
+  margin: 0;
+  font-family: monospace;
+  font-weight: 600;
+  font-size: inherit;
+  color: #7dd3fc;
+  cursor: pointer;
+  text-decoration: underline dotted;
+  text-decoration-color: rgba(125, 211, 252, 0.4);
+  white-space: nowrap;
+}
+.jd-cover-link:hover { color: #38bdf8; text-decoration-color: #38bdf8; }
+
+/* ── Cover preview modal ─────────────────────────────────────────────────── */
+.jd-cover-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.82);
+  z-index: 2000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.jd-cover-modal-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+.jd-cover-modal-img {
+  max-width: 90vw;
+  max-height: 85vh;
+  object-fit: contain;
+  border-radius: 4px;
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.7);
+}
+.jd-cover-modal-label {
+  font-family: monospace;
+  font-size: 13px;
+  color: #94a3b8;
+  letter-spacing: 0.05em;
+}
 
 /* ── Enrichment detail modal ─────────────────────────────────────────────── */
 .jd-enrich-modal-overlay {

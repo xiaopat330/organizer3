@@ -36,7 +36,7 @@ class JavdbEnrichmentActionServiceTest {
         queue         = new EnrichmentQueue(jdbi, JavdbConfig.DEFAULTS);
         mockRunner    = Mockito.mock(EnrichmentRunner.class);
         mockTitleRepo = Mockito.mock(TitleRepository.class);
-        service       = new JavdbEnrichmentActionService(mockTitleRepo, queue, mockRunner, null, null);
+        service       = new JavdbEnrichmentActionService(mockTitleRepo, queue, mockRunner, null, null, null);
     }
 
     @AfterEach
@@ -185,10 +185,10 @@ class JavdbEnrichmentActionServiceTest {
         insertQueueRow(t1, actressId, "failed");
         insertQueueRow(t2, actressId, "pending");
 
-        List<EnrichmentJob> errors = service.getErrorsForActress(actressId);
+        List<EnrichmentQueue.FailedJobSummary> errors = service.getErrorsForActress(actressId);
 
         assertEquals(1, errors.size());
-        assertEquals("failed", errors.get(0).status());
+        assertEquals("FFF-001", errors.get(0).titleCode());
     }
 
     @Test
@@ -198,9 +198,9 @@ class JavdbEnrichmentActionServiceTest {
         insertQueueRow(t1, 7L, "failed");
         insertQueueRow(t2, 8L, "failed");
 
-        List<EnrichmentJob> errors = service.getErrorsForActress(7L);
+        List<EnrichmentQueue.FailedJobSummary> errors = service.getErrorsForActress(7L);
 
         assertEquals(1, errors.size());
-        assertEquals(7L, errors.get(0).actressId());
+        assertEquals("GGG-001", errors.get(0).titleCode());
     }
 }

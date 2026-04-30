@@ -745,9 +745,9 @@ public class Application {
                 new com.organizer3.web.routes.MergeCandidatesRoutes(mergeCandidateRepo));
 
         webServer.registerJavdbDiscovery(new com.organizer3.web.routes.JavdbDiscoveryRoutes(
-                new com.organizer3.web.JavdbDiscoveryService(jdbi, enrichmentRunner),
+                new com.organizer3.web.JavdbDiscoveryService(jdbi, enrichmentRunner, coverPath),
                 new com.organizer3.web.JavdbEnrichmentActionService(titleRepo, enrichmentQueue, enrichmentRunner,
-                        javdbStagingRepo, avatarStore)));
+                        javdbStagingRepo, avatarStore, coverPath)));
 
         webServer.registerTitleDiscovery(new com.organizer3.web.routes.TitleDiscoveryRoutes(
                 new com.organizer3.web.TitleDiscoveryService(jdbi, config, profileChainGate, enrichmentQueue)));
