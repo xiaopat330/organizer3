@@ -574,7 +574,10 @@ public class Application {
                         new com.organizer3.utilities.health.checks.TitlesWithoutCoversCheck(titleRepo, coverPath),
                         new com.organizer3.utilities.health.checks.UnloadedYamlsCheck(yamlLoader, actressRepo),
                         new com.organizer3.utilities.health.checks.UnresolvedAliasesCheck(jdbi),
-                        new com.organizer3.utilities.health.checks.DuplicateCodesCheck(jdbi));
+                        new com.organizer3.utilities.health.checks.DuplicateCodesCheck(jdbi),
+                        new com.organizer3.utilities.health.checks.LowConfidenceEnrichmentCheck(jdbi),
+                        new com.organizer3.utilities.health.checks.EnrichmentReviewQueueCheck(jdbi),
+                        new com.organizer3.utilities.health.checks.StaleFilmographyCacheCheck(jdbi));
         com.organizer3.utilities.health.LibraryHealthReportStore healthReportStore =
                 new com.organizer3.utilities.health.LibraryHealthReportStore(
                         dataDir.resolve("library-health-report.json"));
