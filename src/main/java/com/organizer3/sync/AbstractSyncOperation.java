@@ -325,6 +325,21 @@ abstract class AbstractSyncOperation implements SyncOperation {
                         + " Investigate before re-running sync.");
                 return;
             }
+
+            // Catastrophic-flagging guard: refuse to flag more than max(50, 10% of titles)
+            // enriched orphans in a single sync — likely indicates a volume-mount issue or bug.
+            int enrichedOrphans = titleRepo.countOrphansWithEnrichment();
+            int flagThreshold   = com.organizer3.repository.jdbi.JdbiTitleRepository.orphanFlagThreshold(total);
+            if (enrichedOrphans > flagThreshold) {
+                log.error("Orphan prune refused (flagging-guard): {} enriched titles would be flagged (threshold {}). "
+                        + "This likely indicates a volume-mount issue or sync bug — investigate before re-running.",
+                        enrichedOrphans, flagThreshold);
+                io.println("  ⚠ Orphan prune refused — " + enrichedOrphans + " enriched titles would be flagged"
+                        + " (threshold " + flagThreshold + ").");
+                io.println("  ⚠ This likely indicates a volume-mount issue or sync bug."
+                        + " Investigate before re-running sync.");
+                return;
+            }
         }
 
         int coversDeleted = 0;
@@ -339,9 +354,19 @@ abstract class AbstractSyncOperation implements SyncOperation {
                 log.warn("Failed to delete orphan cover {} for {}-{}", found.get(), ref.label(), ref.baseCode(), e);
             }
         }
+        if (orphans.isEmpty() && coversDeleted == 0) return;
         try {
-            titleRepo.deleteOrphaned();
+            TitleRepository.OrphanPruneResult result = titleRepo.deleteOrphaned();
             titleActressRepo.deleteOrphaned();
+            if (result.total() > 0 || coversDeleted > 0) {
+                log.info("Pruned {} orphan title(s) ({} deleted, {} flagged for review); deleted {} cover file(s)",
+                        result.total(), result.deleted(), result.flagged(), coversDeleted);
+                io.println("  Pruned " + result.total() + " orphan title(s)"
+                        + (result.flagged() > 0
+                                ? " (" + result.deleted() + " deleted, " + result.flagged() + " flagged for enrichment review)"
+                                : "")
+                        + "; deleted " + coversDeleted + " cover file(s).");
+            }
         } catch (CatastrophicDeleteException e) {
             // Repo-level guard tripped despite the pre-check — total/orphan counts must have
             // shifted mid-prune (unlikely under normal sync serialization, but possible).
@@ -350,11 +375,6 @@ abstract class AbstractSyncOperation implements SyncOperation {
                     + e.total() + " titles would be deleted (threshold " + e.threshold() + ").");
             io.println("  ⚠ This usually indicates a title_locations corruption."
                     + " Investigate before re-running sync.");
-            return;
-        }
-        if (!orphans.isEmpty() || coversDeleted > 0) {
-            log.info("Pruned {} orphan title(s); deleted {} cover file(s)", orphans.size(), coversDeleted);
-            io.println("  Pruned " + orphans.size() + " orphan title(s); deleted " + coversDeleted + " cover file(s).");
         }
     }
 

@@ -1,6 +1,9 @@
 package com.organizer3.repository.jdbi;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.organizer3.javdb.enrichment.EnrichmentHistoryRepository;
+import com.organizer3.javdb.enrichment.EnrichmentReviewQueueRepository;
 import com.organizer3.model.Actress;
 import com.organizer3.model.Title;
 import com.organizer3.model.TitleLocation;
@@ -9,6 +12,7 @@ import com.organizer3.repository.TitleLocationRepository;
 import com.organizer3.repository.TitleRepository;
 import com.organizer3.web.TitleSummary;
 import lombok.RequiredArgsConstructor;
+import org.jdbi.v3.core.Handle;
 import org.jdbi.v3.core.Jdbi;
 import org.jdbi.v3.core.mapper.RowMapper;
 
@@ -60,11 +64,15 @@ public class JdbiTitleRepository implements TitleRepository {
     private final Jdbi jdbi;
     private final TitleLocationRepository locationRepo;
     private final EnrichmentHistoryRepository enrichmentHistoryRepo;
+    private final EnrichmentReviewQueueRepository reviewQueueRepo;
+
+    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
     /** Convenience constructor for callers that don't need to inspect enrichment history. */
     public JdbiTitleRepository(Jdbi jdbi, TitleLocationRepository locationRepo) {
         this(jdbi, locationRepo,
-                new EnrichmentHistoryRepository(jdbi, new com.fasterxml.jackson.databind.ObjectMapper()));
+                new EnrichmentHistoryRepository(jdbi, new ObjectMapper()),
+                new EnrichmentReviewQueueRepository(jdbi));
     }
 
     @Override
@@ -885,49 +893,131 @@ public class JdbiTitleRepository implements TitleRepository {
         );
     }
 
-    /** Floor threshold — small libraries never trip the guard below this absolute count. */
+    /** Floor threshold — small libraries never trip the catastrophic-delete guard. */
     public static final int ORPHAN_DELETE_FLOOR = 500;
 
-    /** Fractional threshold — guard trips if orphans exceed this share of the total. */
+    /** Fractional threshold — catastrophic-delete guard trips above this share of total. */
     public static final int ORPHAN_DELETE_FRACTION_DIVISOR = 4; // 25%
 
-    /** Computes the same cascade-safety threshold used by {@link #deleteOrphaned}. */
+    /** Catastrophic-flagging floor — enriched-orphan flagging guard trips above this absolute count. */
+    public static final int ORPHAN_FLAG_FLOOR = 50;
+
+    /** Fractional threshold — flagging guard trips above this share of total. */
+    public static final int ORPHAN_FLAG_FRACTION_DIVISOR = 10; // 10%
+
+    /** Computes the cascade-safety threshold used by {@link #deleteOrphaned}. */
     public static int orphanDeleteThreshold(int total) {
         return Math.max(ORPHAN_DELETE_FLOOR, total / ORPHAN_DELETE_FRACTION_DIVISOR);
     }
 
+    /** Computes the catastrophic-flagging threshold used in sync's pre-prune check. */
+    public static int orphanFlagThreshold(int total) {
+        return Math.max(ORPHAN_FLAG_FLOOR, total / ORPHAN_FLAG_FRACTION_DIVISOR);
+    }
+
     @Override
-    public int deleteOrphaned() {
-        // Phase 1: collect orphan IDs and check the catastrophic-delete guard.
+    public int countOrphansWithEnrichment() {
+        return jdbi.withHandle(h -> h.createQuery("""
+                SELECT COUNT(*) FROM titles t
+                WHERE NOT EXISTS (SELECT 1 FROM title_locations tl WHERE tl.title_id = t.id)
+                  AND EXISTS (SELECT 1 FROM title_javdb_enrichment e WHERE e.title_id = t.id)
+                """).mapTo(Integer.class).one());
+    }
+
+    @Override
+    public OrphanPruneResult deleteOrphaned() {
+        // Phase 1: collect orphan IDs, split into enriched vs unenriched, check cascade guard.
         // No writes — if the guard throws, nothing has been touched.
-        List<Long> orphanIds = jdbi.inTransaction(h -> {
+        record Bucket(List<Long> unenriched, List<Long> enriched) {}
+        Bucket bucket = jdbi.inTransaction(h -> {
             int total = h.createQuery("SELECT COUNT(*) FROM titles").mapTo(Integer.class).one();
             List<Long> ids = h.createQuery("""
                     SELECT id FROM titles WHERE id NOT IN (
                         SELECT DISTINCT title_id FROM title_locations
                     )""").mapTo(Long.class).list();
-            if (ids.isEmpty()) return ids;
+            if (ids.isEmpty()) return new Bucket(ids, List.of());
             int threshold = orphanDeleteThreshold(total);
             if (ids.size() > threshold) {
                 throw new CatastrophicDeleteException("deleteOrphaned(titles)", ids.size(), total, threshold);
             }
-            return ids;
+            // Split on enrichment presence.
+            List<Long> enriched  = new ArrayList<>();
+            List<Long> unenriched = new ArrayList<>();
+            for (long id : ids) {
+                boolean hasEnrichment = h.createQuery(
+                        "SELECT COUNT(*) FROM title_javdb_enrichment WHERE title_id = :id")
+                        .bind("id", id).mapTo(Integer.class).one() > 0;
+                (hasEnrichment ? enriched : unenriched).add(id);
+            }
+            return new Bucket(unenriched, enriched);
         });
 
-        // Phase 2: per-title cascade in isolated transactions so partial failure
-        // cannot leave half-deleted enrichment state.
-        for (long id : orphanIds) {
+        // Phase 2: delete unenriched orphans with 4A cascade + history snapshot.
+        for (long id : bucket.unenriched()) {
+            jdbi.useTransaction(h -> deleteOneCascade(h, id, "sync_prune"));
+        }
+
+        // Phase 3: flag enriched orphans to the review queue (do NOT delete).
+        for (long id : bucket.enriched()) {
             jdbi.useTransaction(h -> {
-                enrichmentHistoryRepo.appendIfExists(id, "sync_prune", h);
-                h.createUpdate("DELETE FROM enrichment_review_queue WHERE title_id = :id").bind("id", id).execute();
-                h.createUpdate("DELETE FROM revalidation_pending WHERE title_id = :id").bind("id", id).execute();
-                h.createUpdate("DELETE FROM title_enrichment_tags WHERE title_id = :id").bind("id", id).execute();
-                h.createUpdate("DELETE FROM title_javdb_enrichment WHERE title_id = :id").bind("id", id).execute();
-                h.createUpdate("DELETE FROM titles WHERE id = :id").bind("id", id).execute();
+                String slug = h.createQuery(
+                        "SELECT javdb_slug FROM title_javdb_enrichment WHERE title_id = :id")
+                        .bind("id", id).mapTo(String.class).findOne().orElse(null);
+                String detailJson = buildOrphanFlagDetail(h, id);
+                reviewQueueRepo.enqueueOrphanFlag(id, slug, detailJson, h);
             });
         }
 
-        return orphanIds.size();
+        return new OrphanPruneResult(bucket.unenriched().size(), bucket.enriched().size());
+    }
+
+    @Override
+    public void deleteOne(long titleId) {
+        jdbi.useTransaction(h -> deleteOneCascade(h, titleId, "title_deleted"));
+    }
+
+    /**
+     * Shared cascade body used by {@link #deleteOrphaned} (unenriched path) and
+     * {@link #deleteOne}. Does NOT touch {@code enrichment_review_queue} — callers
+     * that need queue cleanup handle it explicitly, and orphan rows are tolerated via
+     * the LEFT JOIN in {@code EnrichmentReviewQueueRepository.findOpenById}.
+     */
+    private void deleteOneCascade(Handle h, long id, String historyReason) {
+        enrichmentHistoryRepo.appendIfExists(id, historyReason, h);
+        h.createUpdate("DELETE FROM revalidation_pending WHERE title_id = :id").bind("id", id).execute();
+        h.createUpdate("DELETE FROM title_enrichment_tags WHERE title_id = :id").bind("id", id).execute();
+        h.createUpdate("DELETE FROM title_javdb_enrichment WHERE title_id = :id").bind("id", id).execute();
+        h.createUpdate("DELETE FROM titles WHERE id = :id").bind("id", id).execute();
+    }
+
+    /**
+     * Builds the detail JSON snapshot for an enriched-orphan queue row.
+     * prior_path is null — title_locations are already cleared by the time this runs.
+     */
+    private static String buildOrphanFlagDetail(Handle h, long id) {
+        try {
+            String slug = h.createQuery(
+                    "SELECT javdb_slug FROM title_javdb_enrichment WHERE title_id = :id")
+                    .bind("id", id).mapTo(String.class).findOne().orElse(null);
+            String confidence = h.createQuery(
+                    "SELECT confidence FROM title_javdb_enrichment WHERE title_id = :id")
+                    .bind("id", id).mapTo(String.class).findOne().orElse(null);
+            String fetchedAt = h.createQuery(
+                    "SELECT fetched_at FROM title_javdb_enrichment WHERE title_id = :id")
+                    .bind("id", id).mapTo(String.class).findOne().orElse(null);
+            ObjectNode detail = OBJECT_MAPPER.createObjectNode();
+            detail.putNull("prior_path");
+            detail.putNull("prior_volume_id");
+            detail.putNull("prior_partition_id");
+            detail.putNull("last_seen_at");
+            ObjectNode summary = detail.putObject("enrichment_summary");
+            summary.put("javdb_slug",  slug       != null ? slug       : "");
+            summary.put("confidence",  confidence != null ? confidence : "");
+            summary.put("fetched_at",  fetchedAt  != null ? fetchedAt  : "");
+            return OBJECT_MAPPER.writeValueAsString(detail);
+        } catch (Exception e) {
+            return null;
+        }
     }
 
     @Override

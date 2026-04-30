@@ -10,7 +10,7 @@ const pillsEl   = document.getElementById('er-pills');
 const tableBody = document.getElementById('er-table-body');
 const emptyEl   = document.getElementById('er-empty');
 
-const ALL_REASONS = ['cast_anomaly', 'ambiguous', 'no_match', 'fetch_failed'];
+const ALL_REASONS = ['cast_anomaly', 'ambiguous', 'no_match', 'fetch_failed', 'orphan_enriched'];
 
 let state = {
   activeReason: null,   // null = All
@@ -97,25 +97,40 @@ function renderTable() {
 function makeRow(row) {
   const tr = document.createElement('tr');
   tr.className = 'er-row';
+  const isOrphan    = row.reason === 'orphan_enriched';
   const isAmbiguous = row.reason === 'ambiguous';
+
+  let actionsHtml;
+  if (isOrphan) {
+    actionsHtml = `
+      <button type="button" class="er-action-btn er-orphan-delete-btn" data-id="${row.id}">Confirm delete</button>
+      <button type="button" class="er-action-btn er-resolve-btn" data-id="${row.id}" data-res="marked_moved">Mark as moved</button>
+    `;
+  } else {
+    actionsHtml = `
+      <button type="button" class="er-action-btn er-gap-btn" data-id="${row.id}" data-res="accepted_gap">Accept as gap</button>
+      ${isAmbiguous
+        ? `<button type="button" class="er-action-btn er-picker-btn" data-id="${row.id}">Open picker</button>`
+        : `<button type="button" class="er-action-btn er-override-btn" data-id="${row.id}">Override slug…</button>`}
+      <button type="button" class="er-action-btn er-resolve-btn" data-id="${row.id}" data-res="marked_resolved">Mark resolved</button>
+    `;
+  }
+
   tr.innerHTML = `
     <td class="er-col-code">${esc(row.titleCode || '')}</td>
     <td class="er-col-slug">${esc(row.slug || '—')}</td>
     <td class="er-col-reason"><span class="er-reason er-reason-${esc(row.reason || '')}">${esc(row.reason || '')}</span></td>
     <td class="er-col-source">${esc(row.resolverSource || '—')}</td>
     <td class="er-col-created">${formatRelative(row.createdAt)}</td>
-    <td class="er-col-actions">
-      <button type="button" class="er-action-btn er-gap-btn" data-id="${row.id}" data-res="accepted_gap">Accept as gap</button>
-      ${isAmbiguous
-        ? `<button type="button" class="er-action-btn er-picker-btn" data-id="${row.id}">Open picker</button>`
-        : `<button type="button" class="er-action-btn er-override-btn" data-id="${row.id}">Override slug…</button>`}
-      <button type="button" class="er-action-btn er-resolve-btn" data-id="${row.id}" data-res="marked_resolved">Mark resolved</button>
-    </td>
+    <td class="er-col-actions">${actionsHtml}</td>
   `;
+
   tr.querySelectorAll('.er-action-btn[data-res]').forEach(btn => {
     btn.addEventListener('click', () => resolveRow(Number(btn.dataset.id), btn.dataset.res, tr));
   });
-  if (isAmbiguous) {
+  if (isOrphan) {
+    tr.querySelector('.er-orphan-delete-btn').addEventListener('click', () => confirmOrphanDelete(row.id, tr));
+  } else if (isAmbiguous) {
     tr.querySelector('.er-picker-btn').addEventListener('click', () => togglePicker(row, tr));
   } else {
     tr.querySelector('.er-override-btn').addEventListener('click', () => showSlugForm(row.id, tr));
@@ -378,6 +393,30 @@ function showSlugForm(queueRowId, tr) {
     if (e.key === 'Enter') doSubmit();
     if (e.key === 'Escape') form.remove();
   });
+}
+
+// ── Orphan-enriched confirm delete ────────────────────────────────────────────
+
+async function confirmOrphanDelete(queueRowId, tr) {
+  if (!confirm('Permanently delete this enriched title? This cannot be undone.')) return;
+  tr.querySelectorAll('.er-action-btn').forEach(b => { b.disabled = true; });
+  try {
+    const res = await fetch(`/api/utilities/enrichment-review/queue/${queueRowId}/confirm-orphan-delete`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+    });
+    const data = await res.json();
+    if (!res.ok || !data.ok) {
+      alert('Delete failed: ' + (data.error || data.message || res.statusText));
+      tr.querySelectorAll('.er-action-btn').forEach(b => { b.disabled = false; });
+    } else {
+      await reload();
+    }
+  } catch (err) {
+    console.error('EnrichmentReview: confirm-orphan-delete failed', err);
+    alert('Delete failed: ' + err.message);
+    tr.querySelectorAll('.er-action-btn').forEach(b => { b.disabled = false; });
+  }
 }
 
 // ── Resolve ───────────────────────────────────────────────────────────────────

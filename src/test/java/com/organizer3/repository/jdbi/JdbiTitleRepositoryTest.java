@@ -3,6 +3,7 @@ package com.organizer3.repository.jdbi;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.organizer3.db.SchemaInitializer;
 import com.organizer3.javdb.enrichment.EnrichmentHistoryRepository;
+import com.organizer3.javdb.enrichment.EnrichmentReviewQueueRepository;
 import com.organizer3.model.ActressAlias;
 import com.organizer3.model.Actress;
 import com.organizer3.model.Title;
@@ -34,6 +35,7 @@ class JdbiTitleRepositoryTest {
     private JdbiActressRepository actressRepo;
     private JdbiTitleActressRepository titleActressRepo;
     private EnrichmentHistoryRepository enrichmentHistoryRepo;
+    private EnrichmentReviewQueueRepository reviewQueueRepo;
     private Connection connection;
     private Jdbi jdbi;
 
@@ -49,7 +51,8 @@ class JdbiTitleRepositoryTest {
         });
         locationRepo = new JdbiTitleLocationRepository(jdbi);
         enrichmentHistoryRepo = new EnrichmentHistoryRepository(jdbi, new ObjectMapper());
-        titleRepo = new JdbiTitleRepository(jdbi, locationRepo, enrichmentHistoryRepo);
+        reviewQueueRepo = new EnrichmentReviewQueueRepository(jdbi);
+        titleRepo = new JdbiTitleRepository(jdbi, locationRepo, enrichmentHistoryRepo, reviewQueueRepo);
         actressRepo = new JdbiActressRepository(jdbi);
         titleActressRepo = new JdbiTitleActressRepository(jdbi);
     }
@@ -818,8 +821,8 @@ class JdbiTitleRepositoryTest {
         titleRepo.save(Title.builder().code("ABP-002").baseCode("ABP-00002").label("ABP").seqNum(2).build());
         titleRepo.save(Title.builder().code("ABP-003").baseCode("ABP-00003").label("ABP").seqNum(3).build());
 
-        assertEquals(2, titleRepo.deleteOrphaned());
-        assertEquals(0, titleRepo.deleteOrphaned()); // idempotent — nothing left to drop
+        assertEquals(2, titleRepo.deleteOrphaned().deleted());
+        assertEquals(0, titleRepo.deleteOrphaned().deleted()); // idempotent — nothing left to drop
     }
 
     // --- cascade guard: CatastrophicDeleteException ---
@@ -877,7 +880,7 @@ class JdbiTitleRepositoryTest {
             titleRepo.save(Title.builder().code(code).baseCode(base).label("CJD").seqNum(i + 1).build());
         }
 
-        assertEquals(floor, titleRepo.deleteOrphaned());
+        assertEquals(floor, titleRepo.deleteOrphaned().deleted());
         assertEquals(keepers, countAllTitles());
     }
 
@@ -886,44 +889,159 @@ class JdbiTitleRepositoryTest {
                 .mapTo(Integer.class).one());
     }
 
-    // --- deleteOrphaned: enrichment cascade ---
+    // --- deleteOrphaned: enriched orphan → flagged not deleted (4B Phase 1) ---
 
     /**
-     * Orphan with a full enrichment context: enrichment row, tag rows, open review-queue
-     * row, and a revalidation_pending row. deleteOrphaned must cascade-delete all four
-     * enrichment tables AND write a sync_prune history snapshot before deleting.
+     * An orphan WITH a title_javdb_enrichment row must NOT be deleted. Instead it gets
+     * a review-queue row (reason='orphan_enriched') so the user can confirm the delete.
+     * The title and all its enrichment data must remain intact.
      */
     @Test
-    void deleteOrphanedCascadesEnrichmentTablesAndSnapshotsHistory() {
+    void deleteOrphaned_enrichedOrphan_isFlaggedNotDeleted() {
         Title orphan = titleRepo.save(Title.builder()
                 .code("ABP-010").baseCode("ABP-00010").label("ABP").seqNum(10).build());
         long id = orphan.getId();
 
-        // Seed enrichment context (FK enforcement off; insert dependency order)
+        jdbi.useHandle(h -> {
+            h.execute("INSERT INTO title_javdb_enrichment (title_id, javdb_slug, fetched_at) VALUES (?, 'abp-010', '2026-01-01T00:00:00')", id);
+        });
+
+        var result = titleRepo.deleteOrphaned();
+
+        assertEquals(0, result.deleted(), "enriched orphan must not be deleted");
+        assertEquals(1, result.flagged(), "enriched orphan must be flagged");
+        assertTrue(titleRepo.findById(id).isPresent(), "title must still exist");
+        assertEquals(1, countRows("title_javdb_enrichment", id), "enrichment must be intact");
+        assertEquals(1, countRows("enrichment_review_queue", id), "queue row must be inserted");
+    }
+
+    /**
+     * An orphan WITHOUT a title_javdb_enrichment row must be deleted immediately
+     * with the 4A cascade: tag rows and pending rows cleaned, no history written.
+     */
+    @Test
+    void deleteOrphaned_unenrichedOrphan_isDeleted() {
+        Title orphan = titleRepo.save(Title.builder()
+                .code("ABP-020").baseCode("ABP-00020").label("ABP").seqNum(20).build());
+        long id = orphan.getId();
+
         jdbi.useHandle(h -> {
             h.execute("INSERT OR IGNORE INTO enrichment_tag_definitions (id, name) VALUES (1, 'test-tag')");
-            h.execute("INSERT INTO title_javdb_enrichment (title_id, javdb_slug, fetched_at) VALUES (?, 'abp-010', '2026-01-01T00:00:00')", id);
             h.execute("INSERT INTO title_enrichment_tags (title_id, tag_id) VALUES (?, 1)", id);
-            h.execute("INSERT INTO enrichment_review_queue (title_id, reason, created_at) VALUES (?, 'no_match', '2026-01-01T00:00:00')", id);
             h.execute("INSERT INTO revalidation_pending (title_id, reason) VALUES (?, 'slug_changed')", id);
-            // Pre-existing history row to confirm a second one gets appended
-            h.execute("INSERT INTO title_javdb_enrichment_history (title_id, title_code, reason, prior_slug, prior_payload) VALUES (?, 'ABP-010', 'enrichment_runner', 'abp-010', '{}')", id);
+        });
+
+        var result = titleRepo.deleteOrphaned();
+
+        assertEquals(1, result.deleted());
+        assertEquals(0, result.flagged());
+        assertTrue(titleRepo.findById(id).isEmpty(), "unenriched orphan must be deleted");
+        assertEquals(0, countRows("title_enrichment_tags", id));
+        assertEquals(0, countRows("revalidation_pending", id));
+        assertEquals(0, enrichmentHistoryRepo.countForTitle(id), "no history when no enrichment row");
+    }
+
+    /**
+     * Mixed set: one enriched orphan + one unenriched orphan. Verify the split counts
+     * and that each is handled correctly.
+     */
+    @Test
+    void deleteOrphaned_mixedOrphans_splitCorrectly() {
+        Title unenriched = titleRepo.save(Title.builder()
+                .code("ABP-001").baseCode("ABP-00001").label("ABP").seqNum(1).build());
+        Title enriched = titleRepo.save(Title.builder()
+                .code("ABP-002").baseCode("ABP-00002").label("ABP").seqNum(2).build());
+        // keeper with location
+        Title keeper = titleRepo.save(Title.builder()
+                .code("ABP-003").baseCode("ABP-00003").label("ABP").seqNum(3).build());
+        locationRepo.save(TitleLocation.builder().titleId(keeper.getId())
+                .volumeId("vol-a").partitionId("queue").path(Path.of("/queue/ABP-003"))
+                .lastSeenAt(LocalDate.now()).build());
+
+        jdbi.useHandle(h -> h.execute(
+                "INSERT INTO title_javdb_enrichment (title_id, javdb_slug, fetched_at) VALUES (?, 'abp-002', '2026-01-01T00:00:00')",
+                enriched.getId()));
+
+        var result = titleRepo.deleteOrphaned();
+
+        assertEquals(1, result.deleted(), "unenriched deleted");
+        assertEquals(1, result.flagged(), "enriched flagged");
+        assertTrue(titleRepo.findById(unenriched.getId()).isEmpty());
+        assertTrue(titleRepo.findById(enriched.getId()).isPresent());
+        assertTrue(titleRepo.findById(keeper.getId()).isPresent());
+        assertEquals(1, countRows("enrichment_review_queue", enriched.getId()));
+    }
+
+    /**
+     * Idempotent flagging: calling deleteOrphaned() a second time with the same enriched
+     * orphan must not create a duplicate queue row (INSERT OR IGNORE via partial unique index).
+     */
+    @Test
+    void deleteOrphaned_enrichedOrphan_flagIdempotent() {
+        Title orphan = titleRepo.save(Title.builder()
+                .code("ABP-010").baseCode("ABP-00010").label("ABP").seqNum(10).build());
+        long id = orphan.getId();
+        jdbi.useHandle(h -> h.execute(
+                "INSERT INTO title_javdb_enrichment (title_id, javdb_slug, fetched_at) VALUES (?, 'abp-010', '2026-01-01T00:00:00')", id));
+
+        titleRepo.deleteOrphaned();
+        titleRepo.deleteOrphaned(); // second call
+
+        assertEquals(1, countRows("enrichment_review_queue", id), "only one queue row allowed");
+    }
+
+    /**
+     * Enriched orphan flagged then resolved as 'marked_moved': on the next sync
+     * it must be re-flagged (the prior queue row is resolved, so INSERT OR IGNORE inserts
+     * a fresh open row). This is correct behavior — the safety rail nags until the user
+     * uses recode_title to reconcile.
+     */
+    @Test
+    void deleteOrphaned_enrichedOrphan_reflaggedAfterMarkedMoved() {
+        Title orphan = titleRepo.save(Title.builder()
+                .code("ABP-010").baseCode("ABP-00010").label("ABP").seqNum(10).build());
+        long id = orphan.getId();
+        jdbi.useHandle(h -> h.execute(
+                "INSERT INTO title_javdb_enrichment (title_id, javdb_slug, fetched_at) VALUES (?, 'abp-010', '2026-01-01T00:00:00')", id));
+
+        titleRepo.deleteOrphaned();
+        // Simulate user resolving the queue row as 'marked_moved'
+        jdbi.useHandle(h -> h.execute(
+                "UPDATE enrichment_review_queue SET resolved_at = '2026-05-01T00:00:00', resolution = 'marked_moved' WHERE title_id = ?", id));
+
+        titleRepo.deleteOrphaned(); // next sync cycle
+
+        // A new open row must have been inserted
+        assertEquals(1, reviewQueueRepo.countOpen("orphan_enriched"),
+                "re-flag must insert a new open row after prior one is resolved");
+    }
+
+    // --- deleteOrphaned: cascade on unenriched orphan (4A pattern preserved) ---
+
+    /**
+     * Unenriched orphan with satellite rows (tag, pending): tag and pending rows are deleted;
+     * any pre-existing queue rows are left as orphan rows (tolerated via LEFT JOIN).
+     * History is NOT written — appendIfExists no-ops without enrichment row.
+     */
+    @Test
+    void deleteOrphanedCascadesEnrichmentTablesAndSnapshotsHistory() {
+        Title orphan = titleRepo.save(Title.builder()
+                .code("ABP-030").baseCode("ABP-00030").label("ABP").seqNum(30).build());
+        long id = orphan.getId();
+
+        // Seed satellite rows WITHOUT an enrichment row
+        jdbi.useHandle(h -> {
+            h.execute("INSERT OR IGNORE INTO enrichment_tag_definitions (id, name) VALUES (1, 'test-tag')");
+            h.execute("INSERT INTO title_enrichment_tags (title_id, tag_id) VALUES (?, 1)", id);
+            h.execute("INSERT INTO revalidation_pending (title_id, reason) VALUES (?, 'slug_changed')", id);
         });
 
         titleRepo.deleteOrphaned();
 
-        // Title and all enrichment satellites gone
-        assertTrue(titleRepo.findById(id).isEmpty(), "title should be deleted");
-        assertEquals(0, countRows("title_javdb_enrichment", id));
+        assertTrue(titleRepo.findById(id).isEmpty(), "title must be deleted");
         assertEquals(0, countRows("title_enrichment_tags", id));
-        assertEquals(0, countRows("enrichment_review_queue", id));
         assertEquals(0, countRows("revalidation_pending", id));
-
-        // History: original row + one new sync_prune snapshot = 2 total
-        assertEquals(2, enrichmentHistoryRepo.countForTitle(id));
-        EnrichmentHistoryRepository.HistoryRow snap = enrichmentHistoryRepo.recentForTitle(id, 1).get(0);
-        assertEquals("sync_prune", snap.reason());
-        assertEquals("abp-010", snap.priorSlug());
+        assertEquals(0, enrichmentHistoryRepo.countForTitle(id), "no history — no enrichment row");
     }
 
     /**
@@ -953,7 +1071,7 @@ class JdbiTitleRepositoryTest {
         assertThrows(com.organizer3.repository.CatastrophicDeleteException.class,
                 () -> titleRepo.deleteOrphaned());
 
-        // Nothing deleted from any of the 5 tables
+        // Nothing deleted or flagged from any of the 5 tables
         assertEquals(count, countAllTitles());
         assertEquals(1, countRows("title_javdb_enrichment", seedId));
         assertEquals(1, countRows("title_enrichment_tags", seedId));
@@ -985,6 +1103,31 @@ class JdbiTitleRepositoryTest {
         assertEquals(0, countRows("title_enrichment_tags", id));
         assertEquals(0, countRows("revalidation_pending", id));
         assertEquals(0, enrichmentHistoryRepo.countForTitle(id), "no history when no enrichment row");
+    }
+
+    // --- deleteOne ---
+
+    @Test
+    void deleteOne_deletesEnrichedTitleWithCascadeAndHistory() {
+        Title t = titleRepo.save(Title.builder()
+                .code("ABP-099").baseCode("ABP-00099").label("ABP").seqNum(99).build());
+        long id = t.getId();
+        jdbi.useHandle(h -> {
+            h.execute("INSERT OR IGNORE INTO enrichment_tag_definitions (id, name) VALUES (1, 'test-tag')");
+            h.execute("INSERT INTO title_javdb_enrichment (title_id, javdb_slug, fetched_at) VALUES (?, 'abp-099', '2026-01-01T00:00:00')", id);
+            h.execute("INSERT INTO title_enrichment_tags (title_id, tag_id) VALUES (?, 1)", id);
+            h.execute("INSERT INTO revalidation_pending (title_id, reason) VALUES (?, 'slug_changed')", id);
+        });
+
+        titleRepo.deleteOne(id);
+
+        assertTrue(titleRepo.findById(id).isEmpty(), "title must be deleted");
+        assertEquals(0, countRows("title_javdb_enrichment", id));
+        assertEquals(0, countRows("title_enrichment_tags", id));
+        assertEquals(0, countRows("revalidation_pending", id));
+        // History snapshot must have been written
+        assertEquals(1, enrichmentHistoryRepo.countForTitle(id));
+        assertEquals("title_deleted", enrichmentHistoryRepo.recentForTitle(id, 1).get(0).reason());
     }
 
     private int countRows(String table, long titleId) {

@@ -175,7 +175,9 @@ public class Application {
         com.fasterxml.jackson.databind.ObjectMapper jsonMapper = new com.fasterxml.jackson.databind.ObjectMapper();
         com.organizer3.javdb.enrichment.EnrichmentHistoryRepository enrichmentHistoryRepo =
                 new com.organizer3.javdb.enrichment.EnrichmentHistoryRepository(jdbi, jsonMapper);
-        TitleRepository        titleRepo        = new JdbiTitleRepository(jdbi, titleLocationRepo, enrichmentHistoryRepo);
+        com.organizer3.javdb.enrichment.EnrichmentReviewQueueRepository enrichmentReviewQueueRepo =
+                new com.organizer3.javdb.enrichment.EnrichmentReviewQueueRepository(jdbi);
+        TitleRepository        titleRepo        = new JdbiTitleRepository(jdbi, titleLocationRepo, enrichmentHistoryRepo, enrichmentReviewQueueRepo);
         VideoRepository        videoRepo        = new JdbiVideoRepository(jdbi);
         ActressRepository      actressRepo      = new JdbiActressRepository(jdbi);
         VolumeRepository       volumeRepo       = new JdbiVolumeRepository(jdbi);
@@ -428,8 +430,6 @@ public class Application {
                 new com.organizer3.javdb.enrichment.FilmographyBackupWriter(dataDir);
         com.organizer3.javdb.enrichment.JavdbSlugResolver slugResolver =
                 new com.organizer3.javdb.enrichment.JavdbSlugResolver(javdbClient, filmographyRepo, javdbConfig, filmographyBackupWriter);
-        com.organizer3.javdb.enrichment.EnrichmentReviewQueueRepository enrichmentReviewQueueRepo =
-                new com.organizer3.javdb.enrichment.EnrichmentReviewQueueRepository(jdbi);
         com.organizer3.javdb.enrichment.CastMatcher castMatcher =
                 new com.organizer3.javdb.enrichment.CastMatcher(actressRepo);
         com.organizer3.javdb.enrichment.DisambiguationSnapshotter disambiguationSnapshotter =
@@ -718,11 +718,13 @@ public class Application {
         com.organizer3.mcp.tools.RefreshReviewCandidatesTool refreshReviewCandidatesTool =
                 new com.organizer3.mcp.tools.RefreshReviewCandidatesTool(
                         enrichmentReviewQueueRepo, titleRepo, disambiguationSnapshotter);
+        com.organizer3.mcp.tools.ConfirmOrphanDeleteTool confirmOrphanDeleteTool =
+                new com.organizer3.mcp.tools.ConfirmOrphanDeleteTool(titleRepo, enrichmentReviewQueueRepo);
         webServer.registerUtilities(new com.organizer3.web.routes.UtilitiesRoutes(
                 volumeStateService, staleLocationsService, actressCatalogService, yamlLoader,
                 backupCatalogService, backupService, libraryHealthService, orphanedCoversService,
                 ratingCurveRepo, enrichmentReviewQueueRepo, forceEnrichTitleTool,
-                pickReviewCandidateTool, refreshReviewCandidatesTool,
+                pickReviewCandidateTool, refreshReviewCandidatesTool, confirmOrphanDeleteTool,
                 taskRegistry, taskRunner));
         webServer.registerAvStars(new com.organizer3.web.routes.AvStarsRoutes(
                 avStarsCatalog, avBrowseService, iafdResolver));
@@ -846,6 +848,7 @@ public class Application {
                 mcpTools.register(forceEnrichTitleTool);
                 mcpTools.register(pickReviewCandidateTool);
                 mcpTools.register(refreshReviewCandidatesTool);
+                mcpTools.register(confirmOrphanDeleteTool);
                 log.info("MCP mutation tools enabled");
             }
             if (mcpConfig.mutationsAllowed() && mcpConfig.fileOpsAllowed()) {
