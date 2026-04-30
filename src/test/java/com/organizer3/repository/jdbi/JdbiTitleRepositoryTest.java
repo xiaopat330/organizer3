@@ -1,6 +1,8 @@
 package com.organizer3.repository.jdbi;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.organizer3.db.SchemaInitializer;
+import com.organizer3.javdb.enrichment.EnrichmentHistoryRepository;
 import com.organizer3.model.ActressAlias;
 import com.organizer3.model.Actress;
 import com.organizer3.model.Title;
@@ -31,6 +33,7 @@ class JdbiTitleRepositoryTest {
     private JdbiTitleLocationRepository locationRepo;
     private JdbiActressRepository actressRepo;
     private JdbiTitleActressRepository titleActressRepo;
+    private EnrichmentHistoryRepository enrichmentHistoryRepo;
     private Connection connection;
     private Jdbi jdbi;
 
@@ -45,7 +48,8 @@ class JdbiTitleRepositoryTest {
             h.execute("INSERT INTO volumes (id, structure_type) VALUES ('vol-collections', 'collections')");
         });
         locationRepo = new JdbiTitleLocationRepository(jdbi);
-        titleRepo = new JdbiTitleRepository(jdbi, locationRepo);
+        enrichmentHistoryRepo = new EnrichmentHistoryRepository(jdbi, new ObjectMapper());
+        titleRepo = new JdbiTitleRepository(jdbi, locationRepo, enrichmentHistoryRepo);
         actressRepo = new JdbiActressRepository(jdbi);
         titleActressRepo = new JdbiTitleActressRepository(jdbi);
     }
@@ -880,6 +884,115 @@ class JdbiTitleRepositoryTest {
     private int countAllTitles() {
         return jdbi.withHandle(h -> h.createQuery("SELECT COUNT(*) FROM titles")
                 .mapTo(Integer.class).one());
+    }
+
+    // --- deleteOrphaned: enrichment cascade ---
+
+    /**
+     * Orphan with a full enrichment context: enrichment row, tag rows, open review-queue
+     * row, and a revalidation_pending row. deleteOrphaned must cascade-delete all four
+     * enrichment tables AND write a sync_prune history snapshot before deleting.
+     */
+    @Test
+    void deleteOrphanedCascadesEnrichmentTablesAndSnapshotsHistory() {
+        Title orphan = titleRepo.save(Title.builder()
+                .code("ABP-010").baseCode("ABP-00010").label("ABP").seqNum(10).build());
+        long id = orphan.getId();
+
+        // Seed enrichment context (FK enforcement off; insert dependency order)
+        jdbi.useHandle(h -> {
+            h.execute("INSERT OR IGNORE INTO enrichment_tag_definitions (id, name) VALUES (1, 'test-tag')");
+            h.execute("INSERT INTO title_javdb_enrichment (title_id, javdb_slug, fetched_at) VALUES (?, 'abp-010', '2026-01-01T00:00:00')", id);
+            h.execute("INSERT INTO title_enrichment_tags (title_id, tag_id) VALUES (?, 1)", id);
+            h.execute("INSERT INTO enrichment_review_queue (title_id, reason, created_at) VALUES (?, 'no_match', '2026-01-01T00:00:00')", id);
+            h.execute("INSERT INTO revalidation_pending (title_id, reason) VALUES (?, 'slug_changed')", id);
+            // Pre-existing history row to confirm a second one gets appended
+            h.execute("INSERT INTO title_javdb_enrichment_history (title_id, title_code, reason, prior_slug, prior_payload) VALUES (?, 'ABP-010', 'enrichment_runner', 'abp-010', '{}')", id);
+        });
+
+        titleRepo.deleteOrphaned();
+
+        // Title and all enrichment satellites gone
+        assertTrue(titleRepo.findById(id).isEmpty(), "title should be deleted");
+        assertEquals(0, countRows("title_javdb_enrichment", id));
+        assertEquals(0, countRows("title_enrichment_tags", id));
+        assertEquals(0, countRows("enrichment_review_queue", id));
+        assertEquals(0, countRows("revalidation_pending", id));
+
+        // History: original row + one new sync_prune snapshot = 2 total
+        assertEquals(2, enrichmentHistoryRepo.countForTitle(id));
+        EnrichmentHistoryRepository.HistoryRow snap = enrichmentHistoryRepo.recentForTitle(id, 1).get(0);
+        assertEquals("sync_prune", snap.reason());
+        assertEquals("abp-010", snap.priorSlug());
+    }
+
+    /**
+     * Catastrophic-delete guard with enrichment rows present. Guard must throw before any
+     * delete executes — none of the 5 tables may be modified.
+     */
+    @Test
+    void deleteOrphanedGuardLeavesEnrichmentTablesIntact() {
+        int count = com.organizer3.repository.jdbi.JdbiTitleRepository.ORPHAN_DELETE_FLOOR + 10;
+        long firstId = -1;
+        for (int i = 0; i < count; i++) {
+            String code = String.format("ABP-%04d", i + 1);
+            String base = String.format("ABP-%05d", i + 1);
+            Title t = titleRepo.save(Title.builder().code(code).baseCode(base).label("ABP").seqNum(i + 1).build());
+            if (i == 0) firstId = t.getId();
+        }
+        // Seed enrichment rows for the first orphan
+        final long seedId = firstId;
+        jdbi.useHandle(h -> {
+            h.execute("INSERT OR IGNORE INTO enrichment_tag_definitions (id, name) VALUES (1, 'test-tag')");
+            h.execute("INSERT INTO title_javdb_enrichment (title_id, javdb_slug, fetched_at) VALUES (?, 'abp-0001', '2026-01-01T00:00:00')", seedId);
+            h.execute("INSERT INTO title_enrichment_tags (title_id, tag_id) VALUES (?, 1)", seedId);
+            h.execute("INSERT INTO enrichment_review_queue (title_id, reason, created_at) VALUES (?, 'no_match', '2026-01-01T00:00:00')", seedId);
+            h.execute("INSERT INTO revalidation_pending (title_id, reason) VALUES (?, 'slug_changed')", seedId);
+        });
+
+        assertThrows(com.organizer3.repository.CatastrophicDeleteException.class,
+                () -> titleRepo.deleteOrphaned());
+
+        // Nothing deleted from any of the 5 tables
+        assertEquals(count, countAllTitles());
+        assertEquals(1, countRows("title_javdb_enrichment", seedId));
+        assertEquals(1, countRows("title_enrichment_tags", seedId));
+        assertEquals(1, countRows("enrichment_review_queue", seedId));
+        assertEquals(1, countRows("revalidation_pending", seedId));
+        assertEquals(0, enrichmentHistoryRepo.countForTitle(seedId));
+    }
+
+    /**
+     * Orphan with NO enrichment row. appendIfExists must write nothing, but the title
+     * and any tag/queue/pending rows for the id are still cleaned.
+     */
+    @Test
+    void deleteOrphanedWithNoEnrichmentRowWritesNoHistory() {
+        Title orphan = titleRepo.save(Title.builder()
+                .code("ABP-020").baseCode("ABP-00020").label("ABP").seqNum(20).build());
+        long id = orphan.getId();
+
+        // Tag and queue rows without an enrichment row (FK enforcement off)
+        jdbi.useHandle(h -> {
+            h.execute("INSERT OR IGNORE INTO enrichment_tag_definitions (id, name) VALUES (1, 'test-tag')");
+            h.execute("INSERT INTO title_enrichment_tags (title_id, tag_id) VALUES (?, 1)", id);
+            h.execute("INSERT INTO revalidation_pending (title_id, reason) VALUES (?, 'slug_changed')", id);
+        });
+
+        titleRepo.deleteOrphaned();
+
+        assertTrue(titleRepo.findById(id).isEmpty(), "title should be deleted");
+        assertEquals(0, countRows("title_enrichment_tags", id));
+        assertEquals(0, countRows("revalidation_pending", id));
+        assertEquals(0, enrichmentHistoryRepo.countForTitle(id), "no history when no enrichment row");
+    }
+
+    private int countRows(String table, long titleId) {
+        return jdbi.withHandle(h ->
+                h.createQuery("SELECT COUNT(*) FROM " + table + " WHERE title_id = :id")
+                        .bind("id", titleId)
+                        .mapTo(Integer.class)
+                        .one());
     }
 
     // --- cross-volume: findByActress and countByActress via title_actresses ---

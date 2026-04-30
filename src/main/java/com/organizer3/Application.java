@@ -172,7 +172,10 @@ public class Application {
 
         // Repositories
         TitleLocationRepository titleLocationRepo = new JdbiTitleLocationRepository(jdbi);
-        TitleRepository        titleRepo        = new JdbiTitleRepository(jdbi, titleLocationRepo);
+        com.fasterxml.jackson.databind.ObjectMapper jsonMapper = new com.fasterxml.jackson.databind.ObjectMapper();
+        com.organizer3.javdb.enrichment.EnrichmentHistoryRepository enrichmentHistoryRepo =
+                new com.organizer3.javdb.enrichment.EnrichmentHistoryRepository(jdbi, jsonMapper);
+        TitleRepository        titleRepo        = new JdbiTitleRepository(jdbi, titleLocationRepo, enrichmentHistoryRepo);
         VideoRepository        videoRepo        = new JdbiVideoRepository(jdbi);
         ActressRepository      actressRepo      = new JdbiActressRepository(jdbi);
         VolumeRepository       volumeRepo       = new JdbiVolumeRepository(jdbi);
@@ -388,12 +391,9 @@ public class Application {
 
         // javdb enrichment runner — see spec/PROPOSAL_JAVDB_ENRICHMENT.md
         com.organizer3.javdb.JavdbConfig javdbConfig = config.javdbOrDefaults();
-        com.fasterxml.jackson.databind.ObjectMapper jsonMapper = new com.fasterxml.jackson.databind.ObjectMapper();
         com.organizer3.javdb.HttpJavdbClient javdbClient = new com.organizer3.javdb.HttpJavdbClient(javdbConfig);
         com.organizer3.javdb.enrichment.JavdbStagingRepository javdbStagingRepo =
                 new com.organizer3.javdb.enrichment.JavdbStagingRepository(jdbi, jsonMapper, dataDir);
-        com.organizer3.javdb.enrichment.EnrichmentHistoryRepository enrichmentHistoryRepo =
-                new com.organizer3.javdb.enrichment.EnrichmentHistoryRepository(jdbi, jsonMapper);
         com.organizer3.javdb.enrichment.JavdbEnrichmentRepository javdbEnrichmentRepo =
                 new com.organizer3.javdb.enrichment.JavdbEnrichmentRepository(jdbi, jsonMapper, titleEffectiveTagsService, enrichmentHistoryRepo);
         com.organizer3.javdb.enrichment.EnrichmentQueue enrichmentQueue =
