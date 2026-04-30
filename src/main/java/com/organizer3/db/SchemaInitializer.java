@@ -520,6 +520,8 @@ public class SchemaInitializer {
                         reason          TEXT    NOT NULL,
                         resolver_source TEXT,
                         created_at      TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+                        last_seen_at    TEXT,
+                        detail          TEXT,
                         resolved_at     TEXT,
                         resolution      TEXT
                     )""");
@@ -559,7 +561,7 @@ public class SchemaInitializer {
             // leave the version alone and let SchemaUpgrader apply any missing migrations.
             int currentVersion = h.createQuery("PRAGMA user_version").mapTo(Integer.class).one();
             if (currentVersion == 0) {
-                h.execute("PRAGMA user_version = 38");
+                h.execute("PRAGMA user_version = 39");
             }
         });
         log.info("Schema initialization complete");

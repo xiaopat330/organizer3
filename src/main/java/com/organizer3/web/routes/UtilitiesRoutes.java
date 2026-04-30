@@ -1,5 +1,6 @@
 package com.organizer3.web.routes;
 
+import com.organizer3.javdb.enrichment.EnrichmentReviewQueueRepository;
 import com.organizer3.rating.RatingCurve;
 import com.organizer3.rating.RatingCurveRepository;
 import com.organizer3.utilities.task.TaskEvent;
@@ -52,6 +53,7 @@ public final class UtilitiesRoutes {
     private final LibraryHealthService healthService;
     private final OrphanedCoversService orphanedCoversService;
     private final RatingCurveRepository ratingCurveRepo;
+    private final EnrichmentReviewQueueRepository reviewQueueRepo;
     private final TaskRegistry registry;
     private final TaskRunner runner;
     private final ObjectMapper json = new ObjectMapper().registerModule(new JavaTimeModule());
@@ -64,6 +66,7 @@ public final class UtilitiesRoutes {
                            LibraryHealthService healthService,
                            OrphanedCoversService orphanedCoversService,
                            RatingCurveRepository ratingCurveRepo,
+                           EnrichmentReviewQueueRepository reviewQueueRepo,
                            TaskRegistry registry, TaskRunner runner) {
         this.volumeState = volumeState;
         this.staleLocations = staleLocations;
@@ -74,6 +77,7 @@ public final class UtilitiesRoutes {
         this.healthService = healthService;
         this.orphanedCoversService = orphanedCoversService;
         this.ratingCurveRepo = ratingCurveRepo;
+        this.reviewQueueRepo = reviewQueueRepo;
         this.registry = registry;
         this.runner = runner;
     }
@@ -150,6 +154,38 @@ public final class UtilitiesRoutes {
             var entry = latest.get().checks().get(checkId);
             if (entry == null) { ctx.status(404); ctx.json(Map.of("error", "no such check: " + checkId)); return; }
             ctx.json(entry);
+        });
+
+        // Enrichment Review Queue — list open rows + per-reason counts; resolve a single row.
+        app.get("/api/utilities/enrichment-review/queue", ctx -> {
+            String reason = ctx.queryParam("reason");
+            int limit  = parseIntParam(ctx.queryParam("limit"),  100, 1, 500);
+            int offset = parseIntParam(ctx.queryParam("offset"), 0,   0, Integer.MAX_VALUE);
+            var counts = reviewQueueRepo.countOpenByReason();
+            var rows   = reviewQueueRepo.listOpen(reason, limit, offset);
+            ctx.json(Map.of("counts", counts, "rows", rows));
+        });
+        app.post("/api/utilities/enrichment-review/queue/{id}/resolve", ctx -> {
+            long id;
+            try { id = Long.parseLong(ctx.pathParam("id")); }
+            catch (NumberFormatException e) {
+                ctx.status(400); ctx.json(Map.of("error", "id must be a long integer")); return;
+            }
+            @SuppressWarnings("unchecked")
+            Map<String, Object> body = ctx.bodyAsClass(Map.class);
+            if (body == null || !(body.get("resolution") instanceof String resolution)) {
+                ctx.status(400); ctx.json(Map.of("error", "resolution is required")); return;
+            }
+            java.util.Set<String> allowed = java.util.Set.of("accepted_gap", "marked_resolved");
+            if (!allowed.contains(resolution)) {
+                ctx.status(400);
+                ctx.json(Map.of("error", "resolution must be one of " + allowed));
+                return;
+            }
+            boolean ok = reviewQueueRepo.resolveOne(id, resolution);
+            ctx.json(Map.of("ok", ok, "message", ok
+                    ? "Row " + id + " resolved as '" + resolution + "'"
+                    : "Row " + id + " was not found or is already resolved"));
         });
 
         // Rating curve — lightweight status (computed_at + population) for the Library Health header.
@@ -347,6 +383,12 @@ public final class UtilitiesRoutes {
         } catch (Exception ex) {
             // Client gone or network error — not actionable, don't propagate.
         }
+    }
+
+    private static int parseIntParam(String raw, int defaultVal, int min, int max) {
+        if (raw == null) return defaultVal;
+        try { return Math.max(min, Math.min(Integer.parseInt(raw), max)); }
+        catch (NumberFormatException e) { return defaultVal; }
     }
 
     private static Map<String, Object> checkMetaJson(LibraryHealthCheck c) {
