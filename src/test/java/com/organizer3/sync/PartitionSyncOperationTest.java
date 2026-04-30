@@ -155,6 +155,9 @@ class PartitionSyncOperationTest {
         java.nio.file.Files.writeString(coverFile, "x");
         when(titleRepo.findOrphanedTitles()).thenReturn(
                 List.of(new TitleRepository.OrphanedTitleRef("ABP", "ABP-00001")));
+        when(titleRepo.countAll()).thenReturn(100);
+        when(titleRepo.countOrphansWithEnrichment()).thenReturn(0);
+        when(titleRepo.deleteOrphaned()).thenReturn(new TitleRepository.OrphanPruneResult(1, 0));
         when(fs.exists(Path.of("/queue"))).thenReturn(false);
 
         PartitionSyncOperation op = new PartitionSyncOperation(

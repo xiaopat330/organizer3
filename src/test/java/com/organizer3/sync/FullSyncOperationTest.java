@@ -513,6 +513,16 @@ class FullSyncOperationTest {
     void callsDeleteOrphanedOnBothReposAfterSync() throws IOException {
         VolumeStructureDef structure = new VolumeStructureDef("queue", List.of(), null);
 
+        // Seed at least one orphan so the prune path actually invokes deleteOrphaned —
+        // the early-return added in Phase 1 short-circuits when there are no orphans
+        // and no covers to delete. The intent of this test is the cascade ORDER, so we
+        // need real work to do.
+        when(titleRepo.findOrphanedTitles()).thenReturn(List.of(
+                new TitleRepository.OrphanedTitleRef("ABP", "ABP-00001")));
+        when(titleRepo.countAll()).thenReturn(100);
+        when(titleRepo.countOrphansWithEnrichment()).thenReturn(0);
+        when(titleRepo.deleteOrphaned()).thenReturn(new TitleRepository.OrphanPruneResult(1, 0));
+
         newOp().execute(QUEUE_VOLUME, structure, fs, ctx, io);
 
         var order = inOrder(titleRepo, titleActressRepo);
