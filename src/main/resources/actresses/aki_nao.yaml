@@ -1,0 +1,36 @@
+profile:
+  name:
+    family_name: Aki
+    given_name: Nao
+    stage_name: null
+    reading: null
+    alternate_names: []
+  date_of_birth: null
+  birthplace: null
+  blood_type: null
+  height_cm: null
+  measurements:
+    bust: null
+    waist: null
+    hip: null
+  cup: null
+  active_from: null
+  active_to: null
+  biography: null
+  primary_studios: []
+  awards: null
+  legacy: null
+
+meta:
+  total_owned_titles: null
+  titles_with_japanese_title: null
+  titles_with_english_title: null
+  titles_with_release_date: null
+  total_known_releases: null
+  coverage_note: "Profile stub — no public biographical data found. Kanji stage name
+    not confirmed. Multiple web searches for 'Nao Aki', 'Aki Nao', and '秋奈緒'
+    returned no matching AV actress entries on Wikidata, IMDb, Wikipedia, or generasia.
+    Profile requires direct DB cross-reference or alternate name lookup."
+  confidence: "No data — stub only."
+  data_sources: []
+  portfolio_listed: 0

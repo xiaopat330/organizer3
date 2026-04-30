@@ -1,0 +1,59 @@
+profile:
+  name:
+    family_name: Nishina
+    given_name: Momoka
+    stage_name: 仁科百華
+    reading: にしな ももか
+    alternate_names: []
+  date_of_birth: 1991-05-24
+  birthplace: Tokyo, Japan
+  blood_type: B
+  height_cm: 166
+  measurements:
+    bust: 100
+    waist: 58
+    hip: 88
+  cup: J
+  active_from: '2010-10-01'
+  active_to: '2013-05-28'
+  retirement_announced: '2013-05-28'
+  biography: "仁科百華 (Nishina Momoka) is a Japanese former AV actress born May 24,
+    1991, in Tokyo. She debuted in the AV industry in October 2010, building a following
+    for her J-cup bust and 166 cm height — an unusually tall figure that distinguished
+    her among contemporaries. Beyond AV, she was a singer and member of the idol units
+    OFA☆21 and BRW108. Her special skills include playing the flute and stunt acting;
+    her hobbies are cooking, listening to music, and playing games. She is a fan of
+    L'Arc〜en〜Ciel, X JAPAN, and VAMPS. She announced her retirement from AV on
+    May 28, 2013. She subsequently appeared in the January 2013 pink film Hitozuma
+    sekando bājin watashi o osotte kudasai (co-starring Nana Nanami, directed by Hideo
+    Jōjō) and the November 2013 feature film Sunk into the Womb."
+  primary_studios:
+  - name: null
+    company: null
+    from: '2010-10-01'
+    to: '2013-05-28'
+    role: Actress
+  awards: null
+  legacy: "仁科百華 was notable in the early 2010s for combining a statuesque 166 cm
+    frame with a J-cup figure, and for an unusually diverse side-career spanning idol
+    group membership, flute performance, and stunt training. Her subsequent appearances
+    in pink film and mainstream Japanese cinema after retirement demonstrated a broader
+    range than most of her contemporaries."
+
+meta:
+  total_owned_titles: null
+  titles_with_japanese_title: null
+  titles_with_english_title: null
+  titles_with_release_date: null
+  total_known_releases: null
+  coverage_note: "Profile only — portfolio not yet researched."
+  confidence: "DOB May 24, 1991, birthplace Tokyo, and blood type B confirmed via
+    Wikidata (Q9102564) and multiple web sources. Height 166 cm and measurements
+    100-58-88 J-cup confirmed from Jpop Fandom and celebrity bio sources. Debut October
+    2010 and retirement announced May 28, 2013 confirmed. Primary studio(s) not confirmed
+    — worked across multiple labels; studio fields left null pending further research."
+  data_sources:
+  - https://www.wikidata.org/wiki/Q9102564
+  - https://jpop.fandom.com/wiki/Nishina_Momoka
+  - https://www.imdb.com/name/nm5309892/
+  portfolio_listed: 0
