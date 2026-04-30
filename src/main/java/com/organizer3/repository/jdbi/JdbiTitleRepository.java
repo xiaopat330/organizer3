@@ -1,5 +1,6 @@
 package com.organizer3.repository.jdbi;
 
+import com.organizer3.javdb.enrichment.EnrichmentHistoryRepository;
 import com.organizer3.model.Actress;
 import com.organizer3.model.Title;
 import com.organizer3.model.TitleLocation;
@@ -58,6 +59,13 @@ public class JdbiTitleRepository implements TitleRepository {
 
     private final Jdbi jdbi;
     private final TitleLocationRepository locationRepo;
+    private final EnrichmentHistoryRepository enrichmentHistoryRepo;
+
+    /** Convenience constructor for callers that don't need to inspect enrichment history. */
+    public JdbiTitleRepository(Jdbi jdbi, TitleLocationRepository locationRepo) {
+        this(jdbi, locationRepo,
+                new EnrichmentHistoryRepository(jdbi, new com.fasterxml.jackson.databind.ObjectMapper()));
+    }
 
     @Override
     public Optional<Long> findDominantActressForLabel(String label) {
@@ -890,22 +898,36 @@ public class JdbiTitleRepository implements TitleRepository {
 
     @Override
     public int deleteOrphaned() {
-        return jdbi.inTransaction(h -> {
+        // Phase 1: collect orphan IDs and check the catastrophic-delete guard.
+        // No writes — if the guard throws, nothing has been touched.
+        List<Long> orphanIds = jdbi.inTransaction(h -> {
             int total = h.createQuery("SELECT COUNT(*) FROM titles").mapTo(Integer.class).one();
-            int orphans = h.createQuery("""
-                    SELECT COUNT(*) FROM titles WHERE id NOT IN (
+            List<Long> ids = h.createQuery("""
+                    SELECT id FROM titles WHERE id NOT IN (
                         SELECT DISTINCT title_id FROM title_locations
-                    )""").mapTo(Integer.class).one();
-            if (orphans == 0) return 0;
+                    )""").mapTo(Long.class).list();
+            if (ids.isEmpty()) return ids;
             int threshold = orphanDeleteThreshold(total);
-            if (orphans > threshold) {
-                throw new CatastrophicDeleteException("deleteOrphaned(titles)", orphans, total, threshold);
+            if (ids.size() > threshold) {
+                throw new CatastrophicDeleteException("deleteOrphaned(titles)", ids.size(), total, threshold);
             }
-            return h.createUpdate("""
-                    DELETE FROM titles WHERE id NOT IN (
-                        SELECT DISTINCT title_id FROM title_locations
-                    )""").execute();
+            return ids;
         });
+
+        // Phase 2: per-title cascade in isolated transactions so partial failure
+        // cannot leave half-deleted enrichment state.
+        for (long id : orphanIds) {
+            jdbi.useTransaction(h -> {
+                enrichmentHistoryRepo.appendIfExists(id, "sync_prune", h);
+                h.createUpdate("DELETE FROM enrichment_review_queue WHERE title_id = :id").bind("id", id).execute();
+                h.createUpdate("DELETE FROM revalidation_pending WHERE title_id = :id").bind("id", id).execute();
+                h.createUpdate("DELETE FROM title_enrichment_tags WHERE title_id = :id").bind("id", id).execute();
+                h.createUpdate("DELETE FROM title_javdb_enrichment WHERE title_id = :id").bind("id", id).execute();
+                h.createUpdate("DELETE FROM titles WHERE id = :id").bind("id", id).execute();
+            });
+        }
+
+        return orphanIds.size();
     }
 
     @Override
