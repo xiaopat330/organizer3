@@ -47,6 +47,7 @@ class PruneOrphanedTitlesAndCoversGuardTest {
     private TitleActressRepository titleActressRepo;
     private StringWriter output;
     private CommandIO io;
+    private SyncIdentityMatcher identityMatcher;
 
     private static final VolumeConfig CONVENTIONAL_VOLUME =
             new VolumeConfig("a", "//pandora/jav_A", "conventional", "pandora", null);
@@ -59,6 +60,7 @@ class PruneOrphanedTitlesAndCoversGuardTest {
         output           = new StringWriter();
         io               = new PlainCommandIO(new PrintWriter(output));
 
+        identityMatcher = mock(SyncIdentityMatcher.class);
         when(volumeRepo.findById(anyString())).thenReturn(Optional.empty());
         when(titleRepo.findOrCreateByCode(any())).thenAnswer(inv ->
                 ((com.organizer3.model.Title) inv.getArgument(0)).toBuilder().id(99L).build());
@@ -73,7 +75,7 @@ class PruneOrphanedTitlesAndCoversGuardTest {
                 titleActressRepo, mock(IndexLoader.class),
                 mock(com.organizer3.db.TitleEffectiveTagsService.class),
                 mock(com.organizer3.db.ActressCompaniesService.class),
-                new CoverPath(tmp), null);
+                new CoverPath(tmp), null, identityMatcher);
     }
 
     private VolumeStructureDef emptyStructure() {

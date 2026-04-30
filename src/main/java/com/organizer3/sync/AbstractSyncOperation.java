@@ -58,6 +58,7 @@ abstract class AbstractSyncOperation implements SyncOperation {
     protected final TitleEffectiveTagsService titleEffectiveTagsService;
     protected final ActressCompaniesService actressCompaniesService;
     protected final CoverPath coverPath;
+    protected final SyncIdentityMatcher identityMatcher;
     private final RevalidationPendingRepository revalidationPendingRepo;
     private final TitleCodeParser codeParser = new TitleCodeParser();
 
@@ -69,7 +70,8 @@ abstract class AbstractSyncOperation implements SyncOperation {
                                     TitleEffectiveTagsService titleEffectiveTagsService,
                                     ActressCompaniesService actressCompaniesService,
                                     CoverPath coverPath,
-                                    RevalidationPendingRepository revalidationPendingRepo) {
+                                    RevalidationPendingRepository revalidationPendingRepo,
+                                    SyncIdentityMatcher identityMatcher) {
         this.titleRepo = titleRepo;
         this.videoRepo = videoRepo;
         this.actressRepo = actressRepo;
@@ -81,6 +83,7 @@ abstract class AbstractSyncOperation implements SyncOperation {
         this.actressCompaniesService = actressCompaniesService;
         this.coverPath = coverPath;
         this.revalidationPendingRepo = revalidationPendingRepo;
+        this.identityMatcher = identityMatcher;
     }
 
     /** Subdirectories inside a title folder that may contain video files. */
@@ -172,7 +175,12 @@ abstract class AbstractSyncOperation implements SyncOperation {
                 .seqNum(parsed.seqNum())
                 .actressId(actressId)
                 .build();
+
+        boolean isNewTitle = titleRepo.findByCode(parsed.code()).isEmpty();
         Title title = titleRepo.findOrCreateByCode(template);
+        if (isNewTitle) {
+            identityMatcher.noteTitleCandidate(parsed, title);
+        }
 
         LocalDate addedDate = computeAddedDate(titleFolder, fs);
         titleLocationRepo.save(TitleLocation.builder()
@@ -271,6 +279,7 @@ abstract class AbstractSyncOperation implements SyncOperation {
             return actress;
         }
         log.debug("New actress discovered during sync: {}", name);
+        identityMatcher.noteActressCandidate(name);
         return actressRepo.save(Actress.builder()
                 .canonicalName(name)
                 .tier(tier)

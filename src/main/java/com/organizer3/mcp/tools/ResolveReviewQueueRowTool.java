@@ -16,7 +16,7 @@ import java.util.Set;
 public class ResolveReviewQueueRowTool implements Tool {
 
     private static final Set<String> ALLOWED_RESOLUTIONS =
-            Set.of("accepted_gap", "marked_resolved", "marked_moved", "confirmed_delete");
+            Set.of("accepted_gap", "marked_resolved", "marked_moved", "confirmed_delete", "dismissed");
 
     private final EnrichmentReviewQueueRepository repo;
 
@@ -27,7 +27,7 @@ public class ResolveReviewQueueRowTool implements Tool {
     @Override public String name()        { return "resolve_review_queue_row"; }
     @Override public String description() {
         return "Resolve one open enrichment review queue row. "
-             + "Allowed resolution values: accepted_gap | marked_resolved | marked_moved | confirmed_delete. "
+             + "Allowed resolution values: accepted_gap | marked_resolved | marked_moved | confirmed_delete | dismissed. "
              + "Returns ok=false if the row does not exist or is already resolved.";
     }
 
@@ -35,7 +35,7 @@ public class ResolveReviewQueueRowTool implements Tool {
     public JsonNode inputSchema() {
         return Schemas.object()
                 .prop("id",         "integer", "Row id from list_review_queue.")
-                .prop("resolution", "string",  "accepted_gap | marked_resolved | marked_moved | confirmed_delete")
+                .prop("resolution", "string",  "accepted_gap | marked_resolved | marked_moved | confirmed_delete | dismissed")
                 .require("id", "resolution")
                 .build();
     }

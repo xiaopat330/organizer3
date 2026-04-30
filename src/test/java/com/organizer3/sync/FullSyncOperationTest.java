@@ -57,6 +57,7 @@ class FullSyncOperationTest {
     private StringWriter output;
     private CommandIO io;
     private ScannerRegistry scannerRegistry;
+    private SyncIdentityMatcher identityMatcher;
 
     private static final VolumeConfig CONVENTIONAL_VOLUME = new VolumeConfig("a", "//pandora/jav_A", "conventional", "pandora", null);
     private static final VolumeConfig QUEUE_VOLUME        = new VolumeConfig("unsorted", "//pandora/jav_unsorted", "queue", "pandora", null);
@@ -77,6 +78,7 @@ class FullSyncOperationTest {
         output           = new StringWriter();
         io               = new PlainCommandIO(new PrintWriter(output));
 
+        identityMatcher = mock(SyncIdentityMatcher.class);
         scannerRegistry = new ScannerRegistry(Map.of(
                 "conventional", new ConventionalScanner(),
                 "queue",        new QueueScanner(),
@@ -103,7 +105,7 @@ class FullSyncOperationTest {
             return new FullSyncOperation(scannerRegistry, titleRepo, videoRepo, actressRepo,
                     volumeRepo, titleLocationRepo, titleActressRepo, indexLoader,
                     mock(com.organizer3.db.TitleEffectiveTagsService.class), mock(com.organizer3.db.ActressCompaniesService.class),
-                    new CoverPath(tmp), revalidationPendingRepo);
+                    new CoverPath(tmp), revalidationPendingRepo, identityMatcher);
         } catch (IOException e) { throw new RuntimeException(e); }
     }
 
@@ -510,6 +512,16 @@ class FullSyncOperationTest {
     @Test
     void callsDeleteOrphanedOnBothReposAfterSync() throws IOException {
         VolumeStructureDef structure = new VolumeStructureDef("queue", List.of(), null);
+
+        // Seed at least one orphan so the prune path actually invokes deleteOrphaned —
+        // the early-return added in Phase 1 short-circuits when there are no orphans
+        // and no covers to delete. The intent of this test is the cascade ORDER, so we
+        // need real work to do.
+        when(titleRepo.findOrphanedTitles()).thenReturn(List.of(
+                new TitleRepository.OrphanedTitleRef("ABP", "ABP-00001")));
+        when(titleRepo.countAll()).thenReturn(100);
+        when(titleRepo.countOrphansWithEnrichment()).thenReturn(0);
+        when(titleRepo.deleteOrphaned()).thenReturn(new TitleRepository.OrphanPruneResult(1, 0));
 
         newOp().execute(QUEUE_VOLUME, structure, fs, ctx, io);
 

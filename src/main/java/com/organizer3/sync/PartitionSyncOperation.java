@@ -39,10 +39,11 @@ public class PartitionSyncOperation extends AbstractSyncOperation {
                                   TitleEffectiveTagsService titleEffectiveTagsService,
                                   ActressCompaniesService actressCompaniesService,
                                   com.organizer3.covers.CoverPath coverPath,
-                                  com.organizer3.javdb.enrichment.RevalidationPendingRepository revalidationPendingRepo) {
+                                  com.organizer3.javdb.enrichment.RevalidationPendingRepository revalidationPendingRepo,
+                                  SyncIdentityMatcher identityMatcher) {
         super(titleRepo, videoRepo, actressRepo, volumeRepo, titleLocationRepo, titleActressRepo,
                 indexLoader, titleEffectiveTagsService, actressCompaniesService, coverPath,
-                revalidationPendingRepo);
+                revalidationPendingRepo, identityMatcher);
         this.partitionIds = partitionIds;
     }
 
@@ -55,17 +56,26 @@ public class PartitionSyncOperation extends AbstractSyncOperation {
         SyncStats stats = new SyncStats();
         Path root = Path.of("/");
 
+        // Phase 1: clear all target partitions first so renamed titles appear as orphans
+        // when the soft-match maps are loaded in phase 2.
+        for (String partitionId : partitionIds) {
+            videoRepo.deleteByVolumeAndPartition(volume.id(), partitionId);
+            titleLocationRepo.deleteByVolumeAndPartition(volume.id(), partitionId);
+        }
+
+        // Phase 2: load soft-match state after all clears.
+        identityMatcher.loadForSync();
+
+        // Phase 3: scan all target partitions.
         for (String partitionId : partitionIds) {
             PartitionDef partition = requirePartitionDef(structure, partitionId);
             Path partRoot = root.resolve(partition.path());
             io.println("  Scanning " + partitionId + "/ ...");
-
-            // Clear only this partition's records before re-scanning
-            videoRepo.deleteByVolumeAndPartition(volume.id(), partitionId);
-            titleLocationRepo.deleteByVolumeAndPartition(volume.id(), partitionId);
-
             scanUnstructuredPartition(partRoot, partitionId, volume.id(), fs, io, stats);
         }
+
+        // Flush soft-match candidates before orphan pruning.
+        identityMatcher.flushToQueue(titleRepo.countAll());
 
         // Drop titles whose locations all disappeared AND their local cover files.
         pruneOrphanedTitlesAndCovers(io);

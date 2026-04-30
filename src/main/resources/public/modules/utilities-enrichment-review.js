@@ -10,7 +10,7 @@ const pillsEl   = document.getElementById('er-pills');
 const tableBody = document.getElementById('er-table-body');
 const emptyEl   = document.getElementById('er-empty');
 
-const ALL_REASONS = ['cast_anomaly', 'ambiguous', 'no_match', 'fetch_failed', 'orphan_enriched'];
+const ALL_REASONS = ['cast_anomaly', 'ambiguous', 'no_match', 'fetch_failed', 'orphan_enriched', 'recode_candidate', 'actress_rename_candidate'];
 
 let state = {
   activeReason: null,   // null = All
@@ -97,14 +97,41 @@ function renderTable() {
 function makeRow(row) {
   const tr = document.createElement('tr');
   tr.className = 'er-row';
-  const isOrphan    = row.reason === 'orphan_enriched';
-  const isAmbiguous = row.reason === 'ambiguous';
+  const isOrphan          = row.reason === 'orphan_enriched';
+  const isAmbiguous       = row.reason === 'ambiguous';
+  const isRecode          = row.reason === 'recode_candidate';
+  const isActressRename   = row.reason === 'actress_rename_candidate';
+
+  let detail = null;
+  try { detail = row.detail ? JSON.parse(row.detail) : null; } catch {}
 
   let actionsHtml;
+  let detailHtml = '';
+
   if (isOrphan) {
     actionsHtml = `
       <button type="button" class="er-action-btn er-orphan-delete-btn" data-id="${row.id}">Confirm delete</button>
       <button type="button" class="er-action-btn er-resolve-btn" data-id="${row.id}" data-res="marked_moved">Mark as moved</button>
+    `;
+  } else if (isRecode) {
+    const orphanCode    = detail ? esc(detail.orphan_code    || '') : '';
+    const newCode       = detail ? esc(detail.new_folder_code || '') : '';
+    const matchType     = detail ? esc(detail.match_type     || '') : '';
+    detailHtml = orphanCode
+      ? `<div class="er-detail-hint">Orphan: <b>${orphanCode}</b> → New: <b>${newCode}</b> <span class="er-match-type">(${matchType})</span></div>`
+      : '';
+    actionsHtml = `
+      <button type="button" class="er-action-btn er-hint-btn" data-id="${row.id}">Resolve via recode_title</button>
+      <button type="button" class="er-action-btn er-resolve-btn" data-id="${row.id}" data-res="dismissed">Dismiss</button>
+    `;
+  } else if (isActressRename) {
+    const candidateName = detail ? esc(detail.candidate_canonical_name || '') : '';
+    const observedName  = detail ? esc(detail.observed_folder_name     || '') : '';
+    detailHtml = candidateName
+      ? `<div class="er-detail-hint">Existing: <b>${candidateName}</b> → Observed: <b>${observedName}</b></div>`
+      : '';
+    actionsHtml = `
+      <button type="button" class="er-action-btn er-resolve-btn" data-id="${row.id}" data-res="dismissed">Dismiss</button>
     `;
   } else {
     actionsHtml = `
@@ -117,7 +144,7 @@ function makeRow(row) {
   }
 
   tr.innerHTML = `
-    <td class="er-col-code">${esc(row.titleCode || '')}</td>
+    <td class="er-col-code">${esc(row.titleCode || '')}${detailHtml}</td>
     <td class="er-col-slug">${esc(row.slug || '—')}</td>
     <td class="er-col-reason"><span class="er-reason er-reason-${esc(row.reason || '')}">${esc(row.reason || '')}</span></td>
     <td class="er-col-source">${esc(row.resolverSource || '—')}</td>
@@ -130,12 +157,43 @@ function makeRow(row) {
   });
   if (isOrphan) {
     tr.querySelector('.er-orphan-delete-btn').addEventListener('click', () => confirmOrphanDelete(row.id, tr));
+  } else if (isRecode) {
+    tr.querySelector('.er-hint-btn').addEventListener('click', () => showRecodeTitleHint(row, tr));
   } else if (isAmbiguous) {
     tr.querySelector('.er-picker-btn').addEventListener('click', () => togglePicker(row, tr));
-  } else {
+  } else if (!isActressRename) {
     tr.querySelector('.er-override-btn').addEventListener('click', () => showSlugForm(row.id, tr));
   }
   return tr;
+}
+
+function showRecodeTitleHint(row, tr) {
+  const next = tr.nextElementSibling;
+  if (next && next.classList.contains('er-recode-hint-row')) {
+    next.remove();
+    return;
+  }
+  tableBody.querySelectorAll('.er-recode-hint-row').forEach(r => r.remove());
+
+  let detail = null;
+  try { detail = row.detail ? JSON.parse(row.detail) : null; } catch {}
+  const orphanCode = detail ? detail.orphan_code || '' : '';
+  const newCode    = detail ? detail.new_folder_code || '' : '';
+
+  const hintTr = document.createElement('tr');
+  hintTr.className = 'er-recode-hint-row';
+  const td = document.createElement('td');
+  td.colSpan = 6;
+  td.innerHTML = `
+    <div class="er-recode-hint">
+      <b>To resolve:</b> use <code>recode_title</code> to rename the orphan title
+      <b>${esc(orphanCode)}</b> to the new code <b>${esc(newCode)}</b>,
+      then dismiss this queue entry.
+      <br>Example: <code>recode_title(title_id=&lt;orphan_id&gt;, new_code="${esc(newCode)}")</code>
+    </div>
+  `;
+  hintTr.appendChild(td);
+  tr.insertAdjacentElement('afterend', hintTr);
 }
 
 // ── Picker panel ──────────────────────────────────────────────────────────────
