@@ -720,12 +720,17 @@ public class Application {
                         enrichmentReviewQueueRepo, titleRepo, disambiguationSnapshotter);
         com.organizer3.mcp.tools.ConfirmOrphanDeleteTool confirmOrphanDeleteTool =
                 new com.organizer3.mcp.tools.ConfirmOrphanDeleteTool(titleRepo, enrichmentReviewQueueRepo);
+        com.organizer3.mcp.tools.RenameActressTool renameActressTool =
+                new com.organizer3.mcp.tools.RenameActressTool(jdbi, session, actressRepo, actressMergeService);
+        com.organizer3.mcp.tools.RecodeTitleTool recodeTitleTool =
+                new com.organizer3.mcp.tools.RecodeTitleTool(jdbi, session, titleRepo, titleLocationRepo,
+                        enrichmentHistoryRepo, new com.organizer3.sync.TitleCodeParser());
         webServer.registerUtilities(new com.organizer3.web.routes.UtilitiesRoutes(
                 volumeStateService, staleLocationsService, actressCatalogService, yamlLoader,
                 backupCatalogService, backupService, libraryHealthService, orphanedCoversService,
                 ratingCurveRepo, enrichmentReviewQueueRepo, forceEnrichTitleTool,
                 pickReviewCandidateTool, refreshReviewCandidatesTool, confirmOrphanDeleteTool,
-                taskRegistry, taskRunner));
+                renameActressTool, recodeTitleTool, taskRegistry, taskRunner));
         webServer.registerAvStars(new com.organizer3.web.routes.AvStarsRoutes(
                 avStarsCatalog, avBrowseService, iafdResolver));
         webServer.registerTrash(new com.organizer3.web.routes.TrashRoutes(
@@ -849,6 +854,8 @@ public class Application {
                 mcpTools.register(pickReviewCandidateTool);
                 mcpTools.register(refreshReviewCandidatesTool);
                 mcpTools.register(confirmOrphanDeleteTool);
+                mcpTools.register(renameActressTool);
+                mcpTools.register(recodeTitleTool);
                 log.info("MCP mutation tools enabled");
             }
             if (mcpConfig.mutationsAllowed() && mcpConfig.fileOpsAllowed()) {

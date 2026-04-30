@@ -1,7 +1,9 @@
 package com.organizer3.repository;
 
 import com.organizer3.model.TitleLocation;
+import org.jdbi.v3.core.Handle;
 
+import java.nio.file.Path;
 import java.util.List;
 
 /**
@@ -30,4 +32,7 @@ public interface TitleLocationRepository {
      * {@code added_date} — those reflect discovery state, not filing state.
      */
     void updatePathAndPartition(long locationId, java.nio.file.Path newPath, String newPartitionId);
+
+    /** Update path only within an existing handle/transaction (for use inside recode transactions). */
+    void updatePath(long locationId, Path newPath, Handle h);
 }

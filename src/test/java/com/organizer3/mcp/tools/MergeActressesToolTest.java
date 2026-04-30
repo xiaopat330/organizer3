@@ -172,6 +172,23 @@ class MergeActressesToolTest {
         assertEquals(Actress.Grade.SSS, MergeActressesTool.mergeFlags(into, from).grade());
     }
 
+    // ── Wave 4B Phase 2 audit (spec §7 Q6) ─────────────────────────────────
+    // Confirms merge_actresses already adds the deprecated canonical name as alias, so subsequent
+    // syncs can still resolve the old folder name via the alias table.
+
+    @Test
+    void q6AuditDeprecatedCanonicalNameIsQueryableAsAliasAfterMerge() throws Exception {
+        long into = actressRepo.save(mk("Yua Mikami")).getId();
+        long from = actressRepo.save(mk("Mikami Yua")).getId();
+
+        tool.call(args(into, from, false));
+
+        // The deprecated canonical name "Mikami Yua" must be queryable via resolveByName
+        var resolved = actressRepo.resolveByName("Mikami Yua");
+        assertTrue(resolved.isPresent(), "deprecated name must resolve via alias table");
+        assertEquals(into, resolved.get().getId(), "must resolve to the surviving actress");
+    }
+
     // ── false-positive guard ────────────────────────────────────────────────
 
     @Test

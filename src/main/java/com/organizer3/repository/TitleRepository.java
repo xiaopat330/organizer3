@@ -3,6 +3,7 @@ package com.organizer3.repository;
 import com.organizer3.model.Actress;
 import com.organizer3.model.Title;
 import com.organizer3.web.TitleSummary;
+import org.jdbi.v3.core.Handle;
 
 import java.util.Collection;
 import java.util.List;
@@ -65,6 +66,9 @@ public interface TitleRepository {
     Title findOrCreateByCode(Title template);
 
     void delete(long id);
+
+    /** Update code/base_code/label/seq_num within an existing handle/transaction. */
+    void updateCode(long titleId, String code, String baseCode, String label, int seqNum, Handle h);
 
     /** Find titles with at least one location on the given volume, ordered newest-first. */
     List<Title> findByVolumePaged(String volumeId, int limit, int offset);

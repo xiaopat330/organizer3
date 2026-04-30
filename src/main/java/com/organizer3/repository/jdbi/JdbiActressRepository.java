@@ -836,6 +836,25 @@ public class JdbiActressRepository implements ActressRepository {
     }
 
     @Override
+    public void updateCanonicalName(long actressId, String newName, Handle h) {
+        h.createUpdate("UPDATE actresses SET canonical_name = :name WHERE id = :id")
+                .bind("id", actressId)
+                .bind("name", newName)
+                .execute();
+    }
+
+    @Override
+    public void addAlias(long actressId, String aliasName, Handle h) {
+        h.createUpdate("""
+                INSERT OR IGNORE INTO actress_aliases (actress_id, alias_name)
+                VALUES (:actressId, :aliasName)
+                """)
+                .bind("actressId", actressId)
+                .bind("aliasName", aliasName)
+                .execute();
+    }
+
+    @Override
     public void saveAlias(ActressAlias alias) {
         jdbi.useHandle(h ->
                 h.createUpdate("""
