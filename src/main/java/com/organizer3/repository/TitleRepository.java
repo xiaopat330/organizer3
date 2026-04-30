@@ -118,16 +118,34 @@ public interface TitleRepository {
     Map<Long, List<Title>> findByActressIds(Collection<Long> actressIds);
 
     /**
-     * Delete titles that have zero locations (orphaned after location cleanup). Returns the
-     * number of rows deleted.
+     * Delete unenriched orphans and route enriched orphans to the review queue.
      *
-     * <p><b>Cascade safety:</b> throws {@link com.organizer3.repository.CatastrophicDeleteException}
-     * without deleting anything if the orphan count exceeds {@code max(500, total/4)}. That
-     * threshold catches the failure mode from the 2026-04-23 incident (bug in a location
-     * predicate wipes {@code title_locations}, then this method would drop every title) while
-     * leaving normal sync cleanups (a handful of orphans per run) unaffected.
+     * <p>Titles with no {@code title_locations} rows are split into two buckets:
+     * <ul>
+     *   <li><b>Unenriched</b> (no row in {@code title_javdb_enrichment}): deleted immediately
+     *       with the 4A cascade + history-snapshot pattern.</li>
+     *   <li><b>Enriched</b>: NOT deleted. A row is written to {@code enrichment_review_queue}
+     *       with {@code reason='orphan_enriched'} for user confirmation.</li>
+     * </ul>
+     *
+     * <p><b>Cascade-delete safety:</b> throws {@link com.organizer3.repository.CatastrophicDeleteException}
+     * without touching anything if the total orphan count exceeds {@code max(500, total/4)}.
      */
-    int deleteOrphaned();
+    OrphanPruneResult deleteOrphaned();
+
+    /**
+     * Delete one title by id, using the same cascade + history-snapshot pattern as
+     * {@link #deleteOrphaned} but bypassing the catastrophic-delete guard. For
+     * single user-confirmed deletes (e.g. confirm_orphan_delete MCP tool).
+     */
+    void deleteOne(long titleId);
+
+    /**
+     * Returns the number of orphaned titles (zero {@code title_locations}) that have at
+     * least one row in {@code title_javdb_enrichment}. Used by the catastrophic-flagging
+     * pre-check in sync before calling {@link #deleteOrphaned}.
+     */
+    int countOrphansWithEnrichment();
 
     /**
      * Returns a lightweight projection of every title that is currently orphaned — zero
@@ -138,6 +156,11 @@ public interface TitleRepository {
 
     /** Lightweight {label, baseCode} projection for orphan cover cleanup. */
     record OrphanedTitleRef(String label, String baseCode) {}
+
+    /** Result of {@link #deleteOrphaned}: split counts for deleted vs. flagged orphans. */
+    record OrphanPruneResult(int deleted, int flagged) {
+        public int total() { return deleted + flagged; }
+    }
 
     /**
      * Returns the top actresses by title count for titles whose label is in {@code labels}.

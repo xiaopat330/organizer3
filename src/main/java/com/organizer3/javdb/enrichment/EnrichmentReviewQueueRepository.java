@@ -268,6 +268,39 @@ public class EnrichmentReviewQueueRepository {
     }
 
     /**
+     * Inserts an open {@code orphan_enriched} review-queue entry inside an existing transaction.
+     * No-ops if an equivalent open entry already exists (partial unique index on title_id + reason
+     * where resolved_at IS NULL). Does not set detail if {@code detailJson} is null.
+     *
+     * @param titleId    the orphaned title
+     * @param slug       the javdb slug from title_javdb_enrichment (may be null)
+     * @param detailJson snapshot JSON; pass null to omit
+     * @param h          open JDBI handle (caller owns the transaction)
+     */
+    public void enqueueOrphanFlag(long titleId, String slug, String detailJson, Handle h) {
+        h.createUpdate("""
+                        INSERT OR IGNORE INTO enrichment_review_queue
+                            (title_id, slug, reason, resolver_source)
+                        VALUES (:titleId, :slug, 'orphan_enriched', 'sync_orphan')
+                        """)
+                .bind("titleId", titleId)
+                .bind("slug",    slug)
+                .execute();
+        if (detailJson != null) {
+            h.createUpdate("""
+                            UPDATE enrichment_review_queue
+                            SET detail = :detail, last_seen_at = :now
+                            WHERE title_id = :titleId AND reason = 'orphan_enriched'
+                              AND resolved_at IS NULL AND detail IS NULL
+                            """)
+                    .bind("detail",  detailJson)
+                    .bind("now",     Instant.now().toString())
+                    .bind("titleId", titleId)
+                    .execute();
+        }
+    }
+
+    /**
      * Looks up the title_id for a queue row (open or resolved) by its row id.
      * Returns empty if the row does not exist.
      */

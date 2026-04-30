@@ -338,4 +338,43 @@ class EnrichmentReviewQueueRepositoryTest {
                         .bind("id", id).mapTo(String.class).one());
         assertNull(detail, "resolved row detail must remain unchanged");
     }
+
+    // --- enqueueOrphanFlag ---
+
+    @Test
+    void enqueueOrphanFlag_insertsOrphanEnrichedRow() {
+        jdbi.useHandle(h -> repo.enqueueOrphanFlag(1L, "t-001", "{\"prior_path\":null}", h));
+
+        assertTrue(repo.hasOpen(1L, "orphan_enriched"));
+        var row = repo.findOpenById(
+                jdbi.withHandle(h -> h.createQuery("SELECT id FROM enrichment_review_queue WHERE title_id = 1")
+                        .mapTo(Long.class).one()));
+        assertTrue(row.isPresent());
+        assertEquals("orphan_enriched", row.get().reason());
+        assertEquals("sync_orphan",     row.get().resolverSource());
+        assertEquals("t-001",           row.get().slug());
+        assertNotNull(row.get().detail());
+    }
+
+    @Test
+    void enqueueOrphanFlag_isIdempotent() {
+        jdbi.useHandle(h -> {
+            repo.enqueueOrphanFlag(1L, "t-001", "{}", h);
+            repo.enqueueOrphanFlag(1L, "t-001", "{}", h);
+        });
+
+        assertEquals(1, repo.countOpen("orphan_enriched"), "duplicate flag must be ignored");
+    }
+
+    @Test
+    void enqueueOrphanFlag_nullDetail_allowed() {
+        jdbi.useHandle(h -> repo.enqueueOrphanFlag(1L, "t-001", null, h));
+
+        assertTrue(repo.hasOpen(1L, "orphan_enriched"));
+        var row = repo.findOpenById(
+                jdbi.withHandle(h -> h.createQuery("SELECT id FROM enrichment_review_queue WHERE title_id = 1")
+                        .mapTo(Long.class).one()));
+        assertTrue(row.isPresent());
+        assertNull(row.get().detail());
+    }
 }

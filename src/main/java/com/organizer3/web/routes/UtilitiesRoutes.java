@@ -58,6 +58,7 @@ public final class UtilitiesRoutes {
     private final ForceEnrichTitleTool forceEnrichTool;
     private final com.organizer3.mcp.tools.PickReviewCandidateTool pickCandidateTool;
     private final com.organizer3.mcp.tools.RefreshReviewCandidatesTool refreshCandidatesTool;
+    private final com.organizer3.mcp.tools.ConfirmOrphanDeleteTool confirmOrphanDeleteTool;
     private final TaskRegistry registry;
     private final TaskRunner runner;
     private final ObjectMapper json = new ObjectMapper().registerModule(new JavaTimeModule());
@@ -74,6 +75,7 @@ public final class UtilitiesRoutes {
                            ForceEnrichTitleTool forceEnrichTool,
                            com.organizer3.mcp.tools.PickReviewCandidateTool pickCandidateTool,
                            com.organizer3.mcp.tools.RefreshReviewCandidatesTool refreshCandidatesTool,
+                           com.organizer3.mcp.tools.ConfirmOrphanDeleteTool confirmOrphanDeleteTool,
                            TaskRegistry registry, TaskRunner runner) {
         this.volumeState = volumeState;
         this.staleLocations = staleLocations;
@@ -88,6 +90,7 @@ public final class UtilitiesRoutes {
         this.forceEnrichTool = forceEnrichTool;
         this.pickCandidateTool = pickCandidateTool;
         this.refreshCandidatesTool = refreshCandidatesTool;
+        this.confirmOrphanDeleteTool = confirmOrphanDeleteTool;
         this.registry = registry;
         this.runner = runner;
     }
@@ -186,7 +189,8 @@ public final class UtilitiesRoutes {
             if (body == null || !(body.get("resolution") instanceof String resolution)) {
                 ctx.status(400); ctx.json(Map.of("error", "resolution is required")); return;
             }
-            java.util.Set<String> allowed = java.util.Set.of("accepted_gap", "marked_resolved");
+            java.util.Set<String> allowed =
+                    java.util.Set.of("accepted_gap", "marked_resolved", "marked_moved", "confirmed_delete");
             if (!allowed.contains(resolution)) {
                 ctx.status(400);
                 ctx.json(Map.of("error", "resolution must be one of " + allowed));
@@ -258,6 +262,22 @@ public final class UtilitiesRoutes {
             args.put("queue_row_id", id);
             try {
                 Object result = refreshCandidatesTool.call(args);
+                ctx.json(result);
+            } catch (IllegalArgumentException e) {
+                ctx.status(400); ctx.json(Map.of("ok", false, "error", e.getMessage()));
+            }
+        });
+        app.post("/api/utilities/enrichment-review/queue/{id}/confirm-orphan-delete", ctx -> {
+            long id;
+            try { id = Long.parseLong(ctx.pathParam("id")); }
+            catch (NumberFormatException e) {
+                ctx.status(400); ctx.json(Map.of("error", "id must be a long integer")); return;
+            }
+            com.fasterxml.jackson.databind.node.ObjectNode args =
+                    new com.fasterxml.jackson.databind.ObjectMapper().createObjectNode();
+            args.put("queue_row_id", id);
+            try {
+                Object result = confirmOrphanDeleteTool.call(args);
                 ctx.json(result);
             } catch (IllegalArgumentException e) {
                 ctx.status(400); ctx.json(Map.of("ok", false, "error", e.getMessage()));
