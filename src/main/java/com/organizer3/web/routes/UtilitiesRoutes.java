@@ -1,6 +1,7 @@
 package com.organizer3.web.routes;
 
 import com.organizer3.javdb.enrichment.EnrichmentReviewQueueRepository;
+import com.organizer3.mcp.tools.ForceEnrichTitleTool;
 import com.organizer3.rating.RatingCurve;
 import com.organizer3.rating.RatingCurveRepository;
 import com.organizer3.utilities.task.TaskEvent;
@@ -54,6 +55,7 @@ public final class UtilitiesRoutes {
     private final OrphanedCoversService orphanedCoversService;
     private final RatingCurveRepository ratingCurveRepo;
     private final EnrichmentReviewQueueRepository reviewQueueRepo;
+    private final ForceEnrichTitleTool forceEnrichTool;
     private final TaskRegistry registry;
     private final TaskRunner runner;
     private final ObjectMapper json = new ObjectMapper().registerModule(new JavaTimeModule());
@@ -67,6 +69,7 @@ public final class UtilitiesRoutes {
                            OrphanedCoversService orphanedCoversService,
                            RatingCurveRepository ratingCurveRepo,
                            EnrichmentReviewQueueRepository reviewQueueRepo,
+                           ForceEnrichTitleTool forceEnrichTool,
                            TaskRegistry registry, TaskRunner runner) {
         this.volumeState = volumeState;
         this.staleLocations = staleLocations;
@@ -78,6 +81,7 @@ public final class UtilitiesRoutes {
         this.orphanedCoversService = orphanedCoversService;
         this.ratingCurveRepo = ratingCurveRepo;
         this.reviewQueueRepo = reviewQueueRepo;
+        this.forceEnrichTool = forceEnrichTool;
         this.registry = registry;
         this.runner = runner;
     }
@@ -186,6 +190,33 @@ public final class UtilitiesRoutes {
             ctx.json(Map.of("ok", ok, "message", ok
                     ? "Row " + id + " resolved as '" + resolution + "'"
                     : "Row " + id + " was not found or is already resolved"));
+        });
+        app.post("/api/utilities/enrichment-review/queue/{id}/force-enrich", ctx -> {
+            long queueRowId;
+            try { queueRowId = Long.parseLong(ctx.pathParam("id")); }
+            catch (NumberFormatException e) {
+                ctx.status(400); ctx.json(Map.of("error", "id must be a long integer")); return;
+            }
+            java.util.Optional<Long> maybeTitleId = reviewQueueRepo.findTitleIdByQueueRowId(queueRowId);
+            if (maybeTitleId.isEmpty()) {
+                ctx.status(404); ctx.json(Map.of("error", "queue row not found: " + queueRowId)); return;
+            }
+            @SuppressWarnings("unchecked")
+            Map<String, Object> body = ctx.bodyAsClass(Map.class);
+            if (body == null || !(body.get("slug") instanceof String slug)) {
+                ctx.status(400); ctx.json(Map.of("error", "slug is required")); return;
+            }
+            com.fasterxml.jackson.databind.node.ObjectNode args =
+                    new com.fasterxml.jackson.databind.ObjectMapper().createObjectNode();
+            args.put("title_id", maybeTitleId.get());
+            args.put("slug",     slug);
+            args.put("dry_run",  false);
+            try {
+                Object result = forceEnrichTool.call(args);
+                ctx.json(result);
+            } catch (IllegalArgumentException e) {
+                ctx.status(400); ctx.json(Map.of("ok", false, "error", e.getMessage()));
+            }
         });
 
         // Rating curve — lightweight status (computed_at + population) for the Library Health header.

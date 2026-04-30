@@ -105,13 +105,68 @@ function makeRow(row) {
     <td class="er-col-created">${formatRelative(row.createdAt)}</td>
     <td class="er-col-actions">
       <button type="button" class="er-action-btn er-gap-btn" data-id="${row.id}" data-res="accepted_gap">Accept as gap</button>
+      <button type="button" class="er-action-btn er-override-btn" data-id="${row.id}">Override slug…</button>
       <button type="button" class="er-action-btn er-resolve-btn" data-id="${row.id}" data-res="marked_resolved">Mark resolved</button>
     </td>
   `;
-  tr.querySelectorAll('.er-action-btn').forEach(btn => {
+  tr.querySelectorAll('.er-action-btn[data-res]').forEach(btn => {
     btn.addEventListener('click', () => resolveRow(Number(btn.dataset.id), btn.dataset.res, tr));
   });
+  tr.querySelector('.er-override-btn').addEventListener('click', () => showSlugForm(row.id, tr));
   return tr;
+}
+
+function showSlugForm(queueRowId, tr) {
+  const actionsCell = tr.querySelector('.er-col-actions');
+  // Prevent opening a second form if one is already open.
+  if (actionsCell.querySelector('.er-slug-form')) return;
+
+  const form = document.createElement('div');
+  form.className = 'er-slug-form';
+  form.innerHTML = `
+    <input type="text" class="er-slug-input" placeholder="javdb slug" spellcheck="false" />
+    <button type="button" class="er-slug-submit">Force enrich</button>
+    <button type="button" class="er-slug-cancel">Cancel</button>
+  `;
+  actionsCell.appendChild(form);
+
+  const input  = form.querySelector('.er-slug-input');
+  const submit = form.querySelector('.er-slug-submit');
+  const cancel = form.querySelector('.er-slug-cancel');
+
+  input.focus();
+
+  cancel.addEventListener('click', () => form.remove());
+
+  const doSubmit = async () => {
+    const slug = input.value.trim();
+    if (!slug) { input.focus(); return; }
+    tr.querySelectorAll('.er-action-btn, .er-slug-submit, .er-slug-cancel').forEach(b => { b.disabled = true; });
+    try {
+      const res = await fetch(`/api/utilities/enrichment-review/queue/${queueRowId}/force-enrich`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ slug }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.ok) {
+        alert('Force enrich failed: ' + (data.error || data.message || res.statusText));
+        tr.querySelectorAll('.er-action-btn, .er-slug-submit, .er-slug-cancel').forEach(b => { b.disabled = false; });
+      } else {
+        await reload();
+      }
+    } catch (err) {
+      console.error('EnrichmentReview: force enrich failed', err);
+      alert('Force enrich failed: ' + err.message);
+      tr.querySelectorAll('.er-action-btn, .er-slug-submit, .er-slug-cancel').forEach(b => { b.disabled = false; });
+    }
+  };
+
+  submit.addEventListener('click', doSubmit);
+  input.addEventListener('keydown', e => {
+    if (e.key === 'Enter') doSubmit();
+    if (e.key === 'Escape') form.remove();
+  });
 }
 
 async function resolveRow(id, resolution, tr) {

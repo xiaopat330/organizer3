@@ -698,10 +698,17 @@ public class Application {
                                 recomputeRatingCurveTask, enrichmentClearMismatchedTask));
         com.organizer3.utilities.task.TaskRunner taskRunner =
                 new com.organizer3.utilities.task.TaskRunner(taskRegistry);
+        com.organizer3.mcp.tools.ForceEnrichTitleTool forceEnrichTitleTool =
+                new com.organizer3.mcp.tools.ForceEnrichTitleTool(
+                        jdbi, titleRepo, javdbClient,
+                        new com.organizer3.javdb.enrichment.JavdbExtractor(),
+                        javdbStagingRepo, javdbEnrichmentRepo,
+                        enrichmentReviewQueueRepo, revalidationPendingRepo);
         webServer.registerUtilities(new com.organizer3.web.routes.UtilitiesRoutes(
                 volumeStateService, staleLocationsService, actressCatalogService, yamlLoader,
                 backupCatalogService, backupService, libraryHealthService, orphanedCoversService,
-                ratingCurveRepo, enrichmentReviewQueueRepo, taskRegistry, taskRunner));
+                ratingCurveRepo, enrichmentReviewQueueRepo, forceEnrichTitleTool,
+                taskRegistry, taskRunner));
         webServer.registerAvStars(new com.organizer3.web.routes.AvStarsRoutes(
                 avStarsCatalog, avBrowseService, iafdResolver));
         webServer.registerTrash(new com.organizer3.web.routes.TrashRoutes(
@@ -821,6 +828,7 @@ public class Application {
                 mcpTools.register(new com.organizer3.mcp.tools.CancelTaskRunTool(taskRunner));
                 mcpTools.register(new com.organizer3.mcp.tools.StartTaskTool(taskRegistry, taskRunner));
                 mcpTools.register(new com.organizer3.mcp.tools.ResolveReviewQueueRowTool(enrichmentReviewQueueRepo));
+                mcpTools.register(forceEnrichTitleTool);
                 log.info("MCP mutation tools enabled");
             }
             if (mcpConfig.mutationsAllowed() && mcpConfig.fileOpsAllowed()) {
