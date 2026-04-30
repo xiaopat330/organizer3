@@ -168,7 +168,7 @@ class PickReviewCandidateToolTest {
 
         assertFalse(result.ok());
         assertEquals("slug_not_in_candidates", result.error());
-        assertFalse(reviewQueueRepo.hasOpen(1L, "ambiguous") == false,
+        assertTrue(reviewQueueRepo.hasOpen(1L, "ambiguous"),
                 "row must remain open when slug not found");
     }
 
