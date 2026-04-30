@@ -62,6 +62,7 @@ public class EnrichmentRunner {
     private final CastMatcher castMatcher;
     private final Jdbi jdbi;
     private final RevalidationPendingRepository revalidationPendingRepo;
+    private final DisambiguationSnapshotter disambiguationSnapshotter;
 
     private final AtomicBoolean stopRequested = new AtomicBoolean(false);
     private final AtomicBoolean paused = new AtomicBoolean(false);
@@ -101,7 +102,8 @@ public class EnrichmentRunner {
             EnrichmentReviewQueueRepository reviewQueueRepo,
             CastMatcher castMatcher,
             Jdbi jdbi,
-            RevalidationPendingRepository revalidationPendingRepo) {
+            RevalidationPendingRepository revalidationPendingRepo,
+            DisambiguationSnapshotter disambiguationSnapshotter) {
         this.config = config;
         this.client = client;
         this.slugResolver = slugResolver;
@@ -122,6 +124,7 @@ public class EnrichmentRunner {
         this.castMatcher = castMatcher;
         this.jdbi = jdbi;
         this.revalidationPendingRepo = revalidationPendingRepo;
+        this.disambiguationSnapshotter = disambiguationSnapshotter;
     }
 
     public synchronized void start() {
@@ -366,7 +369,8 @@ public class EnrichmentRunner {
         TitleExtract extract = extractor.extractTitle(html, title.getCode(), slug);
 
         // 1C — Write-time gate: decide confidence/cast_validated, or skip write for certain outcomes.
-        GateResult gateResult = applyWriteGate(titleId, actressId, resolverSource, extract, slug);
+        GateResult gateResult = applyWriteGate(titleId, actressId, resolverSource, extract, slug,
+                title.getCode());
         if (!gateResult.write()) {
             log.info("javdb: gate blocked write for {} (reason={}) — marking {}",
                     title.getCode(), gateResult.queueReason(), gateResult.queueReason());
@@ -581,7 +585,8 @@ public class EnrichmentRunner {
      */
     private GateResult applyWriteGate(long titleId, long actressId,
                                       JavdbSlugResolver.Source resolverSource,
-                                      TitleExtract extract, String slug) {
+                                      TitleExtract extract, String slug,
+                                      String titleCode) {
         // Row 1: parse failure — retryable
         if (extract.castParseFailed()) {
             if (reviewQueueRepo != null) {
@@ -623,10 +628,20 @@ public class EnrichmentRunner {
                         return GateResult.write("MEDIUM", false);
                     }
                 }
-                // Row 7: real linked actress exists but none in cast → ambiguous
+                // Row 7: real linked actress exists but none in cast → ambiguous.
+                // Build candidate snapshot (fetches N extra pages for multi-slug searches;
+                // cost is acceptable because this path is rare).
                 log.info("javdb: code-search fallback cast mismatch for title {} — routing to ambiguous", titleId);
                 if (reviewQueueRepo != null) {
-                    reviewQueueRepo.enqueue(titleId, slug, "ambiguous", resolverSourceLabel(resolverSource));
+                    String detailJson = disambiguationSnapshotter != null
+                            ? disambiguationSnapshotter.buildSnapshot(titleId, titleCode, slug, extract)
+                            : null;
+                    if (detailJson != null) {
+                        reviewQueueRepo.enqueueWithDetail(titleId, slug, "ambiguous",
+                                resolverSourceLabel(resolverSource), detailJson);
+                    } else {
+                        reviewQueueRepo.enqueue(titleId, slug, "ambiguous", resolverSourceLabel(resolverSource));
+                    }
                 }
                 return GateResult.skip("ambiguous");
             }

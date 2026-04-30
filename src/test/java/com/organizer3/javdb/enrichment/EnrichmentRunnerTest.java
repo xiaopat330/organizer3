@@ -78,7 +78,7 @@ class EnrichmentRunnerTest {
 
         EnrichmentRunner runner = new EnrichmentRunner(
                 CONFIG, fakeClient, new JavdbSlugResolver(fakeClient), extractor, projector, stagingRepo, enrichmentRepo, queue, titleRepo, actressRepo,
-                new AutoPromoter(jdbi), null, null, null, null, null, null, null, jdbi, null);
+                new AutoPromoter(jdbi), null, null, null, null, null, null, null, jdbi, null, null);
 
         queue.enqueueTitle(titleId, actressId);
         runner.runOneStep();
@@ -134,7 +134,7 @@ class EnrichmentRunnerTest {
 
         EnrichmentRunner runner = new EnrichmentRunner(
                 CONFIG, fakeClient, new JavdbSlugResolver(fakeClient), extractor, projector, stagingRepo, enrichmentRepo, queue, titleRepo, actressRepo,
-                new AutoPromoter(jdbi), null, null, null, null, null, null, null, jdbi, null);
+                new AutoPromoter(jdbi), null, null, null, null, null, null, null, jdbi, null, null);
 
         queue.enqueueTitle(titleId, actressId);
         runner.runOneStep();
@@ -166,7 +166,7 @@ class EnrichmentRunnerTest {
 
         EnrichmentRunner runner = new EnrichmentRunner(
                 CONFIG, fakeClient, new JavdbSlugResolver(fakeClient), extractor, projector, stagingRepo, enrichmentRepo, queue, titleRepo, actressRepo,
-                new AutoPromoter(jdbi), null, null, null, null, null, null, null, jdbi, null);
+                new AutoPromoter(jdbi), null, null, null, null, null, null, null, jdbi, null, null);
 
         queue.enqueueTitle(titleId, actressId);
         runner.runOneStep();
@@ -192,7 +192,7 @@ class EnrichmentRunnerTest {
 
         EnrichmentRunner runner = new EnrichmentRunner(
                 CONFIG, fakeClient, new JavdbSlugResolver(fakeClient), extractor, projector, stagingRepo, enrichmentRepo, queue, titleRepo, actressRepo,
-                new AutoPromoter(jdbi), null, null, null, null, null, null, null, jdbi, null);
+                new AutoPromoter(jdbi), null, null, null, null, null, null, null, jdbi, null, null);
 
         queue.enqueueTitle(titleId, actressId);
         runner.runOneStep();
@@ -217,7 +217,7 @@ class EnrichmentRunnerTest {
 
         EnrichmentRunner runner = new EnrichmentRunner(
                 CONFIG, rateLimitClient, new JavdbSlugResolver(rateLimitClient), extractor, projector, stagingRepo, enrichmentRepo, queue, titleRepo, actressRepo,
-                new AutoPromoter(jdbi), null, null, null, null, null, null, null, jdbi, null);
+                new AutoPromoter(jdbi), null, null, null, null, null, null, null, jdbi, null, null);
 
         queue.enqueueTitle(titleId, actressId);
         runner.runOneStep();
@@ -277,7 +277,7 @@ class EnrichmentRunnerTest {
 
         EnrichmentRunner runner = new EnrichmentRunner(
                 CONFIG, fakeClient, new JavdbSlugResolver(fakeClient), extractor, projector, stagingRepo, enrichmentRepo, queue, titleRepo, actressRepo,
-                new AutoPromoter(jdbi), null, null, null, null, null, null, null, jdbi, null);
+                new AutoPromoter(jdbi), null, null, null, null, null, null, null, jdbi, null, null);
 
         queue.enqueueTitle(titleId, actressId);
         runner.runOneStep();
@@ -308,7 +308,7 @@ class EnrichmentRunnerTest {
 
         EnrichmentRunner runner = new EnrichmentRunner(
                 CONFIG, null, new JavdbSlugResolver(null), extractor, projector, stagingRepo, enrichmentRepo, queue, titleRepo, actressRepo,
-                new AutoPromoter(jdbi), null, null, null, null, null, null, null, jdbi, null);
+                new AutoPromoter(jdbi), null, null, null, null, null, null, null, jdbi, null, null);
 
         runner.backfillActressSlugsFromEnrichment();
 
@@ -342,7 +342,7 @@ class EnrichmentRunnerTest {
 
         EnrichmentRunner runner = new EnrichmentRunner(
                 CONFIG, null, new JavdbSlugResolver(null), extractor, projector, stagingRepo, enrichmentRepo, queue, titleRepo, actressRepo,
-                new AutoPromoter(jdbi), null, null, null, null, null, null, null, jdbi, null);
+                new AutoPromoter(jdbi), null, null, null, null, null, null, null, jdbi, null, null);
 
         runner.backfillActressSlugsFromEnrichment();
 
@@ -370,7 +370,7 @@ class EnrichmentRunnerTest {
 
         EnrichmentRunner runner = new EnrichmentRunner(
                 CONFIG, null, new JavdbSlugResolver(null), extractor, projector, stagingRepo, enrichmentRepo, queue, titleRepo, actressRepo,
-                new AutoPromoter(jdbi), null, null, null, null, null, null, null, jdbi, null);
+                new AutoPromoter(jdbi), null, null, null, null, null, null, null, jdbi, null, null);
 
         runner.backfillActressSlugsFromEnrichment();
 
@@ -415,7 +415,7 @@ class EnrichmentRunnerTest {
         var castMatcher = new CastMatcher(actressRepo);
         EnrichmentRunner runner = new EnrichmentRunner(
                 CONFIG, fakeClient, new JavdbSlugResolver(fakeClient), extractor, projector, stagingRepo, enrichmentRepo, queue, titleRepo, actressRepo,
-                new AutoPromoter(jdbi), null, null, null, gate, titleActressRepo, null, castMatcher, jdbi, null);
+                new AutoPromoter(jdbi), null, null, null, gate, titleActressRepo, null, castMatcher, jdbi, null, null);
 
         // Actress-driven enqueue (existing method).
         queue.enqueueTitle(titleId, actressId);
@@ -451,7 +451,7 @@ class EnrichmentRunnerTest {
         ProfileChainGate gate = new ProfileChainGate(jdbi, CONFIG);
         EnrichmentRunner runner = new EnrichmentRunner(
                 CONFIG, fakeClient, new JavdbSlugResolver(fakeClient), extractor, projector, stagingRepo, enrichmentRepo, queue, titleRepo, actressRepo,
-                new AutoPromoter(jdbi), null, null, null, gate, null, null, null, jdbi, null);
+                new AutoPromoter(jdbi), null, null, null, gate, null, null, null, jdbi, null, null);
 
         queue.enqueueTitle(EnrichmentJob.SOURCE_POOL, titleId, actressId);
         runner.runOneStep();
@@ -493,7 +493,7 @@ class EnrichmentRunnerTest {
         ProfileChainGate gate = new ProfileChainGate(jdbi, CONFIG);
         EnrichmentRunner runner = new EnrichmentRunner(
                 CONFIG, fakeClient, new JavdbSlugResolver(fakeClient), extractor, projector, stagingRepo, enrichmentRepo, queue, titleRepo, actressRepo,
-                new AutoPromoter(jdbi), null, null, null, gate, null, null, null, jdbi, null);
+                new AutoPromoter(jdbi), null, null, null, gate, null, null, null, jdbi, null, null);
 
         queue.enqueueTitle(EnrichmentJob.SOURCE_RECENT, enrichTitleId, actressId);
         runner.runOneStep();
@@ -640,7 +640,7 @@ class EnrichmentRunnerTest {
         var titleActressRepo = new com.organizer3.repository.jdbi.JdbiTitleActressRepository(jdbi);
         return new EnrichmentRunner(
                 CONFIG, client, new JavdbSlugResolver(client), extractor, projector, stagingRepo, enrichmentRepo, queue, titleRepo, actressRepo,
-                new AutoPromoter(jdbi), null, null, null, gate, titleActressRepo, null, null, jdbi, null);
+                new AutoPromoter(jdbi), null, null, null, gate, titleActressRepo, null, null, jdbi, null, null);
     }
 
     private java.util.List<EnrichmentJob> drainAllProfileJobs() {

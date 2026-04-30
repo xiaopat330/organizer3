@@ -56,6 +56,8 @@ public final class UtilitiesRoutes {
     private final RatingCurveRepository ratingCurveRepo;
     private final EnrichmentReviewQueueRepository reviewQueueRepo;
     private final ForceEnrichTitleTool forceEnrichTool;
+    private final com.organizer3.mcp.tools.PickReviewCandidateTool pickCandidateTool;
+    private final com.organizer3.mcp.tools.RefreshReviewCandidatesTool refreshCandidatesTool;
     private final TaskRegistry registry;
     private final TaskRunner runner;
     private final ObjectMapper json = new ObjectMapper().registerModule(new JavaTimeModule());
@@ -70,6 +72,8 @@ public final class UtilitiesRoutes {
                            RatingCurveRepository ratingCurveRepo,
                            EnrichmentReviewQueueRepository reviewQueueRepo,
                            ForceEnrichTitleTool forceEnrichTool,
+                           com.organizer3.mcp.tools.PickReviewCandidateTool pickCandidateTool,
+                           com.organizer3.mcp.tools.RefreshReviewCandidatesTool refreshCandidatesTool,
                            TaskRegistry registry, TaskRunner runner) {
         this.volumeState = volumeState;
         this.staleLocations = staleLocations;
@@ -82,6 +86,8 @@ public final class UtilitiesRoutes {
         this.ratingCurveRepo = ratingCurveRepo;
         this.reviewQueueRepo = reviewQueueRepo;
         this.forceEnrichTool = forceEnrichTool;
+        this.pickCandidateTool = pickCandidateTool;
+        this.refreshCandidatesTool = refreshCandidatesTool;
         this.registry = registry;
         this.runner = runner;
     }
@@ -213,6 +219,45 @@ public final class UtilitiesRoutes {
             args.put("dry_run",  false);
             try {
                 Object result = forceEnrichTool.call(args);
+                ctx.json(result);
+            } catch (IllegalArgumentException e) {
+                ctx.status(400); ctx.json(Map.of("ok", false, "error", e.getMessage()));
+            }
+        });
+
+        app.post("/api/utilities/enrichment-review/queue/{id}/pick", ctx -> {
+            long id;
+            try { id = Long.parseLong(ctx.pathParam("id")); }
+            catch (NumberFormatException e) {
+                ctx.status(400); ctx.json(Map.of("error", "id must be a long integer")); return;
+            }
+            @SuppressWarnings("unchecked")
+            Map<String, Object> body = ctx.bodyAsClass(Map.class);
+            if (body == null || !(body.get("slug") instanceof String slug)) {
+                ctx.status(400); ctx.json(Map.of("error", "slug is required")); return;
+            }
+            com.fasterxml.jackson.databind.node.ObjectNode args =
+                    new com.fasterxml.jackson.databind.ObjectMapper().createObjectNode();
+            args.put("queue_row_id", id);
+            args.put("slug",         slug);
+            try {
+                Object result = pickCandidateTool.call(args);
+                ctx.json(result);
+            } catch (IllegalArgumentException e) {
+                ctx.status(400); ctx.json(Map.of("ok", false, "error", e.getMessage()));
+            }
+        });
+        app.post("/api/utilities/enrichment-review/queue/{id}/refresh", ctx -> {
+            long id;
+            try { id = Long.parseLong(ctx.pathParam("id")); }
+            catch (NumberFormatException e) {
+                ctx.status(400); ctx.json(Map.of("error", "id must be a long integer")); return;
+            }
+            com.fasterxml.jackson.databind.node.ObjectNode args =
+                    new com.fasterxml.jackson.databind.ObjectMapper().createObjectNode();
+            args.put("queue_row_id", id);
+            try {
+                Object result = refreshCandidatesTool.call(args);
                 ctx.json(result);
             } catch (IllegalArgumentException e) {
                 ctx.status(400); ctx.json(Map.of("ok", false, "error", e.getMessage()));

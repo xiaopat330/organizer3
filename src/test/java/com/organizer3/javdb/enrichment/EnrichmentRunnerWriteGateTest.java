@@ -98,7 +98,7 @@ class EnrichmentRunnerWriteGateTest {
                 new JavdbExtractor(), new JavdbProjector(new ObjectMapper()),
                 stagingRepo, enrichmentRepo, queue, titleRepo, actressRepo,
                 new AutoPromoter(jdbi), null, null, null, null,
-                titleActressRepo, reviewQueueRepo, castMatcher, jdbi, revalidationPendingRepo);
+                titleActressRepo, reviewQueueRepo, castMatcher, jdbi, revalidationPendingRepo, null);
     }
 
     /** Builds HTML for a title page with the given cast names (Actors block). */
@@ -183,7 +183,7 @@ class EnrichmentRunnerWriteGateTest {
                 failingExtractor, new JavdbProjector(new ObjectMapper()),
                 stagingRepo, enrichmentRepo, queue, titleRepo, actressRepo,
                 new AutoPromoter(jdbi), null, null, null, null,
-                titleActressRepo, reviewQueueRepo, castMatcher, jdbi, null);
+                titleActressRepo, reviewQueueRepo, castMatcher, jdbi, null, null);
 
         queue.enqueueTitle(titleId, actressId);
         runner.runOneStep();
@@ -214,7 +214,7 @@ class EnrichmentRunnerWriteGateTest {
                 new JavdbExtractor(), new JavdbProjector(new ObjectMapper()),
                 stagingRepo, enrichmentRepo, queue, titleRepo, actressRepo,
                 new AutoPromoter(jdbi), null, null, null, null,
-                titleActressRepo, reviewQueueRepo, castMatcher, jdbi, null);
+                titleActressRepo, reviewQueueRepo, castMatcher, jdbi, null, null);
 
         queue.enqueueTitle(titleId, actressId);
         runner.runOneStep();
@@ -248,7 +248,7 @@ class EnrichmentRunnerWriteGateTest {
                 new JavdbExtractor(), new JavdbProjector(new ObjectMapper()),
                 stagingRepo, enrichmentRepo, queue, titleRepo, actressRepo,
                 new AutoPromoter(jdbi), null, null, null, null,
-                titleActressRepo, reviewQueueRepo, castMatcher, jdbi, null);
+                titleActressRepo, reviewQueueRepo, castMatcher, jdbi, null, null);
 
         queue.enqueueTitle(titleId, actressId);
         runner.runOneStep();
@@ -282,7 +282,7 @@ class EnrichmentRunnerWriteGateTest {
                 new JavdbExtractor(), new JavdbProjector(new ObjectMapper()),
                 stagingRepo, enrichmentRepo, queue, titleRepo, actressRepo,
                 new AutoPromoter(jdbi), null, null, null, null,
-                titleActressRepo, reviewQueueRepo, castMatcher, jdbi, null);
+                titleActressRepo, reviewQueueRepo, castMatcher, jdbi, null, null);
 
         queue.enqueueTitle(titleId, actressId);
         runner.runOneStep();

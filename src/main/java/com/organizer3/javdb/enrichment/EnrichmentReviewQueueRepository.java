@@ -1,6 +1,7 @@
 package com.organizer3.javdb.enrichment;
 
 import lombok.RequiredArgsConstructor;
+import org.jdbi.v3.core.Handle;
 import org.jdbi.v3.core.Jdbi;
 
 import java.time.Instant;
@@ -85,7 +86,7 @@ public class EnrichmentReviewQueueRepository {
         return jdbi.withHandle(h -> {
             String sql = """
                     SELECT q.id, q.title_id, t.code AS title_code, q.slug,
-                           q.reason, q.resolver_source, q.created_at
+                           q.reason, q.resolver_source, q.created_at, q.detail
                     FROM enrichment_review_queue q
                     JOIN titles t ON t.id = q.title_id
                     WHERE q.resolved_at IS NULL
@@ -103,9 +104,106 @@ public class EnrichmentReviewQueueRepository {
                     rs.getString("slug"),
                     rs.getString("reason"),
                     rs.getString("resolver_source"),
-                    rs.getString("created_at")
+                    rs.getString("created_at"),
+                    rs.getString("detail")
             )).list();
         });
+    }
+
+    /**
+     * Returns a single open (unresolved) queue row by id, including its {@code detail} JSON.
+     * Returns empty if the row does not exist or is already resolved.
+     *
+     * <p>Uses LEFT JOIN on titles so that rows whose title was deleted (orphan rows) are still
+     * returned — the {@code titleCode} field will be null in that case.
+     */
+    public java.util.Optional<OpenRow> findOpenById(long queueRowId) {
+        return jdbi.withHandle(h ->
+                h.createQuery("""
+                        SELECT q.id, q.title_id, t.code AS title_code, q.slug,
+                               q.reason, q.resolver_source, q.created_at, q.detail
+                        FROM enrichment_review_queue q
+                        LEFT JOIN titles t ON t.id = q.title_id
+                        WHERE q.id = :id AND q.resolved_at IS NULL
+                        """)
+                        .bind("id", queueRowId)
+                        .map((rs, ctx) -> new OpenRow(
+                                rs.getLong("id"),
+                                rs.getLong("title_id"),
+                                rs.getString("title_code"),
+                                rs.getString("slug"),
+                                rs.getString("reason"),
+                                rs.getString("resolver_source"),
+                                rs.getString("created_at"),
+                                rs.getString("detail")
+                        ))
+                        .findOne());
+    }
+
+    /**
+     * Inserts an open review-queue entry with a candidate snapshot in {@code detail}.
+     * If an equivalent open entry already exists (same title_id + reason), the INSERT is
+     * a no-op but the detail is updated if it was previously NULL.
+     */
+    public void enqueueWithDetail(long titleId, String slug, String reason,
+                                  String resolverSource, String detailJson) {
+        jdbi.useHandle(h -> enqueueWithDetail(titleId, slug, reason, resolverSource, detailJson, h));
+    }
+
+    /**
+     * Handle-scoped variant of {@link #enqueueWithDetail} for use inside transactions.
+     */
+    public void enqueueWithDetail(long titleId, String slug, String reason,
+                                  String resolverSource, String detailJson, Handle h) {
+        h.createUpdate("""
+                        INSERT OR IGNORE INTO enrichment_review_queue
+                            (title_id, slug, reason, resolver_source)
+                        VALUES (:titleId, :slug, :reason, :resolverSource)
+                        """)
+                .bind("titleId",        titleId)
+                .bind("slug",           slug)
+                .bind("reason",         reason)
+                .bind("resolverSource", resolverSource)
+                .execute();
+        if (detailJson != null) {
+            h.createUpdate("""
+                            UPDATE enrichment_review_queue
+                            SET detail = :detail, last_seen_at = :now
+                            WHERE title_id = :titleId AND reason = :reason
+                              AND resolved_at IS NULL AND detail IS NULL
+                            """)
+                    .bind("detail",  detailJson)
+                    .bind("now",     Instant.now().toString())
+                    .bind("titleId", titleId)
+                    .bind("reason",  reason)
+                    .execute();
+        }
+    }
+
+    /**
+     * Updates the {@code detail} and {@code last_seen_at} of an existing open queue row.
+     * Used by {@code refresh_review_candidates} to populate or refresh the candidate snapshot.
+     *
+     * @param queueRowId the row id
+     * @param detailJson the fresh snapshot JSON
+     */
+    public void updateDetail(long queueRowId, String detailJson) {
+        jdbi.useHandle(h -> updateDetail(queueRowId, detailJson, h));
+    }
+
+    /**
+     * Handle-scoped variant of {@link #updateDetail} for use inside transactions.
+     */
+    public void updateDetail(long queueRowId, String detailJson, Handle h) {
+        h.createUpdate("""
+                        UPDATE enrichment_review_queue
+                        SET detail = :detail, last_seen_at = :now
+                        WHERE id = :id AND resolved_at IS NULL
+                        """)
+                .bind("detail", detailJson)
+                .bind("now",    Instant.now().toString())
+                .bind("id",     queueRowId)
+                .execute();
     }
 
     /**
@@ -181,7 +279,8 @@ public class EnrichmentReviewQueueRepository {
                         .findOne());
     }
 
-    /** A single open queue row returned by {@link #listOpen}. */
+    /** A single open queue row returned by {@link #listOpen} and {@link #findOpenById}. */
     public record OpenRow(long id, long titleId, String titleCode, String slug,
-                          String reason, String resolverSource, String createdAt) {}
+                          String reason, String resolverSource, String createdAt,
+                          String detail) {}
 }

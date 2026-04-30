@@ -6,11 +6,9 @@ import org.jsoup.nodes.Element;
 import java.util.Optional;
 
 /**
- * Extracts the first title slug from a javdb search results page.
+ * Extracts title slugs from a javdb search results page.
  *
  * <p>Search results contain movie cards with links of the form {@code /v/{slug}}.
- * We take the first result on the assumption that an exact product-code search
- * returns the correct title at the top.
  */
 public class JavdbSearchParser {
 
@@ -27,5 +25,23 @@ public class JavdbSearchParser {
         String href = link.attr("href"); // e.g. "/v/AbXy12"
         String slug = href.substring("/v/".length());
         return slug.isBlank() ? Optional.empty() : Optional.of(slug);
+    }
+
+    /**
+     * Returns all title slugs from the search results page, preserving order.
+     * Returns an empty list if the page has no results.
+     */
+    public java.util.List<String> parseAllSlugs(String html) {
+        if (html == null || html.isBlank()) return java.util.List.of();
+
+        java.util.List<String> slugs = new java.util.ArrayList<>();
+        for (Element link : Jsoup.parse(html).select("a[href^='/v/']")) {
+            String href = link.attr("href");
+            String slug = href.substring("/v/".length());
+            if (!slug.isBlank() && !slugs.contains(slug)) {
+                slugs.add(slug);
+            }
+        }
+        return java.util.List.copyOf(slugs);
     }
 }
