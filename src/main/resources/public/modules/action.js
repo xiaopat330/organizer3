@@ -15,6 +15,7 @@ import { showMergeCandidatesView, hideMergeCandidatesView, wireMergeCandidatesEv
 import { showTrashView, hideTrashView } from './utilities-trash.js';
 import { showJavdbDiscoveryView, hideJavdbDiscoveryView } from './utilities-javdb-discovery.js';
 import { showTagHealthView, hideTagHealthView } from './utilities-tag-health.js';
+import { showEnrichmentReviewView, hideEnrichmentReviewView } from './utilities-enrichment-review.js';
 
 // ── DOM refs ──────────────────────────────────────────────────────────────
 const actionBtn         = document.getElementById('action-btn');
@@ -22,7 +23,8 @@ const healthBtn         = document.getElementById('tools-health-btn');
 const utilitiesBtn      = document.getElementById('tools-utilities-btn');
 const actressDataBtn    = document.getElementById('tools-actress-data-btn');
 const duplicatesBtn     = document.getElementById('tools-duplicates-btn');
-const trashBtn          = document.getElementById('tools-trash-btn');
+const trashBtn              = document.getElementById('tools-trash-btn');
+const enrichmentReviewBtn   = document.getElementById('tools-enrichment-review-btn');
 const queueBtn          = document.getElementById('tools-queue-btn');
 const javdbDiscoveryBtn    = document.getElementById('tools-javdb-discovery-btn');
 const utilitiesSubnav      = document.getElementById('tools-utilities-subnav');
@@ -47,7 +49,7 @@ const dupTriageTab      = document.getElementById('tools-dup-triage-tab');
 const mergeCandidatesTab = document.getElementById('tools-merge-candidates-tab');
 
 // ── Tool buttons ──────────────────────────────────────────────────────────
-const TOOL_BTNS = [healthBtn, utilitiesBtn, actressDataBtn, duplicatesBtn, trashBtn, queueBtn, javdbDiscoveryBtn];
+const TOOL_BTNS = [healthBtn, utilitiesBtn, actressDataBtn, duplicatesBtn, trashBtn, queueBtn, javdbDiscoveryBtn, enrichmentReviewBtn];
 
 function selectTool(btn) {
   TOOL_BTNS.forEach(b => b?.classList.remove('selected'));
@@ -67,6 +69,7 @@ function hideAllToolViews() {
   hideTrashView();
   hideJavdbDiscoveryView();
   hideTagHealthView();
+  hideEnrichmentReviewView();
   dupSubnav.style.display          = 'none';
   healthSubnav.style.display       = 'none';
   utilitiesSubnav.style.display    = 'none';
@@ -429,5 +432,13 @@ javdbDiscoveryBtn.addEventListener('click', () => {
   updateBreadcrumb([{ label: 'Tools' }, { label: 'javdb Discovery' }]);
   hideAllToolViews();
   showJavdbDiscoveryView();
+});
+
+enrichmentReviewBtn.addEventListener('click', () => {
+  showActionView('enrichment-review');
+  selectTool(enrichmentReviewBtn);
+  updateBreadcrumb([{ label: 'Tools' }, { label: 'Review Queue' }]);
+  hideAllToolViews();
+  showEnrichmentReviewView();
 });
 

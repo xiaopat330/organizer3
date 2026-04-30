@@ -701,7 +701,7 @@ public class Application {
         webServer.registerUtilities(new com.organizer3.web.routes.UtilitiesRoutes(
                 volumeStateService, staleLocationsService, actressCatalogService, yamlLoader,
                 backupCatalogService, backupService, libraryHealthService, orphanedCoversService,
-                ratingCurveRepo, taskRegistry, taskRunner));
+                ratingCurveRepo, enrichmentReviewQueueRepo, taskRegistry, taskRunner));
         webServer.registerAvStars(new com.organizer3.web.routes.AvStarsRoutes(
                 avStarsCatalog, avBrowseService, iafdResolver));
         webServer.registerTrash(new com.organizer3.web.routes.TrashRoutes(
@@ -804,7 +804,8 @@ public class Application {
                     .register(new com.organizer3.mcp.tools.ListTaskSpecsTool(taskRegistry))
                     .register(new com.organizer3.mcp.tools.GetTaskRunStatusTool(taskRunner))
                     .register(new com.organizer3.mcp.tools.ExportFilmographyBackupTool(filmographyBackupWriter, filmographyRepo))
-                    .register(new com.organizer3.mcp.tools.ArchiveFilmographyBackupsTool(filmographyBackupWriter));
+                    .register(new com.organizer3.mcp.tools.ArchiveFilmographyBackupsTool(filmographyBackupWriter))
+                    .register(new com.organizer3.mcp.tools.ListReviewQueueTool(enrichmentReviewQueueRepo));
             if (mcpConfig.mutationsAllowed()) {
                 mcpTools.register(new com.organizer3.mcp.tools.RefreshFilmographyTool(slugResolver));
                 mcpTools.register(new com.organizer3.mcp.tools.EvictFilmographyTool(slugResolver));
@@ -819,6 +820,7 @@ public class Application {
                 mcpTools.register(new com.organizer3.mcp.tools.ScheduleTrashDeletionTool(taskRunner));
                 mcpTools.register(new com.organizer3.mcp.tools.CancelTaskRunTool(taskRunner));
                 mcpTools.register(new com.organizer3.mcp.tools.StartTaskTool(taskRegistry, taskRunner));
+                mcpTools.register(new com.organizer3.mcp.tools.ResolveReviewQueueRowTool(enrichmentReviewQueueRepo));
                 log.info("MCP mutation tools enabled");
             }
             if (mcpConfig.mutationsAllowed() && mcpConfig.fileOpsAllowed()) {

@@ -19,7 +19,7 @@ import org.jdbi.v3.core.Jdbi;
 public class SchemaUpgrader {
 
     /** Must match the version stamped by {@link SchemaInitializer}. */
-    private static final int CURRENT_VERSION = 38;
+    private static final int CURRENT_VERSION = 39;
 
     private final Jdbi jdbi;
 
@@ -213,7 +213,28 @@ public class SchemaUpgrader {
             setVersion(38);
         }
 
+        if (version < 39) {
+            applyV39();
+            setVersion(39);
+        }
+
         log.info("Schema upgrade complete");
+    }
+
+    /**
+     * v39: triage columns on {@code enrichment_review_queue}.
+     *
+     * <p>Adds {@code last_seen_at} (nullable TEXT) — stamped on resolve in future waves,
+     * backfilled from {@code created_at} for all existing rows in this migration.
+     * Adds {@code detail} (nullable TEXT) — reserved for per-category JSON in future waves.
+     */
+    private void applyV39() {
+        log.info("Applying migration v39: last_seen_at + detail columns on enrichment_review_queue");
+        jdbi.useHandle(h -> {
+            addColumnIfMissing(h, "enrichment_review_queue", "last_seen_at", "TEXT");
+            addColumnIfMissing(h, "enrichment_review_queue", "detail",       "TEXT");
+            h.execute("UPDATE enrichment_review_queue SET last_seen_at = created_at WHERE last_seen_at IS NULL");
+        });
     }
 
     /**
