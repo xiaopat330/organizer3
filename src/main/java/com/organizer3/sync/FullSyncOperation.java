@@ -39,10 +39,11 @@ public class FullSyncOperation extends AbstractSyncOperation {
                              TitleEffectiveTagsService titleEffectiveTagsService,
                              ActressCompaniesService actressCompaniesService,
                              com.organizer3.covers.CoverPath coverPath,
-                             com.organizer3.javdb.enrichment.RevalidationPendingRepository revalidationPendingRepo) {
+                             com.organizer3.javdb.enrichment.RevalidationPendingRepository revalidationPendingRepo,
+                             SyncIdentityMatcher identityMatcher) {
         super(titleRepo, videoRepo, actressRepo, volumeRepo, titleLocationRepo, titleActressRepo,
                 indexLoader, titleEffectiveTagsService, actressCompaniesService, coverPath,
-                revalidationPendingRepo);
+                revalidationPendingRepo, identityMatcher);
         this.scannerRegistry = scannerRegistry;
     }
 
@@ -56,6 +57,10 @@ public class FullSyncOperation extends AbstractSyncOperation {
         // Titles are NOT deleted — they may have locations on other volumes.
         videoRepo.deleteByVolume(volume.id());
         titleLocationRepo.deleteByVolume(volume.id());
+
+        // Load soft-match state after clears: titles whose only locations were on this volume
+        // now appear as orphans in the matcher's maps, enabling recode detection.
+        identityMatcher.loadForSync();
 
         // Scan filesystem via the structure-specific scanner
         VolumeScanner scanner = scannerRegistry.forStructureType(volume.structureType());
@@ -75,6 +80,9 @@ public class FullSyncOperation extends AbstractSyncOperation {
                 progress.advance();
             }
         }
+
+        // Flush soft-match candidates before orphan pruning so the queue reflects the new sync state.
+        identityMatcher.flushToQueue(titleRepo.countAll());
 
         // Drop titles whose locations all disappeared AND their local cover files.
         pruneOrphanedTitlesAndCovers(io);

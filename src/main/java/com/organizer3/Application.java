@@ -463,6 +463,9 @@ public class Application {
                 structureTypesByTerm.computeIfAbsent(def.term(), k -> new HashSet<>()).add(structureType);
             }
         }
+        com.organizer3.sync.SyncIdentityMatcher syncIdentityMatcher =
+                new com.organizer3.sync.SyncIdentityMatcher(jdbi, enrichmentReviewQueueRepo);
+
         Command syncAllCommand = null;
         for (Map.Entry<String, SyncCommandDef> entry : defByTerm.entrySet()) {
             String term = entry.getKey();
@@ -472,12 +475,12 @@ public class Application {
                     new FullSyncOperation(scannerRegistry, titleRepo, videoRepo, actressRepo,
                             volumeRepo, titleLocationRepo, titleActressRepo, indexLoader,
                             titleEffectiveTagsService, actressCompaniesService, coverPath,
-                            revalidationPendingRepo);
+                            revalidationPendingRepo, syncIdentityMatcher);
                 case PARTITION ->
                     new PartitionSyncOperation(def.partitions(), titleRepo, videoRepo,
                             actressRepo, volumeRepo, titleLocationRepo, titleActressRepo, indexLoader,
                             titleEffectiveTagsService, actressCompaniesService, coverPath,
-                            revalidationPendingRepo);
+                            revalidationPendingRepo, syncIdentityMatcher);
             };
             SyncCommand syncCmd = new SyncCommand(term, structureTypesByTerm.get(term), op);
             commands.add(syncCmd);
