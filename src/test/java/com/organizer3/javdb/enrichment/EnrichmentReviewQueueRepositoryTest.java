@@ -177,6 +177,35 @@ class EnrichmentReviewQueueRepositoryTest {
         assertTrue(open.stream().noneMatch(r -> r.id() == id), "resolved row must not appear in listOpen");
     }
 
+    // ── resolveAllOpenForTitle ────────────────────────────────────────────────
+
+    @Test
+    void resolveAllOpenForTitle_resolvesAllOpenRowsForTitle_leavesOtherTitlesUntouched() {
+        jdbi.useHandle(h -> h.execute(
+                "INSERT INTO titles(id, code, base_code, label, seq_num) VALUES (2, 'T-2', 'T', 'T', 2)"));
+        repo.enqueue(1L, "slug1", "cast_anomaly",  "actress_filmography");
+        repo.enqueue(1L, "slug1", "ambiguous",     "code_search_fallback");
+        repo.enqueue(2L, "slug2", "fetch_failed",  "code_search_fallback");
+
+        jdbi.useHandle(h -> repo.resolveAllOpenForTitle(1L, "manual_override", h));
+
+        assertEquals(0, repo.countOpen("cast_anomaly"), "cast_anomaly for title 1 must be resolved");
+        assertEquals(0, repo.countOpen("ambiguous"),    "ambiguous for title 1 must be resolved");
+        assertEquals(1, repo.countOpen("fetch_failed"), "row for title 2 must be untouched");
+
+        String resolution = jdbi.withHandle(h ->
+                h.createQuery("SELECT resolution FROM enrichment_review_queue WHERE title_id = 1 AND reason = 'cast_anomaly'")
+                        .mapTo(String.class).one());
+        assertEquals("manual_override", resolution);
+    }
+
+    @Test
+    void resolveAllOpenForTitle_noOpenRows_returnsZero() {
+        // No rows at all for title 1 → should not throw, just return 0
+        int count = jdbi.withHandle(h -> repo.resolveAllOpenForTitle(1L, "manual_override", h));
+        assertEquals(0, count);
+    }
+
     @Test
     void resolveOne_alreadyResolved_returnsFalse_doesNotTouchRow() {
         repo.enqueue(1L, "slug1", "ambiguous", "sentinel_short_circuit");

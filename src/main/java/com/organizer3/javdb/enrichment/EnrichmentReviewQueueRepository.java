@@ -149,6 +149,38 @@ public class EnrichmentReviewQueueRepository {
         return updated > 0;
     }
 
+    /**
+     * Resolves all open queue rows for a title in the given handle (for use inside a transaction).
+     *
+     * @param titleId    the title whose open rows should be resolved
+     * @param resolution the resolution value (e.g. {@code manual_override})
+     * @param h          an open JDBI Handle
+     * @return count of rows resolved
+     */
+    public int resolveAllOpenForTitle(long titleId, String resolution, org.jdbi.v3.core.Handle h) {
+        return h.createUpdate("""
+                        UPDATE enrichment_review_queue
+                        SET resolved_at = :now, resolution = :resolution
+                        WHERE title_id = :titleId AND resolved_at IS NULL
+                        """)
+                .bind("now",        Instant.now().toString())
+                .bind("resolution", resolution)
+                .bind("titleId",    titleId)
+                .execute();
+    }
+
+    /**
+     * Looks up the title_id for a queue row (open or resolved) by its row id.
+     * Returns empty if the row does not exist.
+     */
+    public java.util.Optional<Long> findTitleIdByQueueRowId(long queueRowId) {
+        return jdbi.withHandle(h ->
+                h.createQuery("SELECT title_id FROM enrichment_review_queue WHERE id = :id")
+                        .bind("id", queueRowId)
+                        .mapTo(Long.class)
+                        .findOne());
+    }
+
     /** A single open queue row returned by {@link #listOpen}. */
     public record OpenRow(long id, long titleId, String titleCode, String slug,
                           String reason, String resolverSource, String createdAt) {}

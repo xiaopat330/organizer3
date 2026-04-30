@@ -42,12 +42,25 @@ public class JavdbEnrichmentRepository {
      */
     public void upsertEnrichment(long titleId, String slug, String rawPath, TitleExtract extract,
                                  String resolverSource, String confidence, boolean castValidated) {
+        upsertEnrichment(titleId, slug, rawPath, extract, resolverSource, confidence, castValidated,
+                "enrichment_runner");
+    }
+
+    /**
+     * Same as {@link #upsertEnrichment(long, String, String, TitleExtract, String, String, boolean)}
+     * but records the given {@code historyReason} in the audit snapshot instead of
+     * the default {@code "enrichment_runner"}. Use {@code "manual_override"} for
+     * user-initiated force-enrich operations.
+     */
+    public void upsertEnrichment(long titleId, String slug, String rawPath, TitleExtract extract,
+                                 String resolverSource, String confidence, boolean castValidated,
+                                 String historyReason) {
         String thumbsJson = serialize(extract.thumbnailUrls());
         String castJson   = serialize(extract.cast());
 
         jdbi.useTransaction(h -> {
             // Snapshot prior state before any mutation so the audit trail is accurate.
-            historyRepo.appendIfExists(titleId, "enrichment_runner", h);
+            historyRepo.appendIfExists(titleId, historyReason, h);
 
             // Atomic replace: clear the old assignments first (FK ON DELETE CASCADE is
             // declared in the schema but not enforced — SQLite requires PRAGMA foreign_keys

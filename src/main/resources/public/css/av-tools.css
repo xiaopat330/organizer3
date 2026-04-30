@@ -6718,7 +6718,52 @@
 }
 .er-resolve-btn:hover:not(:disabled) { background: #0c2d42; color: #7dd3fc; }
 
+.er-override-btn {
+  background: #3b0764;
+  color: #e879f9;
+  border: 1px solid #7e22ce;
+}
+.er-override-btn:hover:not(:disabled) { background: #581c87; color: #f0abfc; }
+
 .er-action-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.er-slug-form {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 6px;
+}
+.er-slug-input {
+  font-size: 11px;
+  font-family: monospace;
+  padding: 3px 7px;
+  border-radius: 4px;
+  border: 1px solid #334155;
+  background: #0f172a;
+  color: #e2e8f0;
+  width: 120px;
+}
+.er-slug-submit {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 9px;
+  border-radius: 4px;
+  cursor: pointer;
+  background: #3b0764;
+  color: #e879f9;
+  border: 1px solid #7e22ce;
+}
+.er-slug-submit:hover { background: #581c87; color: #f0abfc; }
+.er-slug-cancel {
+  font-size: 11px;
+  padding: 3px 7px;
+  border-radius: 4px;
+  cursor: pointer;
+  background: transparent;
+  color: #94a3b8;
+  border: 1px solid #334155;
+}
+.er-slug-cancel:hover { color: #e2e8f0; }
 
 .er-empty {
   padding: 48px 24px;
