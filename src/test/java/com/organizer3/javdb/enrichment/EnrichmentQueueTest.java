@@ -7,6 +7,8 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import org.jdbi.v3.core.Handle;
+
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.time.Instant;
@@ -705,6 +707,94 @@ class EnrichmentQueueTest {
         queue.enqueueActressProfileForce(10L, Priority.HIGH);
         EnrichmentJob job = queue.claimNextJob().get();
         assertEquals(Priority.HIGH, job.priority());
+    }
+
+    // ── dischargeFailedFetchTitle tests ──────────────────────────────────────
+
+    @Test
+    void dischargeFailedFetchTitle_updatesOnMatchingFailedRow() {
+        queue.enqueueTitle(1L, 10L);
+        EnrichmentJob job = queue.claimNextJob().get();
+        queue.markPermanentlyFailed(job.id(), "ambiguous");
+
+        int[] discharged = {0};
+        Jdbi.create(connection).useTransaction(h -> {
+            discharged[0] = queue.dischargeFailedFetchTitle(1L, "manual_picker", h);
+        });
+
+        assertEquals(1, discharged[0], "should discharge exactly one row");
+        String status = Jdbi.create(connection).withHandle(h ->
+                h.createQuery("SELECT status FROM javdb_enrichment_queue WHERE id = :id")
+                        .bind("id", job.id()).mapTo(String.class).one());
+        assertEquals("done", status);
+        String lastError = Jdbi.create(connection).withHandle(h ->
+                h.createQuery("SELECT last_error FROM javdb_enrichment_queue WHERE id = :id")
+                        .bind("id", job.id()).mapTo(String.class).one());
+        assertTrue(lastError.contains("[resolved: manual_picker]"), "last_error must be annotated");
+    }
+
+    @Test
+    void dischargeFailedFetchTitle_returnsZero_whenNoFailedRow() {
+        int[] discharged = {-1};
+        Jdbi.create(connection).useTransaction(h -> {
+            discharged[0] = queue.dischargeFailedFetchTitle(99L, "manual_picker", h);
+        });
+        assertEquals(0, discharged[0], "should return 0 when no matching failed row");
+    }
+
+    @Test
+    void dischargeFailedFetchTitle_doesNotTouchPendingOrInFlight() {
+        queue.enqueueTitle(1L, 10L); // pending
+        queue.enqueueTitle(2L, 10L);
+        queue.claimNextJob(); // title 1 → in_flight
+
+        Jdbi.create(connection).useTransaction(h -> {
+            queue.dischargeFailedFetchTitle(1L, "manual_picker", h);
+            queue.dischargeFailedFetchTitle(2L, "manual_picker", h);
+        });
+
+        // Both should be untouched (in_flight and pending, not failed)
+        assertEquals(2, queue.countPending(), "pending and in_flight rows must not be discharged");
+    }
+
+    @Test
+    void dischargeFailedFetchTitle_updatesMultipleFailedRows() {
+        // Simulate force-reenrich history: two failed fetch_title rows for the same title
+        Jdbi jdbi = Jdbi.create(connection);
+        String now = Instant.now().toString();
+        jdbi.useHandle(h -> {
+            h.execute("INSERT INTO javdb_enrichment_queue (job_type, target_id, actress_id, source, priority, status, attempts, next_attempt_at, created_at, updated_at, last_error) " +
+                      "VALUES ('fetch_title', 1, 10, 'actress', 'NORMAL', 'failed', 1, ?, ?, ?, 'ambiguous')", now, now, now);
+            h.execute("INSERT INTO javdb_enrichment_queue (job_type, target_id, actress_id, source, priority, status, attempts, next_attempt_at, created_at, updated_at, last_error) " +
+                      "VALUES ('fetch_title', 1, 10, 'actress', 'NORMAL', 'failed', 2, ?, ?, ?, 'not_found')", now, now, now);
+        });
+
+        int[] discharged = {0};
+        jdbi.useTransaction(h -> {
+            discharged[0] = queue.dischargeFailedFetchTitle(1L, "manual_override", h);
+        });
+
+        assertEquals(2, discharged[0], "all failed rows for the title must be discharged");
+        long stillFailed = jdbi.withHandle(h ->
+                h.createQuery("SELECT COUNT(*) FROM javdb_enrichment_queue WHERE target_id = 1 AND status = 'failed'")
+                        .mapTo(Long.class).one());
+        assertEquals(0, stillFailed);
+    }
+
+    @Test
+    void dischargeFailedFetchTitle_idempotent() {
+        queue.enqueueTitle(1L, 10L);
+        EnrichmentJob job = queue.claimNextJob().get();
+        queue.markPermanentlyFailed(job.id(), "ambiguous");
+
+        Jdbi jdbi = Jdbi.create(connection);
+        jdbi.useTransaction(h -> queue.dischargeFailedFetchTitle(1L, "manual_picker", h));
+        int[] second = {-1};
+        jdbi.useTransaction(h -> {
+            second[0] = queue.dischargeFailedFetchTitle(1L, "manual_picker", h);
+        });
+
+        assertEquals(0, second[0], "second discharge call must find nothing to update");
     }
 
     // ── claimNextUrgentJob tests ──────────────────────────────────────────────

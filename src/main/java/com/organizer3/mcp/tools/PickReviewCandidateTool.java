@@ -2,6 +2,7 @@ package com.organizer3.mcp.tools;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.organizer3.javdb.enrichment.EnrichmentQueue;
 import com.organizer3.javdb.enrichment.EnrichmentReviewQueueRepository;
 import com.organizer3.javdb.enrichment.JavdbEnrichmentRepository;
 import com.organizer3.javdb.enrichment.JavdbStagingRepository;
@@ -34,18 +35,21 @@ public class PickReviewCandidateTool implements Tool {
     private final JavdbEnrichmentRepository enrichmentRepo;
     private final JavdbStagingRepository stagingRepo;
     private final RevalidationPendingRepository revalidationPendingRepo;
+    private final EnrichmentQueue enrichmentQueue;
     private final ObjectMapper json;
 
     public PickReviewCandidateTool(Jdbi jdbi,
                                    EnrichmentReviewQueueRepository reviewQueueRepo,
                                    JavdbEnrichmentRepository enrichmentRepo,
                                    JavdbStagingRepository stagingRepo,
-                                   RevalidationPendingRepository revalidationPendingRepo) {
+                                   RevalidationPendingRepository revalidationPendingRepo,
+                                   EnrichmentQueue enrichmentQueue) {
         this.jdbi                   = jdbi;
         this.reviewQueueRepo        = reviewQueueRepo;
         this.enrichmentRepo         = enrichmentRepo;
         this.stagingRepo            = stagingRepo;
         this.revalidationPendingRepo = revalidationPendingRepo;
+        this.enrichmentQueue        = enrichmentQueue;
         this.json                   = new ObjectMapper();
     }
 
@@ -123,6 +127,7 @@ public class PickReviewCandidateTool implements Tool {
                     "manual_picker", "HIGH", false, "manual_picker");
             reviewQueueRepo.resolveAllOpenForTitle(row.titleId(), "manual_picker", h);
             revalidationPendingRepo.enqueue(row.titleId(), "manual_picker", h);
+            enrichmentQueue.dischargeFailedFetchTitle(row.titleId(), "manual_picker", h);
         });
 
         log.info("pick_review_candidate: wrote enrichment for title {} (code={}, slug={}) via picker",

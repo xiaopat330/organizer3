@@ -289,6 +289,20 @@ public class EnrichmentReviewQueueRepository {
         return updated > 0;
     }
 
+    /** Handle-scoped variant of {@link #resolveOne} for use inside an existing transaction. */
+    public boolean resolveOne(long id, String resolution, org.jdbi.v3.core.Handle h) {
+        int updated = h.createUpdate("""
+                        UPDATE enrichment_review_queue
+                        SET resolved_at = :now, resolution = :resolution
+                        WHERE id = :id AND resolved_at IS NULL
+                        """)
+                .bind("now",        Instant.now().toString())
+                .bind("resolution", resolution)
+                .bind("id",         id)
+                .execute();
+        return updated > 0;
+    }
+
     /**
      * Resolves all open queue rows for a title in the given handle (for use inside a transaction).
      *

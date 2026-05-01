@@ -19,7 +19,7 @@ import org.jdbi.v3.core.Jdbi;
 public class SchemaUpgrader {
 
     /** Must match the version stamped by {@link SchemaInitializer}. */
-    private static final int CURRENT_VERSION = 40;
+    private static final int CURRENT_VERSION = 41;
 
     private final Jdbi jdbi;
 
@@ -223,6 +223,11 @@ public class SchemaUpgrader {
             setVersion(40);
         }
 
+        if (version < 41) {
+            applyV41();
+            setVersion(41);
+        }
+
         log.info("Schema upgrade complete");
     }
 
@@ -248,6 +253,37 @@ public class SchemaUpgrader {
                       WHERE status = 'pending'
                     """);
         });
+    }
+
+    /**
+     * v41: backfill — discharge stale {@code javdb_enrichment_queue} rows whose review has
+     * already been manually resolved.
+     *
+     * <p>Marks {@code status='done'} for any {@code fetch_title} row that is still {@code failed}
+     * but whose title has a closed {@code enrichment_review_queue} row with an operator-resolution
+     * value (manual_picker, manual_override, accepted_gap, marked_resolved, dismissed).
+     * These rows were left orphaned by the missing reconciliation path now fixed by this release.
+     *
+     * <p>Idempotent: re-running finds zero matching rows.
+     */
+    private void applyV41() {
+        log.info("Applying migration v41: discharge stale failed enrichment queue rows with closed review rows");
+        jdbi.useHandle(h -> h.execute("""
+                UPDATE javdb_enrichment_queue
+                SET status = 'done',
+                    updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now'),
+                    last_error = COALESCE(last_error, '') || ' [resolved: backfill_cleanup]'
+                WHERE job_type = 'fetch_title'
+                  AND status = 'failed'
+                  AND target_id IN (
+                    SELECT title_id FROM enrichment_review_queue
+                    WHERE resolved_at IS NOT NULL
+                      AND resolution IN (
+                        'manual_picker', 'manual_override',
+                        'accepted_gap', 'marked_resolved', 'dismissed'
+                      )
+                  )
+                """));
     }
 
     /**
