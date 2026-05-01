@@ -1587,27 +1587,59 @@ function renderQueueItems(items) {
   queueTableWrap.style.display = '';
 
   queueTableBody.innerHTML = items.map(item => {
-    const typeLabel = item.jobType === 'fetch_actress_profile' ? 'profile' : 'title';
+    const isProfile = item.jobType === 'fetch_actress_profile';
+    const typeLabel = isProfile ? 'profile' : 'title';
     const titleCell = item.titleCode || '—';
     const age = formatQueueAge(item.updatedAt);
     const statusClass = item.status === 'in_flight' ? 'jd-qi-inflight'
-                      : item.status === 'failed'    ? 'jd-qi-failed'
+                      : item.status === 'failed'    ? queueFailClass(item.lastError)
                       : item.status === 'paused'    ? 'jd-qi-paused' : 'jd-qi-pending';
     const statusLabel = item.status === 'in_flight' ? 'in flight'
+                      : item.status === 'failed'    ? queueFailLabel(item.lastError)
                       : item.status === 'paused'    ? '⏸ paused' : item.status;
     const etaCell = item.status === 'pending' ? formatEta(item.queuePosition) : '—';
     const actions = renderQueueItemActions(item);
+    const codeCell = (!isProfile && item.coverUrl)
+      ? `<button class="jd-qi-cover-link" data-cover-url="${esc(item.coverUrl)}" data-code="${esc(titleCell)}">${esc(titleCell)}</button>`
+      : esc(titleCell);
     return `<tr>
       <td><button class="jd-qi-actress-link" data-actress-id="${item.actressId}">${esc(item.actressName)}</button></td>
-      <td class="jd-qi-code">${esc(titleCell)}</td>
+      <td class="jd-qi-code">${codeCell}</td>
       <td>${typeLabel}</td>
-      <td><span class="jd-qi-status ${statusClass}">${statusLabel}</span></td>
+      <td><span class="jd-qi-status ${statusClass}" title="${esc(item.lastError || '')}">${statusLabel}</span></td>
       <td>${item.attempts}</td>
       <td class="jd-qi-eta-cell">${etaCell}</td>
       <td class="jd-qi-age">${age}</td>
       <td class="jd-qi-actions-cell">${actions}</td>
     </tr>`;
   }).join('');
+}
+
+// Failure reason → short display label for the queue status cell.
+const QUEUE_FAIL_LABELS = {
+  ambiguous:               'ambiguous',
+  cast_anomaly:            'cast anomaly',
+  sentinel_actress:        'needs actress',
+  not_found:               'not on javdb',
+  no_match_in_filmography: 'not in filmography',
+  fetch_failed:            'fetch failed',
+  no_slug:                 'no slug',
+  title_not_in_db:         'orphaned job',
+  unknown_job_type:        'internal error',
+};
+
+// Three CSS modifier buckets — resolvable (amber), dead-end (slate), transient (red).
+const QUEUE_FAIL_RESOLVABLE  = new Set(['ambiguous', 'cast_anomaly', 'sentinel_actress']);
+const QUEUE_FAIL_DEAD_END    = new Set(['not_found', 'no_match_in_filmography', 'title_not_in_db', 'unknown_job_type']);
+
+function queueFailLabel(lastError) {
+  return QUEUE_FAIL_LABELS[lastError] || (lastError ? lastError.replace(/_/g, ' ') : 'failed');
+}
+
+function queueFailClass(lastError) {
+  if (QUEUE_FAIL_RESOLVABLE.has(lastError)) return 'jd-qi-failed-resolvable';
+  if (QUEUE_FAIL_DEAD_END.has(lastError))   return 'jd-qi-failed-deadend';
+  return 'jd-qi-failed';   // fetch_failed, no_slug, unknown → red
 }
 
 function renderQueueItemActions(item) {
@@ -1661,6 +1693,12 @@ function formatQueueAge(updatedAt) {
 // ── Queue table event delegation ───────────────────────────────────────────
 
 queueTableBody.addEventListener('click', async e => {
+  const coverBtn = e.target.closest('.jd-qi-cover-link[data-cover-url]');
+  if (coverBtn) {
+    showJdCoverModal(coverBtn.dataset.coverUrl, coverBtn.dataset.code || '');
+    return;
+  }
+
   const actressBtn = e.target.closest('.jd-qi-actress-link');
   if (actressBtn) {
     const actressId = parseInt(actressBtn.dataset.actressId, 10);

@@ -90,8 +90,10 @@ public class JavdbDiscoveryService {
             long id, String jobType, String status, int attempts,
             long actressId, String actressName,
             Long titleId, String titleCode,
+            String coverUrl,        // null if no local cover exists or this is a profile job
             String updatedAt,
-            Integer queuePosition   // 1-based position among pending items; null for in_flight/failed
+            Integer queuePosition,  // 1-based position among pending items; null for in_flight/failed
+            String lastError        // null unless status='failed'; one of the permanent-fail reason codes
     ) {}
 
     public record QueueStatus(int pending, int inFlight, int failed, int pausedItems, boolean paused,
@@ -487,7 +489,10 @@ public class JavdbDiscoveryService {
                   q.id, q.job_type, q.status, q.attempts,
                   q.actress_id, a.canonical_name AS actress_name,
                   CASE WHEN q.job_type = 'fetch_title' THEN q.target_id ELSE NULL END AS title_id,
-                  CASE WHEN q.job_type = 'fetch_title' THEN t.code ELSE NULL END AS title_code,
+                  CASE WHEN q.job_type = 'fetch_title' THEN t.code      ELSE NULL END AS title_code,
+                  CASE WHEN q.job_type = 'fetch_title' THEN t.label     ELSE NULL END AS title_label,
+                  CASE WHEN q.job_type = 'fetch_title' THEN t.base_code ELSE NULL END AS title_base_code,
+                  q.last_error,
                   q.updated_at
                 FROM javdb_enrichment_queue q
                 JOIN actresses a ON a.id = q.actress_id
@@ -498,18 +503,31 @@ public class JavdbDiscoveryService {
                   COALESCE(q.sort_order, 9223372036854775807) ASC,
                   q.id ASC
                 """)
-                .map((rs, ctx) -> new QueueItem(
-                        rs.getLong("id"),
-                        rs.getString("job_type"),
-                        rs.getString("status"),
-                        rs.getInt("attempts"),
-                        rs.getLong("actress_id"),
-                        rs.getString("actress_name"),
-                        rs.getObject("title_id") != null ? rs.getLong("title_id") : null,
-                        rs.getString("title_code"),
-                        rs.getString("updated_at"),
-                        null
-                ))
+                .map((rs, ctx) -> {
+                    String label    = rs.getString("title_label");
+                    String baseCode = rs.getString("title_base_code");
+                    String coverUrl = null;
+                    if (coverPath != null && label != null && baseCode != null) {
+                        Title synth = Title.builder().label(label).baseCode(baseCode).build();
+                        coverUrl = coverPath.find(synth)
+                                .map(p -> "/covers/" + label.toUpperCase() + "/" + p.getFileName())
+                                .orElse(null);
+                    }
+                    return new QueueItem(
+                            rs.getLong("id"),
+                            rs.getString("job_type"),
+                            rs.getString("status"),
+                            rs.getInt("attempts"),
+                            rs.getLong("actress_id"),
+                            rs.getString("actress_name"),
+                            rs.getObject("title_id") != null ? rs.getLong("title_id") : null,
+                            rs.getString("title_code"),
+                            coverUrl,
+                            rs.getString("updated_at"),
+                            null,
+                            rs.getString("last_error")
+                    );
+                })
                 .list());
 
         // Assign 1-based positions to pending items in their rendered order.
@@ -519,7 +537,7 @@ public class JavdbDiscoveryService {
             if ("pending".equals(item.status())) {
                 result.add(new QueueItem(item.id(), item.jobType(), item.status(), item.attempts(),
                         item.actressId(), item.actressName(), item.titleId(), item.titleCode(),
-                        item.updatedAt(), ++pendingPos));
+                        item.coverUrl(), item.updatedAt(), ++pendingPos, item.lastError()));
             } else {
                 result.add(item);
             }
