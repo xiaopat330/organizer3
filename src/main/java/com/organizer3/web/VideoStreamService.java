@@ -63,7 +63,7 @@ public class VideoStreamService {
      * returns from DB on subsequent calls.
      */
     public List<VideoInfo> findVideos(String titleCode) throws IOException {
-        return findVideos(titleCode, null);
+        return findVideos(titleCode, null, null);
     }
 
     /**
@@ -72,27 +72,40 @@ public class VideoStreamService {
      * from SMB if needed. If null, behaves like {@link #findVideos(String)}.
      */
     public List<VideoInfo> findVideos(String titleCode, String volumeId) throws IOException {
+        return findVideos(titleCode, volumeId, null);
+    }
+
+    /**
+     * Returns videos for a title, optionally scoped to a specific volume+location path.
+     * {@code locPath} is the relative path within the volume (e.g. "stars/Foo/Foo (BAR-123)").
+     * When provided alongside {@code volumeId}, videos are further filtered to those whose
+     * path starts with {@code locPath}, disambiguating two copies on the same volume.
+     */
+    public List<VideoInfo> findVideos(String titleCode, String volumeId, String locPath) throws IOException {
         Title title = titleRepo.findByCode(titleCode).orElse(null);
         if (title == null) return List.of();
 
         List<Video> existing = title.getId() != null ? videoRepo.findByTitle(title.getId()) : List.of();
 
         if (volumeId != null) {
-            // Filter DB results to this specific volume
+            // Filter DB results to this specific volume (and optionally location path)
             List<Video> forVolume = existing.stream()
                     .filter(v -> volumeId.equals(v.getVolumeId()))
+                    .filter(v -> locPath == null || v.getPath().toString().startsWith(locPath))
                     .toList();
             if (!forVolume.isEmpty()) {
                 return forVolume.stream().map(v -> {
                     TitleLocation loc = title.getLocations().stream()
                             .filter(l -> l.getVolumeId().equals(v.getVolumeId()))
+                            .filter(l -> locPath == null || v.getPath().toString().startsWith(l.getPath().toString()))
                             .findFirst().orElse(null);
                     return toInfo(v, null, loc);
                 }).toList();
             }
-            // Not in DB for this volume — discover from this specific location
+            // Not in DB for this volume/location — discover from this specific location
             TitleLocation loc = title.getLocations().stream()
                     .filter(l -> volumeId.equals(l.getVolumeId()))
+                    .filter(l -> locPath == null || l.getPath().toString().equals(locPath))
                     .findFirst().orElse(null);
             return loc != null ? discoverFromLocation(title, loc) : List.of();
         }

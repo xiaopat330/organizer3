@@ -675,7 +675,9 @@ async function fetchLocVideos(titleCode, locs) {
   const results = await Promise.all(
     locs.map(async (loc) => {
       try {
-        const res = await fetch(`/api/titles/${encodeURIComponent(titleCode)}/videos?volumeId=${encodeURIComponent(loc.volumeId)}`);
+        let url = `/api/titles/${encodeURIComponent(titleCode)}/videos?volumeId=${encodeURIComponent(loc.volumeId)}`;
+        if (loc.locPath) url += `&locPath=${encodeURIComponent(loc.locPath)}`;
+        const res = await fetch(url);
         return await res.json();
       } catch {
         return [];

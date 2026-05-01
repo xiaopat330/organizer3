@@ -37,7 +37,8 @@ public class VideoRoutes {
             app.get("/api/titles/{code}/videos", ctx -> {
                 String code = ctx.pathParam("code");
                 String volumeId = ctx.queryParam("volumeId");
-                ctx.json(videoStreamService.findVideos(code, volumeId));
+                String locPath = ctx.queryParam("locPath");
+                ctx.json(videoStreamService.findVideos(code, volumeId, locPath));
             });
 
             app.get("/api/stream/{videoId}", ctx -> {

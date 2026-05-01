@@ -333,6 +333,7 @@ public class TitleBrowseService {
                             .map(loc -> TitleSummary.LocationEntry.builder()
                                     .volumeId(loc.getVolumeId())
                                     .nasPath(volumeSmbPaths.get(loc.getVolumeId()) + loc.getPath())
+                                    .locPath(loc.getPath().toString())
                                     .build())
                             .distinct()
                             .toList();

@@ -67,6 +67,8 @@ public class TitleSummary {
     public static class LocationEntry {
         String volumeId;
         String nasPath;
+        /** Relative path within the volume (e.g. "stars/Jessica Kizaki/Jessica Kizaki (ADN-118)"). */
+        String locPath;
     }
 
     /** One raw JavDB enrichment tag for a title card. */
