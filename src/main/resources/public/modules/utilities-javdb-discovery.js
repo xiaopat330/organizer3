@@ -1602,9 +1602,12 @@ function renderQueueItems(items) {
     const codeCell = (!isProfile && item.coverUrl)
       ? `<button class="jd-qi-cover-link" data-cover-url="${esc(item.coverUrl)}" data-code="${esc(titleCell)}">${esc(titleCell)}</button>`
       : esc(titleCell);
-    const canReview = item.status === 'failed' && item.reviewQueueId != null;
+    const canReview  = item.status === 'failed' && item.reviewQueueId != null;
+    const canAddSlug = item.status === 'failed' && item.lastError === 'no_slug';
     const statusCell = canReview
       ? `<button class="jd-qi-status ${statusClass} jd-qi-review-link" data-review-id="${item.reviewQueueId}" title="Click to review in Review Queue">${statusLabel}</button>`
+      : canAddSlug
+      ? `<button class="jd-qi-status ${statusClass} jd-qi-slug-link" data-actress-id="${item.actressId}" title="Click to assign slug in Discovery">${statusLabel}</button>`
       : `<span class="jd-qi-status ${statusClass}" title="${esc(item.lastError || '')}">${statusLabel}</span>`;
     return `<tr>
       <td><button class="jd-qi-actress-link" data-actress-id="${item.actressId}">${esc(item.actressName)}</button></td>
@@ -1671,6 +1674,13 @@ async function navigateToActress(actressId) {
   if (li) li.scrollIntoView({ block: 'nearest' });
 }
 
+export async function navigateToActressProfile(actressId) {
+  await navigateToActress(actressId);
+  subtabBtns.forEach(b => b.classList.toggle('selected', b.dataset.tab === 'profile'));
+  state.activeTab = 'profile';
+  await renderActiveTab();
+}
+
 function resetFiltersToAll() {
   state.alphaFilter = 'All';
   state.tierFilter = new Set();
@@ -1704,6 +1714,14 @@ queueTableBody.addEventListener('click', async e => {
   if (reviewBtn) {
     document.dispatchEvent(new CustomEvent('navigate-to-review-item', {
       detail: { reviewQueueId: parseInt(reviewBtn.dataset.reviewId, 10) }
+    }));
+    return;
+  }
+
+  const slugBtn = e.target.closest('.jd-qi-slug-link[data-actress-id]');
+  if (slugBtn) {
+    document.dispatchEvent(new CustomEvent('navigate-to-discovery-actress-profile', {
+      detail: { actressId: parseInt(slugBtn.dataset.actressId, 10) }
     }));
     return;
   }
