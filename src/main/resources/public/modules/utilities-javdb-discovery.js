@@ -90,6 +90,7 @@ const emptyMsg          = document.getElementById('jd-empty');
 const panel             = document.getElementById('jd-actress-panel');
 const enrichBtn         = document.getElementById('jd-enrich-btn');
 const cancelActressBtn  = document.getElementById('jd-cancel-actress-btn');
+const titlesActionBar   = document.getElementById('jd-titles-action-bar');
 const subtabBtns        = panel?.querySelectorAll('.jd-subtab') ?? [];
 const titlesView        = document.getElementById('jd-subview-titles');
 const profileView       = document.getElementById('jd-subview-profile');
@@ -564,6 +565,7 @@ async function renderActiveTab() {
 
 async function renderTitlesTab() {
   titlesView.style.display    = '';
+  titlesActionBar.style.display = '';
   profileView.style.display   = 'none';
   conflictsView.style.display = 'none';
   errorsView.style.display    = 'none';
@@ -902,6 +904,7 @@ function titleRow(t) {
 async function renderProfileTab() {
   profileView.style.display   = '';
   titlesView.style.display    = 'none';
+  titlesActionBar.style.display = 'none';
   conflictsView.style.display = 'none';
   errorsView.style.display    = 'none';
   profileView.innerHTML = '<div class="jd-loading">Loading…</div>';
@@ -1095,6 +1098,7 @@ async function deriveSlugForSelected(btn) {
 async function renderConflictsTab() {
   conflictsView.style.display = '';
   titlesView.style.display    = 'none';
+  titlesActionBar.style.display = 'none';
   profileView.style.display   = 'none';
   errorsView.style.display    = 'none';
   conflictsView.innerHTML = '<div class="jd-loading">Loading…</div>';
@@ -1204,6 +1208,7 @@ function errorReasonLabel(raw) {
 async function renderErrorsTab() {
   errorsView.style.display    = '';
   titlesView.style.display    = 'none';
+  titlesActionBar.style.display = 'none';
   profileView.style.display   = 'none';
   conflictsView.style.display = 'none';
   errorsView.innerHTML = '<div class="jd-loading">Loading…</div>';

@@ -5817,11 +5817,13 @@ button.jd-status:hover { filter: brightness(1.15); }
 .jd-derive-candidates th, .jd-derive-candidates td { padding: 4px 12px; border-bottom: 1px solid #1e293b; }
 .jd-derive-candidates code { color: #c4b5fd; }
 
-/* ── Per-actress panel action row ────────────────────────────────────────── */
-.jd-panel-actions {
+/* ── Titles tab action bar ───────────────────────────────────────────────── */
+.jd-titles-action-bar {
   display: flex;
   gap: 8px;
-  padding: 10px 16px 0;
+  padding: 8px 14px;
+  background: #0b1120;
+  border-bottom: 1px solid #1e293b;
   flex-shrink: 0;
 }
 
