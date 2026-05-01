@@ -2,7 +2,9 @@ package com.organizer3.web;
 
 import com.organizer3.covers.CoverPath;
 import com.organizer3.javdb.enrichment.ActressAvatarStore;
+import com.organizer3.javdb.enrichment.EnrichmentJob;
 import com.organizer3.javdb.enrichment.EnrichmentQueue;
+import com.organizer3.javdb.enrichment.Priority;
 import com.organizer3.javdb.enrichment.EnrichmentRunner;
 import com.organizer3.javdb.enrichment.JavdbActressStagingRow;
 import com.organizer3.javdb.enrichment.JavdbStagingRepository;
@@ -35,7 +37,7 @@ public class JavdbEnrichmentActionService {
     public int enqueueActress(long actressId) {
         List<Title> titles = titleRepo.findByActress(actressId);
         for (Title title : titles) {
-            queue.enqueueTitle(title.getId(), actressId);
+            queue.enqueueTitle(EnrichmentJob.SOURCE_ACTRESS, title.getId(), actressId, Priority.HIGH);
         }
         return titles.size();
     }
@@ -118,12 +120,12 @@ public class JavdbEnrichmentActionService {
 
     /** Force re-enqueues a single title even if it was already successfully enriched. */
     public void reEnqueueTitle(long titleId, long actressId) {
-        queue.enqueueTitleForce(titleId, actressId);
+        queue.enqueueTitleForce(titleId, actressId, Priority.HIGH);
     }
 
     /** Force re-enqueues the actress profile even if it was already successfully fetched. */
     public void reEnqueueActressProfile(long actressId) {
-        queue.enqueueActressProfileForce(actressId);
+        queue.enqueueActressProfileForce(actressId, Priority.HIGH);
     }
 
     /**
@@ -150,7 +152,7 @@ public class JavdbEnrichmentActionService {
         Optional<JavdbActressStagingRow> existing = stagingRepo.findActressStaging(actressId);
         if (existing.isPresent() && existing.get().javdbSlug() != null) {
             // Already has a slug — just enqueue the profile fetch.
-            queue.enqueueActressProfileForce(actressId);
+            queue.enqueueActressProfileForce(actressId, Priority.HIGH);
             JavdbActressStagingRow row = existing.get();
             return new DeriveSlugResult("already_resolved", row.javdbSlug(), null, 0, 0, List.of());
         }
@@ -169,7 +171,7 @@ public class JavdbEnrichmentActionService {
         }
 
         stagingRepo.upsertActressSlugOnly(actressId, top.slug(), top.sampleTitleCode());
-        queue.enqueueActressProfile(actressId);
+        queue.enqueueActressProfile(actressId, Priority.HIGH);
         return new DeriveSlugResult("ok", top.slug(), top.name(), top.titleCount(), totalEnriched, candidates);
     }
 
