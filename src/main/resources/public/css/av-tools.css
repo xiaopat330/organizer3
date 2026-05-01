@@ -6175,6 +6175,12 @@
   font-size: 11px;
   font-weight: 600;
 }
+button.jd-qi-status.jd-qi-review-link {
+  cursor: pointer;
+  border: none;
+  text-decoration: underline dotted;
+}
+button.jd-qi-status.jd-qi-review-link:hover { filter: brightness(1.2); }
 .jd-qi-inflight          { background: #1a3a1a; color: #4ade80; }
 .jd-qi-pending           { background: #1a2a3a; color: #60a5fa; }
 .jd-qi-failed            { background: #3a1a1a; color: #f87171; }   /* transient — fetch_failed, no_slug */
@@ -6735,6 +6741,11 @@
 }
 .er-table tbody tr:hover { background: #111d2e; }
 .er-table tbody td { padding: 7px 10px; vertical-align: middle; }
+.er-row-highlight { animation: er-flash 2s ease-out forwards; }
+@keyframes er-flash {
+  0%   { background: #1e3a1e; }
+  100% { background: transparent; }
+}
 
 .er-col-code    { width: 80px;  white-space: nowrap; font-weight: 600; color: #e2e8f0; }
 .er-col-slug    { width: 160px; color: #94a3b8; font-family: monospace; font-size: 11px; }

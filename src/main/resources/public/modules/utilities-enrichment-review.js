@@ -27,6 +27,14 @@ export function hideEnrichmentReviewView() {
   view.style.display = 'none';
 }
 
+export function focusReviewItem(id) {
+  const row = tableBody.querySelector(`tr[data-id="${id}"]`);
+  if (!row) return;
+  row.scrollIntoView({ block: 'center', behavior: 'smooth' });
+  row.classList.add('er-row-highlight');
+  setTimeout(() => row.classList.remove('er-row-highlight'), 2000);
+}
+
 async function reload() {
   headerEl.textContent = 'Enrichment Review Queue — loading…';
   try {
@@ -97,6 +105,7 @@ function renderTable() {
 function makeRow(row) {
   const tr = document.createElement('tr');
   tr.className = 'er-row';
+  tr.dataset.id = row.id;
   const isOrphan          = row.reason === 'orphan_enriched';
   const isAmbiguous       = row.reason === 'ambiguous';
   const isRecode          = row.reason === 'recode_candidate';

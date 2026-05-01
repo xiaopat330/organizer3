@@ -1602,11 +1602,15 @@ function renderQueueItems(items) {
     const codeCell = (!isProfile && item.coverUrl)
       ? `<button class="jd-qi-cover-link" data-cover-url="${esc(item.coverUrl)}" data-code="${esc(titleCell)}">${esc(titleCell)}</button>`
       : esc(titleCell);
+    const canReview = item.status === 'failed' && item.reviewQueueId != null;
+    const statusCell = canReview
+      ? `<button class="jd-qi-status ${statusClass} jd-qi-review-link" data-review-id="${item.reviewQueueId}" title="Click to review in Review Queue">${statusLabel}</button>`
+      : `<span class="jd-qi-status ${statusClass}" title="${esc(item.lastError || '')}">${statusLabel}</span>`;
     return `<tr>
       <td><button class="jd-qi-actress-link" data-actress-id="${item.actressId}">${esc(item.actressName)}</button></td>
       <td class="jd-qi-code">${codeCell}</td>
       <td>${typeLabel}</td>
-      <td><span class="jd-qi-status ${statusClass}" title="${esc(item.lastError || '')}">${statusLabel}</span></td>
+      <td>${statusCell}</td>
       <td>${item.attempts}</td>
       <td class="jd-qi-eta-cell">${etaCell}</td>
       <td class="jd-qi-age">${age}</td>
@@ -1693,6 +1697,14 @@ queueTableBody.addEventListener('click', async e => {
   const coverBtn = e.target.closest('.jd-qi-cover-link[data-cover-url]');
   if (coverBtn) {
     showJdCoverModal(coverBtn.dataset.coverUrl, coverBtn.dataset.code || '');
+    return;
+  }
+
+  const reviewBtn = e.target.closest('.jd-qi-review-link[data-review-id]');
+  if (reviewBtn) {
+    document.dispatchEvent(new CustomEvent('navigate-to-review-item', {
+      detail: { reviewQueueId: parseInt(reviewBtn.dataset.reviewId, 10) }
+    }));
     return;
   }
 

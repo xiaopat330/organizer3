@@ -15,7 +15,7 @@ import { showMergeCandidatesView, hideMergeCandidatesView, wireMergeCandidatesEv
 import { showTrashView, hideTrashView } from './utilities-trash.js';
 import { showJavdbDiscoveryView, hideJavdbDiscoveryView } from './utilities-javdb-discovery.js';
 import { showTagHealthView, hideTagHealthView } from './utilities-tag-health.js';
-import { showEnrichmentReviewView, hideEnrichmentReviewView } from './utilities-enrichment-review.js';
+import { showEnrichmentReviewView, hideEnrichmentReviewView, focusReviewItem } from './utilities-enrichment-review.js';
 
 // ── DOM refs ──────────────────────────────────────────────────────────────
 const actionBtn         = document.getElementById('action-btn');
@@ -440,5 +440,14 @@ enrichmentReviewBtn.addEventListener('click', () => {
   updateBreadcrumb([{ label: 'Tools' }, { label: 'Review Queue' }]);
   hideAllToolViews();
   showEnrichmentReviewView();
+});
+
+document.addEventListener('navigate-to-review-item', async e => {
+  showActionView('enrichment-review');
+  selectTool(enrichmentReviewBtn);
+  updateBreadcrumb([{ label: 'Tools' }, { label: 'Review Queue' }]);
+  hideAllToolViews();
+  await showEnrichmentReviewView();
+  focusReviewItem(e.detail.reviewQueueId);
 });
 
