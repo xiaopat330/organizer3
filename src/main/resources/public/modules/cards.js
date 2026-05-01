@@ -299,14 +299,7 @@ export function makeActressCard(a) {
   const coverWrap = document.createElement('div');
   coverWrap.className = 'cover-wrap';
 
-  if (a.localAvatarUrl) {
-    const img = document.createElement('img');
-    img.className = 'cover-img';
-    img.src = a.localAvatarUrl;
-    img.alt = a.canonicalName;
-    img.loading = 'lazy';
-    coverWrap.appendChild(img);
-  } else if (covers.length === 0) {
+  if (covers.length === 0) {
     coverWrap.innerHTML = `<div class="cover-placeholder">—</div>`;
   } else if (a.rejected || covers.length < 2) {
     const img = document.createElement('img');
@@ -402,14 +395,7 @@ export function makeCompactActressCard(a) {
   const covers = a.coverUrls || [];
   const coverWrap = document.createElement('div');
   coverWrap.className = 'cover-wrap';
-  if (a.localAvatarUrl) {
-    const img = document.createElement('img');
-    img.className = 'cover-img';
-    img.src = a.localAvatarUrl;
-    img.alt = a.canonicalName;
-    img.loading = 'lazy';
-    coverWrap.appendChild(img);
-  } else if (covers.length === 0) {
+  if (covers.length === 0) {
     coverWrap.innerHTML = `<div class="cover-placeholder">—</div>`;
   } else {
     const img = document.createElement('img');
