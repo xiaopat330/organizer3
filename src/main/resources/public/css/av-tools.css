@@ -4487,6 +4487,12 @@
   margin-bottom: -1px;
 }
 .tools-subnav-tab:hover:not(.selected) { color: #94a3b8; background: #1a2840; }
+.tools-subnav-tab-unprocessed.selected {
+  color: #86efac;
+  background: #052e16;
+  border-color: #166534;
+  border-bottom-color: #4ade80;
+}
 .tools-subnav-tab-triage.selected {
   color: #fdba74;
   background: #1e130a;
