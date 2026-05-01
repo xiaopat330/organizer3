@@ -13,9 +13,8 @@ import { showLibraryHealthView, hideLibraryHealthView } from './utilities-librar
 import { showDupTriageView, hideDupTriageView, wireDupTriageEvents } from './utilities-duplicate-triage.js';
 import { showMergeCandidatesView, hideMergeCandidatesView, wireMergeCandidatesEvents } from './utilities-merge-candidates.js';
 import { showTrashView, hideTrashView } from './utilities-trash.js';
-import { showJavdbDiscoveryView, hideJavdbDiscoveryView, navigateToActressProfile } from './utilities-javdb-discovery.js';
+import { showJavdbDiscoveryView, hideJavdbDiscoveryView, navigateToActressProfile, navigateToReviewItem } from './utilities-javdb-discovery.js';
 import { showTagHealthView, hideTagHealthView } from './utilities-tag-health.js';
-import { showEnrichmentReviewView, hideEnrichmentReviewView, focusReviewItem } from './utilities-enrichment-review.js';
 
 // ── DOM refs ──────────────────────────────────────────────────────────────
 const actionBtn         = document.getElementById('action-btn');
@@ -24,7 +23,6 @@ const utilitiesBtn      = document.getElementById('tools-utilities-btn');
 const actressDataBtn    = document.getElementById('tools-actress-data-btn');
 const duplicatesBtn     = document.getElementById('tools-duplicates-btn');
 const trashBtn              = document.getElementById('tools-trash-btn');
-const enrichmentReviewBtn   = document.getElementById('tools-enrichment-review-btn');
 const queueBtn          = document.getElementById('tools-queue-btn');
 const javdbDiscoveryBtn    = document.getElementById('tools-javdb-discovery-btn');
 const utilitiesSubnav      = document.getElementById('tools-utilities-subnav');
@@ -49,7 +47,7 @@ const dupTriageTab      = document.getElementById('tools-dup-triage-tab');
 const mergeCandidatesTab = document.getElementById('tools-merge-candidates-tab');
 
 // ── Tool buttons ──────────────────────────────────────────────────────────
-const TOOL_BTNS = [healthBtn, utilitiesBtn, actressDataBtn, duplicatesBtn, trashBtn, queueBtn, javdbDiscoveryBtn, enrichmentReviewBtn];
+const TOOL_BTNS = [healthBtn, utilitiesBtn, actressDataBtn, duplicatesBtn, trashBtn, queueBtn, javdbDiscoveryBtn];
 
 function selectTool(btn) {
   TOOL_BTNS.forEach(b => b?.classList.remove('selected'));
@@ -69,7 +67,6 @@ function hideAllToolViews() {
   hideTrashView();
   hideJavdbDiscoveryView();
   hideTagHealthView();
-  hideEnrichmentReviewView();
   dupSubnav.style.display          = 'none';
   healthSubnav.style.display       = 'none';
   utilitiesSubnav.style.display    = 'none';
@@ -434,21 +431,16 @@ javdbDiscoveryBtn.addEventListener('click', () => {
   showJavdbDiscoveryView();
 });
 
-enrichmentReviewBtn.addEventListener('click', () => {
-  showActionView('enrichment-review');
-  selectTool(enrichmentReviewBtn);
-  updateBreadcrumb([{ label: 'Tools' }, { label: 'Review Queue' }]);
-  hideAllToolViews();
-  showEnrichmentReviewView();
-});
-
 document.addEventListener('navigate-to-review-item', async e => {
-  showActionView('enrichment-review');
-  selectTool(enrichmentReviewBtn);
-  updateBreadcrumb([{ label: 'Tools' }, { label: 'Review Queue' }]);
-  hideAllToolViews();
-  await showEnrichmentReviewView();
-  focusReviewItem(e.detail.reviewQueueId);
+  const discoveryView = document.getElementById('tools-javdb-discovery-view');
+  if (discoveryView && discoveryView.style.display === 'none') {
+    showActionView('javdb-discovery');
+    selectTool(javdbDiscoveryBtn);
+    updateBreadcrumb([{ label: 'Tools' }, { label: 'javdb Discovery' }]);
+    hideAllToolViews();
+    await showJavdbDiscoveryView();
+  }
+  await navigateToReviewItem(e.detail.reviewQueueId);
 });
 
 document.addEventListener('navigate-to-discovery-actress-profile', async e => {

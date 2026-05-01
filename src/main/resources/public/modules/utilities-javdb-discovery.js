@@ -1,4 +1,5 @@
 import { esc } from './utils.js';
+import { focusReviewItem, showEnrichmentReviewView } from './utilities-enrichment-review.js';
 
 function formatRelative(isoStr) {
   if (!isoStr) return '—';
@@ -103,6 +104,8 @@ const enrichTab      = view.querySelector('[data-jd-tab="enrich"]');
 const titlesTab      = view.querySelector('[data-jd-tab="titles"]');
 const collectionsTab = view.querySelector('[data-jd-tab="collections"]');
 const queueTab       = view.querySelector('[data-jd-tab="queue"]');
+const reviewTab      = view.querySelector('[data-jd-tab="review"]');
+const reviewBody     = document.getElementById('tools-enrichment-review-view');
 const jdBody         = view.querySelector('.jd-body');
 const queueBody      = document.getElementById('jd-queue-body');
 const queueEmpty     = document.getElementById('jd-queue-empty');
@@ -1579,10 +1582,12 @@ function switchJdTab(tab) {
   titlesTab.classList.toggle('selected',      tab === 'titles');
   collectionsTab.classList.toggle('selected', tab === 'collections');
   queueTab.classList.toggle('selected',       tab === 'queue');
+  reviewTab.classList.toggle('selected',      tab === 'review');
   jdBody.style.display          = tab === 'enrich'      ? '' : 'none';
   titlesBody.style.display      = tab === 'titles'      ? '' : 'none';
   collectionsBody.style.display = tab === 'collections' ? '' : 'none';
   queueBody.style.display       = tab === 'queue'       ? '' : 'none';
+  reviewBody.style.display      = tab === 'review'      ? '' : 'none';
   if (tab === 'queue') {
     loadQueueItems();
     startQueueItemsPoll();
@@ -1597,6 +1602,7 @@ enrichTab.addEventListener('click',      () => switchJdTab('enrich'));
 titlesTab.addEventListener('click',      () => switchJdTab('titles'));
 collectionsTab.addEventListener('click', () => switchJdTab('collections'));
 queueTab.addEventListener('click',       () => switchJdTab('queue'));
+reviewTab.addEventListener('click',      () => { switchJdTab('review'); showEnrichmentReviewView(); });
 
 // ── Queue items loader ─────────────────────────────────────────────────────
 
@@ -1732,6 +1738,12 @@ export async function navigateToActressProfile(actressId) {
   subtabBtns.forEach(b => b.classList.toggle('selected', b.dataset.tab === 'profile'));
   state.activeTab = 'profile';
   await renderActiveTab();
+}
+
+export async function navigateToReviewItem(id) {
+  switchJdTab('review');
+  await showEnrichmentReviewView();
+  focusReviewItem(id);
 }
 
 function resetFiltersToAll() {

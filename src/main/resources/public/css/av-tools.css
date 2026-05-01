@@ -220,16 +220,6 @@
 }
 .tools-aliases-btn.selected svg { stroke: #5eead4; }
 
-.tools-enrichment-review-btn        { color: #e879f9; }
-.tools-enrichment-review-btn svg    { stroke: #e879f9; }
-.tools-enrichment-review-btn:hover,
-.tools-enrichment-review-btn.selected {
-  color: #f0abfc;
-  background: #280030;
-  border-color: #86198f;
-}
-.tools-enrichment-review-btn.selected svg { stroke: #f0abfc; }
-
 /* ── Logs tool view ───────────────────────────────────────────────── */
 .tools-logs-view {
   display: flex;
@@ -6680,9 +6670,10 @@ button.jd-qi-status.jd-qi-slug-link:hover { filter: brightness(1.2); }
 .tools-enrichment-review-view {
   display: flex;
   flex-direction: column;
-  height: calc(100vh - 160px);
+  flex: 1;
+  min-height: 0;
   overflow: hidden;
-  margin: 0 16px;
+  padding: 0 16px;
 }
 
 .er-header-bar {

@@ -260,10 +260,6 @@
       <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
       Trash
     </button>
-    <button type="button" id="tools-enrichment-review-btn" class="action-tool-btn tools-enrichment-review-btn">
-      <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
-      Review Queue
-    </button>
   </div>
 </div>
 
@@ -525,6 +521,10 @@
         <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><circle cx="8" cy="8" r="6.5"/><path d="M8 4.5V8l2.5 2"/></svg>
         Queue
       </button>
+      <button type="button" class="jd-tab jd-tab-review" data-jd-tab="review">
+        <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M2 4h12M2 8h12M2 12h8"/><circle cx="13" cy="12" r="2.5"/><path d="M11.5 12h-.01M13 10.5v-.01"/></svg>
+        Review
+      </button>
     </div>
     <div class="jd-header-actions">
       <button type="button" id="jd-pause-btn" class="jd-action-btn jd-pause-btn">Pause</button>
@@ -665,6 +665,30 @@
         </thead>
         <tbody id="jd-queue-table-body"></tbody>
       </table>
+    </div>
+  </div>
+  <div id="tools-enrichment-review-view" class="tools-enrichment-review-view" style="display:none">
+    <div class="er-header-bar">
+      <h2 id="er-header" class="er-title">Enrichment Review Queue</h2>
+      <div id="er-pills" class="er-pills"></div>
+    </div>
+    <div class="er-table-wrap">
+      <table class="er-table">
+        <thead>
+          <tr>
+            <th class="er-col-code">Code</th>
+            <th class="er-col-slug">Slug</th>
+            <th class="er-col-reason">Reason</th>
+            <th class="er-col-source">Found via</th>
+            <th class="er-col-created">Created</th>
+            <th class="er-col-actions">Actions</th>
+          </tr>
+        </thead>
+        <tbody id="er-table-body"></tbody>
+      </table>
+      <div id="er-empty" class="er-empty" style="display:none">
+        No open review queue rows. The write-time gate hasn&rsquo;t flagged any new traffic.
+      </div>
     </div>
   </div>
 </div>
@@ -994,32 +1018,6 @@
     <span id="terminal-prompt" class="terminal-prompt">[UNMOUNTED] ▶</span>
     <input id="terminal-input" class="terminal-input" type="text"
            autocomplete="off" spellcheck="false" placeholder="type a command…" disabled>
-  </div>
-</div>
-
-<!-- Enrichment Review Queue triage tool -->
-<div id="tools-enrichment-review-view" class="tools-enrichment-review-view" style="display:none">
-  <div class="er-header-bar">
-    <h2 id="er-header" class="er-title">Enrichment Review Queue</h2>
-    <div id="er-pills" class="er-pills"></div>
-  </div>
-  <div class="er-table-wrap">
-    <table class="er-table">
-      <thead>
-        <tr>
-          <th class="er-col-code">Code</th>
-          <th class="er-col-slug">Slug</th>
-          <th class="er-col-reason">Reason</th>
-          <th class="er-col-source">Found via</th>
-          <th class="er-col-created">Created</th>
-          <th class="er-col-actions">Actions</th>
-        </tr>
-      </thead>
-      <tbody id="er-table-body"></tbody>
-    </table>
-    <div id="er-empty" class="er-empty" style="display:none">
-      No open review queue rows. The write-time gate hasn&rsquo;t flagged any new traffic.
-    </div>
   </div>
 </div>
 
