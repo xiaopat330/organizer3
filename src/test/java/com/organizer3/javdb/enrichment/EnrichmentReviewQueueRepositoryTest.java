@@ -377,4 +377,92 @@ class EnrichmentReviewQueueRepositoryTest {
         assertTrue(row.isPresent());
         assertNull(row.get().detail());
     }
+
+    // ── purgeStale ────────────────────────────────────────────────────────────
+
+    // Use strftime to match the T-format that production rows use (schema DEFAULT) and
+    // that Java's Instant.toString() produces. datetime() alone returns space-separated
+    // format, which would always sort before a T-format string of the same date.
+    private String isoAgo(String modifier) {
+        return jdbi.withHandle(h ->
+                h.createQuery("SELECT strftime('%Y-%m-%dT%H:%M:%fZ', datetime('now', :mod))")
+                        .bind("mod", modifier)
+                        .mapTo(String.class).one());
+    }
+
+    @Test
+    void purgeStale_resolvesUnrecoverableRows_after72Hours() {
+        repo.enqueue(1L, "slug1", "no_match", "actress_filmography");
+        jdbi.useHandle(h -> h.createUpdate(
+                "UPDATE enrichment_review_queue SET created_at = :ts WHERE title_id = 1")
+                .bind("ts", isoAgo("-73 hours")).execute());
+
+        int purged = repo.purgeStale();
+
+        assertEquals(1, purged);
+        assertFalse(repo.hasOpen(1L, "no_match"), "aged-out unrecoverable row must be resolved");
+        String resolution = jdbi.withHandle(h ->
+                h.createQuery("SELECT resolution FROM enrichment_review_queue WHERE title_id = 1")
+                        .mapTo(String.class).one());
+        assertEquals("aged_out", resolution);
+    }
+
+    @Test
+    void purgeStale_doesNotResolve_unrecoverableRows_before72Hours() {
+        repo.enqueue(1L, "slug1", "orphan_enriched", "sync_orphan");
+        jdbi.useHandle(h -> h.createUpdate(
+                "UPDATE enrichment_review_queue SET created_at = :ts WHERE title_id = 1")
+                .bind("ts", isoAgo("-71 hours")).execute());
+
+        int purged = repo.purgeStale();
+
+        assertEquals(0, purged);
+        assertTrue(repo.hasOpen(1L, "orphan_enriched"), "row within TTL must not be touched");
+    }
+
+    @Test
+    void purgeStale_resolvesRecoverableRows_after7Days() {
+        repo.enqueue(1L, "slug1", "cast_anomaly", "actress_filmography");
+        jdbi.useHandle(h -> h.createUpdate(
+                "UPDATE enrichment_review_queue SET created_at = :ts WHERE title_id = 1")
+                .bind("ts", isoAgo("-8 days")).execute());
+
+        int purged = repo.purgeStale();
+
+        assertEquals(1, purged);
+        assertFalse(repo.hasOpen(1L, "cast_anomaly"), "aged-out recoverable row must be resolved");
+        String resolution = jdbi.withHandle(h ->
+                h.createQuery("SELECT resolution FROM enrichment_review_queue WHERE title_id = 1")
+                        .mapTo(String.class).one());
+        assertEquals("aged_out", resolution);
+    }
+
+    @Test
+    void purgeStale_doesNotResolve_recoverableRows_before7Days() {
+        repo.enqueue(1L, "slug1", "ambiguous", "code_search_fallback");
+        jdbi.useHandle(h -> h.createUpdate(
+                "UPDATE enrichment_review_queue SET created_at = :ts WHERE title_id = 1")
+                .bind("ts", isoAgo("-6 days")).execute());
+
+        int purged = repo.purgeStale();
+
+        assertEquals(0, purged);
+        assertTrue(repo.hasOpen(1L, "ambiguous"), "row within TTL must not be touched");
+    }
+
+    @Test
+    void purgeStale_doesNotTouchAlreadyResolvedRows() {
+        repo.enqueue(1L, "slug1", "no_match", "actress_filmography");
+        jdbi.useHandle(h -> h.createUpdate(
+                "UPDATE enrichment_review_queue SET created_at = :ts, resolved_at = '2026-04-01T00:00:00Z', resolution = 'marked_resolved' WHERE title_id = 1")
+                .bind("ts", isoAgo("-80 hours")).execute());
+
+        int purged = repo.purgeStale();
+
+        assertEquals(0, purged, "already-resolved rows must not be touched");
+        String resolution = jdbi.withHandle(h ->
+                h.createQuery("SELECT resolution FROM enrichment_review_queue WHERE title_id = 1")
+                        .mapTo(String.class).one());
+        assertEquals("marked_resolved", resolution, "existing resolution must not be overwritten");
+    }
 }

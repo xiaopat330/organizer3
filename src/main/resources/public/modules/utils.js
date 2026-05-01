@@ -34,6 +34,30 @@ export function fmtDate(dateStr) {
   return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 }
 
+/**
+ * Age in years on {@code eventIso} for someone born on {@code dobIso}. Both ISO date strings.
+ * Returns null if either is missing/unparseable, or if the result is out of plausible range.
+ */
+export function ageAtDate(dobIso, eventIso) {
+  if (!dobIso || !eventIso) return null;
+  const dob = new Date(dobIso);
+  const ev  = new Date(eventIso);
+  if (isNaN(dob) || isNaN(ev)) return null;
+  let age = ev.getFullYear() - dob.getFullYear();
+  const m = ev.getMonth() - dob.getMonth();
+  if (m < 0 || (m === 0 && ev.getDate() < dob.getDate())) age--;
+  if (age < 10 || age > 80) return null;
+  return age;
+}
+
+/** Tier label for an age — drives the gold/silver/bronze/grey pill styling. */
+export function agePillTier(age) {
+  if (age < 20) return 'gold';
+  if (age < 25) return 'silver';
+  if (age < 30) return 'bronze';
+  return 'grey';
+}
+
 export function setStatus(msg) {
   const el = document.getElementById('status');
   if (el) el.textContent = msg;

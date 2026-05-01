@@ -6932,6 +6932,29 @@ button.jd-qi-status.jd-qi-slug-link:hover { filter: brightness(1.2); }
 }
 .er-candidate-card:hover { border-color: #2563eb; }
 
+.er-reference-card {
+  border-color: #f59e0b;
+  background: #1a1408;
+  position: relative;
+}
+.er-reference-card:hover { border-color: #fbbf24; }
+.er-reference-card::before {
+  content: 'REFERENCE';
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  z-index: 1;
+  padding: 2px 6px;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  color: #1a1408;
+  background: #f59e0b;
+  border-radius: 3px;
+}
+.er-reference-card .er-candidate-title { color: #fbbf24; }
+.er-reference-card .er-candidate-meta { color: #b45309; font-style: italic; }
+
 .er-candidate-cover {
   width: 100%;
   aspect-ratio: 3 / 4;

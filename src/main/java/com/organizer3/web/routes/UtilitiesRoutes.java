@@ -184,6 +184,7 @@ public final class UtilitiesRoutes {
             String reason = ctx.queryParam("reason");
             int limit  = parseIntParam(ctx.queryParam("limit"),  100, 1, 500);
             int offset = parseIntParam(ctx.queryParam("offset"), 0,   0, Integer.MAX_VALUE);
+            reviewQueueRepo.purgeStale();
             var counts = reviewQueueRepo.countOpenByReason();
             var rows   = reviewQueueRepo.listOpen(reason, limit, offset);
             var rowsWithCovers = rows.stream().map(r -> {
