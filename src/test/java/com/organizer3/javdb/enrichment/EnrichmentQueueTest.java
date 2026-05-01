@@ -541,4 +541,62 @@ class EnrichmentQueueTest {
         queue.requeueItem(itemId); // should be a no-op on a pending item
         assertEquals(1, queue.countPendingForActress(10L));
     }
+
+    // ── Priority tests ────────────────────────────────────────────────────────
+
+    @Test
+    void enqueueWithoutPriority_defaultsToNormal() {
+        queue.enqueueTitle(1L, 10L);
+        EnrichmentJob job = queue.claimNextJob().get();
+        assertEquals(Priority.NORMAL, job.priority());
+    }
+
+    @Test
+    void enqueueTitle_withLowPriority_storesLow() {
+        queue.enqueueTitle(EnrichmentJob.SOURCE_ACTRESS, 1L, 10L, Priority.LOW);
+        EnrichmentJob job = queue.claimNextJob().get();
+        assertEquals(Priority.LOW, job.priority());
+    }
+
+    @Test
+    void enqueueTitle_withHighPriority_storesHigh() {
+        queue.enqueueTitle(EnrichmentJob.SOURCE_ACTRESS, 1L, 10L, Priority.HIGH);
+        EnrichmentJob job = queue.claimNextJob().get();
+        assertEquals(Priority.HIGH, job.priority());
+    }
+
+    @Test
+    void enqueueTitle_withUrgentPriority_storesUrgent() {
+        queue.enqueueTitle(EnrichmentJob.SOURCE_ACTRESS, 1L, 10L, Priority.URGENT);
+        EnrichmentJob job = queue.claimNextJob().get();
+        assertEquals(Priority.URGENT, job.priority());
+    }
+
+    @Test
+    void enqueueActressProfile_withNormalPriority_storesNormal() {
+        queue.enqueueActressProfile(10L, Priority.NORMAL);
+        EnrichmentJob job = queue.claimNextJob().get();
+        assertEquals(Priority.NORMAL, job.priority());
+    }
+
+    @Test
+    void enqueueActressProfile_withHighPriority_storesHigh() {
+        queue.enqueueActressProfile(10L, Priority.HIGH);
+        EnrichmentJob job = queue.claimNextJob().get();
+        assertEquals(Priority.HIGH, job.priority());
+    }
+
+    @Test
+    void enqueueTitleForce_withUrgentPriority_storesUrgent() {
+        queue.enqueueTitleForce(1L, 10L, Priority.URGENT);
+        EnrichmentJob job = queue.claimNextJob().get();
+        assertEquals(Priority.URGENT, job.priority());
+    }
+
+    @Test
+    void enqueueActressProfileForce_withHighPriority_storesHigh() {
+        queue.enqueueActressProfileForce(10L, Priority.HIGH);
+        EnrichmentJob job = queue.claimNextJob().get();
+        assertEquals(Priority.HIGH, job.priority());
+    }
 }

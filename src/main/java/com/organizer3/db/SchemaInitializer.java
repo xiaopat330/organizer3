@@ -368,7 +368,7 @@ public class SchemaInitializer {
                         UNIQUE(title_code_a, title_code_b)
                     )""");
 
-            // javdb_enrichment_queue (v24, updated v31: nullable actress_id + source)
+            // javdb_enrichment_queue (v24, updated v31: nullable actress_id + source, v40: priority)
             h.execute("""
                     CREATE TABLE IF NOT EXISTS javdb_enrichment_queue (
                         id              INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -376,6 +376,8 @@ public class SchemaInitializer {
                         target_id       INTEGER NOT NULL,
                         actress_id      INTEGER,
                         source          TEXT NOT NULL DEFAULT 'actress',
+                        priority        TEXT NOT NULL DEFAULT 'NORMAL'
+                                        CHECK (priority IN ('LOW', 'NORMAL', 'HIGH', 'URGENT')),
                         status          TEXT NOT NULL,
                         attempts        INTEGER NOT NULL DEFAULT 0,
                         next_attempt_at TEXT NOT NULL,
@@ -384,9 +386,14 @@ public class SchemaInitializer {
                         updated_at      TEXT NOT NULL,
                         sort_order      INTEGER
                     )""");
-            h.execute("CREATE INDEX IF NOT EXISTS idx_jeq_claim   ON javdb_enrichment_queue(status, next_attempt_at)");
-            h.execute("CREATE INDEX IF NOT EXISTS idx_jeq_actress ON javdb_enrichment_queue(actress_id, status)");
-            h.execute("CREATE INDEX IF NOT EXISTS idx_jeq_source  ON javdb_enrichment_queue(source, status)");
+            h.execute("CREATE INDEX IF NOT EXISTS idx_jeq_claim          ON javdb_enrichment_queue(status, next_attempt_at)");
+            h.execute("CREATE INDEX IF NOT EXISTS idx_jeq_actress        ON javdb_enrichment_queue(actress_id, status)");
+            h.execute("CREATE INDEX IF NOT EXISTS idx_jeq_source         ON javdb_enrichment_queue(source, status)");
+            h.execute("""
+                    CREATE INDEX IF NOT EXISTS idx_jeq_claim_priority
+                      ON javdb_enrichment_queue(priority, sort_order, id)
+                      WHERE status = 'pending'
+                    """);
 
             // javdb_title_staging (v24)
             h.execute("""
@@ -561,7 +568,7 @@ public class SchemaInitializer {
             // leave the version alone and let SchemaUpgrader apply any missing migrations.
             int currentVersion = h.createQuery("PRAGMA user_version").mapTo(Integer.class).one();
             if (currentVersion == 0) {
-                h.execute("PRAGMA user_version = 39");
+                h.execute("PRAGMA user_version = 40");
             }
         });
         log.info("Schema initialization complete");

@@ -6204,6 +6204,12 @@ button.jd-qi-status.jd-qi-slug-link:hover { filter: brightness(1.2); }
 .jd-qi-failed-deadend    { background: #1c1c24; color: #64748b; }   /* dead end — not on javdb, orphaned */
 .jd-qi-paused            { background: #2a2a1a; color: #facc15; }
 
+.jd-qi-prio { font-size: 10px; font-weight: 700; letter-spacing: 0.04em; padding: 1px 5px; border-radius: 3px; display: inline-block; }
+.prio-normal  { visibility: hidden; }
+.prio-low     { background: #1a1a2a; color: #6b7280; border: 1px solid #374151; }
+.prio-high    { background: #1a2d1a; color: #4ade80; border: 1px solid #166534; }
+.prio-urgent  { background: #3a1a00; color: #fb923c; border: 1px solid #9a3412; font-style: italic; }
+
 .jd-qi-actions-cell { white-space: nowrap; padding: 4px 8px; }
 .jd-qi-actions { display: inline-flex; gap: 2px; }
 .jd-qi-action-btn {
