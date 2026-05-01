@@ -1369,6 +1369,9 @@ function renderErrorPickerContent(panel, job, detail, li, pickerLi) {
 
   const cards = document.createElement('div');
   cards.className = 'er-candidate-cards';
+  if (job.coverUrl) {
+    cards.appendChild(buildErrorReferenceCard(job.coverUrl));
+  }
   detail.candidates.forEach(c => {
     cards.appendChild(buildErrorCandidateCard(job, c, linkedSlugs, li, pickerLi));
   });
@@ -1385,6 +1388,37 @@ function renderErrorPickerContent(panel, job, detail, li, pickerLi) {
   });
   footer.appendChild(noneBtn);
   panel.appendChild(footer);
+}
+
+function buildErrorReferenceCard(coverUrl) {
+  const card = document.createElement('div');
+  card.className = 'er-candidate-card er-reference-card';
+
+  const cover = document.createElement('div');
+  cover.className = 'er-candidate-cover';
+  const img = document.createElement('img');
+  img.src = coverUrl;
+  img.alt = '';
+  img.loading = 'lazy';
+  img.className = 'er-candidate-img';
+  cover.appendChild(img);
+  cover.addEventListener('click', () => showJdCoverModal(coverUrl, ''));
+  cover.style.cursor = 'zoom-in';
+  card.appendChild(cover);
+
+  const info = document.createElement('div');
+  info.className = 'er-candidate-info';
+  const titleEl = document.createElement('div');
+  titleEl.className = 'er-candidate-title';
+  titleEl.textContent = 'Local cover';
+  info.appendChild(titleEl);
+  const meta = document.createElement('div');
+  meta.className = 'er-candidate-meta';
+  meta.textContent = 'Match candidates against this';
+  info.appendChild(meta);
+  card.appendChild(info);
+
+  return card;
 }
 
 function buildErrorCandidateCard(job, candidate, linkedSlugs, li, pickerLi) {

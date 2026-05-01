@@ -5,9 +5,11 @@ import org.jdbi.v3.core.Handle;
 import org.jdbi.v3.core.Jdbi;
 
 import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * Writes rows to {@code enrichment_review_queue} when the write-time gate cannot
@@ -20,7 +22,47 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class EnrichmentReviewQueueRepository {
 
+    /**
+     * Reasons that cannot be resolved by any automatic or user action once they appear —
+     * aged out after 72 hours.
+     */
+    static final Set<String> UNRECOVERABLE_REASONS = Set.of("no_match", "orphan_enriched");
+
+    /** Recoverable reasons are aged out after 7 days. */
+    static final long UNRECOVERABLE_TTL_HOURS = 72;
+    static final long RECOVERABLE_TTL_DAYS    = 7;
+
     private final Jdbi jdbi;
+
+    /**
+     * Auto-resolves stale open rows with {@code resolution = 'aged_out'}:
+     * <ul>
+     *   <li>Unrecoverable reasons ({@code no_match}, {@code orphan_enriched}): after 72 hours</li>
+     *   <li>All other (recoverable) reasons: after 7 days</li>
+     * </ul>
+     * Called before every list/count operation so the UI never shows expired items.
+     *
+     * @return number of rows auto-resolved
+     */
+    public int purgeStale() {
+        Instant now       = Instant.now();
+        String cutoff72h  = now.minus(UNRECOVERABLE_TTL_HOURS, ChronoUnit.HOURS).toString();
+        String cutoff7d   = now.minus(RECOVERABLE_TTL_DAYS,    ChronoUnit.DAYS).toString();
+        return jdbi.withHandle(h ->
+                h.createUpdate("""
+                        UPDATE enrichment_review_queue
+                        SET resolved_at = :now, resolution = 'aged_out'
+                        WHERE resolved_at IS NULL
+                          AND (
+                            (reason IN ('no_match', 'orphan_enriched') AND created_at < :cutoff72h)
+                            OR (reason NOT IN ('no_match', 'orphan_enriched') AND created_at < :cutoff7d)
+                          )
+                        """)
+                        .bind("now",       now.toString())
+                        .bind("cutoff72h", cutoff72h)
+                        .bind("cutoff7d",  cutoff7d)
+                        .execute());
+    }
 
     /**
      * Inserts an open review-queue entry for the given title, or no-ops if an
