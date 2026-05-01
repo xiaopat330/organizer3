@@ -563,12 +563,32 @@ public class SchemaInitializer {
                     )""");
             h.execute("CREATE INDEX IF NOT EXISTS idx_reval_enqueued ON revalidation_pending(enqueued_at)");
 
+            // av_screenshot_queue (v42): persistent FIFO queue for background screenshot generation.
+            // UNIQUE on av_video_id makes enqueue idempotent; ON DELETE CASCADE removes rows when the video is deleted.
+            h.execute("""
+                    CREATE TABLE IF NOT EXISTS av_screenshot_queue (
+                        id            INTEGER PRIMARY KEY AUTOINCREMENT,
+                        av_video_id   INTEGER NOT NULL UNIQUE REFERENCES av_videos(id) ON DELETE CASCADE,
+                        av_actress_id INTEGER NOT NULL REFERENCES av_actresses(id),
+                        enqueued_at   TEXT NOT NULL,
+                        started_at    TEXT,
+                        completed_at  TEXT,
+                        status        TEXT NOT NULL DEFAULT 'PENDING',
+                        error         TEXT
+                    )""");
+            h.execute("""
+                    CREATE INDEX IF NOT EXISTS idx_asq_status_enqueued
+                        ON av_screenshot_queue(status, enqueued_at)""");
+            h.execute("""
+                    CREATE INDEX IF NOT EXISTS idx_asq_actress
+                        ON av_screenshot_queue(av_actress_id)""");
+
             // Only stamp version on fresh installs (user_version = 0).
             // On an existing DB the CREATE TABLE statements above are all no-ops, so we must
             // leave the version alone and let SchemaUpgrader apply any missing migrations.
             int currentVersion = h.createQuery("PRAGMA user_version").mapTo(Integer.class).one();
             if (currentVersion == 0) {
-                h.execute("PRAGMA user_version = 41");
+                h.execute("PRAGMA user_version = 42");
             }
         });
         log.info("Schema initialization complete");

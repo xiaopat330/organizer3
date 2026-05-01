@@ -104,6 +104,16 @@ public class WebServer {
     }
 
     /**
+     * Installs {@code before} filters that bump the stream-activity tracker on the two
+     * video-stream paths. Drives the AV screenshot worker's playback-gating check.
+     * Call after construction, before {@link #start()}.
+     */
+    public void registerStreamActivityTracker(com.organizer3.media.StreamActivityTracker tracker) {
+        app.before("/api/stream/{id}",    ctx -> tracker.bump());
+        app.before("/api/av/stream/{id}", ctx -> tracker.bump());
+    }
+
+    /**
      * Mounts the Title Editor routes ({@code /api/unsorted/*}).
      * Call after construction, before {@link #start()}.
      */
@@ -141,6 +151,11 @@ public class WebServer {
 
     /** Mounts the Utilities → AV Stars endpoints ({@code /api/utilities/avstars/*}). */
     public void registerAvStars(com.organizer3.web.routes.AvStarsRoutes routes) {
+        routes.register(app);
+    }
+
+    /** Mounts the AV screenshot queue endpoints (enqueue, pause, resume, stop, progress, worker state). */
+    public void registerAvScreenshotQueue(com.organizer3.web.routes.AvScreenshotQueueRoutes routes) {
         routes.register(app);
     }
 
