@@ -606,6 +606,7 @@ async function fetchAndRenderTitles() {
     wireFilterBar();
     wireReenrichButtons();
     wireEnrichmentDetailTriggers();
+    wireFailureBadges();
   } catch (_) {
     titlesView.innerHTML = '<div class="jd-error">Network error.</div>';
   }
@@ -730,6 +731,23 @@ function wireEnrichmentDetailTriggers() {
   });
 }
 
+function wireFailureBadges() {
+  titlesView.querySelectorAll('.jd-titles-review-link[data-review-id]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.dispatchEvent(new CustomEvent('navigate-to-review-item', {
+        detail: { reviewQueueId: parseInt(btn.dataset.reviewId, 10) }
+      }));
+    });
+  });
+  titlesView.querySelectorAll('.jd-titles-profile-link').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.dispatchEvent(new CustomEvent('navigate-to-discovery-actress-profile', {
+        detail: { actressId: state.selectedId }
+      }));
+    });
+  });
+}
+
 // ── Enrichment detail modal ────────────────────────────────────────────────
 
 const enrichModalOverlay = document.getElementById('jd-enrich-modal-overlay');
@@ -824,18 +842,40 @@ function titleEffectiveStatus(t) {
   if (t.queueStatus === 'in_flight') return { key: 'in_flight', label: '⟳ In Progress' };
   if (t.queueStatus === 'pending')   return { key: 'pending',   label: '◌ Queued' };
   if (t.status === 'fetched')        return { key: 'fetched',   label: '✓ Enriched' };
-  if (t.queueStatus === 'failed')    return { key: 'failed',    label: '✗ Failed' };
+  if (t.queueStatus === 'failed') {
+    const meta  = QUEUE_FAIL_META[t.lastError];
+    const icon  = meta?.icon  ?? '✗';
+    const label = meta?.label ?? (t.lastError ? t.lastError.replace(/_/g, ' ') : 'failed');
+    const cls   = meta?.cls   ?? 'jd-qi-failed';
+    return { key: 'failed', label: `${icon} ${label}`, cls, lastError: t.lastError, reviewQueueId: t.reviewQueueId };
+  }
   if (t.status === 'slug_only')      return { key: 'slug_only', label: '⌁ Slug Only' };
   if (t.queueStatus === 'done')      return { key: 'done',      label: '✓ Done' };
   return { key: 'none', label: '— Not Started' };
 }
 
 function titleRow(t) {
-  const { key, label } = titleEffectiveStatus(t);
+  const st = titleEffectiveStatus(t);
+  const { key, label } = st;
   const isEnriched = key === 'fetched';
-  const statusCell = isEnriched
-    ? `<span class="jd-status jd-status-${key} jd-status-clickable" data-title-id="${t.titleId}" title="View enrichment details">${label}</span>`
-    : `<span class="jd-status jd-status-${key}">${label}</span>`;
+
+  let statusCell;
+  if (isEnriched) {
+    statusCell = `<span class="jd-status jd-status-${key} jd-status-clickable" data-title-id="${t.titleId}" title="View enrichment details">${label}</span>`;
+  } else if (key === 'failed') {
+    const cls     = st.cls;
+    const tooltip = esc(st.lastError || '');
+    if (st.reviewQueueId != null) {
+      statusCell = `<button class="jd-status ${cls} jd-titles-review-link" data-review-id="${st.reviewQueueId}" title="${tooltip}">${label}</button>`;
+    } else if (st.lastError === 'no_slug') {
+      statusCell = `<button class="jd-status ${cls} jd-titles-profile-link" title="${tooltip}">${label}</button>`;
+    } else {
+      statusCell = `<span class="jd-status ${cls}" title="${tooltip}">${label}</span>`;
+    }
+  } else {
+    statusCell = `<span class="jd-status jd-status-${key}">${label}</span>`;
+  }
+
   const canReenrich = isEnriched || key === 'done' || key === 'failed' || t.status === 'not_found';
   const infoBtn = isEnriched
     ? `<button class="jd-enrich-detail-btn" data-title-id="${t.titleId}" title="View enrichment details">ⓘ</button>`

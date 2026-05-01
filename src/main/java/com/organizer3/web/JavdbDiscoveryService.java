@@ -50,7 +50,9 @@ public class JavdbDiscoveryService {
             String publisher,
             Double ratingAvg,
             Integer ratingCount,
-            String queueStatus     // null | 'pending' | 'in_flight' | 'failed' | 'done'
+            String queueStatus,    // null | 'pending' | 'in_flight' | 'failed' | 'done'
+            String lastError,      // null unless queueStatus='failed'
+            Long reviewQueueId     // non-null for resolvable failures with an open review entry
     ) {}
 
     /**
@@ -195,7 +197,9 @@ public class JavdbDiscoveryService {
                   tje.publisher,
                   tje.rating_avg,
                   tje.rating_count,
-                  jeq.effective_queue_status AS queue_status
+                  jeq.effective_queue_status AS queue_status,
+                  jeq.last_error,
+                  erq.id AS review_queue_id
                 FROM title_actresses ta
                 JOIN titles t ON t.id = ta.title_id
                 """);
@@ -214,11 +218,16 @@ public class JavdbDiscoveryService {
                              WHEN SUM(CASE WHEN status = 'failed'    THEN 1 ELSE 0 END) > 0 THEN 'failed'
                              WHEN SUM(CASE WHEN status = 'done'      THEN 1 ELSE 0 END) > 0 THEN 'done'
                              ELSE NULL
-                           END AS effective_queue_status
+                           END AS effective_queue_status,
+                           MAX(CASE WHEN status = 'failed' THEN last_error END) AS last_error
                     FROM javdb_enrichment_queue
                     WHERE job_type = 'fetch_title'
                     GROUP BY target_id
                 ) jeq ON jeq.target_id = t.id
+                LEFT JOIN enrichment_review_queue erq
+                  ON erq.title_id = t.id
+                  AND erq.reason = jeq.last_error
+                  AND erq.resolved_at IS NULL
                 WHERE ta.actress_id = :actressId
                 """);
         if (filtering && filter.minRatingAvg() != null)   sql.append("  AND tje.rating_avg   >= :minRatingAvg\n");
@@ -255,9 +264,11 @@ public class JavdbDiscoveryService {
                     rs.getString("release_date"),
                     rs.getString("maker"),
                     rs.getString("publisher"),
-                    rs.getObject("rating_avg")   != null ? rs.getDouble("rating_avg")   : null,
-                    rs.getObject("rating_count") != null ? rs.getInt("rating_count")    : null,
-                    rs.getString("queue_status")
+                    rs.getObject("rating_avg")        != null ? rs.getDouble("rating_avg")   : null,
+                    rs.getObject("rating_count")      != null ? rs.getInt("rating_count")    : null,
+                    rs.getString("queue_status"),
+                    rs.getString("last_error"),
+                    rs.getObject("review_queue_id")   != null ? rs.getLong("review_queue_id") : null
             )).list();
         });
     }
