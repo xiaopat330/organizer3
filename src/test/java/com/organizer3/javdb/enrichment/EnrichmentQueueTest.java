@@ -542,7 +542,108 @@ class EnrichmentQueueTest {
         assertEquals(1, queue.countPendingForActress(10L));
     }
 
-    // ── Priority tests ────────────────────────────────────────────────────────
+    // ── Priority claim-order tests ────────────────────────────────────────────
+
+    @Test
+    void claimNextJob_highBeforeNormalBeforeLow() {
+        queue.enqueueTitle(EnrichmentJob.SOURCE_ACTRESS, 1L, 10L, Priority.LOW);
+        queue.enqueueTitle(EnrichmentJob.SOURCE_ACTRESS, 2L, 10L, Priority.NORMAL);
+        queue.enqueueTitle(EnrichmentJob.SOURCE_ACTRESS, 3L, 10L, Priority.HIGH);
+
+        EnrichmentJob first = queue.claimNextJob().get();
+        queue.markDone(first.id());
+        EnrichmentJob second = queue.claimNextJob().get();
+        queue.markDone(second.id());
+        EnrichmentJob third = queue.claimNextJob().get();
+
+        assertEquals(3L, first.targetId(),  "HIGH should be claimed first");
+        assertEquals(2L, second.targetId(), "NORMAL should be claimed second");
+        assertEquals(1L, third.targetId(),  "LOW should be claimed last");
+    }
+
+    @Test
+    void claimNextJob_withinTier_honorsSortOrder() {
+        // Enqueue three NORMAL jobs; moveToTop on the last one — it should be claimed first.
+        queue.enqueueTitle(EnrichmentJob.SOURCE_ACTRESS, 1L, 10L, Priority.NORMAL);
+        queue.enqueueTitle(EnrichmentJob.SOURCE_ACTRESS, 2L, 10L, Priority.NORMAL);
+        queue.enqueueTitle(EnrichmentJob.SOURCE_ACTRESS, 3L, 10L, Priority.NORMAL);
+        Jdbi jdbi = Jdbi.create(connection);
+        long id3 = jdbi.withHandle(h -> h.createQuery(
+                "SELECT id FROM javdb_enrichment_queue WHERE target_id = 3").mapTo(Long.class).one());
+        queue.moveToTop(id3);
+
+        EnrichmentJob first = queue.claimNextJob().get();
+        assertEquals(3L, first.targetId(), "moved-to-top item should be claimed first within tier");
+    }
+
+    @Test
+    void claimNextJob_ineligibleHighDoesNotBlockReadyNormal() {
+        // HIGH job has a future next_attempt_at — should be skipped in favor of ready NORMAL.
+        queue.enqueueTitle(EnrichmentJob.SOURCE_ACTRESS, 1L, 10L, Priority.NORMAL);
+        // Enqueue HIGH then mark it as failed (sets future next_attempt_at via backoff).
+        queue.enqueueTitle(EnrichmentJob.SOURCE_ACTRESS, 2L, 10L, Priority.HIGH);
+        EnrichmentJob highJob = queue.claimNextJob().get(); // claims HIGH (it's eligible now)
+        assertEquals(2L, highJob.targetId());
+        queue.markAttemptFailed(highJob.id(), "transient"); // now has future next_attempt_at
+
+        // Only the NORMAL job should be claimable now.
+        EnrichmentJob claimed = queue.claimNextJob().get();
+        assertEquals(1L, claimed.targetId(), "ready NORMAL should be claimed, not backoff-delayed HIGH");
+    }
+
+    @Test
+    void claimNextJob_doesNotReturnUrgent() {
+        queue.enqueueTitle(EnrichmentJob.SOURCE_ACTRESS, 1L, 10L, Priority.URGENT);
+        // claimNextJob excludes URGENT — queue should appear empty to this method.
+        assertTrue(queue.claimNextJob().isEmpty(), "claimNextJob must not return URGENT rows");
+    }
+
+    // ── Cancel-exemption tests ─────────────────────────────────────────────
+
+    @Test
+    void cancelAll_doesNotCancelUrgentRows() {
+        queue.enqueueTitle(EnrichmentJob.SOURCE_ACTRESS, 1L, 10L, Priority.NORMAL);
+        queue.enqueueTitle(EnrichmentJob.SOURCE_ACTRESS, 2L, 10L, Priority.HIGH);
+        queue.enqueueTitle(EnrichmentJob.SOURCE_ACTRESS, 3L, 10L, Priority.URGENT);
+
+        queue.cancelAll();
+
+        Jdbi jdbi = Jdbi.create(connection);
+        long cancelledCount = jdbi.withHandle(h -> h.createQuery(
+                "SELECT COUNT(*) FROM javdb_enrichment_queue WHERE status = 'cancelled'")
+                .mapTo(Long.class).one());
+        assertEquals(2L, cancelledCount, "NORMAL and HIGH should be cancelled");
+
+        String urgentStatus = jdbi.withHandle(h -> h.createQuery(
+                "SELECT status FROM javdb_enrichment_queue WHERE target_id = 3")
+                .mapTo(String.class).one());
+        assertEquals("pending", urgentStatus, "URGENT row must survive cancelAll");
+    }
+
+    @Test
+    void cancelForActress_doesNotCancelUrgentRowsForThatActress() {
+        queue.enqueueTitle(EnrichmentJob.SOURCE_ACTRESS, 1L, 10L, Priority.NORMAL);
+        queue.enqueueTitle(EnrichmentJob.SOURCE_ACTRESS, 2L, 10L, Priority.URGENT);
+        queue.enqueueTitle(EnrichmentJob.SOURCE_ACTRESS, 3L, 20L, Priority.NORMAL);
+
+        queue.cancelForActress(10L);
+
+        Jdbi jdbi = Jdbi.create(connection);
+        String normalStatus = jdbi.withHandle(h -> h.createQuery(
+                "SELECT status FROM javdb_enrichment_queue WHERE target_id = 1")
+                .mapTo(String.class).one());
+        assertEquals("cancelled", normalStatus, "NORMAL row for actress 10 must be cancelled");
+
+        String urgentStatus = jdbi.withHandle(h -> h.createQuery(
+                "SELECT status FROM javdb_enrichment_queue WHERE target_id = 2")
+                .mapTo(String.class).one());
+        assertEquals("pending", urgentStatus, "URGENT row for actress 10 must survive cancelForActress");
+
+        // Actress 20's NORMAL row is unaffected.
+        assertEquals(1, queue.countPendingForActress(20L));
+    }
+
+    // ── Priority enqueue tests ────────────────────────────────────────────────
 
     @Test
     void enqueueWithoutPriority_defaultsToNormal() {
@@ -568,8 +669,11 @@ class EnrichmentQueueTest {
     @Test
     void enqueueTitle_withUrgentPriority_storesUrgent() {
         queue.enqueueTitle(EnrichmentJob.SOURCE_ACTRESS, 1L, 10L, Priority.URGENT);
-        EnrichmentJob job = queue.claimNextJob().get();
-        assertEquals(Priority.URGENT, job.priority());
+        // claimNextJob excludes URGENT; read priority directly from DB.
+        String prio = Jdbi.create(connection).withHandle(h ->
+                h.createQuery("SELECT priority FROM javdb_enrichment_queue WHERE target_id = 1")
+                        .mapTo(String.class).one());
+        assertEquals("URGENT", prio);
     }
 
     @Test
@@ -589,8 +693,11 @@ class EnrichmentQueueTest {
     @Test
     void enqueueTitleForce_withUrgentPriority_storesUrgent() {
         queue.enqueueTitleForce(1L, 10L, Priority.URGENT);
-        EnrichmentJob job = queue.claimNextJob().get();
-        assertEquals(Priority.URGENT, job.priority());
+        // claimNextJob excludes URGENT; read priority directly from DB.
+        String prio = Jdbi.create(connection).withHandle(h ->
+                h.createQuery("SELECT priority FROM javdb_enrichment_queue WHERE target_id = 1")
+                        .mapTo(String.class).one());
+        assertEquals("URGENT", prio);
     }
 
     @Test
