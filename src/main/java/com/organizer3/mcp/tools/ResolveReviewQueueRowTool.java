@@ -1,10 +1,13 @@
 package com.organizer3.mcp.tools;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import com.organizer3.javdb.enrichment.EnrichmentQueue;
 import com.organizer3.javdb.enrichment.EnrichmentReviewQueueRepository;
 import com.organizer3.mcp.Schemas;
 import com.organizer3.mcp.Tool;
+import org.jdbi.v3.core.Jdbi;
 
+import java.util.Optional;
 import java.util.Set;
 
 /**
@@ -18,10 +21,20 @@ public class ResolveReviewQueueRowTool implements Tool {
     private static final Set<String> ALLOWED_RESOLUTIONS =
             Set.of("accepted_gap", "marked_resolved", "marked_moved", "confirmed_delete", "dismissed");
 
-    private final EnrichmentReviewQueueRepository repo;
+    /** Resolutions that mean "this title has been dealt with" — discharge the work-queue row. */
+    private static final Set<String> DISCHARGE_RESOLUTIONS =
+            Set.of("accepted_gap", "marked_resolved", "dismissed");
 
-    public ResolveReviewQueueRowTool(EnrichmentReviewQueueRepository repo) {
-        this.repo = repo;
+    private final Jdbi jdbi;
+    private final EnrichmentReviewQueueRepository repo;
+    private final EnrichmentQueue enrichmentQueue;
+
+    public ResolveReviewQueueRowTool(Jdbi jdbi,
+                                     EnrichmentReviewQueueRepository repo,
+                                     EnrichmentQueue enrichmentQueue) {
+        this.jdbi           = jdbi;
+        this.repo           = repo;
+        this.enrichmentQueue = enrichmentQueue;
     }
 
     @Override public String name()        { return "resolve_review_queue_row"; }
@@ -50,7 +63,20 @@ public class ResolveReviewQueueRowTool implements Tool {
                     "resolution must be one of " + ALLOWED_RESOLUTIONS + " — got: " + resolution);
         }
 
-        boolean ok = repo.resolveOne(id, resolution);
+        boolean ok;
+        if (DISCHARGE_RESOLUTIONS.contains(resolution)) {
+            Optional<Long> maybeTitleId = repo.findTitleIdByQueueRowId(id);
+            boolean[] resolved = {false};
+            jdbi.useTransaction(h -> {
+                resolved[0] = repo.resolveOne(id, resolution, h);
+                if (resolved[0] && maybeTitleId.isPresent()) {
+                    enrichmentQueue.dischargeFailedFetchTitle(maybeTitleId.get(), resolution, h);
+                }
+            });
+            ok = resolved[0];
+        } else {
+            ok = repo.resolveOne(id, resolution);
+        }
         String message = ok
                 ? "Row " + id + " resolved as '" + resolution + "'"
                 : "Row " + id + " was not found or is already resolved";

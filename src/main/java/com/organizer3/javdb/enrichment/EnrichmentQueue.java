@@ -3,6 +3,7 @@ package com.organizer3.javdb.enrichment;
 import com.organizer3.javdb.JavdbConfig;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.jdbi.v3.core.Handle;
 import org.jdbi.v3.core.Jdbi;
 
 import java.time.Instant;
@@ -250,6 +251,36 @@ public class EnrichmentQueue {
                     .map(this::mapJob)
                     .findOne();
         });
+    }
+
+    /**
+     * Marks any {@code failed} {@code fetch_title} rows for this title as {@code done}.
+     * Used by review-queue resolution paths to reconcile the work queue when the operator
+     * manually resolves an ambiguous (or other failed) job.
+     *
+     * <p>Only targets {@code status='failed'} rows — pending and in_flight rows represent
+     * active intent and are not touched. The original {@code last_error} is preserved with
+     * an annotation noting the resolution kind.
+     *
+     * @param titleId    the title whose failed work-queue rows should be discharged
+     * @param resolution short tag describing how the row was resolved (e.g. {@code "manual_picker"})
+     * @param h          open JDBI handle (caller owns the transaction)
+     * @return count of rows discharged
+     */
+    public int dischargeFailedFetchTitle(long titleId, String resolution, Handle h) {
+        return h.createUpdate("""
+                UPDATE javdb_enrichment_queue
+                SET status = 'done',
+                    updated_at = :now,
+                    last_error = COALESCE(last_error, '') || ' [resolved: ' || :resolution || ']'
+                WHERE job_type = 'fetch_title'
+                  AND target_id = :titleId
+                  AND status = 'failed'
+                """)
+                .bind("now",        now())
+                .bind("titleId",    titleId)
+                .bind("resolution", resolution)
+                .execute();
     }
 
     public void markDone(long id) {

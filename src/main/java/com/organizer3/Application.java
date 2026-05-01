@@ -713,11 +713,11 @@ public class Application {
                         jdbi, titleRepo, javdbClient,
                         new com.organizer3.javdb.enrichment.JavdbExtractor(),
                         javdbStagingRepo, javdbEnrichmentRepo,
-                        enrichmentReviewQueueRepo, revalidationPendingRepo);
+                        enrichmentReviewQueueRepo, revalidationPendingRepo, enrichmentQueue);
         com.organizer3.mcp.tools.PickReviewCandidateTool pickReviewCandidateTool =
                 new com.organizer3.mcp.tools.PickReviewCandidateTool(
                         jdbi, enrichmentReviewQueueRepo, javdbEnrichmentRepo,
-                        javdbStagingRepo, revalidationPendingRepo);
+                        javdbStagingRepo, revalidationPendingRepo, enrichmentQueue);
         com.organizer3.mcp.tools.RefreshReviewCandidatesTool refreshReviewCandidatesTool =
                 new com.organizer3.mcp.tools.RefreshReviewCandidatesTool(
                         enrichmentReviewQueueRepo, titleRepo, disambiguationSnapshotter);
@@ -852,7 +852,7 @@ public class Application {
                 mcpTools.register(new com.organizer3.mcp.tools.ScheduleTrashDeletionTool(taskRunner));
                 mcpTools.register(new com.organizer3.mcp.tools.CancelTaskRunTool(taskRunner));
                 mcpTools.register(new com.organizer3.mcp.tools.StartTaskTool(taskRegistry, taskRunner));
-                mcpTools.register(new com.organizer3.mcp.tools.ResolveReviewQueueRowTool(enrichmentReviewQueueRepo));
+                mcpTools.register(new com.organizer3.mcp.tools.ResolveReviewQueueRowTool(jdbi, enrichmentReviewQueueRepo, enrichmentQueue));
                 mcpTools.register(forceEnrichTitleTool);
                 mcpTools.register(pickReviewCandidateTool);
                 mcpTools.register(refreshReviewCandidatesTool);

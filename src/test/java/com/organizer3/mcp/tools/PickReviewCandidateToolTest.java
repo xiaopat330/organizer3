@@ -4,7 +4,9 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.organizer3.db.SchemaInitializer;
 import com.organizer3.db.TitleEffectiveTagsService;
+import com.organizer3.javdb.JavdbConfig;
 import com.organizer3.javdb.enrichment.EnrichmentHistoryRepository;
+import com.organizer3.javdb.enrichment.EnrichmentQueue;
 import com.organizer3.javdb.enrichment.EnrichmentReviewQueueRepository;
 import com.organizer3.javdb.enrichment.JavdbEnrichmentRepository;
 import com.organizer3.javdb.enrichment.JavdbStagingRepository;
@@ -64,11 +66,14 @@ class PickReviewCandidateToolTest {
             }
             """;
 
+    private static final JavdbConfig CONFIG = new JavdbConfig(true, 1.0, 3, new int[]{1, 5, 30}, 5, null, null, null, null, 3, null, null);
+
     private Connection connection;
     private Jdbi jdbi;
     private EnrichmentReviewQueueRepository reviewQueueRepo;
     private JavdbEnrichmentRepository enrichmentRepo;
     private RevalidationPendingRepository revalidationPendingRepo;
+    private EnrichmentQueue enrichmentQueue;
     private JavdbStagingRepository mockStagingRepo;
     private PickReviewCandidateTool tool;
 
@@ -88,12 +93,13 @@ class PickReviewCandidateToolTest {
         var historyRepo        = new EnrichmentHistoryRepository(jdbi, M);
         enrichmentRepo         = new JavdbEnrichmentRepository(jdbi, M, new TitleEffectiveTagsService(jdbi), historyRepo);
         revalidationPendingRepo = new RevalidationPendingRepository(jdbi);
+        enrichmentQueue        = new EnrichmentQueue(jdbi, CONFIG);
         mockStagingRepo        = Mockito.mock(JavdbStagingRepository.class);
 
         when(mockStagingRepo.saveTitleRaw(any(), any())).thenReturn("javdb_raw/title/AbCd12.json");
 
         tool = new PickReviewCandidateTool(jdbi, reviewQueueRepo, enrichmentRepo,
-                mockStagingRepo, revalidationPendingRepo);
+                mockStagingRepo, revalidationPendingRepo, enrichmentQueue);
 
         // Insert an ambiguous row with a snapshot
         reviewQueueRepo.enqueueWithDetail(1L, "AbCd12", "ambiguous", "code_search_fallback", DETAIL_JSON);
@@ -136,6 +142,29 @@ class PickReviewCandidateToolTest {
         assertEquals("manual_picker", revalRow.get());
 
         verify(mockStagingRepo).saveTitleRaw(eq("AbCd12"), any());
+    }
+
+    @Test
+    void happyPath_dischargesFailedWorkQueueRow() throws Exception {
+        // Seed a failed fetch_title row in the work queue for title 1
+        jdbi.useHandle(h -> h.execute(
+                "INSERT INTO javdb_enrichment_queue (job_type, target_id, actress_id, source, priority, status, attempts, next_attempt_at, created_at, updated_at, last_error) " +
+                "VALUES ('fetch_title', 1, 0, 'actress', 'NORMAL', 'failed', 1, datetime('now'), datetime('now'), datetime('now'), 'ambiguous')"));
+
+        ObjectNode args = M.createObjectNode();
+        args.put("queue_row_id", queueRowId);
+        args.put("slug", "AbCd12");
+
+        var result = (PickReviewCandidateTool.Result) tool.call(args);
+        assertTrue(result.ok());
+
+        // Work-queue row must now be done with annotation
+        var workRow = jdbi.withHandle(h ->
+                h.createQuery("SELECT status, last_error FROM javdb_enrichment_queue WHERE target_id = 1")
+                        .mapToMap().one());
+        assertEquals("done", workRow.get("status"), "failed work-queue row must be discharged to done");
+        assertTrue(workRow.get("last_error").toString().contains("[resolved: manual_picker]"),
+                "last_error must be annotated with resolution tag");
     }
 
     @Test

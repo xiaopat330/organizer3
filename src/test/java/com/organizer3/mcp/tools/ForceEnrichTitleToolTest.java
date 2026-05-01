@@ -5,8 +5,10 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.organizer3.db.SchemaInitializer;
 import com.organizer3.db.TitleEffectiveTagsService;
 import com.organizer3.javdb.JavdbClient;
+import com.organizer3.javdb.JavdbConfig;
 import com.organizer3.javdb.JavdbNotFoundException;
 import com.organizer3.javdb.enrichment.EnrichmentHistoryRepository;
+import com.organizer3.javdb.enrichment.EnrichmentQueue;
 import com.organizer3.javdb.enrichment.EnrichmentReviewQueueRepository;
 import com.organizer3.javdb.enrichment.JavdbEnrichmentRepository;
 import com.organizer3.javdb.enrichment.JavdbExtractor;
@@ -42,9 +44,12 @@ class ForceEnrichTitleToolTest {
     private RevalidationPendingRepository revalidationPendingRepo;
     private EnrichmentHistoryRepository historyRepo;
 
+    private static final JavdbConfig CONFIG = new JavdbConfig(true, 1.0, 3, new int[]{1, 5, 30}, 5, null, null, null, null, 3, null, null);
+
     private JavdbClient mockClient;
     private JavdbExtractor mockExtractor;
     private JavdbStagingRepository mockStagingRepo;
+    private EnrichmentQueue enrichmentQueue;
 
     private ForceEnrichTitleTool tool;
 
@@ -68,11 +73,12 @@ class ForceEnrichTitleToolTest {
         mockClient      = Mockito.mock(JavdbClient.class);
         mockExtractor   = Mockito.mock(JavdbExtractor.class);
         mockStagingRepo = Mockito.mock(JavdbStagingRepository.class);
+        enrichmentQueue = new EnrichmentQueue(jdbi, CONFIG);
 
         when(mockStagingRepo.saveTitleRaw(any(), any())).thenReturn("javdb_raw/title/AbCd12.json");
 
         tool = new ForceEnrichTitleTool(jdbi, titleRepo, mockClient, mockExtractor,
-                mockStagingRepo, enrichmentRepo, reviewQueueRepo, revalidationPendingRepo);
+                mockStagingRepo, enrichmentRepo, reviewQueueRepo, revalidationPendingRepo, enrichmentQueue);
     }
 
     @AfterEach
@@ -124,6 +130,28 @@ class ForceEnrichTitleToolTest {
 
         // Revalidation enqueued
         assertEquals(1, revalidationPendingRepo.countPending(), "revalidation must be enqueued");
+    }
+
+    @Test
+    void happyPath_dischargesFailedWorkQueueRow() {
+        // Seed a failed work-queue row for title 1
+        jdbi.useHandle(h -> h.execute(
+                "INSERT INTO javdb_enrichment_queue (job_type, target_id, actress_id, source, priority, status, attempts, next_attempt_at, created_at, updated_at, last_error) " +
+                "VALUES ('fetch_title', 1, 0, 'actress', 'NORMAL', 'failed', 1, datetime('now'), datetime('now'), datetime('now'), 'ambiguous')"));
+
+        TitleExtract extract = makeExtract("AbCd12");
+        when(mockClient.fetchTitlePage("AbCd12")).thenReturn("<html/>");
+        when(mockExtractor.extractTitle(eq("<html/>"), eq("TEST-001"), eq("AbCd12"))).thenReturn(extract);
+
+        var result = (ForceEnrichTitleTool.Result) tool.call(args(1L, "AbCd12", false));
+        assertTrue(result.ok());
+
+        var workRow = jdbi.withHandle(h ->
+                h.createQuery("SELECT status, last_error FROM javdb_enrichment_queue WHERE target_id = 1")
+                        .mapToMap().one());
+        assertEquals("done", workRow.get("status"), "failed work-queue row must be discharged to done");
+        assertTrue(workRow.get("last_error").toString().contains("[resolved: manual_override]"),
+                "last_error must be annotated with resolution tag");
     }
 
     // ── 404 path ─────────────────────────────────────────────────────────────

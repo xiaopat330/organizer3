@@ -3,6 +3,7 @@ package com.organizer3.mcp.tools;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.organizer3.javdb.JavdbClient;
 import com.organizer3.javdb.JavdbNotFoundException;
+import com.organizer3.javdb.enrichment.EnrichmentQueue;
 import com.organizer3.javdb.enrichment.EnrichmentReviewQueueRepository;
 import com.organizer3.javdb.enrichment.JavdbEnrichmentRepository;
 import com.organizer3.javdb.enrichment.JavdbExtractor;
@@ -38,6 +39,7 @@ public class ForceEnrichTitleTool implements Tool {
     private final JavdbEnrichmentRepository enrichmentRepo;
     private final EnrichmentReviewQueueRepository reviewQueueRepo;
     private final RevalidationPendingRepository revalidationPendingRepo;
+    private final EnrichmentQueue enrichmentQueue;
 
     public ForceEnrichTitleTool(Jdbi jdbi,
                                 TitleRepository titleRepo,
@@ -46,7 +48,8 @@ public class ForceEnrichTitleTool implements Tool {
                                 JavdbStagingRepository stagingRepo,
                                 JavdbEnrichmentRepository enrichmentRepo,
                                 EnrichmentReviewQueueRepository reviewQueueRepo,
-                                RevalidationPendingRepository revalidationPendingRepo) {
+                                RevalidationPendingRepository revalidationPendingRepo,
+                                EnrichmentQueue enrichmentQueue) {
         this.jdbi                   = jdbi;
         this.titleRepo              = titleRepo;
         this.client                 = client;
@@ -55,6 +58,7 @@ public class ForceEnrichTitleTool implements Tool {
         this.enrichmentRepo         = enrichmentRepo;
         this.reviewQueueRepo        = reviewQueueRepo;
         this.revalidationPendingRepo = revalidationPendingRepo;
+        this.enrichmentQueue        = enrichmentQueue;
     }
 
     @Override public String name() { return "force_enrich_title"; }
@@ -112,6 +116,7 @@ public class ForceEnrichTitleTool implements Tool {
         jdbi.useTransaction(h -> {
             reviewQueueRepo.resolveAllOpenForTitle(titleId, "manual_override", h);
             revalidationPendingRepo.enqueue(titleId, "manual_override", h);
+            enrichmentQueue.dischargeFailedFetchTitle(titleId, "manual_override", h);
         });
 
         log.info("force_enrich: wrote enrichment for title {} (code={}, slug={})",
