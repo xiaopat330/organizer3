@@ -19,7 +19,7 @@ import org.jdbi.v3.core.Jdbi;
 public class SchemaUpgrader {
 
     /** Must match the version stamped by {@link SchemaInitializer}. */
-    private static final int CURRENT_VERSION = 41;
+    private static final int CURRENT_VERSION = 42;
 
     private final Jdbi jdbi;
 
@@ -228,6 +228,11 @@ public class SchemaUpgrader {
             setVersion(41);
         }
 
+        if (version < 42) {
+            applyV42();
+            setVersion(42);
+        }
+
         log.info("Schema upgrade complete");
     }
 
@@ -252,6 +257,37 @@ public class SchemaUpgrader {
                       ON javdb_enrichment_queue(priority, sort_order, id)
                       WHERE status = 'pending'
                     """);
+        });
+    }
+
+    /**
+     * v42: {@code av_screenshot_queue} — persistent FIFO queue for background AV screenshot
+     * generation. Each row tracks one video; UNIQUE on {@code av_video_id} makes enqueue
+     * idempotent. {@code ON DELETE CASCADE} removes rows automatically when the video is deleted.
+     * Status values: PENDING | IN_PROGRESS | PAUSED | DONE | FAILED.
+     *
+     * <p>See spec/PROPOSAL_AV_SCREENSHOT_QUEUE.md.
+     */
+    private void applyV42() {
+        log.info("Applying migration v42: av_screenshot_queue table");
+        jdbi.useHandle(h -> {
+            h.execute("""
+                    CREATE TABLE IF NOT EXISTS av_screenshot_queue (
+                        id            INTEGER PRIMARY KEY AUTOINCREMENT,
+                        av_video_id   INTEGER NOT NULL UNIQUE REFERENCES av_videos(id) ON DELETE CASCADE,
+                        av_actress_id INTEGER NOT NULL REFERENCES av_actresses(id),
+                        enqueued_at   TEXT NOT NULL,
+                        started_at    TEXT,
+                        completed_at  TEXT,
+                        status        TEXT NOT NULL DEFAULT 'PENDING',
+                        error         TEXT
+                    )""");
+            h.execute("""
+                    CREATE INDEX IF NOT EXISTS idx_asq_status_enqueued
+                        ON av_screenshot_queue(status, enqueued_at)""");
+            h.execute("""
+                    CREATE INDEX IF NOT EXISTS idx_asq_actress
+                        ON av_screenshot_queue(av_actress_id)""");
         });
     }
 

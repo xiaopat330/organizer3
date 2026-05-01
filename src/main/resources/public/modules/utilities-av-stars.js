@@ -6,6 +6,7 @@
 
 import { esc } from './utils.js';
 import * as taskCenter from './task-center.js';
+import { mount as mountScreenshotControls, unmount as unmountScreenshotControls } from './av-screenshot-controls.js';
 
 const SELECTION_KEY = 'utilities.avstars.selection';
 const FILTER_KEY    = 'utilities.avstars.filter';
@@ -40,6 +41,7 @@ export async function showAvStarsView() {
 }
 
 export function hideAvStarsView() {
+  unmountScreenshotControls();
   viewEl().style.display = 'none';
 }
 
@@ -130,6 +132,7 @@ function showEmpty() {
 }
 
 async function showDetail(id) {
+  unmountScreenshotControls();
   hideAllRightPanes();
   detailEl().style.display = '';
   detailEl().innerHTML = `<div class="as-detail-head">Loading…</div>`;
@@ -181,6 +184,7 @@ function renderDetail() {
           <span class="as-toggle ${d.favorite ? 'on' : ''}" data-toggle="favorite">${d.favorite ? '★' : '☆'} Favorite</span>
           <span class="as-toggle ${d.bookmark ? 'on' : ''}" data-toggle="bookmark">${d.bookmark ? '📑' : '📖'} Bookmark</span>
         </div>
+        <div id="as-ss-controls"></div>
       </div>
     </div>
     <div class="as-detail-grid">${stats.join('')}</div>
@@ -196,6 +200,8 @@ function renderDetail() {
     btn.addEventListener('click', () => handleAction(btn.dataset.act, d)));
   detailEl().querySelectorAll('[data-toggle]').forEach(el =>
     el.addEventListener('click', () => toggleCuration(el.dataset.toggle, d)));
+
+  mountScreenshotControls(detailEl().querySelector('#as-ss-controls'), d.id, null);
 }
 
 function stat(label, value) {

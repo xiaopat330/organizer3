@@ -197,7 +197,7 @@ The one-shot Utilities/TaskRunner SSE pattern stays intact for those task-shaped
 | `POST` | `/api/av/actresses/{id}/screenshots/resume` | Transition this actress's `PAUSED` rows back to `PENDING`. Returns `{ resumed: N }`. |
 | `DELETE` | `/api/av/actresses/{id}/screenshots/queue` | Remove all `PENDING` and `PAUSED` rows for this actress ("stop"). In-flight row is unaffected. Returns `{ removed: N }`. |
 | `GET` | `/api/av/actresses/{id}/screenshots/progress` | Scoped stats for this actress: `{ pending, inProgress, paused, done, failed, total, currentVideoId }`. Drives the progress bar on both the profile screen (§5) and the Utilities-screen detail panel (§5A). `currentVideoId` is non-null only when this actress's row is the in-flight one. |
-| `GET` | `/api/av/screenshots/worker/state` | Worker state: `{ running, streamActive, queueDepth, currentVideoId, currentActressId }`. `streamActive` reflects the playback-gating signal from §6.2. |
+| `GET` | `/api/av/screenshot-queue/state` | Worker state: `{ running, streamActive, queueDepth, currentVideoId, currentActressId }`. `streamActive` reflects the playback-gating signal from §6.2. Path is outside `/api/av/screenshots/` to avoid colliding with the pre-existing image-serving route `/api/av/screenshots/{videoId}/{seq}`. |
 
 **No global pause/resume endpoints in v1** — see §3.4. The worker's internal `paused` flag is
 present but unexposed; a global control can be added later without schema or repository

@@ -277,6 +277,10 @@ public class Application {
             log.info("Backup scheduler disabled (autoBackupIntervalMinutes not set or 0)");
         }
 
+        // AV screenshot queue — stream-activity tracker bumped from video-stream endpoints
+        com.organizer3.media.StreamActivityTracker streamActivityTracker =
+                new com.organizer3.media.StreamActivityTracker();
+
         // AV Stars commands
         Path avHeadshotDir    = dataDir.resolve("av_headshots");
         Path avScreenshotDir  = dataDir.resolve("av_screenshots");
@@ -297,6 +301,10 @@ public class Application {
                 new IafdSearchParser(), new IafdProfileParser(), avHeadshotDir));
         AvScreenshotService avScreenshotService = new AvScreenshotService(avScreenshotRepo, avScreenshotDir, WebServer.DEFAULT_PORT);
         commands.add(new AvScreenshotsCommand(avActressRepo, avVideoRepo, avScreenshotRepo, avScreenshotService));
+        com.organizer3.avstars.repository.AvScreenshotQueueRepository avScreenshotQueueRepo =
+                new com.organizer3.avstars.repository.jdbi.JdbiAvScreenshotQueueRepository(jdbi);
+        com.organizer3.avstars.AvScreenshotWorker avScreenshotWorker =
+                new com.organizer3.avstars.AvScreenshotWorker(avScreenshotQueueRepo, avScreenshotService, streamActivityTracker);
         AvTagYamlLoader avTagYamlLoader = new AvTagYamlLoader(avTagDefRepo);
         commands.add(new AvTagsCommand(avTagDefRepo, avVideoTagRepo, avTagYamlLoader,
                 dataDir.resolve("av_tags.yaml")));
@@ -736,6 +744,9 @@ public class Application {
                 renameActressTool, recodeTitleTool, taskRegistry, taskRunner, coverPath));
         webServer.registerAvStars(new com.organizer3.web.routes.AvStarsRoutes(
                 avStarsCatalog, avBrowseService, iafdResolver));
+        webServer.registerStreamActivityTracker(streamActivityTracker);
+        webServer.registerAvScreenshotQueue(new com.organizer3.web.routes.AvScreenshotQueueRoutes(
+                avScreenshotQueueRepo, avVideoRepo, avScreenshotRepo, avScreenshotWorker, streamActivityTracker));
         webServer.registerTrash(new com.organizer3.web.routes.TrashRoutes(
                 trashService, smbConnectionFactory, taskRegistry, taskRunner));
 
@@ -889,6 +900,7 @@ public class Application {
 
         webServer.start();
         bgWorker.start();
+        avScreenshotWorker.start();
         if (javdbConfig.enabledOrDefault()) enrichmentRunner.start();
         trashSweepScheduler.start(24);
         if (enrichmentConfig.revalidationCronOrDefaults().enabledOrDefault()) {
@@ -900,6 +912,7 @@ public class Application {
 
         webServer.stop();
         bgWorker.stop();
+        avScreenshotWorker.stop();
         enrichmentRunner.stop();
         trashSweepScheduler.stop();
         revalidationCronScheduler.stop(10);
