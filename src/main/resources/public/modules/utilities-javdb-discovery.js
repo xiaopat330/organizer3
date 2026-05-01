@@ -1702,10 +1702,15 @@ function renderQueueItems(items) {
       : canAddSlug
       ? `<button class="jd-qi-status ${statusClass} jd-qi-slug-link" data-actress-id="${item.actressId}" title="Click to assign slug in Discovery">${statusLabel}</button>`
       : `<span class="jd-qi-status ${statusClass}" title="${esc(item.lastError || '')}">${statusLabel}</span>`;
+    const prio = item.priority || 'NORMAL';
+    const prioCell = prio !== 'NORMAL'
+      ? `<span class="jd-qi-prio prio-${prio.toLowerCase()}">${prio}</span>`
+      : `<span class="jd-qi-prio prio-normal"></span>`;
     return `<tr>
       <td><button class="jd-qi-actress-link" data-actress-id="${item.actressId}">${esc(item.actressName)}</button></td>
       <td class="jd-qi-code">${codeCell}</td>
       <td>${typeLabel}</td>
+      <td>${prioCell}</td>
       <td>${statusCell}</td>
       <td>${item.attempts}</td>
       <td class="jd-qi-eta-cell">${etaCell}</td>

@@ -19,7 +19,7 @@ import org.jdbi.v3.core.Jdbi;
 public class SchemaUpgrader {
 
     /** Must match the version stamped by {@link SchemaInitializer}. */
-    private static final int CURRENT_VERSION = 39;
+    private static final int CURRENT_VERSION = 40;
 
     private final Jdbi jdbi;
 
@@ -218,7 +218,36 @@ public class SchemaUpgrader {
             setVersion(39);
         }
 
+        if (version < 40) {
+            applyV40();
+            setVersion(40);
+        }
+
         log.info("Schema upgrade complete");
+    }
+
+    /**
+     * v40: {@code priority} column on {@code javdb_enrichment_queue}.
+     *
+     * <p>Adds {@code priority TEXT NOT NULL DEFAULT 'NORMAL'} with a CHECK constraint
+     * limiting values to LOW/NORMAL/HIGH/URGENT. Existing rows take the default NORMAL.
+     * Adds a partial index on {@code (priority, sort_order, id) WHERE status = 'pending'}
+     * to support priority-aware claim ordering in step 2.
+     */
+    private void applyV40() {
+        log.info("Applying migration v40: priority column on javdb_enrichment_queue");
+        jdbi.useHandle(h -> {
+            h.execute("""
+                    ALTER TABLE javdb_enrichment_queue
+                      ADD COLUMN priority TEXT NOT NULL DEFAULT 'NORMAL'
+                      CHECK (priority IN ('LOW', 'NORMAL', 'HIGH', 'URGENT'))
+                    """);
+            h.execute("""
+                    CREATE INDEX IF NOT EXISTS idx_jeq_claim_priority
+                      ON javdb_enrichment_queue(priority, sort_order, id)
+                      WHERE status = 'pending'
+                    """);
+        });
     }
 
     /**

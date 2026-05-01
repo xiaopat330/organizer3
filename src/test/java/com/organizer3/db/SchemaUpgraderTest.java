@@ -54,7 +54,7 @@ class SchemaUpgraderTest {
 
         new SchemaUpgrader(jdbi).upgrade();
 
-        assertEquals(39, currentVersion());
+        assertEquals(40, currentVersion());
         boolean present = jdbi.withHandle(h ->
                 h.createQuery("SELECT COUNT(*) FROM pragma_table_info('actresses') WHERE name='needs_profiling'")
                         .mapTo(Integer.class).one() > 0);
@@ -68,7 +68,7 @@ class SchemaUpgraderTest {
                 h.createQuery("SELECT COUNT(*) FROM pragma_table_info('actresses') WHERE name='needs_profiling'")
                         .mapTo(Integer.class).one() > 0);
         assertTrue(present, "fresh install should include needs_profiling");
-        assertEquals(39, currentVersion(), "fresh install should stamp current version (39)");
+        assertEquals(40, currentVersion(), "fresh install should stamp current version (40)");
     }
 
     @Test
@@ -84,7 +84,7 @@ class SchemaUpgraderTest {
 
         new SchemaUpgrader(jdbi).upgrade();
 
-        assertEquals(39, currentVersion());
+        assertEquals(40, currentVersion());
         boolean sizeBytesPresent = jdbi.withHandle(h ->
                 h.createQuery("SELECT COUNT(*) FROM pragma_table_info('videos') WHERE name='size_bytes'")
                         .mapTo(Integer.class).one() > 0);
@@ -106,7 +106,7 @@ class SchemaUpgraderTest {
 
         new SchemaUpgrader(jdbi).upgrade();
 
-        assertEquals(39, currentVersion());
+        assertEquals(40, currentVersion());
         assertTrue(columnExists("titles",    "favorite_cleared_at"));
         assertTrue(columnExists("actresses", "favorite_cleared_at"));
 
@@ -132,7 +132,7 @@ class SchemaUpgraderTest {
 
         new SchemaUpgrader(jdbi).upgrade();
 
-        assertEquals(39, currentVersion());
+        assertEquals(40, currentVersion());
         boolean tableExists = jdbi.withHandle(h ->
                 h.createQuery("SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='merge_candidates'")
                         .mapTo(Integer.class).one() > 0);
@@ -217,7 +217,7 @@ class SchemaUpgraderTest {
 
         // Run the migration.
         new SchemaUpgrader(jdbi).upgrade();
-        assertEquals(39, currentVersion());
+        assertEquals(40, currentVersion());
 
         // Enrichment rows: 5 fixture titles + the malformed-tags title (it still has slug + status='fetched');
         // not_found row should be excluded.
@@ -283,7 +283,7 @@ class SchemaUpgraderTest {
 
         new SchemaUpgrader(jdbi).upgrade();
 
-        assertEquals(39, currentVersion());
+        assertEquals(40, currentVersion());
         assertTrue(columnExists("titles", "grade_source"), "grade_source column should exist");
 
         // Backfill: grade != null → grade_source = 'ai'; grade is null → grade_source stays null.
@@ -324,7 +324,7 @@ class SchemaUpgraderTest {
 
         new SchemaUpgrader(jdbi).upgrade();
 
-        assertEquals(39, currentVersion());
+        assertEquals(40, currentVersion());
 
         // actress_id is now nullable and source column exists.
         assertTrue(columnExists("javdb_enrichment_queue", "source"));
@@ -361,7 +361,7 @@ class SchemaUpgraderTest {
 
         // Idempotent: running again must not change state.
         new SchemaUpgrader(jdbi).upgrade();
-        assertEquals(39, currentVersion());
+        assertEquals(40, currentVersion());
     }
 
     @Test
@@ -371,6 +371,9 @@ class SchemaUpgraderTest {
         // and is_sentinel=0 (because the v31 UPDATE didn't match them).
         new SchemaInitializer(jdbi).initialize();
         jdbi.useHandle(h -> {
+            // v31 normally recreates javdb_enrichment_queue without priority; simulate that state.
+            h.execute("DROP INDEX IF EXISTS idx_jeq_claim_priority");
+            try { h.execute("ALTER TABLE javdb_enrichment_queue DROP COLUMN priority"); } catch (Exception ignore) {}
             h.execute("INSERT INTO actresses(id, canonical_name, tier, first_seen_at, is_sentinel) " +
                       "VALUES (10,'Various','LIBRARY','2024-01-01',0)");
             h.execute("INSERT INTO actresses(id, canonical_name, tier, first_seen_at, is_sentinel) " +
@@ -384,7 +387,7 @@ class SchemaUpgraderTest {
 
         new SchemaUpgrader(jdbi).upgrade();
 
-        assertEquals(39, currentVersion());
+        assertEquals(40, currentVersion());
 
         // All three sentinels are now flagged.
         for (long id : new long[] {10L, 11L, 12L}) {
@@ -400,7 +403,7 @@ class SchemaUpgraderTest {
 
         // Idempotent.
         new SchemaUpgrader(jdbi).upgrade();
-        assertEquals(39, currentVersion());
+        assertEquals(40, currentVersion());
     }
 
     @Test
@@ -411,12 +414,15 @@ class SchemaUpgraderTest {
             try { h.execute("ALTER TABLE javdb_actress_filmography_entry DROP COLUMN stale"); } catch (Exception ignore) {}
             try { h.execute("ALTER TABLE javdb_actress_filmography DROP COLUMN last_drift_count"); } catch (Exception ignore) {}
             try { h.execute("ALTER TABLE javdb_actress_filmography DROP COLUMN last_fetch_status"); } catch (Exception ignore) {}
+            // v31 normally recreates javdb_enrichment_queue without priority; simulate that state.
+            h.execute("DROP INDEX IF EXISTS idx_jeq_claim_priority");
+            try { h.execute("ALTER TABLE javdb_enrichment_queue DROP COLUMN priority"); } catch (Exception ignore) {}
             h.execute("PRAGMA user_version = 33");
         });
 
         new SchemaUpgrader(jdbi).upgrade();
 
-        assertEquals(39, currentVersion());
+        assertEquals(40, currentVersion());
         assertTrue(columnExists("javdb_actress_filmography_entry", "stale"),
                 "stale column must exist after v34 migration");
         assertTrue(columnExists("javdb_actress_filmography", "last_drift_count"),
@@ -426,7 +432,7 @@ class SchemaUpgraderTest {
 
         // Idempotent.
         new SchemaUpgrader(jdbi).upgrade();
-        assertEquals(39, currentVersion());
+        assertEquals(40, currentVersion());
     }
 
     @Test
@@ -436,12 +442,15 @@ class SchemaUpgraderTest {
         jdbi.useHandle(h -> {
             try { h.execute("DROP TABLE IF EXISTS revalidation_pending"); } catch (Exception ignore) {}
             try { h.execute("ALTER TABLE title_javdb_enrichment DROP COLUMN last_revalidated_at"); } catch (Exception ignore) {}
+            // v31 normally recreates javdb_enrichment_queue without priority; simulate that state.
+            h.execute("DROP INDEX IF EXISTS idx_jeq_claim_priority");
+            try { h.execute("ALTER TABLE javdb_enrichment_queue DROP COLUMN priority"); } catch (Exception ignore) {}
             h.execute("PRAGMA user_version = 37");
         });
 
         new SchemaUpgrader(jdbi).upgrade();
 
-        assertEquals(39, currentVersion());
+        assertEquals(40, currentVersion());
         assertTrue(columnExists("title_javdb_enrichment", "last_revalidated_at"),
                 "last_revalidated_at column must exist after v38 migration");
 
@@ -452,7 +461,7 @@ class SchemaUpgraderTest {
 
         // Idempotent.
         new SchemaUpgrader(jdbi).upgrade();
-        assertEquals(39, currentVersion());
+        assertEquals(40, currentVersion());
     }
 
     @Test
@@ -462,6 +471,9 @@ class SchemaUpgraderTest {
         jdbi.useHandle(h -> {
             try { h.execute("ALTER TABLE enrichment_review_queue DROP COLUMN last_seen_at"); } catch (Exception ignore) {}
             try { h.execute("ALTER TABLE enrichment_review_queue DROP COLUMN detail"); } catch (Exception ignore) {}
+            // v31 normally recreates javdb_enrichment_queue without priority; simulate that state.
+            h.execute("DROP INDEX IF EXISTS idx_jeq_claim_priority");
+            try { h.execute("ALTER TABLE javdb_enrichment_queue DROP COLUMN priority"); } catch (Exception ignore) {}
             // Seed two rows so we can verify the last_seen_at backfill.
             h.execute("INSERT INTO titles(id, code, base_code, label, seq_num) VALUES (1, 'T-1', 'T', 'T', 1)");
             h.execute("INSERT INTO titles(id, code, base_code, label, seq_num) VALUES (2, 'T-2', 'T', 'T', 2)");
@@ -474,7 +486,7 @@ class SchemaUpgraderTest {
 
         new SchemaUpgrader(jdbi).upgrade();
 
-        assertEquals(39, currentVersion());
+        assertEquals(40, currentVersion());
         assertTrue(columnExists("enrichment_review_queue", "last_seen_at"),
                 "last_seen_at column must exist after v39 migration");
         assertTrue(columnExists("enrichment_review_queue", "detail"),
@@ -494,7 +506,60 @@ class SchemaUpgraderTest {
 
         // Idempotent.
         new SchemaUpgrader(jdbi).upgrade();
-        assertEquals(39, currentVersion());
+        assertEquals(40, currentVersion());
+    }
+
+    @Test
+    void upgradeFromV39AddsPriorityColumnToEnrichmentQueue() {
+        new SchemaInitializer(jdbi).initialize();
+        // Simulate a v39 DB: drop the priority column and rewind.
+        jdbi.useHandle(h -> {
+            h.execute("DROP INDEX IF EXISTS idx_jeq_claim_priority");
+            try { h.execute("ALTER TABLE javdb_enrichment_queue DROP COLUMN priority"); } catch (Exception ignore) {}
+            // Seed one queue row so we can verify the DEFAULT applies on upgrade.
+            h.execute("INSERT INTO actresses(id, canonical_name, tier, first_seen_at) VALUES (1,'Test','LIBRARY','2024-01-01')");
+            h.execute("""
+                    INSERT INTO javdb_enrichment_queue
+                        (job_type, target_id, actress_id, status, attempts, next_attempt_at, created_at, updated_at)
+                    VALUES ('fetch_title', 1, 1, 'pending', 0, '2024-01-01T00:00:00Z', '2024-01-01T00:00:00Z', '2024-01-01T00:00:00Z')
+                    """);
+            h.execute("PRAGMA user_version = 39");
+        });
+
+        new SchemaUpgrader(jdbi).upgrade();
+
+        assertEquals(40, currentVersion());
+        assertTrue(columnExists("javdb_enrichment_queue", "priority"),
+                "priority column must exist after v40 migration");
+
+        // Existing row must have been defaulted to NORMAL.
+        String priority = jdbi.withHandle(h ->
+                h.createQuery("SELECT priority FROM javdb_enrichment_queue LIMIT 1")
+                        .mapTo(String.class).one());
+        assertEquals("NORMAL", priority, "existing rows must default to NORMAL");
+
+        // CHECK constraint must reject invalid values.
+        try {
+            jdbi.useHandle(h -> h.execute(
+                    "INSERT INTO javdb_enrichment_queue " +
+                    "(job_type, target_id, actress_id, status, attempts, next_attempt_at, created_at, updated_at, priority) " +
+                    "VALUES ('fetch_title', 2, 1, 'pending', 0, '2024-01-01T00:00:00Z', '2024-01-01T00:00:00Z', '2024-01-01T00:00:00Z', 'INVALID')"));
+            fail("CHECK constraint should reject 'INVALID' priority value");
+        } catch (Exception expected) {
+            // expected
+        }
+
+        // Idempotent.
+        new SchemaUpgrader(jdbi).upgrade();
+        assertEquals(40, currentVersion());
+    }
+
+    @Test
+    void freshInstallHasPriorityColumnOnEnrichmentQueue() {
+        new SchemaInitializer(jdbi).initialize();
+        assertTrue(columnExists("javdb_enrichment_queue", "priority"),
+                "fresh install must include the priority column");
+        assertEquals(40, currentVersion());
     }
 
     private boolean columnExists(String table, String column) {

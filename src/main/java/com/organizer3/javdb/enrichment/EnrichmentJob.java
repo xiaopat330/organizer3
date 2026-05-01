@@ -14,7 +14,8 @@ public record EnrichmentJob(
         String nextAttemptAt,
         String lastError,
         String createdAt,
-        String updatedAt
+        String updatedAt,
+        Priority priority
 ) {
     public static final String FETCH_TITLE = "fetch_title";
     public static final String FETCH_ACTRESS_PROFILE = "fetch_actress_profile";

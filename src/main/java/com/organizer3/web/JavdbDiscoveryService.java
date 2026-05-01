@@ -96,7 +96,8 @@ public class JavdbDiscoveryService {
             String updatedAt,
             Integer queuePosition,  // 1-based position among pending items; null for in_flight/failed
             String lastError,       // null unless status='failed'; one of the permanent-fail reason codes
-            Long reviewQueueId      // non-null for ambiguous/cast_anomaly failures that have an open review entry
+            Long reviewQueueId,     // non-null for ambiguous/cast_anomaly failures that have an open review entry
+            String priority         // LOW | NORMAL | HIGH | URGENT
     ) {}
 
     public record QueueStatus(int pending, int inFlight, int failed, int pausedItems, boolean paused,
@@ -506,6 +507,7 @@ public class JavdbDiscoveryService {
                   CASE WHEN q.job_type = 'fetch_title' THEN t.base_code ELSE NULL END AS title_base_code,
                   q.last_error,
                   q.updated_at,
+                  q.priority,
                   erq.id AS review_queue_id
                 FROM javdb_enrichment_queue q
                 JOIN actresses a ON a.id = q.actress_id
@@ -543,7 +545,8 @@ public class JavdbDiscoveryService {
                             rs.getString("updated_at"),
                             null,
                             rs.getString("last_error"),
-                            rs.getObject("review_queue_id") != null ? rs.getLong("review_queue_id") : null
+                            rs.getObject("review_queue_id") != null ? rs.getLong("review_queue_id") : null,
+                            rs.getString("priority")
                     );
                 })
                 .list());
@@ -555,7 +558,8 @@ public class JavdbDiscoveryService {
             if ("pending".equals(item.status())) {
                 result.add(new QueueItem(item.id(), item.jobType(), item.status(), item.attempts(),
                         item.actressId(), item.actressName(), item.titleId(), item.titleCode(),
-                        item.coverUrl(), item.updatedAt(), ++pendingPos, item.lastError(), item.reviewQueueId()));
+                        item.coverUrl(), item.updatedAt(), ++pendingPos, item.lastError(), item.reviewQueueId(),
+                        item.priority()));
             } else {
                 result.add(item);
             }
