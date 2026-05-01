@@ -1,5 +1,7 @@
 package com.organizer3.javdb.enrichment;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.organizer3.javdb.JavdbClient;
 import com.organizer3.javdb.JavdbConfig;
 import com.organizer3.javdb.JavdbForbiddenException;
@@ -37,6 +39,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 public class EnrichmentRunner {
 
     private static final long LOOP_SLEEP_MS = 1_000;
+    private static final ObjectMapper RECOVERY_JSON = new ObjectMapper();
 
     private final JavdbConfig config;
     private final JavdbClient client;
@@ -132,6 +135,7 @@ public class EnrichmentRunner {
         stopRequested.set(false);
         queue.resetOrphanedInFlightJobs();
         backfillActressSlugsFromEnrichment();
+        recoverCastAnomaliesAfterMatcherFix();
         thread = new Thread(this::runLoop, "javdb-enrichment");
         thread.setDaemon(true);
         thread.setPriority(Thread.MIN_PRIORITY);
@@ -502,10 +506,12 @@ public class EnrichmentRunner {
         if (maybeActress.isEmpty()) return;
         Actress actress = maybeActress.get();
 
-        // Try name matching first — works when actress has a Japanese stage name or alias.
+        // Try name matching first — works when actress has a Japanese stage name or alias,
+        // or a romanized canonical name that matches javdb's roman cast entry (e.g. "AIKA").
         Set<String> knownNames = buildKnownNames(actress, actressRepo.findAliases(actressId));
         for (TitleExtract.CastEntry entry : cast) {
-            if (knownNames.contains(entry.name())) {
+            String n = CastMatcher.normalize(entry.name());
+            if (n != null && knownNames.contains(n)) {
                 if (stagingRepo.upsertActressSlugOnly(actressId, entry.slug(), titleCode)) {
                     log.info("javdb: resolved slug {} for actress {} via name match ({})", entry.slug(), actressId, titleCode);
                 }
@@ -541,13 +547,100 @@ public class EnrichmentRunner {
         }
     }
 
+    /**
+     * Re-evaluates open {@code cast_anomaly} review rows against the current matcher.
+     * Older runs flagged titles whose cast_json now matches under the upgraded
+     * normalization (e.g. romanized canonical name "Aika" vs cast entry "AIKA"), so
+     * we re-run the match using stored cast_json — no network — and discharge rows
+     * that now resolve cleanly. Idempotent: a second pass finds nothing to do.
+     */
+    void recoverCastAnomaliesAfterMatcherFix() {
+        if (castMatcher == null || titleActressRepo == null || reviewQueueRepo == null) return;
+        List<RecoveryCandidate> candidates = jdbi.withHandle(h -> h.createQuery("""
+                SELECT q.id AS queue_id, q.title_id, t.code AS title_code, e.cast_json
+                FROM enrichment_review_queue q
+                JOIN title_javdb_enrichment e ON e.title_id = q.title_id
+                JOIN titles t ON t.id = q.title_id
+                WHERE q.reason = 'cast_anomaly' AND q.resolved_at IS NULL
+                """)
+                .map((rs, ctx) -> new RecoveryCandidate(
+                        rs.getLong("queue_id"),
+                        rs.getLong("title_id"),
+                        rs.getString("title_code"),
+                        rs.getString("cast_json")))
+                .list());
+        if (candidates.isEmpty()) return;
+
+        int recovered = 0;
+        for (RecoveryCandidate c : candidates) {
+            List<TitleExtract.CastEntry> cast = parseCastJson(c.castJson);
+            if (cast.isEmpty()) continue;
+            List<Long> linked = titleActressRepo.findActressIdsByTitle(c.titleId).stream()
+                    .filter(id -> !isSentinelActress(id))
+                    .toList();
+            for (long actressId : linked) {
+                CastMatcher.MatchResult m = castMatcher.match(actressId, cast);
+                if (!m.matched()) continue;
+                stagingRepo.upsertActressSlugOnly(actressId, m.matchedSlug(), c.titleCode);
+                jdbi.useTransaction(h -> {
+                    h.createUpdate("""
+                            UPDATE title_javdb_enrichment
+                            SET confidence = 'HIGH', cast_validated = 1
+                            WHERE title_id = :titleId
+                            """)
+                            .bind("titleId", c.titleId)
+                            .execute();
+                    reviewQueueRepo.resolveOne(c.queueId, "cast_recovered", h);
+                });
+                queue.enqueueActressProfile(actressId);
+                recovered++;
+                log.info("javdb: cast_anomaly recovered for title {} ({}) — actress {} matched cast '{}' (slug={})",
+                        c.titleId, c.titleCode, actressId, m.matchedName(), m.matchedSlug());
+                break;
+            }
+        }
+        if (recovered > 0) {
+            log.info("javdb: cast_anomaly recovery discharged {} of {} open rows after matcher upgrade",
+                    recovered, candidates.size());
+        }
+    }
+
+    private static List<TitleExtract.CastEntry> parseCastJson(String castJson) {
+        if (castJson == null || castJson.isBlank()) return List.of();
+        try {
+            JsonNode arr = RECOVERY_JSON.readTree(castJson);
+            if (!arr.isArray()) return List.of();
+            List<TitleExtract.CastEntry> out = new java.util.ArrayList<>(arr.size());
+            for (JsonNode n : arr) {
+                String slug = n.path("slug").asText(null);
+                String name = n.path("name").asText(null);
+                String gender = n.path("gender").asText(null);
+                if (slug != null && name != null) {
+                    out.add(new TitleExtract.CastEntry(slug, name, gender));
+                }
+            }
+            return out;
+        } catch (Exception e) {
+            log.warn("javdb: failed to parse cast_json during recovery: {}", e.toString());
+            return List.of();
+        }
+    }
+
+    private record RecoveryCandidate(long queueId, long titleId, String titleCode, String castJson) {}
+
     private Set<String> buildKnownNames(Actress actress, List<ActressAlias> aliases) {
         Set<String> names = new java.util.HashSet<>();
-        if (actress.getStageName() != null) names.add(actress.getStageName());
+        addNormalized(names, actress.getCanonicalName());
+        addNormalized(names, actress.getStageName());
         for (ActressAlias alias : aliases) {
-            if (alias.aliasName() != null) names.add(alias.aliasName());
+            addNormalized(names, alias.aliasName());
         }
         return names;
+    }
+
+    private static void addNormalized(Set<String> sink, String value) {
+        String n = CastMatcher.normalize(value);
+        if (n != null) sink.add(n);
     }
 
     private void triggerActressProfileIfNeeded(long actressId) {

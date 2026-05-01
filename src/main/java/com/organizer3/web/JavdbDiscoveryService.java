@@ -5,6 +5,7 @@ import com.organizer3.javdb.enrichment.EnrichmentRunner;
 import com.organizer3.model.Title;
 import org.jdbi.v3.core.Jdbi;
 
+import java.nio.file.Path;
 import java.util.List;
 
 /**
@@ -52,7 +53,8 @@ public class JavdbDiscoveryService {
             Integer ratingCount,
             String queueStatus,    // null | 'pending' | 'in_flight' | 'failed' | 'done'
             String lastError,      // null unless queueStatus='failed'
-            Long reviewQueueId     // non-null for resolvable failures with an open review entry
+            Long reviewQueueId,    // non-null for resolvable failures with an open review entry
+            String localCoverUrl   // null when no local cover exists
     ) {}
 
     /**
@@ -256,21 +258,35 @@ public class JavdbDiscoveryService {
                 query.bindList("tags", filter.requireTags())
                      .bind("tagCount", filter.requireTags().size());
             }
-            return query.map((rs, ctx) -> new TitleRow(
-                    rs.getLong("title_id"),
-                    rs.getString("code"),
-                    rs.getString("status"),
-                    rs.getString("javdb_slug"),
-                    rs.getString("title_original"),
-                    rs.getString("release_date"),
-                    rs.getString("maker"),
-                    rs.getString("publisher"),
-                    rs.getObject("rating_avg")        != null ? rs.getDouble("rating_avg")   : null,
-                    rs.getObject("rating_count")      != null ? rs.getInt("rating_count")    : null,
-                    rs.getString("queue_status"),
-                    rs.getString("last_error"),
-                    rs.getObject("review_queue_id")   != null ? rs.getLong("review_queue_id") : null
-            )).list();
+            return query.map((rs, ctx) -> {
+                String code = rs.getString("code");
+                String localCoverUrl = null;
+                if (coverPath != null) {
+                    localCoverUrl = coverPath.findByCode(code)
+                            .map(p -> {
+                                int dash = code.indexOf('-');
+                                String label = dash > 0 ? code.substring(0, dash).toUpperCase() : "UNKNOWN";
+                                return "/covers/" + label + "/" + p.getFileName();
+                            })
+                            .orElse(null);
+                }
+                return new TitleRow(
+                        rs.getLong("title_id"),
+                        code,
+                        rs.getString("status"),
+                        rs.getString("javdb_slug"),
+                        rs.getString("title_original"),
+                        rs.getString("release_date"),
+                        rs.getString("maker"),
+                        rs.getString("publisher"),
+                        rs.getObject("rating_avg")        != null ? rs.getDouble("rating_avg")   : null,
+                        rs.getObject("rating_count")      != null ? rs.getInt("rating_count")    : null,
+                        rs.getString("queue_status"),
+                        rs.getString("last_error"),
+                        rs.getObject("review_queue_id")   != null ? rs.getLong("review_queue_id") : null,
+                        localCoverUrl
+                );
+            }).list();
         });
     }
 
