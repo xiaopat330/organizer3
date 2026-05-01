@@ -4251,6 +4251,27 @@
   font-variant-numeric: tabular-nums;
 }
 
+/* Extension pill — cool blue */
+.dt-chip-ext {
+  background: rgba(56, 189, 248, 0.12);
+  color: #38bdf8;
+  border: 1px solid rgba(56, 189, 248, 0.2);
+}
+
+/* HEVC pill — violet */
+.dt-chip-hevc {
+  background: rgba(167, 139, 250, 0.12);
+  color: #a78bfa;
+  border: 1px solid rgba(167, 139, 250, 0.2);
+}
+
+/* 4K pill — amber */
+.dt-chip-4k {
+  background: rgba(251, 191, 36, 0.12);
+  color: #fbbf24;
+  border: 1px solid rgba(251, 191, 36, 0.2);
+}
+
 .dt-suggested-badge {
   font-size: 10px;
   color: #fb923c;
@@ -4368,11 +4389,32 @@
 
 .dt-inspect-path-line {
   font-size: 11px;
-  color: #475569;
   word-break: break-all;
   flex: 1;
-  line-height: 1.5;
+  line-height: 1.8;
   align-self: center;
+}
+
+/* Volume root: //server/share — muted but readable */
+.dt-inspect-path-volume {
+  color: #64748b;
+  font-family: monospace;
+}
+
+/* Intermediate path segments — slightly brighter */
+.dt-inspect-path-middle {
+  color: #94a3b8;
+  font-family: monospace;
+}
+
+/* Title folder — highlighted so it stands out as the key identifier */
+.dt-inspect-path-title {
+  color: #e2e8f0;
+  font-weight: 600;
+  background: rgba(226, 232, 240, 0.06);
+  border-radius: 3px;
+  padding: 1px 4px;
+  font-family: monospace;
 }
 
 .dt-inspect-close {
@@ -4408,6 +4450,12 @@
   font-size: 11px;
   color: #94a3b8;
   word-break: break-all;
+}
+
+.dt-inspect-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
 }
 
 .dt-inspect-meta {
