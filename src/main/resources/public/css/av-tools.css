@@ -7044,3 +7044,44 @@ button.jd-qi-status.jd-qi-slug-link:hover { filter: brightness(1.2); }
 }
 .er-picker-load-btn:hover:not(:disabled) { background: #3d2500; }
 .er-picker-load-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+/* ── Clickable title code (has cover) ─────────────────────────── */
+.er-code-cover-btn {
+  background: none;
+  border: none;
+  padding: 0;
+  margin: 0;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  color: #7dd3fc;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  text-decoration-color: rgba(125, 211, 252, 0.4);
+}
+.er-code-cover-btn:hover { color: #bae6fd; text-decoration-color: rgba(186, 230, 253, 0.6); }
+
+/* ── Cover lightbox ───────────────────────────────────────────── */
+.cover-lightbox {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.cover-lightbox-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.85);
+}
+.cover-lightbox-img {
+  position: relative;
+  max-width: min(90vw, 600px);
+  max-height: 90vh;
+  object-fit: contain;
+  border-radius: 4px;
+  box-shadow: 0 8px 48px rgba(0, 0, 0, 0.7);
+  cursor: pointer;
+}

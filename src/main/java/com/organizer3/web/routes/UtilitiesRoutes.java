@@ -1,5 +1,6 @@
 package com.organizer3.web.routes;
 
+import com.organizer3.covers.CoverPath;
 import com.organizer3.javdb.enrichment.EnrichmentReviewQueueRepository;
 import com.organizer3.mcp.tools.ForceEnrichTitleTool;
 import com.organizer3.rating.RatingCurve;
@@ -54,6 +55,7 @@ public final class UtilitiesRoutes {
     private final LibraryHealthService healthService;
     private final OrphanedCoversService orphanedCoversService;
     private final RatingCurveRepository ratingCurveRepo;
+    private final CoverPath coverPath;
     private final EnrichmentReviewQueueRepository reviewQueueRepo;
     private final ForceEnrichTitleTool forceEnrichTool;
     private final com.organizer3.mcp.tools.PickReviewCandidateTool pickCandidateTool;
@@ -80,7 +82,8 @@ public final class UtilitiesRoutes {
                            com.organizer3.mcp.tools.ConfirmOrphanDeleteTool confirmOrphanDeleteTool,
                            com.organizer3.mcp.tools.RenameActressTool renameActressTool,
                            com.organizer3.mcp.tools.RecodeTitleTool recodeTitleTool,
-                           TaskRegistry registry, TaskRunner runner) {
+                           TaskRegistry registry, TaskRunner runner,
+                           CoverPath coverPath) {
         this.volumeState = volumeState;
         this.staleLocations = staleLocations;
         this.actressCatalog = actressCatalog;
@@ -99,6 +102,7 @@ public final class UtilitiesRoutes {
         this.recodeTitleTool = recodeTitleTool;
         this.registry = registry;
         this.runner = runner;
+        this.coverPath = coverPath;
     }
 
     public void register(Javalin app) {
@@ -182,7 +186,26 @@ public final class UtilitiesRoutes {
             int offset = parseIntParam(ctx.queryParam("offset"), 0,   0, Integer.MAX_VALUE);
             var counts = reviewQueueRepo.countOpenByReason();
             var rows   = reviewQueueRepo.listOpen(reason, limit, offset);
-            ctx.json(Map.of("counts", counts, "rows", rows));
+            var rowsWithCovers = rows.stream().map(r -> {
+                var m = new LinkedHashMap<String, Object>();
+                m.put("id",             r.id());
+                m.put("titleId",        r.titleId());
+                m.put("titleCode",      r.titleCode());
+                m.put("slug",           r.slug());
+                m.put("reason",         r.reason());
+                m.put("resolverSource", r.resolverSource());
+                m.put("createdAt",      r.createdAt());
+                m.put("detail",         r.detail());
+                m.put("coverUrl", coverPath.findByCode(r.titleCode())
+                        .map(p -> {
+                            int dash = r.titleCode() != null ? r.titleCode().indexOf('-') : -1;
+                            String label = dash > 0 ? r.titleCode().substring(0, dash).toUpperCase() : "";
+                            return "/covers/" + label + "/" + p.getFileName();
+                        })
+                        .orElse(null));
+                return m;
+            }).toList();
+            ctx.json(Map.of("counts", counts, "rows", rowsWithCovers));
         });
         app.post("/api/utilities/enrichment-review/queue/{id}/resolve", ctx -> {
             long id;

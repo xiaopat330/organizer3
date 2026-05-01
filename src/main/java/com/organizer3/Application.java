@@ -733,7 +733,7 @@ public class Application {
                 backupCatalogService, backupService, libraryHealthService, orphanedCoversService,
                 ratingCurveRepo, enrichmentReviewQueueRepo, forceEnrichTitleTool,
                 pickReviewCandidateTool, refreshReviewCandidatesTool, confirmOrphanDeleteTool,
-                renameActressTool, recodeTitleTool, taskRegistry, taskRunner));
+                renameActressTool, recodeTitleTool, taskRegistry, taskRunner, coverPath));
         webServer.registerAvStars(new com.organizer3.web.routes.AvStarsRoutes(
                 avStarsCatalog, avBrowseService, iafdResolver));
         webServer.registerTrash(new com.organizer3.web.routes.TrashRoutes(
