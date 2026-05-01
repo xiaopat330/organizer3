@@ -195,7 +195,7 @@ class AvScreenshotQueueRoutesTest {
         when(worker.getCurrentVideoId()).thenReturn(7L);
         when(worker.getCurrentActressId()).thenReturn(3L);
 
-        var resp = get("/api/av/screenshots/worker/state");
+        var resp = get("/api/av/screenshot-queue/state");
         assertEquals(200, resp.statusCode());
 
         JsonNode body = mapper.readTree(resp.body());
@@ -214,7 +214,7 @@ class AvScreenshotQueueRoutesTest {
         when(worker.getCurrentVideoId()).thenReturn(null);
         when(worker.getCurrentActressId()).thenReturn(null);
 
-        var resp = get("/api/av/screenshots/worker/state");
+        var resp = get("/api/av/screenshot-queue/state");
         assertEquals(200, resp.statusCode());
 
         JsonNode body = mapper.readTree(resp.body());

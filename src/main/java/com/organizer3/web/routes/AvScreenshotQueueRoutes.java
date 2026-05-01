@@ -92,8 +92,11 @@ public class AvScreenshotQueueRoutes {
             ctx.json(out);
         });
 
-        // GET /api/av/screenshots/worker/state
-        app.get("/api/av/screenshots/worker/state", ctx -> {
+        // GET /api/av/screenshot-queue/state
+        // Path is deliberately outside /api/av/screenshots/ to avoid colliding with the
+        // pre-existing image-serving route /api/av/screenshots/{videoId}/{seq}, which would
+        // otherwise match "worker/state" as videoId="worker" and reject with 400.
+        app.get("/api/av/screenshot-queue/state", ctx -> {
             Map<String, Object> out = new LinkedHashMap<>();
             out.put("running",          worker.isRunning());
             out.put("streamActive",     streamTracker.isPlaying(30_000));

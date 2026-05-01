@@ -66,7 +66,7 @@ async function fetchAndRender(id) {
   try {
     const [pRes, wRes] = await Promise.all([
       fetch(`/api/av/actresses/${_actressId}/screenshots/progress`),
-      fetch('/api/av/screenshots/worker/state'),
+      fetch('/api/av/screenshot-queue/state'),
     ]);
     if (_mountId !== id || !_container) return;
     if (!pRes.ok || !wRes.ok) return;
@@ -89,7 +89,7 @@ async function tick(id) {
   try {
     const [pRes, wRes] = await Promise.all([
       fetch(`/api/av/actresses/${_actressId}/screenshots/progress`),
-      fetch('/api/av/screenshots/worker/state'),
+      fetch('/api/av/screenshot-queue/state'),
     ]);
     if (_mountId !== id || !_container) return;
     if (!pRes.ok || !wRes.ok) return;
