@@ -5,6 +5,7 @@ import { avBrowseMode, selectAvBrowseMode } from './av-browse.js';
 import { openAvVideoDetail } from './av-video-detail.js';
 import { COLS_VALUES, colsSliderHtml, wireColsSlider } from './grid-cols.js';
 import { ICON_FAV_LG, ICON_BM_LG, ICON_FAV_SM, ICON_BM_SM, ICON_BM_SM_OFF } from './icons.js';
+import { mount as mountScreenshotControls, unmount as unmountScreenshotControls } from './av-screenshot-controls.js';
 
 // ── Constants ─────────────────────────────────────────────────────────────
 const AV_DETAIL_COLS_KEY     = 'av-detail-grid-cols';
@@ -37,6 +38,7 @@ function getSavedCols() {
 // ── Entry point ───────────────────────────────────────────────────────────
 export async function openAvActressDetail(actressId) {
   cancelPendingVisit();
+  unmountScreenshotControls();
   currentActressId = actressId;
   currentActress   = null;
   allVideos        = [];
@@ -102,6 +104,11 @@ function renderDetail() {
 
   applyGridCols(gridCols);
   wireSidebarButtons();
+  mountScreenshotControls(
+    document.getElementById('av-ss-controls'),
+    currentActressId,
+    allVideos.filter(v => !v.screenshotCount).length
+  );
   wireRightPanel();
   renderVideoGrid();
 }
@@ -159,7 +166,8 @@ function renderActionBar(a) {
     <div class="title-detail-actions">
       <button class="title-action-btn${a.favorite ? ' active' : ''}" id="av-detail-fav-btn" title="Favorite">${ICON_FAV_LG}</button>
       <button class="title-action-btn${a.bookmark ? ' active' : ''}" id="av-detail-bm-btn" title="Bookmark">${ICON_BM_LG}</button>
-    </div>`;
+    </div>
+    <div id="av-ss-controls"></div>`;
 }
 
 function renderProfileDetails(a) {
@@ -377,6 +385,20 @@ window.addEventListener('av-screenshots-generated', e => {
     screenshotCount: count,
     firstScreenshotUrl: `/api/av/screenshots/${videoId}/0`
   });
+});
+
+window.addEventListener('av-screenshots-queue-done', e => {
+  if (e.detail.actressId !== currentActressId) return;
+  fetch(`/api/av/actresses/${currentActressId}/videos`)
+    .then(r => r.ok ? r.json() : null)
+    .then(videos => {
+      if (!videos) return;
+      allVideos = videos;
+      renderVideoGrid();
+      const ctrl = document.getElementById('av-ss-controls');
+      if (ctrl) mountScreenshotControls(ctrl, currentActressId, 0);
+    })
+    .catch(() => {});
 });
 
 // ── Utilities ─────────────────────────────────────────────────────────────
