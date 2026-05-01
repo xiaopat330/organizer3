@@ -1133,6 +1133,9 @@ function showJdCoverModal(coverUrl, code) {
   document.addEventListener('keydown', e => { if (e.key === 'Escape') close(); }, { signal: ac.signal });
 }
 
+// Expose for inline onclick in conflict-row innerHTML template.
+window.showJdCoverModal = showJdCoverModal;
+
 function parseCast(castJson) {
   if (!castJson) return [];
   try { return JSON.parse(castJson); } catch (_) { return []; }
