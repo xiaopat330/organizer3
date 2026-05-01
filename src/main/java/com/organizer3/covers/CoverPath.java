@@ -71,6 +71,29 @@ public class CoverPath {
         return Optional.empty();
     }
 
+    /**
+     * Finds a cover by raw title code (e.g. {@code "ABP-123"} or {@code "ABP-00123"}),
+     * without needing a {@link Title}. The label is the alpha prefix before the first dash;
+     * the numeric part is zero-padded to 5 digits to match the on-disk baseCode filename format.
+     */
+    public Optional<Path> findByCode(String titleCode) {
+        if (titleCode == null) return Optional.empty();
+        int dash = titleCode.indexOf('-');
+        if (dash <= 0) return Optional.empty();
+        String label = titleCode.substring(0, dash).toUpperCase();
+        // Strip any variant suffix (e.g. "_U") and zero-pad to 5 digits to match baseCode format.
+        String rest = titleCode.substring(dash + 1).replaceAll("[^0-9].*$", "");
+        if (rest.isEmpty()) return Optional.empty();
+        String baseCode = String.format("%s-%05d", label, Integer.parseInt(rest));
+        Path dir = coversRoot.resolve(label);
+        if (!Files.isDirectory(dir)) return Optional.empty();
+        for (String ext : PROBE_EXTENSIONS) {
+            Path candidate = dir.resolve(baseCode + "." + ext);
+            if (Files.isRegularFile(candidate)) return Optional.of(candidate);
+        }
+        return Optional.empty();
+    }
+
     /** Returns true if a cover image already exists locally for this title. */
     public boolean exists(Title title) {
         return find(title).isPresent();

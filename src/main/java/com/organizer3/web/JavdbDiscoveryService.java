@@ -1,6 +1,8 @@
 package com.organizer3.web;
 
+import com.organizer3.covers.CoverPath;
 import com.organizer3.javdb.enrichment.EnrichmentRunner;
+import com.organizer3.model.Title;
 import org.jdbi.v3.core.Jdbi;
 
 import java.util.List;
@@ -15,10 +17,12 @@ public class JavdbDiscoveryService {
 
     private final Jdbi jdbi;
     private final EnrichmentRunner runner;
+    private final CoverPath coverPath;
 
-    public JavdbDiscoveryService(Jdbi jdbi, EnrichmentRunner runner) {
-        this.jdbi   = jdbi;
-        this.runner = runner;
+    public JavdbDiscoveryService(Jdbi jdbi, EnrichmentRunner runner, CoverPath coverPath) {
+        this.jdbi      = jdbi;
+        this.runner    = runner;
+        this.coverPath = coverPath;
     }
 
     // ── Response records ───────────────────────────────────────────────────
@@ -46,7 +50,9 @@ public class JavdbDiscoveryService {
             String publisher,
             Double ratingAvg,
             Integer ratingCount,
-            String queueStatus     // null | 'pending' | 'in_flight' | 'failed' | 'done'
+            String queueStatus,    // null | 'pending' | 'in_flight' | 'failed' | 'done'
+            String lastError,      // null unless queueStatus='failed'
+            Long reviewQueueId     // non-null for resolvable failures with an open review entry
     ) {}
 
     /**
@@ -86,8 +92,11 @@ public class JavdbDiscoveryService {
             long id, String jobType, String status, int attempts,
             long actressId, String actressName,
             Long titleId, String titleCode,
+            String coverUrl,        // null if no local cover exists or this is a profile job
             String updatedAt,
-            Integer queuePosition   // 1-based position among pending items; null for in_flight/failed
+            Integer queuePosition,  // 1-based position among pending items; null for in_flight/failed
+            String lastError,       // null unless status='failed'; one of the permanent-fail reason codes
+            Long reviewQueueId      // non-null for ambiguous/cast_anomaly failures that have an open review entry
     ) {}
 
     public record QueueStatus(int pending, int inFlight, int failed, int pausedItems, boolean paused,
@@ -99,7 +108,8 @@ public class JavdbDiscoveryService {
             String code,
             String ourActressName,
             String ourJavdbSlug,   // null if no staging profile yet
-            String castJson
+            String castJson,
+            String coverUrl        // null if no cover found locally
     ) {}
 
     public record TitleEnrichmentDetail(
@@ -187,7 +197,9 @@ public class JavdbDiscoveryService {
                   tje.publisher,
                   tje.rating_avg,
                   tje.rating_count,
-                  jeq.effective_queue_status AS queue_status
+                  jeq.effective_queue_status AS queue_status,
+                  jeq.last_error,
+                  erq.id AS review_queue_id
                 FROM title_actresses ta
                 JOIN titles t ON t.id = ta.title_id
                 """);
@@ -206,11 +218,16 @@ public class JavdbDiscoveryService {
                              WHEN SUM(CASE WHEN status = 'failed'    THEN 1 ELSE 0 END) > 0 THEN 'failed'
                              WHEN SUM(CASE WHEN status = 'done'      THEN 1 ELSE 0 END) > 0 THEN 'done'
                              ELSE NULL
-                           END AS effective_queue_status
+                           END AS effective_queue_status,
+                           MAX(CASE WHEN status = 'failed' THEN last_error END) AS last_error
                     FROM javdb_enrichment_queue
                     WHERE job_type = 'fetch_title'
                     GROUP BY target_id
                 ) jeq ON jeq.target_id = t.id
+                LEFT JOIN enrichment_review_queue erq
+                  ON erq.title_id = t.id
+                  AND erq.reason = jeq.last_error
+                  AND erq.resolved_at IS NULL
                 WHERE ta.actress_id = :actressId
                 """);
         if (filtering && filter.minRatingAvg() != null)   sql.append("  AND tje.rating_avg   >= :minRatingAvg\n");
@@ -247,9 +264,11 @@ public class JavdbDiscoveryService {
                     rs.getString("release_date"),
                     rs.getString("maker"),
                     rs.getString("publisher"),
-                    rs.getObject("rating_avg")   != null ? rs.getDouble("rating_avg")   : null,
-                    rs.getObject("rating_count") != null ? rs.getInt("rating_count")    : null,
-                    rs.getString("queue_status")
+                    rs.getObject("rating_avg")        != null ? rs.getDouble("rating_avg")   : null,
+                    rs.getObject("rating_count")      != null ? rs.getInt("rating_count")    : null,
+                    rs.getString("queue_status"),
+                    rs.getString("last_error"),
+                    rs.getObject("review_queue_id")   != null ? rs.getLong("review_queue_id") : null
             )).list();
         });
     }
@@ -434,7 +453,8 @@ public class JavdbDiscoveryService {
      */
     public List<ConflictRow> getActressConflicts(long actressId) {
         return jdbi.withHandle(h -> h.createQuery("""
-                SELECT t.id AS title_id, t.code, a.canonical_name AS our_actress_name,
+                SELECT t.id AS title_id, t.code, t.label, t.base_code,
+                       a.canonical_name AS our_actress_name,
                        jas.javdb_slug AS our_javdb_slug, tje.cast_json
                 FROM title_javdb_enrichment tje
                 JOIN titles t ON t.id = tje.title_id
@@ -450,13 +470,25 @@ public class JavdbDiscoveryService {
                 ORDER BY t.code
                 """)
                 .bind("actressId", actressId)
-                .map((rs, ctx) -> new ConflictRow(
-                        rs.getLong("title_id"),
-                        rs.getString("code"),
-                        rs.getString("our_actress_name"),
-                        rs.getString("our_javdb_slug"),
-                        rs.getString("cast_json")
-                ))
+                .map((rs, ctx) -> {
+                    String label    = rs.getString("label");
+                    String baseCode = rs.getString("base_code");
+                    String coverUrl = null;
+                    if (coverPath != null && label != null && baseCode != null) {
+                        Title synth = Title.builder().label(label).baseCode(baseCode).build();
+                        coverUrl = coverPath.find(synth)
+                                .map(p -> "/covers/" + label.toUpperCase() + "/" + p.getFileName())
+                                .orElse(null);
+                    }
+                    return new ConflictRow(
+                            rs.getLong("title_id"),
+                            rs.getString("code"),
+                            rs.getString("our_actress_name"),
+                            rs.getString("our_javdb_slug"),
+                            rs.getString("cast_json"),
+                            coverUrl
+                    );
+                })
                 .list());
     }
 
@@ -469,29 +501,51 @@ public class JavdbDiscoveryService {
                   q.id, q.job_type, q.status, q.attempts,
                   q.actress_id, a.canonical_name AS actress_name,
                   CASE WHEN q.job_type = 'fetch_title' THEN q.target_id ELSE NULL END AS title_id,
-                  CASE WHEN q.job_type = 'fetch_title' THEN t.code ELSE NULL END AS title_code,
-                  q.updated_at
+                  CASE WHEN q.job_type = 'fetch_title' THEN t.code      ELSE NULL END AS title_code,
+                  CASE WHEN q.job_type = 'fetch_title' THEN t.label     ELSE NULL END AS title_label,
+                  CASE WHEN q.job_type = 'fetch_title' THEN t.base_code ELSE NULL END AS title_base_code,
+                  q.last_error,
+                  q.updated_at,
+                  erq.id AS review_queue_id
                 FROM javdb_enrichment_queue q
                 JOIN actresses a ON a.id = q.actress_id
                 LEFT JOIN titles t ON t.id = q.target_id AND q.job_type = 'fetch_title'
+                LEFT JOIN enrichment_review_queue erq
+                       ON erq.title_id = q.target_id
+                      AND erq.reason   = q.last_error
+                      AND erq.resolved_at IS NULL
                 WHERE q.status IN ('pending', 'in_flight', 'failed', 'paused')
                 ORDER BY
                   CASE q.status WHEN 'in_flight' THEN 0 WHEN 'pending' THEN 1 WHEN 'paused' THEN 2 ELSE 3 END,
                   COALESCE(q.sort_order, 9223372036854775807) ASC,
                   q.id ASC
                 """)
-                .map((rs, ctx) -> new QueueItem(
-                        rs.getLong("id"),
-                        rs.getString("job_type"),
-                        rs.getString("status"),
-                        rs.getInt("attempts"),
-                        rs.getLong("actress_id"),
-                        rs.getString("actress_name"),
-                        rs.getObject("title_id") != null ? rs.getLong("title_id") : null,
-                        rs.getString("title_code"),
-                        rs.getString("updated_at"),
-                        null
-                ))
+                .map((rs, ctx) -> {
+                    String label    = rs.getString("title_label");
+                    String baseCode = rs.getString("title_base_code");
+                    String coverUrl = null;
+                    if (coverPath != null && label != null && baseCode != null) {
+                        Title synth = Title.builder().label(label).baseCode(baseCode).build();
+                        coverUrl = coverPath.find(synth)
+                                .map(p -> "/covers/" + label.toUpperCase() + "/" + p.getFileName())
+                                .orElse(null);
+                    }
+                    return new QueueItem(
+                            rs.getLong("id"),
+                            rs.getString("job_type"),
+                            rs.getString("status"),
+                            rs.getInt("attempts"),
+                            rs.getLong("actress_id"),
+                            rs.getString("actress_name"),
+                            rs.getObject("title_id")         != null ? rs.getLong("title_id")         : null,
+                            rs.getString("title_code"),
+                            coverUrl,
+                            rs.getString("updated_at"),
+                            null,
+                            rs.getString("last_error"),
+                            rs.getObject("review_queue_id") != null ? rs.getLong("review_queue_id") : null
+                    );
+                })
                 .list());
 
         // Assign 1-based positions to pending items in their rendered order.
@@ -501,7 +555,7 @@ public class JavdbDiscoveryService {
             if ("pending".equals(item.status())) {
                 result.add(new QueueItem(item.id(), item.jobType(), item.status(), item.attempts(),
                         item.actressId(), item.actressName(), item.titleId(), item.titleCode(),
-                        item.updatedAt(), ++pendingPos));
+                        item.coverUrl(), item.updatedAt(), ++pendingPos, item.lastError(), item.reviewQueueId()));
             } else {
                 result.add(item);
             }

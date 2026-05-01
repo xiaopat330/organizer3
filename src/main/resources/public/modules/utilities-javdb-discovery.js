@@ -1,5 +1,18 @@
 import { esc } from './utils.js';
 
+function formatRelative(isoStr) {
+  if (!isoStr) return '—';
+  try {
+    const diff = Date.now() - new Date(isoStr).getTime();
+    const days = Math.floor(diff / 86400000);
+    if (days === 0) return 'Today';
+    if (days === 1) return 'Yesterday';
+    if (days < 30)  return `${days}d ago`;
+    if (days < 365) return `${Math.floor(days / 30)}mo ago`;
+    return `${Math.floor(days / 365)}y ago`;
+  } catch { return isoStr; }
+}
+
 function fmtDate(iso) {
   if (!iso) return '—';
   const [y, m, d] = iso.split('-');
@@ -77,6 +90,7 @@ const emptyMsg          = document.getElementById('jd-empty');
 const panel             = document.getElementById('jd-actress-panel');
 const enrichBtn         = document.getElementById('jd-enrich-btn');
 const cancelActressBtn  = document.getElementById('jd-cancel-actress-btn');
+const titlesActionBar   = document.getElementById('jd-titles-action-bar');
 const subtabBtns        = panel?.querySelectorAll('.jd-subtab') ?? [];
 const titlesView        = document.getElementById('jd-subview-titles');
 const profileView       = document.getElementById('jd-subview-profile');
@@ -169,8 +183,8 @@ async function refreshQueue() {
       const parts = [];
       if (activeTotal > 0) parts.push(`${activeTotal} pending`);
       if (pausedItems > 0) parts.push(`${pausedItems} paused`);
-      if (failed > 0) parts.push(`${failed} failed`);
-      queueBadge.textContent = parts.join(' · ');
+      if (failed > 0) parts.push(`<span class="jd-badge-failed">${failed} failed</span>`);
+      queueBadge.innerHTML = parts.join(' · ');
       queueBadge.style.display = '';
     }
     pauseBtn.textContent = paused ? 'Resume' : 'Pause';
@@ -183,7 +197,7 @@ async function refreshQueue() {
         rateLimitBanner.className = 'jd-rate-limit-banner jd-banner-burst';
         rateLimitBanner.innerHTML =
           `↻ Taking a burst break — resuming at <span class="jd-banner-time">${esc(resumeStr)}</span>. ` +
-          `<button type="button" class="jd-banner-resume-btn" id="jd-force-resume-btn">Resume Now</button>`;
+          `<button type="button" class="jd-banner-resume-btn" id="jd-force-resume-btn">▶ Resume Now</button>`;
       } else {
         const reason = rateLimitPauseReason || 'Rate limited';
         const hitNote = consecutiveRateLimitHits > 1
@@ -193,7 +207,7 @@ async function refreshQueue() {
         rateLimitBanner.innerHTML =
           `⚠ Rate limited — ${esc(reason)}${esc(hitNote)}. Resuming at <strong class="jd-banner-time">${esc(resumeStr)}</strong>. ` +
           `<span class="jd-banner-hint">Switch VPN then </span>` +
-          `<button type="button" class="jd-banner-resume-btn" id="jd-force-resume-btn">Resume Now</button>`;
+          `<button type="button" class="jd-banner-resume-btn" id="jd-force-resume-btn">▶ Resume Now</button>`;
       }
       rateLimitBanner.style.display = '';
       document.getElementById('jd-force-resume-btn')?.addEventListener('click', forceResume);
@@ -551,6 +565,7 @@ async function renderActiveTab() {
 
 async function renderTitlesTab() {
   titlesView.style.display    = '';
+  titlesActionBar.style.display = '';
   profileView.style.display   = 'none';
   conflictsView.style.display = 'none';
   errorsView.style.display    = 'none';
@@ -593,6 +608,7 @@ async function fetchAndRenderTitles() {
     wireFilterBar();
     wireReenrichButtons();
     wireEnrichmentDetailTriggers();
+    wireFailureBadges();
   } catch (_) {
     titlesView.innerHTML = '<div class="jd-error">Network error.</div>';
   }
@@ -717,6 +733,23 @@ function wireEnrichmentDetailTriggers() {
   });
 }
 
+function wireFailureBadges() {
+  titlesView.querySelectorAll('.jd-titles-review-link[data-review-id]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.dispatchEvent(new CustomEvent('navigate-to-review-item', {
+        detail: { reviewQueueId: parseInt(btn.dataset.reviewId, 10) }
+      }));
+    });
+  });
+  titlesView.querySelectorAll('.jd-titles-profile-link').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.dispatchEvent(new CustomEvent('navigate-to-discovery-actress-profile', {
+        detail: { actressId: state.selectedId }
+      }));
+    });
+  });
+}
+
 // ── Enrichment detail modal ────────────────────────────────────────────────
 
 const enrichModalOverlay = document.getElementById('jd-enrich-modal-overlay');
@@ -811,18 +844,40 @@ function titleEffectiveStatus(t) {
   if (t.queueStatus === 'in_flight') return { key: 'in_flight', label: '⟳ In Progress' };
   if (t.queueStatus === 'pending')   return { key: 'pending',   label: '◌ Queued' };
   if (t.status === 'fetched')        return { key: 'fetched',   label: '✓ Enriched' };
-  if (t.queueStatus === 'failed')    return { key: 'failed',    label: '✗ Failed' };
+  if (t.queueStatus === 'failed') {
+    const meta  = QUEUE_FAIL_META[t.lastError];
+    const icon  = meta?.icon  ?? '✗';
+    const label = meta?.label ?? (t.lastError ? t.lastError.replace(/_/g, ' ') : 'failed');
+    const cls   = meta?.cls   ?? 'jd-qi-failed';
+    return { key: 'failed', label: `${icon} ${label}`, cls, lastError: t.lastError, reviewQueueId: t.reviewQueueId };
+  }
   if (t.status === 'slug_only')      return { key: 'slug_only', label: '⌁ Slug Only' };
   if (t.queueStatus === 'done')      return { key: 'done',      label: '✓ Done' };
   return { key: 'none', label: '— Not Started' };
 }
 
 function titleRow(t) {
-  const { key, label } = titleEffectiveStatus(t);
+  const st = titleEffectiveStatus(t);
+  const { key, label } = st;
   const isEnriched = key === 'fetched';
-  const statusCell = isEnriched
-    ? `<span class="jd-status jd-status-${key} jd-status-clickable" data-title-id="${t.titleId}" title="View enrichment details">${label}</span>`
-    : `<span class="jd-status jd-status-${key}">${label}</span>`;
+
+  let statusCell;
+  if (isEnriched) {
+    statusCell = `<span class="jd-status jd-status-${key} jd-status-clickable" data-title-id="${t.titleId}" title="View enrichment details">${label}</span>`;
+  } else if (key === 'failed') {
+    const cls     = st.cls;
+    const tooltip = esc(st.lastError || '');
+    if (st.reviewQueueId != null) {
+      statusCell = `<button class="jd-status ${cls} jd-titles-review-link" data-review-id="${st.reviewQueueId}" title="${tooltip}">${label}</button>`;
+    } else if (st.lastError === 'no_slug') {
+      statusCell = `<button class="jd-status ${cls} jd-titles-profile-link" title="${tooltip}">${label}</button>`;
+    } else {
+      statusCell = `<span class="jd-status ${cls}" title="${tooltip}">${label}</span>`;
+    }
+  } else {
+    statusCell = `<span class="jd-status jd-status-${key}">${label}</span>`;
+  }
+
   const canReenrich = isEnriched || key === 'done' || key === 'failed' || t.status === 'not_found';
   const infoBtn = isEnriched
     ? `<button class="jd-enrich-detail-btn" data-title-id="${t.titleId}" title="View enrichment details">ⓘ</button>`
@@ -849,6 +904,7 @@ function titleRow(t) {
 async function renderProfileTab() {
   profileView.style.display   = '';
   titlesView.style.display    = 'none';
+  titlesActionBar.style.display = 'none';
   conflictsView.style.display = 'none';
   errorsView.style.display    = 'none';
   profileView.innerHTML = '<div class="jd-loading">Loading…</div>';
@@ -1042,6 +1098,7 @@ async function deriveSlugForSelected(btn) {
 async function renderConflictsTab() {
   conflictsView.style.display = '';
   titlesView.style.display    = 'none';
+  titlesActionBar.style.display = 'none';
   profileView.style.display   = 'none';
   errorsView.style.display    = 'none';
   conflictsView.innerHTML = '<div class="jd-loading">Loading…</div>';
@@ -1071,6 +1128,10 @@ async function renderConflictsTab() {
         <tbody>${rows.map(conflictRow).join('')}</tbody>
       </table>
     `;
+    conflictsView.addEventListener('click', e => {
+      const btn = e.target.closest('.jd-cover-link[data-cover-url]');
+      if (btn) showJdCoverModal(btn.dataset.coverUrl, btn.dataset.code);
+    });
   } catch (_) {
     conflictsView.innerHTML = '<div class="jd-error">Network error.</div>';
   }
@@ -1081,10 +1142,43 @@ function conflictRow(r) {
   const castEntries = cast.length > 0
     ? cast.map(e => `<span class="jd-cast-entry">${esc(e.name)}<span class="jd-cast-slug"> · ${esc(e.slug ?? '?')}</span></span>`).join('')
     : '<span class="jd-muted">— (empty cast)</span>';
+  const codeCell = r.coverUrl
+    ? `<button class="jd-cover-link" data-cover-url="${esc(r.coverUrl)}" data-code="${esc(r.code)}">${esc(r.code)}</button>`
+    : esc(r.code);
   return `<tr>
-    <td class="jd-code">${esc(r.code)}</td>
+    <td class="jd-code">${codeCell}</td>
     <td class="jd-conflict-cast">${castEntries}</td>
   </tr>`;
+}
+
+// ── Cover preview modal ─────────────────────────────────────────────────────
+
+function showJdCoverModal(coverUrl, code) {
+  document.querySelector('.jd-cover-overlay')?.remove();
+
+  const overlay = document.createElement('div');
+  overlay.className = 'jd-cover-overlay';
+
+  const img = document.createElement('img');
+  img.className = 'jd-cover-modal-img';
+  img.src = coverUrl;
+  img.alt = code;
+
+  const label = document.createElement('div');
+  label.className = 'jd-cover-modal-label';
+  label.textContent = code;
+
+  const box = document.createElement('div');
+  box.className = 'jd-cover-modal-box';
+  box.appendChild(img);
+  box.appendChild(label);
+  overlay.appendChild(box);
+  document.body.appendChild(overlay);
+
+  const ac = new AbortController();
+  const close = () => { overlay.remove(); ac.abort(); };
+  overlay.addEventListener('click', e => { if (e.target === overlay) close(); }, { signal: ac.signal });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') close(); }, { signal: ac.signal });
 }
 
 function parseCast(castJson) {
@@ -1094,9 +1188,27 @@ function parseCast(castJson) {
 
 // ── Errors tab ─────────────────────────────────────────────────────────────
 
+const ERROR_REASON_LABELS = {
+  ambiguous:                 'Ambiguous match',
+  no_match:                  'No match on JavDB',
+  fetch_failed:              'Fetch failed',
+  cast_anomaly:              'Cast anomaly',
+  not_found:                 'Not found',
+  sentinel_actress:          'Sentinel actress',
+  no_match_in_filmography:   'Not in filmography',
+  no_slug:                   'No slug available',
+  unknown_job_type:          'Unknown job type',
+  title_not_in_db:           'Title not in DB',
+};
+
+function errorReasonLabel(raw) {
+  return ERROR_REASON_LABELS[raw] || raw || '(unknown)';
+}
+
 async function renderErrorsTab() {
   errorsView.style.display    = '';
   titlesView.style.display    = 'none';
+  titlesActionBar.style.display = 'none';
   profileView.style.display   = 'none';
   conflictsView.style.display = 'none';
   errorsView.innerHTML = '<div class="jd-loading">Loading…</div>';
@@ -1109,31 +1221,297 @@ async function renderErrorsTab() {
       return;
     }
     errorsView.innerHTML = '';
-    const retryAllRow = document.createElement('div');
-    retryAllRow.className = 'jd-errors-actions';
+
+    const actionsBar = document.createElement('div');
+    actionsBar.className = 'jd-errors-actions';
     const retryAllBtn = document.createElement('button');
     retryAllBtn.type = 'button';
     retryAllBtn.className = 'jd-action-btn jd-retry-btn';
     retryAllBtn.textContent = `Retry All (${jobs.length})`;
     retryAllBtn.addEventListener('click', () => retryActress());
-    retryAllRow.appendChild(retryAllBtn);
-    errorsView.appendChild(retryAllRow);
+    actionsBar.appendChild(retryAllBtn);
+    errorsView.appendChild(actionsBar);
 
     const list = document.createElement('ul');
     list.className = 'jd-errors-list';
     for (const job of jobs) {
-      const li = document.createElement('li');
-      li.className = 'jd-error-row';
-      li.innerHTML = `
-        <span class="jd-error-type">${esc(job.jobType)}</span>
-        <span class="jd-error-msg">${job.lastError ? esc(job.lastError) : '(no message)'}</span>
-        <span class="jd-error-attempts">${job.attempts} attempt${job.attempts !== 1 ? 's' : ''}</span>
-      `;
-      list.appendChild(li);
+      list.appendChild(makeErrorRow(job, list));
     }
     errorsView.appendChild(list);
   } catch (_) {
     errorsView.innerHTML = '<div class="jd-error">Network error.</div>';
+  }
+}
+
+function makeErrorRow(job, list) {
+  const li = document.createElement('li');
+  li.className = 'jd-error-row';
+  const isAmbiguous = job.lastError === 'ambiguous';
+
+  let codeSpan;
+  if (job.coverUrl) {
+    codeSpan = document.createElement('button');
+    codeSpan.className = 'jd-error-code jd-cover-link';
+    codeSpan.addEventListener('click', () => showJdCoverModal(job.coverUrl, job.titleCode || ''));
+  } else {
+    codeSpan = document.createElement('span');
+    codeSpan.className = 'jd-error-code';
+  }
+  codeSpan.textContent = job.titleCode || '(unknown title)';
+
+  const reasonSpan = document.createElement('span');
+  reasonSpan.className = `jd-error-msg jd-error-reason-${esc(job.lastError || 'unknown')}`;
+  reasonSpan.textContent = errorReasonLabel(job.lastError);
+
+  const acts = document.createElement('span');
+  acts.className = 'jd-error-row-actions';
+
+  if (job.titleId) {
+    const retryBtn = document.createElement('button');
+    retryBtn.type = 'button';
+    retryBtn.className = 'jd-action-btn jd-retry-btn jd-error-retry-btn';
+    retryBtn.textContent = 'Retry';
+    retryBtn.addEventListener('click', async () => {
+      retryBtn.disabled = true;
+      retryBtn.textContent = 'Retrying…';
+      try {
+        const r = await fetch(
+          `/api/javdb/discovery/actresses/${state.selectedId}/titles/${job.titleId}/reenrich`,
+          { method: 'POST' }
+        );
+        if (r.ok) {
+          li.style.opacity = '0.4';
+          await Promise.all([refreshQueue(), renderErrorsTab()]);
+        } else {
+          retryBtn.disabled = false;
+          retryBtn.textContent = 'Retry';
+        }
+      } catch (_) {
+        retryBtn.disabled = false;
+        retryBtn.textContent = 'Retry';
+      }
+    });
+    acts.appendChild(retryBtn);
+  }
+
+  if (isAmbiguous && job.reviewQueueId) {
+    const pickerBtn = document.createElement('button');
+    pickerBtn.type = 'button';
+    pickerBtn.className = 'jd-action-btn jd-error-picker-btn';
+    pickerBtn.textContent = 'Open picker';
+    pickerBtn.addEventListener('click', () => toggleErrorPicker(job, li, list, pickerBtn));
+    acts.appendChild(pickerBtn);
+  }
+
+  li.appendChild(codeSpan);
+  li.appendChild(reasonSpan);
+  li.appendChild(acts);
+  return li;
+}
+
+function toggleErrorPicker(job, li, list, btn) {
+  const next = li.nextElementSibling;
+  if (next && next.classList.contains('jd-error-picker-li')) {
+    next.remove();
+    btn.classList.remove('jd-error-picker-btn-active');
+    return;
+  }
+  list.querySelectorAll('.jd-error-picker-li').forEach(el => el.remove());
+  list.querySelectorAll('.jd-error-picker-btn-active').forEach(b => b.classList.remove('jd-error-picker-btn-active'));
+  btn.classList.add('jd-error-picker-btn-active');
+
+  const pickerLi = document.createElement('li');
+  pickerLi.className = 'jd-error-picker-li';
+  const panel = document.createElement('div');
+  panel.className = 'er-picker-panel';
+  pickerLi.appendChild(panel);
+  li.insertAdjacentElement('afterend', pickerLi);
+
+  let detail = null;
+  try { detail = job.reviewDetail ? JSON.parse(job.reviewDetail) : null; } catch {}
+  if (!detail || !detail.candidates || detail.candidates.length === 0) {
+    renderErrorPickerMissing(panel, job, li, pickerLi);
+  } else {
+    renderErrorPickerContent(panel, job, detail, li, pickerLi);
+  }
+}
+
+function renderErrorPickerMissing(panel, job, li, pickerLi) {
+  panel.innerHTML = `
+    <div class="er-picker-missing">
+      <span>Candidates not yet loaded.</span>
+      <button type="button" class="er-picker-load-btn">Load candidates</button>
+    </div>
+  `;
+  panel.querySelector('.er-picker-load-btn').addEventListener('click', async () => {
+    await doErrorRefreshCandidates(panel, job, li, pickerLi);
+  });
+}
+
+function renderErrorPickerContent(panel, job, detail, li, pickerLi) {
+  const linkedSlugs = new Set(detail.linked_slugs || []);
+  const age = formatRelative(detail.fetched_at);
+  panel.innerHTML = '';
+
+  const header = document.createElement('div');
+  header.className = 'er-picker-header';
+  header.innerHTML = `
+    <span class="er-picker-age">Candidates fetched ${esc(age)}</span>
+    <button type="button" class="er-picker-refresh-btn">Refresh candidates</button>
+  `;
+  panel.appendChild(header);
+  header.querySelector('.er-picker-refresh-btn').addEventListener('click', async () => {
+    await doErrorRefreshCandidates(panel, job, li, pickerLi);
+  });
+
+  const cards = document.createElement('div');
+  cards.className = 'er-candidate-cards';
+  detail.candidates.forEach(c => {
+    cards.appendChild(buildErrorCandidateCard(job, c, linkedSlugs, li, pickerLi));
+  });
+  panel.appendChild(cards);
+
+  const footer = document.createElement('div');
+  footer.className = 'er-picker-footer';
+  const noneBtn = document.createElement('button');
+  noneBtn.type = 'button';
+  noneBtn.className = 'er-picker-none-btn';
+  noneBtn.textContent = 'None of these (accept as gap)';
+  noneBtn.addEventListener('click', async () => {
+    await doErrorResolve(job.reviewQueueId, 'accepted_gap', li, pickerLi);
+  });
+  footer.appendChild(noneBtn);
+  panel.appendChild(footer);
+}
+
+function buildErrorCandidateCard(job, candidate, linkedSlugs, li, pickerLi) {
+  const card = document.createElement('div');
+  card.className = 'er-candidate-card';
+
+  const cover = document.createElement('div');
+  cover.className = 'er-candidate-cover';
+  if (candidate.cover_url) {
+    const img = document.createElement('img');
+    img.src = candidate.cover_url;
+    img.alt = '';
+    img.loading = 'lazy';
+    img.className = 'er-candidate-img';
+    cover.appendChild(img);
+  } else {
+    cover.innerHTML = '<div class="er-candidate-no-cover">No cover</div>';
+  }
+  card.appendChild(cover);
+
+  const info = document.createElement('div');
+  info.className = 'er-candidate-info';
+
+  const titleEl = document.createElement('div');
+  titleEl.className = 'er-candidate-title';
+  titleEl.textContent = candidate.title_original || '(no title)';
+  info.appendChild(titleEl);
+
+  const meta = document.createElement('div');
+  meta.className = 'er-candidate-meta';
+  meta.textContent = [candidate.release_date, candidate.maker].filter(Boolean).join(' · ');
+  info.appendChild(meta);
+
+  const castEl = document.createElement('div');
+  castEl.className = 'er-candidate-cast';
+  (candidate.cast || []).forEach(ce => {
+    const span = document.createElement('span');
+    span.className = 'er-cast-name' + (linkedSlugs.has(ce.slug) ? ' er-cast-linked' : '');
+    span.textContent = ce.name || ce.slug || '?';
+    castEl.appendChild(span);
+  });
+  info.appendChild(castEl);
+
+  const pickBtn = document.createElement('button');
+  pickBtn.type = 'button';
+  pickBtn.className = 'er-pick-btn';
+  pickBtn.textContent = 'Pick this';
+  pickBtn.addEventListener('click', async () => {
+    pickBtn.disabled = true;
+    pickBtn.textContent = 'Picking…';
+    try {
+      const res = await fetch(`/api/utilities/enrichment-review/queue/${job.reviewQueueId}/pick`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ slug: candidate.slug }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.ok) {
+        alert('Pick failed: ' + (data.error || data.message || res.statusText));
+        pickBtn.disabled = false;
+        pickBtn.textContent = 'Pick this';
+      } else {
+        pickerLi.remove();
+        const actsEl = li.querySelector('.jd-error-row-actions');
+        if (actsEl) {
+          actsEl.innerHTML = '';
+          const pill = document.createElement('span');
+          pill.className = 'jd-error-resolved-pill';
+          pill.textContent = '✓ Submitted — re-enriching…';
+          actsEl.appendChild(pill);
+        }
+        li.style.opacity = '0.5';
+        await refreshQueue();
+      }
+    } catch (err) {
+      alert('Pick failed: ' + err.message);
+      pickBtn.disabled = false;
+      pickBtn.textContent = 'Pick this';
+    }
+  });
+  info.appendChild(pickBtn);
+  card.appendChild(info);
+  return card;
+}
+
+async function doErrorRefreshCandidates(panel, job, li, pickerLi) {
+  const btn = panel.querySelector('.er-picker-refresh-btn, .er-picker-load-btn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Loading…'; }
+  try {
+    const res = await fetch(`/api/utilities/enrichment-review/queue/${job.reviewQueueId}/refresh`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+    });
+    const data = await res.json();
+    if (!res.ok || !data.ok) {
+      alert('Refresh failed: ' + (data.error || data.message || res.statusText));
+      if (btn) { btn.disabled = false; btn.textContent = 'Refresh candidates'; }
+      return;
+    }
+    job.reviewDetail = data.detailJson;
+    let freshDetail = null;
+    try { freshDetail = data.detailJson ? JSON.parse(data.detailJson) : null; } catch {}
+    panel.innerHTML = '';
+    if (!freshDetail || !freshDetail.candidates || freshDetail.candidates.length === 0) {
+      renderErrorPickerMissing(panel, job, li, pickerLi);
+    } else {
+      renderErrorPickerContent(panel, job, freshDetail, li, pickerLi);
+    }
+  } catch (err) {
+    alert('Refresh failed: ' + err.message);
+    if (btn) { btn.disabled = false; btn.textContent = 'Refresh candidates'; }
+  }
+}
+
+async function doErrorResolve(reviewQueueId, resolution, li, pickerLi) {
+  try {
+    const res = await fetch(`/api/utilities/enrichment-review/queue/${reviewQueueId}/resolve`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ resolution }),
+    });
+    const data = await res.json();
+    if (!res.ok || !data.ok) {
+      alert('Resolve failed: ' + (data.error || data.message || res.statusText));
+      return;
+    }
+    pickerLi.remove();
+    li.remove();
+  } catch (err) {
+    alert('Resolve failed: ' + err.message);
   }
 }
 
@@ -1262,27 +1640,63 @@ function renderQueueItems(items) {
   queueTableWrap.style.display = '';
 
   queueTableBody.innerHTML = items.map(item => {
-    const typeLabel = item.jobType === 'fetch_actress_profile' ? 'profile' : 'title';
+    const isProfile = item.jobType === 'fetch_actress_profile';
+    const typeLabel = isProfile ? 'profile' : 'title';
     const titleCell = item.titleCode || '—';
     const age = formatQueueAge(item.updatedAt);
     const statusClass = item.status === 'in_flight' ? 'jd-qi-inflight'
-                      : item.status === 'failed'    ? 'jd-qi-failed'
+                      : item.status === 'failed'    ? queueFailClass(item.lastError)
                       : item.status === 'paused'    ? 'jd-qi-paused' : 'jd-qi-pending';
     const statusLabel = item.status === 'in_flight' ? 'in flight'
+                      : item.status === 'failed'    ? queueFailLabel(item.lastError)
                       : item.status === 'paused'    ? '⏸ paused' : item.status;
     const etaCell = item.status === 'pending' ? formatEta(item.queuePosition) : '—';
     const actions = renderQueueItemActions(item);
+    const codeCell = (!isProfile && item.coverUrl)
+      ? `<button class="jd-qi-cover-link" data-cover-url="${esc(item.coverUrl)}" data-code="${esc(titleCell)}">${esc(titleCell)}</button>`
+      : esc(titleCell);
+    const canReview  = item.status === 'failed' && item.reviewQueueId != null;
+    const canAddSlug = item.status === 'failed' && item.lastError === 'no_slug';
+    const statusCell = canReview
+      ? `<button class="jd-qi-status ${statusClass} jd-qi-review-link" data-review-id="${item.reviewQueueId}" title="Click to review in Review Queue">${statusLabel}</button>`
+      : canAddSlug
+      ? `<button class="jd-qi-status ${statusClass} jd-qi-slug-link" data-actress-id="${item.actressId}" title="Click to assign slug in Discovery">${statusLabel}</button>`
+      : `<span class="jd-qi-status ${statusClass}" title="${esc(item.lastError || '')}">${statusLabel}</span>`;
     return `<tr>
       <td><button class="jd-qi-actress-link" data-actress-id="${item.actressId}">${esc(item.actressName)}</button></td>
-      <td class="jd-qi-code">${esc(titleCell)}</td>
+      <td class="jd-qi-code">${codeCell}</td>
       <td>${typeLabel}</td>
-      <td><span class="jd-qi-status ${statusClass}">${statusLabel}</span></td>
+      <td>${statusCell}</td>
       <td>${item.attempts}</td>
       <td class="jd-qi-eta-cell">${etaCell}</td>
       <td class="jd-qi-age">${age}</td>
       <td class="jd-qi-actions-cell">${actions}</td>
     </tr>`;
   }).join('');
+}
+
+// Failure reason metadata — label, icon prefix, and CSS class for the queue status cell.
+// Buckets: resolvable (amber ⚠), dead-end (slate ⊘), transient/fixable (red ↻).
+const QUEUE_FAIL_META = {
+  ambiguous:               { label: 'ambiguous',           icon: '⚠', cls: 'jd-qi-failed-resolvable' },
+  cast_anomaly:            { label: 'cast anomaly',        icon: '⚠', cls: 'jd-qi-failed-resolvable' },
+  sentinel_actress:        { label: 'needs actress',       icon: '⚠', cls: 'jd-qi-failed-resolvable' },
+  not_found:               { label: 'not on javdb',        icon: '⊘', cls: 'jd-qi-failed-deadend'    },
+  no_match_in_filmography: { label: 'not in filmography',  icon: '⊘', cls: 'jd-qi-failed-deadend'    },
+  title_not_in_db:         { label: 'orphaned job',        icon: '⊘', cls: 'jd-qi-failed-deadend'    },
+  unknown_job_type:        { label: 'internal error',      icon: '⊘', cls: 'jd-qi-failed-deadend'    },
+  fetch_failed:            { label: 'fetch failed',        icon: '↻', cls: 'jd-qi-failed'            },
+  no_slug:                 { label: 'no slug',             icon: '↻', cls: 'jd-qi-failed'            },
+};
+
+function queueFailLabel(lastError) {
+  const m = QUEUE_FAIL_META[lastError];
+  if (m) return `${m.icon} ${m.label}`;
+  return lastError ? lastError.replace(/_/g, ' ') : 'failed';
+}
+
+function queueFailClass(lastError) {
+  return QUEUE_FAIL_META[lastError]?.cls ?? 'jd-qi-failed';
 }
 
 function renderQueueItemActions(item) {
@@ -1313,6 +1727,13 @@ async function navigateToActress(actressId) {
   if (li) li.scrollIntoView({ block: 'nearest' });
 }
 
+export async function navigateToActressProfile(actressId) {
+  await navigateToActress(actressId);
+  subtabBtns.forEach(b => b.classList.toggle('selected', b.dataset.tab === 'profile'));
+  state.activeTab = 'profile';
+  await renderActiveTab();
+}
+
 function resetFiltersToAll() {
   state.alphaFilter = 'All';
   state.tierFilter = new Set();
@@ -1336,6 +1757,28 @@ function formatQueueAge(updatedAt) {
 // ── Queue table event delegation ───────────────────────────────────────────
 
 queueTableBody.addEventListener('click', async e => {
+  const coverBtn = e.target.closest('.jd-qi-cover-link[data-cover-url]');
+  if (coverBtn) {
+    showJdCoverModal(coverBtn.dataset.coverUrl, coverBtn.dataset.code || '');
+    return;
+  }
+
+  const reviewBtn = e.target.closest('.jd-qi-review-link[data-review-id]');
+  if (reviewBtn) {
+    document.dispatchEvent(new CustomEvent('navigate-to-review-item', {
+      detail: { reviewQueueId: parseInt(reviewBtn.dataset.reviewId, 10) }
+    }));
+    return;
+  }
+
+  const slugBtn = e.target.closest('.jd-qi-slug-link[data-actress-id]');
+  if (slugBtn) {
+    document.dispatchEvent(new CustomEvent('navigate-to-discovery-actress-profile', {
+      detail: { actressId: parseInt(slugBtn.dataset.actressId, 10) }
+    }));
+    return;
+  }
+
   const actressBtn = e.target.closest('.jd-qi-actress-link');
   if (actressBtn) {
     const actressId = parseInt(actressBtn.dataset.actressId, 10);

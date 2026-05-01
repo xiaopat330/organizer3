@@ -534,24 +534,21 @@
   <div id="jd-rate-limit-banner" class="jd-rate-limit-banner" style="display:none"></div>
   <div class="jd-body">
     <aside class="jd-sidebar" id="jd-sidebar">
-      <div class="jd-sidebar-header">
-        Actresses
-        <button type="button" id="jd-controls-toggle" class="jd-controls-toggle" title="Toggle filters">▾</button>
+      <div class="jd-sidebar-header">Actresses</div>
+      <div id="jd-filter-bar" class="jd-filter-bar"></div>
+      <div id="jd-sort-bar" class="jd-sort-bar"></div>
+      <div class="jd-alpha-header">
+        A–Z
+        <button type="button" id="jd-controls-toggle" class="jd-controls-toggle" title="Toggle A–Z filter">▾</button>
       </div>
       <div id="jd-controls" class="jd-controls">
         <div id="jd-alpha-bar" class="jd-alpha-bar"></div>
-        <div id="jd-filter-bar" class="jd-filter-bar"></div>
-        <div id="jd-sort-bar" class="jd-sort-bar"></div>
       </div>
       <ul class="jd-actress-list" id="jd-actress-list"></ul>
     </aside>
     <section class="jd-detail" id="jd-detail">
       <div class="jd-empty" id="jd-empty">Select an actress to view enrichment status.</div>
       <div class="jd-actress-panel" id="jd-actress-panel" style="display:none">
-        <div class="jd-panel-actions">
-          <button type="button" id="jd-enrich-btn" class="jd-action-btn jd-enrich-btn">▶ Enrich All Titles</button>
-          <button type="button" id="jd-cancel-actress-btn" class="jd-action-btn jd-muted-btn">⏹ Stop Enrichment</button>
-        </div>
         <div class="jd-subnav">
           <button type="button" class="jd-subtab selected" data-tab="titles">
             <svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M2 4h12M2 8h12M2 12h8"/></svg>
@@ -569,6 +566,10 @@
             <svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><circle cx="8" cy="8" r="6"/><path d="M5.5 5.5l5 5M10.5 5.5l-5 5"/></svg>
             Errors
           </button>
+        </div>
+        <div class="jd-titles-action-bar" id="jd-titles-action-bar">
+          <button type="button" id="jd-enrich-btn" class="jd-action-btn jd-enrich-btn">▶ Enrich All Titles</button>
+          <button type="button" id="jd-cancel-actress-btn" class="jd-action-btn jd-muted-btn">⏹ Stop Enrichment</button>
         </div>
         <div class="jd-subview" id="jd-subview-titles"></div>
         <div class="jd-subview" id="jd-subview-profile" style="display:none"></div>
@@ -1009,7 +1010,7 @@
           <th class="er-col-code">Code</th>
           <th class="er-col-slug">Slug</th>
           <th class="er-col-reason">Reason</th>
-          <th class="er-col-source">Resolver source</th>
+          <th class="er-col-source">Found via</th>
           <th class="er-col-created">Created</th>
           <th class="er-col-actions">Actions</th>
         </tr>
@@ -1020,6 +1021,12 @@
       No open review queue rows. The write-time gate hasn&rsquo;t flagged any new traffic.
     </div>
   </div>
+</div>
+
+<!-- Cover lightbox (shared) -->
+<div id="cover-lightbox" class="cover-lightbox" style="display:none" role="dialog" aria-modal="true">
+  <div class="cover-lightbox-backdrop"></div>
+  <img id="cover-lightbox-img" class="cover-lightbox-img" src="" alt="Cover" />
 </div>
 
 <script type="module" src="/app.js"></script>

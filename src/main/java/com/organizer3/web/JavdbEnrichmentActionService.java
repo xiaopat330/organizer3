@@ -1,7 +1,7 @@
 package com.organizer3.web;
 
+import com.organizer3.covers.CoverPath;
 import com.organizer3.javdb.enrichment.ActressAvatarStore;
-import com.organizer3.javdb.enrichment.EnrichmentJob;
 import com.organizer3.javdb.enrichment.EnrichmentQueue;
 import com.organizer3.javdb.enrichment.EnrichmentRunner;
 import com.organizer3.javdb.enrichment.JavdbActressStagingRow;
@@ -24,6 +24,7 @@ public class JavdbEnrichmentActionService {
     private final EnrichmentRunner runner;
     private final JavdbStagingRepository stagingRepo;
     private final ActressAvatarStore avatarStore;
+    private final CoverPath coverPath;
 
     /**
      * Enqueues a fetch_title job for every title belonging to the actress.
@@ -74,9 +75,24 @@ public class JavdbEnrichmentActionService {
         queue.resetFailedForActress(actressId);
     }
 
-    /** Returns all failed jobs for the actress for the Errors tab. */
-    public List<EnrichmentJob> getErrorsForActress(long actressId) {
-        return queue.listFailedForActress(actressId);
+    /** Returns all failed jobs for the actress for the Errors tab, enriched with title code, review queue linkage, and cover URL. */
+    public List<EnrichmentQueue.FailedJobSummary> getErrorsForActress(long actressId) {
+        return queue.listFailedWithReviewQueue(actressId).stream()
+                .map(s -> {
+                    String coverUrl = null;
+                    if (coverPath != null && s.titleLabel() != null && s.titleBaseCode() != null) {
+                        Title synth = Title.builder().label(s.titleLabel()).baseCode(s.titleBaseCode()).build();
+                        coverUrl = coverPath.find(synth)
+                                .map(p -> "/covers/" + s.titleLabel().toUpperCase() + "/" + p.getFileName())
+                                .orElse(null);
+                    }
+                    return new EnrichmentQueue.FailedJobSummary(
+                            s.jobId(), s.titleId(), s.titleCode(), s.lastError(), s.attempts(),
+                            s.updatedAt(), s.reviewQueueId(), s.reviewDetail(),
+                            s.titleLabel(), s.titleBaseCode(), coverUrl
+                    );
+                })
+                .toList();
     }
 
     /** Pauses a pending item (no-op if already in_flight or not found). */

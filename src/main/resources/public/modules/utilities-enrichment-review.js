@@ -9,6 +9,33 @@ const headerEl  = document.getElementById('er-header');
 const pillsEl   = document.getElementById('er-pills');
 const tableBody = document.getElementById('er-table-body');
 const emptyEl   = document.getElementById('er-empty');
+const lightbox  = document.getElementById('cover-lightbox');
+const lightboxImg = document.getElementById('cover-lightbox-img');
+
+const RESOLVER_SOURCE_LABELS = {
+  actress_filmography:  'Actress filmography',
+  code_search_fallback: 'Code search',
+  sentinel_short_circuit: 'Short-circuit',
+};
+
+function resolverSourceLabel(src) {
+  return RESOLVER_SOURCE_LABELS[src] || src || '—';
+}
+
+function openLightbox(coverUrl) {
+  lightboxImg.src = coverUrl;
+  lightbox.style.display = '';
+}
+
+function closeLightbox() {
+  lightbox.style.display = 'none';
+  lightboxImg.src = '';
+}
+
+lightbox.addEventListener('click', closeLightbox);
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape' && lightbox.style.display !== 'none') closeLightbox();
+});
 
 const ALL_REASONS = ['cast_anomaly', 'ambiguous', 'no_match', 'fetch_failed', 'orphan_enriched', 'recode_candidate', 'actress_rename_candidate'];
 
@@ -25,6 +52,14 @@ export async function showEnrichmentReviewView() {
 
 export function hideEnrichmentReviewView() {
   view.style.display = 'none';
+}
+
+export function focusReviewItem(id) {
+  const row = tableBody.querySelector(`tr[data-id="${id}"]`);
+  if (!row) return;
+  row.scrollIntoView({ block: 'center', behavior: 'smooth' });
+  row.classList.add('er-row-highlight');
+  setTimeout(() => row.classList.remove('er-row-highlight'), 2000);
 }
 
 async function reload() {
@@ -97,6 +132,7 @@ function renderTable() {
 function makeRow(row) {
   const tr = document.createElement('tr');
   tr.className = 'er-row';
+  tr.dataset.id = row.id;
   const isOrphan          = row.reason === 'orphan_enriched';
   const isAmbiguous       = row.reason === 'ambiguous';
   const isRecode          = row.reason === 'recode_candidate';
@@ -143,14 +179,22 @@ function makeRow(row) {
     `;
   }
 
+  const codeCell = row.coverUrl
+    ? `<button type="button" class="er-code-cover-btn">${esc(row.titleCode || '')}</button>`
+    : esc(row.titleCode || '');
+
   tr.innerHTML = `
-    <td class="er-col-code">${esc(row.titleCode || '')}${detailHtml}</td>
+    <td class="er-col-code">${codeCell}${detailHtml}</td>
     <td class="er-col-slug">${esc(row.slug || '—')}</td>
     <td class="er-col-reason"><span class="er-reason er-reason-${esc(row.reason || '')}">${esc(row.reason || '')}</span></td>
-    <td class="er-col-source">${esc(row.resolverSource || '—')}</td>
+    <td class="er-col-source">${esc(resolverSourceLabel(row.resolverSource))}</td>
     <td class="er-col-created">${formatRelative(row.createdAt)}</td>
     <td class="er-col-actions">${actionsHtml}</td>
   `;
+
+  if (row.coverUrl) {
+    tr.querySelector('.er-code-cover-btn').addEventListener('click', () => openLightbox(row.coverUrl));
+  }
 
   tr.querySelectorAll('.er-action-btn[data-res]').forEach(btn => {
     btn.addEventListener('click', () => resolveRow(Number(btn.dataset.id), btn.dataset.res, tr));

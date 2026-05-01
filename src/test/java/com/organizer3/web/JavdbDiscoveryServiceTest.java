@@ -31,7 +31,7 @@ class JavdbDiscoveryServiceTest {
         Mockito.when(mockRunner.getPauseReason()).thenReturn(null);
         Mockito.when(mockRunner.getConsecutiveRateLimitHits()).thenReturn(0);
         Mockito.when(mockRunner.getPauseType()).thenReturn(null);
-        service = new JavdbDiscoveryService(jdbi, mockRunner);
+        service = new JavdbDiscoveryService(jdbi, mockRunner, null);
     }
 
     @AfterEach
@@ -96,11 +96,25 @@ class JavdbDiscoveryServiceTest {
     }
 
     private void insertTitleQueueRow(long titleId, long actressId, String status) {
+        insertTitleQueueRow(titleId, actressId, status, null);
+    }
+
+    private void insertTitleQueueRow(long titleId, long actressId, String status, String lastError) {
         jdbi.useHandle(h ->
                 h.execute("INSERT INTO javdb_enrichment_queue " +
-                          "(job_type, target_id, actress_id, status, attempts, next_attempt_at, created_at, updated_at) " +
-                          "VALUES ('fetch_title', ?, ?, ?, 0, '2024-01-01T00:00:00Z', '2024-01-01T00:00:00Z', '2024-01-01T00:00:00Z')",
-                        titleId, actressId, status));
+                          "(job_type, target_id, actress_id, status, last_error, attempts, next_attempt_at, created_at, updated_at) " +
+                          "VALUES ('fetch_title', ?, ?, ?, ?, 0, '2024-01-01T00:00:00Z', '2024-01-01T00:00:00Z', '2024-01-01T00:00:00Z')",
+                        titleId, actressId, status, lastError));
+    }
+
+    private long insertReviewQueueRow(long titleId, String reason) {
+        return jdbi.withHandle(h ->
+                h.createUpdate("INSERT INTO enrichment_review_queue (title_id, reason, created_at) " +
+                               "VALUES (?, ?, '2024-01-01T00:00:00Z')")
+                        .bind(0, titleId).bind(1, reason)
+                        .executeAndReturnGeneratedKeys("id")
+                        .mapTo(Long.class)
+                        .one());
     }
 
     // ── listActresses ──────────────────────────────────────────────────────
@@ -304,6 +318,35 @@ class JavdbDiscoveryServiceTest {
         assertEquals("2020-01-01",   row.releaseDate());
         assertEquals("マーカー",     row.maker());
         assertEquals("パブリッシャー", row.publisher());
+    }
+
+    @Test
+    void getActressTitles_populatesLastErrorForFailedQueueRow() {
+        long a = insertActress("A", "A");
+        long t = insertTitle("LE-001");
+        linkActressTitle(a, t);
+        insertTitleQueueRow(t, a, "failed", "not_found");
+
+        JavdbDiscoveryService.TitleRow row = service.getActressTitles(a).get(0);
+
+        assertEquals("failed",    row.queueStatus());
+        assertEquals("not_found", row.lastError());
+        assertNull(row.reviewQueueId());
+    }
+
+    @Test
+    void getActressTitles_populatesReviewQueueIdWhenOpenEntryExists() {
+        long a = insertActress("A", "A");
+        long t = insertTitle("RQ-001");
+        linkActressTitle(a, t);
+        insertTitleQueueRow(t, a, "failed", "ambiguous");
+        long erqId = insertReviewQueueRow(t, "ambiguous");
+
+        JavdbDiscoveryService.TitleRow row = service.getActressTitles(a).get(0);
+
+        assertEquals("failed",    row.queueStatus());
+        assertEquals("ambiguous", row.lastError());
+        assertEquals(erqId,       row.reviewQueueId());
     }
 
     @Test

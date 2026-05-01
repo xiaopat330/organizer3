@@ -13,9 +13,9 @@ import { showLibraryHealthView, hideLibraryHealthView } from './utilities-librar
 import { showDupTriageView, hideDupTriageView, wireDupTriageEvents } from './utilities-duplicate-triage.js';
 import { showMergeCandidatesView, hideMergeCandidatesView, wireMergeCandidatesEvents } from './utilities-merge-candidates.js';
 import { showTrashView, hideTrashView } from './utilities-trash.js';
-import { showJavdbDiscoveryView, hideJavdbDiscoveryView } from './utilities-javdb-discovery.js';
+import { showJavdbDiscoveryView, hideJavdbDiscoveryView, navigateToActressProfile } from './utilities-javdb-discovery.js';
 import { showTagHealthView, hideTagHealthView } from './utilities-tag-health.js';
-import { showEnrichmentReviewView, hideEnrichmentReviewView } from './utilities-enrichment-review.js';
+import { showEnrichmentReviewView, hideEnrichmentReviewView, focusReviewItem } from './utilities-enrichment-review.js';
 
 // ── DOM refs ──────────────────────────────────────────────────────────────
 const actionBtn         = document.getElementById('action-btn');
@@ -440,5 +440,26 @@ enrichmentReviewBtn.addEventListener('click', () => {
   updateBreadcrumb([{ label: 'Tools' }, { label: 'Review Queue' }]);
   hideAllToolViews();
   showEnrichmentReviewView();
+});
+
+document.addEventListener('navigate-to-review-item', async e => {
+  showActionView('enrichment-review');
+  selectTool(enrichmentReviewBtn);
+  updateBreadcrumb([{ label: 'Tools' }, { label: 'Review Queue' }]);
+  hideAllToolViews();
+  await showEnrichmentReviewView();
+  focusReviewItem(e.detail.reviewQueueId);
+});
+
+document.addEventListener('navigate-to-discovery-actress-profile', async e => {
+  const discoveryView = document.getElementById('tools-javdb-discovery-view');
+  if (discoveryView && discoveryView.style.display === 'none') {
+    showActionView('javdb-discovery');
+    selectTool(javdbDiscoveryBtn);
+    updateBreadcrumb([{ label: 'Tools' }, { label: 'javdb Discovery' }]);
+    hideAllToolViews();
+    await showJavdbDiscoveryView();
+  }
+  await navigateToActressProfile(e.detail.actressId);
 });
 

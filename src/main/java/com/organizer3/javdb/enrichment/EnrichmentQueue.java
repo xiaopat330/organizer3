@@ -318,6 +318,70 @@ public class EnrichmentQueue {
                 .list());
     }
 
+    /**
+     * Returns failed jobs for the actress enriched with title code and any matching open
+     * {@code enrichment_review_queue} row (for ambiguous picker support).
+     */
+    public List<FailedJobSummary> listFailedWithReviewQueue(long actressId) {
+        return jdbi.withHandle(h -> h.createQuery("""
+                SELECT q.id        AS job_id,
+                       t.id        AS title_id,
+                       t.code      AS title_code,
+                       t.label     AS title_label,
+                       t.base_code AS title_base_code,
+                       q.last_error,
+                       q.attempts,
+                       q.updated_at,
+                       erq.id     AS review_queue_id,
+                       erq.detail AS review_detail
+                FROM javdb_enrichment_queue q
+                LEFT JOIN titles t
+                       ON t.id = q.target_id AND q.job_type = 'fetch_title'
+                LEFT JOIN enrichment_review_queue erq
+                       ON erq.title_id = q.target_id
+                      AND erq.resolved_at IS NULL
+                      AND erq.reason = q.last_error
+                WHERE q.actress_id = :actressId AND q.status = 'failed'
+                ORDER BY q.updated_at DESC
+                """)
+                .bind("actressId", actressId)
+                .map((rs, ctx) -> {
+                    long titleIdRaw = rs.getLong("title_id");
+                    Long titleId = rs.wasNull() ? null : titleIdRaw;
+                    long rqIdRaw = rs.getLong("review_queue_id");
+                    Long reviewQueueId = rs.wasNull() ? null : rqIdRaw;
+                    return new FailedJobSummary(
+                            rs.getLong("job_id"),
+                            titleId,
+                            rs.getString("title_code"),
+                            rs.getString("last_error"),
+                            rs.getInt("attempts"),
+                            rs.getString("updated_at"),
+                            reviewQueueId,
+                            rs.getString("review_detail"),
+                            rs.getString("title_label"),
+                            rs.getString("title_base_code"),
+                            null   // coverUrl resolved by service layer
+                    );
+                })
+                .list());
+    }
+
+    /** Summary of a failed enrichment job, enriched with title code, review queue linkage, and cover URL. */
+    public record FailedJobSummary(
+            long jobId,
+            Long titleId,
+            String titleCode,
+            String lastError,
+            int attempts,
+            String updatedAt,
+            Long reviewQueueId,
+            String reviewDetail,
+            String titleLabel,
+            String titleBaseCode,
+            String coverUrl   // nullable; populated by service layer after cover-path probe
+    ) {}
+
     /** Resets all failed jobs for the actress back to pending so they will be retried. */
     public void resetFailedForActress(long actressId) {
         jdbi.useTransaction(h -> {

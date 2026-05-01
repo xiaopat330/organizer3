@@ -733,7 +733,7 @@ public class Application {
                 backupCatalogService, backupService, libraryHealthService, orphanedCoversService,
                 ratingCurveRepo, enrichmentReviewQueueRepo, forceEnrichTitleTool,
                 pickReviewCandidateTool, refreshReviewCandidatesTool, confirmOrphanDeleteTool,
-                renameActressTool, recodeTitleTool, taskRegistry, taskRunner));
+                renameActressTool, recodeTitleTool, taskRegistry, taskRunner, coverPath));
         webServer.registerAvStars(new com.organizer3.web.routes.AvStarsRoutes(
                 avStarsCatalog, avBrowseService, iafdResolver));
         webServer.registerTrash(new com.organizer3.web.routes.TrashRoutes(
@@ -745,9 +745,9 @@ public class Application {
                 new com.organizer3.web.routes.MergeCandidatesRoutes(mergeCandidateRepo));
 
         webServer.registerJavdbDiscovery(new com.organizer3.web.routes.JavdbDiscoveryRoutes(
-                new com.organizer3.web.JavdbDiscoveryService(jdbi, enrichmentRunner),
+                new com.organizer3.web.JavdbDiscoveryService(jdbi, enrichmentRunner, coverPath),
                 new com.organizer3.web.JavdbEnrichmentActionService(titleRepo, enrichmentQueue, enrichmentRunner,
-                        javdbStagingRepo, avatarStore)));
+                        javdbStagingRepo, avatarStore, coverPath)));
 
         webServer.registerTitleDiscovery(new com.organizer3.web.routes.TitleDiscoveryRoutes(
                 new com.organizer3.web.TitleDiscoveryService(jdbi, config, profileChainGate, enrichmentQueue)));
