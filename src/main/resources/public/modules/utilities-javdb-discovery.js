@@ -1084,6 +1084,10 @@ async function renderConflictsTab() {
         <tbody>${rows.map(conflictRow).join('')}</tbody>
       </table>
     `;
+    conflictsView.addEventListener('click', e => {
+      const btn = e.target.closest('.jd-cover-link[data-cover-url]');
+      if (btn) showJdCoverModal(btn.dataset.coverUrl, btn.dataset.code);
+    });
   } catch (_) {
     conflictsView.innerHTML = '<div class="jd-error">Network error.</div>';
   }
@@ -1095,7 +1099,7 @@ function conflictRow(r) {
     ? cast.map(e => `<span class="jd-cast-entry">${esc(e.name)}<span class="jd-cast-slug"> · ${esc(e.slug ?? '?')}</span></span>`).join('')
     : '<span class="jd-muted">— (empty cast)</span>';
   const codeCell = r.coverUrl
-    ? `<button class="jd-cover-link" onclick="showJdCoverModal(${JSON.stringify(r.coverUrl)}, ${JSON.stringify(r.code)})">${esc(r.code)}</button>`
+    ? `<button class="jd-cover-link" data-cover-url="${esc(r.coverUrl)}" data-code="${esc(r.code)}">${esc(r.code)}</button>`
     : esc(r.code);
   return `<tr>
     <td class="jd-code">${codeCell}</td>
@@ -1132,9 +1136,6 @@ function showJdCoverModal(coverUrl, code) {
   overlay.addEventListener('click', e => { if (e.target === overlay) close(); }, { signal: ac.signal });
   document.addEventListener('keydown', e => { if (e.key === 'Escape') close(); }, { signal: ac.signal });
 }
-
-// Expose for inline onclick in conflict-row innerHTML template.
-window.showJdCoverModal = showJdCoverModal;
 
 function parseCast(castJson) {
   if (!castJson) return [];
