@@ -19,13 +19,33 @@ let _mountId = 0;
 
 // mount() may be called repeatedly when the user selects a different actress.
 // It always fully unmounts the prior instance before setting up the new one.
+//
+// pendingVideoCount: number of this actress's videos lacking screenshots. Pass it when the
+// host already has the data (the profile screen does — `allVideos`). Pass null and the
+// module will fetch /videos itself on first render. Required to drive the "Screenshots ✓"
+// terminal state and the "(N pending)" idle label.
 export function mount(containerEl, actressId, pendingVideoCount = null) {
   unmount();
   _container = containerEl;
   _actressId = actressId;
   _pendingVideoCount = pendingVideoCount;
   const id = ++_mountId;
-  fetchAndRender(id);
+  if (_pendingVideoCount === null) {
+    fetchPendingCount(id).then(() => fetchAndRender(id));
+  } else {
+    fetchAndRender(id);
+  }
+}
+
+async function fetchPendingCount(id) {
+  try {
+    const res = await fetch(`/api/av/actresses/${_actressId}/videos`);
+    if (_mountId !== id || !_container) return;
+    if (!res.ok) return;
+    const videos = await res.json();
+    if (_mountId !== id || !_container) return;
+    _pendingVideoCount = videos.filter(v => !v.screenshotCount).length;
+  } catch { /* leave _pendingVideoCount null; idle label degrades gracefully */ }
 }
 
 // Safe to call when not mounted.
@@ -82,6 +102,9 @@ async function tick(id) {
       _pollTimer = null;
       if (progress.pending + progress.inProgress + progress.paused === 0) {
         // Work fully drained (not merely paused): notify host to refresh the video grid.
+        // Event name is intentionally distinct from the existing per-video
+        // `av-screenshots-generated` (and dispatched on `window`, not `document`) to avoid
+        // payload-shape collisions. See spec/PROPOSAL_AV_SCREENSHOT_QUEUE.md §5.2.
         window.dispatchEvent(new CustomEvent('av-screenshots-queue-done', {
           detail: { actressId: _actressId },
         }));
@@ -192,21 +215,26 @@ async function enqueue() {
 }
 
 async function pauseActress() {
+  const id = _mountId;
   try {
     const res = await fetch(
       `/api/av/actresses/${_actressId}/screenshots/pause`, { method: 'POST' });
-    if (!res.ok) console.error('av-screenshot-controls: pause failed', res.status);
-    // State update comes on the next poll tick.
+    if (_mountId !== id || !_container) return;
+    if (!res.ok) { console.error('av-screenshot-controls: pause failed', res.status); return; }
+    fetchAndRender(id);
   } catch (e) {
     console.error('av-screenshot-controls: pause error', e);
   }
 }
 
 async function resumeActress() {
+  const id = _mountId;
   try {
     const res = await fetch(
       `/api/av/actresses/${_actressId}/screenshots/resume`, { method: 'POST' });
-    if (!res.ok) console.error('av-screenshot-controls: resume failed', res.status);
+    if (_mountId !== id || !_container) return;
+    if (!res.ok) { console.error('av-screenshot-controls: resume failed', res.status); return; }
+    fetchAndRender(id);
   } catch (e) {
     console.error('av-screenshot-controls: resume error', e);
   }
