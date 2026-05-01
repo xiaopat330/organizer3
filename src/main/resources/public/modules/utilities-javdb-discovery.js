@@ -1440,8 +1440,16 @@ function buildErrorCandidateCard(job, candidate, linkedSlugs, li, pickerLi) {
         pickBtn.textContent = 'Pick this';
       } else {
         pickerLi.remove();
-        li.remove();
-        await Promise.all([refreshQueue(), renderErrorsTab()]);
+        const actsEl = li.querySelector('.jd-error-row-actions');
+        if (actsEl) {
+          actsEl.innerHTML = '';
+          const pill = document.createElement('span');
+          pill.className = 'jd-error-resolved-pill';
+          pill.textContent = '✓ Submitted — re-enriching…';
+          actsEl.appendChild(pill);
+        }
+        li.style.opacity = '0.5';
+        await refreshQueue();
       }
     } catch (err) {
       alert('Pick failed: ' + err.message);
