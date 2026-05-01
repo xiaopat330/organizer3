@@ -171,16 +171,25 @@ public class EnrichmentQueue {
     }
 
     /**
-     * Atomically claims the next eligible pending job by setting it to in_flight.
+     * Atomically claims the next eligible LOW/NORMAL/HIGH pending job by setting it to in_flight.
      *
-     * <p>Only picks jobs where {@code next_attempt_at <= now}.
+     * <p>Only picks jobs where {@code next_attempt_at <= now}. URGENT jobs are excluded — use
+     * {@link #claimNextUrgentJob()} for those.
      */
     public Optional<EnrichmentJob> claimNextJob() {
         return jdbi.inTransaction(h -> {
             Optional<Long> id = h.createQuery("""
                     SELECT id FROM javdb_enrichment_queue
                     WHERE status = 'pending' AND next_attempt_at <= :now
-                    ORDER BY COALESCE(sort_order, 9223372036854775807) ASC, id ASC
+                      AND priority IN ('LOW', 'NORMAL', 'HIGH')
+                    ORDER BY
+                      CASE priority
+                        WHEN 'HIGH'   THEN 0
+                        WHEN 'NORMAL' THEN 1
+                        WHEN 'LOW'    THEN 2
+                      END ASC,
+                      COALESCE(sort_order, 9223372036854775807) ASC,
+                      id ASC
                     LIMIT 1
                     """)
                     .bind("now", now())
@@ -315,6 +324,7 @@ public class EnrichmentQueue {
                 UPDATE javdb_enrichment_queue
                 SET status = 'cancelled', updated_at = :now
                 WHERE actress_id = :actressId AND status IN ('pending', 'paused')
+                  AND priority != 'URGENT'
                 """)
                 .bind("actressId", actressId)
                 .bind("now",       now())
@@ -326,6 +336,7 @@ public class EnrichmentQueue {
                 UPDATE javdb_enrichment_queue
                 SET status = 'cancelled', updated_at = :now
                 WHERE status IN ('pending', 'paused')
+                  AND priority != 'URGENT'
                 """)
                 .bind("now", now())
                 .execute());
