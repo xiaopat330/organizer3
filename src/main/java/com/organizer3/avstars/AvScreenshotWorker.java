@@ -163,7 +163,12 @@ public class AvScreenshotWorker {
         } catch (InterruptedException ie) {
             Thread.currentThread().interrupt();
             future.cancel(true);
-            queueRepo.markFailed(job.getId(), "interrupted");
+            // Clean shutdown: leave the row IN_PROGRESS so the startup orphan-reset
+            // reclaims it as PENDING on the next start. Only mark FAILED for an
+            // interrupt that isn't a stop request (shouldn't happen in practice).
+            if (!stopRequested.get()) {
+                queueRepo.markFailed(job.getId(), "interrupted");
+            }
             return;
         } catch (ExecutionException ee) {
             // Unwrap the actual cause so the error message is meaningful (not "ClassName: msg")
