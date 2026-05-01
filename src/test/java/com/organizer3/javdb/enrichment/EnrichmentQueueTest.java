@@ -706,4 +706,57 @@ class EnrichmentQueueTest {
         EnrichmentJob job = queue.claimNextJob().get();
         assertEquals(Priority.HIGH, job.priority());
     }
+
+    // ── claimNextUrgentJob tests ──────────────────────────────────────────────
+
+    @Test
+    void claimNextUrgentJob_returnsEmptyWhenNoUrgentPending() {
+        assertTrue(queue.claimNextUrgentJob().isEmpty());
+    }
+
+    @Test
+    void claimNextUrgentJob_doesNotReturnNonUrgentRows() {
+        queue.enqueueTitle(EnrichmentJob.SOURCE_ACTRESS, 1L, 10L, Priority.LOW);
+        queue.enqueueTitle(EnrichmentJob.SOURCE_ACTRESS, 2L, 10L, Priority.NORMAL);
+        queue.enqueueTitle(EnrichmentJob.SOURCE_ACTRESS, 3L, 10L, Priority.HIGH);
+
+        assertTrue(queue.claimNextUrgentJob().isEmpty(),
+                "claimNextUrgentJob must not return LOW/NORMAL/HIGH rows");
+    }
+
+    @Test
+    void claimNextUrgentJob_returnsUrgentEvenWhenNextAttemptInFuture() {
+        queue.enqueueTitle(EnrichmentJob.SOURCE_ACTRESS, 1L, 10L, Priority.URGENT);
+        // Push next_attempt_at far into the future to confirm URGENT ignores it
+        String futureTime = Instant.now().plus(1, java.time.temporal.ChronoUnit.HOURS).toString();
+        Jdbi.create(connection).useHandle(h -> h.execute(
+                "UPDATE javdb_enrichment_queue SET next_attempt_at = ? WHERE target_id = 1", futureTime));
+
+        Optional<EnrichmentJob> job = queue.claimNextUrgentJob();
+        assertTrue(job.isPresent(), "URGENT job should be claimed even with future next_attempt_at");
+        assertEquals(Priority.URGENT, job.get().priority());
+        assertEquals("in_flight", job.get().status());
+    }
+
+    @Test
+    void claimNextUrgentJob_multipleUrgent_claimsInSortOrder() {
+        queue.enqueueTitle(EnrichmentJob.SOURCE_ACTRESS, 1L, 10L, Priority.URGENT);
+        queue.enqueueTitle(EnrichmentJob.SOURCE_ACTRESS, 2L, 10L, Priority.URGENT);
+        queue.enqueueTitle(EnrichmentJob.SOURCE_ACTRESS, 3L, 10L, Priority.URGENT);
+
+        Jdbi jdbi = Jdbi.create(connection);
+        long id3 = jdbi.withHandle(h -> h.createQuery(
+                "SELECT id FROM javdb_enrichment_queue WHERE target_id = 3").mapTo(Long.class).one());
+        queue.moveToTop(id3);
+
+        EnrichmentJob first = queue.claimNextUrgentJob().get();
+        queue.markDone(first.id());
+        EnrichmentJob second = queue.claimNextUrgentJob().get();
+        queue.markDone(second.id());
+        EnrichmentJob third = queue.claimNextUrgentJob().get();
+
+        assertEquals(3L, first.targetId(),  "moved-to-top URGENT should be claimed first");
+        assertEquals(1L, second.targetId(), "original first URGENT should be claimed second");
+        assertEquals(2L, third.targetId(),  "original second URGENT should be claimed last");
+    }
 }

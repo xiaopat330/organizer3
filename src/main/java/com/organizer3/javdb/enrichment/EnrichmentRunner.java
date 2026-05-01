@@ -209,11 +209,21 @@ public class EnrichmentRunner {
 
     /** Exposed for tests — runs one claim-and-execute cycle. */
     void runOneStep() throws InterruptedException {
+        // 1. Operator pause: respected by everything, including URGENT.
         if (paused.get()) {
             sleepInterruptibly(30_000);
             return;
         }
 
+        // 2. URGENT bypass: check before rate-limit pause.
+        Optional<EnrichmentJob> urgentJob = queue.claimNextUrgentJob();
+        if (urgentJob.isPresent()) {
+            executeJob(urgentJob.get());
+            sleepInterruptibly(LOOP_SLEEP_MS);
+            return;
+        }
+
+        // 3. Rate-limit / burst pause: gates only LOW/NORMAL/HIGH.
         Instant now = Instant.now();
         if (now.isBefore(pauseUntil)) {
             if (!pauseLoggedThisCycle) {
@@ -230,6 +240,7 @@ public class EnrichmentRunner {
             pauseLoggedThisCycle = false;
         }
 
+        // 4. Normal claim — LOW/NORMAL/HIGH ordering.
         Optional<EnrichmentJob> maybeJob = queue.claimNextJob();
         if (maybeJob.isEmpty()) {
             if (processedThisBatch > 0 && ratingCurveRecomputer != null) {
@@ -248,7 +259,11 @@ public class EnrichmentRunner {
             return;
         }
 
-        EnrichmentJob job = maybeJob.get();
+        executeJob(maybeJob.get());
+        sleepInterruptibly(LOOP_SLEEP_MS);
+    }
+
+    private void executeJob(EnrichmentJob job) {
         try {
             switch (job.jobType()) {
                 case EnrichmentJob.FETCH_TITLE -> executeFetchTitle(job);
@@ -308,8 +323,6 @@ public class EnrichmentRunner {
             log.warn("javdb: failed job {} ({}): {}", job.id(), job.jobType(), msg);
             queue.markAttemptFailed(job.id(), msg);
         }
-
-        sleepInterruptibly(LOOP_SLEEP_MS);
     }
 
     private void executeFetchTitle(EnrichmentJob job) {

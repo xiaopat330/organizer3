@@ -581,6 +581,116 @@ class EnrichmentRunnerTest {
         assertNull(bobSlug, "Bob must not inherit the lone javdb slug — single-cast fallback off for collections");
     }
 
+    // ── URGENT bypass / operator pause (Step 3) ───────────────────────────
+
+    /**
+     * Operator pause (setPaused=true) must block URGENT execution — the runner sleeps
+     * at step 1 without ever calling claimNextUrgentJob.
+     */
+    @Test
+    void runOneStep_operatorPause_blocksUrgentExecution() throws Exception {
+        JavdbClient neverCalled = new JavdbClient() {
+            @Override public String searchByCode(String code) { throw new AssertionError("should not be called when paused"); }
+            @Override public String fetchTitlePage(String slug) { throw new AssertionError("not expected"); }
+            @Override public String fetchActressPage(String slug) { throw new AssertionError("not expected"); }
+        };
+        EnrichmentRunner runner = new EnrichmentRunner(
+                CONFIG, neverCalled, new JavdbSlugResolver(neverCalled), extractor, projector,
+                stagingRepo, enrichmentRepo, queue, titleRepo, actressRepo,
+                new AutoPromoter(jdbi), null, null, null, null, null, null, null, jdbi, null, null);
+        runner.setPaused(true);
+
+        // URGENT job in queue — but operator pause must prevent its execution.
+        queue.enqueueTitle(EnrichmentJob.SOURCE_ACTRESS, 999L, 999L, Priority.URGENT);
+
+        // runOneStep sleeps 30 s when paused; interrupt from a daemon thread after a short delay.
+        Thread t = new Thread(() -> {
+            try { runner.runOneStep(); } catch (InterruptedException ignored) {}
+        });
+        t.setDaemon(true);
+        t.start();
+        Thread.sleep(150);
+        t.interrupt();
+        t.join(2_000);
+
+        assertEquals(1, queue.countPending(), "operator pause must prevent URGENT job from being claimed");
+    }
+
+    /**
+     * URGENT jobs bypass the rate-limit pauseUntil gate: after a 429 sets pauseUntil,
+     * the next call to runOneStep still executes any URGENT jobs while NORMAL/HIGH remain blocked.
+     */
+    @Test
+    void runOneStep_urgentJob_bypasses_pauseUntil() throws Exception {
+        long normalTitleId = seedTitle("NRM-001");
+        long urgentTitleId = seedTitle("URG-001");
+        long actressId     = seedActress("UrgentTest", false);
+
+        var callCount = new java.util.concurrent.atomic.AtomicInteger();
+        JavdbClient fakeClient = new JavdbClient() {
+            @Override public String searchByCode(String code) {
+                if (callCount.incrementAndGet() == 1) {
+                    throw new JavdbRateLimitException("https://javdb.com/");
+                }
+                return "<html>no results</html>"; // 2nd call: CodeNotFound → not_found
+            }
+            @Override public String fetchTitlePage(String slug) { throw new AssertionError("not expected"); }
+            @Override public String fetchActressPage(String slug) { throw new AssertionError("not expected"); }
+        };
+        EnrichmentRunner runner = new EnrichmentRunner(
+                CONFIG, fakeClient, new JavdbSlugResolver(fakeClient), extractor, projector,
+                stagingRepo, enrichmentRepo, queue, titleRepo, actressRepo,
+                new AutoPromoter(jdbi), null, null, null, null, null, null, null, jdbi, null, null);
+
+        // Step 1: 429 on NORMAL job → sets pauseUntil
+        queue.enqueueTitle(EnrichmentJob.SOURCE_ACTRESS, normalTitleId, actressId, Priority.NORMAL);
+        runner.runOneStep();
+        assertTrue(java.time.Instant.now().isBefore(runner.getPauseUntil()), "pauseUntil should be active after 429");
+
+        // Step 2: URGENT enqueued — must bypass the active pauseUntil
+        queue.enqueueTitle(EnrichmentJob.SOURCE_ACTRESS, urgentTitleId, actressId, Priority.URGENT);
+        runner.runOneStep();
+
+        // URGENT job was executed (permanently failed as "not_found")
+        String urgentStatus = jdbi.withHandle(h -> h.createQuery(
+                "SELECT status FROM javdb_enrichment_queue WHERE target_id = :id")
+                .bind("id", urgentTitleId).mapTo(String.class).one());
+        assertEquals("failed", urgentStatus, "URGENT job must execute even when pauseUntil is active");
+
+        // NORMAL job is still pending — not claimed because it was blocked by pauseUntil
+        String normalStatus = jdbi.withHandle(h -> h.createQuery(
+                "SELECT status FROM javdb_enrichment_queue WHERE target_id = :id")
+                .bind("id", normalTitleId).mapTo(String.class).one());
+        assertEquals("pending", normalStatus, "NORMAL job must remain pending while pauseUntil is active");
+    }
+
+    /**
+     * A 429 received while executing an URGENT job must still set pauseUntil (honest accounting),
+     * but the job is released back to pending for retry.
+     */
+    @Test
+    void runOneStep_urgentJob_on429_setsPauseUntilAndReleasesToRetry() throws Exception {
+        long titleId   = seedTitle("URG-002");
+        long actressId = seedActress("UrgentTest2", false);
+
+        JavdbClient rateLimitClient = new JavdbClient() {
+            @Override public String searchByCode(String code) { throw new JavdbRateLimitException("https://javdb.com/"); }
+            @Override public String fetchTitlePage(String slug) { throw new AssertionError("not expected"); }
+            @Override public String fetchActressPage(String slug) { throw new AssertionError("not expected"); }
+        };
+        EnrichmentRunner runner = new EnrichmentRunner(
+                CONFIG, rateLimitClient, new JavdbSlugResolver(rateLimitClient), extractor, projector,
+                stagingRepo, enrichmentRepo, queue, titleRepo, actressRepo,
+                new AutoPromoter(jdbi), null, null, null, null, null, null, null, jdbi, null, null);
+
+        queue.enqueueTitle(EnrichmentJob.SOURCE_ACTRESS, titleId, actressId, Priority.URGENT);
+        runner.runOneStep();
+
+        assertTrue(java.time.Instant.now().isBefore(runner.getPauseUntil()),
+                "URGENT 429 must set pauseUntil (burst counter remains honest)");
+        assertEquals(1, queue.countPending(), "URGENT job must be released to pending for retry after 429");
+    }
+
     // ── Helpers for the tests above ────────────────────────────────────────
 
     private long seedActress(String name, boolean sentinel) {

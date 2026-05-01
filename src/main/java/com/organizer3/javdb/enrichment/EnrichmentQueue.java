@@ -214,6 +214,44 @@ public class EnrichmentQueue {
         });
     }
 
+    /**
+     * Atomically claims the next URGENT pending job by setting it to in_flight.
+     *
+     * <p>Unlike {@link #claimNextJob()}, this method ignores {@code next_attempt_at} — a
+     * per-job backoff does not delay URGENT work. Also ignores any rate-limit pause state,
+     * which is enforced at the caller level in {@code EnrichmentRunner}.
+     */
+    public Optional<EnrichmentJob> claimNextUrgentJob() {
+        return jdbi.inTransaction(h -> {
+            Optional<Long> id = h.createQuery("""
+                    SELECT id FROM javdb_enrichment_queue
+                    WHERE status = 'pending' AND priority = 'URGENT'
+                    ORDER BY
+                      COALESCE(sort_order, 9223372036854775807) ASC,
+                      id ASC
+                    LIMIT 1
+                    """)
+                    .mapTo(Long.class)
+                    .findOne();
+
+            if (id.isEmpty()) return Optional.empty();
+
+            h.createUpdate("""
+                    UPDATE javdb_enrichment_queue
+                    SET status = 'in_flight', updated_at = :now
+                    WHERE id = :id
+                    """)
+                    .bind("id",  id.get())
+                    .bind("now", now())
+                    .execute();
+
+            return h.createQuery("SELECT * FROM javdb_enrichment_queue WHERE id = :id")
+                    .bind("id", id.get())
+                    .map(this::mapJob)
+                    .findOne();
+        });
+    }
+
     public void markDone(long id) {
         jdbi.useHandle(h -> h.createUpdate("""
                 UPDATE javdb_enrichment_queue SET status = 'done', updated_at = :now WHERE id = :id
