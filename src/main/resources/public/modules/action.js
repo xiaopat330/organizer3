@@ -21,7 +21,6 @@ const actionBtn         = document.getElementById('action-btn');
 const healthBtn         = document.getElementById('tools-health-btn');
 const utilitiesBtn      = document.getElementById('tools-utilities-btn');
 const actressDataBtn    = document.getElementById('tools-actress-data-btn');
-const duplicatesBtn     = document.getElementById('tools-duplicates-btn');
 const trashBtn              = document.getElementById('tools-trash-btn');
 const queueBtn          = document.getElementById('tools-queue-btn');
 const javdbDiscoveryBtn    = document.getElementById('tools-javdb-discovery-btn');
@@ -42,12 +41,13 @@ const dupDetailOverlay  = document.getElementById('dup-detail-overlay');
 const dupDetailHeading  = document.getElementById('dup-detail-heading');
 const dupDetailBody     = document.getElementById('dup-detail-body');
 const dupDetailClose    = document.getElementById('dup-detail-close');
-const dupSubnav         = document.getElementById('tools-dup-subnav');
+const curationSubnav       = document.getElementById('tools-curation-subnav');
+const curationUnprocessedTab = document.getElementById('tools-curation-unprocessed-tab');
 const dupTriageTab      = document.getElementById('tools-dup-triage-tab');
 const mergeCandidatesTab = document.getElementById('tools-merge-candidates-tab');
 
 // ── Tool buttons ──────────────────────────────────────────────────────────
-const TOOL_BTNS = [healthBtn, utilitiesBtn, actressDataBtn, duplicatesBtn, trashBtn, queueBtn, javdbDiscoveryBtn];
+const TOOL_BTNS = [healthBtn, utilitiesBtn, actressDataBtn, trashBtn, queueBtn, javdbDiscoveryBtn];
 
 function selectTool(btn) {
   TOOL_BTNS.forEach(b => b?.classList.remove('selected'));
@@ -67,7 +67,7 @@ function hideAllToolViews() {
   hideTrashView();
   hideJavdbDiscoveryView();
   hideTagHealthView();
-  dupSubnav.style.display          = 'none';
+  curationSubnav.style.display     = 'none';
   healthSubnav.style.display       = 'none';
   utilitiesSubnav.style.display    = 'none';
   duplicatesView.style.display     = 'none';
@@ -210,19 +210,23 @@ function initDupInfiniteScroll() {
 let dupTriageWired = false;
 let mergeCandidatesWired = false;
 
-function selectDupTab(tab) {
+function selectCurationTab(tab) {
+  curationUnprocessedTab.classList.toggle('selected', tab === 'unprocessed');
   dupTriageTab.classList.toggle('selected', tab === 'triage');
   mergeCandidatesTab.classList.toggle('selected', tab === 'merge');
 }
 
-async function showDupTab(tab) {
-  selectDupTab(tab);
-  if (tab === 'triage') {
-    hideMergeCandidatesView();
+async function showCurationTab(tab) {
+  selectCurationTab(tab);
+  hideTitleEditorView();
+  hideDupTriageView();
+  hideMergeCandidatesView();
+  if (tab === 'unprocessed') {
+    showTitleEditor();
+  } else if (tab === 'triage') {
     if (!dupTriageWired) { wireDupTriageEvents(); dupTriageWired = true; }
     await showDupTriageView();
   } else {
-    hideDupTriageView();
     if (!mergeCandidatesWired) { wireMergeCandidatesEvents(); mergeCandidatesWired = true; }
     await showMergeCandidatesView();
   }
@@ -248,6 +252,7 @@ function showUtilitiesTab(tab) {
 export function showUtilities() {
   showActionView('utilities');
   selectTool(utilitiesBtn);
+  updateBreadcrumb([{ label: 'Tools' }, { label: 'Utilities' }]);
   hideAllToolViews();
   utilitiesSubnav.style.display = 'flex';
 
@@ -281,6 +286,7 @@ function showHealthTab(tab) {
 export function showHealth() {
   showActionView('health');
   selectTool(healthBtn);
+  updateBreadcrumb([{ label: 'Tools' }, { label: 'Health' }]);
   hideAllToolViews();
   healthSubnav.style.display = 'flex';
 
@@ -291,16 +297,18 @@ export function showHealth() {
   showHealthTab('library');
 }
 
-export async function showDuplicates() {
-  showActionView('duplicates');
-  selectTool(duplicatesBtn);
+export async function showCuration(initialTab = 'unprocessed') {
+  showActionView('queue');
+  selectTool(queueBtn);
+  updateBreadcrumb([{ label: 'Tools' }, { label: 'Curation' }]);
   hideAllToolViews();
-  dupSubnav.style.display = 'flex';
+  curationSubnav.style.display = 'flex';
 
-  dupTriageTab.onclick     = () => showDupTab('triage');
-  mergeCandidatesTab.onclick = () => showDupTab('merge');
+  curationUnprocessedTab.onclick = () => showCurationTab('unprocessed');
+  dupTriageTab.onclick           = () => showCurationTab('triage');
+  mergeCandidatesTab.onclick     = () => showCurationTab('merge');
 
-  await showDupTab('triage');
+  await showCurationTab(initialTab);
 }
 
 // ── Duplicate detail modal ────────────────────────────────────────────────
@@ -405,8 +413,6 @@ actressDataBtn.addEventListener('click', () => {
   showActressDataView();
 });
 
-duplicatesBtn.addEventListener('click', showDuplicates);
-
 trashBtn.addEventListener('click', () => {
   showActionView('trash');
   selectTool(trashBtn);
@@ -415,18 +421,12 @@ trashBtn.addEventListener('click', () => {
   showTrashView();
 });
 
-queueBtn.addEventListener('click', () => {
-  showActionView('queue');
-  selectTool(queueBtn);
-  updateBreadcrumb([{ label: 'Tools' }, { label: 'Queue' }]);
-  hideAllToolViews();
-  showTitleEditor();
-});
+queueBtn.addEventListener('click', () => showCuration());
 
 javdbDiscoveryBtn.addEventListener('click', () => {
   showActionView('javdb-discovery');
   selectTool(javdbDiscoveryBtn);
-  updateBreadcrumb([{ label: 'Tools' }, { label: 'javdb Discovery' }]);
+  updateBreadcrumb([{ label: 'Tools' }, { label: 'Discovery' }]);
   hideAllToolViews();
   showJavdbDiscoveryView();
 });
@@ -436,7 +436,7 @@ document.addEventListener('navigate-to-review-item', async e => {
   if (discoveryView && discoveryView.style.display === 'none') {
     showActionView('javdb-discovery');
     selectTool(javdbDiscoveryBtn);
-    updateBreadcrumb([{ label: 'Tools' }, { label: 'javdb Discovery' }]);
+    updateBreadcrumb([{ label: 'Tools' }, { label: 'Discovery' }]);
     hideAllToolViews();
     await showJavdbDiscoveryView();
   }
@@ -448,7 +448,7 @@ document.addEventListener('navigate-to-discovery-actress-profile', async e => {
   if (discoveryView && discoveryView.style.display === 'none') {
     showActionView('javdb-discovery');
     selectTool(javdbDiscoveryBtn);
-    updateBreadcrumb([{ label: 'Tools' }, { label: 'javdb Discovery' }]);
+    updateBreadcrumb([{ label: 'Tools' }, { label: 'Discovery' }]);
     hideAllToolViews();
     await showJavdbDiscoveryView();
   }
