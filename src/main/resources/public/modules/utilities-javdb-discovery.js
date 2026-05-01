@@ -1615,31 +1615,28 @@ function renderQueueItems(items) {
   }).join('');
 }
 
-// Failure reason → short display label for the queue status cell.
-const QUEUE_FAIL_LABELS = {
-  ambiguous:               'ambiguous',
-  cast_anomaly:            'cast anomaly',
-  sentinel_actress:        'needs actress',
-  not_found:               'not on javdb',
-  no_match_in_filmography: 'not in filmography',
-  fetch_failed:            'fetch failed',
-  no_slug:                 'no slug',
-  title_not_in_db:         'orphaned job',
-  unknown_job_type:        'internal error',
+// Failure reason metadata — label, icon prefix, and CSS class for the queue status cell.
+// Buckets: resolvable (amber ⚠), dead-end (slate ⊘), transient/fixable (red ↻).
+const QUEUE_FAIL_META = {
+  ambiguous:               { label: 'ambiguous',           icon: '⚠', cls: 'jd-qi-failed-resolvable' },
+  cast_anomaly:            { label: 'cast anomaly',        icon: '⚠', cls: 'jd-qi-failed-resolvable' },
+  sentinel_actress:        { label: 'needs actress',       icon: '⚠', cls: 'jd-qi-failed-resolvable' },
+  not_found:               { label: 'not on javdb',        icon: '⊘', cls: 'jd-qi-failed-deadend'    },
+  no_match_in_filmography: { label: 'not in filmography',  icon: '⊘', cls: 'jd-qi-failed-deadend'    },
+  title_not_in_db:         { label: 'orphaned job',        icon: '⊘', cls: 'jd-qi-failed-deadend'    },
+  unknown_job_type:        { label: 'internal error',      icon: '⊘', cls: 'jd-qi-failed-deadend'    },
+  fetch_failed:            { label: 'fetch failed',        icon: '↻', cls: 'jd-qi-failed'            },
+  no_slug:                 { label: 'no slug',             icon: '↻', cls: 'jd-qi-failed'            },
 };
 
-// Three CSS modifier buckets — resolvable (amber), dead-end (slate), transient (red).
-const QUEUE_FAIL_RESOLVABLE  = new Set(['ambiguous', 'cast_anomaly', 'sentinel_actress']);
-const QUEUE_FAIL_DEAD_END    = new Set(['not_found', 'no_match_in_filmography', 'title_not_in_db', 'unknown_job_type']);
-
 function queueFailLabel(lastError) {
-  return QUEUE_FAIL_LABELS[lastError] || (lastError ? lastError.replace(/_/g, ' ') : 'failed');
+  const m = QUEUE_FAIL_META[lastError];
+  if (m) return `${m.icon} ${m.label}`;
+  return lastError ? lastError.replace(/_/g, ' ') : 'failed';
 }
 
 function queueFailClass(lastError) {
-  if (QUEUE_FAIL_RESOLVABLE.has(lastError)) return 'jd-qi-failed-resolvable';
-  if (QUEUE_FAIL_DEAD_END.has(lastError))   return 'jd-qi-failed-deadend';
-  return 'jd-qi-failed';   // fetch_failed, no_slug, unknown → red
+  return QUEUE_FAIL_META[lastError]?.cls ?? 'jd-qi-failed';
 }
 
 function renderQueueItemActions(item) {
