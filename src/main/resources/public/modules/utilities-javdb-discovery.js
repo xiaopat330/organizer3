@@ -183,8 +183,8 @@ async function refreshQueue() {
       const parts = [];
       if (activeTotal > 0) parts.push(`${activeTotal} pending`);
       if (pausedItems > 0) parts.push(`${pausedItems} paused`);
-      if (failed > 0) parts.push(`${failed} failed`);
-      queueBadge.textContent = parts.join(' · ');
+      if (failed > 0) parts.push(`<span class="jd-badge-failed">${failed} failed</span>`);
+      queueBadge.innerHTML = parts.join(' · ');
       queueBadge.style.display = '';
     }
     pauseBtn.textContent = paused ? 'Resume' : 'Pause';
@@ -197,7 +197,7 @@ async function refreshQueue() {
         rateLimitBanner.className = 'jd-rate-limit-banner jd-banner-burst';
         rateLimitBanner.innerHTML =
           `↻ Taking a burst break — resuming at <span class="jd-banner-time">${esc(resumeStr)}</span>. ` +
-          `<button type="button" class="jd-banner-resume-btn" id="jd-force-resume-btn">Resume Now</button>`;
+          `<button type="button" class="jd-banner-resume-btn" id="jd-force-resume-btn">▶ Resume Now</button>`;
       } else {
         const reason = rateLimitPauseReason || 'Rate limited';
         const hitNote = consecutiveRateLimitHits > 1
@@ -207,7 +207,7 @@ async function refreshQueue() {
         rateLimitBanner.innerHTML =
           `⚠ Rate limited — ${esc(reason)}${esc(hitNote)}. Resuming at <strong class="jd-banner-time">${esc(resumeStr)}</strong>. ` +
           `<span class="jd-banner-hint">Switch VPN then </span>` +
-          `<button type="button" class="jd-banner-resume-btn" id="jd-force-resume-btn">Resume Now</button>`;
+          `<button type="button" class="jd-banner-resume-btn" id="jd-force-resume-btn">▶ Resume Now</button>`;
       }
       rateLimitBanner.style.display = '';
       document.getElementById('jd-force-resume-btn')?.addEventListener('click', forceResume);
