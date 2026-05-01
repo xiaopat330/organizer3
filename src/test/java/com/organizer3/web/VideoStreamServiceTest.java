@@ -155,6 +155,46 @@ class VideoStreamServiceTest {
     }
 
     @Test
+    void findVideosByVolumeAndLocPathDisambiguatesSameVolumeDuplicates() throws IOException {
+        // Two copies of the same title on the same volume but in different folders.
+        // Without locPath, both video records would be returned for either location.
+        Title title = Title.builder()
+                .id(5L).code("ADN-118").baseCode("ADN-00118").label("ADN")
+                .locations(List.of(
+                        TitleLocation.builder().titleId(5L).volumeId("a").partitionId("stars")
+                                .path(Path.of("stars/Jessica Kizaki/Jessica Kizaki (ADN-118)"))
+                                .lastSeenAt(LocalDate.now()).build(),
+                        TitleLocation.builder().titleId(5L).volumeId("a").partitionId("superstar")
+                                .path(Path.of("stars/superstar/Jessica Kizaki/Jessica Kizaki (ADN-118)"))
+                                .lastSeenAt(LocalDate.now()).build()))
+                .build();
+
+        // video A lives under the first location (smaller file)
+        Video videoA = video(10L, 5L, "a", "ADN-118-A.mp4",
+                "stars/Jessica Kizaki/Jessica Kizaki (ADN-118)/video/ADN-118-A.mp4");
+        // video B lives under the second location (larger file)
+        Video videoB = video(11L, 5L, "a", "ADN-118-B.mp4",
+                "stars/superstar/Jessica Kizaki/Jessica Kizaki (ADN-118)/video/ADN-118-B.mp4");
+
+        when(titleRepo.findByCode("ADN-118")).thenReturn(Optional.of(title));
+        when(videoRepo.findByTitle(5L)).thenReturn(List.of(videoA, videoB));
+
+        // Fetching for loc 0 (stars partition) with locPath → should return only videoA
+        List<VideoStreamService.VideoInfo> resultA = service.findVideos("ADN-118", "a",
+                "stars/Jessica Kizaki/Jessica Kizaki (ADN-118)");
+        assertEquals(1, resultA.size());
+        assertEquals("ADN-118-A.mp4", resultA.get(0).filename());
+
+        // Fetching for loc 1 (superstar partition) with locPath → should return only videoB
+        List<VideoStreamService.VideoInfo> resultB = service.findVideos("ADN-118", "a",
+                "stars/superstar/Jessica Kizaki/Jessica Kizaki (ADN-118)");
+        assertEquals(1, resultB.size());
+        assertEquals("ADN-118-B.mp4", resultB.get(0).filename());
+
+        verifyNoInteractions(smbFactory);
+    }
+
+    @Test
     void findVideoByIdDelegatesToRepo() {
         Video video = video(42L, 1L, "a", "test.mp4", "/test.mp4");
         when(videoRepo.findById(42L)).thenReturn(Optional.of(video));

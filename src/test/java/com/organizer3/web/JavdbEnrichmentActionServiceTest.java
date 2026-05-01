@@ -5,6 +5,8 @@ import com.organizer3.javdb.JavdbConfig;
 import com.organizer3.javdb.enrichment.EnrichmentJob;
 import com.organizer3.javdb.enrichment.EnrichmentQueue;
 import com.organizer3.javdb.enrichment.EnrichmentRunner;
+import com.organizer3.javdb.enrichment.JavdbActressStagingRow;
+import com.organizer3.javdb.enrichment.JavdbStagingRepository;
 import com.organizer3.model.Title;
 import com.organizer3.repository.TitleRepository;
 import org.jdbi.v3.core.Jdbi;
@@ -202,5 +204,74 @@ class JavdbEnrichmentActionServiceTest {
 
         assertEquals(1, errors.size());
         assertEquals("GGG-001", errors.get(0).titleCode());
+    }
+
+    // ── user-initiated calls are HIGH priority ─────────────────────────────
+
+    private String queuedPriority(String jobType, long targetId) {
+        return jdbi.withHandle(h -> h.createQuery(
+                "SELECT priority FROM javdb_enrichment_queue WHERE job_type=? AND target_id=? ORDER BY id DESC LIMIT 1")
+                .bind(0, jobType).bind(1, targetId).mapTo(String.class).findOne().orElse(null));
+    }
+
+    @Test
+    void enqueueActress_usesHighPriority() {
+        long t1 = insertTitle("HHH-001");
+        long actressId = 20L;
+        Mockito.when(mockTitleRepo.findByActress(actressId)).thenReturn(List.of(makeTitle(t1, "HHH-001")));
+
+        service.enqueueActress(actressId);
+
+        assertEquals("HIGH", queuedPriority("fetch_title", t1));
+    }
+
+    @Test
+    void reEnqueueTitle_usesHighPriority() {
+        long t1 = insertTitle("III-001");
+        long actressId = 21L;
+
+        service.reEnqueueTitle(t1, actressId);
+
+        assertEquals("HIGH", queuedPriority("fetch_title", t1));
+    }
+
+    @Test
+    void reEnqueueActressProfile_usesHighPriority() {
+        long actressId = 22L;
+        insertActressRow(actressId);
+
+        service.reEnqueueActressProfile(actressId);
+
+        assertEquals("HIGH", queuedPriority("fetch_actress_profile", actressId));
+    }
+
+    @Test
+    void deriveSlugAndEnqueue_usesHighPriority_whenSlugAlreadyKnown() {
+        long actressId = 23L;
+        insertActressRow(actressId);
+        insertActressStagingRow(actressId, "test-slug");
+
+        JavdbStagingRepository mockStaging = Mockito.mock(JavdbStagingRepository.class);
+        Mockito.when(mockStaging.findActressStaging(actressId))
+               .thenReturn(java.util.Optional.of(new JavdbActressStagingRow(
+                       actressId, "test-slug", null, "fetched", null, null, null, null, null, null, null, null)));
+        JavdbEnrichmentActionService svc2 = new JavdbEnrichmentActionService(
+                mockTitleRepo, queue, mockRunner, mockStaging, null, null);
+
+        svc2.deriveSlugAndEnqueueProfile(actressId);
+
+        assertEquals("HIGH", queuedPriority("fetch_actress_profile", actressId));
+    }
+
+    private void insertActressRow(long id) {
+        jdbi.useHandle(h -> h.execute(
+                "INSERT OR IGNORE INTO actresses (id, canonical_name, tier, favorite, bookmark, rejected, first_seen_at) " +
+                "VALUES (?, ?, 'C', 0, 0, 0, '2024-01-01')", id, "TestActress" + id));
+    }
+
+    private void insertActressStagingRow(long actressId, String slug) {
+        jdbi.useHandle(h -> h.execute(
+                "INSERT OR IGNORE INTO javdb_actress_staging (actress_id, javdb_slug) VALUES (?, ?)",
+                actressId, slug));
     }
 }

@@ -398,6 +398,70 @@ class EnrichmentRunnerWriteGateTest {
         assertTrue(enrichmentRow(titleId).isPresent(), "collection job should not be blocked by sentinel");
     }
 
+    // ─── Recovery: cast_anomaly rows discharged after matcher upgrade ─────────────
+
+    @Test
+    void recoverCastAnomalies_dischargesRowsThatNowMatchUnderImprovedMatcher() {
+        // Simulate the AIKA bug: actress has romanized canonical_name "Aika"; an older
+        // run wrote cast_anomaly because the case-sensitive matcher missed cast entry "AIKA".
+        long actressId = seedActress("Aika", "愛佳", false);
+        long titleId = seedTitle("AIK-001");
+        link(titleId, actressId);
+
+        // Seed an enrichment row with cast that includes "AIKA" — the original matcher missed it.
+        String castJson = "[{\"slug\":\"RXbR\",\"name\":\"AIKA\",\"gender\":\"F\"}," +
+                          "{\"slug\":\"PpQ0\",\"name\":\"森林原人\",\"gender\":\"M\"}]";
+        jdbi.useHandle(h -> h.execute(
+                "INSERT INTO title_javdb_enrichment (title_id, javdb_slug, fetched_at, cast_json, " +
+                "resolver_source, confidence, cast_validated) VALUES (?, 'titleSlug', '2026-04-26T00:00:00Z', ?, " +
+                "'actress_filmography', 'LOW', 0)",
+                titleId, castJson));
+        reviewQueueRepo.enqueue(titleId, "titleSlug", "cast_anomaly", "actress_filmography");
+        assertTrue(reviewQueueRepo.hasOpen(titleId, "cast_anomaly"));
+
+        EnrichmentRunner runner = makeRunner(fakeClient("titleSlug", titleHtmlEmptyCast()));
+        runner.recoverCastAnomaliesAfterMatcherFix();
+
+        // Review row resolved with 'cast_recovered'
+        assertFalse(reviewQueueRepo.hasOpen(titleId, "cast_anomaly"));
+        // Enrichment upgraded to HIGH + cast_validated=1
+        var row = enrichmentRow(titleId).orElseThrow();
+        assertEquals("HIGH", row.get("confidence"));
+        assertEquals(1, ((Number) row.get("cast_validated")).intValue());
+        // Actress slug staged
+        var staging = stagingRepo.findActressStaging(actressId).orElseThrow();
+        assertEquals("RXbR", staging.javdbSlug());
+
+        // Idempotent: a second pass finds nothing to do
+        runner.recoverCastAnomaliesAfterMatcherFix();
+        assertFalse(reviewQueueRepo.hasOpen(titleId, "cast_anomaly"));
+    }
+
+    @Test
+    void recoverCastAnomalies_leavesRowsThatStillDoNotMatch() {
+        // Different actress in cast — no match even under improved matcher.
+        long actressId = seedActress("Kana Momonogi", "桃乃木かな", false);
+        long titleId = seedTitle("KMM-001");
+        link(titleId, actressId);
+
+        String castJson = "[{\"slug\":\"OOO1\",\"name\":\"Some Other Actress\",\"gender\":\"F\"}]";
+        jdbi.useHandle(h -> h.execute(
+                "INSERT INTO title_javdb_enrichment (title_id, javdb_slug, fetched_at, cast_json, " +
+                "resolver_source, confidence, cast_validated) VALUES (?, 'kmm001', '2026-04-26T00:00:00Z', ?, " +
+                "'actress_filmography', 'LOW', 0)",
+                titleId, castJson));
+        reviewQueueRepo.enqueue(titleId, "kmm001", "cast_anomaly", "actress_filmography");
+
+        EnrichmentRunner runner = makeRunner(fakeClient("kmm001", titleHtmlEmptyCast()));
+        runner.recoverCastAnomaliesAfterMatcherFix();
+
+        // Still open
+        assertTrue(reviewQueueRepo.hasOpen(titleId, "cast_anomaly"));
+        // Confidence unchanged
+        var row = enrichmentRow(titleId).orElseThrow();
+        assertEquals("LOW", row.get("confidence"));
+    }
+
     // ─── Revalidation enqueue hook ────────────────────────────────────────────────
 
     @Test

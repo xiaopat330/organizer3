@@ -103,4 +103,38 @@ class CastMatcherTest {
         var result = matcher.match(id, cast("AlternateName"));
         assertTrue(result.matched());
     }
+
+    @Test
+    void match_isCaseInsensitiveAcrossCanonicalName() {
+        // Regression: "AIKA" (Aika) — DB canonical "Aika", JAVdb cast "AIKA".
+        // Older matcher only used stage_name + aliases and did exact-case compare.
+        long id = insertActress("Aika", "愛佳");
+        var result = matcher.match(id, cast("AIKA", "森林原人"));
+        assertTrue(result.matched());
+        assertEquals("AIKA", result.matchedName());
+        assertEquals("slug0", result.matchedSlug());
+    }
+
+    @Test
+    void match_normalizesFullwidthLatin() {
+        long id = insertActress("Aika", null);
+        var result = matcher.match(id, cast("ＡＩＫＡ"));
+        assertTrue(result.matched());
+    }
+
+    @Test
+    void match_caseInsensitiveAlias() {
+        long id = insertActress("Yuma Asami", "麻美ゆま");
+        addAlias(id, "asami yuma");
+        var result = matcher.match(id, cast("ASAMI YUMA"));
+        assertTrue(result.matched());
+    }
+
+    @Test
+    void match_doesNotConfuseDifferentRomanNames() {
+        // Sanity: "Aika" canonical does not match "Mei" cast entry.
+        long id = insertActress("Aika", null);
+        var result = matcher.match(id, cast("Mei", "森林原人"));
+        assertFalse(result.matched());
+    }
 }

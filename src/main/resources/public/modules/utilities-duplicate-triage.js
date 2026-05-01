@@ -612,11 +612,36 @@ function makeDecisionBtn(decision, active) {
 }
 
 function videoChip(v) {
-  const parts = [];
-  if (v.width && v.height) parts.push(`${v.width}×${v.height}`);
-  if (v.videoCodec) parts.push(v.videoCodec.toUpperCase());
-  if (v.fileSize) parts.push(fmtBytes(v.fileSize));
-  return `<span class="dt-chip">${esc(parts.join(' · '))}</span>`;
+  return videoTagPills(v);
+}
+
+function videoTagPills(v) {
+  const fn = v.filename || '';
+  const fnLower = fn.toLowerCase();
+  const dot = fn.lastIndexOf('.');
+  const ext = dot >= 0 ? fn.substring(dot + 1).toUpperCase() : null;
+  const isHevc = fnLower.includes('-h265');
+  const is4k   = fnLower.includes('_4k') || fnLower.includes('-4k');
+
+  let html = '';
+  if (v.fileSize) html += `<span class="dt-chip">${fmtBytes(v.fileSize)}</span>`;
+  if (ext)        html += `<span class="dt-chip dt-chip-ext">${esc(ext)}</span>`;
+  if (isHevc)     html += `<span class="dt-chip dt-chip-hevc">HEVC</span>`;
+  if (is4k)       html += `<span class="dt-chip dt-chip-4k">4K</span>`;
+  return html;
+}
+
+// Parse //server/share/middle/path/TitleFolder into three segments.
+function parseNasPath(nasPath) {
+  if (!nasPath) return null;
+  const s = nasPath.replace(/\\/g, '/');
+  const m = s.match(/^(\/\/[^/]+\/[^/]+)(\/(.*))?$/);
+  if (!m) return { volume: s, middle: '', titleFolder: '' };
+  const volume = m[1];
+  const rest   = m[3] || '';
+  const slash  = rest.lastIndexOf('/');
+  if (slash < 0) return { volume, middle: '', titleFolder: rest };
+  return { volume, middle: '/' + rest.substring(0, slash), titleFolder: rest.substring(slash + 1) };
 }
 
 function fmtBytes(b) {
@@ -675,7 +700,9 @@ async function fetchLocVideos(titleCode, locs) {
   const results = await Promise.all(
     locs.map(async (loc) => {
       try {
-        const res = await fetch(`/api/titles/${encodeURIComponent(titleCode)}/videos?volumeId=${encodeURIComponent(loc.volumeId)}`);
+        let url = `/api/titles/${encodeURIComponent(titleCode)}/videos?volumeId=${encodeURIComponent(loc.volumeId)}`;
+        if (loc.locPath) url += `&locPath=${encodeURIComponent(loc.locPath)}`;
+        const res = await fetch(url);
         return await res.json();
       } catch {
         return [];
@@ -699,12 +726,18 @@ function openInspectModal(title, locIdx, loc, videos) {
   // Header
   const header = document.createElement('div');
   header.className = 'dt-inspect-header';
+  const parsed = parseNasPath(loc.nasPath || '');
+  const pathHtml = parsed
+    ? `<span class="dt-inspect-path-volume">${esc(parsed.volume)}</span>` +
+      (parsed.middle ? `<span class="dt-inspect-path-middle">${esc(parsed.middle)}/</span>` : '') +
+      (parsed.titleFolder ? `<span class="dt-inspect-path-title">${esc(parsed.titleFolder)}</span>` : '')
+    : esc(loc.nasPath || '');
   header.innerHTML = `
     <div class="dt-inspect-header-info">
       <span class="dt-inspect-code">${esc(title.code)}</span>
       <span class="dt-inspect-loc-num">Location ${locIdx + 1} of ${(title.locationEntries || []).length}</span>
     </div>
-    <div class="dt-inspect-path-line">${esc(loc.nasPath || '')}</div>
+    <div class="dt-inspect-path-line">${pathHtml}</div>
   `;
 
   const closeBtn = document.createElement('button');
@@ -739,6 +772,7 @@ function buildInspectVideoSection(v) {
 
   section.innerHTML = `
     <div class="dt-inspect-filename">${esc(filename)}</div>
+    <div class="dt-inspect-pills">${videoTagPills(v)}</div>
     <div class="dt-inspect-meta" id="dt-inspect-meta-${v.id}">…</div>
     <div class="dt-inspect-player-wrap" id="dt-inspect-wrap-${v.id}">
       <video class="dt-inspect-player" id="dt-inspect-player-${v.id}"

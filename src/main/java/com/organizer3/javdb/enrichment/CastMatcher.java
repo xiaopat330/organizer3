@@ -4,17 +4,21 @@ import com.organizer3.model.Actress;
 import com.organizer3.model.ActressAlias;
 import com.organizer3.repository.ActressRepository;
 
+import java.text.Normalizer;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Optional;
 import java.util.Set;
 
 /**
  * Checks whether a given actress (by DB id) appears in a title's cast list.
  *
- * <p>Matching is name-based: the actress's {@code stage_name} and all known
- * {@code actress_aliases} are compared against each cast entry's name field.
- * This mirrors the name-match logic in {@link EnrichmentRunner#matchAndRecordActressSlug}.
+ * <p>Matching compares the actress's {@code canonical_name}, {@code stage_name}, and
+ * {@code actress_aliases} against each cast entry's name field. Names are normalized
+ * via Unicode NFKC + ASCII case-folding + trim before comparison so that romanized
+ * stage names like {@code "AIKA"} match a DB row whose canonical name is {@code "Aika"}
+ * (and so fullwidth Latin from DMM/javdb folds to ASCII).
  */
 public class CastMatcher {
 
@@ -24,33 +28,57 @@ public class CastMatcher {
         this.actressRepo = actressRepo;
     }
 
-    public record MatchResult(boolean matched, String matchedName) {}
+    public record MatchResult(boolean matched, String matchedName, String matchedSlug) {
+        public static MatchResult unmatched() { return new MatchResult(false, null, null); }
+    }
 
     /**
      * Returns whether {@code actressId} appears in {@code cast} by name.
      * Returns an unmatched result if the actress is not found in the DB or cast is empty.
      */
     public MatchResult match(long actressId, List<TitleExtract.CastEntry> cast) {
-        if (cast == null || cast.isEmpty()) return new MatchResult(false, null);
+        if (cast == null || cast.isEmpty()) return MatchResult.unmatched();
         Optional<Actress> maybeActress = actressRepo.findById(actressId);
-        if (maybeActress.isEmpty()) return new MatchResult(false, null);
+        if (maybeActress.isEmpty()) return MatchResult.unmatched();
         Actress actress = maybeActress.get();
         List<ActressAlias> aliases = actressRepo.findAliases(actressId);
-        Set<String> knownNames = buildNames(actress, aliases);
+        Set<String> knownNames = buildNormalizedNames(actress, aliases);
+        if (knownNames.isEmpty()) return MatchResult.unmatched();
         for (TitleExtract.CastEntry entry : cast) {
-            if (entry.name() != null && knownNames.contains(entry.name())) {
-                return new MatchResult(true, entry.name());
+            String n = normalize(entry.name());
+            if (n != null && knownNames.contains(n)) {
+                return new MatchResult(true, entry.name(), entry.slug());
             }
         }
-        return new MatchResult(false, null);
+        return MatchResult.unmatched();
     }
 
-    private Set<String> buildNames(Actress actress, List<ActressAlias> aliases) {
+    private static Set<String> buildNormalizedNames(Actress actress, List<ActressAlias> aliases) {
         Set<String> names = new HashSet<>();
-        if (actress.getStageName() != null) names.add(actress.getStageName());
+        addNormalized(names, actress.getCanonicalName());
+        addNormalized(names, actress.getStageName());
         for (ActressAlias alias : aliases) {
-            if (alias.aliasName() != null) names.add(alias.aliasName());
+            addNormalized(names, alias.aliasName());
         }
         return names;
+    }
+
+    private static void addNormalized(Set<String> sink, String value) {
+        String n = normalize(value);
+        if (n != null) sink.add(n);
+    }
+
+    /**
+     * Normalize a name for comparison: Unicode NFKC (folds fullwidth Latin → ASCII),
+     * lowercased with {@link Locale#ROOT} (ASCII case-fold; no-op for kana/kanji),
+     * and trimmed. Returns {@code null} if {@code value} is {@code null} or empty
+     * after normalization.
+     */
+    static String normalize(String value) {
+        if (value == null) return null;
+        String n = Normalizer.normalize(value, Normalizer.Form.NFKC)
+                .toLowerCase(Locale.ROOT)
+                .trim();
+        return n.isEmpty() ? null : n;
     }
 }

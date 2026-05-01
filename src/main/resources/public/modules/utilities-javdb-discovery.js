@@ -612,6 +612,7 @@ async function fetchAndRenderTitles() {
     wireReenrichButtons();
     wireEnrichmentDetailTriggers();
     wireFailureBadges();
+    wireCoverLinks(titlesView);
   } catch (_) {
     titlesView.innerHTML = '<div class="jd-error">Network error.</div>';
   }
@@ -694,6 +695,12 @@ function wireFilterBar() {
   if (clearBtn) clearBtn.addEventListener('click', () => {
     state.titleFilter = { tags: [], minRatingAvg: null, minRatingCount: null };
     fetchAndRenderTitles();
+  });
+}
+
+function wireCoverLinks(container) {
+  container.querySelectorAll('.jd-cover-link[data-cover-url]').forEach(btn => {
+    btn.addEventListener('click', () => showJdCoverModal(btn.dataset.coverUrl, btn.dataset.code));
   });
 }
 
@@ -891,8 +898,11 @@ function titleRow(t) {
   const rating = (t.ratingAvg != null)
     ? `<span class="jd-rating">${t.ratingAvg.toFixed(2)}<span class="jd-rating-count"> · ${t.ratingCount ?? 0}</span></span>`
     : '—';
+  const codeCell = t.localCoverUrl
+    ? `<button class="jd-cover-link" data-cover-url="${esc(t.localCoverUrl)}" data-code="${esc(t.code)}">${esc(t.code)}</button>`
+    : esc(t.code);
   return `<tr>
-    <td class="jd-code">${esc(t.code)}</td>
+    <td class="jd-code">${codeCell}</td>
     <td>${statusCell}</td>
     <td>${t.titleOriginal ? esc(t.titleOriginal) : '—'}</td>
     <td>${fmtDate(t.releaseDate)}</td>

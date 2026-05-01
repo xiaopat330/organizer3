@@ -46,25 +46,25 @@ servers:
 
 volumes:
   - id: a
-    smbPath: //pandora/jav_A
+    smbPath: //pandora.local/jav_A
     structureType: conventional
     server: pandora
     letters: [A]
 
   - id: bg
-    smbPath: //pandora/jav_BG
+    smbPath: //pandora.local/jav_BG
     structureType: conventional
     server: pandora
     letters: [B, C, D, E, F, G]
 
   - id: hj
-    smbPath: //pandora/jav_HJ
+    smbPath: //pandora.local/jav_HJ
     structureType: conventional
     server: pandora
     letters: [H, I, J]
 
   - id: k
-    smbPath: //pandora/jav_K
+    smbPath: //pandora.local/jav_K
     structureType: conventional
     server: pandora
     letters: [K]
@@ -74,86 +74,86 @@ volumes:
   # too, but sort only flags actual LETTER mismatches (not sub-optimal volume
   # placement), so no conflict.
   - id: m
-    smbPath: //pandora/jav_M
+    smbPath: //pandora.local/jav_M
     structureType: conventional
     server: pandora
     letters: [M]
 
   - id: ma
-    smbPath: //pandora/jav_MA
+    smbPath: //pandora.local/jav_MA
     structureType: conventional
     server: pandora
     letters: [Ma]
 
   - id: n
-    smbPath: //pandora/jav_N
+    smbPath: //pandora.local/jav_N
     structureType: conventional
     server: pandora
     letters: [N]
 
   - id: r
-    smbPath: //pandora/jav_OR
+    smbPath: //pandora.local/jav_OR
     structureType: conventional
     server: pandora
     letters: [O, P, Q, R]
 
   - id: s
-    smbPath: //pandora/jav_S
+    smbPath: //pandora.local/jav_S
     structureType: conventional
     server: pandora
     letters: [S]
 
   - id: tz
-    smbPath: //pandora/jav_TZ
+    smbPath: //pandora.local/jav_TZ
     structureType: conventional
     server: pandora
     letters: [T, U, V, W, X, Y, Z]
 
   - id: unsorted
-    smbPath: //pandora/jav_unsorted
+    smbPath: //pandora.local/jav_unsorted
     structureType: queue
     server: pandora
 
   - id: qnap
-    smbPath: //qnap2/jav
+    smbPath: //qnap2.local/jav
     structureType: exhibition
     server: qnap2
     group: exhibition
 
   - id: qnap_archive
-    smbPath: //pandora/qnap_archive
+    smbPath: //pandora.local/qnap_archive
     structureType: exhibition
     server: pandora
     group: archive
 
   - id: classic
-    smbPath: //qnap2/JAV/classic
+    smbPath: //qnap2.local/JAV/classic
     structureType: exhibition
     server: qnap2
     group: archive
 
   - id: pool
-    smbPath: //pandora/jav_unsorted/_done
+    smbPath: //pandora.local/jav_unsorted/_done
     structureType: sort_pool
     server: pandora
 
   - id: classic_pool
-    smbPath: //qnap2/JAV/classic/new
+    smbPath: //qnap2.local/JAV/classic/new
     structureType: sort_pool
     server: qnap2
 
   - id: collections
-    smbPath: //pandora/jav_collections
+    smbPath: //pandora.local/jav_collections
     structureType: collections
     server: pandora
 
   - id: qnap_av
-    smbPath: //qnap2/AV/stars
+    smbPath: //qnap2.local/AV/stars
     structureType: avstars
     server: qnap2
 
   - id: athena_av
-    smbPath: //athena/AV/stars
+    smbPath: //athena.local/AV/stars
     structureType: avstars
     server: athena
 
