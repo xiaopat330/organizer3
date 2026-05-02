@@ -1,6 +1,6 @@
 # Tag System Revamp — Enrichment-Backed Title Surfacing
 
-## Status: Draft v2 — Design Discussion
+## Status: SHIPPED — schema, data layer, and Discovery surfacing UI live (`enrichment-tag-system` branch from commit 48f71ac onward). Operational reference: `spec/ENRICHMENT_TAG_OPS.md`.
 
 > **v2 supersedes v1.** The original draft proposed a unified `tag_definitions` table with a `source` column. That direction was rejected: enrichment data should live in its own immutable sidecar record, not be merged into the curated tag schema. v2 reflects the actual decided design.
 

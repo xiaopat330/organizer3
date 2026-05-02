@@ -1,5 +1,7 @@
 # Proposal: Testing Consistency
 
+**Status:** SHIPPED 2026-04-24 — Rules 1-4 codified, all 6 LibraryHealthCheck implementations tested, cascade guards on `TitleRepository.deleteOrphaned` and `StaleLocationsService.delete`, Rule-3 survivor guards on Execute/Delete/Merge tasks. One acceptance criterion deferred: `FixTimestampsVolumeService` extract-to-unit-test (not incident-related; tracked under `project_test_hardening_options`).
+
 ## Background
 
 On 2026-04-23 the Health tab "Clean up" action for stale locations deleted all `title_locations`
