@@ -1,0 +1,47 @@
+profile:
+  name:
+    family_name: Yoshitaka
+    given_name: Nene
+    stage_name: 吉高寧々
+    reading: よしたか ねね
+    alternate_names: null
+  date_of_birth: 1995-12-01
+  birthplace: Hyogo Prefecture, Japan
+  blood_type: null
+  height_cm: 155
+  measurements:
+    bust: 84
+    waist: 56
+    hip: 85
+  cup: C
+  active_from: 2017-09-01
+  active_to: null
+  retirement_announced: null
+  biography: "Nene Yoshitaka (吉高寧々) began as a gravure idol before making her AV debut on September 1, 2017 as an S1 NO.1 STYLE exclusive actress; her transition attracted industry attention due to her established mainstream following. After completing her S1 exclusive run — her final S1 title releasing in January 2020 — she was recruited by the newly launched FALENO star imprint and joined as an exclusive actress from February 2020, becoming one of the studio's founding-generation performers. She has remained a flagship FALENO exclusive throughout the 2020s, participating in the studio's showcase events and consistently appearing in top-ten rankings of FLASH magazine's annual sexy actress polls through 2025. Her decade-spanning exclusive career across two of the most prominent Japanese AV labels marks her as one of the defining performers of her era."
+  primary_studios:
+  - name: S1 NO.1 STYLE
+    company: S1 Create
+    from: 2017-09-01
+    to: 2020-01-31
+    role: Exclusive contract actress
+  - name: FALENO star
+    company: FALENO
+    from: 2020-02-01
+    to: null
+    role: Exclusive contract actress
+  awards: null
+  legacy: "A pioneering figure of the FALENO star era, Yoshitaka's long-term exclusive tenure at both S1 and FALENO across nearly a decade has made her one of the most enduring and commercially visible performers in premium Japanese AV of the late 2010s–2020s."
+
+portfolio: null
+
+meta:
+  total_owned_titles: null
+  titles_with_japanese_title: null
+  titles_with_english_title: null
+  titles_with_release_date: null
+  total_known_releases: null
+  coverage_note: "Profile only; portfolio not yet researched. DB unavailable during profile creation."
+  confidence: "DOB, birthplace, height, measurements (B84/W56/H85), cup (C) sourced from Japanese Wikipedia infobox and corroborated by multiple fan/industry databases. Blood type not found in any source. S1 debut date 2017-09-01 confirmed. S1 contract end noted as last release January 2020 — exact contract termination date estimated as 2020-01-31. FALENO start confirmed as February 2020 — day estimated as 2020-02-01."
+  data_sources:
+  - https://ja.wikipedia.org/wiki/%E5%90%89%E9%AB%98%E5%AF%A7%E3%80%85
+  portfolio_listed: 0
