@@ -1,0 +1,44 @@
+profile:
+  name:
+    family_name: Inui
+    given_name: Rikka
+    stage_name: 乾りっか
+    reading: いぬい りっか
+    alternate_names:
+    - name: 椿ましろ
+      note: stage name adopted January 2020 when moving to Wish agency
+  date_of_birth: 1996-11-13
+  birthplace: null
+  blood_type: null
+  height_cm: 170
+  measurements:
+    bust: null
+    waist: null
+    hip: null
+  cup: F
+  active_from: 2019-01-01
+  active_to: null
+  retirement_announced: null
+  biography: "Rikka Inui (乾りっか) debuted as an S1 NO.1 STYLE exclusive actress in January 2019, distinguished by a model-tier height of 170 cm and a striking visual presence. She released multiple titles under the S1 brand through 2019 before rebranding in January 2020 under the stage name Tsubaki Mashiro (椿ましろ), simultaneously moving to the Wish talent agency. The name change represented a deliberate repositioning of her public persona while she continued performing in the industry under the new identity."
+  primary_studios:
+  - name: S1 NO.1 STYLE
+    company: S1 Create
+    from: 2019-01-01
+    to: 2019-12-31
+    role: Exclusive contract actress
+  awards: null
+  legacy: null
+
+portfolio: null
+
+meta:
+  total_owned_titles: null
+  titles_with_japanese_title: null
+  titles_with_english_title: null
+  titles_with_release_date: null
+  total_known_releases: null
+  coverage_note: "Profile only; portfolio not yet researched. DB unavailable during profile creation."
+  confidence: "DOB 1996-11-13, height 170cm sourced from Japanese Wikipedia. Birthplace and blood type not found in any accessible source. Three-size measurements not found; cup F estimated from S1 official materials and cross-referenced with fan sources — treat as approximate. Debut month January 2019 confirmed from Wikipedia and SSNI product references — exact day unknown, estimated as 2019-01-01. S1 exclusive end estimated December 2019 (2019-12-31). Note: this actress subsequently performed under the name 椿ましろ (Tsubaki Mashiro) — that later career is not covered here."
+  data_sources:
+  - https://ja.wikipedia.org/wiki/%E4%B9%BE%E3%82%8A%E3%81%A3%E3%81%8B
+  portfolio_listed: 0
