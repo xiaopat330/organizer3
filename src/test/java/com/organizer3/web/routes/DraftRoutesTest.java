@@ -3,12 +3,17 @@ package com.organizer3.web.routes;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.organizer3.db.SchemaInitializer;
+import com.organizer3.javdb.draft.DraftActress;
+import com.organizer3.javdb.draft.DraftActressRepository;
 import com.organizer3.javdb.draft.DraftCoverScratchStore;
 import com.organizer3.javdb.draft.DraftEnrichment;
 import com.organizer3.javdb.draft.DraftNotFoundException;
+import com.organizer3.javdb.draft.DraftPatchService;
 import com.organizer3.javdb.draft.DraftPopulator;
 import com.organizer3.javdb.draft.DraftPromotionService;
 import com.organizer3.javdb.draft.DraftTitle;
+import com.organizer3.javdb.draft.DraftTitleActress;
+import com.organizer3.javdb.draft.DraftTitleActressesRepository;
 import com.organizer3.javdb.draft.DraftTitleEnrichmentRepository;
 import com.organizer3.javdb.draft.DraftTitleRepository;
 import com.organizer3.javdb.draft.OptimisticLockException;
@@ -49,12 +54,15 @@ class DraftRoutesTest {
     Path dataDir;
 
     private WebServer server;
-    private DraftPopulator                populator;
-    private ImageFetcher                  imageFetcher;
-    private DraftTitleRepository          draftTitleRepo;
-    private DraftTitleEnrichmentRepository draftEnrichRepo;
-    private DraftCoverScratchStore        coverStore;
-    private DraftPromotionService         promotionService;
+    private DraftPopulator                  populator;
+    private ImageFetcher                    imageFetcher;
+    private DraftTitleRepository            draftTitleRepo;
+    private DraftTitleEnrichmentRepository  draftEnrichRepo;
+    private DraftTitleActressesRepository   draftTitleActressesRepo;
+    private DraftActressRepository          draftActressRepo;
+    private DraftCoverScratchStore          coverStore;
+    private DraftPromotionService           promotionService;
+    private DraftPatchService               patchService;
 
     private Connection connection;
     private Jdbi jdbi;
@@ -73,17 +81,28 @@ class DraftRoutesTest {
         jdbi.useHandle(h -> h.execute(
                 "INSERT INTO titles(id, code, base_code, label, seq_num) VALUES (1, 'TST-1', 'TST', 'TST', 1)"));
 
-        draftTitleRepo   = new DraftTitleRepository(jdbi);
-        draftEnrichRepo  = new DraftTitleEnrichmentRepository(jdbi);
-        coverStore       = new DraftCoverScratchStore(dataDir);
-        populator        = mock(DraftPopulator.class);
-        imageFetcher     = mock(ImageFetcher.class);
-        promotionService = mock(DraftPromotionService.class);
+        draftTitleRepo          = new DraftTitleRepository(jdbi);
+        draftEnrichRepo         = new DraftTitleEnrichmentRepository(jdbi);
+        draftTitleActressesRepo = new DraftTitleActressesRepository(jdbi);
+        draftActressRepo        = new DraftActressRepository(jdbi);
+        coverStore              = new DraftCoverScratchStore(dataDir);
+        populator               = mock(DraftPopulator.class);
+        imageFetcher            = mock(ImageFetcher.class);
+        promotionService        = mock(DraftPromotionService.class);
+        patchService            = new DraftPatchService(jdbi, draftTitleRepo, draftActressRepo,
+                                                        draftTitleActressesRepo);
+
+        // Seed a sentinel actress (needed for PATCH sentinel tests).
+        jdbi.useHandle(h -> h.execute(
+                "INSERT INTO actresses(id, canonical_name, tier, first_seen_at, is_sentinel) " +
+                "VALUES (99, 'Various', 'S', '2024-01-01', 1)"));
 
         server = new WebServer(0);
         server.registerDraftRoutes(new DraftRoutes(
-                populator, draftTitleRepo, draftEnrichRepo, coverStore, imageFetcher,
-                promotionService, new ObjectMapper()));
+                populator, draftTitleRepo, draftEnrichRepo,
+                draftTitleActressesRepo, draftActressRepo,
+                coverStore, imageFetcher, promotionService, patchService,
+                new ObjectMapper(), jdbi));
         server.start();
     }
 
@@ -406,7 +425,216 @@ class DraftRoutesTest {
         assertEquals(400, resp.statusCode());
     }
 
+    // ── GET /api/drafts (list all active drafts) ──────────────────────────────
+
+    @Test
+    void listDrafts_emptyWhenNoDrafts() throws Exception {
+        var resp = get("/api/drafts");
+        assertEquals(200, resp.statusCode());
+        JsonNode body = mapper.readTree(resp.body());
+        assertTrue(body.isArray());
+        assertEquals(0, body.size());
+    }
+
+    @Test
+    void listDrafts_returnsDraftRows() throws Exception {
+        insertDraft(1L, "TST-1");
+        var resp = get("/api/drafts");
+        assertEquals(200, resp.statusCode());
+        JsonNode body = mapper.readTree(resp.body());
+        assertTrue(body.isArray());
+        assertEquals(1, body.size());
+        assertEquals(1, body.get(0).get("titleId").asInt());
+        assertEquals("TST-1", body.get(0).get("code").asText());
+        assertNotNull(body.get(0).get("updatedAt").asText());
+    }
+
+    // ── GET /api/drafts/:titleId ──────────────────────────────────────────────
+
+    @Test
+    void getDraft_404WhenNoDraft() throws Exception {
+        var resp = get("/api/drafts/999");
+        assertEquals(404, resp.statusCode());
+    }
+
+    @Test
+    void getDraft_400OnNonNumericTitleId() throws Exception {
+        var resp = get("/api/drafts/abc");
+        assertEquals(400, resp.statusCode());
+    }
+
+    @Test
+    void getDraft_returnsAggregateWhenDraftExists() throws Exception {
+        long draftId = insertDraft(1L, "TST-1");
+        insertEnrichment(draftId, "https://example.com/cover.jpg");
+
+        // Insert a cast slot.
+        DraftActress actress = DraftActress.builder()
+                .javdbSlug("aaa1").stageName("天海 麗")
+                .createdAt("2024-01-01T00:00:00Z").updatedAt("2024-01-01T00:00:00Z")
+                .build();
+        draftActressRepo.upsertBySlug(actress);
+        draftTitleActressesRepo.replaceForDraft(draftId, java.util.List.of(
+                new DraftTitleActress(draftId, "aaa1", "unresolved")));
+
+        var resp = get("/api/drafts/1");
+        assertEquals(200, resp.statusCode());
+
+        JsonNode body = mapper.readTree(resp.body());
+        assertEquals(1,       body.get("titleId").asInt());
+        assertEquals("TST-1", body.get("code").asText());
+        assertFalse(body.get("upstreamChanged").asBoolean());
+        assertNotNull(body.get("updatedAt").asText());
+
+        // Enrichment sub-object.
+        assertTrue(body.has("enrichment"));
+        assertEquals("https://example.com/cover.jpg", body.get("enrichment").get("coverUrl").asText());
+
+        // Cast array.
+        assertTrue(body.has("cast"));
+        assertEquals(1, body.get("cast").size());
+        JsonNode slot = body.get("cast").get(0);
+        assertEquals("aaa1",       slot.get("javdbSlug").asText());
+        assertEquals("unresolved", slot.get("resolution").asText());
+        assertEquals("天海 麗",     slot.get("stageName").asText());
+
+        // No scratch cover written yet.
+        assertFalse(body.get("coverScratchPresent").asBoolean());
+    }
+
+    @Test
+    void getDraft_coverScratchPresentTrue_whenCoverWritten() throws Exception {
+        long draftId = insertDraft(1L, "TST-1");
+        coverStore.write(draftId, new byte[]{1, 2, 3});
+
+        var resp = get("/api/drafts/1");
+        assertEquals(200, resp.statusCode());
+        assertTrue(mapper.readTree(resp.body()).get("coverScratchPresent").asBoolean());
+    }
+
+    // ── PATCH /api/drafts/:titleId ────────────────────────────────────────────
+
+    @Test
+    void patchDraft_404WhenNoDraft() throws Exception {
+        var resp = patchJson("/api/drafts/999",
+                "{\"expectedUpdatedAt\":null,\"castResolutions\":[],\"newActresses\":[]}");
+        assertEquals(404, resp.statusCode());
+    }
+
+    @Test
+    void patchDraft_400OnInvalidBody() throws Exception {
+        insertDraft(1L, "TST-1");
+        var resp = patchJson("/api/drafts/1", "not-json");
+        assertEquals(400, resp.statusCode());
+    }
+
+    @Test
+    void patchDraft_400OnMissingJavdbSlug() throws Exception {
+        insertDraft(1L, "TST-1");
+        // castResolution without javdbSlug.
+        var resp = patchJson("/api/drafts/1",
+                "{\"castResolutions\":[{\"resolution\":\"skip\"}]}");
+        assertEquals(400, resp.statusCode());
+    }
+
+    @Test
+    void patchDraft_400OnValidationFailure_pickMissingLink() throws Exception {
+        long draftId = insertDraft(1L, "TST-1");
+        DraftActress a = DraftActress.builder()
+                .javdbSlug("sl1").stageName("X")
+                .createdAt("2024-01-01T00:00:00Z").updatedAt("2024-01-01T00:00:00Z")
+                .build();
+        draftActressRepo.upsertBySlug(a);
+        draftTitleActressesRepo.replaceForDraft(draftId, java.util.List.of(
+                new DraftTitleActress(draftId, "sl1", "unresolved")));
+
+        var resp = patchJson("/api/drafts/1",
+                "{\"castResolutions\":[{\"javdbSlug\":\"sl1\",\"resolution\":\"pick\"}]}");
+        assertEquals(400, resp.statusCode());
+        JsonNode body = mapper.readTree(resp.body());
+        assertTrue(body.has("errors"));
+    }
+
+    @Test
+    void patchDraft_409OnOptimisticLockConflict() throws Exception {
+        insertDraft(1L, "TST-1");
+        var resp = patchJson("/api/drafts/1",
+                "{\"expectedUpdatedAt\":\"stale-token\",\"castResolutions\":[]}");
+        assertEquals(409, resp.statusCode());
+    }
+
+    @Test
+    void patchDraft_200ReturnsNewToken() throws Exception {
+        long draftId = insertDraft(1L, "TST-1");
+        DraftActress a = DraftActress.builder()
+                .javdbSlug("p1").stageName("P")
+                .createdAt("2024-01-01T00:00:00Z").updatedAt("2024-01-01T00:00:00Z")
+                .build();
+        draftActressRepo.upsertBySlug(a);
+        draftTitleActressesRepo.replaceForDraft(draftId, java.util.List.of(
+                new DraftTitleActress(draftId, "p1", "unresolved")));
+
+        // Seed a real actress for pick.
+        jdbi.useHandle(h -> h.execute(
+                "INSERT INTO actresses(id, canonical_name, tier, first_seen_at) VALUES (42, 'Pick Me', 'S', '2024-01-01')"));
+
+        var resp = patchJson("/api/drafts/1",
+                "{\"expectedUpdatedAt\":\"2024-01-01T00:00:00Z\"," +
+                "\"castResolutions\":[{\"javdbSlug\":\"p1\",\"resolution\":\"pick\",\"linkToExistingId\":42}]}");
+        assertEquals(200, resp.statusCode());
+        JsonNode body = mapper.readTree(resp.body());
+        assertTrue(body.has("updatedAt"));
+        // Token must have changed.
+        assertNotEquals("2024-01-01T00:00:00Z", body.get("updatedAt").asText());
+    }
+
+    // ── DELETE /api/drafts/:titleId ───────────────────────────────────────────
+
+    @Test
+    void deleteDraft_204DropsDraftAndCover() throws Exception {
+        long draftId = insertDraft(1L, "TST-1");
+        coverStore.write(draftId, new byte[]{5, 6, 7});
+
+        var resp = delete("/api/drafts/1");
+        assertEquals(204, resp.statusCode());
+
+        // Draft gone.
+        assertTrue(draftTitleRepo.findByTitleId(1L).isEmpty());
+        // Cover gone.
+        assertFalse(coverStore.exists(draftId));
+    }
+
+    @Test
+    void deleteDraft_204WhenNoCover() throws Exception {
+        insertDraft(1L, "TST-1");
+        var resp = delete("/api/drafts/1");
+        assertEquals(204, resp.statusCode());
+        assertTrue(draftTitleRepo.findByTitleId(1L).isEmpty());
+    }
+
+    @Test
+    void deleteDraft_404WhenNoDraft() throws Exception {
+        var resp = delete("/api/drafts/999");
+        assertEquals(404, resp.statusCode());
+    }
+
     // ── Helper for JSON body POST ─────────────────────────────────────────────
+
+    private HttpResponse<String> get(String path) throws Exception {
+        return http.send(HttpRequest.newBuilder()
+                .uri(URI.create(base() + path))
+                .GET().build(),
+                HttpResponse.BodyHandlers.ofString());
+    }
+
+    private HttpResponse<String> patchJson(String path, String jsonBody) throws Exception {
+        return http.send(HttpRequest.newBuilder()
+                .uri(URI.create(base() + path))
+                .header("Content-Type", "application/json")
+                .method("PATCH", HttpRequest.BodyPublishers.ofString(jsonBody))
+                .build(),
+                HttpResponse.BodyHandlers.ofString());
+    }
 
     private HttpResponse<String> postJson(String path, String jsonBody) throws Exception {
         return http.send(HttpRequest.newBuilder()
