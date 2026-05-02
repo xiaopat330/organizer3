@@ -1,6 +1,6 @@
 # Proposal: Sync × Metadata Preservation
 
-**Status:** §7 resolved 2026-04-30; Phase 1 ready for Sonnet
+**Status:** PARTIAL — Wave 4A (orphan cascade), 4B Phase 1 (safety rail), Phase 2 (rename_actress + recode_title MCP tools), Phase 3 (soft-match heuristics) all SHIPPED. Phase 4 (path history) and Phase 5 (sync diff preview) deferred.
 **Date:** 2026-04-30
 **Origin:** Concern raised after enrichment hardening (Waves 1A–3A-Full): "if I sync a volume now, what happens to my enrichment?"
 

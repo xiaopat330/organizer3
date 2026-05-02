@@ -1,6 +1,6 @@
 # Sandbox Organize Tests — Design Proposal
 
-> **Status: APPROVED** — Opus consulted, decisions folded in; ready to execute (see §7)
+> **Status: SHIPPED** — 8 sandbox test classes + SandboxTestBase + SandboxTitleBuilder + `sandboxTest` Gradle task in main.
 
 ---
 

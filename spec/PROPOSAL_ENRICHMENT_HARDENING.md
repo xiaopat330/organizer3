@@ -1,6 +1,6 @@
 # Proposal: Enrichment Pipeline Hardening
 
-**Status:** Aligned 2026-04-28 — all design questions resolved; ready to implement.
+**Status:** PARTIAL — Steps 1A–3A (filmography persistence, revalidation, write gates) and config tuning keys SHIPPED. Priority 4 (Draft Mode / Bulk Enrich) NOT STARTED — no draft_titles/draft_actresses schema yet.
 **Scope:** Make javdb enrichment robust, observable, and self-healing. Successor to `PROPOSAL_JAVDB_SLUG_VERIFICATION.md` — the slug-mismatch fix plugged the immediate hole; this proposal addresses the systemic patterns that let it happen.
 
 ---

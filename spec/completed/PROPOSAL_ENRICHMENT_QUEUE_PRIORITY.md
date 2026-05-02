@@ -1,6 +1,6 @@
 # Proposal: Enrichment Queue Priority
 
-**Status:** Draft 2026-05-01 — design pinned, ready to implement when greenlit.
+**Status:** SHIPPED — all 3 steps merged (PRs #11, #14, #15 + commit fb0b7f8). Priority column, claim ordering, URGENT bypass, and HIGH-priority user-initiated runs all live.
 **Origin:** Today's enrichment queue is pure FIFO (within `sort_order`). Some work needs to jump the queue; a rare class of work needs to bypass the rate limiter entirely.
 
 ---

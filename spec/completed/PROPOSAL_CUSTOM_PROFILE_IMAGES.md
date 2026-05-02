@@ -1,6 +1,6 @@
 # Proposal: Custom Profile Images
 
-Status: **Draft** — design alignment before implementation.
+Status: **SHIPPED** — `actresses.custom_avatar_path` column, COALESCE resolver in `JdbiActressRepository`, avatar editor frontend + POST/DELETE endpoints (commits 94459f8, 3095857).
 Originating context: 2026-05-01. Enriched profile images (javdb avatars, stored as
 `actress-avatars/{slug}.{ext}` and pointed to by
 `javdb_actress_staging.local_avatar_path`) have proven useful, but two gaps remain:

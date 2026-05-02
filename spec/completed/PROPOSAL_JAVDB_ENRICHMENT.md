@@ -1,6 +1,6 @@
 # Proposal: javdb Enrichment ("Discovery")
 
-**Status:** Approved design, pending implementation
+**Status:** SHIPPED — Discovery (now Sources) screen live with enrichment queue, runner, extractor, projector, and staging repos. Numerous follow-on commits (aa6bf01, 4190af1, e6eaf80, etc.).
 **Date:** 2026-04-25
 **Supersedes:** prior draft of this document
 **Related:** `reference/javdb_enrichment_notes.md` (POC findings)

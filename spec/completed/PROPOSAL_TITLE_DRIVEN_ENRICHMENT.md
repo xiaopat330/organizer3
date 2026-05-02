@@ -1,6 +1,6 @@
 # Proposal: Title-Driven Enrichment
 
-**Status:** Approved design, pending implementation
+**Status:** SHIPPED — `ProfileChainGate` (sentinel-aware, ≥3-title threshold) + `actresses.is_sentinel` + Discovery Titles/Collections tabs live.
 **Date:** 2026-04-27
 **Extends:** `spec/PROPOSAL_JAVDB_ENRICHMENT.md`
 

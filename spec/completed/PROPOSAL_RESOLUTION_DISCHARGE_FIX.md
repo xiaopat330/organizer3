@@ -1,6 +1,6 @@
 # Proposal: Resolution Discharge Fix (review-queue ↔ work-queue reconciliation)
 
-**Status:** Draft 2026-05-01 — bug fix, ready to implement.
+**Status:** SHIPPED — PR #16 merged as commit 1c882d3.
 **Origin:** User reported titles for Riko Hoshino still appearing as "ambiguous" on Discovery → Queue and Discovery → Actresses → Errors after manual resolution via the Review screen. START-240 is one of many examples.
 
 ---
