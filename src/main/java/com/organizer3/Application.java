@@ -816,7 +816,7 @@ public class Application {
                         javdbStagingRepo, draftTitleRepo, draftActressRepo, draftCastRepo,
                         draftEnrichRepo, draftCoverStore, imageFetcher, jsonMapper);
         webServer.registerDraftRoutes(new com.organizer3.web.routes.DraftRoutes(
-                draftPopulator, draftTitleRepo, draftCoverStore, imageFetcher));
+                draftPopulator, draftTitleRepo, draftEnrichRepo, draftCoverStore, imageFetcher));
 
         // MCP (Model Context Protocol) server — read-only diagnostic tools mounted on
         // the existing Javalin instance. See spec/PROPOSAL_MCP_SERVER.md.

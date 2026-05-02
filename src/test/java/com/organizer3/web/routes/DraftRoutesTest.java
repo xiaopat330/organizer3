@@ -4,8 +4,10 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.organizer3.db.SchemaInitializer;
 import com.organizer3.javdb.draft.DraftCoverScratchStore;
+import com.organizer3.javdb.draft.DraftEnrichment;
 import com.organizer3.javdb.draft.DraftPopulator;
 import com.organizer3.javdb.draft.DraftTitle;
+import com.organizer3.javdb.draft.DraftTitleEnrichmentRepository;
 import com.organizer3.javdb.draft.DraftTitleRepository;
 import com.organizer3.web.ImageFetcher;
 import com.organizer3.web.WebServer;
@@ -41,10 +43,11 @@ class DraftRoutesTest {
     Path dataDir;
 
     private WebServer server;
-    private DraftPopulator     populator;
-    private ImageFetcher       imageFetcher;
-    private DraftTitleRepository draftTitleRepo;
-    private DraftCoverScratchStore coverStore;
+    private DraftPopulator                populator;
+    private ImageFetcher                  imageFetcher;
+    private DraftTitleRepository          draftTitleRepo;
+    private DraftTitleEnrichmentRepository draftEnrichRepo;
+    private DraftCoverScratchStore        coverStore;
 
     private Connection connection;
     private Jdbi jdbi;
@@ -63,13 +66,14 @@ class DraftRoutesTest {
         jdbi.useHandle(h -> h.execute(
                 "INSERT INTO titles(id, code, base_code, label, seq_num) VALUES (1, 'TST-1', 'TST', 'TST', 1)"));
 
-        draftTitleRepo = new DraftTitleRepository(jdbi);
-        coverStore     = new DraftCoverScratchStore(dataDir);
-        populator      = mock(DraftPopulator.class);
-        imageFetcher   = mock(ImageFetcher.class);
+        draftTitleRepo  = new DraftTitleRepository(jdbi);
+        draftEnrichRepo = new DraftTitleEnrichmentRepository(jdbi);
+        coverStore      = new DraftCoverScratchStore(dataDir);
+        populator       = mock(DraftPopulator.class);
+        imageFetcher    = mock(ImageFetcher.class);
 
         server = new WebServer(0);
-        server.registerDraftRoutes(new DraftRoutes(populator, draftTitleRepo, coverStore, imageFetcher));
+        server.registerDraftRoutes(new DraftRoutes(populator, draftTitleRepo, draftEnrichRepo, coverStore, imageFetcher));
         server.start();
     }
 
@@ -111,7 +115,7 @@ class DraftRoutesTest {
                 HttpResponse.BodyHandlers.ofString());
     }
 
-    // ── Helper: insert a draft title row directly ──────────────────────────────
+    // ── Helpers ────────────────────────────────────────────────────────────────
 
     private long insertDraft(long titleId, String code) {
         DraftTitle draft = DraftTitle.builder()
@@ -121,6 +125,16 @@ class DraftRoutesTest {
                 .updatedAt("2024-01-01T00:00:00Z")
                 .build();
         return draftTitleRepo.insert(draft);
+    }
+
+    private void insertEnrichment(long draftId, String coverUrl) {
+        DraftEnrichment enrichment = DraftEnrichment.builder()
+                .draftTitleId(draftId)
+                .javdbSlug("tst-1")
+                .coverUrl(coverUrl)
+                .updatedAt("2024-01-01T00:00:00Z")
+                .build();
+        draftEnrichRepo.upsert(draftId, enrichment);
     }
 
     // ── POST /api/drafts/:titleId/populate ────────────────────────────────────
@@ -210,11 +224,12 @@ class DraftRoutesTest {
     @Test
     void refetchCover_200OnSuccess() throws Exception {
         long draftId = insertDraft(1L, "TST-1");
+        insertEnrichment(draftId, "https://example.com/new.jpg");
         byte[] newBytes = {5, 6, 7};
         when(imageFetcher.fetch("https://example.com/new.jpg"))
                 .thenReturn(new ImageFetcher.Fetched(newBytes, "jpg"));
 
-        var resp = post("/api/drafts/1/cover/refetch?coverUrl=https://example.com/new.jpg");
+        var resp = post("/api/drafts/1/cover/refetch");
         assertEquals(200, resp.statusCode());
 
         // Cover should now be stored.
@@ -223,24 +238,35 @@ class DraftRoutesTest {
     }
 
     @Test
-    void refetchCover_400WhenNoCoverUrl() throws Exception {
+    void refetchCover_422WhenNoCoverUrlOnFile() throws Exception {
+        // Draft exists but no enrichment row (no cover_url stored) → 422.
         insertDraft(1L, "TST-1");
         var resp = post("/api/drafts/1/cover/refetch");
-        assertEquals(400, resp.statusCode());
+        assertEquals(422, resp.statusCode());
+    }
+
+    @Test
+    void refetchCover_422WhenEnrichmentHasNullCoverUrl() throws Exception {
+        // Enrichment row exists but cover_url is null → 422.
+        long draftId = insertDraft(1L, "TST-1");
+        insertEnrichment(draftId, null);
+        var resp = post("/api/drafts/1/cover/refetch");
+        assertEquals(422, resp.statusCode());
     }
 
     @Test
     void refetchCover_404WhenNoDraft() throws Exception {
-        var resp = post("/api/drafts/999/cover/refetch?coverUrl=https://example.com/x.jpg");
+        var resp = post("/api/drafts/999/cover/refetch");
         assertEquals(404, resp.statusCode());
     }
 
     @Test
     void refetchCover_502WhenFetchFails() throws Exception {
-        insertDraft(1L, "TST-1");
+        long draftId = insertDraft(1L, "TST-1");
+        insertEnrichment(draftId, "https://example.com/x.jpg");
         when(imageFetcher.fetch(anyString())).thenThrow(new RuntimeException("network error"));
 
-        var resp = post("/api/drafts/1/cover/refetch?coverUrl=https://example.com/x.jpg");
+        var resp = post("/api/drafts/1/cover/refetch");
         assertEquals(502, resp.statusCode());
     }
 

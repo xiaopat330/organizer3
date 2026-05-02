@@ -2,6 +2,7 @@ package com.organizer3.web.routes;
 
 import com.organizer3.javdb.draft.DraftCoverScratchStore;
 import com.organizer3.javdb.draft.DraftPopulator;
+import com.organizer3.javdb.draft.DraftTitleEnrichmentRepository;
 import com.organizer3.javdb.draft.DraftTitleRepository;
 import com.organizer3.web.ImageFetcher;
 import io.javalin.Javalin;
@@ -37,10 +38,11 @@ public final class DraftRoutes {
 
     private static final Logger LOG = LoggerFactory.getLogger(DraftRoutes.class);
 
-    private final DraftPopulator         populator;
-    private final DraftTitleRepository   draftTitleRepo;
-    private final DraftCoverScratchStore coverStore;
-    private final ImageFetcher           imageFetcher;
+    private final DraftPopulator                  populator;
+    private final DraftTitleRepository            draftTitleRepo;
+    private final DraftTitleEnrichmentRepository  draftEnrichRepo;
+    private final DraftCoverScratchStore          coverStore;
+    private final ImageFetcher                    imageFetcher;
 
     public void register(Javalin app) {
 
@@ -110,14 +112,11 @@ public final class DraftRoutes {
             }
             long draftId = draft.get().getId();
 
-            // Look up the cover URL from the enrichment row via the draft ID
-            // (enrichment row is stored by draftTitleId, not titleId, so we need draftId).
-            String coverUrl = ctx.queryParam("coverUrl");
+            // Look up the cover URL server-side from the stored enrichment row.
+            var enrichment = draftEnrichRepo.findByDraftId(draftId);
+            String coverUrl = enrichment.map(e -> e.getCoverUrl()).orElse(null);
             if (coverUrl == null || coverUrl.isBlank()) {
-                // The enrichment repo is not injected here to keep the constructor small —
-                // the cover URL is passed as a query param by the caller who already has the
-                // draft detail loaded.
-                ctx.status(400).json(Map.of("error", "coverUrl query parameter is required"));
+                ctx.status(422).json(Map.of("error", "no cover URL on file for this draft — populate first"));
                 return;
             }
 
