@@ -61,6 +61,7 @@ abstract class AbstractSyncOperation implements SyncOperation {
     protected final SyncIdentityMatcher identityMatcher;
     private final RevalidationPendingRepository revalidationPendingRepo;
     private final TitleCodeParser codeParser = new TitleCodeParser();
+    private final TitleSyncObserver syncObserver;
 
     protected AbstractSyncOperation(TitleRepository titleRepo, VideoRepository videoRepo,
                                     ActressRepository actressRepo, VolumeRepository volumeRepo,
@@ -72,6 +73,22 @@ abstract class AbstractSyncOperation implements SyncOperation {
                                     CoverPath coverPath,
                                     RevalidationPendingRepository revalidationPendingRepo,
                                     SyncIdentityMatcher identityMatcher) {
+        this(titleRepo, videoRepo, actressRepo, volumeRepo, titleLocationRepo, titleActressRepo,
+                indexLoader, titleEffectiveTagsService, actressCompaniesService, coverPath,
+                revalidationPendingRepo, identityMatcher, TitleSyncObserver.NO_OP);
+    }
+
+    protected AbstractSyncOperation(TitleRepository titleRepo, VideoRepository videoRepo,
+                                    ActressRepository actressRepo, VolumeRepository volumeRepo,
+                                    TitleLocationRepository titleLocationRepo,
+                                    TitleActressRepository titleActressRepo,
+                                    IndexLoader indexLoader,
+                                    TitleEffectiveTagsService titleEffectiveTagsService,
+                                    ActressCompaniesService actressCompaniesService,
+                                    CoverPath coverPath,
+                                    RevalidationPendingRepository revalidationPendingRepo,
+                                    SyncIdentityMatcher identityMatcher,
+                                    TitleSyncObserver syncObserver) {
         this.titleRepo = titleRepo;
         this.videoRepo = videoRepo;
         this.actressRepo = actressRepo;
@@ -84,6 +101,7 @@ abstract class AbstractSyncOperation implements SyncOperation {
         this.coverPath = coverPath;
         this.revalidationPendingRepo = revalidationPendingRepo;
         this.identityMatcher = identityMatcher;
+        this.syncObserver = syncObserver;
     }
 
     /** Subdirectories inside a title folder that may contain video files. */
@@ -180,6 +198,16 @@ abstract class AbstractSyncOperation implements SyncOperation {
         Title title = titleRepo.findOrCreateByCode(template);
         if (isNewTitle) {
             identityMatcher.noteTitleCandidate(parsed, title);
+        } else {
+            // Fire the sync hook for pre-existing titles so the draft layer can
+            // mark any active draft as upstream_changed. Best-effort: a failure must
+            // never block the sync pipeline.
+            try {
+                syncObserver.onTitleSyncWrite(title.getId());
+            } catch (Exception e) {
+                log.warn("Sync observer failed for titleId={} — draft upstream_changed not set: {}",
+                        title.getId(), e.getMessage(), e);
+            }
         }
 
         LocalDate addedDate = computeAddedDate(titleFolder, fs);
