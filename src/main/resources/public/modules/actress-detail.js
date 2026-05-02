@@ -4,6 +4,8 @@ import { showView, setActiveGrid, ensureActressDetailSentinel, ScrollingGrid, up
 import { makeTitleCard, updateActressCardIndicators } from './cards.js';
 import { getActressBrowseMode, actressBrowseLabel, selectActressBrowseMode, showActressLanding, hideAllActressSubNavRows } from './actress-browse.js';
 import { pushNav } from './nav.js';
+import { renderAvatarFrame, attachAvatarFrameListeners } from './actress-avatar-frame.js';
+import { openCustomAvatarEditor } from './custom-avatar-editor.js';
 
 // ── State ─────────────────────────────────────────────────────────────────
 export let detailActressId    = null;
@@ -225,6 +227,10 @@ function renderSidebarSections(a) {
       copyActressFolderPath(el, el.dataset.smb);
     });
   });
+
+  attachAvatarFrameListeners(sidebar, (id, hasCustomAvatar) => {
+    openCustomAvatarEditor(id, hasCustomAvatar, () => openActressDetail(detailActressId));
+  });
 }
 
 // ── Section: Identity (name + kanji + badges + actions) ──────────────────
@@ -248,19 +254,18 @@ function renderIdentitySection(a) {
     ${stageNameHtml}
   `;
 
-  const avatarHtml = a.localAvatarUrl
-    ? `<div class="detail-avatar-wrap">
-         <img class="detail-actress-avatar" src="${esc(a.localAvatarUrl)}" alt="avatar">
-         ${a.derivedGrade ? `<div class="cover-grade">${gradeBadgeHtml(a.derivedGrade)}</div>` : ''}
-       </div>`
-    : '';
+  const avatarFrameHtml = renderAvatarFrame({
+    actressId:      a.id,
+    localAvatarUrl: a.localAvatarUrl,
+    hasCustomAvatar: a.hasCustomAvatar,
+    derivedGrade:   a.derivedGrade,
+    clickable:      'always',
+  });
 
-  const headerHtml = avatarHtml
-    ? `<div class="detail-identity-header">
-         ${avatarHtml}
-         <div class="detail-identity-text">${nameBlockHtml}</div>
-       </div>`
-    : nameBlockHtml;
+  const headerHtml = `<div class="detail-identity-header">
+    ${avatarFrameHtml}
+    <div class="detail-identity-text">${nameBlockHtml}</div>
+  </div>`;
 
   return `
     <section class="detail-section detail-section-identity">

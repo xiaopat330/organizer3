@@ -68,8 +68,10 @@ public class ActressSummary {
     int visitCount;
     String lastVisitedAt;  // ISO datetime string, null until first visit
 
-    /** URL to the locally cached actress avatar (from javdb enrichment), or null if none. */
+    /** Resolved avatar URL — custom avatar if present, else enriched avatar. Null if neither exists. */
     String localAvatarUrl;
+    /** True when the actress has a user-curated custom avatar. */
+    boolean hasCustomAvatar;
 
     // --- Nested DTOs ------------------------------------------------------
 

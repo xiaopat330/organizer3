@@ -209,6 +209,16 @@ public class WebServer {
         routes.register(app);
     }
 
+    /**
+     * Mounts the custom avatar endpoints:
+     * {@code GET/POST/DELETE /api/actresses/{id}/custom-avatar},
+     * {@code GET /api/actresses/{id}/title-covers}, and
+     * {@code GET /actress-custom-avatars/{file}}.
+     */
+    public void registerCustomAvatarRoutes(com.organizer3.web.routes.CustomAvatarRoutes routes) {
+        routes.register(app);
+    }
+
     private void registerRoutes(TitleBrowseService browseService,
                                 ActressBrowseService actressBrowseService, Path coversRoot,
                                 VideoStreamService videoStreamService,

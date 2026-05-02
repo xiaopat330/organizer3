@@ -64,7 +64,7 @@ class ActressBrowseServiceTest {
         lenient().when(actressRepo.findPrimaryForAliases(any())).thenReturn(Map.of());
         lenient().when(labelRepo.findAllAsMap()).thenReturn(Map.of());
         lenient().when(coverPath.find(any())).thenReturn(Optional.empty());
-        lenient().when(jdbi.withHandle(any())).thenReturn(Map.of());
+        lenient().when(jdbi.withHandle(any())).thenReturn(List.of());
     }
 
     // ── Prefix index ──────────────────────────────────────────────────────

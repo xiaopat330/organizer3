@@ -538,6 +538,12 @@ public class Application {
                 new com.organizer3.web.routes.ActressMergeRoutes(jdbi, actressRepo));
         webServer.registerAvatarRoutes(
                 new com.organizer3.web.routes.AvatarRoutes(dataDir.resolve("actress-avatars")));
+        webServer.registerCustomAvatarRoutes(
+                new com.organizer3.web.routes.CustomAvatarRoutes(
+                        new com.organizer3.avatars.CustomAvatarService(
+                                new com.organizer3.avatars.CustomAvatarStore(dataDir),
+                                actressRepo, titleRepo, coverPath),
+                        dataDir.resolve("actress-custom-avatars")));
 
         // In-app log viewer (Tools → Logs). Path matches logback.xml's RollingFileAppender.
         webServer.registerLogRoutes(
