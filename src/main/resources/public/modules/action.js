@@ -423,7 +423,7 @@ queueBtn.addEventListener('click', () => showCuration());
 javdbDiscoveryBtn.addEventListener('click', () => {
   showActionView('javdb-discovery');
   selectTool(javdbDiscoveryBtn);
-  updateBreadcrumb([{ label: 'Tools' }, { label: 'Discovery' }]);
+  updateBreadcrumb([{ label: 'Tools' }, { label: 'Sources' }]);
   hideAllToolViews();
   showJavdbDiscoveryView();
 });
@@ -433,7 +433,7 @@ document.addEventListener('navigate-to-review-item', async e => {
   if (discoveryView && discoveryView.style.display === 'none') {
     showActionView('javdb-discovery');
     selectTool(javdbDiscoveryBtn);
-    updateBreadcrumb([{ label: 'Tools' }, { label: 'Discovery' }]);
+    updateBreadcrumb([{ label: 'Tools' }, { label: 'Sources' }]);
     hideAllToolViews();
     await showJavdbDiscoveryView();
   }
@@ -445,7 +445,7 @@ document.addEventListener('navigate-to-discovery-actress-profile', async e => {
   if (discoveryView && discoveryView.style.display === 'none') {
     showActionView('javdb-discovery');
     selectTool(javdbDiscoveryBtn);
-    updateBreadcrumb([{ label: 'Tools' }, { label: 'Discovery' }]);
+    updateBreadcrumb([{ label: 'Tools' }, { label: 'Sources' }]);
     hideAllToolViews();
     await showJavdbDiscoveryView();
   }
