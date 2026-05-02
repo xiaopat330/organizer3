@@ -1010,27 +1010,27 @@ class WebServerTest {
     @Test
     void videosByTitleCodeEndpointDelegatesToStreamService() throws IOException, InterruptedException {
         VideoStreamService videoStream = mock(VideoStreamService.class);
-        when(videoStream.findVideos("ABP-123", null)).thenReturn(List.of());
+        when(videoStream.findVideos("ABP-123", null, null)).thenReturn(List.of());
 
         server = new WebServer(0, null, null, null, videoStream, null, null, null, null, null);
         server.start();
 
         HttpResponse<String> response = get("/api/titles/ABP-123/videos");
         assertEquals(200, response.statusCode());
-        verify(videoStream).findVideos("ABP-123", null);
+        verify(videoStream).findVideos("ABP-123", null, null);
     }
 
     @Test
     void videosByTitleCodePassesVolumeIdWhenProvided() throws IOException, InterruptedException {
         VideoStreamService videoStream = mock(VideoStreamService.class);
-        when(videoStream.findVideos("ABP-123", "vol-a")).thenReturn(List.of());
+        when(videoStream.findVideos("ABP-123", "vol-a", null)).thenReturn(List.of());
 
         server = new WebServer(0, null, null, null, videoStream, null, null, null, null, null);
         server.start();
 
         HttpResponse<String> response = get("/api/titles/ABP-123/videos?volumeId=vol-a");
         assertEquals(200, response.statusCode());
-        verify(videoStream).findVideos("ABP-123", "vol-a");
+        verify(videoStream).findVideos("ABP-123", "vol-a", null);
     }
 
     @Test
