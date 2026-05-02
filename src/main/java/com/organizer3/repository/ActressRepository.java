@@ -186,6 +186,10 @@ public interface ActressRepository {
 
     void toggleRejected(long actressId, boolean rejected);
 
+    void setCustomAvatarPath(long actressId, String path);
+
+    void clearCustomAvatarPath(long actressId);
+
     /**
      * Increment the visit counter and update last_visited_at to now for an actress.
      * No-op if the actress does not exist.
@@ -295,10 +299,12 @@ public interface ActressRepository {
              */
             String coverCandidates,
             /**
-             * Local profile avatar path (relative to dataDir, e.g. {@code actress-avatars/foo.jpg}),
-             * or null. When present, {@code SearchService} prefers this over a cover candidate.
+             * Resolved avatar path — COALESCE(custom_avatar_path, local_avatar_path) — relative
+             * to dataDir. Null when neither source is populated.
              */
-            String localAvatarPath
+            String localAvatarPath,
+            /** True when the actress has a user-curated custom avatar (custom_avatar_path IS NOT NULL). */
+            boolean hasCustomAvatar
     ) {}
 
     /**

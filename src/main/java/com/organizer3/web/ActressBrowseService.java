@@ -405,6 +405,7 @@ public class ActressBrowseService {
             Map<String, Long> aliasNameToActressId,
             Map<String, Actress> primaryByCanonicalName,
             Map<Long, String> localAvatarUrlByActress,
+            Map<Long, Boolean> hasCustomAvatarByActress,
             Map<Long, TitleRepository.RatingData> ratingDataByTitleId,
             Optional<RatingCurve> ratingCurve
     ) {}
@@ -468,21 +469,30 @@ public class ActressBrowseService {
                 label, ids.size(), totalTitles,
                 t1-t0, t2-t1, t3-t2, t4-t3, t5-t4, t6-t5, t6-t0);
 
-        // 7. Local avatar URLs from javdb_actress_staging — used by the actress detail page.
-        Map<Long, String> localAvatarUrlByActress = ids.isEmpty()
-                ? java.util.Map.of()
+        // 7. Resolved avatar URLs — COALESCE(custom_avatar_path, local_avatar_path).
+        record AvatarRow(long actressId, String avatarPath, boolean hasCustom) {}
+        List<AvatarRow> avatarRows = ids.isEmpty()
+                ? List.of()
                 : jdbi.withHandle(h -> h.createQuery("""
-                        SELECT actress_id, local_avatar_path
-                        FROM javdb_actress_staging
-                        WHERE actress_id IN (<ids>)
-                          AND local_avatar_path IS NOT NULL
+                        SELECT a.id AS actress_id,
+                               COALESCE(a.custom_avatar_path, s.local_avatar_path) AS avatar_path,
+                               (a.custom_avatar_path IS NOT NULL) AS has_custom_avatar
+                        FROM actresses a
+                        LEFT JOIN javdb_actress_staging s ON s.actress_id = a.id
+                        WHERE a.id IN (<ids>)
+                          AND (a.custom_avatar_path IS NOT NULL OR s.local_avatar_path IS NOT NULL)
                         """)
                         .bindList("ids", ids)
-                        .map((rs, c) -> Map.entry(rs.getLong("actress_id"),
-                                "/" + rs.getString("local_avatar_path")))
-                        .list()
-                        .stream()
-                        .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue)));
+                        .map((rs, c) -> new AvatarRow(
+                                rs.getLong("actress_id"),
+                                rs.getString("avatar_path"),
+                                rs.getInt("has_custom_avatar") != 0))
+                        .list());
+        Map<Long, String> localAvatarUrlByActress = avatarRows.stream()
+                .collect(Collectors.toMap(AvatarRow::actressId, r -> "/" + r.avatarPath()));
+        Map<Long, Boolean> hasCustomAvatarByActress = avatarRows.stream()
+                .filter(AvatarRow::hasCustom)
+                .collect(Collectors.toMap(AvatarRow::actressId, r -> Boolean.TRUE));
 
         // 8. Raw rating data for all titles — used to derive actress-level grades.
         List<Long> allTitleIds = titlesByActress.values().stream()
@@ -496,7 +506,7 @@ public class ActressBrowseService {
         return new SummaryContext(
                 titlesByActress, coverUrlByTitleId, labelMap,
                 aliasesByActress, aliasNameToActressId, primaryByCanonicalName,
-                localAvatarUrlByActress, ratingDataByTitleId, ratingCurve);
+                localAvatarUrlByActress, hasCustomAvatarByActress, ratingDataByTitleId, ratingCurve);
     }
 
     private ActressSummary toSummary(Actress actress, SummaryContext ctx) {
@@ -662,6 +672,7 @@ public class ActressBrowseService {
                 .visitCount(actress.getVisitCount())
                 .lastVisitedAt(actress.getLastVisitedAt() != null ? actress.getLastVisitedAt().toString() : null)
                 .localAvatarUrl(ctx.localAvatarUrlByActress().get(actress.getId()))
+                .hasCustomAvatar(Boolean.TRUE.equals(ctx.hasCustomAvatarByActress().get(actress.getId())))
                 .build();
     }
 

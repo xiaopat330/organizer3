@@ -62,7 +62,7 @@ class WebServerTest {
             ActressRepository actressRepo, TitleRepository titleRepo,
             CoverPath coverPath, LabelRepository labelRepo) {
         Jdbi jdbi = mock(Jdbi.class);
-        when(jdbi.withHandle(any())).thenReturn(Map.of());
+        when(jdbi.withHandle(any())).thenReturn(List.of());
         RatingCurveRepository curveRepo = mock(RatingCurveRepository.class);
         when(curveRepo.find()).thenReturn(java.util.Optional.empty());
         when(titleRepo.findRatingDataByTitleIds(any())).thenReturn(Map.of());
@@ -1147,5 +1147,165 @@ class WebServerTest {
         assertNotNull(volumes);
         assertEquals(1, volumes.size(), "Queue-type volumes must not appear in the volumes list");
         assertEquals("a", volumes.get(0).get("id").asText());
+    }
+
+    // ── CustomAvatarRoutes smoke tests ────────────────────────────────────────
+
+    private com.organizer3.avatars.CustomAvatarService mockCustomAvatarService() {
+        return mock(com.organizer3.avatars.CustomAvatarService.class);
+    }
+
+    private WebServer serverWithCustomAvatarRoutes(com.organizer3.avatars.CustomAvatarService svc)
+            throws java.io.IOException {
+        Path tempDir = java.nio.file.Files.createTempDirectory("custom-avatar-test");
+        server = new WebServer(0);
+        server.registerCustomAvatarRoutes(
+                new com.organizer3.web.routes.CustomAvatarRoutes(svc, tempDir));
+        server.start();
+        return server;
+    }
+
+    @Test
+    void titleCovers_404ForUnknownActress() throws IOException, InterruptedException {
+        var svc = mockCustomAvatarService();
+        when(svc.listTitleCovers(999L)).thenReturn(Optional.empty());
+        serverWithCustomAvatarRoutes(svc);
+
+        HttpResponse<String> response = get("/api/actresses/999/title-covers");
+        assertEquals(404, response.statusCode());
+    }
+
+    @Test
+    void titleCovers_200WithEmptyListForKnownActress() throws IOException, InterruptedException {
+        var svc = mockCustomAvatarService();
+        when(svc.listTitleCovers(42L)).thenReturn(Optional.of(List.of()));
+        serverWithCustomAvatarRoutes(svc);
+
+        HttpResponse<String> response = get("/api/actresses/42/title-covers");
+        assertEquals(200, response.statusCode());
+        assertEquals(0, mapper.readTree(response.body()).size());
+    }
+
+    @Test
+    void postCustomAvatar_415ForWrongContentType() throws IOException, InterruptedException {
+        serverWithCustomAvatarRoutes(mockCustomAvatarService());
+
+        HttpResponse<String> response = HttpClient.newHttpClient().send(
+                HttpRequest.newBuilder()
+                        .uri(URI.create("http://localhost:" + server.port() + "/api/actresses/42/custom-avatar"))
+                        .header("Content-Type", "text/plain")
+                        .POST(HttpRequest.BodyPublishers.ofString("hello"))
+                        .build(),
+                HttpResponse.BodyHandlers.ofString());
+        assertEquals(415, response.statusCode());
+    }
+
+    @Test
+    void postCustomAvatar_413ForOversizedContentLength() throws IOException, InterruptedException {
+        serverWithCustomAvatarRoutes(mockCustomAvatarService());
+
+        byte[] oversized = new byte[6 * 1024 * 1024];
+        HttpResponse<String> response = HttpClient.newHttpClient().send(
+                HttpRequest.newBuilder()
+                        .uri(URI.create("http://localhost:" + server.port() + "/api/actresses/42/custom-avatar"))
+                        .header("Content-Type", "image/jpeg")
+                        .POST(HttpRequest.BodyPublishers.ofByteArray(oversized))
+                        .build(),
+                HttpResponse.BodyHandlers.ofString());
+        assertEquals(413, response.statusCode());
+    }
+
+    @Test
+    void postCustomAvatar_404ForUnknownActress() throws IOException, InterruptedException {
+        var svc = mockCustomAvatarService();
+        when(svc.setCustomAvatar(eq(999L), any())).thenReturn(Optional.empty());
+        serverWithCustomAvatarRoutes(svc);
+
+        // Send a tiny valid-looking PNG-header payload
+        HttpResponse<String> response = HttpClient.newHttpClient().send(
+                HttpRequest.newBuilder()
+                        .uri(URI.create("http://localhost:" + server.port() + "/api/actresses/999/custom-avatar"))
+                        .header("Content-Type", "image/jpeg")
+                        .POST(HttpRequest.BodyPublishers.ofByteArray(new byte[]{(byte)0xFF, (byte)0xD8, 0, 0}))
+                        .build(),
+                HttpResponse.BodyHandlers.ofString());
+        assertEquals(404, response.statusCode());
+    }
+
+    @Test
+    void postCustomAvatar_400ForInvalidImage() throws IOException, InterruptedException {
+        var svc = mockCustomAvatarService();
+        when(svc.setCustomAvatar(anyLong(), any()))
+                .thenThrow(new IllegalArgumentException("Image must be square"));
+        serverWithCustomAvatarRoutes(svc);
+
+        HttpResponse<String> response = HttpClient.newHttpClient().send(
+                HttpRequest.newBuilder()
+                        .uri(URI.create("http://localhost:" + server.port() + "/api/actresses/42/custom-avatar"))
+                        .header("Content-Type", "image/jpeg")
+                        .POST(HttpRequest.BodyPublishers.ofByteArray(new byte[]{(byte)0xFF, (byte)0xD8, 0, 0}))
+                        .build(),
+                HttpResponse.BodyHandlers.ofString());
+        assertEquals(400, response.statusCode());
+        assertTrue(response.body().contains("Image must be square"));
+    }
+
+    @Test
+    void postCustomAvatar_200OnSuccess() throws IOException, InterruptedException {
+        var svc = mockCustomAvatarService();
+        when(svc.setCustomAvatar(eq(42L), any()))
+                .thenReturn(Optional.of(new com.organizer3.avatars.CustomAvatarService.AvatarResult(
+                        "/actress-custom-avatars/42.jpg", true)));
+        serverWithCustomAvatarRoutes(svc);
+
+        HttpResponse<String> response = HttpClient.newHttpClient().send(
+                HttpRequest.newBuilder()
+                        .uri(URI.create("http://localhost:" + server.port() + "/api/actresses/42/custom-avatar"))
+                        .header("Content-Type", "image/jpeg")
+                        .POST(HttpRequest.BodyPublishers.ofByteArray(new byte[]{(byte)0xFF, (byte)0xD8, 0, 0}))
+                        .build(),
+                HttpResponse.BodyHandlers.ofString());
+        assertEquals(200, response.statusCode());
+        JsonNode body = mapper.readTree(response.body());
+        assertEquals("/actress-custom-avatars/42.jpg", body.get("localAvatarUrl").asText());
+        assertTrue(body.get("hasCustomAvatar").asBoolean());
+    }
+
+    @Test
+    void deleteCustomAvatar_204Idempotent() throws IOException, InterruptedException {
+        var svc = mockCustomAvatarService();
+        when(svc.clearCustomAvatar(42L)).thenReturn(Optional.of(true));
+        serverWithCustomAvatarRoutes(svc);
+
+        HttpResponse<String> r1 = HttpClient.newHttpClient().send(
+                HttpRequest.newBuilder()
+                        .uri(URI.create("http://localhost:" + server.port() + "/api/actresses/42/custom-avatar"))
+                        .DELETE()
+                        .build(),
+                HttpResponse.BodyHandlers.ofString());
+        assertEquals(204, r1.statusCode());
+
+        HttpResponse<String> r2 = HttpClient.newHttpClient().send(
+                HttpRequest.newBuilder()
+                        .uri(URI.create("http://localhost:" + server.port() + "/api/actresses/42/custom-avatar"))
+                        .DELETE()
+                        .build(),
+                HttpResponse.BodyHandlers.ofString());
+        assertEquals(204, r2.statusCode());
+    }
+
+    @Test
+    void deleteCustomAvatar_404ForUnknownActress() throws IOException, InterruptedException {
+        var svc = mockCustomAvatarService();
+        when(svc.clearCustomAvatar(999L)).thenReturn(Optional.empty());
+        serverWithCustomAvatarRoutes(svc);
+
+        HttpResponse<String> response = HttpClient.newHttpClient().send(
+                HttpRequest.newBuilder()
+                        .uri(URI.create("http://localhost:" + server.port() + "/api/actresses/999/custom-avatar"))
+                        .DELETE()
+                        .build(),
+                HttpResponse.BodyHandlers.ofString());
+        assertEquals(404, response.statusCode());
     }
 }

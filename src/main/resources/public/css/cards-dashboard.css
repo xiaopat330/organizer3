@@ -123,6 +123,35 @@
   transition: opacity 0.4s ease;
 }
 
+/* Avatar corner badge — shown on actress cards with no resolved avatar. */
+.actress-avatar-badge {
+  position: absolute;
+  top: 7px;
+  right: 7px;
+  z-index: 3;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.55);
+  border: 1px solid rgba(200, 200, 200, 0.35);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  padding: 0;
+  transition: background 0.15s ease, transform 0.15s ease;
+}
+.actress-avatar-badge:hover {
+  background: rgba(0, 0, 0, 0.78);
+  transform: scale(1.12);
+}
+.actress-avatar-badge svg {
+  width: 17px;
+  height: 17px;
+  stroke: rgba(220, 220, 220, 0.85);
+  display: block;
+}
+
 .actress-card-body {
   padding: 10px 12px 12px;
 }
