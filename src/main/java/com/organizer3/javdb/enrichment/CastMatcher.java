@@ -74,7 +74,7 @@ public class CastMatcher {
      * and trimmed. Returns {@code null} if {@code value} is {@code null} or empty
      * after normalization.
      */
-    static String normalize(String value) {
+    public static String normalize(String value) {
         if (value == null) return null;
         String n = Normalizer.normalize(value, Normalizer.Form.NFKC)
                 .toLowerCase(Locale.ROOT)

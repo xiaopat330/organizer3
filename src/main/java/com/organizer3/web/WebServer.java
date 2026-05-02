@@ -169,6 +169,11 @@ public class WebServer {
         routes.register(app);
     }
 
+    /** Mounts the Draft Mode populate + cover endpoints ({@code /api/drafts/*}). */
+    public void registerDraftRoutes(com.organizer3.web.routes.DraftRoutes routes) {
+        routes.register(app);
+    }
+
     /** Mounts the Duplicate Triage decisions endpoints ({@code /api/tools/duplicates/decisions/*}). */
     public void registerDuplicateDecisions(com.organizer3.web.routes.DuplicateDecisionsRoutes routes) {
         routes.register(app);

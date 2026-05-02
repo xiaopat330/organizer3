@@ -308,6 +308,22 @@ public class JavdbStagingRepository {
                 .findOne());
     }
 
+    /**
+     * Returns the {@code actress_id} for the staging row whose {@code javdb_slug}
+     * exactly matches {@code javdbSlug}, if present.
+     *
+     * <p>Used by {@code DraftPopulator} pass 3 (slug-anchored auto-link): when a
+     * javdb cast entry's slug appears in the staging table we already know which
+     * canonical actress it maps to.
+     */
+    public Optional<Long> findActressIdByJavdbSlug(String javdbSlug) {
+        return jdbi.withHandle(h -> h.createQuery(
+                "SELECT actress_id FROM javdb_actress_staging WHERE javdb_slug = :slug")
+                .bind("slug", javdbSlug)
+                .mapTo(Long.class)
+                .findOne());
+    }
+
     // -------------------------------------------------------------------------
     // Raw JSON file I/O
     // -------------------------------------------------------------------------
