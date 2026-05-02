@@ -123,12 +123,12 @@ class DraftSchemaMigrationTest {
     }
 
     @Test
-    void upgradeFromV43_stampsVersion44() {
+    void upgradeFromV43_stampsVersion45() {
         simulateV43Db();
 
         new SchemaUpgrader(jdbi).upgrade();
 
-        assertEquals(44, schemaVersion(), "schema version must be 44 after upgrade");
+        assertEquals(45, schemaVersion(), "schema version must be 45 after upgrade");
     }
 
     @Test
@@ -149,14 +149,82 @@ class DraftSchemaMigrationTest {
     }
 
     @Test
-    void upgradeFromV43_isIdempotent() {
+    void upgradeFromV43_V44V45_isIdempotent() {
         simulateV43Db();
 
         new SchemaUpgrader(jdbi).upgrade();
         // Running again must be a no-op.
         new SchemaUpgrader(jdbi).upgrade();
 
-        assertEquals(44, schemaVersion(), "schema version must remain 44 after redundant upgrade");
+        assertEquals(45, schemaVersion(), "schema version must remain 45 after redundant upgrade");
+    }
+
+    // ── v44 → v45 upgrade ─────────────────────────────────────────────────────
+
+    /** Simulate a v44 DB (has draft tables but lacks new_payload/promotion_metadata). */
+    private void simulateV44Db() {
+        new SchemaInitializer(jdbi).initialize();
+        jdbi.useHandle(h -> {
+            // Remove v45 columns added by fresh install so we simulate a v44 database
+            // SQLite doesn't support DROP COLUMN on all versions; we recreate the table
+            // without the new columns instead.
+            // Actually, easier: just stamp user_version=44 and rely on addColumnIfMissing
+            // detecting absence on real v44 DBs. But to truly test, we can drop the
+            // history table and recreate it without the new columns.
+            h.execute("DROP TABLE IF EXISTS title_javdb_enrichment_history");
+            h.execute("""
+                    CREATE TABLE title_javdb_enrichment_history (
+                        id              INTEGER PRIMARY KEY AUTOINCREMENT,
+                        title_id        INTEGER NOT NULL,
+                        title_code      TEXT    NOT NULL,
+                        changed_at      TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+                        reason          TEXT,
+                        prior_slug      TEXT,
+                        prior_payload   TEXT
+                    )""");
+            h.execute("CREATE INDEX IF NOT EXISTS idx_tjeh_title ON title_javdb_enrichment_history(title_id)");
+            h.execute("CREATE INDEX IF NOT EXISTS idx_tjeh_code  ON title_javdb_enrichment_history(title_code)");
+            h.execute("PRAGMA user_version = 44");
+        });
+    }
+
+    @Test
+    void upgradeFromV44_addsNewPayloadAndPromotionMetadataColumns() {
+        simulateV44Db();
+
+        new SchemaUpgrader(jdbi).upgrade();
+
+        assertTrue(columnExists("title_javdb_enrichment_history", "new_payload"),
+                "new_payload must be added by v45");
+        assertTrue(columnExists("title_javdb_enrichment_history", "promotion_metadata"),
+                "promotion_metadata must be added by v45");
+    }
+
+    @Test
+    void upgradeFromV44_stampsVersion45() {
+        simulateV44Db();
+
+        new SchemaUpgrader(jdbi).upgrade();
+
+        assertEquals(45, schemaVersion(), "schema version must be 45 after v44→v45 upgrade");
+    }
+
+    @Test
+    void upgradeFromV44_existingHistoryRowsHaveNullNewColumns() {
+        simulateV44Db();
+        jdbi.useHandle(h -> h.execute(
+                "INSERT INTO title_javdb_enrichment_history(title_id, title_code, reason) " +
+                "VALUES (1, 'TST-1', 'enrichment_runner')"));
+
+        new SchemaUpgrader(jdbi).upgrade();
+
+        // Check column exists and existing row has NULL value
+        assertTrue(columnExists("title_javdb_enrichment_history", "new_payload"),
+                "new_payload column must exist after v45 migration");
+        int nonNullCount = jdbi.withHandle(h ->
+                h.createQuery("SELECT COUNT(*) FROM title_javdb_enrichment_history WHERE new_payload IS NOT NULL")
+                        .mapTo(Integer.class).one());
+        assertEquals(0, nonNullCount, "existing history rows should have NULL new_payload after v45 migration");
     }
 
     // ── fresh install via SchemaInitializer ───────────────────────────────────
@@ -182,11 +250,11 @@ class DraftSchemaMigrationTest {
     }
 
     @Test
-    void freshInstallIsStampedAtVersion44() {
+    void freshInstallIsStampedAtVersion45() {
         new SchemaInitializer(jdbi).initialize();
 
-        assertEquals(44, schemaVersion(),
-                "fresh install must stamp version 44");
+        assertEquals(45, schemaVersion(),
+                "fresh install must stamp version 45");
     }
 
     // ── unique index enforcement ───────────────────────────────────────────────
