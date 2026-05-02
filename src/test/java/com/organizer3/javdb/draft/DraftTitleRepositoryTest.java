@@ -210,6 +210,21 @@ class DraftTitleRepositoryTest {
     }
 
     @Test
+    void reapStale_filtersOnUpdatedAtNotCreatedAt() {
+        // Regression: spec §9.2 requires filtering on updated_at so a draft
+        // created long ago but actively edited survives the sweep.
+        DraftTitle activelyEdited = sample(1).toBuilder()
+                .createdAt("2020-01-01T00:00:00Z")           // ancient
+                .updatedAt("2099-12-31T00:00:00Z")           // recent
+                .build();
+        long id = repo.insert(activelyEdited);
+
+        assertEquals(0, repo.reapStale(30),
+                "draft with recent updated_at must survive even if created_at is old");
+        assertTrue(repo.findById(id).isPresent());
+    }
+
+    @Test
     void reapStale_returnsZeroWhenNothingStale() {
         DraftTitle recent = sample(1).toBuilder()
                 .createdAt("2099-12-31T00:00:00Z")
