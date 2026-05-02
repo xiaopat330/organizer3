@@ -15,6 +15,7 @@ import com.organizer3.rating.EnrichmentGradeStamper;
 import com.organizer3.rating.RatingCurveRecomputer;
 import com.organizer3.repository.ActressRepository;
 import com.organizer3.repository.TitleRepository;
+import com.organizer3.utilities.task.TaskRunner;
 import lombok.extern.slf4j.Slf4j;
 import org.jdbi.v3.core.Jdbi;
 
@@ -30,16 +31,29 @@ import java.util.concurrent.atomic.AtomicBoolean;
  * Background thread that processes {@code javdb_enrichment_queue} jobs one at a time.
  *
  * <p>Lifecycle mirrors {@code BackgroundThumbnailWorker}: start on app boot,
- * stop on shutdown. Independent of {@code TaskRunner}.
+ * stop on shutdown.
  *
  * <p>On boot, stuck {@code in_flight} rows older than 5 min are reset to {@code pending}
  * before the loop begins.
+ *
+ * <p><strong>Task-aware pause (Phase 6):</strong> when a task in {@link #PAUSE_ISSUING_TASKS}
+ * is actively running (checked via {@link TaskRunner#currentlyRunning()}), {@link #isPaused()}
+ * returns {@code true} even if the manual {@code paused} flag is {@code false}. The check is
+ * purely in-memory — no DB poll.  Missed events self-heal on the next tick.
  */
 @Slf4j
 public class EnrichmentRunner {
 
     private static final long LOOP_SLEEP_MS = 1_000;
     private static final ObjectMapper RECOVERY_JSON = new ObjectMapper();
+
+    /**
+     * Task IDs whose presence in RUNNING state cause this runner to pause.
+     * Currently only {@code enrichment.bulk_enrich_to_draft}.
+     */
+    private static final Set<String> PAUSE_ISSUING_TASKS = Set.of(
+            "enrichment.bulk_enrich_to_draft"
+    );
 
     private final JavdbConfig config;
     private final JavdbClient client;
@@ -66,6 +80,13 @@ public class EnrichmentRunner {
     private final Jdbi jdbi;
     private final RevalidationPendingRepository revalidationPendingRepo;
     private final DisambiguationSnapshotter disambiguationSnapshotter;
+
+    /**
+     * Injected after construction (via {@link #setTaskRunner}) to avoid a circular
+     * dependency: {@code EnrichmentRunner} is constructed before {@code TaskRunner}.
+     * Null-safe: when not yet set, no task-induced pause applies.
+     */
+    private volatile TaskRunner taskRunner;
 
     private final AtomicBoolean stopRequested = new AtomicBoolean(false);
     private final AtomicBoolean paused = new AtomicBoolean(false);
@@ -148,13 +169,40 @@ public class EnrichmentRunner {
         if (thread != null) thread.interrupt();
     }
 
+    /**
+     * Injects the {@link TaskRunner} for task-aware pause detection. Called from
+     * {@code Application.java} after both objects are constructed.
+     */
+    public void setTaskRunner(TaskRunner runner) {
+        this.taskRunner = runner;
+    }
+
     public void setPaused(boolean on) {
         paused.set(on);
         log.info("javdb enrichment runner paused={}", on);
     }
 
+    /**
+     * Returns {@code true} when the runner should not process the next job.
+     *
+     * <p>Two independent pause sources, either is sufficient:
+     * <ol>
+     *   <li><em>Manual</em>: the operator explicitly called {@link #setPaused(boolean) setPaused(true)}.
+     *   <li><em>Task-induced</em>: a pause-issuing Utilities task (e.g.
+     *       {@code enrichment.bulk_enrich_to_draft}) is currently RUNNING. Checked by
+     *       polling {@link TaskRunner#currentlyRunning()} — no DB, no events, self-healing.
+     * </ol>
+     *
+     * <p>Note: {@link #setPaused(boolean) setPaused(false)} does <em>not</em> override a
+     * task-induced pause; the runner stays paused until the task completes.
+     */
     public boolean isPaused() {
-        return paused.get();
+        if (paused.get()) return true;
+        TaskRunner tr = taskRunner;
+        if (tr == null) return false;
+        return tr.currentlyRunning()
+                .map(run -> PAUSE_ISSUING_TASKS.contains(run.taskId()))
+                .orElse(false);
     }
 
     /** Returns the instant until which the runner is rate-limit paused, or {@code Instant.EPOCH} if not paused. */
@@ -213,8 +261,8 @@ public class EnrichmentRunner {
 
     /** Exposed for tests — runs one claim-and-execute cycle. */
     void runOneStep() throws InterruptedException {
-        // 1. Operator pause: respected by everything, including URGENT.
-        if (paused.get()) {
+        // 1. Operator/task-induced pause: respected by everything, including URGENT.
+        if (isPaused()) {
             sleepInterruptibly(30_000);
             return;
         }
