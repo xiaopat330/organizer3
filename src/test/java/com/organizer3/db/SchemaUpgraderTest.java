@@ -54,7 +54,7 @@ class SchemaUpgraderTest {
 
         new SchemaUpgrader(jdbi).upgrade();
 
-        assertEquals(45, currentVersion());
+        assertEquals(46, currentVersion());
         boolean present = jdbi.withHandle(h ->
                 h.createQuery("SELECT COUNT(*) FROM pragma_table_info('actresses') WHERE name='needs_profiling'")
                         .mapTo(Integer.class).one() > 0);
@@ -68,7 +68,7 @@ class SchemaUpgraderTest {
                 h.createQuery("SELECT COUNT(*) FROM pragma_table_info('actresses') WHERE name='needs_profiling'")
                         .mapTo(Integer.class).one() > 0);
         assertTrue(present, "fresh install should include needs_profiling");
-        assertEquals(45, currentVersion(), "fresh install should stamp current version (45)");
+        assertEquals(46, currentVersion(), "fresh install should stamp current version (46)");
     }
 
     @Test
@@ -84,7 +84,7 @@ class SchemaUpgraderTest {
 
         new SchemaUpgrader(jdbi).upgrade();
 
-        assertEquals(45, currentVersion());
+        assertEquals(46, currentVersion());
         boolean sizeBytesPresent = jdbi.withHandle(h ->
                 h.createQuery("SELECT COUNT(*) FROM pragma_table_info('videos') WHERE name='size_bytes'")
                         .mapTo(Integer.class).one() > 0);
@@ -106,7 +106,7 @@ class SchemaUpgraderTest {
 
         new SchemaUpgrader(jdbi).upgrade();
 
-        assertEquals(45, currentVersion());
+        assertEquals(46, currentVersion());
         assertTrue(columnExists("titles",    "favorite_cleared_at"));
         assertTrue(columnExists("actresses", "favorite_cleared_at"));
 
@@ -132,7 +132,7 @@ class SchemaUpgraderTest {
 
         new SchemaUpgrader(jdbi).upgrade();
 
-        assertEquals(45, currentVersion());
+        assertEquals(46, currentVersion());
         boolean tableExists = jdbi.withHandle(h ->
                 h.createQuery("SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='merge_candidates'")
                         .mapTo(Integer.class).one() > 0);
@@ -217,7 +217,7 @@ class SchemaUpgraderTest {
 
         // Run the migration.
         new SchemaUpgrader(jdbi).upgrade();
-        assertEquals(45, currentVersion());
+        assertEquals(46, currentVersion());
 
         // Enrichment rows: 5 fixture titles + the malformed-tags title (it still has slug + status='fetched');
         // not_found row should be excluded.
@@ -283,7 +283,7 @@ class SchemaUpgraderTest {
 
         new SchemaUpgrader(jdbi).upgrade();
 
-        assertEquals(45, currentVersion());
+        assertEquals(46, currentVersion());
         assertTrue(columnExists("titles", "grade_source"), "grade_source column should exist");
 
         // Backfill: grade != null → grade_source = 'ai'; grade is null → grade_source stays null.
@@ -324,7 +324,7 @@ class SchemaUpgraderTest {
 
         new SchemaUpgrader(jdbi).upgrade();
 
-        assertEquals(45, currentVersion());
+        assertEquals(46, currentVersion());
 
         // actress_id is now nullable and source column exists.
         assertTrue(columnExists("javdb_enrichment_queue", "source"));
@@ -361,7 +361,7 @@ class SchemaUpgraderTest {
 
         // Idempotent: running again must not change state.
         new SchemaUpgrader(jdbi).upgrade();
-        assertEquals(45, currentVersion());
+        assertEquals(46, currentVersion());
     }
 
     @Test
@@ -387,7 +387,7 @@ class SchemaUpgraderTest {
 
         new SchemaUpgrader(jdbi).upgrade();
 
-        assertEquals(45, currentVersion());
+        assertEquals(46, currentVersion());
 
         // All three sentinels are now flagged.
         for (long id : new long[] {10L, 11L, 12L}) {
@@ -403,7 +403,7 @@ class SchemaUpgraderTest {
 
         // Idempotent.
         new SchemaUpgrader(jdbi).upgrade();
-        assertEquals(45, currentVersion());
+        assertEquals(46, currentVersion());
     }
 
     @Test
@@ -422,7 +422,7 @@ class SchemaUpgraderTest {
 
         new SchemaUpgrader(jdbi).upgrade();
 
-        assertEquals(45, currentVersion());
+        assertEquals(46, currentVersion());
         assertTrue(columnExists("javdb_actress_filmography_entry", "stale"),
                 "stale column must exist after v34 migration");
         assertTrue(columnExists("javdb_actress_filmography", "last_drift_count"),
@@ -432,7 +432,7 @@ class SchemaUpgraderTest {
 
         // Idempotent.
         new SchemaUpgrader(jdbi).upgrade();
-        assertEquals(45, currentVersion());
+        assertEquals(46, currentVersion());
     }
 
     @Test
@@ -450,7 +450,7 @@ class SchemaUpgraderTest {
 
         new SchemaUpgrader(jdbi).upgrade();
 
-        assertEquals(45, currentVersion());
+        assertEquals(46, currentVersion());
         assertTrue(columnExists("title_javdb_enrichment", "last_revalidated_at"),
                 "last_revalidated_at column must exist after v38 migration");
 
@@ -461,7 +461,7 @@ class SchemaUpgraderTest {
 
         // Idempotent.
         new SchemaUpgrader(jdbi).upgrade();
-        assertEquals(45, currentVersion());
+        assertEquals(46, currentVersion());
     }
 
     @Test
@@ -486,7 +486,7 @@ class SchemaUpgraderTest {
 
         new SchemaUpgrader(jdbi).upgrade();
 
-        assertEquals(45, currentVersion());
+        assertEquals(46, currentVersion());
         assertTrue(columnExists("enrichment_review_queue", "last_seen_at"),
                 "last_seen_at column must exist after v39 migration");
         assertTrue(columnExists("enrichment_review_queue", "detail"),
@@ -506,7 +506,7 @@ class SchemaUpgraderTest {
 
         // Idempotent.
         new SchemaUpgrader(jdbi).upgrade();
-        assertEquals(45, currentVersion());
+        assertEquals(46, currentVersion());
     }
 
     @Test
@@ -528,7 +528,7 @@ class SchemaUpgraderTest {
 
         new SchemaUpgrader(jdbi).upgrade();
 
-        assertEquals(45, currentVersion());
+        assertEquals(46, currentVersion());
         assertTrue(columnExists("javdb_enrichment_queue", "priority"),
                 "priority column must exist after v40 migration");
 
@@ -551,7 +551,7 @@ class SchemaUpgraderTest {
 
         // Idempotent.
         new SchemaUpgrader(jdbi).upgrade();
-        assertEquals(45, currentVersion());
+        assertEquals(46, currentVersion());
     }
 
     @Test
@@ -559,7 +559,7 @@ class SchemaUpgraderTest {
         new SchemaInitializer(jdbi).initialize();
         assertTrue(columnExists("javdb_enrichment_queue", "priority"),
                 "fresh install must include the priority column");
-        assertEquals(45, currentVersion());
+        assertEquals(46, currentVersion());
     }
 
     // ── v41 migration tests ────────────────────────────────────────────────────
@@ -585,7 +585,7 @@ class SchemaUpgraderTest {
 
         new SchemaUpgrader(jdbi).upgrade();
 
-        assertEquals(45, currentVersion());
+        assertEquals(46, currentVersion());
         var row = jdbi.withHandle(h ->
                 h.createQuery("SELECT status, last_error FROM javdb_enrichment_queue WHERE target_id = 1")
                         .mapToMap().one());
@@ -595,7 +595,7 @@ class SchemaUpgraderTest {
 
         // Idempotent.
         new SchemaUpgrader(jdbi).upgrade();
-        assertEquals(45, currentVersion());
+        assertEquals(46, currentVersion());
     }
 
     @Test
@@ -646,6 +646,49 @@ class SchemaUpgraderTest {
                 h.createQuery("SELECT status FROM javdb_enrichment_queue WHERE target_id = 1")
                         .mapTo(String.class).one());
         assertEquals("pending", status, "pending row must not be touched by v41 even with closed review");
+    }
+
+    // ── v46 migration tests ────────────────────────────────────────────────────
+
+    @Test
+    void upgradeFromV45_createsTitlePathHistoryTable() {
+        new SchemaInitializer(jdbi).initialize();
+        jdbi.useHandle(h -> {
+            h.execute("DROP TABLE IF EXISTS title_path_history");
+            h.execute("DROP INDEX IF EXISTS idx_title_path_history_lookup");
+            h.execute("DROP INDEX IF EXISTS idx_title_path_history_title_id");
+            h.execute("PRAGMA user_version = 45");
+        });
+
+        new SchemaUpgrader(jdbi).upgrade();
+
+        assertEquals(46, currentVersion());
+        boolean tableExists = jdbi.withHandle(h ->
+                h.createQuery("SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='title_path_history'")
+                        .mapTo(Integer.class).one() > 0);
+        assertTrue(tableExists, "title_path_history table must be created by v46 migration");
+        boolean lookupIndex = jdbi.withHandle(h ->
+                h.createQuery("SELECT COUNT(*) FROM sqlite_master WHERE type='index' AND name='idx_title_path_history_lookup'")
+                        .mapTo(Integer.class).one() > 0);
+        assertTrue(lookupIndex, "idx_title_path_history_lookup must exist after v46");
+        boolean titleIndex = jdbi.withHandle(h ->
+                h.createQuery("SELECT COUNT(*) FROM sqlite_master WHERE type='index' AND name='idx_title_path_history_title_id'")
+                        .mapTo(Integer.class).one() > 0);
+        assertTrue(titleIndex, "idx_title_path_history_title_id must exist after v46");
+
+        // Idempotent.
+        new SchemaUpgrader(jdbi).upgrade();
+        assertEquals(46, currentVersion());
+    }
+
+    @Test
+    void freshInstallHasTitlePathHistoryTable() {
+        new SchemaInitializer(jdbi).initialize();
+        boolean tableExists = jdbi.withHandle(h ->
+                h.createQuery("SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='title_path_history'")
+                        .mapTo(Integer.class).one() > 0);
+        assertTrue(tableExists, "fresh install must include title_path_history table");
+        assertEquals(46, currentVersion());
     }
 
     private boolean columnExists(String table, String column) {

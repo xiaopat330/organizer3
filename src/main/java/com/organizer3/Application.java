@@ -478,8 +478,11 @@ public class Application {
                 structureTypesByTerm.computeIfAbsent(def.term(), k -> new HashSet<>()).add(structureType);
             }
         }
+        com.organizer3.repository.TitlePathHistoryRepository titlePathHistoryRepo =
+                new com.organizer3.repository.jdbi.JdbiTitlePathHistoryRepository(jdbi);
         com.organizer3.sync.SyncIdentityMatcher syncIdentityMatcher =
-                new com.organizer3.sync.SyncIdentityMatcher(jdbi, enrichmentReviewQueueRepo);
+                new com.organizer3.sync.SyncIdentityMatcher(jdbi, enrichmentReviewQueueRepo,
+                        titlePathHistoryRepo);
 
         Command syncAllCommand = null;
         for (Map.Entry<String, SyncCommandDef> entry : defByTerm.entrySet()) {
@@ -490,12 +493,14 @@ public class Application {
                     new FullSyncOperation(scannerRegistry, titleRepo, videoRepo, actressRepo,
                             volumeRepo, titleLocationRepo, titleActressRepo, indexLoader,
                             titleEffectiveTagsService, actressCompaniesService, coverPath,
-                            revalidationPendingRepo, syncIdentityMatcher, draftSyncObserver);
+                            revalidationPendingRepo, syncIdentityMatcher, draftSyncObserver,
+                            titlePathHistoryRepo);
                 case PARTITION ->
                     new PartitionSyncOperation(def.partitions(), titleRepo, videoRepo,
                             actressRepo, volumeRepo, titleLocationRepo, titleActressRepo, indexLoader,
                             titleEffectiveTagsService, actressCompaniesService, coverPath,
-                            revalidationPendingRepo, syncIdentityMatcher, draftSyncObserver);
+                            revalidationPendingRepo, syncIdentityMatcher, draftSyncObserver,
+                            titlePathHistoryRepo);
             };
             SyncCommand syncCmd = new SyncCommand(term, structureTypesByTerm.get(term), op);
             commands.add(syncCmd);

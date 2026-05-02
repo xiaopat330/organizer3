@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.node.JsonNodeFactory;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.organizer3.javdb.enrichment.EnrichmentReviewQueueRepository;
 import com.organizer3.model.Title;
+import com.organizer3.repository.TitlePathHistoryRepository;
 import lombok.extern.slf4j.Slf4j;
 import org.jdbi.v3.core.Jdbi;
 
@@ -11,6 +12,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 /**
  * Detects potential recode and actress-rename candidates during sync by performing
@@ -26,6 +28,9 @@ import java.util.Map;
  *   <li><b>normalized_code</b> — uppercase + strip whitespace; catches case-only renames.</li>
  *   <li><b>base_seq</b> — same label + same seq_num; catches suffix differences (e.g.
  *       {@code ABC-001} vs {@code ABC-001_U}).</li>
+ *   <li><b>path_history</b> — last-resort: if a folder appears at a path that a previously
+ *       known title occupied, and that title still exists in the DB, surface as a
+ *       {@code path_history_match} candidate for user review.</li>
  * </ul>
  * Actress matching strips all non-letter/non-digit chars and lowercases both sides.
  */
@@ -37,6 +42,7 @@ public class SyncIdentityMatcher {
 
     private final Jdbi jdbi;
     private final EnrichmentReviewQueueRepository reviewQueueRepo;
+    private final TitlePathHistoryRepository pathHistoryRepo;
 
     private record OrphanTitle(long id, String code, String label, int seqNum) {}
 
@@ -50,6 +56,10 @@ public class SyncIdentityMatcher {
             long anchorTitleId, long candidateActressId,
             String candidateCanonicalName, String observedFolderName) {}
 
+    private record PathHistoryCandidate(
+            long newTitleId, String newFolderCode,
+            long historicTitleId, String volumeId, String partitionId, String path) {}
+
     // Loaded at sync start
     private final Map<String, OrphanTitle> orphansByNormalizedCode = new HashMap<>();
     private final Map<String, OrphanTitle> orphansByBaseSeqKey     = new HashMap<>();
@@ -58,10 +68,17 @@ public class SyncIdentityMatcher {
     // Buffered during the discovery pass; flushed at the end of sync
     private final List<RecodeCandidate>        recodeCandidates        = new ArrayList<>();
     private final List<ActressRenameCandidate> actressRenameCandidates = new ArrayList<>();
+    private final List<PathHistoryCandidate>   pathHistoryCandidates   = new ArrayList<>();
 
     public SyncIdentityMatcher(Jdbi jdbi, EnrichmentReviewQueueRepository reviewQueueRepo) {
+        this(jdbi, reviewQueueRepo, null);
+    }
+
+    public SyncIdentityMatcher(Jdbi jdbi, EnrichmentReviewQueueRepository reviewQueueRepo,
+                               TitlePathHistoryRepository pathHistoryRepo) {
         this.jdbi           = jdbi;
         this.reviewQueueRepo = reviewQueueRepo;
+        this.pathHistoryRepo = pathHistoryRepo;
     }
 
     // ── Load ─────────────────────────────────────────────────────────────────
@@ -77,6 +94,7 @@ public class SyncIdentityMatcher {
         actressesByNormalizedName.clear();
         recodeCandidates.clear();
         actressRenameCandidates.clear();
+        pathHistoryCandidates.clear();
 
         List<OrphanTitle> orphans = jdbi.withHandle(h ->
                 h.createQuery("""
@@ -127,6 +145,50 @@ public class SyncIdentityMatcher {
     /**
      * Called for each newly created title (code not already in DB before this sync).
      * If a soft-match is found against an orphan title, buffers a recode_candidate.
+     *
+     * <p>After Phase-3 soft-match passes, if no recode candidate was found and a
+     * {@link TitlePathHistoryRepository} is configured, consults path history as a
+     * last-resort fallback: a folder reappearing at a historically-known path surfaces
+     * as a {@code path_history_match} review-queue candidate.
+     *
+     * @param parsed      parsed code metadata from the folder name
+     * @param newTitle    the newly created title DB row
+     * @param volumeId    volume the folder lives on (for path-history lookup)
+     * @param partitionId partition within the volume (for path-history lookup)
+     * @param folderPath  volume-relative path string (for path-history lookup)
+     */
+    public void noteTitleCandidate(TitleCodeParser.ParsedCode parsed, Title newTitle,
+                                   String volumeId, String partitionId, String folderPath) {
+        if (parsed.label() == null || parsed.seqNum() == null) {
+            tryPathHistoryFallback(newTitle, volumeId, partitionId, folderPath);
+            return;
+        }
+
+        String normCode = normalizeCode(parsed.code());
+        OrphanTitle byCode = orphansByNormalizedCode.get(normCode);
+        if (byCode != null) {
+            recodeCandidates.add(new RecodeCandidate(
+                    newTitle.getId(), parsed.code(),
+                    byCode.id(), byCode.code(), "normalized_code"));
+            return;
+        }
+
+        String baseSeq = baseSeqKey(parsed.label(), parsed.seqNum());
+        OrphanTitle byBaseSeq = orphansByBaseSeqKey.get(baseSeq);
+        if (byBaseSeq != null) {
+            recodeCandidates.add(new RecodeCandidate(
+                    newTitle.getId(), parsed.code(),
+                    byBaseSeq.id(), byBaseSeq.code(), "base_seq"));
+            return;
+        }
+
+        // Phase-3 passes found nothing — try path history as last resort.
+        tryPathHistoryFallback(newTitle, volumeId, partitionId, folderPath);
+    }
+
+    /**
+     * Backward-compatible overload for callers that do not supply path coordinates.
+     * Path-history fallback is skipped.
      */
     public void noteTitleCandidate(TitleCodeParser.ParsedCode parsed, Title newTitle) {
         if (parsed.label() == null || parsed.seqNum() == null) return;
@@ -146,6 +208,23 @@ public class SyncIdentityMatcher {
             recodeCandidates.add(new RecodeCandidate(
                     newTitle.getId(), parsed.code(),
                     byBaseSeq.id(), byBaseSeq.code(), "base_seq"));
+        }
+    }
+
+    /**
+     * Consults path history as a last-resort match for a newly created title.
+     * Skipped if no {@link TitlePathHistoryRepository} was provided at construction.
+     */
+    private void tryPathHistoryFallback(Title newTitle, String volumeId,
+                                        String partitionId, String folderPath) {
+        if (pathHistoryRepo == null || folderPath == null) return;
+        try {
+            Optional<Long> historicId = pathHistoryRepo.findByPath(volumeId, partitionId, folderPath);
+            historicId.ifPresent(hId -> pathHistoryCandidates.add(new PathHistoryCandidate(
+                    newTitle.getId(), newTitle.getCode(), hId, volumeId, partitionId, folderPath)));
+        } catch (Exception e) {
+            log.warn("Path-history lookup failed for {}/{}/{} — skipping: {}",
+                    volumeId, partitionId, folderPath, e.getMessage(), e);
         }
     }
 
@@ -177,8 +256,10 @@ public class SyncIdentityMatcher {
     public void flushToQueue(int totalTitles) {
         flushRecodeCandidates(totalTitles);
         flushActressRenameCandidates();
+        flushPathHistoryCandidates(totalTitles);
         recodeCandidates.clear();
         actressRenameCandidates.clear();
+        pathHistoryCandidates.clear();
     }
 
     private void flushRecodeCandidates(int totalTitles) {
@@ -222,6 +303,29 @@ public class SyncIdentityMatcher {
         }
         log.info("SyncIdentityMatcher: flushed {} actress_rename_candidate(s) to review queue",
                 actressRenameCandidates.size());
+    }
+
+    private void flushPathHistoryCandidates(int totalTitles) {
+        if (pathHistoryCandidates.isEmpty()) return;
+        int threshold = Math.max(FLOOR, totalTitles / FRACTION_DIVISOR);
+        if (pathHistoryCandidates.size() > threshold) {
+            log.error("Path-history-candidate flagging refused: {} candidates would be written (threshold {}). "
+                    + "This likely indicates a volume-mount issue or sync bug — investigate before re-running sync.",
+                    pathHistoryCandidates.size(), threshold);
+            return;
+        }
+        for (PathHistoryCandidate c : pathHistoryCandidates) {
+            ObjectNode detail = JsonNodeFactory.instance.objectNode();
+            detail.put("historic_title_id", c.historicTitleId());
+            detail.put("new_folder_code",   c.newFolderCode());
+            detail.put("volume_id",         c.volumeId());
+            detail.put("partition_id",      c.partitionId());
+            detail.put("path",              c.path());
+            reviewQueueRepo.enqueueWithDetail(
+                    c.newTitleId(), null, "path_history_match", "sync_soft_match", detail.toString());
+        }
+        log.info("SyncIdentityMatcher: flushed {} path_history_match candidate(s) to review queue",
+                pathHistoryCandidates.size());
     }
 
     // ── Normalization helpers ─────────────────────────────────────────────────

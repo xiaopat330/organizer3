@@ -9,6 +9,7 @@ import com.organizer3.model.Title;
 import com.organizer3.repository.ActressRepository;
 import com.organizer3.repository.TitleActressRepository;
 import com.organizer3.repository.TitleLocationRepository;
+import com.organizer3.repository.TitlePathHistoryRepository;
 import com.organizer3.repository.TitleRepository;
 import com.organizer3.repository.VideoRepository;
 import com.organizer3.repository.VolumeRepository;
@@ -43,7 +44,7 @@ public class FullSyncOperation extends AbstractSyncOperation {
                              SyncIdentityMatcher identityMatcher) {
         this(scannerRegistry, titleRepo, videoRepo, actressRepo, volumeRepo, titleLocationRepo,
                 titleActressRepo, indexLoader, titleEffectiveTagsService, actressCompaniesService,
-                coverPath, revalidationPendingRepo, identityMatcher, TitleSyncObserver.NO_OP);
+                coverPath, revalidationPendingRepo, identityMatcher, TitleSyncObserver.NO_OP, null);
     }
 
     public FullSyncOperation(ScannerRegistry scannerRegistry,
@@ -58,9 +59,27 @@ public class FullSyncOperation extends AbstractSyncOperation {
                              com.organizer3.javdb.enrichment.RevalidationPendingRepository revalidationPendingRepo,
                              SyncIdentityMatcher identityMatcher,
                              TitleSyncObserver syncObserver) {
+        this(scannerRegistry, titleRepo, videoRepo, actressRepo, volumeRepo, titleLocationRepo,
+                titleActressRepo, indexLoader, titleEffectiveTagsService, actressCompaniesService,
+                coverPath, revalidationPendingRepo, identityMatcher, syncObserver, null);
+    }
+
+    public FullSyncOperation(ScannerRegistry scannerRegistry,
+                             TitleRepository titleRepo, VideoRepository videoRepo,
+                             ActressRepository actressRepo, VolumeRepository volumeRepo,
+                             TitleLocationRepository titleLocationRepo,
+                             TitleActressRepository titleActressRepo,
+                             IndexLoader indexLoader,
+                             TitleEffectiveTagsService titleEffectiveTagsService,
+                             ActressCompaniesService actressCompaniesService,
+                             com.organizer3.covers.CoverPath coverPath,
+                             com.organizer3.javdb.enrichment.RevalidationPendingRepository revalidationPendingRepo,
+                             SyncIdentityMatcher identityMatcher,
+                             TitleSyncObserver syncObserver,
+                             TitlePathHistoryRepository pathHistoryRepo) {
         super(titleRepo, videoRepo, actressRepo, volumeRepo, titleLocationRepo, titleActressRepo,
                 indexLoader, titleEffectiveTagsService, actressCompaniesService, coverPath,
-                revalidationPendingRepo, identityMatcher, syncObserver);
+                revalidationPendingRepo, identityMatcher, syncObserver, pathHistoryRepo);
         this.scannerRegistry = scannerRegistry;
     }
 
