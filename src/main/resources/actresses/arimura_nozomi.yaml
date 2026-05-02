@@ -1,0 +1,45 @@
+profile:
+  name:
+    family_name: Arimura
+    given_name: Nozomi
+    stage_name: 有村のぞみ
+    reading: ありむら のぞみ
+    alternate_names: null
+  date_of_birth: 1997-02-14
+  birthplace: Shizuoka Prefecture, Japan
+  blood_type: null
+  height_cm: 155
+  measurements:
+    bust: 84
+    waist: 57
+    hip: 88
+  cup: G
+  active_from: 2018-01-05
+  active_to: null
+  retirement_announced: null
+  biography: "Nozomi Arimura (有村のぞみ) was born on February 14, 1997 in Shizuoka Prefecture and debuted as a Prestige exclusive actress on January 5, 2018. Before entering the industry she attended a sewing school while employed as a fashion designer, and later channeled this background into launching the cosplay fashion brand 'nonnonstyle' in December 2022. She left her Prestige exclusive contract in January 2019 to work as a single-work actress across multiple labels, and was nominated for the FANZA Adult Award 2019 Best Newcomer Actress. In March 2023 she joined the New EX Girls collective through jury selection. She is also known for a background in boxing and professional wrestling, bringing a notably athletic physicality to her performances."
+  primary_studios:
+  - name: Prestige
+    company: Prestige
+    from: 2018-01-05
+    to: 2019-01-31
+    role: Exclusive contract actress
+  awards:
+  - event: FANZA Adult Award 2019
+    year: 2019
+    category: Best Newcomer Actress (nomination)
+  legacy: null
+
+portfolio: null
+
+meta:
+  total_owned_titles: null
+  titles_with_japanese_title: null
+  titles_with_english_title: null
+  titles_with_release_date: null
+  total_known_releases: null
+  coverage_note: "Profile only; portfolio not yet researched. DB unavailable during profile creation."
+  confidence: "DOB 1997-02-14, birthplace Shizuoka, height 155cm, measurements B84/W57/H88 sourced from Wikipedia and cross-referenced. Cup G sourced from photo book listings and fan databases; conflicting data exists (some sources say E, debut-era sources say G) — treat with moderate confidence. Blood type not found. Debut date 2018-01-05 confirmed. Prestige exclusive end date January 2019 — day estimated as 2019-01-31."
+  data_sources:
+  - https://ja.wikipedia.org/wiki/%E6%9C%89%E6%9D%91%E3%81%AE%E3%81%9E%E3%81%BF
+  portfolio_listed: 0
