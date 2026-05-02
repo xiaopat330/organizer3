@@ -108,12 +108,13 @@
   min-width: 0;
 }
 
-/* Profile avatar from javdb is ~150×150. Render at native size — upscaling
-   pixelates it badly. flex-shrink: 0 keeps it from being squeezed. */
+/* Cap avatar at 150×150 so high-res images don't blow out the name block. */
 .detail-actress-avatar {
   display: block;
-  width: auto;
-  height: auto;
+  width: 150px;
+  height: 150px;
+  object-fit: cover;
+  object-position: top center;
   flex-shrink: 0;
   border-radius: 4px;
 }
