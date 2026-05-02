@@ -241,7 +241,7 @@ public class NoMatchTriageService {
             String baseCode() { return primary.baseCode(); }
 
             void addActress(Long actressId, String stageName) {
-                if (actressId != null && !actressIds.contains(actressId)) {
+                if (actressId != null && stageName != null && !actressIds.contains(actressId)) {
                     actressIds.add(actressId);
                     actressNames.add(stageName);
                 }

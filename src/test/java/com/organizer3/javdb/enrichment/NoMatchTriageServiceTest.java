@@ -73,6 +73,19 @@ class NoMatchTriageServiceTest {
     }
 
     @Test
+    void list_actressWithNullStageNameTreatedAsOrphan() {
+        // Regression: linked actress row with NULL stage_name caused List.copyOf NPE.
+        when(mockRepo.listNoMatchRows()).thenReturn(List.of(makeRow(12L, "STAR-002", 7L, null)));
+        when(mockRepo.findActressesByFilmographyCode("STAR-002")).thenReturn(List.of());
+
+        List<NoMatchTriageRow> rows = service.list(null, false);
+        assertEquals(1, rows.size());
+        assertTrue(rows.get(0).orphan());
+        assertTrue(rows.get(0).linkedActressIds().isEmpty());
+        assertTrue(rows.get(0).linkedActressNames().isEmpty());
+    }
+
+    @Test
     void list_orphanFilterExcludesLinkedRows() {
         when(mockRepo.listNoMatchRows()).thenReturn(List.of(
                 makeRow(10L, "STAR-001", 5L, "Actress A"),
