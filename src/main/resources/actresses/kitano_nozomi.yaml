@@ -1,0 +1,42 @@
+profile:
+  name:
+    family_name: Kitano
+    given_name: Nozomi
+    stage_name: 北野のぞみ
+    reading: きたの のぞみ
+    alternate_names: null
+  date_of_birth: 1993-04-04
+  birthplace: Hokkaido, Japan
+  blood_type: A
+  height_cm: 155
+  measurements:
+    bust: 87
+    waist: 59
+    hip: 91
+  cup: E
+  active_from: 2014-12-01
+  active_to: 2016-10-31
+  retirement_announced: null
+  biography: "Nozomi Kitano (北野のぞみ) was born on April 4, 1993 in Hokkaido and debuted as a Prestige exclusive actress in December 2014, affiliated with the ARM Promotion agency. Her fifth debut work, 'Ippai Kosutte Moete Ikou,' accumulated 24,000 favorites on DMM R-18, setting a record for Prestige exclusive solo releases at the time of release. She continued releasing titles through October 2016, after which no new works appeared; as of March 2018 she was officially noted to be on a long-term break, with no formal retirement announcement ever made."
+  primary_studios:
+  - name: Prestige
+    company: Prestige
+    from: 2014-12-01
+    to: 2016-10-31
+    role: Exclusive contract actress
+  awards: null
+  legacy: "Among the stronger Prestige debuts of the 2014–2015 era, Kitano's fifth title set a DMM favorites record for Prestige exclusive solo releases; her extended unannounced hiatus from late 2016 onward left her career arc unresolved."
+
+portfolio: null
+
+meta:
+  total_owned_titles: null
+  titles_with_japanese_title: null
+  titles_with_english_title: null
+  titles_with_release_date: null
+  total_known_releases: null
+  coverage_note: "Profile only; portfolio not yet researched. DB unavailable during profile creation."
+  confidence: "DOB 1993-04-04, birthplace Hokkaido, blood type A, height 155cm, measurements B87/W59/H91, cup E sourced from Japanese Wikipedia and cross-referenced against mingjiabaike. Debut month December 2014 confirmed — exact day unknown, estimated as 2014-12-01. Last known release October 2016 — exact day unknown, estimated as 2016-10-31."
+  data_sources:
+  - https://ja.wikipedia.org/wiki/%E5%8C%97%E9%87%8E%E3%81%AE%E3%81%9E%E3%81%BF
+  portfolio_listed: 0
