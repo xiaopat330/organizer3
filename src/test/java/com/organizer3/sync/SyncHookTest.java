@@ -14,6 +14,7 @@ import com.organizer3.model.Title;
 import com.organizer3.repository.ActressRepository;
 import com.organizer3.repository.TitleActressRepository;
 import com.organizer3.repository.TitleLocationRepository;
+import com.organizer3.repository.TitlePathHistoryRepository;
 import com.organizer3.repository.TitleRepository;
 import com.organizer3.repository.VideoRepository;
 import com.organizer3.repository.VolumeRepository;
@@ -58,6 +59,7 @@ class SyncHookTest {
     private CommandIO io;
     private SyncIdentityMatcher identityMatcher;
     private TitleSyncObserver observer;
+    private TitlePathHistoryRepository pathHistoryRepo;
 
     @TempDir
     Path tmpDataDir;
@@ -85,6 +87,7 @@ class SyncHookTest {
         io               = new PlainCommandIO(new PrintWriter(new StringWriter()));
         identityMatcher  = mock(SyncIdentityMatcher.class);
         observer         = mock(TitleSyncObserver.class);
+        pathHistoryRepo  = mock(TitlePathHistoryRepository.class);
 
         when(volumeRepo.findById(anyString())).thenReturn(Optional.empty());
         when(indexLoader.load(anyString())).thenReturn(VolumeIndex.empty("unsorted"));
@@ -180,6 +183,48 @@ class SyncHookTest {
         assertDoesNotThrow(() -> newOp().execute(VOLUME, STRUCTURE, fs, ctx, io));
 
         // titleLocationRepo.save must still have been called (sync proceeded).
+        verify(titleLocationRepo, atLeastOnce()).save(any());
+    }
+
+    private PartitionSyncOperation newOpWithHistory() {
+        return new PartitionSyncOperation(
+                List.of("queue"), titleRepo, videoRepo, actressRepo, volumeRepo,
+                titleLocationRepo, titleActressRepo, indexLoader,
+                mock(TitleEffectiveTagsService.class), mock(ActressCompaniesService.class),
+                new CoverPath(tmpDataDir), null, identityMatcher, observer, pathHistoryRepo);
+    }
+
+    // ── path-history hook: recordPath called on sync write ────────────────────
+
+    @Test
+    void pathHistory_recordPathCalledAfterTitleLocationSave() throws IOException {
+        Title existingTitle = Title.builder().id(42L).code("ABCD-001").baseCode("ABCD")
+                .label("ABCD").seqNum(1).build();
+        when(titleRepo.findByCode("ABCD-001")).thenReturn(Optional.of(existingTitle));
+        when(titleRepo.findOrCreateByCode(any())).thenReturn(existingTitle);
+        stubSingleTitleFolder("ABCD-001");
+
+        newOpWithHistory().execute(VOLUME, STRUCTURE, fs, ctx, io);
+
+        verify(pathHistoryRepo).recordPath(eq(42L), eq("unsorted"), eq("queue"),
+                anyString(), anyString());
+    }
+
+    @Test
+    void pathHistory_failureDoesNotBlockSync() throws IOException {
+        Title existingTitle = Title.builder().id(77L).code("ABCD-001").baseCode("ABCD")
+                .label("ABCD").seqNum(1).build();
+        when(titleRepo.findByCode("ABCD-001")).thenReturn(Optional.of(existingTitle));
+        when(titleRepo.findOrCreateByCode(any())).thenReturn(existingTitle);
+        stubSingleTitleFolder("ABCD-001");
+        doThrow(new RuntimeException("simulated path-history failure"))
+                .when(pathHistoryRepo).recordPath(anyLong(), anyString(), anyString(),
+                        anyString(), anyString());
+
+        // Sync must complete normally.
+        assertDoesNotThrow(() -> newOpWithHistory().execute(VOLUME, STRUCTURE, fs, ctx, io));
+
+        // titleLocationRepo.save must still have been called (sync proceeded past the error).
         verify(titleLocationRepo, atLeastOnce()).save(any());
     }
 
