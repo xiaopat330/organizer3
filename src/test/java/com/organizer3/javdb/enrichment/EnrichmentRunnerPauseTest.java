@@ -86,11 +86,17 @@ class EnrichmentRunnerPauseTest {
 
     @Test
     void manualUnpause_doesNotOverrideTaskInducedPause() {
+        // First manually pause the runner.
+        runner.setPaused(true);
+        assertTrue(runner.isPaused(), "Should be paused after setPaused(true)");
+
+        // Now a bulk-enrich task starts running.
         TaskRun fakeRun = mock(TaskRun.class);
         when(fakeRun.taskId()).thenReturn("enrichment.bulk_enrich_to_draft");
         when(taskRunner.currentlyRunning()).thenReturn(Optional.of(fakeRun));
 
-        runner.setPaused(false);  // explicit unpause attempt
+        // User tries to manually unpause — task is still running, so still paused.
+        runner.setPaused(false);
 
         assertTrue(runner.isPaused(),
                 "Runner must stay paused while bulk-enrich task is running, even after setPaused(false)");

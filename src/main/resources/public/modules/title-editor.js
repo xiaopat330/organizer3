@@ -3,6 +3,7 @@
 
 import { esc } from './utils.js';
 import { openTitleDetail } from './title-detail.js';
+import * as taskCenter from './task-center.js';
 
 // ── DOM refs ──────────────────────────────────────────────────────────────
 const view          = document.getElementById('tools-queue-view');
@@ -843,8 +844,14 @@ bulkConfirmBtn.addEventListener('click', async () => {
     }
     bulkEnrichModal.style.display = 'none';
     _bulkPlan = null;
-    // Navigate user to Task Center so they can monitor progress.
-    document.getElementById('task-center-btn')?.click();
+    // Register the run with the global task pill so the user can monitor progress.
+    taskCenter.start({ taskId: 'enrichment.bulk_enrich_to_draft', runId: data.runId, label: 'Bulk Enrich to Draft' });
+    const es = new EventSource(`/api/utilities/runs/${encodeURIComponent(data.runId)}/events`);
+    es.addEventListener('phase.started',  e => { const ev = JSON.parse(e.data); taskCenter.updateProgress({ phaseLabel: ev.label }); });
+    es.addEventListener('phase.progress', e => { const ev = JSON.parse(e.data); taskCenter.updateProgress({ overallPct: Math.round((ev.current / ev.total) * 100) }); });
+    es.addEventListener('phase.ended',    e => { const ev = JSON.parse(e.data); if (ev.status === 'failed') taskCenter.finish({ status: 'failed', summary: ev.summary }); });
+    es.addEventListener('run.ended',      e => { const ev = JSON.parse(e.data); taskCenter.finish({ status: ev.status, summary: ev.summary }); es.close(); });
+    es.addEventListener('error',          () => { taskCenter.finish({ status: 'failed', summary: 'Connection lost' }); es.close(); });
   } catch (err) {
     console.error('BulkEnrich: start failed', err);
     alert('Failed to start task: ' + err.message);
