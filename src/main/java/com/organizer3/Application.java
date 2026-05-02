@@ -512,7 +512,8 @@ public class Application {
         StageNameBackupFile stageNameBackup = new StageNameBackupFile(
                 dbDir.resolve("stagenames.yaml"));
         ActressBrowseService actressBrowseService = new ActressBrowseService(
-                actressRepo, titleRepo, coverPath, volumeSmbPaths, labelRepo, nameLookup, stageNameBackup, jdbi);
+                actressRepo, titleRepo, coverPath, volumeSmbPaths, labelRepo, nameLookup, stageNameBackup, jdbi,
+                ratingCurveRepo, ratingScoreCalculator);
         SearchService searchService = new SearchService(actressRepo, titleRepo, labelRepo, coverPath, avActressRepo);
 
         // Video streaming + metadata

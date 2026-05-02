@@ -3,6 +3,8 @@ package com.organizer3.web;
 import com.organizer3.ai.ActressNameLookup;
 import com.organizer3.covers.CoverPath;
 import com.organizer3.db.SchemaInitializer;
+import com.organizer3.rating.JdbiRatingCurveRepository;
+import com.organizer3.rating.RatingScoreCalculator;
 import com.organizer3.repository.jdbi.JdbiActressRepository;
 import com.organizer3.repository.jdbi.JdbiLabelRepository;
 import com.organizer3.repository.jdbi.JdbiTitleLocationRepository;
@@ -44,7 +46,8 @@ class ActressBrowseServiceJdbiTest {
         JdbiLabelRepository labelRepo = new JdbiLabelRepository(jdbi);
 
         service = new ActressBrowseService(actressRepo, titleRepo, mock(CoverPath.class),
-                Map.of(), labelRepo, mock(ActressNameLookup.class), null, jdbi);
+                Map.of(), labelRepo, mock(ActressNameLookup.class), null, jdbi,
+                new JdbiRatingCurveRepository(jdbi), new RatingScoreCalculator());
     }
 
     @AfterEach

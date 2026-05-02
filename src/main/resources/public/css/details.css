@@ -108,13 +108,19 @@
   min-width: 0;
 }
 
-/* Profile avatar from javdb is ~150×150. Render at native size — upscaling
-   pixelates it badly. flex-shrink: 0 keeps it from being squeezed. */
+.detail-avatar-wrap {
+  position: relative;
+  display: inline-block;
+  flex-shrink: 0;
+}
+
+/* Cap avatar at 150×150 so high-res images don't blow out the name block. */
 .detail-actress-avatar {
   display: block;
-  width: auto;
-  height: auto;
-  flex-shrink: 0;
+  width: 150px;
+  height: 150px;
+  object-fit: cover;
+  object-position: top center;
   border-radius: 4px;
 }
 
@@ -584,6 +590,49 @@
 .detail-tags-btn.has-active {
   border-color: #50c878;
   color: #70e898;
+}
+
+.detail-sort-select {
+  appearance: none;
+  -webkit-appearance: none;
+  background: #111 url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23555'/%3E%3C/svg%3E") no-repeat right 10px center;
+  border: 1px solid #2d3748;
+  border-radius: 4px;
+  color: #b0b0b0;
+  font-size: 0.75rem;
+  font-family: inherit;
+  padding: 5px 28px 5px 10px;
+  cursor: pointer;
+  min-width: 120px;
+  transition: border-color 0.12s ease, color 0.12s ease;
+}
+
+.detail-sort-select:hover {
+  border-color: #404040;
+  color: #d0d0d0;
+}
+
+.detail-sort-select:focus {
+  outline: none;
+  border-color: #505050;
+}
+
+.detail-sort-dir-btn {
+  background: #111;
+  border: 1px solid #2d3748;
+  border-radius: 4px;
+  color: #888;
+  font-size: 0.85rem;
+  font-family: inherit;
+  padding: 4px 8px;
+  cursor: pointer;
+  line-height: 1;
+  transition: border-color 0.12s ease, color 0.12s ease;
+}
+
+.detail-sort-dir-btn:hover {
+  border-color: #404040;
+  color: #c0c0c0;
 }
 
 .detail-tags-count {

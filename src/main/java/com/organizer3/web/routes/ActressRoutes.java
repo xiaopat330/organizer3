@@ -161,9 +161,11 @@ public class ActressRoutes {
                              .map(Long::parseLong)
                              .toList()
                     : List.of();
+            String sortBy  = ctx.queryParam("sortBy");
+            String sortDir = ctx.queryParam("sortDir");
             offset = Math.max(offset, 0);
             limit  = Math.max(1, Math.min(limit, TitleBrowseService.MAX_LIMIT));
-            ctx.json(actressBrowseService.findTitlesByActress(id, offset, limit, company, tags, enrichmentTagIds));
+            ctx.json(actressBrowseService.findTitlesByActress(id, offset, limit, company, tags, enrichmentTagIds, sortBy, sortDir));
         });
 
         app.get("/api/actresses/{id}/tags", ctx -> {

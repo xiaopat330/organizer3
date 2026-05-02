@@ -2,6 +2,7 @@ package com.organizer3.repository;
 
 import com.organizer3.model.Actress;
 import com.organizer3.model.Title;
+import com.organizer3.model.TitleSortSpec;
 import com.organizer3.web.TitleSummary;
 import org.jdbi.v3.core.Handle;
 
@@ -93,14 +94,14 @@ public interface TitleRepository {
     /** Find bookmarked titles, ordered newest-first by added_date. */
     List<Title> findBookmarksPaged(int limit, int offset);
 
-    /** Find titles for an actress ordered by added_date DESC. */
-    List<Title> findByActressPaged(long actressId, int limit, int offset);
+    /** Find titles for an actress ordered by favorites/bookmarks first, then the user sort. */
+    List<Title> findByActressPaged(long actressId, int limit, int offset, TitleSortSpec sort);
 
     /**
      * Find titles for an actress restricted to the given label codes (upper-case),
-     * ordered by added_date DESC.
+     * ordered by favorites/bookmarks first, then the user sort.
      */
-    List<Title> findByActressAndLabelsPaged(long actressId, List<String> labels, int limit, int offset);
+    List<Title> findByActressAndLabelsPaged(long actressId, List<String> labels, int limit, int offset, TitleSortSpec sort);
 
     /** Find titles in random order (ignores offset — each call returns a fresh random sample). */
     List<Title> findRandom(int limit);
@@ -216,7 +217,7 @@ public interface TitleRepository {
      * all of the given tags (direct or label-derived). Pass empty lists to skip that dimension.
      * Ordered by favorite → bookmark → newest first.
      */
-    List<Title> findByActressTagsFiltered(long actressId, List<String> labels, List<String> tags, List<Long> enrichmentTagIds, int limit, int offset);
+    List<Title> findByActressTagsFiltered(long actressId, List<String> labels, List<String> tags, List<Long> enrichmentTagIds, int limit, int offset, TitleSortSpec sort);
 
     /**
      * Find titles on a volume, optionally restricted to label codes and/or requiring all tags.

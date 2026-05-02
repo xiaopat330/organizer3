@@ -3,6 +3,8 @@ package com.organizer3.web.integration;
 import com.organizer3.ai.ActressNameLookup;
 import com.organizer3.covers.CoverPath;
 import com.organizer3.db.SchemaInitializer;
+import com.organizer3.rating.JdbiRatingCurveRepository;
+import com.organizer3.rating.RatingScoreCalculator;
 import com.organizer3.model.Actress;
 import com.organizer3.repository.jdbi.JdbiActressRepository;
 import com.organizer3.repository.jdbi.JdbiLabelRepository;
@@ -76,7 +78,8 @@ public final class IntegrationTestHarness implements AutoCloseable {
 
         ActressBrowseService actressBrowse = new ActressBrowseService(
                 actressRepo, titleRepo, coverPath, volumeSmbPaths,
-                labelRepo, nameLookup, null, jdbi);
+                labelRepo, nameLookup, null, jdbi,
+                new JdbiRatingCurveRepository(jdbi), new RatingScoreCalculator());
 
         SearchService searchService = new SearchService(
                 actressRepo, titleRepo, labelRepo, coverPath, null);

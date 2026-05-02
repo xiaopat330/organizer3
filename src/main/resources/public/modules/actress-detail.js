@@ -1,5 +1,5 @@
 import { esc, fmtDate, isStale, setStatus, splitName, timeAgo, agePillTier } from './utils.js';
-import { ICON_FAV_LG, ICON_BM_LG, ICON_REJ_LG } from './icons.js';
+import { ICON_FAV_LG, ICON_BM_LG, ICON_REJ_LG, gradeBadgeHtml } from './icons.js';
 import { showView, setActiveGrid, ensureActressDetailSentinel, ScrollingGrid, updateBreadcrumb, mode } from './grid.js';
 import { makeTitleCard, updateActressCardIndicators } from './cards.js';
 import { getActressBrowseMode, actressBrowseLabel, selectActressBrowseMode, showActressLanding, hideAllActressSubNavRows } from './actress-browse.js';
@@ -10,6 +10,8 @@ export let detailActressId    = null;
 export let detailCompanyFilter = null;
 let detailActiveTags           = new Set();
 let detailActiveEnrichmentTagIds = new Set();
+let detailSortBy               = 'release_date';
+let detailSortDir              = 'desc';
 let detailFilterTimer          = null;
 let detailActressTags          = null;   // lazy-loaded curated tag list for current actress
 let detailEnrichmentTags       = null;   // lazy-loaded enrichment tag list for current actress
@@ -41,6 +43,7 @@ export const actressDetailGrid = new ScrollingGrid(
     if (detailCompanyFilter) url += `&company=${encodeURIComponent(detailCompanyFilter)}`;
     if (detailActiveTags.size > 0) url += `&tags=${encodeURIComponent([...detailActiveTags].join(','))}`;
     if (detailActiveEnrichmentTagIds.size > 0) url += `&enrichmentTagIds=${[...detailActiveEnrichmentTagIds].join(',')}`;
+    url += `&sortBy=${encodeURIComponent(detailSortBy)}&sortDir=${encodeURIComponent(detailSortDir)}`;
     return url;
   },
   makeTitleCard,
@@ -61,6 +64,8 @@ export async function openActressDetail(actressId) {
   detailCompanyFilter          = null;
   detailActiveTags             = new Set();
   detailActiveEnrichmentTagIds = new Set();
+  detailSortBy                 = 'release_date';
+  detailSortDir                = 'desc';
   detailActressTags            = null;
   detailEnrichmentTags         = null;
   showView('actress-detail');
@@ -234,7 +239,6 @@ function renderIdentitySection(a) {
     : `<button class="btn-search-stage-name" id="btn-search-stage-name">Search for Stage Name</button>`;
 
   const tierBadge = `<span class="tier-badge tier-${esc(a.tier)}">${esc(a.tier.toLowerCase())}</span>`;
-  const gradeBadge = a.grade ? `<span class="detail-grade">${esc(a.grade)}</span>` : '';
 
   const nameBlockHtml = `
     <div class="detail-name">
@@ -244,9 +248,16 @@ function renderIdentitySection(a) {
     ${stageNameHtml}
   `;
 
-  const headerHtml = a.localAvatarUrl
-    ? `<div class="detail-identity-header">
+  const avatarHtml = a.localAvatarUrl
+    ? `<div class="detail-avatar-wrap">
          <img class="detail-actress-avatar" src="${esc(a.localAvatarUrl)}" alt="avatar">
+         ${a.derivedGrade ? `<div class="cover-grade">${gradeBadgeHtml(a.derivedGrade)}</div>` : ''}
+       </div>`
+    : '';
+
+  const headerHtml = avatarHtml
+    ? `<div class="detail-identity-header">
+         ${avatarHtml}
          <div class="detail-identity-text">${nameBlockHtml}</div>
        </div>`
     : nameBlockHtml;
@@ -256,7 +267,6 @@ function renderIdentitySection(a) {
       ${headerHtml}
       <div class="detail-meta-row">
         ${tierBadge}
-        ${gradeBadge}
       </div>
       <div class="actress-detail-actions">
         <button class="title-action-btn${a.favorite ? ' active' : ''}" id="actress-fav-btn" title="Favorite">${ICON_FAV_LG}</button>
@@ -671,15 +681,35 @@ function renderDetailFilterBar(a) {
       ${companies.map(c => `<option value="${esc(c)}">${esc(c)}</option>`).join('')}
     </select>`;
 
-  // Tags button (only if the actress has titles to tag)
+  // Sort dropdown + direction toggle
+  const sortHtml = `
+    <select class="detail-sort-select" id="detail-sort-select">
+      <option value="release_date">Release Date</option>
+      <option value="code">Product Number</option>
+      <option value="grade">Rating</option>
+    </select>
+    <button type="button" class="detail-sort-dir-btn" id="detail-sort-dir-btn" title="Toggle sort direction">↓</button>`;
+
+  // Tags button
   const tagsHtml = `<button type="button" class="detail-tags-btn" id="detail-tags-btn">
     Tags<span class="detail-tags-count" id="detail-tags-count" style="display:none"></span>
   </button>`;
 
-  bar.innerHTML = selectHtml + tagsHtml;
+  bar.innerHTML = selectHtml + sortHtml + tagsHtml;
 
   document.getElementById('detail-company-select').addEventListener('change', e => {
     detailCompanyFilter = e.target.value || null;
+    scheduleFilteredQuery();
+  });
+
+  document.getElementById('detail-sort-select').addEventListener('change', e => {
+    detailSortBy = e.target.value;
+    scheduleFilteredQuery();
+  });
+
+  document.getElementById('detail-sort-dir-btn').addEventListener('click', () => {
+    detailSortDir = detailSortDir === 'desc' ? 'asc' : 'desc';
+    document.getElementById('detail-sort-dir-btn').textContent = detailSortDir === 'desc' ? '↓' : '↑';
     scheduleFilteredQuery();
   });
 

@@ -7,6 +7,10 @@ import com.organizer3.model.ActressAlias;
 import com.organizer3.model.Label;
 import com.organizer3.model.StudioGroup;
 import com.organizer3.model.Title;
+import com.organizer3.model.TitleSortSpec;
+import com.organizer3.rating.RatingCurve;
+import com.organizer3.rating.RatingCurveRepository;
+import com.organizer3.rating.RatingScoreCalculator;
 import com.organizer3.repository.ActressRepository;
 import com.organizer3.repository.LabelRepository;
 import com.organizer3.repository.TitleRepository;
@@ -50,6 +54,8 @@ public class ActressBrowseService {
     /** Nullable — backup is skipped if not configured. */
     private final StageNameBackupFile backupFile;
     private final org.jdbi.v3.core.Jdbi jdbi;
+    private final RatingCurveRepository curveRepo;
+    private final RatingScoreCalculator ratingCalc;
 
     public List<String> findPrefixIndex() {
         List<Actress> all = actressRepo.findAll();
@@ -292,7 +298,8 @@ public class ActressBrowseService {
      * If {@code tags} is non-empty, only titles carrying all of those tags (direct or label-derived)
      * are returned. The two filters are combined with AND.
      */
-    public List<TitleSummary> findTitlesByActress(long actressId, int offset, int limit, String company, List<String> tags, List<Long> enrichmentTagIds) {
+    public List<TitleSummary> findTitlesByActress(long actressId, int offset, int limit, String company, List<String> tags, List<Long> enrichmentTagIds, String sortBy, String sortDir) {
+        TitleSortSpec sort = TitleSortSpec.of(sortBy, sortDir);
         Map<String, Label> labelMap = labelRepo.findAllAsMap();
 
         List<String> matchingLabels = List.of();
@@ -316,12 +323,12 @@ public class ActressBrowseService {
                 titles = titleRepo.findByActressTagsFiltered(actressId, matchingLabels,
                         tags != null ? tags : List.of(),
                         enrichmentTagIds != null ? enrichmentTagIds : List.of(),
-                        limit, offset);
+                        limit, offset, sort);
             }
         } else if (hasLabels) {
-            titles = titleRepo.findByActressAndLabelsPaged(actressId, matchingLabels, limit, offset);
+            titles = titleRepo.findByActressAndLabelsPaged(actressId, matchingLabels, limit, offset, sort);
         } else {
-            titles = titleRepo.findByActressPaged(actressId, limit, offset);
+            titles = titleRepo.findByActressPaged(actressId, limit, offset, sort);
         }
 
         Actress actress = actressRepo.findById(actressId).orElse(null);
@@ -397,7 +404,9 @@ public class ActressBrowseService {
             Map<Long, List<ActressAlias>> aliasesByActress,
             Map<String, Long> aliasNameToActressId,
             Map<String, Actress> primaryByCanonicalName,
-            Map<Long, String> localAvatarUrlByActress
+            Map<Long, String> localAvatarUrlByActress,
+            Map<Long, TitleRepository.RatingData> ratingDataByTitleId,
+            Optional<RatingCurve> ratingCurve
     ) {}
 
     private List<ActressSummary> toSummaries(List<Actress> actresses, String label) {
@@ -475,10 +484,19 @@ public class ActressBrowseService {
                         .stream()
                         .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue)));
 
+        // 8. Raw rating data for all titles — used to derive actress-level grades.
+        List<Long> allTitleIds = titlesByActress.values().stream()
+                .flatMap(List::stream).map(Title::getId).toList();
+        Map<Long, TitleRepository.RatingData> ratingDataByTitleId =
+                titleRepo.findRatingDataByTitleIds(allTitleIds);
+
+        // 9. Rating curve — single load shared across all actress summaries.
+        Optional<RatingCurve> ratingCurve = curveRepo.find();
+
         return new SummaryContext(
                 titlesByActress, coverUrlByTitleId, labelMap,
                 aliasesByActress, aliasNameToActressId, primaryByCanonicalName,
-                localAvatarUrlByActress);
+                localAvatarUrlByActress, ratingDataByTitleId, ratingCurve);
     }
 
     private ActressSummary toSummary(Actress actress, SummaryContext ctx) {
@@ -514,6 +532,16 @@ public class ActressBrowseService {
                 .orElse(null);
 
         String gradeDisplay = actress.getGrade() != null ? actress.getGrade().display : null;
+
+        // Derived actress grade via pooled Bayesian shrinkage over raw title rating data.
+        List<TitleRepository.RatingData> titleRatings = titles.stream()
+                .map(t -> ctx.ratingDataByTitleId().get(t.getId()))
+                .filter(Objects::nonNull)
+                .toList();
+        String derivedGrade = ctx.ratingCurve()
+                .flatMap(curve -> ratingCalc.actressGradeFor(titleRatings, titles.size(), curve))
+                .map(g -> g.display)
+                .orElse(null);
 
         // Grade rollup over this actress's titles. Insertion-ordered SSS→F using the enum order
         // so the UI can render the histogram without re-sorting; only grades present are kept.
@@ -601,6 +629,7 @@ public class ActressBrowseService {
                 .favorite(actress.isFavorite())
                 .bookmark(actress.isBookmark())
                 .grade(gradeDisplay)
+                .derivedGrade(derivedGrade)
                 .rejected(actress.isRejected())
                 .titleCount(titles.size())
                 .gradedTitleCount(gradedCount)
