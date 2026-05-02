@@ -1,6 +1,6 @@
 # Proposal: javdb Slug Verification — Stop Picking the Wrong Title
 
-**Status:** Steps 1–5 + 7 shipped to main. Step 4 (filmography cache) shipped beyond original scope — in-memory cache, DB-backed L2 persistence, drift detection, and backup writer (see commits 13a7349, 795f63e, 757ff40, 536b8d2). Step 6 = run the existing `RecomputeActressRatingCurveTask` once cleanup settles (operational, no code work). Step 8 (no_match resolver UI) is the only outstanding code work, gated on whether cleanup leaves a meaningful triage pile.
+**Status:** COMPLETE (2026-05-02). All 8 steps shipped. Step 4 expanded beyond original scope (in-memory cache, DB-backed L2 persistence, drift detection, backup writer). Step 6 ran 2026-05-02 — 2619 titles re-graded. Step 8 (no_match resolver UI) merged in PR #23 (commit 46d4535) with a follow-up null-stage-name NPE fix found via puppeteer UI verification.
 **Scope:** Fix the cast-mismatch enrichment bug discovered 2026-04-28; clean up ~232 contaminated rows + opportunistically validated extras; recompute the actress rating curve; add a triage UI for unresolvable rows.
 
 ## Decisions locked in (Q&A 2026-04-29)
