@@ -58,7 +58,8 @@ public class SchemaInitializer {
                         last_visited_at      TEXT,
                         needs_profiling      INTEGER NOT NULL DEFAULT 0,
                         favorite_cleared_at  TEXT,
-                        is_sentinel          INTEGER NOT NULL DEFAULT 0
+                        is_sentinel          INTEGER NOT NULL DEFAULT 0,
+                        custom_avatar_path   TEXT
                     )""");
 
             h.execute("""
@@ -588,7 +589,7 @@ public class SchemaInitializer {
             // leave the version alone and let SchemaUpgrader apply any missing migrations.
             int currentVersion = h.createQuery("PRAGMA user_version").mapTo(Integer.class).one();
             if (currentVersion == 0) {
-                h.execute("PRAGMA user_version = 42");
+                h.execute("PRAGMA user_version = 43");
             }
         });
         log.info("Schema initialization complete");

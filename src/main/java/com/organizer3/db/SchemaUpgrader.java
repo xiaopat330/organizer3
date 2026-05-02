@@ -19,7 +19,7 @@ import org.jdbi.v3.core.Jdbi;
 public class SchemaUpgrader {
 
     /** Must match the version stamped by {@link SchemaInitializer}. */
-    private static final int CURRENT_VERSION = 42;
+    private static final int CURRENT_VERSION = 43;
 
     private final Jdbi jdbi;
 
@@ -233,6 +233,11 @@ public class SchemaUpgrader {
             setVersion(42);
         }
 
+        if (version < 43) {
+            applyV43();
+            setVersion(43);
+        }
+
         log.info("Schema upgrade complete");
     }
 
@@ -289,6 +294,21 @@ public class SchemaUpgrader {
                     CREATE INDEX IF NOT EXISTS idx_asq_actress
                         ON av_screenshot_queue(av_actress_id)""");
         });
+    }
+
+    /**
+     * v43: {@code custom_avatar_path} column on {@code actresses}.
+     *
+     * <p>Stores the relative path to a user-curated avatar image (e.g.
+     * {@code actress-custom-avatars/42.jpg}). NULL means no custom avatar; resolution
+     * falls back to {@code javdb_actress_staging.local_avatar_path} via COALESCE at
+     * query time. No backfill needed — purely additive.
+     *
+     * <p>See spec/PROPOSAL_CUSTOM_PROFILE_IMAGES.md.
+     */
+    private void applyV43() {
+        log.info("Applying migration v43: custom_avatar_path on actresses");
+        jdbi.useHandle(h -> addColumnIfMissing(h, "actresses", "custom_avatar_path", "TEXT"));
     }
 
     /**

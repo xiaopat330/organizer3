@@ -1301,8 +1301,10 @@ public class JdbiActressRepository implements ActressRepository {
                                         AND tc.base_code IS NOT NULL AND tc.label IS NOT NULL
                                       ORDER BY tc.id DESC LIMIT 5) sub
                                ) AS cover_candidates,
-                               s.local_avatar_path AS local_avatar_path
+                               COALESCE(a.custom_avatar_path, s.local_avatar_path) AS local_avatar_path,
+                               (a.custom_avatar_path IS NOT NULL) AS has_custom_avatar
                         FROM ranked r
+                        JOIN actresses a ON a.id = r.id
                         LEFT JOIN titles t ON t.actress_id = r.id
                         LEFT JOIN javdb_actress_staging s ON s.actress_id = r.id
                         WHERE r.rn = 1
@@ -1323,7 +1325,8 @@ public class JdbiActressRepository implements ActressRepository {
                                 rs.getString("matched_alias"),
                                 rs.getInt("title_count"),
                                 rs.getString("cover_candidates"),
-                                rs.getString("local_avatar_path")
+                                rs.getString("local_avatar_path"),
+                                rs.getInt("has_custom_avatar") != 0
                         ))
                         .list()
         );
@@ -1361,8 +1364,10 @@ public class JdbiActressRepository implements ActressRepository {
                                         AND tc.base_code IS NOT NULL AND tc.label IS NOT NULL
                                       ORDER BY tc.id DESC LIMIT 5) sub
                                ) AS cover_candidates,
-                               s.local_avatar_path AS local_avatar_path
+                               COALESCE(a.custom_avatar_path, s.local_avatar_path) AS local_avatar_path,
+                               (a.custom_avatar_path IS NOT NULL) AS has_custom_avatar
                         FROM ranked r
+                        JOIN actresses a ON a.id = r.id
                         LEFT JOIN titles t ON t.actress_id = r.id
                         LEFT JOIN javdb_actress_staging s ON s.actress_id = r.id
                         WHERE r.rn = 1
@@ -1384,7 +1389,8 @@ public class JdbiActressRepository implements ActressRepository {
                                 rs.getString("matched_alias"),
                                 rs.getInt("title_count"),
                                 rs.getString("cover_candidates"),
-                                rs.getString("local_avatar_path")
+                                rs.getString("local_avatar_path"),
+                                rs.getInt("has_custom_avatar") != 0
                         ))
                         .list()
         );
@@ -1445,6 +1451,25 @@ public class JdbiActressRepository implements ActressRepository {
                         .bind("rejected", rejected ? 1 : 0)
                         .bind("visitCount", visitCount)
                         .bind("lastVisitedAt", lastVisitedAt != null ? lastVisitedAt.toString() : null)
+                        .execute()
+        );
+    }
+
+    @Override
+    public void setCustomAvatarPath(long actressId, String path) {
+        jdbi.useHandle(h ->
+                h.createUpdate("UPDATE actresses SET custom_avatar_path = :path WHERE id = :id")
+                        .bind("path", path)
+                        .bind("id", actressId)
+                        .execute()
+        );
+    }
+
+    @Override
+    public void clearCustomAvatarPath(long actressId) {
+        jdbi.useHandle(h ->
+                h.createUpdate("UPDATE actresses SET custom_avatar_path = NULL WHERE id = :id")
+                        .bind("id", actressId)
                         .execute()
         );
     }

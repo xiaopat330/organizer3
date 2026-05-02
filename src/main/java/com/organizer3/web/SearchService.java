@@ -122,6 +122,7 @@ public class SearchService {
             }
         }
         m.put("coverUrl", coverUrl);
+        m.put("hasCustomAvatar", r.hasCustomAvatar());
         return m;
     }
 
