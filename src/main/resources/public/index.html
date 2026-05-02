@@ -737,12 +737,93 @@
   </div>
   <main class="queue-editor">
     <div id="queue-editor-empty" class="queue-editor-empty">Select a title from the queue to start editing.</div>
+    <!-- ── Draft pane (shown when draft_titles row exists) ────────────────── -->
+    <section id="queue-draft-pane" class="queue-editor-pane" style="display:none">
+      <div class="queue-editor-header">
+        <span id="queue-draft-code" class="queue-draft-code"></span>
+        <span class="queue-editor-sep">·</span>
+        <span id="queue-draft-folder" class="queue-editor-folder"></span>
+        <span class="queue-draft-badge">DRAFT</span>
+        <div class="queue-draft-header-actions">
+          <button type="button" id="queue-draft-validate-btn" class="queue-btn queue-btn-secondary">Validate</button>
+          <button type="button" id="queue-draft-promote-btn" class="queue-btn queue-btn-primary">Promote</button>
+          <button type="button" id="queue-draft-discard-btn" class="queue-btn queue-btn-danger">Discard</button>
+        </div>
+      </div>
+
+      <!-- Upstream-changed banner (shown when draft.upstreamChanged=true) -->
+      <div id="queue-upstream-changed-banner" class="queue-upstream-changed-banner" style="display:none">
+        <div class="queue-upstream-changed-text">
+          The underlying title was re-synced after this draft started.
+        </div>
+        <div class="queue-upstream-changed-actions">
+          <button type="button" id="queue-upstream-discard-btn" class="queue-btn queue-btn-danger queue-btn-sm">Discard and restart</button>
+          <button type="button" id="queue-upstream-continue-btn" class="queue-btn queue-btn-sm">Continue anyway</button>
+        </div>
+      </div>
+
+      <!-- Validate / promote status -->
+      <div id="queue-draft-status-line" class="queue-draft-status-line" style="display:none"></div>
+
+      <div class="queue-editor-body">
+        <!-- Cover column -->
+        <div class="queue-cover-column">
+          <div id="queue-draft-cover-panel" class="queue-cover-panel">
+            <img id="queue-draft-cover-img" class="queue-cover-img" alt="" style="display:none">
+            <div id="queue-draft-cover-placeholder" class="queue-cover-placeholder" style="display:none">
+              <div>No cover</div>
+            </div>
+          </div>
+          <div class="queue-draft-cover-actions">
+            <button type="button" id="queue-draft-cover-refetch-btn" class="queue-btn queue-btn-sm">Refetch cover</button>
+            <button type="button" id="queue-draft-cover-clear-btn"   class="queue-btn queue-btn-sm">Clear</button>
+          </div>
+
+          <!-- Metadata block (read-only) -->
+          <div class="queue-draft-meta">
+            <div class="queue-draft-meta-row"><span class="queue-draft-meta-label">Title</span><span id="queue-draft-meta-title" class="queue-draft-meta-value"></span></div>
+            <div class="queue-draft-meta-row"><span class="queue-draft-meta-label">Released</span><span id="queue-draft-meta-release" class="queue-draft-meta-value"></span></div>
+            <div class="queue-draft-meta-row"><span class="queue-draft-meta-label">Maker</span><span id="queue-draft-meta-maker" class="queue-draft-meta-value"></span></div>
+            <div class="queue-draft-meta-row"><span class="queue-draft-meta-label">Series</span><span id="queue-draft-meta-series" class="queue-draft-meta-value"></span></div>
+          </div>
+        </div>
+
+        <!-- Cast section -->
+        <div class="queue-actress-panel">
+          <div class="queue-actress-panel-title">
+            Cast slots
+            <span class="queue-actress-panel-note">(resolve each slot before promoting)</span>
+          </div>
+          <ul id="queue-draft-cast-list" class="queue-actress-list queue-draft-cast-list"></ul>
+        </div>
+      </div>
+
+      <hr class="queue-section-divider">
+
+      <!-- Enrichment tags (read-only) + intrinsic tags (editable) -->
+      <div class="queue-tags-section">
+        <div class="queue-tags-label">
+          Tags
+          <span class="queue-tags-label-note">enrichment tags are locked (<span class="queue-tag-lock-icon">🔒</span>); intrinsic tags are editable</span>
+        </div>
+        <div id="queue-draft-tags-panel" class="queue-tags-panel"></div>
+      </div>
+
+      <!-- Skip affordance (same as no-draft pane) -->
+      <div class="queue-editor-actions">
+        <button type="button" id="queue-draft-skip-btn" class="queue-btn">Skip →</button>
+        <span id="queue-draft-promote-status" class="queue-editor-status"></span>
+      </div>
+    </section>
+
+    <!-- ── No-draft pane (shown when no draft_titles row exists) ───────────── -->
     <section id="queue-editor-pane" class="queue-editor-pane" style="display:none">
       <div class="queue-editor-header">
         <span id="queue-editor-code"></span>
         <span class="queue-editor-sep">·</span>
         <span id="queue-editor-folder" class="queue-editor-folder"></span>
         <span id="queue-duplicate-badge" class="queue-duplicate-badge" style="display:none">Duplicate</span>
+        <button type="button" id="queue-enrich-btn" class="queue-btn queue-btn-secondary queue-enrich-btn" style="display:none">Enrich (draft)</button>
       </div>
       <div id="queue-duplicate-banner" class="queue-duplicate-banner" style="display:none">
         <div class="queue-duplicate-banner-title">This product code already exists in the library.</div>

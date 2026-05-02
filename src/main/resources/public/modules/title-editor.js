@@ -1,9 +1,17 @@
 // Title Editor (Queue) module. See spec/PROPOSAL_TITLE_EDITOR.md.
 // Split layout: sidebar queue + editor pane. Single route, swap editor pane in place.
+//
+// Phase 4 retrofit: state router at editor open.
+// - GET /api/drafts/:titleId  → 200  → hand off to title-editor-draft.js (draft pane)
+// - GET /api/drafts/:titleId  → 404  → show no-draft pane (existing editor, now read-only-ish
+//                                       with Enrich button added)
+// See spec/PROPOSAL_DRAFT_MODE.md §11.2.
 
 import { esc } from './utils.js';
 import { openTitleDetail } from './title-detail.js';
 import * as taskCenter from './task-center.js';
+import { mountDraftView, unmountDraftView } from './title-editor-draft.js';
+import { mountNoDraftView } from './title-editor-nodraft.js';
 
 // ── DOM refs ──────────────────────────────────────────────────────────────
 const view          = document.getElementById('tools-queue-view');
@@ -61,14 +69,21 @@ advanceCb.addEventListener('change', () => {
   localStorage.setItem(ADVANCE_KEY, advanceCb.checked ? '1' : '0');
 });
 
+// ── DOM refs (draft pane) ─────────────────────────────────────────────────
+const draftPane = document.getElementById('queue-draft-pane');
+
 // ── Module state ──────────────────────────────────────────────────────────
 let queueRows = [];          // [{titleId, code, folderName, actressCount, hasCover, complete}]
 let currentId = null;
 let currentDetail = null;    // loaded detail for currentId
-let editorState = null;      // { actresses: [{id?|newName, canonicalName, primary, isNew}], coverStaged: { kind: 'url'|'bytes', ...} | null, coverDirty: boolean }
+let currentDraftMode = false; // true when draft pane is active
+let editorState = null;      // { actresses: [...], coverStaged: ..., coverDirty: bool, ... }
 let suggestHighlight = -1;
 let searchSeq = 0;
 let tagsCatalog = null; // [{category, label, tags: [{name, description}]}]
+
+/** Map<titleId, true> for rows that have an active draft (loaded from /api/drafts). */
+let draftedTitleIds = new Set();
 
 // ── Public API ────────────────────────────────────────────────────────────
 export function showTitleEditor() {
@@ -79,6 +94,7 @@ export function showTitleEditor() {
 export function hideTitleEditorView() {
   view.style.display = 'none';
   hideSuggest();
+  unmountDraftView();
 }
 
 // ── Sidebar / queue list ──────────────────────────────────────────────────
@@ -86,6 +102,14 @@ async function loadQueue() {
   try {
     const [rowsRes] = await Promise.all([fetch('/api/unsorted/titles'), ensureTagsCatalog()]);
     queueRows = await rowsRes.json();
+    // Fetch active drafts for sidebar badge rendering.
+    try {
+      const draftsRes = await fetch('/api/drafts');
+      if (draftsRes.ok) {
+        const drafts = await draftsRes.json();
+        draftedTitleIds = new Set((drafts || []).map(d => d.titleId));
+      }
+    } catch (_) { /* badge fetch failure is non-fatal */ }
     renderSidebar();
   } catch (err) {
     console.error('loadQueue failed', err);
@@ -117,9 +141,11 @@ function renderSidebar() {
     li.className = 'queue-list-item';
     if (r.titleId === currentId) li.classList.add('selected');
     const marker = statusMarker(r);
+    const draftPill = draftedTitleIds.has(r.titleId)
+        ? `<span class="queue-draft-pill" title="Has active draft">DRAFT</span>` : '';
     li.innerHTML = `
       <span class="queue-status-marker ${marker.cls}" title="${marker.title}">${marker.glyph}</span>
-      <span class="queue-code">${esc(r.code)}</span>
+      <span class="queue-code">${esc(r.code)}</span>${draftPill}
       <span class="queue-folder-excerpt">${esc(r.folderName)}</span>
     `;
     li.addEventListener('click', () => navigateTo(r.titleId));
@@ -140,14 +166,16 @@ showCompleteCb.addEventListener('change', renderSidebar);
 
 // ── Navigation (with unsaved-changes guard) ───────────────────────────────
 async function navigateTo(titleId) {
-  if (isDirty() && !confirm('Discard unsaved changes?')) return;
+  // In draft mode, no unsaved-changes guard is needed — draft edits are saved
+  // server-side immediately via PATCH. Only guard for the no-draft editor.
+  if (!currentDraftMode && isDirty() && !confirm('Discard unsaved changes?')) return;
   currentId = titleId;
   await loadDetail(titleId);
   renderSidebar();
 }
 
 skipBtn.addEventListener('click', () => {
-  if (isDirty() && !confirm('Discard unsaved changes?')) return;
+  if (!currentDraftMode && isDirty() && !confirm('Discard unsaved changes?')) return;
   const rows = visibleRows();
   if (!rows.length) { showEmpty(); return; }
   const idx = rows.findIndex(r => r.titleId === currentId);
@@ -176,14 +204,77 @@ function nextTitleIdAfter(savedId) {
 }
 
 // ── Load + render editor pane ─────────────────────────────────────────────
+
+/**
+ * Load a title and route to draft or no-draft pane.
+ *
+ * State router (Phase 4):
+ *   GET /api/drafts/:titleId → 200  → draft pane (title-editor-draft.js)
+ *   GET /api/drafts/:titleId → 404  → no-draft pane (existing editor)
+ */
 async function loadDetail(titleId) {
   setStatus('', '');
+  // Unmount any active draft view.
+  unmountDraftView();
+  currentDraftMode = false;
+  if (draftPane) draftPane.style.display = 'none';
+
   try {
-    const res = await fetch(`/api/unsorted/titles/${titleId}`);
-    if (!res.ok) { showEmpty(); return; }
-    currentDetail = await res.json();
-    editorState = buildInitialState(currentDetail);
-    renderEditor();
+    // Load canonical detail and draft status in parallel.
+    const [detailRes, draftRes] = await Promise.all([
+      fetch(`/api/unsorted/titles/${titleId}`),
+      fetch(`/api/drafts/${titleId}`),
+    ]);
+
+    if (!detailRes.ok) { showEmpty(); return; }
+    currentDetail = await detailRes.json();
+
+    const hasDraft = draftRes.status === 200;
+
+    if (hasDraft) {
+      // Draft pane.
+      const draft = await draftRes.json();
+      currentDraftMode = true;
+      await ensureTagsCatalog();
+
+      // Show draft pane, hide legacy pane.
+      pane.style.display = 'none';
+      emptyState.style.display = 'none';
+
+      mountDraftView(
+        titleId,
+        currentDetail.detail?.folderName || '',
+        draft,
+        tagsCatalog,
+        currentDetail.directTags || [],
+        // onDiscard: reload detail (will go back to no-draft pane).
+        (tid) => { loadDetail(tid).then(() => loadQueue()); },
+        // onPromote: close editor + refresh queue.
+        (tid) => { showEmpty(); loadQueue(); },
+        // onSkip.
+        () => {
+          const rows = visibleRows();
+          if (!rows.length) { showEmpty(); return; }
+          const idx = rows.findIndex(r => r.titleId === currentId);
+          const next = idx < 0 ? rows[0] : rows[(idx + 1) % rows.length];
+          currentId = next.titleId;
+          loadDetail(next.titleId).then(renderSidebar);
+        },
+        setStatus,
+      );
+    } else {
+      // No-draft pane (existing editor).
+      editorState = buildInitialState(currentDetail);
+      renderEditor();
+      // Mount no-draft view (wires Enrich button).
+      mountNoDraftView(
+        currentDetail,
+        editorState,
+        // onEnrichSuccess: reload detail (will route to draft pane).
+        (tid) => loadDetail(tid).then(() => loadQueue()),
+        setStatus,
+      );
+    }
   } catch (err) {
     console.error('loadDetail failed', err);
     showEmpty();
@@ -193,6 +284,8 @@ async function loadDetail(titleId) {
 function showEmpty() {
   currentDetail = null;
   editorState = null;
+  currentDraftMode = false;
+  unmountDraftView();
   pane.style.display = 'none';
   emptyState.style.display = 'block';
   emptyState.textContent = visibleRows().length === 0
@@ -228,6 +321,7 @@ function buildInitialState(detail) {
 function renderEditor() {
   if (!currentDetail) return;
   emptyState.style.display = 'none';
+  if (draftPane) draftPane.style.display = 'none';
   pane.style.display = 'flex';
   const d = currentDetail.detail;
   codeEl.textContent = d.code;

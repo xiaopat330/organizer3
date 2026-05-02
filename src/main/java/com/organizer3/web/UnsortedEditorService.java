@@ -22,7 +22,14 @@ import java.util.regex.Pattern;
  * Service layer for the Title Editor. Aggregates repository calls and adds
  * derived data (cover-present, complete status, typeahead shaping) that is not
  * worth pushing into persistence-layer queries.
+ *
+ * @deprecated The direct-write editor pathway (UnsortedEditor) is superseded by
+ *   Draft Mode (Phase 4). This service still handles the no-draft editor's
+ *   actress search, queue listing, and direct-save flows. Orderly retirement
+ *   is tracked as a follow-up; see spec/PROPOSAL_DRAFT_MODE.md §11.6.
  */
+@Deprecated
+@SuppressWarnings("DeprecatedIsStillUsed")
 @Slf4j
 public class UnsortedEditorService {
 
