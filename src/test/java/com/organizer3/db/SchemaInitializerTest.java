@@ -56,7 +56,7 @@ class SchemaInitializerTest {
                         "rating_curve", "revalidation_pending", "tags",
                         "title_actresses", "title_effective_tags", "title_enrichment_tags",
                         "title_javdb_enrichment", "title_javdb_enrichment_history",
-                        "title_locations", "title_tags",
+                        "title_locations", "title_path_history", "title_tags",
                         "titles", "videos", "volumes", "watch_history"),
                 tables
         );
@@ -96,6 +96,7 @@ class SchemaInitializerTest {
                         "idx_title_actresses_actress", "idx_title_actresses_title",
                         "idx_title_effective_tags_tag",
                         "idx_title_locations_title", "idx_title_locations_volume", "idx_title_locations_volume_partition",
+                        "idx_title_path_history_lookup", "idx_title_path_history_title_id",
                         "idx_title_tags_tag",
                         "idx_titles_actress", "idx_titles_code", "idx_titles_label",
                         "idx_tje_maker", "idx_tje_rating_avg", "idx_tje_release_date", "idx_tje_revalidated",
@@ -170,7 +171,7 @@ class SchemaInitializerTest {
 
         int version = jdbi.withHandle(h ->
                 h.createQuery("PRAGMA user_version").mapTo(Integer.class).one());
-        assertEquals(45, version);
+        assertEquals(46, version);
     }
 
     @Test

@@ -645,12 +645,33 @@ public class SchemaInitializer {
                         updated_at      TEXT NOT NULL
                     )""");
 
+            // title_path_history: forensic path log for sync matcher fallback (v46).
+            // No FK on title_id — rows survive title deletion; used for re-add recovery.
+            // Identity is (volume_id, partition_id, path); cross-volume matches excluded.
+            h.execute("""
+                    CREATE TABLE IF NOT EXISTS title_path_history (
+                        id            INTEGER PRIMARY KEY AUTOINCREMENT,
+                        title_id      INTEGER NOT NULL,
+                        volume_id     TEXT    NOT NULL,
+                        partition_id  TEXT    NOT NULL,
+                        path          TEXT    NOT NULL,
+                        first_seen_at TEXT    NOT NULL,
+                        last_seen_at  TEXT    NOT NULL,
+                        UNIQUE (volume_id, partition_id, path)
+                    )""");
+            h.execute("""
+                    CREATE INDEX IF NOT EXISTS idx_title_path_history_lookup
+                        ON title_path_history (volume_id, partition_id, path)""");
+            h.execute("""
+                    CREATE INDEX IF NOT EXISTS idx_title_path_history_title_id
+                        ON title_path_history (title_id)""");
+
             // Only stamp version on fresh installs (user_version = 0).
             // On an existing DB the CREATE TABLE statements above are all no-ops, so we must
             // leave the version alone and let SchemaUpgrader apply any missing migrations.
             int currentVersion = h.createQuery("PRAGMA user_version").mapTo(Integer.class).one();
             if (currentVersion == 0) {
-                h.execute("PRAGMA user_version = 45");
+                h.execute("PRAGMA user_version = 46");
             }
         });
         log.info("Schema initialization complete");

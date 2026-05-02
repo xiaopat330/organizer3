@@ -19,7 +19,7 @@ import org.jdbi.v3.core.Jdbi;
 public class SchemaUpgrader {
 
     /** Must match the version stamped by {@link SchemaInitializer}. */
-    private static final int CURRENT_VERSION = 45;
+    private static final int CURRENT_VERSION = 46;
 
     private final Jdbi jdbi;
 
@@ -248,6 +248,11 @@ public class SchemaUpgrader {
             setVersion(45);
         }
 
+        if (version < 46) {
+            applyV46();
+            setVersion(46);
+        }
+
         log.info("Schema upgrade complete");
     }
 
@@ -425,6 +430,43 @@ public class SchemaUpgrader {
         jdbi.useHandle(h -> {
             addColumnIfMissing(h, "title_javdb_enrichment_history", "new_payload",         "TEXT");
             addColumnIfMissing(h, "title_javdb_enrichment_history", "promotion_metadata",  "TEXT");
+        });
+    }
+
+    /**
+     * v46: {@code title_path_history} — forensic log of volume-relative paths a title has
+     * ever occupied. Used by {@code SyncIdentityMatcher} as a last-resort match layer: if a
+     * folder reappears at a historically-known path and code-based matching misses, the
+     * history row can surface it as a {@code path_history_match} review-queue candidate.
+     *
+     * <p>No FK on {@code title_id} — mirrors {@code title_javdb_enrichment_history}. Rows must
+     * survive title deletion so a re-add can recover the prior identity.
+     *
+     * <p>Identity is {@code (volume_id, partition_id, path)} — unique across all locations in the
+     * library. Cross-volume path matches are intentionally excluded; see spec §Phase 4.
+     *
+     * <p>See spec/PROPOSAL_SYNC_METADATA_PRESERVATION.md §5 Option D and §6 Phase 4.
+     */
+    private void applyV46() {
+        log.info("Applying migration v46: title_path_history table");
+        jdbi.useHandle(h -> {
+            h.execute("""
+                    CREATE TABLE IF NOT EXISTS title_path_history (
+                        id            INTEGER PRIMARY KEY AUTOINCREMENT,
+                        title_id      INTEGER NOT NULL,
+                        volume_id     TEXT    NOT NULL,
+                        partition_id  TEXT    NOT NULL,
+                        path          TEXT    NOT NULL,
+                        first_seen_at TEXT    NOT NULL,
+                        last_seen_at  TEXT    NOT NULL,
+                        UNIQUE (volume_id, partition_id, path)
+                    )""");
+            h.execute("""
+                    CREATE INDEX IF NOT EXISTS idx_title_path_history_lookup
+                        ON title_path_history (volume_id, partition_id, path)""");
+            h.execute("""
+                    CREATE INDEX IF NOT EXISTS idx_title_path_history_title_id
+                        ON title_path_history (title_id)""");
         });
     }
 
