@@ -3,6 +3,7 @@
 
 import { esc } from './utils.js';
 import { openTitleDetail } from './title-detail.js';
+import * as taskCenter from './task-center.js';
 
 // ── DOM refs ──────────────────────────────────────────────────────────────
 const view          = document.getElementById('tools-queue-view');
@@ -107,6 +108,7 @@ function visibleRows() {
 function renderSidebar() {
   const complete = queueRows.filter(r => r.complete).length;
   sidebarCount.textContent = `${queueRows.length} eligible · ${complete} complete`;
+  updateBulkEnrichButton();
 
   sidebarList.innerHTML = '';
   const rows = visibleRows();
@@ -749,3 +751,119 @@ function setStatus(msg, cls) {
   statusEl.textContent = msg;
   statusEl.className = 'queue-editor-status' + (cls ? ' ' + cls : '');
 }
+
+// ── Bulk Enrich to Draft (Phase 6) ────────────────────────────────────────
+//
+// "Enrich N visible" button — calls the preview endpoint, shows a confirm modal,
+// then starts enrichment.bulk_enrich_to_draft via the standard task-run endpoint.
+
+const bulkEnrichBtn    = document.getElementById('queue-bulk-enrich-btn');
+const bulkEnrichModal  = document.getElementById('queue-bulk-enrich-modal');
+const bulkEnrichBody   = document.getElementById('queue-bulk-enrich-modal-body');
+const bulkConfirmBtn   = document.getElementById('queue-bulk-enrich-confirm-btn');
+const bulkCancelBtn    = document.getElementById('queue-bulk-enrich-cancel-btn');
+
+let _bulkPlan = null;  // last preview result; set before modal opens
+
+function updateBulkEnrichButton() {
+  const rows = visibleRows().filter(r => !r.complete);
+  if (rows.length === 0) {
+    bulkEnrichBtn.style.display = 'none';
+  } else {
+    bulkEnrichBtn.style.display = '';
+    bulkEnrichBtn.textContent   = `Enrich ${rows.length} visible`;
+  }
+}
+
+bulkEnrichBtn.addEventListener('click', async () => {
+  const rows = visibleRows().filter(r => !r.complete);
+  if (rows.length === 0) return;
+  const titleIds = rows.map(r => r.titleId);
+
+  bulkEnrichBtn.disabled = true;
+  bulkEnrichBtn.textContent = 'Checking…';
+  try {
+    const res = await fetch('/api/drafts/bulk-enrich/preview', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ titleIds }),
+    });
+    if (!res.ok) throw new Error('Preview failed: HTTP ' + res.status);
+    _bulkPlan = await res.json();
+
+    const { eligibleCount, alreadyDrafted, alreadyCurated } = _bulkPlan;
+    const exclusions = [];
+    if (alreadyDrafted > 0) exclusions.push(`${alreadyDrafted} already have drafts`);
+    if (alreadyCurated > 0) exclusions.push(`${alreadyCurated} already curated`);
+    const exclusionNote = exclusions.length > 0
+      ? ` (${exclusions.join(', ')} — excluded)`
+      : '';
+    bulkEnrichBody.textContent =
+      `${eligibleCount} title${eligibleCount !== 1 ? 's' : ''} will be enriched to draft.` +
+      exclusionNote +
+      ' The background enrichment runner will be paused while the task runs. Proceed?';
+
+    if (eligibleCount === 0) {
+      bulkEnrichBody.textContent = 'No eligible titles to enrich.' + exclusionNote;
+      bulkConfirmBtn.style.display = 'none';
+    } else {
+      bulkConfirmBtn.style.display = '';
+    }
+    bulkEnrichModal.style.display = '';
+  } catch (err) {
+    console.error('BulkEnrich: preview failed', err);
+    alert('Could not load preview: ' + err.message);
+  } finally {
+    updateBulkEnrichButton();
+  }
+});
+
+bulkCancelBtn.addEventListener('click', () => {
+  bulkEnrichModal.style.display = 'none';
+  _bulkPlan = null;
+});
+
+bulkConfirmBtn.addEventListener('click', async () => {
+  if (!_bulkPlan || _bulkPlan.eligibleCount === 0) return;
+  bulkConfirmBtn.disabled = true;
+  bulkCancelBtn.disabled  = true;
+  try {
+    const eligibleIds = _bulkPlan.eligibleIds;
+    const titleIdsJson = JSON.stringify(eligibleIds);
+    const res = await fetch('/api/utilities/tasks/enrichment.bulk_enrich_to_draft/run', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ titleIds: titleIdsJson }),
+    });
+    const data = await res.json();
+    if (!res.ok || !data.runId) {
+      alert('Failed to start task: ' + (data.error || data.message || res.statusText));
+      bulkConfirmBtn.disabled = false;
+      bulkCancelBtn.disabled  = false;
+      return;
+    }
+    bulkEnrichModal.style.display = 'none';
+    _bulkPlan = null;
+    // Register the run with the global task pill so the user can monitor progress.
+    taskCenter.start({ taskId: 'enrichment.bulk_enrich_to_draft', runId: data.runId, label: 'Bulk Enrich to Draft' });
+    const es = new EventSource(`/api/utilities/runs/${encodeURIComponent(data.runId)}/events`);
+    es.addEventListener('phase.started',  e => { const ev = JSON.parse(e.data); taskCenter.updateProgress({ phaseLabel: ev.label }); });
+    es.addEventListener('phase.progress', e => { const ev = JSON.parse(e.data); taskCenter.updateProgress({ overallPct: Math.round((ev.current / ev.total) * 100) }); });
+    es.addEventListener('phase.ended',    e => { const ev = JSON.parse(e.data); if (ev.status === 'failed') taskCenter.finish({ status: 'failed', summary: ev.summary }); });
+    es.addEventListener('run.ended',      e => { const ev = JSON.parse(e.data); taskCenter.finish({ status: ev.status, summary: ev.summary }); es.close(); });
+    es.addEventListener('error',          () => { taskCenter.finish({ status: 'failed', summary: 'Connection lost' }); es.close(); });
+  } catch (err) {
+    console.error('BulkEnrich: start failed', err);
+    alert('Failed to start task: ' + err.message);
+    bulkConfirmBtn.disabled = false;
+    bulkCancelBtn.disabled  = false;
+  }
+});
+
+// Close modal on backdrop click.
+bulkEnrichModal.addEventListener('click', e => {
+  if (e.target === bulkEnrichModal) {
+    bulkEnrichModal.style.display = 'none';
+    _bulkPlan = null;
+  }
+});

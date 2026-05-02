@@ -758,4 +758,99 @@
   color: #64748b;
 }
 .queue-editor-status.success { color: #22c55e; }
+
+/* ── Phase 6: Bulk Enrich sidebar action + confirm modal ──────────────────── */
+
+.queue-sidebar-actions {
+  padding: 6px 12px;
+  border-bottom: 1px solid #1e293b;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.queue-bulk-enrich-btn {
+  font-size: 0.72rem;
+  padding: 3px 8px;
+  border-radius: 4px;
+  border: 1px solid #334155;
+  background: #0f1a2e;
+  color: #94a3b8;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.queue-bulk-enrich-btn:hover:not(:disabled) {
+  background: #1e293b;
+  color: #e2e8f0;
+  border-color: #475569;
+}
+.queue-bulk-enrich-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+/* Full-screen backdrop overlay */
+.queue-bulk-enrich-modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.queue-bulk-enrich-modal-box {
+  background: #0d1626;
+  border: 1px solid #1e293b;
+  border-radius: 8px;
+  padding: 24px 28px;
+  max-width: 420px;
+  width: 90%;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.queue-bulk-enrich-modal-box h3 {
+  margin: 0;
+  font-size: 1rem;
+  color: #e2e8f0;
+  font-weight: 600;
+}
+
+.queue-bulk-enrich-modal-box p {
+  margin: 0;
+  font-size: 0.88rem;
+  color: #94a3b8;
+  line-height: 1.5;
+}
+
+.queue-bulk-enrich-modal-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+#queue-bulk-enrich-confirm-btn {
+  padding: 6px 16px;
+  border-radius: 5px;
+  border: none;
+  background: #0ea5e9;
+  color: #fff;
+  font-size: 0.85rem;
+  cursor: pointer;
+  font-weight: 500;
+}
+#queue-bulk-enrich-confirm-btn:hover:not(:disabled) { background: #0284c7; }
+#queue-bulk-enrich-confirm-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+#queue-bulk-enrich-cancel-btn {
+  padding: 6px 14px;
+  border-radius: 5px;
+  border: 1px solid #334155;
+  background: transparent;
+  color: #94a3b8;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+#queue-bulk-enrich-cancel-btn:hover:not(:disabled) { background: #1e293b; color: #e2e8f0; }
+#queue-bulk-enrich-cancel-btn:disabled { opacity: 0.4; cursor: not-allowed; }
 .queue-editor-status.error   { color: #ef4444; }

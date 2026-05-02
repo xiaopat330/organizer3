@@ -1,5 +1,6 @@
 package com.organizer3.web.routes;
 
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.organizer3.javdb.draft.DraftCoverScratchStore;
@@ -16,10 +17,13 @@ import com.organizer3.web.ImageFetcher;
 import io.javalin.Javalin;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.jdbi.v3.core.Jdbi;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.InputStream;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
@@ -52,15 +56,18 @@ public final class DraftRoutes {
     private final ImageFetcher                    imageFetcher;
     private final DraftPromotionService           promotionService;
     private final ObjectMapper                    json;
+    /** Needed for the bulk-enrich preview eligibility queries (Phase 6). */
+    private final Jdbi                            jdbi;
 
-    /** Full constructor (Phase 3+). */
+    /** Full constructor (Phase 3+, Phase 6). */
     public DraftRoutes(DraftPopulator populator,
                        DraftTitleRepository draftTitleRepo,
                        DraftTitleEnrichmentRepository draftEnrichRepo,
                        DraftCoverScratchStore coverStore,
                        ImageFetcher imageFetcher,
                        DraftPromotionService promotionService,
-                       ObjectMapper json) {
+                       ObjectMapper json,
+                       Jdbi jdbi) {
         this.populator        = populator;
         this.draftTitleRepo   = draftTitleRepo;
         this.draftEnrichRepo  = draftEnrichRepo;
@@ -68,18 +75,32 @@ public final class DraftRoutes {
         this.imageFetcher     = imageFetcher;
         this.promotionService = promotionService;
         this.json             = json;
+        this.jdbi             = jdbi;
     }
 
-    /** Legacy constructor for Phase 2 tests (no promotion service). */
+    /** Phase 3 backward-compat constructor (no jdbi). */
+    public DraftRoutes(DraftPopulator populator,
+                       DraftTitleRepository draftTitleRepo,
+                       DraftTitleEnrichmentRepository draftEnrichRepo,
+                       DraftCoverScratchStore coverStore,
+                       ImageFetcher imageFetcher,
+                       DraftPromotionService promotionService,
+                       ObjectMapper json) {
+        this(populator, draftTitleRepo, draftEnrichRepo, coverStore, imageFetcher,
+                promotionService, json, null);
+    }
+
+    /** Legacy constructor for Phase 2 tests (no promotion service, no jdbi). */
     public DraftRoutes(DraftPopulator populator,
                        DraftTitleRepository draftTitleRepo,
                        DraftTitleEnrichmentRepository draftEnrichRepo,
                        DraftCoverScratchStore coverStore,
                        ImageFetcher imageFetcher) {
-        this(populator, draftTitleRepo, draftEnrichRepo, coverStore, imageFetcher, null, new ObjectMapper());
+        this(populator, draftTitleRepo, draftEnrichRepo, coverStore, imageFetcher, null, new ObjectMapper(), null);
     }
 
     public void register(Javalin app) {
+        registerBulkEnrichPreview(app);
 
         // ── POST /api/drafts/:titleId/populate ────────────────────────────────
 
@@ -286,5 +307,62 @@ public final class DraftRoutes {
             ctx.status(400).json(Map.of("error", "titleId must be a long integer"));
             return -1L;
         }
+    }
+
+    // ── Phase 6: bulk-enrich preview ─────────────────────────────────────────
+
+    /**
+     * Returns eligibility counts for a proposed bulk-enrich operation.
+     *
+     * <p>{@code POST /api/drafts/bulk-enrich/preview}
+     * Body: {@code { "titleIds": [1, 2, 3, ...] }}
+     * Response: {@code { eligibleCount, alreadyDrafted, alreadyCurated, eligibleIds: [...] }}
+     *
+     * <p>Used by the "Enrich N visible" confirm modal on the Queue screen to show
+     * exact exclusion counts before launching the task.
+     */
+    void registerBulkEnrichPreview(Javalin app) {
+        app.post("/api/drafts/bulk-enrich/preview", ctx -> {
+            if (jdbi == null) {
+                ctx.status(501).json(Map.of("error", "bulk-enrich preview not configured"));
+                return;
+            }
+            JsonNode body = json.readTree(ctx.body());
+            if (body == null || !body.has("titleIds")) {
+                ctx.status(400).json(Map.of("error", "body must contain titleIds array"));
+                return;
+            }
+            List<Long> titleIds = json.convertValue(body.get("titleIds"),
+                    new TypeReference<List<Long>>() {});
+
+            List<Long> eligible    = new ArrayList<>();
+            int alreadyDrafted     = 0;
+            int alreadyCurated     = 0;
+
+            for (Long titleId : titleIds) {
+                boolean hasDraft = jdbi.withHandle(h ->
+                        h.createQuery("SELECT COUNT(*) FROM draft_titles WHERE title_id = :id")
+                                .bind("id", titleId).mapTo(Integer.class).one()) > 0;
+                if (hasDraft) {
+                    alreadyDrafted++;
+                    continue;
+                }
+                boolean hasCurated = jdbi.withHandle(h ->
+                        h.createQuery("SELECT COUNT(*) FROM title_javdb_enrichment WHERE title_id = :id")
+                                .bind("id", titleId).mapTo(Integer.class).one()) > 0;
+                if (hasCurated) {
+                    alreadyCurated++;
+                    continue;
+                }
+                eligible.add(titleId);
+            }
+
+            ctx.json(Map.of(
+                    "eligibleCount",   eligible.size(),
+                    "alreadyDrafted",  alreadyDrafted,
+                    "alreadyCurated",  alreadyCurated,
+                    "eligibleIds",     eligible
+            ));
+        });
     }
 }
