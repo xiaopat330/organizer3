@@ -3,10 +3,16 @@ package com.organizer3.web.routes;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.organizer3.javdb.draft.DraftActress;
+import com.organizer3.javdb.draft.DraftActressRepository;
 import com.organizer3.javdb.draft.DraftCoverScratchStore;
 import com.organizer3.javdb.draft.DraftNotFoundException;
+import com.organizer3.javdb.draft.DraftPatchService;
 import com.organizer3.javdb.draft.DraftPopulator;
 import com.organizer3.javdb.draft.DraftPromotionService;
+import com.organizer3.javdb.draft.DraftTitle;
+import com.organizer3.javdb.draft.DraftTitleActress;
+import com.organizer3.javdb.draft.DraftTitleActressesRepository;
 import com.organizer3.javdb.draft.DraftTitleEnrichmentRepository;
 import com.organizer3.javdb.draft.DraftTitleRepository;
 import com.organizer3.javdb.draft.OptimisticLockException;
@@ -23,6 +29,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.InputStream;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -32,7 +39,11 @@ import java.util.Optional;
  * validate, and promote).
  *
  * <pre>
+ * GET    /api/drafts                        → list all active drafts (for queue badging)
  * POST   /api/drafts/:titleId/populate      → populate a new draft from javdb
+ * GET    /api/drafts/:titleId               → fetch full draft (title + actresses + enrichment)
+ * PATCH  /api/drafts/:titleId               → apply cast resolution / name edits
+ * DELETE /api/drafts/:titleId               → discard draft
  * GET    /api/drafts/:titleId/cover         → fetch the scratch cover image
  * POST   /api/drafts/:titleId/cover/refetch → re-fetch cover from javdb
  * DELETE /api/drafts/:titleId/cover         → delete the scratch cover
@@ -52,14 +63,42 @@ public final class DraftRoutes {
     private final DraftPopulator                  populator;
     private final DraftTitleRepository            draftTitleRepo;
     private final DraftTitleEnrichmentRepository  draftEnrichRepo;
+    private final DraftTitleActressesRepository   draftTitleActressesRepo;
+    private final DraftActressRepository          draftActressRepo;
     private final DraftCoverScratchStore          coverStore;
     private final ImageFetcher                    imageFetcher;
     private final DraftPromotionService           promotionService;
+    private final DraftPatchService               patchService;
     private final ObjectMapper                    json;
     /** Needed for the bulk-enrich preview eligibility queries (Phase 6). */
     private final Jdbi                            jdbi;
 
-    /** Full constructor (Phase 3+, Phase 6). */
+    /** Full constructor (Phase 4). */
+    public DraftRoutes(DraftPopulator populator,
+                       DraftTitleRepository draftTitleRepo,
+                       DraftTitleEnrichmentRepository draftEnrichRepo,
+                       DraftTitleActressesRepository draftTitleActressesRepo,
+                       DraftActressRepository draftActressRepo,
+                       DraftCoverScratchStore coverStore,
+                       ImageFetcher imageFetcher,
+                       DraftPromotionService promotionService,
+                       DraftPatchService patchService,
+                       ObjectMapper json,
+                       Jdbi jdbi) {
+        this.populator                = populator;
+        this.draftTitleRepo           = draftTitleRepo;
+        this.draftEnrichRepo          = draftEnrichRepo;
+        this.draftTitleActressesRepo  = draftTitleActressesRepo;
+        this.draftActressRepo         = draftActressRepo;
+        this.coverStore               = coverStore;
+        this.imageFetcher             = imageFetcher;
+        this.promotionService         = promotionService;
+        this.patchService             = patchService;
+        this.json                     = json;
+        this.jdbi                     = jdbi;
+    }
+
+    /** Backward-compat constructor (Phase 3+, Phase 6 — no patch service). */
     public DraftRoutes(DraftPopulator populator,
                        DraftTitleRepository draftTitleRepo,
                        DraftTitleEnrichmentRepository draftEnrichRepo,
@@ -68,17 +107,11 @@ public final class DraftRoutes {
                        DraftPromotionService promotionService,
                        ObjectMapper json,
                        Jdbi jdbi) {
-        this.populator        = populator;
-        this.draftTitleRepo   = draftTitleRepo;
-        this.draftEnrichRepo  = draftEnrichRepo;
-        this.coverStore       = coverStore;
-        this.imageFetcher     = imageFetcher;
-        this.promotionService = promotionService;
-        this.json             = json;
-        this.jdbi             = jdbi;
+        this(populator, draftTitleRepo, draftEnrichRepo, null, null, coverStore,
+                imageFetcher, promotionService, null, json, jdbi);
     }
 
-    /** Phase 3 backward-compat constructor (no jdbi). */
+    /** Backward-compat constructor (Phase 3, no jdbi). */
     public DraftRoutes(DraftPopulator populator,
                        DraftTitleRepository draftTitleRepo,
                        DraftTitleEnrichmentRepository draftEnrichRepo,
@@ -101,6 +134,10 @@ public final class DraftRoutes {
 
     public void register(Javalin app) {
         registerBulkEnrichPreview(app);
+        registerListDrafts(app);
+        registerGetDraft(app);
+        registerPatchDraft(app);
+        registerDeleteDraft(app);
 
         // ── POST /api/drafts/:titleId/populate ────────────────────────────────
 
@@ -307,6 +344,241 @@ public final class DraftRoutes {
             ctx.status(400).json(Map.of("error", "titleId must be a long integer"));
             return -1L;
         }
+    }
+
+    // ── Phase 4: list / get / patch / delete ──────────────────────────────────
+
+    /**
+     * {@code GET /api/drafts} — list all active draft titles.
+     *
+     * <p>Used by the queue sidebar to badge rows that have an open draft.
+     * Response: array of {@code { titleId, code, updatedAt }}.
+     */
+    void registerListDrafts(Javalin app) {
+        app.get("/api/drafts", ctx -> {
+            // listAll uses offset/limit; for badge display we return all active drafts
+            // (volume in practice is small — one draft per title; no pagination in v1).
+            List<DraftTitle> all = draftTitleRepo.listAll(0, 10_000);
+            List<Map<String, Object>> result = new ArrayList<>();
+            for (DraftTitle dt : all) {
+                Map<String, Object> row = new LinkedHashMap<>();
+                row.put("titleId",   dt.getTitleId());
+                row.put("code",      dt.getCode());
+                row.put("updatedAt", dt.getUpdatedAt());
+                result.add(row);
+            }
+            ctx.json(result);
+        });
+    }
+
+    /**
+     * {@code GET /api/drafts/:titleId} — fetch the full current draft.
+     *
+     * <p>Returns an aggregate including draft title metadata, enrichment, all
+     * cast-slot rows with their resolved actress data, and a flag indicating
+     * whether the scratch cover is present.
+     *
+     * <p>Response fields:
+     * <pre>
+     * {
+     *   titleId, code, updatedAt, upstreamChanged, createdAt,
+     *   titleOriginal, releaseDate,
+     *   enrichment: { javdbSlug, maker, series, tagsJson, castJson,
+     *                 ratingAvg, ratingCount, coverUrl },
+     *   cast: [{ javdbSlug, stageName, resolution, linkToExistingId,
+     *            englishLastName, englishFirstName }],
+     *   coverScratchPresent: bool
+     * }
+     * </pre>
+     *
+     * <p>Returns 404 if no active draft exists for the given title.
+     */
+    void registerGetDraft(Javalin app) {
+        app.get("/api/drafts/{titleId}", ctx -> {
+            long titleId = parseTitleId(ctx);
+            if (titleId < 0) return;
+
+            var draft = draftTitleRepo.findByTitleId(titleId);
+            if (draft.isEmpty()) {
+                ctx.status(404).json(Map.of("error", "no active draft for this title"));
+                return;
+            }
+            DraftTitle dt = draft.get();
+
+            var enrichmentOpt = draftEnrichRepo.findByDraftId(dt.getId());
+
+            List<DraftTitleActress> slots = draftTitleActressesRepo != null
+                    ? draftTitleActressesRepo.findByDraftTitleId(dt.getId())
+                    : List.of();
+
+            // Build cast array with actress name data joined in.
+            List<Map<String, Object>> cast = new ArrayList<>();
+            for (DraftTitleActress slot : slots) {
+                Map<String, Object> slotMap = new LinkedHashMap<>();
+                slotMap.put("javdbSlug",  slot.getJavdbSlug());
+                slotMap.put("resolution", slot.getResolution());
+
+                // Join actress data if available.
+                if (draftActressRepo != null) {
+                    var actressOpt = draftActressRepo.findBySlug(slot.getJavdbSlug());
+                    actressOpt.ifPresent(a -> {
+                        slotMap.put("stageName",        a.getStageName());
+                        slotMap.put("englishLastName",  a.getEnglishLastName());
+                        slotMap.put("englishFirstName", a.getEnglishFirstName());
+                        slotMap.put("linkToExistingId", a.getLinkToExistingId());
+                    });
+                }
+                cast.add(slotMap);
+            }
+
+            Map<String, Object> enrichmentMap = new LinkedHashMap<>();
+            enrichmentOpt.ifPresent(e -> {
+                enrichmentMap.put("javdbSlug",   e.getJavdbSlug());
+                enrichmentMap.put("maker",       e.getMaker());
+                enrichmentMap.put("series",      e.getSeries());
+                enrichmentMap.put("tagsJson",    e.getTagsJson());
+                enrichmentMap.put("castJson",    e.getCastJson());
+                enrichmentMap.put("ratingAvg",   e.getRatingAvg());
+                enrichmentMap.put("ratingCount", e.getRatingCount());
+                enrichmentMap.put("coverUrl",    e.getCoverUrl());
+            });
+
+            boolean hasScratchCover = coverStore.exists(dt.getId());
+
+            Map<String, Object> resp = new LinkedHashMap<>();
+            resp.put("titleId",            dt.getTitleId());
+            resp.put("code",               dt.getCode());
+            resp.put("updatedAt",          dt.getUpdatedAt());
+            resp.put("upstreamChanged",    dt.isUpstreamChanged());
+            resp.put("createdAt",          dt.getCreatedAt());
+            resp.put("titleOriginal",      dt.getTitleOriginal());
+            resp.put("releaseDate",        dt.getReleaseDate());
+            resp.put("enrichment",         enrichmentMap);
+            resp.put("cast",               cast);
+            resp.put("coverScratchPresent", hasScratchCover);
+
+            ctx.json(resp);
+        });
+    }
+
+    /**
+     * {@code PATCH /api/drafts/:titleId} — apply cast resolution / name edits.
+     *
+     * <p>Body shape:
+     * <pre>
+     * {
+     *   "expectedUpdatedAt": "2024-01-01T00:00:00Z",
+     *   "castResolutions": [
+     *     { "javdbSlug": "abc", "resolution": "pick", "linkToExistingId": 123 }
+     *   ],
+     *   "newActresses": [
+     *     { "javdbSlug": "xyz", "englishLastName": "Sakura", "englishFirstName": "Mana" }
+     *   ]
+     * }
+     * </pre>
+     *
+     * <p>Returns 200 + {@code { updatedAt: <new token> }} on success.
+     * Returns 404 if no draft, 409 on optimistic-lock conflict, 400 on validation failure,
+     * 503 if patch service not configured.
+     */
+    void registerPatchDraft(Javalin app) {
+        app.patch("/api/drafts/{titleId}", ctx -> {
+            long titleId = parseTitleId(ctx);
+            if (titleId < 0) return;
+
+            if (patchService == null) {
+                ctx.status(503).json(Map.of("error", "patch service not configured"));
+                return;
+            }
+
+            // Parse body.
+            JsonNode body;
+            try {
+                body = json.readTree(ctx.body());
+            } catch (Exception e) {
+                ctx.status(400).json(Map.of("error", "invalid JSON body"));
+                return;
+            }
+
+            String expectedUpdatedAt = body.has("expectedUpdatedAt")
+                    ? body.get("expectedUpdatedAt").asText(null)
+                    : null;
+
+            // Parse castResolutions.
+            List<DraftPatchService.CastResolutionEdit> castResolutions = new ArrayList<>();
+            if (body.has("castResolutions") && body.get("castResolutions").isArray()) {
+                for (JsonNode item : body.get("castResolutions")) {
+                    String javdbSlug  = item.has("javdbSlug")  ? item.get("javdbSlug").asText(null)  : null;
+                    String resolution = item.has("resolution") ? item.get("resolution").asText(null) : null;
+                    Long   linkId     = item.has("linkToExistingId") && !item.get("linkToExistingId").isNull()
+                            ? item.get("linkToExistingId").asLong() : null;
+                    String lastName   = item.has("englishLastName")  ? item.get("englishLastName").asText(null)  : null;
+                    String firstName  = item.has("englishFirstName") ? item.get("englishFirstName").asText(null) : null;
+                    if (javdbSlug == null || resolution == null) {
+                        ctx.status(400).json(Map.of("error", "each castResolution must have javdbSlug and resolution"));
+                        return;
+                    }
+                    castResolutions.add(new DraftPatchService.CastResolutionEdit(
+                            javdbSlug, resolution, linkId, lastName, firstName));
+                }
+            }
+
+            // Parse newActresses.
+            List<DraftPatchService.NewActressEdit> newActresses = new ArrayList<>();
+            if (body.has("newActresses") && body.get("newActresses").isArray()) {
+                for (JsonNode item : body.get("newActresses")) {
+                    String javdbSlug = item.has("javdbSlug")        ? item.get("javdbSlug").asText(null)        : null;
+                    String lastName  = item.has("englishLastName")  ? item.get("englishLastName").asText(null)  : null;
+                    String firstName = item.has("englishFirstName") ? item.get("englishFirstName").asText(null) : null;
+                    if (javdbSlug == null) {
+                        ctx.status(400).json(Map.of("error", "each newActress must have javdbSlug"));
+                        return;
+                    }
+                    newActresses.add(new DraftPatchService.NewActressEdit(javdbSlug, lastName, firstName));
+                }
+            }
+
+            try {
+                String newToken = patchService.patch(titleId, expectedUpdatedAt, castResolutions, newActresses);
+                ctx.json(Map.of("updatedAt", newToken));
+            } catch (DraftNotFoundException e) {
+                ctx.status(404).json(Map.of("error", "no active draft for this title"));
+            } catch (OptimisticLockException e) {
+                ctx.status(409).json(Map.of("error", "conflict", "detail", e.getMessage()));
+            } catch (DraftPatchService.PatchValidationException e) {
+                ctx.status(400).json(Map.of("errors", e.getErrors()));
+            } catch (Exception e) {
+                LOG.error("PATCH draft: unexpected error for titleId={}", titleId, e);
+                ctx.status(500).json(Map.of("error", "internal error during patch"));
+            }
+        });
+    }
+
+    /**
+     * {@code DELETE /api/drafts/:titleId} — discard the draft.
+     *
+     * <p>Drops the draft rows (cascades to cast slots + enrichment) and deletes
+     * the scratch cover if present. Returns 204 on success, 404 if no draft.
+     */
+    void registerDeleteDraft(Javalin app) {
+        app.delete("/api/drafts/{titleId}", ctx -> {
+            long titleId = parseTitleId(ctx);
+            if (titleId < 0) return;
+
+            var draft = draftTitleRepo.findByTitleId(titleId);
+            if (draft.isEmpty()) {
+                ctx.status(404).json(Map.of("error", "no active draft for this title"));
+                return;
+            }
+            long draftId = draft.get().getId();
+
+            // Delete scratch cover first (best-effort; draft cascade handles DB rows).
+            coverStore.delete(draftId);
+
+            draftTitleRepo.delete(draftId);
+            LOG.info("Draft discarded: titleId={} draftId={}", titleId, draftId);
+            ctx.status(204);
+        });
     }
 
     // ── Phase 6: bulk-enrich preview ─────────────────────────────────────────

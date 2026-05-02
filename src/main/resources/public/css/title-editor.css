@@ -854,3 +854,273 @@
 #queue-bulk-enrich-cancel-btn:hover:not(:disabled) { background: #1e293b; color: #e2e8f0; }
 #queue-bulk-enrich-cancel-btn:disabled { opacity: 0.4; cursor: not-allowed; }
 .queue-editor-status.error   { color: #ef4444; }
+
+/* ── Phase 4: Draft pane ───────────────────────────────────────────────── */
+
+/* DRAFT badge in header */
+.queue-draft-badge {
+  display: inline-flex;
+  align-items: center;
+  background: #1e3a5f;
+  color: #93c5fd;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 2px 8px;
+  border-radius: 3px;
+  border: 1px solid #2563eb;
+  margin-left: 8px;
+}
+
+/* Draft badge on sidebar queue rows */
+.queue-draft-pill {
+  display: inline-flex;
+  align-items: center;
+  background: #1e3a5f;
+  color: #93c5fd;
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: 1px 5px;
+  border-radius: 3px;
+  border: 1px solid #2563eb;
+  margin-left: 4px;
+  vertical-align: middle;
+}
+
+/* Danger button variant */
+.queue-btn-danger {
+  background: #7f1d1d;
+  border-color: #991b1b;
+  color: #fecaca;
+}
+.queue-btn-danger:hover:not(:disabled) {
+  background: #991b1b;
+}
+
+/* Secondary button variant */
+.queue-btn-secondary {
+  background: #1e293b;
+  border-color: #334155;
+  color: #94a3b8;
+}
+.queue-btn-secondary:hover:not(:disabled) {
+  background: #293548;
+  color: #e2e8f0;
+}
+
+/* Small button variant */
+.queue-btn-sm {
+  padding: 3px 9px;
+  font-size: 0.78rem;
+}
+
+/* Enrich button in no-draft header */
+.queue-enrich-btn {
+  margin-left: auto;
+}
+
+/* Header actions cluster */
+.queue-draft-header-actions {
+  margin-left: auto;
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+/* Upstream-changed banner */
+.queue-upstream-changed-banner {
+  background: #1a1000;
+  border: 1px solid #92400e;
+  border-radius: 6px;
+  padding: 10px 14px;
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+.queue-upstream-changed-text {
+  color: #fde68a;
+  font-size: 0.88rem;
+  flex: 1 1 200px;
+}
+.queue-upstream-changed-actions {
+  display: flex;
+  gap: 8px;
+}
+
+/* Draft status line (validate result / promote status) */
+.queue-draft-status-line {
+  padding: 8px 12px;
+  border-radius: 5px;
+  font-size: 0.87rem;
+  margin-bottom: 10px;
+}
+.queue-draft-status-line.ok    { background: #052e16; color: #86efac; border: 1px solid #166534; }
+.queue-draft-status-line.error { background: #1f0a0a; color: #fca5a5; border: 1px solid #7f1d1d; }
+
+/* Cover actions row */
+.queue-draft-cover-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+/* Read-only metadata block */
+.queue-draft-meta {
+  margin-top: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.queue-draft-meta-row {
+  display: flex;
+  gap: 8px;
+  font-size: 0.83rem;
+}
+.queue-draft-meta-label {
+  color: #64748b;
+  min-width: 60px;
+  flex-shrink: 0;
+}
+.queue-draft-meta-value {
+  color: #cbd5e1;
+  word-break: break-word;
+}
+
+/* Draft cast list */
+.queue-draft-cast-list {
+  margin-bottom: 8px;
+}
+
+/* Cast slot item: resolved */
+.queue-cast-slot {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px 12px;
+  border-radius: 6px;
+  background: #0f172a;
+  border: 1px solid #1e293b;
+  margin-bottom: 8px;
+  list-style: none;
+}
+.queue-cast-slot-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.queue-cast-slot-stage {
+  color: #e2e8f0;
+  font-size: 0.92rem;
+  font-weight: 500;
+}
+.queue-cast-slot-slug {
+  color: #475569;
+  font-size: 0.78rem;
+}
+.queue-cast-slot-resolution {
+  font-size: 0.8rem;
+  padding: 2px 7px;
+  border-radius: 3px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.queue-cast-res-pick     { background: #052e16; color: #86efac; border: 1px solid #166534; }
+.queue-cast-res-create   { background: #1e1b4b; color: #c4b5fd; border: 1px solid #4338ca; }
+.queue-cast-res-skip     { background: #1c1917; color: #a8a29e; border: 1px solid #44403c; }
+.queue-cast-res-sentinel { background: #1e3a5f; color: #93c5fd; border: 1px solid #2563eb; }
+.queue-cast-res-unresolved { background: #1f0a0a; color: #fca5a5; border: 1px solid #7f1d1d; }
+.queue-cast-slot-name {
+  color: #94a3b8;
+  font-size: 0.82rem;
+}
+
+/* Picker subcomponent (for unresolved slots) */
+.queue-cast-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px;
+  background: #111827;
+  border: 1px solid #2563eb;
+  border-radius: 6px;
+}
+.queue-cast-picker-actions {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+.queue-cast-picker-search {
+  position: relative;
+}
+.queue-cast-picker-input {
+  background: #0f172a;
+  border: 1px solid #334155;
+  color: #e2e8f0;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 0.85rem;
+  width: 200px;
+}
+.queue-cast-picker-input:focus { outline: none; border-color: #2563eb; }
+.queue-cast-picker-suggest {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  width: 260px;
+  background: #1e293b;
+  border: 1px solid #334155;
+  border-radius: 5px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.6);
+  z-index: 200;
+  max-height: 180px;
+  overflow-y: auto;
+  display: none;
+}
+.queue-cast-picker-suggest-item {
+  padding: 7px 10px;
+  cursor: pointer;
+  font-size: 0.85rem;
+  color: #e2e8f0;
+  border-bottom: 1px solid #1e293b;
+}
+.queue-cast-picker-suggest-item:hover { background: #293548; }
+.queue-cast-picker-create-form {
+  display: none;
+  flex-direction: column;
+  gap: 4px;
+  background: #111827;
+  padding: 8px;
+  border-radius: 5px;
+  border: 1px solid #4338ca;
+}
+.queue-cast-picker-create-row {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+.queue-cast-picker-create-row label {
+  color: #64748b;
+  font-size: 0.8rem;
+  min-width: 50px;
+}
+.queue-cast-picker-name-input {
+  background: #0f172a;
+  border: 1px solid #334155;
+  color: #e2e8f0;
+  padding: 3px 7px;
+  border-radius: 4px;
+  font-size: 0.83rem;
+  flex: 1;
+}
+.queue-cast-picker-name-input:focus { outline: none; border-color: #4338ca; }
+
+/* Enrich tags lock icon */
+.queue-tag-lock-icon { font-size: 0.8rem; vertical-align: middle; }
+

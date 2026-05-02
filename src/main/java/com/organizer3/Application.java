@@ -849,9 +849,13 @@ public class Application {
                         jdbi, draftTitleRepo, draftActressRepo, draftCastRepo,
                         draftEnrichRepo, draftCoverStore, coverPath, castValidator,
                         titleRepo, enrichmentHistoryRepo, titleEffectiveTagsService, jsonMapper);
+        com.organizer3.javdb.draft.DraftPatchService draftPatchService =
+                new com.organizer3.javdb.draft.DraftPatchService(
+                        jdbi, draftTitleRepo, draftActressRepo, draftCastRepo);
         webServer.registerDraftRoutes(new com.organizer3.web.routes.DraftRoutes(
-                draftPopulator, draftTitleRepo, draftEnrichRepo, draftCoverStore, imageFetcher,
-                draftPromotionService, jsonMapper, jdbi));
+                draftPopulator, draftTitleRepo, draftEnrichRepo, draftCastRepo, draftActressRepo,
+                draftCoverStore, imageFetcher, draftPromotionService, draftPatchService,
+                jsonMapper, jdbi));
 
         // MCP (Model Context Protocol) server — read-only diagnostic tools mounted on
         // the existing Javalin instance. See spec/PROPOSAL_MCP_SERVER.md.
