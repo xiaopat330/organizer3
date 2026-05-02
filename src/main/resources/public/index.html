@@ -451,6 +451,10 @@
     <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 2v7a3 3 0 0 0 3 3h1"/><path d="M12 2v4M12 10v4M9.5 9.5l2.5 2.5 2.5-2.5"/><circle cx="4" cy="13" r="1.5"/></svg>
     Merge Candidates
   </button>
+  <button type="button" id="tools-no-match-triage-tab" class="tools-subnav-tab tools-subnav-tab-no-match">
+    <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+    No-Match Triage
+  </button>
 </div>
 
 <!-- Duplicate Triage tool content -->
@@ -476,6 +480,17 @@
     </div>
   </div>
   <div id="mc-list" class="mc-list"></div>
+</div>
+
+<!-- No-Match Triage tool content -->
+<div id="tools-no-match-triage-view" class="tools-no-match-triage-view" style="display:none">
+  <div class="nmt-toolbar">
+    <div id="nmt-header" class="nmt-header"></div>
+    <label class="nmt-orphan-filter">
+      <input type="checkbox" id="nmt-filter-orphan"> Orphans only
+    </label>
+  </div>
+  <div id="nmt-list" class="nmt-list"></div>
 </div>
 
 <!-- Logs tool content -->

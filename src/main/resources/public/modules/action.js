@@ -12,6 +12,7 @@ import { showBackupView, hideBackupView } from './utilities-backup.js';
 import { showLibraryHealthView, hideLibraryHealthView } from './utilities-library-health.js';
 import { showDupTriageView, hideDupTriageView, wireDupTriageEvents } from './utilities-duplicate-triage.js';
 import { showMergeCandidatesView, hideMergeCandidatesView, wireMergeCandidatesEvents } from './utilities-merge-candidates.js';
+import { showNoMatchTriageView, hideNoMatchTriageView, wireNoMatchTriageEvents } from './utilities-no-match-triage.js';
 import { showTrashView, hideTrashView } from './utilities-trash.js';
 import { showJavdbDiscoveryView, hideJavdbDiscoveryView, navigateToActressProfile, navigateToReviewItem } from './utilities-javdb-discovery.js';
 import { showTagHealthView, hideTagHealthView } from './utilities-tag-health.js';
@@ -45,6 +46,7 @@ const curationSubnav       = document.getElementById('tools-curation-subnav');
 const curationUnprocessedTab = document.getElementById('tools-curation-unprocessed-tab');
 const dupTriageTab      = document.getElementById('tools-dup-triage-tab');
 const mergeCandidatesTab = document.getElementById('tools-merge-candidates-tab');
+const noMatchTriageTab   = document.getElementById('tools-no-match-triage-tab');
 
 // ── Tool buttons ──────────────────────────────────────────────────────────
 const TOOL_BTNS = [healthBtn, utilitiesBtn, trashBtn, queueBtn, javdbDiscoveryBtn];
@@ -64,6 +66,7 @@ function hideAllToolViews() {
   hideLibraryHealthView();
   hideDupTriageView();
   hideMergeCandidatesView();
+  hideNoMatchTriageView();
   hideTrashView();
   hideJavdbDiscoveryView();
   hideTagHealthView();
@@ -209,11 +212,13 @@ function initDupInfiniteScroll() {
 
 let dupTriageWired = false;
 let mergeCandidatesWired = false;
+let noMatchTriageWired = false;
 
 function selectCurationTab(tab) {
   curationUnprocessedTab.classList.toggle('selected', tab === 'unprocessed');
   dupTriageTab.classList.toggle('selected', tab === 'triage');
   mergeCandidatesTab.classList.toggle('selected', tab === 'merge');
+  noMatchTriageTab.classList.toggle('selected', tab === 'no-match');
 }
 
 async function showCurationTab(tab) {
@@ -221,11 +226,15 @@ async function showCurationTab(tab) {
   hideTitleEditorView();
   hideDupTriageView();
   hideMergeCandidatesView();
+  hideNoMatchTriageView();
   if (tab === 'unprocessed') {
     showTitleEditor();
   } else if (tab === 'triage') {
     if (!dupTriageWired) { wireDupTriageEvents(); dupTriageWired = true; }
     await showDupTriageView();
+  } else if (tab === 'no-match') {
+    if (!noMatchTriageWired) { wireNoMatchTriageEvents(); noMatchTriageWired = true; }
+    await showNoMatchTriageView();
   } else {
     if (!mergeCandidatesWired) { wireMergeCandidatesEvents(); mergeCandidatesWired = true; }
     await showMergeCandidatesView();
@@ -312,6 +321,7 @@ export async function showCuration(initialTab = 'unprocessed') {
   curationUnprocessedTab.onclick = () => showCurationTab('unprocessed');
   dupTriageTab.onclick           = () => showCurationTab('triage');
   mergeCandidatesTab.onclick     = () => showCurationTab('merge');
+  noMatchTriageTab.onclick       = () => showCurationTab('no-match');
 
   await showCurationTab(initialTab);
 }
