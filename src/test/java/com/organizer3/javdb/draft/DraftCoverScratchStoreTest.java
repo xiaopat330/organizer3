@@ -153,4 +153,81 @@ class DraftCoverScratchStoreTest {
         assertEquals("17.jpg", p.getFileName().toString());
         assertTrue(p.toString().contains("draft_covers"));
     }
+
+    // ── reapOrphans ────────────────────────────────────────────────────────────
+
+    @Test
+    void reapOrphans_returnsZeroWhenScratchDirAbsent() throws Exception {
+        // New store, nothing written yet — directory doesn't exist.
+        int reaped = store().reapOrphans(java.util.Set.of());
+        assertEquals(0, reaped, "absent scratch dir should return 0 without error");
+    }
+
+    @Test
+    void reapOrphans_removesOrphanFile() throws Exception {
+        DraftCoverScratchStore s = store();
+        long orphanId = 8888L;
+        s.write(orphanId, new byte[]{1, 2});
+
+        int reaped = s.reapOrphans(java.util.Set.of()); // liveIds is empty → orphan
+
+        assertEquals(1, reaped);
+        assertFalse(s.exists(orphanId), "orphan file must be deleted");
+    }
+
+    @Test
+    void reapOrphans_preservesLiveFile() throws Exception {
+        DraftCoverScratchStore s = store();
+        long liveId = 1L;
+        s.write(liveId, new byte[]{3});
+
+        int reaped = s.reapOrphans(java.util.Set.of(liveId)); // liveId is live
+
+        assertEquals(0, reaped);
+        assertTrue(s.exists(liveId), "live file must be preserved");
+    }
+
+    @Test
+    void reapOrphans_onlyRemovesOrphans() throws Exception {
+        DraftCoverScratchStore s = store();
+        long liveId   = 10L;
+        long orphanId = 20L;
+        s.write(liveId,   new byte[]{1});
+        s.write(orphanId, new byte[]{2});
+
+        int reaped = s.reapOrphans(java.util.Set.of(liveId));
+
+        assertEquals(1, reaped);
+        assertTrue(s.exists(liveId),    "live file must survive");
+        assertFalse(s.exists(orphanId), "orphan file must be removed");
+    }
+
+    @Test
+    void reapOrphans_skipsNonJpgFiles() throws Exception {
+        DraftCoverScratchStore s = store();
+        // Create a non-cover file manually in the scratch dir.
+        Path scratchDir = dataDir.resolve("_sandbox").resolve("draft_covers");
+        Files.createDirectories(scratchDir);
+        Path nonJpg = scratchDir.resolve("README.txt");
+        Files.write(nonJpg, new byte[]{0});
+
+        int reaped = s.reapOrphans(java.util.Set.of());
+
+        assertEquals(0, reaped, "non-.jpg files must be skipped");
+        assertTrue(Files.exists(nonJpg), "non-.jpg file must not be deleted");
+    }
+
+    @Test
+    void reapOrphans_skipsNonNumericJpgFilenames() throws Exception {
+        DraftCoverScratchStore s = store();
+        Path scratchDir = dataDir.resolve("_sandbox").resolve("draft_covers");
+        Files.createDirectories(scratchDir);
+        // A .jpg whose stem is not a valid long (e.g., a .tmp leftover renamed).
+        Path weirdFile = scratchDir.resolve("not-a-number.jpg");
+        Files.write(weirdFile, new byte[]{0});
+
+        assertDoesNotThrow(() -> s.reapOrphans(java.util.Set.of()),
+                "non-numeric .jpg filename must not cause NumberFormatException");
+        assertTrue(Files.exists(weirdFile), "non-numeric .jpg must not be deleted");
+    }
 }
