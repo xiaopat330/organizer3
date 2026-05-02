@@ -1,6 +1,6 @@
 # Proposal: Draft Mode + Bulk Enrich
 
-**Status:** Implementation-ready. Design extracted from `spec/completed/PROPOSAL_ENRICHMENT_HARDENING.md` §452-918 (decisions dated 2026-04-28; left untouched here). This document adds build order, effort estimates, API surface, test plan, migration, and acceptance criteria.
+**Status:** SHIPPED 2026-05-02 — all 6 phases merged to main across 7 PRs (#24, #25, #26, #27, #28, #29 + a refetch-coupling fix). ~7000 LOC, 237 new tests, browser-verified end-to-end. Design extracted from `spec/completed/PROPOSAL_ENRICHMENT_HARDENING.md` §452-918 (decisions dated 2026-04-28; left untouched here).
 
 **Origin:** Closing out Priority 4 of Enrichment Hardening. The motivating insight: today every Enrich click writes directly to canonical tables, so bad enrichment must be detected and cleaned up afterward. The 232 contaminated rows from slug-mismatch (cleaned up by `EnrichmentClearMismatchedTask`) and the 171 `no_match` rows (resolved by the No-Match Triage UI shipped in PR #23) are both consequences of "writes-first, validate-after." Draft Mode inverts this: nothing lands in canonical state without user review. It is also the foundation for **Bulk Enrich** — select N titles, fire one task, validate at your pace.
 

@@ -1,6 +1,6 @@
 # Proposal: Enrichment Pipeline Hardening
 
-**Status:** PARTIAL — Steps 1A–3A (filmography persistence, revalidation, write gates) and config tuning keys SHIPPED. Priority 4 (Draft Mode / Bulk Enrich) extracted into its own implementation-ready spec at `spec/PROPOSAL_DRAFT_MODE.md` (2026-05-02). The Q1–Q5 / Draft Mode sections in this proposal remain authoritative for design decisions; the new doc adds build order, effort estimate, API surface, test plan, and acceptance criteria.
+**Status:** COMPLETE 2026-05-02. Steps 1A–3A (filmography persistence, revalidation, write gates) shipped earlier. Priority 4 (Draft Mode / Bulk Enrich) shipped 2026-05-02 across 6 phased PRs — see `spec/completed/PROPOSAL_DRAFT_MODE.md` for the implementation-ready spec used to drive the build. Q1–Q5 sections in this proposal remain the authoritative design record.
 **Scope:** Make javdb enrichment robust, observable, and self-healing. Successor to `PROPOSAL_JAVDB_SLUG_VERIFICATION.md` — the slug-mismatch fix plugged the immediate hole; this proposal addresses the systemic patterns that let it happen.
 
 ---
