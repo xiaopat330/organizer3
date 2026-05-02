@@ -5,10 +5,16 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.organizer3.db.SchemaInitializer;
 import com.organizer3.javdb.draft.DraftCoverScratchStore;
 import com.organizer3.javdb.draft.DraftEnrichment;
+import com.organizer3.javdb.draft.DraftNotFoundException;
 import com.organizer3.javdb.draft.DraftPopulator;
+import com.organizer3.javdb.draft.DraftPromotionService;
 import com.organizer3.javdb.draft.DraftTitle;
 import com.organizer3.javdb.draft.DraftTitleEnrichmentRepository;
 import com.organizer3.javdb.draft.DraftTitleRepository;
+import com.organizer3.javdb.draft.OptimisticLockException;
+import com.organizer3.javdb.draft.PreFlightFailedException;
+import com.organizer3.javdb.draft.PreFlightResult;
+import com.organizer3.javdb.draft.PromotionException;
 import com.organizer3.web.ImageFetcher;
 import com.organizer3.web.WebServer;
 import org.jdbi.v3.core.Jdbi;
@@ -48,6 +54,7 @@ class DraftRoutesTest {
     private DraftTitleRepository          draftTitleRepo;
     private DraftTitleEnrichmentRepository draftEnrichRepo;
     private DraftCoverScratchStore        coverStore;
+    private DraftPromotionService         promotionService;
 
     private Connection connection;
     private Jdbi jdbi;
@@ -66,14 +73,17 @@ class DraftRoutesTest {
         jdbi.useHandle(h -> h.execute(
                 "INSERT INTO titles(id, code, base_code, label, seq_num) VALUES (1, 'TST-1', 'TST', 'TST', 1)"));
 
-        draftTitleRepo  = new DraftTitleRepository(jdbi);
-        draftEnrichRepo = new DraftTitleEnrichmentRepository(jdbi);
-        coverStore      = new DraftCoverScratchStore(dataDir);
-        populator       = mock(DraftPopulator.class);
-        imageFetcher    = mock(ImageFetcher.class);
+        draftTitleRepo   = new DraftTitleRepository(jdbi);
+        draftEnrichRepo  = new DraftTitleEnrichmentRepository(jdbi);
+        coverStore       = new DraftCoverScratchStore(dataDir);
+        populator        = mock(DraftPopulator.class);
+        imageFetcher     = mock(ImageFetcher.class);
+        promotionService = mock(DraftPromotionService.class);
 
         server = new WebServer(0);
-        server.registerDraftRoutes(new DraftRoutes(populator, draftTitleRepo, draftEnrichRepo, coverStore, imageFetcher));
+        server.registerDraftRoutes(new DraftRoutes(
+                populator, draftTitleRepo, draftEnrichRepo, coverStore, imageFetcher,
+                promotionService, new ObjectMapper()));
         server.start();
     }
 
@@ -294,5 +304,116 @@ class DraftRoutesTest {
     void deleteCover_404WhenNoDraft() throws Exception {
         var resp = delete("/api/drafts/999/cover");
         assertEquals(404, resp.statusCode());
+    }
+
+    // ── POST /api/drafts/:titleId/validate ────────────────────────────────────
+
+    @Test
+    void validate_200OkWhenPreflightSucceeds() throws Exception {
+        long draftId = insertDraft(1L, "TST-1");
+        when(promotionService.preflight(draftId, null)).thenReturn(PreFlightResult.success());
+
+        var resp = postJson("/api/drafts/1/validate", "{}");
+        assertEquals(200, resp.statusCode());
+        JsonNode body = mapper.readTree(resp.body());
+        assertTrue(body.get("ok").asBoolean());
+        assertTrue(body.get("errors").isEmpty());
+    }
+
+    @Test
+    void validate_200WithErrorsWhenPreflightFails() throws Exception {
+        long draftId = insertDraft(1L, "TST-1");
+        when(promotionService.preflight(draftId, null))
+                .thenReturn(PreFlightResult.failure("CAST_MODE_VIOLATION"));
+
+        var resp = postJson("/api/drafts/1/validate", "{}");
+        assertEquals(200, resp.statusCode());
+        JsonNode body = mapper.readTree(resp.body());
+        assertFalse(body.get("ok").asBoolean());
+        assertEquals("CAST_MODE_VIOLATION", body.get("errors").get(0).asText());
+    }
+
+    @Test
+    void validate_404WhenNoDraft() throws Exception {
+        var resp = postJson("/api/drafts/999/validate", "{}");
+        assertEquals(404, resp.statusCode());
+    }
+
+    @Test
+    void validate_400WhenTitleIdInvalid() throws Exception {
+        var resp = postJson("/api/drafts/abc/validate", "{}");
+        assertEquals(400, resp.statusCode());
+    }
+
+    // ── POST /api/drafts/:titleId/promote ─────────────────────────────────────
+
+    @Test
+    void promote_200OnSuccess() throws Exception {
+        long draftId = insertDraft(1L, "TST-1");
+        when(promotionService.promote(draftId, "token123")).thenReturn(1L);
+
+        var resp = postJson("/api/drafts/1/promote",
+                "{\"expectedUpdatedAt\":\"token123\"}");
+        assertEquals(200, resp.statusCode());
+        JsonNode body = mapper.readTree(resp.body());
+        assertEquals(1, body.get("titleId").asInt());
+    }
+
+    @Test
+    void promote_404WhenNoDraft() throws Exception {
+        var resp = postJson("/api/drafts/999/promote", "{\"expectedUpdatedAt\":\"t\"}");
+        assertEquals(404, resp.statusCode());
+    }
+
+    @Test
+    void promote_409OnOptimisticLockConflict() throws Exception {
+        long draftId = insertDraft(1L, "TST-1");
+        when(promotionService.promote(draftId, "old-token"))
+                .thenThrow(new OptimisticLockException("conflict"));
+
+        var resp = postJson("/api/drafts/1/promote", "{\"expectedUpdatedAt\":\"old-token\"}");
+        assertEquals(409, resp.statusCode());
+    }
+
+    @Test
+    void promote_422OnPreflightFailure() throws Exception {
+        long draftId = insertDraft(1L, "TST-1");
+        when(promotionService.promote(draftId, null))
+                .thenThrow(new PreFlightFailedException(java.util.List.of("UPSTREAM_CHANGED")));
+
+        var resp = postJson("/api/drafts/1/promote", "{}");
+        assertEquals(422, resp.statusCode());
+        JsonNode body = mapper.readTree(resp.body());
+        assertFalse(body.get("ok").asBoolean());
+    }
+
+    @Test
+    void promote_500OnPromotionException() throws Exception {
+        long draftId = insertDraft(1L, "TST-1");
+        when(promotionService.promote(draftId, null))
+                .thenThrow(new PromotionException("cover_copy_failed", "disk full"));
+
+        var resp = postJson("/api/drafts/1/promote", "{}");
+        assertEquals(500, resp.statusCode());
+        JsonNode body = mapper.readTree(resp.body());
+        assertEquals("cover_copy_failed", body.get("error").asText());
+    }
+
+    @Test
+    void promote_400OnInvalidBody() throws Exception {
+        insertDraft(1L, "TST-1");
+        var resp = postJson("/api/drafts/1/promote", "not-json");
+        assertEquals(400, resp.statusCode());
+    }
+
+    // ── Helper for JSON body POST ─────────────────────────────────────────────
+
+    private HttpResponse<String> postJson(String path, String jsonBody) throws Exception {
+        return http.send(HttpRequest.newBuilder()
+                .uri(URI.create(base() + path))
+                .header("Content-Type", "application/json")
+                .POST(HttpRequest.BodyPublishers.ofString(jsonBody))
+                .build(),
+                HttpResponse.BodyHandlers.ofString());
     }
 }

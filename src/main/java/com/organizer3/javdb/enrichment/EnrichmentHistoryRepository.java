@@ -71,6 +71,45 @@ public class EnrichmentHistoryRepository {
         log.debug("enrichment-history: snapshotted prior row for title {} (reason={})", titleId, reason);
     }
 
+    /**
+     * Inserts a promotion audit log row with all four payload fields.
+     *
+     * <p>Unlike {@link #appendIfExists}, this method always writes a row — even when there
+     * was no prior enrichment for the title (first-time promotion). The prior-state snapshot
+     * must be taken by the caller before any canonical writes; pass {@code null} if no prior
+     * enrichment existed.
+     *
+     * @param titleId            canonical title id
+     * @param titleCode          snapshot of {@code titles.code}
+     * @param priorSlug          javdb_slug from the pre-promotion enrichment row, or null
+     * @param priorPayload       JSON snapshot of the pre-promotion enrichment row, or null
+     * @param newPayload         JSON snapshot of the post-promotion enrichment row
+     * @param promotionMetadata  JSON: {@code {resolutions:[…], skip_count:N, sentinel_chosen:?, cover_fetched:bool}}
+     * @param h                  the open handle — caller owns the transaction boundary
+     */
+    public void appendPromotion(long titleId, String titleCode,
+                                String priorSlug, String priorPayload,
+                                String newPayload, String promotionMetadata,
+                                Handle h) {
+        h.createUpdate("""
+                INSERT INTO title_javdb_enrichment_history
+                    (title_id, title_code, reason, prior_slug, prior_payload,
+                     new_payload, promotion_metadata)
+                VALUES (:titleId, :titleCode, 'draft_promotion', :priorSlug, :priorPayload,
+                        :newPayload, :promotionMetadata)
+                """)
+                .bind("titleId",           titleId)
+                .bind("titleCode",         titleCode)
+                .bind("priorSlug",         priorSlug)
+                .bind("priorPayload",      priorPayload)
+                .bind("newPayload",        newPayload)
+                .bind("promotionMetadata", promotionMetadata)
+                .execute();
+
+        log.debug("enrichment-history: appended promotion row for title {} ({} prior)",
+                titleId, priorPayload == null ? "no" : "with");
+    }
+
     /** Number of history rows for a title — primarily for tests and future 2A UI. */
     public int countForTitle(long titleId) {
         return jdbi.withHandle(h ->
@@ -84,7 +123,8 @@ public class EnrichmentHistoryRepository {
     public List<HistoryRow> recentForTitle(long titleId, int limit) {
         return jdbi.withHandle(h ->
                 h.createQuery("""
-                        SELECT id, title_id, title_code, changed_at, reason, prior_slug, prior_payload
+                        SELECT id, title_id, title_code, changed_at, reason,
+                               prior_slug, prior_payload, new_payload, promotion_metadata
                         FROM title_javdb_enrichment_history
                         WHERE title_id = :id
                         ORDER BY changed_at DESC
@@ -99,7 +139,9 @@ public class EnrichmentHistoryRepository {
                                 rs.getString("changed_at"),
                                 rs.getString("reason"),
                                 rs.getString("prior_slug"),
-                                rs.getString("prior_payload")))
+                                rs.getString("prior_payload"),
+                                rs.getString("new_payload"),
+                                rs.getString("promotion_metadata")))
                         .list());
     }
 
@@ -118,6 +160,8 @@ public class EnrichmentHistoryRepository {
             String changedAt,
             String reason,
             String priorSlug,
-            String priorPayload
+            String priorPayload,
+            String newPayload,
+            String promotionMetadata
     ) {}
 }

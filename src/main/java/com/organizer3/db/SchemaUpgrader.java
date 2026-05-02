@@ -19,7 +19,7 @@ import org.jdbi.v3.core.Jdbi;
 public class SchemaUpgrader {
 
     /** Must match the version stamped by {@link SchemaInitializer}. */
-    private static final int CURRENT_VERSION = 44;
+    private static final int CURRENT_VERSION = 45;
 
     private final Jdbi jdbi;
 
@@ -243,6 +243,11 @@ public class SchemaUpgrader {
             setVersion(44);
         }
 
+        if (version < 45) {
+            applyV45();
+            setVersion(45);
+        }
+
         log.info("Schema upgrade complete");
     }
 
@@ -397,6 +402,29 @@ public class SchemaUpgrader {
 
             addColumnIfMissing(h, "actresses", "created_via", "TEXT");
             addColumnIfMissing(h, "actresses", "created_at",  "TEXT");
+        });
+    }
+
+    /**
+     * v45: Draft Mode Phase 3 — add {@code new_payload} and {@code promotion_metadata} columns
+     * to {@code title_javdb_enrichment_history}.
+     *
+     * <p>{@code new_payload} captures the post-promotion canonical enrichment state as JSON.
+     * {@code promotion_metadata} captures the promotion event details as JSON
+     * ({@code resolutions}, {@code skip_count}, {@code sentinel_chosen}, {@code cover_fetched}).
+     *
+     * <p>NULL on existing rows is intentional — pre-Phase-3 history rows were written by the
+     * background enrichment runner (not Draft Mode), so they have no promotion context.
+     *
+     * <p>Idempotent via {@code addColumnIfMissing}.
+     *
+     * <p>See spec/PROPOSAL_DRAFT_MODE.md §9.3.
+     */
+    private void applyV45() {
+        log.info("Applying migration v45: new_payload + promotion_metadata on title_javdb_enrichment_history");
+        jdbi.useHandle(h -> {
+            addColumnIfMissing(h, "title_javdb_enrichment_history", "new_payload",         "TEXT");
+            addColumnIfMissing(h, "title_javdb_enrichment_history", "promotion_metadata",  "TEXT");
         });
     }
 

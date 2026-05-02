@@ -545,13 +545,15 @@ public class SchemaInitializer {
             // No FK on title_id — history must outlive its title row.
             h.execute("""
                     CREATE TABLE IF NOT EXISTS title_javdb_enrichment_history (
-                        id              INTEGER PRIMARY KEY AUTOINCREMENT,
-                        title_id        INTEGER NOT NULL,
-                        title_code      TEXT    NOT NULL,
-                        changed_at      TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
-                        reason          TEXT,
-                        prior_slug      TEXT,
-                        prior_payload   TEXT
+                        id                  INTEGER PRIMARY KEY AUTOINCREMENT,
+                        title_id            INTEGER NOT NULL,
+                        title_code          TEXT    NOT NULL,
+                        changed_at          TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+                        reason              TEXT,
+                        prior_slug          TEXT,
+                        prior_payload       TEXT,
+                        new_payload         TEXT,
+                        promotion_metadata  TEXT
                     )""");
             h.execute("CREATE INDEX IF NOT EXISTS idx_tjeh_title ON title_javdb_enrichment_history(title_id)");
             h.execute("CREATE INDEX IF NOT EXISTS idx_tjeh_code  ON title_javdb_enrichment_history(title_code)");
@@ -648,7 +650,7 @@ public class SchemaInitializer {
             // leave the version alone and let SchemaUpgrader apply any missing migrations.
             int currentVersion = h.createQuery("PRAGMA user_version").mapTo(Integer.class).one();
             if (currentVersion == 0) {
-                h.execute("PRAGMA user_version = 44");
+                h.execute("PRAGMA user_version = 45");
             }
         });
         log.info("Schema initialization complete");
