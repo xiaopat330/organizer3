@@ -19,7 +19,7 @@ import org.jdbi.v3.core.Jdbi;
 public class SchemaUpgrader {
 
     /** Must match the version stamped by {@link SchemaInitializer}. */
-    private static final int CURRENT_VERSION = 43;
+    private static final int CURRENT_VERSION = 44;
 
     private final Jdbi jdbi;
 
@@ -238,6 +238,11 @@ public class SchemaUpgrader {
             setVersion(43);
         }
 
+        if (version < 44) {
+            applyV44();
+            setVersion(44);
+        }
+
         log.info("Schema upgrade complete");
     }
 
@@ -309,6 +314,90 @@ public class SchemaUpgrader {
     private void applyV43() {
         log.info("Applying migration v43: custom_avatar_path on actresses");
         jdbi.useHandle(h -> addColumnIfMissing(h, "actresses", "custom_avatar_path", "TEXT"));
+    }
+
+    /**
+     * v44: Draft Mode schema — four draft tables + two new columns on {@code actresses}.
+     *
+     * <p>Creates:
+     * <ul>
+     *   <li>{@code draft_titles} — per-title WIP row; one active draft per title enforced by
+     *       unique index on {@code title_id}.</li>
+     *   <li>{@code draft_actresses} — keyed by javdb slug; ref-counted by
+     *       {@code draft_title_actresses}; orphans reaped by GC sweep.</li>
+     *   <li>{@code draft_title_actresses} — cast-slot resolution table; cascades on title delete.</li>
+     *   <li>{@code draft_title_javdb_enrichment} — mirror of {@code title_javdb_enrichment};
+     *       one row per draft; cascades on title delete.</li>
+     * </ul>
+     *
+     * <p>Also adds {@code created_via} and {@code created_at} to {@code actresses} via
+     * {@code addColumnIfMissing} (idempotent). {@code NULL} values on existing rows are
+     * intentional — pre-Draft-Mode actresses have unknown provenance.
+     *
+     * <p>See spec/PROPOSAL_DRAFT_MODE.md §2 and §13 Phase 1.
+     */
+    private void applyV44() {
+        log.info("Applying migration v44: Draft Mode schema (draft_titles, draft_actresses, " +
+                 "draft_title_actresses, draft_title_javdb_enrichment) + actresses.created_via/created_at");
+        jdbi.useHandle(h -> {
+            h.execute("""
+                    CREATE TABLE IF NOT EXISTS draft_titles (
+                        id                    INTEGER PRIMARY KEY AUTOINCREMENT,
+                        title_id              INTEGER NOT NULL REFERENCES titles(id) ON DELETE CASCADE,
+                        code                  TEXT NOT NULL,
+                        title_original        TEXT,
+                        title_english         TEXT,
+                        release_date          TEXT,
+                        notes                 TEXT,
+                        grade                 TEXT,
+                        grade_source          TEXT,
+                        upstream_changed      INTEGER NOT NULL DEFAULT 0,
+                        last_validation_error TEXT,
+                        created_at            TEXT NOT NULL,
+                        updated_at            TEXT NOT NULL
+                    )""");
+            h.execute("""
+                    CREATE UNIQUE INDEX IF NOT EXISTS idx_draft_titles_title_id
+                        ON draft_titles(title_id)""");
+
+            h.execute("""
+                    CREATE TABLE IF NOT EXISTS draft_actresses (
+                        javdb_slug            TEXT PRIMARY KEY,
+                        stage_name            TEXT,
+                        english_first_name    TEXT,
+                        english_last_name     TEXT,
+                        link_to_existing_id   INTEGER REFERENCES actresses(id),
+                        created_at            TEXT NOT NULL,
+                        updated_at            TEXT NOT NULL,
+                        last_validation_error TEXT
+                    )""");
+
+            h.execute("""
+                    CREATE TABLE IF NOT EXISTS draft_title_actresses (
+                        draft_title_id INTEGER NOT NULL REFERENCES draft_titles(id) ON DELETE CASCADE,
+                        javdb_slug     TEXT NOT NULL REFERENCES draft_actresses(javdb_slug),
+                        resolution     TEXT NOT NULL,
+                        PRIMARY KEY (draft_title_id, javdb_slug)
+                    )""");
+
+            h.execute("""
+                    CREATE TABLE IF NOT EXISTS draft_title_javdb_enrichment (
+                        draft_title_id  INTEGER PRIMARY KEY REFERENCES draft_titles(id) ON DELETE CASCADE,
+                        javdb_slug      TEXT,
+                        cast_json       TEXT,
+                        maker           TEXT,
+                        series          TEXT,
+                        cover_url       TEXT,
+                        tags_json       TEXT,
+                        rating_avg      REAL,
+                        rating_count    INTEGER,
+                        resolver_source TEXT,
+                        updated_at      TEXT NOT NULL
+                    )""");
+
+            addColumnIfMissing(h, "actresses", "created_via", "TEXT");
+            addColumnIfMissing(h, "actresses", "created_at",  "TEXT");
+        });
     }
 
     /**
