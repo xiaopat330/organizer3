@@ -718,8 +718,23 @@
         <input type="checkbox" id="queue-show-complete"> Show complete
       </label>
     </div>
+    <div class="queue-sidebar-actions">
+      <button type="button" id="queue-bulk-enrich-btn" class="queue-bulk-enrich-btn" style="display:none">Enrich visible</button>
+    </div>
     <ul id="queue-list" class="queue-list"></ul>
   </aside>
+
+  <!-- Bulk Enrich confirm modal -->
+  <div id="queue-bulk-enrich-modal" class="queue-bulk-enrich-modal" style="display:none" role="dialog" aria-modal="true">
+    <div class="queue-bulk-enrich-modal-box">
+      <h3 class="queue-bulk-enrich-modal-title">Bulk Enrich to Draft</h3>
+      <p id="queue-bulk-enrich-modal-body" class="queue-bulk-enrich-modal-body"></p>
+      <div class="queue-bulk-enrich-modal-actions">
+        <button type="button" id="queue-bulk-enrich-confirm-btn" class="queue-bulk-enrich-confirm-btn">Enrich</button>
+        <button type="button" id="queue-bulk-enrich-cancel-btn" class="queue-bulk-enrich-cancel-btn">Cancel</button>
+      </div>
+    </div>
+  </div>
   <main class="queue-editor">
     <div id="queue-editor-empty" class="queue-editor-empty">Select a title from the queue to start editing.</div>
     <section id="queue-editor-pane" class="queue-editor-pane" style="display:none">
