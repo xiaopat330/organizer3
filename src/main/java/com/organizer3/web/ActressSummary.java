@@ -21,6 +21,8 @@ public class ActressSummary {
     boolean favorite;
     boolean bookmark;
     String grade;
+    /** Actress-level grade derived from pooled title rating data via Bayesian shrinkage. */
+    String derivedGrade;
     boolean rejected;
     int titleCount;
     /** Number of this actress's titles that have a non-null grade in the DB. */

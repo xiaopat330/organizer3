@@ -1,12 +1,15 @@
 package com.organizer3.rating;
 
 import com.organizer3.model.Actress;
+import com.organizer3.repository.TitleRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.time.Instant;
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.IntStream;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -121,5 +124,69 @@ class RatingScoreCalculatorTest {
         Optional<Actress.Grade> grade = calc.gradeFor(1.0, 200, curve);
         assertTrue(grade.isPresent());
         assertEquals(Actress.Grade.F, grade.get());
+    }
+
+    // ── actressGradeFor ───────────────────────────────────────────────────
+
+    private static TitleRepository.RatingData rd(double avg, int count) {
+        return new TitleRepository.RatingData(avg, count);
+    }
+
+    @Test
+    void tooFewRatedTitlesReturnsEmpty() {
+        // 4 rated titles < MIN_ACTRESS_RATED_TITLES (5) → empty
+        List<TitleRepository.RatingData> data = List.of(
+                rd(4.5, 100), rd(4.3, 80), rd(4.6, 90), rd(4.4, 70));
+        assertEquals(Optional.empty(), calc.actressGradeFor(data, 4, curve));
+    }
+
+    @Test
+    void coverageTooLowReturnsEmpty() {
+        // 5 rated out of 30 total → 16.7% < MIN_ACTRESS_COVERAGE (25%) → empty
+        List<TitleRepository.RatingData> data = List.of(
+                rd(4.5, 100), rd(4.3, 80), rd(4.6, 90), rd(4.4, 70), rd(4.7, 110));
+        assertEquals(Optional.empty(), calc.actressGradeFor(data, 30, curve));
+    }
+
+    @Test
+    void nullRatingEntriesAreSkipped() {
+        // 3 valid + 2 nulls → only 3 rated → below threshold
+        List<TitleRepository.RatingData> data = List.of(
+                rd(4.5, 100), new TitleRepository.RatingData(null, null),
+                rd(4.3, 80), new TitleRepository.RatingData(4.0, 0), rd(4.6, 90));
+        assertEquals(Optional.empty(), calc.actressGradeFor(data, 5, curve));
+    }
+
+    @Test
+    void highQualityActressGetsHighGrade() {
+        // 10 titles, all rated 4.8 with 200 votes each
+        // V=2000, R_pool=4.8, M_actress=5*50=250, C=4.0
+        // weighted = (2000*4.8 + 250*4.0) / 2250 = (9600+1000)/2250 = 10600/2250 ≈ 4.711 → SSS (≥4.70)
+        List<TitleRepository.RatingData> data = Collections.nCopies(10, rd(4.8, 200));
+        Optional<Actress.Grade> grade = calc.actressGradeFor(data, 10, curve);
+        assertTrue(grade.isPresent());
+        assertEquals(Actress.Grade.SSS, grade.get());
+    }
+
+    @Test
+    void averageQualityActressGetsMiddleGrade() {
+        // 10 titles, all rated 4.0 with 100 votes each
+        // V=1000, R_pool=4.0, M=250, C=4.0
+        // weighted = (1000*4.0 + 250*4.0) / 1250 = 5000/1250 = 4.0 → A (≥4.00)
+        List<TitleRepository.RatingData> data = Collections.nCopies(10, rd(4.0, 100));
+        Optional<Actress.Grade> grade = calc.actressGradeFor(data, 10, curve);
+        assertTrue(grade.isPresent());
+        assertEquals(Actress.Grade.A, grade.get());
+    }
+
+    @Test
+    void shrinkagePullsSmallPoolTowardGlobalMean() {
+        // 5 titles rated 5.0 with only 10 votes each (low confidence)
+        // V=50, R_pool=5.0, M=250, C=4.0
+        // weighted = (50*5.0 + 250*4.0) / 300 = (250+1000)/300 = 1250/300 ≈ 4.167 → A+ (≥4.20)? no, 4.167 < 4.20 → A (≥4.00)
+        List<TitleRepository.RatingData> data = Collections.nCopies(5, rd(5.0, 10));
+        Optional<Actress.Grade> grade = calc.actressGradeFor(data, 5, curve);
+        assertTrue(grade.isPresent());
+        assertEquals(Actress.Grade.A, grade.get());
     }
 }

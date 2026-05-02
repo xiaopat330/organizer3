@@ -14,6 +14,8 @@ import com.organizer3.model.Label;
 import com.organizer3.model.Title;
 import com.organizer3.model.TitleLocation;
 import com.organizer3.ai.ActressNameLookup;
+import com.organizer3.rating.RatingCurveRepository;
+import com.organizer3.rating.RatingScoreCalculator;
 import com.organizer3.repository.ActressRepository;
 import com.organizer3.repository.LabelRepository;
 import com.organizer3.repository.TitleActressRepository;
@@ -61,8 +63,12 @@ class WebServerTest {
             CoverPath coverPath, LabelRepository labelRepo) {
         Jdbi jdbi = mock(Jdbi.class);
         when(jdbi.withHandle(any())).thenReturn(Map.of());
+        RatingCurveRepository curveRepo = mock(RatingCurveRepository.class);
+        when(curveRepo.find()).thenReturn(java.util.Optional.empty());
+        when(titleRepo.findRatingDataByTitleIds(any())).thenReturn(Map.of());
         return new ActressBrowseService(actressRepo, titleRepo, coverPath,
-                Map.of(), labelRepo, mock(ActressNameLookup.class), null, jdbi);
+                Map.of(), labelRepo, mock(ActressNameLookup.class), null, jdbi,
+                curveRepo, new RatingScoreCalculator());
     }
 
     @Test
@@ -266,7 +272,8 @@ class WebServerTest {
         when(actressRepo.findAll()).thenReturn(List.of(aya, mia));
 
         ActressBrowseService actressBrowse = new ActressBrowseService(
-                actressRepo, titleRepo, coverPath, Map.of(), labelRepo, mock(ActressNameLookup.class), null, null);
+                actressRepo, titleRepo, coverPath, Map.of(), labelRepo, mock(ActressNameLookup.class), null, null,
+                mock(RatingCurveRepository.class), new RatingScoreCalculator());
         server = new WebServer(0, null, actressBrowse, null, null, null, null, null, null, null);
         server.start();
 
@@ -334,7 +341,8 @@ class WebServerTest {
         CoverPath coverPath = mock(CoverPath.class);
 
         ActressBrowseService actressBrowse = new ActressBrowseService(
-                actressRepo, titleRepo, coverPath, Map.of(), labelRepo, mock(ActressNameLookup.class), null, null);
+                actressRepo, titleRepo, coverPath, Map.of(), labelRepo, mock(ActressNameLookup.class), null, null,
+                mock(RatingCurveRepository.class), new RatingScoreCalculator());
         server = new WebServer(0, null, actressBrowse, null, null, null, null, null, null, null);
         server.start();
 
@@ -374,7 +382,8 @@ class WebServerTest {
         when(actressRepo.findById(999L)).thenReturn(Optional.empty());
 
         ActressBrowseService actressBrowse = new ActressBrowseService(
-                actressRepo, titleRepo, coverPath, Map.of(), labelRepo, mock(ActressNameLookup.class), null, null);
+                actressRepo, titleRepo, coverPath, Map.of(), labelRepo, mock(ActressNameLookup.class), null, null,
+                mock(RatingCurveRepository.class), new RatingScoreCalculator());
         server = new WebServer(0, null, actressBrowse, null, null, null, null, null, null, null);
         server.start();
 
@@ -390,7 +399,8 @@ class WebServerTest {
         CoverPath coverPath = mock(CoverPath.class);
 
         ActressBrowseService actressBrowse = new ActressBrowseService(
-                actressRepo, titleRepo, coverPath, Map.of(), labelRepo, mock(ActressNameLookup.class), null, null);
+                actressRepo, titleRepo, coverPath, Map.of(), labelRepo, mock(ActressNameLookup.class), null, null,
+                mock(RatingCurveRepository.class), new RatingScoreCalculator());
         server = new WebServer(0, null, actressBrowse, null, null, null, null, null, null, null);
         server.start();
 

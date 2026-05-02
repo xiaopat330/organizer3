@@ -108,6 +108,12 @@
   min-width: 0;
 }
 
+.detail-avatar-wrap {
+  position: relative;
+  display: inline-block;
+  flex-shrink: 0;
+}
+
 /* Cap avatar at 150×150 so high-res images don't blow out the name block. */
 .detail-actress-avatar {
   display: block;
@@ -115,7 +121,6 @@
   height: 150px;
   object-fit: cover;
   object-position: top center;
-  flex-shrink: 0;
   border-radius: 4px;
 }
 

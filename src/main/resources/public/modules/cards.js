@@ -357,6 +357,12 @@ export function makeActressCard(a) {
     }
     activeObservers.add(obs);
   }
+  if (a.derivedGrade) {
+    const gradeOverlay = document.createElement('div');
+    gradeOverlay.className = 'cover-grade';
+    gradeOverlay.innerHTML = gradeBadgeHtml(a.derivedGrade);
+    coverWrap.appendChild(gradeOverlay);
+  }
   card.appendChild(coverWrap);
 
   const { first: firstName, last: lastName } = splitName(a.canonicalName);

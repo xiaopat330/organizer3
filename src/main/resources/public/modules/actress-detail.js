@@ -1,5 +1,5 @@
 import { esc, fmtDate, isStale, setStatus, splitName, timeAgo, agePillTier } from './utils.js';
-import { ICON_FAV_LG, ICON_BM_LG, ICON_REJ_LG } from './icons.js';
+import { ICON_FAV_LG, ICON_BM_LG, ICON_REJ_LG, gradeBadgeHtml } from './icons.js';
 import { showView, setActiveGrid, ensureActressDetailSentinel, ScrollingGrid, updateBreadcrumb, mode } from './grid.js';
 import { makeTitleCard, updateActressCardIndicators } from './cards.js';
 import { getActressBrowseMode, actressBrowseLabel, selectActressBrowseMode, showActressLanding, hideAllActressSubNavRows } from './actress-browse.js';
@@ -234,7 +234,6 @@ function renderIdentitySection(a) {
     : `<button class="btn-search-stage-name" id="btn-search-stage-name">Search for Stage Name</button>`;
 
   const tierBadge = `<span class="tier-badge tier-${esc(a.tier)}">${esc(a.tier.toLowerCase())}</span>`;
-  const gradeBadge = a.grade ? `<span class="detail-grade">${esc(a.grade)}</span>` : '';
 
   const nameBlockHtml = `
     <div class="detail-name">
@@ -244,9 +243,16 @@ function renderIdentitySection(a) {
     ${stageNameHtml}
   `;
 
-  const headerHtml = a.localAvatarUrl
-    ? `<div class="detail-identity-header">
+  const avatarHtml = a.localAvatarUrl
+    ? `<div class="detail-avatar-wrap">
          <img class="detail-actress-avatar" src="${esc(a.localAvatarUrl)}" alt="avatar">
+         ${a.derivedGrade ? `<div class="cover-grade">${gradeBadgeHtml(a.derivedGrade)}</div>` : ''}
+       </div>`
+    : '';
+
+  const headerHtml = avatarHtml
+    ? `<div class="detail-identity-header">
+         ${avatarHtml}
          <div class="detail-identity-text">${nameBlockHtml}</div>
        </div>`
     : nameBlockHtml;
@@ -256,7 +262,6 @@ function renderIdentitySection(a) {
       ${headerHtml}
       <div class="detail-meta-row">
         ${tierBadge}
-        ${gradeBadge}
       </div>
       <div class="actress-detail-actions">
         <button class="title-action-btn${a.favorite ? ' active' : ''}" id="actress-fav-btn" title="Favorite">${ICON_FAV_LG}</button>

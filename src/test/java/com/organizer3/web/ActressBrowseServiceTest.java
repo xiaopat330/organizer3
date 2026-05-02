@@ -6,6 +6,8 @@ import com.organizer3.model.Actress;
 import com.organizer3.model.Label;
 import com.organizer3.model.Title;
 import com.organizer3.model.TitleLocation;
+import com.organizer3.rating.RatingCurveRepository;
+import com.organizer3.rating.RatingScoreCalculator;
 import com.organizer3.repository.ActressRepository;
 import com.organizer3.repository.LabelRepository;
 import com.organizer3.repository.TitleRepository;
@@ -44,14 +46,18 @@ class ActressBrowseServiceTest {
     @Mock LabelRepository labelRepo;
     @Mock ActressNameLookup nameLookup;
     @Mock Jdbi jdbi;
+    @Mock RatingCurveRepository curveRepo;
 
     ActressBrowseService service;
 
     @BeforeEach
     void setUp() {
         service = new ActressBrowseService(actressRepo, titleRepo, coverPath,
-                Map.of("vol-a", "//pandora/jav_A"), labelRepo, nameLookup, null, jdbi);
+                Map.of("vol-a", "//pandora/jav_A"), labelRepo, nameLookup, null, jdbi,
+                curveRepo, new RatingScoreCalculator());
         lenient().when(titleRepo.findByActressIds(any())).thenReturn(Map.of());
+        lenient().when(titleRepo.findRatingDataByTitleIds(any())).thenReturn(Map.of());
+        lenient().when(curveRepo.find()).thenReturn(Optional.empty());
         lenient().when(actressRepo.findAliasesForActresses(any())).thenReturn(Map.of());
         lenient().when(actressRepo.findCanonicalNameIds(any())).thenReturn(Map.of());
         lenient().when(actressRepo.findPrimaryForAliases(any())).thenReturn(Map.of());
