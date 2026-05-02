@@ -29,6 +29,9 @@ let S = makeState();
 export async function showNoMatchTriageView() {
   viewEl().style.display = 'block';
   S = makeState();
+  // Sync checkbox DOM state with the reset module state.
+  const filter = filterEl();
+  if (filter) filter.checked = false;
   await loadAll();
 }
 
