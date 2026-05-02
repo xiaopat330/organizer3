@@ -5,9 +5,6 @@
 
 import { esc } from './utils.js';
 
-// ── DOM refs (no-draft pane) ──────────────────────────────────────────────
-const enrichBtn = document.getElementById('queue-enrich-btn');
-
 /**
  * Show the no-draft pane for the given title.
  *
@@ -17,28 +14,51 @@ const enrichBtn = document.getElementById('queue-enrich-btn');
  * @param {Function} setStatus - (msg, cls) → void
  */
 export function mountNoDraftView(detail, state, onEnrichSuccess, setStatus) {
-  // Show/hide the Enrich button (not for duplicates — they can't be enriched meaningfully).
+  // Always query fresh — the node may have been replaced by a previous mount.
+  let enrichBtn = document.getElementById('queue-enrich-btn');
+
   const isDup = !!(detail && detail.duplicate);
   if (enrichBtn) {
     enrichBtn.style.display = isDup ? 'none' : '';
     enrichBtn.disabled = false;
+    enrichBtn.textContent = 'Enrich (draft)';
+    enrichBtn.classList.remove('enriching');
   }
 
-  // Wire enrich button for this title.
-  if (enrichBtn) {
-    // Remove previous listener by cloning.
+  if (enrichBtn && !isDup) {
+    // Remove previous listener by cloning, then re-query the replacement.
     const fresh = enrichBtn.cloneNode(true);
     enrichBtn.replaceWith(fresh);
-    const btn = document.getElementById('queue-enrich-btn');
-    btn.addEventListener('click', async () => {
+    enrichBtn = document.getElementById('queue-enrich-btn');
+
+    enrichBtn.addEventListener('click', async () => {
       if (!detail) return;
-      const titleId = detail.detail?.id ?? detail.id;
+      const titleId = detail.detail?.titleId ?? detail.titleId;
       if (!titleId) return;
-      btn.disabled = true;
-      btn.textContent = 'Enriching…';
-      setStatus('Starting enrichment…', '');
+
+      enrichBtn.disabled = true;
+      enrichBtn.textContent = 'Enriching…';
+      enrichBtn.classList.add('enriching');
+      setStatus('Enriching — contacting javdb…', '');
+
+      // Elapsed-time counter so the user knows something is happening.
+      const start = Date.now();
+      const timer = setInterval(() => {
+        const s = Math.floor((Date.now() - start) / 1000);
+        setStatus(`Enriching… ${s}s`, '');
+      }, 1000);
+
+      const resetBtn = () => {
+        clearInterval(timer);
+        enrichBtn.classList.remove('enriching');
+        enrichBtn.disabled = false;
+        enrichBtn.textContent = 'Enrich (draft)';
+      };
+
       try {
         const res = await fetch(`/api/drafts/${titleId}/populate`, { method: 'POST' });
+        clearInterval(timer);
+        enrichBtn.classList.remove('enriching');
         if (res.status === 201) {
           setStatus('Draft created — loading…', 'success');
           onEnrichSuccess(titleId);
@@ -46,20 +66,16 @@ export function mountNoDraftView(detail, state, onEnrichSuccess, setStatus) {
           setStatus('Draft already exists — reload to see it.', '');
           onEnrichSuccess(titleId); // reload draft view
         } else if (res.status === 422) {
-          const body = await res.json().catch(() => ({}));
           setStatus('No javdb match found for this title.', 'error');
-          btn.disabled = false;
-          btn.textContent = 'Enrich (draft)';
+          resetBtn();
         } else {
           setStatus('Enrich failed: HTTP ' + res.status, 'error');
-          btn.disabled = false;
-          btn.textContent = 'Enrich (draft)';
+          resetBtn();
         }
       } catch (err) {
         console.error('Enrich populate failed', err);
         setStatus('Enrich failed: ' + (err.message || err), 'error');
-        btn.disabled = false;
-        btn.textContent = 'Enrich (draft)';
+        resetBtn();
       }
     });
   }
