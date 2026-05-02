@@ -1,6 +1,6 @@
 # AV Screenshot Generation Queue
 
-> **Status: READY — design resolved, awaiting implementation**
+> **Status: IMPLEMENTED** — shipped 2026-05-01 in PR #19 (merge commit a4f8e0f)
 
 Proposes a persistent, FIFO background queue for generating AV video screenshots, driven by a
 button on the AV actress profile screen. Replaces the purely synchronous `av screenshots <name>`

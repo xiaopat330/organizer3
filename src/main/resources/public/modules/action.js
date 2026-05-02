@@ -17,16 +17,16 @@ import { showJavdbDiscoveryView, hideJavdbDiscoveryView, navigateToActressProfil
 import { showTagHealthView, hideTagHealthView } from './utilities-tag-health.js';
 
 // ── DOM refs ──────────────────────────────────────────────────────────────
-const actionBtn         = document.getElementById('action-btn');
-const healthBtn         = document.getElementById('tools-health-btn');
-const utilitiesBtn      = document.getElementById('tools-utilities-btn');
-const actressDataBtn    = document.getElementById('tools-actress-data-btn');
-const trashBtn              = document.getElementById('tools-trash-btn');
-const queueBtn          = document.getElementById('tools-queue-btn');
-const javdbDiscoveryBtn    = document.getElementById('tools-javdb-discovery-btn');
-const utilitiesSubnav      = document.getElementById('tools-utilities-subnav');
-const utilitiesBackupTab   = document.getElementById('tools-utilities-backup-tab');
-const utilitiesLogsTab     = document.getElementById('tools-utilities-logs-tab');
+const actionBtn              = document.getElementById('action-btn');
+const healthBtn              = document.getElementById('tools-health-btn');
+const utilitiesBtn           = document.getElementById('tools-utilities-btn');
+const trashBtn               = document.getElementById('tools-trash-btn');
+const queueBtn               = document.getElementById('tools-queue-btn');
+const javdbDiscoveryBtn      = document.getElementById('tools-javdb-discovery-btn');
+const utilitiesSubnav        = document.getElementById('tools-utilities-subnav');
+const utilitiesBackupTab     = document.getElementById('tools-utilities-backup-tab');
+const utilitiesLogsTab       = document.getElementById('tools-utilities-logs-tab');
+const utilitiesImportExportTab = document.getElementById('tools-utilities-import-export-tab');
 const healthSubnav         = document.getElementById('tools-health-subnav');
 const healthLibraryTab     = document.getElementById('tools-health-library-tab');
 const healthVolumesTab     = document.getElementById('tools-health-volumes-tab');
@@ -47,7 +47,7 @@ const dupTriageTab      = document.getElementById('tools-dup-triage-tab');
 const mergeCandidatesTab = document.getElementById('tools-merge-candidates-tab');
 
 // ── Tool buttons ──────────────────────────────────────────────────────────
-const TOOL_BTNS = [healthBtn, utilitiesBtn, actressDataBtn, trashBtn, queueBtn, javdbDiscoveryBtn];
+const TOOL_BTNS = [healthBtn, utilitiesBtn, trashBtn, queueBtn, javdbDiscoveryBtn];
 
 function selectTool(btn) {
   TOOL_BTNS.forEach(b => b?.classList.remove('selected'));
@@ -236,16 +236,20 @@ async function showCurationTab(tab) {
 function selectUtilitiesTab(tab) {
   utilitiesBackupTab.classList.toggle('selected', tab === 'backup');
   utilitiesLogsTab.classList.toggle('selected', tab === 'logs');
+  utilitiesImportExportTab.classList.toggle('selected', tab === 'import-export');
 }
 
 function showUtilitiesTab(tab) {
   selectUtilitiesTab(tab);
   hideBackupView();
   hideLogsView();
+  hideActressDataView();
   if (tab === 'backup') {
     showBackupView();
-  } else {
+  } else if (tab === 'logs') {
     showLogsView();
+  } else {
+    showActressDataView();
   }
 }
 
@@ -256,8 +260,9 @@ export function showUtilities() {
   hideAllToolViews();
   utilitiesSubnav.style.display = 'flex';
 
-  utilitiesBackupTab.onclick = () => showUtilitiesTab('backup');
-  utilitiesLogsTab.onclick   = () => showUtilitiesTab('logs');
+  utilitiesBackupTab.onclick       = () => showUtilitiesTab('backup');
+  utilitiesLogsTab.onclick         = () => showUtilitiesTab('logs');
+  utilitiesImportExportTab.onclick = () => showUtilitiesTab('import-export');
 
   showUtilitiesTab('backup');
 }
@@ -405,14 +410,6 @@ healthBtn.addEventListener('click', showHealth);
 
 utilitiesBtn.addEventListener('click', showUtilities);
 
-actressDataBtn.addEventListener('click', () => {
-  showActionView('actress-data');
-  selectTool(actressDataBtn);
-  updateBreadcrumb([{ label: 'Tools' }, { label: 'Actress data' }]);
-  hideAllToolViews();
-  showActressDataView();
-});
-
 trashBtn.addEventListener('click', () => {
   showActionView('trash');
   selectTool(trashBtn);
@@ -426,7 +423,7 @@ queueBtn.addEventListener('click', () => showCuration());
 javdbDiscoveryBtn.addEventListener('click', () => {
   showActionView('javdb-discovery');
   selectTool(javdbDiscoveryBtn);
-  updateBreadcrumb([{ label: 'Tools' }, { label: 'Discovery' }]);
+  updateBreadcrumb([{ label: 'Tools' }, { label: 'Sources' }]);
   hideAllToolViews();
   showJavdbDiscoveryView();
 });
@@ -436,7 +433,7 @@ document.addEventListener('navigate-to-review-item', async e => {
   if (discoveryView && discoveryView.style.display === 'none') {
     showActionView('javdb-discovery');
     selectTool(javdbDiscoveryBtn);
-    updateBreadcrumb([{ label: 'Tools' }, { label: 'Discovery' }]);
+    updateBreadcrumb([{ label: 'Tools' }, { label: 'Sources' }]);
     hideAllToolViews();
     await showJavdbDiscoveryView();
   }
@@ -448,7 +445,7 @@ document.addEventListener('navigate-to-discovery-actress-profile', async e => {
   if (discoveryView && discoveryView.style.display === 'none') {
     showActionView('javdb-discovery');
     selectTool(javdbDiscoveryBtn);
-    updateBreadcrumb([{ label: 'Tools' }, { label: 'Discovery' }]);
+    updateBreadcrumb([{ label: 'Tools' }, { label: 'Sources' }]);
     hideAllToolViews();
     await showJavdbDiscoveryView();
   }
