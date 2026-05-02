@@ -187,6 +187,13 @@ public class Application {
         WatchHistoryRepository watchHistoryRepo = new JdbiWatchHistoryRepository(jdbi);
         IndexLoader indexLoader = new IndexLoader(titleRepo, actressRepo);
 
+        // Draft Mode — title repo (Phase 1) needed early for the sync hook (Phase 5).
+        // Full draft wiring (populator, promotion, GC) is done later after all deps are ready.
+        com.organizer3.javdb.draft.DraftTitleRepository draftTitleRepo =
+                new com.organizer3.javdb.draft.DraftTitleRepository(jdbi);
+        com.organizer3.sync.TitleSyncObserver draftSyncObserver =
+                new com.organizer3.javdb.draft.DraftSyncObserver(draftTitleRepo);
+
         // AV Stars repositories
         AvActressRepository      avActressRepo    = new JdbiAvActressRepository(jdbi);
         AvVideoRepository        avVideoRepo      = new JdbiAvVideoRepository(jdbi);
@@ -483,12 +490,12 @@ public class Application {
                     new FullSyncOperation(scannerRegistry, titleRepo, videoRepo, actressRepo,
                             volumeRepo, titleLocationRepo, titleActressRepo, indexLoader,
                             titleEffectiveTagsService, actressCompaniesService, coverPath,
-                            revalidationPendingRepo, syncIdentityMatcher);
+                            revalidationPendingRepo, syncIdentityMatcher, draftSyncObserver);
                 case PARTITION ->
                     new PartitionSyncOperation(def.partitions(), titleRepo, videoRepo,
                             actressRepo, volumeRepo, titleLocationRepo, titleActressRepo, indexLoader,
                             titleEffectiveTagsService, actressCompaniesService, coverPath,
-                            revalidationPendingRepo, syncIdentityMatcher);
+                            revalidationPendingRepo, syncIdentityMatcher, draftSyncObserver);
             };
             SyncCommand syncCmd = new SyncCommand(term, structureTypesByTerm.get(term), op);
             commands.add(syncCmd);
@@ -797,10 +804,10 @@ public class Application {
         webServer.registerUnsortedEditor(new com.organizer3.web.routes.UnsortedEditorRoutes(
                 unsortedEditorService, coverWriteService, imageFetcher, coverPath));
 
-        // Draft Mode (Phase 2 + Phase 3) — populate, cover scratch, validate, promote.
+        // Draft Mode (Phase 2 + Phase 3 + Phase 5) — populate, cover scratch, validate, promote,
+        // sync hook (draftTitleRepo + draftSyncObserver already created above), GC sweep.
         // See spec/PROPOSAL_DRAFT_MODE.md §13.
-        com.organizer3.javdb.draft.DraftTitleRepository draftTitleRepo =
-                new com.organizer3.javdb.draft.DraftTitleRepository(jdbi);
+        // draftTitleRepo already created above (needed early for the sync hook).
         com.organizer3.javdb.draft.DraftActressRepository draftActressRepo =
                 new com.organizer3.javdb.draft.DraftActressRepository(jdbi);
         com.organizer3.javdb.draft.DraftTitleActressesRepository draftCastRepo =
@@ -809,6 +816,16 @@ public class Application {
                 new com.organizer3.javdb.draft.DraftTitleEnrichmentRepository(jdbi);
         com.organizer3.javdb.draft.DraftCoverScratchStore draftCoverStore =
                 new com.organizer3.javdb.draft.DraftCoverScratchStore(dataDir);
+
+        // Draft GC service + scheduler (Phase 5).
+        int draftMaxAgeDays = enrichmentConfig.draftMaxAgeDaysOrDefault();
+        int draftGcHourUtc  = enrichmentConfig.draftGcHourUtcOrDefault();
+        com.organizer3.javdb.draft.DraftGcService draftGcService =
+                new com.organizer3.javdb.draft.DraftGcService(
+                        draftTitleRepo, draftActressRepo, draftCoverStore, draftMaxAgeDays);
+        com.organizer3.javdb.draft.DraftGcScheduler draftGcScheduler =
+                new com.organizer3.javdb.draft.DraftGcScheduler(draftGcService, draftGcHourUtc);
+
         com.organizer3.javdb.draft.DraftPopulator draftPopulator =
                 new com.organizer3.javdb.draft.DraftPopulator(
                         titleRepo, actressRepo, slugResolver, javdbClient,
@@ -948,6 +965,7 @@ public class Application {
         if (enrichmentConfig.revalidationCronOrDefaults().enabledOrDefault()) {
             revalidationCronScheduler.start(enrichmentConfig.revalidationCronOrDefaults().intervalHoursOrDefault());
         }
+        draftGcScheduler.start();
 
         OrganizerShell shell = new OrganizerShell(session, dispatcher);
         shell.run();
@@ -958,6 +976,7 @@ public class Application {
         enrichmentRunner.stop();
         trashSweepScheduler.stop();
         revalidationCronScheduler.stop(10);
+        draftGcScheduler.stop();
         backupScheduler.stop();
         probeJobRunner.shutdown();
         thumbnailService.shutdown();

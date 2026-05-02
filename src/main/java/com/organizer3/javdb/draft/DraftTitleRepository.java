@@ -201,10 +201,12 @@ public class DraftTitleRepository {
      * @return the number of rows deleted.
      */
     public int reapStale(int maxAgeDays) {
+        // Filter on updated_at, not created_at, so drafts the user is actively
+        // editing survive even if first created long ago. See spec §9.2.
         return jdbi.withHandle(h ->
                 h.createUpdate("""
                         DELETE FROM draft_titles
-                        WHERE created_at < datetime('now', '-' || :days || ' days')
+                        WHERE updated_at < datetime('now', '-' || :days || ' days')
                         """)
                         .bind("days", maxAgeDays)
                         .execute());

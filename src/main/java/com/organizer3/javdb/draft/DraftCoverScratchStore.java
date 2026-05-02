@@ -5,6 +5,7 @@ import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
+import java.util.Collection;
 import java.util.Optional;
 
 /**
@@ -87,5 +88,43 @@ public class DraftCoverScratchStore {
     /** Returns the absolute path for the cover file (whether it exists or not). */
     public Path coverPath(long draftTitleId) {
         return scratchDir.resolve(draftTitleId + ".jpg");
+    }
+
+    /**
+     * Deletes scratch cover files whose draft id is not in {@code liveIds}.
+     *
+     * <p>Any file whose name cannot be parsed as a long integer (e.g., {@code .tmp}
+     * leftovers from a crash) is skipped silently — only files matching
+     * {@code <numeric-id>.jpg} are considered.
+     *
+     * <p>If the scratch directory does not yet exist (nothing has been written since
+     * startup), returns 0 immediately without throwing.
+     *
+     * @param liveIds the set of draft title ids whose files must NOT be deleted.
+     * @return the number of orphan files deleted.
+     * @throws IOException if a file deletion fails.
+     */
+    public int reapOrphans(Collection<Long> liveIds) throws IOException {
+        if (!Files.exists(scratchDir)) return 0;
+
+        int count = 0;
+        try (var stream = Files.list(scratchDir)) {
+            for (Path file : (Iterable<Path>) stream::iterator) {
+                String name = file.getFileName().toString();
+                if (!name.endsWith(".jpg")) continue;
+                String stem = name.substring(0, name.length() - 4);
+                long id;
+                try {
+                    id = Long.parseLong(stem);
+                } catch (NumberFormatException e) {
+                    continue; // not a draft cover file — skip
+                }
+                if (!liveIds.contains(id)) {
+                    Files.deleteIfExists(file);
+                    count++;
+                }
+            }
+        }
+        return count;
     }
 }
