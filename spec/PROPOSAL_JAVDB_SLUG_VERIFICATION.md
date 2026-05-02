@@ -248,3 +248,84 @@ This is non-trivial UI work — could be deferred to a follow-up branch if Steps
 - Steps 6-7: incremental (run existing tooling)
 
 Total: 3-4 focused sessions. Cleanup itself is gated on rate-limited re-enrichment (~232 rows × current rate of 0.33/s ≈ 12 minutes of fetch time, but actress filmography fetches add 1 per affected actress).
+
+---
+
+## Step 8 Implementation Plan (2026-05-02 — handoff to Sonnet)
+
+### Current pile (measured against live DB)
+
+- **171 `no_match_in_filmography` failed rows** (all `job_type='fetch_title'`, all `status='failed'`, `last_error='no_match_in_filmography'`).
+- **152** have a linked actress in `title_actresses`; **19** have no link at all.
+- Concentration in top 10 actresses (~140 of 171): Sora Aoi 32, Yua Aida 23, Yuma Asami 18, Moka 16, Manami 13, Honoka 12, Rei Amami 11, Shiori Kamisaki 8, Serena Hayakawa 8, Riku Minato 7.
+
+The 19 orphan rows shape the UX — there must be a "no actress link" sub-flow.
+
+### No schema changes
+
+`no_match` state lives in `javdb_enrichment_queue.last_error='no_match_in_filmography'` plus `status='failed'`. The L2 cache (`javdb_actress_filmography_entry`) already supports cross-filmography code lookups. No new tables/columns needed.
+
+### Backend
+
+**New repo queries** (in `JavdbEnrichmentQueueRepository` or a new `NoMatchTriageRepository`):
+
+1. `listNoMatchRows()` → returns rows with `(title_id, code, base_code, primary_actress_id?, primary_actress_stage_name?, folder_path, attempts, updated_at)`. Joins `titles`, `title_actresses` (LEFT), `actresses` (LEFT), and a primary `title_locations` row for the folder path.
+2. `findActressesByFilmographyCode(code)` → searches `javdb_actress_filmography_entry` for rows whose `product_code = ?`, returns `List<{actress_id, stage_name, javdb_slug, title_slug, fetched_at}>`. This is the "try other actress" search; cheap (indexed local lookup).
+3. `clearNoMatchAndReQueue(titleId, actressIdOverride?)` → deletes the failed queue row, optionally updates/creates the `title_actresses` link, re-enqueues `fetch_title` at `priority='HIGH'`.
+
+**New service** `NoMatchTriageService` (testable, no HTTP deps):
+- `list()` → assembles `NoMatchRow` DTOs with candidate-actress hints precomputed (calls #2 per row but caps batch and caches by code in-request).
+- `tryOtherActress(titleId, actressId)` → validates `actressId` actually has the code in cache, swaps the link, calls #3.
+- `manualSlugEntry(titleId, javdbSlug)` → bypasses resolver, force-enriches via existing force-enrich path, leaves the queue row in `done`.
+- `markResolved(titleId)` → sets queue row `status='cancelled', last_error='user_marked_no_javdb_data'`. Cancellation already excluded from re-enqueue paths.
+- `openFolder(titleId)` → returns the OS path; reuses existing folder-open mechanism (whatever Logs/Library Health uses).
+
+**HTTP routes** in a new `NoMatchTriageRoutes`:
+```
+GET  /api/triage/no-match              → list (optionally filtered by ?actressId=N or ?orphan=1)
+POST /api/triage/no-match/:id/reassign → body: { actressId } → tryOtherActress
+POST /api/triage/no-match/:id/manual   → body: { javdbSlug } → manualSlugEntry
+POST /api/triage/no-match/:id/resolve  → markResolved
+GET  /api/triage/no-match/:id/folder   → openFolder
+```
+
+Wire into `WebServer` and `Application` (manual DI, no Spring per CLAUDE.md).
+
+### Frontend
+
+New Utilities pane `Triage / No-Match Enrichments`:
+
+- **Header bar**: total count, breakdown (linked / orphan), filter chip "by actress" + a "show orphans only" toggle.
+- **Row card** (per `no_match` title):
+  - Code, current actress link (or "no link"), folder path (with "Open" button)
+  - "javdb cover search" external link (`https://javdb.com/search?q=<code>`)
+  - "Candidate actresses" pills — actresses whose cached filmography contains this code, each clickable as a one-click "Try this actress" reassign + re-enrich
+  - "Manual slug" inline input (paste slug, submit)
+  - "Mark resolved" button
+- **Orphan rows** (no actress link): same row layout, but the candidate-actresses section is the *only* path; if zero candidates, show "Search javdb manually" prompt and the manual-slug input.
+
+Reuse existing card styling from Library Health / Duplicate Triage panes.
+
+### Tests
+
+- **Repo test**: in-memory SQLite seeded with a known no_match row + filmography cache containing the code under a different actress; assert `findActressesByFilmographyCode` returns the right candidate.
+- **Service test** (mocked repo + force-enrich path): each of the 4 actions does what it promises; idempotent on repeat clicks.
+- **Route test** (extends `WebServerTest`): each endpoint returns 200/204/404 in the expected cases; `:id` 400s on non-numeric.
+- **Regression**: `markResolved` does not set `status='done'` — must remain distinguishable from real successes (use `cancelled`).
+
+### Edge cases to handle
+
+1. **Multi-actress titles**: a title may have several `title_actresses` rows. The "current actress" shown should be the one the resolver tried (track which actress the no_match was discovered against — currently not stored; either add `failed_against_actress_id` to the queue row, **or** rely on the convention that the row was tried against every linked actress and none had the code, so display all linked actresses with the same orphan-style UX).
+2. **Stale filmography cache**: if a candidate actress's cached filmography is >30d old, surface a "refresh" affordance before reassigning.
+3. **Sentinel actresses** (`is_sentinel=1`) should never appear as candidates — they have no real javdb identity. Filter in query #2.
+4. **Re-enqueue race**: if the user clicks "Try other actress" while the queue worker is mid-fetch on the same title, the existing queue locking should handle it; verify with a quick integration test.
+
+### Out of scope for Step 8
+
+- Automatic candidate suggestions for orphan rows that cross-reference *all* cached filmographies in batch (the manual per-row search already does this).
+- Bulk actions ("reassign all 32 Sora Aoi rows"). Add later if the per-row workflow gets tedious.
+- Surfacing `not_found` and `no_slug` failed rows (only 2 total — handle as ad-hoc).
+
+### Estimated effort
+
+~1.5 sessions for Sonnet: 1 backend (repo + service + routes + tests), 0.5 frontend (one new Utilities pane reusing existing patterns).
