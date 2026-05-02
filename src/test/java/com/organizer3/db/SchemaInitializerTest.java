@@ -45,7 +45,9 @@ class SchemaInitializerTest {
 
         assertEquals(
                 List.of("actress_aliases", "actress_companies", "actresses",
-                        "av_actresses", "av_tag_definitions", "av_video_screenshots", "av_video_tags", "av_videos",
+                        "av_actresses", "av_screenshot_queue",
+                        "av_tag_definitions", "av_video_screenshots", "av_video_tags", "av_videos",
+                        "draft_actresses", "draft_title_actresses", "draft_title_javdb_enrichment", "draft_titles",
                         "duplicate_decisions",
                         "enrichment_review_queue", "enrichment_tag_definitions",
                         "javdb_actress_filmography", "javdb_actress_filmography_entry",
@@ -76,15 +78,18 @@ class SchemaInitializerTest {
         assertEquals(
                 List.of("idx_actress_aliases_name", "idx_actress_companies_company",
                         "idx_actresses_name_nocase",
+                        "idx_asq_actress", "idx_asq_status_enqueued",
                         "idx_av_actresses_iafd_id", "idx_av_actresses_volume",
                         "idx_av_video_screenshots_video",
                         "idx_av_video_tags_tag", "idx_av_video_tags_video",
                         "idx_av_videos_actress", "idx_av_videos_bucket",
                         "idx_av_videos_studio", "idx_av_videos_volume",
+                        "idx_draft_titles_title_id",
                         "idx_erq_open", "idx_erq_open_unique", "idx_erq_title",
                         "idx_etd_title_count",
                         "idx_filmography_entry_code",
-                        "idx_javdb_actress_slug", "idx_jeq_actress", "idx_jeq_claim", "idx_jeq_source",
+                        "idx_javdb_actress_slug",
+                        "idx_jeq_actress", "idx_jeq_claim", "idx_jeq_claim_priority", "idx_jeq_source",
                         "idx_label_tags_tag",
                         "idx_reval_enqueued",
                         "idx_tet_tag",
@@ -165,7 +170,7 @@ class SchemaInitializerTest {
 
         int version = jdbi.withHandle(h ->
                 h.createQuery("PRAGMA user_version").mapTo(Integer.class).one());
-        assertEquals(39, version);
+        assertEquals(44, version);
     }
 
     @Test

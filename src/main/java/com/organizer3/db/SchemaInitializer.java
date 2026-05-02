@@ -59,7 +59,9 @@ public class SchemaInitializer {
                         needs_profiling      INTEGER NOT NULL DEFAULT 0,
                         favorite_cleared_at  TEXT,
                         is_sentinel          INTEGER NOT NULL DEFAULT 0,
-                        custom_avatar_path   TEXT
+                        custom_avatar_path   TEXT,
+                        created_via          TEXT,
+                        created_at           TEXT
                     )""");
 
             h.execute("""
@@ -584,12 +586,69 @@ public class SchemaInitializer {
                     CREATE INDEX IF NOT EXISTS idx_asq_actress
                         ON av_screenshot_queue(av_actress_id)""");
 
+            // draft_titles + related (v44): WIP layer for Draft Mode + Bulk Enrich.
+            // See spec/PROPOSAL_DRAFT_MODE.md §2 and §13 Phase 1.
+            h.execute("""
+                    CREATE TABLE IF NOT EXISTS draft_titles (
+                        id                    INTEGER PRIMARY KEY AUTOINCREMENT,
+                        title_id              INTEGER NOT NULL REFERENCES titles(id) ON DELETE CASCADE,
+                        code                  TEXT NOT NULL,
+                        title_original        TEXT,
+                        title_english         TEXT,
+                        release_date          TEXT,
+                        notes                 TEXT,
+                        grade                 TEXT,
+                        grade_source          TEXT,
+                        upstream_changed      INTEGER NOT NULL DEFAULT 0,
+                        last_validation_error TEXT,
+                        created_at            TEXT NOT NULL,
+                        updated_at            TEXT NOT NULL
+                    )""");
+            h.execute("""
+                    CREATE UNIQUE INDEX IF NOT EXISTS idx_draft_titles_title_id
+                        ON draft_titles(title_id)""");
+
+            h.execute("""
+                    CREATE TABLE IF NOT EXISTS draft_actresses (
+                        javdb_slug            TEXT PRIMARY KEY,
+                        stage_name            TEXT,
+                        english_first_name    TEXT,
+                        english_last_name     TEXT,
+                        link_to_existing_id   INTEGER REFERENCES actresses(id),
+                        created_at            TEXT NOT NULL,
+                        updated_at            TEXT NOT NULL,
+                        last_validation_error TEXT
+                    )""");
+
+            h.execute("""
+                    CREATE TABLE IF NOT EXISTS draft_title_actresses (
+                        draft_title_id INTEGER NOT NULL REFERENCES draft_titles(id) ON DELETE CASCADE,
+                        javdb_slug     TEXT NOT NULL REFERENCES draft_actresses(javdb_slug),
+                        resolution     TEXT NOT NULL,
+                        PRIMARY KEY (draft_title_id, javdb_slug)
+                    )""");
+
+            h.execute("""
+                    CREATE TABLE IF NOT EXISTS draft_title_javdb_enrichment (
+                        draft_title_id  INTEGER PRIMARY KEY REFERENCES draft_titles(id) ON DELETE CASCADE,
+                        javdb_slug      TEXT,
+                        cast_json       TEXT,
+                        maker           TEXT,
+                        series          TEXT,
+                        cover_url       TEXT,
+                        tags_json       TEXT,
+                        rating_avg      REAL,
+                        rating_count    INTEGER,
+                        resolver_source TEXT,
+                        updated_at      TEXT NOT NULL
+                    )""");
+
             // Only stamp version on fresh installs (user_version = 0).
             // On an existing DB the CREATE TABLE statements above are all no-ops, so we must
             // leave the version alone and let SchemaUpgrader apply any missing migrations.
             int currentVersion = h.createQuery("PRAGMA user_version").mapTo(Integer.class).one();
             if (currentVersion == 0) {
-                h.execute("PRAGMA user_version = 43");
+                h.execute("PRAGMA user_version = 44");
             }
         });
         log.info("Schema initialization complete");
