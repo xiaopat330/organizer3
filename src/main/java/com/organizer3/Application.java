@@ -711,6 +711,27 @@ public class Application {
                 new com.organizer3.utilities.task.javdb.EnrichmentClearMismatchedTask(
                         jdbi, slugResolver, enrichmentQueue, revalidationPendingRepo);
 
+        // Draft Mode dependencies for BulkEnrichToDraftTask — constructed here so the task
+        // can be registered in TaskRegistry before DraftRoutes wiring (which reuses the same objects).
+        // draftTitleRepo was created early (line ~192) for the sync hook.
+        com.organizer3.web.ImageFetcher imageFetcher = new com.organizer3.web.ImageFetcher();
+        com.organizer3.javdb.draft.DraftActressRepository draftActressRepo =
+                new com.organizer3.javdb.draft.DraftActressRepository(jdbi);
+        com.organizer3.javdb.draft.DraftTitleActressesRepository draftCastRepo =
+                new com.organizer3.javdb.draft.DraftTitleActressesRepository(jdbi);
+        com.organizer3.javdb.draft.DraftTitleEnrichmentRepository draftEnrichRepo =
+                new com.organizer3.javdb.draft.DraftTitleEnrichmentRepository(jdbi);
+        com.organizer3.javdb.draft.DraftCoverScratchStore draftCoverStore =
+                new com.organizer3.javdb.draft.DraftCoverScratchStore(dataDir);
+        com.organizer3.javdb.draft.DraftPopulator draftPopulator =
+                new com.organizer3.javdb.draft.DraftPopulator(
+                        titleRepo, actressRepo, slugResolver, javdbClient,
+                        new com.organizer3.javdb.enrichment.JavdbExtractor(),
+                        javdbStagingRepo, draftTitleRepo, draftActressRepo, draftCastRepo,
+                        draftEnrichRepo, draftCoverStore, imageFetcher, jsonMapper);
+        com.organizer3.utilities.task.javdb.BulkEnrichToDraftTask bulkEnrichToDraftTask =
+                new com.organizer3.utilities.task.javdb.BulkEnrichToDraftTask(jdbi, draftPopulator);
+
         com.organizer3.utilities.task.TaskRegistry taskRegistry =
                 new com.organizer3.utilities.task.TaskRegistry(
                         java.util.List.of(syncVolumeTask, cleanStaleLocationsTask,
@@ -727,9 +748,12 @@ public class Application {
                                 organizeClassifyPreviewTask, organizeClassifyTask,
                                 organizeAllPreviewTask, organizeAllTask,
                                 fixTimestampsPreviewTask, fixTimestampsTask,
-                                recomputeRatingCurveTask, enrichmentClearMismatchedTask));
+                                recomputeRatingCurveTask, enrichmentClearMismatchedTask,
+                                bulkEnrichToDraftTask));
         com.organizer3.utilities.task.TaskRunner taskRunner =
                 new com.organizer3.utilities.task.TaskRunner(taskRegistry);
+        // Phase 6: wire TaskRunner into EnrichmentRunner for task-aware pause detection.
+        enrichmentRunner.setTaskRunner(taskRunner);
         com.organizer3.mcp.tools.ForceEnrichTitleTool forceEnrichTitleTool =
                 new com.organizer3.mcp.tools.ForceEnrichTitleTool(
                         jdbi, titleRepo, javdbClient,
@@ -800,22 +824,15 @@ public class Application {
                         smbConnectionFactory, UNSORTED_VOLUME_ID);
         com.organizer3.web.CoverWriteService coverWriteService =
                 new com.organizer3.web.CoverWriteService(smbConnectionFactory, coverPath, UNSORTED_VOLUME_ID);
-        com.organizer3.web.ImageFetcher imageFetcher = new com.organizer3.web.ImageFetcher();
         webServer.registerUnsortedEditor(new com.organizer3.web.routes.UnsortedEditorRoutes(
                 unsortedEditorService, coverWriteService, imageFetcher, coverPath));
 
-        // Draft Mode (Phase 2 + Phase 3 + Phase 5) — populate, cover scratch, validate, promote,
-        // sync hook (draftTitleRepo + draftSyncObserver already created above), GC sweep.
+        // Draft Mode (Phase 2 + Phase 3 + Phase 5 + Phase 6) — populate, cover scratch, validate, promote,
+        // sync hook (draftTitleRepo + draftSyncObserver already created above), GC sweep, bulk enrich.
         // See spec/PROPOSAL_DRAFT_MODE.md §13.
-        // draftTitleRepo already created above (needed early for the sync hook).
-        com.organizer3.javdb.draft.DraftActressRepository draftActressRepo =
-                new com.organizer3.javdb.draft.DraftActressRepository(jdbi);
-        com.organizer3.javdb.draft.DraftTitleActressesRepository draftCastRepo =
-                new com.organizer3.javdb.draft.DraftTitleActressesRepository(jdbi);
-        com.organizer3.javdb.draft.DraftTitleEnrichmentRepository draftEnrichRepo =
-                new com.organizer3.javdb.draft.DraftTitleEnrichmentRepository(jdbi);
-        com.organizer3.javdb.draft.DraftCoverScratchStore draftCoverStore =
-                new com.organizer3.javdb.draft.DraftCoverScratchStore(dataDir);
+        // draftTitleRepo, imageFetcher, draftActressRepo, draftCastRepo, draftEnrichRepo,
+        // draftCoverStore, draftPopulator, and bulkEnrichToDraftTask were moved up before the
+        // TaskRegistry to allow registration of BulkEnrichToDraftTask (Phase 6).
 
         // Draft GC service + scheduler (Phase 5).
         int draftMaxAgeDays = enrichmentConfig.draftMaxAgeDaysOrDefault();
@@ -825,13 +842,6 @@ public class Application {
                         draftTitleRepo, draftActressRepo, draftCoverStore, draftMaxAgeDays);
         com.organizer3.javdb.draft.DraftGcScheduler draftGcScheduler =
                 new com.organizer3.javdb.draft.DraftGcScheduler(draftGcService, draftGcHourUtc);
-
-        com.organizer3.javdb.draft.DraftPopulator draftPopulator =
-                new com.organizer3.javdb.draft.DraftPopulator(
-                        titleRepo, actressRepo, slugResolver, javdbClient,
-                        new com.organizer3.javdb.enrichment.JavdbExtractor(),
-                        javdbStagingRepo, draftTitleRepo, draftActressRepo, draftCastRepo,
-                        draftEnrichRepo, draftCoverStore, imageFetcher, jsonMapper);
         com.organizer3.javdb.draft.CastValidator castValidator =
                 new com.organizer3.javdb.draft.CastValidator();
         com.organizer3.javdb.draft.DraftPromotionService draftPromotionService =
@@ -841,7 +851,7 @@ public class Application {
                         titleRepo, enrichmentHistoryRepo, titleEffectiveTagsService, jsonMapper);
         webServer.registerDraftRoutes(new com.organizer3.web.routes.DraftRoutes(
                 draftPopulator, draftTitleRepo, draftEnrichRepo, draftCoverStore, imageFetcher,
-                draftPromotionService, jsonMapper));
+                draftPromotionService, jsonMapper, jdbi));
 
         // MCP (Model Context Protocol) server — read-only diagnostic tools mounted on
         // the existing Javalin instance. See spec/PROPOSAL_MCP_SERVER.md.
