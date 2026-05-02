@@ -1,0 +1,42 @@
+profile:
+  name:
+    family_name: Nonoura
+    given_name: Non
+    stage_name: 野々浦暖
+    reading: ののうら のん
+    alternate_names: null
+  date_of_birth: 1999-02-10
+  birthplace: Tokyo, Japan
+  blood_type: null
+  height_cm: 152
+  measurements:
+    bust: 86
+    waist: 52
+    hip: 83
+  cup: D
+  active_from: 2019-02-08
+  active_to: null
+  retirement_announced: null
+  biography: "Non Nonoura (野々浦暖) was born on February 10, 1999 in Tokyo and debuted as a Prestige exclusive actress on February 8, 2019 under the debut catchphrase '1億人が恋する美少女' (Beautiful Girl Loved by 1 Billion People). She is affiliated with the T-Powers talent agency. Her combination of a petite frame, full proportions, and a clean natural appearance drove strong debut-era reception, establishing her as one of Prestige's recognizable exclusive performers. She has maintained a consistent release schedule under the Prestige brand throughout her career."
+  primary_studios:
+  - name: Prestige
+    company: Prestige
+    from: 2019-02-08
+    to: null
+    role: Exclusive contract actress
+  awards: null
+  legacy: null
+
+portfolio: null
+
+meta:
+  total_owned_titles: null
+  titles_with_japanese_title: null
+  titles_with_english_title: null
+  titles_with_release_date: null
+  total_known_releases: null
+  coverage_note: "Profile only; portfolio not yet researched. DB unavailable during profile creation."
+  confidence: "DOB 1999-02-10, birthplace Tokyo, height 152cm, measurements B86/W52/H83, cup D sourced from Japanese Wikipedia and cross-referenced against fan databases. Blood type not found in any source. Debut date 2019-02-08 confirmed."
+  data_sources:
+  - https://ja.wikipedia.org/wiki/%E9%87%8E%E3%80%85%E6%B5%A6%E6%9A%96
+  portfolio_listed: 0
