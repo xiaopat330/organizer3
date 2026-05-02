@@ -278,11 +278,13 @@ Three tag classes:
 | Label/code-derived | from `label_tags` + product code | **No** — auto-derived |
 | Intrinsic user | user-applied | Yes |
 
-**Resolved at promote, not populate.** Drafts store only raw `tags_json` on `draft_title_javdb_enrichment`. The promotion transaction (step 6) applies the current alias map (`enrichment_tag_definitions.curated_alias`) to derive `title_enrichment_tags` rows. This means:
+**Tags are written raw at promote; alias resolution happens at query/UI time.** Drafts store the raw `tags_json` on `draft_title_javdb_enrichment`. The promotion transaction (step 6) writes `title_enrichment_tags` rows using the raw tag names — matching the existing `JavdbEnrichmentRepository` behavior for autonomous-runner writes. The `enrichment_tag_definitions.curated_alias` mapping is applied at query/UI time (see `spec/ENRICHMENT_TAG_OPS.md`).
 
-- Stale alias mappings cannot ship to canonical state.
-- Alias-map fixes propagate to subsequent promotions automatically.
-- Editor preview computes "tags that will land" live from `tags_json` + current map (same logic as promotion, just no writes).
+**Property:** alias-map fixes propagate to ALL existing titles automatically because resolution is query-time, not write-time. There is no "stale alias mapping shipped to canonical state" concern — the mapping is applied freshly on every read.
+
+(Earlier draft of this section said "the promotion transaction applies the current alias map." That was imprecise — the alias map is a query-time derivation, not a write-time one. Corrected 2026-05-02 after Phase 3 implementation review confirmed the actual behavior matches existing repo conventions.)
+
+- Editor preview computes "tags that will land" by passing `tags_json` through the same alias-map application logic the UI uses elsewhere (no writes; pure read of definitions).
 
 ---
 
