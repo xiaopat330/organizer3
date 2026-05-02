@@ -797,6 +797,27 @@ public class Application {
         webServer.registerUnsortedEditor(new com.organizer3.web.routes.UnsortedEditorRoutes(
                 unsortedEditorService, coverWriteService, imageFetcher, coverPath));
 
+        // Draft Mode (Phase 2) — populate + cover scratch.
+        // See spec/PROPOSAL_DRAFT_MODE.md §13.
+        com.organizer3.javdb.draft.DraftTitleRepository draftTitleRepo =
+                new com.organizer3.javdb.draft.DraftTitleRepository(jdbi);
+        com.organizer3.javdb.draft.DraftActressRepository draftActressRepo =
+                new com.organizer3.javdb.draft.DraftActressRepository(jdbi);
+        com.organizer3.javdb.draft.DraftTitleActressesRepository draftCastRepo =
+                new com.organizer3.javdb.draft.DraftTitleActressesRepository(jdbi);
+        com.organizer3.javdb.draft.DraftTitleEnrichmentRepository draftEnrichRepo =
+                new com.organizer3.javdb.draft.DraftTitleEnrichmentRepository(jdbi);
+        com.organizer3.javdb.draft.DraftCoverScratchStore draftCoverStore =
+                new com.organizer3.javdb.draft.DraftCoverScratchStore(dataDir);
+        com.organizer3.javdb.draft.DraftPopulator draftPopulator =
+                new com.organizer3.javdb.draft.DraftPopulator(
+                        titleRepo, actressRepo, slugResolver, javdbClient,
+                        new com.organizer3.javdb.enrichment.JavdbExtractor(),
+                        javdbStagingRepo, draftTitleRepo, draftActressRepo, draftCastRepo,
+                        draftEnrichRepo, draftCoverStore, imageFetcher, jsonMapper);
+        webServer.registerDraftRoutes(new com.organizer3.web.routes.DraftRoutes(
+                draftPopulator, draftTitleRepo, draftCoverStore, imageFetcher));
+
         // MCP (Model Context Protocol) server — read-only diagnostic tools mounted on
         // the existing Javalin instance. See spec/PROPOSAL_MCP_SERVER.md.
         com.organizer3.mcp.McpConfig mcpConfig = AppConfig.get().volumes().mcp() != null
