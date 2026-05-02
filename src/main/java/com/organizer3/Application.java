@@ -757,6 +757,12 @@ public class Application {
         webServer.registerTrash(new com.organizer3.web.routes.TrashRoutes(
                 trashService, smbConnectionFactory, taskRegistry, taskRunner));
 
+        webServer.registerNoMatchTriage(new com.organizer3.web.routes.NoMatchTriageRoutes(
+                new com.organizer3.javdb.enrichment.NoMatchTriageService(
+                        new com.organizer3.javdb.enrichment.NoMatchTriageRepository(jdbi),
+                        forceEnrichTitleTool,
+                        java.time.Clock.systemUTC())));
+
         webServer.registerDuplicateDecisions(
                 new com.organizer3.web.routes.DuplicateDecisionsRoutes(dupDecisionRepo));
         webServer.registerMergeCandidates(

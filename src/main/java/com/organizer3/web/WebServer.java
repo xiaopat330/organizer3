@@ -164,6 +164,11 @@ public class WebServer {
         routes.register(app);
     }
 
+    /** Mounts the no-match enrichment triage endpoints ({@code /api/triage/no-match/*}). */
+    public void registerNoMatchTriage(com.organizer3.web.routes.NoMatchTriageRoutes routes) {
+        routes.register(app);
+    }
+
     /** Mounts the Duplicate Triage decisions endpoints ({@code /api/tools/duplicates/decisions/*}). */
     public void registerDuplicateDecisions(com.organizer3.web.routes.DuplicateDecisionsRoutes routes) {
         routes.register(app);
