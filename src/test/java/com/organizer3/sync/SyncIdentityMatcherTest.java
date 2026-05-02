@@ -3,6 +3,7 @@ package com.organizer3.sync;
 import com.organizer3.db.SchemaInitializer;
 import com.organizer3.javdb.enrichment.EnrichmentReviewQueueRepository;
 import com.organizer3.model.Title;
+import com.organizer3.repository.jdbi.JdbiTitlePathHistoryRepository;
 import org.jdbi.v3.core.Jdbi;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -25,7 +26,9 @@ class SyncIdentityMatcherTest {
     private Connection connection;
     private Jdbi jdbi;
     private EnrichmentReviewQueueRepository reviewQueueRepo;
+    private JdbiTitlePathHistoryRepository pathHistoryRepo;
     private SyncIdentityMatcher matcher;
+    private SyncIdentityMatcher matcherWithHistory;
 
     @BeforeEach
     void setUp() throws Exception {
@@ -33,7 +36,11 @@ class SyncIdentityMatcherTest {
         jdbi = Jdbi.create(connection);
         new SchemaInitializer(jdbi).initialize();
         reviewQueueRepo = new EnrichmentReviewQueueRepository(jdbi);
+        pathHistoryRepo = new JdbiTitlePathHistoryRepository(jdbi);
+        // Default matcher without path history (backward compat)
         matcher = new SyncIdentityMatcher(jdbi, reviewQueueRepo);
+        // Matcher with path history for path-history fallback tests
+        matcherWithHistory = new SyncIdentityMatcher(jdbi, reviewQueueRepo, pathHistoryRepo);
     }
 
     @AfterEach
@@ -300,6 +307,135 @@ class SyncIdentityMatcherTest {
 
         assertEquals(0, reviewQueueRepo.countOpen("actress_rename_candidate"),
                 "actress rename guard tripped: 0 queue entries written");
+    }
+
+    // ── Path-history fallback ─────────────────────────────────────────────────
+
+    /**
+     * Scenario: title previously at /queue/XYZ-001 was deleted (or renamed).
+     * A new title re-appears at the same path (possibly with a different code).
+     * Path-history lookup should surface it as a path_history_match candidate.
+     */
+    @Test
+    void noteTitleCandidate_pathHistoryFallback_buffersCandidate_whenCodeMissAndHistoryHit() {
+        // Seed a title row (to satisfy the title-existence check in findByPath)
+        insertTitleRecord(55L, "XYZ-001");
+
+        // Record that title 55 used to live at this path
+        pathHistoryRepo.recordPath(55L, "vol-a", "queue", "/queue/XYZ-001", "2026-01-01T00:00:00Z");
+
+        // The new title has a different code — no orphan match via Phase-3
+        insertTitleRecord(99L, "DIFFERENT-001");
+        matcherWithHistory.loadForSync();
+
+        TitleCodeParser.ParsedCode parsed = new TitleCodeParser().parse("DIFFERENT-001");
+        Title newTitle = Title.builder().id(99L).code("DIFFERENT-001").label("DIFFERENT").seqNum(1).build();
+
+        matcherWithHistory.noteTitleCandidate(parsed, newTitle, "vol-a", "queue", "/queue/XYZ-001");
+        matcherWithHistory.flushToQueue(100);
+
+        assertTrue(reviewQueueRepo.hasOpen(99L, "path_history_match"),
+                "path_history_match must be queued when code misses but path history hits");
+    }
+
+    @Test
+    void noteTitleCandidate_pathHistoryFallback_skipsWhenNoHistoryRow() {
+        matcherWithHistory.loadForSync();
+
+        insertTitleRecord(99L, "ABC-001");
+        TitleCodeParser.ParsedCode parsed = new TitleCodeParser().parse("ABC-001");
+        Title newTitle = Title.builder().id(99L).code("ABC-001").label("ABC").seqNum(1).build();
+
+        matcherWithHistory.noteTitleCandidate(parsed, newTitle, "vol-a", "queue", "/queue/ABC-001");
+        matcherWithHistory.flushToQueue(100);
+
+        assertFalse(reviewQueueRepo.hasOpen(99L, "path_history_match"),
+                "no path_history_match when no history row exists for this path");
+    }
+
+    @Test
+    void noteTitleCandidate_pathHistoryFallback_skipsWhenHistoricTitleDeleted() {
+        // Path history row exists but the title_id it points to is gone
+        pathHistoryRepo.recordPath(777L, "vol-a", "queue", "/queue/GONE-001", "2026-01-01T00:00:00Z");
+        // No INSERT into titles for 777 — simulates a deleted title
+
+        matcherWithHistory.loadForSync();
+
+        insertTitleRecord(99L, "NEW-001");
+        TitleCodeParser.ParsedCode parsed = new TitleCodeParser().parse("NEW-001");
+        Title newTitle = Title.builder().id(99L).code("NEW-001").label("NEW").seqNum(1).build();
+
+        matcherWithHistory.noteTitleCandidate(parsed, newTitle, "vol-a", "queue", "/queue/GONE-001");
+        matcherWithHistory.flushToQueue(100);
+
+        assertFalse(reviewQueueRepo.hasOpen(99L, "path_history_match"),
+                "path_history_match must be skipped when historic title_id no longer exists");
+    }
+
+    @Test
+    void noteTitleCandidate_withPathCoords_stillDoesPhase3SoftMatchFirst() {
+        // Phase-3 match should win before path-history is tried
+        insertOrphanTitle(10L, "ABC-001_U", "ABC", 1);
+        insertTitleRecord(55L, "XYZ-001");
+        pathHistoryRepo.recordPath(55L, "vol-a", "queue", "/queue/ABC-001", "2026-01-01T00:00:00Z");
+
+        matcherWithHistory.loadForSync();
+
+        insertTitleRecord(99L, "ABC-001");
+        TitleCodeParser.ParsedCode parsed = new TitleCodeParser().parse("ABC-001");
+        Title newTitle = Title.builder().id(99L).code("ABC-001").label("ABC").seqNum(1).build();
+
+        matcherWithHistory.noteTitleCandidate(parsed, newTitle, "vol-a", "queue", "/queue/ABC-001");
+        matcherWithHistory.flushToQueue(100);
+
+        // Phase-3 base+seq match wins → recode_candidate, NOT path_history_match
+        assertTrue(reviewQueueRepo.hasOpen(99L, "recode_candidate"),
+                "Phase-3 base+seq match must win over path-history fallback");
+        assertFalse(reviewQueueRepo.hasOpen(99L, "path_history_match"),
+                "path_history_match must not be generated when Phase-3 already matched");
+    }
+
+    @Test
+    void noteTitleCandidate_withoutPathCoords_backwardCompatSkipsPathHistory() {
+        insertTitleRecord(55L, "XYZ-001");
+        pathHistoryRepo.recordPath(55L, "vol-a", "queue", "/queue/XYZ-001", "2026-01-01T00:00:00Z");
+
+        matcherWithHistory.loadForSync();
+
+        insertTitleRecord(99L, "DIFFERENT-001");
+        TitleCodeParser.ParsedCode parsed = new TitleCodeParser().parse("DIFFERENT-001");
+        Title newTitle = Title.builder().id(99L).code("DIFFERENT-001").label("DIFFERENT").seqNum(1).build();
+
+        // Old 2-arg overload — no path coords, path-history fallback skipped
+        matcherWithHistory.noteTitleCandidate(parsed, newTitle);
+        matcherWithHistory.flushToQueue(100);
+
+        assertFalse(reviewQueueRepo.hasOpen(99L, "path_history_match"),
+                "backward-compat 2-arg noteTitleCandidate must not trigger path-history fallback");
+    }
+
+    @Test
+    void flushPathHistoryCandidates_catastrophicGuard_refusesAboveThreshold() {
+        // Create 60 path-history candidates above the FLOOR(50)
+        for (int i = 0; i < 60; i++) {
+            insertTitleRecord(100L + i, "H-" + i);
+            insertTitleRecord(200L + i, "N-" + i);
+            String path = "/queue/N-" + i;
+            pathHistoryRepo.recordPath(100L + i, "vol-a", "queue", path, "2026-01-01T00:00:00Z");
+        }
+        matcherWithHistory.loadForSync();
+
+        for (int i = 0; i < 60; i++) {
+            TitleCodeParser.ParsedCode parsed = new TitleCodeParser().parse("N-" + i);
+            Title newTitle = Title.builder().id(200L + i).code("N-" + i).label("N").seqNum(i).build();
+            matcherWithHistory.noteTitleCandidate(parsed, newTitle, "vol-a", "queue", "/queue/N-" + i);
+        }
+
+        // totalTitles=1 → threshold = max(50, 0) = 50. 60 > 50 → guard trips.
+        matcherWithHistory.flushToQueue(1);
+
+        assertEquals(0, reviewQueueRepo.countOpen("path_history_match"),
+                "catastrophic guard must refuse to write 60 path_history_match candidates when threshold is 50");
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────

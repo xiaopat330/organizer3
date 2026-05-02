@@ -17,6 +17,7 @@ import com.organizer3.repository.ActressRepository;
 import com.organizer3.repository.CatastrophicDeleteException;
 import com.organizer3.repository.TitleActressRepository;
 import com.organizer3.repository.TitleLocationRepository;
+import com.organizer3.repository.TitlePathHistoryRepository;
 import com.organizer3.repository.TitleRepository;
 import com.organizer3.repository.VideoRepository;
 import com.organizer3.repository.VolumeRepository;
@@ -29,6 +30,7 @@ import lombok.extern.slf4j.Slf4j;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -60,6 +62,7 @@ abstract class AbstractSyncOperation implements SyncOperation {
     protected final CoverPath coverPath;
     protected final SyncIdentityMatcher identityMatcher;
     private final RevalidationPendingRepository revalidationPendingRepo;
+    private final TitlePathHistoryRepository pathHistoryRepo;
     private final TitleCodeParser codeParser = new TitleCodeParser();
     private final TitleSyncObserver syncObserver;
 
@@ -75,7 +78,7 @@ abstract class AbstractSyncOperation implements SyncOperation {
                                     SyncIdentityMatcher identityMatcher) {
         this(titleRepo, videoRepo, actressRepo, volumeRepo, titleLocationRepo, titleActressRepo,
                 indexLoader, titleEffectiveTagsService, actressCompaniesService, coverPath,
-                revalidationPendingRepo, identityMatcher, TitleSyncObserver.NO_OP);
+                revalidationPendingRepo, identityMatcher, TitleSyncObserver.NO_OP, null);
     }
 
     protected AbstractSyncOperation(TitleRepository titleRepo, VideoRepository videoRepo,
@@ -89,6 +92,23 @@ abstract class AbstractSyncOperation implements SyncOperation {
                                     RevalidationPendingRepository revalidationPendingRepo,
                                     SyncIdentityMatcher identityMatcher,
                                     TitleSyncObserver syncObserver) {
+        this(titleRepo, videoRepo, actressRepo, volumeRepo, titleLocationRepo, titleActressRepo,
+                indexLoader, titleEffectiveTagsService, actressCompaniesService, coverPath,
+                revalidationPendingRepo, identityMatcher, syncObserver, null);
+    }
+
+    protected AbstractSyncOperation(TitleRepository titleRepo, VideoRepository videoRepo,
+                                    ActressRepository actressRepo, VolumeRepository volumeRepo,
+                                    TitleLocationRepository titleLocationRepo,
+                                    TitleActressRepository titleActressRepo,
+                                    IndexLoader indexLoader,
+                                    TitleEffectiveTagsService titleEffectiveTagsService,
+                                    ActressCompaniesService actressCompaniesService,
+                                    CoverPath coverPath,
+                                    RevalidationPendingRepository revalidationPendingRepo,
+                                    SyncIdentityMatcher identityMatcher,
+                                    TitleSyncObserver syncObserver,
+                                    TitlePathHistoryRepository pathHistoryRepo) {
         this.titleRepo = titleRepo;
         this.videoRepo = videoRepo;
         this.actressRepo = actressRepo;
@@ -102,6 +122,7 @@ abstract class AbstractSyncOperation implements SyncOperation {
         this.revalidationPendingRepo = revalidationPendingRepo;
         this.identityMatcher = identityMatcher;
         this.syncObserver = syncObserver;
+        this.pathHistoryRepo = pathHistoryRepo;
     }
 
     /** Subdirectories inside a title folder that may contain video files. */
@@ -197,7 +218,8 @@ abstract class AbstractSyncOperation implements SyncOperation {
         boolean isNewTitle = titleRepo.findByCode(parsed.code()).isEmpty();
         Title title = titleRepo.findOrCreateByCode(template);
         if (isNewTitle) {
-            identityMatcher.noteTitleCandidate(parsed, title);
+            identityMatcher.noteTitleCandidate(parsed, title,
+                    volumeId, partitionId, titleFolder.toString());
         } else {
             // Fire the sync hook for pre-existing titles so the draft layer can
             // mark any active draft as upstream_changed. Best-effort: a failure must
@@ -219,6 +241,19 @@ abstract class AbstractSyncOperation implements SyncOperation {
                 .lastSeenAt(LocalDate.now())
                 .addedDate(addedDate)
                 .build());
+
+        // Record path history for sync-matcher recovery on future re-adds.
+        // Best-effort: a failure must never block the sync pipeline.
+        if (pathHistoryRepo != null) {
+            try {
+                String nowIso = Instant.now().toString();
+                pathHistoryRepo.recordPath(title.getId(), volumeId, partitionId,
+                        titleFolder.toString(), nowIso);
+            } catch (Exception e) {
+                log.warn("Path-history recording failed for titleId={} path={} — continuing: {}",
+                        title.getId(), titleFolder, e.getMessage(), e);
+            }
+        }
 
         saveVideosForTitle(titleFolder, title.getId(), volumeId, fs);
         return title;
