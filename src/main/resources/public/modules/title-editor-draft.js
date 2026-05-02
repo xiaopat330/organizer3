@@ -24,10 +24,12 @@ const draftCoverPlaceholder= document.getElementById('queue-draft-cover-placehol
 const coverRefetchBtn      = document.getElementById('queue-draft-cover-refetch-btn');
 const coverClearBtn        = document.getElementById('queue-draft-cover-clear-btn');
 
-const metaTitle   = document.getElementById('queue-draft-meta-title');
-const metaRelease = document.getElementById('queue-draft-meta-release');
-const metaMaker   = document.getElementById('queue-draft-meta-maker');
-const metaSeries  = document.getElementById('queue-draft-meta-series');
+const metaTitle      = document.getElementById('queue-draft-meta-title');
+const metaRatingRow  = document.getElementById('queue-draft-meta-rating-row');
+const metaRating     = document.getElementById('queue-draft-meta-rating');
+const metaRelease    = document.getElementById('queue-draft-meta-release');
+const metaMaker      = document.getElementById('queue-draft-meta-maker');
+const metaSeries     = document.getElementById('queue-draft-meta-series');
 
 const castList     = document.getElementById('queue-draft-cast-list');
 const draftTagsPanel = document.getElementById('queue-draft-tags-panel');
@@ -96,6 +98,11 @@ function renderDraftPane() {
   draftCodeEl.textContent = _draft.code   || '';
   draftFolderEl.textContent = _folderName || '';
 
+  // Reset action button states — they may be stale from a previous title's operation.
+  if (discardBtn)  discardBtn.disabled  = false;
+  if (validateBtn) validateBtn.disabled = false;
+  if (promoteBtn)  promoteBtn.disabled  = false;
+
   renderUpstreamBanner();
   renderCoverPreview();
   renderMetadata();
@@ -127,9 +134,23 @@ function renderCoverPreview(cacheBuster) {
 function renderMetadata() {
   const enr = _draft.enrichment || {};
   metaTitle.textContent   = _draft.titleOriginal || '';
-  metaRelease.textContent = _draft.releaseDate   || '';
+  metaRelease.textContent = _draft.releaseDate
+    ? new Date(_draft.releaseDate + 'T00:00:00').toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
+    : '';
   metaMaker.textContent   = enr.maker            || '';
   metaSeries.textContent  = enr.series           || '';
+
+  // Rating + grade row (hidden when no rating data).
+  if (metaRatingRow && metaRating && enr.ratingAvg != null && enr.ratingCount != null) {
+    metaRatingRow.style.display = '';
+    const avg   = Number(enr.ratingAvg).toFixed(2);
+    const votes = Number(enr.ratingCount).toLocaleString();
+    metaRating.innerHTML = enr.grade
+      ? `<span class="grade-badge" data-grade="${esc(enr.grade)}">${esc(enr.grade)}</span> <span class="queue-draft-rating-raw">${avg} · ${votes} votes</span>`
+      : `<span class="queue-draft-rating-raw">${avg} · ${votes} votes</span>`;
+  } else if (metaRatingRow) {
+    metaRatingRow.style.display = 'none';
+  }
 }
 
 function renderCastSlots() {
@@ -181,10 +202,30 @@ function buildSlotContent(slot, idx) {
 
   // For resolved (non-unresolved) slots: show summary + unlink button.
   if (slot.resolution && slot.resolution !== 'unresolved') {
-    const summary = document.createElement('div');
-    summary.className = 'queue-cast-slot-name';
-    summary.textContent = resolvedSummary(slot);
-    frag.appendChild(summary);
+    // For linked slots: show avatar + canonical name side-by-side.
+    if (slot.resolution === 'pick' && (slot.linkedActressName || slot.linkedActressAvatarUrl)) {
+      const linked = document.createElement('div');
+      linked.className = 'queue-cast-linked-actress';
+      if (slot.linkedActressAvatarUrl) {
+        const img = document.createElement('img');
+        img.className = 'queue-cast-linked-avatar';
+        img.src = slot.linkedActressAvatarUrl;
+        img.alt = slot.linkedActressName || '';
+        linked.appendChild(img);
+      }
+      if (slot.linkedActressName) {
+        const name = document.createElement('span');
+        name.className = 'queue-cast-linked-name';
+        name.textContent = slot.linkedActressName;
+        linked.appendChild(name);
+      }
+      frag.appendChild(linked);
+    } else {
+      const summary = document.createElement('div');
+      summary.className = 'queue-cast-slot-name';
+      summary.textContent = resolvedSummary(slot);
+      frag.appendChild(summary);
+    }
 
     const unlinkBtn = document.createElement('button');
     unlinkBtn.type = 'button';
@@ -552,7 +593,14 @@ function renderTags() {
 function buildEnrTagSet() {
   const set = new Set();
   const enr = _draft.enrichment;
-  if (!enr || !enr.tagsJson) return set;
+  if (!enr) return set;
+  // Prefer pre-resolved canonical names from the backend (via curated_alias).
+  if (Array.isArray(enr.resolvedTags)) {
+    enr.resolvedTags.forEach(t => { if (t) set.add(t); });
+    return set;
+  }
+  // Fall back to raw tagsJson (only matches if tags happen to use canonical names).
+  if (!enr.tagsJson) return set;
   try {
     const raw = JSON.parse(enr.tagsJson);
     (raw || []).forEach(t => {

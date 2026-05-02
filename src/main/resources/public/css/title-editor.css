@@ -900,6 +900,17 @@
   background: #991b1b;
 }
 
+/* Cyan button variant (cover refetch) */
+.queue-btn-cyan {
+  background: #164e63;
+  border-color: #0e7490;
+  color: #a5f3fc;
+}
+.queue-btn-cyan:hover:not(:disabled) {
+  background: #0e7490;
+  color: #e0f9ff;
+}
+
 /* Secondary button variant */
 .queue-btn-secondary {
   background: #1e293b;
@@ -917,9 +928,46 @@
   font-size: 0.78rem;
 }
 
+/* Rating sub-text in draft metadata row */
+.queue-draft-rating-raw {
+  color: #64748b;
+  font-size: 0.82rem;
+  margin-left: 4px;
+}
+
+/* Linked actress display in resolved cast slot */
+.queue-cast-linked-actress {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 0;
+}
+.queue-cast-linked-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 1px solid #334155;
+  flex-shrink: 0;
+}
+.queue-cast-linked-name {
+  font-size: 0.9rem;
+  color: #e2e8f0;
+  font-weight: 500;
+}
+
 /* Enrich button in no-draft header */
 .queue-enrich-btn {
   margin-left: auto;
+}
+
+@keyframes enrich-pulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.45; }
+}
+.queue-enrich-btn.enriching {
+  animation: enrich-pulse 1.4s ease-in-out infinite;
+  cursor: not-allowed;
 }
 
 /* Header actions cluster */

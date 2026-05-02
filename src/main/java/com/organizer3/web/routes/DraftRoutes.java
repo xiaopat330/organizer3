@@ -431,6 +431,41 @@ public final class DraftRoutes {
                 cast.add(slotMap);
             }
 
+            // Enrich resolved slots with canonical name + avatar from the actresses table.
+            if (jdbi != null) {
+                List<Long> linkedIds = cast.stream()
+                        .filter(s -> s.get("linkToExistingId") instanceof Long)
+                        .map(s -> (Long) s.get("linkToExistingId"))
+                        .distinct().toList();
+                if (!linkedIds.isEmpty()) {
+                    record ActressProfile(long id, String canonicalName, String avatarPath) {}
+                    Map<Long, ActressProfile> profiles = jdbi.withHandle(h ->
+                            h.createQuery("""
+                                SELECT a.id,
+                                       a.canonical_name,
+                                       COALESCE(a.custom_avatar_path, s.local_avatar_path) AS avatar_path
+                                FROM actresses a
+                                LEFT JOIN javdb_actress_staging s ON s.actress_id = a.id
+                                WHERE a.id IN (<ids>)
+                                """)
+                             .bindList("ids", linkedIds)
+                             .map((rs, c) -> new ActressProfile(
+                                     rs.getLong("id"),
+                                     rs.getString("canonical_name"),
+                                     rs.getString("avatar_path")))
+                             .list()
+                    ).stream().collect(java.util.stream.Collectors.toMap(ActressProfile::id, p -> p));
+                    for (Map<String, Object> s : cast) {
+                        if (!(s.get("linkToExistingId") instanceof Long id)) continue;
+                        ActressProfile p = profiles.get(id);
+                        if (p == null) continue;
+                        s.put("linkedActressName", p.canonicalName());
+                        if (p.avatarPath() != null)
+                            s.put("linkedActressAvatarUrl", "/" + p.avatarPath());
+                    }
+                }
+            }
+
             Map<String, Object> enrichmentMap = new LinkedHashMap<>();
             enrichmentOpt.ifPresent(e -> {
                 enrichmentMap.put("javdbSlug",   e.getJavdbSlug());
@@ -442,6 +477,52 @@ public final class DraftRoutes {
                 enrichmentMap.put("ratingCount", e.getRatingCount());
                 enrichmentMap.put("coverUrl",    e.getCoverUrl());
             });
+
+            // Resolve enrichment tags via curated_alias so the draft pane can highlight
+            // canonical catalog tags without knowing raw javdb strings.
+            if (jdbi != null && enrichmentOpt.isPresent()) {
+                String rawTagsJson = enrichmentOpt.get().getTagsJson();
+                if (rawTagsJson != null && !rawTagsJson.isBlank()) {
+                    try {
+                        List<String> rawTags = json.readValue(rawTagsJson, new com.fasterxml.jackson.core.type.TypeReference<List<String>>() {});
+                        if (!rawTags.isEmpty()) {
+                            List<String> resolvedTags = jdbi.withHandle(h ->
+                                h.createQuery("""
+                                    SELECT curated_alias
+                                    FROM enrichment_tag_definitions
+                                    WHERE name IN (<names>)
+                                      AND curated_alias IS NOT NULL
+                                    """)
+                                 .bindList("names", rawTags)
+                                 .mapTo(String.class)
+                                 .list()
+                            );
+                            enrichmentMap.put("resolvedTags", resolvedTags);
+                        }
+                    } catch (Exception ignored) {}
+                }
+            }
+
+            // Compute grade from the enrichment rating data using the stored rating curve.
+            if (jdbi != null && enrichmentOpt.isPresent()) {
+                var e = enrichmentOpt.get();
+                if (e.getRatingAvg() != null && e.getRatingCount() != null && e.getRatingCount() > 0) {
+                    Optional<String> grade = jdbi.withHandle(h ->
+                        h.createQuery("SELECT global_mean, global_count, min_credible_votes, cutoffs_json, computed_at FROM rating_curve WHERE id = 1")
+                         .map((rs, c) -> com.organizer3.rating.RatingCurve.fromRow(
+                                 rs.getDouble("global_mean"),
+                                 rs.getInt("global_count"),
+                                 rs.getInt("min_credible_votes"),
+                                 rs.getString("cutoffs_json"),
+                                 rs.getString("computed_at")))
+                         .findFirst()
+                         .flatMap(curve -> new com.organizer3.rating.RatingScoreCalculator()
+                                 .gradeFor(e.getRatingAvg(), e.getRatingCount(), curve)
+                                 .map(g -> g.display))
+                    );
+                    grade.ifPresent(g -> enrichmentMap.put("grade", g));
+                }
+            }
 
             boolean hasScratchCover = coverStore.exists(dt.getId());
 
