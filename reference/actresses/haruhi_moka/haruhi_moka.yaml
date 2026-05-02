@@ -1,0 +1,72 @@
+profile:
+  name:
+    family_name: Haruhi
+    given_name: Moka
+    stage_name: 春陽モカ
+    reading: はるひ もか
+    alternate_names:
+    - name: もかち
+      note: nickname
+    - name: もか
+      note: alias used in some planning/amateur-style titles
+  date_of_birth: 2002-05-27
+  birthplace: null
+  blood_type: A
+  height_cm: 163
+  measurements:
+    bust: 90
+    waist: 57
+    hip: 85
+  cup: G
+  active_from: 2024-03-05
+  active_to: null
+  retirement_announced: null
+  biography: "Haruhi Moka is a Japanese AV actress who debuted on March 5, 2024 with
+    MOODYZ, introducing herself as a Shinjuku No.1 lounge hostess and university student
+    with a G-cup figure. A ballet student for 15 years from kindergarten, she brings
+    a deliberate, physically precise performance style and credits fellow actress AIKA
+    — her very first co-star — as a formative mentor. She quickly established herself
+    as one of the leading gyaru actresses of her generation, known for squirting ability,
+    cosplay versatility, and consistent FANZA chart presence. In June 2025 she signed
+    triple-exclusive contracts with MOODYZ, Wands Factory, and Honnaka; after the Honnaka
+    contract ended in September 2025, OPPAI joined as a third exclusive from November
+    2025. She is unusual among AV actresses for publicly disclosing her breast augmentation,
+    and her candid social media posts have drawn coverage in Taiwan and other markets."
+  primary_studios:
+  - name: MOODYZ
+    company: MOODYZ
+    from: 2025-06-01
+    to: null
+    role: Exclusive contract actress
+  - name: Wands Factory
+    company: WILL Co., Ltd.
+    from: 2025-06-01
+    to: null
+    role: Exclusive contract actress
+  - name: Honnaka
+    company: Honnaka
+    from: 2025-06-01
+    to: 2025-09-30
+    role: Exclusive contract actress
+  - name: OPPAI
+    company: OPPAI
+    from: 2025-11-01
+    to: null
+    role: Exclusive contract actress
+  awards: null
+  legacy: null
+
+meta:
+  total_owned_titles: 46
+  titles_with_japanese_title: null
+  titles_with_english_title: null
+  titles_with_release_date: null
+  total_known_releases: null
+  coverage_note: Portfolio not yet researched. Profile data from Japanese Wikipedia only.
+  confidence: "DOB 2002-05-27 used per primary Wikipedia infobox; alternate DOB 2001-10-29
+    appears in some sources (桃太郎 listing cited in Wikipedia). Birthplace not stated
+    in Wikipedia article. Measurements marked as 2024 figures. MNGS label (9 titles
+    in DB) not found in labels.yaml — company identity unresolved."
+  data_sources:
+  - https://ja.wikipedia.org/wiki/%E6%98%A5%E9%99%BD%E3%83%A2%E3%82%AB
+  portfolio_listed: 0
