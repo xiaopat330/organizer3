@@ -8,6 +8,7 @@ import com.organizer3.model.ActressAlias;
 import com.organizer3.model.Actress;
 import com.organizer3.model.Title;
 import com.organizer3.model.TitleLocation;
+import com.organizer3.model.TitleSortSpec;
 import org.jdbi.v3.core.Jdbi;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -252,7 +253,7 @@ class JdbiTitleRepositoryTest {
         saveWithLocation(t2, "vol-a", "stars/library", "/mnt/vol-a/stars/library/ABP-002", LocalDate.of(2024, 3, 1));
         saveWithLocation(t3, "vol-a", "stars/library", "/mnt/vol-a/stars/library/ABP-003", LocalDate.of(2024, 2, 1));
 
-        List<Title> results = titleRepo.findByActressPaged(aya.getId(), 10, 0);
+        List<Title> results = titleRepo.findByActressPaged(aya.getId(), 10, 0, TitleSortSpec.DEFAULT);
         assertEquals(3, results.size());
         assertEquals("ABP-002", results.get(0).getCode()); // favorite first
         assertEquals("ABP-003", results.get(1).getCode()); // bookmark second
@@ -266,11 +267,11 @@ class JdbiTitleRepositoryTest {
         saveWithLocation(title("ABP-002", aya.getId()), "vol-a", "stars/library", "/mnt/vol-a/stars/library/ABP-002", LocalDate.of(2024, 2, 1));
         saveWithLocation(title("ABP-003", aya.getId()), "vol-a", "stars/library", "/mnt/vol-a/stars/library/ABP-003", LocalDate.of(2024, 3, 1));
 
-        List<Title> page1 = titleRepo.findByActressPaged(aya.getId(), 2, 0);
-        List<Title> page2 = titleRepo.findByActressPaged(aya.getId(), 2, 2);
+        List<Title> page1 = titleRepo.findByActressPaged(aya.getId(), 2, 0, TitleSortSpec.DEFAULT);
+        List<Title> page2 = titleRepo.findByActressPaged(aya.getId(), 2, 2, TitleSortSpec.DEFAULT);
 
         assertEquals(2, page1.size());
-        assertEquals("ABP-003", page1.get(0).getCode()); // newest first (added_date DESC)
+        assertEquals("ABP-003", page1.get(0).getCode()); // null release_date → tiebreak by id DESC
         assertEquals("ABP-002", page1.get(1).getCode());
 
         assertEquals(1, page2.size());
@@ -284,7 +285,7 @@ class JdbiTitleRepositoryTest {
         saveWithLocation(title("ABP-001", aya.getId()), "vol-a", "stars/library", "/mnt/vol-a/stars/library/ABP-001", LocalDate.of(2024, 1, 1));
         saveWithLocation(title("SSIS-001", hibiki.getId()), "vol-a", "stars/library", "/mnt/vol-a/stars/library/SSIS-001", LocalDate.of(2024, 2, 1));
 
-        List<Title> results = titleRepo.findByActressPaged(aya.getId(), 10, 0);
+        List<Title> results = titleRepo.findByActressPaged(aya.getId(), 10, 0, TitleSortSpec.DEFAULT);
         assertEquals(1, results.size());
         assertEquals("ABP-001", results.get(0).getCode());
     }
@@ -313,16 +314,16 @@ class JdbiTitleRepositoryTest {
         });
 
         // Filter by tag 10 only → both t1 and t2
-        List<Title> results = titleRepo.findByActressTagsFiltered(aya.getId(), List.of(), List.of(), List.of(10L), 10, 0);
+        List<Title> results = titleRepo.findByActressTagsFiltered(aya.getId(), List.of(), List.of(), List.of(10L), 10, 0, TitleSortSpec.DEFAULT);
         assertEquals(2, results.size());
 
         // Filter by tags 10 AND 11 → only t2
-        results = titleRepo.findByActressTagsFiltered(aya.getId(), List.of(), List.of(), List.of(10L, 11L), 10, 0);
+        results = titleRepo.findByActressTagsFiltered(aya.getId(), List.of(), List.of(), List.of(10L, 11L), 10, 0, TitleSortSpec.DEFAULT);
         assertEquals(1, results.size());
         assertEquals("ABP-002", results.get(0).getCode());
 
         // Hibiki's title not returned
-        results = titleRepo.findByActressTagsFiltered(hibiki.getId(), List.of(), List.of(), List.of(10L), 10, 0);
+        results = titleRepo.findByActressTagsFiltered(hibiki.getId(), List.of(), List.of(), List.of(10L), 10, 0, TitleSortSpec.DEFAULT);
         assertEquals(0, results.size());
     }
 
@@ -332,8 +333,8 @@ class JdbiTitleRepositoryTest {
         saveWithLocation(title("ABP-001", aya.getId()), "vol-a", "stars/library", "/mnt/vol-a/stars/library/ABP-001");
         saveWithLocation(title("ABP-002", aya.getId()), "vol-a", "stars/library", "/mnt/vol-a/stars/library/ABP-002");
 
-        List<Title> filtered = titleRepo.findByActressTagsFiltered(aya.getId(), List.of(), List.of(), List.of(), 10, 0);
-        List<Title> paged    = titleRepo.findByActressPaged(aya.getId(), 10, 0);
+        List<Title> filtered = titleRepo.findByActressTagsFiltered(aya.getId(), List.of(), List.of(), List.of(), 10, 0, TitleSortSpec.DEFAULT);
+        List<Title> paged    = titleRepo.findByActressPaged(aya.getId(), 10, 0, TitleSortSpec.DEFAULT);
         assertEquals(paged.size(), filtered.size());
     }
 

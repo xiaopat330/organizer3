@@ -7,6 +7,7 @@ import com.organizer3.model.ActressAlias;
 import com.organizer3.model.Label;
 import com.organizer3.model.StudioGroup;
 import com.organizer3.model.Title;
+import com.organizer3.model.TitleSortSpec;
 import com.organizer3.rating.RatingCurve;
 import com.organizer3.rating.RatingCurveRepository;
 import com.organizer3.rating.RatingScoreCalculator;
@@ -297,7 +298,8 @@ public class ActressBrowseService {
      * If {@code tags} is non-empty, only titles carrying all of those tags (direct or label-derived)
      * are returned. The two filters are combined with AND.
      */
-    public List<TitleSummary> findTitlesByActress(long actressId, int offset, int limit, String company, List<String> tags, List<Long> enrichmentTagIds) {
+    public List<TitleSummary> findTitlesByActress(long actressId, int offset, int limit, String company, List<String> tags, List<Long> enrichmentTagIds, String sortBy, String sortDir) {
+        TitleSortSpec sort = TitleSortSpec.of(sortBy, sortDir);
         Map<String, Label> labelMap = labelRepo.findAllAsMap();
 
         List<String> matchingLabels = List.of();
@@ -321,12 +323,12 @@ public class ActressBrowseService {
                 titles = titleRepo.findByActressTagsFiltered(actressId, matchingLabels,
                         tags != null ? tags : List.of(),
                         enrichmentTagIds != null ? enrichmentTagIds : List.of(),
-                        limit, offset);
+                        limit, offset, sort);
             }
         } else if (hasLabels) {
-            titles = titleRepo.findByActressAndLabelsPaged(actressId, matchingLabels, limit, offset);
+            titles = titleRepo.findByActressAndLabelsPaged(actressId, matchingLabels, limit, offset, sort);
         } else {
-            titles = titleRepo.findByActressPaged(actressId, limit, offset);
+            titles = titleRepo.findByActressPaged(actressId, limit, offset, sort);
         }
 
         Actress actress = actressRepo.findById(actressId).orElse(null);

@@ -7,6 +7,7 @@ import com.organizer3.javdb.enrichment.EnrichmentReviewQueueRepository;
 import com.organizer3.model.Actress;
 import com.organizer3.model.Title;
 import com.organizer3.model.TitleLocation;
+import com.organizer3.model.TitleSortSpec;
 import com.organizer3.repository.CatastrophicDeleteException;
 import com.organizer3.repository.TitleLocationRepository;
 import com.organizer3.repository.TitleRepository;
@@ -454,17 +455,33 @@ public class JdbiTitleRepository implements TitleRepository {
         return populateLocationsBatch(titles);
     }
 
-    @Override
-    public List<Title> findByActressPaged(long actressId, int limit, int offset) {
+    private static String buildSortClause(TitleSortSpec sort) {
+        boolean asc = "asc".equalsIgnoreCase(sort.sortDir());
+        String dir = asc ? "ASC" : "DESC";
+        return switch (sort.sortBy()) {
+            case "code" -> "t.code " + dir;
+            case "grade" -> {
+                int nullRank = asc ? 999 : -1;
+                yield "(CASE t.grade" +
+                      " WHEN 'SSS' THEN 14 WHEN 'SS' THEN 13 WHEN 'S' THEN 12" +
+                      " WHEN 'A+' THEN 11 WHEN 'A' THEN 10 WHEN 'A-' THEN 9" +
+                      " WHEN 'B+' THEN 8  WHEN 'B' THEN 7  WHEN 'B-' THEN 6" +
+                      " WHEN 'C+' THEN 5  WHEN 'C' THEN 4  WHEN 'C-' THEN 3" +
+                      " WHEN 'D' THEN 2   WHEN 'F' THEN 1  ELSE " + nullRank + " END) " + dir;
+            }
+            default -> "t.release_date " + dir + " NULLS LAST";
+        };
+    }
+
+    public List<Title> findByActressPaged(long actressId, int limit, int offset, TitleSortSpec sort) {
+        String sql = "SELECT t.* FROM titles t" +
+                     " LEFT JOIN title_locations tl ON t.id = tl.title_id" +
+                     " WHERE t.actress_id = :actressId" +
+                     " GROUP BY t.id" +
+                     " ORDER BY t.favorite DESC, t.bookmark DESC, " + buildSortClause(sort) + ", t.id DESC" +
+                     " LIMIT :limit OFFSET :offset";
         List<Title> titles = jdbi.withHandle(h ->
-                h.createQuery("""
-                        SELECT t.* FROM titles t
-                        LEFT JOIN title_locations tl ON t.id = tl.title_id
-                        WHERE t.actress_id = :actressId
-                        GROUP BY t.id
-                        ORDER BY t.favorite DESC, t.bookmark DESC, MIN(tl.added_date) DESC, t.id DESC
-                        LIMIT :limit OFFSET :offset
-                        """)
+                h.createQuery(sql)
                         .bind("actressId", actressId)
                         .bind("limit", limit)
                         .bind("offset", offset)
@@ -475,16 +492,15 @@ public class JdbiTitleRepository implements TitleRepository {
     }
 
     @Override
-    public List<Title> findByActressAndLabelsPaged(long actressId, List<String> labels, int limit, int offset) {
+    public List<Title> findByActressAndLabelsPaged(long actressId, List<String> labels, int limit, int offset, TitleSortSpec sort) {
+        String sql = "SELECT t.* FROM titles t" +
+                     " LEFT JOIN title_locations tl ON t.id = tl.title_id" +
+                     " WHERE t.actress_id = :actressId AND t.label IN (<labels>)" +
+                     " GROUP BY t.id" +
+                     " ORDER BY t.favorite DESC, t.bookmark DESC, " + buildSortClause(sort) + ", t.id DESC" +
+                     " LIMIT :limit OFFSET :offset";
         List<Title> titles = jdbi.withHandle(h ->
-                h.createQuery("""
-                        SELECT t.* FROM titles t
-                        LEFT JOIN title_locations tl ON t.id = tl.title_id
-                        WHERE t.actress_id = :actressId AND t.label IN (<labels>)
-                        GROUP BY t.id
-                        ORDER BY t.favorite DESC, t.bookmark DESC, MIN(tl.added_date) DESC, t.id DESC
-                        LIMIT :limit OFFSET :offset
-                        """)
+                h.createQuery(sql)
                         .bind("actressId", actressId)
                         .bindList("labels", labels.stream().map(String::toUpperCase).toList())
                         .bind("limit", limit)
@@ -496,7 +512,7 @@ public class JdbiTitleRepository implements TitleRepository {
     }
 
     @Override
-    public List<Title> findByActressTagsFiltered(long actressId, List<String> labels, List<String> tags, List<Long> enrichmentTagIds, int limit, int offset) {
+    public List<Title> findByActressTagsFiltered(long actressId, List<String> labels, List<String> tags, List<Long> enrichmentTagIds, int limit, int offset, TitleSortSpec sort) {
         List<Long> safeEnrichTags = enrichmentTagIds != null ? enrichmentTagIds : List.of();
         boolean hasTags         = !tags.isEmpty();
         boolean hasEnrichTags   = !safeEnrichTags.isEmpty();
@@ -521,7 +537,7 @@ public class JdbiTitleRepository implements TitleRepository {
             if (hasEnrichTags) sql.append("COUNT(DISTINCT tet_e.tag_id) = :enrichmentTagCount");
             sql.append("\n");
         }
-        sql.append("ORDER BY t.favorite DESC, t.bookmark DESC, MIN(tl.added_date) DESC, t.id DESC LIMIT :limit OFFSET :offset");
+        sql.append("ORDER BY t.favorite DESC, t.bookmark DESC, ").append(buildSortClause(sort)).append(", t.id DESC LIMIT :limit OFFSET :offset");
 
         List<Title> titles = jdbi.withHandle(h -> {
             var q = h.createQuery(sql.toString())

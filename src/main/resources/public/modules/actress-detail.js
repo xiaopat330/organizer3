@@ -10,6 +10,8 @@ export let detailActressId    = null;
 export let detailCompanyFilter = null;
 let detailActiveTags           = new Set();
 let detailActiveEnrichmentTagIds = new Set();
+let detailSortBy               = 'release_date';
+let detailSortDir              = 'desc';
 let detailFilterTimer          = null;
 let detailActressTags          = null;   // lazy-loaded curated tag list for current actress
 let detailEnrichmentTags       = null;   // lazy-loaded enrichment tag list for current actress
@@ -41,6 +43,7 @@ export const actressDetailGrid = new ScrollingGrid(
     if (detailCompanyFilter) url += `&company=${encodeURIComponent(detailCompanyFilter)}`;
     if (detailActiveTags.size > 0) url += `&tags=${encodeURIComponent([...detailActiveTags].join(','))}`;
     if (detailActiveEnrichmentTagIds.size > 0) url += `&enrichmentTagIds=${[...detailActiveEnrichmentTagIds].join(',')}`;
+    url += `&sortBy=${encodeURIComponent(detailSortBy)}&sortDir=${encodeURIComponent(detailSortDir)}`;
     return url;
   },
   makeTitleCard,
@@ -61,6 +64,8 @@ export async function openActressDetail(actressId) {
   detailCompanyFilter          = null;
   detailActiveTags             = new Set();
   detailActiveEnrichmentTagIds = new Set();
+  detailSortBy                 = 'release_date';
+  detailSortDir                = 'desc';
   detailActressTags            = null;
   detailEnrichmentTags         = null;
   showView('actress-detail');
@@ -676,15 +681,35 @@ function renderDetailFilterBar(a) {
       ${companies.map(c => `<option value="${esc(c)}">${esc(c)}</option>`).join('')}
     </select>`;
 
-  // Tags button (only if the actress has titles to tag)
+  // Sort dropdown + direction toggle
+  const sortHtml = `
+    <select class="detail-sort-select" id="detail-sort-select">
+      <option value="release_date">Release Date</option>
+      <option value="code">Product Number</option>
+      <option value="grade">Rating</option>
+    </select>
+    <button type="button" class="detail-sort-dir-btn" id="detail-sort-dir-btn" title="Toggle sort direction">↓</button>`;
+
+  // Tags button
   const tagsHtml = `<button type="button" class="detail-tags-btn" id="detail-tags-btn">
     Tags<span class="detail-tags-count" id="detail-tags-count" style="display:none"></span>
   </button>`;
 
-  bar.innerHTML = selectHtml + tagsHtml;
+  bar.innerHTML = selectHtml + sortHtml + tagsHtml;
 
   document.getElementById('detail-company-select').addEventListener('change', e => {
     detailCompanyFilter = e.target.value || null;
+    scheduleFilteredQuery();
+  });
+
+  document.getElementById('detail-sort-select').addEventListener('change', e => {
+    detailSortBy = e.target.value;
+    scheduleFilteredQuery();
+  });
+
+  document.getElementById('detail-sort-dir-btn').addEventListener('click', () => {
+    detailSortDir = detailSortDir === 'desc' ? 'asc' : 'desc';
+    document.getElementById('detail-sort-dir-btn').textContent = detailSortDir === 'desc' ? '↓' : '↑';
     scheduleFilteredQuery();
   });
 

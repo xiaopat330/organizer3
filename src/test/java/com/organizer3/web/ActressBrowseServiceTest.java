@@ -6,6 +6,7 @@ import com.organizer3.model.Actress;
 import com.organizer3.model.Label;
 import com.organizer3.model.Title;
 import com.organizer3.model.TitleLocation;
+import com.organizer3.model.TitleSortSpec;
 import com.organizer3.rating.RatingCurveRepository;
 import com.organizer3.rating.RatingScoreCalculator;
 import com.organizer3.repository.ActressRepository;
@@ -239,12 +240,12 @@ class ActressBrowseServiceTest {
     void findTitlesByActressEnrichesWithLabelInfo() {
         Title t = title(1L, "vol-a", "stars/popular", "/stars/popular/Yui Hatano/ABP-00001");
 
-        when(titleRepo.findByActressPaged(1L, 24, 0)).thenReturn(List.of(t));
+        when(titleRepo.findByActressPaged(eq(1L), eq(24), eq(0), any(TitleSortSpec.class))).thenReturn(List.of(t));
         when(coverPath.find(any())).thenReturn(Optional.empty());
         when(labelRepo.findAllAsMap()).thenReturn(
                 Map.of("ABP", new Label("ABP", "Absolutely Perfect", "Prestige", null, null)));
 
-        TitleSummary s = service.findTitlesByActress(1L, 0, 24, null, List.of(), List.of()).get(0);
+        TitleSummary s = service.findTitlesByActress(1L, 0, 24, null, List.of(), List.of(), null, null).get(0);
         assertEquals("Prestige", s.getCompanyName());
         assertEquals("Absolutely Perfect", s.getLabelName());
         assertEquals(1L, s.getActressId());
@@ -265,11 +266,11 @@ class ActressBrowseServiceTest {
         Label label = new Label("ABP", "Prestige", "Prestige International", null, null,
                 null, null, null, null, List.of("exclusive-actress", "solo-actress"));
 
-        when(titleRepo.findByActressPaged(1L, 24, 0)).thenReturn(List.of(t));
+        when(titleRepo.findByActressPaged(eq(1L), eq(24), eq(0), any(TitleSortSpec.class))).thenReturn(List.of(t));
         when(coverPath.find(any())).thenReturn(Optional.empty());
         when(labelRepo.findAllAsMap()).thenReturn(Map.of("ABP", label));
 
-        List<String> tags = service.findTitlesByActress(1L, 0, 24, null, List.of(), List.of()).get(0).getTags();
+        List<String> tags = service.findTitlesByActress(1L, 0, 24, null, List.of(), List.of(), null, null).get(0).getTags();
         assertEquals(1, tags.stream().filter("solo-actress"::equals).count(), "solo-actress must appear once");
         assertTrue(tags.contains("creampie"));
         assertTrue(tags.contains("exclusive-actress"));
