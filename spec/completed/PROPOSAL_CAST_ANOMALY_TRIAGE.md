@@ -1,6 +1,6 @@
 # Proposal: Cast Anomaly Triage — "Add as Alias" Inline Action
 
-**Status:** Draft 2026-05-02 — design stub. Queue for after the actress-hygiene PR (`STAGE_NAME_PROMOTION` + `YAML_ALIAS_MIRROR`) lands; revisit then to size residual pain.
+**Status:** SHIPPED 2026-05-02 — PR #33 (commit 7edae01). 16 tests. UI verified at design-time only (queue currently empty after the actress-hygiene backfill discharged all open rows; manual verification path documented in PR for future organic cast_anomaly rows).
 
 **Origin:** Mai Hanano session 2026-05-02. Older actresses with multiple stage-name eras (career rebrandings) surface as `cast_anomaly` rows even when the cover is obviously her — javdb returns the era-correct stage name (e.g. `黒木麻衣`) but the matcher has no alias linking it to our `actresses.id`. The Bundled hygiene PR fixes the ~73 cases where the alt is already in YAML; this proposal addresses the residual tail where the alt is genuinely new (we've never seen it before).
 
