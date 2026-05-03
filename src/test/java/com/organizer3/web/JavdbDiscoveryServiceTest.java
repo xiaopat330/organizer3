@@ -10,6 +10,7 @@ import org.mockito.Mockito;
 
 import java.sql.Connection;
 import java.sql.DriverManager;
+import java.time.Instant;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -88,11 +89,15 @@ class JavdbDiscoveryServiceTest {
     }
 
     private void insertQueueRow(long actressId, String status) {
+        insertQueueRow(actressId, status, "2024-01-01T00:00:00Z");
+    }
+
+    private void insertQueueRow(long actressId, String status, String updatedAt) {
         jdbi.useHandle(h ->
                 h.execute("INSERT INTO javdb_enrichment_queue " +
                           "(job_type, target_id, actress_id, status, attempts, next_attempt_at, created_at, updated_at) " +
-                          "VALUES ('actress', ?, ?, ?, 0, '2024-01-01T00:00:00Z', '2024-01-01T00:00:00Z', '2024-01-01T00:00:00Z')",
-                        actressId, actressId, status));
+                          "VALUES ('actress', ?, ?, ?, 0, '2024-01-01T00:00:00Z', '2024-01-01T00:00:00Z', ?)",
+                        actressId, actressId, status, updatedAt));
     }
 
     private void insertTitleQueueRow(long titleId, long actressId, String status) {
@@ -411,13 +416,23 @@ class JavdbDiscoveryServiceTest {
         insertQueueRow(a1, "pending");
         insertQueueRow(a2, "pending");
         insertQueueRow(a3, "in_flight");
-        insertQueueRow(a4, "failed");
+        insertQueueRow(a4, "failed", Instant.now().toString());
 
         JavdbDiscoveryService.QueueStatus s = service.getQueueStatus();
 
         assertEquals(2, s.pending());
         assertEquals(1, s.inFlight());
         assertEquals(1, s.failed());
+    }
+
+    @Test
+    void getQueueStatus_doesNotCountFailedOlderThan24Hours() {
+        long a1 = insertActress("QS1", "QS1");
+        insertQueueRow(a1, "failed"); // updated_at = 2024 (stale)
+
+        JavdbDiscoveryService.QueueStatus s = service.getQueueStatus();
+
+        assertEquals(0, s.failed());
     }
 
     @Test

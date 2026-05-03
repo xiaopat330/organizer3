@@ -532,7 +532,8 @@ public class JavdbDiscoveryService {
                        ON erq.title_id = q.target_id
                       AND erq.reason   = q.last_error
                       AND erq.resolved_at IS NULL
-                WHERE q.status IN ('pending', 'in_flight', 'failed', 'paused')
+                WHERE q.status IN ('pending', 'in_flight', 'paused')
+                   OR (q.status = 'failed' AND q.updated_at > datetime('now', '-24 hours'))
                 ORDER BY
                   CASE q.status WHEN 'in_flight' THEN 0 WHEN 'pending' THEN 1 WHEN 'paused' THEN 2 ELSE 3 END,
                   COALESCE(q.sort_order, 9223372036854775807) ASC,
@@ -598,7 +599,7 @@ public class JavdbDiscoveryService {
                 SELECT
                   SUM(CASE WHEN status = 'pending'   THEN 1 ELSE 0 END) AS pending,
                   SUM(CASE WHEN status = 'in_flight' THEN 1 ELSE 0 END) AS in_flight,
-                  SUM(CASE WHEN status = 'failed'    THEN 1 ELSE 0 END) AS failed,
+                  SUM(CASE WHEN status = 'failed' AND updated_at > datetime('now', '-24 hours') THEN 1 ELSE 0 END) AS failed,
                   SUM(CASE WHEN status = 'paused'    THEN 1 ELSE 0 END) AS paused_items
                 FROM javdb_enrichment_queue
                 """)

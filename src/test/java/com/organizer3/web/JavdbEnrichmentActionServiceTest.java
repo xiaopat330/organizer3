@@ -215,14 +215,14 @@ class JavdbEnrichmentActionServiceTest {
     }
 
     @Test
-    void enqueueActress_usesHighPriority() {
+    void enqueueActress_usesNormalPriority() {
         long t1 = insertTitle("HHH-001");
         long actressId = 20L;
         Mockito.when(mockTitleRepo.findByActress(actressId)).thenReturn(List.of(makeTitle(t1, "HHH-001")));
 
         service.enqueueActress(actressId);
 
-        assertEquals("HIGH", queuedPriority("fetch_title", t1));
+        assertEquals("NORMAL", queuedPriority("fetch_title", t1));
     }
 
     @Test

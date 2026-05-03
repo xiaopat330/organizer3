@@ -1,6 +1,6 @@
 # Proposal: Mirror YAML alternate names into `actress_aliases`
 
-Status: **Draft** — capture the idea, revisit later.
+Status: **SHIPPED** 2026-05-02 — bundled in PR #32 (commit ce3f0f2). Locked Q&A: narrow scope (`alternate_names[].name` only); additive-only; conflicts inserted + flagged via existing `find_alias_conflicts`; backfill via new `backfill_yaml_aliases` MCP tool (chains `recoverCastAnomaliesAfterMatcherFix` for auto-discharge of stranded `cast_anomaly` rows). Post-merge backfill run pending.
 Originating context: AIKA (actress 107) cast-anomaly bug, 2026-05-01. The matcher fix
 (`canonical_name` + NFKC + case-fold) handled the immediate corner case; this proposal
 covers the structural follow-up.

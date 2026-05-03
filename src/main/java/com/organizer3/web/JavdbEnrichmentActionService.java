@@ -37,7 +37,7 @@ public class JavdbEnrichmentActionService {
     public int enqueueActress(long actressId) {
         List<Title> titles = titleRepo.findByActress(actressId);
         for (Title title : titles) {
-            queue.enqueueTitle(EnrichmentJob.SOURCE_ACTRESS, title.getId(), actressId, Priority.HIGH);
+            queue.enqueueTitle(EnrichmentJob.SOURCE_ACTRESS, title.getId(), actressId, Priority.NORMAL);
         }
         return titles.size();
     }

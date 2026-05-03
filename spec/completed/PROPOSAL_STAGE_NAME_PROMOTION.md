@@ -1,5 +1,7 @@
 # Proposal: Kanji Stage Name Promotion from javdb
 
+**Status:** SHIPPED 2026-05-02 — bundled with YAML_ALIAS_MIRROR in PR #32 (commit ce3f0f2). Rule 3 conflict surface = log + `enrichment_review_queue` row with `reason='stage_name_conflict'` (anchored to actress's first linked title since queue schema requires title_id NOT NULL).
+
 ## Problem
 
 `actresses.stage_name` is populated from YAML during initial load. It may be:
