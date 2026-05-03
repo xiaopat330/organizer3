@@ -1,0 +1,41 @@
+profile:
+  name:
+    family_name: Nito
+    given_name: Sayaka
+    stage_name: 仁藤さや香
+    reading: にとう さやか
+    alternate_names:
+    - name: 角奈保
+      note: renamed March 2, 2025 (reading すみなほ); moved to DAHLIA management
+  date_of_birth: null
+  birthplace: null
+  blood_type: null
+  height_cm: 158
+  measurements:
+    bust: 92
+    waist: 54
+    hip: 86
+  cup: H
+  active_from: 2023-10-10
+  active_to: null
+  retirement_announced: null
+  biography: "Sayaka Nito is a former legendary race queen who made a sensational late AV debut at age 36 on October 10, 2023, signing exclusively with S1 No.1 Style. Her debut title 新人NO.1STYLE 仁藤さや香AVデビュー generated significant buzz due to her celebrity-level recognition in the motorsport community combined with her H-cup figure. Her real date of birth has not been officially disclosed. On March 2, 2025, she announced a stage name change to 角奈保 (Sumi Naho) and transferred to DAHLIA management, continuing her career under the new name."
+  primary_studios:
+  - name: S1 No.1 Style
+    company: "WILL Co., Ltd."
+    from: 2023-10-10
+    to: 2025-03-01
+    role: Exclusive contract actress
+  - name: DAHLIA
+    company: DAHLIA
+    from: 2025-03-02
+    to: null
+    role: Exclusive contract actress (as 角奈保)
+
+meta:
+  confidence: "Date of birth officially undisclosed; age estimated at ~36 at debut (2023) from fan sources. Measurements from seesaawiki and gamoblog.net. Stage name change confirmed by actress's own announcement March 2, 2025. Birthplace and blood type unknown."
+  data_sources:
+  - https://seesaawiki.jp/pre_shiro/d/%BF%CE%C6%A3%A4%B5%A4%E4%B9%E1
+  - https://gamoblog.net/nitousayaka-lacequeen-av/
+  - https://ameblo.jp/takeshi10941094/entry-12820884305.html
+  - https://haitoku-jukujo.com/articles/sumi-naho-best-works
