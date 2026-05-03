@@ -1,0 +1,60 @@
+profile:
+  name:
+    family_name: "Kurokawa"
+    given_name: "Sarina"
+    stage_name: "黒川サリナ"
+    reading: "くろかわ さりな"
+    alternate_names:
+    - name: "黒川さりな"
+      note: "name used from September 2018"
+    - name: "百永さりな"
+      note: "current stage name since April 2021 (romanized: Momona Sarina)"
+    - name: "Momona Sarina"
+      note: "romanized form of 百永さりな"
+  date_of_birth: 1995-12-09
+  birthplace: null
+  blood_type: null
+  height_cm: null
+  measurements:
+    bust: null
+    waist: null
+    hip: null
+  cup: null
+  active_from: 2017-09-01
+  active_to: null
+  retirement_announced: null
+  biography: "黒川サリナ (Sarina Kurokawa), born December 9, 1995, debuted as an exclusive actress for Prestige in September 2017. Her exclusive contract ended in August 2018, after which she became an independent multi-label performer and changed her name to 黒川さりな. On April 12, 2021 she left Prime Agency and joined NAX Promotion, taking the new stage name 百永さりな (Momona Sarina) — a name she chose for its distinctive and searchable quality. In November 2021 she was awarded the Valuable Actress of Rainbow Channel at the SKY PerfecTV! Adult Broadcast Awards."
+  primary_studios:
+  - name: "Prestige"
+    company: "プレステージ"
+    from: 2017-09-01
+    to: 2018-08-31
+    role: "Exclusive contract actress (as 黒川サリナ)"
+  - name: "Multi-label (independent)"
+    company: "various"
+    from: 2018-09-01
+    to: 2021-04-11
+    role: "Freelance actress (as 黒川さりな)"
+  - name: "NAX Promotion"
+    company: "NAX プロモーション"
+    from: 2021-04-12
+    to: null
+    role: "Contract actress (as 百永さりな)"
+  awards:
+  - event: "SKY PerfecTV!アダルト放送大賞2021"
+    year: 2021
+    category: "レインボーチャンネル バリュアブル女優賞"
+
+meta:
+  total_owned_titles: null
+  titles_with_japanese_title: null
+  titles_with_english_title: null
+  titles_with_release_date: null
+  total_known_releases: null
+  coverage_note: "Profile only; portfolio not yet researched. All titles from April 2021 onward appear under 百永さりな."
+  confidence: "DOB December 9, 1995 sourced from NamuWiki. Birthplace, blood type, height, and measurements not found. Debut month September 2017 confirmed; exact date not determined (2017-09-01 is placeholder). Exclusive end August 2018 confirmed."
+  data_sources:
+  - "https://ja.wikipedia.org/wiki/百永さりな"
+  - "https://www.wikidata.org/wiki/Q60229933"
+  - "https://en.namu.wiki/w/%EB%AA%A8%EB%AA%A8%EB%82%98%EA%B0%80%20%EC%82%AC%EB%A6%AC%EB%82%98"
+  portfolio_listed: 0
