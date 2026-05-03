@@ -416,7 +416,7 @@ public class Application {
         com.organizer3.javdb.enrichment.EnrichmentQueue enrichmentQueue =
                 new com.organizer3.javdb.enrichment.EnrichmentQueue(jdbi, javdbConfig);
         com.organizer3.javdb.enrichment.AutoPromoter autoPromoter =
-                new com.organizer3.javdb.enrichment.AutoPromoter(jdbi);
+                new com.organizer3.javdb.enrichment.AutoPromoter(jdbi, enrichmentReviewQueueRepo);
         com.organizer3.javdb.enrichment.ActressAvatarStore avatarStore =
                 new com.organizer3.javdb.enrichment.ActressAvatarStore(dataDir);
         com.organizer3.rating.RatingCurveRepository ratingCurveRepo =

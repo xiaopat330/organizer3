@@ -530,6 +530,7 @@ public class EnrichmentRunner {
 
         queue.markDone(job.id());
         autoPromoter.promoteActressStageName(actressId);
+        autoPromoter.promoteFromActressProfile(actressId);
     }
 
     /** Default-true wrapper preserving the legacy single-cast fallback behavior. */

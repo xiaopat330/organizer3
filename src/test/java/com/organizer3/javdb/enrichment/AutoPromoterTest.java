@@ -1,5 +1,6 @@
 package com.organizer3.javdb.enrichment;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.organizer3.db.SchemaInitializer;
 import org.jdbi.v3.core.Jdbi;
 import org.junit.jupiter.api.AfterEach;
@@ -8,6 +9,7 @@ import org.junit.jupiter.api.Test;
 
 import java.sql.Connection;
 import java.sql.DriverManager;
+import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -16,13 +18,15 @@ class AutoPromoterTest {
     private Connection connection;
     private Jdbi jdbi;
     private AutoPromoter promoter;
+    private EnrichmentReviewQueueRepository reviewQueueRepo;
 
     @BeforeEach
     void setUp() throws Exception {
         connection = DriverManager.getConnection("jdbc:sqlite::memory:");
         jdbi = Jdbi.create(connection);
         new SchemaInitializer(jdbi).initialize();
-        promoter = new AutoPromoter(jdbi);
+        reviewQueueRepo = new EnrichmentReviewQueueRepository(jdbi);
+        promoter = new AutoPromoter(jdbi, reviewQueueRepo);
     }
 
     @AfterEach
@@ -220,5 +224,139 @@ class AutoPromoterTest {
         assertEquals("相田ゆあ作品", getTitleOriginal(t));
         assertEquals("2023-06-01", getReleaseDate(t));
         assertEquals("相田ゆあ", getStageName(a));
+    }
+
+    // ── promoteFromActressProfile ──────────────────────────────────────────
+
+    /** Helper: insert a javdb_actress_staging row with name_variants_json. */
+    private void insertActressStagingWithVariants(long actressId, String nameVariantsJson) {
+        jdbi.useHandle(h -> h.execute(
+                "INSERT INTO javdb_actress_staging (actress_id, javdb_slug, status, name_variants_json) " +
+                "VALUES (?, 'TEST-SLUG', 'profile_fetched', ?)",
+                actressId, nameVariantsJson));
+    }
+
+    /** Helper: insert a title and link it to an actress (needed for Rule 3 review queue row). */
+    private long insertTitleForActress(long actressId, String code) {
+        long titleId = insertTitle(code, null, null);
+        linkActressTitle(actressId, titleId);
+        return titleId;
+    }
+
+    /** Helper: count open review queue rows with a given reason for a title. */
+    private int countReviewQueueRows(long titleId, String reason) {
+        return jdbi.withHandle(h -> h.createQuery(
+                "SELECT COUNT(*) FROM enrichment_review_queue WHERE title_id = ? AND reason = ? AND resolved_at IS NULL")
+                .bind(0, titleId).bind(1, reason)
+                .mapTo(Integer.class).one());
+    }
+
+    /** Helper: load detail JSON from the first review queue row with a given reason. */
+    private String loadReviewQueueDetail(long titleId, String reason) {
+        return jdbi.withHandle(h -> h.createQuery(
+                "SELECT detail FROM enrichment_review_queue WHERE title_id = ? AND reason = ? AND resolved_at IS NULL LIMIT 1")
+                .bind(0, titleId).bind(1, reason)
+                .mapTo(String.class).findOne().orElse(null));
+    }
+
+    @Test
+    void promoteFromActressProfile_rule1_fillsNullStageName() {
+        long a = insertActress("Rei Amami", null);
+        insertActressStagingWithVariants(a, "[\"天海麗\",\"天海れい\"]");
+
+        promoter.promoteFromActressProfile(a);
+
+        assertEquals("天海麗", getStageName(a));
+    }
+
+    @Test
+    void promoteFromActressProfile_rule2_correctsRomanizedStageName() {
+        long a = insertActress("Rei Amami", "Rei Amami");
+        insertActressStagingWithVariants(a, "[\"天海麗\",\"天海れい\"]");
+
+        promoter.promoteFromActressProfile(a);
+
+        assertEquals("天海麗", getStageName(a), "romanized stage_name must be replaced with kanji from variants");
+    }
+
+    @Test
+    void promoteFromActressProfile_rule2_correctsPartialRomanizedStageName() {
+        // Stage name has romaji but no CJK — Rule 2 applies
+        long a = insertActress("Yua Aida", "Yua");
+        insertActressStagingWithVariants(a, "[\"相田ゆあ\"]");
+
+        promoter.promoteFromActressProfile(a);
+
+        assertEquals("相田ゆあ", getStageName(a));
+    }
+
+    @Test
+    void promoteFromActressProfile_rule3_happyPath_kanjiMatchesVariant_isNoop() {
+        long a = insertActress("Aoi Sora", "蒼井そら");
+        long t = insertTitleForActress(a, "TST-101");
+        insertActressStagingWithVariants(a, "[\"蒼井そら\",\"Sora Aoi\"]");
+
+        promoter.promoteFromActressProfile(a);
+
+        // Stage name unchanged — it matched a variant
+        assertEquals("蒼井そら", getStageName(a));
+        // No review queue row
+        assertEquals(0, countReviewQueueRows(t, "stage_name_conflict"));
+    }
+
+    @Test
+    void promoteFromActressProfile_rule3_conflict_kanjiDoesNotMatchAnyVariant() {
+        long a = insertActress("Conflict Actress", "天海麗");
+        long t = insertTitleForActress(a, "TST-102");
+        // Variants contain a different name — conflict
+        insertActressStagingWithVariants(a, "[\"天海れい\",\"Rei Amami\"]");
+
+        promoter.promoteFromActressProfile(a);
+
+        // Stage name NOT overwritten
+        assertEquals("天海麗", getStageName(a));
+        // Review queue row inserted with correct reason
+        assertEquals(1, countReviewQueueRows(t, "stage_name_conflict"));
+        // Detail JSON contains our_stage_name and javdb_variants
+        String detail = loadReviewQueueDetail(t, "stage_name_conflict");
+        assertNotNull(detail);
+        assertTrue(detail.contains("天海麗"), "detail must include our_stage_name");
+        assertTrue(detail.contains("天海れい"), "detail must include javdb variants");
+    }
+
+    @Test
+    void promoteFromActressProfile_rule3_conflict_detailJsonShape() throws Exception {
+        long a = insertActress("Detail Shape Test", "古川いおり");
+        long t = insertTitleForActress(a, "TST-103");
+        insertActressStagingWithVariants(a, "[\"古川イオリ\",\"Iori Kogawa\"]");
+
+        promoter.promoteFromActressProfile(a);
+
+        String detail = loadReviewQueueDetail(t, "stage_name_conflict");
+        assertNotNull(detail);
+        Map<?, ?> parsed = new ObjectMapper().readValue(detail, Map.class);
+        assertEquals("古川いおり", parsed.get("our_stage_name"));
+        assertTrue(parsed.containsKey("javdb_variants"), "must have javdb_variants key");
+    }
+
+    @Test
+    void promoteFromActressProfile_emptyVariants_isNoop() {
+        long a = insertActress("Empty Variants", "SomeName");
+        insertActressStagingWithVariants(a, "[]");
+
+        promoter.promoteFromActressProfile(a);
+
+        // No change — empty variants is always a no-op
+        assertEquals("SomeName", getStageName(a));
+    }
+
+    @Test
+    void promoteFromActressProfile_noStagingRow_isNoop() {
+        // Actress has no javdb_actress_staging row at all
+        long a = insertActress("No Staging", "NoChange");
+
+        promoter.promoteFromActressProfile(a);
+
+        assertEquals("NoChange", getStageName(a));
     }
 }
