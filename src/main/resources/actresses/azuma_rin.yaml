@@ -1,0 +1,57 @@
+profile:
+  name:
+    family_name: "Azuma"
+    given_name: "Rin"
+    stage_name: "東凛"
+    reading: "あずま りん"
+    alternate_names: []
+  date_of_birth: 1986-07-21
+  birthplace: "Meguro, Tokyo, Japan"
+  blood_type: null
+  height_cm: 162
+  measurements:
+    bust: 85
+    waist: 55
+    hip: 86
+  cup: "E"
+  active_from: 2014-09-13
+  active_to: null
+  retirement_announced: null
+  biography: "東凛 (Rin Azuma), born July 21, 1986 in Meguro, Tokyo, began working as a child model at age 3 and continued in mainstream entertainment through adulthood and after marriage. She made her gravure AV debut on July 21, 2014 (her birthday) and her full AV debut on September 13, 2014, both with Tameike Gorou. In January 2020 she transferred to ATTACKERS while maintaining a tie with Tameike Gorou, later moved to Madonna and VENUS, and from March 2021 has been an exclusive under DAHLIA, the boutique label within FALENO. She was nominated for Best New Actress at the DMM.R18 Adult Award 2015 and placed second in the middleweight division at AV OPEN 2014."
+  primary_studios:
+  - name: "Tameike Gorou"
+    company: "溜池ゴロー"
+    from: 2014-09-13
+    to: 2020-01-12
+    role: "Exclusive contract actress"
+  - name: "ATTACKERS / Tameike Gorou"
+    company: "ATTACKERS / 溜池ゴロー"
+    from: 2020-01-13
+    to: 2021-02-28
+    role: "Shared exclusive actress"
+  - name: "DAHLIA by FALENO"
+    company: "FALENO"
+    from: 2021-03-01
+    to: null
+    role: "Exclusive contract actress"
+  awards:
+  - event: "AV OPEN 2014"
+    year: 2014
+    category: "ミドル部門 2位 (Middleweight, 2nd place)"
+  - event: "DMM.R18アダルトアワード2015"
+    year: 2015
+    category: "最優秀新人女優賞 ノミネート (Best New Actress nominee)"
+
+meta:
+  total_owned_titles: null
+  titles_with_japanese_title: null
+  titles_with_english_title: null
+  titles_with_release_date: null
+  total_known_releases: null
+  coverage_note: "Profile only; portfolio not yet researched"
+  confidence: "Measurements sourced from celebs.filmifeed.com and search aggregates. Blood type not found. active_to is null — still active as of 2021. ATTACKERS and Madonna transition dates are approximate."
+  data_sources:
+  - "https://ja.wikipedia.org/wiki/東凛"
+  - "https://www.wikidata.org/wiki/Q20038462"
+  - "https://baike.baidu.com/en/item/Azuma%20Rin/1440610"
+  portfolio_listed: 0
