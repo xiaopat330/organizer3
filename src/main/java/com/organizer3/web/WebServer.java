@@ -169,6 +169,11 @@ public class WebServer {
         routes.register(app);
     }
 
+    /** Mounts the cast-anomaly triage add-alias endpoint ({@code /api/triage/cast-anomaly/*}). */
+    public void registerCastAnomalyTriage(com.organizer3.web.routes.CastAnomalyTriageRoutes routes) {
+        routes.register(app);
+    }
+
     /** Mounts the Draft Mode populate + cover endpoints ({@code /api/drafts/*}). */
     public void registerDraftRoutes(com.organizer3.web.routes.DraftRoutes routes) {
         routes.register(app);

@@ -204,6 +204,19 @@ public final class UtilitiesRoutes {
                             return "/covers/" + label + "/" + p.getFileName();
                         })
                         .orElse(null));
+                // For cast_anomaly rows, include cast_json + linked actress names so the
+                // inline "Add as alias" panel can render without a second round-trip.
+                if ("cast_anomaly".equals(r.reason())) {
+                    reviewQueueRepo.findCastAnomalyContext(r.titleId()).ifPresent(castCtx -> {
+                        m.put("castJson", castCtx.castJson());
+                        m.put("linkedActresses", castCtx.linkedActresses().stream().map(a -> {
+                            var am = new LinkedHashMap<String, Object>();
+                            am.put("id", a.id());
+                            am.put("canonicalName", a.canonicalName());
+                            return am;
+                        }).toList());
+                    });
+                }
                 return m;
             }).toList();
             ctx.json(Map.of("counts", counts, "rows", rowsWithCovers));
