@@ -1,0 +1,38 @@
+profile:
+  name:
+    family_name: Kanno
+    given_name: Sayuki
+    stage_name: 菅野さゆき
+    reading: かんの さゆき
+    alternate_names: []
+  date_of_birth: 1989-12-17
+  birthplace: Japan
+  blood_type: A
+  height_cm: 158
+  measurements:
+    bust: 95
+    waist: 61
+    hip: 89
+  cup: J
+  active_from: 2010-03-01
+  active_to: 2017-04-16
+  retirement_announced: 2017-04-16
+  biography: "Sayuki Kanno (born December 17, 1989) is a former AV actress known for her exceptionally rare J-cup natural bust (95 cm), one of the largest among mainstream exclusive actresses of her era. She debuted as an Alice Japan exclusive in March 2010, and in March 2011 transferred to MOODYZ under an exclusive contract. At MOODYZ she built a seven-year career spanning a wide range of genres, establishing herself as a specialist in large-bust content. On April 16, 2017, she announced her retirement via Twitter, concluding an approximately seven-year career."
+  primary_studios:
+  - name: Alice Japan
+    company: "WILL Co., Ltd."
+    from: 2010-03-01
+    to: 2011-02-28
+    role: Exclusive contract actress
+  - name: MOODYZ
+    company: "WILL Co., Ltd."
+    from: 2011-03-01
+    to: 2017-04-16
+    role: Exclusive contract actress
+
+meta:
+  confidence: "DOB, blood type, and career dates sourced from Japanese Wikipedia. Height 158 cm from multiple western bio aggregators. Measurements: bust 95 cm / J cup from Wikipedia infobox; waist 61 cm / hip 89 cm from bodysize.org (may differ from Wikipedia infobox). Birthplace (specific prefecture) not publicly disclosed."
+  data_sources:
+  - https://ja.wikipedia.org/wiki/%E8%8F%85%E9%87%8E%E3%81%95%E3%82%86%E3%81%8D
+  - https://bodysize.org/en/sayuki-kanno/
+  - https://www.wikidata.org/wiki/Q11619408
