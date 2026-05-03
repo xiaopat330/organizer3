@@ -1,0 +1,45 @@
+profile:
+  name:
+    family_name: "Harusaki"
+    given_name: "Ryo"
+    stage_name: "春咲りょう"
+    reading: "はるさき りょう"
+    alternate_names:
+    - name: "佐々木遥"
+      note: "birth name"
+    - name: "りょう"
+      note: "post-retirement model name"
+  date_of_birth: 1997-07-21
+  birthplace: null
+  blood_type: "B"
+  height_cm: null
+  measurements:
+    bust: null
+    waist: null
+    hip: null
+  cup: null
+  active_from: 2017-08-04
+  active_to: 2020-07-15
+  retirement_announced: 2020-07-15
+  biography: "春咲りょう (Ryo Harusaki), born July 21, 1997, debuted as an exclusive actress for Prestige on August 4, 2017 under the stage name Ryo Harusaki. She announced her retirement from AV work on Instagram on July 15, 2020. After retiring, she continued working as a model under the shortened name Ryo (りょう), choosing a new name to distinguish her post-AV career while retaining a connection to her stage persona."
+  primary_studios:
+  - name: "Prestige"
+    company: "プレステージ"
+    from: 2017-08-04
+    to: 2020-07-15
+    role: "Exclusive contract actress"
+  awards: []
+
+meta:
+  total_owned_titles: null
+  titles_with_japanese_title: null
+  titles_with_english_title: null
+  titles_with_release_date: null
+  total_known_releases: null
+  coverage_note: "Profile only; portfolio not yet researched"
+  confidence: "Birth date July 21, 1997 per Wikidata and NamuWiki (some sources erroneously list May 22, 1997). Blood type B per Wikidata (actress noted being surprised to learn she was B not O). Birthplace, height, and measurements not found in available sources. Debut and retirement dates confirmed."
+  data_sources:
+  - "https://www.wikidata.org/wiki/Q55537949"
+  - "https://en.namu.wiki/w/%ED%95%98%EB%A3%A8%EC%82%AC%ED%82%A4%20%EB%A3%8C"
+  - "https://redditwiki.com/ryou-harusaki-age-birthplace-biography-height-weight-net-worth/"
+  portfolio_listed: 0
