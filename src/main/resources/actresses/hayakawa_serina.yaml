@@ -1,0 +1,38 @@
+profile:
+  name:
+    family_name: Hayakawa
+    given_name: Serina
+    stage_name: 早川瀬里奈
+    reading: はやかわ せりな
+    alternate_names: []
+  date_of_birth: 1986-02-04
+  birthplace: Ibaraki Prefecture, Japan
+  blood_type: A
+  height_cm: 160
+  measurements:
+    bust: 85
+    waist: 57
+    hip: 83
+  cup: D
+  active_from: 2005-12-01
+  active_to: 2015-03-13
+  retirement_announced: 2010-04-01
+  biography: "Serina Hayakawa (born February 4, 1986, Ibaraki Prefecture) debuted as an h.m.p exclusive actress in December 2005 with the title お願いされるとムラムラしちゃう, reportedly recruited directly from a career as a top-ranked hostess in Roppongi. In May 2006 she transitioned to MOODYZ as a commercial exclusive, building a well-received four-year career until her graduation from MOODYZ in October 2008 and subsequent freelance period. She announced and carried out retirement on April 1, 2010 with a four-hour farewell special. On March 13, 2015, she made a surprise comeback with a new release, resuming activity under the management of Allure (later Harvesters)."
+  primary_studios:
+  - name: h.m.p
+    company: "h.m.p"
+    from: 2005-12-01
+    to: 2006-04-30
+    role: Exclusive contract actress; debut label
+  - name: MOODYZ
+    company: "WILL Co., Ltd."
+    from: 2006-05-01
+    to: 2008-10-31
+    role: Exclusive contract actress
+
+meta:
+  confidence: "DOB, blood type, birthplace, and career dates sourced from Japanese Wikipedia. Height 160 cm and measurements B85/D/W57/H83 confirmed by asianwiki.com and hcface.com. An earlier source cited B88 E cup W59 H86 at 158 cm — the 160 cm / D-cup figures are preferred as they are corroborated by two independent sources. Comeback date from multiple news reports."
+  data_sources:
+  - https://ja.wikipedia.org/wiki/%E6%97%A9%E5%B7%9D%E7%80%AC%E9%87%8C%E5%A5%88
+  - https://asianwiki.com/Serina_Hayakawa
+  - https://hcface.com/2017/03/23/hayakawa-serina-%E6%97%A9%E5%B7%9D%E7%80%AC%E9%87%8C%E5%A5%88/
