@@ -942,6 +942,7 @@ public class Application {
                 mcpTools.register(new com.organizer3.mcp.tools.CancelTaskRunTool(taskRunner));
                 mcpTools.register(new com.organizer3.mcp.tools.StartTaskTool(taskRegistry, taskRunner));
                 mcpTools.register(new com.organizer3.mcp.tools.ResolveReviewQueueRowTool(jdbi, enrichmentReviewQueueRepo, enrichmentQueue));
+                mcpTools.register(new com.organizer3.mcp.tools.BackfillYamlAliasesTool(jdbi, enrichmentRunner));
                 mcpTools.register(forceEnrichTitleTool);
                 mcpTools.register(pickReviewCandidateTool);
                 mcpTools.register(refreshReviewCandidatesTool);

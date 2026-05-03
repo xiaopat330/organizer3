@@ -602,7 +602,7 @@ public class EnrichmentRunner {
      * we re-run the match using stored cast_json — no network — and discharge rows
      * that now resolve cleanly. Idempotent: a second pass finds nothing to do.
      */
-    void recoverCastAnomaliesAfterMatcherFix() {
+    public void recoverCastAnomaliesAfterMatcherFix() {
         if (castMatcher == null || titleActressRepo == null || reviewQueueRepo == null) return;
         List<RecoveryCandidate> candidates = jdbi.withHandle(h -> h.createQuery("""
                 SELECT q.id AS queue_id, q.title_id, t.code AS title_code, e.cast_json

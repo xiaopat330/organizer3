@@ -153,16 +153,47 @@ class ActressYamlLoaderTest {
     }
 
     @Test
-    void loadOneStoresAlternateNamesNotAsAliases() throws Exception {
+    void loadOneMirrorsAlternateNamesIntoAliases() throws Exception {
         loader.loadOne("test_actress");
 
         Actress actress = actressRepo.resolveByName("Test Actress").orElseThrow();
-        // alternate_names from the YAML are stored in alternate_names_json, NOT as aliases
-        assertFalse(actressRepo.resolveByName("Testy").isPresent(),
-                "alternate_names should not be added as searchable aliases");
+        // alternate_names from the YAML are stored both in alternate_names_json AND as searchable aliases
+        assertTrue(actressRepo.resolveByName("Testy").isPresent(),
+                "alternate_names should be mirrored into actress_aliases for matching");
+        assertTrue(actressRepo.resolveByName("T-san").isPresent(),
+                "all alternate_names should be mirrored into actress_aliases");
         assertTrue(actress.getAlternateNames() != null
                 && actress.getAlternateNames().stream().anyMatch(a -> "Testy".equals(a.name())),
-                "alternate_names should be stored in the alternateNames field");
+                "alternate_names should also be stored in the alternateNames field");
+    }
+
+    @Test
+    void loadOneMirrorIsIdempotent() throws Exception {
+        loader.loadOne("test_actress");
+        loader.loadOne("test_actress");
+
+        // Re-loading must not create duplicate alias rows
+        Actress actress = actressRepo.resolveByName("Test Actress").orElseThrow();
+        long actressId = actress.getId();
+        int aliasCount = actressRepo.findAliases(actressId).size();
+        assertEquals(2, aliasCount, "exactly 2 aliases after two loads — no duplicates");
+    }
+
+    @Test
+    void loadOneMirrorIsAdditiveOnlyWhenAltRemoved() throws Exception {
+        // First load inserts both "Testy" and "T-san" as aliases.
+        loader.loadOne("test_actress");
+
+        // Manually verify both aliases exist.
+        Actress actress = actressRepo.resolveByName("Test Actress").orElseThrow();
+        assertEquals(2, actressRepo.findAliases(actress.getId()).size());
+
+        // Under additive-only semantics, a second load with the same YAML keeps both aliases.
+        // (We can't remove an alt from the classpath YAML in a test, so we simply verify
+        // that reloading does not reduce the alias count — the contract is: load never deletes.)
+        loader.loadOne("test_actress");
+        assertEquals(2, actressRepo.findAliases(actress.getId()).size(),
+                "aliases must not decrease on re-load — additive-only");
     }
 
     @Test
