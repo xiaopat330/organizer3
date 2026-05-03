@@ -1,0 +1,37 @@
+profile:
+  name:
+    family_name: Kotoi
+    given_name: Shihori
+    stage_name: 琴井しほり
+    reading: ことい しほり
+    alternate_names: []
+  date_of_birth: 1992-04-07
+  birthplace: Mie Prefecture, Japan
+  blood_type: null
+  height_cm: null
+  measurements:
+    bust: null
+    waist: null
+    hip: null
+  cup: null
+  active_from: 2019-08-19
+  active_to: 2022-06-01
+  retirement_announced: 2022-05-01
+  biography: "Shihori Kotoi (born April 7, 1992, Mie Prefecture) made an unusually late AV debut at age 27 on August 19, 2019, with S1 No.1 Style while reportedly continuing to work a regular day job in parallel. In April 2020 she transferred to Attackers as an exclusive, where a 2020 release became a major hit later featured on TV Asahi's 'Midnight Ravers' programme. In May 2022 she announced her retirement via Twitter, with her final release following in June 2022. Her roughly three-year career spanned two of the industry's most prominent studios."
+  primary_studios:
+  - name: S1 No.1 Style
+    company: "WILL Co., Ltd."
+    from: 2019-08-19
+    to: 2020-03-31
+    role: Exclusive contract actress
+  - name: Attackers
+    company: "WILL Co., Ltd."
+    from: 2020-04-01
+    to: 2022-06-01
+    role: Exclusive contract actress
+
+meta:
+  confidence: "DOB and birthplace from Japanese Wikipedia. Career dates (debut August 19, 2019; Attackers transfer April 2020; retirement announced May 2022; final release June 2022) from Japanese Wikipedia and fan wiki. Physical measurements not available in public sources. Attackers title ADN-261 (2020) confirmed as a notable hit."
+  data_sources:
+  - https://ja.wikipedia.org/wiki/%E7%90%B4%E4%BA%95%E3%81%97%E3%81%BB%E3%82%8A
+  - https://www.weblio.jp/content/%E7%90%B4%E4%BA%95%E3%81%97%E3%81%BB%E3%82%8A
