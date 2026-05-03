@@ -54,7 +54,14 @@ public class WebServer {
                      TitleRepository titleRepo, SearchService searchService) {
         this.port = port;
         this.app = Javalin.create(config ->
-                config.staticFiles.add("/public", Location.CLASSPATH));
+                config.staticFiles.add(staticFiles -> {
+                    staticFiles.directory = "/public";
+                    staticFiles.location = Location.CLASSPATH;
+                    // Force Safari (and other UAs) to revalidate every request so a stale
+                    // cached JS module never gets paired with a freshly-deployed sibling.
+                    // 304s on unchanged files are cheap; the win is no silent breakage.
+                    staticFiles.headers = Map.of("Cache-Control", "no-cache");
+                }));
         registerRoutes(browseService, actressBrowseService, coversRoot,
                 videoStreamService, thumbnailService, videoProbe, watchHistoryRepo, titleRepo,
                 searchService);

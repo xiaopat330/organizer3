@@ -520,7 +520,8 @@ public class Application {
         Map<String, String> volumeSmbPaths = config.volumes().stream()
                 .filter(v -> !"avstars".equals(v.structureType()))
                 .collect(Collectors.toMap(VolumeConfig::id, VolumeConfig::smbPath));
-        TitleBrowseService browseService = new TitleBrowseService(titleRepo, actressRepo, coverPath, labelRepo, titleActressRepo, watchHistoryRepo, volumeSmbPaths);
+        int maxBrowseTitles = config.maxBrowseTitles() != null ? config.maxBrowseTitles() : 500;
+        TitleBrowseService browseService = new TitleBrowseService(titleRepo, actressRepo, coverPath, labelRepo, titleActressRepo, watchHistoryRepo, volumeSmbPaths, maxBrowseTitles);
         StageNameBackupFile stageNameBackup = new StageNameBackupFile(
                 dbDir.resolve("stagenames.yaml"));
         ActressBrowseService actressBrowseService = new ActressBrowseService(

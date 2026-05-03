@@ -48,7 +48,7 @@ public class TitleRoutes {
             int offset = ctx.queryParamAsClass("offset", Integer.class).getOrDefault(0);
             int limit  = ctx.queryParamAsClass("limit",  Integer.class).getOrDefault(24);
             offset = Math.max(offset, 0);
-            limit  = Math.max(1, Math.min(limit, TitleBrowseService.MAX_LIMIT));
+            limit  = Math.max(1, limit);
             boolean hasEnrichTags = enrichTagIdsParam != null && !enrichTagIdsParam.isBlank();
             if (search != null && !search.isBlank()) {
                 ctx.json(browseService.searchByCodePaged(search.trim(), offset, limit));
@@ -124,7 +124,7 @@ public class TitleRoutes {
 
         app.get("/api/titles/random", ctx -> {
             int limit = ctx.queryParamAsClass("limit", Integer.class).getOrDefault(24);
-            limit = Math.max(1, Math.min(limit, TitleBrowseService.MAX_LIMIT));
+            limit = Math.max(1, limit);
             ctx.json(browseService.findRandom(limit));
         });
 
@@ -133,7 +133,7 @@ public class TitleRoutes {
             int offset = ctx.queryParamAsClass("offset", Integer.class).getOrDefault(0);
             int limit  = ctx.queryParamAsClass("limit",  Integer.class).getOrDefault(24);
             offset = Math.max(offset, 0);
-            limit  = Math.max(1, Math.min(limit, TitleBrowseService.MAX_LIMIT));
+            limit  = Math.max(1, limit);
             ctx.json(browseService.findByVolumeQueue(volumeId, offset, limit));
         });
 
@@ -142,7 +142,7 @@ public class TitleRoutes {
             int offset = ctx.queryParamAsClass("offset", Integer.class).getOrDefault(0);
             int limit  = ctx.queryParamAsClass("limit",  Integer.class).getOrDefault(24);
             offset = Math.max(offset, 0);
-            limit  = Math.max(1, Math.min(limit, TitleBrowseService.MAX_LIMIT));
+            limit  = Math.max(1, limit);
             String company   = ctx.queryParam("company");
             String tagsParam = ctx.queryParam("tags");
             List<String> tags = (tagsParam != null && !tagsParam.isBlank())
@@ -163,7 +163,7 @@ public class TitleRoutes {
             int offset = ctx.queryParamAsClass("offset", Integer.class).getOrDefault(0);
             int limit  = ctx.queryParamAsClass("limit",  Integer.class).getOrDefault(24);
             offset = Math.max(offset, 0);
-            limit  = Math.max(1, Math.min(limit, TitleBrowseService.MAX_LIMIT));
+            limit  = Math.max(1, limit);
             String company   = ctx.queryParam("company");
             String tagsParam = ctx.queryParam("tags");
             List<String> tags = (tagsParam != null && !tagsParam.isBlank())

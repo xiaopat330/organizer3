@@ -27,12 +27,6 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class TitleBrowseService {
 
-    public static final int MAX_LIMIT = 500;
-
-    private static int cappedLimit(int limit) {
-        return Math.min(limit, MAX_LIMIT);
-    }
-
     private final TitleRepository titleRepo;
     private final ActressRepository actressRepo;
     private final CoverPath coverPath;
@@ -41,10 +35,18 @@ public class TitleBrowseService {
     private final WatchHistoryRepository watchHistoryRepo;
     /** volumeId → smbPath, e.g. "a" → "//pandora/jav_A" */
     private final Map<String, String> volumeSmbPaths;
+    /** Hard cap on rows returned per page query; driven by {@code maxBrowseTitles} in config. */
+    private final int maxLimit;
+
+    public int maxLimit() { return maxLimit; }
+
+    private int cappedLimit(int limit) {
+        return Math.min(limit, maxLimit);
+    }
 
     /**
      * Returns at most {@code limit} titles starting at {@code offset}, ordered newest-first.
-     * Hard-capped at {@link #MAX_LIMIT} total regardless of requested limit.
+     * Hard-capped at {@link #maxLimit} total regardless of requested limit.
      */
     public List<TitleSummary> findRecent(int offset, int limit) {
         limit = cappedLimit(limit);
@@ -179,7 +181,7 @@ public class TitleBrowseService {
 
     /**
      * Returns titles in the queue partition of the given volume, ordered newest-first.
-     * Hard-capped at {@link #MAX_LIMIT} total regardless of requested limit.
+     * Hard-capped at {@link #maxLimit} total regardless of requested limit.
      *
      * <p>Queue titles are synced without an actress_id. For each one, we attempt to infer
      * the actress by finding another title in the DB with the same base_code that has already

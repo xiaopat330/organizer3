@@ -39,7 +39,7 @@ class TitleBrowseServiceTest {
 
     @BeforeEach
     void setUp() {
-        service = new TitleBrowseService(titleRepo, actressRepo, coverPath, labelRepo, titleActressRepo, watchHistoryRepo, Map.of());
+        service = new TitleBrowseService(titleRepo, actressRepo, coverPath, labelRepo, titleActressRepo, watchHistoryRepo, Map.of(), 500);
     }
 
     @Test
@@ -122,11 +122,11 @@ class TitleBrowseServiceTest {
 
     @Test
     void limitsAreCappedAtMax() {
-        when(titleRepo.findRecent(TitleBrowseService.MAX_LIMIT, 0)).thenReturn(List.of());
+        when(titleRepo.findRecent(500, 0)).thenReturn(List.of());
 
         service.findRecent(0, 9999);
 
-        verify(titleRepo).findRecent(TitleBrowseService.MAX_LIMIT, 0);
+        verify(titleRepo).findRecent(500, 0);
     }
 
     @Test
@@ -387,10 +387,10 @@ class TitleBrowseServiceTest {
 
     @Test
     void searchByCodePagedCapsLimit() {
-        when(titleRepo.findByCodePrefixPaged(anyString(), any(), eq(TitleBrowseService.MAX_LIMIT), eq(0)))
+        when(titleRepo.findByCodePrefixPaged(anyString(), any(), eq(500), eq(0)))
                 .thenReturn(List.of());
         service.searchByCodePaged("ABP", 0, 9999);
-        verify(titleRepo).findByCodePrefixPaged(eq("ABP"), any(), eq(TitleBrowseService.MAX_LIMIT), eq(0));
+        verify(titleRepo).findByCodePrefixPaged(eq("ABP"), any(), eq(500), eq(0));
     }
 
     // ── findFavoritesPaged / findBookmarksPaged ───────────────────────────
@@ -476,9 +476,9 @@ class TitleBrowseServiceTest {
 
     @Test
     void findRandomDelegatesWithCappedLimit() {
-        when(titleRepo.findRandom(TitleBrowseService.MAX_LIMIT)).thenReturn(List.of());
+        when(titleRepo.findRandom(500)).thenReturn(List.of());
         service.findRandom(9999);
-        verify(titleRepo).findRandom(TitleBrowseService.MAX_LIMIT);
+        verify(titleRepo).findRandom(500);
     }
 
     // ── findByVolumePaged / findByVolumePartition ──────────────────────────
@@ -575,7 +575,7 @@ class TitleBrowseServiceTest {
         volumes.put("b", "//pandora/jav_B");
         volumes.put("a", "//pandora/jav_A");
         TitleBrowseService svc = new TitleBrowseService(titleRepo, actressRepo, coverPath,
-                labelRepo, titleActressRepo, watchHistoryRepo, volumes);
+                labelRepo, titleActressRepo, watchHistoryRepo, volumes, 500);
 
         var result = svc.listVolumes();
 

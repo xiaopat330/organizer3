@@ -4,7 +4,7 @@ backup:
   autoBackupIntervalMinutes: 10080
   snapshotCount: 10
 dataDir: ./data
-maxBrowseTitles: 500
+maxBrowseTitles: 1500
 maxRandomTitles: 500
 maxRandomActresses: 500
 thumbnailInterval: 8
