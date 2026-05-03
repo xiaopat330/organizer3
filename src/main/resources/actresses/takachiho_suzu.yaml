@@ -1,0 +1,33 @@
+profile:
+  name:
+    family_name: Takachiho
+    given_name: Suzu
+    stage_name: 高千穂すず
+    reading: たかちほ すず
+    alternate_names: []
+  date_of_birth: 1996-03-19
+  birthplace: Japan
+  blood_type: null
+  height_cm: 172
+  measurements:
+    bust: 87
+    waist: 58
+    hip: 89
+  cup: null
+  active_from: 2015-12-07
+  active_to: 2016-01-01
+  retirement_announced: null
+  biography: "Suzu Takachiho (born March 19, 1996) debuted as an S1 No.1 Style exclusive actress on December 7, 2015 with the newcomer debut title 新人NO.1STYLE 高千穂すずAVデビュー (SNIS code). Standing at a rare 172 cm, she was unusually tall for an S1 debut actress. Despite the significant attention her debut generated, she filmed only three works before leaving the industry. Her career, while brief, is remembered as an early promise cut short, and her debut title has since achieved significant collector value."
+  primary_studios:
+  - name: S1 No.1 Style
+    company: "WILL Co., Ltd."
+    from: 2015-12-07
+    to: 2016-01-01
+    role: Exclusive contract actress; debut
+
+meta:
+  confidence: "DOB (March 19, 1996) from dramaface.com and xb1.com profile aggregators. Height 172 cm and measurements B87/W58/H89 from the same sources. Cup size not specified in available sources. Debut date December 7, 2015 and debut studio S1 (SNIS) confirmed by IMDB title listing. Three-work total career noted in NamuWiki. Birthplace not publicly disclosed."
+  data_sources:
+  - https://www.imdb.com/title/tt11238098/
+  - https://en.namu.wiki/w/%ED%83%80%EC%B9%B4%EC%B9%98%ED%98%B8%20%EC%8A%A4%EC%A6%88
+  - https://www.dramaface.com/info/takachihosuzu
