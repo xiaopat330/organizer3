@@ -1,0 +1,25 @@
+profile:
+  name:
+    family_name: Fuji
+    given_name: Shiho
+    stage_name: 藤しほ
+    reading: ふじ しほ
+    alternate_names: []
+  date_of_birth: null
+  birthplace: null
+  blood_type: null
+  height_cm: null
+  measurements:
+    bust: null
+    waist: null
+    hip: null
+  cup: null
+  active_from: null
+  active_to: null
+  retirement_announced: null
+  biography: null
+  primary_studios: []
+
+meta:
+  confidence: "Low. Extensive web searches (Japanese and English, multiple name variants including 藤しほ, 富士シホ, 不二しほ, 藤志穂) returned no verifiable biographical data. The stage name 藤しほ is assumed from the romanized queue entry 'Shiho Fuji' but has not been confirmed against a primary source. All profile fields must remain null until a verified source is found. Cover scanning or direct DB query needed to establish studio affiliation and active dates."
+  data_sources: []
