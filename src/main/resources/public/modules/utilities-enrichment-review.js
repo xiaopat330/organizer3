@@ -137,6 +137,7 @@ function makeRow(row) {
   const isAmbiguous       = row.reason === 'ambiguous';
   const isRecode          = row.reason === 'recode_candidate';
   const isActressRename   = row.reason === 'actress_rename_candidate';
+  const isCastAnomaly     = row.reason === 'cast_anomaly';
 
   let detail = null;
   try { detail = row.detail ? JSON.parse(row.detail) : null; } catch {}
@@ -168,6 +169,11 @@ function makeRow(row) {
       : '';
     actionsHtml = `
       <button type="button" class="er-action-btn er-resolve-btn" data-id="${row.id}" data-res="dismissed">Dismiss</button>
+    `;
+  } else if (isCastAnomaly) {
+    actionsHtml = `
+      <button type="button" class="er-action-btn er-cast-anomaly-btn" data-id="${row.id}">Add as alias…</button>
+      <button type="button" class="er-action-btn er-resolve-btn" data-id="${row.id}" data-res="marked_resolved">Mark resolved</button>
     `;
   } else {
     actionsHtml = `
@@ -205,6 +211,8 @@ function makeRow(row) {
     tr.querySelector('.er-hint-btn').addEventListener('click', () => showRecodeTitleHint(row, tr));
   } else if (isAmbiguous) {
     tr.querySelector('.er-picker-btn').addEventListener('click', () => togglePicker(row, tr));
+  } else if (isCastAnomaly) {
+    tr.querySelector('.er-cast-anomaly-btn').addEventListener('click', () => toggleCastAnomalyPanel(row, tr));
   } else if (!isActressRename) {
     tr.querySelector('.er-override-btn').addEventListener('click', () => showSlugForm(row.id, tr));
   }
@@ -476,6 +484,160 @@ async function doRefreshCandidates(row, parentTr, pickerTr, panel) {
     console.error('EnrichmentReview: refresh failed', err);
     alert('Refresh failed: ' + err.message);
     if (btn) { btn.disabled = false; btn.textContent = 'Refresh candidates'; }
+  }
+}
+
+// ── Cast-anomaly panel ─────────────────────────────────────────────────────────
+
+function toggleCastAnomalyPanel(row, tr) {
+  // Toggle: if a cast-anomaly panel already follows, close it.
+  const next = tr.nextElementSibling;
+  if (next && next.classList.contains('er-cast-anomaly-row')) {
+    next.remove();
+    tr.querySelector('.er-cast-anomaly-btn').classList.remove('er-picker-btn-active');
+    return;
+  }
+  // Close any other open cast-anomaly panels or picker panels.
+  tableBody.querySelectorAll('.er-cast-anomaly-row').forEach(r => r.remove());
+  tableBody.querySelectorAll('.er-picker-row').forEach(r => r.remove());
+  tableBody.querySelectorAll('.er-picker-btn-active').forEach(b => b.classList.remove('er-picker-btn-active'));
+
+  tr.querySelector('.er-cast-anomaly-btn').classList.add('er-picker-btn-active');
+  const panelTr = buildCastAnomalyPanelRow(row, tr);
+  tr.insertAdjacentElement('afterend', panelTr);
+}
+
+function buildCastAnomalyPanelRow(row, parentTr) {
+  const panelTr = document.createElement('tr');
+  panelTr.className = 'er-cast-anomaly-row';
+  const td = document.createElement('td');
+  td.colSpan = 6;
+  panelTr.appendChild(td);
+
+  const panel = document.createElement('div');
+  panel.className = 'er-picker-panel';
+  td.appendChild(panel);
+
+  renderCastAnomalyContent(panel, row, parentTr, panelTr);
+  return panelTr;
+}
+
+function renderCastAnomalyContent(panel, row, parentTr, panelTr) {
+  panel.innerHTML = '';
+
+  // Parse cast entries from cast_json (provided inline by the list endpoint).
+  let castEntries = [];
+  if (row.castJson) {
+    try { castEntries = JSON.parse(row.castJson) || []; } catch {}
+  }
+
+  const linkedActresses = row.linkedActresses || [];
+
+  if (castEntries.length === 0) {
+    panel.innerHTML = `
+      <div class="er-picker-missing">
+        <span>No cast JSON available for this title — cast_anomaly cannot be triaged inline.</span>
+      </div>
+    `;
+    return;
+  }
+
+  if (linkedActresses.length === 0) {
+    panel.innerHTML = `
+      <div class="er-picker-missing">
+        <span>No actresses are linked to this title — nothing to create an alias for.</span>
+      </div>
+    `;
+    return;
+  }
+
+  const header = document.createElement('div');
+  header.className = 'er-picker-header';
+  header.innerHTML = `
+    <span class="er-picker-age">
+      javdb cast names not matched by the alias matcher — pick the correct actress for each.
+    </span>
+  `;
+  panel.appendChild(header);
+
+  const errorEl = document.createElement('div');
+  errorEl.className = 'er-cast-anomaly-error';
+  errorEl.style.display = 'none';
+  panel.appendChild(errorEl);
+
+  // Render one button per (cast entry × linked actress) pairing.
+  // Most titles have 1 actress; multi-actress titles show multiple buttons per cast name.
+  const pairings = document.createElement('div');
+  pairings.className = 'er-cast-anomaly-pairings';
+  panel.appendChild(pairings);
+
+  castEntries.forEach(ce => {
+    const castName = ce.name || ce.slug || '?';
+    const castSlug = ce.slug || '';
+
+    const castBlock = document.createElement('div');
+    castBlock.className = 'er-cast-anomaly-cast-block';
+
+    const castLabel = document.createElement('div');
+    castLabel.className = 'er-cast-anomaly-cast-label';
+    castLabel.innerHTML = `javdb cast: <b>${esc(castName)}</b>${castSlug ? ` <span class="er-cast-slug">(slug ${esc(castSlug)})</span>` : ''}`;
+    castBlock.appendChild(castLabel);
+
+    const actressList = document.createElement('div');
+    actressList.className = 'er-cast-anomaly-actress-list';
+
+    linkedActresses.forEach(actress => {
+      const item = document.createElement('div');
+      item.className = 'er-cast-anomaly-actress-item';
+
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'er-action-btn er-cast-alias-btn';
+      btn.textContent = `Add "${castName}" as alias for ${actress.canonicalName}`;
+      btn.addEventListener('click', async () => {
+        await doAddAlias(row.id, actress.id, castName, btn, errorEl, parentTr);
+      });
+      item.appendChild(btn);
+      actressList.appendChild(item);
+    });
+
+    castBlock.appendChild(actressList);
+    pairings.appendChild(castBlock);
+  });
+}
+
+async function doAddAlias(queueRowId, actressId, aliasName, btn, errorEl, parentTr) {
+  btn.disabled = true;
+  btn.textContent = 'Adding…';
+  errorEl.style.display = 'none';
+
+  try {
+    const res = await fetch(`/api/triage/cast-anomaly/${queueRowId}/add-alias`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ actressId, aliasName }),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      errorEl.textContent = 'Error: ' + (data.error || res.statusText);
+      errorEl.style.display = '';
+      btn.disabled = false;
+      btn.textContent = `Add "${aliasName}" as alias for actress`;
+      return;
+    }
+    // Success — show feedback on the parent row briefly, then reload the table.
+    const rowsMsg = data.rows_recovered > 0
+      ? `${data.rows_recovered} row(s) discharged`
+      : '0 rows discharged (alias already known or no pending rows)';
+    btn.textContent = `✓ alias added — ${rowsMsg}`;
+    // Close the panel and reload after a short pause so the user can read the feedback.
+    setTimeout(() => reload(), 1200);
+  } catch (err) {
+    console.error('EnrichmentReview: add-alias failed', err);
+    errorEl.textContent = 'Error: ' + err.message;
+    errorEl.style.display = '';
+    btn.disabled = false;
+    btn.textContent = `Add "${aliasName}" as alias`;
   }
 }
 
