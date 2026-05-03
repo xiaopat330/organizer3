@@ -416,7 +416,7 @@ public class Application {
         com.organizer3.javdb.enrichment.EnrichmentQueue enrichmentQueue =
                 new com.organizer3.javdb.enrichment.EnrichmentQueue(jdbi, javdbConfig);
         com.organizer3.javdb.enrichment.AutoPromoter autoPromoter =
-                new com.organizer3.javdb.enrichment.AutoPromoter(jdbi);
+                new com.organizer3.javdb.enrichment.AutoPromoter(jdbi, enrichmentReviewQueueRepo);
         com.organizer3.javdb.enrichment.ActressAvatarStore avatarStore =
                 new com.organizer3.javdb.enrichment.ActressAvatarStore(dataDir);
         com.organizer3.rating.RatingCurveRepository ratingCurveRepo =
@@ -942,6 +942,7 @@ public class Application {
                 mcpTools.register(new com.organizer3.mcp.tools.CancelTaskRunTool(taskRunner));
                 mcpTools.register(new com.organizer3.mcp.tools.StartTaskTool(taskRegistry, taskRunner));
                 mcpTools.register(new com.organizer3.mcp.tools.ResolveReviewQueueRowTool(jdbi, enrichmentReviewQueueRepo, enrichmentQueue));
+                mcpTools.register(new com.organizer3.mcp.tools.BackfillYamlAliasesTool(jdbi, enrichmentRunner));
                 mcpTools.register(forceEnrichTitleTool);
                 mcpTools.register(pickReviewCandidateTool);
                 mcpTools.register(refreshReviewCandidatesTool);

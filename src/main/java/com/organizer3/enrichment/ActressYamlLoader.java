@@ -7,6 +7,7 @@ import com.organizer3.enrichment.plan.ActressYamlPlan;
 import com.organizer3.enrichment.plan.FieldChange;
 import com.organizer3.enrichment.plan.PortfolioChange;
 import com.organizer3.model.Actress;
+import com.organizer3.model.ActressAlias;
 import com.organizer3.model.Title;
 import com.organizer3.repository.ActressRepository;
 import com.organizer3.repository.TitleRepository;
@@ -290,6 +291,10 @@ public class ActressYamlLoader {
                 toAwards(profile.awards())
         );
 
+        // Mirror alternate_names[].name into actress_aliases (additive-only, idempotent).
+        // Never removes existing aliases — YAML insertions only.
+        mirrorAlternateNamesAsAliases(actress.getId(), profile.name() != null ? profile.name().alternateNames() : null);
+
         // Apply portfolio entries
         int titlesCreated = 0;
         int titlesEnriched = 0;
@@ -343,6 +348,19 @@ public class ActressYamlLoader {
         }
 
         return new LoadResult(actress.getCanonicalName(), actress.getId(), titlesCreated, titlesEnriched, unresolved);
+    }
+
+    /**
+     * Inserts each alternate name from the YAML into {@code actress_aliases} (additive-only).
+     * Uses INSERT OR IGNORE so duplicates are silently skipped and removals from YAML never
+     * delete existing alias rows.
+     */
+    private void mirrorAlternateNamesAsAliases(long actressId, List<ActressYaml.AlternateName> alternateNames) {
+        if (alternateNames == null || alternateNames.isEmpty()) return;
+        for (ActressYaml.AlternateName alt : alternateNames) {
+            if (alt == null || alt.name() == null || alt.name().isBlank()) continue;
+            actressRepo.saveAlias(new ActressAlias(actressId, alt.name()));
+        }
     }
 
     private static LocalDate parseDate(String s) {
