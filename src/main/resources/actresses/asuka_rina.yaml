@@ -1,0 +1,36 @@
+profile:
+  name:
+    family_name: "Asuka"
+    given_name: "Rina"
+    stage_name: null
+    reading: null
+    alternate_names:
+    - name: "Rino Asuka"
+      note: "variant romanization found in collection metadata"
+  date_of_birth: null
+  birthplace: null
+  blood_type: null
+  height_cm: null
+  measurements:
+    bust: null
+    waist: null
+    hip: null
+  cup: null
+  active_from: null
+  active_to: null
+  retirement_announced: null
+  biography: null
+  primary_studios: []
+  awards: []
+
+meta:
+  total_owned_titles: null
+  titles_with_japanese_title: null
+  titles_with_english_title: null
+  titles_with_release_date: null
+  total_known_releases: null
+  coverage_note: "Profile stub only. Actress known in collection as 'Rina Asuka' (also appears as 'Rino Asuka'; RED-083 Red Hot Fetish Collection 67 is one known title). Japanese stage name, studio history, and biographical details not determined from available sources. Wikidata Q11257430 ('Rino Asuka') may be the same person."
+  confidence: "Low — identity not confirmed. No Japanese Wikipedia article found for this romanization. Research incomplete; Japanese primary sources required."
+  data_sources:
+  - "https://www.wikidata.org/wiki/Q11257430"
+  portfolio_listed: 0
