@@ -1,0 +1,41 @@
+profile:
+  name:
+    family_name: "Hasegawa"
+    given_name: "Rui"
+    stage_name: "長谷川るい"
+    reading: "はせがわ るい"
+    alternate_names: []
+  date_of_birth: 1993-11-05
+  birthplace: "Kagamino, Okayama, Japan"
+  blood_type: "B"
+  height_cm: 150
+  measurements:
+    bust: 82
+    waist: 56
+    hip: 83
+  cup: null
+  active_from: 2015-02-01
+  active_to: 2018-04-20
+  retirement_announced: null
+  biography: "長谷川るい (Rui Hasegawa), born November 5, 1993 in Kagamino, Okayama Prefecture, debuted as an exclusive actress for Prestige in February 2015. In 2016 she became a member of Ebisu★Muscats, the variety/music group drawn from active AV actresses. Her final AV release was on April 20, 2018, after which she retired from AV work. She stood 150 cm tall with a petite frame and was known for idol-adjacent content during her Prestige tenure."
+  primary_studios:
+  - name: "Prestige"
+    company: "プレステージ"
+    from: 2015-02-01
+    to: 2018-04-20
+    role: "Exclusive contract actress"
+  awards: []
+
+meta:
+  total_owned_titles: null
+  titles_with_japanese_title: null
+  titles_with_english_title: null
+  titles_with_release_date: null
+  total_known_releases: null
+  coverage_note: "Profile only; portfolio not yet researched"
+  confidence: "DOB, birthplace, blood type, height, and measurements sourced from generasia.com. Cup size not determined. active_from is approximate (February 2015 stated but exact date not found). active_to is the confirmed final release date."
+  data_sources:
+  - "https://www.generasia.com/wiki/Hasegawa_Rui"
+  - "https://ja.wikipedia.org/wiki/長谷川るい"
+  - "https://www.wikidata.org/wiki/Q26043058"
+  portfolio_listed: 0
