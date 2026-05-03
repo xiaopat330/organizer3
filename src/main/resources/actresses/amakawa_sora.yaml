@@ -1,0 +1,39 @@
+profile:
+  name:
+    family_name: Amakawa
+    given_name: Sora
+    stage_name: 天川そら
+    reading: あまかわ そら
+    alternate_names: []
+  date_of_birth: 1998-10-10
+  birthplace: Tokyo, Japan
+  blood_type: null
+  height_cm: 165
+  measurements:
+    bust: 87
+    waist: 56
+    hip: 86
+  cup: F
+  active_from: 2019-11-01
+  active_to: null
+  retirement_announced: null
+  biography: "Sora Amakawa (born October 10, 1998, Tokyo) debuted as an S1 No.1 Style exclusive actress in November 2019 under the SSNI label, entering the industry at age 21. Her tall frame (165 cm) and F-cup figure made her an immediate standout among the S1 newcomer class. In July 2020 she transferred to FALENO (Faleno Star — FSDSS), which was then one of the fastest-rising premium labels in the industry, having launched in 2018 under SOD. Her hobbies are listed as shopping and cooking, and she is noted for her flexibility. She has remained active at FALENO through the mid-2020s."
+  primary_studios:
+  - name: S1 No.1 Style
+    company: "WILL Co., Ltd."
+    from: 2019-11-01
+    to: 2020-06-30
+    role: Exclusive contract actress
+  - name: FALENO
+    company: FALENO
+    from: 2020-07-01
+    to: null
+    role: Exclusive contract actress (Faleno Star)
+
+meta:
+  confidence: "DOB (October 10, 1998) from Wikipedia and Wikidata. Birthplace Tokyo from fan wiki and seesaawiki. Height 165 cm and measurements B87 F W56 H86 from seesaawiki fan profile. S1 debut November 2019 and FALENO transfer July 2020 confirmed by multiple sources including NamuWiki and IMDB. Blood type not publicly available."
+  data_sources:
+  - https://ja.wikipedia.org/wiki/%E5%A4%A9%E5%B7%9D%E3%81%9D%E3%82%89
+  - https://seesaawiki.jp/pre_shiro/d/%C5%B7%C0%EE%A4%BD%A4%E9
+  - https://en.namu.wiki/w/%EC%95%84%EB%A7%88%EC%B9%B4%EC%99%80%20%EC%86%8C%EB%9D%BC
+  - https://www.wikidata.org/wiki/Q102246876
