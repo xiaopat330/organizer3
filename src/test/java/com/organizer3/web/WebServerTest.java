@@ -189,7 +189,7 @@ class WebServerTest {
         when(labelRepo.findAllAsMap()).thenReturn(Map.of());
         when(coverPath.find(any(Title.class))).thenReturn(Optional.empty());
 
-        TitleBrowseService browseService = new TitleBrowseService(titleRepo, actressRepo, coverPath, labelRepo, mock(TitleActressRepository.class), mock(WatchHistoryRepository.class), Map.of());
+        TitleBrowseService browseService = new TitleBrowseService(titleRepo, actressRepo, coverPath, labelRepo, mock(TitleActressRepository.class), mock(WatchHistoryRepository.class), Map.of(), 500);
         server = new WebServer(0, browseService, null, null, null, null, null, null, null, null);
         server.start();
 
@@ -212,7 +212,7 @@ class WebServerTest {
         when(titleRepo.findRecent(10, 5)).thenReturn(List.of());
         when(labelRepo.findAllAsMap()).thenReturn(Map.of());
 
-        TitleBrowseService browseService = new TitleBrowseService(titleRepo, actressRepo, coverPath, labelRepo, mock(TitleActressRepository.class), mock(WatchHistoryRepository.class), Map.of());
+        TitleBrowseService browseService = new TitleBrowseService(titleRepo, actressRepo, coverPath, labelRepo, mock(TitleActressRepository.class), mock(WatchHistoryRepository.class), Map.of(), 500);
         server = new WebServer(0, browseService, null, null, null, null, null, null, null, null);
         server.start();
 
@@ -243,7 +243,7 @@ class WebServerTest {
         when(labelRepo.findAllAsMap()).thenReturn(Map.of());
         when(coverPath.find(any(Title.class))).thenReturn(Optional.empty());
 
-        TitleBrowseService browseService = new TitleBrowseService(titleRepo, actressRepo, coverPath, labelRepo, mock(TitleActressRepository.class), mock(WatchHistoryRepository.class), Map.of());
+        TitleBrowseService browseService = new TitleBrowseService(titleRepo, actressRepo, coverPath, labelRepo, mock(TitleActressRepository.class), mock(WatchHistoryRepository.class), Map.of(), 500);
         server = new WebServer(0, browseService, null, null, null, null, null, null, null, null);
         server.start();
 

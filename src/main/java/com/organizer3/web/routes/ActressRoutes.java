@@ -1,7 +1,6 @@
 package com.organizer3.web.routes;
 
 import com.organizer3.web.ActressBrowseService;
-import com.organizer3.web.TitleBrowseService;
 import io.javalin.Javalin;
 
 import java.util.Arrays;
@@ -32,7 +31,7 @@ public class ActressRoutes {
 
         app.get("/api/actresses/random", ctx -> {
             int limit = ctx.queryParamAsClass("limit", Integer.class).getOrDefault(24);
-            limit = Math.max(1, Math.min(limit, TitleBrowseService.MAX_LIMIT));
+            limit = Math.max(1, limit);
             ctx.json(actressBrowseService.findRandom(limit));
         });
 
@@ -50,7 +49,7 @@ public class ActressRoutes {
             int offset = ctx.queryParamAsClass("offset", Integer.class).getOrDefault(0);
             int limit  = ctx.queryParamAsClass("limit",  Integer.class).getOrDefault(24);
             offset = Math.max(offset, 0);
-            limit  = Math.max(1, Math.min(limit, TitleBrowseService.MAX_LIMIT));
+            limit  = Math.max(1, limit);
             if (idsParam != null && !idsParam.isBlank()) {
                 List<Long> ids = List.of(idsParam.split(",")).stream()
                         .map(String::trim).filter(s -> !s.isEmpty())
@@ -164,7 +163,7 @@ public class ActressRoutes {
             String sortBy  = ctx.queryParam("sortBy");
             String sortDir = ctx.queryParam("sortDir");
             offset = Math.max(offset, 0);
-            limit  = Math.max(1, Math.min(limit, TitleBrowseService.MAX_LIMIT));
+            limit  = Math.max(1, limit);
             ctx.json(actressBrowseService.findTitlesByActress(id, offset, limit, company, tags, enrichmentTagIds, sortBy, sortDir));
         });
 
