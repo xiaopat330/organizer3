@@ -603,8 +603,8 @@ public class EnrichmentRunner {
      * we re-run the match using stored cast_json — no network — and discharge rows
      * that now resolve cleanly. Idempotent: a second pass finds nothing to do.
      */
-    public void recoverCastAnomaliesAfterMatcherFix() {
-        if (castMatcher == null || titleActressRepo == null || reviewQueueRepo == null) return;
+    public int recoverCastAnomaliesAfterMatcherFix() {
+        if (castMatcher == null || titleActressRepo == null || reviewQueueRepo == null) return 0;
         List<RecoveryCandidate> candidates = jdbi.withHandle(h -> h.createQuery("""
                 SELECT q.id AS queue_id, q.title_id, t.code AS title_code, e.cast_json
                 FROM enrichment_review_queue q
@@ -618,7 +618,7 @@ public class EnrichmentRunner {
                         rs.getString("title_code"),
                         rs.getString("cast_json")))
                 .list());
-        if (candidates.isEmpty()) return;
+        if (candidates.isEmpty()) return 0;
 
         int recovered = 0;
         for (RecoveryCandidate c : candidates) {
@@ -652,6 +652,7 @@ public class EnrichmentRunner {
             log.info("javdb: cast_anomaly recovery discharged {} of {} open rows after matcher upgrade",
                     recovered, candidates.size());
         }
+        return recovered;
     }
 
     private static List<TitleExtract.CastEntry> parseCastJson(String castJson) {

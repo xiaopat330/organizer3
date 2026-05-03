@@ -368,6 +368,50 @@ public class EnrichmentReviewQueueRepository {
                         .findOne());
     }
 
+    /**
+     * For a title linked to a {@code cast_anomaly} open row, returns the {@code cast_json}
+     * from {@code title_javdb_enrichment} and the list of linked actress IDs + canonical names.
+     *
+     * <p>Used by the review-queue list serializer to embed inline triage context for the
+     * "Add as alias" action without adding extra repositories to the caller.
+     *
+     * @param titleId the title to look up
+     * @return enrichment context, or empty if no enrichment row exists for this title
+     */
+    public java.util.Optional<CastAnomalyContext> findCastAnomalyContext(long titleId) {
+        return jdbi.withHandle(h -> {
+            String castJson = h.createQuery("""
+                    SELECT cast_json FROM title_javdb_enrichment
+                    WHERE title_id = :titleId
+                    """)
+                    .bind("titleId", titleId)
+                    .mapTo(String.class)
+                    .findOne()
+                    .orElse(null);
+
+            List<LinkedActress> actresses = h.createQuery("""
+                    SELECT a.id, a.canonical_name
+                    FROM title_actresses ta
+                    JOIN actresses a ON a.id = ta.actress_id
+                    WHERE ta.title_id = :titleId
+                    """)
+                    .bind("titleId", titleId)
+                    .map((rs, ctx) -> new LinkedActress(
+                            rs.getLong("id"),
+                            rs.getString("canonical_name")))
+                    .list();
+
+            if (castJson == null && actresses.isEmpty()) return java.util.Optional.empty();
+            return java.util.Optional.of(new CastAnomalyContext(castJson, actresses));
+        });
+    }
+
+    /** Enrichment context for a cast_anomaly row's title: raw cast JSON + linked actresses. */
+    public record CastAnomalyContext(String castJson, List<LinkedActress> linkedActresses) {}
+
+    /** An actress linked to a title, for use in the inline triage panel. */
+    public record LinkedActress(long id, String canonicalName) {}
+
     /** A single open queue row returned by {@link #listOpen} and {@link #findOpenById}. */
     public record OpenRow(long id, long titleId, String titleCode, String slug,
                           String reason, String resolverSource, String createdAt,

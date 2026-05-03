@@ -799,6 +799,10 @@ public class Application {
                         forceEnrichTitleTool,
                         java.time.Clock.systemUTC())));
 
+        webServer.registerCastAnomalyTriage(new com.organizer3.web.routes.CastAnomalyTriageRoutes(
+                new com.organizer3.javdb.enrichment.CastAnomalyTriageService(
+                        enrichmentReviewQueueRepo, actressRepo, titleActressRepo, enrichmentRunner)));
+
         webServer.registerDuplicateDecisions(
                 new com.organizer3.web.routes.DuplicateDecisionsRoutes(dupDecisionRepo));
         webServer.registerMergeCandidates(
