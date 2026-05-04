@@ -666,12 +666,46 @@ public class SchemaInitializer {
                     CREATE INDEX IF NOT EXISTS idx_title_path_history_title_id
                         ON title_path_history (title_id)""");
 
+            // translation_strategy + translation_cache: local LLM translation service (v47).
+            // See spec/PROPOSAL_TRANSLATION_SERVICE.md §5.1.
+            h.execute("""
+                    CREATE TABLE IF NOT EXISTS translation_strategy (
+                        id              INTEGER PRIMARY KEY AUTOINCREMENT,
+                        name            TEXT NOT NULL UNIQUE,
+                        model_id        TEXT NOT NULL,
+                        prompt_template TEXT NOT NULL,
+                        options_json    TEXT,
+                        is_active       INTEGER NOT NULL DEFAULT 1
+                    )""");
+
+            h.execute("""
+                    CREATE TABLE IF NOT EXISTS translation_cache (
+                        id                   INTEGER PRIMARY KEY AUTOINCREMENT,
+                        source_hash          TEXT NOT NULL,
+                        source_text          TEXT NOT NULL,
+                        strategy_id          INTEGER NOT NULL REFERENCES translation_strategy(id),
+                        english_text         TEXT,
+                        human_corrected_text TEXT,
+                        human_corrected_at   TEXT,
+                        failure_reason       TEXT,
+                        retry_after          TEXT,
+                        latency_ms           INTEGER,
+                        prompt_tokens        INTEGER,
+                        eval_tokens          INTEGER,
+                        eval_duration_ns     INTEGER,
+                        cached_at            TEXT NOT NULL,
+                        UNIQUE(source_hash, strategy_id)
+                    )""");
+            h.execute("""
+                    CREATE INDEX IF NOT EXISTS idx_tc_strategy
+                        ON translation_cache(strategy_id)""");
+
             // Only stamp version on fresh installs (user_version = 0).
             // On an existing DB the CREATE TABLE statements above are all no-ops, so we must
             // leave the version alone and let SchemaUpgrader apply any missing migrations.
             int currentVersion = h.createQuery("PRAGMA user_version").mapTo(Integer.class).one();
             if (currentVersion == 0) {
-                h.execute("PRAGMA user_version = 46");
+                h.execute("PRAGMA user_version = 47");
             }
         });
         log.info("Schema initialization complete");
