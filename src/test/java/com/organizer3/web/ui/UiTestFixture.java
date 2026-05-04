@@ -108,6 +108,7 @@ final class UiTestFixture {
         when(javdbService.listActresses()).thenReturn(List.of(sampleJavdbActressRow()));
         when(javdbService.getQueueStatus()).thenReturn(sampleQueueStatus(0, 0, 0, 0, false));
         when(javdbService.getActiveQueueItems()).thenReturn(List.of());
+        when(javdbService.getTagHealthReport()).thenReturn(sampleTagHealthReport());
         server.registerJavdbDiscovery(new JavdbDiscoveryRoutes(javdbService, javdbActions));
 
         server.start();
@@ -166,6 +167,15 @@ final class UiTestFixture {
 
         server.start();
         return server;
+    }
+
+    static JavdbDiscoveryService.TagHealthReport sampleTagHealthReport() {
+        // surface=true, curatedAlias=null, libraryPct=0.05 → passes library.js filter (>= 0.01, <= 0.50)
+        JavdbDiscoveryService.TagHealthRow row = new JavdbDiscoveryService.TagHealthRow(
+                1L, "compilation", null, 5, 0.05, true);
+        JavdbDiscoveryService.TagHealthSummary summary =
+                new JavdbDiscoveryService.TagHealthSummary(100, 1, 0, 1, 0);
+        return new JavdbDiscoveryService.TagHealthReport(summary, List.of(row));
     }
 
     static JavdbDiscoveryService.ActressRow sampleJavdbActressRow() {
