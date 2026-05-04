@@ -96,6 +96,7 @@ final class UiTestFixture {
         searchResult.put("companies",   List.of());
         searchResult.put("avActresses", List.of());
         when(searchService.search(anyString(), anyBoolean(), anyBoolean())).thenReturn(searchResult);
+        when(searchService.search(anyString(), anyBoolean(), anyBoolean(), anyBoolean())).thenReturn(searchResult);
         when(searchService.searchByCodePrefix(anyString(), anyInt())).thenReturn(List.of());
 
         WebServer server = new WebServer(0, titleBrowse, actressBrowse, null, null, null, null,
