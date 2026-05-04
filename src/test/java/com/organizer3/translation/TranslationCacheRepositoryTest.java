@@ -129,7 +129,7 @@ class TranslationCacheRepositoryTest {
                 null, null, null, "unreachable", futureTime,
                 null, null, null, null, now);
 
-        long id = cacheRepo.insert(row);
+        cacheRepo.insert(row);
         TranslationCacheRow found = cacheRepo.findByHashAndStrategy(hash, strategyId).orElseThrow();
         assertEquals("unreachable", found.failureReason());
         assertNotNull(found.retryAfter());

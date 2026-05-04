@@ -24,8 +24,8 @@ import lombok.extern.slf4j.Slf4j;
 @RequiredArgsConstructor
 public class TranslationStrategySeeder {
 
-    private static final String PRIMARY_MODEL  = "gemma4:e4b";
-    private static final String FALLBACK_MODEL = "qwen2.5:14b";
+    private static final String PRIMARY_MODEL = "gemma4:e4b";
+    // FALLBACK_MODEL ("qwen2.5:14b") is referenced in Phase 3 (tier-2 fallback strategies).
 
     /**
      * label_basic: minimal single-instruction prompt for short, non-explicit labels.

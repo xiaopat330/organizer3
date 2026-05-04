@@ -182,6 +182,9 @@ public class Application {
         com.organizer3.translation.ollama.HttpOllamaAdapter ollamaAdapter =
                 new com.organizer3.translation.ollama.HttpOllamaAdapter(
                         translationConfig.ollamaBaseUrlOrDefault(), translationJsonMapper);
+        // Phase 1: TranslationService is constructed but has no consumers yet.
+        // Phase 2 wires the queue worker; later phases wire enrichment + UI usage points.
+        @SuppressWarnings("unused")
         com.organizer3.translation.TranslationService translationService =
                 new com.organizer3.translation.TranslationServiceImpl(
                         ollamaAdapter, translationStrategyRepo, translationCacheRepo,

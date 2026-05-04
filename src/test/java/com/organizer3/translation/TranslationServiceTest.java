@@ -4,7 +4,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.organizer3.db.SchemaInitializer;
 import com.organizer3.translation.ollama.OllamaAdapter;
 import com.organizer3.translation.ollama.OllamaException;
-import com.organizer3.translation.ollama.OllamaRequest;
 import com.organizer3.translation.ollama.OllamaResponse;
 import com.organizer3.translation.repository.jdbi.JdbiTranslationCacheRepository;
 import com.organizer3.translation.repository.jdbi.JdbiTranslationStrategyRepository;
