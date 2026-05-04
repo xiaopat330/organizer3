@@ -36,7 +36,9 @@ class TranslationQueueRepositoryTest {
             DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'").withZone(ZoneOffset.UTC);
 
     private JdbiTranslationQueueRepository queueRepo;
+    private JdbiTranslationStrategyRepository strategyRepo;
     private long strategyId;
+    private String now;
     private Connection connection;
 
     @BeforeEach
@@ -45,11 +47,12 @@ class TranslationQueueRepositoryTest {
         Jdbi jdbi = Jdbi.create(connection);
         new SchemaInitializer(jdbi).initialize();
 
-        JdbiTranslationStrategyRepository strategyRepo = new JdbiTranslationStrategyRepository(jdbi);
+        strategyRepo = new JdbiTranslationStrategyRepository(jdbi);
         strategyId = strategyRepo.insert(new TranslationStrategy(
                 0, "label_basic", "gemma4:e4b", "Translate: {jp}", null, true, null));
 
         queueRepo = new JdbiTranslationQueueRepository(jdbi);
+        now = ISO_UTC.format(Instant.now());
     }
 
     @AfterEach
@@ -362,5 +365,57 @@ class TranslationQueueRepositoryTest {
     @Test
     void oldestTier2PendingSubmittedAt_nullWhenNone() {
         assertNull(queueRepo.oldestTier2PendingSubmittedAt());
+    }
+
+    // ── Phase 4: existsActiveForSourceAndStrategy ─────────────────────────────
+
+    @Test
+    void existsActiveForSourceAndStrategy_falseWhenEmpty() {
+        assertFalse(queueRepo.existsActiveForSourceAndStrategy("美少女", strategyId));
+    }
+
+    @Test
+    void existsActiveForSourceAndStrategy_trueWhenPending() {
+        queueRepo.enqueue("美少女", strategyId, now, TranslationQueueRow.STATUS_PENDING, null, null);
+        assertTrue(queueRepo.existsActiveForSourceAndStrategy("美少女", strategyId));
+    }
+
+    @Test
+    void existsActiveForSourceAndStrategy_trueWhenInFlight() {
+        queueRepo.enqueue("美少女", strategyId, now, TranslationQueueRow.STATUS_PENDING, null, null);
+        queueRepo.claimNext(); // transitions to in_flight
+        assertTrue(queueRepo.existsActiveForSourceAndStrategy("美少女", strategyId));
+    }
+
+    @Test
+    void existsActiveForSourceAndStrategy_trueWhenTier2Pending() {
+        long id = queueRepo.enqueue("美少女", strategyId, now, TranslationQueueRow.STATUS_PENDING, null, null);
+        queueRepo.claimNext();
+        queueRepo.markTier2Pending(id, "refused", now);
+        assertTrue(queueRepo.existsActiveForSourceAndStrategy("美少女", strategyId));
+    }
+
+    @Test
+    void existsActiveForSourceAndStrategy_falseWhenDone() {
+        long id = queueRepo.enqueue("美少女", strategyId, now, TranslationQueueRow.STATUS_PENDING, null, null);
+        queueRepo.claimNext();
+        queueRepo.markDone(id, now);
+        assertFalse(queueRepo.existsActiveForSourceAndStrategy("美少女", strategyId));
+    }
+
+    @Test
+    void existsActiveForSourceAndStrategy_falseWhenFailed() {
+        long id = queueRepo.enqueue("美少女", strategyId, now, TranslationQueueRow.STATUS_PENDING, null, null);
+        queueRepo.claimNext();
+        queueRepo.markFailed(id, "too many attempts", now);
+        assertFalse(queueRepo.existsActiveForSourceAndStrategy("美少女", strategyId));
+    }
+
+    @Test
+    void existsActiveForSourceAndStrategy_falseForDifferentStrategy() {
+        long otherId = strategyRepo.insert(new TranslationStrategy(
+                0, "prose", "gemma4:e4b", "Translate prose: {jp}", null, true, null));
+        queueRepo.enqueue("美少女", otherId, now, TranslationQueueRow.STATUS_PENDING, null, null);
+        assertFalse(queueRepo.existsActiveForSourceAndStrategy("美少女", strategyId));
     }
 }

@@ -119,4 +119,11 @@ public interface TranslationQueueRepository {
      * or {@code null} if none exist.
      */
     String oldestTier2PendingSubmittedAt();
+
+    /**
+     * Return true if a non-terminal queue row exists for the given source text and strategy,
+     * i.e. a row with {@code status IN ('pending', 'in_flight', 'tier_2_pending')}.
+     * Used by the bulk-enqueue endpoint to avoid duplicate submissions.
+     */
+    boolean existsActiveForSourceAndStrategy(String sourceText, long strategyId);
 }

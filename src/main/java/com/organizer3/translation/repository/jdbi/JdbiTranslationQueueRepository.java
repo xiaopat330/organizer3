@@ -259,4 +259,20 @@ public class JdbiTranslationQueueRepository implements TranslationQueueRepositor
                         .orElse(null)
         );
     }
+
+    @Override
+    public boolean existsActiveForSourceAndStrategy(String sourceText, long strategyId) {
+        return jdbi.withHandle(h ->
+                h.createQuery("""
+                        SELECT COUNT(*) FROM translation_queue
+                        WHERE source_text = :sourceText
+                          AND strategy_id = :strategyId
+                          AND status IN ('pending', 'in_flight', 'tier_2_pending')
+                        """)
+                        .bind("sourceText", sourceText)
+                        .bind("strategyId", strategyId)
+                        .mapTo(Integer.class)
+                        .one() > 0
+        );
+    }
 }

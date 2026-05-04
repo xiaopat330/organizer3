@@ -1,6 +1,11 @@
 package com.organizer3.translation;
 
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.organizer3.translation.ollama.OllamaAdapter;
+import com.organizer3.translation.ollama.OllamaException;
+import com.organizer3.translation.ollama.OllamaRequest;
+import com.organizer3.translation.ollama.OllamaResponse;
 import com.organizer3.translation.repository.TranslationCacheRepository;
 import com.organizer3.translation.repository.TranslationQueueRepository;
 import com.organizer3.translation.repository.TranslationStrategyRepository;
@@ -10,6 +15,7 @@ import java.time.Instant;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 /**
@@ -34,19 +40,38 @@ public class TranslationServiceImpl implements TranslationService {
     final TranslationQueueRepository queueRepo;
     final TranslationConfig config;
     final CallbackDispatcher callbackDispatcher;
+    final HealthGate healthGate;
+    final ObjectMapper objectMapper;
 
+    /** Full constructor including HealthGate and ObjectMapper (for sync translation). */
     public TranslationServiceImpl(OllamaAdapter ollamaAdapter,
                                    TranslationStrategyRepository strategyRepo,
                                    TranslationCacheRepository cacheRepo,
                                    TranslationQueueRepository queueRepo,
                                    TranslationConfig config,
-                                   CallbackDispatcher callbackDispatcher) {
+                                   CallbackDispatcher callbackDispatcher,
+                                   HealthGate healthGate,
+                                   ObjectMapper objectMapper) {
         this.ollamaAdapter       = ollamaAdapter;
         this.strategyRepo        = strategyRepo;
         this.cacheRepo           = cacheRepo;
         this.queueRepo           = queueRepo;
         this.config              = config;
         this.callbackDispatcher  = callbackDispatcher;
+        this.healthGate          = healthGate;
+        this.objectMapper        = objectMapper;
+    }
+
+    /** Backward-compatible constructor: creates a default HealthGate with a default ObjectMapper. */
+    public TranslationServiceImpl(OllamaAdapter ollamaAdapter,
+                                   TranslationStrategyRepository strategyRepo,
+                                   TranslationCacheRepository cacheRepo,
+                                   TranslationQueueRepository queueRepo,
+                                   TranslationConfig config,
+                                   CallbackDispatcher callbackDispatcher) {
+        this(ollamaAdapter, strategyRepo, cacheRepo, queueRepo, config, callbackDispatcher,
+                new HealthGate(ollamaAdapter, cacheRepo, config),
+                new ObjectMapper());
     }
 
     // -------------------------------------------------------------------------
@@ -146,6 +171,8 @@ public class TranslationServiceImpl implements TranslationService {
             TranslationCacheRow row = existing.get();
             if (row.bestTranslation() != null) {
                 // Cache hit — mark done immediately, dispatch callback, return
+                log.info("translation: strategy={} model={} latency=0ms promptTokens=null evalTokens=null sourceLen={} success=true cacheHit=true",
+                        strategy.name(), strategy.modelId(), normalised.length());
                 log.debug("requestTranslation: cache HIT strategy={} hash={}", strategy.name(), hash.substring(0, 8));
                 String now = ISO_UTC.format(Instant.now());
                 long queueId = queueRepo.enqueue(normalised, strategy.id(), now,
@@ -184,5 +211,97 @@ public class TranslationServiceImpl implements TranslationService {
                 queueRepo.countByStatus(TranslationQueueRow.STATUS_FAILED),
                 queueRepo.countTier2Pending()
         );
+    }
+
+    @Override
+    public HealthStatus getHealth() {
+        return healthGate.currentStatus();
+    }
+
+    @Override
+    public String requestTranslationSync(TranslationRequest req) {
+        String normalised = TranslationNormalization.normalize(req.sourceText());
+        String hash = TranslationNormalization.sha256Hex(normalised);
+
+        String strategyName = StrategySelector.pick(normalised, req.contextHint(), 1);
+        TranslationStrategy strategy = strategyRepo.findByName(strategyName)
+                .orElseGet(() -> strategyRepo.findByName(StrategySelector.LABEL_BASIC)
+                        .orElseThrow(() -> new IllegalStateException("No translation strategies seeded")));
+
+        // Check cache first — return immediately if we have a result
+        Optional<TranslationCacheRow> existing = cacheRepo.findByHashAndStrategy(hash, strategy.id());
+        if (existing.isPresent()) {
+            String best = existing.get().bestTranslation();
+            if (best != null) {
+                log.info("translation: strategy={} model={} latency=0ms promptTokens=null evalTokens=null sourceLen={} success=true cacheHit=true",
+                        strategy.name(), strategy.modelId(), normalised.length());
+                return best;
+            }
+        }
+
+        // Invoke Ollama synchronously
+        String prompt = strategy.promptTemplate().replace("{jp}", normalised);
+        Map<String, Object> options = null;
+        if (strategy.optionsJson() != null) {
+            try {
+                options = objectMapper.readValue(strategy.optionsJson(), new TypeReference<>() {});
+            } catch (Exception e) {
+                log.warn("requestTranslationSync: failed to parse options_json: {}", e.getMessage());
+            }
+        }
+        OllamaRequest ollamaReq = new OllamaRequest(
+                strategy.modelId(), prompt, null, options, config.timeoutOrDefault());
+
+        long startMs = System.currentTimeMillis();
+        String englishText = null;
+        String failureReason = null;
+        OllamaResponse ollamaResp = null;
+
+        try {
+            ollamaResp = ollamaAdapter.generate(ollamaReq);
+            String raw = ollamaResp.responseText().trim();
+            if (raw.startsWith("English:")) raw = raw.substring("English:".length()).trim();
+            String cleaned = raw.isEmpty() ? null : raw;
+
+            if (!TranslationWorker.isRefusal(cleaned) && !SanitizationDetector.isSanitized(normalised, cleaned)) {
+                englishText = cleaned;
+            } else {
+                failureReason = "refused_or_sanitized";
+            }
+        } catch (OllamaException e) {
+            failureReason = "adapter_error";
+            log.warn("requestTranslationSync: Ollama error: {}", e.getMessage());
+        }
+
+        long latencyMs = System.currentTimeMillis() - startMs;
+        String now = ISO_UTC.format(Instant.now());
+
+        log.info("translation: strategy={} model={} latency={}ms promptTokens={} evalTokens={} sourceLen={} success={} cacheHit=false",
+                strategy.name(), strategy.modelId(), latencyMs,
+                ollamaResp != null ? ollamaResp.promptEvalCount() : null,
+                ollamaResp != null ? ollamaResp.evalCount() : null,
+                normalised.length(), englishText != null);
+
+        // Write / update cache
+        Long existingId = existing.map(TranslationCacheRow::id).orElse(null);
+        if (existingId != null) {
+            cacheRepo.updateOutcome(existingId, englishText, failureReason, null,
+                    (int) latencyMs,
+                    ollamaResp != null ? ollamaResp.promptEvalCount() : null,
+                    ollamaResp != null ? ollamaResp.evalCount() : null,
+                    ollamaResp != null ? ollamaResp.evalDurationNs() : null);
+        } else {
+            cacheRepo.insert(new TranslationCacheRow(
+                    0, hash, normalised, strategy.id(),
+                    englishText, null, null,
+                    failureReason, null,
+                    (int) latencyMs,
+                    ollamaResp != null ? ollamaResp.promptEvalCount() : null,
+                    ollamaResp != null ? ollamaResp.evalCount() : null,
+                    ollamaResp != null ? ollamaResp.evalDurationNs() : null,
+                    now));
+        }
+
+        return englishText;
     }
 }

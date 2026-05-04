@@ -252,6 +252,10 @@
       <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
       Trash
     </button>
+    <button type="button" id="tools-translation-btn" class="action-tool-btn tools-translation-btn">
+      <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m5 8 6 6"/><path d="m4 14 6-6 2-3"/><path d="M2 5h12"/><path d="M7 2h1"/><path d="m22 22-5-10-5 10"/><path d="M14 18h6"/></svg>
+      Translation
+    </button>
   </div>
 </div>
 
@@ -1138,6 +1142,62 @@
 <div id="cover-lightbox" class="cover-lightbox" style="display:none" role="dialog" aria-modal="true">
   <div class="cover-lightbox-backdrop"></div>
   <img id="cover-lightbox-img" class="cover-lightbox-img" src="" alt="Cover" />
+</div>
+
+<!-- Translation tool content -->
+<div id="tools-translation-view" class="tools-translation-view" style="display:none">
+  <div class="trans-header">
+    <h2>Translation</h2>
+    <span id="trans-health-dot" class="trans-health-dot trans-health-unknown" title="Health unknown"></span>
+  </div>
+
+  <!-- Stats panel (auto-refreshed every 5s) -->
+  <section class="trans-section">
+    <h3>Stats</h3>
+    <div id="trans-stats" class="trans-stats-grid">Loading…</div>
+  </section>
+
+  <!-- Strategy table -->
+  <section class="trans-section">
+    <h3>Strategies</h3>
+    <table id="trans-strategies-table" class="trans-table">
+      <thead><tr>
+        <th>Name</th><th>Model</th><th>Active</th><th>Tier-2 strategy id</th>
+      </tr></thead>
+      <tbody></tbody>
+    </table>
+  </section>
+
+  <!-- Manual translate widget -->
+  <section class="trans-section">
+    <h3>Manual Translate</h3>
+    <p class="trans-hint">Translates synchronously via Ollama — may take 30–120s. No queue row is written.</p>
+    <div class="trans-manual-row">
+      <textarea id="trans-manual-input" class="trans-manual-input" rows="3" placeholder="Japanese text to translate…"></textarea>
+      <select id="trans-manual-hint" class="trans-manual-hint">
+        <option value="">auto</option>
+        <option value="label_basic">label_basic</option>
+        <option value="label_explicit">label_explicit</option>
+        <option value="prose">prose</option>
+      </select>
+      <button type="button" id="trans-manual-btn" class="trans-action-btn">Translate</button>
+    </div>
+    <div id="trans-manual-result" class="trans-manual-result" style="display:none"></div>
+  </section>
+
+  <!-- Bulk submit widget -->
+  <section class="trans-section">
+    <h3>Bulk Submit</h3>
+    <p class="trans-hint">Enqueues all title_original values from javdb_enrichment that have no English translation yet. Deduplicates against active queue rows.</p>
+    <button type="button" id="trans-bulk-btn" class="trans-action-btn">Submit title_original batch</button>
+    <div id="trans-bulk-result" class="trans-bulk-result" style="display:none"></div>
+  </section>
+
+  <!-- Recent failures list -->
+  <section class="trans-section">
+    <h3>Recent Failures</h3>
+    <div id="trans-failures" class="trans-failures">Loading…</div>
+  </section>
 </div>
 
 <script type="module" src="/app.js"></script>

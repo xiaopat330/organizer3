@@ -2,6 +2,8 @@ package com.organizer3.translation.repository;
 
 import com.organizer3.translation.TranslationCacheRow;
 
+import java.time.Duration;
+import java.util.List;
 import java.util.Optional;
 
 /**
@@ -54,4 +56,27 @@ public interface TranslationCacheRepository {
 
     /** Number of rows with a non-null {@code failure_reason}. */
     long countFailed();
+
+    /**
+     * Count successful translations cached within the given trailing window.
+     * Used for throughput calculation (completions per hour).
+     *
+     * @param window how far back to look (e.g. Duration.ofHours(1))
+     * @return count of rows with english_text IS NOT NULL and cached_at within the window
+     */
+    long recentThroughputCount(Duration window);
+
+    /**
+     * Return the most recent {@code limit} rows that have a non-null {@code failure_reason},
+     * ordered by {@code cached_at DESC}.
+     */
+    List<TranslationCacheRow> findRecentFailures(int limit);
+
+    /**
+     * Return approximate p95 latency in milliseconds from the most recent {@code sampleSize}
+     * successful cache rows (those with english_text IS NOT NULL and latency_ms IS NOT NULL).
+     *
+     * @return p95 latency in ms, or null if fewer than 5 samples exist
+     */
+    Long latencyP95(int sampleSize);
 }

@@ -52,4 +52,23 @@ public interface TranslationService {
 
     /** Basic operational statistics (cache sizes, success/failure counts). */
     TranslationServiceStats stats();
+
+    /**
+     * Return the current health status (Ollama reachability, tier-1 model presence, latency p95).
+     * Result is cached for ~30 seconds by the underlying {@link HealthGate}.
+     */
+    HealthStatus getHealth();
+
+    /**
+     * Translate synchronously in the caller's thread, bypassing the queue.
+     * Writes to the cache on success or failure; does NOT write any queue row.
+     *
+     * <p>Used by the manual-translate REST endpoint. May block for up to
+     * {@code config.timeoutSeconds} seconds while Ollama processes the request.
+     *
+     * @param req the translation request (callbackKind/callbackId are ignored)
+     * @return the translated English text, or null if translation failed
+     * @throws RuntimeException if Ollama is unreachable or the adapter throws unexpectedly
+     */
+    String requestTranslationSync(TranslationRequest req);
 }
