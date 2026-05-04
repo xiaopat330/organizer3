@@ -388,7 +388,13 @@ public final class UtilitiesRoutes {
                             "population",  c.globalCount(),
                             "boundaries",  c.boundaries().size()
                     )),
-                    () -> ctx.json(Map.of("computedAt", (Object) null, "population", 0, "boundaries", 0))
+                    () -> {
+                        var m = new LinkedHashMap<String, Object>();
+                        m.put("computedAt", null);
+                        m.put("population", 0);
+                        m.put("boundaries", 0);
+                        ctx.json(m);
+                    }
             );
         });
 
