@@ -40,73 +40,16 @@ final class UiTestFixture {
         ActressBrowseService actressBrowse = mock(ActressBrowseService.class);
         SearchService searchService = mock(SearchService.class);
 
-        // ── Titles ─────────────────────────────────────────────────────
-        when(titleBrowse.findRecent(anyInt(), anyInt())).thenReturn(List.of(sampleTitle()));
-        when(titleBrowse.searchByCodePaged(anyString(), anyInt(), anyInt())).thenReturn(List.of(sampleTitle()));
-        when(titleBrowse.findFavoritesPaged(anyInt(), anyInt())).thenReturn(List.of());
-        when(titleBrowse.findBookmarksPaged(anyInt(), anyInt())).thenReturn(List.of());
-        when(titleBrowse.labelAutocomplete(any())).thenReturn(List.of());
-        when(titleBrowse.listLabels()).thenReturn(List.of());
-        when(titleBrowse.listStudioGroups()).thenReturn(List.of());
-        when(titleBrowse.listAllCompanies()).thenReturn(List.of("Prestige", "S1 No.1 Style"));
-        when(titleBrowse.findLibraryPaged(any(), any(), any(), any(), any(), any(), anyInt(), anyInt()))
-                .thenReturn(List.of(sampleTitle()));
-        when(titleBrowse.findRandom(anyInt())).thenReturn(List.of(sampleTitle()));
-        when(titleBrowse.findLastVisited(anyInt())).thenReturn(List.of());
-        when(titleBrowse.findMostVisited(anyInt())).thenReturn(List.of());
-        when(titleBrowse.listVolumes()).thenReturn(List.of());
-        when(titleBrowse.buildDashboard()).thenReturn(sampleDashboard());
-        when(titleBrowse.getSpotlight(any())).thenReturn(sampleTitle());
-        // Tag counts must be non-zero or curatedTagHtml() filters every tag out and
-        // the library filter panel renders zero `.tag-toggle` elements (see e843f82).
-        when(titleBrowse.countAll()).thenReturn(10L);
-        when(titleBrowse.getTagCounts()).thenReturn(Map.of(
-                "compilation", 5L,
-                "long-format", 3L,
-                "solo-actress", 2L));
-
-        // ── Actresses ──────────────────────────────────────────────────
-        when(actressBrowse.findPrefixIndex()).thenReturn(List.of("Y", "A"));
-        when(actressBrowse.findTierCountsByPrefix(any())).thenReturn(Map.of("GODDESS", 2, "POPULAR", 5));
-        when(actressBrowse.findRandom(anyInt())).thenReturn(List.of(sampleActress()));
-        when(actressBrowse.findAllPaged(anyInt(), anyInt())).thenReturn(List.of(sampleActress()));
-        when(actressBrowse.findByPrefixPaged(any(), any(), anyInt(), anyInt())).thenReturn(List.of(sampleActress()));
-        when(actressBrowse.findByTierPaged(any(), any(), anyInt(), anyInt())).thenReturn(List.of(sampleActress()));
-        when(actressBrowse.findFavoritesPaged(anyInt(), anyInt())).thenReturn(List.of());
-        when(actressBrowse.findBookmarksPaged(anyInt(), anyInt())).thenReturn(List.of());
-        when(actressBrowse.findById(anyLong())).thenReturn(java.util.Optional.of(sampleActress()));
-        when(actressBrowse.buildDashboard()).thenReturn(sampleActressDashboard());
-        when(actressBrowse.getSpotlight(any())).thenReturn(sampleActress());
-
-        // ── Search ─────────────────────────────────────────────────────
-        // Use LinkedHashMap so null coverUrl is allowed (Map.of rejects nulls).
-        java.util.Map<String, Object> actressHit = new java.util.LinkedHashMap<>();
-        actressHit.put("id", 1L);
-        actressHit.put("canonicalName", "Yua Mikami");
-        actressHit.put("tier", "GODDESS");
-        actressHit.put("grade", "SSS");
-        actressHit.put("favorite", false);
-        actressHit.put("bookmark", false);
-        actressHit.put("titleCount", 100);
-        actressHit.put("coverUrl", null);
-        java.util.Map<String, Object> searchResult = new java.util.LinkedHashMap<>();
-        searchResult.put("actresses",   List.of(actressHit));
-        searchResult.put("titles",      List.of());
-        searchResult.put("labels",      List.of());
-        searchResult.put("companies",   List.of());
-        searchResult.put("avActresses", List.of());
-        when(searchService.search(anyString(), anyBoolean(), anyBoolean())).thenReturn(searchResult);
-        when(searchService.searchByCodePrefix(anyString(), anyInt())).thenReturn(List.of());
+        stubTitleBrowseDefaults(titleBrowse);
+        stubActressBrowseDefaults(actressBrowse);
+        stubSearchDefaults(searchService);
 
         WebServer server = new WebServer(0, titleBrowse, actressBrowse, null, null, null, null,
                 null, null, searchService);
 
-        // ── JavDB Discovery (canned, used by UiJavdbDiscoveryTest) ─────
         JavdbDiscoveryService javdbService = mock(JavdbDiscoveryService.class);
         JavdbEnrichmentActionService javdbActions = mock(JavdbEnrichmentActionService.class);
-        when(javdbService.listActresses()).thenReturn(List.of(sampleJavdbActressRow()));
-        when(javdbService.getQueueStatus()).thenReturn(sampleQueueStatus(0, 0, 0, 0, false));
-        when(javdbService.getActiveQueueItems()).thenReturn(List.of());
+        stubJavdbDefaults(javdbService);
         server.registerJavdbDiscovery(new JavdbDiscoveryRoutes(javdbService, javdbActions));
 
         server.start();
@@ -130,26 +73,10 @@ final class UiTestFixture {
         TitleBrowseService titleBrowse = mock(TitleBrowseService.class);
         ActressBrowseService actressBrowse = mock(ActressBrowseService.class);
         SearchService searchService = mock(SearchService.class);
-        when(titleBrowse.findRecent(anyInt(), anyInt())).thenReturn(List.of(sampleTitle()));
-        when(titleBrowse.searchByCodePaged(anyString(), anyInt(), anyInt())).thenReturn(List.of(sampleTitle()));
-        when(titleBrowse.findFavoritesPaged(anyInt(), anyInt())).thenReturn(List.of());
-        when(titleBrowse.findBookmarksPaged(anyInt(), anyInt())).thenReturn(List.of());
-        when(titleBrowse.labelAutocomplete(any())).thenReturn(List.of());
-        when(titleBrowse.listLabels()).thenReturn(List.of());
-        when(titleBrowse.listStudioGroups()).thenReturn(List.of());
-        when(titleBrowse.listAllCompanies()).thenReturn(List.of());
-        when(titleBrowse.findLibraryPaged(any(), any(), any(), any(), any(), any(), anyInt(), anyInt()))
-                .thenReturn(List.of());
-        when(titleBrowse.findRandom(anyInt())).thenReturn(List.of());
-        when(titleBrowse.findLastVisited(anyInt())).thenReturn(List.of());
-        when(titleBrowse.findMostVisited(anyInt())).thenReturn(List.of());
-        when(titleBrowse.listVolumes()).thenReturn(List.of());
-        when(titleBrowse.buildDashboard()).thenReturn(sampleDashboard());
-        when(titleBrowse.getSpotlight(any())).thenReturn(sampleTitle());
-        when(actressBrowse.findPrefixIndex()).thenReturn(List.of());
-        when(actressBrowse.findRandom(anyInt())).thenReturn(List.of());
-        when(actressBrowse.findAllPaged(anyInt(), anyInt())).thenReturn(List.of());
-        when(actressBrowse.buildDashboard()).thenReturn(sampleActressDashboard());
+
+        stubTitleBrowseDefaults(titleBrowse);
+        stubActressBrowseDefaults(actressBrowse);
+        stubSearchDefaults(searchService);
 
         WebServer server = new WebServer(0, titleBrowse, actressBrowse, null, null, null, null,
                 null, null, searchService);
@@ -157,14 +84,93 @@ final class UiTestFixture {
         JavdbDiscoveryService javdbService = mock(JavdbDiscoveryService.class);
         JavdbEnrichmentActionService javdbActions = mock(JavdbEnrichmentActionService.class);
         // Sane defaults — caller can override via customize.
-        when(javdbService.listActresses()).thenReturn(List.of(sampleJavdbActressRow()));
-        when(javdbService.getQueueStatus()).thenReturn(sampleQueueStatus(0, 0, 0, 0, false));
-        when(javdbService.getActiveQueueItems()).thenReturn(List.of());
+        stubJavdbDefaults(javdbService);
         if (customize != null) customize.accept(javdbService);
         server.registerJavdbDiscovery(new JavdbDiscoveryRoutes(javdbService, javdbActions));
 
         server.start();
         return server;
+    }
+
+    // ── Shared stub helpers ──────────────────────────────────────────────────
+    // Called by every factory so the two factories stay in sync automatically.
+    // If a method is added to a service and a route calls it, add the stub here once.
+
+    private static void stubTitleBrowseDefaults(TitleBrowseService titleBrowse) {
+        when(titleBrowse.findRecent(anyInt(), anyInt())).thenReturn(List.of(sampleTitle()));
+        when(titleBrowse.searchByCodePaged(anyString(), anyInt(), anyInt())).thenReturn(List.of(sampleTitle()));
+        when(titleBrowse.findFavoritesPaged(anyInt(), anyInt())).thenReturn(List.of());
+        when(titleBrowse.findBookmarksPaged(anyInt(), anyInt())).thenReturn(List.of());
+        when(titleBrowse.labelAutocomplete(any())).thenReturn(List.of());
+        when(titleBrowse.listLabels()).thenReturn(List.of());
+        when(titleBrowse.listStudioGroups()).thenReturn(List.of());
+        when(titleBrowse.listAllCompanies()).thenReturn(List.of("Prestige", "S1 No.1 Style"));
+        when(titleBrowse.findLibraryPaged(any(), any(), any(), any(), any(), any(), anyInt(), anyInt()))
+                .thenReturn(List.of(sampleTitle()));
+        when(titleBrowse.findRandom(anyInt())).thenReturn(List.of(sampleTitle()));
+        when(titleBrowse.findLastVisited(anyInt())).thenReturn(List.of());
+        when(titleBrowse.findMostVisited(anyInt())).thenReturn(List.of());
+        when(titleBrowse.listVolumes()).thenReturn(List.of());
+        when(titleBrowse.buildDashboard()).thenReturn(sampleDashboard());
+        when(titleBrowse.getSpotlight(any())).thenReturn(sampleTitle());
+        // Tag counts must be non-zero or curatedTagHtml() filters every tag out and
+        // the library filter panel renders zero `.tag-toggle` elements (see e843f82).
+        when(titleBrowse.countAll()).thenReturn(10L);
+        when(titleBrowse.getTagCounts()).thenReturn(Map.of(
+                "compilation", 5L,
+                "long-format", 3L,
+                "solo-actress", 2L));
+    }
+
+    private static void stubActressBrowseDefaults(ActressBrowseService actressBrowse) {
+        when(actressBrowse.findRandom(anyInt())).thenReturn(List.of(sampleActress()));
+        when(actressBrowse.findAllPaged(anyInt(), anyInt())).thenReturn(List.of(sampleActress()));
+        when(actressBrowse.findByPrefixPaged(any(), any(), anyInt(), anyInt())).thenReturn(List.of(sampleActress()));
+        when(actressBrowse.findByTierPaged(any(), any(), anyInt(), anyInt())).thenReturn(List.of(sampleActress()));
+        when(actressBrowse.findFavoritesPaged(anyInt(), anyInt())).thenReturn(List.of());
+        when(actressBrowse.findBookmarksPaged(anyInt(), anyInt())).thenReturn(List.of());
+        when(actressBrowse.findById(anyLong())).thenReturn(java.util.Optional.of(sampleActress()));
+        when(actressBrowse.buildDashboard()).thenReturn(sampleActressDashboard());
+        when(actressBrowse.getSpotlight(any())).thenReturn(sampleActress());
+    }
+
+    private static void stubSearchDefaults(SearchService searchService) {
+        // Use LinkedHashMap so null coverUrl is allowed (Map.of rejects nulls).
+        java.util.Map<String, Object> actressHit = new java.util.LinkedHashMap<>();
+        actressHit.put("id", 1L);
+        actressHit.put("canonicalName", "Yua Mikami");
+        actressHit.put("tier", "GODDESS");
+        actressHit.put("grade", "SSS");
+        actressHit.put("favorite", false);
+        actressHit.put("bookmark", false);
+        actressHit.put("titleCount", 100);
+        actressHit.put("coverUrl", null);
+        java.util.Map<String, Object> searchResult = new java.util.LinkedHashMap<>();
+        searchResult.put("actresses",   List.of(actressHit));
+        searchResult.put("titles",      List.of());
+        searchResult.put("labels",      List.of());
+        searchResult.put("companies",   List.of());
+        searchResult.put("avActresses", List.of());
+        // Stub both overloads explicitly — Mockito mocks don't delegate between overloads.
+        when(searchService.search(anyString(), anyBoolean(), anyBoolean())).thenReturn(searchResult);
+        when(searchService.search(anyString(), anyBoolean(), anyBoolean(), anyBoolean())).thenReturn(searchResult);
+        when(searchService.searchByCodePrefix(anyString(), anyInt())).thenReturn(List.of());
+    }
+
+    private static void stubJavdbDefaults(JavdbDiscoveryService javdbService) {
+        when(javdbService.listActresses()).thenReturn(List.of(sampleJavdbActressRow()));
+        when(javdbService.getQueueStatus()).thenReturn(sampleQueueStatus(0, 0, 0, 0, false));
+        when(javdbService.getActiveQueueItems()).thenReturn(List.of());
+        when(javdbService.getTagHealthReport()).thenReturn(sampleTagHealthReport());
+    }
+
+    static JavdbDiscoveryService.TagHealthReport sampleTagHealthReport() {
+        // surface=true, curatedAlias=null, libraryPct=0.05 → passes library.js filter (>= 0.01, <= 0.50)
+        JavdbDiscoveryService.TagHealthRow row = new JavdbDiscoveryService.TagHealthRow(
+                1L, "compilation", null, 5, 0.05, true);
+        JavdbDiscoveryService.TagHealthSummary summary =
+                new JavdbDiscoveryService.TagHealthSummary(100, 1, 0, 1, 0);
+        return new JavdbDiscoveryService.TagHealthReport(summary, List.of(row));
     }
 
     static JavdbDiscoveryService.ActressRow sampleJavdbActressRow() {
