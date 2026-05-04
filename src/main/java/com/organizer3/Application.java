@@ -170,6 +170,26 @@ public class Application {
         ActressCompaniesService   actressCompaniesService   = new ActressCompaniesService(jdbi);
         new LabelSeeder(jdbi, titleEffectiveTagsService).seedIfEmpty();
 
+        // Translation service (Phase 1 — synchronous adapter + cache)
+        com.fasterxml.jackson.databind.ObjectMapper translationJsonMapper =
+                new com.fasterxml.jackson.databind.ObjectMapper();
+        com.organizer3.translation.TranslationConfig translationConfig = config.translationOrDefaults();
+        com.organizer3.translation.repository.jdbi.JdbiTranslationStrategyRepository translationStrategyRepo =
+                new com.organizer3.translation.repository.jdbi.JdbiTranslationStrategyRepository(jdbi);
+        com.organizer3.translation.repository.jdbi.JdbiTranslationCacheRepository translationCacheRepo =
+                new com.organizer3.translation.repository.jdbi.JdbiTranslationCacheRepository(jdbi);
+        new com.organizer3.translation.TranslationStrategySeeder(translationStrategyRepo).seedIfEmpty();
+        com.organizer3.translation.ollama.HttpOllamaAdapter ollamaAdapter =
+                new com.organizer3.translation.ollama.HttpOllamaAdapter(
+                        translationConfig.ollamaBaseUrlOrDefault(), translationJsonMapper);
+        // Phase 1: TranslationService is constructed but has no consumers yet.
+        // Phase 2 wires the queue worker; later phases wire enrichment + UI usage points.
+        @SuppressWarnings("unused")
+        com.organizer3.translation.TranslationService translationService =
+                new com.organizer3.translation.TranslationServiceImpl(
+                        ollamaAdapter, translationStrategyRepo, translationCacheRepo,
+                        translationConfig, translationJsonMapper);
+
         // Repositories
         TitleLocationRepository titleLocationRepo = new JdbiTitleLocationRepository(jdbi);
         com.fasterxml.jackson.databind.ObjectMapper jsonMapper = new com.fasterxml.jackson.databind.ObjectMapper();

@@ -19,7 +19,7 @@ import org.jdbi.v3.core.Jdbi;
 public class SchemaUpgrader {
 
     /** Must match the version stamped by {@link SchemaInitializer}. */
-    private static final int CURRENT_VERSION = 46;
+    private static final int CURRENT_VERSION = 47;
 
     private final Jdbi jdbi;
 
@@ -251,6 +251,11 @@ public class SchemaUpgrader {
         if (version < 46) {
             applyV46();
             setVersion(46);
+        }
+
+        if (version < 47) {
+            applyV47();
+            setVersion(47);
         }
 
         log.info("Schema upgrade complete");
@@ -1530,6 +1535,56 @@ public class SchemaUpgrader {
             h.execute("""
                     CREATE UNIQUE INDEX IF NOT EXISTS idx_watch_history_unique_entry
                         ON watch_history(title_code, watched_at)""");
+        });
+    }
+
+    /**
+     * v47: {@code translation_strategy} + {@code translation_cache} tables for the local
+     * LLM translation service.
+     *
+     * <p>{@code translation_strategy} holds versioned (model + prompt-template) pairs.
+     * {@code translation_cache} is the pile of work the service has already done, keyed
+     * by {@code (source_hash, strategy_id)} where {@code source_hash} is the SHA-256 of
+     * the NFKC-normalised source text.
+     *
+     * <p>Both tables are created via {@code CREATE TABLE IF NOT EXISTS} — idempotent.
+     *
+     * <p>See spec/PROPOSAL_TRANSLATION_SERVICE.md §5.1.
+     */
+    private void applyV47() {
+        log.info("Applying migration v47: translation_strategy + translation_cache tables");
+        jdbi.useHandle(h -> {
+            h.execute("""
+                    CREATE TABLE IF NOT EXISTS translation_strategy (
+                        id              INTEGER PRIMARY KEY AUTOINCREMENT,
+                        name            TEXT NOT NULL UNIQUE,
+                        model_id        TEXT NOT NULL,
+                        prompt_template TEXT NOT NULL,
+                        options_json    TEXT,
+                        is_active       INTEGER NOT NULL DEFAULT 1
+                    )""");
+
+            h.execute("""
+                    CREATE TABLE IF NOT EXISTS translation_cache (
+                        id                   INTEGER PRIMARY KEY AUTOINCREMENT,
+                        source_hash          TEXT NOT NULL,
+                        source_text          TEXT NOT NULL,
+                        strategy_id          INTEGER NOT NULL REFERENCES translation_strategy(id),
+                        english_text         TEXT,
+                        human_corrected_text TEXT,
+                        human_corrected_at   TEXT,
+                        failure_reason       TEXT,
+                        retry_after          TEXT,
+                        latency_ms           INTEGER,
+                        prompt_tokens        INTEGER,
+                        eval_tokens          INTEGER,
+                        eval_duration_ns     INTEGER,
+                        cached_at            TEXT NOT NULL,
+                        UNIQUE(source_hash, strategy_id)
+                    )""");
+            h.execute("""
+                    CREATE INDEX IF NOT EXISTS idx_tc_strategy
+                        ON translation_cache(strategy_id)""");
         });
     }
 

@@ -1,0 +1,27 @@
+file                                     section            style        n  refuse  empty   kana    cjk  sanit       p50       p95       avg   tok  tok/s   len
+---------------------------------------------------------------------------------------------------------------------------------------------------------------
+run_aya-expanse_8b_FULL.tsv              Titles (15)        basic       15    6.7%   0.0%   0.0%   0.0%  20.0%   22850ms   62120ms   28696ms    22    2.0  2.79
+run_aya-expanse_8b_FULL.tsv              Stage names (15)   basic       15    0.0%   0.0%   0.0%   0.0%   0.0%    7336ms    8935ms    7243ms     5    2.4  2.80
+run_aya-expanse_8b_FULL.tsv              Makers (10)        basic       10    0.0%   0.0%   0.0%   0.0%   0.0%    6439ms    8293ms    6305ms     4    2.8  1.67
+run_aya-expanse_8b_FULL.tsv              Series (10)        basic       10    0.0%   0.0%   0.0%   0.0%  10.0%   10849ms   21124ms   11229ms     9    2.3  2.45
+run_aya-expanse_8b_FULL.tsv              Titles (15)        hardened    15  100.0%   0.0%   0.0%   0.0%  46.7%   82403ms  176694ms   88854ms   131    1.9 30.58
+run_gemma4_e4b_FULL.tsv                  Titles (15)        basic       15    0.0%   6.7%   0.0%   0.0%  20.0%  122994ms  369655ms  145454ms     0      —  2.59
+run_gemma4_e4b_FULL.tsv                  Makers (10)        basic       10    0.0%   0.0%   0.0%   0.0%   0.0%    6419ms  136808ms   55143ms     0      —  1.51
+run_gemma4_e4b_FULL.tsv                  Series (10)        basic       10    0.0%   0.0%   0.0%   0.0%  10.0%   12272ms  310034ms   97862ms     0      —  2.78
+run_gemma4_e4b_FULL.tsv                  Titles (15)        hardened    20    5.0%   0.0%   0.0%   0.0%   5.0%   18869ms  248267ms   64464ms    15    3.8  3.18
+run_gemma4_e4b_FULL.tsv                  Stage names (15)   basic       15    0.0%   0.0%   0.0%   0.0%   0.0%    6309ms   21901ms    6994ms     5    3.4  2.67
+run_qwen2.5_14b_FULL.tsv                 Titles (15)        basic       15    6.7%   0.0%   0.0%   6.7%  40.0%   41485ms  105914ms   52642ms    21    1.2  2.59
+run_qwen2.5_14b_FULL.tsv                 Stage names (15)   basic       15    0.0%   0.0%   0.0%   0.0%   0.0%   20006ms   23356ms   20264ms     5    1.0  2.68
+run_qwen2.5_14b_FULL.tsv                 Makers (10)        basic       10    0.0%   0.0%   0.0%   0.0%   0.0%   16182ms   85957ms   22796ms    11    1.2 19.70
+run_qwen2.5_14b_FULL.tsv                 Series (10)        basic       10    0.0%   0.0%   0.0%   0.0%  20.0%   23442ms   40084ms   24497ms     8    1.1  3.31
+run_qwen2.5_14b_FULL.tsv                 Titles (15)        hardened    15    0.0%   0.0%   0.0%   0.0%   6.7%   38624ms  252807ms   66025ms    21    1.1  2.49
+run_qwen3_8b_FULL.tsv                    Titles (15)        basic       15    0.0%   0.0%   0.0%  20.0%  26.7%   24734ms   61685ms   27708ms    22    2.5  2.63
+run_qwen3_8b_FULL.tsv                    Makers (10)        basic       10    0.0%   0.0%   0.0%   0.0%   0.0%    9580ms   12179ms    9786ms     4    3.2  1.51
+run_qwen3_8b_FULL.tsv                    Series (10)        basic       10    0.0%   0.0%   0.0%   0.0%  30.0%   15478ms   50212ms   20399ms     9    2.0  2.98
+run_qwen3_8b_FULL.tsv                    Titles (15)        hardened    15    0.0%   0.0%   6.7%   6.7%   6.7%   30760ms  218762ms   52179ms    24    1.7  2.63
+run_qwen3_8b_FULL.tsv                    Stage names (15)   basic       15    0.0%   0.0%   0.0%   0.0%   0.0%   11665ms   29240ms   12732ms     6    2.7  2.87
+run_translategemma_12b_FULL.tsv          Titles (15)        basic       14    0.0%   0.0%   0.0%   0.0%  42.9%   37872ms  108903ms   44353ms     0      —  3.83
+run_translategemma_12b_FULL.tsv          Makers (10)        basic       10    0.0%   0.0%   0.0%   0.0%   0.0%   12790ms   13982ms   12002ms     0      —  1.81
+run_translategemma_12b_FULL.tsv          Series (10)        basic        9    0.0%   0.0%   0.0%   0.0%  22.2%   18152ms   38015ms   20210ms     0      —  3.53
+run_translategemma_12b_FULL.tsv          Stage names (15)   basic       15    0.0%   0.0%   0.0%   0.0%   0.0%   16298ms   37602ms   17716ms     6    1.2  2.86
+run_translategemma_12b_FULL.tsv          Titles (15)        hardened    15    6.7%   0.0%   0.0%   0.0%   6.7%   31289ms  211148ms   55339ms    26    1.3  3.22

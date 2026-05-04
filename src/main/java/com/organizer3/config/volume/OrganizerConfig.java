@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.organizer3.config.sync.StructureSyncConfig;
 import com.organizer3.javdb.JavdbConfig;
 import com.organizer3.mcp.McpConfig;
+import com.organizer3.translation.TranslationConfig;
 
 import java.util.List;
 import java.util.Optional;
@@ -31,7 +32,8 @@ public record OrganizerConfig(
         @JsonProperty("media")           MediaConfig media,
         @JsonProperty("backgroundThumbnails") BackgroundThumbnailConfig backgroundThumbnails,
         @JsonProperty("javdb")               JavdbConfig javdb,
-        @JsonProperty("enrichment")          EnrichmentConfig enrichment
+        @JsonProperty("enrichment")          EnrichmentConfig enrichment,
+        @JsonProperty("translation")         TranslationConfig translation
 ) {
     /** Legacy ctor for tests that predate the organize-pipeline blocks. */
     public OrganizerConfig(String appName, String dataDir,
@@ -42,7 +44,7 @@ public record OrganizerConfig(
                            BackupConfig backup, McpConfig mcp) {
         this(appName, dataDir, maxBrowseTitles, maxRandomTitles, maxRandomActresses,
              thumbnailInterval, thumbnailColumns, coverCropPercent,
-             servers, volumes, structures, syncConfig, backup, mcp, null, null, null, null, null, null);
+             servers, volumes, structures, syncConfig, backup, mcp, null, null, null, null, null, null, null);
     }
 
     /** Legacy ctor for test sites that predate the {@code mcp:} block. */
@@ -54,7 +56,7 @@ public record OrganizerConfig(
                            BackupConfig backup) {
         this(appName, dataDir, maxBrowseTitles, maxRandomTitles, maxRandomActresses,
              thumbnailInterval, thumbnailColumns, coverCropPercent,
-             servers, volumes, structures, syncConfig, backup, null, null, null, null, null, null, null);
+             servers, volumes, structures, syncConfig, backup, null, null, null, null, null, null, null, null);
     }
 
     /** Returns the background-thumbnail config, or defaults (disabled) if unset. */
@@ -85,6 +87,11 @@ public record OrganizerConfig(
     /** Returns the enrichment config, or defaults if unset. */
     public EnrichmentConfig enrichmentOrDefaults() {
         return enrichment != null ? enrichment : EnrichmentConfig.DEFAULTS;
+    }
+
+    /** Returns the translation config, or defaults if unset. */
+    public TranslationConfig translationOrDefaults() {
+        return translation != null ? translation : TranslationConfig.DEFAULTS;
     }
 
     public Optional<VolumeConfig> findById(String id) {
