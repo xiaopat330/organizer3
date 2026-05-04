@@ -170,7 +170,7 @@ public class Application {
         ActressCompaniesService   actressCompaniesService   = new ActressCompaniesService(jdbi);
         new LabelSeeder(jdbi, titleEffectiveTagsService).seedIfEmpty();
 
-        // Translation service (Phase 1 — synchronous adapter + cache)
+        // Translation service (Phase 2 — async queue + worker)
         com.fasterxml.jackson.databind.ObjectMapper translationJsonMapper =
                 new com.fasterxml.jackson.databind.ObjectMapper();
         com.organizer3.translation.TranslationConfig translationConfig = config.translationOrDefaults();
@@ -178,17 +178,45 @@ public class Application {
                 new com.organizer3.translation.repository.jdbi.JdbiTranslationStrategyRepository(jdbi);
         com.organizer3.translation.repository.jdbi.JdbiTranslationCacheRepository translationCacheRepo =
                 new com.organizer3.translation.repository.jdbi.JdbiTranslationCacheRepository(jdbi);
+        com.organizer3.translation.repository.jdbi.JdbiTranslationQueueRepository translationQueueRepo =
+                new com.organizer3.translation.repository.jdbi.JdbiTranslationQueueRepository(jdbi);
         new com.organizer3.translation.TranslationStrategySeeder(translationStrategyRepo).seedIfEmpty();
         com.organizer3.translation.ollama.HttpOllamaAdapter ollamaAdapter =
                 new com.organizer3.translation.ollama.HttpOllamaAdapter(
                         translationConfig.ollamaBaseUrlOrDefault(), translationJsonMapper);
-        // Phase 1: TranslationService is constructed but has no consumers yet.
-        // Phase 2 wires the queue worker; later phases wire enrichment + UI usage points.
+        com.organizer3.translation.CallbackDispatcher translationCallbackDispatcher =
+                new com.organizer3.translation.CallbackDispatcher(jdbi);
         @SuppressWarnings("unused")
         com.organizer3.translation.TranslationService translationService =
                 new com.organizer3.translation.TranslationServiceImpl(
                         ollamaAdapter, translationStrategyRepo, translationCacheRepo,
+                        translationQueueRepo, translationConfig, translationCallbackDispatcher);
+        com.organizer3.translation.TranslationWorker translationWorker =
+                new com.organizer3.translation.TranslationWorker(
+                        ollamaAdapter, translationStrategyRepo, translationCacheRepo,
+                        translationQueueRepo, translationCallbackDispatcher,
                         translationConfig, translationJsonMapper);
+        java.util.concurrent.ExecutorService translationWorkerExecutor =
+                java.util.concurrent.Executors.newSingleThreadExecutor(r -> {
+                    Thread t = new Thread(r, "translation-worker");
+                    t.setDaemon(true);
+                    return t;
+                });
+        translationWorkerExecutor.submit(translationWorker);
+        com.organizer3.translation.TranslationQueueSweeper translationQueueSweeper =
+                new com.organizer3.translation.TranslationQueueSweeper(
+                        translationQueueRepo, translationConfig.stuckThresholdSecondsOrDefault());
+        java.util.concurrent.ScheduledExecutorService translationSweeperExecutor =
+                java.util.concurrent.Executors.newSingleThreadScheduledExecutor(r -> {
+                    Thread t = new Thread(r, "translation-sweeper");
+                    t.setDaemon(true);
+                    return t;
+                });
+        translationSweeperExecutor.scheduleAtFixedRate(
+                translationQueueSweeper,
+                translationConfig.sweeperIntervalSecondsOrDefault(),
+                translationConfig.sweeperIntervalSecondsOrDefault(),
+                java.util.concurrent.TimeUnit.SECONDS);
 
         // Repositories
         TitleLocationRepository titleLocationRepo = new JdbiTitleLocationRepository(jdbi);
@@ -1027,6 +1055,8 @@ public class Application {
         thumbnailService.shutdown();
         smbConnectionFactory.shutdown();
         nasMonitor.stop();
+        translationWorkerExecutor.shutdownNow();
+        translationSweeperExecutor.shutdownNow();
         if (mcpRoDb != null) mcpRoDb.close();
         log.info("Organizer3 exiting");
     }

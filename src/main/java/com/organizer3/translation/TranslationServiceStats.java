@@ -9,5 +9,17 @@ package com.organizer3.translation;
 public record TranslationServiceStats(
         long cacheTotal,
         long cacheSuccessful,
-        long cacheFailed
-) {}
+        long cacheFailed,
+        int queuePending,
+        int queueInFlight,
+        int queueDone,
+        int queueFailed
+) {
+    /** Compact display format for logging. */
+    @Override
+    public String toString() {
+        return String.format(
+                "TranslationServiceStats{cache: total=%d ok=%d fail=%d, queue: pending=%d in_flight=%d done=%d failed=%d}",
+                cacheTotal, cacheSuccessful, cacheFailed, queuePending, queueInFlight, queueDone, queueFailed);
+    }
+}

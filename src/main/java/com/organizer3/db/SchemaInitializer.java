@@ -461,7 +461,11 @@ public class SchemaInitializer {
                         resolver_source     TEXT,
                         confidence          TEXT,
                         cast_validated      INTEGER,
-                        last_revalidated_at TEXT
+                        last_revalidated_at TEXT,
+                        title_original_en   TEXT,
+                        series_en           TEXT,
+                        maker_en            TEXT,
+                        publisher_en        TEXT
                     )""");
             h.execute("CREATE INDEX IF NOT EXISTS idx_tje_rating_avg   ON title_javdb_enrichment(rating_avg)");
             h.execute("CREATE INDEX IF NOT EXISTS idx_tje_release_date ON title_javdb_enrichment(release_date)");
@@ -700,12 +704,31 @@ public class SchemaInitializer {
                     CREATE INDEX IF NOT EXISTS idx_tc_strategy
                         ON translation_cache(strategy_id)""");
 
+            // translation_queue: async translation work queue (v48).
+            h.execute("""
+                    CREATE TABLE IF NOT EXISTS translation_queue (
+                        id              INTEGER PRIMARY KEY AUTOINCREMENT,
+                        source_text     TEXT NOT NULL,
+                        strategy_id     INTEGER NOT NULL,
+                        submitted_at    TEXT NOT NULL,
+                        started_at      TEXT,
+                        completed_at    TEXT,
+                        status          TEXT NOT NULL,
+                        callback_kind   TEXT,
+                        callback_id     INTEGER,
+                        attempt_count   INTEGER NOT NULL DEFAULT 0,
+                        last_error      TEXT
+                    )""");
+            h.execute("""
+                    CREATE INDEX IF NOT EXISTS idx_tq_status
+                        ON translation_queue(status, submitted_at)""");
+
             // Only stamp version on fresh installs (user_version = 0).
             // On an existing DB the CREATE TABLE statements above are all no-ops, so we must
             // leave the version alone and let SchemaUpgrader apply any missing migrations.
             int currentVersion = h.createQuery("PRAGMA user_version").mapTo(Integer.class).one();
             if (currentVersion == 0) {
-                h.execute("PRAGMA user_version = 47");
+                h.execute("PRAGMA user_version = 48");
             }
         });
         log.info("Schema initialization complete");

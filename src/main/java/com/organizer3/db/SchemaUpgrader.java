@@ -19,7 +19,7 @@ import org.jdbi.v3.core.Jdbi;
 public class SchemaUpgrader {
 
     /** Must match the version stamped by {@link SchemaInitializer}. */
-    private static final int CURRENT_VERSION = 47;
+    private static final int CURRENT_VERSION = 48;
 
     private final Jdbi jdbi;
 
@@ -256,6 +256,11 @@ public class SchemaUpgrader {
         if (version < 47) {
             applyV47();
             setVersion(47);
+        }
+
+        if (version < 48) {
+            applyV48();
+            setVersion(48);
         }
 
         log.info("Schema upgrade complete");
@@ -1585,6 +1590,42 @@ public class SchemaUpgrader {
             h.execute("""
                     CREATE INDEX IF NOT EXISTS idx_tc_strategy
                         ON translation_cache(strategy_id)""");
+        });
+    }
+
+    private void applyV48() {
+        log.info("Applying migration v48: translation_queue table + *_en columns on title_javdb_enrichment");
+        jdbi.useHandle(h -> {
+            h.execute("""
+                    CREATE TABLE IF NOT EXISTS translation_queue (
+                        id              INTEGER PRIMARY KEY AUTOINCREMENT,
+                        source_text     TEXT NOT NULL,
+                        strategy_id     INTEGER NOT NULL,
+                        submitted_at    TEXT NOT NULL,
+                        started_at      TEXT,
+                        completed_at    TEXT,
+                        status          TEXT NOT NULL,
+                        callback_kind   TEXT,
+                        callback_id     INTEGER,
+                        attempt_count   INTEGER NOT NULL DEFAULT 0,
+                        last_error      TEXT
+                    )""");
+            h.execute("""
+                    CREATE INDEX IF NOT EXISTS idx_tq_status
+                        ON translation_queue(status, submitted_at)""");
+
+            // Idempotent ALTER TABLE: add *_en columns to title_javdb_enrichment
+            // SQLite does not support IF NOT EXISTS on ALTER TABLE ADD COLUMN, so we catch
+            // errors if the column already exists and continue.
+            for (String col : new String[]{"title_original_en", "series_en", "maker_en", "publisher_en"}) {
+                try {
+                    h.execute("ALTER TABLE title_javdb_enrichment ADD COLUMN " + col + " TEXT");
+                } catch (Exception e) {
+                    if (!e.getMessage().contains("duplicate column name")) {
+                        throw e;
+                    }
+                }
+            }
         });
     }
 
