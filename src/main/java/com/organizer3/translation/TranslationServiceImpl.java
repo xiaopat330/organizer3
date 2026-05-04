@@ -58,20 +58,72 @@ public class TranslationServiceImpl implements TranslationService {
         String normalised = TranslationNormalization.normalize(sourceText);
         String hash = TranslationNormalization.sha256Hex(normalised);
 
-        // Try all active strategies — return the first hit with a best translation
+        // Lookup priority per §5.5.1:
+        //   human_corrected_text (any strategy) > tier-1 english_text > tier-2 english_text > miss
+        // Permanent-failure rows (failure_reason='sanitized_both_tiers') return empty.
         List<TranslationStrategy> strategies = strategyRepo.findAllActive();
+
+        // Collect all cache rows for this hash
+        String humanCorrected = null;
+        String tier1Text = null;
+        String tier2Text = null;
+
         for (TranslationStrategy strategy : strategies) {
-            Optional<TranslationCacheRow> row = cacheRepo.findByHashAndStrategy(hash, strategy.id());
-            if (row.isPresent()) {
-                String best = row.get().bestTranslation();
-                if (best != null) {
-                    log.debug("getCached: HIT strategy={} hash={}", strategy.name(), hash.substring(0, 8));
-                    return Optional.of(best);
+            Optional<TranslationCacheRow> rowOpt = cacheRepo.findByHashAndStrategy(hash, strategy.id());
+            if (rowOpt.isEmpty()) continue;
+            TranslationCacheRow row = rowOpt.get();
+
+            // Human correction wins unconditionally
+            if (row.humanCorrectedText() != null) {
+                humanCorrected = row.humanCorrectedText();
+                break; // Can't beat human correction
+            }
+
+            // Permanent failure — skip this row but keep scanning (another strategy may have succeeded)
+            if ("sanitized_both_tiers".equals(row.failureReason())) {
+                log.debug("getCached: permanent failure row strategy={} hash={}", strategy.name(), hash.substring(0, 8));
+                continue; // Do NOT short-circuit — check remaining strategies
+            }
+
+            if (row.englishText() != null) {
+                boolean isTier2 = isTier2Strategy(strategy, strategies);
+                if (isTier2) {
+                    if (tier2Text == null) tier2Text = row.englishText();
+                } else {
+                    if (tier1Text == null) tier1Text = row.englishText();
                 }
             }
         }
+
+        if (humanCorrected != null) {
+            log.debug("getCached: HIT (human corrected) hash={}", hash.substring(0, 8));
+            return Optional.of(humanCorrected);
+        }
+        if (tier1Text != null) {
+            log.debug("getCached: HIT (tier-1) hash={}", hash.substring(0, 8));
+            return Optional.of(tier1Text);
+        }
+        if (tier2Text != null) {
+            log.debug("getCached: HIT (tier-2) hash={}", hash.substring(0, 8));
+            return Optional.of(tier2Text);
+        }
+
         log.debug("getCached: MISS hash={}", hash.substring(0, 8));
         return Optional.empty();
+    }
+
+    /**
+     * Returns true if the given strategy is a tier-2 strategy (i.e., it appears as the
+     * {@code tier2_strategy_id} of some other strategy in the active set).
+     */
+    private boolean isTier2Strategy(TranslationStrategy candidate, List<TranslationStrategy> allStrategies) {
+        long candidateId = candidate.id();
+        for (TranslationStrategy s : allStrategies) {
+            if (s.tier2StrategyId() != null && s.tier2StrategyId() == candidateId) {
+                return true;
+            }
+        }
+        return false;
     }
 
     @Override
@@ -129,7 +181,8 @@ public class TranslationServiceImpl implements TranslationService {
                 queueRepo.countByStatus(TranslationQueueRow.STATUS_PENDING),
                 queueRepo.countByStatus(TranslationQueueRow.STATUS_IN_FLIGHT),
                 queueRepo.countByStatus(TranslationQueueRow.STATUS_DONE),
-                queueRepo.countByStatus(TranslationQueueRow.STATUS_FAILED)
+                queueRepo.countByStatus(TranslationQueueRow.STATUS_FAILED),
+                queueRepo.countTier2Pending()
         );
     }
 }

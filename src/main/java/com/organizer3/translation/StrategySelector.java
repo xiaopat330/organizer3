@@ -1,11 +1,16 @@
 package com.organizer3.translation;
 
 
+import com.organizer3.translation.repository.TranslationStrategyRepository;
+
+import java.util.Optional;
 import java.util.regex.Pattern;
 
 /**
- * Pure function for selecting a translation strategy given source text, an optional context hint,
- * and the attempt number. No database access — testable without any mocks.
+ * Strategy selection logic for translation requests.
+ *
+ * <p>Tier-1 selection ({@link #pick}) is a pure function — no database access, testable without mocks.
+ * Tier-2 fallback lookup ({@link #pickFallback}) requires a repository reference for the DB lookup.
  *
  * <p>Selection rules per §5.4:
  * <ol>
@@ -13,9 +18,6 @@ import java.util.regex.Pattern;
  *   <li>Input contains an explicit JP token <em>or</em> length &gt; 50 chars → {@code label_explicit}.</li>
  *   <li>Otherwise → {@code label_basic}.</li>
  * </ol>
- *
- * <p>Phase 1 does not implement tier-2 retry. When {@code attempt > 1}, this class returns the
- * same tier-1 strategy as attempt 1. Tier-2 routing is deferred to Phase 3.
  */
 public final class StrategySelector {
 
@@ -61,5 +63,26 @@ public final class StrategySelector {
 
         // Rule 3: default
         return LABEL_BASIC;
+    }
+
+    /**
+     * Look up the tier-2 fallback strategy for a given tier-1 strategy id.
+     *
+     * <p>The pairing is stored in the {@code tier2_strategy_id} column of the
+     * {@code translation_strategy} table, populated at startup by {@link TranslationStrategySeeder}.
+     *
+     * @param strategyId  the tier-1 strategy id
+     * @param strategyRepo the repository to look up the strategy
+     * @return the tier-2 fallback strategy, or empty if none is configured
+     */
+    public static Optional<TranslationStrategy> pickFallback(long strategyId,
+                                                              TranslationStrategyRepository strategyRepo) {
+        return strategyRepo.findById(strategyId)
+                .flatMap(s -> {
+                    if (s.tier2StrategyId() == null) {
+                        return Optional.empty();
+                    }
+                    return strategyRepo.findById(s.tier2StrategyId());
+                });
     }
 }

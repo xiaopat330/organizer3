@@ -13,13 +13,14 @@ public record TranslationServiceStats(
         int queuePending,
         int queueInFlight,
         int queueDone,
-        int queueFailed
+        int queueFailed,
+        int queueTier2Pending
 ) {
     /** Compact display format for logging. */
     @Override
     public String toString() {
         return String.format(
-                "TranslationServiceStats{cache: total=%d ok=%d fail=%d, queue: pending=%d in_flight=%d done=%d failed=%d}",
-                cacheTotal, cacheSuccessful, cacheFailed, queuePending, queueInFlight, queueDone, queueFailed);
+                "TranslationServiceStats{cache: total=%d ok=%d fail=%d, queue: pending=%d in_flight=%d done=%d failed=%d tier2_pending=%d}",
+                cacheTotal, cacheSuccessful, cacheFailed, queuePending, queueInFlight, queueDone, queueFailed, queueTier2Pending);
     }
 }

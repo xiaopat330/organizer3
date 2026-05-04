@@ -1,13 +1,44 @@
 package com.organizer3.translation;
 
+import com.organizer3.db.SchemaInitializer;
+import com.organizer3.translation.repository.jdbi.JdbiTranslationStrategyRepository;
+import org.jdbi.v3.core.Jdbi;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
- * Unit tests for {@link StrategySelector} — pure function, no mocks or DB needed.
+ * Unit tests for {@link StrategySelector}.
+ *
+ * <p>The {@link StrategySelector#pick} tests are pure-function (no DB). The
+ * {@link StrategySelector#pickFallback} tests use real in-memory SQLite.
  */
 class StrategySelectorTest {
+
+    // DB-backed state for pickFallback tests
+    private Connection connection;
+    private JdbiTranslationStrategyRepository strategyRepo;
+
+    @BeforeEach
+    void setUp() throws Exception {
+        connection = DriverManager.getConnection("jdbc:sqlite::memory:");
+        Jdbi jdbi = Jdbi.create(connection);
+        new SchemaInitializer(jdbi).initialize();
+        strategyRepo = new JdbiTranslationStrategyRepository(jdbi);
+        // Seed all 6 strategies + pairings
+        new TranslationStrategySeeder(strategyRepo).seedIfEmpty();
+    }
+
+    @AfterEach
+    void tearDown() throws Exception {
+        connection.close();
+    }
 
     @Test
     void shortNonExplicit_defaultsToLabelBasic() {
@@ -92,5 +123,62 @@ class StrategySelectorTest {
     void rapeTokenXAlt_selectsExplicit() {
         // レ×プ variant (as seen in test set)
         assertEquals(StrategySelector.LABEL_EXPLICIT, StrategySelector.pick("フラれた女に執着襲撃レ×プ", null, 1));
+    }
+
+    // -------------------------------------------------------------------------
+    // pickFallback — requires real DB (seeded by setUp)
+    // -------------------------------------------------------------------------
+
+    @Test
+    void pickFallback_labelBasic_returnsQwenStrategy() {
+        TranslationStrategy tier1 = strategyRepo.findByName(StrategySelector.LABEL_BASIC).orElseThrow();
+        Optional<TranslationStrategy> fallback = StrategySelector.pickFallback(tier1.id(), strategyRepo);
+
+        assertTrue(fallback.isPresent(), "label_basic should have a tier-2 fallback");
+        assertEquals(TranslationStrategySeeder.LABEL_BASIC_QWEN, fallback.get().name());
+        assertEquals("qwen2.5:14b", fallback.get().modelId());
+    }
+
+    @Test
+    void pickFallback_labelExplicit_returnsQwenStrategy() {
+        TranslationStrategy tier1 = strategyRepo.findByName(StrategySelector.LABEL_EXPLICIT).orElseThrow();
+        Optional<TranslationStrategy> fallback = StrategySelector.pickFallback(tier1.id(), strategyRepo);
+
+        assertTrue(fallback.isPresent(), "label_explicit should have a tier-2 fallback");
+        assertEquals(TranslationStrategySeeder.LABEL_EXPLICIT_QWEN, fallback.get().name());
+        assertEquals("qwen2.5:14b", fallback.get().modelId());
+    }
+
+    @Test
+    void pickFallback_prose_returnsQwenStrategy() {
+        TranslationStrategy tier1 = strategyRepo.findByName(StrategySelector.PROSE).orElseThrow();
+        Optional<TranslationStrategy> fallback = StrategySelector.pickFallback(tier1.id(), strategyRepo);
+
+        assertTrue(fallback.isPresent(), "prose should have a tier-2 fallback");
+        assertEquals(TranslationStrategySeeder.PROSE_QWEN, fallback.get().name());
+        assertEquals("qwen2.5:14b", fallback.get().modelId());
+    }
+
+    @Test
+    void pickFallback_tier2Strategy_returnsEmpty() {
+        // Tier-2 strategies have no further fallback (tier2_strategy_id is null)
+        TranslationStrategy qwenStrategy = strategyRepo.findByName(TranslationStrategySeeder.LABEL_BASIC_QWEN)
+                .orElseThrow();
+        Optional<TranslationStrategy> fallback = StrategySelector.pickFallback(qwenStrategy.id(), strategyRepo);
+        assertTrue(fallback.isEmpty(), "Tier-2 strategies should have no further fallback");
+    }
+
+    @Test
+    void pickFallback_unknownId_returnsEmpty() {
+        // Non-existent strategy id
+        Optional<TranslationStrategy> fallback = StrategySelector.pickFallback(99999L, strategyRepo);
+        assertTrue(fallback.isEmpty());
+    }
+
+    @Test
+    void seeder_isIdempotent_secondCallDoesNotDuplicate() {
+        // Running seeder twice should not create extra strategies
+        new TranslationStrategySeeder(strategyRepo).seedIfEmpty();
+        assertEquals(6, strategyRepo.findAllActive().size(), "Should have exactly 6 strategies after 2 seeder runs");
     }
 }

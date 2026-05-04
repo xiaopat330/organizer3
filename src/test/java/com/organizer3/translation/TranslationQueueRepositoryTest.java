@@ -47,7 +47,7 @@ class TranslationQueueRepositoryTest {
 
         JdbiTranslationStrategyRepository strategyRepo = new JdbiTranslationStrategyRepository(jdbi);
         strategyId = strategyRepo.insert(new TranslationStrategy(
-                0, "label_basic", "gemma4:e4b", "Translate: {jp}", null, true));
+                0, "label_basic", "gemma4:e4b", "Translate: {jp}", null, true, null));
 
         queueRepo = new JdbiTranslationQueueRepository(jdbi);
     }
@@ -295,5 +295,72 @@ class TranslationQueueRepositoryTest {
         assertEquals(0, queueRepo.countByStatus(TranslationQueueRow.STATUS_IN_FLIGHT));
         assertEquals(0, queueRepo.countByStatus(TranslationQueueRow.STATUS_DONE));
         assertEquals(0, queueRepo.countByStatus(TranslationQueueRow.STATUS_FAILED));
+    }
+
+    // -------------------------------------------------------------------------
+    // tier_2_pending status (Phase 3)
+    // -------------------------------------------------------------------------
+
+    @Test
+    void markTier2Pending_setsStatusAndReason() {
+        String now = ISO_UTC.format(Instant.now());
+        long id = queueRepo.enqueue("中出し", strategyId, now,
+                TranslationQueueRow.STATUS_PENDING, null, null);
+        queueRepo.claimNext(); // → in_flight
+        queueRepo.markTier2Pending(id, "refused", now);
+
+        assertEquals(1, queueRepo.countTier2Pending());
+        assertEquals(0, queueRepo.countByStatus(TranslationQueueRow.STATUS_IN_FLIGHT));
+        assertEquals(0, queueRepo.countByStatus(TranslationQueueRow.STATUS_PENDING));
+    }
+
+    @Test
+    void findTier2Pending_returnsCorrectRows() {
+        String now = ISO_UTC.format(Instant.now());
+        long id1 = queueRepo.enqueue("中出し", strategyId, now, TranslationQueueRow.STATUS_PENDING, null, null);
+        queueRepo.enqueue("テスト", strategyId, now, TranslationQueueRow.STATUS_PENDING, null, null);
+
+        // Claim both, mark first as tier_2_pending, leave second as pending
+        queueRepo.claimNext(); // claims id1
+        queueRepo.markTier2Pending(id1, "sanitized", now);
+        // id2 still pending (not claimed)
+
+        List<TranslationQueueRow> tier2 = queueRepo.findTier2Pending();
+        assertEquals(1, tier2.size());
+        assertEquals(id1, tier2.get(0).id());
+        assertEquals(TranslationQueueRow.STATUS_TIER_2_PENDING, tier2.get(0).status());
+    }
+
+    @Test
+    void countTier2Pending_correctCount() {
+        String now = ISO_UTC.format(Instant.now());
+        for (int i = 0; i < 3; i++) {
+            long id = queueRepo.enqueue("text" + i, strategyId, now, TranslationQueueRow.STATUS_PENDING, null, null);
+            queueRepo.claimNext();
+            queueRepo.markTier2Pending(id, "refused", now);
+        }
+        assertEquals(3, queueRepo.countTier2Pending());
+    }
+
+    @Test
+    void oldestTier2PendingSubmittedAt_returnsEarliestTimestamp() {
+        String t1 = "2026-01-01T00:00:00.000Z";
+        String t2 = "2026-01-02T00:00:00.000Z";
+
+        long id1 = queueRepo.enqueue("first", strategyId, t1, TranslationQueueRow.STATUS_PENDING, null, null);
+        long id2 = queueRepo.enqueue("second", strategyId, t2, TranslationQueueRow.STATUS_PENDING, null, null);
+
+        queueRepo.claimNext(); // claims id1
+        queueRepo.markTier2Pending(id1, "refused", t1);
+        queueRepo.claimNext(); // claims id2
+        queueRepo.markTier2Pending(id2, "refused", t2);
+
+        String oldest = queueRepo.oldestTier2PendingSubmittedAt();
+        assertEquals(t1, oldest, "Should return the earliest submitted_at");
+    }
+
+    @Test
+    void oldestTier2PendingSubmittedAt_nullWhenNone() {
+        assertNull(queueRepo.oldestTier2PendingSubmittedAt());
     }
 }

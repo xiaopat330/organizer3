@@ -135,6 +135,22 @@ public class JdbiTranslationCacheRepository implements TranslationCacheRepositor
     }
 
     @Override
+    public void updateHumanCorrection(long cacheRowId, String humanCorrectedText, String humanCorrectedAt) {
+        jdbi.useHandle(h ->
+                h.createUpdate("""
+                        UPDATE translation_cache SET
+                            human_corrected_text = :humanCorrectedText,
+                            human_corrected_at = :humanCorrectedAt
+                        WHERE id = :id
+                        """)
+                        .bind("id", cacheRowId)
+                        .bind("humanCorrectedText", humanCorrectedText)
+                        .bind("humanCorrectedAt", humanCorrectedAt)
+                        .execute()
+        );
+    }
+
+    @Override
     public long countTotal() {
         return jdbi.withHandle(h ->
                 h.createQuery("SELECT COUNT(*) FROM translation_cache")

@@ -202,4 +202,61 @@ public class JdbiTranslationQueueRepository implements TranslationQueueRepositor
                         .one()
         );
     }
+
+    @Override
+    public void markTier2Pending(long id, String reason, String now) {
+        jdbi.useHandle(h ->
+                h.createUpdate("""
+                        UPDATE translation_queue
+                        SET status = 'tier_2_pending',
+                            last_error = :reason,
+                            completed_at = NULL,
+                            started_at = NULL
+                        WHERE id = :id
+                        """)
+                        .bind("id", id)
+                        .bind("reason", reason)
+                        .execute()
+        );
+    }
+
+    @Override
+    public List<TranslationQueueRow> findTier2Pending() {
+        return jdbi.withHandle(h ->
+                h.createQuery("""
+                        SELECT id, source_text, strategy_id, submitted_at, started_at,
+                               completed_at, status, callback_kind, callback_id,
+                               attempt_count, last_error
+                        FROM translation_queue
+                        WHERE status = 'tier_2_pending'
+                        ORDER BY submitted_at
+                        """)
+                        .map(MAPPER)
+                        .list()
+        );
+    }
+
+    @Override
+    public int countTier2Pending() {
+        return jdbi.withHandle(h ->
+                h.createQuery("SELECT COUNT(*) FROM translation_queue WHERE status = 'tier_2_pending'")
+                        .mapTo(Integer.class)
+                        .one()
+        );
+    }
+
+    @Override
+    public String oldestTier2PendingSubmittedAt() {
+        return jdbi.withHandle(h ->
+                h.createQuery("""
+                        SELECT submitted_at FROM translation_queue
+                        WHERE status = 'tier_2_pending'
+                        ORDER BY submitted_at
+                        LIMIT 1
+                        """)
+                        .mapTo(String.class)
+                        .findFirst()
+                        .orElse(null)
+        );
+    }
 }

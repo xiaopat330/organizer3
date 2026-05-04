@@ -321,6 +321,112 @@ class TranslationServiceTest {
     }
 
     // -------------------------------------------------------------------------
+    // getCached cache priority (Phase 3) — human > tier-1 > tier-2 > miss
+    // -------------------------------------------------------------------------
+
+    @Test
+    void getCached_humanCorrectedText_winsOverEnglishText() {
+        when(ollamaAdapter.generate(any())).thenReturn(fakeResponse("LLM Translation"));
+
+        service.requestTranslation(new TranslationRequest("テスト", null, null, null));
+        worker.processOne(); // tier-1 translates → "LLM Translation"
+
+        // Manually write human correction to the cache row
+        String hash = TranslationNormalization.hashOf("テスト");
+        long stratId = strategyRepo.findByName(StrategySelector.LABEL_BASIC).orElseThrow().id();
+        var cacheRow = cacheRepo.findByHashAndStrategy(hash, stratId).orElseThrow();
+        cacheRepo.updateHumanCorrection(cacheRow.id(), "Human Corrected", "2026-05-01T00:00:00.000Z");
+
+        // getCached should return the human correction, not the LLM output
+        Optional<String> result = service.getCached("テスト");
+        assertTrue(result.isPresent());
+        assertEquals("Human Corrected", result.get());
+    }
+
+    @Test
+    void getCached_tier2CacheRow_returnedWhenNoTier1() {
+        // Write a tier-2 cache row directly
+        String normalised = TranslationNormalization.normalize("中出し特集");
+        String hash = TranslationNormalization.hashOf(normalised);
+        long tier2StratId = strategyRepo.findByName(TranslationStrategySeeder.LABEL_BASIC_QWEN)
+                .orElseThrow().id();
+
+        TranslationCacheRow tier2CacheRow = new TranslationCacheRow(
+                0, hash, normalised, tier2StratId,
+                "Creampie Special", null, null,
+                null, null, 1000, 10, 20, 4_000_000_000L,
+                "2026-05-01T00:00:00.000Z"
+        );
+        cacheRepo.insert(tier2CacheRow);
+
+        Optional<String> result = service.getCached("中出し特集");
+        assertTrue(result.isPresent());
+        assertEquals("Creampie Special", result.get());
+    }
+
+    @Test
+    void getCached_tier1WinsOverTier2() {
+        String normalised = TranslationNormalization.normalize("中出し特集");
+        String hash = TranslationNormalization.hashOf(normalised);
+
+        long tier1StratId = strategyRepo.findByName(StrategySelector.LABEL_BASIC).orElseThrow().id();
+        long tier2StratId = strategyRepo.findByName(TranslationStrategySeeder.LABEL_BASIC_QWEN)
+                .orElseThrow().id();
+
+        // Write both tier-1 and tier-2 cache rows
+        cacheRepo.insert(new TranslationCacheRow(
+                0, hash, normalised, tier1StratId, "Tier1 Translation", null, null,
+                null, null, 1000, 10, 20, 4_000_000_000L, "2026-05-01T00:00:00.000Z"));
+        cacheRepo.insert(new TranslationCacheRow(
+                0, hash, normalised, tier2StratId, "Tier2 Translation", null, null,
+                null, null, 1000, 10, 20, 4_000_000_000L, "2026-05-01T00:00:00.000Z"));
+
+        Optional<String> result = service.getCached("中出し特集");
+        assertTrue(result.isPresent());
+        assertEquals("Tier1 Translation", result.get(), "Tier-1 should win over tier-2");
+    }
+
+    @Test
+    void getCached_sanitizedBothTiers_returnsEmpty() {
+        // Permanent failure row — both tiers gave up
+        String normalised = TranslationNormalization.normalize("中出し特集");
+        String hash = TranslationNormalization.hashOf(normalised);
+        long tier2StratId = strategyRepo.findByName(TranslationStrategySeeder.LABEL_BASIC_QWEN)
+                .orElseThrow().id();
+
+        cacheRepo.insert(new TranslationCacheRow(
+                0, hash, normalised, tier2StratId, null, null, null,
+                "sanitized_both_tiers", null, 1000, 10, 20, 4_000_000_000L, "2026-05-01T00:00:00.000Z"));
+
+        Optional<String> result = service.getCached("中出し特集");
+        assertTrue(result.isEmpty(), "sanitized_both_tiers should return empty Optional");
+    }
+
+    @Test
+    void getCached_tier1Success_tier2SanitizedBothTiers_returnsTier1Text() {
+        // Regression: a sanitized_both_tiers row must NOT discard a valid tier-1 result from another strategy
+        String normalised = TranslationNormalization.normalize("中出し特集");
+        String hash = TranslationNormalization.hashOf(normalised);
+        long tier1StratId = strategyRepo.findByName(StrategySelector.LABEL_BASIC).orElseThrow().id();
+        long tier2StratId = strategyRepo.findByName(TranslationStrategySeeder.LABEL_BASIC_QWEN)
+                .orElseThrow().id();
+
+        // Tier-2 gave up (sanitized_both_tiers)
+        cacheRepo.insert(new TranslationCacheRow(
+                0, hash, normalised, tier2StratId, null, null, null,
+                "sanitized_both_tiers", null, 1000, 10, 20, 4_000_000_000L, "2026-05-01T00:00:00.000Z"));
+
+        // But tier-1 succeeded
+        cacheRepo.insert(new TranslationCacheRow(
+                0, hash, normalised, tier1StratId, "Tier1 Good Result", null, null,
+                null, null, 1000, 10, 20, 4_000_000_000L, "2026-05-01T00:00:00.000Z"));
+
+        Optional<String> result = service.getCached("中出し特集");
+        assertTrue(result.isPresent(), "Tier-1 success must not be discarded by a tier-2 sanitized_both_tiers row");
+        assertEquals("Tier1 Good Result", result.get());
+    }
+
+    // -------------------------------------------------------------------------
     // resolveStageName — Phase 5 stub
     // -------------------------------------------------------------------------
 

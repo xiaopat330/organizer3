@@ -674,12 +674,13 @@ public class SchemaInitializer {
             // See spec/PROPOSAL_TRANSLATION_SERVICE.md §5.1.
             h.execute("""
                     CREATE TABLE IF NOT EXISTS translation_strategy (
-                        id              INTEGER PRIMARY KEY AUTOINCREMENT,
-                        name            TEXT NOT NULL UNIQUE,
-                        model_id        TEXT NOT NULL,
-                        prompt_template TEXT NOT NULL,
-                        options_json    TEXT,
-                        is_active       INTEGER NOT NULL DEFAULT 1
+                        id                  INTEGER PRIMARY KEY AUTOINCREMENT,
+                        name                TEXT NOT NULL UNIQUE,
+                        model_id            TEXT NOT NULL,
+                        prompt_template     TEXT NOT NULL,
+                        options_json        TEXT,
+                        is_active           INTEGER NOT NULL DEFAULT 1,
+                        tier2_strategy_id   INTEGER REFERENCES translation_strategy(id)
                     )""");
 
             h.execute("""
@@ -728,7 +729,7 @@ public class SchemaInitializer {
             // leave the version alone and let SchemaUpgrader apply any missing migrations.
             int currentVersion = h.createQuery("PRAGMA user_version").mapTo(Integer.class).one();
             if (currentVersion == 0) {
-                h.execute("PRAGMA user_version = 48");
+                h.execute("PRAGMA user_version = 49");
             }
         });
         log.info("Schema initialization complete");

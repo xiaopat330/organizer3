@@ -221,6 +221,94 @@ class TranslationWorkerTest {
     }
 
     // -------------------------------------------------------------------------
+    // Tier-2 escalation — refusal and sanitization (Phase 3)
+    // -------------------------------------------------------------------------
+
+    @Test
+    void processOne_emptyResponse_marksTier2Pending() {
+        // Empty response is a hard refusal
+        when(ollamaAdapter.generate(any())).thenReturn(fakeResponse(""));
+
+        String now = ISO_UTC.format(Instant.now());
+        queueRepo.enqueue("中出し花野真衣", strategyId, now,
+                TranslationQueueRow.STATUS_PENDING, null, null);
+
+        worker.processOne();
+
+        assertEquals(1, queueRepo.countByStatus(TranslationQueueRow.STATUS_TIER_2_PENDING));
+        assertEquals(0, queueRepo.countByStatus(TranslationQueueRow.STATUS_DONE));
+        assertEquals(0, queueRepo.countByStatus(TranslationQueueRow.STATUS_FAILED));
+        assertEquals(0, queueRepo.countByStatus(TranslationQueueRow.STATUS_PENDING));
+
+        // Cache row written with failure_reason='refused'
+        assertEquals(1, cacheRepo.countFailed());
+    }
+
+    @Test
+    void processOne_refusalKeyword_marksTier2Pending() {
+        // Short output with refusal keyword
+        when(ollamaAdapter.generate(any())).thenReturn(fakeResponse("Sorry, I cannot translate this content."));
+
+        String now = ISO_UTC.format(Instant.now());
+        queueRepo.enqueue("中出し花野真衣", strategyId, now,
+                TranslationQueueRow.STATUS_PENDING, null, null);
+
+        worker.processOne();
+
+        assertEquals(1, queueRepo.countByStatus(TranslationQueueRow.STATUS_TIER_2_PENDING));
+        assertEquals(0, queueRepo.countByStatus(TranslationQueueRow.STATUS_DONE));
+    }
+
+    @Test
+    void processOne_sanitizedOutput_marksTier2Pending() {
+        // Explicit JP input (中出し), but output has no explicit EN token → sanitized
+        when(ollamaAdapter.generate(any())).thenReturn(fakeResponse("Special Series Feature"));
+
+        String now = ISO_UTC.format(Instant.now());
+        queueRepo.enqueue("中出し花野真衣", strategyId, now,
+                TranslationQueueRow.STATUS_PENDING, null, null);
+
+        worker.processOne();
+
+        assertEquals(1, queueRepo.countByStatus(TranslationQueueRow.STATUS_TIER_2_PENDING));
+        assertEquals(0, queueRepo.countByStatus(TranslationQueueRow.STATUS_DONE));
+
+        // Cache row written with failure_reason='sanitized'
+        assertEquals(1, cacheRepo.countFailed());
+    }
+
+    @Test
+    void processOne_cleanExplicitOutput_marksDone() {
+        // Explicit JP input (中出し), output HAS explicit EN token → clean, not escalated
+        when(ollamaAdapter.generate(any())).thenReturn(fakeResponse("Creampie Special with Hanano Mai"));
+
+        String now = ISO_UTC.format(Instant.now());
+        queueRepo.enqueue("中出し花野真衣", strategyId, now,
+                TranslationQueueRow.STATUS_PENDING, null, null);
+
+        worker.processOne();
+
+        assertEquals(1, queueRepo.countByStatus(TranslationQueueRow.STATUS_DONE));
+        assertEquals(0, queueRepo.countByStatus(TranslationQueueRow.STATUS_TIER_2_PENDING));
+        assertEquals(1, cacheRepo.countSuccessful());
+    }
+
+    @Test
+    void processOne_shortNonRefusalOutput_marksDone() {
+        // Short output (≤80 chars) that does NOT match refusal pattern — valid short translation
+        when(ollamaAdapter.generate(any())).thenReturn(fakeResponse("Crystal Pictures"));
+
+        String now = ISO_UTC.format(Instant.now());
+        queueRepo.enqueue("クリスタル映像", strategyId, now,
+                TranslationQueueRow.STATUS_PENDING, null, null);
+
+        worker.processOne();
+
+        assertEquals(1, queueRepo.countByStatus(TranslationQueueRow.STATUS_DONE));
+        assertEquals(0, queueRepo.countByStatus(TranslationQueueRow.STATUS_TIER_2_PENDING));
+    }
+
+    // -------------------------------------------------------------------------
     // Worker loop lifecycle
     // -------------------------------------------------------------------------
 

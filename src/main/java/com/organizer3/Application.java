@@ -170,7 +170,7 @@ public class Application {
         ActressCompaniesService   actressCompaniesService   = new ActressCompaniesService(jdbi);
         new LabelSeeder(jdbi, titleEffectiveTagsService).seedIfEmpty();
 
-        // Translation service (Phase 2 — async queue + worker)
+        // Translation service (Phase 3 — multi-tier + sanitization detector)
         com.fasterxml.jackson.databind.ObjectMapper translationJsonMapper =
                 new com.fasterxml.jackson.databind.ObjectMapper();
         com.organizer3.translation.TranslationConfig translationConfig = config.translationOrDefaults();
@@ -186,6 +186,9 @@ public class Application {
                         translationConfig.ollamaBaseUrlOrDefault(), translationJsonMapper);
         com.organizer3.translation.CallbackDispatcher translationCallbackDispatcher =
                 new com.organizer3.translation.CallbackDispatcher(jdbi);
+        // Shared model state tracker (Phase 3: currently-loaded model awareness)
+        com.organizer3.translation.OllamaModelState ollamaModelState =
+                new com.organizer3.translation.OllamaModelState();
         @SuppressWarnings("unused")
         com.organizer3.translation.TranslationService translationService =
                 new com.organizer3.translation.TranslationServiceImpl(
@@ -195,7 +198,7 @@ public class Application {
                 new com.organizer3.translation.TranslationWorker(
                         ollamaAdapter, translationStrategyRepo, translationCacheRepo,
                         translationQueueRepo, translationCallbackDispatcher,
-                        translationConfig, translationJsonMapper);
+                        translationConfig, translationJsonMapper, ollamaModelState);
         java.util.concurrent.ExecutorService translationWorkerExecutor =
                 java.util.concurrent.Executors.newSingleThreadExecutor(r -> {
                     Thread t = new Thread(r, "translation-worker");
@@ -216,6 +219,23 @@ public class Application {
                 translationQueueSweeper,
                 translationConfig.sweeperIntervalSecondsOrDefault(),
                 translationConfig.sweeperIntervalSecondsOrDefault(),
+                java.util.concurrent.TimeUnit.SECONDS);
+        // Tier-2 batch sweeper (Phase 3)
+        com.organizer3.translation.Tier2BatchSweeper tier2BatchSweeper =
+                new com.organizer3.translation.Tier2BatchSweeper(
+                        ollamaAdapter, translationStrategyRepo, translationCacheRepo,
+                        translationQueueRepo, translationCallbackDispatcher,
+                        translationConfig, translationJsonMapper, ollamaModelState);
+        java.util.concurrent.ScheduledExecutorService tier2SweeperExecutor =
+                java.util.concurrent.Executors.newSingleThreadScheduledExecutor(r -> {
+                    Thread t = new Thread(r, "tier2-sweeper");
+                    t.setDaemon(true);
+                    return t;
+                });
+        tier2SweeperExecutor.scheduleAtFixedRate(
+                tier2BatchSweeper,
+                translationConfig.tier2SweeperIntervalSecondsOrDefault(),
+                translationConfig.tier2SweeperIntervalSecondsOrDefault(),
                 java.util.concurrent.TimeUnit.SECONDS);
 
         // Repositories
@@ -1057,6 +1077,7 @@ public class Application {
         nasMonitor.stop();
         translationWorkerExecutor.shutdownNow();
         translationSweeperExecutor.shutdownNow();
+        tier2SweeperExecutor.shutdownNow();
         if (mcpRoDb != null) mcpRoDb.close();
         log.info("Organizer3 exiting");
     }

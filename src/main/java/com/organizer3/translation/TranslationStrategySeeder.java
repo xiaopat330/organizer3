@@ -4,6 +4,8 @@ import com.organizer3.translation.repository.TranslationStrategyRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
+import java.util.Optional;
+
 /**
  * Seeds the three initial translation strategies on startup (idempotent).
  *
@@ -24,8 +26,13 @@ import lombok.extern.slf4j.Slf4j;
 @RequiredArgsConstructor
 public class TranslationStrategySeeder {
 
-    private static final String PRIMARY_MODEL = "gemma4:e4b";
-    // FALLBACK_MODEL ("qwen2.5:14b") is referenced in Phase 3 (tier-2 fallback strategies).
+    private static final String PRIMARY_MODEL  = "gemma4:e4b";
+    private static final String FALLBACK_MODEL = "qwen2.5:14b";
+
+    // Tier-2 strategy names (qwen2.5:14b variants)
+    static final String LABEL_BASIC_QWEN    = "label_basic_v1_qwen";
+    static final String LABEL_EXPLICIT_QWEN = "label_explicit_v1_qwen";
+    static final String PROSE_QWEN          = "prose_v1_qwen";
 
     /**
      * label_basic: minimal single-instruction prompt for short, non-explicit labels.
@@ -87,17 +94,51 @@ public class TranslationStrategySeeder {
     private final TranslationStrategyRepository strategyRepo;
 
     /**
-     * Seed all three strategies if they do not yet exist. Idempotent.
+     * Seed all six strategies (3 tier-1, 3 tier-2) if they do not yet exist, and wire
+     * tier-1 → tier-2 pairings. Idempotent — safe to call on every startup.
+     *
+     * <p>Phase 3: tier-2 strategies use the same prompt templates as tier-1 but with the
+     * fallback model ({@code qwen2.5:14b}). After seeding, each tier-1 strategy's
+     * {@code tier2_strategy_id} is set to point at its corresponding tier-2 strategy.
      */
     public void seedIfEmpty() {
-        seedStrategy(StrategySelector.LABEL_BASIC,    PRIMARY_MODEL, LABEL_BASIC_TEMPLATE,    LABEL_OPTIONS_JSON);
-        seedStrategy(StrategySelector.LABEL_EXPLICIT, PRIMARY_MODEL, LABEL_EXPLICIT_TEMPLATE, LABEL_OPTIONS_JSON);
-        seedStrategy(StrategySelector.PROSE,          PRIMARY_MODEL, PROSE_TEMPLATE,           PROSE_OPTIONS_JSON);
+        // Tier-1 strategies (gemma4:e4b primary)
+        seedStrategy(StrategySelector.LABEL_BASIC,    PRIMARY_MODEL,  LABEL_BASIC_TEMPLATE,    LABEL_OPTIONS_JSON);
+        seedStrategy(StrategySelector.LABEL_EXPLICIT, PRIMARY_MODEL,  LABEL_EXPLICIT_TEMPLATE, LABEL_OPTIONS_JSON);
+        seedStrategy(StrategySelector.PROSE,          PRIMARY_MODEL,  PROSE_TEMPLATE,           PROSE_OPTIONS_JSON);
+
+        // Tier-2 strategies (qwen2.5:14b fallback) — same prompts, different model
+        seedStrategy(LABEL_BASIC_QWEN,    FALLBACK_MODEL, LABEL_BASIC_TEMPLATE,    LABEL_OPTIONS_JSON);
+        seedStrategy(LABEL_EXPLICIT_QWEN, FALLBACK_MODEL, LABEL_EXPLICIT_TEMPLATE, LABEL_OPTIONS_JSON);
+        seedStrategy(PROSE_QWEN,          FALLBACK_MODEL, PROSE_TEMPLATE,           PROSE_OPTIONS_JSON);
+
+        // Wire tier-1 → tier-2 pairings (idempotent: only sets when currently NULL)
+        wirePairing(StrategySelector.LABEL_BASIC,    LABEL_BASIC_QWEN);
+        wirePairing(StrategySelector.LABEL_EXPLICIT, LABEL_EXPLICIT_QWEN);
+        wirePairing(StrategySelector.PROSE,          PROSE_QWEN);
+    }
+
+    /**
+     * Wire the tier-2 fallback for a tier-1 strategy, only if not already set.
+     */
+    private void wirePairing(String tier1Name, String tier2Name) {
+        Optional<TranslationStrategy> tier1 = strategyRepo.findByName(tier1Name);
+        Optional<TranslationStrategy> tier2 = strategyRepo.findByName(tier2Name);
+        if (tier1.isEmpty() || tier2.isEmpty()) {
+            log.warn("Translation pairing skipped: missing strategy tier1={} tier2={}", tier1Name, tier2Name);
+            return;
+        }
+        if (tier1.get().tier2StrategyId() == null) {
+            strategyRepo.setTier2StrategyId(tier1.get().id(), tier2.get().id());
+            log.info("Translation strategy pairing set: {} → {}", tier1Name, tier2Name);
+        } else {
+            log.debug("Translation strategy pairing already set: {} → {}", tier1Name, tier2Name);
+        }
     }
 
     private void seedStrategy(String name, String modelId, String template, String optionsJson) {
         if (strategyRepo.findByName(name).isEmpty()) {
-            TranslationStrategy strategy = new TranslationStrategy(0, name, modelId, template, optionsJson, true);
+            TranslationStrategy strategy = new TranslationStrategy(0, name, modelId, template, optionsJson, true, null);
             long id = strategyRepo.insert(strategy);
             log.info("Translation strategy seeded: name={} id={} model={}", name, id, modelId);
         } else {
