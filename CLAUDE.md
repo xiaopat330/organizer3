@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Status
 
-Organizer3 is an interactive CLI tool for managing a JAV media library across multiple NAS volumes over SMB. The core shell infrastructure, SMB connectivity, sync pipeline, persistence layer, and initial actress query commands are implemented.
+Organizer3 is a JAV media library manager across multiple NAS volumes over SMB. The primary surface is a local web UI (Javalin + vanilla JS modules); a JLine3 shell and an MCP server provide secondary interfaces. Shipped subsystems include: sync pipeline, persistence (SQLite via JDBI with versioned migrations), enrichment from javdb (with rate-limited queue + draft mode + review queue), translation pipeline (Ollama + tier-2 fallback), actress YAML metadata system, AV Stars (separate volume + IAFD profiles), duplicate triage, organize pipeline, trash sidecar, custom profile images, screenshot queue, and a logs viewer. Active work is housekeeping/stability rather than new features.
 
 Before answering design or implementation questions, always read:
 - `spec/FUNCTIONAL_SPEC.md` — what the tool does and how it behaves

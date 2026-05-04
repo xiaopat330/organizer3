@@ -243,31 +243,160 @@ Backup files carry a `version` integer. v1 files have no AV fields (null on read
 
 ## 7. Database
 
-SQLite at `~/.organizer3/organizer.db`. Single-user, no concurrent access concerns. Schema managed by `SchemaInitializer` (fresh installs) + `SchemaUpgrader` (incremental `ALTER TABLE`/backfill migrations for existing databases).
+SQLite at `~/.organizer3/organizer.db`. Single-user, no concurrent access concerns. Schema managed by `SchemaInitializer` (fresh installs) + `SchemaUpgrader` (incremental `ALTER TABLE`/backfill migrations for existing databases). Current schema version: **50** (`PRAGMA user_version`).
 
-### JAV tables
+### JAV core tables
 
 ```
 volumes             (id PK, structure_type, last_synced_at)
-actresses           (id PK, canonical_name UNIQUE, stage_name, tier, favorite, bookmark,
-                     grade, rejected, visit_count, last_visited_at, date_of_birth, etc.)
+actresses           (id PK, canonical_name UNIQUE, stage_name, name_reading, tier,
+                     favorite, bookmark, bookmarked_at, grade, rejected,
+                     first_seen_at, date_of_birth, birthplace, blood_type,
+                     height_cm, bust, waist, hip, cup,
+                     active_from, active_to, retirement_announced,
+                     biography, legacy, alternate_names_json, primary_studios_json, awards_json,
+                     visit_count, last_visited_at, needs_profiling,
+                     favorite_cleared_at, is_sentinel, custom_avatar_path,
+                     created_via, created_at)
 actress_aliases     (actress_id → actresses, alias_name; PK both)
-titles              (id PK, code UNIQUE, base_code, label, actress_id → actresses,
-                     favorite, bookmark, grade, rejected, notes, visit_count, etc.)
+actress_companies   (actress_id → actresses, company; PK both)
+titles              (id PK, code UNIQUE, base_code, label, seq_num,
+                     actress_id → actresses,
+                     favorite, bookmark, bookmarked_at, grade, grade_source, rejected,
+                     title_original, title_english, release_date,
+                     notes, visit_count, last_visited_at, favorite_cleared_at)
 title_locations     (id PK, title_id → titles, volume_id → volumes, partition_id,
                      path, last_seen_at, added_date; UNIQUE(title_id, volume_id, path))
-videos              (id PK, title_id → titles, volume_id, filename, path, last_seen_at)
+videos              (id PK, title_id → titles, volume_id, filename, path, last_seen_at,
+                     duration_sec, width, height, video_codec, audio_codec, container, size_bytes)
 title_actresses     (title_id, actress_id; many-to-many; PK both)
 title_tags          (title_id, tag; PK both)
-title_effective_tags (title_id, tag, source∈{direct,label}; PK title_id+tag)
-labels              (code PK, label_name, company, description, company_*)
+title_effective_tags (title_id, tag, source∈{direct,label,enrichment}; PK title_id+tag)
+labels              (code PK, label_name, company, description, company_description,
+                     company_specialty, company_founded, company_status, company_parent)
 tags                (name PK, category, description)
 label_tags          (label_code → labels, tag → tags; PK both)
-actress_companies   (actress_id → actresses, company; PK both)
 watch_history       (id PK, title_code, watched_at; UNIQUE title_code+watched_at)
 ```
 
-### AV tables
+Four triggers automatically maintain `favorite_cleared_at` on `titles` and `actresses`: stamp `now()` when `favorite` transitions 1→0, clear it on 0→1.
+
+### JAV sync / forensics
+
+```
+title_path_history  (id PK, title_id, volume_id, partition_id, path,
+                     first_seen_at, last_seen_at;
+                     UNIQUE(volume_id, partition_id, path))
+```
+
+Forensic path log for sync-matcher fallback. No FK on `title_id` — rows survive title deletion and are used for re-add recovery.
+
+### JAV duplicate / merge
+
+```
+duplicate_decisions (title_code, volume_id, nas_path,
+                     decision∈{KEEP,TRASH,VARIANT},
+                     created_at, executed_at; PK all three key cols)
+merge_candidates    (id PK, title_code_a, title_code_b,
+                     confidence∈{code-normalization,variant-suffix},
+                     detected_at, decision∈{MERGE,DISMISS}, decided_at,
+                     winner_code, executed_at; UNIQUE(title_code_a, title_code_b))
+```
+
+### JAV enrichment
+
+```
+javdb_enrichment_queue      (id PK, job_type, target_id, actress_id, source,
+                              priority∈{LOW,NORMAL,HIGH,URGENT}, status,
+                              attempts, next_attempt_at, last_error,
+                              created_at, updated_at, sort_order)
+javdb_title_staging         (title_id PK → titles, status, javdb_slug, raw_path,
+                              raw_fetched_at, title_original, release_date,
+                              duration_minutes, maker, publisher, series,
+                              rating_avg, rating_count, tags_json, cast_json,
+                              cover_url, thumbnail_urls_json)
+javdb_actress_staging       (actress_id PK → actresses, javdb_slug UNIQUE,
+                              source_title_code, status, raw_path, raw_fetched_at,
+                              name_variants_json, avatar_url, twitter_handle,
+                              instagram_handle, title_count, local_avatar_path)
+title_javdb_enrichment      (title_id PK → titles ON DELETE CASCADE,
+                              javdb_slug, fetched_at, release_date,
+                              rating_avg, rating_count, maker, publisher, series,
+                              title_original, duration_minutes, cover_url,
+                              thumbnail_urls_json, cast_json, raw_path,
+                              resolver_source, confidence, cast_validated,
+                              last_revalidated_at,
+                              title_original_en, series_en, maker_en, publisher_en)
+title_javdb_enrichment_history (id PK, title_id, title_code, changed_at,
+                                reason, prior_slug, prior_payload, new_payload,
+                                promotion_metadata)
+enrichment_tag_definitions  (id PK, name UNIQUE, curated_alias → tags(name),
+                              title_count, surface)
+title_enrichment_tags       (title_id → title_javdb_enrichment ON DELETE CASCADE,
+                              tag_id → enrichment_tag_definitions; PK both)
+enrichment_review_queue     (id PK, title_id → titles ON DELETE CASCADE,
+                              slug, reason, resolver_source, created_at,
+                              last_seen_at, detail, resolved_at, resolution;
+                              UNIQUE(title_id, reason) WHERE resolved_at IS NULL)
+revalidation_pending        (title_id PK → titles ON DELETE CASCADE,
+                              enqueued_at, reason)
+rating_curve                (id PK CHECK(id=1), global_mean, global_count,
+                              min_credible_votes, cutoffs_json, computed_at)
+javdb_actress_filmography   (actress_slug PK, fetched_at, page_count,
+                              last_release_date, source, last_drift_count,
+                              last_fetch_status)
+javdb_actress_filmography_entry (actress_slug → javdb_actress_filmography ON DELETE CASCADE,
+                                 product_code, title_slug, stale;
+                                 PK(actress_slug, product_code))
+```
+
+### Draft Mode
+
+Staging layer for bulk enrichment + human review before committing enrichment data to canonical tables.
+
+```
+draft_titles                (id PK, title_id → titles ON DELETE CASCADE,
+                              code, title_original, title_english, release_date,
+                              notes, grade, grade_source,
+                              upstream_changed, last_validation_error,
+                              created_at, updated_at; UNIQUE title_id)
+draft_actresses             (javdb_slug PK, stage_name, english_first_name,
+                              english_last_name, link_to_existing_id → actresses,
+                              created_at, updated_at, last_validation_error)
+draft_title_actresses       (draft_title_id → draft_titles ON DELETE CASCADE,
+                              javdb_slug → draft_actresses, resolution; PK both)
+draft_title_javdb_enrichment (draft_title_id PK → draft_titles ON DELETE CASCADE,
+                               javdb_slug, cast_json, maker, series, cover_url,
+                               tags_json, rating_avg, rating_count,
+                               resolver_source, updated_at)
+```
+
+### Translation
+
+Local LLM translation service tables. `translation_strategy` defines named model+prompt configurations. `translation_cache` stores results keyed by `(source_hash, strategy_id)`. `translation_queue` is the async work queue drained by the translation worker.
+
+```
+translation_strategy    (id PK, name UNIQUE, model_id, prompt_template,
+                          options_json, is_active,
+                          tier2_strategy_id → translation_strategy)
+translation_cache       (id PK, source_hash, source_text, strategy_id → translation_strategy,
+                          english_text, human_corrected_text, human_corrected_at,
+                          failure_reason, retry_after,
+                          latency_ms, prompt_tokens, eval_tokens, eval_duration_ns,
+                          cached_at; UNIQUE(source_hash, strategy_id))
+translation_queue       (id PK, source_text, strategy_id, submitted_at,
+                          started_at, completed_at, status,
+                          callback_kind, callback_id, attempt_count, last_error)
+stage_name_lookup       (id PK, kanji_form UNIQUE, romanized_form,
+                          actress_slug, source, seeded_at)
+stage_name_suggestion   (id PK, kanji_form, suggested_romaji, suggested_at,
+                          reviewed_at, review_decision, final_romaji;
+                          UNIQUE(kanji_form, suggested_romaji))
+```
+
+`stage_name_lookup` is the curated kanji→romaji seed table; `stage_name_suggestion` holds LLM-produced suggestions pending human review.
+
+### AV core tables
 
 ```
 av_actresses        (id PK, volume_id → volumes, folder_name, stage_name,
@@ -292,6 +421,17 @@ av_tag_definitions  (slug PK, display_name, category, aliases_json)
 av_video_tags       (av_video_id → av_videos, tag_slug → av_tag_definitions, source; PK both)
 av_video_screenshots (id PK, av_video_id → av_videos, seq, path; UNIQUE av_video_id+seq)
 ```
+
+### AV operations
+
+```
+av_screenshot_queue (id PK, av_video_id UNIQUE → av_videos ON DELETE CASCADE,
+                     av_actress_id → av_actresses, enqueued_at,
+                     started_at, completed_at,
+                     status∈{PENDING,…}, error)
+```
+
+Persistent FIFO queue for background screenshot generation. `UNIQUE` on `av_video_id` makes enqueue idempotent.
 
 ---
 
