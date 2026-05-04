@@ -16,6 +16,7 @@ import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.util.Map;
 import java.util.Optional;
+import java.util.regex.Pattern;
 
 /**
  * Single-threaded worker that consumes {@code translation_queue} rows.
@@ -39,6 +40,27 @@ public class TranslationWorker implements Runnable {
     private static final DateTimeFormatter ISO_UTC =
             DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'").withZone(ZoneOffset.UTC);
 
+    /**
+     * Refusal pattern: matches model outputs that indicate the model refused to translate.
+     * Per spec: "short output + matches refusal regex = refusal." Empty output is handled
+     * separately (null check). Short output alone is NOT sufficient.
+     */
+    private static final Pattern REFUSAL_PATTERN = Pattern.compile(
+            "cannot|unable to|sorry|i am programmed|safety|refuse|not appropriate|i can't",
+            Pattern.CASE_INSENSITIVE
+    );
+
+    /**
+     * A response is considered a "hard refusal" if it is empty (null) OR if it is short
+     * (≤ 80 chars) AND matches the refusal pattern. Short-but-valid translations are allowed
+     * through; only short + refusal-keyword triggers escalation.
+     */
+    private static boolean isRefusal(String text) {
+        if (text == null || text.isBlank()) return true;
+        // Short output + refusal keyword = refusal
+        return text.length() <= 80 && REFUSAL_PATTERN.matcher(text).find();
+    }
+
     private final OllamaAdapter ollamaAdapter;
     private final TranslationStrategyRepository strategyRepo;
     private final TranslationCacheRepository cacheRepo;
@@ -46,6 +68,7 @@ public class TranslationWorker implements Runnable {
     private final CallbackDispatcher callbackDispatcher;
     private final TranslationConfig config;
     private final ObjectMapper json;
+    private final OllamaModelState modelState;
 
     public TranslationWorker(OllamaAdapter ollamaAdapter,
                               TranslationStrategyRepository strategyRepo,
@@ -54,6 +77,18 @@ public class TranslationWorker implements Runnable {
                               CallbackDispatcher callbackDispatcher,
                               TranslationConfig config,
                               ObjectMapper json) {
+        this(ollamaAdapter, strategyRepo, cacheRepo, queueRepo, callbackDispatcher, config, json,
+                new OllamaModelState());
+    }
+
+    public TranslationWorker(OllamaAdapter ollamaAdapter,
+                              TranslationStrategyRepository strategyRepo,
+                              TranslationCacheRepository cacheRepo,
+                              TranslationQueueRepository queueRepo,
+                              CallbackDispatcher callbackDispatcher,
+                              TranslationConfig config,
+                              ObjectMapper json,
+                              OllamaModelState modelState) {
         this.ollamaAdapter      = ollamaAdapter;
         this.strategyRepo       = strategyRepo;
         this.cacheRepo          = cacheRepo;
@@ -61,6 +96,7 @@ public class TranslationWorker implements Runnable {
         this.callbackDispatcher = callbackDispatcher;
         this.config             = config;
         this.json               = json;
+        this.modelState         = modelState;
     }
 
     /**
@@ -159,16 +195,36 @@ public class TranslationWorker implements Runnable {
         String failureReason = null;
         String retryAfter = null;
         OllamaResponse ollamaResp = null;
+        boolean escalateToTier2 = false;
+        String tier2Reason = null;
 
         try {
             ollamaResp = ollamaAdapter.generate(ollamaReq);
+            // Update model state tracking
+            modelState.setCurrentModelId(strategy.modelId());
+
             String raw = ollamaResp.responseText().trim();
             if (raw.startsWith("English:")) {
                 raw = raw.substring("English:".length()).trim();
             }
-            englishText = raw.isEmpty() ? null : raw;
-            if (englishText == null) {
-                failureReason = "empty_response";
+            String cleaned = raw.isEmpty() ? null : raw;
+
+            // Check for refusal (empty or refusal-pattern match on short output)
+            if (isRefusal(cleaned)) {
+                escalateToTier2 = true;
+                tier2Reason = "refused";
+                failureReason = "refused";
+                log.info("TranslationWorker: row={} strategy={} REFUSED — escalating to tier-2",
+                        row.id(), strategy.name());
+            // Check for sanitization (explicit JP input but no explicit EN output)
+            } else if (SanitizationDetector.isSanitized(row.sourceText(), cleaned)) {
+                escalateToTier2 = true;
+                tier2Reason = "sanitized";
+                failureReason = "sanitized";
+                log.info("TranslationWorker: row={} strategy={} SANITIZED — escalating to tier-2",
+                        row.id(), strategy.name());
+            } else {
+                englishText = cleaned;
             }
         } catch (OllamaException e) {
             if (isTransient(e)) {
@@ -183,7 +239,7 @@ public class TranslationWorker implements Runnable {
         long latencyMs = System.currentTimeMillis() - startMs;
         String now = ISO_UTC.format(Instant.now());
 
-        // Write / update cache
+        // Write / update cache (records tier-1 result including refusal/sanitization)
         if (existingCacheRowId != null) {
             cacheRepo.updateOutcome(existingCacheRowId,
                     englishText, failureReason, retryAfter,
@@ -205,15 +261,19 @@ public class TranslationWorker implements Runnable {
             cacheRepo.insert(cacheRow);
         }
 
-        log.info("TranslationWorker: row={} strategy={} latency={}ms success={}",
-                row.id(), strategy.name(), latencyMs, englishText != null);
+        log.info("TranslationWorker: row={} strategy={} latency={}ms success={} escalate={}",
+                row.id(), strategy.name(), latencyMs, englishText != null, escalateToTier2);
 
-        if (englishText != null) {
+        if (escalateToTier2) {
+            // Mark as tier_2_pending — the Tier2BatchSweeper will handle it
+            queueRepo.markTier2Pending(row.id(), tier2Reason, now);
+            log.info("TranslationWorker: row={} marked tier_2_pending ({})", row.id(), tier2Reason);
+        } else if (englishText != null) {
             // Success — dispatch callback and mark done
             callbackDispatcher.dispatch(row.callbackKind(), row.callbackId(), englishText);
             queueRepo.markDone(row.id(), now);
         } else {
-            // Failure — increment attempt or mark permanently failed
+            // Non-escalating failure (transient/adapter error) — increment attempt or mark permanently failed
             int nextAttempt = row.attemptCount() + 1;
             if (nextAttempt >= config.maxAttemptsOrDefault()) {
                 String reason = failureReason != null ? failureReason : "unknown";

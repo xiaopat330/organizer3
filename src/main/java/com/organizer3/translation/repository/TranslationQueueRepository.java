@@ -93,4 +93,30 @@ public interface TranslationQueueRepository {
      * Count rows by status. Used for operational stats.
      */
     int countByStatus(String status);
+
+    /**
+     * Mark a queue row as {@code tier_2_pending} after tier-1 refusal or sanitization.
+     * The row will be picked up by the {@code Tier2BatchSweeper} when the batch threshold is met.
+     *
+     * @param id        queue row id
+     * @param reason    short description: {@code "refused"} or {@code "sanitized"}
+     * @param now       ISO-8601 UTC timestamp string (used to record last_error timestamp)
+     */
+    void markTier2Pending(long id, String reason, String now);
+
+    /**
+     * Count and list rows with {@code status='tier_2_pending'}, ordered by submitted_at ascending.
+     */
+    List<TranslationQueueRow> findTier2Pending();
+
+    /**
+     * Count rows in {@code tier_2_pending} status.
+     */
+    int countTier2Pending();
+
+    /**
+     * Return the submitted_at timestamp of the oldest {@code tier_2_pending} row,
+     * or {@code null} if none exist.
+     */
+    String oldestTier2PendingSubmittedAt();
 }

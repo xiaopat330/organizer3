@@ -40,7 +40,7 @@ class TranslationCacheRepositoryTest {
         cacheRepo = new JdbiTranslationCacheRepository(jdbi);
 
         strategyId = strategyRepo.insert(new TranslationStrategy(
-                0, "label_basic", "gemma4:e4b", "Translate: {jp}", null, true));
+                0, "label_basic", "gemma4:e4b", "Translate: {jp}", null, true, null));
     }
 
     @AfterEach

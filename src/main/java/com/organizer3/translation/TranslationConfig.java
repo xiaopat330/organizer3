@@ -12,14 +12,17 @@ import java.time.Duration;
  * to work without modification.
  */
 public record TranslationConfig(
-        @JsonProperty("ollamaBaseUrl")              String ollamaBaseUrl,
-        @JsonProperty("timeoutSeconds")             Integer timeoutSeconds,
-        @JsonProperty("primaryModel")               String primaryModel,
-        @JsonProperty("fallbackModel")              String fallbackModel,
-        @JsonProperty("workerPollIntervalSeconds")  Integer workerPollIntervalSeconds,
-        @JsonProperty("maxAttempts")                Integer maxAttempts,
-        @JsonProperty("stuckThresholdSeconds")      Integer stuckThresholdSeconds,
-        @JsonProperty("sweeperIntervalSeconds")     Integer sweeperIntervalSeconds
+        @JsonProperty("ollamaBaseUrl")                  String ollamaBaseUrl,
+        @JsonProperty("timeoutSeconds")                 Integer timeoutSeconds,
+        @JsonProperty("primaryModel")                   String primaryModel,
+        @JsonProperty("fallbackModel")                  String fallbackModel,
+        @JsonProperty("workerPollIntervalSeconds")       Integer workerPollIntervalSeconds,
+        @JsonProperty("maxAttempts")                    Integer maxAttempts,
+        @JsonProperty("stuckThresholdSeconds")          Integer stuckThresholdSeconds,
+        @JsonProperty("sweeperIntervalSeconds")         Integer sweeperIntervalSeconds,
+        @JsonProperty("tier2BatchSize")                 Integer tier2BatchSize,
+        @JsonProperty("tier2MaxWaitMinutes")            Integer tier2MaxWaitMinutes,
+        @JsonProperty("tier2SweeperIntervalSeconds")    Integer tier2SweeperIntervalSeconds
 ) {
     /** Default configuration — {@code http://localhost:11434}, 120s, gemma4:e4b / qwen2.5:14b. */
     public static final TranslationConfig DEFAULTS = new TranslationConfig(
@@ -30,6 +33,9 @@ public record TranslationConfig(
             2,
             3,
             600,
+            300,
+            10,
+            60,
             300
     );
 
@@ -63,5 +69,20 @@ public record TranslationConfig(
 
     public int sweeperIntervalSecondsOrDefault() {
         return sweeperIntervalSeconds != null ? sweeperIntervalSeconds : 300;
+    }
+
+    /** Minimum number of tier_2_pending rows before the sweeper triggers a batch drain. */
+    public int tier2BatchSizeOrDefault() {
+        return tier2BatchSize != null ? tier2BatchSize : 10;
+    }
+
+    /** Maximum wait in minutes before draining tier_2_pending regardless of count. */
+    public int tier2MaxWaitMinutesOrDefault() {
+        return tier2MaxWaitMinutes != null ? tier2MaxWaitMinutes : 60;
+    }
+
+    /** Interval in seconds between tier-2 sweeper runs. */
+    public int tier2SweeperIntervalSecondsOrDefault() {
+        return tier2SweeperIntervalSeconds != null ? tier2SweeperIntervalSeconds : 300;
     }
 }

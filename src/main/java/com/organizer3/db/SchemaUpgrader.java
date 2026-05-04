@@ -263,6 +263,11 @@ public class SchemaUpgrader {
             setVersion(48);
         }
 
+        if (version < 49) {
+            applyV49();
+            setVersion(49);
+        }
+
         log.info("Schema upgrade complete");
     }
 
@@ -1624,6 +1629,27 @@ public class SchemaUpgrader {
                     if (!e.getMessage().contains("duplicate column name")) {
                         throw e;
                     }
+                }
+            }
+        });
+    }
+
+    /**
+     * v49: Add {@code tier2_strategy_id} column to {@code translation_strategy} for tier-2 fallback pairing.
+     *
+     * <p>A nullable self-referential FK: each tier-1 strategy points to its tier-2 fallback.
+     * Tier-2 strategies have NULL in this column.
+     *
+     * <p>See spec/PROPOSAL_TRANSLATION_SERVICE.md §Phase 3.
+     */
+    private void applyV49() {
+        log.info("Applying migration v49: tier2_strategy_id column on translation_strategy");
+        jdbi.useHandle(h -> {
+            try {
+                h.execute("ALTER TABLE translation_strategy ADD COLUMN tier2_strategy_id INTEGER REFERENCES translation_strategy(id)");
+            } catch (Exception e) {
+                if (!e.getMessage().contains("duplicate column name")) {
+                    throw e;
                 }
             }
         });

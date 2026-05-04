@@ -40,6 +40,12 @@ public interface TranslationCacheRepository {
                        Integer evalTokens,
                        Long evalDurationNs);
 
+    /**
+     * Set the human-corrected text on a cache row (decision #6 — human correction wins).
+     * Does not overwrite {@code english_text} — both are preserved for auditing.
+     */
+    void updateHumanCorrection(long cacheRowId, String humanCorrectedText, String humanCorrectedAt);
+
     /** Total number of rows in the cache. */
     long countTotal();
 

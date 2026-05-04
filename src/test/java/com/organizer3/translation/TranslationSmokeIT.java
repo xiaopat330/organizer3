@@ -63,7 +63,7 @@ class TranslationSmokeIT {
 
         TranslationConfig config = new TranslationConfig(
                 "http://localhost:11434", 120, "gemma4:e4b", "qwen2.5:14b",
-                2, 3, 600, 300);
+                2, 3, 600, 300, 10, 60, 300);
 
         CallbackDispatcher callbackDispatcher = new CallbackDispatcher(jdbi);
         TranslationService service = new TranslationServiceImpl(

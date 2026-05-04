@@ -24,4 +24,10 @@ public interface TranslationStrategyRepository {
      * Caller is responsible for deactivating the old strategy row before inserting a replacement.
      */
     long insert(TranslationStrategy strategy);
+
+    /**
+     * Set the tier-2 fallback strategy id for the given strategy.
+     * Used by the seeder after both tier-1 and tier-2 strategies are seeded.
+     */
+    void setTier2StrategyId(long strategyId, long tier2StrategyId);
 }

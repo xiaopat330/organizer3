@@ -21,8 +21,10 @@ public record TranslationQueueRow(
         int attemptCount,
         String lastError
 ) {
-    public static final String STATUS_PENDING   = "pending";
-    public static final String STATUS_IN_FLIGHT = "in_flight";
-    public static final String STATUS_DONE      = "done";
-    public static final String STATUS_FAILED    = "failed";
+    public static final String STATUS_PENDING      = "pending";
+    public static final String STATUS_IN_FLIGHT    = "in_flight";
+    public static final String STATUS_DONE         = "done";
+    public static final String STATUS_FAILED       = "failed";
+    /** Tier-1 refused or produced sanitized output; waiting for tier-2 batch sweep. */
+    public static final String STATUS_TIER_2_PENDING = "tier_2_pending";
 }

@@ -41,7 +41,7 @@ class TranslationQueueSweeperTest {
 
         JdbiTranslationStrategyRepository strategyRepo = new JdbiTranslationStrategyRepository(jdbi);
         strategyId = strategyRepo.insert(new TranslationStrategy(
-                0, "label_basic", "gemma4:e4b", "Translate: {jp}", null, true));
+                0, "label_basic", "gemma4:e4b", "Translate: {jp}", null, true, null));
 
         queueRepo = new JdbiTranslationQueueRepository(jdbi);
         // Threshold of 10 minutes = 600 seconds
