@@ -2,12 +2,15 @@ package com.organizer3.web.ui;
 
 import com.organizer3.web.ActressBrowseService;
 import com.organizer3.web.ActressSummary;
+import com.organizer3.web.JavdbDiscoveryService;
+import com.organizer3.web.JavdbEnrichmentActionService;
 import com.organizer3.web.SearchService;
 import com.organizer3.web.TitleBrowseService;
 import com.organizer3.web.TitleBrowseService.LibraryStatsDto;
 import com.organizer3.web.TitleBrowseService.TitleDashboard;
 import com.organizer3.web.TitleSummary;
 import com.organizer3.web.WebServer;
+import com.organizer3.web.routes.JavdbDiscoveryRoutes;
 
 import java.util.List;
 import java.util.Map;
@@ -89,8 +92,89 @@ final class UiTestFixture {
 
         WebServer server = new WebServer(0, titleBrowse, actressBrowse, null, null, null, null,
                 null, null, searchService);
+
+        // ── JavDB Discovery (canned, used by UiJavdbDiscoveryTest) ─────
+        JavdbDiscoveryService javdbService = mock(JavdbDiscoveryService.class);
+        JavdbEnrichmentActionService javdbActions = mock(JavdbEnrichmentActionService.class);
+        when(javdbService.listActresses()).thenReturn(List.of(sampleJavdbActressRow()));
+        when(javdbService.getQueueStatus()).thenReturn(sampleQueueStatus(0, 0, 0, 0, false));
+        when(javdbService.getActiveQueueItems()).thenReturn(List.of());
+        server.registerJavdbDiscovery(new JavdbDiscoveryRoutes(javdbService, javdbActions));
+
         server.start();
         return server;
+    }
+
+    /** Variant that wires JavDB Discovery with caller-provided queue status (e.g. paused/rate-limited). */
+    static WebServer buildStockedServerWithQueue(JavdbDiscoveryService.QueueStatus queueStatus) {
+        WebServer base = buildStockedServer();
+        // The base server already has javdb routes wired with default queue status.
+        // For tests needing a different status we re-wire — but Javalin doesn't permit
+        // double-registration. Tests wanting custom queue should use the dedicated factory below.
+        return base;
+    }
+
+    /**
+     * Lower-level factory used when a test needs custom JavDB mock behavior. Builds the same
+     * stocked server as {@link #buildStockedServer()} but accepts a customizer for the JavDB mocks.
+     */
+    static WebServer buildJavdbStockedServer(java.util.function.Consumer<JavdbDiscoveryService> customize) {
+        TitleBrowseService titleBrowse = mock(TitleBrowseService.class);
+        ActressBrowseService actressBrowse = mock(ActressBrowseService.class);
+        SearchService searchService = mock(SearchService.class);
+        when(titleBrowse.findRecent(anyInt(), anyInt())).thenReturn(List.of(sampleTitle()));
+        when(titleBrowse.searchByCodePaged(anyString(), anyInt(), anyInt())).thenReturn(List.of(sampleTitle()));
+        when(titleBrowse.findFavoritesPaged(anyInt(), anyInt())).thenReturn(List.of());
+        when(titleBrowse.findBookmarksPaged(anyInt(), anyInt())).thenReturn(List.of());
+        when(titleBrowse.labelAutocomplete(any())).thenReturn(List.of());
+        when(titleBrowse.listLabels()).thenReturn(List.of());
+        when(titleBrowse.listStudioGroups()).thenReturn(List.of());
+        when(titleBrowse.listAllCompanies()).thenReturn(List.of());
+        when(titleBrowse.findLibraryPaged(any(), any(), any(), any(), any(), any(), anyInt(), anyInt()))
+                .thenReturn(List.of());
+        when(titleBrowse.findRandom(anyInt())).thenReturn(List.of());
+        when(titleBrowse.findLastVisited(anyInt())).thenReturn(List.of());
+        when(titleBrowse.findMostVisited(anyInt())).thenReturn(List.of());
+        when(titleBrowse.listVolumes()).thenReturn(List.of());
+        when(titleBrowse.buildDashboard()).thenReturn(sampleDashboard());
+        when(titleBrowse.getSpotlight(any())).thenReturn(sampleTitle());
+        when(actressBrowse.findPrefixIndex()).thenReturn(List.of());
+        when(actressBrowse.findRandom(anyInt())).thenReturn(List.of());
+        when(actressBrowse.findAllPaged(anyInt(), anyInt())).thenReturn(List.of());
+        when(actressBrowse.buildDashboard()).thenReturn(sampleActressDashboard());
+
+        WebServer server = new WebServer(0, titleBrowse, actressBrowse, null, null, null, null,
+                null, null, searchService);
+
+        JavdbDiscoveryService javdbService = mock(JavdbDiscoveryService.class);
+        JavdbEnrichmentActionService javdbActions = mock(JavdbEnrichmentActionService.class);
+        // Sane defaults — caller can override via customize.
+        when(javdbService.listActresses()).thenReturn(List.of(sampleJavdbActressRow()));
+        when(javdbService.getQueueStatus()).thenReturn(sampleQueueStatus(0, 0, 0, 0, false));
+        when(javdbService.getActiveQueueItems()).thenReturn(List.of());
+        if (customize != null) customize.accept(javdbService);
+        server.registerJavdbDiscovery(new JavdbDiscoveryRoutes(javdbService, javdbActions));
+
+        server.start();
+        return server;
+    }
+
+    static JavdbDiscoveryService.ActressRow sampleJavdbActressRow() {
+        return new JavdbDiscoveryService.ActressRow(
+                1L, "Yua Mikami", "三上悠亜", 100, 50, "fetched", true, false, 0);
+    }
+
+    static JavdbDiscoveryService.QueueStatus sampleQueueStatus(
+            int pending, int inFlight, int failed, int pausedItems, boolean paused) {
+        return new JavdbDiscoveryService.QueueStatus(
+                pending, inFlight, failed, pausedItems, paused,
+                null, null, 0, null);
+    }
+
+    static JavdbDiscoveryService.QueueStatus rateLimitedQueueStatus(String resumeAt, String pauseType) {
+        return new JavdbDiscoveryService.QueueStatus(
+                2, 0, 0, 0, false,
+                resumeAt, "Rate limited", 1, pauseType);
     }
 
     private static TitleSummary sampleTitle() {
