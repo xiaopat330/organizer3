@@ -336,7 +336,7 @@ writing. Config is already declared per-server in `organizer-config.yaml`
 **What changes**:
 
 - **Rename sidecar field `entityType` → `reason`** to match the updated
-  global trash contract (`spec/PROPOSAL_TRASH.md` §5). `reason` is
+  global trash contract (`spec/completed/PROPOSAL_TRASH.md` §5). `reason` is
   free-form app-provided text explaining *why* the item was trashed,
   not a structured type label. The four required fields are now
   `originalPath`, `trashedAt`, `volumeId`, `reason`.
@@ -421,7 +421,7 @@ surfaces it.
    would occur (rare in practice — most collisions would require the same
    title in the same actress folder to be trashed twice).
 2. **Sidecar metadata file.** Reuses the global trash contract defined
-   in `spec/PROPOSAL_TRASH.md`. Every trashed folder carries an
+   in `spec/completed/PROPOSAL_TRASH.md`. Every trashed folder carries an
    `ITEM.json` sidecar alongside it (mirrored path under `_trash/`) with
    the four required fields: `originalPath`, `trashedAt`, `volumeId`,
    `reason`. Duplicate triage fills `reason` with `"Duplicate Triage — {ranker rationale}"`,

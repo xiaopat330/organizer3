@@ -122,14 +122,14 @@ Remaining follow-ups:
 
 ### 4. Multi-file title dedup (inherited)
 
-`PROPOSAL_ORGANIZE_PIPELINE.md §6.2`. Size-foundation is shipped; the
+`spec/completed/PROPOSAL_ORGANIZE_PIPELINE.md §6.2`. Size-foundation is shipped; the
 `find_size_variant_titles` output is a triage feed. Next step is deciding a
 deletion policy (keep the largest? keep the h265 variant? keep whichever
 matches a duration we've probed?).
 
 ## Open design questions (still valid, inherited)
 
-- **Multi-file title dedup** — `PROPOSAL_ORGANIZE_PIPELINE.md §6.2` policy.
+- **Multi-file title dedup** — `spec/completed/PROPOSAL_ORGANIZE_PIPELINE.md §6.2` policy.
 
 ## One-line recap
 
