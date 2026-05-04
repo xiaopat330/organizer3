@@ -123,8 +123,6 @@ final class UiTestFixture {
     }
 
     private static void stubActressBrowseDefaults(ActressBrowseService actressBrowse) {
-        when(actressBrowse.findPrefixIndex()).thenReturn(List.of("Y", "A"));
-        when(actressBrowse.findTierCountsByPrefix(any())).thenReturn(Map.of("GODDESS", 2, "POPULAR", 5));
         when(actressBrowse.findRandom(anyInt())).thenReturn(List.of(sampleActress()));
         when(actressBrowse.findAllPaged(anyInt(), anyInt())).thenReturn(List.of(sampleActress()));
         when(actressBrowse.findByPrefixPaged(any(), any(), anyInt(), anyInt())).thenReturn(List.of(sampleActress()));
