@@ -27,18 +27,29 @@ No Spring. All dependencies are wired manually in `Application.java` (the compos
 ```
 com.organizer3
   Application.java          — composition root; wires all dependencies; starts shell + web server
+  ai/                       — ActressNameLookup (Claude API kanji-to-romaji lookup)
+  avatars/                  — AvatarStore, custom actress profile image management
   backup/                   — UserDataBackup, UserDataBackupService, entry records, RestoreResult
   command/                  — JAV shell command implementations (one class per command)
   config/                   — AppConfig singleton, YAML model records
   covers/                   — CoverPath utility (local cover image path resolution)
   db/                       — SchemaInitializer, SchemaUpgrader
-  filesystem/               — VolumeFileSystem interface + SmbFileSystem
+  enrichment/               — JavDB enrichment pipeline, review queue, tag definitions
+  filesystem/               — VolumeFileSystem interface + SmbFileSystem, DryRunFileSystem
+  javdb/                    — JavDB scraping client, slug resolution, enrichment models
+  mcp/                      — MCP server tool handlers
+  media/                    — Video probing, thumbnail generation, streaming utilities
   model/                    — JAV domain records: Title, TitleLocation, Actress, ActressAlias, Video, Volume
+  organize/                 — Organize pipeline operations (prep-fresh, sort-title, classify-actress)
+  rating/                   — Rating curve, grade computation
   repository/               — JAV repository interfaces + jdbi/ implementations
   shell/                    — SessionContext, OrganizerShell, PromptBuilder, CommandIO
   smb/                      — SmbConnector, SmbjConnector, VolumeConnection
   sync/                     — JAV sync operations, VolumeIndex, IndexLoader, TitleCodeParser
-  web/                      — WebServer, SearchService, AvBrowseService, ActressBrowseService, etc.
+  translation/              — Local LLM translation service (Ollama adapter, queue, cache, stage-name lookup)
+  trash/                    — Trash sidecar contract, RestoreService, sweep scheduler
+  utilities/                — Utilities task runner and MCP utility operations
+  web/                      — WebServer, browse services, dashboard builders, routes
 
   avstars/
     command/                — AV shell command implementations
@@ -71,7 +82,7 @@ interface VolumeFileSystem {
 }
 ```
 
-`SmbFileSystem` delegates to smbj's `DiskShare` API. `DryRunFileSystem` (file operation simulation) is not yet wired.
+`SmbFileSystem` delegates to smbj's `DiskShare` API. `DryRunFileSystem` wraps the real filesystem and suppresses mutating operations when the session is in dry-run mode.
 
 ### VolumeConnection
 
