@@ -178,6 +178,80 @@ class TranslationCacheRepositoryTest {
         assertEquals(1, cacheRepo.countFailed());
     }
 
+    // ── Phase 4: recentThroughputCount ───────────────────────────────────────
+
+    @Test
+    void recentThroughputCount_countsOnlySuccessfulWithinWindow() {
+        cacheRepo.insert(makeRow("h1", strategyId, "English"));   // successful
+        cacheRepo.insert(makeFailedRow("h2", strategyId));         // failure, no english
+
+        long count = cacheRepo.recentThroughputCount(java.time.Duration.ofHours(1));
+        assertEquals(1, count);  // only the successful row
+    }
+
+    @Test
+    void recentThroughputCount_zeroWhenEmpty() {
+        long count = cacheRepo.recentThroughputCount(java.time.Duration.ofHours(1));
+        assertEquals(0, count);
+    }
+
+    // ── Phase 4: findRecentFailures ───────────────────────────────────────────
+
+    @Test
+    void findRecentFailures_returnsFailedRowsOrderedByMostRecent() {
+        cacheRepo.insert(makeRow("h1", strategyId, "English")); // success — should NOT appear
+        cacheRepo.insert(makeFailedRow("h2", strategyId));
+
+        var failures = cacheRepo.findRecentFailures(10);
+        assertEquals(1, failures.size());
+        assertEquals("refused", failures.get(0).failureReason());
+    }
+
+    @Test
+    void findRecentFailures_emptyWhenNoFailures() {
+        cacheRepo.insert(makeRow("h1", strategyId, "English"));
+
+        var failures = cacheRepo.findRecentFailures(10);
+        assertTrue(failures.isEmpty());
+    }
+
+    @Test
+    void findRecentFailures_respectsLimit() {
+        for (int i = 0; i < 5; i++) {
+            cacheRepo.insert(makeFailedRow("h" + i, strategyId));
+        }
+
+        var failures = cacheRepo.findRecentFailures(3);
+        assertEquals(3, failures.size());
+    }
+
+    // ── Phase 4: latencyP95 ───────────────────────────────────────────────────
+
+    @Test
+    void latencyP95_nullWhenFewerThan5Samples() {
+        // Insert only 4 rows with latency
+        for (int i = 0; i < 4; i++) {
+            cacheRepo.insert(makeRowWithLatency("lp" + i, strategyId, "ok", (i + 1) * 1000));
+        }
+
+        assertNull(cacheRepo.latencyP95(100));
+    }
+
+    @Test
+    void latencyP95_computedCorrectly() {
+        // Insert 10 rows with latencies 100..1000ms
+        for (int i = 1; i <= 10; i++) {
+            cacheRepo.insert(makeRowWithLatency("lp" + i, strategyId, "ok", i * 100));
+        }
+
+        Long p95 = cacheRepo.latencyP95(100);
+        assertNotNull(p95);
+        // p95 of [100,200,300,400,500,600,700,800,900,1000] → index ceil(10*0.95)-1=9 → 1000
+        assertEquals(1000L, p95);
+    }
+
+    // ── Phase 4: existsActiveForSourceAndStrategy (queue repo) ───────────────
+
     // --- helpers ---
 
     private TranslationCacheRow makeRow(String hash, long stratId, String english) {
@@ -189,6 +263,12 @@ class TranslationCacheRepositoryTest {
     private TranslationCacheRow makeFailedRow(String hash, long stratId) {
         return new TranslationCacheRow(0, hash, "text", stratId, null,
                 null, null, "refused", null, null, null, null, null,
+                ISO_UTC.format(Instant.now()));
+    }
+
+    private TranslationCacheRow makeRowWithLatency(String hash, long stratId, String english, int latencyMs) {
+        return new TranslationCacheRow(0, hash, "text", stratId, english,
+                null, null, null, null, latencyMs, null, null, null,
                 ISO_UTC.format(Instant.now()));
     }
 }

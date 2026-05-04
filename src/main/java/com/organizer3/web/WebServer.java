@@ -196,6 +196,11 @@ public class WebServer {
         routes.register(app);
     }
 
+    /** Mounts the Translation Tools endpoints ({@code /api/translation/*}). */
+    public void registerTranslation(com.organizer3.web.routes.TranslationRoutes routes) {
+        routes.register(app);
+    }
+
     /** Mounts the javdb Discovery read-only endpoints ({@code /api/javdb/discovery/*}). */
     public void registerJavdbDiscovery(com.organizer3.web.routes.JavdbDiscoveryRoutes routes) {
         routes.register(app);

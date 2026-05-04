@@ -55,7 +55,7 @@ public class TranslationWorker implements Runnable {
      * (≤ 80 chars) AND matches the refusal pattern. Short-but-valid translations are allowed
      * through; only short + refusal-keyword triggers escalation.
      */
-    private static boolean isRefusal(String text) {
+    static boolean isRefusal(String text) {
         if (text == null || text.isBlank()) return true;
         // Short output + refusal keyword = refusal
         return text.length() <= 80 && REFUSAL_PATTERN.matcher(text).find();
@@ -69,6 +69,7 @@ public class TranslationWorker implements Runnable {
     private final TranslationConfig config;
     private final ObjectMapper json;
     private final OllamaModelState modelState;
+    private final HealthGate healthGate;
 
     public TranslationWorker(OllamaAdapter ollamaAdapter,
                               TranslationStrategyRepository strategyRepo,
@@ -89,6 +90,20 @@ public class TranslationWorker implements Runnable {
                               TranslationConfig config,
                               ObjectMapper json,
                               OllamaModelState modelState) {
+        this(ollamaAdapter, strategyRepo, cacheRepo, queueRepo, callbackDispatcher, config, json,
+                modelState,
+                new HealthGate(ollamaAdapter, cacheRepo, config));
+    }
+
+    public TranslationWorker(OllamaAdapter ollamaAdapter,
+                              TranslationStrategyRepository strategyRepo,
+                              TranslationCacheRepository cacheRepo,
+                              TranslationQueueRepository queueRepo,
+                              CallbackDispatcher callbackDispatcher,
+                              TranslationConfig config,
+                              ObjectMapper json,
+                              OllamaModelState modelState,
+                              HealthGate healthGate) {
         this.ollamaAdapter      = ollamaAdapter;
         this.strategyRepo       = strategyRepo;
         this.cacheRepo          = cacheRepo;
@@ -97,6 +112,7 @@ public class TranslationWorker implements Runnable {
         this.config             = config;
         this.json               = json;
         this.modelState         = modelState;
+        this.healthGate         = healthGate;
     }
 
     /**
@@ -140,6 +156,7 @@ public class TranslationWorker implements Runnable {
 
     /**
      * Worker loop — runs until the thread is interrupted. Sleeps between polls when idle.
+     * Pauses when the health gate reports unhealthy (Ollama unreachable or model missing).
      */
     @Override
     public void run() {
@@ -147,6 +164,14 @@ public class TranslationWorker implements Runnable {
         int pollMs = config.workerPollIntervalSecondsOrDefault() * 1000;
         while (!Thread.currentThread().isInterrupted()) {
             try {
+                // Health gate — pause if Ollama is unreachable or tier-1 model is missing
+                if (!healthGate.isHealthy()) {
+                    HealthStatus status = healthGate.currentStatus();
+                    log.warn("TranslationWorker: pausing — unhealthy: {}", status.message());
+                    Thread.sleep(30_000L); // wait 30s before re-checking
+                    continue;
+                }
+
                 boolean didWork = processOne();
                 if (!didWork) {
                     Thread.sleep(pollMs);
@@ -261,8 +286,12 @@ public class TranslationWorker implements Runnable {
             cacheRepo.insert(cacheRow);
         }
 
-        log.info("TranslationWorker: row={} strategy={} latency={}ms success={} escalate={}",
-                row.id(), strategy.name(), latencyMs, englishText != null, escalateToTier2);
+        log.info("TranslationWorker: row={} strategy={} model={} latency={}ms promptTokens={} evalTokens={} sourceLen={} success={} escalate={} cacheHit=false",
+                row.id(), strategy.name(), strategy.modelId(), latencyMs,
+                ollamaResp != null ? ollamaResp.promptEvalCount() : null,
+                ollamaResp != null ? ollamaResp.evalCount() : null,
+                row.sourceText().length(),
+                englishText != null, escalateToTier2);
 
         if (escalateToTier2) {
             // Mark as tier_2_pending — the Tier2BatchSweeper will handle it

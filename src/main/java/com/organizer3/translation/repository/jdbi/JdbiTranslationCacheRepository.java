@@ -6,10 +6,18 @@ import lombok.RequiredArgsConstructor;
 import org.jdbi.v3.core.Jdbi;
 import org.jdbi.v3.core.mapper.RowMapper;
 
+import java.time.Duration;
+import java.time.Instant;
+import java.time.ZoneOffset;
+import java.time.format.DateTimeFormatter;
+import java.util.List;
 import java.util.Optional;
 
 @RequiredArgsConstructor
 public class JdbiTranslationCacheRepository implements TranslationCacheRepository {
+
+    private static final DateTimeFormatter ISO_UTC =
+            DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'").withZone(ZoneOffset.UTC);
 
     private static final RowMapper<TranslationCacheRow> MAPPER = (rs, ctx) -> {
         // eval_duration_ns is a LONG column, but SQLite may return Integer for small values.
@@ -175,5 +183,61 @@ public class JdbiTranslationCacheRepository implements TranslationCacheRepositor
                         .mapTo(Long.class)
                         .one()
         );
+    }
+
+    @Override
+    public long recentThroughputCount(Duration window) {
+        String threshold = ISO_UTC.format(Instant.now().minus(window));
+        return jdbi.withHandle(h ->
+                h.createQuery("""
+                        SELECT COUNT(*) FROM translation_cache
+                        WHERE english_text IS NOT NULL
+                          AND cached_at >= :threshold
+                        """)
+                        .bind("threshold", threshold)
+                        .mapTo(Long.class)
+                        .one()
+        );
+    }
+
+    @Override
+    public List<TranslationCacheRow> findRecentFailures(int limit) {
+        return jdbi.withHandle(h ->
+                h.createQuery("""
+                        SELECT id, source_hash, source_text, strategy_id,
+                               english_text, human_corrected_text, human_corrected_at,
+                               failure_reason, retry_after,
+                               latency_ms, prompt_tokens, eval_tokens, eval_duration_ns,
+                               cached_at
+                        FROM translation_cache
+                        WHERE failure_reason IS NOT NULL
+                        ORDER BY cached_at DESC
+                        LIMIT :limit
+                        """)
+                        .bind("limit", limit)
+                        .map(MAPPER)
+                        .list()
+        );
+    }
+
+    @Override
+    public Long latencyP95(int sampleSize) {
+        // Fetch recent successful latencies, sort, take p95
+        List<Integer> latencies = jdbi.withHandle(h ->
+                h.createQuery("""
+                        SELECT latency_ms FROM translation_cache
+                        WHERE english_text IS NOT NULL
+                          AND latency_ms IS NOT NULL
+                        ORDER BY cached_at DESC
+                        LIMIT :limit
+                        """)
+                        .bind("limit", sampleSize)
+                        .mapTo(Integer.class)
+                        .list()
+        );
+        if (latencies.size() < 5) return null;
+        List<Integer> sorted = latencies.stream().sorted().toList();
+        int idx = (int) Math.ceil(sorted.size() * 0.95) - 1;
+        return sorted.get(Math.min(idx, sorted.size() - 1)).longValue();
     }
 }
