@@ -1,12 +1,8 @@
 package com.organizer3.translation;
 
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.organizer3.translation.ollama.OllamaAdapter;
-import com.organizer3.translation.ollama.OllamaException;
-import com.organizer3.translation.ollama.OllamaRequest;
-import com.organizer3.translation.ollama.OllamaResponse;
 import com.organizer3.translation.repository.TranslationCacheRepository;
+import com.organizer3.translation.repository.TranslationQueueRepository;
 import com.organizer3.translation.repository.TranslationStrategyRepository;
 import lombok.extern.slf4j.Slf4j;
 
@@ -14,41 +10,43 @@ import java.time.Instant;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 
 /**
- * Phase 1 implementation of {@link TranslationService}.
+ * Phase 2 implementation of {@link TranslationService}.
  *
- * <p>All translation is synchronous (in-thread). Callers wanting non-blocking behaviour must
- * invoke {@link #requestTranslation} from a background thread. The async queue (Phase 2) will
- * make this automatic.
+ * <p>{@link #requestTranslation} is now async — it enqueues work and returns immediately.
+ * A cache hit writes a {@code done} queue row and dispatches the callback synchronously.
+ * A cache miss writes a {@code pending} queue row for the worker to process.
  *
  * <p>Strategy selection delegates to {@link StrategySelector}. Cache key derivation
- * delegates to {@link TranslationNormalization}.
+ * delegates to {@link TranslationNormalization}. Ollama execution is in {@link TranslationWorker}.
  */
 @Slf4j
 public class TranslationServiceImpl implements TranslationService {
 
-    private static final DateTimeFormatter ISO_UTC =
+    static final DateTimeFormatter ISO_UTC =
             DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'").withZone(ZoneOffset.UTC);
 
-    private final OllamaAdapter ollamaAdapter;
-    private final TranslationStrategyRepository strategyRepo;
-    private final TranslationCacheRepository cacheRepo;
-    private final TranslationConfig config;
-    private final ObjectMapper json;
+    final OllamaAdapter ollamaAdapter;
+    final TranslationStrategyRepository strategyRepo;
+    final TranslationCacheRepository cacheRepo;
+    final TranslationQueueRepository queueRepo;
+    final TranslationConfig config;
+    final CallbackDispatcher callbackDispatcher;
 
     public TranslationServiceImpl(OllamaAdapter ollamaAdapter,
                                    TranslationStrategyRepository strategyRepo,
                                    TranslationCacheRepository cacheRepo,
+                                   TranslationQueueRepository queueRepo,
                                    TranslationConfig config,
-                                   ObjectMapper json) {
-        this.ollamaAdapter = ollamaAdapter;
-        this.strategyRepo  = strategyRepo;
-        this.cacheRepo     = cacheRepo;
-        this.config        = config;
-        this.json          = json;
+                                   CallbackDispatcher callbackDispatcher) {
+        this.ollamaAdapter       = ollamaAdapter;
+        this.strategyRepo        = strategyRepo;
+        this.cacheRepo           = cacheRepo;
+        this.queueRepo           = queueRepo;
+        this.config              = config;
+        this.callbackDispatcher  = callbackDispatcher;
     }
 
     // -------------------------------------------------------------------------
@@ -94,27 +92,26 @@ public class TranslationServiceImpl implements TranslationService {
         Optional<TranslationCacheRow> existing = cacheRepo.findByHashAndStrategy(hash, strategy.id());
         if (existing.isPresent()) {
             TranslationCacheRow row = existing.get();
-            // If this is a transient failure whose retry_after has passed, re-attempt
-            if (row.failureReason() != null && !"unreachable".equals(row.failureReason())) {
-                log.debug("requestTranslation: permanent failure cached for hash={}", hash.substring(0, 8));
-                return row.id();
-            }
-            if (row.retryAfter() != null) {
-                Instant retryAt = Instant.parse(row.retryAfter());
-                if (Instant.now().isBefore(retryAt)) {
-                    log.debug("requestTranslation: transient failure cached, retry_after not reached, skipping");
-                    return row.id();
-                }
-                // retry_after elapsed — fall through to re-attempt
-                log.info("requestTranslation: retrying after transient failure hash={}", hash.substring(0, 8));
-            } else if (row.bestTranslation() != null) {
+            if (row.bestTranslation() != null) {
+                // Cache hit — mark done immediately, dispatch callback, return
                 log.debug("requestTranslation: cache HIT strategy={} hash={}", strategy.name(), hash.substring(0, 8));
-                return row.id();
+                String now = ISO_UTC.format(Instant.now());
+                long queueId = queueRepo.enqueue(normalised, strategy.id(), now,
+                        TranslationQueueRow.STATUS_DONE, req.callbackKind(), req.callbackId());
+                queueRepo.markDone(queueId, now);
+                callbackDispatcher.dispatch(req.callbackKind(), req.callbackId(), row.bestTranslation());
+                return queueId;
             }
+            // Permanent or transient failure cached — still enqueue so worker can retry
+            // (worker's pre-flight cache check will re-evaluate retry_after)
         }
 
-        // Build and execute the translation
-        return executeTranslation(normalised, hash, strategy, req, existing.map(TranslationCacheRow::id).orElse(null));
+        // Cache miss — enqueue for async processing
+        String now = ISO_UTC.format(Instant.now());
+        long queueId = queueRepo.enqueue(normalised, strategy.id(), now,
+                TranslationQueueRow.STATUS_PENDING, req.callbackKind(), req.callbackId());
+        log.debug("requestTranslation: enqueued queueId={} strategy={} hash={}", queueId, strategy.name(), hash.substring(0, 8));
+        return queueId;
     }
 
     @Override
@@ -128,112 +125,11 @@ public class TranslationServiceImpl implements TranslationService {
         return new TranslationServiceStats(
                 cacheRepo.countTotal(),
                 cacheRepo.countSuccessful(),
-                cacheRepo.countFailed()
+                cacheRepo.countFailed(),
+                queueRepo.countByStatus(TranslationQueueRow.STATUS_PENDING),
+                queueRepo.countByStatus(TranslationQueueRow.STATUS_IN_FLIGHT),
+                queueRepo.countByStatus(TranslationQueueRow.STATUS_DONE),
+                queueRepo.countByStatus(TranslationQueueRow.STATUS_FAILED)
         );
-    }
-
-    // -------------------------------------------------------------------------
-    // Internal translation execution
-    // -------------------------------------------------------------------------
-
-    private long executeTranslation(String normalised,
-                                     String hash,
-                                     TranslationStrategy strategy,
-                                     TranslationRequest req,
-                                     Long existingRowId) {
-        String prompt = buildPrompt(strategy.promptTemplate(), normalised);
-
-        Map<String, Object> options = null;
-        if (strategy.optionsJson() != null) {
-            try {
-                options = json.readValue(strategy.optionsJson(), new TypeReference<>() {});
-            } catch (Exception e) {
-                log.warn("requestTranslation: failed to parse options_json for strategy '{}': {}",
-                        strategy.name(), e.getMessage());
-            }
-        }
-
-        OllamaRequest ollamaReq = new OllamaRequest(
-                strategy.modelId(),
-                prompt,
-                null,
-                options,
-                config.timeoutOrDefault()
-        );
-
-        long startMs = System.currentTimeMillis();
-        String englishText = null;
-        String failureReason = null;
-        String retryAfter = null;
-        OllamaResponse ollamaResp = null;
-
-        try {
-            ollamaResp = ollamaAdapter.generate(ollamaReq);
-            String raw = ollamaResp.responseText().trim();
-            // Strip a leading "English:" marker if the model echoed it
-            if (raw.startsWith("English:")) {
-                raw = raw.substring("English:".length()).trim();
-            }
-            englishText = raw.isEmpty() ? null : raw;
-            if (englishText == null) {
-                failureReason = "empty_response";
-            }
-        } catch (OllamaException e) {
-            if (isTransient(e)) {
-                failureReason = "unreachable";
-                retryAfter = ISO_UTC.format(Instant.now().plusSeconds(300));
-            } else {
-                failureReason = "adapter_error";
-            }
-            log.warn("requestTranslation: Ollama error for strategy '{}': {}", strategy.name(), e.getMessage());
-        }
-
-        long latencyMs = System.currentTimeMillis() - startMs;
-        String cachedAt = ISO_UTC.format(Instant.now());
-
-        if (existingRowId != null) {
-            cacheRepo.updateOutcome(existingRowId,
-                    englishText, failureReason, retryAfter,
-                    (int) latencyMs,
-                    ollamaResp != null ? ollamaResp.promptEvalCount() : null,
-                    ollamaResp != null ? ollamaResp.evalCount() : null,
-                    ollamaResp != null ? ollamaResp.evalDurationNs() : null);
-            log.info("requestTranslation: updated cache row={} strategy={} latency={}ms success={}",
-                    existingRowId, strategy.name(), latencyMs, englishText != null);
-            return existingRowId;
-        } else {
-            TranslationCacheRow row = new TranslationCacheRow(
-                    0, // id assigned by DB
-                    hash,
-                    normalised,
-                    strategy.id(),
-                    englishText,
-                    null, null, // human_corrected_text, human_corrected_at
-                    failureReason,
-                    retryAfter,
-                    (int) latencyMs,
-                    ollamaResp != null ? ollamaResp.promptEvalCount() : null,
-                    ollamaResp != null ? ollamaResp.evalCount() : null,
-                    ollamaResp != null ? ollamaResp.evalDurationNs() : null,
-                    cachedAt
-            );
-            long id = cacheRepo.insert(row);
-            log.info("requestTranslation: cached row={} strategy={} latency={}ms success={}",
-                    id, strategy.name(), latencyMs, englishText != null);
-            return id;
-        }
-    }
-
-    private static String buildPrompt(String template, String sourceText) {
-        return template.replace("{jp}", sourceText);
-    }
-
-    private static boolean isTransient(OllamaException e) {
-        String msg = e.getMessage();
-        return msg != null && (msg.contains("Connection refused")
-                || msg.contains("ConnectException")
-                || msg.contains("SocketTimeoutException")
-                || msg.contains("timeout")
-                || msg.contains("unreachable"));
     }
 }

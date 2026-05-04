@@ -29,16 +29,17 @@ public interface TranslationService {
     Optional<String> getCached(String sourceText);
 
     /**
-     * Ensure a translation exists in the cache for the given request.
+     * Submit translation work. Returns a queue row id immediately.
      *
-     * <p>If the text is already cached (any strategy), returns immediately with the cached
-     * row id. Otherwise calls Ollama synchronously in the calling thread and writes the result
-     * to the cache before returning.
+     * <p>If the text is already cached for the selected strategy, a queue row with
+     * {@code status='done'} is written immediately, the callback (if any) is dispatched
+     * synchronously, and the queue row id is returned. No worker involvement.
      *
-     * <p>In Phase 2 this will enqueue work instead of calling synchronously — callers should
-     * not rely on the translation being available immediately after this call returns.
+     * <p>If the text is not cached, a queue row with {@code status='pending'} is written
+     * and the worker will process it asynchronously. The caller should not expect the
+     * translation to be available immediately after this call returns.
      *
-     * @return the {@code translation_cache} row id (new or existing)
+     * @return the {@code translation_queue} row id
      */
     long requestTranslation(TranslationRequest req);
 
