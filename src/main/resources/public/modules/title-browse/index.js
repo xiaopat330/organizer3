@@ -2,7 +2,6 @@ import { esc } from '../utils.js';
 import { pushNav } from '../nav.js';
 import { showView, setActiveGrid, ensureSentinel, updateBreadcrumb, ScrollingGrid } from '../grid.js';
 import { makeTitleCard } from '../cards.js';
-import { tagBadgeHtml } from '../icons.js';
 import { ensureStudioGroups } from '../studio-data.js';
 import { resetActressState, actressesBtn } from '../actress-browse.js';
 import { MAX_TOTAL } from '../config.js';
@@ -10,7 +9,7 @@ import { effectiveCols, colsSliderHtml, wireColsSlider } from '../grid-cols.js';
 
 import { renderTitleDashboard, titleSpotlightRotator } from './dashboard.js';
 import { renderLibraryFilterPanel, hideTagsPanel, scheduleLibraryQuery } from './library.js';
-import { enterUnsortedMode as enterUnsortedModeImpl, enterArchiveMode as enterArchiveModeImpl, showBrowseFilterBar, hideBrowseFilterBar, resetBrowseFilters, scheduleBrowseFilteredQuery } from './pool.js';
+import { enterUnsortedMode as enterUnsortedModeImpl, enterArchiveMode as enterArchiveModeImpl, showBrowseFilterBar, hideBrowseFilterBar, resetBrowseFilters } from './pool.js';
 import { loadAndRenderStudioGroupRow, selectStudioGroup, showStudioGroupRow, hideStudioGroupRow } from './studio.js';
 
 // ── DOM refs ──────────────────────────────────────────────────────────────

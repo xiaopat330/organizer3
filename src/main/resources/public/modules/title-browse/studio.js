@@ -1,7 +1,7 @@
 // Studio browser: group-row, label catalog, company detail panel.
 //
 // Exports:
-//   renderStudioGroupRow(state, titleStudioGroupRow)
+//   loadAndRenderStudioGroupRow(state, titleStudioGroupRow, onSelect)
 //   selectStudioGroup(state, slug, titleStudioLabelsEl)
 //   showStudioGroupRow(titleStudioDivider, titleStudioGroupRow)
 //   hideStudioGroupRow(state, titleStudioDivider, titleStudioGroupRow, titleStudioLabelsEl)
@@ -11,13 +11,7 @@ import { ensureStudioGroups, ensureTitleLabels, renderTwoColumnStudioPanel } fro
 import { makeActressCard } from '../cards.js';
 import { openActressDetail } from '../actress-detail.js';
 
-export function renderStudioGroupRow(state, titleStudioGroupRow) {
-  // Groups are passed via data attribute; callers must call ensureStudioGroups first.
-  // This fn is called as: ensureStudioGroups().then(groups => renderStudioGroupRow(state, titleStudioGroupRow, groups, selectStudioGroupFn))
-  // — but we use a wrapper closure in index.js; the actual implementation is below.
-}
-
-// Internal implementation used by initStudio()
+// Internal — called by loadAndRenderStudioGroupRow
 function _renderStudioGroupRow(state, titleStudioGroupRow, groups, onSelect) {
   titleStudioGroupRow.innerHTML = '';
   groups.forEach(g => {

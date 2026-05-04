@@ -2,7 +2,7 @@
 // studio-group filtered grid header.
 //
 // Exports:
-//   renderActressStudioGroupRow(state, actressStudioGroupRow, onSelect)
+//   loadAndRenderActressStudioGroupRow(state, actressStudioGroupRow, ...)
 //   selectActressStudioGroup(state, slug, actressStudioGroupRow, actressStudioGroupHeaderEl, actressStudioLabelsEl, actressGridEl)
 //   renderActressGridHeader(state, group, slug, companyCounts, actressGridHeaderEl, actressScrollGrid, ensureSentinel, selectMode)
 //   showActressStudioGroupRow(actressStudioDivider, actressStudioGroupRow)
@@ -11,12 +11,6 @@
 import { esc } from '../utils.js';
 import { ensureStudioGroups, ensureTitleLabels, renderTwoColumnStudioPanel } from '../studio-data.js';
 import { ensureSentinel } from '../grid.js';
-
-export function renderActressStudioGroupRow(state, actressStudioGroupRow, onSelect) {
-  actressStudioGroupRow.innerHTML = '';
-  // Groups must be pre-fetched by caller (index.js calls ensureStudioGroups first).
-  // See loadAndRenderActressStudioGroupRow below.
-}
 
 // Internal — called by loadAndRenderActressStudioGroupRow
 function _renderActressStudioGroupRow(state, actressStudioGroupRow, groups, onSelect) {
