@@ -1,13 +1,15 @@
 package com.organizer3.web.ui;
 
 import com.organizer3.web.ActressBrowseService;
+import com.organizer3.web.ActressDashboardBuilder;
 import com.organizer3.web.ActressSummary;
 import com.organizer3.web.JavdbDiscoveryService;
 import com.organizer3.web.JavdbEnrichmentActionService;
 import com.organizer3.web.SearchService;
 import com.organizer3.web.TitleBrowseService;
-import com.organizer3.web.TitleBrowseService.LibraryStatsDto;
-import com.organizer3.web.TitleBrowseService.TitleDashboard;
+import com.organizer3.web.TitleDashboardBuilder;
+import com.organizer3.web.TitleDashboardBuilder.LibraryStatsDto;
+import com.organizer3.web.TitleDashboardBuilder.TitleDashboard;
 import com.organizer3.web.TitleSummary;
 import com.organizer3.web.WebServer;
 import com.organizer3.web.routes.JavdbDiscoveryRoutes;
@@ -220,8 +222,8 @@ final class UiTestFixture {
         );
     }
 
-    private static ActressBrowseService.ActressDashboard sampleActressDashboard() {
-        return new ActressBrowseService.ActressDashboard(
+    private static ActressDashboardBuilder.ActressDashboard sampleActressDashboard() {
+        return new ActressDashboardBuilder.ActressDashboard(
                 sampleActress(),  // spotlight
                 List.of(),        // birthdaysToday
                 List.of(),        // newFaces
