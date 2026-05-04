@@ -7,6 +7,7 @@ import com.organizer3.avstars.repository.AvScreenshotRepository;
 import com.organizer3.avstars.repository.AvVideoRepository;
 import com.organizer3.media.StreamActivityTracker;
 import io.javalin.Javalin;
+import io.javalin.http.Context;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -34,7 +35,8 @@ public class AvScreenshotQueueRoutes {
         // POST /api/av/actresses/{id}/screenshots/enqueue
         // Adds each video with no existing screenshots to the queue. Idempotent.
         app.post("/api/av/actresses/{id}/screenshots/enqueue", ctx -> {
-            long actressId = Long.parseLong(ctx.pathParam("id"));
+            long actressId = parseId(ctx);
+            if (actressId < 0) { ctx.status(400); return; }
             var videos = videoRepo.findByActress(actressId);
 
             int alreadyDone   = 0;
@@ -58,21 +60,24 @@ public class AvScreenshotQueueRoutes {
 
         // POST /api/av/actresses/{id}/screenshots/pause
         app.post("/api/av/actresses/{id}/screenshots/pause", ctx -> {
-            long actressId = Long.parseLong(ctx.pathParam("id"));
+            long actressId = parseId(ctx);
+            if (actressId < 0) { ctx.status(400); return; }
             int paused = queueRepo.pauseActress(actressId);
             ctx.json(Map.of("paused", paused));
         });
 
         // POST /api/av/actresses/{id}/screenshots/resume
         app.post("/api/av/actresses/{id}/screenshots/resume", ctx -> {
-            long actressId = Long.parseLong(ctx.pathParam("id"));
+            long actressId = parseId(ctx);
+            if (actressId < 0) { ctx.status(400); return; }
             int resumed = queueRepo.resumeActress(actressId);
             ctx.json(Map.of("resumed", resumed));
         });
 
         // DELETE /api/av/actresses/{id}/screenshots/queue ("stop")
         app.delete("/api/av/actresses/{id}/screenshots/queue", ctx -> {
-            long actressId = Long.parseLong(ctx.pathParam("id"));
+            long actressId = parseId(ctx);
+            if (actressId < 0) { ctx.status(400); return; }
             int removed = queueRepo.clearForActress(actressId);
             ctx.json(Map.of("removed", removed));
         });
@@ -105,5 +110,13 @@ public class AvScreenshotQueueRoutes {
             out.put("currentActressId", worker.getCurrentActressId());
             ctx.json(out);
         });
+    }
+
+    private long parseId(Context ctx) {
+        try {
+            return Long.parseLong(ctx.pathParam("id"));
+        } catch (NumberFormatException e) {
+            return -1;
+        }
     }
 }
