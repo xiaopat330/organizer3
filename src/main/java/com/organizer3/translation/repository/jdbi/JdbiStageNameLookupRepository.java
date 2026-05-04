@@ -4,7 +4,6 @@ import com.organizer3.translation.StageNameLookupRow;
 import com.organizer3.translation.repository.StageNameLookupRepository;
 import lombok.RequiredArgsConstructor;
 import org.jdbi.v3.core.Jdbi;
-import org.jdbi.v3.core.mapper.RowMapper;
 
 import java.time.Instant;
 import java.time.ZoneOffset;
@@ -17,15 +16,6 @@ public class JdbiStageNameLookupRepository implements StageNameLookupRepository 
 
     private static final DateTimeFormatter ISO_UTC =
             DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'").withZone(ZoneOffset.UTC);
-
-    private static final RowMapper<StageNameLookupRow> MAPPER = (rs, ctx) -> new StageNameLookupRow(
-            rs.getLong("id"),
-            rs.getString("kanji_form"),
-            rs.getString("romanized_form"),
-            rs.getString("actress_slug"),
-            rs.getString("source"),
-            rs.getString("seeded_at")
-    );
 
     private final Jdbi jdbi;
 
