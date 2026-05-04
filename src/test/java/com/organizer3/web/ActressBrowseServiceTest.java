@@ -472,7 +472,7 @@ class ActressBrowseServiceTest {
         when(actressRepo.computeActressLibraryStats()).thenReturn(
                 new ActressRepository.ActressLibraryStats(100, 12, 5, 4, 2, 3, 6));
 
-        ActressBrowseService.ActressDashboard d = service.buildDashboard();
+        ActressDashboardBuilder.ActressDashboard d = service.buildDashboard();
 
         assertNotNull(d.spotlight());
         assertEquals("Spotlight", d.spotlight().getCanonicalName());
@@ -524,7 +524,7 @@ class ActressBrowseServiceTest {
         when(actressRepo.computeActressLibraryStats()).thenReturn(
                 new ActressRepository.ActressLibraryStats(0, 0, 0, 0, 0, 0, 0));
 
-        ActressBrowseService.ActressDashboard d = service.buildDashboard();
+        ActressDashboardBuilder.ActressDashboard d = service.buildDashboard();
 
         assertEquals(1, d.newFaces().size());
         assertEquals("Fallback", d.newFaces().get(0).getCanonicalName());
@@ -546,7 +546,7 @@ class ActressBrowseServiceTest {
         when(actressRepo.computeActressLibraryStats()).thenReturn(
                 new ActressRepository.ActressLibraryStats(0, 0, 0, 0, 0, 0, 0));
 
-        ActressBrowseService.ActressDashboard d = service.buildDashboard();
+        ActressDashboardBuilder.ActressDashboard d = service.buildDashboard();
         assertNotNull(d.birthdaysToday());
         assertTrue(d.birthdaysToday().isEmpty(), "JS layer hides the panel when empty");
     }
@@ -598,7 +598,7 @@ class ActressBrowseServiceTest {
         Title t = title(50L, "vol-a", "stars/popular", "/stars/popular/Complete/ABP-001");
         when(titleRepo.findByActressIds(any())).thenReturn(Map.of(50L, List.of(t)));
 
-        ActressBrowseService.ActressDashboard d = service.buildDashboard();
+        ActressDashboardBuilder.ActressDashboard d = service.buildDashboard();
 
         assertEquals(2, d.researchGaps().size());
         var completeGap = d.researchGaps().get(0);
@@ -642,7 +642,7 @@ class ActressBrowseServiceTest {
                 "ABP",  new Label("ABP",  "Absolutely Perfect", "Prestige Unmapped", null, null)
         ));
 
-        ActressBrowseService.ActressDashboard d = service.buildDashboard();
+        ActressDashboardBuilder.ActressDashboard d = service.buildDashboard();
 
         // Only the WILL group should appear (ABP's company is unmapped).
         assertEquals(1, d.topGroups().size());

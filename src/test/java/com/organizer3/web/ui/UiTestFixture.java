@@ -1,6 +1,7 @@
 package com.organizer3.web.ui;
 
 import com.organizer3.web.ActressBrowseService;
+import com.organizer3.web.ActressDashboardBuilder;
 import com.organizer3.web.ActressSummary;
 import com.organizer3.web.JavdbDiscoveryService;
 import com.organizer3.web.JavdbEnrichmentActionService;
@@ -220,8 +221,8 @@ final class UiTestFixture {
         );
     }
 
-    private static ActressBrowseService.ActressDashboard sampleActressDashboard() {
-        return new ActressBrowseService.ActressDashboard(
+    private static ActressDashboardBuilder.ActressDashboard sampleActressDashboard() {
+        return new ActressDashboardBuilder.ActressDashboard(
                 sampleActress(),  // spotlight
                 List.of(),        // birthdaysToday
                 List.of(),        // newFaces
