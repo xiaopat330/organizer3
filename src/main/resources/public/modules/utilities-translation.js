@@ -65,6 +65,8 @@ async function loadStats() {
       <div class="trans-stat"><span class="trans-stat-label">Tier-2 pending</span><span class="trans-stat-val">${data.queueTier2Pending}</span></div>
       <div class="trans-stat"><span class="trans-stat-label">Done</span><span class="trans-stat-val">${data.queueDone}</span></div>
       <div class="trans-stat"><span class="trans-stat-label">Throughput (1h)</span><span class="trans-stat-val">${data.throughputLastHour}</span></div>
+      <div class="trans-stat"><span class="trans-stat-label">Stage-name lookup</span><span class="trans-stat-val">${data.stageNameLookupSize ?? 0}</span></div>
+      <div class="trans-stat"><span class="trans-stat-label">Suggestions unreviewed</span><span class="trans-stat-val">${data.stageNameSuggestionsUnreviewed ?? 0}</span></div>
     `;
   } catch (err) {
     console.error('Translation stats failed', err);

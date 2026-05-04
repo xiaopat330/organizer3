@@ -724,12 +724,46 @@ public class SchemaInitializer {
                     CREATE INDEX IF NOT EXISTS idx_tq_status
                         ON translation_queue(status, submitted_at)""");
 
+            // stage_name_lookup: curated kanji→romaji seed table (v50).
+            h.execute("""
+                    CREATE TABLE IF NOT EXISTS stage_name_lookup (
+                        id              INTEGER PRIMARY KEY AUTOINCREMENT,
+                        kanji_form      TEXT NOT NULL UNIQUE,
+                        romanized_form  TEXT NOT NULL,
+                        actress_slug    TEXT,
+                        source          TEXT NOT NULL DEFAULT 'yaml_seed',
+                        seeded_at       TEXT NOT NULL
+                    )""");
+            h.execute("""
+                    CREATE INDEX IF NOT EXISTS idx_snl_kanji
+                        ON stage_name_lookup(kanji_form)""");
+
+            // stage_name_suggestion: LLM-produced suggestions for human review (v50).
+            h.execute("""
+                    CREATE TABLE IF NOT EXISTS stage_name_suggestion (
+                        id               INTEGER PRIMARY KEY AUTOINCREMENT,
+                        kanji_form       TEXT NOT NULL,
+                        suggested_romaji TEXT NOT NULL,
+                        suggested_at     TEXT NOT NULL,
+                        reviewed_at      TEXT,
+                        review_decision  TEXT,
+                        final_romaji     TEXT,
+                        UNIQUE(kanji_form, suggested_romaji)
+                    )""");
+            h.execute("""
+                    CREATE INDEX IF NOT EXISTS idx_sns_kanji
+                        ON stage_name_suggestion(kanji_form)""");
+            h.execute("""
+                    CREATE INDEX IF NOT EXISTS idx_sns_unreviewed
+                        ON stage_name_suggestion(review_decision)
+                        WHERE review_decision IS NULL""");
+
             // Only stamp version on fresh installs (user_version = 0).
             // On an existing DB the CREATE TABLE statements above are all no-ops, so we must
             // leave the version alone and let SchemaUpgrader apply any missing migrations.
             int currentVersion = h.createQuery("PRAGMA user_version").mapTo(Integer.class).one();
             if (currentVersion == 0) {
-                h.execute("PRAGMA user_version = 49");
+                h.execute("PRAGMA user_version = 50");
             }
         });
         log.info("Schema initialization complete");

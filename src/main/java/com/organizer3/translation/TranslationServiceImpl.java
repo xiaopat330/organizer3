@@ -6,6 +6,8 @@ import com.organizer3.translation.ollama.OllamaAdapter;
 import com.organizer3.translation.ollama.OllamaException;
 import com.organizer3.translation.ollama.OllamaRequest;
 import com.organizer3.translation.ollama.OllamaResponse;
+import com.organizer3.translation.repository.StageNameLookupRepository;
+import com.organizer3.translation.repository.StageNameSuggestionRepository;
 import com.organizer3.translation.repository.TranslationCacheRepository;
 import com.organizer3.translation.repository.TranslationQueueRepository;
 import com.organizer3.translation.repository.TranslationStrategyRepository;
@@ -17,6 +19,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.regex.Pattern;
 
 /**
  * Phase 2 implementation of {@link TranslationService}.
@@ -34,6 +37,9 @@ public class TranslationServiceImpl implements TranslationService {
     static final DateTimeFormatter ISO_UTC =
             DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'").withZone(ZoneOffset.UTC);
 
+    /** Heuristic: short text containing Japanese characters, likely a stage name. */
+    private static final Pattern JP_CHAR = Pattern.compile("[\\u3041-\\u3096\\u30A1-\\u30FA\\u4E00-\\u9FFF]");
+
     final OllamaAdapter ollamaAdapter;
     final TranslationStrategyRepository strategyRepo;
     final TranslationCacheRepository cacheRepo;
@@ -42,8 +48,10 @@ public class TranslationServiceImpl implements TranslationService {
     final CallbackDispatcher callbackDispatcher;
     final HealthGate healthGate;
     final ObjectMapper objectMapper;
+    final StageNameLookupRepository stageNameLookupRepo;
+    final StageNameSuggestionRepository stageNameSuggestionRepo;
 
-    /** Full constructor including HealthGate and ObjectMapper (for sync translation). */
+    /** Full constructor including HealthGate, ObjectMapper, and stage-name repos. */
     public TranslationServiceImpl(OllamaAdapter ollamaAdapter,
                                    TranslationStrategyRepository strategyRepo,
                                    TranslationCacheRepository cacheRepo,
@@ -51,18 +59,22 @@ public class TranslationServiceImpl implements TranslationService {
                                    TranslationConfig config,
                                    CallbackDispatcher callbackDispatcher,
                                    HealthGate healthGate,
-                                   ObjectMapper objectMapper) {
-        this.ollamaAdapter       = ollamaAdapter;
-        this.strategyRepo        = strategyRepo;
-        this.cacheRepo           = cacheRepo;
-        this.queueRepo           = queueRepo;
-        this.config              = config;
-        this.callbackDispatcher  = callbackDispatcher;
-        this.healthGate          = healthGate;
-        this.objectMapper        = objectMapper;
+                                   ObjectMapper objectMapper,
+                                   StageNameLookupRepository stageNameLookupRepo,
+                                   StageNameSuggestionRepository stageNameSuggestionRepo) {
+        this.ollamaAdapter           = ollamaAdapter;
+        this.strategyRepo            = strategyRepo;
+        this.cacheRepo               = cacheRepo;
+        this.queueRepo               = queueRepo;
+        this.config                  = config;
+        this.callbackDispatcher      = callbackDispatcher;
+        this.healthGate              = healthGate;
+        this.objectMapper            = objectMapper;
+        this.stageNameLookupRepo     = stageNameLookupRepo;
+        this.stageNameSuggestionRepo = stageNameSuggestionRepo;
     }
 
-    /** Backward-compatible constructor: creates a default HealthGate with a default ObjectMapper. */
+    /** Backward-compatible constructor: creates a default HealthGate and ObjectMapper; no stage-name repos. */
     public TranslationServiceImpl(OllamaAdapter ollamaAdapter,
                                    TranslationStrategyRepository strategyRepo,
                                    TranslationCacheRepository cacheRepo,
@@ -71,7 +83,8 @@ public class TranslationServiceImpl implements TranslationService {
                                    CallbackDispatcher callbackDispatcher) {
         this(ollamaAdapter, strategyRepo, cacheRepo, queueRepo, config, callbackDispatcher,
                 new HealthGate(ollamaAdapter, cacheRepo, config),
-                new ObjectMapper());
+                new ObjectMapper(),
+                null, null);
     }
 
     // -------------------------------------------------------------------------
@@ -195,12 +208,44 @@ public class TranslationServiceImpl implements TranslationService {
 
     @Override
     public Optional<String> resolveStageName(String kanjiName) {
-        throw new UnsupportedOperationException(
-                "resolveStageName is a Phase 5 feature — not yet implemented");
+        if (kanjiName == null || kanjiName.isBlank()) return Optional.empty();
+        if (stageNameLookupRepo == null) {
+            log.debug("resolveStageName: stage-name repos not wired, returning empty");
+            return Optional.empty();
+        }
+        String normalized = TranslationNormalization.normalize(kanjiName);
+
+        // 1. Curated lookup table first (highest priority)
+        Optional<String> curated = stageNameLookupRepo.findRomanizedFor(normalized);
+        if (curated.isPresent()) {
+            log.debug("resolveStageName: curated HIT for '{}'", normalized);
+            return curated;
+        }
+
+        // 2. Accepted LLM suggestion
+        Optional<String> accepted = stageNameSuggestionRepo.findAcceptedRomaji(normalized);
+        if (accepted.isPresent()) {
+            log.debug("resolveStageName: accepted suggestion HIT for '{}'", normalized);
+            return accepted;
+        }
+
+        log.debug("resolveStageName: MISS for '{}'", normalized);
+        return Optional.empty();
+    }
+
+    /**
+     * Returns true if the text is short (&lt;20 characters) and contains at least one
+     * Japanese character — a heuristic for stage-name candidates.
+     */
+    static boolean looksLikeStageName(String text) {
+        if (text == null || text.length() >= 20) return false;
+        return JP_CHAR.matcher(text).find();
     }
 
     @Override
     public TranslationServiceStats stats() {
+        long stageNameLookupSize = stageNameLookupRepo != null ? stageNameLookupRepo.countAll() : 0L;
+        long stageNameSuggestionsUnreviewed = stageNameSuggestionRepo != null ? stageNameSuggestionRepo.countUnreviewed() : 0L;
         return new TranslationServiceStats(
                 cacheRepo.countTotal(),
                 cacheRepo.countSuccessful(),
@@ -209,7 +254,9 @@ public class TranslationServiceImpl implements TranslationService {
                 queueRepo.countByStatus(TranslationQueueRow.STATUS_IN_FLIGHT),
                 queueRepo.countByStatus(TranslationQueueRow.STATUS_DONE),
                 queueRepo.countByStatus(TranslationQueueRow.STATUS_FAILED),
-                queueRepo.countTier2Pending()
+                queueRepo.countTier2Pending(),
+                stageNameLookupSize,
+                stageNameSuggestionsUnreviewed
         );
     }
 
@@ -300,6 +347,17 @@ public class TranslationServiceImpl implements TranslationService {
                     ollamaResp != null ? ollamaResp.evalCount() : null,
                     ollamaResp != null ? ollamaResp.evalDurationNs() : null,
                     now));
+        }
+
+        // Stage-name suggestion hook: if the source looks like a stage name and we got a result,
+        // record it for human review (parallel write, does not affect cache outcome).
+        if (englishText != null && stageNameSuggestionRepo != null && looksLikeStageName(normalised)) {
+            try {
+                stageNameSuggestionRepo.recordSuggestion(normalised, englishText, now);
+                log.debug("requestTranslationSync: stage-name suggestion recorded for '{}'", normalised);
+            } catch (Exception e) {
+                log.warn("requestTranslationSync: failed to record stage-name suggestion: {}", e.getMessage());
+            }
         }
 
         return englishText;
