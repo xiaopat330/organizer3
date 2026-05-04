@@ -87,7 +87,10 @@ public class JavdbDiscoveryRoutes {
         });
 
         app.post("/api/javdb/discovery/queue/pause", ctx -> {
-            var body = ctx.bodyAsClass(PauseRequest.class);
+            PauseRequest body;
+            try { body = ctx.bodyAsClass(PauseRequest.class); }
+            catch (Exception e) { ctx.status(400); return; }
+            if (body == null) { ctx.status(400); return; }
             actionService.setPaused(body.paused());
             ctx.status(204);
         });
@@ -100,8 +103,11 @@ public class JavdbDiscoveryRoutes {
         app.post("/api/javdb/discovery/queue/items/{itemId}/move", ctx -> {
             long id = parseItemId(ctx);
             if (id < 0) { ctx.status(400); return; }
-            var body = ctx.bodyAsClass(MoveRequest.class);
-            switch (body.action()) {
+            MoveRequest body;
+            try { body = ctx.bodyAsClass(MoveRequest.class); }
+            catch (Exception e) { ctx.status(400); return; }
+            if (body == null) { ctx.status(400); return; }
+            switch (body.action() != null ? body.action() : "") {
                 case "promote" -> actionService.promoteItem(id);
                 case "demote"  -> actionService.demoteItem(id);
                 case "top"     -> actionService.moveToTop(id);
@@ -212,7 +218,10 @@ public class JavdbDiscoveryRoutes {
             long tagId;
             try { tagId = Long.parseLong(ctx.pathParam("tagId")); }
             catch (NumberFormatException e) { ctx.status(400); return; }
-            var body = ctx.bodyAsClass(SurfaceRequest.class);
+            SurfaceRequest body;
+            try { body = ctx.bodyAsClass(SurfaceRequest.class); }
+            catch (Exception e) { ctx.status(400); return; }
+            if (body == null) { ctx.status(400); return; }
             service.setEnrichmentTagSurface(tagId, body.surface());
             ctx.status(204);
         });

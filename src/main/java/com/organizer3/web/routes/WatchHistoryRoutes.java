@@ -1,6 +1,7 @@
 package com.organizer3.web.routes;
 
 import com.organizer3.model.WatchHistory;
+import com.organizer3.repository.TitleRepository;
 import com.organizer3.repository.WatchHistoryRepository;
 import io.javalin.Javalin;
 import lombok.extern.slf4j.Slf4j;
@@ -13,14 +14,24 @@ import java.util.Map;
 public class WatchHistoryRoutes {
 
     private final WatchHistoryRepository repo;
+    private final TitleRepository titleRepo;
 
-    public WatchHistoryRoutes(WatchHistoryRepository repo) {
+    public WatchHistoryRoutes(WatchHistoryRepository repo, TitleRepository titleRepo) {
         this.repo = repo;
+        this.titleRepo = titleRepo;
     }
 
     public void register(Javalin app) {
         app.post("/api/watch-history/{titleCode}", ctx -> {
             String titleCode = ctx.pathParam("titleCode");
+            if (titleCode.isBlank()) {
+                ctx.status(400).result("titleCode must not be blank");
+                return;
+            }
+            if (titleRepo.findByCode(titleCode).isEmpty()) {
+                ctx.status(404).result("Title not found: " + titleCode);
+                return;
+            }
             WatchHistory entry = repo.record(titleCode, java.time.LocalDateTime.now());
             log.info("Watch recorded — code={} watchedAt={}", titleCode, entry.getWatchedAt());
             ctx.json(Map.of("id", entry.getId(), "titleCode", entry.getTitleCode(),

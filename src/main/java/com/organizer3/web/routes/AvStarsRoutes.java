@@ -59,7 +59,9 @@ public final class AvStarsRoutes {
         });
 
         app.post("/api/utilities/avstars/actresses/{id}/iafd/search", ctx -> {
-            long id = Long.parseLong(ctx.pathParam("id"));
+            long id;
+            try { id = Long.parseLong(ctx.pathParam("id")); }
+            catch (NumberFormatException e) { ctx.status(400); return; }
             @SuppressWarnings("unchecked")
             Map<String, Object> body = ctx.bodyAsClass(Map.class);
             String name = body != null && body.get("name") instanceof String s && !s.isBlank()

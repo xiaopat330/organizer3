@@ -271,8 +271,13 @@ class JavdbDiscoveryRoutesTest {
     @Test
     void pauseQueue_400OnMalformedBody() throws Exception {
         var resp = postJson("/api/javdb/discovery/queue/pause", "not-json");
-        assertTrue(resp.statusCode() >= 400 && resp.statusCode() < 600,
-                "expected 4xx/5xx for malformed body, got " + resp.statusCode());
+        assertEquals(400, resp.statusCode());
+    }
+
+    @Test
+    void pauseQueue_400OnEmptyBody() throws Exception {
+        var resp = postJson("/api/javdb/discovery/queue/pause", "");
+        assertEquals(400, resp.statusCode());
     }
 
     // ── /api/javdb/discovery/queue/resume ──────────────────────────────────────
@@ -302,6 +307,12 @@ class JavdbDiscoveryRoutesTest {
     @Test
     void moveItem_400OnNonNumericItemId() throws Exception {
         var resp = postJson("/api/javdb/discovery/queue/items/abc/move", "{\"action\":\"promote\"}");
+        assertEquals(400, resp.statusCode());
+    }
+
+    @Test
+    void moveItem_400OnEmptyBody() throws Exception {
+        var resp = postJson("/api/javdb/discovery/queue/items/5/move", "");
         assertEquals(400, resp.statusCode());
     }
 
@@ -578,6 +589,12 @@ class JavdbDiscoveryRoutesTest {
     @Test
     void surfaceTag_400OnNonNumericId() throws Exception {
         var resp = postJson("/api/javdb/discovery/tag-health/abc/surface", "{\"surface\":true}");
+        assertEquals(400, resp.statusCode());
+    }
+
+    @Test
+    void surfaceTag_400OnEmptyBody() throws Exception {
+        var resp = postJson("/api/javdb/discovery/tag-health/5/surface", "");
         assertEquals(400, resp.statusCode());
     }
 }

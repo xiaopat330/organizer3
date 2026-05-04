@@ -223,6 +223,32 @@ class AvScreenshotQueueRoutesTest {
         assertTrue(body.get("currentActressId").isNull());
     }
 
+    // --- non-numeric id → 400 ---
+
+    @Test
+    void enqueue_400OnNonNumericId() throws Exception {
+        var resp = post("/api/av/actresses/abc/screenshots/enqueue");
+        assertEquals(400, resp.statusCode());
+    }
+
+    @Test
+    void pause_400OnNonNumericId() throws Exception {
+        var resp = post("/api/av/actresses/abc/screenshots/pause");
+        assertEquals(400, resp.statusCode());
+    }
+
+    @Test
+    void resume_400OnNonNumericId() throws Exception {
+        var resp = post("/api/av/actresses/abc/screenshots/resume");
+        assertEquals(400, resp.statusCode());
+    }
+
+    @Test
+    void deleteQueue_400OnNonNumericId() throws Exception {
+        var resp = delete("/api/av/actresses/abc/screenshots/queue");
+        assertEquals(400, resp.statusCode());
+    }
+
     // --- helpers ---
 
     private static AvVideo avVideo(long id) {

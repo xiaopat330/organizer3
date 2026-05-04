@@ -201,6 +201,11 @@ public class WebServer {
         routes.register(app);
     }
 
+    /** Mounts the Watch History endpoints ({@code /api/watch-history/*}). */
+    public void registerWatchHistory(com.organizer3.web.routes.WatchHistoryRoutes routes) {
+        routes.register(app);
+    }
+
     /** Mounts the javdb Discovery read-only endpoints ({@code /api/javdb/discovery/*}). */
     public void registerJavdbDiscovery(com.organizer3.web.routes.JavdbDiscoveryRoutes routes) {
         routes.register(app);
@@ -345,7 +350,7 @@ public class WebServer {
         new com.organizer3.web.routes.VideoRoutes(videoStreamService, thumbnailService, videoProbe).register(app);
 
         if (watchHistoryRepo != null) {
-            new com.organizer3.web.routes.WatchHistoryRoutes(watchHistoryRepo).register(app);
+            new com.organizer3.web.routes.WatchHistoryRoutes(watchHistoryRepo, titleRepo).register(app);
         }
     }
 
