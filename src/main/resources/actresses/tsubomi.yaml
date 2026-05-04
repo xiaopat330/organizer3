@@ -1,0 +1,65 @@
+profile:
+  name:
+    family_name: null
+    given_name: Tsubomi
+    stage_name: つぼみ
+    reading: つぼみ
+    alternate_names:
+    - name: TSUBOMI
+      note: artist name used for 2010 music release
+  date_of_birth: 1987-12-25
+  birthplace: "Yamaguchi Prefecture, Japan"
+  blood_type: O
+  height_cm: 160
+  measurements:
+    bust: 84
+    waist: 58
+    hip: 85
+  cup: D
+  active_from: '2006-04-01'
+  active_to: '2022-04-26'
+  retirement_announced: '2022-02-01'
+  biography: "Tsubomi (つぼみ; born December 25, 1987 in Yamaguchi Prefecture) is one
+    of the longest-tenured AV actresses in Japanese adult video history, maintaining
+    an exclusive contract with S1 No.1 Style from her debut in April 2006 through
+    her retirement in April 2022 — a span of approximately sixteen years. She debuted
+    at age 18 with the film 'Barely Pixelated Newcomer Tsubomi' and over the following
+    years built a catalogue exceeding 1,300 titles by May 2014 (including compilations),
+    working almost entirely within the S1 ecosystem. She expanded beyond adult video
+    in December 2010, releasing the internet single '夢花火' under the artist name
+    TSUBOMI. In February 2022 she announced she would conclude her activities at the
+    end of April 2022, filming her final work on April 26, 2022. Post-retirement she
+    has spoken candidly about her career, noting that neither money alone nor passion
+    alone could explain sixteen years of sustained commitment."
+  primary_studios:
+  - name: S1 No.1 Style
+    company: S1 No.1 Style
+    from: '2006-04-01'
+    to: '2022-04-26'
+    role: Exclusive contract actress
+  awards: []
+  legacy: "Tsubomi's sixteen-year exclusive tenure with S1 No.1 Style is among the
+    longest unbroken label relationships in modern AV history. Debuting in the early
+    S1 era alongside contemporaries such as Yua Aida, she became a defining face of
+    the label's long-form catalogue strategy and accumulated one of the largest single-label
+    filmographies of any actress. Her music side project and measured post-retirement
+    media presence reflect a career managed with unusual longevity and self-awareness."
+
+meta:
+  total_owned_titles: null
+  titles_with_japanese_title: null
+  titles_with_english_title: null
+  titles_with_release_date: null
+  total_known_releases: null
+  coverage_note: null
+  confidence: "DOB 1987-12-25, birthplace Yamaguchi, blood type O, height 160 cm,
+    measurements B84(D)–W58–H85 from multiple consistent sources including Japanese
+    fan wikis and Korean NamuWiki cross-referencing Japanese Wikipedia. Debut month
+    April 2006 confirmed; exact day unknown — active_from set to 2006-04-01 as approximate.
+    Retirement announcement date February 2022 confirmed; exact day unknown — retirement_announced
+    set to 2022-02-01 as approximate. Final filming date April 26, 2022 confirmed;
+    used as active_to. 1300+ titles figure is from May 2014 and includes compilation
+    releases."
+  data_sources:
+  - https://ja.wikipedia.org/wiki/つぼみ_(AV女優)
+  portfolio_listed: 0
