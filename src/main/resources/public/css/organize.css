@@ -1,0 +1,208 @@
+/* ── Organize queue section (org- prefix) ────────────────────────────────── */
+.org-queue-count {
+  font-size: 13px;
+  color: #94a3b8;
+  margin-bottom: 12px;
+}
+.org-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.org-action-icon { vertical-align: -2px; }
+.org-action-btn {
+  background: #0f1d2e;
+  color: #93c5fd;
+  border: 1px solid #1e3a8a;
+  padding: 7px 16px;
+  border-radius: 4px;
+  font-size: 13px;
+  cursor: pointer;
+  font-family: inherit;
+  font-weight: 500;
+  transition: background 0.1s ease, border-color 0.1s ease;
+}
+.org-action-btn:hover:not(:disabled) {
+  background: #1e3a8a;
+  border-color: #3b82f6;
+}
+.org-action-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+.org-action-all {
+  color: #a5b4fc;
+  border-color: #312e81;
+  background: #0f0e2e;
+}
+.org-action-all:hover:not(:disabled) {
+  background: #312e81;
+  border-color: #6366f1;
+}
+
+.org-action-desc {
+  margin-bottom: 16px;
+  padding: 11px 14px;
+  background: #060d18;
+  border: 1px solid #1e293b;
+  border-radius: 4px;
+}
+.org-action-desc-summary {
+  font-size: 13px;
+  color: #cbd5e1;
+  line-height: 1.5;
+  margin-bottom: 8px;
+}
+.org-action-desc-steps {
+  margin: 0;
+  padding: 0 0 0 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.org-action-desc-steps li {
+  font-size: 12px;
+  color: #64748b;
+  line-height: 1.5;
+}
+
+.org-flow-head {
+  font-size: 13px;
+  color: #e2e8f0;
+  font-weight: 500;
+  margin-bottom: 12px;
+}
+.org-spinner {
+  width: 18px;
+  height: 18px;
+  border: 2px solid #1e3a8a;
+  border-top-color: #60a5fa;
+  border-radius: 50%;
+  animation: vol-spin 0.8s linear infinite;
+  margin: 4px 0 8px;
+}
+
+.org-plan-wrap {
+  max-height: 300px;
+  overflow-y: auto;
+  margin-bottom: 14px;
+  border: 1px solid #1e293b;
+  border-radius: 4px;
+  background: #060d18;
+}
+.org-plan-table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+  font-size: 12px;
+  font-family: monospace;
+}
+.org-plan-th {
+  position: sticky;
+  top: 0;
+  padding: 6px 10px;
+  text-align: left;
+  font-size: 10px;
+  font-family: inherit;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #475569;
+  background: #060d18;
+  border-bottom: 1px solid #1e293b;
+}
+.org-plan-tr:hover td { background: #0a1628; }
+.org-plan-tr-error td { background: rgba(127,29,29,0.15); }
+.org-plan-tr-skipped .org-plan-td-title,
+.org-plan-tr-skipped .org-plan-td-before { opacity: 0.45; }
+.org-plan-td-title {
+  padding: 5px 10px;
+  color: #93c5fd;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  vertical-align: top;
+  border-right: 1px solid #0f172a;
+}
+.org-plan-td-cont { border-right: 1px solid #0f172a; }
+.org-plan-td-before {
+  padding: 5px 10px;
+  color: #64748b;
+  word-break: break-all;
+  vertical-align: top;
+}
+.org-plan-td-after {
+  padding: 5px 10px;
+  color: #e2e8f0;
+  word-break: break-all;
+  vertical-align: top;
+}
+.org-plan-td-skip { color: #475569; font-family: sans-serif; }
+.org-plan-td-err  { color: #f87171; font-family: sans-serif; }
+
+.org-progress {
+  font-size: 13px;
+  color: #94a3b8;
+  margin-bottom: 8px;
+}
+
+.org-flow-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 4px;
+}
+.org-execute-btn {
+  background: #14532d;
+  color: #bbf7d0;
+  border: 1px solid #16a34a;
+  padding: 8px 20px;
+  border-radius: 4px;
+  font-size: 13px;
+  cursor: pointer;
+  font-family: inherit;
+  font-weight: 500;
+  transition: background 0.1s ease;
+}
+.org-execute-btn:hover { background: #166534; }
+.org-cancel-btn,
+.org-back-btn,
+.org-runagain-btn {
+  background: #1e293b;
+  color: #94a3b8;
+  border: 1px solid #334155;
+  padding: 8px 16px;
+  border-radius: 4px;
+  font-size: 13px;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.1s ease;
+}
+.org-cancel-btn:hover,
+.org-back-btn:hover,
+.org-runagain-btn:hover { background: #334155; color: #e2e8f0; }
+
+.org-summary {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 14px;
+  padding: 10px 14px;
+  border: 1px solid #1e293b;
+  border-radius: 4px;
+  background: #060d18;
+}
+.org-summary-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 13px;
+}
+.org-summary-key { color: #94a3b8; }
+.org-summary-val { color: #e2e8f0; font-weight: 500; }
+
+.org-error {
+  font-size: 12px;
+  color: #f87171;
+  margin-bottom: 10px;
+  padding: 8px 10px;
+  background: rgba(127,29,29,0.2);
+  border: 1px solid #7f1d1d;
+  border-radius: 3px;
+}
+
