@@ -230,7 +230,7 @@ class TranslationWorkerTest {
         when(ollamaAdapter.generate(any())).thenReturn(fakeResponse(""));
 
         String now = ISO_UTC.format(Instant.now());
-        long queueId = queueRepo.enqueue("中出し花野真衣", strategyId, now,
+        queueRepo.enqueue("中出し花野真衣", strategyId, now,
                 TranslationQueueRow.STATUS_PENDING, null, null);
 
         worker.processOne();

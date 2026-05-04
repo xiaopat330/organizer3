@@ -318,7 +318,7 @@ class TranslationQueueRepositoryTest {
     void findTier2Pending_returnsCorrectRows() {
         String now = ISO_UTC.format(Instant.now());
         long id1 = queueRepo.enqueue("中出し", strategyId, now, TranslationQueueRow.STATUS_PENDING, null, null);
-        long id2 = queueRepo.enqueue("テスト", strategyId, now, TranslationQueueRow.STATUS_PENDING, null, null);
+        queueRepo.enqueue("テスト", strategyId, now, TranslationQueueRow.STATUS_PENDING, null, null);
 
         // Claim both, mark first as tier_2_pending, leave second as pending
         queueRepo.claimNext(); // claims id1
