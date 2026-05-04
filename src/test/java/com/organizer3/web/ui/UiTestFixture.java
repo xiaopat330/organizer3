@@ -56,6 +56,13 @@ final class UiTestFixture {
         when(titleBrowse.listVolumes()).thenReturn(List.of());
         when(titleBrowse.buildDashboard()).thenReturn(sampleDashboard());
         when(titleBrowse.getSpotlight(any())).thenReturn(sampleTitle());
+        // Tag counts must be non-zero or curatedTagHtml() filters every tag out and
+        // the library filter panel renders zero `.tag-toggle` elements (see e843f82).
+        when(titleBrowse.countAll()).thenReturn(10L);
+        when(titleBrowse.getTagCounts()).thenReturn(Map.of(
+                "compilation", 5L,
+                "long-format", 3L,
+                "solo-actress", 2L));
 
         // ── Actresses ──────────────────────────────────────────────────
         when(actressBrowse.findPrefixIndex()).thenReturn(List.of("Y", "A"));
