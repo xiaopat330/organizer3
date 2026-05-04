@@ -594,13 +594,17 @@ class UtilitiesRoutesTest {
     // ── Rating curve ───────────────────────────────────────────────────────────
 
     @Test
-    void getRatingCurveStatus_500WhenNotComputed() throws Exception {
-        // BUG: Map.of() rejects null values; "computedAt" is passed as (Object) null in the
-        // empty-branch, causing a NullPointerException → 500. See PR body for details.
+    void getRatingCurveStatus_200WhenNotComputed() throws Exception {
+        // Fixed: previously Map.of() rejected the null computedAt value and returned 500.
+        // Now uses LinkedHashMap which tolerates null values.
         when(ratingCurveRepo.find()).thenReturn(Optional.empty());
 
         var resp = get("/api/utilities/rating-curve/status");
-        assertEquals(500, resp.statusCode());
+        assertEquals(200, resp.statusCode());
+        JsonNode body = mapper.readTree(resp.body());
+        assertTrue(body.get("computedAt").isNull());
+        assertEquals(0, body.get("population").asInt());
+        assertEquals(0, body.get("boundaries").asInt());
     }
 
     @Test

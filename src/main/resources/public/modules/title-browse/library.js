@@ -251,7 +251,6 @@ export async function renderLibraryFilterPanel(state, titleTagsPanel, applyTitle
 
   function enrichmentTagHtml(d) {
     const active = state.activeEnrichmentTagIds.has(d.id) ? ' active' : '';
-    const pct = (d.libraryPct * 100).toFixed(0);
     const label = d.curatedAlias ? esc(d.curatedAlias) : esc(d.name);
     const title = d.curatedAlias ? `${d.name} → ${d.curatedAlias}` : d.name;
     const countBadge = `<span class="tag-toggle-count">${d.titleCount}</span>`;

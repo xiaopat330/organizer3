@@ -7,7 +7,6 @@ import com.organizer3.web.JavdbDiscoveryService;
 import com.organizer3.web.JavdbEnrichmentActionService;
 import com.organizer3.web.SearchService;
 import com.organizer3.web.TitleBrowseService;
-import com.organizer3.web.TitleDashboardBuilder;
 import com.organizer3.web.TitleDashboardBuilder.LibraryStatsDto;
 import com.organizer3.web.TitleDashboardBuilder.TitleDashboard;
 import com.organizer3.web.TitleSummary;

@@ -2,7 +2,6 @@ package com.organizer3.web;
 
 import com.organizer3.covers.CoverPath;
 import com.organizer3.model.Actress;
-import com.organizer3.model.Label;
 import com.organizer3.rating.RatingCurveRepository;
 import com.organizer3.rating.RatingScoreCalculator;
 import com.organizer3.repository.ActressRepository;
@@ -201,8 +200,6 @@ class ActressDashboardBuilderTest {
 
     @Test
     void isPortfolioCoveredRequiresAtLeastOneTitle() {
-        var withTitles = summaryWith(b -> {});
-        // Force titleCount to be >0 via a real build via the service (simpler: test the static method directly).
         // portfolioCovered uses s.getTitleCount() > 0, which is 0 by default on a stub summary.
         ActressSummary zeroTitle = ActressSummary.builder().id(1L).canonicalName("X").build();
         assertFalse(ActressDashboardBuilder.isPortfolioCovered(zeroTitle));
