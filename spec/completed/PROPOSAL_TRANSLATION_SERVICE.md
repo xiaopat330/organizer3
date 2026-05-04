@@ -1,6 +1,6 @@
 # Proposal: Local Translation Service
 
-**Status:** Draft 2026-05-03 — for discussion, no implementation yet.
+> **Status: IMPLEMENTED** — shipped 2026-05-03 in PRs #37-40
 **Origin:** Enrichment fills many catalog fields (`title_original`, `series`, `maker`, profile bios) with Japanese text from JavDB. Today these fields are stored as-is and surfaced raw in the UI. A POC against five local LLMs via Ollama (`reference/translation_poc/SUMMARY.md`) showed that local translation is feasible: gemma4:e4b + a hardened few-shot prompt achieves 95% acceptable output on the explicit-content test set, with qwen2.5:14b as a fallback for the 5% it refuses. This proposal designs the service that will host that capability.
 
 ### Design decisions locked (2026-05-03)

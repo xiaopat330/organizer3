@@ -114,7 +114,7 @@ Deletes all local thumbnails unconditionally.
 
 ### `background-thumbs [on|off|status]`
 
-Controls the background thumbnail sync worker (see `spec/PROPOSAL_BACKGROUND_THUMBNAILS.md`).
+Controls the background thumbnail sync worker (see `spec/completed/PROPOSAL_BACKGROUND_THUMBNAILS.md`).
 
 - `on` — enable pre-generation for favorites, bookmarks, and recently-visited titles
 - `off` — disable
@@ -126,7 +126,7 @@ The worker is low-priority and pauses while the web UI is being used. Default is
 
 ## Organize Pipeline
 
-Commands that operate on intake content before it enters the curated library. Apply to `queue` structure volumes (e.g. `unsorted`). See `spec/PROPOSAL_ORGANIZE_PIPELINE.md` for the full pipeline design.
+Commands that operate on intake content before it enters the curated library. Apply to `queue` structure volumes (e.g. `unsorted`). See `spec/completed/PROPOSAL_ORGANIZE_PIPELINE.md` for the full pipeline design.
 
 ### `prep-fresh <partitionId> [limit] [offset]`
 

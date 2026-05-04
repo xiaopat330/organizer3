@@ -8,7 +8,7 @@ Read this when:
 - You want to extend the curated taxonomy
 - Something looks wrong in the Discovery surfacing UI
 
-For the full design rationale see `spec/PROPOSAL_TAG_SYSTEM_REVAMP.md`.
+For the full design rationale see `spec/completed/PROPOSAL_TAG_SYSTEM_REVAMP.md`.
 
 ## What's where
 
@@ -196,7 +196,7 @@ same concept; the UI honors that. The only place provenance shows is the editor'
 
 For the curated_alias-after-apply case today, the simplest path is to restart the app —
 the v26 backfill runs only on first migration, but a future maintenance command should
-expose `recomputeAll` directly. See `spec/PROPOSAL_ENRICHMENT_TAG_INTEGRATION.md`.
+expose `recomputeAll` directly. See `spec/completed/PROPOSAL_ENRICHMENT_TAG_INTEGRATION.md`.
 
 ## What's deferred
 
