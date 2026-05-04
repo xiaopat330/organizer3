@@ -92,7 +92,7 @@ class TranslationRoutesTest {
     @Test
     void getStats_returnsEnrichedStats() throws Exception {
         when(service.stats()).thenReturn(new TranslationServiceStats(
-                100L, 80L, 20L, 3, 1, 95, 2, 0));
+                100L, 80L, 20L, 3, 1, 95, 2, 0, 28L, 5L));
         when(cacheRepo.recentThroughputCount(any(Duration.class))).thenReturn(42L);
 
         HttpResponse<String> res = get("/api/translation/stats");

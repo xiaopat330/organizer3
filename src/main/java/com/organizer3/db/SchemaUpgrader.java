@@ -19,7 +19,7 @@ import org.jdbi.v3.core.Jdbi;
 public class SchemaUpgrader {
 
     /** Must match the version stamped by {@link SchemaInitializer}. */
-    private static final int CURRENT_VERSION = 48;
+    private static final int CURRENT_VERSION = 50;
 
     private final Jdbi jdbi;
 
@@ -266,6 +266,11 @@ public class SchemaUpgrader {
         if (version < 49) {
             applyV49();
             setVersion(49);
+        }
+
+        if (version < 50) {
+            applyV50();
+            setVersion(50);
         }
 
         log.info("Schema upgrade complete");
@@ -1652,6 +1657,51 @@ public class SchemaUpgrader {
                     throw e;
                 }
             }
+        });
+    }
+
+    /**
+     * v50: Stage-name shortcut tables for actress kanji→romaji resolution.
+     *
+     * <p>{@code stage_name_lookup} is the curated seed table populated at startup from actress YAMLs.
+     * {@code stage_name_suggestion} records LLM-produced suggestions for human review.
+     *
+     * <p>See spec/PROPOSAL_TRANSLATION_SERVICE.md §6.1.
+     */
+    private void applyV50() {
+        log.info("Applying migration v50: stage_name_lookup + stage_name_suggestion tables");
+        jdbi.useHandle(h -> {
+            h.execute("""
+                    CREATE TABLE IF NOT EXISTS stage_name_lookup (
+                        id              INTEGER PRIMARY KEY AUTOINCREMENT,
+                        kanji_form      TEXT NOT NULL UNIQUE,
+                        romanized_form  TEXT NOT NULL,
+                        actress_slug    TEXT,
+                        source          TEXT NOT NULL DEFAULT 'yaml_seed',
+                        seeded_at       TEXT NOT NULL
+                    )""");
+            h.execute("""
+                    CREATE INDEX IF NOT EXISTS idx_snl_kanji
+                        ON stage_name_lookup(kanji_form)""");
+
+            h.execute("""
+                    CREATE TABLE IF NOT EXISTS stage_name_suggestion (
+                        id               INTEGER PRIMARY KEY AUTOINCREMENT,
+                        kanji_form       TEXT NOT NULL,
+                        suggested_romaji TEXT NOT NULL,
+                        suggested_at     TEXT NOT NULL,
+                        reviewed_at      TEXT,
+                        review_decision  TEXT,
+                        final_romaji     TEXT,
+                        UNIQUE(kanji_form, suggested_romaji)
+                    )""");
+            h.execute("""
+                    CREATE INDEX IF NOT EXISTS idx_sns_kanji
+                        ON stage_name_suggestion(kanji_form)""");
+            h.execute("""
+                    CREATE INDEX IF NOT EXISTS idx_sns_unreviewed
+                        ON stage_name_suggestion(review_decision)
+                        WHERE review_decision IS NULL""");
         });
     }
 

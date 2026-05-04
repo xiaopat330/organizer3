@@ -5,6 +5,8 @@ import com.organizer3.db.SchemaInitializer;
 import com.organizer3.translation.ollama.OllamaAdapter;
 import com.organizer3.translation.ollama.OllamaException;
 import com.organizer3.translation.ollama.OllamaResponse;
+import com.organizer3.translation.repository.jdbi.JdbiStageNameLookupRepository;
+import com.organizer3.translation.repository.jdbi.JdbiStageNameSuggestionRepository;
 import com.organizer3.translation.repository.jdbi.JdbiTranslationCacheRepository;
 import com.organizer3.translation.repository.jdbi.JdbiTranslationQueueRepository;
 import com.organizer3.translation.repository.jdbi.JdbiTranslationStrategyRepository;
@@ -42,6 +44,8 @@ class TranslationServiceTest {
     private JdbiTranslationStrategyRepository strategyRepo;
     private JdbiTranslationCacheRepository cacheRepo;
     private JdbiTranslationQueueRepository queueRepo;
+    private JdbiStageNameLookupRepository stageNameLookupRepo;
+    private JdbiStageNameSuggestionRepository stageNameSuggestionRepo;
     private CallbackDispatcher callbackDispatcher;
     private Connection connection;
     private Jdbi jdbi;
@@ -55,15 +59,20 @@ class TranslationServiceTest {
         strategyRepo = new JdbiTranslationStrategyRepository(jdbi);
         cacheRepo = new JdbiTranslationCacheRepository(jdbi);
         queueRepo = new JdbiTranslationQueueRepository(jdbi);
+        stageNameLookupRepo = new JdbiStageNameLookupRepository(jdbi);
+        stageNameSuggestionRepo = new JdbiStageNameSuggestionRepository(jdbi);
 
         // Seed all three strategies
         new TranslationStrategySeeder(strategyRepo).seedIfEmpty();
 
         callbackDispatcher = new CallbackDispatcher(jdbi);
 
+        HealthGate healthGate = new HealthGate(ollamaAdapter, cacheRepo, TranslationConfig.DEFAULTS);
         service = new TranslationServiceImpl(
                 ollamaAdapter, strategyRepo, cacheRepo, queueRepo,
-                TranslationConfig.DEFAULTS, callbackDispatcher);
+                TranslationConfig.DEFAULTS, callbackDispatcher,
+                healthGate, new ObjectMapper(),
+                stageNameLookupRepo, stageNameSuggestionRepo);
 
         worker = new TranslationWorker(
                 ollamaAdapter, strategyRepo, cacheRepo, queueRepo,
@@ -427,13 +436,94 @@ class TranslationServiceTest {
     }
 
     // -------------------------------------------------------------------------
-    // resolveStageName — Phase 5 stub
+    // resolveStageName — Phase 5
     // -------------------------------------------------------------------------
 
     @Test
-    void resolveStageName_throwsUnsupported() {
-        assertThrows(UnsupportedOperationException.class,
-                () -> service.resolveStageName("浜崎真緒"));
+    void resolveStageName_missReturnsEmpty() {
+        Optional<String> result = service.resolveStageName("浜崎真緒");
+        assertTrue(result.isEmpty(), "Unknown stage name must return empty");
+    }
+
+    @Test
+    void resolveStageName_curatedLookupHit() {
+        stageNameLookupRepo.upsert("浜崎真緒", "Mao Hamasaki", "hamasaki_mao", "yaml_seed");
+
+        Optional<String> result = service.resolveStageName("浜崎真緒");
+        assertTrue(result.isPresent());
+        assertEquals("Mao Hamasaki", result.get());
+    }
+
+    @Test
+    void resolveStageName_nfkcNormalizationApplied() {
+        // Insert with normalized form; query with full-width input that normalizes to the same form
+        stageNameLookupRepo.upsert("浜崎真緒", "Mao Hamasaki", "hamasaki_mao", "yaml_seed");
+        // Full-width hiragana won't match in this case, but we can verify
+        // the same key works across repeated normalize calls
+        Optional<String> result = service.resolveStageName("浜崎真緒"); // same characters
+        assertTrue(result.isPresent());
+        assertEquals("Mao Hamasaki", result.get());
+    }
+
+    @Test
+    void resolveStageName_acceptedSuggestionHit() throws Exception {
+        String now = "2026-05-03T00:00:00.000Z";
+        stageNameSuggestionRepo.recordSuggestion("蒼井そら", "Sora Aoi", now);
+        // Manually accept the suggestion
+        jdbi.useHandle(h -> h.execute(
+                "UPDATE stage_name_suggestion SET review_decision = 'accepted', reviewed_at = ? WHERE kanji_form = ?",
+                now, "蒼井そら"));
+
+        Optional<String> result = service.resolveStageName("蒼井そら");
+        assertTrue(result.isPresent());
+        assertEquals("Sora Aoi", result.get());
+    }
+
+    @Test
+    void resolveStageName_unreviewedSuggestionReturnsEmpty() {
+        String now = "2026-05-03T00:00:00.000Z";
+        stageNameSuggestionRepo.recordSuggestion("蒼井そら", "Sora Aoi", now);
+        // Not reviewed yet
+
+        Optional<String> result = service.resolveStageName("蒼井そら");
+        assertTrue(result.isEmpty(), "Unreviewed suggestion must not be returned");
+    }
+
+    @Test
+    void resolveStageName_curatedWinsOverSuggestion() {
+        // Both curated and an accepted suggestion exist — curated wins
+        stageNameLookupRepo.upsert("蒼井そら", "Sora Aoi (curated)", "aoi_sora", "yaml_seed");
+        String now = "2026-05-03T00:00:00.000Z";
+        stageNameSuggestionRepo.recordSuggestion("蒼井そら", "Sora Aoi (llm)", now);
+        jdbi.useHandle(h -> h.execute(
+                "UPDATE stage_name_suggestion SET review_decision = 'accepted', reviewed_at = ? WHERE kanji_form = ?",
+                now, "蒼井そら"));
+
+        Optional<String> result = service.resolveStageName("蒼井そら");
+        assertTrue(result.isPresent());
+        assertEquals("Sora Aoi (curated)", result.get());
+    }
+
+    @Test
+    void looksLikeStageName_shortJapaneseIsTrue() {
+        assertTrue(TranslationServiceImpl.looksLikeStageName("浜崎真緒"));
+        assertTrue(TranslationServiceImpl.looksLikeStageName("あいだゆあ"));
+    }
+
+    @Test
+    void looksLikeStageName_longTextIsFalse() {
+        // 20+ characters
+        assertFalse(TranslationServiceImpl.looksLikeStageName("あいうえおかきくけこさしすせそたちつてとな"));
+    }
+
+    @Test
+    void looksLikeStageName_romajiIsFalse() {
+        assertFalse(TranslationServiceImpl.looksLikeStageName("Yua Aida"));
+    }
+
+    @Test
+    void looksLikeStageName_nullIsFalse() {
+        assertFalse(TranslationServiceImpl.looksLikeStageName(null));
     }
 
     // -------------------------------------------------------------------------

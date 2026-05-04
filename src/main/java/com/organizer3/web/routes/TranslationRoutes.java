@@ -60,18 +60,20 @@ public class TranslationRoutes {
             try {
                 TranslationServiceStats base = service.stats();
                 long throughputLastHour = cacheRepo.recentThroughputCount(Duration.ofHours(1));
-                ctx.json(Map.of(
-                        "cacheTotal", base.cacheTotal(),
-                        "cacheSuccessful", base.cacheSuccessful(),
-                        "cacheFailed", base.cacheFailed(),
-                        "queuePending", base.queuePending(),
-                        "queueInFlight", base.queueInFlight(),
-                        "queueDone", base.queueDone(),
-                        "queueFailed", base.queueFailed(),
-                        "queueTier2Pending", base.queueTier2Pending(),
-                        "throughputLastHour", throughputLastHour,
-                        "topN", List.of()  // usage count data not yet tracked
-                ));
+                LinkedHashMap<String, Object> statsMap = new LinkedHashMap<>();
+                statsMap.put("cacheTotal", base.cacheTotal());
+                statsMap.put("cacheSuccessful", base.cacheSuccessful());
+                statsMap.put("cacheFailed", base.cacheFailed());
+                statsMap.put("queuePending", base.queuePending());
+                statsMap.put("queueInFlight", base.queueInFlight());
+                statsMap.put("queueDone", base.queueDone());
+                statsMap.put("queueFailed", base.queueFailed());
+                statsMap.put("queueTier2Pending", base.queueTier2Pending());
+                statsMap.put("throughputLastHour", throughputLastHour);
+                statsMap.put("topN", List.of());  // usage count data not yet tracked
+                statsMap.put("stageNameLookupSize", base.stageNameLookupSize());
+                statsMap.put("stageNameSuggestionsUnreviewed", base.stageNameSuggestionsUnreviewed());
+                ctx.json(statsMap);
             } catch (Exception e) {
                 log.error("GET /api/translation/stats failed", e);
                 ctx.status(500).json(Map.of("error", e.getMessage()));

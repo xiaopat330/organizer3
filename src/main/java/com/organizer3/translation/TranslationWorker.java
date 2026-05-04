@@ -6,6 +6,7 @@ import com.organizer3.translation.ollama.OllamaAdapter;
 import com.organizer3.translation.ollama.OllamaException;
 import com.organizer3.translation.ollama.OllamaRequest;
 import com.organizer3.translation.ollama.OllamaResponse;
+import com.organizer3.translation.repository.StageNameSuggestionRepository;
 import com.organizer3.translation.repository.TranslationCacheRepository;
 import com.organizer3.translation.repository.TranslationQueueRepository;
 import com.organizer3.translation.repository.TranslationStrategyRepository;
@@ -70,6 +71,8 @@ public class TranslationWorker implements Runnable {
     private final ObjectMapper json;
     private final OllamaModelState modelState;
     private final HealthGate healthGate;
+    /** Optional — null when stage-name repos are not wired (e.g. in tests). */
+    private final StageNameSuggestionRepository stageNameSuggestionRepo;
 
     public TranslationWorker(OllamaAdapter ollamaAdapter,
                               TranslationStrategyRepository strategyRepo,
@@ -104,15 +107,30 @@ public class TranslationWorker implements Runnable {
                               ObjectMapper json,
                               OllamaModelState modelState,
                               HealthGate healthGate) {
-        this.ollamaAdapter      = ollamaAdapter;
-        this.strategyRepo       = strategyRepo;
-        this.cacheRepo          = cacheRepo;
-        this.queueRepo          = queueRepo;
-        this.callbackDispatcher = callbackDispatcher;
-        this.config             = config;
-        this.json               = json;
-        this.modelState         = modelState;
-        this.healthGate         = healthGate;
+        this(ollamaAdapter, strategyRepo, cacheRepo, queueRepo, callbackDispatcher, config, json,
+                modelState, healthGate, null);
+    }
+
+    public TranslationWorker(OllamaAdapter ollamaAdapter,
+                              TranslationStrategyRepository strategyRepo,
+                              TranslationCacheRepository cacheRepo,
+                              TranslationQueueRepository queueRepo,
+                              CallbackDispatcher callbackDispatcher,
+                              TranslationConfig config,
+                              ObjectMapper json,
+                              OllamaModelState modelState,
+                              HealthGate healthGate,
+                              StageNameSuggestionRepository stageNameSuggestionRepo) {
+        this.ollamaAdapter           = ollamaAdapter;
+        this.strategyRepo            = strategyRepo;
+        this.cacheRepo               = cacheRepo;
+        this.queueRepo               = queueRepo;
+        this.callbackDispatcher      = callbackDispatcher;
+        this.config                  = config;
+        this.json                    = json;
+        this.modelState              = modelState;
+        this.healthGate              = healthGate;
+        this.stageNameSuggestionRepo = stageNameSuggestionRepo;
     }
 
     /**
@@ -292,6 +310,19 @@ public class TranslationWorker implements Runnable {
                 ollamaResp != null ? ollamaResp.evalCount() : null,
                 row.sourceText().length(),
                 englishText != null, escalateToTier2);
+
+        // Stage-name suggestion hook: if the source looks like a stage name and we got a result,
+        // record it for human review. Parallel write — does not affect cache or queue outcome.
+        if (englishText != null && stageNameSuggestionRepo != null
+                && TranslationServiceImpl.looksLikeStageName(row.sourceText())) {
+            try {
+                stageNameSuggestionRepo.recordSuggestion(row.sourceText(), englishText, now);
+                log.debug("TranslationWorker: stage-name suggestion recorded for row={}", row.id());
+            } catch (Exception e) {
+                log.warn("TranslationWorker: failed to record stage-name suggestion for row={}: {}",
+                        row.id(), e.getMessage());
+            }
+        }
 
         if (escalateToTier2) {
             // Mark as tier_2_pending — the Tier2BatchSweeper will handle it

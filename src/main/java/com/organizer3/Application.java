@@ -181,6 +181,10 @@ public class Application {
         com.organizer3.translation.repository.jdbi.JdbiTranslationQueueRepository translationQueueRepo =
                 new com.organizer3.translation.repository.jdbi.JdbiTranslationQueueRepository(jdbi);
         new com.organizer3.translation.TranslationStrategySeeder(translationStrategyRepo).seedIfEmpty();
+        com.organizer3.translation.repository.jdbi.JdbiStageNameLookupRepository stageNameLookupRepo =
+                new com.organizer3.translation.repository.jdbi.JdbiStageNameLookupRepository(jdbi);
+        com.organizer3.translation.repository.jdbi.JdbiStageNameSuggestionRepository stageNameSuggestionRepo =
+                new com.organizer3.translation.repository.jdbi.JdbiStageNameSuggestionRepository(jdbi);
         com.organizer3.translation.ollama.HttpOllamaAdapter ollamaAdapter =
                 new com.organizer3.translation.ollama.HttpOllamaAdapter(
                         translationConfig.ollamaBaseUrlOrDefault(), translationJsonMapper);
@@ -189,16 +193,21 @@ public class Application {
         // Shared model state tracker (Phase 3: currently-loaded model awareness)
         com.organizer3.translation.OllamaModelState ollamaModelState =
                 new com.organizer3.translation.OllamaModelState();
+        com.organizer3.translation.HealthGate translationHealthGate =
+                new com.organizer3.translation.HealthGate(ollamaAdapter, translationCacheRepo, translationConfig);
         @SuppressWarnings("unused")
         com.organizer3.translation.TranslationService translationService =
                 new com.organizer3.translation.TranslationServiceImpl(
                         ollamaAdapter, translationStrategyRepo, translationCacheRepo,
-                        translationQueueRepo, translationConfig, translationCallbackDispatcher);
+                        translationQueueRepo, translationConfig, translationCallbackDispatcher,
+                        translationHealthGate, translationJsonMapper,
+                        stageNameLookupRepo, stageNameSuggestionRepo);
         com.organizer3.translation.TranslationWorker translationWorker =
                 new com.organizer3.translation.TranslationWorker(
                         ollamaAdapter, translationStrategyRepo, translationCacheRepo,
                         translationQueueRepo, translationCallbackDispatcher,
-                        translationConfig, translationJsonMapper, ollamaModelState);
+                        translationConfig, translationJsonMapper, ollamaModelState,
+                        translationHealthGate, stageNameSuggestionRepo);
         java.util.concurrent.ExecutorService translationWorkerExecutor =
                 java.util.concurrent.Executors.newSingleThreadExecutor(r -> {
                     Thread t = new Thread(r, "translation-worker");
@@ -311,6 +320,7 @@ public class Application {
         commands.add(new FavoritesCommand(actressRepo, titleRepo));
 
         ActressYamlLoader yamlLoader = new ActressYamlLoader(actressRepo, titleRepo, tagRepo);
+        new com.organizer3.translation.StageNameSeeder(yamlLoader, stageNameLookupRepo).seed();
         commands.add(new LoadActressCommand(yamlLoader));
         commands.add(new CheckNamesCommand(actressRepo, new ActressNameCheckService()));
         ActressMergeService actressMergeService = new ActressMergeService(jdbi, titleLocationRepo, actressRepo);
