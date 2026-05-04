@@ -97,7 +97,7 @@ class TranslationSmokeIT {
 
         // Test 2: same input again — must be a cache hit (done queue row, no worker involvement)
         long t1 = System.nanoTime();
-        long queueId2 = service.requestTranslation(new TranslationRequest(maker, null, null, null));
+        service.requestTranslation(new TranslationRequest(maker, null, null, null));
         long secondMs = (System.nanoTime() - t1) / 1_000_000;
         System.out.printf("  [%dms warm cache] %s -> same result=%s%n",
                 secondMs, maker, service.getCached(maker).orElse("MISS"));

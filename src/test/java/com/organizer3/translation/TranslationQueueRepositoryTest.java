@@ -228,7 +228,7 @@ class TranslationQueueRepositoryTest {
     @Test
     void resetStuckToRetry_leavesRecentRowsAlone() {
         String now = ISO_UTC.format(Instant.now());
-        long id = queueRepo.enqueue("テスト", strategyId, now,
+        queueRepo.enqueue("テスト", strategyId, now,
                 TranslationQueueRow.STATUS_PENDING, null, null);
         queueRepo.claimNext(); // → in_flight, started_at = now
 
