@@ -1,0 +1,64 @@
+profile:
+  name:
+    family_name: Natsume
+    given_name: Iroha
+    stage_name: 夏目彩春
+    reading: なつめ いろは
+    alternate_names:
+    - name: 原 更紗
+      note: former stage name, used 2007–2013
+    - name: Sarasa Hara
+      note: romanized former name; canonical name in DB
+  date_of_birth: 1984-06-20
+  birthplace: Tokyo, Japan
+  blood_type: O
+  height_cm: 166
+  measurements:
+    bust: 85
+    waist: 57
+    hip: 82
+  cup: D
+  active_from: 2007-03-16
+  active_to: null
+  retirement_announced: null
+  biography: "Natsume Iroha (born June 20, 1984 in Tokyo) is a Japanese AV actress who debuted in March 2007 under the name Hara Sarasa, signing dual exclusive contracts with MAX-A and Alice Japan simultaneously. From mid-2008 she became the primary exclusive actress for Idea Pocket, building a devoted following for her intelligent screen presence and versatility before going on hiatus in January 2011. She returned in July 2013 under the name Natsume Iroha with MOODYZ, then signed exclusively with Attackers in August 2014, becoming one of the label's most prolific and enduring stars. Under Attackers she specializes in drama-driven NTR and infidelity narratives, releasing titles monthly with remarkable consistency across her ADN, RBD, ATID, and SHKD catalogs. As of 2026 she remains active, with a career spanning nearly two decades and one of the largest catalogs of any current exclusive actress."
+  primary_studios:
+  - name: MAX-A
+    company: MAX-A
+    from: 2007-03-16
+    to: 2010-06-11
+    role: Exclusive contract actress (dual exclusive with Alice Japan)
+  - name: Alice Japan
+    company: Alice Japan
+    from: 2007-04-27
+    to: 2008-05-23
+    role: Exclusive contract actress (dual exclusive with MAX-A)
+  - name: Idea Pocket
+    company: IDEA POCKET
+    from: 2008-06-01
+    to: 2011-12-01
+    role: Exclusive contract actress
+  - name: MOODYZ
+    company: Moodyz
+    from: 2013-07-01
+    to: 2014-07-01
+    role: Exclusive contract actress (comeback exclusive)
+  - name: Attackers
+    company: Attackers
+    from: 2014-09-07
+    to: null
+    role: Exclusive contract actress
+  awards: null
+  legacy: null
+
+meta:
+  total_owned_titles: 176
+  titles_with_japanese_title: null
+  titles_with_english_title: null
+  titles_with_release_date: null
+  total_known_releases: null
+  coverage_note: "Portfolio not yet researched. DB canonical name is 'Sarasa Hara' (former name). All owned titles span both name eras."
+  confidence: "Profile data sourced from Japanese Wikipedia. DOB, birthplace, measurements, studio affiliations verified against article infobox. Career dates derived from Wikipedia filmography. No conflicting data found."
+  data_sources:
+  - https://ja.wikipedia.org/wiki/夏目彩春
+  portfolio_listed: 0

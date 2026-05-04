@@ -1,0 +1,46 @@
+profile:
+  name:
+    family_name: Takachiho
+    given_name: Suzu
+    stage_name: 高千穂すず
+    reading: たかちほ すず
+    alternate_names: null
+  date_of_birth: null
+  birthplace: null
+  blood_type: null
+  height_cm: null
+  measurements:
+    bust: 87
+    waist: 58
+    hip: 89
+  cup: null
+  active_from: 2015-01-01
+  active_to: null
+  retirement_announced: null
+  biography: "Takachiho Suzu is a Japanese AV actress who debuted in 2015 under S1 No.1 Style, where she released several titles under the SNIS label before appearing in the OFJE omnibus series. She later appeared under the FALENO label (REBDB), indicating continued activity into the 2020s. Her catalog in the local collection spans 8 titles across S1 and FALENO."
+  primary_studios:
+  - name: S1 No.1 Style
+    company: S1 No.1 Style
+    from: 2015-01-01
+    to: null
+    role: Exclusive contract actress
+  - name: FALENO
+    company: FALENO
+    from: null
+    to: null
+    role: Contract actress
+  awards: null
+  legacy: null
+
+meta:
+  total_owned_titles: 8
+  titles_with_japanese_title: null
+  titles_with_english_title: null
+  titles_with_release_date: null
+  total_known_releases: null
+  coverage_note: "Portfolio not yet researched. 8 owned titles: SNIS×5, OFJE×2, REBDB×1."
+  confidence: "No Wikipedia article exists for this actress. Measurements (B87-W58-H89) confirmed from S1 official actress page (s1s1s1.com). Debut year 2015 confirmed from IMDB title listing. Height, cup size, DOB, birthplace, and blood type could not be verified from directly-fetched sources — web search summaries suggest 172cm / F cup / March 19 birthday / Tokyo but these are unconfirmed. active_from set to 2015-01-01 as an approximate year; exact date unknown."
+  data_sources:
+  - https://s1s1s1.com/actress/detail/20064
+  - https://www.imdb.com/name/nm11109771/
+  portfolio_listed: 0
