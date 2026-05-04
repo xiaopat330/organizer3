@@ -11,7 +11,7 @@
 4. **Total-failure display:** show JP raw value with a subtle "translation unavailable" marker. Failure is non-blocking — same surface as untranslated.
 5. **Bio integration:** Phase 0a validates the `prose` strategy (cheap, locks in the strategy default), but no bio pipeline ships in this proposal. Defer to a future spec when bios get a real UI.
 6. **Human correction:** `human_corrected_text` + `human_corrected_at` columns on the cache row. Service serves human text when present; never re-translates a corrected row across strategy version bumps.
-7. **Prose strategy / swap conflict:** Phase 0a outputs both numbers — quality on each candidate model — so the qwen2.5-vs-gemma4 choice for `prose` is made with the swap-tax cost weighed against the quality gap. Decision deferred until that data exists.
+7. **Prose strategy / swap conflict (RESOLVED 2026-05-03):** Phase 0a measurement (`reference/translation_poc/PHASE0_REPORT.md`) showed gemma4:e4b wins on prose by 4.5× speed *and* lower sanitization/leak rates. `prose` defaults to gemma4:e4b primary, qwen2.5:14b fallback. No swap tradeoff needed — gemma4 is the only model loaded for normal workloads; qwen2.5 loads only for periodic tier-2 batch sweeps.
 
 ---
 
@@ -245,7 +245,7 @@ The `translation_strategy` table seeds with three strategies, each with its own 
 |---|---|---|---|---|
 | `label_basic` | minimal: one line "Translate Japanese to English…" | gemma4:e4b | qwen2.5:14b | Short, non-explicit labels (maker, publisher, plain series) |
 | `label_explicit` | hardened: system message + 3-example few-shot covering adult vocab | gemma4:e4b | qwen2.5:14b | Long descriptive titles, explicit series, anything tripping the explicit-JP regex |
-| `prose` | "Translate this Japanese paragraph to natural English, preserve paragraph structure" + larger `num_predict` | qwen2.5:14b | gemma4:e4b | Biographies, legacy text, long-form synopses |
+| `prose` | "Translate this Japanese paragraph to natural English, preserve paragraph structure" + larger `num_predict` | gemma4:e4b | qwen2.5:14b | Biographies, legacy text, long-form synopses |
 
 `pickStrategy(sourceText, contextHint, attempt)`:
 
@@ -255,7 +255,7 @@ The `translation_strategy` table seeds with three strategies, each with its own 
 
 **Why short prompts on short inputs.** The hardened prompt is ~200 tokens of system message + examples. A maker name is ~3 tokens. Using the hardened prompt for everything means ~70× overhead per call with no quality benefit, and (per the POC's aya-expanse finding) needlessly elevates refusal risk on safety-tuned models when the explicit-vocab dictionary is included for inputs that don't need it.
 
-**Why qwen2.5 leads on prose.** The POC tested short labels and titles, not paragraphs. The 14B parameter count and the lower sanitization rate on long inputs make qwen2.5 the better default for prose; gemma4 is the speed-optimized fallback. This is provisional — needs revalidating with a small bio-paragraph test set before Phase 1 ships.
+**Why gemma4 leads on prose (resolved by Phase 0a, see `reference/translation_poc/PHASE0_REPORT.md`).** Initial hypothesis was that qwen2.5's 14B parameter count would help on long-form. Phase 0a measurement on 8 real bio paragraphs disproved this: gemma4 was 4.5× faster (37 s vs 166 s avg), produced no sanitization slips (vs 12.5% for qwen2.5), and no CJK leakage (vs 12.5% for qwen2.5). gemma4's broader Japanese cultural exposure translates directly to better prose handling. qwen2.5 stays as tier-2 fallback only.
 
 ### 5.5 Cache strategy
 
@@ -328,13 +328,38 @@ This is the same heuristic the POC's `score.sh` already uses. It is not perfect 
 
 ---
 
-## 6. Stage-name shortcut
+## 6. Curated lookup tables for proper-noun fields
 
-Stage names are dictionary lookups masquerading as translation. The POC found 60% best-case LLM accuracy on a 15-name sample — too low to trust, and unnecessary because the actress YAML files already contain the canonical romanization for every actress in the catalog.
+The fundamental difficulty axis for translation is **whether the right answer comes from understanding meaning (generation) or from knowing a specific established mapping (retrieval)**. LLMs are excellent at the first and surprisingly bad at the second. Stage names are the textbook retrieval-not-generation case (see §6.1), and at least one other catalog field — studio names — has the same shape (see §6.2). Both should bypass the LLM and serve from curated tables when an entry exists.
+
+### 6.1 Stage-name shortcut (Phase 5)
+
+Stage names are dictionary lookups masquerading as translation. The POC found 67% best-case LLM accuracy on a 15-name sample (gemma4) and 40% on qwen2.5 — too low to trust as canonical data, and unnecessary because the actress YAML files already contain the human-curated romanization for every actress in the catalog.
 
 **Design:** A `stage_name_lookup` table populated from the existing actress YAML files at startup. `TranslationService.resolveStageName(kanji)` consults this first and returns the curated romanization if found. Only unknown names route through the LLM, and those results are written back as suggestions for human review (not auto-merged into the YAML).
 
-This keeps name data canonical (human-curated) while still capturing the model's best guess for previously unseen names.
+The error patterns observed in the POC reinforce why human curation is non-negotiable for canonical data:
+- gemma4 errors are usually one phoneme off (Naoko vs Nao, Niodou vs Nikaido) — recognizable.
+- qwen2.5 errors are *entire wrong names* (湊莉久 → "Mio Reiko", 鈴村あいり → "Ai Irie") — would be silently unrecognizable to a human looking up the actress.
+
+This keeps name data canonical (human-curated) while still capturing the model's best guess for previously unseen names as a starting point for human review.
+
+### 6.2 Studio-name lookup (future enhancement)
+
+The same pattern likely applies to studios (`maker`, `publisher`). These look like simple short labels but are actually proper nouns with *official* English brand names that aren't derivable from the kanji:
+
+| JP source | LLM transliteration | Official English brand |
+|---|---|---|
+| アイエナジー | "Ai Energy" | i-Energy |
+| クリスタル映像 | "Crystal-Eizou" | Crystal Pictures |
+| マルクス兄弟 | "Marx Brothers" | Marx Brothers (matches) |
+| エスワン | "S One" | S1 No.1 Style |
+
+The LLM can transliterate these, and Phase 0b shows it does so cleanly (0% sanitization, low latency). But the *correct* answer is often the studio's chosen English brand name, which has to be looked up. **For a catalog where studios are clickable filters, the wrong name will fragment the data** — half the titles tagged "Crystal Pictures", half tagged "Crystal-Eizou", and the user can't tell they're the same studio.
+
+**Status:** out of scope for this proposal. Flagged here so the §5 architecture decisions don't preclude it. Implementation would mirror §6.1: a `studio_lookup` table seeded from a curated YAML file (or, more likely, hand-edited based on observed LLM transliterations), consulted before the LLM falls through. The seed corpus is small — ~117 distinct makers + ~130 distinct publishers per Appendix A. A first pass could be one focused afternoon of human review.
+
+Until that table exists, the LLM transliterations are usable for display but should be treated as "best-guess display name" rather than "groupable identifier." The catalog UI should NOT treat the EN studio field as a join key.
 
 ---
 
@@ -391,13 +416,11 @@ If unhealthy, `requestTranslation` queues normally but the worker loop pauses un
 
 ## 10. Phased build (rough)
 
-0. **Phase 0 — strategy validation.** Two sub-investigations, runnable in parallel against the existing harness in `reference/translation_poc/`:
+0. **Phase 0 — strategy validation. (COMPLETE 2026-05-03 — see `reference/translation_poc/PHASE0_REPORT.md`)**
 
-   **0a. Prose strategy primary model.** Slice 5–8 real JP biographical paragraphs from `reference/actresses/` raw files (yuma_asami, mikami_yua, tsujimoto_an, nana_ogura have the highest JP density; see Appendix C). Run each through both `gemma4:e4b` and `qwen2.5:14b` with a paragraph-preserving prompt. Compare output for paragraph fidelity, sanitization rate (lower expected on biographical content vs. catalog titles), and tokens/sec on long inputs. Produce a one-page addendum confirming or revising the §5.4 default of qwen2.5:14b for `prose`. Estimated time: 1–2 hours of harness runtime + scoring.
-
-   **0b. `label_basic` primary model.** The original POC noticed that gemma4 has a bimodal latency distribution on short labels (6 s p50 against 137 s p95 on makers — most are fast but some are very slow), while qwen2.5 has a tighter distribution (16 s p50 / 86 s p95). The current proposal defaults `label_basic` to gemma4 on the assumption that average tokens/sec is the right metric, but for bounded-vocab fields where every translation is a one-shot, **p95 latency matters more than average throughput** — a single 137 s outlier blocks the queue. Re-test both models on a larger sample (~30 distinct makers, ~30 distinct publishers, ~30 short series) with the production-shape `label_basic` prompt and confirm or flip the default. Estimated time: 1–2 hours.
-
-   **Gating:** 0a gates the `prose` strategy in Phase 1. 0b may flip the primary/fallback ordering of `label_basic` but does not block its release. The remaining strategy (`label_explicit`) ships regardless — its model choice is well-validated by the original POC.
+   - **0a Prose primary:** gemma4:e4b confirmed primary; qwen2.5:14b fallback. gemma4 beat qwen2.5 on speed (4.5×), sanitization (0% vs 12.5%), and CJK leakage (0% vs 12.5%) across 8 real biographical paragraphs.
+   - **0b `label_basic` primary:** gemma4:e4b confirmed primary; the earlier hypothesis about flipping to qwen2.5 was based on a cold-load artifact and did not survive a clean 90-item re-measurement. gemma4 p95 on makers is 5.7 s (not 137 s as originally observed), 6–7× faster than qwen2.5 with no quality regression.
+   - **Net:** all three strategies (`label_basic`, `label_explicit`, `prose`) default to gemma4:e4b primary, qwen2.5:14b fallback. gemma4 is the only model loaded for normal workloads. Phase 1 unblocked.
 1. **Phase 1 — adapter + cache.** `OllamaAdapter` + `TranslationService.getCached` + `requestTranslation` with synchronous (in-thread) execution. Three strategies seeded (`label_basic`, `label_explicit`, `prose`). No queue table yet. Wires up enough for ad-hoc testing.
 2. **Phase 2 — queue + worker.** Promote to async via `translation_queue`. Single worker thread. Sweeper for stuck rows.
 3. **Phase 3 — multi-tier + sanitization detector.** Add tier-2 fallback and the sanitization regex check.
@@ -428,8 +451,8 @@ Counts taken directly from `~/.organizer3/organizer.db`. "JP rows" = rows whose 
 | `title_javdb_enrichment.series` | — | 941 distinct | **Bounded vocab — high reuse** |
 | `title_javdb_enrichment.publisher` | — | 130 distinct | Bounded vocab |
 | `title_javdb_enrichment.maker` | — | 117 distinct | Bounded vocab |
-| `actresses.stage_name` | 106 | 106 | Routed to curated YAML lookup (§6) |
-| `actress_aliases.alias_name` | 57 | 57 | Routed to curated YAML lookup (§6) |
+| `actresses.stage_name` | 106 | 106 | Routed to curated YAML lookup (§6.1) |
+| `actress_aliases.alias_name` | 57 | 57 | Routed to curated YAML lookup (§6.1) |
 
 ### A.2 In actress YAML files (not yet in the DB schema)
 
@@ -473,12 +496,12 @@ Default strategy for each Appendix A field. The caller can override via `context
 | `title_javdb_enrichment.series` | `label_explicit` (heuristic falls through to `label_basic` for short non-explicit ones) | Mixed — explicit content present in 22% of POC sample |
 | `title_javdb_enrichment.maker` | `label_basic` | Studio names; bounded vocab; no explicit content |
 | `title_javdb_enrichment.publisher` | `label_basic` | Same shape as maker |
-| `actresses.stage_name` | (curated YAML lookup, §6) | Not routed through LLM — dictionary-resolution problem |
-| `actress_aliases.alias_name` | (curated YAML lookup, §6) | Same |
+| `actresses.stage_name` | (curated YAML lookup, §6.1) | Not routed through LLM — dictionary-resolution problem |
+| `actress_aliases.alias_name` | (curated YAML lookup, §6.1) | Same |
 | `profile.biography` (YAML) | `prose` | Long-form prose; needs paragraph structure preservation and the 14B model's better long-input handling |
 | `profile.legacy` (YAML) | `prose` | Same shape as biography |
 | `profile.name.reading` (YAML) | (no translation; seed for stage-name lookup table) | Already canonical |
-| `profile.name.alternate_names` (YAML) | (curated YAML lookup, §6) | Same as stage_name |
+| `profile.name.alternate_names` (YAML) | (curated YAML lookup, §6.1) | Same as stage_name |
 | `awards[*].category` (YAML) | `label_basic` | Short formal phrases like `優秀女優賞`; many already bilingual; treat unilingual ones as plain labels |
 
 ---
