@@ -1,0 +1,138 @@
+/* ── Duplicates filter bar ────────────────────────────────────────── */
+.dup-filter-label {
+  font-size: 0.65rem;
+  color: #555;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.dup-filter-select {
+  background: #111;
+  border: var(--border-control);
+  border-radius: 4px;
+  color: #ccc;
+  font-size: 0.75rem;
+  font-family: inherit;
+  padding: 3px 8px;
+  cursor: pointer;
+  outline: none;
+}
+
+.dup-filter-select:focus {
+  border-color: #444;
+}
+
+/* ── Duplicates tool ──────────────────────────────────────────────── */
+.tools-duplicates-status {
+  padding: 6px 16px;
+  font-size: 0.72rem;
+  color: #555;
+  letter-spacing: 0.04em;
+}
+
+.tools-duplicates-list {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0;
+}
+
+.dup-row {
+  display: grid;
+  grid-template-columns: 160px 1fr;
+  gap: 0;
+  border-bottom: 1px solid #181818;
+  border-right: 1px solid #181818;
+  align-items: stretch;
+}
+
+.dup-row:nth-child(even) {
+  border-right: none;
+}
+
+.dup-row:hover { background: #111; }
+.dup-row:active { background: #0e0e0e; }
+
+.dup-card-col {
+  padding: 6px 8px;
+  border-right: var(--border-subtle);
+  display: flex;
+  align-items: center;
+}
+
+.dup-card-col .card {
+  width: 100%;
+  margin: 0;
+  border: none;
+  background: transparent;
+  box-shadow: none;
+  overflow: visible;
+  cursor: pointer;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+}
+
+.dup-card-col .cover-wrap {
+  flex-shrink: 0;
+  width: 44px;
+  height: 56px;
+  aspect-ratio: unset;
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.dup-card-col .card-info-compact {
+  padding: 0;
+  flex: 1;
+  min-width: 0;
+}
+
+.dup-card-col .title-code {
+  font-size: 0.69rem;
+}
+
+.dup-card-col .actress-name-compact {
+  font-size: 0.65rem;
+  margin: 2px 0 0;
+}
+
+.dup-paths-col {
+  padding: 8px 12px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 4px;
+}
+
+.dup-path-label {
+  font-size: 0.62rem;
+  color: #444;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  margin-bottom: 1px;
+}
+
+.dup-path {
+  font-family: 'SF Mono', 'JetBrains Mono', 'Fira Code', monospace;
+  font-size: 0.7rem;
+  line-height: 1.4;
+  word-break: break-all;
+}
+
+.dup-path-base { color: #e5e5e5; }
+.dup-path-rest { color: #f97316; }
+
+.dup-path:not(:last-child) {
+  padding-bottom: 3px;
+  border-bottom: 1px solid #1a1a1a;
+}
+
+/* AV dashboard blank slate */
+.av-dashboard-empty {
+  padding: 60px 20px;
+  text-align: center;
+  color: #444;
+  font-size: 0.85rem;
+}
+
