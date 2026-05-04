@@ -21,16 +21,30 @@ Before answering design or implementation questions, always read:
 
 ```
 com.organizer3
-  command/      Command implementations (one class per command)
-  config/       Config model + loaders (AppConfig singleton, YAML model)
+  ai/           ActressNameLookup (Claude API kanji-to-romaji lookup)
+  avatars/      AvatarStore, custom actress profile image management
+  avstars/      AV Stars feature: model, command, repository, service, iafd/
+  backup/       UserDataBackup, UserDataBackupService, RestoreResult
+  command/      Shell command implementations (one class per command)
+  config/       AppConfig singleton, YAML model records
   covers/       CoverPath utility for local cover image path resolution
-  db/           SchemaInitializer (drop-and-recreate schema)
-  filesystem/   VolumeFileSystem interface + implementations
+  db/           SchemaInitializer, SchemaUpgrader (incremental migrations)
+  enrichment/   JavDB enrichment pipeline, review queue, tag definitions
+  filesystem/   VolumeFileSystem interface + SmbFileSystem, DryRunFileSystem
+  javdb/        JavDB scraping client, slug resolution, enrichment models
+  mcp/          MCP server tool handlers
+  media/        Video probing, thumbnail generation, streaming utilities
   model/        Domain records: Title, TitleLocation, Actress, ActressAlias, Video, Volume
+  organize/     Organize pipeline operations (prep-fresh, sort-title, classify-actress)
+  rating/       Rating curve, grade computation
   repository/   Repository interfaces + jdbi/ implementations
   shell/        SessionContext, OrganizerShell, PromptBuilder, CommandIO
   smb/          SmbConnector, SmbjConnector, VolumeConnection
   sync/         Sync operations, VolumeIndex, IndexLoader, TitleCodeParser
+  translation/  Local LLM translation service (Ollama adapter, queue, cache, stage-name lookup)
+  trash/        Trash sidecar contract, RestoreService, sweep scheduler
+  utilities/    Utilities task runner and MCP utility operations
+  web/          WebServer, browse services, dashboard builders, routes
 ```
 
 ## What's Implemented vs Pending
@@ -42,13 +56,9 @@ com.organizer3
 - Actress resolution through aliases during sync
 - Persistence layer: all repositories, title_locations for multi-location dedup support
 
-**Not yet implemented:**
-- `arm` / `test` mode toggle commands (dry-run defaults to true, no toggle command yet)
-- `actress <name>` detail command
+**Still pending (shell CLI):**
 - `list`, `partitions` commands
-- `run <action>` organization workflows
-- File operations (move, rename, mkdir) and `DryRunFileSystem`
-- Tab completion
+- `run <action>` organization workflows (organize pipeline runs via MCP tools, not shell commands)
 
 ## Known Deviations from Spec
 
