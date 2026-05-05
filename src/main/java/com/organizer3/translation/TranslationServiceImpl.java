@@ -236,6 +236,39 @@ public class TranslationServiceImpl implements TranslationService {
         return Optional.empty();
     }
 
+    @Override
+    public Optional<String> resolveOrSuggestStageName(String kanjiName) {
+        if (kanjiName == null || kanjiName.isBlank()) return Optional.empty();
+        if (stageNameLookupRepo == null || stageNameSuggestionRepo == null) {
+            log.debug("resolveOrSuggestStageName: stage-name repos not wired, returning empty");
+            return Optional.empty();
+        }
+        String normalized = TranslationNormalization.normalize(kanjiName);
+
+        Optional<String> curated = stageNameLookupRepo.findRomanizedFor(normalized);
+        if (curated.isPresent()) {
+            log.debug("resolveOrSuggestStageName: curated HIT for '{}'", normalized);
+            return curated;
+        }
+
+        Optional<String> suggestion = stageNameSuggestionRepo.findLatestUsableSuggestion(normalized);
+        if (suggestion.isPresent()) {
+            log.debug("resolveOrSuggestStageName: suggestion HIT for '{}'", normalized);
+            return suggestion;
+        }
+
+        Optional<TranslationStrategy> strategy = strategyRepo.findByName("label_basic");
+        if (strategy.isEmpty()) {
+            log.warn("resolveOrSuggestStageName: label_basic strategy not found, cannot enqueue for '{}'", normalized);
+            return Optional.empty();
+        }
+        String now = ISO_UTC.format(Instant.now());
+        boolean inserted = queueRepo.enqueueIfAbsent(normalized, strategy.get().id(), now,
+                TranslationQueueRow.STATUS_PENDING, null, null);
+        log.debug("resolveOrSuggestStageName: MISS for '{}', enqueueIfAbsent={}", normalized, inserted);
+        return Optional.empty();
+    }
+
     /**
      * Returns true if the text is short (&lt;20 characters) and contains at least one
      * Japanese character — a heuristic for stage-name candidates.

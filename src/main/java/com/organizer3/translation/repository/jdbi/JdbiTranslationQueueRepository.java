@@ -277,6 +277,46 @@ public class JdbiTranslationQueueRepository implements TranslationQueueRepositor
     }
 
     @Override
+    public boolean enqueueIfAbsent(String sourceText,
+                                   long strategyId,
+                                   String submittedAt,
+                                   String status,
+                                   String callbackKind,
+                                   Long callbackId) {
+        return jdbi.inTransaction(h -> {
+            boolean exists = h.createQuery("""
+                            SELECT COUNT(*) FROM translation_queue
+                            WHERE strategy_id = :strategyId
+                              AND source_text = :sourceText
+                              AND status IN ('pending', 'in_flight')
+                            LIMIT 1
+                            """)
+                    .bind("strategyId", strategyId)
+                    .bind("sourceText", sourceText)
+                    .mapTo(Integer.class)
+                    .one() > 0;
+            if (exists) {
+                return false;
+            }
+            h.createUpdate("""
+                            INSERT INTO translation_queue
+                                (source_text, strategy_id, submitted_at, status,
+                                 callback_kind, callback_id)
+                            VALUES (:sourceText, :strategyId, :submittedAt, :status,
+                                    :callbackKind, :callbackId)
+                            """)
+                    .bind("sourceText", sourceText)
+                    .bind("strategyId", strategyId)
+                    .bind("submittedAt", submittedAt)
+                    .bind("status", status)
+                    .bind("callbackKind", callbackKind)
+                    .bind("callbackId", callbackId)
+                    .execute();
+            return true;
+        });
+    }
+
+    @Override
     public int deleteForCacheFailureReason(String reason) {
         return jdbi.withHandle(h -> h.createUpdate("""
                         DELETE FROM translation_queue
