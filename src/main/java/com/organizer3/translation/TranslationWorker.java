@@ -213,7 +213,8 @@ public class TranslationWorker implements Runnable {
                                    TranslationStrategy strategy,
                                    String hash,
                                    Long existingCacheRowId) {
-        String prompt = strategy.promptTemplate().replace("{jp}", row.sourceText());
+        String promptInput = ExplicitTermSubstitutor.substitute(row.sourceText());
+        String prompt = strategy.promptTemplate().replace("{jp}", promptInput);
 
         Map<String, Object> options = null;
         if (strategy.optionsJson() != null) {

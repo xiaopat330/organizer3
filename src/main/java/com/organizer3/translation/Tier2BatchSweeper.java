@@ -149,7 +149,8 @@ public class Tier2BatchSweeper implements Runnable {
         }
 
         TranslationStrategy tier2Strategy = tier2StrategyOpt.get();
-        String prompt = tier2Strategy.promptTemplate().replace("{jp}", row.sourceText());
+        String promptInput = ExplicitTermSubstitutor.substitute(row.sourceText());
+        String prompt = tier2Strategy.promptTemplate().replace("{jp}", promptInput);
 
         Map<String, Object> options = null;
         if (tier2Strategy.optionsJson() != null) {
