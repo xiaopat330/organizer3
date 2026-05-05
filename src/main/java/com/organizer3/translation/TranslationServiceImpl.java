@@ -40,6 +40,9 @@ public class TranslationServiceImpl implements TranslationService {
     /** Heuristic: short text containing Japanese characters, likely a stage name. */
     private static final Pattern JP_CHAR = Pattern.compile("[\\u3041-\\u3096\\u30A1-\\u30FA\\u4E00-\\u9FFF]");
 
+    /** Failure reason set by Tier2BatchSweeper when both tier-1 and tier-2 sanitize. */
+    public static final String SANITIZED_BOTH_TIERS = "sanitized_both_tiers";
+
     final OllamaAdapter ollamaAdapter;
     final TranslationStrategyRepository strategyRepo;
     final TranslationCacheRepository cacheRepo;
@@ -250,6 +253,7 @@ public class TranslationServiceImpl implements TranslationService {
                 cacheRepo.countTotal(),
                 cacheRepo.countSuccessful(),
                 cacheRepo.countFailed(),
+                cacheRepo.countByFailureReason(SANITIZED_BOTH_TIERS),
                 queueRepo.countByStatus(TranslationQueueRow.STATUS_PENDING),
                 queueRepo.countByStatus(TranslationQueueRow.STATUS_IN_FLIGHT),
                 queueRepo.countByStatus(TranslationQueueRow.STATUS_DONE),
@@ -263,6 +267,18 @@ public class TranslationServiceImpl implements TranslationService {
     @Override
     public HealthStatus getHealth() {
         return healthGate.currentStatus();
+    }
+
+    @Override
+    public int requeueFailedByReason(String reason) {
+        if (reason == null || reason.isBlank()) {
+            throw new IllegalArgumentException("reason is required");
+        }
+        int queueDeleted = queueRepo.deleteForCacheFailureReason(reason);
+        int cacheDeleted = cacheRepo.deleteByFailureReason(reason);
+        log.info("requeueFailedByReason: reason='{}' queueRowsDeleted={} cacheRowsDeleted={}",
+                reason, queueDeleted, cacheDeleted);
+        return cacheDeleted;
     }
 
     @Override

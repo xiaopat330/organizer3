@@ -275,4 +275,22 @@ public class JdbiTranslationQueueRepository implements TranslationQueueRepositor
                         .one() > 0
         );
     }
+
+    @Override
+    public int deleteForCacheFailureReason(String reason) {
+        return jdbi.withHandle(h -> h.createUpdate("""
+                        DELETE FROM translation_queue
+                        WHERE id IN (
+                            SELECT q.id
+                            FROM translation_queue q
+                            JOIN translation_cache c
+                              ON c.source_text = q.source_text
+                             AND c.strategy_id = q.strategy_id
+                            WHERE c.failure_reason = :reason
+                        )
+                        """)
+                .bind("reason", reason)
+                .execute()
+        );
+    }
 }

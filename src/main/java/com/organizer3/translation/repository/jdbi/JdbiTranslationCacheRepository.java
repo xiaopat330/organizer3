@@ -186,6 +186,25 @@ public class JdbiTranslationCacheRepository implements TranslationCacheRepositor
     }
 
     @Override
+    public long countByFailureReason(String reason) {
+        return jdbi.withHandle(h ->
+                h.createQuery("SELECT COUNT(*) FROM translation_cache WHERE failure_reason = :reason")
+                        .bind("reason", reason)
+                        .mapTo(Long.class)
+                        .one()
+        );
+    }
+
+    @Override
+    public int deleteByFailureReason(String reason) {
+        return jdbi.withHandle(h ->
+                h.createUpdate("DELETE FROM translation_cache WHERE failure_reason = :reason")
+                        .bind("reason", reason)
+                        .execute()
+        );
+    }
+
+    @Override
     public long recentThroughputCount(Duration window) {
         String threshold = ISO_UTC.format(Instant.now().minus(window));
         return jdbi.withHandle(h ->

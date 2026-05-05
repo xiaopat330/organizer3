@@ -126,4 +126,12 @@ public interface TranslationQueueRepository {
      * Used by the bulk-enqueue endpoint to avoid duplicate submissions.
      */
     boolean existsActiveForSourceAndStrategy(String sourceText, long strategyId);
+
+    /**
+     * Delete queue rows linked (via {@code source_text} + {@code strategy_id}) to cache rows
+     * whose {@code failure_reason} matches exactly. Returns the number of queue rows deleted.
+     * Used by the manual force-retry path: with the queue row gone, upstream sweepers see the
+     * source as un-attempted and re-enqueue it on their next tick.
+     */
+    int deleteForCacheFailureReason(String reason);
 }
