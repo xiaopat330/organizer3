@@ -4,7 +4,6 @@ import com.hierynomus.smbj.share.File;
 import com.organizer3.media.ThumbnailService;
 import com.organizer3.media.VideoProbe;
 import com.organizer3.model.Video;
-import com.organizer3.smb.SmbConnectionFactory.SmbShareHandle;
 import com.organizer3.web.VideoStreamService;
 import io.javalin.Javalin;
 import lombok.extern.slf4j.Slf4j;
@@ -19,6 +18,8 @@ import java.nio.file.Files;
  */
 @Slf4j
 public class VideoRoutes {
+
+    private record StreamSetup(long fileSize, File smbFile) {}
 
     private final VideoStreamService videoStreamService;
     private final ThumbnailService thumbnailService;
@@ -52,8 +53,22 @@ public class VideoRoutes {
                 String smbPath = videoStreamService.smbRelativePath(video);
                 String contentType = videoStreamService.mimeType(video);
 
-                try (SmbShareHandle handle = videoStreamService.openStream(video)) {
-                    long fileSize = handle.fileSize(smbPath);
+                // Stream setup uses withRetry — auto-recovers from a stale pooled
+                // connection (e.g. SMB session expired but TCP socket still reports
+                // connected). Failures here happen before the response is committed.
+                StreamSetup setup;
+                try {
+                    setup = videoStreamService.withRetry(video, handle ->
+                            new StreamSetup(handle.fileSize(smbPath), handle.openFileHandle(smbPath)));
+                } catch (IOException e) {
+                    log.warn("Stream setup failed for video {}: {}", videoId, e.getMessage());
+                    videoStreamService.evictPool(video);
+                    ctx.status(502).result("Stream error: " + e.getMessage());
+                    return;
+                }
+
+                long fileSize = setup.fileSize();
+                try (File smbFile = setup.smbFile()) {
                     String rangeHeader = ctx.header("Range");
 
                     if (rangeHeader != null && rangeHeader.startsWith("bytes=")) {
@@ -72,45 +87,46 @@ public class VideoRoutes {
                         ctx.header("Content-Range", "bytes " + start + "-" + end + "/" + fileSize);
                         ctx.header("Accept-Ranges", "bytes");
 
-                        try (File smbFile = handle.openFileHandle(smbPath)) {
-                            OutputStream out = ctx.outputStream();
-                            byte[] buf = new byte[64 * 1024];
-                            long remaining = contentLength;
-                            long offset = start;
-                            while (remaining > 0) {
-                                int toRead = (int) Math.min(buf.length, remaining);
-                                int read = smbFile.read(buf, offset, 0, toRead);
-                                if (read <= 0) break;
-                                out.write(buf, 0, read);
-                                offset += read;
-                                remaining -= read;
-                            }
-                            out.flush();
+                        OutputStream out = ctx.outputStream();
+                        byte[] buf = new byte[64 * 1024];
+                        long remaining = contentLength;
+                        long offset = start;
+                        while (remaining > 0) {
+                            int toRead = (int) Math.min(buf.length, remaining);
+                            int read = smbFile.read(buf, offset, 0, toRead);
+                            if (read <= 0) break;
+                            out.write(buf, 0, read);
+                            offset += read;
+                            remaining -= read;
                         }
+                        out.flush();
                     } else {
                         ctx.status(200);
                         ctx.header("Content-Type", contentType);
                         ctx.header("Content-Length", String.valueOf(fileSize));
                         ctx.header("Accept-Ranges", "bytes");
 
-                        try (File smbFile = handle.openFileHandle(smbPath)) {
-                            OutputStream out = ctx.outputStream();
-                            byte[] buf = new byte[64 * 1024];
-                            long remaining = fileSize;
-                            long offset = 0;
-                            while (remaining > 0) {
-                                int toRead = (int) Math.min(buf.length, remaining);
-                                int read = smbFile.read(buf, offset, 0, toRead);
-                                if (read <= 0) break;
-                                out.write(buf, 0, read);
-                                offset += read;
-                                remaining -= read;
-                            }
-                            out.flush();
+                        OutputStream out = ctx.outputStream();
+                        byte[] buf = new byte[64 * 1024];
+                        long remaining = fileSize;
+                        long offset = 0;
+                        while (remaining > 0) {
+                            int toRead = (int) Math.min(buf.length, remaining);
+                            int read = smbFile.read(buf, offset, 0, toRead);
+                            if (read <= 0) break;
+                            out.write(buf, 0, read);
+                            offset += read;
+                            remaining -= read;
                         }
+                        out.flush();
                     }
                 } catch (IOException e) {
-                    log.warn("Stream failed for video {}: {}", videoId, e.getMessage());
+                    // Mid-stream failure: response may be partially written, so we
+                    // can't safely change status. Evict so the next request gets a
+                    // fresh connection — this is what saves the user from needing
+                    // to restart the app.
+                    log.warn("Stream failed mid-response for video {}: {}", videoId, e.getMessage());
+                    videoStreamService.evictPool(video);
                     if (!ctx.res().isCommitted()) {
                         ctx.status(502).result("Stream error: " + e.getMessage());
                     }
