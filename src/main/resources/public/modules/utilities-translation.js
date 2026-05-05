@@ -54,8 +54,15 @@ export function hideTranslationView() {
 // ── Stats ─────────────────────────────────────────────────────────────────
 async function loadStats() {
   try {
-    const res  = await fetch('/api/translation/stats');
-    const data = await res.json();
+    const [statsRes, sweeperRes] = await Promise.all([
+      fetch('/api/translation/stats'),
+      fetch('/api/translation/title-sweeper-status').catch(() => null),
+    ]);
+    const data = await statsRes.json();
+    const sweeper = sweeperRes && sweeperRes.ok ? await sweeperRes.json() : null;
+    const titlesPending = sweeper ? sweeper.pending : '—';
+    const sweeperLabel  = sweeper && sweeper.enabled === false
+        ? 'Titles awaiting (paused)' : 'Titles awaiting';
     statsGrid.innerHTML = `
       <div class="trans-stat"><span class="trans-stat-label">Cache total</span><span class="trans-stat-val">${data.cacheTotal}</span></div>
       <div class="trans-stat"><span class="trans-stat-label">Successful</span><span class="trans-stat-val">${data.cacheSuccessful}</span></div>
@@ -67,6 +74,7 @@ async function loadStats() {
       <div class="trans-stat"><span class="trans-stat-label">Throughput (1h)</span><span class="trans-stat-val">${data.throughputLastHour}</span></div>
       <div class="trans-stat"><span class="trans-stat-label">Stage-name lookup</span><span class="trans-stat-val">${data.stageNameLookupSize ?? 0}</span></div>
       <div class="trans-stat"><span class="trans-stat-label">Suggestions unreviewed</span><span class="trans-stat-val">${data.stageNameSuggestionsUnreviewed ?? 0}</span></div>
+      <div class="trans-stat"><span class="trans-stat-label">${sweeperLabel}</span><span class="trans-stat-val">${titlesPending}</span></div>
     `;
   } catch (err) {
     console.error('Translation stats failed', err);
