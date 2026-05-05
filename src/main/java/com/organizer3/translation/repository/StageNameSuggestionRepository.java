@@ -42,4 +42,24 @@ public interface StageNameSuggestionRepository {
 
     /** Count of rows with {@code review_decision IS NULL}. */
     long countUnreviewed();
+
+    /**
+     * Find the best available romaji for a kanji form, including unreviewed suggestions.
+     *
+     * <p>Priority (per spec §3.2):
+     * <ol>
+     *   <li>{@code final_romaji} when {@code review_decision = 'accepted'} and non-null
+     *       (human-corrected wins).</li>
+     *   <li>{@code suggested_romaji} when {@code review_decision = 'accepted'}.</li>
+     *   <li>{@code suggested_romaji} when {@code review_decision IS NULL} (unreviewed —
+     *       acceptable for pre-fill).</li>
+     *   <li>Empty when {@code review_decision = 'rejected'} — never pre-fill a rejected
+     *       guess.</li>
+     * </ol>
+     *
+     * <p>Orders by {@code id DESC} and takes the first usable row.
+     *
+     * @param normalizedKanji NFKC-normalised kanji stage name
+     */
+    Optional<String> findLatestUsableSuggestion(String normalizedKanji);
 }

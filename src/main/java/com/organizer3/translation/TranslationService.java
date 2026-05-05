@@ -50,6 +50,29 @@ public interface TranslationService {
      */
     Optional<String> resolveStageName(String kanjiName);
 
+    /**
+     * Resolves a kanji stage name to romaji, escalating to the LLM on miss.
+     *
+     * <p>Lookup order:
+     * <ol>
+     *   <li>Curated {@code stage_name_lookup} (highest priority, human-reviewed).
+     *   <li>Any {@code stage_name_suggestion} row (accepted OR unreviewed).
+     *       Returns the most recent {@code suggested_romaji}.
+     *   <li>Miss: enqueue an LLM stage-name translation for {@code kanjiName}
+     *       (no-op if a queue row already exists for this kanji+strategy) and
+     *       return {@link Optional#empty()}.
+     * </ol>
+     *
+     * <p>Step 2 deliberately uses unreviewed suggestions. The pre-fill is a
+     * best-guess to save typing — it is NOT promoted into any canonical store
+     * until the user accepts the resulting Actress. {@link #resolveStageName}
+     * remains the strict, accepted-only path for read sites that need
+     * authority (e.g. catalog rendering).
+     *
+     * @return romaji guess if available now; empty if queued or kanji is blank.
+     */
+    Optional<String> resolveOrSuggestStageName(String kanjiName);
+
     /** Basic operational statistics (cache sizes, success/failure counts). */
     TranslationServiceStats stats();
 

@@ -102,4 +102,21 @@ public class JdbiStageNameSuggestionRepository implements StageNameSuggestionRep
                         .one()
         );
     }
+
+    @Override
+    public Optional<String> findLatestUsableSuggestion(String normalizedKanji) {
+        return jdbi.withHandle(h ->
+                h.createQuery("""
+                        SELECT COALESCE(final_romaji, suggested_romaji)
+                        FROM stage_name_suggestion
+                        WHERE kanji_form = :kanji
+                          AND (review_decision IS NULL OR review_decision = 'accepted')
+                        ORDER BY id DESC
+                        LIMIT 1
+                        """)
+                        .bind("kanji", normalizedKanji)
+                        .mapTo(String.class)
+                        .findFirst()
+        );
+    }
 }
