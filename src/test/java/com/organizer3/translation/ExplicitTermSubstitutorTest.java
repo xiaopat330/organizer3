@@ -1,75 +1,121 @@
 package com.organizer3.translation;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
+
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.LinkedHashMap;
+import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.*;
 
+/**
+ * Tests for {@link ExplicitTermSubstitutor}. The vocabulary used here is
+ * deliberately benign — the production vocabulary lives in a per-machine
+ * properties file outside source control. These tests use synthetic
+ * key/value pairs to exercise the loading, ordering, and substitution
+ * mechanics without putting any sensitive vocabulary in the repository.
+ */
 class ExplicitTermSubstitutorTest {
 
     @Test
-    void nullAndEmptyPassThrough() {
-        assertNull(ExplicitTermSubstitutor.substitute(null));
-        assertEquals("", ExplicitTermSubstitutor.substitute(""));
+    void emptyInstanceIsNoOp() {
+        assertEquals(0, ExplicitTermSubstitutor.EMPTY.size());
+        assertEquals("hello world", ExplicitTermSubstitutor.EMPTY.substitute("hello world"));
     }
 
     @Test
-    void noExplicitTermsLeftUnchanged() {
-        String benign = "放課後の図書室で勉強する女子高生";
-        assertEquals(benign, ExplicitTermSubstitutor.substitute(benign));
+    void nullAndEmptyInputPassThrough() {
+        ExplicitTermSubstitutor s = new ExplicitTermSubstitutor(Map.of("foo", "bar"));
+        assertNull(s.substitute(null));
+        assertEquals("", s.substitute(""));
     }
 
     @Test
-    void hmn035_canonicalCase() {
-        // The actual title that motivated this fix — see PR #67's dashboard
-        // tile + the 2026-05-05 ollama experiments.
-        String input  = "放課後の乳首開発ハーレム中出し倶楽部 松本いちか 白桃はな";
-        String output = ExplicitTermSubstitutor.substitute(input);
-        assertTrue(output.contains("creampie"),
-                "expected 'creampie' substitution, got: " + output);
-        assertFalse(output.contains("中出し"),
-                "original kanji should be replaced, got: " + output);
-        // Surrounding context is left intact for the LLM to translate
-        assertTrue(output.contains("放課後"));
-        assertTrue(output.contains("ハーレム"));
-        assertTrue(output.contains("倶楽部"));
+    void substitutesEverySingleOccurrence() {
+        ExplicitTermSubstitutor s = new ExplicitTermSubstitutor(Map.of("foo", "BAR"));
+        assertEquals("alpha BAR beta BAR gamma", s.substitute("alpha foo beta foo gamma"));
     }
 
     @Test
-    void longestMatchWins_namaNakadashi() {
-        // 生中出し must match before 中出し alone.
-        String result = ExplicitTermSubstitutor.substitute("生中出しシリーズ");
-        assertTrue(result.contains("raw creampie"), result);
-        assertFalse(result.contains("creampie 出し"), result);
+    void noMatchReturnsInputUnchanged() {
+        ExplicitTermSubstitutor s = new ExplicitTermSubstitutor(Map.of("foo", "BAR"));
+        assertEquals("nothing to see here", s.substitute("nothing to see here"));
     }
 
     @Test
-    void multipleTermsInOneInput() {
-        String result = ExplicitTermSubstitutor.substitute("中出しと痴漢の輪姦");
-        assertTrue(result.contains("creampie"));
-        assertTrue(result.contains("molestation"));
-        assertTrue(result.contains("gangbang"));
-        assertFalse(result.contains("中出し"));
-        assertFalse(result.contains("痴漢"));
-        assertFalse(result.contains("輪姦"));
+    void longestKeyWins_regardlessOfInsertionOrder() {
+        // Insert short key first; constructor must reorder so "foobar" wins
+        // over "foo" when both could match.
+        LinkedHashMap<String, String> raw = new LinkedHashMap<>();
+        raw.put("foo",    "SHORT");
+        raw.put("foobar", "LONG");
+        ExplicitTermSubstitutor s = new ExplicitTermSubstitutor(raw);
+        assertEquals("LONG baz", s.substitute("foobar baz"));
     }
 
     @Test
-    void substitutionResultPassesSanitizationDetector() {
-        // End-to-end check: after substitution, an LLM that simply echoes the
-        // EN tokens through verbatim produces output that the detector accepts.
-        String input  = "放課後の中出し倶楽部";
-        String substituted = ExplicitTermSubstitutor.substitute(input);
-        // Simulate a model that translated the rest and kept "creampie":
-        String fakeOutput = "After-school creampie club";
-        assertTrue(substituted.contains("creampie"));
-        // SanitizationDetector inspects against the *original* source text.
-        assertFalse(SanitizationDetector.isSanitized(input, fakeOutput),
-                "detector should pass when output contains the EN explicit token");
+    void multipleDistinctKeys() {
+        ExplicitTermSubstitutor s = new ExplicitTermSubstitutor(Map.of(
+                "alpha", "A",
+                "beta",  "B",
+                "gamma", "C"));
+        String result = s.substitute("alpha beta gamma delta");
+        assertTrue(result.contains("A"));
+        assertTrue(result.contains("B"));
+        assertTrue(result.contains("C"));
+        assertTrue(result.contains("delta"));
     }
 
     @Test
-    void censoredVariants() {
-        assertTrue(ExplicitTermSubstitutor.substitute("レ×プ事件").contains("rape"));
-        assertTrue(ExplicitTermSubstitutor.substitute("輪●動画").contains("gangbang"));
+    void loadFromMissingFileReturnsEmpty(@TempDir Path tmp) {
+        Path missing = tmp.resolve("does-not-exist.properties");
+        ExplicitTermSubstitutor s = ExplicitTermSubstitutor.loadFromFile(missing);
+        assertEquals(0, s.size());
+        assertSame(ExplicitTermSubstitutor.EMPTY, s);
+    }
+
+    @Test
+    void loadFromFileReadsKeyValuePairs(@TempDir Path tmp) throws IOException {
+        Path props = tmp.resolve("subs.properties");
+        Files.writeString(props,
+                "# header comment\n"
+              + "foo=BAR\n"
+              + "longerkey=LONGER\n"
+              + "key.with.dots=DOTS\n");
+        ExplicitTermSubstitutor s = ExplicitTermSubstitutor.loadFromFile(props);
+        assertEquals(3, s.size());
+        assertEquals("BAR", s.substitute("foo"));
+        assertEquals("LONGER", s.substitute("longerkey"));
+        assertEquals("DOTS", s.substitute("key.with.dots"));
+    }
+
+    @Test
+    void loadFromFileSupportsUnicodeEscapes(@TempDir Path tmp) throws IOException {
+        // Properties files support backslash-u escapes in both key and value.
+        // Use a generic non-ASCII char (Greek alpha) — no need to import the
+        // production vocabulary into tests.
+        Path props = tmp.resolve("u.properties");
+        Files.writeString(props, "\\u03B1=alpha\n");          // α=alpha
+        ExplicitTermSubstitutor s = ExplicitTermSubstitutor.loadFromFile(props);
+        assertEquals(1, s.size());
+        assertEquals("alpha world", s.substitute("α world"));
+    }
+
+    @Test
+    void loadFromFileReorderByKeyLength(@TempDir Path tmp) throws IOException {
+        // Properties is Hashtable-backed (no insertion order). Verify the
+        // loader still produces longest-match-wins behavior after load.
+        Path props = tmp.resolve("ord.properties");
+        Files.writeString(props,
+                "ab=SHORT\n"
+              + "abc=LONG\n"
+              + "abcd=LONGEST\n");
+        ExplicitTermSubstitutor s = ExplicitTermSubstitutor.loadFromFile(props);
+        assertEquals("LONGEST tail", s.substitute("abcd tail"));
+        assertEquals("LONG tail",    s.substitute("abc tail"));
+        assertEquals("SHORT tail",   s.substitute("ab tail"));
     }
 }

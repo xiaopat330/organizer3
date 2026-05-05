@@ -54,6 +54,8 @@ public class Tier2BatchSweeper implements Runnable {
     private final TranslationConfig config;
     private final ObjectMapper json;
     private final OllamaModelState modelState;
+    /** Never null — defaults to {@link ExplicitTermSubstitutor#EMPTY} (no-op). */
+    private final ExplicitTermSubstitutor explicitTermSubstitutor;
 
     public Tier2BatchSweeper(OllamaAdapter ollamaAdapter,
                               TranslationStrategyRepository strategyRepo,
@@ -63,6 +65,19 @@ public class Tier2BatchSweeper implements Runnable {
                               TranslationConfig config,
                               ObjectMapper json,
                               OllamaModelState modelState) {
+        this(ollamaAdapter, strategyRepo, cacheRepo, queueRepo, callbackDispatcher,
+                config, json, modelState, ExplicitTermSubstitutor.EMPTY);
+    }
+
+    public Tier2BatchSweeper(OllamaAdapter ollamaAdapter,
+                              TranslationStrategyRepository strategyRepo,
+                              TranslationCacheRepository cacheRepo,
+                              TranslationQueueRepository queueRepo,
+                              CallbackDispatcher callbackDispatcher,
+                              TranslationConfig config,
+                              ObjectMapper json,
+                              OllamaModelState modelState,
+                              ExplicitTermSubstitutor explicitTermSubstitutor) {
         this.ollamaAdapter      = ollamaAdapter;
         this.strategyRepo       = strategyRepo;
         this.cacheRepo          = cacheRepo;
@@ -71,6 +86,8 @@ public class Tier2BatchSweeper implements Runnable {
         this.config             = config;
         this.json               = json;
         this.modelState         = modelState;
+        this.explicitTermSubstitutor = explicitTermSubstitutor != null
+                ? explicitTermSubstitutor : ExplicitTermSubstitutor.EMPTY;
     }
 
     @Override
@@ -149,7 +166,7 @@ public class Tier2BatchSweeper implements Runnable {
         }
 
         TranslationStrategy tier2Strategy = tier2StrategyOpt.get();
-        String promptInput = ExplicitTermSubstitutor.substitute(row.sourceText());
+        String promptInput = explicitTermSubstitutor.substitute(row.sourceText());
         String prompt = tier2Strategy.promptTemplate().replace("{jp}", promptInput);
 
         Map<String, Object> options = null;
