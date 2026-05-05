@@ -115,6 +115,22 @@ async function loadHealth() {
 }
 
 // ── Recent failures ───────────────────────────────────────────────────────
+function fmtLatency(ms) {
+  if (ms == null) return '—';
+  return ms < 1000 ? `${ms} ms` : `${(ms / 1000).toFixed(2)} s`;
+}
+
+function fmtTimestamp(iso) {
+  if (!iso) return '';
+  const d = new Date(iso);
+  if (isNaN(d)) return iso;
+  return d.toLocaleString(undefined, {
+    month: 'short', day: 'numeric',
+    hour: '2-digit', minute: '2-digit', second: '2-digit',
+    hour12: false,
+  });
+}
+
 async function loadRecentFailures() {
   try {
     const res  = await fetch('/api/translation/recent-failures?limit=20');
@@ -124,13 +140,16 @@ async function loadRecentFailures() {
       return;
     }
     failuresDiv.innerHTML = `<table class="trans-table">
-      <thead><tr><th>Source text</th><th>Failure reason</th><th>Latency ms</th><th>Cached at</th></tr></thead>
+      <thead><tr>
+        <th>Code</th><th>Source text</th><th>Failure reason</th><th>Latency</th><th>Cached at</th>
+      </tr></thead>
       <tbody>${rows.map(r => `
         <tr>
+          <td class="trans-code-cell">${esc(r.titleCode || '—')}</td>
           <td class="trans-source-cell">${esc(r.sourceText || '')}</td>
           <td>${esc(r.failureReason || '')}</td>
-          <td>${r.latencyMs != null ? r.latencyMs : '—'}</td>
-          <td>${esc(r.cachedAt || '')}</td>
+          <td class="trans-latency-cell">${fmtLatency(r.latencyMs)}</td>
+          <td class="trans-time-cell" title="${esc(r.cachedAt || '')}">${esc(fmtTimestamp(r.cachedAt))}</td>
         </tr>
       `).join('')}</tbody>
     </table>`;

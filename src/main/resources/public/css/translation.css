@@ -119,6 +119,23 @@
   font-size: 0.8rem;
   color: #c4b5fd;
 }
+.trans-code-cell {
+  font-family: ui-monospace, SFMono-Regular, monospace;
+  font-size: 0.82rem;
+  color: #facc15;
+  white-space: nowrap;
+}
+.trans-latency-cell {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  color: #cbd5e1;
+}
+.trans-time-cell {
+  white-space: nowrap;
+  color: #9ca3af;
+  font-size: 0.82rem;
+}
 
 /* ── Manual translate widget ────────────────────────────────────────── */
 .trans-manual-row {

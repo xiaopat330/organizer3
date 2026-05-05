@@ -115,7 +115,26 @@ public class TranslationRoutes {
                         return;
                     }
                 }
-                ctx.json(cacheRepo.findRecentFailures(limit));
+                var failures = cacheRepo.findRecentFailures(limit);
+                // Enrich with the title.code for any failure whose source_text was queued
+                // through the title_original_en callback. n+1 over a small (≤200) result set
+                // is acceptable; the lookup is keyed on the indexed source_text column.
+                List<Map<String, Object>> enriched = new ArrayList<>(failures.size());
+                for (var f : failures) {
+                    Map<String, Object> row = new LinkedHashMap<>();
+                    row.put("id",                  f.id());
+                    row.put("sourceText",          f.sourceText());
+                    row.put("englishText",         f.englishText());
+                    row.put("failureReason",       f.failureReason());
+                    row.put("retryAfter",          f.retryAfter());
+                    row.put("latencyMs",           f.latencyMs());
+                    row.put("promptTokens",        f.promptTokens());
+                    row.put("evalTokens",          f.evalTokens());
+                    row.put("cachedAt",            f.cachedAt());
+                    row.put("titleCode",           lookupTitleCodeForSourceText(f.sourceText()));
+                    enriched.add(row);
+                }
+                ctx.json(enriched);
             } catch (Exception e) {
                 log.error("GET /api/translation/recent-failures failed", e);
                 ctx.status(500).json(Map.of("error", e.getMessage()));
@@ -284,6 +303,34 @@ public class TranslationRoutes {
     // -------------------------------------------------------------------------
     // Helpers
     // -------------------------------------------------------------------------
+
+    /**
+     * Resolve the {@code titles.code} (Product Number) for a source text that was queued
+     * via the {@code title_original_en} callback. Returns {@code null} if the source text
+     * was not associated with a title (e.g., a manual-translate request) or if the title
+     * has been deleted.
+     *
+     * <p>One row per failure is acceptable here — the recent-failures view is bounded
+     * to ≤200 rows and the lookup is keyed on a string-equality compare against the
+     * (small) translation_queue table.
+     */
+    private String lookupTitleCodeForSourceText(String sourceText) {
+        if (sourceText == null) return null;
+        return jdbi.withHandle(h ->
+                h.createQuery("""
+                        SELECT t.code
+                        FROM translation_queue q
+                        JOIN titles t ON t.id = q.callback_id
+                        WHERE q.source_text   = :src
+                          AND q.callback_kind = :kind
+                        LIMIT 1
+                        """)
+                        .bind("src",  sourceText)
+                        .bind("kind", "title_javdb_enrichment.title_original_en")
+                        .mapTo(String.class)
+                        .findFirst()
+                        .orElse(null));
+    }
 
     private static String asString(Map<String, Object> map, String key) {
         Object val = map.get(key);
