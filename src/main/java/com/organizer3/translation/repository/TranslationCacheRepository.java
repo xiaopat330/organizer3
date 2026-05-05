@@ -73,6 +73,14 @@ public interface TranslationCacheRepository {
     List<TranslationCacheRow> findRecentFailures(int limit);
 
     /**
+     * Return cache rows whose {@code cached_at} is strictly after {@code sinceIso},
+     * ordered {@code cached_at DESC}, capped at {@code limit}. If {@code sinceIso} is
+     * {@code null}, returns the most recent {@code limit} rows. Used by the live
+     * activity feed on the Translation Tools page.
+     */
+    List<TranslationCacheRow> findEventsSince(String sinceIso, int limit);
+
+    /**
      * Return approximate p95 latency in milliseconds from the most recent {@code sampleSize}
      * successful cache rows (those with english_text IS NOT NULL and latency_ms IS NOT NULL).
      *

@@ -201,6 +201,26 @@ public class JdbiTranslationCacheRepository implements TranslationCacheRepositor
     }
 
     @Override
+    public List<TranslationCacheRow> findEventsSince(String sinceIso, int limit) {
+        return jdbi.withHandle(h -> {
+            String sql = """
+                    SELECT id, source_hash, source_text, strategy_id,
+                           english_text, human_corrected_text, human_corrected_at,
+                           failure_reason, retry_after,
+                           latency_ms, prompt_tokens, eval_tokens, eval_duration_ns,
+                           cached_at
+                    FROM translation_cache
+                    """ + (sinceIso != null ? "WHERE cached_at > :since\n" : "") + """
+                    ORDER BY cached_at DESC
+                    LIMIT :limit
+                    """;
+            var query = h.createQuery(sql).bind("limit", limit);
+            if (sinceIso != null) query = query.bind("since", sinceIso);
+            return query.map(MAPPER).list();
+        });
+    }
+
+    @Override
     public List<TranslationCacheRow> findRecentFailures(int limit) {
         return jdbi.withHandle(h ->
                 h.createQuery("""

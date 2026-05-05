@@ -398,4 +398,38 @@ class TranslationRoutesTest {
         assertEquals(400, res.statusCode());
         verifyNoInteractions(titleSweeper);
     }
+
+    // ── GET /api/translation/recent-events ───────────────────────────────────
+
+    @Test
+    void getRecentEvents_returnsEnrichedRows() throws Exception {
+        var row = new com.organizer3.translation.TranslationCacheRow(
+                1L, "hash", "中出し", 1L, "creampie", null, null,
+                null, null, 8500, 50, 12, 0L, "2026-05-05T01:23:45.000Z");
+        when(cacheRepo.findEventsSince(null, 50)).thenReturn(List.of(row));
+
+        HttpResponse<String> res = get("/api/translation/recent-events");
+        assertEquals(200, res.statusCode());
+
+        JsonNode node = mapper.readTree(res.body());
+        assertEquals(1, node.size());
+        assertEquals("creampie", node.get(0).get("englishText").asText());
+        assertEquals(8500, node.get(0).get("latencyMs").asInt());
+    }
+
+    @Test
+    void getRecentEvents_passesSinceParameter() throws Exception {
+        when(cacheRepo.findEventsSince("2026-05-05T00:00:00Z", 50))
+                .thenReturn(List.of());
+
+        HttpResponse<String> res = get("/api/translation/recent-events?since=2026-05-05T00:00:00Z");
+        assertEquals(200, res.statusCode());
+        verify(cacheRepo).findEventsSince("2026-05-05T00:00:00Z", 50);
+    }
+
+    @Test
+    void getRecentEvents_rejectsBadLimit() throws Exception {
+        HttpResponse<String> res = get("/api/translation/recent-events?limit=999");
+        assertEquals(400, res.statusCode());
+    }
 }

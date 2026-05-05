@@ -267,6 +267,48 @@ public class TranslationRoutes {
             }
         });
 
+        // GET /api/translation/recent-events?since=<iso>&limit=N
+        // Live activity feed: most recent cache rows for the Translation page,
+        // enriched with the title.code where the source_text was queued via the
+        // title_original_en callback. Frontend polls this every ~2s using a
+        // high-water-mark `since` to fetch only new events.
+        app.get("/api/translation/recent-events", ctx -> {
+            try {
+                int limit = 50;
+                String limitParam = ctx.queryParam("limit");
+                if (limitParam != null) {
+                    try {
+                        limit = Integer.parseInt(limitParam);
+                        if (limit < 1 || limit > 200) {
+                            ctx.status(400).json(Map.of("error", "limit must be between 1 and 200"));
+                            return;
+                        }
+                    } catch (NumberFormatException e) {
+                        ctx.status(400).json(Map.of("error", "limit must be an integer"));
+                        return;
+                    }
+                }
+                String since = ctx.queryParam("since");
+                var rows = cacheRepo.findEventsSince(since, limit);
+                List<Map<String, Object>> enriched = new ArrayList<>(rows.size());
+                for (var r : rows) {
+                    Map<String, Object> row = new LinkedHashMap<>();
+                    row.put("id",            r.id());
+                    row.put("titleCode",     lookupTitleCodeForSourceText(r.sourceText()));
+                    row.put("sourceText",    r.sourceText());
+                    row.put("englishText",   r.englishText());
+                    row.put("failureReason", r.failureReason());
+                    row.put("latencyMs",     r.latencyMs());
+                    row.put("cachedAt",      r.cachedAt());
+                    enriched.add(row);
+                }
+                ctx.json(enriched);
+            } catch (Exception e) {
+                log.error("GET /api/translation/recent-events failed", e);
+                ctx.status(500).json(Map.of("error", e.getMessage()));
+            }
+        });
+
         // POST /api/translation/sweep-title-backlog-now — operator-triggered sweep.
         // Runs the same logic as the scheduled sweeper but with a larger limit so a
         // single click drains a sizable backlog without waiting for multiple 5-min ticks.
