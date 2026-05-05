@@ -278,6 +278,13 @@ public interface ActressRepository {
      */
     Map<Long, List<FilingLocation>> findFilingLocations();
 
+    /**
+     * Returns Actresses whose canonical_name OR any alias_name has {@code lastToken} as its
+     * last whitespace-delimited token, case-insensitively. UNION of canonical and alias tables.
+     * At most {@code limit} results.
+     */
+    List<Actress> findByLastTokenCi(String lastToken, int limit);
+
     // ── Federated search ──────────────────────────────────────────────────────
 
     /** Lightweight actress projection for federated search results. */

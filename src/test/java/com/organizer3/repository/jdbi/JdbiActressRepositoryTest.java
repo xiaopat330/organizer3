@@ -1537,4 +1537,54 @@ class JdbiActressRepositoryTest {
         assertEquals(0L, repo.countByStudioGroupCompanies(List.of()));
         assertEquals(0L, repo.countByStudioGroupCompanies(null));
     }
+
+    // ── findByLastTokenCi ────────────────────────────────────────────────────
+
+    @Test
+    void findByLastTokenCiFindsCanonicalByLastToken() {
+        repo.save(actress("Yuma Asami"));
+        List<Actress> results = repo.findByLastTokenCi("Asami", 10);
+        assertEquals(1, results.size());
+        assertEquals("Yuma Asami", results.get(0).getCanonicalName());
+    }
+
+    @Test
+    void findByLastTokenCiFindsActressViaAliasLastToken() {
+        Actress sarasa = repo.save(actress("Sarasa Hara"));
+        repo.saveAlias(new ActressAlias(sarasa.getId(), "Natsume Iroha"));
+        // "Natsume Iroha" → last token is "Iroha"
+        List<Actress> results = repo.findByLastTokenCi("Iroha", 10);
+        assertEquals(1, results.size());
+        assertEquals("Sarasa Hara", results.get(0).getCanonicalName());
+    }
+
+    @Test
+    void findByLastTokenCiIsCaseInsensitive() {
+        repo.save(actress("Yuma Asami"));
+        assertEquals(1, repo.findByLastTokenCi("asami", 10).size());
+        assertEquals(1, repo.findByLastTokenCi("ASAMI", 10).size());
+    }
+
+    @Test
+    void findByLastTokenCiReturnsEmptyWhenNoMatch() {
+        repo.save(actress("Yuma Asami"));
+        assertTrue(repo.findByLastTokenCi("Tanaka", 10).isEmpty());
+    }
+
+    @Test
+    void findByLastTokenCiHonorsLimit() {
+        repo.save(actress("Akira Tanaka"));
+        repo.save(actress("Hiro Tanaka"));
+        repo.save(actress("Yuki Tanaka"));
+        // Limit 2 should return at most 2 results even though 3 match.
+        List<Actress> results = repo.findByLastTokenCi("Tanaka", 2);
+        assertEquals(2, results.size());
+    }
+
+    @Test
+    void findByLastTokenCiDoesNotMatchMiddleToken() {
+        // "Asami" is in the middle — should NOT match when querying last token "Yuma"
+        repo.save(actress("Asami Yuma Middle"));
+        assertTrue(repo.findByLastTokenCi("Asami", 10).isEmpty());
+    }
 }

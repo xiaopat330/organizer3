@@ -165,6 +165,28 @@ public class JdbiActressRepository implements ActressRepository {
     }
 
     @Override
+    public List<Actress> findByLastTokenCi(String lastToken, int limit) {
+        return jdbi.withHandle(h ->
+                h.createQuery("""
+                        SELECT DISTINCT a.* FROM actresses a
+                        WHERE a.canonical_name = :token COLLATE NOCASE
+                           OR a.canonical_name LIKE :suffix COLLATE NOCASE
+                        UNION
+                        SELECT DISTINCT a.* FROM actresses a
+                        JOIN actress_aliases aa ON a.id = aa.actress_id
+                        WHERE aa.alias_name = :token COLLATE NOCASE
+                           OR aa.alias_name LIKE :suffix COLLATE NOCASE
+                        LIMIT :limit
+                        """)
+                        .bind("token", lastToken)
+                        .bind("suffix", "% " + lastToken)
+                        .bind("limit", limit)
+                        .map(ACTRESS_MAPPER)
+                        .list()
+        );
+    }
+
+    @Override
     public List<Actress> findAll() {
         return jdbi.withHandle(h ->
                 h.createQuery("SELECT * FROM actresses ORDER BY canonical_name")

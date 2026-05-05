@@ -269,6 +269,8 @@ public class Application {
         TitleActressRepository titleActressRepo = new JdbiTitleActressRepository(jdbi);
         WatchHistoryRepository watchHistoryRepo = new JdbiWatchHistoryRepository(jdbi);
         IndexLoader indexLoader = new IndexLoader(titleRepo, actressRepo);
+        com.organizer3.translation.ActressFuzzyMatcher actressFuzzyMatcher =
+                new com.organizer3.translation.ActressFuzzyMatcher(actressRepo);
 
         // Draft Mode — title repo (Phase 1) needed early for the sync hook (Phase 5).
         // Full draft wiring (populator, promotion, GC) is done later after all deps are ready.
