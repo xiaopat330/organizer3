@@ -333,6 +333,8 @@ public class TitleBrowseService {
                 titleRepo.findEnrichmentTagsByTitleIds(titleIds);
         Map<Long, com.organizer3.repository.TitleRepository.RatingData> ratingDataMap =
                 titleRepo.findRatingDataByTitleIds(titleIds);
+        Map<Long, String> titleOriginalEnMap =
+                titleRepo.findTitleOriginalEnByTitleIds(titleIds);
 
         return titles.stream()
                 .map(t -> {
@@ -414,6 +416,7 @@ public class TitleBrowseService {
                             .actresses(actresses)
                             .titleEnglish(t.getTitleEnglish())
                             .titleOriginal(t.getTitleOriginal())
+                            .titleOriginalEn(t.getId() != null ? titleOriginalEnMap.get(t.getId()) : null)
                             .releaseDate(t.getReleaseDate() != null ? t.getReleaseDate().toString() : null)
                             .grade(t.getGrade() != null ? t.getGrade().display : null)
                             .gradeSource(t.getGradeSource())

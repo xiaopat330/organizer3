@@ -1683,6 +1683,30 @@ public class JdbiTitleRepository implements TitleRepository {
                         .orElse(null));
     }
 
+    @Override
+    public Map<Long, String> findTitleOriginalEnByTitleIds(Collection<Long> titleIds) {
+        if (titleIds == null || titleIds.isEmpty()) return Map.of();
+        List<Long> ids = new ArrayList<>(titleIds);
+        return jdbi.withHandle(h -> {
+            List<Map<String, Object>> rows = h.createQuery("""
+                    SELECT title_id, title_original_en
+                    FROM title_javdb_enrichment
+                    WHERE title_id IN (<ids>)
+                      AND title_original_en IS NOT NULL
+                      AND title_original_en != ''
+                    """)
+                    .bindList("ids", ids)
+                    .mapToMap()
+                    .list();
+            Map<Long, String> result = new HashMap<>();
+            for (Map<String, Object> row : rows) {
+                result.put(((Number) row.get("title_id")).longValue(),
+                           (String) row.get("title_original_en"));
+            }
+            return result;
+        });
+    }
+
     public Map<Long, List<TitleSummary.EnrichmentTagEntry>> findEnrichmentTagsByTitleIds(
             Collection<Long> titleIds) {
         if (titleIds == null || titleIds.isEmpty()) return Map.of();

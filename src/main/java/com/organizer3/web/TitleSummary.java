@@ -42,6 +42,10 @@ public class TitleSummary {
     // Enrichment fields (populated via load actress command)
     String titleEnglish;
     String titleOriginal;
+    /** LLM-generated English translation of titleOriginal. Sourced from
+     *  {@code title_javdb_enrichment.title_original_en}, populated by the
+     *  TitleTranslationSweeper. Null if not yet translated. */
+    String titleOriginalEn;
     String releaseDate;
     String grade;
     /** 'enrichment', 'ai', or 'manual'. Null when ungraded. */

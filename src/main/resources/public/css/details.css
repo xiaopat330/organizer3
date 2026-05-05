@@ -1421,6 +1421,28 @@
   margin-bottom: 14px;
 }
 
+/* LLM-translated original title — italicized + lightly de-emphasized */
+.title-detail-title-en--auto {
+  font-style: italic;
+  color: #b8bcc6;
+}
+.title-detail-title-en-badge {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 1px 6px;
+  font-size: 0.65rem;
+  font-style: normal;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #facc15;
+  background: rgba(250, 204, 21, 0.08);
+  border: 1px solid rgba(250, 204, 21, 0.3);
+  border-radius: 3px;
+  vertical-align: middle;
+  cursor: help;
+}
+
 .title-detail-meta {
   display: flex;
   flex-direction: column;

@@ -240,12 +240,18 @@ function renderTitleDetail(t) {
     coverEl.innerHTML = `<div class="title-detail-cover-placeholder">${esc(t.code)}</div>`;
   }
 
-  // Titles — Japanese first (large bold white), then English
+  // Titles — Japanese first (large bold white), then English. Prefer the curated
+  // titleEnglish; fall back to the LLM-translated titleOriginalEn (visually
+  // marked as auto-translated).
   const hasJa = !!t.titleOriginal;
-  const hasEn = !!t.titleEnglish;
+  const enText = t.titleEnglish || t.titleOriginalEn || '';
+  const hasEn = !!enText;
+  const isLlmTranslation = !t.titleEnglish && !!t.titleOriginalEn;
   const jaTitleHtml = hasJa ? `<div class="title-detail-title-ja">${esc(t.titleOriginal)}</div>` : '';
-  const enClass = hasJa ? 'title-detail-title-en title-detail-title-en--secondary' : 'title-detail-title-en';
-  const enTitleHtml = hasEn ? `<div class="${enClass}">${esc(t.titleEnglish)}</div>` : '';
+  const enBaseClass = hasJa ? 'title-detail-title-en title-detail-title-en--secondary' : 'title-detail-title-en';
+  const enClass = isLlmTranslation ? `${enBaseClass} title-detail-title-en--auto` : enBaseClass;
+  const llmBadge = isLlmTranslation ? '<span class="title-detail-title-en-badge" title="Auto-translated by Ollama (gemma4:e4b)">auto</span>' : '';
+  const enTitleHtml = hasEn ? `<div class="${enClass}">${esc(enText)}${llmBadge}</div>` : '';
 
   // Actresses — prefer multi-actress list, fall back to single actressId
   const actresses = (t.actresses && t.actresses.length > 0)

@@ -453,6 +453,13 @@ public interface TitleRepository {
     /** Batch-load javdb rating data for the given title IDs. Titles with no enrichment row are absent. */
     Map<Long, RatingData> findRatingDataByTitleIds(Collection<Long> titleIds);
 
+    /**
+     * Batch-load the LLM-generated English translation of {@code title_original} from
+     * {@code title_javdb_enrichment.title_original_en}, keyed by title ID. Titles without
+     * an enrichment row or with a null/empty {@code title_original_en} are absent.
+     */
+    Map<Long, String> findTitleOriginalEnByTitleIds(Collection<Long> titleIds);
+
     /** Returns grade_source for a single title, or null if not found. */
     String findGradeSource(long titleId);
 }
