@@ -53,11 +53,14 @@ class SchemaInitializerTest {
                         "javdb_actress_filmography", "javdb_actress_filmography_entry",
                         "javdb_actress_staging", "javdb_enrichment_queue", "javdb_title_staging",
                         "label_tags", "labels", "merge_candidates",
-                        "rating_curve", "revalidation_pending", "tags",
+                        "rating_curve", "revalidation_pending",
+                        "stage_name_lookup", "stage_name_suggestion",
+                        "tags",
                         "title_actresses", "title_effective_tags", "title_enrichment_tags",
                         "title_javdb_enrichment", "title_javdb_enrichment_history",
                         "title_locations", "title_path_history", "title_tags",
-                        "titles", "videos", "volumes", "watch_history"),
+                        "titles", "translation_cache", "translation_queue", "translation_strategy",
+                        "videos", "volumes", "watch_history"),
                 tables
         );
     }
@@ -92,7 +95,8 @@ class SchemaInitializerTest {
                         "idx_jeq_actress", "idx_jeq_claim", "idx_jeq_claim_priority", "idx_jeq_source",
                         "idx_label_tags_tag",
                         "idx_reval_enqueued",
-                        "idx_tet_tag",
+                        "idx_snl_kanji", "idx_sns_kanji", "idx_sns_unreviewed",
+                        "idx_tc_strategy", "idx_tet_tag",
                         "idx_title_actresses_actress", "idx_title_actresses_title",
                         "idx_title_effective_tags_tag",
                         "idx_title_locations_title", "idx_title_locations_volume", "idx_title_locations_volume_partition",
@@ -101,6 +105,7 @@ class SchemaInitializerTest {
                         "idx_titles_actress", "idx_titles_code", "idx_titles_label",
                         "idx_tje_maker", "idx_tje_rating_avg", "idx_tje_release_date", "idx_tje_revalidated",
                         "idx_tjeh_code", "idx_tjeh_title",
+                        "idx_tq_status",
                         "idx_videos_title", "idx_videos_volume",
                         "idx_watch_history_title_code", "idx_watch_history_unique_entry", "idx_watch_history_watched_at"),
                 indexes
@@ -171,7 +176,7 @@ class SchemaInitializerTest {
 
         int version = jdbi.withHandle(h ->
                 h.createQuery("PRAGMA user_version").mapTo(Integer.class).one());
-        assertEquals(46, version);
+        assertEquals(50, version);
     }
 
     @Test
