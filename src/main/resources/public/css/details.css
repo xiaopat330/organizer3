@@ -1172,6 +1172,12 @@
   line-height: 1.35;
 }
 
+/* LLM-translated card title — italic to distinguish from curated titleEnglish. */
+.title-en.title-en--auto {
+  font-style: italic;
+  color: #888;
+}
+
 .title-ja {
   font-size: 0.7rem;
   color: #666;
