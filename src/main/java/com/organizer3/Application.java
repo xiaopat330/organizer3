@@ -201,12 +201,18 @@ public class Application {
                         translationQueueRepo, translationConfig, translationCallbackDispatcher,
                         translationHealthGate, translationJsonMapper,
                         stageNameLookupRepo, stageNameSuggestionRepo);
+        // Local-only explicit-term substitution map (~/.organizer3/explicit-substitutions.properties).
+        // The file is intentionally NOT committed to source — it lives per-machine.
+        com.organizer3.translation.ExplicitTermSubstitutor explicitTermSubstitutor =
+                com.organizer3.translation.ExplicitTermSubstitutor.loadFromFile(
+                        dbDir.resolve("explicit-substitutions.properties"));
         com.organizer3.translation.TranslationWorker translationWorker =
                 new com.organizer3.translation.TranslationWorker(
                         ollamaAdapter, translationStrategyRepo, translationCacheRepo,
                         translationQueueRepo, translationCallbackDispatcher,
                         translationConfig, translationJsonMapper, ollamaModelState,
-                        translationHealthGate, stageNameSuggestionRepo);
+                        translationHealthGate, stageNameSuggestionRepo,
+                        explicitTermSubstitutor);
         java.util.concurrent.ExecutorService translationWorkerExecutor =
                 java.util.concurrent.Executors.newSingleThreadExecutor(r -> {
                     Thread t = new Thread(r, "translation-worker");
@@ -233,7 +239,8 @@ public class Application {
                 new com.organizer3.translation.Tier2BatchSweeper(
                         ollamaAdapter, translationStrategyRepo, translationCacheRepo,
                         translationQueueRepo, translationCallbackDispatcher,
-                        translationConfig, translationJsonMapper, ollamaModelState);
+                        translationConfig, translationJsonMapper, ollamaModelState,
+                        explicitTermSubstitutor);
         java.util.concurrent.ScheduledExecutorService tier2SweeperExecutor =
                 java.util.concurrent.Executors.newSingleThreadScheduledExecutor(r -> {
                     Thread t = new Thread(r, "tier2-sweeper");

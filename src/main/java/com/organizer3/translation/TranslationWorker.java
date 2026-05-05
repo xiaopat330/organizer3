@@ -73,6 +73,8 @@ public class TranslationWorker implements Runnable {
     private final HealthGate healthGate;
     /** Optional — null when stage-name repos are not wired (e.g. in tests). */
     private final StageNameSuggestionRepository stageNameSuggestionRepo;
+    /** Never null — defaults to {@link ExplicitTermSubstitutor#EMPTY} (no-op). */
+    private final ExplicitTermSubstitutor explicitTermSubstitutor;
 
     public TranslationWorker(OllamaAdapter ollamaAdapter,
                               TranslationStrategyRepository strategyRepo,
@@ -121,6 +123,21 @@ public class TranslationWorker implements Runnable {
                               OllamaModelState modelState,
                               HealthGate healthGate,
                               StageNameSuggestionRepository stageNameSuggestionRepo) {
+        this(ollamaAdapter, strategyRepo, cacheRepo, queueRepo, callbackDispatcher, config, json,
+                modelState, healthGate, stageNameSuggestionRepo, ExplicitTermSubstitutor.EMPTY);
+    }
+
+    public TranslationWorker(OllamaAdapter ollamaAdapter,
+                              TranslationStrategyRepository strategyRepo,
+                              TranslationCacheRepository cacheRepo,
+                              TranslationQueueRepository queueRepo,
+                              CallbackDispatcher callbackDispatcher,
+                              TranslationConfig config,
+                              ObjectMapper json,
+                              OllamaModelState modelState,
+                              HealthGate healthGate,
+                              StageNameSuggestionRepository stageNameSuggestionRepo,
+                              ExplicitTermSubstitutor explicitTermSubstitutor) {
         this.ollamaAdapter           = ollamaAdapter;
         this.strategyRepo            = strategyRepo;
         this.cacheRepo               = cacheRepo;
@@ -131,6 +148,8 @@ public class TranslationWorker implements Runnable {
         this.modelState              = modelState;
         this.healthGate              = healthGate;
         this.stageNameSuggestionRepo = stageNameSuggestionRepo;
+        this.explicitTermSubstitutor = explicitTermSubstitutor != null
+                ? explicitTermSubstitutor : ExplicitTermSubstitutor.EMPTY;
     }
 
     /**
@@ -213,7 +232,7 @@ public class TranslationWorker implements Runnable {
                                    TranslationStrategy strategy,
                                    String hash,
                                    Long existingCacheRowId) {
-        String promptInput = ExplicitTermSubstitutor.substitute(row.sourceText());
+        String promptInput = explicitTermSubstitutor.substitute(row.sourceText());
         String prompt = strategy.promptTemplate().replace("{jp}", promptInput);
 
         Map<String, Object> options = null;
