@@ -1,7 +1,6 @@
 # Housekeeping: UI File Decomposition + Test Gaps (May 2026)
 
-> **Status: PROPOSED** — drafted 2026-05-04 after a from-scratch audit. Supersedes the
-> April refactor sprint that was paused before it could land all planned splits.
+> **Status: IMPLEMENTED** — all phases shipped 2026-05-04. Phases 1-5 closed via PRs #42, #43, #44, #45, #46, #47, #48 (UtilitiesRoutesTest; av-tools.css splits round 1+2; utilities-javdb-discovery split; title-browse + actress-browse splits; UiLibraryFilterTest fixture fix; dashboard builders). Stability follow-ons via PRs #49 (rating-curve null bug + dead code), #50 (UiTestFixture drift fixes), #51 (mechanical docs cleanup), #52 (FUNCTIONAL_SPEC §7 schema rewrite + CLAUDE intro), #54 (write-endpoint robustness), #55 (24 mechanical test failures), #56 (3 stale assertions + 1 @Disabled). Final coverage: 68.2% instructions (+4.2pp vs April baseline).
 
 A focused, phased cleanup of the largest and messiest source files in the project, plus a
 short list of structural test gaps. Emphasis is on the UI tier (CSS + JS modules) which has

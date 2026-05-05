@@ -25,3 +25,6 @@ CLAUDE.md
 
 # Runtime data
 data/
+
+# AI-only sandbox (audit reports, scratch)
+_sandbox/
