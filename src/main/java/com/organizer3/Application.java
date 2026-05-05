@@ -864,7 +864,8 @@ public class Application {
                         titleRepo, actressRepo, slugResolver, javdbClient,
                         new com.organizer3.javdb.enrichment.JavdbExtractor(),
                         javdbStagingRepo, draftTitleRepo, draftActressRepo, draftCastRepo,
-                        draftEnrichRepo, draftCoverStore, imageFetcher, jsonMapper);
+                        draftEnrichRepo, draftCoverStore, imageFetcher, jsonMapper,
+                        translationService, actressFuzzyMatcher);
         com.organizer3.utilities.task.javdb.BulkEnrichToDraftTask bulkEnrichToDraftTask =
                 new com.organizer3.utilities.task.javdb.BulkEnrichToDraftTask(jdbi, draftPopulator);
 

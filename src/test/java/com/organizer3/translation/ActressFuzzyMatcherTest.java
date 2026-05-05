@@ -234,6 +234,50 @@ class ActressFuzzyMatcherTest {
         assertEquals(meisaKuroki.getId(), candidates.get(0).actressId());
     }
 
+    // ── splitRomaji ───────────────────────────────────────────────────────────
+
+    @Test
+    void splitRomaji_nullInput_returnsBothNull() {
+        String[] parts = ActressFuzzyMatcher.splitRomaji(null);
+        assertNull(parts[0]);
+        assertNull(parts[1]);
+    }
+
+    @Test
+    void splitRomaji_blankInput_returnsBothNull() {
+        String[] parts = ActressFuzzyMatcher.splitRomaji("   ");
+        assertNull(parts[0]);
+        assertNull(parts[1]);
+    }
+
+    @Test
+    void splitRomaji_singleToken_firstNullLastToken() {
+        String[] parts = ActressFuzzyMatcher.splitRomaji("Asami");
+        assertNull(parts[0]);
+        assertEquals("Asami", parts[1]);
+    }
+
+    @Test
+    void splitRomaji_twoTokens_firstAndLast() {
+        String[] parts = ActressFuzzyMatcher.splitRomaji("Yuma Asami");
+        assertEquals("Yuma", parts[0]);
+        assertEquals("Asami", parts[1]);
+    }
+
+    @Test
+    void splitRomaji_threeTokens_firstAndJoinedRest() {
+        String[] parts = ActressFuzzyMatcher.splitRomaji("Maria Jose Santos");
+        assertEquals("Maria", parts[0]);
+        assertEquals("Jose Santos", parts[1]);
+    }
+
+    @Test
+    void splitRomaji_collapseInternalWhitespace() {
+        String[] parts = ActressFuzzyMatcher.splitRomaji("Yuma  Asami");
+        assertEquals("Yuma", parts[0]);
+        assertEquals("Asami", parts[1]);
+    }
+
     // ── Helpers ───────────────────────────────────────────────────────────────
 
     private static Actress actress(String canonicalName) {
