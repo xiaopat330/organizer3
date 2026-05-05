@@ -199,54 +199,31 @@ function showManualResult(type, html) {
   manualResult.innerHTML = html;
 }
 
-// ── Bulk submit ───────────────────────────────────────────────────────────
+// ── Sweep title backlog now ───────────────────────────────────────────────
 bulkBtn.addEventListener('click', async () => {
   bulkBtn.disabled = true;
-  bulkBtn.textContent = 'Fetching titles…';
+  bulkBtn.textContent = 'Sweeping…';
   bulkResult.style.display = 'none';
 
   try {
-    // Fetch titles that have title_original but no title_original_en
-    const titlesRes = await fetch('/api/translation/bulk-candidates');
-    if (!titlesRes.ok) {
-      const err = await titlesRes.json().catch(() => ({}));
-      showBulkResult('error', 'Failed to fetch candidates: ' + (err.error || titlesRes.statusText));
-      return;
-    }
-    const candidates = await titlesRes.json();  // [{ titleId, titleOriginal }]
-
-    if (!candidates.length) {
-      showBulkResult('ok', 'No pending candidates — all title_original values are already translated or queued.');
-      return;
-    }
-
-    bulkBtn.textContent = `Submitting ${candidates.length} items…`;
-
-    const items = candidates.map(c => ({
-      sourceText:   c.titleOriginal,
-      callbackKind: 'title_javdb_enrichment.title_original_en',
-      callbackId:   c.titleId,
-      contextHint:  'label_basic',
-    }));
-
-    const res = await fetch('/api/translation/bulk', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ items }),
-    });
+    const res = await fetch('/api/translation/sweep-title-backlog-now', { method: 'POST' });
     const data = await res.json();
     if (res.ok) {
-      showBulkResult('ok', `Enqueued: ${data.enqueued}, skipped: ${data.skipped}.`
-        + (data.errors.length ? ' Errors: ' + data.errors.map(esc).join('; ') : ''));
+      const { submitted, remaining } = data;
+      const msg = submitted === 0
+        ? 'No work to do — all titles already translated or queued.'
+        : `Submitted ${submitted} title${submitted === 1 ? '' : 's'} for translation.`
+          + ` Remaining backlog: ${remaining}.`;
+      showBulkResult('ok', msg);
       loadStats();
     } else {
-      showBulkResult('error', esc(data.error || 'Bulk submit failed.'));
+      showBulkResult('error', esc(data.error || 'Sweep failed.'));
     }
   } catch (err) {
     showBulkResult('error', 'Network error: ' + err.message);
   } finally {
     bulkBtn.disabled = false;
-    bulkBtn.textContent = 'Submit title_original batch';
+    bulkBtn.textContent = 'Sweep now';
   }
 });
 

@@ -2,6 +2,7 @@ package com.organizer3.web.routes;
 
 import com.organizer3.javdb.enrichment.JavdbEnrichmentRepository;
 import com.organizer3.translation.HealthStatus;
+import com.organizer3.translation.TitleTranslationSweeper;
 import com.organizer3.translation.TranslationConfig;
 import com.organizer3.translation.TranslationRequest;
 import com.organizer3.translation.TranslationService;
@@ -44,6 +45,7 @@ public class TranslationRoutes {
     private final Jdbi jdbi;
     private final JavdbEnrichmentRepository enrichmentRepo;
     private final TranslationConfig translationConfig;
+    private final TitleTranslationSweeper titleSweeper;
 
     public TranslationRoutes(TranslationService service,
                               TranslationStrategyRepository strategyRepo,
@@ -51,7 +53,8 @@ public class TranslationRoutes {
                               TranslationQueueRepository queueRepo,
                               Jdbi jdbi,
                               JavdbEnrichmentRepository enrichmentRepo,
-                              TranslationConfig translationConfig) {
+                              TranslationConfig translationConfig,
+                              TitleTranslationSweeper titleSweeper) {
         this.service           = service;
         this.strategyRepo      = strategyRepo;
         this.cacheRepo         = cacheRepo;
@@ -59,6 +62,7 @@ public class TranslationRoutes {
         this.jdbi              = jdbi;
         this.enrichmentRepo    = enrichmentRepo;
         this.translationConfig = translationConfig;
+        this.titleSweeper      = titleSweeper;
     }
 
     public void register(Javalin app) {
@@ -259,6 +263,40 @@ public class TranslationRoutes {
                 ctx.json(candidates);
             } catch (Exception e) {
                 log.error("GET /api/translation/bulk-candidates failed", e);
+                ctx.status(500).json(Map.of("error", e.getMessage()));
+            }
+        });
+
+        // POST /api/translation/sweep-title-backlog-now — operator-triggered sweep.
+        // Runs the same logic as the scheduled sweeper but with a larger limit so a
+        // single click drains a sizable backlog without waiting for multiple 5-min ticks.
+        // Honors the same NOT EXISTS dedup contract — clicking while the scheduled
+        // sweeper is running cannot double-enqueue.
+        app.post("/api/translation/sweep-title-backlog-now", ctx -> {
+            try {
+                int limit = 5000;
+                String limitParam = ctx.queryParam("limit");
+                if (limitParam != null) {
+                    try {
+                        limit = Integer.parseInt(limitParam);
+                        if (limit < 1 || limit > 10000) {
+                            ctx.status(400).json(Map.of("error", "limit must be between 1 and 10000"));
+                            return;
+                        }
+                    } catch (NumberFormatException e) {
+                        ctx.status(400).json(Map.of("error", "limit must be an integer"));
+                        return;
+                    }
+                }
+                int submitted = titleSweeper.sweepOnce(limit);
+                long remaining = enrichmentRepo.countTitlesAwaitingTranslation();
+                ctx.json(Map.of(
+                        "submitted", submitted,
+                        "remaining", remaining,
+                        "limit", limit
+                ));
+            } catch (Exception e) {
+                log.error("POST /api/translation/sweep-title-backlog-now failed", e);
                 ctx.status(500).json(Map.of("error", e.getMessage()));
             }
         });

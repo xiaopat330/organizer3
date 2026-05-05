@@ -1202,11 +1202,11 @@
     <div id="trans-manual-result" class="trans-manual-result" style="display:none"></div>
   </section>
 
-  <!-- Bulk submit widget -->
+  <!-- Backlog sweep widget -->
   <section class="trans-section">
-    <h3>Bulk Submit</h3>
-    <p class="trans-hint">Enqueues all title_original values from javdb_enrichment that have no English translation yet. Deduplicates against active queue rows.</p>
-    <button type="button" id="trans-bulk-btn" class="trans-action-btn">Submit title_original batch</button>
+    <h3>Sweep Title Backlog Now</h3>
+    <p class="trans-hint">Forces an immediate sweep of titles awaiting English translation. Same dedup as the scheduled 5-minute sweeper — clicking while a sweep is already running cannot double-enqueue. Use after a bulk enrichment run to skip the wait.</p>
+    <button type="button" id="trans-bulk-btn" class="trans-action-btn">Sweep now</button>
     <div id="trans-bulk-result" class="trans-bulk-result" style="display:none"></div>
   </section>
 

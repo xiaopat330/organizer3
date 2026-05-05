@@ -662,7 +662,8 @@ public class Application {
         // Translation Tools page endpoints (Phase 4 + Phase 6a).
         webServer.registerTranslation(new com.organizer3.web.routes.TranslationRoutes(
                 translationService, translationStrategyRepo, translationCacheRepo,
-                translationQueueRepo, jdbi, javdbEnrichmentRepo, translationConfig));
+                translationQueueRepo, jdbi, javdbEnrichmentRepo, translationConfig,
+                titleTranslationSweeper));
 
         // Utilities — maintenance UI (Tools → Volumes, ...). See spec/PROPOSAL_UTILITIES.md.
         java.util.Map<String, com.organizer3.command.Command> commandsByName = new java.util.LinkedHashMap<>();

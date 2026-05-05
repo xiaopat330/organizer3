@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.organizer3.db.SchemaInitializer;
 import com.organizer3.javdb.enrichment.JavdbEnrichmentRepository;
 import com.organizer3.translation.HealthStatus;
+import com.organizer3.translation.TitleTranslationSweeper;
 import com.organizer3.translation.TranslationConfig;
 import com.organizer3.translation.TranslationRequest;
 import com.organizer3.translation.TranslationService;
@@ -42,6 +43,7 @@ class TranslationRoutesTest {
     private TranslationCacheRepository cacheRepo;
     private TranslationQueueRepository queueRepo;
     private JavdbEnrichmentRepository enrichmentRepo;
+    private TitleTranslationSweeper titleSweeper;
     private Connection connection;
     private Jdbi jdbi;
     private final ObjectMapper mapper = new ObjectMapper();
@@ -54,6 +56,7 @@ class TranslationRoutesTest {
         cacheRepo      = mock(TranslationCacheRepository.class);
         queueRepo      = mock(TranslationQueueRepository.class);
         enrichmentRepo = mock(JavdbEnrichmentRepository.class);
+        titleSweeper   = mock(TitleTranslationSweeper.class);
 
         connection = DriverManager.getConnection("jdbc:sqlite::memory:");
         jdbi = Jdbi.create(connection);
@@ -62,7 +65,7 @@ class TranslationRoutesTest {
         server = new WebServer(0);
         server.registerTranslation(new TranslationRoutes(
                 service, strategyRepo, cacheRepo, queueRepo, jdbi,
-                enrichmentRepo, TranslationConfig.DEFAULTS));
+                enrichmentRepo, TranslationConfig.DEFAULTS, titleSweeper));
         server.start();
     }
 
@@ -357,5 +360,42 @@ class TranslationRoutesTest {
 
         HttpResponse<String> res = get("/api/translation/title-sweeper-status");
         assertEquals(500, res.statusCode());
+    }
+
+    // ── POST /api/translation/sweep-title-backlog-now ────────────────────────
+
+    @Test
+    void sweepTitleBacklog_callsSweeperAndReturnsCounts() throws Exception {
+        when(titleSweeper.sweepOnce(5000)).thenReturn(123);
+        when(enrichmentRepo.countTitlesAwaitingTranslation()).thenReturn(456L);
+
+        HttpResponse<String> res = post("/api/translation/sweep-title-backlog-now", Map.of());
+        assertEquals(200, res.statusCode());
+
+        JsonNode node = mapper.readTree(res.body());
+        assertEquals(123, node.get("submitted").asInt());
+        assertEquals(456, node.get("remaining").asLong());
+        assertEquals(5000, node.get("limit").asInt());
+        verify(titleSweeper).sweepOnce(5000);
+    }
+
+    @Test
+    void sweepTitleBacklog_honorsLimitParam() throws Exception {
+        when(titleSweeper.sweepOnce(100)).thenReturn(80);
+        when(enrichmentRepo.countTitlesAwaitingTranslation()).thenReturn(0L);
+
+        HttpResponse<String> res = post("/api/translation/sweep-title-backlog-now?limit=100", Map.of());
+        assertEquals(200, res.statusCode());
+
+        JsonNode node = mapper.readTree(res.body());
+        assertEquals(80, node.get("submitted").asInt());
+        verify(titleSweeper).sweepOnce(100);
+    }
+
+    @Test
+    void sweepTitleBacklog_rejectsOutOfRangeLimit() throws Exception {
+        HttpResponse<String> res = post("/api/translation/sweep-title-backlog-now?limit=99999", Map.of());
+        assertEquals(400, res.statusCode());
+        verifyNoInteractions(titleSweeper);
     }
 }
