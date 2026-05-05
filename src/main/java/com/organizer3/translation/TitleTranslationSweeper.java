@@ -58,11 +58,23 @@ public class TitleTranslationSweeper implements Runnable {
             log.debug("TitleTranslationSweeper: disabled, skipping tick");
             return;
         }
+        sweepOnce(batchSize);
+    }
+
+    /**
+     * Runs a single sweep pass with an explicit limit. Returns the number of
+     * translations successfully submitted. Used by the scheduled tick (with the
+     * configured {@code batchSize}) and by the "sweep title backlog now" endpoint
+     * (with an operator-supplied larger limit).
+     *
+     * <p>This bypasses the {@link #enabled} gate — manual invocation is always honored.
+     */
+    public int sweepOnce(int limit) {
         try {
-            List<TitleAwaitingTranslation> rows = enrichmentRepo.findTitlesAwaitingTranslation(batchSize);
+            List<TitleAwaitingTranslation> rows = enrichmentRepo.findTitlesAwaitingTranslation(limit);
             if (rows.isEmpty()) {
-                log.info("TitleTranslationSweeper: tick produced no work (all titles already translated or queued)");
-                return;
+                log.info("TitleTranslationSweeper: pass produced no work (all titles already translated or queued)");
+                return 0;
             }
             int submitted = 0;
             int errors = 0;
@@ -81,10 +93,12 @@ public class TitleTranslationSweeper implements Runnable {
                             row.titleId(), e.getMessage());
                 }
             }
-            log.info("TitleTranslationSweeper: submitted {} title translation(s) (errors={}, batchSize={})",
-                    submitted, errors, batchSize);
+            log.info("TitleTranslationSweeper: submitted {} title translation(s) (errors={}, limit={})",
+                    submitted, errors, limit);
+            return submitted;
         } catch (Exception e) {
             log.error("TitleTranslationSweeper: error during sweep", e);
+            return 0;
         }
     }
 }

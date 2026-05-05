@@ -54,8 +54,15 @@ export function hideTranslationView() {
 // ── Stats ─────────────────────────────────────────────────────────────────
 async function loadStats() {
   try {
-    const res  = await fetch('/api/translation/stats');
-    const data = await res.json();
+    const [statsRes, sweeperRes] = await Promise.all([
+      fetch('/api/translation/stats'),
+      fetch('/api/translation/title-sweeper-status').catch(() => null),
+    ]);
+    const data = await statsRes.json();
+    const sweeper = sweeperRes && sweeperRes.ok ? await sweeperRes.json() : null;
+    const titlesPending = sweeper ? sweeper.pending : '—';
+    const sweeperLabel  = sweeper && sweeper.enabled === false
+        ? 'Titles awaiting (paused)' : 'Titles awaiting';
     statsGrid.innerHTML = `
       <div class="trans-stat"><span class="trans-stat-label">Cache total</span><span class="trans-stat-val">${data.cacheTotal}</span></div>
       <div class="trans-stat"><span class="trans-stat-label">Successful</span><span class="trans-stat-val">${data.cacheSuccessful}</span></div>
@@ -67,6 +74,7 @@ async function loadStats() {
       <div class="trans-stat"><span class="trans-stat-label">Throughput (1h)</span><span class="trans-stat-val">${data.throughputLastHour}</span></div>
       <div class="trans-stat"><span class="trans-stat-label">Stage-name lookup</span><span class="trans-stat-val">${data.stageNameLookupSize ?? 0}</span></div>
       <div class="trans-stat"><span class="trans-stat-label">Suggestions unreviewed</span><span class="trans-stat-val">${data.stageNameSuggestionsUnreviewed ?? 0}</span></div>
+      <div class="trans-stat"><span class="trans-stat-label">${sweeperLabel}</span><span class="trans-stat-val">${titlesPending}</span></div>
     `;
   } catch (err) {
     console.error('Translation stats failed', err);
@@ -107,6 +115,22 @@ async function loadHealth() {
 }
 
 // ── Recent failures ───────────────────────────────────────────────────────
+function fmtLatency(ms) {
+  if (ms == null) return '—';
+  return ms < 1000 ? `${ms} ms` : `${(ms / 1000).toFixed(2)} s`;
+}
+
+function fmtTimestamp(iso) {
+  if (!iso) return '';
+  const d = new Date(iso);
+  if (isNaN(d)) return iso;
+  return d.toLocaleString(undefined, {
+    month: 'short', day: 'numeric',
+    hour: '2-digit', minute: '2-digit', second: '2-digit',
+    hour12: false,
+  });
+}
+
 async function loadRecentFailures() {
   try {
     const res  = await fetch('/api/translation/recent-failures?limit=20');
@@ -116,13 +140,16 @@ async function loadRecentFailures() {
       return;
     }
     failuresDiv.innerHTML = `<table class="trans-table">
-      <thead><tr><th>Source text</th><th>Failure reason</th><th>Latency ms</th><th>Cached at</th></tr></thead>
+      <thead><tr>
+        <th>Code</th><th>Source text</th><th>Failure reason</th><th>Latency</th><th>Cached at</th>
+      </tr></thead>
       <tbody>${rows.map(r => `
         <tr>
+          <td class="trans-code-cell">${esc(r.titleCode || '—')}</td>
           <td class="trans-source-cell">${esc(r.sourceText || '')}</td>
           <td>${esc(r.failureReason || '')}</td>
-          <td>${r.latencyMs != null ? r.latencyMs : '—'}</td>
-          <td>${esc(r.cachedAt || '')}</td>
+          <td class="trans-latency-cell">${fmtLatency(r.latencyMs)}</td>
+          <td class="trans-time-cell" title="${esc(r.cachedAt || '')}">${esc(fmtTimestamp(r.cachedAt))}</td>
         </tr>
       `).join('')}</tbody>
     </table>`;
@@ -172,54 +199,31 @@ function showManualResult(type, html) {
   manualResult.innerHTML = html;
 }
 
-// ── Bulk submit ───────────────────────────────────────────────────────────
+// ── Sweep title backlog now ───────────────────────────────────────────────
 bulkBtn.addEventListener('click', async () => {
   bulkBtn.disabled = true;
-  bulkBtn.textContent = 'Fetching titles…';
+  bulkBtn.textContent = 'Sweeping…';
   bulkResult.style.display = 'none';
 
   try {
-    // Fetch titles that have title_original but no title_original_en
-    const titlesRes = await fetch('/api/translation/bulk-candidates');
-    if (!titlesRes.ok) {
-      const err = await titlesRes.json().catch(() => ({}));
-      showBulkResult('error', 'Failed to fetch candidates: ' + (err.error || titlesRes.statusText));
-      return;
-    }
-    const candidates = await titlesRes.json();  // [{ titleId, titleOriginal }]
-
-    if (!candidates.length) {
-      showBulkResult('ok', 'No pending candidates — all title_original values are already translated or queued.');
-      return;
-    }
-
-    bulkBtn.textContent = `Submitting ${candidates.length} items…`;
-
-    const items = candidates.map(c => ({
-      sourceText:   c.titleOriginal,
-      callbackKind: 'title_javdb_enrichment.title_original_en',
-      callbackId:   c.titleId,
-      contextHint:  'label_basic',
-    }));
-
-    const res = await fetch('/api/translation/bulk', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ items }),
-    });
+    const res = await fetch('/api/translation/sweep-title-backlog-now', { method: 'POST' });
     const data = await res.json();
     if (res.ok) {
-      showBulkResult('ok', `Enqueued: ${data.enqueued}, skipped: ${data.skipped}.`
-        + (data.errors.length ? ' Errors: ' + data.errors.map(esc).join('; ') : ''));
+      const { submitted, remaining } = data;
+      const msg = submitted === 0
+        ? 'No work to do — all titles already translated or queued.'
+        : `Submitted ${submitted} title${submitted === 1 ? '' : 's'} for translation.`
+          + ` Remaining backlog: ${remaining}.`;
+      showBulkResult('ok', msg);
       loadStats();
     } else {
-      showBulkResult('error', esc(data.error || 'Bulk submit failed.'));
+      showBulkResult('error', esc(data.error || 'Sweep failed.'));
     }
   } catch (err) {
     showBulkResult('error', 'Network error: ' + err.message);
   } finally {
     bulkBtn.disabled = false;
-    bulkBtn.textContent = 'Submit title_original batch';
+    bulkBtn.textContent = 'Sweep now';
   }
 });
 

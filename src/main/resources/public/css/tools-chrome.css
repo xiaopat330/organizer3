@@ -125,6 +125,16 @@
 }
 .tools-logs-btn.selected svg { stroke: #bef264; }
 
+.tools-translation-btn        { color: #facc15; }
+.tools-translation-btn svg    { stroke: #facc15; }
+.tools-translation-btn:hover,
+.tools-translation-btn.selected {
+  color: #fde047;
+  background: #1c1500;
+  border-color: #854d0e;
+}
+.tools-translation-btn.selected svg { stroke: #fde047; }
+
 .tools-tag-health-btn             { color: #a78bfa; }
 .tools-tag-health-btn svg         { stroke: #a78bfa; }
 .tools-tag-health-btn:hover,

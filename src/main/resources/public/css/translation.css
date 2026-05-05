@@ -1,0 +1,224 @@
+/* ── Translation Tools view ─────────────────────────────────────────── */
+.tools-translation-view {
+  margin: 16px 24px 32px;
+  color: #d8d8d8;
+}
+
+/* Header: title + health dot */
+.trans-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 18px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid #262626;
+}
+.trans-header h2 {
+  font-size: 1.15rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: #e8e8e8;
+}
+
+/* Health indicator dot */
+.trans-health-dot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #555;
+  cursor: help;
+}
+.trans-health-ok       { background: #4ade80; box-shadow: 0 0 4px rgba(74, 222, 128, 0.4); }
+.trans-health-err      { background: #f87171; box-shadow: 0 0 4px rgba(248, 113, 113, 0.4); }
+.trans-health-unknown  { background: #a8a29e; }
+
+/* Sections */
+.trans-section {
+  margin-top: 20px;
+  padding: 14px 16px;
+  background: #161616;
+  border: 1px solid #262626;
+  border-radius: 6px;
+}
+.trans-section h3 {
+  font-size: 0.85rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #9ca3af;
+  margin-bottom: 10px;
+}
+
+/* Hint paragraph above interactive widgets */
+.trans-hint {
+  font-size: 0.82rem;
+  color: #888;
+  margin-bottom: 10px;
+  line-height: 1.4;
+}
+
+/* ── Stats grid ─────────────────────────────────────────────────────── */
+.trans-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 8px;
+}
+.trans-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px 12px;
+  background: #1d1d1d;
+  border: 1px solid #2a2a2a;
+  border-radius: 4px;
+}
+.trans-stat-label {
+  font-size: 0.72rem;
+  color: #888;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.trans-stat-val {
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: #e8e8e8;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Tables (strategies + recent failures) ──────────────────────────── */
+.trans-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+}
+.trans-table thead th {
+  text-align: left;
+  padding: 8px 10px;
+  background: #1d1d1d;
+  border-bottom: 1px solid #2a2a2a;
+  font-weight: 600;
+  font-size: 0.78rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #9ca3af;
+}
+.trans-table tbody td {
+  padding: 8px 10px;
+  border-bottom: 1px solid #1f1f1f;
+  vertical-align: top;
+}
+.trans-table tbody tr:hover td {
+  background: #1a1a1a;
+}
+.trans-source-cell {
+  max-width: 480px;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-family: ui-monospace, SFMono-Regular, monospace;
+  font-size: 0.8rem;
+  color: #c4b5fd;
+}
+.trans-code-cell {
+  font-family: ui-monospace, SFMono-Regular, monospace;
+  font-size: 0.82rem;
+  color: #facc15;
+  white-space: nowrap;
+}
+.trans-latency-cell {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  color: #cbd5e1;
+}
+.trans-time-cell {
+  white-space: nowrap;
+  color: #9ca3af;
+  font-size: 0.82rem;
+}
+
+/* ── Manual translate widget ────────────────────────────────────────── */
+.trans-manual-row {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+}
+.trans-manual-input {
+  flex: 1;
+  min-height: 64px;
+  padding: 8px 10px;
+  background: #161616;
+  border: 1px solid #2a2a2a;
+  border-radius: 4px;
+  color: #e8e8e8;
+  font-family: inherit;
+  font-size: 0.9rem;
+  resize: vertical;
+}
+.trans-manual-input:focus {
+  outline: none;
+  border-color: #4a80a0;
+}
+.trans-manual-hint {
+  padding: 8px 10px;
+  background: #161616;
+  border: 1px solid #2a2a2a;
+  border-radius: 4px;
+  color: #d8d8d8;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+/* Buttons */
+.trans-action-btn {
+  padding: 8px 14px;
+  background: #2a2a2a;
+  border: 1px solid #3a3a3a;
+  border-radius: 4px;
+  color: #e8e8e8;
+  font-size: 0.85rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.12s, border-color 0.12s;
+}
+.trans-action-btn:hover:not(:disabled) {
+  background: #353535;
+  border-color: #4a4a4a;
+}
+.trans-action-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Result panels (shared shape for manual + bulk) */
+.trans-manual-result,
+.trans-bulk-result {
+  margin-top: 10px;
+  padding: 10px 12px;
+  border-radius: 4px;
+  font-size: 0.88rem;
+  line-height: 1.45;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.trans-manual-result-ok,
+.trans-bulk-result-ok {
+  background: #0f1f14;
+  border: 1px solid #1f4429;
+  color: #a7e8c0;
+}
+.trans-manual-result-error,
+.trans-bulk-result-error {
+  background: #1f0f0f;
+  border: 1px solid #4a2020;
+  color: #f0a8a8;
+}
+
+/* Failures section helpers */
+.trans-failures {
+  font-size: 0.85rem;
+}
+.trans-empty {
+  color: #888;
+  font-style: italic;
+}

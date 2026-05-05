@@ -2,6 +2,7 @@ package com.organizer3.web.routes;
 
 import com.organizer3.javdb.enrichment.JavdbEnrichmentRepository;
 import com.organizer3.translation.HealthStatus;
+import com.organizer3.translation.TitleTranslationSweeper;
 import com.organizer3.translation.TranslationConfig;
 import com.organizer3.translation.TranslationRequest;
 import com.organizer3.translation.TranslationService;
@@ -44,6 +45,7 @@ public class TranslationRoutes {
     private final Jdbi jdbi;
     private final JavdbEnrichmentRepository enrichmentRepo;
     private final TranslationConfig translationConfig;
+    private final TitleTranslationSweeper titleSweeper;
 
     public TranslationRoutes(TranslationService service,
                               TranslationStrategyRepository strategyRepo,
@@ -51,7 +53,8 @@ public class TranslationRoutes {
                               TranslationQueueRepository queueRepo,
                               Jdbi jdbi,
                               JavdbEnrichmentRepository enrichmentRepo,
-                              TranslationConfig translationConfig) {
+                              TranslationConfig translationConfig,
+                              TitleTranslationSweeper titleSweeper) {
         this.service           = service;
         this.strategyRepo      = strategyRepo;
         this.cacheRepo         = cacheRepo;
@@ -59,6 +62,7 @@ public class TranslationRoutes {
         this.jdbi              = jdbi;
         this.enrichmentRepo    = enrichmentRepo;
         this.translationConfig = translationConfig;
+        this.titleSweeper      = titleSweeper;
     }
 
     public void register(Javalin app) {
@@ -115,7 +119,26 @@ public class TranslationRoutes {
                         return;
                     }
                 }
-                ctx.json(cacheRepo.findRecentFailures(limit));
+                var failures = cacheRepo.findRecentFailures(limit);
+                // Enrich with the title.code for any failure whose source_text was queued
+                // through the title_original_en callback. n+1 over a small (≤200) result set
+                // is acceptable; the lookup is keyed on the indexed source_text column.
+                List<Map<String, Object>> enriched = new ArrayList<>(failures.size());
+                for (var f : failures) {
+                    Map<String, Object> row = new LinkedHashMap<>();
+                    row.put("id",                  f.id());
+                    row.put("sourceText",          f.sourceText());
+                    row.put("englishText",         f.englishText());
+                    row.put("failureReason",       f.failureReason());
+                    row.put("retryAfter",          f.retryAfter());
+                    row.put("latencyMs",           f.latencyMs());
+                    row.put("promptTokens",        f.promptTokens());
+                    row.put("evalTokens",          f.evalTokens());
+                    row.put("cachedAt",            f.cachedAt());
+                    row.put("titleCode",           lookupTitleCodeForSourceText(f.sourceText()));
+                    enriched.add(row);
+                }
+                ctx.json(enriched);
             } catch (Exception e) {
                 log.error("GET /api/translation/recent-failures failed", e);
                 ctx.status(500).json(Map.of("error", e.getMessage()));
@@ -244,6 +267,40 @@ public class TranslationRoutes {
             }
         });
 
+        // POST /api/translation/sweep-title-backlog-now — operator-triggered sweep.
+        // Runs the same logic as the scheduled sweeper but with a larger limit so a
+        // single click drains a sizable backlog without waiting for multiple 5-min ticks.
+        // Honors the same NOT EXISTS dedup contract — clicking while the scheduled
+        // sweeper is running cannot double-enqueue.
+        app.post("/api/translation/sweep-title-backlog-now", ctx -> {
+            try {
+                int limit = 5000;
+                String limitParam = ctx.queryParam("limit");
+                if (limitParam != null) {
+                    try {
+                        limit = Integer.parseInt(limitParam);
+                        if (limit < 1 || limit > 10000) {
+                            ctx.status(400).json(Map.of("error", "limit must be between 1 and 10000"));
+                            return;
+                        }
+                    } catch (NumberFormatException e) {
+                        ctx.status(400).json(Map.of("error", "limit must be an integer"));
+                        return;
+                    }
+                }
+                int submitted = titleSweeper.sweepOnce(limit);
+                long remaining = enrichmentRepo.countTitlesAwaitingTranslation();
+                ctx.json(Map.of(
+                        "submitted", submitted,
+                        "remaining", remaining,
+                        "limit", limit
+                ));
+            } catch (Exception e) {
+                log.error("POST /api/translation/sweep-title-backlog-now failed", e);
+                ctx.status(500).json(Map.of("error", e.getMessage()));
+            }
+        });
+
         // GET /api/translation/title-sweeper-status — Phase 6a stat surface.
         // Returns the count of titles whose title_original has not yet been queued for
         // English translation, plus the sweeper's current configuration knobs.
@@ -284,6 +341,34 @@ public class TranslationRoutes {
     // -------------------------------------------------------------------------
     // Helpers
     // -------------------------------------------------------------------------
+
+    /**
+     * Resolve the {@code titles.code} (Product Number) for a source text that was queued
+     * via the {@code title_original_en} callback. Returns {@code null} if the source text
+     * was not associated with a title (e.g., a manual-translate request) or if the title
+     * has been deleted.
+     *
+     * <p>One row per failure is acceptable here — the recent-failures view is bounded
+     * to ≤200 rows and the lookup is keyed on a string-equality compare against the
+     * (small) translation_queue table.
+     */
+    private String lookupTitleCodeForSourceText(String sourceText) {
+        if (sourceText == null) return null;
+        return jdbi.withHandle(h ->
+                h.createQuery("""
+                        SELECT t.code
+                        FROM translation_queue q
+                        JOIN titles t ON t.id = q.callback_id
+                        WHERE q.source_text   = :src
+                          AND q.callback_kind = :kind
+                        LIMIT 1
+                        """)
+                        .bind("src",  sourceText)
+                        .bind("kind", "title_javdb_enrichment.title_original_en")
+                        .mapTo(String.class)
+                        .findFirst()
+                        .orElse(null));
+    }
 
     private static String asString(Map<String, Object> map, String key) {
         Object val = map.get(key);
