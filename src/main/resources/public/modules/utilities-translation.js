@@ -64,8 +64,20 @@ export function hideTranslationView() {
   s.activitySince = null;
 }
 
+// ── Visibility guard ──────────────────────────────────────────────────────
+// If the panel was hidden by top-nav (which bypasses hideTranslationView),
+// timers would otherwise keep polling indefinitely. Detect this and tear down.
+function bailIfHidden() {
+  if (translationView.style.display === 'none') {
+    hideTranslationView();
+    return true;
+  }
+  return false;
+}
+
 // ── Stats ─────────────────────────────────────────────────────────────────
 async function loadStats() {
+  if (bailIfHidden()) return;
   try {
     const [statsRes, sweeperRes] = await Promise.all([
       fetch('/api/translation/stats'),
@@ -116,6 +128,7 @@ async function loadStrategies() {
 
 // ── Health dot ────────────────────────────────────────────────────────────
 async function loadHealth() {
+  if (bailIfHidden()) return;
   try {
     const res  = await fetch('/api/translation/health');
     const data = await res.json();
@@ -155,6 +168,7 @@ function renderActivityRow(e) {
 }
 
 async function loadActivity() {
+  if (bailIfHidden()) return;
   try {
     const url = s.activitySince
         ? `/api/translation/recent-events?limit=50&since=${encodeURIComponent(s.activitySince)}`
