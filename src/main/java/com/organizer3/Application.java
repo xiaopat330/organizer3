@@ -510,6 +510,24 @@ public class Application {
                 translationConfig.titleSweeperIntervalSecondsOrDefault(),
                 java.util.concurrent.TimeUnit.SECONDS);
 
+        // Phase 6a follow-up: retry transient failures (Ollama unreachable etc.)
+        // once retry_after has elapsed. See FailedTranslationRetrySweeper javadoc.
+        if (translationConfig.retryFailedSweeperEnabledOrDefault()) {
+            com.organizer3.translation.FailedTranslationRetrySweeper failedRetrySweeper =
+                    new com.organizer3.translation.FailedTranslationRetrySweeper(jdbi);
+            java.util.concurrent.ScheduledExecutorService retryFailedExecutor =
+                    java.util.concurrent.Executors.newSingleThreadScheduledExecutor(r -> {
+                        Thread t = new Thread(r, "translation-retry-failed-sweeper");
+                        t.setDaemon(true);
+                        return t;
+                    });
+            retryFailedExecutor.scheduleAtFixedRate(
+                    failedRetrySweeper,
+                    translationConfig.retryFailedSweeperIntervalSecondsOrDefault(),
+                    translationConfig.retryFailedSweeperIntervalSecondsOrDefault(),
+                    java.util.concurrent.TimeUnit.SECONDS);
+        }
+
         com.organizer3.javdb.enrichment.EnrichmentQueue enrichmentQueue =
                 new com.organizer3.javdb.enrichment.EnrichmentQueue(jdbi, javdbConfig);
         com.organizer3.javdb.enrichment.AutoPromoter autoPromoter =
