@@ -130,10 +130,11 @@ class ActressYamlLoaderRealDataTest {
         }
 
         @Test
-        void alternateNameStoredInProfileNotAlias() {
-            // alternate_name: オグナナ — stored in alternate_names_json, not as a searchable alias
-            assertFalse(actressRepo.resolveByName("オグナナ").isPresent(),
-                    "alternate_names should not be added as aliases");
+        void alternateNameStoredInBothProfileAndAlias() {
+            // alternate_name: オグナナ — stored in alternate_names_json AND mirrored into actress_aliases
+            // (new contract since feat(actresses): YAML alias mirror, commit ce3f0f2)
+            assertTrue(actressRepo.resolveByName("オグナナ").isPresent(),
+                    "alternate_names should be mirrored into actress_aliases for search matching");
             Actress a = actressRepo.resolveByName("Nana Ogura").orElseThrow();
             assertTrue(a.getAlternateNames() != null
                     && a.getAlternateNames().stream().anyMatch(n -> "オグナナ".equals(n.name())));
@@ -215,10 +216,11 @@ class ActressYamlLoaderRealDataTest {
         }
 
         @Test
-        void chineseAlternateNameStoredInProfileNotAlias() {
-            // alternate_name: 苍井空 — stored in alternate_names_json, not as a searchable alias
-            assertFalse(actressRepo.resolveByName("苍井空").isPresent(),
-                    "alternate_names should not be added as aliases");
+        void chineseAlternateNameStoredInBothProfileAndAlias() {
+            // alternate_name: 苍井空 — stored in alternate_names_json AND mirrored into actress_aliases
+            // (new contract since feat(actresses): YAML alias mirror, commit ce3f0f2)
+            assertTrue(actressRepo.resolveByName("苍井空").isPresent(),
+                    "alternate_names should be mirrored into actress_aliases for search matching");
             Actress a = actressRepo.resolveByName("Sora Aoi").orElseThrow();
             assertTrue(a.getAlternateNames() != null
                     && a.getAlternateNames().stream().anyMatch(n -> "苍井空".equals(n.name())));
@@ -306,10 +308,11 @@ class ActressYamlLoaderRealDataTest {
         }
 
         @Test
-        void earlyGravureAlternateNameStoredInProfileNotAlias() {
-            // alternate_name: 麻生由真 (gravure name) — stored in alternate_names_json, not as alias
-            assertFalse(actressRepo.resolveByName("麻生由真").isPresent(),
-                    "alternate_names should not be added as aliases");
+        void earlyGravureAlternateNameStoredInBothProfileAndAlias() {
+            // alternate_name: 麻生由真 (gravure name) — stored in alternate_names_json AND mirrored into actress_aliases
+            // (new contract since feat(actresses): YAML alias mirror, commit ce3f0f2)
+            assertTrue(actressRepo.resolveByName("麻生由真").isPresent(),
+                    "alternate_names should be mirrored into actress_aliases for search matching");
             Actress a = actressRepo.resolveByName("Yuma Asami").orElseThrow();
             assertTrue(a.getAlternateNames() != null
                     && a.getAlternateNames().stream().anyMatch(n -> "麻生由真".equals(n.name())));
