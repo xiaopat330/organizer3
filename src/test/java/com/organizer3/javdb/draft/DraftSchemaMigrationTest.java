@@ -128,7 +128,7 @@ class DraftSchemaMigrationTest {
 
         new SchemaUpgrader(jdbi).upgrade();
 
-        assertEquals(50, schemaVersion(), "schema version must be 50 after upgrade");
+        assertEquals(51, schemaVersion(), "schema version must be 51 after upgrade");
     }
 
     @Test
@@ -156,7 +156,7 @@ class DraftSchemaMigrationTest {
         // Running again must be a no-op.
         new SchemaUpgrader(jdbi).upgrade();
 
-        assertEquals(50, schemaVersion(), "schema version must remain 50 after redundant upgrade");
+        assertEquals(51, schemaVersion(), "schema version must remain 51 after redundant upgrade");
     }
 
     // ── v44 → v45 upgrade ─────────────────────────────────────────────────────
@@ -206,7 +206,7 @@ class DraftSchemaMigrationTest {
 
         new SchemaUpgrader(jdbi).upgrade();
 
-        assertEquals(50, schemaVersion(), "schema version must be 50 after v44→v50 upgrade");
+        assertEquals(51, schemaVersion(), "schema version must be 51 after v44→v51 upgrade");
     }
 
     @Test
@@ -253,8 +253,8 @@ class DraftSchemaMigrationTest {
     void freshInstallIsStampedAtVersion50() {
         new SchemaInitializer(jdbi).initialize();
 
-        assertEquals(50, schemaVersion(),
-                "fresh install must stamp version 50");
+        assertEquals(51, schemaVersion(),
+                "fresh install must stamp version 51");
     }
 
     // ── unique index enforcement ───────────────────────────────────────────────
