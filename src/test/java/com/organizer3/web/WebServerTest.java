@@ -957,11 +957,14 @@ class WebServerTest {
     @Test
     void watchHistoryPostEndpointRecordsAndReturnsEntry() throws IOException, InterruptedException {
         WatchHistoryRepository watchRepo = mock(WatchHistoryRepository.class);
+        TitleRepository titleRepo = mock(TitleRepository.class);
+        Title title = Title.builder().id(1L).code("ABP-123").label("ABP").seqNum(123).build();
+        when(titleRepo.findByCode("ABP-123")).thenReturn(Optional.of(title));
         WatchHistory entry = WatchHistory.builder().id(42L).titleCode("ABP-123")
                 .watchedAt(java.time.LocalDateTime.of(2026, 4, 20, 10, 0)).build();
         when(watchRepo.record(eq("ABP-123"), any())).thenReturn(entry);
 
-        server = new WebServer(0, null, null, null, null, null, null, watchRepo, null, null);
+        server = new WebServer(0, null, null, null, null, null, null, watchRepo, titleRepo, null);
         server.start();
 
         HttpResponse<String> response = post("/api/watch-history/ABP-123");
