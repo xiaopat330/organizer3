@@ -25,7 +25,9 @@ public record TranslationConfig(
         @JsonProperty("tier2SweeperIntervalSeconds")    Integer tier2SweeperIntervalSeconds,
         @JsonProperty("titleSweeperEnabled")            Boolean titleSweeperEnabled,
         @JsonProperty("titleSweeperIntervalSeconds")    Integer titleSweeperIntervalSeconds,
-        @JsonProperty("titleSweeperBatchSize")          Integer titleSweeperBatchSize
+        @JsonProperty("titleSweeperBatchSize")          Integer titleSweeperBatchSize,
+        @JsonProperty("retryFailedSweeperEnabled")      Boolean retryFailedSweeperEnabled,
+        @JsonProperty("retryFailedSweeperIntervalSeconds") Integer retryFailedSweeperIntervalSeconds
 ) {
     /** Default configuration — {@code http://localhost:11434}, 120s, gemma4:e4b / qwen2.5:14b. */
     public static final TranslationConfig DEFAULTS = new TranslationConfig(
@@ -42,7 +44,9 @@ public record TranslationConfig(
             300,
             true,
             300,
-            50
+            50,
+            true,
+            600
     );
 
     public String ollamaBaseUrlOrDefault() {
@@ -105,5 +109,15 @@ public record TranslationConfig(
     /** Maximum titles enqueued per title-sweeper tick. Default 50. */
     public int titleSweeperBatchSizeOrDefault() {
         return titleSweeperBatchSize != null ? titleSweeperBatchSize : 50;
+    }
+
+    /** Whether the FailedTranslationRetrySweeper runs. Default true. */
+    public boolean retryFailedSweeperEnabledOrDefault() {
+        return retryFailedSweeperEnabled == null || retryFailedSweeperEnabled;
+    }
+
+    /** Interval between retry-sweeper runs. Default 600s (10 min). */
+    public int retryFailedSweeperIntervalSecondsOrDefault() {
+        return retryFailedSweeperIntervalSeconds != null ? retryFailedSweeperIntervalSeconds : 600;
     }
 }
