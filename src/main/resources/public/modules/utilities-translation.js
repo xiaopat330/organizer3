@@ -92,6 +92,13 @@ async function loadStats() {
       <div class="trans-stat"><span class="trans-stat-label">Cache total</span><span class="trans-stat-val">${data.cacheTotal}</span></div>
       <div class="trans-stat"><span class="trans-stat-label">Successful</span><span class="trans-stat-val">${data.cacheSuccessful}</span></div>
       <div class="trans-stat"><span class="trans-stat-label">Failed</span><span class="trans-stat-val">${data.cacheFailed}</span></div>
+      <div class="trans-stat">
+        <span class="trans-stat-label">Failed (both tiers)</span>
+        <span class="trans-stat-val">${data.cacheFailedSanitizedBothTiers ?? 0}</span>
+        ${(data.cacheFailedSanitizedBothTiers ?? 0) > 0
+          ? '<button id="trans-requeue-both-tiers" class="trans-stat-action" title="Delete the failure cache rows and let the sweeper retry these on its next tick">Re-queue</button>'
+          : ''}
+      </div>
       <div class="trans-stat"><span class="trans-stat-label">Queue pending</span><span class="trans-stat-val">${data.queuePending}</span></div>
       <div class="trans-stat"><span class="trans-stat-label">In flight</span><span class="trans-stat-val">${data.queueInFlight}</span></div>
       <div class="trans-stat"><span class="trans-stat-label">Tier-2 pending</span><span class="trans-stat-val">${data.queueTier2Pending}</span></div>
@@ -101,6 +108,25 @@ async function loadStats() {
       <div class="trans-stat"><span class="trans-stat-label">Suggestions unreviewed</span><span class="trans-stat-val">${data.stageNameSuggestionsUnreviewed ?? 0}</span></div>
       <div class="trans-stat"><span class="trans-stat-label">${sweeperLabel}</span><span class="trans-stat-val">${titlesPending}</span></div>
     `;
+    const requeueBtn = document.getElementById('trans-requeue-both-tiers');
+    if (requeueBtn) {
+      requeueBtn.addEventListener('click', async () => {
+        const n = data.cacheFailedSanitizedBothTiers ?? 0;
+        if (!confirm(`Re-queue ${n} sanitized-both-tiers failure(s)? They will be retried on the next sweeper tick.`)) return;
+        requeueBtn.disabled = true;
+        requeueBtn.textContent = '...';
+        try {
+          const res = await fetch('/api/translation/requeue-sanitized-both-tiers', { method: 'POST' });
+          if (!res.ok) throw new Error('HTTP ' + res.status);
+          await loadStats();
+        } catch (err) {
+          console.error('Re-queue failed', err);
+          requeueBtn.disabled = false;
+          requeueBtn.textContent = 'Re-queue';
+          alert('Re-queue failed: ' + err.message);
+        }
+      });
+    }
   } catch (err) {
     console.error('Translation stats failed', err);
     statsGrid.textContent = 'Failed to load stats.';

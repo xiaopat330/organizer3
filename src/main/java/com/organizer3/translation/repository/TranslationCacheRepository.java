@@ -57,6 +57,16 @@ public interface TranslationCacheRepository {
     /** Number of rows with a non-null {@code failure_reason}. */
     long countFailed();
 
+    /** Number of rows whose {@code failure_reason} matches the given value exactly. */
+    long countByFailureReason(String reason);
+
+    /**
+     * Delete cache rows whose {@code failure_reason} matches exactly. Returns the number
+     * of cache rows deleted. Used by the manual force-retry path to clear permanent-failure
+     * rows so the upstream sweeper picks them up again.
+     */
+    int deleteByFailureReason(String reason);
+
     /**
      * Count successful translations cached within the given trailing window.
      * Used for throughput calculation (completions per hour).

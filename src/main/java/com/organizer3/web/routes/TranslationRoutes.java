@@ -76,6 +76,7 @@ public class TranslationRoutes {
                 statsMap.put("cacheTotal", base.cacheTotal());
                 statsMap.put("cacheSuccessful", base.cacheSuccessful());
                 statsMap.put("cacheFailed", base.cacheFailed());
+                statsMap.put("cacheFailedSanitizedBothTiers", base.cacheFailedSanitizedBothTiers());
                 statsMap.put("queuePending", base.queuePending());
                 statsMap.put("queueInFlight", base.queueInFlight());
                 statsMap.put("queueDone", base.queueDone());
@@ -339,6 +340,21 @@ public class TranslationRoutes {
                 ));
             } catch (Exception e) {
                 log.error("POST /api/translation/sweep-title-backlog-now failed", e);
+                ctx.status(500).json(Map.of("error", e.getMessage()));
+            }
+        });
+
+        // POST /api/translation/requeue-sanitized-both-tiers — manual force-retry path
+        // for cache rows where both tier-1 and tier-2 produced sanitized output. Deletes
+        // the linked queue rows + the cache rows; upstream sweepers (TitleTranslationSweeper)
+        // re-enqueue the work on their next tick.
+        app.post("/api/translation/requeue-sanitized-both-tiers", ctx -> {
+            try {
+                int requeued = service.requeueFailedByReason(
+                        com.organizer3.translation.TranslationServiceImpl.SANITIZED_BOTH_TIERS);
+                ctx.json(Map.of("requeued", requeued));
+            } catch (Exception e) {
+                log.error("POST /api/translation/requeue-sanitized-both-tiers failed", e);
                 ctx.status(500).json(Map.of("error", e.getMessage()));
             }
         });

@@ -85,6 +85,25 @@
   color: #e8e8e8;
   font-variant-numeric: tabular-nums;
 }
+.trans-stat-action {
+  margin-top: 4px;
+  padding: 2px 8px;
+  font-size: 0.7rem;
+  background: #2a2a2a;
+  color: #ddd;
+  border: 1px solid #3a3a3a;
+  border-radius: 3px;
+  cursor: pointer;
+  align-self: flex-start;
+}
+.trans-stat-action:hover:not(:disabled) {
+  background: #333;
+  border-color: #4a4a4a;
+}
+.trans-stat-action:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
 
 /* ── Tables (strategies + recent failures) ──────────────────────────── */
 .trans-table {

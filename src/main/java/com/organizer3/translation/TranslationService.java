@@ -54,6 +54,20 @@ public interface TranslationService {
     TranslationServiceStats stats();
 
     /**
+     * Force-retry cache rows whose {@code failure_reason} matches the given value:
+     * deletes the linked queue rows, then deletes the cache rows. Upstream sweepers
+     * (e.g. TitleTranslationSweeper) re-enqueue the work on their next tick.
+     *
+     * <p>Use sparingly — bypasses the rate limiter built into the auto-retry sweeper.
+     * Intended for manual recovery of permanent-failure categories like
+     * {@code sanitized_both_tiers} after a strategy or model change that might
+     * yield a different result.
+     *
+     * @return number of cache rows deleted
+     */
+    int requeueFailedByReason(String reason);
+
+    /**
      * Return the current health status (Ollama reachability, tier-1 model presence, latency p95).
      * Result is cached for ~30 seconds by the underlying {@link HealthGate}.
      */
