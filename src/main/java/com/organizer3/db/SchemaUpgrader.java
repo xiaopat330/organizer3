@@ -1,8 +1,11 @@
 package com.organizer3.db;
 
+import com.organizer3.translation.TranslationNormalization;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.jdbi.v3.core.Jdbi;
+
+import java.util.List;
 
 /**
  * Applies incremental schema migrations to an existing database using SQLite's
@@ -19,7 +22,7 @@ import org.jdbi.v3.core.Jdbi;
 public class SchemaUpgrader {
 
     /** Must match the version stamped by {@link SchemaInitializer}. */
-    private static final int CURRENT_VERSION = 50;
+    private static final int CURRENT_VERSION = 51;
 
     private final Jdbi jdbi;
 
@@ -271,6 +274,11 @@ public class SchemaUpgrader {
         if (version < 50) {
             applyV50();
             setVersion(50);
+        }
+
+        if (version < 51) {
+            applyV51();
+            setVersion(51);
         }
 
         log.info("Schema upgrade complete");
@@ -1702,6 +1710,30 @@ public class SchemaUpgrader {
                     CREATE INDEX IF NOT EXISTS idx_sns_unreviewed
                         ON stage_name_suggestion(review_decision)
                         WHERE review_decision IS NULL""");
+        });
+    }
+
+    private void applyV51() {
+        log.info("Applying migration v51: NFKC-normalize draft_actresses.stage_name");
+        jdbi.useTransaction(h -> {
+            List<Object[]> rows = h.createQuery("SELECT javdb_slug, stage_name FROM draft_actresses")
+                    .map((rs, ctx) -> new Object[]{rs.getString(1), rs.getString(2)})
+                    .list();
+            int changed = 0;
+            for (Object[] row : rows) {
+                String slug = (String) row[0];
+                String stageName = (String) row[1];
+                if (stageName == null) continue;
+                String normalized = TranslationNormalization.normalize(stageName);
+                if (!normalized.equals(stageName)) {
+                    h.createUpdate("UPDATE draft_actresses SET stage_name = :n WHERE javdb_slug = :s")
+                            .bind("n", normalized)
+                            .bind("s", slug)
+                            .execute();
+                    changed++;
+                }
+            }
+            log.info("Migration v51: NFKC-normalized {} draft_actresses rows", changed);
         });
     }
 

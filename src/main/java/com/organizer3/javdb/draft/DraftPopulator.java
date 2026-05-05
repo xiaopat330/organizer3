@@ -12,6 +12,9 @@ import com.organizer3.model.Actress;
 import com.organizer3.model.Title;
 import com.organizer3.repository.ActressRepository;
 import com.organizer3.repository.TitleRepository;
+import com.organizer3.translation.ActressFuzzyMatcher;
+import com.organizer3.translation.TranslationNormalization;
+import com.organizer3.translation.TranslationService;
 import com.organizer3.web.ImageFetcher;
 import org.jdbi.v3.core.statement.UnableToExecuteStatementException;
 import org.slf4j.Logger;
@@ -66,6 +69,8 @@ public class DraftPopulator {
     private final DraftCoverScratchStore   coverStore;
     private final ImageFetcher             imageFetcher;
     private final ObjectMapper             json;
+    private final TranslationService       translationService;
+    private final ActressFuzzyMatcher      fuzzyMatcher;
 
     @SuppressWarnings("checkstyle:ParameterNumber")
     public DraftPopulator(
@@ -81,20 +86,24 @@ public class DraftPopulator {
             DraftTitleEnrichmentRepository draftEnrichRepo,
             DraftCoverScratchStore   coverStore,
             ImageFetcher             imageFetcher,
-            ObjectMapper             json) {
-        this.titleRepo        = titleRepo;
-        this.actressRepo      = actressRepo;
-        this.slugResolver     = slugResolver;
-        this.javdbClient      = javdbClient;
-        this.extractor        = extractor;
-        this.stagingRepo      = stagingRepo;
-        this.draftTitleRepo   = draftTitleRepo;
-        this.draftActressRepo = draftActressRepo;
-        this.draftCastRepo    = draftCastRepo;
-        this.draftEnrichRepo  = draftEnrichRepo;
-        this.coverStore       = coverStore;
-        this.imageFetcher     = imageFetcher;
-        this.json             = json;
+            ObjectMapper             json,
+            TranslationService       translationService,
+            ActressFuzzyMatcher      fuzzyMatcher) {
+        this.titleRepo         = titleRepo;
+        this.actressRepo       = actressRepo;
+        this.slugResolver      = slugResolver;
+        this.javdbClient       = javdbClient;
+        this.extractor         = extractor;
+        this.stagingRepo       = stagingRepo;
+        this.draftTitleRepo    = draftTitleRepo;
+        this.draftActressRepo  = draftActressRepo;
+        this.draftCastRepo     = draftCastRepo;
+        this.draftEnrichRepo   = draftEnrichRepo;
+        this.coverStore        = coverStore;
+        this.imageFetcher      = imageFetcher;
+        this.json              = json;
+        this.translationService = translationService;
+        this.fuzzyMatcher      = fuzzyMatcher;
     }
 
     // -------------------------------------------------------------------------
@@ -253,47 +262,57 @@ public class DraftPopulator {
         return draftId;
     }
 
+    /**
+     * Carries the outcome of {@link #autoLinkActress}: either a link to an existing Actress,
+     * or pre-filled English name parts from a fuzzy-matched romaji guess, or nothing.
+     */
+    public record AutoLinkResult(Long actressId, String englishFirst, String englishLast) {
+        public static final AutoLinkResult EMPTY = new AutoLinkResult(null, null, null);
+    }
+
     /** Atomically writes draft_actresses (upsert) and draft_title_actresses for each cast entry. */
     private void writeCastSlots(long draftId, List<TitleExtract.CastEntry> castList, String nowIso) {
         List<DraftTitleActress> slots = new ArrayList<>(castList.size());
         for (TitleExtract.CastEntry entry : castList) {
-            Long linked = autoLinkActress(entry);
+            AutoLinkResult linkResult = autoLinkActress(entry);
+            String normalizedStageName = TranslationNormalization.normalize(entry.name());
             DraftActress draftActress = DraftActress.builder()
                     .javdbSlug(entry.slug())
-                    .stageName(entry.name())
-                    .englishFirstName(null)
-                    .englishLastName(null)
-                    .linkToExistingId(linked)
+                    .stageName(normalizedStageName.isEmpty() ? entry.name() : normalizedStageName)
+                    .englishFirstName(linkResult.englishFirst())
+                    .englishLastName(linkResult.englishLast())
+                    .linkToExistingId(linkResult.actressId())
                     .createdAt(nowIso)
                     .updatedAt(nowIso)
                     .lastValidationError(null)
                     .build();
             draftActressRepo.upsertBySlug(draftActress);
 
-            String resolution = (linked != null) ? RESOLUTION_PICK : RESOLUTION_UNRESOLVED;
+            String resolution = (linkResult.actressId() != null) ? RESOLUTION_PICK : RESOLUTION_UNRESOLVED;
             slots.add(new DraftTitleActress(draftId, entry.slug(), resolution));
         }
         draftCastRepo.replaceForDraft(draftId, slots);
     }
 
     /**
-     * Runs canonicalization passes 1-3 against the cast entry's name and slug.
+     * Runs canonicalization passes 1-5 against the cast entry's name and slug.
      *
      * <ul>
      *   <li>Pass 1: exact match on normalized {@code actresses.canonical_name}
      *   <li>Pass 2: exact match on normalized {@code actress_aliases.alias_name}
      *   <li>Pass 3: slug-anchored match via {@code javdb_actress_staging.javdb_slug}
+     *   <li>Pass 4: curated stage-name lookup returns romaji + fuzzy Actress match
+     *   <li>Pass 5a: curated romaji present but no fuzzy match → pre-fill english first/last
+     *   <li>Pass 5b: curated miss → enqueued for LLM; returns EMPTY
      * </ul>
-     *
-     * @return the linked {@code actresses.id}, or {@code null} if unresolved
      */
-    Long autoLinkActress(TitleExtract.CastEntry entry) {
+    AutoLinkResult autoLinkActress(TitleExtract.CastEntry entry) {
         // Passes 1 + 2: resolve by normalized name (canonical or alias)
         String normalizedName = CastMatcher.normalize(entry.name());
         if (normalizedName != null) {
             Optional<Actress> byName = actressRepo.resolveByName(normalizedName);
             if (byName.isPresent() && !byName.get().isRejected()) {
-                return byName.get().getId();
+                return new AutoLinkResult(byName.get().getId(), null, null);
             }
         }
 
@@ -302,11 +321,27 @@ public class DraftPopulator {
         if (actressIdOpt.isPresent()) {
             Optional<Actress> actress = actressRepo.findById(actressIdOpt.get());
             if (actress.isPresent() && !actress.get().isRejected()) {
-                return actress.get().getId();
+                return new AutoLinkResult(actress.get().getId(), null, null);
             }
         }
 
-        return null;
+        // Pass 4: curated stage-name lookup + fuzzy match
+        Optional<String> romaji = translationService.resolveOrSuggestStageName(entry.name());
+        if (romaji.isPresent()) {
+            Optional<ActressFuzzyMatcher.MatchResult> fuzzy = fuzzyMatcher.match(romaji.get());
+            if (fuzzy.isPresent()) {
+                Optional<Actress> matched = actressRepo.findById(fuzzy.get().actressId());
+                if (matched.isPresent() && !matched.get().isRejected()) {
+                    return new AutoLinkResult(matched.get().getId(), null, null);
+                }
+            }
+            // Pass 5a: romaji in hand but no unrejected actress match → pre-fill name fields
+            String[] parts = ActressFuzzyMatcher.splitRomaji(romaji.get());
+            return new AutoLinkResult(null, parts[0], parts[1]);
+        }
+
+        // Pass 5b: resolveOrSuggestStageName returned empty → enqueued, no romaji yet
+        return AutoLinkResult.EMPTY;
     }
 
     /** Fetches the cover from javdb and writes it to the scratch store. Best-effort. */

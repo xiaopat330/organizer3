@@ -2,6 +2,8 @@ package com.organizer3.translation;
 
 import com.organizer3.repository.ActressRepository;
 import lombok.RequiredArgsConstructor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
@@ -21,6 +23,8 @@ import java.util.Set;
  */
 @RequiredArgsConstructor
 public class ActressFuzzyMatcher {
+
+    private static final Logger log = LoggerFactory.getLogger(ActressFuzzyMatcher.class);
 
     public enum Rule { EXACT, REVERSAL, PUNCT_NORM, LAST_NAME_ONLY }
 
@@ -133,5 +137,34 @@ public class ActressFuzzyMatcher {
 
     static boolean isSingleToken(String romaji) {
         return splitTokens(romaji).length == 1;
+    }
+
+    /**
+     * Splits LLM-returned romaji into {@code [first, last]} name parts.
+     *
+     * <ul>
+     *   <li>Null/blank → {@code [null, null]}.
+     *   <li>Single token → {@code [null, token]} — last name is required; first is optional.
+     *   <li>Two tokens → {@code [token0, token1]} (assumes "Given Family" LLM output order).
+     *   <li>Three+ tokens → {@code [token0, join(rest, " ")]}; logged at DEBUG.
+     * </ul>
+     */
+    public static String[] splitRomaji(String romaji) {
+        if (romaji == null || romaji.isBlank()) {
+            return new String[]{null, null};
+        }
+        String[] tokens = romaji.trim().split("\\s+");
+        if (tokens.length == 1) {
+            return new String[]{null, tokens[0]};
+        }
+        if (tokens.length == 2) {
+            return new String[]{tokens[0], tokens[1]};
+        }
+        log.debug("splitRomaji: {} tokens in '{}', joining tail as last name", tokens.length, romaji);
+        StringBuilder last = new StringBuilder(tokens[1]);
+        for (int i = 2; i < tokens.length; i++) {
+            last.append(' ').append(tokens[i]);
+        }
+        return new String[]{tokens[0], last.toString()};
     }
 }

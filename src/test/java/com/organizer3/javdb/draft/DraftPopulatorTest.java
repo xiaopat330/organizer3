@@ -11,6 +11,8 @@ import com.organizer3.model.Actress;
 import com.organizer3.model.Title;
 import com.organizer3.repository.ActressRepository;
 import com.organizer3.repository.TitleRepository;
+import com.organizer3.translation.ActressFuzzyMatcher;
+import com.organizer3.translation.TranslationService;
 import com.organizer3.web.ImageFetcher;
 import org.jdbi.v3.core.Jdbi;
 import org.junit.jupiter.api.AfterEach;
@@ -41,6 +43,8 @@ class DraftPopulatorTest {
     private JavdbExtractor          extractor;
     private JavdbStagingRepository  stagingRepo;
     private ImageFetcher            imageFetcher;
+    private TranslationService      translationService;
+    private ActressFuzzyMatcher     fuzzyMatcher;
 
     // ── In-memory SQLite repos ─────────────────────────────────────────────────
     private Connection connection;
@@ -57,13 +61,15 @@ class DraftPopulatorTest {
     @BeforeEach
     void setUp() throws Exception {
         // Mocks
-        titleRepo    = mock(TitleRepository.class);
-        actressRepo  = mock(ActressRepository.class);
-        slugResolver = mock(JavdbSlugResolver.class);
-        javdbClient  = mock(JavdbClient.class);
-        extractor    = mock(JavdbExtractor.class);
-        stagingRepo  = mock(JavdbStagingRepository.class);
-        imageFetcher = mock(ImageFetcher.class);
+        titleRepo          = mock(TitleRepository.class);
+        actressRepo        = mock(ActressRepository.class);
+        slugResolver       = mock(JavdbSlugResolver.class);
+        javdbClient        = mock(JavdbClient.class);
+        extractor          = mock(JavdbExtractor.class);
+        stagingRepo        = mock(JavdbStagingRepository.class);
+        imageFetcher       = mock(ImageFetcher.class);
+        translationService = mock(TranslationService.class);
+        fuzzyMatcher       = mock(ActressFuzzyMatcher.class);
 
         // In-memory SQLite
         connection = DriverManager.getConnection("jdbc:sqlite::memory:");
@@ -84,7 +90,7 @@ class DraftPopulatorTest {
         populator = new DraftPopulator(
                 titleRepo, actressRepo, slugResolver, javdbClient, extractor, stagingRepo,
                 draftTitleRepo, draftActressRepo, draftCastRepo, draftEnrichRepo,
-                coverStore, imageFetcher, JSON);
+                coverStore, imageFetcher, JSON, translationService, fuzzyMatcher);
     }
 
     @AfterEach
@@ -177,6 +183,7 @@ class DraftPopulatorTest {
         when(extractor.extractTitle("<html/>", "TST-1", "tst-1")).thenReturn(stubExtract("TST-1", "tst-1", cast));
         when(actressRepo.resolveByName(any())).thenReturn(Optional.empty());
         when(stagingRepo.findActressIdByJavdbSlug("a1")).thenReturn(Optional.empty());
+        when(translationService.resolveOrSuggestStageName(any())).thenReturn(Optional.empty());
         when(imageFetcher.fetch(anyString())).thenReturn(new ImageFetcher.Fetched(new byte[]{1, 2, 3}, "jpg"));
 
         var result = populator.populate(1L);
@@ -247,6 +254,7 @@ class DraftPopulatorTest {
         // Pass 1: resolveByName returns a non-rejected actress.
         Actress actress = Actress.builder().id(42L).canonicalName("Aika").build();
         when(actressRepo.resolveByName("aika")).thenReturn(Optional.of(actress));
+        when(translationService.resolveOrSuggestStageName(any())).thenReturn(Optional.empty());
         when(imageFetcher.fetch(anyString())).thenReturn(new ImageFetcher.Fetched(new byte[]{0}, "jpg"));
 
         var result = populator.populate(1L);
@@ -275,6 +283,7 @@ class DraftPopulatorTest {
         when(stagingRepo.findActressIdByJavdbSlug("known-slug")).thenReturn(Optional.of(7L));
         Actress actress = Actress.builder().id(7L).canonicalName("SomeName").build();
         when(actressRepo.findById(7L)).thenReturn(Optional.of(actress));
+        when(translationService.resolveOrSuggestStageName(any())).thenReturn(Optional.empty());
         when(imageFetcher.fetch(anyString())).thenReturn(new ImageFetcher.Fetched(new byte[]{0}, "jpg"));
 
         var result = populator.populate(1L);
@@ -296,6 +305,7 @@ class DraftPopulatorTest {
         Actress rejected = Actress.builder().id(99L).canonicalName("Rejected One").rejected(true).build();
         when(actressRepo.resolveByName(any())).thenReturn(Optional.of(rejected));
         when(stagingRepo.findActressIdByJavdbSlug("a1")).thenReturn(Optional.empty());
+        when(translationService.resolveOrSuggestStageName(any())).thenReturn(Optional.empty());
         when(imageFetcher.fetch(anyString())).thenReturn(new ImageFetcher.Fetched(new byte[]{0}, "jpg"));
 
         var result = populator.populate(1L);
@@ -328,7 +338,98 @@ class DraftPopulatorTest {
         // An entry with null name should not crash and should fall through to pass 3.
         var entry = new TitleExtract.CastEntry("slug-x", null, "F");
         when(stagingRepo.findActressIdByJavdbSlug("slug-x")).thenReturn(Optional.empty());
-        Long result = populator.autoLinkActress(entry);
-        assertNull(result);
+        when(translationService.resolveOrSuggestStageName(null)).thenReturn(Optional.empty());
+        DraftPopulator.AutoLinkResult result = populator.autoLinkActress(entry);
+        assertNull(result.actressId());
+        assertNull(result.englishFirst());
+        assertNull(result.englishLast());
+    }
+
+    // ── pass 4 + 5 unit tests ─────────────────────────────────────────────────
+
+    @Test
+    void autoLinkActress_pass4Hit_returnsActressId() {
+        seedActress(77L, "Yuma Asami");
+        var entry = new TitleExtract.CastEntry("slug-p4", "浅見ゆま", "F");
+        when(actressRepo.resolveByName(any())).thenReturn(Optional.empty());
+        when(stagingRepo.findActressIdByJavdbSlug("slug-p4")).thenReturn(Optional.empty());
+        when(translationService.resolveOrSuggestStageName("浅見ゆま")).thenReturn(Optional.of("Yuma Asami"));
+        Actress matched = Actress.builder().id(77L).canonicalName("Yuma Asami").build();
+        when(fuzzyMatcher.match("Yuma Asami"))
+                .thenReturn(Optional.of(new ActressFuzzyMatcher.MatchResult(77L, ActressFuzzyMatcher.Rule.EXACT)));
+        when(actressRepo.findById(77L)).thenReturn(Optional.of(matched));
+
+        DraftPopulator.AutoLinkResult result = populator.autoLinkActress(entry);
+
+        assertEquals(77L, result.actressId());
+        assertNull(result.englishFirst());
+        assertNull(result.englishLast());
+    }
+
+    @Test
+    void autoLinkActress_pass4RejectedActress_fallsThroughToPass5a() {
+        var entry = new TitleExtract.CastEntry("slug-rej", "渡辺まや", "F");
+        when(actressRepo.resolveByName(any())).thenReturn(Optional.empty());
+        when(stagingRepo.findActressIdByJavdbSlug("slug-rej")).thenReturn(Optional.empty());
+        when(translationService.resolveOrSuggestStageName("渡辺まや")).thenReturn(Optional.of("Maya Watanabe"));
+        Actress rejected = Actress.builder().id(55L).canonicalName("Maya Watanabe").rejected(true).build();
+        when(fuzzyMatcher.match("Maya Watanabe"))
+                .thenReturn(Optional.of(new ActressFuzzyMatcher.MatchResult(55L, ActressFuzzyMatcher.Rule.EXACT)));
+        when(actressRepo.findById(55L)).thenReturn(Optional.of(rejected));
+
+        DraftPopulator.AutoLinkResult result = populator.autoLinkActress(entry);
+
+        assertNull(result.actressId());
+        assertEquals("Maya", result.englishFirst());
+        assertEquals("Watanabe", result.englishLast());
+    }
+
+    @Test
+    void autoLinkActress_pass5a_prefillsEnglishName() {
+        var entry = new TitleExtract.CastEntry("slug-5a", "田中みく", "F");
+        when(actressRepo.resolveByName(any())).thenReturn(Optional.empty());
+        when(stagingRepo.findActressIdByJavdbSlug("slug-5a")).thenReturn(Optional.empty());
+        when(translationService.resolveOrSuggestStageName("田中みく")).thenReturn(Optional.of("Miku Tanaka"));
+        when(fuzzyMatcher.match("Miku Tanaka")).thenReturn(Optional.empty());
+
+        DraftPopulator.AutoLinkResult result = populator.autoLinkActress(entry);
+
+        assertNull(result.actressId());
+        assertEquals("Miku", result.englishFirst());
+        assertEquals("Tanaka", result.englishLast());
+    }
+
+    @Test
+    void autoLinkActress_pass5b_enqueuedReturnsEmpty() {
+        var entry = new TitleExtract.CastEntry("slug-5b", "木村花子", "F");
+        when(actressRepo.resolveByName(any())).thenReturn(Optional.empty());
+        when(stagingRepo.findActressIdByJavdbSlug("slug-5b")).thenReturn(Optional.empty());
+        when(translationService.resolveOrSuggestStageName("木村花子")).thenReturn(Optional.empty());
+
+        DraftPopulator.AutoLinkResult result = populator.autoLinkActress(entry);
+
+        assertSame(DraftPopulator.AutoLinkResult.EMPTY, result);
+    }
+
+    @Test
+    void writeCastSlots_nfkcNormalizesStageName() throws Exception {
+        // Full-width digit in stage name should be NFKC-normalized to half-width.
+        // U+FF11 '１' normalizes to '1'.
+        when(titleRepo.findById(1L)).thenReturn(Optional.of(stubTitle(1L, "TST-1")));
+        stubSlugSuccess("TST-1", "tst-1");
+        when(javdbClient.fetchTitlePage("tst-1")).thenReturn("<html/>");
+        String fullWidthName = "テスト１号";  // '１' is full-width digit
+        var cast = List.of(new TitleExtract.CastEntry("slug-nfkc", fullWidthName, "F"));
+        when(extractor.extractTitle(any(), any(), any())).thenReturn(stubExtract("TST-1", "tst-1", cast));
+        when(actressRepo.resolveByName(any())).thenReturn(Optional.empty());
+        when(stagingRepo.findActressIdByJavdbSlug("slug-nfkc")).thenReturn(Optional.empty());
+        when(translationService.resolveOrSuggestStageName(fullWidthName)).thenReturn(Optional.empty());
+        when(imageFetcher.fetch(anyString())).thenReturn(new ImageFetcher.Fetched(new byte[]{0}, "jpg"));
+
+        var result = populator.populate(1L);
+        assertEquals(DraftPopulator.Status.CREATED, result.status());
+
+        DraftActress da = draftActressRepo.findBySlug("slug-nfkc").orElseThrow();
+        assertEquals("テスト1号", da.getStageName(), "full-width digit should be NFKC-normalized to half-width");
     }
 }
