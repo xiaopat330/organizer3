@@ -195,7 +195,6 @@ public class Application {
                 new com.organizer3.translation.OllamaModelState();
         com.organizer3.translation.HealthGate translationHealthGate =
                 new com.organizer3.translation.HealthGate(ollamaAdapter, translationCacheRepo, translationConfig);
-        @SuppressWarnings("unused")
         com.organizer3.translation.TranslationService translationService =
                 new com.organizer3.translation.TranslationServiceImpl(
                         ollamaAdapter, translationStrategyRepo, translationCacheRepo,
@@ -491,6 +490,26 @@ public class Application {
                 new com.organizer3.javdb.enrichment.JavdbStagingRepository(jdbi, jsonMapper, dataDir);
         com.organizer3.javdb.enrichment.JavdbEnrichmentRepository javdbEnrichmentRepo =
                 new com.organizer3.javdb.enrichment.JavdbEnrichmentRepository(jdbi, jsonMapper, titleEffectiveTagsService, enrichmentHistoryRepo);
+
+        // Phase 6a: background sweeper that submits title_original → title_original_en
+        // translations. See spec/PROPOSAL_TRANSLATION_PHASE6.md §3.
+        com.organizer3.translation.TitleTranslationSweeper titleTranslationSweeper =
+                new com.organizer3.translation.TitleTranslationSweeper(
+                        javdbEnrichmentRepo, translationService,
+                        translationConfig.titleSweeperEnabledOrDefault(),
+                        translationConfig.titleSweeperBatchSizeOrDefault());
+        java.util.concurrent.ScheduledExecutorService titleSweeperExecutor =
+                java.util.concurrent.Executors.newSingleThreadScheduledExecutor(r -> {
+                    Thread t = new Thread(r, "title-translation-sweeper");
+                    t.setDaemon(true);
+                    return t;
+                });
+        titleSweeperExecutor.scheduleAtFixedRate(
+                titleTranslationSweeper,
+                translationConfig.titleSweeperIntervalSecondsOrDefault(),
+                translationConfig.titleSweeperIntervalSecondsOrDefault(),
+                java.util.concurrent.TimeUnit.SECONDS);
+
         com.organizer3.javdb.enrichment.EnrichmentQueue enrichmentQueue =
                 new com.organizer3.javdb.enrichment.EnrichmentQueue(jdbi, javdbConfig);
         com.organizer3.javdb.enrichment.AutoPromoter autoPromoter =
@@ -639,6 +658,11 @@ public class Application {
         // In-app log viewer (Tools → Logs). Path matches logback.xml's RollingFileAppender.
         webServer.registerLogRoutes(
                 new com.organizer3.web.routes.LogRoutes(java.nio.file.Paths.get("logs/organizer3.log")));
+
+        // Translation Tools page endpoints (Phase 4 + Phase 6a).
+        webServer.registerTranslation(new com.organizer3.web.routes.TranslationRoutes(
+                translationService, translationStrategyRepo, translationCacheRepo,
+                translationQueueRepo, jdbi, javdbEnrichmentRepo, translationConfig));
 
         // Utilities — maintenance UI (Tools → Volumes, ...). See spec/PROPOSAL_UTILITIES.md.
         java.util.Map<String, com.organizer3.command.Command> commandsByName = new java.util.LinkedHashMap<>();

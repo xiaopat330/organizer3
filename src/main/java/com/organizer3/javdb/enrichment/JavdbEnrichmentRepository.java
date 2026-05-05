@@ -192,6 +192,75 @@ public class JavdbEnrichmentRepository {
     }
 
     /**
+     * One row of {@link #findTitlesAwaitingTranslation}: a title with non-empty
+     * {@code title_original} but no {@code title_original_en}, eligible for the
+     * background translation sweeper.
+     */
+    public record TitleAwaitingTranslation(long titleId, String titleOriginal) {}
+
+    /** Callback kind used by the title-original translation pipeline. */
+    public static final String TITLE_ORIGINAL_EN_CALLBACK_KIND =
+            "title_javdb_enrichment.title_original_en";
+
+    /**
+     * Find titles whose Japanese {@code title_original} has not yet been translated
+     * to English AND have no existing {@code translation_queue} row for the
+     * {@code title_original_en} callback target. Eligible rows are submitted to the
+     * translation service by {@code TitleTranslationSweeper}.
+     *
+     * <p>The {@code NOT EXISTS} clause is the dedup contract: every title gets at most
+     * one queue row in its lifetime. If a queue row failed permanently and the operator
+     * wants to retry, they must {@code DELETE FROM translation_queue WHERE callback_kind=…
+     * AND callback_id=…} before the sweeper will re-submit.
+     */
+    public List<TitleAwaitingTranslation> findTitlesAwaitingTranslation(int limit) {
+        return jdbi.withHandle(h ->
+                h.createQuery("""
+                        SELECT t.title_id, t.title_original
+                        FROM title_javdb_enrichment t
+                        WHERE t.title_original IS NOT NULL
+                          AND t.title_original != ''
+                          AND (t.title_original_en IS NULL OR t.title_original_en = '')
+                          AND NOT EXISTS (
+                              SELECT 1 FROM translation_queue q
+                              WHERE q.callback_kind = :kind
+                                AND q.callback_id   = t.title_id
+                          )
+                        ORDER BY t.title_id
+                        LIMIT :limit
+                        """)
+                        .bind("kind", TITLE_ORIGINAL_EN_CALLBACK_KIND)
+                        .bind("limit", limit)
+                        .map((rs, c) -> new TitleAwaitingTranslation(
+                                rs.getLong("title_id"),
+                                rs.getString("title_original")))
+                        .list());
+    }
+
+    /**
+     * Count of rows that {@link #findTitlesAwaitingTranslation} would return if called
+     * with an unbounded limit. Used by the Tools UI to show sweeper backlog.
+     */
+    public long countTitlesAwaitingTranslation() {
+        return jdbi.withHandle(h ->
+                h.createQuery("""
+                        SELECT COUNT(*)
+                        FROM title_javdb_enrichment t
+                        WHERE t.title_original IS NOT NULL
+                          AND t.title_original != ''
+                          AND (t.title_original_en IS NULL OR t.title_original_en = '')
+                          AND NOT EXISTS (
+                              SELECT 1 FROM translation_queue q
+                              WHERE q.callback_kind = :kind
+                                AND q.callback_id   = t.title_id
+                          )
+                        """)
+                        .bind("kind", TITLE_ORIGINAL_EN_CALLBACK_KIND)
+                        .mapTo(Long.class)
+                        .one());
+    }
+
+    /**
      * Returns {@code true} if at least one {@code title_javdb_enrichment} row references
      * the given javdb title slug. Used by drift detection to decide whether a vanished
      * filmography entry should be deleted (no references) or pinned as stale (has references).

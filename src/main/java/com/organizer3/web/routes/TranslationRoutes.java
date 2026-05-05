@@ -1,6 +1,8 @@
 package com.organizer3.web.routes;
 
+import com.organizer3.javdb.enrichment.JavdbEnrichmentRepository;
 import com.organizer3.translation.HealthStatus;
+import com.organizer3.translation.TranslationConfig;
 import com.organizer3.translation.TranslationRequest;
 import com.organizer3.translation.TranslationService;
 import com.organizer3.translation.TranslationServiceStats;
@@ -40,17 +42,23 @@ public class TranslationRoutes {
     private final TranslationCacheRepository cacheRepo;
     private final TranslationQueueRepository queueRepo;
     private final Jdbi jdbi;
+    private final JavdbEnrichmentRepository enrichmentRepo;
+    private final TranslationConfig translationConfig;
 
     public TranslationRoutes(TranslationService service,
                               TranslationStrategyRepository strategyRepo,
                               TranslationCacheRepository cacheRepo,
                               TranslationQueueRepository queueRepo,
-                              Jdbi jdbi) {
-        this.service       = service;
-        this.strategyRepo  = strategyRepo;
-        this.cacheRepo     = cacheRepo;
-        this.queueRepo     = queueRepo;
-        this.jdbi          = jdbi;
+                              Jdbi jdbi,
+                              JavdbEnrichmentRepository enrichmentRepo,
+                              TranslationConfig translationConfig) {
+        this.service           = service;
+        this.strategyRepo      = strategyRepo;
+        this.cacheRepo         = cacheRepo;
+        this.queueRepo         = queueRepo;
+        this.jdbi              = jdbi;
+        this.enrichmentRepo    = enrichmentRepo;
+        this.translationConfig = translationConfig;
     }
 
     public void register(Javalin app) {
@@ -232,6 +240,24 @@ public class TranslationRoutes {
                 ctx.json(candidates);
             } catch (Exception e) {
                 log.error("GET /api/translation/bulk-candidates failed", e);
+                ctx.status(500).json(Map.of("error", e.getMessage()));
+            }
+        });
+
+        // GET /api/translation/title-sweeper-status — Phase 6a stat surface.
+        // Returns the count of titles whose title_original has not yet been queued for
+        // English translation, plus the sweeper's current configuration knobs.
+        app.get("/api/translation/title-sweeper-status", ctx -> {
+            try {
+                long pending = enrichmentRepo.countTitlesAwaitingTranslation();
+                ctx.json(Map.of(
+                        "pending", pending,
+                        "enabled", translationConfig.titleSweeperEnabledOrDefault(),
+                        "intervalSeconds", translationConfig.titleSweeperIntervalSecondsOrDefault(),
+                        "batchSize", translationConfig.titleSweeperBatchSizeOrDefault()
+                ));
+            } catch (Exception e) {
+                log.error("GET /api/translation/title-sweeper-status failed", e);
                 ctx.status(500).json(Map.of("error", e.getMessage()));
             }
         });
