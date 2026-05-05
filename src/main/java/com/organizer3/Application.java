@@ -263,8 +263,6 @@ public class Application {
         TitleRepository        titleRepo        = new JdbiTitleRepository(jdbi, titleLocationRepo, enrichmentHistoryRepo, enrichmentReviewQueueRepo);
         VideoRepository        videoRepo        = new JdbiVideoRepository(jdbi);
         ActressRepository      actressRepo      = new JdbiActressRepository(jdbi);
-        com.organizer3.translation.ActressFuzzyMatcher actressFuzzyMatcher =
-                new com.organizer3.translation.ActressFuzzyMatcher(actressRepo);
         VolumeRepository       volumeRepo       = new JdbiVolumeRepository(jdbi);
         LabelRepository        labelRepo        = new JdbiLabelRepository(jdbi);
         TitleTagRepository     tagRepo          = new JdbiTitleTagRepository(jdbi);
