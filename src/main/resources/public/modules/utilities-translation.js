@@ -18,12 +18,18 @@ const manualResult      = document.getElementById('trans-manual-result');
 const bulkBtn           = document.getElementById('trans-bulk-btn');
 const bulkResult        = document.getElementById('trans-bulk-result');
 const failuresDiv       = document.getElementById('trans-failures');
+const activityList      = document.getElementById('trans-activity');
 
 // ── State factory ─────────────────────────────────────────────────────────
+const ACTIVITY_MAX_ROWS = 50;
+
 function makeState() {
   return {
     statsTimer: null,
     healthTimer: null,
+    activityTimer: null,
+    activityRows: [],          // newest first; capped to ACTIVITY_MAX_ROWS
+    activitySince: null,       // high-water-mark cached_at from the last fetch
     visible: false,
   };
 }
@@ -38,8 +44,10 @@ export function showTranslationView() {
   loadStrategies();
   loadHealth();
   loadRecentFailures();
-  s.statsTimer  = setInterval(loadStats,  5_000);
-  s.healthTimer = setInterval(loadHealth, 30_000);
+  loadActivity();
+  s.statsTimer    = setInterval(loadStats,    5_000);
+  s.healthTimer   = setInterval(loadHealth,  30_000);
+  s.activityTimer = setInterval(loadActivity, 2_000);
 }
 
 export function hideTranslationView() {
@@ -47,8 +55,13 @@ export function hideTranslationView() {
   s.visible = false;
   clearInterval(s.statsTimer);
   clearInterval(s.healthTimer);
-  s.statsTimer  = null;
-  s.healthTimer = null;
+  clearInterval(s.activityTimer);
+  s.statsTimer    = null;
+  s.healthTimer   = null;
+  s.activityTimer = null;
+  // Reset feed state so the next view-show starts fresh
+  s.activityRows = [];
+  s.activitySince = null;
 }
 
 // ── Stats ─────────────────────────────────────────────────────────────────
@@ -111,6 +124,57 @@ async function loadHealth() {
   } catch (err) {
     healthDot.className = 'trans-health-dot trans-health-unknown';
     healthDot.title = 'Health check failed';
+  }
+}
+
+// ── Live activity feed ────────────────────────────────────────────────────
+function classifyEvent(e) {
+  if (e.failureReason) {
+    // 'sanitized' on a tier-1 strategy → escalated to tier-2 (transient)
+    // 'sanitized_both_tiers' / 'refused' / others → permanent failure
+    if (e.failureReason === 'sanitized') return 'escalated';
+    return 'failed';
+  }
+  return e.englishText ? 'success' : 'pending';
+}
+
+function renderActivityRow(e) {
+  const klass = classifyEvent(e);
+  const code  = esc(e.titleCode || '—');
+  const src   = esc((e.sourceText || '').slice(0, 80));
+  const out   = e.englishText
+      ? `→ ${esc(e.englishText.slice(0, 80))}`
+      : (e.failureReason ? `<span class="trans-act-reason">${esc(e.failureReason)}</span>` : '');
+  return `<li class="trans-act-row trans-act-${klass}">
+    <span class="trans-act-time">${esc(fmtTimestamp(e.cachedAt))}</span>
+    <span class="trans-act-code">${code}</span>
+    <span class="trans-act-src">${src}</span>
+    <span class="trans-act-out">${out}</span>
+    <span class="trans-act-latency">${fmtLatency(e.latencyMs)}</span>
+  </li>`;
+}
+
+async function loadActivity() {
+  try {
+    const url = s.activitySince
+        ? `/api/translation/recent-events?limit=50&since=${encodeURIComponent(s.activitySince)}`
+        : '/api/translation/recent-events?limit=50';
+    const res = await fetch(url);
+    if (!res.ok) return;
+    const newRows = await res.json();
+    if (!newRows.length) {
+      // First-load with no rows at all — keep "Waiting for first event…"
+      if (s.activityRows.length === 0) return;
+      return; // otherwise no-op; keep existing list
+    }
+    // Server returns newest first; merge into our list (also newest first), drop older overflow
+    s.activityRows = [...newRows, ...s.activityRows].slice(0, ACTIVITY_MAX_ROWS);
+    // Bump high-water-mark to the newest cached_at we've seen
+    s.activitySince = newRows[0].cachedAt;
+
+    activityList.innerHTML = s.activityRows.map(renderActivityRow).join('');
+  } catch (err) {
+    console.error('Live activity poll failed', err);
   }
 }
 
