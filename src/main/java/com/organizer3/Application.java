@@ -754,7 +754,7 @@ public class Application {
 
         // AV Stars Utilities — curation screen over existing AV pipeline.
         com.organizer3.utilities.avstars.AvStarsCatalogService avStarsCatalog =
-                new com.organizer3.utilities.avstars.AvStarsCatalogService(avActressRepo, avVideoRepo);
+                new com.organizer3.utilities.avstars.AvStarsCatalogService(avActressRepo, avVideoRepo, avScreenshotRepo);
         com.organizer3.utilities.avstars.IafdResolverService iafdResolver =
                 new com.organizer3.utilities.avstars.IafdResolverService(
                         avActressRepo, new HttpIafdClient(),
@@ -918,7 +918,7 @@ public class Application {
                 avStarsCatalog, avBrowseService, iafdResolver));
         webServer.registerStreamActivityTracker(streamActivityTracker);
         webServer.registerAvScreenshotQueue(new com.organizer3.web.routes.AvScreenshotQueueRoutes(
-                avScreenshotQueueRepo, avVideoRepo, avScreenshotRepo, avScreenshotWorker, streamActivityTracker));
+                avScreenshotQueueRepo, avVideoRepo, avScreenshotRepo, avScreenshotWorker, streamActivityTracker, avArtifactCleaner));
         webServer.registerTrash(new com.organizer3.web.routes.TrashRoutes(
                 trashService, smbConnectionFactory, taskRegistry, taskRunner));
 

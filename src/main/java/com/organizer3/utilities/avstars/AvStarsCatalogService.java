@@ -3,6 +3,7 @@ package com.organizer3.utilities.avstars;
 import com.organizer3.avstars.model.AvActress;
 import com.organizer3.avstars.model.AvVideo;
 import com.organizer3.avstars.repository.AvActressRepository;
+import com.organizer3.avstars.repository.AvScreenshotRepository;
 import com.organizer3.avstars.repository.AvVideoRepository;
 
 import java.util.Comparator;
@@ -25,10 +26,14 @@ public final class AvStarsCatalogService {
 
     private final AvActressRepository actressRepo;
     private final AvVideoRepository videoRepo;
+    private final AvScreenshotRepository screenshotRepo;
 
-    public AvStarsCatalogService(AvActressRepository actressRepo, AvVideoRepository videoRepo) {
+    public AvStarsCatalogService(AvActressRepository actressRepo,
+                                 AvVideoRepository videoRepo,
+                                 AvScreenshotRepository screenshotRepo) {
         this.actressRepo = actressRepo;
         this.videoRepo = videoRepo;
+        this.screenshotRepo = screenshotRepo;
     }
 
     /**
@@ -54,9 +59,11 @@ public final class AvStarsCatalogService {
             case LAST_SCANNED_DESC -> Comparator.comparing(AvActress::getLastScannedAt,
                     Comparator.nullsLast(Comparator.reverseOrder()));
         };
-        return filtered.stream()
-                .sorted(cmp)
-                .map(this::toRow)
+        List<AvActress> ordered = filtered.stream().sorted(cmp).toList();
+        Map<Long, Integer> screenshotsDoneByActress = screenshotRepo.countVideosWithScreenshotsByActresses(
+                ordered.stream().map(AvActress::getId).toList());
+        return ordered.stream()
+                .map(a -> toRow(a, screenshotsDoneByActress.getOrDefault(a.getId(), 0)))
                 .toList();
     }
 
@@ -92,7 +99,7 @@ public final class AvStarsCatalogService {
         return new TechSummary(videos.size(), totalBytes, byCodec, byResolution);
     }
 
-    private Row toRow(AvActress a) {
+    private Row toRow(AvActress a, int screenshotsDoneVideos) {
         String headshotUrl = a.getHeadshotPath() != null
                 ? "/api/av/headshots/" + java.nio.file.Path.of(a.getHeadshotPath()).getFileName()
                 : null;
@@ -107,7 +114,8 @@ public final class AvStarsCatalogService {
                 a.isRejected(),
                 a.getGrade(),
                 a.getIafdId() != null && !a.getIafdId().isBlank(),
-                headshotUrl);
+                headshotUrl,
+                screenshotsDoneVideos);
     }
 
     private static String codecLabel(String raw) {
@@ -123,7 +131,8 @@ public final class AvStarsCatalogService {
     /** List-row projection. Keep lean — detail panes use the existing AvActressDetail. */
     public record Row(long id, String folderName, String stageName, String volumeId,
                       int videoCount, boolean favorite, boolean bookmark, boolean rejected,
-                      String grade, boolean resolved, String headshotUrl) {}
+                      String grade, boolean resolved, String headshotUrl,
+                      int screenshotsDoneVideos) {}
 
     public record Counts(int total, int resolved, int favorites) {}
 

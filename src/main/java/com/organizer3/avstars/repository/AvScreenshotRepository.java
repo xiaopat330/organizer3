@@ -33,4 +33,17 @@ public interface AvScreenshotRepository {
 
     /** Deletes all screenshots for the given video (e.g. to regenerate them). */
     void deleteByVideoId(long avVideoId);
+
+    /**
+     * Deletes every screenshot row whose video belongs to the given actress.
+     * Returns the count of rows deleted. Used by the per-actress reset flow.
+     */
+    int deleteByActressId(long avActressId);
+
+    /**
+     * For each actress id in the input, returns the number of her videos that have ≥1
+     * screenshot row. Actresses with zero screenshots are present in the result map with
+     * value 0. Used by the catalog list to render a per-actress progress bar.
+     */
+    Map<Long, Integer> countVideosWithScreenshotsByActresses(List<Long> actressIds);
 }

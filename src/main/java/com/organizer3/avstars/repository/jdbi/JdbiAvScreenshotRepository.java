@@ -90,4 +90,33 @@ public class JdbiAvScreenshotRepository implements AvScreenshotRepository {
         jdbi.useHandle(h ->
                 h.execute("DELETE FROM av_video_screenshots WHERE av_video_id = ?", avVideoId));
     }
+
+    @Override
+    public int deleteByActressId(long avActressId) {
+        return jdbi.withHandle(h -> h.execute(
+                "DELETE FROM av_video_screenshots WHERE av_video_id IN " +
+                        "(SELECT id FROM av_videos WHERE av_actress_id = ?)",
+                avActressId));
+    }
+
+    @Override
+    public Map<Long, Integer> countVideosWithScreenshotsByActresses(List<Long> actressIds) {
+        if (actressIds == null || actressIds.isEmpty()) return Map.of();
+        Map<Long, Integer> result = new HashMap<>();
+        for (Long id : actressIds) result.put(id, 0);
+        String placeholders = actressIds.stream().map(id -> "?").collect(Collectors.joining(", "));
+        jdbi.useHandle(h -> {
+            var query = h.createQuery(
+                    "SELECT v.av_actress_id AS aid, COUNT(DISTINCT s.av_video_id) AS cnt " +
+                    "FROM av_video_screenshots s JOIN av_videos v ON v.id = s.av_video_id " +
+                    "WHERE v.av_actress_id IN (" + placeholders + ") " +
+                    "GROUP BY v.av_actress_id");
+            for (int i = 0; i < actressIds.size(); i++) {
+                query.bind(i, actressIds.get(i));
+            }
+            query.map((rs, ctx) -> Map.entry(rs.getLong("aid"), rs.getInt("cnt")))
+                 .forEach(e -> result.put(e.getKey(), e.getValue()));
+        });
+        return result;
+    }
 }

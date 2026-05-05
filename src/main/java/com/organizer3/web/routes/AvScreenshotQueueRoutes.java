@@ -1,6 +1,8 @@
 package com.organizer3.web.routes;
 
 import com.organizer3.avstars.AvScreenshotWorker;
+import com.organizer3.avstars.cleanup.AvArtifactCleaner;
+import com.organizer3.avstars.model.AvVideo;
 import com.organizer3.avstars.repository.AvScreenshotQueueRepository;
 import com.organizer3.avstars.repository.AvScreenshotQueueRepository.ActressProgress;
 import com.organizer3.avstars.repository.AvScreenshotRepository;
@@ -12,6 +14,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -29,6 +32,7 @@ public class AvScreenshotQueueRoutes {
     private final AvScreenshotRepository screenshotRepo;
     private final AvScreenshotWorker worker;
     private final StreamActivityTracker streamTracker;
+    private final AvArtifactCleaner artifactCleaner;
 
     public void register(Javalin app) {
 
@@ -80,6 +84,35 @@ public class AvScreenshotQueueRoutes {
             if (actressId < 0) { ctx.status(400); return; }
             int removed = queueRepo.clearForActress(actressId);
             ctx.json(Map.of("removed", removed));
+        });
+
+        // DELETE /api/av/actresses/{id}/screenshots ("reset")
+        // Brings the actress back to a fresh state: removes every queue row regardless of
+        // status (DONE/FAILED rows would otherwise block re-enqueue via the av_video_id
+        // UNIQUE constraint), deletes screenshot DB rows for her videos, and removes the
+        // on-disk screenshot directories. Refuses with 409 if the worker is currently
+        // generating for this actress — caller should pause+stop first or wait.
+        app.delete("/api/av/actresses/{id}/screenshots", ctx -> {
+            long actressId = parseId(ctx);
+            if (actressId < 0) { ctx.status(400); return; }
+            Long currentActress = worker.getCurrentActressId();
+            if (currentActress != null && currentActress == actressId) {
+                ctx.status(409).json(Map.of(
+                        "error", "in_progress",
+                        "message", "Worker is currently generating for this actress; pause/stop and retry."));
+                return;
+            }
+            int queueRows  = queueRepo.deleteAllForActress(actressId);
+            int dbRows     = screenshotRepo.deleteByActressId(actressId);
+            List<Long> videoIds = videoRepo.findByActress(actressId).stream()
+                    .map(AvVideo::getId).toList();
+            int dirsRemoved = artifactCleaner.deleteScreenshotsFor(videoIds);
+            log.info("reset actress={}: queueRows={} dbRows={} dirsRemoved={}",
+                    actressId, queueRows, dbRows, dirsRemoved);
+            ctx.json(Map.of(
+                    "queueRowsCleared",   queueRows,
+                    "screenshotsDeleted", dbRows,
+                    "directoriesRemoved", dirsRemoved));
         });
 
         // GET /api/av/actresses/{id}/screenshots/progress
