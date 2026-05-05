@@ -180,8 +180,22 @@ public class TranslationWorker implements Runnable {
         Optional<TranslationCacheRow> cached = cacheRepo.findByHashAndStrategy(hash, strategy.id());
         if (cached.isPresent() && cached.get().bestTranslation() != null) {
             log.debug("TranslationWorker: cache pre-flight HIT for row={} — dispatching callback", row.id());
-            callbackDispatcher.dispatch(row.callbackKind(), row.callbackId(),
-                    cached.get().bestTranslation());
+            String cachedText = cached.get().bestTranslation();
+            callbackDispatcher.dispatch(row.callbackKind(), row.callbackId(), cachedText);
+            // Stage-name fan-out: even on cache hit, fire the dispatcher so fan-out runs for
+            // subsequent identical-source enqueues (spec §11.4).
+            if (stageNameSuggestionRepo != null
+                    && TranslationServiceImpl.looksLikeStageName(row.sourceText())) {
+                try {
+                    String now = ISO_UTC.format(Instant.now());
+                    long suggestionId = stageNameSuggestionRepo.recordSuggestionAndGetId(
+                            row.sourceText(), cachedText, now);
+                    callbackDispatcher.dispatch("stage_name_suggestion", suggestionId, cachedText);
+                } catch (Exception e) {
+                    log.warn("TranslationWorker: cache-hit stage-name fan-out failed for row={}: {}",
+                            row.id(), e.getMessage());
+                }
+            }
             queueRepo.markDone(row.id(), ISO_UTC.format(Instant.now()));
             return true;
         }
@@ -332,12 +346,16 @@ public class TranslationWorker implements Runnable {
                 englishText != null, escalateToTier2);
 
         // Stage-name suggestion hook: if the source looks like a stage name and we got a result,
-        // record it for human review. Parallel write — does not affect cache or queue outcome.
+        // record it for human review and dispatch the fan-out callback.
+        // Parallel write — does not affect cache or queue outcome.
+        Long stageNameSuggestionId = null;
         if (englishText != null && stageNameSuggestionRepo != null
                 && TranslationServiceImpl.looksLikeStageName(row.sourceText())) {
             try {
-                stageNameSuggestionRepo.recordSuggestion(row.sourceText(), englishText, now);
-                log.debug("TranslationWorker: stage-name suggestion recorded for row={}", row.id());
+                stageNameSuggestionId = stageNameSuggestionRepo.recordSuggestionAndGetId(
+                        row.sourceText(), englishText, now);
+                log.debug("TranslationWorker: stage-name suggestion recorded for row={} suggestionId={}",
+                        row.id(), stageNameSuggestionId);
             } catch (Exception e) {
                 log.warn("TranslationWorker: failed to record stage-name suggestion for row={}: {}",
                         row.id(), e.getMessage());
@@ -349,8 +367,12 @@ public class TranslationWorker implements Runnable {
             queueRepo.markTier2Pending(row.id(), tier2Reason, now);
             log.info("TranslationWorker: row={} marked tier_2_pending ({})", row.id(), tier2Reason);
         } else if (englishText != null) {
-            // Success — dispatch callback and mark done
+            // Success — dispatch original callback, then unconditionally dispatch stage-name
+            // fan-out if this was a stage-name completion (regardless of originating callbackKind).
             callbackDispatcher.dispatch(row.callbackKind(), row.callbackId(), englishText);
+            if (stageNameSuggestionId != null) {
+                callbackDispatcher.dispatch("stage_name_suggestion", stageNameSuggestionId, englishText);
+            }
             queueRepo.markDone(row.id(), now);
         } else {
             // Non-escalating failure (transient/adapter error) — increment attempt or mark permanently failed

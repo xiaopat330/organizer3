@@ -1,6 +1,9 @@
 package com.organizer3.translation;
 
 import com.organizer3.db.SchemaInitializer;
+import com.organizer3.javdb.draft.DraftActress;
+import com.organizer3.javdb.draft.DraftActressRepository;
+import com.organizer3.translation.repository.jdbi.JdbiStageNameSuggestionRepository;
 import com.organizer3.translation.repository.jdbi.JdbiTranslationStrategyRepository;
 import org.jdbi.v3.core.Jdbi;
 import org.junit.jupiter.api.AfterEach;
@@ -142,6 +145,138 @@ class CallbackDispatcherTest {
 
         dispatcher.dispatch("my.custom_kind", 1L, "Custom Result");
         assertEquals("Custom Result", received.get());
+    }
+
+    // -------------------------------------------------------------------------
+    // Stage-name fan-out tests
+    // -------------------------------------------------------------------------
+
+    @Test
+    void stageNameFanOut_fillsLinkedDraftWithNullLastName() {
+        JdbiStageNameSuggestionRepository suggRepo = new JdbiStageNameSuggestionRepository(jdbi);
+        DraftActressRepository draftRepo = new DraftActressRepository(jdbi);
+        dispatcher.registerStageNameFanOut(suggRepo, draftRepo);
+
+        // Seed an existing actress for the FK
+        jdbi.useHandle(h -> h.execute(
+                "INSERT INTO actresses(id, canonical_name, tier, first_seen_at) " +
+                "VALUES (10, 'Yuma Asami', 'LIBRARY', '2024-01-01')"));
+
+        // Linked draft — should be filled
+        draftRepo.upsertBySlug(DraftActress.builder()
+                .javdbSlug("linked1")
+                .stageName("麻美ゆま")
+                .englishFirstName(null)
+                .englishLastName(null)
+                .linkToExistingId(10L)
+                .createdAt("2024-01-01T00:00:00Z")
+                .updatedAt("2024-01-01T00:00:00Z")
+                .build());
+
+        long suggId = suggRepo.recordSuggestionAndGetId("麻美ゆま", "Yuma Asami", "2024-01-01T00:00:00.000Z");
+        dispatcher.dispatch("stage_name_suggestion", suggId, "Yuma Asami");
+
+        DraftActress updated = draftRepo.findBySlug("linked1").orElseThrow();
+        assertEquals("Yuma", updated.getEnglishFirstName());
+        assertEquals("Asami", updated.getEnglishLastName());
+    }
+
+    @Test
+    void stageNameFanOut_skipsDraftWithNonNullLastName() {
+        JdbiStageNameSuggestionRepository suggRepo = new JdbiStageNameSuggestionRepository(jdbi);
+        DraftActressRepository draftRepo = new DraftActressRepository(jdbi);
+        dispatcher.registerStageNameFanOut(suggRepo, draftRepo);
+
+        jdbi.useHandle(h -> h.execute(
+                "INSERT INTO actresses(id, canonical_name, tier, first_seen_at) " +
+                "VALUES (11, 'Yuma Asami', 'LIBRARY', '2024-01-01')"));
+
+        // Draft already has a last name (human-edited) — should NOT be overwritten
+        draftRepo.upsertBySlug(DraftActress.builder()
+                .javdbSlug("already-filled")
+                .stageName("麻美ゆま")
+                .englishFirstName("Yuma")
+                .englishLastName("Asami")
+                .linkToExistingId(11L)
+                .createdAt("2024-01-01T00:00:00Z")
+                .updatedAt("2024-01-01T00:00:00Z")
+                .build());
+
+        long suggId = suggRepo.recordSuggestionAndGetId("麻美ゆま", "Different Name", "2024-01-01T00:00:00.000Z");
+        dispatcher.dispatch("stage_name_suggestion", suggId, "Different Name");
+
+        DraftActress unchanged = draftRepo.findBySlug("already-filled").orElseThrow();
+        assertEquals("Asami", unchanged.getEnglishLastName());
+        assertEquals("Yuma", unchanged.getEnglishFirstName());
+    }
+
+    /**
+     * Critical §12 regression: an unlinked draft must NOT be filled by the fan-out.
+     * Without link_to_existing_id IS NOT NULL, unlinked drafts auto-fill English fields
+     * and then promote as new canonical Actresses — creating one duplicate per draft.
+     */
+    @Test
+    void stageNameFanOut_skipsDraftWithNullLinkToExistingId() {
+        JdbiStageNameSuggestionRepository suggRepo = new JdbiStageNameSuggestionRepository(jdbi);
+        DraftActressRepository draftRepo = new DraftActressRepository(jdbi);
+        dispatcher.registerStageNameFanOut(suggRepo, draftRepo);
+
+        // Unlinked draft — link_to_existing_id is NULL
+        draftRepo.upsertBySlug(DraftActress.builder()
+                .javdbSlug("unlinked1")
+                .stageName("麻美ゆま")
+                .englishFirstName(null)
+                .englishLastName(null)
+                .linkToExistingId(null)
+                .createdAt("2024-01-01T00:00:00Z")
+                .updatedAt("2024-01-01T00:00:00Z")
+                .build());
+
+        long suggId = suggRepo.recordSuggestionAndGetId("麻美ゆま", "Yuma Asami", "2024-01-01T00:00:00.000Z");
+        dispatcher.dispatch("stage_name_suggestion", suggId, "Yuma Asami");
+
+        DraftActress unchanged = draftRepo.findBySlug("unlinked1").orElseThrow();
+        assertNull(unchanged.getEnglishLastName(), "unlinked draft must NOT be filled by fan-out");
+        assertNull(unchanged.getEnglishFirstName(), "unlinked draft must NOT be filled by fan-out");
+    }
+
+    @Test
+    void stageNameFanOut_singleTokenResult_writesNullFirstAndTokenAsLast() {
+        JdbiStageNameSuggestionRepository suggRepo = new JdbiStageNameSuggestionRepository(jdbi);
+        DraftActressRepository draftRepo = new DraftActressRepository(jdbi);
+        dispatcher.registerStageNameFanOut(suggRepo, draftRepo);
+
+        jdbi.useHandle(h -> h.execute(
+                "INSERT INTO actresses(id, canonical_name, tier, first_seen_at) " +
+                "VALUES (12, 'Asami', 'LIBRARY', '2024-01-01')"));
+
+        draftRepo.upsertBySlug(DraftActress.builder()
+                .javdbSlug("mononym1")
+                .stageName("亜沙美")
+                .englishFirstName(null)
+                .englishLastName(null)
+                .linkToExistingId(12L)
+                .createdAt("2024-01-01T00:00:00Z")
+                .updatedAt("2024-01-01T00:00:00Z")
+                .build());
+
+        long suggId = suggRepo.recordSuggestionAndGetId("亜沙美", "Asami", "2024-01-01T00:00:00.000Z");
+        dispatcher.dispatch("stage_name_suggestion", suggId, "Asami");
+
+        DraftActress updated = draftRepo.findBySlug("mononym1").orElseThrow();
+        assertNull(updated.getEnglishFirstName(), "single-token result: first should be null");
+        assertEquals("Asami", updated.getEnglishLastName());
+    }
+
+    @Test
+    void stageNameFanOut_deletedSuggestionRow_isNoOp() {
+        JdbiStageNameSuggestionRepository suggRepo = new JdbiStageNameSuggestionRepository(jdbi);
+        DraftActressRepository draftRepo = new DraftActressRepository(jdbi);
+        dispatcher.registerStageNameFanOut(suggRepo, draftRepo);
+
+        // Dispatch with a suggestion id that doesn't exist
+        assertDoesNotThrow(() ->
+                dispatcher.dispatch("stage_name_suggestion", 99999L, "Some Romaji"));
     }
 
     // -------------------------------------------------------------------------

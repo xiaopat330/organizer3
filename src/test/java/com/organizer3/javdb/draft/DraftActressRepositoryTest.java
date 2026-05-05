@@ -164,4 +164,107 @@ class DraftActressRepositoryTest {
         DraftActress found = repo.findBySlug("abc12").orElseThrow();
         assertNull(found.getLastValidationError());
     }
+
+    // ── fillEnglishNameByKanji ─────────────────────────────────────────────────
+
+    @Test
+    void fillEnglishNameByKanji_fillsLinkedDraftWithNullLastName() {
+        // Linked draft (link_to_existing_id = 42), no English names yet
+        DraftActress linked = DraftActress.builder()
+                .javdbSlug("linked1")
+                .stageName("麻美ゆま")
+                .englishFirstName(null)
+                .englishLastName(null)
+                .linkToExistingId(42L)
+                .createdAt("2024-01-01T00:00:00Z")
+                .updatedAt("2024-01-01T00:00:00Z")
+                .build();
+        repo.upsertBySlug(linked);
+
+        int updated = repo.fillEnglishNameByKanji("麻美ゆま", "Yuma", "Asami");
+        assertEquals(1, updated);
+
+        DraftActress result = repo.findBySlug("linked1").orElseThrow();
+        assertEquals("Yuma", result.getEnglishFirstName());
+        assertEquals("Asami", result.getEnglishLastName());
+    }
+
+    /**
+     * Critical §12 regression: unlinked draft must NOT be filled.
+     * If this guard is absent, unlinked drafts get English fields and then silently promote
+     * as new canonical Actresses — producing duplicates per draft for the same kanji.
+     */
+    @Test
+    void fillEnglishNameByKanji_skipsDraftWithNullLinkToExistingId() {
+        DraftActress unlinked = DraftActress.builder()
+                .javdbSlug("unlinked1")
+                .stageName("麻美ゆま")
+                .englishFirstName(null)
+                .englishLastName(null)
+                .linkToExistingId(null)
+                .createdAt("2024-01-01T00:00:00Z")
+                .updatedAt("2024-01-01T00:00:00Z")
+                .build();
+        repo.upsertBySlug(unlinked);
+
+        int updated = repo.fillEnglishNameByKanji("麻美ゆま", "Yuma", "Asami");
+        assertEquals(0, updated);
+
+        DraftActress result = repo.findBySlug("unlinked1").orElseThrow();
+        assertNull(result.getEnglishLastName(), "unlinked draft must NOT be filled");
+    }
+
+    @Test
+    void fillEnglishNameByKanji_skipsDraftWhereLastNameAlreadySet() {
+        // Human has already set the last name — do not overwrite
+        jdbi.useHandle(h -> h.execute(
+                "INSERT INTO actresses(id, canonical_name, tier, first_seen_at) " +
+                "VALUES (99, 'Human Edited', 'LIBRARY', '2024-01-01')"));
+        DraftActress humanEdited = DraftActress.builder()
+                .javdbSlug("edited1")
+                .stageName("麻美ゆま")
+                .englishFirstName("Human")
+                .englishLastName("Edited")
+                .linkToExistingId(99L)
+                .createdAt("2024-01-01T00:00:00Z")
+                .updatedAt("2024-01-01T00:00:00Z")
+                .build();
+        repo.upsertBySlug(humanEdited);
+
+        int updated = repo.fillEnglishNameByKanji("麻美ゆま", "New", "Value");
+        assertEquals(0, updated);
+
+        DraftActress result = repo.findBySlug("edited1").orElseThrow();
+        assertEquals("Edited", result.getEnglishLastName());
+    }
+
+    @Test
+    void fillEnglishNameByKanji_onlyFillsMatchingKanji() {
+        // Two linked drafts with different stage names — only the matching one is filled
+        repo.upsertBySlug(DraftActress.builder()
+                .javdbSlug("match1")
+                .stageName("麻美ゆま")
+                .englishFirstName(null).englishLastName(null)
+                .linkToExistingId(42L)
+                .createdAt("2024-01-01T00:00:00Z")
+                .updatedAt("2024-01-01T00:00:00Z")
+                .build());
+        jdbi.useHandle(h -> h.execute(
+                "INSERT INTO actresses(id, canonical_name, tier, first_seen_at) " +
+                "VALUES (43, 'Other', 'LIBRARY', '2024-01-01')"));
+        repo.upsertBySlug(DraftActress.builder()
+                .javdbSlug("other1")
+                .stageName("他の女優")
+                .englishFirstName(null).englishLastName(null)
+                .linkToExistingId(43L)
+                .createdAt("2024-01-01T00:00:00Z")
+                .updatedAt("2024-01-01T00:00:00Z")
+                .build());
+
+        int updated = repo.fillEnglishNameByKanji("麻美ゆま", "Yuma", "Asami");
+        assertEquals(1, updated);
+
+        assertNull(repo.findBySlug("other1").orElseThrow().getEnglishLastName());
+        assertEquals("Asami", repo.findBySlug("match1").orElseThrow().getEnglishLastName());
+    }
 }

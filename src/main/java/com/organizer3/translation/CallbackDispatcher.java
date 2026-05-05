@@ -1,5 +1,7 @@
 package com.organizer3.translation;
 
+import com.organizer3.javdb.draft.DraftActressRepository;
+import com.organizer3.translation.repository.StageNameSuggestionRepository;
 import lombok.extern.slf4j.Slf4j;
 import org.jdbi.v3.core.Jdbi;
 
@@ -22,6 +24,12 @@ import java.util.function.BiConsumer;
  *
  * <p>If the callback target column is already non-null (human edit or race), the update is
  * skipped to avoid clobbering a manual correction.
+ *
+ * <p>For stage-name strategy completions the worker unconditionally dispatches
+ * {@code "stage_name_suggestion"} with the suggestion row id — regardless of what
+ * {@code callbackKind} was on the originating request. The originating {@code callbackKind}
+ * is informational for stage-name strategies; the fan-out is driven by completion, not by
+ * the request's callback fields.
  */
 @Slf4j
 public class CallbackDispatcher {
@@ -29,9 +37,22 @@ public class CallbackDispatcher {
     private final Map<String, BiConsumer<Long, String>> handlers = new HashMap<>();
     private final Jdbi jdbi;
 
+    /** Minimal constructor — no stage-name fan-out registered. For tests and legacy callers. */
     public CallbackDispatcher(Jdbi jdbi) {
         this.jdbi = jdbi;
         registerBuiltins();
+    }
+
+    /**
+     * Full constructor — also registers the {@code "stage_name_suggestion"} fan-out handler
+     * that back-fills English name fields on already-linked draft Actresses.
+     */
+    public CallbackDispatcher(Jdbi jdbi,
+                               StageNameSuggestionRepository stageNameSuggestionRepo,
+                               DraftActressRepository draftActressRepo) {
+        this.jdbi = jdbi;
+        registerBuiltins();
+        registerStageNameFanOut(stageNameSuggestionRepo, draftActressRepo);
     }
 
     /**
@@ -64,6 +85,29 @@ public class CallbackDispatcher {
             log.warn("CallbackDispatcher: callback '{}' id={} threw exception — skipping (cache still written): {}",
                     callbackKind, callbackId, e.getMessage());
         }
+    }
+
+    // -------------------------------------------------------------------------
+    // Stage-name fan-out
+    // -------------------------------------------------------------------------
+
+    public void registerStageNameFanOut(StageNameSuggestionRepository stageNameSuggestionRepo,
+                                        DraftActressRepository draftActressRepo) {
+        register("stage_name_suggestion", (suggestionRowId, englishText) -> {
+            StageNameSuggestionRow row = stageNameSuggestionRepo.findById(suggestionRowId).orElse(null);
+            if (row == null) {
+                // Suggestion deleted between request and callback — safe no-op.
+                log.debug("CallbackDispatcher: stage_name_suggestion id={} not found — skipping fan-out",
+                        suggestionRowId);
+                return;
+            }
+            String[] parts = ActressFuzzyMatcher.splitRomaji(englishText);
+            String first = parts[0];
+            String last  = parts[1];
+            int updated = draftActressRepo.fillEnglishNameByKanji(row.kanjiForm(), first, last);
+            log.info("stage_name_suggestion fan-out: kanji='{}' romaji='{}' updated {} drafts",
+                    row.kanjiForm(), englishText, updated);
+        });
     }
 
     // -------------------------------------------------------------------------

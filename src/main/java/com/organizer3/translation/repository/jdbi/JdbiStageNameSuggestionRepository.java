@@ -41,6 +41,50 @@ public class JdbiStageNameSuggestionRepository implements StageNameSuggestionRep
     }
 
     @Override
+    public long recordSuggestionAndGetId(String kanjiForm, String suggestedRomaji, String suggestedAt) {
+        return jdbi.withHandle(h -> {
+            h.createUpdate("""
+                    INSERT OR IGNORE INTO stage_name_suggestion
+                        (kanji_form, suggested_romaji, suggested_at)
+                    VALUES (:kanjiForm, :suggestedRomaji, :suggestedAt)
+                    """)
+                    .bind("kanjiForm", kanjiForm)
+                    .bind("suggestedRomaji", suggestedRomaji)
+                    .bind("suggestedAt", suggestedAt)
+                    .execute();
+            // On OR IGNORE no-op, last_insert_rowid() returns 0; fall back to SELECT.
+            long lastId = h.createQuery("SELECT last_insert_rowid()")
+                    .mapTo(Long.class).one();
+            if (lastId > 0) {
+                return lastId;
+            }
+            return h.createQuery("""
+                    SELECT id FROM stage_name_suggestion
+                    WHERE kanji_form = :kanjiForm AND suggested_romaji = :suggestedRomaji
+                    LIMIT 1
+                    """)
+                    .bind("kanjiForm", kanjiForm)
+                    .bind("suggestedRomaji", suggestedRomaji)
+                    .mapTo(Long.class).one();
+        });
+    }
+
+    @Override
+    public java.util.Optional<StageNameSuggestionRow> findById(long id) {
+        return jdbi.withHandle(h ->
+                h.createQuery("""
+                        SELECT id, kanji_form, suggested_romaji, suggested_at,
+                               reviewed_at, review_decision, final_romaji
+                        FROM stage_name_suggestion
+                        WHERE id = :id
+                        """)
+                        .bind("id", id)
+                        .map(MAPPER)
+                        .findFirst()
+        );
+    }
+
+    @Override
     public List<StageNameSuggestionRow> findByKanji(String kanjiForm) {
         return jdbi.withHandle(h ->
                 h.createQuery("""
