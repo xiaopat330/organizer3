@@ -1406,19 +1406,42 @@
   margin-bottom: 8px;
 }
 
-.title-detail-title-en {
-  font-size: 1rem;
-  font-weight: 700;
-  color: #f1f5f9;
-  line-height: 1.45;
-  margin-bottom: 6px;
-}
-
-.title-detail-title-en--secondary {
+/* Japanese demoted to secondary when English title is present above. */
+.title-detail-title-ja--secondary {
   font-size: 0.88rem;
-  font-weight: 600;
+  font-weight: 500;
   color: #94a3b8;
   margin-bottom: 14px;
+}
+
+.title-detail-title-en {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #f1f5f9;
+  line-height: 1.4;
+  margin-bottom: 4px;
+}
+
+/* LLM-translated original title — italicized + lightly de-emphasized */
+.title-detail-title-en--auto {
+  font-style: italic;
+  color: #b8bcc6;
+}
+.title-detail-title-en-badge {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 1px 6px;
+  font-size: 0.65rem;
+  font-style: normal;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #facc15;
+  background: rgba(250, 204, 21, 0.08);
+  border: 1px solid rgba(250, 204, 21, 0.3);
+  border-radius: 3px;
+  vertical-align: middle;
+  cursor: help;
 }
 
 .title-detail-meta {

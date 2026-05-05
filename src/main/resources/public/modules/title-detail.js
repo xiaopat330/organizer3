@@ -240,12 +240,26 @@ function renderTitleDetail(t) {
     coverEl.innerHTML = `<div class="title-detail-cover-placeholder">${esc(t.code)}</div>`;
   }
 
-  // Titles — Japanese first (large bold white), then English
+  // Titles — English first when present (the language the user reads), Japanese
+  // below. When English is absent, Japanese moves up to the primary slot. Prefer
+  // curated titleEnglish over LLM-translated titleOriginalEn (mirrors the cache
+  // lookup-priority rule). LLM translations get an italic + "auto" badge.
   const hasJa = !!t.titleOriginal;
-  const hasEn = !!t.titleEnglish;
-  const jaTitleHtml = hasJa ? `<div class="title-detail-title-ja">${esc(t.titleOriginal)}</div>` : '';
-  const enClass = hasJa ? 'title-detail-title-en title-detail-title-en--secondary' : 'title-detail-title-en';
-  const enTitleHtml = hasEn ? `<div class="${enClass}">${esc(t.titleEnglish)}</div>` : '';
+  const enText = t.titleEnglish || t.titleOriginalEn || '';
+  const hasEn = !!enText;
+  const isLlmTranslation = !t.titleEnglish && !!t.titleOriginalEn;
+  // Primary slot (large/bold) goes to English when we have it; otherwise Japanese.
+  const enClass = isLlmTranslation
+      ? 'title-detail-title-en title-detail-title-en--auto'
+      : 'title-detail-title-en';
+  const llmBadge = isLlmTranslation
+      ? '<span class="title-detail-title-en-badge" title="Auto-translated by Ollama (gemma4:e4b)">auto</span>'
+      : '';
+  const enTitleHtml = hasEn ? `<div class="${enClass}">${esc(enText)}${llmBadge}</div>` : '';
+  const jaClass = hasEn
+      ? 'title-detail-title-ja title-detail-title-ja--secondary'
+      : 'title-detail-title-ja';
+  const jaTitleHtml = hasJa ? `<div class="${jaClass}">${esc(t.titleOriginal)}</div>` : '';
 
   // Actresses — prefer multi-actress list, fall back to single actressId
   const actresses = (t.actresses && t.actresses.length > 0)
@@ -345,8 +359,8 @@ function renderTitleDetail(t) {
   </div>` : '';
 
   infoEl.innerHTML = `
-    ${jaTitleHtml}
     ${enTitleHtml}
+    ${jaTitleHtml}
     <div class="title-detail-code">${esc(t.code)}</div>
     <div class="title-detail-actions">
       <button class="title-action-btn${t.favorite ? ' active' : ''}" id="title-fav-btn" title="Favorite">${ICON_FAV_LG}</button>
