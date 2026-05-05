@@ -3,7 +3,9 @@ package com.organizer3.web.routes;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.organizer3.db.SchemaInitializer;
+import com.organizer3.javdb.enrichment.JavdbEnrichmentRepository;
 import com.organizer3.translation.HealthStatus;
+import com.organizer3.translation.TranslationConfig;
 import com.organizer3.translation.TranslationRequest;
 import com.organizer3.translation.TranslationService;
 import com.organizer3.translation.TranslationServiceStats;
@@ -39,6 +41,7 @@ class TranslationRoutesTest {
     private TranslationStrategyRepository strategyRepo;
     private TranslationCacheRepository cacheRepo;
     private TranslationQueueRepository queueRepo;
+    private JavdbEnrichmentRepository enrichmentRepo;
     private Connection connection;
     private Jdbi jdbi;
     private final ObjectMapper mapper = new ObjectMapper();
@@ -46,17 +49,20 @@ class TranslationRoutesTest {
 
     @BeforeEach
     void setUp() throws Exception {
-        service      = mock(TranslationService.class);
-        strategyRepo = mock(TranslationStrategyRepository.class);
-        cacheRepo    = mock(TranslationCacheRepository.class);
-        queueRepo    = mock(TranslationQueueRepository.class);
+        service        = mock(TranslationService.class);
+        strategyRepo   = mock(TranslationStrategyRepository.class);
+        cacheRepo      = mock(TranslationCacheRepository.class);
+        queueRepo      = mock(TranslationQueueRepository.class);
+        enrichmentRepo = mock(JavdbEnrichmentRepository.class);
 
         connection = DriverManager.getConnection("jdbc:sqlite::memory:");
         jdbi = Jdbi.create(connection);
         new SchemaInitializer(jdbi).initialize();
 
         server = new WebServer(0);
-        server.registerTranslation(new TranslationRoutes(service, strategyRepo, cacheRepo, queueRepo, jdbi));
+        server.registerTranslation(new TranslationRoutes(
+                service, strategyRepo, cacheRepo, queueRepo, jdbi,
+                enrichmentRepo, TranslationConfig.DEFAULTS));
         server.start();
     }
 
@@ -325,5 +331,31 @@ class TranslationRoutesTest {
         JsonNode node = mapper.readTree(res.body());
         // Row already has translation — should be excluded
         assertEquals(0, node.size());
+    }
+
+    // ── GET /api/translation/title-sweeper-status ────────────────────────────
+
+    @Test
+    void getTitleSweeperStatus_returnsCountAndConfig() throws Exception {
+        when(enrichmentRepo.countTitlesAwaitingTranslation()).thenReturn(42L);
+
+        HttpResponse<String> res = get("/api/translation/title-sweeper-status");
+        assertEquals(200, res.statusCode());
+
+        JsonNode node = mapper.readTree(res.body());
+        assertEquals(42, node.get("pending").asLong());
+        assertTrue(node.get("enabled").asBoolean(),
+                "DEFAULTS pin enabled=true; endpoint must echo it");
+        assertEquals(300, node.get("intervalSeconds").asInt());
+        assertEquals(50, node.get("batchSize").asInt());
+    }
+
+    @Test
+    void getTitleSweeperStatus_500WhenRepoThrows() throws Exception {
+        when(enrichmentRepo.countTitlesAwaitingTranslation())
+                .thenThrow(new RuntimeException("db locked"));
+
+        HttpResponse<String> res = get("/api/translation/title-sweeper-status");
+        assertEquals(500, res.statusCode());
     }
 }

@@ -22,7 +22,10 @@ public record TranslationConfig(
         @JsonProperty("sweeperIntervalSeconds")         Integer sweeperIntervalSeconds,
         @JsonProperty("tier2BatchSize")                 Integer tier2BatchSize,
         @JsonProperty("tier2MaxWaitMinutes")            Integer tier2MaxWaitMinutes,
-        @JsonProperty("tier2SweeperIntervalSeconds")    Integer tier2SweeperIntervalSeconds
+        @JsonProperty("tier2SweeperIntervalSeconds")    Integer tier2SweeperIntervalSeconds,
+        @JsonProperty("titleSweeperEnabled")            Boolean titleSweeperEnabled,
+        @JsonProperty("titleSweeperIntervalSeconds")    Integer titleSweeperIntervalSeconds,
+        @JsonProperty("titleSweeperBatchSize")          Integer titleSweeperBatchSize
 ) {
     /** Default configuration — {@code http://localhost:11434}, 120s, gemma4:e4b / qwen2.5:14b. */
     public static final TranslationConfig DEFAULTS = new TranslationConfig(
@@ -36,7 +39,10 @@ public record TranslationConfig(
             300,
             10,
             60,
-            300
+            300,
+            true,
+            300,
+            50
     );
 
     public String ollamaBaseUrlOrDefault() {
@@ -84,5 +90,20 @@ public record TranslationConfig(
     /** Interval in seconds between tier-2 sweeper runs. */
     public int tier2SweeperIntervalSecondsOrDefault() {
         return tier2SweeperIntervalSeconds != null ? tier2SweeperIntervalSeconds : 300;
+    }
+
+    /** Whether the Phase 6 title-translation background sweeper runs. Default true. */
+    public boolean titleSweeperEnabledOrDefault() {
+        return titleSweeperEnabled == null || titleSweeperEnabled;
+    }
+
+    /** Interval in seconds between title-sweeper runs. Default 300 (5 min). */
+    public int titleSweeperIntervalSecondsOrDefault() {
+        return titleSweeperIntervalSeconds != null ? titleSweeperIntervalSeconds : 300;
+    }
+
+    /** Maximum titles enqueued per title-sweeper tick. Default 50. */
+    public int titleSweeperBatchSizeOrDefault() {
+        return titleSweeperBatchSize != null ? titleSweeperBatchSize : 50;
     }
 }

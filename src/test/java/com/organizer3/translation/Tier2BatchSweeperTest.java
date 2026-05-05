@@ -78,7 +78,8 @@ class Tier2BatchSweeperTest {
         config = new TranslationConfig(
                 "http://localhost:11434", 120, "gemma4:e4b", "qwen2.5:14b",
                 2, 3, 600, 300,
-                3, 60, 300   // tier2BatchSize=3, tier2MaxWaitMinutes=60, tier2SweeperIntervalSeconds=300
+                3, 60, 300,   // tier2BatchSize=3, tier2MaxWaitMinutes=60, tier2SweeperIntervalSeconds=300
+                true, 300, 50 // titleSweeper: enabled, intervalSeconds, batchSize
         );
 
         sweeper = new Tier2BatchSweeper(
