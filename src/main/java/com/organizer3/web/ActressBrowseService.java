@@ -362,6 +362,8 @@ public class ActressBrowseService {
                 .toList();
         Map<Long, List<TitleSummary.EnrichmentTagEntry>> enrichmentTagsMap =
                 titleRepo.findEnrichmentTagsByTitleIds(titleIds);
+        Map<Long, String> titleOriginalEnMap =
+                titleRepo.findTitleOriginalEnByTitleIds(titleIds);
 
         return titles.stream()
                 .map(t -> {
@@ -400,6 +402,7 @@ public class ActressBrowseService {
                             .nasPaths(nasPaths)
                             .titleEnglish(t.getTitleEnglish())
                             .titleOriginal(t.getTitleOriginal())
+                            .titleOriginalEn(t.getId() != null ? titleOriginalEnMap.get(t.getId()) : null)
                             .releaseDate(t.getReleaseDate() != null ? t.getReleaseDate().toString() : null)
                             .grade(t.getGrade() != null ? t.getGrade().display : null)
                             .tags(allTags)
