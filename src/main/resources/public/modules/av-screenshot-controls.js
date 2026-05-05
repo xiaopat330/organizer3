@@ -14,6 +14,7 @@ const POLL_MS = 2000;
 let _container = null;
 let _actressId = null;
 let _pendingVideoCount = null;
+let _totalVideoCount = null;
 let _pollTimer = null;
 let _mountId = 0;
 
@@ -44,8 +45,9 @@ async function fetchPendingCount(id) {
     if (!res.ok) return;
     const videos = await res.json();
     if (_mountId !== id || !_container) return;
+    _totalVideoCount = videos.length;
     _pendingVideoCount = videos.filter(v => !v.screenshotCount).length;
-  } catch { /* leave _pendingVideoCount null; idle label degrades gracefully */ }
+  } catch { /* leave counts null; labels degrade gracefully */ }
 }
 
 // Safe to call when not mounted.
@@ -57,6 +59,7 @@ export function unmount() {
   _container = null;
   _actressId = null;
   _pendingVideoCount = null;
+  _totalVideoCount = null;
 }
 
 // ── Fetch / poll ───────────────────────────────────────────────────────────
@@ -136,28 +139,52 @@ function render(progress, worker) {
     return;
   }
 
-  // Idle: no active queue rows.
-  const allDone = (total > 0 && done === total) || _pendingVideoCount === 0;
-  if (allDone) {
-    renderAllDone();
+  // Idle: no active queue rows. We're done if either:
+  //   (a) the actress's videos all have screenshots (steady state across mounts), or
+  //   (b) this session's queue rows are all DONE (handles the just-finished case where
+  //       _pendingVideoCount is still its mount-time value).
+  const allDoneFromQueue = total > 0 && done === total;
+  if (_pendingVideoCount === 0 || allDoneFromQueue) {
+    renderAllDone(allDoneFromQueue ? total : _totalVideoCount);
   } else {
     renderIdle();
   }
 }
 
-function renderAllDone() {
-  _container.innerHTML =
-    `<button class="av-ss-btn av-ss-done" disabled>Screenshots ✓</button>`;
+function renderAllDone(totalForLabel) {
+  const n = totalForLabel != null && totalForLabel > 0
+    ? totalForLabel
+    : _totalVideoCount;
+  const label = n != null && n > 0
+    ? `Screenshots ✓ ${n}/${n}`
+    : 'Screenshots ✓';
+  _container.innerHTML = `
+    <div class="av-ss-btn-row">
+      <button class="av-ss-btn av-ss-done" disabled>${label}</button>
+      <button class="av-ss-action av-ss-reset" title="Delete all screenshots for this actress and start over">Reset</button>
+    </div>`;
+  _container.querySelector('.av-ss-reset').addEventListener('click', () => resetActress());
 }
 
 function renderIdle() {
   const label = _pendingVideoCount != null
     ? `Generate screenshots (${_pendingVideoCount} pending)`
     : 'Generate screenshots';
-  _container.innerHTML =
-    `<button class="av-ss-btn av-ss-generate">${label}</button>`;
-  _container.querySelector('.av-ss-generate')
-    .addEventListener('click', () => enqueue());
+  // "Reset" only meaningful when at least one video already has screenshots.
+  const hasExisting = _totalVideoCount != null && _pendingVideoCount != null
+    && _totalVideoCount > _pendingVideoCount;
+  const resetBtn = hasExisting
+    ? `<button class="av-ss-action av-ss-reset" title="Delete all screenshots for this actress and start over">Reset</button>`
+    : '';
+  _container.innerHTML = `
+    <div class="av-ss-btn-row">
+      <button class="av-ss-btn av-ss-generate">${label}</button>
+      ${resetBtn}
+    </div>`;
+  _container.querySelector('.av-ss-generate').addEventListener('click', () => enqueue());
+  if (hasExisting) {
+    _container.querySelector('.av-ss-reset').addEventListener('click', () => resetActress());
+  }
 }
 
 function renderRunning(progress, streamGated) {
@@ -237,6 +264,30 @@ async function resumeActress() {
     fetchAndRender(id);
   } catch (e) {
     console.error('av-screenshot-controls: resume error', e);
+  }
+}
+
+async function resetActress() {
+  if (!confirm('Delete all screenshots for this actress (DB rows, files, and any queued jobs) and start over?')) return;
+  const id = _mountId;
+  try {
+    const res = await fetch(
+      `/api/av/actresses/${_actressId}/screenshots`, { method: 'DELETE' });
+    if (_mountId !== id || !_container) return;
+    if (res.status === 409) {
+      alert('Worker is currently generating for this actress. Pause/Stop and try again.');
+      return;
+    }
+    if (!res.ok) { console.error('av-screenshot-controls: reset failed', res.status); return; }
+    // Re-fetch /videos so _pendingVideoCount and _totalVideoCount reflect the post-reset state,
+    // then re-render. Notify host so the right-pane video grid clears its thumbnails.
+    await fetchPendingCount(id);
+    await fetchAndRender(id);
+    window.dispatchEvent(new CustomEvent('av-screenshots-queue-done', {
+      detail: { actressId: _actressId },
+    }));
+  } catch (e) {
+    console.error('av-screenshot-controls: reset error', e);
   }
 }
 

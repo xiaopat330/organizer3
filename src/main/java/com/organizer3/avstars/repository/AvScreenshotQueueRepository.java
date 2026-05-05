@@ -31,6 +31,13 @@ public interface AvScreenshotQueueRepository {
     /** Delete this actress's PENDING and PAUSED rows ("stop"). Returns rows deleted. */
     int clearForActress(long actressId);
 
+    /**
+     * Delete every queue row for this actress regardless of status. Used by "reset" so that
+     * historical DONE/FAILED rows don't keep the {@code av_video_id UNIQUE} constraint
+     * blocking re-enqueue. Returns rows deleted.
+     */
+    int deleteAllForActress(long actressId);
+
     /** Per-actress queue stats for the progress endpoint. */
     ActressProgress progressForActress(long actressId);
 

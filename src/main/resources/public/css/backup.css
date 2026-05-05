@@ -771,6 +771,21 @@
   overflow: hidden;
   text-overflow: ellipsis;
 }
+.as-row-ssbar {
+  height: 3px;
+  background: #1e293b;
+  border-radius: 2px;
+  overflow: hidden;
+  margin-top: 3px;
+}
+.as-row-ssbar-fill {
+  height: 100%;
+  background: #9333ea;
+  transition: width 0.2s ease;
+}
+.as-row-ssbar-fill.complete {
+  background: #10b981;
+}
 .as-row-meta {
   display: flex;
   gap: 4px;

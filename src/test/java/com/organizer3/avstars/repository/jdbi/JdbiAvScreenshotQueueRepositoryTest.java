@@ -223,6 +223,24 @@ class JdbiAvScreenshotQueueRepositoryTest {
         assertEquals(1, rowCount()); // IN_PROGRESS row survives
     }
 
+    @Test
+    void deleteAllForActressRemovesEveryStatus() {
+        // video1 → DONE (terminal status); video2 → PENDING.
+        repo.enqueueIfAbsent(actressId, video1Id);
+        AvScreenshotQueueRow claimed = repo.claimNextPending().orElseThrow();
+        repo.markDone(claimed.getId());
+        repo.enqueueIfAbsent(actressId, video2Id);
+        assertEquals(2, rowCount());
+
+        int removed = repo.deleteAllForActress(actressId);
+        assertEquals(2, removed);
+        assertEquals(0, rowCount());
+
+        // Critical: with the av_video_id UNIQUE constraint, the prior DONE row would have
+        // blocked re-enqueue. After deleteAllForActress the actress can be re-enqueued.
+        assertTrue(repo.enqueueIfAbsent(actressId, video1Id));
+    }
+
     // --- progressForActress ---
 
     @Test

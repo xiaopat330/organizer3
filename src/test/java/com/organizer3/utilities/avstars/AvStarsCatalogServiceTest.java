@@ -3,26 +3,32 @@ package com.organizer3.utilities.avstars;
 import com.organizer3.avstars.model.AvActress;
 import com.organizer3.avstars.model.AvVideo;
 import com.organizer3.avstars.repository.AvActressRepository;
+import com.organizer3.avstars.repository.AvScreenshotRepository;
 import com.organizer3.avstars.repository.AvVideoRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.util.Map;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 class AvStarsCatalogServiceTest {
 
     private AvActressRepository actressRepo;
     private AvVideoRepository videoRepo;
+    private AvScreenshotRepository screenshotRepo;
     private AvStarsCatalogService svc;
 
     @BeforeEach
     void setup() {
         actressRepo = mock(AvActressRepository.class);
         videoRepo = mock(AvVideoRepository.class);
-        svc = new AvStarsCatalogService(actressRepo, videoRepo);
+        screenshotRepo = mock(AvScreenshotRepository.class);
+        when(screenshotRepo.countVideosWithScreenshotsByActresses(any())).thenReturn(Map.of());
+        svc = new AvStarsCatalogService(actressRepo, videoRepo, screenshotRepo);
     }
 
     @Test
@@ -57,6 +63,22 @@ class AvStarsCatalogServiceTest {
         assertEquals(2, c.total());
         assertEquals(1, c.resolved());
         assertEquals(1, c.favorites());
+    }
+
+    @Test
+    void rowExposesScreenshotsDoneVideosFromRepoBatch() {
+        when(actressRepo.findAllByVideoCountDesc()).thenReturn(List.of(
+                actress(1, "Alice", false, false, false, null),
+                actress(2, "Bob",   false, false, false, null)));
+        when(screenshotRepo.countVideosWithScreenshotsByActresses(List.of(1L, 2L)))
+                .thenReturn(Map.of(1L, 7, 2L, 0));
+
+        var rows = svc.list(AvStarsCatalogService.Filter.ALL, AvStarsCatalogService.Sort.STAGE_NAME_ASC);
+        assertEquals(2, rows.size());
+        var alice = rows.stream().filter(r -> r.id() == 1L).findFirst().orElseThrow();
+        var bob   = rows.stream().filter(r -> r.id() == 2L).findFirst().orElseThrow();
+        assertEquals(7, alice.screenshotsDoneVideos());
+        assertEquals(0, bob.screenshotsDoneVideos());
     }
 
     @Test

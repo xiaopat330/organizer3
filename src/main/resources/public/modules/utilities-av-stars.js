@@ -26,12 +26,21 @@ let counts = { total: 0, resolved: 0, favorites: 0 };
 let selectedId = null;
 let currentDetail = null;  // { detail: {...}, techSummary: {...} }
 
+// Refresh list (and re-render its per-actress progress bars) whenever a screenshot batch
+// drains or a reset clears one. Registered once; idempotent against re-show.
+let _queueDoneListener = null;
+
 export async function showAvStarsView() {
   viewEl().style.display = 'flex';
   filterEl().value = localStorage.getItem(FILTER_KEY) || 'ALL';
   sortEl().value   = localStorage.getItem(SORT_KEY)   || 'VIDEO_COUNT_DESC';
   filterEl().onchange = onFilterOrSortChange;
   sortEl().onchange   = onFilterOrSortChange;
+
+  if (_queueDoneListener === null) {
+    _queueDoneListener = () => { if (viewEl().style.display !== 'none') refreshList(); };
+    window.addEventListener('av-screenshots-queue-done', _queueDoneListener);
+  }
 
   selectedId = localStorage.getItem(SELECTION_KEY);
   await refreshList();
@@ -101,12 +110,22 @@ function renderList() {
       ? `<span class="as-badge resolved">✓</span>`
       : `<span class="as-badge unres">?</span>`);
     badges.push(`<span class="as-badge">${r.videoCount}</span>`);
+    const ssDone = r.screenshotsDoneVideos || 0;
+    const ssTotal = r.videoCount || 0;
+    const ssPct = ssTotal > 0 ? Math.round((ssDone / ssTotal) * 100) : 0;
+    const ssComplete = ssTotal > 0 && ssDone === ssTotal;
+    const ssBar = ssTotal > 0
+      ? `<div class="as-row-ssbar" title="Screenshots: ${ssDone}/${ssTotal}">
+           <div class="as-row-ssbar-fill${ssComplete ? ' complete' : ''}" style="width:${ssPct}%"></div>
+         </div>`
+      : '';
     li.innerHTML = `
       <div class="as-row-headshot" style="${headshotStyle}"></div>
       <div class="as-row-name">
         <div class="as-row-stage">${esc(r.stageName || r.folderName)}</div>
         ${r.stageName && r.stageName !== r.folderName
           ? `<div class="as-row-folder">${esc(r.folderName)}</div>` : ''}
+        ${ssBar}
       </div>
       <div class="as-row-meta">${badges.join('')}</div>
     `;

@@ -3,6 +3,7 @@ package com.organizer3.web.routes;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.organizer3.avstars.AvScreenshotWorker;
+import com.organizer3.avstars.cleanup.AvArtifactCleaner;
 import com.organizer3.avstars.model.AvVideo;
 import com.organizer3.avstars.repository.AvScreenshotQueueRepository;
 import com.organizer3.avstars.repository.AvScreenshotQueueRepository.ActressProgress;
@@ -33,6 +34,7 @@ class AvScreenshotQueueRoutesTest {
     private AvScreenshotRepository screenshotRepo;
     private AvScreenshotWorker worker;
     private StreamActivityTracker streamTracker;
+    private AvArtifactCleaner artifactCleaner;
     private final ObjectMapper mapper = new ObjectMapper();
     private final HttpClient http = HttpClient.newHttpClient();
 
@@ -43,10 +45,11 @@ class AvScreenshotQueueRoutesTest {
         screenshotRepo = mock(AvScreenshotRepository.class);
         worker        = mock(AvScreenshotWorker.class);
         streamTracker = mock(StreamActivityTracker.class);
+        artifactCleaner = mock(AvArtifactCleaner.class);
 
         server = new WebServer(0);
         server.registerAvScreenshotQueue(
-                new AvScreenshotQueueRoutes(queueRepo, videoRepo, screenshotRepo, worker, streamTracker));
+                new AvScreenshotQueueRoutes(queueRepo, videoRepo, screenshotRepo, worker, streamTracker, artifactCleaner));
         server.start();
     }
 
@@ -221,6 +224,58 @@ class AvScreenshotQueueRoutesTest {
         assertTrue(body.get("streamActive").asBoolean());
         assertTrue(body.get("currentVideoId").isNull());
         assertTrue(body.get("currentActressId").isNull());
+    }
+
+    // --- reset (DELETE /screenshots) ---
+
+    @Test
+    void resetClearsQueueScreenshotsAndDirectories() throws Exception {
+        when(worker.getCurrentActressId()).thenReturn(null);
+        when(queueRepo.deleteAllForActress(7L)).thenReturn(5);
+        when(screenshotRepo.deleteByActressId(7L)).thenReturn(50);
+        when(videoRepo.findByActress(7L)).thenReturn(List.of(avVideo(100L), avVideo(101L)));
+        when(artifactCleaner.deleteScreenshotsFor(List.of(100L, 101L))).thenReturn(2);
+
+        var resp = delete("/api/av/actresses/7/screenshots");
+        assertEquals(200, resp.statusCode());
+
+        JsonNode body = mapper.readTree(resp.body());
+        assertEquals(5,  body.get("queueRowsCleared").asInt());
+        assertEquals(50, body.get("screenshotsDeleted").asInt());
+        assertEquals(2,  body.get("directoriesRemoved").asInt());
+
+        verify(queueRepo).deleteAllForActress(7L);
+        verify(screenshotRepo).deleteByActressId(7L);
+        verify(artifactCleaner).deleteScreenshotsFor(List.of(100L, 101L));
+    }
+
+    @Test
+    void resetReturns409WhenWorkerActiveOnSameActress() throws Exception {
+        when(worker.getCurrentActressId()).thenReturn(7L);
+
+        var resp = delete("/api/av/actresses/7/screenshots");
+        assertEquals(409, resp.statusCode());
+        verify(queueRepo, never()).deleteAllForActress(anyLong());
+        verify(screenshotRepo, never()).deleteByActressId(anyLong());
+        verify(artifactCleaner, never()).deleteScreenshotsFor(any());
+    }
+
+    @Test
+    void resetProceedsWhenWorkerActiveOnDifferentActress() throws Exception {
+        when(worker.getCurrentActressId()).thenReturn(99L);
+        when(queueRepo.deleteAllForActress(7L)).thenReturn(0);
+        when(screenshotRepo.deleteByActressId(7L)).thenReturn(0);
+        when(videoRepo.findByActress(7L)).thenReturn(List.of());
+        when(artifactCleaner.deleteScreenshotsFor(List.of())).thenReturn(0);
+
+        var resp = delete("/api/av/actresses/7/screenshots");
+        assertEquals(200, resp.statusCode());
+    }
+
+    @Test
+    void reset_400OnNonNumericId() throws Exception {
+        var resp = delete("/api/av/actresses/abc/screenshots");
+        assertEquals(400, resp.statusCode());
     }
 
     // --- non-numeric id → 400 ---

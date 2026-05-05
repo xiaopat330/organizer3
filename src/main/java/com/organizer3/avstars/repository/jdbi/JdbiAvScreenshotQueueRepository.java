@@ -96,6 +96,13 @@ public class JdbiAvScreenshotQueueRepository implements AvScreenshotQueueReposit
     }
 
     @Override
+    public int deleteAllForActress(long actressId) {
+        return jdbi.withHandle(h -> h.execute(
+                "DELETE FROM av_screenshot_queue WHERE av_actress_id = ?",
+                actressId));
+    }
+
+    @Override
     public ActressProgress progressForActress(long actressId) {
         return jdbi.withHandle(h -> h.createQuery("""
                         SELECT

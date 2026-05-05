@@ -63,4 +63,6 @@
 .av-ss-action:hover { background: #2d1b4b; }
 .av-ss-stop { color: #fca5a5; border-color: #7f1d1d; background: #1a0a0a; }
 .av-ss-stop:hover { background: #2a1111; }
+.av-ss-reset { color: #fca5a5; border-color: #7f1d1d; background: #1a0a0a; }
+.av-ss-reset:hover { background: #2a1111; }
 
