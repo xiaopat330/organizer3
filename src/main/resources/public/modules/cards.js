@@ -66,8 +66,13 @@ export function makeTitleCard(t) {
     actressHtml = `<div class="actress-name unknown">—</div>`;
   }
 
-  const titleEnHtml = t.titleEnglish  ? `<div class="title-en">${esc(t.titleEnglish)}</div>`  : '';
-  const titleJaHtml = t.titleOriginal ? `<div class="title-ja">${esc(t.titleOriginal)}</div>` : '';
+  // Prefer English (curated > LLM) and hide the Japanese original when English
+  // is present. Falls back to Japanese only when no English exists.
+  const enText = t.titleEnglish || t.titleOriginalEn || '';
+  const isLlmTranslation = !t.titleEnglish && !!t.titleOriginalEn;
+  const enClass = isLlmTranslation ? 'title-en title-en--auto' : 'title-en';
+  const titleEnHtml = enText  ? `<div class="${enClass}">${esc(enText)}</div>`  : '';
+  const titleJaHtml = !enText && t.titleOriginal ? `<div class="title-ja">${esc(t.titleOriginal)}</div>` : '';
 
   const metaParts = [];
   if (t.companyName || t.labelName) {
