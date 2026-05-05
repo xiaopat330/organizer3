@@ -111,6 +111,28 @@ public class SmbConnectionFactory {
         }
     }
 
+    /**
+     * Like {@link #withRetry} but retries on <em>any</em> exception, not just
+     * broken-pipe / transport errors. Use this for short, idempotent operations
+     * where the cost of one wasted retry is negligible — e.g. video-stream
+     * setup (fileSize + openFileHandle).
+     *
+     * <p>This sidesteps the {@link #isBrokenPipe} heuristic, which doesn't
+     * recognize SMB-side session-state failures (SMBApiException with status
+     * codes like STATUS_USER_SESSION_DELETED) since those are wrapped in
+     * generic IOExceptions by callers like {@link SmbShareHandle#fileSize}.
+     */
+    public <T> T withForceRetry(String volumeId, SmbOperation<T> op) throws IOException {
+        try {
+            return op.execute(open(volumeId));
+        } catch (IOException | RuntimeException e) {
+            log.info("SMB op failed on volume {} (exception={}); evicting and retrying once",
+                    volumeId, e.getClass().getSimpleName());
+            evict(volumeId);
+            return op.execute(open(volumeId));
+        }
+    }
+
     /** Removes a volume's pooled connection so the next {@link #open} dials fresh. */
     public synchronized void evict(String volumeId) {
         PooledShare stale = pool.remove(volumeId);

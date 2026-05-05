@@ -12,7 +12,6 @@ import com.organizer3.media.VideoProbe;
 import com.organizer3.repository.TitleRepository;
 import com.organizer3.repository.WatchHistoryRepository;
 import com.organizer3.smb.SmbConnectionFactory;
-import com.organizer3.smb.SmbConnectionFactory.SmbShareHandle;
 import io.javalin.Javalin;
 import io.javalin.http.staticfiles.Location;
 
@@ -34,6 +33,8 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class WebServer {
     public static final int DEFAULT_PORT = 8080;
+
+    private record AvStreamSetup(long fileSize, File smbFile) {}
 
     private static final Map<String, String> MIME_TYPES = Map.of(
             "jpg",  "image/jpeg",
@@ -495,8 +496,27 @@ public class WebServer {
                     "ts", "video/mp2t");
             String contentType = videoMimes.getOrDefault(ext, "application/octet-stream");
 
-            try (SmbShareHandle handle = smbFactory.open(video.getVolumeId())) {
-                long fileSize = handle.fileSize(smbRelPath);
+            // Stream setup uses withRetry — auto-recovers from a stale pooled
+            // connection (e.g. SMB session expired but TCP socket still reports
+            // connected). Failures here happen before the response is committed.
+            AvStreamSetup setup;
+            try {
+                setup = smbFactory.withForceRetry(video.getVolumeId(), handle ->
+                        new AvStreamSetup(handle.fileSize(smbRelPath), handle.openFileHandle(smbRelPath)));
+            } catch (Exception e) {
+                log.warn("AV stream setup failed for video {} path=\"{}\" volume={} exception={}: {}",
+                        videoId, smbRelPath, video.getVolumeId(),
+                        e.getClass().getName(), e.getMessage(), e);
+                smbFactory.evict(video.getVolumeId());
+                if (!ctx.res().isCommitted()) {
+                    String msg = e.getMessage() != null ? e.getMessage() : e.getClass().getSimpleName();
+                    ctx.status(502).result("Stream error: " + msg);
+                }
+                return;
+            }
+
+            long fileSize = setup.fileSize();
+            try (File f = setup.smbFile()) {
                 String rangeHeader = ctx.header("Range");
 
                 if (rangeHeader != null && rangeHeader.startsWith("bytes=")) {
@@ -514,42 +534,38 @@ public class WebServer {
                     ctx.header("Content-Range", "bytes " + start + "-" + end + "/" + fileSize);
                     ctx.header("Accept-Ranges", "bytes");
 
-                    try (File smbFile = handle.openFileHandle(smbRelPath)) {
-                        OutputStream out = ctx.outputStream();
-                        byte[] buf = new byte[64 * 1024];
-                        long remaining = contentLength;
-                        long offset = start;
-                        while (remaining > 0) {
-                            int toRead = (int) Math.min(buf.length, remaining);
-                            int read = smbFile.read(buf, offset, 0, toRead);
-                            if (read <= 0) break;
-                            out.write(buf, 0, read);
-                            offset += read;
-                            remaining -= read;
-                        }
-                        out.flush();
+                    OutputStream out = ctx.outputStream();
+                    byte[] buf = new byte[64 * 1024];
+                    long remaining = contentLength;
+                    long offset = start;
+                    while (remaining > 0) {
+                        int toRead = (int) Math.min(buf.length, remaining);
+                        int read = f.read(buf, offset, 0, toRead);
+                        if (read <= 0) break;
+                        out.write(buf, 0, read);
+                        offset += read;
+                        remaining -= read;
                     }
+                    out.flush();
                 } else {
                     ctx.status(200);
                     ctx.header("Content-Type", contentType);
                     ctx.header("Content-Length", String.valueOf(fileSize));
                     ctx.header("Accept-Ranges", "bytes");
 
-                    try (File smbFile = handle.openFileHandle(smbRelPath)) {
-                        OutputStream out = ctx.outputStream();
-                        byte[] buf = new byte[64 * 1024];
-                        long remaining = fileSize;
-                        long offset = 0;
-                        while (remaining > 0) {
-                            int toRead = (int) Math.min(buf.length, remaining);
-                            int read = smbFile.read(buf, offset, 0, toRead);
-                            if (read <= 0) break;
-                            out.write(buf, 0, read);
-                            offset += read;
-                            remaining -= read;
-                        }
-                        out.flush();
+                    OutputStream out = ctx.outputStream();
+                    byte[] buf = new byte[64 * 1024];
+                    long remaining = fileSize;
+                    long offset = 0;
+                    while (remaining > 0) {
+                        int toRead = (int) Math.min(buf.length, remaining);
+                        int read = f.read(buf, offset, 0, toRead);
+                        if (read <= 0) break;
+                        out.write(buf, 0, read);
+                        offset += read;
+                        remaining -= read;
                     }
+                    out.flush();
                 }
             } catch (org.eclipse.jetty.io.EofException eof) {
                 // Expected when FFmpeg closes the HTTP connection after extracting the
@@ -559,11 +575,14 @@ public class WebServer {
                             videoId, smbRelPath);
                 }
             } catch (Exception e) {
-                // Include exception class + full stack — SmbApiException and similar often
-                // have a null getMessage() and we can't debug from that alone.
-                log.warn("AV stream failed for video {} path=\"{}\" volume={} exception={}: {}",
+                // Mid-stream failure: response may be partially written, so we
+                // can't safely change status. Evict so the next request gets a
+                // fresh connection — this is what saves the user from needing
+                // to restart the app.
+                log.warn("AV stream failed mid-response for video {} path=\"{}\" volume={} exception={}: {}",
                         videoId, smbRelPath, video.getVolumeId(),
                         e.getClass().getName(), e.getMessage(), e);
+                smbFactory.evict(video.getVolumeId());
                 if (!ctx.res().isCommitted()) {
                     String msg = e.getMessage() != null ? e.getMessage() : e.getClass().getSimpleName();
                     ctx.status(502).result("Stream error: " + msg);

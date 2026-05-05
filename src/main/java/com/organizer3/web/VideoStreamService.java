@@ -8,6 +8,7 @@ import com.organizer3.repository.TitleRepository;
 import com.organizer3.repository.VideoRepository;
 import com.organizer3.smb.SmbConnectionFactory;
 import com.organizer3.smb.SmbConnectionFactory.SmbShareHandle;
+import com.organizer3.smb.SmbConnectionFactory.SmbOperation;
 
 import java.io.IOException;
 import java.nio.file.Path;
@@ -156,6 +157,29 @@ public class VideoStreamService {
      */
     public SmbShareHandle openStream(Video video) throws IOException {
         return smbFactory.open(video.getVolumeId());
+    }
+
+    /**
+     * Runs an SMB operation against the pooled share for this video's volume,
+     * with one unconditional retry on any failure (the pool entry is evicted
+     * between attempts so the retry dials fresh).
+     *
+     * <p>Use this for the upfront stream-setup calls (fileSize, openFileHandle).
+     * Setup is cheap and idempotent, so retrying on any exception (not just the
+     * broken-pipe heuristic) reliably hides session-state failures from the user.
+     */
+    public <T> T withRetry(Video video, SmbOperation<T> op) throws IOException {
+        return smbFactory.withForceRetry(video.getVolumeId(), op);
+    }
+
+    /**
+     * Evicts the pooled SMB connection for this video's volume. Call this after a
+     * mid-stream failure so the next request dials fresh instead of reusing a
+     * connection that may be poisoned (e.g. SMB session expired but TCP socket
+     * still reports connected).
+     */
+    public void evictPool(Video video) {
+        smbFactory.evict(video.getVolumeId());
     }
 
     /**
