@@ -853,6 +853,8 @@ public class Application {
         com.organizer3.web.ImageFetcher imageFetcher = new com.organizer3.web.ImageFetcher();
         com.organizer3.javdb.draft.DraftActressRepository draftActressRepo =
                 new com.organizer3.javdb.draft.DraftActressRepository(jdbi);
+        // Wire stage-name fan-out now that both repos are available.
+        translationCallbackDispatcher.registerStageNameFanOut(stageNameSuggestionRepo, draftActressRepo);
         com.organizer3.javdb.draft.DraftTitleActressesRepository draftCastRepo =
                 new com.organizer3.javdb.draft.DraftTitleActressesRepository(jdbi);
         com.organizer3.javdb.draft.DraftTitleEnrichmentRepository draftEnrichRepo =

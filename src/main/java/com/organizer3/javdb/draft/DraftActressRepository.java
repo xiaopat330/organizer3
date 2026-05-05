@@ -7,6 +7,9 @@ import org.jdbi.v3.core.statement.StatementContext;
 
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.time.Instant;
+import java.time.ZoneOffset;
+import java.time.format.DateTimeFormatter;
 import java.util.Optional;
 
 /**
@@ -83,6 +86,38 @@ public class DraftActressRepository {
                         .bind("slug", javdbSlug)
                         .map(ROW_MAPPER)
                         .findOne());
+    }
+
+    private static final DateTimeFormatter ISO_UTC =
+            DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'").withZone(ZoneOffset.UTC);
+
+    /**
+     * Cosmetic fill of English name fields for drafts already linked to an existing Actress.
+     * Returns the number of rows updated.
+     *
+     * <p>The {@code link_to_existing_id IS NOT NULL} guard is load-bearing — see
+     * PROPOSAL_NEAR_MISS_RESOLVER.md §12. Without it, unlinked drafts would auto-fill
+     * English fields and then promote as new canonical Actresses, producing one duplicate
+     * per draft for the same kanji. Only already-linked drafts get cosmetic fill here;
+     * unlinked drafts must go through the near-miss tool.
+     */
+    public int fillEnglishNameByKanji(String kanji, String englishFirst, String englishLast) {
+        String now = ISO_UTC.format(Instant.now());
+        return jdbi.withHandle(h ->
+                h.createUpdate("""
+                        UPDATE draft_actresses
+                           SET english_first_name = :first,
+                               english_last_name  = :last,
+                               updated_at         = :now
+                         WHERE stage_name           = :kanji
+                           AND english_last_name    IS NULL
+                           AND link_to_existing_id IS NOT NULL
+                        """)
+                        .bind("first", englishFirst)
+                        .bind("last", englishLast)
+                        .bind("now", now)
+                        .bind("kanji", kanji)
+                        .execute());
     }
 
     /**

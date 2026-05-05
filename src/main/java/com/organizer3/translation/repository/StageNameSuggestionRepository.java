@@ -24,6 +24,20 @@ public interface StageNameSuggestionRepository {
     void recordSuggestion(String kanjiForm, String suggestedRomaji, String suggestedAt);
 
     /**
+     * Record a suggestion (idempotent — same as {@link #recordSuggestion}) and return
+     * the row id. On an {@code INSERT OR IGNORE} no-op (duplicate), returns the id of
+     * the existing row with that (kanjiForm, suggestedRomaji) pair.
+     *
+     * @return the {@code stage_name_suggestion.id} for the (kanjiForm, suggestedRomaji) pair
+     */
+    long recordSuggestionAndGetId(String kanjiForm, String suggestedRomaji, String suggestedAt);
+
+    /**
+     * Look up a suggestion row by its primary key. Returns empty if the row has been deleted.
+     */
+    java.util.Optional<StageNameSuggestionRow> findById(long id);
+
+    /**
      * Find all suggestion rows for a given kanji form, ordered by {@code suggested_at DESC}.
      */
     List<StageNameSuggestionRow> findByKanji(String kanjiForm);
