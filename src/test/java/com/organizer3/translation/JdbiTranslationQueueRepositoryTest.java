@@ -51,16 +51,16 @@ class JdbiTranslationQueueRepositoryTest {
     @Test
     void enqueueIfAbsent_insertsWhenNoRowExists() {
         boolean inserted = queueRepo.enqueueIfAbsent(
-                "麻美ゆま", strategyId, now, TranslationQueueRow.STATUS_PENDING, null, null);
+                "麻美ゆま", strategyId, now, TranslationQueueRow.STATUS_PENDING, null, null, 0);
         assertTrue(inserted);
         assertEquals(1, queueRepo.countByStatus(TranslationQueueRow.STATUS_PENDING));
     }
 
     @Test
     void enqueueIfAbsent_skipsWhenPendingRowExists() {
-        queueRepo.enqueueIfAbsent("麻美ゆま", strategyId, now, TranslationQueueRow.STATUS_PENDING, null, null);
+        queueRepo.enqueueIfAbsent("麻美ゆま", strategyId, now, TranslationQueueRow.STATUS_PENDING, null, null, 0);
         boolean second = queueRepo.enqueueIfAbsent(
-                "麻美ゆま", strategyId, now, TranslationQueueRow.STATUS_PENDING, null, null);
+                "麻美ゆま", strategyId, now, TranslationQueueRow.STATUS_PENDING, null, null, 0);
         assertFalse(second);
         assertEquals(1, queueRepo.countByStatus(TranslationQueueRow.STATUS_PENDING));
     }
@@ -69,7 +69,7 @@ class JdbiTranslationQueueRepositoryTest {
     void enqueueIfAbsent_skipsWhenInFlightRowExists() {
         queueRepo.enqueue("麻美ゆま", strategyId, now, TranslationQueueRow.STATUS_IN_FLIGHT, null, null);
         boolean inserted = queueRepo.enqueueIfAbsent(
-                "麻美ゆま", strategyId, now, TranslationQueueRow.STATUS_PENDING, null, null);
+                "麻美ゆま", strategyId, now, TranslationQueueRow.STATUS_PENDING, null, null, 0);
         assertFalse(inserted);
         assertEquals(0, queueRepo.countByStatus(TranslationQueueRow.STATUS_PENDING));
     }
@@ -81,7 +81,7 @@ class JdbiTranslationQueueRepositoryTest {
         queueRepo.markDone(id, now);
 
         boolean inserted = queueRepo.enqueueIfAbsent(
-                "麻美ゆま", strategyId, now, TranslationQueueRow.STATUS_PENDING, null, null);
+                "麻美ゆま", strategyId, now, TranslationQueueRow.STATUS_PENDING, null, null, 0);
         assertTrue(inserted);
         assertEquals(1, queueRepo.countByStatus(TranslationQueueRow.STATUS_PENDING));
     }
@@ -93,8 +93,80 @@ class JdbiTranslationQueueRepositoryTest {
         queueRepo.markFailed(id, "error", now);
 
         boolean inserted = queueRepo.enqueueIfAbsent(
-                "麻美ゆま", strategyId, now, TranslationQueueRow.STATUS_PENDING, null, null);
+                "麻美ゆま", strategyId, now, TranslationQueueRow.STATUS_PENDING, null, null, 0);
         assertTrue(inserted);
         assertEquals(1, queueRepo.countByStatus(TranslationQueueRow.STATUS_PENDING));
+    }
+
+    @Test
+    void enqueueIfAbsent_bumpsPriorityWhenExistingRowHasLowerPriority() {
+        // Insert a low-priority row
+        queueRepo.enqueueIfAbsent("麻美ゆま", strategyId, now, TranslationQueueRow.STATUS_PENDING, null, null, 0);
+
+        // Attempt to bump to high priority — returns false (no new row), but bumps priority
+        boolean inserted = queueRepo.enqueueIfAbsent(
+                "麻美ゆま", strategyId, now, TranslationQueueRow.STATUS_PENDING, null, null, 10);
+        assertFalse(inserted, "should return false when row already exists");
+        assertEquals(1, queueRepo.countByStatus(TranslationQueueRow.STATUS_PENDING));
+
+        // Claim and verify the priority was bumped
+        var claimed = queueRepo.claimNext();
+        assertTrue(claimed.isPresent());
+        assertEquals(10, claimed.get().priority(), "priority should have been bumped to 10");
+    }
+
+    @Test
+    void enqueueIfAbsent_doesNotLowerPriorityWhenExistingRowHasHigherPriority() {
+        // Insert a high-priority row
+        queueRepo.enqueueIfAbsent("麻美ゆま", strategyId, now, TranslationQueueRow.STATUS_PENDING, null, null, 10);
+
+        // Try to lower priority — should be a no-op (monotonic)
+        queueRepo.enqueueIfAbsent("麻美ゆま", strategyId, now, TranslationQueueRow.STATUS_PENDING, null, null, 0);
+
+        var claimed = queueRepo.claimNext();
+        assertTrue(claimed.isPresent());
+        assertEquals(10, claimed.get().priority(), "priority should remain at 10 (not lowered)");
+    }
+
+    @Test
+    void claimNext_returnsHigherPriorityRowFirst() {
+        // Enqueue low-priority first, high-priority second (reversed submission order)
+        queueRepo.enqueueIfAbsent("低優先", strategyId, now, TranslationQueueRow.STATUS_PENDING, null, null, 0);
+        queueRepo.enqueueIfAbsent("高優先", strategyId, now, TranslationQueueRow.STATUS_PENDING, null, null, 10);
+
+        var claimed = queueRepo.claimNext();
+        assertTrue(claimed.isPresent());
+        assertEquals("高優先", claimed.get().sourceText(), "higher priority row must be claimed first");
+    }
+
+    @Test
+    void claimNext_breaksTiesByFifo() {
+        // Two rows with same priority — older one should be claimed first
+        String older = "2024-01-01T00:00:00.000Z";
+        String newer = "2024-06-01T00:00:00.000Z";
+        queueRepo.enqueue("新しい", strategyId, newer, TranslationQueueRow.STATUS_PENDING, null, null);
+        queueRepo.enqueue("古い", strategyId, older, TranslationQueueRow.STATUS_PENDING, null, null);
+
+        var claimed = queueRepo.claimNext();
+        assertTrue(claimed.isPresent());
+        assertEquals("古い", claimed.get().sourceText(), "older submitted_at row must be claimed first on tie");
+    }
+
+    @Test
+    void deletePendingForSource_deletesOnlyPendingRows() {
+        long pendingId = queueRepo.enqueue("麻美ゆま", strategyId, now, TranslationQueueRow.STATUS_PENDING, null, null);
+        queueRepo.enqueue("麻美ゆま", strategyId, now, TranslationQueueRow.STATUS_IN_FLIGHT, null, null);
+
+        int deleted = queueRepo.deletePendingForSource(strategyId, "麻美ゆま");
+
+        assertEquals(1, deleted, "only the pending row should be deleted");
+        assertEquals(0, queueRepo.countByStatus(TranslationQueueRow.STATUS_PENDING));
+        assertEquals(1, queueRepo.countByStatus(TranslationQueueRow.STATUS_IN_FLIGHT));
+    }
+
+    @Test
+    void deletePendingForSource_returnsZeroWhenNoPendingRows() {
+        int deleted = queueRepo.deletePendingForSource(strategyId, "存在しない");
+        assertEquals(0, deleted);
     }
 }

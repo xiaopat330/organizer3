@@ -266,4 +266,44 @@ class CurationRoutesTest {
         assertEquals("queued", body.get("status").asText());
         assertEquals(1,        body.get("unresolvedDraftCount").asInt());
     }
+
+    // ── POST /api/translation/stage-name-translate-now ───────────────────────
+
+    @Test
+    void stageNameTranslateNow_ready_whenTranslationSucceeds() throws Exception {
+        when(translationService.translateStageNameNow(anyString()))
+                .thenReturn(Optional.of("Natsume Iroha"));
+        when(draftActressRepo.countUnresolvedByKanji(anyString())).thenReturn(3);
+
+        HttpResponse<String> res = post("/api/translation/stage-name-translate-now",
+                Map.of("kanji", "夏目彩春"));
+
+        assertEquals(200, res.statusCode());
+        JsonNode body = mapper.readTree(res.body());
+        assertEquals("ready",         body.get("status").asText());
+        assertEquals("Natsume Iroha", body.get("romaji").asText());
+        assertEquals(3,               body.get("unresolvedDraftCount").asInt());
+    }
+
+    @Test
+    void stageNameTranslateNow_failed_whenTranslationReturnsEmpty() throws Exception {
+        when(translationService.translateStageNameNow(anyString()))
+                .thenReturn(Optional.empty());
+        when(draftActressRepo.countUnresolvedByKanji(anyString())).thenReturn(2);
+
+        HttpResponse<String> res = post("/api/translation/stage-name-translate-now",
+                Map.of("kanji", "夏目彩春"));
+
+        assertEquals(200, res.statusCode());
+        JsonNode body = mapper.readTree(res.body());
+        assertEquals("failed", body.get("status").asText());
+        assertEquals(2,        body.get("unresolvedDraftCount").asInt());
+        assertFalse(body.has("romaji"), "romaji field must be absent on failure");
+    }
+
+    @Test
+    void stageNameTranslateNow_400_whenKanjiMissing() throws Exception {
+        HttpResponse<String> res = post("/api/translation/stage-name-translate-now", Map.of());
+        assertEquals(400, res.statusCode());
+    }
 }

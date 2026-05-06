@@ -22,6 +22,10 @@ public class JdbiTranslationQueueRepository implements TranslationQueueRepositor
         Object callbackIdObj = rs.getObject("callback_id");
         Long callbackId = callbackIdObj != null ? ((Number) callbackIdObj).longValue() : null;
 
+        // priority column was added in v53; default to 0 for rows from before the migration
+        int priority;
+        try { priority = rs.getInt("priority"); } catch (Exception e) { priority = 0; }
+
         return new TranslationQueueRow(
                 rs.getLong("id"),
                 rs.getString("source_text"),
@@ -33,7 +37,8 @@ public class JdbiTranslationQueueRepository implements TranslationQueueRepositor
                 rs.getString("callback_kind"),
                 callbackId,
                 rs.getInt("attempt_count"),
-                rs.getString("last_error")
+                rs.getString("last_error"),
+                priority
         );
     };
 
@@ -75,7 +80,7 @@ public class JdbiTranslationQueueRepository implements TranslationQueueRepositor
             Optional<Long> id = h.createQuery("""
                             SELECT id FROM translation_queue
                             WHERE status = 'pending'
-                            ORDER BY submitted_at
+                            ORDER BY priority DESC, submitted_at ASC
                             LIMIT 1
                             """)
                     .mapTo(Long.class)
@@ -102,7 +107,7 @@ public class JdbiTranslationQueueRepository implements TranslationQueueRepositor
             return h.createQuery("""
                             SELECT id, source_text, strategy_id, submitted_at, started_at,
                                    completed_at, status, callback_kind, callback_id,
-                                   attempt_count, last_error
+                                   attempt_count, last_error, priority
                             FROM translation_queue
                             WHERE id = :id
                             """)
@@ -165,7 +170,7 @@ public class JdbiTranslationQueueRepository implements TranslationQueueRepositor
                 h.createQuery("""
                         SELECT id, source_text, strategy_id, submitted_at, started_at,
                                completed_at, status, callback_kind, callback_id,
-                               attempt_count, last_error
+                               attempt_count, last_error, priority
                         FROM translation_queue
                         WHERE status = 'in_flight'
                           AND started_at < :threshold
@@ -226,7 +231,7 @@ public class JdbiTranslationQueueRepository implements TranslationQueueRepositor
                 h.createQuery("""
                         SELECT id, source_text, strategy_id, submitted_at, started_at,
                                completed_at, status, callback_kind, callback_id,
-                               attempt_count, last_error
+                               attempt_count, last_error, priority
                         FROM translation_queue
                         WHERE status = 'tier_2_pending'
                         ORDER BY submitted_at
@@ -282,28 +287,64 @@ public class JdbiTranslationQueueRepository implements TranslationQueueRepositor
                                    String submittedAt,
                                    String status,
                                    String callbackKind,
-                                   Long callbackId) {
+                                   Long callbackId,
+                                   int priority) {
         return jdbi.inTransaction(h -> {
-            boolean exists = h.createQuery("""
+            // Check for an existing pending row (in_flight rows are not bumped — a worker
+            // already holds them; bumping priority would have no effect).
+            Integer existingPriority = h.createQuery("""
+                            SELECT priority FROM translation_queue
+                            WHERE strategy_id = :strategyId
+                              AND source_text = :sourceText
+                              AND status = 'pending'
+                            LIMIT 1
+                            """)
+                    .bind("strategyId", strategyId)
+                    .bind("sourceText", sourceText)
+                    .mapTo(Integer.class)
+                    .findFirst()
+                    .orElse(null);
+
+            if (existingPriority != null) {
+                // Row exists — bump priority if the new value is higher (monotonic)
+                if (priority > existingPriority) {
+                    h.createUpdate("""
+                                    UPDATE translation_queue
+                                    SET priority = :priority
+                                    WHERE strategy_id = :strategyId
+                                      AND source_text = :sourceText
+                                      AND status = 'pending'
+                                    """)
+                            .bind("priority", priority)
+                            .bind("strategyId", strategyId)
+                            .bind("sourceText", sourceText)
+                            .execute();
+                }
+                return false;
+            }
+
+            // Also skip if an in_flight row exists (no bump, just don't re-insert)
+            boolean inFlight = h.createQuery("""
                             SELECT COUNT(*) FROM translation_queue
                             WHERE strategy_id = :strategyId
                               AND source_text = :sourceText
-                              AND status IN ('pending', 'in_flight')
+                              AND status = 'in_flight'
                             LIMIT 1
                             """)
                     .bind("strategyId", strategyId)
                     .bind("sourceText", sourceText)
                     .mapTo(Integer.class)
                     .one() > 0;
-            if (exists) {
+            if (inFlight) {
                 return false;
             }
+
             h.createUpdate("""
                             INSERT INTO translation_queue
                                 (source_text, strategy_id, submitted_at, status,
-                                 callback_kind, callback_id)
+                                 callback_kind, callback_id, priority)
                             VALUES (:sourceText, :strategyId, :submittedAt, :status,
-                                    :callbackKind, :callbackId)
+                                    :callbackKind, :callbackId, :priority)
                             """)
                     .bind("sourceText", sourceText)
                     .bind("strategyId", strategyId)
@@ -311,9 +352,25 @@ public class JdbiTranslationQueueRepository implements TranslationQueueRepositor
                     .bind("status", status)
                     .bind("callbackKind", callbackKind)
                     .bind("callbackId", callbackId)
+                    .bind("priority", priority)
                     .execute();
             return true;
         });
+    }
+
+    @Override
+    public int deletePendingForSource(long strategyId, String sourceText) {
+        return jdbi.withHandle(h ->
+                h.createUpdate("""
+                        DELETE FROM translation_queue
+                        WHERE strategy_id = :strategyId
+                          AND source_text  = :sourceText
+                          AND status       = 'pending'
+                        """)
+                        .bind("strategyId", strategyId)
+                        .bind("sourceText", sourceText)
+                        .execute()
+        );
     }
 
     @Override

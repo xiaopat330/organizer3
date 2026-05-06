@@ -706,7 +706,7 @@ public class SchemaInitializer {
                     CREATE INDEX IF NOT EXISTS idx_tc_strategy
                         ON translation_cache(strategy_id)""");
 
-            // translation_queue: async translation work queue (v48).
+            // translation_queue: async translation work queue (v48); priority lane added in v53.
             h.execute("""
                     CREATE TABLE IF NOT EXISTS translation_queue (
                         id              INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -719,7 +719,8 @@ public class SchemaInitializer {
                         callback_kind   TEXT,
                         callback_id     INTEGER,
                         attempt_count   INTEGER NOT NULL DEFAULT 0,
-                        last_error      TEXT
+                        last_error      TEXT,
+                        priority        INTEGER NOT NULL DEFAULT 0
                     )""");
             h.execute("""
                     CREATE INDEX IF NOT EXISTS idx_tq_status
@@ -764,7 +765,7 @@ public class SchemaInitializer {
             // leave the version alone and let SchemaUpgrader apply any missing migrations.
             int currentVersion = h.createQuery("PRAGMA user_version").mapTo(Integer.class).one();
             if (currentVersion == 0) {
-                h.execute("PRAGMA user_version = 52");
+                h.execute("PRAGMA user_version = 53");
             }
         });
         log.info("Schema initialization complete");

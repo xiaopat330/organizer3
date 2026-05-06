@@ -25,6 +25,7 @@ let _selectedActressId = null;
 let _errorMessage = null;
 let _candidates = [];
 let _outcome = 'ALIAS';
+let _translateNowInFlight = false;
 
 export function mount(containerEl, { kanji, primarySlug = null }) {
   unmount();
@@ -57,6 +58,7 @@ export function unmount() {
   _errorMessage = null;
   _candidates = [];
   _outcome = 'ALIAS';
+  _translateNowInFlight = false;
 }
 
 // ── Load / poll ────────────────────────────────────────────────────────────
@@ -319,15 +321,20 @@ function renderFooter() {
   if (!footer) return;
   const loading = _state === 'loading' || _state === 'translating' || _state === 'saving';
   const saveDisabled = loading || !isSaveEnabled();
+  const showTranslateNow = _state === 'translating' || (_state === 'missing');
+  const translateNowDisabled = _translateNowInFlight;
 
   footer.innerHTML = `
     <button class="nm-btn nm-btn-cancel" id="nm-cancel">Cancel</button>
     ${_state === 'error' ? '<button class="nm-btn nm-btn-retry" id="nm-retry">Retry</button>' : ''}
+    ${showTranslateNow ? `<button class="nm-btn nm-btn-translate-now" id="nm-translate-now" ${translateNowDisabled ? 'disabled' : ''}>Translate now</button>` : ''}
     <button class="nm-btn nm-btn-primary" id="nm-save" ${saveDisabled ? 'disabled' : ''}>Save &amp; Cascade</button>`;
 
   footer.querySelector('#nm-cancel').addEventListener('click', doCancel);
   footer.querySelector('#nm-save').addEventListener('click', doSave);
   if (_state === 'error') footer.querySelector('#nm-retry').addEventListener('click', doRetry);
+  const translateNowBtn = footer.querySelector('#nm-translate-now');
+  if (translateNowBtn) translateNowBtn.addEventListener('click', () => doTranslateNow(_mountId));
 }
 
 function isSaveEnabled() {
@@ -456,6 +463,41 @@ function doRetry() {
   _state = 'saving';
   render(id);
   doSave();
+}
+
+async function doTranslateNow(id) {
+  if (_mountId !== id || !_container || _translateNowInFlight) return;
+  _translateNowInFlight = true;
+  renderFooter();
+  try {
+    const res = await fetch('/api/translation/stage-name-translate-now', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ kanji: _kanji }),
+    });
+    if (_mountId !== id || !_container) return;
+    _translateNowInFlight = false;
+    if (!res.ok) {
+      transitionError(id, `translate-now failed (${res.status})`);
+      return;
+    }
+    const data = await res.json();
+    if (_mountId !== id || !_container) return;
+    _unresolvedDraftCount = data.unresolvedDraftCount ?? _unresolvedDraftCount;
+    if (data.status === 'ready' && data.romaji) {
+      if (_pollTimer !== null) { clearInterval(_pollTimer); _pollTimer = null; }
+      _romaji = data.romaji;
+      _state = 'ready';
+      render(id);
+      fetchCandidates(id, _romaji);
+    } else {
+      transitionError(id, 'Translation returned no result. Try again later.');
+    }
+  } catch (e) {
+    if (_mountId !== id || !_container) return;
+    _translateNowInFlight = false;
+    transitionError(id, 'network error during translate-now');
+  }
 }
 
 // ── Utilities ──────────────────────────────────────────────────────────────

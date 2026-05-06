@@ -154,13 +154,33 @@ public interface TranslationQueueRepository {
      * same input. Terminal states ({@code done}, {@code failed}, {@code tier_2_pending}) are not
      * contention — a completed translation may be re-queued when appropriate.
      *
+     * <p>If a matching {@code pending} row already exists with a lower priority, its
+     * {@code priority} column is bumped to {@code max(existing, priority)}. This lets callers
+     * promote a previously-enqueued row without re-inserting. The return value is still
+     * {@code false} when no new row was inserted (priority bump is transparent to the caller).
+     *
+     * @param priority lane priority — higher values are claimed first; 0 is the normal lane;
+     *                 stage-name enqueues use 10 to jump the queue
      * @return {@code true} if a new row was inserted; {@code false} if a matching non-terminal
-     *         row already exists and the insert was skipped
+     *         row already exists (with or without a priority bump)
      */
     boolean enqueueIfAbsent(String sourceText,
                             long strategyId,
                             String submittedAt,
                             String status,
                             String callbackKind,
-                            Long callbackId);
+                            Long callbackId,
+                            int priority);
+
+    /**
+     * Delete all {@code pending} queue rows for the given {@code (strategyId, sourceText)} pair.
+     * Called by the synchronous translation path after it has written the cache and suggestion
+     * rows, so the background worker does not re-do the work.
+     *
+     * <p>Only {@code pending} rows are deleted; {@code in_flight} rows are left alone because
+     * a worker may already be processing them.
+     *
+     * @return number of rows deleted
+     */
+    int deletePendingForSource(long strategyId, String sourceText);
 }

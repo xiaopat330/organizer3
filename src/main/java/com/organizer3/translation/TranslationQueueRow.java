@@ -19,7 +19,8 @@ public record TranslationQueueRow(
         String callbackKind,
         Long callbackId,
         int attemptCount,
-        String lastError
+        String lastError,
+        int priority
 ) {
     public static final String STATUS_PENDING      = "pending";
     public static final String STATUS_IN_FLIGHT    = "in_flight";

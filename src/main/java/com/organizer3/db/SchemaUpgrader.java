@@ -22,7 +22,7 @@ import java.util.List;
 public class SchemaUpgrader {
 
     /** Must match the version stamped by {@link SchemaInitializer}. */
-    private static final int CURRENT_VERSION = 52;
+    private static final int CURRENT_VERSION = 53;
 
     private final Jdbi jdbi;
 
@@ -284,6 +284,11 @@ public class SchemaUpgrader {
         if (version < 52) {
             applyV52();
             setVersion(52);
+        }
+
+        if (version < 53) {
+            applyV53();
+            setVersion(53);
         }
 
         log.info("Schema upgrade complete");
@@ -1762,6 +1767,21 @@ public class SchemaUpgrader {
         log.info("Applying migration v52: link_to_draft_slug column on draft_actresses");
         jdbi.useHandle(h -> addColumnIfMissing(h, "draft_actresses", "link_to_draft_slug",
                 "TEXT REFERENCES draft_actresses(javdb_slug) ON DELETE SET NULL"));
+    }
+
+    /**
+     * v53: {@code priority} column on {@code translation_queue}.
+     *
+     * <p>Adds {@code priority INTEGER NOT NULL DEFAULT 0}. Higher values are claimed first
+     * by {@code claimNext} (ORDER BY priority DESC, submitted_at ASC). Stage-name enqueues
+     * use priority=10 so they jump the queue ahead of bulk title translations (priority=0).
+     *
+     * <p>Idempotent via {@code addColumnIfMissing}. Existing rows take the default value of 0.
+     */
+    private void applyV53() {
+        log.info("Applying migration v53: priority column on translation_queue");
+        jdbi.useHandle(h -> addColumnIfMissing(h, "translation_queue", "priority",
+                "INTEGER NOT NULL DEFAULT 0"));
     }
 
     private int getVersion() {

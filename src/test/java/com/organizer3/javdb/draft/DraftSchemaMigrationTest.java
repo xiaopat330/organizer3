@@ -128,7 +128,7 @@ class DraftSchemaMigrationTest {
 
         new SchemaUpgrader(jdbi).upgrade();
 
-        assertEquals(52, schemaVersion(), "schema version must be 52 after upgrade");
+        assertEquals(53, schemaVersion(), "schema version must be 53 after upgrade");
     }
 
     @Test
@@ -156,7 +156,7 @@ class DraftSchemaMigrationTest {
         // Running again must be a no-op.
         new SchemaUpgrader(jdbi).upgrade();
 
-        assertEquals(52, schemaVersion(), "schema version must remain 52 after redundant upgrade");
+        assertEquals(53, schemaVersion(), "schema version must remain 53 after redundant upgrade");
     }
 
     // ── v44 → v45 upgrade ─────────────────────────────────────────────────────
@@ -206,7 +206,7 @@ class DraftSchemaMigrationTest {
 
         new SchemaUpgrader(jdbi).upgrade();
 
-        assertEquals(52, schemaVersion(), "schema version must be 52 after v44→v52 upgrade");
+        assertEquals(53, schemaVersion(), "schema version must be 53 after v44→v53 upgrade");
     }
 
     @Test
@@ -250,11 +250,19 @@ class DraftSchemaMigrationTest {
     }
 
     @Test
-    void freshInstallIsStampedAtVersion52() {
+    void freshInstallIsStampedAtVersion53() {
         new SchemaInitializer(jdbi).initialize();
 
-        assertEquals(52, schemaVersion(),
-                "fresh install must stamp version 52");
+        assertEquals(53, schemaVersion(),
+                "fresh install must stamp version 53");
+    }
+
+    @Test
+    void freshInstallTranslationQueueHasPriorityColumn() {
+        new SchemaInitializer(jdbi).initialize();
+
+        assertTrue(columnExists("translation_queue", "priority"),
+                "fresh install translation_queue must include priority column");
     }
 
     @Test
@@ -279,7 +287,22 @@ class DraftSchemaMigrationTest {
 
         assertTrue(columnExists("draft_actresses", "link_to_draft_slug"),
                 "link_to_draft_slug must exist after v52 upgrade");
-        assertEquals(52, schemaVersion(), "schema version must be 52 after v51→v52 upgrade");
+        assertEquals(53, schemaVersion(), "schema version must be 53 after v51→v53 upgrade");
+    }
+
+    // ── v52 → v53 upgrade ─────────────────────────────────────────────────────
+
+    @Test
+    void upgradeFromV52_addsPriorityColumnToTranslationQueue() {
+        new SchemaInitializer(jdbi).initialize();
+        // Simulate v52: stamp the version back
+        jdbi.useHandle(h -> h.execute("PRAGMA user_version = 52"));
+
+        new SchemaUpgrader(jdbi).upgrade();
+
+        assertTrue(columnExists("translation_queue", "priority"),
+                "priority must exist after v53 upgrade");
+        assertEquals(53, schemaVersion(), "schema version must be 53 after v52→v53 upgrade");
     }
 
     // ── unique index enforcement ───────────────────────────────────────────────

@@ -29,7 +29,9 @@ import java.util.Optional;
 @Slf4j
 public class CurationRoutes {
 
-    private static final String STRATEGY_KEY_STAGE_NAME = "label_basic";
+    // Stage names re-use the label_basic strategy. The constant name is intentionally
+    // descriptive of its purpose here; the shared strategy key is a known design choice.
+    private static final String STAGE_NAME_STRATEGY_KEY = "label_basic";
 
     private final NearMissResolveService resolveService;
     private final DraftActressRepository draftActressRepo;
@@ -92,7 +94,7 @@ public class CurationRoutes {
                 if (romaji.isPresent()) {
                     result.put("status", "ready");
                     result.put("romaji", romaji.get());
-                } else if (translationQueueRepo.hasPending(STRATEGY_KEY_STAGE_NAME, normalized)) {
+                } else if (translationQueueRepo.hasPending(STAGE_NAME_STRATEGY_KEY, normalized)) {
                     result.put("status", "queued");
                 } else {
                     result.put("status", "missing");
@@ -101,6 +103,37 @@ public class CurationRoutes {
                 ctx.json(result);
             } catch (Exception e) {
                 log.error("POST /api/translation/stage-name-translate failed", e);
+                ctx.status(500).json(Map.of("error", e.getMessage()));
+            }
+        });
+
+        // POST /api/translation/stage-name-translate-now
+        // Synchronously translates a stage-name kanji via Ollama (tier-1 only), bypassing the
+        // async queue. Returns immediately on cache/suggestion hit.
+        // Body: { kanji }
+        // Returns { status: "ready"|"failed"|"sanitized", romaji?, unresolvedDraftCount }.
+        app.post("/api/translation/stage-name-translate-now", ctx -> {
+            try {
+                @SuppressWarnings("unchecked")
+                Map<String, Object> body = ctx.bodyAsClass(Map.class);
+                String raw = body != null ? asString(body, "kanji") : null;
+                if (raw == null || raw.isBlank()) {
+                    ctx.status(400).json(Map.of("error", "kanji field is required"));
+                    return;
+                }
+                String normalized = TranslationNormalization.normalize(raw);
+                Optional<String> romaji = translationService.translateStageNameNow(normalized);
+                Map<String, Object> result = new java.util.LinkedHashMap<>();
+                if (romaji.isPresent()) {
+                    result.put("status", "ready");
+                    result.put("romaji", romaji.get());
+                } else {
+                    result.put("status", "failed");
+                }
+                result.put("unresolvedDraftCount", draftActressRepo.countUnresolvedByKanji(normalized));
+                ctx.json(result);
+            } catch (Exception e) {
+                log.error("POST /api/translation/stage-name-translate-now failed", e);
                 ctx.status(500).json(Map.of("error", e.getMessage()));
             }
         });
@@ -217,7 +250,7 @@ public class CurationRoutes {
             return m;
         }
         Map<String, Object> m = new LinkedHashMap<>();
-        m.put("status", translationQueueRepo.hasPending(STRATEGY_KEY_STAGE_NAME, normalized) ? "queued" : "missing");
+        m.put("status", translationQueueRepo.hasPending(STAGE_NAME_STRATEGY_KEY, normalized) ? "queued" : "missing");
         m.put("unresolvedDraftCount", unresolvedDraftCount);
         return m;
     }

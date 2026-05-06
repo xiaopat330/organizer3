@@ -195,17 +195,18 @@ public class Application {
                 new com.organizer3.translation.OllamaModelState();
         com.organizer3.translation.HealthGate translationHealthGate =
                 new com.organizer3.translation.HealthGate(ollamaAdapter, translationCacheRepo, translationConfig);
-        com.organizer3.translation.TranslationService translationService =
-                new com.organizer3.translation.TranslationServiceImpl(
-                        ollamaAdapter, translationStrategyRepo, translationCacheRepo,
-                        translationQueueRepo, translationConfig, translationCallbackDispatcher,
-                        translationHealthGate, translationJsonMapper,
-                        stageNameLookupRepo, stageNameSuggestionRepo);
         // Local-only explicit-term substitution map (~/.organizer3/explicit-substitutions.properties).
         // The file is intentionally NOT committed to source — it lives per-machine.
         com.organizer3.translation.ExplicitTermSubstitutor explicitTermSubstitutor =
                 com.organizer3.translation.ExplicitTermSubstitutor.loadFromFile(
                         dbDir.resolve("explicit-substitutions.properties"));
+        com.organizer3.translation.TranslationService translationService =
+                new com.organizer3.translation.TranslationServiceImpl(
+                        ollamaAdapter, translationStrategyRepo, translationCacheRepo,
+                        translationQueueRepo, translationConfig, translationCallbackDispatcher,
+                        translationHealthGate, translationJsonMapper,
+                        stageNameLookupRepo, stageNameSuggestionRepo,
+                        explicitTermSubstitutor);
         // Actress repo needed by translation workers for per-title stage-name substitution.
         ActressRepository translationActressRepo = new JdbiActressRepository(jdbi);
         com.organizer3.translation.TranslationWorker translationWorker =

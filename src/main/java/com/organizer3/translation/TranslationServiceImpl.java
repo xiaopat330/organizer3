@@ -53,8 +53,10 @@ public class TranslationServiceImpl implements TranslationService {
     final ObjectMapper objectMapper;
     final StageNameLookupRepository stageNameLookupRepo;
     final StageNameSuggestionRepository stageNameSuggestionRepo;
+    /** Never null — defaults to {@link ExplicitTermSubstitutor#EMPTY} (no-op). */
+    final ExplicitTermSubstitutor explicitTermSubstitutor;
 
-    /** Full constructor including HealthGate, ObjectMapper, and stage-name repos. */
+    /** Full constructor including HealthGate, ObjectMapper, stage-name repos, and term substitutor. */
     public TranslationServiceImpl(OllamaAdapter ollamaAdapter,
                                    TranslationStrategyRepository strategyRepo,
                                    TranslationCacheRepository cacheRepo,
@@ -64,7 +66,8 @@ public class TranslationServiceImpl implements TranslationService {
                                    HealthGate healthGate,
                                    ObjectMapper objectMapper,
                                    StageNameLookupRepository stageNameLookupRepo,
-                                   StageNameSuggestionRepository stageNameSuggestionRepo) {
+                                   StageNameSuggestionRepository stageNameSuggestionRepo,
+                                   ExplicitTermSubstitutor explicitTermSubstitutor) {
         this.ollamaAdapter           = ollamaAdapter;
         this.strategyRepo            = strategyRepo;
         this.cacheRepo               = cacheRepo;
@@ -75,6 +78,24 @@ public class TranslationServiceImpl implements TranslationService {
         this.objectMapper            = objectMapper;
         this.stageNameLookupRepo     = stageNameLookupRepo;
         this.stageNameSuggestionRepo = stageNameSuggestionRepo;
+        this.explicitTermSubstitutor = explicitTermSubstitutor != null
+                ? explicitTermSubstitutor : ExplicitTermSubstitutor.EMPTY;
+    }
+
+    /** Backward-compat: without explicitTermSubstitutor (uses EMPTY). */
+    public TranslationServiceImpl(OllamaAdapter ollamaAdapter,
+                                   TranslationStrategyRepository strategyRepo,
+                                   TranslationCacheRepository cacheRepo,
+                                   TranslationQueueRepository queueRepo,
+                                   TranslationConfig config,
+                                   CallbackDispatcher callbackDispatcher,
+                                   HealthGate healthGate,
+                                   ObjectMapper objectMapper,
+                                   StageNameLookupRepository stageNameLookupRepo,
+                                   StageNameSuggestionRepository stageNameSuggestionRepo) {
+        this(ollamaAdapter, strategyRepo, cacheRepo, queueRepo, config, callbackDispatcher,
+                healthGate, objectMapper, stageNameLookupRepo, stageNameSuggestionRepo,
+                ExplicitTermSubstitutor.EMPTY);
     }
 
     /** Backward-compatible constructor: creates a default HealthGate and ObjectMapper; no stage-name repos. */
@@ -87,7 +108,8 @@ public class TranslationServiceImpl implements TranslationService {
         this(ollamaAdapter, strategyRepo, cacheRepo, queueRepo, config, callbackDispatcher,
                 new HealthGate(ollamaAdapter, cacheRepo, config),
                 new ObjectMapper(),
-                null, null);
+                null, null,
+                ExplicitTermSubstitutor.EMPTY);
     }
 
     // -------------------------------------------------------------------------
@@ -263,8 +285,9 @@ public class TranslationServiceImpl implements TranslationService {
             return Optional.empty();
         }
         String now = ISO_UTC.format(Instant.now());
+        // Priority=10 puts stage-name rows ahead of bulk title translations (priority=0)
         boolean inserted = queueRepo.enqueueIfAbsent(normalized, strategy.get().id(), now,
-                TranslationQueueRow.STATUS_PENDING, null, null);
+                TranslationQueueRow.STATUS_PENDING, null, null, 10);
         log.debug("resolveOrSuggestStageName: MISS for '{}', enqueueIfAbsent={}", normalized, inserted);
         return Optional.empty();
     }
@@ -410,5 +433,134 @@ public class TranslationServiceImpl implements TranslationService {
         }
 
         return englishText;
+    }
+
+    @Override
+    public Optional<String> translateStageNameNow(String kanji) {
+        if (kanji == null || kanji.isBlank()) return Optional.empty();
+        if (stageNameLookupRepo == null || stageNameSuggestionRepo == null) {
+            log.debug("translateStageNameNow: stage-name repos not wired, returning empty");
+            return Optional.empty();
+        }
+
+        String normalized = TranslationNormalization.normalize(kanji);
+
+        // 1. Curated lookup (highest priority)
+        Optional<String> curated = stageNameLookupRepo.findRomanizedFor(normalized);
+        if (curated.isPresent()) {
+            log.debug("translateStageNameNow: curated HIT for '{}'", normalized);
+            return curated;
+        }
+
+        // 2. Existing suggestion (accepted or unreviewed)
+        Optional<String> suggestion = stageNameSuggestionRepo.findLatestUsableSuggestion(normalized);
+        if (suggestion.isPresent()) {
+            log.debug("translateStageNameNow: suggestion HIT for '{}'", normalized);
+            return suggestion;
+        }
+
+        // 3. Synchronous Ollama call
+        TranslationStrategy strategy = strategyRepo.findByName("label_basic").orElse(null);
+        if (strategy == null) {
+            log.warn("translateStageNameNow: label_basic strategy not found for '{}'", normalized);
+            return Optional.empty();
+        }
+
+        String hash = TranslationNormalization.sha256Hex(normalized);
+        Optional<TranslationCacheRow> existingCache = cacheRepo.findByHashAndStrategy(hash, strategy.id());
+        if (existingCache.isPresent() && existingCache.get().bestTranslation() != null) {
+            log.debug("translateStageNameNow: cache HIT for '{}'", normalized);
+            return Optional.of(existingCache.get().bestTranslation());
+        }
+
+        String promptInput = explicitTermSubstitutor.substitute(normalized);
+        String prompt = strategy.promptTemplate().replace("{jp}", promptInput);
+        Map<String, Object> options = null;
+        if (strategy.optionsJson() != null) {
+            try {
+                options = objectMapper.readValue(strategy.optionsJson(), new TypeReference<>() {});
+            } catch (Exception e) {
+                log.warn("translateStageNameNow: failed to parse options_json: {}", e.getMessage());
+            }
+        }
+        OllamaRequest ollamaReq = new OllamaRequest(
+                strategy.modelId(), prompt, null, options, config.timeoutOrDefault());
+
+        long startMs = System.currentTimeMillis();
+        String englishText = null;
+        String failureReason = null;
+        OllamaResponse ollamaResp = null;
+
+        try {
+            ollamaResp = ollamaAdapter.generate(ollamaReq);
+            String raw = ollamaResp.responseText().trim();
+            if (raw.startsWith("English:")) raw = raw.substring("English:".length()).trim();
+            String cleaned = raw.isEmpty() ? null : raw;
+
+            if (!TranslationWorker.isRefusal(cleaned) && !SanitizationDetector.isSanitized(normalized, cleaned)) {
+                englishText = cleaned;
+            } else {
+                failureReason = "refused_or_sanitized";
+                log.info("translateStageNameNow: tier-1 refused/sanitized for '{}'", normalized);
+            }
+        } catch (OllamaException e) {
+            failureReason = "adapter_error";
+            log.warn("translateStageNameNow: Ollama error for '{}': {}", normalized, e.getMessage());
+        }
+
+        long latencyMs = System.currentTimeMillis() - startMs;
+        String now = ISO_UTC.format(Instant.now());
+
+        log.info("translation: strategy={} model={} latency={}ms promptTokens={} evalTokens={} sourceLen={} success={} cacheHit=false",
+                strategy.name(), strategy.modelId(), latencyMs,
+                ollamaResp != null ? ollamaResp.promptEvalCount() : null,
+                ollamaResp != null ? ollamaResp.evalCount() : null,
+                normalized.length(), englishText != null);
+
+        // Write / update cache (records success or failure reason)
+        Long existingCacheId = existingCache.map(TranslationCacheRow::id).orElse(null);
+        if (existingCacheId != null) {
+            cacheRepo.updateOutcome(existingCacheId, englishText, failureReason, null,
+                    (int) latencyMs,
+                    ollamaResp != null ? ollamaResp.promptEvalCount() : null,
+                    ollamaResp != null ? ollamaResp.evalCount() : null,
+                    ollamaResp != null ? ollamaResp.evalDurationNs() : null);
+        } else {
+            cacheRepo.insert(new TranslationCacheRow(
+                    0, hash, normalized, strategy.id(),
+                    englishText, null, null,
+                    failureReason, null,
+                    (int) latencyMs,
+                    ollamaResp != null ? ollamaResp.promptEvalCount() : null,
+                    ollamaResp != null ? ollamaResp.evalCount() : null,
+                    ollamaResp != null ? ollamaResp.evalDurationNs() : null,
+                    now));
+        }
+
+        if (englishText == null) {
+            return Optional.empty();
+        }
+
+        // Write suggestion, dispatch fan-out, clear pending queue row
+        try {
+            long suggestionId = stageNameSuggestionRepo.recordSuggestionAndGetId(normalized, englishText, now);
+            callbackDispatcher.dispatch("stage_name_suggestion", suggestionId, englishText);
+            log.debug("translateStageNameNow: suggestion recorded for '{}' suggestionId={}", normalized, suggestionId);
+        } catch (Exception e) {
+            log.warn("translateStageNameNow: failed to record stage-name suggestion for '{}': {}",
+                    normalized, e.getMessage());
+        }
+
+        try {
+            int deleted = queueRepo.deletePendingForSource(strategy.id(), normalized);
+            if (deleted > 0) {
+                log.debug("translateStageNameNow: deleted {} pending queue rows for '{}'", deleted, normalized);
+            }
+        } catch (Exception e) {
+            log.warn("translateStageNameNow: failed to delete pending queue rows for '{}': {}",
+                    normalized, e.getMessage());
+        }
+
+        return Optional.of(englishText);
     }
 }

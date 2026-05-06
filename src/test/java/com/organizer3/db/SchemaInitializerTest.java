@@ -176,7 +176,17 @@ class SchemaInitializerTest {
 
         int version = jdbi.withHandle(h ->
                 h.createQuery("PRAGMA user_version").mapTo(Integer.class).one());
-        assertEquals(52, version);
+        assertEquals(53, version);
+    }
+
+    @Test
+    void translationQueueHasPriorityColumn() {
+        new SchemaInitializer(jdbi).initialize();
+
+        boolean hasCol = jdbi.withHandle(h ->
+                h.createQuery("SELECT COUNT(*) FROM pragma_table_info('translation_queue') WHERE name='priority'")
+                        .mapTo(Integer.class).one() > 0);
+        assertTrue(hasCol, "fresh install should include translation_queue.priority");
     }
 
     @Test

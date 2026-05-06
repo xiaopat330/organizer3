@@ -108,4 +108,27 @@ public interface TranslationService {
      * @throws RuntimeException if Ollama is unreachable or the adapter throws unexpectedly
      */
     String requestTranslationSync(TranslationRequest req);
+
+    /**
+     * Synchronous "Translate now" path for stage names.
+     *
+     * <p>Lookup order (returns immediately on any hit):
+     * <ol>
+     *   <li>Curated {@code stage_name_lookup} table.</li>
+     *   <li>Existing {@code stage_name_suggestion} row (accepted or unreviewed).</li>
+     *   <li>Otherwise: normalize, apply explicit-term substitution, call Ollama (tier-1 only).
+     *       On success: write {@code translation_cache} row, write {@code stage_name_suggestion}
+     *       via {@code recordSuggestionAndGetId}, dispatch {@code stage_name_suggestion} fan-out
+     *       via {@link CallbackDispatcher}, delete any pending queue row for this
+     *       {@code (strategyId, sourceText)} so the background worker does not re-do the work.
+     *       On tier-1 refusal or sanitization: write a {@code refused_or_sanitized} cache row
+     *       and return {@link Optional#empty()}.</li>
+     * </ol>
+     *
+     * <p>Tier-2 escalation is intentionally skipped on this path — the caller can retry later.
+     *
+     * @param kanji raw (possibly un-normalized) kanji stage name
+     * @return romaji if resolved; empty on miss, refusal, or adapter error
+     */
+    Optional<String> translateStageNameNow(String kanji);
 }

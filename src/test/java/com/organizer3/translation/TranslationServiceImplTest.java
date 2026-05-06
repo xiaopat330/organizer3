@@ -1,12 +1,14 @@
 package com.organizer3.translation;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.organizer3.translation.ollama.OllamaAdapter;
+import com.organizer3.translation.ollama.OllamaException;
+import com.organizer3.translation.ollama.OllamaResponse;
 import com.organizer3.translation.repository.StageNameLookupRepository;
 import com.organizer3.translation.repository.StageNameSuggestionRepository;
 import com.organizer3.translation.repository.TranslationCacheRepository;
 import com.organizer3.translation.repository.TranslationQueueRepository;
 import com.organizer3.translation.repository.TranslationStrategyRepository;
-import com.organizer3.translation.ollama.OllamaAdapter;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -87,14 +89,14 @@ class TranslationServiceImplTest {
         when(stageNameSuggestionRepo.findLatestUsableSuggestion(NORMALIZED)).thenReturn(Optional.empty());
         when(strategyRepo.findByName("label_basic")).thenReturn(Optional.of(labelBasicStrategy));
         when(queueRepo.enqueueIfAbsent(eq(NORMALIZED), eq(42L), anyString(),
-                eq(TranslationQueueRow.STATUS_PENDING), isNull(), isNull()))
+                eq(TranslationQueueRow.STATUS_PENDING), isNull(), isNull(), eq(10)))
                 .thenReturn(true);
 
         Optional<String> result = service.resolveOrSuggestStageName(KANJI);
 
         assertTrue(result.isEmpty());
         verify(queueRepo).enqueueIfAbsent(eq(NORMALIZED), eq(42L), anyString(),
-                eq(TranslationQueueRow.STATUS_PENDING), isNull(), isNull());
+                eq(TranslationQueueRow.STATUS_PENDING), isNull(), isNull(), eq(10));
     }
 
     // ── Second back-to-back miss: enqueueIfAbsent returns false — no exception ─
@@ -105,14 +107,14 @@ class TranslationServiceImplTest {
         when(stageNameSuggestionRepo.findLatestUsableSuggestion(NORMALIZED)).thenReturn(Optional.empty());
         when(strategyRepo.findByName("label_basic")).thenReturn(Optional.of(labelBasicStrategy));
         when(queueRepo.enqueueIfAbsent(eq(NORMALIZED), eq(42L), anyString(),
-                eq(TranslationQueueRow.STATUS_PENDING), isNull(), isNull()))
+                eq(TranslationQueueRow.STATUS_PENDING), isNull(), isNull(), eq(10)))
                 .thenReturn(false);
 
         Optional<String> result = service.resolveOrSuggestStageName(KANJI);
 
         assertTrue(result.isEmpty());
         verify(queueRepo).enqueueIfAbsent(eq(NORMALIZED), eq(42L), anyString(),
-                eq(TranslationQueueRow.STATUS_PENDING), isNull(), isNull());
+                eq(TranslationQueueRow.STATUS_PENDING), isNull(), isNull(), eq(10));
     }
 
     // ── NFKC: full-width input hits half-width-stored suggestion ─────────────
@@ -148,13 +150,13 @@ class TranslationServiceImplTest {
         when(stageNameSuggestionRepo.findLatestUsableSuggestion(normalizedInput)).thenReturn(Optional.empty());
         when(strategyRepo.findByName("label_basic")).thenReturn(Optional.of(labelBasicStrategy));
         when(queueRepo.enqueueIfAbsent(eq(normalizedInput), eq(42L), anyString(),
-                eq(TranslationQueueRow.STATUS_PENDING), isNull(), isNull()))
+                eq(TranslationQueueRow.STATUS_PENDING), isNull(), isNull(), eq(10)))
                 .thenReturn(true);
 
         service.resolveOrSuggestStageName(fullWidthInput);
 
         verify(queueRepo).enqueueIfAbsent(eq(normalizedInput), anyLong(), anyString(),
-                anyString(), isNull(), isNull());
+                anyString(), isNull(), isNull(), eq(10));
     }
 
     // ── Blank / null input ───────────────────────────────────────────────────
@@ -165,5 +167,86 @@ class TranslationServiceImplTest {
         assertTrue(service.resolveOrSuggestStageName("   ").isEmpty());
         assertTrue(service.resolveOrSuggestStageName(null).isEmpty());
         verifyNoInteractions(stageNameLookupRepo, stageNameSuggestionRepo, queueRepo);
+    }
+
+    // ── translateStageNameNow ────────────────────────────────────────────────
+
+    @Test
+    void translateStageNameNow_returnsCuratedHitWithoutOllamaCall() {
+        when(stageNameLookupRepo.findRomanizedFor(NORMALIZED)).thenReturn(Optional.of(ROMAJI));
+
+        Optional<String> result = service.translateStageNameNow(KANJI);
+
+        assertTrue(result.isPresent());
+        assertEquals(ROMAJI, result.get());
+        verifyNoInteractions(ollamaAdapter);
+    }
+
+    @Test
+    void translateStageNameNow_returnsExistingSuggestionWithoutOllamaCall() {
+        when(stageNameLookupRepo.findRomanizedFor(NORMALIZED)).thenReturn(Optional.empty());
+        when(stageNameSuggestionRepo.findLatestUsableSuggestion(NORMALIZED)).thenReturn(Optional.of(ROMAJI));
+
+        Optional<String> result = service.translateStageNameNow(KANJI);
+
+        assertTrue(result.isPresent());
+        assertEquals(ROMAJI, result.get());
+        verifyNoInteractions(ollamaAdapter);
+    }
+
+    @Test
+    void translateStageNameNow_happyPath_callsOllamaAndWritesSuggestion() throws Exception {
+        when(stageNameLookupRepo.findRomanizedFor(NORMALIZED)).thenReturn(Optional.empty());
+        when(stageNameSuggestionRepo.findLatestUsableSuggestion(NORMALIZED)).thenReturn(Optional.empty());
+        when(strategyRepo.findByName("label_basic")).thenReturn(Optional.of(labelBasicStrategy));
+        when(cacheRepo.findByHashAndStrategy(anyString(), eq(42L))).thenReturn(Optional.empty());
+        when(ollamaAdapter.generate(any())).thenReturn(
+                new OllamaResponse(ROMAJI, 0L, 0, 0, 0L));
+        when(stageNameSuggestionRepo.recordSuggestionAndGetId(eq(NORMALIZED), eq(ROMAJI), anyString()))
+                .thenReturn(99L);
+
+        Optional<String> result = service.translateStageNameNow(KANJI);
+
+        assertTrue(result.isPresent());
+        assertEquals(ROMAJI, result.get());
+        verify(ollamaAdapter).generate(any());
+        verify(cacheRepo).insert(any());
+        verify(stageNameSuggestionRepo).recordSuggestionAndGetId(eq(NORMALIZED), eq(ROMAJI), anyString());
+        verify(callbackDispatcher).dispatch(eq("stage_name_suggestion"), eq(99L), eq(ROMAJI));
+        verify(queueRepo).deletePendingForSource(eq(42L), eq(NORMALIZED));
+    }
+
+    @Test
+    void translateStageNameNow_sanitized_returnsEmpty() throws Exception {
+        when(stageNameLookupRepo.findRomanizedFor(NORMALIZED)).thenReturn(Optional.empty());
+        when(stageNameSuggestionRepo.findLatestUsableSuggestion(NORMALIZED)).thenReturn(Optional.empty());
+        when(strategyRepo.findByName("label_basic")).thenReturn(Optional.of(labelBasicStrategy));
+        when(cacheRepo.findByHashAndStrategy(anyString(), eq(42L))).thenReturn(Optional.empty());
+        // A refusal response
+        when(ollamaAdapter.generate(any())).thenReturn(
+                new OllamaResponse("Sorry, I cannot translate this content.", 0L, 0, 0, 0L));
+
+        Optional<String> result = service.translateStageNameNow(KANJI);
+
+        assertTrue(result.isEmpty(), "should return empty on refusal");
+        verify(cacheRepo).insert(any()); // failure is still written to cache
+        verify(stageNameSuggestionRepo, never()).recordSuggestionAndGetId(any(), any(), any());
+        verify(callbackDispatcher, never()).dispatch(eq("stage_name_suggestion"), anyLong(), any());
+        verify(queueRepo, never()).deletePendingForSource(anyLong(), anyString());
+    }
+
+    @Test
+    void translateStageNameNow_adapterError_returnsEmpty() throws Exception {
+        when(stageNameLookupRepo.findRomanizedFor(NORMALIZED)).thenReturn(Optional.empty());
+        when(stageNameSuggestionRepo.findLatestUsableSuggestion(NORMALIZED)).thenReturn(Optional.empty());
+        when(strategyRepo.findByName("label_basic")).thenReturn(Optional.of(labelBasicStrategy));
+        when(cacheRepo.findByHashAndStrategy(anyString(), eq(42L))).thenReturn(Optional.empty());
+        when(ollamaAdapter.generate(any())).thenThrow(new OllamaException("Connection refused"));
+
+        Optional<String> result = service.translateStageNameNow(KANJI);
+
+        assertTrue(result.isEmpty(), "should return empty on adapter error");
+        verify(cacheRepo).insert(any()); // failure is still written to cache
+        verify(stageNameSuggestionRepo, never()).recordSuggestionAndGetId(any(), any(), any());
     }
 }
