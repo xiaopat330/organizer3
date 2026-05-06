@@ -621,6 +621,7 @@ public class SchemaInitializer {
                         english_first_name    TEXT,
                         english_last_name     TEXT,
                         link_to_existing_id   INTEGER REFERENCES actresses(id),
+                        link_to_draft_slug    TEXT REFERENCES draft_actresses(javdb_slug) ON DELETE SET NULL,
                         created_at            TEXT NOT NULL,
                         updated_at            TEXT NOT NULL,
                         last_validation_error TEXT
@@ -763,7 +764,7 @@ public class SchemaInitializer {
             // leave the version alone and let SchemaUpgrader apply any missing migrations.
             int currentVersion = h.createQuery("PRAGMA user_version").mapTo(Integer.class).one();
             if (currentVersion == 0) {
-                h.execute("PRAGMA user_version = 51");
+                h.execute("PRAGMA user_version = 52");
             }
         });
         log.info("Schema initialization complete");

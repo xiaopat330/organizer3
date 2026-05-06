@@ -8,6 +8,7 @@ import com.organizer3.db.TitleEffectiveTagsService;
 import com.organizer3.javdb.enrichment.EnrichmentHistoryRepository;
 import com.organizer3.model.Title;
 import com.organizer3.repository.TitleRepository;
+import com.organizer3.translation.repository.StageNameSuggestionRepository;
 import lombok.extern.slf4j.Slf4j;
 import org.jdbi.v3.core.Handle;
 import org.jdbi.v3.core.Jdbi;
@@ -23,6 +24,8 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 /**
  * Implements the Draft Mode promotion transaction: pre-flight validation (§4.1)
@@ -62,6 +65,7 @@ public class DraftPromotionService {
     private final EnrichmentHistoryRepository   historyRepo;
     private final TitleEffectiveTagsService     effectiveTags;
     private final ObjectMapper                  json;
+    private final StageNameSuggestionRepository suggestionRepo;
 
     /** Seam for cover-copy — injectable in tests to simulate COMMIT-failure. */
     private CoverCopier coverCopier;
@@ -81,7 +85,8 @@ public class DraftPromotionService {
             TitleRepository               titleRepo,
             EnrichmentHistoryRepository   historyRepo,
             TitleEffectiveTagsService     effectiveTags,
-            ObjectMapper                  json) {
+            ObjectMapper                  json,
+            StageNameSuggestionRepository suggestionRepo) {
         this.jdbi            = jdbi;
         this.draftTitleRepo  = draftTitleRepo;
         this.draftActressRepo = draftActressRepo;
@@ -94,6 +99,7 @@ public class DraftPromotionService {
         this.historyRepo     = historyRepo;
         this.effectiveTags   = effectiveTags;
         this.json            = json;
+        this.suggestionRepo  = suggestionRepo;
         this.coverCopier     = this::defaultCoverCopy;
     }
 
@@ -188,15 +194,22 @@ public class DraftPromotionService {
                 .map(DraftTitleActress::getResolution).toList());
         errors.addAll(castErrors);
 
-        // Check 3: english_last_name required for create_new slots
+        // Check 3: english_last_name required for create_new primary slots.
+        // Siblings (link_to_draft_slug IS NOT NULL) reuse the primary's name — no last name needed.
         for (DraftTitleActress slot : slots) {
             if ("create_new".equals(slot.getResolution())) {
                 Optional<DraftActress> actress = draftActressRepo.findBySlug(slot.getJavdbSlug());
-                if (actress.isEmpty() ||
-                        actress.get().getEnglishLastName() == null ||
-                        actress.get().getEnglishLastName().isBlank()) {
+                if (actress.isEmpty()) {
                     if (!errors.contains("MISSING_ENGLISH_LAST_NAME")) {
                         errors.add("MISSING_ENGLISH_LAST_NAME");
+                    }
+                } else if (actress.get().getLinkToDraftSlug() == null) {
+                    // Only primaries need english_last_name.
+                    if (actress.get().getEnglishLastName() == null ||
+                            actress.get().getEnglishLastName().isBlank()) {
+                        if (!errors.contains("MISSING_ENGLISH_LAST_NAME")) {
+                            errors.add("MISSING_ENGLISH_LAST_NAME");
+                        }
                     }
                 }
             }
@@ -449,11 +462,17 @@ public class DraftPromotionService {
                         .bind("slug", slot.getJavdbSlug())
                         .map(DraftActressRepository.ROW_MAPPER)
                         .findOne();
-                if (actress.isEmpty() ||
-                        actress.get().getEnglishLastName() == null ||
-                        actress.get().getEnglishLastName().isBlank()) {
+                if (actress.isEmpty()) {
                     if (!errors.contains("MISSING_ENGLISH_LAST_NAME")) {
                         errors.add("MISSING_ENGLISH_LAST_NAME");
+                    }
+                } else if (actress.get().getLinkToDraftSlug() == null) {
+                    // Only primaries need english_last_name.
+                    if (actress.get().getEnglishLastName() == null ||
+                            actress.get().getEnglishLastName().isBlank()) {
+                        if (!errors.contains("MISSING_ENGLISH_LAST_NAME")) {
+                            errors.add("MISSING_ENGLISH_LAST_NAME");
+                        }
                     }
                 }
             }
@@ -492,40 +511,215 @@ public class DraftPromotionService {
         }
     }
 
-    /** Inserts new actress rows for create_new resolutions; returns slug→newId map. */
+    /**
+     * Inserts new actress rows for create_new resolutions; returns slug→newId map.
+     *
+     * <p>Three cases per slot:
+     * <ul>
+     *   <li><b>Primary</b> ({@code link_to_draft_slug IS NULL}) — inserts a new actresses row
+     *       and seeds aliases.</li>
+     *   <li><b>Sibling-of-primary-in-batch</b> ({@code link_to_draft_slug} points to another slug
+     *       in this batch) — reuses the primary's freshly-allocated actress id.</li>
+     *   <li><b>Orphan sibling</b> ({@code link_to_draft_slug} non-null but not in this batch) —
+     *       re-elects: oldest orphan becomes primary, others resolve to it. Re-election rewrites
+     *       {@code link_to_draft_slug} globally for future orphans.</li>
+     * </ul>
+     */
     private Map<String, Long> insertNewActresses(Handle h, List<DraftTitleActress> slots, String nowIso) {
-        Map<String, Long> result = new HashMap<>();
-        for (DraftTitleActress slot : slots) {
-            if (!"create_new".equals(slot.getResolution())) continue;
+        // Collect the set of all create_new slugs in this batch.
+        Set<String> batchSlugs = slots.stream()
+                .filter(s -> "create_new".equals(s.getResolution()))
+                .map(DraftTitleActress::getJavdbSlug)
+                .collect(Collectors.toSet());
+
+        // Load all draft_actress rows for this batch up front.
+        Map<String, DraftActress> daBySlug = new HashMap<>();
+        for (String slug : batchSlugs) {
             DraftActress da = h.createQuery(
                     "SELECT * FROM draft_actresses WHERE javdb_slug = :slug")
-                    .bind("slug", slot.getJavdbSlug())
+                    .bind("slug", slug)
                     .map(DraftActressRepository.ROW_MAPPER)
                     .findOne()
                     .orElseThrow(() -> new PromotionException("missing_draft_actress",
-                            "No draft_actress for slug=" + slot.getJavdbSlug()));
-
-            String canonicalName = buildCanonicalName(da);
-            long actressId = h.createUpdate("""
-                    INSERT INTO actresses
-                        (canonical_name, stage_name, tier, first_seen_at,
-                         created_via, created_at)
-                    VALUES
-                        (:canonicalName, :stageName, 'STANDARD', :firstSeenAt,
-                         'draft_promotion', :createdAt)
-                    """)
-                    .bind("canonicalName", canonicalName)
-                    .bind("stageName",     da.getStageName())
-                    .bind("firstSeenAt",   nowIso)
-                    .bind("createdAt",     nowIso)
-                    .executeAndReturnGeneratedKeys("id")
-                    .mapTo(Long.class)
-                    .one();
-
-            result.put(slot.getJavdbSlug(), actressId);
-            log.info("promote: created new actress id={} name='{}' via draft_promotion", actressId, canonicalName);
+                            "No draft_actress for slug=" + slug));
+            daBySlug.put(slug, da);
         }
+
+        Map<String, Long> result = new HashMap<>();
+
+        for (DraftTitleActress slot : slots) {
+            if (!"create_new".equals(slot.getResolution())) continue;
+            if (result.containsKey(slot.getJavdbSlug())) continue; // already resolved
+
+            DraftActress da = daBySlug.get(slot.getJavdbSlug());
+            String linkToDraft = da.getLinkToDraftSlug();
+
+            if (linkToDraft == null) {
+                // Primary: insert actress + alias rebuild.
+                long actressId = insertPrimaryActress(h, da, nowIso);
+                result.put(slot.getJavdbSlug(), actressId);
+
+            } else if (batchSlugs.contains(linkToDraft)) {
+                // Sibling whose primary is also in this batch — defer; primary must come first.
+                // Handled in the second pass below.
+
+            } else {
+                // Orphan sibling: primary was deleted before promotion. Re-elect among orphans.
+                resolveOrphanSiblings(h, da, slot.getJavdbSlug(), linkToDraft, daBySlug, batchSlugs, result, nowIso);
+            }
+        }
+
+        // Second pass: resolve siblings whose primary is now in result.
+        for (DraftTitleActress slot : slots) {
+            if (!"create_new".equals(slot.getResolution())) continue;
+            if (result.containsKey(slot.getJavdbSlug())) continue;
+
+            DraftActress da = daBySlug.get(slot.getJavdbSlug());
+            String linkToDraft = da.getLinkToDraftSlug();
+            if (linkToDraft != null && batchSlugs.contains(linkToDraft)) {
+                Long primaryId = result.get(linkToDraft);
+                if (primaryId == null) {
+                    throw new PromotionException("sibling_resolution_failed",
+                            "Primary slug=" + linkToDraft + " not resolved before sibling slug=" + slot.getJavdbSlug());
+                }
+                result.put(slot.getJavdbSlug(), primaryId);
+            }
+        }
+
         return result;
+    }
+
+    private long insertPrimaryActress(Handle h, DraftActress da, String nowIso) {
+        String canonicalName = buildCanonicalName(da);
+        long actressId = h.createUpdate("""
+                INSERT INTO actresses
+                    (canonical_name, stage_name, tier, first_seen_at,
+                     created_via, created_at)
+                VALUES
+                    (:canonicalName, :stageName, 'STANDARD', :firstSeenAt,
+                     'draft_promotion', :createdAt)
+                """)
+                .bind("canonicalName", canonicalName)
+                .bind("stageName",     da.getStageName())
+                .bind("firstSeenAt",   nowIso)
+                .bind("createdAt",     nowIso)
+                .executeAndReturnGeneratedKeys("id")
+                .mapTo(Long.class)
+                .one();
+
+        seedAliases(h, actressId, canonicalName, da);
+
+        log.info("promote: created new actress id={} name='{}' via draft_promotion", actressId, canonicalName);
+        return actressId;
+    }
+
+    /**
+     * Re-elects among orphan siblings sharing the same dead {@code link_to_draft_slug} value.
+     * The orphan with the lowest {@code created_at} becomes the new primary; others link to it.
+     * Rewrites {@code link_to_draft_slug} globally on the dead slug so future orphans don't
+     * re-elect again.
+     */
+    private void resolveOrphanSiblings(
+            Handle h,
+            DraftActress initialOrphan,
+            String initialOrphanSlug,
+            String deadPrimarySlug,
+            Map<String, DraftActress> daBySlug,
+            Set<String> batchSlugs,
+            Map<String, Long> result,
+            String nowIso) {
+
+        // Collect all in-batch orphans sharing the same dead primary slug.
+        List<DraftActress> orphans = new ArrayList<>();
+        for (String slug : batchSlugs) {
+            DraftActress da = daBySlug.get(slug);
+            if (deadPrimarySlug.equals(da.getLinkToDraftSlug())) {
+                orphans.add(da);
+            }
+        }
+
+        // Elect the oldest as new primary.
+        orphans.sort((a, b) -> {
+            String ca = a.getCreatedAt() != null ? a.getCreatedAt() : "";
+            String cb = b.getCreatedAt() != null ? b.getCreatedAt() : "";
+            return ca.compareTo(cb);
+        });
+        DraftActress elected = orphans.get(0);
+
+        long primaryId = insertPrimaryActress(h, elected, nowIso);
+        result.put(elected.getJavdbSlug(), primaryId);
+
+        // Remaining orphans resolve to the elected primary.
+        for (DraftActress orphan : orphans) {
+            if (!orphan.getJavdbSlug().equals(elected.getJavdbSlug())) {
+                result.put(orphan.getJavdbSlug(), primaryId);
+            }
+        }
+
+        // Rewrite link_to_draft_slug globally for any surviving siblings pointing at the dead primary,
+        // so future promotions know the elected primary without re-electing.
+        // Exclude the elected primary itself to prevent a self-loop (primary must stay NULL).
+        h.createUpdate("""
+                UPDATE draft_actresses
+                SET link_to_draft_slug = :newPrimary
+                WHERE link_to_draft_slug = :deadPrimary
+                  AND javdb_slug != :newPrimary
+                """)
+                .bind("newPrimary", elected.getJavdbSlug())
+                .bind("deadPrimary", deadPrimarySlug)
+                .execute();
+
+        // Ensure the elected primary has link_to_draft_slug = NULL (it was pointing at the dead slug).
+        h.createUpdate("""
+                UPDATE draft_actresses
+                SET link_to_draft_slug = NULL
+                WHERE javdb_slug = :slug
+                """)
+                .bind("slug", elected.getJavdbSlug())
+                .execute();
+    }
+
+    /**
+     * Seeds {@code actress_aliases} from draft data for a newly-inserted primary actress.
+     *
+     * <p>Candidates:
+     * <ul>
+     *   <li>Kanji form — {@code draft_actresses.stage_name} (NFKC-normalized post-Slice C).</li>
+     *   <li>LLM romaji — {@code stage_name_suggestion.suggested_romaji} via
+     *       {@link StageNameSuggestionRepository#findLatestUsableSuggestion}.</li>
+     *   <li>User-edited romaji — composed from {@code english_first_name}/{@code english_last_name}
+     *       matching {@link #buildCanonicalName}.</li>
+     * </ul>
+     *
+     * <p>Each candidate that differs from {@code canonicalName} is inserted with
+     * {@code INSERT OR IGNORE}, making this idempotent.
+     */
+    private void seedAliases(Handle h, long actressId, String canonicalName, DraftActress da) {
+        List<String> candidates = new ArrayList<>();
+
+        if (da.getStageName() != null && !da.getStageName().isBlank()) {
+            candidates.add(da.getStageName());
+        }
+
+        if (da.getStageName() != null) {
+            suggestionRepo.findLatestUsableSuggestion(da.getStageName())
+                    .ifPresent(candidates::add);
+        }
+
+        String composed = buildCanonicalName(da);
+        candidates.add(composed);
+
+        for (String alias : candidates) {
+            if (alias == null || alias.isBlank()) continue;
+            if (alias.equals(canonicalName)) continue;
+            h.createUpdate("""
+                    INSERT OR IGNORE INTO actress_aliases (actress_id, alias_name)
+                    VALUES (:actressId, :aliasName)
+                    """)
+                    .bind("actressId", actressId)
+                    .bind("aliasName", alias)
+                    .execute();
+        }
     }
 
     private String buildCanonicalName(DraftActress da) {

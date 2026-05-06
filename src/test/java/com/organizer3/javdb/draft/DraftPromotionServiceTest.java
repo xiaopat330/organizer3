@@ -10,6 +10,7 @@ import com.organizer3.model.Title;
 import com.organizer3.repository.TitleRepository;
 import com.organizer3.repository.jdbi.JdbiTitleLocationRepository;
 import com.organizer3.repository.jdbi.JdbiTitleRepository;
+import com.organizer3.translation.repository.jdbi.JdbiStageNameSuggestionRepository;
 import org.jdbi.v3.core.Jdbi;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -44,11 +45,12 @@ class DraftPromotionServiceTest {
     private Jdbi jdbi;
 
     // ── Repos ─────────────────────────────────────────────────────────────────
-    private DraftTitleRepository          draftTitleRepo;
-    private DraftActressRepository        draftActressRepo;
-    private DraftTitleActressesRepository draftCastRepo;
+    private DraftTitleRepository           draftTitleRepo;
+    private DraftActressRepository         draftActressRepo;
+    private DraftTitleActressesRepository  draftCastRepo;
     private DraftTitleEnrichmentRepository draftEnrichRepo;
-    private DraftCoverScratchStore        coverStore;
+    private DraftCoverScratchStore         coverStore;
+    private JdbiStageNameSuggestionRepository suggestionRepo;
 
     // ── Service ───────────────────────────────────────────────────────────────
     private DraftPromotionService service;
@@ -86,6 +88,7 @@ class DraftPromotionServiceTest {
         coverStore      = new DraftCoverScratchStore(dataDir);
         coverPath       = new CoverPath(dataDir);
         titleRepo       = new JdbiTitleRepository(jdbi, new JdbiTitleLocationRepository(jdbi));
+        suggestionRepo  = new JdbiStageNameSuggestionRepository(jdbi);
 
         EnrichmentHistoryRepository historyRepo = new EnrichmentHistoryRepository(jdbi, JSON);
         TitleEffectiveTagsService effectiveTags = new TitleEffectiveTagsService(jdbi);
@@ -94,7 +97,7 @@ class DraftPromotionServiceTest {
         service = new DraftPromotionService(
                 jdbi, draftTitleRepo, draftActressRepo, draftCastRepo,
                 draftEnrichRepo, coverStore, coverPath, castValidator,
-                titleRepo, historyRepo, effectiveTags, JSON);
+                titleRepo, historyRepo, effectiveTags, JSON, suggestionRepo);
     }
 
     @AfterEach
@@ -644,5 +647,272 @@ class DraftPromotionServiceTest {
         PreFlightResult result = service.preflight(draftId, "2024-06-01T00:00:00Z");
         assertTrue(result.ok());
         assertTrue(result.errors().isEmpty());
+    }
+
+    // ── Sibling resolution + alias rebuild ────────────────────────────────────
+
+    /** Inserts a draft_actress row with link_to_draft_slug via raw SQL (sibling pointer). */
+    private void insertSiblingActress(String slug, String stageName,
+                                      String firstName, String lastName,
+                                      String linkToDraftSlug, String createdAt) {
+        jdbi.useHandle(h -> h.createUpdate("""
+                INSERT INTO draft_actresses
+                    (javdb_slug, stage_name, english_first_name, english_last_name,
+                     link_to_draft_slug, created_at, updated_at)
+                VALUES (:slug, :stageName, :firstName, :lastName,
+                        :linkToDraftSlug, :createdAt, :createdAt)
+                """)
+                .bind("slug",           slug)
+                .bind("stageName",      stageName)
+                .bind("firstName",      firstName)
+                .bind("lastName",       lastName)
+                .bind("linkToDraftSlug", linkToDraftSlug)
+                .bind("createdAt",      createdAt)
+                .execute());
+    }
+
+    @Test
+    void sibling_primaryAlone_insertsSingleActress() throws Exception {
+        long draftId = seedDraftFull(1L, castJson("Yuma Asami"), "create_new", "slug-yuma",
+                null, "Yuma", "Asami", "[]", "2024-06-01T00:00:00Z");
+
+        service.promote(draftId, "2024-06-01T00:00:00Z");
+
+        int count = jdbi.withHandle(h ->
+                h.createQuery("SELECT COUNT(*) FROM actresses WHERE canonical_name='Yuma Asami'")
+                        .mapTo(Integer.class).one());
+        assertEquals(1, count, "exactly one actress must be created for a primary-alone slot");
+    }
+
+    @Test
+    void sibling_primaryAndSiblingsInSameBatch_allResolveToPrimaryId() throws Exception {
+        // Title 1: draft with 3 cast slots — slug-A (primary), slug-B (sibling→A), slug-C (sibling→A).
+        // cast_json must have 3 entries to satisfy cast mode 1 (1+ javdb stage names + 1+ pick/create_new).
+        String castJson3 = castJson("麻美ゆま-A", "麻美ゆま-B", "麻美ゆま-C");
+        long draftId = jdbi.withHandle(h -> {
+            h.execute("INSERT INTO draft_titles(title_id, code, title_original, title_english, release_date, grade, " +
+                    "upstream_changed, created_at, updated_at) " +
+                    "VALUES (1,'TST-1','Orig','Eng','2024-06-01','A',0,'2024-06-01T00:00:00Z','2024-06-01T00:00:00Z')");
+            long id = h.createQuery("SELECT last_insert_rowid()").mapTo(Long.class).one();
+            h.createUpdate("INSERT INTO draft_title_javdb_enrichment(draft_title_id,javdb_slug,cast_json,tags_json,resolver_source,updated_at) " +
+                    "VALUES (:id,'slug-enrich',:castJson,'[]','auto_enriched','2024-06-01T00:00:00Z')")
+                    .bind("id",id).bind("castJson", castJson3).execute();
+            return id;
+        });
+
+        // Primary actress A
+        jdbi.useHandle(h -> h.execute(
+                "INSERT INTO draft_actresses(javdb_slug,stage_name,english_first_name,english_last_name,created_at,updated_at) " +
+                "VALUES ('slug-A','麻美ゆま','Yuma','Asami','2024-06-01T00:00:00Z','2024-06-01T00:00:00Z')"));
+        // Sibling B → A
+        insertSiblingActress("slug-B", "麻美ゆま", null, null, "slug-A", "2024-06-01T01:00:00Z");
+        // Sibling C → A
+        insertSiblingActress("slug-C", "麻美ゆま", null, null, "slug-A", "2024-06-01T02:00:00Z");
+
+        jdbi.useHandle(h -> {
+            h.execute("INSERT INTO draft_title_actresses(draft_title_id,javdb_slug,resolution) VALUES ("+draftId+",'slug-A','create_new')");
+            h.execute("INSERT INTO draft_title_actresses(draft_title_id,javdb_slug,resolution) VALUES ("+draftId+",'slug-B','create_new')");
+            h.execute("INSERT INTO draft_title_actresses(draft_title_id,javdb_slug,resolution) VALUES ("+draftId+",'slug-C','create_new')");
+        });
+
+        service.promote(draftId, "2024-06-01T00:00:00Z");
+
+        // Only one new actress should exist.
+        int actressCount = jdbi.withHandle(h ->
+                h.createQuery("SELECT COUNT(*) FROM actresses WHERE canonical_name='Yuma Asami'")
+                        .mapTo(Integer.class).one());
+        assertEquals(1, actressCount, "only one actress row for primary + siblings");
+
+        // All three title_actresses entries (de-duped by IGNORE) point at that actress.
+        Long actressId = jdbi.withHandle(h ->
+                h.createQuery("SELECT id FROM actresses WHERE canonical_name='Yuma Asami'")
+                        .mapTo(Long.class).one());
+        int titleActressCount = jdbi.withHandle(h ->
+                h.createQuery("SELECT COUNT(*) FROM title_actresses WHERE title_id=1 AND actress_id=:id")
+                        .bind("id", actressId).mapTo(Integer.class).one());
+        // INSERT OR IGNORE deduplicates — one row per (title_id, actress_id)
+        assertEquals(1, titleActressCount, "all siblings collapse to one title_actresses row");
+    }
+
+    @Test
+    void sibling_orphanReelection_oldestBecomesNewPrimary() throws Exception {
+        // Title 1: slug-B (sibling→X) and slug-C (sibling→X) where X is NOT in the batch.
+        // cast_json must have 2 entries to satisfy cast mode 1.
+        String castJson2 = castJson("麻美ゆま-B", "麻美ゆま-C");
+        long draftId = jdbi.withHandle(h -> {
+            h.execute("INSERT INTO draft_titles(title_id, code, title_original, title_english, release_date, grade, " +
+                    "upstream_changed, created_at, updated_at) " +
+                    "VALUES (1,'TST-1','Orig','Eng','2024-06-01','A',0,'2024-06-01T00:00:00Z','2024-06-01T00:00:00Z')");
+            long id = h.createQuery("SELECT last_insert_rowid()").mapTo(Long.class).one();
+            h.createUpdate("INSERT INTO draft_title_javdb_enrichment(draft_title_id,javdb_slug,cast_json,tags_json,resolver_source,updated_at) " +
+                    "VALUES (:id,'slug-enrich',:castJson,'[]','auto_enriched','2024-06-01T00:00:00Z')")
+                    .bind("id",id).bind("castJson", castJson2).execute();
+            return id;
+        });
+
+        // slug-X exists in draft_actresses (it's a primary in a different draft title, not being promoted now).
+        // B and C are siblings of X, but X is not in this batch → orphan re-election fires.
+        jdbi.useHandle(h -> h.execute(
+                "INSERT INTO draft_actresses(javdb_slug,stage_name,english_first_name,english_last_name,created_at,updated_at) " +
+                "VALUES ('slug-X','麻美ゆま','Yuma','Asami','2024-06-01T00:00:00Z','2024-06-01T00:00:00Z')"));
+        // B is older (created_at earlier), C is newer — B should be elected primary.
+        insertSiblingActress("slug-B", "麻美ゆま", "Yuma", "Asami", "slug-X", "2024-06-01T01:00:00Z");
+        insertSiblingActress("slug-C", "麻美ゆま", null, null,       "slug-X", "2024-06-01T02:00:00Z");
+
+        jdbi.useHandle(h -> {
+            h.execute("INSERT INTO draft_title_actresses(draft_title_id,javdb_slug,resolution) VALUES ("+draftId+",'slug-B','create_new')");
+            h.execute("INSERT INTO draft_title_actresses(draft_title_id,javdb_slug,resolution) VALUES ("+draftId+",'slug-C','create_new')");
+        });
+
+        service.promote(draftId, "2024-06-01T00:00:00Z");
+
+        // One actress created.
+        int actressCount = jdbi.withHandle(h ->
+                h.createQuery("SELECT COUNT(*) FROM actresses WHERE canonical_name='Yuma Asami'")
+                        .mapTo(Integer.class).one());
+        assertEquals(1, actressCount, "one actress elected from orphan siblings");
+
+        Long idB = jdbi.withHandle(h ->
+                h.createQuery("SELECT id FROM actresses WHERE canonical_name='Yuma Asami'")
+                        .mapTo(Long.class).one());
+
+        // Both title_actress entries point to the same id (deduplicated by INSERT OR IGNORE).
+        int taCount = jdbi.withHandle(h ->
+                h.createQuery("SELECT COUNT(*) FROM title_actresses WHERE title_id=1 AND actress_id=:id")
+                        .bind("id", idB).mapTo(Integer.class).one());
+        assertEquals(1, taCount, "orphan siblings both resolve to re-elected primary");
+
+        // slug-C's link_to_draft_slug was rewritten from slug-X to slug-B by re-election,
+        // so future orphan siblings sharing the dead slug-X don't re-elect again.
+        String rewrittenC = jdbi.withHandle(h ->
+                h.createQuery("SELECT link_to_draft_slug FROM draft_actresses WHERE javdb_slug='slug-C'")
+                        .mapTo(String.class).findOne().orElse(null));
+        assertEquals("slug-B", rewrittenC, "orphan sibling link_to_draft_slug must be rewritten to elected primary");
+
+        // Elected primary slug-B must have link_to_draft_slug = NULL (not pointing at itself or slug-X).
+        String electedLink = jdbi.withHandle(h ->
+                h.createQuery("SELECT link_to_draft_slug FROM draft_actresses WHERE javdb_slug='slug-B'")
+                        .mapTo(String.class).findOne().orElse(null));
+        assertNull(electedLink, "elected primary must have link_to_draft_slug = NULL");
+    }
+
+    @Test
+    void aliasRebuild_kanjiAndLlmAndUserEditAllAgree_onlyKanjiAlias() throws Exception {
+        // LLM romaji and user edit both say 'Yuma Asami' → canonical_name = 'Yuma Asami'.
+        // Only the kanji alias differs → exactly 1 alias row.
+        suggestionRepo.recordSuggestion("麻美ゆま", "Yuma Asami", "2024-06-01T00:00:00Z");
+
+        long draftId = seedDraftFull(1L, castJson("麻美ゆま"), "create_new", "slug-yuma",
+                null, "Yuma", "Asami", "[]", "2024-06-01T00:00:00Z");
+        // Override stage_name on the draft_actress to the kanji form
+        jdbi.useHandle(h -> h.execute("UPDATE draft_actresses SET stage_name='麻美ゆま' WHERE javdb_slug='slug-yuma'"));
+
+        service.promote(draftId, "2024-06-01T00:00:00Z");
+
+        Long actressId = jdbi.withHandle(h ->
+                h.createQuery("SELECT id FROM actresses WHERE canonical_name='Yuma Asami'")
+                        .mapTo(Long.class).one());
+        List<String> aliases = jdbi.withHandle(h ->
+                h.createQuery("SELECT alias_name FROM actress_aliases WHERE actress_id=:id ORDER BY alias_name")
+                        .bind("id", actressId)
+                        .mapTo(String.class).list());
+        assertEquals(List.of("麻美ゆま"), aliases,
+                "when LLM and user edit both equal canonical, only kanji alias is written");
+    }
+
+    @Test
+    void aliasRebuild_distinctUserEdit_includesBothKanjiAndLlmAlias() throws Exception {
+        // LLM says 'Foo Bar', user edits to 'Yuma Asami'. Canonical = 'Yuma Asami'.
+        // Aliases should include kanji + 'Foo Bar'.
+        suggestionRepo.recordSuggestion("麻美ゆま", "Foo Bar", "2024-06-01T00:00:00Z");
+
+        long draftId = seedDraftFull(1L, castJson("麻美ゆま"), "create_new", "slug-yuma",
+                null, "Yuma", "Asami", "[]", "2024-06-01T00:00:00Z");
+        jdbi.useHandle(h -> h.execute("UPDATE draft_actresses SET stage_name='麻美ゆま' WHERE javdb_slug='slug-yuma'"));
+
+        service.promote(draftId, "2024-06-01T00:00:00Z");
+
+        Long actressId = jdbi.withHandle(h ->
+                h.createQuery("SELECT id FROM actresses WHERE canonical_name='Yuma Asami'")
+                        .mapTo(Long.class).one());
+        List<String> aliases = jdbi.withHandle(h ->
+                h.createQuery("SELECT alias_name FROM actress_aliases WHERE actress_id=:id ORDER BY alias_name")
+                        .bind("id", actressId)
+                        .mapTo(String.class).list());
+        assertTrue(aliases.contains("麻美ゆま"), "kanji alias must be present");
+        assertTrue(aliases.contains("Foo Bar"), "LLM romaji alias must be present when distinct from canonical");
+        assertEquals(2, aliases.size(), "exactly kanji + LLM alias when user edit equals canonical");
+    }
+
+    @Test
+    void aliasRebuild_noSuggestionRow_onlyKanjiAndComposedIfDistinct() throws Exception {
+        // No suggestion row — alias rebuild produces kanji (+ composed if it differs from canonical).
+        // Canonical = 'Yuma Asami', composed = 'Yuma Asami' → only kanji alias.
+        long draftId = seedDraftFull(1L, castJson("麻美ゆま"), "create_new", "slug-yuma",
+                null, "Yuma", "Asami", "[]", "2024-06-01T00:00:00Z");
+        jdbi.useHandle(h -> h.execute("UPDATE draft_actresses SET stage_name='麻美ゆま' WHERE javdb_slug='slug-yuma'"));
+
+        service.promote(draftId, "2024-06-01T00:00:00Z");
+
+        Long actressId = jdbi.withHandle(h ->
+                h.createQuery("SELECT id FROM actresses WHERE canonical_name='Yuma Asami'")
+                        .mapTo(Long.class).one());
+        List<String> aliases = jdbi.withHandle(h ->
+                h.createQuery("SELECT alias_name FROM actress_aliases WHERE actress_id=:id")
+                        .bind("id", actressId)
+                        .mapTo(String.class).list());
+        assertEquals(List.of("麻美ゆま"), aliases,
+                "without suggestion, only kanji alias when composed equals canonical");
+    }
+
+    @Test
+    void aliasRebuild_mononym_onlyKanjiAlias() throws Exception {
+        // Mononym: english_first_name IS NULL, english_last_name = 'Tama'.
+        // Canonical = 'Tama'; composed = 'Tama' → only kanji alias.
+        long draftId = seedDraftFull(1L, castJson("タマ"), "create_new", "slug-tama",
+                null, null, "Tama", "[]", "2024-06-01T00:00:00Z");
+        jdbi.useHandle(h -> h.execute("UPDATE draft_actresses SET stage_name='タマ' WHERE javdb_slug='slug-tama'"));
+
+        service.promote(draftId, "2024-06-01T00:00:00Z");
+
+        Long actressId = jdbi.withHandle(h ->
+                h.createQuery("SELECT id FROM actresses WHERE canonical_name='Tama'")
+                        .mapTo(Long.class).one());
+        List<String> aliases = jdbi.withHandle(h ->
+                h.createQuery("SELECT alias_name FROM actress_aliases WHERE actress_id=:id")
+                        .bind("id", actressId)
+                        .mapTo(String.class).list());
+        assertEquals(List.of("タマ"), aliases,
+                "mononym: composed equals canonical, so only kanji alias is written");
+    }
+
+    @Test
+    void aliasRebuild_idempotent_noDuplicatesOnDoubleInsert() throws Exception {
+        // Seed a suggestion and promote. Then manually re-insert aliases with INSERT OR IGNORE —
+        // verify no error and no duplicate rows.
+        suggestionRepo.recordSuggestion("麻美ゆま", "Foo Bar", "2024-06-01T00:00:00Z");
+
+        long draftId = seedDraftFull(1L, castJson("麻美ゆま"), "create_new", "slug-yuma",
+                null, "Yuma", "Asami", "[]", "2024-06-01T00:00:00Z");
+        jdbi.useHandle(h -> h.execute("UPDATE draft_actresses SET stage_name='麻美ゆま' WHERE javdb_slug='slug-yuma'"));
+
+        service.promote(draftId, "2024-06-01T00:00:00Z");
+
+        Long actressId = jdbi.withHandle(h ->
+                h.createQuery("SELECT id FROM actresses WHERE canonical_name='Yuma Asami'")
+                        .mapTo(Long.class).one());
+
+        // Re-insert via INSERT OR IGNORE — must not throw and must not create duplicates.
+        assertDoesNotThrow(() -> jdbi.useHandle(h -> {
+            h.createUpdate("INSERT OR IGNORE INTO actress_aliases(actress_id, alias_name) VALUES (:id,'麻美ゆま')")
+                    .bind("id", actressId).execute();
+            h.createUpdate("INSERT OR IGNORE INTO actress_aliases(actress_id, alias_name) VALUES (:id,'Foo Bar')")
+                    .bind("id", actressId).execute();
+        }));
+
+        int aliasCount = jdbi.withHandle(h ->
+                h.createQuery("SELECT COUNT(*) FROM actress_aliases WHERE actress_id=:id")
+                        .bind("id", actressId).mapTo(Integer.class).one());
+        assertEquals(2, aliasCount, "idempotent re-insert must not create duplicate alias rows");
     }
 }
