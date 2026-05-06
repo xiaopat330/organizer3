@@ -128,7 +128,7 @@ class DraftSchemaMigrationTest {
 
         new SchemaUpgrader(jdbi).upgrade();
 
-        assertEquals(52, schemaVersion(), "schema version must be 51 after upgrade");
+        assertEquals(52, schemaVersion(), "schema version must be 52 after upgrade");
     }
 
     @Test
@@ -156,7 +156,7 @@ class DraftSchemaMigrationTest {
         // Running again must be a no-op.
         new SchemaUpgrader(jdbi).upgrade();
 
-        assertEquals(52, schemaVersion(), "schema version must remain 51 after redundant upgrade");
+        assertEquals(52, schemaVersion(), "schema version must remain 52 after redundant upgrade");
     }
 
     // ── v44 → v45 upgrade ─────────────────────────────────────────────────────
