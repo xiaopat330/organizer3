@@ -164,6 +164,36 @@ final class UiTestFixture {
         when(javdbService.getTagHealthReport()).thenReturn(sampleTagHealthReport());
     }
 
+    // ── Package-private accessors for fixture re-use ─────────────────────────
+
+    /** Returns a pre-stubbed {@link TitleBrowseService} mock with sane defaults. */
+    static TitleBrowseService buildStockedTitleBrowse() {
+        TitleBrowseService m = mock(TitleBrowseService.class);
+        stubTitleBrowseDefaults(m);
+        return m;
+    }
+
+    /** Returns a pre-stubbed {@link ActressBrowseService} mock with sane defaults. */
+    static ActressBrowseService buildStockedActressBrowse() {
+        ActressBrowseService m = mock(ActressBrowseService.class);
+        stubActressBrowseDefaults(m);
+        return m;
+    }
+
+    /** Returns a pre-stubbed {@link SearchService} mock with sane defaults. */
+    static SearchService buildStockedSearch() {
+        SearchService m = mock(SearchService.class);
+        stubSearchDefaults(m);
+        return m;
+    }
+
+    /** Returns a pre-stubbed {@link JavdbDiscoveryService} mock with sane defaults. */
+    static JavdbDiscoveryService buildStockedJavdbService() {
+        JavdbDiscoveryService m = mock(JavdbDiscoveryService.class);
+        stubJavdbDefaults(m);
+        return m;
+    }
+
     static JavdbDiscoveryService.TagHealthReport sampleTagHealthReport() {
         // surface=true, curatedAlias=null, libraryPct=0.05 → passes library.js filter (>= 0.01, <= 0.50)
         JavdbDiscoveryService.TagHealthRow row = new JavdbDiscoveryService.TagHealthRow(
