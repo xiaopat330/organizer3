@@ -13,6 +13,7 @@ import com.organizer3.translation.ActressFuzzyMatcher;
 import com.organizer3.translation.ActressFuzzyMatcher.MatchResult;
 import com.organizer3.translation.ActressFuzzyMatcher.Rule;
 import com.organizer3.translation.TranslationService;
+import com.organizer3.translation.repository.StageNameLookupRepository;
 import com.organizer3.translation.repository.StageNameSuggestionRepository;
 import com.organizer3.translation.repository.TranslationQueueRepository;
 import com.organizer3.web.WebServer;
@@ -40,6 +41,7 @@ class CurationRoutesTest {
     private DraftActressRepository draftActressRepo;
     private ActressRepository actressRepo;
     private ActressFuzzyMatcher actressFuzzyMatcher;
+    private StageNameLookupRepository lookupRepo;
     private StageNameSuggestionRepository suggestionRepo;
     private TranslationQueueRepository queueRepo;
     private TranslationService translationService;
@@ -52,6 +54,7 @@ class CurationRoutesTest {
         draftActressRepo    = mock(DraftActressRepository.class);
         actressRepo         = mock(ActressRepository.class);
         actressFuzzyMatcher = mock(ActressFuzzyMatcher.class);
+        lookupRepo          = mock(StageNameLookupRepository.class);
         suggestionRepo      = mock(StageNameSuggestionRepository.class);
         queueRepo           = mock(TranslationQueueRepository.class);
         translationService  = mock(TranslationService.class);
@@ -59,7 +62,7 @@ class CurationRoutesTest {
         server = new WebServer(0);
         server.registerCuration(new CurationRoutes(
                 resolveService, draftActressRepo, actressRepo,
-                actressFuzzyMatcher, suggestionRepo, queueRepo,
+                actressFuzzyMatcher, lookupRepo, suggestionRepo, queueRepo,
                 translationService));
         server.start();
     }
@@ -89,7 +92,23 @@ class CurationRoutesTest {
     // ── GET /api/translation/stage-name-status ───────────────────────────────
 
     @Test
-    void stageNameStatus_ready() throws Exception {
+    void stageNameStatus_curatedHit_returnsReady() throws Exception {
+        when(lookupRepo.findRomanizedFor(anyString())).thenReturn(Optional.of("Natsume Iroha"));
+        when(draftActressRepo.countUnresolvedByKanji(anyString())).thenReturn(5);
+
+        HttpResponse<String> res = get("/api/translation/stage-name-status?kanji=夏目彩春");
+
+        assertEquals(200, res.statusCode());
+        JsonNode body = mapper.readTree(res.body());
+        assertEquals("ready",         body.get("status").asText());
+        assertEquals("Natsume Iroha", body.get("romaji").asText());
+        // Curated lookup wins; suggestion repo must not be consulted.
+        verify(suggestionRepo, never()).findLatestUsableSuggestion(any());
+    }
+
+    @Test
+    void stageNameStatus_suggestionHit_returnsReady() throws Exception {
+        when(lookupRepo.findRomanizedFor(anyString())).thenReturn(Optional.empty());
         when(suggestionRepo.findLatestUsableSuggestion(anyString()))
                 .thenReturn(Optional.of("Natsume Iroha"));
         when(draftActressRepo.countUnresolvedByKanji(anyString())).thenReturn(5);
@@ -104,7 +123,8 @@ class CurationRoutesTest {
     }
 
     @Test
-    void stageNameStatus_queued_whenNoSuggestionButPendingQueueRow() throws Exception {
+    void stageNameStatus_pendingQueue_returnsQueued() throws Exception {
+        when(lookupRepo.findRomanizedFor(anyString())).thenReturn(Optional.empty());
         when(suggestionRepo.findLatestUsableSuggestion(anyString())).thenReturn(Optional.empty());
         when(queueRepo.hasPending(anyString(), anyString())).thenReturn(true);
         when(draftActressRepo.countUnresolvedByKanji(anyString())).thenReturn(2);
@@ -118,7 +138,8 @@ class CurationRoutesTest {
     }
 
     @Test
-    void stageNameStatus_missing_whenNeitherSuggestionNorQueue() throws Exception {
+    void stageNameStatus_noState_returnsMissing() throws Exception {
+        when(lookupRepo.findRomanizedFor(anyString())).thenReturn(Optional.empty());
         when(suggestionRepo.findLatestUsableSuggestion(anyString())).thenReturn(Optional.empty());
         when(queueRepo.hasPending(anyString(), anyString())).thenReturn(false);
         when(draftActressRepo.countUnresolvedByKanji(anyString())).thenReturn(0);
@@ -143,6 +164,7 @@ class CurationRoutesTest {
     void pendingKanji_returnsListWithSuggestionField() throws Exception {
         when(draftActressRepo.findPendingKanjiGroups())
                 .thenReturn(List.of(new PendingKanjiRow("夏目彩春", 3, "2024-01-01T00:00:00Z")));
+        when(lookupRepo.findRomanizedFor(anyString())).thenReturn(Optional.empty());
         when(suggestionRepo.findLatestUsableSuggestion(anyString()))
                 .thenReturn(Optional.of("Natsume Iroha"));
 

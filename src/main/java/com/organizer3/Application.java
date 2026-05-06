@@ -1008,8 +1008,8 @@ public class Application {
                 new com.organizer3.curation.NearMissResolveService(actressRepo, draftActressRepo);
         webServer.registerCuration(new com.organizer3.web.routes.CurationRoutes(
                 nearMissResolveService, draftActressRepo, actressRepo,
-                actressFuzzyMatcher, stageNameSuggestionRepo, translationQueueRepo,
-                translationService));
+                actressFuzzyMatcher, stageNameLookupRepo, stageNameSuggestionRepo,
+                translationQueueRepo, translationService));
 
         // MCP (Model Context Protocol) server — read-only diagnostic tools mounted on
         // the existing Javalin instance. See spec/PROPOSAL_MCP_SERVER.md.

@@ -9,6 +9,7 @@ import com.organizer3.translation.ActressFuzzyMatcher;
 import com.organizer3.translation.ActressFuzzyMatcher.MatchResult;
 import com.organizer3.translation.TranslationNormalization;
 import com.organizer3.translation.TranslationService;
+import com.organizer3.translation.repository.StageNameLookupRepository;
 import com.organizer3.translation.repository.StageNameSuggestionRepository;
 import com.organizer3.translation.repository.TranslationQueueRepository;
 import io.javalin.Javalin;
@@ -37,6 +38,7 @@ public class CurationRoutes {
     private final DraftActressRepository draftActressRepo;
     private final ActressRepository actressRepo;
     private final ActressFuzzyMatcher actressFuzzyMatcher;
+    private final StageNameLookupRepository stageNameLookupRepo;
     private final StageNameSuggestionRepository stageNameSuggestionRepo;
     private final TranslationQueueRepository translationQueueRepo;
     private final TranslationService translationService;
@@ -45,6 +47,7 @@ public class CurationRoutes {
                            DraftActressRepository draftActressRepo,
                            ActressRepository actressRepo,
                            ActressFuzzyMatcher actressFuzzyMatcher,
+                           StageNameLookupRepository stageNameLookupRepo,
                            StageNameSuggestionRepository stageNameSuggestionRepo,
                            TranslationQueueRepository translationQueueRepo,
                            TranslationService translationService) {
@@ -52,6 +55,7 @@ public class CurationRoutes {
         this.draftActressRepo      = draftActressRepo;
         this.actressRepo           = actressRepo;
         this.actressFuzzyMatcher   = actressFuzzyMatcher;
+        this.stageNameLookupRepo   = stageNameLookupRepo;
         this.stageNameSuggestionRepo = stageNameSuggestionRepo;
         this.translationQueueRepo  = translationQueueRepo;
         this.translationService    = translationService;
@@ -241,7 +245,12 @@ public class CurationRoutes {
     private Map<String, Object> stageNameStatus(String rawKanji) {
         String normalized = TranslationNormalization.normalize(rawKanji);
         int unresolvedDraftCount = draftActressRepo.countUnresolvedByKanji(normalized);
-        Optional<String> romaji = stageNameSuggestionRepo.findLatestUsableSuggestion(normalized);
+        // Priority 1: curated lookup table (stage_name_lookup).
+        Optional<String> romaji = stageNameLookupRepo.findRomanizedFor(normalized);
+        // Priority 2: accepted/usable suggestion row.
+        if (romaji.isEmpty()) {
+            romaji = stageNameSuggestionRepo.findLatestUsableSuggestion(normalized);
+        }
         if (romaji.isPresent()) {
             Map<String, Object> m = new LinkedHashMap<>();
             m.put("status", "ready");
@@ -249,6 +258,7 @@ public class CurationRoutes {
             m.put("unresolvedDraftCount", unresolvedDraftCount);
             return m;
         }
+        // Priority 3: pending or in-flight queue row → queued. Otherwise → missing.
         Map<String, Object> m = new LinkedHashMap<>();
         m.put("status", translationQueueRepo.hasPending(STAGE_NAME_STRATEGY_KEY, normalized) ? "queued" : "missing");
         m.put("unresolvedDraftCount", unresolvedDraftCount);

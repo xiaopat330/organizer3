@@ -23,8 +23,10 @@ import com.organizer3.javdb.draft.DraftTitleRepository;
 import com.organizer3.translation.ActressFuzzyMatcher;
 import com.organizer3.translation.TranslationNormalization;
 import com.organizer3.translation.TranslationService;
+import com.organizer3.translation.repository.StageNameLookupRepository;
 import com.organizer3.translation.repository.StageNameSuggestionRepository;
 import com.organizer3.translation.repository.TranslationQueueRepository;
+import com.organizer3.translation.repository.jdbi.JdbiStageNameLookupRepository;
 import com.organizer3.translation.repository.jdbi.JdbiStageNameSuggestionRepository;
 import com.organizer3.translation.repository.jdbi.JdbiTranslationQueueRepository;
 import com.organizer3.repository.jdbi.JdbiActressRepository;
@@ -91,6 +93,7 @@ class UiNearMissTest {
     private DraftTitleRepository draftTitleRepo;
     private DraftTitleEnrichmentRepository draftEnrichRepo;
     private DraftTitleActressesRepository draftTitleActressesRepo;
+    private StageNameLookupRepository lookupRepo;
     private StageNameSuggestionRepository suggestionRepo;
     private TranslationQueueRepository queueRepo;
     private TranslationService translationService;
@@ -116,6 +119,7 @@ class UiNearMissTest {
         draftTitleRepo          = new DraftTitleRepository(jdbi);
         draftEnrichRepo         = new DraftTitleEnrichmentRepository(jdbi);
         draftTitleActressesRepo = new DraftTitleActressesRepository(jdbi);
+        lookupRepo              = new JdbiStageNameLookupRepository(jdbi);
         suggestionRepo          = new JdbiStageNameSuggestionRepository(jdbi);
         queueRepo               = new JdbiTranslationQueueRepository(jdbi);
         translationService      = mock(TranslationService.class);
@@ -351,7 +355,7 @@ class UiNearMissTest {
 
         var curationRoutes = new CurationRoutes(
                 resolveService, draftActressRepo, actressRepo,
-                actressFuzzyMatcher, suggestionRepo, queueRepo,
+                actressFuzzyMatcher, lookupRepo, suggestionRepo, queueRepo,
                 translationService);
 
         var populator        = mock(DraftPopulator.class);
