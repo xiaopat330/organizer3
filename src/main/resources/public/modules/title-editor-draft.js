@@ -4,6 +4,7 @@
 // See spec/PROPOSAL_DRAFT_MODE.md §11 (editor states, cast picker, actions).
 
 import { esc } from './utils.js';
+import { mount as mountNearMissModal } from './near-miss-modal.js';
 
 // ── DOM refs ──────────────────────────��──────────────────────────��────────
 const draftPane         = document.getElementById('queue-draft-pane');
@@ -36,6 +37,8 @@ const draftTagsPanel = document.getElementById('queue-draft-tags-panel');
 const promoteStatus  = document.getElementById('queue-draft-promote-status');
 
 // ── State ────────────────────────────────────────────────────────────────
+let _nearMissListenerRegistered = false;
+
 let _draft      = null;  // last fetched GET /api/drafts/:titleId response
 let _titleId    = null;
 let _folderName = null;
@@ -76,6 +79,11 @@ export function mountDraftView(titleId, folderName, draft, tagsCatalog, directTa
   _onSkip     = onSkip;
   _setParentStatus = setStatus;
   _upstreamBannerDismissed = false;
+
+  if (!_nearMissListenerRegistered) {
+    _nearMissListenerRegistered = true;
+    window.addEventListener('near-miss-resolved', () => { if (_titleId) reloadDraft(); });
+  }
 
   renderDraftPane();
 }
@@ -197,6 +205,31 @@ function buildSlotContent(slot, idx) {
   resBadge.className = 'queue-cast-slot-resolution ' + resolutionCls(slot.resolution);
   resBadge.textContent = resolutionLabel(slot.resolution);
   header.appendChild(resBadge);
+
+  // "?" badge: shown on unresolved slots (link_to_existing_id IS NULL AND
+  // link_to_draft_slug IS NULL AND english_last_name IS NULL per spec §3.1).
+  // Sentinel slots are excluded by the resolution check.
+  const isUnresolved = !slot.resolution || slot.resolution === 'unresolved';
+  const isFilled = slot.linkToExistingId != null
+    || slot.linkToDraftSlug != null
+    || slot.englishLastName != null;
+  if (isUnresolved && !isFilled && slot.stageName) {
+    const nmBadge = document.createElement('button');
+    nmBadge.type = 'button';
+    nmBadge.className = 'nm-row-badge';
+    nmBadge.title = 'Resolve identity';
+    nmBadge.textContent = '?';
+    nmBadge.addEventListener('click', () => {
+      let mount = document.getElementById('near-miss-modal-mount');
+      if (!mount) {
+        mount = document.createElement('div');
+        mount.id = 'near-miss-modal-mount';
+        document.body.appendChild(mount);
+      }
+      mountNearMissModal(mount, { kanji: slot.stageName, primarySlug: slot.javdbSlug });
+    });
+    header.appendChild(nmBadge);
+  }
 
   frag.appendChild(header);
 

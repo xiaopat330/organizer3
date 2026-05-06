@@ -270,3 +270,29 @@
 }
 
 .nm-btn-retry:hover:not(:disabled) { background: #2a1111; }
+
+/* ── Editor cast-slot badge ──────────────────────────────────────────── */
+.nm-row-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #422006;
+  border: 1px solid #92400e;
+  color: #fbbf24;
+  font-size: 10px;
+  font-weight: 700;
+  cursor: pointer;
+  line-height: 1;
+  padding: 0;
+  margin-left: 6px;
+  vertical-align: middle;
+  flex-shrink: 0;
+}
+
+.nm-row-badge:hover {
+  background: #5a2d0c;
+  border-color: #b45309;
+}
