@@ -141,7 +141,7 @@ async function loadStats() {
       <div class="trans-stat"><span class="trans-stat-label">Done</span><span class="trans-stat-val">${data.queueDone}</span></div>
       <div class="trans-stat"><span class="trans-stat-label">Throughput (1h)</span><span class="trans-stat-val">${data.throughputLastHour}</span></div>
       <div class="trans-stat"><span class="trans-stat-label">Stage-name lookup</span><span class="trans-stat-val">${data.stageNameLookupSize ?? 0}</span></div>
-      <div class="trans-stat"><span class="trans-stat-label">Suggestions unreviewed</span><span class="trans-stat-val">${data.stageNameSuggestionsUnreviewed ?? 0}</span></div>
+      <div class="trans-stat"><span class="trans-stat-label">Stage-name suggestions (pending review)</span><span class="trans-stat-val">${data.stageNameSuggestionsUnreviewed ?? 0}</span></div>
       <div class="trans-stat"><span class="trans-stat-label">${sweeperLabel}</span><span class="trans-stat-val">${titlesPending}</span></div>
     `;
     statsGrid.querySelectorAll('.trans-stat-action[data-reason]').forEach(btn => {

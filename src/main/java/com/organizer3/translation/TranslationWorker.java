@@ -219,9 +219,11 @@ public class TranslationWorker implements Runnable {
             String cachedText = cached.get().bestTranslation();
             callbackDispatcher.dispatch(row.callbackKind(), row.callbackId(), cachedText);
             // Stage-name fan-out: even on cache hit, fire the dispatcher so fan-out runs for
-            // subsequent identical-source enqueues (spec §11.4).
+            // subsequent identical-source enqueues (spec §11.4). Gate matches the resolveOrSuggestStageName
+            // enqueue signature (null callback + priority=10) so title-callback rows can never leak in.
             if (stageNameSuggestionRepo != null
-                    && TranslationServiceImpl.looksLikeStageName(row.sourceText())) {
+                    && row.callbackKind() == null
+                    && row.priority() == 10) {
                 try {
                     String now = ISO_UTC.format(Instant.now());
                     long suggestionId = stageNameSuggestionRepo.recordSuggestionAndGetId(
@@ -391,12 +393,14 @@ public class TranslationWorker implements Runnable {
                 row.sourceText().length(),
                 englishText != null, escalateToTier2);
 
-        // Stage-name suggestion hook: if the source looks like a stage name and we got a result,
-        // record it for human review and dispatch the fan-out callback.
+        // Stage-name suggestion hook: only record when the row was queued by the stage-name path
+        // (resolveOrSuggestStageName uses null callback + priority=10). Title-callback rows must never
+        // produce suggestions, regardless of source-text shape.
         // Parallel write — does not affect cache or queue outcome.
         Long stageNameSuggestionId = null;
         if (englishText != null && stageNameSuggestionRepo != null
-                && TranslationServiceImpl.looksLikeStageName(row.sourceText())) {
+                && row.callbackKind() == null
+                && row.priority() == 10) {
             try {
                 stageNameSuggestionId = stageNameSuggestionRepo.recordSuggestionAndGetId(
                         row.sourceText(), englishText, now);

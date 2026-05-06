@@ -346,8 +346,9 @@ class TranslationWorkerTest {
         when(ollamaAdapter.generate(any())).thenReturn(fakeResponse("Yuma Asami"));
 
         String now = ISO_UTC.format(Instant.now());
-        // callbackKind = null — anonymous enqueue
-        queueRepo.enqueue("麻美ゆま", strategyId, now, TranslationQueueRow.STATUS_PENDING, null, null);
+        // Stage-name path: null callback + priority=10, matching resolveOrSuggestStageName.
+        queueRepo.enqueueIfAbsent("麻美ゆま", strategyId, now,
+                TranslationQueueRow.STATUS_PENDING, null, null, 10);
 
         worker.processOne();
 
@@ -358,8 +359,10 @@ class TranslationWorkerTest {
     }
 
     @Test
-    void nonStageNameCompletion_doesNotDispatchStageFanOut() {
-        // A non-stage-name input (long title text) should NOT trigger stage_name_suggestion dispatch.
+    void titleCallbackRow_doesNotDispatchStageFanOut() {
+        // Regression: a row queued as a title translation must NEVER produce a stage-name
+        // suggestion, even when the source text happens to be short Japanese (e.g. a brief
+        // title like "首都圏 淫交 05"). The gate is callback-based, not source-shape-based.
         JdbiStageNameSuggestionRepository suggRepo = new JdbiStageNameSuggestionRepository(jdbi);
         DraftActressRepository draftRepo = new DraftActressRepository(jdbi);
         callbackDispatcher.registerStageNameFanOut(suggRepo, draftRepo);
@@ -370,17 +373,19 @@ class TranslationWorkerTest {
                 new OllamaModelState(), new HealthGate(ollamaAdapter, cacheRepo, TranslationConfig.DEFAULTS),
                 suggRepo);
 
-        when(ollamaAdapter.generate(any())).thenReturn(fakeResponse("Crystal Pictures Long Title Text"));
+        when(ollamaAdapter.generate(any())).thenReturn(fakeResponse("Metropolitan area lewd sex 05"));
 
-        // Long title text with enough JP characters to exceed the 20-char stage-name heuristic
+        // Title-shaped row: callback_kind set (this is a title_javdb_enrichment request),
+        // priority=0 default. Source is short JP text — exactly the case the old heuristic missed.
         String now = ISO_UTC.format(Instant.now());
-        queueRepo.enqueue("クリスタル映像の長いタイトルテキストです！", strategyId, now,
-                TranslationQueueRow.STATUS_PENDING, null, null);
+        queueRepo.enqueue("首都圏 淫交 05", strategyId, now,
+                TranslationQueueRow.STATUS_PENDING,
+                "title_javdb_enrichment.title_original_en", 12345L);
 
         worker.processOne();
 
-        // No stage_name_suggestion rows should have been written
-        assertEquals(0, suggRepo.findUnreviewed(10).size());
+        assertEquals(0, suggRepo.findUnreviewed(10).size(),
+                "title-callback rows must not leak into stage_name_suggestion");
         assertEquals(1, queueRepo.countByStatus(TranslationQueueRow.STATUS_DONE));
     }
 
@@ -418,7 +423,9 @@ class TranslationWorkerTest {
                 ISO_UTC.format(Instant.now())));
 
         String now = ISO_UTC.format(Instant.now());
-        queueRepo.enqueue("蒼井そら", strategyId, now, TranslationQueueRow.STATUS_PENDING, null, null);
+        // Stage-name path: null callback + priority=10
+        queueRepo.enqueueIfAbsent("蒼井そら", strategyId, now,
+                TranslationQueueRow.STATUS_PENDING, null, null, 10);
 
         worker.processOne();
 

@@ -504,28 +504,6 @@ class TranslationServiceTest {
         assertEquals("Sora Aoi (curated)", result.get());
     }
 
-    @Test
-    void looksLikeStageName_shortJapaneseIsTrue() {
-        assertTrue(TranslationServiceImpl.looksLikeStageName("浜崎真緒"));
-        assertTrue(TranslationServiceImpl.looksLikeStageName("あいだゆあ"));
-    }
-
-    @Test
-    void looksLikeStageName_longTextIsFalse() {
-        // 20+ characters
-        assertFalse(TranslationServiceImpl.looksLikeStageName("あいうえおかきくけこさしすせそたちつてとな"));
-    }
-
-    @Test
-    void looksLikeStageName_romajiIsFalse() {
-        assertFalse(TranslationServiceImpl.looksLikeStageName("Yua Aida"));
-    }
-
-    @Test
-    void looksLikeStageName_nullIsFalse() {
-        assertFalse(TranslationServiceImpl.looksLikeStageName(null));
-    }
-
     // -------------------------------------------------------------------------
     // Helpers
     // -------------------------------------------------------------------------

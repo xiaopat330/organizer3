@@ -19,7 +19,6 @@ import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.regex.Pattern;
 
 /**
  * Phase 2 implementation of {@link TranslationService}.
@@ -36,9 +35,6 @@ public class TranslationServiceImpl implements TranslationService {
 
     static final DateTimeFormatter ISO_UTC =
             DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'").withZone(ZoneOffset.UTC);
-
-    /** Heuristic: short text containing Japanese characters, likely a stage name. */
-    private static final Pattern JP_CHAR = Pattern.compile("[\\u3041-\\u3096\\u30A1-\\u30FA\\u4E00-\\u9FFF]");
 
     /** Failure reason set by Tier2BatchSweeper when both tier-1 and tier-2 sanitize. */
     public static final String SANITIZED_BOTH_TIERS = "sanitized_both_tiers";
@@ -292,15 +288,6 @@ public class TranslationServiceImpl implements TranslationService {
         return Optional.empty();
     }
 
-    /**
-     * Returns true if the text is short (&lt;20 characters) and contains at least one
-     * Japanese character — a heuristic for stage-name candidates.
-     */
-    static boolean looksLikeStageName(String text) {
-        if (text == null || text.length() >= 20) return false;
-        return JP_CHAR.matcher(text).find();
-    }
-
     @Override
     public TranslationServiceStats stats() {
         long stageNameLookupSize = stageNameLookupRepo != null ? stageNameLookupRepo.countAll() : 0L;
@@ -424,17 +411,9 @@ public class TranslationServiceImpl implements TranslationService {
                     now));
         }
 
-        // Stage-name suggestion hook: if the source looks like a stage name and we got a result,
-        // record it for human review (parallel write, does not affect cache outcome).
-        if (englishText != null && stageNameSuggestionRepo != null && looksLikeStageName(normalised)) {
-            try {
-                stageNameSuggestionRepo.recordSuggestion(normalised, englishText, now);
-                log.debug("requestTranslationSync: stage-name suggestion recorded for '{}'", normalised);
-            } catch (Exception e) {
-                log.warn("requestTranslationSync: failed to record stage-name suggestion: {}", e.getMessage());
-            }
-        }
-
+        // Note: this generic sync endpoint does not record stage-name suggestions —
+        // there's no caller-supplied intent signal here. translateStageNameNow is the
+        // dedicated stage-name sync path that records suggestions.
         return englishText;
     }
 
