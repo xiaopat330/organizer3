@@ -135,6 +135,16 @@
 }
 .tools-translation-btn.selected svg { stroke: #fde047; }
 
+.tools-pending-kanji-btn        { color: #f472b6; }
+.tools-pending-kanji-btn svg    { stroke: #f472b6; }
+.tools-pending-kanji-btn:hover,
+.tools-pending-kanji-btn.selected {
+  color: #f9a8d4;
+  background: #1c0612;
+  border-color: #9d174d;
+}
+.tools-pending-kanji-btn.selected svg { stroke: #f9a8d4; }
+
 .tools-tag-health-btn             { color: #a78bfa; }
 .tools-tag-health-btn svg         { stroke: #a78bfa; }
 .tools-tag-health-btn:hover,
