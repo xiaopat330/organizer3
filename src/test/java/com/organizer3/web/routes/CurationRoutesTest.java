@@ -12,6 +12,7 @@ import com.organizer3.repository.ActressRepository;
 import com.organizer3.translation.ActressFuzzyMatcher;
 import com.organizer3.translation.ActressFuzzyMatcher.MatchResult;
 import com.organizer3.translation.ActressFuzzyMatcher.Rule;
+import com.organizer3.translation.TranslationService;
 import com.organizer3.translation.repository.StageNameSuggestionRepository;
 import com.organizer3.translation.repository.TranslationQueueRepository;
 import com.organizer3.web.WebServer;
@@ -41,6 +42,7 @@ class CurationRoutesTest {
     private ActressFuzzyMatcher actressFuzzyMatcher;
     private StageNameSuggestionRepository suggestionRepo;
     private TranslationQueueRepository queueRepo;
+    private TranslationService translationService;
     private final ObjectMapper mapper = new ObjectMapper();
     private final HttpClient http = HttpClient.newHttpClient();
 
@@ -52,11 +54,13 @@ class CurationRoutesTest {
         actressFuzzyMatcher = mock(ActressFuzzyMatcher.class);
         suggestionRepo      = mock(StageNameSuggestionRepository.class);
         queueRepo           = mock(TranslationQueueRepository.class);
+        translationService  = mock(TranslationService.class);
 
         server = new WebServer(0);
         server.registerCuration(new CurationRoutes(
                 resolveService, draftActressRepo, actressRepo,
-                actressFuzzyMatcher, suggestionRepo, queueRepo));
+                actressFuzzyMatcher, suggestionRepo, queueRepo,
+                translationService));
         server.start();
     }
 
@@ -88,6 +92,7 @@ class CurationRoutesTest {
     void stageNameStatus_ready() throws Exception {
         when(suggestionRepo.findLatestUsableSuggestion(anyString()))
                 .thenReturn(Optional.of("Natsume Iroha"));
+        when(draftActressRepo.countUnresolvedByKanji(anyString())).thenReturn(5);
 
         HttpResponse<String> res = get("/api/translation/stage-name-status?kanji=夏目彩春");
 
@@ -95,30 +100,35 @@ class CurationRoutesTest {
         JsonNode body = mapper.readTree(res.body());
         assertEquals("ready",         body.get("status").asText());
         assertEquals("Natsume Iroha", body.get("romaji").asText());
+        assertEquals(5,               body.get("unresolvedDraftCount").asInt());
     }
 
     @Test
     void stageNameStatus_queued_whenNoSuggestionButPendingQueueRow() throws Exception {
         when(suggestionRepo.findLatestUsableSuggestion(anyString())).thenReturn(Optional.empty());
         when(queueRepo.hasPending(anyString(), anyString())).thenReturn(true);
+        when(draftActressRepo.countUnresolvedByKanji(anyString())).thenReturn(2);
 
         HttpResponse<String> res = get("/api/translation/stage-name-status?kanji=夏目彩春");
 
         assertEquals(200, res.statusCode());
         JsonNode body = mapper.readTree(res.body());
         assertEquals("queued", body.get("status").asText());
+        assertEquals(2,        body.get("unresolvedDraftCount").asInt());
     }
 
     @Test
     void stageNameStatus_missing_whenNeitherSuggestionNorQueue() throws Exception {
         when(suggestionRepo.findLatestUsableSuggestion(anyString())).thenReturn(Optional.empty());
         when(queueRepo.hasPending(anyString(), anyString())).thenReturn(false);
+        when(draftActressRepo.countUnresolvedByKanji(anyString())).thenReturn(0);
 
         HttpResponse<String> res = get("/api/translation/stage-name-status?kanji=夏目彩春");
 
         assertEquals(200, res.statusCode());
         JsonNode body = mapper.readTree(res.body());
         assertEquals("missing", body.get("status").asText());
+        assertEquals(0,         body.get("unresolvedDraftCount").asInt());
     }
 
     @Test
@@ -221,5 +231,39 @@ class CurationRoutesTest {
         ));
 
         assertEquals(400, res.statusCode());
+    }
+
+    // ── POST /api/translation/stage-name-translate ───────────────────────────
+
+    @Test
+    void stageNameTranslate_ready_whenResolveOrSuggestReturnsSynchronously() throws Exception {
+        when(translationService.resolveOrSuggestStageName(anyString()))
+                .thenReturn(Optional.of("Natsume Iroha"));
+        when(draftActressRepo.countUnresolvedByKanji(anyString())).thenReturn(4);
+
+        HttpResponse<String> res = post("/api/translation/stage-name-translate",
+                Map.of("kanji", "夏目彩春"));
+
+        assertEquals(200, res.statusCode());
+        JsonNode body = mapper.readTree(res.body());
+        assertEquals("ready",         body.get("status").asText());
+        assertEquals("Natsume Iroha", body.get("romaji").asText());
+        assertEquals(4,               body.get("unresolvedDraftCount").asInt());
+    }
+
+    @Test
+    void stageNameTranslate_queued_whenEnqueuedButNotYetReady() throws Exception {
+        when(translationService.resolveOrSuggestStageName(anyString()))
+                .thenReturn(Optional.empty());
+        when(queueRepo.hasPending(anyString(), anyString())).thenReturn(true);
+        when(draftActressRepo.countUnresolvedByKanji(anyString())).thenReturn(1);
+
+        HttpResponse<String> res = post("/api/translation/stage-name-translate",
+                Map.of("kanji", "夏目彩春"));
+
+        assertEquals(200, res.statusCode());
+        JsonNode body = mapper.readTree(res.body());
+        assertEquals("queued", body.get("status").asText());
+        assertEquals(1,        body.get("unresolvedDraftCount").asInt());
     }
 }
