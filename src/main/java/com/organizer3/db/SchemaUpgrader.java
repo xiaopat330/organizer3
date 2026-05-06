@@ -22,7 +22,7 @@ import java.util.List;
 public class SchemaUpgrader {
 
     /** Must match the version stamped by {@link SchemaInitializer}. */
-    private static final int CURRENT_VERSION = 51;
+    private static final int CURRENT_VERSION = 52;
 
     private final Jdbi jdbi;
 
@@ -279,6 +279,11 @@ public class SchemaUpgrader {
         if (version < 51) {
             applyV51();
             setVersion(51);
+        }
+
+        if (version < 52) {
+            applyV52();
+            setVersion(52);
         }
 
         log.info("Schema upgrade complete");
@@ -1735,6 +1740,28 @@ public class SchemaUpgrader {
             }
             log.info("Migration v51: NFKC-normalized {} draft_actresses rows", changed);
         });
+    }
+
+    /**
+     * v52: {@code link_to_draft_slug} column on {@code draft_actresses}.
+     *
+     * <p>Supports the Near-Miss curation "new canonical" outcome: when multiple drafts share
+     * the same kanji stage name, one is elected primary ({@code link_to_draft_slug IS NULL})
+     * and the rest point at the primary via this column. At promotion all siblings resolve to
+     * the primary's newly-allocated {@code actresses.id}.
+     *
+     * <p>FK is {@code ON DELETE SET NULL}: if the primary is deleted before promotion, siblings
+     * become orphans. Re-election logic in {@link com.organizer3.javdb.draft.DraftPromotionService}
+     * handles that case at promotion time.
+     *
+     * <p>Idempotent via {@code addColumnIfMissing}.
+     *
+     * <p>See spec/PROPOSAL_NEAR_MISS_RESOLVER.md §6 and §4.4 outcome B.
+     */
+    private void applyV52() {
+        log.info("Applying migration v52: link_to_draft_slug column on draft_actresses");
+        jdbi.useHandle(h -> addColumnIfMissing(h, "draft_actresses", "link_to_draft_slug",
+                "TEXT REFERENCES draft_actresses(javdb_slug) ON DELETE SET NULL"));
     }
 
     private int getVersion() {

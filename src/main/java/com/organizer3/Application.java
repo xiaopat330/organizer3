@@ -991,7 +991,8 @@ public class Application {
                 new com.organizer3.javdb.draft.DraftPromotionService(
                         jdbi, draftTitleRepo, draftActressRepo, draftCastRepo,
                         draftEnrichRepo, draftCoverStore, coverPath, castValidator,
-                        titleRepo, enrichmentHistoryRepo, titleEffectiveTagsService, jsonMapper);
+                        titleRepo, enrichmentHistoryRepo, titleEffectiveTagsService, jsonMapper,
+                        stageNameSuggestionRepo);
         com.organizer3.javdb.draft.DraftPatchService draftPatchService =
                 new com.organizer3.javdb.draft.DraftPatchService(
                         jdbi, draftTitleRepo, draftActressRepo, draftCastRepo);

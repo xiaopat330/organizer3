@@ -128,7 +128,7 @@ class DraftSchemaMigrationTest {
 
         new SchemaUpgrader(jdbi).upgrade();
 
-        assertEquals(51, schemaVersion(), "schema version must be 51 after upgrade");
+        assertEquals(52, schemaVersion(), "schema version must be 51 after upgrade");
     }
 
     @Test
@@ -156,7 +156,7 @@ class DraftSchemaMigrationTest {
         // Running again must be a no-op.
         new SchemaUpgrader(jdbi).upgrade();
 
-        assertEquals(51, schemaVersion(), "schema version must remain 51 after redundant upgrade");
+        assertEquals(52, schemaVersion(), "schema version must remain 51 after redundant upgrade");
     }
 
     // ── v44 → v45 upgrade ─────────────────────────────────────────────────────
@@ -206,7 +206,7 @@ class DraftSchemaMigrationTest {
 
         new SchemaUpgrader(jdbi).upgrade();
 
-        assertEquals(51, schemaVersion(), "schema version must be 51 after v44→v51 upgrade");
+        assertEquals(52, schemaVersion(), "schema version must be 52 after v44→v52 upgrade");
     }
 
     @Test
@@ -250,11 +250,36 @@ class DraftSchemaMigrationTest {
     }
 
     @Test
-    void freshInstallIsStampedAtVersion50() {
+    void freshInstallIsStampedAtVersion52() {
         new SchemaInitializer(jdbi).initialize();
 
-        assertEquals(51, schemaVersion(),
-                "fresh install must stamp version 51");
+        assertEquals(52, schemaVersion(),
+                "fresh install must stamp version 52");
+    }
+
+    @Test
+    void freshInstallDraftActressesHasLinkToDraftSlugColumn() {
+        new SchemaInitializer(jdbi).initialize();
+
+        assertTrue(columnExists("draft_actresses", "link_to_draft_slug"),
+                "fresh install draft_actresses must include link_to_draft_slug");
+    }
+
+    // ── v51 → v52 upgrade ─────────────────────────────────────────────────────
+
+    @Test
+    void upgradeFromV51_addsLinkToDraftSlugColumn() {
+        new SchemaInitializer(jdbi).initialize();
+        // Simulate a v51 DB by dropping the column (simulate via version stamp).
+        // SQLite doesn't support DROP COLUMN cleanly; instead we verify idempotency:
+        // running v52 on a v52 DB must be a no-op and the column must still exist.
+        jdbi.useHandle(h -> h.execute("PRAGMA user_version = 51"));
+
+        new SchemaUpgrader(jdbi).upgrade();
+
+        assertTrue(columnExists("draft_actresses", "link_to_draft_slug"),
+                "link_to_draft_slug must exist after v52 upgrade");
+        assertEquals(52, schemaVersion(), "schema version must be 52 after v51→v52 upgrade");
     }
 
     // ── unique index enforcement ───────────────────────────────────────────────

@@ -37,6 +37,7 @@ public class DraftActressRepository {
                     .englishFirstName(rs.getString("english_first_name"))
                     .englishLastName(rs.getString("english_last_name"))
                     .linkToExistingId(linkId)
+                    .linkToDraftSlug(rs.getString("link_to_draft_slug"))
                     .createdAt(rs.getString("created_at"))
                     .updatedAt(rs.getString("updated_at"))
                     .lastValidationError(rs.getString("last_validation_error"))
