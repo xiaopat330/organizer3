@@ -6,6 +6,7 @@ import com.organizer3.translation.ollama.OllamaAdapter;
 import com.organizer3.translation.ollama.OllamaException;
 import com.organizer3.translation.ollama.OllamaRequest;
 import com.organizer3.translation.ollama.OllamaResponse;
+import com.organizer3.repository.ActressRepository;
 import com.organizer3.translation.repository.StageNameSuggestionRepository;
 import com.organizer3.translation.repository.TranslationCacheRepository;
 import com.organizer3.translation.repository.TranslationQueueRepository;
@@ -75,6 +76,8 @@ public class TranslationWorker implements Runnable {
     private final StageNameSuggestionRepository stageNameSuggestionRepo;
     /** Never null — defaults to {@link ExplicitTermSubstitutor#EMPTY} (no-op). */
     private final ExplicitTermSubstitutor explicitTermSubstitutor;
+    /** Optional — null in tests. When set, per-title actress stage names are substituted. */
+    private final ActressRepository actressRepo;
 
     public TranslationWorker(OllamaAdapter ollamaAdapter,
                               TranslationStrategyRepository strategyRepo,
@@ -138,6 +141,22 @@ public class TranslationWorker implements Runnable {
                               HealthGate healthGate,
                               StageNameSuggestionRepository stageNameSuggestionRepo,
                               ExplicitTermSubstitutor explicitTermSubstitutor) {
+        this(ollamaAdapter, strategyRepo, cacheRepo, queueRepo, callbackDispatcher, config, json,
+                modelState, healthGate, stageNameSuggestionRepo, explicitTermSubstitutor, null);
+    }
+
+    public TranslationWorker(OllamaAdapter ollamaAdapter,
+                              TranslationStrategyRepository strategyRepo,
+                              TranslationCacheRepository cacheRepo,
+                              TranslationQueueRepository queueRepo,
+                              CallbackDispatcher callbackDispatcher,
+                              TranslationConfig config,
+                              ObjectMapper json,
+                              OllamaModelState modelState,
+                              HealthGate healthGate,
+                              StageNameSuggestionRepository stageNameSuggestionRepo,
+                              ExplicitTermSubstitutor explicitTermSubstitutor,
+                              ActressRepository actressRepo) {
         this.ollamaAdapter           = ollamaAdapter;
         this.strategyRepo            = strategyRepo;
         this.cacheRepo               = cacheRepo;
@@ -150,6 +169,7 @@ public class TranslationWorker implements Runnable {
         this.stageNameSuggestionRepo = stageNameSuggestionRepo;
         this.explicitTermSubstitutor = explicitTermSubstitutor != null
                 ? explicitTermSubstitutor : ExplicitTermSubstitutor.EMPTY;
+        this.actressRepo             = actressRepo;
     }
 
     /**
@@ -247,6 +267,12 @@ public class TranslationWorker implements Runnable {
                                    String hash,
                                    Long existingCacheRowId) {
         String promptInput = explicitTermSubstitutor.substitute(row.sourceText());
+        if (actressRepo != null && "title".equals(row.callbackKind())) {
+            java.util.Map<String, String> stageNames = actressRepo.findStageNameMapForTitle(row.callbackId());
+            if (!stageNames.isEmpty()) {
+                promptInput = new ExplicitTermSubstitutor(stageNames).substitute(promptInput);
+            }
+        }
         String prompt = strategy.promptTemplate().replace("{jp}", promptInput);
 
         Map<String, Object> options = null;

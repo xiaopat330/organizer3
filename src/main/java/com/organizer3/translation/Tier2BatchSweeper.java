@@ -2,6 +2,7 @@ package com.organizer3.translation;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.organizer3.repository.ActressRepository;
 import com.organizer3.translation.ollama.OllamaAdapter;
 import com.organizer3.translation.ollama.OllamaException;
 import com.organizer3.translation.ollama.OllamaRequest;
@@ -56,6 +57,8 @@ public class Tier2BatchSweeper implements Runnable {
     private final OllamaModelState modelState;
     /** Never null — defaults to {@link ExplicitTermSubstitutor#EMPTY} (no-op). */
     private final ExplicitTermSubstitutor explicitTermSubstitutor;
+    /** Optional — null in tests. When set, per-title actress stage names are substituted. */
+    private final ActressRepository actressRepo;
 
     public Tier2BatchSweeper(OllamaAdapter ollamaAdapter,
                               TranslationStrategyRepository strategyRepo,
@@ -78,6 +81,20 @@ public class Tier2BatchSweeper implements Runnable {
                               ObjectMapper json,
                               OllamaModelState modelState,
                               ExplicitTermSubstitutor explicitTermSubstitutor) {
+        this(ollamaAdapter, strategyRepo, cacheRepo, queueRepo, callbackDispatcher,
+                config, json, modelState, explicitTermSubstitutor, null);
+    }
+
+    public Tier2BatchSweeper(OllamaAdapter ollamaAdapter,
+                              TranslationStrategyRepository strategyRepo,
+                              TranslationCacheRepository cacheRepo,
+                              TranslationQueueRepository queueRepo,
+                              CallbackDispatcher callbackDispatcher,
+                              TranslationConfig config,
+                              ObjectMapper json,
+                              OllamaModelState modelState,
+                              ExplicitTermSubstitutor explicitTermSubstitutor,
+                              ActressRepository actressRepo) {
         this.ollamaAdapter      = ollamaAdapter;
         this.strategyRepo       = strategyRepo;
         this.cacheRepo          = cacheRepo;
@@ -88,6 +105,7 @@ public class Tier2BatchSweeper implements Runnable {
         this.modelState         = modelState;
         this.explicitTermSubstitutor = explicitTermSubstitutor != null
                 ? explicitTermSubstitutor : ExplicitTermSubstitutor.EMPTY;
+        this.actressRepo        = actressRepo;
     }
 
     @Override
@@ -167,6 +185,12 @@ public class Tier2BatchSweeper implements Runnable {
 
         TranslationStrategy tier2Strategy = tier2StrategyOpt.get();
         String promptInput = explicitTermSubstitutor.substitute(row.sourceText());
+        if (actressRepo != null && "title".equals(row.callbackKind())) {
+            java.util.Map<String, String> stageNames = actressRepo.findStageNameMapForTitle(row.callbackId());
+            if (!stageNames.isEmpty()) {
+                promptInput = new ExplicitTermSubstitutor(stageNames).substitute(promptInput);
+            }
+        }
         String prompt = tier2Strategy.promptTemplate().replace("{jp}", promptInput);
 
         Map<String, Object> options = null;

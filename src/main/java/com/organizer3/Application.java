@@ -206,13 +206,15 @@ public class Application {
         com.organizer3.translation.ExplicitTermSubstitutor explicitTermSubstitutor =
                 com.organizer3.translation.ExplicitTermSubstitutor.loadFromFile(
                         dbDir.resolve("explicit-substitutions.properties"));
+        // Actress repo needed by translation workers for per-title stage-name substitution.
+        ActressRepository translationActressRepo = new JdbiActressRepository(jdbi);
         com.organizer3.translation.TranslationWorker translationWorker =
                 new com.organizer3.translation.TranslationWorker(
                         ollamaAdapter, translationStrategyRepo, translationCacheRepo,
                         translationQueueRepo, translationCallbackDispatcher,
                         translationConfig, translationJsonMapper, ollamaModelState,
                         translationHealthGate, stageNameSuggestionRepo,
-                        explicitTermSubstitutor);
+                        explicitTermSubstitutor, translationActressRepo);
         java.util.concurrent.ExecutorService translationWorkerExecutor =
                 java.util.concurrent.Executors.newSingleThreadExecutor(r -> {
                     Thread t = new Thread(r, "translation-worker");
@@ -240,7 +242,7 @@ public class Application {
                         ollamaAdapter, translationStrategyRepo, translationCacheRepo,
                         translationQueueRepo, translationCallbackDispatcher,
                         translationConfig, translationJsonMapper, ollamaModelState,
-                        explicitTermSubstitutor);
+                        explicitTermSubstitutor, translationActressRepo);
         java.util.concurrent.ScheduledExecutorService tier2SweeperExecutor =
                 java.util.concurrent.Executors.newSingleThreadScheduledExecutor(r -> {
                     Thread t = new Thread(r, "tier2-sweeper");

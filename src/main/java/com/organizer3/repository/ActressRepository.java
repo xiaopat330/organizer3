@@ -462,4 +462,12 @@ public interface ActressRepository {
      * the same (actress, label) collapse to a single row — the label appears once per actress.
      */
     List<ActressLabelEngagement> findActressLabelEngagements();
+
+    /**
+     * Returns a substitution map of Japanese stage name → canonical English name for all
+     * non-rejected actresses linked to the given title. Entries with a null or empty
+     * {@code stage_name} are excluded. Used by the translation pipeline to pre-substitute
+     * known actress names before the prompt is sent to the LLM.
+     */
+    Map<String, String> findStageNameMapForTitle(long titleId);
 }
