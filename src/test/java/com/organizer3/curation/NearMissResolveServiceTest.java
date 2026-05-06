@@ -53,17 +53,23 @@ class NearMissResolveServiceTest {
 
     private void insertDraft(String slug, String kanji, Long linkToExisting, String linkToDraft,
                               String last) {
+        insertDraft(slug, kanji, linkToExisting, linkToDraft, last, "2024-01-01T00:00:00Z");
+    }
+
+    private void insertDraft(String slug, String kanji, Long linkToExisting, String linkToDraft,
+                              String last, String createdAt) {
         jdbi.useHandle(h -> h.createUpdate("""
                 INSERT INTO draft_actresses
                     (javdb_slug, stage_name, english_first_name, english_last_name,
                      link_to_existing_id, link_to_draft_slug, created_at, updated_at)
-                VALUES (:slug, :kanji, NULL, :last, :xid, :linkDraft, '2024-01-01T00:00:00Z', '2024-01-01T00:00:00Z')
+                VALUES (:slug, :kanji, NULL, :last, :xid, :linkDraft, :createdAt, :createdAt)
                 """)
                 .bind("slug",      slug)
                 .bind("kanji",     kanji)
                 .bind("last",      last)
                 .bind("xid",       linkToExisting)
                 .bind("linkDraft", linkToDraft)
+                .bind("createdAt", createdAt)
                 .execute());
     }
 
@@ -230,7 +236,27 @@ class NearMissResolveServiceTest {
     }
 
     @Test
-    void canonical_validation_requiresPrimarySlug() {
+    void canonical_autoPicksOldestSlugWhenPrimarySlugNull() {
+        // Tools-page entry passes primarySlug=null. Service should auto-pick the oldest
+        // unresolved draft for this kanji as the primary, then cascade siblings.
+        insertDraft("oldest",  "夏目彩春", null, null, null, "2026-01-01T00:00:00Z");
+        insertDraft("middle",  "夏目彩春", null, null, null, "2026-02-01T00:00:00Z");
+        insertDraft("newest",  "夏目彩春", null, null, null, "2026-03-01T00:00:00Z");
+
+        ResolveResult result = service.resolve(new ResolveRequest(
+                "夏目彩春", null, Outcome.CANONICAL, null, "Natsume", "Iroha", null));
+
+        assertEquals(3, result.updatedDrafts());
+
+        // Oldest became primary; the other two have link_to_draft_slug pointing at it.
+        assertNull(draftActressRepo.findBySlug("oldest").orElseThrow().getLinkToDraftSlug());
+        assertEquals("oldest", draftActressRepo.findBySlug("middle").orElseThrow().getLinkToDraftSlug());
+        assertEquals("oldest", draftActressRepo.findBySlug("newest").orElseThrow().getLinkToDraftSlug());
+    }
+
+    @Test
+    void canonical_autoPickThrowsWhenNoUnresolvedDraftMatches() {
+        // Kanji has no draft rows at all → IllegalArgumentException.
         assertThrows(IllegalArgumentException.class, () ->
                 service.resolve(new ResolveRequest("夏目彩春", null,
                         Outcome.CANONICAL, null, null, "Natsume", null)));

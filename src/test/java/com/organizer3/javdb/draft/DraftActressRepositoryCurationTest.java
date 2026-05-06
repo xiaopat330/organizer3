@@ -41,18 +41,23 @@ class DraftActressRepositoryCurationTest {
     }
 
     private void insert(String slug, String kanji, Long xid, String linkDraft, String last) {
+        insert(slug, kanji, xid, linkDraft, last, "2024-01-01T00:00:00Z");
+    }
+
+    private void insert(String slug, String kanji, Long xid, String linkDraft, String last,
+                        String createdAt) {
         jdbi.useHandle(h -> h.createUpdate("""
                 INSERT INTO draft_actresses
                     (javdb_slug, stage_name, english_first_name, english_last_name,
                      link_to_existing_id, link_to_draft_slug, created_at, updated_at)
-                VALUES (:slug, :kanji, NULL, :last, :xid, :linkDraft,
-                        '2024-01-01T00:00:00Z', '2024-01-01T00:00:00Z')
+                VALUES (:slug, :kanji, NULL, :last, :xid, :linkDraft, :createdAt, :createdAt)
                 """)
                 .bind("slug",      slug)
                 .bind("kanji",     kanji)
                 .bind("last",      last)
                 .bind("xid",       xid)
                 .bind("linkDraft", linkDraft)
+                .bind("createdAt", createdAt)
                 .execute());
     }
 
@@ -137,6 +142,33 @@ class DraftActressRepositoryCurationTest {
     @Test
     void countUnresolvedByKanji_returnsZeroWhenNone() {
         assertEquals(0, repo.countUnresolvedByKanji("存在しない"));
+    }
+
+    // ── findOldestUnresolvedSlugByKanji ──────────────────────────────────────
+
+    @Test
+    void findOldestUnresolvedSlug_picksLowestCreatedAt() {
+        insert("middle", "テスト", null, null, null, "2026-02-01T00:00:00Z");
+        insert("oldest", "テスト", null, null, null, "2026-01-01T00:00:00Z");
+        insert("newest", "テスト", null, null, null, "2026-03-01T00:00:00Z");
+
+        assertEquals("oldest", repo.findOldestUnresolvedSlugByKanji("テスト").orElseThrow());
+    }
+
+    @Test
+    void findOldestUnresolvedSlug_skipsResolvedRows() {
+        insert("primaryRef", "他の",  null, null, null, "2026-01-01T00:00:00Z");  // FK target
+        insert("linked",     "テスト", 42L,  null, null,            "2026-01-01T00:00:00Z");
+        insert("hasLast",    "テスト", null, null, "Last",          "2026-01-02T00:00:00Z");
+        insert("hasDraftFK", "テスト", null, "primaryRef", null,    "2026-01-03T00:00:00Z");
+        insert("real",       "テスト", null, null, null,            "2026-02-01T00:00:00Z");
+
+        assertEquals("real", repo.findOldestUnresolvedSlugByKanji("テスト").orElseThrow());
+    }
+
+    @Test
+    void findOldestUnresolvedSlug_emptyWhenNoneMatch() {
+        assertTrue(repo.findOldestUnresolvedSlugByKanji("存在しない").isEmpty());
     }
 
     // ── findPendingKanjiGroups ───────────────────────────────────────────────

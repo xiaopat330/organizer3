@@ -100,7 +100,14 @@ public class NearMissResolveService {
 
     private ResolveResult resolveCanonical(String normalizedKanji, String composedName,
                                             ResolveRequest req) {
-        String primarySlug = req.primarySlug();
+        // Tools-page entry passes primarySlug=null. Per spec §4.4, auto-elect the oldest
+        // unresolved draft for this kanji as the primary (invisible to the user — every
+        // sibling resolves to the same actresses.id post-promotion regardless).
+        String primarySlug = (req.primarySlug() == null || req.primarySlug().isBlank())
+                ? draftActressRepo.findOldestUnresolvedSlugByKanji(normalizedKanji)
+                        .orElseThrow(() -> new IllegalArgumentException(
+                                "No unresolved draft found for kanji: " + normalizedKanji))
+                : req.primarySlug();
 
         DraftActress primary = draftActressRepo.findBySlug(primarySlug)
                 .orElseThrow(() -> new IllegalArgumentException(
@@ -129,9 +136,8 @@ public class NearMissResolveService {
         if (req.outcome() == Outcome.ALIAS && req.aliasOfActressId() == null) {
             throw new IllegalArgumentException("aliasOfActressId is required for outcome ALIAS");
         }
-        if (req.outcome() == Outcome.CANONICAL
-                && (req.primarySlug() == null || req.primarySlug().isBlank())) {
-            throw new IllegalArgumentException("primarySlug is required for outcome CANONICAL");
-        }
+        // primarySlug is OPTIONAL for CANONICAL — null means "auto-pick the oldest
+        // unresolved draft for this kanji" (Tools-page entry). Editor entry passes the
+        // explicit slug. Either is valid; resolveCanonical handles both.
     }
 }

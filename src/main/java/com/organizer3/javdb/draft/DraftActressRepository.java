@@ -199,6 +199,27 @@ public class DraftActressRepository {
     }
 
     /**
+     * Returns the slug of the oldest unresolved draft for this kanji (lowest created_at).
+     * Used by the near-miss CANONICAL outcome when the caller (Tools page) didn't designate
+     * a primary — see PROPOSAL_NEAR_MISS_RESOLVER.md §4.4.
+     */
+    public Optional<String> findOldestUnresolvedSlugByKanji(String normalizedKanji) {
+        return jdbi.withHandle(h ->
+                h.createQuery("""
+                        SELECT javdb_slug FROM draft_actresses
+                         WHERE stage_name           = :kanji
+                           AND link_to_existing_id  IS NULL
+                           AND link_to_draft_slug   IS NULL
+                           AND english_last_name    IS NULL
+                         ORDER BY created_at ASC, javdb_slug ASC
+                         LIMIT 1
+                        """)
+                        .bind("kanji", normalizedKanji)
+                        .mapTo(String.class)
+                        .findOne());
+    }
+
+    /**
      * Count of unresolved draft rows for a kanji (those with no identity link and no last name).
      * Used by the confirm step in the near-miss modal and by the pending-kanji aggregator.
      */

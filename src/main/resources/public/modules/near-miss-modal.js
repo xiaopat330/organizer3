@@ -256,7 +256,10 @@ function outcomeSectionHtml(disabled) {
   const isAlias = _outcome === 'ALIAS';
   const aliasHidden = isAlias ? '' : ' nm-hidden';
   const canonHidden = isAlias ? ' nm-hidden' : '';
-  const canonicalDisabled = _primarySlug == null ? ' disabled title="primarySlug required for new canonical"' : d;
+  // CANONICAL is always available regardless of whether primarySlug was passed in.
+  // When null (Tools-page entry), the backend auto-picks the oldest unresolved draft
+  // for this kanji — see PROPOSAL_NEAR_MISS_RESOLVER.md §4.4.
+  const canonicalDisabled = d;
 
   return `
     <div class="nm-outcome-section">
