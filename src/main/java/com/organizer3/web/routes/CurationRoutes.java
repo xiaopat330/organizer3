@@ -8,6 +8,7 @@ import com.organizer3.repository.ActressRepository;
 import com.organizer3.translation.ActressFuzzyMatcher;
 import com.organizer3.translation.ActressFuzzyMatcher.MatchResult;
 import com.organizer3.translation.TranslationNormalization;
+import com.organizer3.translation.TranslationService;
 import com.organizer3.translation.repository.StageNameSuggestionRepository;
 import com.organizer3.translation.repository.TranslationQueueRepository;
 import io.javalin.Javalin;
@@ -36,19 +37,22 @@ public class CurationRoutes {
     private final ActressFuzzyMatcher actressFuzzyMatcher;
     private final StageNameSuggestionRepository stageNameSuggestionRepo;
     private final TranslationQueueRepository translationQueueRepo;
+    private final TranslationService translationService;
 
     public CurationRoutes(NearMissResolveService resolveService,
                            DraftActressRepository draftActressRepo,
                            ActressRepository actressRepo,
                            ActressFuzzyMatcher actressFuzzyMatcher,
                            StageNameSuggestionRepository stageNameSuggestionRepo,
-                           TranslationQueueRepository translationQueueRepo) {
+                           TranslationQueueRepository translationQueueRepo,
+                           TranslationService translationService) {
         this.resolveService        = resolveService;
         this.draftActressRepo      = draftActressRepo;
         this.actressRepo           = actressRepo;
         this.actressFuzzyMatcher   = actressFuzzyMatcher;
         this.stageNameSuggestionRepo = stageNameSuggestionRepo;
         this.translationQueueRepo  = translationQueueRepo;
+        this.translationService    = translationService;
     }
 
     public void register(Javalin app) {
@@ -65,6 +69,38 @@ public class CurationRoutes {
                 ctx.json(stageNameStatus(raw));
             } catch (Exception e) {
                 log.error("GET /api/translation/stage-name-status failed", e);
+                ctx.status(500).json(Map.of("error", e.getMessage()));
+            }
+        });
+
+        // POST /api/translation/stage-name-translate
+        // Kicks off an LLM stage-name translation for a kanji with no existing suggestion or queue row.
+        // Logically a write (may enqueue), so POST is appropriate.
+        // Returns { status: "queued"|"ready"|"missing", romaji?: string, unresolvedDraftCount: number }.
+        app.post("/api/translation/stage-name-translate", ctx -> {
+            try {
+                @SuppressWarnings("unchecked")
+                Map<String, Object> body = ctx.bodyAsClass(Map.class);
+                String raw = body != null ? asString(body, "kanji") : null;
+                if (raw == null || raw.isBlank()) {
+                    ctx.status(400).json(Map.of("error", "kanji field is required"));
+                    return;
+                }
+                String normalized = TranslationNormalization.normalize(raw);
+                Optional<String> romaji = translationService.resolveOrSuggestStageName(normalized);
+                Map<String, Object> result = new LinkedHashMap<>();
+                if (romaji.isPresent()) {
+                    result.put("status", "ready");
+                    result.put("romaji", romaji.get());
+                } else if (translationQueueRepo.hasPending(STRATEGY_KEY_STAGE_NAME, normalized)) {
+                    result.put("status", "queued");
+                } else {
+                    result.put("status", "missing");
+                }
+                result.put("unresolvedDraftCount", draftActressRepo.countUnresolvedByKanji(normalized));
+                ctx.json(result);
+            } catch (Exception e) {
+                log.error("POST /api/translation/stage-name-translate failed", e);
                 ctx.status(500).json(Map.of("error", e.getMessage()));
             }
         });
@@ -171,17 +207,19 @@ public class CurationRoutes {
      */
     private Map<String, Object> stageNameStatus(String rawKanji) {
         String normalized = TranslationNormalization.normalize(rawKanji);
+        int unresolvedDraftCount = draftActressRepo.countUnresolvedByKanji(normalized);
         Optional<String> romaji = stageNameSuggestionRepo.findLatestUsableSuggestion(normalized);
         if (romaji.isPresent()) {
             Map<String, Object> m = new LinkedHashMap<>();
             m.put("status", "ready");
             m.put("romaji", romaji.get());
+            m.put("unresolvedDraftCount", unresolvedDraftCount);
             return m;
         }
-        if (translationQueueRepo.hasPending(STRATEGY_KEY_STAGE_NAME, normalized)) {
-            return Map.of("status", "queued");
-        }
-        return Map.of("status", "missing");
+        Map<String, Object> m = new LinkedHashMap<>();
+        m.put("status", translationQueueRepo.hasPending(STRATEGY_KEY_STAGE_NAME, normalized) ? "queued" : "missing");
+        m.put("unresolvedDraftCount", unresolvedDraftCount);
+        return m;
     }
 
     // ── Static helpers ────────────────────────────────────────────────────────
