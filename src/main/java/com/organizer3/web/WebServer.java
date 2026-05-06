@@ -252,6 +252,11 @@ public class WebServer {
         routes.register(app);
     }
 
+    /** Mounts the Near-Miss curation endpoints ({@code /api/curation/*} and the status helper). */
+    public void registerCuration(com.organizer3.web.routes.CurationRoutes routes) {
+        routes.register(app);
+    }
+
     private void registerRoutes(TitleBrowseService browseService,
                                 ActressBrowseService actressBrowseService, Path coversRoot,
                                 VideoStreamService videoStreamService,

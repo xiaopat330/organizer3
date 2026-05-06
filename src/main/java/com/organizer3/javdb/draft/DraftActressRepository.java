@@ -122,6 +122,128 @@ public class DraftActressRepository {
     }
 
     /**
+     * Cascade UPDATE for outcome ALIAS: links all unresolved drafts for a kanji to an existing actress.
+     * Only rows where both {@code link_to_existing_id} and {@code link_to_draft_slug} are NULL
+     * are updated — already-resolved drafts are never overwritten.
+     *
+     * @return number of rows updated
+     */
+    public int cascadeAliasResolution(String normalizedKanji, long existingActressId,
+                                      String englishFirst, String englishLast) {
+        String now = ISO_UTC.format(Instant.now());
+        return jdbi.withHandle(h ->
+                h.createUpdate("""
+                        UPDATE draft_actresses
+                           SET link_to_existing_id  = :xId,
+                               english_first_name   = :first,
+                               english_last_name    = :last,
+                               updated_at           = :now
+                         WHERE stage_name           = :kanji
+                           AND link_to_existing_id  IS NULL
+                           AND link_to_draft_slug   IS NULL
+                        """)
+                        .bind("xId",   existingActressId)
+                        .bind("first", englishFirst)
+                        .bind("last",  englishLast)
+                        .bind("now",   now)
+                        .bind("kanji", normalizedKanji)
+                        .execute());
+    }
+
+    /**
+     * Cascade UPDATE for outcome CANONICAL: updates the primary draft and all unresolved siblings.
+     *
+     * <p>The primary draft must exist and be unresolved before calling; verify via
+     * {@link #findBySlug} beforehand. Returns the total number of rows updated
+     * (1 for the primary + N for siblings).
+     *
+     * @return total rows updated
+     */
+    public int cascadeCanonicalResolution(String normalizedKanji, String primarySlug,
+                                          String englishFirst, String englishLast) {
+        String now = ISO_UTC.format(Instant.now());
+        return jdbi.inTransaction(h -> {
+            int primary = h.createUpdate("""
+                            UPDATE draft_actresses
+                               SET english_first_name = :first,
+                                   english_last_name  = :last,
+                                   updated_at         = :now
+                             WHERE javdb_slug         = :primarySlug
+                            """)
+                    .bind("first",       englishFirst)
+                    .bind("last",        englishLast)
+                    .bind("now",         now)
+                    .bind("primarySlug", primarySlug)
+                    .execute();
+
+            int siblings = h.createUpdate("""
+                            UPDATE draft_actresses
+                               SET link_to_draft_slug = :primarySlug,
+                                   english_first_name = :first,
+                                   english_last_name  = :last,
+                                   updated_at         = :now
+                             WHERE stage_name          = :kanji
+                               AND javdb_slug         <> :primarySlug
+                               AND link_to_existing_id IS NULL
+                               AND link_to_draft_slug  IS NULL
+                            """)
+                    .bind("primarySlug", primarySlug)
+                    .bind("first",       englishFirst)
+                    .bind("last",        englishLast)
+                    .bind("now",         now)
+                    .bind("kanji",       normalizedKanji)
+                    .execute();
+
+            return primary + siblings;
+        });
+    }
+
+    /**
+     * Count of unresolved draft rows for a kanji (those with no identity link and no last name).
+     * Used by the confirm step in the near-miss modal and by the pending-kanji aggregator.
+     */
+    public int countUnresolvedByKanji(String normalizedKanji) {
+        return jdbi.withHandle(h ->
+                h.createQuery("""
+                        SELECT COUNT(*) FROM draft_actresses
+                         WHERE stage_name           = :kanji
+                           AND link_to_existing_id  IS NULL
+                           AND link_to_draft_slug   IS NULL
+                           AND english_last_name    IS NULL
+                        """)
+                        .bind("kanji", normalizedKanji)
+                        .mapTo(Integer.class)
+                        .one());
+    }
+
+    /**
+     * Aggregate of all pending-kanji groups: distinct unresolved stage names, their draft counts,
+     * and the oldest {@code created_at} in each group. Sorted by count DESC, oldest_seen ASC.
+     */
+    public java.util.List<PendingKanjiRow> findPendingKanjiGroups() {
+        return jdbi.withHandle(h ->
+                h.createQuery("""
+                        SELECT stage_name   AS kanji,
+                               COUNT(*)     AS cnt,
+                               MIN(created_at) AS oldest_seen
+                          FROM draft_actresses
+                         WHERE link_to_existing_id  IS NULL
+                           AND link_to_draft_slug   IS NULL
+                           AND english_last_name    IS NULL
+                         GROUP BY stage_name
+                         ORDER BY cnt DESC, oldest_seen ASC
+                        """)
+                        .map((rs, ctx) -> new PendingKanjiRow(
+                                rs.getString("kanji"),
+                                rs.getInt("cnt"),
+                                rs.getString("oldest_seen")))
+                        .list());
+    }
+
+    /** Lightweight projection for the pending-kanji aggregator. */
+    public record PendingKanjiRow(String kanji, int count, String oldestSeen) {}
+
+    /**
      * Deletes {@code draft_actresses} rows that are no longer referenced by any
      * {@code draft_title_actresses} row (ref-count = 0).
      *

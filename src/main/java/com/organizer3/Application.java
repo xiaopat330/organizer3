@@ -1001,6 +1001,12 @@ public class Application {
                 draftCoverStore, imageFetcher, draftPromotionService, draftPatchService,
                 jsonMapper, jdbi));
 
+        com.organizer3.curation.NearMissResolveService nearMissResolveService =
+                new com.organizer3.curation.NearMissResolveService(actressRepo, draftActressRepo);
+        webServer.registerCuration(new com.organizer3.web.routes.CurationRoutes(
+                nearMissResolveService, draftActressRepo, actressRepo,
+                actressFuzzyMatcher, stageNameSuggestionRepo, translationQueueRepo));
+
         // MCP (Model Context Protocol) server — read-only diagnostic tools mounted on
         // the existing Javalin instance. See spec/PROPOSAL_MCP_SERVER.md.
         com.organizer3.mcp.McpConfig mcpConfig = AppConfig.get().volumes().mcp() != null

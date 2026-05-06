@@ -8,6 +8,7 @@ import com.organizer3.db.TitleEffectiveTagsService;
 import com.organizer3.javdb.enrichment.EnrichmentHistoryRepository;
 import com.organizer3.model.Title;
 import com.organizer3.repository.TitleRepository;
+import com.organizer3.translation.NameComposer;
 import com.organizer3.translation.repository.StageNameSuggestionRepository;
 import lombok.extern.slf4j.Slf4j;
 import org.jdbi.v3.core.Handle;
@@ -723,12 +724,11 @@ public class DraftPromotionService {
     }
 
     private String buildCanonicalName(DraftActress da) {
-        String first = da.getEnglishFirstName();
-        String last  = da.getEnglishLastName();
-        if (first != null && !first.isBlank()) {
-            return (first.trim() + " " + last.trim()).trim();
+        String last = da.getEnglishLastName();
+        if (last != null && !last.isBlank()) {
+            return NameComposer.compose(da.getEnglishFirstName(), last);
         }
-        return last != null ? last.trim() : da.getStageName();
+        return da.getStageName();
     }
 
     /** Inserts title_actresses rows for non-skipped, non-sentinel-only resolutions. */

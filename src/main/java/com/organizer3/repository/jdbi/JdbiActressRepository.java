@@ -890,6 +890,20 @@ public class JdbiActressRepository implements ActressRepository {
     }
 
     @Override
+    public boolean insertAliasIfAbsent(long actressId, String aliasName) {
+        int rows = jdbi.withHandle(h ->
+                h.createUpdate("""
+                        INSERT OR IGNORE INTO actress_aliases (actress_id, alias_name)
+                        VALUES (:actressId, :aliasName)
+                        """)
+                        .bind("actressId", actressId)
+                        .bind("aliasName", aliasName)
+                        .execute()
+        );
+        return rows > 0;
+    }
+
+    @Override
     public void deleteAlias(long actressId, String aliasName) {
         jdbi.useHandle(h ->
                 h.createUpdate("""
