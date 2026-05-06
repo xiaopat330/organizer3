@@ -131,6 +131,40 @@ class SanitizationDetectorTest {
     }
 
     // -------------------------------------------------------------------------
+    // Extended EXPLICIT_EN terms (substitution map outputs)
+    // -------------------------------------------------------------------------
+
+    @Test
+    void aphrodisiac_notSanitized() {
+        // 催淫/媚薬 → aphrodisiac drug
+        assertFalse(SanitizationDetector.isSanitized("強力催淫オモチャ", "Aphrodisiac Toy Play"));
+    }
+
+    @Test
+    void drugFueled_notSanitized() {
+        // キメセク → drug-fueled sex
+        assertFalse(SanitizationDetector.isSanitized("キメセク大絶頂", "Drug-Fueled Climax"));
+    }
+
+    @Test
+    void incest_notSanitized() {
+        // 近親相姦 → incest
+        assertFalse(SanitizationDetector.isSanitized("近親相姦生活", "Incest Life"));
+    }
+
+    @Test
+    void dirtyTalk_notSanitized() {
+        // 淫語 → lewd dirty talk
+        assertFalse(SanitizationDetector.isSanitized("淫語お姉さん", "Dirty Talk Sister"));
+    }
+
+    @Test
+    void deepThroat_notSanitized() {
+        // イラマチオ → deep throat sex
+        assertFalse(SanitizationDetector.isSanitized("口淫イラマチオ", "Deep Throat Session"));
+    }
+
+    // -------------------------------------------------------------------------
     // Boundary: very short output (not empty) with explicit JP
     // -------------------------------------------------------------------------
 

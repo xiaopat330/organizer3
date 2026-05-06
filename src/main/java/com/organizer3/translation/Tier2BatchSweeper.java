@@ -292,7 +292,14 @@ public class Tier2BatchSweeper implements Runnable {
     }
 
     private static final java.util.regex.Pattern REFUSAL_PATTERN = java.util.regex.Pattern.compile(
-            "cannot|unable to|sorry|i am programmed|safety|refuse|not appropriate|i can't",
+            "(?:cannot|can not) (?:help|assist|translate|provide|process)" +
+            "|unable to (?:help|assist|translate|provide|process)" +
+            "|not able to (?:help|assist|translate|provide|process)" +
+            "|sorry[,;]?\\s*(?:(?:but|however|unfortunately)\\s+)?(?:i |we )?(?:cannot|can't|am unable|will not|won't) (?:help|assist|translate|provide|process|do that|do this)" +
+            "|i can't (?:help|assist|translate|provide|do that|do this)" +
+            "|i am programmed|i'm programmed" +
+            "|safety|not appropriate" +
+            "|(?:i )?refuse to (?:translate|assist|help|process)",
             java.util.regex.Pattern.CASE_INSENSITIVE
     );
 }

@@ -199,6 +199,24 @@ public class JdbiTranslationQueueRepository implements TranslationQueueRepositor
     }
 
     @Override
+    public List<TranslationQueueRow> findNextPending(int limit) {
+        return jdbi.withHandle(h ->
+                h.createQuery("""
+                        SELECT id, source_text, strategy_id, submitted_at, started_at,
+                               completed_at, status, callback_kind, callback_id,
+                               attempt_count, last_error, priority
+                        FROM translation_queue
+                        WHERE status IN ('pending', 'in_flight')
+                        ORDER BY priority DESC, submitted_at ASC
+                        LIMIT :limit
+                        """)
+                        .bind("limit", limit)
+                        .map(MAPPER)
+                        .list()
+        );
+    }
+
+    @Override
     public int countByStatus(String status) {
         return jdbi.withHandle(h ->
                 h.createQuery("SELECT COUNT(*) FROM translation_queue WHERE status = :status")

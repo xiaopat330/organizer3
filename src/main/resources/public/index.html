@@ -271,10 +271,6 @@
       <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m5 8 6 6"/><path d="m4 14 6-6 2-3"/><path d="M2 5h12"/><path d="M7 2h1"/><path d="m22 22-5-10-5 10"/><path d="M14 18h6"/></svg>
       Translation
     </button>
-    <button type="button" id="tools-pending-kanji-btn" class="action-tool-btn tools-pending-kanji-btn">
-      <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 8v4"/><path d="M12 16h.01"/></svg>
-      Pending Kanji
-    </button>
     <button type="button" id="tools-trash-btn" class="action-tool-btn tools-trash-btn">
       <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
       Trash
@@ -1170,70 +1166,92 @@
 <!-- Translation tool content -->
 <div id="tools-translation-view" class="tools-translation-view" style="display:none">
   <div class="trans-header">
-    <h2>Translation</h2>
+    <span class="trans-title">Translation</span>
     <span id="trans-health-dot" class="trans-health-dot trans-health-unknown" title="Health unknown"></span>
+    <div class="trans-tabs">
+      <button type="button" id="trans-tabBtn-dashboard" class="trans-tab active">Dashboard</button>
+      <button type="button" id="trans-tabBtn-name-translation" class="trans-tab">Name Translation</button>
+    </div>
   </div>
 
-  <!-- Stats panel (auto-refreshed every 5s) -->
-  <section class="trans-section">
-    <h3>Stats</h3>
-    <div id="trans-stats" class="trans-stats-grid">Loading…</div>
-  </section>
+  <div class="trans-body">
 
-  <!-- Live activity feed (polled every 2s) -->
-  <section class="trans-section">
-    <h3>Live Activity</h3>
-    <p class="trans-hint">Most recent translations as they complete. Updates every 2 seconds.</p>
-    <ul id="trans-activity" class="trans-activity">
-      <li class="trans-empty">Waiting for first event…</li>
-    </ul>
-  </section>
+  <!-- Dashboard tab pane -->
+  <div id="trans-tab-dashboard" class="trans-tab-pane">
 
-  <!-- Strategy table -->
-  <section class="trans-section">
-    <h3>Strategies</h3>
-    <table id="trans-strategies-table" class="trans-table">
-      <thead><tr>
-        <th>Name</th><th>Model</th><th>Active</th><th>Tier-2 strategy id</th>
-      </tr></thead>
-      <tbody></tbody>
-    </table>
-  </section>
+    <!-- Stats panel (auto-refreshed every 5s) -->
+    <section class="trans-section">
+      <h3>Stats</h3>
+      <div id="trans-stats" class="trans-stats-grid">Loading…</div>
+    </section>
 
-  <!-- Manual translate widget -->
-  <section class="trans-section">
-    <h3>Manual Translate</h3>
-    <p class="trans-hint">Translates synchronously via Ollama — may take 30–120s. No queue row is written.</p>
-    <div class="trans-manual-row">
-      <textarea id="trans-manual-input" class="trans-manual-input" rows="3" placeholder="Japanese text to translate…"></textarea>
-      <select id="trans-manual-hint" class="trans-manual-hint">
-        <option value="">auto</option>
-        <option value="label_basic">label_basic</option>
-        <option value="label_explicit">label_explicit</option>
-        <option value="prose">prose</option>
-      </select>
-      <button type="button" id="trans-manual-btn" class="trans-action-btn">Translate</button>
-    </div>
-    <div id="trans-manual-result" class="trans-manual-result" style="display:none"></div>
-  </section>
+    <!-- Queue preview (polled every 5s) -->
+    <section class="trans-section">
+      <h3>Queue</h3>
+      <ul id="trans-queue" class="trans-queue">
+        <li class="trans-empty">Loading…</li>
+      </ul>
+    </section>
 
-  <!-- Backlog sweep widget -->
-  <section class="trans-section">
-    <h3>Sweep Title Backlog Now</h3>
-    <p class="trans-hint">Forces an immediate sweep of titles awaiting English translation. Same dedup as the scheduled 5-minute sweeper — clicking while a sweep is already running cannot double-enqueue. Use after a bulk enrichment run to skip the wait.</p>
-    <button type="button" id="trans-bulk-btn" class="trans-action-btn">Sweep now</button>
-    <div id="trans-bulk-result" class="trans-bulk-result" style="display:none"></div>
-  </section>
+    <!-- Live activity feed (polled every 2s) -->
+    <section class="trans-section">
+      <h3>Live Activity</h3>
+      <p class="trans-hint">Most recent translations as they complete. Updates every 2 seconds.</p>
+      <ul id="trans-activity" class="trans-activity">
+        <li class="trans-empty">Waiting for first event…</li>
+      </ul>
+    </section>
 
-  <!-- Recent failures list -->
-  <section class="trans-section">
-    <h3>Recent Failures</h3>
-    <div id="trans-failures" class="trans-failures">Loading…</div>
-  </section>
-</div>
+    <!-- Strategy table -->
+    <section class="trans-section">
+      <h3>Strategies</h3>
+      <table id="trans-strategies-table" class="trans-table">
+        <thead><tr>
+          <th>Name</th><th>Model</th><th>Active</th><th>Tier-2 strategy id</th>
+        </tr></thead>
+        <tbody></tbody>
+      </table>
+    </section>
 
-<!-- Pending Kanji tool content -->
-<div id="tools-pending-kanji-view" class="tools-pending-kanji-view" style="display:none">
+    <!-- Manual translate widget -->
+    <section class="trans-section">
+      <h3>Manual Translate</h3>
+      <p class="trans-hint">Translates synchronously via Ollama — may take 30–120s. No queue row is written.</p>
+      <div class="trans-manual-row">
+        <textarea id="trans-manual-input" class="trans-manual-input" rows="3" placeholder="Japanese text to translate…"></textarea>
+        <select id="trans-manual-hint" class="trans-manual-hint">
+          <option value="">auto</option>
+          <option value="label_basic">label_basic</option>
+          <option value="label_explicit">label_explicit</option>
+          <option value="prose">prose</option>
+        </select>
+        <button type="button" id="trans-manual-btn" class="trans-action-btn">Translate</button>
+      </div>
+      <div id="trans-manual-result" class="trans-manual-result" style="display:none"></div>
+    </section>
+
+    <!-- Backlog sweep widget -->
+    <section class="trans-section">
+      <h3>Sweep Title Backlog Now</h3>
+      <p class="trans-hint">Forces an immediate sweep of titles awaiting English translation. Same dedup as the scheduled 5-minute sweeper — clicking while a sweep is already running cannot double-enqueue. Use after a bulk enrichment run to skip the wait.</p>
+      <button type="button" id="trans-bulk-btn" class="trans-action-btn">Sweep now</button>
+      <div id="trans-bulk-result" class="trans-bulk-result" style="display:none"></div>
+    </section>
+
+    <!-- Recent failures list -->
+    <section class="trans-section">
+      <h3>Recent Failures</h3>
+      <div id="trans-failures" class="trans-failures">Loading…</div>
+    </section>
+
+  </div><!-- /#trans-tab-dashboard -->
+
+  <!-- Name Translation tab pane -->
+  <div id="trans-tab-name-translation" class="trans-tab-pane" style="display:none">
+    <div id="tools-pending-kanji-view" class="tools-pending-kanji-view"></div>
+  </div>
+
+  </div><!-- /.trans-body -->
 </div>
 
 <script type="module" src="/app.js"></script>

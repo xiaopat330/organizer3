@@ -26,16 +26,18 @@ public final class SanitizationDetector {
      * Sourced from score.sh EXPLICIT_JP.
      */
     static final Pattern EXPLICIT_JP = Pattern.compile(
-            "中出し|輪姦|輪●|姦|痴漢|青姦|種付け|レイプ|レ[×x×]プ|ハメ撮り|ザーメン|生中|淫|変態|キメセク|M男"
+            "中出し|輪姦|輪●|姦|痴漢|青姦|種付け|レイプ|レ[×x×]プ|ハメ撮り|ザーメン|生中|淫|変態|キメセク|M男|射精"
     );
 
     /**
      * Explicit EN tokens expected when explicit JP content was present.
-     * Sourced from score.sh EXPLICIT_EN (Python re version).
+     * Sourced from score.sh EXPLICIT_EN (Python re version), extended to cover terms injected
+     * by ExplicitTermSubstitutor that do not appear in the original score.sh set.
      */
     static final Pattern EXPLICIT_EN = Pattern.compile(
             "creampie|gangbang|rape|molest|cum|semen|breed|outdoor sex|pov sex|squirt|lewd|perver" +
-            "|fetish|bdsm|bondage|fuck|nasty|kinky|whore|infidel|cuckold|submissive",
+            "|fetish|bdsm|bondage|fuck|nasty|kinky|whore|infidel|cuckold|submissive" +
+            "|aphrodisiac|drug-fueled|incest|dirty talk|deep throat|irrumatio",
             Pattern.CASE_INSENSITIVE
     );
 

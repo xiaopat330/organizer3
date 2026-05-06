@@ -136,6 +136,13 @@ public interface TranslationQueueRepository {
     int deleteForCacheFailureReason(String reason);
 
     /**
+     * Return the next {@code limit} rows with {@code status IN ('pending', 'in_flight')},
+     * ordered by priority descending then submitted_at ascending (i.e. in claim order).
+     * Used by the queue-preview UI panel.
+     */
+    List<TranslationQueueRow> findNextPending(int limit);
+
+    /**
      * Returns {@code true} if a non-terminal queue row ({@code status IN ('pending', 'in_flight')})
      * exists for the given strategy name and source text.
      *

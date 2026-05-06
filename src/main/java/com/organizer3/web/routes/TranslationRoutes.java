@@ -20,6 +20,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * REST endpoints for the Translation Tools UI page.
@@ -77,6 +78,9 @@ public class TranslationRoutes {
                 statsMap.put("cacheSuccessful", base.cacheSuccessful());
                 statsMap.put("cacheFailed", base.cacheFailed());
                 statsMap.put("cacheFailedSanitizedBothTiers", base.cacheFailedSanitizedBothTiers());
+                statsMap.put("cacheFailedSanitized", base.cacheFailedSanitized());
+                statsMap.put("cacheFailedUnreachable", base.cacheFailedUnreachable());
+                statsMap.put("cacheFailedRefused", base.cacheFailedRefused());
                 statsMap.put("queuePending", base.queuePending());
                 statsMap.put("queueInFlight", base.queueInFlight());
                 statsMap.put("queueDone", base.queueDone());
@@ -268,6 +272,43 @@ public class TranslationRoutes {
             }
         });
 
+        // GET /api/translation/queue-preview?limit=N
+        // Returns the next N pending/in-flight queue rows for the Queue panel UI.
+        app.get("/api/translation/queue-preview", ctx -> {
+            try {
+                int limit = 15;
+                String limitParam = ctx.queryParam("limit");
+                if (limitParam != null) {
+                    try {
+                        limit = Integer.parseInt(limitParam);
+                        if (limit < 1 || limit > 100) {
+                            ctx.status(400).json(Map.of("error", "limit must be between 1 and 100"));
+                            return;
+                        }
+                    } catch (NumberFormatException e) {
+                        ctx.status(400).json(Map.of("error", "limit must be an integer"));
+                        return;
+                    }
+                }
+                var rows = queueRepo.findNextPending(limit);
+                List<Map<String, Object>> enriched = new ArrayList<>(rows.size());
+                for (var r : rows) {
+                    Map<String, Object> row = new LinkedHashMap<>();
+                    row.put("id",          r.id());
+                    row.put("status",      r.status());
+                    row.put("titleCode",   lookupTitleCodeForSourceText(r.sourceText()));
+                    row.put("sourceText",  r.sourceText());
+                    row.put("submittedAt", r.submittedAt());
+                    row.put("priority",    r.priority());
+                    enriched.add(row);
+                }
+                ctx.json(enriched);
+            } catch (Exception e) {
+                log.error("GET /api/translation/queue-preview failed", e);
+                ctx.status(500).json(Map.of("error", e.getMessage()));
+            }
+        });
+
         // GET /api/translation/recent-events?since=<iso>&limit=N
         // Live activity feed: most recent cache rows for the Translation page,
         // enriched with the title.code where the source_text was queued via the
@@ -340,6 +381,29 @@ public class TranslationRoutes {
                 ));
             } catch (Exception e) {
                 log.error("POST /api/translation/sweep-title-backlog-now failed", e);
+                ctx.status(500).json(Map.of("error", e.getMessage()));
+            }
+        });
+
+        // POST /api/translation/requeue-by-reason?reason=<reason>
+        // Generic force-retry: deletes cache + queue rows for a given failure reason so
+        // upstream sweepers re-enqueue them on the next tick. Allowed reasons are
+        // restricted to the four buckets surfaced on the dashboard.
+        app.post("/api/translation/requeue-by-reason", ctx -> {
+            String reason = ctx.queryParam("reason");
+            if (reason == null || reason.isBlank()) {
+                ctx.status(400).json(Map.of("error", "reason query param is required"));
+                return;
+            }
+            if (!Set.of("sanitized", "sanitized_both_tiers", "unreachable", "refused").contains(reason)) {
+                ctx.status(400).json(Map.of("error", "reason must be one of: sanitized, sanitized_both_tiers, unreachable, refused"));
+                return;
+            }
+            try {
+                int requeued = service.requeueFailedByReason(reason);
+                ctx.json(Map.of("reason", reason, "requeued", requeued));
+            } catch (Exception e) {
+                log.error("POST /api/translation/requeue-by-reason failed for reason={}", reason, e);
                 ctx.status(500).json(Map.of("error", e.getMessage()));
             }
         });

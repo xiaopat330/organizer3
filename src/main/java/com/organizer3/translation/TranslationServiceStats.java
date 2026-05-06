@@ -11,6 +11,9 @@ public record TranslationServiceStats(
         long cacheSuccessful,
         long cacheFailed,
         long cacheFailedSanitizedBothTiers,
+        long cacheFailedSanitized,
+        long cacheFailedUnreachable,
+        long cacheFailedRefused,
         int queuePending,
         int queueInFlight,
         int queueDone,
@@ -23,8 +26,9 @@ public record TranslationServiceStats(
     @Override
     public String toString() {
         return String.format(
-                "TranslationServiceStats{cache: total=%d ok=%d fail=%d (both_tiers=%d), queue: pending=%d in_flight=%d done=%d failed=%d tier2_pending=%d, stage_names: lookup=%d unreviewed=%d}",
-                cacheTotal, cacheSuccessful, cacheFailed, cacheFailedSanitizedBothTiers,
+                "TranslationServiceStats{cache: total=%d ok=%d fail=%d (sanitized=%d both_tiers=%d unreachable=%d refused=%d), queue: pending=%d in_flight=%d done=%d failed=%d tier2_pending=%d, stage_names: lookup=%d unreviewed=%d}",
+                cacheTotal, cacheSuccessful, cacheFailed,
+                cacheFailedSanitized, cacheFailedSanitizedBothTiers, cacheFailedUnreachable, cacheFailedRefused,
                 queuePending, queueInFlight, queueDone, queueFailed, queueTier2Pending,
                 stageNameLookupSize, stageNameSuggestionsUnreviewed);
     }

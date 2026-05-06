@@ -44,11 +44,27 @@ public class TranslationWorker implements Runnable {
 
     /**
      * Refusal pattern: matches model outputs that indicate the model refused to translate.
-     * Per spec: "short output + matches refusal regex = refusal." Empty output is handled
-     * separately (null check). Short output alone is NOT sufficient.
+     *
+     * <p>Each broad keyword requires a refusal-specific continuation to avoid false positives
+     * from legitimate JAV title translations. Concretely:
+     * <ul>
+     *   <li>{@code cannot} / {@code unable to} / {@code i can't} must be followed by
+     *       help/assist/translate/provide — not words like "forget", "hold back", or "move"
+     *       that appear in normal titles (e.g. ごめんなさい→"sorry", できない→"can't").</li>
+     *   <li>{@code sorry} alone is not enough; it must precede a refusal continuation.</li>
+     * </ul>
+     * Anchor terms that are always refusal indicators (safety, refuse, not appropriate,
+     * i am programmed) are kept as-is since they don't appear in translated titles.
      */
     private static final Pattern REFUSAL_PATTERN = Pattern.compile(
-            "cannot|unable to|sorry|i am programmed|safety|refuse|not appropriate|i can't",
+            "(?:cannot|can not) (?:help|assist|translate|provide|process)" +
+            "|unable to (?:help|assist|translate|provide|process)" +
+            "|not able to (?:help|assist|translate|provide|process)" +
+            "|sorry[,;]?\\s*(?:(?:but|however|unfortunately)\\s+)?(?:i |we )?(?:cannot|can't|am unable|will not|won't) (?:help|assist|translate|provide|process|do that|do this)" +
+            "|i can't (?:help|assist|translate|provide|do that|do this)" +
+            "|i am programmed|i'm programmed" +
+            "|safety|not appropriate" +
+            "|(?:i )?refuse to (?:translate|assist|help|process)",
             Pattern.CASE_INSENSITIVE
     );
 
@@ -333,6 +349,10 @@ public class TranslationWorker implements Runnable {
             if (isTransient(e)) {
                 failureReason = "unreachable";
                 retryAfter = ISO_UTC.format(Instant.now().plusSeconds(300));
+                // Force the health gate to re-probe immediately so the worker loop pauses
+                // on the next iteration rather than burning through the queue for up to 30s
+                // on stale "healthy" cache while Ollama is down.
+                healthGate.refresh();
             } else {
                 failureReason = "adapter_error";
             }

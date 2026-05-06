@@ -17,7 +17,6 @@ import { showTrashView, hideTrashView } from './utilities-trash.js';
 import { showJavdbDiscoveryView, hideJavdbDiscoveryView, navigateToActressProfile, navigateToReviewItem } from './utilities-javdb-discovery.js';
 import { showTagHealthView, hideTagHealthView } from './utilities-tag-health.js';
 import { showTranslationView, hideTranslationView } from './utilities-translation.js';
-import { showPendingKanjiView, hidePendingKanjiView } from './utilities-pending-kanji.js';
 
 // ── DOM refs ──────────────────────────────────────────────────────────────
 const actionBtn              = document.getElementById('action-btn');
@@ -25,7 +24,6 @@ const healthBtn              = document.getElementById('tools-health-btn');
 const utilitiesBtn           = document.getElementById('tools-utilities-btn');
 const trashBtn               = document.getElementById('tools-trash-btn');
 const translationBtn         = document.getElementById('tools-translation-btn');
-const pendingKanjiBtn        = document.getElementById('tools-pending-kanji-btn');
 const queueBtn               = document.getElementById('tools-queue-btn');
 const javdbDiscoveryBtn      = document.getElementById('tools-javdb-discovery-btn');
 const utilitiesSubnav        = document.getElementById('tools-utilities-subnav');
@@ -53,7 +51,7 @@ const mergeCandidatesTab = document.getElementById('tools-merge-candidates-tab')
 const noMatchTriageTab   = document.getElementById('tools-no-match-triage-tab');
 
 // ── Tool buttons ──────────────────────────────────────────────────────────
-const TOOL_BTNS = [healthBtn, utilitiesBtn, trashBtn, translationBtn, pendingKanjiBtn, queueBtn, javdbDiscoveryBtn];
+const TOOL_BTNS = [healthBtn, utilitiesBtn, trashBtn, translationBtn, queueBtn, javdbDiscoveryBtn];
 
 function selectTool(btn) {
   TOOL_BTNS.forEach(b => b?.classList.remove('selected'));
@@ -73,7 +71,6 @@ function hideAllToolViews() {
   hideNoMatchTriageView();
   hideTrashView();
   hideTranslationView();
-  hidePendingKanjiView();
   hideJavdbDiscoveryView();
   hideTagHealthView();
   curationSubnav.style.display     = 'none';
@@ -440,14 +437,6 @@ translationBtn.addEventListener('click', () => {
   updateBreadcrumb([{ label: 'Tools' }, { label: 'Translation' }]);
   hideAllToolViews();
   showTranslationView();
-});
-
-pendingKanjiBtn.addEventListener('click', () => {
-  showActionView('pending-kanji');
-  selectTool(pendingKanjiBtn);
-  updateBreadcrumb([{ label: 'Tools' }, { label: 'Pending Kanji' }]);
-  hideAllToolViews();
-  showPendingKanjiView();
 });
 
 queueBtn.addEventListener('click', () => showCuration());

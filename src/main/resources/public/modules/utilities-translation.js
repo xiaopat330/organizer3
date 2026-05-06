@@ -5,6 +5,7 @@
 // State-factory pattern: all mutable vars inside makeState().
 
 import { esc } from './utils.js';
+import { showPendingKanjiView } from './utilities-pending-kanji.js';
 
 // ── DOM refs ──────────────────────────────────────────────────────────────
 const translationView   = document.getElementById('tools-translation-view');
@@ -19,6 +20,24 @@ const bulkBtn           = document.getElementById('trans-bulk-btn');
 const bulkResult        = document.getElementById('trans-bulk-result');
 const failuresDiv       = document.getElementById('trans-failures');
 const activityList      = document.getElementById('trans-activity');
+const queueList         = document.getElementById('trans-queue');
+const tabBtnDashboard   = document.getElementById('trans-tabBtn-dashboard');
+const tabBtnNameTrans   = document.getElementById('trans-tabBtn-name-translation');
+const tabPaneDashboard  = document.getElementById('trans-tab-dashboard');
+const tabPaneNameTrans  = document.getElementById('trans-tab-name-translation');
+
+// ── Tab switching ─────────────────────────────────────────────────────────
+function showTab(tab) {
+  const isDashboard = tab === 'dashboard';
+  tabPaneDashboard.style.display  = isDashboard ? '' : 'none';
+  tabPaneNameTrans.style.display  = isDashboard ? 'none' : '';
+  tabBtnDashboard.classList.toggle('active',  isDashboard);
+  tabBtnNameTrans.classList.toggle('active', !isDashboard);
+  if (!isDashboard) showPendingKanjiView();
+}
+
+tabBtnDashboard.addEventListener('click', () => showTab('dashboard'));
+tabBtnNameTrans.addEventListener('click', () => showTab('name-translation'));
 
 // ── State factory ─────────────────────────────────────────────────────────
 const ACTIVITY_MAX_ROWS = 50;
@@ -28,6 +47,7 @@ function makeState() {
     statsTimer: null,
     healthTimer: null,
     activityTimer: null,
+    queueTimer: null,
     activityRows: [],          // newest first; capped to ACTIVITY_MAX_ROWS
     activitySince: null,       // high-water-mark cached_at from the last fetch
     visible: false,
@@ -40,14 +60,17 @@ let s = makeState();
 export function showTranslationView() {
   translationView.style.display = 'block';
   s.visible = true;
+  showTab('dashboard');
   loadStats();
   loadStrategies();
   loadHealth();
   loadRecentFailures();
   loadActivity();
+  loadQueue();
   s.statsTimer    = setInterval(loadStats,    5_000);
   s.healthTimer   = setInterval(loadHealth,  30_000);
   s.activityTimer = setInterval(loadActivity, 2_000);
+  s.queueTimer    = setInterval(loadQueue,    5_000);
 }
 
 export function hideTranslationView() {
@@ -56,9 +79,11 @@ export function hideTranslationView() {
   clearInterval(s.statsTimer);
   clearInterval(s.healthTimer);
   clearInterval(s.activityTimer);
+  clearInterval(s.queueTimer);
   s.statsTimer    = null;
   s.healthTimer   = null;
   s.activityTimer = null;
+  s.queueTimer    = null;
   // Reset feed state so the next view-show starts fresh
   s.activityRows = [];
   s.activitySince = null;
@@ -88,17 +113,28 @@ async function loadStats() {
     const titlesPending = sweeper ? sweeper.pending : '—';
     const sweeperLabel  = sweeper && sweeper.enabled === false
         ? 'Titles awaiting (paused)' : 'Titles awaiting';
+    const failureTile = (label, count, reason, hint) => {
+      const id = `trans-requeue-${reason.replace(/_/g, '-')}`;
+      return `<div class="trans-stat">
+        <span class="trans-stat-label">${label}</span>
+        <span class="trans-stat-val">${count}</span>
+        ${count > 0
+          ? `<button id="${id}" class="trans-stat-action" data-reason="${reason}" data-count="${count}" title="${hint}">Re-queue</button>`
+          : ''}
+      </div>`;
+    };
     statsGrid.innerHTML = `
       <div class="trans-stat"><span class="trans-stat-label">Cache total</span><span class="trans-stat-val">${data.cacheTotal}</span></div>
       <div class="trans-stat"><span class="trans-stat-label">Successful</span><span class="trans-stat-val">${data.cacheSuccessful}</span></div>
       <div class="trans-stat"><span class="trans-stat-label">Failed</span><span class="trans-stat-val">${data.cacheFailed}</span></div>
-      <div class="trans-stat">
-        <span class="trans-stat-label">Failed (both tiers)</span>
-        <span class="trans-stat-val">${data.cacheFailedSanitizedBothTiers ?? 0}</span>
-        ${(data.cacheFailedSanitizedBothTiers ?? 0) > 0
-          ? '<button id="trans-requeue-both-tiers" class="trans-stat-action" title="Delete the failure cache rows and let the sweeper retry these on its next tick">Re-queue</button>'
-          : ''}
-      </div>
+      ${failureTile('Failed: sanitized', data.cacheFailedSanitized ?? 0, 'sanitized',
+          'Tier-1 produced sanitized output. Re-queue to retry — useful after substitution-map updates.')}
+      ${failureTile('Failed: both tiers', data.cacheFailedSanitizedBothTiers ?? 0, 'sanitized_both_tiers',
+          'Both tier-1 and tier-2 produced sanitized output. Re-queue to retry on the next sweeper tick.')}
+      ${failureTile('Failed: unreachable', data.cacheFailedUnreachable ?? 0, 'unreachable',
+          'Ollama was unreachable when these were attempted. Safe to re-queue aggressively.')}
+      ${failureTile('Failed: refused', data.cacheFailedRefused ?? 0, 'refused',
+          'Model refused to translate. Re-queue to retry — substitution-map updates may help.')}
       <div class="trans-stat"><span class="trans-stat-label">Queue pending</span><span class="trans-stat-val">${data.queuePending}</span></div>
       <div class="trans-stat"><span class="trans-stat-label">In flight</span><span class="trans-stat-val">${data.queueInFlight}</span></div>
       <div class="trans-stat"><span class="trans-stat-label">Tier-2 pending</span><span class="trans-stat-val">${data.queueTier2Pending}</span></div>
@@ -108,28 +144,55 @@ async function loadStats() {
       <div class="trans-stat"><span class="trans-stat-label">Suggestions unreviewed</span><span class="trans-stat-val">${data.stageNameSuggestionsUnreviewed ?? 0}</span></div>
       <div class="trans-stat"><span class="trans-stat-label">${sweeperLabel}</span><span class="trans-stat-val">${titlesPending}</span></div>
     `;
-    const requeueBtn = document.getElementById('trans-requeue-both-tiers');
-    if (requeueBtn) {
-      requeueBtn.addEventListener('click', async () => {
-        const n = data.cacheFailedSanitizedBothTiers ?? 0;
-        if (!confirm(`Re-queue ${n} sanitized-both-tiers failure(s)? They will be retried on the next sweeper tick.`)) return;
-        requeueBtn.disabled = true;
-        requeueBtn.textContent = '...';
+    statsGrid.querySelectorAll('.trans-stat-action[data-reason]').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const reason = btn.dataset.reason;
+        const n      = btn.dataset.count;
+        if (!confirm(`Re-queue ${n} '${reason}' failure(s)? They will be retried on the next sweeper tick.`)) return;
+        btn.disabled = true;
+        btn.textContent = '...';
         try {
-          const res = await fetch('/api/translation/requeue-sanitized-both-tiers', { method: 'POST' });
+          const res = await fetch(`/api/translation/requeue-by-reason?reason=${encodeURIComponent(reason)}`, { method: 'POST' });
           if (!res.ok) throw new Error('HTTP ' + res.status);
           await loadStats();
         } catch (err) {
           console.error('Re-queue failed', err);
-          requeueBtn.disabled = false;
-          requeueBtn.textContent = 'Re-queue';
+          btn.disabled = false;
+          btn.textContent = 'Re-queue';
           alert('Re-queue failed: ' + err.message);
         }
       });
-    }
+    });
   } catch (err) {
     console.error('Translation stats failed', err);
     statsGrid.textContent = 'Failed to load stats.';
+  }
+}
+
+// ── Queue preview ─────────────────────────────────────────────────────────
+async function loadQueue() {
+  if (bailIfHidden()) return;
+  try {
+    const res  = await fetch('/api/translation/queue-preview?limit=15');
+    if (!res.ok) return;
+    const rows = await res.json();
+    if (!rows.length) {
+      queueList.innerHTML = '<li class="trans-empty">Queue is empty.</li>';
+      return;
+    }
+    queueList.innerHTML = rows.map(r => {
+      const inFlight = r.status === 'in_flight';
+      const code = esc(r.titleCode || '—');
+      const src  = esc((r.sourceText || '').slice(0, 100));
+      return `<li class="trans-queue-row ${inFlight ? 'trans-queue-inflight' : 'trans-queue-pending'}">
+        <span class="trans-queue-badge">${inFlight ? 'in-flight' : 'pending'}</span>
+        <span class="trans-queue-code">${code}</span>
+        <span class="trans-queue-src">${src}</span>
+        <span class="trans-queue-time">${esc(fmtTimestamp(r.submittedAt))}</span>
+      </li>`;
+    }).join('');
+  } catch (err) {
+    console.error('Queue preview poll failed', err);
   }
 }
 
