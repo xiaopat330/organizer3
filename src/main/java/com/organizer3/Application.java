@@ -269,6 +269,8 @@ public class Application {
         TitleActressRepository titleActressRepo = new JdbiTitleActressRepository(jdbi);
         WatchHistoryRepository watchHistoryRepo = new JdbiWatchHistoryRepository(jdbi);
         IndexLoader indexLoader = new IndexLoader(titleRepo, actressRepo);
+        com.organizer3.translation.ActressFuzzyMatcher actressFuzzyMatcher =
+                new com.organizer3.translation.ActressFuzzyMatcher(actressRepo);
 
         // Draft Mode — title repo (Phase 1) needed early for the sync hook (Phase 5).
         // Full draft wiring (populator, promotion, GC) is done later after all deps are ready.
@@ -851,6 +853,8 @@ public class Application {
         com.organizer3.web.ImageFetcher imageFetcher = new com.organizer3.web.ImageFetcher();
         com.organizer3.javdb.draft.DraftActressRepository draftActressRepo =
                 new com.organizer3.javdb.draft.DraftActressRepository(jdbi);
+        // Wire stage-name fan-out now that both repos are available.
+        translationCallbackDispatcher.registerStageNameFanOut(stageNameSuggestionRepo, draftActressRepo);
         com.organizer3.javdb.draft.DraftTitleActressesRepository draftCastRepo =
                 new com.organizer3.javdb.draft.DraftTitleActressesRepository(jdbi);
         com.organizer3.javdb.draft.DraftTitleEnrichmentRepository draftEnrichRepo =
@@ -862,7 +866,8 @@ public class Application {
                         titleRepo, actressRepo, slugResolver, javdbClient,
                         new com.organizer3.javdb.enrichment.JavdbExtractor(),
                         javdbStagingRepo, draftTitleRepo, draftActressRepo, draftCastRepo,
-                        draftEnrichRepo, draftCoverStore, imageFetcher, jsonMapper);
+                        draftEnrichRepo, draftCoverStore, imageFetcher, jsonMapper,
+                        translationService, actressFuzzyMatcher);
         com.organizer3.utilities.task.javdb.BulkEnrichToDraftTask bulkEnrichToDraftTask =
                 new com.organizer3.utilities.task.javdb.BulkEnrichToDraftTask(jdbi, draftPopulator);
 
@@ -986,7 +991,8 @@ public class Application {
                 new com.organizer3.javdb.draft.DraftPromotionService(
                         jdbi, draftTitleRepo, draftActressRepo, draftCastRepo,
                         draftEnrichRepo, draftCoverStore, coverPath, castValidator,
-                        titleRepo, enrichmentHistoryRepo, titleEffectiveTagsService, jsonMapper);
+                        titleRepo, enrichmentHistoryRepo, titleEffectiveTagsService, jsonMapper,
+                        stageNameSuggestionRepo);
         com.organizer3.javdb.draft.DraftPatchService draftPatchService =
                 new com.organizer3.javdb.draft.DraftPatchService(
                         jdbi, draftTitleRepo, draftActressRepo, draftCastRepo);
@@ -994,6 +1000,13 @@ public class Application {
                 draftPopulator, draftTitleRepo, draftEnrichRepo, draftCastRepo, draftActressRepo,
                 draftCoverStore, imageFetcher, draftPromotionService, draftPatchService,
                 jsonMapper, jdbi));
+
+        com.organizer3.curation.NearMissResolveService nearMissResolveService =
+                new com.organizer3.curation.NearMissResolveService(actressRepo, draftActressRepo);
+        webServer.registerCuration(new com.organizer3.web.routes.CurationRoutes(
+                nearMissResolveService, draftActressRepo, actressRepo,
+                actressFuzzyMatcher, stageNameSuggestionRepo, translationQueueRepo,
+                translationService));
 
         // MCP (Model Context Protocol) server — read-only diagnostic tools mounted on
         // the existing Javalin instance. See spec/PROPOSAL_MCP_SERVER.md.

@@ -252,6 +252,19 @@ public class WebServer {
         routes.register(app);
     }
 
+    /** Mounts the Near-Miss curation endpoints ({@code /api/curation/*} and the status helper). */
+    public void registerCuration(com.organizer3.web.routes.CurationRoutes routes) {
+        routes.register(app);
+    }
+
+    /**
+     * Escape hatch for test fixtures: register arbitrary inline routes before {@link #start()}.
+     * Not for production use — call only from test fixture builders.
+     */
+    public void registerRaw(java.util.function.Consumer<io.javalin.Javalin> setup) {
+        setup.accept(app);
+    }
+
     private void registerRoutes(TitleBrowseService browseService,
                                 ActressBrowseService actressBrowseService, Path coversRoot,
                                 VideoStreamService videoStreamService,

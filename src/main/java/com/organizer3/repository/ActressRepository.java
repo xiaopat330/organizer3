@@ -237,6 +237,13 @@ public interface ActressRepository {
 
     void saveAlias(ActressAlias alias);
 
+    /**
+     * Inserts an alias row if it does not already exist for the given actress.
+     *
+     * @return {@code true} if the row was newly inserted; {@code false} if it already existed
+     */
+    boolean insertAliasIfAbsent(long actressId, String aliasName);
+
     void deleteAlias(long actressId, String aliasName);
 
     /** Replace all aliases for an actress atomically. */
@@ -277,6 +284,13 @@ public interface ActressRepository {
      * names carry the actress name and may need renaming.
      */
     Map<Long, List<FilingLocation>> findFilingLocations();
+
+    /**
+     * Returns Actresses whose canonical_name OR any alias_name has {@code lastToken} as its
+     * last whitespace-delimited token, case-insensitively. UNION of canonical and alias tables.
+     * At most {@code limit} results.
+     */
+    List<Actress> findByLastTokenCi(String lastToken, int limit);
 
     // ── Federated search ──────────────────────────────────────────────────────
 

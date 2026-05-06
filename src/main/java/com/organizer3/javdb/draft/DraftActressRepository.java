@@ -7,6 +7,9 @@ import org.jdbi.v3.core.statement.StatementContext;
 
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.time.Instant;
+import java.time.ZoneOffset;
+import java.time.format.DateTimeFormatter;
 import java.util.Optional;
 
 /**
@@ -34,6 +37,7 @@ public class DraftActressRepository {
                     .englishFirstName(rs.getString("english_first_name"))
                     .englishLastName(rs.getString("english_last_name"))
                     .linkToExistingId(linkId)
+                    .linkToDraftSlug(rs.getString("link_to_draft_slug"))
                     .createdAt(rs.getString("created_at"))
                     .updatedAt(rs.getString("updated_at"))
                     .lastValidationError(rs.getString("last_validation_error"))
@@ -84,6 +88,181 @@ public class DraftActressRepository {
                         .map(ROW_MAPPER)
                         .findOne());
     }
+
+    private static final DateTimeFormatter ISO_UTC =
+            DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'").withZone(ZoneOffset.UTC);
+
+    /**
+     * Cosmetic fill of English name fields for drafts already linked to an existing Actress.
+     * Returns the number of rows updated.
+     *
+     * <p>The {@code link_to_existing_id IS NOT NULL} guard is load-bearing — see
+     * PROPOSAL_NEAR_MISS_RESOLVER.md §12. Without it, unlinked drafts would auto-fill
+     * English fields and then promote as new canonical Actresses, producing one duplicate
+     * per draft for the same kanji. Only already-linked drafts get cosmetic fill here;
+     * unlinked drafts must go through the near-miss tool.
+     */
+    public int fillEnglishNameByKanji(String kanji, String englishFirst, String englishLast) {
+        String now = ISO_UTC.format(Instant.now());
+        return jdbi.withHandle(h ->
+                h.createUpdate("""
+                        UPDATE draft_actresses
+                           SET english_first_name = :first,
+                               english_last_name  = :last,
+                               updated_at         = :now
+                         WHERE stage_name           = :kanji
+                           AND english_last_name    IS NULL
+                           AND link_to_existing_id IS NOT NULL
+                        """)
+                        .bind("first", englishFirst)
+                        .bind("last", englishLast)
+                        .bind("now", now)
+                        .bind("kanji", kanji)
+                        .execute());
+    }
+
+    /**
+     * Cascade UPDATE for outcome ALIAS: links all unresolved drafts for a kanji to an existing actress.
+     * Only rows where both {@code link_to_existing_id} and {@code link_to_draft_slug} are NULL
+     * are updated — already-resolved drafts are never overwritten.
+     *
+     * @return number of rows updated
+     */
+    public int cascadeAliasResolution(String normalizedKanji, long existingActressId,
+                                      String englishFirst, String englishLast) {
+        String now = ISO_UTC.format(Instant.now());
+        return jdbi.withHandle(h ->
+                h.createUpdate("""
+                        UPDATE draft_actresses
+                           SET link_to_existing_id  = :xId,
+                               english_first_name   = :first,
+                               english_last_name    = :last,
+                               updated_at           = :now
+                         WHERE stage_name           = :kanji
+                           AND link_to_existing_id  IS NULL
+                           AND link_to_draft_slug   IS NULL
+                        """)
+                        .bind("xId",   existingActressId)
+                        .bind("first", englishFirst)
+                        .bind("last",  englishLast)
+                        .bind("now",   now)
+                        .bind("kanji", normalizedKanji)
+                        .execute());
+    }
+
+    /**
+     * Cascade UPDATE for outcome CANONICAL: updates the primary draft and all unresolved siblings.
+     *
+     * <p>The primary draft must exist and be unresolved before calling; verify via
+     * {@link #findBySlug} beforehand. Returns the total number of rows updated
+     * (1 for the primary + N for siblings).
+     *
+     * @return total rows updated
+     */
+    public int cascadeCanonicalResolution(String normalizedKanji, String primarySlug,
+                                          String englishFirst, String englishLast) {
+        String now = ISO_UTC.format(Instant.now());
+        return jdbi.inTransaction(h -> {
+            int primary = h.createUpdate("""
+                            UPDATE draft_actresses
+                               SET english_first_name = :first,
+                                   english_last_name  = :last,
+                                   updated_at         = :now
+                             WHERE javdb_slug         = :primarySlug
+                            """)
+                    .bind("first",       englishFirst)
+                    .bind("last",        englishLast)
+                    .bind("now",         now)
+                    .bind("primarySlug", primarySlug)
+                    .execute();
+
+            int siblings = h.createUpdate("""
+                            UPDATE draft_actresses
+                               SET link_to_draft_slug = :primarySlug,
+                                   english_first_name = :first,
+                                   english_last_name  = :last,
+                                   updated_at         = :now
+                             WHERE stage_name          = :kanji
+                               AND javdb_slug         <> :primarySlug
+                               AND link_to_existing_id IS NULL
+                               AND link_to_draft_slug  IS NULL
+                            """)
+                    .bind("primarySlug", primarySlug)
+                    .bind("first",       englishFirst)
+                    .bind("last",        englishLast)
+                    .bind("now",         now)
+                    .bind("kanji",       normalizedKanji)
+                    .execute();
+
+            return primary + siblings;
+        });
+    }
+
+    /**
+     * Returns the slug of the oldest unresolved draft for this kanji (lowest created_at).
+     * Used by the near-miss CANONICAL outcome when the caller (Tools page) didn't designate
+     * a primary — see PROPOSAL_NEAR_MISS_RESOLVER.md §4.4.
+     */
+    public Optional<String> findOldestUnresolvedSlugByKanji(String normalizedKanji) {
+        return jdbi.withHandle(h ->
+                h.createQuery("""
+                        SELECT javdb_slug FROM draft_actresses
+                         WHERE stage_name           = :kanji
+                           AND link_to_existing_id  IS NULL
+                           AND link_to_draft_slug   IS NULL
+                           AND english_last_name    IS NULL
+                         ORDER BY created_at ASC, javdb_slug ASC
+                         LIMIT 1
+                        """)
+                        .bind("kanji", normalizedKanji)
+                        .mapTo(String.class)
+                        .findOne());
+    }
+
+    /**
+     * Count of unresolved draft rows for a kanji (those with no identity link and no last name).
+     * Used by the confirm step in the near-miss modal and by the pending-kanji aggregator.
+     */
+    public int countUnresolvedByKanji(String normalizedKanji) {
+        return jdbi.withHandle(h ->
+                h.createQuery("""
+                        SELECT COUNT(*) FROM draft_actresses
+                         WHERE stage_name           = :kanji
+                           AND link_to_existing_id  IS NULL
+                           AND link_to_draft_slug   IS NULL
+                           AND english_last_name    IS NULL
+                        """)
+                        .bind("kanji", normalizedKanji)
+                        .mapTo(Integer.class)
+                        .one());
+    }
+
+    /**
+     * Aggregate of all pending-kanji groups: distinct unresolved stage names, their draft counts,
+     * and the oldest {@code created_at} in each group. Sorted by count DESC, oldest_seen ASC.
+     */
+    public java.util.List<PendingKanjiRow> findPendingKanjiGroups() {
+        return jdbi.withHandle(h ->
+                h.createQuery("""
+                        SELECT stage_name   AS kanji,
+                               COUNT(*)     AS cnt,
+                               MIN(created_at) AS oldest_seen
+                          FROM draft_actresses
+                         WHERE link_to_existing_id  IS NULL
+                           AND link_to_draft_slug   IS NULL
+                           AND english_last_name    IS NULL
+                         GROUP BY stage_name
+                         ORDER BY cnt DESC, oldest_seen ASC
+                        """)
+                        .map((rs, ctx) -> new PendingKanjiRow(
+                                rs.getString("kanji"),
+                                rs.getInt("cnt"),
+                                rs.getString("oldest_seen")))
+                        .list());
+    }
+
+    /** Lightweight projection for the pending-kanji aggregator. */
+    public record PendingKanjiRow(String kanji, int count, String oldestSeen) {}
 
     /**
      * Deletes {@code draft_actresses} rows that are no longer referenced by any

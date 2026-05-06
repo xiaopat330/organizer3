@@ -426,6 +426,7 @@ public final class DraftRoutes {
                         slotMap.put("englishLastName",  a.getEnglishLastName());
                         slotMap.put("englishFirstName", a.getEnglishFirstName());
                         slotMap.put("linkToExistingId", a.getLinkToExistingId());
+                        slotMap.put("linkToDraftSlug",  a.getLinkToDraftSlug());
                     });
                 }
                 cast.add(slotMap);

@@ -2,9 +2,12 @@ package com.organizer3.translation;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.organizer3.db.SchemaInitializer;
+import com.organizer3.javdb.draft.DraftActress;
+import com.organizer3.javdb.draft.DraftActressRepository;
 import com.organizer3.translation.ollama.OllamaAdapter;
 import com.organizer3.translation.ollama.OllamaException;
 import com.organizer3.translation.ollama.OllamaResponse;
+import com.organizer3.translation.repository.jdbi.JdbiStageNameSuggestionRepository;
 import com.organizer3.translation.repository.jdbi.JdbiTranslationCacheRepository;
 import com.organizer3.translation.repository.jdbi.JdbiTranslationQueueRepository;
 import com.organizer3.translation.repository.jdbi.JdbiTranslationStrategyRepository;
@@ -306,6 +309,127 @@ class TranslationWorkerTest {
 
         assertEquals(1, queueRepo.countByStatus(TranslationQueueRow.STATUS_DONE));
         assertEquals(0, queueRepo.countByStatus(TranslationQueueRow.STATUS_TIER_2_PENDING));
+    }
+
+    // -------------------------------------------------------------------------
+    // Stage-name fan-out dispatch (Slice D)
+    // -------------------------------------------------------------------------
+
+    @Test
+    void stageNameCompletion_dispatchesFanOutEvenWithNullCallbackKind() {
+        // A stage-name shaped input (short + JP chars) should trigger stage_name_suggestion dispatch
+        // even when the originating request has no callbackKind.
+        JdbiStageNameSuggestionRepository suggRepo = new JdbiStageNameSuggestionRepository(jdbi);
+        DraftActressRepository draftRepo = new DraftActressRepository(jdbi);
+        callbackDispatcher.registerStageNameFanOut(suggRepo, draftRepo);
+
+        // Wire stageNameSuggestionRepo into worker
+        worker = new TranslationWorker(
+                ollamaAdapter, strategyRepo, cacheRepo, queueRepo,
+                callbackDispatcher, TranslationConfig.DEFAULTS, new ObjectMapper(),
+                new OllamaModelState(), new HealthGate(ollamaAdapter, cacheRepo, TranslationConfig.DEFAULTS),
+                suggRepo);
+
+        // Seed an actress and a linked draft
+        jdbi.useHandle(h -> h.execute(
+                "INSERT INTO actresses(id, canonical_name, tier, first_seen_at) " +
+                "VALUES (20, 'Yuma Asami', 'LIBRARY', '2024-01-01')"));
+        draftRepo.upsertBySlug(DraftActress.builder()
+                .javdbSlug("linked-fanout")
+                .stageName("麻美ゆま")
+                .englishFirstName(null).englishLastName(null)
+                .linkToExistingId(20L)
+                .createdAt("2024-01-01T00:00:00Z")
+                .updatedAt("2024-01-01T00:00:00Z")
+                .build());
+
+        when(ollamaAdapter.generate(any())).thenReturn(fakeResponse("Yuma Asami"));
+
+        String now = ISO_UTC.format(Instant.now());
+        // callbackKind = null — anonymous enqueue
+        queueRepo.enqueue("麻美ゆま", strategyId, now, TranslationQueueRow.STATUS_PENDING, null, null);
+
+        worker.processOne();
+
+        // Fan-out should have filled the linked draft
+        DraftActress updated = draftRepo.findBySlug("linked-fanout").orElseThrow();
+        assertEquals("Yuma", updated.getEnglishFirstName());
+        assertEquals("Asami", updated.getEnglishLastName());
+    }
+
+    @Test
+    void nonStageNameCompletion_doesNotDispatchStageFanOut() {
+        // A non-stage-name input (long title text) should NOT trigger stage_name_suggestion dispatch.
+        JdbiStageNameSuggestionRepository suggRepo = new JdbiStageNameSuggestionRepository(jdbi);
+        DraftActressRepository draftRepo = new DraftActressRepository(jdbi);
+        callbackDispatcher.registerStageNameFanOut(suggRepo, draftRepo);
+
+        worker = new TranslationWorker(
+                ollamaAdapter, strategyRepo, cacheRepo, queueRepo,
+                callbackDispatcher, TranslationConfig.DEFAULTS, new ObjectMapper(),
+                new OllamaModelState(), new HealthGate(ollamaAdapter, cacheRepo, TranslationConfig.DEFAULTS),
+                suggRepo);
+
+        when(ollamaAdapter.generate(any())).thenReturn(fakeResponse("Crystal Pictures Long Title Text"));
+
+        // Long title text with enough JP characters to exceed the 20-char stage-name heuristic
+        String now = ISO_UTC.format(Instant.now());
+        queueRepo.enqueue("クリスタル映像の長いタイトルテキストです！", strategyId, now,
+                TranslationQueueRow.STATUS_PENDING, null, null);
+
+        worker.processOne();
+
+        // No stage_name_suggestion rows should have been written
+        assertEquals(0, suggRepo.findUnreviewed(10).size());
+        assertEquals(1, queueRepo.countByStatus(TranslationQueueRow.STATUS_DONE));
+    }
+
+    @Test
+    void cacheHitPath_alsoDispatchesStageFanOut() {
+        // Spec §11.4: cache-hit path must also fire stage_name_suggestion dispatch.
+        JdbiStageNameSuggestionRepository suggRepo = new JdbiStageNameSuggestionRepository(jdbi);
+        DraftActressRepository draftRepo = new DraftActressRepository(jdbi);
+        callbackDispatcher.registerStageNameFanOut(suggRepo, draftRepo);
+
+        worker = new TranslationWorker(
+                ollamaAdapter, strategyRepo, cacheRepo, queueRepo,
+                callbackDispatcher, TranslationConfig.DEFAULTS, new ObjectMapper(),
+                new OllamaModelState(), new HealthGate(ollamaAdapter, cacheRepo, TranslationConfig.DEFAULTS),
+                suggRepo);
+
+        // Seed an actress and a linked draft
+        jdbi.useHandle(h -> h.execute(
+                "INSERT INTO actresses(id, canonical_name, tier, first_seen_at) " +
+                "VALUES (21, 'Sora Aoi', 'LIBRARY', '2024-01-01')"));
+        draftRepo.upsertBySlug(DraftActress.builder()
+                .javdbSlug("cache-hit-draft")
+                .stageName("蒼井そら")
+                .englishFirstName(null).englishLastName(null)
+                .linkToExistingId(21L)
+                .createdAt("2024-01-01T00:00:00Z")
+                .updatedAt("2024-01-01T00:00:00Z")
+                .build());
+
+        // Pre-populate cache so the worker hits the cache-hit path
+        String hash = TranslationNormalization.hashOf("蒼井そら");
+        cacheRepo.insert(new TranslationCacheRow(
+                0, hash, "蒼井そら", strategyId, "Sora Aoi",
+                null, null, null, null, 100, 10, 20, 4_000_000_000L,
+                ISO_UTC.format(Instant.now())));
+
+        String now = ISO_UTC.format(Instant.now());
+        queueRepo.enqueue("蒼井そら", strategyId, now, TranslationQueueRow.STATUS_PENDING, null, null);
+
+        worker.processOne();
+
+        // Ollama should NOT have been called (cache hit)
+        verifyNoInteractions(ollamaAdapter);
+        assertEquals(1, queueRepo.countByStatus(TranslationQueueRow.STATUS_DONE));
+
+        // Fan-out should still have fired
+        DraftActress updated = draftRepo.findBySlug("cache-hit-draft").orElseThrow();
+        assertEquals("Sora", updated.getEnglishFirstName());
+        assertEquals("Aoi", updated.getEnglishLastName());
     }
 
     // -------------------------------------------------------------------------

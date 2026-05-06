@@ -36,6 +36,14 @@ public class DraftActress {
      */
     Long linkToExistingId;
 
+    /**
+     * Non-null when this draft is a sibling of another draft for the same kanji stage name.
+     * References the primary draft's {@code javdb_slug}. Promotion resolves siblings to the
+     * primary's {@code actresses.id} rather than creating a new row.
+     * {@code null} for primary drafts (and ordinary non-sibling drafts).
+     */
+    String linkToDraftSlug;
+
     String createdAt;
 
     /** ISO-8601 timestamp; also serves as optimistic-lock token. */

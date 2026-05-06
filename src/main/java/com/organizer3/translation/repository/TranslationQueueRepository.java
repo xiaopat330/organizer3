@@ -134,4 +134,33 @@ public interface TranslationQueueRepository {
      * source as un-attempted and re-enqueue it on their next tick.
      */
     int deleteForCacheFailureReason(String reason);
+
+    /**
+     * Returns {@code true} if a non-terminal queue row ({@code status IN ('pending', 'in_flight')})
+     * exists for the given strategy name and source text.
+     *
+     * <p>Used by the stage-name-status endpoint to differentiate {@code "queued"} from {@code "missing"}.
+     *
+     * @param strategyName the {@code translation_strategies.name} key (e.g. {@code "label_basic"})
+     * @param sourceText   the normalized source text to check
+     */
+    boolean hasPending(String strategyName, String sourceText);
+
+    /**
+     * Insert a new {@code pending} queue row only if no row with {@code status IN ('pending',
+     * 'in_flight')} already exists for the same {@code (strategy_id, source_text)} pair.
+     *
+     * <p>Uses a single transaction (check-then-insert) to prevent duplicate LLM calls for the
+     * same input. Terminal states ({@code done}, {@code failed}, {@code tier_2_pending}) are not
+     * contention — a completed translation may be re-queued when appropriate.
+     *
+     * @return {@code true} if a new row was inserted; {@code false} if a matching non-terminal
+     *         row already exists and the insert was skipped
+     */
+    boolean enqueueIfAbsent(String sourceText,
+                            long strategyId,
+                            String submittedAt,
+                            String status,
+                            String callbackKind,
+                            Long callbackId);
 }

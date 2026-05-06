@@ -24,6 +24,20 @@ public interface StageNameSuggestionRepository {
     void recordSuggestion(String kanjiForm, String suggestedRomaji, String suggestedAt);
 
     /**
+     * Record a suggestion (idempotent — same as {@link #recordSuggestion}) and return
+     * the row id. On an {@code INSERT OR IGNORE} no-op (duplicate), returns the id of
+     * the existing row with that (kanjiForm, suggestedRomaji) pair.
+     *
+     * @return the {@code stage_name_suggestion.id} for the (kanjiForm, suggestedRomaji) pair
+     */
+    long recordSuggestionAndGetId(String kanjiForm, String suggestedRomaji, String suggestedAt);
+
+    /**
+     * Look up a suggestion row by its primary key. Returns empty if the row has been deleted.
+     */
+    java.util.Optional<StageNameSuggestionRow> findById(long id);
+
+    /**
      * Find all suggestion rows for a given kanji form, ordered by {@code suggested_at DESC}.
      */
     List<StageNameSuggestionRow> findByKanji(String kanjiForm);
@@ -42,4 +56,24 @@ public interface StageNameSuggestionRepository {
 
     /** Count of rows with {@code review_decision IS NULL}. */
     long countUnreviewed();
+
+    /**
+     * Find the best available romaji for a kanji form, including unreviewed suggestions.
+     *
+     * <p>Priority (per spec §3.2):
+     * <ol>
+     *   <li>{@code final_romaji} when {@code review_decision = 'accepted'} and non-null
+     *       (human-corrected wins).</li>
+     *   <li>{@code suggested_romaji} when {@code review_decision = 'accepted'}.</li>
+     *   <li>{@code suggested_romaji} when {@code review_decision IS NULL} (unreviewed —
+     *       acceptable for pre-fill).</li>
+     *   <li>Empty when {@code review_decision = 'rejected'} — never pre-fill a rejected
+     *       guess.</li>
+     * </ol>
+     *
+     * <p>Orders by {@code id DESC} and takes the first usable row.
+     *
+     * @param normalizedKanji NFKC-normalised kanji stage name
+     */
+    Optional<String> findLatestUsableSuggestion(String normalizedKanji);
 }
