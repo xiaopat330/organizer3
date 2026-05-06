@@ -257,6 +257,14 @@ public class WebServer {
         routes.register(app);
     }
 
+    /**
+     * Escape hatch for test fixtures: register arbitrary inline routes before {@link #start()}.
+     * Not for production use — call only from test fixture builders.
+     */
+    public void registerRaw(java.util.function.Consumer<io.javalin.Javalin> setup) {
+        setup.accept(app);
+    }
+
     private void registerRoutes(TitleBrowseService browseService,
                                 ActressBrowseService actressBrowseService, Path coversRoot,
                                 VideoStreamService videoStreamService,
