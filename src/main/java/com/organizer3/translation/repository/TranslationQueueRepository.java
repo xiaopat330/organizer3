@@ -136,6 +136,17 @@ public interface TranslationQueueRepository {
     int deleteForCacheFailureReason(String reason);
 
     /**
+     * Returns {@code true} if a non-terminal queue row ({@code status IN ('pending', 'in_flight')})
+     * exists for the given strategy name and source text.
+     *
+     * <p>Used by the stage-name-status endpoint to differentiate {@code "queued"} from {@code "missing"}.
+     *
+     * @param strategyName the {@code translation_strategies.name} key (e.g. {@code "label_basic"})
+     * @param sourceText   the normalized source text to check
+     */
+    boolean hasPending(String strategyName, String sourceText);
+
+    /**
      * Insert a new {@code pending} queue row only if no row with {@code status IN ('pending',
      * 'in_flight')} already exists for the same {@code (strategy_id, source_text)} pair.
      *

@@ -333,4 +333,21 @@ public class JdbiTranslationQueueRepository implements TranslationQueueRepositor
                 .execute()
         );
     }
+
+    @Override
+    public boolean hasPending(String strategyName, String sourceText) {
+        return jdbi.withHandle(h ->
+                h.createQuery("""
+                        SELECT COUNT(*) FROM translation_queue q
+                        JOIN translation_strategy s ON s.id = q.strategy_id
+                        WHERE s.name         = :strategyName
+                          AND q.source_text  = :sourceText
+                          AND q.status IN ('pending', 'in_flight')
+                        """)
+                        .bind("strategyName", strategyName)
+                        .bind("sourceText",   sourceText)
+                        .mapTo(Integer.class)
+                        .one() > 0
+        );
+    }
 }

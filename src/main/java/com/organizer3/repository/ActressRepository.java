@@ -237,6 +237,13 @@ public interface ActressRepository {
 
     void saveAlias(ActressAlias alias);
 
+    /**
+     * Inserts an alias row if it does not already exist for the given actress.
+     *
+     * @return {@code true} if the row was newly inserted; {@code false} if it already existed
+     */
+    boolean insertAliasIfAbsent(long actressId, String aliasName);
+
     void deleteAlias(long actressId, String aliasName);
 
     /** Replace all aliases for an actress atomically. */
