@@ -29,6 +29,7 @@
   <link rel="stylesheet" href="/css/no-match-triage.css">
   <link rel="stylesheet" href="/css/title-editor.css">
   <link rel="stylesheet" href="/css/near-miss-modal.css">
+  <link rel="stylesheet" href="/css/utilities-pending-kanji.css">
 </head>
 <body>
 
@@ -269,6 +270,10 @@
     <button type="button" id="tools-translation-btn" class="action-tool-btn tools-translation-btn">
       <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m5 8 6 6"/><path d="m4 14 6-6 2-3"/><path d="M2 5h12"/><path d="M7 2h1"/><path d="m22 22-5-10-5 10"/><path d="M14 18h6"/></svg>
       Translation
+    </button>
+    <button type="button" id="tools-pending-kanji-btn" class="action-tool-btn tools-pending-kanji-btn">
+      <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 8v4"/><path d="M12 16h.01"/></svg>
+      Pending Kanji
     </button>
     <button type="button" id="tools-trash-btn" class="action-tool-btn tools-trash-btn">
       <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
@@ -1225,6 +1230,10 @@
     <h3>Recent Failures</h3>
     <div id="trans-failures" class="trans-failures">Loading…</div>
   </section>
+</div>
+
+<!-- Pending Kanji tool content -->
+<div id="tools-pending-kanji-view" class="tools-pending-kanji-view" style="display:none">
 </div>
 
 <script type="module" src="/app.js"></script>

@@ -1,0 +1,107 @@
+/* ── Pending Kanji Tools view ────────────────────────────────────────── */
+.tools-pending-kanji-view {
+  margin: 16px 24px 32px;
+  color: #d8d8d8;
+}
+
+.upk-loading,
+.upk-error {
+  color: #888;
+  font-size: 0.88rem;
+  padding: 16px 0;
+}
+
+.upk-error { color: #f0a8a8; }
+
+.upk-empty {
+  color: #64748b;
+  font-size: 0.9rem;
+  text-align: center;
+  padding: 48px 0;
+}
+
+/* ── Table ───────────────────────────────────────────────────────────── */
+.upk-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.87rem;
+}
+
+.upk-table thead th {
+  text-align: left;
+  padding: 8px 10px;
+  background: #1d1d1d;
+  border-bottom: 1px solid #2a2a2a;
+  font-weight: 600;
+  font-size: 0.76rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #9ca3af;
+}
+
+.upk-row td {
+  padding: 9px 10px;
+  border-bottom: 1px solid #1f1f1f;
+  vertical-align: middle;
+}
+
+.upk-row:hover td {
+  background: #1a1a1a;
+}
+
+.upk-kanji-cell {
+  font-size: 1rem;
+  color: #a78bfa;
+  font-weight: 500;
+}
+
+.upk-trans-cell {
+  color: #e2e8f0;
+}
+
+.upk-count-cell {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  color: #94a3b8;
+  padding-right: 20px;
+}
+
+.upk-date-cell {
+  color: #6b7280;
+  font-size: 0.82rem;
+  white-space: nowrap;
+}
+
+.upk-action-cell {
+  text-align: right;
+}
+
+/* ── Translation status badges ───────────────────────────────────────── */
+.upk-badge-translating {
+  font-size: 0.78rem;
+  color: #64748b;
+  font-style: italic;
+}
+
+.upk-badge-missing {
+  font-size: 0.78rem;
+  color: #6b7280;
+}
+
+/* ── Resolve button ──────────────────────────────────────────────────── */
+.upk-resolve-btn {
+  padding: 4px 12px;
+  background: #1a1f3a;
+  border: 1px solid #4338ca;
+  border-radius: 4px;
+  color: #a5b4fc;
+  font-size: 0.8rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.1s, border-color 0.1s;
+}
+
+.upk-resolve-btn:hover {
+  background: #23295a;
+  border-color: #6366f1;
+}

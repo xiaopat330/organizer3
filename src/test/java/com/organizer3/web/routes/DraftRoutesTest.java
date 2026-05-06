@@ -497,6 +497,8 @@ class DraftRoutesTest {
         assertEquals("aaa1",       slot.get("javdbSlug").asText());
         assertEquals("unresolved", slot.get("resolution").asText());
         assertEquals("天海 麗",     slot.get("stageName").asText());
+        assertTrue(slot.has("linkToDraftSlug"));   // null for freshly-inserted actress
+        assertTrue(slot.get("linkToDraftSlug").isNull());
 
         // No scratch cover written yet.
         assertFalse(body.get("coverScratchPresent").asBoolean());
