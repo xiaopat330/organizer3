@@ -19,6 +19,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * Phase 2 implementation of {@link TranslationService}.
@@ -51,6 +52,10 @@ public class TranslationServiceImpl implements TranslationService {
     final StageNameSuggestionRepository stageNameSuggestionRepo;
     /** Never null — defaults to {@link ExplicitTermSubstitutor#EMPTY} (no-op). */
     final ExplicitTermSubstitutor explicitTermSubstitutor;
+
+    /** Since-startup counters of cache lookups serviced by this instance. Reset on restart. */
+    private final AtomicLong cacheLookupHits = new AtomicLong();
+    private final AtomicLong cacheLookupMisses = new AtomicLong();
 
     /** Full constructor including HealthGate, ObjectMapper, stage-name repos, and term substitutor. */
     public TranslationServiceImpl(OllamaAdapter ollamaAdapter,
@@ -155,18 +160,22 @@ public class TranslationServiceImpl implements TranslationService {
         }
 
         if (humanCorrected != null) {
+            cacheLookupHits.incrementAndGet();
             log.debug("getCached: HIT (human corrected) hash={}", hash.substring(0, 8));
             return Optional.of(humanCorrected);
         }
         if (tier1Text != null) {
+            cacheLookupHits.incrementAndGet();
             log.debug("getCached: HIT (tier-1) hash={}", hash.substring(0, 8));
             return Optional.of(tier1Text);
         }
         if (tier2Text != null) {
+            cacheLookupHits.incrementAndGet();
             log.debug("getCached: HIT (tier-2) hash={}", hash.substring(0, 8));
             return Optional.of(tier2Text);
         }
 
+        cacheLookupMisses.incrementAndGet();
         log.debug("getCached: MISS hash={}", hash.substring(0, 8));
         return Optional.empty();
     }
@@ -205,6 +214,7 @@ public class TranslationServiceImpl implements TranslationService {
             TranslationCacheRow row = existing.get();
             if (row.bestTranslation() != null) {
                 // Cache hit — mark done immediately, dispatch callback, return
+                cacheLookupHits.incrementAndGet();
                 log.info("translation: strategy={} model={} latency=0ms promptTokens=null evalTokens=null sourceLen={} success=true cacheHit=true",
                         strategy.name(), strategy.modelId(), normalised.length());
                 log.debug("requestTranslation: cache HIT strategy={} hash={}", strategy.name(), hash.substring(0, 8));
@@ -219,7 +229,8 @@ public class TranslationServiceImpl implements TranslationService {
             // (worker's pre-flight cache check will re-evaluate retry_after)
         }
 
-        // Cache miss — enqueue for async processing
+        // Cache miss (or stale failure row) — enqueue for async processing
+        cacheLookupMisses.incrementAndGet();
         String now = ISO_UTC.format(Instant.now());
         long queueId = queueRepo.enqueue(normalised, strategy.id(), now,
                 TranslationQueueRow.STATUS_PENDING, req.callbackKind(), req.callbackId());
@@ -306,7 +317,9 @@ public class TranslationServiceImpl implements TranslationService {
                 queueRepo.countByStatus(TranslationQueueRow.STATUS_FAILED),
                 queueRepo.countTier2Pending(),
                 stageNameLookupSize,
-                stageNameSuggestionsUnreviewed
+                stageNameSuggestionsUnreviewed,
+                cacheLookupHits.get(),
+                cacheLookupMisses.get()
         );
     }
 
@@ -342,11 +355,13 @@ public class TranslationServiceImpl implements TranslationService {
         if (existing.isPresent()) {
             String best = existing.get().bestTranslation();
             if (best != null) {
+                cacheLookupHits.incrementAndGet();
                 log.info("translation: strategy={} model={} latency=0ms promptTokens=null evalTokens=null sourceLen={} success=true cacheHit=true",
                         strategy.name(), strategy.modelId(), normalised.length());
                 return best;
             }
         }
+        cacheLookupMisses.incrementAndGet();
 
         // Invoke Ollama synchronously
         String prompt = strategy.promptTemplate().replace("{jp}", normalised);
@@ -451,9 +466,11 @@ public class TranslationServiceImpl implements TranslationService {
         String hash = TranslationNormalization.sha256Hex(normalized);
         Optional<TranslationCacheRow> existingCache = cacheRepo.findByHashAndStrategy(hash, strategy.id());
         if (existingCache.isPresent() && existingCache.get().bestTranslation() != null) {
+            cacheLookupHits.incrementAndGet();
             log.debug("translateStageNameNow: cache HIT for '{}'", normalized);
             return Optional.of(existingCache.get().bestTranslation());
         }
+        cacheLookupMisses.incrementAndGet();
 
         String promptInput = explicitTermSubstitutor.substitute(normalized);
         String prompt = strategy.promptTemplate().replace("{jp}", promptInput);

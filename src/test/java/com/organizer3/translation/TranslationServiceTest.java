@@ -313,6 +313,24 @@ class TranslationServiceTest {
     }
 
     @Test
+    void stats_cacheLookupHitsAndMissesCount() {
+        when(ollamaAdapter.generate(any())).thenReturn(fakeResponse("Result"));
+
+        // Miss → pending; worker fills the cache
+        service.requestTranslation(new TranslationRequest("テスト", null, null, null));
+        worker.processOne();
+
+        // Hit (same source text)
+        service.requestTranslation(new TranslationRequest("テスト", null, null, null));
+        // Miss (different source text)
+        service.requestTranslation(new TranslationRequest("別のテスト", null, null, null));
+
+        TranslationServiceStats s = service.stats();
+        assertEquals(1, s.cacheLookupHits());
+        assertEquals(2, s.cacheLookupMisses());
+    }
+
+    @Test
     void stats_reflectsSuccessAndFailure() {
         when(ollamaAdapter.generate(any()))
                 .thenReturn(fakeResponse("OK"))
