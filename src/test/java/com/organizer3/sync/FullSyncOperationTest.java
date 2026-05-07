@@ -24,6 +24,7 @@ import com.organizer3.sync.scanner.ConventionalScanner;
 import com.organizer3.sync.scanner.ExhibitionScanner;
 import com.organizer3.sync.scanner.QueueScanner;
 import com.organizer3.sync.scanner.ScannerRegistry;
+import com.organizer3.sync.TitleSyncObserver;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -110,16 +111,22 @@ class FullSyncOperationTest {
     }
 
     private FullSyncOperation newOp() {
-        return newOp(null);
+        return newOp(null, false);
     }
 
     private FullSyncOperation newOp(com.organizer3.javdb.enrichment.RevalidationPendingRepository revalidationPendingRepo) {
+        return newOp(revalidationPendingRepo, false);
+    }
+
+    private FullSyncOperation newOp(com.organizer3.javdb.enrichment.RevalidationPendingRepository revalidationPendingRepo,
+                                    boolean suppressPrune) {
         try {
             java.nio.file.Path tmp = java.nio.file.Files.createTempDirectory("fsync-test");
             return new FullSyncOperation(scannerRegistry, titleRepo, videoRepo, actressRepo,
                     volumeRepo, titleLocationRepo, titleActressRepo, indexLoader,
                     mock(com.organizer3.db.TitleEffectiveTagsService.class), mock(com.organizer3.db.ActressCompaniesService.class),
-                    new CoverPath(tmp), revalidationPendingRepo, identityMatcher);
+                    new CoverPath(tmp), revalidationPendingRepo, identityMatcher,
+                    TitleSyncObserver.NO_OP, null, suppressPrune);
         } catch (IOException e) { throw new RuntimeException(e); }
     }
 
@@ -694,6 +701,54 @@ class FullSyncOperationTest {
         newOp(mockRepo).execute(QUEUE_VOLUME, structure, fs, ctx, io);
 
         verify(mockRepo).enqueue(42L, "sync");
+    }
+
+    // --- suppressPrune flag ---
+
+    /**
+     * When {@code suppressPrune=true}, {@link FullSyncOperation} must not invoke the orphan
+     * prune logic — {@code titleRepo.findOrphanedTitles} and {@code titleRepo.deleteOrphaned}
+     * must never be called, even when orphans would normally be detected.
+     *
+     * <p>This is the isolation guarantee required by
+     * {@link com.organizer3.utilities.task.volume.CoherentMultiVolumeSyncTask}, which defers
+     * pruning until every volume has been observed.
+     */
+    @Test
+    void suppressPruneFlag_skipsPruneAndSweep() throws IOException {
+        VolumeStructureDef structure = new VolumeStructureDef("queue", List.of(), null);
+
+        // Seed an orphan that would normally be found and deleted
+        when(titleRepo.findOrphanedTitles(anyInt())).thenReturn(List.of(
+                new TitleRepository.OrphanedTitleRef("ABP", "ABP-00001")));
+        when(titleRepo.countAll()).thenReturn(100);
+
+        // Create operation with suppressPrune=true
+        newOp(null, true).execute(QUEUE_VOLUME, structure, fs, ctx, io);
+
+        // Prune must NOT have been called
+        verify(titleRepo, never()).findOrphanedTitles(anyInt());
+        verify(titleRepo, never()).deleteOrphaned(anyInt());
+        verify(titleActressRepo, never()).deleteOrphaned();
+        // Stale-sweep must NOT have been called (findStaleOlderThan + sweepStaleOlderThan)
+        verify(titleLocationRepo, never()).sweepStaleOlderThan(anyInt());
+    }
+
+    /**
+     * Sanity check: without suppressPrune (default), orphan prune IS called.
+     * Ensures the suppress flag is an isolated opt-in, not the default behaviour.
+     */
+    @Test
+    void suppressPruneFalse_pruneRuns() throws IOException {
+        VolumeStructureDef structure = new VolumeStructureDef("queue", List.of(), null);
+
+        when(titleRepo.findOrphanedTitles(anyInt())).thenReturn(List.of());
+
+        // Default constructor — suppressPrune=false
+        newOp().execute(QUEUE_VOLUME, structure, fs, ctx, io);
+
+        // findOrphanedTitles IS called (even if the list is empty)
+        verify(titleRepo).findOrphanedTitles(anyInt());
     }
 
     // --- helpers ---
