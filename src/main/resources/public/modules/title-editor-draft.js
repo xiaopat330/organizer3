@@ -52,6 +52,86 @@ let _onPromote       = null;   // (titleId) → void — called after successful
 let _onSkip          = null;   // () → void
 let _setParentStatus = null;   // (msg, cls) → void
 
+// ── Stage-name polling ────────────────────────────────────────────────────
+// Map from javdbSlug → timeoutId. Cleared on unmount and on each renderCastSlots call.
+let _pollTimers = new Map();
+
+const POLL_MAX = 30;
+
+function hasJpChar(s) {
+  return s && /[ぁ-ゖァ-ヺ一-鿿]/.test(s);
+}
+
+// Stops all active polling timers. Called on unmount and before re-render.
+function stopAllPolling() {
+  for (const id of _pollTimers.values()) clearTimeout(id);
+  _pollTimers.clear();
+}
+
+function startPollForSlot(slot, headerEl) {
+  const kanji = slot.stageName;
+  let count = 0;
+
+  function doPoll() {
+    if (!_titleId) return;
+    count++;
+    fetch(`/api/translation/stage-name-status?kanji=${encodeURIComponent(kanji)}`)
+      .then(r => r.json())
+      .then(data => {
+        if (!_titleId) return;
+        if (data.status === 'ready') {
+          removeBadge(headerEl, slot.javdbSlug);
+          appendReveal(headerEl, slot.javdbSlug, data.romaji);
+        } else if (data.status === 'queued') {
+          ensureBadge(headerEl, slot.javdbSlug);
+          if (count < POLL_MAX) {
+            const ms = typeof window.__phase6dPollMs === 'number' ? window.__phase6dPollMs : 5000;
+            const tid = setTimeout(doPoll, ms);
+            _pollTimers.set(slot.javdbSlug, tid);
+          } else {
+            removeBadge(headerEl, slot.javdbSlug);
+            _pollTimers.delete(slot.javdbSlug);
+          }
+        } else {
+          // missing
+          removeBadge(headerEl, slot.javdbSlug);
+          _pollTimers.delete(slot.javdbSlug);
+        }
+      })
+      .catch(() => {
+        _pollTimers.delete(slot.javdbSlug);
+      });
+  }
+
+  doPoll();
+}
+
+function ensureBadge(headerEl, slug) {
+  if (!headerEl.querySelector('.sn-translating-badge')) {
+    const badge = document.createElement('span');
+    badge.className = 'sn-translating-badge';
+    badge.dataset.slug = slug;
+    badge.textContent = 'translating…';
+    headerEl.appendChild(badge);
+  }
+}
+
+function removeBadge(headerEl, slug) {
+  const b = headerEl.querySelector('.sn-translating-badge');
+  if (b) b.remove();
+  const r = headerEl.querySelector('.sn-suggested-reveal');
+  if (r) r.remove();
+}
+
+function appendReveal(headerEl, slug, romaji) {
+  removeBadge(headerEl, slug);
+  const reveal = document.createElement('span');
+  reveal.className = 'sn-suggested-reveal';
+  reveal.dataset.slug = slug;
+  reveal.textContent = `Suggested: ${romaji}`;
+  headerEl.appendChild(reveal);
+}
+
 // ── Public API ─────────────────────────────────���──────────────────────────
 
 /**
@@ -92,6 +172,7 @@ export function mountDraftView(titleId, folderName, draft, tagsCatalog, directTa
  * Unmount: wipe state and hide the pane. Called when navigating away.
  */
 export function unmountDraftView() {
+  stopAllPolling();
   _draft   = null;
   _titleId = null;
   if (draftPane) draftPane.style.display = 'none';
@@ -163,6 +244,7 @@ function renderMetadata() {
 
 function renderCastSlots() {
   if (!castList) return;
+  stopAllPolling();
   const cast = _draft.cast || [];
   castList.innerHTML = '';
   if (cast.length === 0) {
@@ -179,8 +261,16 @@ function renderCastSlots() {
     const li = document.createElement('li');
     li.className = 'queue-cast-slot';
     li.dataset.idx = i;
-    li.appendChild(buildSlotContent(slot, i));
+    const content = buildSlotContent(slot, i);
+    li.appendChild(content);
     castList.appendChild(li);
+
+    const needsPoll = !slot.englishFirstName && !slot.englishLastName
+      && slot.stageName && hasJpChar(slot.stageName);
+    if (needsPoll) {
+      const headerEl = li.querySelector('.queue-cast-slot-header');
+      if (headerEl) startPollForSlot(slot, headerEl);
+    }
   }
 }
 

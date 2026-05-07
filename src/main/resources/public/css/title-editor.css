@@ -1172,3 +1172,28 @@
 /* Enrich tags lock icon */
 .queue-tag-lock-icon { font-size: 0.8rem; vertical-align: middle; }
 
+/* ── Stage-name translation badge / reveal (Phase 6d Slice B1) ─────────── */
+.sn-translating-badge {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 1px 6px;
+  border-radius: 3px;
+  font-size: 0.7rem;
+  font-style: italic;
+  color: #94a3b8;
+  background: #0f172a;
+  border: 1px solid #1e293b;
+}
+
+.sn-suggested-reveal {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 1px 6px;
+  border-radius: 3px;
+  font-size: 0.7rem;
+  font-style: italic;
+  color: #6ee7b7;
+  background: #0a1f18;
+  border: 1px solid #134e4a;
+}
+
