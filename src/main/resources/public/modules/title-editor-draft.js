@@ -235,6 +235,13 @@ export function mountDraftView(titleId, folderName, draft, tagsCatalog, directTa
     window.addEventListener('near-miss-resolved', () => { if (_titleId) reloadDraft(); });
   }
 
+  // Log editor session open to server for §5.4 measurement.
+  fetch('/api/curation/editor-session-open', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ titleId }),
+  }).catch(() => {});
+
   renderDraftPane();
 }
 

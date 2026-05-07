@@ -42,6 +42,14 @@ export function openAliasCaptureModal({ actressId, canonicalName, kanjiAlias, ro
     `alias-capture: trigger actressId=${actressId} needs={kanji=${kanjiAlias}, romaji=${romajiAlias}}`
   );
 
+  // Mirror trigger to server log for §5.4 measurement.
+  const needs = [kanjiAlias && 'kanji', romajiAlias && 'romaji'].filter(Boolean);
+  fetch('/api/curation/alias-capture-event', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ type: 'trigger', actressId, needs }),
+  }).catch(() => {});
+
   _mount = document.createElement('div');
   _mount.id = 'alias-capture-modal-mount';
   document.body.appendChild(_mount);
@@ -148,6 +156,12 @@ async function _submit(via) {
 function _dismiss(via) {
   document.removeEventListener('keydown', _onKeydown);
   console.info(`alias-capture: dismissed via=${via}`);
+  // Mirror dismiss to server log for §5.4 measurement.
+  fetch('/api/curation/alias-capture-event', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ type: 'dismissed', actressId: _actressId, via }),
+  }).catch(() => {});
   _close();
 }
 

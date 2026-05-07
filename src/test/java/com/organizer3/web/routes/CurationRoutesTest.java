@@ -328,4 +328,58 @@ class CurationRoutesTest {
         HttpResponse<String> res = post("/api/translation/stage-name-translate-now", Map.of());
         assertEquals(400, res.statusCode());
     }
+
+    // ── POST /api/curation/alias-capture-event ───────────────────────────────
+
+    @Test
+    void aliasCaptureEvent_trigger_returns204() throws Exception {
+        HttpResponse<String> res = post("/api/curation/alias-capture-event", Map.of(
+                "type", "trigger",
+                "actressId", 42,
+                "needs", List.of("kanji", "romaji")
+        ));
+        assertEquals(204, res.statusCode());
+    }
+
+    @Test
+    void aliasCaptureEvent_dismissed_returns204() throws Exception {
+        HttpResponse<String> res = post("/api/curation/alias-capture-event", Map.of(
+                "type", "dismissed",
+                "actressId", 42,
+                "via", "skip"
+        ));
+        assertEquals(204, res.statusCode());
+    }
+
+    @Test
+    void aliasCaptureEvent_400_whenTypeMissing() throws Exception {
+        HttpResponse<String> res = post("/api/curation/alias-capture-event", Map.of(
+                "actressId", 42
+        ));
+        assertEquals(400, res.statusCode());
+    }
+
+    @Test
+    void aliasCaptureEvent_400_whenActressIdMissing() throws Exception {
+        HttpResponse<String> res = post("/api/curation/alias-capture-event", Map.of(
+                "type", "trigger"
+        ));
+        assertEquals(400, res.statusCode());
+    }
+
+    // ── POST /api/curation/editor-session-open ───────────────────────────────
+
+    @Test
+    void editorSessionOpen_returns204() throws Exception {
+        HttpResponse<String> res = post("/api/curation/editor-session-open", Map.of(
+                "titleId", 99
+        ));
+        assertEquals(204, res.statusCode());
+    }
+
+    @Test
+    void editorSessionOpen_400_whenTitleIdMissing() throws Exception {
+        HttpResponse<String> res = post("/api/curation/editor-session-open", Map.of());
+        assertEquals(400, res.statusCode());
+    }
 }
