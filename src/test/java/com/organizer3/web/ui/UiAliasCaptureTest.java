@@ -3,7 +3,6 @@ package com.organizer3.web.ui;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.microsoft.playwright.Browser;
 import com.microsoft.playwright.BrowserContext;
-import com.microsoft.playwright.ConsoleMessage;
 import com.microsoft.playwright.Page;
 import com.microsoft.playwright.Playwright;
 import com.organizer3.curation.NearMissResolveService;
@@ -346,7 +345,6 @@ class UiAliasCaptureTest {
 
     // ── Mock builder ───────────────────────────────────────────────────────
 
-    @SuppressWarnings("unchecked")
     private ActressBrowseService buildActressBrowseMock() {
         ActressBrowseService mock = UiTestFixture.buildStockedActressBrowse();
 
@@ -379,8 +377,7 @@ class UiAliasCaptureTest {
 
         // updateAliases: capture the aliases list and return success.
         when(mock.updateAliases(anyLong(), org.mockito.ArgumentMatchers.any())).thenAnswer(inv -> {
-            @SuppressWarnings("unchecked")
-            List<String> submitted = (List<String>) inv.getArgument(1);
+            List<String> submitted = inv.getArgument(1);
             capturedAliases.set(submitted);
             return ActressBrowseService.AliasUpdateResult.success();
         });
