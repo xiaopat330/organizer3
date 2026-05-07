@@ -136,6 +136,13 @@ public interface TranslationQueueRepository {
     int deleteForCacheFailureReason(String reason);
 
     /**
+     * Delete all queue rows for a given callback target — any status. Used by the
+     * force-translate path to clear prior attempts (pending / in_flight / done / failed)
+     * before re-submitting fresh work. Returns the number of rows deleted.
+     */
+    int deleteForCallback(String callbackKind, long callbackId);
+
+    /**
      * Return the next {@code limit} rows with {@code status IN ('pending', 'in_flight')},
      * ordered by priority descending then submitted_at ascending (i.e. in claim order).
      * Used by the queue-preview UI panel.

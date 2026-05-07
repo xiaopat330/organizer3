@@ -68,6 +68,13 @@ public interface TranslationCacheRepository {
     int deleteByFailureReason(String reason);
 
     /**
+     * Delete the cache row keyed by {@code (source_hash, strategy_id)}, if any.
+     * Used by the force-translate path to discard a prior translation so the next
+     * request misses the cache and re-runs the LLM. Returns 0 or 1.
+     */
+    int deleteByHashAndStrategy(String sourceHash, long strategyId);
+
+    /**
      * Count successful translations cached within the given trailing window.
      * Used for throughput calculation (completions per hour).
      *
