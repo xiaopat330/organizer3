@@ -6,6 +6,7 @@ import com.organizer3.config.volume.VolumeStructureDef;
 import com.organizer3.shell.SessionContext;
 import com.organizer3.shell.io.CommandIO;
 import com.organizer3.sync.FullSyncOperation;
+import com.organizer3.sync.ReconcileService;
 import com.organizer3.sync.SyncPruneService;
 import com.organizer3.sync.SyncStats;
 import com.organizer3.utilities.task.BufferingCommandIO;
@@ -70,6 +71,7 @@ public final class CoherentMultiVolumeSyncTask implements Task {
     private final Supplier<CommandInvoker> invokerFactory;
     private final FullSyncOperation suppressedPruneOp;
     private final SyncPruneService pruneService;
+    private final ReconcileService reconcileService;
 
     /**
      * @param invokerFactory       factory producing a fresh {@link CommandInvoker} (with its own
@@ -79,13 +81,18 @@ public final class CoherentMultiVolumeSyncTask implements Task {
      *                             {@code suppressPrune=true}; reused for every volume's scan
      * @param pruneService         service that exposes the global prune and finalize steps after
      *                             all volumes have been scanned
+     * @param reconcileService     service for auto-running the reconcile pass at the end of a
+     *                             successful coherent sync; results are persisted as a row
+     *                             with {@code triggered_by='coherent_sync'}
      */
     public CoherentMultiVolumeSyncTask(Supplier<CommandInvoker> invokerFactory,
                                        FullSyncOperation suppressedPruneOp,
-                                       SyncPruneService pruneService) {
+                                       SyncPruneService pruneService,
+                                       ReconcileService reconcileService) {
         this.invokerFactory = invokerFactory;
         this.suppressedPruneOp = suppressedPruneOp;
         this.pruneService = pruneService;
+        this.reconcileService = reconcileService;
     }
 
     @Override
@@ -192,6 +199,27 @@ public final class CoherentMultiVolumeSyncTask implements Task {
                 log.error("Coherent sync global prune failed: {}", e.getMessage(), e);
                 io.phaseLog("prune", "Global prune failed: " + e.getMessage());
                 io.phaseEnd("prune", "failed", "Prune failed: " + e.getMessage());
+            }
+
+            // Auto-reconcile: runs only after a fully successful sync with no partial failures.
+            // Skipped when partialFailure=true (incomplete picture would make the report misleading).
+            io.phaseStart("reconcile", "Reconcile pass");
+            try {
+                var report = reconcileService.run(/* verbose= */ true);
+                reconcileService.persist(report, "coherent_sync",
+                        com.organizer3.sync.ReconcileDetailSerializer.toJson(report));
+                log.info("Coherent sync reconcile complete — dupLive={} pendingGrace={} "
+                                + "pastGrace={} mismatches={}",
+                        report.duplicateLiveLocations(), report.pendingGrace(),
+                        report.pastGraceStragglers(), report.actressFolderMismatches());
+                io.phaseEnd("reconcile", "ok",
+                        String.format("dupLive=%d pendingGrace=%d pastGrace=%d mismatches=%d",
+                                report.duplicateLiveLocations(), report.pendingGrace(),
+                                report.pastGraceStragglers(), report.actressFolderMismatches()));
+            } catch (RuntimeException e) {
+                log.error("Coherent sync reconcile failed: {}", e.getMessage(), e);
+                io.phaseLog("reconcile", "Reconcile failed: " + e.getMessage());
+                io.phaseEnd("reconcile", "failed", "Reconcile failed: " + e.getMessage());
             }
         }
 

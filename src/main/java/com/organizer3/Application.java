@@ -258,6 +258,8 @@ public class Application {
 
         // Repositories
         TitleLocationRepository titleLocationRepo = new JdbiTitleLocationRepository(jdbi);
+        com.organizer3.repository.ReconcileReportRepository reconcileReportRepo =
+                new com.organizer3.repository.jdbi.JdbiReconcileReportRepository(jdbi);
         com.fasterxml.jackson.databind.ObjectMapper jsonMapper = new com.fasterxml.jackson.databind.ObjectMapper();
         com.organizer3.javdb.enrichment.EnrichmentHistoryRepository enrichmentHistoryRepo =
                 new com.organizer3.javdb.enrichment.EnrichmentHistoryRepository(jdbi, jsonMapper);
@@ -896,11 +898,15 @@ public class Application {
                         titleEffectiveTagsService, actressCompaniesService, coverPath,
                         revalidationPendingRepo, syncIdentityMatcher, draftSyncObserver,
                         titlePathHistoryRepo, /* suppressPrune= */ true);
+        int staleGraceDaysForReconcile = AppConfig.get().volumes().syncOrDefaults().staleGraceDaysOrDefault();
+        com.organizer3.sync.ReconcileService reconcileService =
+                new com.organizer3.sync.ReconcileService(titleLocationRepo, titleRepo,
+                        reconcileReportRepo, staleGraceDaysForReconcile);
         com.organizer3.utilities.task.volume.CoherentMultiVolumeSyncTask coherentSyncTask =
                 new com.organizer3.utilities.task.volume.CoherentMultiVolumeSyncTask(
                         () -> new com.organizer3.utilities.task.CommandInvoker(
                                 commandsByName, new com.organizer3.shell.SessionContext()),
-                        suppressedPruneOp, syncPruneService);
+                        suppressedPruneOp, syncPruneService, reconcileService);
 
         com.organizer3.utilities.task.TaskRegistry taskRegistry =
                 new com.organizer3.utilities.task.TaskRegistry(

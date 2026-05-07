@@ -22,7 +22,7 @@ import java.util.List;
 public class SchemaUpgrader {
 
     /** Must match the version stamped by {@link SchemaInitializer}. */
-    private static final int CURRENT_VERSION = 54;
+    private static final int CURRENT_VERSION = 55;
 
     private final Jdbi jdbi;
 
@@ -294,6 +294,11 @@ public class SchemaUpgrader {
         if (version < 54) {
             applyV54();
             setVersion(54);
+        }
+
+        if (version < 55) {
+            applyV55();
+            setVersion(55);
         }
 
         log.info("Schema upgrade complete");
@@ -1803,6 +1808,36 @@ public class SchemaUpgrader {
         jdbi.useHandle(h -> {
             addColumnIfMissing(h, "title_locations", "stale_since", "TEXT");
             h.execute("CREATE INDEX IF NOT EXISTS idx_title_locations_stale_since ON title_locations(stale_since)");
+        });
+    }
+
+    /**
+     * v55: {@code reconcile_reports} table for persisted reconcile pass results.
+     *
+     * <p>Stores one row per reconcile run (manual or coherent-sync-triggered) so the
+     * admin can see overnight results the next morning. The {@code detail_json} column
+     * is nullable — it is only populated when the run was in verbose mode.
+     *
+     * <p>See spec/PROPOSAL_SYNC_RECONCILIATION.md §4.2 and Phase 3.
+     */
+    private void applyV55() {
+        log.info("Applying migration v55: reconcile_reports table");
+        jdbi.useHandle(h -> {
+            h.execute("""
+                    CREATE TABLE IF NOT EXISTS reconcile_reports (
+                        id                       INTEGER PRIMARY KEY AUTOINCREMENT,
+                        generated_at             TEXT NOT NULL,
+                        duplicate_live_locations INTEGER NOT NULL,
+                        pending_grace            INTEGER NOT NULL,
+                        oldest_pending_grace_days INTEGER NOT NULL,
+                        past_grace_stragglers    INTEGER NOT NULL,
+                        actress_folder_mismatches INTEGER NOT NULL,
+                        triggered_by             TEXT NOT NULL,
+                        detail_json              TEXT
+                    )""");
+            h.execute("""
+                    CREATE INDEX IF NOT EXISTS idx_reconcile_reports_generated_at
+                        ON reconcile_reports(generated_at DESC)""");
         });
     }
 

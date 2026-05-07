@@ -1779,4 +1779,36 @@ public class JdbiTitleRepository implements TitleRepository {
             return result;
         });
     }
+
+    // ── Reconcile finder methods ─────────────────────────────────────────────
+
+    @Override
+    public List<ActressMismatch> findActressFolderMismatches(int limit) {
+        // Uses the same path-comparison predicate as FindMisnamedFoldersForActressTool:
+        // instr(LOWER(path), LOWER(canonical)) = 0 means the canonical name is absent from the path.
+        // Live locations only (stale_since IS NULL). Titles with no actress_id are excluded.
+        return jdbi.withHandle(h ->
+                h.createQuery("""
+                        SELECT t.id AS title_id, t.code, a.id AS actress_id, a.canonical_name,
+                               tl.volume_id, tl.path
+                        FROM titles t
+                        JOIN actresses a ON a.id = t.actress_id
+                        JOIN title_locations tl ON tl.title_id = t.id
+                        WHERE t.actress_id IS NOT NULL
+                          AND tl.stale_since IS NULL
+                          AND instr(LOWER(tl.path), LOWER(a.canonical_name)) = 0
+                        ORDER BY tl.volume_id, t.code
+                        LIMIT :lim
+                        """)
+                        .bind("lim", limit)
+                        .map((rs, ctx) -> new ActressMismatch(
+                                rs.getLong("title_id"),
+                                rs.getString("code"),
+                                rs.getLong("actress_id"),
+                                rs.getString("canonical_name"),
+                                rs.getString("volume_id"),
+                                rs.getString("path")))
+                        .list()
+        );
+    }
 }

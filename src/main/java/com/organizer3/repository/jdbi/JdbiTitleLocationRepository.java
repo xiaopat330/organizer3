@@ -10,7 +10,10 @@ import org.jdbi.v3.core.mapper.RowMapper;
 import java.nio.file.Path;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 @RequiredArgsConstructor
 public class JdbiTitleLocationRepository implements TitleLocationRepository {
@@ -290,5 +293,125 @@ public class JdbiTitleLocationRepository implements TitleLocationRepository {
                 .bind("id", locationId)
                 .bind("path", newPath.toString())
                 .execute();
+    }
+
+    // -------------------------------------------------------------------------
+    // Reconcile finder methods — read-only
+    // -------------------------------------------------------------------------
+
+    @Override
+    public List<DuplicateLiveLocation> findDuplicateLiveLocations() {
+        return jdbi.withHandle(h -> {
+            // Find title_ids that have more than one live row
+            List<Long> dupTitleIds = h.createQuery("""
+                            SELECT title_id
+                            FROM title_locations
+                            WHERE stale_since IS NULL
+                            GROUP BY title_id
+                            HAVING COUNT(*) > 1
+                            ORDER BY title_id
+                            """)
+                    .mapTo(Long.class)
+                    .list();
+
+            if (dupTitleIds.isEmpty()) return List.of();
+
+            // Load all live rows for those titles, plus the title code
+            List<Map<String, Object>> rawRows = h.createQuery("""
+                            SELECT tl.id, tl.title_id, t.code, tl.volume_id, tl.partition_id, tl.path
+                            FROM title_locations tl
+                            JOIN titles t ON t.id = tl.title_id
+                            WHERE tl.stale_since IS NULL
+                              AND tl.title_id IN (<titleIds>)
+                            ORDER BY tl.title_id, tl.volume_id, tl.path
+                            """)
+                    .bindList("titleIds", dupTitleIds)
+                    .map((rs, ctx) -> {
+                        Map<String, Object> m = new LinkedHashMap<>();
+                        m.put("id",          rs.getLong("id"));
+                        m.put("title_id",    rs.getLong("title_id"));
+                        m.put("code",        rs.getString("code"));
+                        m.put("volume_id",   rs.getString("volume_id"));
+                        m.put("partition_id",rs.getString("partition_id"));
+                        m.put("path",        rs.getString("path"));
+                        return m;
+                    })
+                    .list();
+
+            // Group by title_id → DuplicateLiveLocation
+            Map<Long, DuplicateLiveLocation> byTitle = new LinkedHashMap<>();
+            for (Map<String, Object> row : rawRows) {
+                long titleId  = (Long) row.get("title_id");
+                String code   = (String) row.get("code");
+                var loc = new DuplicateLiveLocation.LocationTuple(
+                        (Long) row.get("id"),
+                        (String) row.get("volume_id"),
+                        (String) row.get("partition_id"),
+                        (String) row.get("path"));
+                byTitle.compute(titleId, (id, existing) -> {
+                    if (existing == null) {
+                        List<DuplicateLiveLocation.LocationTuple> locs = new ArrayList<>();
+                        locs.add(loc);
+                        return new DuplicateLiveLocation(titleId, code, locs);
+                    } else {
+                        existing.locations().add(loc);
+                        return existing;
+                    }
+                });
+            }
+            return new ArrayList<>(byTitle.values());
+        });
+    }
+
+    @Override
+    public List<PendingGraceRow> findPendingGrace(int graceDays) {
+        return jdbi.withHandle(h ->
+                h.createQuery("""
+                        SELECT tl.id, tl.title_id, t.code, tl.volume_id, tl.path,
+                               tl.stale_since,
+                               CAST((julianday('now') - julianday(tl.stale_since)) AS INTEGER) AS days_stale
+                        FROM title_locations tl
+                        JOIN titles t ON t.id = tl.title_id
+                        WHERE tl.stale_since IS NOT NULL
+                          AND tl.stale_since >= datetime('now', '-' || :days || ' days')
+                        ORDER BY tl.stale_since
+                        """)
+                        .bind("days", graceDays)
+                        .map((rs, ctx) -> new PendingGraceRow(
+                                rs.getLong("id"),
+                                rs.getLong("title_id"),
+                                rs.getString("code"),
+                                rs.getString("volume_id"),
+                                rs.getString("path"),
+                                rs.getString("stale_since"),
+                                rs.getInt("days_stale")))
+                        .list()
+        );
+    }
+
+    @Override
+    public List<PendingGraceRow> findPastGraceStragglers(int graceDays) {
+        return jdbi.withHandle(h ->
+                h.createQuery("""
+                        SELECT tl.id, tl.title_id, t.code, tl.volume_id, tl.path,
+                               tl.stale_since,
+                               CAST((julianday('now') - julianday(tl.stale_since)) AS INTEGER) AS days_stale
+                        FROM title_locations tl
+                        JOIN titles t ON t.id = tl.title_id
+                        WHERE tl.stale_since IS NOT NULL
+                          AND tl.stale_since < datetime('now', '-' || :days || ' days')
+                        ORDER BY tl.stale_since
+                        """)
+                        .bind("days", graceDays)
+                        .map((rs, ctx) -> new PendingGraceRow(
+                                rs.getLong("id"),
+                                rs.getLong("title_id"),
+                                rs.getString("code"),
+                                rs.getString("volume_id"),
+                                rs.getString("path"),
+                                rs.getString("stale_since"),
+                                rs.getInt("days_stale")))
+                        .list()
+        );
     }
 }
