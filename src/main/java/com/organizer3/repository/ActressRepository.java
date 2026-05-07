@@ -470,4 +470,10 @@ public interface ActressRepository {
      * known actress names before the prompt is sent to the LLM.
      */
     Map<String, String> findStageNameMapForTitle(long titleId);
+
+    /**
+     * Returns a map of every non-rejected actress's kanji stage_name → canonical_name.
+     * Used by the live activity feed UI to highlight stage-name matches.
+     */
+    Map<String, String> findAllStageNameMap();
 }

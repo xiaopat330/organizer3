@@ -55,6 +55,9 @@ function makeState() {
     explicitSubs: null,        // {jpKey: enValue} — used to highlight substituted terms in activity
     explicitJpKeysByLen: [],   // jp keys sorted by length desc (longest-match-wins highlighting)
     explicitEnValsByLen: [],   // en values sorted by length desc
+    stageNames: null,          // {kanji: canonical} — used to highlight stage-name matches
+    stageJpKeysByLen: [],
+    stageEnValsByLen: [],
     health: null,              // last /api/translation/health payload — surfaced in Card 4 footer
   };
 }
@@ -69,6 +72,7 @@ export function showTranslationView() {
   loadStats();
   loadStrategies();
   loadExplicitSubs();
+  loadStageNames();
   loadHealth();
   loadActivity();
   loadQueue();
@@ -534,6 +538,20 @@ async function loadExplicitSubs() {
   }
 }
 
+async function loadStageNames() {
+  try {
+    const res = await fetch('/api/translation/stage-name-map');
+    if (!res.ok) return;
+    const map = await res.json();
+    s.stageNames = map;
+    const byLen = (a, b) => b.length - a.length;
+    s.stageJpKeysByLen = Object.keys(map).filter(Boolean).sort(byLen);
+    s.stageEnValsByLen = Object.values(map).filter(Boolean).sort(byLen);
+  } catch (err) {
+    console.error('Stage-name map load failed', err);
+  }
+}
+
 /**
  * Returns escaped HTML for `text` with any occurrence of a term wrapped in
  * <span class="${klass}">. Terms are escape()d before search so the result is
@@ -567,11 +585,15 @@ function renderActivityRow(e) {
   const klass = classifyEvent(e);
   const code  = esc(e.titleCode || '—');
   const srcRaw = (e.sourceText || '').slice(0, 80);
-  const src    = highlightTerms(srcRaw, s.explicitJpKeysByLen, 'trans-act-sub-jp');
+  // Two-pass highlight: red explicit-substitution matches first, then green stage-name matches.
+  // Stage names (more meaningful) wrap second so on rare overlap their span is outermost.
+  let src = highlightTerms(srcRaw, s.explicitJpKeysByLen, 'trans-act-sub-jp');
+  src     = highlightTerms_inHtml(src, s.stageJpKeysByLen, 'trans-act-stage-jp');
   let out;
   if (e.englishText) {
-    const enRaw  = e.englishText.slice(0, 80);
-    const enHtml = highlightTerms(enRaw, s.explicitEnValsByLen, 'trans-act-sub-en');
+    const enRaw = e.englishText.slice(0, 80);
+    let enHtml  = highlightTerms(enRaw, s.explicitEnValsByLen, 'trans-act-sub-en');
+    enHtml      = highlightTerms_inHtml(enHtml, s.stageEnValsByLen, 'trans-act-stage-en');
     out = `→ ${enHtml}`;
   } else if (e.failureReason) {
     out = `<span class="trans-act-reason">${esc(e.failureReason)}</span>`;
@@ -585,6 +607,22 @@ function renderActivityRow(e) {
     <span class="trans-act-out">${out}</span>
     <span class="trans-act-latency">${fmtLatency(e.latencyMs)}</span>
   </li>`;
+}
+
+/**
+ * Like highlightTerms, but operates on already-highlighted HTML — wraps any
+ * occurrence of an escaped term in `html`. Won't double-wrap an existing span
+ * because terms are CJK/word-character sequences that don't contain `<` or `>`.
+ */
+function highlightTerms_inHtml(html, termsByLen, klass) {
+  if (!termsByLen || !termsByLen.length) return html;
+  for (const term of termsByLen) {
+    if (!term) continue;
+    const eterm = esc(term);
+    if (!html.includes(eterm)) continue;
+    html = html.split(eterm).join(`<span class="${klass}">${eterm}</span>`);
+  }
+  return html;
 }
 
 async function loadActivity() {

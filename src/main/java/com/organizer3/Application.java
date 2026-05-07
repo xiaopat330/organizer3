@@ -693,7 +693,8 @@ public class Application {
         webServer.registerTranslation(new com.organizer3.web.routes.TranslationRoutes(
                 translationService, translationStrategyRepo, translationCacheRepo,
                 translationQueueRepo, jdbi, javdbEnrichmentRepo, translationConfig,
-                titleTranslationSweeper, ollamaModelState, explicitTermSubstitutor, ollamaAdapter));
+                titleTranslationSweeper, ollamaModelState, explicitTermSubstitutor, ollamaAdapter,
+                actressRepo));
 
         // Utilities — maintenance UI (Tools → Volumes, ...). See spec/PROPOSAL_UTILITIES.md.
         java.util.Map<String, com.organizer3.command.Command> commandsByName = new java.util.LinkedHashMap<>();

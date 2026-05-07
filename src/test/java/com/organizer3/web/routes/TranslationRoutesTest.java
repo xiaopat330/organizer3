@@ -71,7 +71,8 @@ class TranslationRoutesTest {
                 enrichmentRepo, TranslationConfig.DEFAULTS, titleSweeper,
                 new com.organizer3.translation.OllamaModelState(),
                 com.organizer3.translation.ExplicitTermSubstitutor.EMPTY,
-                ollamaAdapter));
+                ollamaAdapter,
+                mock(com.organizer3.repository.ActressRepository.class)));
         server.start();
     }
 

@@ -729,7 +729,7 @@
   overflow: hidden;
   text-overflow: ellipsis;
 }
-/* Substituted-term highlight in the activity feed */
+/* Substituted-term highlight in the activity feed (red = explicit substitution) */
 .trans-act-sub-jp,
 .trans-act-sub-en {
   color: #fca5a5;
@@ -737,6 +737,15 @@
   border-radius: 2px;
   padding: 0 2px;
   font-weight: 600;
+}
+/* Stage-name match highlight (green = actress recognized) */
+.trans-act-stage-jp,
+.trans-act-stage-en {
+  color: #86efac;
+  background: rgba(34, 197, 94, 0.20);
+  border-radius: 2px;
+  padding: 0 2px;
+  font-weight: 700;
 }
 .trans-act-code {
   font-family: ui-monospace, SFMono-Regular, monospace;

@@ -50,6 +50,7 @@ public class TranslationRoutes {
     private final com.organizer3.translation.OllamaModelState ollamaModelState;
     private final com.organizer3.translation.ExplicitTermSubstitutor explicitSubstitutor;
     private final com.organizer3.translation.ollama.OllamaAdapter ollamaAdapter;
+    private final com.organizer3.repository.ActressRepository actressRepo;
 
     public TranslationRoutes(TranslationService service,
                               TranslationStrategyRepository strategyRepo,
@@ -61,7 +62,8 @@ public class TranslationRoutes {
                               TitleTranslationSweeper titleSweeper,
                               com.organizer3.translation.OllamaModelState ollamaModelState,
                               com.organizer3.translation.ExplicitTermSubstitutor explicitSubstitutor,
-                              com.organizer3.translation.ollama.OllamaAdapter ollamaAdapter) {
+                              com.organizer3.translation.ollama.OllamaAdapter ollamaAdapter,
+                              com.organizer3.repository.ActressRepository actressRepo) {
         this.service              = service;
         this.strategyRepo         = strategyRepo;
         this.cacheRepo            = cacheRepo;
@@ -73,6 +75,7 @@ public class TranslationRoutes {
         this.ollamaModelState     = ollamaModelState;
         this.explicitSubstitutor  = explicitSubstitutor;
         this.ollamaAdapter        = ollamaAdapter;
+        this.actressRepo          = actressRepo;
     }
 
     public void register(Javalin app) {
@@ -108,6 +111,12 @@ public class TranslationRoutes {
                 log.error("GET /api/translation/stats failed", e);
                 ctx.status(500).json(Map.of("error", e.getMessage()));
             }
+        });
+
+        // GET /api/translation/stage-name-map — global kanji → canonical English map.
+        // Used by the live activity feed to highlight stage-name matches.
+        app.get("/api/translation/stage-name-map", ctx -> {
+            ctx.json(actressRepo.findAllStageNameMap());
         });
 
         // GET /api/translation/explicit-substitutions — the loaded JP→EN substitution map.
