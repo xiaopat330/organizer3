@@ -56,10 +56,33 @@ let _setParentStatus = null;   // (msg, cls) → void
 // Map from javdbSlug → timeoutId. Cleared on unmount and on each renderCastSlots call.
 let _pollTimers = new Map();
 
+// Set of javdbSlugs where the user has typed into a name input. Cleared on unmount,
+// NOT on re-render — persists within a single mountDraftView session.
+let _dirtySlots = new Set();
+
+// Set of javdbSlugs currently being auto-filled; input events from these are suppressed.
+let _suppressInput = new Set();
+
 const POLL_MAX = 30;
 
 function hasJpChar(s) {
   return s && /[ぁ-ゖァ-ヺ一-鿿]/.test(s);
+}
+
+/**
+ * Splits LLM-returned romaji into {first, last} name parts.
+ * Mirrors ActressFuzzyMatcher.splitRomaji exactly:
+ *   null/blank → {first: null, last: null}
+ *   1 token    → {first: null, last: token}
+ *   2 tokens   → {first: tokens[0], last: tokens[1]}
+ *   3+ tokens  → {first: tokens[0], last: rest joined by spaces}
+ */
+function splitRomaji(s) {
+  if (!s || !s.trim()) return { first: null, last: null };
+  const tokens = s.trim().split(/\s+/);
+  if (tokens.length === 1) return { first: null, last: tokens[0] };
+  if (tokens.length === 2) return { first: tokens[0], last: tokens[1] };
+  return { first: tokens[0], last: tokens.slice(1).join(' ') };
 }
 
 // Stops all active polling timers. Called on unmount and before re-render.
@@ -68,7 +91,12 @@ function stopAllPolling() {
   _pollTimers.clear();
 }
 
-function startPollForSlot(slot, headerEl) {
+function removeCue(containerEl, slug) {
+  const c = containerEl.querySelector(`.sn-autofill-cue[data-slug="${slug}"]`);
+  if (c) c.remove();
+}
+
+function startPollForSlot(slot, headerEl, pickerEl) {
   const kanji = slot.stageName;
   let count = 0;
 
@@ -81,7 +109,11 @@ function startPollForSlot(slot, headerEl) {
         if (!_titleId) return;
         if (data.status === 'ready') {
           removeBadge(headerEl, slot.javdbSlug);
-          appendReveal(headerEl, slot.javdbSlug, data.romaji);
+          _pollTimers.delete(slot.javdbSlug);
+          if (!_dirtySlots.has(slot.javdbSlug)) {
+            applyAutoFill(headerEl, pickerEl, slot, data.romaji);
+          }
+          // dirty slot: silently stop — user has control
         } else if (data.status === 'queued') {
           ensureBadge(headerEl, slot.javdbSlug);
           if (count < POLL_MAX) {
@@ -106,6 +138,50 @@ function startPollForSlot(slot, headerEl) {
   doPoll();
 }
 
+/**
+ * Auto-fills first/last name inputs in the Create-new form and shows an
+ * "accepted or edit" cue. Skips inputs that already have a value.
+ */
+function applyAutoFill(headerEl, pickerEl, slot, romaji) {
+  if (!pickerEl) return;
+  const lastInput  = pickerEl.querySelector('.queue-cast-picker-name-input[data-name-field="last"]');
+  const firstInput = pickerEl.querySelector('.queue-cast-picker-name-input[data-name-field="first"]');
+  if (!lastInput && !firstInput) return;
+
+  // Treat pre-populated inputs as dirty — don't overwrite
+  if ((lastInput && lastInput.value) || (firstInput && firstInput.value)) return;
+
+  const { first, last } = splitRomaji(romaji);
+
+  _suppressInput.add(slot.javdbSlug);
+  try {
+    if (last != null && lastInput && !lastInput.value) {
+      lastInput.value = last;
+      lastInput.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+    if (first != null && firstInput && !firstInput.value) {
+      firstInput.value = first;
+      firstInput.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+  } finally {
+    _suppressInput.delete(slot.javdbSlug);
+  }
+
+  // Expand the create form so the cue and filled values are visible
+  const createForm = pickerEl.querySelector('.queue-cast-picker-create-form');
+  if (createForm) createForm.style.display = 'flex';
+
+  // Show cue in the header (similar position to the B1 badge)
+  const existingCue = headerEl.querySelector(`.sn-autofill-cue[data-slug="${slot.javdbSlug}"]`);
+  if (!existingCue) {
+    const cue = document.createElement('span');
+    cue.className = 'sn-autofill-cue';
+    cue.dataset.slug = slot.javdbSlug;
+    cue.textContent = 'filled by translation — accept or edit';
+    headerEl.appendChild(cue);
+  }
+}
+
 function ensureBadge(headerEl, slug) {
   if (!headerEl.querySelector('.sn-translating-badge')) {
     const badge = document.createElement('span');
@@ -121,15 +197,8 @@ function removeBadge(headerEl, slug) {
   if (b) b.remove();
   const r = headerEl.querySelector('.sn-suggested-reveal');
   if (r) r.remove();
-}
-
-function appendReveal(headerEl, slug, romaji) {
-  removeBadge(headerEl, slug);
-  const reveal = document.createElement('span');
-  reveal.className = 'sn-suggested-reveal';
-  reveal.dataset.slug = slug;
-  reveal.textContent = `Suggested: ${romaji}`;
-  headerEl.appendChild(reveal);
+  const c = headerEl.querySelector('.sn-autofill-cue');
+  if (c) c.remove();
 }
 
 // ── Public API ─────────────────────────────────���──────────────────────────
@@ -173,6 +242,7 @@ export function mountDraftView(titleId, folderName, draft, tagsCatalog, directTa
  */
 export function unmountDraftView() {
   stopAllPolling();
+  _dirtySlots.clear();
   _draft   = null;
   _titleId = null;
   if (draftPane) draftPane.style.display = 'none';
@@ -269,7 +339,8 @@ function renderCastSlots() {
       && slot.stageName && hasJpChar(slot.stageName);
     if (needsPoll) {
       const headerEl = li.querySelector('.queue-cast-slot-header');
-      if (headerEl) startPollForSlot(slot, headerEl);
+      const pickerEl = li.querySelector('.queue-cast-picker');
+      if (headerEl) startPollForSlot(slot, headerEl, pickerEl);
     }
   }
 }
@@ -523,6 +594,7 @@ function buildPicker(slot, idx) {
   const lastInput = document.createElement('input');
   lastInput.type = 'text';
   lastInput.className = 'queue-cast-picker-name-input';
+  lastInput.dataset.nameField = 'last';
   lastInput.placeholder = 'Last name (required)';
   lastRow.appendChild(lastLabel);
   lastRow.appendChild(lastInput);
@@ -534,9 +606,24 @@ function buildPicker(slot, idx) {
   const firstInput = document.createElement('input');
   firstInput.type = 'text';
   firstInput.className = 'queue-cast-picker-name-input';
+  firstInput.dataset.nameField = 'first';
   firstInput.placeholder = 'First name (optional)';
   firstRow.appendChild(firstLabel);
   firstRow.appendChild(firstInput);
+
+  // Dirty-flag tracking: any real (non-synthetic) input event marks this slot dirty.
+  // Once dirty, auto-fill will not overwrite even if status flips ready later.
+  function markDirtyAndRemoveCue() {
+    if (_suppressInput.has(slot.javdbSlug)) return;
+    _dirtySlots.add(slot.javdbSlug);
+    // Remove the autofill cue since the user has taken ownership
+    const headerEl = container.closest('.queue-cast-slot')
+      ? container.closest('.queue-cast-slot').querySelector('.queue-cast-slot-header')
+      : null;
+    if (headerEl) removeCue(headerEl, slot.javdbSlug);
+  }
+  lastInput.addEventListener('input', markDirtyAndRemoveCue);
+  firstInput.addEventListener('input', markDirtyAndRemoveCue);
 
   const submitRow = document.createElement('div');
   submitRow.className = 'queue-cast-picker-create-row';

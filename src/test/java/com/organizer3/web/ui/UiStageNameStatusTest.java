@@ -177,10 +177,11 @@ class UiStageNameStatusTest {
         assertConsoleClean();
     }
 
-    // ── Pin 2: ready transition → badge replaced by Suggested reveal ──────
+    // ── Pin 2: ready transition → badge gone, autofill cue present ────────
+    // Updated for B2: badge disappears on ready; auto-fill cue appears (no B1 "Suggested:" reveal).
 
     @Test
-    void pin2_readyTransition_badgeReplacedByReveal_inputsUnchanged() {
+    void pin2_readyTransition_badgeGone_autofillCueAppears() {
         // Start in queued state.
         seedQueuedRow(TranslationNormalization.normalize(KANJI));
 
@@ -195,18 +196,97 @@ class UiStageNameStatusTest {
         // Transition to ready: insert a suggestion row; next poll will return "ready".
         seedSuggestion(TranslationNormalization.normalize(KANJI), "Aoi Sora");
 
-        // Badge should disappear and the reveal should appear.
-        page.waitForCondition(() -> page.locator(".sn-suggested-reveal").count() > 0);
+        // Badge should disappear and the autofill cue should appear.
+        page.waitForCondition(() -> page.locator(".sn-autofill-cue").count() > 0);
         page.waitForCondition(() -> page.locator(".sn-translating-badge").count() == 0);
 
-        String revealText = page.locator(".sn-suggested-reveal").first().textContent();
-        assertTrue(revealText.contains("Sora") || revealText.contains("Aoi"),
-                "Expected reveal to contain romaji, got: " + revealText);
-        assertTrue(revealText.startsWith("Suggested:"),
-                "Expected reveal to start with 'Suggested:', got: " + revealText);
+        // B2: no old "Suggested:" read-only reveal.
+        assertEquals(0, page.locator(".sn-suggested-reveal").count(),
+                "B2 must not render the B1 Suggested reveal");
 
-        // English name inputs must still be empty — no auto-fill in B1.
-        assertEnglishInputsEmpty();
+        // Cue text should mention accept/edit.
+        String cueText = page.locator(".sn-autofill-cue").first().textContent();
+        assertTrue(cueText.contains("filled") || cueText.contains("accept"),
+                "Expected autofill cue text, got: " + cueText);
+
+        assertConsoleClean();
+    }
+
+    // ── Pin 3: ready → auto-fills clean slot inputs ────────────────────────
+
+    @Test
+    void pin3_readyTransition_autoFillsCleanSlotInputs() {
+        // Seed queued state then navigate.
+        seedQueuedRow(TranslationNormalization.normalize(KANJI));
+
+        navigateToDraftEditor();
+        page.evaluate("window.__phase6dPollMs = 200");
+
+        // Wait for badge (queued).
+        page.waitForCondition(() -> page.locator(".sn-translating-badge").count() > 0);
+
+        // Seed 2-token suggestion: "Yuyu Esumi" → first=Yuyu, last=Esumi.
+        seedSuggestion(TranslationNormalization.normalize(KANJI), "Yuyu Esumi");
+
+        // Wait for auto-fill cue to appear (signals fill is done).
+        page.waitForCondition(() -> page.locator(".sn-autofill-cue").count() > 0);
+
+        // Last-name input must contain "Esumi".
+        String lastVal = (String) page.locator(".queue-cast-picker-name-input[data-name-field='last']")
+                .first().evaluate("el => el.value");
+        assertEquals("Esumi", lastVal,
+                "Expected last-name input to be 'Esumi', got: " + lastVal);
+
+        // First-name input must contain "Yuyu".
+        String firstVal = (String) page.locator(".queue-cast-picker-name-input[data-name-field='first']")
+                .first().evaluate("el => el.value");
+        assertEquals("Yuyu", firstVal,
+                "Expected first-name input to be 'Yuyu', got: " + firstVal);
+
+        // B1 reveal must not be present.
+        assertEquals(0, page.locator(".sn-suggested-reveal").count(),
+                "B2 must not render the B1 Suggested reveal");
+
+        assertConsoleClean();
+    }
+
+    // ── Pin 4: user typed before ready → auto-fill suppressed ─────────────
+
+    @Test
+    void pin4_userTypedBeforeReady_suppressesAutoFill() {
+        // Seed queued state then navigate.
+        seedQueuedRow(TranslationNormalization.normalize(KANJI));
+
+        navigateToDraftEditor();
+        page.evaluate("window.__phase6dPollMs = 200");
+
+        // Open the Create-new form so the inputs are accessible.
+        page.locator(".queue-cast-picker .queue-btn:not(.queue-btn-secondary)").first().click();
+
+        // Type into the last-name input BEFORE the suggestion is seeded — marks it dirty.
+        page.locator(".queue-cast-picker-name-input[data-name-field='last']").first().fill("Manual");
+
+        // Now seed the suggestion so next poll returns "ready".
+        seedSuggestion(TranslationNormalization.normalize(KANJI), "Yuyu Esumi");
+
+        // Give polling time to cycle a few times and process ready.
+        page.waitForCondition(() -> page.locator(".sn-translating-badge").count() == 0);
+
+        // The manually typed value must be preserved.
+        String lastVal = (String) page.locator(".queue-cast-picker-name-input[data-name-field='last']")
+                .first().evaluate("el => el.value");
+        assertEquals("Manual", lastVal,
+                "Expected manually-typed value to be preserved, got: " + lastVal);
+
+        // First-name input must remain empty (auto-fill skipped entirely).
+        String firstVal = (String) page.locator(".queue-cast-picker-name-input[data-name-field='first']")
+                .first().evaluate("el => el.value");
+        assertTrue(firstVal == null || firstVal.isBlank(),
+                "Expected first-name input to be empty (dirty slot), got: " + firstVal);
+
+        // No autofill cue — dirty slot.
+        assertEquals(0, page.locator(".sn-autofill-cue").count(),
+                "Expected no autofill cue for dirty slot");
 
         assertConsoleClean();
     }
