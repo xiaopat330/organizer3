@@ -76,34 +76,6 @@ function renderTable(rows) {
   view.appendChild(table);
 }
 
-async function translateNow(kanji, transTd, translateNowBtn) {
-  translateNowBtn.disabled = true;
-  translateNowBtn.textContent = 'Translating…';
-  try {
-    const res = await fetch('/api/translation/stage-name-translate-now', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ kanji }),
-    });
-    if (!res.ok) {
-      translateNowBtn.textContent = 'Translate now';
-      translateNowBtn.disabled = false;
-      return;
-    }
-    const data = await res.json();
-    if (data.status === 'ready' && data.romaji) {
-      transTd.textContent = data.romaji;
-      translateNowBtn.remove();
-    } else {
-      translateNowBtn.textContent = 'Translate now';
-      translateNowBtn.disabled = false;
-    }
-  } catch {
-    translateNowBtn.textContent = 'Translate now';
-    translateNowBtn.disabled = false;
-  }
-}
-
 function buildRow(row) {
   const tr = document.createElement('tr');
   tr.className = 'upk-row';
@@ -121,16 +93,6 @@ function buildRow(row) {
     transTd.innerHTML = '<span class="upk-badge-translating">Translating…</span>';
   } else {
     transTd.innerHTML = '<span class="upk-badge-missing">Not translated</span>';
-  }
-
-  // "Translate now" button for queued or missing rows (not ready)
-  if (sug.status !== 'ready') {
-    const translateNowBtn = document.createElement('button');
-    translateNowBtn.type = 'button';
-    translateNowBtn.className = 'upk-translate-now-btn';
-    translateNowBtn.textContent = 'Translate now';
-    translateNowBtn.addEventListener('click', () => translateNow(row.kanji, transTd, translateNowBtn));
-    transTd.appendChild(translateNowBtn);
   }
 
   const countTd = document.createElement('td');
