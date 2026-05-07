@@ -1,0 +1,72 @@
+profile:
+  name:
+    family_name: Shinoda
+    given_name: Yu
+    stage_name: 篠田ゆう
+    reading: しのだ ゆう
+    alternate_names:
+    - name: 城田優子
+      note: early alias used in some 2011 SOD Create titles
+    - name: ゆうちゃん
+      note: nickname
+  date_of_birth: 1991-07-21
+  birthplace: Tokyo, Japan
+  blood_type: O
+  height_cm: 155
+  measurements:
+    bust: 88
+    waist: 60
+    hip: 88
+  cup: F
+  active_from: 2010-12-02
+  active_to: 2023-10-31
+  retirement_announced: 2023-10-31
+  biography: "Yu Shinoda is a Japanese former AV actress from Tokyo who debuted in December 2010 with Marks Japan after being scouted following a breakup. Across a 13-year career she became one of the era's most consistently popular performers, transitioning from petite/young roles in the early 2010s to E/F-cup centerpiece work and eventually to a mature-woman positioning. She was affiliated with the Marks Group, then Japan Total Promotion and T-Powers, and signed her only major studio exclusive with Madonna in March 2023. She received the Tokyo Sports Prize at the 2019 Sky PerfecTV! Adult Broadcasting Awards and consistently charted in FANZA's top-10 monthly and annual rankings from 2020 through her retirement. Outside AV she ran the YouTube fitness channel 'Dashino-ch' (390K subscribers, deleted 2023) and was a SPOOX EX EX-Girls ambassador in 2022. Her retirement was reported on October 31, 2023, after her agency was unable to retain her."
+  primary_studios:
+  - name: Marks Japan
+    company: Marks Group
+    from: 2010-12-02
+    to: 2016-06-30
+    role: Affiliated actress
+  - name: Audace Japan
+    company: Audace Japan
+    from: 2012-07-06
+    to: 2016-06-30
+    role: Affiliated actress (debut release 2012-07-06)
+  - name: BRW108
+    company: BRW108
+    from: 2013-01-01
+    to: 2016-06-30
+    role: Group member
+  - name: Japan Total Promotion
+    company: Japan Total Promotion
+    from: 2016-07-01
+    to: 2016-10-31
+    role: Affiliated actress
+  - name: T-Powers
+    company: T-Powers
+    from: 2016-11-01
+    to: 2023-10-31
+    role: Affiliated actress
+  - name: Madonna
+    company: Madonna
+    from: 2023-03-01
+    to: 2023-12-31
+    role: Exclusive contract actress
+  awards:
+  - event: スカパー！アダルト放送大賞 (Sky PerfecTV! Adult Broadcasting Awards)
+    year: 2019
+    category: 東京スポーツ賞 (Tokyo Sports Prize)
+  legacy: "A long-tenured top-tier performer whose late-career mature pivot and Madonna exclusive cemented her as one of the most commercially successful actresses of the early-2020s FANZA era. Her abrupt 2023 retirement triggered a sustained surge in back-catalog rankings well into 2026."
+
+meta:
+  total_owned_titles: 255
+  titles_with_japanese_title: null
+  titles_with_english_title: null
+  titles_with_release_date: null
+  total_known_releases: null
+  coverage_note: Profile section only — portfolio research pending.
+  confidence: Profile sourced from Japanese Wikipedia infobox and biographical text. Measurements use the canonical 88-60-88/F-cup figures published on Wikipedia; date qualifier not given. Early alias '城田優子' attested in Wikipedia filmography for one 2011 SOD Create release.
+  data_sources:
+  - https://ja.wikipedia.org/wiki/篠田ゆう
+  portfolio_listed: 0

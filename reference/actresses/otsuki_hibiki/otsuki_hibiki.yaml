@@ -1,0 +1,67 @@
+profile:
+  name:
+    family_name: Otsuki
+    given_name: Hibiki
+    stage_name: 大槻ひびき
+    reading: おおつき ひびき
+    alternate_names:
+    - name: 大槻響
+      note: Chinese-market spelling
+    - name: ひびやん
+      note: nickname used on her YouTube channel
+  date_of_birth: 1988-02-21
+  birthplace: Otaru, Hokkaido, Japan
+  blood_type: A
+  height_cm: 161
+  measurements:
+    bust: 87
+    waist: 57
+    hip: 88
+  cup: F
+  active_from: 2008-10-19
+  active_to: null
+  biography: "Hibiki Otsuki is a Japanese AV actress from Otaru, Hokkaido who debuted in October 2008 and built her career as a high-volume freelance performer rather than as a studio exclusive. She became one of the most ubiquitous mid-2010s actresses, working across virtually every major maker (Max-A, S1, Moodyz, Prestige, SOD, Madonna, Attackers, Wanz Factory, Das!, Aroma) and accumulating broad genre range from idol units to lesbian work to MILF roles. She won the DMM.R18 Adult Award 2016 Best Actress prize and a string of Pink Award and Sky PerfecTV honors, cementing her as a top-tier name. Outside AV she is a member of anime/Vocaloid idol unit T♡Project, runs the Hibiyan-channel and Hibiyan TV ASMR YouTube channels, and has appeared as a character in Sega's Yakuza 0. In November 2025, after seventeen years freelance, she announced an unprecedented dual exclusive contract with One's Factory and Dass!, marking the first studio-exclusive phase of her career."
+  primary_studios:
+  - name: One's Factory
+    company: One's Factory
+    from: 2025-11-01
+    to: null
+    role: Exclusive contract actress (concurrent dual contract)
+  - name: Dass!
+    company: Dass!
+    from: 2025-11-01
+    to: null
+    role: Exclusive contract actress (concurrent dual contract)
+  awards:
+  - event: スカパー!アダルト放送大賞 (SkyPerfecTV Adult Broadcasting Awards)
+    year: 2013
+    category: 東京スポーツ賞 (Tokyo Sports Prize)
+  - event: ピンク大賞 (Pink Awards) 第25回
+    year: 2013
+    category: 女優賞 (Best Actress)
+  - event: ピンク大賞 (Pink Awards) 第26回
+    year: 2014
+    category: 女優賞 (Best Actress)
+  - event: DMM.R18アダルトアワード (DMM.R18 Adult Awards)
+    year: 2016
+    category: 最優秀女優賞 (Best Actress)
+  - event: ゲオTV×メンズサイゾー ADULT AWARD
+    year: 2019
+    category: 昇天クイーン部門グランプリ・最優秀女優賞 (Ascension Queen Grand Prix / Best Actress)
+  - event: 大人國成人展 ADULTOPIA (Taiwan)
+    year: 2026
+    category: BEST CREATIVE WORKS (Best Creative Works)
+  legacy: "A defining freelance workhorse of the 2010s–2020s, Otsuki demonstrated that a non-exclusive performer could win the industry's top single-actress prize (DMM 2016) by sheer volume, range, and craft. Her abrupt 2025 dual-exclusive signing with One's Factory and Dass! at year 17 was treated as an industry event in itself."
+
+meta:
+  total_owned_titles: 175
+  titles_with_japanese_title: null
+  titles_with_english_title: null
+  titles_with_release_date: null
+  total_known_releases: null
+  coverage_note: Profile only — portfolio not yet researched.
+  confidence: Profile fields sourced from Japanese Wikipedia infobox and career timeline. DOB, birthplace, blood type, height, measurements, cup all from the AV-era infobox. Awards list verified against article body; cited as J-source titles preserved.
+  data_sources:
+  - https://ja.wikipedia.org/wiki/大槻ひびき
+  - local DB (actress_id=185, 175 owned titles across 89 label prefixes)
+  portfolio_listed: 0

@@ -1,0 +1,70 @@
+profile:
+  name:
+    family_name: Hamasaki
+    given_name: Mao
+    stage_name: 浜崎真緒
+    reading: はまさき まお
+    alternate_names:
+    - name: DJ Mao
+      note: stage name as music DJ from 2017
+    - name: アイコ
+      note: alternate alias
+    - name: MAI
+      note: alternate alias
+    - name: さゆり
+      note: alternate alias
+    - name: 京野恵理奈
+      note: alternate alias (citation needed on Wikipedia)
+  date_of_birth: 1993-10-20
+  birthplace: Japan
+  blood_type: B
+  height_cm: 165
+  measurements:
+    bust: 85
+    waist: 59
+    hip: 84
+  cup: E
+  active_from: 2012-06-01
+  active_to: 2025-02-17
+  retirement_announced: 2024-08-09
+  biography: "Mao Hamasaki debuted in June 2012 as an exclusive actress with Prestige's video-on-demand label, transitioning to DVD releases later that year. After her Prestige contract ended in March 2013, she did a three-month limited stint as an SOD contract office-girl performer, then spent the rest of her career — over a decade — as a prolific freelance kikatan (planned-single) actress crossing virtually every major studio. She was twice nominated for Sky PerfecTV Adult Broadcasting Awards (2016 and 2019) and won the Cherry Bomb Valuable Actress award in 2022. Known for an exceptionally powerful 'jet' squirting ability and highly sensitive nipples, she ranked repeatedly in FANZA monthly top-10 charts during the early 2020s. Hamasaki announced her retirement in Taiwan on August 9, 2024 after 13 years in the industry, citing health concerns from the heavy water intake required for her squirting performances; her final title was released in February 2025. She has worked simultaneously as music DJ 'DJ Mao' since 2017, performing across Hong Kong, Macau, Singapore, and Malaysia."
+  primary_studios:
+  - name: Prestige
+    company: Prestige
+    from: 2012-06-01
+    to: 2013-03-31
+    role: Exclusive contract actress (debut, VOD then DVD)
+  - name: SOD Create
+    company: Soft On Demand
+    from: 2013-07-06
+    to: 2013-10-24
+    role: SOD contract office-girl (3-month limited contract)
+  - name: Freelance (kikatan)
+    company: Multiple
+    from: 2013-10-22
+    to: 2025-02-17
+    role: Freelance planned-single actress across all major studios
+  awards:
+  - event: スカパー!アダルト放送大賞 (Sky PerfecTV Adult Broadcasting Awards)
+    year: 2022
+    category: Valuable Actress of Cherry bomb (チェリーボム枠)
+  - event: スカパー!アダルト放送大賞 (Sky PerfecTV Adult Broadcasting Awards)
+    year: 2016
+    category: 女優賞・作品賞 W-nominated (Actress + Title — nomination only)
+  - event: スカパー!アダルト放送大賞 (Sky PerfecTV Adult Broadcasting Awards)
+    year: 2019
+    category: 女優賞 nominated (Actress — nomination only)
+  legacy: "One of the most prolific Japanese AV freelance kikatan actresses of the 2010s–2020s, with over a decade of cross-studio work. Famous for 'jet squirting' and a successful parallel career as international DJ Mao."
+
+meta:
+  total_owned_titles: 167
+  titles_with_japanese_title: null
+  titles_with_english_title: null
+  titles_with_release_date: null
+  total_known_releases: null
+  coverage_note: "Profile only — portfolio not yet researched"
+  confidence: "Profile sourced from Japanese Wikipedia. Birthplace not specified (Wikipedia gives country only). Identity verified via studio match (Prestige + SOD + Wanz + h.m.p. all present in DB labels) and title count plausibility (167 owned, freelance kikatan with extensive catalog). Alternate-name 京野恵理奈 has [citation needed] flag on Wikipedia."
+  data_sources:
+  - https://ja.wikipedia.org/wiki/浜崎真緒
+  - "Local DB: actress_id=195 (Mao Hamasaki), 167 owned titles"
+  portfolio_listed: 0

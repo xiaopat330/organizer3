@@ -1,61 +1,64 @@
 profile:
   name:
-    family_name: "Hara"
-    given_name: "Sarasa"
-    stage_name: "原更紗"
-    reading: "はら さらさ"
+    family_name: Natsume
+    given_name: Iroha
+    stage_name: 夏目彩春
+    reading: なつめ いろは
     alternate_names:
-    - name: "夏目彩春"
-      note: "current stage name since July 2013 (romanized: Natsume Iroha)"
-    - name: "Iroha Natsume"
-      note: "romanized form of 夏目彩春"
+    - name: 原 更紗
+      note: former stage name, used 2007–2013
+    - name: Sarasa Hara
+      note: romanized former name; canonical name in DB
   date_of_birth: 1984-06-20
-  birthplace: "Tokyo, Japan"
-  blood_type: "O"
+  birthplace: Tokyo, Japan
+  blood_type: O
   height_cm: 166
   measurements:
-    bust: null
-    waist: null
-    hip: null
-  cup: null
-  active_from: 2007-03-01
+    bust: 85
+    waist: 57
+    hip: 82
+  cup: D
+  active_from: 2007-03-16
   active_to: null
   retirement_announced: null
-  biography: "原更紗 (Sarasa Hara), born June 20, 1984 in Tokyo, debuted in March 2007 with Max-A (debut title XV-514) and became a shared exclusive between Max-A and Alice Japan from April 2007. She transferred to IdeaPocket in 2008 and retired from AV at the end of 2010. In July 2013 she made a comeback under the new stage name 夏目彩春 (Iroha Natsume) and joined Attackers, debuting there with ADN-033 in September 2014. She has remained active under the Natsume Iroha name, pursuing a more mature dramatic style with labels such as Attackers."
+  biography: "Natsume Iroha (born June 20, 1984 in Tokyo) is a Japanese AV actress who debuted in March 2007 under the name Hara Sarasa, signing dual exclusive contracts with MAX-A and Alice Japan simultaneously. From mid-2008 she became the primary exclusive actress for Idea Pocket, building a devoted following for her intelligent screen presence and versatility before going on hiatus in January 2011. She returned in July 2013 under the name Natsume Iroha with MOODYZ, then signed exclusively with Attackers in August 2014, becoming one of the label's most prolific and enduring stars. Under Attackers she specializes in drama-driven NTR and infidelity narratives, releasing titles monthly with remarkable consistency across her ADN, RBD, ATID, and SHKD catalogs. As of 2026 she remains active, with a career spanning nearly two decades and one of the largest catalogs of any current exclusive actress."
   primary_studios:
-  - name: "Max-A"
-    company: "マックスエー"
-    from: 2007-03-01
-    to: 2007-03-31
-    role: "Debut"
-  - name: "Max-A / Alice Japan"
-    company: "マックスエー / アリスJAPAN"
-    from: 2007-04-01
-    to: 2008-05-31
-    role: "Shared exclusive contract actress"
-  - name: "IdeaPocket"
-    company: "アイデアポケット"
+  - name: MAX-A
+    company: MAX-A
+    from: 2007-03-16
+    to: 2010-06-11
+    role: Exclusive contract actress (dual exclusive with Alice Japan)
+  - name: Alice Japan
+    company: Alice Japan
+    from: 2007-04-27
+    to: 2008-05-23
+    role: Exclusive contract actress (dual exclusive with MAX-A)
+  - name: Idea Pocket
+    company: IDEA POCKET
     from: 2008-06-01
-    to: 2010-12-31
-    role: "Contract actress"
-  - name: "Attackers"
-    company: "アタッカーズ"
-    from: 2014-09-01
+    to: 2011-12-01
+    role: Exclusive contract actress
+  - name: MOODYZ
+    company: Moodyz
+    from: 2013-07-01
+    to: 2014-07-01
+    role: Exclusive contract actress (comeback exclusive)
+  - name: Attackers
+    company: Attackers
+    from: 2014-09-07
     to: null
-    role: "Contract actress (as 夏目彩春)"
-  awards: []
+    role: Exclusive contract actress
+  awards: null
+  legacy: null
 
 meta:
-  total_owned_titles: null
+  total_owned_titles: 177
   titles_with_japanese_title: null
   titles_with_english_title: null
   titles_with_release_date: null
   total_known_releases: null
-  coverage_note: "Profile only; portfolio not yet researched. This entry covers the Sarasa Hara period (2007–2010); titles from 2013 onward appear under Iroha Natsume / 夏目彩春."
-  confidence: "DOB, birthplace, and blood type sourced from Korean JAV database (poomki.net) cross-referenced with Wikidata. IdeaPocket transfer date is approximate (stated as '2008' with no exact month). Measurements not found. Max-A/Alice Japan exclusive end date approximate."
+  coverage_note: "Portfolio not yet researched. DB canonical name is 'Sarasa Hara' (former name). All owned titles span both name eras."
+  confidence: "Profile data sourced from Japanese Wikipedia. DOB, birthplace, measurements, studio affiliations verified against article infobox. Career dates derived from Wikipedia filmography. No conflicting data found."
   data_sources:
-  - "https://www.wikidata.org/wiki/Q9116526"
-  - "https://grokipedia.com/page/Sarasa_Hara"
-  - "https://www.poomki.net/actress/21194"
-  - "https://www.themoviedb.org/person/2300940"
+  - https://ja.wikipedia.org/wiki/夏目彩春
   portfolio_listed: 0
