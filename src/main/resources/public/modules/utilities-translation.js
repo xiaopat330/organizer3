@@ -289,6 +289,11 @@ function renderStatsHTML(data, sweeper, expanded, strategies, health) {
   const cacheOk    = N(data.cacheSuccessful);
   const cacheFail  = N(data.cacheFailed);
 
+  const lookupHits   = N(data.cacheLookupHits);
+  const lookupMisses = N(data.cacheLookupMisses);
+  const lookupTotal  = lookupHits + lookupMisses;
+  const hitRatePct   = lookupTotal > 0 ? Math.round((lookupHits / lookupTotal) * 1000) / 10 : null;
+
   // Card 2 expanded body: 4 failure breakdown rows + Re-queue buttons.
   const failuresPanel = expanded ? `
     <div class="trans-failure-panel">
@@ -344,6 +349,10 @@ function renderStatsHTML(data, sweeper, expanded, strategies, health) {
             ${cacheFail > 0 ? `<span class="trans-failed-caret">${expanded ? '▾' : '▸'}</span>` : ''}
           </button>
         </div>
+      </div>
+      <div class="trans-card-sub" title="Cache lookups serviced since process startup. Hit-rate excludes worker pre-flight checks.">
+        Hit rate: <strong>${hitRatePct === null ? '—' : hitRatePct + '%'}</strong>
+        <span class="trans-subs-mapsize">(${fmt(lookupHits)} / ${fmt(lookupTotal)} lookups)</span>
       </div>
       ${failuresPanel}
     </div>

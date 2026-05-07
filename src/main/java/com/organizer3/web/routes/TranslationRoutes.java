@@ -102,6 +102,13 @@ public class TranslationRoutes {
                 statsMap.put("topN", List.of());  // usage count data not yet tracked
                 statsMap.put("stageNameLookupSize", base.stageNameLookupSize());
                 statsMap.put("stageNameSuggestionsUnreviewed", base.stageNameSuggestionsUnreviewed());
+                long hits = base.cacheLookupHits();
+                long misses = base.cacheLookupMisses();
+                long lookupTotal = hits + misses;
+                statsMap.put("cacheLookupHits", hits);
+                statsMap.put("cacheLookupMisses", misses);
+                statsMap.put("cacheLookupTotal", lookupTotal);
+                statsMap.put("cacheHitRate", lookupTotal == 0 ? null : ((double) hits) / lookupTotal);
                 statsMap.put("currentModelId", ollamaModelState.getCurrentModelId());
                 statsMap.put("explicitSubsRowsTouched", explicitSubstitutor.getRowsTouched());
                 statsMap.put("explicitSubsApplied",     explicitSubstitutor.getSubstitutionsApplied());
