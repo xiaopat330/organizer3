@@ -554,6 +554,55 @@ class TitleDiscoveryServiceTest {
         assertNull(duoAct, "multi-actress title enqueues with null actress_id");
     }
 
+    // ── stale_since IS NULL regression tests ──────────────────────────────
+
+    @Test
+    void listRecent_hidesStaleRows() {
+        // A title with only a stale location should not appear in the recent queue.
+        long t1 = insertTitle("LIVE-001");
+        long t2 = insertTitle("STALE-001");
+        insertLocation(t1, "vol-recent", "/live", "2026-04-27");
+        insertLocationStale(t2, "vol-recent", "/stale", "2026-04-27", "2026-04-28T00:00:00Z");
+
+        var page = service.listRecent(0, 50);
+        var codes = page.rows().stream().map(TitleDiscoveryService.TitleRow::code).toList();
+        assertTrue(codes.contains("LIVE-001"),  "live title must appear in recent queue");
+        assertFalse(codes.contains("STALE-001"), "stale-only title must be hidden from recent queue");
+    }
+
+    @Test
+    void listCollections_hidesStaleRows() {
+        // A multi-actress title with only a stale location should not appear in collections queue.
+        long alice = insertActress("Alice");
+        long bob   = insertActress("Bob");
+        long live  = insertTitle("LIVE-DUO-001");
+        long stale = insertTitle("STALE-DUO-001");
+        insertCredit(live,  alice); insertCredit(live,  bob);
+        insertCredit(stale, alice); insertCredit(stale, bob);
+        insertLocation(live,  "vol-recent", "/lduo", "2026-04-27");
+        insertLocationStale(stale, "vol-recent", "/sduo", "2026-04-27", "2026-04-28T00:00:00Z");
+
+        var page = service.listCollections(0, 50);
+        var codes = page.rows().stream().map(TitleDiscoveryService.CollectionRow::code).toList();
+        assertTrue(codes.contains("LIVE-DUO-001"),   "live multi-actress title must appear");
+        assertFalse(codes.contains("STALE-DUO-001"), "stale-only multi-actress title must be hidden");
+    }
+
+    @Test
+    void listPools_excludesStaleRows() {
+        // Pool chip counts should not include stale-only titles.
+        long live  = insertTitle("POOL-LIVE");
+        long stale = insertTitle("POOL-STALE");
+        insertLocation(live,  "pool-jav", "/pl", "2026-04-27");
+        insertLocationStale(stale, "pool-jav", "/ps", "2026-04-27", "2026-04-28T00:00:00Z");
+
+        var chips = service.listPools();
+        var javChip = chips.stream().filter(c -> "pool-jav".equals(c.volumeId())).findFirst();
+        assertTrue(javChip.isPresent());
+        assertEquals(1, javChip.get().unenrichedCount(),
+                "pool chip count must reflect only live titles, not stale ones");
+    }
+
     // ── helpers ────────────────────────────────────────────────────────────
 
     private long insertActress(String name) {
@@ -590,6 +639,14 @@ class TitleDiscoveryServiceTest {
                 "INSERT INTO title_locations(title_id, volume_id, partition_id, path, last_seen_at, added_date) " +
                 "VALUES (:t, :v, 'p1', :p, :d, :d)")
                 .bind("t", titleId).bind("v", volumeId).bind("p", path).bind("d", addedDate)
+                .execute());
+    }
+
+    private void insertLocationStale(long titleId, String volumeId, String path, String addedDate, String staleSince) {
+        jdbi.useHandle(h -> h.createUpdate(
+                "INSERT INTO title_locations(title_id, volume_id, partition_id, path, last_seen_at, added_date, stale_since) " +
+                "VALUES (:t, :v, 'p1', :p, :d, :d, :s)")
+                .bind("t", titleId).bind("v", volumeId).bind("p", path).bind("d", addedDate).bind("s", staleSince)
                 .execute());
     }
 

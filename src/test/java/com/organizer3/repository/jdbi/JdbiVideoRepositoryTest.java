@@ -287,6 +287,37 @@ class JdbiVideoRepositoryTest {
         assertEquals(1, videoRepo.findUnprobed(null, 0L, 1).size(), "limit respected");
     }
 
+    // ── stale_since IS NULL regression tests ──────────────────────────────
+
+    @Test
+    void deleteByVolumeAndPartition_doesNotScopeToStaleLocations() {
+        // deleteByVolumeAndPartition deletes videos for titles in a given partition.
+        // It uses a subquery over title_locations; that subquery must filter to live rows
+        // only (stale_since IS NULL) so it does not accidentally delete videos for titles
+        // that merely have a stale row in the partition.
+
+        // Title 1: live location in "queue" partition → videos should be deleted.
+        Title live = titleRepo.save(Title.builder().code("DEL-LIVE").baseCode("DEL-LIVE").label("DEL").seqNum(1).build());
+        locationRepo.save(TitleLocation.builder()
+                .titleId(live.getId()).volumeId("vol-a").partitionId("queue")
+                .path(Path.of("/queue/DEL-LIVE")).lastSeenAt(LocalDate.now()).build());
+        Video liveVideo = videoRepo.save(video(live.getId(), "live.mkv", "/queue/DEL-LIVE/live.mkv"));
+
+        // Title 2: only a STALE location in "queue" partition → videos must NOT be deleted.
+        Title staleOnly = titleRepo.save(Title.builder().code("DEL-STALE").baseCode("DEL-STALE").label("DEL").seqNum(2).build());
+        jdbi.useHandle(h -> h.execute(
+                "INSERT INTO title_locations (title_id, volume_id, partition_id, path, last_seen_at, stale_since) VALUES ("
+                        + staleOnly.getId() + ", 'vol-a', 'queue', '/queue/DEL-STALE', '2026-01-01', '2026-04-01T00:00:00Z')"));
+        Video staleVideo = videoRepo.save(video(staleOnly.getId(), "stale.mkv", "/queue/DEL-STALE/stale.mkv"));
+
+        videoRepo.deleteByVolumeAndPartition("vol-a", "queue");
+
+        assertFalse(videoRepo.findById(liveVideo.getId()).isPresent(),
+                "video for live-location title must be deleted");
+        assertTrue(videoRepo.findById(staleVideo.getId()).isPresent(),
+                "video for stale-only title must NOT be deleted by partition scoping");
+    }
+
     // --- Helpers ---
 
     /** Save a title with a location in the "queue" partition on vol-a. */
