@@ -1,0 +1,884 @@
+[
+  {
+    "slug": "hatano_yui",
+    "name": "Yui Hatano",
+    "stage_name": "波多野結衣",
+    "title_count": 626,
+    "processed": true
+  },
+  {
+    "slug": "aika",
+    "name": "Aika",
+    "stage_name": "愛佳",
+    "title_count": 450,
+    "processed": true
+  },
+  {
+    "slug": "kanako_iioka",
+    "name": "Kanako Iioka",
+    "stage_name": null,
+    "title_count": 346,
+    "processed": true
+  },
+  {
+    "slug": "julia",
+    "name": "Julia",
+    "stage_name": "ジュリア",
+    "title_count": 342,
+    "processed": true
+  },
+  {
+    "slug": "yoshizawa_akiho",
+    "name": "Akiho Yoshizawa",
+    "stage_name": "吉沢明歩",
+    "title_count": 337,
+    "processed": true
+  },
+  {
+    "slug": "yu_shinoda",
+    "name": "Yu Shinoda",
+    "stage_name": null,
+    "title_count": 323,
+    "processed": false
+  },
+  {
+    "slug": "akari_mitani",
+    "name": "Akari Mitani",
+    "stage_name": null,
+    "title_count": 289,
+    "processed": false
+  },
+  {
+    "slug": "matsumoto_ichika",
+    "name": "Ichika Matsumoto",
+    "stage_name": "松本いちか",
+    "title_count": 264,
+    "processed": true
+  },
+  {
+    "slug": "hibiki_otsuki",
+    "name": "Hibiki Otsuki",
+    "stage_name": null,
+    "title_count": 262,
+    "processed": false
+  },
+  {
+    "slug": "hasumi_kurea",
+    "name": "Kurea Hasumi",
+    "stage_name": "蓮実クレア",
+    "title_count": 238,
+    "processed": true
+  },
+  {
+    "slug": "shiina_sora",
+    "name": "Sora Shiina",
+    "stage_name": "椎名 そら",
+    "title_count": 236,
+    "processed": true
+  },
+  {
+    "slug": "fukada_eimi",
+    "name": "Eimi Fukada",
+    "stage_name": "深田えいみ",
+    "title_count": 235,
+    "processed": true
+  },
+  {
+    "slug": "mao_hamasaki",
+    "name": "Mao Hamasaki",
+    "stage_name": null,
+    "title_count": 227,
+    "processed": false
+  },
+  {
+    "slug": "tsubomi",
+    "name": "Tsubomi",
+    "stage_name": "つぼみ",
+    "title_count": 226,
+    "processed": true
+  },
+  {
+    "slug": "ayumi_shinoda",
+    "name": "Ayumi Shinoda",
+    "stage_name": null,
+    "title_count": 226,
+    "processed": false
+  },
+  {
+    "slug": "kana_yume",
+    "name": "Kana Yume",
+    "stage_name": null,
+    "title_count": 217,
+    "processed": false
+  },
+  {
+    "slug": "kuramoto_sumire",
+    "name": "Sumire Kuramoto",
+    "stage_name": "倉本すみれ",
+    "title_count": 206,
+    "processed": true
+  },
+  {
+    "slug": "aoi_tsukasa",
+    "name": "Tsukasa Aoi",
+    "stage_name": "葵つかさ",
+    "title_count": 202,
+    "processed": true
+  },
+  {
+    "slug": "waka_misono",
+    "name": "Waka Misono",
+    "stage_name": null,
+    "title_count": 202,
+    "processed": false
+  },
+  {
+    "slug": "kimijima_mio",
+    "name": "Mio Kimijima",
+    "stage_name": "君島みお",
+    "title_count": 195,
+    "processed": true
+  },
+  {
+    "slug": "yuma_asami",
+    "name": "Yuma Asami",
+    "stage_name": "麻美ゆま",
+    "title_count": 194,
+    "processed": true
+  },
+  {
+    "slug": "kawakami_nanami",
+    "name": "Nanami Kawakami",
+    "stage_name": "川上奈々美",
+    "title_count": 185,
+    "processed": true
+  },
+  {
+    "slug": "ruka_inaba",
+    "name": "Ruka Inaba",
+    "stage_name": null,
+    "title_count": 184,
+    "processed": false
+  },
+  {
+    "slug": "miho_tsuno",
+    "name": "Miho Tsuno",
+    "stage_name": null,
+    "title_count": 182,
+    "processed": false
+  },
+  {
+    "slug": "saki_okuda",
+    "name": "Saki Okuda",
+    "stage_name": null,
+    "title_count": 182,
+    "processed": false
+  },
+  {
+    "slug": "mina_kitano",
+    "name": "Mina Kitano",
+    "stage_name": null,
+    "title_count": 181,
+    "processed": false
+  },
+  {
+    "slug": "kijima_airi",
+    "name": "Airi Kijima",
+    "stage_name": "希島あいり",
+    "title_count": 180,
+    "processed": true
+  },
+  {
+    "slug": "hara_sarasa",
+    "name": "Sarasa Hara",
+    "stage_name": "原更紗",
+    "title_count": 180,
+    "processed": true
+  },
+  {
+    "slug": "reiko_kobayakawa",
+    "name": "Reiko Kobayakawa",
+    "stage_name": null,
+    "title_count": 180,
+    "processed": false
+  },
+  {
+    "slug": "sakura_mana",
+    "name": "Mana Sakura",
+    "stage_name": "紗倉まな",
+    "title_count": 178,
+    "processed": true
+  },
+  {
+    "slug": "natsu_tojo",
+    "name": "Natsu Tojo",
+    "stage_name": null,
+    "title_count": 175,
+    "processed": false
+  },
+  {
+    "slug": "mitsuki_nagisa",
+    "name": "Mitsuki Nagisa",
+    "stage_name": null,
+    "title_count": 174,
+    "processed": false
+  },
+  {
+    "slug": "arisa_seina",
+    "name": "Arisa Seina",
+    "stage_name": null,
+    "title_count": 174,
+    "processed": false
+  },
+  {
+    "slug": "himari_hanazawa",
+    "name": "Himari Hanazawa",
+    "stage_name": "新井リマ",
+    "title_count": 173,
+    "processed": false
+  },
+  {
+    "slug": "kasumi_kaho",
+    "name": "Kaho Kasumi",
+    "stage_name": "かすみ果穂",
+    "title_count": 172,
+    "processed": true
+  },
+  {
+    "slug": "ena_satsuki",
+    "name": "Ena Satsuki",
+    "stage_name": null,
+    "title_count": 171,
+    "processed": false
+  },
+  {
+    "slug": "kurokawa_sarina",
+    "name": "Sarina Kurokawa",
+    "stage_name": "黒川サリナ",
+    "title_count": 167,
+    "processed": true
+  },
+  {
+    "slug": "suzumura_airi",
+    "name": "Airi Suzumura",
+    "stage_name": "鈴村あいり",
+    "title_count": 166,
+    "processed": true
+  },
+  {
+    "slug": "mihara_honoka",
+    "name": "Honoka Mihara",
+    "stage_name": "三原ほのか",
+    "title_count": 165,
+    "processed": true
+  },
+  {
+    "slug": "tsubasa_amami",
+    "name": "Tsubasa Amami",
+    "stage_name": null,
+    "title_count": 165,
+    "processed": false
+  },
+  {
+    "slug": "yoshikawa_aimi",
+    "name": "Aimi Yoshikawa",
+    "stage_name": "吉川あいみ",
+    "title_count": 161,
+    "processed": true
+  },
+  {
+    "slug": "kojima_minami",
+    "name": "Minami Kojima",
+    "stage_name": "小島みなみ",
+    "title_count": 161,
+    "processed": true
+  },
+  {
+    "slug": "jinguuji_nao",
+    "name": "Nao Jinguuji",
+    "stage_name": "神宮寺ナオ",
+    "title_count": 160,
+    "processed": true
+  },
+  {
+    "slug": "mei_satsuki",
+    "name": "Mei Satsuki",
+    "stage_name": null,
+    "title_count": 160,
+    "processed": false
+  },
+  {
+    "slug": "ai_mukai",
+    "name": "Ai Mukai",
+    "stage_name": null,
+    "title_count": 158,
+    "processed": false
+  },
+  {
+    "slug": "ayaka_tomoda",
+    "name": "Ayaka Tomoda",
+    "stage_name": null,
+    "title_count": 158,
+    "processed": false
+  },
+  {
+    "slug": "mizuki_yayoi",
+    "name": "Mizuki Yayoi",
+    "stage_name": null,
+    "title_count": 156,
+    "processed": false
+  },
+  {
+    "slug": "yumeno_aika",
+    "name": "Aika Yumeno",
+    "stage_name": "夢乃あいか",
+    "title_count": 156,
+    "processed": true
+  },
+  {
+    "slug": "asahi_mizuno",
+    "name": "Asahi Mizuno",
+    "stage_name": null,
+    "title_count": 155,
+    "processed": false
+  },
+  {
+    "slug": "jessica_kizaki",
+    "name": "Jessica Kizaki",
+    "stage_name": null,
+    "title_count": 155,
+    "processed": false
+  },
+  {
+    "slug": "rika_tsubaki",
+    "name": "Rika Tsubaki",
+    "stage_name": null,
+    "title_count": 154,
+    "processed": false
+  },
+  {
+    "slug": "sumire_kurokawa",
+    "name": "Sumire Kurokawa",
+    "stage_name": null,
+    "title_count": 152,
+    "processed": false
+  },
+  {
+    "slug": "ai_sayama",
+    "name": "Ai Sayama",
+    "stage_name": null,
+    "title_count": 151,
+    "processed": false
+  },
+  {
+    "slug": "kaho_imai",
+    "name": "Kaho Imai",
+    "stage_name": null,
+    "title_count": 151,
+    "processed": false
+  },
+  {
+    "slug": "hana_himesaki",
+    "name": "Hana Himesaki",
+    "stage_name": null,
+    "title_count": 151,
+    "processed": false
+  },
+  {
+    "slug": "mao_kurata",
+    "name": "Mao Kurata",
+    "stage_name": null,
+    "title_count": 150,
+    "processed": false
+  },
+  {
+    "slug": "aki_sasaki",
+    "name": "Aki Sasaki",
+    "stage_name": null,
+    "title_count": 149,
+    "processed": false
+  },
+  {
+    "slug": "tsubasa_hachino",
+    "name": "Tsubasa Hachino",
+    "stage_name": null,
+    "title_count": 146,
+    "processed": false
+  },
+  {
+    "slug": "touka_rinne",
+    "name": "Touka Rinne",
+    "stage_name": null,
+    "title_count": 145,
+    "processed": false
+  },
+  {
+    "slug": "aoi_kururigi",
+    "name": "Aoi Kururigi",
+    "stage_name": null,
+    "title_count": 144,
+    "processed": false
+  },
+  {
+    "slug": "amatsuka_moe",
+    "name": "Moe Amatsuka",
+    "stage_name": "天使もえ",
+    "title_count": 143,
+    "processed": true
+  },
+  {
+    "slug": "shuri_yamamoto",
+    "name": "Shuri Yamamoto",
+    "stage_name": null,
+    "title_count": 143,
+    "processed": false
+  },
+  {
+    "slug": "minato_riku",
+    "name": "Riku Minato",
+    "stage_name": "湊莉久",
+    "title_count": 142,
+    "processed": true
+  },
+  {
+    "slug": "hamasaki_rio",
+    "name": "Rio Hamasaki",
+    "stage_name": "浜崎りお",
+    "title_count": 142,
+    "processed": true
+  },
+  {
+    "slug": "jun_suehiro",
+    "name": "Jun Suehiro",
+    "stage_name": null,
+    "title_count": 142,
+    "processed": false
+  },
+  {
+    "slug": "nene_tanaka",
+    "name": "Nene Tanaka",
+    "stage_name": null,
+    "title_count": 141,
+    "processed": false
+  },
+  {
+    "slug": "rio",
+    "name": "Rio",
+    "stage_name": "Rio",
+    "title_count": 140,
+    "processed": true
+  },
+  {
+    "slug": "hashimoto_arina",
+    "name": "Arina Hashimoto",
+    "stage_name": "橋本ありな",
+    "title_count": 139,
+    "processed": true
+  },
+  {
+    "slug": "honoka_tsujii",
+    "name": "Honoka Tsujii",
+    "stage_name": null,
+    "title_count": 138,
+    "processed": false
+  },
+  {
+    "slug": "yui_tenma",
+    "name": "Yui Tenma",
+    "stage_name": null,
+    "title_count": 136,
+    "processed": false
+  },
+  {
+    "slug": "arimura_nozomi",
+    "name": "Nozomi Arimura",
+    "stage_name": "有村のぞみ",
+    "title_count": 135,
+    "processed": true
+  },
+  {
+    "slug": "ai_uehara",
+    "name": "Ai Uehara",
+    "stage_name": null,
+    "title_count": 134,
+    "processed": false
+  },
+  {
+    "slug": "mayu_suzuki",
+    "name": "Mayu Suzuki",
+    "stage_name": null,
+    "title_count": 133,
+    "processed": false
+  },
+  {
+    "slug": "satomi_suzuki",
+    "name": "Satomi Suzuki",
+    "stage_name": null,
+    "title_count": 132,
+    "processed": false
+  },
+  {
+    "slug": "sumire_mizukawa",
+    "name": "Sumire Mizukawa",
+    "stage_name": null,
+    "title_count": 132,
+    "processed": false
+  },
+  {
+    "slug": "kana_misaki",
+    "name": "Kana Misaki",
+    "stage_name": null,
+    "title_count": 132,
+    "processed": false
+  },
+  {
+    "slug": "rima_arai",
+    "name": "Rima Arai",
+    "stage_name": null,
+    "title_count": 132,
+    "processed": false
+  },
+  {
+    "slug": "arisu_miyuki",
+    "name": "Arisu Miyuki",
+    "stage_name": null,
+    "title_count": 130,
+    "processed": false
+  },
+  {
+    "slug": "sakura_momo",
+    "name": "Momo Sakura",
+    "stage_name": "桜空もも",
+    "title_count": 129,
+    "processed": true
+  },
+  {
+    "slug": "asuka_kirara",
+    "name": "Kirara Asuka",
+    "stage_name": "明日花キララ",
+    "title_count": 128,
+    "processed": true
+  },
+  {
+    "slug": "mikami_yua",
+    "name": "Yua Mikami",
+    "stage_name": "三上 悠亜",
+    "title_count": 127,
+    "processed": true
+  },
+  {
+    "slug": "hatsune_minori",
+    "name": "Minori Hatsune",
+    "stage_name": "初音みのり",
+    "title_count": 127,
+    "processed": true
+  },
+  {
+    "slug": "konatsu_kashiwagi",
+    "name": "Konatsu Kashiwagi",
+    "stage_name": null,
+    "title_count": 127,
+    "processed": false
+  },
+  {
+    "slug": "wakana_nao",
+    "name": "Nao Wakana",
+    "stage_name": "若菜奈央",
+    "title_count": 125,
+    "processed": true
+  },
+  {
+    "slug": "yuzuriha_karen",
+    "name": "Karen Yuzuriha",
+    "stage_name": "楪カレン",
+    "title_count": 125,
+    "processed": true
+  },
+  {
+    "slug": "aoi",
+    "name": "Aoi",
+    "stage_name": null,
+    "title_count": 125,
+    "processed": false
+  },
+  {
+    "slug": "tsumugi_akari",
+    "name": "Tsumugi Akari",
+    "stage_name": null,
+    "title_count": 122,
+    "processed": false
+  },
+  {
+    "slug": "ruisa_totsuki",
+    "name": "Ruisa Totsuki",
+    "stage_name": null,
+    "title_count": 122,
+    "processed": false
+  },
+  {
+    "slug": "momonogi_kana",
+    "name": "Kana Momonogi",
+    "stage_name": "桃乃木かな",
+    "title_count": 121,
+    "processed": true
+  },
+  {
+    "slug": "sato_haruki",
+    "name": "Haruki Sato",
+    "stage_name": "さとう遥希",
+    "title_count": 120,
+    "processed": true
+  },
+  {
+    "slug": "kawai_asuna",
+    "name": "Asuna Kawai",
+    "stage_name": "河合あすな",
+    "title_count": 120,
+    "processed": true
+  },
+  {
+    "slug": "mary_tachibana",
+    "name": "Mary Tachibana",
+    "stage_name": null,
+    "title_count": 120,
+    "processed": false
+  },
+  {
+    "slug": "hikaru_minasuki",
+    "name": "Hikaru Minasuki",
+    "stage_name": null,
+    "title_count": 118,
+    "processed": false
+  },
+  {
+    "slug": "moka",
+    "name": "Moka",
+    "stage_name": "モカ",
+    "title_count": 117,
+    "processed": true
+  },
+  {
+    "slug": "akari_neo",
+    "name": "Akari Neo",
+    "stage_name": null,
+    "title_count": 116,
+    "processed": false
+  },
+  {
+    "slug": "yoshitaka_nene",
+    "name": "Nene Yoshitaka",
+    "stage_name": "吉高寧々",
+    "title_count": 115,
+    "processed": true
+  },
+  {
+    "slug": "kogawa_iori",
+    "name": "Iori Kogawa",
+    "stage_name": "古川いおり",
+    "title_count": 115,
+    "processed": true
+  },
+  {
+    "slug": "minami_hatsukawa",
+    "name": "Minami Hatsukawa",
+    "stage_name": null,
+    "title_count": 115,
+    "processed": false
+  },
+  {
+    "slug": "mei_itsukaichi",
+    "name": "Mei Itsukaichi",
+    "stage_name": null,
+    "title_count": 115,
+    "processed": false
+  },
+  {
+    "slug": "nishina_momoka",
+    "name": "Momoka Nishina",
+    "stage_name": "仁科百華",
+    "title_count": 114,
+    "processed": true
+  },
+  {
+    "slug": "non_ohana",
+    "name": "Non Ohana",
+    "stage_name": null,
+    "title_count": 114,
+    "processed": false
+  },
+  {
+    "slug": "ai_hoshina",
+    "name": "Ai Hoshina",
+    "stage_name": null,
+    "title_count": 113,
+    "processed": false
+  },
+  {
+    "slug": "koume_ena",
+    "name": "Ena Koume",
+    "stage_name": "小梅えな",
+    "title_count": 112,
+    "processed": true
+  },
+  {
+    "slug": "nao_ayukawa",
+    "name": "Nao Ayukawa",
+    "stage_name": null,
+    "title_count": 112,
+    "processed": false
+  },
+  {
+    "slug": "kamisaki_shiori",
+    "name": "Shiori Kamisaki",
+    "stage_name": "神咲詩織",
+    "title_count": 111,
+    "processed": true
+  },
+  {
+    "slug": "yuna_ogura",
+    "name": "Yuna Ogura",
+    "stage_name": null,
+    "title_count": 111,
+    "processed": false
+  },
+  {
+    "slug": "ayami_shunka",
+    "name": "Shunka Ayami",
+    "stage_name": "あやみ旬果",
+    "title_count": 110,
+    "processed": true
+  },
+  {
+    "slug": "sakamichi_miru",
+    "name": "Miru Sakamichi",
+    "stage_name": "坂道みる",
+    "title_count": 109,
+    "processed": true
+  },
+  {
+    "slug": "monami_takarada",
+    "name": "Monami Takarada",
+    "stage_name": null,
+    "title_count": 109,
+    "processed": false
+  },
+  {
+    "slug": "mihiro",
+    "name": "Mihiro",
+    "stage_name": "みひろ",
+    "title_count": 107,
+    "processed": true
+  },
+  {
+    "slug": "rika_aimi",
+    "name": "Rika Aimi",
+    "stage_name": null,
+    "title_count": 107,
+    "processed": false
+  },
+  {
+    "slug": "yume_nishimiya",
+    "name": "Yume Nishimiya",
+    "stage_name": null,
+    "title_count": 107,
+    "processed": false
+  },
+  {
+    "slug": "suzumori_remu",
+    "name": "Remu Suzumori",
+    "stage_name": "涼森れむ",
+    "title_count": 105,
+    "processed": true
+  },
+  {
+    "slug": "kano_yura",
+    "name": "Yura Kano",
+    "stage_name": "架乃ゆら",
+    "title_count": 105,
+    "processed": true
+  },
+  {
+    "slug": "amiri_saito",
+    "name": "Amiri Saito",
+    "stage_name": null,
+    "title_count": 105,
+    "processed": false
+  },
+  {
+    "slug": "nako_hoshi",
+    "name": "Nako Hoshi",
+    "stage_name": null,
+    "title_count": 105,
+    "processed": false
+  },
+  {
+    "slug": "kitagawa_hitomi",
+    "name": "Hitomi Kitagawa",
+    "stage_name": "北川瞳",
+    "title_count": 104,
+    "processed": true
+  },
+  {
+    "slug": "rika_mari",
+    "name": "Rika Mari",
+    "stage_name": null,
+    "title_count": 103,
+    "processed": false
+  },
+  {
+    "slug": "akari_nimura",
+    "name": "Akari Nimura",
+    "stage_name": null,
+    "title_count": 103,
+    "processed": false
+  },
+  {
+    "slug": "mayuki_ito",
+    "name": "Mayuki Ito",
+    "stage_name": null,
+    "title_count": 102,
+    "processed": false
+  },
+  {
+    "slug": "fuyutsuki_kaede",
+    "name": "Kaede Fuyutsuki",
+    "stage_name": "冬月かえで",
+    "title_count": 101,
+    "processed": true
+  },
+  {
+    "slug": "hoshimiya_ichika",
+    "name": "Ichika Hoshimiya",
+    "stage_name": "星宮一花",
+    "title_count": 101,
+    "processed": true
+  },
+  {
+    "slug": "nonoura_non",
+    "name": "Non Nonoura",
+    "stage_name": "野々浦暖",
+    "title_count": 101,
+    "processed": true
+  },
+  {
+    "slug": "miyu_aizawa",
+    "name": "Miyu Aizawa",
+    "stage_name": null,
+    "title_count": 101,
+    "processed": false
+  },
+  {
+    "slug": "hikaru_miyanishi",
+    "name": "Hikaru Miyanishi",
+    "stage_name": null,
+    "title_count": 101,
+    "processed": false
+  },
+  {
+    "slug": "noa_haruna",
+    "name": "Noa Haruna",
+    "stage_name": null,
+    "title_count": 101,
+    "processed": false
+  }
+]
