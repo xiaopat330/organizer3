@@ -55,6 +55,7 @@ function makeState() {
     explicitSubs: null,        // {jpKey: enValue} — used to highlight substituted terms in activity
     explicitJpKeysByLen: [],   // jp keys sorted by length desc (longest-match-wins highlighting)
     explicitEnValsByLen: [],   // en values sorted by length desc
+    health: null,              // last /api/translation/health payload — surfaced in Card 4 footer
   };
 }
 
@@ -168,6 +169,88 @@ function failureRow(label, count, reason, hint) {
   </div>`;
 }
 
+/** Big status pill for Card 4 header. Pure. */
+function renderOllamaPill(health) {
+  if (!health) {
+    return `<div class="ollama-pill ollama-pill-unknown">
+      <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 8v4M12 16h.01"/></svg>
+      <span>Checking…</span>
+    </div>`;
+  }
+  const p95Ms = health.latencyP95Ms;
+  const p95   = (p95Ms != null && p95Ms > 0) ? ` · responding in ${(p95Ms/1000).toFixed(1)}s` : '';
+  if (!health.overall) {
+    return `<div class="ollama-pill ollama-pill-err">
+      <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><line x1="8" y1="8" x2="16" y2="16"/><line x1="16" y1="8" x2="8" y2="16"/></svg>
+      <span>${esc(health.message || 'Unreachable')}</span>
+    </div>`;
+  }
+  if (!health.latencyOk) {
+    return `<div class="ollama-pill ollama-pill-warn">
+      <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+      <span>Slow${p95}</span>
+    </div>`;
+  }
+  return `<div class="ollama-pill ollama-pill-ok">
+    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="5 12 10 17 19 7"/></svg>
+    <span>Working${p95}</span>
+  </div>`;
+}
+
+/** Pretty memory size in GB. Returns "—" for 0/null. */
+function fmtGb(bytes) {
+  if (!bytes) return '—';
+  return `${(bytes / 1073741824).toFixed(1)} GB`;
+}
+
+/** Live TTL string from an ISO expiry. Returns null if no expiry / already past. */
+function fmtTtl(iso) {
+  if (!iso) return null;
+  const ms = new Date(iso).getTime() - Date.now();
+  if (ms <= 0) return null;
+  const m = Math.floor(ms / 60000);
+  const s = Math.floor((ms % 60000) / 1000);
+  if (m >= 60) return `${Math.floor(m/60)}h ${m%60}m`;
+  if (m > 0)   return `${m}m ${String(s).padStart(2, '0')}s`;
+  return `${s}s`;
+}
+
+/** Loaded-models block (live state from /api/ps). Pure. */
+function renderLoadedModels(health) {
+  const list = (health && health.loadedModels) || [];
+  if (!list.length) {
+    return `<div class="ollama-loaded-empty">No models loaded</div>`;
+  }
+  // Default Ollama TTL is 5 minutes. Use that as the bar's denominator;
+  // visualizes "how long until this model unloads".
+  const TTL_FULL_MS = 5 * 60 * 1000;
+  let totalBytes = 0;
+  const rows = list.map(m => {
+    totalBytes += (m.sizeBytes || 0);
+    const ttlText = fmtTtl(m.expiresAtIso) || 'pinned';
+    let pct = 0;
+    if (m.expiresAtIso) {
+      const remaining = new Date(m.expiresAtIso).getTime() - Date.now();
+      pct = Math.max(0, Math.min(100, (remaining / TTL_FULL_MS) * 100));
+    } else {
+      pct = 100; // never expires
+    }
+    return `<div class="ollama-loaded-row">
+      <span class="ollama-loaded-name">${esc(m.name)}</span>
+      <span class="ollama-loaded-size">${esc(fmtGb(m.sizeBytes))}</span>
+      <span class="ollama-loaded-ttl-bar"><span style="width:${pct.toFixed(1)}%"></span></span>
+      <span class="ollama-loaded-ttl-text">${esc(ttlText)}</span>
+    </div>`;
+  }).join('');
+  return `<div class="ollama-loaded-block">
+    <div class="ollama-loaded-header">
+      <span>Loaded now</span>
+      <span class="ollama-loaded-total">${esc(fmtGb(totalBytes))} resident</span>
+    </div>
+    ${rows}
+  </div>`;
+}
+
 /** Returns {primary, fallback} model ids by inspecting active strategies. Pure. */
 function summarizeStrategies(strategies) {
   if (!strategies || !strategies.length) return { primary: null, fallback: null };
@@ -186,8 +269,8 @@ function summarizeStrategies(strategies) {
   return { primary: join(primarySet), fallback: join(fallbackSet) };
 }
 
-/** Renders the four-card HTML. Pure: data + sweeper + expanded + strategies → string. */
-function renderStatsHTML(data, sweeper, expanded, strategies) {
+/** Renders the four-card HTML. Pure: data + sweeper + expanded + strategies + health → string. */
+function renderStatsHTML(data, sweeper, expanded, strategies, health) {
   const pending  = N(data.queuePending);
   const inFlight = N(data.queueInFlight);
   const tier2    = N(data.queueTier2Pending);
@@ -210,7 +293,7 @@ function renderStatsHTML(data, sweeper, expanded, strategies) {
       ${failureRow('Sanitized (tier-2)', N(data.cacheFailedSanitizedBothTiers), 'sanitized_both_tiers',
           'Both tiers produced sanitized output. Re-queue to retry on next sweeper tick.')}
       ${failureRow('Unreachable',        N(data.cacheFailedUnreachable), 'unreachable',
-          'Ollama was unreachable when these were attempted. Safe to re-queue aggressively.')}
+          'AI service was unreachable when these were attempted. Safe to re-queue aggressively.')}
       ${failureRow('Refused',            N(data.cacheFailedRefused), 'refused',
           'Model refused to translate. Re-queue may help after substitution updates.')}
     </div>
@@ -280,7 +363,8 @@ function renderStatsHTML(data, sweeper, expanded, strategies) {
     </div>
 
     <div class="trans-card trans-card-models">
-      <div class="trans-card-title">Models</div>
+      <div class="trans-card-title">AI</div>
+      ${renderOllamaPill(health)}
       ${(() => {
         if (!strategies) return `<div class="trans-card-sub">Loading…</div>`;
         const { primary, fallback } = summarizeStrategies(strategies);
@@ -291,11 +375,12 @@ function renderStatsHTML(data, sweeper, expanded, strategies) {
             <span class="trans-model-role-label">${label}</span>
             <span class="${modelId ? 'trans-model-name' : 'trans-model-missing'}">${
               modelId ? esc(modelId) : 'not configured'
-            }${active ? '<span class="trans-model-active-dot" title="Currently loaded in Ollama"></span>' : ''}</span>
+            }${active ? '<span class="trans-model-active-dot" title="Currently in flight"></span>' : ''}</span>
           </div>`;
         };
         return row('Primary', primary) + row('Fallback', fallback);
       })()}
+      ${renderLoadedModels(health)}
     </div>
   `;
 }
@@ -331,7 +416,7 @@ async function loadStats() {
     const data = await statsRes.json();
     const sweeper = sweeperRes && sweeperRes.ok ? await sweeperRes.json() : null;
 
-    statsGrid.innerHTML = renderStatsHTML(data, sweeper, s.failuresExpanded, s.strategies);
+    statsGrid.innerHTML = renderStatsHTML(data, sweeper, s.failuresExpanded, s.strategies, s.health);
 
     // Sweep-now button (Card 3, next to Titles awaiting).
     const sweepBtn = statsGrid.querySelector('#trans-sweep-now-btn');
@@ -421,9 +506,13 @@ async function loadHealth() {
   try {
     const res  = await fetch('/api/translation/health');
     const data = await res.json();
+    s.health = data;
     healthDot.className = `trans-health-dot ${data.overall ? 'trans-health-ok' : 'trans-health-err'}`;
     healthDot.title = data.message || (data.overall ? 'Healthy' : 'Unhealthy');
+    // Refresh stats so Card 4 picks up the new latency/status footer.
+    loadStats();
   } catch (err) {
+    s.health = null;
     healthDot.className = 'trans-health-dot trans-health-unknown';
     healthDot.title = 'Health check failed';
   }

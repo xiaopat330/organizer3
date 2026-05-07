@@ -57,6 +57,9 @@ class TranslationRoutesTest {
         queueRepo      = mock(TranslationQueueRepository.class);
         enrichmentRepo = mock(JavdbEnrichmentRepository.class);
         titleSweeper   = mock(TitleTranslationSweeper.class);
+        com.organizer3.translation.ollama.OllamaAdapter ollamaAdapter =
+                mock(com.organizer3.translation.ollama.OllamaAdapter.class);
+        when(ollamaAdapter.psModels()).thenReturn(java.util.List.of());
 
         connection = DriverManager.getConnection("jdbc:sqlite::memory:");
         jdbi = Jdbi.create(connection);
@@ -67,7 +70,8 @@ class TranslationRoutesTest {
                 service, strategyRepo, cacheRepo, queueRepo, jdbi,
                 enrichmentRepo, TranslationConfig.DEFAULTS, titleSweeper,
                 new com.organizer3.translation.OllamaModelState(),
-                com.organizer3.translation.ExplicitTermSubstitutor.EMPTY));
+                com.organizer3.translation.ExplicitTermSubstitutor.EMPTY,
+                ollamaAdapter));
         server.start();
     }
 

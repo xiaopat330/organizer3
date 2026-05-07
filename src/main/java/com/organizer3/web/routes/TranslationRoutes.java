@@ -49,6 +49,7 @@ public class TranslationRoutes {
     private final TitleTranslationSweeper titleSweeper;
     private final com.organizer3.translation.OllamaModelState ollamaModelState;
     private final com.organizer3.translation.ExplicitTermSubstitutor explicitSubstitutor;
+    private final com.organizer3.translation.ollama.OllamaAdapter ollamaAdapter;
 
     public TranslationRoutes(TranslationService service,
                               TranslationStrategyRepository strategyRepo,
@@ -59,7 +60,8 @@ public class TranslationRoutes {
                               TranslationConfig translationConfig,
                               TitleTranslationSweeper titleSweeper,
                               com.organizer3.translation.OllamaModelState ollamaModelState,
-                              com.organizer3.translation.ExplicitTermSubstitutor explicitSubstitutor) {
+                              com.organizer3.translation.ExplicitTermSubstitutor explicitSubstitutor,
+                              com.organizer3.translation.ollama.OllamaAdapter ollamaAdapter) {
         this.service              = service;
         this.strategyRepo         = strategyRepo;
         this.cacheRepo            = cacheRepo;
@@ -70,6 +72,7 @@ public class TranslationRoutes {
         this.titleSweeper         = titleSweeper;
         this.ollamaModelState     = ollamaModelState;
         this.explicitSubstitutor  = explicitSubstitutor;
+        this.ollamaAdapter        = ollamaAdapter;
     }
 
     public void register(Javalin app) {
@@ -462,14 +465,32 @@ public class TranslationRoutes {
         app.get("/api/translation/health", ctx -> {
             try {
                 HealthStatus status = service.getHealth();
-                ctx.json(Map.of(
-                        "ollamaReachable", status.ollamaReachable(),
-                        "tier1ModelPresent", status.tier1ModelPresent(),
-                        "latencyOk", status.latencyOk(),
-                        "latencyP95Ms", status.latencyP95Ms() != null ? status.latencyP95Ms() : 0,
-                        "overall", status.overall(),
-                        "message", status.message()
-                ));
+                LinkedHashMap<String, Object> body = new LinkedHashMap<>();
+                body.put("ollamaReachable",  status.ollamaReachable());
+                body.put("tier1ModelPresent", status.tier1ModelPresent());
+                body.put("latencyOk",        status.latencyOk());
+                body.put("latencyP95Ms",     status.latencyP95Ms() != null ? status.latencyP95Ms() : 0);
+                body.put("overall",          status.overall());
+                body.put("message",          status.message());
+                // Best-effort live state from /api/ps. Don't 500 the whole health endpoint
+                // if /api/ps is flaky — just omit the field.
+                List<Map<String, Object>> loaded = new ArrayList<>();
+                if (status.ollamaReachable()) {
+                    try {
+                        for (com.organizer3.translation.ollama.LoadedOllamaModel m : ollamaAdapter.psModels()) {
+                            LinkedHashMap<String, Object> row = new LinkedHashMap<>();
+                            row.put("name",         m.name());
+                            row.put("sizeBytes",    m.sizeBytes());
+                            row.put("vramBytes",    m.vramBytes());
+                            row.put("expiresAtIso", m.expiresAtIso());
+                            loaded.add(row);
+                        }
+                    } catch (Exception e) {
+                        log.debug("GET /api/translation/health: psModels() failed: {}", e.getMessage());
+                    }
+                }
+                body.put("loadedModels", loaded);
+                ctx.json(body);
             } catch (Exception e) {
                 log.error("GET /api/translation/health failed", e);
                 ctx.status(500).json(Map.of("error", e.getMessage()));

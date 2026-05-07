@@ -25,11 +25,11 @@ public record HealthStatus(
     }
 
     public static HealthStatus ollamaDown() {
-        return new HealthStatus(false, false, false, null, false, "Ollama daemon unreachable");
+        return new HealthStatus(false, false, false, null, false, "AI service unreachable");
     }
 
     public static HealthStatus modelMissing(String modelId) {
         return new HealthStatus(true, false, false, null, false,
-                "Tier-1 model not installed: " + modelId);
+                "Primary model not installed: " + modelId);
     }
 }

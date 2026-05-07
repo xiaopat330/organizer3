@@ -53,4 +53,12 @@ public interface OllamaAdapter {
      * Does not check model availability.
      */
     boolean isHealthy();
+
+    /**
+     * Lists models currently loaded into Ollama's runtime memory ({@code /api/ps}).
+     * Returns an empty list (not an exception) when no models are loaded — the
+     * {@code /api/ps} response shape uses an empty {@code models} array. Exceptions are
+     * reserved for connection/HTTP/parse failures.
+     */
+    List<LoadedOllamaModel> psModels();
 }
