@@ -365,20 +365,24 @@ abstract class AbstractSyncOperation implements SyncOperation {
     }
 
     /**
-     * Drop titles whose locations all disappeared during this sync, and delete their local
-     * cover cache files in the same pass. Called between scan and {@link #finalizeSync}.
+     * Drop titles whose locations all disappeared during this sync, delete their local
+     * cover cache files, and sweep stale location rows past the grace period.
+     * Called between scan and {@link #finalizeSync}.
      *
      * <p>Returns covers for every orphaned title to its pre-fetch state — closes the gap that
      * was leaving thousands of unreferenced covers on disk as folders got renamed on the NAS.
      * Any cover whose title is dropped here would be flagged by Library Health on the next
      * scan, so removing them eagerly keeps the app's on-disk footprint honest.
      *
-     * <p>Partition sync calls this after per-partition clears; full sync calls it after the
-     * complete discovery+save pass. In both cases the predicate is the same — zero
-     * {@code title_locations} rows.
+     * <p>Partition sync calls this after per-partition marks; full sync calls it after the
+     * complete discovery+save pass. In both cases the predicate is the same — zero live
+     * {@code title_locations} rows AND no stale-within-grace rows.
+     *
+     * @param staleGraceDays grace window in days; a title is only pruned if it has no live
+     *                       locations AND no stale rows within this window
      */
-    protected void pruneOrphanedTitlesAndCovers(CommandIO io) {
-        List<TitleRepository.OrphanedTitleRef> orphans = titleRepo.findOrphanedTitles();
+    protected void pruneOrphanedTitlesAndCovers(CommandIO io, int staleGraceDays, SyncStats stats) {
+        List<TitleRepository.OrphanedTitleRef> orphans = titleRepo.findOrphanedTitles(staleGraceDays);
 
         // Cascade guard (pre-cover): check before deleting any cover files. The repo-level
         // guard in deleteOrphaned() is defense-in-depth, but cover deletion runs first and
@@ -400,7 +404,7 @@ abstract class AbstractSyncOperation implements SyncOperation {
 
             // Catastrophic-flagging guard: refuse to flag more than max(50, 10% of titles)
             // enriched orphans in a single sync — likely indicates a volume-mount issue or bug.
-            int enrichedOrphans = titleRepo.countOrphansWithEnrichment();
+            int enrichedOrphans = titleRepo.countOrphansWithEnrichment(staleGraceDays);
             int flagThreshold   = com.organizer3.repository.jdbi.JdbiTitleRepository.orphanFlagThreshold(total);
             if (enrichedOrphans > flagThreshold) {
                 log.error("Orphan prune refused (flagging-guard): {} enriched titles would be flagged (threshold {}). "
@@ -426,28 +430,62 @@ abstract class AbstractSyncOperation implements SyncOperation {
                 log.warn("Failed to delete orphan cover {} for {}-{}", found.get(), ref.label(), ref.baseCode(), e);
             }
         }
-        if (orphans.isEmpty() && coversDeleted == 0) return;
-        try {
-            TitleRepository.OrphanPruneResult result = titleRepo.deleteOrphaned();
-            titleActressRepo.deleteOrphaned();
-            if (result.total() > 0 || coversDeleted > 0) {
-                log.info("Pruned {} orphan title(s) ({} deleted, {} flagged for review); deleted {} cover file(s)",
-                        result.total(), result.deleted(), result.flagged(), coversDeleted);
-                io.println("  Pruned " + result.total() + " orphan title(s)"
-                        + (result.flagged() > 0
-                                ? " (" + result.deleted() + " deleted, " + result.flagged() + " flagged for enrichment review)"
-                                : "")
-                        + "; deleted " + coversDeleted + " cover file(s).");
+        if (!orphans.isEmpty() || coversDeleted > 0) {
+            try {
+                TitleRepository.OrphanPruneResult result = titleRepo.deleteOrphaned(staleGraceDays);
+                titleActressRepo.deleteOrphaned();
+                if (result.total() > 0 || coversDeleted > 0) {
+                    log.info("Pruned {} orphan title(s) ({} deleted, {} flagged for review); deleted {} cover file(s)",
+                            result.total(), result.deleted(), result.flagged(), coversDeleted);
+                    io.println("  Pruned " + result.total() + " orphan title(s)"
+                            + (result.flagged() > 0
+                                    ? " (" + result.deleted() + " deleted, " + result.flagged() + " flagged for enrichment review)"
+                                    : "")
+                            + "; deleted " + coversDeleted + " cover file(s).");
+                }
+            } catch (CatastrophicDeleteException e) {
+                // Repo-level guard tripped despite the pre-check — total/orphan counts must have
+                // shifted mid-prune (unlikely under normal sync serialization, but possible).
+                log.error("Orphan prune refused (repo-guard): {}", e.getMessage(), e);
+                io.println("  ⚠ Orphan prune refused — " + e.wouldDelete() + " of "
+                        + e.total() + " titles would be deleted (threshold " + e.threshold() + ").");
+                io.println("  ⚠ This usually indicates a title_locations corruption."
+                        + " Investigate before re-running sync.");
+                return;
             }
-        } catch (CatastrophicDeleteException e) {
-            // Repo-level guard tripped despite the pre-check — total/orphan counts must have
-            // shifted mid-prune (unlikely under normal sync serialization, but possible).
-            log.error("Orphan prune refused (repo-guard): {}", e.getMessage(), e);
-            io.println("  ⚠ Orphan prune refused — " + e.wouldDelete() + " of "
-                    + e.total() + " titles would be deleted (threshold " + e.threshold() + ").");
-            io.println("  ⚠ This usually indicates a title_locations corruption."
-                    + " Investigate before re-running sync.");
         }
+
+        // Stale-row sweep: drop title_location rows past the grace period.
+        // Catastrophic-delete guard: refuse to sweep more than max(50, 10%) of all live locations.
+        int sweepCount = titleLocationRepo.findStaleOlderThan(staleGraceDays).size();
+        if (sweepCount > 0) {
+            int swept = sweepStaleWithGuard(staleGraceDays, sweepCount, io);
+            stats.swept = swept;
+            if (swept > 0) {
+                log.info("Swept {} stale title_location row(s) past grace ({} days)", swept, staleGraceDays);
+                io.println("  Swept " + swept + " stale location row(s) past " + staleGraceDays + "-day grace.");
+            }
+        }
+    }
+
+    /**
+     * Performs the stale-sweep with a catastrophic-delete guard.
+     *
+     * <p>Guard: refuse to sweep more than {@code max(50, 10%)} of all live
+     * {@code title_locations} rows in a single sweep. Shares the same threshold
+     * semantics as the title-prune guard.
+     */
+    private int sweepStaleWithGuard(int staleGraceDays, int sweepCount, CommandIO io) {
+        int liveTotal = titleLocationRepo.countAllLive();
+        int threshold = Math.max(50, liveTotal / 10);
+        if (sweepCount > threshold) {
+            log.error("Stale-sweep refused: {} rows would be swept (threshold {} = max(50, 10% of {} live rows)). "
+                    + "Investigate before re-running sync.", sweepCount, threshold, liveTotal);
+            io.println("  ⚠ Stale-sweep refused — " + sweepCount + " rows past grace (threshold " + threshold + ").");
+            io.println("  ⚠ Investigate whether stale_since values are correct before re-running.");
+            return 0;
+        }
+        return titleLocationRepo.sweepStaleOlderThan(staleGraceDays);
     }
 
     /**
@@ -465,17 +503,21 @@ abstract class AbstractSyncOperation implements SyncOperation {
             }
         }
         ctx.setIndex(indexLoader.load(volumeId));
-        log.info("Sync finalized — volume={} actresses={} queue={} attention={} total={} touchedTitles={} touchedActresses={}",
+        log.info("Sync finalized — volume={} actresses={} queue={} attention={} total={} touchedTitles={} touchedActresses={} staleMarked={} staleCleared={} swept={}",
                 volumeId, stats.actressCount(), stats.queue, stats.attention, stats.total,
-                stats.touchedTitleIds().size(), stats.touchedActressIds().size());
+                stats.touchedTitleIds().size(), stats.touchedActressIds().size(),
+                stats.staleMarked, stats.staleCleared, stats.swept);
     }
 
     protected void printStats(SyncStats stats, CommandIO io) {
         io.println("Sync complete.");
-        io.println("  Actresses:  " + stats.actressCount());
-        io.printlnAnsi("  Queue:      " + GREEN + stats.queue     + RESET);
-        io.printlnAnsi("  Attention:  " + RED   + stats.attention + RESET);
-        io.printlnAnsi("  Total:      " + CYAN  + stats.total     + RESET);
+        io.println("  Actresses:    " + stats.actressCount());
+        io.printlnAnsi("  Queue:        " + GREEN + stats.queue       + RESET);
+        io.printlnAnsi("  Attention:    " + RED   + stats.attention   + RESET);
+        io.printlnAnsi("  Total:        " + CYAN  + stats.total       + RESET);
+        io.println(    "  Stale marked: " + stats.staleMarked);
+        io.println(    "  Stale cleared:" + stats.staleCleared);
+        io.println(    "  Swept:        " + stats.swept);
     }
 
     // Expose partition def lookup for unstructured partitions (used by PartitionSyncOperation)

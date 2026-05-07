@@ -743,6 +743,7 @@ public class Application {
         java.util.List<com.organizer3.utilities.health.LibraryHealthCheck> healthChecks =
                 java.util.List.of(
                         new com.organizer3.utilities.health.checks.StaleLocationsCheck(jdbi),
+                        new com.organizer3.utilities.health.checks.PendingGraceLocationsCheck(titleLocationRepo),
                         new com.organizer3.utilities.health.checks.OrphanedCoversCheck(orphanedCoversService),
                         new com.organizer3.utilities.health.checks.TitlesWithoutCoversCheck(titleRepo, coverPath),
                         new com.organizer3.utilities.health.checks.UnloadedYamlsCheck(yamlLoader, actressRepo),

@@ -17,6 +17,8 @@ import com.organizer3.shell.SessionContext;
 import com.organizer3.shell.io.CommandIO;
 import com.organizer3.shell.io.PlainCommandIO;
 import com.organizer3.covers.CoverPath;
+import com.organizer3.config.AppConfig;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -30,6 +32,7 @@ import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 /**
@@ -64,6 +67,9 @@ class PartitionSyncOperationTest {
 
     @BeforeEach
     void setUp() {
+        AppConfig.initializeForTest(new com.organizer3.config.volume.OrganizerConfig(
+                "test", "/tmp", null, null, null, null, null, null,
+                List.of(), List.of(), List.of(), List.of(), null, null));
         titleRepo = mock(TitleRepository.class);
         videoRepo = mock(VideoRepository.class);
         actressRepo = mock(ActressRepository.class);
@@ -84,6 +90,14 @@ class PartitionSyncOperationTest {
             return t.toBuilder().id(1L).build();
         });
         coverPath = new CoverPath(tmpDataDir);
+        // Stub new stale-sweep methods so tests don't NPE.
+        when(titleLocationRepo.findStaleOlderThan(anyInt())).thenReturn(List.of());
+        when(titleLocationRepo.countStaleMarkedAt(anyString(), anyString())).thenReturn(0);
+    }
+
+    @AfterEach
+    void tearDown() {
+        AppConfig.reset();
     }
 
     @Test
@@ -96,10 +110,11 @@ class PartitionSyncOperationTest {
         op.execute(VOLUME, STRUCTURE, fs, ctx, io);
 
         verify(videoRepo).deleteByVolumeAndPartition("a", "queue");
-        verify(titleLocationRepo).deleteByVolumeAndPartition("a", "queue");
+        verify(titleLocationRepo).markStaleByVolumeAndPartition(eq("a"), eq("queue"), anyString());
         // Should NOT clear the entire volume
         verify(videoRepo, never()).deleteByVolume(any());
         verify(titleLocationRepo, never()).deleteByVolume(any());
+        verify(titleLocationRepo, never()).deleteByVolumeAndPartition(anyString(), anyString());
     }
 
     @Test
@@ -153,11 +168,11 @@ class PartitionSyncOperationTest {
         java.nio.file.Files.createDirectories(labelDir);
         java.nio.file.Path coverFile = labelDir.resolve("ABP-00001.jpg");
         java.nio.file.Files.writeString(coverFile, "x");
-        when(titleRepo.findOrphanedTitles()).thenReturn(
+        when(titleRepo.findOrphanedTitles(anyInt())).thenReturn(
                 List.of(new TitleRepository.OrphanedTitleRef("ABP", "ABP-00001")));
         when(titleRepo.countAll()).thenReturn(100);
-        when(titleRepo.countOrphansWithEnrichment()).thenReturn(0);
-        when(titleRepo.deleteOrphaned()).thenReturn(new TitleRepository.OrphanPruneResult(1, 0));
+        when(titleRepo.countOrphansWithEnrichment(anyInt())).thenReturn(0);
+        when(titleRepo.deleteOrphaned(anyInt())).thenReturn(new TitleRepository.OrphanPruneResult(1, 0));
         when(fs.exists(Path.of("/queue"))).thenReturn(false);
 
         PartitionSyncOperation op = new PartitionSyncOperation(
@@ -166,7 +181,7 @@ class PartitionSyncOperationTest {
         op.execute(VOLUME, STRUCTURE, fs, ctx, io);
 
         assertFalse(java.nio.file.Files.exists(coverFile), "orphaned title's cover should be deleted");
-        verify(titleRepo).deleteOrphaned();
+        verify(titleRepo).deleteOrphaned(anyInt());
     }
 
     @Test

@@ -16,8 +16,13 @@ import com.organizer3.repository.VolumeRepository;
 import com.organizer3.shell.SessionContext;
 import com.organizer3.shell.io.CommandIO;
 
+import com.organizer3.config.AppConfig;
+
+import lombok.extern.slf4j.Slf4j;
+
 import java.io.IOException;
 import java.nio.file.Path;
+import java.time.Instant;
 import java.util.List;
 
 /**
@@ -27,6 +32,7 @@ import java.util.List;
  * DB records untouched. Only applicable to unstructured partitions — the structured
  * {@code stars/} tree is never partially synced.
  */
+@Slf4j
 public class PartitionSyncOperation extends AbstractSyncOperation {
 
     private final List<String> partitionIds;
@@ -89,17 +95,20 @@ public class PartitionSyncOperation extends AbstractSyncOperation {
         io.println("Syncing " + volume.id() + " (partitions: " + partitionIds + ") ...");
         ensureVolumeRecord(volume);
 
+        int staleGraceDays = AppConfig.get().volumes().syncOrDefaults().staleGraceDaysOrDefault();
+        String nowIso = Instant.now().toString();
+
         SyncStats stats = new SyncStats();
         Path root = Path.of("/");
 
-        // Phase 1: clear all target partitions first so renamed titles appear as orphans
+        // Phase 1: mark all target partitions stale so renamed titles appear as no-live-location
         // when the soft-match maps are loaded in phase 2.
         for (String partitionId : partitionIds) {
             videoRepo.deleteByVolumeAndPartition(volume.id(), partitionId);
-            titleLocationRepo.deleteByVolumeAndPartition(volume.id(), partitionId);
+            stats.staleMarked += titleLocationRepo.markStaleByVolumeAndPartition(volume.id(), partitionId, nowIso);
         }
 
-        // Phase 2: load soft-match state after all clears.
+        // Phase 2: load soft-match state after all marks.
         identityMatcher.loadForSync();
 
         // Phase 3: scan all target partitions.
@@ -113,8 +122,23 @@ public class PartitionSyncOperation extends AbstractSyncOperation {
         // Flush soft-match candidates before orphan pruning.
         identityMatcher.flushToQueue(titleRepo.countAll());
 
+        // Count stale-cleared: rows marked at start of this run that are now live (re-observed).
+        int stillStaleFromThisRun = 0;
+        for (String partitionId : partitionIds) {
+            // For partition sync, count stale rows per partition that match this run's timestamp.
+            stillStaleFromThisRun += titleLocationRepo.countStaleMarkedAt(volume.id(), nowIso);
+        }
+        // Avoid double-counting: countStaleMarkedAt counts all on the volume with this timestamp,
+        // but partition sync may mark multiple partitions. Since nowIso is unique per-run and
+        // applies across all partitions in this run, querying once is correct.
+        stats.staleCleared = stats.staleMarked - titleLocationRepo.countStaleMarkedAt(volume.id(), nowIso);
+
+        log.info("Partition sync scan complete — volume={} partitions={} staleMarked={} staleCleared={}",
+                volume.id(), partitionIds, stats.staleMarked, stats.staleCleared);
+
         // Drop titles whose locations all disappeared AND their local cover files.
-        pruneOrphanedTitlesAndCovers(io);
+        // Also sweeps stale rows past the grace period.
+        pruneOrphanedTitlesAndCovers(io, staleGraceDays, stats);
 
         finalizeSync(volume.id(), ctx, stats);
         printStats(stats, io);
