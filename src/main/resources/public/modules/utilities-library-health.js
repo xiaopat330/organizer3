@@ -28,13 +28,19 @@ let isScanning = false;
 export async function showLibraryHealthView() {
   viewEl().style.display = 'flex';
   selectedId = localStorage.getItem(SELECTION_KEY);
-  await Promise.all([loadChecks(), loadLatestReport(), loadRatingCurveStatus()]);
+  await Promise.all([
+    loadChecks(),
+    loadLatestReport(),
+    loadRatingCurveStatus(),
+    loadLatestReconcile(),
+  ]);
   renderScanAge();
   renderList();
   if (selectedId) showDetail(selectedId);
   else showEmpty();
   wireScanButton();
   wireRecomputeRatingsButton();
+  wireReconcileButtons();
 }
 
 export function hideLibraryHealthView() {
@@ -526,3 +532,106 @@ taskCenter.subscribe(() => {
     recompute.disabled = taskCenter.isRunning();
   }
 });
+
+// ── Reconcile pass ────────────────────────────────────────────────────────
+
+const rcAgeEl      = () => document.getElementById('lh-reconcile-age');
+const rcDupEl      = () => document.getElementById('lh-rc-dup');
+const rcPendingEl  = () => document.getElementById('lh-rc-pending');
+const rcPastEl     = () => document.getElementById('lh-rc-past');
+const rcMismatchEl = () => document.getElementById('lh-rc-mismatch');
+const rcRunBtn     = () => document.getElementById('lh-rc-run');
+const rcSweepBtn   = () => document.getElementById('lh-rc-sweep');
+
+let lastReconcile = null;
+
+async function loadLatestReconcile() {
+  try {
+    const res = await fetch('/api/reconcile/recent?limit=1');
+    if (!res.ok) { lastReconcile = null; return; }
+    const list = await res.json();
+    lastReconcile = (Array.isArray(list) && list.length > 0) ? list[0] : null;
+  } catch (e) {
+    console.error('Failed to load latest reconcile', e);
+    lastReconcile = null;
+  }
+  renderReconcile();
+}
+
+function renderReconcile() {
+  const r = lastReconcile;
+  setReconcileNum(rcDupEl(),      r?.duplicateLiveLocations,  /*warnAt=*/1);
+  setReconcileNum(rcPendingEl(),  r?.pendingGrace,            /*warnAt=*/1);
+  setReconcileNum(rcPastEl(),     r?.pastGraceStragglers,     /*warnAt=*/1);
+  setReconcileNum(rcMismatchEl(), r?.actressFolderMismatches, /*warnAt=*/1);
+  const age = rcAgeEl();
+  if (!r || !r.generatedAt) {
+    age.textContent = 'never run';
+  } else {
+    const t = new Date(r.generatedAt);
+    age.textContent = formatAge(t);
+    age.title = t.toLocaleString();
+  }
+}
+
+function setReconcileNum(el, value, warnAt) {
+  if (!el) return;
+  if (value == null) { el.textContent = '—'; el.className = 'n'; return; }
+  el.textContent = String(value);
+  el.className = 'n' + (value >= warnAt ? ' warn' : '');
+}
+
+function wireReconcileButtons() {
+  const run = rcRunBtn();
+  if (run && !run.dataset.wired) {
+    run.dataset.wired = '1';
+    run.onclick = () => runReconcile(/*sweep=*/false);
+  }
+  const sweep = rcSweepBtn();
+  if (sweep && !sweep.dataset.wired) {
+    sweep.dataset.wired = '1';
+    sweep.onclick = () => {
+      const past = lastReconcile?.pastGraceStragglers ?? 0;
+      const msg = past > 0
+        ? `Run reconcile and sweep ${past} past-grace stale row(s)? This deletes location rows older than the grace window.`
+        : 'Run reconcile and sweep past-grace stale rows? (None currently — sweep will be a no-op.)';
+      if (!confirm(msg)) return;
+      runReconcile(/*sweep=*/true);
+    };
+  }
+}
+
+async function runReconcile(sweep) {
+  const run = rcRunBtn();
+  const sweepBtn = rcSweepBtn();
+  const originalRun = run.textContent;
+  const originalSweep = sweepBtn.textContent;
+  run.disabled = true; sweepBtn.disabled = true;
+  run.textContent = sweep ? 'Sweeping…' : 'Running…';
+  try {
+    const res = await fetch('/api/reconcile/run', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ verbose: false, sweep: !!sweep }),
+    });
+    if (!res.ok) {
+      alert(`Reconcile failed (${res.status})`);
+      return;
+    }
+    const body = await res.json();
+    lastReconcile = body;
+    renderReconcile();
+    if (sweep) {
+      const result = body.sweepResult || `Swept ${body.sweptCount ?? 0} row(s)`;
+      alert(result);
+    }
+  } catch (e) {
+    console.error('Reconcile run failed', e);
+    alert('Reconcile failed: ' + e.message);
+  } finally {
+    run.textContent = originalRun;
+    sweepBtn.textContent = originalSweep;
+    run.disabled = false;
+    sweepBtn.disabled = false;
+  }
+}

@@ -9,6 +9,8 @@ import com.organizer3.shell.SessionContext;
 import com.organizer3.shell.io.CommandIO;
 import com.organizer3.smb.VolumeConnection;
 import com.organizer3.sync.FullSyncOperation;
+import com.organizer3.sync.ReconcileReport;
+import com.organizer3.sync.ReconcileService;
 import com.organizer3.sync.SyncPruneService;
 import com.organizer3.utilities.task.CommandInvoker;
 import com.organizer3.utilities.task.TaskInputs;
@@ -29,6 +31,7 @@ import java.util.concurrent.TimeUnit;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.*;
@@ -85,11 +88,20 @@ class CoherentMultiVolumeSyncTaskTest {
 
     private FullSyncOperation suppressedPruneOp;
     private SyncPruneService pruneService;
+    private ReconcileService reconcileService;
 
     @BeforeEach
     void setUp() {
         suppressedPruneOp = mock(FullSyncOperation.class);
         pruneService      = mock(SyncPruneService.class);
+        reconcileService  = mock(ReconcileService.class);
+        // Reconcile.run returns a synthetic empty report by default.
+        when(reconcileService.run(anyBoolean()))
+                .thenReturn(new ReconcileReport(
+                        java.time.Instant.now(),
+                        0, 0, 0, 0, 0,
+                        List.of(), List.of(), List.of(), List.of()));
+        when(reconcileService.persist(any(), anyString(), any())).thenReturn(1L);
 
         // AppConfig must be initialized; coherent task reads volumes() and syncOrDefaults()
         // from it. Provide two supported volumes plus one avstars volume.
@@ -174,7 +186,8 @@ class CoherentMultiVolumeSyncTaskTest {
                     return new CommandInvoker(registries.get(idx), sessions.get(idx));
                 },
                 suppressedPruneOp,
-                pruneService
+                pruneService,
+                reconcileService
         );
 
         TaskRun run = runTaskAndAwait(task);
@@ -187,6 +200,11 @@ class CoherentMultiVolumeSyncTaskTest {
 
         // Global prune ran exactly once
         verify(pruneService, times(1)).pruneOrphanedTitlesAndCovers(any(), anyInt(), any());
+
+        // Reconcile auto-ran exactly once after the successful sync, and was persisted
+        // with triggered_by='coherent_sync'.
+        verify(reconcileService, times(1)).run(true);
+        verify(reconcileService, times(1)).persist(any(), eq("coherent_sync"), any());
 
         // Both volumes were mounted and unmounted
         assertEquals(1, mountA.invocations.size(),   "vol-a should be mounted once");
@@ -237,7 +255,8 @@ class CoherentMultiVolumeSyncTaskTest {
                     return new CommandInvoker(registries.get(idx), sessions.get(idx));
                 },
                 suppressedPruneOp,
-                pruneService
+                pruneService,
+                reconcileService
         );
 
         TaskRun run = runTaskAndAwait(task);
@@ -253,6 +272,11 @@ class CoherentMultiVolumeSyncTaskTest {
 
         // CRITICAL: global prune must NOT run because we have an incomplete picture
         verify(pruneService, never()).pruneOrphanedTitlesAndCovers(any(), anyInt(), any());
+
+        // Reconcile must NOT run on partial failure either — incomplete picture means
+        // a misleading report. Same skip rationale as the global prune.
+        verify(reconcileService, never()).run(anyBoolean());
+        verify(reconcileService, never()).persist(any(), anyString(), any());
 
         // Unmount must still run for vol-a even though scan failed
         assertEquals(1, unmountA.invocations.size(), "vol-a must be unmounted even on scan failure");
@@ -288,7 +312,8 @@ class CoherentMultiVolumeSyncTaskTest {
                     return new CommandInvoker(registries.get(idx), sessions.get(idx));
                 },
                 suppressedPruneOp,
-                pruneService
+                pruneService,
+                reconcileService
         );
 
         TaskRun run = runTaskAndAwait(task);
@@ -331,7 +356,8 @@ class CoherentMultiVolumeSyncTaskTest {
                 () -> new CommandInvoker(
                         Map.of("mount", mountA, "unmount", unmountA), sessionA),
                 suppressedPruneOp,
-                pruneService
+                pruneService,
+                reconcileService
         );
 
         TaskRun run = runTaskAndAwait(task);

@@ -452,6 +452,22 @@
       </div>
       <div id="lh-scan-age" class="lh-scan-age" style="display:none"></div>
       <div id="lh-rating-status" class="lh-rating-status"></div>
+      <div id="lh-reconcile" class="lh-reconcile">
+        <div class="lh-reconcile-header">
+          <span class="lh-reconcile-title">Sync reconcile</span>
+          <span id="lh-reconcile-age" class="lh-reconcile-age">never run</span>
+        </div>
+        <div id="lh-reconcile-counts" class="lh-reconcile-counts">
+          <div class="lh-reconcile-count"><span class="n" id="lh-rc-dup">—</span><span class="lbl">dup live</span></div>
+          <div class="lh-reconcile-count"><span class="n" id="lh-rc-pending">—</span><span class="lbl">pending grace</span></div>
+          <div class="lh-reconcile-count"><span class="n" id="lh-rc-past">—</span><span class="lbl">past grace</span></div>
+          <div class="lh-reconcile-count"><span class="n" id="lh-rc-mismatch">—</span><span class="lbl">mismatches</span></div>
+        </div>
+        <div class="lh-reconcile-actions">
+          <button type="button" id="lh-rc-run" class="lh-scan lh-scan--secondary">Run reconcile</button>
+          <button type="button" id="lh-rc-sweep" class="lh-scan lh-scan--secondary">Run + sweep</button>
+        </div>
+      </div>
     </div>
     <ul id="lh-list" class="lh-list"></ul>
   </aside>
