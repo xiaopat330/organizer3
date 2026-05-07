@@ -22,15 +22,15 @@ public record JavdbConfig(
         @JsonProperty("filmographyMaxPages")     Integer filmographyMaxPages
 ) {
 
-    public static final JavdbConfig DEFAULTS = new JavdbConfig(true, 0.33, 3, new int[]{1, 5, 30}, 15, null, null, 8, 15, 3, 90, 50);
+    public static final JavdbConfig DEFAULTS = new JavdbConfig(true, 0.5, 3, new int[]{1, 5, 30}, 15, null, null, 12, 10, 3, 90, 50);
 
     public boolean enabledOrDefault()               { return enabled != null ? enabled : true; }
-    public double rateLimitPerSecOrDefault()        { return rateLimitPerSec != null ? rateLimitPerSec : 0.1; }
+    public double rateLimitPerSecOrDefault()        { return rateLimitPerSec != null ? rateLimitPerSec : 0.5; }
     public int maxAttemptsOrDefault()               { return maxAttempts != null ? maxAttempts : 3; }
     public int[] backoffMinutesOrDefault()          { return backoffMinutes != null ? backoffMinutes : new int[]{1, 5, 30}; }
     public int rate429PauseMinutesOrDefault()       { return rate429PauseMinutes != null ? rate429PauseMinutes : 15; }
-    public int burstSizeOrDefault()                 { return burstSize != null ? burstSize : 4; }
-    public int burstBreakMinutesOrDefault()         { return burstBreakMinutes != null ? burstBreakMinutes : 30; }
+    public int burstSizeOrDefault()                 { return burstSize != null ? burstSize : 12; }
+    public int burstBreakMinutesOrDefault()         { return burstBreakMinutes != null ? burstBreakMinutes : 10; }
     public int profileChainMinTitlesOrDefault()     { return profileChainMinTitles != null ? profileChainMinTitles : 3; }
     public int filmographyTtlDaysOrDefault()        { return filmographyTtlDays != null ? filmographyTtlDays : 90; }
     public int filmographyMaxPagesOrDefault()       { return filmographyMaxPages != null ? filmographyMaxPages : 50; }
