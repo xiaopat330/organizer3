@@ -5,6 +5,7 @@
 
 import { esc } from './utils.js';
 import { mount as mountNearMissModal } from './near-miss-modal.js';
+import { openAliasCaptureModal } from './alias-capture-modal.js';
 
 // ── DOM refs ──────────────────────────��──────────────────────────��────────
 const draftPane         = document.getElementById('queue-draft-pane');
@@ -514,7 +515,15 @@ function buildPicker(slot, idx) {
           item.addEventListener('click', () => {
             suggestBox.style.display = 'none';
             searchInput.value = '';
-            patchResolution(slot.javdbSlug, 'pick', { linkToExistingId: h.id }, idx);
+            // Capture current name inputs before DOM rebuild (advisor note: DOM is gone after renderCastSlots).
+            const pickerEl = container;
+            const lastEl  = pickerEl.querySelector('.queue-cast-picker-name-input[data-name-field="last"]');
+            const firstEl = pickerEl.querySelector('.queue-cast-picker-name-input[data-name-field="first"]');
+            const capturedLast  = lastEl  ? lastEl.value.trim()  : '';
+            const capturedFirst = firstEl ? firstEl.value.trim() : '';
+            patchResolution(slot.javdbSlug, 'pick', { linkToExistingId: h.id }, idx, () => {
+              checkAndOpenAliasModal(h.id, slot.stageName, capturedFirst, capturedLast);
+            });
           });
           suggestBox.appendChild(item);
         });
@@ -688,9 +697,51 @@ async function fetchSentinels() {
   }
 }
 
+// ── Alias-capture check (Phase 6d Slice C) ────────────────────────────────
+
+/**
+ * After a successful 'pick' link, fetch the linked actress's canonical_name
+ * and aliases, compute mismatch flags, and open the alias-capture modal if
+ * either flag is true. Silent if the actress's names already cover both.
+ *
+ * @param {number}  actressId     - id of the linked actress
+ * @param {string}  stageName     - slot's kanji stage name (may be blank)
+ * @param {string}  capturedFirst - value of first-name input at click-time
+ * @param {string}  capturedLast  - value of last-name input at click-time
+ */
+async function checkAndOpenAliasModal(actressId, stageName, capturedFirst, capturedLast) {
+  if (!actressId) return;
+  try {
+    const res = await fetch(`/api/actresses/${actressId}`);
+    if (!res.ok) return;
+    const data = await res.json();
+    const canonicalName = data.canonicalName || '';
+    const aliasNames = (data.aliases || []).map(a => (typeof a === 'string' ? a : a.name)).filter(Boolean);
+
+    const kanjiText  = (stageName || '').trim();
+    const romajiText = capturedFirst
+      ? `${capturedFirst} ${capturedLast}`.trim()
+      : capturedLast.trim();
+
+    const kanjiNeedsAlias  = kanjiText  && kanjiText  !== canonicalName && !aliasNames.includes(kanjiText);
+    const romajiNeedsAlias = romajiText && romajiText !== canonicalName && !aliasNames.includes(romajiText);
+
+    if (!kanjiNeedsAlias && !romajiNeedsAlias) return;
+
+    openAliasCaptureModal({
+      actressId,
+      canonicalName,
+      kanjiAlias:  kanjiNeedsAlias  ? kanjiText  : null,
+      romajiAlias: romajiNeedsAlias ? romajiText : null,
+    });
+  } catch (err) {
+    console.warn('checkAndOpenAliasModal failed', err);
+  }
+}
+
 // ── PATCH cast resolution ────────────────────────────────���────────────────
 
-async function patchResolution(javdbSlug, resolution, extra, idx) {
+async function patchResolution(javdbSlug, resolution, extra, idx, afterSuccess) {
   if (!_draft || !_titleId) return;
 
   const payload = {
@@ -742,6 +793,7 @@ async function patchResolution(javdbSlug, resolution, extra, idx) {
     }
     showDraftStatus('', '');
     renderCastSlots();
+    if (typeof afterSuccess === 'function') afterSuccess();
   } catch (err) {
     console.error('patchResolution failed', err);
     showDraftStatus('Error: ' + (err.message || err), 'error');
