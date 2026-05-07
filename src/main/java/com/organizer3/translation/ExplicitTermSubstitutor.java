@@ -48,6 +48,13 @@ public final class ExplicitTermSubstitutor {
     /** Substitutions ordered by key length descending (longest-match wins). */
     private final Map<String, String> substitutions;
 
+    /** Number of substitute() calls that touched at least one key — process-lifetime only. */
+    private final java.util.concurrent.atomic.AtomicLong rowsTouched =
+            new java.util.concurrent.atomic.AtomicLong();
+    /** Sum of individual key replacements across all substitute() calls. */
+    private final java.util.concurrent.atomic.AtomicLong substitutionsApplied =
+            new java.util.concurrent.atomic.AtomicLong();
+
     /** Visible for testing — most callers should use {@link #loadFromFile}. */
     public ExplicitTermSubstitutor(Map<String, String> substitutions) {
         // Re-order by key length descending so longest-match wins regardless
@@ -94,10 +101,20 @@ public final class ExplicitTermSubstitutor {
     public String substitute(String input) {
         if (input == null || input.isEmpty()) return input;
         String result = input;
+        int hitsThisCall = 0;
         for (Map.Entry<String, String> entry : substitutions.entrySet()) {
-            if (result.contains(entry.getKey())) {
-                result = result.replace(entry.getKey(), entry.getValue());
+            String key = entry.getKey();
+            if (result.contains(key)) {
+                // Count individual occurrences before replacing.
+                int idx = 0, count = 0;
+                while ((idx = result.indexOf(key, idx)) != -1) { count++; idx += key.length(); }
+                hitsThisCall += count;
+                result = result.replace(key, entry.getValue());
             }
+        }
+        if (hitsThisCall > 0) {
+            rowsTouched.incrementAndGet();
+            substitutionsApplied.addAndGet(hitsThisCall);
         }
         return result;
     }
@@ -105,5 +122,20 @@ public final class ExplicitTermSubstitutor {
     /** Number of loaded substitution entries. Useful for startup logging + tests. */
     public int size() {
         return substitutions.size();
+    }
+
+    /** Read-only view of the substitution map. Order is length-descending. */
+    public Map<String, String> entries() {
+        return java.util.Collections.unmodifiableMap(substitutions);
+    }
+
+    /** Number of substitute() calls that produced at least one replacement. Process-lifetime. */
+    public long getRowsTouched() {
+        return rowsTouched.get();
+    }
+
+    /** Sum of all individual key replacements across all calls. Process-lifetime. */
+    public long getSubstitutionsApplied() {
+        return substitutionsApplied.get();
     }
 }

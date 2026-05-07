@@ -91,8 +91,10 @@ public class HttpOllamaAdapter implements OllamaAdapter {
         HttpResponse<String> resp;
         try {
             resp = http.send(httpReq, HttpResponse.BodyHandlers.ofString());
-        } catch (IOException | InterruptedException e) {
+        } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
+            throw new OllamaException("HTTP error calling /api/generate: " + e.getMessage(), e);
+        } catch (IOException e) {
             throw new OllamaException("HTTP error calling /api/generate: " + e.getMessage(), e);
         }
 
@@ -123,6 +125,41 @@ public class HttpOllamaAdapter implements OllamaAdapter {
     }
 
     @Override
+    public List<LoadedOllamaModel> psModels() {
+        HttpRequest req = HttpRequest.newBuilder()
+                .uri(URI.create(baseUrl + "/api/ps"))
+                .timeout(Duration.ofSeconds(10))
+                .GET()
+                .build();
+        try {
+            HttpResponse<String> resp = http.send(req, HttpResponse.BodyHandlers.ofString());
+            if (resp.statusCode() != 200) {
+                throw new OllamaException("Ollama /api/ps returned HTTP " + resp.statusCode());
+            }
+            JsonNode root = json.readTree(resp.body());
+            JsonNode models = root.path("models");
+            List<LoadedOllamaModel> result = new ArrayList<>();
+            if (models.isArray()) {
+                for (JsonNode m : models) {
+                    String expires = m.path("expires_at").asText("");
+                    result.add(new LoadedOllamaModel(
+                            m.path("name").asText(""),
+                            m.path("size").asLong(0),
+                            m.path("size_vram").asLong(0),
+                            expires.isEmpty() ? null : expires
+                    ));
+                }
+            }
+            return result;
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new OllamaException("Error calling /api/ps: " + e.getMessage(), e);
+        } catch (IOException e) {
+            throw new OllamaException("Error calling /api/ps: " + e.getMessage(), e);
+        }
+    }
+
+    @Override
     public List<OllamaModel> listModels() {
         HttpRequest req = HttpRequest.newBuilder()
                 .uri(URI.create(baseUrl + "/api/tags"))
@@ -143,8 +180,10 @@ public class HttpOllamaAdapter implements OllamaAdapter {
                 }
             }
             return result;
-        } catch (IOException | InterruptedException e) {
+        } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
+            throw new OllamaException("Error calling /api/tags: " + e.getMessage(), e);
+        } catch (IOException e) {
             throw new OllamaException("Error calling /api/tags: " + e.getMessage(), e);
         }
     }
@@ -199,8 +238,10 @@ public class HttpOllamaAdapter implements OllamaAdapter {
                 }
             }
             log.info("ensureModel: {} pull complete", modelId);
-        } catch (IOException | InterruptedException e) {
+        } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
+            throw new OllamaException("Error pulling model " + modelId + ": " + e.getMessage(), e);
+        } catch (IOException e) {
             throw new OllamaException("Error pulling model " + modelId + ": " + e.getMessage(), e);
         }
     }

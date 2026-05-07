@@ -1511,6 +1511,22 @@ public class JdbiActressRepository implements ActressRepository {
     }
 
     @Override
+    public java.util.Map<String, String> findAllStageNameMap() {
+        return jdbi.withHandle(h ->
+                h.createQuery("""
+                        SELECT stage_name, canonical_name
+                          FROM actresses
+                         WHERE stage_name IS NOT NULL AND stage_name != ''
+                           AND rejected = 0
+                        """)
+                        .reduceRows(new java.util.LinkedHashMap<>(), (map, rv) -> {
+                            map.put(rv.getColumn("stage_name", String.class),
+                                    rv.getColumn("canonical_name", String.class));
+                            return map;
+                        })
+        );
+    }
+
     public java.util.Map<String, String> findStageNameMapForTitle(long titleId) {
         return jdbi.withHandle(h ->
                 h.createQuery("""

@@ -253,7 +253,7 @@ function renderTitleDetail(t) {
       ? 'title-detail-title-en title-detail-title-en--auto'
       : 'title-detail-title-en';
   const llmBadge = isLlmTranslation
-      ? '<span class="title-detail-title-en-badge" title="Auto-translated by Ollama (gemma4:e4b)">auto</span>'
+      ? '<span class="title-detail-title-en-badge" title="Auto-translated by AI">auto</span>'
       : '';
   const enTitleHtml = hasEn ? `<div class="${enClass}">${esc(enText)}${llmBadge}</div>` : '';
   const jaClass = hasEn

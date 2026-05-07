@@ -47,6 +47,10 @@ public class TranslationRoutes {
     private final JavdbEnrichmentRepository enrichmentRepo;
     private final TranslationConfig translationConfig;
     private final TitleTranslationSweeper titleSweeper;
+    private final com.organizer3.translation.OllamaModelState ollamaModelState;
+    private final com.organizer3.translation.ExplicitTermSubstitutor explicitSubstitutor;
+    private final com.organizer3.translation.ollama.OllamaAdapter ollamaAdapter;
+    private final com.organizer3.repository.ActressRepository actressRepo;
 
     public TranslationRoutes(TranslationService service,
                               TranslationStrategyRepository strategyRepo,
@@ -55,15 +59,23 @@ public class TranslationRoutes {
                               Jdbi jdbi,
                               JavdbEnrichmentRepository enrichmentRepo,
                               TranslationConfig translationConfig,
-                              TitleTranslationSweeper titleSweeper) {
-        this.service           = service;
-        this.strategyRepo      = strategyRepo;
-        this.cacheRepo         = cacheRepo;
-        this.queueRepo         = queueRepo;
-        this.jdbi              = jdbi;
-        this.enrichmentRepo    = enrichmentRepo;
-        this.translationConfig = translationConfig;
-        this.titleSweeper      = titleSweeper;
+                              TitleTranslationSweeper titleSweeper,
+                              com.organizer3.translation.OllamaModelState ollamaModelState,
+                              com.organizer3.translation.ExplicitTermSubstitutor explicitSubstitutor,
+                              com.organizer3.translation.ollama.OllamaAdapter ollamaAdapter,
+                              com.organizer3.repository.ActressRepository actressRepo) {
+        this.service              = service;
+        this.strategyRepo         = strategyRepo;
+        this.cacheRepo            = cacheRepo;
+        this.queueRepo            = queueRepo;
+        this.jdbi                 = jdbi;
+        this.enrichmentRepo       = enrichmentRepo;
+        this.translationConfig    = translationConfig;
+        this.titleSweeper         = titleSweeper;
+        this.ollamaModelState     = ollamaModelState;
+        this.explicitSubstitutor  = explicitSubstitutor;
+        this.ollamaAdapter        = ollamaAdapter;
+        this.actressRepo          = actressRepo;
     }
 
     public void register(Javalin app) {
@@ -90,11 +102,28 @@ public class TranslationRoutes {
                 statsMap.put("topN", List.of());  // usage count data not yet tracked
                 statsMap.put("stageNameLookupSize", base.stageNameLookupSize());
                 statsMap.put("stageNameSuggestionsUnreviewed", base.stageNameSuggestionsUnreviewed());
+                statsMap.put("currentModelId", ollamaModelState.getCurrentModelId());
+                statsMap.put("explicitSubsRowsTouched", explicitSubstitutor.getRowsTouched());
+                statsMap.put("explicitSubsApplied",     explicitSubstitutor.getSubstitutionsApplied());
+                statsMap.put("explicitSubsMapSize",     explicitSubstitutor.size());
                 ctx.json(statsMap);
             } catch (Exception e) {
                 log.error("GET /api/translation/stats failed", e);
                 ctx.status(500).json(Map.of("error", e.getMessage()));
             }
+        });
+
+        // GET /api/translation/stage-name-map — global kanji → canonical English map.
+        // Used by the live activity feed to highlight stage-name matches.
+        app.get("/api/translation/stage-name-map", ctx -> {
+            ctx.json(actressRepo.findAllStageNameMap());
+        });
+
+        // GET /api/translation/explicit-substitutions — the loaded JP→EN substitution map.
+        // Used by the live activity feed to highlight terms that were rewritten before the
+        // LLM call.
+        app.get("/api/translation/explicit-substitutions", ctx -> {
+            ctx.json(explicitSubstitutor.entries());
         });
 
         // GET /api/translation/strategies
@@ -445,14 +474,32 @@ public class TranslationRoutes {
         app.get("/api/translation/health", ctx -> {
             try {
                 HealthStatus status = service.getHealth();
-                ctx.json(Map.of(
-                        "ollamaReachable", status.ollamaReachable(),
-                        "tier1ModelPresent", status.tier1ModelPresent(),
-                        "latencyOk", status.latencyOk(),
-                        "latencyP95Ms", status.latencyP95Ms() != null ? status.latencyP95Ms() : 0,
-                        "overall", status.overall(),
-                        "message", status.message()
-                ));
+                LinkedHashMap<String, Object> body = new LinkedHashMap<>();
+                body.put("ollamaReachable",  status.ollamaReachable());
+                body.put("tier1ModelPresent", status.tier1ModelPresent());
+                body.put("latencyOk",        status.latencyOk());
+                body.put("latencyP95Ms",     status.latencyP95Ms() != null ? status.latencyP95Ms() : 0);
+                body.put("overall",          status.overall());
+                body.put("message",          status.message());
+                // Best-effort live state from /api/ps. Don't 500 the whole health endpoint
+                // if /api/ps is flaky — just omit the field.
+                List<Map<String, Object>> loaded = new ArrayList<>();
+                if (status.ollamaReachable()) {
+                    try {
+                        for (com.organizer3.translation.ollama.LoadedOllamaModel m : ollamaAdapter.psModels()) {
+                            LinkedHashMap<String, Object> row = new LinkedHashMap<>();
+                            row.put("name",         m.name());
+                            row.put("sizeBytes",    m.sizeBytes());
+                            row.put("vramBytes",    m.vramBytes());
+                            row.put("expiresAtIso", m.expiresAtIso());
+                            loaded.add(row);
+                        }
+                    } catch (Exception e) {
+                        log.debug("GET /api/translation/health: psModels() failed: {}", e.getMessage());
+                    }
+                }
+                body.put("loadedModels", loaded);
+                ctx.json(body);
             } catch (Exception e) {
                 log.error("GET /api/translation/health failed", e);
                 ctx.status(500).json(Map.of("error", e.getMessage()));

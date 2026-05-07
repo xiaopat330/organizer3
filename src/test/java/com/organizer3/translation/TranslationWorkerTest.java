@@ -11,7 +11,10 @@ import com.organizer3.translation.repository.jdbi.JdbiStageNameSuggestionReposit
 import com.organizer3.translation.repository.jdbi.JdbiTranslationCacheRepository;
 import com.organizer3.translation.repository.jdbi.JdbiTranslationQueueRepository;
 import com.organizer3.translation.repository.jdbi.JdbiTranslationStrategyRepository;
+import com.organizer3.repository.jdbi.JdbiActressRepository;
+import com.organizer3.translation.ollama.OllamaRequest;
 import org.jdbi.v3.core.Jdbi;
+import org.mockito.ArgumentCaptor;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -24,7 +27,6 @@ import java.sql.DriverManager;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
-import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
@@ -456,6 +458,104 @@ class TranslationWorkerTest {
         workerThread.join(2000);
 
         assertFalse(workerThread.isAlive(), "Worker thread should stop after interrupt");
+    }
+
+    @Test
+    void processOne_transientOllamaError_doesNotSetInterruptFlag() {
+        // Regression: a transient OllamaException (wrapping IOException, e.g. HttpTimeoutException)
+        // must NOT leave the thread interrupt flag set. If it did, the worker loop would silently
+        // exit on the next iteration due to !Thread.currentThread().isInterrupted() returning true.
+        String now = ISO_UTC.format(Instant.now());
+        queueRepo.enqueue("タイムアウト", strategyId, now, TranslationQueueRow.STATUS_PENDING, null, null);
+
+        when(ollamaAdapter.generate(any()))
+                .thenThrow(new OllamaException("HTTP error calling /api/generate: request timed out"));
+
+        worker.processOne();
+
+        assertFalse(Thread.currentThread().isInterrupted(),
+                "Thread interrupt flag must not be set after a transient OllamaException");
+    }
+
+    // -------------------------------------------------------------------------
+    // Per-title actress stage-name overlay (regression — was dead code prior to
+    // 2026-05-07 because the gate checked for callback_kind="title" but the
+    // sweeper writes "title_javdb_enrichment.title_original_en").
+    // -------------------------------------------------------------------------
+
+    @Test
+    void processOne_titleEnrichmentRow_substitutesActressKanjiBeforePrompt() {
+        // Set up a title with an actress whose stage_name is kanji and canonical_name is
+        // the romanized English form. The worker must replace the kanji with the canonical
+        // English in the prompt before calling Ollama.
+        jdbi.useHandle(h -> {
+            h.execute("INSERT INTO titles (id, code, label) VALUES (1, 'IPX-460', 'IPX')");
+            h.execute("INSERT INTO actresses (id, canonical_name, stage_name, tier, first_seen_at) " +
+                      "VALUES (48, 'Eimi Fukada', '深田えいみ', 'LIBRARY', '2024-01-01')");
+            h.execute("INSERT INTO title_actresses (title_id, actress_id) VALUES (1, 48)");
+            h.execute("INSERT INTO title_javdb_enrichment (title_id, javdb_slug, fetched_at) " +
+                      "VALUES (1, 'IPX-460', '2026-01-01T00:00:00.000Z')");
+        });
+
+        // Build a worker with the actressRepo wired (default fixture worker doesn't have it).
+        JdbiActressRepository actressRepo = new JdbiActressRepository(jdbi);
+        TranslationWorker workerWithActress = new TranslationWorker(
+                ollamaAdapter, strategyRepo, cacheRepo, queueRepo,
+                callbackDispatcher, TranslationConfig.DEFAULTS, new ObjectMapper(),
+                new OllamaModelState(), new HealthGate(ollamaAdapter, cacheRepo, TranslationConfig.DEFAULTS), null,
+                ExplicitTermSubstitutor.EMPTY, actressRepo);
+
+        when(ollamaAdapter.generate(any())).thenReturn(fakeResponse("Eimi Fukada in some scene"));
+
+        String now = ISO_UTC.format(Instant.now());
+        queueRepo.enqueue("オナニー手伝い 深田えいみ", strategyId, now,
+                TranslationQueueRow.STATUS_PENDING,
+                "title_javdb_enrichment.title_original_en", 1L);
+
+        workerWithActress.processOne();
+
+        ArgumentCaptor<OllamaRequest> captor = ArgumentCaptor.forClass(OllamaRequest.class);
+        verify(ollamaAdapter).generate(captor.capture());
+        String prompt = captor.getValue().prompt();
+        assertTrue(prompt.contains("Eimi Fukada"),
+                "prompt must contain canonical name (substituted from kanji); got: " + prompt);
+        assertFalse(prompt.contains("深田えいみ"),
+                "prompt must NOT contain the original kanji form after substitution; got: " + prompt);
+    }
+
+    @Test
+    void processOne_seriesEnrichmentRow_doesNotSubstituteActressKanji() {
+        // Series/maker/publisher rows must NOT trigger the actress overlay — those columns
+        // don't contain actress names, and applying the overlay would corrupt them.
+        jdbi.useHandle(h -> {
+            h.execute("INSERT INTO titles (id, code, label) VALUES (1, 'IPX-460', 'IPX')");
+            h.execute("INSERT INTO actresses (id, canonical_name, stage_name, tier, first_seen_at) " +
+                      "VALUES (48, 'Eimi Fukada', '深田えいみ', 'LIBRARY', '2024-01-01')");
+            h.execute("INSERT INTO title_actresses (title_id, actress_id) VALUES (1, 48)");
+        });
+
+        JdbiActressRepository actressRepo = new JdbiActressRepository(jdbi);
+        TranslationWorker workerWithActress = new TranslationWorker(
+                ollamaAdapter, strategyRepo, cacheRepo, queueRepo,
+                callbackDispatcher, TranslationConfig.DEFAULTS, new ObjectMapper(),
+                new OllamaModelState(), new HealthGate(ollamaAdapter, cacheRepo, TranslationConfig.DEFAULTS), null,
+                ExplicitTermSubstitutor.EMPTY, actressRepo);
+
+        when(ollamaAdapter.generate(any())).thenReturn(fakeResponse("Some Series"));
+
+        String now = ISO_UTC.format(Instant.now());
+        // Same source text but a series_en callback — overlay must not fire.
+        queueRepo.enqueue("深田えいみシリーズ", strategyId, now,
+                TranslationQueueRow.STATUS_PENDING,
+                "title_javdb_enrichment.series_en", 1L);
+
+        workerWithActress.processOne();
+
+        ArgumentCaptor<OllamaRequest> captor = ArgumentCaptor.forClass(OllamaRequest.class);
+        verify(ollamaAdapter).generate(captor.capture());
+        String prompt = captor.getValue().prompt();
+        assertTrue(prompt.contains("深田えいみ"),
+                "series_en row must not undergo actress-kanji substitution");
     }
 
     // -------------------------------------------------------------------------

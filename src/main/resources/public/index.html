@@ -30,6 +30,7 @@
   <link rel="stylesheet" href="/css/title-editor.css">
   <link rel="stylesheet" href="/css/near-miss-modal.css">
   <link rel="stylesheet" href="/css/alias-capture-modal.css">
+  <link rel="stylesheet" href="/css/cover-modal.css">
   <link rel="stylesheet" href="/css/utilities-pending-kanji.css">
 </head>
 <body>
@@ -280,35 +281,41 @@
 </div>
 
 <!-- Utilities sub-nav (Backup / Logs / Import-Export tabs) -->
-<div id="tools-utilities-subnav" class="tools-subnav" style="display:none">
-  <button type="button" id="tools-utilities-backup-tab" class="tools-subnav-tab tools-subnav-tab-utilities-backup selected">
-    <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 14"/><path d="M3 12a9 9 0 0 1 14.5-7.1"/></svg>
-    Backup
-  </button>
-  <button type="button" id="tools-utilities-logs-tab" class="tools-subnav-tab tools-subnav-tab-utilities-logs">
-    <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
-    Logs
-  </button>
-  <button type="button" id="tools-utilities-import-export-tab" class="tools-subnav-tab tools-subnav-tab-utilities-import-export">
-    <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="m8 11 4 4 4-4"/><path d="M8 5H4a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-4"/></svg>
-    Import / Export
-  </button>
+<div id="tools-utilities-subnav" class="tools-section-header" style="display:none">
+  <span class="tools-section-title">Utilities</span>
+  <div class="tools-section-tabs">
+    <button type="button" id="tools-utilities-backup-tab" class="tools-section-tab tools-section-tab-utilities-backup selected">
+      <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 14"/><path d="M3 12a9 9 0 0 1 14.5-7.1"/></svg>
+      Backup
+    </button>
+    <button type="button" id="tools-utilities-logs-tab" class="tools-section-tab tools-section-tab-utilities-logs">
+      <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
+      Logs
+    </button>
+    <button type="button" id="tools-utilities-import-export-tab" class="tools-section-tab tools-section-tab-utilities-import-export">
+      <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="m8 11 4 4 4-4"/><path d="M8 5H4a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-4"/></svg>
+      Import / Export
+    </button>
+  </div>
 </div>
 
 <!-- Health sub-nav (Library / Volumes / Tags tabs) -->
-<div id="tools-health-subnav" class="tools-subnav" style="display:none">
-  <button type="button" id="tools-health-library-tab" class="tools-subnav-tab tools-subnav-tab-health-library selected">
-    <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h4l2-6 4 12 2-6h6"/></svg>
-    Library
-  </button>
-  <button type="button" id="tools-health-volumes-tab" class="tools-subnav-tab tools-subnav-tab-health-volumes">
-    <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v6c0 1.66 4 3 9 3s9-1.34 9-3V5"/><path d="M3 11v6c0 1.66 4 3 9 3s9-1.34 9-3v-6"/></svg>
-    Volumes
-  </button>
-  <button type="button" id="tools-health-tags-tab" class="tools-subnav-tab tools-subnav-tab-health-tags">
-    <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 12V8H6a2 2 0 0 1 0-4h12v4"/><path d="M4 6v12a2 2 0 0 0 2 2h14v-4"/><path d="M18 12h.01"/></svg>
-    Tags
-  </button>
+<div id="tools-health-subnav" class="tools-section-header" style="display:none">
+  <span class="tools-section-title">Health</span>
+  <div class="tools-section-tabs">
+    <button type="button" id="tools-health-library-tab" class="tools-section-tab tools-section-tab-health-library selected">
+      <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h4l2-6 4 12 2-6h6"/></svg>
+      Library
+    </button>
+    <button type="button" id="tools-health-volumes-tab" class="tools-section-tab tools-section-tab-health-volumes">
+      <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v6c0 1.66 4 3 9 3s9-1.34 9-3V5"/><path d="M3 11v6c0 1.66 4 3 9 3s9-1.34 9-3v-6"/></svg>
+      Volumes
+    </button>
+    <button type="button" id="tools-health-tags-tab" class="tools-section-tab tools-section-tab-health-tags">
+      <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 12V8H6a2 2 0 0 1 0-4h12v4"/><path d="M4 6v12a2 2 0 0 0 2 2h14v-4"/><path d="M18 12h.01"/></svg>
+      Tags
+    </button>
+  </div>
 </div>
 
 <!-- Tag Health tool content -->
@@ -462,23 +469,26 @@
 
 
 <!-- Curation sub-nav (Unprocessed / Duplicate Triage / Merge Candidates tabs) -->
-<div id="tools-curation-subnav" class="tools-subnav" style="display:none">
-  <button type="button" id="tools-curation-unprocessed-tab" class="tools-subnav-tab tools-subnav-tab-unprocessed selected">
-    <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.64 3.64-1.28-1.28a1.21 1.21 0 0 0-1.72 0L2.36 18.64a1.21 1.21 0 0 0 0 1.72l1.28 1.28a1.2 1.2 0 0 0 1.72 0L21.64 5.36a1.2 1.2 0 0 0 0-1.72Z"/><path d="m14 7 3 3"/><path d="M5 6v4"/><path d="M19 14v4"/><path d="M10 2v2"/><path d="M7 8H3"/><path d="M21 16h-4"/><path d="M11 3H9"/></svg>
-    Unprocessed
-  </button>
-  <button type="button" id="tools-dup-triage-tab" class="tools-subnav-tab tools-subnav-tab-triage">
-    <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M2 5l3 3-3 3M14 5l-3 3 3 3M8 2v5M8 9v5"/><circle cx="8" cy="8" r="1.5" fill="currentColor" stroke="none"/></svg>
-    Duplicate Triage
-  </button>
-  <button type="button" id="tools-merge-candidates-tab" class="tools-subnav-tab tools-subnav-tab-merge">
-    <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 2v7a3 3 0 0 0 3 3h1"/><path d="M12 2v4M12 10v4M9.5 9.5l2.5 2.5 2.5-2.5"/><circle cx="4" cy="13" r="1.5"/></svg>
-    Merge Candidates
-  </button>
-  <button type="button" id="tools-no-match-triage-tab" class="tools-subnav-tab tools-subnav-tab-no-match">
-    <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-    No-Match Triage
-  </button>
+<div id="tools-curation-subnav" class="tools-section-header" style="display:none">
+  <span class="tools-section-title">Curation</span>
+  <div class="tools-section-tabs">
+    <button type="button" id="tools-curation-unprocessed-tab" class="tools-section-tab tools-section-tab-unprocessed selected">
+      <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.64 3.64-1.28-1.28a1.21 1.21 0 0 0-1.72 0L2.36 18.64a1.21 1.21 0 0 0 0 1.72l1.28 1.28a1.2 1.2 0 0 0 1.72 0L21.64 5.36a1.2 1.2 0 0 0 0-1.72Z"/><path d="m14 7 3 3"/><path d="M5 6v4"/><path d="M19 14v4"/><path d="M10 2v2"/><path d="M7 8H3"/><path d="M21 16h-4"/><path d="M11 3H9"/></svg>
+      Unprocessed
+    </button>
+    <button type="button" id="tools-dup-triage-tab" class="tools-section-tab tools-section-tab-triage">
+      <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M2 5l3 3-3 3M14 5l-3 3 3 3M8 2v5M8 9v5"/><circle cx="8" cy="8" r="1.5" fill="currentColor" stroke="none"/></svg>
+      Duplicate Triage
+    </button>
+    <button type="button" id="tools-merge-candidates-tab" class="tools-section-tab tools-section-tab-merge">
+      <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 2v7a3 3 0 0 0 3 3h1"/><path d="M12 2v4M12 10v4M9.5 9.5l2.5 2.5 2.5-2.5"/><circle cx="4" cy="13" r="1.5"/></svg>
+      Merge Candidates
+    </button>
+    <button type="button" id="tools-no-match-triage-tab" class="tools-section-tab tools-section-tab-no-match">
+      <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+      No-Match Triage
+    </button>
+  </div>
 </div>
 
 <!-- Duplicate Triage tool content -->
@@ -1170,8 +1180,25 @@
     <span class="trans-title">Translation</span>
     <span id="trans-health-dot" class="trans-health-dot trans-health-unknown" title="Health unknown"></span>
     <div class="trans-tabs">
-      <button type="button" id="trans-tabBtn-dashboard" class="trans-tab active">Dashboard</button>
-      <button type="button" id="trans-tabBtn-name-translation" class="trans-tab">Name Translation</button>
+      <button type="button" id="trans-tabBtn-dashboard" class="trans-tab trans-tab-dashboard active">
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="4" y1="20" x2="4" y2="13"/><line x1="10" y1="20" x2="10" y2="9"/><line x1="16" y1="20" x2="16" y2="4"/><line x1="22" y1="20" x2="22" y2="11"/>
+        </svg>
+        <span>Dashboard</span>
+      </button>
+      <button type="button" id="trans-tabBtn-name-translation" class="trans-tab trans-tab-names">
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M5 8h6M8 5v3M5 14l3-6 3 6M6 12h4"/><path d="M14 18l3-6 3 6M15 16h4"/><path d="M13 10l3 3-3 3"/>
+        </svg>
+        <span>Name Translation</span>
+      </button>
+      <button type="button" id="trans-tabBtn-failures" class="trans-tab trans-tab-failures">
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+          <line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+        </svg>
+        <span>Recent Failures</span>
+      </button>
     </div>
   </div>
 
@@ -1182,7 +1209,6 @@
 
     <!-- Stats panel (auto-refreshed every 5s) -->
     <section class="trans-section">
-      <h3>Stats</h3>
       <div id="trans-stats" class="trans-stats-grid">Loading…</div>
     </section>
 
@@ -1203,49 +1229,14 @@
       </ul>
     </section>
 
-    <!-- Strategy table -->
-    <section class="trans-section">
-      <h3>Strategies</h3>
-      <table id="trans-strategies-table" class="trans-table">
-        <thead><tr>
-          <th>Name</th><th>Model</th><th>Active</th><th>Tier-2 strategy id</th>
-        </tr></thead>
-        <tbody></tbody>
-      </table>
-    </section>
+  </div><!-- /#trans-tab-dashboard -->
 
-    <!-- Manual translate widget -->
+  <!-- Recent Failures tab pane -->
+  <div id="trans-tab-failures" class="trans-tab-pane" style="display:none">
     <section class="trans-section">
-      <h3>Manual Translate</h3>
-      <p class="trans-hint">Translates synchronously via Ollama — may take 30–120s. No queue row is written.</p>
-      <div class="trans-manual-row">
-        <textarea id="trans-manual-input" class="trans-manual-input" rows="3" placeholder="Japanese text to translate…"></textarea>
-        <select id="trans-manual-hint" class="trans-manual-hint">
-          <option value="">auto</option>
-          <option value="label_basic">label_basic</option>
-          <option value="label_explicit">label_explicit</option>
-          <option value="prose">prose</option>
-        </select>
-        <button type="button" id="trans-manual-btn" class="trans-action-btn">Translate</button>
-      </div>
-      <div id="trans-manual-result" class="trans-manual-result" style="display:none"></div>
-    </section>
-
-    <!-- Backlog sweep widget -->
-    <section class="trans-section">
-      <h3>Sweep Title Backlog Now</h3>
-      <p class="trans-hint">Forces an immediate sweep of titles awaiting English translation. Same dedup as the scheduled 5-minute sweeper — clicking while a sweep is already running cannot double-enqueue. Use after a bulk enrichment run to skip the wait.</p>
-      <button type="button" id="trans-bulk-btn" class="trans-action-btn">Sweep now</button>
-      <div id="trans-bulk-result" class="trans-bulk-result" style="display:none"></div>
-    </section>
-
-    <!-- Recent failures list -->
-    <section class="trans-section">
-      <h3>Recent Failures</h3>
       <div id="trans-failures" class="trans-failures">Loading…</div>
     </section>
-
-  </div><!-- /#trans-tab-dashboard -->
+  </div>
 
   <!-- Name Translation tab pane -->
   <div id="trans-tab-name-translation" class="trans-tab-pane" style="display:none">
