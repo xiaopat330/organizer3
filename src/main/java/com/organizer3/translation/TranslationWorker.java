@@ -285,7 +285,11 @@ public class TranslationWorker implements Runnable {
                                    String hash,
                                    Long existingCacheRowId) {
         String promptInput = explicitTermSubstitutor.substitute(row.sourceText());
-        if (actressRepo != null && "title".equals(row.callbackKind())) {
+        // Per-title actress stage-name overlay: substitutes 深田えいみ → "Eimi Fukada" in the source
+        // before the LLM call, so the model preserves the canonical English name verbatim instead
+        // of attempting its own (often wrong) romanization. Only applies to title-text rows —
+        // series/maker/publisher columns don't contain actress names.
+        if (actressRepo != null && "title_javdb_enrichment.title_original_en".equals(row.callbackKind())) {
             java.util.Map<String, String> stageNames = actressRepo.findStageNameMapForTitle(row.callbackId());
             if (!stageNames.isEmpty()) {
                 promptInput = new ExplicitTermSubstitutor(stageNames).substitute(promptInput);

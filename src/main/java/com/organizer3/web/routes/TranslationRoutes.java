@@ -107,6 +107,13 @@ public class TranslationRoutes {
             }
         });
 
+        // GET /api/translation/explicit-substitutions — the loaded JP→EN substitution map.
+        // Used by the live activity feed to highlight terms that were rewritten before the
+        // LLM call.
+        app.get("/api/translation/explicit-substitutions", ctx -> {
+            ctx.json(explicitSubstitutor.entries());
+        });
+
         // GET /api/translation/strategies
         app.get("/api/translation/strategies", ctx -> {
             try {

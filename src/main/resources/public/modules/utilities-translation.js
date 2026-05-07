@@ -52,6 +52,9 @@ function makeState() {
     visible: false,
     failuresExpanded: false,   // Card 2 progressive-disclosure toggle
     strategies: null,          // last-fetched /api/translation/strategies, used by Card 4
+    explicitSubs: null,        // {jpKey: enValue} — used to highlight substituted terms in activity
+    explicitJpKeysByLen: [],   // jp keys sorted by length desc (longest-match-wins highlighting)
+    explicitEnValsByLen: [],   // en values sorted by length desc
   };
 }
 
@@ -64,6 +67,7 @@ export function showTranslationView() {
   showTab('dashboard');
   loadStats();
   loadStrategies();
+  loadExplicitSubs();
   loadHealth();
   loadActivity();
   loadQueue();
@@ -421,6 +425,40 @@ async function loadHealth() {
   }
 }
 
+// ── Explicit-substitutions map (for highlighting in activity feed) ────────
+async function loadExplicitSubs() {
+  try {
+    const res = await fetch('/api/translation/explicit-substitutions');
+    if (!res.ok) return;
+    const map = await res.json();
+    s.explicitSubs = map;
+    // Pre-sort longest-match-first so highlighting doesn't nest spans on substring overlaps.
+    const byLen = (a, b) => b.length - a.length;
+    s.explicitJpKeysByLen = Object.keys(map).filter(Boolean).sort(byLen);
+    s.explicitEnValsByLen = Object.values(map).filter(Boolean).sort(byLen);
+  } catch (err) {
+    console.error('Explicit subs load failed', err);
+  }
+}
+
+/**
+ * Returns escaped HTML for `text` with any occurrence of a term wrapped in
+ * <span class="${klass}">. Terms are escape()d before search so the result is
+ * always safe for innerHTML. Pure.
+ */
+function highlightTerms(text, termsByLen, klass) {
+  if (!text) return '';
+  let html = esc(text);
+  if (!termsByLen || !termsByLen.length) return html;
+  for (const term of termsByLen) {
+    if (!term) continue;
+    const eterm = esc(term);
+    if (!html.includes(eterm)) continue;
+    html = html.split(eterm).join(`<span class="${klass}">${eterm}</span>`);
+  }
+  return html;
+}
+
 // ── Live activity feed ────────────────────────────────────────────────────
 function classifyEvent(e) {
   if (e.failureReason) {
@@ -435,10 +473,18 @@ function classifyEvent(e) {
 function renderActivityRow(e) {
   const klass = classifyEvent(e);
   const code  = esc(e.titleCode || '—');
-  const src   = esc((e.sourceText || '').slice(0, 80));
-  const out   = e.englishText
-      ? `→ ${esc(e.englishText.slice(0, 80))}`
-      : (e.failureReason ? `<span class="trans-act-reason">${esc(e.failureReason)}</span>` : '');
+  const srcRaw = (e.sourceText || '').slice(0, 80);
+  const src    = highlightTerms(srcRaw, s.explicitJpKeysByLen, 'trans-act-sub-jp');
+  let out;
+  if (e.englishText) {
+    const enRaw  = e.englishText.slice(0, 80);
+    const enHtml = highlightTerms(enRaw, s.explicitEnValsByLen, 'trans-act-sub-en');
+    out = `→ ${enHtml}`;
+  } else if (e.failureReason) {
+    out = `<span class="trans-act-reason">${esc(e.failureReason)}</span>`;
+  } else {
+    out = '';
+  }
   return `<li class="trans-act-row trans-act-${klass}">
     <span class="trans-act-time">${esc(fmtTimestamp(e.cachedAt))}</span>
     <span class="trans-act-code" data-title-code="${code}">${code}</span>

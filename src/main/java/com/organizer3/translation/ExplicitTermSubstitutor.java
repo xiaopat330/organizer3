@@ -124,6 +124,11 @@ public final class ExplicitTermSubstitutor {
         return substitutions.size();
     }
 
+    /** Read-only view of the substitution map. Order is length-descending. */
+    public Map<String, String> entries() {
+        return java.util.Collections.unmodifiableMap(substitutions);
+    }
+
     /** Number of substitute() calls that produced at least one replacement. Process-lifetime. */
     public long getRowsTouched() {
         return rowsTouched.get();

@@ -613,7 +613,7 @@
 }
 .trans-act-row {
   display: grid;
-  grid-template-columns: 76px 88px 1fr 1.4fr 70px;
+  grid-template-columns: 130px 100px 1fr 1.4fr 70px;
   gap: 10px;
   align-items: baseline;
   padding: 5px 8px;
@@ -633,6 +633,17 @@
   color: #6b7280;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+/* Substituted-term highlight in the activity feed */
+.trans-act-sub-jp,
+.trans-act-sub-en {
+  color: #fca5a5;
+  background: rgba(239, 68, 68, 0.18);
+  border-radius: 2px;
+  padding: 0 2px;
+  font-weight: 600;
 }
 .trans-act-code {
   font-family: ui-monospace, SFMono-Regular, monospace;

@@ -185,7 +185,9 @@ public class Tier2BatchSweeper implements Runnable {
 
         TranslationStrategy tier2Strategy = tier2StrategyOpt.get();
         String promptInput = explicitTermSubstitutor.substitute(row.sourceText());
-        if (actressRepo != null && "title".equals(row.callbackKind())) {
+        // See TranslationWorker.executeAndRecord for rationale — gate must match the actual
+        // callback_kind written by the title sweeper, not the bare "title" string.
+        if (actressRepo != null && "title_javdb_enrichment.title_original_en".equals(row.callbackKind())) {
             java.util.Map<String, String> stageNames = actressRepo.findStageNameMapForTitle(row.callbackId());
             if (!stageNames.isEmpty()) {
                 promptInput = new ExplicitTermSubstitutor(stageNames).substitute(promptInput);
