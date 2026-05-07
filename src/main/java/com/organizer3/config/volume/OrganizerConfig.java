@@ -1,6 +1,7 @@
 package com.organizer3.config.volume;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.organizer3.config.SyncSettings;
 import com.organizer3.config.sync.StructureSyncConfig;
 import com.organizer3.javdb.JavdbConfig;
 import com.organizer3.mcp.McpConfig;
@@ -33,7 +34,8 @@ public record OrganizerConfig(
         @JsonProperty("backgroundThumbnails") BackgroundThumbnailConfig backgroundThumbnails,
         @JsonProperty("javdb")               JavdbConfig javdb,
         @JsonProperty("enrichment")          EnrichmentConfig enrichment,
-        @JsonProperty("translation")         TranslationConfig translation
+        @JsonProperty("translation")         TranslationConfig translation,
+        @JsonProperty("sync")                SyncSettings sync
 ) {
     /** Legacy ctor for tests that predate the organize-pipeline blocks. */
     public OrganizerConfig(String appName, String dataDir,
@@ -44,7 +46,7 @@ public record OrganizerConfig(
                            BackupConfig backup, McpConfig mcp) {
         this(appName, dataDir, maxBrowseTitles, maxRandomTitles, maxRandomActresses,
              thumbnailInterval, thumbnailColumns, coverCropPercent,
-             servers, volumes, structures, syncConfig, backup, mcp, null, null, null, null, null, null, null);
+             servers, volumes, structures, syncConfig, backup, mcp, null, null, null, null, null, null, null, null);
     }
 
     /** Legacy ctor for test sites that predate the {@code mcp:} block. */
@@ -56,7 +58,7 @@ public record OrganizerConfig(
                            BackupConfig backup) {
         this(appName, dataDir, maxBrowseTitles, maxRandomTitles, maxRandomActresses,
              thumbnailInterval, thumbnailColumns, coverCropPercent,
-             servers, volumes, structures, syncConfig, backup, null, null, null, null, null, null, null, null);
+             servers, volumes, structures, syncConfig, backup, null, null, null, null, null, null, null, null, null);
     }
 
     /** Returns the background-thumbnail config, or defaults (disabled) if unset. */
@@ -92,6 +94,11 @@ public record OrganizerConfig(
     /** Returns the translation config, or defaults if unset. */
     public TranslationConfig translationOrDefaults() {
         return translation != null ? translation : TranslationConfig.DEFAULTS;
+    }
+
+    /** Returns the sync settings, or defaults (staleGraceDays=90) if unset. */
+    public SyncSettings syncOrDefaults() {
+        return sync != null ? sync : SyncSettings.DEFAULTS;
     }
 
     public Optional<VolumeConfig> findById(String id) {

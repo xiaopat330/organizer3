@@ -110,6 +110,7 @@ public class SchemaInitializer {
                         path          TEXT NOT NULL,
                         last_seen_at  TEXT NOT NULL,
                         added_date    TEXT,
+                        stale_since   TEXT,
                         UNIQUE(title_id, volume_id, path)
                     )""");
 
@@ -173,6 +174,7 @@ public class SchemaInitializer {
             h.execute("CREATE INDEX IF NOT EXISTS idx_title_locations_title ON title_locations(title_id)");
             h.execute("CREATE INDEX IF NOT EXISTS idx_title_locations_volume ON title_locations(volume_id)");
             h.execute("CREATE INDEX IF NOT EXISTS idx_title_locations_volume_partition ON title_locations(volume_id, partition_id)");
+            h.execute("CREATE INDEX IF NOT EXISTS idx_title_locations_stale_since ON title_locations(stale_since)");
             h.execute("CREATE INDEX IF NOT EXISTS idx_videos_title ON videos(title_id)");
             h.execute("CREATE INDEX IF NOT EXISTS idx_videos_volume ON videos(volume_id)");
             h.execute("CREATE INDEX IF NOT EXISTS idx_title_actresses_title ON title_actresses(title_id)");
@@ -765,7 +767,7 @@ public class SchemaInitializer {
             // leave the version alone and let SchemaUpgrader apply any missing migrations.
             int currentVersion = h.createQuery("PRAGMA user_version").mapTo(Integer.class).one();
             if (currentVersion == 0) {
-                h.execute("PRAGMA user_version = 53");
+                h.execute("PRAGMA user_version = 54");
             }
         });
         log.info("Schema initialization complete");
