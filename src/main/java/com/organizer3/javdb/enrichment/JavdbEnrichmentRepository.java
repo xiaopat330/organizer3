@@ -8,6 +8,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.jdbi.v3.core.Jdbi;
 
 import java.util.List;
+import java.util.Optional;
 
 /**
  * Writes the canonical javdb enrichment record for a title and the normalized
@@ -258,6 +259,18 @@ public class JavdbEnrichmentRepository {
                         .bind("kind", TITLE_ORIGINAL_EN_CALLBACK_KIND)
                         .mapTo(Long.class)
                         .one());
+    }
+
+    /**
+     * Returns the {@code title_original} for a title's enrichment row, if one exists.
+     * Used by the force-translate path to look up the source text for re-translation.
+     */
+    public Optional<String> findTitleOriginalByTitleId(long titleId) {
+        return jdbi.withHandle(h ->
+                h.createQuery("SELECT title_original FROM title_javdb_enrichment WHERE title_id = :id")
+                        .bind("id", titleId)
+                        .mapTo(String.class)
+                        .findFirst());
     }
 
     /**

@@ -205,6 +205,15 @@ public class JdbiTranslationCacheRepository implements TranslationCacheRepositor
     }
 
     @Override
+    public int deleteByHashAndStrategy(String sourceHash, long strategyId) {
+        return jdbi.withHandle(h ->
+                h.createUpdate("DELETE FROM translation_cache WHERE source_hash = :hash AND strategy_id = :strategyId")
+                        .bind("hash", sourceHash)
+                        .bind("strategyId", strategyId)
+                        .execute());
+    }
+
+    @Override
     public long recentThroughputCount(Duration window) {
         String threshold = ISO_UTC.format(Instant.now().minus(window));
         return jdbi.withHandle(h ->

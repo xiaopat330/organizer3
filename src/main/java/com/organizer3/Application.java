@@ -508,6 +508,7 @@ public class Application {
         com.organizer3.translation.TitleTranslationSweeper titleTranslationSweeper =
                 new com.organizer3.translation.TitleTranslationSweeper(
                         javdbEnrichmentRepo, translationService,
+                        translationQueueRepo, translationCacheRepo, translationStrategyRepo,
                         translationConfig.titleSweeperEnabledOrDefault(),
                         translationConfig.titleSweeperBatchSizeOrDefault());
         java.util.concurrent.ScheduledExecutorService titleSweeperExecutor =
@@ -1076,7 +1077,11 @@ public class Application {
                     .register(new com.organizer3.mcp.tools.GetTaskRunStatusTool(taskRunner))
                     .register(new com.organizer3.mcp.tools.ExportFilmographyBackupTool(filmographyBackupWriter, filmographyRepo))
                     .register(new com.organizer3.mcp.tools.ArchiveFilmographyBackupsTool(filmographyBackupWriter))
-                    .register(new com.organizer3.mcp.tools.ListReviewQueueTool(enrichmentReviewQueueRepo));
+                    .register(new com.organizer3.mcp.tools.ListReviewQueueTool(enrichmentReviewQueueRepo))
+                    .register(new com.organizer3.mcp.tools.GetTranslationStatsTool(
+                            translationService, translationCacheRepo, javdbEnrichmentRepo,
+                            translationConfig, ollamaModelState))
+                    .register(new com.organizer3.mcp.tools.ListTranslationFailuresTool(translationCacheRepo));
             if (mcpConfig.mutationsAllowed()) {
                 mcpTools.register(new com.organizer3.mcp.tools.RefreshFilmographyTool(slugResolver));
                 mcpTools.register(new com.organizer3.mcp.tools.EvictFilmographyTool(slugResolver));
@@ -1099,6 +1104,10 @@ public class Application {
                 mcpTools.register(confirmOrphanDeleteTool);
                 mcpTools.register(renameActressTool);
                 mcpTools.register(recodeTitleTool);
+                mcpTools.register(new com.organizer3.mcp.tools.RequeueTranslationsByReasonTool(translationService));
+                mcpTools.register(new com.organizer3.mcp.tools.SweepTitleTranslationBacklogTool(
+                        titleTranslationSweeper, javdbEnrichmentRepo));
+                mcpTools.register(new com.organizer3.mcp.tools.ForceTranslateTitleTool(titleTranslationSweeper));
                 log.info("MCP mutation tools enabled");
             }
             if (mcpConfig.mutationsAllowed() && mcpConfig.fileOpsAllowed()) {

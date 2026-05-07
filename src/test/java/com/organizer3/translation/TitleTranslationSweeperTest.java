@@ -5,6 +5,12 @@ import com.organizer3.db.SchemaInitializer;
 import com.organizer3.db.TitleEffectiveTagsService;
 import com.organizer3.javdb.enrichment.EnrichmentHistoryRepository;
 import com.organizer3.javdb.enrichment.JavdbEnrichmentRepository;
+import com.organizer3.translation.repository.TranslationCacheRepository;
+import com.organizer3.translation.repository.TranslationQueueRepository;
+import com.organizer3.translation.repository.TranslationStrategyRepository;
+import com.organizer3.translation.repository.jdbi.JdbiTranslationCacheRepository;
+import com.organizer3.translation.repository.jdbi.JdbiTranslationQueueRepository;
+import com.organizer3.translation.repository.jdbi.JdbiTranslationStrategyRepository;
 import org.jdbi.v3.core.Jdbi;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -28,6 +34,9 @@ class TitleTranslationSweeperTest {
     private Jdbi jdbi;
     private JavdbEnrichmentRepository enrichmentRepo;
     private TranslationService service;
+    private TranslationQueueRepository queueRepo;
+    private TranslationCacheRepository cacheRepo;
+    private TranslationStrategyRepository strategyRepo;
 
     @BeforeEach
     void setUp() throws Exception {
@@ -39,6 +48,10 @@ class TitleTranslationSweeperTest {
         TitleEffectiveTagsService effectiveTags = new TitleEffectiveTagsService(jdbi);
         EnrichmentHistoryRepository historyRepo = new EnrichmentHistoryRepository(jdbi, json);
         enrichmentRepo = new JavdbEnrichmentRepository(jdbi, json, effectiveTags, historyRepo);
+        queueRepo = new JdbiTranslationQueueRepository(jdbi);
+        cacheRepo = new JdbiTranslationCacheRepository(jdbi);
+        strategyRepo = new JdbiTranslationStrategyRepository(jdbi);
+        new TranslationStrategySeeder(strategyRepo).seedIfEmpty();
         service = mock(TranslationService.class);
         when(service.requestTranslation(any(TranslationRequest.class))).thenReturn(1L);
     }
@@ -87,7 +100,8 @@ class TitleTranslationSweeperTest {
     }
 
     private TitleTranslationSweeper sweeper(boolean enabled, int batchSize) {
-        return new TitleTranslationSweeper(enrichmentRepo, service, enabled, batchSize);
+        return new TitleTranslationSweeper(enrichmentRepo, service,
+                queueRepo, cacheRepo, strategyRepo, enabled, batchSize);
     }
 
     // -------------------------------------------------------------------------
@@ -241,6 +255,60 @@ class TitleTranslationSweeperTest {
     // -------------------------------------------------------------------------
     // Repository count helper — Tools UI stat
     // -------------------------------------------------------------------------
+
+    // -------------------------------------------------------------------------
+    // forceTranslateOne
+    // -------------------------------------------------------------------------
+
+    @Test
+    void forceTranslateOne_clearsCacheAndQueueThenSubmits() {
+        long titleId = seedTitle("FT-001", "強制翻訳テスト", null);
+        // Existing queue rows for this title (e.g., a stuck `done` row + a `pending` row)
+        seedQueueRow(titleId, "done");
+        seedQueueRow(titleId, "pending");
+        // Existing cache row that would otherwise short-circuit the new request
+        long stratId = strategyRepo.findByName(StrategySelector.LABEL_BASIC).orElseThrow().id();
+        String hash = TranslationNormalization.sha256Hex(
+                TranslationNormalization.normalize("強制翻訳テスト"));
+        cacheRepo.insert(new TranslationCacheRow(
+                0, hash, "強制翻訳テスト", stratId,
+                "stale english", null, null, null, null,
+                100, null, null, null, "2026-05-04T00:00:00.000Z"));
+
+        TitleTranslationSweeper.ForceTranslateResult r = sweeper(true, 50).forceTranslateOne(titleId);
+
+        assertTrue(r.submitted());
+        assertEquals(1, r.cacheRowsDeleted());
+        assertEquals(2, r.queueRowsDeleted());
+        verify(service, times(1)).requestTranslation(any());
+        // After deletion, no queue row remains for this title via the test fixture path;
+        // the new row went through the mocked service so it isn't actually written.
+        assertTrue(cacheRepo.findByHashAndStrategy(hash, stratId).isEmpty(),
+                "Stale cache row must be cleared so the new request can hit Ollama");
+    }
+
+    @Test
+    void forceTranslateOne_returnsNoTitleOriginalReason_whenEnrichmentMissing() {
+        // Insert just the title row, no enrichment
+        long titleId = jdbi.withHandle(h ->
+                h.createUpdate("INSERT INTO titles (code) VALUES ('FT-002')")
+                        .executeAndReturnGeneratedKeys("id")
+                        .mapTo(Long.class).one());
+
+        TitleTranslationSweeper.ForceTranslateResult r = sweeper(true, 50).forceTranslateOne(titleId);
+
+        assertFalse(r.submitted());
+        assertEquals("no_title_original", r.reason());
+        verify(service, org.mockito.Mockito.never()).requestTranslation(any());
+    }
+
+    @Test
+    void forceTranslateOne_returnsNoTitleOriginalReason_whenTitleOriginalIsBlank() {
+        long titleId = seedTitle("FT-003", "", null);
+        TitleTranslationSweeper.ForceTranslateResult r = sweeper(true, 50).forceTranslateOne(titleId);
+        assertFalse(r.submitted());
+        assertEquals("no_title_original", r.reason());
+    }
 
     @Test
     void countTitlesAwaitingTranslation_countsEligibleRows() {

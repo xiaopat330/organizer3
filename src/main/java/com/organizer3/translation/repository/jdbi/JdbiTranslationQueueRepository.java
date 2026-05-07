@@ -410,6 +410,18 @@ public class JdbiTranslationQueueRepository implements TranslationQueueRepositor
     }
 
     @Override
+    public int deleteForCallback(String callbackKind, long callbackId) {
+        return jdbi.withHandle(h ->
+                h.createUpdate("""
+                        DELETE FROM translation_queue
+                        WHERE callback_kind = :kind AND callback_id = :id
+                        """)
+                        .bind("kind", callbackKind)
+                        .bind("id", callbackId)
+                        .execute());
+    }
+
+    @Override
     public boolean hasPending(String strategyName, String sourceText) {
         return jdbi.withHandle(h ->
                 h.createQuery("""
