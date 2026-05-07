@@ -145,4 +145,61 @@ public interface TitleLocationRepository {
 
     /** Update path only within an existing handle/transaction (for use inside recode transactions). */
     void updatePath(long locationId, Path newPath, Handle h);
+
+    // -------------------------------------------------------------------------
+    // Reconcile finder methods — read-only, used by ReconcileService
+    // -------------------------------------------------------------------------
+
+    /**
+     * Returns titles that have more than one live {@code title_locations} row across volumes.
+     * A single title with two live rows on different volumes is the smoking gun for an unsynced
+     * source volume after a cross-volume move.
+     *
+     * <p>Only live rows ({@code stale_since IS NULL}) are considered.
+     */
+    List<DuplicateLiveLocation> findDuplicateLiveLocations();
+
+    /**
+     * Returns stale rows that are still within the grace window (i.e. stale but not yet past grace).
+     * These are titles in limbo — no live location but not yet prunable.
+     *
+     * @param graceDays the configured grace period (e.g. 90)
+     */
+    List<PendingGraceRow> findPendingGrace(int graceDays);
+
+    /**
+     * Returns stale rows that are past the grace window — they would be swept on the next sync.
+     *
+     * @param graceDays the configured grace period (e.g. 90)
+     */
+    List<PendingGraceRow> findPastGraceStragglers(int graceDays);
+
+    /**
+     * A title that has more than one live location row across volumes.
+     *
+     * @param titleId   the title's database id
+     * @param code      the title's product code
+     * @param locations the live location rows (at least 2)
+     */
+    record DuplicateLiveLocation(
+            long titleId,
+            String code,
+            List<LocationTuple> locations
+    ) {
+        public record LocationTuple(long locationId, String volumeId, String partitionId, String path) {}
+    }
+
+    /**
+     * A single stale {@code title_locations} row, used in reconcile pending-grace and
+     * past-grace reports.
+     */
+    record PendingGraceRow(
+            long locationId,
+            long titleId,
+            String code,
+            String volumeId,
+            String path,
+            String staleSinceIso,
+            int daysStale
+    ) {}
 }

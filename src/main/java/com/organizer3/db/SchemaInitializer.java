@@ -762,12 +762,29 @@ public class SchemaInitializer {
                         ON stage_name_suggestion(review_decision)
                         WHERE review_decision IS NULL""");
 
+            // v55: reconcile_reports table — persisted reconcile pass results
+            h.execute("""
+                    CREATE TABLE IF NOT EXISTS reconcile_reports (
+                        id                        INTEGER PRIMARY KEY AUTOINCREMENT,
+                        generated_at              TEXT NOT NULL,
+                        duplicate_live_locations  INTEGER NOT NULL,
+                        pending_grace             INTEGER NOT NULL,
+                        oldest_pending_grace_days INTEGER NOT NULL,
+                        past_grace_stragglers     INTEGER NOT NULL,
+                        actress_folder_mismatches INTEGER NOT NULL,
+                        triggered_by              TEXT NOT NULL,
+                        detail_json               TEXT
+                    )""");
+            h.execute("""
+                    CREATE INDEX IF NOT EXISTS idx_reconcile_reports_generated_at
+                        ON reconcile_reports(generated_at DESC)""");
+
             // Only stamp version on fresh installs (user_version = 0).
             // On an existing DB the CREATE TABLE statements above are all no-ops, so we must
             // leave the version alone and let SchemaUpgrader apply any missing migrations.
             int currentVersion = h.createQuery("PRAGMA user_version").mapTo(Integer.class).one();
             if (currentVersion == 0) {
-                h.execute("PRAGMA user_version = 54");
+                h.execute("PRAGMA user_version = 55");
             }
         });
         log.info("Schema initialization complete");

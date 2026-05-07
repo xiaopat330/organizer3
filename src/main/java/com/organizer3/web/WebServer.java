@@ -152,6 +152,14 @@ public class WebServer {
         routes.register(app);
     }
 
+    /**
+     * Mounts the reconcile-pass endpoints ({@code POST /api/reconcile/run},
+     * {@code GET /api/reconcile/recent}).
+     */
+    public void registerReconcile(com.organizer3.web.routes.ReconcileRoutes routes) {
+        routes.register(app);
+    }
+
     /** Mounts the background-thumbnail chip endpoints ({@code /api/bg-thumbnails/*}). */
     public void registerBgThumbnails(com.organizer3.web.routes.BgThumbnailsRoutes routes) {
         routes.register(app);

@@ -471,4 +471,30 @@ public interface TitleRepository {
 
     /** Returns grade_source for a single title, or null if not found. */
     String findGradeSource(long titleId);
+
+    // ── Reconcile finder methods ─────────────────────────────────────────────
+
+    /**
+     * Returns titles whose live location's on-disk path does not contain the title's
+     * filing actress's canonical name. Only live locations ({@code stale_since IS NULL})
+     * are considered. Titles with no actress attribution ({@code actress_id IS NULL}) are
+     * excluded — without an expected name there is nothing to compare against.
+     *
+     * <p>This is the global counterpart to {@link
+     * com.organizer3.mcp.tools.FindMisnamedFoldersForActressTool}, which performs the same
+     * check per actress. Both use the same path-comparison predicate.
+     */
+    List<ActressMismatch> findActressFolderMismatches(int limit);
+
+    /**
+     * A title whose live location path does not contain the filing actress's canonical name.
+     */
+    record ActressMismatch(
+            long titleId,
+            String code,
+            long actressId,
+            String actressName,
+            String volumeId,
+            String path
+    ) {}
 }

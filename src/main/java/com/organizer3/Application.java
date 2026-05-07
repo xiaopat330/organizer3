@@ -258,6 +258,8 @@ public class Application {
 
         // Repositories
         TitleLocationRepository titleLocationRepo = new JdbiTitleLocationRepository(jdbi);
+        com.organizer3.repository.ReconcileReportRepository reconcileReportRepo =
+                new com.organizer3.repository.jdbi.JdbiReconcileReportRepository(jdbi);
         com.fasterxml.jackson.databind.ObjectMapper jsonMapper = new com.fasterxml.jackson.databind.ObjectMapper();
         com.organizer3.javdb.enrichment.EnrichmentHistoryRepository enrichmentHistoryRepo =
                 new com.organizer3.javdb.enrichment.EnrichmentHistoryRepository(jdbi, jsonMapper);
@@ -601,6 +603,12 @@ public class Application {
                 new java.util.concurrent.atomic.AtomicReference<>();
         commands.add(new com.organizer3.command.SyncCoherentCommand(taskRunnerRef::get));
 
+        // ReconcileCommand uses a forward-reference supplier so it can be registered in the
+        // command list before reconcileService is constructed (same pattern as SyncCoherentCommand).
+        java.util.concurrent.atomic.AtomicReference<com.organizer3.sync.ReconcileService> reconcileServiceRef =
+                new java.util.concurrent.atomic.AtomicReference<>();
+        commands.add(new com.organizer3.command.ReconcileCommand(reconcileServiceRef::get));
+
         // Sync commands — registered dynamically from syncConfig.
         // Group by term so that a term shared across structure types (e.g. sync all)
         // produces a single command that accepts all of those types.
@@ -896,11 +904,21 @@ public class Application {
                         titleEffectiveTagsService, actressCompaniesService, coverPath,
                         revalidationPendingRepo, syncIdentityMatcher, draftSyncObserver,
                         titlePathHistoryRepo, /* suppressPrune= */ true);
+        int staleGraceDaysForReconcile = AppConfig.get().volumes().syncOrDefaults().staleGraceDaysOrDefault();
+        com.organizer3.sync.ReconcileService reconcileService =
+                new com.organizer3.sync.ReconcileService(titleLocationRepo, titleRepo,
+                        reconcileReportRepo, staleGraceDaysForReconcile);
+        // Set the forward reference so ReconcileCommand can call reconcileService at execute time.
+        reconcileServiceRef.set(reconcileService);
+        // Reconcile web routes — POST /api/reconcile/run, GET /api/reconcile/recent.
+        webServer.registerReconcile(
+                new com.organizer3.web.routes.ReconcileRoutes(reconcileService, reconcileReportRepo));
+
         com.organizer3.utilities.task.volume.CoherentMultiVolumeSyncTask coherentSyncTask =
                 new com.organizer3.utilities.task.volume.CoherentMultiVolumeSyncTask(
                         () -> new com.organizer3.utilities.task.CommandInvoker(
                                 commandsByName, new com.organizer3.shell.SessionContext()),
-                        suppressedPruneOp, syncPruneService);
+                        suppressedPruneOp, syncPruneService, reconcileService);
 
         com.organizer3.utilities.task.TaskRegistry taskRegistry =
                 new com.organizer3.utilities.task.TaskRegistry(
