@@ -190,6 +190,76 @@ public class CurationRoutes {
             }
         });
 
+        // POST /api/curation/alias-capture-event
+        // Persists an alias-capture modal fire to the server log for §5.4 measurement.
+        // Body: { type: "trigger"|"dismissed", actressId: number, needs?: string[], via?: string }
+        // Returns 204 No Content.
+        app.post("/api/curation/alias-capture-event", ctx -> {
+            try {
+                @SuppressWarnings("unchecked")
+                Map<String, Object> body = ctx.bodyAsClass(Map.class);
+                if (body == null) {
+                    ctx.status(400).json(Map.of("error", "request body is required"));
+                    return;
+                }
+                String type = asString(body, "type");
+                if (type == null || type.isBlank()) {
+                    ctx.status(400).json(Map.of("error", "type is required"));
+                    return;
+                }
+                Object actressIdRaw = body.get("actressId");
+                if (!(actressIdRaw instanceof Number)) {
+                    ctx.status(400).json(Map.of("error", "actressId is required"));
+                    return;
+                }
+                long actressId = ((Number) actressIdRaw).longValue();
+
+                if ("trigger".equals(type)) {
+                    @SuppressWarnings("unchecked")
+                    List<String> needs = body.get("needs") instanceof List<?> l
+                            ? (List<String>) l : List.of();
+                    String needsPart = needs.isEmpty() ? "" : " needs=" + String.join(",", needs);
+                    log.info("alias-capture: trigger actressId={}{}", actressId, needsPart);
+                } else if ("dismissed".equals(type)) {
+                    String via = asString(body, "via");
+                    log.info("alias-capture: dismissed actressId={} via={}", actressId, via);
+                } else {
+                    ctx.status(400).json(Map.of("error", "type must be trigger or dismissed"));
+                    return;
+                }
+                ctx.status(204);
+            } catch (Exception e) {
+                log.error("POST /api/curation/alias-capture-event failed", e);
+                ctx.status(500).json(Map.of("error", e.getMessage()));
+            }
+        });
+
+        // POST /api/curation/editor-session-open
+        // Persists a draft-editor open event to the server log for §5.4 measurement.
+        // Body: { titleId: number }
+        // Returns 204 No Content.
+        app.post("/api/curation/editor-session-open", ctx -> {
+            try {
+                @SuppressWarnings("unchecked")
+                Map<String, Object> body = ctx.bodyAsClass(Map.class);
+                if (body == null) {
+                    ctx.status(400).json(Map.of("error", "request body is required"));
+                    return;
+                }
+                Object titleIdRaw = body.get("titleId");
+                if (!(titleIdRaw instanceof Number)) {
+                    ctx.status(400).json(Map.of("error", "titleId is required"));
+                    return;
+                }
+                long titleId = ((Number) titleIdRaw).longValue();
+                log.info("draft-editor: open titleId={}", titleId);
+                ctx.status(204);
+            } catch (Exception e) {
+                log.error("POST /api/curation/editor-session-open failed", e);
+                ctx.status(500).json(Map.of("error", e.getMessage()));
+            }
+        });
+
         // POST /api/curation/near-miss/resolve
         // Body: { kanji, primarySlug?, outcome, aliasOfActressId?, englishFirst, englishLast, llmRomaji? }
         // Returns { updatedDrafts, insertedAliases }.
