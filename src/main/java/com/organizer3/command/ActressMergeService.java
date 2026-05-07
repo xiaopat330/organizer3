@@ -91,6 +91,7 @@ public class ActressMergeService {
                         FROM titles t
                         JOIN title_locations tl ON tl.title_id = t.id
                         WHERE t.actress_id = :suspectId
+                          AND tl.stale_since IS NULL
                         """)
                         .bind("suspectId", suspectId)
                         .map((rs, ctx) -> new FilingRow(
@@ -208,6 +209,7 @@ public class ActressMergeService {
                         FROM titles t
                         JOIN title_locations tl ON tl.title_id = t.id
                         WHERE t.actress_id = :actressId
+                          AND tl.stale_since IS NULL
                           AND instr(LOWER(tl.path), LOWER(:canonical)) = 0
                         """)
                         .bind("actressId", actressId)
@@ -319,6 +321,7 @@ public class ActressMergeService {
                         FROM titles t
                         JOIN title_locations tl ON tl.title_id = t.id
                         WHERE t.actress_id = :actressId AND tl.volume_id = :volumeId
+                          AND tl.stale_since IS NULL
                         """)
                         .bind("actressId", actress.getId())
                         .bind("volumeId", volumeId)
@@ -366,6 +369,8 @@ public class ActressMergeService {
                             UPDATE title_locations
                             SET path = :path, partition_id = 'attention'
                             WHERE id = :id
+                            -- W:both: targets a specific row by id (live or stale); a stale row
+                            -- that gets an updated path here may later be re-observed and cleared.
                             """)
                             .bind("path", loc.newPath().toString())
                             .bind("id", loc.locationId())

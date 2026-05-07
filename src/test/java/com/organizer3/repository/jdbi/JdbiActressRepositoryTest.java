@@ -1587,4 +1587,56 @@ class JdbiActressRepositoryTest {
         repo.save(actress("Asami Yuma Middle"));
         assertTrue(repo.findByLastTokenCi("Asami", 10).isEmpty());
     }
+
+    // ── stale_since IS NULL regression tests ──────────────────────────────
+
+    @Test
+    void findByVolumeIdsPaged_hidesStaleRows() throws Exception {
+        Jdbi jdbi = Jdbi.create(connection);
+        Actress a = repo.save(actress("Stale Test Actress"));
+        // Volume must exist (FK constraint)
+        jdbi.useHandle(h -> h.execute("INSERT OR IGNORE INTO volumes (id, structure_type) VALUES ('vol1', 'conventional')"));
+        // Insert a title with a live location
+        jdbi.useHandle(h -> h.execute(
+                "INSERT INTO titles (code, actress_id) VALUES ('LIVE-001', " + a.getId() + ")"));
+        long liveTitle = jdbi.withHandle(h -> h.createQuery("SELECT id FROM titles WHERE code='LIVE-001'").mapTo(Long.class).one());
+        jdbi.useHandle(h -> h.execute(
+                "INSERT INTO title_locations (title_id, volume_id, partition_id, path, last_seen_at) VALUES ("
+                        + liveTitle + ", 'vol1', 'p', '/a', '2026-01-01')"));
+
+        // Insert a title with only a stale location (different actress for isolation)
+        Actress a2 = repo.save(actress("Stale-Only Actress"));
+        jdbi.useHandle(h -> h.execute(
+                "INSERT INTO titles (code, actress_id) VALUES ('STALE-001', " + a2.getId() + ")"));
+        long staleTitle = jdbi.withHandle(h -> h.createQuery("SELECT id FROM titles WHERE code='STALE-001'").mapTo(Long.class).one());
+        jdbi.useHandle(h -> h.execute(
+                "INSERT INTO title_locations (title_id, volume_id, partition_id, path, last_seen_at, stale_since) VALUES ("
+                        + staleTitle + ", 'vol1', 'p', '/b', '2026-01-01', '2026-04-01T00:00:00Z')"));
+
+        List<Actress> result = repo.findByVolumeIdsPaged(List.of("vol1"), 50, 0);
+        var ids = result.stream().map(Actress::getId).toList();
+        assertTrue(ids.contains(a.getId()),  "actress with a live location must be returned");
+        assertFalse(ids.contains(a2.getId()), "actress with only a stale location must be hidden");
+    }
+
+    @Test
+    void findByVolumeIds_hidesStaleRows() throws Exception {
+        Jdbi jdbi = Jdbi.create(connection);
+        Actress live  = repo.save(actress("Live Vol Actress"));
+        Actress stale = repo.save(actress("Stale Vol Actress"));
+        jdbi.useHandle(h -> h.execute("INSERT OR IGNORE INTO volumes (id, structure_type) VALUES ('vol2', 'conventional')"));
+        jdbi.useHandle(h -> h.execute("INSERT INTO titles (code, actress_id) VALUES ('VOL-LIVE', " + live.getId() + ")"));
+        long lt = jdbi.withHandle(h -> h.createQuery("SELECT id FROM titles WHERE code='VOL-LIVE'").mapTo(Long.class).one());
+        jdbi.useHandle(h -> h.execute("INSERT INTO title_locations (title_id, volume_id, partition_id, path, last_seen_at) VALUES ("
+                + lt + ", 'vol2', 'p', '/c', '2026-01-01')"));
+        jdbi.useHandle(h -> h.execute("INSERT INTO titles (code, actress_id) VALUES ('VOL-STALE', " + stale.getId() + ")"));
+        long st = jdbi.withHandle(h -> h.createQuery("SELECT id FROM titles WHERE code='VOL-STALE'").mapTo(Long.class).one());
+        jdbi.useHandle(h -> h.execute("INSERT INTO title_locations (title_id, volume_id, partition_id, path, last_seen_at, stale_since) VALUES ("
+                + st + ", 'vol2', 'p', '/d', '2026-01-01', '2026-04-01T00:00:00Z')"));
+
+        List<Actress> result = repo.findByVolumeIds(List.of("vol2"));
+        var ids = result.stream().map(Actress::getId).toList();
+        assertTrue(ids.contains(live.getId()),   "actress with live location must appear");
+        assertFalse(ids.contains(stale.getId()), "actress with only stale location must be hidden");
+    }
 }

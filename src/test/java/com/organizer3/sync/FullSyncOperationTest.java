@@ -1,5 +1,6 @@
 package com.organizer3.sync;
 
+import com.organizer3.config.AppConfig;
 import com.organizer3.config.volume.PartitionDef;
 import com.organizer3.config.volume.StructuredPartitionDef;
 import com.organizer3.config.volume.VolumeConfig;
@@ -23,6 +24,7 @@ import com.organizer3.sync.scanner.ConventionalScanner;
 import com.organizer3.sync.scanner.ExhibitionScanner;
 import com.organizer3.sync.scanner.QueueScanner;
 import com.organizer3.sync.scanner.ScannerRegistry;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -36,6 +38,7 @@ import java.util.Map;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 /**
@@ -66,6 +69,9 @@ class FullSyncOperationTest {
 
     @BeforeEach
     void setUp() {
+        AppConfig.initializeForTest(new com.organizer3.config.volume.OrganizerConfig(
+                "test", "/tmp", null, null, null, null, null, null,
+                List.of(), List.of(), List.of(), List.of(), null, null));
         titleRepo        = mock(TitleRepository.class);
         videoRepo        = mock(VideoRepository.class);
         actressRepo      = mock(ActressRepository.class);
@@ -93,6 +99,14 @@ class FullSyncOperationTest {
             Title t = inv.getArgument(0);
             return t.toBuilder().id(1L).build();
         });
+        // Stub new stale-sweep methods so tests don't NPE.
+        when(titleLocationRepo.findStaleOlderThan(anyInt())).thenReturn(List.of());
+        when(titleLocationRepo.countStaleMarkedAt(anyString(), anyString())).thenReturn(0);
+    }
+
+    @AfterEach
+    void tearDown() {
+        AppConfig.reset();
     }
 
     private FullSyncOperation newOp() {
@@ -118,9 +132,10 @@ class FullSyncOperationTest {
 
         newOp().execute(CONVENTIONAL_VOLUME, structure, fs, ctx, io);
 
-        var order = inOrder(videoRepo, titleLocationRepo);
-        order.verify(videoRepo).deleteByVolume("a");
-        order.verify(titleLocationRepo).deleteByVolume("a");
+        // videos are still hard-deleted; locations are now soft-marked stale
+        verify(videoRepo).deleteByVolume("a");
+        verify(titleLocationRepo).markStaleByVolume(eq("a"), anyString());
+        verify(titleLocationRepo, never()).deleteByVolume(any());
     }
 
     // --- Unstructured partition scanning ---
@@ -517,16 +532,16 @@ class FullSyncOperationTest {
         // the early-return added in Phase 1 short-circuits when there are no orphans
         // and no covers to delete. The intent of this test is the cascade ORDER, so we
         // need real work to do.
-        when(titleRepo.findOrphanedTitles()).thenReturn(List.of(
+        when(titleRepo.findOrphanedTitles(anyInt())).thenReturn(List.of(
                 new TitleRepository.OrphanedTitleRef("ABP", "ABP-00001")));
         when(titleRepo.countAll()).thenReturn(100);
-        when(titleRepo.countOrphansWithEnrichment()).thenReturn(0);
-        when(titleRepo.deleteOrphaned()).thenReturn(new TitleRepository.OrphanPruneResult(1, 0));
+        when(titleRepo.countOrphansWithEnrichment(anyInt())).thenReturn(0);
+        when(titleRepo.deleteOrphaned(anyInt())).thenReturn(new TitleRepository.OrphanPruneResult(1, 0));
 
         newOp().execute(QUEUE_VOLUME, structure, fs, ctx, io);
 
         var order = inOrder(titleRepo, titleActressRepo);
-        order.verify(titleRepo).deleteOrphaned();
+        order.verify(titleRepo).deleteOrphaned(anyInt());
         order.verify(titleActressRepo).deleteOrphaned();
     }
 
@@ -547,7 +562,7 @@ class FullSyncOperationTest {
         for (int i = 0; i < 50_000; i++) {
             orphans.add(new TitleRepository.OrphanedTitleRef("ABP", String.format("ABP-%05d", i + 1)));
         }
-        when(titleRepo.findOrphanedTitles()).thenReturn(orphans);
+        when(titleRepo.findOrphanedTitles(anyInt())).thenReturn(orphans);
         when(titleRepo.countAll()).thenReturn(50_000);
 
         // Sync must complete without surfacing the exception upward.
@@ -556,7 +571,7 @@ class FullSyncOperationTest {
         // The pre-cover guard must fire BEFORE any cover deletion or DB delete. That means:
         // - titleRepo.deleteOrphaned must NOT be called (guard is pre-check)
         // - titleActressRepo.deleteOrphaned must NOT be called (cascade skipped)
-        verify(titleRepo, never()).deleteOrphaned();
+        verify(titleRepo, never()).deleteOrphaned(anyInt());
         verify(titleActressRepo, never()).deleteOrphaned();
 
         // The user-visible log must mention the refusal so this doesn't fail silently.

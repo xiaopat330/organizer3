@@ -86,6 +86,7 @@ public class FixTitleTimestampsCommand implements Command {
                     SELECT tl.path FROM title_locations tl
                     JOIN titles t ON t.id = tl.title_id
                     WHERE tl.volume_id = :volumeId AND UPPER(t.code) = UPPER(:code)
+                      AND tl.stale_since IS NULL
                     ORDER BY tl.id
                     LIMIT 1
                     """)

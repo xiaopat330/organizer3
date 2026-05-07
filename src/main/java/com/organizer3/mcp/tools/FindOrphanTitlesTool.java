@@ -45,7 +45,7 @@ public class FindOrphanTitlesTool implements Tool {
             List<Row> locationless = query(h, """
                     SELECT t.id, t.code, t.label
                     FROM titles t
-                    LEFT JOIN title_locations tl ON tl.title_id = t.id
+                    LEFT JOIN title_locations tl ON tl.title_id = t.id AND tl.stale_since IS NULL
                     WHERE tl.id IS NULL
                     ORDER BY t.code
                     LIMIT ?""", limit);

@@ -100,10 +100,12 @@ public class SyncIdentityMatcher {
                 h.createQuery("""
                         SELECT t.id, t.code, t.label, t.seq_num
                         FROM titles t
-                        LEFT JOIN title_locations tl ON tl.title_id = t.id
-                        WHERE tl.id IS NULL
-                          AND t.label IS NOT NULL
+                        WHERE t.label IS NOT NULL
                           AND t.seq_num IS NOT NULL
+                          AND NOT EXISTS (
+                              SELECT 1 FROM title_locations tl
+                              WHERE tl.title_id = t.id AND tl.stale_since IS NULL
+                          )
                         """)
                         .map((rs, ctx) -> new OrphanTitle(
                                 rs.getLong("id"),

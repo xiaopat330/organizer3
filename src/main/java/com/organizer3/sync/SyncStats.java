@@ -12,6 +12,9 @@ final class SyncStats {
     int total;
     int queue;
     int attention;
+    int staleMarked;
+    int staleCleared;
+    int swept;
     private final Set<Long> actressIds = new LinkedHashSet<>();
     private final Set<Long> titleIds   = new LinkedHashSet<>();
 

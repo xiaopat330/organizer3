@@ -16,6 +16,14 @@ import java.util.List;
  *
  * <p>Volumes that have never been synced ({@code last_synced_at IS NULL}) are skipped —
  * there's no baseline to compare against.
+ *
+ * <p><b>S — pre-grace-period definition:</b> This tool uses {@code last_seen_at < last_synced_at}
+ * to detect staleness, which predates the {@code stale_since} column (schema v54). It intentionally
+ * reads across <em>all</em> rows (live and stale) because its purpose is to surface rows that the
+ * sync path hasn't touched recently — a superset of what {@code stale_since IS NOT NULL} captures.
+ * The companion MCP tool {@code find_pending_grace_locations} (not yet implemented) will surface
+ * the newer grace-period definition. Do not add {@code AND stale_since IS NULL} to this tool's
+ * query — rows already marked stale by the grace mechanism are equally relevant here.
  */
 public class FindStaleLocationsTool implements Tool {
 

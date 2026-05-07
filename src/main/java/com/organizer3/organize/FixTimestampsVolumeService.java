@@ -36,6 +36,7 @@ public class FixTimestampsVolumeService {
                         FROM title_locations tl
                         JOIN titles t ON t.id = tl.title_id
                         WHERE tl.volume_id = :volumeId AND tl.partition_id != 'queue'
+                          AND tl.stale_since IS NULL
                         ORDER BY tl.path
                         """)
                         .bind("volumeId", volumeId)

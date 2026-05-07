@@ -19,7 +19,12 @@ import com.organizer3.sync.scanner.DiscoveredTitle;
 import com.organizer3.sync.scanner.ScannerRegistry;
 import com.organizer3.sync.scanner.VolumeScanner;
 
+import com.organizer3.config.AppConfig;
+
+import lombok.extern.slf4j.Slf4j;
+
 import java.io.IOException;
+import java.time.Instant;
 import java.util.List;
 
 /**
@@ -27,6 +32,7 @@ import java.util.List;
  * then delegates to the appropriate {@link VolumeScanner} for filesystem discovery
  * and persists the results.
  */
+@Slf4j
 public class FullSyncOperation extends AbstractSyncOperation {
 
     private final ScannerRegistry scannerRegistry;
@@ -89,13 +95,17 @@ public class FullSyncOperation extends AbstractSyncOperation {
         io.println("Syncing " + volume.id() + " (full) ...");
         ensureVolumeRecord(volume);
 
-        // Clear existing records for this volume — videos first (FK), then locations.
+        int staleGraceDays = AppConfig.get().volumes().syncOrDefaults().staleGraceDaysOrDefault();
+        String nowIso = Instant.now().toString();
+
+        // Mark existing records for this volume stale (videos hard-deleted as before, locations soft-marked).
         // Titles are NOT deleted — they may have locations on other volumes.
         videoRepo.deleteByVolume(volume.id());
-        titleLocationRepo.deleteByVolume(volume.id());
+        SyncStats stats = new SyncStats();
+        stats.staleMarked = titleLocationRepo.markStaleByVolume(volume.id(), nowIso);
 
-        // Load soft-match state after clears: titles whose only locations were on this volume
-        // now appear as orphans in the matcher's maps, enabling recode detection.
+        // Load soft-match state after marks: titles with no live locations anywhere now appear
+        // as orphans in the matcher's maps, enabling recode detection.
         identityMatcher.loadForSync();
 
         // Scan filesystem via the structure-specific scanner
@@ -103,7 +113,6 @@ public class FullSyncOperation extends AbstractSyncOperation {
         List<DiscoveredTitle> discovered = scanner.scan(structure, fs, io);
 
         // Persist all discovered titles and link their cast to the junction table
-        SyncStats stats = new SyncStats();
         try (var progress = io.startProgress("Saving", discovered.size())) {
             for (DiscoveredTitle dt : discovered) {
                 progress.setLabel(dt.path().getFileName().toString());
@@ -120,8 +129,18 @@ public class FullSyncOperation extends AbstractSyncOperation {
         // Flush soft-match candidates before orphan pruning so the queue reflects the new sync state.
         identityMatcher.flushToQueue(titleRepo.countAll());
 
+        // Count how many rows marked stale at the start of this scan were cleared by re-observation.
+        // staleMarked = rows we marked at start (WHERE stale_since IS NULL at that time).
+        // staleCleared = those that were subsequently re-observed (upsert sets stale_since = NULL).
+        // Proxy: count rows on this volume still stale with stale_since = nowIso (not re-observed).
+        int stillStaleFromThisRun = titleLocationRepo.countStaleMarkedAt(volume.id(), nowIso);
+        stats.staleCleared = stats.staleMarked - stillStaleFromThisRun;
+
+        log.info("Sync scan complete — volume={} staleMarked={} staleCleared={}", volume.id(), stats.staleMarked, stats.staleCleared);
+
         // Drop titles whose locations all disappeared AND their local cover files.
-        pruneOrphanedTitlesAndCovers(io);
+        // Also sweeps stale rows past the grace period.
+        pruneOrphanedTitlesAndCovers(io, staleGraceDays, stats);
 
         finalizeSync(volume.id(), ctx, stats);
         printStats(stats, io);

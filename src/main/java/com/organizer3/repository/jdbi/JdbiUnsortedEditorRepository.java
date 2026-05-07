@@ -24,6 +24,7 @@ public class JdbiUnsortedEditorRepository implements UnsortedEditorRepository {
                 FROM titles t
                 JOIN title_locations tl ON tl.title_id = t.id
                 WHERE tl.volume_id = :volumeId
+                  AND tl.stale_since IS NULL
                   AND t.code IS NOT NULL
                   AND t.base_code IS NOT NULL
                   AND tl.path LIKE '%(' || t.code || ')%'
@@ -66,6 +67,7 @@ public class JdbiUnsortedEditorRepository implements UnsortedEditorRepository {
                     FROM titles t
                     JOIN title_locations tl ON tl.title_id = t.id
                     WHERE t.id = :titleId AND tl.volume_id = :volumeId
+                      AND tl.stale_since IS NULL
                     LIMIT 1
                     """)
                     .bind("titleId", titleId)
@@ -116,6 +118,7 @@ public class JdbiUnsortedEditorRepository implements UnsortedEditorRepository {
         return jdbi.withHandle(h -> h.createQuery("""
                 SELECT COUNT(*) FROM title_locations
                 WHERE title_id = :titleId AND volume_id = :volumeId
+                  AND stale_since IS NULL
                 """)
                 .bind("titleId", titleId)
                 .bind("volumeId", volumeId)
@@ -172,6 +175,8 @@ public class JdbiUnsortedEditorRepository implements UnsortedEditorRepository {
             h.createUpdate("""
                     UPDATE title_locations SET path = :newPath
                     WHERE title_id = :titleId AND volume_id = :volumeId AND path = :oldPath
+                    -- W:both: intentionally updates live AND stale rows; a stale row at an old path
+                    -- may get re-observed at sync time and needs the corrected path to match.
                     """)
                     .bind("newPath", newFolderPath)
                     .bind("oldPath", oldFolderPath)
@@ -242,6 +247,7 @@ public class JdbiUnsortedEditorRepository implements UnsortedEditorRepository {
                 SELECT volume_id, path FROM title_locations
                 WHERE title_id = :titleId
                   AND NOT (volume_id = :vol AND path = :path)
+                  AND stale_since IS NULL
                 ORDER BY volume_id, path
                 """)
                 .bind("titleId", titleId)

@@ -73,8 +73,14 @@ class SyncHookTest {
             null
     );
 
+    @org.junit.jupiter.api.AfterEach
+    void tearDown() { com.organizer3.config.AppConfig.reset(); }
+
     @BeforeEach
     void setUp() {
+        com.organizer3.config.AppConfig.initializeForTest(new com.organizer3.config.volume.OrganizerConfig(
+                "test", "/tmp", null, null, null, null, null, null,
+                List.of(), List.of(), List.of(), List.of(), null, null));
         titleRepo        = mock(TitleRepository.class);
         videoRepo        = mock(VideoRepository.class);
         actressRepo      = mock(ActressRepository.class);
@@ -92,7 +98,9 @@ class SyncHookTest {
         when(volumeRepo.findById(anyString())).thenReturn(Optional.empty());
         when(indexLoader.load(anyString())).thenReturn(VolumeIndex.empty("unsorted"));
         when(titleRepo.countAll()).thenReturn(1);
-        when(titleRepo.findOrphanedTitles()).thenReturn(List.of());
+        when(titleRepo.findOrphanedTitles(anyInt())).thenReturn(List.of());
+        when(titleLocationRepo.findStaleOlderThan(anyInt())).thenReturn(List.of());
+        when(titleLocationRepo.countStaleMarkedAt(anyString(), anyString())).thenReturn(0);
         // Default: actress resolution returns a stub actress so sync doesn't NPE.
         Actress stubActress = Actress.builder().id(1L).canonicalName("Test Actress")
                 .tier(Actress.Tier.LIBRARY).build();

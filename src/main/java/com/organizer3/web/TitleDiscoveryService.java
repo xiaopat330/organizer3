@@ -127,6 +127,7 @@ public class TitleDiscoveryService {
                         JOIN title_locations tl ON tl.title_id = t.id AND tl.volume_id = :volumeId
                         LEFT JOIN title_javdb_enrichment tje ON tje.title_id = t.id
                         WHERE tje.title_id IS NULL
+                          AND tl.stale_since IS NULL
                           AND (SELECT COUNT(*) FROM title_actresses ta WHERE ta.title_id = t.id) <= 1
                           AND t.code NOT LIKE '\\_%' ESCAPE '\\'
                         """)
@@ -179,6 +180,7 @@ public class TitleDiscoveryService {
                                ORDER BY (added_date IS NULL), added_date DESC
                            ) AS rn
                     FROM title_locations
+                    WHERE stale_since IS NULL
                 ) loc ON loc.title_id = t.id AND loc.rn = 1
                 LEFT JOIN title_javdb_enrichment tje ON tje.title_id = t.id
                 LEFT JOIN (
@@ -231,6 +233,7 @@ public class TitleDiscoveryService {
                                    ORDER BY (added_date IS NULL), added_date DESC
                                ) AS rn
                         FROM title_locations
+                        WHERE stale_since IS NULL
                     ) loc ON loc.title_id = t.id AND loc.rn = 1
                     LEFT JOIN title_javdb_enrichment tje ON tje.title_id = t.id
                     WHERE tje.title_id IS NULL
@@ -349,7 +352,7 @@ public class TitleDiscoveryService {
                                ORDER BY (added_date IS NULL), added_date DESC
                            ) AS rn
                     FROM title_locations
-                """ + (isPool ? "WHERE volume_id = :volumeId\n" : "")
+                """ + (isPool ? "WHERE volume_id = :volumeId AND stale_since IS NULL\n" : "WHERE stale_since IS NULL\n")
                 + """
                 ) loc ON loc.title_id = t.id AND loc.rn = 1
                 LEFT JOIN volumes v ON v.id = loc.volume_id
@@ -421,7 +424,7 @@ public class TitleDiscoveryService {
                                    ORDER BY (added_date IS NULL), added_date DESC
                                ) AS rn
                         FROM title_locations
-                """ + (isPool ? "WHERE volume_id = :volumeId\n" : "")
+                """ + (isPool ? "WHERE volume_id = :volumeId AND stale_since IS NULL\n" : "WHERE stale_since IS NULL\n")
                 + """
                     ) loc ON loc.title_id = t.id AND loc.rn = 1
                     LEFT JOIN volumes v ON v.id = loc.volume_id

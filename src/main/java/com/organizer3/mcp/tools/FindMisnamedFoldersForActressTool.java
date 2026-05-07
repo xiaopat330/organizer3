@@ -78,6 +78,7 @@ public class FindMisnamedFoldersForActressTool implements Tool {
                     FROM titles t
                     JOIN title_locations tl ON tl.title_id = t.id
                     WHERE t.actress_id = :aid
+                      AND tl.stale_since IS NULL
                       AND instr(LOWER(tl.path), LOWER(:canonical)) = 0
                     ORDER BY tl.volume_id, t.code
                     LIMIT :lim

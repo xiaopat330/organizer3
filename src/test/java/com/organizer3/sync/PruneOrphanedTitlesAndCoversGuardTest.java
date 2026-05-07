@@ -17,6 +17,8 @@ import com.organizer3.shell.io.CommandIO;
 import com.organizer3.shell.io.PlainCommandIO;
 import com.organizer3.sync.scanner.ConventionalScanner;
 import com.organizer3.sync.scanner.ScannerRegistry;
+import com.organizer3.config.AppConfig;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -29,8 +31,7 @@ import java.util.Map;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 /**
@@ -54,6 +55,9 @@ class PruneOrphanedTitlesAndCoversGuardTest {
 
     @BeforeEach
     void setUp() {
+        AppConfig.initializeForTest(new com.organizer3.config.volume.OrganizerConfig(
+                "test", "/tmp", null, null, null, null, null, null,
+                java.util.List.of(), java.util.List.of(), java.util.List.of(), java.util.List.of(), null, null));
         titleRepo        = mock(TitleRepository.class);
         volumeRepo       = mock(VolumeRepository.class);
         titleActressRepo = mock(TitleActressRepository.class);
@@ -66,12 +70,22 @@ class PruneOrphanedTitlesAndCoversGuardTest {
                 ((com.organizer3.model.Title) inv.getArgument(0)).toBuilder().id(99L).build());
     }
 
+    @AfterEach
+    void tearDown() {
+        AppConfig.reset();
+    }
+
     private FullSyncOperation newOp() throws IOException {
         var tmp = Files.createTempDirectory("prune-guard-test");
         ScannerRegistry reg = new ScannerRegistry(Map.of("conventional", new ConventionalScanner()));
+        TitleLocationRepository locationRepo = mock(TitleLocationRepository.class);
+        // Stub new stale-sweep methods so the sweep path doesn't NPE.
+        when(locationRepo.findStaleOlderThan(anyInt())).thenReturn(List.of());
+        when(locationRepo.countStaleMarkedAt(anyString(), anyString())).thenReturn(0);
+        when(locationRepo.findByVolume(anyString(), eq(true))).thenReturn(List.of());
         return new FullSyncOperation(reg, titleRepo,
                 mock(VideoRepository.class), mock(ActressRepository.class),
-                volumeRepo, mock(TitleLocationRepository.class),
+                volumeRepo, locationRepo,
                 titleActressRepo, mock(IndexLoader.class),
                 mock(com.organizer3.db.TitleEffectiveTagsService.class),
                 mock(com.organizer3.db.ActressCompaniesService.class),
@@ -94,16 +108,16 @@ class PruneOrphanedTitlesAndCoversGuardTest {
         int enrichedOrphans = 101;
         var orphanRef = new TitleRepository.OrphanedTitleRef("ABP", "ABP-00001");
 
-        when(titleRepo.findOrphanedTitles()).thenReturn(List.of(orphanRef));
+        when(titleRepo.findOrphanedTitles(anyInt())).thenReturn(List.of(orphanRef));
         when(titleRepo.countAll()).thenReturn(total);
-        when(titleRepo.countOrphansWithEnrichment()).thenReturn(enrichedOrphans);
+        when(titleRepo.countOrphansWithEnrichment(anyInt())).thenReturn(enrichedOrphans);
 
         VolumeFileSystem fs = mock(VolumeFileSystem.class);
         when(fs.exists(any())).thenReturn(false);
 
         newOp().execute(CONVENTIONAL_VOLUME, emptyStructure(), fs, new SessionContext(), io);
 
-        verify(titleRepo, never()).deleteOrphaned();
+        verify(titleRepo, never()).deleteOrphaned(anyInt());
         String out = output.toString();
         assertTrue(out.contains("⚠"), "warning must be printed");
         assertTrue(out.contains("flagged"), "message must mention flagging");
@@ -118,10 +132,10 @@ class PruneOrphanedTitlesAndCoversGuardTest {
         int threshold = com.organizer3.repository.jdbi.JdbiTitleRepository.orphanFlagThreshold(total); // 100
         var orphanRef = new TitleRepository.OrphanedTitleRef("ABP", "ABP-00001");
 
-        when(titleRepo.findOrphanedTitles()).thenReturn(List.of(orphanRef));
+        when(titleRepo.findOrphanedTitles(anyInt())).thenReturn(List.of(orphanRef));
         when(titleRepo.countAll()).thenReturn(total);
-        when(titleRepo.countOrphansWithEnrichment()).thenReturn(threshold); // exactly at threshold
-        when(titleRepo.deleteOrphaned()).thenReturn(
+        when(titleRepo.countOrphansWithEnrichment(anyInt())).thenReturn(threshold); // exactly at threshold
+        when(titleRepo.deleteOrphaned(anyInt())).thenReturn(
                 new TitleRepository.OrphanPruneResult(1, 0));
 
         VolumeFileSystem fs = mock(VolumeFileSystem.class);
@@ -129,7 +143,7 @@ class PruneOrphanedTitlesAndCoversGuardTest {
 
         newOp().execute(CONVENTIONAL_VOLUME, emptyStructure(), fs, new SessionContext(), io);
 
-        verify(titleRepo, atLeastOnce()).deleteOrphaned();
+        verify(titleRepo, atLeastOnce()).deleteOrphaned(anyInt());
     }
 
     /**
@@ -138,14 +152,14 @@ class PruneOrphanedTitlesAndCoversGuardTest {
      */
     @Test
     void flaggingGuard_skippedWhenNoOrphans() throws Exception {
-        when(titleRepo.findOrphanedTitles()).thenReturn(List.of());
+        when(titleRepo.findOrphanedTitles(anyInt())).thenReturn(List.of());
 
         VolumeFileSystem fs = mock(VolumeFileSystem.class);
         when(fs.exists(any())).thenReturn(false);
 
         newOp().execute(CONVENTIONAL_VOLUME, emptyStructure(), fs, new SessionContext(), io);
 
-        verify(titleRepo, never()).countOrphansWithEnrichment();
-        verify(titleRepo, never()).deleteOrphaned();
+        verify(titleRepo, never()).countOrphansWithEnrichment(anyInt());
+        verify(titleRepo, never()).deleteOrphaned(anyInt());
     }
 }

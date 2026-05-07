@@ -33,6 +33,7 @@ public final class DuplicateCodesCheck implements LibraryHealthCheck {
                         SELECT t.id AS tid, t.code AS code, tl.volume_id AS vol, COUNT(*) AS n
                         FROM title_locations tl
                         JOIN titles t ON t.id = tl.title_id
+                        WHERE tl.stale_since IS NULL
                         GROUP BY tl.title_id, tl.volume_id
                         HAVING n > 1
                         ORDER BY n DESC, t.code
@@ -47,6 +48,7 @@ public final class DuplicateCodesCheck implements LibraryHealthCheck {
         int total = jdbi.withHandle(h -> h.createQuery("""
                         SELECT COUNT(*) FROM (
                             SELECT 1 FROM title_locations
+                            WHERE stale_since IS NULL
                             GROUP BY title_id, volume_id
                             HAVING COUNT(*) > 1
                         )

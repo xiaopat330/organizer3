@@ -21,6 +21,15 @@ import java.util.List;
  *
  * <p>Volumes that have never been synced ({@code last_synced_at IS NULL}) are skipped — there's
  * no baseline to compare against.
+ *
+ * <p><b>Relationship to grace-period staleness ({@code stale_since}):</b> This service uses the
+ * <em>pre-grace-period</em> definition of staleness: {@code last_seen_at < volume.last_synced_at}.
+ * It predates the {@code stale_since} column added in schema v54. The newer mechanism sets
+ * {@code stale_since} atomically during the sync path and sweeps rows past the grace window via
+ * {@code JdbiTitleLocationRepository.sweepStaleOlderThan}. These are complementary, not
+ * redundant: the legacy "Clean" action on the Volumes screen still uses this service and provides
+ * an immediate, operator-triggered cleanup path. Do not remove this service without replacing the
+ * Volumes-screen "Clean" action and updating {@link StaleLocationsCheck}.
  */
 public final class StaleLocationsService {
 

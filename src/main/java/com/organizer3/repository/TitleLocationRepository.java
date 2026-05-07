@@ -8,19 +8,129 @@ import java.util.List;
 
 /**
  * Persistence operations for {@link TitleLocation} records.
+ *
+ * <h3>Stale-row semantics (Phase 1 — grace-period orphans)</h3>
+ * <p>Every row has a {@code stale_since} column. {@code NULL} = live (observed on the most
+ * recent sync of its scope). Non-null = the ISO-8601 timestamp at which the row was first
+ * marked absent. Rows past {@code sync.staleGraceDays} days are swept by
+ * {@link #sweepStaleOlderThan(int)}.
+ *
+ * <p>All default read methods ({@link #findByTitle}, {@link #findByVolume}, etc.) hide stale
+ * rows (i.e. {@code WHERE stale_since IS NULL}) unless the caller passes {@code includeStale=true}.
+ * The predicate is centralized in the JDBI base SQL — callers do not scatter it.
  */
 public interface TitleLocationRepository {
 
+    /**
+     * Upsert a location row. On conflict (same title_id, volume_id, path), clears
+     * {@code stale_since} back to NULL and refreshes {@code last_seen_at} — re-observing a
+     * path makes it live again. This is the write path used by the sync scanner.
+     */
     TitleLocation save(TitleLocation location);
 
+    /**
+     * Returns live locations for the given title (stale rows excluded by default).
+     * Pass {@code includeStale=true} to include grace-period stale rows (e.g. reconcile).
+     */
     List<TitleLocation> findByTitle(long titleId);
+    List<TitleLocation> findByTitle(long titleId, boolean includeStale);
 
+    /**
+     * Batch variant of {@link #findByTitle} — live rows only for the given title ids.
+     * Pass {@code includeStale=true} to include grace-period stale rows.
+     */
     List<TitleLocation> findByTitleIds(List<Long> titleIds);
+    List<TitleLocation> findByTitleIds(List<Long> titleIds, boolean includeStale);
 
+    /**
+     * Returns live locations on the given volume (stale rows excluded by default).
+     * Pass {@code includeStale=true} to include grace-period stale rows.
+     */
     List<TitleLocation> findByVolume(String volumeId);
+    List<TitleLocation> findByVolume(String volumeId, boolean includeStale);
 
+    // -------------------------------------------------------------------------
+    // Sync-path: mark-stale (replaces delete in the sync pipeline)
+    // -------------------------------------------------------------------------
+
+    /**
+     * Marks all rows for the given volume stale, setting {@code stale_since = nowIso} for rows
+     * that don't already have a value. Idempotent — an already-stale row keeps its original
+     * {@code stale_since}.
+     *
+     * <p>Replaces {@link #deleteByVolume} in the sync path. The delete variant is kept for
+     * tests and explicit admin cleanup but is deprecated for sync use.
+     *
+     * @return number of rows newly marked stale (already-stale rows not counted)
+     */
+    int markStaleByVolume(String volumeId, String nowIso);
+
+    /**
+     * Marks stale all rows for the given volume + partition, leaving other partitions untouched.
+     * Idempotent — already-stale rows keep their original {@code stale_since}.
+     *
+     * <p>Replaces {@link #deleteByVolumeAndPartition} in the partition-sync path.
+     *
+     * @return number of rows newly marked stale
+     */
+    int markStaleByVolumeAndPartition(String volumeId, String partitionId, String nowIso);
+
+    // -------------------------------------------------------------------------
+    // Sweep
+    // -------------------------------------------------------------------------
+
+    /**
+     * Returns all rows whose {@code stale_since} is older than {@code graceDays} days.
+     * Used by the catastrophic-delete guard before the sweep.
+     */
+    List<TitleLocation> findStaleOlderThan(int graceDays);
+
+    /**
+     * Deletes rows whose {@code stale_since} is older than {@code graceDays} days.
+     * Returns the number of rows deleted.
+     *
+     * <p>Catastrophic-delete guard: the caller is responsible for checking
+     * {@link #findStaleOlderThan} before calling this, but the implementation also
+     * enforces the threshold internally for defense-in-depth.
+     */
+    int sweepStaleOlderThan(int graceDays);
+
+    /**
+     * Returns the total count of live (non-stale) title_location rows across all volumes.
+     * Used as the denominator for the catastrophic-delete guard in the stale-row sweep.
+     */
+    int countAllLive();
+
+    /**
+     * Returns the count of rows on the given volume that are still stale with
+     * {@code stale_since = markedAtIso}. Used after a scan to compute {@code staleCleared}:
+     * rows that were marked at {@code markedAtIso} but NOT re-observed (i.e. still stale).
+     *
+     * @param volumeId     the volume that was just synced
+     * @param markedAtIso  the ISO-8601 timestamp passed to {@link #markStaleByVolume}
+     */
+    int countStaleMarkedAt(String volumeId, String markedAtIso);
+
+    /**
+     * Returns count and oldest age (in days) of stale rows still inside the grace window.
+     * Used by Library Health.
+     */
+    PendingGraceSummary countPendingGrace();
+
+    record PendingGraceSummary(int count, int oldestDays) {
+        public static final PendingGraceSummary EMPTY = new PendingGraceSummary(0, 0);
+    }
+
+    // -------------------------------------------------------------------------
+    // Hard-delete variants (kept for tests / explicit admin cleanup)
+    // -------------------------------------------------------------------------
+
+    /** @deprecated Use {@link #markStaleByVolume} in the sync path. Hard-delete kept for admin/test use. */
+    @Deprecated
     void deleteByVolume(String volumeId);
 
+    /** @deprecated Use {@link #markStaleByVolumeAndPartition} in the sync path. Hard-delete kept for admin/test use. */
+    @Deprecated
     void deleteByVolumeAndPartition(String volumeId, String partitionId);
 
     /** Delete a single title_location row. No-op if the id does not exist. */

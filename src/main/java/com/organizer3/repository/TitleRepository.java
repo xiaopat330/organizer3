@@ -135,8 +135,11 @@ public interface TitleRepository {
      *
      * <p><b>Cascade-delete safety:</b> throws {@link com.organizer3.repository.CatastrophicDeleteException}
      * without touching anything if the total orphan count exceeds {@code max(500, total/4)}.
+     *
+     * @param staleGraceDays grace window; a title is only pruned if it has no live locations
+     *                       AND no stale rows within the grace window
      */
-    OrphanPruneResult deleteOrphaned();
+    OrphanPruneResult deleteOrphaned(int staleGraceDays);
 
     /**
      * Delete one title by id, using the same cascade + history-snapshot pattern as
@@ -146,18 +149,24 @@ public interface TitleRepository {
     void deleteOne(long titleId);
 
     /**
-     * Returns the number of orphaned titles (zero {@code title_locations}) that have at
-     * least one row in {@code title_javdb_enrichment}. Used by the catastrophic-flagging
-     * pre-check in sync before calling {@link #deleteOrphaned}.
+     * Returns the number of orphaned titles (zero live {@code title_locations} AND no stale
+     * rows within the grace window) that have at least one row in {@code title_javdb_enrichment}.
+     * Used by the catastrophic-flagging pre-check in sync before calling {@link #deleteOrphaned}.
+     *
+     * @param staleGraceDays grace window; a title is orphaned only if its stale rows are all older
+     *                       than this many days
      */
-    int countOrphansWithEnrichment();
+    int countOrphansWithEnrichment(int staleGraceDays);
 
     /**
-     * Returns a lightweight projection of every title that is currently orphaned — zero
-     * {@code title_locations} rows. Used by sync to enumerate covers to delete alongside the
-     * row drop. Call before {@link #deleteOrphaned}; after the delete the set is empty.
+     * Returns a lightweight projection of every title that is currently orphaned — zero live
+     * {@code title_locations} rows AND no stale rows within the grace window.
+     * Used by sync to enumerate covers to delete alongside the row drop.
+     * Call before {@link #deleteOrphaned}; after the delete the set is empty.
+     *
+     * @param staleGraceDays grace window in days
      */
-    List<OrphanedTitleRef> findOrphanedTitles();
+    List<OrphanedTitleRef> findOrphanedTitles(int staleGraceDays);
 
     /** Lightweight {label, baseCode} projection for orphan cover cleanup. */
     record OrphanedTitleRef(String label, String baseCode) {}

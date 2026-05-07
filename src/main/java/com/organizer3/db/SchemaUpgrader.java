@@ -22,7 +22,7 @@ import java.util.List;
 public class SchemaUpgrader {
 
     /** Must match the version stamped by {@link SchemaInitializer}. */
-    private static final int CURRENT_VERSION = 53;
+    private static final int CURRENT_VERSION = 54;
 
     private final Jdbi jdbi;
 
@@ -289,6 +289,11 @@ public class SchemaUpgrader {
         if (version < 53) {
             applyV53();
             setVersion(53);
+        }
+
+        if (version < 54) {
+            applyV54();
+            setVersion(54);
         }
 
         log.info("Schema upgrade complete");
@@ -1782,6 +1787,23 @@ public class SchemaUpgrader {
         log.info("Applying migration v53: priority column on translation_queue");
         jdbi.useHandle(h -> addColumnIfMissing(h, "translation_queue", "priority",
                 "INTEGER NOT NULL DEFAULT 0"));
+    }
+
+    /**
+     * v54: {@code stale_since} column on {@code title_locations} for grace-period orphan tracking.
+     *
+     * <p>{@code NULL} means the row is live (observed on the most recent sync of its scope).
+     * A non-null ISO-8601 timestamp is when the row was first marked absent. Rows with
+     * {@code stale_since} older than {@code sync.staleGraceDays} days are swept on next sync.
+     *
+     * <p>No backfill: {@code NULL} is correct for all existing rows (they are all "live").
+     */
+    private void applyV54() {
+        log.info("Applying migration v54: stale_since column on title_locations for grace-period orphan tracking");
+        jdbi.useHandle(h -> {
+            addColumnIfMissing(h, "title_locations", "stale_since", "TEXT");
+            h.execute("CREATE INDEX IF NOT EXISTS idx_title_locations_stale_since ON title_locations(stale_since)");
+        });
     }
 
     private int getVersion() {
