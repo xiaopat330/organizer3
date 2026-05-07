@@ -209,6 +209,13 @@ structures:
       - .Trashes
       - incomplete
 
+# Sync reconciliation — see spec/PROPOSAL_SYNC_RECONCILIATION.md.
+# A title_locations row not observed during a sync is marked stale rather than
+# deleted. Rows past the grace window are swept; titles with zero live and no
+# in-grace stale rows are pruned (subject to the catastrophic-delete guard).
+sync:
+  staleGraceDays: 90
+
 syncConfig:
   - structureType: conventional
     commands:
