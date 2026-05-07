@@ -131,6 +131,24 @@
   align-items: baseline;
 }
 .queue-editor-header #queue-editor-code { color: #fbbf24; font-weight: 700; }
+
+.queue-code-copyable {
+  cursor: pointer;
+  border-radius: 4px;
+  padding: 1px 4px;
+  margin: -1px -4px;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.queue-code-copyable:hover { background: #1e293b; }
+.queue-code-copyable.queue-code-copied {
+  background: #14532d;
+  color: #86efac !important;
+}
+.queue-code-copyable.queue-code-copied::after {
+  content: ' ✓ copied';
+  font-size: 0.85em;
+  font-weight: 500;
+}
 .queue-editor-sep { color: #334155; }
 .queue-editor-folder { color: #64748b; font-size: 0.9rem; }
 
