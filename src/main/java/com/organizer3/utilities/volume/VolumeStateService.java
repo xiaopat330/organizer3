@@ -45,7 +45,7 @@ public final class VolumeStateService {
 
     private int countQueueTitles(String volumeId) {
         return jdbi.withHandle(h -> h.createQuery(
-                        "SELECT COUNT(*) FROM title_locations WHERE volume_id = :vol AND partition_id = 'queue'")
+                        "SELECT COUNT(*) FROM title_locations WHERE volume_id = :vol AND partition_id = 'queue' AND stale_since IS NULL")
                 .bind("vol", volumeId)
                 .mapTo(Integer.class)
                 .one());

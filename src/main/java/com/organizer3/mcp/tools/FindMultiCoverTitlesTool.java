@@ -107,6 +107,7 @@ public class FindMultiCoverTitlesTool implements Tool {
                     FROM title_locations tl
                     JOIN titles t ON t.id = tl.title_id
                     WHERE tl.volume_id = :volumeId
+                      AND tl.stale_since IS NULL
                     ORDER BY tl.id
                     LIMIT :limit OFFSET :offset
                     """)

@@ -271,6 +271,7 @@ public class JdbiVideoRepository implements VideoRepository {
                         AND title_id IN (
                             SELECT DISTINCT title_id FROM title_locations
                             WHERE volume_id = :volumeId AND partition_id = :partitionId
+                              AND stale_since IS NULL
                         )""")
                         .bind("volumeId", volumeId)
                         .bind("partitionId", partitionId)

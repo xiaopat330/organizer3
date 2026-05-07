@@ -48,6 +48,7 @@ public class AuditTimestampsCommand implements Command {
                     FROM title_locations tl
                     JOIN titles t ON t.id = tl.title_id
                     WHERE tl.volume_id = :volumeId
+                      AND tl.stale_since IS NULL
                     ORDER BY tl.id
                     """)
                 .bind("volumeId", volumeId)

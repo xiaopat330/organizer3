@@ -427,6 +427,7 @@ public class JdbiActressRepository implements ActressRepository {
                             JOIN title_locations tl ON tl.title_id = t.id
                             WHERE t.actress_id = a.id
                               AND tl.volume_id IN (<volumeIds>)
+                              AND tl.stale_since IS NULL
                         )
                         ORDER BY a.canonical_name
                         """)
@@ -447,6 +448,7 @@ public class JdbiActressRepository implements ActressRepository {
                             FROM title_locations tl
                             JOIN titles t ON t.id = tl.title_id
                             WHERE tl.volume_id IN (<volumeIds>)
+                              AND tl.stale_since IS NULL
                               AND t.actress_id IS NOT NULL
                         )
                         ORDER BY (a.favorite + a.bookmark) DESC, a.canonical_name
@@ -474,6 +476,7 @@ public class JdbiActressRepository implements ActressRepository {
                             FROM title_locations tl
                             JOIN titles t ON t.id = tl.title_id
                             WHERE tl.volume_id IN (<volumeIds>)
+                              AND tl.stale_since IS NULL
                               AND t.actress_id IS NOT NULL
                           )
                           AND a.id IN (
@@ -1289,6 +1292,7 @@ public class JdbiActressRepository implements ActressRepository {
                         FROM titles t
                         JOIN title_locations tl ON tl.title_id = t.id
                         WHERE t.actress_id IS NOT NULL
+                          AND tl.stale_since IS NULL
                         ORDER BY t.actress_id, t.code
                         """)
                         .map((rs, ctx) -> new FilingLocation(

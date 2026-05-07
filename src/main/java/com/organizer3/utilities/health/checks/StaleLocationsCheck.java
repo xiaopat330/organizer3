@@ -10,6 +10,18 @@ import java.util.List;
  * Rolls up stale {@code title_locations} rows across all volumes. The per-volume Clean action
  * lives on the Volumes screen; Library Health only reports the aggregate + per-volume counts,
  * and routes the user there for the fix.
+ *
+ * <p><b>Relationship to {@code PendingGraceLocationsCheck}:</b> This check uses the
+ * <em>pre-grace-period</em> staleness definition — a row is "stale" when its
+ * {@code last_seen_at} is older than the volume's {@code last_synced_at}. This is a
+ * filesystem-sync signal (the file wasn't observed on the last sweep) and predates the
+ * grace-period mechanism introduced with the {@code stale_since} column.
+ *
+ * <p>{@code PendingGraceLocationsCheck} uses the newer definition: {@code stale_since IS NOT NULL},
+ * which is set atomically by the sync path and cleared on re-observation. The two checks measure
+ * overlapping but distinct things and are intentionally kept separate. Do not retire this check
+ * without auditing {@link com.organizer3.utilities.volume.StaleLocationsService} and the
+ * Volumes-screen "Clean" action that depends on it.
  */
 public final class StaleLocationsCheck implements LibraryHealthCheck {
 

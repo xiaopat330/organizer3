@@ -128,6 +128,7 @@ public class JdbiTitleRepository implements TitleRepository {
                         SELECT DISTINCT t.* FROM titles t
                         JOIN title_locations tl ON t.id = tl.title_id
                         WHERE tl.volume_id = :volumeId
+                          AND tl.stale_since IS NULL
                         ORDER BY t.code
                         """)
                         .bind("volumeId", volumeId)
@@ -144,6 +145,7 @@ public class JdbiTitleRepository implements TitleRepository {
                         SELECT COUNT(DISTINCT t.id) FROM titles t
                         JOIN title_locations tl ON t.id = tl.title_id
                         WHERE tl.volume_id = :volumeId
+                          AND tl.stale_since IS NULL
                         """)
                         .bind("volumeId", volumeId)
                         .mapTo(Integer.class)
@@ -385,6 +387,7 @@ public class JdbiTitleRepository implements TitleRepository {
                         SELECT t.* FROM titles t
                         JOIN title_locations tl ON t.id = tl.title_id
                         WHERE t.actress_id IS NOT NULL
+                          AND tl.stale_since IS NULL
                         GROUP BY t.id
                         ORDER BY t.favorite DESC, t.bookmark DESC, MIN(tl.added_date) DESC, t.id DESC
                         LIMIT :limit OFFSET :offset
@@ -422,7 +425,7 @@ public class JdbiTitleRepository implements TitleRepository {
         List<Title> titles = jdbi.withHandle(h ->
                 h.createQuery("""
                         SELECT t.* FROM titles t
-                        LEFT JOIN title_locations tl ON t.id = tl.title_id
+                        LEFT JOIN title_locations tl ON t.id = tl.title_id AND tl.stale_since IS NULL
                         WHERE t.favorite = 1
                         GROUP BY t.id
                         ORDER BY t.bookmark DESC, MIN(tl.added_date) DESC, t.id DESC
@@ -441,7 +444,7 @@ public class JdbiTitleRepository implements TitleRepository {
         List<Title> titles = jdbi.withHandle(h ->
                 h.createQuery("""
                         SELECT t.* FROM titles t
-                        LEFT JOIN title_locations tl ON t.id = tl.title_id
+                        LEFT JOIN title_locations tl ON t.id = tl.title_id AND tl.stale_since IS NULL
                         WHERE t.bookmark = 1
                         GROUP BY t.id
                         ORDER BY t.favorite DESC, MIN(tl.added_date) DESC, t.id DESC
@@ -475,7 +478,7 @@ public class JdbiTitleRepository implements TitleRepository {
 
     public List<Title> findByActressPaged(long actressId, int limit, int offset, TitleSortSpec sort) {
         String sql = "SELECT t.* FROM titles t" +
-                     " LEFT JOIN title_locations tl ON t.id = tl.title_id" +
+                     " LEFT JOIN title_locations tl ON t.id = tl.title_id AND tl.stale_since IS NULL" +
                      " WHERE t.actress_id = :actressId" +
                      " GROUP BY t.id" +
                      " ORDER BY t.favorite DESC, t.bookmark DESC, " + buildSortClause(sort) + ", t.id DESC" +
@@ -494,7 +497,7 @@ public class JdbiTitleRepository implements TitleRepository {
     @Override
     public List<Title> findByActressAndLabelsPaged(long actressId, List<String> labels, int limit, int offset, TitleSortSpec sort) {
         String sql = "SELECT t.* FROM titles t" +
-                     " LEFT JOIN title_locations tl ON t.id = tl.title_id" +
+                     " LEFT JOIN title_locations tl ON t.id = tl.title_id AND tl.stale_since IS NULL" +
                      " WHERE t.actress_id = :actressId AND t.label IN (<labels>)" +
                      " GROUP BY t.id" +
                      " ORDER BY t.favorite DESC, t.bookmark DESC, " + buildSortClause(sort) + ", t.id DESC" +
@@ -518,7 +521,7 @@ public class JdbiTitleRepository implements TitleRepository {
         boolean hasEnrichTags   = !safeEnrichTags.isEmpty();
 
         StringBuilder sql = new StringBuilder("SELECT t.* FROM titles t\n");
-        sql.append("LEFT JOIN title_locations tl ON t.id = tl.title_id\n");
+        sql.append("LEFT JOIN title_locations tl ON t.id = tl.title_id AND tl.stale_since IS NULL\n");
         if (hasTags) {
             sql.append("JOIN title_effective_tags tet ON tet.title_id = t.id AND tet.tag IN (<tags>)\n");
         }
@@ -559,6 +562,7 @@ public class JdbiTitleRepository implements TitleRepository {
                         SELECT t.* FROM titles t
                         JOIN title_locations tl ON t.id = tl.title_id
                         WHERE tl.volume_id = :volumeId
+                          AND tl.stale_since IS NULL
                         GROUP BY t.id
                         ORDER BY t.favorite DESC, t.bookmark DESC, MIN(tl.added_date) DESC, t.id DESC
                         LIMIT :limit OFFSET :offset
@@ -580,6 +584,7 @@ public class JdbiTitleRepository implements TitleRepository {
                         JOIN title_locations tl ON t.id = tl.title_id
                         WHERE tl.volume_id = :volumeId AND tl.partition_id = :partitionId
                           AND instr('/' || tl.path, '/_') = 0
+                          AND tl.stale_since IS NULL
                         GROUP BY t.id
                         ORDER BY t.favorite DESC, t.bookmark DESC, MIN(tl.added_date) DESC, t.id DESC
                         LIMIT :limit OFFSET :offset
@@ -602,6 +607,7 @@ public class JdbiTitleRepository implements TitleRepository {
             sql.append("JOIN title_effective_tags tet ON tet.title_id = t.id AND tet.tag IN (<tags>)\n");
         }
         sql.append("WHERE tl.volume_id = :volumeId\n");
+        sql.append("  AND tl.stale_since IS NULL\n");
         if (!labels.isEmpty()) {
             sql.append("AND t.label IN (<labels>)\n");
         }
@@ -632,6 +638,7 @@ public class JdbiTitleRepository implements TitleRepository {
         }
         sql.append("WHERE tl.volume_id = :volumeId AND tl.partition_id = :partitionId\n");
         sql.append("  AND instr('/' || tl.path, '/_') = 0\n");
+        sql.append("  AND tl.stale_since IS NULL\n");
         if (!labels.isEmpty()) {
             sql.append("AND t.label IN (<labels>)\n");
         }
@@ -662,6 +669,7 @@ public class JdbiTitleRepository implements TitleRepository {
                         FROM title_effective_tags tet
                         JOIN title_locations tl ON tl.title_id = tet.title_id
                         WHERE tl.volume_id = :volumeId
+                          AND tl.stale_since IS NULL
                         ORDER BY tet.tag
                         """)
                         .bind("volumeId", volumeId)
@@ -679,6 +687,7 @@ public class JdbiTitleRepository implements TitleRepository {
                         JOIN title_locations tl ON tl.title_id = tet.title_id
                         WHERE tl.volume_id = :volumeId AND tl.partition_id = :partitionId
                           AND instr('/' || tl.path, '/_') = 0
+                          AND tl.stale_since IS NULL
                         ORDER BY tet.tag
                         """)
                         .bind("volumeId", volumeId)
@@ -695,6 +704,7 @@ public class JdbiTitleRepository implements TitleRepository {
                         SELECT t.* FROM titles t
                         JOIN title_locations tl ON t.id = tl.title_id
                         WHERE t.actress_id IS NOT NULL
+                          AND tl.stale_since IS NULL
                         GROUP BY t.id
                         ORDER BY RANDOM()
                         LIMIT :limit
@@ -711,7 +721,7 @@ public class JdbiTitleRepository implements TitleRepository {
         List<Title> titles = jdbi.withHandle(h ->
                 h.createQuery("""
                         SELECT t.* FROM titles t
-                        LEFT JOIN title_locations tl ON t.id = tl.title_id
+                        LEFT JOIN title_locations tl ON t.id = tl.title_id AND tl.stale_since IS NULL
                         JOIN title_effective_tags tet ON tet.title_id = t.id AND tet.tag IN (<tags>)
                         GROUP BY t.id
                         HAVING COUNT(DISTINCT tet.tag) = :tagCount
@@ -873,6 +883,7 @@ public class JdbiTitleRepository implements TitleRepository {
                 + "JOIN actresses a ON t.actress_id = a.id "
                 + "JOIN title_locations tl ON tl.title_id = t.id "
                 + "WHERE t.label IN (" + placeholders + ") AND t.actress_id IS NOT NULL "
+                + "  AND tl.stale_since IS NULL "
                 + "GROUP BY t.actress_id "
                 + "ORDER BY latest_date DESC "
                 + "LIMIT ?";
@@ -1130,6 +1141,7 @@ public class JdbiTitleRepository implements TitleRepository {
                     JOIN title_locations tl ON t.id = tl.title_id
                     WHERE t.actress_id IS NOT NULL
                       AND tl.added_date >= :since
+                      AND tl.stale_since IS NULL
                       """ + exclusion + """
                     GROUP BY t.id
                     ORDER BY min_added DESC, t.id DESC
@@ -1158,6 +1170,7 @@ public class JdbiTitleRepository implements TitleRepository {
                     WHERE t.actress_id IS NOT NULL
                       AND t.label IN (<labels>)
                       AND tl.added_date >= :since
+                      AND tl.stale_since IS NULL
                       """ + exclusion + """
                     GROUP BY t.id
                     ORDER BY RANDOM()
@@ -1185,6 +1198,7 @@ public class JdbiTitleRepository implements TitleRepository {
                         FROM titles t
                         JOIN title_locations tl ON t.id = tl.title_id
                         WHERE t.actress_id IS NOT NULL
+                          AND tl.stale_since IS NULL
                           AND ( substr(t.release_date, 5, 6) = :mmdd
                                 OR substr(tl.added_date, 5, 6) = :mmdd )
                         """)
@@ -1256,12 +1270,14 @@ public class JdbiTitleRepository implements TitleRepository {
             long addedMonth = h.createQuery("""
                             SELECT COUNT(DISTINCT title_id) FROM title_locations
                             WHERE added_date >= :since
+                              AND stale_since IS NULL
                             """)
                     .bind("since", monthStart)
                     .mapTo(Long.class).one();
             long addedYear = h.createQuery("""
                             SELECT COUNT(DISTINCT title_id) FROM title_locations
                             WHERE added_date >= :since
+                              AND stale_since IS NULL
                             """)
                     .bind("since", yearStart)
                     .mapTo(Long.class).one();
@@ -1316,6 +1332,7 @@ public class JdbiTitleRepository implements TitleRepository {
                 SELECT t.* FROM titles t
                 JOIN title_locations tl ON t.id = tl.title_id
                 WHERE t.actress_id IS NOT NULL
+                  AND tl.stale_since IS NULL
                   AND (t.visit_count = 0 OR t.last_visited_at < :d180)
                   """ + exclusion + """
                 GROUP BY t.id
@@ -1495,7 +1512,7 @@ public class JdbiTitleRepository implements TitleRepository {
         // default is "addedDate"
 
         StringBuilder sql = new StringBuilder("SELECT t.* FROM titles t\n");
-        sql.append("LEFT JOIN title_locations tl ON t.id = tl.title_id\n");
+        sql.append("LEFT JOIN title_locations tl ON t.id = tl.title_id AND tl.stale_since IS NULL\n");
         if (sortByActress) {
             sql.append("LEFT JOIN actresses a ON t.actress_id = a.id\n");
         }
@@ -1572,13 +1589,14 @@ public class JdbiTitleRepository implements TitleRepository {
     @Override
     public List<Title> findWithMultipleLocationsPaged(int limit, int offset, String volumeId) {
         String volumeFilter = volumeId != null
-                ? "AND EXISTS (SELECT 1 FROM title_locations vf WHERE vf.title_id = t.id AND vf.volume_id = :volumeId)"
+                ? "AND EXISTS (SELECT 1 FROM title_locations vf WHERE vf.title_id = t.id AND vf.volume_id = :volumeId AND vf.stale_since IS NULL)"
                 : "";
         List<Title> titles = jdbi.withHandle(h ->
                 h.createQuery("""
                         SELECT t.* FROM titles t
                         JOIN (
                             SELECT title_id FROM title_locations
+                            WHERE stale_since IS NULL
                             GROUP BY title_id
                             HAVING COUNT(*) > 1
                         ) dup ON dup.title_id = t.id
@@ -1598,13 +1616,14 @@ public class JdbiTitleRepository implements TitleRepository {
     @Override
     public int countWithMultipleLocations(String volumeId) {
         String volumeFilter = volumeId != null
-                ? "AND EXISTS (SELECT 1 FROM title_locations vf WHERE vf.title_id = t.id AND vf.volume_id = :volumeId)"
+                ? "AND EXISTS (SELECT 1 FROM title_locations vf WHERE vf.title_id = t.id AND vf.volume_id = :volumeId AND vf.stale_since IS NULL)"
                 : "";
         return jdbi.withHandle(h ->
                 h.createQuery("""
                         SELECT COUNT(*) FROM titles t
                         JOIN (
                             SELECT title_id FROM title_locations
+                            WHERE stale_since IS NULL
                             GROUP BY title_id
                             HAVING COUNT(*) > 1
                         ) dup ON dup.title_id = t.id

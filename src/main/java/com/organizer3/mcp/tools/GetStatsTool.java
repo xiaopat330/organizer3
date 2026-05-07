@@ -35,9 +35,12 @@ public class GetStatsTool implements Tool {
             long videos    = one(h, "SELECT COUNT(*) FROM videos");
             long favorites = one(h, "SELECT COUNT(*) FROM actresses WHERE favorite = 1");
             long rejected  = one(h, "SELECT COUNT(*) FROM actresses WHERE rejected = 1");
+            // includes stale rows: admin diagnostic tool; showing total row count (live + stale)
+            // and per-volume breakdown gives operators visibility into the stale pool size.
             long locations = one(h, "SELECT COUNT(*) FROM title_locations");
 
             Map<String, Long> byVolume = new LinkedHashMap<>();
+            // includes stale rows: same rationale as above — per-volume total including stale.
             h.createQuery("SELECT volume_id, COUNT(*) AS n FROM title_locations GROUP BY volume_id ORDER BY volume_id")
                     .map((rs, ctx) -> Map.entry(rs.getString("volume_id"), rs.getLong("n")))
                     .forEach(e -> byVolume.put(e.getKey(), e.getValue()));

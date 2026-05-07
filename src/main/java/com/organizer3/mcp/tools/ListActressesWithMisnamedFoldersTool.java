@@ -56,6 +56,7 @@ public class ListActressesWithMisnamedFoldersTool implements Tool {
                     JOIN title_locations tl ON tl.title_id = t.id
                     JOIN actresses a        ON a.id = t.actress_id
                     WHERE t.actress_id IS NOT NULL
+                      AND tl.stale_since IS NULL
                       AND a.canonical_name IS NOT NULL
                       AND instr(LOWER(tl.path), LOWER(a.canonical_name)) = 0
                     """);

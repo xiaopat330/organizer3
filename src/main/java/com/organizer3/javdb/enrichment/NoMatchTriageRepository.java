@@ -51,7 +51,7 @@ public class NoMatchTriageRepository {
                   ON a.id = ta.actress_id
                  AND COALESCE(a.is_sentinel, 0) = 0
                 LEFT JOIN title_locations tl
-                  ON tl.title_id = t.id
+                  ON tl.title_id = t.id AND tl.stale_since IS NULL
                 WHERE q.status = 'failed'
                   AND q.last_error = 'no_match_in_filmography'
                 ORDER BY t.code ASC, a.stage_name ASC
@@ -215,6 +215,7 @@ public class NoMatchTriageRepository {
         return jdbi.withHandle(h -> h.createQuery("""
                 SELECT path, volume_id FROM title_locations
                 WHERE title_id = :titleId
+                  AND stale_since IS NULL
                 ORDER BY id ASC
                 LIMIT 1
                 """)

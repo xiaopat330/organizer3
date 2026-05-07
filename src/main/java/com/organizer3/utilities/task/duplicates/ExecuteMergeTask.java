@@ -106,11 +106,15 @@ public final class ExecuteMergeTask implements Task {
                     .orElseThrow(() -> new IllegalStateException("loser title not found: " + loserCode));
 
             // title_locations
+            // W: copy only live loser rows to winner (stale loser rows are from a volume
+            // that hasn't re-synced yet; migrating them to the winner would create phantom
+            // stale rows on the winner and confuse future syncs).
             h.createUpdate("""
                     INSERT OR IGNORE INTO title_locations (title_id, volume_id, partition_id, path, last_seen_at, added_date)
                     SELECT :w, volume_id, partition_id, path, last_seen_at, added_date
-                    FROM title_locations WHERE title_id = :l
+                    FROM title_locations WHERE title_id = :l AND stale_since IS NULL
                     """).bind("w", winnerId).bind("l", loserId).execute();
+            // W: deletes all loser rows (live + stale) — the loser title is being retired.
             h.execute("DELETE FROM title_locations WHERE title_id = ?", loserId);
 
             // videos
