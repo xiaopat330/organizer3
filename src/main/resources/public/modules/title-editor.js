@@ -24,6 +24,26 @@ const pane          = document.getElementById('queue-editor-pane');
 const codeEl        = document.getElementById('queue-editor-code');
 const folderEl      = document.getElementById('queue-editor-folder');
 
+wireCodeCopy(codeEl);
+wireCodeCopy(document.getElementById('queue-draft-code'));
+
+function wireCodeCopy(el) {
+  if (!el) return;
+  el.classList.add('queue-code-copyable');
+  el.title = 'Click to copy';
+  el.addEventListener('click', () => {
+    const code = (el.textContent || '').trim();
+    if (!code) return;
+    const flash = () => {
+      el.classList.add('queue-code-copied');
+      setTimeout(() => el.classList.remove('queue-code-copied'), 900);
+    };
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(code).then(flash).catch(() => {});
+    }
+  });
+}
+
 const coverPanel    = document.getElementById('queue-cover-panel');
 const coverImg      = document.getElementById('queue-cover-img');
 const coverPlaceholder = document.getElementById('queue-cover-placeholder');

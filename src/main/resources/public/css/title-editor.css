@@ -131,6 +131,37 @@
   align-items: baseline;
 }
 .queue-editor-header #queue-editor-code { color: #fbbf24; font-weight: 700; }
+
+.queue-code-copyable {
+  cursor: pointer;
+  border-radius: 4px;
+  padding: 1px 4px;
+  margin: -1px -4px;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.queue-code-copyable::before {
+  content: '';
+  display: inline-block;
+  width: 0.85em;
+  height: 0.85em;
+  margin-right: 5px;
+  vertical-align: -0.08em;
+  background-color: currentColor;
+  opacity: 0.55;
+  -webkit-mask: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><rect x='9' y='9' width='13' height='13' rx='2'/><path d='M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1'/></svg>") center/contain no-repeat;
+          mask: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><rect x='9' y='9' width='13' height='13' rx='2'/><path d='M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1'/></svg>") center/contain no-repeat;
+}
+.queue-code-copyable:hover { background: #1e293b; }
+.queue-code-copyable:hover::before { opacity: 1; }
+.queue-code-copyable.queue-code-copied {
+  background: #14532d;
+  color: #86efac !important;
+}
+.queue-code-copyable.queue-code-copied::after {
+  content: ' ✓ copied';
+  font-size: 0.85em;
+  font-weight: 500;
+}
 .queue-editor-sep { color: #334155; }
 .queue-editor-folder { color: #64748b; font-size: 0.9rem; }
 
