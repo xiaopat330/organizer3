@@ -594,6 +594,13 @@ public class Application {
         new com.organizer3.javdb.enrichment.EnrichmentProvenanceBackfillTask(jdbi).run();
         commands.add(new EnrichActressCommand(actressRepo, titleRepo, enrichmentQueue));
 
+        // Forward reference for TaskRunner — set after the TaskRunner is constructed below.
+        // SyncCoherentCommand is added to the command list here (before CommandDispatcher is built)
+        // but calls taskRunner lazily at execute time via this supplier.
+        java.util.concurrent.atomic.AtomicReference<com.organizer3.utilities.task.TaskRunner> taskRunnerRef =
+                new java.util.concurrent.atomic.AtomicReference<>();
+        commands.add(new com.organizer3.command.SyncCoherentCommand(taskRunnerRef::get));
+
         // Sync commands — registered dynamically from syncConfig.
         // Group by term so that a term shared across structure types (e.g. sync all)
         // produces a single command that accepts all of those types.
@@ -877,9 +884,27 @@ public class Application {
         com.organizer3.utilities.task.javdb.BulkEnrichToDraftTask bulkEnrichToDraftTask =
                 new com.organizer3.utilities.task.javdb.BulkEnrichToDraftTask(jdbi, draftPopulator);
 
+        // Coherent multi-volume sync — defers global orphan prune until all volumes are scanned.
+        com.organizer3.sync.SyncPruneService syncPruneService =
+                new com.organizer3.sync.SyncPruneService(titleRepo, videoRepo, actressRepo,
+                        volumeRepo, titleLocationRepo, titleActressRepo, indexLoader,
+                        titleEffectiveTagsService, actressCompaniesService, coverPath,
+                        revalidationPendingRepo, syncIdentityMatcher);
+        com.organizer3.sync.FullSyncOperation suppressedPruneOp =
+                new com.organizer3.sync.FullSyncOperation(scannerRegistry, titleRepo, videoRepo,
+                        actressRepo, volumeRepo, titleLocationRepo, titleActressRepo, indexLoader,
+                        titleEffectiveTagsService, actressCompaniesService, coverPath,
+                        revalidationPendingRepo, syncIdentityMatcher, draftSyncObserver,
+                        titlePathHistoryRepo, /* suppressPrune= */ true);
+        com.organizer3.utilities.task.volume.CoherentMultiVolumeSyncTask coherentSyncTask =
+                new com.organizer3.utilities.task.volume.CoherentMultiVolumeSyncTask(
+                        () -> new com.organizer3.utilities.task.CommandInvoker(
+                                commandsByName, new com.organizer3.shell.SessionContext()),
+                        suppressedPruneOp, syncPruneService);
+
         com.organizer3.utilities.task.TaskRegistry taskRegistry =
                 new com.organizer3.utilities.task.TaskRegistry(
-                        java.util.List.of(syncVolumeTask, cleanStaleLocationsTask,
+                        java.util.List.of(syncVolumeTask, cleanStaleLocationsTask, coherentSyncTask,
                                 loadActressTask, loadAllActressesTask, syncYamlGradesTask,
                                 backupNowTask, restoreSnapshotTask,
                                 scanLibraryTask, cleanOrphanedCoversTask,
@@ -897,6 +922,8 @@ public class Application {
                                 bulkEnrichToDraftTask));
         com.organizer3.utilities.task.TaskRunner taskRunner =
                 new com.organizer3.utilities.task.TaskRunner(taskRegistry);
+        // Set the forward reference so SyncCoherentCommand can call taskRunner.start(...).
+        taskRunnerRef.set(taskRunner);
         // Phase 6: wire TaskRunner into EnrichmentRunner for task-aware pause detection.
         enrichmentRunner.setTaskRunner(taskRunner);
         com.organizer3.mcp.tools.ForceEnrichTitleTool forceEnrichTitleTool =
@@ -1097,6 +1124,7 @@ public class Application {
                 mcpTools.register(new com.organizer3.mcp.tools.ScheduleTrashDeletionTool(taskRunner));
                 mcpTools.register(new com.organizer3.mcp.tools.CancelTaskRunTool(taskRunner));
                 mcpTools.register(new com.organizer3.mcp.tools.StartTaskTool(taskRegistry, taskRunner));
+                mcpTools.register(new com.organizer3.mcp.tools.SyncCoherentTool(taskRunner));
                 mcpTools.register(new com.organizer3.mcp.tools.ResolveReviewQueueRowTool(jdbi, enrichmentReviewQueueRepo, enrichmentQueue));
                 mcpTools.register(new com.organizer3.mcp.tools.BackfillYamlAliasesTool(jdbi, enrichmentRunner));
                 mcpTools.register(forceEnrichTitleTool);

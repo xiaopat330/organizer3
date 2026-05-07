@@ -36,6 +36,16 @@ import java.util.List;
 public class FullSyncOperation extends AbstractSyncOperation {
 
     private final ScannerRegistry scannerRegistry;
+    /**
+     * When {@code true}, skips the call to {@link #pruneOrphanedTitlesAndCovers} and the
+     * stale-row sweep at the end of {@link #execute}. Used by
+     * {@link com.organizer3.utilities.task.volume.CoherentMultiVolumeSyncTask}, which defers
+     * the global prune until every requested volume has been scanned, so a title that moved
+     * A → B is observed at B before it is judged absent at A.
+     *
+     * <p>All other steps (mark-stale, scan, save, finalizeSync) still run normally.
+     */
+    private final boolean suppressPrune;
 
     public FullSyncOperation(ScannerRegistry scannerRegistry,
                              TitleRepository titleRepo, VideoRepository videoRepo,
@@ -50,7 +60,7 @@ public class FullSyncOperation extends AbstractSyncOperation {
                              SyncIdentityMatcher identityMatcher) {
         this(scannerRegistry, titleRepo, videoRepo, actressRepo, volumeRepo, titleLocationRepo,
                 titleActressRepo, indexLoader, titleEffectiveTagsService, actressCompaniesService,
-                coverPath, revalidationPendingRepo, identityMatcher, TitleSyncObserver.NO_OP, null);
+                coverPath, revalidationPendingRepo, identityMatcher, TitleSyncObserver.NO_OP, null, false);
     }
 
     public FullSyncOperation(ScannerRegistry scannerRegistry,
@@ -67,7 +77,7 @@ public class FullSyncOperation extends AbstractSyncOperation {
                              TitleSyncObserver syncObserver) {
         this(scannerRegistry, titleRepo, videoRepo, actressRepo, volumeRepo, titleLocationRepo,
                 titleActressRepo, indexLoader, titleEffectiveTagsService, actressCompaniesService,
-                coverPath, revalidationPendingRepo, identityMatcher, syncObserver, null);
+                coverPath, revalidationPendingRepo, identityMatcher, syncObserver, null, false);
     }
 
     public FullSyncOperation(ScannerRegistry scannerRegistry,
@@ -83,10 +93,37 @@ public class FullSyncOperation extends AbstractSyncOperation {
                              SyncIdentityMatcher identityMatcher,
                              TitleSyncObserver syncObserver,
                              TitlePathHistoryRepository pathHistoryRepo) {
+        this(scannerRegistry, titleRepo, videoRepo, actressRepo, volumeRepo, titleLocationRepo,
+                titleActressRepo, indexLoader, titleEffectiveTagsService, actressCompaniesService,
+                coverPath, revalidationPendingRepo, identityMatcher, syncObserver, pathHistoryRepo, false);
+    }
+
+    /**
+     * Full constructor — the deepest overload that all others chain to.
+     *
+     * @param suppressPrune when {@code true}, skips {@code pruneOrphanedTitlesAndCovers} so
+     *                      the caller (e.g., coherent-sync task) can run a single global prune
+     *                      after every volume has been scanned.
+     */
+    public FullSyncOperation(ScannerRegistry scannerRegistry,
+                             TitleRepository titleRepo, VideoRepository videoRepo,
+                             ActressRepository actressRepo, VolumeRepository volumeRepo,
+                             TitleLocationRepository titleLocationRepo,
+                             TitleActressRepository titleActressRepo,
+                             IndexLoader indexLoader,
+                             TitleEffectiveTagsService titleEffectiveTagsService,
+                             ActressCompaniesService actressCompaniesService,
+                             com.organizer3.covers.CoverPath coverPath,
+                             com.organizer3.javdb.enrichment.RevalidationPendingRepository revalidationPendingRepo,
+                             SyncIdentityMatcher identityMatcher,
+                             TitleSyncObserver syncObserver,
+                             TitlePathHistoryRepository pathHistoryRepo,
+                             boolean suppressPrune) {
         super(titleRepo, videoRepo, actressRepo, volumeRepo, titleLocationRepo, titleActressRepo,
                 indexLoader, titleEffectiveTagsService, actressCompaniesService, coverPath,
                 revalidationPendingRepo, identityMatcher, syncObserver, pathHistoryRepo);
         this.scannerRegistry = scannerRegistry;
+        this.suppressPrune = suppressPrune;
     }
 
     @Override
@@ -138,9 +175,16 @@ public class FullSyncOperation extends AbstractSyncOperation {
 
         log.info("Sync scan complete — volume={} staleMarked={} staleCleared={}", volume.id(), stats.staleMarked, stats.staleCleared);
 
-        // Drop titles whose locations all disappeared AND their local cover files.
-        // Also sweeps stale rows past the grace period.
-        pruneOrphanedTitlesAndCovers(io, staleGraceDays, stats);
+        if (suppressPrune) {
+            // Coherent-sync path: caller (CoherentMultiVolumeSyncTask) will run a single global
+            // prune after every volume has been scanned. Skipping here ensures a title that moved
+            // A → B is observed at B before being judged absent at A.
+            log.info("Orphan prune suppressed for volume={} (coherent-sync mode)", volume.id());
+        } else {
+            // Drop titles whose locations all disappeared AND their local cover files.
+            // Also sweeps stale rows past the grace period.
+            pruneOrphanedTitlesAndCovers(io, staleGraceDays, stats);
+        }
 
         finalizeSync(volume.id(), ctx, stats);
         printStats(stats, io);
