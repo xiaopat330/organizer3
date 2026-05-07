@@ -1,0 +1,46 @@
+profile:
+  name:
+    family_name: Shinoda
+    given_name: Ayumi
+    stage_name: 篠田あゆみ
+    reading: しのだ あゆみ
+    alternate_names:
+    - name: 池田美和子
+      note: original 2010 debut name (Ikeda Miwako); retired same year
+    - name: 菊池紀子
+      note: late-career label name (Kikuchi Noriko)
+  date_of_birth: 1980-11-16
+  birthplace: Ibaraki, Japan
+  blood_type: B
+  height_cm: 157
+  measurements:
+    bust: 95
+    waist: 60
+    hip: 87
+  cup: I
+  active_from: 2010-03-18
+  active_to: 2016-06-16
+  retirement_announced: 2016-06-16
+  biography: "Ayumi Shinoda is a former Japanese AV actress known for her I-cup mature-woman (jukujo) work and prolific 2014-2016 comeback run. She first debuted in March 2010 as Miwako Ikeda but retired four months later. In April 2014 she returned under the new stage name Shinoda Ayumi and quickly became one of the most-booked freelance jukujo and big-bust performers across labels including Madonna, Tameike Goro, Glory Quest, Crystal Eizo, and E-BODY. In 2015 she won both the Mature Actress Award and Yukan Fuji Award at the SkyPerfecTV! Adult Broadcast Awards. She announced her retirement on Twitter on 16 June 2016."
+  primary_studios: []
+  awards:
+  - event: スカパー!アダルト放送大賞 (SkyPerfecTV! Adult Broadcast Awards)
+    year: 2015
+    category: 熟女女優賞 (Mature Actress Award)
+  - event: スカパー!アダルト放送大賞 (SkyPerfecTV! Adult Broadcast Awards)
+    year: 2015
+    category: 夕刊フジ賞 (Yukan Fuji Award)
+  legacy: "A defining late-2010s freelance jukujo star, Shinoda Ayumi worked across virtually every major married-woman / big-bust label and is remembered for the unusually high quality and breadth of her brief 2014-2016 comeback."
+
+meta:
+  total_owned_titles: 226
+  titles_with_japanese_title: null
+  titles_with_english_title: null
+  titles_with_release_date: null
+  total_known_releases: null
+  coverage_note: "Profile only — portfolio not yet researched."
+  confidence: "Wikipedia infobox lists DOB 1980-11-16 / Ibaraki, while article body states 1980-12-25 / Kanagawa. Per procedure, AV-specific infobox is preferred; both discrepancies should be revisited if a stronger source becomes available. Worked as a freelance / non-exclusive actress, so primary_studios is left empty."
+  data_sources:
+  - https://ja.wikipedia.org/wiki/篠田あゆみ
+  - local DB (id=234, 226 titles, top labels PPPD/JUX/HODV/CESD/MDB)
+  portfolio_listed: 0
