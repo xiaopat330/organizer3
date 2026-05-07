@@ -910,6 +910,9 @@ public class Application {
                         reconcileReportRepo, staleGraceDaysForReconcile);
         // Set the forward reference so ReconcileCommand can call reconcileService at execute time.
         reconcileServiceRef.set(reconcileService);
+        // Reconcile web routes — POST /api/reconcile/run, GET /api/reconcile/recent.
+        webServer.registerReconcile(
+                new com.organizer3.web.routes.ReconcileRoutes(reconcileService, reconcileReportRepo));
 
         com.organizer3.utilities.task.volume.CoherentMultiVolumeSyncTask coherentSyncTask =
                 new com.organizer3.utilities.task.volume.CoherentMultiVolumeSyncTask(
