@@ -145,9 +145,9 @@ class PartitionSyncOperationTest {
         op.execute(VOLUME, STRUCTURE, fs, ctx, io);
 
         verify(videoRepo).deleteByVolumeAndPartition("a", "queue");
-        verify(titleLocationRepo).deleteByVolumeAndPartition("a", "queue");
+        verify(titleLocationRepo).markStaleByVolumeAndPartition(eq("a"), eq("queue"), anyString());
         verify(videoRepo).deleteByVolumeAndPartition("a", "attention");
-        verify(titleLocationRepo).deleteByVolumeAndPartition("a", "attention");
+        verify(titleLocationRepo).markStaleByVolumeAndPartition(eq("a"), eq("attention"), anyString());
     }
 
     @Test

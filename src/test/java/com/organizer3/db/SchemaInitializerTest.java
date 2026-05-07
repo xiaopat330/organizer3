@@ -99,6 +99,7 @@ class SchemaInitializerTest {
                         "idx_tc_strategy", "idx_tet_tag",
                         "idx_title_actresses_actress", "idx_title_actresses_title",
                         "idx_title_effective_tags_tag",
+                        "idx_title_locations_stale_since",
                         "idx_title_locations_title", "idx_title_locations_volume", "idx_title_locations_volume_partition",
                         "idx_title_path_history_lookup", "idx_title_path_history_title_id",
                         "idx_title_tags_tag",
@@ -176,7 +177,7 @@ class SchemaInitializerTest {
 
         int version = jdbi.withHandle(h ->
                 h.createQuery("PRAGMA user_version").mapTo(Integer.class).one());
-        assertEquals(53, version);
+        assertEquals(54, version);
     }
 
     @Test
