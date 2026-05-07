@@ -1,0 +1,36 @@
+profile:
+  name:
+    family_name: Tsuno
+    given_name: Miho
+    stage_name: null
+    reading: null
+    alternate_names:
+    - name: Chiharu Arimura
+      note: alias recorded in local DB; kanji unresolved
+  date_of_birth: null
+  birthplace: null
+  blood_type: null
+  height_cm: null
+  measurements:
+    bust: null
+    waist: null
+    hip: null
+  cup: null
+  active_from: 2017-01-13
+  active_to: 2020-07-31
+  biography: null
+  primary_studios: []
+  awards: []
+
+meta:
+  total_owned_titles: 182
+  titles_with_japanese_title: null
+  titles_with_english_title: null
+  titles_with_release_date: null
+  total_known_releases: null
+  coverage_note: "Profile NOT researched — kanji stage name could not be resolved."
+  confidence: "LOW — identity unresolved. Tried 津乃美帆, 美園あるか, 津乃つかさ, 津乃あさみ, 角みほ, 有村千春 — all 404 on ja.wikipedia. DB alias is 'Chiharu Arimura' but Wikipedia 有村千佳 (Arimura Chika) retired in May 2015, predating the actress's earliest owned release (2017-01-13). Top DB labels (MEYD=12, NGOD=10, JUR=9, TOMN=6, JUQ=6, JUL=5) point to a Madonna / Tameike Goro / Moodyz mature-woman performer active 2017-2020. Human input required to confirm kanji name and Wikipedia entry; once resolved, re-run /actress-profile for full population."
+  data_sources:
+  - local DB (id=286, 182 titles 2017-01-13 to 2020-07-31, top labels MEYD/NGOD/JUR/TOMN/JUQ/JUL)
+  - actress_aliases row indicates 'Chiharu Arimura' (kanji unknown)
+  portfolio_listed: 0

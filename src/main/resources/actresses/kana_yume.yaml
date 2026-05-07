@@ -1,0 +1,73 @@
+profile:
+  name:
+    family_name: Yume
+    given_name: Kana
+    stage_name: 由愛可奈
+    reading: ゆめ かな
+    alternate_names:
+    - name: 水川潤
+      note: post-2022 stage name (Mizukawa Jun); used at FALENO/DAHLIA
+    - name: カナメユメ
+      note: brief 2022 transitional name
+  date_of_birth: 1993-02-12
+  birthplace: Shizuoka, Japan
+  blood_type: A
+  height_cm: 161
+  measurements:
+    bust: 86
+    waist: 62
+    hip: 95
+  cup: E
+  active_from: 2011-07-16
+  active_to: 2025-07-31
+  retirement_announced: 2025-06-18
+  biography: "Kana Yume (Yume Kana) is a former Japanese AV actress and gravure idol from Shizuoka who debuted at age 18 in July 2011 with MAXING after being scouted as a high-school gravure model. Her 2011 debut topped major retailers' BD charts and earned her the 2012 SkyPerfecTV! New Actress Grand Prize. She remained MAXING-exclusive for a remarkable eight years through 2019, then cycled through MOODYZ, Attackers, Madonna, and Wanz Factory before re-debuting under the new name Mizukawa Jun at FALENO's DAHLIA label in August 2022. After leaving DAHLIA in January 2024 she became a freelance kikaku-tantai performer, and on 18 June 2025 she announced her retirement, with her final works released later that year."
+  primary_studios:
+  - name: MAXING
+    company: MAXING
+    from: 2011-07-16
+    to: 2019-07-31
+    role: Exclusive contract actress
+  - name: MOODYZ
+    company: MOODYZ
+    from: 2019-08-01
+    to: 2020-08-31
+    role: Exclusive contract actress
+  - name: Attackers
+    company: Attackers
+    from: 2020-09-07
+    to: 2021-03-24
+    role: Exclusive contract actress
+  - name: Madonna
+    company: Madonna
+    from: 2021-03-25
+    to: 2021-08-31
+    role: Exclusive contract actress
+  - name: Wanz Factory
+    company: Wanz Factory
+    from: 2021-09-01
+    to: 2021-12-31
+    role: Exclusive contract actress
+  - name: DAHLIA
+    company: FALENO
+    from: 2022-08-01
+    to: 2024-01-31
+    role: Exclusive contract actress (as 水川潤)
+  awards:
+  - event: スカパー!アダルト放送大賞 (SkyPerfecTV! Adult Broadcast Awards)
+    year: 2012
+    category: 新人女優大賞 (New Actress Grand Prize)
+  legacy: "One of the longest-tenured MAXING exclusives — eight straight years on the MXGS line — and one of very few actresses to successfully relaunch under a second name (Mizukawa Jun) and make the FANZA top rankings under both identities."
+
+meta:
+  total_owned_titles: 217
+  titles_with_japanese_title: null
+  titles_with_english_title: null
+  titles_with_release_date: null
+  total_known_releases: null
+  coverage_note: "Profile only — portfolio not yet researched."
+  confidence: "High — Wikipedia article well-sourced; identity confirmed by MAXING (MXGS=66, MXSPS=31, MXBD=5, MXDLP=14) being the dominant DB labels, exactly matching the 2011-2019 MAXING contract."
+  data_sources:
+  - https://ja.wikipedia.org/wiki/由愛可奈
+  - local DB (id=106, 217 titles, top labels MXGS/MXSPS/MXDLP/MIDE/DLDSS)
+  portfolio_listed: 0

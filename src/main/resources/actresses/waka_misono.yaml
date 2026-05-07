@@ -1,0 +1,57 @@
+profile:
+  name:
+    family_name: Misono
+    given_name: Waka
+    stage_name: 美園和花
+    reading: みその わか
+    alternate_names:
+    - name: 矢田結衣
+      note: alternate name (Yada Yui)
+  date_of_birth: 1999-03-03
+  birthplace: Kagawa, Japan
+  blood_type: A
+  height_cm: 155
+  measurements:
+    bust: 100
+    waist: 60
+    hip: 91
+  cup: G
+  active_from: 2018-02-01
+  active_to: null
+  biography: "Waka Misono is a Japanese AV actress from Kagawa Prefecture who debuted in February 2018 as a Seishun-Jidai (SOD Create) exclusive before going on hiatus after three releases. She returned in March 2019 as a freelance performer and shot to attention in February 2020 with a single-work record of 242 cum-swallowing scenes, breaking a decade-old record. Since 2023 she has been one of FANZA's highest-ranked kikaku-tantai actresses, hitting #1 on the FANZA monthly women's ranking in June 2024 and snapping Ichika Matsumoto's 15-month streak. She is also a member of the SOD-affiliated idol group mumk and from May 2025 began holding three-way exclusive contracts with MOODYZ, Das! and Attackers."
+  primary_studios:
+  - name: 青春時代
+    company: SOD Create
+    from: 2018-02-01
+    to: 2018-12-31
+    role: Exclusive contract actress (debut label)
+  - name: MOODYZ
+    company: MOODYZ
+    from: 2025-05-01
+    to: null
+    role: Triple-exclusive contract actress
+  - name: Das!
+    company: Das!
+    from: 2025-05-01
+    to: null
+    role: Triple-exclusive contract actress
+  - name: Attackers
+    company: Attackers
+    from: 2025-05-01
+    to: null
+    role: Triple-exclusive contract actress
+  awards: []
+  legacy: "Holder of the AV historical record for most cum-swallows in a single work (242, February 2020), and one of FANZA's dominant kikaku-tantai actresses of 2024-2025."
+
+meta:
+  total_owned_titles: 202
+  titles_with_japanese_title: null
+  titles_with_english_title: null
+  titles_with_release_date: null
+  total_known_releases: null
+  coverage_note: "Profile only — portfolio not yet researched."
+  confidence: "High — Wikipedia article current and well-sourced; identity confirmed by DASS (Das!=21) and MNGS (MAXING/MNGS=10) being top labels, consistent with her freelance / cross-studio activity."
+  data_sources:
+  - https://ja.wikipedia.org/wiki/美園和花
+  - local DB (id=132, 202 titles, top labels DASS/MNGS/MIAB/MKMP/LULU)
+  portfolio_listed: 0
