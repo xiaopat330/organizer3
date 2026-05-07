@@ -788,7 +788,7 @@ class JdbiTitleRepositoryTest {
                 .code("ABP-002").baseCode("ABP-00002").label("ABP").seqNum(2)
                 .build());
 
-        titleRepo.deleteOrphaned();
+        titleRepo.deleteOrphaned(90);
 
         assertTrue(titleRepo.findById(withLocation.getId()).isPresent());
         assertTrue(titleRepo.findById(orphan.getId()).isEmpty());
@@ -806,7 +806,7 @@ class JdbiTitleRepositoryTest {
                 .lastSeenAt(LocalDate.now())
                 .build());
 
-        titleRepo.deleteOrphaned();
+        titleRepo.deleteOrphaned(90);
 
         assertTrue(titleRepo.findById(t.getId()).isPresent());
     }
@@ -822,8 +822,8 @@ class JdbiTitleRepositoryTest {
         titleRepo.save(Title.builder().code("ABP-002").baseCode("ABP-00002").label("ABP").seqNum(2).build());
         titleRepo.save(Title.builder().code("ABP-003").baseCode("ABP-00003").label("ABP").seqNum(3).build());
 
-        assertEquals(2, titleRepo.deleteOrphaned().deleted());
-        assertEquals(0, titleRepo.deleteOrphaned().deleted()); // idempotent — nothing left to drop
+        assertEquals(2, titleRepo.deleteOrphaned(90).deleted());
+        assertEquals(0, titleRepo.deleteOrphaned(90).deleted()); // idempotent — nothing left to drop
     }
 
     // --- cascade guard: CatastrophicDeleteException ---
@@ -847,7 +847,7 @@ class JdbiTitleRepositoryTest {
 
         com.organizer3.repository.CatastrophicDeleteException ex =
                 assertThrows(com.organizer3.repository.CatastrophicDeleteException.class,
-                        () -> titleRepo.deleteOrphaned());
+                        () -> titleRepo.deleteOrphaned(90));
         assertEquals(count, ex.wouldDelete());
         assertEquals(count, ex.total());
 
@@ -881,7 +881,7 @@ class JdbiTitleRepositoryTest {
             titleRepo.save(Title.builder().code(code).baseCode(base).label("CJD").seqNum(i + 1).build());
         }
 
-        assertEquals(floor, titleRepo.deleteOrphaned().deleted());
+        assertEquals(floor, titleRepo.deleteOrphaned(90).deleted());
         assertEquals(keepers, countAllTitles());
     }
 
@@ -907,7 +907,7 @@ class JdbiTitleRepositoryTest {
             h.execute("INSERT INTO title_javdb_enrichment (title_id, javdb_slug, fetched_at) VALUES (?, 'abp-010', '2026-01-01T00:00:00')", id);
         });
 
-        var result = titleRepo.deleteOrphaned();
+        var result = titleRepo.deleteOrphaned(90);
 
         assertEquals(0, result.deleted(), "enriched orphan must not be deleted");
         assertEquals(1, result.flagged(), "enriched orphan must be flagged");
@@ -932,7 +932,7 @@ class JdbiTitleRepositoryTest {
             h.execute("INSERT INTO revalidation_pending (title_id, reason) VALUES (?, 'slug_changed')", id);
         });
 
-        var result = titleRepo.deleteOrphaned();
+        var result = titleRepo.deleteOrphaned(90);
 
         assertEquals(1, result.deleted());
         assertEquals(0, result.flagged());
@@ -963,7 +963,7 @@ class JdbiTitleRepositoryTest {
                 "INSERT INTO title_javdb_enrichment (title_id, javdb_slug, fetched_at) VALUES (?, 'abp-002', '2026-01-01T00:00:00')",
                 enriched.getId()));
 
-        var result = titleRepo.deleteOrphaned();
+        var result = titleRepo.deleteOrphaned(90);
 
         assertEquals(1, result.deleted(), "unenriched deleted");
         assertEquals(1, result.flagged(), "enriched flagged");
@@ -985,8 +985,8 @@ class JdbiTitleRepositoryTest {
         jdbi.useHandle(h -> h.execute(
                 "INSERT INTO title_javdb_enrichment (title_id, javdb_slug, fetched_at) VALUES (?, 'abp-010', '2026-01-01T00:00:00')", id));
 
-        titleRepo.deleteOrphaned();
-        titleRepo.deleteOrphaned(); // second call
+        titleRepo.deleteOrphaned(90);
+        titleRepo.deleteOrphaned(90); // second call
 
         assertEquals(1, countRows("enrichment_review_queue", id), "only one queue row allowed");
     }
@@ -1005,12 +1005,12 @@ class JdbiTitleRepositoryTest {
         jdbi.useHandle(h -> h.execute(
                 "INSERT INTO title_javdb_enrichment (title_id, javdb_slug, fetched_at) VALUES (?, 'abp-010', '2026-01-01T00:00:00')", id));
 
-        titleRepo.deleteOrphaned();
+        titleRepo.deleteOrphaned(90);
         // Simulate user resolving the queue row as 'marked_moved'
         jdbi.useHandle(h -> h.execute(
                 "UPDATE enrichment_review_queue SET resolved_at = '2026-05-01T00:00:00', resolution = 'marked_moved' WHERE title_id = ?", id));
 
-        titleRepo.deleteOrphaned(); // next sync cycle
+        titleRepo.deleteOrphaned(90); // next sync cycle
 
         // A new open row must have been inserted
         assertEquals(1, reviewQueueRepo.countOpen("orphan_enriched"),
@@ -1037,7 +1037,7 @@ class JdbiTitleRepositoryTest {
             h.execute("INSERT INTO revalidation_pending (title_id, reason) VALUES (?, 'slug_changed')", id);
         });
 
-        titleRepo.deleteOrphaned();
+        titleRepo.deleteOrphaned(90);
 
         assertTrue(titleRepo.findById(id).isEmpty(), "title must be deleted");
         assertEquals(0, countRows("title_enrichment_tags", id));
@@ -1070,7 +1070,7 @@ class JdbiTitleRepositoryTest {
         });
 
         assertThrows(com.organizer3.repository.CatastrophicDeleteException.class,
-                () -> titleRepo.deleteOrphaned());
+                () -> titleRepo.deleteOrphaned(90));
 
         // Nothing deleted or flagged from any of the 5 tables
         assertEquals(count, countAllTitles());
@@ -1098,7 +1098,7 @@ class JdbiTitleRepositoryTest {
             h.execute("INSERT INTO revalidation_pending (title_id, reason) VALUES (?, 'slug_changed')", id);
         });
 
-        titleRepo.deleteOrphaned();
+        titleRepo.deleteOrphaned(90);
 
         assertTrue(titleRepo.findById(id).isEmpty(), "title should be deleted");
         assertEquals(0, countRows("title_enrichment_tags", id));

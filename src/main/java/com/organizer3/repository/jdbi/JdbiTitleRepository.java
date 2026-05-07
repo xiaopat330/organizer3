@@ -946,25 +946,44 @@ public class JdbiTitleRepository implements TitleRepository {
     }
 
     @Override
-    public int countOrphansWithEnrichment() {
+    public int countOrphansWithEnrichment(int staleGraceDays) {
         return jdbi.withHandle(h -> h.createQuery("""
                 SELECT COUNT(*) FROM titles t
-                WHERE NOT EXISTS (SELECT 1 FROM title_locations tl WHERE tl.title_id = t.id)
+                WHERE NOT EXISTS (
+                    SELECT 1 FROM title_locations tl
+                    WHERE tl.title_id = t.id AND tl.stale_since IS NULL
+                )
+                AND NOT EXISTS (
+                    SELECT 1 FROM title_locations tl
+                    WHERE tl.title_id = t.id
+                      AND tl.stale_since IS NOT NULL
+                      AND tl.stale_since > datetime('now', '-' || :days || ' days')
+                )
                   AND EXISTS (SELECT 1 FROM title_javdb_enrichment e WHERE e.title_id = t.id)
-                """).mapTo(Integer.class).one());
+                """).bind("days", staleGraceDays).mapTo(Integer.class).one());
     }
 
     @Override
-    public OrphanPruneResult deleteOrphaned() {
+    public OrphanPruneResult deleteOrphaned(int staleGraceDays) {
         // Phase 1: collect orphan IDs, split into enriched vs unenriched, check cascade guard.
         // No writes — if the guard throws, nothing has been touched.
         record Bucket(List<Long> unenriched, List<Long> enriched) {}
         Bucket bucket = jdbi.inTransaction(h -> {
             int total = h.createQuery("SELECT COUNT(*) FROM titles").mapTo(Integer.class).one();
+            // A title is orphaned when it has no live locations AND no stale-within-grace locations.
             List<Long> ids = h.createQuery("""
-                    SELECT id FROM titles WHERE id NOT IN (
-                        SELECT DISTINCT title_id FROM title_locations
-                    )""").mapTo(Long.class).list();
+                    SELECT id FROM titles t
+                    WHERE NOT EXISTS (
+                        SELECT 1 FROM title_locations tl
+                        WHERE tl.title_id = t.id AND tl.stale_since IS NULL
+                    )
+                    AND NOT EXISTS (
+                        SELECT 1 FROM title_locations tl
+                        WHERE tl.title_id = t.id
+                          AND tl.stale_since IS NOT NULL
+                          AND tl.stale_since > datetime('now', '-' || :days || ' days')
+                    )
+                    """).bind("days", staleGraceDays).mapTo(Long.class).list();
             if (ids.isEmpty()) return new Bucket(ids, List.of());
             int threshold = orphanDeleteThreshold(total);
             if (ids.size() > threshold) {
@@ -1051,16 +1070,24 @@ public class JdbiTitleRepository implements TitleRepository {
     }
 
     @Override
-    public List<TitleRepository.OrphanedTitleRef> findOrphanedTitles() {
+    public List<TitleRepository.OrphanedTitleRef> findOrphanedTitles(int staleGraceDays) {
         return jdbi.withHandle(h -> h.createQuery("""
                         SELECT t.label AS label, t.base_code AS base_code
                         FROM titles t
                         WHERE t.label IS NOT NULL
                           AND t.base_code IS NOT NULL
                           AND NOT EXISTS (
-                              SELECT 1 FROM title_locations tl WHERE tl.title_id = t.id
+                              SELECT 1 FROM title_locations tl
+                              WHERE tl.title_id = t.id AND tl.stale_since IS NULL
+                          )
+                          AND NOT EXISTS (
+                              SELECT 1 FROM title_locations tl
+                              WHERE tl.title_id = t.id
+                                AND tl.stale_since IS NOT NULL
+                                AND tl.stale_since > datetime('now', '-' || :days || ' days')
                           )
                         """)
+                .bind("days", staleGraceDays)
                 .map((rs, ctx) -> new TitleRepository.OrphanedTitleRef(
                         rs.getString("label"), rs.getString("base_code")))
                 .list());
