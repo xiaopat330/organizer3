@@ -153,6 +153,7 @@ taskCenter.onOpenRequested((state) => {
 function labelFor(taskId) {
   if (taskId === 'volume.sync') return 'Syncing volume';
   if (taskId === 'volume.clean_stale_locations') return 'Cleaning stale locations';
+  if (taskId === 'volume.sync_coherent') return 'Coherent sync (all volumes)';
   const action = ORGANIZE_ACTIONS.find(a => a.previewId === taskId || a.executeId === taskId);
   if (action) return action.label;
   return taskId;
@@ -425,15 +426,29 @@ function showDetail(volumeId) {
   // Wire sync button.
   document.getElementById('vol-op-sync')?.addEventListener('click', () => startSync(v.id));
 
+  // Wire coherent sync button.
+  document.getElementById('vol-op-coherent-sync')?.addEventListener('click', () =>
+      confirmAndStartCoherentSync());
+
   // Populate organize tab panel (always in DOM, even when not visible).
   updateOrgSection(v.id);
 }
 
 function renderSyncTab(v) {
   const isBlocked = taskCenter.isRunning();
+  const blockedNote = isBlocked
+    ? '<div class="vol-op-blocked">Another utility task is running. Wait for it to finish.</div>'
+    : '';
   return `
     <button type="button" class="vol-op-primary" id="vol-op-sync"${isBlocked ? ' disabled' : ''}>Sync</button>
-    ${isBlocked ? '<div class="vol-op-blocked">Another utility task is running. Wait for it to finish.</div>' : ''}
+    <div class="vol-op-divider"></div>
+    <button type="button" class="vol-op-secondary" id="vol-op-coherent-sync"${isBlocked ? ' disabled' : ''}>Coherent sync (all volumes)</button>
+    <div class="vol-op-desc">
+      Scans every configured volume in turn and evaluates orphans once after all volumes have been
+      observed. Recommended for overnight runs after manual cross-volume folder movement.
+      Holds the task lock for the duration — may run for hours.
+    </div>
+    ${blockedNote}
   `;
 }
 
@@ -630,6 +645,45 @@ async function startSync(volumeId) {
   }
 }
 
+async function confirmAndStartCoherentSync() {
+  if (taskCenter.isRunning()) {
+    alert('Another utility task is already running. Wait for it to finish before starting a coherent sync.');
+    return;
+  }
+  const confirmed = confirm(
+    'Coherent multi-volume sync scans every configured volume in turn and only evaluates orphans '
+    + 'after all volumes are observed.\n\n'
+    + 'This holds the task lock for the duration and may run for hours. '
+    + 'Recommended for overnight runs after manual cross-volume movement.\n\n'
+    + 'Continue?'
+  );
+  if (!confirmed) return;
+
+  try {
+    const res = await fetch('/api/utilities/tasks/volume.sync_coherent/run', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({}),
+    });
+    if (res.status === 409) {
+      const body = await res.json().catch(() => ({}));
+      alert(body.error || 'Another utility task is already running.');
+      return;
+    }
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const { runId } = await res.json();
+    taskCenter.start({
+      taskId: 'volume.sync_coherent',
+      runId,
+      label: 'Coherent sync (all volumes)',
+    });
+    // Show the run view without a specific volumeId (coherent sync is multi-volume).
+    beginRunView(null, runId, 'volume.sync_coherent');
+  } catch (err) {
+    alert('Failed to start coherent sync: ' + err.message);
+  }
+}
+
 function beginRunView(volumeId, runId, taskId) {
   // Close any previous SSE.
   if (activeRun?.eventSource) activeRun.eventSource.close();
@@ -780,7 +834,9 @@ function renderRun() {
       ? ''
       : `<div class="vol-run-actions"><button type="button" id="vol-run-done">Done</button></div>`;
 
-  const heading = activeRun.taskId === 'volume.clean_stale_locations'
+  const heading = activeRun.taskId === 'volume.sync_coherent'
+      ? 'Coherent sync (all volumes)'
+      : activeRun.taskId === 'volume.clean_stale_locations'
       ? `Cleaning stale locations · Volume ${esc((v.id || '').toUpperCase())}`
       : `Syncing Volume ${esc((v.id || '').toUpperCase())}`;
 
