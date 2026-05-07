@@ -250,6 +250,9 @@
 }
 .trans-legend-swatch.ok   { background: #15803d; }
 .trans-legend-swatch.fail { background: #7f1d1d; }
+.trans-legend-icon { flex-shrink: 0; }
+.trans-legend-icon.icon-ok   { color: #4ade80; }
+.trans-legend-icon.icon-fail { color: #f87171; }
 .trans-failed-toggle {
   cursor: pointer;
   border-radius: 3px;
