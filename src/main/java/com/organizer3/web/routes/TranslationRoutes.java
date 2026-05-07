@@ -47,6 +47,8 @@ public class TranslationRoutes {
     private final JavdbEnrichmentRepository enrichmentRepo;
     private final TranslationConfig translationConfig;
     private final TitleTranslationSweeper titleSweeper;
+    private final com.organizer3.translation.OllamaModelState ollamaModelState;
+    private final com.organizer3.translation.ExplicitTermSubstitutor explicitSubstitutor;
 
     public TranslationRoutes(TranslationService service,
                               TranslationStrategyRepository strategyRepo,
@@ -55,15 +57,19 @@ public class TranslationRoutes {
                               Jdbi jdbi,
                               JavdbEnrichmentRepository enrichmentRepo,
                               TranslationConfig translationConfig,
-                              TitleTranslationSweeper titleSweeper) {
-        this.service           = service;
-        this.strategyRepo      = strategyRepo;
-        this.cacheRepo         = cacheRepo;
-        this.queueRepo         = queueRepo;
-        this.jdbi              = jdbi;
-        this.enrichmentRepo    = enrichmentRepo;
-        this.translationConfig = translationConfig;
-        this.titleSweeper      = titleSweeper;
+                              TitleTranslationSweeper titleSweeper,
+                              com.organizer3.translation.OllamaModelState ollamaModelState,
+                              com.organizer3.translation.ExplicitTermSubstitutor explicitSubstitutor) {
+        this.service              = service;
+        this.strategyRepo         = strategyRepo;
+        this.cacheRepo            = cacheRepo;
+        this.queueRepo            = queueRepo;
+        this.jdbi                 = jdbi;
+        this.enrichmentRepo       = enrichmentRepo;
+        this.translationConfig    = translationConfig;
+        this.titleSweeper         = titleSweeper;
+        this.ollamaModelState     = ollamaModelState;
+        this.explicitSubstitutor  = explicitSubstitutor;
     }
 
     public void register(Javalin app) {
@@ -90,6 +96,10 @@ public class TranslationRoutes {
                 statsMap.put("topN", List.of());  // usage count data not yet tracked
                 statsMap.put("stageNameLookupSize", base.stageNameLookupSize());
                 statsMap.put("stageNameSuggestionsUnreviewed", base.stageNameSuggestionsUnreviewed());
+                statsMap.put("currentModelId", ollamaModelState.getCurrentModelId());
+                statsMap.put("explicitSubsRowsTouched", explicitSubstitutor.getRowsTouched());
+                statsMap.put("explicitSubsApplied",     explicitSubstitutor.getSubstitutionsApplied());
+                statsMap.put("explicitSubsMapSize",     explicitSubstitutor.size());
                 ctx.json(statsMap);
             } catch (Exception e) {
                 log.error("GET /api/translation/stats failed", e);

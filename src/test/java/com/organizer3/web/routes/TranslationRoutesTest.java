@@ -65,7 +65,9 @@ class TranslationRoutesTest {
         server = new WebServer(0);
         server.registerTranslation(new TranslationRoutes(
                 service, strategyRepo, cacheRepo, queueRepo, jdbi,
-                enrichmentRepo, TranslationConfig.DEFAULTS, titleSweeper));
+                enrichmentRepo, TranslationConfig.DEFAULTS, titleSweeper,
+                new com.organizer3.translation.OllamaModelState(),
+                com.organizer3.translation.ExplicitTermSubstitutor.EMPTY));
         server.start();
     }
 

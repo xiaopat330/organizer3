@@ -78,12 +78,36 @@
   color: #94a3b8;
   background: #1e2d42;
 }
-.trans-tab.active {
-  color: #fde047;
+.trans-tab svg {
+  flex-shrink: 0;
+  opacity: 0.7;
+}
+.trans-tab.active svg { opacity: 1; }
+
+/* Per-tab color identity — applies on .active */
+.trans-tab-dashboard.active {
+  color: #7dd3fc;            /* sky-300 */
+  background: #082031;
+  border-color: #075985;
+  border-bottom-color: #38bdf8;
+}
+.trans-tab-dashboard:hover:not(.active) { color: #7dd3fc; }
+
+.trans-tab-names.active {
+  color: #f9a8d4;            /* pink-300 */
+  background: #1c0612;
+  border-color: #9d174d;
+  border-bottom-color: #f472b6;
+}
+.trans-tab-names:hover:not(.active) { color: #f9a8d4; }
+
+.trans-tab-failures.active {
+  color: #fcd34d;            /* amber-300 */
   background: #1c1500;
   border-color: #854d0e;
   border-bottom-color: #facc15;
 }
+.trans-tab-failures:hover:not(.active) { color: #fcd34d; }
 
 /* Pending kanji hosted inside the Name Translation pane — body padding is enough */
 #trans-tab-name-translation .tools-pending-kanji-view {
@@ -115,51 +139,279 @@
   line-height: 1.4;
 }
 
-/* ── Stats grid ─────────────────────────────────────────────────────── */
+/* ── Stats: three-card layout ───────────────────────────────────────── */
 .trans-stats-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 12px;
+}
+.trans-card {
+  background: #1d1d1d;
+  border: 1px solid #2a2a2a;
+  border-radius: 6px;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
   gap: 8px;
 }
-.trans-stat {
+.trans-card-title {
+  font-size: 0.72rem;
+  color: #888;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.trans-card-headline {
+  font-size: 2.4rem;
+  font-weight: 700;
+  color: #e8e8e8;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+.trans-card-unit {
+  font-size: 1rem;
+  font-weight: 500;
+  color: #888;
+  margin-left: 4px;
+}
+.trans-card-sub {
+  font-size: 0.85rem;
+  color: #aaa;
+}
+.trans-card-sub strong {
+  color: #ddd;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Card 1 — ETA badge */
+.trans-eta {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-size: 0.85rem;
+  align-self: flex-start;
+  border: 1px solid transparent;
+}
+.trans-eta strong { color: inherit; font-variant-numeric: tabular-nums; }
+.trans-eta-dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: currentColor;
+}
+.trans-eta-green { color: #86efac; background: #052e16; border-color: #166534; }
+.trans-eta-amber { color: #fcd34d; background: #2a1f00; border-color: #b45309; }
+.trans-eta-red   { color: #fca5a5; background: #2a0606; border-color: #b91c1c; }
+.trans-eta-idle  { color: #9ca3af; background: #181818; border-color: #303030; }
+.trans-eta-stall { color: #fca5a5; background: #2a0606; border-color: #7f1d1d; }
+
+.trans-subs-mapsize {
+  color: #666;
+  font-size: 0.75rem;
+  margin-left: 4px;
+}
+
+/* Card 2 — donut + legend */
+.trans-cache-body {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+.trans-donut { flex-shrink: 0; }
+.trans-donut-center-num {
+  font-size: 1.5rem;
+  font-weight: 700;
+  fill: #e8e8e8;
+}
+.trans-donut-center-sub {
+  font-size: 0.7rem;
+  fill: #888;
+}
+.trans-cache-legend {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex: 1;
+}
+.trans-legend-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.85rem;
+  color: #ccc;
+  background: none;
+  border: none;
+  padding: 4px 0;
+  text-align: left;
+}
+.trans-legend-row strong { color: #e8e8e8; font-variant-numeric: tabular-nums; }
+.trans-legend-swatch {
+  width: 10px; height: 10px; border-radius: 2px;
+  flex-shrink: 0;
+}
+.trans-legend-swatch.ok   { background: #15803d; }
+.trans-legend-swatch.fail { background: #7f1d1d; }
+.trans-failed-toggle {
+  cursor: pointer;
+  border-radius: 3px;
+  padding: 4px 6px;
+  margin-left: -6px;
+}
+.trans-failed-toggle:hover:not(:disabled) { background: #252525; }
+.trans-failed-toggle:disabled { cursor: default; opacity: 0.5; }
+.trans-failed-caret { margin-left: auto; color: #888; font-size: 0.75rem; }
+
+/* Card 2 — failure panel (expanded) */
+.trans-failure-panel {
   display: flex;
   flex-direction: column;
   gap: 4px;
-  padding: 10px 12px;
-  background: #1d1d1d;
-  border: 1px solid #2a2a2a;
-  border-radius: 4px;
+  padding-top: 8px;
+  margin-top: 4px;
+  border-top: 1px solid #2a2a2a;
 }
-.trans-stat-label {
+.trans-failure-row {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  gap: 10px;
+  align-items: center;
+  font-size: 0.8rem;
+  color: #bbb;
+}
+.trans-failure-count {
+  font-variant-numeric: tabular-nums;
+  color: #ddd;
+  font-weight: 600;
+}
+.trans-failure-requeue {
+  padding: 3px 12px;
   font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  background: #422006;
+  color: #fcd34d;
+  border: 1px solid #b45309;
+  border-radius: 3px;
+  cursor: pointer;
+  transition: background 0.12s ease, border-color 0.12s ease, color 0.12s ease;
+}
+.trans-failure-requeue:hover:not(:disabled) {
+  background: #b45309;
+  color: #fff;
+  border-color: #fbbf24;
+}
+.trans-failure-requeue:disabled { opacity: 0.5; cursor: not-allowed; }
+.trans-failure-empty { color: #555; font-size: 0.72rem; }
+
+/* Card 3 — curation CTA */
+.trans-cta {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: 4px;
+  background: #181818;
+  border: 1px solid #2a2a2a;
+}
+.trans-cta.has-work {
+  background: #1c0612;
+  border-color: #9d174d;
+}
+.trans-cta-num {
+  font-size: 1.6rem;
+  font-weight: 700;
+  color: #e8e8e8;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+.trans-cta.has-work .trans-cta-num { color: #f9a8d4; }
+.trans-cta-label {
+  font-size: 0.8rem;
+  color: #aaa;
+}
+.trans-cta.has-work .trans-cta-label { color: #f9a8d4; }
+
+/* Card 3 — Titles awaiting row gets an inline Sweep button */
+.trans-titles-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.trans-sweep-btn {
+  padding: 2px 10px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  background: #082031;
+  color: #7dd3fc;
+  border: 1px solid #075985;
+  border-radius: 3px;
+  cursor: pointer;
+  transition: background 0.12s ease, border-color 0.12s ease, color 0.12s ease;
+}
+.trans-sweep-btn:hover:not(:disabled) {
+  background: #0c4a6e;
+  color: #fff;
+  border-color: #38bdf8;
+}
+.trans-sweep-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Card 4 — Models */
+.trans-card-models {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.trans-model-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 4px 0;
+  font-size: 0.9rem;
+}
+.trans-model-row + .trans-model-row {
+  border-top: 1px dotted #2a2a2a;
+}
+.trans-model-role-label {
   color: #888;
+  font-size: 0.75rem;
   letter-spacing: 0.04em;
   text-transform: uppercase;
 }
-.trans-stat-val {
-  font-size: 1.05rem;
-  font-weight: 600;
+.trans-model-name {
   color: #e8e8e8;
-  font-variant-numeric: tabular-nums;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.85rem;
 }
-.trans-stat-action {
-  margin-top: 4px;
-  padding: 2px 8px;
-  font-size: 0.7rem;
-  background: #2a2a2a;
-  color: #ddd;
-  border: 1px solid #3a3a3a;
-  border-radius: 3px;
-  cursor: pointer;
-  align-self: flex-start;
+.trans-model-missing {
+  color: #f87171;
+  font-style: italic;
+  font-size: 0.8rem;
 }
-.trans-stat-action:hover:not(:disabled) {
-  background: #333;
-  border-color: #4a4a4a;
+.trans-model-row.is-active .trans-model-name {
+  color: #4ade80;
 }
-.trans-stat-action:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
+.trans-model-active-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  margin-left: 8px;
+  border-radius: 50%;
+  background: #22c55e;
+  vertical-align: middle;
+  box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.7);
+  animation: trans-model-pulse 1.6s ease-out infinite;
+}
+@keyframes trans-model-pulse {
+  0%   { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.6); }
+  70%  { box-shadow: 0 0 0 8px rgba(34, 197, 94, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0); }
 }
 
 /* ── Tables (strategies + recent failures) ──────────────────────────── */
