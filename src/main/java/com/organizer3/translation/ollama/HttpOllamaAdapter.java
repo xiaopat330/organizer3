@@ -91,8 +91,10 @@ public class HttpOllamaAdapter implements OllamaAdapter {
         HttpResponse<String> resp;
         try {
             resp = http.send(httpReq, HttpResponse.BodyHandlers.ofString());
-        } catch (IOException | InterruptedException e) {
+        } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
+            throw new OllamaException("HTTP error calling /api/generate: " + e.getMessage(), e);
+        } catch (IOException e) {
             throw new OllamaException("HTTP error calling /api/generate: " + e.getMessage(), e);
         }
 
@@ -143,8 +145,10 @@ public class HttpOllamaAdapter implements OllamaAdapter {
                 }
             }
             return result;
-        } catch (IOException | InterruptedException e) {
+        } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
+            throw new OllamaException("Error calling /api/tags: " + e.getMessage(), e);
+        } catch (IOException e) {
             throw new OllamaException("Error calling /api/tags: " + e.getMessage(), e);
         }
     }
@@ -199,8 +203,10 @@ public class HttpOllamaAdapter implements OllamaAdapter {
                 }
             }
             log.info("ensureModel: {} pull complete", modelId);
-        } catch (IOException | InterruptedException e) {
+        } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
+            throw new OllamaException("Error pulling model " + modelId + ": " + e.getMessage(), e);
+        } catch (IOException e) {
             throw new OllamaException("Error pulling model " + modelId + ": " + e.getMessage(), e);
         }
     }

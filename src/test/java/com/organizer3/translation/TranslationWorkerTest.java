@@ -458,6 +458,23 @@ class TranslationWorkerTest {
         assertFalse(workerThread.isAlive(), "Worker thread should stop after interrupt");
     }
 
+    @Test
+    void processOne_transientOllamaError_doesNotSetInterruptFlag() {
+        // Regression: a transient OllamaException (wrapping IOException, e.g. HttpTimeoutException)
+        // must NOT leave the thread interrupt flag set. If it did, the worker loop would silently
+        // exit on the next iteration due to !Thread.currentThread().isInterrupted() returning true.
+        String now = ISO_UTC.format(Instant.now());
+        queueRepo.enqueue("タイムアウト", strategyId, now, TranslationQueueRow.STATUS_PENDING, null, null);
+
+        when(ollamaAdapter.generate(any()))
+                .thenThrow(new OllamaException("HTTP error calling /api/generate: request timed out"));
+
+        worker.processOne();
+
+        assertFalse(Thread.currentThread().isInterrupted(),
+                "Thread interrupt flag must not be set after a transient OllamaException");
+    }
+
     // -------------------------------------------------------------------------
     // Helpers
     // -------------------------------------------------------------------------
