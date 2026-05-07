@@ -4,6 +4,7 @@ import com.organizer3.curation.NearMissResolveService;
 import com.organizer3.javdb.draft.DraftActressRepository;
 import com.organizer3.javdb.draft.DraftActressRepository.PendingKanjiRow;
 import com.organizer3.model.Actress;
+import com.organizer3.model.ActressAlias;
 import com.organizer3.repository.ActressRepository;
 import com.organizer3.translation.ActressFuzzyMatcher;
 import com.organizer3.translation.ActressFuzzyMatcher.MatchResult;
@@ -181,6 +182,10 @@ public class CurationRoutes {
                     item.put("actressId",     c.actressId());
                     item.put("canonicalName", canonicalName);
                     item.put("rule",          ruleLabel(c.rule()));
+                    String matchedAlias = findMatchedAlias(c.actressId(), romaji, canonicalName);
+                    if (matchedAlias != null) {
+                        item.put("matchedAlias", matchedAlias);
+                    }
                     result.add(item);
                 }
                 ctx.json(result);
@@ -333,6 +338,37 @@ public class CurationRoutes {
         m.put("status", translationQueueRepo.hasPending(STAGE_NAME_STRATEGY_KEY, normalized) ? "queued" : "missing");
         m.put("unresolvedDraftCount", unresolvedDraftCount);
         return m;
+    }
+
+    /**
+     * If the searched romaji matched the actress via an alias rather than her canonical name,
+     * return that alias string so the UI can show "via alias …". Returns null when the canonical
+     * name itself matched (under any of the fuzzy rules) or when no alias matches.
+     */
+    private String findMatchedAlias(long actressId, String searchedRomaji, String canonicalName) {
+        if (canonicalName != null && namesMatchUnderRules(canonicalName, searchedRomaji)) return null;
+        for (ActressAlias alias : actressRepo.findAliases(actressId)) {
+            if (alias.aliasName() != null && namesMatchUnderRules(alias.aliasName(), searchedRomaji)) {
+                return alias.aliasName();
+            }
+        }
+        return null;
+    }
+
+    /** Mirrors the fuzzy matcher's exact / reversal / punct-norm rules. Case-insensitive. */
+    private static boolean namesMatchUnderRules(String stored, String searched) {
+        if (stored.equalsIgnoreCase(searched)) return true;
+        String[] tokens = searched.trim().split("\\s+");
+        if (tokens.length > 1) {
+            StringBuilder rev = new StringBuilder();
+            for (int i = tokens.length - 1; i >= 0; i--) {
+                if (rev.length() > 0) rev.append(' ');
+                rev.append(tokens[i]);
+            }
+            if (stored.equalsIgnoreCase(rev.toString())) return true;
+        }
+        String stripped = searched.replaceAll("[-,]", "").replaceAll("\\s+", " ").trim();
+        return stored.equalsIgnoreCase(stripped);
     }
 
     // ── Static helpers ────────────────────────────────────────────────────────

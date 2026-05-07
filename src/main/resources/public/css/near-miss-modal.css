@@ -79,6 +79,12 @@
   font-style: italic;
 }
 
+.nm-name-section {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
 .nm-name-row {
   display: flex;
   gap: 12px;
@@ -155,6 +161,12 @@
   line-height: 1.5;
 }
 
+.nm-alias-name-hint {
+  font-size: 12px;
+  color: #64748b;
+  line-height: 1.5;
+}
+
 .nm-candidate-list {
   border: 1px solid #1e293b;
   border-radius: 4px;
@@ -178,7 +190,14 @@
 .nm-candidate:hover { background: #131d2e; }
 .nm-candidate.selected { background: #1a1f3a; border-left: 3px solid #6366f1; }
 
-.nm-candidate-name { flex: 1; }
+.nm-candidate-name { flex: 0 0 auto; }
+
+.nm-candidate-via-alias {
+  flex: 1;
+  font-size: 11px;
+  color: #94a3b8;
+  font-style: italic;
+}
 
 .nm-label-strong {
   font-size: 10px;

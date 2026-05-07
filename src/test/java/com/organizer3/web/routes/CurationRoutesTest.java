@@ -189,6 +189,7 @@ class CurationRoutesTest {
                 .thenReturn(List.of(new MatchResult(77L, Rule.EXACT)));
         Actress actress = Actress.builder().id(77L).canonicalName("Iroha Natsume").tier(Actress.Tier.LIBRARY).build();
         when(actressRepo.findById(77L)).thenReturn(Optional.of(actress));
+        when(actressRepo.findAliases(77L)).thenReturn(List.of());
 
         HttpResponse<String> res = get("/api/curation/fuzzy-candidates?romaji=Natsume+Iroha");
 
@@ -198,6 +199,27 @@ class CurationRoutesTest {
         assertEquals(77L,           arr.get(0).get("actressId").asLong());
         assertEquals("Iroha Natsume", arr.get(0).get("canonicalName").asText());
         assertEquals("strong: exact", arr.get(0).get("rule").asText());
+        assertFalse(arr.get(0).has("matchedAlias"));
+    }
+
+    @Test
+    void fuzzyCandidates_includesMatchedAliasWhenSearchMatchedViaAlias() throws Exception {
+        // Sarasa Hara was renamed to Iroha Natsume; Iroha Natsume is on file as her alias.
+        // Searching for "Iroha Natsume" should surface canonical Sarasa Hara with via-alias info.
+        when(actressFuzzyMatcher.findCandidates("Iroha Natsume"))
+                .thenReturn(List.of(new MatchResult(42L, Rule.EXACT)));
+        Actress actress = Actress.builder().id(42L).canonicalName("Sarasa Hara").tier(Actress.Tier.LIBRARY).build();
+        when(actressRepo.findById(42L)).thenReturn(Optional.of(actress));
+        when(actressRepo.findAliases(42L)).thenReturn(List.of(
+                new com.organizer3.model.ActressAlias(42L, "Iroha Natsume")));
+
+        HttpResponse<String> res = get("/api/curation/fuzzy-candidates?romaji=Iroha+Natsume");
+
+        assertEquals(200, res.statusCode());
+        JsonNode arr = mapper.readTree(res.body());
+        assertEquals(1, arr.size());
+        assertEquals("Sarasa Hara",   arr.get(0).get("canonicalName").asText());
+        assertEquals("Iroha Natsume", arr.get(0).get("matchedAlias").asText());
     }
 
     @Test

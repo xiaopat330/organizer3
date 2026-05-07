@@ -158,7 +158,13 @@ async function fetchCandidates(id, romaji) {
     const data = await res.json();
     if (_mountId !== id || !_container) return;
     _candidates = data;
+    // Auto-select when there is exactly one unambiguous (non-last-name-only) candidate
+    // and the user has not already made a selection.
+    if (_selectedActressId === null && _candidates.length === 1 && _candidates[0].rule !== 'LAST_NAME_ONLY') {
+      _selectedActressId = _candidates[0].actressId;
+    }
     renderCandidateList();
+    renderFooter();
   } catch { /* non-critical; picker shows empty */ }
 }
 
@@ -240,15 +246,21 @@ function renderBody() {
 function formFieldsHtml(disabled) {
   const { first, last } = splitRomaji(_romaji);
   const d = disabled ? ' disabled' : '';
+  const hint = _outcome === 'ALIAS'
+    ? `<div class="nm-alias-name-hint">These names will be added as aliases for the linked actress.</div>`
+    : '';
   return `
-    <div class="nm-name-row">
-      <div class="nm-name-field">
-        <div class="nm-label">First</div>
-        <input class="nm-input" id="nm-first" type="text" value="${esc(first ?? '')}" placeholder="(optional)"${d}>
-      </div>
-      <div class="nm-name-field">
-        <div class="nm-label">Last</div>
-        <input class="nm-input" id="nm-last" type="text" value="${esc(last ?? '')}"${d}>
+    <div class="nm-name-section">
+      ${hint}
+      <div class="nm-name-row">
+        <div class="nm-name-field">
+          <div class="nm-label">First</div>
+          <input class="nm-input" id="nm-first" type="text" value="${esc(first ?? '')}" placeholder="(optional)"${d}>
+        </div>
+        <div class="nm-name-field">
+          <div class="nm-label">Last</div>
+          <input class="nm-input" id="nm-last" type="text" value="${esc(last ?? '')}"${d}>
+        </div>
       </div>
     </div>`;
 }
@@ -267,7 +279,7 @@ function outcomeSectionHtml(disabled) {
     <div class="nm-outcome-section">
       <label class="nm-radio-row">
         <input type="radio" name="nm-outcome" value="ALIAS" ${isAlias ? 'checked' : ''}${d}>
-        Alias of existing Actress
+        Link kanji to existing Actress
       </label>
       <div class="nm-alias-panel${aliasHidden}" id="nm-alias-panel">
         <input class="nm-input" id="nm-search" type="text" placeholder="Search actresses…"${d}>
@@ -294,9 +306,13 @@ function candidateListInnerHtml() {
   }
   return _candidates.map(c => {
     const selected = _selectedActressId === c.actressId ? ' selected' : '';
-    const labelClass = c.rule.startsWith('strong') ? 'nm-label-strong' : 'nm-label-weak';
+    const labelClass = c.rule !== 'LAST_NAME_ONLY' ? 'nm-label-strong' : 'nm-label-weak';
+    const viaAlias = c.matchedAlias
+      ? `<span class="nm-candidate-via-alias">via alias &ldquo;${esc(c.matchedAlias)}&rdquo;</span>`
+      : '';
     return `<div class="nm-candidate${selected}" data-actress-id="${c.actressId}">
       <span class="nm-candidate-name">${esc(c.canonicalName ?? '')}</span>
+      ${viaAlias}
       <span class="${labelClass}">${esc(c.rule)}</span>
     </div>`;
   }).join('');
@@ -341,7 +357,7 @@ function isSaveEnabled() {
   if (_state !== 'ready' && _state !== 'error') return false;
   const lastInput = _container && _container.querySelector('#nm-last');
   const lastVal = lastInput ? lastInput.value.trim() : '';
-  if (_outcome === 'ALIAS') return _selectedActressId != null;
+  if (_outcome === 'ALIAS') return _selectedActressId != null && lastVal.length > 0;
   return lastVal.length > 0;
 }
 
