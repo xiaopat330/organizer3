@@ -371,6 +371,36 @@
 }
 .sn-btn-primary:hover:not(:disabled) { background: #23295a; }
 
+/* Stage name candidate chips */
+.sn-candidates {
+  padding: 0 14px 10px;
+}
+
+.sn-candidates-label {
+  font-size: 11px;
+  color: #64748b;
+  margin-bottom: 6px;
+}
+
+.sn-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.sn-chip {
+  background: #0f172a;
+  border: 1px solid #1e293b;
+  border-radius: 4px;
+  color: #a5b4fc;
+  font-family: inherit;
+  font-size: 12px;
+  padding: 4px 9px;
+  cursor: pointer;
+  transition: background 0.12s, border-color 0.12s;
+}
+.sn-chip:hover { background: #1a1f3a; border-color: #4338ca; }
+
 .detail-meta-row {
   display: flex;
   align-items: center;

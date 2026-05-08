@@ -912,6 +912,48 @@ public class ActressBrowseService {
                 .one());
     }
 
+    // -------------------------------------------------------------------------
+    // Stage name candidates (Option #10)
+    // -------------------------------------------------------------------------
+
+    /**
+     * A single aggregated cast-derived candidate for a stage name: the Japanese name, JavDB slug,
+     * and the number of the actress's enriched titles in which this slug/name pair appears.
+     */
+    public record StageNameCandidate(String name, String slug, int hits) {}
+
+    /**
+     * Aggregates female cast names + slugs from the actress's enriched titles, ranked by
+     * hit count descending. Returns at most 8 results. Returns an empty list if the actress
+     * has no enriched titles or none have cast_json — never throws, never returns null.
+     *
+     * <p>Returns {@link java.util.Optional#empty()} when the actress does not exist (→ 404).
+     */
+    public Optional<List<StageNameCandidate>> findStageNameCandidates(long actressId) {
+        if (actressRepo.findById(actressId).isEmpty()) return Optional.empty();
+        List<StageNameCandidate> candidates = jdbi.withHandle(h -> h.createQuery("""
+                SELECT json_extract(je.value, '$.slug') AS slug,
+                       json_extract(je.value, '$.name') AS name,
+                       COUNT(DISTINCT ta.title_id) AS hits
+                FROM title_actresses ta
+                JOIN title_javdb_enrichment tje ON tje.title_id = ta.title_id
+                JOIN json_each(tje.cast_json) je ON 1=1
+                WHERE ta.actress_id = :actressId
+                  AND tje.cast_json IS NOT NULL
+                  AND json_extract(je.value, '$.gender') = 'F'
+                GROUP BY slug, name
+                ORDER BY hits DESC, name ASC
+                LIMIT 8
+                """)
+                .bind("actressId", actressId)
+                .map((rs, ctx) -> new StageNameCandidate(
+                        rs.getString("name"),
+                        rs.getString("slug"),
+                        rs.getInt("hits")))
+                .list());
+        return Optional.of(candidates);
+    }
+
     private int countCastJsonNameMatches(long actressId, String candidateName) {
         return jdbi.withHandle(h -> h.createQuery("""
                 SELECT COUNT(DISTINCT ta.title_id)

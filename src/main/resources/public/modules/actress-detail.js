@@ -164,7 +164,7 @@ async function searchStageName(actressId) {
 let _snModalMount = null;
 let _snKeydownHandler = null;
 
-function openStageNameModal(actressId, currentStageName) {
+async function openStageNameModal(actressId, currentStageName) {
   closeStageNameModal();
 
   _snModalMount = document.createElement('div');
@@ -177,6 +177,10 @@ function openStageNameModal(actressId, currentStageName) {
         <div class="sn-header">
           <span class="sn-header-title">Edit Stage Name</span>
           <button class="sn-close" id="sn-close" title="Cancel">×</button>
+        </div>
+        <div class="sn-candidates" id="sn-candidates" style="display:none">
+          <div class="sn-candidates-label">Suggestions from cast data:</div>
+          <div class="sn-chips" id="sn-chips"></div>
         </div>
         <div class="sn-body">
           <input class="sn-input" id="sn-input" type="text"
@@ -206,6 +210,30 @@ function openStageNameModal(actressId, currentStageName) {
     if (e.key === 'Enter')  saveStageNameFromModal(actressId);
   };
   document.addEventListener('keydown', _snKeydownHandler);
+
+  // Fetch and render cast-derived candidates asynchronously.
+  try {
+    const res = await fetch(`/api/actresses/${actressId}/stage-name-candidates`);
+    if (!res.ok) return;
+    const data = await res.json();
+    const candidates = data.candidates || [];
+    if (candidates.length === 0 || !_snModalMount) return;
+    const chipsEl = _snModalMount.querySelector('#sn-chips');
+    const candidatesEl = _snModalMount.querySelector('#sn-candidates');
+    if (!chipsEl || !candidatesEl) return;
+    chipsEl.innerHTML = candidates.map(c =>
+      `<button class="sn-chip" data-name="${esc(c.name)}">${esc(c.name)} (${c.hits})</button>`
+    ).join('');
+    chipsEl.querySelectorAll('.sn-chip').forEach(chip => {
+      chip.addEventListener('click', () => {
+        const inp = _snModalMount && _snModalMount.querySelector('#sn-input');
+        if (inp) { inp.value = chip.dataset.name; inp.focus(); }
+      });
+    });
+    candidatesEl.style.display = '';
+  } catch (_) {
+    // Candidates are best-effort — silently ignore fetch errors.
+  }
 }
 
 function closeStageNameModal() {

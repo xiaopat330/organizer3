@@ -255,6 +255,16 @@ public class ActressRoutes {
             ctx.json(body);
         });
 
+        app.get("/api/actresses/{id}/stage-name-candidates", ctx -> {
+            long id;
+            try { id = Long.parseLong(ctx.pathParam("id")); }
+            catch (NumberFormatException e) { ctx.status(400); return; }
+            actressBrowseService.findStageNameCandidates(id)
+                    .ifPresentOrElse(
+                            candidates -> ctx.json(Map.of("candidates", candidates)),
+                            () -> ctx.status(404).json(Map.of("error", "Actress not found")));
+        });
+
         app.put("/api/actresses/{id}/stage-name", ctx -> {
             long id;
             try { id = Long.parseLong(ctx.pathParam("id")); }

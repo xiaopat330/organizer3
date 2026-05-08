@@ -205,6 +205,79 @@ class ActressBrowseServiceJdbiTest {
         assertNull(written);
     }
 
+    // ── findStageNameCandidates ───────────────────────────────────────────────
+
+    @Test
+    void findStageNameCandidatesReturnsEmptyWhenNoEnrichedTitles() {
+        long actressId = insertActress("Shion Yumi");
+        // No enriched titles at all
+        Optional<List<ActressBrowseService.StageNameCandidate>> result =
+                service.findStageNameCandidates(actressId);
+        assertTrue(result.isPresent(), "should return present Optional (actress exists)");
+        assertTrue(result.get().isEmpty(), "should be empty list when no enriched titles");
+    }
+
+    @Test
+    void findStageNameCandidatesSortsByHitsDesc() {
+        long actressId = insertActress("Shion Yumi");
+        // wBND / 夕美しおん appears in 3 titles, Av2e / 三上悠亞 in 2, MW44 / 木下ひまり in 1
+        insertEnrichedTitle("FC2-001", actressId,
+                "[{\"slug\":\"wBND\",\"name\":\"夕美しおん\",\"gender\":\"F\"},{\"slug\":\"Av2e\",\"name\":\"三上悠亞\",\"gender\":\"F\"}]");
+        insertEnrichedTitle("FC2-002", actressId,
+                "[{\"slug\":\"wBND\",\"name\":\"夕美しおん\",\"gender\":\"F\"},{\"slug\":\"Av2e\",\"name\":\"三上悠亞\",\"gender\":\"F\"}]");
+        insertEnrichedTitle("FC2-003", actressId,
+                "[{\"slug\":\"wBND\",\"name\":\"夕美しおん\",\"gender\":\"F\"},{\"slug\":\"MW44\",\"name\":\"木下ひまり\",\"gender\":\"F\"}]");
+
+        List<ActressBrowseService.StageNameCandidate> candidates =
+                service.findStageNameCandidates(actressId).orElseThrow();
+
+        assertEquals(3, candidates.size());
+        assertEquals("夕美しおん", candidates.get(0).name());
+        assertEquals("wBND", candidates.get(0).slug());
+        assertEquals(3, candidates.get(0).hits());
+        assertEquals("三上悠亞", candidates.get(1).name());
+        assertEquals(2, candidates.get(1).hits());
+        assertEquals("木下ひまり", candidates.get(2).name());
+        assertEquals(1, candidates.get(2).hits());
+    }
+
+    @Test
+    void findStageNameCandidatesExcludesMaleCast() {
+        long actressId = insertActress("Cast Gender Test");
+        // One male, one female in same title
+        insertEnrichedTitle("MAN-001", actressId,
+                "[{\"slug\":\"male1\",\"name\":\"男性優\",\"gender\":\"M\"},{\"slug\":\"fem1\",\"name\":\"女性優\",\"gender\":\"F\"}]");
+
+        List<ActressBrowseService.StageNameCandidate> candidates =
+                service.findStageNameCandidates(actressId).orElseThrow();
+
+        assertEquals(1, candidates.size(), "male cast must be excluded");
+        assertEquals("女性優", candidates.get(0).name());
+        assertEquals("fem1", candidates.get(0).slug());
+    }
+
+    @Test
+    void findStageNameCandidatesLimitsToTopEight() {
+        long actressId = insertActress("Many Slugs");
+        // Seed 12 distinct female slugs across 12 separate titles (each with 1 hit)
+        for (int i = 1; i <= 12; i++) {
+            insertEnrichedTitle("MULTI-" + String.format("%03d", i), actressId,
+                    "[{\"slug\":\"slug" + i + "\",\"name\":\"名前" + i + "\",\"gender\":\"F\"}]");
+        }
+
+        List<ActressBrowseService.StageNameCandidate> candidates =
+                service.findStageNameCandidates(actressId).orElseThrow();
+
+        assertEquals(8, candidates.size(), "result must be capped at 8");
+    }
+
+    @Test
+    void findStageNameCandidatesReturnsEmptyOptionalForUnknownActress() {
+        Optional<List<ActressBrowseService.StageNameCandidate>> result =
+                service.findStageNameCandidates(999999L);
+        assertTrue(result.isEmpty(), "unknown actress must return empty Optional");
+    }
+
     // ── setStageNameManual ────────────────────────────────────────────────────
 
     @Test
