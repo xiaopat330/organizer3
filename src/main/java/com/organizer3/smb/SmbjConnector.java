@@ -1,14 +1,18 @@
 package com.organizer3.smb;
 
 import com.hierynomus.smbj.SMBClient;
+import com.hierynomus.smbj.SmbConfig;
 import com.hierynomus.smbj.auth.AuthenticationContext;
 import com.hierynomus.smbj.connection.Connection;
 import com.hierynomus.smbj.session.Session;
 import com.hierynomus.smbj.share.DiskShare;
+import com.organizer3.config.AppConfig;
+import com.organizer3.config.SmbSettings;
 import com.organizer3.config.volume.ServerConfig;
 import com.organizer3.config.volume.VolumeConfig;
 
 import java.io.IOException;
+import java.util.concurrent.TimeUnit;
 import lombok.extern.slf4j.Slf4j;
 
 /**
@@ -16,6 +20,11 @@ import lombok.extern.slf4j.Slf4j;
  *
  * <p>Parses {@code smbPath} (e.g. {@code //qnap2/jav}) to extract the hostname
  * and share name, then authenticates with the username and password from config.
+ *
+ * <p>The {@link SMBClient} is constructed with explicit read/write/transact timeouts
+ * from the {@code smb:} config block (see {@link SmbSettings}). This ensures a dead TCP
+ * connection is detected within minutes rather than hanging forever — the root cause of
+ * the 2026-05-07 coherent sync hang. See {@code spec/PROPOSAL_SMB_TIMEOUT_HARDENING.md §3.1}.
  */
 @Slf4j
 public class SmbjConnector implements SmbConnector {
@@ -27,7 +36,8 @@ public class SmbjConnector implements SmbConnector {
 
         log.info("Connecting to \\\\{}\\{} as {}", parsed.host, parsed.share, server.username());
 
-        SMBClient client = new SMBClient();
+        SmbSettings settings = AppConfig.get().volumes().smbOrDefaults();
+        SMBClient client = new SMBClient(buildSmbConfig(settings));
         try {
             progress.onStep("Connecting to " + parsed.host);
             Connection connection = client.connect(parsed.host);
@@ -80,6 +90,15 @@ public class SmbjConnector implements SmbConnector {
     }
 
     private record ParsedSmbPath(String host, String share, String subPath) {}
+
+    static SmbConfig buildSmbConfig(SmbSettings settings) {
+        return SmbConfig.builder()
+                .withReadTimeout(settings.readTimeoutMinutesOrDefault(), TimeUnit.MINUTES)
+                .withWriteTimeout(settings.writeTimeoutMinutesOrDefault(), TimeUnit.MINUTES)
+                .withTransactTimeout(settings.transactTimeoutMinutesOrDefault(), TimeUnit.MINUTES)
+                .withSoTimeout(settings.readTimeoutMinutesOrDefault(), TimeUnit.MINUTES)
+                .build();
+    }
 
     private static void closeQuietly(AutoCloseable resource) {
         try {

@@ -8,11 +8,13 @@ import com.hierynomus.mssmb2.SMB2CreateDisposition;
 import com.hierynomus.mssmb2.SMB2CreateOptions;
 import com.hierynomus.mssmb2.SMB2ShareAccess;
 import com.hierynomus.smbj.SMBClient;
+import com.hierynomus.smbj.SmbConfig;
 import com.hierynomus.smbj.auth.AuthenticationContext;
 import com.hierynomus.smbj.connection.Connection;
 import com.hierynomus.smbj.session.Session;
 import com.hierynomus.smbj.share.DiskShare;
 import com.hierynomus.smbj.share.File;
+import com.organizer3.config.SmbSettings;
 import com.organizer3.config.volume.OrganizerConfig;
 import com.organizer3.config.volume.ServerConfig;
 import com.organizer3.config.volume.VolumeConfig;
@@ -24,6 +26,7 @@ import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
 import lombok.extern.slf4j.Slf4j;
 
 /**
@@ -53,11 +56,11 @@ public class SmbConnectionFactory {
     private final Map<String, PooledShare> pool = new ConcurrentHashMap<>();
 
     public SmbConnectionFactory(OrganizerConfig config) {
-        this(config, new SMBClient(), null);
+        this(config, new SMBClient(buildSmbConfig(config.smbOrDefaults())), null);
     }
 
     public SmbConnectionFactory(OrganizerConfig config, NasAvailabilityMonitor monitor) {
-        this(config, new SMBClient(), monitor);
+        this(config, new SMBClient(buildSmbConfig(config.smbOrDefaults())), monitor);
     }
 
     /** Visible for testing. */
@@ -347,6 +350,25 @@ public class SmbConnectionFactory {
             }
         }
         return false;
+    }
+
+    /**
+     * Builds an {@link SmbConfig} from the given {@link SmbSettings}.
+     *
+     * <p>Sets read/write/transact timeouts so a dead TCP connection is detected within
+     * minutes rather than hanging forever. The socket-level {@code soTimeout} mirrors the
+     * read timeout as a backstop for cases where the smbj protocol layer does not surface
+     * the timeout itself.
+     *
+     * @see <a href="spec/PROPOSAL_SMB_TIMEOUT_HARDENING.md">SMB Timeout Hardening §3.1</a>
+     */
+    static SmbConfig buildSmbConfig(SmbSettings settings) {
+        return SmbConfig.builder()
+                .withReadTimeout(settings.readTimeoutMinutesOrDefault(), TimeUnit.MINUTES)
+                .withWriteTimeout(settings.writeTimeoutMinutesOrDefault(), TimeUnit.MINUTES)
+                .withTransactTimeout(settings.transactTimeoutMinutesOrDefault(), TimeUnit.MINUTES)
+                .withSoTimeout(settings.readTimeoutMinutesOrDefault(), TimeUnit.MINUTES)
+                .build();
     }
 
     private static ParsedSmbPath parseSmbPath(String smbPath) {
