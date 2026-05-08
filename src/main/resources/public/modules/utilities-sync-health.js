@@ -213,12 +213,27 @@ function renderCardSubtitle() {
   const el = document.getElementById('sh-vol-card-subtitle');
   if (!el) return;
   if (!runIsCoherent || !activeRunId) {
-    el.textContent = '';
+    el.innerHTML = '';
     return;
   }
-  const elapsed = runStartedAt ? formatDuration(Date.now() - runStartedAt) : '—';
+  const elapsed  = runStartedAt ? formatDuration(Date.now() - runStartedAt) : '—';
   const volLabel = currentVolId ? `vol-${currentVolId}` : '—';
-  el.textContent = `Coherent sync running — ${volLabel} (${coherentDone}/${coherentTotal} done) — ${elapsed} elapsed`;
+  const pct      = coherentTotal > 0 ? Math.min(100, (coherentDone / coherentTotal) * 100) : 0;
+  el.innerHTML = `
+    <div class="sh-coherent-progress-text">Coherent sync running — ${esc(volLabel)} (${coherentDone}/${coherentTotal} done) — ${esc(elapsed)} elapsed</div>
+    <div class="sh-coherent-progress-bar"><div class="sh-coherent-progress-fill" style="width: ${pct}%;"></div></div>
+  `;
+}
+
+// Inline horizontal progress bar that sits along the bottom of a row during
+// scan/cancelling states. Width reflects current/total from phase.progress
+// events. If no progress info has arrived yet, render a faint indeterminate
+// stripe so the row doesn't look static.
+function renderRowProgressBar(vs) {
+  const hasProgress = vs.total > 0;
+  const pct = hasProgress ? Math.max(0, Math.min(100, (vs.current / vs.total) * 100)) : 0;
+  const cls = hasProgress ? 'sh-vol-progress-fill' : 'sh-vol-progress-fill sh-vol-progress-fill--indeterminate';
+  return `<div class="sh-vol-progress"><div class="${cls}" style="width: ${pct}%;"></div></div>`;
 }
 
 // ── Per-volume row rendering ────────────────────────────────────────────────────
@@ -277,6 +292,14 @@ function renderVolRow(v, vs, anyRunning) {
       <button type="button" class="sh-vol-btn" data-action="sync" data-vol="${esc(v.id)}" disabled>Sync</button>`;
     rowStyle = 'background: rgba(59, 130, 246, 0.08);';
 
+    const bar = renderRowProgressBar(vs);
+    return `<div class="${rowCls}" style="${rowStyle}">
+      <div class="sh-vol-id">${dotHtml}${esc(v.id.toUpperCase())}</div>
+      <div class="sh-vol-meta">${metaHtml}</div>
+      <div class="sh-vol-btns">${rightHtml}</div>
+      ${bar}
+    </div>`;
+
   } else if (state === 'cancelling') {
     dotHtml = '<span class="sh-vol-spinner sh-vol-spinner--cancelling" title="cancelling"></span>';
     const elapsed = vs.startedAt ? formatDuration(Date.now() - vs.startedAt) : '…';
@@ -284,6 +307,14 @@ function renderVolRow(v, vs, anyRunning) {
     rightHtml = `<span class="sh-vol-duration sh-vol-duration--ticking">(${elapsed})</span>
       <button type="button" class="sh-vol-btn" data-action="sync" data-vol="${esc(v.id)}" disabled>Sync</button>`;
     rowStyle = 'background: rgba(59, 130, 246, 0.08);';
+
+    const bar = renderRowProgressBar(vs);
+    return `<div class="${rowCls}" style="${rowStyle}">
+      <div class="sh-vol-id">${dotHtml}${esc(v.id.toUpperCase())}</div>
+      <div class="sh-vol-meta">${metaHtml}</div>
+      <div class="sh-vol-btns">${rightHtml}</div>
+      ${bar}
+    </div>`;
 
   } else if (state === 'done') {
     dotHtml = '<span class="sh-vol-dot sh-vol-dot--done" title="done">✓</span>';
@@ -557,6 +588,8 @@ function handlePhaseProgress(ev) {
 
   if (ev.total > 0) {
     vs.detail = `${ev.detail || 'Saving'} ${ev.current}/${ev.total}`;
+    vs.current = ev.current;
+    vs.total = ev.total;
   } else if (ev.detail) {
     vs.detail = ev.detail;
   }

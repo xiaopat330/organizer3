@@ -1150,6 +1150,7 @@
   gap: 10px;
   padding: 6px 4px;
   border-bottom: 1px solid #0f1a2b;
+  position: relative;
 }
 .sh-vol-row:last-child { border-bottom: none; }
 .sh-vol-dot {
@@ -1219,6 +1220,30 @@
 .sh-vol-duration--final   { color: #4ade80; }
 .sh-vol-duration--failed  { color: #f87171; }
 
+/* Per-volume in-row progress bar (scanning / cancelling) */
+.sh-vol-progress {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 2px;
+  background: rgba(59, 130, 246, 0.15);
+  overflow: hidden;
+}
+.sh-vol-progress-fill {
+  height: 100%;
+  background: #3b82f6;
+  transition: width 0.4s ease;
+}
+.sh-vol-progress-fill--indeterminate {
+  width: 30% !important;
+  animation: sh-indeterminate 1.4s ease-in-out infinite;
+}
+@keyframes sh-indeterminate {
+  0%   { transform: translateX(-100%); }
+  100% { transform: translateX(400%); }
+}
+
 /* Card subtitle for coherent-sync progress */
 .sh-vol-card-subtitle {
   font-size: 10px;
@@ -1226,4 +1251,21 @@
   color: #3b82f6;
   font-style: italic;
   opacity: 0.9;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.sh-vol-card-subtitle:empty { display: none; }
+.sh-coherent-progress-text { font-size: 11px; color: #93c5fd; font-style: normal; }
+.sh-coherent-progress-bar {
+  height: 4px;
+  background: rgba(59, 130, 246, 0.15);
+  border-radius: 2px;
+  overflow: hidden;
+}
+.sh-coherent-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #3b82f6, #60a5fa);
+  border-radius: 2px;
+  transition: width 0.4s ease;
 }
