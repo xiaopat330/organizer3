@@ -1105,6 +1105,7 @@ public class Application {
                     .register(new com.organizer3.mcp.tools.FindStaleLocationsTool(jdbi))
                     .register(new com.organizer3.mcp.tools.ListActressesWithMisnamedFoldersTool(jdbi))
                     .register(new com.organizer3.mcp.tools.FindMisnamedFoldersForActressTool(jdbi, actressRepo))
+                    .register(new com.organizer3.mcp.tools.ListActressLocationsTool(actressRepo, jdbi))
                     .register(new com.organizer3.mcp.tools.ListMultiVideoTitlesTool(jdbi))
                     .register(new com.organizer3.mcp.tools.AnalyzeTitleVideosTool(titleRepo, videoRepo))
                     .register(new com.organizer3.mcp.tools.FindDuplicateCandidatesTool(jdbi))
