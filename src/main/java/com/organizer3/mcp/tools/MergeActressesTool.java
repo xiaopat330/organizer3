@@ -1,6 +1,8 @@
 package com.organizer3.mcp.tools;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import com.organizer3.curation.CurationLog;
+import com.organizer3.curation.CurationLogRecord;
 import com.organizer3.mcp.Schemas;
 import com.organizer3.mcp.Tool;
 import com.organizer3.model.Actress;
@@ -9,9 +11,11 @@ import lombok.extern.slf4j.Slf4j;
 import org.jdbi.v3.core.Handle;
 import org.jdbi.v3.core.Jdbi;
 
+import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Fold one actress record ({@code from}) into another ({@code into}) as a single-transaction
@@ -46,10 +50,12 @@ public class MergeActressesTool implements Tool {
 
     private final Jdbi jdbi;
     private final ActressRepository actressRepo;
+    private final CurationLog curationLog;
 
-    public MergeActressesTool(Jdbi jdbi, ActressRepository actressRepo) {
+    public MergeActressesTool(Jdbi jdbi, ActressRepository actressRepo, CurationLog curationLog) {
         this.jdbi = jdbi;
         this.actressRepo = actressRepo;
+        this.curationLog = curationLog;
     }
 
     @Override public String name()        { return "merge_actresses"; }
@@ -74,7 +80,17 @@ public class MergeActressesTool implements Tool {
         long intoId = Schemas.requireLong(args, "into");
         long fromId = Schemas.requireLong(args, "from");
         boolean dryRun = Schemas.optBoolean(args, "dryRun", true);
-        return merge(jdbi, actressRepo, intoId, fromId, dryRun);
+        Result result = merge(jdbi, actressRepo, intoId, fromId, dryRun);
+        // Emit curation log — merge is DB-only, no volumeId; use "unknown"
+        String status = dryRun ? "dry-run" : "ok";
+        CurationLogRecord rec = new CurationLogRecord(
+                Instant.now(), name(), "mcp", "mcp-" + Thread.currentThread().getName(),
+                Map.of("into", intoId, "from", fromId, "dryRun", dryRun),
+                null, null,
+                dryRun ? null : Map.of("summary", result.plan().summary()),
+                status, List.of());
+        curationLog.append("unknown", rec);
+        return result;
     }
 
     /**

@@ -129,10 +129,82 @@ class FindMisnamedFoldersForActressToolTest {
                 .path(Path.of(path)).lastSeenAt(LocalDate.now()).build();
     }
 
+    // ── strict-mode tests ───────────────────────────────────────────────────
+
+    @Test
+    void strictFalsePreservesSubstringBehavior() throws Exception {
+        // "Sumire Yuki" is a substring of "Sumire Yukie (CODE)" → non-strict treats it as clean
+        long aid = actressRepo.save(mk("Sumire Yuki")).getId();
+        long tid = titleRepo.save(title("TSK-001", aid)).getId();
+        locationRepo.save(loc(tid, "vol-a", "/stars/library/Sumire Yukie (TSK-001)"));
+
+        var r = (FindMisnamedFoldersForActressTool.Result) tool.call(argsStrict(aid, 100, false));
+        // Non-strict: "Sumire Yuki" found inside "Sumire Yukie" → NOT reported as misnamed
+        assertEquals(0, r.count(), "non-strict: substring match should report clean");
+    }
+
+    @Test
+    void strictTrueCatchesSubstringFalsePositive() throws Exception {
+        // "Sumire Yuki" is a substring of "Sumire Yukie (CODE)" → strict must flag this
+        long aid = actressRepo.save(mk("Sumire Yuki")).getId();
+        long tid = titleRepo.save(title("TSK-001", aid)).getId();
+        locationRepo.save(loc(tid, "vol-a", "/stars/library/Sumire Yukie (TSK-001)"));
+
+        var r = (FindMisnamedFoldersForActressTool.Result) tool.call(argsStrict(aid, 100, true));
+        assertEquals(1, r.count(), "strict: 'Sumire Yukie' is NOT token-bounded 'Sumire Yuki' → must be flagged");
+        assertEquals("TSK-001", r.misnamedLocations().get(0).titleCode());
+    }
+
+    @Test
+    void strictTruePreservesTrueMatch() throws Exception {
+        // "Sumire Yuki (CODE)" contains canonical "Sumire Yuki" with proper boundaries → clean
+        long aid = actressRepo.save(mk("Sumire Yuki")).getId();
+        long tid = titleRepo.save(title("TSK-002", aid)).getId();
+        locationRepo.save(loc(tid, "vol-a", "/stars/library/Sumire Yuki (TSK-002)"));
+
+        var r = (FindMisnamedFoldersForActressTool.Result) tool.call(argsStrict(aid, 100, true));
+        assertEquals(0, r.count(), "strict: canonical bounded by '(' → should be clean");
+    }
+
+    @Test
+    void strictTrueTreatsSlashBoundedMatchAsClean() throws Exception {
+        // "/Sumire Yuki/TSK-003" — canonical followed by / → clean
+        long aid = actressRepo.save(mk("Sumire Yuki")).getId();
+        long tid = titleRepo.save(title("TSK-003", aid)).getId();
+        locationRepo.save(loc(tid, "vol-a", "/stars/library/Sumire Yuki/TSK-003"));
+
+        var r = (FindMisnamedFoldersForActressTool.Result) tool.call(argsStrict(aid, 100, true));
+        assertEquals(0, r.count(), "strict: canonical followed by '/' → should be clean");
+    }
+
+    // ── buildBoundaryPattern unit tests ─────────────────────────────────────
+
+    @Test
+    void boundaryPatternMatchesBoundedOccurrence() {
+        var p = FindMisnamedFoldersForActressTool.buildBoundaryPattern("Sumire Yuki");
+        assertTrue(p.matcher("/stars/Sumire Yuki (TSK-001)").find());
+        assertTrue(p.matcher("/stars/Sumire Yuki/TSK-001").find());
+        assertTrue(p.matcher("Sumire Yuki (TSK-001)").find()); // at start
+    }
+
+    @Test
+    void boundaryPatternDoesNotMatchSubstringEmbeddedInLongerName() {
+        var p = FindMisnamedFoldersForActressTool.buildBoundaryPattern("Sumire Yuki");
+        assertFalse(p.matcher("/stars/Sumire Yukie (TSK-001)").find());
+    }
+
     private static ObjectNode args(long actressId, int limit) {
         ObjectNode n = M.createObjectNode();
         n.put("actress_id", actressId);
         n.put("limit", limit);
+        return n;
+    }
+
+    private static ObjectNode argsStrict(long actressId, int limit, boolean strict) {
+        ObjectNode n = M.createObjectNode();
+        n.put("actress_id", actressId);
+        n.put("limit", limit);
+        n.put("strict", strict);
         return n;
     }
 }

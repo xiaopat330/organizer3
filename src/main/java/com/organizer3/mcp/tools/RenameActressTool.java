@@ -4,6 +4,8 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.organizer3.command.ActressMergeService;
 import com.organizer3.command.ActressMergeService.RenamePlan;
 import com.organizer3.command.ActressMergeService.RenameResult;
+import com.organizer3.curation.CurationLog;
+import com.organizer3.curation.CurationLogRecord;
 import com.organizer3.filesystem.VolumeFileSystem;
 import com.organizer3.mcp.Schemas;
 import com.organizer3.mcp.Tool;
@@ -15,7 +17,9 @@ import lombok.extern.slf4j.Slf4j;
 import org.jdbi.v3.core.Jdbi;
 
 import java.io.IOException;
+import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Atomically renames an actress's canonical name: adds old canonical name as alias, updates
@@ -39,13 +43,16 @@ public class RenameActressTool implements Tool {
     private final SessionContext session;
     private final ActressRepository actressRepo;
     private final ActressMergeService mergeService;
+    private final CurationLog curationLog;
 
     public RenameActressTool(Jdbi jdbi, SessionContext session,
-                             ActressRepository actressRepo, ActressMergeService mergeService) {
+                             ActressRepository actressRepo, ActressMergeService mergeService,
+                             CurationLog curationLog) {
         this.jdbi = jdbi;
         this.session = session;
         this.actressRepo = actressRepo;
         this.mergeService = mergeService;
+        this.curationLog = curationLog;
     }
 
     @Override public String name()        { return "rename_actress"; }
@@ -131,6 +138,8 @@ public class RenameActressTool implements Tool {
             List<UnresolvedRow> unresolvable = plan.unresolved().stream()
                     .map(u -> new UnresolvedRow(u.volumeId(), u.currentPath().toString()))
                     .toList();
+            emitCurationLog(mountedVolumeId, actressId, oldName, newName, dryRun,
+                    diskPlan.size(), 0, 0, "dry-run");
             return new Result(actressId, oldName, newName, true, false,
                     mountedVolumeId, 0, 0, 0, diskPlan, unresolvable, null);
         }
@@ -148,6 +157,7 @@ public class RenameActressTool implements Tool {
                 () -> new IllegalStateException("Actress id=" + actressId + " disappeared after rename"));
 
         if (!renameDisk) {
+            emitCurationLog(mountedVolumeId, actressId, oldName, newName, false, 0, 0, 0, "ok");
             return new Result(actressId, oldName, newName, false, false,
                     mountedVolumeId, 0, 0, 0, List.of(), List.of(), null);
         }
@@ -170,6 +180,8 @@ public class RenameActressTool implements Tool {
                     .toList();
             log.info("RenameActress: disk renames — {} renamed, {} skipped, {} unresolvable",
                     result.renamedPaths().size(), skipped.size(), unresolvable.size());
+            emitCurationLog(mountedVolumeId, actressId, oldName, newName, false,
+                    result.renamedPaths().size(), skipped.size(), unresolvable.size(), "ok");
             return new Result(actressId, oldName, newName, false, false,
                     mountedVolumeId, result.renamedPaths().size(), skipped.size(), unresolvable.size(),
                     renamed, unresolvable, null);
@@ -188,12 +200,35 @@ public class RenameActressTool implements Tool {
             } catch (Exception rollbackEx) {
                 log.error("RenameActress: DB rollback FAILED — actress id={} name is now '{}' in DB but disk rename failed. Manual intervention required.",
                         actressId, newName, rollbackEx);
+                String errMsg = "DB rollback failed after disk error: " + rollbackEx.getMessage() + "; disk error: " + e.getMessage();
+                emitCurationLogError(mountedVolumeId, actressId, oldName, newName, errMsg);
                 return new Result(actressId, oldName, newName, false, true,
-                        mountedVolumeId, 0, 0, 0, List.of(), List.of(),
-                        "DB rollback failed after disk error: " + rollbackEx.getMessage() + "; disk error: " + e.getMessage());
+                        mountedVolumeId, 0, 0, 0, List.of(), List.of(), errMsg);
             }
             throw new IllegalStateException("Disk rename failed (DB rolled back): " + e.getMessage(), e);
         }
+    }
+
+    private void emitCurationLog(String volumeId, long actressId, String oldName, String newName,
+                                  boolean dryRun, int renamed, int skipped, int unresolvable,
+                                  String status) {
+        CurationLogRecord rec = new CurationLogRecord(
+                Instant.now(), name(), "mcp", "mcp-" + Thread.currentThread().getName(),
+                Map.of("actressId", actressId, "oldName", oldName, "newName", newName, "dryRun", dryRun),
+                null, null,
+                Map.of("renamed", renamed, "skipped", skipped, "unresolvable", unresolvable),
+                status, List.of());
+        curationLog.append(volumeId != null ? volumeId : "unknown", rec);
+    }
+
+    private void emitCurationLogError(String volumeId, long actressId, String oldName,
+                                       String newName, String error) {
+        CurationLogRecord rec = new CurationLogRecord(
+                Instant.now(), name(), "mcp", "mcp-" + Thread.currentThread().getName(),
+                Map.of("actressId", actressId, "oldName", oldName, "newName", newName),
+                null, null, null,
+                "failed", List.of(error));
+        curationLog.append(volumeId != null ? volumeId : "unknown", rec);
     }
 
     private static String deriveNewPath(String currentPath, String oldName, String newName) {

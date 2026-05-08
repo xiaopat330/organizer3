@@ -2,6 +2,7 @@ package com.organizer3.mcp.tools;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.organizer3.curation.CurationLog;
 import com.organizer3.db.SchemaInitializer;
 import com.organizer3.model.Actress;
 import com.organizer3.model.ActressAlias;
@@ -14,7 +15,9 @@ import org.jdbi.v3.core.Jdbi;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
+import java.nio.file.Path;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.time.LocalDate;
@@ -23,6 +26,9 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.*;
 
 class MergeActressesToolTest {
+
+    @TempDir
+    Path logDir;
 
     private static final ObjectMapper M = new ObjectMapper();
 
@@ -42,7 +48,7 @@ class MergeActressesToolTest {
         actressRepo = new JdbiActressRepository(jdbi);
         titleRepo = new JdbiTitleRepository(jdbi, new JdbiTitleLocationRepository(jdbi));
         titleActressRepo = new JdbiTitleActressRepository(jdbi);
-        tool = new MergeActressesTool(jdbi, actressRepo);
+        tool = new MergeActressesTool(jdbi, actressRepo, new CurationLog(logDir));
     }
 
     @AfterEach

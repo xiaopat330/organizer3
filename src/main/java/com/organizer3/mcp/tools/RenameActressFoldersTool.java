@@ -4,6 +4,8 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.organizer3.command.ActressMergeService;
 import com.organizer3.command.ActressMergeService.RenamePlan;
 import com.organizer3.command.ActressMergeService.RenameResult;
+import com.organizer3.curation.CurationLog;
+import com.organizer3.curation.CurationLogRecord;
 import com.organizer3.filesystem.VolumeFileSystem;
 import com.organizer3.mcp.Schemas;
 import com.organizer3.mcp.Tool;
@@ -13,7 +15,9 @@ import com.organizer3.shell.SessionContext;
 import com.organizer3.smb.VolumeConnection;
 
 import java.io.IOException;
+import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Renames every misnamed title folder for one actress on the currently mounted volume.
@@ -31,12 +35,14 @@ public class RenameActressFoldersTool implements Tool {
     private final SessionContext session;
     private final ActressRepository actressRepo;
     private final ActressMergeService mergeService;
+    private final CurationLog curationLog;
 
     public RenameActressFoldersTool(SessionContext session, ActressRepository actressRepo,
-                                    ActressMergeService mergeService) {
+                                    ActressMergeService mergeService, CurationLog curationLog) {
         this.session = session;
         this.actressRepo = actressRepo;
         this.mergeService = mergeService;
+        this.curationLog = curationLog;
     }
 
     @Override public String name()        { return "rename_actress_folders"; }
@@ -80,7 +86,18 @@ public class RenameActressFoldersTool implements Tool {
         RenamePlan plan = mergeService.planRenamesFor(actress, fromName);
         try {
             RenameResult result = mergeService.renameOnly(plan, mountedVolumeId, fs, dryRun);
-            return toResponse(actress, mountedVolumeId, dryRun, result);
+            Result response = toResponse(actress, mountedVolumeId, dryRun, result);
+            // Emit curation log
+            String status = dryRun ? "dry-run" : (response.renamedCount() > 0 ? "ok" : "nothing-to-do");
+            CurationLogRecord rec = new CurationLogRecord(
+                    Instant.now(), name(), "mcp", "mcp-" + Thread.currentThread().getName(),
+                    Map.of("actressId", actress.getId(), "canonical", actress.getCanonicalName(), "dryRun", dryRun),
+                    null, null,
+                    Map.of("renamed", response.renamedCount(), "skipped", response.skippedCount(),
+                            "unresolvable", response.unresolvableCount()),
+                    status, List.of());
+            curationLog.append(mountedVolumeId != null ? mountedVolumeId : "unknown", rec);
+            return response;
         } catch (IOException e) {
             throw new IllegalArgumentException("rename_actress_folders failed: " + e.getMessage(), e);
         }

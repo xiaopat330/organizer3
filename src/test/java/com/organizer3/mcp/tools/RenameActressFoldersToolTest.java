@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.organizer3.command.ActressMergeService;
 import com.organizer3.config.volume.VolumeConfig;
+import com.organizer3.curation.CurationLog;
 import com.organizer3.db.SchemaInitializer;
 import com.organizer3.filesystem.FileTimestamps;
 import com.organizer3.filesystem.VolumeFileSystem;
@@ -17,6 +18,7 @@ import org.jdbi.v3.core.Jdbi;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 import java.io.InputStream;
 import java.nio.file.Path;
@@ -31,6 +33,9 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.*;
 
 class RenameActressFoldersToolTest {
+
+    @TempDir
+    Path logDir;
 
     private static final ObjectMapper M = new ObjectMapper();
 
@@ -59,7 +64,7 @@ class RenameActressFoldersToolTest {
         session.setMountedVolume(new VolumeConfig("pool", "//host/pool", "queue", "host", null));
         session.setActiveConnection(new FakeConnection(fs));
 
-        tool = new RenameActressFoldersTool(session, actressRepo, mergeService);
+        tool = new RenameActressFoldersTool(session, actressRepo, mergeService, new CurationLog(logDir));
     }
 
     @AfterEach

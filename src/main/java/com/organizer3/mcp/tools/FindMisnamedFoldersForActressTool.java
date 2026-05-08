@@ -11,6 +11,7 @@ import org.jdbi.v3.core.Jdbi;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.regex.Pattern;
 
 /**
  * For a single actress, return every title location whose on-disk path doesn't
@@ -22,6 +23,11 @@ import java.util.Locale;
  *       canonical (alias matches path — same intent, different origin)</li>
  *   <li>A folder with an unexpected name unrelated to any known alias (alias null)</li>
  * </ul>
+ *
+ * <p>When {@code strict=true} a path is only considered "canonical-present" if the canonical
+ * name is token-bounded: preceded by start-of-string or {@code /}, and followed by {@code /},
+ * {@code (}, or end-of-string. This catches the {@code Sumire Yuki} / {@code Sumire Yukie}
+ * substring class that the default case-insensitive {@code instr} check misses.
  */
 public class FindMisnamedFoldersForActressTool implements Tool {
 
@@ -49,6 +55,11 @@ public class FindMisnamedFoldersForActressTool implements Tool {
                 .prop("actress_id", "integer", "Actress id to inspect. Either this or 'name' is required.")
                 .prop("name",       "string",  "Canonical name or alias to resolve. Either this or 'actress_id' is required.")
                 .prop("limit",      "integer", "Maximum rows to return. Default 500, max 5000.", DEFAULT_LIMIT)
+                .prop("strict",     "boolean",
+                        "When true, a path is only considered canonical-present if the canonical name is "
+                        + "token-bounded (preceded by start-of-string or '/', followed by '/', '(', or "
+                        + "end-of-string). Catches the Sumire Yuki / Sumire Yukie substring class. "
+                        + "Default false preserves existing substring-match behavior.", false)
                 .build();
     }
 
@@ -57,6 +68,7 @@ public class FindMisnamedFoldersForActressTool implements Tool {
         long idArg    = Schemas.optLong(args, "actress_id", -1);
         String nameArg = Schemas.optString(args, "name", null);
         int limit = Math.max(1, Math.min(Schemas.optInt(args, "limit", DEFAULT_LIMIT), MAX_LIMIT));
+        boolean strict = Schemas.optBoolean(args, "strict", false);
 
         if (idArg < 0 && (nameArg == null || nameArg.isBlank())) {
             throw new IllegalArgumentException("Must provide either 'actress_id' or 'name'");
@@ -71,18 +83,35 @@ public class FindMisnamedFoldersForActressTool implements Tool {
         List<String> aliases = actressRepo.findAliases(actress.getId()).stream()
                 .map(ActressAlias::aliasName).toList();
 
+        // In strict mode, build a boundary-aware pattern to determine whether the canonical
+        // name is truly present in a path (not just as a substring of a longer name).
+        final Pattern strictPattern = strict
+                ? buildBoundaryPattern(actress.getCanonicalName())
+                : null;
+
         return jdbi.withHandle(h -> {
             List<Row> rows = new ArrayList<>();
-            h.createQuery("""
-                    SELECT t.code, tl.volume_id, tl.path
-                    FROM titles t
-                    JOIN title_locations tl ON tl.title_id = t.id
-                    WHERE t.actress_id = :aid
-                      AND tl.stale_since IS NULL
-                      AND instr(LOWER(tl.path), LOWER(:canonical)) = 0
-                    ORDER BY tl.volume_id, t.code
-                    LIMIT :lim
-                    """)
+            String sql = strict
+                    ? """
+                      SELECT t.code, tl.volume_id, tl.path
+                      FROM titles t
+                      JOIN title_locations tl ON tl.title_id = t.id
+                      WHERE t.actress_id = :aid
+                        AND tl.stale_since IS NULL
+                      ORDER BY tl.volume_id, t.code
+                      LIMIT :lim
+                      """
+                    : """
+                      SELECT t.code, tl.volume_id, tl.path
+                      FROM titles t
+                      JOIN title_locations tl ON tl.title_id = t.id
+                      WHERE t.actress_id = :aid
+                        AND tl.stale_since IS NULL
+                        AND instr(LOWER(tl.path), LOWER(:canonical)) = 0
+                      ORDER BY tl.volume_id, t.code
+                      LIMIT :lim
+                      """;
+            h.createQuery(sql)
                     .bind("aid", actress.getId())
                     .bind("canonical", actress.getCanonicalName())
                     .bind("lim", limit)
@@ -95,10 +124,28 @@ public class FindMisnamedFoldersForActressTool implements Tool {
                                 path,
                                 matched);
                     })
+                    .filter(row -> strict
+                            ? !strictPattern.matcher(row.path()).find()
+                            : true)
                     .forEach(rows::add);
             return new Result(actress.getId(), actress.getCanonicalName(), aliases,
                     rows.size(), rows);
         });
+    }
+
+    /**
+     * Build a case-insensitive regex that matches the canonical name only when token-bounded:
+     * preceded by start-of-string or {@code /}, and followed by {@code /}, {@code (},
+     * or end-of-string.
+     */
+    static Pattern buildBoundaryPattern(String canonicalName) {
+        // lookbehind: start-of-string or /
+        // lookahead:  /, optional-space then (, or end-of-string
+        // The space before ( covers the common "Sumire Yuki (CODE)" folder basename pattern.
+        String escaped = Pattern.quote(canonicalName);
+        return Pattern.compile(
+                "(?:^|(?<=/))" + escaped + "(?=/| \\(|\\(|$)",
+                Pattern.CASE_INSENSITIVE);
     }
 
     private static String findMatchedAlias(String path, List<String> aliases) {
