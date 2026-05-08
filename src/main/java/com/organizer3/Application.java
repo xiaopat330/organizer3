@@ -1192,6 +1192,7 @@ public class Application {
                 mcpTools.register(new com.organizer3.mcp.tools.RestoreTrashedTool(taskRunner));
                 mcpTools.register(new com.organizer3.mcp.tools.WriteTextFileTool(session, curationLog));
                 mcpTools.register(new com.organizer3.mcp.tools.DeleteEmptyFolderTool(session, jdbi, curationLog));
+                mcpTools.register(new com.organizer3.mcp.tools.RenameTitleFolderTool(session, titleRepo, titleLocationRepo, curationLog));
                 log.info("MCP file-op tools enabled");
             }
             com.organizer3.mcp.McpServer mcpServer = new com.organizer3.mcp.McpServer(
