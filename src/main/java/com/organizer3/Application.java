@@ -360,6 +360,9 @@ public class Application {
         Path dataDir = resolveDataDir(config);
         log.info("Data directory: {}", dataDir);
 
+        // Curation audit log — append-only JSONL trail for all destructive ops
+        com.organizer3.curation.CurationLog curationLog = new com.organizer3.curation.CurationLog(dataDir);
+
         // Backup service + commands
         com.organizer3.config.volume.BackupConfig backupCfg = config.backup();
         Path backupPath = dataDir.resolve("backups").resolve("user-data-backup.json");
@@ -1187,6 +1190,8 @@ public class Application {
                 mcpTools.register(new com.organizer3.mcp.tools.MoveActressFolderToAttentionTool(session, actressRepo, actressMergeService, java.time.Clock.systemUTC()));
                 mcpTools.register(new com.organizer3.mcp.tools.ExecuteDuplicateTrashTool(taskRunner));
                 mcpTools.register(new com.organizer3.mcp.tools.RestoreTrashedTool(taskRunner));
+                mcpTools.register(new com.organizer3.mcp.tools.WriteTextFileTool(session, curationLog));
+                mcpTools.register(new com.organizer3.mcp.tools.DeleteEmptyFolderTool(session, jdbi, curationLog));
                 log.info("MCP file-op tools enabled");
             }
             com.organizer3.mcp.McpServer mcpServer = new com.organizer3.mcp.McpServer(
