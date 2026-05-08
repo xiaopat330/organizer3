@@ -19,8 +19,13 @@ import java.sql.DriverManager;
 import java.util.List;
 import java.util.Map;
 
+import java.util.Optional;
+
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 /**
  * Integration tests for ActressBrowseService methods that require real Jdbi (i.e., inline SQL).
@@ -32,6 +37,7 @@ class ActressBrowseServiceJdbiTest {
     private ActressBrowseService service;
     private JdbiActressRepository actressRepo;
     private JdbiTitleRepository titleRepo;
+    private JdbiLabelRepository labelRepo;
 
     @BeforeEach
     void setUp() throws Exception {
@@ -43,10 +49,14 @@ class ActressBrowseServiceJdbiTest {
         JdbiTitleLocationRepository locationRepo = new JdbiTitleLocationRepository(jdbi);
         titleRepo   = new JdbiTitleRepository(jdbi, locationRepo);
         actressRepo = new JdbiActressRepository(jdbi);
-        JdbiLabelRepository labelRepo = new JdbiLabelRepository(jdbi);
+        labelRepo   = new JdbiLabelRepository(jdbi);
 
-        service = new ActressBrowseService(actressRepo, titleRepo, mock(CoverPath.class),
-                Map.of(), labelRepo, mock(ActressNameLookup.class), null, jdbi,
+        service = buildServiceWithLookup(mock(ActressNameLookup.class));
+    }
+
+    private ActressBrowseService buildServiceWithLookup(ActressNameLookup lookup) {
+        return new ActressBrowseService(actressRepo, titleRepo, mock(CoverPath.class),
+                Map.of(), labelRepo, lookup, null, jdbi,
                 new JdbiRatingCurveRepository(jdbi), new RatingScoreCalculator());
     }
 
@@ -104,5 +114,109 @@ class ActressBrowseServiceJdbiTest {
 
         List<ActressBrowseService.ActressEnrichmentTag> result = service.findEnrichmentTagsForActress(actressId);
         assertTrue(result.isEmpty());
+    }
+
+    // ── searchStageName cast_json corroboration guard ─────────────────────
+    // Regression for the "Himari Hanazawa / Rima Arai" incident: a single mis-linked
+    // multi-cast collection caused Claude to return the wrong kanji, which got written
+    // as stage_name and then claimed Rima Arai's slug in javdb_actress_staging.
+
+    @Test
+    void searchStageNameRejectsCandidateThatAppearsInOnlyOneEnrichedCast() {
+        long actressId = insertActress("Himari Hanazawa");
+        // 3 enriched titles: 木下ひまり in 2, 新井リマ in 1 (the mis-linked collection)
+        insertEnrichedTitle("MIRD-219", actressId,
+                "[{\"slug\":\"MW44\",\"name\":\"木下ひまり\",\"gender\":\"F\"}]");
+        insertEnrichedTitle("PFES-081", actressId,
+                "[{\"slug\":\"MW44\",\"name\":\"木下ひまり\",\"gender\":\"F\"}]");
+        insertEnrichedTitle("NPJB-076", actressId,
+                "[{\"slug\":\"E2vOx\",\"name\":\"新井リマ\",\"gender\":\"F\"}]");
+
+        ActressNameLookup lookup = mock(ActressNameLookup.class);
+        when(lookup.findJapaneseName(any(), anyList())).thenReturn(Optional.of("新井リマ"));
+        service = buildServiceWithLookup(lookup);
+
+        Optional<String> result = service.searchStageName(actressId);
+        assertTrue(result.isEmpty(), "candidate matching only 1 of 3 enriched casts must be rejected");
+
+        String written = jdbi.withHandle(h -> h.createQuery("SELECT stage_name FROM actresses WHERE id = :id")
+                .bind("id", actressId).mapTo(String.class).one());
+        assertNull(written, "stage_name must not be written when guard rejects");
+    }
+
+    @Test
+    void searchStageNameAcceptsCandidateCorroboratedByMultipleEnrichedCasts() {
+        long actressId = insertActress("Himari Kinoshita");
+        insertEnrichedTitle("MIRD-219", actressId,
+                "[{\"slug\":\"MW44\",\"name\":\"木下ひまり\",\"gender\":\"F\"}]");
+        insertEnrichedTitle("PFES-081", actressId,
+                "[{\"slug\":\"MW44\",\"name\":\"木下ひまり\",\"gender\":\"F\"}]");
+
+        ActressNameLookup lookup = mock(ActressNameLookup.class);
+        when(lookup.findJapaneseName(any(), anyList())).thenReturn(Optional.of("木下ひまり"));
+        service = buildServiceWithLookup(lookup);
+
+        Optional<String> result = service.searchStageName(actressId);
+        assertEquals("木下ひまり", result.orElse(null));
+
+        String written = jdbi.withHandle(h -> h.createQuery("SELECT stage_name FROM actresses WHERE id = :id")
+                .bind("id", actressId).mapTo(String.class).one());
+        assertEquals("木下ひまり", written);
+    }
+
+    @Test
+    void searchStageNameAcceptsCandidateWhenActressHasNoEnrichedTitles() {
+        // No cast_json signal to validate against — fall through and trust Claude.
+        long actressId = insertActress("Newbie");
+
+        ActressNameLookup lookup = mock(ActressNameLookup.class);
+        when(lookup.findJapaneseName(any(), anyList())).thenReturn(Optional.of("新人"));
+        service = buildServiceWithLookup(lookup);
+
+        Optional<String> result = service.searchStageName(actressId);
+        assertEquals("新人", result.orElse(null));
+
+        String written = jdbi.withHandle(h -> h.createQuery("SELECT stage_name FROM actresses WHERE id = :id")
+                .bind("id", actressId).mapTo(String.class).one());
+        assertEquals("新人", written);
+    }
+
+    @Test
+    void searchStageNameReturnsEmptyWhenLookupReturnsEmpty() {
+        long actressId = insertActress("Unknown");
+        insertEnrichedTitle("XYZ-001", actressId,
+                "[{\"slug\":\"abcd\",\"name\":\"foo\",\"gender\":\"F\"}]");
+
+        ActressNameLookup lookup = mock(ActressNameLookup.class);
+        when(lookup.findJapaneseName(any(), anyList())).thenReturn(Optional.empty());
+        service = buildServiceWithLookup(lookup);
+
+        Optional<String> result = service.searchStageName(actressId);
+        assertTrue(result.isEmpty());
+
+        String written = jdbi.withHandle(h -> h.createQuery("SELECT stage_name FROM actresses WHERE id = :id")
+                .bind("id", actressId).mapTo(String.class).one());
+        assertNull(written);
+    }
+
+    private long insertActress(String name) {
+        return jdbi.withHandle(h -> h.createUpdate(
+                "INSERT INTO actresses (canonical_name, tier, first_seen_at) VALUES (:n, 'LIBRARY', '2024-01-01')")
+                .bind("n", name)
+                .executeAndReturnGeneratedKeys("id").mapTo(Long.class).one());
+    }
+
+    private long insertEnrichedTitle(String code, long actressId, String castJson) {
+        long titleId = jdbi.withHandle(h -> h.createUpdate(
+                "INSERT INTO titles (code, base_code, label, seq_num, actress_id) VALUES (:c, :bc, :lbl, 1, :a)")
+                .bind("c", code).bind("bc", code + "-00001").bind("lbl", code.split("-")[0]).bind("a", actressId)
+                .executeAndReturnGeneratedKeys("id").mapTo(Long.class).one());
+        jdbi.useHandle(h -> {
+            h.createUpdate("INSERT INTO title_actresses (title_id, actress_id) VALUES (:t, :a)")
+                    .bind("t", titleId).bind("a", actressId).execute();
+            h.createUpdate("INSERT INTO title_javdb_enrichment (title_id, javdb_slug, fetched_at, cast_json) VALUES (:t, 'slug', '2024-01-01', :j)")
+                    .bind("t", titleId).bind("j", castJson).execute();
+        });
+        return titleId;
     }
 }

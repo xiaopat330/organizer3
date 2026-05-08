@@ -790,12 +790,23 @@ public class ActressBrowseService {
         });
     }
 
+    /** Minimum cast_json hits required to trust a Claude-suggested stage_name. */
+    static final int MIN_CAST_JSON_MATCHES = 2;
+
     /**
      * Calls the AI name lookup for the given actress, persists the result to the database
      * and the YAML backup file, and returns the stage name found.
      *
-     * @return the stage name if Claude could determine it, or empty if the actress was not
-     *         found in the DB or Claude returned "unknown"
+     * <p>Guard against false-positives: if the actress has any enriched titles, the
+     * candidate kanji must appear in the {@code cast_json} of at least
+     * {@link #MIN_CAST_JSON_MATCHES} of them. Without this guard a single mis-linked
+     * title (e.g., a multi-cast collection where javdb returned an incomplete cast list)
+     * can poison the actress's stage_name and downstream {@code javdb_actress_staging}
+     * row — which then claims the wrong slug and locks the real owner out via the
+     * unique-slug constraint.
+     *
+     * @return the stage name if Claude could determine it AND the candidate is
+     *         corroborated by cast_json, or empty otherwise
      */
     public Optional<String> searchStageName(long actressId) {
         Actress actress = actressRepo.findById(actressId).orElse(null);
@@ -806,18 +817,55 @@ public class ActressBrowseService {
 
         Optional<String> result = nameLookup.findJapaneseName(actress, titles);
 
-        if (result.isPresent()) {
-            String stageName = result.get();
-            log.info("Stage name found: '{}' → '{}'", actress.getCanonicalName(), stageName);
-            actressRepo.setStageName(actressId, stageName);
-            if (backupFile != null) {
-                backupFile.save(actress.getCanonicalName(), stageName);
-            }
-        } else {
+        if (result.isEmpty()) {
             log.info("Stage name not found for '{}'", actress.getCanonicalName());
+            return result;
+        }
+        String stageName = result.get();
+
+        int enriched = countEnrichedTitlesForActress(actressId);
+        int matches  = enriched > 0 ? countCastJsonNameMatches(actressId, stageName) : 0;
+        if (enriched > 0 && matches < MIN_CAST_JSON_MATCHES) {
+            log.warn("Stage name candidate '{}' for actress '{}' (id={}) appears in only {} of {} enriched cast_jsons — rejecting (need ≥{}). Likely a Claude false-positive driven by a mis-linked or incomplete-cast title.",
+                    stageName, actress.getCanonicalName(), actressId, matches, enriched, MIN_CAST_JSON_MATCHES);
+            return Optional.empty();
         }
 
+        log.info("Stage name found: '{}' → '{}' ({} cast_json hits across {} enriched titles)",
+                actress.getCanonicalName(), stageName, matches, enriched);
+        actressRepo.setStageName(actressId, stageName);
+        if (backupFile != null) {
+            backupFile.save(actress.getCanonicalName(), stageName);
+        }
         return result;
+    }
+
+    private int countEnrichedTitlesForActress(long actressId) {
+        return jdbi.withHandle(h -> h.createQuery("""
+                SELECT COUNT(*)
+                FROM title_actresses ta
+                JOIN title_javdb_enrichment tje ON tje.title_id = ta.title_id
+                WHERE ta.actress_id = :id AND tje.cast_json IS NOT NULL
+                """)
+                .bind("id", actressId)
+                .mapTo(int.class)
+                .one());
+    }
+
+    private int countCastJsonNameMatches(long actressId, String candidateName) {
+        return jdbi.withHandle(h -> h.createQuery("""
+                SELECT COUNT(DISTINCT ta.title_id)
+                FROM title_actresses ta
+                JOIN title_javdb_enrichment tje ON tje.title_id = ta.title_id
+                JOIN json_each(tje.cast_json) je
+                    ON json_extract(je.value, '$.name') = :name
+                WHERE ta.actress_id = :id
+                  AND tje.cast_json IS NOT NULL
+                """)
+                .bind("id", actressId)
+                .bind("name", candidateName)
+                .mapTo(int.class)
+                .one());
     }
 
     // -------------------------------------------------------------------------
