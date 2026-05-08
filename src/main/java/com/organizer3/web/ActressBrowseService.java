@@ -13,6 +13,7 @@ import com.organizer3.rating.RatingCurveRepository;
 import com.organizer3.rating.RatingScoreCalculator;
 import com.organizer3.repository.ActressRepository;
 import com.organizer3.repository.LabelRepository;
+import com.organizer3.repository.StageNameNormalizer;
 import com.organizer3.repository.TitleRepository;
 
 import java.nio.file.Path;
@@ -850,21 +851,19 @@ public class ActressBrowseService {
      * @return the persisted value on success, or empty if actress not found or input is blank
      */
     public Optional<String> setStageNameManual(long actressId, String stageName) {
-        if (stageName == null) return Optional.empty();
-        // TODO: full normalization in PR #1 (stage_name normalize on write)
-        String trimmed = stageName.trim();
-        if (trimmed.isEmpty()) return Optional.empty();
+        String normalized = StageNameNormalizer.normalize(stageName);
+        if (normalized == null || normalized.isEmpty()) return Optional.empty();
 
         Actress actress = actressRepo.findById(actressId).orElse(null);
         if (actress == null) return Optional.empty();
 
-        actressRepo.setStageName(actressId, trimmed);
+        actressRepo.setStageName(actressId, normalized);
         if (backupFile != null) {
-            backupFile.save(actress.getCanonicalName(), trimmed);
+            backupFile.save(actress.getCanonicalName(), normalized);
         }
         log.info("Stage name manually set: actress='{}' (id={}) stageName='{}'",
-                actress.getCanonicalName(), actressId, trimmed);
-        return Optional.of(trimmed);
+                actress.getCanonicalName(), actressId, normalized);
+        return Optional.of(normalized);
     }
 
     private int countEnrichedTitlesForActress(long actressId) {

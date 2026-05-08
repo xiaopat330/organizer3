@@ -818,6 +818,18 @@ class JdbiActressRepositoryTest {
         assertTrue(after.isFavorite());
     }
 
+    // --- setStageName normalization ---
+
+    @Test
+    void setStageNameNormalizesWhitespace() {
+        Actress saved = repo.save(actress("Shiina Sora"));
+        // "椎名 そら" with internal ASCII space — should be stored as "椎名そら"
+        repo.setStageName(saved.getId(), "  椎名 そら  ");
+        String stored = repo.findById(saved.getId()).orElseThrow().getStageName();
+        assertEquals("椎名そら", stored,
+                "setStageName must trim and strip internal spaces before persisting");
+    }
+
     // --- recalcTiers ---
 
     @Test

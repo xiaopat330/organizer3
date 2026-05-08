@@ -8,6 +8,7 @@ import com.organizer3.config.alias.AliasYamlEntry;
 import com.organizer3.model.ActressAlias;
 import com.organizer3.model.Actress;
 import com.organizer3.repository.ActressRepository;
+import com.organizer3.repository.StageNameNormalizer;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.jdbi.v3.core.Handle;
@@ -573,7 +574,7 @@ public class JdbiActressRepository implements ActressRepository {
                                 VALUES (:name, :stageName, :tier, :favorite, :bookmark, :grade, :rejected, :date, :needsProfiling)
                                 """)
                         .bind("name", actress.getCanonicalName())
-                        .bind("stageName", actress.getStageName())
+                        .bind("stageName", StageNameNormalizer.normalize(actress.getStageName()))
                         .bind("tier", actress.getTier().name())
                         .bind("favorite", actress.isFavorite() ? 1 : 0)
                         .bind("bookmark", actress.isBookmark() ? 1 : 0)
@@ -607,7 +608,7 @@ public class JdbiActressRepository implements ActressRepository {
                                 """)
                         .bind("id", actress.getId())
                         .bind("name", actress.getCanonicalName())
-                        .bind("stageName", actress.getStageName())
+                        .bind("stageName", StageNameNormalizer.normalize(actress.getStageName()))
                         .bind("tier", actress.getTier().name())
                         .bind("favorite", actress.isFavorite() ? 1 : 0)
                         .bind("bookmark", actress.isBookmark() ? 1 : 0)
@@ -716,7 +717,7 @@ public class JdbiActressRepository implements ActressRepository {
                         WHERE id = :id
                         """)
                         .bind("id", actressId)
-                        .bind("stageName", stageName)
+                        .bind("stageName", StageNameNormalizer.normalize(stageName))
                         .bind("dateOfBirth", dateOfBirth != null ? dateOfBirth.toString() : null)
                         .bind("birthplace", birthplace)
                         .bind("bloodType", bloodType)
@@ -763,7 +764,7 @@ public class JdbiActressRepository implements ActressRepository {
     public void setStageName(long actressId, String stageName) {
         jdbi.useHandle(h ->
                 h.createUpdate("UPDATE actresses SET stage_name = :stageName WHERE id = :id")
-                        .bind("stageName", stageName)
+                        .bind("stageName", StageNameNormalizer.normalize(stageName))
                         .bind("id", actressId)
                         .execute()
         );
