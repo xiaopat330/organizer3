@@ -269,6 +269,7 @@ async function confirmAndStartCoherentSync() {
       runId,
       label: 'Coherent sync (all volumes)',
     });
+    subscribeToRunEnd(runId);
   } catch (err) {
     alert('Failed to start coherent sync: ' + err.message);
   }
@@ -325,7 +326,41 @@ async function handleVolAction(action, volumeId) {
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const { runId } = await res.json();
     taskCenter.start({ taskId: 'volume.sync', runId, label: `Syncing Volume ${volumeId.toUpperCase()}` });
+    subscribeToRunEnd(runId);
   } catch (err) {
     alert('Sync failed: ' + err.message);
+  }
+}
+
+// Subscribe to a run's SSE stream just long enough to catch task.ended,
+// then close. Without this, taskCenter.start() leaves the pill stuck in
+// "running" forever because nobody calls taskCenter.finish() on this page.
+// (utilities-volumes.js has its own EventSource for the run view; this
+// module previously assumed that one would catch ended events for any
+// page, which it doesn't.) After the task ends, refresh the local data
+// so signal counts and last-coherent-run age update immediately.
+function subscribeToRunEnd(runId) {
+  const es = new EventSource(`/api/utilities/runs/${encodeURIComponent(runId)}/events`);
+  es.addEventListener('task.ended', e => {
+    let ev = {};
+    try { ev = JSON.parse(e.data); } catch { /* ignore */ }
+    taskCenter.finish({ status: ev.status, summary: ev.summary });
+    es.close();
+    // Refresh page state — counts may have changed if reconcile auto-ran
+    // at the end of a coherent sync.
+    refreshAfterRun();
+  });
+  es.onerror = () => { es.close(); };
+}
+
+async function refreshAfterRun() {
+  try {
+    await Promise.all([loadVolumes(), loadLatestReconcile(), loadLastCoherentRun()]);
+    renderVolumeActions();
+    renderReconcile();
+    renderCoherentSyncAge();
+    renderReportsTable();
+  } catch (e) {
+    console.error('sync-health: refresh after run failed', e);
   }
 }
