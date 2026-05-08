@@ -145,6 +145,23 @@ This proposal enumerates eight hardening options observed during that triage, pr
 
 ---
 
+### Option 10: Cast-derived stage_name suggestions in the Edit modal
+**What:** When the Edit modal (Option #9) opens for an actress with `stage_name = null` (or even when the user wants to override an existing one), aggregate cast_json `name` hits across the actress's enriched titles, rank by frequency, and present the top few as one-click candidates. User clicks a candidate → input is filled → Save.
+
+**Why:** Surfaced during the Shion Yumi investigation (id 543). She is a Bucket-3 pattern actress: 74 titles, no staging row, no `stage_name`, can't be unblocked via the AI lookup alone (Claude would need to guess `夕美しおん` from "Shion Yumi" — surname/given inverted, hiragana surname). But her enriched titles' cast_json contains slug `wBND` / name `夕美しおん` 7 times — clear corroboration. Today the user has to either know the kanji themselves or query the DB to find it. A one-click suggestion bypasses that.
+
+This is the missing piece that converts "manual escape hatch" (Option #9 alone) into "guided manual override" — much higher chance of resolving Bucket-3 actresses without external research.
+
+**Cost:** ~45 min. Backend: a small endpoint `GET /api/actresses/{id}/stage-name-candidates` returns `[{name, slug, hits}]` from cast_json aggregation (same SQL we used during triage). Frontend: extend the Edit modal to fetch + render candidates as clickable chips above the input; clicking a chip pre-fills the input.
+
+**Risk:** Very low. Read-only suggestion; user still confirms via Save (which goes through the existing manual-edit endpoint with normalization).
+
+**Impact:** Closes the "user knows it should work but can't easily get the right kanji" gap. Directly serves Bucket 3 actresses where cast_json has corroborating data (likely 3-4 of the 6: Shion Yumi-style, where her slug appears in compilation cast lists).
+
+**Recommendation: SHIP.** Tight scope, real win, complementary to #9.
+
+---
+
 ### Option 8: Watchlist for low-enrichment-ratio actresses
 **What:** Health metric: actresses with ≥50 titles and <5% enrichment ratio. Surface in dashboard. Drill-down shows their enriched + unenriched titles.
 
@@ -188,6 +205,8 @@ Ship **Options 9, 1, 3, 4, 2, 7** as a single hardening release:
 - **Tighten `stage_name` and `alternate_names_json` predicates in `MISMATCH_WHERE`** to use `json_each` + exact `json_extract($.name)` comparison. Both currently use `REPLACE(cast_json,' ') LIKE '%name%'` substring matching against the raw JSON blob — same brittleness class that motivated the alias predicate tightening (commit `33b1bd6`). For short stage_names or alternate names, this can spuriously suppress real mismatches. Affects the same three callers: `FindEnrichmentCastMismatchesTool`, `EnrichmentProvenanceBackfillTask`, `EnrichmentClearMismatchedTask`. Estimated effort: 30–45 min.
 
 - **UI button for `javdb.autopromote_rule3_sweep`** (Option #4). Task is registered in `TaskRegistry` and runnable via `start_task` MCP / `POST /api/utilities/tasks/.../run`, but no Utilities sub-page card exists yet — each task in this codebase is hand-wired into a specific UI page. Most natural home: `utilities-library-health.js` (already imports `task-center`, hosts diagnostic-style buttons). Estimated effort: 20 min.
+
+- **Solo-title enrichment fallback when `no_match_in_filmography`** (Shion Yumi class deadlock). When `fetch_title` for a solo title fails because no staged actress has that code in her filmography, fall back to resolving the title directly by code on javdb (skip the filmography path). Breaks the Bucket-3 catch-22: an actress with no staging row → her solo titles can't be enriched → cast_json never surfaces her slug → staging never gets created. Direct-by-code enrichment lets cast_json populate naturally, which then enables Options #9/#10/backfill to complete the loop. **Should be its own extension proposal** — bigger blast radius (touches the enrichment resolver pipeline, not just hardening surfaces) and warrants its own scoping doc. File as `spec/PROPOSAL_ACTRESS_PROFILE_HARDENING_PHASE2.md` or similar when picked up.
 
 ## Out of scope / explicit non-goals
 
