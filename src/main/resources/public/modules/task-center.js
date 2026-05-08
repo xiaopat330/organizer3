@@ -105,3 +105,4 @@ export function getActive() { return active; }
 export function isRunning() { return active != null && active.status === 'running'; }
 export function subscribe(listener) { listeners.add(listener); return () => listeners.delete(listener); }
 export function onOpenRequested(cb) { openHandler = cb; }
+export function updateLabel(label) { if (!active) return; active.label = label; renderPill(); }
