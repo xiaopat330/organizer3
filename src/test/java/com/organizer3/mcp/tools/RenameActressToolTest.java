@@ -7,8 +7,6 @@ import com.organizer3.curation.CurationLog;
 import com.organizer3.db.SchemaInitializer;
 import com.organizer3.model.Actress;
 import com.organizer3.model.ActressAlias;
-import com.organizer3.model.TitleLocation;
-import com.organizer3.model.Title;
 import com.organizer3.repository.jdbi.JdbiActressRepository;
 import com.organizer3.repository.jdbi.JdbiTitleLocationRepository;
 import com.organizer3.repository.jdbi.JdbiTitleRepository;
@@ -39,7 +37,6 @@ class RenameActressToolTest {
     private Connection connection;
     private Jdbi jdbi;
     private JdbiActressRepository actressRepo;
-    private JdbiTitleRepository titleRepo;
     private JdbiTitleLocationRepository locationRepo;
     private SessionContext session;
     private ActressMergeService mergeService;
@@ -54,7 +51,6 @@ class RenameActressToolTest {
 
         actressRepo = new JdbiActressRepository(jdbi);
         locationRepo = new JdbiTitleLocationRepository(jdbi);
-        titleRepo = new JdbiTitleRepository(jdbi, locationRepo);
         session = mock(SessionContext.class);
         when(session.getMountedVolumeId()).thenReturn(null);
         when(session.getActiveConnection()).thenReturn(null);
@@ -125,8 +121,8 @@ class RenameActressToolTest {
 
     @Test
     void rejectsNameTakenByAnotherActress() {
-        long id  = actressRepo.save(mk("Actress A")).getId();
-        long id2 = actressRepo.save(mk("Actress B")).getId();
+        long id = actressRepo.save(mk("Actress A")).getId();
+        actressRepo.save(mk("Actress B"));
         assertThrows(IllegalArgumentException.class,
                 () -> tool.call(args(id, "Actress B", false, false)));
     }
