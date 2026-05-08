@@ -106,10 +106,12 @@ public final class BasenameParser {
             head = head.stripTrailing();
         }
 
-        // Find last " - " to split cast from description
+        // Find the first " - " (space-hyphen-space) to split cast from description.
+        // Using the first occurrence ensures description can contain " - " without
+        // contaminating the cast list (e.g. "Cast - Description - more (CODE)").
         String castPart;
         String description = null;
-        int sepIdx = head.lastIndexOf(" - ");
+        int sepIdx = head.indexOf(" - ");
         if (sepIdx >= 0) {
             castPart    = head.substring(0, sepIdx);
             description = head.substring(sepIdx + 3); // skip " - "
