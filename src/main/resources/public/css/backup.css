@@ -1026,7 +1026,7 @@
 
 /* Coherent sync CTA */
 .sh-coherent-btn {
-  display: flex;
+  display: inline-flex;
   align-items: center;
   gap: 8px;
   background: #1e3a8a;
