@@ -322,6 +322,11 @@ public final class EnrichmentClearMismatchedTask implements Task {
                             LIKE '%' || REPLACE(json_extract(alt.value, '$.name'), ' ', '') || '%'
                     )
                   )
+                  AND NOT EXISTS (
+                    SELECT 1 FROM actress_aliases aa
+                    WHERE aa.actress_id = a.id
+                      AND REPLACE(e.cast_json, ' ', '') LIKE '%' || REPLACE(aa.alias_name, ' ', '') || '%'
+                  )
                 """)
                 .map((rs, ctx) -> new HeuristicTarget(
                         rs.getLong("title_id"), rs.getString("code"), rs.getLong("actress_id")))

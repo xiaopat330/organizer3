@@ -137,6 +137,65 @@ class FindEnrichmentCastMismatchesToolTest {
         assertEquals(2, r.sample().size(), "sample respects the limit");
     }
 
+    // ── alias-aware detection tests ──────────────────────────────────────────
+
+    @Test
+    void aliasMatchResolvesWhatWouldOtherwiseBeMismatch() throws Exception {
+        // Actress 107 "Aika": stage_name=AIKA, alias=愛佳; cast credits her as 愛佳.
+        long aika = seedActress("Aika", "AIKA", null, false);
+        seedAlias(aika, "愛佳");
+        long titleId = seedEnrichedTitle("ABP-107", "slugAika",
+                "[{\"slug\":\"x\",\"name\":\"愛佳\",\"gender\":\"F\"}]",
+                "Aika title under alias");
+        linkActress(titleId, aika);
+
+        var r = (FindEnrichmentCastMismatchesTool.Result) tool.call(args(100));
+        assertEquals(0L, r.total(), "alias match must not be flagged as a mismatch");
+    }
+
+    @Test
+    void noAliasAndNoStageNameMatchIsFlagged() throws Exception {
+        // Control: actress with no alias, cast contains entirely different person.
+        long actress = seedActress("Rima Arai", "新井リマ", null, false);
+        long titleId = seedEnrichedTitle("STAR-999", "wrongSlug",
+                "[{\"slug\":\"x\",\"name\":\"永野いち夏\",\"gender\":\"F\"}]",
+                "Wrong actress title");
+        linkActress(titleId, actress);
+
+        var r = (FindEnrichmentCastMismatchesTool.Result) tool.call(args(100));
+        assertEquals(1L, r.total(), "genuine mismatch with no alias must still be flagged");
+    }
+
+    @Test
+    void stageNameMatchAlonePassesRegardlessOfAlias() throws Exception {
+        // Actress has an alias, but cast already matches stage_name directly.
+        long actress = seedActress("Nana Ogura", "小倉奈々", null, false);
+        seedAlias(actress, "小倉那奈");
+        long titleId = seedEnrichedTitle("IPX-200", "slugNana",
+                "[{\"slug\":\"y\",\"name\":\"小倉奈々\",\"gender\":\"F\"}]",
+                "Nana title via stage_name");
+        linkActress(titleId, actress);
+
+        var r = (FindEnrichmentCastMismatchesTool.Result) tool.call(args(100));
+        assertEquals(0L, r.total(), "stage_name match must pass even when actress has aliases");
+    }
+
+    @Test
+    void multipleAliasesOneMatchesIsNotFlagged() throws Exception {
+        // Actress has several aliases; only the second matches the cast entry.
+        long actress = seedActress("Sora Aoi", "蒼井そら", null, false);
+        seedAlias(actress, "蒼井空");
+        seedAlias(actress, "Sora Aoi Alias");
+        seedAlias(actress, "そら");
+        long titleId = seedEnrichedTitle("SOD-300", "slugSora",
+                "[{\"slug\":\"z\",\"name\":\"蒼井空\",\"gender\":\"F\"}]",
+                "Sora title under second alias");
+        linkActress(titleId, actress);
+
+        var r = (FindEnrichmentCastMismatchesTool.Result) tool.call(args(100));
+        assertEquals(0L, r.total(), "one alias matching among several must clear the mismatch");
+    }
+
     // ── helpers ─────────────────────────────────────────────────────────────
 
     private long seedActress(String canonical, String stageName, String alternateNamesJson, boolean sentinel) {
@@ -164,6 +223,12 @@ class FindEnrichmentCastMismatchesToolTest {
                 .bind(0, titleId).bind(1, slug).bind(2, castJson).bind(3, titleOriginal)
                 .execute());
         return titleId;
+    }
+
+    private void seedAlias(long actressId, String aliasName) {
+        jdbi.useHandle(h -> h.createUpdate(
+                "INSERT INTO actress_aliases (actress_id, alias_name) VALUES (?, ?)")
+                .bind(0, actressId).bind(1, aliasName).execute());
     }
 
     private void linkActress(long titleId, long actressId) {

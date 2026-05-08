@@ -78,6 +78,11 @@ public class EnrichmentProvenanceBackfillTask {
                                         LIKE '%' || REPLACE(json_extract(alt.value, '$.name'), ' ', '') || '%'
                                 )
                               )
+                              AND NOT EXISTS (
+                                SELECT 1 FROM actress_aliases aa
+                                WHERE aa.actress_id = a.id
+                                  AND REPLACE(e.cast_json, ' ', '') LIKE '%' || REPLACE(aa.alias_name, ' ', '') || '%'
+                              )
                           )
                         """).execute());
 
