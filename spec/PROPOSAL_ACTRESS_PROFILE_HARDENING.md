@@ -187,6 +187,8 @@ Ship **Options 9, 1, 3, 4, 2, 7** as a single hardening release:
 
 - **Tighten `stage_name` and `alternate_names_json` predicates in `MISMATCH_WHERE`** to use `json_each` + exact `json_extract($.name)` comparison. Both currently use `REPLACE(cast_json,' ') LIKE '%name%'` substring matching against the raw JSON blob — same brittleness class that motivated the alias predicate tightening (commit `33b1bd6`). For short stage_names or alternate names, this can spuriously suppress real mismatches. Affects the same three callers: `FindEnrichmentCastMismatchesTool`, `EnrichmentProvenanceBackfillTask`, `EnrichmentClearMismatchedTask`. Estimated effort: 30–45 min.
 
+- **UI button for `javdb.autopromote_rule3_sweep`** (Option #4). Task is registered in `TaskRegistry` and runnable via `start_task` MCP / `POST /api/utilities/tasks/.../run`, but no Utilities sub-page card exists yet — each task in this codebase is hand-wired into a specific UI page. Most natural home: `utilities-library-health.js` (already imports `task-center`, hosts diagnostic-style buttons). Estimated effort: 20 min.
+
 ## Out of scope / explicit non-goals
 
 - Redesigning the enrichment queue, slug discovery algorithm, or staging schema.
