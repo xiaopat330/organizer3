@@ -52,7 +52,10 @@ public class EnrichmentRunner {
      * Currently only {@code enrichment.bulk_enrich_to_draft}.
      */
     private static final Set<String> PAUSE_ISSUING_TASKS = Set.of(
-            "enrichment.bulk_enrich_to_draft"
+            "enrichment.bulk_enrich_to_draft",
+            "volume.sync",                       // single-volume sync
+            "volume.sync_coherent",              // coherent multi-volume sync
+            "volume.clean_stale_locations"       // stale-row cleaner; writes heavily
     );
 
     private final JavdbConfig config;
