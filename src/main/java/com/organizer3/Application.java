@@ -1092,7 +1092,7 @@ public class Application {
                     .register(new com.organizer3.mcp.tools.LookupTitleTool(
                             titleRepo, titleActressRepo, actressRepo, videoRepo))
                     .register(new com.organizer3.mcp.tools.ListTitlesForActressTool(actressRepo, titleRepo))
-                    .register(new com.organizer3.mcp.tools.FindSimilarActressesTool(actressRepo))
+                    .register(new com.organizer3.mcp.tools.FindSimilarActressesTool(actressRepo, jdbi))
                     .register(new com.organizer3.mcp.tools.FindNameOrderVariantsTool(actressRepo))
                     .register(new com.organizer3.mcp.tools.FindSuspectCreditsTool(jdbi))
                     .register(new com.organizer3.mcp.tools.FindAliasConflictsTool(actressRepo))
