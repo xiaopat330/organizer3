@@ -1118,6 +1118,8 @@ public class Application {
                     .register(new com.organizer3.mcp.tools.FindMultiCoverTitlesTool(session, jdbi))
                     .register(new com.organizer3.mcp.tools.FindMisfiledCoversTool(session, jdbi))
                     .register(new com.organizer3.mcp.tools.ScanTitleFolderAnomaliesTool(session, titleRepo, titleLocationRepo))
+                    .register(new com.organizer3.mcp.tools.VerifyTitleFolderStateTool(session, titleRepo, titleLocationRepo, actressRepo, jdbi))
+                    .register(new com.organizer3.mcp.tools.VerifyActressFolderStateTool(session, actressRepo, titleLocationRepo, jdbi))
                     .register(new com.organizer3.mcp.tools.MountStatusTool(session))
                     .register(new com.organizer3.mcp.tools.ProbeVideosBatchTool(session, videoRepo, videoProbe::probe))
                     .register(new com.organizer3.mcp.tools.ProbeSizeVariantsBatchTool(videoRepo, videoProbe::probe))
