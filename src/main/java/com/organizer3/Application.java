@@ -976,7 +976,7 @@ public class Application {
         com.organizer3.mcp.tools.ConfirmOrphanDeleteTool confirmOrphanDeleteTool =
                 new com.organizer3.mcp.tools.ConfirmOrphanDeleteTool(titleRepo, enrichmentReviewQueueRepo);
         com.organizer3.mcp.tools.RenameActressTool renameActressTool =
-                new com.organizer3.mcp.tools.RenameActressTool(jdbi, session, actressRepo, actressMergeService);
+                new com.organizer3.mcp.tools.RenameActressTool(jdbi, session, actressRepo, actressMergeService, curationLog);
         com.organizer3.mcp.tools.RecodeTitleTool recodeTitleTool =
                 new com.organizer3.mcp.tools.RecodeTitleTool(jdbi, session, titleRepo, titleLocationRepo,
                         enrichmentHistoryRepo, new com.organizer3.sync.TitleCodeParser());
@@ -1149,7 +1149,7 @@ public class Application {
                 mcpTools.register(new com.organizer3.mcp.tools.EvictFilmographyTool(slugResolver));
                 mcpTools.register(new com.organizer3.mcp.tools.ImportFilmographyBackupTool(filmographyBackupWriter, filmographyRepo, slugResolver));
                 mcpTools.register(new com.organizer3.mcp.tools.SetActressAliasesTool(actressRepo));
-                mcpTools.register(new com.organizer3.mcp.tools.MergeActressesTool(jdbi, actressRepo));
+                mcpTools.register(new com.organizer3.mcp.tools.MergeActressesTool(jdbi, actressRepo, curationLog));
                 mcpTools.register(new com.organizer3.mcp.tools.DeleteTitleTool(jdbi, titleRepo, enrichmentHistoryRepo));
                 mcpTools.register(new com.organizer3.mcp.tools.RevalidateEnrichmentTool(revalidationService, revalidationPendingRepo));
                 mcpTools.register(new com.organizer3.mcp.tools.SetDuplicateDecisionTool(dupDecisionRepo));
@@ -1186,8 +1186,8 @@ public class Application {
                 mcpTools.register(new com.organizer3.mcp.tools.ClassifyActressTool(session, jdbi, config, actressClassifierService));
                 mcpTools.register(new com.organizer3.mcp.tools.OrganizeVolumeTool(session, jdbi, config, organizeVolumeService));
                 mcpTools.register(new com.organizer3.mcp.tools.PrepFreshVideosTool(session, config, freshPrepService));
-                mcpTools.register(new com.organizer3.mcp.tools.RenameActressFoldersTool(session, actressRepo, actressMergeService));
-                mcpTools.register(new com.organizer3.mcp.tools.MoveActressFolderToAttentionTool(session, actressRepo, actressMergeService, java.time.Clock.systemUTC()));
+                mcpTools.register(new com.organizer3.mcp.tools.RenameActressFoldersTool(session, actressRepo, actressMergeService, curationLog));
+                mcpTools.register(new com.organizer3.mcp.tools.MoveActressFolderToAttentionTool(session, actressRepo, actressMergeService, java.time.Clock.systemUTC(), curationLog));
                 mcpTools.register(new com.organizer3.mcp.tools.ExecuteDuplicateTrashTool(taskRunner));
                 mcpTools.register(new com.organizer3.mcp.tools.RestoreTrashedTool(taskRunner));
                 mcpTools.register(new com.organizer3.mcp.tools.WriteTextFileTool(session, curationLog));

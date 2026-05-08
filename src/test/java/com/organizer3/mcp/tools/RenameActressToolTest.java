@@ -3,6 +3,7 @@ package com.organizer3.mcp.tools;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.organizer3.command.ActressMergeService;
+import com.organizer3.curation.CurationLog;
 import com.organizer3.db.SchemaInitializer;
 import com.organizer3.model.Actress;
 import com.organizer3.model.ActressAlias;
@@ -16,6 +17,7 @@ import org.jdbi.v3.core.Jdbi;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 import java.nio.file.Path;
 import java.sql.Connection;
@@ -28,6 +30,9 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 class RenameActressToolTest {
+
+    @TempDir
+    Path logDir;
 
     private static final ObjectMapper M = new ObjectMapper();
 
@@ -54,7 +59,7 @@ class RenameActressToolTest {
         when(session.getMountedVolumeId()).thenReturn(null);
         when(session.getActiveConnection()).thenReturn(null);
         mergeService = new ActressMergeService(jdbi, locationRepo, actressRepo);
-        tool = new RenameActressTool(jdbi, session, actressRepo, mergeService);
+        tool = new RenameActressTool(jdbi, session, actressRepo, mergeService, new CurationLog(logDir));
     }
 
     @AfterEach

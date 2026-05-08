@@ -4,6 +4,8 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.organizer3.command.ActressMergeService;
 import com.organizer3.command.ActressMergeService.ActressFolderEntry;
 import com.organizer3.command.ActressMergeService.ActressFolderPlan;
+import com.organizer3.curation.CurationLog;
+import com.organizer3.curation.CurationLogRecord;
 import com.organizer3.filesystem.VolumeFileSystem;
 import com.organizer3.mcp.Schemas;
 import com.organizer3.mcp.Tool;
@@ -17,6 +19,7 @@ import lombok.extern.slf4j.Slf4j;
 
 import java.io.IOException;
 import java.time.Clock;
+import java.time.Instant;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -41,13 +44,16 @@ public class MoveActressFolderToAttentionTool implements Tool {
     private final ActressRepository actressRepo;
     private final ActressMergeService mergeService;
     private final Clock clock;
+    private final CurationLog curationLog;
 
     public MoveActressFolderToAttentionTool(SessionContext session, ActressRepository actressRepo,
-                                             ActressMergeService mergeService, Clock clock) {
+                                             ActressMergeService mergeService, Clock clock,
+                                             CurationLog curationLog) {
         this.session = session;
         this.actressRepo = actressRepo;
         this.mergeService = mergeService;
         this.clock = clock != null ? clock : Clock.systemUTC();
+        this.curationLog = curationLog;
     }
 
     @Override public String name() { return "move_actress_folder_to_attention"; }
@@ -91,7 +97,11 @@ public class MoveActressFolderToAttentionTool implements Tool {
 
         ActressFolderPlan plan = mergeService.planActressFolderMoveFor(actress, mountedVolumeId);
 
+        Map<String, Object> curationInputs = Map.of(
+                "actressId", actress.getId(), "canonical", actress.getCanonicalName(), "dryRun", dryRun);
+
         if (plan.entries().isEmpty()) {
+            emitLog(mountedVolumeId, curationInputs, 0, "nothing-to-do", List.of());
             return new Result(actress.getId(), actress.getCanonicalName(), dryRun,
                     mountedVolumeId, List.of(), List.of(), "nothing-to-do");
         }
@@ -104,6 +114,7 @@ public class MoveActressFolderToAttentionTool implements Tool {
                             e.locations().stream().map(l -> l.newPath().toString()).toList()))
                     .toList();
             String status = (fs == null && !dryRun) ? "no-volume-mounted" : "dry-run";
+            emitLog(mountedVolumeId, curationInputs, planned.size(), status, List.of());
             return new Result(actress.getId(), actress.getCanonicalName(), true,
                     mountedVolumeId, planned, List.of(), status);
         }
@@ -147,8 +158,19 @@ public class MoveActressFolderToAttentionTool implements Tool {
         }
 
         String status = errors.isEmpty() ? "moved" : (moved.isEmpty() ? "failed" : "partial");
+        emitLog(mountedVolumeId, curationInputs, moved.size(), status, errors);
         return new Result(actress.getId(), actress.getCanonicalName(), false,
                 mountedVolumeId, moved, errors, status);
+    }
+
+    private void emitLog(String volumeId, Map<String, Object> inputs, int foldersAffected,
+                          String status, List<String> errors) {
+        CurationLogRecord rec = new CurationLogRecord(
+                Instant.now(), name(), "mcp", "mcp-" + Thread.currentThread().getName(),
+                inputs, null, null,
+                Map.of("foldersAffected", foldersAffected),
+                status, List.copyOf(errors));
+        curationLog.append(volumeId != null ? volumeId : "unknown", rec);
     }
 
     private static String buildSidecarBody(String canonicalName, String oldName,
