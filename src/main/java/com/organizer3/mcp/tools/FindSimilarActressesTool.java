@@ -34,10 +34,6 @@ public class FindSimilarActressesTool implements Tool {
     private final ActressRepository actressRepo;
     private final Jdbi jdbi;
 
-    public FindSimilarActressesTool(ActressRepository actressRepo) {
-        this(actressRepo, null);
-    }
-
     public FindSimilarActressesTool(ActressRepository actressRepo, Jdbi jdbi) {
         this.actressRepo = actressRepo;
         this.jdbi = jdbi;
