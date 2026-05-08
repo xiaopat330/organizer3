@@ -1,4 +1,4 @@
-# Proposal: SQLite busy_timeout + WAL mode (DB lock contention)
+# Proposal: SQLite busy_timeout + WAL mode + auto-pause background writers
 
 **Status:** Draft 2026-05-07 — for discussion, no implementation yet.
 **Origin:** First long-running coherent sync (2026-05-07 22:30, 50-min run) hit `SQLiteException: [SQLITE_BUSY] database is locked` mid-run. vol.qnap completed its scan successfully but failed during the post-scan save loop on `INSERT INTO videos`. The next 5 volumes (`qnap_archive`, `classic`, `pool`, `classic_pool`, `collections`) failed in quick succession on `DELETE FROM videos` — a cascading lock-contention failure. End result: 11/17 volumes synced successfully, 6 marked failed, partial-failure handling correctly skipped the global prune.
@@ -97,24 +97,92 @@ Switching to WAL on an existing DB:
 
 Check `UserDataBackup` / `UserDataBackupService` to confirm they capture the entire DB directory, not just the `.db` file. If they hardcode `organizer.db` only, extend to also copy `.db-wal` and `.db-shm` when present (with a `PRAGMA wal_checkpoint(FULL)` first to flush WAL into the main DB before snapshot).
 
-### 3.4 Test plan
+### 3.4 Auto-pause background writers during sync
+
+`busy_timeout` makes contention non-fatal — but contention still slows sync down. With bg writers competing for locks throughout a 50-min coherent run, every sync write may wait several seconds for the lock holder to release. Multiplied across thousands of writes, sync runtime balloons even though no writes fail.
+
+The fix: pause background writers (translation sweeper, javdb enrichment runner) while a sync task is active. They auto-resume when the sync ends. Web-request writes (favorites, manual edits) are NOT paused — they're short and infrequent, and the user expects them to be responsive.
+
+#### Existing infrastructure
+
+`EnrichmentRunner` (`src/main/java/com/organizer3/javdb/enrichment/EnrichmentRunner.java`) already has the mechanism via `PAUSE_ISSUING_TASKS`:
+
+```java
+private static final Set<String> PAUSE_ISSUING_TASKS = Set.of(
+    "enrichment.bulk_enrich_to_draft"
+);
+```
+
+The runner's loop checks `taskRunner.currentlyRunning()` against this set every 1 sec; if a matching task is active, `isPaused()` returns true and the runner sleeps without dequeuing. Self-healing on resume.
+
+#### Changes needed
+
+1. **`EnrichmentRunner.PAUSE_ISSUING_TASKS`** — add the sync task IDs:
+   ```java
+   private static final Set<String> PAUSE_ISSUING_TASKS = Set.of(
+       "enrichment.bulk_enrich_to_draft",
+       "volume.sync",                       // single-volume sync
+       "volume.sync_coherent",              // coherent multi-volume sync
+       "volume.clean_stale_locations"       // legacy stale-row cleaner; also writes heavily
+   );
+   ```
+
+2. **`TitleTranslationSweeper`** — currently has no pause awareness; runs unconditionally on its scheduled tick. Add a TaskRunner check at the top of `run()`:
+   ```java
+   public void run() {
+       if (!enabled) return;
+       if (taskRunner != null && isSyncActive(taskRunner)) {
+           log.debug("TitleTranslationSweeper: sync task active, skipping tick");
+           return;
+       }
+       sweepOnce(batchSize);
+   }
+   ```
+   Inject `TaskRunner` via setter (mirroring `EnrichmentRunner.setTaskRunner`) — null-safe, no-op when not yet wired during boot.
+
+3. **Optional — central `BackgroundWriterCoordinator`.** If more bg writers appear later, factor the "is sync active?" predicate into a tiny helper rather than duplicating the check. For v1, two-call-site duplication is fine.
+
+#### What stays NOT paused
+
+- **Web-request writes** — favorites toggle, manual title edit, custom avatar upload, etc. Short transactions; user-initiated; expected to be responsive. Rely on `busy_timeout` to absorb the rare collision.
+- **Manual enrichment kicked off via web** (single-title "Enrich now" button) — user-initiated; runs once and ends. Same rationale.
+- **Reconcile auto-run at end of coherent sync** — runs after the volumes are scanned, after the global prune; the coherent task is still active so `currentlyRunning()` still returns sync, but the reconcile is a read-mostly pass. No conflict.
+
+#### Why it's complementary to busy_timeout
+
+- **busy_timeout** prevents catastrophic failure when contention does happen (mid-sync user click, race between two short writes, etc.).
+- **auto-pause** *minimizes* contention during long-running operations so sync runs at full speed.
+
+Both are needed:
+- busy_timeout alone → no failures, but sync runs slowly waiting on bg writer locks.
+- auto-pause alone → fast sync, but unrelated short writes (web requests) still occasionally fail.
+- Both → fast sync, no failures.
+
+### 3.5 Test plan
 
 1. **Connection config test.** New connection has `busy_timeout > 0`. Smoke check via `PRAGMA busy_timeout` query.
 2. **Concurrent-writer regression test.** Two threads, both trying to UPDATE the same row in a tight loop for 5 sec. Without busy_timeout, one fails ~instantly. With it, both succeed (one gets serialized).
 3. **WAL mode active test.** After connection setup, `PRAGMA journal_mode` returns `wal`.
 4. **Backup includes WAL files.** Trigger a backup, assert the snapshot includes `.db-wal`/`.db-shm` if present, OR contains a fully-checkpointed DB.
 5. **Sync pipeline regression.** Run a single-volume sync test with a concurrent writer thread holding a brief lock on `videos` — sync should succeed (contention absorbed by busy_timeout).
+6. **Auto-pause: EnrichmentRunner.** Start a fake `volume.sync` run via TaskRunner; assert `enrichmentRunner.isPaused() == true`. End the task; assert `isPaused()` returns to false within one tick.
+7. **Auto-pause: TitleTranslationSweeper.** Same setup; `sweeper.run()` skips with a debug log; resumes after task ends.
+8. **Web-request writes still flow during sync.** With a fake sync task active, a manual UPDATE through a web route succeeds (busy_timeout absorbs any brief contention). Confirms we didn't accidentally global-pause everything.
 
 ---
 
 ## 4. Phasing
 
-Single PR, ~1–2 hours.
+Single PR, ~2–3 hours.
 
-1. Add `SQLiteConfig`/`SQLiteDataSource` setup in `Application.java`.
-2. Verify backup includes WAL files (or checkpoint before snapshot).
-3. Add tests (5 cases above).
-4. Update `spec/IMPLEMENTATION_NOTES.md` with the new SQLite config notes.
+1. Add `SQLiteConfig`/`SQLiteDataSource` setup in `Application.java` (§3.1).
+2. Verify backup includes WAL files (or checkpoint before snapshot) (§3.3).
+3. Extend `EnrichmentRunner.PAUSE_ISSUING_TASKS` with sync task IDs (§3.4).
+4. Add `setTaskRunner` + sync-active check to `TitleTranslationSweeper` (§3.4).
+5. Add tests (8 cases in §3.5).
+6. Update `spec/IMPLEMENTATION_NOTES.md` with the new SQLite config + auto-pause behavior.
+
+§3.1–3.3 (timeouts + WAL) and §3.4 (auto-pause) can be split into two PRs if preferred — they're independent and either ships value alone. §3.4 alone reduces contention but doesn't fix the failure-on-collision case; §3.1–3.3 alone fixes failure but leaves sync slower than necessary. Together they're complete.
 
 ---
 
@@ -124,6 +192,9 @@ Single PR, ~1–2 hours.
 2. **Should the catastrophic-delete guard's threshold need adjusting?** With WAL, more concurrent activity is possible — e.g., reconcile sweep running while a sync is in progress. The guard's `max(50, 10%)` threshold is computed per-call; if state changes between calls, the threshold shifts. Probably fine but worth a thought.
 3. **Should we also tune `cache_size` and `mmap_size`?** Larger cache improves read perf at the cost of memory. Out of scope here; revisit if perf becomes a concern.
 4. **Single-instance lock.** WAL mode allows multiple processes to read/write concurrently. The app is single-instance by design; nothing changes here. But if the user ever runs two organizer3 processes simultaneously (e.g., dev + prod against the same DB), WAL won't prevent corruption — the DB is single-writer at the SQL level even with WAL. Not a new concern; just noting.
+5. **Auto-pause coverage — which tasks belong in `PAUSE_ISSUING_TASKS`?** Current proposed set: `volume.sync`, `volume.sync_coherent`, `volume.clean_stale_locations`. Should organize-pipeline tasks (`utility.organize_*`) also be included? They write but typically run for shorter durations. Easy to add later if needed; start conservative.
+6. **Manual enrichment via web — pause or not?** Single-title "Enrich now" buttons run a brief, user-initiated enrichment. Currently NOT paused. If the user clicks during a sync, it competes with sync writes. Probably fine (busy_timeout absorbs), but worth measuring; if it becomes a real issue, gate the manual-enrich web route on the same predicate.
+7. **Reverse direction: should sync pause if enrichment is mid-flight?** The pause is one-directional today (enrichment yields to sync). Should a sync starting while enrichment is processing wait for enrichment to finish its current item? Probably no — sync is admin-triggered and should start promptly; the existing item finishes within seconds and busy_timeout handles any race.
 
 ---
 
