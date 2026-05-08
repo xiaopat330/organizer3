@@ -66,7 +66,7 @@ class VerifyActressFolderStateToolTest {
         session.setMountedVolume(new VolumeConfig(VOL, "//host/vol", "conventional", "host", null));
         session.setActiveConnection(new FakeConn(fs));
 
-        tool = new VerifyActressFolderStateTool(session, actressRepo, locationRepo, jdbi);
+        tool = new VerifyActressFolderStateTool(session, actressRepo, jdbi);
     }
 
     @AfterEach
@@ -138,7 +138,7 @@ class VerifyActressFolderStateToolTest {
     @Test
     void foreignActressFolderEmitsBlocker() throws Exception {
         long aid = seedActress("Alice");
-        long foreignId = seedActress("Bob");
+        seedActress("Bob");
         // Title is credited to Alice, but we'll create a situation where title's primary actress is
         // someone other than Alice. We need a title where actress_id != aid but tl is under aid's path.
         // Actually the query uses t.actress_id = actressId for loading — so we need to use a title

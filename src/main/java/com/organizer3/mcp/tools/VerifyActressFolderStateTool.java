@@ -6,9 +6,7 @@ import com.organizer3.mcp.Schemas;
 import com.organizer3.mcp.Tool;
 import com.organizer3.model.Actress;
 import com.organizer3.model.ActressAlias;
-import com.organizer3.model.TitleLocation;
 import com.organizer3.repository.ActressRepository;
-import com.organizer3.repository.TitleLocationRepository;
 import com.organizer3.shell.SessionContext;
 import com.organizer3.smb.VolumeConnection;
 import lombok.extern.slf4j.Slf4j;
@@ -37,17 +35,14 @@ public class VerifyActressFolderStateTool implements Tool {
 
     private final SessionContext session;
     private final ActressRepository actressRepo;
-    private final TitleLocationRepository locationRepo;
     private final Jdbi jdbi;
 
     public VerifyActressFolderStateTool(SessionContext session,
                                          ActressRepository actressRepo,
-                                         TitleLocationRepository locationRepo,
                                          Jdbi jdbi) {
-        this.session      = session;
-        this.actressRepo  = actressRepo;
-        this.locationRepo = locationRepo;
-        this.jdbi         = jdbi;
+        this.session     = session;
+        this.actressRepo = actressRepo;
+        this.jdbi        = jdbi;
     }
 
     @Override public String name() { return "verify_actress_folder_state"; }
