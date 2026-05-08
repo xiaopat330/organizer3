@@ -21,6 +21,7 @@ export const QUEUE_FAIL_META = {
   unknown_job_type:        { label: 'internal error',      icon: '⊘', cls: 'jd-qi-failed-deadend'    },
   fetch_failed:            { label: 'fetch failed',        icon: '↻', cls: 'jd-qi-failed'            },
   no_slug:                 { label: 'no slug',             icon: '↻', cls: 'jd-qi-failed'            },
+  slug_conflict:           { label: 'slug conflict',       icon: '⚠', cls: 'jd-qi-failed-resolvable' },
 };
 
 export function queueFailLabel(lastError) {

@@ -3,6 +3,7 @@ package com.organizer3.mcp.tools;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.organizer3.db.SchemaInitializer;
+import com.organizer3.javdb.enrichment.EnrichmentReviewQueueRepository;
 import org.jdbi.v3.core.Jdbi;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -20,13 +21,15 @@ class BackfillActressSlugsFromCastToolTest {
     private Connection connection;
     private Jdbi jdbi;
     private BackfillActressSlugsFromCastTool tool;
+    private EnrichmentReviewQueueRepository reviewQueueRepo;
 
     @BeforeEach
     void setUp() throws Exception {
         connection = DriverManager.getConnection("jdbc:sqlite::memory:");
         jdbi = Jdbi.create(connection);
         new SchemaInitializer(jdbi).initialize();
-        tool = new BackfillActressSlugsFromCastTool(jdbi);
+        reviewQueueRepo = new EnrichmentReviewQueueRepository(jdbi);
+        tool = new BackfillActressSlugsFromCastTool(jdbi, reviewQueueRepo);
     }
 
     @AfterEach
@@ -43,6 +46,7 @@ class BackfillActressSlugsFromCastToolTest {
 
         assertEquals(1, r.candidates());
         assertEquals(1, r.written());
+        assertEquals(0, r.conflicts());
         assertEquals("Y8Mx", lookupSlug(iori));
     }
 
@@ -132,6 +136,165 @@ class BackfillActressSlugsFromCastToolTest {
         assertEquals(1, r.candidates(), "DISTINCT must collapse to one candidate per actress");
         assertEquals(1, r.written());
         assertEquals("Y8Mx", lookupSlug(iori));
+    }
+
+    // ── Slug conflict tests ──────────────────────────────────────────────────
+
+    @Test
+    void cleanCaseNoConflict_insertsSlugAndNoReviewRow() {
+        long actress = seedActress("Rima Arai", "新井リマ", false);
+        long titleId = seedEnrichedTitle("BLK-566",
+                "[{\"slug\":\"E2vOx\",\"name\":\"新井リマ\"}]");
+        linkActress(titleId, actress);
+
+        var r = (BackfillActressSlugsFromCastTool.Result) tool.call(args(false));
+
+        assertEquals(1, r.written());
+        assertEquals(0, r.conflicts());
+        assertTrue(r.conflictRows().isEmpty());
+        assertEquals("E2vOx", lookupSlug(actress));
+        assertEquals(0, reviewQueueRepo.countOpen("slug_conflict"),
+                "no review row should exist when there is no conflict");
+    }
+
+    @Test
+    void conflictWithSlugBoundToDifferentActress_writesReviewRowAndDoesNotInsert() {
+        // Actress 999 already owns slug "X"
+        long incumbent = seedActress("Himari Kinoshita", "木下ひまり", false);
+        jdbi.useHandle(h -> h.createUpdate("""
+                INSERT INTO javdb_actress_staging (actress_id, javdb_slug, source_title_code, status)
+                VALUES (?, 'X', 'OLD-001', 'slug_only')
+                """).bind(0, incumbent).execute());
+
+        // Actress 1000 (claimant) resolves to the same slug X via cast_json
+        long claimant = seedActress("Rima Arai", "新井リマ", false);
+        long titleId = seedEnrichedTitle("BLK-566",
+                "[{\"slug\":\"X\",\"name\":\"新井リマ\"}]");
+        linkActress(titleId, claimant);
+
+        var r = (BackfillActressSlugsFromCastTool.Result) tool.call(args(false));
+
+        // claimant's staging row must NOT have been inserted
+        assertNull(lookupSlug(claimant), "conflicting slug must not be written for claimant");
+        // incumbent's row must be untouched
+        assertEquals("X", lookupSlug(incumbent), "incumbent slug must be preserved");
+
+        assertEquals(1, r.candidates());
+        assertEquals(0, r.written());
+        assertEquals(1, r.conflicts());
+        assertEquals(1, r.conflictRows().size());
+        assertEquals(claimant, r.conflictRows().get(0).actressId());
+        assertEquals("X", r.conflictRows().get(0).slug());
+        assertEquals(incumbent, r.conflictRows().get(0).incumbentActressId());
+
+        // Exactly one slug_conflict review row
+        assertEquals(1, reviewQueueRepo.countOpen("slug_conflict"));
+
+        // Detail JSON contains both actress IDs
+        var rows = reviewQueueRepo.listOpen("slug_conflict", 10, 0);
+        assertEquals(1, rows.size());
+        var detailStr = rows.get(0).detail();
+        assertNotNull(detailStr, "review row must have detail JSON");
+        assertTrue(detailStr.contains("claimant_actress_id"), "detail must contain claimant_actress_id");
+        assertTrue(detailStr.contains("incumbent_actress_id"), "detail must contain incumbent_actress_id");
+        assertTrue(detailStr.contains("\"slug\":\"X\""), "detail must contain slug");
+        assertTrue(detailStr.contains("BLK-566"), "detail must contain source_title_code");
+    }
+
+    @Test
+    void multipleConflictsInOneBatch_bothSurfaceNeitherAbortsOther() {
+        // Two incumbents each owning a slug
+        long incumbent1 = seedActress("Incumbent One", "先住１", false);
+        jdbi.useHandle(h -> h.createUpdate("""
+                INSERT INTO javdb_actress_staging (actress_id, javdb_slug, source_title_code, status)
+                VALUES (?, 'SLUG_A', 'INC1-001', 'slug_only')
+                """).bind(0, incumbent1).execute());
+
+        long incumbent2 = seedActress("Incumbent Two", "先住２", false);
+        jdbi.useHandle(h -> h.createUpdate("""
+                INSERT INTO javdb_actress_staging (actress_id, javdb_slug, source_title_code, status)
+                VALUES (?, 'SLUG_B', 'INC2-001', 'slug_only')
+                """).bind(0, incumbent2).execute());
+
+        // Two claimants resolving to the two taken slugs
+        long claimant1 = seedActress("Claimant One", "主張者１", false);
+        long t1 = seedEnrichedTitle("TITLE-101",
+                "[{\"slug\":\"SLUG_A\",\"name\":\"主張者１\"}]");
+        linkActress(t1, claimant1);
+
+        long claimant2 = seedActress("Claimant Two", "主張者２", false);
+        long t2 = seedEnrichedTitle("TITLE-102",
+                "[{\"slug\":\"SLUG_B\",\"name\":\"主張者２\"}]");
+        linkActress(t2, claimant2);
+
+        var r = (BackfillActressSlugsFromCastTool.Result) tool.call(args(false));
+
+        assertEquals(2, r.candidates());
+        assertEquals(0, r.written());
+        assertEquals(2, r.conflicts(), "both conflicts must surface");
+        assertEquals(2, r.conflictRows().size());
+        assertNull(lookupSlug(claimant1));
+        assertNull(lookupSlug(claimant2));
+        assertEquals(2, reviewQueueRepo.countOpen("slug_conflict"),
+                "two review rows expected, one per conflict");
+    }
+
+    @Test
+    void idempotency_rerunningBackfillDoesNotDuplicateReviewRow() {
+        long incumbent = seedActress("Himari Kinoshita", "木下ひまり", false);
+        jdbi.useHandle(h -> h.createUpdate("""
+                INSERT INTO javdb_actress_staging (actress_id, javdb_slug, source_title_code, status)
+                VALUES (?, 'DUP_SLUG', 'OLD-001', 'slug_only')
+                """).bind(0, incumbent).execute());
+
+        long claimant = seedActress("Rima Arai", "新井リマ", false);
+        long titleId = seedEnrichedTitle("BLK-566",
+                "[{\"slug\":\"DUP_SLUG\",\"name\":\"新井リマ\"}]");
+        linkActress(titleId, claimant);
+
+        // Run twice
+        tool.call(args(false));
+        tool.call(args(false));
+
+        assertEquals(1, reviewQueueRepo.countOpen("slug_conflict"),
+                "re-running backfill must not produce duplicate review rows");
+    }
+
+    @Test
+    void mixedBatch_cleanInsertsProceedConflictSurfaces() {
+        // Incumbent owns slug "TAKEN"
+        long incumbent = seedActress("Incumbent Actress", "先住女優", false);
+        jdbi.useHandle(h -> h.createUpdate("""
+                INSERT INTO javdb_actress_staging (actress_id, javdb_slug, source_title_code, status)
+                VALUES (?, 'TAKEN', 'INC-001', 'slug_only')
+                """).bind(0, incumbent).execute());
+
+        // Claimant (conflicts)
+        long claimant = seedActress("Rima Arai", "新井リマ", false);
+        long t1 = seedEnrichedTitle("BLK-566",
+                "[{\"slug\":\"TAKEN\",\"name\":\"新井リマ\"}]");
+        linkActress(t1, claimant);
+
+        // Two clean candidates
+        long actress2 = seedActress("Actress Two", "女優２", false);
+        long t2 = seedEnrichedTitle("CLEAN-200",
+                "[{\"slug\":\"CLEAN_A\",\"name\":\"女優２\"}]");
+        linkActress(t2, actress2);
+
+        long actress3 = seedActress("Actress Three", "女優３", false);
+        long t3 = seedEnrichedTitle("CLEAN-300",
+                "[{\"slug\":\"CLEAN_B\",\"name\":\"女優３\"}]");
+        linkActress(t3, actress3);
+
+        var r = (BackfillActressSlugsFromCastTool.Result) tool.call(args(false));
+
+        assertEquals(3, r.candidates());
+        assertEquals(2, r.written(), "two clean candidates must be inserted");
+        assertEquals(1, r.conflicts(), "one conflict must surface");
+        assertNull(lookupSlug(claimant), "conflicting candidate must not be inserted");
+        assertEquals("CLEAN_A", lookupSlug(actress2));
+        assertEquals("CLEAN_B", lookupSlug(actress3));
+        assertEquals(1, reviewQueueRepo.countOpen("slug_conflict"));
     }
 
     // ── helpers ─────────────────────────────────────────────────────────────

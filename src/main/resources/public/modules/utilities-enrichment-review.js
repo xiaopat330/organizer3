@@ -37,7 +37,7 @@ document.addEventListener('keydown', e => {
   if (e.key === 'Escape' && lightbox.style.display !== 'none') closeLightbox();
 });
 
-const ALL_REASONS = ['cast_anomaly', 'ambiguous', 'no_match', 'fetch_failed', 'orphan_enriched', 'recode_candidate', 'actress_rename_candidate'];
+const ALL_REASONS = ['cast_anomaly', 'ambiguous', 'no_match', 'fetch_failed', 'orphan_enriched', 'recode_candidate', 'actress_rename_candidate', 'slug_conflict'];
 
 let state = {
   activeReason: null,   // null = All
@@ -138,6 +138,7 @@ function makeRow(row) {
   const isRecode          = row.reason === 'recode_candidate';
   const isActressRename   = row.reason === 'actress_rename_candidate';
   const isCastAnomaly     = row.reason === 'cast_anomaly';
+  const isSlugConflict    = row.reason === 'slug_conflict';
 
   let detail = null;
   try { detail = row.detail ? JSON.parse(row.detail) : null; } catch {}
@@ -173,6 +174,29 @@ function makeRow(row) {
   } else if (isCastAnomaly) {
     actionsHtml = `
       <button type="button" class="er-action-btn er-cast-anomaly-btn" data-id="${row.id}">Add as alias…</button>
+      <button type="button" class="er-action-btn er-resolve-btn" data-id="${row.id}" data-res="marked_resolved">Mark resolved</button>
+    `;
+  } else if (isSlugConflict) {
+    const slug       = detail ? esc(detail.slug || '') : esc(row.slug || '');
+    const claimant   = row.slugConflictContext ? row.slugConflictContext.claimant  : null;
+    const incumbent  = row.slugConflictContext ? row.slugConflictContext.incumbent : null;
+    const claimantLink  = claimant
+      ? `<a href="/actress/${claimant.id}">${esc(claimant.canonicalName)}</a> <span class="er-actress-id">#${claimant.id}</span>`
+      : detail ? `actress #${detail.claimant_actress_id || '?'}` : '?';
+    const incumbentLink = incumbent
+      ? `<a href="/actress/${incumbent.id}">${esc(incumbent.canonicalName)}</a> <span class="er-actress-id">#${incumbent.id}</span>`
+      : detail ? `actress #${detail.incumbent_actress_id || '?'}` : '?';
+    const sourceCode = detail ? esc(detail.source_title_code || '') : '';
+    detailHtml = `
+      <div class="er-detail-hint er-slug-conflict-detail">
+        <div>Claimant: ${claimantLink}</div>
+        <div>Incumbent (current owner): ${incumbentLink}</div>
+        ${sourceCode ? `<div>Source title: <a href="/title/${sourceCode}">${sourceCode}</a></div>` : ''}
+        <div class="er-slug-conflict-hint">Slug <b>${slug}</b> is already owned by the incumbent.
+          To resolve: review which actress is the real owner, then either rename/merge the wrong record
+          or correct its stage_name + clear staging via the duplicate-triage / merge tools.</div>
+      </div>`;
+    actionsHtml = `
       <button type="button" class="er-action-btn er-resolve-btn" data-id="${row.id}" data-res="marked_resolved">Mark resolved</button>
     `;
   } else {

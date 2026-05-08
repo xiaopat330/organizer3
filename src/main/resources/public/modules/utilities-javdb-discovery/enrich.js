@@ -27,6 +27,7 @@ const ERROR_REASON_LABELS = {
   no_slug:                   'No slug available',
   unknown_job_type:          'Unknown job type',
   title_not_in_db:           'Title not in DB',
+  slug_conflict:             'Slug conflict',
 };
 
 // Mirror of queue.js QUEUE_FAIL_META used by titles-tab status rendering. Kept
@@ -42,6 +43,7 @@ const QUEUE_FAIL_META_INLINE = {
   unknown_job_type:        { label: 'internal error',      icon: '⊘', cls: 'jd-qi-failed-deadend'    },
   fetch_failed:            { label: 'fetch failed',        icon: '↻', cls: 'jd-qi-failed'            },
   no_slug:                 { label: 'no slug',             icon: '↻', cls: 'jd-qi-failed'            },
+  slug_conflict:           { label: 'slug conflict',       icon: '⚠', cls: 'jd-qi-failed-resolvable' },
 };
 
 function errorReasonLabel(raw) {
