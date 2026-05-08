@@ -196,6 +196,36 @@ class FindEnrichmentCastMismatchesToolTest {
         assertEquals(0L, r.total(), "one alias matching among several must clear the mismatch");
     }
 
+    /**
+     * Regression: the old alias predicate used REPLACE(cast_json,' ') LIKE '%alias%', a substring
+     * match on the raw JSON blob.  A 3-char alias like "Rio" would spuriously match "Rio Hamasaki"
+     * in the cast entry's name field — as a substring — so the mismatch would be wrongly suppressed.
+     *
+     * <p>This test verifies that the new exact-match predicate (json_each + json_extract $.name =
+     * alias_name) correctly flags the title, because "Rio" does NOT equal "Rio Hamasaki" exactly.
+     *
+     * <p>Would have PASSED (wrong green) under the substring predicate and FAILS (correctly red)
+     * under it when the fix is reverted, confirming the predicate tightening works.
+     */
+    @Test
+    void shortAliasSubstringDoesNotSuppressMismatch() throws Exception {
+        // Actress "Foo" has alias "Rio" — a short name that appears as a substring inside
+        // "Rio Hamasaki", another cast member's full name in the cast JSON.
+        long actress = seedActress("Foo", "Foo", null, false);
+        seedAlias(actress, "Rio");
+        long titleId = seedEnrichedTitle("SHORT-001", "shortSlug",
+                "[{\"name\":\"Rio Hamasaki\",\"slug\":\"x\"},{\"name\":\"Other\",\"slug\":\"y\"}]",
+                "Title with no exact alias match");
+        linkActress(titleId, actress);
+
+        // "Rio" is a substring of "Rio Hamasaki", so the old LIKE predicate would have
+        // suppressed this row (false negative).  The exact json_extract match must NOT
+        // suppress it — this title IS a genuine mismatch and should be flagged.
+        var r = (FindEnrichmentCastMismatchesTool.Result) tool.call(args(100));
+        assertEquals(1L, r.total(),
+                "short alias 'Rio' must not substring-match 'Rio Hamasaki'; title must still be flagged");
+    }
+
     // ── helpers ─────────────────────────────────────────────────────────────
 
     private long seedActress(String canonical, String stageName, String alternateNamesJson, boolean sentinel) {

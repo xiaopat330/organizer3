@@ -79,9 +79,10 @@ public class EnrichmentProvenanceBackfillTask {
                                 )
                               )
                               AND NOT EXISTS (
-                                SELECT 1 FROM actress_aliases aa
-                                WHERE aa.actress_id = a.id
-                                  AND REPLACE(e.cast_json, ' ', '') LIKE '%' || REPLACE(aa.alias_name, ' ', '') || '%'
+                                SELECT 1
+                                FROM json_each(e.cast_json) je
+                                JOIN actress_aliases aa ON aa.actress_id = a.id
+                                WHERE json_extract(je.value, '$.name') = aa.alias_name
                               )
                           )
                         """).execute());
