@@ -73,6 +73,24 @@ public class JdbiReconcileReportRepository implements ReconcileReportRepository 
         );
     }
 
+    @Override
+    public Optional<PersistedReport> findLastByTrigger(String triggeredBy) {
+        return jdbi.withHandle(h ->
+                h.createQuery("""
+                        SELECT id, generated_at, duplicate_live_locations, pending_grace,
+                               oldest_pending_grace_days, past_grace_stragglers,
+                               actress_folder_mismatches, triggered_by, detail_json
+                        FROM reconcile_reports
+                        WHERE triggered_by = :trigger
+                        ORDER BY generated_at DESC
+                        LIMIT 1
+                        """)
+                        .bind("trigger", triggeredBy)
+                        .map(MAPPER)
+                        .findFirst()
+        );
+    }
+
     private static final org.jdbi.v3.core.mapper.RowMapper<PersistedReport> MAPPER =
             (rs, ctx) -> new PersistedReport(
                     rs.getLong("id"),
