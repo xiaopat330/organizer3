@@ -108,6 +108,82 @@ Per-volume unmount currently runs unbounded in the task's `finally` block. If th
 
 Today the only way to tell a hung run from a slow one is to watch the log for activity. Add a periodic INFO heartbeat from the task — every 60 seconds, log "Coherent sync alive — current phase=vol.X (Nm elapsed)". This makes hangs obvious without grepping.
 
+### 3.5 SMB-level keepalive
+
+Long-running scans can have quiet periods (post-listing, before save loop) during which the NAS may close the SMB session as idle. smbj supports an SMB ECHO heartbeat — configurable via `SmbConfig`. Enable it with a ~30 sec interval so sessions stay warm.
+
+```java
+SmbConfig.builder()
+    // …existing timeouts…
+    .withDfsEnabled(false)
+    // smbj exposes keepalive through the underlying transport — check
+    // current API; if not directly exposed, schedule a periodic noop
+    // (e.g., share.exists("/")) on a background thread per active session.
+    .build();
+```
+
+If smbj's API doesn't expose keepalive directly, implement at the application level: while a `FullSyncOperation` is running, schedule a periodic `share.exists("/")` (or similar lightweight call) every 30 sec on a daemon thread tied to the active connection. Cancel when the volume's scan ends.
+
+### 3.6 Operation-level retry with reconnect
+
+The highest-leverage resilience change. Wrap each top-level SMB operation in `SmbConnectionFactory` so a `TransportException` triggers:
+
+1. Mark the pooled `Connection` as poisoned.
+2. Evict it from the pool.
+3. Reconnect (build fresh `Connection` → `Session` → `DiskShare`).
+4. Retry the operation once.
+
+If the retry also fails with a `TransportException`, propagate. If it fails with a different exception (auth, permission, etc.), don't retry — it's not transient.
+
+This wraps `withShare` (or whatever the current dispatch method is in `SmbConnectionFactory`). Pseudocode:
+
+```java
+public <T> T withShare(String volumeId, SmbOperation<T> op) throws IOException {
+    return withShareRetry(volumeId, op, /*attempt=*/0);
+}
+
+private <T> T withShareRetry(String volumeId, SmbOperation<T> op, int attempt) throws IOException {
+    PooledShare share = ensurePooled(volumeId);
+    try {
+        return op.execute(share);
+    } catch (TransportException te) {
+        evictAndClose(volumeId, share);
+        if (attempt >= MAX_RETRY) throw te;
+        log.warn("SMB transport error on {}; reconnecting and retrying (attempt {})", volumeId, attempt + 1);
+        return withShareRetry(volumeId, op, attempt + 1);
+    }
+}
+```
+
+`MAX_RETRY` default: 1 (so each operation has at most one retry). Configurable via `smb.transportRetryCount`. Higher counts compound delays without much marginal benefit — if the second attempt fails, the connection is genuinely down.
+
+### 3.7 Pool eviction on transport error
+
+Tightly coupled with 3.6 — when a transport error is observed, the cached `Connection`/`Session`/`DiskShare` triple is poisoned. Subsequent calls reuse it and re-fail with the same error. The retry logic above evicts on detection. Without 3.6, the user sees the same broken-pool symptom on every subsequent operation until the app restarts.
+
+If 3.6 is implemented, 3.7 is automatic. If 3.6 is deferred, 3.7 still needs to happen — at minimum, evict on `TransportException` in the existing op-handling code so the next call gets a fresh connection.
+
+### 3.8 Per-volume retry budget in CoherentMultiVolumeSyncTask
+
+Belt-and-suspenders against op-level retry. If a volume's `FullSyncOperation.execute(...)` throws (after op-level retries exhausted), retry the whole volume up to 2 times before marking failed:
+
+```java
+for (int attempt = 0; attempt < MAX_VOLUME_ATTEMPTS; attempt++) {
+    try {
+        scanFuture.get(volumeTimeoutMin, TimeUnit.MINUTES);
+        volumeOk = true;
+        break;
+    } catch (ExecutionException ee) {
+        if (attempt + 1 >= MAX_VOLUME_ATTEMPTS) throw ee;
+        log.warn("Volume {} failed (attempt {}/{}); retrying after {} sec",
+                volume.id(), attempt + 1, MAX_VOLUME_ATTEMPTS, RETRY_BACKOFF_SEC);
+        Thread.sleep(RETRY_BACKOFF_SEC * 1000);
+    }
+}
+```
+
+Default `MAX_VOLUME_ATTEMPTS=2`, `RETRY_BACKOFF_SEC=15`. Configurable. Don't retry on user-cancelled or hard-timeout — those are intentional terminations.
+
 ---
 
 ## 4. Test strategy
@@ -116,18 +192,40 @@ Today the only way to tell a hung run from a slow one is to watch the log for ac
 2. **Watchdog timeout test for `CoherentMultiVolumeSyncTask`.** Inject a mock `FullSyncOperation` whose `execute(...)` blocks indefinitely; configure a short timeout (1 sec) for the test; assert the task continues to the next volume and global prune is skipped (partial failure).
 3. **Watchdog interrupt cleanup.** After timeout fires and the future is cancelled, assert no orphaned threads remain (count threads in the test executor, fail if non-zero after `.shutdown()`).
 4. **Heartbeat test (optional).** Run a deliberately-slow mock execute; assert at least one heartbeat appears in the log within the expected window.
+5. **Op-level retry test (3.6).** Mock a share whose first call throws `TransportException`, second call succeeds. Assert: connection is evicted, fresh one is created, retry succeeds, caller gets the result.
+6. **Op-level retry exhaustion test.** Same setup but both calls throw — assert exception propagates after MAX_RETRY, no infinite loop.
+7. **Pool eviction test (3.7).** After a transport error, assert that the next call to `withShare(volumeId, …)` builds a new connection rather than reusing the poisoned one.
+8. **Per-volume retry test (3.8).** Mock a volume whose first scan attempt throws, second attempt succeeds. Assert: volume completes ok overall, partialFailure stays false.
+9. **Retry doesn't fire on cancellation.** User-cancelled volumes should NOT retry — assert cancel-then-throw path skips the retry loop.
+10. **Keepalive test (3.5, optional).** Use a fake clock or short interval; assert the heartbeat operation fires at the expected cadence; assert it's cancelled when the volume scan ends.
 
 ---
 
 ## 5. Phasing
 
-Single PR; the three changes are tightly coupled. Total estimate ~3–4 hours.
+The eight changes split naturally into two PRs that compose well. Each ships value alone.
+
+### PR 1 — Fail-fast (timeouts + watchdog + heartbeat) ~3–4 hr
+
+Closes the "hang forever on dead connection" failure mode. Sections 3.1–3.4.
 
 1. Add `SmbSettings` config record + plumb through `OrganizerConfig.smbOrDefaults()`.
 2. Build `SmbConfig` in `SmbConnectionFactory` from settings; existing constructors remain backwards-compatible.
 3. Add watchdog wrapper + heartbeat in `CoherentMultiVolumeSyncTask`.
-4. Tests (3 cases above).
+4. Tests (cases 1–4).
 5. Update `spec/IMPLEMENTATION_NOTES.md` if it mentions SMB defaults.
+
+### PR 2 — Resilience (keepalive + retry + pool eviction) ~3–5 hr
+
+Closes the "transient drop kills a multi-volume run" failure mode. Sections 3.5–3.8. Depends on PR 1 landing first.
+
+1. SMB-level keepalive (3.5) — verify smbj API or implement application-level periodic noop.
+2. Op-level retry with reconnect (3.6) wrapping `withShare` in `SmbConnectionFactory`.
+3. Pool eviction on `TransportException` (3.7) — automatic if 3.6 lands; standalone otherwise.
+4. Per-volume retry budget (3.8) in `CoherentMultiVolumeSyncTask`.
+5. Tests (cases 5–10).
+
+PR 2 is the harder one and needs PR 1's timeouts as a backstop — without timeouts, retries on a hang don't help. PR 1 alone makes the system fail-fast and recoverable; PR 2 makes most transient failures invisible to the user.
 
 ---
 
@@ -136,7 +234,10 @@ Single PR; the three changes are tightly coupled. Total estimate ~3–4 hours.
 1. **Default timeout values.** 5 min per SMB call / 2 hr per volume / 30 sec for unmount feel safe, but I haven't measured real-world tail latencies. Worth a brief observation pass first — log p99 SMB call duration over a normal sync to set defaults that won't false-positive.
 2. **Interrupt on cancel.** Should explicit user cancel (`io.isCancellationRequested()`) also cancel the in-flight future? Probably yes — current cancel checks happen between volumes; adding mid-volume cancel via `future.cancel(true)` is cheap.
 3. **Should the watchdog also apply to single-volume `SyncVolumeTask`?** The bug exists there too — a hung mount/scan would hang that task forever. Same fix should apply. Treating both as part of this proposal feels right.
-4. **Connection pool eviction.** When a volume fails with a transport exception, the cached `Connection`/`Session`/`DiskShare` in `SmbConnectionFactory.pool` is now broken. Subsequent calls reuse it and fail again. The pool should evict failed connections so the next attempt creates a fresh session. Possibly already handled — verify in `SmbConnectionFactory`.
+4. **Connection pool eviction (now §3.7).** Folded into PR 2. If PR 1 ships alone, evaluate whether to backport eviction so a single transient drop doesn't poison subsequent operations until app restart.
+5. **smbj keepalive API surface.** Need to verify the actual smbj API for SMB ECHO / keepalive at PR 2 implementation time. If not exposed, implement application-level periodic noop on a daemon thread. Confirm before dispatching.
+6. **Retry on `volume.sync` task too.** PR 2's per-volume retry (3.8) is in `CoherentMultiVolumeSyncTask`. Should `SyncVolumeTask` get a similar retry loop for the single-volume case? Probably yes — same failure mode applies. Add or skip in PR 2.
+7. **Operationally: NAS-side SMB session timeout.** Out of code scope, but worth checking the QNAP/Synology session-timeout settings on `pandora.local` and `qnap2.local`. Default 5 min vs. configurable 30+ min would meaningfully reduce the disconnect rate independent of any code changes.
 
 ---
 
