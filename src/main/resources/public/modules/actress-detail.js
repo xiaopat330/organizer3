@@ -133,8 +133,18 @@ async function searchStageName(actressId) {
     const res = await fetch(`/api/actresses/${actressId}/stage-name/search`, { method: 'POST' });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();
-    if (data.stageName) {
+    if (data.reason === 'ok') {
       openActressDetail(actressId);
+    } else if (data.reason === 'low_corroboration') {
+      btn.disabled = false;
+      btn.textContent = 'Search for Stage Name';
+      btn.classList.remove('loading');
+      setStatus(`AI lookup found a candidate but it only matched ${data.matchCount} of ${data.enrichedTitles} enriched titles' cast — too low confidence. Use the Edit button to set the kanji manually if you know it.`);
+    } else if (data.reason === 'actress_not_found') {
+      console.error('Stage name search: actress not found (id=' + actressId + ')');
+      btn.disabled = false;
+      btn.textContent = 'Search for Stage Name';
+      btn.classList.remove('loading');
     } else {
       btn.disabled = false;
       btn.textContent = 'Search for Stage Name';

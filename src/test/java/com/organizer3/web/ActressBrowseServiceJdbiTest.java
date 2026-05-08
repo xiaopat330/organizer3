@@ -136,8 +136,11 @@ class ActressBrowseServiceJdbiTest {
         when(lookup.findJapaneseName(any(), anyList())).thenReturn(Optional.of("新井リマ"));
         service = buildServiceWithLookup(lookup);
 
-        Optional<String> result = service.searchStageName(actressId);
-        assertTrue(result.isEmpty(), "candidate matching only 1 of 3 enriched casts must be rejected");
+        ActressBrowseService.StageNameSearchResult result = service.searchStageName(actressId);
+        assertEquals(ActressBrowseService.StageNameSearchResult.REASON_LOW_CORROBORATION, result.reason(),
+                "candidate matching only 1 of 3 enriched casts must be rejected");
+        assertEquals(1, result.matchCount());
+        assertEquals(3, result.enrichedTitleCount());
 
         String written = jdbi.withHandle(h -> h.createQuery("SELECT stage_name FROM actresses WHERE id = :id")
                 .bind("id", actressId).mapTo(String.class).one());
@@ -156,8 +159,9 @@ class ActressBrowseServiceJdbiTest {
         when(lookup.findJapaneseName(any(), anyList())).thenReturn(Optional.of("木下ひまり"));
         service = buildServiceWithLookup(lookup);
 
-        Optional<String> result = service.searchStageName(actressId);
-        assertEquals("木下ひまり", result.orElse(null));
+        ActressBrowseService.StageNameSearchResult result = service.searchStageName(actressId);
+        assertEquals(ActressBrowseService.StageNameSearchResult.REASON_OK, result.reason());
+        assertEquals("木下ひまり", result.stageName());
 
         String written = jdbi.withHandle(h -> h.createQuery("SELECT stage_name FROM actresses WHERE id = :id")
                 .bind("id", actressId).mapTo(String.class).one());
@@ -173,8 +177,9 @@ class ActressBrowseServiceJdbiTest {
         when(lookup.findJapaneseName(any(), anyList())).thenReturn(Optional.of("新人"));
         service = buildServiceWithLookup(lookup);
 
-        Optional<String> result = service.searchStageName(actressId);
-        assertEquals("新人", result.orElse(null));
+        ActressBrowseService.StageNameSearchResult result = service.searchStageName(actressId);
+        assertEquals(ActressBrowseService.StageNameSearchResult.REASON_OK, result.reason());
+        assertEquals("新人", result.stageName());
 
         String written = jdbi.withHandle(h -> h.createQuery("SELECT stage_name FROM actresses WHERE id = :id")
                 .bind("id", actressId).mapTo(String.class).one());
@@ -191,8 +196,9 @@ class ActressBrowseServiceJdbiTest {
         when(lookup.findJapaneseName(any(), anyList())).thenReturn(Optional.empty());
         service = buildServiceWithLookup(lookup);
 
-        Optional<String> result = service.searchStageName(actressId);
-        assertTrue(result.isEmpty());
+        ActressBrowseService.StageNameSearchResult result = service.searchStageName(actressId);
+        assertEquals(ActressBrowseService.StageNameSearchResult.REASON_LOOKUP_UNKNOWN, result.reason());
+        assertNull(result.stageName());
 
         String written = jdbi.withHandle(h -> h.createQuery("SELECT stage_name FROM actresses WHERE id = :id")
                 .bind("id", actressId).mapTo(String.class).one());

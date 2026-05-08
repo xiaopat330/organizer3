@@ -795,8 +795,43 @@ public class ActressBrowseService {
     static final int MIN_CAST_JSON_MATCHES = 2;
 
     /**
+     * Structured result returned by {@link #searchStageName(long)}.
+     *
+     * <p>On success, {@code stageName} is non-null and {@code reason} is {@link #REASON_OK}.
+     * On any failure, {@code stageName} is null and {@code reason} explains why.
+     * The {@code enrichedTitleCount} and {@code matchCount} fields are non-null only when
+     * {@code reason} is {@link #REASON_LOW_CORROBORATION}.
+     */
+    public record StageNameSearchResult(
+            String stageName,
+            String reason,
+            Integer enrichedTitleCount,
+            Integer matchCount
+    ) {
+        public static final String REASON_OK                = "ok";
+        public static final String REASON_ACTRESS_NOT_FOUND = "actress_not_found";
+        public static final String REASON_LOOKUP_UNKNOWN    = "lookup_unknown";
+        public static final String REASON_LOW_CORROBORATION = "low_corroboration";
+
+        /** Convenience factory for the success case. */
+        static StageNameSearchResult ok(String stageName) {
+            return new StageNameSearchResult(stageName, REASON_OK, null, null);
+        }
+
+        /** Convenience factory for low-corroboration rejection (includes counts). */
+        static StageNameSearchResult lowCorroboration(int enrichedTitleCount, int matchCount) {
+            return new StageNameSearchResult(null, REASON_LOW_CORROBORATION, enrichedTitleCount, matchCount);
+        }
+
+        /** Convenience factory for simple failure reasons (no counts). */
+        static StageNameSearchResult failure(String reason) {
+            return new StageNameSearchResult(null, reason, null, null);
+        }
+    }
+
+    /**
      * Calls the AI name lookup for the given actress, persists the result to the database
-     * and the YAML backup file, and returns the stage name found.
+     * and the YAML backup file, and returns a structured result describing what happened.
      *
      * <p>Guard against false-positives: if the actress has any enriched titles, the
      * candidate kanji must appear in the {@code cast_json} of at least
@@ -806,12 +841,11 @@ public class ActressBrowseService {
      * row — which then claims the wrong slug and locks the real owner out via the
      * unique-slug constraint.
      *
-     * @return the stage name if Claude could determine it AND the candidate is
-     *         corroborated by cast_json, or empty otherwise
+     * @return a {@link StageNameSearchResult} — never null; reason is always non-null
      */
-    public Optional<String> searchStageName(long actressId) {
+    public StageNameSearchResult searchStageName(long actressId) {
         Actress actress = actressRepo.findById(actressId).orElse(null);
-        if (actress == null) return Optional.empty();
+        if (actress == null) return StageNameSearchResult.failure(StageNameSearchResult.REASON_ACTRESS_NOT_FOUND);
 
         List<Title> titles = titleRepo.findByActress(actressId);
         log.info("Stage name search: actress='{}' titles={}", actress.getCanonicalName(), titles.size());
@@ -820,7 +854,7 @@ public class ActressBrowseService {
 
         if (result.isEmpty()) {
             log.info("Stage name not found for '{}'", actress.getCanonicalName());
-            return result;
+            return StageNameSearchResult.failure(StageNameSearchResult.REASON_LOOKUP_UNKNOWN);
         }
         String stageName = result.get();
 
@@ -829,7 +863,7 @@ public class ActressBrowseService {
         if (enriched > 0 && matches < MIN_CAST_JSON_MATCHES) {
             log.warn("Stage name candidate '{}' for actress '{}' (id={}) appears in only {} of {} enriched cast_jsons — rejecting (need ≥{}). Likely a Claude false-positive driven by a mis-linked or incomplete-cast title.",
                     stageName, actress.getCanonicalName(), actressId, matches, enriched, MIN_CAST_JSON_MATCHES);
-            return Optional.empty();
+            return StageNameSearchResult.lowCorroboration(enriched, matches);
         }
 
         log.info("Stage name found: '{}' → '{}' ({} cast_json hits across {} enriched titles)",
@@ -838,7 +872,7 @@ public class ActressBrowseService {
         if (backupFile != null) {
             backupFile.save(actress.getCanonicalName(), stageName);
         }
-        return result;
+        return StageNameSearchResult.ok(stageName);
     }
 
     /**

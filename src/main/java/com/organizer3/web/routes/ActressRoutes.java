@@ -241,8 +241,17 @@ public class ActressRoutes {
             try { id = Long.parseLong(ctx.pathParam("id")); }
             catch (NumberFormatException e) { ctx.status(400); return; }
             var result = actressBrowseService.searchStageName(id);
+            if (result.reason().equals(com.organizer3.web.ActressBrowseService.StageNameSearchResult.REASON_ACTRESS_NOT_FOUND)) {
+                ctx.status(404).json(Map.of("error", "Actress not found", "reason", result.reason()));
+                return;
+            }
             var body = new java.util.LinkedHashMap<String, Object>();
-            body.put("stageName", result.orElse(null));
+            body.put("stageName", result.stageName());
+            body.put("reason", result.reason());
+            if (result.reason().equals(com.organizer3.web.ActressBrowseService.StageNameSearchResult.REASON_LOW_CORROBORATION)) {
+                body.put("enrichedTitles", result.enrichedTitleCount());
+                body.put("matchCount", result.matchCount());
+            }
             ctx.json(body);
         });
 
