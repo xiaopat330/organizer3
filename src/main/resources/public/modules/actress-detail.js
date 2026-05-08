@@ -133,8 +133,18 @@ async function searchStageName(actressId) {
     const res = await fetch(`/api/actresses/${actressId}/stage-name/search`, { method: 'POST' });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();
-    if (data.stageName) {
+    if (data.reason === 'ok') {
       openActressDetail(actressId);
+    } else if (data.reason === 'low_corroboration') {
+      btn.disabled = false;
+      btn.textContent = 'Search for Stage Name';
+      btn.classList.remove('loading');
+      setStatus(`AI lookup found a candidate but it only matched ${data.matchCount} of ${data.enrichedTitles} enriched titles' cast — too low confidence. Use the Edit button to set the kanji manually if you know it.`);
+    } else if (data.reason === 'actress_not_found') {
+      console.error('Stage name search: actress not found (id=' + actressId + ')');
+      btn.disabled = false;
+      btn.textContent = 'Search for Stage Name';
+      btn.classList.remove('loading');
     } else {
       btn.disabled = false;
       btn.textContent = 'Search for Stage Name';
@@ -147,6 +157,124 @@ async function searchStageName(actressId) {
     btn.textContent = 'Search for Stage Name';
     btn.classList.remove('loading');
     setStatus('search failed');
+  }
+}
+
+// ── Stage name edit modal ─────────────────────────────────────────────────
+let _snModalMount = null;
+let _snKeydownHandler = null;
+
+async function openStageNameModal(actressId, currentStageName) {
+  closeStageNameModal();
+
+  _snModalMount = document.createElement('div');
+  _snModalMount.id = 'sn-modal-mount';
+  document.body.appendChild(_snModalMount);
+
+  _snModalMount.innerHTML = `
+    <div class="sn-overlay" id="sn-overlay">
+      <div class="sn-card" id="sn-card">
+        <div class="sn-header">
+          <span class="sn-header-title">Edit Stage Name</span>
+          <button class="sn-close" id="sn-close" title="Cancel">×</button>
+        </div>
+        <div class="sn-candidates" id="sn-candidates" style="display:none">
+          <div class="sn-candidates-label">Suggestions from cast data:</div>
+          <div class="sn-chips" id="sn-chips"></div>
+        </div>
+        <div class="sn-body">
+          <input class="sn-input" id="sn-input" type="text"
+                 placeholder="Kanji stage name…"
+                 value="${currentStageName ? esc(currentStageName) : ''}">
+        </div>
+        <div class="sn-footer">
+          <button class="sn-btn sn-btn-primary" id="sn-save">Save</button>
+          <button class="sn-btn sn-btn-cancel" id="sn-cancel">Cancel</button>
+        </div>
+      </div>
+    </div>`;
+
+  const input = _snModalMount.querySelector('#sn-input');
+  input.focus();
+  input.select();
+
+  _snModalMount.querySelector('#sn-overlay').addEventListener('click', e => {
+    if (e.target.id === 'sn-overlay') closeStageNameModal();
+  });
+  _snModalMount.querySelector('#sn-close').addEventListener('click', closeStageNameModal);
+  _snModalMount.querySelector('#sn-cancel').addEventListener('click', closeStageNameModal);
+  _snModalMount.querySelector('#sn-save').addEventListener('click', () => saveStageNameFromModal(actressId));
+
+  _snKeydownHandler = e => {
+    if (e.key === 'Escape') closeStageNameModal();
+    if (e.key === 'Enter')  saveStageNameFromModal(actressId);
+  };
+  document.addEventListener('keydown', _snKeydownHandler);
+
+  // Fetch and render cast-derived candidates asynchronously.
+  try {
+    const res = await fetch(`/api/actresses/${actressId}/stage-name-candidates`);
+    if (!res.ok) return;
+    const data = await res.json();
+    const candidates = data.candidates || [];
+    if (candidates.length === 0 || !_snModalMount) return;
+    const chipsEl = _snModalMount.querySelector('#sn-chips');
+    const candidatesEl = _snModalMount.querySelector('#sn-candidates');
+    if (!chipsEl || !candidatesEl) return;
+    chipsEl.innerHTML = candidates.map(c =>
+      `<button class="sn-chip" data-name="${esc(c.name)}">${esc(c.name)} (${c.hits})</button>`
+    ).join('');
+    chipsEl.querySelectorAll('.sn-chip').forEach(chip => {
+      chip.addEventListener('click', () => {
+        const inp = _snModalMount && _snModalMount.querySelector('#sn-input');
+        if (inp) { inp.value = chip.dataset.name; inp.focus(); }
+      });
+    });
+    candidatesEl.style.display = '';
+  } catch (_) {
+    // Candidates are best-effort — silently ignore fetch errors.
+  }
+}
+
+function closeStageNameModal() {
+  if (_snKeydownHandler) {
+    document.removeEventListener('keydown', _snKeydownHandler);
+    _snKeydownHandler = null;
+  }
+  if (_snModalMount) {
+    _snModalMount.remove();
+    _snModalMount = null;
+  }
+}
+
+async function saveStageNameFromModal(actressId) {
+  const input   = _snModalMount && _snModalMount.querySelector('#sn-input');
+  const saveBtn = _snModalMount && _snModalMount.querySelector('#sn-save');
+  if (!input || !saveBtn) return;
+  const stageName = input.value.trim();
+  if (!stageName) { setStatus('stage name must not be blank'); return; }
+  saveBtn.disabled = true;
+  saveBtn.textContent = 'Saving…';
+  try {
+    const res = await fetch(`/api/actresses/${actressId}/stage-name`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ stageName }),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      setStatus(err.error || `save failed (${res.status})`);
+      saveBtn.disabled = false;
+      saveBtn.textContent = 'Save';
+      return;
+    }
+    closeStageNameModal();
+    openActressDetail(actressId);
+  } catch (err) {
+    console.error('Stage name save failed:', err);
+    setStatus('save failed');
+    saveBtn.disabled = false;
+    saveBtn.textContent = 'Save';
   }
 }
 
@@ -244,6 +372,8 @@ function renderIdentitySection(a) {
        </div>`
     : `<button class="btn-search-stage-name" id="btn-search-stage-name">Search for Stage Name</button>`;
 
+  const editStageNameBtn = `<button class="btn-stage-name-edit" id="btn-stage-name-edit" title="Edit stage name">Edit</button>`;
+
   const tierBadge = `<span class="tier-badge tier-${esc(a.tier)}">${esc(a.tier.toLowerCase())}</span>`;
 
   const nameBlockHtml = `
@@ -252,6 +382,7 @@ function renderIdentitySection(a) {
       ${lastName ? `<span class="detail-last-name">${esc(lastName)}</span>` : ''}
     </div>
     ${stageNameHtml}
+    ${editStageNameBtn}
   `;
 
   const avatarFrameHtml = renderAvatarFrame({
@@ -579,6 +710,9 @@ function computeAge(dobStr, asOfStr) {
 function wireActionButtons(a) {
   const btn = document.getElementById('btn-search-stage-name');
   if (btn) btn.addEventListener('click', () => searchStageName(a.id));
+
+  const editBtn = document.getElementById('btn-stage-name-edit');
+  if (editBtn) editBtn.addEventListener('click', () => openStageNameModal(a.id, a.stageName));
 
   function applyActressFlags(data) {
     a.favorite = data.favorite;

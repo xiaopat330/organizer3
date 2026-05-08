@@ -784,7 +784,7 @@ public class SchemaInitializer {
             // leave the version alone and let SchemaUpgrader apply any missing migrations.
             int currentVersion = h.createQuery("PRAGMA user_version").mapTo(Integer.class).one();
             if (currentVersion == 0) {
-                h.execute("PRAGMA user_version = 55");
+                h.execute("PRAGMA user_version = 56");
             }
         });
         log.info("Schema initialization complete");

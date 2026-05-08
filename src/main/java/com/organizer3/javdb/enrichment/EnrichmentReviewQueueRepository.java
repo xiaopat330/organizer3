@@ -406,11 +406,62 @@ public class EnrichmentReviewQueueRepository {
         });
     }
 
+    /**
+     * For a {@code slug_conflict} open row, looks up canonical name, stage_name, and tier for
+     * both the claimant and incumbent actress IDs recorded in the detail JSON.
+     *
+     * <p>Used by the review-queue list serializer to embed triage context without adding
+     * extra repositories to the caller.
+     *
+     * @param claimantActressId  the actress who was being backfilled (the new claimant)
+     * @param incumbentActressId the actress who already owns the slug
+     * @return enrichment context, or empty if either actress cannot be found
+     */
+    public java.util.Optional<SlugConflictContext> findSlugConflictContext(
+            long claimantActressId, long incumbentActressId) {
+        return jdbi.withHandle(h -> {
+            var claimant = h.createQuery("""
+                    SELECT id, canonical_name, stage_name, tier
+                    FROM actresses WHERE id = :id
+                    """)
+                    .bind("id", claimantActressId)
+                    .map((rs, ctx) -> new ConflictActress(
+                            rs.getLong("id"),
+                            rs.getString("canonical_name"),
+                            rs.getString("stage_name"),
+                            rs.getString("tier")))
+                    .findOne()
+                    .orElse(null);
+
+            var incumbent = h.createQuery("""
+                    SELECT id, canonical_name, stage_name, tier
+                    FROM actresses WHERE id = :id
+                    """)
+                    .bind("id", incumbentActressId)
+                    .map((rs, ctx) -> new ConflictActress(
+                            rs.getLong("id"),
+                            rs.getString("canonical_name"),
+                            rs.getString("stage_name"),
+                            rs.getString("tier")))
+                    .findOne()
+                    .orElse(null);
+
+            if (claimant == null || incumbent == null) return java.util.Optional.empty();
+            return java.util.Optional.of(new SlugConflictContext(claimant, incumbent));
+        });
+    }
+
     /** Enrichment context for a cast_anomaly row's title: raw cast JSON + linked actresses. */
     public record CastAnomalyContext(String castJson, List<LinkedActress> linkedActresses) {}
 
     /** An actress linked to a title, for use in the inline triage panel. */
     public record LinkedActress(long id, String canonicalName) {}
+
+    /** Context for a slug_conflict row: the two actresses involved in the conflict. */
+    public record SlugConflictContext(ConflictActress claimant, ConflictActress incumbent) {}
+
+    /** One side of a slug conflict — the claimant or incumbent actress. */
+    public record ConflictActress(long id, String canonicalName, String stageName, String tier) {}
 
     /** A single open queue row returned by {@link #listOpen} and {@link #findOpenById}. */
     public record OpenRow(long id, long titleId, String titleCode, String slug,

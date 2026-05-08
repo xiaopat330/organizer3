@@ -3,7 +3,6 @@ package com.organizer3.web.routes;
 import com.organizer3.covers.CoverPath;
 import com.organizer3.javdb.enrichment.EnrichmentReviewQueueRepository;
 import com.organizer3.mcp.tools.ForceEnrichTitleTool;
-import com.organizer3.rating.RatingCurve;
 import com.organizer3.rating.RatingCurveRepository;
 import com.organizer3.utilities.task.TaskEvent;
 import com.organizer3.utilities.task.TaskInputs;
@@ -216,6 +215,37 @@ public final class UtilitiesRoutes {
                             return am;
                         }).toList());
                     });
+                }
+                // For slug_conflict rows, parse the detail JSON to extract both actress IDs,
+                // then look up canonical names + tier so the UI can render badges.
+                if ("slug_conflict".equals(r.reason()) && r.detail() != null) {
+                    try {
+                        com.fasterxml.jackson.databind.JsonNode detail =
+                                new com.fasterxml.jackson.databind.ObjectMapper().readTree(r.detail());
+                        long claimantId  = detail.path("claimant_actress_id").asLong(-1);
+                        long incumbentId = detail.path("incumbent_actress_id").asLong(-1);
+                        if (claimantId > 0 && incumbentId > 0) {
+                            reviewQueueRepo.findSlugConflictContext(claimantId, incumbentId)
+                                    .ifPresent(slugCtx -> {
+                                        var claimantMap = new LinkedHashMap<String, Object>();
+                                        claimantMap.put("id",            slugCtx.claimant().id());
+                                        claimantMap.put("canonicalName", slugCtx.claimant().canonicalName());
+                                        claimantMap.put("stageName",     slugCtx.claimant().stageName());
+                                        claimantMap.put("tier",          slugCtx.claimant().tier());
+                                        var incumbentMap = new LinkedHashMap<String, Object>();
+                                        incumbentMap.put("id",            slugCtx.incumbent().id());
+                                        incumbentMap.put("canonicalName", slugCtx.incumbent().canonicalName());
+                                        incumbentMap.put("stageName",     slugCtx.incumbent().stageName());
+                                        incumbentMap.put("tier",          slugCtx.incumbent().tier());
+                                        var conflictCtx = new LinkedHashMap<String, Object>();
+                                        conflictCtx.put("claimant",  claimantMap);
+                                        conflictCtx.put("incumbent", incumbentMap);
+                                        m.put("slugConflictContext", conflictCtx);
+                                    });
+                        }
+                    } catch (Exception ignored) {
+                        // malformed detail JSON — render without enrichment
+                    }
                 }
                 return m;
             }).toList();

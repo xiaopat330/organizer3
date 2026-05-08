@@ -245,6 +245,63 @@ class ActressRoutesCoverageTest {
         assertEquals("canonical", body.get("conflictKind").asText());
     }
 
+    // ── GET /{id}/stage-name-candidates ──────────────────────────────
+
+    @Test
+    void stageNameCandidatesReturns200WithCandidateArray() throws Exception {
+        // Insert enriched title linked to Aya with a female cast entry.
+        long titleId = h.jdbi().withHandle(hdl -> hdl.createQuery(
+                "SELECT id FROM titles WHERE code = 'ABP-001'")
+                .mapTo(Long.class).one());
+        // ABP-001 was seeded without a coStar call so title_actresses has no row; add one.
+        h.jdbi().useHandle(hdl -> hdl.createUpdate(
+                "INSERT OR IGNORE INTO title_actresses (title_id, actress_id) VALUES (:t, :a)")
+                .bind("t", titleId)
+                .bind("a", seed.ayaId())
+                .execute());
+        h.jdbi().useHandle(hdl -> hdl.createUpdate(
+                "INSERT INTO title_javdb_enrichment (title_id, javdb_slug, fetched_at, cast_json) " +
+                "VALUES (:t, 'slug1', '2024-01-01', :j)")
+                .bind("t", titleId)
+                .bind("j", "[{\"slug\":\"wBND\",\"name\":\"夕美しおん\",\"gender\":\"F\"}]")
+                .execute());
+
+        var resp = HttpClient.newHttpClient().send(
+                HttpRequest.newBuilder()
+                        .uri(URI.create(h.baseUrl() + "/api/actresses/" + seed.ayaId() + "/stage-name-candidates"))
+                        .GET().build(),
+                HttpResponse.BodyHandlers.ofString());
+
+        assertEquals(200, resp.statusCode());
+        JsonNode body = mapper.readTree(resp.body());
+        assertTrue(body.has("candidates"), "response must have 'candidates' field");
+        assertTrue(body.get("candidates").isArray(), "candidates must be an array");
+        assertEquals(1, body.get("candidates").size());
+        JsonNode candidate = body.get("candidates").get(0);
+        assertEquals("夕美しおん", candidate.get("name").asText());
+        assertEquals("wBND", candidate.get("slug").asText());
+        assertEquals(1, candidate.get("hits").asInt());
+    }
+
+    @Test
+    void stageNameCandidatesReturns200EmptyArrayWhenNoEnrichedTitles() throws Exception {
+        var resp = HttpClient.newHttpClient().send(
+                HttpRequest.newBuilder()
+                        .uri(URI.create(h.baseUrl() + "/api/actresses/" + seed.mioId() + "/stage-name-candidates"))
+                        .GET().build(),
+                HttpResponse.BodyHandlers.ofString());
+
+        assertEquals(200, resp.statusCode());
+        JsonNode body = mapper.readTree(resp.body());
+        assertTrue(body.get("candidates").isArray());
+        assertEquals(0, body.get("candidates").size());
+    }
+
+    @Test
+    void stageNameCandidatesReturns404ForUnknownActress() throws Exception {
+        assertEquals(404, getStatus("/api/actresses/9999999/stage-name-candidates"));
+    }
+
     // ── POST /{id}/merge ──────────────────────────────────────────────
 
     @Test

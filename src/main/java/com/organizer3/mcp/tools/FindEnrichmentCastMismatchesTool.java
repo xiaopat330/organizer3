@@ -97,8 +97,9 @@ public class FindEnrichmentCastMismatchesTool implements Tool {
             JOIN title_javdb_enrichment e ON e.title_id = t.id
             """;
 
-    // Whitespace-stripped LIKE comparison against stage_name and any alternate_names_json entry.
-    // Sentinel actresses are excluded; rows missing stage_name can't be checked, so they're skipped.
+    // Whitespace-stripped LIKE comparison against stage_name, alternate_names_json entries,
+    // and any actress_aliases rows. Sentinel actresses are excluded; rows missing stage_name
+    // can't be checked, so they're skipped.
     private static final String MISMATCH_WHERE = """
             COALESCE(a.is_sentinel, 0) = 0
               AND a.stage_name IS NOT NULL
@@ -112,6 +113,12 @@ public class FindEnrichmentCastMismatchesTool implements Tool {
                     AND REPLACE(e.cast_json, ' ', '')
                         LIKE '%' || REPLACE(json_extract(alt.value, '$.name'), ' ', '') || '%'
                 )
+              )
+              AND NOT EXISTS (
+                SELECT 1
+                FROM json_each(e.cast_json) je
+                JOIN actress_aliases aa ON aa.actress_id = a.id
+                WHERE json_extract(je.value, '$.name') = aa.alias_name
               )
             """;
 

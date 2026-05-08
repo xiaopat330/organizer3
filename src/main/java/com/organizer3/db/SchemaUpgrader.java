@@ -1,5 +1,6 @@
 package com.organizer3.db;
 
+import com.organizer3.repository.StageNameNormalizer;
 import com.organizer3.translation.TranslationNormalization;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -22,7 +23,7 @@ import java.util.List;
 public class SchemaUpgrader {
 
     /** Must match the version stamped by {@link SchemaInitializer}. */
-    private static final int CURRENT_VERSION = 55;
+    private static final int CURRENT_VERSION = 56;
 
     private final Jdbi jdbi;
 
@@ -299,6 +300,11 @@ public class SchemaUpgrader {
         if (version < 55) {
             applyV55();
             setVersion(55);
+        }
+
+        if (version < 56) {
+            applyV56();
+            setVersion(56);
         }
 
         log.info("Schema upgrade complete");
@@ -1838,6 +1844,44 @@ public class SchemaUpgrader {
             h.execute("""
                     CREATE INDEX IF NOT EXISTS idx_reconcile_reports_generated_at
                         ON reconcile_reports(generated_at DESC)""");
+        });
+    }
+
+    /**
+     * v56: NFC-normalize + space-strip existing {@code actresses.stage_name} values.
+     *
+     * <p>Applies the same normalization as {@link StageNameNormalizer#normalize(String)} to
+     * every non-null {@code stage_name} row, updating only rows where the value actually
+     * changes. This is a one-shot backfill to clean rows that were written before the
+     * normalizer was applied at write paths (Option 1 from
+     * spec/PROPOSAL_ACTRESS_PROFILE_HARDENING.md).
+     *
+     * <p>Idempotent: re-running leaves already-normalized rows untouched.
+     */
+    private void applyV56() {
+        jdbi.useTransaction(h -> {
+            List<Object[]> rows = h.createQuery(
+                            "SELECT id, stage_name FROM actresses WHERE stage_name IS NOT NULL")
+                    .map((rs, ctx) -> new Object[]{rs.getLong(1), rs.getString(2)})
+                    .list();
+            int changed = 0;
+            int skipped = 0;
+            for (Object[] row : rows) {
+                long id = (Long) row[0];
+                String stageName = (String) row[1];
+                String normalized = StageNameNormalizer.normalize(stageName);
+                if (normalized == null || normalized.equals(stageName)) {
+                    skipped++;
+                } else {
+                    h.createUpdate("UPDATE actresses SET stage_name = :n WHERE id = :id")
+                            .bind("n", normalized)
+                            .bind("id", id)
+                            .execute();
+                    changed++;
+                }
+            }
+            log.info("Schema v56: normalized {} stage_names ({} rows scanned, {} skipped as already-normal)",
+                    changed, rows.size(), skipped);
         });
     }
 

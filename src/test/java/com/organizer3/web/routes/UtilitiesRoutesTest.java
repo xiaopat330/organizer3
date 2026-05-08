@@ -525,6 +525,40 @@ class UtilitiesRoutesTest {
         assertEquals(200, resp.statusCode());
     }
 
+    @Test
+    void getEnrichmentReviewQueue_slugConflictRowIncludesActressContext() throws Exception {
+        String detailJson = "{\"slug\":\"E2vOx\",\"claimant_actress_id\":2276,"
+                + "\"claimant_actress_name\":\"Rima Arai\","
+                + "\"incumbent_actress_id\":771,"
+                + "\"incumbent_actress_name\":\"Himari Kinoshita\","
+                + "\"source_title_code\":\"BLK-566\"}";
+        var slugConflictRow = new EnrichmentReviewQueueRepository.OpenRow(
+                1L, 10L, "BLK-566", "E2vOx", "slug_conflict", "backfill_cast",
+                Instant.now().toString(), detailJson);
+
+        when(reviewQueueRepo.countOpenByReason()).thenReturn(Map.of("slug_conflict", 1));
+        when(reviewQueueRepo.listOpen(isNull(), eq(100), eq(0))).thenReturn(List.of(slugConflictRow));
+        when(coverPath.findByCode(any())).thenReturn(Optional.empty());
+
+        var claimantActress  = new EnrichmentReviewQueueRepository.ConflictActress(2276L, "Rima Arai",      "新井リマ", "LIBRARY");
+        var incumbentActress = new EnrichmentReviewQueueRepository.ConflictActress(771L,  "Himari Kinoshita", "木下ひまり", "LIBRARY");
+        var slugCtx = new EnrichmentReviewQueueRepository.SlugConflictContext(claimantActress, incumbentActress);
+        when(reviewQueueRepo.findSlugConflictContext(2276L, 771L)).thenReturn(Optional.of(slugCtx));
+
+        var resp = get("/api/utilities/enrichment-review/queue");
+        assertEquals(200, resp.statusCode());
+        JsonNode body = mapper.readTree(resp.body());
+        JsonNode rows = body.get("rows");
+        assertEquals(1, rows.size());
+        JsonNode row = rows.get(0);
+        assertTrue(row.has("slugConflictContext"), "slug_conflict row must include slugConflictContext");
+        JsonNode conflictCtx = row.get("slugConflictContext");
+        assertEquals(2276, conflictCtx.get("claimant").get("id").asLong());
+        assertEquals("Rima Arai", conflictCtx.get("claimant").get("canonicalName").asText());
+        assertEquals(771, conflictCtx.get("incumbent").get("id").asLong());
+        assertEquals("Himari Kinoshita", conflictCtx.get("incumbent").get("canonicalName").asText());
+    }
+
     // ── Identity tools ─────────────────────────────────────────────────────────
 
     @Test

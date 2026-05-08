@@ -241,9 +241,44 @@ public class ActressRoutes {
             try { id = Long.parseLong(ctx.pathParam("id")); }
             catch (NumberFormatException e) { ctx.status(400); return; }
             var result = actressBrowseService.searchStageName(id);
+            if (result.reason().equals(com.organizer3.web.ActressBrowseService.StageNameSearchResult.REASON_ACTRESS_NOT_FOUND)) {
+                ctx.status(404).json(Map.of("error", "Actress not found", "reason", result.reason()));
+                return;
+            }
             var body = new java.util.LinkedHashMap<String, Object>();
-            body.put("stageName", result.orElse(null));
+            body.put("stageName", result.stageName());
+            body.put("reason", result.reason());
+            if (result.reason().equals(com.organizer3.web.ActressBrowseService.StageNameSearchResult.REASON_LOW_CORROBORATION)) {
+                body.put("enrichedTitles", result.enrichedTitleCount());
+                body.put("matchCount", result.matchCount());
+            }
             ctx.json(body);
+        });
+
+        app.get("/api/actresses/{id}/stage-name-candidates", ctx -> {
+            long id;
+            try { id = Long.parseLong(ctx.pathParam("id")); }
+            catch (NumberFormatException e) { ctx.status(400); return; }
+            actressBrowseService.findStageNameCandidates(id)
+                    .ifPresentOrElse(
+                            candidates -> ctx.json(Map.of("candidates", candidates)),
+                            () -> ctx.status(404).json(Map.of("error", "Actress not found")));
+        });
+
+        app.put("/api/actresses/{id}/stage-name", ctx -> {
+            long id;
+            try { id = Long.parseLong(ctx.pathParam("id")); }
+            catch (NumberFormatException e) { ctx.status(400); return; }
+            var bodyMap = ctx.bodyAsClass(java.util.Map.class);
+            Object rawStageName = bodyMap.get("stageName");
+            if (rawStageName == null) { ctx.status(400).json(Map.of("error", "stageName is required")); return; }
+            String stageName = rawStageName.toString();
+            if (stageName.trim().isEmpty()) { ctx.status(400).json(Map.of("error", "stageName must not be blank")); return; }
+            var result = actressBrowseService.setStageNameManual(id, stageName);
+            result.ifPresentOrElse(
+                    s  -> ctx.json(Map.of("stageName", s)),
+                    () -> ctx.status(404).json(Map.of("error", "Actress not found"))
+            );
         });
     }
 }
