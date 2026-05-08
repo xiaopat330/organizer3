@@ -840,6 +840,33 @@ public class ActressBrowseService {
         return result;
     }
 
+    /**
+     * Manually sets the stage_name for an actress, bypassing the AI lookup and cast-corroboration
+     * guard. This is the escape hatch for cases where the AI lookup fails or the guard rejects
+     * (Option #9 from spec/PROPOSAL_ACTRESS_PROFILE_HARDENING.md).
+     *
+     * @param actressId the actress to update
+     * @param stageName the kanji stage name to set; blank input is rejected
+     * @return the persisted value on success, or empty if actress not found or input is blank
+     */
+    public Optional<String> setStageNameManual(long actressId, String stageName) {
+        if (stageName == null) return Optional.empty();
+        // TODO: full normalization in PR #1 (stage_name normalize on write)
+        String trimmed = stageName.trim();
+        if (trimmed.isEmpty()) return Optional.empty();
+
+        Actress actress = actressRepo.findById(actressId).orElse(null);
+        if (actress == null) return Optional.empty();
+
+        actressRepo.setStageName(actressId, trimmed);
+        if (backupFile != null) {
+            backupFile.save(actress.getCanonicalName(), trimmed);
+        }
+        log.info("Stage name manually set: actress='{}' (id={}) stageName='{}'",
+                actress.getCanonicalName(), actressId, trimmed);
+        return Optional.of(trimmed);
+    }
+
     private int countEnrichedTitlesForActress(long actressId) {
         return jdbi.withHandle(h -> h.createQuery("""
                 SELECT COUNT(*)

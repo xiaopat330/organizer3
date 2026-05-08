@@ -150,6 +150,37 @@ async function searchStageName(actressId) {
   }
 }
 
+// ── Save stage name manually ──────────────────────────────────────────────
+async function saveStageNameManual(actressId) {
+  const input = document.getElementById('input-stage-name-manual');
+  const btn   = document.getElementById('btn-stage-name-manual-save');
+  if (!input || !btn) return;
+  const stageName = input.value.trim();
+  if (!stageName) { setStatus('stage name must not be blank'); return; }
+  btn.disabled = true;
+  btn.textContent = 'Saving…';
+  try {
+    const res = await fetch(`/api/actresses/${actressId}/stage-name`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ stageName }),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      setStatus(err.error || `save failed (${res.status})`);
+      btn.disabled = false;
+      btn.textContent = 'Save';
+      return;
+    }
+    openActressDetail(actressId);
+  } catch (err) {
+    console.error('Stage name save failed:', err);
+    setStatus('save failed');
+    btn.disabled = false;
+    btn.textContent = 'Save';
+  }
+}
+
 // ── Render detail panel ───────────────────────────────────────────────────
 //
 // Sidebar is composed of sections, each hidden when empty. The visible order is:
@@ -244,6 +275,12 @@ function renderIdentitySection(a) {
        </div>`
     : `<button class="btn-search-stage-name" id="btn-search-stage-name">Search for Stage Name</button>`;
 
+  const stageNameEditHtml = `<div class="stage-name-manual-row">
+    <input class="stage-name-manual-input" id="input-stage-name-manual" type="text"
+           placeholder="Set kanji manually…" value="${a.stageName ? esc(a.stageName) : ''}">
+    <button class="btn-stage-name-manual-save" id="btn-stage-name-manual-save">Save</button>
+  </div>`;
+
   const tierBadge = `<span class="tier-badge tier-${esc(a.tier)}">${esc(a.tier.toLowerCase())}</span>`;
 
   const nameBlockHtml = `
@@ -252,6 +289,7 @@ function renderIdentitySection(a) {
       ${lastName ? `<span class="detail-last-name">${esc(lastName)}</span>` : ''}
     </div>
     ${stageNameHtml}
+    ${stageNameEditHtml}
   `;
 
   const avatarFrameHtml = renderAvatarFrame({
@@ -579,6 +617,9 @@ function computeAge(dobStr, asOfStr) {
 function wireActionButtons(a) {
   const btn = document.getElementById('btn-search-stage-name');
   if (btn) btn.addEventListener('click', () => searchStageName(a.id));
+
+  const saveBtn = document.getElementById('btn-stage-name-manual-save');
+  if (saveBtn) saveBtn.addEventListener('click', () => saveStageNameManual(a.id));
 
   function applyActressFlags(data) {
     a.favorite = data.favorite;

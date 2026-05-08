@@ -199,6 +199,37 @@ class ActressBrowseServiceJdbiTest {
         assertNull(written);
     }
 
+    // ── setStageNameManual ────────────────────────────────────────────────────
+
+    @Test
+    void setStageNameManualPersistsValue() {
+        long actressId = insertActress("Rima Arai");
+
+        Optional<String> result = service.setStageNameManual(actressId, "新井リマ");
+
+        assertEquals("新井リマ", result.orElse(null));
+        String written = jdbi.withHandle(h -> h.createQuery("SELECT stage_name FROM actresses WHERE id = :id")
+                .bind("id", actressId).mapTo(String.class).one());
+        assertEquals("新井リマ", written);
+    }
+
+    @Test
+    void setStageNameManualRejectsBlankInput() {
+        long actressId = insertActress("Blank Test");
+
+        Optional<String> emptyResult  = service.setStageNameManual(actressId, "");
+        Optional<String> spaceResult  = service.setStageNameManual(actressId, "   ");
+        Optional<String> nullResult   = service.setStageNameManual(actressId, null);
+
+        assertTrue(emptyResult.isEmpty(), "empty string must be rejected");
+        assertTrue(spaceResult.isEmpty(), "whitespace-only must be rejected");
+        assertTrue(nullResult.isEmpty(),  "null must be rejected");
+
+        String written = jdbi.withHandle(h -> h.createQuery("SELECT stage_name FROM actresses WHERE id = :id")
+                .bind("id", actressId).mapTo(String.class).one());
+        assertNull(written, "stage_name must not be written for blank input");
+    }
+
     private long insertActress(String name) {
         return jdbi.withHandle(h -> h.createUpdate(
                 "INSERT INTO actresses (canonical_name, tier, first_seen_at) VALUES (:n, 'LIBRARY', '2024-01-01')")

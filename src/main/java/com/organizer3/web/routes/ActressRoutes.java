@@ -245,5 +245,21 @@ public class ActressRoutes {
             body.put("stageName", result.orElse(null));
             ctx.json(body);
         });
+
+        app.put("/api/actresses/{id}/stage-name", ctx -> {
+            long id;
+            try { id = Long.parseLong(ctx.pathParam("id")); }
+            catch (NumberFormatException e) { ctx.status(400); return; }
+            var bodyMap = ctx.bodyAsClass(java.util.Map.class);
+            Object rawStageName = bodyMap.get("stageName");
+            if (rawStageName == null) { ctx.status(400).json(Map.of("error", "stageName is required")); return; }
+            String stageName = rawStageName.toString();
+            if (stageName.trim().isEmpty()) { ctx.status(400).json(Map.of("error", "stageName must not be blank")); return; }
+            var result = actressBrowseService.setStageNameManual(id, stageName);
+            result.ifPresentOrElse(
+                    s  -> ctx.json(Map.of("stageName", s)),
+                    () -> ctx.status(404).json(Map.of("error", "Actress not found"))
+            );
+        });
     }
 }
