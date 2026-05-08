@@ -875,6 +875,10 @@ public class Application {
                 new com.organizer3.utilities.task.javdb.EnrichmentClearMismatchedTask(
                         jdbi, slugResolver, enrichmentQueue, revalidationPendingRepo);
 
+        com.organizer3.utilities.task.javdb.AutoPromoteRule3SweepTask autoPromoteRule3SweepTask =
+                new com.organizer3.utilities.task.javdb.AutoPromoteRule3SweepTask(
+                        jdbi, autoPromoter, enrichmentReviewQueueRepo);
+
         // Draft Mode dependencies for BulkEnrichToDraftTask — constructed here so the task
         // can be registered in TaskRegistry before DraftRoutes wiring (which reuses the same objects).
         // draftTitleRepo was created early (line ~192) for the sync hook.
@@ -944,7 +948,7 @@ public class Application {
                                 organizeAllPreviewTask, organizeAllTask,
                                 fixTimestampsPreviewTask, fixTimestampsTask,
                                 recomputeRatingCurveTask, enrichmentClearMismatchedTask,
-                                bulkEnrichToDraftTask));
+                                bulkEnrichToDraftTask, autoPromoteRule3SweepTask));
         com.organizer3.utilities.task.TaskRunner taskRunner =
                 new com.organizer3.utilities.task.TaskRunner(taskRegistry);
         // Set the forward reference so SyncCoherentCommand can call taskRunner.start(...).
