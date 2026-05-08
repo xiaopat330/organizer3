@@ -5,10 +5,12 @@ import com.organizer3.javdb.enrichment.JavdbEnrichmentRepository.TitleAwaitingTr
 import com.organizer3.translation.repository.TranslationCacheRepository;
 import com.organizer3.translation.repository.TranslationQueueRepository;
 import com.organizer3.translation.repository.TranslationStrategyRepository;
+import com.organizer3.utilities.task.TaskRunner;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 /**
  * Background sweeper that submits enrichment {@code title_original} values for
@@ -41,6 +43,17 @@ import java.util.Optional;
 @Slf4j
 public class TitleTranslationSweeper implements Runnable {
 
+    /**
+     * Task IDs whose presence in RUNNING state cause this sweeper to skip its tick.
+     * Mirrors {@code EnrichmentRunner.PAUSE_ISSUING_TASKS} — duplication is intentional
+     * (two call sites is the threshold for premature factoring, per spec §3.4).
+     */
+    private static final Set<String> PAUSE_ISSUING_TASKS = Set.of(
+            "volume.sync",                       // single-volume sync
+            "volume.sync_coherent",              // coherent multi-volume sync
+            "volume.clean_stale_locations"       // stale-row cleaner; writes heavily
+    );
+
     private final JavdbEnrichmentRepository enrichmentRepo;
     private final TranslationService translationService;
     private final TranslationQueueRepository queueRepo;
@@ -48,6 +61,13 @@ public class TitleTranslationSweeper implements Runnable {
     private final TranslationStrategyRepository strategyRepo;
     private final boolean enabled;
     private final int batchSize;
+
+    /**
+     * Injected after construction (via {@link #setTaskRunner}) to avoid a circular
+     * dependency: sweeper is constructed before TaskRunner. Null-safe: when not yet
+     * set, no task-induced pause applies.
+     */
+    private volatile TaskRunner taskRunner;
 
     public TitleTranslationSweeper(JavdbEnrichmentRepository enrichmentRepo,
                                    TranslationService translationService,
@@ -65,11 +85,26 @@ public class TitleTranslationSweeper implements Runnable {
         this.batchSize          = batchSize;
     }
 
+    /** Inject TaskRunner after construction (mirrors {@code EnrichmentRunner.setTaskRunner}). */
+    public void setTaskRunner(TaskRunner runner) {
+        this.taskRunner = runner;
+    }
+
     @Override
     public void run() {
         if (!enabled) {
             log.debug("TitleTranslationSweeper: disabled, skipping tick");
             return;
+        }
+        TaskRunner tr = taskRunner;
+        if (tr != null) {
+            String running = tr.currentlyRunning()
+                    .map(run -> run.taskId())
+                    .orElse(null);
+            if (running != null && PAUSE_ISSUING_TASKS.contains(running)) {
+                log.debug("TitleTranslationSweeper: sync task active ({}) — skipping tick", running);
+                return;
+            }
         }
         sweepOnce(batchSize);
     }
