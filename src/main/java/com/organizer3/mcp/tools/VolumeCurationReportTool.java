@@ -153,7 +153,7 @@ public class VolumeCurationReportTool implements Tool {
             Map<String, Integer> parentCounts = new LinkedHashMap<>();
             for (FindMisnamedFoldersForActressTool.Row row : misnamedOnVolume) {
                 String parent = parentOf(row.path());
-                parentCounts.merge(parent, 1, Integer::sum);
+                parentCounts.merge(parent, 1, (a, b) -> a + b);
             }
 
             for (Map.Entry<String, Integer> e : parentCounts.entrySet()) {
