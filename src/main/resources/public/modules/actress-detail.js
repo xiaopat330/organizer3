@@ -150,15 +150,73 @@ async function searchStageName(actressId) {
   }
 }
 
-// ── Save stage name manually ──────────────────────────────────────────────
-async function saveStageNameManual(actressId) {
-  const input = document.getElementById('input-stage-name-manual');
-  const btn   = document.getElementById('btn-stage-name-manual-save');
-  if (!input || !btn) return;
+// ── Stage name edit modal ─────────────────────────────────────────────────
+let _snModalMount = null;
+let _snKeydownHandler = null;
+
+function openStageNameModal(actressId, currentStageName) {
+  closeStageNameModal();
+
+  _snModalMount = document.createElement('div');
+  _snModalMount.id = 'sn-modal-mount';
+  document.body.appendChild(_snModalMount);
+
+  _snModalMount.innerHTML = `
+    <div class="sn-overlay" id="sn-overlay">
+      <div class="sn-card" id="sn-card">
+        <div class="sn-header">
+          <span class="sn-header-title">Edit Stage Name</span>
+          <button class="sn-close" id="sn-close" title="Cancel">×</button>
+        </div>
+        <div class="sn-body">
+          <input class="sn-input" id="sn-input" type="text"
+                 placeholder="Kanji stage name…"
+                 value="${currentStageName ? esc(currentStageName) : ''}">
+        </div>
+        <div class="sn-footer">
+          <button class="sn-btn sn-btn-primary" id="sn-save">Save</button>
+          <button class="sn-btn sn-btn-cancel" id="sn-cancel">Cancel</button>
+        </div>
+      </div>
+    </div>`;
+
+  const input = _snModalMount.querySelector('#sn-input');
+  input.focus();
+  input.select();
+
+  _snModalMount.querySelector('#sn-overlay').addEventListener('click', e => {
+    if (e.target.id === 'sn-overlay') closeStageNameModal();
+  });
+  _snModalMount.querySelector('#sn-close').addEventListener('click', closeStageNameModal);
+  _snModalMount.querySelector('#sn-cancel').addEventListener('click', closeStageNameModal);
+  _snModalMount.querySelector('#sn-save').addEventListener('click', () => saveStageNameFromModal(actressId));
+
+  _snKeydownHandler = e => {
+    if (e.key === 'Escape') closeStageNameModal();
+    if (e.key === 'Enter')  saveStageNameFromModal(actressId);
+  };
+  document.addEventListener('keydown', _snKeydownHandler);
+}
+
+function closeStageNameModal() {
+  if (_snKeydownHandler) {
+    document.removeEventListener('keydown', _snKeydownHandler);
+    _snKeydownHandler = null;
+  }
+  if (_snModalMount) {
+    _snModalMount.remove();
+    _snModalMount = null;
+  }
+}
+
+async function saveStageNameFromModal(actressId) {
+  const input   = _snModalMount && _snModalMount.querySelector('#sn-input');
+  const saveBtn = _snModalMount && _snModalMount.querySelector('#sn-save');
+  if (!input || !saveBtn) return;
   const stageName = input.value.trim();
   if (!stageName) { setStatus('stage name must not be blank'); return; }
-  btn.disabled = true;
-  btn.textContent = 'Saving…';
+  saveBtn.disabled = true;
+  saveBtn.textContent = 'Saving…';
   try {
     const res = await fetch(`/api/actresses/${actressId}/stage-name`, {
       method: 'PUT',
@@ -168,16 +226,17 @@ async function saveStageNameManual(actressId) {
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
       setStatus(err.error || `save failed (${res.status})`);
-      btn.disabled = false;
-      btn.textContent = 'Save';
+      saveBtn.disabled = false;
+      saveBtn.textContent = 'Save';
       return;
     }
+    closeStageNameModal();
     openActressDetail(actressId);
   } catch (err) {
     console.error('Stage name save failed:', err);
     setStatus('save failed');
-    btn.disabled = false;
-    btn.textContent = 'Save';
+    saveBtn.disabled = false;
+    saveBtn.textContent = 'Save';
   }
 }
 
@@ -275,11 +334,7 @@ function renderIdentitySection(a) {
        </div>`
     : `<button class="btn-search-stage-name" id="btn-search-stage-name">Search for Stage Name</button>`;
 
-  const stageNameEditHtml = `<div class="stage-name-manual-row">
-    <input class="stage-name-manual-input" id="input-stage-name-manual" type="text"
-           placeholder="Set kanji manually…" value="${a.stageName ? esc(a.stageName) : ''}">
-    <button class="btn-stage-name-manual-save" id="btn-stage-name-manual-save">Save</button>
-  </div>`;
+  const editStageNameBtn = `<button class="btn-stage-name-edit" id="btn-stage-name-edit" title="Edit stage name">Edit</button>`;
 
   const tierBadge = `<span class="tier-badge tier-${esc(a.tier)}">${esc(a.tier.toLowerCase())}</span>`;
 
@@ -289,7 +344,7 @@ function renderIdentitySection(a) {
       ${lastName ? `<span class="detail-last-name">${esc(lastName)}</span>` : ''}
     </div>
     ${stageNameHtml}
-    ${stageNameEditHtml}
+    ${editStageNameBtn}
   `;
 
   const avatarFrameHtml = renderAvatarFrame({
@@ -618,8 +673,8 @@ function wireActionButtons(a) {
   const btn = document.getElementById('btn-search-stage-name');
   if (btn) btn.addEventListener('click', () => searchStageName(a.id));
 
-  const saveBtn = document.getElementById('btn-stage-name-manual-save');
-  if (saveBtn) saveBtn.addEventListener('click', () => saveStageNameManual(a.id));
+  const editBtn = document.getElementById('btn-stage-name-edit');
+  if (editBtn) editBtn.addEventListener('click', () => openStageNameModal(a.id, a.stageName));
 
   function applyActressFlags(data) {
     a.favorite = data.favorite;

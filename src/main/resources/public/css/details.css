@@ -250,6 +250,127 @@
   50%       { opacity: 0.2; }
 }
 
+.btn-stage-name-edit {
+  margin-top: 5px;
+  padding: 2px 8px;
+  font-size: 0.68rem;
+  color: #555;
+  background: transparent;
+  border: 1px solid #333;
+  border-radius: 3px;
+  cursor: pointer;
+  font-family: inherit;
+  letter-spacing: 0.04em;
+}
+
+.btn-stage-name-edit:hover {
+  border-color: #666;
+  color: #999;
+}
+
+/* ── Stage name edit modal ───────────────────────────────────────────── */
+
+.sn-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 900;
+}
+
+.sn-card {
+  background: #0b1220;
+  border: 1px solid #1e293b;
+  border-radius: 8px;
+  width: 340px;
+  max-width: calc(100vw - 32px);
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6);
+}
+
+.sn-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 14px 10px;
+  border-bottom: 1px solid #1e293b;
+}
+
+.sn-header-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: #e2e8f0;
+}
+
+.sn-close {
+  background: none;
+  border: none;
+  color: #64748b;
+  font-size: 16px;
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 3px;
+  line-height: 1;
+}
+.sn-close:hover { color: #94a3b8; background: #1e293b; }
+
+.sn-body {
+  padding: 14px;
+}
+
+.sn-input {
+  width: 100%;
+  box-sizing: border-box;
+  background: #0f172a;
+  border: 1px solid #1e293b;
+  border-radius: 4px;
+  color: #e2e8f0;
+  font-family: inherit;
+  font-size: 13px;
+  padding: 7px 10px;
+}
+.sn-input:focus {
+  outline: none;
+  border-color: #4f46e5;
+  background: #0f1a2e;
+}
+
+.sn-footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 10px 14px;
+  border-top: 1px solid #1e293b;
+}
+
+.sn-btn {
+  font-family: inherit;
+  font-size: 12px;
+  padding: 6px 14px;
+  border-radius: 4px;
+  cursor: pointer;
+  border: 1px solid;
+}
+.sn-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+
+.sn-btn-cancel {
+  background: #0f172a;
+  color: #94a3b8;
+  border-color: #1e293b;
+}
+.sn-btn-cancel:hover:not(:disabled) { background: #1e293b; }
+
+.sn-btn-primary {
+  background: #1a1f3a;
+  color: #a5b4fc;
+  border-color: #4338ca;
+}
+.sn-btn-primary:hover:not(:disabled) { background: #23295a; }
+
 .detail-meta-row {
   display: flex;
   align-items: center;
