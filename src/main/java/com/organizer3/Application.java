@@ -162,7 +162,14 @@ public class Application {
         // Database
         Path dbDir = Path.of(System.getProperty("user.home"), ".organizer3");
         Files.createDirectories(dbDir);
-        Jdbi jdbi = Jdbi.create("jdbc:sqlite:" + dbDir.resolve("organizer.db"));
+        org.sqlite.SQLiteConfig sqliteConfig = new org.sqlite.SQLiteConfig();
+        sqliteConfig.setBusyTimeout(60_000);                                    // ms; was 0
+        sqliteConfig.setJournalMode(org.sqlite.SQLiteConfig.JournalMode.WAL);   // readers don't block writers
+        sqliteConfig.setSynchronous(org.sqlite.SQLiteConfig.SynchronousMode.NORMAL); // safe with WAL; faster than FULL
+        sqliteConfig.setSharedCache(true);                                      // minor win for short-lived connections
+        org.sqlite.SQLiteDataSource sqliteDataSource = new org.sqlite.SQLiteDataSource(sqliteConfig);
+        sqliteDataSource.setUrl("jdbc:sqlite:" + dbDir.resolve("organizer.db"));
+        Jdbi jdbi = Jdbi.create(sqliteDataSource);
         new SchemaUpgrader(jdbi).upgrade();
         new SchemaInitializer(jdbi).initialize();
         new TagSeeder(jdbi).seedIfEmpty();
@@ -944,6 +951,8 @@ public class Application {
         taskRunnerRef.set(taskRunner);
         // Phase 6: wire TaskRunner into EnrichmentRunner for task-aware pause detection.
         enrichmentRunner.setTaskRunner(taskRunner);
+        // Wire TaskRunner into TitleTranslationSweeper so it auto-pauses during sync tasks.
+        titleTranslationSweeper.setTaskRunner(taskRunner);
         com.organizer3.mcp.tools.ForceEnrichTitleTool forceEnrichTitleTool =
                 new com.organizer3.mcp.tools.ForceEnrichTitleTool(
                         jdbi, titleRepo, javdbClient,
