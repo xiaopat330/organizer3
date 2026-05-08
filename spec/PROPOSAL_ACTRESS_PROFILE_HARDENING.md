@@ -183,6 +183,10 @@ Ship **Options 9, 1, 3, 4, 2, 7** as a single hardening release:
 - **#2 is the most uncomfortable to skip.** Today's silent-skip cost ~half this session.
 - **#4's marginal value is half-spent** because the top mismatchers were manually fixed during this triage. Still worth running for accumulated debt.
 
+## Follow-ups identified during implementation
+
+- **Tighten `stage_name` and `alternate_names_json` predicates in `MISMATCH_WHERE`** to use `json_each` + exact `json_extract($.name)` comparison. Both currently use `REPLACE(cast_json,' ') LIKE '%name%'` substring matching against the raw JSON blob — same brittleness class that motivated the alias predicate tightening (commit `33b1bd6`). For short stage_names or alternate names, this can spuriously suppress real mismatches. Affects the same three callers: `FindEnrichmentCastMismatchesTool`, `EnrichmentProvenanceBackfillTask`, `EnrichmentClearMismatchedTask`. Estimated effort: 30–45 min.
+
 ## Out of scope / explicit non-goals
 
 - Redesigning the enrichment queue, slug discovery algorithm, or staging schema.
