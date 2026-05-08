@@ -209,6 +209,19 @@ structures:
       - .Trashes
       - incomplete
 
+# SMB timeout settings — see spec/PROPOSAL_SMB_TIMEOUT_HARDENING.md §3.1–3.3.
+# All timeouts have conservative defaults; tune only if you see false-positive
+# timeouts on a genuinely slow NAS. A per-volume coherent sync of a large
+# letter volume can take 30–60 min over slow SMB; the default 120 min budget
+# gives 2x headroom.
+#
+# smb:
+#   readTimeoutMinutes: 5       # single SMB call read timeout (default 5)
+#   writeTimeoutMinutes: 5      # single SMB call write timeout (default 5)
+#   transactTimeoutMinutes: 5   # overall SMB request timeout (default 5)
+#   perVolumeTimeoutMinutes: 120  # watchdog: max time per volume in coherent sync (default 120)
+#   unmountTimeoutSeconds: 30   # max time to wait for unmount before abandoning (default 30)
+
 # Sync reconciliation — see spec/PROPOSAL_SYNC_RECONCILIATION.md.
 # A title_locations row not observed during a sync is marked stale rather than
 # deleted. Rows past the grace window are swept; titles with zero live and no
