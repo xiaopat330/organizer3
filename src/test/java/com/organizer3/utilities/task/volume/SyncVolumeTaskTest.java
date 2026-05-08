@@ -68,7 +68,7 @@ class SyncVolumeTaskTest {
         registry.put("unmount", unmount);
 
         TaskRun run = runTaskAndAwait(
-                new SyncVolumeTask(() -> new CommandInvoker(registry, session)),
+                new SyncVolumeTask(() -> new CommandInvoker(registry, session), 30L),
                 TaskInputs.of("volumeId", "a"));
 
         assertEquals(TaskRun.Status.OK, run.status());
@@ -100,7 +100,7 @@ class SyncVolumeTaskTest {
                 "unmount", unmount);
 
         TaskRun run = runTaskAndAwait(
-                new SyncVolumeTask(() -> new CommandInvoker(registry, session)),
+                new SyncVolumeTask(() -> new CommandInvoker(registry, session), 30L),
                 TaskInputs.of("volumeId", "a"));
 
         assertEquals(0, syncAll.invocations.size(),    "sync all should not run if mount fails");

@@ -21,6 +21,14 @@ import lombok.extern.slf4j.Slf4j;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
 
 /**
@@ -31,6 +39,15 @@ import java.util.function.Supplier;
  * appearing as a false orphan when only A is synced — the title is observed at B before
  * the global prune decides whether it has "disappeared". See
  * {@code spec/PROPOSAL_SYNC_RECONCILIATION.md §3} for design rationale.
+ *
+ * <h3>Hang protection (fail-fast)</h3>
+ * Each volume's scan and unmount run inside a {@link Future} with a hard timeout.
+ * If the SMB connection dies mid-scan, the per-call read timeout ({@link com.organizer3.config.SmbSettings})
+ * should surface within minutes; the per-volume watchdog catches any remaining stalls.
+ * A hung scan produces a {@code phaseEnd(failed)} within the configured timeout rather
+ * than blocking the JVM indefinitely. A 60-second INFO heartbeat makes slow-but-healthy
+ * runs distinguishable from hangs in the log. See
+ * {@code spec/PROPOSAL_SMB_TIMEOUT_HARDENING.md §3.2–3.4}.
  *
  * <h3>Failure handling</h3>
  * If any volume fails to mount or scan, the task continues with the remaining volumes
@@ -68,10 +85,13 @@ public final class CoherentMultiVolumeSyncTask implements Task {
     private static final List<String> SUPPORTED_STRUCTURE_TYPES =
             List.of("conventional", "exhibition", "queue", "sort_pool", "collections");
 
+    private static final long DEFAULT_HEARTBEAT_INTERVAL_MS = 60_000L;
+
     private final Supplier<CommandInvoker> invokerFactory;
     private final FullSyncOperation suppressedPruneOp;
     private final SyncPruneService pruneService;
     private final ReconcileService reconcileService;
+    private final long heartbeatIntervalMs;
 
     /**
      * @param invokerFactory       factory producing a fresh {@link CommandInvoker} (with its own
@@ -89,10 +109,23 @@ public final class CoherentMultiVolumeSyncTask implements Task {
                                        FullSyncOperation suppressedPruneOp,
                                        SyncPruneService pruneService,
                                        ReconcileService reconcileService) {
+        this(invokerFactory, suppressedPruneOp, pruneService, reconcileService,
+                DEFAULT_HEARTBEAT_INTERVAL_MS);
+    }
+
+    /**
+     * Package-private constructor for tests — allows injecting a shorter heartbeat interval.
+     */
+    CoherentMultiVolumeSyncTask(Supplier<CommandInvoker> invokerFactory,
+                                FullSyncOperation suppressedPruneOp,
+                                SyncPruneService pruneService,
+                                ReconcileService reconcileService,
+                                long heartbeatIntervalMs) {
         this.invokerFactory = invokerFactory;
         this.suppressedPruneOp = suppressedPruneOp;
         this.pruneService = pruneService;
         this.reconcileService = reconcileService;
+        this.heartbeatIntervalMs = heartbeatIntervalMs;
     }
 
     @Override
@@ -112,69 +145,133 @@ public final class CoherentMultiVolumeSyncTask implements Task {
         boolean partialFailure = false;
         List<String> failedVolumes = new ArrayList<>();
 
-        for (VolumeConfig volume : volumes) {
-            if (io.isCancellationRequested()) {
-                log.info("Coherent sync cancelled before volume={}", volume.id());
-                break;
-            }
+        long runStartMs = System.currentTimeMillis();
+        AtomicReference<String> currentVolumeId = new AtomicReference<>("(none)");
 
-            String phaseId = "vol." + volume.id();
-            io.phaseStart(phaseId, "Sync volume " + volume.id().toUpperCase());
-            boolean volumeOk = false;
+        // ── Heartbeat scheduler ───────────────────────────────────────────────
+        ScheduledExecutorService heartbeatExecutor = Executors.newSingleThreadScheduledExecutor(
+                r -> {
+                    Thread t = new Thread(r, "coherent-heartbeat");
+                    t.setDaemon(true);
+                    return t;
+                });
+        heartbeatExecutor.scheduleWithFixedDelay(() -> {
+            long elapsedMin = (System.currentTimeMillis() - runStartMs) / 60_000L;
+            log.info("Coherent sync alive — current phase=vol.{} ({}m elapsed)",
+                    currentVolumeId.get(), elapsedMin);
+        }, heartbeatIntervalMs, heartbeatIntervalMs, TimeUnit.MILLISECONDS);
 
-            CommandInvoker invoker = invokerFactory.get();
-            try {
-                // ── Mount ──────────────────────────────────────────────────
-                boolean mounted = invoker.invoke(phaseId, "mount",
-                        new String[]{"mount", volume.id()}, io)
-                        && invoker.session().isConnected();
+        // ── Scan executor (single-thread; one volume at a time) ───────────────
+        ExecutorService scanExecutor = Executors.newSingleThreadExecutor(
+                r -> {
+                    Thread t = new Thread(r, "coherent-scan");
+                    t.setDaemon(true);
+                    return t;
+                });
 
-                if (!mounted) {
-                    io.phaseLog(phaseId, "Mount failed for volume " + volume.id());
-                    partialFailure = true;
-                    failedVolumes.add(volume.id());
-                    io.phaseEnd(phaseId, "failed", "Mount failed");
-                    continue;
+        try {
+            for (VolumeConfig volume : volumes) {
+                if (io.isCancellationRequested()) {
+                    log.info("Coherent sync cancelled before volume={}", volume.id());
+                    break;
                 }
 
-                // ── Suppress-prune scan ───────────────────────────────────
-                VolumeStructureDef structure = AppConfig.get().volumes()
-                        .findStructureById(volume.structureType())
-                        .orElseThrow(() -> new IllegalStateException(
-                                "No structure definition for type: " + volume.structureType()));
+                currentVolumeId.set(volume.id());
+                String phaseId = "vol." + volume.id();
+                io.phaseStart(phaseId, "Sync volume " + volume.id().toUpperCase());
+                boolean volumeOk = false;
 
-                SessionContext ctx = invoker.session();
-                CommandIO phaseIO = new BufferingCommandIO(io, phaseId);
-
+                CommandInvoker invoker = invokerFactory.get();
                 try {
-                    // Run FullSyncOperation(suppressPrune=true) — marks stale, scans,
-                    // saves, finalizes per-volume (last_synced_at + per-volume recompute),
-                    // but does NOT run pruneOrphanedTitlesAndCovers.
-                    //
-                    // Per-volume finalizeSync already called recalcTiers/recomputeForTitles/
-                    // recomputeForActresses for this volume's touched ids. The global prune
-                    // step below handles the library-wide orphan judgement.
-                    suppressedPruneOp.execute(volume, structure,
-                            ctx.getActiveConnection().fileSystem(), ctx, phaseIO);
-                    volumeOk = true;
-                } catch (IOException | RuntimeException e) {
-                    log.error("Coherent sync scan failed for volume={}: {}",
-                            volume.id(), e.getMessage(), e);
-                    io.phaseLog(phaseId, "Scan failed: " + e.getMessage());
-                    partialFailure = true;
-                    failedVolumes.add(volume.id());
-                }
+                    // ── Mount ──────────────────────────────────────────────────
+                    boolean mounted = invoker.invoke(phaseId, "mount",
+                            new String[]{"mount", volume.id()}, io)
+                            && invoker.session().isConnected();
 
-            } finally {
-                // ── Unmount — always, regardless of scan outcome ──────────
-                try {
-                    invoker.invoke(phaseId, "unmount", new String[]{"unmount"}, io);
-                } catch (RuntimeException e) {
-                    log.warn("Unmount failed for volume={}: {}", volume.id(), e.getMessage(), e);
+                    if (!mounted) {
+                        io.phaseLog(phaseId, "Mount failed for volume " + volume.id());
+                        partialFailure = true;
+                        failedVolumes.add(volume.id());
+                        io.phaseEnd(phaseId, "failed", "Mount failed");
+                        continue;
+                    }
+
+                    // ── Suppress-prune scan with per-volume watchdog ───────────
+                    VolumeStructureDef structure = AppConfig.get().volumes()
+                            .findStructureById(volume.structureType())
+                            .orElseThrow(() -> new IllegalStateException(
+                                    "No structure definition for type: " + volume.structureType()));
+
+                    SessionContext ctx = invoker.session();
+                    CommandIO phaseIO = new BufferingCommandIO(io, phaseId);
+
+                    long volumeTimeoutMin = AppConfig.get().volumes().smbOrDefaults()
+                            .perVolumeTimeoutMinutesOrDefault();
+
+                    Future<Void> scanFuture = scanExecutor.submit(() -> {
+                        // Run FullSyncOperation(suppressPrune=true) — marks stale, scans,
+                        // saves, finalizes per-volume (last_synced_at + per-volume recompute),
+                        // but does NOT run pruneOrphanedTitlesAndCovers.
+                        suppressedPruneOp.execute(volume, structure,
+                                ctx.getActiveConnection().fileSystem(), ctx, phaseIO);
+                        return null;
+                    });
+
+                    try {
+                        scanFuture.get(volumeTimeoutMin, TimeUnit.MINUTES);
+                        volumeOk = true;
+                    } catch (TimeoutException te) {
+                        log.error("Coherent sync hard timeout on volume={} after {} min — marking failed",
+                                volume.id(), volumeTimeoutMin);
+                        io.phaseLog(phaseId, "Hard timeout exceeded — marking volume failed");
+                        partialFailure = true;
+                        failedVolumes.add(volume.id());
+                        scanFuture.cancel(true);
+                    } catch (ExecutionException ee) {
+                        Throwable cause = ee.getCause() != null ? ee.getCause() : ee;
+                        log.error("Coherent sync scan failed for volume={}: {}",
+                                volume.id(), cause.getMessage(), cause);
+                        io.phaseLog(phaseId, "Scan failed: " + cause.getMessage());
+                        partialFailure = true;
+                        failedVolumes.add(volume.id());
+                    } catch (InterruptedException ie) {
+                        Thread.currentThread().interrupt();
+                        log.warn("Coherent sync interrupted waiting on volume={}", volume.id());
+                        partialFailure = true;
+                        failedVolumes.add(volume.id());
+                        scanFuture.cancel(true);
+                    }
+
+                } finally {
+                    // ── Unmount — always, with bounded wait ───────────────────
+                    long unmountTimeoutSec = AppConfig.get().volumes().smbOrDefaults()
+                            .unmountTimeoutSecondsOrDefault();
+                    Future<Void> unmountFuture = scanExecutor.submit(() -> {
+                        invoker.invoke(phaseId, "unmount", new String[]{"unmount"}, io);
+                        return null;
+                    });
+                    try {
+                        unmountFuture.get(unmountTimeoutSec, TimeUnit.SECONDS);
+                    } catch (TimeoutException te) {
+                        log.warn("Unmount timeout for volume={} after {}s — abandoning",
+                                volume.id(), unmountTimeoutSec);
+                        unmountFuture.cancel(true);
+                    } catch (ExecutionException ee) {
+                        log.warn("Unmount failed for volume={}: {}",
+                                volume.id(), ee.getCause() != null ? ee.getCause().getMessage() : ee.getMessage());
+                    } catch (InterruptedException ie) {
+                        Thread.currentThread().interrupt();
+                        log.warn("Interrupted during unmount for volume={}", volume.id());
+                        unmountFuture.cancel(true);
+                    }
+
+                    io.phaseEnd(phaseId, volumeOk ? "ok" : "failed",
+                            volumeOk ? "Scan complete" : "Scan failed");
                 }
-                io.phaseEnd(phaseId, volumeOk ? "ok" : "failed",
-                        volumeOk ? "Scan complete" : "Scan failed");
             }
+        } finally {
+            scanExecutor.shutdownNow();
+            heartbeatExecutor.shutdownNow();
         }
 
         // ── Global prune ──────────────────────────────────────────────────

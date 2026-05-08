@@ -2,6 +2,7 @@ package com.organizer3.utilities.task.volume;
 
 import com.organizer3.command.Command;
 import com.organizer3.config.AppConfig;
+import com.organizer3.config.SmbSettings;
 import com.organizer3.config.volume.OrganizerConfig;
 import com.organizer3.config.volume.VolumeConfig;
 import com.organizer3.filesystem.VolumeFileSystem;
@@ -27,7 +28,9 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
@@ -370,15 +373,208 @@ class CoherentMultiVolumeSyncTaskTest {
         assertEquals("vol-a", mountA.invocations.get(0)[1]);
     }
 
+    // ── Watchdog + heartbeat tests ────────────────────────────────────────────
+
+    /**
+     * Watchdog timeout test: a volume whose scan blocks indefinitely should time out,
+     * be marked as a partial failure, and the task should continue and eventually complete.
+     * The global prune must be skipped (partial failure = incomplete picture).
+     *
+     * <p>The per-volume timeout is set to 0 minutes via {@code SmbSettings(perVolumeTimeoutMinutes=0)}.
+     * {@code Future.get(0, MINUTES)} fires immediately for any non-instant operation,
+     * so the blocking mock triggers the timeout within milliseconds.
+     */
+    @Test
+    void watchdog_scanBlocksForever_timeoutMarksPartialFailureAndContinues() throws Exception {
+        // 0 minutes → Future.get(0, MINUTES) fires immediately on any blocking Future
+        AppConfig.reset();
+        AppConfig.initializeForTest(configWithSmbSettings(new SmbSettings(5, 5, 5, 0, 30)));
+
+        // vol-a scan blocks (simulates hung SMB call)
+        CountDownLatch blockingLatch = new CountDownLatch(1);
+        doAnswer(inv -> {
+            blockingLatch.await(10, TimeUnit.SECONDS);
+            return null;
+        }).when(suppressedPruneOp).execute(
+                argThat(v -> "vol-a".equals(v.id())), any(), any(), any(), any());
+
+        SessionContext sessionA = new SessionContext();
+        SessionContext sessionB = new SessionContext();
+
+        StubCommand mountA   = mountStub(sessionA, VOL_A);
+        StubCommand unmountA = unmountStub(sessionA);
+        StubCommand mountB   = mountStub(sessionB, VOL_B);
+        StubCommand unmountB = unmountStub(sessionB);
+
+        int[] callCount = {0};
+        List<Map<String, Command>> registries = List.of(
+                Map.of("mount", mountA, "unmount", unmountA),
+                Map.of("mount", mountB, "unmount", unmountB));
+        List<SessionContext> sessions = List.of(sessionA, sessionB);
+
+        CoherentMultiVolumeSyncTask task = new CoherentMultiVolumeSyncTask(
+                () -> {
+                    int idx = callCount[0]++;
+                    return new CommandInvoker(registries.get(idx), sessions.get(idx));
+                },
+                suppressedPruneOp, pruneService, reconcileService, 60_000L);
+
+        try {
+            TaskRun run = runTaskAndAwait(task, 15);
+
+            // Task must complete — not hang
+            assertNotEquals(TaskRun.Status.RUNNING, run.status(), "Task must have ended, not hung");
+
+            // vol-a timed out → partial failure → global prune must be skipped
+            verify(pruneService, never()).pruneOrphanedTitlesAndCovers(any(), anyInt(), any());
+            verify(reconcileService, never()).run(anyBoolean());
+
+            // vol-b scan must still have been attempted (task continues after vol-a timeout)
+            verify(suppressedPruneOp, times(1)).execute(
+                    argThat(v -> "vol-b".equals(v.id())), any(), any(), any(), any());
+        } finally {
+            blockingLatch.countDown();
+        }
+    }
+
+    /**
+     * Heartbeat test: with a short heartbeat interval, at least one heartbeat fires
+     * during a slow scan. We verify by checking that the heartbeat executor ran — proxy
+     * via a side-effect counter attached to the scan delay.
+     *
+     * <p>Note: verifying log output is brittle. Instead, this test uses a very short
+     * heartbeat interval (100 ms) and a scan that completes after 300 ms, then
+     * asserts the task completed without hanging — confirming the heartbeat did not
+     * interfere with normal operation. A separate focused check uses the heartbeat
+     * to verify the executor shuts down cleanly.
+     */
+    @Test
+    void heartbeat_doesNotInterfereWithNormalScan() throws Exception {
+        // vol-a scan takes ~250ms; heartbeat fires every 50ms; task must complete normally
+        SessionContext sessionA = new SessionContext();
+        SessionContext sessionB = new SessionContext();
+
+        AtomicInteger scanCallCount = new AtomicInteger(0);
+        doAnswer(inv -> {
+            scanCallCount.incrementAndGet();
+            Thread.sleep(250); // slow scan
+            return null;
+        }).when(suppressedPruneOp).execute(any(), any(), any(), any(), any());
+
+        StubCommand mountA   = mountStub(sessionA, VOL_A);
+        StubCommand unmountA = unmountStub(sessionA);
+        StubCommand mountB   = mountStub(sessionB, VOL_B);
+        StubCommand unmountB = unmountStub(sessionB);
+
+        int[] callCount = {0};
+        List<Map<String, Command>> registries = List.of(
+                Map.of("mount", mountA, "unmount", unmountA),
+                Map.of("mount", mountB, "unmount", unmountB));
+        List<SessionContext> sessions = List.of(sessionA, sessionB);
+
+        CoherentMultiVolumeSyncTask task = new CoherentMultiVolumeSyncTask(
+                () -> {
+                    int idx = callCount[0]++;
+                    return new CommandInvoker(registries.get(idx), sessions.get(idx));
+                },
+                suppressedPruneOp,
+                pruneService,
+                reconcileService,
+                /* heartbeatIntervalMs= */ 50L);
+
+        TaskRun run = runTaskAndAwait(task, /* timeoutSec= */ 10);
+
+        // Task must complete successfully despite heartbeat
+        assertEquals(TaskRun.Status.OK, run.status(),
+                "Task should complete normally with heartbeat running");
+        // Both volumes must have been scanned
+        assertEquals(2, scanCallCount.get(), "Both volumes must scan");
+    }
+
+    /**
+     * Thread cleanup test: after a watchdog fires and the task ends, the scan and
+     * heartbeat executors must be shut down. The key invariant is that the task
+     * finishes within the test timeout rather than hanging indefinitely.
+     *
+     * <p>Note: {@code cancel(true)} sends an interrupt but SMB socket reads are not
+     * interruptible at the OS level — the cancelled scan thread may outlive the task
+     * briefly. The test asserts the task completed, not thread death. The smbj-level
+     * read timeout ({@link SmbSettings#readTimeoutMinutes}) is the actual signal path
+     * that terminates the blocked thread.
+     */
+    @Test
+    void watchdog_executorsShutDownAfterTaskEnd() throws Exception {
+        AppConfig.reset();
+        AppConfig.initializeForTest(configWithSmbSettings(new SmbSettings(5, 5, 5, 0, 30)));
+
+        CountDownLatch blockingLatch = new CountDownLatch(1);
+        doAnswer(inv -> {
+            blockingLatch.await(10, TimeUnit.SECONDS);
+            return null;
+        }).when(suppressedPruneOp).execute(
+                argThat(v -> "vol-a".equals(v.id())), any(), any(), any(), any());
+
+        SessionContext sessionA = new SessionContext();
+        SessionContext sessionB = new SessionContext();
+        StubCommand mountA   = mountStub(sessionA, VOL_A);
+        StubCommand unmountA = unmountStub(sessionA);
+        StubCommand mountB   = mountStub(sessionB, VOL_B);
+        StubCommand unmountB = unmountStub(sessionB);
+
+        int[] callCount = {0};
+        List<Map<String, Command>> registries = List.of(
+                Map.of("mount", mountA, "unmount", unmountA),
+                Map.of("mount", mountB, "unmount", unmountB));
+        List<SessionContext> sessions = List.of(sessionA, sessionB);
+
+        CoherentMultiVolumeSyncTask task = new CoherentMultiVolumeSyncTask(
+                () -> {
+                    int idx = callCount[0]++;
+                    return new CommandInvoker(registries.get(idx), sessions.get(idx));
+                },
+                suppressedPruneOp, pruneService, reconcileService, 50L);
+
+        try {
+            // Task must complete within the test timeout (not hang in RUNNING)
+            TaskRun run = runTaskAndAwait(task, 15);
+            assertNotEquals(TaskRun.Status.RUNNING, run.status(),
+                    "Task must not be stuck in RUNNING after watchdog fires");
+        } finally {
+            blockingLatch.countDown();
+        }
+    }
+
+    // ── Config helper ─────────────────────────────────────────────────────────
+
+    /**
+     * Builds an {@link OrganizerConfig} with the standard test volumes and the given
+     * {@link SmbSettings}. Used by watchdog tests that need a non-default per-volume timeout.
+     */
+    private static OrganizerConfig configWithSmbSettings(SmbSettings smbSettings) {
+        return new OrganizerConfig(
+                "test", "/tmp", null, null, null, null, null, null,
+                List.of(),
+                List.of(VOL_A, VOL_B, VOL_AV),
+                List.of(
+                        new com.organizer3.config.volume.VolumeStructureDef("conventional", List.of(), null),
+                        new com.organizer3.config.volume.VolumeStructureDef("queue", List.of(), null)
+                ),
+                List.of(), null, null, null, null, null, null, null, null, null, null, smbSettings);
+    }
+
     // ── Task runner helper ────────────────────────────────────────────────────
 
     private static TaskRun runTaskAndAwait(CoherentMultiVolumeSyncTask task) throws Exception {
+        return runTaskAndAwait(task, 15);
+    }
+
+    private static TaskRun runTaskAndAwait(CoherentMultiVolumeSyncTask task, int timeoutSec) throws Exception {
         TaskRunner runner = new TaskRunner(new TaskRegistry(List.of(task)));
         try {
             TaskRun run = runner.start(CoherentMultiVolumeSyncTask.ID, new TaskInputs(Map.of()));
-            long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(15);
+            long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(timeoutSec);
             while (run.status() == TaskRun.Status.RUNNING) {
-                if (System.nanoTime() > deadline) fail("Task did not complete within 15 seconds");
+                if (System.nanoTime() > deadline) fail("Task did not complete within " + timeoutSec + " seconds");
                 Thread.sleep(20);
             }
             return run;

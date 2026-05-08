@@ -1,5 +1,6 @@
 package com.organizer3.utilities.task.volume;
 
+import com.organizer3.config.AppConfig;
 import com.organizer3.shell.SessionContext;
 import com.organizer3.utilities.task.CommandInvoker;
 import com.organizer3.utilities.task.Task;
@@ -7,7 +8,15 @@ import com.organizer3.utilities.task.TaskIO;
 import com.organizer3.utilities.task.TaskInputs;
 import com.organizer3.utilities.task.TaskSpec;
 
+import lombok.extern.slf4j.Slf4j;
+
 import java.util.List;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.function.Supplier;
 
 /**
@@ -22,7 +31,14 @@ import java.util.function.Supplier;
  * <p>The task does not reach into the user's live shell session: it receives a
  * {@link Supplier} that produces a fresh {@link CommandInvoker} (with its own
  * {@link SessionContext}) for each run.
+ *
+ * <h3>Unmount hang protection</h3>
+ * The unmount phase runs with a bounded timeout (from {@link SmbSettings#unmountTimeoutSeconds}).
+ * A dead SMB connection's unmount call can hang the same way as a dead scan; the timeout
+ * prevents a single volume task from blocking indefinitely on cleanup.
+ * See {@code spec/PROPOSAL_SMB_TIMEOUT_HARDENING.md §3.3}.
  */
+@Slf4j
 public final class SyncVolumeTask implements Task {
 
     public static final String ID = "volume.sync";
@@ -35,9 +51,18 @@ public final class SyncVolumeTask implements Task {
     );
 
     private final Supplier<CommandInvoker> invokerFactory;
+    /** Unmount timeout in seconds. Defaults to {@link SmbSettings#unmountTimeoutSecondsOrDefault()} at runtime. */
+    private final long unmountTimeoutSec;
 
     public SyncVolumeTask(Supplier<CommandInvoker> invokerFactory) {
         this.invokerFactory = invokerFactory;
+        this.unmountTimeoutSec = -1; // sentinel: read from AppConfig at runtime
+    }
+
+    /** Package-private constructor for tests — allows injecting a fixed unmount timeout. */
+    SyncVolumeTask(Supplier<CommandInvoker> invokerFactory, long unmountTimeoutSec) {
+        this.invokerFactory = invokerFactory;
+        this.unmountTimeoutSec = unmountTimeoutSec;
     }
 
     @Override
@@ -66,8 +91,51 @@ public final class SyncVolumeTask implements Task {
         }
 
         // Unmount runs unconditionally — even on cancel — so we never leave a dangling connection.
-        runPhase(io, "unmount", "Unmount volume", () ->
-                invoker.invoke("unmount", "unmount", new String[]{"unmount"}, io));
+        // A dead connection can hang unmount; bound the wait to avoid a permanent stall.
+        long effectiveUnmountTimeoutSec = unmountTimeoutSec >= 0
+                ? unmountTimeoutSec
+                : AppConfig.get().volumes().smbOrDefaults().unmountTimeoutSecondsOrDefault();
+        runBoundedUnmount(io, volumeId, invoker, effectiveUnmountTimeoutSec);
+    }
+
+    /**
+     * Runs the unmount phase with a hard timeout. If unmount does not complete within
+     * {@code unmountTimeoutSec} seconds, it is abandoned (logged as a warning) and the
+     * phase is marked failed. The task continues normally regardless — a failed unmount
+     * is non-blocking.
+     */
+    private static void runBoundedUnmount(TaskIO io, String volumeId, CommandInvoker invoker,
+                                          long unmountTimeoutSec) {
+        io.phaseStart("unmount", "Unmount volume");
+
+        ExecutorService unmountExecutor = Executors.newSingleThreadExecutor(r -> {
+            Thread t = new Thread(r, "sync-volume-unmount");
+            t.setDaemon(true);
+            return t;
+        });
+
+        boolean ok = false;
+        try {
+            Future<Boolean> future = unmountExecutor.submit(() ->
+                    invoker.invoke("unmount", "unmount", new String[]{"unmount"}, io));
+            try {
+                ok = Boolean.TRUE.equals(future.get(unmountTimeoutSec, TimeUnit.SECONDS));
+            } catch (TimeoutException te) {
+                log.warn("Unmount timeout for volume={} after {}s — abandoning", volumeId, unmountTimeoutSec);
+                future.cancel(true);
+            } catch (ExecutionException ee) {
+                log.warn("Unmount failed for volume={}: {}", volumeId,
+                        ee.getCause() != null ? ee.getCause().getMessage() : ee.getMessage());
+            } catch (InterruptedException ie) {
+                Thread.currentThread().interrupt();
+                log.warn("Interrupted during unmount for volume={}", volumeId);
+                future.cancel(true);
+            }
+        } finally {
+            unmountExecutor.shutdownNow();
+        }
+
+        io.phaseEnd("unmount", ok ? "ok" : "failed", "");
     }
 
     /** Opens a phase, runs the body, closes with ok/failed based on the returned success flag. */

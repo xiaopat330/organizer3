@@ -1,5 +1,6 @@
 package com.organizer3.smb;
 
+import com.organizer3.config.SmbSettings;
 import com.organizer3.config.volume.OrganizerConfig;
 import com.organizer3.config.volume.ServerConfig;
 import com.organizer3.config.volume.VolumeConfig;
@@ -16,6 +17,7 @@ class SmbConnectionFactoryTest {
     @Test
     void throwsForUnknownVolume() {
         OrganizerConfig config = mock(OrganizerConfig.class);
+        when(config.smbOrDefaults()).thenReturn(SmbSettings.DEFAULTS);
         when(config.findById("nonexistent")).thenReturn(Optional.empty());
 
         SmbConnectionFactory factory = new SmbConnectionFactory(config);
@@ -27,6 +29,7 @@ class SmbConnectionFactoryTest {
     @Test
     void throwsForUnknownServer() {
         OrganizerConfig config = mock(OrganizerConfig.class);
+        when(config.smbOrDefaults()).thenReturn(SmbSettings.DEFAULTS);
         VolumeConfig volume = new VolumeConfig("a", "//pandora/jav_A", "conventional", "pandora", null);
         when(config.findById("a")).thenReturn(Optional.of(volume));
         when(config.findServerById("pandora")).thenReturn(Optional.empty());
@@ -40,6 +43,7 @@ class SmbConnectionFactoryTest {
     @Test
     void throwsForInvalidSmbPath() {
         OrganizerConfig config = mock(OrganizerConfig.class);
+        when(config.smbOrDefaults()).thenReturn(SmbSettings.DEFAULTS);
         VolumeConfig volume = new VolumeConfig("a", "not-a-smb-path", "conventional", "pandora", null);
         ServerConfig server = new ServerConfig("pandora", "user", "pass", null);
         when(config.findById("a")).thenReturn(Optional.of(volume));
