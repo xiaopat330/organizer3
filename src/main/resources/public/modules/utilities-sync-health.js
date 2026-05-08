@@ -15,6 +15,20 @@ let lastReconcile   = null;   // most recent PersistedReport from /api/reconcile
 let lastCoherentRun = null;   // PersistedReport or null from /api/reconcile/last?trigger=coherent_sync
 let buttonsWired    = false;
 
+// ── Run-tracking state ────────────────────────────────────────────────────────
+// volStates: Map<volumeId, { state: 'idle'|'queued'|'scanning'|'done'|'failed'|'skipped',
+//                            startedAt: null|number, endedAt: null|number,
+//                            detail: string, errorMsg: string }>
+let volStates       = new Map();
+let activeRunId     = null;   // runId of the currently tracked run (null when idle)
+let activeES        = null;   // EventSource for the active run
+let runIsCoherent   = false;  // true when task is volume.sync_coherent
+let runStartedAt    = null;   // Date.now() when the run began (for cumulative elapsed)
+let coherentTotal   = 0;      // total volumes expected in a coherent run
+let coherentDone    = 0;      // volumes completed (ok) so far
+let currentVolId    = null;   // id of volume currently scanning
+let tickInterval    = null;   // setInterval handle for ticking durations
+
 // ── Show / hide ───────────────────────────────────────────────────────────────
 export async function showSyncHealthView() {
   viewEl().style.display = 'flex';
@@ -30,6 +44,23 @@ export async function showSyncHealthView() {
   if (!buttonsWired) {
     wireButtons();
     buttonsWired = true;
+  }
+
+  // If a coherent sync started before the user navigated here, reattach.
+  const active = taskCenter.getActive();
+  if (
+    active &&
+    active.status === 'running' &&
+    active.taskId === 'volume.sync_coherent' &&
+    active.runId !== activeRunId
+  ) {
+    // Seed all volumes as queued, then subscribe — replay from server will catch us up.
+    initVolStatesQueued();
+    runIsCoherent = true;
+    runStartedAt  = runStartedAt || Date.now();
+    coherentTotal = volumes.length;
+    coherentDone  = 0;
+    openEventSource(active.runId);
   }
 }
 
@@ -80,6 +111,14 @@ function formatAge(date) {
   if (days === 1)  return 'yesterday';
   if (days < 30)   return days + ' days ago';
   return date.toLocaleDateString();
+}
+
+function formatDuration(ms) {
+  const totalSecs = Math.floor(ms / 1000);
+  const mins = Math.floor(totalSecs / 60);
+  const secs = totalSecs % 60;
+  if (mins === 0) return `${secs}s`;
+  return `${mins}m ${String(secs).padStart(2, '0')}s`;
 }
 
 function renderCoherentSyncAge() {
@@ -169,6 +208,35 @@ function formatLastSynced(ts) {
   return 'Just now';
 }
 
+// ── Card subtitle ──────────────────────────────────────────────────────────────
+function renderCardSubtitle() {
+  const el = document.getElementById('sh-vol-card-subtitle');
+  if (!el) return;
+  if (!runIsCoherent || !activeRunId) {
+    el.innerHTML = '';
+    return;
+  }
+  const elapsed  = runStartedAt ? formatDuration(Date.now() - runStartedAt) : '—';
+  const volLabel = currentVolId ? `vol-${currentVolId}` : '—';
+  const pct      = coherentTotal > 0 ? Math.min(100, (coherentDone / coherentTotal) * 100) : 0;
+  el.innerHTML = `
+    <div class="sh-coherent-progress-text">Coherent sync running — ${esc(volLabel)} (${coherentDone}/${coherentTotal} done) — ${esc(elapsed)} elapsed</div>
+    <div class="sh-coherent-progress-bar"><div class="sh-coherent-progress-fill" style="width: ${pct}%;"></div></div>
+  `;
+}
+
+// Inline horizontal progress bar that sits along the bottom of a row during
+// scan/cancelling states. Width reflects current/total from phase.progress
+// events. If no progress info has arrived yet, render a faint indeterminate
+// stripe so the row doesn't look static.
+function renderRowProgressBar(vs) {
+  const hasProgress = vs.total > 0;
+  const pct = hasProgress ? Math.max(0, Math.min(100, (vs.current / vs.total) * 100)) : 0;
+  const cls = hasProgress ? 'sh-vol-progress-fill' : 'sh-vol-progress-fill sh-vol-progress-fill--indeterminate';
+  return `<div class="sh-vol-progress"><div class="${cls}" style="width: ${pct}%;"></div></div>`;
+}
+
+// ── Per-volume row rendering ────────────────────────────────────────────────────
 function renderVolumeActions() {
   const listEl = document.getElementById('sh-vol-list');
   if (!listEl) return;
@@ -176,31 +244,117 @@ function renderVolumeActions() {
     listEl.innerHTML = '<div class="sh-vol-empty">No volumes configured.</div>';
     return;
   }
-  const isBlocked = taskCenter.isRunning();
-  const disAttr = isBlocked ? ' disabled' : '';
-  // Sync button always available — SyncVolumeTask handles mount/unmount itself as phases.
-  // Mount status dot is purely informational. Mount/unmount and queue-only sync are not
-  // exposed here: there are no /mount or /unmount HTTP endpoints, and SyncVolumeTask does
-  // not honor a queueOnly input flag — it always runs `sync all`. For queue-partition-only
-  // sync use the `sync queue` shell command.
+
+  const anyRunning = taskCenter.isRunning();
+
   listEl.innerHTML = volumes.map(v => {
-    const mounted  = v.status !== 'offline';
-    const statusDot = mounted
-      ? '<span class="sh-vol-dot sh-vol-dot--online"  title="online"></span>'
-      : '<span class="sh-vol-dot sh-vol-dot--offline" title="offline"></span>';
-    return `<div class="sh-vol-row">
-      <div class="sh-vol-id">${statusDot}${esc(v.id.toUpperCase())}</div>
-      <div class="sh-vol-meta">${esc(formatLastSynced(v.lastSyncedAt))}</div>
-      <div class="sh-vol-btns">
-        <button type="button" class="sh-vol-btn" data-action="sync" data-vol="${esc(v.id)}"${disAttr}>Sync</button>
-      </div>
-    </div>`;
+    const vs = volStates.get(v.id) || { state: 'idle' };
+    return renderVolRow(v, vs, anyRunning);
   }).join('');
 
   // Wire per-volume buttons
   listEl.querySelectorAll('.sh-vol-btn').forEach(btn => {
     btn.addEventListener('click', () => handleVolAction(btn.dataset.action, btn.dataset.vol));
   });
+
+  renderCardSubtitle();
+}
+
+function renderVolRow(v, vs, anyRunning) {
+  const state = vs.state || 'idle';
+
+  let dotHtml, metaHtml, rightHtml, rowStyle = '', rowCls = 'sh-vol-row';
+
+  const mounted = v.status !== 'offline';
+
+  if (state === 'idle') {
+    dotHtml = mounted
+      ? '<span class="sh-vol-dot sh-vol-dot--online"  title="online"></span>'
+      : '<span class="sh-vol-dot sh-vol-dot--offline" title="offline"></span>';
+    metaHtml = esc(formatLastSynced(v.lastSyncedAt));
+    rightHtml = `<button type="button" class="sh-vol-btn" data-action="sync" data-vol="${esc(v.id)}"${anyRunning ? ' disabled' : ''}>Sync</button>`;
+
+  } else if (state === 'queued') {
+    dotHtml = mounted
+      ? '<span class="sh-vol-dot sh-vol-dot--online"  title="online"></span>'
+      : '<span class="sh-vol-dot sh-vol-dot--offline" title="offline"></span>';
+    metaHtml = esc(formatLastSynced(v.lastSyncedAt));
+    rightHtml = `<span class="sh-vol-state-label sh-vol-queued">queued</span>
+      <button type="button" class="sh-vol-btn" data-action="sync" data-vol="${esc(v.id)}" disabled>Sync</button>`;
+    rowCls += ' sh-vol-row--muted';
+
+  } else if (state === 'scanning') {
+    dotHtml = '<span class="sh-vol-spinner" title="scanning"></span>';
+    const elapsed = vs.startedAt ? formatDuration(Date.now() - vs.startedAt) : '…';
+    const progressText = vs.detail ? esc(vs.detail) : `Scanning… (${elapsed})`;
+    metaHtml = `<span class="sh-vol-scanning-detail">${progressText}</span>`;
+    rightHtml = `<span class="sh-vol-duration sh-vol-duration--ticking">(${elapsed})</span>
+      <button type="button" class="sh-vol-btn" data-action="sync" data-vol="${esc(v.id)}" disabled>Sync</button>`;
+    rowStyle = 'background: rgba(59, 130, 246, 0.08);';
+
+    const bar = renderRowProgressBar(vs);
+    return `<div class="${rowCls}" style="${rowStyle}">
+      <div class="sh-vol-id">${dotHtml}${esc(v.id.toUpperCase())}</div>
+      <div class="sh-vol-meta">${metaHtml}</div>
+      <div class="sh-vol-btns">${rightHtml}</div>
+      ${bar}
+    </div>`;
+
+  } else if (state === 'cancelling') {
+    dotHtml = '<span class="sh-vol-spinner sh-vol-spinner--cancelling" title="cancelling"></span>';
+    const elapsed = vs.startedAt ? formatDuration(Date.now() - vs.startedAt) : '…';
+    metaHtml = `<span class="sh-vol-scanning-detail">⏸ Cancelling…</span>`;
+    rightHtml = `<span class="sh-vol-duration sh-vol-duration--ticking">(${elapsed})</span>
+      <button type="button" class="sh-vol-btn" data-action="sync" data-vol="${esc(v.id)}" disabled>Sync</button>`;
+    rowStyle = 'background: rgba(59, 130, 246, 0.08);';
+
+    const bar = renderRowProgressBar(vs);
+    return `<div class="${rowCls}" style="${rowStyle}">
+      <div class="sh-vol-id">${dotHtml}${esc(v.id.toUpperCase())}</div>
+      <div class="sh-vol-meta">${metaHtml}</div>
+      <div class="sh-vol-btns">${rightHtml}</div>
+      ${bar}
+    </div>`;
+
+  } else if (state === 'done') {
+    dotHtml = '<span class="sh-vol-dot sh-vol-dot--done" title="done">✓</span>';
+    metaHtml = 'Just now';
+    const dur = vs.startedAt && vs.endedAt ? formatDuration(vs.endedAt - vs.startedAt) : '';
+    rightHtml = `<span class="sh-vol-duration sh-vol-duration--final">${esc(dur)}</span>
+      <button type="button" class="sh-vol-btn" data-action="sync" data-vol="${esc(v.id)}" disabled>Sync</button>`;
+
+  } else if (state === 'failed') {
+    dotHtml = '<span class="sh-vol-dot sh-vol-dot--failed" title="failed">✗</span>';
+    metaHtml = esc(formatLastSynced(v.lastSyncedAt));
+    const dur = vs.startedAt && vs.endedAt ? formatDuration(vs.endedAt - vs.startedAt) : '';
+    const errTitle = vs.errorMsg ? ` title="${esc(vs.errorMsg)}"` : '';
+    rightHtml = `<span class="sh-vol-duration sh-vol-duration--failed"${errTitle}>Failed (${esc(dur)})</span>
+      <button type="button" class="sh-vol-btn" data-action="sync" data-vol="${esc(v.id)}" disabled>Sync</button>`;
+
+  } else if (state === 'skipped') {
+    dotHtml = mounted
+      ? '<span class="sh-vol-dot sh-vol-dot--online"  title="online"></span>'
+      : '<span class="sh-vol-dot sh-vol-dot--offline" title="offline"></span>';
+    metaHtml = esc(formatLastSynced(v.lastSyncedAt));
+    rightHtml = `<span class="sh-vol-state-label sh-vol-skipped">skipped</span>
+      <button type="button" class="sh-vol-btn" data-action="sync" data-vol="${esc(v.id)}" disabled>Sync</button>`;
+    rowCls += ' sh-vol-row--muted';
+
+  } else {
+    // fallback: treat as idle
+    dotHtml = mounted
+      ? '<span class="sh-vol-dot sh-vol-dot--online"  title="online"></span>'
+      : '<span class="sh-vol-dot sh-vol-dot--offline" title="offline"></span>';
+    metaHtml = esc(formatLastSynced(v.lastSyncedAt));
+    rightHtml = `<button type="button" class="sh-vol-btn" data-action="sync" data-vol="${esc(v.id)}"${anyRunning ? ' disabled' : ''}>Sync</button>`;
+  }
+
+  const styleAttr = rowStyle ? ` style="${rowStyle}"` : '';
+  return `<div class="${rowCls}"${styleAttr}>
+    <div class="sh-vol-id">${dotHtml}${esc(v.id.toUpperCase())}</div>
+    <div class="sh-vol-meta">${metaHtml}</div>
+    <div class="sh-vol-btns">${rightHtml}</div>
+  </div>`;
 }
 
 // ── Wire buttons ──────────────────────────────────────────────────────────────
@@ -223,7 +377,7 @@ function wireButtons() {
   });
 
   // Keep buttons in sync with taskCenter
-  taskCenter.subscribe(() => {
+  taskCenter.subscribe((active) => {
     const isBlocked = taskCenter.isRunning();
     const c = document.getElementById('sh-coherent-btn');
     const r = document.getElementById('sh-rc-run');
@@ -231,7 +385,21 @@ function wireButtons() {
     if (c) c.disabled = isBlocked;
     if (r && r.textContent !== 'Running…' && r.textContent !== 'Sweeping…') r.disabled = isBlocked;
     if (s && s.textContent !== 'Running…' && s.textContent !== 'Sweeping…') s.disabled = isBlocked;
-    // Re-render volume action buttons to update disabled state
+
+    // Detect cancel request flip — mark current scanning row as cancelling,
+    // queued rows as skipped.
+    if (active && active.cancelRequested && active.status === 'running' && runIsCoherent) {
+      for (const [vid, vs] of volStates) {
+        if (vs.state === 'queued') vs.state = 'skipped';
+        else if (vs.state === 'scanning') vs.state = 'cancelling';
+      }
+      // Update pill label to give immediate feedback
+      if (currentVolId) {
+        taskCenter.updateLabel(`Cancelling… vol-${currentVolId} must finish first`);
+        taskCenter.updateProgress({ phaseLabel: '' });
+      }
+    }
+
     renderVolumeActions();
   });
 }
@@ -264,12 +432,22 @@ async function confirmAndStartCoherentSync() {
     }
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const { runId } = await res.json();
+
+    // Init per-volume states
+    initVolStatesQueued();
+    runIsCoherent  = true;
+    runStartedAt   = Date.now();
+    coherentTotal  = volumes.length;
+    coherentDone   = 0;
+    currentVolId   = null;
+
     taskCenter.start({
       taskId: 'volume.sync_coherent',
       runId,
       label: 'Coherent sync (all volumes)',
     });
-    subscribeToRunEnd(runId);
+    openEventSource(runId);
+    renderVolumeActions();
   } catch (err) {
     alert('Failed to start coherent sync: ' + err.message);
   }
@@ -325,37 +503,165 @@ async function handleVolAction(action, volumeId) {
     }
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const { runId } = await res.json();
+
+    // Single-volume sync: just track the one volume
+    runIsCoherent = false;
+    runStartedAt  = Date.now();
+    volStates.clear();
+    volStates.set(volumeId, { state: 'scanning', startedAt: Date.now(), endedAt: null, detail: '', errorMsg: '' });
+
     taskCenter.start({ taskId: 'volume.sync', runId, label: `Syncing Volume ${volumeId.toUpperCase()}` });
-    subscribeToRunEnd(runId);
+    openEventSource(runId);
+    renderVolumeActions();
   } catch (err) {
     alert('Sync failed: ' + err.message);
   }
 }
 
-// Subscribe to a run's SSE stream just long enough to catch task.ended,
-// then close. Without this, taskCenter.start() leaves the pill stuck in
-// "running" forever because nobody calls taskCenter.finish() on this page.
-// (utilities-volumes.js has its own EventSource for the run view; this
-// module previously assumed that one would catch ended events for any
-// page, which it doesn't.) After the task ends, refresh the local data
-// so signal counts and last-coherent-run age update immediately.
-function subscribeToRunEnd(runId) {
+// ── EventSource management ─────────────────────────────────────────────────────
+function initVolStatesQueued() {
+  volStates.clear();
+  for (const v of volumes) {
+    volStates.set(v.id, { state: 'queued', startedAt: null, endedAt: null, detail: '', errorMsg: '' });
+  }
+}
+
+function openEventSource(runId) {
+  // Avoid opening a second EventSource for the same run
+  if (activeES && activeRunId === runId) return;
+  if (activeES) { activeES.close(); activeES = null; }
+
+  activeRunId = runId;
+  startTickInterval();
+
   const es = new EventSource(`/api/utilities/runs/${encodeURIComponent(runId)}/events`);
-  es.addEventListener('task.ended', e => {
-    let ev = {};
-    try { ev = JSON.parse(e.data); } catch { /* ignore */ }
-    taskCenter.finish({ status: ev.status, summary: ev.summary });
-    es.close();
-    // Refresh page state — counts may have changed if reconcile auto-ran
-    // at the end of a coherent sync.
-    refreshAfterRun();
-  });
-  es.onerror = () => { es.close(); };
+  activeES = es;
+
+  es.addEventListener('task.started',  () => { /* replay may deliver this; ignore — we handle phases */ });
+  es.addEventListener('phase.started', e => handlePhaseStarted(JSON.parse(e.data)));
+  es.addEventListener('phase.progress', e => handlePhaseProgress(JSON.parse(e.data)));
+  es.addEventListener('phase.ended',   e => handlePhaseEnded(JSON.parse(e.data)));
+  es.addEventListener('task.ended',    e => handleTaskEnded(JSON.parse(e.data)));
+  es.onerror = () => { /* server closes on terminal event; reconnect attempts are harmless */ };
+}
+
+function startTickInterval() {
+  stopTickInterval();
+  tickInterval = setInterval(() => {
+    renderVolumeActions();
+  }, 1000);
+}
+
+function stopTickInterval() {
+  if (tickInterval != null) {
+    clearInterval(tickInterval);
+    tickInterval = null;
+  }
+}
+
+// ── Phase event handlers ───────────────────────────────────────────────────────
+function handlePhaseStarted(ev) {
+  const phaseId = ev.phaseId;
+
+  if (phaseId && phaseId.startsWith('vol.')) {
+    const volId = phaseId.slice(4);
+    currentVolId = volId;
+    volStates.set(volId, { state: 'scanning', startedAt: Date.now(), endedAt: null, detail: '', errorMsg: '' });
+
+    // Update pill label for coherent runs
+    if (runIsCoherent) {
+      const mins = runStartedAt ? Math.floor((Date.now() - runStartedAt) / 60000) : 0;
+      taskCenter.updateLabel(`Coherent sync — vol-${volId} (${coherentDone}/${coherentTotal}) — ${mins}m`);
+      taskCenter.updateProgress({ phaseLabel: `Scanning ${volId.toUpperCase()}` });
+    }
+  }
+  // prune / reconcile phases: no special row state; just let them run
+  renderVolumeActions();
+}
+
+function handlePhaseProgress(ev) {
+  const phaseId = ev.phaseId;
+  if (!phaseId || !phaseId.startsWith('vol.')) return;
+  const volId = phaseId.slice(4);
+  const vs = volStates.get(volId);
+  if (!vs) return;
+
+  if (ev.total > 0) {
+    vs.detail = `${ev.detail || 'Saving'} ${ev.current}/${ev.total}`;
+    vs.current = ev.current;
+    vs.total = ev.total;
+  } else if (ev.detail) {
+    vs.detail = ev.detail;
+  }
+  // renderVolumeActions is called by the tick interval — no need to call here every event
+}
+
+function handlePhaseEnded(ev) {
+  const phaseId = ev.phaseId;
+
+  if (phaseId && phaseId.startsWith('vol.')) {
+    const volId = phaseId.slice(4);
+    const vs = volStates.get(volId);
+    if (vs) {
+      vs.state    = ev.status === 'ok' ? 'done' : 'failed';
+      vs.endedAt  = Date.now();
+      vs.detail   = ev.summary || '';
+      vs.errorMsg = ev.status !== 'ok' ? (ev.summary || 'Unknown error') : '';
+    }
+
+    if (ev.status === 'ok') coherentDone++;
+    if (volId === currentVolId) currentVolId = null;
+
+    // Update pill label
+    if (runIsCoherent) {
+      const mins = runStartedAt ? Math.floor((Date.now() - runStartedAt) / 60000) : 0;
+      taskCenter.updateLabel(`Coherent sync — (${coherentDone}/${coherentTotal}) — ${mins}m`);
+    }
+  }
+  renderVolumeActions();
+}
+
+function handleTaskEnded(ev) {
+  stopTickInterval();
+
+  if (activeES) { activeES.close(); activeES = null; }
+
+  // For single-volume sync: mark the scanning volume done/failed
+  if (!runIsCoherent) {
+    for (const [vid, vs] of volStates) {
+      if (vs.state === 'scanning' || vs.state === 'cancelling') {
+        vs.state   = ev.status === 'ok' ? 'done' : 'failed';
+        vs.endedAt = Date.now();
+        vs.errorMsg = ev.status !== 'ok' ? (ev.summary || 'Unknown error') : '';
+      }
+    }
+  }
+
+  // Any still-queued rows become skipped (cancelled run)
+  for (const [, vs] of volStates) {
+    if (vs.state === 'queued') vs.state = 'skipped';
+  }
+
+  taskCenter.finish({ status: ev.status, summary: ev.summary });
+  activeRunId   = null;
+  runIsCoherent = false;
+  currentVolId  = null;
+
+  renderVolumeActions();
+
+  // Refresh page state — counts may have changed if reconcile auto-ran
+  // at the end of a coherent sync.
+  refreshAfterRun();
 }
 
 async function refreshAfterRun() {
   try {
     await Promise.all([loadVolumes(), loadLatestReconcile(), loadLastCoherentRun()]);
+    // Clear run states now that we've refreshed
+    volStates.clear();
+    runStartedAt  = null;
+    coherentTotal = 0;
+    coherentDone  = 0;
     renderVolumeActions();
     renderReconcile();
     renderCoherentSyncAge();
