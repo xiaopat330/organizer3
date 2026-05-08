@@ -208,10 +208,30 @@ Ship **Options 9, 1, 3, 4, 2, 7** as a single hardening release:
 
 - **Solo-title enrichment fallback when `no_match_in_filmography`** (Shion Yumi class deadlock). When `fetch_title` for a solo title fails because no staged actress has that code in her filmography, fall back to resolving the title directly by code on javdb (skip the filmography path). Breaks the Bucket-3 catch-22: an actress with no staging row → her solo titles can't be enriched → cast_json never surfaces her slug → staging never gets created. Direct-by-code enrichment lets cast_json populate naturally, which then enables Options #9/#10/backfill to complete the loop. **Should be its own extension proposal** — bigger blast radius (touches the enrichment resolver pipeline, not just hardening surfaces) and warrants its own scoping doc. File as `spec/PROPOSAL_ACTRESS_PROFILE_HARDENING_PHASE2.md` or similar when picked up.
 
+## Implementation results (2026-05-08)
+
+All six recommended options shipped on `feature/actress-profile-hardening` and merged to main as commit `2a549fc`. Bonus Option #10 (cast-derived stage_name candidates) added during Shion Yumi investigation.
+
+**Post-merge triage on live data (same session):**
+- AutoPromoter Rule 3 sweep ran successfully, surfaced 4 latent `stage_name_conflict` rows on first run, then 3 more on a re-run after intervening auto-staging activity. All 7 resolved the same day.
+- 4 wrong-slug cases (Tsubomi, Yui Hatano, China Matsuoka, Mana Sakura) — fixed via delete-staging-then-backfill recipe.
+- 3 career-rename cases (Sarina Kurokawa → 百永さりな, Arina Hashimoto → 新ありな, Rio Hamasaki → 篠原絵梨香) — stage_name aligned with javdb's canonical form, old kanji preserved as alias.
+- Original Bucket-3 backlog of 6 actresses: fully cleared. 3 via the Rule 3 sweep findings above; the other 3 (Rikka Inui → 椿ましろ, Hina Nanase → 七瀬ひな, Minori Kawana → 河南実里) cleared via the same pattern.
+
+**Reusable insight discovered during cleanup (worth promoting to reference doc):** when a Rule 3 conflict surfaces and the actress has an existing alias matching the staging variants OR the modal cast_json name, it's almost always a career-rename / alt-form case. Update stage_name to match cast.name and the corroboration guard fires correctly without further intervention. Roughly 6 of 7 resolved findings followed this pattern.
+
+## Active follow-up tasks
+
+These are concrete next-up items derived from the implementation. Each is small enough to be its own PR.
+
+- [ ] **Tighten `stage_name` and `alternate_names_json` predicates** to use `json_each` + exact `json_extract($.name)` comparison (see Follow-ups section above). Mirror commit `33b1bd6`. ~30–45 min.
+- [ ] **UI button for `javdb.autopromote_rule3_sweep`** in `utilities-library-health.js`. ~20 min.
+- [ ] **Phase 2 proposal**: solo-title enrichment fallback when `no_match_in_filmography`. Should be drafted as its own spec doc (`PROPOSAL_ACTRESS_PROFILE_HARDENING_PHASE2.md`) before any code work — pipeline change, not just hardening surface.
+
 ## Out of scope / explicit non-goals
 
 - Redesigning the enrichment queue, slug discovery algorithm, or staging schema.
-- Fixing Bucket 3 (the 6 low-enrichment actresses); their fix is patience + the Option 1/2/3 hardening + the existing cast-corroboration guard.
+- ~~Fixing Bucket 3 (the 6 low-enrichment actresses)~~ — completed during post-merge triage; see Implementation results.
 - Changes to javdb scraping or rate limiting.
 
 ## References
