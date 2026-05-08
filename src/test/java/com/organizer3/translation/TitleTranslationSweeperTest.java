@@ -11,6 +11,8 @@ import com.organizer3.translation.repository.TranslationStrategyRepository;
 import com.organizer3.translation.repository.jdbi.JdbiTranslationCacheRepository;
 import com.organizer3.translation.repository.jdbi.JdbiTranslationQueueRepository;
 import com.organizer3.translation.repository.jdbi.JdbiTranslationStrategyRepository;
+import com.organizer3.utilities.task.TaskRun;
+import com.organizer3.utilities.task.TaskRunner;
 import org.jdbi.v3.core.Jdbi;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -19,6 +21,7 @@ import org.mockito.ArgumentCaptor;
 
 import java.sql.Connection;
 import java.sql.DriverManager;
+import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
@@ -320,5 +323,83 @@ class TitleTranslationSweeperTest {
         seedQueueRow(enqueuedId, "pending");          // not eligible (already enqueued)
 
         assertEquals(2L, enrichmentRepo.countTitlesAwaitingTranslation());
+    }
+
+    // -------------------------------------------------------------------------
+    // Auto-pause: TitleTranslationSweeper skips tick when sync task is running
+    // -------------------------------------------------------------------------
+
+    @Test
+    void run_skipsTickWhenVolumeSyncIsActive() {
+        seedTitle("PAUSE-001", "日本語タイトル", null);
+
+        TaskRunner taskRunner = mock(TaskRunner.class);
+        TaskRun syncRun = mock(TaskRun.class);
+        when(syncRun.taskId()).thenReturn("volume.sync");
+        when(taskRunner.currentlyRunning()).thenReturn(Optional.of(syncRun));
+
+        TitleTranslationSweeper s = sweeper(true, 50);
+        s.setTaskRunner(taskRunner);
+        s.run();
+
+        verifyNoInteractions(service);
+    }
+
+    @Test
+    void run_skipsTickWhenCoherentSyncIsActive() {
+        seedTitle("PAUSE-002", "日本語タイトル", null);
+
+        TaskRunner taskRunner = mock(TaskRunner.class);
+        TaskRun syncRun = mock(TaskRun.class);
+        when(syncRun.taskId()).thenReturn("volume.sync_coherent");
+        when(taskRunner.currentlyRunning()).thenReturn(Optional.of(syncRun));
+
+        TitleTranslationSweeper s = sweeper(true, 50);
+        s.setTaskRunner(taskRunner);
+        s.run();
+
+        verifyNoInteractions(service);
+    }
+
+    @Test
+    void run_skipsTickWhenCleanStaleLocationsIsActive() {
+        seedTitle("PAUSE-003", "日本語タイトル", null);
+
+        TaskRunner taskRunner = mock(TaskRunner.class);
+        TaskRun syncRun = mock(TaskRun.class);
+        when(syncRun.taskId()).thenReturn("volume.clean_stale_locations");
+        when(taskRunner.currentlyRunning()).thenReturn(Optional.of(syncRun));
+
+        TitleTranslationSweeper s = sweeper(true, 50);
+        s.setTaskRunner(taskRunner);
+        s.run();
+
+        verifyNoInteractions(service);
+    }
+
+    @Test
+    void run_proceedsWhenUnrelatedTaskIsActive() {
+        seedTitle("PAUSE-004", "日本語タイトル", null);
+
+        TaskRunner taskRunner = mock(TaskRunner.class);
+        TaskRun unrelated = mock(TaskRun.class);
+        when(unrelated.taskId()).thenReturn("utility.organize_something");
+        when(taskRunner.currentlyRunning()).thenReturn(Optional.of(unrelated));
+
+        TitleTranslationSweeper s = sweeper(true, 50);
+        s.setTaskRunner(taskRunner);
+        s.run();
+
+        verify(service, times(1)).requestTranslation(any());
+    }
+
+    @Test
+    void run_proceedsWhenNoTaskRunnerInjected() {
+        seedTitle("PAUSE-005", "日本語タイトル", null);
+
+        // No setTaskRunner called — null-safe, should not pause.
+        sweeper(true, 50).run();
+
+        verify(service, times(1)).requestTranslation(any());
     }
 }

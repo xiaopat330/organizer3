@@ -76,10 +76,37 @@ class EnrichmentRunnerPauseTest {
     @Test
     void taskInducedPause_doesNotActivateForUnrelatedTask() {
         TaskRun unrelated = mock(TaskRun.class);
-        when(unrelated.taskId()).thenReturn("volume.sync");
+        when(unrelated.taskId()).thenReturn("utility.organize_something");
         when(taskRunner.currentlyRunning()).thenReturn(Optional.of(unrelated));
 
         assertFalse(runner.isPaused());
+    }
+
+    @Test
+    void taskInducedPause_whenVolumeSyncIsRunning() {
+        TaskRun syncRun = mock(TaskRun.class);
+        when(syncRun.taskId()).thenReturn("volume.sync");
+        when(taskRunner.currentlyRunning()).thenReturn(Optional.of(syncRun));
+
+        assertTrue(runner.isPaused(), "volume.sync must pause enrichment runner");
+    }
+
+    @Test
+    void taskInducedPause_whenCoherentSyncIsRunning() {
+        TaskRun syncRun = mock(TaskRun.class);
+        when(syncRun.taskId()).thenReturn("volume.sync_coherent");
+        when(taskRunner.currentlyRunning()).thenReturn(Optional.of(syncRun));
+
+        assertTrue(runner.isPaused(), "volume.sync_coherent must pause enrichment runner");
+    }
+
+    @Test
+    void taskInducedPause_whenCleanStaleLocationsIsRunning() {
+        TaskRun syncRun = mock(TaskRun.class);
+        when(syncRun.taskId()).thenReturn("volume.clean_stale_locations");
+        when(taskRunner.currentlyRunning()).thenReturn(Optional.of(syncRun));
+
+        assertTrue(runner.isPaused(), "volume.clean_stale_locations must pause enrichment runner");
     }
 
     // ── 4. setPaused(false) does not override an active bulk-enrich task ───────
