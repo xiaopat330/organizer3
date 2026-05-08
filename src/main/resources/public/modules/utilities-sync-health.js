@@ -178,24 +178,22 @@ function renderVolumeActions() {
   }
   const isBlocked = taskCenter.isRunning();
   const disAttr = isBlocked ? ' disabled' : '';
+  // Sync button always available — SyncVolumeTask handles mount/unmount itself as phases.
+  // Mount status dot is purely informational. Mount/unmount and queue-only sync are not
+  // exposed here: there are no /mount or /unmount HTTP endpoints, and SyncVolumeTask does
+  // not honor a queueOnly input flag — it always runs `sync all`. For queue-partition-only
+  // sync use the `sync queue` shell command.
   listEl.innerHTML = volumes.map(v => {
     const mounted  = v.status !== 'offline';
     const statusDot = mounted
-      ? '<span class="sh-vol-dot sh-vol-dot--online"></span>'
-      : '<span class="sh-vol-dot sh-vol-dot--offline"></span>';
-    const mountBtn = mounted
-      ? `<button type="button" class="sh-vol-btn" data-action="unmount" data-vol="${esc(v.id)}"${disAttr}>Unmount</button>`
-      : `<button type="button" class="sh-vol-btn" data-action="mount"   data-vol="${esc(v.id)}"${disAttr}>Mount</button>`;
-    const syncBtn = mounted
-      ? `<button type="button" class="sh-vol-btn" data-action="sync" data-vol="${esc(v.id)}"${disAttr}>Sync</button>`
-      : '';
-    const queueBtn = (mounted && v.structureType === 'conventional')
-      ? `<button type="button" class="sh-vol-btn" data-action="sync-queue" data-vol="${esc(v.id)}"${disAttr}>Sync queue</button>`
-      : '';
+      ? '<span class="sh-vol-dot sh-vol-dot--online"  title="online"></span>'
+      : '<span class="sh-vol-dot sh-vol-dot--offline" title="offline"></span>';
     return `<div class="sh-vol-row">
       <div class="sh-vol-id">${statusDot}${esc(v.id.toUpperCase())}</div>
       <div class="sh-vol-meta">${esc(formatLastSynced(v.lastSyncedAt))}</div>
-      <div class="sh-vol-btns">${syncBtn}${queueBtn}${mountBtn}</div>
+      <div class="sh-vol-btns">
+        <button type="button" class="sh-vol-btn" data-action="sync" data-vol="${esc(v.id)}"${disAttr}>Sync</button>
+      </div>
     </div>`;
   }).join('');
 
@@ -308,47 +306,26 @@ async function runReconcile(sweep) {
 }
 
 async function handleVolAction(action, volumeId) {
-  if (taskCenter.isRunning() && (action === 'sync' || action === 'sync-queue')) {
+  if (action !== 'sync') return;
+  if (taskCenter.isRunning()) {
     alert('Another utility task is already running. Wait for it to finish.');
     return;
   }
   try {
-    if (action === 'sync') {
-      const res = await fetch('/api/utilities/tasks/volume.sync/run', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ volumeId }),
-      });
-      if (res.status === 409) { const b = await res.json().catch(() => ({})); alert(b.error || 'Task already running.'); return; }
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const { runId } = await res.json();
-      taskCenter.start({ taskId: 'volume.sync', runId, label: `Syncing Volume ${volumeId.toUpperCase()}` });
-    } else if (action === 'sync-queue') {
-      const res = await fetch('/api/utilities/tasks/volume.sync/run', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ volumeId, queueOnly: true }),
-      });
-      if (res.status === 409) { const b = await res.json().catch(() => ({})); alert(b.error || 'Task already running.'); return; }
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const { runId } = await res.json();
-      taskCenter.start({ taskId: 'volume.sync', runId, label: `Syncing queue on Volume ${volumeId.toUpperCase()}` });
-    } else if (action === 'mount') {
-      const res = await fetch(`/api/utilities/volumes/${encodeURIComponent(volumeId)}/mount`, {
-        method: 'POST',
-      });
-      if (!res.ok) { const b = await res.json().catch(() => ({})); alert(b.error || `Mount failed (${res.status})`); return; }
-      await loadVolumes();
-      renderVolumeActions();
-    } else if (action === 'unmount') {
-      const res = await fetch(`/api/utilities/volumes/${encodeURIComponent(volumeId)}/unmount`, {
-        method: 'POST',
-      });
-      if (!res.ok) { const b = await res.json().catch(() => ({})); alert(b.error || `Unmount failed (${res.status})`); return; }
-      await loadVolumes();
-      renderVolumeActions();
+    const res = await fetch('/api/utilities/tasks/volume.sync/run', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ volumeId }),
+    });
+    if (res.status === 409) {
+      const b = await res.json().catch(() => ({}));
+      alert(b.error || 'Task already running.');
+      return;
     }
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const { runId } = await res.json();
+    taskCenter.start({ taskId: 'volume.sync', runId, label: `Syncing Volume ${volumeId.toUpperCase()}` });
   } catch (err) {
-    alert('Action failed: ' + err.message);
+    alert('Sync failed: ' + err.message);
   }
 }
