@@ -7,11 +7,9 @@ import com.organizer3.model.ActressAlias;
 import com.organizer3.repository.ActressRepository;
 import com.organizer3.shell.SessionContext;
 import com.organizer3.smb.VolumeConnection;
-import com.organizer3.filesystem.VolumeFileSystem;
 import lombok.extern.slf4j.Slf4j;
 import org.jdbi.v3.core.Jdbi;
 
-import java.io.IOException;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -95,7 +93,6 @@ public class FindMultiActressFolderDriftTool implements Tool {
         if (conn == null || !conn.isConnected()) {
             throw new IllegalArgumentException("No active volume connection. Mount the volume first.");
         }
-        VolumeFileSystem fs = conn.fileSystem();
 
         log.info("find_multi_actress_folder_drift starting volume={}", effectiveVolumeId);
 
@@ -165,7 +162,7 @@ public class FindMultiActressFolderDriftTool implements Tool {
             // Compare parsed cast vs DB credits (position-aware)
             // Only do this comparison when both sides have creditable data
             if (!dbCredits.isEmpty() || !castEntries.isEmpty()) {
-                drift: {
+                {
                     // Check misspelled-position: parsed token at position N resolves to actress X,
                     // but DB credits actress Y at the same position
                     for (CastEntry ce : castEntries) {

@@ -7,7 +7,6 @@ import com.organizer3.db.SchemaInitializer;
 import com.organizer3.filesystem.FileTimestamps;
 import com.organizer3.filesystem.VolumeFileSystem;
 import com.organizer3.model.Actress;
-import com.organizer3.model.ActressAlias;
 import com.organizer3.repository.jdbi.JdbiActressRepository;
 import com.organizer3.repository.jdbi.JdbiTitleLocationRepository;
 import com.organizer3.repository.jdbi.JdbiTitleRepository;
@@ -228,7 +227,7 @@ class FindMultiActressFolderDriftToolTest {
     @Test
     void driftsSortedByDescendingSeverity() throws Exception {
         long a1 = actressRepo.save(actress("Alice")).getId();
-        long a2 = actressRepo.save(actress("Bob")).getId();
+        actressRepo.save(actress("Bob"));
 
         // Title 1: unparseable → severity 1.5
         long tid1 = titleRepo.save(title("SV1-001", a1)).getId();
