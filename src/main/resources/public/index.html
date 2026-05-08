@@ -299,13 +299,17 @@
   </div>
 </div>
 
-<!-- Health sub-nav (Library / Volumes / Tags tabs) -->
+<!-- Health sub-nav (Library / Sync Health / Volumes / Tags tabs) -->
 <div id="tools-health-subnav" class="tools-section-header" style="display:none">
   <span class="tools-section-title">Health</span>
   <div class="tools-section-tabs">
     <button type="button" id="tools-health-library-tab" class="tools-section-tab tools-section-tab-health-library selected">
       <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h4l2-6 4 12 2-6h6"/></svg>
       Library
+    </button>
+    <button type="button" id="tools-health-sync-tab" class="tools-section-tab tools-section-tab-health-sync">
+      <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+      Sync Health
     </button>
     <button type="button" id="tools-health-volumes-tab" class="tools-section-tab tools-section-tab-health-volumes">
       <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v6c0 1.66 4 3 9 3s9-1.34 9-3V5"/><path d="M3 11v6c0 1.66 4 3 9 3s9-1.34 9-3v-6"/></svg>
@@ -481,6 +485,66 @@
     </div>
     <div id="lh-detail" class="lh-detail" style="display:none"></div>
   </section>
+</div>
+
+<!-- Sync Health tool content -->
+<div id="tools-sync-health-view" class="tools-sync-health-view" style="display:none">
+
+  <!-- Run sync card -->
+  <div class="sh-card sh-card--primary">
+    <div class="sh-card-head">Run sync</div>
+    <button type="button" id="sh-coherent-btn" class="sh-coherent-btn">
+      <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+      Run coherent sync
+    </button>
+    <div id="sh-coherent-age" class="sh-coherent-age">Last coherent run: never</div>
+    <div class="sh-coherent-desc">Reconciles all volumes. Holds the task lock — safe for overnight runs.</div>
+  </div>
+
+  <!-- Reconcile signals card -->
+  <div class="sh-card">
+    <div class="sh-card-head">Reconcile signals</div>
+    <div class="sh-rc-counts">
+      <div class="sh-rc-count"><span class="sh-n" id="sh-rc-dup">—</span><span class="sh-rc-lbl">dup live</span></div>
+      <div class="sh-rc-count"><span class="sh-n" id="sh-rc-pending">—</span><span class="sh-rc-lbl">pending grace</span></div>
+      <div class="sh-rc-count"><span class="sh-n" id="sh-rc-past">—</span><span class="sh-rc-lbl">past grace</span></div>
+      <div class="sh-rc-count"><span class="sh-n" id="sh-rc-mismatch">—</span><span class="sh-rc-lbl">mismatches</span></div>
+    </div>
+    <div class="sh-rc-actions">
+      <button type="button" id="sh-rc-run" class="sh-btn-secondary">Run reconcile</button>
+      <button type="button" id="sh-rc-sweep" class="sh-btn-secondary">Run + sweep</button>
+    </div>
+    <div id="sh-reconcile-age" class="sh-reconcile-age">Last reconcile: never run</div>
+  </div>
+
+  <!-- Recent reports card -->
+  <div class="sh-card">
+    <div class="sh-card-head">Recent reports (last 30)</div>
+    <div class="sh-reports-wrap">
+      <table class="sh-reports-table">
+        <thead>
+          <tr>
+            <th>Time</th>
+            <th>Trigger</th>
+            <th>Dup</th>
+            <th>Pending</th>
+            <th>Past</th>
+            <th>Mismatches</th>
+          </tr>
+        </thead>
+        <tbody id="sh-reports-tbody">
+          <tr><td colspan="6" class="sh-reports-empty">Loading…</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Per-volume actions card -->
+  <div class="sh-card sh-card--secondary">
+    <div class="sh-card-head">Per-volume actions</div>
+    <div id="sh-vol-list" class="sh-vol-list"></div>
+  </div>
+
 </div>
 
 

@@ -388,6 +388,35 @@
 .vol-op-primary:hover:not(:disabled) { background: #1d4ed8; }
 .vol-op-primary:disabled { opacity: 0.5; cursor: not-allowed; }
 
+.vol-op-secondary {
+  background: #161b22;
+  color: #cbd5e1;
+  border: 1px solid #1f2937;
+  padding: 8px 18px;
+  border-radius: 4px;
+  font-size: 13px;
+  cursor: pointer;
+  font-family: inherit;
+  font-weight: 500;
+  transition: background 0.1s ease, border-color 0.1s ease;
+}
+.vol-op-secondary:hover:not(:disabled) { background: #1f2937; border-color: #334155; }
+.vol-op-secondary:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.vol-op-divider {
+  height: 1px;
+  background: #1e293b;
+  margin: 16px 0;
+}
+
+.vol-op-desc {
+  margin-top: 8px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: #64748b;
+  max-width: 520px;
+}
+
 .vol-op-blocked {
   margin-top: 10px;
   font-size: 12px;

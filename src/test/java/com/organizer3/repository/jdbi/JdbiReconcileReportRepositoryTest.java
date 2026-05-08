@@ -95,6 +95,32 @@ class JdbiReconcileReportRepositoryTest {
         assertEquals("coherent_sync", p.triggeredBy());
     }
 
+    @Test
+    void findLastByTrigger_returnsOnlyMatchingTrigger() throws Exception {
+        // Insert coherent_sync older row
+        repo.save(sampleReport(1, 0, 0, 0, 0), "coherent_sync", null);
+        Thread.sleep(10);
+        // Insert a more-recent manual row — should NOT be returned for coherent_sync
+        repo.save(sampleReport(99, 0, 0, 0, 0), "manual", null);
+        Thread.sleep(10);
+        // Insert a newer coherent_sync row — this is the one we expect
+        repo.save(sampleReport(2, 0, 0, 0, 0), "coherent_sync", null);
+
+        Optional<PersistedReport> result = repo.findLastByTrigger("coherent_sync");
+        assertTrue(result.isPresent(), "Expected a coherent_sync report to be found");
+        assertEquals(2, result.get().duplicateLiveLocations(),
+                "Expected the most-recent coherent_sync row, not the manual row");
+        assertEquals("coherent_sync", result.get().triggeredBy());
+    }
+
+    @Test
+    void findLastByTrigger_emptyWhenNoMatchingTrigger() {
+        repo.save(sampleReport(5, 0, 0, 0, 0), "manual", null);
+
+        Optional<PersistedReport> result = repo.findLastByTrigger("coherent_sync");
+        assertTrue(result.isEmpty(), "Expected empty Optional when no coherent_sync rows exist");
+    }
+
     private static ReconcileReport sampleReport(int dup, int pending, int oldest, int past, int mismatch) {
         return new ReconcileReport(
                 Instant.now(),

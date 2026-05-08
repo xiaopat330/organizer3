@@ -994,3 +994,198 @@
   font-size: 12px;
 }
 
+
+/* ── Sync Health view ──────────────────────────────────────────────────── */
+.tools-sync-health-view {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 16px;
+  overflow-y: auto;
+  flex: 1;
+  min-height: 0;
+}
+
+/* Section cards */
+.sh-card {
+  background: #0d1726;
+  border: 1px solid #1e293b;
+  border-radius: 6px;
+  padding: 16px 20px;
+}
+.sh-card--primary { border-color: #3b82f6; }
+.sh-card--secondary { border-color: #1e293b; opacity: 0.9; }
+.sh-card-head {
+  font-size: 11px;
+  font-weight: 600;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-bottom: 12px;
+}
+
+/* Coherent sync CTA */
+.sh-coherent-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: #1e3a8a;
+  color: #eff6ff;
+  border: 1px solid #3b82f6;
+  padding: 10px 24px;
+  border-radius: 4px;
+  font-size: 14px;
+  cursor: pointer;
+  font-family: inherit;
+  font-weight: 500;
+  transition: background 0.1s ease;
+  margin-bottom: 10px;
+}
+.sh-coherent-btn:hover:not(:disabled) { background: #1d4ed8; }
+.sh-coherent-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.sh-coherent-age {
+  font-size: 12px;
+  color: #94a3b8;
+  margin-bottom: 6px;
+}
+.sh-coherent-desc {
+  font-size: 11px;
+  color: #64748b;
+  font-style: italic;
+}
+
+/* Reconcile signals */
+.sh-rc-counts {
+  display: flex;
+  gap: 20px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+.sh-rc-count { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.sh-n {
+  font-size: 20px;
+  font-weight: 700;
+  color: #e2e8f0;
+  font-variant-numeric: tabular-nums;
+  font-family: monospace;
+}
+.sh-n.warn { color: #f59e0b; }
+.sh-rc-lbl {
+  font-size: 10px;
+  color: #64748b;
+  white-space: nowrap;
+}
+.sh-rc-actions {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+.sh-btn-secondary {
+  background: transparent;
+  color: #cbd5e1;
+  border: 1px solid #334155;
+  padding: 6px 14px;
+  border-radius: 4px;
+  font-size: 12px;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.1s ease, border-color 0.1s ease;
+}
+.sh-btn-secondary:hover:not(:disabled) { background: #161b22; border-color: #475569; }
+.sh-btn-secondary:disabled { opacity: 0.5; cursor: not-allowed; }
+.sh-reconcile-age {
+  font-size: 12px;
+  color: #94a3b8;
+}
+
+/* Recent reports table */
+.sh-reports-wrap {
+  overflow-x: auto;
+}
+.sh-reports-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+.sh-reports-table th {
+  text-align: left;
+  padding: 4px 8px;
+  color: #64748b;
+  font-weight: 500;
+  border-bottom: 1px solid #1e293b;
+}
+.sh-reports-table td {
+  padding: 5px 8px;
+  border-bottom: 1px solid #0f1a2b;
+  color: #cbd5e1;
+  vertical-align: middle;
+}
+.sh-reports-table tr:last-child td { border-bottom: none; }
+.sh-reports-table tr:nth-child(even) td { background: #0b1117; }
+.sh-report-time { cursor: default; }
+.sh-report-num {
+  font-family: monospace;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+.sh-report-num.warn { color: #f59e0b; }
+.sh-trigger-coherent { color: #60a5fa; }
+.sh-trigger-manual   { color: #94a3b8; }
+.sh-reports-empty {
+  text-align: center;
+  padding: 16px;
+  color: #475569;
+  font-style: italic;
+}
+
+/* Per-volume actions */
+.sh-vol-list { display: flex; flex-direction: column; gap: 6px; }
+.sh-vol-empty { font-size: 12px; color: #475569; font-style: italic; }
+.sh-vol-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 4px;
+  border-bottom: 1px solid #0f1a2b;
+}
+.sh-vol-row:last-child { border-bottom: none; }
+.sh-vol-dot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  margin-right: 6px;
+  flex-shrink: 0;
+}
+.sh-vol-dot--online  { background: #22c55e; }
+.sh-vol-dot--offline { background: #475569; }
+.sh-vol-id {
+  font-size: 12px;
+  font-weight: 600;
+  color: #cbd5e1;
+  min-width: 80px;
+  display: flex;
+  align-items: center;
+}
+.sh-vol-meta {
+  font-size: 11px;
+  color: #64748b;
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.sh-vol-btns { display: flex; gap: 6px; flex-shrink: 0; }
+.sh-vol-btn {
+  background: #161b22;
+  color: #94a3b8;
+  border: 1px solid #293040;
+  padding: 3px 10px;
+  border-radius: 3px;
+  font-size: 11px;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.1s ease, color 0.1s ease;
+}
+.sh-vol-btn:hover:not(:disabled) { background: #1e293b; color: #cbd5e1; }
+.sh-vol-btn:disabled { opacity: 0.5; cursor: not-allowed; }

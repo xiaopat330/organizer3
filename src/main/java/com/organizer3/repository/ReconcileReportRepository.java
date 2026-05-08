@@ -35,6 +35,14 @@ public interface ReconcileReportRepository {
     Optional<PersistedReport> findById(long id);
 
     /**
+     * Find the most recent persisted report where {@code triggered_by} matches the given value.
+     * Returns {@link Optional#empty()} if no matching row exists.
+     *
+     * @param triggeredBy {@code "manual"} or {@code "coherent_sync"}
+     */
+    Optional<PersistedReport> findLastByTrigger(String triggeredBy);
+
+    /**
      * A persisted reconcile report row — scalar summary plus raw JSON details.
      */
     record PersistedReport(

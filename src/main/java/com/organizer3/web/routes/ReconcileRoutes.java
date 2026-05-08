@@ -96,5 +96,25 @@ public class ReconcileRoutes {
             }
             ctx.json(reportRepo.findRecent(Math.max(1, Math.min(limit, 100))));
         });
+
+        // GET /api/reconcile/last?trigger=coherent_sync
+        // Returns the most recent persisted report for the given trigger value.
+        // Defaults to "coherent_sync" if param is absent.
+        // Returns 404 if no matching report exists.
+        // Returns 400 for unrecognised trigger values.
+        app.get("/api/reconcile/last", ctx -> {
+            String trigger = ctx.queryParamAsClass("trigger", String.class)
+                    .getOrDefault("coherent_sync");
+            if (!"coherent_sync".equals(trigger) && !"manual".equals(trigger)) {
+                ctx.status(400).json(Map.of("error",
+                        "Invalid trigger value '" + trigger + "'. Must be 'coherent_sync' or 'manual'."));
+                return;
+            }
+            reportRepo.findLastByTrigger(trigger)
+                    .ifPresentOrElse(
+                            ctx::json,
+                            () -> ctx.status(404).json(Map.of("error", "No report found for trigger: " + trigger))
+                    );
+        });
     }
 }

@@ -10,6 +10,7 @@ import { showVolumesView, hideVolumesView } from './utilities-volumes.js';
 import { showActressDataView, hideActressDataView } from './utilities-actress-data.js';
 import { showBackupView, hideBackupView } from './utilities-backup.js';
 import { showLibraryHealthView, hideLibraryHealthView } from './utilities-library-health.js';
+import { showSyncHealthView, hideSyncHealthView } from './utilities-sync-health.js';
 import { showDupTriageView, hideDupTriageView, wireDupTriageEvents } from './utilities-duplicate-triage.js';
 import { showMergeCandidatesView, hideMergeCandidatesView, wireMergeCandidatesEvents } from './utilities-merge-candidates.js';
 import { showNoMatchTriageView, hideNoMatchTriageView, wireNoMatchTriageEvents } from './utilities-no-match-triage.js';
@@ -32,6 +33,7 @@ const utilitiesLogsTab       = document.getElementById('tools-utilities-logs-tab
 const utilitiesImportExportTab = document.getElementById('tools-utilities-import-export-tab');
 const healthSubnav         = document.getElementById('tools-health-subnav');
 const healthLibraryTab     = document.getElementById('tools-health-library-tab');
+const healthSyncTab        = document.getElementById('tools-health-sync-tab');
 const healthVolumesTab     = document.getElementById('tools-health-volumes-tab');
 const healthTagsTab        = document.getElementById('tools-health-tags-tab');
 const duplicatesView    = document.getElementById('tools-duplicates-view');
@@ -66,6 +68,7 @@ function hideAllToolViews() {
   hideActressDataView();
   hideBackupView();
   hideLibraryHealthView();
+  hideSyncHealthView();
   hideDupTriageView();
   hideMergeCandidatesView();
   hideNoMatchTriageView();
@@ -282,17 +285,21 @@ export function showUtilities() {
 // ── Health tab ────────────────────────────────────────────────────────────
 function selectHealthTab(tab) {
   healthLibraryTab.classList.toggle('selected', tab === 'library');
+  healthSyncTab.classList.toggle('selected',    tab === 'sync');
   healthVolumesTab.classList.toggle('selected', tab === 'volumes');
-  healthTagsTab.classList.toggle('selected', tab === 'tags');
+  healthTagsTab.classList.toggle('selected',    tab === 'tags');
 }
 
 function showHealthTab(tab) {
   selectHealthTab(tab);
   hideLibraryHealthView();
+  hideSyncHealthView();
   hideVolumesView();
   hideTagHealthView();
   if (tab === 'library') {
     showLibraryHealthView();
+  } else if (tab === 'sync') {
+    showSyncHealthView();
   } else if (tab === 'volumes') {
     showVolumesView();
   } else {
@@ -308,6 +315,7 @@ export function showHealth() {
   healthSubnav.style.display = 'flex';
 
   healthLibraryTab.onclick = () => showHealthTab('library');
+  healthSyncTab.onclick    = () => showHealthTab('sync');
   healthVolumesTab.onclick = () => showHealthTab('volumes');
   healthTagsTab.onclick    = () => showHealthTab('tags');
 
