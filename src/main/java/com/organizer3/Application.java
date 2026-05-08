@@ -1119,6 +1119,7 @@ public class Application {
                     .register(new com.organizer3.mcp.tools.FindFsOnlyTitlesTool(session, jdbi))
                     .register(new com.organizer3.mcp.tools.FindActressFolderCandidatesTool(session, actressRepo, jdbi, config))
                     .register(new com.organizer3.mcp.tools.FindMultiActressFolderDriftTool(session, actressRepo, jdbi))
+                    .register(new com.organizer3.mcp.tools.VolumeCurationReportTool(session, actressRepo, jdbi))
                     .register(new com.organizer3.mcp.tools.ListMultiVideoTitlesTool(jdbi))
                     .register(new com.organizer3.mcp.tools.AnalyzeTitleVideosTool(titleRepo, videoRepo))
                     .register(new com.organizer3.mcp.tools.FindDuplicateCandidatesTool(jdbi))
