@@ -2857,6 +2857,8 @@
   display: flex;
   flex-direction: column;
   gap: 6px;
+  min-width: 0;
+  overflow: hidden;
   transition: border-color 0.12s;
 }
 .adm-dup-loc-card.adm-dup-loc-keep    { border-color: #14532d; background: #040f09; }
@@ -2891,21 +2893,22 @@
 .adm-dup-path {
   font-family: monospace;
   font-size: 0.72rem;
+  min-width: 0;
 }
 .adm-dup-path-vol {
   color: #475569;
   margin-bottom: 1px;
+  overflow-wrap: anywhere;
 }
 .adm-dup-path-middle {
   color: #475569;
   margin-bottom: 1px;
+  overflow-wrap: anywhere;
 }
 .adm-dup-path-leaf {
-  color: #94a3b8;
-  font-weight: 600;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  color: #f1f5f9;
+  font-weight: 700;
+  overflow-wrap: anywhere;
 }
 
 /* Video rows */
