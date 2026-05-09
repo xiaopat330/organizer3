@@ -674,7 +674,7 @@ public class Application {
                 .filter(v -> !"avstars".equals(v.structureType()))
                 .collect(Collectors.toMap(VolumeConfig::id, VolumeConfig::smbPath));
         int maxBrowseTitles = config.maxBrowseTitles() != null ? config.maxBrowseTitles() : 500;
-        TitleBrowseService browseService = new TitleBrowseService(titleRepo, actressRepo, coverPath, labelRepo, titleActressRepo, watchHistoryRepo, volumeSmbPaths, maxBrowseTitles);
+        TitleBrowseService browseService = new TitleBrowseService(titleRepo, actressRepo, coverPath, labelRepo, titleActressRepo, watchHistoryRepo, videoRepo, volumeSmbPaths, maxBrowseTitles);
         StageNameBackupFile stageNameBackup = new StageNameBackupFile(
                 dbDir.resolve("stagenames.yaml"));
         ActressBrowseService actressBrowseService = new ActressBrowseService(

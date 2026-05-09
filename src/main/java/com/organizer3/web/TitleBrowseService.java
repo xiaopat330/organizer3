@@ -8,9 +8,11 @@ import com.organizer3.repository.ActressRepository;
 import com.organizer3.repository.LabelRepository;
 import com.organizer3.repository.TitleActressRepository;
 import com.organizer3.repository.TitleRepository;
+import com.organizer3.repository.VideoRepository;
 import com.organizer3.repository.WatchHistoryRepository;
 import com.organizer3.sync.TitleCodeQuery;
 
+import java.time.LocalDate;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
@@ -30,6 +32,7 @@ public class TitleBrowseService {
     private final LabelRepository labelRepo;
     private final TitleActressRepository titleActressRepo;
     private final WatchHistoryRepository watchHistoryRepo;
+    private final VideoRepository videoRepo;
     /** volumeId → smbPath, e.g. "a" → "//pandora/jav_A" */
     private final Map<String, String> volumeSmbPaths;
     /** Hard cap on rows returned per page query; driven by {@code maxBrowseTitles} in config. */
@@ -41,17 +44,35 @@ public class TitleBrowseService {
     public TitleBrowseService(
             TitleRepository titleRepo, ActressRepository actressRepo, CoverPath coverPath,
             LabelRepository labelRepo, TitleActressRepository titleActressRepo,
-            WatchHistoryRepository watchHistoryRepo, Map<String, String> volumeSmbPaths,
-            int maxLimit) {
+            WatchHistoryRepository watchHistoryRepo, VideoRepository videoRepo,
+            Map<String, String> volumeSmbPaths, int maxLimit) {
         this.titleRepo = titleRepo;
         this.actressRepo = actressRepo;
         this.coverPath = coverPath;
         this.labelRepo = labelRepo;
         this.titleActressRepo = titleActressRepo;
         this.watchHistoryRepo = watchHistoryRepo;
+        this.videoRepo = videoRepo;
         this.volumeSmbPaths = volumeSmbPaths;
         this.maxLimit = maxLimit;
         this.dashboardBuilder = new TitleDashboardBuilder(titleRepo, actressRepo, labelRepo, this);
+    }
+
+    /**
+     * Legacy constructor for tests and callers that predate the {@code videoRepo} dependency.
+     * {@link #findAdminTitlesPaged} is unavailable when constructed this way — the {@code videoRepo}
+     * field is null and the method will throw {@link NullPointerException} if called.
+     *
+     * @deprecated Inject {@link VideoRepository} explicitly.
+     */
+    @Deprecated
+    public TitleBrowseService(
+            TitleRepository titleRepo, ActressRepository actressRepo, CoverPath coverPath,
+            LabelRepository labelRepo, TitleActressRepository titleActressRepo,
+            WatchHistoryRepository watchHistoryRepo, Map<String, String> volumeSmbPaths,
+            int maxLimit) {
+        this(titleRepo, actressRepo, coverPath, labelRepo, titleActressRepo, watchHistoryRepo,
+             null, volumeSmbPaths, maxLimit);
     }
 
     public int maxLimit() { return maxLimit; }
@@ -494,6 +515,89 @@ public class TitleBrowseService {
 
     /** Result of a visit record operation. */
     public record VisitStats(int visitCount, String lastVisitedAt) {}
+
+    /**
+     * A page of title summaries for the Admin tab, ordered by attention score descending.
+     *
+     * <p>Attention buckets (v0):
+     * <ul>
+     *   <li>1000 — no-content (zero video files in DB)</li>
+     *   <li>100  — multi-location (more than one {@code title_locations} row)</li>
+     *   <li>0    — clean / no attention signal</li>
+     * </ul>
+     *
+     * <p>Tiebreaker: {@code release_date DESC} (nulls last), then {@code code ASC}.
+     */
+    public record AdminTitlesPage(
+            List<TitleSummary> titles,
+            int page,
+            int totalPages,
+            int pageSize) {}
+
+    /**
+     * Returns a page of an actress's titles ordered by attention score (highest first),
+     * then release_date DESC (nulls last), then code ASC.
+     *
+     * <p>If the actress has no titles, returns page=1 / totalPages=0 / empty list.
+     * If {@code page} exceeds the last page, the last page is returned instead (clamped).
+     *
+     * @param actressId the actress to query
+     * @param page      1-indexed page number
+     * @param pageSize  titles per page
+     */
+    public AdminTitlesPage findAdminTitlesPaged(long actressId, int page, int pageSize) {
+        // 1. Fetch all titles for the actress (locations already populated)
+        List<Title> all = titleRepo.findByActress(actressId);
+
+        if (all.isEmpty()) {
+            return new AdminTitlesPage(List.of(), 1, 0, pageSize);
+        }
+
+        // 2. Batch-fetch video counts
+        List<Long> titleIds = all.stream().map(Title::getId).filter(Objects::nonNull).toList();
+        Map<Long, Integer> videoCounts = videoRepo.countByTitleIds(titleIds);
+
+        // 3. Compute attention bucket per title
+        record ScoredTitle(Title title, int bucket) {}
+        List<ScoredTitle> scored = all.stream().map(t -> {
+            int videoCount = t.getId() != null ? videoCounts.getOrDefault(t.getId(), 0) : 0;
+            int locationCount = t.getLocations().size();
+            int bucket;
+            if (videoCount == 0) {
+                bucket = 1000;
+            } else if (locationCount > 1) {
+                bucket = 100;
+            } else {
+                bucket = 0;
+            }
+            return new ScoredTitle(t, bucket);
+        }).toList();
+
+        // 4. Sort: bucket DESC, release_date DESC (nulls last), code ASC
+        Comparator<ScoredTitle> comparator = Comparator
+                .<ScoredTitle>comparingInt(st -> -st.bucket())
+                .thenComparing(
+                        st -> st.title().getReleaseDate(),
+                        Comparator.nullsLast(Comparator.reverseOrder()))
+                .thenComparing(st -> st.title().getCode() != null ? st.title().getCode() : "");
+
+        List<Title> sorted = scored.stream()
+                .sorted(comparator)
+                .map(ScoredTitle::title)
+                .toList();
+
+        // 5. Paginate
+        int total = sorted.size();
+        int totalPages = (int) Math.ceil((double) total / pageSize);
+        // clamp: page >= 1, page <= max(1, totalPages)
+        int clampedPage = Math.max(1, Math.min(page, Math.max(1, totalPages)));
+        int offset = (clampedPage - 1) * pageSize;
+        List<Title> pageSlice = sorted.subList(offset, Math.min(offset + pageSize, total));
+
+        // 6. Enrich only the page slice
+        List<TitleSummary> summaries = toSummaries(pageSlice);
+        return new AdminTitlesPage(summaries, clampedPage, totalPages, pageSize);
+    }
 
     /** Full flag state returned by all three flag-toggle endpoints. */
     public record TitleFlagState(String code, boolean favorite, boolean bookmark, boolean rejected) {}

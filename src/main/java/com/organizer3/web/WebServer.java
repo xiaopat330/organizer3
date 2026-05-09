@@ -220,6 +220,11 @@ public class WebServer {
         routes.register(app);
     }
 
+    /** Mounts the actress endpoints ({@code /api/actresses/*}). Primarily for tests. */
+    public void registerActressRoutes(com.organizer3.web.routes.ActressRoutes routes) {
+        routes.register(app);
+    }
+
     /** Mounts the javdb Discovery read-only endpoints ({@code /api/javdb/discovery/*}). */
     public void registerJavdbDiscovery(com.organizer3.web.routes.JavdbDiscoveryRoutes routes) {
         routes.register(app);
@@ -367,7 +372,7 @@ public class WebServer {
         }
 
         if (actressBrowseService != null) {
-            new com.organizer3.web.routes.ActressRoutes(actressBrowseService).register(app);
+            new com.organizer3.web.routes.ActressRoutes(actressBrowseService, browseService).register(app);
         }
 
         if (coversRoot != null) {

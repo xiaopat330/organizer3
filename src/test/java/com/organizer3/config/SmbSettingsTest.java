@@ -89,7 +89,7 @@ class SmbSettingsTest {
         OrganizerConfig config = new OrganizerConfig(
                 "test", "/tmp", null, null, null, null, null, null,
                 List.of(), List.of(), List.of(), List.of(), null, null,
-                null, null, null, null, null, null, null, null, custom);
+                null, null, null, null, null, null, null, null, custom, null);
 
         SmbSettings settings = config.smbOrDefaults();
 
