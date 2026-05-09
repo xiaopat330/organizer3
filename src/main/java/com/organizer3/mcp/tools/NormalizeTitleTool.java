@@ -4,40 +4,44 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.organizer3.filesystem.VolumeFileSystem;
 import com.organizer3.mcp.Schemas;
 import com.organizer3.mcp.Tool;
-import com.organizer3.organize.TitleNormalizerService;
 import com.organizer3.shell.SessionContext;
 import com.organizer3.smb.VolumeConnection;
-import org.jdbi.v3.core.Jdbi;
+import com.organizer3.titlefolder.TitleFolderService;
+import com.organizer3.titlefolder.TitleFolderService.MovePair;
+import com.organizer3.titlefolder.TitleFolderService.NormalizationOutcome;
+import com.organizer3.titlefolder.TitleFolderService.NormalizationPlan;
+import com.organizer3.titlefolder.TitleFolderService.NormalizationPlanEntry;
 
 import java.io.IOException;
 import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Phase 1 of the organize pipeline: normalize filenames inside a title's folder.
  * See {@code spec/PROPOSAL_ORGANIZE_PIPELINE.md} §3.1.
  *
- * <p>Current scope: rename the sole cover at base and the sole video (wherever
- * located in the title folder) to canonical {@code {CODE}.{ext}}. Multi-file and
- * token strip/replace handling deferred per §6.2.
+ * <p>Thin adapter over {@link TitleFolderService#planNormalization} (dryRun) and
+ * {@link TitleFolderService#executeNormalization} (live). Output is mapped to the
+ * legacy {@link Result} shape so existing MCP clients remain stable.
  *
  * <p>Gated on {@code mcp.allowFileOps}. Default {@code dryRun: true}.
  */
 public class NormalizeTitleTool implements Tool {
 
     private final SessionContext session;
-    private final Jdbi jdbi;
-    private final TitleNormalizerService service;
+    private final TitleFolderService folderService;
 
-    public NormalizeTitleTool(SessionContext session, Jdbi jdbi, TitleNormalizerService service) {
-        this.session = session;
-        this.jdbi = jdbi;
-        this.service = service;
+    public NormalizeTitleTool(SessionContext session, TitleFolderService folderService) {
+        this.session       = session;
+        this.folderService = folderService;
     }
 
     @Override public String name()        { return "normalize_title"; }
     @Override public String description() {
-        return "Rename a title's sole cover + sole video to canonical {CODE}.{ext}. "
-             + "Multi-cover / multi-video cases are skipped with a reason. Default dryRun:true.";
+        return "Rename a title's covers + videos to canonical {CODE}.{ext} and move videos into "
+             + "the appropriate subfolder (4K / h265 / video). Conflict entries are flagged when "
+             + "two files map to the same canonical name. Default dryRun:true.";
     }
 
     @Override
@@ -63,30 +67,83 @@ public class NormalizeTitleTool implements Tool {
             throw new IllegalArgumentException("Active connection is closed; re-mount the volume.");
         }
 
-        Path folder = lookupTitleFolder(volumeId, titleCode);
+        Path folder = folderService.findTitleFolder(titleCode, volumeId)
+                .orElseThrow(() -> new IllegalArgumentException(
+                        "No title '" + titleCode + "' on mounted volume '" + volumeId + "'"));
+
         VolumeFileSystem fs = conn.fileSystem();
         try {
-            return service.apply(fs, folder, titleCode, dryRun);
+            NormalizationPlan plan = folderService.planNormalization(fs, titleCode, folder, null);
+
+            if (dryRun) {
+                return toResult(true, folder.toString(), plan, null);
+            }
+
+            List<MovePair> moves = plan.entries().stream()
+                    .filter(e -> !e.alreadyCanonical() && !e.conflict() && e.to() != null)
+                    .map(e -> new MovePair(e.from(), e.to()))
+                    .toList();
+
+            NormalizationOutcome outcome = folderService.executeNormalization(fs, folder, moves);
+            return toResult(false, folder.toString(), plan, outcome);
         } catch (IOException e) {
             throw new IllegalArgumentException("normalize_title failed: " + e.getMessage(), e);
         }
     }
 
-    private Path lookupTitleFolder(String volumeId, String titleCode) {
-        return jdbi.withHandle(h -> h.createQuery("""
-                    SELECT tl.path FROM title_locations tl
-                    JOIN titles t ON t.id = tl.title_id
-                    WHERE tl.volume_id = :volumeId AND UPPER(t.code) = UPPER(:code)
-                      AND tl.stale_since IS NULL
-                    ORDER BY tl.id
-                    LIMIT 1
-                    """)
-                .bind("volumeId", volumeId)
-                .bind("code", titleCode)
-                .mapTo(String.class)
-                .findFirst()
-                .map(Path::of)
-                .orElseThrow(() -> new IllegalArgumentException(
-                        "No title '" + titleCode + "' on mounted volume '" + volumeId + "'")));
+    /**
+     * Maps service output to the stable {@link Result} shape expected by MCP clients.
+     *
+     * <p>Plan entries that are already canonical become {@link Skip} rows (reason:
+     * "already canonical"). Conflict entries become {@link Skip} rows (reason: "naming
+     * conflict — provide explicit name override"). Non-canonical, non-conflict entries
+     * become {@link Action} rows in {@code planned}; after execution they appear in
+     * {@code applied}.
+     */
+    private static Result toResult(boolean dryRun, String titleFolder,
+                                   NormalizationPlan plan, NormalizationOutcome outcome) {
+        List<Action> planned = new ArrayList<>();
+        List<Skip>   skipped = new ArrayList<>();
+
+        for (NormalizationPlanEntry e : plan.entries()) {
+            if (e.alreadyCanonical()) {
+                skipped.add(new Skip(e.kind(), e.from(), "already canonical"));
+            } else if (e.conflict()) {
+                skipped.add(new Skip(e.kind(), e.from(), "naming conflict — provide explicit name override"));
+            } else {
+                planned.add(new Action(e.kind() + "-rename", e.from(), e.to()));
+            }
+        }
+
+        if (dryRun) {
+            return new Result(true, titleFolder, planned, List.of(), List.of(), skipped);
+        }
+
+        // Map applied moves back to Action records.
+        List<Action> applied = outcome.moved().stream()
+                .map(desc -> {
+                    String[] parts = desc.split(" → ", 2);
+                    return parts.length == 2
+                            ? new Action("rename", parts[0], parts[1])
+                            : new Action("rename", desc, "");
+                })
+                .toList();
+
+        return new Result(false, titleFolder, planned, applied, List.of(), skipped);
     }
+
+    // ── Result records (preserved for MCP-client stability) ───────────────────
+
+    public record Action(String op, String from, String to) {}
+
+    public record Skip(String kind, String filename, String reason) {}
+
+    public record Result(
+            boolean dryRun,
+            String titleFolder,
+            List<Action> planned,
+            List<Action> applied,
+            List<Action> failed,
+            List<Skip> skipped
+    ) {}
 }
