@@ -13,7 +13,7 @@
 //                                 pagination control (2c) can call it
 
 import { setStatus } from '../utils.js';
-import { renderCard } from './card.js';
+import { renderCard, attachCardListeners } from './card.js';
 import * as state from './state.js';
 
 let currentActressId = null;
@@ -78,15 +78,18 @@ function renderPage(data) {
     return renderCard(t);
   }).join('');
 
-  // Pagination control — placeholder until 2c. Includes total-pages info
+  // Pagination control — placeholder until 2d. Includes total-pages info
   // so the user sees something useful even at this phase.
   const pagination = data.totalPages > 1
     ? `<div class="admin-pagination-stub">Page ${data.page} of ${data.totalPages}
-         (pagination control — Phase 2c)</div>`
+         (pagination control — Phase 2d)</div>`
     : '';
 
   view.innerHTML = `
     <div class="admin-card-list">${cards}</div>
     ${pagination}
   `;
+
+  // Attach event listeners for each card after setting innerHTML.
+  data.titles.forEach(t => attachCardListeners(t.code));
 }

@@ -2487,3 +2487,257 @@
   font-size: 0.8rem;
   font-style: italic;
 }
+
+/* ── Phase 2c: full Edit Card layout ─────────────────────────────────────── */
+
+/* Header: cover on left, meta stack on right, pending badge pinned top-right */
+.admin-card-header {
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+  position: relative;
+}
+
+.admin-card-cover {
+  flex-shrink: 0;
+  width: 90px;
+}
+.admin-card-cover img {
+  width: 90px;
+  border-radius: 4px;
+  display: block;
+  object-fit: cover;
+}
+.admin-card-cover .cover-placeholder {
+  width: 90px;
+  min-height: 126px;
+  background: #1e293b;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.65rem;
+  color: #475569;
+  font-family: monospace;
+  text-align: center;
+  padding: 4px;
+  box-sizing: border-box;
+}
+
+.admin-card-meta {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.admin-card-code-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.admin-card-code {
+  font-family: monospace;
+  font-weight: 700;
+  font-size: 1rem;
+  color: #cbd5e1;
+  letter-spacing: 0.05em;
+}
+
+.admin-card-title {
+  font-size: 0.88rem;
+  color: #d8d8d8;
+  line-height: 1.35;
+  margin-top: 2px;
+}
+
+.admin-card-title-ja {
+  font-size: 0.78rem;
+  color: #94a3b8;
+  margin-top: 1px;
+}
+
+.admin-card-meta-line {
+  font-size: 0.78rem;
+  color: #64748b;
+  margin-top: 3px;
+}
+
+.admin-card-cast {
+  font-size: 0.78rem;
+  color: #94a3b8;
+  margin-top: 2px;
+}
+
+.admin-card-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 4px;
+}
+
+.admin-card-grade-age {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 3px;
+}
+
+/* Pending badge — top-right of header */
+.admin-card-pending-badge {
+  position: absolute;
+  top: 0;
+  right: 0;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: #fbbf24;
+  background: #292108;
+  border: 1px solid #78350f;
+  border-radius: 4px;
+  padding: 2px 7px;
+  white-space: nowrap;
+}
+
+/* Reject badge (mirrored from 2b, now in header code row) */
+.admin-card-reject-badge {
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: #fda4af;
+  background: #2a0a14;
+  border: 1px solid #9f1239;
+  border-radius: 3px;
+  padding: 2px 6px;
+}
+
+/* ── Flags row ────────────────────────────────────────────────────────────── */
+
+.admin-card-flags-row {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid #1e293b;
+}
+
+.admin-card-flag-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border: 1px solid #334155;
+  border-radius: 5px;
+  background: #0f172a;
+  color: #64748b;
+  cursor: pointer;
+  font-size: 0.8rem;
+  font-weight: 500;
+  transition: border-color 0.15s, color 0.15s, background 0.15s;
+  position: relative;
+}
+.admin-card-flag-btn svg {
+  pointer-events: none;
+}
+
+.admin-card-flag-btn:hover:not(.disabled) {
+  border-color: #475569;
+  color: #94a3b8;
+}
+
+/* Active = server state is on */
+.admin-card-flag-btn.active {
+  color: #e2e8f0;
+  border-color: #4b5563;
+  background: #1e293b;
+}
+.admin-card-flag-btn.fav-btn.active  { color: #fbbf24; border-color: #92400e; }
+.admin-card-flag-btn.bm-btn.active   { color: #60a5fa; border-color: #1e40af; }
+.admin-card-flag-btn.rej-btn.active  { color: #f87171; border-color: #7f1d1d; }
+
+/* Staged decoration — small dot in bottom-right corner */
+.admin-card-flag-btn.staged::after {
+  content: '';
+  position: absolute;
+  bottom: 3px;
+  right: 3px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #fbbf24;
+}
+
+/* Disabled (rejected mutex) */
+.admin-card-flag-btn.disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+/* ── Section stubs (§4.3 / §4.4 Coming soon) ─────────────────────────────── */
+
+.admin-card-section-stub {
+  margin-top: 10px;
+  padding: 8px 12px;
+  border: 1px dashed #1e293b;
+  border-radius: 4px;
+  color: #475569;
+  font-size: 0.78rem;
+  font-style: italic;
+}
+
+/* ── Error bar (commit failure) ───────────────────────────────────────────── */
+
+.admin-card-error-text {
+  margin-top: 10px;
+  padding: 7px 12px;
+  background: #1c0a0a;
+  border: 1px solid #7f1d1d;
+  border-radius: 4px;
+  color: #fca5a5;
+  font-size: 0.8rem;
+}
+
+/* ── Commit / Cancel footer ───────────────────────────────────────────────── */
+
+.admin-card-footer {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid #1e293b;
+}
+
+.admin-card-commit-btn {
+  padding: 6px 16px;
+  background: #1e3a5f;
+  border: 1px solid #2563eb;
+  border-radius: 5px;
+  color: #bfdbfe;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.admin-card-commit-btn:hover {
+  background: #1d4ed8;
+  color: #fff;
+}
+
+.admin-card-cancel-btn {
+  padding: 6px 14px;
+  background: transparent;
+  border: 1px solid #334155;
+  border-radius: 5px;
+  color: #64748b;
+  font-size: 0.82rem;
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s;
+}
+.admin-card-cancel-btn:hover {
+  border-color: #475569;
+  color: #94a3b8;
+}
