@@ -5,10 +5,16 @@
 // resolve in the user's file manager.
 
 const IS_MAC = /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent);
+const IS_WIN = /Win/.test(navigator.platform || navigator.userAgent);
 
 export function displayPath(rawPath) {
   if (!rawPath) return '';
-  return IS_MAC ? rawPath : rawPath.replace(/\.local(?=\/|$)/g, '');
+  if (IS_MAC) return rawPath;
+  // Non-mac: strip mDNS .local suffix (Bonjour-only).
+  let p = rawPath.replace(/\.local(?=\/|$)/g, '');
+  // Windows: Explorer wants UNC backslashes. //srv/share/path → \\srv\share\path
+  if (IS_WIN) p = p.replace(/\//g, '\\');
+  return p;
 }
 
 // navigator.clipboard requires a secure context (HTTPS or localhost). LAN
