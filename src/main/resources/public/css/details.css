@@ -3698,3 +3698,74 @@
   opacity: 0.35;
   cursor: not-allowed;
 }
+
+/* ── Task 1: richer folder-contents rows ─────────────────────────────────── */
+
+/* Section headers — bump weight/color compared to the old label */
+.admin-card-file-list-label {
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: #475569;
+  margin-bottom: 6px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid #1e293b;
+}
+
+/* Gap between video and covers sections */
+.admin-card-file-list {
+  margin-bottom: 12px;
+}
+.admin-card-file-list:last-child {
+  margin-bottom: 0;
+}
+
+/* Chip strip — inline flex wrapper for chips in a file row */
+.admin-card-file-chips {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  flex-shrink: 0;
+}
+
+/* Base chip pill — mirrors .adm-dup-chip sizing */
+.admin-card-file-chip {
+  display: inline-block;
+  padding: 1px 5px;
+  border-radius: 3px;
+  font-size: 0.67rem;
+  font-weight: 600;
+  background: #1e293b;
+  color: #94a3b8;
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+}
+
+/* Resolution chip — slightly brighter */
+.admin-card-file-chip-res {
+  background: #0f1f2e;
+  color: #7dd3fc;
+}
+
+/* HEVC chip — green-tinted, mirrors .adm-dup-chip-hevc */
+.admin-card-file-chip-hevc {
+  background: #1e1a2e;
+  color: #a78bfa;
+}
+
+/* Cover icon — small, dimmed placeholder for rows without a thumbnail URL */
+.admin-card-cover-icon {
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  color: #334155;
+}
+
+/* Empty state — more informative, subdued italic */
+.admin-card-file-empty {
+  font-size: 0.75rem;
+  color: #334155;
+  font-style: italic;
+  padding: 4px 0 2px;
+}

@@ -33,6 +33,41 @@ function humanizeDuration(sec) {
   return h > 0 ? `${h}:${mm}:${ss}` : `${mm}:${ss}`;
 }
 
+// ── Resolution helper ─────────────────────────────────────────────────────────
+
+/**
+ * Derive a resolution label from FolderVideo metadata.
+ * Follows the spec: ≥3840w or ≥2160h → "4K"; ≥1080h → "1080p"; ≥720h → "720p"; else "${h}p".
+ * Returns null if neither width nor height is available.
+ */
+function resolveLabel(v) {
+  if (v.width == null && v.height == null) return null;
+  if ((v.width != null && v.width >= 3840) || (v.height != null && v.height >= 2160)) return '4K';
+  if (v.height != null && v.height >= 1080) return '1080p';
+  if (v.height != null && v.height >= 720)  return '720p';
+  if (v.height != null) return `${v.height}p`;
+  return null;
+}
+
+/**
+ * Build chip HTML for a FolderVideo row.
+ * Chips: size, duration, resolution, HEVC.
+ */
+function videoRowChips(v) {
+  let html = '';
+  const sizeStr = humanizeBytes(v.sizeBytes);
+  if (sizeStr !== '—') html += `<span class="admin-card-file-chip">${esc(sizeStr)}</span>`;
+  const durStr  = humanizeDuration(v.durationSec);
+  if (durStr !== '—')  html += `<span class="admin-card-file-chip">${esc(durStr)}</span>`;
+  const res = resolveLabel(v);
+  if (res)             html += `<span class="admin-card-file-chip admin-card-file-chip-res">${esc(res)}</span>`;
+  const fnLower  = (v.filename || '').toLowerCase();
+  const codec    = (v.videoCodec || '').toLowerCase();
+  const isHevc   = codec.includes('hevc') || codec.includes('h265') || fnLower.includes('-h265');
+  if (isHevc)          html += `<span class="admin-card-file-chip admin-card-file-chip-hevc">HEVC</span>`;
+  return html;
+}
+
 // ── Render ───────────────────────────────────────────────────────────────────
 
 export function renderFolderContents(code, folderContents) {
@@ -70,20 +105,27 @@ function renderVideoList(code, videos) {
     const nameHtml  = isPending
       ? `<s class="admin-card-filename">${esc(v.filename)}</s>`
       : `<span class="admin-card-filename">${esc(v.filename)}</span>`;
-    const metaHtml  = `<span class="admin-card-file-meta">${humanizeBytes(v.sizeBytes)}</span>` +
-                      `<span class="admin-card-file-meta">${humanizeDuration(v.durationSec)}</span>`;
+    const chipsHtml = `<span class="admin-card-file-chips">${videoRowChips(v)}</span>`;
     const actionHtml = isPending
       ? `<button class="admin-card-file-undo-btn" data-file-action="undo-trash-video" data-filename="${esc(v.filename)}">Undo</button>`
       : `<button class="admin-card-file-trash-btn" data-file-action="trash-video" data-filename="${esc(v.filename)}">[trash]</button>`;
-    return `<div class="${rowClass}">${nameHtml}${metaHtml}${actionHtml}</div>`;
+    return `<div class="${rowClass}">${nameHtml}${chipsHtml}${actionHtml}</div>`;
   }).join('');
 
   return `
     <div class="admin-card-file-list">
-      <div class="admin-card-file-list-label">videos</div>
-      ${rows || '<div class="admin-card-file-empty">No video files</div>'}
+      <div class="admin-card-file-list-label">Videos</div>
+      ${rows || '<div class="admin-card-file-empty">No video files in this folder</div>'}
     </div>`;
 }
+
+// Cover icon SVG — shown when no thumbnail URL is available (no per-folder cover serving route).
+const COVER_ICON_SVG = `<svg class="admin-card-cover-icon" viewBox="0 0 20 20" fill="none"
+  xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+  <rect x="2" y="2" width="16" height="16" rx="2" stroke="currentColor" stroke-width="1.5"/>
+  <circle cx="7.5" cy="7.5" r="1.5" stroke="currentColor" stroke-width="1.2"/>
+  <path d="M2 13l4-4 3 3 3-3 6 5" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/>
+</svg>`;
 
 function renderCoverList(code, covers, multiCover) {
   const warningHtml = multiCover
@@ -96,7 +138,10 @@ function renderCoverList(code, covers, multiCover) {
     const nameHtml  = isPending
       ? `<s class="admin-card-filename">${esc(c.filename)}</s>`
       : `<span class="admin-card-filename">${esc(c.filename)}</span>`;
-    const metaHtml  = `<span class="admin-card-file-meta">${humanizeBytes(c.sizeBytes)}</span>`;
+    const sizeStr   = humanizeBytes(c.sizeBytes);
+    const metaHtml  = sizeStr !== '—'
+      ? `<span class="admin-card-file-chips"><span class="admin-card-file-chip">${esc(sizeStr)}</span></span>`
+      : '';
 
     let actionHtml;
     if (isPending) {
@@ -108,12 +153,13 @@ function renderCoverList(code, covers, multiCover) {
     } else {
       actionHtml = `<button class="admin-card-file-trash-btn" data-file-action="trash-cover" data-filename="${esc(c.filename)}">[trash]</button>`;
     }
-    return `<div class="${rowClass}">${nameHtml}${metaHtml}${actionHtml}</div>`;
+    // No per-folder cover serving route exists — use an icon placeholder instead of a thumbnail.
+    return `<div class="${rowClass}">${COVER_ICON_SVG}${nameHtml}${metaHtml}${actionHtml}</div>`;
   }).join('');
 
   return `
-    <div class="admin-card-file-list">
-      <div class="admin-card-file-list-label">covers</div>
+    <div class="admin-card-file-list admin-card-file-list-covers">
+      <div class="admin-card-file-list-label">Covers</div>
       ${warningHtml}
       ${rows || ''}
     </div>`;
