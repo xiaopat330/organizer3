@@ -1,23 +1,28 @@
 package com.organizer3.titlefolder;
 
 import com.organizer3.config.volume.MediaConfig;
+import com.organizer3.config.volume.NormalizeConfig;
 import com.organizer3.filesystem.VolumeFileSystem;
 import com.organizer3.model.Title;
 import com.organizer3.model.Video;
 import com.organizer3.repository.TitleRepository;
 import com.organizer3.repository.VideoRepository;
 import com.organizer3.trash.Trash;
+import lombok.extern.slf4j.Slf4j;
 import org.jdbi.v3.core.Jdbi;
 
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.regex.Pattern;
 
 /**
  * Title-folder operations shared by MCP tools and (future) HTTP routes.
@@ -37,6 +42,7 @@ import java.util.Set;
  * @see com.organizer3.mcp.tools.TrashDuplicateVideoTool — adapter
  * @see com.organizer3.mcp.tools.TrashDuplicateCoverTool — adapter
  */
+@lombok.extern.slf4j.Slf4j
 public class TitleFolderService {
 
     /** File extensions counted as cover images at a title folder. */
@@ -51,19 +57,27 @@ public class TitleFolderService {
     private final VideoRepository videoRepo;
     private final Jdbi jdbi;
     private final MediaConfig mediaConfig;
+    private final NormalizeConfig normalizeConfig;
 
     /** Backwards-compatible 3-arg constructor; uses {@link MediaConfig#DEFAULTS}. */
     public TitleFolderService(TitleRepository titleRepo, VideoRepository videoRepo, Jdbi jdbi) {
-        this(titleRepo, videoRepo, jdbi, MediaConfig.DEFAULTS);
+        this(titleRepo, videoRepo, jdbi, MediaConfig.DEFAULTS, null);
     }
 
     /** Full constructor — callers that need non-default extension classification inject MediaConfig. */
     public TitleFolderService(TitleRepository titleRepo, VideoRepository videoRepo,
                               Jdbi jdbi, MediaConfig mediaConfig) {
-        this.titleRepo   = titleRepo;
-        this.videoRepo   = videoRepo;
-        this.jdbi        = jdbi;
-        this.mediaConfig = mediaConfig != null ? mediaConfig : MediaConfig.DEFAULTS;
+        this(titleRepo, videoRepo, jdbi, mediaConfig, null);
+    }
+
+    /** Full constructor with normalize config. */
+    public TitleFolderService(TitleRepository titleRepo, VideoRepository videoRepo,
+                              Jdbi jdbi, MediaConfig mediaConfig, NormalizeConfig normalizeConfig) {
+        this.titleRepo       = titleRepo;
+        this.videoRepo       = videoRepo;
+        this.jdbi            = jdbi;
+        this.mediaConfig     = mediaConfig != null ? mediaConfig : MediaConfig.DEFAULTS;
+        this.normalizeConfig = normalizeConfig != null ? normalizeConfig : NormalizeConfig.EMPTY;
     }
 
     // ── Pure DB analysis ───────────────────────────────────────────────────
@@ -341,6 +355,294 @@ public class TitleFolderService {
         }
     }
 
+    // ── Normalization plan (Phase 5) ──────────────────────────────────────
+
+    /**
+     * Produces a normalization plan: the set of moves (rename / path-move / both) needed
+     * to bring the title folder to canonical layout — covers at base named {@code {CODE}.{ext}},
+     * videos in the appropriate subfolder ({@code video/}, {@code h265/}, {@code 4K/}).
+     *
+     * <p>Each file in the folder (base + one level of subdirectories) gets one plan entry.
+     * If {@code from == to} the entry is marked {@code alreadyCanonical=true} and requires no
+     * action. If two videos would receive the same canonical name, both get {@code to=null} to
+     * signal a conflict that the user must resolve by supplying an explicit name override.
+     *
+     * <p>{@code excludeRelPaths} is the set of relative paths (forward-slash) of files that
+     * should be excluded from the plan — used by the frontend to filter out files with pending
+     * trash stages.
+     *
+     * @param fs             live filesystem handle
+     * @param titleCode      title code (e.g. {@code ABC-123})
+     * @param folder         absolute path to the title's single location folder
+     * @param excludeRelPaths relative paths to exclude (e.g. already-staged trash targets)
+     * @return plan (may be {@link NormalizationPlan#alreadyNormalized()} when all entries
+     *         are canonical)
+     */
+    public NormalizationPlan planNormalization(VolumeFileSystem fs, String titleCode,
+                                               Path folder, Set<String> excludeRelPaths) {
+        Set<String> videoExts = Set.copyOf(
+                mediaConfig.effectiveVideoExtensions().stream()
+                        .map(e -> e.toLowerCase(Locale.ROOT)).toList());
+        Set<String> coverExts = Set.copyOf(
+                mediaConfig.effectiveCoverExtensions().stream()
+                        .map(e -> e.toLowerCase(Locale.ROOT)).toList());
+
+        // Collect all files (base + one level deep), respecting excludes.
+        record FileEntry(Path absPath, String relPath, boolean isVideo, boolean isCover) {}
+        List<FileEntry> allFiles = new ArrayList<>();
+        try {
+            for (Path child : fs.listDirectory(folder)) {
+                if (fs.isDirectory(child)) {
+                    try {
+                        for (Path sub : fs.listDirectory(child)) {
+                            if (!fs.isDirectory(sub)) {
+                                String rel = folder.relativize(sub).toString();
+                                if (excludeRelPaths == null || !excludeRelPaths.contains(rel)) {
+                                    String ext = extensionOf(sub.getFileName().toString());
+                                    allFiles.add(new FileEntry(sub, rel, videoExts.contains(ext), coverExts.contains(ext)));
+                                }
+                            }
+                        }
+                    } catch (IOException ignored) { /* skip unreadable subfolder */ }
+                } else {
+                    String rel = folder.relativize(child).toString();
+                    if (excludeRelPaths == null || !excludeRelPaths.contains(rel)) {
+                        String ext = extensionOf(child.getFileName().toString());
+                        allFiles.add(new FileEntry(child, rel, videoExts.contains(ext), coverExts.contains(ext)));
+                    }
+                }
+            }
+        } catch (IOException e) {
+            throw new IllegalArgumentException(
+                    "Cannot list title folder for normalization plan: " + folder + " — " + e.getMessage(), e);
+        }
+
+        // Separate into videos and covers.
+        List<FileEntry> videos = allFiles.stream().filter(FileEntry::isVideo).toList();
+        List<FileEntry> covers = allFiles.stream().filter(FileEntry::isCover).toList();
+
+        // ── Plan video targets ────────────────────────────────────────────
+        // Compute proposed target relative path for each video. On multi-video titles:
+        // each video gets a best-guess canonical name from freeformSuffix logic.
+        // If two videos resolve to the same canonical name → conflict (to=null).
+        record VideoProposal(FileEntry entry, String proposedRel) {}
+        List<VideoProposal> videoProposals = new ArrayList<>();
+        for (FileEntry v : videos) {
+            String filename = v.absPath().getFileName().toString();
+            String extDot   = extensionWithDot(filename);
+            String stem     = filename.substring(0, filename.length() - extDot.length());
+            String cleanStem = applyRemovelist(stem);
+            String freeform  = freeformSuffix(cleanStem, titleCode, extDot);
+            String canonicalName = titleCode + freeform + extDot;
+            // Pick subfolder for the canonical parent (based on canonical name, not current name).
+            String subfolder    = pickSubfolder(canonicalName);
+            String proposedRel  = subfolder + "/" + canonicalName;
+            videoProposals.add(new VideoProposal(v, proposedRel));
+        }
+
+        // Detect conflicts: multiple videos → same canonical rel path.
+        Map<String, Long> targetCount = new LinkedHashMap<>();
+        for (VideoProposal vp : videoProposals) {
+            targetCount.merge(vp.proposedRel(), 1L, Long::sum);
+        }
+
+        // ── Plan cover targets ────────────────────────────────────────────
+        // First cover at base → {CODE}.{ext}. Additional covers or covers in subdirs
+        // get best-guess names ({CODE}_alt.{ext}, {CODE}_alt2.{ext}, …).
+        // In all cases the target is at the folder base.
+        record CoverProposal(FileEntry entry, String proposedRel) {}
+        List<CoverProposal> coverProposals = new ArrayList<>();
+        int coverIndex = 0;
+        for (FileEntry c : covers) {
+            String filename = c.absPath().getFileName().toString();
+            String extDot   = extensionWithDot(filename);
+            String proposedName;
+            if (coverIndex == 0) {
+                proposedName = titleCode + extDot;
+            } else {
+                proposedName = titleCode + "_alt" + (coverIndex > 1 ? coverIndex : "") + extDot;
+            }
+            coverProposals.add(new CoverProposal(c, proposedName));
+            coverIndex++;
+        }
+
+        // ── Build plan entries ────────────────────────────────────────────
+        List<NormalizationPlanEntry> entries = new ArrayList<>();
+
+        for (VideoProposal vp : videoProposals) {
+            boolean conflict = targetCount.getOrDefault(vp.proposedRel(), 0L) > 1;
+            String to = conflict ? null : vp.proposedRel();
+            boolean canonical = to != null && normalizeRelPath(vp.entry().relPath()).equalsIgnoreCase(normalizeRelPath(to));
+            entries.add(new NormalizationPlanEntry(vp.entry().relPath(), to, "video", conflict, canonical));
+        }
+
+        for (CoverProposal cp : coverProposals) {
+            boolean canonical = normalizeRelPath(cp.entry().relPath()).equalsIgnoreCase(normalizeRelPath(cp.proposedRel()));
+            entries.add(new NormalizationPlanEntry(cp.entry().relPath(), cp.proposedRel(), "cover", false, canonical));
+        }
+
+        boolean alreadyNormalized = entries.stream().allMatch(
+                e -> !e.conflict() && e.alreadyCanonical());
+        return new NormalizationPlan(titleCode, folder.toString(), entries, alreadyNormalized);
+    }
+
+    /** Normalize a relative path for case-insensitive comparison (forward-slash, lower). */
+    private static String normalizeRelPath(String rel) {
+        return rel == null ? "" : rel.replace('\\', '/').toLowerCase(Locale.ROOT);
+    }
+
+    /**
+     * Executes the user-confirmed set of moves (renames, path-moves, or both).
+     *
+     * <p>Validates before mutating:
+     * <ul>
+     *   <li>All {@code from} paths must exist under {@code folder}.
+     *   <li>No two {@code to} values may be the same (collision within the set).
+     *   <li>No {@code to} value may point to a file that already exists and is NOT
+     *       the source of another move in the same set (would overwrite an untouched file).
+     *   <li>All {@code from} and {@code to} paths must resolve within {@code folder}
+     *       (path-traversal guard).
+     * </ul>
+     *
+     * <p>On validation failure throws {@link IllegalArgumentException} before any FS mutation.
+     * On execution, moves are attempted in order; if any fails the method throws and later
+     * moves are not attempted (caller should surface the error; partial state is visible on disk).
+     *
+     * @param fs     live filesystem handle
+     * @param folder absolute title-folder path
+     * @param moves  ordered list of {@code {from, to}} relative-path pairs
+     * @throws IllegalArgumentException on pre-flight validation failure
+     * @throws IOException              on FS move failure
+     */
+    public NormalizationOutcome executeNormalization(VolumeFileSystem fs, Path folder,
+                                                     List<MovePair> moves) throws IOException {
+        if (moves == null || moves.isEmpty()) {
+            return new NormalizationOutcome(0, List.of());
+        }
+
+        Path normalFolder = folder.normalize();
+
+        // ── Pre-flight validation ─────────────────────────────────────────
+        // 1. All from-paths within folder, all exist.
+        // 2. All to-paths within folder.
+        // 3. No duplicate to-paths.
+        // 4. No to-path hits an existing file NOT in the from-set.
+
+        Set<String> fromPaths = new HashSet<>();
+        Set<String> toPaths   = new HashSet<>();
+
+        for (MovePair m : moves) {
+            if (m.from() == null || m.from().isBlank()) {
+                throw new IllegalArgumentException("Move 'from' must not be blank");
+            }
+            if (m.to() == null || m.to().isBlank()) {
+                throw new IllegalArgumentException("Move 'to' must not be blank");
+            }
+            Path absFrom = normalFolder.resolve(m.from()).normalize();
+            Path absTo   = normalFolder.resolve(m.to()).normalize();
+
+            if (!absFrom.startsWith(normalFolder)) {
+                throw new IllegalArgumentException("Path traversal in 'from': " + m.from());
+            }
+            if (!absTo.startsWith(normalFolder)) {
+                throw new IllegalArgumentException("Path traversal in 'to': " + m.to());
+            }
+            fromPaths.add(absFrom.toString());
+            if (!toPaths.add(absTo.toString())) {
+                throw new IllegalArgumentException("Duplicate target path: " + m.to());
+            }
+        }
+
+        // Verify existence and collision with untouched files.
+        for (MovePair m : moves) {
+            Path absFrom = normalFolder.resolve(m.from()).normalize();
+            Path absTo   = normalFolder.resolve(m.to()).normalize();
+
+            if (!fs.exists(absFrom)) {
+                throw new IllegalArgumentException("Source file does not exist: " + m.from());
+            }
+            // If the target already exists and it's NOT the source of another move in this set,
+            // it's an untouched file we'd overwrite — reject.
+            if (fs.exists(absTo) && !fromPaths.contains(absTo.toString())) {
+                throw new IllegalArgumentException(
+                        "Target already exists and is not part of this move set: " + m.to());
+            }
+        }
+
+        // ── Execute moves ─────────────────────────────────────────────────
+        List<String> applied = new ArrayList<>();
+        for (MovePair m : moves) {
+            Path absFrom = normalFolder.resolve(m.from()).normalize();
+            Path absTo   = normalFolder.resolve(m.to()).normalize();
+            if (absFrom.equals(absTo)) continue;  // no-op (already canonical)
+
+            fs.createDirectories(absTo.getParent());
+            fs.move(absFrom, absTo);
+            log.info("FS mutation [TitleFolderService.executeNormalization]: moved — from={} to={}",
+                    absFrom, absTo);
+            applied.add(m.from() + " → " + m.to());
+        }
+
+        return new NormalizationOutcome(applied.size(), applied);
+    }
+
+    // ── Helpers shared with plan logic ────────────────────────────────────
+
+    /** Picks the canonical subfolder name from the video filename hint. */
+    static String pickSubfolder(String filename) {
+        if (filename == null) return "video";
+        String lower = filename.toLowerCase(Locale.ROOT);
+        if (lower.contains("-4k"))   return "4K";
+        if (lower.contains("-h265")) return "h265";
+        return "video";
+    }
+
+    /** Extension preserving original case, with dot (e.g. {@code ".MKV"}). */
+    static String extensionWithDot(String filename) {
+        int dot = filename.lastIndexOf('.');
+        if (dot < 0) return "";
+        return filename.substring(dot);
+    }
+
+    /**
+     * Extracts the freeform suffix after the code part (e.g. {@code -h265} or {@code _4K}).
+     * See {@code TitleNormalizerService.freeformSuffix} — duplicated here to avoid coupling.
+     */
+    static String freeformSuffix(String cleanStem, String titleCode, String extWithDot) {
+        String stemLower = cleanStem.toLowerCase(Locale.ROOT);
+        String codeLower = titleCode.toLowerCase(Locale.ROOT);
+        if (stemLower.startsWith(codeLower)) {
+            return cleanStem.substring(titleCode.length());
+        }
+        // Separator-normalized: treat - and _ as equivalent.
+        if (stemLower.replace('-', '_').startsWith(codeLower.replace('-', '_'))) {
+            return cleanStem.substring(titleCode.length());
+        }
+        return freeformSuffixFromFilename(cleanStem + extWithDot);
+    }
+
+    private static String freeformSuffixFromFilename(String filename) {
+        int dot = filename.lastIndexOf('.');
+        String stem = dot >= 0 ? filename.substring(0, dot) : filename;
+        java.util.regex.Matcher m = Pattern
+                .compile("^[0-9]{0,6}[A-Za-z][A-Za-z0-9]{0,9}-\\d+([-_].+)?$")
+                .matcher(stem);
+        if (m.matches()) {
+            String suffix = m.group(1);
+            return suffix != null ? suffix : "";
+        }
+        return "";
+    }
+
+    private String applyRemovelist(String stem) {
+        for (String token : normalizeConfig.effectiveRemovelist()) {
+            if (token == null || token.isEmpty()) continue;
+            stem = Pattern.compile(Pattern.quote(token), Pattern.CASE_INSENSITIVE)
+                          .matcher(stem).replaceAll("");
+        }
+        return stem;
+    }
+
     // ── Result records ─────────────────────────────────────────────────────
 
     public record AnalysisResult(long titleId, String titleCode, int videoCount,
@@ -382,4 +684,50 @@ public class TitleFolderService {
 
     /** A cover-image file found at the title folder base. */
     public record FolderCover(String filename, String relativePath, Long sizeBytes) {}
+
+    // ── Normalization records ──────────────────────────────────────────────
+
+    /**
+     * Full normalization plan for a title folder.
+     *
+     * @param titleCode         the title code the plan was computed for
+     * @param folderPath        absolute path of the title folder
+     * @param entries           one entry per file (canonical or needs moving)
+     * @param alreadyNormalized true when all entries are already canonical and no moves are needed
+     */
+    public record NormalizationPlan(
+            String titleCode,
+            String folderPath,
+            List<NormalizationPlanEntry> entries,
+            boolean alreadyNormalized
+    ) {}
+
+    /**
+     * One file in the normalization plan.
+     *
+     * @param from            current relative path (forward-slash, from folder root)
+     * @param to              proposed canonical relative path, or {@code null} when there is a
+     *                        naming conflict that the user must resolve with an explicit override
+     * @param kind            {@code "video"} or {@code "cover"}
+     * @param conflict        true when {@code to=null} due to a canonical-name collision
+     * @param alreadyCanonical true when {@code from} and {@code to} are equivalent paths (no move needed)
+     */
+    public record NormalizationPlanEntry(
+            String from,
+            String to,
+            String kind,
+            boolean conflict,
+            boolean alreadyCanonical
+    ) {}
+
+    /**
+     * Outcome of {@link #executeNormalization}.
+     *
+     * @param movedCount number of files that were actually moved (no-ops excluded)
+     * @param moved      human-readable "from → to" descriptions of applied moves
+     */
+    public record NormalizationOutcome(int movedCount, List<String> moved) {}
+
+    /** A single from→to pair for {@link #executeNormalization}. */
+    public record MovePair(String from, String to) {}
 }

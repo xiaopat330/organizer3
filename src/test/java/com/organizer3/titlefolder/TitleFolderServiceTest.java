@@ -19,8 +19,11 @@ import java.nio.file.Path;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
@@ -479,6 +482,288 @@ class TitleFolderServiceTest {
 
         assertEquals(1, result.covers().size());
         assertNull(result.covers().get(0).sizeBytes());
+    }
+
+    // ── planNormalization ──────────────────────────────────────────────────
+
+    /** Service with fixed media config (mp4/mkv + jpg/png) for normalization tests. */
+    private TitleFolderService planService() {
+        return new TitleFolderService(titleRepo, videoRepo, jdbi, TEST_MEDIA, null);
+    }
+
+    /** Build a mock FS with a folder containing base children and one level of subdirectories. */
+    private static VolumeFileSystem folderFs(Path folder,
+                                             List<Path> baseFiles,
+                                             List<Path> baseDirs,
+                                             Map<Path, List<Path>> dirContents) throws IOException {
+        VolumeFileSystem fs = mock(VolumeFileSystem.class);
+        List<Path> allBase = new ArrayList<>(baseFiles);
+        allBase.addAll(baseDirs);
+        when(fs.listDirectory(folder)).thenReturn(allBase);
+        for (Path f : baseFiles) {
+            when(fs.isDirectory(f)).thenReturn(false);
+        }
+        for (Path d : baseDirs) {
+            when(fs.isDirectory(d)).thenReturn(true);
+            List<Path> subs = dirContents.getOrDefault(d, List.of());
+            when(fs.listDirectory(d)).thenReturn(subs);
+            for (Path sub : subs) {
+                when(fs.isDirectory(sub)).thenReturn(false);
+            }
+        }
+        return fs;
+    }
+
+    @Test
+    void planNormalization_singleVideo_alreadyCanonical() throws IOException {
+        Path folder = Path.of("/jav/MIDE-001");
+        Path subDir = folder.resolve("video");
+        Path vid    = subDir.resolve("MIDE-001.mp4");
+        Path cover  = folder.resolve("MIDE-001.jpg");
+
+        VolumeFileSystem fs = folderFs(folder, List.of(cover), List.of(subDir),
+                Map.of(subDir, List.of(vid)));
+
+        var plan = planService().planNormalization(fs, "MIDE-001", folder, Set.of());
+
+        assertTrue(plan.alreadyNormalized());
+        assertEquals(2, plan.entries().size());
+        plan.entries().forEach(e -> assertTrue(e.alreadyCanonical(), "expected canonical: " + e));
+    }
+
+    @Test
+    void planNormalization_singleVideo_needsRename() throws IOException {
+        // Video is at base with wrong prefix (removelist would strip watermark in real use,
+        // but here we just use a filename that differs from the canonical form).
+        // "old_rip_MIDE-002.mp4" — regex fallback gives freeform="", canonical = "MIDE-002.mp4".
+        // But video is at BASE, so target = "video/MIDE-002.mp4" (needs move into subfolder).
+        Path folder = Path.of("/jav/MIDE-002");
+        Path vid    = folder.resolve("old_rip_MIDE-002.mp4");  // doesn't start with code
+        Path cover  = folder.resolve("MIDE-002.jpg");
+
+        VolumeFileSystem fs = folderFs(folder, List.of(cover, vid), List.of(), Map.of());
+
+        var plan = planService().planNormalization(fs, "MIDE-002", folder, Set.of());
+
+        assertFalse(plan.alreadyNormalized());
+        var videoEntry = plan.entries().stream()
+                .filter(e -> "video".equals(e.kind())).findFirst().orElseThrow();
+        assertFalse(videoEntry.alreadyCanonical());
+        assertNotNull(videoEntry.to());
+        // Target is in video/ subfolder with canonical name
+        assertTrue(videoEntry.to().startsWith("video/"), "expected video/ prefix: " + videoEntry.to());
+        assertTrue(videoEntry.to().endsWith("MIDE-002.mp4"), "expected canonical name in: " + videoEntry.to());
+    }
+
+    @Test
+    void planNormalization_singleVideo_needsBothRenameAndMove() throws IOException {
+        // Video is at base with wrong name — needs move to video/ and rename.
+        Path folder = Path.of("/jav/MIDE-003");
+        Path vid    = folder.resolve("mide-003_download.mp4");
+
+        VolumeFileSystem fs = folderFs(folder, List.of(vid), List.of(), Map.of());
+
+        var plan = planService().planNormalization(fs, "MIDE-003", folder, Set.of());
+
+        assertFalse(plan.alreadyNormalized());
+        var videoEntry = plan.entries().stream()
+                .filter(e -> "video".equals(e.kind())).findFirst().orElseThrow();
+        // target should be in video/ subfolder
+        assertTrue(videoEntry.to().startsWith("video/"), "expected video/ prefix: " + videoEntry.to());
+    }
+
+    @Test
+    void planNormalization_coverNeedsRename() throws IOException {
+        // Cover named "cover.jpg" → should become "MIDE-004.jpg"
+        Path folder = Path.of("/jav/MIDE-004");
+        Path cover  = folder.resolve("cover.jpg");
+        Path subDir = folder.resolve("video");
+        Path vid    = subDir.resolve("MIDE-004.mp4");
+
+        VolumeFileSystem fs = folderFs(folder, List.of(cover), List.of(subDir),
+                Map.of(subDir, List.of(vid)));
+
+        var plan = planService().planNormalization(fs, "MIDE-004", folder, Set.of());
+
+        assertFalse(plan.alreadyNormalized());
+        var coverEntry = plan.entries().stream()
+                .filter(e -> "cover".equals(e.kind())).findFirst().orElseThrow();
+        assertFalse(coverEntry.alreadyCanonical());
+        assertEquals("MIDE-004.jpg", coverEntry.to());
+    }
+
+    @Test
+    void planNormalization_multiVideo_conflictingCanonicalName() throws IOException {
+        // Two videos that both resolve to the same canonical name → conflict (to=null).
+        Path folder = Path.of("/jav/MIDE-005");
+        Path vid1   = folder.resolve("MIDE-005-a.mp4");
+        Path vid2   = folder.resolve("MIDE-005-b.mp4");
+
+        // Force both to resolve to the same canonical name by picking names where
+        // freeformSuffix is empty for both (both look like code only).
+        // We'll use different files that both strip to MIDE-005.mp4.
+        Path vid1b  = folder.resolve("MIDE-005.mp4");
+        Path vid2b  = folder.resolve("mide-005.mp4");  // same target, different case
+
+        VolumeFileSystem fs = folderFs(folder, List.of(vid1b, vid2b), List.of(), Map.of());
+
+        var plan = planService().planNormalization(fs, "MIDE-005", folder, Set.of());
+
+        // Both entries should be conflict=true because they target the same path.
+        long conflicts = plan.entries().stream().filter(TitleFolderService.NormalizationPlanEntry::conflict).count();
+        assertEquals(2, conflicts);
+        assertFalse(plan.alreadyNormalized());
+    }
+
+    @Test
+    void planNormalization_excludeRelPathsSkipsFile() throws IOException {
+        Path folder = Path.of("/jav/MIDE-006");
+        Path vid    = folder.resolve("video/MIDE-006.mp4");
+        Path cover  = folder.resolve("MIDE-006.jpg");
+        Path subDir = folder.resolve("video");
+
+        VolumeFileSystem fs = folderFs(folder, List.of(cover), List.of(subDir),
+                Map.of(subDir, List.of(vid)));
+
+        // Exclude the video (staged for trash).
+        var plan = planService().planNormalization(fs, "MIDE-006", folder, Set.of("video/MIDE-006.mp4"));
+
+        // Only the cover should be in the plan.
+        assertEquals(1, plan.entries().size());
+        assertEquals("cover", plan.entries().get(0).kind());
+    }
+
+    @Test
+    void planNormalization_h265VideoGoesToH265Subfolder() throws IOException {
+        Path folder = Path.of("/jav/MIDE-007");
+        Path vid    = folder.resolve("MIDE-007-h265.mkv");
+
+        VolumeFileSystem fs = folderFs(folder, List.of(vid), List.of(), Map.of());
+
+        var plan = planService().planNormalization(fs, "MIDE-007", folder, Set.of());
+
+        var videoEntry = plan.entries().stream()
+                .filter(e -> "video".equals(e.kind())).findFirst().orElseThrow();
+        assertTrue(videoEntry.to().startsWith("h265/"), "expected h265/ prefix: " + videoEntry.to());
+    }
+
+    @Test
+    void planNormalization_4kVideoGoesTo4KSubfolder() throws IOException {
+        Path folder = Path.of("/jav/MIDE-008");
+        Path vid    = folder.resolve("MIDE-008-4k.mkv");
+
+        VolumeFileSystem fs = folderFs(folder, List.of(vid), List.of(), Map.of());
+
+        var plan = planService().planNormalization(fs, "MIDE-008", folder, Set.of());
+
+        var videoEntry = plan.entries().stream()
+                .filter(e -> "video".equals(e.kind())).findFirst().orElseThrow();
+        assertTrue(videoEntry.to().startsWith("4K/"), "expected 4K/ prefix: " + videoEntry.to());
+    }
+
+    // ── executeNormalization ───────────────────────────────────────────────
+
+    @Test
+    void executeNormalization_emptyMoves_returnsZero() throws IOException {
+        VolumeFileSystem fs = mock(VolumeFileSystem.class);
+        Path folder = Path.of("/jav/MIDE-100");
+
+        var outcome = planService().executeNormalization(fs, folder, List.of());
+
+        assertEquals(0, outcome.movedCount());
+        assertTrue(outcome.moved().isEmpty());
+        verifyNoInteractions(fs);
+    }
+
+    @Test
+    void executeNormalization_singleRename_movesFile() throws IOException {
+        VolumeFileSystem fs = mock(VolumeFileSystem.class);
+        Path folder = Path.of("/jav/MIDE-101");
+        Path absFrom = folder.resolve("video/old_name.mp4").normalize();
+        Path absTo   = folder.resolve("video/MIDE-101.mp4").normalize();
+        when(fs.exists(absFrom)).thenReturn(true);
+        when(fs.exists(absTo)).thenReturn(false);
+
+        var outcome = planService().executeNormalization(fs, folder,
+                List.of(new TitleFolderService.MovePair("video/old_name.mp4", "video/MIDE-101.mp4")));
+
+        assertEquals(1, outcome.movedCount());
+        verify(fs).move(absFrom, absTo);
+    }
+
+    @Test
+    void executeNormalization_noOpEntry_skipped() throws IOException {
+        // from == to → no move should be attempted
+        VolumeFileSystem fs = mock(VolumeFileSystem.class);
+        Path folder  = Path.of("/jav/MIDE-102");
+        Path absPath = folder.resolve("video/MIDE-102.mp4").normalize();
+        when(fs.exists(absPath)).thenReturn(true);
+
+        var outcome = planService().executeNormalization(fs, folder,
+                List.of(new TitleFolderService.MovePair("video/MIDE-102.mp4", "video/MIDE-102.mp4")));
+
+        assertEquals(0, outcome.movedCount());
+        verify(fs, never()).move(any(), any());
+    }
+
+    @Test
+    void executeNormalization_missingSource_throwsBeforeMutation() throws IOException {
+        VolumeFileSystem fs = mock(VolumeFileSystem.class);
+        Path folder = Path.of("/jav/MIDE-103");
+        Path absFrom = folder.resolve("video/missing.mp4").normalize();
+        when(fs.exists(absFrom)).thenReturn(false);
+
+        assertThrows(IllegalArgumentException.class,
+                () -> planService().executeNormalization(fs, folder,
+                        List.of(new TitleFolderService.MovePair("video/missing.mp4", "video/MIDE-103.mp4"))));
+
+        verify(fs, never()).move(any(), any());
+    }
+
+    @Test
+    void executeNormalization_duplicateTarget_throwsBeforeMutation() throws IOException {
+        VolumeFileSystem fs = mock(VolumeFileSystem.class);
+        Path folder  = Path.of("/jav/MIDE-104");
+        Path absA    = folder.resolve("video/a.mp4").normalize();
+        Path absB    = folder.resolve("video/b.mp4").normalize();
+        Path absTo   = folder.resolve("video/MIDE-104.mp4").normalize();
+        when(fs.exists(absA)).thenReturn(true);
+        when(fs.exists(absB)).thenReturn(true);
+        when(fs.exists(absTo)).thenReturn(false);
+
+        assertThrows(IllegalArgumentException.class,
+                () -> planService().executeNormalization(fs, folder, List.of(
+                        new TitleFolderService.MovePair("video/a.mp4", "video/MIDE-104.mp4"),
+                        new TitleFolderService.MovePair("video/b.mp4", "video/MIDE-104.mp4")
+                )));
+
+        verify(fs, never()).move(any(), any());
+    }
+
+    @Test
+    void executeNormalization_targetCollidesWithUntouchedFile_throwsBeforeMutation() throws IOException {
+        VolumeFileSystem fs = mock(VolumeFileSystem.class);
+        Path folder  = Path.of("/jav/MIDE-105");
+        Path absFrom = folder.resolve("video/old.mp4").normalize();
+        Path absTo   = folder.resolve("video/MIDE-105.mp4").normalize();
+        when(fs.exists(absFrom)).thenReturn(true);
+        when(fs.exists(absTo)).thenReturn(true);   // exists and NOT in the from-set
+
+        assertThrows(IllegalArgumentException.class,
+                () -> planService().executeNormalization(fs, folder,
+                        List.of(new TitleFolderService.MovePair("video/old.mp4", "video/MIDE-105.mp4"))));
+
+        verify(fs, never()).move(any(), any());
+    }
+
+    @Test
+    void executeNormalization_pathTraversal_throwsBeforeMutation() {
+        VolumeFileSystem fs = mock(VolumeFileSystem.class);
+        Path folder = Path.of("/jav/MIDE-106");
+
+        assertThrows(IllegalArgumentException.class,
+                () -> planService().executeNormalization(fs, folder,
+                        List.of(new TitleFolderService.MovePair("../../etc/passwd", "video/out.mp4"))));
     }
 
     // ── helpers ────────────────────────────────────────────────────────────

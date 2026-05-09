@@ -1,5 +1,7 @@
 package com.organizer3.web.routes;
 
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.organizer3.config.volume.OrganizerConfig;
 import com.organizer3.config.volume.ServerConfig;
 import com.organizer3.config.volume.VolumeConfig;
@@ -9,6 +11,7 @@ import com.organizer3.repository.TitleRepository;
 import com.organizer3.repository.VideoRepository;
 import com.organizer3.smb.SmbConnectionFactory;
 import com.organizer3.titlefolder.TitleFolderService;
+import com.organizer3.titlefolder.TitleFolderService.MovePair;
 import com.organizer3.trash.Trash;
 import com.organizer3.web.ActressBrowseService;
 import com.organizer3.web.TagCatalogLoader;
@@ -23,6 +26,7 @@ import java.time.Clock;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 
 /**
  * Title-browse routes: /api/titles/*, /api/labels/*, /api/tags, /api/tools/*,
@@ -351,6 +355,123 @@ public class TitleRoutes {
                 ctx.status(400).json(Map.of("error", e.getMessage()));
             } catch (IOException e) {
                 log.warn("HTTP trash video IO error — code={} filename={} error={}", code, filename, e.getMessage());
+                ctx.status(500).json(Map.of("error", "Could not open volume: " + e.getMessage()));
+            }
+        });
+
+        // ── GET /api/titles/{code}/normalization-plan ──────────────────────────
+        //
+        // Returns the proposed set of file moves needed to bring the title's folder
+        // to canonical layout (covers at base named {CODE}.ext; videos in subfolder).
+        // Optional query param ?excludeRelPaths=rel1,rel2 lets the client exclude
+        // files with pending trash stages from the proposal.
+        //
+        // Note: spec §5 uses path "/normalize-proposal"; this impl uses
+        // "/normalization-plan" (per the Phase 5 brief).  Deviation is intentional.
+        app.get("/api/titles/{code}/normalization-plan", ctx -> {
+            String code = ctx.pathParam("code");
+            Title title = titleRepo.findByCode(code).orElse(null);
+            if (title == null) {
+                ctx.status(404).json(Map.of("error", "Title not found"));
+                return;
+            }
+            List<?> locs = title.getLocations();
+            if (locs.size() != 1) {
+                ctx.status(400).json(Map.of("error",
+                        "title has " + locs.size() + " locations; normalization requires exactly 1"));
+                return;
+            }
+
+            String excludeParam = ctx.queryParam("excludeRelPaths");
+            Set<String> excludes = (excludeParam != null && !excludeParam.isBlank())
+                    ? Set.of(excludeParam.split(","))
+                    : Set.of();
+
+            String volumeId = title.getVolumeId();
+            Path folder     = title.getPath();
+            try (var handle = smbFactory.open(volumeId)) {
+                var fs = handle.fileSystem();
+                var plan = folderService.planNormalization(fs, code, folder, excludes);
+                ctx.json(plan);
+            } catch (IllegalArgumentException e) {
+                log.warn("GET normalization-plan validation error for {} — {}", code, e.getMessage());
+                ctx.status(400).json(Map.of("error", e.getMessage()));
+            } catch (IOException e) {
+                log.warn("GET normalization-plan failed for {} — {}", code, e.getMessage());
+                ctx.status(500).json(Map.of("error", "Could not open volume: " + e.getMessage()));
+            }
+        });
+
+        // ── POST /api/titles/{code}/normalize ─────────────────────────────────
+        //
+        // Executes the user-confirmed move set. Body (JSON):
+        //   { "videoNameOverrides": {"relPath": "newName", ...} }
+        // The server re-plans from the current FS state (optionally filtering
+        // excludeRelPaths), applies videoNameOverrides to the plan, then executes.
+        //
+        // Alternatively the client can POST the full moves list directly:
+        //   { "moves": [{"from": "...", "to": "..."}, ...] }
+        //
+        // On validation failure returns 400 before any FS mutation.
+        //
+        // Note: spec §5 uses path "/apply-moves"; this impl uses
+        // "/normalize" (per the Phase 5 brief).  Deviation is intentional.
+        app.post("/api/titles/{code}/normalize", ctx -> {
+            String code = ctx.pathParam("code");
+            Title title = titleRepo.findByCode(code).orElse(null);
+            if (title == null) {
+                ctx.status(404).json(Map.of("error", "Title not found"));
+                return;
+            }
+            List<?> locs = title.getLocations();
+            if (locs.size() != 1) {
+                ctx.status(400).json(Map.of("error",
+                        "title has " + locs.size() + " locations; normalize requires exactly 1"));
+                return;
+            }
+
+            // Parse request body.
+            Map<String, Object> body;
+            try {
+                body = new ObjectMapper().readValue(ctx.body(), new TypeReference<>() {});
+            } catch (Exception e) {
+                ctx.status(400).json(Map.of("error", "Invalid JSON body: " + e.getMessage()));
+                return;
+            }
+
+            // Extract moves list from body.
+            List<MovePair> moves;
+            Object movesRaw = body.get("moves");
+            if (movesRaw instanceof List<?> movesList) {
+                try {
+                    moves = new ObjectMapper().convertValue(movesList,
+                            new TypeReference<List<MovePair>>() {});
+                } catch (Exception e) {
+                    ctx.status(400).json(Map.of("error", "Invalid moves format: " + e.getMessage()));
+                    return;
+                }
+            } else {
+                ctx.status(400).json(Map.of("error", "Request body must contain a 'moves' array"));
+                return;
+            }
+
+            if (moves.isEmpty()) {
+                ctx.json(Map.of("movedCount", 0, "moved", List.of()));
+                return;
+            }
+
+            String volumeId = title.getVolumeId();
+            Path folder     = title.getPath();
+            try (var handle = smbFactory.open(volumeId)) {
+                var fs      = handle.fileSystem();
+                var outcome = folderService.executeNormalization(fs, folder, moves);
+                log.info("HTTP normalize — code={} movedCount={}", code, outcome.movedCount());
+                ctx.json(outcome);
+            } catch (IllegalArgumentException e) {
+                log.warn("POST normalize validation failed for {} — {}", code, e.getMessage());
+                ctx.status(400).json(Map.of("error", e.getMessage()));
+            } catch (IOException e) {
+                log.warn("POST normalize IO error for {} — {}", code, e.getMessage());
                 ctx.status(500).json(Map.of("error", "Could not open volume: " + e.getMessage()));
             }
         });
