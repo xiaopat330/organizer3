@@ -3011,3 +3011,497 @@
   border-color: #7f1d1d;
 }
 .admin-discard-confirm:hover { background: #2a1010; border-color: #b91c1c; color: #fecaca; }
+
+/* ── Phase 4c/4d: folder-contents in Edit Card ─────────────────────────── */
+
+.admin-card-folder-loading {
+  padding: 10px 0 4px;
+  color: #475569;
+  font-size: 0.78rem;
+  font-style: italic;
+}
+
+.admin-card-folder-error {
+  margin-top: 8px;
+  padding: 8px 12px;
+  background: #1c0a0a;
+  border: 1px solid #7f1d1d;
+  border-radius: 4px;
+  color: #fca5a5;
+  font-size: 0.8rem;
+}
+
+.admin-card-folder-path {
+  font-family: monospace;
+  font-size: 0.72rem;
+  color: #475569;
+  margin-bottom: 6px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.admin-card-folder-section {
+  margin-top: 10px;
+  padding: 8px 12px;
+  border: 1px solid #1e293b;
+  border-radius: 4px;
+}
+
+.admin-card-folder-section-title {
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: #475569;
+  margin-bottom: 8px;
+}
+
+.admin-card-file-list {
+  margin-bottom: 8px;
+}
+.admin-card-file-list:last-child {
+  margin-bottom: 0;
+}
+
+.admin-card-file-list-label {
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #334155;
+  margin-bottom: 4px;
+}
+
+.admin-card-file-empty {
+  font-size: 0.75rem;
+  color: #334155;
+  font-style: italic;
+  padding: 2px 0;
+}
+
+/* File row: filename left, meta middle, action(s) right */
+.admin-card-file-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 0;
+  border-top: 1px solid #0f172a;
+}
+.admin-card-file-row:first-of-type {
+  border-top: none;
+}
+
+.admin-card-filename {
+  flex: 1;
+  min-width: 0;
+  font-family: monospace;
+  font-size: 0.75rem;
+  color: #94a3b8;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Staged-for-trash row: dimmed, filename struck through */
+.admin-card-file-row-pending {
+  opacity: 0.5;
+}
+.admin-card-file-row-pending .admin-card-filename,
+.admin-card-file-row-pending s.admin-card-filename {
+  text-decoration: line-through;
+  color: #64748b;
+}
+
+.admin-card-file-meta {
+  flex-shrink: 0;
+  font-size: 0.7rem;
+  color: #475569;
+}
+
+/* Small chip-style action buttons */
+.admin-card-file-trash-btn,
+.admin-card-file-undo-btn,
+.admin-card-file-keep-btn {
+  flex-shrink: 0;
+  padding: 1px 7px;
+  border: 1px solid #334155;
+  border-radius: 3px;
+  background: #0f172a;
+  color: #64748b;
+  font-size: 0.7rem;
+  font-family: monospace;
+  cursor: pointer;
+  transition: border-color 0.12s, color 0.12s, background 0.12s;
+}
+
+.admin-card-file-trash-btn:hover {
+  border-color: #7f1d1d;
+  color: #fca5a5;
+  background: #1c0a0a;
+}
+
+.admin-card-file-undo-btn:hover {
+  border-color: #475569;
+  color: #94a3b8;
+}
+
+.admin-card-file-keep-btn:hover {
+  border-color: #14532d;
+  color: #86efac;
+  background: #052e16;
+}
+
+/* Multi-cover warning banner — amber, same pattern as no-content banner */
+.admin-card-cover-warning {
+  margin-bottom: 6px;
+  padding: 7px 10px;
+  background: #1c1403;
+  border: 1px solid #92400e;
+  border-radius: 4px;
+  color: #fde68a;
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+/* Normalize trigger row — sits below folder-section */
+.admin-card-normalize-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 6px;
+  padding-top: 6px;
+}
+
+.admin-card-normalize-btn {
+  padding: 3px 10px;
+  border: 1px solid #334155;
+  border-radius: 4px;
+  background: #0f172a;
+  color: #64748b;
+  font-size: 0.75rem;
+  cursor: pointer;
+  transition: border-color 0.12s, color 0.12s, background 0.12s;
+}
+.admin-card-normalize-btn:hover {
+  border-color: #1e40af;
+  color: #93c5fd;
+  background: #0b2140;
+}
+
+/* Staged state: show label + undo link */
+.admin-card-normalize-staged {
+  font-size: 0.75rem;
+  color: #fbbf24;
+  font-weight: 600;
+}
+
+.admin-card-normalize-undo-btn {
+  padding: 2px 8px;
+  border: 1px solid #78350f;
+  border-radius: 3px;
+  background: #292108;
+  color: #fde68a;
+  font-size: 0.72rem;
+  cursor: pointer;
+  transition: border-color 0.12s, color 0.12s;
+}
+.admin-card-normalize-undo-btn:hover {
+  border-color: #92400e;
+  color: #fbbf24;
+}
+
+/* ── Phase 5: Normalize folder modal ───────────────────────────────────── */
+
+/* <dialog> element as backdrop — native dialog centers itself */
+.normalize-modal {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  max-width: 100%;
+  max-height: 100%;
+  padding: 0;
+  border: none;
+  background: transparent;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Dim the page behind the dialog */
+.normalize-modal::backdrop {
+  background: rgba(0, 0, 0, 0.78);
+}
+
+.normalize-modal-inner {
+  background: #141414;
+  border: 1px solid #2a2a2a;
+  border-radius: 6px;
+  width: min(600px, 92vw);
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
+  color: #d8d8d8;
+  margin: auto;
+}
+
+.normalize-modal-title {
+  padding: 12px 16px;
+  border-bottom: 1px solid #2a2a2a;
+  background: #1a1a1a;
+  font-size: 0.95rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  flex-shrink: 0;
+}
+.normalize-modal-title code {
+  font-family: monospace;
+  font-size: 0.9rem;
+  color: #93c5fd;
+}
+
+.normalize-modal-path {
+  padding: 6px 16px;
+  font-family: monospace;
+  font-size: 0.72rem;
+  color: #475569;
+  border-bottom: 1px solid #1e293b;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex-shrink: 0;
+}
+
+.normalize-modal-loading {
+  padding: 24px 16px;
+  color: #64748b;
+  font-size: 0.85rem;
+  font-style: italic;
+}
+
+.normalize-modal-error {
+  padding: 12px 16px;
+  margin: 12px 16px;
+  background: #1c0a0a;
+  border: 1px solid #7f1d1d;
+  border-radius: 4px;
+  color: #fca5a5;
+  font-size: 0.82rem;
+}
+
+/* Scrollable body between title and footer */
+.normalize-modal-inner > *:not(.normalize-modal-title):not(.normalize-modal-path):not(.normalize-modal-footer) {
+  overflow-y: auto;
+}
+
+.normalize-modal-already-canonical {
+  padding: 12px 16px;
+  color: #86efac;
+  font-size: 0.85rem;
+}
+
+/* Section (RENAMES / MOVES / ALREADY CANONICAL) */
+.normalize-modal-section {
+  padding: 10px 16px;
+  border-top: 1px solid #1e293b;
+}
+.normalize-modal-section:first-of-type {
+  border-top: none;
+}
+
+.normalize-modal-section-label {
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: #475569;
+  margin-bottom: 4px;
+}
+
+.normalize-modal-section-desc {
+  font-size: 0.75rem;
+  color: #64748b;
+  margin-bottom: 8px;
+}
+
+/* Canonical-only section is dimmer */
+.normalize-modal-section-canonical {
+  opacity: 0.6;
+}
+
+/* Individual rename / move row */
+.normalize-modal-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 0;
+  border-top: 1px solid #0f172a;
+}
+.normalize-modal-row:first-of-type {
+  border-top: none;
+}
+
+/* Conflict rows get an amber left border to draw attention */
+.normalize-modal-row-conflict {
+  border-left: 3px solid #92400e;
+  padding-left: 8px;
+  background: #1c1403;
+  border-radius: 0 3px 3px 0;
+}
+
+.normalize-modal-check-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 1;
+  min-width: 0;
+  cursor: pointer;
+}
+
+.normalize-modal-from {
+  font-family: monospace;
+  font-size: 0.75rem;
+  color: #94a3b8;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex: 1;
+  min-width: 0;
+}
+
+/* Conflict variant: label holds both filename and conflict badge */
+.normalize-modal-conflict-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.normalize-modal-conflict-badge {
+  display: inline-block;
+  font-family: sans-serif;
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: #fbbf24;
+  background: #292108;
+  border: 1px solid #78350f;
+  border-radius: 3px;
+  padding: 1px 5px;
+  white-space: nowrap;
+}
+
+.normalize-modal-arrow {
+  flex-shrink: 0;
+  color: #475569;
+  font-size: 0.8rem;
+}
+
+.normalize-modal-to {
+  font-family: monospace;
+  font-size: 0.75rem;
+  color: #64748b;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex: 1;
+  min-width: 0;
+}
+
+/* Editable target field */
+.nm-entry-check {
+  flex-shrink: 0;
+  cursor: pointer;
+  accent-color: #3b82f6;
+}
+
+.nm-entry-input {
+  flex: 1;
+  min-width: 0;
+  padding: 3px 7px;
+  border: 1px solid #334155;
+  border-radius: 4px;
+  background: #151f2b;
+  color: #cbd5e1;
+  font-family: monospace;
+  font-size: 0.75rem;
+}
+.nm-entry-input:focus {
+  outline: none;
+  border-color: #2563eb;
+}
+
+/* Inline validation error shown below a row */
+.nm-inline-error {
+  font-size: 0.72rem;
+  color: #f87171;
+  padding: 2px 0 2px 4px;
+}
+
+/* Canonical row (already-correct files) */
+.normalize-modal-canonical-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 3px 0;
+  font-family: monospace;
+  font-size: 0.72rem;
+  color: #475569;
+}
+
+.normalize-modal-canonical-mark {
+  color: #334155;
+  font-family: sans-serif;
+  font-style: italic;
+  font-size: 0.7rem;
+}
+
+/* Footer: cancel left, stage right */
+.normalize-modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 10px 14px;
+  border-top: 1px solid #2a2a2a;
+  background: #0f0f0f;
+  flex-shrink: 0;
+}
+
+.normalize-modal-cancel-btn {
+  background: transparent;
+  border: 1px solid #2a3a50;
+  color: #cbd5e1;
+  border-radius: 4px;
+  padding: 6px 14px;
+  font: inherit;
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: background 0.12s, border-color 0.12s;
+}
+.normalize-modal-cancel-btn:hover {
+  background: #1e2d42;
+  border-color: #3a4f6f;
+}
+
+.normalize-modal-stage-btn {
+  background: #1e3a5f;
+  border: 1px solid #2563eb;
+  color: #bfdbfe;
+  border-radius: 4px;
+  padding: 6px 14px;
+  font: inherit;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.normalize-modal-stage-btn:hover:not(:disabled) {
+  background: #1d4ed8;
+  color: #fff;
+}
+.normalize-modal-stage-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
