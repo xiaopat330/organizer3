@@ -1,14 +1,17 @@
-// Edit Card renderer — Phase 3: adds §4.3 embedded duplicate-triage section.
+// Edit Card renderer — Phase 4d: no-content detection uses FS listing.
 //
 // Renders header (§4.1) + flags row (§4.2) + optional no-content banner
 // + §4.3 duplicate-triage section (when locationEntries.length > 1)
-// + §4.4 folder-contents stub (when locationEntries.length === 1, Phase 4)
+// + §4.4 folder-contents section (when locationEntries.length === 1)
 // + Commit/Cancel footer (§4.5).
 //
-// Mode is derived from server-side values (not staged state):
-//   'rejected'   — t.rejected === true
-//   'no-content' — videoCount === 0 (and not rejected)
-//   'normal'     — everything else
+// Mode is derived from server and FS state (not staged state, not DB videoCount):
+//   'rejected'     — t.rejected === true
+//   'loading'      — single-location, folder-contents fetch in flight (_folderContents === null)
+//   'fetch-error'  — single-location, fetch failed (sticky error sentinel)
+//   'empty-folder' — single-location, videos+covers+otherFiles all empty
+//   'cover-only'   — single-location, no videos but covers or otherFiles present
+//   'normal'       — multi-location, or single-location with ≥1 video
 //
 // Re-render strategy: renderCardInPlace(code) replaces a single card's
 // outerHTML in-place, then re-attaches event listeners via attachCardListeners.
@@ -21,9 +24,35 @@ import { esc, ageAtDate, agePillTier } from '../utils.js';
 import { ICON_FAV_LG, ICON_BM_LG, ICON_REJ_LG, gradeBadgeHtml, tagBadgeHtml } from '../icons.js';
 import * as state from './state.js';
 import { commitCard, cancelCard } from './commit.js';
-import { renderFolderContents, ensureFolderContents, attachFolderListeners } from './folder-contents.js';
+import { renderFolderContents, ensureFolderContents, attachFolderListeners, isFolderContentsError, folderContentsErrorMsg } from './folder-contents.js';
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
+
+/**
+ * Derive the card mode from title data and the cached FS listing.
+ * For single-location titles the mode is based on the FS listing, not DB videoCount.
+ * Multi-location titles are always 'normal' (dup-triage section handles them).
+ * Rejected titles are always 'rejected' regardless of FS state (§4.7 precedence).
+ *
+ * @param {object} t  Title data object (may have _folderContents attached)
+ * @returns {'rejected'|'loading'|'fetch-error'|'empty-folder'|'cover-only'|'normal'}
+ */
+function deriveMode(t) {
+  if (t.rejected) return 'rejected';
+
+  const locationEntries = t.locationEntries || [];
+  if (locationEntries.length !== 1) return 'normal';
+
+  const fc = Object.prototype.hasOwnProperty.call(t, '_folderContents') ? t._folderContents : undefined;
+  if (fc === undefined || fc === null) return 'loading';
+  if (isFolderContentsError(fc)) return 'fetch-error';
+
+  const hasVideos = fc.videos && fc.videos.length > 0;
+  if (hasVideos) return 'normal';
+
+  const hasContent = (fc.covers && fc.covers.length > 0) || (fc.otherFiles && fc.otherFiles.length > 0);
+  return hasContent ? 'cover-only' : 'empty-folder';
+}
 
 /**
  * Current effective value for a flag on a card.
@@ -119,12 +148,8 @@ function renderDupSection(code, locationEntries, serverDecisions) {
 export function renderCard(t) {
   const code = t.code;
 
-  // ── Card mode (server-side; not stage-aware) ──────────────────────────
-  const mode = t.rejected
-    ? 'rejected'
-    : (typeof t.videoCount === 'number' && t.videoCount === 0)
-      ? 'no-content'
-      : 'normal';
+  // ── Card mode — FS-based for single-location titles (Phase 4d) ───────
+  const mode = deriveMode(t);
 
   // ── Header: cover ──────────────────────────────────────────────────────
   const coverHtml = t.coverUrl
@@ -227,14 +252,15 @@ export function renderCard(t) {
   const hasBmStage  = !!state.findPendingStage(code, 'flag-bookmark');
   const hasRejStage = !!state.findPendingStage(code, 'flag-reject');
 
-  // Fav and BM are disabled when effectively rejected or in no-content/rejected mode
+  // Fav and BM are disabled when effectively rejected or in no-content/loading/error mode.
   // Tooltip text differs by mode.
+  const isNoContentMode = mode === 'empty-folder' || mode === 'cover-only';
   let favBmDisabled = false;
   let favBmTitle = '';
   if (mode === 'rejected') {
     favBmDisabled = true;
     favBmTitle = 'title is rejected; clear reject first';
-  } else if (mode === 'no-content') {
+  } else if (isNoContentMode) {
     favBmDisabled = true;
     favBmTitle = 'title has no content';
   } else if (effRej) {
@@ -260,20 +286,48 @@ export function renderCard(t) {
       <button class="${rejClasses}" data-flag="reject"   title="Reject">${ICON_REJ_LG} Reject</button>
     </div>`;
 
-  // ── No-content banner (§4.6) — only in no-content mode ──────────────
-  const noContentBannerHtml = mode === 'no-content' ? `
-    <div class="admin-card-no-content-banner">
-      ⚠ NO CONTENT — no video files
-      <button type="button" class="admin-card-whats-this-btn" aria-expanded="false">[ what's this? ]</button>
-      <div class="admin-card-whats-this-body" hidden>
-        This title's folder has no video files. The Admin tab can't fix this —
-        a future Tools feature will let you review and clean up no-content
-        titles across the library. Use the Reject button to flag this title
-        for that future tool to find.
-      </div>
-    </div>` : '';
+  // ── No-content / loading / error banners (§4.6) ─────────────────────
+  let noContentBannerHtml = '';
+  if (mode === 'loading') {
+    noContentBannerHtml = '<div class="admin-card-folder-loading">Loading folder contents…</div>';
+  } else if (mode === 'fetch-error') {
+    const errMsg = folderContentsErrorMsg(t._folderContents);
+    noContentBannerHtml = `
+      <div class="admin-card-no-content-banner admin-card-no-content-fetch-error">
+        ⚠ FOLDER STATE UNKNOWN — could not read from disk (${esc(errMsg)})
+        <button type="button" class="admin-card-whats-this-btn" aria-expanded="false">[ what's this? ]</button>
+        <div class="admin-card-whats-this-body" hidden>
+          The folder contents could not be fetched. The volume may not be mounted,
+          or there was a network error. Reload the card or remount the volume and try again.
+        </div>
+      </div>`;
+  } else if (mode === 'empty-folder') {
+    noContentBannerHtml = `
+      <div class="admin-card-no-content-banner admin-card-no-content-empty">
+        ⚠ NO CONTENT — folder is empty on disk
+        <button type="button" class="admin-card-whats-this-btn" aria-expanded="false">[ what's this? ]</button>
+        <div class="admin-card-whats-this-body" hidden>
+          This title's folder is empty. The Admin tab can't fix this —
+          a future Tools feature will let you review and clean up no-content
+          titles across the library. Use the Reject button to flag this title
+          for that future tool to find.
+        </div>
+      </div>`;
+  } else if (mode === 'cover-only') {
+    noContentBannerHtml = `
+      <div class="admin-card-no-content-banner admin-card-no-content-cover-only">
+        ⚠ NO CONTENT — no video files (cover/other files only)
+        <button type="button" class="admin-card-whats-this-btn" aria-expanded="false">[ what's this? ]</button>
+        <div class="admin-card-whats-this-body" hidden>
+          This title has no video files on disk — only cover images or other files.
+          The title may have been moved or never had videos. You can trash the
+          remaining files below, then use the Reject button to flag this title
+          for the future no-content cleanup tool.
+        </div>
+      </div>`;
+  }
 
-  // ── Section §4.3 / §4.4 — suppressed in rejected/no-content modes
+  // ── Section §4.3 / §4.4 — suppressed in rejected/no-content/loading/error modes
   const locationEntries = t.locationEntries || [];
   const locationCount = locationEntries.length;
   let sectionHtml = '';
@@ -291,6 +345,13 @@ export function renderCard(t) {
         : undefined;
       sectionHtml = renderFolderContents(code, cachedContents);
     }
+  } else if (mode === 'cover-only' && locationCount === 1) {
+    // Cover-only: show the cover list so the user can trash them (§4.6).
+    // Videos list is omitted since there are none; covers section renders as usual.
+    const cachedContents = Object.prototype.hasOwnProperty.call(t, '_folderContents')
+      ? t._folderContents
+      : undefined;
+    sectionHtml = renderFolderContents(code, cachedContents);
   }
 
   // ── Error bar (failed stage) ──────────────────────────────────────────
@@ -313,8 +374,10 @@ export function renderCard(t) {
       </div>`;
   }
 
-  const modeClass = mode === 'rejected' ? ' admin-edit-card-rejected'
-                  : mode === 'no-content' ? ' admin-edit-card-no-content'
+  const modeClass = mode === 'rejected'    ? ' admin-edit-card-rejected'
+                  : mode === 'empty-folder' ? ' admin-edit-card-no-content'
+                  : mode === 'cover-only'   ? ' admin-edit-card-no-content'
+                  : mode === 'fetch-error'  ? ' admin-edit-card-fetch-error'
                   : '';
 
   return `
@@ -364,15 +427,14 @@ export function attachCardListeners(code) {
   }
 
   // §4.4 Lazy-fetch folder contents for single-location titles.
+  // Fetch for all non-rejected single-location titles — mode is derived from the result.
   const locationEntries = titleData.locationEntries || [];
-  const mode = titleData.rejected
-    ? 'rejected'
-    : (typeof titleData.videoCount === 'number' && titleData.videoCount === 0)
-      ? 'no-content'
-      : 'normal';
-  if (mode === 'normal' && locationEntries.length === 1) {
+  const mode = deriveMode(titleData);
+  if (!titleData.rejected && locationEntries.length === 1) {
     ensureFolderContents(code, titleData);
-    attachFolderListeners(code, card, titleData);
+    if (mode === 'normal' || mode === 'cover-only') {
+      attachFolderListeners(code, card, titleData);
+    }
   }
 
   // §4.3 Lazy-fetch duplicate decisions for multi-location titles.
@@ -445,7 +507,8 @@ export function attachCardListeners(code) {
       // Mutex: clicking Favorite or Bookmark while effectively rejected,
       // server-rejected, or in no-content mode → no-op
       const serverRejected = titleData.rejected;
-      const isNoContent = typeof titleData.videoCount === 'number' && titleData.videoCount === 0;
+      const cardMode = deriveMode(titleData);
+      const isNoContent = cardMode === 'empty-folder' || cardMode === 'cover-only';
       if ((flag === 'favorite' || flag === 'bookmark') && (effRej || serverRejected || isNoContent)) return;
 
       // Compute which server value drives this flag

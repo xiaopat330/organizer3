@@ -40,6 +40,10 @@ export function renderFolderContents(code, folderContents) {
     return '<div class="admin-card-folder-loading">Loading folder contents…</div>';
   }
 
+  if (isFolderContentsError(folderContents)) {
+    return `<div class="admin-card-folder-error">⚠ Could not read folder from disk — ${esc(folderContents[FOLDER_ERROR_KEY])}. Folder state is unknown.</div>`;
+  }
+
   const { folderPath, videos, covers } = folderContents;
   const folderLabel = folderPath
     ? `<div class="admin-card-folder-path" title="${esc(folderPath)}">${esc(folderPath)}</div>`
@@ -117,6 +121,18 @@ function renderCoverList(code, covers, multiCover) {
 
 // ── Lazy fetch ───────────────────────────────────────────────────────────────
 
+// Sentinel shape stored in _folderContents on fetch failure.
+// Checked with isFolderContentsError(); message extracted with folderContentsErrorMsg().
+const FOLDER_ERROR_KEY = '__folderError';
+
+export function isFolderContentsError(contents) {
+  return contents != null && Object.prototype.hasOwnProperty.call(contents, FOLDER_ERROR_KEY);
+}
+
+export function folderContentsErrorMsg(contents) {
+  return (contents && contents[FOLDER_ERROR_KEY]) || 'Unknown error';
+}
+
 export function ensureFolderContents(code, titleData) {
   if (Object.prototype.hasOwnProperty.call(titleData, '_folderContents')) return;
   titleData._folderContents = null;  // mark in-flight; prevents double-fetch
@@ -126,10 +142,10 @@ export function ensureFolderContents(code, titleData) {
       titleData._folderContents = contents;
       renderCardInPlace(code);
     })
-    .catch(() => {
-      // Leave _folderContents as null (loading indicator stays).
-      // A re-render triggered by another action will retry.
-      delete titleData._folderContents;
+    .catch(err => {
+      // Store a sticky error sentinel so failed state persists across re-renders.
+      titleData._folderContents = { [FOLDER_ERROR_KEY]: err.message || 'Unknown error' };
+      renderCardInPlace(code);
     });
 }
 
