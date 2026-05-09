@@ -6,6 +6,7 @@ import { getActressBrowseMode, actressBrowseLabel, selectActressBrowseMode, show
 import { pushNav } from './nav.js';
 import { renderAvatarFrame, attachAvatarFrameListeners } from './actress-avatar-frame.js';
 import { openCustomAvatarEditor } from './custom-avatar-editor.js';
+import { mountAdmin, unmountAdmin } from './actress-detail-admin/index.js';
 
 // ── State ─────────────────────────────────────────────────────────────────
 export let detailActressId    = null;
@@ -986,6 +987,10 @@ export function selectActressDetailTab(tab) {
     if (btn)  btn.classList.toggle('selected', key === tab);
     if (view) view.style.display = (key === tab) ? '' : 'none';
   }
+  // Lifecycle hook for the Admin tab — fetch + render its content on first
+  // visit (or after an actress switch). Catalog tab content is always live.
+  if (tab === 'admin') mountAdmin(detailActressId);
+  else                 unmountAdmin();
 }
 
 for (const [key, ids] of Object.entries(ACTRESS_DETAIL_TABS)) {

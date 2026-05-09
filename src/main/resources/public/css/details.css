@@ -2407,3 +2407,83 @@
   border-color: #1e40af;
 }
 .cae-btn-primary:hover:not(:disabled) { background: #112a50; }
+/* ── Actress Detail → Admin tab ───────────────────────────────────────── */
+/* Phase 2b skeleton styles. Phases 2c–2f expand the Edit Card layout. */
+
+#actress-detail-admin-view {
+  padding: 16px 20px;
+}
+
+.admin-loading,
+.admin-error,
+.admin-empty {
+  padding: 24px;
+  color: #94a3b8;
+  font-size: 0.9rem;
+  text-align: center;
+}
+.admin-error { color: #f87171; }
+
+.admin-card-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.admin-edit-card {
+  background: #0f172a;
+  border: 1px solid #1e293b;
+  border-radius: 6px;
+  padding: 14px 16px;
+}
+
+.admin-edit-card-rejected {
+  opacity: 0.55;
+  filter: grayscale(0.6);
+}
+
+.admin-card-header-stub {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 4px;
+}
+
+.admin-card-code {
+  font-family: monospace;
+  font-weight: 600;
+  color: #cbd5e1;
+  letter-spacing: 0.04em;
+}
+
+.admin-card-reject-badge {
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: #fda4af;
+  background: #2a0a14;
+  border: 1px solid #9f1239;
+  border-radius: 3px;
+  padding: 2px 6px;
+}
+
+.admin-card-title    { color: #d8d8d8; font-size: 0.9rem; margin-top: 4px; }
+.admin-card-title-ja { color: #94a3b8; font-size: 0.8rem; margin-top: 2px; }
+
+.admin-card-body-stub {
+  color: #475569;
+  font-style: italic;
+  font-size: 0.8rem;
+  padding: 10px 0 2px;
+  border-top: 1px solid #1e293b;
+  margin-top: 10px;
+}
+
+.admin-pagination-stub {
+  margin-top: 16px;
+  padding: 10px;
+  text-align: center;
+  color: #64748b;
+  font-size: 0.8rem;
+  font-style: italic;
+}
