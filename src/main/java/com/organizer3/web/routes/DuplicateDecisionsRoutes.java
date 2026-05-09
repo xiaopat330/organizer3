@@ -29,6 +29,19 @@ public class DuplicateDecisionsRoutes {
 
     public void register(Javalin app) {
 
+        // Per-title endpoint — returns all decisions for one title (any executed_at state).
+        // Returns empty list for unknown codes; 404 is not appropriate here.
+        app.get("/api/titles/{code}/duplicate-decisions", ctx -> {
+            String code = ctx.pathParam("code");
+            try {
+                ctx.json(repo.listByTitleCode(code));
+            } catch (Exception e) {
+                log.error("Failed to list duplicate decisions for title {}", code, e);
+                ctx.status(500);
+                ctx.json(Map.of("error", e.getMessage()));
+            }
+        });
+
         app.get("/api/tools/duplicates/decisions", ctx -> {
             try {
                 ctx.json(repo.listPending());

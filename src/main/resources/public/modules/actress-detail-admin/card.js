@@ -1,7 +1,8 @@
-// Edit Card renderer — Phase 2f: reduced card modes (no-content + rejected).
+// Edit Card renderer — Phase 3: adds §4.3 embedded duplicate-triage section.
 //
 // Renders header (§4.1) + flags row (§4.2) + optional no-content banner
-// + section stubs (§4.3 / §4.4) only in normal mode
+// + §4.3 duplicate-triage section (when locationEntries.length > 1)
+// + §4.4 folder-contents stub (when locationEntries.length === 1, Phase 4)
 // + Commit/Cancel footer (§4.5).
 //
 // Mode is derived from server-side values (not staged state):
@@ -12,6 +13,9 @@
 // Re-render strategy: renderCardInPlace(code) replaces a single card's
 // outerHTML in-place, then re-attaches event listeners via attachCardListeners.
 // renderPage in index.js calls attachCardListeners after building innerHTML.
+//
+// §4.3 lazy-fetch: decisions are fetched in attachCardListeners when the card
+// first needs them, cached on titleData._dupDecisions, and used on re-renders.
 
 import { esc, ageAtDate, agePillTier } from '../utils.js';
 import { ICON_FAV_LG, ICON_BM_LG, ICON_REJ_LG, gradeBadgeHtml, tagBadgeHtml } from '../icons.js';
@@ -31,6 +35,82 @@ import { commitCard, cancelCard } from './commit.js';
 function effectiveFlagValue(code, kind, serverValue) {
   const stage = state.findPendingStage(code, kind);
   return stage ? stage.payload.target : serverValue;
+}
+
+/**
+ * Opaque sub-key for a duplicate-decision stage, encoding (volumeId, nasPath).
+ * @param {string} volumeId
+ * @param {string} nasPath
+ * @returns {string}
+ */
+function dupKey(volumeId, nasPath) {
+  return `${volumeId}::${nasPath}`;
+}
+
+// ── §4.3 Duplicate-triage section ───────────────────────────────────────────
+
+/**
+ * Render the duplicate-triage section for a multi-location title.
+ * @param {string} code  Title code
+ * @param {Array}  locationEntries  Array of {volumeId, nasPath, locPath}
+ * @param {Array|null} serverDecisions  Array of DuplicateDecision objects from server, or null (still loading)
+ * @returns {string} HTML
+ */
+function renderDupSection(code, locationEntries, serverDecisions) {
+  if (!locationEntries || locationEntries.length < 2) return '';
+
+  // Build a lookup map from dupKey → server decision value ('KEEP'|'TRASH'|'VARIANT'|undefined)
+  const serverDecMap = new Map();
+  if (serverDecisions) {
+    for (const d of serverDecisions) {
+      serverDecMap.set(dupKey(d.volumeId, d.nasPath), d.decision);
+    }
+  }
+
+  const rowsHtml = locationEntries.map(loc => {
+    const key = dupKey(loc.volumeId, loc.nasPath);
+    const serverDec = serverDecMap.get(key) || null; // 'KEEP'|'TRASH'|'VARIANT'|null
+    const pendingStage = state.findPendingStage(code, 'duplicate-decision', key);
+
+    // Effective decision: staged payload overrides server (XOR pattern)
+    const effDec = pendingStage ? pendingStage.payload.decision : serverDec;
+    const isStaged = !!pendingStage;
+
+    // Each button: active = this is the effective decision; staged = there's a pending stage
+    const btnHtml = (label, value) => {
+      const isActive = effDec === value;
+      const classes = [
+        'admin-card-dup-btn',
+        `admin-card-dup-btn-${label.toLowerCase()}`,
+        isActive ? 'active' : '',
+        (isActive && isStaged) ? 'staged' : '',
+      ].filter(Boolean).join(' ');
+      return `<button class="${classes}" data-dup-action="${esc(value)}" data-volume-id="${esc(loc.volumeId)}" data-nas-path="${esc(loc.nasPath)}">${label}</button>`;
+    };
+
+    // Truncate long paths for display
+    const displayPath = loc.locPath || loc.nasPath || '';
+
+    return `
+      <div class="admin-card-dup-row">
+        <span class="admin-card-dup-volume">${esc(loc.volumeId)}</span>
+        <span class="admin-card-dup-path" title="${esc(displayPath)}">${esc(displayPath)}</span>
+        <div class="admin-card-dup-actions">
+          ${btnHtml('Keep', 'KEEP')}${btnHtml('Trash', 'TRASH')}${btnHtml('Variant', 'VARIANT')}
+        </div>
+      </div>`;
+  }).join('');
+
+  const loadingNote = serverDecisions === null
+    ? '<div class="admin-card-dup-loading">Loading decisions…</div>'
+    : '';
+
+  return `
+    <div class="admin-card-dup-section">
+      <div class="admin-card-dup-section-title">Duplicate folders</div>
+      ${loadingNote}
+      ${rowsHtml}
+    </div>`;
 }
 
 // ── Card HTML ────────────────────────────────────────────────────────────────
@@ -192,14 +272,20 @@ export function renderCard(t) {
       </div>
     </div>` : '';
 
-  // ── Section stubs (§4.3 / §4.4) — suppressed in rejected/no-content modes
-  const locationCount = (t.locations || []).length;
-  let sectionStubHtml = '';
+  // ── Section §4.3 / §4.4 — suppressed in rejected/no-content modes
+  const locationEntries = t.locationEntries || [];
+  const locationCount = locationEntries.length;
+  let sectionHtml = '';
   if (mode === 'normal') {
     if (locationCount > 1) {
-      sectionStubHtml = `<div class="admin-card-section-stub">Duplicate folder triage — Phase 3 (${locationCount} locations)</div>`;
+      // §4.3: embedded duplicate-triage. Decisions cached on titleData._dupDecisions.
+      // null = still loading (show skeleton); array = loaded (may be empty).
+      const cachedDec = Object.prototype.hasOwnProperty.call(t, '_dupDecisions')
+        ? t._dupDecisions
+        : null;
+      sectionHtml = renderDupSection(code, locationEntries, cachedDec);
     } else if (locationCount === 1) {
-      sectionStubHtml = `<div class="admin-card-section-stub">Folder contents — Phase 4</div>`;
+      sectionHtml = `<div class="admin-card-section-stub">Folder contents — Phase 4</div>`;
     }
   }
 
@@ -232,7 +318,7 @@ export function renderCard(t) {
       ${headerHtml}
       ${noContentBannerHtml}
       ${flagsHtml}
-      ${sectionStubHtml}
+      ${sectionHtml}
       ${errorHtml}
       ${footerHtml}
     </div>`;
@@ -272,6 +358,63 @@ export function attachCardListeners(code) {
       body.hidden = expanded;
     });
   }
+
+  // §4.3 Lazy-fetch duplicate decisions for multi-location titles.
+  // If decisions are not yet cached (_dupDecisions not set), fetch and re-render.
+  // The check uses hasOwnProperty so that null (loaded, empty) is distinguished
+  // from undefined (not yet fetched).
+  const locationEntries = titleData.locationEntries || [];
+  if (locationEntries.length > 1 && !Object.prototype.hasOwnProperty.call(titleData, '_dupDecisions')) {
+    // Mark as "in flight" with null so concurrent re-renders don't double-fetch.
+    titleData._dupDecisions = null;
+    fetch(`/api/titles/${encodeURIComponent(code)}/duplicate-decisions`)
+      .then(res => res.ok ? res.json() : Promise.reject(new Error(`HTTP ${res.status}`)))
+      .then(decisions => {
+        titleData._dupDecisions = decisions;
+        renderCardInPlace(code);
+      })
+      .catch(() => {
+        // On error, leave _dupDecisions as null so the "Loading…" note stays.
+        // A re-render triggered by another action will retry.
+        delete titleData._dupDecisions;
+      });
+  }
+
+  // §4.3 Duplicate-decision action buttons
+  card.querySelectorAll('.admin-card-dup-btn[data-dup-action]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const clickedDecision = btn.dataset.dupAction; // 'KEEP'|'TRASH'|'VARIANT'
+      const volumeId = btn.dataset.volumeId;
+      const nasPath  = btn.dataset.nasPath;
+      const key = dupKey(volumeId, nasPath);
+
+      const pendingStage = state.findPendingStage(code, 'duplicate-decision', key);
+
+      // Effective decision: staged payload OR server value
+      const serverDec = (() => {
+        const decs = titleData._dupDecisions;
+        if (!Array.isArray(decs)) return null;
+        const d = decs.find(d => d.volumeId === volumeId && d.nasPath === nasPath);
+        return d ? d.decision : null;
+      })();
+      const effDec = pendingStage ? pendingStage.payload.decision : serverDec;
+
+      if (clickedDecision === effDec) {
+        // Clicking the currently-active button: un-stage the pending change.
+        // If there was a server-side decision, stage a DELETE (decision: null).
+        // If no server decision, just remove the stage (no-op on server).
+        state.removePendingStage(code, 'duplicate-decision', key);
+        if (serverDec !== null) {
+          state.addStage(code, 'duplicate-decision', { volumeId, nasPath, decision: null }, key);
+        }
+      } else {
+        // Clicking a different button: stage a PUT with the new decision.
+        state.addStage(code, 'duplicate-decision', { volumeId, nasPath, decision: clickedDecision }, key);
+      }
+
+      renderCardInPlace(code);
+    });
+  });
 
   // Flag buttons
   card.querySelectorAll('.admin-card-flag-btn[data-flag]').forEach(btn => {

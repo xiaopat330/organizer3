@@ -2767,7 +2767,7 @@
   pointer-events: none;
 }
 
-/* ── Section stubs (§4.3 / §4.4 Coming soon) ─────────────────────────────── */
+/* ── Section stubs (§4.4 Coming soon) ────────────────────────────────────── */
 
 .admin-card-section-stub {
   margin-top: 10px;
@@ -2777,6 +2777,110 @@
   color: #475569;
   font-size: 0.78rem;
   font-style: italic;
+}
+
+/* ── §4.3 Duplicate-triage section ───────────────────────────────────────── */
+
+.admin-card-dup-section {
+  margin-top: 10px;
+  padding: 8px 12px;
+  border: 1px solid #1e293b;
+  border-radius: 4px;
+}
+
+.admin-card-dup-section-title {
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: #475569;
+  margin-bottom: 8px;
+}
+
+.admin-card-dup-loading {
+  font-size: 0.78rem;
+  color: #475569;
+  font-style: italic;
+  margin-bottom: 4px;
+}
+
+.admin-card-dup-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 0;
+  border-top: 1px solid #0f172a;
+}
+.admin-card-dup-row:first-of-type {
+  border-top: none;
+}
+
+.admin-card-dup-volume {
+  flex-shrink: 0;
+  font-family: monospace;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #94a3b8;
+  background: #1e293b;
+  border-radius: 3px;
+  padding: 2px 6px;
+  letter-spacing: 0.04em;
+}
+
+.admin-card-dup-path {
+  flex: 1;
+  min-width: 0;
+  font-family: monospace;
+  font-size: 0.75rem;
+  color: #64748b;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.admin-card-dup-actions {
+  flex-shrink: 0;
+  display: flex;
+  gap: 4px;
+}
+
+.admin-card-dup-btn {
+  padding: 3px 10px;
+  border: 1px solid #334155;
+  border-radius: 4px;
+  background: #0f172a;
+  color: #64748b;
+  font-size: 0.75rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: border-color 0.12s, color 0.12s, background 0.12s;
+  position: relative;
+}
+.admin-card-dup-btn:hover {
+  border-color: #475569;
+  color: #94a3b8;
+}
+
+/* Active = effective decision for this row */
+.admin-card-dup-btn.active {
+  color: #e2e8f0;
+  border-color: #4b5563;
+  background: #1e293b;
+}
+.admin-card-dup-btn-keep.active   { color: #86efac; border-color: #14532d; background: #052e16; }
+.admin-card-dup-btn-trash.active  { color: #fca5a5; border-color: #7f1d1d; background: #1c0a0a; }
+.admin-card-dup-btn-variant.active { color: #fcd34d; border-color: #78350f; background: #1c1403; }
+
+/* Staged = pending indicator (small dot, mirrors flag button pattern) */
+.admin-card-dup-btn.staged::after {
+  content: '';
+  position: absolute;
+  bottom: 3px;
+  right: 3px;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #fbbf24;
 }
 
 /* ── Error bar (commit failure) ───────────────────────────────────────────── */

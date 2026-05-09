@@ -1,32 +1,40 @@
-// Card Commit / Cancel orchestration — Phase 2b stub.
+// Card Commit / Cancel orchestration — Phase 3: adds duplicate-decision kind.
 //
-// Phase 2c wires real Commit / Cancel buttons; Phase 2e wires the
-// navigate-away confirm modal. For now we expose the function shapes so
-// other modules can import a stable surface.
-
-import * as state from './state.js';
-
 // Commit all pending stages on a card, in the order specified by §4.5
 // of PROPOSAL_ACTRESS_TITLE_ADMIN.md:
 //   1. flag toggles (favorite, bookmark, reject)
 //   2. duplicate decisions
-//   3. folder-content actions (trash, then rename/move)
+//   3. folder-content actions (trash, then rename/move) — Phase 4/5
 //
 // Stops at the first failure; later stages stay 'pending'. Returns
 // { committed, failed, remaining } counts so callers can re-render.
-//
-// Phase 2b ships flag-* commit only — other kinds become real in 2d/3/4/5.
+
+import * as state from './state.js';
+
+// Execution order by kind: lower value fires first.
+const ORDER = {
+  'flag-favorite': 0,
+  'flag-bookmark': 0,
+  'flag-reject':   0,
+  'duplicate-decision': 1,
+  // Phase 4/5: 'trash-video', 'trash-cover', 'normalize' at order 2
+};
+
 export async function commitCard(code) {
-  const stages = state.getStages(code).filter(s => s.status === 'pending');
+  // Sort by execution order; preserve insertion order within the same bucket.
+  const stages = state.getStages(code)
+    .filter(s => s.status === 'pending')
+    .sort((a, b) => (ORDER[a.kind] ?? 99) - (ORDER[b.kind] ?? 99));
+
   let committed = 0, failed = 0;
 
   for (const stage of stages) {
     try {
       await fireStage(code, stage);
-      state.markStageCommitted(code, stage.kind);
+      state.markStageCommitted(code, stage.kind, stage.key);
       committed++;
     } catch (err) {
-      state.markStageFailed(code, stage.kind, err.message || String(err));
+      state.markStageFailed(code, stage.kind, err.message || String(err), stage.key);
       failed++;
       break;  // halt; remaining stages stay pending
     }
@@ -61,6 +69,32 @@ async function fireStage(code, stage) {
         td.rejected = data.rejected;
       }
       return data;
+    }
+    case 'duplicate-decision': {
+      const { volumeId, nasPath, decision } = stage.payload;
+      if (decision === null) {
+        // User staged "clear my prior decision" — fire a DELETE.
+        const url = `/api/tools/duplicates/decisions/${encodeURIComponent(code)}/${encodeURIComponent(volumeId)}?nasPath=${encodeURIComponent(nasPath)}`;
+        const res = await fetch(url, { method: 'DELETE' });
+        if (!res.ok) {
+          const body = await res.json().catch(() => ({}));
+          throw new Error(body.error || `HTTP ${res.status}`);
+        }
+      } else {
+        const res = await fetch('/api/tools/duplicates/decisions', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ titleCode: code, volumeId, nasPath, decision }),
+        });
+        if (!res.ok) {
+          const body = await res.json().catch(() => ({}));
+          throw new Error(body.error || `HTTP ${res.status}`);
+        }
+      }
+      // Invalidate cached decisions so the next render re-fetches from server.
+      const td = state.getCardData(code);
+      if (td) td._dupDecisions = null;
+      return;
     }
     default:
       throw new Error(`commit kind not implemented in this phase: ${stage.kind}`);

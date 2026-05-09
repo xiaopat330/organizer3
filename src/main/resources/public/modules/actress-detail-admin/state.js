@@ -68,44 +68,62 @@ export function clearAllStages() {
 
 // Stage lifecycle ────────────────────────────────────────────────────────
 
-// Add a stage. If a stage with the same `kind` already exists for this
-// card it is replaced — flag toggles are idempotent on kind, not on count.
+// Normalize key: treat null and undefined as null so comparisons are stable.
+function normalizeKey(key) {
+  return key ?? null;
+}
+
+// Match predicate: same kind and same key (null == null).
+function stageMatches(stage, kind, key) {
+  return stage.kind === kind && stage.key === normalizeKey(key);
+}
+
+// Add a stage. Uniqueness is by (kind, key):
+//   - key = null (default): behaviour identical to Phase 2 — one stage per kind.
+//   - key != null: stages of the same kind with different keys coexist.
+// A matching pending stage is replaced (idempotent re-stage).
 // Returns the resulting stage.
-export function addStage(code, kind, payload) {
+export function addStage(code, kind, payload, key = null) {
+  key = normalizeKey(key);
   const s = cardStates.get(code);
   if (!s) return null;
-  const existing = s.stages.findIndex(x => x.kind === kind && x.status === 'pending');
-  const stage = { kind, payload, status: 'pending' };
+  const existing = s.stages.findIndex(x => stageMatches(x, kind, key) && x.status === 'pending');
+  const stage = { kind, key, payload, status: 'pending' };
   if (existing >= 0) s.stages[existing] = stage;
   else s.stages.push(stage);
   return stage;
 }
 
-// Remove the (single) pending stage of a given kind from this card.
-// Used to "un-stage" a flag toggle by clicking it back to its server value.
-export function removePendingStage(code, kind) {
+// Remove the pending stage matching (kind, key) from this card.
+// When key is null/undefined, removes the single null-key stage (Phase 2 flag toggles).
+export function removePendingStage(code, kind, key = null) {
+  key = normalizeKey(key);
   const s = cardStates.get(code);
   if (!s) return;
-  s.stages = s.stages.filter(x => !(x.kind === kind && x.status === 'pending'));
+  s.stages = s.stages.filter(x => !(stageMatches(x, kind, key) && x.status === 'pending'));
 }
 
-export function findPendingStage(code, kind) {
-  return getStages(code).find(x => x.kind === kind && x.status === 'pending') || null;
+// Returns the pending stage matching (kind, key), or null.
+export function findPendingStage(code, kind, key = null) {
+  key = normalizeKey(key);
+  return getStages(code).find(x => stageMatches(x, kind, key) && x.status === 'pending') || null;
 }
 
-export function markStageCommitted(code, kind) {
+export function markStageCommitted(code, kind, key = null) {
+  key = normalizeKey(key);
   const s = cardStates.get(code);
   if (!s) return;
   for (const stage of s.stages) {
-    if (stage.kind === kind && stage.status === 'pending') stage.status = 'committed';
+    if (stageMatches(stage, kind, key) && stage.status === 'pending') stage.status = 'committed';
   }
 }
 
-export function markStageFailed(code, kind, error) {
+export function markStageFailed(code, kind, error, key = null) {
+  key = normalizeKey(key);
   const s = cardStates.get(code);
   if (!s) return;
   for (const stage of s.stages) {
-    if (stage.kind === kind && stage.status === 'pending') {
+    if (stageMatches(stage, kind, key) && stage.status === 'pending') {
       stage.status = 'failed';
       stage.error  = error;
     }

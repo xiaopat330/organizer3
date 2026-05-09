@@ -174,4 +174,39 @@ class DuplicateDecisionsRoutesTest {
         assertEquals(400, res.statusCode());
         verifyNoInteractions(repo);
     }
+
+    // ── GET /api/titles/{code}/duplicate-decisions ────────────────────────────
+
+    @Test
+    void getTitleDecisionsReturnsMatchingList() throws IOException, InterruptedException {
+        DuplicateDecision d1 = DuplicateDecision.builder()
+                .titleCode("ABP-001").volumeId("vol-a").nasPath("/vol/stars/ABP-001")
+                .decision("KEEP").createdAt(Instant.now().toString()).build();
+        DuplicateDecision d2 = DuplicateDecision.builder()
+                .titleCode("ABP-001").volumeId("vol-b").nasPath("/vol/queue/ABP-001")
+                .decision("TRASH").createdAt(Instant.now().toString()).build();
+        when(repo.listByTitleCode("ABP-001")).thenReturn(List.of(d1, d2));
+
+        HttpResponse<String> res = get("/api/titles/ABP-001/duplicate-decisions");
+
+        assertEquals(200, res.statusCode());
+        JsonNode body = mapper.readTree(res.body());
+        assertTrue(body.isArray());
+        assertEquals(2, body.size());
+        assertEquals("ABP-001", body.get(0).get("titleCode").asText());
+        assertEquals("KEEP", body.get(0).get("decision").asText());
+        assertEquals("TRASH", body.get(1).get("decision").asText());
+    }
+
+    @Test
+    void getTitleDecisionsReturnsEmptyListForUnknownCode() throws IOException, InterruptedException {
+        when(repo.listByTitleCode("UNKNOWN-999")).thenReturn(List.of());
+
+        HttpResponse<String> res = get("/api/titles/UNKNOWN-999/duplicate-decisions");
+
+        assertEquals(200, res.statusCode());
+        JsonNode body = mapper.readTree(res.body());
+        assertTrue(body.isArray());
+        assertEquals(0, body.size());
+    }
 }
