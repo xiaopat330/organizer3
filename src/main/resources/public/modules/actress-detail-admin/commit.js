@@ -1,4 +1,4 @@
-// Card Commit / Cancel orchestration — Phase 3: adds duplicate-decision kind.
+// Card Commit / Cancel orchestration — Phase 5: adds normalize-folder kind.
 //
 // Commit all pending stages on a card, in the order specified by §4.5
 // of PROPOSAL_ACTRESS_TITLE_ADMIN.md:
@@ -12,6 +12,8 @@
 import * as state from './state.js';
 
 // Execution order by kind: lower value fires first.
+// normalize-folder fires after trash so that trashed files are gone before
+// the rename/move proposal is executed.
 const ORDER = {
   'flag-favorite': 0,
   'flag-bookmark': 0,
@@ -19,6 +21,7 @@ const ORDER = {
   'duplicate-decision': 1,
   'trash-video':   2,
   'trash-cover':   2,
+  'normalize-folder': 3,
 };
 
 export async function commitCard(code) {
@@ -125,6 +128,23 @@ async function fireStage(code, stage) {
       // Invalidate folder-contents cache so the next render re-fetches.
       const tdC = state.getCardData(code);
       if (tdC) delete tdC._folderContents;
+      return;
+    }
+    case 'normalize-folder': {
+      const { moves } = stage.payload;
+      if (!moves || moves.length === 0) return;  // no-op
+      const res = await fetch(`/api/titles/${encodeURIComponent(code)}/normalize`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ moves }),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.error || `HTTP ${res.status}`);
+      }
+      // Invalidate folder-contents cache so the next render re-fetches.
+      const tdN = state.getCardData(code);
+      if (tdN) delete tdN._folderContents;
       return;
     }
     default:

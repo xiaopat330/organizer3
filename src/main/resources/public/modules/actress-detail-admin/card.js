@@ -1,4 +1,4 @@
-// Edit Card renderer — Phase 4d: no-content detection uses FS listing.
+// Edit Card renderer — Phase 5: adds Normalize folder button + modal trigger.
 //
 // Renders header (§4.1) + flags row (§4.2) + optional no-content banner
 // + §4.3 duplicate-triage section (when locationEntries.length > 1)
@@ -25,6 +25,7 @@ import { ICON_FAV_LG, ICON_BM_LG, ICON_REJ_LG, gradeBadgeHtml, tagBadgeHtml } fr
 import * as state from './state.js';
 import { commitCard, cancelCard } from './commit.js';
 import { renderFolderContents, ensureFolderContents, attachFolderListeners, isFolderContentsError, folderContentsErrorMsg } from './folder-contents.js';
+import { openNormalizeModal } from './normalize-modal.js';
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -140,6 +141,31 @@ function renderDupSection(code, locationEntries, serverDecisions) {
       <div class="admin-card-dup-section-title">Duplicate folders</div>
       ${loadingNote}
       ${rowsHtml}
+    </div>`;
+}
+
+// ── §4.4.1 Normalize folder button ───────────────────────────────────────────
+
+/**
+ * Render the "Normalize folder" action button (or "staged" indicator) for a
+ * single-location title. Always shown when the folder section is visible.
+ *
+ * When a 'normalize-folder' stage is pending, shows "Normalize staged — Undo?" instead.
+ * @param {string} code
+ * @returns {string} HTML
+ */
+function renderNormalizeButton(code) {
+  const pendingStage = state.findPendingStage(code, 'normalize-folder');
+  if (pendingStage) {
+    return `
+      <div class="admin-card-normalize-row">
+        <span class="admin-card-normalize-staged">Normalize staged*</span>
+        <button class="admin-card-normalize-undo-btn" data-normalize-action="undo-normalize">Undo</button>
+      </div>`;
+  }
+  return `
+    <div class="admin-card-normalize-row">
+      <button class="admin-card-normalize-btn" data-normalize-action="open-modal">Normalize folder…</button>
     </div>`;
 }
 
@@ -343,7 +369,7 @@ export function renderCard(t) {
       const cachedContents = Object.prototype.hasOwnProperty.call(t, '_folderContents')
         ? t._folderContents
         : undefined;
-      sectionHtml = renderFolderContents(code, cachedContents);
+      sectionHtml = renderFolderContents(code, cachedContents) + renderNormalizeButton(code);
     }
   } else if (mode === 'cover-only' && locationCount === 1) {
     // Cover-only: show the cover list so the user can trash them (§4.6).
@@ -351,7 +377,7 @@ export function renderCard(t) {
     const cachedContents = Object.prototype.hasOwnProperty.call(t, '_folderContents')
       ? t._folderContents
       : undefined;
-    sectionHtml = renderFolderContents(code, cachedContents);
+    sectionHtml = renderFolderContents(code, cachedContents) + renderNormalizeButton(code);
   }
 
   // ── Error bar (failed stage) ──────────────────────────────────────────
@@ -490,6 +516,20 @@ export function attachCardListeners(code) {
       }
 
       renderCardInPlace(code);
+    });
+  });
+
+  // §4.4.1 Normalize folder button / undo.
+  card.querySelectorAll('[data-normalize-action]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const action = btn.dataset.normalizeAction;
+      if (action === 'open-modal') {
+        const folderContents = titleData._folderContents || null;
+        openNormalizeModal(code, folderContents);
+      } else if (action === 'undo-normalize') {
+        state.removePendingStage(code, 'normalize-folder', null);
+        renderCardInPlace(code);
+      }
     });
   });
 
