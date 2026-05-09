@@ -3769,3 +3769,123 @@
   font-style: italic;
   padding: 4px 0 2px;
 }
+
+/* ── Task 2: normalize modal polish ──────────────────────────────────────── */
+
+/* Scrollable body — single scroll context between title/path and footer.
+   Replaces the per-section overflow-y:auto from the :not() selector above. */
+.normalize-modal-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+/* Patch: remove the per-child scroll contexts now that .normalize-modal-body
+   handles scrolling. Keep the rule for backward compat but zero it out. */
+.normalize-modal-inner > *:not(.normalize-modal-title):not(.normalize-modal-path):not(.normalize-modal-footer):not(.normalize-modal-body) {
+  overflow-y: visible;
+}
+
+/* Folder path — subdued monospace, visually subordinate to the title */
+.normalize-modal-path {
+  font-size: 0.7rem;
+  color: #334155;
+}
+
+/* Arrow column — fixed-width, vertically centered, subdued */
+.normalize-modal-arrow {
+  flex-shrink: 0;
+  width: 22px;
+  text-align: center;
+  color: #334155;
+  font-size: 0.85rem;
+  line-height: 1;
+}
+
+/* Section tint distinction: RENAMES gets a very slight warm tint */
+.normalize-modal-section:not(.normalize-modal-section-canonical) {
+  background: #0d1117;
+  border-radius: 4px;
+  margin: 4px 8px;
+  padding: 10px 12px;
+}
+.normalize-modal-section-canonical {
+  margin: 4px 8px;
+  padding: 8px 12px;
+}
+
+/* Section label — bump contrast so RENAMES vs MOVES read clearly */
+.normalize-modal-section-label {
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #64748b;
+  margin-bottom: 6px;
+}
+
+/* Canonical rows — small padding between them */
+.normalize-modal-canonical-row {
+  padding: 3px 0;
+}
+
+/* Conflict badge on its own line below the filename */
+.normalize-modal-conflict-badge-row {
+  padding: 2px 24px 2px 22px; /* indent past the checkbox */
+}
+
+/* Conflict input row — arrow + input inline */
+.normalize-modal-conflict-input-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 0 0;
+}
+
+/* Conflict input — clear "type here" affordance */
+.nm-entry-input-conflict {
+  flex: 1;
+  min-width: 180px;
+  padding: 4px 9px;
+  border: 1px solid #475569;
+  border-radius: 4px;
+  background: #0d1b2e;
+  color: #cbd5e1;
+  font-family: monospace;
+  font-size: 0.78rem;
+  transition: border-color 0.12s, box-shadow 0.12s;
+}
+.nm-entry-input-conflict:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.25);
+}
+
+/* Red flag: conflict checked + empty input blocks submission */
+.nm-entry-input-conflict.nm-entry-input-needs-attention {
+  border-color: #b91c1c;
+  box-shadow: 0 0 0 2px rgba(185, 28, 28, 0.2);
+}
+
+/* Stage button — make it visually primary, mirroring .cae-btn-primary */
+.normalize-modal-stage-btn {
+  background: #0c2340;
+  border: 1px solid #2563eb;
+  color: #93c5fd;
+  border-radius: 4px;
+  padding: 6px 16px;
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+.normalize-modal-stage-btn:hover:not(:disabled) {
+  background: #1d4ed8;
+  color: #fff;
+  border-color: #3b82f6;
+}
+.normalize-modal-stage-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
