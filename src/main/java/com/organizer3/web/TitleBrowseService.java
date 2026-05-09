@@ -594,18 +594,8 @@ public class TitleBrowseService {
         int offset = (clampedPage - 1) * pageSize;
         List<Title> pageSlice = sorted.subList(offset, Math.min(offset + pageSize, total));
 
-        // 6. Enrich only the page slice — then stamp videoCount on each summary
-        List<TitleSummary> summaries = toSummaries(pageSlice).stream()
-                .map(s -> {
-                    // look up the title id from the original slice by code
-                    Integer vc = pageSlice.stream()
-                            .filter(t -> t.getCode() != null && t.getCode().equals(s.getCode()))
-                            .findFirst()
-                            .map(t -> t.getId() != null ? videoCounts.getOrDefault(t.getId(), 0) : 0)
-                            .orElse(0);
-                    return s.toBuilder().videoCount(vc).build();
-                })
-                .toList();
+        // 6. Enrich only the page slice
+        List<TitleSummary> summaries = toSummaries(pageSlice);
         return new AdminTitlesPage(summaries, clampedPage, totalPages, pageSize);
     }
 

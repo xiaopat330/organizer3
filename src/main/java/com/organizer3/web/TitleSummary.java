@@ -60,13 +60,6 @@ public class TitleSummary {
     String lastWatchedAt;
     int watchCount;
     int visitCount;
-    /**
-     * Number of video files for this title, as recorded in the DB.
-     * Populated only for admin-tab cards (via {@code findAdminTitlesPaged}).
-     * Null for all other code paths; JS detects no-content with
-     * {@code typeof t.videoCount === 'number' && t.videoCount === 0}.
-     */
-    Integer videoCount;
     String lastVisitedAt;  // ISO datetime string, null until first visit
     @Builder.Default
     List<String> tags = List.of();

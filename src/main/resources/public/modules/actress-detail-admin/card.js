@@ -5,7 +5,7 @@
 // + §4.4 folder-contents section (when locationEntries.length === 1)
 // + Commit/Cancel footer (§4.5).
 //
-// Mode is derived from server and FS state (not staged state, not DB videoCount):
+// Mode is derived from server and FS state (not staged state):
 //   'rejected'     — t.rejected === true
 //   'loading'      — single-location, folder-contents fetch in flight (_folderContents === null)
 //   'fetch-error'  — single-location, fetch failed (sticky error sentinel)
@@ -31,7 +31,7 @@ import { openNormalizeModal } from './normalize-modal.js';
 
 /**
  * Derive the card mode from title data and the cached FS listing.
- * For single-location titles the mode is based on the FS listing, not DB videoCount.
+ * For single-location titles the mode is based on the FS listing.
  * Multi-location titles are always 'normal' (dup-triage section handles them).
  * Rejected titles are always 'rejected' regardless of FS state (§4.7 precedence).
  *
