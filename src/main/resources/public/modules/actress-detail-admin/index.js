@@ -85,14 +85,14 @@ function renderPage(data) {
 
   view.innerHTML = `
     <div class="admin-card-list">${cards}</div>
-    ${renderPagination(data.page, data.totalPages)}
+    ${renderPagination(data.page, data.totalPages, data.pageSize)}
   `;
 
   // Attach event listeners for each card after setting innerHTML.
   data.titles.forEach(t => attachCardListeners(t.code));
 
   // Attach pagination listeners. Must come after innerHTML is set.
-  attachPaginationListeners(data.page, data.totalPages, navigateToPage);
+  attachPaginationListeners(data.page, data.totalPages, data.pageSize, navigateToPage);
 }
 
 // Navigate-away guard for in-tab pagination. Tab/actress switches are

@@ -4,33 +4,27 @@
 // No state knowledge; all logic lives in index.js which passes an onNavigate
 // callback. The navigate-away guard also lives in index.js (see navigateToPage).
 //
-// Public surface:
-//   renderPagination(currentPage, totalPages)
-//     → returns an HTML string. Returns '' when totalPages <= 1 (hidden).
-//   attachPaginationListeners(currentPage, totalPages, onNavigate)
-//     → wires up buttons + page-jump input inside the rendered control.
-//     Call after view.innerHTML is set.
+// Layout: [ Top ] [ ◀◀ jump ] [ ◀ ] [ page ___ ] [ ▶ ] [ jump ▶▶ ] [ Last ]
+// where jump = 2 * pageSize (pages), driven by config.actressTitleAdmin.pageSize.
 
-/**
- * Returns the HTML string for the pagination control, or '' if totalPages <= 1.
- * @param {number} currentPage  1-indexed current page.
- * @param {number} totalPages   Total number of pages.
- */
-export function renderPagination(currentPage, totalPages) {
+function jumpStep(pageSize) {
+  return Math.max(1, (pageSize | 0) * 2);
+}
+
+export function renderPagination(currentPage, totalPages, pageSize) {
   if (totalPages <= 1) return '';
 
   const atFirst = currentPage === 1;
   const atLast  = currentPage === totalPages;
+  const jump    = jumpStep(pageSize);
 
-  const firstDis   = atFirst ? ' disabled' : '';
-  const prevDis    = atFirst ? ' disabled' : '';
-  const nextDis    = atLast  ? ' disabled' : '';
-  const lastDis    = atLast  ? ' disabled' : '';
+  const dis = (b) => (b ? ' disabled' : '');
 
   return `
     <div class="admin-pagination">
-      <button class="admin-pagination-btn" id="apg-first"${firstDis} title="First page">⏮ first</button>
-      <button class="admin-pagination-btn" id="apg-prev"${prevDis}   title="Previous 10 pages">‹ prev 10</button>
+      <button class="admin-pagination-btn" id="apg-first"${dis(atFirst)} title="First page">⏮ Top</button>
+      <button class="admin-pagination-btn" id="apg-prev-jump"${dis(atFirst)} title="Back ${jump} pages">◀◀ ${jump}</button>
+      <button class="admin-pagination-btn" id="apg-prev"${dis(atFirst)} title="Previous page">◀</button>
       <span class="admin-pagination-info">
         page <input
           class="admin-pagination-input"
@@ -42,44 +36,38 @@ export function renderPagination(currentPage, totalPages) {
           title="Jump to page"
         /> of ${totalPages}
       </span>
-      <button class="admin-pagination-btn" id="apg-next"${nextDis}   title="Next 10 pages">next 10 ›</button>
-      <button class="admin-pagination-btn" id="apg-last"${lastDis}   title="Last page">last ⏭</button>
+      <button class="admin-pagination-btn" id="apg-next"${dis(atLast)} title="Next page">▶</button>
+      <button class="admin-pagination-btn" id="apg-next-jump"${dis(atLast)} title="Forward ${jump} pages">${jump} ▶▶</button>
+      <button class="admin-pagination-btn" id="apg-last"${dis(atLast)} title="Last page">Last ⏭</button>
     </div>
   `;
 }
 
-/**
- * Attaches event listeners to the rendered pagination control.
- * Must be called after view.innerHTML is set (listeners are cleared on each re-render).
- *
- * @param {number}   currentPage  1-indexed current page.
- * @param {number}   totalPages   Total number of pages.
- * @param {function} onNavigate   Callback(targetPage) invoked when a navigation is requested.
- *                                The guard logic lives in index.js; this module just calls it.
- */
-export function attachPaginationListeners(currentPage, totalPages, onNavigate) {
+export function attachPaginationListeners(currentPage, totalPages, pageSize, onNavigate) {
   if (totalPages <= 1) return;
 
-  const btnFirst = document.getElementById('apg-first');
-  const btnPrev  = document.getElementById('apg-prev');
-  const btnNext  = document.getElementById('apg-next');
-  const btnLast  = document.getElementById('apg-last');
-  const input    = document.getElementById('apg-input');
+  const jump = jumpStep(pageSize);
 
-  if (btnFirst) btnFirst.addEventListener('click', () => onNavigate(1));
-  if (btnPrev)  btnPrev.addEventListener('click',  () => onNavigate(Math.max(1, currentPage - 10)));
-  if (btnNext)  btnNext.addEventListener('click',  () => onNavigate(Math.min(totalPages, currentPage + 10)));
-  if (btnLast)  btnLast.addEventListener('click',  () => onNavigate(totalPages));
+  const wire = (id, target) => {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener('click', () => onNavigate(target));
+  };
 
-  // Page-jump input: submit on Enter key. "Go" button omitted — Enter feels
-  // natural here and avoids crowding the layout.
+  wire('apg-first',     1);
+  wire('apg-prev-jump', Math.max(1, currentPage - jump));
+  wire('apg-prev',      Math.max(1, currentPage - 1));
+  wire('apg-next',      Math.min(totalPages, currentPage + 1));
+  wire('apg-next-jump', Math.min(totalPages, currentPage + jump));
+  wire('apg-last',      totalPages);
+
+  const input = document.getElementById('apg-input');
   if (input) {
     input.addEventListener('keydown', (e) => {
       if (e.key !== 'Enter') return;
       const parsed = parseInt(input.value, 10);
-      if (isNaN(parsed)) return;          // non-numeric — no-op
+      if (isNaN(parsed)) return;
       const target = Math.max(1, Math.min(totalPages, parsed));
-      onNavigate(target);                 // no-op when target === currentPage (guard in index.js)
+      onNavigate(target);
     });
   }
 }
