@@ -3,17 +3,18 @@
 // Owns the lifecycle for the Admin tab content: data fetch, render,
 // pagination state. The state machine for staged edits lives in
 // `./state.js`; the per-card render in `./card.js`; commit/cancel
-// orchestration in `./commit.js`.
+// orchestration in `./commit.js`; pagination control in `./pagination.js`.
 //
 // Public surface:
 //   mountAdmin(actressId)       — call when the tab becomes visible
 //   unmountAdmin()              — call when the tab is hidden
 //   hasStagedChanges()          — for navigate-away interception (2e)
 //   loadAdminPage(page)         — internal-ish; exported so the
-//                                 pagination control (2c) can call it
+//                                 pagination control can call it
 
 import { setStatus } from '../utils.js';
 import { renderCard, attachCardListeners } from './card.js';
+import { renderPagination, attachPaginationListeners } from './pagination.js';
 import * as state from './state.js';
 
 let currentActressId = null;
@@ -78,18 +79,28 @@ function renderPage(data) {
     return renderCard(t);
   }).join('');
 
-  // Pagination control — placeholder until 2d. Includes total-pages info
-  // so the user sees something useful even at this phase.
-  const pagination = data.totalPages > 1
-    ? `<div class="admin-pagination-stub">Page ${data.page} of ${data.totalPages}
-         (pagination control — Phase 2d)</div>`
-    : '';
-
   view.innerHTML = `
     <div class="admin-card-list">${cards}</div>
-    ${pagination}
+    ${renderPagination(data.page, data.totalPages)}
   `;
 
   // Attach event listeners for each card after setting innerHTML.
   data.titles.forEach(t => attachCardListeners(t.code));
+
+  // Attach pagination listeners. Must come after innerHTML is set.
+  attachPaginationListeners(data.page, data.totalPages, navigateToPage);
+}
+
+// Navigate-away guard. Phase 2e replaces window.confirm() with a real styled
+// modal; for now, a quick confirm() is enough to avoid silent discard.
+function navigateToPage(targetPage) {
+  if (targetPage === currentPage) return;
+  if (state.hasStagedChanges()) {
+    // TODO (Phase 2e): replace window.confirm() with the styled confirm modal.
+    const ok = window.confirm(
+      `You have ${state.getTotalPendingCount()} staged change(s) on this page. Discard?`
+    );
+    if (!ok) return;
+  }
+  loadAdminPage(targetPage);
 }

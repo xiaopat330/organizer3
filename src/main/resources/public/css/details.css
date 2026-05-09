@@ -2479,13 +2479,65 @@
   margin-top: 10px;
 }
 
-.admin-pagination-stub {
-  margin-top: 16px;
-  padding: 10px;
-  text-align: center;
-  color: #64748b;
+/* .admin-pagination-stub removed in Phase 2d — real control below */
+
+/* ── Phase 2d: pagination control ────────────────────────────────────────── */
+
+.admin-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 20px;
+  padding: 10px 0;
+}
+
+.admin-pagination-btn {
+  padding: 4px 10px;
+  border: 1px solid #334155;
+  border-radius: 4px;
+  background: #1e2a38;
+  color: #94a3b8;
   font-size: 0.8rem;
-  font-style: italic;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+
+.admin-pagination-btn:hover:not(:disabled) {
+  background: #2d3f53;
+  color: #cbd5e1;
+}
+
+.admin-pagination-btn:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.admin-pagination-info {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  color: #64748b;
+  font-size: 0.82rem;
+}
+
+.admin-pagination-input {
+  width: 48px;
+  padding: 3px 5px;
+  border: 1px solid #334155;
+  border-radius: 4px;
+  background: #151f2b;
+  color: #cbd5e1;
+  font-size: 0.82rem;
+  text-align: center;
+  /* Remove browser spin arrows */
+  -moz-appearance: textfield;
+}
+
+.admin-pagination-input::-webkit-inner-spin-button,
+.admin-pagination-input::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
 }
 
 /* ── Phase 2c: full Edit Card layout ─────────────────────────────────────── */
