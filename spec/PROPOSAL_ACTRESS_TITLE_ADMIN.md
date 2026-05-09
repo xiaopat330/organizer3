@@ -1,8 +1,9 @@
 # Actress Title Admin — per-actress title management surface
 
-> **Status: DRAFT v3** — drafted 2026-05-08. Owner: Patrick. v3 folds in
-> the five Phase-blocking clarifications (C1–C5) on top of v2's resolved
-> open questions (§7).
+> **Status: DRAFT v3.1** — drafted 2026-05-08. Owner: Patrick. v3 folds
+> in the five Phase-blocking clarifications (C1–C5) on top of v2's
+> resolved open questions (§7); v3.1 adds per-phase effort estimates +
+> Sonnet-dispatch feasibility (§8) and the roll-up (§8.7).
 >
 > Lives in the new `Admin` tab on the Actress Detail right panel (the tab
 > shell shipped on `feature/actress-title-management`, commits `5516e32`
@@ -521,6 +522,13 @@ reviewers.
 ## 8. Phases
 
 ### Phase 1 — Reject for titles (foundation, no Admin UI yet)
+**Estimate:** 4–6 hours.
+**Sonnet feasibility: HIGH.** Mirrors the existing actress reject
+pattern almost exactly — Sonnet has a complete reference
+implementation (`ActressBrowseService.toggleRejected`, `ActressRoutes.java:184–225`).
+Small blast radius, clearly testable, no UX judgment calls.
+**Dispatchable as a single brief.**
+
 - Add service-layer `TitleService.toggleRejected(code, value)` enforcing
   the mutex rules.
 - Refactor `toggleFavorite` / `toggleBookmark` to refuse on rejected
@@ -540,6 +548,19 @@ reviewers.
   the new endpoint and the "refused on rejected" path.
 
 ### Phase 2 — Admin tab scaffolding + flags row + Commit button
+**Estimate:** 12–18 hours. Largest phase — multiple interlocking pieces.
+**Sonnet feasibility: MEDIUM.** Splittable:
+- ✅ **Sonnet-OK as separate briefs:** pagination control component;
+  attention-scoring SQL/logic given a finalized formula; no-content +
+  rejected card mode renderers; basic Edit Card layout from §3 mockup.
+- ⚠️ **Opus-required:** the orchestration glue — stage status state
+  machine across multiple concurrent edits, navigate-away interception
+  across browser nav events, the module split into
+  `index.js` / `card.js` / `commit.js` boundaries.
+
+Recommend: Opus drafts the module skeleton + state machine; Sonnet
+fills in leaf renderers + the pagination control.
+
 - Read `actressTitleAdmin.pageSize` from `organizer-config.yaml`
   (default 5).
 - Backend: new endpoint `GET /api/actresses/{id}/admin-titles?page=N`
@@ -560,11 +581,19 @@ reviewers.
   0, render no-content mode" — refine when the service-layer call
   arrives.
 - Pagination control wired (first / prev 10 / page-jump / next 10 /
-  last). On destructive commits, surface a "list refreshed" toast and
-  re-fetch the current page (mitigates §7.F drift).
+  last). Per C4, commits refresh the single committed card only — page
+  ordering is a stable snapshot until the user paginates.
 - Lazy-render: only fetch the current page's titles.
 
 ### Phase 3 — Embedded duplicate-triage section (§4.3)
+**Estimate:** 6–10 hours. Range depends on whether existing global
+Duplicate Triage helpers are extractable or we render bespoke.
+**Sonnet feasibility: MEDIUM–HIGH.** Backend is trivial (one filtered
+endpoint). Frontend is mostly mechanical once Phase 2 lands. Small
+judgment call on reuse-vs-bespoke. **Dispatchable as one brief** if
+the rendering approach is pre-decided (recommend bespoke — global
+tool's DOM is likely too coupled).
+
 - New endpoint `GET /api/titles/{code}/duplicate-decisions` (§7.A=1).
 - Identify and extract any reusable rendering helpers from the global
   Duplicate Triage view (decision row, location row). If the existing
@@ -576,6 +605,21 @@ reviewers.
 - Test on an actress with known multi-location titles.
 
 ### Phase 4 — Service-layer extraction + folder contents (§4.4, no rename yet)
+**Estimate:** 14–20 hours. Service extraction is the biggest single
+risk in the project — it touches three existing tools that have to
+keep working for MCP callers.
+**Sonnet feasibility: MEDIUM–LOW** for the extraction itself,
+**HIGH** after.
+- ⚠️ **Opus-required:** the actual extraction. Need to read each tool
+  carefully, identify shared logic, factor without breaking MCP, write
+  tests against the new service that prove behavioral parity. A
+  Sonnet "looks plausible" pass can silently break MCP smoke tests.
+- ✅ **Sonnet-OK after extraction:** new HTTP routes (mechanical),
+  folder-contents JS, multi-cover [keep] shortcut.
+
+Recommend: Opus does the extraction + service tests in one sitting;
+everything else dispatched.
+
 - Extract `TitleFolderService` (§7.B=2) covering: `listContents`,
   `trashVideo`, `trashCover`. Refactor `AnalyzeTitleVideosTool`,
   `TrashDuplicateVideoTool`, `TrashDuplicateCoverTool` to be thin
@@ -592,6 +636,18 @@ reviewers.
   for `locations.size() == 0` (no §4.3 in that case either).
 
 ### Phase 5 — Unified Normalize folder modal (§4.4.1)
+**Estimate:** 12–18 hours.
+**Sonnet feasibility: MEDIUM.** Splittable:
+- ✅ **Sonnet-OK:** canonical-name proposal logic (rules are explicit),
+  HTTP route validation, `RestructureTitleTool` adapter refactor (now
+  has the established service-extraction pattern from Phase 4).
+- ⚠️ **Opus-required:** the modal's staged-state client-side recompute
+  + collision validation. Where the trickiest UX correctness lives —
+  getting it wrong means the modal preview lies about what Commit
+  will do.
+
+Recommend: Opus drives the modal; Sonnet does the backend pieces.
+
 Folds in both filename normalization **and** layout restructure
 behind one modal entry point.
 
@@ -623,11 +679,41 @@ behind one modal entry point.
   pending list.
 
 ### Phase 6 — Polish
+**Estimate:** 6–10 hours.
+**Sonnet feasibility: HIGH.** Mechanical given functional code.
+**Fully dispatchable** with a checklist of states to cover.
+
 - Empty states: no titles, all titles rejected, all clean.
 - Loading / error states for each section (duplicate decisions still
   loading, folder contents fetch failed, commit partial-failure recovery).
 - Keyboard nav between cards (?).
 - Accessibility pass on Commit / Cancel buttons.
+
+### 8.7 Roll-up
+
+| Phase | Est. hours | Sonnet feasibility |
+|---|---|---|
+| 1 — Reject foundation                    | 4–6   | HIGH (single brief) |
+| 2 — Admin tab scaffolding + Commit       | 12–18 | MEDIUM (split: Opus orchestration, Sonnet leaves) |
+| 3 — Embedded duplicate-triage section    | 6–10  | MEDIUM–HIGH (single brief if rendering pre-decided) |
+| 4 — Service extraction + folder contents | 14–20 | MEDIUM–LOW for extraction; HIGH after |
+| 5 — Unified Normalize folder modal       | 12–18 | MEDIUM (split: Opus modal, Sonnet backend) |
+| 6 — Polish                               | 6–10  | HIGH (fully dispatchable) |
+| **Total**                                | **54–82h** | |
+
+**Solo dev calendar:** ~1.5–2.5 weeks part-time, ~1 week full-time.
+
+**Parallelization opportunity.** Phase 1 and the extraction half of
+Phase 4 are mostly independent — could run in parallel to push
+throughput. Phase 3 and Phase 4-frontend can also overlap once Phase
+2's Edit Card skeleton is in.
+
+**Critical path.** 1 → 2 → 4-extraction → 4-frontend → 5 → 6. Phase 3
+hangs off Phase 2 and can slip late without blocking 4/5.
+
+**Risk-weighted recommendation.** Front-load Phase 4's service
+extraction in Opus before Phase 5 starts — it's the project's biggest
+single mistake-cost. Phases 1, 3, and 6 can be largely dispatched.
 
 ---
 
