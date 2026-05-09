@@ -16,6 +16,7 @@ import { displayPath, installPathClickToCopy } from '../path-utils.js';
 
 const ICON_TRASH = '<svg class="admin-icon-trash" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>';
 const ICON_FOLDER = '<svg class="admin-icon-folder" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>';
+const ICON_VIDEO  = '<svg class="admin-icon-video" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>';
 
 // ── Humanize helpers ─────────────────────────────────────────────────────────
 
@@ -112,9 +113,10 @@ function renderVideoList(code, videos) {
   const rows = videos.map(v => {
     const isPending = !!state.findPendingStage(code, 'trash-video', v.filename);
     const rowClass  = isPending ? 'admin-card-file-row admin-card-file-row-pending' : 'admin-card-file-row';
-    const nameHtml  = isPending
+    const nameInner = isPending
       ? `<s class="admin-card-filename">${esc(v.filename)}</s>`
       : `<span class="admin-card-filename">${esc(v.filename)}</span>`;
+    const nameHtml  = `<span class="admin-card-file-name-wrap">${ICON_VIDEO}${nameInner}</span>`;
     const chipsHtml = `<span class="admin-card-file-chips">${videoRowChips(v)}</span>`;
     const actionHtml = isPending
       ? `<button class="admin-card-file-undo-btn" data-file-action="undo-trash-video" data-filename="${esc(v.filename)}">Undo</button>`

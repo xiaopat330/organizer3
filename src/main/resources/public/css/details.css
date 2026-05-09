@@ -2658,9 +2658,17 @@
 }
 
 .admin-card-cast {
-  font-size: 0.78rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.82rem;
+  color: #f1f5f9;
+  font-weight: 600;
+  margin-top: 3px;
+}
+.admin-card-cast .admin-icon-person {
+  flex: 0 0 auto;
   color: #94a3b8;
-  margin-top: 2px;
 }
 
 .admin-card-tags {
@@ -3359,19 +3367,20 @@
 }
 
 .admin-card-normalize-btn {
-  padding: 3px 10px;
-  border: 1px solid #334155;
+  padding: 4px 12px;
+  border: 1px solid #6d28d9;
   border-radius: 4px;
-  background: #0f172a;
-  color: #64748b;
-  font-size: 0.75rem;
+  background: #2e1065;
+  color: #c4b5fd;
+  font-size: 0.78rem;
+  font-weight: 600;
   cursor: pointer;
   transition: border-color 0.12s, color 0.12s, background 0.12s;
 }
 .admin-card-normalize-btn:hover {
-  border-color: #1e40af;
-  color: #93c5fd;
-  background: #0b2140;
+  border-color: #a78bfa;
+  color: #ede9fe;
+  background: #4c1d95;
 }
 
 /* Staged state: show label + undo link */
@@ -3979,4 +3988,17 @@
 }
 .admin-card-folder-path-text {
   word-break: break-all;
+}
+
+/* ── Video icon prefix in folder-contents file rows ────────────────────── */
+.admin-card-file-name-wrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+.admin-card-file-name-wrap .admin-icon-video {
+  flex: 0 0 auto;
+  color: #60a5fa;
+  opacity: 0.9;
 }

@@ -83,6 +83,7 @@ function effectiveFlagValue(code, kind, serverValue) {
  * @returns {string} HTML
  */
 const ICON_NORMALIZE = '<svg class="admin-icon-normalize" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 4l6 6-10 10H4v-6z"/><line x1="14" y1="4" x2="20" y2="10"/></svg>';
+const ICON_PERSON = '<svg class="admin-icon-person" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>';
 
 function renderNormalizeButton(code) {
   const pendingStage = state.findPendingStage(code, 'normalize-folder');
@@ -145,9 +146,9 @@ export function renderCard(t) {
   let castHtml = '';
   if (t.actresses && t.actresses.length > 0) {
     const names = t.actresses.map(a => esc(a.name)).join(', ');
-    castHtml = `<div class="admin-card-cast">${names}</div>`;
+    castHtml = `<div class="admin-card-cast">${ICON_PERSON}<span class="admin-card-cast-names">${names}</span></div>`;
   } else if (t.actressName) {
-    castHtml = `<div class="admin-card-cast">${esc(t.actressName)}</div>`;
+    castHtml = `<div class="admin-card-cast">${ICON_PERSON}<span class="admin-card-cast-names">${esc(t.actressName)}</span></div>`;
   }
 
   // ── Header: tags ──────────────────────────────────────────────────────
