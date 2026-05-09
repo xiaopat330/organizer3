@@ -1,5 +1,6 @@
 package com.organizer3.titlefolder;
 
+import com.organizer3.config.volume.MediaConfig;
 import com.organizer3.db.SchemaInitializer;
 import com.organizer3.filesystem.VolumeFileSystem;
 import com.organizer3.model.Title;
@@ -279,6 +280,205 @@ class TitleFolderServiceTest {
         assertFalse(outcome.success());
         assertEquals("disk full", outcome.error());
         assertEquals(folder.resolve("cover.jpg"), outcome.source());
+    }
+
+    // ── listContents ──────────────────────────────────────────────────────
+
+    /** MediaConfig with only mp4/mkv as video and jpg/png as cover — keeps tests deterministic. */
+    private static final MediaConfig TEST_MEDIA = new MediaConfig(List.of("mp4", "mkv"), List.of("jpg", "png"));
+
+    private TitleFolderService serviceWithMedia() {
+        return new TitleFolderService(titleRepo, videoRepo, jdbi, TEST_MEDIA);
+    }
+
+    @Test
+    void listContents_missingFolder_returnsEmpty() throws Exception {
+        VolumeFileSystem fs = mock(VolumeFileSystem.class);
+        Path folder = Path.of("/stars/MIDE-500");
+        when(fs.exists(folder)).thenReturn(false);
+        when(fs.isDirectory(folder)).thenReturn(false);
+
+        var result = serviceWithMedia().listContents(fs, "MIDE-500", "a", folder);
+
+        assertTrue(result.videos().isEmpty());
+        assertTrue(result.covers().isEmpty());
+        assertTrue(result.otherFiles().isEmpty());
+        assertEquals("a", result.volumeId());
+    }
+
+    @Test
+    void listContents_emptyFolder_returnsEmpty() throws Exception {
+        VolumeFileSystem fs = mock(VolumeFileSystem.class);
+        Path folder = Path.of("/stars/MIDE-501");
+        when(fs.exists(folder)).thenReturn(true);
+        when(fs.isDirectory(folder)).thenReturn(true);
+        when(fs.listDirectory(folder)).thenReturn(List.of());
+
+        var result = serviceWithMedia().listContents(fs, "MIDE-501", "a", folder);
+
+        assertTrue(result.videos().isEmpty());
+        assertTrue(result.covers().isEmpty());
+        assertTrue(result.otherFiles().isEmpty());
+    }
+
+    @Test
+    void listContents_baseLevelCoverOnly() throws Exception {
+        VolumeFileSystem fs = mock(VolumeFileSystem.class);
+        Path folder = Path.of("/stars/MIDE-502");
+        Path cover  = folder.resolve("MIDE-502.jpg");
+        when(fs.exists(folder)).thenReturn(true);
+        when(fs.isDirectory(folder)).thenReturn(true);
+        when(fs.listDirectory(folder)).thenReturn(List.of(cover));
+        when(fs.isDirectory(cover)).thenReturn(false);
+        when(fs.size(cover)).thenReturn(280_000L);
+
+        var result = serviceWithMedia().listContents(fs, "MIDE-502", "a", folder);
+
+        assertTrue(result.videos().isEmpty());
+        assertEquals(1, result.covers().size());
+        assertEquals("MIDE-502.jpg", result.covers().get(0).filename());
+        assertEquals("MIDE-502.jpg", result.covers().get(0).relativePath());
+        assertEquals(280_000L, result.covers().get(0).sizeBytes());
+        assertTrue(result.otherFiles().isEmpty());
+    }
+
+    @Test
+    void listContents_videoInSubfolderAndCoverAtBase_canonicalLayout() throws Exception {
+        VolumeFileSystem fs = mock(VolumeFileSystem.class);
+        Path folder  = Path.of("/stars/MIDE-503");
+        Path subDir  = folder.resolve("video");
+        Path vidFile = subDir.resolve("MIDE-503.mp4");
+        Path cover   = folder.resolve("MIDE-503.jpg");
+
+        when(fs.exists(folder)).thenReturn(true);
+        when(fs.isDirectory(folder)).thenReturn(true);
+        when(fs.listDirectory(folder)).thenReturn(List.of(cover, subDir));
+        when(fs.isDirectory(cover)).thenReturn(false);
+        when(fs.isDirectory(subDir)).thenReturn(true);
+        when(fs.listDirectory(subDir)).thenReturn(List.of(vidFile));
+        when(fs.isDirectory(vidFile)).thenReturn(false);
+        when(fs.size(vidFile)).thenReturn(3_000_000_000L);
+        when(fs.size(cover)).thenReturn(280_000L);
+
+        var result = serviceWithMedia().listContents(fs, "MIDE-503", "a", folder);
+
+        assertEquals(1, result.videos().size());
+        assertEquals("MIDE-503.mp4", result.videos().get(0).filename());
+        assertEquals("video/MIDE-503.mp4", result.videos().get(0).relativePath());
+        assertEquals(1, result.covers().size());
+        assertEquals("MIDE-503.jpg", result.covers().get(0).filename());
+        assertTrue(result.otherFiles().isEmpty());
+    }
+
+    @Test
+    void listContents_videoAtBaseAndInSubfolder_layoutDrift() throws Exception {
+        VolumeFileSystem fs = mock(VolumeFileSystem.class);
+        Path folder      = Path.of("/stars/MIDE-504");
+        Path baseVideo   = folder.resolve("MIDE-504.mkv");
+        Path subDir      = folder.resolve("extras");
+        Path subVideo    = subDir.resolve("MIDE-504_extra.mp4");
+
+        when(fs.exists(folder)).thenReturn(true);
+        when(fs.isDirectory(folder)).thenReturn(true);
+        when(fs.listDirectory(folder)).thenReturn(List.of(baseVideo, subDir));
+        when(fs.isDirectory(baseVideo)).thenReturn(false);
+        when(fs.isDirectory(subDir)).thenReturn(true);
+        when(fs.listDirectory(subDir)).thenReturn(List.of(subVideo));
+        when(fs.isDirectory(subVideo)).thenReturn(false);
+        when(fs.size(baseVideo)).thenReturn(1_000L);
+        when(fs.size(subVideo)).thenReturn(2_000L);
+
+        var result = serviceWithMedia().listContents(fs, "MIDE-504", "a", folder);
+
+        assertEquals(2, result.videos().size());
+        // base-level video
+        assertTrue(result.videos().stream().anyMatch(v -> "MIDE-504.mkv".equals(v.filename())
+                && "MIDE-504.mkv".equals(v.relativePath())));
+        // subfolder video
+        assertTrue(result.videos().stream().anyMatch(v -> "MIDE-504_extra.mp4".equals(v.filename())
+                && "extras/MIDE-504_extra.mp4".equals(v.relativePath())));
+    }
+
+    @Test
+    void listContents_unrecognizedFile_goesToOtherFiles() throws Exception {
+        VolumeFileSystem fs = mock(VolumeFileSystem.class);
+        Path folder  = Path.of("/stars/MIDE-505");
+        Path notes   = folder.resolve("notes.txt");
+
+        when(fs.exists(folder)).thenReturn(true);
+        when(fs.isDirectory(folder)).thenReturn(true);
+        when(fs.listDirectory(folder)).thenReturn(List.of(notes));
+        when(fs.isDirectory(notes)).thenReturn(false);
+
+        var result = serviceWithMedia().listContents(fs, "MIDE-505", "a", folder);
+
+        assertTrue(result.videos().isEmpty());
+        assertTrue(result.covers().isEmpty());
+        assertEquals(List.of("notes.txt"), result.otherFiles());
+    }
+
+    @Test
+    void listContents_dbMetadataJoin_videoWithRowGetsMetadata_videoWithoutRowIsNull() throws Exception {
+        // Persist a title and ONE video row; list two files on disk.
+        long tid = titleRepo.save(title("MIDE-506")).getId();
+        Video saved = videoRepo.save(Video.builder()
+                .titleId(tid).volumeId("a").filename("MIDE-506.mp4")
+                .path(Path.of("/stars/MIDE-506/video/MIDE-506.mp4"))
+                .lastSeenAt(LocalDate.of(2026, 4, 1))
+                .sizeBytes(3_000_000_000L).durationSec(7200L)
+                .width(1920).height(1080).videoCodec("hevc").audioCodec("aac").container("mp4")
+                .build());
+
+        VolumeFileSystem fs = mock(VolumeFileSystem.class);
+        Path folder     = Path.of("/stars/MIDE-506");
+        Path subDir     = folder.resolve("video");
+        Path vidWithRow = subDir.resolve("MIDE-506.mp4");
+        Path vidNoRow   = subDir.resolve("MIDE-506_alt.mp4");
+
+        when(fs.exists(folder)).thenReturn(true);
+        when(fs.isDirectory(folder)).thenReturn(true);
+        when(fs.listDirectory(folder)).thenReturn(List.of(subDir));
+        when(fs.isDirectory(subDir)).thenReturn(true);
+        when(fs.listDirectory(subDir)).thenReturn(List.of(vidWithRow, vidNoRow));
+        when(fs.isDirectory(vidWithRow)).thenReturn(false);
+        when(fs.isDirectory(vidNoRow)).thenReturn(false);
+        when(fs.size(vidWithRow)).thenReturn(3_000_000_000L);
+        when(fs.size(vidNoRow)).thenReturn(500_000_000L);
+
+        var result = serviceWithMedia().listContents(fs, "MIDE-506", "a", folder);
+
+        assertEquals(2, result.videos().size());
+        TitleFolderService.FolderVideo withRow = result.videos().stream()
+                .filter(v -> "MIDE-506.mp4".equals(v.filename())).findFirst().orElseThrow();
+        assertEquals(saved.getId(), withRow.videoId());
+        assertEquals(7200L, withRow.durationSec());
+        assertEquals(1920, withRow.width());
+        assertEquals("hevc", withRow.videoCodec());
+
+        TitleFolderService.FolderVideo noRow = result.videos().stream()
+                .filter(v -> "MIDE-506_alt.mp4".equals(v.filename())).findFirst().orElseThrow();
+        assertNull(noRow.videoId());
+        assertNull(noRow.durationSec());
+        assertNull(noRow.width());
+    }
+
+    @Test
+    void listContents_sizeIoException_treatedAsNull() throws Exception {
+        VolumeFileSystem fs = mock(VolumeFileSystem.class);
+        Path folder = Path.of("/stars/MIDE-507");
+        Path cover  = folder.resolve("MIDE-507.jpg");
+
+        when(fs.exists(folder)).thenReturn(true);
+        when(fs.isDirectory(folder)).thenReturn(true);
+        when(fs.listDirectory(folder)).thenReturn(List.of(cover));
+        when(fs.isDirectory(cover)).thenReturn(false);
+        when(fs.size(cover)).thenThrow(new IOException("NAS hiccup"));
+
+        // Should not throw — size silently becomes null.
+        var result = serviceWithMedia().listContents(fs, "MIDE-507", "a", folder);
+
+        assertEquals(1, result.covers().size());
+        assertNull(result.covers().get(0).sizeBytes());
     }
 
     // ── helpers ────────────────────────────────────────────────────────────

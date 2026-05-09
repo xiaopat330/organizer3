@@ -1,5 +1,6 @@
 package com.organizer3.titlefolder;
 
+import com.organizer3.config.volume.MediaConfig;
 import com.organizer3.filesystem.VolumeFileSystem;
 import com.organizer3.model.Title;
 import com.organizer3.model.Video;
@@ -11,8 +12,10 @@ import org.jdbi.v3.core.Jdbi;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 
@@ -47,11 +50,20 @@ public class TitleFolderService {
     private final TitleRepository titleRepo;
     private final VideoRepository videoRepo;
     private final Jdbi jdbi;
+    private final MediaConfig mediaConfig;
 
+    /** Backwards-compatible 3-arg constructor; uses {@link MediaConfig#DEFAULTS}. */
     public TitleFolderService(TitleRepository titleRepo, VideoRepository videoRepo, Jdbi jdbi) {
-        this.titleRepo = titleRepo;
-        this.videoRepo = videoRepo;
-        this.jdbi      = jdbi;
+        this(titleRepo, videoRepo, jdbi, MediaConfig.DEFAULTS);
+    }
+
+    /** Full constructor — callers that need non-default extension classification inject MediaConfig. */
+    public TitleFolderService(TitleRepository titleRepo, VideoRepository videoRepo,
+                              Jdbi jdbi, MediaConfig mediaConfig) {
+        this.titleRepo   = titleRepo;
+        this.videoRepo   = videoRepo;
+        this.jdbi        = jdbi;
+        this.mediaConfig = mediaConfig != null ? mediaConfig : MediaConfig.DEFAULTS;
     }
 
     // ── Pure DB analysis ───────────────────────────────────────────────────
@@ -202,6 +214,133 @@ public class TitleFolderService {
         }
     }
 
+    // ── Folder contents listing (FS + DB merge) ───────────────────────────
+
+    /**
+     * Returns the merged FS-listed + DB-metadata view of a title's single folder.
+     * Walks the base folder and one level of subdirectories (the canonical layout
+     * places videos under {@code video/}, {@code h265/}, {@code 4K/}, etc.).
+     *
+     * <p>Each non-directory file is classified by its extension:
+     * <ul>
+     *   <li>video extension → {@link FolderContents#videos()}, joined to the DB row when available
+     *   <li>cover extension → {@link FolderContents#covers()}, size from FS
+     *   <li>otherwise → {@link FolderContents#otherFiles()} as a relative-to-folder path string
+     * </ul>
+     *
+     * <p>If the folder does not exist or is not a directory, returns an empty {@link FolderContents}.
+     *
+     * <p>The filename→Video map is keyed by filename only (not path); for videos with the same
+     * filename in two subdirectories of one folder, the last one seen wins — this is a degenerate
+     * layout that §4.4 normalisation will surface and fix.
+     */
+    public FolderContents listContents(VolumeFileSystem fs, String titleCode,
+                                       String volumeId, Path folder) {
+        if (!fs.exists(folder) || !fs.isDirectory(folder)) {
+            return new FolderContents(volumeId, folder.toString(), List.of(), List.of(), List.of());
+        }
+
+        // Build filename→Video map once (all videos for title regardless of volume; we're on a
+        // single-location title so volume filtering is superfluous but harmless).
+        Map<String, Video> videoByFilename = new HashMap<>();
+        if (titleRepo != null) {
+            Title title = titleRepo.findByCode(titleCode).orElse(null);
+            if (title != null && videoRepo != null) {
+                for (Video v : videoRepo.findByTitle(title.getId())) {
+                    // Last write wins on filename collision (degenerate layout corner case).
+                    videoByFilename.put(v.getFilename(), v);
+                }
+            }
+        }
+
+        Set<String> videoExts = Set.copyOf(
+                mediaConfig.effectiveVideoExtensions().stream()
+                        .map(e -> e.toLowerCase(Locale.ROOT)).toList());
+        Set<String> coverExts = Set.copyOf(
+                mediaConfig.effectiveCoverExtensions().stream()
+                        .map(e -> e.toLowerCase(Locale.ROOT)).toList());
+
+        List<FolderVideo> videos   = new ArrayList<>();
+        List<FolderCover> covers   = new ArrayList<>();
+        List<String>      others   = new ArrayList<>();
+
+        List<Path> baseLevelChildren;
+        try {
+            baseLevelChildren = fs.listDirectory(folder);
+        } catch (IOException e) {
+            // If we can't list the folder at all, return empty rather than blowing up.
+            return new FolderContents(volumeId, folder.toString(), List.of(), List.of(), List.of());
+        }
+
+        for (Path child : baseLevelChildren) {
+            if (fs.isDirectory(child)) {
+                // Walk one level into subdirectory — per canonical layout, videos live in
+                // video/, h265/, 4K/ etc. We don't recurse further (Phase 5 concern).
+                try {
+                    for (Path sub : fs.listDirectory(child)) {
+                        if (!fs.isDirectory(sub)) {
+                            classifyFile(fs, sub, folder, videoExts, coverExts,
+                                    videoByFilename, videos, covers, others);
+                        }
+                    }
+                } catch (IOException ignored) {
+                    // Unreadable subdirectory — skip, don't fail the whole listing.
+                }
+            } else {
+                classifyFile(fs, child, folder, videoExts, coverExts,
+                        videoByFilename, videos, covers, others);
+            }
+        }
+
+        return new FolderContents(volumeId, folder.toString(), videos, covers, others);
+    }
+
+    private void classifyFile(VolumeFileSystem fs, Path file, Path folder,
+                              Set<String> videoExts, Set<String> coverExts,
+                              Map<String, Video> videoByFilename,
+                              List<FolderVideo> videos, List<FolderCover> covers,
+                              List<String> others) {
+        Path nameOnly = file.getFileName();
+        if (nameOnly == null) return;
+        String filename = nameOnly.toString();
+        String ext      = extensionOf(filename);
+        // relativePath is forward-slash separated (folder uses Unix-style Path.of).
+        String relativePath = folder.relativize(file).toString();
+
+        if (videoExts.contains(ext)) {
+            Long sizeBytes = sizeQuiet(fs, file);
+            Video dbRow = videoByFilename.get(filename);
+            if (dbRow != null) {
+                videos.add(new FolderVideo(filename, relativePath, sizeBytes,
+                        dbRow.getId(), dbRow.getDurationSec(),
+                        dbRow.getWidth(), dbRow.getHeight(),
+                        dbRow.getVideoCodec(), dbRow.getAudioCodec(), dbRow.getContainer()));
+            } else {
+                videos.add(new FolderVideo(filename, relativePath, sizeBytes,
+                        null, null, null, null, null, null, null));
+            }
+        } else if (coverExts.contains(ext)) {
+            Long sizeBytes = sizeQuiet(fs, file);
+            covers.add(new FolderCover(filename, relativePath, sizeBytes));
+        } else {
+            others.add(relativePath);
+        }
+    }
+
+    private static String extensionOf(String filename) {
+        int dot = filename.lastIndexOf('.');
+        if (dot < 0 || dot == filename.length() - 1) return "";
+        return filename.substring(dot + 1).toLowerCase(Locale.ROOT);
+    }
+
+    private static Long sizeQuiet(VolumeFileSystem fs, Path file) {
+        try {
+            return fs.size(file);
+        } catch (IOException e) {
+            return null;
+        }
+    }
+
     // ── Result records ─────────────────────────────────────────────────────
 
     public record AnalysisResult(long titleId, String titleCode, int videoCount,
@@ -225,4 +364,22 @@ public class TitleFolderService {
             return new TrashOutcome(false, source, null, error);
         }
     }
+
+    /** Merged FS + DB view of a title's single folder. */
+    public record FolderContents(String volumeId, String folderPath,
+                                 List<FolderVideo> videos,
+                                 List<FolderCover> covers,
+                                 List<String> otherFiles) {}
+
+    /**
+     * A video file found inside the title folder (base or one level of subdirectory).
+     * DB-metadata fields are null when the file is on disk but not indexed.
+     */
+    public record FolderVideo(String filename, String relativePath, Long sizeBytes,
+                              Long videoId, Long durationSec,
+                              Integer width, Integer height,
+                              String videoCodec, String audioCodec, String container) {}
+
+    /** A cover-image file found at the title folder base. */
+    public record FolderCover(String filename, String relativePath, Long sizeBytes) {}
 }

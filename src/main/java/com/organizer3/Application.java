@@ -1024,6 +1024,16 @@ public class Application {
         webServer.registerTitleTagEditor(
                 new com.organizer3.web.routes.TitleTagEditorRoutes(jdbi, titleRepo, titleEffectiveTagsService));
 
+        // Actress Admin tab — folder-contents HTTP routes (Phase 4b of PROPOSAL_ACTRESS_TITLE_ADMIN).
+        // Mounts only the three new endpoints; base TitleRoutes already registered by WebServer init.
+        com.organizer3.titlefolder.TitleFolderService titleFolderService =
+                new com.organizer3.titlefolder.TitleFolderService(
+                        titleRepo, videoRepo, jdbi, config.mediaOrDefaults());
+        webServer.registerTitleFolderContents(
+                new com.organizer3.web.routes.TitleRoutes(
+                        browseService, actressBrowseService, titleRepo,
+                        titleFolderService, smbConnectionFactory, config, videoRepo));
+
         // Title Editor — metadata preparation for fully-structured titles in the unsorted volume.
         // See spec/PROPOSAL_TITLE_EDITOR.md.
         final String UNSORTED_VOLUME_ID = "unsorted";

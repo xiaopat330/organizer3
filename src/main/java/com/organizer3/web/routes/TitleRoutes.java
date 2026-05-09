@@ -1,7 +1,15 @@
 package com.organizer3.web.routes;
 
+import com.organizer3.config.volume.OrganizerConfig;
+import com.organizer3.config.volume.ServerConfig;
+import com.organizer3.config.volume.VolumeConfig;
 import com.organizer3.model.Title;
+import com.organizer3.model.Video;
 import com.organizer3.repository.TitleRepository;
+import com.organizer3.repository.VideoRepository;
+import com.organizer3.smb.SmbConnectionFactory;
+import com.organizer3.titlefolder.TitleFolderService;
+import com.organizer3.trash.Trash;
 import com.organizer3.web.ActressBrowseService;
 import com.organizer3.web.TagCatalogLoader;
 import com.organizer3.web.TitleBrowseService;
@@ -9,8 +17,12 @@ import com.organizer3.web.TitleBrowseService.FlagResult;
 import io.javalin.Javalin;
 import lombok.extern.slf4j.Slf4j;
 
+import java.io.IOException;
+import java.nio.file.Path;
+import java.time.Clock;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 /**
  * Title-browse routes: /api/titles/*, /api/labels/*, /api/tags, /api/tools/*,
@@ -26,13 +38,33 @@ public class TitleRoutes {
     private final TitleBrowseService browseService;
     private final ActressBrowseService actressBrowseService;
     private final TitleRepository titleRepo;
+    private final TitleFolderService folderService;
+    private final SmbConnectionFactory smbFactory;
+    private final OrganizerConfig organizerConfig;
+    private final VideoRepository videoRepo;
 
+    /** Backwards-compatible 3-arg constructor; folder-contents routes are inactive. */
     public TitleRoutes(TitleBrowseService browseService,
                        ActressBrowseService actressBrowseService,
                        TitleRepository titleRepo) {
-        this.browseService = browseService;
+        this(browseService, actressBrowseService, titleRepo, null, null, null, null);
+    }
+
+    /** Full constructor — injects folder-contents dependencies to activate the three new routes. */
+    public TitleRoutes(TitleBrowseService browseService,
+                       ActressBrowseService actressBrowseService,
+                       TitleRepository titleRepo,
+                       TitleFolderService folderService,
+                       SmbConnectionFactory smbFactory,
+                       OrganizerConfig organizerConfig,
+                       VideoRepository videoRepo) {
+        this.browseService        = browseService;
         this.actressBrowseService = actressBrowseService;
-        this.titleRepo = titleRepo;
+        this.titleRepo            = titleRepo;
+        this.folderService        = folderService;
+        this.smbFactory           = smbFactory;
+        this.organizerConfig      = organizerConfig;
+        this.videoRepo            = videoRepo;
     }
 
     public void register(Javalin app) {
@@ -231,5 +263,176 @@ public class TitleRoutes {
                         "bookmark", state.bookmark(), "rejected", state.rejected()));
             }
         });
+
+        if (folderService != null && smbFactory != null && organizerConfig != null) {
+            registerFolderContentsRoutes(app);
+        }
+    }
+
+    /**
+     * Registers only the three folder-contents routes. Called by
+     * {@code WebServer.registerTitleFolderContents} after the 3-arg TitleRoutes have already
+     * registered the base title routes; avoids double-registering everything.
+     */
+    public void registerFolderContentsOnly(Javalin app) {
+        if (folderService != null && smbFactory != null && organizerConfig != null) {
+            registerFolderContentsRoutes(app);
+        }
+    }
+
+    private void registerFolderContentsRoutes(Javalin app) {
+        // ── GET /api/titles/{code}/folder-contents ─────────────────────────────
+        app.get("/api/titles/{code}/folder-contents", ctx -> {
+            String code = ctx.pathParam("code");
+            Title title = titleRepo.findByCode(code).orElse(null);
+            if (title == null) {
+                ctx.status(404).json(Map.of("error", "Title not found"));
+                return;
+            }
+            List<?> locs = title.getLocations();
+            if (locs.size() != 1) {
+                ctx.status(400).json(Map.of("error",
+                        "title has " + locs.size() + " locations; folder-contents requires exactly 1"));
+                return;
+            }
+
+            String volumeId = title.getVolumeId();
+            Path folder     = title.getPath();
+            try (var handle = smbFactory.open(volumeId)) {
+                var fs = handle.fileSystem();
+                var contents = folderService.listContents(fs, code, volumeId, folder);
+                ctx.json(contents);
+            } catch (IOException e) {
+                log.warn("GET folder-contents failed for {} — {}", code, e.getMessage());
+                ctx.status(500).json(Map.of("error", "Could not open volume: " + e.getMessage()));
+            }
+        });
+
+        // ── POST /api/titles/{code}/videos/{filename}/trash ────────────────────
+        app.post("/api/titles/{code}/videos/{filename}/trash", ctx -> {
+            String code     = ctx.pathParam("code");
+            String filename = ctx.pathParam("filename"); // Javalin URL-decodes path params
+
+            Title title = titleRepo.findByCode(code).orElse(null);
+            if (title == null) {
+                ctx.status(404).json(Map.of("error", "Title not found"));
+                return;
+            }
+            List<?> locs = title.getLocations();
+            if (locs.size() != 1) {
+                ctx.status(400).json(Map.of("error",
+                        "title has " + locs.size() + " locations; folder-contents requires exactly 1"));
+                return;
+            }
+
+            // Look up the Video DB row for this title + filename.
+            Optional<Video> videoOpt = videoRepo.findByTitle(title.getId()).stream()
+                    .filter(v -> filename.equals(v.getFilename()))
+                    .findFirst();
+            if (videoOpt.isEmpty()) {
+                ctx.status(404).json(Map.of("error", "video not found in this title's folder"));
+                return;
+            }
+            Video video = videoOpt.get();
+
+            String volumeId = title.getVolumeId();
+            try {
+                Trash trash = buildTrash(volumeId, Clock.systemUTC());
+                TitleFolderService.TrashOutcome outcome =
+                        folderService.trashVideo(trash, video, "Admin tab — per-row trash");
+                if (outcome.success()) {
+                    log.info("HTTP trash video — code={} filename={} trashedTo={}", code, filename, outcome.trashedTo());
+                    ctx.json(Map.of("success", true, "trashedTo", outcome.trashedTo().toString()));
+                } else {
+                    log.warn("HTTP trash video failed — code={} filename={} error={}", code, filename, outcome.error());
+                    ctx.status(500).json(Map.of("error", outcome.error()));
+                }
+            } catch (IllegalArgumentException e) {
+                ctx.status(400).json(Map.of("error", e.getMessage()));
+            } catch (IOException e) {
+                log.warn("HTTP trash video IO error — code={} filename={} error={}", code, filename, e.getMessage());
+                ctx.status(500).json(Map.of("error", "Could not open volume: " + e.getMessage()));
+            }
+        });
+
+        // ── POST /api/titles/{code}/covers/{filename}/trash ────────────────────
+        app.post("/api/titles/{code}/covers/{filename}/trash", ctx -> {
+            String code     = ctx.pathParam("code");
+            String filename = ctx.pathParam("filename"); // Javalin URL-decodes path params
+
+            // Reject filenames that contain path separators — base-level only.
+            if (filename.contains("/") || filename.contains("\\")
+                    || filename.equals(".") || filename.equals("..")) {
+                ctx.status(400).json(Map.of("error", "filename must be a base-level filename"));
+                return;
+            }
+
+            Title title = titleRepo.findByCode(code).orElse(null);
+            if (title == null) {
+                ctx.status(404).json(Map.of("error", "Title not found"));
+                return;
+            }
+            List<?> locs = title.getLocations();
+            if (locs.size() != 1) {
+                ctx.status(400).json(Map.of("error",
+                        "title has " + locs.size() + " locations; folder-contents requires exactly 1"));
+                return;
+            }
+
+            String volumeId = title.getVolumeId();
+            Path folder     = title.getPath();
+
+            // Path-traversal guard: resolved path must stay within folder.
+            Path resolved  = folder.resolve(filename).normalize();
+            Path normalFolder = folder.normalize();
+            if (!resolved.startsWith(normalFolder) || resolved.equals(normalFolder)) {
+                ctx.status(400).json(Map.of("error", "filename must be a base-level filename"));
+                return;
+            }
+
+            try (var handle = smbFactory.open(volumeId)) {
+                var fs = handle.fileSystem();
+                if (!fs.exists(resolved)) {
+                    ctx.status(404).json(Map.of("error", "cover not found at title folder base"));
+                    return;
+                }
+
+                Trash trash = buildTrash(volumeId, Clock.systemUTC());
+                TitleFolderService.TrashOutcome outcome =
+                        folderService.trashCover(trash, folder, filename, "Admin tab — per-row trash");
+                if (outcome.success()) {
+                    log.info("HTTP trash cover — code={} filename={} trashedTo={}", code, filename, outcome.trashedTo());
+                    ctx.json(Map.of("success", true, "trashedTo", outcome.trashedTo().toString()));
+                } else {
+                    log.warn("HTTP trash cover failed — code={} filename={} error={}", code, filename, outcome.error());
+                    ctx.status(500).json(Map.of("error", outcome.error()));
+                }
+            } catch (IllegalArgumentException e) {
+                ctx.status(400).json(Map.of("error", e.getMessage()));
+            } catch (IOException e) {
+                log.warn("HTTP trash cover IO error — code={} filename={} error={}", code, filename, e.getMessage());
+                ctx.status(500).json(Map.of("error", "Could not open volume: " + e.getMessage()));
+            }
+        });
+    }
+
+    /**
+     * Builds a {@link Trash} primitive for the given volume.
+     *
+     * @throws IllegalArgumentException if the volume or server is not configured or has no trash folder
+     * @throws IOException if the SMB share cannot be opened
+     */
+    private Trash buildTrash(String volumeId, Clock clock) throws IOException {
+        VolumeConfig vol = organizerConfig.findById(volumeId).orElseThrow(
+                () -> new IllegalArgumentException("Volume not in config: " + volumeId));
+        ServerConfig srv = organizerConfig.findServerById(vol.server()).orElseThrow(
+                () -> new IllegalArgumentException("Server not in config: " + vol.server()));
+        if (srv.trash() == null || srv.trash().isBlank()) {
+            throw new IllegalArgumentException(
+                    "Server '" + srv.id() + "' has no 'trash:' folder configured.");
+        }
+        var handle = smbFactory.open(volumeId);
+        var fs     = handle.fileSystem();
+        return new Trash(fs, volumeId, srv.trash(), clock);
     }
 }
