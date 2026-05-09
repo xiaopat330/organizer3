@@ -212,10 +212,12 @@ function renderPlanModal(dialog, code, plan) {
     <form method="dialog" class="normalize-modal-inner" novalidate>
       <div class="normalize-modal-title">Normalize folder: <code>${esc(code)}</code></div>
       <div class="normalize-modal-path">${esc(plan.folderPath || '')}</div>
-      ${alreadyMsg}
-      ${renamesSection}
-      ${movesSection}
-      ${canonicalSection}
+      <div class="normalize-modal-body">
+        ${alreadyMsg}
+        ${renamesSection}
+        ${movesSection}
+        ${canonicalSection}
+      </div>
       <div class="normalize-modal-footer">
         <button type="button" class="normalize-modal-cancel-btn">Cancel</button>
         <button type="button" class="normalize-modal-stage-btn" ${hasSomethingToDo ? '' : 'disabled'}>
@@ -238,6 +240,27 @@ function renderPlanModal(dialog, code, plan) {
       renderCardInPlace(code);
     });
   }
+
+  // Live validation: red-flag conflict inputs that are checked but empty.
+  // Runs on input change and on checkbox toggle so the state stays in sync.
+  function refreshConflictInputFlags() {
+    for (const row of dialog.querySelectorAll('.normalize-modal-row-conflict')) {
+      const chk = row.querySelector('.nm-entry-check');
+      const inp = row.querySelector('.nm-entry-input-conflict');
+      if (!inp) continue;
+      const needsValue = chk && chk.checked;
+      const isEmpty    = inp.value.trim() === '';
+      inp.classList.toggle('nm-entry-input-needs-attention', needsValue && isEmpty);
+    }
+  }
+
+  dialog.querySelectorAll('.nm-entry-input-conflict').forEach(inp => {
+    inp.addEventListener('input', refreshConflictInputFlags);
+  });
+  dialog.querySelectorAll('.nm-entry-check').forEach(chk => {
+    chk.addEventListener('change', refreshConflictInputFlags);
+  });
+  refreshConflictInputFlags();
 }
 
 // ── Row renderers ──────────────────────────────────────────────────────────────
@@ -252,15 +275,17 @@ function renderRenameRow(entry, idx) {
       <div class="normalize-modal-row normalize-modal-row-conflict" data-idx="${idx}" data-from="${esc(entry.from)}" data-kind="${esc(entry.kind)}">
         <label class="normalize-modal-check-label">
           <input type="checkbox" class="nm-entry-check" id="${esc(checkId)}" data-idx="${idx}" checked>
-          <span class="normalize-modal-from normalize-modal-conflict-label" title="${esc(entry.from)}">
-            ${esc(entry.from)}
-            <span class="normalize-modal-conflict-badge">⚠ conflict — enter target name</span>
-          </span>
+          <span class="normalize-modal-from" title="${esc(entry.from)}">${esc(entry.from)}</span>
         </label>
-        <span class="normalize-modal-arrow">→</span>
-        <input type="text" class="nm-entry-input" id="${esc(inputId)}" data-idx="${idx}"
-               placeholder="e.g. ${esc(entry.kind === 'cover' ? 'ABC-123.jpg' : 'ABC-123_disc1.mp4')}"
-               value="" autocomplete="off">
+        <div class="normalize-modal-conflict-badge-row">
+          <span class="normalize-modal-conflict-badge">⚠ conflict — enter target name</span>
+        </div>
+        <div class="normalize-modal-conflict-input-row">
+          <span class="normalize-modal-arrow">→</span>
+          <input type="text" class="nm-entry-input nm-entry-input-conflict" id="${esc(inputId)}" data-idx="${idx}"
+                 placeholder="e.g. ${esc(entry.kind === 'cover' ? 'ABC-123.jpg' : 'ABC-123_disc1.mp4')}"
+                 value="" autocomplete="off">
+        </div>
       </div>`;
   }
 

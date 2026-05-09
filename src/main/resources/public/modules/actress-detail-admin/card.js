@@ -20,12 +20,13 @@
 // §4.3 lazy-fetch: decisions are fetched in attachCardListeners when the card
 // first needs them, cached on titleData._dupDecisions, and used on re-renders.
 
-import { esc, ageAtDate, agePillTier } from '../utils.js';
+import { esc, ageAtDate, agePillTier, fmtDate } from '../utils.js';
 import { ICON_FAV_LG, ICON_BM_LG, ICON_REJ_LG, gradeBadgeHtml, tagBadgeHtml } from '../icons.js';
 import * as state from './state.js';
 import { commitCard, cancelCard } from './commit.js';
 import { renderFolderContents, ensureFolderContents, attachFolderListeners, isFolderContentsError, folderContentsErrorMsg } from './folder-contents.js';
 import { openNormalizeModal } from './normalize-modal.js';
+import { renderDupSection, attachDupCardListeners } from './dup-cards.js';
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -68,81 +69,8 @@ function effectiveFlagValue(code, kind, serverValue) {
   return stage ? stage.payload.target : serverValue;
 }
 
-/**
- * Opaque sub-key for a duplicate-decision stage, encoding (volumeId, nasPath).
- * @param {string} volumeId
- * @param {string} nasPath
- * @returns {string}
- */
-function dupKey(volumeId, nasPath) {
-  return `${volumeId}::${nasPath}`;
-}
-
-// ── §4.3 Duplicate-triage section ───────────────────────────────────────────
-
-/**
- * Render the duplicate-triage section for a multi-location title.
- * @param {string} code  Title code
- * @param {Array}  locationEntries  Array of {volumeId, nasPath, locPath}
- * @param {Array|null} serverDecisions  Array of DuplicateDecision objects from server, or null (still loading)
- * @returns {string} HTML
- */
-function renderDupSection(code, locationEntries, serverDecisions) {
-  if (!locationEntries || locationEntries.length < 2) return '';
-
-  // Build a lookup map from dupKey → server decision value ('KEEP'|'TRASH'|'VARIANT'|undefined)
-  const serverDecMap = new Map();
-  if (serverDecisions) {
-    for (const d of serverDecisions) {
-      serverDecMap.set(dupKey(d.volumeId, d.nasPath), d.decision);
-    }
-  }
-
-  const rowsHtml = locationEntries.map(loc => {
-    const key = dupKey(loc.volumeId, loc.nasPath);
-    const serverDec = serverDecMap.get(key) || null; // 'KEEP'|'TRASH'|'VARIANT'|null
-    const pendingStage = state.findPendingStage(code, 'duplicate-decision', key);
-
-    // Effective decision: staged payload overrides server (XOR pattern)
-    const effDec = pendingStage ? pendingStage.payload.decision : serverDec;
-    const isStaged = !!pendingStage;
-
-    // Each button: active = this is the effective decision; staged = there's a pending stage
-    const btnHtml = (label, value) => {
-      const isActive = effDec === value;
-      const classes = [
-        'admin-card-dup-btn',
-        `admin-card-dup-btn-${label.toLowerCase()}`,
-        isActive ? 'active' : '',
-        (isActive && isStaged) ? 'staged' : '',
-      ].filter(Boolean).join(' ');
-      return `<button class="${classes}" data-dup-action="${esc(value)}" data-volume-id="${esc(loc.volumeId)}" data-nas-path="${esc(loc.nasPath)}">${label}</button>`;
-    };
-
-    // Truncate long paths for display
-    const displayPath = loc.locPath || loc.nasPath || '';
-
-    return `
-      <div class="admin-card-dup-row">
-        <span class="admin-card-dup-volume">${esc(loc.volumeId)}</span>
-        <span class="admin-card-dup-path" title="${esc(displayPath)}">${esc(displayPath)}</span>
-        <div class="admin-card-dup-actions">
-          ${btnHtml('Keep', 'KEEP')}${btnHtml('Trash', 'TRASH')}${btnHtml('Variant', 'VARIANT')}
-        </div>
-      </div>`;
-  }).join('');
-
-  const loadingNote = serverDecisions === null
-    ? '<div class="admin-card-dup-loading">Loading decisions…</div>'
-    : '';
-
-  return `
-    <div class="admin-card-dup-section">
-      <div class="admin-card-dup-section-title">Duplicate folders</div>
-      ${loadingNote}
-      ${rowsHtml}
-    </div>`;
-}
+// ── §4.3 Duplicate-triage section — delegated to dup-cards.js ───────────────
+// renderDupSection and dupKey are imported from ./dup-cards.js above.
 
 // ── §4.4.1 Normalize folder button ───────────────────────────────────────────
 
@@ -154,18 +82,22 @@ function renderDupSection(code, locationEntries, serverDecisions) {
  * @param {string} code
  * @returns {string} HTML
  */
+const ICON_NORMALIZE = '<svg class="admin-icon-normalize" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 4l6 6-10 10H4v-6z"/><line x1="14" y1="4" x2="20" y2="10"/></svg>';
+const ICON_PERSON = '<svg class="admin-icon-person" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>';
+const ICON_CAL    = '<svg class="admin-icon-cal" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8"  y1="2" x2="8"  y2="6"/><line x1="3"  y1="10" x2="21" y2="10"/></svg>';
+
 function renderNormalizeButton(code) {
   const pendingStage = state.findPendingStage(code, 'normalize-folder');
   if (pendingStage) {
     return `
       <div class="admin-card-normalize-row">
-        <span class="admin-card-normalize-staged">Normalize staged*</span>
+        <span class="admin-card-normalize-staged">${ICON_NORMALIZE} Normalize staged*</span>
         <button class="admin-card-normalize-undo-btn" data-normalize-action="undo-normalize">Undo</button>
       </div>`;
   }
   return `
     <div class="admin-card-normalize-row">
-      <button class="admin-card-normalize-btn" data-normalize-action="open-modal">Normalize folder…</button>
+      <button class="admin-card-normalize-btn" data-normalize-action="open-modal">${ICON_NORMALIZE} Normalize folder…</button>
     </div>`;
 }
 
@@ -205,19 +137,26 @@ export function renderCard(t) {
     if (t.labelName)   lp.push(`(${esc(t.labelName)})`);
     metaParts.push(lp.join(' '));
   }
-  const displayDate = t.releaseDate || t.addedDate;
-  if (displayDate) metaParts.push(esc(displayDate));
   const metaLineHtml = metaParts.length > 0
     ? `<div class="admin-card-meta-line">${metaParts.join(' · ')}</div>`
     : '';
+
+  // Date row — separate from studio/label since the meaning differs.
+  // releaseDate is the actual disc release; addedDate is when we synced it locally.
+  let dateRowHtml = '';
+  if (t.releaseDate) {
+    dateRowHtml = `<div class="admin-card-date-row">${ICON_CAL}<span class="admin-card-date-label">Released</span><span class="admin-card-date-value">${esc(fmtDate(t.releaseDate))}</span></div>`;
+  } else if (t.addedDate) {
+    dateRowHtml = `<div class="admin-card-date-row">${ICON_CAL}<span class="admin-card-date-label">Added to library</span><span class="admin-card-date-value">${esc(fmtDate(t.addedDate))}</span></div>`;
+  }
 
   // ── Header: cast ──────────────────────────────────────────────────────
   let castHtml = '';
   if (t.actresses && t.actresses.length > 0) {
     const names = t.actresses.map(a => esc(a.name)).join(', ');
-    castHtml = `<div class="admin-card-cast">${names}</div>`;
+    castHtml = `<div class="admin-card-cast">${ICON_PERSON}<span class="admin-card-cast-names">${names}</span></div>`;
   } else if (t.actressName) {
-    castHtml = `<div class="admin-card-cast">${esc(t.actressName)}</div>`;
+    castHtml = `<div class="admin-card-cast">${ICON_PERSON}<span class="admin-card-cast-names">${esc(t.actressName)}</span></div>`;
   }
 
   // ── Header: tags ──────────────────────────────────────────────────────
@@ -262,6 +201,7 @@ export function renderCard(t) {
         ${titleEnHtml}
         ${titleJaHtml}
         ${metaLineHtml}
+        ${dateRowHtml}
         ${castHtml}
         ${tagsHtml}
         ${gradeAgeHtml}
@@ -463,61 +403,41 @@ export function attachCardListeners(code) {
     }
   }
 
-  // §4.3 Lazy-fetch duplicate decisions for multi-location titles.
-  // If decisions are not yet cached (_dupDecisions not set), fetch and re-render.
-  // The check uses hasOwnProperty so that null (loaded, empty) is distinguished
-  // from undefined (not yet fetched).
+  // §4.3 Lazy-fetch duplicate decisions + per-location videos in parallel for
+  // multi-location titles. Both gate `null = in-flight`, missing prop = not
+  // started, value = loaded. We re-render once when both settle so the user
+  // sees one transition (loading → loaded) instead of three (loading → decisions →
+  // videos).
   if (locationEntries.length > 1 && !Object.prototype.hasOwnProperty.call(titleData, '_dupDecisions')) {
-    // Mark as "in flight" with null so concurrent re-renders don't double-fetch.
     titleData._dupDecisions = null;
-    fetch(`/api/titles/${encodeURIComponent(code)}/duplicate-decisions`)
+    titleData._locVideos    = null;
+
+    const decFetch = fetch(`/api/titles/${encodeURIComponent(code)}/duplicate-decisions`)
       .then(res => res.ok ? res.json() : Promise.reject(new Error(`HTTP ${res.status}`)))
-      .then(decisions => {
-        titleData._dupDecisions = decisions;
-        renderCardInPlace(code);
+      .then(decisions => { titleData._dupDecisions = decisions; })
+      .catch(() => { delete titleData._dupDecisions; });
+
+    const vidFetch = Promise.all(
+      locationEntries.map(async loc => {
+        const key = `${loc.volumeId}::${loc.nasPath}`;
+        let url = `/api/titles/${encodeURIComponent(code)}/videos?volumeId=${encodeURIComponent(loc.volumeId)}`;
+        if (loc.locPath) url += `&locPath=${encodeURIComponent(loc.locPath)}`;
+        try {
+          const res = await fetch(url);
+          return [key, res.ok ? await res.json() : []];
+        } catch {
+          return [key, []];
+        }
       })
-      .catch(() => {
-        // On error, leave _dupDecisions as null so the "Loading…" note stays.
-        // A re-render triggered by another action will retry.
-        delete titleData._dupDecisions;
-      });
+    ).then(pairs => { titleData._locVideos = new Map(pairs); });
+
+    Promise.allSettled([decFetch, vidFetch]).then(() => renderCardInPlace(code));
   }
 
-  // §4.3 Duplicate-decision action buttons
-  card.querySelectorAll('.admin-card-dup-btn[data-dup-action]').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const clickedDecision = btn.dataset.dupAction; // 'KEEP'|'TRASH'|'VARIANT'
-      const volumeId = btn.dataset.volumeId;
-      const nasPath  = btn.dataset.nasPath;
-      const key = dupKey(volumeId, nasPath);
-
-      const pendingStage = state.findPendingStage(code, 'duplicate-decision', key);
-
-      // Effective decision: staged payload OR server value
-      const serverDec = (() => {
-        const decs = titleData._dupDecisions;
-        if (!Array.isArray(decs)) return null;
-        const d = decs.find(d => d.volumeId === volumeId && d.nasPath === nasPath);
-        return d ? d.decision : null;
-      })();
-      const effDec = pendingStage ? pendingStage.payload.decision : serverDec;
-
-      if (clickedDecision === effDec) {
-        // Clicking the currently-active button: un-stage the pending change.
-        // If there was a server-side decision, stage a DELETE (decision: null).
-        // If no server decision, just remove the stage (no-op on server).
-        state.removePendingStage(code, 'duplicate-decision', key);
-        if (serverDec !== null) {
-          state.addStage(code, 'duplicate-decision', { volumeId, nasPath, decision: null }, key);
-        }
-      } else {
-        // Clicking a different button: stage a PUT with the new decision.
-        state.addStage(code, 'duplicate-decision', { volumeId, nasPath, decision: clickedDecision }, key);
-      }
-
-      renderCardInPlace(code);
-    });
-  });
+  // §4.3 Rich duplicate cards — listeners for buttons, inspect, and auto-keep.
+  if (locationEntries.length > 1) {
+    attachDupCardListeners(code, card, titleData, renderCardInPlace);
+  }
 
   // §4.4.1 Normalize folder button / undo.
   card.querySelectorAll('[data-normalize-action]').forEach(btn => {
