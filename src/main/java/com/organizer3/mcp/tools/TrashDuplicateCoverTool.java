@@ -9,37 +9,30 @@ import com.organizer3.mcp.Schemas;
 import com.organizer3.mcp.Tool;
 import com.organizer3.shell.SessionContext;
 import com.organizer3.smb.VolumeConnection;
+import com.organizer3.titlefolder.TitleFolderService;
 import com.organizer3.trash.Trash;
 import org.jdbi.v3.core.Jdbi;
 
-import java.io.IOException;
 import java.nio.file.Path;
 import java.time.Clock;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Locale;
-import java.util.Set;
 
 /**
- * Trash duplicate cover images from a title folder, keeping one chosen cover in place.
+ * MCP adapter that trashes all duplicate covers at a title's base folder
+ * except the named keeper. Per-file trash + cover-listing logic lives in
+ * {@link TitleFolderService}; this adapter resolves the mounted volume and
+ * iterates the to-trash list.
  *
- * <p>Intended to action the output of {@code find_multi_cover_titles}. Given a title code
- * and a filename to keep, this tool trashes all other cover-extension files at the title's
- * base folder on the currently-mounted volume, using the Trash primitive
- * ({@code spec/PROPOSAL_TRASH.md}).
- *
- * <p>Gated on both {@code mcp.allowMutations} and {@code mcp.allowFileOps}. Requires the
- * volume's server to have a {@code trash:} folder configured.
- *
- * <p>Defaults to {@code dryRun: true}.
+ * <p>Gated on both {@code mcp.allowMutations} and {@code mcp.allowFileOps}.
+ * Requires the volume's server to have a {@code trash:} folder configured.
+ * Defaults to {@code dryRun: true}.
  */
 public class TrashDuplicateCoverTool implements Tool {
 
-    private static final Set<String> COVER_EXTS = Set.of("jpg", "jpeg", "png", "webp");
-
     private final SessionContext session;
-    private final Jdbi jdbi;
     private final OrganizerConfig config;
+    private final TitleFolderService folderService;
     private final Clock clock;
 
     public TrashDuplicateCoverTool(SessionContext session, Jdbi jdbi, OrganizerConfig config) {
@@ -47,10 +40,10 @@ public class TrashDuplicateCoverTool implements Tool {
     }
 
     TrashDuplicateCoverTool(SessionContext session, Jdbi jdbi, OrganizerConfig config, Clock clock) {
-        this.session = session;
-        this.jdbi = jdbi;
-        this.config = config;
-        this.clock = clock;
+        this.session       = session;
+        this.config        = config;
+        this.folderService = new TitleFolderService(null, null, jdbi);
+        this.clock         = clock;
     }
 
     @Override public String name()        { return "trash_duplicate_cover"; }
@@ -93,13 +86,16 @@ public class TrashDuplicateCoverTool implements Tool {
                     "Server '" + srv.id() + "' has no 'trash:' folder configured; cannot trash items on volume '" + volumeId + "'.");
         }
 
-        Path folder = lookupTitleFolder(volumeId, titleCode);
+        Path folder = folderService.findTitleFolder(titleCode, volumeId)
+                .orElseThrow(() -> new IllegalArgumentException(
+                        "No title '" + titleCode + "' on mounted volume '" + volumeId + "'"));
+
         VolumeFileSystem fs = conn.fileSystem();
         if (!fs.exists(folder) || !fs.isDirectory(folder)) {
             throw new IllegalArgumentException("Title folder does not exist on volume: " + folder);
         }
 
-        List<String> covers = listCovers(fs, folder);
+        List<String> covers = folderService.listCovers(fs, folder);
         if (covers.size() < 2) {
             throw new IllegalArgumentException(
                     "Title '" + titleCode + "' has " + covers.size() + " cover(s) at base — nothing to dedupe.");
@@ -112,69 +108,25 @@ public class TrashDuplicateCoverTool implements Tool {
         List<String> toTrash = new ArrayList<>();
         for (String c : covers) if (!c.equals(keep)) toTrash.add(c);
 
-        Plan plan = new Plan(
-                volumeId,
-                folder.toString(),
-                keep,
-                toTrash);
+        Plan plan = new Plan(volumeId, folder.toString(), keep, toTrash);
 
-        if (!dryRun) {
-            Trash trash = new Trash(fs, volumeId, srv.trash(), clock);
-            List<String> trashed = new ArrayList<>();
-            List<String> failed = new ArrayList<>();
-            for (String c : toTrash) {
-                Path src = folder.resolve(c);
-                try {
-                    Trash.Result r = trash.trashItem(src, "Duplicate cover — kept " + keep);
-                    trashed.add(r.trashedPath().toString());
-                } catch (IOException e) {
-                    failed.add(c + " → " + e.getMessage());
-                }
-            }
-            return new Result(false, plan, trashed, failed);
+        if (dryRun) {
+            return new Result(true, plan, List.of(), List.of());
         }
-        return new Result(true, plan, List.of(), List.of());
-    }
 
-    private Path lookupTitleFolder(String volumeId, String titleCode) {
-        return jdbi.withHandle(h -> h.createQuery("""
-                    SELECT tl.path FROM title_locations tl
-                    JOIN titles t ON t.id = tl.title_id
-                    WHERE tl.volume_id = :volumeId AND UPPER(t.code) = UPPER(:code)
-                      AND tl.stale_since IS NULL
-                    ORDER BY tl.id
-                    LIMIT 1
-                    """)
-                .bind("volumeId", volumeId)
-                .bind("code", titleCode)
-                .mapTo(String.class)
-                .findFirst()
-                .map(Path::of)
-                .orElseThrow(() -> new IllegalArgumentException(
-                        "No title '" + titleCode + "' on mounted volume '" + volumeId + "'")));
-    }
-
-    private static List<String> listCovers(VolumeFileSystem fs, Path folder) {
-        List<String> out = new ArrayList<>();
-        try {
-            for (Path child : fs.listDirectory(folder)) {
-                if (fs.isDirectory(child)) continue;
-                Path name = child.getFileName();
-                if (name == null) continue;
-                String n = name.toString();
-                if (isCover(n)) out.add(n);
+        Trash trash = new Trash(fs, volumeId, srv.trash(), clock);
+        List<String> trashed = new ArrayList<>();
+        List<String> failed  = new ArrayList<>();
+        String reason = "Duplicate cover — kept " + keep;
+        for (String c : toTrash) {
+            TitleFolderService.TrashOutcome outcome = folderService.trashCover(trash, folder, c, reason);
+            if (outcome.success()) {
+                trashed.add(outcome.trashedTo().toString());
+            } else {
+                failed.add(c + " → " + outcome.error());
             }
-        } catch (IOException e) {
-            throw new IllegalArgumentException("Failed to list cover candidates under " + folder + ": " + e.getMessage(), e);
         }
-        return out;
-    }
-
-    static boolean isCover(String filename) {
-        if (filename == null) return false;
-        int dot = filename.lastIndexOf('.');
-        if (dot < 0 || dot == filename.length() - 1) return false;
-        return COVER_EXTS.contains(filename.substring(dot + 1).toLowerCase(Locale.ROOT));
+        return new Result(false, plan, trashed, failed);
     }
 
     public record Plan(String volumeId, String folder, String keep, List<String> toTrash) {}
