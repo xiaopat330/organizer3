@@ -267,30 +267,8 @@ function mountInspectPlayer(wrapEl, videos) {
 export function attachDupCardListeners(code, card, titleData, renderCardInPlace) {
   const locationEntries = titleData.locationEntries || [];
 
-  // §A: Lazy-fetch per-location videos when not yet cached.
-  // _locVideos: null = in-flight, Map = loaded, missing prop = not started.
-  if (locationEntries.length > 1 && !Object.prototype.hasOwnProperty.call(titleData, '_locVideos')) {
-    titleData._locVideos = null; // mark in-flight
-    Promise.all(
-      locationEntries.map(async loc => {
-        const key = dupKey(loc.volumeId, loc.nasPath);
-        let url = `/api/titles/${encodeURIComponent(code)}/videos?volumeId=${encodeURIComponent(loc.volumeId)}`;
-        if (loc.locPath) url += `&locPath=${encodeURIComponent(loc.locPath)}`;
-        try {
-          const res = await fetch(url);
-          const videos = res.ok ? await res.json() : [];
-          return [key, videos];
-        } catch {
-          return [key, []];
-        }
-      })
-    ).then(pairs => {
-      titleData._locVideos = new Map(pairs);
-      renderCardInPlace(code);
-    });
-  }
-
   // §B: Decision buttons (Keep / Trash / Variant)
+  // (per-loc video + decisions fetches are now bootstrapped together in card.js)
   card.querySelectorAll('.adm-dup-btn[data-dup-action]').forEach(btn => {
     btn.addEventListener('click', () => {
       const clickedDecision = btn.dataset.dupAction;

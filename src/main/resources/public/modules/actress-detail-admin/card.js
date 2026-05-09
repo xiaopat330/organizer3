@@ -391,24 +391,35 @@ export function attachCardListeners(code) {
     }
   }
 
-  // §4.3 Lazy-fetch duplicate decisions for multi-location titles.
-  // If decisions are not yet cached (_dupDecisions not set), fetch and re-render.
-  // The check uses hasOwnProperty so that null (loaded, empty) is distinguished
-  // from undefined (not yet fetched).
+  // §4.3 Lazy-fetch duplicate decisions + per-location videos in parallel for
+  // multi-location titles. Both gate `null = in-flight`, missing prop = not
+  // started, value = loaded. We re-render once when both settle so the user
+  // sees one transition (loading → loaded) instead of three (loading → decisions →
+  // videos).
   if (locationEntries.length > 1 && !Object.prototype.hasOwnProperty.call(titleData, '_dupDecisions')) {
-    // Mark as "in flight" with null so concurrent re-renders don't double-fetch.
     titleData._dupDecisions = null;
-    fetch(`/api/titles/${encodeURIComponent(code)}/duplicate-decisions`)
+    titleData._locVideos    = null;
+
+    const decFetch = fetch(`/api/titles/${encodeURIComponent(code)}/duplicate-decisions`)
       .then(res => res.ok ? res.json() : Promise.reject(new Error(`HTTP ${res.status}`)))
-      .then(decisions => {
-        titleData._dupDecisions = decisions;
-        renderCardInPlace(code);
+      .then(decisions => { titleData._dupDecisions = decisions; })
+      .catch(() => { delete titleData._dupDecisions; });
+
+    const vidFetch = Promise.all(
+      locationEntries.map(async loc => {
+        const key = `${loc.volumeId}::${loc.nasPath}`;
+        let url = `/api/titles/${encodeURIComponent(code)}/videos?volumeId=${encodeURIComponent(loc.volumeId)}`;
+        if (loc.locPath) url += `&locPath=${encodeURIComponent(loc.locPath)}`;
+        try {
+          const res = await fetch(url);
+          return [key, res.ok ? await res.json() : []];
+        } catch {
+          return [key, []];
+        }
       })
-      .catch(() => {
-        // On error, leave _dupDecisions as null so the "Loading…" note stays.
-        // A re-render triggered by another action will retry.
-        delete titleData._dupDecisions;
-      });
+    ).then(pairs => { titleData._locVideos = new Map(pairs); });
+
+    Promise.allSettled([decFetch, vidFetch]).then(() => renderCardInPlace(code));
   }
 
   // §4.3 Rich duplicate cards — listeners for buttons, inspect, and auto-keep.
