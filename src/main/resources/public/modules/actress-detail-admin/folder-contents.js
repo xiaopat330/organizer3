@@ -14,6 +14,9 @@ import * as state from './state.js';
 import { renderCardInPlace } from './card.js';
 import { displayPath, installPathClickToCopy } from '../path-utils.js';
 
+const ICON_TRASH = '<svg class="admin-icon-trash" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>';
+const ICON_FOLDER = '<svg class="admin-icon-folder" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>';
+
 // ── Humanize helpers ─────────────────────────────────────────────────────────
 
 function humanizeBytes(bytes) {
@@ -80,9 +83,15 @@ export function renderFolderContents(code, folderContents) {
     return `<div class="admin-card-folder-error">⚠ Could not read folder from disk — ${esc(folderContents[FOLDER_ERROR_KEY])}. Folder state is unknown.</div>`;
   }
 
-  const { folderPath, videos, covers } = folderContents;
-  const folderLabel = folderPath
-    ? `<div class="admin-card-folder-path" data-raw-path="${esc(folderPath)}">${esc(displayPath(folderPath))}</div>`
+  const { videos, covers } = folderContents;
+  // Prefer the single-location nasPath (full //server/share/... form) over
+  // folderContents.folderPath (volume-relative). Falls back to folderPath if
+  // titleData isn't available for any reason.
+  const titleData = state.getCardData(code);
+  const loc = titleData && titleData.locationEntries && titleData.locationEntries[0];
+  const rawPath = (loc && loc.nasPath) || folderContents.folderPath || '';
+  const folderLabel = rawPath
+    ? `<div class="admin-card-folder-path" data-raw-path="${esc(rawPath)}">${ICON_FOLDER}<span class="admin-card-folder-path-text">${esc(displayPath(rawPath))}</span></div>`
     : '';
 
   const multiCover = covers.length > 1;
@@ -109,7 +118,7 @@ function renderVideoList(code, videos) {
     const chipsHtml = `<span class="admin-card-file-chips">${videoRowChips(v)}</span>`;
     const actionHtml = isPending
       ? `<button class="admin-card-file-undo-btn" data-file-action="undo-trash-video" data-filename="${esc(v.filename)}">Undo</button>`
-      : `<button class="admin-card-file-trash-btn" data-file-action="trash-video" data-filename="${esc(v.filename)}">[trash]</button>`;
+      : `<button class="admin-card-file-trash-btn" data-file-action="trash-video" data-filename="${esc(v.filename)}">${ICON_TRASH} Trash</button>`;
     return `<div class="${rowClass}">${nameHtml}${chipsHtml}${actionHtml}</div>`;
   }).join('');
 
@@ -150,9 +159,9 @@ function renderCoverList(code, covers, multiCover) {
     } else if (multiCover) {
       actionHtml =
         `<button class="admin-card-file-keep-btn" data-file-action="keep-cover" data-filename="${esc(c.filename)}">[keep]</button>` +
-        `<button class="admin-card-file-trash-btn" data-file-action="trash-cover" data-filename="${esc(c.filename)}">[trash]</button>`;
+        `<button class="admin-card-file-trash-btn" data-file-action="trash-cover" data-filename="${esc(c.filename)}">${ICON_TRASH} Trash</button>`;
     } else {
-      actionHtml = `<button class="admin-card-file-trash-btn" data-file-action="trash-cover" data-filename="${esc(c.filename)}">[trash]</button>`;
+      actionHtml = `<button class="admin-card-file-trash-btn" data-file-action="trash-cover" data-filename="${esc(c.filename)}">${ICON_TRASH} Trash</button>`;
     }
     // No per-folder cover serving route exists — use an icon placeholder instead of a thumbnail.
     return `<div class="${rowClass}">${COVER_ICON_SVG}${nameHtml}${metaHtml}${actionHtml}</div>`;

@@ -3224,15 +3224,7 @@
   font-size: 0.8rem;
 }
 
-.admin-card-folder-path {
-  font-family: monospace;
-  font-size: 0.72rem;
-  color: #475569;
-  margin-bottom: 6px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
+/* superseded — see end-of-file rule with icon + click-to-copy treatment */
 
 .admin-card-folder-section {
   margin-top: 10px;
@@ -3909,4 +3901,82 @@
   color: #6ee7b7;
   font-weight: 600;
   margin-left: 6px;
+}
+
+/* ── Admin Edit Card — flag icon strokes (mirror title-action-btn) ─────── */
+.admin-card-flag-btn .star-icon,
+.admin-card-flag-btn .bookmark-icon {
+  fill: none;
+  stroke: #94a3b8;
+  stroke-width: 1.5;
+  transition: fill 0.15s, stroke 0.15s;
+}
+.admin-card-flag-btn .reject-icon {
+  fill: none;
+  stroke: #94a3b8;
+  stroke-width: 2.5;
+  stroke-linecap: round;
+  transition: stroke 0.15s;
+}
+.admin-card-flag-btn.fav-btn.active .star-icon     { fill: #fbbf24; stroke: #fbbf24; }
+.admin-card-flag-btn.bm-btn.active  .bookmark-icon { fill: #60a5fa; stroke: #60a5fa; }
+.admin-card-flag-btn.rej-btn.active .reject-icon   { stroke: #f87171; }
+
+/* ── Trash button — destructive emphasis ───────────────────────────────── */
+.admin-card-file-trash-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: #1c0606;
+  color: #fca5a5;
+  border: 1px solid #7f1d1d;
+  border-radius: 4px;
+  padding: 3px 9px;
+  font-weight: 600;
+  font-size: 0.78rem;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+.admin-card-file-trash-btn:hover {
+  background: #7f1d1d;
+  color: #fee2e2;
+  border-color: #ef4444;
+}
+.admin-card-file-trash-btn .admin-icon-trash {
+  flex: 0 0 auto;
+}
+
+/* ── Normalize button + icon spacing ───────────────────────────────────── */
+.admin-card-normalize-btn,
+.admin-card-normalize-staged {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.admin-icon-normalize {
+  opacity: 0.85;
+}
+
+/* ── Folder-contents path: icon, white, bold, click-to-copy affordance ─ */
+.admin-card-folder-path {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: #f1f5f9;
+  font-weight: 600;
+  font-family: ui-monospace, monospace;
+  font-size: 0.78rem;
+  padding: 3px 8px;
+  border-radius: 4px;
+  margin-bottom: 6px;
+  word-break: break-all;
+}
+.admin-card-folder-path .admin-icon-folder {
+  flex: 0 0 auto;
+  opacity: 0.85;
+  color: #fbbf24;
+}
+.admin-card-folder-path-text {
+  word-break: break-all;
 }

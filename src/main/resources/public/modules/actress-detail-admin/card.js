@@ -82,18 +82,20 @@ function effectiveFlagValue(code, kind, serverValue) {
  * @param {string} code
  * @returns {string} HTML
  */
+const ICON_NORMALIZE = '<svg class="admin-icon-normalize" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 4l6 6-10 10H4v-6z"/><line x1="14" y1="4" x2="20" y2="10"/></svg>';
+
 function renderNormalizeButton(code) {
   const pendingStage = state.findPendingStage(code, 'normalize-folder');
   if (pendingStage) {
     return `
       <div class="admin-card-normalize-row">
-        <span class="admin-card-normalize-staged">Normalize staged*</span>
+        <span class="admin-card-normalize-staged">${ICON_NORMALIZE} Normalize staged*</span>
         <button class="admin-card-normalize-undo-btn" data-normalize-action="undo-normalize">Undo</button>
       </div>`;
   }
   return `
     <div class="admin-card-normalize-row">
-      <button class="admin-card-normalize-btn" data-normalize-action="open-modal">Normalize folder…</button>
+      <button class="admin-card-normalize-btn" data-normalize-action="open-modal">${ICON_NORMALIZE} Normalize folder…</button>
     </div>`;
 }
 
