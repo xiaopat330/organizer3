@@ -20,7 +20,7 @@
 // §4.3 lazy-fetch: decisions are fetched in attachCardListeners when the card
 // first needs them, cached on titleData._dupDecisions, and used on re-renders.
 
-import { esc, ageAtDate, agePillTier } from '../utils.js';
+import { esc, ageAtDate, agePillTier, fmtDate } from '../utils.js';
 import { ICON_FAV_LG, ICON_BM_LG, ICON_REJ_LG, gradeBadgeHtml, tagBadgeHtml } from '../icons.js';
 import * as state from './state.js';
 import { commitCard, cancelCard } from './commit.js';
@@ -137,7 +137,7 @@ export function renderCard(t) {
     metaParts.push(lp.join(' '));
   }
   const displayDate = t.releaseDate || t.addedDate;
-  if (displayDate) metaParts.push(esc(displayDate));
+  if (displayDate) metaParts.push(esc(fmtDate(displayDate)));
   const metaLineHtml = metaParts.length > 0
     ? `<div class="admin-card-meta-line">${metaParts.join(' · ')}</div>`
     : '';
