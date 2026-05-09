@@ -4004,3 +4004,25 @@
   color: #60a5fa;
   opacity: 0.9;
 }
+
+/* ── Date row (Released / Added) under studio line ─────────────────────── */
+.admin-card-date-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.78rem;
+  margin-top: 3px;
+}
+.admin-card-date-row .admin-icon-cal {
+  flex: 0 0 auto;
+  color: #94a3b8;
+}
+.admin-card-date-label {
+  color: #64748b;
+  font-weight: 500;
+}
+.admin-card-date-label::after { content: ':'; }
+.admin-card-date-value {
+  color: #cbd5e1;
+  font-weight: 600;
+}

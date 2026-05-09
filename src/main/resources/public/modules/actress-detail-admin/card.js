@@ -84,6 +84,7 @@ function effectiveFlagValue(code, kind, serverValue) {
  */
 const ICON_NORMALIZE = '<svg class="admin-icon-normalize" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 4l6 6-10 10H4v-6z"/><line x1="14" y1="4" x2="20" y2="10"/></svg>';
 const ICON_PERSON = '<svg class="admin-icon-person" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>';
+const ICON_CAL    = '<svg class="admin-icon-cal" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8"  y1="2" x2="8"  y2="6"/><line x1="3"  y1="10" x2="21" y2="10"/></svg>';
 
 function renderNormalizeButton(code) {
   const pendingStage = state.findPendingStage(code, 'normalize-folder');
@@ -136,11 +137,18 @@ export function renderCard(t) {
     if (t.labelName)   lp.push(`(${esc(t.labelName)})`);
     metaParts.push(lp.join(' '));
   }
-  const displayDate = t.releaseDate || t.addedDate;
-  if (displayDate) metaParts.push(esc(fmtDate(displayDate)));
   const metaLineHtml = metaParts.length > 0
     ? `<div class="admin-card-meta-line">${metaParts.join(' · ')}</div>`
     : '';
+
+  // Date row — separate from studio/label since the meaning differs.
+  // releaseDate is the actual disc release; addedDate is when we synced it locally.
+  let dateRowHtml = '';
+  if (t.releaseDate) {
+    dateRowHtml = `<div class="admin-card-date-row">${ICON_CAL}<span class="admin-card-date-label">Released</span><span class="admin-card-date-value">${esc(fmtDate(t.releaseDate))}</span></div>`;
+  } else if (t.addedDate) {
+    dateRowHtml = `<div class="admin-card-date-row">${ICON_CAL}<span class="admin-card-date-label">Added to library</span><span class="admin-card-date-value">${esc(fmtDate(t.addedDate))}</span></div>`;
+  }
 
   // ── Header: cast ──────────────────────────────────────────────────────
   let castHtml = '';
@@ -193,6 +201,7 @@ export function renderCard(t) {
         ${titleEnHtml}
         ${titleJaHtml}
         ${metaLineHtml}
+        ${dateRowHtml}
         ${castHtml}
         ${tagsHtml}
         ${gradeAgeHtml}
