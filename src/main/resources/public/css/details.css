@@ -3889,3 +3889,24 @@
   opacity: 0.35;
   cursor: not-allowed;
 }
+
+/* ── Click-to-copy path affordance (admin tab) ─────────────────────────── */
+.admin-path-copyable {
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.admin-path-copyable:hover {
+  background: #1e293b;
+  color: #cbd5e1;
+}
+.admin-path-copied {
+  background: #064e3b !important;
+  color: #6ee7b7 !important;
+}
+.admin-path-copied::after {
+  content: ' ✓ copied';
+  font-size: 0.72rem;
+  color: #6ee7b7;
+  font-weight: 600;
+  margin-left: 6px;
+}

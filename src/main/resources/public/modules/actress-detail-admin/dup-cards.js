@@ -16,6 +16,7 @@
 import { esc } from '../utils.js';
 import { rankLocations } from '../duplicate-ranker.js';
 import * as state from './state.js';
+import { displayPath, installPathClickToCopy } from './path-utils.js';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -123,16 +124,17 @@ function renderLocCard(code, loc, locIndex, locationEntries, locVideos, serverDe
     isSuggested = rank.suggestedIndex === locIndex;
   }
 
-  // Path breadcrumb
+  // Path breadcrumb — entire .adm-dup-path is click-to-copy (wired in attachDupCardListeners).
   const parsed = parseNasPath(loc.nasPath);
+  const dispVol  = parsed ? displayPath(parsed.volume) : '';
   let pathHtml = '';
   if (parsed) {
     pathHtml = `
-      <div class="adm-dup-path-vol">${esc(parsed.volume)}</div>
+      <div class="adm-dup-path-vol">${esc(dispVol)}</div>
       ${parsed.middle ? `<div class="adm-dup-path-middle">${esc(parsed.middle)}</div>` : ''}
-      <div class="adm-dup-path-leaf" title="${esc(loc.nasPath || '')}">${esc(parsed.titleFolder || parsed.volume)}</div>`;
+      <div class="adm-dup-path-leaf">${esc(parsed.titleFolder || dispVol)}</div>`;
   } else {
-    pathHtml = `<div class="adm-dup-path-leaf" title="${esc(loc.nasPath || '')}">${esc(loc.nasPath || '')}</div>`;
+    pathHtml = `<div class="adm-dup-path-leaf">${esc(displayPath(loc.nasPath || ''))}</div>`;
   }
 
   // Video rows
@@ -189,7 +191,7 @@ function renderLocCard(code, loc, locIndex, locationEntries, locVideos, serverDe
         <div class="adm-dup-vol-badge">${esc(loc.volumeId)}</div>
         ${suggestedBadgeHtml}
       </div>
-      <div class="adm-dup-path">${pathHtml}</div>
+      <div class="adm-dup-path" data-raw-path="${esc(loc.nasPath || '')}">${pathHtml}</div>
       <div class="adm-dup-videos">${videoRowsHtml}</div>
       <div class="adm-dup-inspect-wrap" data-loc-key="${esc(key)}">
         ${inspectBtnHtml}
@@ -266,6 +268,11 @@ function mountInspectPlayer(wrapEl, videos) {
 
 export function attachDupCardListeners(code, card, titleData, renderCardInPlace) {
   const locationEntries = titleData.locationEntries || [];
+
+  // §A: Path click-to-copy (full nasPath, with .local stripped on non-mac)
+  card.querySelectorAll('.adm-dup-path[data-raw-path]').forEach(el => {
+    installPathClickToCopy(el, el.dataset.rawPath);
+  });
 
   // §B: Decision buttons (Keep / Trash / Variant)
   // (per-loc video + decisions fetches are now bootstrapped together in card.js)

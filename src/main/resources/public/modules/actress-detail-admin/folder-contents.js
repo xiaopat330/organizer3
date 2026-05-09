@@ -12,6 +12,7 @@
 import { esc } from '../utils.js';
 import * as state from './state.js';
 import { renderCardInPlace } from './card.js';
+import { displayPath, installPathClickToCopy } from './path-utils.js';
 
 // ── Humanize helpers ─────────────────────────────────────────────────────────
 
@@ -81,7 +82,7 @@ export function renderFolderContents(code, folderContents) {
 
   const { folderPath, videos, covers } = folderContents;
   const folderLabel = folderPath
-    ? `<div class="admin-card-folder-path" title="${esc(folderPath)}">${esc(folderPath)}</div>`
+    ? `<div class="admin-card-folder-path" data-raw-path="${esc(folderPath)}">${esc(displayPath(folderPath))}</div>`
     : '';
 
   const multiCover = covers.length > 1;
@@ -198,6 +199,10 @@ export function ensureFolderContents(code, titleData) {
 // ── Event listeners ──────────────────────────────────────────────────────────
 
 export function attachFolderListeners(code, card, titleData) {
+  card.querySelectorAll('.admin-card-folder-path[data-raw-path]').forEach(el => {
+    installPathClickToCopy(el, el.dataset.rawPath);
+  });
+
   card.querySelectorAll('[data-file-action]').forEach(btn => {
     btn.addEventListener('click', () => {
       const action   = btn.dataset.fileAction;
