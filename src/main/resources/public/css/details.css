@@ -3289,7 +3289,6 @@
 }
 
 .admin-card-filename {
-  flex: 1;
   min-width: 0;
   font-family: monospace;
   font-size: 0.75rem;
