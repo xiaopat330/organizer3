@@ -6,6 +6,8 @@ import { getActressBrowseMode, actressBrowseLabel, selectActressBrowseMode, show
 import { pushNav } from './nav.js';
 import { renderAvatarFrame, attachAvatarFrameListeners } from './actress-avatar-frame.js';
 import { openCustomAvatarEditor } from './custom-avatar-editor.js';
+import { mountAdmin, unmountAdmin } from './actress-detail-admin/index.js';
+import { confirmDiscardIfStaged } from './actress-detail-admin/nav-guard.js';
 
 // ── State ─────────────────────────────────────────────────────────────────
 export let detailActressId    = null;
@@ -54,6 +56,17 @@ export const actressDetailGrid = new ScrollingGrid(
 
 // ── Open actress detail ───────────────────────────────────────────────────
 export async function openActressDetail(actressId) {
+  // Guard: if we're currently on the Admin tab with staged edits, surface
+  // the discard modal before any state mutation. Same-actress reopen is
+  // still guarded because the user clicked something — they may have meant
+  // to Cancel and the click was reflexive.
+  const adminBtn = document.getElementById('actress-detail-admin-tab');
+  const onAdmin  = adminBtn && adminBtn.classList.contains('selected');
+  if (onAdmin) {
+    const ok = await confirmDiscardIfStaged();
+    if (!ok) return;
+  }
+
   pushNav({ view: 'actress-detail', actressId }, 'actress/' + actressId);
   cancelPendingVisit();
   cancelCoverRotation();
@@ -71,6 +84,7 @@ export async function openActressDetail(actressId) {
   detailActressTags            = null;
   detailEnrichmentTags         = null;
   showView('actress-detail');
+  selectActressDetailTab('catalog');
   setActiveGrid(actressDetailGrid);
   document.getElementById('sentinel')?.remove();
   actressDetailGrid.reset();
@@ -970,4 +984,39 @@ export function setDetailCompanyFilter(company) {
   const sel = document.getElementById('detail-company-select');
   if (sel) sel.value = company || '';
   scheduleFilteredQuery();
+}
+
+// ── Right-panel tabs (Catalog | Admin) ────────────────────────────────────
+const ACTRESS_DETAIL_TABS = {
+  catalog: { btn: 'actress-detail-catalog-tab', view: 'actress-detail-catalog-view' },
+  admin:   { btn: 'actress-detail-admin-tab',   view: 'actress-detail-admin-view'   },
+};
+
+// Internal: snap to a tab without any guard. Used by openActressDetail,
+// initial mount, and selectActressDetailTab once the guard has cleared.
+function applyTabSelection(tab) {
+  for (const [key, ids] of Object.entries(ACTRESS_DETAIL_TABS)) {
+    const btn  = document.getElementById(ids.btn);
+    const view = document.getElementById(ids.view);
+    if (btn)  btn.classList.toggle('selected', key === tab);
+    if (view) view.style.display = (key === tab) ? '' : 'none';
+  }
+  if (tab === 'admin') mountAdmin(detailActressId);
+  else                 unmountAdmin();
+}
+
+export async function selectActressDetailTab(tab) {
+  // Guard: leaving the Admin tab with staged edits surfaces the discard modal.
+  const adminBtn = document.getElementById('actress-detail-admin-tab');
+  const onAdmin  = adminBtn && adminBtn.classList.contains('selected');
+  if (onAdmin && tab !== 'admin') {
+    const ok = await confirmDiscardIfStaged();
+    if (!ok) return;
+  }
+  applyTabSelection(tab);
+}
+
+for (const [key, ids] of Object.entries(ACTRESS_DETAIL_TABS)) {
+  const btn = document.getElementById(ids.btn);
+  if (btn) btn.onclick = () => selectActressDetailTab(key);
 }

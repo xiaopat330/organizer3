@@ -835,6 +835,16 @@ public class JdbiTitleRepository implements TitleRepository {
     }
 
     @Override
+    public void toggleRejected(long titleId, boolean rejected) {
+        jdbi.useHandle(h ->
+                h.createUpdate("UPDATE titles SET rejected = :rejected WHERE id = :id")
+                        .bind("rejected", rejected)
+                        .bind("id", titleId)
+                        .execute()
+        );
+    }
+
+    @Override
     public void recordVisit(long titleId) {
         jdbi.useHandle(h ->
                 h.createUpdate("UPDATE titles SET visit_count = visit_count + 1, " +

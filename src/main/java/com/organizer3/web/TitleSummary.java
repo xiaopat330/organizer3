@@ -10,7 +10,7 @@ import java.util.List;
  * All fields except {@code code} may be null.
  */
 @Value
-@Builder
+@Builder(toBuilder = true)
 public class TitleSummary {
     String code;
     String baseCode;
@@ -56,6 +56,7 @@ public class TitleSummary {
     Integer ratingCount;
     boolean favorite;
     boolean bookmark;
+    boolean rejected;
     String lastWatchedAt;
     int watchCount;
     int visitCount;

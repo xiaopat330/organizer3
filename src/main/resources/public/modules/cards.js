@@ -26,6 +26,7 @@ export function makeTitleCard(t) {
   const card = document.createElement('div');
   card.className = 'card';
   card.dataset.code = t.code;
+  if (t.rejected) card.classList.add('title-card-rejected');
 
   const gradeOverlayHtml = t.grade ? `<div class="cover-grade">${gradeBadgeHtml(t.grade)}</div>` : '';
   // Single-actress age pill at bottom-left of the cover. Multi-actress tickers stay inline.

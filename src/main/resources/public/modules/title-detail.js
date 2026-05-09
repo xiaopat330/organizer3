@@ -1,5 +1,5 @@
 import { esc, fmtDate, timeAgo, ageAtDate } from './utils.js';
-import { ICON_FAV_LG, ICON_BM_LG, gradeBadgeHtml, tagBadgeHtml, tagBadgeDerivedHtml, javdbRawTagHtml } from './icons.js';
+import { ICON_FAV_LG, ICON_BM_LG, ICON_REJ_LG, gradeBadgeHtml, tagBadgeHtml, tagBadgeDerivedHtml, javdbRawTagHtml } from './icons.js';
 import { showView, updateBreadcrumb, mode } from './grid.js';
 import { makeTitleCard, updateCardIndicators } from './cards.js';
 import { getActressBrowseMode, actressBrowseLabel, selectActressBrowseMode, showActressLanding } from './actress-browse.js';
@@ -363,8 +363,9 @@ function renderTitleDetail(t) {
     ${jaTitleHtml}
     <div class="title-detail-code">${esc(t.code)}</div>
     <div class="title-detail-actions">
-      <button class="title-action-btn${t.favorite ? ' active' : ''}" id="title-fav-btn" title="Favorite">${ICON_FAV_LG}</button>
-      <button class="title-action-btn${t.bookmark ? ' active' : ''}" id="title-bm-btn" title="Bookmark">${ICON_BM_LG}</button>
+      <button class="title-action-btn${t.favorite ? ' active' : ''}${t.rejected ? ' disabled' : ''}" id="title-fav-btn" title="Favorite">${ICON_FAV_LG}</button>
+      <button class="title-action-btn${t.bookmark ? ' active' : ''}${t.rejected ? ' disabled' : ''}" id="title-bm-btn" title="Bookmark">${ICON_BM_LG}</button>
+      <button class="title-action-btn${t.rejected ? ' active' : ''}" id="title-rej-btn" title="Reject">${ICON_REJ_LG}</button>
     </div>
     <div class="title-detail-meta">
       ${actressesHtml}
@@ -384,24 +385,43 @@ function renderTitleDetail(t) {
     </div>
   `;
 
+  function applyFlagState(data) {
+    t.favorite = data.favorite;
+    t.bookmark = data.bookmark;
+    t.rejected = data.rejected;
+    const favBtn = document.getElementById('title-fav-btn');
+    const bmBtn  = document.getElementById('title-bm-btn');
+    const rejBtn = document.getElementById('title-rej-btn');
+    if (favBtn) {
+      favBtn.classList.toggle('active',   data.favorite);
+      favBtn.classList.toggle('disabled', data.rejected);
+    }
+    if (bmBtn) {
+      bmBtn.classList.toggle('active',   data.bookmark);
+      bmBtn.classList.toggle('disabled', data.rejected);
+    }
+    if (rejBtn) rejBtn.classList.toggle('active', data.rejected);
+    updateCardIndicators(t.code, t.favorite, t.bookmark);
+  }
+
   document.getElementById('title-fav-btn').addEventListener('click', () => {
+    if (t.rejected) return;  // refused while rejected — no-op in UI
     fetch(`/api/titles/${encodeURIComponent(t.code)}/favorite`, { method: 'POST' })
-      .then(r => r.json())
-      .then(data => {
-        t.favorite = data.favorite;
-        document.getElementById('title-fav-btn').classList.toggle('active', data.favorite);
-        updateCardIndicators(t.code, t.favorite, t.bookmark);
-      });
+      .then(r => r.ok ? r.json() : null)
+      .then(data => { if (data) applyFlagState(data); });
   });
 
   document.getElementById('title-bm-btn').addEventListener('click', () => {
+    if (t.rejected) return;  // refused while rejected — no-op in UI
     fetch(`/api/titles/${encodeURIComponent(t.code)}/bookmark`, { method: 'POST' })
-      .then(r => r.json())
-      .then(data => {
-        t.bookmark = data.bookmark;
-        document.getElementById('title-bm-btn').classList.toggle('active', data.bookmark);
-        updateCardIndicators(t.code, t.favorite, t.bookmark);
-      });
+      .then(r => r.ok ? r.json() : null)
+      .then(data => { if (data) applyFlagState(data); });
+  });
+
+  document.getElementById('title-rej-btn').addEventListener('click', () => {
+    fetch(`/api/titles/${encodeURIComponent(t.code)}/reject`, { method: 'POST' })
+      .then(r => r.ok ? r.json() : null)
+      .then(data => { if (data) applyFlagState(data); });
   });
 
   document.getElementById('title-detail-tags-btn').addEventListener('click', async () => {

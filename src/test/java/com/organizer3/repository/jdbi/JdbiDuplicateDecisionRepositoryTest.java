@@ -145,4 +145,49 @@ class JdbiDuplicateDecisionRepositoryTest {
     void markExecutedIsNoOpWhenNotFound() {
         assertDoesNotThrow(() -> repo.markExecuted("NONEXISTENT", "vol-a", "/path", Instant.now().toString()));
     }
+
+    // ── listByTitleCode ──────────────────────────────────────────────────────
+
+    @Test
+    void listByTitleCodeReturnsOnlyMatchingTitle() {
+        repo.upsert(decision("ABP-001", "vol-a", "/vol/stars/ABP-001", "KEEP"));
+        repo.upsert(decision("ABP-001", "vol-b", "/vol/queue/ABP-001", "TRASH"));
+        repo.upsert(decision("ZZZ-999", "vol-a", "/vol/stars/ZZZ-999", "VARIANT"));
+
+        List<DuplicateDecision> result = repo.listByTitleCode("ABP-001");
+
+        assertEquals(2, result.size());
+        assertTrue(result.stream().allMatch(d -> "ABP-001".equals(d.getTitleCode())));
+    }
+
+    @Test
+    void listByTitleCodeReturnsEmptyForUnknownCode() {
+        repo.upsert(decision("ABP-001", "vol-a", "/vol/stars/ABP-001", "KEEP"));
+
+        List<DuplicateDecision> result = repo.listByTitleCode("NONEXISTENT");
+
+        assertTrue(result.isEmpty());
+    }
+
+    @Test
+    void listByTitleCodeIncludesExecutedRows() {
+        repo.upsert(decision("ABP-001", "vol-a", "/vol/stars/ABP-001", "KEEP"));
+        repo.markExecuted("ABP-001", "vol-a", "/vol/stars/ABP-001", Instant.now().toString());
+
+        List<DuplicateDecision> result = repo.listByTitleCode("ABP-001");
+
+        assertEquals(1, result.size(), "listByTitleCode includes executed rows");
+        assertNotNull(result.get(0).getExecutedAt());
+    }
+
+    @Test
+    void listByTitleCodeOrdersByVolumeIdThenNasPath() {
+        repo.upsert(decision("ABP-001", "vol-b", "/vol/queue/ABP-001", "TRASH"));
+        repo.upsert(decision("ABP-001", "vol-a", "/vol/stars/ABP-001", "KEEP"));
+
+        List<DuplicateDecision> result = repo.listByTitleCode("ABP-001");
+
+        assertEquals("vol-a", result.get(0).getVolumeId());
+        assertEquals("vol-b", result.get(1).getVolumeId());
+    }
 }

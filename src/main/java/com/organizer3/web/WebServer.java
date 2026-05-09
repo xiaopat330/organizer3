@@ -215,6 +215,27 @@ public class WebServer {
         routes.register(app);
     }
 
+    /** Mounts the Title browse + flag-mutation endpoints. Primarily for tests. */
+    public void registerTitleRoutes(com.organizer3.web.routes.TitleRoutes routes) {
+        routes.register(app);
+    }
+
+    /**
+     * Mounts only the folder-contents endpoints
+     * ({@code GET /api/titles/{code}/folder-contents},
+     *  {@code POST /api/titles/{code}/videos/{filename}/trash},
+     *  {@code POST /api/titles/{code}/covers/{filename}/trash}).
+     * Called after the default TitleRoutes registration so the base routes are not duplicated.
+     */
+    public void registerTitleFolderContents(com.organizer3.web.routes.TitleRoutes routes) {
+        routes.registerFolderContentsOnly(app);
+    }
+
+    /** Mounts the actress endpoints ({@code /api/actresses/*}). Primarily for tests. */
+    public void registerActressRoutes(com.organizer3.web.routes.ActressRoutes routes) {
+        routes.register(app);
+    }
+
     /** Mounts the javdb Discovery read-only endpoints ({@code /api/javdb/discovery/*}). */
     public void registerJavdbDiscovery(com.organizer3.web.routes.JavdbDiscoveryRoutes routes) {
         routes.register(app);
@@ -362,7 +383,7 @@ public class WebServer {
         }
 
         if (actressBrowseService != null) {
-            new com.organizer3.web.routes.ActressRoutes(actressBrowseService).register(app);
+            new com.organizer3.web.routes.ActressRoutes(actressBrowseService, browseService).register(app);
         }
 
         if (coversRoot != null) {

@@ -63,6 +63,18 @@ public class JdbiVideoRepository implements VideoRepository {
     }
 
     @Override
+    public java.util.Map<Long, Integer> countByTitleIds(java.util.Collection<Long> titleIds) {
+        if (titleIds.isEmpty()) return java.util.Map.of();
+        return jdbi.withHandle(h ->
+                h.createQuery("SELECT title_id, COUNT(*) AS cnt FROM videos WHERE title_id IN (<ids>) GROUP BY title_id")
+                        .bindList("ids", titleIds)
+                        .map((rs, ctx) -> java.util.Map.entry(rs.getLong("title_id"), rs.getInt("cnt")))
+                        .stream()
+                        .collect(java.util.stream.Collectors.toMap(java.util.Map.Entry::getKey, java.util.Map.Entry::getValue))
+        );
+    }
+
+    @Override
     public Video save(Video video) {
         return jdbi.withHandle(h -> {
             if (video.getId() == null) {

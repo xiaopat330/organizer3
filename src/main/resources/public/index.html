@@ -1226,9 +1226,24 @@
       <div class="detail-sidebar" id="detail-sidebar"></div>
     </div>
     <div class="actress-detail-right" id="actress-detail-right">
-      <div class="detail-filter-bar" id="detail-filter-bar"></div>
-      <div class="detail-actress-tags-panel" id="detail-actress-tags-panel" style="display:none"></div>
-      <div class="grid" id="detail-title-grid"></div>
+      <div id="actress-detail-subnav" class="actress-detail-subnav">
+        <div class="tools-section-tabs">
+          <button type="button" id="actress-detail-catalog-tab" class="tools-section-tab tools-section-tab-actress-catalog selected">
+            <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="6" height="16" x="4" y="4" rx="1"/><rect width="6" height="16" x="14" y="4" rx="1"/><path d="M10 4h4"/><path d="M10 20h4"/></svg>
+            Catalog
+          </button>
+          <button type="button" id="actress-detail-admin-tab" class="tools-section-tab tools-section-tab-actress-admin">
+            <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="21" y1="4" x2="14" y2="4"/><line x1="10" y1="4" x2="3" y2="4"/><line x1="21" y1="12" x2="12" y2="12"/><line x1="8" y1="12" x2="3" y2="12"/><line x1="21" y1="20" x2="16" y2="20"/><line x1="12" y1="20" x2="3" y2="20"/><line x1="14" y1="2" x2="14" y2="6"/><line x1="8" y1="10" x2="8" y2="14"/><line x1="16" y1="18" x2="16" y2="22"/></svg>
+            Admin
+          </button>
+        </div>
+      </div>
+      <div id="actress-detail-catalog-view" class="actress-detail-tab-view">
+        <div class="detail-filter-bar" id="detail-filter-bar"></div>
+        <div class="detail-actress-tags-panel" id="detail-actress-tags-panel" style="display:none"></div>
+        <div class="grid" id="detail-title-grid"></div>
+      </div>
+      <div id="actress-detail-admin-view" class="actress-detail-tab-view" style="display:none"></div>
     </div>
   </div>
 </div>

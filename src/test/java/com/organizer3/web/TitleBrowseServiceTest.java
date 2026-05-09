@@ -697,6 +697,139 @@ class TitleBrowseServiceTest {
         assertNull(service.getSpotlight(null));
     }
 
+    // ── toggleFavorite ─────────────────────────────────────────────────────
+
+    @Test
+    void toggleFavoriteFlipsFlagAndReturnsFull() {
+        Title t = Title.builder().id(1L).code("ABP-001").favorite(false).bookmark(true).rejected(false).build();
+        when(titleRepo.findByCode("ABP-001")).thenReturn(Optional.of(t));
+
+        var result = service.toggleFavorite("ABP-001");
+
+        assertInstanceOf(TitleBrowseService.FlagResult.Ok.class, result);
+        var state = ((TitleBrowseService.FlagResult.Ok) result).state();
+        assertTrue(state.favorite());
+        assertTrue(state.bookmark());
+        assertFalse(state.rejected());
+        verify(titleRepo).toggleFavorite(1L, true);
+    }
+
+    @Test
+    void toggleFavoriteRefusedWhenTitleIsRejected() {
+        Title t = Title.builder().id(1L).code("ABP-002").favorite(false).rejected(true).build();
+        when(titleRepo.findByCode("ABP-002")).thenReturn(Optional.of(t));
+
+        var result = service.toggleFavorite("ABP-002");
+
+        assertInstanceOf(TitleBrowseService.FlagResult.Refused.class, result);
+        var refused = (TitleBrowseService.FlagResult.Refused) result;
+        assertTrue(refused.reason().contains("rejected"));
+        verify(titleRepo, never()).toggleFavorite(anyLong(), anyBoolean());
+    }
+
+    @Test
+    void toggleFavoriteNotFoundWhenCodeMissing() {
+        when(titleRepo.findByCode("MISSING-001")).thenReturn(Optional.empty());
+
+        var result = service.toggleFavorite("MISSING-001");
+
+        assertInstanceOf(TitleBrowseService.FlagResult.NotFound.class, result);
+    }
+
+    // ── toggleBookmark ─────────────────────────────────────────────────────
+
+    @Test
+    void toggleBookmarkFlipsFlagAndReturnsFull() {
+        Title t = Title.builder().id(2L).code("SSIS-001").favorite(true).bookmark(false).rejected(false).build();
+        when(titleRepo.findByCode("SSIS-001")).thenReturn(Optional.of(t));
+
+        var result = service.toggleBookmark("SSIS-001");
+
+        assertInstanceOf(TitleBrowseService.FlagResult.Ok.class, result);
+        var state = ((TitleBrowseService.FlagResult.Ok) result).state();
+        assertTrue(state.favorite());
+        assertTrue(state.bookmark());
+        assertFalse(state.rejected());
+        verify(titleRepo).toggleBookmark(2L, true);
+    }
+
+    @Test
+    void toggleBookmarkRefusedWhenTitleIsRejected() {
+        Title t = Title.builder().id(2L).code("SSIS-002").bookmark(false).rejected(true).build();
+        when(titleRepo.findByCode("SSIS-002")).thenReturn(Optional.of(t));
+
+        var result = service.toggleBookmark("SSIS-002");
+
+        assertInstanceOf(TitleBrowseService.FlagResult.Refused.class, result);
+        verify(titleRepo, never()).toggleBookmark(anyLong(), anyBoolean());
+    }
+
+    @Test
+    void toggleBookmarkNotFoundWhenCodeMissing() {
+        when(titleRepo.findByCode("MISSING-002")).thenReturn(Optional.empty());
+
+        var result = service.toggleBookmark("MISSING-002");
+
+        assertInstanceOf(TitleBrowseService.FlagResult.NotFound.class, result);
+    }
+
+    // ── toggleRejected ─────────────────────────────────────────────────────
+
+    @Test
+    void toggleRejectedSetTrueClearsFavAndBookmark() {
+        Title t = Title.builder().id(3L).code("ADN-001").favorite(true).bookmark(true).rejected(false).build();
+        when(titleRepo.findByCode("ADN-001")).thenReturn(Optional.of(t));
+
+        var result = service.toggleRejected("ADN-001");
+
+        assertInstanceOf(TitleBrowseService.FlagResult.Ok.class, result);
+        var state = ((TitleBrowseService.FlagResult.Ok) result).state();
+        assertTrue(state.rejected());
+        assertFalse(state.favorite());
+        assertFalse(state.bookmark());
+        verify(titleRepo).toggleRejected(3L, true);
+        verify(titleRepo).toggleFavorite(3L, false);
+        verify(titleRepo).toggleBookmark(3L, false);
+    }
+
+    @Test
+    void toggleRejectedSetTrueWhenAlreadyClearDoesNotCallFavBookmarkClear() {
+        // favorite=false, bookmark=false — no need to clear them
+        Title t = Title.builder().id(3L).code("ADN-002").favorite(false).bookmark(false).rejected(false).build();
+        when(titleRepo.findByCode("ADN-002")).thenReturn(Optional.of(t));
+
+        service.toggleRejected("ADN-002");
+
+        verify(titleRepo).toggleRejected(3L, true);
+        verify(titleRepo, never()).toggleFavorite(anyLong(), anyBoolean());
+        verify(titleRepo, never()).toggleBookmark(anyLong(), anyBoolean());
+    }
+
+    @Test
+    void toggleRejectedSetFalseLeavesOtherFlagsUntouched() {
+        Title t = Title.builder().id(4L).code("ADN-003").favorite(false).bookmark(false).rejected(true).build();
+        when(titleRepo.findByCode("ADN-003")).thenReturn(Optional.of(t));
+
+        var result = service.toggleRejected("ADN-003");
+
+        assertInstanceOf(TitleBrowseService.FlagResult.Ok.class, result);
+        var state = ((TitleBrowseService.FlagResult.Ok) result).state();
+        assertFalse(state.rejected());
+        verify(titleRepo).toggleRejected(4L, false);
+        // fav+bm not touched when clearing rejected
+        verify(titleRepo, never()).toggleFavorite(anyLong(), anyBoolean());
+        verify(titleRepo, never()).toggleBookmark(anyLong(), anyBoolean());
+    }
+
+    @Test
+    void toggleRejectedNotFoundWhenCodeMissing() {
+        when(titleRepo.findByCode("MISSING-003")).thenReturn(Optional.empty());
+
+        var result = service.toggleRejected("MISSING-003");
+
+        assertInstanceOf(TitleBrowseService.FlagResult.NotFound.class, result);
+    }
+
     // --- helpers ---
 
     private static Title title(String code, String baseCode, String label, Long actressId, LocalDate addedDate) {

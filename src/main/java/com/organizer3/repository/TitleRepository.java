@@ -250,6 +250,8 @@ public interface TitleRepository {
 
     void toggleBookmark(long titleId, boolean bookmark);
 
+    void toggleRejected(long titleId, boolean rejected);
+
     /**
      * Increment the visit counter and update last_visited_at to now for a title.
      * No-op if the title does not exist.

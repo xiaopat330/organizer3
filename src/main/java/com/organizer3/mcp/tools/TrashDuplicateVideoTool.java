@@ -11,23 +11,26 @@ import com.organizer3.model.Video;
 import com.organizer3.repository.VideoRepository;
 import com.organizer3.shell.SessionContext;
 import com.organizer3.smb.VolumeConnection;
+import com.organizer3.titlefolder.TitleFolderService;
 import com.organizer3.trash.Trash;
 import lombok.extern.slf4j.Slf4j;
 import org.jdbi.v3.core.Jdbi;
 
-import java.io.IOException;
-import java.nio.file.Path;
 import java.time.Clock;
 import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Trash duplicate videos from a title, keeping one chosen video in place.
+ * MCP adapter that trashes all duplicate videos for a title on the mounted
+ * volume except the named keeper. The actual per-file trash + DB-row delete
+ * lives in {@link TitleFolderService#trashVideo}; this adapter:
  *
- * <p>Intended to action the output of {@code find_size_variant_titles} or
- * {@code find_duplicate_candidates}. Given a title code and the video ID to keep,
- * trashes all other videos for that title on the currently-mounted volume using
- * the Trash primitive, then removes their DB records.
+ * <ol>
+ *   <li>resolves the mounted volume + Trash primitive from the session;</li>
+ *   <li>narrows the title's videos to the mounted volume + drops the keeper;</li>
+ *   <li>iterates the remaining set, calling {@code service.trashVideo} per
+ *       file and aggregating the outcomes into the legacy MCP Result.</li>
+ * </ol>
  *
  * <p>Gated on {@code mcp.allowMutations} and {@code mcp.allowFileOps}.
  * Defaults to {@code dryRun: true}.
@@ -39,6 +42,7 @@ public class TrashDuplicateVideoTool implements Tool {
     private final Jdbi jdbi;
     private final OrganizerConfig config;
     private final VideoRepository videoRepo;
+    private final TitleFolderService folderService;
     private final Clock clock;
 
     public TrashDuplicateVideoTool(SessionContext session, Jdbi jdbi,
@@ -48,11 +52,12 @@ public class TrashDuplicateVideoTool implements Tool {
 
     TrashDuplicateVideoTool(SessionContext session, Jdbi jdbi, OrganizerConfig config,
                             VideoRepository videoRepo, Clock clock) {
-        this.session   = session;
-        this.jdbi      = jdbi;
-        this.config    = config;
-        this.videoRepo = videoRepo;
-        this.clock     = clock;
+        this.session       = session;
+        this.jdbi          = jdbi;
+        this.config        = config;
+        this.videoRepo     = videoRepo;
+        this.folderService = new TitleFolderService(null, videoRepo, jdbi);
+        this.clock         = clock;
     }
 
     @Override public String name() { return "trash_duplicate_video"; }
@@ -109,30 +114,29 @@ public class TrashDuplicateVideoTool implements Tool {
         Video keeper = onVolume.stream().filter(v -> v.getId() == keepId).findFirst().orElseThrow();
         List<Video> toTrash = onVolume.stream().filter(v -> v.getId() != keepId).toList();
 
-        Plan plan = new Plan(
-                volumeId, titleCode,
-                toVideoInfo(keeper),
+        Plan plan = new Plan(volumeId, titleCode, toVideoInfo(keeper),
                 toTrash.stream().map(this::toVideoInfo).toList());
 
-        if (dryRun || toTrash.isEmpty()) return new Result(dryRun || toTrash.isEmpty(), plan, List.of(), List.of());
+        if (dryRun || toTrash.isEmpty()) {
+            return new Result(dryRun || toTrash.isEmpty(), plan, List.of(), List.of());
+        }
 
         VolumeFileSystem fs = conn.fileSystem();
         Trash trash = new Trash(fs, volumeId, srv.trash(), clock);
         List<String> trashed = new ArrayList<>();
         List<String> failed  = new ArrayList<>();
+        String reason = "Duplicate video — kept videoId " + keepId;
 
         for (Video v : toTrash) {
-            Path filePath = v.getPath();
-            try {
-                Trash.Result r = trash.trashItem(filePath, "Duplicate video — kept videoId " + keepId);
-                videoRepo.delete(v.getId());
+            TitleFolderService.TrashOutcome outcome = folderService.trashVideo(trash, v, reason);
+            if (outcome.success()) {
                 log.info("MCP trash_duplicate_video: trashed + deleted row — titleCode={} videoId={} path={} trashedTo={}",
-                        titleCode, v.getId(), filePath, r.trashedPath());
-                trashed.add(filePath + " → " + r.trashedPath());
-            } catch (IOException e) {
+                        titleCode, v.getId(), outcome.source(), outcome.trashedTo());
+                trashed.add(outcome.source() + " → " + outcome.trashedTo());
+            } else {
                 log.warn("MCP trash_duplicate_video failed — titleCode={} videoId={} path={} error={}",
-                        titleCode, v.getId(), filePath, e.getMessage());
-                failed.add(filePath + " → " + e.getMessage());
+                        titleCode, v.getId(), outcome.source(), outcome.error());
+                failed.add(outcome.source() + " → " + outcome.error());
             }
         }
         log.info("MCP trash_duplicate_video summary — titleCode={} keptVideoId={} trashed={} failed={}",

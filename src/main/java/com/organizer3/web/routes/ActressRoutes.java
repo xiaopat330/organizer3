@@ -1,6 +1,7 @@
 package com.organizer3.web.routes;
 
 import com.organizer3.web.ActressBrowseService;
+import com.organizer3.web.TitleBrowseService;
 import io.javalin.Javalin;
 
 import java.util.Arrays;
@@ -14,9 +15,17 @@ import java.util.Optional;
 public class ActressRoutes {
 
     private final ActressBrowseService actressBrowseService;
+    private final TitleBrowseService titleBrowseService;
 
-    public ActressRoutes(ActressBrowseService actressBrowseService) {
+    /** Full constructor — includes the Admin tab endpoint. */
+    public ActressRoutes(ActressBrowseService actressBrowseService, TitleBrowseService titleBrowseService) {
         this.actressBrowseService = actressBrowseService;
+        this.titleBrowseService = titleBrowseService;
+    }
+
+    /** Legacy constructor for callers that don't need the Admin tab endpoint. */
+    public ActressRoutes(ActressBrowseService actressBrowseService) {
+        this(actressBrowseService, null);
     }
 
     public void register(Javalin app) {
@@ -165,6 +174,27 @@ public class ActressRoutes {
             offset = Math.max(offset, 0);
             limit  = Math.max(1, limit);
             ctx.json(actressBrowseService.findTitlesByActress(id, offset, limit, company, tags, enrichmentTagIds, sortBy, sortDir));
+        });
+
+        app.get("/api/actresses/{id}/admin-titles", ctx -> {
+            if (titleBrowseService == null) { ctx.status(501); return; }
+            long id;
+            try { id = Long.parseLong(ctx.pathParam("id")); }
+            catch (NumberFormatException e) { ctx.status(400); return; }
+            if (actressBrowseService.findById(id).isEmpty()) {
+                ctx.status(404).json(Map.of("error", "Actress not found"));
+                return;
+            }
+            int page = ctx.queryParamAsClass("page", Integer.class).getOrDefault(1);
+            page = Math.max(1, page);
+            int pageSize = com.organizer3.config.AppConfig.get().volumes().actressTitleAdminOrDefaults().pageSizeOrDefault();
+            TitleBrowseService.AdminTitlesPage result =
+                    titleBrowseService.findAdminTitlesPaged(id, page, pageSize);
+            ctx.json(Map.of(
+                    "titles",     result.titles(),
+                    "page",       result.page(),
+                    "totalPages", result.totalPages(),
+                    "pageSize",   result.pageSize()));
         });
 
         app.get("/api/actresses/{id}/tags", ctx -> {

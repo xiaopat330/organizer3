@@ -15,6 +15,12 @@ public interface VideoRepository {
     List<Video> findByTitle(long titleId);
 
     /**
+     * Returns a map from title_id to video count for all given title ids.
+     * Title ids with zero videos are not present in the result map.
+     */
+    java.util.Map<Long, Integer> countByTitleIds(java.util.Collection<Long> titleIds);
+
+    /**
      * Insert a new video or update an existing one (matched by id).
      * Returns the video with its generated id populated.
      */

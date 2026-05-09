@@ -37,7 +37,8 @@ public record OrganizerConfig(
         @JsonProperty("enrichment")          EnrichmentConfig enrichment,
         @JsonProperty("translation")         TranslationConfig translation,
         @JsonProperty("sync")                SyncSettings sync,
-        @JsonProperty("smb")                 SmbSettings smb
+        @JsonProperty("smb")                 SmbSettings smb,
+        @JsonProperty("actressTitleAdmin")   ActressTitleAdminConfig actressTitleAdmin
 ) {
     /** Legacy ctor for tests that predate the organize-pipeline blocks. */
     public OrganizerConfig(String appName, String dataDir,
@@ -48,7 +49,7 @@ public record OrganizerConfig(
                            BackupConfig backup, McpConfig mcp) {
         this(appName, dataDir, maxBrowseTitles, maxRandomTitles, maxRandomActresses,
              thumbnailInterval, thumbnailColumns, coverCropPercent,
-             servers, volumes, structures, syncConfig, backup, mcp, null, null, null, null, null, null, null, null, null);
+             servers, volumes, structures, syncConfig, backup, mcp, null, null, null, null, null, null, null, null, null, null);
     }
 
     /** Legacy ctor for test sites that predate the {@code mcp:} block. */
@@ -60,7 +61,7 @@ public record OrganizerConfig(
                            BackupConfig backup) {
         this(appName, dataDir, maxBrowseTitles, maxRandomTitles, maxRandomActresses,
              thumbnailInterval, thumbnailColumns, coverCropPercent,
-             servers, volumes, structures, syncConfig, backup, null, null, null, null, null, null, null, null, null, null);
+             servers, volumes, structures, syncConfig, backup, null, null, null, null, null, null, null, null, null, null, null);
     }
 
     /** Returns the background-thumbnail config, or defaults (disabled) if unset. */
@@ -106,6 +107,11 @@ public record OrganizerConfig(
     /** Returns the SMB timeout settings, or conservative defaults if unset. */
     public SmbSettings smbOrDefaults() {
         return smb != null ? smb : SmbSettings.DEFAULTS;
+    }
+
+    /** Returns the actress title admin config, or defaults (pageSize=5) if unset. */
+    public ActressTitleAdminConfig actressTitleAdminOrDefaults() {
+        return actressTitleAdmin != null ? actressTitleAdmin : ActressTitleAdminConfig.DEFAULTS;
     }
 
     public Optional<VolumeConfig> findById(String id) {

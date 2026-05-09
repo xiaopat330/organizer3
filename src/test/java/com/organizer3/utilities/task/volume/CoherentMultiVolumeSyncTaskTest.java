@@ -559,7 +559,7 @@ class CoherentMultiVolumeSyncTaskTest {
                         new com.organizer3.config.volume.VolumeStructureDef("conventional", List.of(), null),
                         new com.organizer3.config.volume.VolumeStructureDef("queue", List.of(), null)
                 ),
-                List.of(), null, null, null, null, null, null, null, null, null, null, smbSettings);
+                List.of(), null, null, null, null, null, null, null, null, null, null, smbSettings, null);
     }
 
     // ── Task runner helper ────────────────────────────────────────────────────

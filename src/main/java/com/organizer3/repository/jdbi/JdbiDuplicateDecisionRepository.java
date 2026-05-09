@@ -48,6 +48,15 @@ public class JdbiDuplicateDecisionRepository implements DuplicateDecisionReposit
     }
 
     @Override
+    public List<DuplicateDecision> listByTitleCode(String titleCode) {
+        return jdbi.withHandle(h ->
+                h.createQuery("SELECT * FROM duplicate_decisions WHERE title_code = :titleCode ORDER BY volume_id, nas_path")
+                        .bind("titleCode", titleCode)
+                        .map(MAPPER)
+                        .list());
+    }
+
+    @Override
     public void delete(String titleCode, String volumeId, String nasPath) {
         jdbi.useHandle(h -> h.createUpdate("""
                         DELETE FROM duplicate_decisions

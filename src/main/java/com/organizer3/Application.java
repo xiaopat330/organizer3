@@ -674,7 +674,7 @@ public class Application {
                 .filter(v -> !"avstars".equals(v.structureType()))
                 .collect(Collectors.toMap(VolumeConfig::id, VolumeConfig::smbPath));
         int maxBrowseTitles = config.maxBrowseTitles() != null ? config.maxBrowseTitles() : 500;
-        TitleBrowseService browseService = new TitleBrowseService(titleRepo, actressRepo, coverPath, labelRepo, titleActressRepo, watchHistoryRepo, volumeSmbPaths, maxBrowseTitles);
+        TitleBrowseService browseService = new TitleBrowseService(titleRepo, actressRepo, coverPath, labelRepo, titleActressRepo, watchHistoryRepo, videoRepo, volumeSmbPaths, maxBrowseTitles);
         StageNameBackupFile stageNameBackup = new StageNameBackupFile(
                 dbDir.resolve("stagenames.yaml"));
         ActressBrowseService actressBrowseService = new ActressBrowseService(
@@ -1024,6 +1024,16 @@ public class Application {
         webServer.registerTitleTagEditor(
                 new com.organizer3.web.routes.TitleTagEditorRoutes(jdbi, titleRepo, titleEffectiveTagsService));
 
+        // Actress Admin tab — folder-contents HTTP routes (Phase 4b of PROPOSAL_ACTRESS_TITLE_ADMIN).
+        // Mounts only the three new endpoints; base TitleRoutes already registered by WebServer init.
+        com.organizer3.titlefolder.TitleFolderService titleFolderService =
+                new com.organizer3.titlefolder.TitleFolderService(
+                        titleRepo, videoRepo, jdbi, config.mediaOrDefaults());
+        webServer.registerTitleFolderContents(
+                new com.organizer3.web.routes.TitleRoutes(
+                        browseService, actressBrowseService, titleRepo,
+                        titleFolderService, smbConnectionFactory, config, videoRepo));
+
         // Title Editor — metadata preparation for fully-structured titles in the unsorted volume.
         // See spec/PROPOSAL_TITLE_EDITOR.md.
         final String UNSORTED_VOLUME_ID = "unsorted";
@@ -1186,7 +1196,7 @@ public class Application {
                 mcpTools.register(new com.organizer3.mcp.tools.SandboxWriteTestTool(session, config));
                 mcpTools.register(new com.organizer3.mcp.tools.FixTitleTimestampsTool(session, jdbi, titleTimestampService));
                 mcpTools.register(new com.organizer3.mcp.tools.AuditVolumeTimestampsTool(session, jdbi, titleTimestampService));
-                mcpTools.register(new com.organizer3.mcp.tools.NormalizeTitleTool(session, jdbi, titleNormalizerService));
+                mcpTools.register(new com.organizer3.mcp.tools.NormalizeTitleTool(session, titleFolderService));
                 mcpTools.register(new com.organizer3.mcp.tools.RestructureTitleTool(session, jdbi, titleRestructurerService));
                 mcpTools.register(new com.organizer3.mcp.tools.SortTitleTool(session, jdbi, config, titleSorterService));
                 mcpTools.register(new com.organizer3.mcp.tools.ClassifyActressTool(session, jdbi, config, actressClassifierService));

@@ -12,6 +12,9 @@ public interface DuplicateDecisionRepository {
     /** All decisions that have not yet been executed (executed_at IS NULL). */
     List<DuplicateDecision> listPending();
 
+    /** All decisions for a specific title code, regardless of executed_at. */
+    List<DuplicateDecision> listByTitleCode(String titleCode);
+
     /** Remove one location's decision by its full primary key. No-op if not found. */
     void delete(String titleCode, String volumeId, String nasPath);
 
