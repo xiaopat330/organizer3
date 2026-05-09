@@ -71,6 +71,7 @@ export async function openActressDetail(actressId) {
   detailActressTags            = null;
   detailEnrichmentTags         = null;
   showView('actress-detail');
+  selectActressDetailTab('catalog');
   setActiveGrid(actressDetailGrid);
   document.getElementById('sentinel')?.remove();
   actressDetailGrid.reset();
@@ -970,4 +971,24 @@ export function setDetailCompanyFilter(company) {
   const sel = document.getElementById('detail-company-select');
   if (sel) sel.value = company || '';
   scheduleFilteredQuery();
+}
+
+// ── Right-panel tabs (Catalog | Admin) ────────────────────────────────────
+const ACTRESS_DETAIL_TABS = {
+  catalog: { btn: 'actress-detail-catalog-tab', view: 'actress-detail-catalog-view' },
+  admin:   { btn: 'actress-detail-admin-tab',   view: 'actress-detail-admin-view'   },
+};
+
+export function selectActressDetailTab(tab) {
+  for (const [key, ids] of Object.entries(ACTRESS_DETAIL_TABS)) {
+    const btn  = document.getElementById(ids.btn);
+    const view = document.getElementById(ids.view);
+    if (btn)  btn.classList.toggle('selected', key === tab);
+    if (view) view.style.display = (key === tab) ? '' : 'none';
+  }
+}
+
+for (const [key, ids] of Object.entries(ACTRESS_DETAIL_TABS)) {
+  const btn = document.getElementById(ids.btn);
+  if (btn) btn.onclick = () => selectActressDetailTab(key);
 }

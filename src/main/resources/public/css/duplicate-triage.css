@@ -972,6 +972,12 @@
   border-color: #9f1239;
   border-bottom-color: #fb7185;
 }
+.tools-section-tab-actress-admin.selected {
+  color: #a5b4fc;
+  background: #0f0c2a;
+  border-color: #4338ca;
+  border-bottom-color: #818cf8;
+}
 
 /* ── Merge Candidates view ───────────────────────────────────────── */
 .tools-merge-candidates-view {
