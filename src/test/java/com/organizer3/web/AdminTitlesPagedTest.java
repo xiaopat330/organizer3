@@ -168,6 +168,55 @@ class AdminTitlesPagedTest {
         verifyNoInteractions(videoRepo);
     }
 
+    // ── videoCount field ────────────────────────────────────────────────────
+
+    @Test
+    void titleWithZeroVideoCountReturnsVideoCountZero() {
+        // Title id=1 is absent from the counts map → 0 videos
+        Title noContent = title(1L, "AAA-001", LocalDate.of(2024, 1, 1), singleLoc(1L));
+
+        when(titleRepo.findByActress(99L)).thenReturn(List.of(noContent));
+        when(videoRepo.countByTitleIds(any())).thenReturn(Map.of()); // id=1 absent → 0
+        mockToSummariesDeps();
+
+        var page = service.findAdminTitlesPaged(99L, 1, 10);
+
+        assertEquals(1, page.titles().size());
+        assertEquals(Integer.valueOf(0), page.titles().get(0).getVideoCount());
+    }
+
+    @Test
+    void titleWithVideosReturnsCorrectVideoCount() {
+        Title withVideos = title(1L, "AAA-001", LocalDate.of(2024, 1, 1), singleLoc(1L));
+
+        when(titleRepo.findByActress(99L)).thenReturn(List.of(withVideos));
+        when(videoRepo.countByTitleIds(any())).thenReturn(Map.of(1L, 3));
+        mockToSummariesDeps();
+
+        var page = service.findAdminTitlesPaged(99L, 1, 10);
+
+        assertEquals(1, page.titles().size());
+        assertEquals(Integer.valueOf(3), page.titles().get(0).getVideoCount());
+    }
+
+    @Test
+    void mixedVideoCountsAreCorrectlyAssignedPerTitle() {
+        Title noVideos   = title(1L, "AAA-001", LocalDate.of(2024, 1, 1), singleLoc(1L));
+        Title twoVideos  = title(2L, "BBB-001", LocalDate.of(2024, 1, 1), singleLoc(2L));
+
+        when(titleRepo.findByActress(99L)).thenReturn(List.of(noVideos, twoVideos));
+        when(videoRepo.countByTitleIds(any())).thenReturn(Map.of(2L, 2)); // id=1 absent
+        mockToSummariesDeps();
+
+        var page = service.findAdminTitlesPaged(99L, 1, 10);
+
+        // noVideos bucket=1000 sorts first
+        assertEquals("AAA-001", page.titles().get(0).getCode());
+        assertEquals(Integer.valueOf(0), page.titles().get(0).getVideoCount());
+        assertEquals("BBB-001", page.titles().get(1).getCode());
+        assertEquals(Integer.valueOf(2), page.titles().get(1).getVideoCount());
+    }
+
     // ── helpers ──────────────────────────────────────────────────────────────
 
     /**

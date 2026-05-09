@@ -1,7 +1,13 @@
-// Edit Card renderer — Phase 2c: full §4 Edit Card.
+// Edit Card renderer — Phase 2f: reduced card modes (no-content + rejected).
 //
-// Renders header (§4.1) + flags row (§4.2) + section stubs (§4.3 / §4.4)
+// Renders header (§4.1) + flags row (§4.2) + optional no-content banner
+// + section stubs (§4.3 / §4.4) only in normal mode
 // + Commit/Cancel footer (§4.5).
+//
+// Mode is derived from server-side values (not staged state):
+//   'rejected'   — t.rejected === true
+//   'no-content' — videoCount === 0 (and not rejected)
+//   'normal'     — everything else
 //
 // Re-render strategy: renderCardInPlace(code) replaces a single card's
 // outerHTML in-place, then re-attaches event listeners via attachCardListeners.
@@ -31,6 +37,13 @@ function effectiveFlagValue(code, kind, serverValue) {
 
 export function renderCard(t) {
   const code = t.code;
+
+  // ── Card mode (server-side; not stage-aware) ──────────────────────────
+  const mode = t.rejected
+    ? 'rejected'
+    : (typeof t.videoCount === 'number' && t.videoCount === 0)
+      ? 'no-content'
+      : 'normal';
 
   // ── Header: cover ──────────────────────────────────────────────────────
   const coverHtml = t.coverUrl
@@ -133,28 +146,61 @@ export function renderCard(t) {
   const hasBmStage  = !!state.findPendingStage(code, 'flag-bookmark');
   const hasRejStage = !!state.findPendingStage(code, 'flag-reject');
 
-  // Fav and BM are disabled when effectively rejected
-  const favDisabled = effRej ? ' disabled' : '';
-  const bmDisabled  = effRej ? ' disabled' : '';
+  // Fav and BM are disabled when effectively rejected or in no-content/rejected mode
+  // Tooltip text differs by mode.
+  let favBmDisabled = false;
+  let favBmTitle = '';
+  if (mode === 'rejected') {
+    favBmDisabled = true;
+    favBmTitle = 'title is rejected; clear reject first';
+  } else if (mode === 'no-content') {
+    favBmDisabled = true;
+    favBmTitle = 'title has no content';
+  } else if (effRej) {
+    // staged reject — mutex still applies in normal mode
+    favBmDisabled = true;
+    favBmTitle = 'title is rejected; clear reject first';
+  }
+
+  const favDisabled = favBmDisabled ? ' disabled' : '';
+  const bmDisabled  = favBmDisabled ? ' disabled' : '';
 
   const favClasses = `admin-card-flag-btn fav-btn${effFav ? ' active' : ''}${hasFavStage ? ' staged' : ''}${favDisabled}`;
   const bmClasses  = `admin-card-flag-btn bm-btn${effBm  ? ' active' : ''}${hasBmStage  ? ' staged' : ''}${bmDisabled}`;
   const rejClasses = `admin-card-flag-btn rej-btn${effRej ? ' active' : ''}${hasRejStage ? ' staged' : ''}`;
 
+  const favTitle = favBmTitle || 'Favorite';
+  const bmTitle  = favBmTitle || 'Bookmark';
+
   const flagsHtml = `
     <div class="admin-card-flags-row">
-      <button class="${favClasses}" data-flag="favorite" title="Favorite">${ICON_FAV_LG} Favorite</button>
-      <button class="${bmClasses}"  data-flag="bookmark" title="Bookmark">${ICON_BM_LG} Bookmark</button>
+      <button class="${favClasses}" data-flag="favorite" title="${esc(favTitle)}">${ICON_FAV_LG} Favorite</button>
+      <button class="${bmClasses}"  data-flag="bookmark" title="${esc(bmTitle)}">${ICON_BM_LG} Bookmark</button>
       <button class="${rejClasses}" data-flag="reject"   title="Reject">${ICON_REJ_LG} Reject</button>
     </div>`;
 
-  // ── Section stubs (§4.3 / §4.4) ──────────────────────────────────────
+  // ── No-content banner (§4.6) — only in no-content mode ──────────────
+  const noContentBannerHtml = mode === 'no-content' ? `
+    <div class="admin-card-no-content-banner">
+      ⚠ NO CONTENT — no video files
+      <button type="button" class="admin-card-whats-this-btn" aria-expanded="false">[ what's this? ]</button>
+      <div class="admin-card-whats-this-body" hidden>
+        This title's folder has no video files. The Admin tab can't fix this —
+        a future Tools feature will let you review and clean up no-content
+        titles across the library. Use the Reject button to flag this title
+        for that future tool to find.
+      </div>
+    </div>` : '';
+
+  // ── Section stubs (§4.3 / §4.4) — suppressed in rejected/no-content modes
   const locationCount = (t.locations || []).length;
   let sectionStubHtml = '';
-  if (locationCount > 1) {
-    sectionStubHtml = `<div class="admin-card-section-stub">Duplicate folder triage — Phase 3 (${locationCount} locations)</div>`;
-  } else if (locationCount === 1) {
-    sectionStubHtml = `<div class="admin-card-section-stub">Folder contents — Phase 4</div>`;
+  if (mode === 'normal') {
+    if (locationCount > 1) {
+      sectionStubHtml = `<div class="admin-card-section-stub">Duplicate folder triage — Phase 3 (${locationCount} locations)</div>`;
+    } else if (locationCount === 1) {
+      sectionStubHtml = `<div class="admin-card-section-stub">Folder contents — Phase 4</div>`;
+    }
   }
 
   // ── Error bar (failed stage) ──────────────────────────────────────────
@@ -177,9 +223,14 @@ export function renderCard(t) {
       </div>`;
   }
 
+  const modeClass = mode === 'rejected' ? ' admin-edit-card-rejected'
+                  : mode === 'no-content' ? ' admin-edit-card-no-content'
+                  : '';
+
   return `
-    <div class="admin-edit-card${t.rejected ? ' admin-edit-card-rejected' : ''}" data-code="${esc(code)}">
+    <div class="admin-edit-card${modeClass}" data-code="${esc(code)}">
       ${headerHtml}
+      ${noContentBannerHtml}
       ${flagsHtml}
       ${sectionStubHtml}
       ${errorHtml}
@@ -210,6 +261,18 @@ export function attachCardListeners(code) {
   const titleData = state.getCardData(code);
   if (!titleData) return;
 
+  // "What's this?" toggle for no-content banner
+  const whatsThisBtn = card.querySelector('.admin-card-whats-this-btn');
+  if (whatsThisBtn) {
+    whatsThisBtn.addEventListener('click', () => {
+      const body = card.querySelector('.admin-card-whats-this-body');
+      if (!body) return;
+      const expanded = whatsThisBtn.getAttribute('aria-expanded') === 'true';
+      whatsThisBtn.setAttribute('aria-expanded', String(!expanded));
+      body.hidden = expanded;
+    });
+  }
+
   // Flag buttons
   card.querySelectorAll('.admin-card-flag-btn[data-flag]').forEach(btn => {
     btn.addEventListener('click', () => {
@@ -221,8 +284,11 @@ export function attachCardListeners(code) {
       const effBm  = effectiveFlagValue(code, 'flag-bookmark',  titleData.bookmark);
       const effRej = effectiveFlagValue(code, 'flag-reject',    titleData.rejected);
 
-      // Mutex: clicking Favorite or Bookmark while effectively rejected → no-op
-      if ((flag === 'favorite' || flag === 'bookmark') && effRej) return;
+      // Mutex: clicking Favorite or Bookmark while effectively rejected,
+      // server-rejected, or in no-content mode → no-op
+      const serverRejected = titleData.rejected;
+      const isNoContent = typeof titleData.videoCount === 'number' && titleData.videoCount === 0;
+      if ((flag === 'favorite' || flag === 'bookmark') && (effRej || serverRejected || isNoContent)) return;
 
       // Compute which server value drives this flag
       const serverValue = flag === 'favorite' ? titleData.favorite
