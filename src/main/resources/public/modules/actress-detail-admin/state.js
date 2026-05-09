@@ -60,6 +60,12 @@ export function clearStages(code) {
   if (s) s.stages = [];
 }
 
+// Clears every card's stages without resetting actressId / titleData.
+// Used by the navigate-away guard when the user confirms Discard.
+export function clearAllStages() {
+  for (const s of cardStates.values()) s.stages = [];
+}
+
 // Stage lifecycle ────────────────────────────────────────────────────────
 
 // Add a stage. If a stage with the same `kind` already exists for this

@@ -2793,3 +2793,78 @@
   border-color: #475569;
   color: #94a3b8;
 }
+
+/* ── Admin tab — navigate-away discard-confirm modal (Phase 2e) ───────── */
+
+.admin-discard-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.78);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  animation: admin-discard-fade 0.12s ease-out;
+}
+@keyframes admin-discard-fade { from { opacity: 0; } to { opacity: 1; } }
+
+.admin-discard-modal {
+  background: #141414;
+  border: 1px solid #2a2a2a;
+  border-radius: 6px;
+  width: min(420px, 90vw);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
+  color: #d8d8d8;
+}
+.admin-discard-header {
+  padding: 12px 16px;
+  border-bottom: 1px solid #2a2a2a;
+  background: #1a1a1a;
+  font-size: 0.95rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+.admin-discard-body {
+  padding: 16px;
+  font-size: 0.85rem;
+  line-height: 1.45;
+  color: #b8c5d6;
+}
+.admin-discard-body strong {
+  color: #fda4af;
+  font-weight: 600;
+}
+.admin-discard-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 10px 14px;
+  border-top: 1px solid #2a2a2a;
+  background: #0f0f0f;
+}
+.admin-discard-stay,
+.admin-discard-confirm {
+  background: transparent;
+  border: 1px solid #2a3a50;
+  color: #cbd5e1;
+  border-radius: 4px;
+  padding: 6px 14px;
+  font: inherit;
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: background 0.12s, border-color 0.12s;
+}
+.admin-discard-stay {
+  background: #182030;
+}
+.admin-discard-stay:hover { background: #1e2d42; border-color: #3a4f6f; }
+.admin-discard-stay:focus { outline: 2px solid #38bdf8; outline-offset: 1px; }
+.admin-discard-confirm {
+  color: #fca5a5;
+  background: #1a0a0a;
+  border-color: #7f1d1d;
+}
+.admin-discard-confirm:hover { background: #2a1010; border-color: #b91c1c; color: #fecaca; }

@@ -15,6 +15,7 @@
 import { setStatus } from '../utils.js';
 import { renderCard, attachCardListeners } from './card.js';
 import { renderPagination, attachPaginationListeners } from './pagination.js';
+import { confirmDiscardIfStaged, installBeforeUnload, uninstallBeforeUnload } from './nav-guard.js';
 import * as state from './state.js';
 
 let currentActressId = null;
@@ -29,12 +30,15 @@ export async function mountAdmin(actressId) {
     currentActressId = actressId;
     currentPage = 1;
   }
+  installBeforeUnload();
   await loadAdminPage(currentPage);
 }
 
 export function unmountAdmin() {
-  // No-op for now. State stays alive so the user can switch to Catalog and
-  // back without losing their place. State is reset on actress change.
+  // State stays alive so the user can switch to Catalog and back without
+  // losing their place. State is reset on actress change. The beforeunload
+  // backstop is removed when leaving the tab — re-installed on next mount.
+  uninstallBeforeUnload();
 }
 
 export function hasStagedChanges() {
@@ -91,16 +95,11 @@ function renderPage(data) {
   attachPaginationListeners(data.page, data.totalPages, navigateToPage);
 }
 
-// Navigate-away guard. Phase 2e replaces window.confirm() with a real styled
-// modal; for now, a quick confirm() is enough to avoid silent discard.
-function navigateToPage(targetPage) {
+// Navigate-away guard for in-tab pagination. Tab/actress switches are
+// guarded at their entry points in actress-detail.js.
+async function navigateToPage(targetPage) {
   if (targetPage === currentPage) return;
-  if (state.hasStagedChanges()) {
-    // TODO (Phase 2e): replace window.confirm() with the styled confirm modal.
-    const ok = window.confirm(
-      `You have ${state.getTotalPendingCount()} staged change(s) on this page. Discard?`
-    );
-    if (!ok) return;
-  }
+  const ok = await confirmDiscardIfStaged();
+  if (!ok) return;
   loadAdminPage(targetPage);
 }
