@@ -2591,17 +2591,17 @@
 
 .admin-card-cover {
   flex-shrink: 0;
-  width: 90px;
+  width: 170px;
 }
 .admin-card-cover img {
-  width: 90px;
+  width: 170px;
   border-radius: 4px;
   display: block;
   object-fit: cover;
 }
 .admin-card-cover .cover-placeholder {
-  width: 90px;
-  min-height: 126px;
+  width: 170px;
+  min-height: 238px;
   background: #1e293b;
   border-radius: 4px;
   display: flex;
