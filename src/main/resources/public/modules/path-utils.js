@@ -7,13 +7,21 @@
 const IS_MAC = /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent);
 const IS_WIN = /Win/.test(navigator.platform || navigator.userAgent);
 
+// Accepts inputs in either form:
+//   //server.local/share/path        (admin tab — folder-contents, dup cards)
+//   smb://server.local/share/path    (actress detail — folderPaths)
+//
+// Mac → return verbatim (Finder/Open dialogs accept both forms with .local).
+// Non-mac → strip mDNS .local. Windows additionally converts smb:// or // to
+// UNC \\ and / to \ so Explorer's address bar treats it as a network path
+// instead of a URL.
 export function displayPath(rawPath) {
   if (!rawPath) return '';
   if (IS_MAC) return rawPath;
-  // Non-mac: strip mDNS .local suffix (Bonjour-only).
-  let p = rawPath.replace(/\.local(?=\/|$)/g, '');
-  // Windows: Explorer wants UNC backslashes. //srv/share/path → \\srv\share\path
-  if (IS_WIN) p = p.replace(/\//g, '\\');
+  let p = rawPath.replace(/\.local(?=[\/\\]|$)/g, '');
+  if (IS_WIN) {
+    p = p.replace(/^smb:\/\//, '\\\\').replace(/\//g, '\\');
+  }
   return p;
 }
 

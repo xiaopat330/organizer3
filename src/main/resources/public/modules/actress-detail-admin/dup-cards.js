@@ -16,7 +16,7 @@
 import { esc } from '../utils.js';
 import { rankLocations } from '../duplicate-ranker.js';
 import * as state from './state.js';
-import { displayPath, installPathClickToCopy } from './path-utils.js';
+import { displayPath, installPathClickToCopy } from '../path-utils.js';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 

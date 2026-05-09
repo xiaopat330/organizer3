@@ -12,7 +12,7 @@
 import { esc } from '../utils.js';
 import * as state from './state.js';
 import { renderCardInPlace } from './card.js';
-import { displayPath, installPathClickToCopy } from './path-utils.js';
+import { displayPath, installPathClickToCopy } from '../path-utils.js';
 
 // ── Humanize helpers ─────────────────────────────────────────────────────────
 

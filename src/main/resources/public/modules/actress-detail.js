@@ -8,6 +8,7 @@ import { renderAvatarFrame, attachAvatarFrameListeners } from './actress-avatar-
 import { openCustomAvatarEditor } from './custom-avatar-editor.js';
 import { mountAdmin, unmountAdmin } from './actress-detail-admin/index.js';
 import { confirmDiscardIfStaged } from './actress-detail-admin/nav-guard.js';
+import { displayPath, installPathClickToCopy } from './path-utils.js';
 
 // ── State ─────────────────────────────────────────────────────────────────
 export let detailActressId    = null;
@@ -363,11 +364,8 @@ function renderSidebarSections(a) {
     btn.addEventListener('click', () => openActressDetail(Number(btn.dataset.actressId)));
   });
 
-  sidebar.querySelectorAll('.actress-detail-folder-path').forEach(el => {
-    el.addEventListener('click', (e) => {
-      e.preventDefault();
-      copyActressFolderPath(el, el.dataset.smb);
-    });
+  sidebar.querySelectorAll('.actress-detail-folder-path[data-smb]').forEach(el => {
+    installPathClickToCopy(el, el.dataset.smb);
   });
 
   attachAvatarFrameListeners(sidebar, (id, hasCustomAvatar) => {
@@ -432,35 +430,9 @@ function renderActressFolderPaths(a) {
   const paths = a.folderPaths || [];
   if (paths.length === 0) return '';
   const links = paths.map(p =>
-    `<a class="actress-detail-folder-path" href="#" data-smb="${esc(p)}">${esc(p)}</a>`
+    `<span class="actress-detail-folder-path" data-smb="${esc(p)}">${esc(displayPath(p))}</span>`
   ).join('');
   return `<div class="actress-detail-folder-paths">${links}</div>`;
-}
-
-function copyActressFolderPath(el, smbUrl) {
-  const isMac = /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent);
-  const text = isMac
-    ? smbUrl
-    : smbUrl.replace(/^smb:\/\//, '\\\\').replace(/\//g, '\\');
-
-  const orig = el.textContent;
-  const confirm = () => {
-    el.textContent = 'Copied!';
-    setTimeout(() => { el.textContent = orig; }, 1500);
-  };
-
-  if (navigator.clipboard) {
-    navigator.clipboard.writeText(text).then(confirm);
-  } else {
-    const ta = document.createElement('textarea');
-    ta.value = text;
-    ta.style.cssText = 'position:fixed;opacity:0';
-    document.body.appendChild(ta);
-    ta.select();
-    document.execCommand('copy');
-    document.body.removeChild(ta);
-    confirm();
-  }
 }
 
 // ── Section: Primary actress (shown when this actress is an alias of another) ─
