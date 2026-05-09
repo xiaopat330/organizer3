@@ -17,7 +17,8 @@ const ORDER = {
   'flag-bookmark': 0,
   'flag-reject':   0,
   'duplicate-decision': 1,
-  // Phase 4/5: 'trash-video', 'trash-cover', 'normalize' at order 2
+  'trash-video':   2,
+  'trash-cover':   2,
 };
 
 export async function commitCard(code) {
@@ -94,6 +95,36 @@ async function fireStage(code, stage) {
       // Invalidate cached decisions so the next render re-fetches from server.
       const td = state.getCardData(code);
       if (td) td._dupDecisions = null;
+      return;
+    }
+    case 'trash-video': {
+      const { filename } = stage.payload;
+      const res = await fetch(
+        `/api/titles/${encodeURIComponent(code)}/videos/${encodeURIComponent(filename)}/trash`,
+        { method: 'POST' },
+      );
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.error || `HTTP ${res.status}`);
+      }
+      // Invalidate folder-contents cache so the next render re-fetches.
+      const tdV = state.getCardData(code);
+      if (tdV) delete tdV._folderContents;
+      return;
+    }
+    case 'trash-cover': {
+      const { filename } = stage.payload;
+      const res = await fetch(
+        `/api/titles/${encodeURIComponent(code)}/covers/${encodeURIComponent(filename)}/trash`,
+        { method: 'POST' },
+      );
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.error || `HTTP ${res.status}`);
+      }
+      // Invalidate folder-contents cache so the next render re-fetches.
+      const tdC = state.getCardData(code);
+      if (tdC) delete tdC._folderContents;
       return;
     }
     default:

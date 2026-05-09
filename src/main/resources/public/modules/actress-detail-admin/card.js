@@ -21,6 +21,7 @@ import { esc, ageAtDate, agePillTier } from '../utils.js';
 import { ICON_FAV_LG, ICON_BM_LG, ICON_REJ_LG, gradeBadgeHtml, tagBadgeHtml } from '../icons.js';
 import * as state from './state.js';
 import { commitCard, cancelCard } from './commit.js';
+import { renderFolderContents, ensureFolderContents, attachFolderListeners } from './folder-contents.js';
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -285,7 +286,10 @@ export function renderCard(t) {
         : null;
       sectionHtml = renderDupSection(code, locationEntries, cachedDec);
     } else if (locationCount === 1) {
-      sectionHtml = `<div class="admin-card-section-stub">Folder contents — Phase 4</div>`;
+      const cachedContents = Object.prototype.hasOwnProperty.call(t, '_folderContents')
+        ? t._folderContents
+        : undefined;
+      sectionHtml = renderFolderContents(code, cachedContents);
     }
   }
 
@@ -359,11 +363,22 @@ export function attachCardListeners(code) {
     });
   }
 
+  // §4.4 Lazy-fetch folder contents for single-location titles.
+  const locationEntries = titleData.locationEntries || [];
+  const mode = titleData.rejected
+    ? 'rejected'
+    : (typeof titleData.videoCount === 'number' && titleData.videoCount === 0)
+      ? 'no-content'
+      : 'normal';
+  if (mode === 'normal' && locationEntries.length === 1) {
+    ensureFolderContents(code, titleData);
+    attachFolderListeners(code, card, titleData);
+  }
+
   // §4.3 Lazy-fetch duplicate decisions for multi-location titles.
   // If decisions are not yet cached (_dupDecisions not set), fetch and re-render.
   // The check uses hasOwnProperty so that null (loaded, empty) is distinguished
   // from undefined (not yet fetched).
-  const locationEntries = titleData.locationEntries || [];
   if (locationEntries.length > 1 && !Object.prototype.hasOwnProperty.call(titleData, '_dupDecisions')) {
     // Mark as "in flight" with null so concurrent re-renders don't double-fetch.
     titleData._dupDecisions = null;
