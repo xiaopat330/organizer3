@@ -215,6 +215,11 @@ public class WebServer {
         routes.register(app);
     }
 
+    /** Mounts the Title browse + flag-mutation endpoints. Primarily for tests. */
+    public void registerTitleRoutes(com.organizer3.web.routes.TitleRoutes routes) {
+        routes.register(app);
+    }
+
     /** Mounts the javdb Discovery read-only endpoints ({@code /api/javdb/discovery/*}). */
     public void registerJavdbDiscovery(com.organizer3.web.routes.JavdbDiscoveryRoutes routes) {
         routes.register(app);

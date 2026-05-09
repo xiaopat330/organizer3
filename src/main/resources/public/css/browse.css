@@ -994,6 +994,11 @@
   filter: grayscale(1) brightness(0.7);
 }
 
+/* Rejected title cards: desaturated, dimmed cover. */
+.title-card-rejected .cover-img {
+  filter: grayscale(1) brightness(0.7);
+}
+
 /* Respect OS-level reduce-motion preference: freeze the marquee on the first
    tile rather than scrolling. */
 @media (prefers-reduced-motion: reduce) {

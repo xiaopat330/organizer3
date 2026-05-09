@@ -5,6 +5,7 @@ import com.organizer3.repository.TitleRepository;
 import com.organizer3.web.ActressBrowseService;
 import com.organizer3.web.TagCatalogLoader;
 import com.organizer3.web.TitleBrowseService;
+import com.organizer3.web.TitleBrowseService.FlagResult;
 import io.javalin.Javalin;
 import lombok.extern.slf4j.Slf4j;
 
@@ -188,27 +189,47 @@ public class TitleRoutes {
             );
         });
 
-        if (titleRepo != null) {
-            app.post("/api/titles/{code}/favorite", ctx -> {
-                String code = ctx.pathParam("code");
-                Title title = titleRepo.findByCode(code).orElse(null);
-                if (title == null) { ctx.status(404).json(Map.of("error", "Title not found")); return; }
-                boolean newValue = !title.isFavorite();
-                titleRepo.toggleFavorite(title.getId(), newValue);
-                log.info("Title modified — code={} favorite={}", code, newValue);
-                ctx.json(Map.of("code", code, "favorite", newValue));
-            });
+        app.post("/api/titles/{code}/favorite", ctx -> {
+            String code = ctx.pathParam("code");
+            FlagResult result = browseService.toggleFavorite(code);
+            if (result instanceof FlagResult.NotFound) {
+                ctx.status(404).json(Map.of("error", "Title not found"));
+            } else if (result instanceof FlagResult.Refused r) {
+                ctx.status(400).json(Map.of("error", r.reason()));
+            } else {
+                var state = ((FlagResult.Ok) result).state();
+                log.info("Title modified — code={} favorite={}", code, state.favorite());
+                ctx.json(Map.of("code", state.code(), "favorite", state.favorite(),
+                        "bookmark", state.bookmark(), "rejected", state.rejected()));
+            }
+        });
 
-            app.post("/api/titles/{code}/bookmark", ctx -> {
-                String code = ctx.pathParam("code");
-                Title title = titleRepo.findByCode(code).orElse(null);
-                if (title == null) { ctx.status(404).json(Map.of("error", "Title not found")); return; }
-                String valueParam = ctx.queryParam("value");
-                boolean newValue = valueParam != null ? Boolean.parseBoolean(valueParam) : !title.isBookmark();
-                titleRepo.toggleBookmark(title.getId(), newValue);
-                log.info("Title modified — code={} bookmark={}", code, newValue);
-                ctx.json(Map.of("code", code, "bookmark", newValue));
-            });
-        }
+        app.post("/api/titles/{code}/bookmark", ctx -> {
+            String code = ctx.pathParam("code");
+            FlagResult result = browseService.toggleBookmark(code);
+            if (result instanceof FlagResult.NotFound) {
+                ctx.status(404).json(Map.of("error", "Title not found"));
+            } else if (result instanceof FlagResult.Refused r) {
+                ctx.status(400).json(Map.of("error", r.reason()));
+            } else {
+                var state = ((FlagResult.Ok) result).state();
+                log.info("Title modified — code={} bookmark={}", code, state.bookmark());
+                ctx.json(Map.of("code", state.code(), "favorite", state.favorite(),
+                        "bookmark", state.bookmark(), "rejected", state.rejected()));
+            }
+        });
+
+        app.post("/api/titles/{code}/reject", ctx -> {
+            String code = ctx.pathParam("code");
+            FlagResult result = browseService.toggleRejected(code);
+            if (result instanceof FlagResult.NotFound) {
+                ctx.status(404).json(Map.of("error", "Title not found"));
+            } else {
+                var state = ((FlagResult.Ok) result).state();
+                log.info("Title modified — code={} rejected={}", code, state.rejected());
+                ctx.json(Map.of("code", state.code(), "favorite", state.favorite(),
+                        "bookmark", state.bookmark(), "rejected", state.rejected()));
+            }
+        });
     }
 }

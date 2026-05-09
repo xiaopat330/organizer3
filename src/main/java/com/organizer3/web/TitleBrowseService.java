@@ -424,6 +424,7 @@ public class TitleBrowseService {
                             .ratingCount(rd != null ? rd.ratingCount() : null)
                             .favorite(t.isFavorite())
                             .bookmark(t.isBookmark())
+                            .rejected(t.isRejected())
                             .lastWatchedAt(watchStatsMap.containsKey(t.getCode()) ? watchStatsMap.get(t.getCode()).lastWatchedAt().toString() : null)
                             .watchCount(watchStatsMap.containsKey(t.getCode()) ? watchStatsMap.get(t.getCode()).count() : 0)
                             .visitCount(t.getVisitCount())
@@ -493,6 +494,75 @@ public class TitleBrowseService {
 
     /** Result of a visit record operation. */
     public record VisitStats(int visitCount, String lastVisitedAt) {}
+
+    /** Full flag state returned by all three flag-toggle endpoints. */
+    public record TitleFlagState(String code, boolean favorite, boolean bookmark, boolean rejected) {}
+
+    /**
+     * Sealed result for flag-toggle operations that can be refused.
+     * <ul>
+     *   <li>{@link Ok} — toggle succeeded; contains new flag state.</li>
+     *   <li>{@link NotFound} — no title with that code exists.</li>
+     *   <li>{@link Refused} — operation disallowed (e.g. fav/bookmark while rejected).</li>
+     * </ul>
+     */
+    public sealed interface FlagResult permits
+            TitleBrowseService.FlagResult.Ok,
+            TitleBrowseService.FlagResult.NotFound,
+            TitleBrowseService.FlagResult.Refused {
+
+        record Ok(TitleFlagState state) implements FlagResult {}
+        record NotFound() implements FlagResult {}
+        record Refused(String reason) implements FlagResult {}
+    }
+
+    /**
+     * Toggle the favorite flag for a title.
+     * If the title is currently rejected, the operation is refused — caller must clear
+     * rejected first. (Title mutex semantics: refuse, not auto-clear.)
+     */
+    public FlagResult toggleFavorite(String code) {
+        Title title = titleRepo.findByCode(code).orElse(null);
+        if (title == null) return new FlagResult.NotFound();
+        if (title.isRejected()) return new FlagResult.Refused("title is rejected; clear reject first");
+        boolean fav = !title.isFavorite();
+        titleRepo.toggleFavorite(title.getId(), fav);
+        return new FlagResult.Ok(new TitleFlagState(code, fav, title.isBookmark(), false));
+    }
+
+    /**
+     * Toggle the bookmark flag for a title.
+     * If the title is currently rejected, the operation is refused — caller must clear
+     * rejected first. (Title mutex semantics: refuse, not auto-clear.)
+     */
+    public FlagResult toggleBookmark(String code) {
+        Title title = titleRepo.findByCode(code).orElse(null);
+        if (title == null) return new FlagResult.NotFound();
+        if (title.isRejected()) return new FlagResult.Refused("title is rejected; clear reject first");
+        boolean bm = !title.isBookmark();
+        titleRepo.toggleBookmark(title.getId(), bm);
+        return new FlagResult.Ok(new TitleFlagState(code, title.isFavorite(), bm, false));
+    }
+
+    /**
+     * Toggle the rejected flag for a title.
+     * Setting rejected=true clears favorite and bookmark. Setting rejected=false
+     * leaves fav/bookmark as-is (no restore).
+     */
+    public FlagResult toggleRejected(String code) {
+        Title title = titleRepo.findByCode(code).orElse(null);
+        if (title == null) return new FlagResult.NotFound();
+        boolean rej = !title.isRejected();
+        boolean fav = rej ? false : title.isFavorite();
+        boolean bm  = rej ? false : title.isBookmark();
+        titleRepo.toggleRejected(title.getId(), rej);
+        if (rej) {
+            // clear fav+bookmark if now rejected
+            if (title.isFavorite()) titleRepo.toggleFavorite(title.getId(), false);
+            if (title.isBookmark()) titleRepo.toggleBookmark(title.getId(), false);
+        }
+        return new FlagResult.Ok(new TitleFlagState(code, fav, bm, rej));
+    }
 
     /**
      * Record a detail-page visit for a title. Increments the visit counter and updates

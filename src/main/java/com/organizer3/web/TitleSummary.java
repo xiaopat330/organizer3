@@ -56,6 +56,7 @@ public class TitleSummary {
     Integer ratingCount;
     boolean favorite;
     boolean bookmark;
+    boolean rejected;
     String lastWatchedAt;
     int watchCount;
     int visitCount;
