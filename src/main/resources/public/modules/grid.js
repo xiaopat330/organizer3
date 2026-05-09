@@ -74,6 +74,18 @@ export function showView(name) {
     if (titleLanding   && titleLanding.style.display   !== 'none') titleLanding.style.top   = landingTop;
     if (avLanding      && avLanding.style.display      !== 'none') avLanding.style.top      = landingTop;
     if (actionLanding  && actionLanding.style.display  !== 'none') actionLanding.style.top  = headerH + 'px';
+
+    // Actress detail panel is position:fixed; pin it just below ALL sticky toolbars
+    // (header + sub-nav search bar + actress-landing) so neither the subnav nor
+    // filter bar can slip behind them at scroll extremes.
+    const actressDetail = document.getElementById('actress-detail');
+    if (actressDetail && actressDetail.style.display !== 'none') {
+      const landingH = (actressLanding && actressLanding.style.display !== 'none')
+        ? actressLanding.offsetHeight : 0;
+      const offset = headerH + subNavH + landingH;
+      actressDetail.style.top    = offset + 'px';
+      actressDetail.style.height = `calc(100vh - ${offset}px)`;
+    }
   });
 }
 
@@ -218,7 +230,8 @@ export function ensureActressDetailSentinel() {
     s = document.createElement('div');
     s.id = 'sentinel';
     s.style.height = '1px';
-    document.getElementById('actress-detail-right').appendChild(s);
+    (document.getElementById('actress-detail-catalog-view')
+      || document.getElementById('actress-detail-right')).appendChild(s);
     observer.observe(s);
   }
   return s;

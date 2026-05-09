@@ -966,6 +966,12 @@
   border-color: #5b21b6;
   border-bottom-color: #a78bfa;
 }
+.tools-section-tab-actress-catalog.selected {
+  color: #fda4af;
+  background: #2a0a14;
+  border-color: #9f1239;
+  border-bottom-color: #fb7185;
+}
 
 /* ── Merge Candidates view ───────────────────────────────────────── */
 .tools-merge-candidates-view {
