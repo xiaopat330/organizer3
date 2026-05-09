@@ -70,7 +70,7 @@ function buildExcludeSet(code) {
 }
 
 function buildPlanUrl(code, excludeRelPaths) {
-  let url = `/api/titles/${encodeURIComponent(code)}/normalization-plan`;
+  let url = `/api/titles/${encodeURIComponent(code)}/normalize-proposal`;
   if (excludeRelPaths.length > 0) {
     url += `?excludeRelPaths=${encodeURIComponent(excludeRelPaths.join(','))}`;
   }

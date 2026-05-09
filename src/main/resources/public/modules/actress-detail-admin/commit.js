@@ -133,7 +133,7 @@ async function fireStage(code, stage) {
     case 'normalize-folder': {
       const { moves } = stage.payload;
       if (!moves || moves.length === 0) return;  // no-op
-      const res = await fetch(`/api/titles/${encodeURIComponent(code)}/normalize`, {
+      const res = await fetch(`/api/titles/${encodeURIComponent(code)}/apply-moves`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ moves }),

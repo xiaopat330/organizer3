@@ -359,16 +359,13 @@ public class TitleRoutes {
             }
         });
 
-        // ── GET /api/titles/{code}/normalization-plan ──────────────────────────
+        // ── GET /api/titles/{code}/normalize-proposal ─────────────────────────
         //
         // Returns the proposed set of file moves needed to bring the title's folder
         // to canonical layout (covers at base named {CODE}.ext; videos in subfolder).
         // Optional query param ?excludeRelPaths=rel1,rel2 lets the client exclude
         // files with pending trash stages from the proposal.
-        //
-        // Note: spec §5 uses path "/normalize-proposal"; this impl uses
-        // "/normalization-plan" (per the Phase 5 brief).  Deviation is intentional.
-        app.get("/api/titles/{code}/normalization-plan", ctx -> {
+        app.get("/api/titles/{code}/normalize-proposal", ctx -> {
             String code = ctx.pathParam("code");
             Title title = titleRepo.findByCode(code).orElse(null);
             if (title == null) {
@@ -394,29 +391,21 @@ public class TitleRoutes {
                 var plan = folderService.planNormalization(fs, code, folder, excludes);
                 ctx.json(plan);
             } catch (IllegalArgumentException e) {
-                log.warn("GET normalization-plan validation error for {} — {}", code, e.getMessage());
+                log.warn("GET normalize-proposal validation error for {} — {}", code, e.getMessage());
                 ctx.status(400).json(Map.of("error", e.getMessage()));
             } catch (IOException e) {
-                log.warn("GET normalization-plan failed for {} — {}", code, e.getMessage());
+                log.warn("GET normalize-proposal failed for {} — {}", code, e.getMessage());
                 ctx.status(500).json(Map.of("error", "Could not open volume: " + e.getMessage()));
             }
         });
 
-        // ── POST /api/titles/{code}/normalize ─────────────────────────────────
+        // ── POST /api/titles/{code}/apply-moves ───────────────────────────────
         //
         // Executes the user-confirmed move set. Body (JSON):
-        //   { "videoNameOverrides": {"relPath": "newName", ...} }
-        // The server re-plans from the current FS state (optionally filtering
-        // excludeRelPaths), applies videoNameOverrides to the plan, then executes.
-        //
-        // Alternatively the client can POST the full moves list directly:
         //   { "moves": [{"from": "...", "to": "..."}, ...] }
         //
         // On validation failure returns 400 before any FS mutation.
-        //
-        // Note: spec §5 uses path "/apply-moves"; this impl uses
-        // "/normalize" (per the Phase 5 brief).  Deviation is intentional.
-        app.post("/api/titles/{code}/normalize", ctx -> {
+        app.post("/api/titles/{code}/apply-moves", ctx -> {
             String code = ctx.pathParam("code");
             Title title = titleRepo.findByCode(code).orElse(null);
             if (title == null) {
@@ -465,13 +454,13 @@ public class TitleRoutes {
             try (var handle = smbFactory.open(volumeId)) {
                 var fs      = handle.fileSystem();
                 var outcome = folderService.executeNormalization(fs, folder, moves);
-                log.info("HTTP normalize — code={} movedCount={}", code, outcome.movedCount());
+                log.info("HTTP apply-moves — code={} movedCount={}", code, outcome.movedCount());
                 ctx.json(outcome);
             } catch (IllegalArgumentException e) {
-                log.warn("POST normalize validation failed for {} — {}", code, e.getMessage());
+                log.warn("POST apply-moves validation failed for {} — {}", code, e.getMessage());
                 ctx.status(400).json(Map.of("error", e.getMessage()));
             } catch (IOException e) {
-                log.warn("POST normalize IO error for {} — {}", code, e.getMessage());
+                log.warn("POST apply-moves IO error for {} — {}", code, e.getMessage());
                 ctx.status(500).json(Map.of("error", "Could not open volume: " + e.getMessage()));
             }
         });

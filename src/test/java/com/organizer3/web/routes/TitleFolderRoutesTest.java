@@ -308,7 +308,7 @@ class TitleFolderRoutesTest {
         assertEquals(400, res.statusCode());
     }
 
-    // ── GET /api/titles/{code}/normalization-plan ──────────────────────────
+    // ── GET /api/titles/{code}/normalize-proposal ─────────────────────────
 
     @Test
     void getNormalizationPlan_happyPath_returnsPlan() throws Exception {
@@ -322,7 +322,7 @@ class TitleFolderRoutesTest {
         when(folderService.planNormalization(any(), eq("ABP-020"), eq(Path.of("/stars/ABP-020")), any()))
                 .thenReturn(plan);
 
-        HttpResponse<String> res = get("/api/titles/ABP-020/normalization-plan");
+        HttpResponse<String> res = get("/api/titles/ABP-020/normalize-proposal");
 
         assertEquals(200, res.statusCode());
         JsonNode body = mapper.readTree(res.body());
@@ -342,7 +342,7 @@ class TitleFolderRoutesTest {
         when(folderService.planNormalization(any(), eq("ABP-021"), any(), any()))
                 .thenReturn(plan);
 
-        HttpResponse<String> res = get("/api/titles/ABP-021/normalization-plan");
+        HttpResponse<String> res = get("/api/titles/ABP-021/normalize-proposal");
 
         assertEquals(200, res.statusCode());
         assertTrue(mapper.readTree(res.body()).get("alreadyNormalized").asBoolean());
@@ -352,7 +352,7 @@ class TitleFolderRoutesTest {
     void getNormalizationPlan_unknownTitle_returns404() throws Exception {
         when(titleRepo.findByCode("MISSING-020")).thenReturn(Optional.empty());
 
-        HttpResponse<String> res = get("/api/titles/MISSING-020/normalization-plan");
+        HttpResponse<String> res = get("/api/titles/MISSING-020/normalize-proposal");
 
         assertEquals(404, res.statusCode());
     }
@@ -361,12 +361,12 @@ class TitleFolderRoutesTest {
     void getNormalizationPlan_multiLocationTitle_returns400() throws Exception {
         when(titleRepo.findByCode("ABP-022")).thenReturn(Optional.of(twoLocationTitle("ABP-022")));
 
-        HttpResponse<String> res = get("/api/titles/ABP-022/normalization-plan");
+        HttpResponse<String> res = get("/api/titles/ABP-022/normalize-proposal");
 
         assertEquals(400, res.statusCode());
     }
 
-    // ── POST /api/titles/{code}/normalize ─────────────────────────────────
+    // ── POST /api/titles/{code}/apply-moves ───────────────────────────────
 
     private HttpResponse<String> postJson(String path, String body) throws Exception {
         return http.send(HttpRequest.newBuilder()
@@ -388,7 +388,7 @@ class TitleFolderRoutesTest {
         String body = """
                 {"moves":[{"from":"cover.jpg","to":"ABP-030.jpg"}]}
                 """;
-        HttpResponse<String> res = postJson("/api/titles/ABP-030/normalize", body);
+        HttpResponse<String> res = postJson("/api/titles/ABP-030/apply-moves", body);
 
         assertEquals(200, res.statusCode());
         JsonNode json = mapper.readTree(res.body());
@@ -400,7 +400,7 @@ class TitleFolderRoutesTest {
     void normalize_emptyMovesList_returns200WithZero() throws Exception {
         when(titleRepo.findByCode("ABP-031")).thenReturn(Optional.of(singleLocationTitle("ABP-031")));
 
-        HttpResponse<String> res = postJson("/api/titles/ABP-031/normalize",
+        HttpResponse<String> res = postJson("/api/titles/ABP-031/apply-moves",
                 """
                 {"moves":[]}
                 """);
@@ -414,7 +414,7 @@ class TitleFolderRoutesTest {
     void normalize_unknownTitle_returns404() throws Exception {
         when(titleRepo.findByCode("MISSING-030")).thenReturn(Optional.empty());
 
-        HttpResponse<String> res = postJson("/api/titles/MISSING-030/normalize",
+        HttpResponse<String> res = postJson("/api/titles/MISSING-030/apply-moves",
                 "{\"moves\":[]}");
 
         assertEquals(404, res.statusCode());
@@ -424,7 +424,7 @@ class TitleFolderRoutesTest {
     void normalize_multiLocationTitle_returns400() throws Exception {
         when(titleRepo.findByCode("ABP-032")).thenReturn(Optional.of(twoLocationTitle("ABP-032")));
 
-        HttpResponse<String> res = postJson("/api/titles/ABP-032/normalize",
+        HttpResponse<String> res = postJson("/api/titles/ABP-032/apply-moves",
                 "{\"moves\":[{\"from\":\"a\",\"to\":\"b\"}]}");
 
         assertEquals(400, res.statusCode());
@@ -434,7 +434,7 @@ class TitleFolderRoutesTest {
     void normalize_invalidJson_returns400() throws Exception {
         when(titleRepo.findByCode("ABP-033")).thenReturn(Optional.of(singleLocationTitle("ABP-033")));
 
-        HttpResponse<String> res = postJson("/api/titles/ABP-033/normalize", "not-json");
+        HttpResponse<String> res = postJson("/api/titles/ABP-033/apply-moves", "not-json");
 
         assertEquals(400, res.statusCode());
         assertTrue(mapper.readTree(res.body()).has("error"));
@@ -444,7 +444,7 @@ class TitleFolderRoutesTest {
     void normalize_missingMovesField_returns400() throws Exception {
         when(titleRepo.findByCode("ABP-034")).thenReturn(Optional.of(singleLocationTitle("ABP-034")));
 
-        HttpResponse<String> res = postJson("/api/titles/ABP-034/normalize",
+        HttpResponse<String> res = postJson("/api/titles/ABP-034/apply-moves",
                 "{\"videoNameOverrides\":{}}");  // missing "moves" key
 
         assertEquals(400, res.statusCode());
@@ -457,7 +457,7 @@ class TitleFolderRoutesTest {
         when(folderService.executeNormalization(any(), any(), any()))
                 .thenThrow(new IllegalArgumentException("Source file does not exist: video/old.mp4"));
 
-        HttpResponse<String> res = postJson("/api/titles/ABP-035/normalize",
+        HttpResponse<String> res = postJson("/api/titles/ABP-035/apply-moves",
                 "{\"moves\":[{\"from\":\"video/old.mp4\",\"to\":\"video/ABP-035.mp4\"}]}");
 
         assertEquals(400, res.statusCode());
