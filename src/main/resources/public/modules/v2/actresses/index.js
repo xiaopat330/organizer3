@@ -1,6 +1,11 @@
 // actresses/index.js — Entry point for the v2 Actresses browse page.
 //
-// Modes (all ported from legacy):
+// Top-level tabs: Browse | Admin
+//   Browse — all existing mode-based browsing (dashboard, favorites, etc.)
+//   Admin  — actress YAML management + alias editor (ported from legacy
+//             Utilities → Actress Data screen)
+//
+// Browse modes (all ported from legacy):
 //   dashboard       — KPI dashboard (spotlight, stats, strips)
 //   favorites       — grid of favorited actresses
 //   bookmarks       — grid of bookmarked actresses
@@ -20,6 +25,7 @@
 //
 // Single mount point: mountActresses(rootEl).
 
+import { mountAdminTab, unmountAdminTab } from './admin.js';
 import { renderActressDashboard } from './dashboard.js';
 import {
   renderStudioGroupRow,
@@ -41,6 +47,7 @@ import { effectiveCols } from '../../grid-cols.js';
 
 const PAGE_LIMIT       = 48;
 const COLS_STORAGE_KEY = 'actress-browse-v2.cols';
+const PAGE_TAB_KEY     = 'actress-browse-v2.page-tab';  // 'browse' | 'admin'
 
 // ── Utils ─────────────────────────────────────────────────────────────────
 
@@ -142,6 +149,13 @@ function renderCard(a) {
 export function mountActresses(rootEl) {
   // ── Render shell HTML ──────────────────────────────────────────────────
   rootEl.innerHTML = `
+    <div class="aca-page-tabs tabs" id="aca-page-tabs">
+      <button class="tab aca-page-tab" data-page-tab="browse">Browse</button>
+      <button class="tab aca-page-tab" data-page-tab="admin">Admin</button>
+    </div>
+
+    <!-- Browse panel -->
+    <div class="tab-panel aca-browse-panel" id="aca-browse-panel">
     <div class="act-page">
 
       <!-- Sub-nav: mode buttons -->
@@ -213,6 +227,10 @@ export function mountActresses(rootEl) {
       <div id="act-sentinel" style="height:1px"></div>
 
     </div>
+    </div><!-- /aca-browse-panel -->
+
+    <!-- Admin panel -->
+    <div class="tab-panel aca-admin-panel" id="aca-admin-panel"></div>
   `;
 
   // ── DOM refs ─────────────────────────────────────────────────────────────
@@ -597,9 +615,45 @@ export function mountActresses(rootEl) {
   // We pass { reset: resetGrid, loadMore } — the caller also needs ensureSentinel.
   // This is already handled above inside selectMode.
 
+  // ── Page-level Browse | Admin tab strip ───────────────────────────────────
+
+  const browsePanel = rootEl.querySelector('#aca-browse-panel');
+  const adminPanel  = rootEl.querySelector('#aca-admin-panel');
+
+  let adminMounted = false;
+
+  function selectPageTab(tab) {
+    localStorage.setItem(PAGE_TAB_KEY, tab);
+    rootEl.querySelectorAll('.aca-page-tab').forEach(btn =>
+      btn.classList.toggle('active', btn.dataset.pageTab === tab));
+
+    if (tab === 'admin') {
+      browsePanel.classList.remove('active');
+      adminPanel.classList.add('active');
+      if (!adminMounted) {
+        adminMounted = true;
+        mountAdminTab(adminPanel);
+      }
+    } else {
+      adminPanel.classList.remove('active');
+      browsePanel.classList.add('active');
+    }
+  }
+
+  rootEl.querySelectorAll('.aca-page-tab').forEach(btn =>
+    btn.addEventListener('click', () => selectPageTab(btn.dataset.pageTab)));
+
   // ── Initial load ──────────────────────────────────────────────────────────
+
+  const initialTab = localStorage.getItem(PAGE_TAB_KEY) || 'browse';
+
+  // Activate browse panel content before the tab decision so dashboard renders
+  // even if the initial tab ends up being Admin.
   dashboardEl.style.display = 'block';
   gridEl.style.display      = 'none';
-
   renderActressDashboard(dashboardEl, (slug) => selectMode(`studio-group:${slug}`));
+
+  // Apply initial tab (activates panel via .active class; browse has no
+  // special async setup beyond the dashboard render above).
+  selectPageTab(initialTab);
 }
