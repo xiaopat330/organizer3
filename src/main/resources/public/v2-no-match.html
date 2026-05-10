@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>No-Match Triage — Organizer3 v2</title>
+<title>No-Match — Organizer3 v2</title>
 <link rel="stylesheet" href="/css/base.css">
 <link rel="stylesheet" href="/css/primitives.css">
 <link rel="stylesheet" href="/css/chrome.css">
@@ -49,7 +49,7 @@
 
   <header class="app-topbar">
     <div class="topbar-left">
-      <span class="crumb"><a href="/v2.html">Home</a><span class="sep">›</span><b>No-Match Triage</b></span>
+      <span class="crumb"><a href="/v2.html">Home</a><span class="sep">›</span><b>No-Match</b></span>
     </div>
     <button class="cmdk-trigger" id="palette-trigger">
       <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
@@ -62,7 +62,6 @@
   <main class="app-body" id="app-body"></main>
 
   <footer class="app-status">
-    <span class="status-item"><span class="status-dot live"></span><b>sync</b> ok · qnap_4 · 12s</span>
     <span class="status-spacer"></span>
   </footer>
 </div>
@@ -70,11 +69,13 @@
 <div id="palette-root"></div>
 
 <script type="module">
-  import { createPalette } from '/modules/chrome/palette.js';
-  import { mountNoMatch }  from '/modules/v2/no-match.js';
+  import { createPalette }  from '/modules/chrome/palette.js';
+  import { mountNoMatch }   from '/modules/v2/no-match.js';
+  import { mountStatusBar } from '/modules/chrome/status-bar.js';
   const palette = createPalette({ rootEl: document.getElementById('palette-root') });
   document.getElementById('palette-trigger').addEventListener('click', palette.open);
   mountNoMatch(document.getElementById('app-body'));
+  mountStatusBar();
 </script>
 
 </body>

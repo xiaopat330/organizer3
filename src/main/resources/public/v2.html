@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Organizer3 — v2 chrome preview</title>
+<title>Home — Organizer3 v2</title>
 <link rel="stylesheet" href="/css/base.css">
 <link rel="stylesheet" href="/css/primitives.css">
 <link rel="stylesheet" href="/css/chrome.css">
@@ -50,7 +50,7 @@
   <!-- ── Topbar ──────────────────────────────────────────────────────── -->
   <header class="app-topbar">
     <div class="topbar-left">
-      <span class="crumb"><a href="#home">Home</a></span>
+      <span class="crumb"><b>Home</b></span>
     </div>
     <button class="cmdk-trigger" id="palette-trigger">
       <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
@@ -72,19 +72,7 @@
 
   <!-- ── Status bar ──────────────────────────────────────────────────── -->
   <footer class="app-status">
-    <span class="status-item">
-      <span class="status-dot live"></span>
-      <svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><polyline points="21 3 21 8 16 8"/></svg>
-      <b>sync</b> ok · qnap_4 · 12s
-    </span>
-    <span class="status-item"><span class="status-dot warn"></span><b>translation</b> 12 pending</span>
-    <span class="status-item"><span class="status-dot idle"></span><b>backup</b> idle · 2d ago</span>
     <span class="status-spacer"></span>
-    <span class="status-task">
-      <b>refresh-filmography</b>
-      <span class="bar"><span class="bar-fill"></span></span>
-      <span style="font-variant-numeric:tabular-nums">38% · 142/372</span>
-    </span>
   </footer>
 </div>
 
@@ -92,8 +80,9 @@
 <div id="palette-root"></div>
 
 <script type="module">
-  import { createPalette } from '/modules/chrome/palette.js';
-  import { mountHome }     from '/modules/v2/home.js';
+  import { createPalette }   from '/modules/chrome/palette.js';
+  import { mountHome }       from '/modules/v2/home.js';
+  import { mountStatusBar }  from '/modules/chrome/status-bar.js';
 
   const palette = createPalette({
     rootEl: document.getElementById('palette-root'),
@@ -105,6 +94,7 @@
   document.getElementById('palette-trigger').addEventListener('click', palette.open);
 
   mountHome(document.getElementById('app-body'));
+  mountStatusBar();
 </script>
 
 </body>

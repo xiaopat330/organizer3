@@ -70,12 +70,6 @@
   <main class="app-body" id="app-body"></main>
 
   <footer class="app-status">
-    <span class="status-item">
-      <span class="status-dot live"></span>
-      <svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><polyline points="21 3 21 8 16 8"/></svg>
-      <b>sync</b> ok · qnap_4 · 12s
-    </span>
-    <span class="status-item"><span class="status-dot warn"></span><b>translation</b> 12 pending</span>
     <span class="status-spacer"></span>
   </footer>
 </div>
@@ -85,12 +79,17 @@
 <script type="module">
   import { createPalette }      from '/modules/chrome/palette.js';
   import { mountTitleDetail }   from '/modules/v2/title-detail.js';
+  import { mountStatusBar }     from '/modules/chrome/status-bar.js';
 
-  const palette = createPalette({ rootEl: document.getElementById('palette-root') });
+  const palette = createPalette({
+    rootEl: document.getElementById('palette-root'),
+    defaultFilters: ['titles', 'labels'],
+  });
   document.getElementById('palette-trigger').addEventListener('click', palette.open);
 
   const code = new URLSearchParams(location.search).get('code');
   mountTitleDetail(document.getElementById('app-body'), code);
+  mountStatusBar();
 
   document.querySelectorAll('.mode-switch button').forEach(btn => {
     btn.addEventListener('click', () => {

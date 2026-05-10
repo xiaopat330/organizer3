@@ -71,7 +71,6 @@
   <main class="app-body" id="app-body"></main>
 
   <footer class="app-status">
-    <span class="status-item"><span class="status-dot live"></span><b>sync</b> ok · qnap_4 · 12s</span>
     <span class="status-spacer"></span>
   </footer>
 </div>
@@ -81,10 +80,15 @@
 <script type="module">
   import { createPalette }       from '/modules/chrome/palette.js';
   import { mountAvStarDetail }   from '/modules/v2/avstar-detail.js';
-  const palette = createPalette({ rootEl: document.getElementById('palette-root') });
+  import { mountStatusBar }      from '/modules/chrome/status-bar.js';
+  const palette = createPalette({
+    rootEl: document.getElementById('palette-root'),
+    defaultFilters: ['avActresses'],
+  });
   document.getElementById('palette-trigger').addEventListener('click', palette.open);
   const id = new URLSearchParams(location.search).get('id');
   mountAvStarDetail(document.getElementById('app-body'), id);
+  mountStatusBar();
   document.querySelectorAll('.mode-switch button').forEach(btn => {
     btn.addEventListener('click', () => {
       if (btn.dataset.mode === 'workbench') alert('AV star workbench mode lands in a follow-up.');

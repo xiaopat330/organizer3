@@ -74,11 +74,13 @@
 <div id="palette-root"></div>
 
 <script type="module">
-  import { createPalette }    from '/modules/chrome/palette.js';
-  import { mountDiscovery }   from '/modules/v2/discovery/index.js';
+  import { createPalette }  from '/modules/chrome/palette.js';
+  import { mountDiscovery } from '/modules/v2/discovery/index.js';
+  import { mountStatusBar } from '/modules/chrome/status-bar.js';
   const palette = createPalette({ rootEl: document.getElementById('palette-root') });
   document.getElementById('palette-trigger').addEventListener('click', palette.open);
   mountDiscovery(document.getElementById('app-body'));
+  mountStatusBar();
 </script>
 
 </body>

@@ -62,7 +62,6 @@
   <main class="app-body" id="app-body"></main>
 
   <footer class="app-status">
-    <span class="status-item"><span class="status-dot live"></span><b>sync</b> ok · qnap_4 · 12s</span>
     <span class="status-spacer"></span>
   </footer>
 </div>
@@ -70,11 +69,13 @@
 <div id="palette-root"></div>
 
 <script type="module">
-  import { createPalette } from '/modules/chrome/palette.js';
-  import { mountTrash }    from '/modules/v2/trash.js';
+  import { createPalette }  from '/modules/chrome/palette.js';
+  import { mountTrash }     from '/modules/v2/trash.js';
+  import { mountStatusBar } from '/modules/chrome/status-bar.js';
   const palette = createPalette({ rootEl: document.getElementById('palette-root') });
   document.getElementById('palette-trigger').addEventListener('click', palette.open);
   mountTrash(document.getElementById('app-body'));
+  mountStatusBar();
 </script>
 
 </body>

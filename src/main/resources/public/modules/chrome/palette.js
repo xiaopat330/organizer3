@@ -40,12 +40,17 @@ const NAV_ITEMS = [
   { label: 'Design system', href: '/design.html',          icon: 'go' },
 ];
 
-function loadFilters() {
+function loadFilters(pageDefaults) {
+  // pageDefaults: array of keys that should be ON by default on this page (first visit only).
+  // If the user has ever saved filters, their saved value wins.
+  const firstVisitDefaults = pageDefaults
+    ? Object.fromEntries(Object.keys(DEFAULT_FILTERS).map(k => [k, pageDefaults.includes(k)]))
+    : { ...DEFAULT_FILTERS };
   try {
     const raw = localStorage.getItem(FILTER_STORAGE_KEY);
-    if (!raw) return { ...DEFAULT_FILTERS };
+    if (!raw) return firstVisitDefaults;
     return { ...DEFAULT_FILTERS, ...JSON.parse(raw) };
-  } catch (e) { return { ...DEFAULT_FILTERS }; }
+  } catch (e) { return firstVisitDefaults; }
 }
 function saveFilters(f) {
   try { localStorage.setItem(FILTER_STORAGE_KEY, JSON.stringify(f)); } catch (e) {}
@@ -130,10 +135,10 @@ function navItemsForQuery(q) {
     .map(n => ({ ...n, section: 'Jump to' }));
 }
 
-export function createPalette({ rootEl, onSelect } = {}) {
+export function createPalette({ rootEl, onSelect, defaultFilters } = {}) {
   if (!rootEl) throw new Error('createPalette: rootEl required');
 
-  const filters = loadFilters();
+  const filters = loadFilters(defaultFilters);
 
   const filterChip = (key, label) => `
     <span class="palette-filter-chip${filters[key] ? ' on' : ''}" data-fkey="${key}">${escapeHtml(label)}</span>
