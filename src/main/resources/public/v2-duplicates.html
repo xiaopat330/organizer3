@@ -64,7 +64,7 @@
 
 <script type="module">
   import { createPalette }    from '/modules/chrome/palette.js';
-  import { mountDuplicates }  from '/modules/v2/duplicates.js';
+  import { mountDuplicates }  from '/modules/v2/duplicates/index.js';
   const palette = createPalette({ rootEl: document.getElementById('palette-root') });
   document.getElementById('palette-trigger').addEventListener('click', palette.open);
   mountDuplicates(document.getElementById('app-body'));

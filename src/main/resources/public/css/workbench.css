@@ -1391,3 +1391,479 @@
   justify-content: flex-end;
   gap: 8px;
 }
+
+/* ══════════════════════════════════════════════════════════════════════
+   v2 Duplicates workbench — full port including Execute, Inspect modal,
+   actress grouping, alpha/sort bars, chips, path rows, cover tooltip.
+   Prefix: .dup-*  (extends existing .dup-group/.dup-member/.dup-decision
+   block above; do NOT collide with .ad-*, .adm-*, .avd-*, .act-*, etc.)
+   ══════════════════════════════════════════════════════════════════════ */
+
+/* ── Page shell ──────────────────────────────────────────────────────── */
+.dup-wb { padding: 20px 24px 48px; max-width: 1600px; }
+.dup-wb-head { margin-bottom: 18px; }
+.dup-wb-title { font-size: 20px; font-weight: 700; color: var(--text); margin: 0 0 4px; }
+.dup-wb-subtitle { font-size: 13px; color: var(--text-faint); }
+
+/* ── Toolbar row ─────────────────────────────────────────────────────── */
+.dup-toolbar {
+  display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+  margin-bottom: 14px;
+}
+.dup-toolbar-left  { display: flex; align-items: center; gap: 8px; flex: 1; flex-wrap: wrap; }
+.dup-toolbar-right { flex-shrink: 0; }
+
+/* ── Headline stats ───────────────────────────────────────────────────── */
+.dup-headline {
+  font-size: 12px;
+  color: var(--text-faint);
+  font-family: var(--font-mono);
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  margin-bottom: 14px;
+}
+.dup-headline-stats { color: var(--text-dim); }
+.dup-queue-badge {
+  background: rgba(251,191,36,0.12);
+  color: var(--warn);
+  font-size: 10.5px; font-weight: 600;
+  padding: 2px 7px; border-radius: 999px;
+}
+.dup-exec-all-btn {
+  margin-left: auto;
+  font-size: 11.5px;
+}
+
+/* ── Alpha bar ────────────────────────────────────────────────────────── */
+.dup-alpha-bar { display: flex; gap: 3px; flex-wrap: wrap; }
+.dup-alpha-btn {
+  background: none; border: 1px solid var(--border);
+  color: var(--text-faint);
+  font-size: 10.5px; font-weight: 600;
+  width: 24px; height: 24px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-family: inherit;
+  transition: color var(--dur-fast) var(--ease-out),
+              background var(--dur-fast) var(--ease-out),
+              border-color var(--dur-fast) var(--ease-out);
+}
+.dup-alpha-btn:hover  { color: var(--text); border-color: var(--border-strong); }
+.dup-alpha-btn.active { color: var(--accent-fg); background: var(--accent-bg); border-color: var(--accent-bg); }
+
+/* ── Sort bar ─────────────────────────────────────────────────────────── */
+.dup-sort-bar { display: flex; gap: 3px; }
+.dup-sort-btn {
+  background: none; border: 1px solid var(--border);
+  color: var(--text-faint);
+  font-size: 10.5px;
+  padding: 2px 8px; height: 24px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-family: inherit;
+  transition: color var(--dur-fast) var(--ease-out),
+              background var(--dur-fast) var(--ease-out);
+}
+.dup-sort-btn:hover  { color: var(--text); border-color: var(--border-strong); }
+.dup-sort-btn.active { color: var(--accent-fg); background: var(--accent-bg); border-color: var(--accent-bg); }
+.dup-sort-dir        { font-size: 12px; }
+
+/* ── Main layout (sidebar + groups) ──────────────────────────────────── */
+.dup-layout {
+  display: grid;
+  grid-template-columns: 220px 1fr;
+  gap: 16px;
+  min-height: 400px;
+}
+
+/* ── Actress sidebar ──────────────────────────────────────────────────── */
+.dup-actress-sidebar {
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  overflow-y: auto;
+  max-height: calc(100vh - 220px);
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+}
+.dup-sidebar-load {
+  padding: 16px; font-size: 12px; color: var(--text-faint);
+}
+.dup-actress-row {
+  display: flex; align-items: flex-start; gap: 10px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border);
+  cursor: pointer;
+  transition: background var(--dur-fast) var(--ease-out);
+  position: relative;
+}
+.dup-actress-row:hover    { background: var(--bg-hover); }
+.dup-actress-row.selected { background: var(--accent-bg); }
+.dup-actress-portrait {
+  flex-shrink: 0;
+  width: 36px; height: 36px;
+  border-radius: 50%;
+  overflow: hidden;
+  position: relative;
+  background: var(--bg-active);
+}
+.dup-actress-portrait img {
+  position: absolute; inset: 0;
+  width: 100%; height: 100%;
+  object-fit: cover;
+}
+.dup-portrait-fallback {
+  position: absolute; inset: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 14px; font-weight: 600; color: var(--text-faint);
+  font-family: var(--font-mono);
+}
+.dup-actress-info { flex: 1; min-width: 0; }
+.dup-actress-name {
+  font-size: 12.5px; font-weight: 600; color: var(--text);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.dup-actress-count { font-size: 10.5px; color: var(--text-faint); font-family: var(--font-mono); }
+.dup-actress-progress { font-size: 10px; color: var(--text-faint); margin-top: 2px; }
+.dup-exec-actress-btn {
+  margin-top: 5px;
+  font-size: 10.5px;
+  padding: 2px 7px;
+}
+
+/* Pie / checkmark state icon */
+.dup-actress-state {
+  flex-shrink: 0;
+  width: 14px; height: 14px;
+  margin-top: 2px;
+}
+.dup-actress-state-complete { color: var(--ok); }
+.dup-actress-state-partial  { color: var(--accent-fg); }
+
+/* ── Groups panel ─────────────────────────────────────────────────────── */
+.dup-groups { display: flex; flex-direction: column; gap: 0; }
+
+/* ── Load progress ────────────────────────────────────────────────────── */
+.dup-load-splash,
+.dup-load-progress {
+  display: flex; align-items: center; gap: 8px;
+  padding: 12px 0;
+  font-size: 12px; color: var(--text-faint);
+}
+@keyframes dup-spin { to { transform: rotate(360deg); } }
+.dup-spinner {
+  display: inline-block;
+  width: 12px; height: 12px;
+  border: 2px solid var(--border);
+  border-top-color: var(--accent-fg);
+  border-radius: 50%;
+  animation: dup-spin 0.7s linear infinite;
+}
+
+/* ── Closure badge ────────────────────────────────────────────────────── */
+.dup-closure {
+  font-size: 12.5px; color: var(--ok);
+  background: rgba(110,231,183,0.08);
+  border: 1px solid rgba(110,231,183,0.25);
+  border-radius: var(--radius);
+  padding: 7px 12px;
+  margin-bottom: 12px;
+}
+
+/* ── Execute banner ───────────────────────────────────────────────────── */
+.dup-exec-banner {
+  display: flex; align-items: center; gap: 8px;
+  background: rgba(248,113,113,0.08);
+  border: 1px solid rgba(248,113,113,0.25);
+  border-radius: var(--radius);
+  padding: 8px 12px;
+  font-size: 12.5px; color: var(--error);
+  margin-bottom: 12px;
+}
+.dup-exec-banner-close {
+  background: none; border: none;
+  color: var(--error); cursor: pointer;
+  font-size: 13px; padding: 0 4px; line-height: 1;
+  margin-left: auto;
+}
+
+/* ── Title card ───────────────────────────────────────────────────────── */
+.dup-card {
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  overflow: hidden;
+  margin-bottom: 14px;
+}
+.dup-card-header {
+  display: flex; align-items: flex-start; gap: 12px;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg);
+}
+.dup-cover {
+  width: 52px; height: 73px;
+  object-fit: cover;
+  border-radius: 3px;
+  flex-shrink: 0;
+  cursor: zoom-in;
+}
+.dup-card-title-info {
+  display: flex; flex-direction: column; gap: 3px;
+  min-width: 0;
+}
+.dup-code {
+  font-family: var(--font-mono);
+  font-size: 12px; font-weight: 600;
+  color: var(--accent-fg);
+}
+.dup-title-en {
+  font-size: 13px; color: var(--text);
+  overflow: hidden; text-overflow: ellipsis;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+}
+.dup-loc-count {
+  font-size: 10.5px; color: var(--text-faint);
+  font-family: var(--font-mono);
+}
+
+/* ── Rationale row ────────────────────────────────────────────────────── */
+.dup-rationale {
+  font-size: 11.5px; color: var(--text-faint);
+  font-family: var(--font-mono);
+  padding: 6px 14px;
+  background: rgba(var(--accent-rgb, 99, 102, 241), 0.04);
+  border-bottom: 1px solid var(--border);
+}
+.dup-rationale-identical { color: var(--warn); }
+
+/* ── Location cell grid ───────────────────────────────────────────────── */
+.dup-cell-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 12px;
+  padding: 14px;
+}
+
+/* ── Location cell ────────────────────────────────────────────────────── */
+.dup-cell {
+  background: var(--bg);
+  border: 2px solid var(--border);
+  border-radius: var(--radius);
+  padding: 10px 12px;
+  display: flex; flex-direction: column;
+  gap: 8px;
+  position: relative;
+  transition: border-color var(--dur-fast) var(--ease-out),
+              opacity var(--dur-fast) var(--ease-out);
+}
+.dup-cell-keep    { border-color: rgba(110,231,183,0.5); }
+.dup-cell-trash   { border-color: rgba(248,113,113,0.5); opacity: 0.65; }
+.dup-cell-variant { border-color: rgba(251,191,36,0.5); }
+.dup-cell-suggested { background: rgba(var(--accent-rgb, 99,102,241), 0.04); }
+
+/* ── Path rows ────────────────────────────────────────────────────────── */
+.dup-cell-path { display: flex; flex-direction: column; gap: 3px; }
+.dup-path-row {
+  display: flex; align-items: baseline; gap: 5px;
+  font-family: var(--font-mono); font-size: 10.5px;
+  color: var(--text-faint);
+  line-height: 1.4;
+}
+.dup-path-row-copy {
+  cursor: pointer;
+  color: var(--text-dim);
+  border-radius: 2px;
+  padding: 1px 2px;
+  transition: color var(--dur-fast) var(--ease-out),
+              background var(--dur-fast) var(--ease-out);
+}
+.dup-path-row-copy:hover { color: var(--text); background: var(--bg-hover); }
+.dup-path-row-copy.dup-path-copied { color: var(--ok); }
+.dup-path-base { color: var(--text-faint); }
+.dup-path-rest { word-break: break-all; }
+.dup-path-icon { width: 10px; height: 10px; flex-shrink: 0; margin-top: 1px; }
+
+/* ── Video chip pills ─────────────────────────────────────────────────── */
+.dup-cell-vsum { display: flex; flex-wrap: wrap; gap: 4px; }
+.dup-chip {
+  display: inline-block;
+  font-family: var(--font-mono);
+  font-size: 10px; font-weight: 500;
+  padding: 1px 5px; border-radius: 3px;
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  color: var(--text-dim);
+}
+.dup-chip-ext  { color: var(--text-faint); }
+.dup-chip-hevc { color: var(--accent-fg); background: var(--accent-bg); border-color: var(--accent-bg); }
+.dup-chip-4k   { color: var(--ok); background: rgba(110,231,183,0.08); border-color: rgba(110,231,183,0.25); }
+
+/* ── Suggested-keep badge ─────────────────────────────────────────────── */
+.dup-suggested-badge {
+  font-size: 10px; font-weight: 600;
+  color: var(--accent-fg); background: var(--accent-bg);
+  padding: 1px 6px; border-radius: 999px;
+  align-self: flex-start;
+}
+
+/* ── Inspect button ───────────────────────────────────────────────────── */
+.dup-inspect-btn {
+  background: none; border: 1px solid var(--border);
+  color: var(--text-faint);
+  width: 26px; height: 26px;
+  border-radius: 4px; cursor: pointer;
+  display: inline-flex; align-items: center; justify-content: center;
+  transition: color var(--dur-fast) var(--ease-out),
+              border-color var(--dur-fast) var(--ease-out);
+  align-self: flex-start;
+}
+.dup-inspect-btn:hover { color: var(--text); border-color: var(--border-strong); }
+.dup-inspect-icon { width: 12px; height: 12px; }
+
+/* ── Decision buttons ─────────────────────────────────────────────────── */
+.dup-cell-actions {
+  display: flex; gap: 5px; flex-wrap: wrap;
+  margin-top: auto;
+}
+.dup-dec-btn {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-size: 11px; font-weight: 500;
+  padding: 3px 9px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: none;
+  color: var(--text-faint);
+  cursor: pointer;
+  font-family: inherit;
+  transition: color var(--dur-fast) var(--ease-out),
+              background var(--dur-fast) var(--ease-out),
+              border-color var(--dur-fast) var(--ease-out);
+}
+.dup-dec-btn:hover { color: var(--text-dim); border-color: var(--border-strong); }
+.dup-dec-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+.dup-btn-icon { font-size: 10px; }
+.dup-dec-keep.active    { color: var(--ok);    background: rgba(110,231,183,0.12); border-color: rgba(110,231,183,0.35); }
+.dup-dec-trash.active   { color: var(--error); background: rgba(248,113,113,0.12); border-color: rgba(248,113,113,0.35); }
+.dup-dec-variant.active { color: var(--warn);  background: rgba(251,191,36,0.12);  border-color: rgba(251,191,36,0.35); }
+
+/* ── Cover hover tooltip ──────────────────────────────────────────────── */
+.dup-cover-tip {
+  position: fixed;
+  z-index: 9000;
+  display: none;
+  pointer-events: none;
+  border-radius: 4px;
+  overflow: hidden;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.45);
+}
+.dup-cover-tip img {
+  display: block;
+  max-width: 480px;
+  max-height: 70vh;
+  width: auto; height: auto;
+}
+
+/* ── Inspect modal overlay ────────────────────────────────────────────── */
+.dup-inspect-overlay {
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,0.65);
+  z-index: 8000;
+  display: flex; align-items: flex-start; justify-content: center;
+  padding: 48px 24px 24px;
+  overflow-y: auto;
+}
+.dup-inspect-modal {
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  width: 100%;
+  max-width: 800px;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+  display: flex; flex-direction: column;
+  overflow: hidden;
+}
+.dup-inspect-header {
+  display: flex; align-items: flex-start; gap: 12px;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg);
+}
+.dup-inspect-header-info {
+  display: flex; align-items: center; gap: 10px;
+  flex: 1; min-width: 0;
+}
+.dup-inspect-code {
+  font-family: var(--font-mono);
+  font-size: 12px; font-weight: 700;
+  color: var(--accent-fg);
+}
+.dup-inspect-loc-num {
+  font-size: 11px; color: var(--text-faint);
+  font-family: var(--font-mono);
+}
+.dup-inspect-path-line {
+  font-family: var(--font-mono);
+  font-size: 10.5px; color: var(--text-faint);
+  word-break: break-all;
+  flex: 1; min-width: 0;
+}
+.dup-inspect-path-volume { color: var(--text-faint); }
+.dup-inspect-path-middle { color: var(--text-dim); }
+.dup-inspect-path-title  { color: var(--text); font-weight: 600; }
+.dup-inspect-close {
+  background: none; border: none;
+  color: var(--text-faint);
+  font-size: 16px; cursor: pointer;
+  padding: 0 4px; line-height: 1;
+  flex-shrink: 0;
+  transition: color var(--dur-fast) var(--ease-out);
+}
+.dup-inspect-close:hover { color: var(--text); }
+.dup-inspect-body {
+  padding: 16px;
+  overflow-y: auto;
+  display: flex; flex-direction: column; gap: 20px;
+}
+
+/* ── Inspect video section ────────────────────────────────────────────── */
+.dup-inspect-video-section { display: flex; flex-direction: column; gap: 8px; }
+.dup-inspect-filename {
+  font-family: var(--font-mono);
+  font-size: 11.5px; font-weight: 600;
+  color: var(--text-dim);
+  word-break: break-all;
+}
+.dup-inspect-pills { display: flex; flex-wrap: wrap; gap: 4px; }
+.dup-inspect-meta {
+  font-family: var(--font-mono);
+  font-size: 11px; color: var(--text-faint);
+}
+.dup-inspect-player-wrap {
+  position: relative;
+  border-radius: var(--radius);
+  overflow: hidden;
+  background: #000;
+}
+.dup-inspect-player {
+  width: 100%;
+  max-height: 420px;
+  display: block;
+}
+.dup-inspect-theater-btn {
+  position: absolute; bottom: 8px; right: 8px;
+  z-index: 10;
+}
+
+/* Theater mode — full-viewport player */
+.dup-inspect-player-wrap.dup-theater {
+  position: fixed;
+  inset: 0;
+  z-index: 9500;
+  border-radius: 0;
+  max-height: none;
+}
+.dup-inspect-player-wrap.dup-theater .dup-inspect-player {
+  width: 100%; height: 100%;
+  max-height: none;
+  object-fit: contain;
+}
