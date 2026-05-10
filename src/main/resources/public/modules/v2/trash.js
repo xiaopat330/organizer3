@@ -61,6 +61,7 @@ function rowHtml(item) {
   return `
     <tr data-sidecar="${escapeHtml(item.sidecarPath)}" data-volume="${escapeHtml(item.volumeId)}">
       <td>${status}</td>
+      <td class="mono">${escapeHtml(item.volumeId)}</td>
       <td class="mono truncate" title="${escapeHtml(item.originalPath)}">${escapeHtml(shortPath(item.originalPath))}</td>
       <td>${escapeHtml(item.reason || '—')}</td>
       <td class="mono">${escapeHtml(timeAgo(item.trashedAt))}</td>
@@ -100,6 +101,7 @@ export async function mountTrash(rootEl) {
         <table class="wb-table">
           <thead><tr>
             <th style="width:90px">Status</th>
+            <th style="width:100px">Volume</th>
             <th>Original path</th>
             <th style="width:140px">Reason</th>
             <th style="width:90px">Trashed</th>
@@ -120,29 +122,40 @@ export async function mountTrash(rootEl) {
 
   const state = { volumeId: null, page: 0, total: 0 };
 
+  // Volume list for "All" aggregation — set once when picker initializes.
+  let allVolumeIds = [];
+
+  const fetchVolumeItems = async (vol) => {
+    const url = `/api/utilities/trash/volumes/${encodeURIComponent(vol)}/items?page=${state.page}&pageSize=${PAGE_SIZE}`;
+    const data = await fetchJson(url, { items: [], totalCount: 0 });
+    return { vol, items: data.items || [], total: data.totalCount ?? (data.items?.length ?? 0) };
+  };
+
   const load = async () => {
-    if (!state.volumeId) {
-      tbody.innerHTML = `<tr><td colspan="6"><div class="empty-state">
-        <div class="empty-state-title">Pick a volume</div>
-        <div class="empty-state-body">Trash is per-volume — pick one above to see its contents.</div>
-      </div></td></tr>`;
-      status.innerHTML = '';
-      meta.textContent = '';
-      return;
-    }
     tbody.innerHTML = '';
     status.innerHTML = '<div class="shelf-loading">Loading…</div>';
     meta.textContent = '';
 
-    const url = `/api/utilities/trash/volumes/${encodeURIComponent(state.volumeId)}/items?page=${state.page}&pageSize=${PAGE_SIZE}`;
-    const data = await fetchJson(url, { items: [], totalCount: 0 });
-    const items = data.items || [];
-    state.total = data.totalCount ?? items.length;
+    let items, total;
+    if (!state.volumeId) {
+      // "All volumes" — fan out across all known trash volumes
+      const results = await Promise.all(allVolumeIds.map(fetchVolumeItems));
+      items = results.flatMap(r => r.items);
+      total = results.reduce((s, r) => s + r.total, 0);
+      // Most-recently trashed first across volumes
+      items.sort((a, b) => (b.trashedAt || '').localeCompare(a.trashedAt || ''));
+    } else {
+      const r = await fetchVolumeItems(state.volumeId);
+      items = r.items;
+      total = r.total;
+    }
 
     if (items.length === 0) {
-      tbody.innerHTML = `<tr><td colspan="6"><div class="empty-state">
+      tbody.innerHTML = `<tr><td colspan="7"><div class="empty-state">
         <div class="empty-state-title">Trash is empty</div>
-        <div class="empty-state-body">No items pending deletion on <code>${escapeHtml(state.volumeId)}</code>.</div>
+        <div class="empty-state-body">${state.volumeId
+          ? `No items pending deletion on <code>${escapeHtml(state.volumeId)}</code>.`
+          : 'No items pending deletion across any volume.'}</div>
       </div></td></tr>`;
       status.innerHTML = '';
       return;
@@ -150,20 +163,26 @@ export async function mountTrash(rootEl) {
 
     tbody.innerHTML = items.map(rowHtml).join('');
     status.innerHTML = '';
-    meta.textContent = `${items.length} of ${state.total} items`;
+    const scope = state.volumeId || 'all volumes';
+    meta.textContent = `${items.length} of ${total} items · ${scope}`;
   };
+
+  // Capture the volume list for client-side "All" aggregation. Must
+  // resolve before the picker's onChange fires, or "All" loads empty.
+  const vols = await fetchJson('/api/utilities/trash/volumes', []);
+  allVolumeIds = (vols || []).map(v => v.id || v.volumeId || v).filter(Boolean);
 
   await createVolumePicker({
     rootEl: rootEl.querySelector('#vol-picker'),
     storageKey: 'v2.trash.volume',
-    allLabel: '',  // Trash is per-volume — no "All" entry
+    allLabel: 'All volumes',
     volumesUrl: '/api/utilities/trash/volumes',
     getCount: async (id) => {
       const c = await fetchJson(`/api/utilities/trash/volumes/${encodeURIComponent(id)}/count`, { count: null });
       return c?.count;
     },
     onChange: (vol) => {
-      state.volumeId = vol || null;
+      state.volumeId = vol || '';
       state.page = 0;
       load();
     },
