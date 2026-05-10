@@ -1867,3 +1867,101 @@
   max-height: none;
   object-fit: contain;
 }
+
+/* ── v2 Merge Candidates workbench ───────────────────────────────────── */
+
+.mc-wb { padding: 20px 24px 48px; max-width: 860px; }
+.mc-wb-head { margin-bottom: 20px; }
+.mc-wb-title-row {
+  display: flex; align-items: center; gap: 12px;
+  margin-bottom: 6px;
+}
+.mc-wb-title { font-size: 20px; font-weight: 700; color: var(--text); margin: 0; }
+.mc-actions { display: flex; gap: 6px; margin-left: auto; }
+.mc-wb-subtitle { font-size: 13px; color: var(--text-faint); }
+
+.mc-headline {
+  font-size: 13px; font-weight: 600;
+  color: var(--text-dim);
+  margin-bottom: 14px;
+}
+
+.mc-list { display: flex; flex-direction: column; gap: 10px; }
+
+.mc-loading,
+.mc-empty {
+  font-size: 13px;
+  color: var(--text-faint);
+  padding: 20px 0;
+}
+
+.mc-card {
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  padding: 14px 16px;
+  display: flex; flex-direction: column; gap: 10px;
+}
+
+.mc-pair {
+  display: flex; align-items: center; gap: 8px;
+}
+.mc-code {
+  font-family: var(--font-mono);
+  font-size: 13px; font-weight: 700;
+  color: var(--text);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 2px 7px;
+}
+.mc-pair-sep {
+  font-size: 14px;
+  color: var(--text-faint);
+}
+
+.mc-badge {
+  display: inline-flex; align-items: center;
+  font-size: 11px; font-weight: 600;
+  padding: 2px 7px;
+  border-radius: 99px;
+  border: 1px solid transparent;
+  width: fit-content;
+}
+.mc-badge--norm    { color: var(--accent-fg); background: var(--accent-bg); border-color: var(--accent-bg); }
+.mc-badge--variant { color: var(--warn);      background: rgba(251,191,36,0.10); border-color: rgba(251,191,36,0.25); }
+
+.mc-btns { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+
+.mc-btn-merge {
+  font-family: var(--font-mono);
+  font-size: 12px; font-weight: 600;
+  padding: 5px 11px;
+  background: var(--bg);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+  color: var(--text-dim);
+  cursor: pointer;
+  transition: color var(--dur-fast) var(--ease-out),
+              background var(--dur-fast) var(--ease-out),
+              border-color var(--dur-fast) var(--ease-out);
+}
+.mc-btn-merge:hover {
+  color: var(--accent-fg);
+  background: var(--accent-bg);
+  border-color: var(--accent-bg);
+}
+
+.mc-btn-dismiss {
+  font-size: 12px;
+  padding: 5px 10px;
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text-faint);
+  cursor: pointer;
+  margin-left: auto;
+  transition: color var(--dur-fast) var(--ease-out),
+              border-color var(--dur-fast) var(--ease-out);
+}
+.mc-btn-dismiss:hover { color: var(--text); border-color: var(--border-strong); }
