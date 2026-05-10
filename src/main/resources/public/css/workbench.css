@@ -1868,6 +1868,37 @@
   object-fit: contain;
 }
 
+/* ══════════════════════════════════════════════════════════════════════
+   v2 JavDB Discovery workbench wrapper  (.dis-*)
+   Provides the outer wb-page shell; inner layout uses existing .jd-*
+   classes from javdb-discovery.css (imported in v2-discovery.html).
+   ══════════════════════════════════════════════════════════════════════ */
+
+/* Page shell: let the discovery layout fill the available height. */
+.dis-wb {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+}
+
+/* Header row — reuses .jd-header styles but needs to sit flush at top. */
+.dis-header {
+  flex: 0 0 auto;
+}
+
+/* All four tab body containers need to grow and scroll independently. */
+.dis-wb .jd-body,
+.dis-wb .jd-titles-body,
+.dis-wb .jd-collections-body,
+.dis-wb .jd-queue-body,
+.dis-wb .tools-enrichment-review-view {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  min-height: 0;
+}
+
+
 /* ═══════════════════════════════════════════════════════════════════════
    Health page — Library + Tag tabs  (.hl-*  .ht-*)
    ─────────────────────────────────────────────────────────────────────
