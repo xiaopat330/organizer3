@@ -10,6 +10,7 @@ import {
   unmountAdminTab,
   confirmDiscardIfStaged,
 } from './actress-admin/index.js';
+import { openCustomAvatarEditor } from './custom-avatar-editor.js';
 
 const PAGE_LIMIT = 24;
 const FILTER_DEBOUNCE_MS = 350;
@@ -200,7 +201,7 @@ function renderAvatarFrame(a) {
   const inner = url
     ? `<img class="ad-avatar-img" src="${esc(url)}" alt="">`
     : `<div class="ad-avatar-placeholder">${esc((a.canonicalName || '?').charAt(0))}</div>`;
-  return `<div class="ad-avatar ${ring}" id="ad-avatar-btn" title="Custom avatar (open in legacy app)">${inner}</div>`;
+  return `<div class="ad-avatar ${ring}" id="ad-avatar-btn" title="Set profile image">${inner}</div>`;
 }
 
 function renderIdentitySection(a) {
@@ -447,6 +448,32 @@ function renderResearchChecklist(a) {
   </div>`;
 }
 
+// ── Avatar button wiring (recursive: re-wires itself after each save) ────────
+function wireAvatarBtn(rootEl, a) {
+  const btn = rootEl.querySelector('#ad-avatar-btn');
+  if (!btn) return;
+  btn.addEventListener('click', () => {
+    openCustomAvatarEditor(a.id, !!a.hasCustomAvatar, async () => {
+      // Targeted refresh: re-fetch actress, replace avatar element, bust cache.
+      const fresh = await fetchJson(`/api/actresses/${a.id}`, null);
+      if (!fresh) return;
+      a.hasCustomAvatar = fresh.hasCustomAvatar;
+      a.localAvatarUrl  = fresh.localAvatarUrl;
+      // Build replacement avatar frame with cache-busted URL.
+      const displayA = { ...a };
+      if (displayA.localAvatarUrl) {
+        displayA.localAvatarUrl = displayA.localAvatarUrl.split('?')[0] + '?t=' + Date.now();
+      }
+      const tmp = document.createElement('div');
+      tmp.innerHTML = renderAvatarFrame(displayA);
+      const newBtn = tmp.firstElementChild;
+      rootEl.querySelector('#ad-avatar-btn')?.replaceWith(newBtn);
+      // Re-wire on the freshly inserted element using updated actress data.
+      wireAvatarBtn(rootEl, a);
+    });
+  });
+}
+
 // ── Wire identity actions ────────────────────────────────────────────────
 function wireIdentityActions(rootEl, a) {
   const searchBtn = rootEl.querySelector('#ad-search-stage-name');
@@ -455,11 +482,7 @@ function wireIdentityActions(rootEl, a) {
   const editBtn = rootEl.querySelector('#ad-edit-stage-name');
   if (editBtn) editBtn.addEventListener('click', () => openStageNameModal(a.id, a.stageName));
 
-  const avatarBtn = rootEl.querySelector('#ad-avatar-btn');
-  if (avatarBtn) avatarBtn.addEventListener('click', () => {
-    setStatus('Custom avatar editor — open in legacy app for now');
-    window.alert('Custom avatar editor will be ported in a follow-up. Use the legacy app for now.');
-  });
+  wireAvatarBtn(rootEl, a);
 
   const apply = (data) => {
     a.favorite = data.favorite;
