@@ -203,6 +203,101 @@
   white-space: nowrap;
 }
 
+/* ── Volume card ────────────────────────────────────────────────────── */
+.vol-grid {
+  display: grid;
+  gap: 14px;
+  grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
+}
+.vol-card {
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  padding: 14px 16px;
+  display: flex; flex-direction: column;
+  gap: 10px;
+}
+.vol-card.offline {
+  border-color: rgba(248,113,113,0.3);
+  opacity: 0.85;
+}
+.vol-card-head {
+  display: flex; align-items: center; gap: 8px;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 8px;
+  margin-bottom: 4px;
+}
+.vol-card-id {
+  font-family: var(--font-mono);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+  flex: 1;
+}
+.vol-card-structure {
+  font-size: 11px;
+  color: var(--text-faint);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+.vol-card-path {
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  color: var(--text-dim);
+  word-break: break-all;
+}
+.vol-card-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+  gap: 8px;
+}
+.vol-stat {
+  display: flex; flex-direction: column; gap: 2px;
+}
+.vol-stat .k {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-faint);
+}
+.vol-stat .v {
+  font-family: var(--font-mono);
+  font-size: 14px;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+.vol-health {
+  border-top: 1px solid var(--border);
+  padding-top: 10px;
+  margin-top: 4px;
+}
+.vol-health-head {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-faint);
+  margin-bottom: 6px;
+}
+.vol-health-empty {
+  font-size: 12px;
+  color: var(--ok);
+  display: inline-flex; align-items: center; gap: 6px;
+}
+.vol-issue {
+  display: flex; align-items: flex-start; gap: 8px;
+  padding: 4px 0;
+  font-size: 12px;
+  color: var(--text-dim);
+}
+.vol-issue .pill { flex-shrink: 0; margin-top: 2px; }
+.vol-issue .desc { flex: 1; }
+.vol-issue .count {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-faint);
+  font-variant-numeric: tabular-nums;
+}
+
 /* ── Duplicate group card ───────────────────────────────────────────── */
 .dup-group {
   background: var(--bg-panel);
