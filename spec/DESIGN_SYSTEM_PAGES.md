@@ -22,9 +22,13 @@ Status: **draft v1** — needs review before migration starts. Open questions no
 ### 1.1 Home
 - **Mode:** L
 - **Current:** `home.js` + giant centered "Search everything" portal in `index.html`
-- **Becomes:** Library shelves (Recently viewed · New this week · Favorites · Continue exploring). The portal search is gone; ⌘K replaces it. Hero search panel deleted.
-- **Primitives:** card-title, card-actress, section-head, shelf grid
-- **Open question:** which shelves? Suggest: *Recently viewed* (mixed actresses+titles), *New this week* (titles), *Favorites* (actresses), *Needs attention* (drop into tools — duplicates count, translation backlog, etc.).
+- **Becomes:** Library shelves. Portal search is gone; ⌘K replaces it. Hero search panel deleted.
+- **Shelves (locked):**
+  1. **Recently viewed** — mixed actresses + titles, most recent first
+  2. **New this week** — titles added in the last 7 days
+  3. **Favorites** — actress shortcuts (small avatar+name format, denser than full cards)
+  4. **Needs attention** — small status tiles surfacing tools backlogs (duplicates count, translation queue depth, trash size, sync state) — each tile links to its tool
+- **Primitives:** card-title, card-actress, avatar-frame (small), section-head, shelf grid, kpi-tile (for the Attention shelf)
 
 ### 1.2 Actresses (`actress-browse.js`)
 - **Mode:** L
@@ -60,8 +64,7 @@ The current `actress-landing` is a row of 7 special-purpose buttons (Dashboard /
 ### 2.3 Exhibition · Archives · Studio · Tier
 - **Mode:** L (browsable filtered views)
 - **Becomes:** Filter chips + dropdowns on the main Actresses browse. NOT separate sub-pages. Each chip applies a constraint; the URL/state captures it.
-- **Drops:** the company-select dropdowns and the marquee component become a single "company filter dropdown" + small marquee primitive.
-- **Open question:** is the company marquee important enough to keep? (it scrolls company labels horizontally)
+- **Company marquee:** **dropped (locked).** Replaced by a static company filter dropdown (§7.12) in the context strip. The auto-scrolling component is deleted; CSS goes with it.
 
 ---
 
@@ -73,11 +76,11 @@ The current `actress-landing` is a row of 7 special-purpose buttons (Dashboard /
 - **Primitives:** hero band, card-title, section-head, kv table (NEW — for profile data), avatar-frame
 - **Inspector:** off by default; opt-in for editing flow
 
-### 3.2 Actress detail — admin tab (`actress-detail-admin/`, recently merged)
-- **Mode:** W (administrative — already designed as a tab)
-- **Becomes:** Either: (a) a tab strip within actress detail (NEW primitive needed); or (b) a workbench mode toggle on the same page that swaps content.
-- **Primitives:** tab strip (NEW), kv editor, table row, file row
-- **Open question:** tab vs mode-switch. Tabs are familiar; mode-switch is more consistent with the global library/workbench split. Recommend **mode-switch** (the `i` toggle pattern but for the whole content area).
+### 3.2 Actress detail — admin content (was a tab in `actress-detail-admin/`)
+- **Mode:** W (administrative)
+- **Pattern (locked):** **mode-switch in the topbar.** Same page, but a toggle swaps the entire content area between library view (hero + portfolio + sections) and workbench view (admin tables, file lists, edit forms). Consistent with the global library/workbench split.
+- **Implication:** the existing "admin tab" pattern goes away; tab-strip primitive (§7.11) is reserved for cases where content is genuinely peer/parallel.
+- **Primitives:** mode-switch button (icon-btn variant), kv editor, table row, file row
 
 ### 3.3 Title detail (`title-detail.js`)
 - **Mode:** L
@@ -202,9 +205,9 @@ Currently 6+ bespoke modal CSS files. All collapse to **one canonical modal prim
 ### 5.4 Enrichment detail modal (`enrichment-detail-modal.css`)
 - **Becomes:** detail modal (large, kv + actions)
 
-### 5.5 Title editor modal (`title-editor.js`, `title-editor-draft.js`, `title-editor-nodraft.js`, `title-tag-editor.js`)
-- **Open question:** is the title editor a *modal* or a *page*? Currently it's a sub-route with sidebar queue + editor pane. Recommend keep as page; tag editor stays as modal-within-page.
-- **Becomes:** workbench mode page (split: queue list left, editor pane right) + tag editor as small form modal
+### 5.5 Title editor (`title-editor.js`, `title-editor-draft.js`, `title-editor-nodraft.js`, `title-tag-editor.js`)
+- **Placement (locked):** **page**, not modal. Workbench-mode page with sidebar queue (left) + editor pane (right). Roughly how it works today; preserved.
+- **Tag editor:** stays as a small form modal-within-page (`title-tag-editor.js`).
 
 ---
 
@@ -283,8 +286,10 @@ Listed in priority order (most used first).
 
 ### 7.10 Pagination / infinite-scroll cue
 **Use:** big browse lists, trash, translation history.
-**Default approach:** infinite scroll with a sentinel; show "loading more…" cue at the bottom.
-**Fallback:** explicit page nav (prev/next + page count) for very long lists.
+**Locked strategy:**
+- **Browse pages** (Titles, Actresses, AV, Portfolio shelves) → **infinite scroll** with a sentinel; "loading more…" cue at the bottom.
+- **Tools tables** that may have thousands of rows (translation history, trash, logs, enrichment review queue, etc.) → **explicit prev/next + page count** for predictability and deep-linkability.
+**Decision rule for new surfaces:** if rows are visually-led (cards) → infinite scroll. If rows are data-led (table) and the user might want to jump to "row #2,400" or share a deep link → explicit pages.
 
 ### 7.11 Tab strip
 **Use:** within a feature page (actress detail, settings, possibly title editor).
@@ -343,10 +348,8 @@ Listed in priority order (most used first).
 **Use:** Year range, file size range.
 **Anatomy:** dual-thumb slider OR two number inputs + chip showing active range.
 
-### 7.25 Marquee (small)
-**Use:** Company labels scrolling on actress sub-views (if kept).
-**Anatomy:** auto-scrolling horizontal text, pauses on hover.
-**Open question:** worth keeping at all?
+### 7.25 ~~Marquee~~ — **DROPPED** (locked)
+The auto-scrolling company-labels component is removed. Where company-browsing matters (Studio, Exhibition surfaces), replace with the filter dropdown (§7.12).
 
 ---
 
@@ -384,16 +387,18 @@ The spec's order (tokens → kitchen-sink → chrome shell → modules) holds, b
 
 ---
 
-## 9 · Open decisions before migration starts
+## 9 · Decisions log (locked 2026-05-09)
 
-These should be answered before Wave 1 ships:
+All six pre-migration decisions resolved. Recorded here for traceability; details are reflected in the relevant sections above.
 
-1. **Home shelves — which ones?** (per §1.1)
-2. **Actress detail admin tab — tabs vs mode-switch?** (per §3.2) — recommend mode-switch.
-3. **Company marquee — keep?** (per §2.3, §7.25)
-4. **Title editor — modal or page?** (per §5.5) — recommend page.
-5. **Pagination strategy — infinite-scroll default or explicit pages?** (per §7.10) — recommend infinite-scroll.
-6. **Responsive collapse — at what breakpoint does the rail collapse to icons-only? When does the inspector drop?** Spec is silent. Default for now: rail collapses below 1100px (icons-only with hover labels), inspector hides below 1400px (must be reopened with `i`).
+1. **Home shelves** → four locked: *Recently viewed · New this week · Favorites · Needs attention*. (per §1.1)
+2. **Actress admin content** → **mode-switch** in topbar swaps full content area between library and workbench. Tab strip primitive reserved for genuinely peer content. (per §3.2)
+3. **Title editor** → **page** (workbench mode, sidebar queue + editor pane). Tag editor stays modal-within-page. (per §5.5)
+4. **Company marquee** → **dropped.** Replaced by filter dropdown (§7.12). Marquee primitive (§7.25) deleted from the catalog. (per §2.3, §7.25)
+5. **Pagination** → **infinite scroll on browse / shelves**, **explicit prev-next on tools tables** (translation history, trash, logs, etc.). Rule: visually-led → infinite, data-led → explicit. (per §7.10)
+6. **Responsive breakpoints** → **rail collapses to icons-only at <1100px** (hover labels). **Inspector auto-hides at <1400px** (reopen with `i`). State persists per device.
+
+These six are now part of the locked proposal. Reopening any requires explicit conversation.
 
 ---
 
