@@ -41,7 +41,7 @@ function renderTitleCard(t) {
         ${gradeHtml ? `<div class="card-title-status">${gradeHtml}</div>` : ''}
       </div>
       <div class="card-title-code">${escapeHtml(code)}</div>
-      <div class="card-title-name">${escapeHtml(name)}</div>
+      ${name !== code ? `<div class="card-title-name">${escapeHtml(name)}</div>` : ''}
       <div class="card-title-meta">
         ${cast ? `<span>${escapeHtml(cast)}</span>` : ''}
         ${cast && year ? '<span class="dot"></span>' : ''}
@@ -166,7 +166,9 @@ async function renderNeedsAttention(slot) {
     const el = document.getElementById('kpi-trans-value');
     const meta = document.getElementById('kpi-trans-meta');
     if (el) { el.textContent = total; el.className = `kpi-tile-value ${cls}`; }
-    if (meta) meta.textContent = `${pending} pending${failed ? ` · ${failed} failed` : ''}`;
+    if (meta) meta.textContent = total === 0
+      ? 'caught up'
+      : `${pending} pending${failed ? ` · ${failed} failed` : ''}`;
   });
 
   // Duplicates — fill independently
@@ -202,7 +204,7 @@ async function renderNeedsAttention(slot) {
         )
       )
     );
-    const total = counts.reduce((s, c) => s + (c?.count ?? 0), 0);
+    const total = Math.max(0, counts.reduce((s, c) => s + (c?.count ?? 0), 0));
     const cls   = total > 0 ? 'warn' : 'ok';
     const el    = document.getElementById('kpi-trash-value');
     const meta  = document.getElementById('kpi-trash-meta');
@@ -234,7 +236,7 @@ function renderHero(heroEl, t) {
            style="${cover ? `background-image:url('${escapeHtml(cover)}');background-size:cover;background-position:center` : ''}"></div>
       <div class="hero-content">
         <div class="hero-code">${escapeHtml(code)}</div>
-        <div class="hero-name" style="font-size:20px;margin-bottom:6px">${escapeHtml(name)}</div>
+        ${name !== code ? `<div class="hero-name" style="font-size:20px;margin-bottom:6px">${escapeHtml(name)}</div>` : ''}
         <div class="hero-stats" style="margin-bottom:14px">
           ${cast ? `<span>${escapeHtml(cast)}</span>` : ''}
           ${cast && year ? `<span style="color:var(--text-faint)">·</span>` : ''}
