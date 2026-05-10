@@ -5,8 +5,10 @@
    Each tab loads on activation. URL hash tracks current tab.
    ───────────────────────────────────────────────────────────────────── */
 
-const QUEUE_LIMIT    = 25;
-const FAILURE_LIMIT  = 50;
+const QUEUE_LIMIT     = 25;
+const FAILURE_LIMIT   = 50;
+const DASH_POLL_MS    = 2000;
+const DASH_MAX_ROWS   = 200;
 
 function escapeHtml(s) {
   return String(s ?? '').replace(/[&<>"']/g, c => ({
@@ -39,6 +41,118 @@ function timeAgo(iso) {
 function truncate(s, n = 80) {
   if (!s) return '';
   return s.length <= n ? s : s.slice(0, n - 1) + '…';
+}
+
+/* ── Dashboard tab — live activity feed ────────────────────────────── */
+// Shared state for the dashboard tab; survives tab switches so polling
+// continues to add rows in the background.
+const dashState = {
+  rows: [],          // newest first
+  since: null,       // high-water-mark cachedAt
+  timer: null,
+  paused: false,
+  panel: null,
+};
+
+function renderDashRow(r) {
+  const failed = !!r.failureReason;
+  const status = failed
+    ? `<span class="pill error" title="${escapeHtml(r.failureReason)}">${escapeHtml(truncate(r.failureReason, 14))}</span>`
+    : `<span class="pill ok">ok</span>`;
+  const titleCell = r.titleCode
+    ? `<a href="/v2-title-detail.html?code=${encodeURIComponent(r.titleCode)}" style="color:var(--accent-fg);text-decoration:none">${escapeHtml(r.titleCode)}</a>`
+    : '<span style="color:var(--text-faint)">—</span>';
+  return `
+    <tr>
+      <td>${status}</td>
+      <td class="mono">${titleCell}</td>
+      <td title="${escapeHtml(r.sourceText)}">${escapeHtml(truncate(r.sourceText, 80))}</td>
+      <td title="${escapeHtml(r.englishText || '')}">${escapeHtml(truncate(r.englishText || '', 80))}</td>
+      <td class="num">${r.latencyMs != null ? escapeHtml(String(r.latencyMs) + 'ms') : '—'}</td>
+      <td class="mono">${escapeHtml(timeAgo(r.cachedAt))}</td>
+    </tr>
+  `;
+}
+
+function renderDashShell(panel) {
+  panel.innerHTML = `
+    <div class="filter-bar">
+      <button class="btn sm" id="dash-pause">Pause</button>
+      <button class="btn sm" id="dash-clear">Clear</button>
+      <div class="filter-spacer"></div>
+      <div class="filter-meta" id="dash-meta">connecting…</div>
+    </div>
+    <div class="wb-table-wrap">
+      <table class="wb-table">
+        <thead><tr>
+          <th style="width:90px">Status</th>
+          <th style="width:110px">Title</th>
+          <th>Source</th>
+          <th>English</th>
+          <th style="width:70px" class="num">Latency</th>
+          <th style="width:90px">When</th>
+        </tr></thead>
+        <tbody id="dash-rows"></tbody>
+      </table>
+    </div>
+  `;
+  panel.querySelector('#dash-pause').addEventListener('click', () => {
+    dashState.paused = !dashState.paused;
+    panel.querySelector('#dash-pause').textContent = dashState.paused ? 'Resume' : 'Pause';
+  });
+  panel.querySelector('#dash-clear').addEventListener('click', () => {
+    dashState.rows = [];
+    panel.querySelector('#dash-rows').innerHTML = '';
+  });
+}
+
+async function pollDash() {
+  if (dashState.paused) return;
+  const url = dashState.since
+    ? `/api/translation/recent-events?limit=50&since=${encodeURIComponent(dashState.since)}`
+    : `/api/translation/recent-events?limit=50`;
+  const events = await fetchJson(url, []);
+  if (!events) return;
+
+  if (events.length > 0) {
+    // Server returns newest first OR oldest first depending on impl; sort so newest first
+    events.sort((a, b) => (b.cachedAt || '').localeCompare(a.cachedAt || ''));
+    // Update high-water-mark with the newest cachedAt seen
+    dashState.since = events[0].cachedAt;
+    // Prepend new events; cap total
+    dashState.rows = [...events, ...dashState.rows].slice(0, DASH_MAX_ROWS);
+  }
+
+  // Re-render only if the tab is currently visible (cheap optimization)
+  const panel = dashState.panel;
+  if (panel && panel.classList.contains('active')) {
+    const tbody = panel.querySelector('#dash-rows');
+    if (tbody) {
+      tbody.innerHTML = dashState.rows.map(renderDashRow).join('');
+      const meta = panel.querySelector('#dash-meta');
+      if (meta) {
+        meta.textContent = `${dashState.rows.length} events · last update ${timeAgo(dashState.since)}${dashState.paused ? ' · paused' : ''}`;
+      }
+    }
+  }
+}
+
+async function loadDashboardTab(panel) {
+  dashState.panel = panel;
+  if (!panel.querySelector('#dash-rows')) {
+    renderDashShell(panel);
+    // Restore current pause state UI
+    if (dashState.paused) panel.querySelector('#dash-pause').textContent = 'Resume';
+    // Initial render of any cached rows
+    panel.querySelector('#dash-rows').innerHTML = dashState.rows.map(renderDashRow).join('');
+  }
+  if (!dashState.timer) {
+    await pollDash();
+    dashState.timer = setInterval(pollDash, DASH_POLL_MS);
+  } else {
+    // Force a render of cached rows when reopening
+    pollDash();
+  }
 }
 
 /* ── Queue tab ─────────────────────────────────────────────────────── */
@@ -257,10 +371,11 @@ async function loadSweeperTab(panel) {
 
 /* ── Bootstrap ─────────────────────────────────────────────────────── */
 const TABS = [
-  { id: 'queue',    label: 'Queue',    load: loadQueueTab,    badge: (s) => s?.queuePending },
-  { id: 'failures', label: 'Failures', load: loadFailuresTab, badge: (s) => s?.queueFailed },
-  { id: 'names',    label: 'Names',    load: loadNamesTab,    badge: (s) => s?.stageNameLookupSize },
-  { id: 'sweeper',  label: 'Sweeper',  load: loadSweeperTab },
+  { id: 'dashboard', label: 'Dashboard', load: loadDashboardTab },
+  { id: 'queue',     label: 'Queue',     load: loadQueueTab,    badge: (s) => s?.queuePending },
+  { id: 'failures',  label: 'Failures',  load: loadFailuresTab, badge: (s) => s?.queueFailed },
+  { id: 'names',     label: 'Names',     load: loadNamesTab,    badge: (s) => s?.stageNameLookupSize },
+  { id: 'sweeper',   label: 'Sweeper',   load: loadSweeperTab },
 ];
 
 export async function mountTranslation(rootEl) {
