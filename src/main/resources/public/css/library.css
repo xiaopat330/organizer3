@@ -221,6 +221,39 @@
 }
 .hero-actions { display: flex; gap: 6px; flex-wrap: wrap; }
 
+/* Title-variant hero — wider cover at 3:2 */
+.hero-band-title .hero-cover {
+  width: 320px;
+  aspect-ratio: 3 / 2;
+  height: auto;
+  border-radius: var(--radius-card);
+  background: linear-gradient(135deg, #7c3aed, #312e81);
+  background-size: cover;
+  background-position: center;
+  box-shadow: 0 12px 36px rgba(0,0,0,0.55);
+  flex-shrink: 0;
+}
+.hero-code {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--text-faint);
+  margin-bottom: 12px;
+  letter-spacing: 0.02em;
+}
+.hero-meta-line {
+  margin-top: 14px;
+  font-size: 12px;
+  color: var(--text-dim);
+}
+.hero-meta-line .k {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--text-faint);
+  margin-right: 4px;
+}
+.hero-meta-line .v.mono { font-family: var(--font-mono); }
+
 /* ── Loading + empty within a shelf ─────────────────────────────────── */
 .shelf-loading {
   font-size: 12px; color: var(--text-faint);

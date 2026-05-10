@@ -43,7 +43,7 @@ async function renderRecentlyViewed(slot) {
   }
   slot.innerHTML = `<div class="shelf-grid shelf-grid-chips">${
     items.map(it => `
-      <a class="title-chip" href="#title/${encodeURIComponent(it.titleCode)}" title="${escapeHtml(it.titleCode)}">
+      <a class="title-chip" href="/v2-title-detail.html?code=${encodeURIComponent(it.titleCode)}" title="${escapeHtml(it.titleCode)}">
         <span>${escapeHtml(it.titleCode)}</span>
         <span class="title-chip-when">${escapeHtml(timeAgo(it.watchedAt))}</span>
       </a>
@@ -72,7 +72,7 @@ function renderTitleCard(t) {
   const cast   = (t.actresses && t.actresses.length) ? t.actresses[0].name : '';
   const year   = t.releaseDate ? String(t.releaseDate).slice(0, 4) : '';
   return `
-    <a class="card-title" href="#title/${encodeURIComponent(code)}">
+    <a class="card-title" href="/v2-title-detail.html?code=${encodeURIComponent(code)}">
       <div class="card-title-cover" style="${cover ? `background-image:url('${cover}');background-size:cover;background-position:center` : ''}"></div>
       <div class="card-title-code">${escapeHtml(code)}</div>
       <div class="card-title-name">${escapeHtml(name)}</div>
