@@ -2309,3 +2309,24 @@ button.ad-alias-badge.ad-alias-link:hover { color: var(--accent); border-color: 
 }
 .tit-studio-label-desc { color: var(--text-faint); font-size: 11px; }
 
+/* ── Home page — compact thumb row (Recently viewed) ─────────────────── */
+.home-thumb-row { flex-wrap: nowrap; overflow-x: auto; padding-bottom: 4px; gap: 8px; }
+.home-thumb-chip {
+  display: block;
+  width: 40px;
+  height: 60px;
+  flex-shrink: 0;
+  border-radius: var(--radius);
+  overflow: hidden;
+  text-decoration: none;
+  transition: transform var(--dur-fast) var(--ease-out), box-shadow var(--dur-fast) var(--ease-out);
+}
+.home-thumb-chip:hover { transform: translateY(-2px); box-shadow: 0 6px 16px rgba(0,0,0,0.4); }
+.home-thumb-chip-cover {
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(135deg, #7c3aed, #312e81);
+  background-size: cover;
+  background-position: center;
+}
+

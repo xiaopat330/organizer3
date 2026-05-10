@@ -1,10 +1,8 @@
 /* ─────────────────────────────────────────────────────────────────────
-   Wave 2 — Home (library mode, 4 shelves)
+   Wave 2 — Home (library mode, 4 shelves + hero + stats)
    Spec: spec/DESIGN_SYSTEM_PAGES.md §1.1
    Shelves: Recently viewed · Recently added · Favorites · Needs attention
    ───────────────────────────────────────────────────────────────────── */
-
-const COVER_ROOT = '/covers';
 
 async function fetchJson(url, fallback = null) {
   try {
@@ -23,57 +21,25 @@ function escapeHtml(s) {
   }[c]));
 }
 
-function timeAgo(iso) {
-  if (!iso) return '';
-  const then = new Date(iso).getTime();
-  const diff = (Date.now() - then) / 1000;
-  if (diff < 60)        return `${Math.floor(diff)}s ago`;
-  if (diff < 3600)      return `${Math.floor(diff / 60)}m ago`;
-  if (diff < 86400)     return `${Math.floor(diff / 3600)}h ago`;
-  if (diff < 86400 * 7) return `${Math.floor(diff / 86400)}d ago`;
-  return new Date(iso).toLocaleDateString();
-}
-
-/* ── Shelf 1 — Recently viewed ─────────────────────────────────────── */
-async function renderRecentlyViewed(slot) {
-  const items = await fetchJson('/api/watch-history?limit=12', []);
-  if (!items || items.length === 0) {
-    slot.innerHTML = `<div class="shelf-empty">Nothing watched yet — your recent titles will appear here.</div>`;
-    return;
-  }
-  slot.innerHTML = `<div class="shelf-grid shelf-grid-chips">${
-    items.map(it => `
-      <a class="title-chip" href="/v2-title-detail.html?code=${encodeURIComponent(it.titleCode)}" title="${escapeHtml(it.titleCode)}">
-        <span>${escapeHtml(it.titleCode)}</span>
-        <span class="title-chip-when">${escapeHtml(timeAgo(it.watchedAt))}</span>
-      </a>
-    `).join('')
-  }</div>`;
-}
-
-/* ── Shelf 2 — Recently added (titles) ─────────────────────────────── */
-async function renderRecentlyAdded(slot) {
-  const titles = await fetchJson('/api/titles?sort=addedDate&order=desc&limit=12', []);
-  if (!titles || titles.length === 0) {
-    slot.innerHTML = `<div class="shelf-empty">No titles added recently.</div>`;
-    return;
-  }
-  slot.innerHTML = `<div class="shelf-grid shelf-grid-titles">${
-    titles.map(t => renderTitleCard(t)).join('')
-  }</div>`;
-}
-
+/* ── Title card renderer ────────────────────────────────────────────── */
 function renderTitleCard(t) {
-  const code   = t.code || t.productCode || t.titleCode || '';
-  const name   = t.normalizedTitle || t.titleEn || t.titleJa || t.title || code;
-  const cover  = t.coverPath
-    ? `${COVER_ROOT}/${encodeURIComponent(t.coverPath)}`
-    : (code ? `/api/cover/${encodeURIComponent(code)}` : null);
-  const cast   = (t.actresses && t.actresses.length) ? t.actresses[0].name : '';
-  const year   = t.releaseDate ? String(t.releaseDate).slice(0, 4) : '';
+  const code   = t.code || '';
+  // coverUrl is a fully-formed path (e.g. /covers/STARS/thumb.jpg)
+  const cover  = t.coverUrl || null;
+  const name   = t.titleEnglish || t.titleOriginalEn || t.titleOriginal || code;
+  const cast   = t.actressName || (t.actresses && t.actresses.length ? t.actresses[0].name : '');
+  const year   = t.releaseDate ? String(t.releaseDate).slice(0, 4)
+               : t.addedDate   ? String(t.addedDate).slice(0, 4) : '';
+  const grade  = t.grade || '';
+  const gradeHtml = grade
+    ? `<span class="grade-badge grade-${escapeHtml(grade.charAt(0))}">${escapeHtml(grade)}</span>`
+    : '';
   return `
     <a class="card-title" href="/v2-title-detail.html?code=${encodeURIComponent(code)}">
-      <div class="card-title-cover" style="${cover ? `background-image:url('${cover}');background-size:cover;background-position:center` : ''}"></div>
+      <div class="card-title-cover${cover ? '' : ' card-title-cover--empty'}"
+           style="${cover ? `background-image:url('${escapeHtml(cover)}');background-size:cover;background-position:center` : ''}">
+        ${gradeHtml ? `<div class="card-title-status">${gradeHtml}</div>` : ''}
+      </div>
       <div class="card-title-code">${escapeHtml(code)}</div>
       <div class="card-title-name">${escapeHtml(name)}</div>
       <div class="card-title-meta">
@@ -83,6 +49,60 @@ function renderTitleCard(t) {
       </div>
     </a>
   `;
+}
+
+/* ── Actress card renderer ──────────────────────────────────────────── */
+function renderActressCard(a) {
+  // localAvatarUrl is fully-formed (custom avatar or enriched avatar path)
+  const portrait = a.localAvatarUrl || null;
+  const name     = a.canonicalName || a.stageName || '';
+  const tier     = (a.tier || '').toLowerCase();
+  const count    = a.titleCount != null ? `${a.titleCount} titles` : '';
+  return `
+    <a class="card-actress" href="/v2-actress-detail.html?id=${encodeURIComponent(a.id)}">
+      <div class="card-actress-portrait"
+           style="${portrait ? `background-image:url('${escapeHtml(portrait)}');background-size:cover;background-position:center top` : ''}">
+        ${tier ? `<span class="card-actress-tier">${escapeHtml(tier)}</span>` : ''}
+      </div>
+      <div class="card-actress-name">${escapeHtml(name)}</div>
+      ${count ? `<div class="card-actress-meta">${escapeHtml(count)}</div>` : ''}
+    </a>
+  `;
+}
+
+/* ── Shelf 1 — Recently viewed (compact thumb row) ──────────────────── */
+async function renderRecentlyViewed(slot, dashItems) {
+  // Use the recentlyViewed titles from the dashboard payload (includes coverUrl)
+  const items = dashItems && dashItems.length ? dashItems : [];
+  if (items.length === 0) {
+    slot.innerHTML = `<div class="shelf-empty">Nothing watched yet — your recent titles will appear here.</div>`;
+    return;
+  }
+  slot.innerHTML = `<div class="shelf-grid shelf-grid-chips home-thumb-row">${
+    items.map(it => {
+      const code  = it.code || '';
+      const cover = it.coverUrl || null;
+      const name  = it.titleEnglish || it.titleOriginalEn || it.titleOriginal || code;
+      return `
+        <a class="home-thumb-chip" href="/v2-title-detail.html?code=${encodeURIComponent(code)}"
+           title="${escapeHtml(code + (name && name !== code ? ' — ' + name : ''))}">
+          <div class="home-thumb-chip-cover"
+               style="${cover ? `background-image:url('${escapeHtml(cover)}');background-size:cover;background-position:center` : ''}"></div>
+        </a>
+      `;
+    }).join('')
+  }</div>`;
+}
+
+/* ── Shelf 2 — Recently added (titles) ─────────────────────────────── */
+async function renderRecentlyAdded(slot, justAdded) {
+  if (!justAdded || justAdded.length === 0) {
+    slot.innerHTML = `<div class="shelf-empty">No titles added recently.</div>`;
+    return;
+  }
+  slot.innerHTML = `<div class="shelf-grid shelf-grid-titles">${
+    justAdded.map(t => renderTitleCard(t)).join('')
+  }</div>`;
 }
 
 /* ── Shelf 3 — Favorites (actresses) ───────────────────────────────── */
@@ -97,92 +117,147 @@ async function renderFavorites(slot) {
   }</div>`;
 }
 
-function renderActressCard(a) {
-  const name = a.displayName || a.name || a.slug || '';
-  const tier = (a.tier || '').toLowerCase();
-  const portrait = a.profileImagePath
-    ? `/api/actress-image/${encodeURIComponent(a.slug || a.id)}`
-    : null;
-  const titleCount = a.titleCount != null ? `${a.titleCount} titles` : '';
-  return `
-    <a class="card-actress" href="/v2-actress-detail.html?id=${encodeURIComponent(a.id)}">
-      <div class="card-actress-portrait" style="${portrait ? `background-image:url('${portrait}');background-size:cover;background-position:center top` : ''}">
-        ${tier ? `<span class="card-actress-tier">${escapeHtml(tier)}</span>` : ''}
-      </div>
-      <div class="card-actress-name">${escapeHtml(name)}</div>
-      ${titleCount ? `<div class="card-actress-meta">${escapeHtml(titleCount)}</div>` : ''}
-    </a>
-  `;
-}
-
-/* ── Shelf 4 — Needs attention (KPI tiles) ─────────────────────────── */
+/* ── Shelf 4 — Needs attention (KPI tiles, each rendered independently) */
 async function renderNeedsAttention(slot) {
-  const [trans, dups, trash] = await Promise.all([
-    fetchJson('/api/translation/stats', null),
-    fetchJson('/api/tools/duplicates?limit=1&offset=0', null),
-    fetchJson('/api/utilities/trash/volumes', []),
-  ]);
-
-  // Translation: stats response shape has counts per state. Pick the most useful pair.
-  const transPending = trans?.pending ?? trans?.queued ?? 0;
-  const transFailed  = trans?.failed ?? 0;
-  const transValue   = transPending + transFailed;
-  const transClass   = transFailed > 0 ? 'warn' : (transPending > 0 ? 'warn' : 'ok');
-
-  // Duplicates: response is paged; total may be in `total` field. If not, just show the count we got.
-  const dupTotal = dups?.total ?? (Array.isArray(dups) ? dups.length : (dups?.items?.length ?? 0));
-  const dupClass = dupTotal > 0 ? 'warn' : 'ok';
-
-  // Trash: sum counts across volumes.
-  let trashTotal = 0;
-  if (Array.isArray(trash)) {
-    const counts = await Promise.all(
-      trash.map(v => fetchJson(`/api/utilities/trash/volumes/${encodeURIComponent(v.id)}/count`, { count: 0 }))
-    );
-    trashTotal = counts.reduce((s, c) => s + (c?.count ?? 0), 0);
-  }
-  const trashClass = trashTotal > 0 ? 'warn' : 'ok';
-
-  // Sync state — placeholder until a sync-status endpoint exists.
-  const syncValue = 'idle';
-  const syncClass = '';
-
+  // Render placeholder tiles immediately; fill each independently.
   slot.innerHTML = `
-    <div class="shelf-grid shelf-grid-tiles">
-      <a class="kpi-tile" href="#translation">
+    <div class="shelf-grid shelf-grid-tiles" id="home-kpi-grid">
+      <a class="kpi-tile" href="#translation" id="kpi-translation">
         <div class="kpi-tile-head">
           <svg viewBox="0 0 24 24"><path d="M5 8l6 6 6-6"/><path d="M5 16h14"/></svg>
           Translation
         </div>
-        <div class="kpi-tile-value ${transClass}">${transValue}</div>
-        <div class="kpi-tile-meta">${transPending} pending${transFailed ? ` · ${transFailed} failed` : ''}</div>
+        <div class="kpi-tile-value" id="kpi-trans-value">…</div>
+        <div class="kpi-tile-meta" id="kpi-trans-meta">loading</div>
       </a>
-      <a class="kpi-tile" href="#duplicates">
+      <a class="kpi-tile" href="#duplicates" id="kpi-duplicates">
         <div class="kpi-tile-head">
           <svg viewBox="0 0 24 24"><rect x="3" y="3" width="13" height="13" rx="2"/><rect x="8" y="8" width="13" height="13" rx="2"/></svg>
           Duplicates
         </div>
-        <div class="kpi-tile-value ${dupClass}">${dupTotal}</div>
-        <div class="kpi-tile-meta">groups awaiting triage</div>
+        <div class="kpi-tile-value" id="kpi-dup-value">…</div>
+        <div class="kpi-tile-meta" id="kpi-dup-meta">loading</div>
       </a>
-      <a class="kpi-tile" href="#trash">
+      <a class="kpi-tile" href="#trash" id="kpi-trash">
         <div class="kpi-tile-head">
           <svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
           Trash
         </div>
-        <div class="kpi-tile-value ${trashClass}">${trashTotal}</div>
-        <div class="kpi-tile-meta">items pending sweep</div>
+        <div class="kpi-tile-value" id="kpi-trash-value">…</div>
+        <div class="kpi-tile-meta" id="kpi-trash-meta">loading</div>
       </a>
-      <a class="kpi-tile" href="#volumes">
+      <a class="kpi-tile" href="#volumes" id="kpi-sync">
         <div class="kpi-tile-head">
           <svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><polyline points="21 3 21 8 16 8"/></svg>
           Sync
         </div>
-        <div class="kpi-tile-value ${syncClass}">${syncValue}</div>
-        <div class="kpi-tile-meta">no active job</div>
+        <div class="kpi-tile-value" id="kpi-sync-value">idle</div>
+        <div class="kpi-tile-meta" id="kpi-sync-meta">no active job</div>
       </a>
     </div>
   `;
+
+  // Translation — fill independently
+  fetchJson('/api/translation/stats', null).then(trans => {
+    const pending = trans?.pending ?? trans?.queued ?? 0;
+    const failed  = trans?.failed ?? 0;
+    const total   = pending + failed;
+    const cls     = (failed > 0 || pending > 0) ? 'warn' : 'ok';
+    const el = document.getElementById('kpi-trans-value');
+    const meta = document.getElementById('kpi-trans-meta');
+    if (el) { el.textContent = total; el.className = `kpi-tile-value ${cls}`; }
+    if (meta) meta.textContent = `${pending} pending${failed ? ` · ${failed} failed` : ''}`;
+  });
+
+  // Duplicates — fill independently
+  fetchJson('/api/tools/duplicates?limit=1&offset=0', null).then(dups => {
+    const total = dups?.total ?? (Array.isArray(dups) ? dups.length : (dups?.items?.length ?? 0));
+    const cls   = total > 0 ? 'warn' : 'ok';
+    const el    = document.getElementById('kpi-dup-value');
+    const meta  = document.getElementById('kpi-dup-meta');
+    if (el) { el.textContent = total; el.className = `kpi-tile-value ${cls}`; }
+    if (meta) meta.textContent = 'groups awaiting triage';
+  });
+
+  // Trash — fetch volumes list, then sum counts (each count fetched independently,
+  // timeout-guarded so an offline volume doesn't stall the tile).
+  fetchJson('/api/utilities/trash/volumes', []).then(async volumes => {
+    if (!Array.isArray(volumes) || volumes.length === 0) {
+      const el = document.getElementById('kpi-trash-value');
+      if (el) { el.textContent = 0; el.className = 'kpi-tile-value ok'; }
+      const meta = document.getElementById('kpi-trash-meta');
+      if (meta) meta.textContent = 'items pending sweep';
+      return;
+    }
+    // Fetch each volume count with a 5-second timeout
+    const withTimeout = (p, ms) => Promise.race([
+      p,
+      new Promise(res => setTimeout(() => res({ count: 0 }), ms))
+    ]);
+    const counts = await Promise.all(
+      volumes.map(v =>
+        withTimeout(
+          fetchJson(`/api/utilities/trash/volumes/${encodeURIComponent(v.id)}/count`, { count: 0 }),
+          5000
+        )
+      )
+    );
+    const total = counts.reduce((s, c) => s + (c?.count ?? 0), 0);
+    const cls   = total > 0 ? 'warn' : 'ok';
+    const el    = document.getElementById('kpi-trash-value');
+    const meta  = document.getElementById('kpi-trash-meta');
+    if (el) { el.textContent = total; el.className = `kpi-tile-value ${cls}`; }
+    if (meta) meta.textContent = 'items pending sweep';
+  });
+}
+
+/* ── Hero band — freshest recently-added title ──────────────────────── */
+function renderHero(heroEl, t) {
+  if (!t) {
+    heroEl.style.display = 'none';
+    return;
+  }
+  const code  = t.code || '';
+  const cover = t.coverUrl || null;
+  const name  = t.titleEnglish || t.titleOriginalEn || t.titleOriginal || code;
+  const cast  = t.actressName || (t.actresses && t.actresses.length ? t.actresses[0].name : '');
+  const year  = t.releaseDate ? String(t.releaseDate).slice(0, 4)
+              : t.addedDate   ? String(t.addedDate).slice(0, 4) : '';
+  const grade = t.grade || '';
+  const gradeHtml = grade
+    ? `<span class="grade-badge grade-${escapeHtml(grade.charAt(0))}">${escapeHtml(grade)}</span>`
+    : '';
+
+  heroEl.innerHTML = `
+    <section class="hero-band hero-band-title">
+      <div class="hero-cover"
+           style="${cover ? `background-image:url('${escapeHtml(cover)}');background-size:cover;background-position:center` : ''}"></div>
+      <div class="hero-content">
+        <div class="hero-code">${escapeHtml(code)}</div>
+        <div class="hero-name" style="font-size:20px;margin-bottom:6px">${escapeHtml(name)}</div>
+        <div class="hero-stats" style="margin-bottom:14px">
+          ${cast ? `<span>${escapeHtml(cast)}</span>` : ''}
+          ${cast && year ? `<span style="color:var(--text-faint)">·</span>` : ''}
+          ${year ? `<span>${escapeHtml(year)}</span>` : ''}
+          ${gradeHtml}
+        </div>
+        <div class="hero-actions">
+          <a class="btn primary" href="/v2-title-detail.html?code=${encodeURIComponent(code)}">Open</a>
+        </div>
+      </div>
+    </section>
+  `;
+}
+
+/* ── Stats line — totalTitles · totalActresses · N volumes online ──── */
+async function renderStats(statsEl, totalTitles, actressDash, volumesDash) {
+  const titleCount   = totalTitles != null ? totalTitles.toLocaleString() : '–';
+  const actressCount = actressDash?.libraryStats?.totalActresses != null
+    ? actressDash.libraryStats.totalActresses.toLocaleString() : '–';
+  const onlineVolumes = Array.isArray(volumesDash)
+    ? volumesDash.filter(v => v.status === 'online').length : '–';
+
+  statsEl.textContent = `${titleCount} titles · ${actressCount} actresses · ${onlineVolumes} volumes online`;
 }
 
 /* ── Bootstrap ──────────────────────────────────────────────────────── */
@@ -190,7 +265,9 @@ export function mountHome(rootEl) {
   rootEl.innerHTML = `
     <div class="lib-page">
       <h1 class="lib-page-title">Home</h1>
-      <div class="lib-page-subtitle">Your library at a glance.</div>
+      <div class="lib-page-subtitle" id="home-stats-line">Loading stats…</div>
+
+      <div id="home-hero"></div>
 
       <section class="shelf">
         <div class="shelf-head">
@@ -230,9 +307,39 @@ export function mountHome(rootEl) {
     </div>
   `;
 
-  // Fire all four in parallel; each shelf renders independently as its data lands.
-  renderRecentlyViewed(rootEl.querySelector('#shelf-recent'));
-  renderRecentlyAdded(rootEl.querySelector('#shelf-added'));
-  renderFavorites(rootEl.querySelector('#shelf-favorites'));
-  renderNeedsAttention(rootEl.querySelector('#shelf-attention'));
+  const heroEl       = rootEl.querySelector('#home-hero');
+  const statsEl      = rootEl.querySelector('#home-stats-line');
+  const recentSlot   = rootEl.querySelector('#shelf-recent');
+  const addedSlot    = rootEl.querySelector('#shelf-added');
+  const favSlot      = rootEl.querySelector('#shelf-favorites');
+  const attentionSlot = rootEl.querySelector('#shelf-attention');
+
+  // Titles dashboard — drives hero, recently-added shelf, recently-viewed thumb row, and totalTitles stat.
+  const titleDashP = fetchJson('/api/titles/dashboard', null);
+  // Actress dashboard — drives totalActresses stat.
+  const actressDashP = fetchJson('/api/actresses/dashboard', null);
+  // Volumes — drives volumes-online stat.
+  const volumesP = fetchJson('/api/utilities/volumes', []);
+
+  // Hero + recently-added shelf + recently-viewed (all from title dashboard)
+  titleDashP.then(dash => {
+    const justAdded     = dash?.justAdded     || [];
+    const recentlyViewed = dash?.recentlyViewed || [];
+    const totalTitles   = dash?.libraryStats?.totalTitles ?? null;
+
+    renderHero(heroEl, justAdded[0] || null);
+    renderRecentlyAdded(addedSlot, justAdded);
+    renderRecentlyViewed(recentSlot, recentlyViewed);
+
+    // Populate stats once we have actress and volume data too
+    Promise.all([actressDashP, volumesP]).then(([actressDash, volumesDash]) => {
+      renderStats(statsEl, totalTitles, actressDash, volumesDash);
+    });
+  });
+
+  // Favorites shelf (independent)
+  renderFavorites(favSlot);
+
+  // Needs attention (independent, tiles fill as data lands)
+  renderNeedsAttention(attentionSlot);
 }
