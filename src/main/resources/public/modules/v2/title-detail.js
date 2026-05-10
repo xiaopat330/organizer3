@@ -10,6 +10,7 @@
    ───────────────────────────────────────────────────────────────────── */
 
 import { openTitleTagEditor } from './title-tag-editor.js';
+import { renderTitleCard }   from './cards/title-card.js';
 
 const COVER_ROOT = '/covers';
 const THUMB_RATIOS = [
@@ -448,30 +449,6 @@ function toggleTheater(videoId) {
 }
 
 /* ── Cast + More-from shelves ──────────────────────────────────────── */
-function renderActressMiniCard(a) {
-  const portrait = a.profileImagePath
-    ? `/api/actress-image/${encodeURIComponent(a.slug || a.id)}`
-    : null;
-  return `
-    <a class="card-actress" href="/v2-actress-detail.html?id=${encodeURIComponent(a.id)}">
-      <div class="card-actress-portrait" style="${portrait ? `background-image:url('${portrait}');background-size:cover;background-position:center top` : ''}"></div>
-      <div class="card-actress-name">${escapeHtml(a.name || a.displayName || '')}</div>
-    </a>
-  `;
-}
-
-function renderTitleMiniCard(t) {
-  const code = t.code || '';
-  const cover = t.coverPath ? `${COVER_ROOT}/${encodeURIComponent(t.coverPath)}` : `/api/cover/${encodeURIComponent(code)}`;
-  const name = t.normalizedTitle || t.titleEn || t.titleJa || t.title || code;
-  return `
-    <a class="card-title" href="/v2-title-detail.html?code=${encodeURIComponent(code)}">
-      <div class="card-title-cover" style="background-image:url('${cover}');background-size:cover;background-position:center"></div>
-      <div class="card-title-code">${escapeHtml(code)}</div>
-      <div class="card-title-name">${escapeHtml(name)}</div>
-    </a>
-  `;
-}
 
 async function loadMoreFromActress(t, container) {
   const actresses = (t.actresses && t.actresses.length > 0)
@@ -482,19 +459,22 @@ async function loadMoreFromActress(t, container) {
   const titles = await fetchJson(`/api/actresses/${encodeURIComponent(a.id)}/titles?limit=6`, []);
   const others = (titles || []).filter(x => x.code !== t.code).slice(0, 5);
   if (others.length === 0) return;
-  container.innerHTML = `
-    <section class="shelf">
-      <div class="shelf-head">
-        <span class="shelf-title">More from ${escapeHtml(a.name)}</span>
-        <a class="shelf-action" href="/v2-actress-detail.html?id=${encodeURIComponent(a.id)}">All titles
-          <svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
-        </a>
-      </div>
-      <div class="shelf-grid shelf-grid-titles">
-        ${others.map(renderTitleMiniCard).join('')}
-      </div>
-    </section>
-  `;
+
+  const section = document.createElement('section');
+  section.className = 'shelf';
+  const head = document.createElement('div');
+  head.className = 'shelf-head';
+  head.innerHTML = `
+    <span class="shelf-title">More from ${escapeHtml(a.name)}</span>
+    <a class="shelf-action" href="/v2-actress-detail.html?id=${encodeURIComponent(a.id)}">All titles
+      <svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
+    </a>`;
+  section.appendChild(head);
+  const grid = document.createElement('div');
+  grid.className = 'shelf-grid shelf-grid-titles';
+  others.forEach(other => grid.appendChild(renderTitleCard(other, { variant: 'compact' })));
+  section.appendChild(grid);
+  container.appendChild(section);
 }
 
 /* ── Bootstrap ─────────────────────────────────────────────────────── */

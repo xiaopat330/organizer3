@@ -4,6 +4,8 @@
    Spotlight rotator cycles every 30 s using /api/titles/spotlight.
    ───────────────────────────────────────────────────────────────────── */
 
+import { renderTitleCard } from '../cards/title-card.js';
+
 const SPOTLIGHT_INTERVAL_MS = 30_000;
 
 // ── Utils ─────────────────────────────────────────────────────────────────
@@ -11,81 +13,23 @@ function esc(s) {
   return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 }
 
-// ── Title card (dashboard-appropriate: cover + code + actress + meta) ──────
+// ── Card factories ────────────────────────────────────────────────────────
 function makeCard(t) {
-  const code  = t.code  || '';
-  const name  = t.titleEnglish || t.titleOriginalEn || t.titleOriginal || code;
-  const cover = t.coverUrl || null;
-  const actress = t.actressName || (t.actresses && t.actresses.length ? t.actresses[0].name : '');
-  const date  = t.releaseDate || t.addedDate || '';
-  const grade = t.grade || '';
-
-  const gradeHtml = grade
-    ? `<span class="grade-badge grade-${esc(grade.charAt(0))}">${esc(grade)}</span>`
-    : '';
-
-  const el = document.createElement('a');
-  el.className = 'card-title tit-dash-card';
-  el.href = `/v2-title-detail.html?code=${encodeURIComponent(code)}`;
-  el.dataset.code = code;
-  el.innerHTML = `
-    <div class="card-title-cover${cover ? '' : ' card-title-cover--empty'}"
-         style="${cover ? `background-image:url('${esc(cover)}');background-size:cover;background-position:center` : ''}">
-      ${gradeHtml ? `<div class="card-title-status">${gradeHtml}</div>` : ''}
-    </div>
-    <div class="card-title-code">${esc(code)}</div>
-    <div class="card-title-name">${esc(name)}</div>
-    <div class="card-title-meta">
-      ${actress ? `<span>${esc(actress)}</span>` : ''}
-      ${actress && date ? '<span class="dot"></span>' : ''}
-      ${date ? `<span class="year">${esc(String(date).slice(0,4))}</span>` : ''}
-    </div>`;
+  const el = renderTitleCard(t, { variant: 'standard' });
+  el.classList.add('tit-dash-card');
   return el;
 }
 
 function makeCompactCard(t) {
-  const code  = t.code || '';
-  const name  = t.titleEnglish || t.titleOriginalEn || t.titleOriginal || code;
-  const cover = t.coverUrl || null;
-  const date  = t.releaseDate || t.addedDate || '';
-
-  const el = document.createElement('a');
-  el.className = 'card-title tit-dash-card tit-dash-card--compact';
-  el.href = `/v2-title-detail.html?code=${encodeURIComponent(code)}`;
-  el.innerHTML = `
-    <div class="card-title-cover${cover ? '' : ' card-title-cover--empty'}"
-         style="${cover ? `background-image:url('${esc(cover)}');background-size:cover;background-position:center` : ''}">
-    </div>
-    <div class="card-title-code">${esc(code)}</div>
-    ${date ? `<div class="card-title-meta"><span class="year">${esc(String(date).slice(0,4))}</span></div>` : ''}`;
+  const el = renderTitleCard(t, { variant: 'compact' });
+  el.classList.add('tit-dash-card', 'tit-dash-card--compact');
   return el;
 }
 
-// ── Aging badge ───────────────────────────────────────────────────────────
-function agingLabel(addedDate) {
-  if (!addedDate) return null;
-  const d = new Date(addedDate + (addedDate.length === 10 ? 'T00:00:00' : ''));
-  if (isNaN(d)) return null;
-  const days = Math.floor((Date.now() - d.getTime()) / 86400000);
-  if (days <= 1)  return 'New today';
-  if (days <= 3)  return 'New this week';
-  if (days <= 7)  return '< 1 week';
-  if (days <= 14) return '< 2 weeks';
-  if (days <= 30) return '< 1 month';
-  return null;
-}
-
 function makeCardWithAging(t) {
-  const card = makeCard(t);
-  const label = agingLabel(t.addedDate);
-  if (label) {
-    const badge = document.createElement('div');
-    badge.className = 'tit-dash-aging';
-    badge.textContent = label;
-    const cover = card.querySelector('.card-title-cover');
-    (cover || card).appendChild(badge);
-  }
-  return card;
+  const el = renderTitleCard(t, { variant: 'standard', aging: true });
+  el.classList.add('tit-dash-card');
+  return el;
 }
 
 // ── Spotlight rotator ─────────────────────────────────────────────────────

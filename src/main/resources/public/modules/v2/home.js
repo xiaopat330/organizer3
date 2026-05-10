@@ -4,6 +4,9 @@
    Shelves: Recently viewed · Recently added · Favorites · Needs attention
    ───────────────────────────────────────────────────────────────────── */
 
+import { renderTitleCard }   from '/modules/v2/cards/title-card.js';
+import { renderActressCard } from '/modules/v2/cards/actress-card.js';
+
 async function fetchJson(url, fallback = null) {
   try {
     const r = await fetch(url, { cache: 'no-cache' });
@@ -19,55 +22,6 @@ function escapeHtml(s) {
   return String(s ?? '').replace(/[&<>"']/g, c => ({
     '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
   }[c]));
-}
-
-/* ── Title card renderer ────────────────────────────────────────────── */
-function renderTitleCard(t) {
-  const code   = t.code || '';
-  // coverUrl is a fully-formed path (e.g. /covers/STARS/thumb.jpg)
-  const cover  = t.coverUrl || null;
-  const name   = t.titleEnglish || t.titleOriginalEn || t.titleOriginal || code;
-  const cast   = t.actressName || (t.actresses && t.actresses.length ? t.actresses[0].name : '');
-  const year   = t.releaseDate ? String(t.releaseDate).slice(0, 4)
-               : t.addedDate   ? String(t.addedDate).slice(0, 4) : '';
-  const grade  = t.grade || '';
-  const gradeHtml = grade
-    ? `<span class="grade-badge grade-${escapeHtml(grade.charAt(0))}">${escapeHtml(grade)}</span>`
-    : '';
-  return `
-    <a class="card-title" href="/v2-title-detail.html?code=${encodeURIComponent(code)}">
-      <div class="card-title-cover${cover ? '' : ' card-title-cover--empty'}"
-           style="${cover ? `background-image:url('${escapeHtml(cover)}');background-size:cover;background-position:center` : ''}">
-        ${gradeHtml ? `<div class="card-title-status">${gradeHtml}</div>` : ''}
-      </div>
-      <div class="card-title-code">${escapeHtml(code)}</div>
-      ${name !== code ? `<div class="card-title-name">${escapeHtml(name)}</div>` : ''}
-      <div class="card-title-meta">
-        ${cast ? `<span>${escapeHtml(cast)}</span>` : ''}
-        ${cast && year ? '<span class="dot"></span>' : ''}
-        ${year ? `<span class="year">${escapeHtml(year)}</span>` : ''}
-      </div>
-    </a>
-  `;
-}
-
-/* ── Actress card renderer ──────────────────────────────────────────── */
-function renderActressCard(a) {
-  // localAvatarUrl is fully-formed (custom avatar or enriched avatar path)
-  const portrait = a.localAvatarUrl || null;
-  const name     = a.canonicalName || a.stageName || '';
-  const tier     = (a.tier || '').toLowerCase();
-  const count    = a.titleCount != null ? `${a.titleCount} titles` : '';
-  return `
-    <a class="card-actress" href="/v2-actress-detail.html?id=${encodeURIComponent(a.id)}">
-      <div class="card-actress-portrait"
-           style="${portrait ? `background-image:url('${escapeHtml(portrait)}');background-size:cover;background-position:center top` : ''}">
-        ${tier ? `<span class="card-actress-tier">${escapeHtml(tier)}</span>` : ''}
-      </div>
-      <div class="card-actress-name">${escapeHtml(name)}</div>
-      ${count ? `<div class="card-actress-meta">${escapeHtml(count)}</div>` : ''}
-    </a>
-  `;
 }
 
 /* ── Shelf 1 — Recently viewed (compact thumb row) ──────────────────── */
@@ -100,9 +54,11 @@ async function renderRecentlyAdded(slot, justAdded) {
     slot.innerHTML = `<div class="shelf-empty">No titles added recently.</div>`;
     return;
   }
-  slot.innerHTML = `<div class="shelf-grid shelf-grid-titles">${
-    justAdded.map(t => renderTitleCard(t)).join('')
-  }</div>`;
+  const grid = document.createElement('div');
+  grid.className = 'shelf-grid shelf-grid-titles';
+  justAdded.forEach(t => grid.appendChild(renderTitleCard(t)));
+  slot.innerHTML = '';
+  slot.appendChild(grid);
 }
 
 /* ── Shelf 3 — Favorites (actresses) ───────────────────────────────── */
@@ -112,9 +68,11 @@ async function renderFavorites(slot) {
     slot.innerHTML = `<div class="shelf-empty">No favorited actresses yet — star one to pin it here.</div>`;
     return;
   }
-  slot.innerHTML = `<div class="shelf-grid shelf-grid-actress">${
-    actresses.map(a => renderActressCard(a)).join('')
-  }</div>`;
+  const grid = document.createElement('div');
+  grid.className = 'shelf-grid shelf-grid-actress';
+  actresses.forEach(a => grid.appendChild(renderActressCard(a)));
+  slot.innerHTML = '';
+  slot.appendChild(grid);
 }
 
 /* ── Shelf 4 — Needs attention (KPI tiles, each rendered independently) */

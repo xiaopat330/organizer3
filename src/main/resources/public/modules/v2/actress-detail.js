@@ -11,6 +11,7 @@ import {
   confirmDiscardIfStaged,
 } from './actress-admin/index.js';
 import { openCustomAvatarEditor } from './custom-avatar-editor.js';
+import { renderTitleCard } from './cards/title-card.js';
 
 const PAGE_LIMIT = 24;
 const FILTER_DEBOUNCE_MS = 350;
@@ -768,25 +769,6 @@ function renderTagsPanel(panel) {
 }
 
 // ── Portfolio grid ───────────────────────────────────────────────────────
-function renderTitleCard(t) {
-  const code = t.code || t.productCode || t.titleCode || '';
-  const name = t.normalizedTitle || t.titleEn || t.titleJa || t.title || code;
-  const cover = t.coverPath ? `/covers/${encodeURIComponent(t.coverPath)}` : (code ? `/api/cover/${encodeURIComponent(code)}` : null);
-  const year = t.releaseDate ? String(t.releaseDate).slice(0, 4) : '';
-  const grade = t.grade ? `<span class="grade-badge grade-${esc(t.grade.charAt(0))}">${esc(t.grade)}</span>` : '';
-  return `
-    <a class="card-title" href="/v2-title-detail.html?code=${encodeURIComponent(code)}">
-      <div class="card-title-cover" style="${cover ? `background-image:url('${cover}');background-size:cover;background-position:center` : ''}">
-        ${grade ? `<div class="card-title-status">${grade}</div>` : ''}
-      </div>
-      <div class="card-title-code">${esc(code)}</div>
-      <div class="card-title-name">${esc(name)}</div>
-      <div class="card-title-meta">
-        ${year ? `<span class="year">${esc(year)}</span>` : ''}
-      </div>
-    </a>`;
-}
-
 function buildPortfolioUrl(offset) {
   let url = `/api/actresses/${actressId}/titles?offset=${offset}&limit=${PAGE_LIMIT}`;
   if (companyFilter) url += `&company=${encodeURIComponent(companyFilter)}`;
@@ -816,7 +798,7 @@ async function loadPortfolio(gridEl, statusEl, metaEl) {
   }
 
   portfolioState.items.push(...list);
-  gridEl.insertAdjacentHTML('beforeend', list.map(renderTitleCard).join(''));
+  list.forEach(t => gridEl.appendChild(renderTitleCard(t)));
   portfolioState.offset += list.length;
   metaEl.textContent = `${portfolioState.items.length} loaded`;
 

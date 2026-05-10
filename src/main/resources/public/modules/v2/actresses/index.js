@@ -26,6 +26,7 @@
 // Single mount point: mountActresses(rootEl).
 
 import { mountAdminTab, unmountAdminTab } from './admin.js';
+import { renderActressCard } from '../cards/actress-card.js';
 import { renderActressDashboard } from './dashboard.js';
 import {
   renderStudioGroupRow,
@@ -50,12 +51,6 @@ const COLS_STORAGE_KEY = 'actress-browse-v2.cols';
 const PAGE_TAB_KEY     = 'actress-browse-v2.page-tab';  // 'browse' | 'admin'
 
 // ── Utils ─────────────────────────────────────────────────────────────────
-
-function esc(s) {
-  return String(s ?? '').replace(/[&<>"']/g, c => ({
-    '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
-  }[c]));
-}
 
 async function fetchJson(url, fallback = null) {
   try {
@@ -122,26 +117,6 @@ function buildGridUrl(state, offset, limit) {
     return url;
   }
   return null; // dashboard / studio — no grid
-}
-
-// ── Card renderer ─────────────────────────────────────────────────────────
-
-function renderCard(a) {
-  const name    = a.displayName || a.canonicalName || a.name || a.slug || '';
-  const tier    = (a.tier || '').toLowerCase();
-  const imgSrc  = a.profileImagePath
-    ? `/api/actress-image/${encodeURIComponent(a.slug || a.id)}`
-    : null;
-  const count   = a.titleCount != null ? `${a.titleCount} titles` : '';
-  return `
-    <a class="act-card act-card-${esc(tier || 'library')}" href="/v2-actress-detail.html?id=${encodeURIComponent(a.id)}" data-actress-id="${esc(String(a.id))}">
-      <div class="act-card-portrait" ${imgSrc ? `style="background-image:url('${esc(imgSrc)}');background-size:cover;background-position:center top"` : ''}>
-        ${tier ? `<span class="act-card-tier act-tier-${esc(tier)}">${esc(tier)}</span>` : ''}
-      </div>
-      <div class="act-card-name">${esc(name)}</div>
-      ${count ? `<div class="act-card-meta">${esc(count)}</div>` : ''}
-    </a>
-  `;
 }
 
 // ── Mount ─────────────────────────────────────────────────────────────────
@@ -315,7 +290,7 @@ export function mountActresses(rootEl) {
     }
 
     state.items.push(...list);
-    gridEl.insertAdjacentHTML('beforeend', list.map(renderCard).join(''));
+    list.forEach(a => gridEl.appendChild(renderActressCard(a)));
     state.offset += list.length;
 
     if (list.length < PAGE_LIMIT) {

@@ -6,6 +6,7 @@
    ───────────────────────────────────────────────────────────────────── */
 
 import { renderDashboard, spotlightRotator } from './dashboard.js';
+import { renderTitleCard } from '../cards/title-card.js';
 import { renderLibraryPanel, scheduleLibraryQuery, hideLibraryPanel } from './library.js';
 import {
   enterUnsortedMode,
@@ -21,10 +22,6 @@ const COLS_DEFAULT = 5;
 const FILTERABLE_MODES = new Set(['collections', 'unsorted', 'archive-pool']);
 
 // ── Utils ─────────────────────────────────────────────────────────────────
-function esc(s) {
-  return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-}
-
 async function fetchJson(url, fallback = null) {
   try {
     const r = await fetch(url, { cache: 'no-cache' });
@@ -73,34 +70,6 @@ function createState() {
     // Caches
     _labelCache: null,
   };
-}
-
-// ── Title card (shared for list modes) ───────────────────────────────────
-function renderCard(t, smbPathPrefix) {
-  const code   = t.code  || '';
-  const name   = t.titleEnglish || t.titleOriginalEn || t.titleOriginal || code;
-  const cover  = t.coverUrl || null;
-  const actress = t.actressName || (t.actresses && t.actresses.length ? t.actresses[0].name : '');
-  const year   = t.releaseDate ? String(t.releaseDate).slice(0, 4) : (t.addedDate ? String(t.addedDate).slice(0, 4) : '');
-  const grade  = t.grade ? `<span class="grade-badge grade-${esc(t.grade.charAt(0))}">${esc(t.grade)}</span>` : '';
-  const watched = t.lastWatchedAt
-    ? `<div class="tit-card-watched">watched</div>` : '';
-
-  return `
-    <a class="card-title" href="/v2-title-detail.html?code=${encodeURIComponent(code)}">
-      <div class="card-title-cover${cover ? '' : ' card-title-cover--empty'}"
-           style="${cover ? `background-image:url('${esc(cover)}');background-size:cover;background-position:center` : ''}">
-        ${grade ? `<div class="card-title-status">${grade}</div>` : ''}
-      </div>
-      <div class="card-title-code">${esc(code)}</div>
-      <div class="card-title-name">${esc(name)}</div>
-      <div class="card-title-meta">
-        ${actress ? `<span>${esc(actress)}</span>` : ''}
-        ${actress && year ? '<span class="dot"></span>' : ''}
-        ${year ? `<span class="year">${esc(year)}</span>` : ''}
-      </div>
-      ${watched}
-    </a>`;
 }
 
 // ── URL builder ───────────────────────────────────────────────────────────
@@ -247,7 +216,7 @@ export function mountTitles(rootEl) {
       return;
     }
 
-    grid.insertAdjacentHTML('beforeend', list.map(t => renderCard(t, smbPathPrefix)).join(''));
+    list.forEach(t => grid.appendChild(renderTitleCard(t, { watched: true })));
     gridState.offset += list.length;
     gridState.count  += list.length;
     metaEl.textContent = `${gridState.count} loaded`;

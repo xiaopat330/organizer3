@@ -9,6 +9,8 @@
 //
 // All DOM nodes use .act-* CSS classes (no legacy CSS dependencies).
 
+import { renderActressCard } from '../cards/actress-card.js';
+
 const SPOTLIGHT_INTERVAL_MS = 30_000;
 
 // ── Utils ─────────────────────────────────────────────────────────────────
@@ -33,39 +35,13 @@ async function fetchJson(url, fallback = null) {
 // ── Card factories ────────────────────────────────────────────────────────
 
 function makeActressCard(a) {
-  const name    = a.displayName || a.canonicalName || a.name || a.slug || '';
-  const tier    = (a.tier || '').toLowerCase();
-  const imgSrc  = a.profileImagePath
-    ? `/api/actress-image/${encodeURIComponent(a.slug || a.id)}`
-    : null;
-  const count   = a.titleCount != null ? `${a.titleCount}` : '';
-  const el = document.createElement('a');
-  el.className = `act-card act-card-${tier || 'library'}`;
-  el.href = `/v2-actress-detail.html?id=${encodeURIComponent(a.id)}`;
-  el.innerHTML = `
-    <div class="act-card-portrait" ${imgSrc ? `style="background-image:url('${esc(imgSrc)}');background-size:cover;background-position:center top"` : ''}>
-      ${tier ? `<span class="act-card-tier act-tier-${tier}">${esc(tier)}</span>` : ''}
-    </div>
-    <div class="act-card-name">${esc(name)}</div>
-    ${count ? `<div class="act-card-meta">${esc(count)} titles</div>` : ''}
-  `;
+  const el = renderActressCard(a, { variant: 'standard' });
+  if (a.id) el.dataset.actressId = a.id;
   return el;
 }
 
 function makeCompactActressCard(a) {
-  const name   = a.displayName || a.canonicalName || a.name || a.slug || '';
-  const tier   = (a.tier || '').toLowerCase();
-  const imgSrc = a.profileImagePath
-    ? `/api/actress-image/${encodeURIComponent(a.slug || a.id)}`
-    : null;
-  const el = document.createElement('a');
-  el.className = `act-card-compact act-card-compact-${tier || 'library'}`;
-  el.href = `/v2-actress-detail.html?id=${encodeURIComponent(a.id)}`;
-  el.innerHTML = `
-    <div class="act-card-compact-portrait" ${imgSrc ? `style="background-image:url('${esc(imgSrc)}');background-size:cover;background-position:center top"` : ''}></div>
-    <div class="act-card-compact-name">${esc(name)}</div>
-  `;
-  return el;
+  return renderActressCard(a, { variant: 'compact' });
 }
 
 // ── Spotlight rotator ─────────────────────────────────────────────────────
@@ -83,7 +59,7 @@ function stopSpotlightRotator() {
 
 async function rotateSpotlight() {
   if (!spotlightContainer) return;
-  const current = spotlightContainer.querySelector('.act-card');
+  const current = spotlightContainer.querySelector('.acv2-card');
   const excludeId = current ? current.dataset.actressId : null;
   const url = '/api/actresses/spotlight' + (excludeId ? `?exclude=${encodeURIComponent(excludeId)}` : '');
   const item = await fetchJson(url);
