@@ -1,62 +1,158 @@
 /* ─────────────────────────────────────────────────────────────────────
    ⌘K command palette — see spec/DESIGN_SYSTEM.md §3
-   Wave-1 implementation: mock dataset, no real navigation/search.
-   Surfaces what we want the API to look like; future waves wire it
-   to the search service + a navigation registry.
+   Wired to /api/search (federated): actresses + titles + labels +
+   companies + AV actresses. Plus always-visible navigation entries
+   so jumping between pages is keyboard-only.
+   Per-category include toggles persist in localStorage.
    ───────────────────────────────────────────────────────────────────── */
 
 const ICONS = {
   go:        '<svg viewBox="0 0 24 24"><path d="M5 12h14"/><path d="M13 6l6 6-6 6"/></svg>',
   search:    '<svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>',
-  cmd:       '<svg viewBox="0 0 24 24"><path d="M9 6V4a2 2 0 0 0-4 0v0a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v0a2 2 0 0 0-4 0v2"/><path d="M9 18v2a2 2 0 0 1-4 0v0a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v0a2 2 0 0 1-4 0v-2"/><rect x="9" y="6" width="6" height="12"/></svg>',
   star:      '<svg viewBox="0 0 24 24"><polygon points="12 2 15 9 22 9 17 14 18 21 12 17 6 21 7 14 2 9 9 9"/></svg>',
   user:      '<svg viewBox="0 0 24 24"><circle cx="12" cy="7" r="4"/><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/></svg>',
+  film:      '<svg viewBox="0 0 24 24"><rect x="2" y="2" width="20" height="20" rx="2"/><line x1="2" y1="12" x2="22" y2="12"/><line x1="12" y1="2" x2="12" y2="22"/></svg>',
+  tag:       '<svg viewBox="0 0 24 24"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/></svg>',
+  building:  '<svg viewBox="0 0 24 24"><path d="M3 21h18"/><path d="M5 21V7l8-4v18"/><path d="M19 21V11l-6-4"/></svg>',
 };
 
-// Mock dataset — three categories: actions, navigation destinations, sample entities.
-const MOCK_ITEMS = [
-  // Actions
-  { id: 'act-sync',     label: 'Run sync',                    section: 'Actions',    icon: 'cmd', meta: 'shell' },
-  { id: 'act-trash',    label: 'Trash sweep',                 section: 'Actions',    icon: 'cmd', meta: 'shell' },
-  { id: 'act-pal',      label: 'Toggle workbench mode',       section: 'Actions',    icon: 'cmd', meta: 'm' },
-  // Navigation
-  { id: 'nav-home',     label: 'Home',                        section: 'Jump to',    icon: 'go',  meta: 'g h' },
-  { id: 'nav-actress',  label: 'Actresses',                   section: 'Jump to',    icon: 'go',  meta: 'g a' },
-  { id: 'nav-titles',   label: 'Titles',                      section: 'Jump to',    icon: 'go',  meta: 'g t' },
-  { id: 'nav-dups',     label: 'Duplicates',                  section: 'Jump to',    icon: 'go',  meta: 'g d' },
-  { id: 'nav-trans',    label: 'Translation',                 section: 'Jump to',    icon: 'go',  meta: 'g r' },
-  { id: 'nav-trash',    label: 'Trash',                       section: 'Jump to',    icon: 'go',  meta: '' },
-  { id: 'nav-logs',     label: 'Logs',                        section: 'Jump to',    icon: 'go',  meta: 'g l' },
-  // Sample entities (would be fed by SearchService in Wave 2+)
-  { id: 'ent-yuma',     label: 'Yuma Asami',                  section: 'Actresses',  icon: 'star', meta: '165 titles' },
-  { id: 'ent-sora',     label: 'Sora Aoi',                    section: 'Actresses',  icon: 'star', meta: '78 titles' },
-  { id: 'ent-soe-803',  label: 'SOE-803 — A Beautiful Woman…', section: 'Titles',    icon: 'search', meta: 'SOE-803' },
-  { id: 'ent-snis-441', label: 'SNIS-441 — Reunion After 5…', section: 'Titles',     icon: 'search', meta: 'SNIS-441' },
+const FILTER_STORAGE_KEY = 'v2.palette.filters';
+const DEFAULT_FILTERS = {
+  actresses:    true,
+  titles:       true,
+  labels:       true,
+  companies:    true,
+  avActresses:  true,
+};
+
+// Always-on navigation entries — shown when query is empty + when query matches their label.
+const NAV_ITEMS = [
+  { label: 'Home',          href: '/v2.html',              icon: 'go' },
+  { label: 'Actresses',     href: '/v2-actresses.html',    icon: 'user' },
+  { label: 'Titles',        href: '/v2-titles.html',       icon: 'film' },
+  { label: 'AV Stars',      href: '/v2-avstars.html',      icon: 'star' },
+  { label: 'Duplicates',    href: '/v2-duplicates.html',   icon: 'go' },
+  { label: 'Trash',         href: '/v2-trash.html',        icon: 'go' },
+  { label: 'Translation',   href: '/v2-translation.html',  icon: 'go' },
+  { label: 'Pending Kanji', href: '/v2-pending-kanji.html', icon: 'go' },
+  { label: 'Volumes',       href: '/v2-volumes.html',      icon: 'go' },
+  { label: 'Logs',          href: '/v2-logs.html',         icon: 'go' },
+  { label: 'Design system', href: '/design.html',          icon: 'go' },
 ];
 
-function score(item, query) {
-  if (!query) return 1;
-  const q = query.toLowerCase();
-  const label = item.label.toLowerCase();
-  if (label === q) return 100;
-  if (label.startsWith(q)) return 80;
-  const wordHit = label.split(/\W+/).some(w => w.startsWith(q));
-  if (wordHit) return 60;
-  if (label.includes(q)) return 40;
-  if ((item.meta || '').toLowerCase().includes(q)) return 20;
-  return 0;
+function loadFilters() {
+  try {
+    const raw = localStorage.getItem(FILTER_STORAGE_KEY);
+    if (!raw) return { ...DEFAULT_FILTERS };
+    return { ...DEFAULT_FILTERS, ...JSON.parse(raw) };
+  } catch (e) { return { ...DEFAULT_FILTERS }; }
+}
+function saveFilters(f) {
+  try { localStorage.setItem(FILTER_STORAGE_KEY, JSON.stringify(f)); } catch (e) {}
 }
 
-export function createPalette({ rootEl, items = MOCK_ITEMS, onSelect } = {}) {
+function escapeHtml(s) {
+  return String(s ?? '').replace(/[&<>"']/g, c => ({
+    '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+  }[c]));
+}
+
+// Convert /api/search response into flat list of palette items.
+function flattenSearchResult(data, filters) {
+  const items = [];
+  if (filters.actresses && Array.isArray(data?.actresses)) {
+    for (const a of data.actresses) {
+      items.push({
+        section: 'Actresses',
+        icon: 'user',
+        label: a.displayName || a.name || a.canonicalName || a.slug || `#${a.id}`,
+        meta: a.titleCount != null ? `${a.titleCount} titles` : '',
+        href: `/v2-actress-detail.html?id=${encodeURIComponent(a.id)}`,
+      });
+    }
+  }
+  if (filters.titles && Array.isArray(data?.titles)) {
+    for (const t of data.titles) {
+      items.push({
+        section: 'Titles',
+        icon: 'film',
+        label: `${t.code} · ${t.normalizedTitle || t.titleEn || t.titleJa || t.title || ''}`.trim(),
+        meta: t.code || '',
+        href: `/v2-title-detail.html?code=${encodeURIComponent(t.code)}`,
+      });
+    }
+  }
+  if (filters.labels && Array.isArray(data?.labels)) {
+    for (const l of data.labels) {
+      const code = l.code || l.label || '';
+      items.push({
+        section: 'Labels',
+        icon: 'tag',
+        label: l.name || code,
+        meta: code,
+        href: `/v2-titles.html?label=${encodeURIComponent(code)}`,
+      });
+    }
+  }
+  if (filters.companies && Array.isArray(data?.companies)) {
+    for (const c of data.companies) {
+      items.push({
+        section: 'Companies',
+        icon: 'building',
+        label: c.name || c.id || '',
+        meta: c.titleCount != null ? `${c.titleCount} titles` : '',
+        href: `/v2-titles.html?company=${encodeURIComponent(c.name || c.id)}`,
+      });
+    }
+  }
+  if (filters.avActresses && Array.isArray(data?.avActresses)) {
+    for (const a of data.avActresses) {
+      items.push({
+        section: 'AV Actresses',
+        icon: 'star',
+        label: a.stageName || a.folderName || `#${a.id}`,
+        meta: a.videoCount != null ? `${a.videoCount} videos` : '',
+        href: `/v2-avstar-detail.html?id=${encodeURIComponent(a.id)}`,
+      });
+    }
+  }
+  return items;
+}
+
+// Filter NAV_ITEMS by query (substring match on label).
+function navItemsForQuery(q) {
+  if (!q) {
+    return NAV_ITEMS.map(n => ({ ...n, section: 'Jump to' }));
+  }
+  const ql = q.toLowerCase();
+  return NAV_ITEMS
+    .filter(n => n.label.toLowerCase().includes(ql))
+    .map(n => ({ ...n, section: 'Jump to' }));
+}
+
+export function createPalette({ rootEl, onSelect } = {}) {
   if (!rootEl) throw new Error('createPalette: rootEl required');
+
+  const filters = loadFilters();
+
+  const filterChip = (key, label) => `
+    <span class="palette-filter-chip${filters[key] ? ' on' : ''}" data-fkey="${key}">${escapeHtml(label)}</span>
+  `;
 
   rootEl.innerHTML = `
     <div class="palette-backdrop" hidden role="dialog" aria-modal="true" aria-label="Command palette">
       <div class="palette">
         <div class="palette-input-wrap">
           ${ICONS.search}
-          <input class="palette-input" type="text" placeholder="Search or jump to…" autocomplete="off" spellcheck="false">
+          <input class="palette-input" type="text" placeholder="Search titles, actresses, labels, studios…" autocomplete="off" spellcheck="false">
           <span class="palette-input-hint"><span class="kbd">esc</span></span>
+        </div>
+        <div class="palette-filters">
+          ${filterChip('actresses',   'Actresses')}
+          ${filterChip('titles',      'Titles')}
+          ${filterChip('labels',      'Labels')}
+          ${filterChip('companies',   'Studios')}
+          ${filterChip('avActresses', 'AV Actresses')}
         </div>
         <div class="palette-list" role="listbox"></div>
         <div class="palette-footer">
@@ -68,24 +164,27 @@ export function createPalette({ rootEl, items = MOCK_ITEMS, onSelect } = {}) {
     </div>
   `;
 
-  const backdrop = rootEl.querySelector('.palette-backdrop');
-  const input    = rootEl.querySelector('.palette-input');
-  const listEl   = rootEl.querySelector('.palette-list');
+  const backdrop  = rootEl.querySelector('.palette-backdrop');
+  const input     = rootEl.querySelector('.palette-input');
+  const listEl    = rootEl.querySelector('.palette-list');
+  const filterBar = rootEl.querySelector('.palette-filters');
 
   let cursor = 0;
   let visible = false;
-  let filtered = items.slice();
+  let items = [];          // current rendered items (nav + search hits)
+  let lastQuery = '';
+  let inFlight = null;     // AbortController for in-flight fetch
 
   const render = () => {
-    if (filtered.length === 0) {
+    if (items.length === 0) {
       listEl.innerHTML = `<div class="palette-empty">No matches.</div>`;
       return;
     }
     let html = '';
     let lastSection = null;
-    filtered.forEach((it, i) => {
+    items.forEach((it, i) => {
       if (it.section !== lastSection) {
-        html += `<div class="palette-section-label">${it.section}</div>`;
+        html += `<div class="palette-section-label">${escapeHtml(it.section)}</div>`;
         lastSection = it.section;
       }
       const ic = ICONS[it.icon] || ICONS.go;
@@ -98,45 +197,78 @@ export function createPalette({ rootEl, items = MOCK_ITEMS, onSelect } = {}) {
     listEl.innerHTML = html;
   };
 
-  const filter = () => {
-    const q = input.value.trim();
-    filtered = items
-      .map(it => ({ it, s: score(it, q) }))
-      .filter(x => x.s > 0)
-      .sort((a, b) => b.s - a.s)
-      .map(x => x.it);
-    cursor = 0;
+  const computeItems = (q, searchData) => {
+    const nav = navItemsForQuery(q);
+    const hits = searchData ? flattenSearchResult(searchData, filters) : [];
+    items = [...hits, ...nav];
+    if (cursor >= items.length) cursor = Math.max(0, items.length - 1);
     render();
   };
 
+  const debounceTimer = { id: null };
+
+  const runSearch = (q) => {
+    if (inFlight) inFlight.abort();
+    if (!q) {
+      computeItems('', null);
+      return;
+    }
+    const ctrl = new AbortController();
+    inFlight = ctrl;
+    const includeAv = filters.avActresses ? '&includeAv=true' : '';
+    fetch(`/api/search?q=${encodeURIComponent(q)}${includeAv}`, { signal: ctrl.signal })
+      .then(r => r.ok ? r.json() : null)
+      .then(data => {
+        if (q !== lastQuery) return;
+        computeItems(q, data);
+      })
+      .catch(e => { /* abort or network error */ });
+  };
+
+  const onInput = () => {
+    const q = input.value.trim();
+    lastQuery = q;
+    clearTimeout(debounceTimer.id);
+    debounceTimer.id = setTimeout(() => runSearch(q), 120);
+    // Show nav matches synchronously while server search is in flight
+    computeItems(q, null);
+  };
+
   const select = (i) => {
-    const it = filtered[i];
+    const it = items[i];
     if (!it) return;
     close();
-    if (onSelect) onSelect(it);
-    else console.log('[palette] selected:', it);
+    if (onSelect) {
+      onSelect(it);
+      return;
+    }
+    // Default: navigate
+    if (it.href) {
+      window.location.assign(it.href);
+    }
   };
 
   const open = () => {
     visible = true;
     backdrop.hidden = false;
     input.value = '';
-    filtered = items.slice();
+    lastQuery = '';
     cursor = 0;
-    render();
+    computeItems('', null);
     requestAnimationFrame(() => input.focus());
   };
 
   const close = () => {
     visible = false;
     backdrop.hidden = true;
+    if (inFlight) { inFlight.abort(); inFlight = null; }
   };
 
   // Wire events
-  input.addEventListener('input', filter);
+  input.addEventListener('input', onInput);
   input.addEventListener('keydown', (e) => {
     if (e.key === 'Escape')          { e.preventDefault(); close(); }
-    else if (e.key === 'ArrowDown')  { e.preventDefault(); cursor = Math.min(cursor + 1, filtered.length - 1); render(); scrollIntoCursor(); }
+    else if (e.key === 'ArrowDown')  { e.preventDefault(); cursor = Math.min(cursor + 1, items.length - 1); render(); scrollIntoCursor(); }
     else if (e.key === 'ArrowUp')    { e.preventDefault(); cursor = Math.max(cursor - 1, 0); render(); scrollIntoCursor(); }
     else if (e.key === 'Enter')      { e.preventDefault(); select(cursor); }
   });
@@ -145,6 +277,16 @@ export function createPalette({ rootEl, items = MOCK_ITEMS, onSelect } = {}) {
     const item = e.target.closest('.palette-item');
     if (!item) return;
     select(parseInt(item.dataset.i, 10));
+  });
+
+  filterBar.addEventListener('click', (e) => {
+    const chip = e.target.closest('.palette-filter-chip');
+    if (!chip) return;
+    const key = chip.dataset.fkey;
+    filters[key] = !filters[key];
+    chip.classList.toggle('on', filters[key]);
+    saveFilters(filters);
+    runSearch(lastQuery);
   });
 
   backdrop.addEventListener('click', (e) => {
@@ -166,10 +308,4 @@ export function createPalette({ rootEl, items = MOCK_ITEMS, onSelect } = {}) {
   }
 
   return { open, close, isOpen: () => visible };
-}
-
-function escapeHtml(s) {
-  return String(s).replace(/[&<>"']/g, c => ({
-    '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
-  }[c]));
 }
