@@ -16,8 +16,8 @@
   --bg-body: #0d0d0d;
   --bg-input: #161616;
   --bg-card: #161616;
-  --border-subtle: var(--border-subtle);   /* card/sticky-row dividers */
-  --border-control: var(--border-control);  /* inputs, selects, buttons */
+  --border-subtle: 1px solid #1f1f1f;   /* card/sticky-row dividers */
+  --border-control: 1px solid #2a2a2a;  /* inputs, selects, buttons */
   --dur-fast: 0.12s;
   --dur-normal: 0.15s;
 }

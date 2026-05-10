@@ -4,8 +4,9 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Design System — Organizer3</title>
-<!-- Load base.css ONLY for v1 tokens — kitchen-sink does its own layout -->
+<!-- Tokens + canonical primitive CSS. Kitchen-sink scaffolding is below. -->
 <link rel="stylesheet" href="/css/base.css">
+<link rel="stylesheet" href="/css/primitives.css">
 <style>
   /* ─── Page layout (kitchen-sink scaffolding only — not part of the design system) ─── */
   body {
@@ -97,211 +98,9 @@
   .swatch-val  { font-family: var(--font-mono); font-size: 10.5px; color: var(--text-faint); }
 
   /* ────────────────────────────────────────────────────────────────────
-     PRIMITIVES — these are the canonical implementations.
-     During migration, modules should reference these patterns.
+     PAGE-LOCAL MOCKS — rail/topbar/status/table/inspector/hero are
+     composed from primitives.css + a few demo containers below.
      ──────────────────────────────────────────────────────────────────── */
-
-  /* Buttons */
-  .btn {
-    display: inline-flex; align-items: center; gap: 6px;
-    font-size: 12.5px;
-    padding: 6px 12px;
-    border-radius: var(--radius);
-    background: var(--bg-active);
-    color: var(--text);
-    border: 1px solid var(--border-strong);
-    cursor: pointer;
-    font-family: inherit;
-    transition: background var(--dur-fast) var(--ease-out),
-                border-color var(--dur-fast) var(--ease-out),
-                transform var(--dur-fast) var(--ease-out);
-  }
-  .btn:hover { background: var(--bg-hover); border-color: var(--text-faint); }
-  .btn:active { transform: translateY(1px); transition-duration: 60ms; }
-  .btn svg { width: 13px; height: 13px; stroke: currentColor; fill: none; stroke-width: 2; }
-  .btn.primary {
-    background: var(--accent); color: #04223a; border-color: var(--accent);
-    font-weight: 600;
-  }
-  .btn.primary:hover { filter: brightness(1.05); }
-  .btn.primary svg { stroke: #04223a; stroke-width: 2.4; }
-  .btn.danger {
-    background: var(--bg-active); color: var(--error); border-color: rgba(248,113,113,0.4);
-  }
-  .btn.danger:hover { background: rgba(248,113,113,0.10); border-color: var(--error); }
-  .btn.icon-only { padding: 6px; }
-
-  .icon-btn {
-    width: 28px; height: 28px;
-    display: inline-flex; align-items: center; justify-content: center;
-    border: none; background: transparent;
-    color: var(--text-faint);
-    border-radius: var(--radius);
-    cursor: pointer;
-    transition: background var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out);
-  }
-  .icon-btn:hover { color: var(--text); background: var(--bg-hover); }
-  .icon-btn.on { color: var(--accent); background: var(--accent-bg); }
-  .icon-btn svg { width: 14px; height: 14px; stroke: currentColor; fill: none; stroke-width: 2; }
-
-  /* Chips */
-  .chip {
-    font-size: 12px;
-    padding: 3px 10px;
-    border-radius: 999px;
-    background: var(--bg-panel);
-    border: 1px solid var(--border);
-    color: var(--text-dim);
-    cursor: pointer;
-    user-select: none;
-    transition: all var(--dur-fast) var(--ease-out);
-    display: inline-block;
-  }
-  .chip:hover { color: var(--text); border-color: var(--border-strong); }
-  .chip.on { color: var(--accent); border-color: var(--accent); background: var(--accent-bg); }
-
-  /* Pills (status, mono) */
-  .pill {
-    display: inline-block;
-    font-family: var(--font-mono);
-    font-size: 9.5px;
-    padding: 1px 6px;
-    border-radius: 3px;
-    background: var(--bg-active);
-    color: var(--text-dim);
-    text-transform: lowercase;
-    letter-spacing: 0.04em;
-  }
-  .pill.ok { color: var(--ok); }
-  .pill.warn { color: var(--warn); }
-  .pill.error { color: var(--error); }
-
-  /* Badge (rail count) */
-  .badge {
-    display: inline-block;
-    background: var(--bg-active);
-    color: var(--text-dim);
-    font-size: 10px;
-    padding: 1px 6px;
-    border-radius: 8px;
-    font-variant-numeric: tabular-nums;
-    font-family: var(--font-mono);
-  }
-  .badge.warn { color: var(--warn); }
-  .badge.error { color: var(--error); }
-
-  /* Kbd */
-  .kbd {
-    font-family: var(--font-mono); font-size: 10px;
-    color: var(--text-faint);
-    border: 1px solid var(--border-strong);
-    border-radius: 3px;
-    padding: 1px 4px;
-    line-height: 1;
-  }
-  .kbd.accent {
-    color: var(--accent);
-    background: var(--accent-bg);
-    border-color: rgba(147,197,253,0.28);
-    font-weight: 600;
-    font-size: 10.5px;
-    padding: 1px 5px;
-  }
-
-  /* Inputs */
-  .input {
-    background: var(--bg-panel);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    color: var(--text);
-    padding: 6px 10px;
-    font-size: 13px;
-    font-family: inherit;
-    outline: none;
-    transition: border-color var(--dur-fast) var(--ease-out);
-    width: 280px;
-  }
-  .input::placeholder { color: var(--text-faint); }
-  .input:focus { border-color: var(--accent); }
-
-  /* CMDK trigger (the canonical one) */
-  .cmdk-trigger {
-    display: flex; align-items: center; gap: 9px;
-    width: 400px;
-    background: linear-gradient(180deg, rgba(147,197,253,0.06), rgba(147,197,253,0.03));
-    border: 1px solid rgba(147,197,253,0.22);
-    border-radius: var(--radius);
-    color: var(--text-dim);
-    padding: 6px 8px 6px 11px;
-    font-size: 12.5px;
-    cursor: text;
-    font-family: inherit;
-    transition: border-color var(--dur-fast) var(--ease-out),
-                background var(--dur-fast) var(--ease-out),
-                box-shadow var(--dur-fast) var(--ease-out);
-    box-shadow: inset 0 1px 0 rgba(255,255,255,0.02);
-  }
-  .cmdk-trigger:hover {
-    border-color: var(--accent);
-    background: linear-gradient(180deg, rgba(147,197,253,0.10), rgba(147,197,253,0.05));
-    box-shadow: inset 0 1px 0 rgba(255,255,255,0.03), 0 0 0 3px rgba(147,197,253,0.10);
-    color: var(--text);
-  }
-  .cmdk-trigger svg { width: 14px; height: 14px; stroke: var(--accent); fill: none; stroke-width: 2; flex-shrink: 0; }
-  .cmdk-trigger-text { flex: 1; text-align: left; }
-
-  /* Cards */
-  .card-title { cursor: pointer; width: 170px; }
-  .card-title-cover {
-    aspect-ratio: 3/2;
-    border-radius: var(--radius-card);
-    background: linear-gradient(135deg, #7c3aed, #312e81);
-    box-shadow: 0 2px 8px rgba(0,0,0,0.35);
-    margin-bottom: 9px;
-    transition: transform var(--dur-base) var(--ease-out), box-shadow var(--dur-base) var(--ease-out);
-    position: relative; overflow: hidden;
-  }
-  .card-title:hover .card-title-cover {
-    transform: translateY(-3px);
-    box-shadow: 0 10px 24px rgba(0,0,0,0.6), 0 0 0 1px var(--accent-bg);
-  }
-  .card-title:active .card-title-cover { transform: translateY(-1px); transition-duration: var(--dur-fast); }
-  .card-title-status {
-    position: absolute; top: 7px; right: 7px;
-    background: rgba(0,0,0,0.6); backdrop-filter: blur(4px);
-    color: var(--ok); font-family: var(--font-mono); font-size: 9.5px;
-    padding: 2px 5px; border-radius: 3px;
-  }
-  .card-title-status.warn { color: var(--warn); }
-  .card-title-code { font-family: var(--font-mono); font-size: 11px; color: var(--text-faint); margin-bottom: 2px; }
-  .card-title-name {
-    font-size: 13px; color: var(--text); line-height: 1.35; margin-bottom: 4px;
-    transition: color var(--dur-fast) var(--ease-out);
-  }
-  .card-title:hover .card-title-name { color: var(--accent-fg); }
-  .card-title-meta { font-size: 11.5px; color: var(--text-dim); display: flex; gap: 6px; align-items: center; }
-  .card-title-meta .dot { width: 2px; height: 2px; border-radius: 50%; background: var(--text-faint); }
-  .card-title-meta .year { font-family: var(--font-mono); }
-
-  .card-actress { cursor: pointer; text-align: center; width: 160px; }
-  .card-actress-portrait {
-    aspect-ratio: 3/4; border-radius: var(--radius-card);
-    background: linear-gradient(135deg, #c084fc 0%, #6366f1 100%);
-    box-shadow: 0 2px 8px rgba(0,0,0,0.35);
-    margin-bottom: 10px;
-    transition: transform var(--dur-base) var(--ease-out), box-shadow var(--dur-base) var(--ease-out);
-    position: relative;
-  }
-  .card-actress:hover .card-actress-portrait { transform: translateY(-3px); box-shadow: 0 10px 24px rgba(0,0,0,0.6); }
-  .card-actress-tier {
-    position: absolute; top: 7px; left: 7px;
-    background: rgba(0,0,0,0.5); backdrop-filter: blur(4px);
-    font-size: 9px; padding: 2px 6px; border-radius: 3px;
-    text-transform: uppercase; letter-spacing: 0.08em; font-weight: 600;
-    color: #e288c8;
-  }
-  .card-actress-name { font-size: 13px; color: var(--text); font-weight: 500; }
-  .card-actress-meta { font-size: 11px; color: var(--text-dim); font-family: var(--font-mono); }
 
   /* Rail item */
   .rail-mock { background: var(--bg-rail); border: 1px solid var(--border); border-radius: var(--radius-card); padding: 10px; width: 220px; }
@@ -440,6 +239,14 @@
     <a href="#table">Table row</a>
     <a href="#inspector">Inspector</a>
     <a href="#hero">Hero band</a>
+    <a href="#forms">Form groups</a>
+    <a href="#modal">Modal</a>
+    <a href="#popover">Popover</a>
+    <a href="#empty">Empty state</a>
+    <a href="#skeleton">Skeleton</a>
+    <a href="#toast">Toast</a>
+    <a href="#tooltip">Tooltip</a>
+    <a href="#sort">Sort header</a>
     <a href="#motion">Motion</a>
     <div class="toc-meta">
       spec/<a href="javascript:void(0)">DESIGN_SYSTEM.md</a><br>
@@ -790,6 +597,184 @@
         </div>
       </div>
       <div class="ds-spec">Future polish: extract dominant color from portrait/cover → tinted gradient (per spec §4.1).</div>
+    </section>
+
+    <!-- Form groups ──────────────────────────────────────────────── -->
+    <section class="ds-section" id="forms">
+      <h2>Form groups</h2>
+      <div class="ds-row">
+        <div style="width:340px">
+          <div class="form-group">
+            <label class="form-label">Display name</label>
+            <input class="form-input" type="text" value="Yuma Asami">
+            <span class="form-help">Romaji preferred; kanji/kana supported.</span>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Slug</label>
+            <input class="form-input mono" type="text" value="yuma-asami">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Tier</label>
+            <select class="form-select">
+              <option>library</option><option>minor</option><option>popular</option>
+              <option>superstar</option><option selected>goddess</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Notes</label>
+            <textarea class="form-textarea">…</textarea>
+            <span class="form-error">Required: short biographical note.</span>
+          </div>
+        </div>
+      </div>
+      <div class="ds-spec">Used in modals + inspector edit panes. <b>.mono</b> on inputs that hold codes/IDs.</div>
+    </section>
+
+    <!-- Modal ────────────────────────────────────────────────────── -->
+    <section class="ds-section" id="modal">
+      <h2>Modal</h2>
+      <div class="ds-row">
+        <!-- Inline preview (NOT actually portaled — this is just the modal markup) -->
+        <div style="position:relative;width:100%;height:380px;border:1px dashed var(--border);border-radius:var(--radius-card);background:var(--bg);overflow:hidden">
+          <div style="position:absolute;inset:0;background:rgba(0,0,0,0.5);backdrop-filter:blur(8px);display:flex;align-items:flex-start;justify-content:center;padding:48px 16px">
+            <div class="modal" style="animation:none">
+              <header class="modal-header">
+                <span class="modal-title">Edit actress profile</span>
+                <button class="modal-close" aria-label="Close">×</button>
+              </header>
+              <div class="modal-body">
+                <div class="form-group">
+                  <label class="form-label">Display name</label>
+                  <input class="form-input" type="text" value="Yuma Asami">
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Tier</label>
+                  <select class="form-select"><option>goddess</option></select>
+                </div>
+              </div>
+              <footer class="modal-footer">
+                <button class="btn ghost">Cancel</button>
+                <button class="btn primary">Save changes</button>
+              </footer>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="ds-spec">Sizes: <b>.sm</b> 380px · default 520px · <b>.lg</b> 760px · <b>.xl</b> 1040px. Backdrop blur. Esc closes. Body scrolls.</div>
+    </section>
+
+    <!-- Popover ──────────────────────────────────────────────────── -->
+    <section class="ds-section" id="popover">
+      <h2>Popover</h2>
+      <div class="ds-row">
+        <div style="position:relative;height:240px;width:280px">
+          <button class="btn">Filter ▾</button>
+          <div class="popover" style="top:38px;left:0;animation:none">
+            <div class="popover-section-label">Sort by</div>
+            <div class="popover-item selected">Recently added <span class="kbd">↵</span></div>
+            <div class="popover-item">Title code (asc)</div>
+            <div class="popover-item">Year (desc)</div>
+            <div class="popover-divider"></div>
+            <div class="popover-section-label">Filter</div>
+            <div class="popover-item">Untagged only</div>
+            <div class="popover-item">Has duplicate</div>
+          </div>
+        </div>
+      </div>
+      <div class="ds-spec">Used for filter dropdowns, sort menus, action menus. Position absolute relative to trigger. Sections labeled, dividers split groups.</div>
+    </section>
+
+    <!-- Empty state ──────────────────────────────────────────────── -->
+    <section class="ds-section" id="empty">
+      <h2>Empty state</h2>
+      <div class="ds-frame">
+        <div class="empty-state">
+          <div class="empty-state-icon">
+            <svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+          </div>
+          <div class="empty-state-title">No translations pending</div>
+          <div class="empty-state-body">All titles are up to date. New translations queue automatically as titles arrive.</div>
+          <button class="btn">View translation history</button>
+        </div>
+      </div>
+      <div class="ds-spec">Use when the dataset is genuinely empty (vs. filtered-empty, which gets its own copy). Icon · title · body · single CTA.</div>
+    </section>
+
+    <!-- Skeleton ─────────────────────────────────────────────────── -->
+    <section class="ds-section" id="skeleton">
+      <h2>Skeleton</h2>
+      <div class="ds-row">
+        <div style="width:170px">
+          <div class="skeleton skeleton-card" style="aspect-ratio:3/2;height:auto;margin-bottom:9px"></div>
+          <div class="skeleton skeleton-text sm" style="width:40%"></div>
+          <div class="skeleton skeleton-text"></div>
+          <div class="skeleton skeleton-text" style="width:60%"></div>
+        </div>
+        <div style="display:flex;align-items:center;gap:12px">
+          <div class="skeleton skeleton-circle" style="width:48px"></div>
+          <div style="flex:1;min-width:200px">
+            <div class="skeleton skeleton-text lg" style="width:50%"></div>
+            <div class="skeleton skeleton-text"></div>
+          </div>
+        </div>
+      </div>
+      <div class="ds-spec">Use during initial page load only (≥200ms). For incremental updates, prefer in-place spinners. Shimmer respects reduced-motion.</div>
+    </section>
+
+    <!-- Toast ────────────────────────────────────────────────────── -->
+    <section class="ds-section" id="toast">
+      <h2>Toast</h2>
+      <div class="ds-row">
+        <div class="toast" style="animation:none">
+          <span>Saved profile for <b>Yuma Asami</b></span>
+          <button class="toast-close" aria-label="Dismiss">×</button>
+        </div>
+        <div class="toast ok" style="animation:none">
+          <span><b>14</b> titles re-tagged successfully</span>
+          <button class="toast-close" aria-label="Dismiss">×</button>
+        </div>
+        <div class="toast warn" style="animation:none">
+          <span><b>3</b> translations stalled — open log?</span>
+          <button class="toast-close" aria-label="Dismiss">×</button>
+        </div>
+        <div class="toast error" style="animation:none">
+          <span>Sync failed — qnap_4 unreachable</span>
+          <button class="toast-close" aria-label="Dismiss">×</button>
+        </div>
+      </div>
+      <div class="ds-spec">Anchored bottom-right above the status bar. Auto-dismiss 4s (default), 6s (warn), persistent (error).</div>
+    </section>
+
+    <!-- Tooltip ──────────────────────────────────────────────────── -->
+    <section class="ds-section" id="tooltip">
+      <h2>Tooltip</h2>
+      <div class="ds-row">
+        <div class="tooltip" data-tooltip="Toggle inspector (i)" tabindex="0">
+          <button class="icon-btn"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="15" y1="3" x2="15" y2="21"/></svg></button>
+        </div>
+        <div class="tooltip" data-tooltip="Open command palette (⌘K)" tabindex="0">
+          <button class="icon-btn"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></button>
+        </div>
+        <div class="tooltip" data-tooltip="Trash this title — sweeps in 24h" tabindex="0">
+          <button class="btn danger sm">Trash</button>
+        </div>
+      </div>
+      <div class="ds-spec">CSS-only via <code>data-tooltip</code> + <code>.tooltip</code>. Hover or focus-visible. Use sparingly — labels are better when there's room.</div>
+    </section>
+
+    <!-- Sort header ──────────────────────────────────────────────── -->
+    <section class="ds-section" id="sort">
+      <h2>Sort header (workbench tables)</h2>
+      <div style="border:1px solid var(--border);border-radius:var(--radius-card);overflow:hidden">
+        <div class="row header">
+          <span></span>
+          <span><button class="sort-header" aria-sort="ascending">Code <span class="sort-arrow"></span></button></span>
+          <span><button class="sort-header" aria-sort="none">Name <span class="sort-arrow"></span></button></span>
+          <span class="num"><button class="sort-header" aria-sort="descending">Year <span class="sort-arrow"></span></button></span>
+          <span><button class="sort-header" aria-sort="none">Status <span class="sort-arrow"></span></button></span>
+        </div>
+      </div>
+      <div class="ds-spec"><code>aria-sort</code> drives the arrow + accent color. Cycle: none → asc → desc → none.</div>
     </section>
 
     <!-- Motion ───────────────────────────────────────────────────── -->
