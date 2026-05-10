@@ -8,6 +8,8 @@
    diff-section (h.265 vs h.264 file sizes), confirm modal before action.
    ───────────────────────────────────────────────────────────────────── */
 
+import { createVolumePicker } from './volume-picker.js';
+
 const PAGE_LIMIT = 24;
 
 function escapeHtml(s) {
@@ -108,8 +110,9 @@ export async function mountDuplicates(rootEl) {
       <div class="wb-page-subtitle">Titles with more than one location across volumes. Decide per-member; nothing is destroyed until you apply.</div>
 
       <div class="filter-bar">
-        <div class="filter-group" id="vol-chips">
-          <span class="chip on" data-vol="">All volumes</span>
+        <div class="filter-group">
+          <span class="filter-label">Volume:</span>
+          <div id="vol-picker"></div>
         </div>
         <div class="filter-spacer"></div>
         <div class="filter-meta" id="result-meta"></div>
@@ -126,8 +129,6 @@ export async function mountDuplicates(rootEl) {
   const status   = rootEl.querySelector('#grid-status');
   const meta     = rootEl.querySelector('#result-meta');
   const sentinel = rootEl.querySelector('#sentinel');
-  const volChips = rootEl.querySelector('#vol-chips');
-
   const state = {
     volumeId: '',
     offset: 0,
@@ -136,20 +137,6 @@ export async function mountDuplicates(rootEl) {
     total: 0,
     seen: 0,
   };
-
-  // Populate volume chips from existing volumes API (graceful fallback if missing)
-  fetchJson('/api/tools/volumes', []).then(vols => {
-    if (!Array.isArray(vols) || vols.length === 0) return;
-    vols.forEach(v => {
-      const id = v.id || v.volumeId || v;
-      if (!id) return;
-      const chip = document.createElement('span');
-      chip.className = 'chip';
-      chip.dataset.vol = id;
-      chip.textContent = id;
-      volChips.appendChild(chip);
-    });
-  });
 
   const reset = () => {
     state.offset = 0;
@@ -257,14 +244,17 @@ export async function mountDuplicates(rootEl) {
     if (summaryEl) summaryEl.textContent = summarizeGroup(memberStates);
   });
 
-  // Volume chip wiring
-  volChips.addEventListener('click', (e) => {
-    const chip = e.target.closest('.chip');
-    if (!chip) return;
-    volChips.querySelectorAll('.chip').forEach(c => c.classList.remove('on'));
-    chip.classList.add('on');
-    state.volumeId = chip.dataset.vol;
-    reset(); loadMore();
+  // Volume picker — fires onChange immediately with restored / default value,
+  // which kicks off the initial load.
+  await createVolumePicker({
+    rootEl: rootEl.querySelector('#vol-picker'),
+    storageKey: 'v2.duplicates.volume',
+    allLabel: 'All volumes',
+    onChange: (vol) => {
+      state.volumeId = vol || '';
+      reset();
+      loadMore();
+    },
   });
 
   // Infinite scroll
@@ -272,6 +262,4 @@ export async function mountDuplicates(rootEl) {
     if (entries.some(e => e.isIntersecting)) loadMore();
   }, { rootMargin: '400px' });
   io.observe(sentinel);
-
-  loadMore();
 }

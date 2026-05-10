@@ -4,6 +4,7 @@
    Per-volume table of trashed items with Restore action.
    Schedule-deletion + bulk-select deferred (need date picker + modal).
    ───────────────────────────────────────────────────────────────────── */
+import { createVolumePicker } from './volume-picker.js';
 
 const PAGE_SIZE = 50;
 
@@ -87,8 +88,9 @@ export async function mountTrash(rootEl) {
       <div class="wb-page-subtitle">Items pending deletion. Restore puts them back at their original path.</div>
 
       <div class="filter-bar">
-        <div class="filter-group" id="vol-chips">
-          <span class="shelf-loading">Loading volumes…</span>
+        <div class="filter-group">
+          <span class="filter-label">Volume:</span>
+          <div id="vol-picker"></div>
         </div>
         <div class="filter-spacer"></div>
         <div class="filter-meta" id="result-meta"></div>
@@ -112,26 +114,22 @@ export async function mountTrash(rootEl) {
     </div>
   `;
 
-  const volChips = rootEl.querySelector('#vol-chips');
   const tbody    = rootEl.querySelector('#rows');
   const meta     = rootEl.querySelector('#result-meta');
   const status   = rootEl.querySelector('#grid-status');
 
   const state = { volumeId: null, page: 0, total: 0 };
 
-  // Load volumes that have a trash dir, then auto-select first
-  const vols = await fetchJson('/api/utilities/trash/volumes', []);
-  if (!vols || vols.length === 0) {
-    volChips.innerHTML = `<span class="filter-label">No volumes with trash.</span>`;
-    return;
-  }
-  volChips.innerHTML = vols.map((v, i) => {
-    const id = v.id || v.volumeId || v;
-    return `<span class="chip${i === 0 ? ' on' : ''}" data-vol="${escapeHtml(id)}">${escapeHtml(id)}</span>`;
-  }).join('');
-  state.volumeId = vols[0].id || vols[0].volumeId || vols[0];
-
   const load = async () => {
+    if (!state.volumeId) {
+      tbody.innerHTML = `<tr><td colspan="6"><div class="empty-state">
+        <div class="empty-state-title">Pick a volume</div>
+        <div class="empty-state-body">Trash is per-volume — pick one above to see its contents.</div>
+      </div></td></tr>`;
+      status.innerHTML = '';
+      meta.textContent = '';
+      return;
+    }
     tbody.innerHTML = '';
     status.innerHTML = '<div class="shelf-loading">Loading…</div>';
     meta.textContent = '';
@@ -155,15 +153,20 @@ export async function mountTrash(rootEl) {
     meta.textContent = `${items.length} of ${state.total} items`;
   };
 
-  // Volume chip click
-  volChips.addEventListener('click', (e) => {
-    const chip = e.target.closest('.chip');
-    if (!chip) return;
-    volChips.querySelectorAll('.chip').forEach(c => c.classList.remove('on'));
-    chip.classList.add('on');
-    state.volumeId = chip.dataset.vol;
-    state.page = 0;
-    load();
+  await createVolumePicker({
+    rootEl: rootEl.querySelector('#vol-picker'),
+    storageKey: 'v2.trash.volume',
+    allLabel: '',  // Trash is per-volume — no "All" entry
+    volumesUrl: '/api/utilities/trash/volumes',
+    getCount: async (id) => {
+      const c = await fetchJson(`/api/utilities/trash/volumes/${encodeURIComponent(id)}/count`, { count: null });
+      return c?.count;
+    },
+    onChange: (vol) => {
+      state.volumeId = vol || null;
+      state.page = 0;
+      load();
+    },
   });
 
   // Restore button delegation
