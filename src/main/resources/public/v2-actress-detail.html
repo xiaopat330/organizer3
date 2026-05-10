@@ -121,14 +121,9 @@
   const id = new URLSearchParams(location.search).get('id');
   mountActressDetail(document.getElementById('app-body'), id);
 
-  // Mode switch — Wave 2 v1: library mode only; workbench surfaces follow.
-  document.querySelectorAll('.mode-switch button').forEach(btn => {
-    btn.addEventListener('click', () => {
-      if (btn.dataset.mode === 'workbench') {
-        alert('Workbench mode for actress detail is built out in a later pass.');
-      }
-    });
-  });
+  // Mode switch is replaced on this page by the inline Catalog | Admin tabs.
+  // Hide it to avoid confusing dual controls.
+  document.querySelector('.mode-switch')?.style.setProperty('display', 'none');
 </script>
 
 </body>
