@@ -7,61 +7,7 @@
 <link rel="stylesheet" href="/css/base.css">
 <link rel="stylesheet" href="/css/primitives.css">
 <link rel="stylesheet" href="/css/chrome.css">
-<style>
-  /* Page-local: placeholder body content for the shell preview */
-  .preview-banner {
-    margin: 16px 24px;
-    padding: 10px 14px;
-    background: var(--accent-bg);
-    border: 1px solid rgba(147,197,253,0.28);
-    border-radius: var(--radius-card);
-    color: var(--accent-fg);
-    font-size: 12.5px;
-    display: flex; align-items: center; gap: 10px;
-  }
-  .preview-banner svg { width: 14px; height: 14px; stroke: currentColor; fill: none; stroke-width: 2; flex-shrink: 0; }
-  .preview-banner a { color: var(--accent); text-decoration: underline; text-underline-offset: 2px; }
-
-  .preview-body { padding: 0 24px 32px; }
-  .preview-body h1 {
-    font-size: 22px; font-weight: 600;
-    color: var(--text); letter-spacing: -0.01em;
-    margin: 24px 0 6px;
-  }
-  .preview-body p {
-    font-size: 13px; color: var(--text-dim); line-height: 1.6;
-    max-width: 640px; margin-bottom: 14px;
-  }
-  .preview-body code {
-    font-family: var(--font-mono); font-size: 12px;
-    color: var(--accent-fg); background: var(--bg-panel);
-    padding: 1px 5px; border-radius: 3px;
-  }
-  .preview-grid {
-    display: grid; gap: 14px;
-    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-    margin: 18px 0 24px;
-  }
-  .preview-card {
-    background: var(--bg-panel);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-card);
-    padding: 14px;
-  }
-  .preview-card .label {
-    font-size: 10px; color: var(--text-faint);
-    text-transform: uppercase; letter-spacing: 0.12em;
-    margin-bottom: 6px;
-  }
-  .preview-card .value {
-    font-family: var(--font-mono); font-size: 16px;
-    color: var(--text); font-weight: 500;
-  }
-  .preview-card .delta {
-    font-family: var(--font-mono); font-size: 11px;
-    color: var(--text-dim); margin-top: 4px;
-  }
-</style>
+<link rel="stylesheet" href="/css/library.css">
 </head>
 <body>
 
@@ -150,55 +96,8 @@
     </div>
   </header>
 
-  <!-- ── Body (placeholder content) ──────────────────────────────────── -->
-  <main class="app-body">
-    <div class="preview-banner">
-      <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-      <span>
-        Wave 1 chrome preview. The rail, topbar, ⌘K palette, and status bar are real;
-        body content is placeholder. Open the <a href="/design.html">design system</a>
-        or return to the <a href="/">legacy app</a>.
-      </span>
-    </div>
-
-    <div class="preview-body">
-      <h1>Home</h1>
-      <p>
-        This route exists to validate the chrome shell — rail navigation, ⌘K palette behavior,
-        and status bar — without contaminating it with un-migrated views. Press <code>⌘K</code> /
-        <code>Ctrl-K</code> to open the palette; arrow keys to navigate; <code>↵</code> to select;
-        <code>esc</code> to dismiss.
-      </p>
-
-      <div class="preview-grid">
-        <div class="preview-card">
-          <div class="label">Library</div>
-          <div class="value">28,114</div>
-          <div class="delta">titles · +12 today</div>
-        </div>
-        <div class="preview-card">
-          <div class="label">Actresses</div>
-          <div class="value">1,247</div>
-          <div class="delta">profiles · +3 this week</div>
-        </div>
-        <div class="preview-card">
-          <div class="label">Translation queue</div>
-          <div class="value">12</div>
-          <div class="delta">pending · 2 stalled</div>
-        </div>
-        <div class="preview-card">
-          <div class="label">Trash</div>
-          <div class="value">47</div>
-          <div class="delta">items · sweep in 14h</div>
-        </div>
-      </div>
-
-      <p>
-        When Wave 2 starts, surfaces (Home, Actresses browse, Title detail…) get migrated
-        one at a time and replace this placeholder body. The chrome shell stays put.
-      </p>
-    </div>
-  </main>
+  <!-- ── Body (Home) ─────────────────────────────────────────────────── -->
+  <main class="app-body" id="app-body"></main>
 
   <!-- ── Status bar ──────────────────────────────────────────────────── -->
   <footer class="app-status">
@@ -223,17 +122,18 @@
 
 <script type="module">
   import { createPalette } from '/modules/chrome/palette.js';
+  import { mountHome }     from '/modules/v2/home.js';
 
   const palette = createPalette({
     rootEl: document.getElementById('palette-root'),
     onSelect: (item) => {
-      // Wave 1: log only. Wave 2 wires this to a navigation registry.
+      // Wave 2: log only. Future waves wire this to real routes.
       console.log('[v2] palette selected:', item);
     },
   });
-
-  // Wire topbar ⌘K trigger to open palette
   document.getElementById('palette-trigger').addEventListener('click', palette.open);
+
+  mountHome(document.getElementById('app-body'));
 </script>
 
 </body>

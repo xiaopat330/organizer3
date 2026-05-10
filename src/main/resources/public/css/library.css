@@ -1,0 +1,135 @@
+/* ─────────────────────────────────────────────────────────────────────
+   Library mode — shared styles for consumption surfaces.
+   Owns: section heads, shelf grids, kpi tiles, card grids.
+   See spec/DESIGN_SYSTEM.md §4 (Library mode)
+   ───────────────────────────────────────────────────────────────────── */
+
+.lib-page {
+  padding: 28px 28px 48px;
+  max-width: 1400px;
+}
+.lib-page-title {
+  font-size: 24px; font-weight: 600;
+  color: var(--text); letter-spacing: -0.01em;
+  margin-bottom: 6px;
+}
+.lib-page-subtitle {
+  font-size: 13px; color: var(--text-dim);
+  margin-bottom: 28px;
+}
+
+/* ── Shelf ──────────────────────────────────────────────────────────── */
+.shelf { margin-bottom: 36px; }
+.shelf-head {
+  display: flex; align-items: baseline;
+  gap: 12px;
+  margin-bottom: 14px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--border);
+}
+.shelf-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  letter-spacing: -0.005em;
+}
+.shelf-meta {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-faint);
+}
+.shelf-action {
+  margin-left: auto;
+  font-size: 12px;
+  color: var(--text-dim);
+  text-decoration: none;
+  display: inline-flex; align-items: center; gap: 4px;
+}
+.shelf-action:hover { color: var(--accent-fg); }
+.shelf-action svg { width: 12px; height: 12px; stroke: currentColor; fill: none; stroke-width: 2; }
+
+/* Generic shelf grid — auto-fit cards, container-query-aware later */
+.shelf-grid {
+  display: grid;
+  gap: 20px 18px;
+}
+.shelf-grid-titles   { grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); }
+.shelf-grid-actress  { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); }
+.shelf-grid-tiles    { grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; }
+.shelf-grid-chips    { display: flex; flex-wrap: wrap; gap: 6px; }
+
+/* ── KPI tile (for "Needs attention" shelf) ────────────────────────── */
+.kpi-tile {
+  display: block;
+  text-decoration: none;
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  padding: 14px 16px;
+  transition: border-color var(--dur-fast) var(--ease-out),
+              background var(--dur-fast) var(--ease-out),
+              transform var(--dur-fast) var(--ease-out);
+}
+.kpi-tile:hover {
+  border-color: var(--border-strong);
+  background: var(--bg-hover);
+  transform: translateY(-1px);
+}
+.kpi-tile-head {
+  display: flex; align-items: center; gap: 6px;
+  margin-bottom: 8px;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--text-faint);
+}
+.kpi-tile-head svg { width: 11px; height: 11px; stroke: currentColor; fill: none; stroke-width: 1.8; }
+.kpi-tile-value {
+  font-family: var(--font-mono);
+  font-size: 22px; font-weight: 500;
+  color: var(--text);
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+}
+.kpi-tile-value.warn  { color: var(--warn); }
+.kpi-tile-value.error { color: var(--error); }
+.kpi-tile-value.ok    { color: var(--ok); }
+.kpi-tile-meta {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-dim);
+  margin-top: 4px;
+}
+
+/* ── Title chip (compact, for "Recently viewed" when full data unavailable) ── */
+.title-chip {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 5px 10px;
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  text-decoration: none;
+  color: var(--text-dim);
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  transition: color var(--dur-fast) var(--ease-out),
+              border-color var(--dur-fast) var(--ease-out),
+              background var(--dur-fast) var(--ease-out);
+}
+.title-chip:hover { color: var(--accent-fg); border-color: rgba(147,197,253,0.3); background: var(--bg-hover); }
+.title-chip-when {
+  font-size: 10px;
+  color: var(--text-faint);
+}
+.title-chip:hover .title-chip-when { color: var(--text-dim); }
+
+/* ── Loading + empty within a shelf ─────────────────────────────────── */
+.shelf-loading {
+  font-size: 12px; color: var(--text-faint);
+  padding: 20px 0;
+}
+.shelf-empty {
+  font-size: 12.5px; color: var(--text-faint);
+  padding: 18px 0;
+  font-style: italic;
+}
