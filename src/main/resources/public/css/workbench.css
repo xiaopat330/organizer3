@@ -1,0 +1,161 @@
+/* ─────────────────────────────────────────────────────────────────────
+   Workbench mode — shared styles for admin/curation surfaces.
+   Owns: dense table layouts, inspector pane, decision controls,
+   duplicate group cards, log-tail panes (later).
+   See spec/DESIGN_SYSTEM.md §5 (Workbench mode)
+   ───────────────────────────────────────────────────────────────────── */
+
+.wb-page {
+  padding: 20px 24px 48px;
+  max-width: 1400px;
+}
+.wb-page-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 4px;
+}
+.wb-page-subtitle {
+  font-size: 12.5px;
+  color: var(--text-dim);
+  margin-bottom: 20px;
+}
+
+/* ── Duplicate group card ───────────────────────────────────────────── */
+.dup-group {
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  margin-bottom: 16px;
+  overflow: hidden;
+}
+.dup-group-head {
+  display: flex; align-items: center; gap: 12px;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg);
+}
+.dup-group-code {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--accent-fg);
+  font-weight: 600;
+}
+.dup-group-name {
+  font-size: 13px;
+  color: var(--text);
+  flex: 1; min-width: 0;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.dup-group-count {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-faint);
+}
+.dup-group-action {
+  background: none; border: 1px solid transparent;
+  color: var(--text-faint);
+  font-size: 11px;
+  padding: 3px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-family: inherit;
+}
+.dup-group-action:hover { color: var(--text); border-color: var(--border-strong); }
+
+.dup-group-members {
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+}
+
+.dup-member {
+  background: var(--bg);
+  border: 2px solid var(--border);
+  border-radius: var(--radius);
+  padding: 10px 12px;
+  display: flex; flex-direction: column;
+  gap: 8px;
+  position: relative;
+  transition: border-color var(--dur-fast) var(--ease-out),
+              background var(--dur-fast) var(--ease-out),
+              opacity var(--dur-fast) var(--ease-out);
+}
+.dup-member.keep    { border-color: rgba(110,231,183,0.5); }
+.dup-member.trash   { border-color: rgba(248,113,113,0.5); opacity: 0.65; }
+.dup-member.variant { border-color: rgba(251,191,36,0.5); }
+
+.dup-member-state {
+  position: absolute; top: 8px; right: 10px;
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  padding: 1px 6px;
+  border-radius: 3px;
+  text-transform: uppercase;
+}
+.dup-member.keep    .dup-member-state { color: var(--ok);    background: rgba(110,231,183,0.10); }
+.dup-member.trash   .dup-member-state { color: var(--error); background: rgba(248,113,113,0.10); }
+.dup-member.variant .dup-member-state { color: var(--warn);  background: rgba(251,191,36,0.10); }
+
+.dup-member-volume {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  color: var(--text-faint);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+.dup-member-path {
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  color: var(--text-dim);
+  word-break: break-all;
+  line-height: 1.45;
+}
+.dup-member.keep .dup-member-path { color: var(--text); }
+
+.dup-decision {
+  display: inline-flex;
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 2px;
+  margin-top: auto;
+  align-self: flex-start;
+}
+.dup-decision button {
+  padding: 4px 10px;
+  background: transparent;
+  border: none;
+  border-radius: 3px;
+  color: var(--text-faint);
+  cursor: pointer;
+  font: inherit;
+  font-size: 11.5px;
+  transition: color var(--dur-fast) var(--ease-out),
+              background var(--dur-fast) var(--ease-out);
+}
+.dup-decision button:hover { color: var(--text-dim); }
+.dup-decision button[data-d="KEEP"].active    { color: var(--ok);    background: rgba(110,231,183,0.12); }
+.dup-decision button[data-d="TRASH"].active   { color: var(--error); background: rgba(248,113,113,0.12); }
+.dup-decision button[data-d="VARIANT"].active { color: var(--warn);  background: rgba(251,191,36,0.12); }
+
+.dup-group-footer {
+  display: flex; align-items: center; gap: 12px;
+  padding: 10px 14px;
+  border-top: 1px solid var(--border);
+  background: var(--bg);
+  font-size: 12px;
+  color: var(--text-dim);
+}
+.dup-group-footer .summary {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-faint);
+}
+.dup-group-footer .actions {
+  margin-left: auto;
+  display: inline-flex; gap: 6px;
+}
