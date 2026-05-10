@@ -1278,3 +1278,116 @@
   padding: 1px 5px; border-radius: 3px;
 }
 .vol-rc-trigger-manual { font-size: 11px; color: var(--text-faint); }
+
+/* ══════════════════════════════════════════════════════════════════════
+   v2 Trash workbench
+   Prefix: .tr-*  (do NOT collide with .ad-*, .adm-*, .avd-*, .act-*,
+                   .tit-*, .vol-*, .dup-*)
+   ══════════════════════════════════════════════════════════════════════ */
+
+/* ── Toolbar (bulk-select actions) ───────────────────────────────────── */
+.tr-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  margin-bottom: 10px;
+  font-size: 12.5px;
+}
+.tr-toolbar-sel {
+  color: var(--text-dim);
+  font-size: 12px;
+  margin-right: 4px;
+  flex: 1;
+}
+
+/* ── Checkbox column ─────────────────────────────────────────────────── */
+.tr-col-check {
+  width: 36px;
+  text-align: center;
+  padding-left: 10px !important;
+  padding-right: 4px !important;
+}
+.wb-table .tr-col-check input[type="checkbox"] {
+  cursor: pointer;
+  accent-color: var(--accent);
+}
+
+/* ── Sweep / scheduled column ────────────────────────────────────────── */
+.tr-col-sweep { white-space: nowrap; }
+
+/* ── Scheduled-status ring ───────────────────────────────────────────── */
+.tr-status-scheduled {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+.tr-ring { vertical-align: middle; flex-shrink: 0; }
+
+/* ── Pagination bar ──────────────────────────────────────────────────── */
+.tr-pagination {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 0 4px;
+  justify-content: center;
+}
+.tr-page-label {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--text-dim);
+  min-width: 120px;
+  text-align: center;
+}
+
+/* ── Confirm overlay / dialog ────────────────────────────────────────── */
+.tr-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.60);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 900;
+  animation: tr-fade-in 120ms var(--ease-out);
+}
+@keyframes tr-fade-in { from { opacity: 0; } to { opacity: 1; } }
+
+.tr-dialog {
+  background: var(--bg-panel);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-card);
+  padding: 20px 22px;
+  max-width: 440px;
+  width: calc(100vw - 48px);
+  box-shadow: 0 20px 60px rgba(0,0,0,0.6);
+  animation: tr-dialog-in 140ms var(--ease-out);
+}
+@keyframes tr-dialog-in {
+  from { opacity: 0; transform: scale(0.96) translateY(6px); }
+  to   { opacity: 1; transform: scale(1) translateY(0); }
+}
+.tr-dialog-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 10px;
+}
+.tr-dialog-body {
+  font-size: 13px;
+  color: var(--text-dim);
+  line-height: 1.55;
+  margin-bottom: 18px;
+}
+.tr-dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}

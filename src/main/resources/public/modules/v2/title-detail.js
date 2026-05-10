@@ -5,12 +5,11 @@
    section (player + thumbnails + theater) + Cast shelf + More-from
    shelf.
    Deferred (with reason):
-   - Tag editor modal: legacy modal lives in tag-editor.js (~600 LOC).
-     v2 modal primitive exists; full editor port is its own commit.
-     Edit button alerts for now.
    - Resume playback cookie: minor; per-video cookie that seeks on
      load. Add when we touch video state more deeply.
    ───────────────────────────────────────────────────────────────────── */
+
+import { openTitleTagEditor } from './title-tag-editor.js';
 
 const COVER_ROOT = '/covers';
 const THUMB_RATIOS = [
@@ -541,10 +540,18 @@ async function loadAndRender(rootEl, code) {
   // NAS path copy
   rootEl.querySelectorAll('.td-path').forEach(el => el.addEventListener('click', () => copyPath(el)));
 
-  // Tag editor placeholder (modal port deferred)
+  // Tag editor — opens the v2 modal, then refreshes the tags display on save.
   const tagBtn = rootEl.querySelector('#btn-edit-tags');
-  if (tagBtn) tagBtn.addEventListener('click', () => {
-    alert('Tag editor lands in a follow-up — needs the legacy tag-editor.js modal ported to the v2 modal primitive.');
+  if (tagBtn) tagBtn.addEventListener('click', async () => {
+    try {
+      const saved = await openTitleTagEditor(titleCode);
+      if (saved) {
+        // Refresh the tag row to reflect the saved state (including derived tags).
+        loadTagState(titleCode);
+      }
+    } catch (err) {
+      console.error('tag editor error', err);
+    }
   });
 
   // Async enriches

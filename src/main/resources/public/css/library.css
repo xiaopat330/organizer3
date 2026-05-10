@@ -1139,3 +1139,98 @@ button.ad-alias-badge.ad-alias-link:hover { color: var(--accent); border-color: 
   word-break: break-word;
 }
 
+/* ── v2 Title Tag Editor modal (.tged-*) ────────────────────────────── */
+/* Modal chrome (.modal-backdrop, .modal, .modal-header/body/footer, .btn)
+   comes from primitives.css.  Only tag-panel-specific styles live here. */
+
+.tged-note {
+  font-size: 11.5px;
+  color: var(--text-faint);
+  margin-left: 12px;
+}
+.tged-implicit-sample {
+  color: var(--error);
+  font-weight: 700;
+}
+.tged-status {
+  font-size: 12px;
+  color: var(--text-faint);
+}
+
+/* Tag group panel */
+.tged-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+.tged-group {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  padding: 7px 0;
+  border-top: 1px solid var(--border);
+}
+.tged-group:first-child { border-top: none; }
+.tged-group-label {
+  flex-shrink: 0;
+  width: 150px;
+  font-size: 10.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--text-faint);
+}
+.tged-tag-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+/* Individual tag toggles */
+.tged-tag {
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 2px 9px;
+  font-size: 11px;
+  color: var(--text-faint);
+  cursor: pointer;
+  font-family: inherit;
+  line-height: 1.5;
+  transition: color var(--dur-fast) var(--ease-out),
+              background var(--dur-fast) var(--ease-out),
+              border-color var(--dur-fast) var(--ease-out);
+}
+.tged-tag:hover:not(:disabled):not(.implicit) {
+  border-color: var(--border-strong);
+  color: var(--text-dim);
+}
+/* Active state — default; per-category overrides below */
+.tged-tag.active {
+  background: var(--bg-active);
+  color: var(--text);
+  border-color: var(--border-strong);
+}
+
+/* Per-category active palette (matches legacy queue-tag-* colors) */
+.tged-cat-format           .tged-tag.active { background: #0c2a1a; color: #6ee7b7; border-color: #065f46; }
+.tged-cat-production_style .tged-tag.active { background: #0b2140; color: #93c5fd; border-color: #1e40af; }
+.tged-cat-setting          .tged-tag.active { background: #2a1a06; color: #fcd34d; border-color: #78350f; }
+.tged-cat-role             .tged-tag.active { background: #2a0b1c; color: #f9a8d4; border-color: #9d174d; }
+.tged-cat-theme            .tged-tag.active { background: #1b0c2a; color: #c4b5fd; border-color: #5b21b6; }
+.tged-cat-act              .tged-tag.active { background: #281b05; color: #fdba74; border-color: #9a3412; }
+.tged-cat-body             .tged-tag.active { background: #052326; color: #5eead4; border-color: #115e59; }
+
+/* Implicit (label/enrichment-implied) tags — red, cursor:help, not editable */
+.tged-tag.implicit,
+.tged-tag.implicit.active {
+  background: #2a0a0a;
+  color: #fca5a5;
+  border-color: #7f1d1d;
+  cursor: help;
+  opacity: 0.95;
+}
+.tged-tag:disabled:not(.implicit) {
+  cursor: not-allowed;
+  opacity: 0.4;
+}
+
