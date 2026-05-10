@@ -12,6 +12,9 @@
 // All DOM nodes use .act-* CSS classes (no legacy CSS dependencies).
 
 import { renderActressCard } from '../cards/actress-card.js';
+import { renderHeroBand }    from '../dashboard/hero-band.js';
+import { renderKpiStrip }    from '../dashboard/kpi-strip.js';
+import { renderTopList }     from '../dashboard/top-list.js';
 
 const SPOTLIGHT_INTERVAL_MS = 30_000;
 
@@ -42,6 +45,21 @@ function makeActressCard(a) {
   return el;
 }
 
+// ── Spotlight image resolution ────────────────────────────────────────────
+
+/**
+ * Return the best image for the spotlight actress:
+ *   1. Avatar (profile image)
+ *   2. First cover URL (title cover)
+ *   3. null  → monogram fallback
+ */
+function spotlightImageUrl(a) {
+  if (a.localAvatarUrl)   return { primary: a.localAvatarUrl, fallbacks: [] };
+  if (a.profileImagePath) return { primary: `/api/actress-image/${encodeURIComponent(a.slug || a.id)}`, fallbacks: [] };
+  if (a.coverUrls && a.coverUrls.length > 0) return { primary: null, fallbacks: a.coverUrls };
+  return { primary: null, fallbacks: [] };
+}
+
 // ── Hero band (spotlight rotator) ─────────────────────────────────────────
 
 let spotlightIntervalId = null;
@@ -55,66 +73,29 @@ function stopSpotlightRotator() {
   heroContainer = null;
 }
 
-/**
- * Return the best image for the spotlight actress:
- *   1. Avatar (profile image)
- *   2. First cover URL (title cover)
- *   3. null  → monogram fallback
- */
-function spotlightImageUrl(a) {
-  if (a.localAvatarUrl)   return { url: a.localAvatarUrl, isCover: false };
-  if (a.profileImagePath) return { url: `/api/actress-image/${encodeURIComponent(a.slug || a.id)}`, isCover: false };
-  if (a.coverUrls && a.coverUrls.length > 0) return { url: a.coverUrls[0], isCover: true };
-  return { url: null, isCover: false };
-}
+function buildHeroElement(a) {
+  const name  = a.displayName || a.canonicalName || a.stageName || a.name || a.slug || '';
+  const tier  = (a.tier || '').toLowerCase();
+  const count = a.titleCount != null ? `${a.titleCount} titles` : '';
+  const { primary, fallbacks } = spotlightImageUrl(a);
 
-function monogram(name) {
-  const parts = String(name).trim().split(/\s+/).filter(Boolean);
-  if (parts.length === 0) return '?';
-  if (parts.length === 1) return parts[0][0].toUpperCase();
-  return (parts[0][0] + parts[1][0]).toUpperCase();
-}
-
-function renderHeroBand(a) {
-  const name      = a.displayName || a.canonicalName || a.stageName || a.name || a.slug || '';
-  const tier      = (a.tier || '').toLowerCase();
-  const count     = a.titleCount != null ? `${a.titleCount} titles` : '';
-  const { url, isCover } = spotlightImageUrl(a);
-
-  const tierClass = tier ? `act-tier-${tier}` : '';
-  const tierHtml  = tier
-    ? `<span class="hero-eyebrow ${tierClass}">${esc(tier)}</span>`
-    : '';
-
-  // Portrait: tall 7:10 for avatar, 3:2 cover variant for title covers
-  const portraitStyle = url
-    ? `background-image:url('${esc(url)}');background-size:cover;background-position:center top`
-    : '';
-  const monogramHtml  = !url
-    ? `<div class="act-dash-hero-monogram">${esc(monogram(name))}</div>`
-    : '';
-  const portraitClass = isCover ? 'hero-portrait act-dash-hero-portrait-cover' : 'hero-portrait';
-
-  return `
-    <section class="hero-band act-dash-hero" data-actress-id="${esc(String(a.id || ''))}">
-      <div class="${portraitClass}" ${portraitStyle ? `style="${portraitStyle}"` : ''}>${monogramHtml}</div>
-      <div class="hero-content">
-        ${tierHtml}
-        <div class="hero-name">${esc(name)}</div>
-        <div class="hero-stats">
-          ${count ? `<span><b>${esc(count)}</b></span>` : ''}
-        </div>
-        <div class="hero-actions">
-          <a class="btn primary" href="/v2-actress-detail.html?id=${encodeURIComponent(a.id)}">Open</a>
-        </div>
-      </div>
-    </section>
-  `;
+  const el = renderHeroBand({
+    kind:          'actress',
+    eyebrow:       tier,
+    eyebrowClass:  tier ? `act-tier-${tier}` : '',
+    name,
+    primaryImage:  primary,
+    fallbackImages: fallbacks,
+    count,
+    openHref:      `/v2-actress-detail.html?id=${encodeURIComponent(a.id)}`,
+    dataActressId: String(a.id || ''),
+  });
+  return el;
 }
 
 async function rotateHero() {
   if (!heroContainer) return;
-  const currentHero = heroContainer.querySelector('.act-dash-hero');
+  const currentHero = heroContainer.querySelector('.dash-hero');
   const excludeId   = currentHero ? currentHero.dataset.actressId : null;
   const url = '/api/actresses/spotlight' + (excludeId ? `?exclude=${encodeURIComponent(excludeId)}` : '');
   const item = await fetchJson(url);
@@ -125,9 +106,7 @@ async function rotateHero() {
     currentHero.classList.add('act-spotlight-exit');
     currentHero.addEventListener('animationend', () => currentHero.remove(), { once: true });
   }
-  const tmp = document.createElement('div');
-  tmp.innerHTML = renderHeroBand(item);
-  const newHero = tmp.firstElementChild;
+  const newHero = buildHeroElement(item);
   newHero.classList.add('act-spotlight-enter');
   heroContainer.appendChild(newHero);
   void newHero.offsetWidth;
@@ -142,30 +121,26 @@ function startSpotlightRotator(containerEl) {
 
 // ── KPI stat strip ────────────────────────────────────────────────────────
 
-function renderKpiStrip(stats) {
+function buildKpiItems(stats) {
   if (!stats) return null;
   const researchPct = stats.researchTotal > 0
     ? Math.round((stats.researchCovered / stats.researchTotal) * 100)
     : 0;
-  const parts = [
-    `${(stats.totalActresses ?? 0).toLocaleString()} <span class="act-dash-kpi-label">actresses</span>`,
-    `${(stats.favorites ?? 0).toLocaleString()} <span class="act-dash-kpi-label">favorites</span>`,
-    `${(stats.graded ?? 0).toLocaleString()} <span class="act-dash-kpi-label">graded</span>`,
-    `${(stats.elites ?? 0).toLocaleString()} <span class="act-dash-kpi-label">elites</span>`,
-    `${(stats.newThisMonth ?? 0).toLocaleString()} <span class="act-dash-kpi-label">new this month</span>`,
-    `${researchPct}% <span class="act-dash-kpi-label">researched</span>`,
+  return [
+    { value: (stats.totalActresses ?? 0).toLocaleString(), label: 'actresses' },
+    { value: (stats.favorites ?? 0).toLocaleString(),      label: 'favorites' },
+    { value: (stats.graded ?? 0).toLocaleString(),         label: 'graded' },
+    { value: (stats.elites ?? 0).toLocaleString(),         label: 'elites' },
+    { value: (stats.newThisMonth ?? 0).toLocaleString(),   label: 'new this month' },
+    { value: `${researchPct}%`,                            label: 'researched' },
   ];
-  const el = document.createElement('div');
-  el.className = 'act-dash-kpi-strip';
-  el.innerHTML = parts.join('<span class="act-dash-kpi-dot">·</span>');
-  return el;
 }
 
 // ── Section builder ───────────────────────────────────────────────────────
 
 function makeSection({ title, badge = null, accent = false, bordered = false }) {
   const section = document.createElement('section');
-  section.className = 'act-dash-section act-dash-shelf'
+  section.className = 'act-dash-section dash-shelf'
     + (accent   ? ' act-dash-section-accent'   : '')
     + (bordered ? ' act-dash-section-bordered' : '');
   const head = document.createElement('div');
@@ -193,19 +168,15 @@ function makeStrip(items, id) {
 
 function renderTopGroupsList(topGroups, onGroupClick) {
   const section = makeSection({ title: 'Top Groups' });
-  const list = document.createElement('div');
-  list.className = 'act-dash-groups-list';
-  topGroups.forEach((g, i) => {
-    const row = document.createElement('div');
-    row.className = 'act-dash-groups-row';
-    row.title = `Open ${g.name} in Studio browser`;
-    row.innerHTML = `
-      <span class="act-dash-groups-rank">${i + 1}</span>
-      <span class="act-dash-groups-name">${esc(g.name)}</span>
-      <span class="act-dash-groups-count">${(g.actressCount ?? 0).toLocaleString()}</span>
-    `;
-    row.addEventListener('click', () => onGroupClick(g.slug));
-    list.appendChild(row);
+  const list = renderTopList({
+    items: topGroups.map(g => ({
+      name:  g.name,
+      count: g.actressCount ?? 0,
+      slug:  g.slug,
+      // suppress sub-label for actress groups (slug shown elsewhere)
+      subLabel: '',
+    })),
+    onClick: (item) => onGroupClick(item.slug),
   });
   section.appendChild(list);
   return section;
@@ -311,14 +282,15 @@ export async function renderActressDashboard(containerEl, onGroupClick) {
   if (spotlight) {
     const heroWrap = document.createElement('div');
     heroWrap.className = 'act-dash-hero-wrap';
-    heroWrap.innerHTML = renderHeroBand(spotlight);
+    heroWrap.appendChild(buildHeroElement(spotlight));
     containerEl.appendChild(heroWrap);
     setTimeout(() => startSpotlightRotator(heroWrap), SPOTLIGHT_INTERVAL_MS);
   }
 
   // ── KPI stat strip ────────────────────────────────────────────────────────
   if (libraryStats) {
-    const kpi = renderKpiStrip(libraryStats);
+    const items = buildKpiItems(libraryStats);
+    const kpi = items ? renderKpiStrip(items) : null;
     if (kpi) containerEl.appendChild(kpi);
   }
 

@@ -5,6 +5,9 @@
    ───────────────────────────────────────────────────────────────────── */
 
 import { renderTitleCard } from '../cards/title-card.js';
+import { renderHeroBand }  from '../dashboard/hero-band.js';
+import { renderKpiStrip }  from '../dashboard/kpi-strip.js';
+import { renderTopList }   from '../dashboard/top-list.js';
 
 const SPOTLIGHT_INTERVAL_MS = 30_000;
 
@@ -15,46 +18,69 @@ function esc(s) {
 
 // ── Card factories ────────────────────────────────────────────────────────
 function makeCard(t) {
-  const el = renderTitleCard(t, { variant: 'standard' });
+  const el = renderTitleCard(t, { variant: 'standard', showActress: true });
   el.classList.add('tit-dash-card');
   return el;
 }
 
 function makeCompactCard(t) {
-  const el = renderTitleCard(t, { variant: 'compact' });
+  const el = renderTitleCard(t, { variant: 'compact', showActress: true });
   el.classList.add('tit-dash-card', 'tit-dash-card--compact');
   return el;
 }
 
 function makeCardWithAging(t) {
-  const el = renderTitleCard(t, { variant: 'standard', aging: true });
+  const el = renderTitleCard(t, { variant: 'standard', aging: true, showActress: true });
   el.classList.add('tit-dash-card');
   return el;
 }
 
-// ── Spotlight rotator ─────────────────────────────────────────────────────
+// ── Spotlight hero rotator ────────────────────────────────────────────────
+
+function buildHeroElement(t) {
+  const code  = t.code || '';
+  const name  = t.titleEnglish || t.titleOriginalEn || t.titleOriginal || '';
+  const cast  = t.actressName || (t.actresses && t.actresses.length ? t.actresses[0].name : '');
+  const year  = t.releaseDate ? String(t.releaseDate).slice(0, 4)
+              : t.addedDate   ? String(t.addedDate).slice(0, 4) : '';
+  const countParts = [cast, year].filter(Boolean);
+
+  const el = renderHeroBand({
+    kind:          'title',
+    eyebrow:       code,
+    // suppress name when it equals the code
+    name:          name !== code ? name : '',
+    primaryImage:  t.coverUrl || null,
+    fallbackImages: [],
+    count:         countParts.join(' · '),
+    openHref:      `/v2-title-detail.html?code=${encodeURIComponent(code)}`,
+    dataCode:      code,
+  });
+  return el;
+}
+
 function createSpotlightRotator() {
   let intervalId = null;
   let containerEl = null;
 
   async function rotate() {
     if (!containerEl) return;
-    const current = containerEl.querySelector('.tit-dash-card');
-    const excludeCode = current ? (current.dataset.code || null) : null;
+    const currentHero = containerEl.querySelector('.dash-hero');
+    const excludeCode = currentHero ? (currentHero.dataset.code || null) : null;
     const url = '/api/titles/spotlight' + (excludeCode ? `?exclude=${excludeCode}` : '');
     try {
       const res = await fetch(url, { cache: 'no-cache' });
       if (!res.ok || res.status === 204) return;
       const t = await res.json();
-      const newCard = makeCard(t);
-      newCard.classList.add('tit-spotlight-enter');
-      if (current) {
-        current.classList.add('tit-spotlight-exit');
-        current.addEventListener('animationend', () => current.remove(), { once: true });
+      const newHero = buildHeroElement(t);
+      newHero.classList.add('tit-spotlight-enter');
+      if (currentHero) {
+        currentHero.classList.add('tit-spotlight-exit');
+        currentHero.addEventListener('animationend', () => currentHero.remove(), { once: true });
       }
-      containerEl.appendChild(newCard);
-      void newCard.offsetWidth;
-      newCard.classList.remove('tit-spotlight-enter');
+      containerEl.appendChild(newHero);
+      void newHero.offsetWidth;
+      newHero.classList.remove('tit-spotlight-enter');
     } catch (_) { /* network error — skip */ }
   }
 
@@ -76,7 +102,7 @@ export const spotlightRotator = createSpotlightRotator();
 // ── Section + strip builders ──────────────────────────────────────────────
 function makeSection({ title, badge = null, accent = false, bordered = false }) {
   const sec = document.createElement('section');
-  sec.className = 'tit-dash-section'
+  sec.className = 'tit-dash-section dash-shelf'
     + (accent   ? ' tit-dash-section--accent'   : '')
     + (bordered ? ' tit-dash-section--bordered' : '');
   const hdr = document.createElement('div');
@@ -92,67 +118,65 @@ function makeSection({ title, badge = null, accent = false, bordered = false }) 
   return sec;
 }
 
-function makeStrip(items, cardFactory) {
+function makeStrip(items, cardFactory, fullWidth = false) {
   const grid = document.createElement('div');
-  grid.className = 'tit-dash-strip';
+  grid.className = 'tit-dash-strip' + (fullWidth ? ' tit-dash-strip--full' : '');
   items.forEach(t => grid.appendChild(cardFactory(t)));
   return grid;
 }
 
-// ── Top labels leaderboard ────────────────────────────────────────────────
-function renderTopLabels(topLabels, rootEl) {
+// ── Top Labels leaderboard — uses shared renderTopList ────────────────────
+function renderTopLabels(topLabels, onLabelClick) {
   const sec = makeSection({ title: 'Top Labels' });
-  const list = document.createElement('div');
-  list.className = 'tit-dash-leaderboard';
-  const max = topLabels.slice(0, 5).reduce((m, l) => Math.max(m, l.score || 0), 0) || 1;
-  topLabels.slice(0, 5).forEach((lbl, i) => {
-    const row = document.createElement('div');
-    row.className = 'tit-dash-leaderboard-row';
-    row.innerHTML = `
-      <span class="tit-dash-lb-rank">${i + 1}</span>
-      <span class="tit-dash-lb-code">${esc(lbl.code)}</span>
-      <span class="tit-dash-lb-name">${esc(lbl.labelName || '')}${lbl.company ? `<span class="tit-dash-lb-company"> · ${esc(lbl.company)}</span>` : ''}</span>
-      <span class="tit-dash-lb-bar-wrap"><span class="tit-dash-lb-bar" style="width:${Math.round((lbl.score / max) * 100)}%"></span></span>`;
-    row.addEventListener('click', () => {
-      // Jump to library mode with this label prefix
-      const searchInput = rootEl.querySelector('#tit-library-code');
-      if (searchInput) {
-        searchInput.value = lbl.code + '-';
-        searchInput.dispatchEvent(new Event('input', { bubbles: true }));
-        searchInput.focus();
-      }
-    });
-    list.appendChild(row);
+  const items = topLabels.slice(0, 5).map(lbl => ({
+    // Show canonical label name; code as sub-label
+    name:     lbl.labelName || lbl.code || '',
+    count:    lbl.score || 0,
+    slug:     lbl.code || '',
+    subLabel: lbl.code || '',
+  }));
+  const list = renderTopList({
+    items,
+    onClick: (item) => onLabelClick(item.slug),
   });
   sec.appendChild(list);
   return sec;
 }
 
-// ── Library stats tiles ───────────────────────────────────────────────────
-function renderLibraryStats(stats) {
+// ── Library stats — compressed KPI strip ──────────────────────────────────
+function buildLibraryKpiItems(stats) {
   const unseenPct = stats.totalTitles > 0
     ? Math.round((stats.unseen / stats.totalTitles) * 100) : 0;
-  const tiles = [
-    { label: 'Titles',           value: stats.totalTitles.toLocaleString() },
-    { label: 'Labels',           value: stats.totalLabels.toLocaleString() },
-    { label: 'Unseen',           value: stats.unseen.toLocaleString() },
-    { label: 'Unseen %',         value: `${unseenPct}%`, bar: unseenPct },
-    { label: 'Added this month', value: stats.addedThisMonth.toLocaleString() },
-    { label: 'Added this year',  value: stats.addedThisYear.toLocaleString() },
+  return [
+    { value: stats.totalTitles.toLocaleString(),   label: 'titles' },
+    { value: stats.totalLabels.toLocaleString(),   label: 'labels' },
+    { value: stats.unseen.toLocaleString(),         label: 'unseen' },
+    { value: `${unseenPct}%`,                       label: 'unseen %' },
+    { value: stats.addedThisMonth.toLocaleString(), label: 'added this month' },
+    { value: stats.addedThisYear.toLocaleString(),  label: 'added this year' },
   ];
-  const sec = makeSection({ title: 'Library' });
-  const grid = document.createElement('div');
-  grid.className = 'tit-dash-stats-grid';
-  tiles.forEach(t => {
-    const tile = document.createElement('div');
-    tile.className = 'tit-dash-stats-tile';
-    tile.innerHTML = `<div class="tit-dash-stats-value">${esc(String(t.value))}</div>
-      <div class="tit-dash-stats-label">${esc(t.label)}</div>
-      ${t.bar != null ? `<div class="tit-dash-stats-bar-wrap"><div class="tit-dash-stats-bar" style="width:${t.bar}%"></div></div>` : ''}`;
-    grid.appendChild(tile);
-  });
-  sec.appendChild(grid);
-  return sec;
+}
+
+// ── On This Day — year eyebrow wrapper ───────────────────────────────────
+function makeOnThisDayCard(t) {
+  const year = t.releaseDate ? String(t.releaseDate).slice(0, 4)
+             : t.addedDate   ? String(t.addedDate).slice(0, 4) : '';
+  const currentYear = new Date().getFullYear();
+  const yearsAgo = year ? currentYear - parseInt(year, 10) : null;
+  const agoText = yearsAgo != null && yearsAgo > 0 ? `${yearsAgo}yr ago` : '';
+
+  const wrap = document.createElement('div');
+  wrap.className = 'tit-dash-otd-card-wrap';
+
+  if (year) {
+    const eyebrow = document.createElement('div');
+    eyebrow.className = 'tit-dash-otd-eyebrow';
+    eyebrow.innerHTML = `${esc(year)}${agoText ? ` <span class="tit-dash-otd-ago">· ${esc(agoText)}</span>` : ''}`;
+    wrap.appendChild(eyebrow);
+  }
+
+  wrap.appendChild(makeCompactCard(t));
+  return wrap;
 }
 
 // ── Main render ───────────────────────────────────────────────────────────
@@ -193,100 +217,101 @@ export async function renderDashboard(containerEl, rootEl) {
 
   containerEl.innerHTML = '';
 
-  // ── Top panel: Spotlight + Top Labels + Library Stats + On This Day ──
-  if (spotlight || topLabels.length > 0 || libraryStats || onThisDay.length > 0) {
+  // ── A. Hero band (replaces old card spotlight) ────────────────────────────
+  if (spotlight) {
+    const heroWrap = document.createElement('div');
+    heroWrap.className = 'act-dash-hero-wrap';
+    heroWrap.appendChild(buildHeroElement(spotlight));
+    containerEl.appendChild(heroWrap);
+    // Start rotator after initial interval
+    setTimeout(() => spotlightRotator.start(heroWrap), SPOTLIGHT_INTERVAL_MS);
+  }
+
+  // ── B. KPI strip (replaces 6-tile grid) ──────────────────────────────────
+  if (libraryStats) {
+    const kpi = renderKpiStrip(buildLibraryKpiItems(libraryStats));
+    if (kpi) containerEl.appendChild(kpi);
+  }
+
+  // ── Top panel: Top Labels + On This Day (side-by-side) ───────────────────
+  if (topLabels.length > 0 || onThisDay.length > 0) {
     const topPanel = document.createElement('div');
     topPanel.className = 'tit-dash-top-panel';
 
-    if (spotlight) {
+    if (topLabels.length > 0) {
       const left = document.createElement('div');
       left.className = 'tit-dash-top-left';
-      const hdr = document.createElement('div');
-      hdr.className = 'tit-dash-section-title';
-      hdr.textContent = 'Spotlight';
-      left.appendChild(hdr);
-      const card = makeCard(spotlight);
-      left.appendChild(card);
+
+      // C. TOP LABELS — use renderTopList (no bar chart, no name duplication)
+      const onLabelClick = (code) => {
+        const searchInput = rootEl.querySelector('#tit-library-code');
+        if (searchInput) {
+          searchInput.value = code + '-';
+          searchInput.dispatchEvent(new Event('input', { bubbles: true }));
+          searchInput.focus();
+        }
+      };
+      left.appendChild(renderTopLabels(topLabels, onLabelClick));
       topPanel.appendChild(left);
-      // Start rotator after initial interval
-      setTimeout(() => spotlightRotator.start(left), SPOTLIGHT_INTERVAL_MS);
     }
 
-    if (topLabels.length > 0 || libraryStats || onThisDay.length > 0) {
+    if (onThisDay.length > 0) {
       const right = document.createElement('div');
       right.className = 'tit-dash-top-right';
 
-      if (topLabels.length > 0 || libraryStats) {
-        const upper = document.createElement('div');
-        upper.className = 'tit-dash-top-right-upper';
-        if (topLabels.length > 0) upper.appendChild(renderTopLabels(topLabels, rootEl));
-        if (libraryStats)         upper.appendChild(renderLibraryStats(libraryStats));
-        right.appendChild(upper);
-      }
-
-      if (onThisDay.length > 0) {
-        const shown = onThisDay.slice(0, 3);
-        const sec = makeSection({ title: 'On This Day', badge: `${onThisDay.length} memor${onThisDay.length === 1 ? 'y' : 'ies'}` });
-        sec.appendChild(makeStrip(shown, makeCompactCard));
-        right.appendChild(sec);
-      }
-
+      // F. ON THIS DAY — year eyebrow above each card
+      const shown = onThisDay.slice(0, 4);
+      const sec = makeSection({
+        title: 'On This Day',
+        badge: `${onThisDay.length} memor${onThisDay.length === 1 ? 'y' : 'ies'}`,
+      });
+      const strip = document.createElement('div');
+      strip.className = 'tit-dash-strip';
+      shown.forEach(t => strip.appendChild(makeOnThisDayCard(t)));
+      sec.appendChild(strip);
+      right.appendChild(sec);
       topPanel.appendChild(right);
     }
 
     containerEl.appendChild(topPanel);
   }
 
-  // ── Recently Viewed + Just Added (side-by-side) ──
-  if (recentlyViewed.length > 0 || justAdded.length > 0) {
-    const sidepanel = document.createElement('div');
-    sidepanel.className = 'tit-dash-side-panel';
-
-    if (recentlyViewed.length > 0) {
-      const sec = makeSection({ title: 'Recently Viewed' });
-      const strip = makeStrip(recentlyViewed, makeCompactCard);
-      strip.classList.add('tit-dash-strip--compact');
-      sec.appendChild(strip);
-      const cell = document.createElement('div');
-      cell.className = 'tit-dash-side-cell';
-      cell.appendChild(sec);
-      sidepanel.appendChild(cell);
-    }
-
-    if (justAdded.length > 0) {
-      const sec = makeSection({ title: 'Just Added' });
-      sec.appendChild(makeStrip(justAdded, makeCardWithAging));
-      const cell = document.createElement('div');
-      cell.className = 'tit-dash-side-cell';
-      cell.appendChild(sec);
-      sidepanel.appendChild(cell);
-    }
-
-    containerEl.appendChild(sidepanel);
+  // ── D. RECENTLY VIEWED — full-width shelf ─────────────────────────────────
+  if (recentlyViewed.length > 0) {
+    const sec = makeSection({ title: 'Recently Viewed' });
+    sec.appendChild(makeStrip(recentlyViewed, makeCompactCard, true));
+    containerEl.appendChild(sec);
   }
 
-  // ── Bookmarked Selections (onDeck) ──
+  // ── D. JUST ADDED — full-width shelf ──────────────────────────────────────
+  if (justAdded.length > 0) {
+    const sec = makeSection({ title: 'Just Added' });
+    sec.appendChild(makeStrip(justAdded, makeCardWithAging, true));
+    containerEl.appendChild(sec);
+  }
+
+  // ── E. Bookmarked Selections (onDeck) — showActress: true ────────────────
   if (onDeck.length > 0) {
     const sec = makeSection({ title: 'Bookmarked Selections', accent: true, bordered: true });
     sec.appendChild(makeStrip(onDeck, makeCompactCard));
     containerEl.appendChild(sec);
   }
 
-  // ── From Favorite Labels ──
+  // ── From Favorite Labels ──────────────────────────────────────────────────
   if (fromFavoriteLabels.length > 0) {
     const sec = makeSection({ title: 'From Favorite Labels', bordered: true });
     sec.appendChild(makeStrip(fromFavoriteLabels, makeCardWithAging));
     containerEl.appendChild(sec);
   }
 
-  // ── Forgotten Attic ──
+  // ── Forgotten Attic ──────────────────────────────────────────────────────
   if (forgottenAttic.length > 0) {
     const sec = makeSection({ title: 'Forgotten Attic', bordered: true });
     sec.appendChild(makeStrip(forgottenAttic, makeCard));
     containerEl.appendChild(sec);
   }
 
-  // ── Forgotten Favorites ──
+  // ── Forgotten Favorites ──────────────────────────────────────────────────
   if (forgottenFavorites.length > 0) {
     const sec = makeSection({ title: 'Forgotten Favorites' });
     sec.appendChild(makeStrip(forgottenFavorites, makeCard));

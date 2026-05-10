@@ -6,6 +6,8 @@
 
 import { renderTitleCard }   from '/modules/v2/cards/title-card.js';
 import { renderActressCard } from '/modules/v2/cards/actress-card.js';
+import { renderHeroBand }    from '/modules/v2/dashboard/hero-band.js';
+import { renderKpiStrip }    from '/modules/v2/dashboard/kpi-strip.js';
 
 async function fetchJson(url, fallback = null) {
   try {
@@ -178,7 +180,6 @@ function renderHero(heroEl, t) {
     return;
   }
   const code  = t.code || '';
-  const cover = t.coverUrl || null;
   const name  = t.titleEnglish || t.titleOriginalEn || t.titleOriginal || code;
   const cast  = t.actressName || (t.actresses && t.actresses.length ? t.actresses[0].name : '');
   const year  = t.releaseDate ? String(t.releaseDate).slice(0, 4)
@@ -188,36 +189,49 @@ function renderHero(heroEl, t) {
     ? `<span class="grade-badge grade-${escapeHtml(grade.charAt(0))}">${escapeHtml(grade)}</span>`
     : '';
 
-  heroEl.innerHTML = `
-    <section class="hero-band hero-band-title">
-      <div class="hero-cover"
-           style="${cover ? `background-image:url('${escapeHtml(cover)}');background-size:cover;background-position:center` : ''}"></div>
-      <div class="hero-content">
-        <div class="hero-code">${escapeHtml(code)}</div>
-        ${name !== code ? `<div class="hero-name" style="font-size:20px;margin-bottom:6px">${escapeHtml(name)}</div>` : ''}
-        <div class="hero-stats" style="margin-bottom:14px">
-          ${cast ? `<span>${escapeHtml(cast)}</span>` : ''}
-          ${cast && year ? `<span style="color:var(--text-faint)">·</span>` : ''}
-          ${year ? `<span>${escapeHtml(year)}</span>` : ''}
-          ${gradeHtml}
-        </div>
-        <div class="hero-actions">
-          <a class="btn primary" href="/v2-title-detail.html?code=${encodeURIComponent(code)}">Open</a>
-        </div>
-      </div>
-    </section>
-  `;
+  // Build count line: "actress · year"
+  const countParts = [cast, year].filter(Boolean);
+  const countStr = countParts.join(' · ');
+
+  const heroSection = renderHeroBand({
+    kind:          'title',
+    eyebrow:       code,
+    name:          name !== code ? name : '',
+    primaryImage:  t.coverUrl || null,
+    fallbackImages: [],
+    count:         countStr,
+    badgeHtml:     gradeHtml,
+    openHref:      `/v2-title-detail.html?code=${encodeURIComponent(code)}`,
+    dataCode:      code,
+  });
+
+  heroEl.innerHTML = '';
+  heroEl.appendChild(heroSection);
 }
 
 /* ── Stats line — totalTitles · totalActresses · N volumes online ──── */
-async function renderStats(statsEl, totalTitles, actressDash, volumesDash) {
+function renderStats(statsEl, totalTitles, actressDash, volumesDash) {
   const titleCount   = totalTitles != null ? totalTitles.toLocaleString() : '–';
   const actressCount = actressDash?.libraryStats?.totalActresses != null
     ? actressDash.libraryStats.totalActresses.toLocaleString() : '–';
   const onlineVolumes = Array.isArray(volumesDash)
     ? volumesDash.filter(v => v.status === 'online').length : '–';
 
-  statsEl.textContent = `${titleCount} titles · ${actressCount} actresses · ${onlineVolumes} volumes online`;
+  // Replace placeholder with a styled KPI strip.
+  // Remove the lib-page-subtitle outer margin so the strip's own spacing wins.
+  const kpi = renderKpiStrip([
+    { value: titleCount,            label: 'titles' },
+    { value: actressCount,          label: 'actresses' },
+    { value: String(onlineVolumes), label: 'volumes online' },
+  ]);
+  if (kpi) {
+    statsEl.className = '';   // neutralize lib-page-subtitle spacing
+    statsEl.style.margin = '0';
+    statsEl.innerHTML = '';
+    statsEl.appendChild(kpi);
+  } else {
+    statsEl.textContent = `${titleCount} titles · ${actressCount} actresses · ${onlineVolumes} volumes online`;
+  }
 }
 
 /* ── Bootstrap ──────────────────────────────────────────────────────── */

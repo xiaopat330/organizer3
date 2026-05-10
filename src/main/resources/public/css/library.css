@@ -1882,8 +1882,25 @@ button.ad-alias-badge.ad-alias-link:hover { color: var(--accent); border-color: 
 /* Hero wrap — positions the hero band with rotator animation hooks */
 .act-dash-hero-wrap { position: relative; }
 
-/* Cover-variant portrait: wider 3:2 ratio for title cover images */
-.act-dash-hero-portrait-cover {
+/* Give .dash-hero portraits a positioning context for the monogram */
+.dash-hero .hero-portrait,
+.dash-hero .hero-cover { position: relative; }
+
+/* Monogram fallback inside hero portrait/cover — shared primitive */
+.dash-hero-monogram {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 36px;
+  font-weight: 700;
+  color: rgba(255,255,255,0.7);
+  letter-spacing: -0.02em;
+}
+
+/* Actress hero showing a fallback cover image: switch to 3:2 */
+.dash-hero-cover-fallback {
   width: 240px;
   aspect-ratio: 3 / 2;
   height: auto;
@@ -1896,24 +1913,8 @@ button.ad-alias-badge.ad-alias-link:hover { color: var(--accent); border-color: 
   position: relative;
 }
 
-/* Give act-dash hero portraits a positioning context for the monogram */
-.act-dash-hero .hero-portrait { position: relative; }
-
-/* Monogram fallback inside hero portrait */
-.act-dash-hero-monogram {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 36px;
-  font-weight: 700;
-  color: rgba(255,255,255,0.7);
-  letter-spacing: -0.02em;
-}
-
-/* KPI stat strip — single dense line below hero */
-.act-dash-kpi-strip {
+/* KPI stat strip — single dense line below hero (shared primitive) */
+.dash-kpi-strip {
   font-size: 12.5px;
   color: var(--text-dim);
   font-family: var(--font-mono);
@@ -1925,50 +1926,64 @@ button.ad-alias-badge.ad-alias-link:hover { color: var(--accent); border-color: 
   flex-wrap: wrap;
   gap: 4px;
 }
-.act-dash-kpi-strip b,
-.act-dash-kpi-strip span:not(.act-dash-kpi-label):not(.act-dash-kpi-dot) {
+.dash-kpi-strip b,
+.dash-kpi-strip span:not(.dash-kpi-label):not(.dash-kpi-dot) {
   color: var(--text);
   font-weight: 600;
 }
-.act-dash-kpi-label {
+.dash-kpi-label {
   color: var(--text-faint);
   font-weight: 400;
 }
-.act-dash-kpi-dot {
+.dash-kpi-dot {
   color: var(--text-faint);
   padding: 0 4px;
 }
 
-/* Section spacing override — tighter than default */
-.act-dash-shelf { margin-bottom: 24px; }
+/* Section spacing override — tighter than default (shared) */
+.dash-shelf { margin-bottom: 24px; }
 
-/* Top Groups count list */
-.act-dash-groups-list { display: flex; flex-direction: column; gap: 4px; }
-.act-dash-groups-row {
+/* Top-list — shared 3-column ranked list (shared primitive) */
+.dash-top-list { display: flex; flex-direction: column; gap: 4px; }
+.dash-top-list-row {
   display: grid;
   grid-template-columns: 22px 1fr 60px;
   align-items: center;
   gap: 8px;
   padding: 4px 4px;
   border-radius: 3px;
-  cursor: pointer;
   transition: background var(--dur-fast) var(--ease-out);
 }
-.act-dash-groups-row:hover { background: var(--bg-hover); }
-.act-dash-groups-rank {
+.dash-top-list-row:hover { background: var(--bg-hover); }
+.dash-top-list-rank {
   font-family: var(--font-mono);
   font-size: 11px;
   color: var(--text-faint);
   text-align: right;
 }
-.act-dash-groups-name {
+.dash-top-list-name-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+  overflow: hidden;
+}
+.dash-top-list-name {
   font-size: 12.5px;
   color: var(--text);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.act-dash-groups-count {
+.dash-top-list-sub {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  color: var(--accent-fg);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.dash-top-list-count {
   font-family: var(--font-mono);
   font-size: 12px;
   color: var(--text-dim);
@@ -2213,6 +2228,37 @@ button.ad-alias-badge.ad-alias-link:hover { color: var(--accent); border-color: 
 }
 .tit-dash-stats-bar-wrap { margin-top: 6px; height: 3px; background: var(--bg-active); border-radius: 2px; }
 .tit-dash-stats-bar { height: 100%; background: var(--accent); border-radius: 2px; }
+
+/* ── On This Day — year eyebrow wrapper ──────────────────────────────── */
+.tit-dash-otd-card-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex-shrink: 0;
+  width: 160px;
+}
+.tit-dash-otd-eyebrow {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  color: var(--accent-fg);
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.tit-dash-otd-eyebrow .tit-dash-otd-ago {
+  color: var(--text-faint);
+  margin-left: 4px;
+}
+
+/* Full-width shelf strip (used for RECENTLY VIEWED + JUST ADDED in titles dash) */
+.tit-dash-strip--full {
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  scrollbar-width: thin;
+  -webkit-overflow-scrolling: touch;
+}
+/* Cards keep their natural widths; strip just prevents wrapping */
 
 /* ── Library filter panel ────────────────────────────────────────────── */
 .tit-lib-panel {
