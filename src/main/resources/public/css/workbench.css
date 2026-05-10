@@ -117,6 +117,44 @@
 }
 @keyframes volpick-in { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: translateY(0); } }
 
+/* ── Log tail viewer ────────────────────────────────────────────────── */
+.logtail {
+  background: #050507;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  line-height: 1.55;
+  color: var(--text-dim);
+  padding: 10px 14px;
+  overflow-y: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: calc(100vh - 280px);
+  min-height: 360px;
+}
+.logtail .line { display: block; }
+.logtail .line.warn  { color: var(--warn); }
+.logtail .line.error { color: var(--error); background: rgba(248,113,113,0.06); }
+.logtail .line.debug { color: var(--text-faint); }
+.logtail .ts { color: var(--text-faint); }
+.logtail .lvl {
+  display: inline-block;
+  width: 44px;
+  margin-right: 6px;
+  font-weight: 600;
+}
+.logtail .lvl.info  { color: var(--accent); }
+.logtail .lvl.warn  { color: var(--warn); }
+.logtail .lvl.error { color: var(--error); }
+.logtail .lvl.debug { color: var(--text-faint); }
+
+.logtail-empty {
+  color: var(--text-faint);
+  padding: 20px 0;
+  text-align: center;
+}
+
 /* ── Workbench table ────────────────────────────────────────────────── */
 .wb-table-wrap {
   border: 1px solid var(--border);
