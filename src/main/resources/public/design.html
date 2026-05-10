@@ -247,6 +247,7 @@
     <a href="#toast">Toast</a>
     <a href="#tooltip">Tooltip</a>
     <a href="#sort">Sort header</a>
+    <a href="#tabs">Tab strip</a>
     <a href="#motion">Motion</a>
     <div class="toc-meta">
       spec/<a href="javascript:void(0)">DESIGN_SYSTEM.md</a><br>
@@ -775,6 +776,21 @@
         </div>
       </div>
       <div class="ds-spec"><code>aria-sort</code> drives the arrow + accent color. Cycle: none → asc → desc → none.</div>
+    </section>
+
+    <!-- Tab strip ────────────────────────────────────────────────── -->
+    <section class="ds-section" id="tabs">
+      <h2>Tab strip</h2>
+      <div class="tabs">
+        <button class="tab active">Queue <span class="badge">12</span></button>
+        <button class="tab">Failures <span class="badge">3</span></button>
+        <button class="tab">Names <span class="badge">847</span></button>
+        <button class="tab">Sweeper <span class="badge"></span></button>
+      </div>
+      <div style="padding:12px 0;color:var(--text-dim);font-size:13px">
+        Active panel content goes here.
+      </div>
+      <div class="ds-spec">Use only for genuinely peer/parallel content within a feature page (Translation tabs, Actress detail tabs). Prefer mode-switches over tabs where one panel is dominant. Empty <code>.badge</code> hides automatically when count is zero.</div>
     </section>
 
     <!-- Motion ───────────────────────────────────────────────────── -->

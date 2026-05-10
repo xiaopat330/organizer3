@@ -1,12 +1,12 @@
 /* ─────────────────────────────────────────────────────────────────────
-   Wave 3 — Translation (workbench mode)
+   Wave 3 — Translation (workbench mode, multi-tab)
    Spec: spec/DESIGN_SYSTEM_PAGES.md (workbench surfaces sweep)
-   KPI tiles for queue health + table preview of next pending items.
-   Deferred: recent-events polling feed, manual translate, requeue
-   actions, model picker (each is its own follow-up).
+   Tabs: Queue · Failures · Names · Sweeper
+   Each tab loads on activation. URL hash tracks current tab.
    ───────────────────────────────────────────────────────────────────── */
 
-const QUEUE_LIMIT = 25;
+const QUEUE_LIMIT    = 25;
+const FAILURE_LIMIT  = 50;
 
 function escapeHtml(s) {
   return String(s ?? '').replace(/[&<>"']/g, c => ({
@@ -41,6 +41,7 @@ function truncate(s, n = 80) {
   return s.length <= n ? s : s.slice(0, n - 1) + '…';
 }
 
+/* ── Queue tab ─────────────────────────────────────────────────────── */
 function renderKpis(stats) {
   if (!stats) return '<div class="shelf-loading">Stats unavailable.</div>';
   const pending  = stats.queuePending ?? 0;
@@ -112,11 +113,161 @@ function renderQueueTable(rows) {
   `;
 }
 
+async function loadQueueTab(panel) {
+  panel.innerHTML = `
+    <section class="shelf"><div class="shelf-head"><span class="shelf-title">Health</span></div>
+      <div id="kpis"><div class="shelf-loading">Loading…</div></div></section>
+    <section class="shelf" style="margin-top:24px"><div class="shelf-head">
+      <span class="shelf-title">Queue preview</span>
+      <span class="shelf-meta" id="queue-meta">next ${QUEUE_LIMIT}</span>
+    </div><div id="queue"><div class="shelf-loading">Loading…</div></div></section>
+  `;
+  const [stats, queue] = await Promise.all([
+    fetchJson('/api/translation/stats', null),
+    fetchJson(`/api/translation/queue-preview?limit=${QUEUE_LIMIT}`, []),
+  ]);
+  panel.querySelector('#kpis').innerHTML = renderKpis(stats);
+  panel.querySelector('#queue').innerHTML = renderQueueTable(queue);
+  panel.querySelector('#queue-meta').textContent = `${queue?.length || 0} of ${stats?.queuePending ?? '?'} pending`;
+  return stats;
+}
+
+/* ── Failures tab ──────────────────────────────────────────────────── */
+async function loadFailuresTab(panel) {
+  panel.innerHTML = `<div class="shelf-loading">Loading…</div>`;
+  const rows = await fetchJson(`/api/translation/recent-failures?limit=${FAILURE_LIMIT}`, []);
+  if (!rows || rows.length === 0) {
+    panel.innerHTML = `<div class="empty-state">
+      <div class="empty-state-title">No recent failures</div>
+      <div class="empty-state-body">The translation pipeline is clean.</div></div>`;
+    return rows;
+  }
+  panel.innerHTML = `
+    <div class="wb-table-wrap">
+      <table class="wb-table">
+        <thead><tr>
+          <th style="width:140px">Reason</th>
+          <th style="width:110px">Title</th>
+          <th>Source text</th>
+          <th style="width:70px" class="num">Latency</th>
+          <th style="width:90px">When</th>
+        </tr></thead>
+        <tbody>
+          ${rows.map(r => `
+            <tr title="${escapeHtml(r.failureReason || '')}">
+              <td><span class="pill error">${escapeHtml(truncate(r.failureReason || 'unknown', 18))}</span></td>
+              <td class="mono">${r.titleCode
+                ? `<a href="/v2-title-detail.html?code=${encodeURIComponent(r.titleCode)}" style="color:var(--accent-fg);text-decoration:none">${escapeHtml(r.titleCode)}</a>`
+                : '<span style="color:var(--text-faint)">—</span>'}</td>
+              <td title="${escapeHtml(r.sourceText)}">${escapeHtml(truncate(r.sourceText, 100))}</td>
+              <td class="num">${escapeHtml(r.latencyMs != null ? String(r.latencyMs) + 'ms' : '—')}</td>
+              <td class="mono">${escapeHtml(timeAgo(r.cachedAt))}</td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    </div>
+  `;
+  return rows;
+}
+
+/* ── Names tab (stage-name map) ────────────────────────────────────── */
+async function loadNamesTab(panel) {
+  panel.innerHTML = `<div class="shelf-loading">Loading…</div>`;
+  const map = await fetchJson('/api/translation/stage-name-map', {});
+  const entries = Object.entries(map || {});
+  if (entries.length === 0) {
+    panel.innerHTML = `<div class="empty-state">
+      <div class="empty-state-title">No stage-name mappings</div>
+      <div class="empty-state-body">No kanji → English actress name mappings have been registered.</div></div>`;
+    return entries;
+  }
+  // Sort by english name
+  entries.sort((a, b) => String(a[1]).localeCompare(String(b[1])));
+  panel.innerHTML = `
+    <div class="filter-bar">
+      <input class="form-input" id="name-search" placeholder="Filter by kanji or English name…" style="max-width:320px">
+      <div class="filter-spacer"></div>
+      <div class="filter-meta">${entries.length} mappings</div>
+    </div>
+    <div class="wb-table-wrap">
+      <table class="wb-table">
+        <thead><tr>
+          <th style="width:140px">Kanji / source</th>
+          <th>English (canonical)</th>
+        </tr></thead>
+        <tbody id="name-rows">
+          ${entries.map(([k, v]) => `
+            <tr data-k="${escapeHtml(k.toLowerCase())}" data-v="${escapeHtml(String(v).toLowerCase())}">
+              <td class="mono">${escapeHtml(k)}</td>
+              <td>${escapeHtml(String(v))}</td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    </div>
+  `;
+  // Wire local filter
+  const input = panel.querySelector('#name-search');
+  const rows  = panel.querySelectorAll('#name-rows tr');
+  input.addEventListener('input', () => {
+    const q = input.value.trim().toLowerCase();
+    rows.forEach(tr => {
+      const hit = !q || tr.dataset.k.includes(q) || tr.dataset.v.includes(q);
+      tr.style.display = hit ? '' : 'none';
+    });
+  });
+  return entries;
+}
+
+/* ── Sweeper tab ───────────────────────────────────────────────────── */
+async function loadSweeperTab(panel) {
+  panel.innerHTML = `<div class="shelf-loading">Loading…</div>`;
+  const status = await fetchJson('/api/translation/title-sweeper-status', null);
+  if (!status) {
+    panel.innerHTML = `<div class="empty-state">
+      <div class="empty-state-title">Sweeper status unavailable</div></div>`;
+    return null;
+  }
+  const enabledCls = status.enabled ? 'ok' : 'warn';
+  panel.innerHTML = `
+    <section class="shelf"><div class="shelf-head"><span class="shelf-title">Title sweeper</span></div>
+      <div class="shelf-grid shelf-grid-tiles">
+        <div class="kpi-tile">
+          <div class="kpi-tile-head">Awaiting translation</div>
+          <div class="kpi-tile-value ${status.pending > 0 ? 'warn' : 'ok'}">${status.pending ?? 0}</div>
+          <div class="kpi-tile-meta">titles with untranslated original text</div>
+        </div>
+        <div class="kpi-tile">
+          <div class="kpi-tile-head">Sweeper enabled</div>
+          <div class="kpi-tile-value ${enabledCls}">${status.enabled ? 'yes' : 'no'}</div>
+          <div class="kpi-tile-meta">scheduled background sweep</div>
+        </div>
+        ${Object.entries(status).filter(([k]) => !['pending','enabled'].includes(k)).map(([k, v]) => `
+          <div class="kpi-tile">
+            <div class="kpi-tile-head">${escapeHtml(k)}</div>
+            <div class="kpi-tile-value" style="font-size:14px">${escapeHtml(String(v))}</div>
+          </div>
+        `).join('')}
+      </div>
+    </section>
+  `;
+  return status;
+}
+
+/* ── Bootstrap ─────────────────────────────────────────────────────── */
+const TABS = [
+  { id: 'queue',    label: 'Queue',    load: loadQueueTab,    badge: (s) => s?.queuePending },
+  { id: 'failures', label: 'Failures', load: loadFailuresTab, badge: (s) => s?.queueFailed },
+  { id: 'names',    label: 'Names',    load: loadNamesTab,    badge: (s) => s?.stageNameLookupSize },
+  { id: 'sweeper',  label: 'Sweeper',  load: loadSweeperTab },
+];
+
 export async function mountTranslation(rootEl) {
   rootEl.innerHTML = `
     <div class="wb-page">
       <h1 class="wb-page-title">Translation</h1>
-      <div class="wb-page-subtitle">Local-LLM translation pipeline status. Refresh updates everything.</div>
+      <div class="wb-page-subtitle">Local-LLM translation pipeline.</div>
 
       <div class="filter-bar">
         <button class="btn sm" id="btn-refresh">
@@ -127,45 +278,74 @@ export async function mountTranslation(rootEl) {
           Refresh
         </button>
         <div class="filter-spacer"></div>
-        <div class="filter-meta" id="result-meta"></div>
+        <div class="filter-meta" id="model-meta"></div>
       </div>
 
-      <section class="shelf">
-        <div class="shelf-head"><span class="shelf-title">Health</span></div>
-        <div id="kpis"><div class="shelf-loading">Loading…</div></div>
-      </section>
+      <div class="tabs" role="tablist">
+        ${TABS.map((t, i) => `
+          <button class="tab${i === 0 ? ' active' : ''}" role="tab" data-tab="${t.id}">
+            ${escapeHtml(t.label)} <span class="badge" data-badge="${t.id}"></span>
+          </button>`).join('')}
+      </div>
 
-      <section class="shelf" style="margin-top:24px">
-        <div class="shelf-head">
-          <span class="shelf-title">Queue preview</span>
-          <span class="shelf-meta" id="queue-meta">next ${QUEUE_LIMIT}</span>
-        </div>
-        <div id="queue"><div class="shelf-loading">Loading…</div></div>
-      </section>
+      ${TABS.map((t, i) => `
+        <div class="tab-panel${i === 0 ? ' active' : ''}" data-panel="${t.id}"></div>
+      `).join('')}
     </div>
   `;
 
-  const kpisEl   = rootEl.querySelector('#kpis');
-  const queueEl  = rootEl.querySelector('#queue');
-  const meta     = rootEl.querySelector('#result-meta');
-  const queueMeta = rootEl.querySelector('#queue-meta');
+  const tabsEl   = rootEl.querySelector('.tabs');
+  const panels   = Object.fromEntries(TABS.map(t => [t.id, rootEl.querySelector(`[data-panel="${t.id}"]`)]));
+  const badges   = Object.fromEntries(TABS.map(t => [t.id, rootEl.querySelector(`[data-badge="${t.id}"]`)]));
+  const modelMeta = rootEl.querySelector('#model-meta');
 
-  const load = async () => {
-    meta.textContent = 'Loading…';
-    const [stats, queue] = await Promise.all([
-      fetchJson('/api/translation/stats', null),
-      fetchJson(`/api/translation/queue-preview?limit=${QUEUE_LIMIT}`, []),
-    ]);
-    kpisEl.innerHTML = renderKpis(stats);
-    queueEl.innerHTML = renderQueueTable(queue);
-    queueMeta.textContent = `${queue?.length || 0} of ${stats?.queuePending ?? '?'} pending`;
-    if (stats?.currentModelId) {
-      meta.textContent = `model · ${stats.currentModelId}`;
-    } else {
-      meta.textContent = '';
+  // Track loaded state so re-clicks don't refetch unless Refresh is pressed
+  const loaded = {};
+  let lastStats = null;
+
+  const updateBadges = () => {
+    for (const t of TABS) {
+      const v = t.badge ? t.badge(lastStats) : null;
+      badges[t.id].textContent = (v == null || v === 0) ? '' : String(v);
     }
   };
 
-  rootEl.querySelector('#btn-refresh').addEventListener('click', load);
-  load();
+  const activate = async (id, force = false) => {
+    rootEl.querySelectorAll('.tab').forEach(b => b.classList.toggle('active', b.dataset.tab === id));
+    rootEl.querySelectorAll('.tab-panel').forEach(p => p.classList.toggle('active', p.dataset.panel === id));
+    location.hash = id;
+
+    if (!loaded[id] || force) {
+      const tab = TABS.find(t => t.id === id);
+      const result = await tab.load(panels[id]);
+      loaded[id] = true;
+      // The Queue tab returns full stats — capture for badges + model.
+      if (id === 'queue' && result) {
+        lastStats = result;
+        modelMeta.textContent = result.currentModelId ? `model · ${result.currentModelId}` : '';
+        updateBadges();
+      } else if (id === 'failures' || id === 'names') {
+        // Refresh badge from stats (already cached) — these tabs don't return stats
+        updateBadges();
+      }
+    }
+  };
+
+  tabsEl.addEventListener('click', (e) => {
+    const btn = e.target.closest('.tab');
+    if (!btn) return;
+    activate(btn.dataset.tab);
+  });
+
+  rootEl.querySelector('#btn-refresh').addEventListener('click', () => {
+    // Force-reload current tab + invalidate everything else
+    const current = rootEl.querySelector('.tab.active')?.dataset.tab || 'queue';
+    Object.keys(loaded).forEach(k => { loaded[k] = false; });
+    activate(current, true);
+  });
+
+  // Initial — honor URL hash if it's a known tab
+  const initial = location.hash.replace('#', '');
+  const startTab = TABS.find(t => t.id === initial)?.id || 'queue';
+  activate(startTab);
 }
