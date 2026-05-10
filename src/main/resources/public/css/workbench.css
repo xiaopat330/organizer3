@@ -203,6 +203,214 @@
   white-space: nowrap;
 }
 
+/* ── Translation dashboard ──────────────────────────────────────────── */
+.trans-cards {
+  display: grid;
+  gap: 14px;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  margin-bottom: 8px;
+}
+.trans-card {
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  padding: 14px 16px;
+  display: flex; flex-direction: column;
+  gap: 10px;
+}
+.trans-card-title {
+  font-size: 10.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--text-faint);
+}
+.trans-card-headline {
+  font-family: var(--font-mono);
+  font-size: 30px;
+  font-weight: 500;
+  color: var(--text);
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+.trans-card-headline .trans-card-unit {
+  font-size: 13px;
+  color: var(--text-faint);
+  margin-left: 4px;
+}
+.trans-card-sub {
+  font-size: 12px;
+  color: var(--text-dim);
+}
+.trans-card-sub strong { color: var(--text); font-family: var(--font-mono); }
+.trans-subs-mapsize { color: var(--text-faint); font-size: 11px; }
+
+.trans-eta {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: 11.5px;
+  font-family: var(--font-mono);
+}
+.trans-eta strong { color: var(--text); }
+.trans-eta-dot {
+  width: 7px; height: 7px; border-radius: 50%;
+  background: var(--ok);
+}
+.trans-eta-warn  .trans-eta-dot { background: var(--warn); }
+.trans-eta-error .trans-eta-dot { background: var(--error); }
+
+.trans-cache-body {
+  display: flex; align-items: center; gap: 14px;
+}
+.trans-donut { flex-shrink: 0; }
+.trans-donut.empty {
+  width: 80px; height: 80px;
+  display: flex; align-items: center; justify-content: center;
+  color: var(--text-faint); font-size: 11px;
+  border: 1px dashed var(--border);
+  border-radius: 50%;
+}
+.trans-cache-legend { display: flex; flex-direction: column; gap: 6px; flex: 1; }
+.trans-legend-row {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: 12px;
+  color: var(--text-dim);
+  background: none; border: none; padding: 0;
+  font-family: inherit;
+  cursor: default;
+}
+.trans-failed-toggle { cursor: pointer; }
+.trans-failed-toggle:hover { color: var(--text); }
+.trans-failed-toggle:disabled { cursor: not-allowed; opacity: 0.5; }
+.trans-legend-row strong { color: var(--text); font-family: var(--font-mono); }
+.trans-legend-dot {
+  width: 9px; height: 9px; border-radius: 50%;
+}
+.trans-legend-dot.ok   { background: var(--ok); }
+.trans-legend-dot.fail { background: var(--error); }
+.trans-failed-caret { color: var(--text-faint); font-size: 9px; margin-left: 2px; }
+
+.trans-failure-panel {
+  margin-top: 8px;
+  padding: 8px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  display: flex; flex-direction: column; gap: 6px;
+}
+.trans-failure-row {
+  display: grid;
+  grid-template-columns: 1fr 60px auto;
+  gap: 8px;
+  align-items: center;
+  font-size: 11.5px;
+  color: var(--text-dim);
+}
+.trans-failure-label { cursor: help; }
+.trans-failure-count { font-family: var(--font-mono); text-align: right; color: var(--text); }
+
+.trans-cta {
+  border: 1px dashed var(--border);
+  border-radius: var(--radius);
+  padding: 10px;
+  text-align: center;
+  color: var(--text-faint);
+}
+.trans-cta.has-work {
+  border-color: rgba(251,191,36,0.4);
+  background: rgba(251,191,36,0.05);
+}
+.trans-cta-num {
+  font-family: var(--font-mono);
+  font-size: 22px;
+  color: var(--text-faint);
+}
+.trans-cta.has-work .trans-cta-num { color: var(--warn); }
+.trans-cta-label { font-size: 11px; }
+.trans-titles-row { display: flex; align-items: center; gap: 10px; }
+.trans-titles-row > span { flex: 1; }
+
+.trans-model-row {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 12px;
+  padding: 4px 0;
+}
+.trans-model-role-label {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-faint);
+  width: 60px;
+  flex-shrink: 0;
+}
+.trans-model-name {
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  color: var(--text);
+}
+.trans-model-missing {
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  color: var(--text-faint);
+  font-style: italic;
+}
+.trans-model-row.is-active .trans-model-name { color: var(--accent-fg); }
+.trans-model-active-dot {
+  display: inline-block;
+  width: 6px; height: 6px; border-radius: 50%;
+  background: var(--accent);
+  margin-left: 4px;
+  vertical-align: middle;
+}
+.trans-loaded-list {
+  margin-top: 6px;
+  font-size: 10.5px;
+  color: var(--text-faint);
+}
+.trans-model-loaded { font-family: var(--font-mono); }
+
+/* Queue + activity lists */
+.trans-queue, .trans-activity {
+  list-style: none;
+  margin: 0; padding: 0;
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  overflow: hidden;
+}
+.trans-queue-row, .trans-activity-row {
+  display: grid;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 12px;
+  border-bottom: 1px solid var(--border);
+  font-size: 12px;
+  color: var(--text-dim);
+}
+.trans-queue-row { grid-template-columns: 80px 110px 1fr 90px; }
+.trans-queue-row:last-child, .trans-activity-row:last-child { border-bottom: none; }
+.trans-queue-row.inflight { background: rgba(251,191,36,0.04); }
+.trans-queue-code { font-family: var(--font-mono); font-size: 11.5px; }
+.trans-queue-src  { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.trans-queue-time { font-family: var(--font-mono); font-size: 11px; color: var(--text-faint); }
+
+.trans-activity-row {
+  grid-template-columns: 70px 110px 1fr 14px 1fr 130px;
+}
+.trans-activity-code { font-family: var(--font-mono); font-size: 11.5px; }
+.trans-activity-src, .trans-activity-en {
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.trans-activity-arrow { color: var(--text-faint); text-align: center; }
+.trans-activity-meta {
+  font-family: var(--font-mono); font-size: 10.5px;
+  color: var(--text-faint); text-align: right;
+}
+.trans-empty {
+  padding: 14px 16px;
+  font-size: 12px;
+  color: var(--text-faint);
+  font-style: italic;
+}
+
 /* ── Volume card ────────────────────────────────────────────────────── */
 .vol-grid {
   display: grid;

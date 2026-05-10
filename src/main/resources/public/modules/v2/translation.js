@@ -1,14 +1,21 @@
 /* ─────────────────────────────────────────────────────────────────────
-   Wave 3 — Translation (workbench mode, multi-tab)
-   Spec: spec/DESIGN_SYSTEM_PAGES.md (workbench surfaces sweep)
-   Tabs: Queue · Failures · Names · Sweeper
-   Each tab loads on activation. URL hash tracks current tab.
+   Wave 4 — Translation (workbench mode, full port)
+   Spec: spec/DESIGN_SYSTEM_PAGES.md
+   Tabs (matching legacy): Dashboard · Failures · Names
+     - Dashboard: 4 stat cards (Throughput / Cache health / Curation
+                  backlog / Models) + Queue preview + Live Activity feed
+     - Failures: recent failures table
+     - Names: stage-name map (kanji ↔ English)
+   URL hash tracks current tab. Polling intervals match legacy:
+   stats 5s, queue 5s, activity 2s.
    ───────────────────────────────────────────────────────────────────── */
 
-const QUEUE_LIMIT     = 25;
-const FAILURE_LIMIT   = 50;
-const DASH_POLL_MS    = 2000;
-const DASH_MAX_ROWS   = 200;
+const QUEUE_LIMIT       = 15;
+const FAILURE_LIMIT     = 50;
+const STATS_POLL_MS     = 5000;
+const QUEUE_POLL_MS     = 5000;
+const ACTIVITY_POLL_MS  = 2000;
+const ACTIVITY_MAX_ROWS = 200;
 
 function escapeHtml(s) {
   return String(s ?? '').replace(/[&<>"']/g, c => ({
@@ -27,6 +34,12 @@ async function fetchJson(url, fallback = null) {
   }
 }
 
+function fmt(n) {
+  if (n == null) return '—';
+  return Number(n).toLocaleString();
+}
+function N(v) { return v == null ? 0 : Number(v); }
+
 function timeAgo(iso) {
   if (!iso) return '';
   const then = new Date(iso).getTime();
@@ -43,18 +56,208 @@ function truncate(s, n = 80) {
   return s.length <= n ? s : s.slice(0, n - 1) + '…';
 }
 
-/* ── Dashboard tab — live activity feed ────────────────────────────── */
-// Shared state for the dashboard tab; survives tab switches so polling
-// continues to add rows in the background.
-const dashState = {
-  rows: [],          // newest first
-  since: null,       // high-water-mark cachedAt
-  timer: null,
-  paused: false,
-  panel: null,
-};
+/* ── Backlog ETA classification (matches legacy heuristic) ─────────── */
+function classifyEta(backlog, throughput) {
+  if (!backlog || backlog === 0)   return { tier: 'ok',    label: 'caught up' };
+  if (!throughput || throughput === 0) return { tier: 'warn', label: 'stalled' };
+  const hours = backlog / throughput;
+  if (hours < 1)   return { tier: 'ok',    label: `~${Math.ceil(hours * 60)}m` };
+  if (hours < 6)   return { tier: 'ok',    label: `~${hours.toFixed(1)}h` };
+  if (hours < 24)  return { tier: 'warn',  label: `~${Math.round(hours)}h` };
+  return                  { tier: 'error', label: `~${Math.round(hours / 24)}d` };
+}
 
-function renderDashRow(r) {
+/* ── Donut for cache success/fail ──────────────────────────────────── */
+function renderDonut(ok, fail) {
+  const total = ok + fail;
+  if (total === 0) return `<div class="trans-donut empty">no data</div>`;
+  const r = 30, c = 2 * Math.PI * r;
+  const okFrac = ok / total;
+  const okLen = c * okFrac;
+  return `
+    <svg class="trans-donut" viewBox="0 0 80 80" width="80" height="80">
+      <circle cx="40" cy="40" r="${r}" fill="none" stroke="rgba(248,113,113,0.25)" stroke-width="10"/>
+      <circle cx="40" cy="40" r="${r}" fill="none" stroke="var(--ok)" stroke-width="10"
+              stroke-dasharray="${okLen} ${c - okLen}" stroke-dashoffset="${c / 4}"/>
+      <text x="40" y="44" text-anchor="middle" font-family="var(--font-mono)" font-size="13" fill="var(--text)">${Math.round(okFrac * 100)}%</text>
+    </svg>
+  `;
+}
+
+/* ── Failure breakdown rows + Re-queue ─────────────────────────────── */
+function failureRow(label, count, reasonKey, hint) {
+  return `
+    <div class="trans-failure-row">
+      <span class="trans-failure-label" title="${escapeHtml(hint)}">${escapeHtml(label)}</span>
+      <span class="trans-failure-count">${fmt(count)}</span>
+      <button class="btn sm" data-requeue="${escapeHtml(reasonKey)}" ${count === 0 ? 'disabled' : ''}>Re-queue</button>
+    </div>
+  `;
+}
+
+/* ── Dashboard stat cards ──────────────────────────────────────────── */
+function renderStatCards(stats, sweeper, strategies, health, expanded) {
+  if (!stats) return `<div class="shelf-loading">Stats unavailable.</div>`;
+  const pending  = N(stats.queuePending);
+  const inFlight = N(stats.queueInFlight);
+  const tier2    = N(stats.queueTier2Pending);
+  const thr      = N(stats.throughputLastHour);
+  const eta      = classifyEta(pending + inFlight, thr);
+
+  const cacheTotal = N(stats.cacheTotal);
+  const cacheOk    = N(stats.cacheSuccessful);
+  const cacheFail  = N(stats.cacheFailed);
+
+  const lookupHits   = N(stats.cacheLookupHits);
+  const lookupMisses = N(stats.cacheLookupMisses);
+  const lookupTotal  = lookupHits + lookupMisses;
+  const hitRatePct   = lookupTotal > 0 ? Math.round((lookupHits / lookupTotal) * 1000) / 10 : null;
+
+  const sweeperPaused = sweeper && sweeper.enabled === false;
+  const titlesPending = sweeper ? fmt(sweeper.pending) : '—';
+  const titlesLabel   = sweeperPaused ? 'Titles awaiting (paused)' : 'Titles awaiting';
+
+  const stageSuggestions = N(stats.stageNameSuggestionsUnreviewed);
+  const stageLookup      = N(stats.stageNameLookupSize);
+
+  const failuresPanel = expanded ? `
+    <div class="trans-failure-panel">
+      ${failureRow('Sanitized',          N(stats.cacheFailedSanitized),            'sanitized',
+        'Tier-1 produced sanitized output. Re-queue after substitution-map updates.')}
+      ${failureRow('Sanitized (tier-2)', N(stats.cacheFailedSanitizedBothTiers),  'sanitized_both_tiers',
+        'Both tiers produced sanitized output. Re-queue to retry on next sweeper tick.')}
+      ${failureRow('Unreachable',        N(stats.cacheFailedUnreachable),         'unreachable',
+        'AI service was unreachable when these were attempted. Safe to re-queue aggressively.')}
+      ${failureRow('Refused',            N(stats.cacheFailedRefused),             'refused',
+        'Model refused to translate. Re-queue may help after substitution updates.')}
+    </div>
+  ` : '';
+
+  // Models card content
+  const modelsCard = (() => {
+    const ollamaUp = health?.ollamaReachable === true || health?.healthy === true;
+    const ollamaPill = `<span class="pill ${ollamaUp ? 'ok' : 'error'}">${ollamaUp ? 'Ollama online' : 'Ollama offline'}</span>`;
+    const current = stats.currentModelId || null;
+
+    let primaryRow = `<div class="trans-model-row"><span class="trans-model-role-label">Primary</span><span class="trans-model-missing">loading…</span></div>`;
+    let fallbackRow = `<div class="trans-model-row"><span class="trans-model-role-label">Fallback</span><span class="trans-model-missing">loading…</span></div>`;
+
+    if (strategies) {
+      // strategies shape varies; try a few common keys
+      const primary  = strategies.primary?.modelId || strategies.primaryModelId || strategies.tier1?.modelId || null;
+      const fallback = strategies.fallback?.modelId || strategies.fallbackModelId || strategies.tier2?.modelId || null;
+      const row = (label, modelId) => {
+        const isActive = modelId && current && String(modelId).split(',').map(s => s.trim()).includes(current);
+        return `<div class="trans-model-row ${isActive ? 'is-active' : ''}">
+          <span class="trans-model-role-label">${label}</span>
+          <span class="${modelId ? 'trans-model-name' : 'trans-model-missing'}">${escapeHtml(modelId || 'not configured')}${isActive ? ' <span class="trans-model-active-dot" title="In flight"></span>' : ''}</span>
+        </div>`;
+      };
+      primaryRow  = row('Primary',  primary);
+      fallbackRow = row('Fallback', fallback);
+    }
+
+    const loaded = (health?.loadedModels || []).map(m =>
+      `<div class="trans-model-loaded">${escapeHtml(typeof m === 'string' ? m : (m.name || m.model || ''))}</div>`
+    ).join('');
+
+    return `
+      <div class="trans-card trans-card-models">
+        <div class="trans-card-title">AI</div>
+        ${ollamaPill}
+        ${primaryRow}
+        ${fallbackRow}
+        ${loaded ? `<div class="trans-loaded-list">${loaded}</div>` : ''}
+      </div>
+    `;
+  })();
+
+  return `
+    <div class="trans-cards">
+
+      <div class="trans-card trans-card-throughput">
+        <div class="trans-card-title">Throughput</div>
+        <div class="trans-card-headline">${fmt(thr)}<span class="trans-card-unit">/hr</span></div>
+        <div class="trans-eta trans-eta-${eta.tier}">
+          <span class="trans-eta-dot"></span>
+          Backlog ETA: <strong>${eta.label}</strong>
+        </div>
+        <div class="trans-card-sub">
+          Pending: <strong>${fmt(pending)}</strong>
+          · In flight: <strong>${fmt(inFlight)}</strong>
+          · Tier-2: <strong>${fmt(tier2)}</strong>
+        </div>
+        <div class="trans-card-sub" title="Explicit term substitutions applied since startup. Map size shown in parentheses.">
+          Substitutions: <strong>${fmt(N(stats.explicitSubsApplied))}</strong>
+          across <strong>${fmt(N(stats.explicitSubsRowsTouched))}</strong> titles
+          <span class="trans-subs-mapsize">(map: ${fmt(N(stats.explicitSubsMapSize))})</span>
+        </div>
+      </div>
+
+      <div class="trans-card trans-card-cache">
+        <div class="trans-card-title">Cache health</div>
+        <div class="trans-cache-body">
+          ${renderDonut(cacheOk, cacheFail)}
+          <div class="trans-cache-legend">
+            <div class="trans-legend-row">
+              <span class="trans-legend-dot ok"></span>
+              <strong>${fmt(cacheOk)}</strong> ok
+            </div>
+            <button class="trans-legend-row trans-failed-toggle ${expanded ? 'expanded' : ''}"
+                    type="button" id="failures-toggle" ${cacheFail === 0 ? 'disabled' : ''}>
+              <span class="trans-legend-dot fail"></span>
+              <strong>${fmt(cacheFail)}</strong> failed
+              ${cacheFail > 0 ? `<span class="trans-failed-caret">${expanded ? '▾' : '▸'}</span>` : ''}
+            </button>
+          </div>
+        </div>
+        <div class="trans-card-sub" title="Cache lookups serviced since process startup.">
+          Hit rate: <strong>${hitRatePct === null ? '—' : hitRatePct + '%'}</strong>
+          <span class="trans-subs-mapsize">(${fmt(lookupHits)} / ${fmt(lookupTotal)} lookups)</span>
+        </div>
+        ${failuresPanel}
+      </div>
+
+      <div class="trans-card trans-card-curation">
+        <div class="trans-card-title">Curation backlog</div>
+        <div class="trans-cta ${stageSuggestions > 0 ? 'has-work' : ''}">
+          <div class="trans-cta-num">${fmt(stageSuggestions)}</div>
+          <div class="trans-cta-label">Stage-name suggestion${stageSuggestions === 1 ? '' : 's'} awaiting review</div>
+        </div>
+        <div class="trans-card-sub trans-titles-row">
+          <span>${titlesLabel}: <strong>${titlesPending}</strong></span>
+          <button class="btn sm" id="sweep-now-btn"
+                  title="Forces an immediate sweep. Same dedup as the scheduled sweeper.">
+            Sweep
+          </button>
+        </div>
+        <div class="trans-card-sub">
+          Stage-name lookup: <strong>${fmt(stageLookup)}</strong>
+        </div>
+      </div>
+
+      ${modelsCard}
+
+    </div>
+  `;
+}
+
+/* ── Queue preview row + Activity row ──────────────────────────────── */
+function renderQueueRow(r) {
+  const inFlight = r.status === 'IN_FLIGHT';
+  return `
+    <li class="trans-queue-row ${inFlight ? 'inflight' : 'pending'}">
+      <span class="pill ${inFlight ? 'warn' : ''}">${escapeHtml(String(r.status || '').toLowerCase())}</span>
+      <span class="trans-queue-code">${r.titleCode
+        ? `<a href="/v2-title-detail.html?code=${encodeURIComponent(r.titleCode)}" style="color:var(--accent-fg);text-decoration:none">${escapeHtml(r.titleCode)}</a>`
+        : '<span style="color:var(--text-faint)">—</span>'}</span>
+      <span class="trans-queue-src" title="${escapeHtml(r.sourceText)}">${escapeHtml(truncate(r.sourceText, 100))}</span>
+      <span class="trans-queue-time">${escapeHtml(timeAgo(r.submittedAt))}</span>
+    </li>
+  `;
+}
+
+function renderActivityRow(r) {
   const failed = !!r.failureReason;
   const status = failed
     ? `<span class="pill error" title="${escapeHtml(r.failureReason)}">${escapeHtml(truncate(r.failureReason, 14))}</span>`
@@ -63,187 +266,195 @@ function renderDashRow(r) {
     ? `<a href="/v2-title-detail.html?code=${encodeURIComponent(r.titleCode)}" style="color:var(--accent-fg);text-decoration:none">${escapeHtml(r.titleCode)}</a>`
     : '<span style="color:var(--text-faint)">—</span>';
   return `
-    <tr>
-      <td>${status}</td>
-      <td class="mono">${titleCell}</td>
-      <td title="${escapeHtml(r.sourceText)}">${escapeHtml(truncate(r.sourceText, 80))}</td>
-      <td title="${escapeHtml(r.englishText || '')}">${escapeHtml(truncate(r.englishText || '', 80))}</td>
-      <td class="num">${r.latencyMs != null ? escapeHtml(String(r.latencyMs) + 'ms') : '—'}</td>
-      <td class="mono">${escapeHtml(timeAgo(r.cachedAt))}</td>
-    </tr>
+    <li class="trans-activity-row">
+      ${status}
+      <span class="trans-activity-code">${titleCell}</span>
+      <span class="trans-activity-src" title="${escapeHtml(r.sourceText)}">${escapeHtml(truncate(r.sourceText, 60))}</span>
+      <span class="trans-activity-arrow">→</span>
+      <span class="trans-activity-en" title="${escapeHtml(r.englishText || '')}">${escapeHtml(truncate(r.englishText || '', 60))}</span>
+      <span class="trans-activity-meta">${r.latencyMs != null ? r.latencyMs + 'ms · ' : ''}${escapeHtml(timeAgo(r.cachedAt))}</span>
+    </li>
   `;
+}
+
+/* ── Dashboard tab ─────────────────────────────────────────────────── */
+const dashState = {
+  panel: null,
+  expanded: false,            // failure-breakdown panel toggle
+  stats: null,
+  sweeper: null,
+  strategies: null,
+  health: null,
+  queue: [],
+  activity: [],               // newest first
+  activitySince: null,        // high-water-mark cachedAt
+  paused: false,
+  timers: { stats: null, queue: null, activity: null },
+};
+
+async function loadStats() {
+  const [stats, sweeper, strategies, health] = await Promise.all([
+    fetchJson('/api/translation/stats',                null),
+    fetchJson('/api/translation/title-sweeper-status', null),
+    fetchJson('/api/translation/strategies',           null),
+    fetchJson('/api/translation/health',               null),
+  ]);
+  dashState.stats = stats;
+  dashState.sweeper = sweeper;
+  dashState.strategies = strategies;
+  dashState.health = health;
+  renderDashCards();
+  updateBadgesFromStats();
+}
+
+async function loadQueue() {
+  dashState.queue = (await fetchJson(`/api/translation/queue-preview?limit=${QUEUE_LIMIT}`, [])) || [];
+  renderDashQueue();
+}
+
+async function loadActivity() {
+  if (dashState.paused) return;
+  const url = dashState.activitySince
+    ? `/api/translation/recent-events?limit=50&since=${encodeURIComponent(dashState.activitySince)}`
+    : `/api/translation/recent-events?limit=50`;
+  const events = await fetchJson(url, []);
+  if (!events || events.length === 0) {
+    renderDashActivity();
+    return;
+  }
+  events.sort((a, b) => (b.cachedAt || '').localeCompare(a.cachedAt || ''));
+  dashState.activitySince = events[0].cachedAt;
+  dashState.activity = [...events, ...dashState.activity].slice(0, ACTIVITY_MAX_ROWS);
+  renderDashActivity();
+}
+
+function renderDashCards() {
+  if (!dashState.panel) return;
+  const cards = dashState.panel.querySelector('#dash-cards');
+  if (!cards) return;
+  cards.innerHTML = renderStatCards(dashState.stats, dashState.sweeper, dashState.strategies, dashState.health, dashState.expanded);
+
+  // Wire failures-toggle
+  const toggle = cards.querySelector('#failures-toggle');
+  if (toggle) toggle.addEventListener('click', () => {
+    dashState.expanded = !dashState.expanded;
+    renderDashCards();
+  });
+
+  // Wire Sweep button
+  const sweepBtn = cards.querySelector('#sweep-now-btn');
+  if (sweepBtn) sweepBtn.addEventListener('click', async () => {
+    sweepBtn.disabled = true;
+    const orig = sweepBtn.textContent;
+    sweepBtn.textContent = '…';
+    try {
+      const r = await fetch('/api/translation/sweep-title-backlog-now', { method: 'POST' });
+      sweepBtn.textContent = r.ok ? 'queued' : 'failed';
+    } catch (e) {
+      sweepBtn.textContent = 'failed';
+    }
+    setTimeout(() => { sweepBtn.textContent = orig; sweepBtn.disabled = false; loadStats(); }, 1500);
+  });
+
+  // Wire failure re-queue buttons
+  cards.querySelectorAll('button[data-requeue]').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const reason = btn.dataset.requeue;
+      btn.disabled = true;
+      const orig = btn.textContent;
+      btn.textContent = '…';
+      try {
+        const url = reason === 'sanitized_both_tiers'
+          ? '/api/translation/requeue-sanitized-both-tiers'
+          : `/api/translation/requeue-by-reason?reason=${encodeURIComponent(reason)}`;
+        const r = await fetch(url, { method: 'POST' });
+        btn.textContent = r.ok ? 'queued' : 'failed';
+      } catch (e) {
+        btn.textContent = 'failed';
+      }
+      setTimeout(() => { btn.textContent = orig; loadStats(); }, 1500);
+    });
+  });
+}
+
+function renderDashQueue() {
+  if (!dashState.panel) return;
+  const queueEl = dashState.panel.querySelector('#dash-queue');
+  const meta    = dashState.panel.querySelector('#dash-queue-meta');
+  if (!queueEl) return;
+  if (dashState.queue.length === 0) {
+    queueEl.innerHTML = `<li class="trans-empty">Queue is empty.</li>`;
+  } else {
+    queueEl.innerHTML = dashState.queue.map(renderQueueRow).join('');
+  }
+  if (meta) meta.textContent = `${dashState.queue.length} of ${dashState.stats?.queuePending ?? '?'} pending`;
+}
+
+function renderDashActivity() {
+  if (!dashState.panel) return;
+  const list = dashState.panel.querySelector('#dash-activity');
+  const meta = dashState.panel.querySelector('#dash-activity-meta');
+  if (!list) return;
+  if (dashState.activity.length === 0) {
+    list.innerHTML = `<li class="trans-empty">Waiting for first event…</li>`;
+  } else {
+    list.innerHTML = dashState.activity.map(renderActivityRow).join('');
+  }
+  if (meta) meta.textContent = `${dashState.activity.length} events${dashState.paused ? ' · paused' : ''}`;
 }
 
 function renderDashShell(panel) {
   panel.innerHTML = `
-    <div class="filter-bar">
-      <button class="btn sm" id="dash-pause">Pause</button>
-      <button class="btn sm" id="dash-clear">Clear</button>
-      <div class="filter-spacer"></div>
-      <div class="filter-meta" id="dash-meta">connecting…</div>
-    </div>
-    <div class="wb-table-wrap">
-      <table class="wb-table">
-        <thead><tr>
-          <th style="width:90px">Status</th>
-          <th style="width:110px">Title</th>
-          <th>Source</th>
-          <th>English</th>
-          <th style="width:70px" class="num">Latency</th>
-          <th style="width:90px">When</th>
-        </tr></thead>
-        <tbody id="dash-rows"></tbody>
-      </table>
-    </div>
+    <div id="dash-cards"><div class="shelf-loading">Loading…</div></div>
+
+    <section class="shelf" style="margin-top:24px">
+      <div class="shelf-head">
+        <span class="shelf-title">Queue</span>
+        <span class="shelf-meta" id="dash-queue-meta"></span>
+      </div>
+      <ul class="trans-queue" id="dash-queue"><li class="trans-empty">Loading…</li></ul>
+    </section>
+
+    <section class="shelf" style="margin-top:24px">
+      <div class="shelf-head">
+        <span class="shelf-title">Live activity</span>
+        <span class="shelf-meta" id="dash-activity-meta">polling every 2s</span>
+        <button class="btn sm" id="dash-pause" style="margin-left:auto">Pause</button>
+        <button class="btn sm" id="dash-clear">Clear</button>
+      </div>
+      <ul class="trans-activity" id="dash-activity"><li class="trans-empty">Connecting…</li></ul>
+    </section>
   `;
   panel.querySelector('#dash-pause').addEventListener('click', () => {
     dashState.paused = !dashState.paused;
     panel.querySelector('#dash-pause').textContent = dashState.paused ? 'Resume' : 'Pause';
+    renderDashActivity();
   });
   panel.querySelector('#dash-clear').addEventListener('click', () => {
-    dashState.rows = [];
-    panel.querySelector('#dash-rows').innerHTML = '';
+    dashState.activity = [];
+    renderDashActivity();
   });
-}
-
-async function pollDash() {
-  if (dashState.paused) return;
-  const url = dashState.since
-    ? `/api/translation/recent-events?limit=50&since=${encodeURIComponent(dashState.since)}`
-    : `/api/translation/recent-events?limit=50`;
-  const events = await fetchJson(url, []);
-  if (!events) return;
-
-  if (events.length > 0) {
-    // Server returns newest first OR oldest first depending on impl; sort so newest first
-    events.sort((a, b) => (b.cachedAt || '').localeCompare(a.cachedAt || ''));
-    // Update high-water-mark with the newest cachedAt seen
-    dashState.since = events[0].cachedAt;
-    // Prepend new events; cap total
-    dashState.rows = [...events, ...dashState.rows].slice(0, DASH_MAX_ROWS);
-  }
-
-  // Re-render only if the tab is currently visible (cheap optimization)
-  const panel = dashState.panel;
-  if (panel && panel.classList.contains('active')) {
-    const tbody = panel.querySelector('#dash-rows');
-    if (tbody) {
-      tbody.innerHTML = dashState.rows.map(renderDashRow).join('');
-      const meta = panel.querySelector('#dash-meta');
-      if (meta) {
-        meta.textContent = `${dashState.rows.length} events · last update ${timeAgo(dashState.since)}${dashState.paused ? ' · paused' : ''}`;
-      }
-    }
-  }
 }
 
 async function loadDashboardTab(panel) {
   dashState.panel = panel;
-  if (!panel.querySelector('#dash-rows')) {
+  if (!panel.querySelector('#dash-cards')) {
     renderDashShell(panel);
-    // Restore current pause state UI
     if (dashState.paused) panel.querySelector('#dash-pause').textContent = 'Resume';
-    // Initial render of any cached rows
-    panel.querySelector('#dash-rows').innerHTML = dashState.rows.map(renderDashRow).join('');
   }
-  if (!dashState.timer) {
-    await pollDash();
-    dashState.timer = setInterval(pollDash, DASH_POLL_MS);
-  } else {
-    // Force a render of cached rows when reopening
-    pollDash();
+  // Render whatever we have cached (instant when re-opening tab)
+  renderDashCards();
+  renderDashQueue();
+  renderDashActivity();
+
+  // Start polling timers if not running
+  if (!dashState.timers.stats) {
+    await Promise.all([loadStats(), loadQueue(), loadActivity()]);
+    dashState.timers.stats    = setInterval(loadStats,    STATS_POLL_MS);
+    dashState.timers.queue    = setInterval(loadQueue,    QUEUE_POLL_MS);
+    dashState.timers.activity = setInterval(loadActivity, ACTIVITY_POLL_MS);
   }
-}
-
-/* ── Queue tab ─────────────────────────────────────────────────────── */
-function renderKpis(stats) {
-  if (!stats) return '<div class="shelf-loading">Stats unavailable.</div>';
-  const pending  = stats.queuePending ?? 0;
-  const inflight = stats.queueInFlight ?? 0;
-  const failed   = stats.queueFailed ?? 0;
-  const through  = stats.throughputLastHour ?? 0;
-  const t2       = stats.queueTier2Pending ?? 0;
-  const hitRate  = stats.cacheHitRate != null ? `${(stats.cacheHitRate * 100).toFixed(0)}%` : '—';
-  const cls = (n) => n > 0 ? 'warn' : 'ok';
-  return `
-    <div class="shelf-grid shelf-grid-tiles">
-      <div class="kpi-tile">
-        <div class="kpi-tile-head">Pending</div>
-        <div class="kpi-tile-value ${cls(pending)}">${pending}</div>
-        <div class="kpi-tile-meta">${t2} on tier-2</div>
-      </div>
-      <div class="kpi-tile">
-        <div class="kpi-tile-head">In flight</div>
-        <div class="kpi-tile-value">${inflight}</div>
-        <div class="kpi-tile-meta">currently translating</div>
-      </div>
-      <div class="kpi-tile">
-        <div class="kpi-tile-head">Failed</div>
-        <div class="kpi-tile-value ${failed > 0 ? 'error' : 'ok'}">${failed}</div>
-        <div class="kpi-tile-meta">${stats.cacheFailedSanitizedBothTiers ?? 0} sanitized · ${stats.cacheFailedRefused ?? 0} refused</div>
-      </div>
-      <div class="kpi-tile">
-        <div class="kpi-tile-head">Throughput · last hour</div>
-        <div class="kpi-tile-value">${through}</div>
-        <div class="kpi-tile-meta">cache hit rate ${hitRate}</div>
-      </div>
-    </div>
-  `;
-}
-
-function renderQueueTable(rows) {
-  if (!rows || rows.length === 0) {
-    return `
-      <div class="empty-state">
-        <div class="empty-state-title">Queue is empty</div>
-        <div class="empty-state-body">No translations pending. Newly enriched titles auto-queue.</div>
-      </div>`;
-  }
-  return `
-    <div class="wb-table-wrap">
-      <table class="wb-table">
-        <thead><tr>
-          <th style="width:90px">Status</th>
-          <th style="width:110px">Title</th>
-          <th>Source text</th>
-          <th style="width:60px" class="num">Pri</th>
-          <th style="width:90px">Submitted</th>
-        </tr></thead>
-        <tbody>
-          ${rows.map(r => `
-            <tr>
-              <td><span class="pill ${r.status === 'IN_FLIGHT' ? 'warn' : ''}">${escapeHtml(String(r.status || '').toLowerCase())}</span></td>
-              <td class="mono">${r.titleCode
-                ? `<a href="/v2-title-detail.html?code=${encodeURIComponent(r.titleCode)}" style="color:var(--accent-fg);text-decoration:none">${escapeHtml(r.titleCode)}</a>`
-                : '<span style="color:var(--text-faint)">—</span>'}</td>
-              <td title="${escapeHtml(r.sourceText)}">${escapeHtml(truncate(r.sourceText, 100))}</td>
-              <td class="num">${escapeHtml(String(r.priority ?? ''))}</td>
-              <td class="mono">${escapeHtml(timeAgo(r.submittedAt))}</td>
-            </tr>
-          `).join('')}
-        </tbody>
-      </table>
-    </div>
-  `;
-}
-
-async function loadQueueTab(panel) {
-  panel.innerHTML = `
-    <section class="shelf"><div class="shelf-head"><span class="shelf-title">Health</span></div>
-      <div id="kpis"><div class="shelf-loading">Loading…</div></div></section>
-    <section class="shelf" style="margin-top:24px"><div class="shelf-head">
-      <span class="shelf-title">Queue preview</span>
-      <span class="shelf-meta" id="queue-meta">next ${QUEUE_LIMIT}</span>
-    </div><div id="queue"><div class="shelf-loading">Loading…</div></div></section>
-  `;
-  const [stats, queue] = await Promise.all([
-    fetchJson('/api/translation/stats', null),
-    fetchJson(`/api/translation/queue-preview?limit=${QUEUE_LIMIT}`, []),
-  ]);
-  panel.querySelector('#kpis').innerHTML = renderKpis(stats);
-  panel.querySelector('#queue').innerHTML = renderQueueTable(queue);
-  panel.querySelector('#queue-meta').textContent = `${queue?.length || 0} of ${stats?.queuePending ?? '?'} pending`;
-  return stats;
+  return dashState.stats;
 }
 
 /* ── Failures tab ──────────────────────────────────────────────────── */
@@ -285,7 +496,7 @@ async function loadFailuresTab(panel) {
   return rows;
 }
 
-/* ── Names tab (stage-name map) ────────────────────────────────────── */
+/* ── Names tab ─────────────────────────────────────────────────────── */
 async function loadNamesTab(panel) {
   panel.innerHTML = `<div class="shelf-loading">Loading…</div>`;
   const map = await fetchJson('/api/translation/stage-name-map', {});
@@ -296,7 +507,6 @@ async function loadNamesTab(panel) {
       <div class="empty-state-body">No kanji → English actress name mappings have been registered.</div></div>`;
     return entries;
   }
-  // Sort by english name
   entries.sort((a, b) => String(a[1]).localeCompare(String(b[1])));
   panel.innerHTML = `
     <div class="filter-bar">
@@ -321,7 +531,6 @@ async function loadNamesTab(panel) {
       </table>
     </div>
   `;
-  // Wire local filter
   const input = panel.querySelector('#name-search');
   const rows  = panel.querySelectorAll('#name-rows tr');
   input.addEventListener('input', () => {
@@ -334,64 +543,30 @@ async function loadNamesTab(panel) {
   return entries;
 }
 
-/* ── Sweeper tab ───────────────────────────────────────────────────── */
-async function loadSweeperTab(panel) {
-  panel.innerHTML = `<div class="shelf-loading">Loading…</div>`;
-  const status = await fetchJson('/api/translation/title-sweeper-status', null);
-  if (!status) {
-    panel.innerHTML = `<div class="empty-state">
-      <div class="empty-state-title">Sweeper status unavailable</div></div>`;
-    return null;
-  }
-  const enabledCls = status.enabled ? 'ok' : 'warn';
-  panel.innerHTML = `
-    <section class="shelf"><div class="shelf-head"><span class="shelf-title">Title sweeper</span></div>
-      <div class="shelf-grid shelf-grid-tiles">
-        <div class="kpi-tile">
-          <div class="kpi-tile-head">Awaiting translation</div>
-          <div class="kpi-tile-value ${status.pending > 0 ? 'warn' : 'ok'}">${status.pending ?? 0}</div>
-          <div class="kpi-tile-meta">titles with untranslated original text</div>
-        </div>
-        <div class="kpi-tile">
-          <div class="kpi-tile-head">Sweeper enabled</div>
-          <div class="kpi-tile-value ${enabledCls}">${status.enabled ? 'yes' : 'no'}</div>
-          <div class="kpi-tile-meta">scheduled background sweep</div>
-        </div>
-        ${Object.entries(status).filter(([k]) => !['pending','enabled'].includes(k)).map(([k, v]) => `
-          <div class="kpi-tile">
-            <div class="kpi-tile-head">${escapeHtml(k)}</div>
-            <div class="kpi-tile-value" style="font-size:14px">${escapeHtml(String(v))}</div>
-          </div>
-        `).join('')}
-      </div>
-    </section>
-  `;
-  return status;
-}
-
 /* ── Bootstrap ─────────────────────────────────────────────────────── */
 const TABS = [
   { id: 'dashboard', label: 'Dashboard', load: loadDashboardTab },
-  { id: 'queue',     label: 'Queue',     load: loadQueueTab,    badge: (s) => s?.queuePending },
-  { id: 'failures',  label: 'Failures',  load: loadFailuresTab, badge: (s) => s?.queueFailed },
-  { id: 'names',     label: 'Names',     load: loadNamesTab,    badge: (s) => s?.stageNameLookupSize },
-  { id: 'sweeper',   label: 'Sweeper',   load: loadSweeperTab },
+  { id: 'failures',  label: 'Failures',  load: loadFailuresTab,  badge: () => dashState.stats?.queueFailed },
+  { id: 'names',     label: 'Names',     load: loadNamesTab,     badge: () => dashState.stats?.stageNameLookupSize },
 ];
+
+function updateBadgesFromStats() {
+  for (const t of TABS) {
+    const el = document.querySelector(`[data-badge="${t.id}"]`);
+    if (!el) continue;
+    const v = t.badge ? t.badge() : null;
+    el.textContent = (v == null || v === 0) ? '' : String(v);
+  }
+}
 
 export async function mountTranslation(rootEl) {
   rootEl.innerHTML = `
     <div class="wb-page">
       <h1 class="wb-page-title">Translation</h1>
-      <div class="wb-page-subtitle">Local-LLM translation pipeline.</div>
+      <div class="wb-page-subtitle">Local-LLM translation pipeline — live.</div>
 
       <div class="filter-bar">
-        <button class="btn sm" id="btn-refresh">
-          <svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2">
-            <polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/>
-            <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
-          </svg>
-          Refresh
-        </button>
+        <button class="btn sm" id="btn-refresh">Refresh now</button>
         <div class="filter-spacer"></div>
         <div class="filter-meta" id="model-meta"></div>
       </div>
@@ -409,40 +584,22 @@ export async function mountTranslation(rootEl) {
     </div>
   `;
 
-  const tabsEl   = rootEl.querySelector('.tabs');
-  const panels   = Object.fromEntries(TABS.map(t => [t.id, rootEl.querySelector(`[data-panel="${t.id}"]`)]));
-  const badges   = Object.fromEntries(TABS.map(t => [t.id, rootEl.querySelector(`[data-badge="${t.id}"]`)]));
+  const tabsEl = rootEl.querySelector('.tabs');
+  const panels = Object.fromEntries(TABS.map(t => [t.id, rootEl.querySelector(`[data-panel="${t.id}"]`)]));
   const modelMeta = rootEl.querySelector('#model-meta');
 
-  // Track loaded state so re-clicks don't refetch unless Refresh is pressed
   const loaded = {};
-  let lastStats = null;
-
-  const updateBadges = () => {
-    for (const t of TABS) {
-      const v = t.badge ? t.badge(lastStats) : null;
-      badges[t.id].textContent = (v == null || v === 0) ? '' : String(v);
-    }
-  };
-
-  const activate = async (id, force = false) => {
+  const activate = async (id) => {
     rootEl.querySelectorAll('.tab').forEach(b => b.classList.toggle('active', b.dataset.tab === id));
     rootEl.querySelectorAll('.tab-panel').forEach(p => p.classList.toggle('active', p.dataset.panel === id));
     location.hash = id;
-
-    if (!loaded[id] || force) {
+    if (!loaded[id]) {
       const tab = TABS.find(t => t.id === id);
-      const result = await tab.load(panels[id]);
+      await tab.load(panels[id]);
       loaded[id] = true;
-      // The Queue tab returns full stats — capture for badges + model.
-      if (id === 'queue' && result) {
-        lastStats = result;
-        modelMeta.textContent = result.currentModelId ? `model · ${result.currentModelId}` : '';
-        updateBadges();
-      } else if (id === 'failures' || id === 'names') {
-        // Refresh badge from stats (already cached) — these tabs don't return stats
-        updateBadges();
-      }
+    }
+    if (dashState.stats?.currentModelId) {
+      modelMeta.textContent = `model · ${dashState.stats.currentModelId}`;
     }
   };
 
@@ -453,14 +610,17 @@ export async function mountTranslation(rootEl) {
   });
 
   rootEl.querySelector('#btn-refresh').addEventListener('click', () => {
-    // Force-reload current tab + invalidate everything else
-    const current = rootEl.querySelector('.tab.active')?.dataset.tab || 'queue';
-    Object.keys(loaded).forEach(k => { loaded[k] = false; });
-    activate(current, true);
+    // Force-reload the current tab
+    const current = rootEl.querySelector('.tab.active')?.dataset.tab || 'dashboard';
+    if (current === 'dashboard') {
+      loadStats(); loadQueue(); loadActivity();
+    } else {
+      loaded[current] = false;
+      activate(current);
+    }
   });
 
-  // Initial — honor URL hash if it's a known tab
   const initial = location.hash.replace('#', '');
-  const startTab = TABS.find(t => t.id === initial)?.id || 'queue';
+  const startTab = TABS.find(t => t.id === initial)?.id || 'dashboard';
   activate(startTab);
 }
