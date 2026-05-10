@@ -942,6 +942,120 @@
   }
   .tt-host .tt .key { margin-left: 6px; }
 
+  /* ── Duplicate group card (workbench triage, group-led) ───────────── */
+  .dup-group {
+    background: var(--bg-panel);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-card);
+    margin: 0 20px 14px;
+    overflow: hidden;
+  }
+  .dup-group:first-of-type { margin-top: 16px; }
+  .dup-group-head {
+    display: flex; align-items: center; gap: 12px;
+    padding: 11px 16px;
+    border-bottom: 1px solid var(--border);
+    background: var(--bg-rail);
+  }
+  .dup-group-thumb {
+    width: 34px; height: 34px; border-radius: var(--radius);
+    background: linear-gradient(135deg, #7c3aed, #312e81);
+    flex-shrink: 0;
+  }
+  .dup-group-title { display: flex; align-items: baseline; gap: 8px; flex: 1; min-width: 0; }
+  .dup-group-code { font-family: var(--font-mono); font-size: 13px; color: var(--text); font-weight: 600; }
+  .dup-group-name { font-size: 13px; color: var(--text-dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .dup-group-count {
+    font-family: var(--font-mono); font-size: 10.5px; color: var(--text-faint);
+    border: 1px solid var(--border-strong); border-radius: 999px;
+    padding: 1px 8px;
+    flex-shrink: 0;
+  }
+  .dup-group-actions { display: flex; gap: 6px; }
+  .dup-group-members {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 12px;
+    padding: 14px;
+  }
+  .dup-member {
+    display: flex; flex-direction: column; gap: 10px;
+    padding: 12px;
+    background: var(--bg);
+    border: 1.5px solid var(--border);
+    border-radius: var(--radius);
+    transition: border-color var(--dur-fast) var(--ease-out), opacity var(--dur-fast) var(--ease-out);
+    position: relative;
+  }
+  .dup-member.keep   { border-color: var(--ok);    background: rgba(110,231,183,0.04); }
+  .dup-member.trash  { border-color: var(--error); background: rgba(248,113,113,0.04); opacity: 0.78; }
+  .dup-member.variant{ border-color: var(--warn);  background: rgba(251,191,36,0.04); }
+  .dup-member-state {
+    position: absolute; top: 9px; right: 9px;
+    font-family: var(--font-mono); font-size: 9px;
+    padding: 2px 7px; border-radius: 3px;
+    text-transform: uppercase; letter-spacing: 0.08em; font-weight: 700;
+  }
+  .dup-member.keep    .dup-member-state { background: rgba(110,231,183,0.18); color: var(--ok); }
+  .dup-member.trash   .dup-member-state { background: rgba(248,113,113,0.18); color: var(--error); }
+  .dup-member.variant .dup-member-state { background: rgba(251,191,36,0.18); color: var(--warn); }
+  .dup-member-thumb {
+    aspect-ratio: 16/9; border-radius: 4px;
+    background: linear-gradient(135deg, #7c3aed, #312e81);
+  }
+  .dup-member-meta {
+    font-family: var(--font-mono); font-size: 11px;
+    display: grid; grid-template-columns: 56px 1fr; row-gap: 3px; column-gap: 8px;
+  }
+  .dup-member-meta .k { color: var(--text-faint); }
+  .dup-member-meta .v { color: var(--text-dim); }
+  .dup-member-meta .v.win  { color: var(--ok); }
+  .dup-member-meta .v.lose { color: var(--error); }
+  .dup-member-meta .v.path { color: var(--text-faint); font-size: 10.5px; }
+  .dup-decision {
+    display: inline-flex;
+    background: var(--bg-active);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 2px;
+    gap: 1px;
+    margin-top: auto;
+  }
+  .dup-decision button {
+    padding: 4px 10px; border: none; background: transparent;
+    font-family: inherit; font-size: 11px; font-weight: 500;
+    color: var(--text-faint);
+    border-radius: 3px; cursor: pointer; flex: 1;
+    display: inline-flex; align-items: center; justify-content: center; gap: 5px;
+    transition: all var(--dur-fast) var(--ease-out);
+  }
+  .dup-decision button svg { width: 11px; height: 11px; stroke: currentColor; fill: none; stroke-width: 2; }
+  .dup-decision button:hover { color: var(--text-dim); }
+  .dup-decision button.on.keep    { background: rgba(110,231,183,0.18); color: var(--ok); }
+  .dup-decision button.on.trash   { background: rgba(248,113,113,0.18); color: var(--error); }
+  .dup-decision button.on.variant { background: rgba(251,191,36,0.18); color: var(--warn); }
+  .dup-recommendation {
+    display: flex; align-items: flex-start; gap: 10px;
+    padding: 10px 14px;
+    border-top: 1px solid var(--border);
+    background: rgba(147,197,253,0.04);
+    font-size: 12px; color: var(--text-dim); line-height: 1.5;
+  }
+  .dup-recommendation svg { width: 14px; height: 14px; flex-shrink: 0; color: var(--accent); margin-top: 2px; }
+  .dup-recommendation b.ok   { color: var(--ok); }
+  .dup-recommendation b.warn { color: var(--warn); }
+  .dup-group-summary {
+    padding: 8px 16px;
+    border-top: 1px solid var(--border);
+    background: rgba(0,0,0,0.18);
+    font-family: var(--font-mono); font-size: 11px;
+    color: var(--text-dim);
+    display: flex; align-items: center; gap: 12px;
+  }
+  .dup-group-summary .pending { color: var(--text-faint); }
+  .dup-group-summary .ready   { color: var(--ok); }
+  .dup-group-summary-spacer { flex: 1; }
+
   /* ── Narrow viewport snapshot (rail collapsed) ─────────────────────── */
   .app.narrow { grid-template-columns: 56px 1fr; }
   .app.narrow .rail { padding: 12px 6px; }
@@ -1295,10 +1409,10 @@
 </div>
 
 
-<div class="stage-label"><b>VIEW 3 — Duplicates triage · WORKBENCH MODE.</b> Now the table + inspector pattern earns its keep. Same chrome, but the main area is dense and tabular because the <em>job</em> is administrative.</div>
+<div class="stage-label"><b>VIEW 3 — Duplicates triage · WORKBENCH MODE (group-led).</b> Each duplicate <em>group</em> is the decision unit. Members display side-by-side so comparison is direct; per-member 3-state decision (Keep · Trash · Variant). The group card IS the comparison surface — no inspector needed.</div>
 
-<div class="stage-frame">
-<div class="app with-inspector">
+<div class="stage-frame" style="height: 800px">
+<div class="app">
 
   <aside class="rail">
     <div class="rail-brand">
@@ -1330,7 +1444,7 @@
         <span class="cmdk-kbd">⌘K</span>
       </button>
       <div class="topbar-right">
-        <button class="icon-btn on" title="Inspector (i)">
+        <button class="icon-btn" title="Inspector (i) — off, group cards are self-contained">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="15" y1="3" x2="15" y2="21"/></svg>
         </button>
       </div>
@@ -1338,123 +1452,197 @@
 
     <div class="context">
       <span class="context-label">Status</span>
-      <span class="chip on">Pending</span>
+      <span class="chip on">Pending <span style="font-family:var(--font-mono);font-size:10px;color:var(--text-faint);margin-left:4px">3</span></span>
       <span class="chip">Decided</span>
       <span class="chip">All</span>
       <div class="context-spacer"></div>
       <span class="context-action">↕ Confidence</span>
+      <span class="context-action">Threshold ≥ 0.85</span>
     </div>
 
     <div class="body">
-      <div class="table">
-        <div class="row header">
-          <span></span><span>Code</span><span>Name</span><span>Conf</span><span class="num">Size</span><span>Volume</span><span>Action</span>
+      <!-- Group 1: clear winner — h.265 over h.264, decided -->
+      <div class="dup-group">
+        <div class="dup-group-head">
+          <div class="dup-group-thumb" style="background:linear-gradient(135deg,#7c3aed,#312e81)"></div>
+          <div class="dup-group-title">
+            <span class="dup-group-code">SOE-690</span>
+            <span class="dup-group-name">Forbidden Encounters</span>
+          </div>
+          <span class="dup-group-count">2 copies · 0.97</span>
+          <div class="dup-group-actions">
+            <button class="btn">Defer group</button>
+          </div>
         </div>
-        <div class="row">
-          <span class="thumb"></span>
-          <span class="code">SOE-690</span>
-          <span class="name">Forbidden Encounters</span>
-          <span class="num">0.97</span>
-          <span class="num">4.2 GB</span>
-          <span class="mono" style="color:var(--text-faint);font-size:11px">qnap_4 / S</span>
-          <span><span class="pill warn">review</span></span>
+        <div class="dup-group-members">
+          <div class="dup-member trash">
+            <span class="dup-member-state">Trash</span>
+            <div class="dup-member-thumb" style="background:linear-gradient(135deg,#b91c1c,#7f1d1d)"></div>
+            <div class="dup-member-meta">
+              <span class="k">codec</span>  <span class="v lose">h.264</span>
+              <span class="k">size</span>   <span class="v">4.2 GB</span>
+              <span class="k">res</span>    <span class="v">1080p</span>
+              <span class="k">added</span>  <span class="v">2018-03-12</span>
+              <span class="k">path</span>   <span class="v path">qnap_4 / S / soe</span>
+            </div>
+            <div class="dup-decision">
+              <button class="keep"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>Keep</button>
+              <button class="on trash"><svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>Trash</button>
+              <button class="variant"><svg viewBox="0 0 24 24"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/></svg>Variant</button>
+            </div>
+          </div>
+          <div class="dup-member keep">
+            <span class="dup-member-state">Keep</span>
+            <div class="dup-member-thumb" style="background:linear-gradient(135deg,#7c3aed,#312e81)"></div>
+            <div class="dup-member-meta">
+              <span class="k">codec</span>  <span class="v win">h.265</span>
+              <span class="k">size</span>   <span class="v">4.1 GB</span>
+              <span class="k">res</span>    <span class="v">1080p</span>
+              <span class="k">added</span>  <span class="v">2020-11-04</span>
+              <span class="k">path</span>   <span class="v path">qnap_2 / S / soe</span>
+            </div>
+            <div class="dup-decision">
+              <button class="on keep"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>Keep</button>
+              <button class="trash"><svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/></svg>Trash</button>
+              <button class="variant"><svg viewBox="0 0 24 24"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/></svg>Variant</button>
+            </div>
+          </div>
         </div>
-        <div class="row sel">
-          <span class="thumb"></span>
-          <span class="code">SOE-690</span>
-          <span class="name">Forbidden Encounters [dup]</span>
-          <span class="num">0.97</span>
-          <span class="num">4.1 GB</span>
-          <span class="mono" style="color:var(--text-faint);font-size:11px">qnap_2 / S</span>
-          <span><span class="pill warn">review</span></span>
+        <div class="dup-recommendation">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a7 7 0 0 0-4 12.7V17a2 2 0 0 0 2 2h4a2 2 0 0 0 2-2v-2.3A7 7 0 0 0 12 2z"/><line x1="9" y1="22" x2="15" y2="22"/></svg>
+          <span>h.265 copy is smaller for similar quality. <b class="ok">Recommend keep qnap_2</b>; trash qnap_4.</span>
         </div>
-        <div class="row">
-          <span class="thumb"></span>
-          <span class="code">PPPD-441</span>
-          <span class="name">A Whisper In The Dark</span>
-          <span class="num">0.92</span>
-          <span class="num">3.8 GB</span>
-          <span class="mono" style="color:var(--text-faint);font-size:11px">qnap_4 / P</span>
-          <span><span class="pill warn">review</span></span>
+        <div class="dup-group-summary">
+          <span class="ready">✓ ready to apply: 1 keep · 1 trash</span>
+          <div class="dup-group-summary-spacer"></div>
+          <button class="btn primary" style="padding:3px 10px;font-size:11.5px">Apply group</button>
         </div>
-        <div class="row">
-          <span class="thumb"></span>
-          <span class="code">PPPD-441</span>
-          <span class="name">A Whisper In The Dark [v2]</span>
-          <span class="num">0.92</span>
-          <span class="num">5.1 GB</span>
-          <span class="mono" style="color:var(--text-faint);font-size:11px">qnap_2 / P</span>
-          <span><span class="pill warn">review</span></span>
+      </div>
+
+      <!-- Group 2: 3 copies including a likely extended-cut variant -->
+      <div class="dup-group">
+        <div class="dup-group-head">
+          <div class="dup-group-thumb" style="background:linear-gradient(135deg,#0e7490,#164e63)"></div>
+          <div class="dup-group-title">
+            <span class="dup-group-code">STAR-602</span>
+            <span class="dup-group-name">Quiet Mornings</span>
+          </div>
+          <span class="dup-group-count">3 copies · 0.89</span>
+          <div class="dup-group-actions">
+            <button class="btn">Defer group</button>
+          </div>
         </div>
-        <div class="row">
-          <span class="thumb"></span>
-          <span class="code">STAR-602</span>
-          <span class="name">Quiet Mornings</span>
-          <span class="num">0.89</span>
-          <span class="num">3.2 GB</span>
-          <span class="mono" style="color:var(--text-faint);font-size:11px">qnap_4 / S</span>
-          <span><span class="pill warn">review</span></span>
+        <div class="dup-group-members">
+          <div class="dup-member">
+            <div class="dup-member-thumb" style="background:linear-gradient(135deg,#0e7490,#164e63)"></div>
+            <div class="dup-member-meta">
+              <span class="k">codec</span>   <span class="v">h.265</span>
+              <span class="k">size</span>    <span class="v">3.2 GB</span>
+              <span class="k">runtime</span> <span class="v">2h 14m</span>
+              <span class="k">added</span>   <span class="v">2019-07-08</span>
+              <span class="k">path</span>    <span class="v path">qnap_4 / S / star</span>
+            </div>
+            <div class="dup-decision">
+              <button class="keep"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>Keep</button>
+              <button class="trash"><svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/></svg>Trash</button>
+              <button class="variant"><svg viewBox="0 0 24 24"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/></svg>Variant</button>
+            </div>
+          </div>
+          <div class="dup-member">
+            <div class="dup-member-thumb" style="background:linear-gradient(135deg,#0e7490,#164e63);filter:hue-rotate(20deg)"></div>
+            <div class="dup-member-meta">
+              <span class="k">codec</span>   <span class="v lose">h.264</span>
+              <span class="k">size</span>    <span class="v">3.0 GB</span>
+              <span class="k">runtime</span> <span class="v">2h 14m</span>
+              <span class="k">added</span>   <span class="v">2017-02-19</span>
+              <span class="k">path</span>    <span class="v path">qnap_2 / S / star</span>
+            </div>
+            <div class="dup-decision">
+              <button class="keep"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>Keep</button>
+              <button class="trash"><svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/></svg>Trash</button>
+              <button class="variant"><svg viewBox="0 0 24 24"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/></svg>Variant</button>
+            </div>
+          </div>
+          <div class="dup-member">
+            <div class="dup-member-thumb" style="background:linear-gradient(135deg,#0e7490,#164e63);filter:saturate(1.4)"></div>
+            <div class="dup-member-meta">
+              <span class="k">codec</span>   <span class="v">h.265</span>
+              <span class="k">size</span>    <span class="v win">7.4 GB</span>
+              <span class="k">runtime</span> <span class="v win">2h 41m <span style="color:var(--text-faint)">+27m</span></span>
+              <span class="k">added</span>   <span class="v">2021-09-14</span>
+              <span class="k">path</span>    <span class="v path">qnap_2 / S / star</span>
+            </div>
+            <div class="dup-decision">
+              <button class="keep"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>Keep</button>
+              <button class="trash"><svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/></svg>Trash</button>
+              <button class="variant"><svg viewBox="0 0 24 24"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/></svg>Variant</button>
+            </div>
+          </div>
         </div>
-        <div class="row">
-          <span class="thumb"></span>
-          <span class="code">STAR-602</span>
-          <span class="name">Quiet Mornings.upscaled</span>
-          <span class="num">0.89</span>
-          <span class="num">7.4 GB</span>
-          <span class="mono" style="color:var(--text-faint);font-size:11px">qnap_2 / S</span>
-          <span><span class="pill warn">review</span></span>
+        <div class="dup-recommendation">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a7 7 0 0 0-4 12.7V17a2 2 0 0 0 2 2h4a2 2 0 0 0 2-2v-2.3A7 7 0 0 0 12 2z"/><line x1="9" y1="22" x2="15" y2="22"/></svg>
+          <span>Third copy is +27 min longer — likely an <b class="warn">extended cut</b>. Recommend mark it Variant; keep one of the standard cuts (h.265 preferred), trash the other.</span>
         </div>
-        <div class="row">
-          <span class="thumb"></span>
-          <span class="code">IPZ-188</span>
-          <span class="name">Letters To No One</span>
-          <span class="num">0.85</span>
-          <span class="num">2.9 GB</span>
-          <span class="mono" style="color:var(--text-faint);font-size:11px">qnap_4 / I</span>
-          <span><span class="pill warn">review</span></span>
+        <div class="dup-group-summary">
+          <span class="pending">○ undecided: 0 keep · 0 trash · 0 variant of 3</span>
+        </div>
+      </div>
+
+      <!-- Group 3: 4K upscale candidate -->
+      <div class="dup-group">
+        <div class="dup-group-head">
+          <div class="dup-group-thumb" style="background:linear-gradient(135deg,#166534,#14532d)"></div>
+          <div class="dup-group-title">
+            <span class="dup-group-code">PPPD-441</span>
+            <span class="dup-group-name">A Whisper In The Dark</span>
+          </div>
+          <span class="dup-group-count">2 copies · 0.92</span>
+          <div class="dup-group-actions">
+            <button class="btn">Defer group</button>
+          </div>
+        </div>
+        <div class="dup-group-members">
+          <div class="dup-member">
+            <div class="dup-member-thumb" style="background:linear-gradient(135deg,#166534,#14532d)"></div>
+            <div class="dup-member-meta">
+              <span class="k">codec</span>  <span class="v">h.265</span>
+              <span class="k">size</span>   <span class="v">3.8 GB</span>
+              <span class="k">res</span>    <span class="v">1080p</span>
+              <span class="k">added</span>  <span class="v">2020-01-22</span>
+              <span class="k">path</span>   <span class="v path">qnap_4 / P / pppd</span>
+            </div>
+            <div class="dup-decision">
+              <button class="keep"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>Keep</button>
+              <button class="trash"><svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/></svg>Trash</button>
+              <button class="variant"><svg viewBox="0 0 24 24"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/></svg>Variant</button>
+            </div>
+          </div>
+          <div class="dup-member">
+            <div class="dup-member-thumb" style="background:linear-gradient(135deg,#166534,#14532d);filter:hue-rotate(40deg)"></div>
+            <div class="dup-member-meta">
+              <span class="k">codec</span>  <span class="v">h.265</span>
+              <span class="k">size</span>   <span class="v">5.1 GB <span style="color:var(--text-faint)">+1.3</span></span>
+              <span class="k">res</span>    <span class="v win">2160p (4K)</span>
+              <span class="k">added</span>  <span class="v">2022-05-08</span>
+              <span class="k">path</span>   <span class="v path">qnap_2 / P / pppd</span>
+            </div>
+            <div class="dup-decision">
+              <button class="keep"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>Keep</button>
+              <button class="trash"><svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/></svg>Trash</button>
+              <button class="variant"><svg viewBox="0 0 24 24"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/></svg>Variant</button>
+            </div>
+          </div>
+        </div>
+        <div class="dup-recommendation">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a7 7 0 0 0-4 12.7V17a2 2 0 0 0 2 2h4a2 2 0 0 0 2-2v-2.3A7 7 0 0 0 12 2z"/><line x1="9" y1="22" x2="15" y2="22"/></svg>
+          <span>4K copy is a <b class="warn">resolution upgrade</b>, not just a re-encode. Recommend keep 4K; mark 1080p as Variant if you want both, otherwise trash it.</span>
+        </div>
+        <div class="dup-group-summary">
+          <span class="pending">○ undecided: 0 keep · 0 trash · 0 variant of 2</span>
         </div>
       </div>
     </div>
   </section>
-
-  <aside class="inspector">
-    <div class="insp-cover">
-      <div class="insp-cover-tag">SOE-690 · qnap_2</div>
-    </div>
-    <div class="insp-head">
-      <div class="insp-eyebrow">Duplicate candidate · 0.97 confidence</div>
-      <div class="insp-title">SOE-690 — Forbidden Encounters</div>
-    </div>
-    <div class="insp-actions">
-      <button class="btn primary"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>Keep this</button>
-      <button class="btn"><svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>Trash this</button>
-      <button class="btn"><svg viewBox="0 0 24 24"><polygon points="5 4 15 12 5 20"/><line x1="19" y1="5" x2="19" y2="19"/></svg>Skip pair</button>
-    </div>
-    <div class="insp-section">
-      <div class="insp-label">vs. other copy</div>
-      <div class="insp-kv">
-        <span class="k">size</span>     <span class="v mono">4.1 GB <span style="color:var(--text-faint)">(other 4.2)</span></span>
-        <span class="k">runtime</span>  <span class="v mono">2h 28m <span style="color:var(--text-faint)">(same)</span></span>
-        <span class="k">codec</span>    <span class="v mono">h.264 <span style="color:var(--ok)">(other h.265)</span></span>
-        <span class="k">res</span>      <span class="v mono">1080p <span style="color:var(--text-faint)">(same)</span></span>
-        <span class="k">added</span>    <span class="v mono">2018-03-12</span>
-      </div>
-    </div>
-    <div class="insp-section">
-      <div class="insp-label">Files</div>
-      <div class="insp-kv">
-        <span class="k">video</span>   <span class="v mono">soe-690.mp4</span>
-        <span class="k">cover</span>   <span class="v mono">soe-690.jpg · 387 KB</span>
-        <span class="k">volume</span>  <span class="v mono dim">qnap_2 / S / soe</span>
-      </div>
-    </div>
-    <div class="insp-section">
-      <div class="insp-label">Recommendation</div>
-      <div style="font-size:12px;color:var(--text-dim);line-height:1.5">
-        Other copy is <b style="color:var(--ok)">h.265</b> (smaller for similar quality). Likely safe to trash this h.264 copy.
-      </div>
-    </div>
-  </aside>
 
   <footer class="status">
     <span class="item"><span class="dot"></span><svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><polyline points="21 3 21 8 16 8"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/><polyline points="3 21 3 16 8 16"/></svg><b>sync</b> ok · qnap_4 · 12s</span>
