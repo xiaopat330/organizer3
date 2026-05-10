@@ -8,15 +8,14 @@
 //   mountDiscovery(rootEl)     — inject HTML + wire all modules; call once
 //   unmountDiscovery()         — stop polling; safe to call on page leave
 //   navigateToActressProfile(actressId)
-//   navigateToReviewItem(id)
 //
-// The enrichment-review tab is handled by the legacy utilities-enrichment-review
-// module (imported here). Its DOM IDs are preserved verbatim — it still queries
-// document-global by ID, which works because this page is the only page with
-// those IDs in the document.
+// NOTE: The Review tab formerly embedded the legacy utilities-enrichment-review
+// module, which has top-level DOM queries (e.g. getElementById('cover-lightbox'))
+// that throw on any page missing those IDs — crashing module load entirely.
+// Under Option C, Enrichment Review is its own dedicated page (/v2-enrichment.html).
+// The Review sub-tab has been removed; a header link points users there instead.
 
 import { esc } from '../../utils.js';
-import { focusReviewItem, showEnrichmentReviewView } from '../../utilities-enrichment-review.js';
 
 import { initEnrich }      from './enrich.js';
 import { initTitles }      from './titles.js';
@@ -102,11 +101,8 @@ function buildHTML() {
         <svg class="jd-tab-icon" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><circle cx="3" cy="6" r="1" fill="currentColor"/><circle cx="3" cy="12" r="1" fill="currentColor"/><circle cx="3" cy="18" r="1" fill="currentColor"/></svg>
         Queue
       </button>
-      <button type="button" class="jd-tab jd-tab-review" data-jd-tab="review">
-        <svg class="jd-tab-icon" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
-        Review
-      </button>
     </div>
+    <a class="hl-sync-link" href="/v2-enrichment.html">Enrichment Review →</a>
     <div class="jd-header-actions">
       <button type="button" id="jd-pause-btn" class="jd-action-btn jd-pause-btn">Pause</button>
       <button type="button" id="jd-cancel-all-btn" class="jd-action-btn jd-danger-btn">⏹ Stop All Enrichment</button>
@@ -258,32 +254,6 @@ function buildHTML() {
     </div>
   </div>
 
-  <!-- ── Review tab body (enrichment review queue) ─────────────────────── -->
-  <div id="tools-enrichment-review-view" class="tools-enrichment-review-view" style="display:none">
-    <div class="er-header-bar">
-      <h2 id="er-header" class="er-title">Enrichment Review Queue</h2>
-      <div id="er-pills" class="er-pills"></div>
-    </div>
-    <div class="er-table-wrap">
-      <table class="er-table">
-        <thead>
-          <tr>
-            <th class="er-col-code">Code</th>
-            <th class="er-col-slug">Slug</th>
-            <th class="er-col-reason">Reason</th>
-            <th class="er-col-source">Found via</th>
-            <th class="er-col-created">Created</th>
-            <th class="er-col-actions">Actions</th>
-          </tr>
-        </thead>
-        <tbody id="er-table-body"></tbody>
-      </table>
-      <div id="er-empty" class="er-empty" style="display:none">
-        No open review queue rows. The write-time gate hasn&rsquo;t flagged any new traffic.
-      </div>
-    </div>
-  </div>
-
 </div>
 
 <!-- ── Enrichment detail modal (document-level) ──────────────────────────── -->
@@ -295,11 +265,6 @@ function buildHTML() {
     </div>
     <div id="jd-enrich-modal-body" class="jd-enrich-modal-body"></div>
   </div>
-</div>
-
-<!-- ── Cover lightbox (used by enrichment-review legacy module) ───────────── -->
-<div id="cover-lightbox" class="cover-lightbox" style="display:none">
-  <img id="cover-lightbox-img" src="" alt="">
 </div>
   `;
 }
@@ -320,13 +285,11 @@ export async function mountDiscovery(rootEl) {
   const cancelAllBtn    = document.getElementById('jd-cancel-all-btn');
   const controlsToggle  = document.getElementById('jd-controls-toggle');
   const controlsPanel   = document.getElementById('jd-controls');
-  const reviewBody      = document.getElementById('tools-enrichment-review-view');
 
   const enrichTab      = rootEl.querySelector('[data-jd-tab="enrich"]');
   const titlesTab      = rootEl.querySelector('[data-jd-tab="titles"]');
   const collectionsTab = rootEl.querySelector('[data-jd-tab="collections"]');
   const queueTab       = rootEl.querySelector('[data-jd-tab="queue"]');
-  const reviewTab      = rootEl.querySelector('[data-jd-tab="review"]');
   const jdBody         = rootEl.querySelector('.jd-body');
   const queueBody      = document.getElementById('jd-queue-body');
   const titlesBody     = document.getElementById('jd-titles-body');
@@ -355,12 +318,10 @@ export async function mountDiscovery(rootEl) {
     titlesTab.classList.toggle('selected',      tab === 'titles');
     collectionsTab.classList.toggle('selected', tab === 'collections');
     queueTab.classList.toggle('selected',       tab === 'queue');
-    reviewTab.classList.toggle('selected',      tab === 'review');
     jdBody.style.display          = tab === 'enrich'      ? '' : 'none';
     titlesBody.style.display      = tab === 'titles'      ? '' : 'none';
     collectionsBody.style.display = tab === 'collections' ? '' : 'none';
     queueBody.style.display       = tab === 'queue'       ? '' : 'none';
-    reviewBody.style.display      = tab === 'review'      ? '' : 'none';
     if (tab === 'queue') {
       queueApi.loadQueueItems();
       queueApi.startQueueItemsPoll();
@@ -375,7 +336,6 @@ export async function mountDiscovery(rootEl) {
   titlesTab.addEventListener('click',      () => switchJdTab('titles'));
   collectionsTab.addEventListener('click', () => switchJdTab('collections'));
   queueTab.addEventListener('click',       () => switchJdTab('queue'));
-  reviewTab.addEventListener('click',      () => { switchJdTab('review'); showEnrichmentReviewView(); });
 
   // ── Data loading ──────────────────────────────────────────────────────
 
@@ -501,28 +461,19 @@ export async function mountDiscovery(rootEl) {
   cancelAllBtn.addEventListener('click', cancelAll);
 
   // ── navigate-to-* custom event handlers ──────────────────────────────
-  // These mirror the action.js wiring for the legacy page, now scoped to
-  // the v2 page. Only installed while this page is mounted.
-
-  async function onNavigateToReviewItem(e) {
-    switchJdTab('review');
-    await showEnrichmentReviewView();
-    focusReviewItem(e.detail.reviewQueueId);
-  }
+  // Scoped to this page; installed while mounted, removed on unmount.
 
   async function onNavigateToActressProfile(e) {
     switchJdTab('enrich');
     await enrichApi.navigateToActressProfile(e.detail.actressId);
   }
 
-  document.addEventListener('navigate-to-review-item', onNavigateToReviewItem);
   document.addEventListener('navigate-to-discovery-actress-profile', onNavigateToActressProfile);
 
   // Store cleanup refs on rootEl for unmount.
   rootEl._disCleanup = () => {
     stopQueuePoll();
     queueApi.stopQueueItemsPoll();
-    document.removeEventListener('navigate-to-review-item', onNavigateToReviewItem);
     document.removeEventListener('navigate-to-discovery-actress-profile', onNavigateToActressProfile);
   };
 
@@ -552,20 +503,4 @@ export function unmountDiscovery(rootEl) {
 export async function navigateToActressProfile(actressId) {
   if (!enrichApi) return;
   await enrichApi.navigateToActressProfile(actressId);
-}
-
-export async function navigateToReviewItem(id) {
-  // Switch to review tab and focus the row.
-  const reviewBody = document.getElementById('tools-enrichment-review-view');
-  if (!reviewBody) return;
-  const jdBody = document.querySelector('.dis-wb .jd-body');
-  const tabs = document.querySelectorAll('.dis-wb [data-jd-tab]');
-  tabs.forEach(t => t.classList.toggle('selected', t.dataset.jdTab === 'review'));
-  document.querySelectorAll('.dis-wb .jd-queue-body, .dis-wb .jd-titles-body, .dis-wb .jd-collections-body').forEach(el => {
-    el.style.display = 'none';
-  });
-  if (jdBody) jdBody.style.display = 'none';
-  reviewBody.style.display = '';
-  await showEnrichmentReviewView();
-  focusReviewItem(id);
 }
