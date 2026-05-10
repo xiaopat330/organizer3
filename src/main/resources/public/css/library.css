@@ -157,6 +157,70 @@
 
 .grid-status { padding: 16px 0; min-height: 1.4em; }
 
+/* ── Hero band (detail pages, library mode) ─────────────────────────── */
+.hero-band {
+  display: flex;
+  gap: 28px;
+  align-items: flex-end;
+  padding: 28px 0 24px;
+  margin-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+  background:
+    radial-gradient(ellipse 60% 80% at 18% 30%, rgba(192,132,252,0.10), transparent 65%),
+    radial-gradient(ellipse 60% 80% at 80% 30%, rgba(244,114,182,0.06), transparent 65%);
+}
+.hero-portrait {
+  width: 160px;
+  height: 213px;
+  border-radius: var(--radius-card);
+  background: linear-gradient(135deg, #c084fc, #6366f1);
+  background-size: cover;
+  background-position: center top;
+  box-shadow: 0 12px 36px rgba(0,0,0,0.55);
+  flex-shrink: 0;
+}
+.hero-content { flex: 1; min-width: 0; }
+.hero-eyebrow {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  font-weight: 600;
+  margin-bottom: 8px;
+  color: var(--text-faint);
+}
+.hero-eyebrow.tier-goddess   { color: #e288c8; }
+.hero-eyebrow.tier-superstar { color: #d0a840; }
+.hero-eyebrow.tier-popular   { color: #70b8e8; }
+.hero-eyebrow.tier-minor     { color: #8ab0d0; }
+.hero-eyebrow.tier-library   { color: var(--text-faint); }
+.hero-name {
+  font-size: 30px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: var(--text);
+  margin-bottom: 8px;
+  line-height: 1.1;
+}
+.hero-aliases {
+  font-size: 12.5px;
+  color: var(--text-dim);
+  margin-bottom: 10px;
+  font-style: italic;
+}
+.hero-stats {
+  display: flex;
+  gap: 18px;
+  color: var(--text-dim);
+  font-size: 12.5px;
+  margin-bottom: 16px;
+}
+.hero-stats b {
+  color: var(--text);
+  font-weight: 600;
+  font-family: var(--font-mono);
+}
+.hero-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+
 /* ── Loading + empty within a shelf ─────────────────────────────────── */
 .shelf-loading {
   font-size: 12px; color: var(--text-faint);

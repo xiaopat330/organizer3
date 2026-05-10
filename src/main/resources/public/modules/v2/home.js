@@ -105,7 +105,7 @@ function renderActressCard(a) {
     : null;
   const titleCount = a.titleCount != null ? `${a.titleCount} titles` : '';
   return `
-    <a class="card-actress" href="#actress/${encodeURIComponent(a.slug || a.id)}">
+    <a class="card-actress" href="/v2-actress-detail.html?id=${encodeURIComponent(a.id)}">
       <div class="card-actress-portrait" style="${portrait ? `background-image:url('${portrait}');background-size:cover;background-position:center top` : ''}">
         ${tier ? `<span class="card-actress-tier">${escapeHtml(tier)}</span>` : ''}
       </div>
