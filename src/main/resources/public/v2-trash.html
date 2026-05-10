@@ -3,11 +3,12 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>AV Star — Organizer3 v2</title>
+<title>Trash — Organizer3 v2</title>
 <link rel="stylesheet" href="/css/base.css">
 <link rel="stylesheet" href="/css/primitives.css">
 <link rel="stylesheet" href="/css/chrome.css">
 <link rel="stylesheet" href="/css/library.css">
+<link rel="stylesheet" href="/css/workbench.css">
 </head>
 <body>
 
@@ -23,11 +24,11 @@
       <a class="rail-item" href="/v2.html"><svg viewBox="0 0 24 24"><path d="M3 12l9-9 9 9"/><path d="M5 10v10h14V10"/></svg>Home</a>
       <a class="rail-item" href="/v2-actresses.html"><svg viewBox="0 0 24 24"><circle cx="12" cy="7" r="4"/><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/></svg>Actresses</a>
       <a class="rail-item" href="/v2-titles.html"><svg viewBox="0 0 24 24"><rect x="2" y="2" width="20" height="20" rx="2"/><line x1="2" y1="12" x2="22" y2="12"/><line x1="12" y1="2" x2="12" y2="22"/></svg>Titles</a>
-      <a class="rail-item active" href="/v2-avstars.html"><svg viewBox="0 0 24 24"><polygon points="12 2 15 9 22 9 17 14 18 21 12 17 6 21 7 14 2 9 9 9"/></svg>AV Stars</a>
+      <a class="rail-item" href="/v2-avstars.html"><svg viewBox="0 0 24 24"><polygon points="12 2 15 9 22 9 17 14 18 21 12 17 6 21 7 14 2 9 9 9"/></svg>AV Stars</a>
 
       <div class="rail-section">Tools</div>
       <a class="rail-item" href="/v2-duplicates.html"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="13" height="13" rx="2"/><rect x="8" y="8" width="13" height="13" rx="2"/></svg>Duplicates</a>
-      <a class="rail-item" href="/v2-trash.html"><svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>Trash</a>
+      <a class="rail-item active" href="/v2-trash.html"><svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>Trash</a>
       <a class="rail-item" href="#translation"><svg viewBox="0 0 24 24"><path d="M5 8l6 6 6-6"/><path d="M5 16h14"/></svg>Translation</a>
       <a class="rail-item" href="#kanji"><svg viewBox="0 0 24 24"><path d="M12 20l9-7-9-7-9 7z"/></svg>Pending Kanji</a>
       <a class="rail-item" href="#volumes"><svg viewBox="0 0 24 24"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 5v6c0 1.66-4 3-9 3s-9-1.34-9-3V5"/><path d="M21 11v6c0 1.66-4 3-9 3s-9-1.34-9-3v-6"/></svg>Volumes</a>
@@ -41,23 +42,14 @@
 
   <header class="app-topbar">
     <div class="topbar-left">
-      <span class="crumb">
-        <a href="/v2.html">Home</a><span class="sep">›</span>
-        <a href="/v2-avstars.html">AV Stars</a><span class="sep">›</span>
-        <b id="crumb-name">…</b>
-      </span>
+      <span class="crumb"><a href="/v2.html">Home</a><span class="sep">›</span><b>Trash</b></span>
     </div>
     <button class="cmdk-trigger" id="palette-trigger">
       <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
       <span class="cmdk-trigger-text">Search or jump to…</span>
       <span class="kbd accent">⌘K</span>
     </button>
-    <div class="topbar-right">
-      <div class="mode-switch" role="tablist" aria-label="View mode">
-        <button class="active" data-mode="library">Library</button>
-        <button data-mode="workbench">Workbench</button>
-      </div>
-    </div>
+    <div class="topbar-right"></div>
   </header>
 
   <main class="app-body" id="app-body"></main>
@@ -71,17 +63,11 @@
 <div id="palette-root"></div>
 
 <script type="module">
-  import { createPalette }       from '/modules/chrome/palette.js';
-  import { mountAvStarDetail }   from '/modules/v2/avstar-detail.js';
+  import { createPalette } from '/modules/chrome/palette.js';
+  import { mountTrash }    from '/modules/v2/trash.js';
   const palette = createPalette({ rootEl: document.getElementById('palette-root') });
   document.getElementById('palette-trigger').addEventListener('click', palette.open);
-  const id = new URLSearchParams(location.search).get('id');
-  mountAvStarDetail(document.getElementById('app-body'), id);
-  document.querySelectorAll('.mode-switch button').forEach(btn => {
-    btn.addEventListener('click', () => {
-      if (btn.dataset.mode === 'workbench') alert('AV star workbench mode lands in a follow-up.');
-    });
-  });
+  mountTrash(document.getElementById('app-body'));
 </script>
 
 </body>
