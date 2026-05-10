@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Organizer3 — v2 chrome preview</title>
+<title>Actresses — Organizer3 v2</title>
 <link rel="stylesheet" href="/css/base.css">
 <link rel="stylesheet" href="/css/primitives.css">
 <link rel="stylesheet" href="/css/chrome.css">
@@ -21,11 +21,11 @@
     </div>
     <nav class="rail-nav">
       <div class="rail-section">Library</div>
-      <a class="rail-item active" href="#home">
+      <a class="rail-item" href="/v2.html">
         <svg viewBox="0 0 24 24"><path d="M3 12l9-9 9 9"/><path d="M5 10v10h14V10"/></svg>
         Home
       </a>
-      <a class="rail-item" href="/v2-actresses.html">
+      <a class="rail-item active" href="/v2-actresses.html">
         <svg viewBox="0 0 24 24"><circle cx="12" cy="7" r="4"/><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/></svg>
         Actresses
       </a>
@@ -41,15 +41,15 @@
       <div class="rail-section">Tools</div>
       <a class="rail-item" href="#duplicates">
         <svg viewBox="0 0 24 24"><rect x="3" y="3" width="13" height="13" rx="2"/><rect x="8" y="8" width="13" height="13" rx="2"/></svg>
-        Duplicates <span class="badge warn">14</span>
+        Duplicates
       </a>
       <a class="rail-item" href="#trash">
         <svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
-        Trash <span class="badge">47</span>
+        Trash
       </a>
       <a class="rail-item" href="#translation">
         <svg viewBox="0 0 24 24"><path d="M5 8l6 6 6-6"/><path d="M5 16h14"/></svg>
-        Translation <span class="badge warn">12</span>
+        Translation
       </a>
       <a class="rail-item" href="#kanji">
         <svg viewBox="0 0 24 24"><path d="M12 20l9-7-9-7-9 7z"/></svg>
@@ -79,7 +79,7 @@
   <!-- ── Topbar ──────────────────────────────────────────────────────── -->
   <header class="app-topbar">
     <div class="topbar-left">
-      <span class="crumb"><a href="#home">Home</a></span>
+      <span class="crumb"><a href="/v2.html">Home</a><span class="sep">›</span><b>Actresses</b></span>
     </div>
     <button class="cmdk-trigger" id="palette-trigger">
       <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
@@ -96,7 +96,7 @@
     </div>
   </header>
 
-  <!-- ── Body (Home) ─────────────────────────────────────────────────── -->
+  <!-- ── Body ────────────────────────────────────────────────────────── -->
   <main class="app-body" id="app-body"></main>
 
   <!-- ── Status bar ──────────────────────────────────────────────────── -->
@@ -109,31 +109,19 @@
     <span class="status-item"><span class="status-dot warn"></span><b>translation</b> 12 pending</span>
     <span class="status-item"><span class="status-dot idle"></span><b>backup</b> idle · 2d ago</span>
     <span class="status-spacer"></span>
-    <span class="status-task">
-      <b>refresh-filmography</b>
-      <span class="bar"><span class="bar-fill"></span></span>
-      <span style="font-variant-numeric:tabular-nums">38% · 142/372</span>
-    </span>
   </footer>
 </div>
 
-<!-- Palette mount point — module fills it -->
 <div id="palette-root"></div>
 
 <script type="module">
-  import { createPalette } from '/modules/chrome/palette.js';
-  import { mountHome }     from '/modules/v2/home.js';
+  import { createPalette }   from '/modules/chrome/palette.js';
+  import { mountActresses }  from '/modules/v2/actresses.js';
 
-  const palette = createPalette({
-    rootEl: document.getElementById('palette-root'),
-    onSelect: (item) => {
-      // Wave 2: log only. Future waves wire this to real routes.
-      console.log('[v2] palette selected:', item);
-    },
-  });
+  const palette = createPalette({ rootEl: document.getElementById('palette-root') });
   document.getElementById('palette-trigger').addEventListener('click', palette.open);
 
-  mountHome(document.getElementById('app-body'));
+  mountActresses(document.getElementById('app-body'));
 </script>
 
 </body>
