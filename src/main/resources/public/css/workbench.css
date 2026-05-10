@@ -1965,3 +1965,191 @@
               border-color var(--dur-fast) var(--ease-out);
 }
 .mc-btn-dismiss:hover { color: var(--text); border-color: var(--border-strong); }
+
+/* ══════════════════════════════════════════════════════════════════════
+   No-Match Triage (v2)  — .nm-*
+   ══════════════════════════════════════════════════════════════════════ */
+
+.nm-wb { max-width: 860px; }
+
+.nm-wb-head { margin-bottom: 20px; }
+.nm-wb-title {
+  font-size: 22px; font-weight: 700;
+  color: var(--text); margin: 0 0 6px;
+}
+.nm-wb-subtitle {
+  font-size: 13px; color: var(--text-dim); line-height: 1.5;
+}
+.nm-wb-subtitle code {
+  font-family: var(--font-mono);
+  background: var(--surface-2);
+  padding: 1px 5px; border-radius: 3px;
+  font-size: 12px;
+}
+
+/* ── Toolbar ────────────────────────────────────────────────────────── */
+.nm-toolbar {
+  display: flex; align-items: center; gap: 16px;
+  margin-bottom: 20px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border);
+}
+.nm-header {
+  flex: 1;
+  font-size: 13px; color: var(--text-dim);
+  display: flex; align-items: center; gap: 10px;
+}
+.nm-count { font-weight: 600; color: var(--text); }
+.nm-breakdown { color: var(--text-faint); font-size: 12px; }
+.nm-filter-label {
+  display: flex; align-items: center; gap: 5px;
+  font-size: 12.5px; color: var(--text-dim);
+  cursor: pointer; user-select: none;
+}
+.nm-filter-check { cursor: pointer; }
+
+/* ── List ───────────────────────────────────────────────────────────── */
+.nm-list {
+  display: flex; flex-direction: column; gap: 12px;
+}
+.nm-empty {
+  padding: 32px 0;
+  text-align: center;
+  color: var(--text-faint);
+  font-size: 13px;
+}
+
+/* ── Card ───────────────────────────────────────────────────────────── */
+.nm-card {
+  background: var(--surface-1);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 14px 16px;
+  display: flex; flex-direction: column; gap: 8px;
+  transition: border-color 0.15s;
+}
+.nm-card-orphan {
+  border-color: var(--warning, #c08000);
+  background: color-mix(in srgb, var(--warning, #c08000) 4%, var(--surface-1));
+}
+.nm-card-busy { opacity: 0.6; pointer-events: none; }
+.nm-card-done { border-color: var(--success, #1a8a44); }
+
+/* ── Title bar ──────────────────────────────────────────────────────── */
+.nm-title-bar {
+  display: flex; align-items: center; gap: 10px;
+}
+.nm-code {
+  font-family: var(--font-mono);
+  font-size: 13.5px; font-weight: 700;
+  color: var(--accent);
+}
+.nm-javdb-link {
+  font-size: 11.5px; color: var(--text-dim);
+  text-decoration: none;
+}
+.nm-javdb-link:hover { color: var(--accent); text-decoration: underline; }
+
+/* ── Actress / path ─────────────────────────────────────────────────── */
+.nm-actress { font-size: 12.5px; color: var(--text-dim); }
+.nm-orphan-label {
+  font-size: 11.5px; font-weight: 600;
+  color: var(--warning, #c08000);
+  background: color-mix(in srgb, var(--warning, #c08000) 12%, transparent);
+  padding: 1px 6px; border-radius: 3px;
+}
+.nm-path {
+  font-size: 11px; color: var(--text-faint);
+}
+.nm-path-text {
+  font-family: var(--font-mono);
+  word-break: break-all;
+}
+
+/* ── Candidate pills ────────────────────────────────────────────────── */
+.nm-candidates { display: flex; flex-direction: column; gap: 5px; }
+.nm-candidates-label {
+  font-size: 11.5px; font-weight: 600;
+  color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.04em;
+}
+.nm-pills { display: flex; flex-wrap: wrap; gap: 6px; }
+.nm-pill {
+  padding: 3px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  font-size: 12px; color: var(--text);
+  cursor: pointer;
+  transition: background 0.12s, border-color 0.12s;
+}
+.nm-pill:hover { background: var(--accent-muted); border-color: var(--accent); color: var(--accent); }
+.nm-pill-stale {
+  border-color: var(--warning, #c08000);
+  color: var(--warning, #c08000);
+}
+.nm-pill-stale:hover { background: color-mix(in srgb, var(--warning, #c08000) 12%, transparent); }
+.nm-stale-badge {
+  font-size: 9px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.05em;
+  opacity: 0.8;
+}
+.nm-no-candidates {
+  font-size: 12px; color: var(--text-faint);
+  font-style: italic;
+}
+
+/* ── Manual slug ────────────────────────────────────────────────────── */
+.nm-manual {
+  display: flex; align-items: center; gap: 8px;
+  margin-top: 2px;
+}
+.nm-slug-input {
+  flex: 1;
+  padding: 5px 9px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface-2);
+  color: var(--text);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  outline: none;
+  transition: border-color 0.15s;
+}
+.nm-slug-input:focus { border-color: var(--accent); }
+
+/* ── Action buttons ─────────────────────────────────────────────────── */
+.nm-action-btn {
+  padding: 5px 12px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text);
+  font-size: 12px; cursor: pointer;
+  transition: background 0.12s, border-color 0.12s;
+  white-space: nowrap;
+}
+.nm-action-btn:hover { background: var(--surface-3); border-color: var(--text-faint); }
+.nm-action-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+.nm-manual-btn { color: var(--accent); border-color: var(--accent); }
+.nm-manual-btn:hover { background: var(--accent-muted); }
+.nm-resolve-btn { font-size: 11.5px; align-self: flex-start; }
+
+/* ── Card footer ────────────────────────────────────────────────────── */
+.nm-meta {
+  font-size: 11px; color: var(--text-faint);
+  margin-top: 2px;
+}
+
+/* ── Done / error messages ──────────────────────────────────────────── */
+.nm-done-msg {
+  font-size: 12.5px; font-weight: 600;
+  color: var(--success, #1a8a44);
+}
+.nm-error {
+  font-size: 12px;
+  color: var(--error, #c0392b);
+  background: color-mix(in srgb, var(--error, #c0392b) 8%, transparent);
+  border: 1px solid color-mix(in srgb, var(--error, #c0392b) 25%, transparent);
+  border-radius: var(--radius);
+  padding: 5px 9px;
+}
