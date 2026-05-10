@@ -1,7 +1,9 @@
 // actresses/dashboard.js — Actress Dashboard mode.
 //
 // Fetches /api/actresses/dashboard, renders:
-//   - Spotlight (with 30s rotator) + Top Groups leaderboard + Library Stats + Research Gaps + Birthdays
+//   - Hero band (spotlight actress, 30s rotator) + KPI stat strip
+//   - Top Groups count list + Research Gaps (side-by-side)
+//   - Birthdays Today (if any)
 //   - Recently Viewed strip + New Faces strip (side-by-side)
 //   - Bookmarked Actresses strip
 //   - Undiscovered Elites strip
@@ -32,7 +34,7 @@ async function fetchJson(url, fallback = null) {
   }
 }
 
-// ── Card factories ────────────────────────────────────────────────────────
+// ── Card factory ──────────────────────────────────────────────────────────
 
 function makeActressCard(a) {
   const el = renderActressCard(a, { variant: 'standard' });
@@ -40,52 +42,130 @@ function makeActressCard(a) {
   return el;
 }
 
-function makeCompactActressCard(a) {
-  return renderActressCard(a, { variant: 'compact' });
-}
-
-// ── Spotlight rotator ─────────────────────────────────────────────────────
+// ── Hero band (spotlight rotator) ─────────────────────────────────────────
 
 let spotlightIntervalId = null;
-let spotlightContainer  = null;
+let heroContainer       = null;
 
 function stopSpotlightRotator() {
   if (spotlightIntervalId !== null) {
     clearInterval(spotlightIntervalId);
     spotlightIntervalId = null;
   }
-  spotlightContainer = null;
+  heroContainer = null;
 }
 
-async function rotateSpotlight() {
-  if (!spotlightContainer) return;
-  const current = spotlightContainer.querySelector('.acv2-card');
-  const excludeId = current ? current.dataset.actressId : null;
+/**
+ * Return the best image for the spotlight actress:
+ *   1. Avatar (profile image)
+ *   2. First cover URL (title cover)
+ *   3. null  → monogram fallback
+ */
+function spotlightImageUrl(a) {
+  if (a.localAvatarUrl)   return { url: a.localAvatarUrl, isCover: false };
+  if (a.profileImagePath) return { url: `/api/actress-image/${encodeURIComponent(a.slug || a.id)}`, isCover: false };
+  if (a.coverUrls && a.coverUrls.length > 0) return { url: a.coverUrls[0], isCover: true };
+  return { url: null, isCover: false };
+}
+
+function monogram(name) {
+  const parts = String(name).trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return '?';
+  if (parts.length === 1) return parts[0][0].toUpperCase();
+  return (parts[0][0] + parts[1][0]).toUpperCase();
+}
+
+function renderHeroBand(a) {
+  const name      = a.displayName || a.canonicalName || a.stageName || a.name || a.slug || '';
+  const tier      = (a.tier || '').toLowerCase();
+  const count     = a.titleCount != null ? `${a.titleCount} titles` : '';
+  const { url, isCover } = spotlightImageUrl(a);
+
+  const tierClass = tier ? `act-tier-${tier}` : '';
+  const tierHtml  = tier
+    ? `<span class="hero-eyebrow ${tierClass}">${esc(tier)}</span>`
+    : '';
+
+  // Portrait: tall 7:10 for avatar, 3:2 cover variant for title covers
+  const portraitStyle = url
+    ? `background-image:url('${esc(url)}');background-size:cover;background-position:center top`
+    : '';
+  const monogramHtml  = !url
+    ? `<div class="act-dash-hero-monogram">${esc(monogram(name))}</div>`
+    : '';
+  const portraitClass = isCover ? 'hero-portrait act-dash-hero-portrait-cover' : 'hero-portrait';
+
+  return `
+    <section class="hero-band act-dash-hero" data-actress-id="${esc(String(a.id || ''))}">
+      <div class="${portraitClass}" ${portraitStyle ? `style="${portraitStyle}"` : ''}>${monogramHtml}</div>
+      <div class="hero-content">
+        ${tierHtml}
+        <div class="hero-name">${esc(name)}</div>
+        <div class="hero-stats">
+          ${count ? `<span><b>${esc(count)}</b></span>` : ''}
+        </div>
+        <div class="hero-actions">
+          <a class="btn primary" href="/v2-actress-detail.html?id=${encodeURIComponent(a.id)}">Open</a>
+        </div>
+      </div>
+    </section>
+  `;
+}
+
+async function rotateHero() {
+  if (!heroContainer) return;
+  const currentHero = heroContainer.querySelector('.act-dash-hero');
+  const excludeId   = currentHero ? currentHero.dataset.actressId : null;
   const url = '/api/actresses/spotlight' + (excludeId ? `?exclude=${encodeURIComponent(excludeId)}` : '');
   const item = await fetchJson(url);
   if (!item) return;
-  const newCard = makeActressCard(item);
-  newCard.classList.add('act-spotlight-enter');
-  if (current) {
-    current.classList.add('act-spotlight-exit');
-    current.addEventListener('animationend', () => current.remove(), { once: true });
+
+  // Fade out old, fade in new
+  if (currentHero) {
+    currentHero.classList.add('act-spotlight-exit');
+    currentHero.addEventListener('animationend', () => currentHero.remove(), { once: true });
   }
-  spotlightContainer.appendChild(newCard);
-  void newCard.offsetWidth;
-  newCard.classList.remove('act-spotlight-enter');
+  const tmp = document.createElement('div');
+  tmp.innerHTML = renderHeroBand(item);
+  const newHero = tmp.firstElementChild;
+  newHero.classList.add('act-spotlight-enter');
+  heroContainer.appendChild(newHero);
+  void newHero.offsetWidth;
+  newHero.classList.remove('act-spotlight-enter');
 }
 
 function startSpotlightRotator(containerEl) {
   stopSpotlightRotator();
-  spotlightContainer = containerEl;
-  spotlightIntervalId = setInterval(rotateSpotlight, SPOTLIGHT_INTERVAL_MS);
+  heroContainer = containerEl;
+  spotlightIntervalId = setInterval(rotateHero, SPOTLIGHT_INTERVAL_MS);
+}
+
+// ── KPI stat strip ────────────────────────────────────────────────────────
+
+function renderKpiStrip(stats) {
+  if (!stats) return null;
+  const researchPct = stats.researchTotal > 0
+    ? Math.round((stats.researchCovered / stats.researchTotal) * 100)
+    : 0;
+  const parts = [
+    `${(stats.totalActresses ?? 0).toLocaleString()} <span class="act-dash-kpi-label">actresses</span>`,
+    `${(stats.favorites ?? 0).toLocaleString()} <span class="act-dash-kpi-label">favorites</span>`,
+    `${(stats.graded ?? 0).toLocaleString()} <span class="act-dash-kpi-label">graded</span>`,
+    `${(stats.elites ?? 0).toLocaleString()} <span class="act-dash-kpi-label">elites</span>`,
+    `${(stats.newThisMonth ?? 0).toLocaleString()} <span class="act-dash-kpi-label">new this month</span>`,
+    `${researchPct}% <span class="act-dash-kpi-label">researched</span>`,
+  ];
+  const el = document.createElement('div');
+  el.className = 'act-dash-kpi-strip';
+  el.innerHTML = parts.join('<span class="act-dash-kpi-dot">·</span>');
+  return el;
 }
 
 // ── Section builder ───────────────────────────────────────────────────────
 
 function makeSection({ title, badge = null, accent = false, bordered = false }) {
   const section = document.createElement('section');
-  section.className = 'act-dash-section'
+  section.className = 'act-dash-section act-dash-shelf'
     + (accent   ? ' act-dash-section-accent'   : '')
     + (bordered ? ' act-dash-section-bordered' : '');
   const head = document.createElement('div');
@@ -101,34 +181,28 @@ function makeSection({ title, badge = null, accent = false, bordered = false }) 
   return section;
 }
 
-function makeStrip(items, cardFactory, id) {
+function makeStrip(items, id) {
   const strip = document.createElement('div');
   strip.className = 'act-dash-strip';
   if (id) strip.id = id;
-  items.forEach(a => strip.appendChild(cardFactory(a)));
+  items.forEach(a => strip.appendChild(makeActressCard(a)));
   return strip;
 }
 
-// ── Top Groups leaderboard ────────────────────────────────────────────────
+// ── Top Groups count list ─────────────────────────────────────────────────
 
-function renderTopGroupsLeaderboard(topGroups, onGroupClick) {
+function renderTopGroupsList(topGroups, onGroupClick) {
   const section = makeSection({ title: 'Top Groups' });
   const list = document.createElement('div');
-  list.className = 'act-dash-leaderboard';
-  const maxScore = topGroups.reduce((m, g) => Math.max(m, g.score || 0), 0) || 1;
+  list.className = 'act-dash-groups-list';
   topGroups.forEach((g, i) => {
-    const countLabel = `${g.actressCount} ${g.actressCount === 1 ? 'actress' : 'actresses'}`;
-    const barPct = Math.round(((g.score || 0) / maxScore) * 100);
     const row = document.createElement('div');
-    row.className = 'act-dash-lb-row';
+    row.className = 'act-dash-groups-row';
     row.title = `Open ${g.name} in Studio browser`;
     row.innerHTML = `
-      <span class="act-dash-lb-rank">${i + 1}</span>
-      <span class="act-dash-lb-name-cell">
-        <span class="act-dash-lb-name">${esc(g.name)}</span>
-        <span class="act-dash-lb-meta">${esc(countLabel)}</span>
-      </span>
-      <span class="act-dash-lb-bar-wrap"><span class="act-dash-lb-bar" style="width:${barPct}%"></span></span>
+      <span class="act-dash-groups-rank">${i + 1}</span>
+      <span class="act-dash-groups-name">${esc(g.name)}</span>
+      <span class="act-dash-groups-count">${(g.actressCount ?? 0).toLocaleString()}</span>
     `;
     row.addEventListener('click', () => onGroupClick(g.slug));
     list.appendChild(row);
@@ -137,42 +211,22 @@ function renderTopGroupsLeaderboard(topGroups, onGroupClick) {
   return section;
 }
 
-// ── Library stats ─────────────────────────────────────────────────────────
-
-function renderLibraryStats(stats) {
-  const researchPct = stats.researchTotal > 0
-    ? Math.round((stats.researchCovered / stats.researchTotal) * 100)
-    : 0;
-  const tiles = [
-    { label: 'Actresses',      value: stats.totalActresses?.toLocaleString() ?? '—' },
-    { label: 'Favorites',      value: stats.favorites?.toLocaleString()      ?? '—' },
-    { label: 'Graded',         value: stats.graded?.toLocaleString()         ?? '—' },
-    { label: 'Elites',         value: stats.elites?.toLocaleString()         ?? '—' },
-    { label: 'New this month', value: stats.newThisMonth?.toLocaleString()   ?? '—' },
-    { label: 'Researched',     value: `${researchPct}%`, bar: researchPct },
-  ];
-  const section = makeSection({ title: 'Library' });
-  const grid = document.createElement('div');
-  grid.className = 'act-dash-stats-grid';
-  tiles.forEach(t => {
-    const tile = document.createElement('div');
-    tile.className = 'act-dash-stat-tile';
-    tile.innerHTML =
-      `<div class="act-dash-stat-value">${esc(String(t.value))}</div>` +
-      `<div class="act-dash-stat-label">${esc(t.label)}</div>` +
-      (t.bar != null
-        ? `<div class="act-dash-stat-bar-wrap"><div class="act-dash-stat-bar" style="width:${t.bar}%"></div></div>`
-        : '');
-    grid.appendChild(tile);
-  });
-  section.appendChild(grid);
-  return section;
-}
-
 // ── Research Gaps ─────────────────────────────────────────────────────────
 
 function renderResearchGaps(researchGaps, onActressClick) {
   const section = makeSection({ title: 'Research Gaps', badge: `${researchGaps.length}` });
+
+  // Legend row
+  const legend = document.createElement('div');
+  legend.className = 'act-rg-legend';
+  legend.innerHTML = `
+    <span class="act-rg-legend-dot act-rg-dot-filled"></span> Profile
+    <span class="act-rg-legend-dot act-rg-dot-filled"></span> Physical
+    <span class="act-rg-legend-dot act-rg-dot-filled"></span> Bio
+    <span class="act-rg-legend-dot act-rg-dot-filled"></span> Portfolio
+  `;
+  section.appendChild(legend);
+
   const list = document.createElement('div');
   list.className = 'act-dash-research-gaps';
   researchGaps.forEach(entry => {
@@ -198,59 +252,6 @@ function renderResearchGaps(researchGaps, onActressClick) {
   });
   section.appendChild(list);
   return section;
-}
-
-// ── Top info panel ────────────────────────────────────────────────────────
-
-function renderTopInfoPanel(spotlight, topGroups, libraryStats, birthdaysToday, researchGaps, onGroupClick, onActressClick) {
-  const panel = document.createElement('div');
-  panel.className = 'act-dash-top-panel';
-
-  // Left: spotlight card + rotator
-  if (spotlight) {
-    const left = document.createElement('div');
-    left.className = 'act-dash-top-left';
-    const title = document.createElement('div');
-    title.className = 'act-dash-section-title';
-    title.textContent = 'Spotlight';
-    left.appendChild(title);
-    const card = makeActressCard(spotlight);
-    card.dataset.actressId = spotlight.id;
-    left.appendChild(card);
-    panel.appendChild(left);
-    setTimeout(() => startSpotlightRotator(left), SPOTLIGHT_INTERVAL_MS);
-  }
-
-  const hasRight = topGroups.length > 0 || libraryStats || birthdaysToday.length > 0 || researchGaps.length > 0;
-  if (hasRight) {
-    const right = document.createElement('div');
-    right.className = 'act-dash-top-right';
-
-    if (topGroups.length > 0 || libraryStats || researchGaps.length > 0) {
-      const upper = document.createElement('div');
-      upper.className = 'act-dash-top-right-upper';
-      if (topGroups.length > 0) upper.appendChild(renderTopGroupsLeaderboard(topGroups, onGroupClick));
-      if (libraryStats || researchGaps.length > 0) {
-        const stack = document.createElement('div');
-        stack.className = 'act-dash-top-right-stack';
-        if (libraryStats)           stack.appendChild(renderLibraryStats(libraryStats));
-        if (researchGaps.length > 0) stack.appendChild(renderResearchGaps(researchGaps, onActressClick));
-        upper.appendChild(stack);
-      }
-      right.appendChild(upper);
-    }
-
-    if (birthdaysToday.length > 0) {
-      const bSection = makeSection({ title: 'Birthdays Today', badge: `${birthdaysToday.length}` });
-      const strip = makeStrip(birthdaysToday.slice(0, 3), makeActressCard, 'act-dash-birthdays');
-      bSection.appendChild(strip);
-      right.appendChild(bSection);
-    }
-
-    panel.appendChild(right);
-  }
-
-  return panel;
 }
 
 // ── Side-by-side panel ────────────────────────────────────────────────────
@@ -306,48 +307,77 @@ export async function renderActressDashboard(containerEl, onGroupClick) {
     window.location.href = `/v2-actress-detail.html?id=${encodeURIComponent(id)}`;
   };
 
-  // Top panel: spotlight + leaderboard + stats + birthdays + research gaps
-  if (spotlight || topGroups.length > 0 || libraryStats || birthdaysToday.length > 0 || researchGaps.length > 0) {
-    containerEl.appendChild(
-      renderTopInfoPanel(spotlight, topGroups, libraryStats, birthdaysToday, researchGaps, onGroupClick, onActressClick)
-    );
+  // ── Hero band (spotlight) ────────────────────────────────────────────────
+  if (spotlight) {
+    const heroWrap = document.createElement('div');
+    heroWrap.className = 'act-dash-hero-wrap';
+    heroWrap.innerHTML = renderHeroBand(spotlight);
+    containerEl.appendChild(heroWrap);
+    setTimeout(() => startSpotlightRotator(heroWrap), SPOTLIGHT_INTERVAL_MS);
   }
 
-  // Recently Viewed + New Faces (side-by-side)
+  // ── KPI stat strip ────────────────────────────────────────────────────────
+  if (libraryStats) {
+    const kpi = renderKpiStrip(libraryStats);
+    if (kpi) containerEl.appendChild(kpi);
+  }
+
+  // ── Top Groups + Research Gaps (side-by-side when both present) ────────────
+  const hasGroups = topGroups.length > 0;
+  const hasGaps   = researchGaps.length > 0;
+  if (hasGroups || hasGaps) {
+    const leftEl  = hasGroups ? renderTopGroupsList(topGroups, onGroupClick) : null;
+    const rightEl = hasGaps   ? renderResearchGaps(researchGaps, onActressClick) : null;
+    if (leftEl && rightEl) {
+      containerEl.appendChild(renderSideBySide(leftEl, rightEl));
+    } else {
+      if (leftEl)  containerEl.appendChild(leftEl);
+      if (rightEl) containerEl.appendChild(rightEl);
+    }
+  }
+
+  // ── Birthdays Today (hide if empty) ──────────────────────────────────────
+  if (birthdaysToday.length > 0) {
+    const s = makeSection({ title: 'Birthdays Today', badge: `${birthdaysToday.length}` });
+    // Show all if 4+; cap at 3 only for 1–3 (no empty slots)
+    const shown = birthdaysToday.length >= 4 ? birthdaysToday : birthdaysToday.slice(0, 3);
+    s.appendChild(makeStrip(shown, 'act-dash-birthdays'));
+    containerEl.appendChild(s);
+  }
+
+  // ── Recently Viewed + New Faces (side-by-side) ────────────────────────────
   if (recentlyViewed.length > 0 || newFaces.length > 0) {
     const rvSection = recentlyViewed.length > 0 ? (() => {
       const s = makeSection({ title: 'Recently Viewed' });
-      const strip = makeStrip(recentlyViewed, makeCompactActressCard, 'act-dash-recently-viewed');
-      strip.classList.add('act-dash-strip-compact');
-      s.appendChild(strip);
+      s.appendChild(makeStrip(recentlyViewed, 'act-dash-recently-viewed'));
       return s;
     })() : null;
     const nfSection = newFaces.length > 0 ? (() => {
       const s = makeSection({ title: 'New Faces' });
-      s.appendChild(makeStrip(newFaces, makeActressCard, 'act-dash-new-faces'));
+      s.appendChild(makeStrip(newFaces, 'act-dash-new-faces'));
       return s;
     })() : null;
     containerEl.appendChild(renderSideBySide(rvSection, nfSection));
   }
 
-  // Bookmarked
+  // ── Bookmarked ────────────────────────────────────────────────────────────
   if (bookmarks.length > 0) {
     const s = makeSection({ title: 'Bookmarked Actresses', accent: true, bordered: true });
-    s.appendChild(makeStrip(bookmarks, makeCompactActressCard, 'act-dash-bookmarks'));
+    s.appendChild(makeStrip(bookmarks, 'act-dash-bookmarks'));
     containerEl.appendChild(s);
   }
 
-  // Undiscovered Elites
+  // ── Undiscovered Elites ───────────────────────────────────────────────────
   if (undiscoveredElites.length > 0) {
     const s = makeSection({ title: 'Undiscovered Elites', bordered: true });
-    s.appendChild(makeStrip(undiscoveredElites, makeActressCard, 'act-dash-undiscovered'));
+    s.appendChild(makeStrip(undiscoveredElites, 'act-dash-undiscovered'));
     containerEl.appendChild(s);
   }
 
-  // Forgotten Gems
+  // ── Forgotten Gems ────────────────────────────────────────────────────────
   if (forgottenGems.length > 0) {
     const s = makeSection({ title: 'Forgotten Gems' });
-    s.appendChild(makeStrip(forgottenGems, makeActressCard, 'act-dash-forgotten-gems'));
+    s.appendChild(makeStrip(forgottenGems, 'act-dash-forgotten-gems'));
     containerEl.appendChild(s);
   }
 }
