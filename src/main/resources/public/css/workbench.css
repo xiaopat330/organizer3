@@ -644,3 +644,20 @@
   margin-left: auto;
   display: inline-flex; gap: 6px;
 }
+
+/* ── v2 Actress Admin tab — workbench panel container ─────────────────── */
+/*
+ * The Admin workbench mounts into .ad-tab-panel[data-tab="admin"] which
+ * receives id="actress-detail-admin-view" at runtime. Inner card layout
+ * styles live in details.css (admin-card-*, adm-dup-*, normalize-modal-*).
+ * This block adds only the v2-specific container and overrides.
+ */
+#actress-detail-admin-view {
+  padding: 16px 20px;
+  min-height: 200px;
+}
+
+/* Ensure the admin card list fills the available pane width. */
+#actress-detail-admin-view .admin-card-list {
+  max-width: 100%;
+}

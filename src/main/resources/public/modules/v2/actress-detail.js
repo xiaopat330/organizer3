@@ -1,9 +1,15 @@
 /* ─────────────────────────────────────────────────────────────────────
    v2 — Actress detail (full port from legacy actress-detail.js)
    Two-column: left rail (cover + sidebar sections) | right (tabs +
-   filter bar + portfolio grid). Admin tab is a placeholder; filled in
-   by a separate Sonnet-dispatched job.
+   filter bar + portfolio grid). Admin tab is wired to the v2 actress-admin
+   workbench module.
    ───────────────────────────────────────────────────────────────────── */
+
+import {
+  mountAdminTab,
+  unmountAdminTab,
+  confirmDiscardIfStaged,
+} from './actress-admin/index.js';
 
 const PAGE_LIMIT = 24;
 const FILTER_DEBOUNCE_MS = 350;
@@ -11,6 +17,7 @@ const VISIT_DELAY_MS = 5000;
 const COVER_ROTATE_MS = 10_000;
 
 // ── State ─────────────────────────────────────────────────────────────────
+let currentTab = 'catalog';
 let actressId = null;
 let companyFilter = null;
 let activeTags = new Set();
@@ -815,13 +822,43 @@ function scheduleRefresh() {
 }
 
 // ── Tabs ──────────────────────────────────────────────────────────────────
-function selectTab(tab) {
+async function selectTab(tab) {
+  if (tab === currentTab) return;
+
+  // Navigate-away guard: if leaving admin with staged edits, confirm discard.
+  if (currentTab === 'admin') {
+    const ok = await confirmDiscardIfStaged();
+    if (!ok) return;  // user chose Stay — abort tab switch
+    unmountAdminTab();
+  }
+
+  currentTab = tab;
   document.querySelectorAll('.ad-tab').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
   document.querySelectorAll('.ad-tab-panel').forEach(p => p.classList.toggle('active', p.dataset.tab === tab));
+
+  // Mount the admin workbench when switching to the admin tab.
+  if (tab === 'admin') {
+    const panelEl = document.querySelector('.ad-tab-panel[data-tab="admin"]');
+    if (panelEl) await mountAdminTab(panelEl, actressId);
+  }
 }
 
 // ── Mount ─────────────────────────────────────────────────────────────────
-export function mountActressDetail(rootEl, id) {
+export async function mountActressDetail(rootEl, id) {
+  // Guard: if the user is navigating to a different actress while on the
+  // admin tab with staged changes, confirm discard first (mirrors legacy
+  // actress-detail.js lines 64-69).
+  if (currentTab === 'admin' && actressId !== null && actressId !== parseInt(id, 10)) {
+    const ok = await confirmDiscardIfStaged();
+    if (!ok) return;
+    unmountAdminTab();
+  }
+
+  // Reset tab to catalog on actress switch.
+  if (actressId !== null && actressId !== parseInt(id, 10)) {
+    currentTab = 'catalog';
+  }
+
   if (!id) {
     rootEl.innerHTML = `
       <div class="lib-page">
@@ -861,10 +898,8 @@ export function mountActressDetail(rootEl, id) {
           <div id="ad-sentinel" style="height:1px"></div>
         </div>
         <div class="ad-tab-panel" data-tab="admin">
-          <div class="empty-state">
-            <div class="empty-state-title">Admin tab</div>
-            <div class="empty-state-body">Folder-contents browser, dup-card triage, normalize modal — handed off as a separate Sonnet job. Use the legacy app's Admin tab for now.</div>
-          </div>
+          <!-- Admin workbench mounts here when the Admin tab is selected.
+               mountAdminTab() sets id="actress-detail-admin-view" on this element. -->
         </div>
       </section>
     </div>`;
