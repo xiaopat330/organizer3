@@ -1115,6 +1115,20 @@ button.ad-alias-badge.ad-alias-link:hover { color: var(--accent); border-color: 
   white-space: nowrap;
 }
 
+/* Thumbnail-grid column slider in the in-pane video detail panel.
+   Sits above the .video-thumbs grid; mirrors .avd-vc-cols-ctrl styling. */
+.avd-vpanel-thumbs-ctrl {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 10.5px;
+  color: var(--text-faint);
+  margin-bottom: 6px;
+}
+.avd-vpanel-thumbs-ctrl-caption { text-transform: uppercase; letter-spacing: 0.06em; }
+.avd-vpanel-thumbs-slider       { width: 90px; accent-color: var(--accent); }
+.avd-vpanel-thumbs-ctrl-label   { font-family: var(--font-mono); width: 18px; text-align: right; }
+
 /* ── Video card grid ──────────────────────────────────────────────── */
 .avd-vc-grid {
   display: grid;

@@ -5,7 +5,18 @@
    legacy av-video-detail.js, no URL routing needed).
    ───────────────────────────────────────────────────────────────────── */
 
-const THUMBNAIL_COLUMNS = 5; // matches legacy default from config.js
+const THUMBNAIL_COLUMNS_DEFAULT = 5; // matches legacy default from config.js
+const THUMBNAIL_COLUMNS_MIN     = 3;
+const THUMBNAIL_COLUMNS_MAX     = 8;
+const THUMBNAIL_COLUMNS_KEY     = 'v2-avstar-thumbs-cols';
+
+function _getThumbCols() {
+  const saved = parseInt(localStorage.getItem(THUMBNAIL_COLUMNS_KEY), 10);
+  if (Number.isFinite(saved)
+      && saved >= THUMBNAIL_COLUMNS_MIN
+      && saved <= THUMBNAIL_COLUMNS_MAX) return saved;
+  return THUMBNAIL_COLUMNS_DEFAULT;
+}
 
 // ── State ─────────────────────────────────────────────────────────────────
 let _currentVideo = null;
@@ -119,18 +130,32 @@ function _buildMetaLine(v) {
   return [v.resolution, v.codec].filter(Boolean).map(esc).join(' · ');
 }
 
+function _renderThumbsColsCtrl(videoId) {
+  const cols = _getThumbCols();
+  return `<div class="avd-vpanel-thumbs-ctrl" id="avd-vpanel-thumbs-ctrl-${videoId}">
+    <span class="avd-vpanel-thumbs-ctrl-caption">cols</span>
+    <input type="range" class="avd-vpanel-thumbs-slider"
+           id="avd-vpanel-thumbs-slider-${videoId}"
+           min="${THUMBNAIL_COLUMNS_MIN}" max="${THUMBNAIL_COLUMNS_MAX}" step="1"
+           value="${cols}">
+    <span class="avd-vpanel-thumbs-ctrl-label"
+          id="avd-vpanel-thumbs-label-${videoId}">${cols}</span>
+  </div>`;
+}
+
 function _renderThumbs(v) {
   const urls = v.screenshotUrls || [];
   if (urls.length === 0) {
-    return `<div class="video-thumbs-loading" id="avd-vpanel-thumbs-loading-${v.id}">
+    return `${_renderThumbsColsCtrl(v.id)}
+      <div class="video-thumbs-loading" id="avd-vpanel-thumbs-loading-${v.id}">
       Generating previews…
     </div>`;
   }
-  return _buildThumbsHtml(v.id, urls);
+  return `${_renderThumbsColsCtrl(v.id)}${_buildThumbsHtml(v.id, urls)}`;
 }
 
 function _buildThumbsHtml(videoId, urls) {
-  const cols = Math.min(urls.length, THUMBNAIL_COLUMNS);
+  const cols = Math.min(urls.length, _getThumbCols());
   const thumbs = urls.map((url, i) => {
     const fraction = 0.05 + i * 0.10;
     return `<div class="thumb-wrapper" data-fraction="${fraction}">
@@ -140,6 +165,25 @@ function _buildThumbsHtml(videoId, urls) {
   }).join('');
   return `<div class="video-thumbs" id="avd-vpanel-thumbs-${videoId}"
                style="grid-template-columns: repeat(${cols}, 1fr)">${thumbs}</div>`;
+}
+
+function _wireThumbsColsSlider(videoId) {
+  const slider = document.getElementById(`avd-vpanel-thumbs-slider-${videoId}`);
+  const label  = document.getElementById(`avd-vpanel-thumbs-label-${videoId}`);
+  if (!slider) return;
+  slider.addEventListener('input', () => {
+    const n = parseInt(slider.value, 10);
+    if (!Number.isFinite(n)) return;
+    const cols = Math.max(THUMBNAIL_COLUMNS_MIN, Math.min(THUMBNAIL_COLUMNS_MAX, n));
+    if (label) label.textContent = cols;
+    localStorage.setItem(THUMBNAIL_COLUMNS_KEY, String(cols));
+    const grid = document.getElementById(`avd-vpanel-thumbs-${videoId}`);
+    if (grid) {
+      const tileCount = grid.querySelectorAll('.thumb-wrapper').length;
+      const applied = tileCount > 0 ? Math.min(tileCount, cols) : cols;
+      grid.style.gridTemplateColumns = `repeat(${applied}, 1fr)`;
+    }
+  });
 }
 
 function _renderActions(v) {
@@ -201,6 +245,9 @@ function _wirePanel(v) {
     // Dim the left rail (sidebar) in theater mode — mirrors legacy
     document.querySelector('.avd-rail')?.classList.toggle('theater-dimmed', isActive);
   });
+
+  // Thumbnail column slider
+  _wireThumbsColsSlider(v.id);
 
   // Thumbnail seek
   const thumbsEl = document.getElementById(`avd-vpanel-thumbs-${v.id}`);

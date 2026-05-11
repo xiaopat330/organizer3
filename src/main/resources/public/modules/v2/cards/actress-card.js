@@ -59,6 +59,14 @@ export function renderActressCard(a, opts = {}) {
   const tier    = (a.tier || '').toLowerCase();
   const count   = !compact && a.titleCount != null ? `${a.titleCount} titles` : '';
 
+  // Cover fallback: when no avatar is present but the actress has title covers,
+  // pick a single random cover and crop right-center (JAV cover convention puts
+  // the actress on the right). Monogram still overlays for readability.
+  const covers      = Array.isArray(a.coverUrls) ? a.coverUrls : [];
+  const coverFallback = !imgSrc && covers.length > 0
+    ? covers[Math.floor(Math.random() * covers.length)]
+    : null;
+
   const el = document.createElement('a');
   el.className = 'acv2-card';
   if (compact) el.classList.add('acv2-card--compact');
@@ -66,16 +74,21 @@ export function renderActressCard(a, opts = {}) {
   if (a.id) el.dataset.actressId = a.id;
   if (tier) el.dataset.tier = tier;
 
-  const portraitStyle = imgSrc
-    ? `background-image:url('${esc(imgSrc)}');background-size:cover;background-position:center top`
-    : '';
+  let portraitStyle = '';
+  if (imgSrc) {
+    portraitStyle = `background-image:url('${esc(imgSrc)}');background-size:cover;background-position:center top`;
+  } else if (coverFallback) {
+    portraitStyle = `background-image:url('${esc(coverFallback)}');background-size:cover;background-position:right center`;
+  }
+  const portraitClass = 'acv2-portrait'
+    + (!imgSrc && coverFallback ? ' acv2-portrait--cover-fallback' : '');
   const monogramHtml = !imgSrc
     ? `<span class="acv2-monogram">${esc(monogram(name))}</span>`
     : '';
 
   if (compact) {
     el.innerHTML = `
-      <div class="acv2-portrait" ${portraitStyle ? `style="${portraitStyle}"` : ''}>
+      <div class="${portraitClass}" ${portraitStyle ? `style="${portraitStyle}"` : ''}>
         ${monogramHtml}
       </div>
       <div class="acv2-name">${esc(name)}</div>
@@ -85,7 +98,7 @@ export function renderActressCard(a, opts = {}) {
       ? `<span class="acv2-tier-badge acv2-tier-${tier}">${esc(tier)}</span>`
       : '';
     el.innerHTML = `
-      <div class="acv2-portrait" ${portraitStyle ? `style="${portraitStyle}"` : ''}>
+      <div class="${portraitClass}" ${portraitStyle ? `style="${portraitStyle}"` : ''}>
         ${monogramHtml}
         ${tierHtml}
       </div>

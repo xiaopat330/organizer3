@@ -151,7 +151,7 @@ function buildLibraryKpiItems(stats) {
     { value: stats.totalTitles.toLocaleString(),   label: 'titles' },
     { value: stats.totalLabels.toLocaleString(),   label: 'labels' },
     { value: stats.unseen.toLocaleString(),         label: 'unseen' },
-    { value: `${unseenPct}%`,                       label: 'unseen %' },
+    { value: `${unseenPct}%`,                       label: 'pct unseen' },
     { value: stats.addedThisMonth.toLocaleString(), label: 'added this month' },
     { value: stats.addedThisYear.toLocaleString(),  label: 'added this year' },
   ];
