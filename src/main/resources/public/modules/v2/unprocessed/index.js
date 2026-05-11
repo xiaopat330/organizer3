@@ -13,6 +13,13 @@
 import { mountQueue }       from './queue.js';
 import { createState, buildEditorState } from './state.js';
 import { mountEditor }      from './editor.js';
+import * as taskCenter      from '../../task-center.js';
+
+function esc(s) {
+  return String(s ?? '').replace(/[&<>"']/g, c => ({
+    '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;',
+  }[c]));
+}
 
 /**
  * Mount the Unprocessed workbench into rootEl.
@@ -215,9 +222,172 @@ export async function mountUnprocessed(rootEl) {
     },
   });
 
-  // ── Bulk Enrich button ────────────────────────────────────────────────
-  // Wave 1: render + count only. Modal wired in Wave 5.
-  bulkEnrichBtn.addEventListener('click', () => {
-    console.info('[unprocessed] Bulk Enrich modal — wired in Wave 5');
+  // ── Bulk Enrich button → confirm modal → task dispatch ────────────────
+  let _bulkPlan = null;       // last preview result; cached for confirm step
+  let _bulkBtnLabel = '';     // remember label to restore on errors
+
+  function visibleEligibleIds() {
+    const visible = state.showComplete ? state.queueRows : state.queueRows.filter(r => !r.complete);
+    return visible.filter(r => !r.complete).map(r => r.titleId);
+  }
+
+  function closeBulkModal() {
+    document.querySelector('.un-modal-overlay[data-un-modal="bulk-enrich"]')?.remove();
+    _bulkPlan = null;
+  }
+
+  function showBulkModal({ titleEl, bodyHtml, confirmLabel, onConfirm }) {
+    closeBulkModal();
+    const overlay = document.createElement('div');
+    overlay.className = 'un-modal-overlay';
+    overlay.dataset.unModal = 'bulk-enrich';
+    overlay.innerHTML = `
+      <div class="un-modal" role="dialog" aria-modal="true" aria-label="Bulk Enrich">
+        <div class="un-modal-header">
+          <h2 class="un-modal-title">${esc(titleEl)}</h2>
+          <button type="button" class="un-modal-close" aria-label="Close">✕</button>
+        </div>
+        <div class="un-modal-body">${bodyHtml}</div>
+        <div class="un-modal-actions">
+          <button type="button" class="btn sm" data-act="cancel">Cancel</button>
+          ${confirmLabel
+            ? `<button type="button" class="btn sm primary" data-act="confirm">${esc(confirmLabel)}</button>`
+            : ''}
+        </div>
+      </div>
+    `;
+    document.body.appendChild(overlay);
+
+    const ac = new AbortController();
+    const close = () => { ac.abort(); overlay.remove(); _bulkPlan = null; };
+    overlay.querySelector('.un-modal-close')?.addEventListener('click', close, { signal: ac.signal });
+    overlay.querySelector('[data-act="cancel"]')?.addEventListener('click', close, { signal: ac.signal });
+    overlay.addEventListener('click', e => { if (e.target === overlay) close(); }, { signal: ac.signal });
+    document.addEventListener('keydown', e => { if (e.key === 'Escape') close(); }, { signal: ac.signal });
+
+    const confirmBtn = overlay.querySelector('[data-act="confirm"]');
+    if (confirmBtn && onConfirm) {
+      confirmBtn.addEventListener('click', async () => {
+        confirmBtn.disabled = true;
+        const cancelBtn = overlay.querySelector('[data-act="cancel"]');
+        if (cancelBtn) cancelBtn.disabled = true;
+        try {
+          await onConfirm({ close });
+        } catch (err) {
+          confirmBtn.disabled = false;
+          if (cancelBtn) cancelBtn.disabled = false;
+          throw err;
+        }
+      }, { signal: ac.signal });
+    }
+    return { close };
+  }
+
+  bulkEnrichBtn.addEventListener('click', async () => {
+    const titleIds = visibleEligibleIds();
+    if (titleIds.length === 0) return;
+
+    if (taskCenter.isRunning?.()) {
+      alert('Another task is already running. Wait for it to finish before starting Bulk Enrich.');
+      return;
+    }
+
+    _bulkBtnLabel = bulkEnrichBtn.textContent;
+    bulkEnrichBtn.disabled = true;
+    bulkEnrichBtn.textContent = 'Checking…';
+    try {
+      const res = await fetch('/api/drafts/bulk-enrich/preview', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ titleIds }),
+      });
+      if (!res.ok) throw new Error('Preview failed: HTTP ' + res.status);
+      _bulkPlan = await res.json();
+
+      const { eligibleCount, alreadyDrafted = 0, alreadyCurated = 0 } = _bulkPlan;
+      const exclusions = [];
+      if (alreadyDrafted > 0) exclusions.push(`${alreadyDrafted} already have drafts`);
+      if (alreadyCurated > 0) exclusions.push(`${alreadyCurated} already curated`);
+      const exclusionLine = exclusions.length
+        ? `<div class="un-modal-note">Excluded: ${esc(exclusions.join(', '))}.</div>`
+        : '';
+
+      if (eligibleCount === 0) {
+        showBulkModal({
+          titleEl: 'Bulk Enrich',
+          bodyHtml: `<div>No eligible titles to enrich.</div>${exclusionLine}`,
+          confirmLabel: null,
+          onConfirm: null,
+        });
+        return;
+      }
+
+      const bodyHtml = `
+        <div><strong>${eligibleCount}</strong> title${eligibleCount !== 1 ? 's' : ''}
+          will be enriched to draft.</div>
+        ${exclusionLine}
+        <div class="un-modal-note">The background enrichment runner will be paused while
+          the task runs. Progress shows in the global task pill.</div>
+      `;
+
+      showBulkModal({
+        titleEl: 'Bulk Enrich',
+        bodyHtml,
+        confirmLabel: `Enrich ${eligibleCount}`,
+        onConfirm: async ({ close }) => {
+          if (!_bulkPlan || _bulkPlan.eligibleCount === 0) return;
+          const eligibleIds = _bulkPlan.eligibleIds;
+          const titleIdsJson = JSON.stringify(eligibleIds);
+          const startRes = await fetch('/api/utilities/tasks/enrichment.bulk_enrich_to_draft/run', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ titleIds: titleIdsJson }),
+          });
+          const data = await startRes.json().catch(() => ({}));
+          if (!startRes.ok || !data.runId) {
+            alert('Failed to start task: ' + (data.error || data.message || startRes.statusText));
+            return;
+          }
+          close();
+          taskCenter.start({
+            taskId: 'enrichment.bulk_enrich_to_draft',
+            runId: data.runId,
+            label: 'Bulk Enrich to Draft',
+          });
+          const es = new EventSource(`/api/utilities/runs/${encodeURIComponent(data.runId)}/events`);
+          es.addEventListener('phase.started',  e => {
+            const ev = JSON.parse(e.data);
+            taskCenter.updateProgress({ phaseLabel: ev.label });
+          });
+          es.addEventListener('phase.progress', e => {
+            const ev = JSON.parse(e.data);
+            taskCenter.updateProgress({ overallPct: Math.round((ev.current / ev.total) * 100) });
+          });
+          es.addEventListener('phase.ended',    e => {
+            const ev = JSON.parse(e.data);
+            if (ev.status === 'failed') taskCenter.finish({ status: 'failed', summary: ev.summary });
+          });
+          es.addEventListener('run.ended',      e => {
+            const ev = JSON.parse(e.data);
+            taskCenter.finish({ status: ev.status, summary: ev.summary });
+            es.close();
+            // Reload the queue to surface fresh DRAFT pills.
+            queue.reload();
+          });
+          es.addEventListener('error', () => {
+            taskCenter.finish({ status: 'failed', summary: 'Connection lost' });
+            es.close();
+          });
+        },
+      });
+    } catch (err) {
+      console.error('[unprocessed] BulkEnrich preview failed', err);
+      alert('Could not load preview: ' + err.message);
+    } finally {
+      bulkEnrichBtn.disabled = false;
+      // Restore label (will be re-synced by next updateBulkEnrichBtn() too).
+      if (_bulkBtnLabel) bulkEnrichBtn.textContent = _bulkBtnLabel;
+      updateBulkEnrichBtn();
+    }
   });
 }
