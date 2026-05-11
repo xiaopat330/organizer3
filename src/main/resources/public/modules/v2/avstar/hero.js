@@ -64,11 +64,16 @@ export function renderHero(a) {
       <span id="avd-visited-value">${a.visitCount > 0 ? _fmtVisited(a.visitCount, a.lastVisitedAt) : ''}</span>
     </div>`;
 
+  // Item 1: suppress folder-name row when it duplicates the stage name
+  const stageName   = (a.stageName   || '').trim();
+  const folderName  = (a.folderName  || '').trim();
+  const showFolder  = folderName && folderName.toLowerCase() !== stageName.toLowerCase();
+
   return `
     <div class="avd-profile-card">
       <div class="avd-headshot-wrap">${imgHtml}</div>
       <div class="avd-name">${esc(a.stageName || a.folderName || '')}</div>
-      ${a.folderName ? `<div class="avd-folder-name">${esc(a.folderName)}</div>` : ''}
+      ${showFolder ? `<div class="avd-folder-name">${esc(a.folderName)}</div>` : ''}
       ${years}
       <div class="avd-stats">
         <span>${a.videoCount} video${a.videoCount === 1 ? '' : 's'}</span>
@@ -78,15 +83,17 @@ export function renderHero(a) {
       ${visitedHtml}
     </div>
     <div class="avd-actions">
-      <button class="icon-btn ${a.favorite ? 'on' : ''}" id="avd-fav-btn" title="Favorite">
+      <button class="avd-action-chip ${a.favorite ? 'on' : ''}" id="avd-fav-btn" title="Favorite">
         <svg viewBox="0 0 24 24"><polygon points="12 2 15 9 22 9 17 14 18 21 12 17 6 21 7 14 2 9 9 9"/></svg>
+        <span>Favorite</span>
       </button>
-      <button class="icon-btn ${a.bookmark ? 'on' : ''}" id="avd-bm-btn" title="Bookmark">
+      <button class="avd-action-chip ${a.bookmark ? 'on' : ''}" id="avd-bm-btn" title="Bookmark">
         <svg viewBox="0 0 24 24"><path d="M19 21l-7-5-7 5V3a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>
+        <span>Bookmark</span>
       </button>
     </div>
-    <div id="avd-ss-controls"></div>
-    ${renderProfileDetails(a)}`;
+    ${renderProfileDetails(a)}
+    <div id="avd-ss-controls"></div>`;
 }
 
 function renderProfileDetails(a) {
@@ -105,6 +112,7 @@ function renderProfileDetails(a) {
   if (a.notes)        rows.push(['Notes',        esc(a.notes)]);
   if (rows.length === 0) return '';
   return `
+    <div class="avd-section-title">Profile</div>
     <dl class="avd-profile-dl">
       ${rows.map(([k, v]) => `<dt>${k}</dt><dd>${v}</dd>`).join('')}
     </dl>`;

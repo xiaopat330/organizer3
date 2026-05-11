@@ -71,7 +71,8 @@ export function refreshVideos(videos) {
 function _renderToolbar() {
   const cols = _gridCols;
   return `
-    <div class="avd-vc-toolbar">
+    <div class="avd-section-title">Videos</div>
+    <div class="avd-vc-toolbar avd-filter-bar">
       <input type="search" id="avd-vc-search" class="avd-vc-search"
              placeholder="filter…" autocomplete="off" spellcheck="false"
              value="${esc(_videoFilter)}">
