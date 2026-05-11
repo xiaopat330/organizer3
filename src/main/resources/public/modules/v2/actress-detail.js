@@ -231,14 +231,17 @@ function renderIdentitySection(a) {
       </div>
       <div class="ad-meta-row">${tier}</div>
       <div class="ad-actions">
-        <button class="icon-btn ${a.favorite ? 'on' : ''}" id="ad-fav-btn" title="Favorite">
+        <button class="icon-btn ad-action-chip ${a.favorite ? 'on' : ''}" id="ad-fav-btn" title="Favorite">
           <svg viewBox="0 0 24 24"><polygon points="12 2 15 9 22 9 17 14 18 21 12 17 6 21 7 14 2 9 9 9"/></svg>
+          <span>Favorite</span>
         </button>
-        <button class="icon-btn ${a.bookmark ? 'on' : ''}" id="ad-bm-btn" title="Bookmark">
+        <button class="icon-btn ad-action-chip ${a.bookmark ? 'on' : ''}" id="ad-bm-btn" title="Bookmark">
           <svg viewBox="0 0 24 24"><path d="M19 21l-7-5-7 5V3a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>
+          <span>Bookmark</span>
         </button>
-        <button class="icon-btn ad-reject ${a.rejected ? 'on' : ''}" id="ad-rej-btn" title="Reject">
+        <button class="icon-btn ad-action-chip ad-reject ${a.rejected ? 'on' : ''}" id="ad-rej-btn" title="Reject">
           <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>
+          <span>Reject</span>
         </button>
       </div>
       ${renderFolderPaths(a)}
@@ -281,7 +284,7 @@ function renderAliasesSection(a) {
   return '';
 }
 
-function renderCareerSection(a) {
+function renderCareerInner(a) {
   const start = a.activeFrom || a.firstAddedDate;
   const end   = a.activeTo   || a.lastAddedDate;
   if (!start && !end && !a.retirementAnnounced && !(a.visitCount > 0)) return '';
@@ -302,10 +305,10 @@ function renderCareerSection(a) {
     <span id="ad-visited-value">${esc(visited)}</span>
   </div>`;
 
-  return sectionShell('Career', `${range}${dur}${ret}${visitedHtml}`);
+  return `${range}${dur}${ret}${visitedHtml}`;
 }
 
-function renderVitalsSection(a) {
+function renderVitalsInner(a) {
   const rows = [];
   if (a.dateOfBirth) {
     const age = computeAge(a.dateOfBirth, a.activeTo);
@@ -322,8 +325,16 @@ function renderVitalsSection(a) {
     const cup = a.cup ? ` <span class="ad-vital-subtle">${esc(a.cup)} cup</span>` : '';
     rows.push(vitalRow('Measures', `${bwh}${cup}`));
   }
-  if (rows.length === 0) return '';
-  return sectionShell('Vitals', `<div class="ad-vitals">${rows.join('')}</div>`);
+  return rows.length ? `<div class="ad-vitals">${rows.join('')}</div>` : '';
+}
+
+function renderProfileSection(a) {
+  const career = renderCareerInner(a);
+  const vitals = renderVitalsInner(a);
+  if (!career && !vitals) return '';
+  const careerBlock = career ? `<div class="ad-profile-career">${career}</div>` : '';
+  const vitalsBlock = vitals ? `<div class="ad-profile-vitals">${vitals}</div>` : '';
+  return sectionShell('Profile', `${careerBlock}${vitalsBlock}`);
 }
 
 function renderLibrarySection(a) {
@@ -358,7 +369,7 @@ function renderGradesSection(a) {
     const count = g.members.reduce((s, k) => s + (breakdown[k] || 0), 0);
     if (count === 0) return null;
     const detail = g.members.filter(k => breakdown[k]).map(k => `${k}:${breakdown[k]}`).join(' ');
-    return `<span class="ad-grade-bar-segment grade-badge grade-${g.key}" style="flex:${count}" title="${esc(detail)}">${g.key}</span>`;
+    return `<span class="ad-grade-bar-segment grade-badge grade-${g.key}" style="flex:${count}" title="${esc(detail)}">${g.key}<span class="ad-grade-bar-count">${count}</span></span>`;
   }).filter(Boolean).join('');
 
   const ungraded = Math.max(0, total - graded);
@@ -937,8 +948,7 @@ async function loadAndRender(rootEl) {
     renderIdentitySection(a),
     renderPrimaryActressSection(a),
     renderAliasesSection(a),
-    renderCareerSection(a),
-    renderVitalsSection(a),
+    renderProfileSection(a),
     renderLibrarySection(a),
     renderGradesSection(a),
     renderStudiosSection(a),
