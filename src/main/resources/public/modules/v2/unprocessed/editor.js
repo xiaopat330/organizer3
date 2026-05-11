@@ -1,17 +1,20 @@
 /* ─────────────────────────────────────────────────────────────────────
    unprocessed/editor.js — editor pane dispatcher.
 
-   Wave 2: handles no-draft mode + duplicate-mode. Draft mode deferred
-   to Wave 3 (shows a placeholder when isDraftMode === true).
+   Wave 2: handles no-draft mode + duplicate-mode.
+   Wave 3: dispatches to draft.js when isDraftMode is true (metadata
+           block, scratch cover, cast scaffolding, intrinsic tags,
+           Validate/Promote/Discard/Skip).
 
    Exported:
      mountEditor(paneEl, state, { onSaveSuccess, loadDetail, queueReload })
-       → { renderEditor, destroy }
+       → { renderEditor, destroy, canNavigateAway }
    ───────────────────────────────────────────────────────────────────── */
 
 import { mountActressPane }  from './actress-pane.js';
 import { mountCoverPane }    from './cover-pane.js';
 import { renderTagPanel }    from './tags-pane.js';
+import { mountDraft }        from './draft.js';
 
 function esc(s) {
   return String(s ?? '').replace(/[&<>"']/g, c => ({
@@ -36,9 +39,10 @@ function descriptorIsValid(descriptor) {
  * @returns {{ renderEditor:Function, destroy:Function }}
  */
 export function mountEditor(paneEl, state, { onSaveSuccess, loadDetail, queueReload }) {
-  // Active sub-pane cleanup handles (actress-pane, cover-pane)
+  // Active sub-pane cleanup handles (actress-pane, cover-pane, draft)
   let _actressHandle = null;
   let _coverHandle   = null;
+  let _draftHandle   = null;
 
   // ── isDirty ──────────────────────────────────────────────────────────
   function isDirty() {
@@ -69,18 +73,35 @@ export function mountEditor(paneEl, state, { onSaveSuccess, loadDetail, queueRel
     }
 
     if (isDraftMode) {
-      paneEl.innerHTML = `
-        <div class="un-editor-shell">
-          <div class="un-editor-placeholder">
-            <span class="un-empty-glyph">📝</span>
-            Draft mode UI lands in Wave 3.
-          </div>
-        </div>
-      `;
+      // Tear down any no-draft sub-panes from a prior render
+      _actressHandle?.destroy(); _actressHandle = null;
+      _coverHandle?.destroy();   _coverHandle   = null;
+      _draftHandle?.destroy();   _draftHandle   = null;
+
+      _draftHandle = mountDraft(paneEl, state, {
+        queueReload,
+        loadDetail,
+        onPromoted: async (titleId) => {
+          // Reload queue, then advance like Save (advance=true).
+          await queueReload();
+          onSaveSuccess(titleId, true);
+        },
+        onDiscarded: async (titleId) => {
+          // Draft → no-draft transition: reload detail (will route to no-draft pane).
+          await queueReload();
+          await loadDetail(titleId);
+        },
+        onSkip: () => {
+          // Skip = advance without writing.
+          onSaveSuccess(state.currentId, true);
+        },
+      });
       return;
     }
 
     // No-draft mode
+    _draftHandle?.destroy();
+    _draftHandle = null;
     _renderNoDraft();
   }
 
@@ -424,8 +445,10 @@ export function mountEditor(paneEl, state, { onSaveSuccess, loadDetail, queueRel
   function destroy() {
     _actressHandle?.destroy();
     _coverHandle?.destroy();
+    _draftHandle?.destroy();
     _actressHandle = null;
     _coverHandle   = null;
+    _draftHandle   = null;
   }
 
   // ── canNavigateAway — for unsaved-changes guard ──────────────────────

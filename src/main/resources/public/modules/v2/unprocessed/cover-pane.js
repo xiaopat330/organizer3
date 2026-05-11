@@ -1,16 +1,23 @@
 /* ─────────────────────────────────────────────────────────────────────
-   unprocessed/cover-pane.js — drag-drop / paste / URL cover staging.
+   unprocessed/cover-pane.js — drag-drop / paste / URL cover staging
+   (no-draft mode), and scratch-cover preview + Refetch/Clear (draft mode).
 
    Exported:
      mountCoverPane(containerEl, editorState, isDuplicate, titleId, onChange) → { destroy, renderCover }
+     mountDraftCoverPane(containerEl, state, { onStatus }) → { destroy, renderCover }
 
-   Responsibilities:
+   Responsibilities (no-draft):
      - Show existing cover (if hasCover) or placeholder drop target
      - Drag-drop: file drop or URL drop
      - Clipboard paste: image bytes or URL string
      - URL staging (text that looks like http/https)
      - Replace-confirm guard when a cover already exists
      - Duplicate-mode lock: read-only display, no interaction
+
+   Responsibilities (draft):
+     - Show scratch cover GET /api/drafts/:id/cover (cache-busted)
+     - Refetch button → POST /api/drafts/:id/cover/refetch
+     - Clear button   → DELETE /api/drafts/:id/cover
    ───────────────────────────────────────────────────────────────────── */
 
 function esc(s) {
@@ -150,6 +157,106 @@ export function mountCoverPane(containerEl, editorState, isDuplicate, titleId, d
     panelEl.removeEventListener('dragleave', onDragLeave);
     panelEl.removeEventListener('drop',      onDrop);
     panelEl.removeEventListener('paste',     onPaste);
+  }
+
+  return { destroy, renderCover };
+}
+
+/**
+ * Draft-mode scratch cover pane: preview + Refetch/Clear actions.
+ *
+ * @param {HTMLElement} containerEl
+ * @param {object}      state         — shared state (reads state.draft, state.currentId)
+ * @param {object}      callbacks
+ * @param {Function}    callbacks.onStatus  — (msg, cls) → void  (status banner)
+ * @returns {{ destroy:Function, renderCover:Function }}
+ */
+export function mountDraftCoverPane(containerEl, state, { onStatus }) {
+  containerEl.innerHTML = `
+    <div class="un-cover-pane un-cover-draft" id="un-dcp-panel">
+      <img class="un-cover-img" id="un-dcp-img" style="display:none" alt="Scratch cover">
+      <div class="un-cover-placeholder" id="un-dcp-placeholder" style="display:none">
+        <span class="un-cover-drop-hint">No scratch cover yet<br>
+          <span class="un-cover-drop-hint-sub">use Refetch to pull from javdb</span>
+        </span>
+      </div>
+    </div>
+    <div class="un-draft-cover-actions">
+      <button class="btn btn-secondary btn-sm" id="un-dcp-refetch" type="button">Refetch cover</button>
+      <button class="btn btn-secondary btn-sm" id="un-dcp-clear"   type="button">Clear cover</button>
+    </div>
+  `;
+
+  const imgEl         = containerEl.querySelector('#un-dcp-img');
+  const placeholderEl = containerEl.querySelector('#un-dcp-placeholder');
+  const refetchBtn    = containerEl.querySelector('#un-dcp-refetch');
+  const clearBtn      = containerEl.querySelector('#un-dcp-clear');
+
+  function renderCover(cacheBuster) {
+    const titleId = state.currentId;
+    const present = !!state.draft?.coverScratchPresent;
+    if (present && titleId != null) {
+      const bust = cacheBuster || Date.now();
+      imgEl.src = `/api/drafts/${titleId}/cover?t=${bust}`;
+      imgEl.style.display = 'block';
+      placeholderEl.style.display = 'none';
+    } else {
+      imgEl.removeAttribute('src');
+      imgEl.style.display = 'none';
+      placeholderEl.style.display = 'flex';
+    }
+  }
+
+  renderCover();
+
+  refetchBtn.addEventListener('click', async () => {
+    const titleId = state.currentId;
+    if (titleId == null) return;
+    refetchBtn.disabled = true;
+    const original = refetchBtn.textContent;
+    refetchBtn.textContent = 'Fetching…';
+    onStatus?.('Fetching cover…', '');
+    try {
+      const res = await fetch(`/api/drafts/${titleId}/cover/refetch`, { method: 'POST' });
+      if (res.ok) {
+        if (state.draft) state.draft.coverScratchPresent = true;
+        renderCover(Date.now());
+        onStatus?.('Cover updated.', 'success');
+      } else if (res.status === 422) {
+        onStatus?.('No cover URL on file — populate first.', 'error');
+      } else {
+        onStatus?.('Refetch failed: HTTP ' + res.status, 'error');
+      }
+    } catch (err) {
+      onStatus?.('Refetch error: ' + (err.message || err), 'error');
+    } finally {
+      refetchBtn.disabled = false;
+      refetchBtn.textContent = original;
+    }
+  });
+
+  clearBtn.addEventListener('click', async () => {
+    const titleId = state.currentId;
+    if (titleId == null) return;
+    clearBtn.disabled = true;
+    try {
+      const res = await fetch(`/api/drafts/${titleId}/cover`, { method: 'DELETE' });
+      if (res.ok || res.status === 404) {
+        if (state.draft) state.draft.coverScratchPresent = false;
+        renderCover();
+        onStatus?.('Cover cleared.', 'success');
+      } else {
+        onStatus?.('Clear failed: HTTP ' + res.status, 'error');
+      }
+    } catch (err) {
+      onStatus?.('Clear error: ' + (err.message || err), 'error');
+    } finally {
+      clearBtn.disabled = false;
+    }
+  });
+
+  function destroy() {
+    // Listeners are bound to elements that go away with innerHTML rewrite; nothing to clear.
   }
 
   return { destroy, renderCover };
