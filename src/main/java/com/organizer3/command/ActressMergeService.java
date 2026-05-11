@@ -380,6 +380,92 @@ public class ActressMergeService {
         });
     }
 
+    // ── Actress-folder move from attention (reverse) ──────────────────────────
+
+    /**
+     * Plan for moving an actress folder from {@code /attention/<canonicalName>/} back to
+     * {@code /stars/<tier>/<canonicalName>/}.
+     */
+    public record AttentionExitPlan(
+            Actress actress,
+            String tier,
+            Path source,
+            Path destination,
+            List<LocationEntry> locations
+    ) {}
+
+    /**
+     * Builds the plan for moving {@code /attention/<canonicalName>/} to
+     * {@code /stars/<tier>/<canonicalName>/}.
+     *
+     * <p>Does not touch the filesystem. Returns a plan whose {@code locations} list contains
+     * all title_location rows (on {@code volumeId}) whose path starts with the source prefix.
+     *
+     * @param actress   resolved actress
+     * @param volumeId  currently mounted volume; if null returns a plan with empty locations
+     */
+    public AttentionExitPlan planMoveActressFolderFromAttention(Actress actress, String volumeId) {
+        String canonical = actress.getCanonicalName();
+        String tier = actress.getTier().name().toLowerCase();
+        Path source = Path.of("/attention", canonical);
+        Path destination = Path.of("/stars", tier, canonical);
+
+        if (volumeId == null) {
+            return new AttentionExitPlan(actress, tier, source, destination, List.of());
+        }
+
+        String sourcePrefix = source + "/";
+
+        record Row(long locId, String partId, String path) {}
+        List<Row> rows = jdbi.withHandle(h ->
+                h.createQuery("""
+                        SELECT tl.id, tl.partition_id, tl.path
+                        FROM titles t
+                        JOIN title_locations tl ON tl.title_id = t.id
+                        WHERE t.actress_id = :actressId AND tl.volume_id = :volumeId
+                          AND (tl.path = :src OR tl.path LIKE :prefix)
+                          AND tl.stale_since IS NULL
+                        """)
+                        .bind("actressId", actress.getId())
+                        .bind("volumeId", volumeId)
+                        .bind("src", source.toString())
+                        .bind("prefix", sourcePrefix + "%")
+                        .map((rs, ctx) -> new Row(rs.getLong("id"), rs.getString("partition_id"), rs.getString("path")))
+                        .list());
+
+        List<LocationEntry> locs = new ArrayList<>();
+        for (Row row : rows) {
+            Path current = Path.of(row.path());
+            // Rebase: replace /attention/<canonical>/... with /stars/<tier>/<canonical>/...
+            Path relative = source.relativize(current);
+            Path newPath = destination.resolve(relative);
+            locs.add(new LocationEntry(row.locId(), row.partId(), current, newPath));
+        }
+
+        return new AttentionExitPlan(actress, tier, source, destination, locs);
+    }
+
+    /**
+     * Updates all title_location paths in the plan to their {@code newPath} and sets
+     * {@code partition_id} to the tier. Call after a successful FS move.
+     */
+    public void applyMoveActressFolderFromAttention(AttentionExitPlan plan) {
+        String tier = plan.tier();
+        jdbi.useTransaction(h -> {
+            for (LocationEntry loc : plan.locations()) {
+                h.createUpdate("""
+                        UPDATE title_locations
+                        SET path = :path, partition_id = :tier
+                        WHERE id = :id
+                        """)
+                        .bind("path", loc.newPath().toString())
+                        .bind("tier", tier)
+                        .bind("id", loc.locationId())
+                        .execute();
+            }
+        });
+    }
+
     // ── Path computation ─────────────────────────────────────────────────────
 
     /**

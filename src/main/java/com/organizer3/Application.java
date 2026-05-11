@@ -1204,6 +1204,7 @@ public class Application {
                 mcpTools.register(new com.organizer3.mcp.tools.PrepFreshVideosTool(session, config, freshPrepService));
                 mcpTools.register(new com.organizer3.mcp.tools.RenameActressFoldersTool(session, actressRepo, actressMergeService, curationLog));
                 mcpTools.register(new com.organizer3.mcp.tools.MoveActressFolderToAttentionTool(session, actressRepo, actressMergeService, java.time.Clock.systemUTC(), curationLog));
+                mcpTools.register(new com.organizer3.mcp.tools.MoveActressFolderTool(session, actressRepo, actressMergeService, java.time.Clock.systemUTC(), curationLog));
                 mcpTools.register(new com.organizer3.mcp.tools.ExecuteDuplicateTrashTool(taskRunner));
                 mcpTools.register(new com.organizer3.mcp.tools.RestoreTrashedTool(taskRunner));
                 mcpTools.register(new com.organizer3.mcp.tools.WriteTextFileTool(session, curationLog));
