@@ -9,7 +9,6 @@ import com.organizer3.filesystem.FileTimestamps;
 import com.organizer3.filesystem.VolumeFileSystem;
 import com.organizer3.repository.jdbi.JdbiTitleLocationRepository;
 import com.organizer3.repository.jdbi.JdbiTitleRepository;
-import com.organizer3.repository.jdbi.JdbiVideoRepository;
 import com.organizer3.shell.SessionContext;
 import com.organizer3.smb.VolumeConnection;
 import org.jdbi.v3.core.Jdbi;
@@ -45,7 +44,6 @@ class MoveVideoFileToolTest {
     private Jdbi jdbi;
     private JdbiTitleRepository titleRepo;
     private JdbiTitleLocationRepository locationRepo;
-    private JdbiVideoRepository videoRepo;
     private SessionContext session;
     private FakeFs fs;
     private CurationLog curationLog;
@@ -62,14 +60,13 @@ class MoveVideoFileToolTest {
         });
         locationRepo = new JdbiTitleLocationRepository(jdbi);
         titleRepo    = new JdbiTitleRepository(jdbi, locationRepo);
-        videoRepo    = new JdbiVideoRepository(jdbi);
 
         fs          = new FakeFs();
         curationLog = new CurationLog(logDir);
         session     = new SessionContext();
         session.setMountedVolume(new VolumeConfig("s", "//host/s", "conventional", "host", null));
         session.setActiveConnection(new FakeConnection(fs));
-        tool = new MoveVideoFileTool(session, titleRepo, locationRepo, videoRepo, jdbi, curationLog);
+        tool = new MoveVideoFileTool(session, titleRepo, locationRepo, jdbi, curationLog);
     }
 
     @AfterEach

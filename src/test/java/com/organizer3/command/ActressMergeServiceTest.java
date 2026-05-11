@@ -5,11 +5,8 @@ import com.organizer3.filesystem.FileTimestamps;
 import com.organizer3.filesystem.VolumeFileSystem;
 import com.organizer3.model.Actress;
 import com.organizer3.model.Title;
-import com.organizer3.model.TitleLocation;
-import com.organizer3.repository.TitleLocationRepository;
 import com.organizer3.repository.jdbi.JdbiActressRepository;
 import com.organizer3.repository.jdbi.JdbiTitleLocationRepository;
-import com.organizer3.repository.jdbi.JdbiTitleRepository;
 import org.jdbi.v3.core.Jdbi;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -32,7 +29,6 @@ class ActressMergeServiceTest {
     private Connection connection;
     private Jdbi jdbi;
     private JdbiActressRepository actressRepo;
-    private JdbiTitleRepository titleRepo;
     private JdbiTitleLocationRepository locationRepo;
     private ActressMergeService service;
 
@@ -47,7 +43,6 @@ class ActressMergeServiceTest {
         });
         actressRepo = new JdbiActressRepository(jdbi);
         locationRepo = new JdbiTitleLocationRepository(jdbi);
-        titleRepo = new JdbiTitleRepository(jdbi, locationRepo);
         service = new ActressMergeService(jdbi, locationRepo, actressRepo);
     }
 
@@ -98,7 +93,7 @@ class ActressMergeServiceTest {
         Actress canonical = actressRepo.save(mkActress("Rin Hachimitsu"));
 
         // Filing title (actress_id = suspect)
-        Title t1 = saveTitleFiled("FNS-052", suspect.getId(), "/queue/Rin Hatchimitsu (FNS-052)", "pool");
+        saveTitleFiled("FNS-052", suspect.getId(), "/queue/Rin Hatchimitsu (FNS-052)", "pool");
         // Cast-only title (in title_actresses, actress_id on title is null)
         Title t2 = saveTitle("FNS-100");
         linkActress(t2.getId(), suspect.getId());

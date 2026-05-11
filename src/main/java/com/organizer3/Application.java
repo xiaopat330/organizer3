@@ -1214,7 +1214,7 @@ public class Application {
                 mcpTools.register(new com.organizer3.mcp.tools.RenameTitleFolderTool(session, titleRepo, titleLocationRepo, curationLog));
                 mcpTools.register(new com.organizer3.mcp.tools.RenameActressFolderTool(session, actressRepo, jdbi, curationLog));
                 mcpTools.register(new com.organizer3.mcp.tools.MoveTitleFolderTool(session, titleRepo, titleLocationRepo, actressRepo, config.libraryOrDefaults(), curationLog));
-                mcpTools.register(new com.organizer3.mcp.tools.MoveVideoFileTool(session, titleRepo, titleLocationRepo, videoRepo, jdbi, curationLog));
+                mcpTools.register(new com.organizer3.mcp.tools.MoveVideoFileTool(session, titleRepo, titleLocationRepo, jdbi, curationLog));
                 log.info("MCP file-op tools enabled");
             }
             com.organizer3.mcp.McpServer mcpServer = new com.organizer3.mcp.McpServer(

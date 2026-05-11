@@ -8,10 +8,8 @@ import com.organizer3.filesystem.VolumeFileSystem;
 import com.organizer3.mcp.Schemas;
 import com.organizer3.mcp.Tool;
 import com.organizer3.model.TitleLocation;
-import com.organizer3.model.Video;
 import com.organizer3.repository.TitleLocationRepository;
 import com.organizer3.repository.TitleRepository;
-import com.organizer3.repository.VideoRepository;
 import com.organizer3.shell.SessionContext;
 import com.organizer3.smb.VolumeConnection;
 import lombok.extern.slf4j.Slf4j;
@@ -45,20 +43,17 @@ public class MoveVideoFileTool implements Tool {
     private final SessionContext session;
     private final TitleRepository titleRepo;
     private final TitleLocationRepository locationRepo;
-    private final VideoRepository videoRepo;
     private final Jdbi jdbi;
     private final CurationLog curationLog;
 
     public MoveVideoFileTool(SessionContext session,
                              TitleRepository titleRepo,
                              TitleLocationRepository locationRepo,
-                             VideoRepository videoRepo,
                              Jdbi jdbi,
                              CurationLog curationLog) {
         this.session     = session;
         this.titleRepo   = titleRepo;
         this.locationRepo = locationRepo;
-        this.videoRepo   = videoRepo;
         this.jdbi        = jdbi;
         this.curationLog = curationLog;
     }
