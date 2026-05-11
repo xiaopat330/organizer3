@@ -270,7 +270,8 @@ public class ActressMergeService {
             } else {
                 try {
                     fs.rename(rename.currentPath(), rename.newPath().getFileName().toString());
-                    locationRepo.updatePathAndPartition(rename.locationId(), rename.newPath(), rename.partitionId());
+                    locationRepo.updatePathAndPartition(rename.locationId(), rename.newPath(),
+                            deriveShortPartitionId(rename.newPath(), rename.partitionId()));
                     renamed.add(rename.newPath());
                     log.info("Renamed folder: {} → {}", rename.currentPath(), rename.newPath());
                 } catch (IOException e) {
@@ -424,7 +425,6 @@ public class ActressMergeService {
                         JOIN title_locations tl ON tl.title_id = t.id
                         WHERE t.actress_id = :actressId AND tl.volume_id = :volumeId
                           AND (tl.path = :src OR tl.path LIKE :prefix)
-                          AND tl.stale_since IS NULL
                         """)
                         .bind("actressId", actress.getId())
                         .bind("volumeId", volumeId)
@@ -455,7 +455,7 @@ public class ActressMergeService {
             for (LocationEntry loc : plan.locations()) {
                 h.createUpdate("""
                         UPDATE title_locations
-                        SET path = :path, partition_id = :tier
+                        SET path = :path, partition_id = :tier, stale_since = NULL
                         WHERE id = :id
                         """)
                         .bind("path", loc.newPath().toString())
@@ -467,6 +467,28 @@ public class ActressMergeService {
     }
 
     // ── Path computation ─────────────────────────────────────────────────────
+
+    /**
+     * Returns the short-form partition_id for a new path.
+     *
+     * <p>For {@code /stars/<tier>/...} paths, the partition is the tier name only (e.g.
+     * {@code "popular"}, not {@code "stars/popular"}). This matches the short forms expected
+     * by {@code ActressClassifierService.TIER_ORDER} and stored by
+     * {@code applyMoveActressFolderFromAttention}.
+     *
+     * <p>For all other paths, the top-level folder name is used (e.g. {@code "queue"},
+     * {@code "attention"}).
+     *
+     * <p>{@code fallback} is returned if the path has no segments.
+     */
+    public static String deriveShortPartitionId(Path newPath, String fallback) {
+        if (newPath == null || newPath.getNameCount() == 0) return fallback;
+        String top = newPath.getName(0).toString();
+        if ("stars".equals(top) && newPath.getNameCount() >= 2) {
+            return newPath.getName(1).toString(); // tier only, not "stars/<tier>"
+        }
+        return top;
+    }
 
     /**
      * Replaces the suspect actress name prefix in the last path segment with the canonical name.

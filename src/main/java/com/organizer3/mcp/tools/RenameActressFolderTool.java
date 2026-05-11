@@ -1,6 +1,7 @@
 package com.organizer3.mcp.tools;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import com.organizer3.command.ActressMergeService;
 import com.organizer3.curation.CurationLog;
 import com.organizer3.curation.CurationLogRecord;
 import com.organizer3.filesystem.VolumeFileSystem;
@@ -166,15 +167,19 @@ public class RenameActressFolderTool implements Tool {
         for (FolderToRename r : toRename) {
             try {
                 fs.rename(r.actressFolder(), actress.getCanonicalName());
-                // Update all title_location paths
+                // Update all title_location paths; also normalise partition_id to short form
+                // (e.g. "popular" not "stars/popular") in case sync wrote the path-style value.
                 jdbi.useTransaction(h -> {
                     for (LocationRow loc : r.locations()) {
+                        String shortPartition = ActressMergeService.deriveShortPartitionId(
+                                loc.newPath(), loc.partitionId());
                         h.createUpdate("""
                                 UPDATE title_locations
-                                SET path = :newPath
+                                SET path = :newPath, partition_id = :partitionId
                                 WHERE id = :id
                                 """)
                                 .bind("newPath", loc.newPath().toString())
+                                .bind("partitionId", shortPartition)
                                 .bind("id", loc.locationId())
                                 .execute();
                     }

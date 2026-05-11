@@ -235,6 +235,38 @@ class RenameActressFolderToolTest {
         assertEquals("dry-run", result.status());
     }
 
+    /**
+     * Bug 2 regression: rename_actress_folder must write the short-form partition_id
+     * (e.g. "minor") not the path-style form ("stars/minor") that sync stores.
+     * Before the fix the UPDATE only set path, leaving partition_id unchanged.
+     */
+    @Test
+    void normalisesPartitionIdToShortFormOnRename() {
+        // Seed with path-style partition_id as sync would produce
+        Actress a = actressRepo.save(Actress.builder()
+                .canonicalName("Shion Fujimoto").tier(Actress.Tier.MINOR)
+                .firstSeenAt(LocalDate.now()).build());
+        actressRepo.saveAlias(new ActressAlias(a.getId(), "Shien Fujimoto"));
+        jdbi.useHandle(h -> {
+            long titleId = h.createQuery(
+                    "INSERT INTO titles (code, actress_id) VALUES (?, ?) RETURNING id")
+                    .bind(0, "MIDE-001").bind(1, a.getId()).mapTo(Long.class).one();
+            h.execute("""
+                    INSERT INTO title_locations (title_id, volume_id, partition_id, path, last_seen_at)
+                    VALUES (?, 's', 'stars/minor', '/stars/minor/Shien Fujimoto/Shien Fujimoto (MIDE-001)', '2024-01-01')
+                    """, titleId);
+        });
+
+        var result = (RenameActressFolderTool.Result) tool.call(args(a.getId(), false));
+        assertEquals("ok", result.status());
+
+        String partition = jdbi.withHandle(h ->
+                h.createQuery("SELECT partition_id FROM title_locations LIMIT 1")
+                        .mapTo(String.class).one());
+        assertEquals("minor", partition,
+                "partition_id must be normalised to short form (not 'stars/minor')");
+    }
+
     @Test
     void returnsPartialOnIoException() {
         Actress a = actressRepo.save(Actress.builder()

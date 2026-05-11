@@ -418,6 +418,136 @@ class ActressMergeServiceTest {
                 .bind("id", actressId).bind("name", aliasName).execute());
     }
 
+    // ── planMoveActressFolderFromAttention — Bug 1 regression ────────────────
+
+    /**
+     * Bug 1 regression: stale rows under /attention/ must NOT be skipped.
+     * Before the fix, the query included AND tl.stale_since IS NULL which caused
+     * rows marked stale by sync to be silently dropped from the plan.
+     */
+    @Test
+    void planMoveActressFolderFromAttention_includesStaleRows() {
+        Actress actress = actressRepo.save(mkActress("Shion Fujimoto"));
+
+        // Insert a title_location row that is stale (stale_since IS NOT NULL)
+        jdbi.useHandle(h -> {
+            long titleId = h.createQuery(
+                    "INSERT INTO titles (code, actress_id) VALUES ('MIDE-001', :id) RETURNING id")
+                    .bind("id", actress.getId()).mapTo(Long.class).one();
+            h.execute("""
+                    INSERT INTO title_locations (title_id, volume_id, partition_id, path, last_seen_at, stale_since)
+                    VALUES (?, 'pool', 'attention', '/attention/Shion Fujimoto/Shion Fujimoto (MIDE-001)', '2024-01-01', '2024-02-01')
+                    """, titleId);
+        });
+
+        ActressMergeService.AttentionExitPlan plan =
+                service.planMoveActressFolderFromAttention(actress, "pool");
+
+        assertEquals(1, plan.locations().size(),
+                "stale rows under /attention/ must be included — they become live after move");
+        assertEquals("/stars/library/Shion Fujimoto/Shion Fujimoto (MIDE-001)",
+                plan.locations().get(0).newPath().toString());
+    }
+
+    /**
+     * Bug 1 regression: applyMoveActressFolderFromAttention must clear stale_since so the
+     * relocated rows are treated as live. Before the fix, stale_since was left unchanged.
+     */
+    @Test
+    void applyMoveActressFolderFromAttention_clearsStaleSince() {
+        Actress actress = actressRepo.save(mkActress("Shion Fujimoto"));
+
+        long locationId = jdbi.withHandle(h -> {
+            long titleId = h.createQuery(
+                    "INSERT INTO titles (code, actress_id) VALUES ('MIDE-001', :id) RETURNING id")
+                    .bind("id", actress.getId()).mapTo(Long.class).one();
+            h.execute("""
+                    INSERT INTO title_locations (title_id, volume_id, partition_id, path, last_seen_at, stale_since)
+                    VALUES (?, 'pool', 'attention', '/attention/Shion Fujimoto/Shion Fujimoto (MIDE-001)', '2024-01-01', '2024-02-01')
+                    """, titleId);
+            return h.createQuery("SELECT last_insert_rowid()").mapTo(Long.class).one();
+        });
+
+        ActressMergeService.AttentionExitPlan plan =
+                service.planMoveActressFolderFromAttention(actress, "pool");
+        assertEquals(1, plan.locations().size());
+
+        service.applyMoveActressFolderFromAttention(plan);
+
+        String staleSince = jdbi.withHandle(h ->
+                h.createQuery("SELECT stale_since FROM title_locations WHERE id = :id")
+                        .bind("id", locationId).mapTo(String.class).one());
+        assertNull(staleSince, "applyMoveActressFolderFromAttention must clear stale_since");
+    }
+
+    // ── deriveShortPartitionId — Bug 2 regression ────────────────────────────
+
+    @Test
+    void deriveShortPartitionId_starsPath_returnsShortTier() {
+        assertEquals("popular",
+                ActressMergeService.deriveShortPartitionId(
+                        Path.of("/stars/popular/Actress Name/Title (CODE-001)"), "stars/popular"));
+    }
+
+    @Test
+    void deriveShortPartitionId_starsMinorPath_returnsMinor() {
+        assertEquals("minor",
+                ActressMergeService.deriveShortPartitionId(
+                        Path.of("/stars/minor/Actress/Title"), "stars/minor"));
+    }
+
+    @Test
+    void deriveShortPartitionId_queuePath_returnsQueue() {
+        assertEquals("queue",
+                ActressMergeService.deriveShortPartitionId(
+                        Path.of("/queue/Title (CODE-001)"), "queue"));
+    }
+
+    @Test
+    void deriveShortPartitionId_attentionPath_returnsAttention() {
+        assertEquals("attention",
+                ActressMergeService.deriveShortPartitionId(
+                        Path.of("/attention/Actress/Title"), "attention"));
+    }
+
+    @Test
+    void deriveShortPartitionId_nullPath_returnsFallback() {
+        assertEquals("stars/popular",
+                ActressMergeService.deriveShortPartitionId(null, "stars/popular"));
+    }
+
+    /**
+     * Bug 2 regression: renameOnly must write the short-form partition_id when the existing
+     * DB row has a path-style value like "stars/popular". Before the fix, performFsRenames
+     * passed rename.partitionId() through unchanged.
+     */
+    @Test
+    void renameOnly_writesShortFormPartitionId() throws Exception {
+        Actress canonical = actressRepo.save(mkActress("Rin Hachimitsu"));
+        addAlias(canonical.getId(), "Rin Hatchimitsu");
+
+        // Insert with path-style partition_id as sync would produce
+        long titleId = jdbi.withHandle(h ->
+                h.createQuery("INSERT INTO titles (code, actress_id) VALUES ('FNS-052', :id) RETURNING id")
+                        .bind("id", canonical.getId()).mapTo(Long.class).one());
+        jdbi.useHandle(h -> h.execute("""
+                INSERT INTO title_locations (title_id, volume_id, partition_id, path, last_seen_at)
+                VALUES (?, 'pool', 'stars/popular', '/stars/popular/Rin Hatchimitsu/Rin Hatchimitsu (FNS-052)', '2024-01-01')
+                """, titleId));
+
+        FakeFs fs = new FakeFs();
+        ActressMergeService.RenamePlan plan = service.planRenamesFor(canonical);
+        assertEquals(1, plan.renames().size());
+
+        service.renameOnly(plan, "pool", fs, false);
+
+        String partition = jdbi.withHandle(h ->
+                h.createQuery("SELECT partition_id FROM title_locations WHERE title_id = :id")
+                        .bind("id", titleId).mapTo(String.class).one());
+        assertEquals("popular", partition,
+                "partition_id must be normalised to short form after rename");
+    }
+
     // ── MergeActressCommand arg parsing ──────────────────────────────────────
 
     @Test
