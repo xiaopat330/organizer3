@@ -86,23 +86,32 @@ function applyThumbGrid(container, n) {
 /* ── Hero render ───────────────────────────────────────────────────── */
 function renderHero(t) {
   const titleCode = t.code || '';
-  const enText = t.titleEnglish || t.titleOriginalEn || '';
+  const enText = t.titleEnglish || t.titleOriginalEn || t.titleOriginal || '';
   const isLlm  = !t.titleEnglish && !!t.titleOriginalEn;
   const llmBadge = isLlm ? `<span class="hero-title-badge" title="Auto-translated by AI">auto</span>` : '';
+
+  // Eyebrow: "{labelName} · {year}" — omit missing parts
+  const releaseYear = (t.releaseDate || '').slice(0, 4) || null;
+  const eyebrowParts = [t.labelName || null, releaseYear].filter(Boolean);
+  const eyebrowHtml = eyebrowParts.length > 0
+    ? `<div class="hero-eyebrow">${escapeHtml(eyebrowParts.join(' · '))}</div>`
+    : '';
 
   const cover = t.coverUrl
     ? t.coverUrl
     : (t.coverPath ? `${COVER_ROOT}/${encodeURIComponent(t.coverPath)}` : `/api/cover/${encodeURIComponent(titleCode)}`);
 
+  // Japanese subtitle: show titleOriginal only if it differs from what we're showing as description
+  const hasJpSubtitle = t.titleOriginal && t.titleOriginal !== enText;
+
   return `
     <div class="hero-band hero-band-title">
       <div class="hero-cover" id="hero-cover" style="background-image:url('${escapeHtml(cover)}');cursor:zoom-in" title="Click to enlarge"></div>
       <div class="hero-content">
-        <div class="hero-eyebrow">Title</div>
-        ${enText ? `<h1 class="hero-name">${escapeHtml(enText)}${llmBadge}</h1>` : ''}
-        ${t.titleOriginal ? `<div class="hero-name-secondary">${escapeHtml(t.titleOriginal)}</div>` : ''}
-        ${!enText && !t.titleOriginal ? `<h1 class="hero-name">${escapeHtml(titleCode)}</h1>` : ''}
-        <div class="hero-code">${escapeHtml(titleCode)}</div>
+        ${eyebrowHtml}
+        <h1 class="hero-name hero-name-code">${escapeHtml(titleCode)}${llmBadge}</h1>
+        ${enText ? `<div class="hero-desc" title="${escapeHtml(enText)}">${escapeHtml(enText)}</div>` : ''}
+        ${hasJpSubtitle ? `<div class="hero-jp-sub">${escapeHtml(t.titleOriginal)}</div>` : ''}
         <div class="hero-actions">
           <button class="btn primary${t.favorite ? ' active' : ''}${t.rejected ? ' disabled' : ''}" id="btn-favorite" title="Favorite">
             <svg viewBox="0 0 24 24"><polygon points="12 2 15 9 22 9 17 14 18 21 12 17 6 21 7 14 2 9 9 9"/></svg>
@@ -124,97 +133,88 @@ function renderHero(t) {
 
 /* ── Meta rows render ──────────────────────────────────────────────── */
 function renderMeta(t) {
-  const titleCode = t.code || '';
   const actresses = (t.actresses && t.actresses.length > 0)
     ? t.actresses
     : (t.actressId ? [{ id: t.actressId, name: t.actressName, tier: t.actressTier, dateOfBirth: t.actressDateOfBirth }] : []);
 
-  const castHtml = actresses.length === 0 ? '' : `
-    <div class="td-row">
-      <span class="td-label">Cast</span>
-      <span class="td-value">
-        ${actresses.map(a => {
-          const tier = a.tier ? `<span class="tier-badge tier-${escapeHtml(a.tier.toLowerCase())}">${escapeHtml(a.tier.toLowerCase())}</span>` : '';
-          const age = ageAtDate(a.dateOfBirth, t.releaseDate);
-          const ageHtml = age != null ? ` <span class="td-age">age ${age}</span>` : '';
-          return `<a class="td-cast-link" href="/v2-actress-detail.html?id=${encodeURIComponent(a.id)}">${escapeHtml(a.name)}</a>${tier}${ageHtml}`;
-        }).join('<span class="td-sep">·</span>')}
-      </span>
-    </div>
-  `;
+  /* ── Top info strip (horizontal, dot-separated) ─── */
+  const stripParts = [];
 
-  const labelHtml = (t.companyName || t.labelName) ? `
-    <div class="td-row">
-      <span class="td-label">Label</span>
-      <span class="td-value">
-        ${t.companyName ? escapeHtml(t.companyName) : ''}
-        ${t.labelName && t.labelName !== t.companyName ? `<span style="color:var(--text-faint)"> (${escapeHtml(t.labelName)})</span>` : ''}
-      </span>
-    </div>
-  ` : '';
+  if (actresses.length > 0) {
+    const castChips = actresses.map(a => {
+      const tier = a.tier ? `<span class="tier-badge tier-${escapeHtml(a.tier.toLowerCase())}">${escapeHtml(a.tier.toLowerCase())}</span>` : '';
+      const age = ageAtDate(a.dateOfBirth, t.releaseDate);
+      const ageHtml = age != null ? ` <span class="td-age">age ${age}</span>` : '';
+      return `<a class="td-cast-link" href="/v2-actress-detail.html?id=${encodeURIComponent(a.id)}">${escapeHtml(a.name)}</a>${tier}${ageHtml}`;
+    }).join('<span class="td-sep">·</span>');
+    stripParts.push(castChips);
+  }
+
+  const labelDisplay = t.labelName || t.companyName;
+  if (labelDisplay) {
+    let lbl = escapeHtml(labelDisplay);
+    if (t.companyName && t.labelName && t.labelName !== t.companyName) {
+      lbl = `${escapeHtml(t.companyName)} <span style="color:var(--text-faint)">(${escapeHtml(t.labelName)})</span>`;
+    }
+    stripParts.push(lbl);
+  }
 
   const date = t.releaseDate || t.addedDate;
-  const dateLabel = t.releaseDate ? 'Released' : 'Added';
-  const dateHtml = date ? `
-    <div class="td-row">
-      <span class="td-label">${dateLabel}</span>
-      <span class="td-value mono">${escapeHtml(fmtDate(date))}</span>
-    </div>` : '';
+  if (date) stripParts.push(`<span class="mono">${escapeHtml(fmtDate(date))}</span>`);
 
-  let gradeHtml = '';
   if (t.grade) {
     const ratingExtra = (t.ratingAvg != null && t.ratingCount != null)
       ? ` <span style="color:var(--text-faint);font-size:11px">(${t.ratingAvg.toFixed(2)} · ${t.ratingCount.toLocaleString()} votes)</span>`
       : '';
-    gradeHtml = `<div class="td-row"><span class="td-label">Grade</span>
-      <span class="td-value"><span class="grade-badge grade-${escapeHtml(t.grade)}">${escapeHtml(t.grade)}</span>${ratingExtra}</span></div>`;
-  } else {
-    gradeHtml = `<div class="td-row"><span class="td-label">Grade</span><span class="td-value" style="color:var(--text-faint);font-style:italic">Not rated</span></div>`;
+    stripParts.push(`<span class="grade-badge grade-${escapeHtml(t.grade)}">${escapeHtml(t.grade)}</span>${ratingExtra}`);
   }
 
-  const visitedHtml = t.visitCount > 0 ? `
-    <div class="td-row">
-      <span class="td-label">Visited</span>
-      <span class="td-value mono">${t.visitCount}× · last ${escapeHtml(fmtDate(t.lastVisitedAt))}</span>
-    </div>` : '';
+  const stripHtml = stripParts.length > 0
+    ? `<div class="td-info-strip">${stripParts.join('<span class="td-sep">·</span>')}</div>`
+    : '';
 
-  const watchedHtml = t.watchCount > 0 ? `
-    <div class="td-row">
-      <span class="td-label">Watched</span>
-      <span class="td-value mono">${t.watchCount}× · last ${escapeHtml(fmtDate(t.lastWatchedAt))}</span>
-    </div>` : '';
+  /* ── Watch/visit summary (optional, keep compact) ── */
+  const visitedHtml = t.visitCount > 0
+    ? `<div class="td-aux-row"><span class="td-aux-key">Visited</span> <span class="mono">${t.visitCount}×</span> · last <span class="mono">${escapeHtml(fmtDate(t.lastVisitedAt))}</span></div>`
+    : '';
+  const watchedHtml = t.watchCount > 0
+    ? `<div class="td-aux-row"><span class="td-aux-key">Watched</span> <span class="mono">${t.watchCount}×</span> · last <span class="mono">${escapeHtml(fmtDate(t.lastWatchedAt))}</span></div>`
+    : '';
+  const auxHtml = (visitedHtml || watchedHtml)
+    ? `<div class="td-aux">${watchedHtml}${visitedHtml}</div>`
+    : '';
 
+  /* ── Location sub-block ─── */
   const paths = t.nasPaths || [];
   const nasHtml = paths.length === 0 ? '' : `
-    <div class="td-row">
-      <span class="td-label">Location</span>
-      <span class="td-value">
-        ${paths.map(p => `<div class="td-path mono" data-path="${escapeHtml(p)}" title="Click to copy">${escapeHtml(p)}</div>`).join('')}
-      </span>
+    <div class="td-sub-block">
+      <div class="act-dash-section-title">Location</div>
+      ${paths.map(p => `<div class="td-path mono" data-path="${escapeHtml(p)}" title="Click to copy">${escapeHtml(p)}</div>`).join('')}
     </div>`;
 
-  const tags = t.tags || [];
-  const tagsInner = tags.length > 0
-    ? tags.map(tag => `<span class="td-tag">${escapeHtml(tag)}</span>`).join('')
-    : `<span style="color:var(--text-faint);font-style:italic">No tags</span>`;
+  /* ── Tags sub-block ─── */
+  // Core tags (t.tags) and enrichment tags (t.enrichmentTags) rendered as separate groups.
+  // loadTagState() will async-replace the core group with richer derived-tag data.
+  // loadEnrichmentTags() will async-populate the enrichment group from /api/…/enrichment-tags.
+  const coreTags = t.tags || [];
+  const coreGroupHtml = coreTags.length > 0
+    ? `<div class="td-tag-group" id="td-core-tags">${coreTags.map(tag => `<span class="td-tag">${escapeHtml(tag)}</span>`).join('')}</div>`
+    : `<div class="td-tag-group" id="td-core-tags"></div>`;
+  // Enrichment group starts hidden; loadEnrichmentTags() fills and shows it
   const tagsHtml = `
-    <div class="td-row">
-      <span class="td-label">Tags <button class="td-tag-edit" id="btn-edit-tags" title="Edit tags">edit</button></span>
-      <span class="td-value">${tagsInner}</span>
-    </div>
-    <div class="td-row" id="td-enrichment-row" style="display:none">
-      <span class="td-label">Javdb</span>
-      <span class="td-value" id="td-enrichment-value"></span>
+    <div class="td-sub-block">
+      <div class="act-dash-section-title">Tags <button class="td-tag-edit" id="btn-edit-tags" title="Edit tags">edit</button></div>
+      ${coreGroupHtml}
+      <div class="td-tag-group td-tag-group-enrichment" id="td-enrichment-tags" style="display:none">
+        <span class="td-tag-group-label">enrichment</span>
+        <span id="td-enrichment-value"></span>
+      </div>
     </div>`;
 
   return `
     <section class="td-meta">
-      ${castHtml}
-      ${labelHtml}
-      ${dateHtml}
-      ${gradeHtml}
-      ${watchedHtml}
-      ${visitedHtml}
+      ${stripHtml}
+      ${auxHtml}
       ${nasHtml}
       ${tagsHtml}
     </section>
@@ -260,44 +260,50 @@ function copyPath(el) {
 async function loadTagState(code) {
   const state = await fetchJson(`/api/titles/${encodeURIComponent(code)}/tag-state`, null);
   if (!state) return;
-  const valueEl = document.querySelector('.td-row .td-value');
-  // Tags row is the LAST row before enrichment row; query by id pattern
-  const allRows = document.querySelectorAll('.td-row');
-  // Find tags row by checking for the edit button
-  let tagsValueEl = null;
-  for (const row of allRows) {
-    if (row.querySelector('#btn-edit-tags')) {
-      tagsValueEl = row.querySelector('.td-value');
-      break;
-    }
-  }
-  if (!tagsValueEl) return;
+  // Replace the core tags group with richer derived-tag data from the tag-state endpoint.
+  // group 1 = directTags + labelImpliedTags (curated); group 2 = enrichmentImpliedTags goes
+  // into the enrichment group along with the raw JavDB tags loaded by loadEnrichmentTags().
+  const coreGroupEl = document.querySelector('#td-core-tags');
+  if (!coreGroupEl) return;
   const direct = state.directTags || [];
   const implied = state.labelImpliedTags || [];
-  const enriched = state.enrichmentImpliedTags || [];
-  if (direct.length === 0 && implied.length === 0 && enriched.length === 0) {
-    tagsValueEl.innerHTML = `<span style="color:var(--text-faint);font-style:italic">No tags</span>`;
+  const enrichedImplied = state.enrichmentImpliedTags || [];
+  if (direct.length === 0 && implied.length === 0 && enrichedImplied.length === 0) {
+    coreGroupEl.innerHTML = `<span style="color:var(--text-faint);font-style:italic">No tags</span>`;
     return;
   }
   let html = '';
   for (const t of direct)   html += `<span class="td-tag" title="Directly tagged">${escapeHtml(t)}</span>`;
   for (const t of implied)  html += `<span class="td-tag derived" title="Implied by label">${escapeHtml(t)}</span>`;
-  for (const t of enriched) html += `<span class="td-tag derived" title="From JavDB enrichment">${escapeHtml(t)}</span>`;
-  tagsValueEl.innerHTML = html;
+  coreGroupEl.innerHTML = html || '';
+  // enrichmentImplied tags are shown in the enrichment group alongside raw JavDB tags
+  if (enrichedImplied.length > 0) {
+    const enrichGroupEl = document.querySelector('#td-enrichment-tags');
+    const enrichValueEl = document.querySelector('#td-enrichment-value');
+    if (enrichGroupEl && enrichValueEl) {
+      const impliedHtml = enrichedImplied.map(t =>
+        `<span class="td-tag raw" title="From JavDB enrichment (implied)">${escapeHtml(t)}</span>`
+      ).join('');
+      enrichValueEl.insertAdjacentHTML('beforeend', impliedHtml);
+      enrichGroupEl.style.display = '';
+    }
+  }
 }
 
 async function loadEnrichmentTags(code) {
   const tags = await fetchJson(`/api/titles/${encodeURIComponent(code)}/enrichment-tags`, []);
   if (!tags || tags.length === 0) return;
-  const row   = document.querySelector('#td-enrichment-row');
-  const value = document.querySelector('#td-enrichment-value');
-  if (!row || !value) return;
-  row.style.display = '';
-  value.innerHTML = tags.map(t => {
+  // Populate the enrichment tags group (raw JavDB tags — separate taxonomy from core tags).
+  const groupEl = document.querySelector('#td-enrichment-tags');
+  const valueEl = document.querySelector('#td-enrichment-value');
+  if (!groupEl || !valueEl) return;
+  const html = tags.map(t => {
     const name = typeof t === 'string' ? t : (t.name || '');
     const alias = (typeof t === 'object' && t.curatedAlias) ? ` → ${t.curatedAlias}` : '';
-    return `<span class="td-tag raw" title="JavDB raw tag${alias}">${escapeHtml(name)}${alias ? ` <span style="color:var(--accent)">${escapeHtml(alias)}</span>` : ''}</span>`;
+    return `<span class="td-tag raw" title="JavDB raw tag${alias ? `: ${alias}` : ''}">${escapeHtml(name)}${alias ? ` <span style="color:var(--accent)">${escapeHtml(alias)}</span>` : ''}</span>`;
   }).join('');
+  valueEl.insertAdjacentHTML('afterbegin', html);
+  groupEl.style.display = '';
 }
 
 /* ── Watched / visited polish via /api/watch-history/{code} ────────── */
@@ -465,7 +471,7 @@ async function loadMoreFromActress(t, container) {
   const head = document.createElement('div');
   head.className = 'shelf-head';
   head.innerHTML = `
-    <span class="shelf-title">More from ${escapeHtml(a.name)}</span>
+    <span class="act-dash-section-title">More from ${escapeHtml(a.name)}</span>
     <a class="shelf-action" href="/v2-actress-detail.html?id=${encodeURIComponent(a.id)}">All titles
       <svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
     </a>`;
@@ -560,7 +566,7 @@ export function mountTitleDetail(rootEl, code) {
       <div id="hero-slot"><div class="shelf-loading">Loading…</div></div>
       <div id="meta-slot"></div>
       <section class="shelf" style="margin-top:24px">
-        <div class="shelf-head"><span class="shelf-title">Videos</span></div>
+        <div class="shelf-head"><span class="act-dash-section-title">Videos</span></div>
         <div id="videos-slot"></div>
       </section>
       <div id="more-slot"></div>
