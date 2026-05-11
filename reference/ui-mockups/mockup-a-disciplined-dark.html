@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Mockup A — Disciplined Dark</title>
+<style>
+  /* ── Tokens ─────────────────────────────────────────────────────────── */
+  :root {
+    --bg:           #0d0d0d;
+    --bg-raised:   #161616;
+    --bg-hover:    #1c1c1c;
+    --bg-active:   #222;
+    --border:      #232323;
+    --border-strong:#333;
+    --text:        #d8d8d8;
+    --text-dim:    #888;
+    --text-faint:  #555;
+    --accent:      #9ec5ff;     /* single accent — replaces rainbow */
+    --accent-bg:   rgba(158,197,255,0.08);
+    --accent-border:rgba(158,197,255,0.35);
+    --radius:      4px;
+    --pad-x:       24px;
+    --row-h:       44px;
+  }
+  *,*::before,*::after { box-sizing:border-box; margin:0; padding:0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font: 14px/1.45 system-ui, -apple-system, sans-serif;
+    min-height: 100vh;
+  }
+  svg { display: block; }
+
+  /* ── Header (single row) ────────────────────────────────────────────── */
+  .header {
+    display: flex;
+    align-items: center;
+    height: var(--row-h);
+    padding: 0 var(--pad-x);
+    border-bottom: 1px solid var(--border);
+    background: var(--bg);
+    position: sticky; top: 0; z-index: 10;
+    gap: 28px;
+  }
+  .brand {
+    display: flex; align-items: center; gap: 8px;
+    font-weight: 600; font-size: 13px;
+    letter-spacing: 0.02em;
+    color: var(--text);
+    cursor: pointer;
+  }
+  .brand-mark {
+    width: 18px; height: 18px;
+    background: linear-gradient(135deg, #9ec5ff 0%, #c084fc 100%);
+    border-radius: 4px;
+    flex-shrink: 0;
+  }
+  .nav {
+    display: flex; align-items: center; gap: 2px;
+  }
+  .nav a {
+    display: inline-flex; align-items: center; gap: 7px;
+    padding: 6px 12px;
+    border-radius: var(--radius);
+    color: var(--text-dim);
+    font-size: 13px; font-weight: 500;
+    text-decoration: none;
+    cursor: pointer;
+    transition: color .12s, background .12s;
+  }
+  .nav a svg { width:14px; height:14px; stroke: currentColor; fill: none; stroke-width:1.8; }
+  .nav a:hover { color: var(--text); background: var(--bg-hover); }
+  .nav a.active {
+    color: var(--accent);
+    background: var(--accent-bg);
+    box-shadow: inset 0 -1px 0 var(--accent-border);
+  }
+  .header-spacer { flex: 1; }
+  .header-search {
+    position: relative;
+    width: 360px;
+  }
+  .header-search input {
+    width: 100%;
+    background: var(--bg-raised);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    color: var(--text);
+    padding: 6px 10px 6px 32px;
+    font-size: 13px;
+    outline: none;
+    transition: border-color .12s, background .12s;
+    font-family: inherit;
+  }
+  .header-search input::placeholder { color: var(--text-faint); }
+  .header-search input:focus {
+    border-color: var(--accent-border);
+    background: #1a1a1a;
+  }
+  .header-search-icon {
+    position: absolute; left: 10px; top: 50%; transform: translateY(-50%);
+    color: var(--text-faint); pointer-events: none;
+  }
+  .header-search-kbd {
+    position: absolute; right: 8px; top: 50%; transform: translateY(-50%);
+    color: var(--text-faint); font-size: 11px;
+    border: 1px solid var(--border-strong); border-radius: 3px;
+    padding: 1px 5px; line-height: 1;
+    font-family: ui-monospace, monospace;
+  }
+  .icon-btn {
+    width: 30px; height: 30px;
+    display: inline-flex; align-items: center; justify-content: center;
+    border: none; background: transparent;
+    color: var(--text-faint);
+    border-radius: var(--radius);
+    cursor: pointer;
+  }
+  .icon-btn:hover { color: var(--text); background: var(--bg-hover); }
+
+  /* ── Sub-row: scope filters as chips ────────────────────────────────── */
+  .subrow {
+    display: flex; align-items: center; gap: 6px;
+    padding: 8px var(--pad-x);
+    border-bottom: 1px solid var(--border);
+    background: var(--bg);
+    position: sticky; top: var(--row-h); z-index: 9;
+  }
+  .subrow-label {
+    font-size: 11px; color: var(--text-faint);
+    text-transform: uppercase; letter-spacing: 0.08em;
+    margin-right: 6px;
+  }
+  .chip {
+    font-size: 12px;
+    padding: 3px 10px;
+    border-radius: 999px;
+    background: var(--bg-raised);
+    border: 1px solid var(--border);
+    color: var(--text-dim);
+    cursor: pointer;
+    user-select: none;
+    transition: all .12s;
+  }
+  .chip:hover { color: var(--text); border-color: var(--border-strong); }
+  .chip.on {
+    color: var(--accent);
+    border-color: var(--accent-border);
+    background: var(--accent-bg);
+  }
+  .subrow-spacer { flex: 1; }
+  .crumb { font-size: 12px; color: var(--text-faint); }
+  .crumb b { color: var(--text-dim); font-weight: 500; }
+
+  /* ── Body sketch ───────────────────────────────────────────────────── */
+  .body-sketch {
+    padding: 32px var(--pad-x);
+  }
+  .placeholder {
+    border: 1px dashed var(--border-strong);
+    border-radius: var(--radius);
+    padding: 60px;
+    text-align: center;
+    color: var(--text-faint);
+    font-size: 12px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+
+  /* ── Variant: home portal (centered search) ────────────────────────── */
+  .home-hero {
+    padding: 80px var(--pad-x) 40px;
+    display: flex; flex-direction: column; align-items: center;
+    gap: 18px;
+  }
+  .home-hero h2 {
+    font-size: 22px; font-weight: 500; color: var(--text);
+    letter-spacing: -0.01em;
+  }
+  .home-hero p { color: var(--text-faint); font-size: 13px; }
+  .home-search {
+    position: relative;
+    width: 560px; max-width: 90vw;
+  }
+  .home-search input {
+    width: 100%;
+    background: var(--bg-raised);
+    border: 1px solid var(--border-strong);
+    border-radius: 8px;
+    color: var(--text);
+    padding: 14px 16px 14px 44px;
+    font-size: 16px;
+    outline: none;
+    font-family: inherit;
+  }
+  .home-search input:focus { border-color: var(--accent-border); }
+  .home-search-icon {
+    position: absolute; left: 16px; top: 50%; transform: translateY(-50%);
+    color: var(--text-faint);
+  }
+  .home-chips {
+    display: flex; gap: 6px; flex-wrap: wrap; justify-content: center;
+  }
+
+  .section-title {
+    font-size: 11px; color: var(--text-faint);
+    text-transform: uppercase; letter-spacing: 0.12em;
+    margin: 48px var(--pad-x) 12px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--border);
+  }
+</style>
+</head>
+<body>
+
+<!-- ════════════════════════════════════════════════════════════════ -->
+<!-- VIEW 1: Non-home view (titles browse) — chrome reads top to bottom -->
+<!-- ════════════════════════════════════════════════════════════════ -->
+
+<header class="header">
+  <div class="brand">
+    <div class="brand-mark"></div>
+    <span>jav&nbsp;helper</span>
+  </div>
+  <nav class="nav">
+    <a><svg viewBox="0 0 24 24"><circle cx="12" cy="7" r="4"/><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/></svg>Actresses</a>
+    <a class="active"><svg viewBox="0 0 24 24"><rect x="2" y="2" width="20" height="20" rx="2"/><line x1="2" y1="12" x2="22" y2="12"/><line x1="12" y1="2" x2="12" y2="22"/></svg>Titles</a>
+    <a><svg viewBox="0 0 24 24"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>AV</a>
+    <a><svg viewBox="0 0 24 24"><path d="M12 2L4 7v6c0 5 3.5 9 8 10 4.5-1 8-5 8-10V7l-8-5z"/></svg>Tools</a>
+  </nav>
+  <div class="header-spacer"></div>
+  <div class="header-search">
+    <svg class="header-search-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+    <input type="search" placeholder="Search titles, actresses, labels…">
+    <span class="header-search-kbd">⌘K</span>
+  </div>
+  <button class="icon-btn" title="Terminal">⌨</button>
+</header>
+
+<div class="subrow">
+  <span class="subrow-label">Scope</span>
+  <span class="chip on">Titles</span>
+  <span class="chip on">Actresses</span>
+  <span class="chip">Labels</span>
+  <span class="chip">Studios</span>
+  <span class="chip">AV Actresses</span>
+  <div class="subrow-spacer"></div>
+  <div class="crumb">Titles › <b>All</b></div>
+</div>
+
+<div class="body-sketch">
+  <div class="placeholder">— titles grid renders here —</div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════════ -->
+<!-- VIEW 2: Home portal — same chrome, hero search dominates           -->
+<!-- ════════════════════════════════════════════════════════════════ -->
+
+<div class="section-title">Home view (same chrome, search promoted)</div>
+
+<header class="header" style="position:static">
+  <div class="brand">
+    <div class="brand-mark"></div>
+    <span>jav&nbsp;helper</span>
+  </div>
+  <nav class="nav">
+    <a><svg viewBox="0 0 24 24"><circle cx="12" cy="7" r="4"/><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/></svg>Actresses</a>
+    <a><svg viewBox="0 0 24 24"><rect x="2" y="2" width="20" height="20" rx="2"/></svg>Titles</a>
+    <a><svg viewBox="0 0 24 24"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>AV</a>
+    <a><svg viewBox="0 0 24 24"><path d="M12 2L4 7v6c0 5 3.5 9 8 10 4.5-1 8-5 8-10V7l-8-5z"/></svg>Tools</a>
+  </nav>
+  <div class="header-spacer"></div>
+  <button class="icon-btn" title="Terminal">⌨</button>
+</header>
+
+<section class="home-hero">
+  <h2>Search everything</h2>
+  <p>titles, actresses, labels, studios — search for almost anything</p>
+  <div class="home-search">
+    <svg class="home-search-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+    <input type="search" placeholder="Type to search…">
+  </div>
+  <div class="home-chips">
+    <span class="chip on">Titles</span>
+    <span class="chip on">Actresses</span>
+    <span class="chip on">Labels</span>
+    <span class="chip on">Studios</span>
+    <span class="chip on">AV Actresses</span>
+  </div>
+</section>
+
+</body>
+</html>

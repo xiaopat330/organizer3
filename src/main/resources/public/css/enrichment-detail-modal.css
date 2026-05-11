@@ -272,7 +272,7 @@ button.jd-qi-status.jd-qi-slug-link:hover { filter: brightness(1.2); }
   cursor: pointer;
   font-size: 11px;
   line-height: 1;
-  padding: 2px 5px;
+  padding: 5px 5px;
 }
 .jd-qi-action-btn:hover { border-color: #555; color: #bbb; background: #1e1e1e; }
 

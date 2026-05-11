@@ -16,10 +16,74 @@
   --bg-body: #0d0d0d;
   --bg-input: #161616;
   --bg-card: #161616;
-  --border-subtle: var(--border-subtle);   /* card/sticky-row dividers */
-  --border-control: var(--border-control);  /* inputs, selects, buttons */
+  --border-subtle: 1px solid #1f1f1f;   /* card/sticky-row dividers */
+  --border-control: 1px solid #2a2a2a;  /* inputs, selects, buttons */
   --dur-fast: 0.12s;
   --dur-normal: 0.15s;
+}
+
+/* ─────────────────────────────────────────────────────────────────────
+   Design System v1 tokens — see spec/DESIGN_SYSTEM.md
+   New rules should use these; legacy tokens above stay during migration.
+   Visual reference: reference/ui-mockups/mockup-recommended.html
+   Kitchen sink: /design.html
+   ───────────────────────────────────────────────────────────────────── */
+:root {
+  /* Surfaces */
+  --bg:           #0d0d10;
+  --bg-rail:      #08080b;
+  --bg-panel:     #14141a;
+  --bg-card:      #15151b;   /* overrides legacy #161616 — visually identical */
+  --bg-hover:     #1c1c24;
+  --bg-active:    #232330;
+  --bg-status:    #08080b;
+
+  /* Borders */
+  --border:        #1c1c22;
+  --border-strong: #2a2a34;
+
+  /* Text */
+  --text:        #e0e0e6;
+  --text-dim:    #8a8a96;
+  --text-faint:  #54545e;
+
+  /* Accent — THE one accent color. Replaces tab-rainbow + tools-rainbow. */
+  --accent:     #93c5fd;
+  --accent-bg:  rgba(147,197,253,0.10);
+  --accent-fg:  #c8dffd;
+
+  /* Status semantics */
+  --ok:    #6ee7b7;
+  --warn:  #fbbf24;
+  --error: #f87171;
+
+  /* Radii */
+  --radius:      5px;
+  --radius-card: 8px;
+
+  /* Typography — mono for data, ui for prose */
+  --font-ui:   system-ui, -apple-system, sans-serif;
+  --font-mono: ui-monospace, 'SF Mono', Menlo, monospace;
+
+  /* Motion — respect prefers-reduced-motion (handled below) */
+  --dur-base:    180ms;
+  --dur-slow:    260ms;
+  --ease-out:    cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+
+  /* Chrome dimensions */
+  --rail-w:      214px;
+  --inspector-w: 320px;
+  --topbar-h:    40px;
+  --status-h:    24px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }
 
 body {

@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Home — Organizer3 v2</title>
+<link rel="stylesheet" href="/css/base.css">
+<link rel="stylesheet" href="/css/primitives.css">
+<link rel="stylesheet" href="/css/chrome.css">
+<link rel="stylesheet" href="/css/library.css">
+<link rel="stylesheet" href="/css/cards.css">
+</head>
+<body>
+
+<div class="app">
+
+  <!-- ── Rail ────────────────────────────────────────────────────────── -->
+  <aside class="app-rail">
+    <div class="rail-brand">
+      <span class="rail-brand-mark">O3</span>
+      <span class="rail-brand-name">Organizer<span class="v">v2</span></span>
+    </div>
+    <nav class="rail-nav">
+      <div class="rail-section">Library</div>
+      <a class="rail-item active" href="/v2.html"><svg viewBox="0 0 24 24"><path d="M3 12l9-9 9 9"/><path d="M5 10v10h14V10"/></svg>Home</a>
+      <a class="rail-item" href="/v2-actresses.html"><svg viewBox="0 0 24 24"><circle cx="12" cy="7" r="4"/><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/></svg>Actresses</a>
+      <a class="rail-item" href="/v2-titles.html"><svg viewBox="0 0 24 24"><rect x="2" y="2" width="20" height="20" rx="2"/><line x1="2" y1="12" x2="22" y2="12"/><line x1="12" y1="2" x2="12" y2="22"/></svg>Titles</a>
+      <a class="rail-item" href="/v2-avstars.html"><svg viewBox="0 0 24 24"><polygon points="12 2 15 9 22 9 17 14 18 21 12 17 6 21 7 14 2 9 9 9"/></svg>AV Stars</a>
+      <div class="rail-section">Cleanup</div>
+      <a class="rail-item" href="/v2-duplicates.html"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="13" height="13" rx="2"/><rect x="8" y="8" width="13" height="13" rx="2"/></svg>Duplicates</a>
+      <a class="rail-item" href="/v2-merge.html"><svg viewBox="0 0 24 24"><path d="M6 3v10"/><path d="M18 3v6"/><path d="M6 13a6 6 0 0 0 6 6h6"/><circle cx="18" cy="19" r="2"/><circle cx="6" cy="3" r="2"/><circle cx="18" cy="3" r="2"/></svg>Merge</a>
+      <a class="rail-item" href="/v2-no-match.html"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 8v4"/><circle cx="12" cy="16" r="0.6"/></svg>No-Match</a>
+      <a class="rail-item" href="/v2-trash.html"><svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>Trash</a>
+      <div class="rail-section">Catalog</div>
+      <a class="rail-item" href="/v2-translation.html"><svg viewBox="0 0 24 24"><path d="M5 8l6 6 6-6"/><path d="M5 16h14"/></svg>Translation</a>
+      <a class="rail-item" href="/v2-pending-kanji.html"><svg viewBox="0 0 24 24"><path d="M12 20l9-7-9-7-9 7z"/></svg>Pending Kanji</a>
+      <a class="rail-item" href="/v2-discovery.html"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88"/></svg>Discovery</a>
+      <a class="rail-item" href="/v2-enrichment.html"><svg viewBox="0 0 24 24"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/><polyline points="9 12 11 14 15 10"/></svg>Enrichment</a>
+      <div class="rail-section">System</div>
+      <a class="rail-item" href="/v2-volumes.html"><svg viewBox="0 0 24 24"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 5v6c0 1.66-4 3-9 3s-9-1.34-9-3V5"/><path d="M21 11v6c0 1.66-4 3-9 3s-9-1.34-9-3v-6"/></svg>Volumes</a>
+      <a class="rail-item" href="/v2-health.html"><svg viewBox="0 0 24 24"><polyline points="2 12 6 12 8 5 10 19 12 12 14 15 16 12 22 12"/></svg>Health</a>
+      <a class="rail-item" href="/v2-backup.html"><svg viewBox="0 0 24 24"><path d="M4 16v1a3 3 0 0 0 3 3h10a3 3 0 0 0 3-3v-1"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>Backup</a>
+      <a class="rail-item" href="/v2-logs.html"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="13" y2="17"/></svg>Logs</a>
+    </nav>
+    <div class="rail-footer">
+      <a class="rail-item" href="/design.html"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>Design system</a>
+      <a class="rail-item" href="/"><svg viewBox="0 0 24 24"><path d="M9 18l6-6-6-6"/></svg>Legacy app</a>
+    </div>
+  </aside>
+
+  <!-- ── Topbar ──────────────────────────────────────────────────────── -->
+  <header class="app-topbar">
+    <div class="topbar-left">
+      <span class="crumb"><b>Home</b></span>
+    </div>
+    <button class="cmdk-trigger" id="palette-trigger">
+      <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      <span class="cmdk-trigger-text">Search or jump to…</span>
+      <span class="kbd accent">⌘K</span>
+    </button>
+    <div class="topbar-right">
+      <div class="tooltip" data-tooltip="Toggle workbench mode (m)">
+        <button class="icon-btn"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="15" y1="3" x2="15" y2="21"/></svg></button>
+      </div>
+      <div class="tooltip" data-tooltip="Settings">
+        <button class="icon-btn"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></button>
+      </div>
+    </div>
+  </header>
+
+  <!-- ── Body (Home) ─────────────────────────────────────────────────── -->
+  <main class="app-body" id="app-body"></main>
+
+  <!-- ── Status bar ──────────────────────────────────────────────────── -->
+  <footer class="app-status">
+    <span class="status-spacer"></span>
+  </footer>
+</div>
+
+<!-- Palette mount point — module fills it -->
+<div id="palette-root"></div>
+
+<script type="module">
+  import { createPalette }   from '/modules/chrome/palette.js';
+  import { mountHome }       from '/modules/v2/home.js';
+  import { mountStatusBar }  from '/modules/chrome/status-bar.js';
+
+  const palette = createPalette({
+    rootEl: document.getElementById('palette-root'),
+    onSelect: (item) => {
+      // Wave 2: log only. Future waves wire this to real routes.
+      console.log('[v2] palette selected:', item);
+    },
+  });
+  document.getElementById('palette-trigger').addEventListener('click', palette.open);
+
+  mountHome(document.getElementById('app-body'));
+  mountStatusBar();
+</script>
+
+</body>
+</html>

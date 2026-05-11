@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Mockup B — Editorial Calm</title>
+<style>
+  /* ── Tokens (looser, softer) ───────────────────────────────────────── */
+  :root {
+    --bg:           #111114;
+    --bg-raised:   #1a1a1f;
+    --bg-hover:    #20202a;
+    --border:      rgba(255,255,255,0.06);
+    --border-strong:rgba(255,255,255,0.12);
+    --text:        #e8e8ec;
+    --text-dim:    #9a9aa6;
+    --text-faint:  #5a5a66;
+    --accent:      #c4b5fd;
+    --accent-bg:   rgba(196,181,253,0.10);
+    --radius:      8px;
+    --radius-lg:   12px;
+    --pad-x:       40px;
+    --shadow-sm:   0 1px 2px rgba(0,0,0,0.4);
+    --shadow-md:   0 4px 16px rgba(0,0,0,0.45);
+  }
+  *,*::before,*::after { box-sizing:border-box; margin:0; padding:0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font: 15px/1.55 'Inter', system-ui, -apple-system, sans-serif;
+    min-height: 100vh;
+    -webkit-font-smoothing: antialiased;
+  }
+  svg { display: block; }
+
+  /* ── Header ─────────────────────────────────────────────────────────── */
+  .header {
+    padding: 18px var(--pad-x);
+    border-bottom: 1px solid var(--border);
+    background: var(--bg);
+    position: sticky; top: 0; z-index: 10;
+    backdrop-filter: blur(8px);
+  }
+  .header-row {
+    display: flex; align-items: center; gap: 32px;
+  }
+  .brand {
+    display: flex; align-items: center; gap: 10px;
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+  .brand-mark {
+    width: 22px; height: 22px;
+    background: linear-gradient(135deg, #c4b5fd 0%, #f0abfc 100%);
+    border-radius: 6px;
+  }
+  .brand-name {
+    font-size: 15px; font-weight: 500;
+    color: var(--text);
+    letter-spacing: -0.01em;
+  }
+  .nav {
+    display: flex; align-items: center; gap: 4px;
+  }
+  .nav a {
+    padding: 8px 14px;
+    color: var(--text-dim);
+    font-size: 14px; font-weight: 500;
+    text-decoration: none;
+    border-radius: var(--radius);
+    cursor: pointer;
+    transition: color .15s, background .15s;
+  }
+  .nav a:hover { color: var(--text); background: var(--bg-hover); }
+  .nav a.active {
+    color: var(--text);
+    background: var(--bg-hover);
+  }
+  .header-spacer { flex: 1; }
+  .icon-btn {
+    width: 36px; height: 36px;
+    display: inline-flex; align-items: center; justify-content: center;
+    border: 1px solid var(--border);
+    background: var(--bg-raised);
+    color: var(--text-dim);
+    border-radius: var(--radius);
+    cursor: pointer;
+    font-size: 15px;
+  }
+  .icon-btn:hover { color: var(--text); background: var(--bg-hover); }
+
+  /* Search lives ON the header row, prominent */
+  .header-search {
+    position: relative;
+    width: 420px;
+  }
+  .header-search input {
+    width: 100%;
+    background: var(--bg-raised);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    color: var(--text);
+    padding: 10px 14px 10px 40px;
+    font-size: 14px;
+    outline: none;
+    font-family: inherit;
+    transition: border-color .15s, box-shadow .15s;
+  }
+  .header-search input::placeholder { color: var(--text-faint); }
+  .header-search input:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-bg);
+  }
+  .header-search-icon {
+    position: absolute; left: 14px; top: 50%; transform: translateY(-50%);
+    color: var(--text-faint);
+  }
+
+  /* Sub-row: filter chips */
+  .header-filters {
+    display: flex; align-items: center; gap: 8px;
+    padding-top: 14px;
+    flex-wrap: wrap;
+  }
+  .header-filters-label {
+    font-size: 12px; color: var(--text-faint);
+    margin-right: 4px;
+  }
+  .chip {
+    font-size: 13px;
+    padding: 5px 12px;
+    border-radius: 999px;
+    background: var(--bg-raised);
+    border: 1px solid var(--border);
+    color: var(--text-dim);
+    cursor: pointer;
+    user-select: none;
+    transition: all .15s;
+  }
+  .chip:hover { color: var(--text); border-color: var(--border-strong); }
+  .chip.on {
+    color: var(--accent);
+    border-color: var(--accent);
+    background: var(--accent-bg);
+  }
+  .header-filters-spacer { flex: 1; }
+  .crumb {
+    font-size: 13px; color: var(--text-faint);
+  }
+  .crumb b { color: var(--text-dim); font-weight: 500; }
+
+  /* ── Body sketch ───────────────────────────────────────────────────── */
+  .body-sketch {
+    padding: 48px var(--pad-x);
+  }
+  .placeholder {
+    border: 1px dashed var(--border-strong);
+    border-radius: var(--radius-lg);
+    padding: 80px;
+    text-align: center;
+    color: var(--text-faint);
+    font-size: 13px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  /* ── Home variant ──────────────────────────────────────────────────── */
+  .home-hero {
+    padding: 120px var(--pad-x) 60px;
+    display: flex; flex-direction: column; align-items: center;
+    gap: 24px;
+  }
+  .home-hero h2 {
+    font-size: 32px; font-weight: 500; color: var(--text);
+    letter-spacing: -0.02em;
+  }
+  .home-hero p {
+    color: var(--text-dim);
+    font-size: 15px;
+  }
+  .home-search {
+    position: relative;
+    width: 640px; max-width: 90vw;
+  }
+  .home-search input {
+    width: 100%;
+    background: var(--bg-raised);
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius-lg);
+    color: var(--text);
+    padding: 18px 20px 18px 56px;
+    font-size: 17px;
+    outline: none;
+    font-family: inherit;
+    transition: border-color .15s, box-shadow .15s;
+    box-shadow: var(--shadow-md);
+  }
+  .home-search input:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 4px var(--accent-bg), var(--shadow-md);
+  }
+  .home-search-icon {
+    position: absolute; left: 20px; top: 50%; transform: translateY(-50%);
+    color: var(--text-faint);
+  }
+  .home-chips {
+    display: flex; gap: 8px; flex-wrap: wrap; justify-content: center;
+  }
+
+  .section-title {
+    font-size: 12px; color: var(--text-faint);
+    text-transform: uppercase; letter-spacing: 0.12em;
+    margin: 64px var(--pad-x) 16px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--border);
+  }
+</style>
+</head>
+<body>
+
+<!-- VIEW 1: Non-home (titles browse) -->
+
+<header class="header">
+  <div class="header-row">
+    <div class="brand">
+      <div class="brand-mark"></div>
+      <span class="brand-name">JAV Helper</span>
+    </div>
+    <nav class="nav">
+      <a>Actresses</a>
+      <a class="active">Titles</a>
+      <a>AV</a>
+      <a>Tools</a>
+    </nav>
+    <div class="header-spacer"></div>
+    <div class="header-search">
+      <svg class="header-search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      <input type="search" placeholder="Search across the library…">
+    </div>
+    <button class="icon-btn" title="Terminal">⌨</button>
+  </div>
+  <div class="header-filters">
+    <span class="header-filters-label">Search:</span>
+    <span class="chip on">Titles</span>
+    <span class="chip on">Actresses</span>
+    <span class="chip">Labels</span>
+    <span class="chip">Studios</span>
+    <span class="chip">AV Actresses</span>
+    <div class="header-filters-spacer"></div>
+    <div class="crumb">Titles › <b>All</b></div>
+  </div>
+</header>
+
+<div class="body-sketch">
+  <div class="placeholder">— titles grid renders here —</div>
+</div>
+
+<!-- VIEW 2: Home portal -->
+
+<div class="section-title">Home view</div>
+
+<header class="header" style="position:static">
+  <div class="header-row">
+    <div class="brand">
+      <div class="brand-mark"></div>
+      <span class="brand-name">JAV Helper</span>
+    </div>
+    <nav class="nav">
+      <a>Actresses</a>
+      <a>Titles</a>
+      <a>AV</a>
+      <a>Tools</a>
+    </nav>
+    <div class="header-spacer"></div>
+    <button class="icon-btn" title="Terminal">⌨</button>
+  </div>
+</header>
+
+<section class="home-hero">
+  <h2>Search everything</h2>
+  <p>titles, actresses, labels, studios — search for almost anything</p>
+  <div class="home-search">
+    <svg class="home-search-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+    <input type="search" placeholder="Type to search…">
+  </div>
+  <div class="home-chips">
+    <span class="chip on">Titles</span>
+    <span class="chip on">Actresses</span>
+    <span class="chip on">Labels</span>
+    <span class="chip on">Studios</span>
+    <span class="chip on">AV Actresses</span>
+  </div>
+</section>
+
+</body>
+</html>

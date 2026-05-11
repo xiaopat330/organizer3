@@ -1,0 +1,828 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Design System — Organizer3</title>
+<!-- Tokens + canonical primitive CSS. Kitchen-sink scaffolding is below. -->
+<link rel="stylesheet" href="/css/base.css">
+<link rel="stylesheet" href="/css/primitives.css">
+<style>
+  /* ─── Page layout (kitchen-sink scaffolding only — not part of the design system) ─── */
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-ui);
+    font-size: 14px;
+    line-height: 1.5;
+    margin: 0;
+    -webkit-font-smoothing: antialiased;
+  }
+  .ds-page { display: grid; grid-template-columns: 200px 1fr; min-height: 100vh; }
+  .ds-toc {
+    position: sticky; top: 0; align-self: start;
+    height: 100vh; overflow-y: auto;
+    background: var(--bg-rail);
+    border-right: 1px solid var(--border);
+    padding: 20px 14px;
+    font-size: 12px;
+  }
+  .ds-toc h1 {
+    font-size: 13px; font-weight: 600;
+    color: var(--text); margin-bottom: 18px;
+    letter-spacing: -0.01em;
+  }
+  .ds-toc h1 .v {
+    font-family: var(--font-mono); font-size: 10px;
+    color: var(--accent); margin-left: 6px;
+    border: 1px solid rgba(147,197,253,0.28);
+    background: var(--accent-bg);
+    border-radius: 3px; padding: 1px 5px;
+  }
+  .ds-toc a {
+    display: block; padding: 4px 8px;
+    color: var(--text-dim); text-decoration: none;
+    border-radius: var(--radius);
+    margin-bottom: 1px;
+  }
+  .ds-toc a:hover { color: var(--text); background: var(--bg-hover); }
+  .ds-toc .toc-meta {
+    margin-top: 24px; padding-top: 16px;
+    border-top: 1px solid var(--border);
+    font-family: var(--font-mono); font-size: 10.5px;
+    color: var(--text-faint); line-height: 1.6;
+  }
+  .ds-toc .toc-meta a { color: var(--text-faint); padding: 0; }
+  .ds-toc .toc-meta a:hover { color: var(--accent); background: transparent; }
+
+  .ds-main { padding: 32px 36px 80px; max-width: 1100px; }
+  .ds-section { margin-bottom: 56px; scroll-margin-top: 24px; }
+  .ds-section > h2 {
+    font-size: 11px; color: var(--text-faint);
+    text-transform: uppercase; letter-spacing: 0.14em;
+    font-weight: 600;
+    padding-bottom: 10px; margin-bottom: 20px;
+    border-bottom: 1px solid var(--border);
+  }
+  .ds-row { display: flex; flex-wrap: wrap; gap: 24px 32px; align-items: flex-start; margin-bottom: 20px; }
+  .ds-spec {
+    font-family: var(--font-mono); font-size: 11px;
+    color: var(--text-faint);
+    margin-top: 8px;
+  }
+  .ds-spec b { color: var(--text-dim); font-weight: 500; }
+  .ds-label {
+    font-size: 11px; color: var(--text-faint);
+    text-transform: uppercase; letter-spacing: 0.1em;
+    margin-bottom: 8px;
+  }
+  .ds-grid { display: grid; gap: 16px; }
+  .ds-grid-3 { grid-template-columns: repeat(3, 1fr); }
+  .ds-grid-4 { grid-template-columns: repeat(4, 1fr); }
+  .ds-grid-5 { grid-template-columns: repeat(5, 1fr); }
+  .ds-frame {
+    background: var(--bg-panel);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-card);
+    padding: 16px;
+  }
+  .ds-frame.dim { background: var(--bg); }
+
+  /* Color swatch */
+  .swatch { display: flex; flex-direction: column; gap: 6px; }
+  .swatch-block {
+    height: 56px; border-radius: var(--radius);
+    border: 1px solid rgba(255,255,255,0.04);
+  }
+  .swatch-name { font-family: var(--font-mono); font-size: 11px; color: var(--text); }
+  .swatch-val  { font-family: var(--font-mono); font-size: 10.5px; color: var(--text-faint); }
+
+  /* ────────────────────────────────────────────────────────────────────
+     PAGE-LOCAL MOCKS — rail/topbar/status/table/inspector/hero are
+     composed from primitives.css + a few demo containers below.
+     ──────────────────────────────────────────────────────────────────── */
+
+  /* Rail item */
+  .rail-mock { background: var(--bg-rail); border: 1px solid var(--border); border-radius: var(--radius-card); padding: 10px; width: 220px; }
+  .rail-section { font-size: 10px; color: var(--text-faint); text-transform: uppercase; letter-spacing: 0.12em; padding: 8px 10px 4px; }
+  .rail-item {
+    display: flex; align-items: center; gap: 9px;
+    padding: 6px 10px; border-radius: var(--radius);
+    color: var(--text-dim); font-size: 13px; cursor: pointer;
+    transition: color var(--dur-fast) var(--ease-out), background var(--dur-fast) var(--ease-out);
+  }
+  .rail-item:hover { color: var(--text); background: var(--bg-hover); }
+  .rail-item.active { color: var(--accent); background: var(--accent-bg); }
+  .rail-item svg { width: 14px; height: 14px; stroke: currentColor; fill: none; stroke-width: 1.8; flex-shrink: 0; }
+  .rail-item .badge { margin-left: auto; }
+
+  /* Topbar */
+  .topbar-mock {
+    display: grid; grid-template-columns: 1fr auto 1fr;
+    align-items: center; gap: 12px;
+    height: var(--topbar-h);
+    padding: 0 16px;
+    border: 1px solid var(--border); border-radius: var(--radius-card);
+    background: var(--bg);
+  }
+  .topbar-left { display: flex; align-items: center; gap: 10px; }
+  .topbar-right { display: flex; align-items: center; gap: 4px; justify-content: flex-end; }
+  .crumb { font-size: 12px; color: var(--text-faint); }
+  .crumb b { color: var(--text-dim); font-weight: 500; }
+  .crumb .sep { margin: 0 6px; }
+
+  /* Status bar */
+  .status-mock {
+    display: flex; align-items: center; gap: 16px;
+    padding: 0 14px; height: var(--status-h);
+    background: var(--bg-status);
+    border: 1px solid var(--border); border-radius: var(--radius);
+    font-family: var(--font-mono); font-size: 10.5px;
+    color: var(--text-faint);
+  }
+  .status-mock .item { display: inline-flex; align-items: center; gap: 6px; }
+  .status-mock .item b { color: var(--text-dim); font-weight: 500; }
+  .status-mock .item svg { width: 11px; height: 11px; stroke: currentColor; fill: none; stroke-width: 1.8; opacity: 0.75; }
+  .status-mock .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--ok); box-shadow: 0 0 5px color-mix(in srgb, var(--ok) 70%, transparent); }
+  .status-mock .dot.warn { background: var(--warn); box-shadow: 0 0 5px color-mix(in srgb, var(--warn) 70%, transparent); }
+  .status-mock .dot.idle { background: var(--text-faint); box-shadow: none; }
+  .status-mock .dot.live { animation: ds-pulse 2s ease-in-out infinite; }
+  @keyframes ds-pulse {
+    0%, 100% { box-shadow: 0 0 5px color-mix(in srgb, var(--ok) 70%, transparent); }
+    50%      { box-shadow: 0 0 11px color-mix(in srgb, var(--ok) 95%, transparent); }
+  }
+  .status-mock .spacer { flex: 1; }
+  .status-mock .task { display: inline-flex; align-items: center; gap: 7px; color: var(--text-dim); }
+  .status-mock .bar { width: 90px; height: 3px; background: #1a1e26; border-radius: 2px; overflow: hidden; }
+  .status-mock .bar-fill {
+    height: 100%; width: 38%;
+    background: linear-gradient(90deg, #1d4ed8, var(--accent));
+    background-size: 200% 100%;
+    animation: ds-shimmer 1.6s linear infinite;
+  }
+  @keyframes ds-shimmer { 0% { background-position: 100% 0; } 100% { background-position: -100% 0; } }
+
+  /* Table row */
+  .row {
+    display: grid;
+    grid-template-columns: 26px 110px 1fr 60px 70px;
+    gap: 14px;
+    padding: 7px 14px;
+    align-items: center;
+    border-bottom: 1px solid #14141a;
+    color: var(--text-dim);
+    font-size: 12.5px;
+  }
+  .row.header {
+    color: var(--text-faint); font-size: 10px;
+    text-transform: uppercase; letter-spacing: 0.1em;
+    background: var(--bg-rail);
+    border-bottom: 1px solid var(--border);
+  }
+  .row.sel { background: var(--accent-bg); color: var(--text); box-shadow: inset 2px 0 0 var(--accent); }
+  .row .code { font-family: var(--font-mono); color: var(--text); font-size: 11.5px; }
+  .row.sel .code { color: var(--accent-fg); }
+  .row .num { font-family: var(--font-mono); text-align: right; font-variant-numeric: tabular-nums; font-size: 11.5px; }
+
+  /* Inspector section */
+  .insp-mock { width: 320px; background: var(--bg-panel); border: 1px solid var(--border); border-radius: var(--radius-card); overflow: hidden; }
+  .insp-cover { aspect-ratio: 16/11; background: linear-gradient(135deg, #b91c1c, #7f1d1d); border-bottom: 1px solid var(--border); }
+  .insp-head { padding: 12px 16px; border-bottom: 1px solid var(--border); }
+  .insp-eyebrow { font-size: 10px; color: var(--text-faint); text-transform: uppercase; letter-spacing: 0.12em; margin-bottom: 5px; }
+  .insp-title { font-size: 15px; font-weight: 600; color: var(--text); line-height: 1.35; }
+  .insp-section { padding: 12px 16px; border-bottom: 1px solid var(--border); }
+  .insp-section:last-child { border-bottom: none; }
+  .insp-label { font-size: 10px; color: var(--text-faint); text-transform: uppercase; letter-spacing: 0.12em; margin-bottom: 8px; }
+  .insp-kv { display: grid; grid-template-columns: 64px 1fr; font-size: 12px; row-gap: 5px; column-gap: 10px; }
+  .insp-kv .k { color: var(--text-faint); font-family: var(--font-mono); font-size: 11px; }
+  .insp-kv .v { color: var(--text); }
+  .insp-kv .v.mono { font-family: var(--font-mono); font-size: 11.5px; }
+
+  /* Hero */
+  .hero-mock {
+    padding: 28px;
+    background:
+      radial-gradient(ellipse 60% 80% at 18% 30%, rgba(192,132,252,0.16), transparent 65%),
+      radial-gradient(ellipse 60% 80% at 80% 30%, rgba(244,114,182,0.10), transparent 65%);
+    border: 1px solid var(--border); border-radius: var(--radius-card);
+  }
+  .hero-row { display: flex; align-items: end; gap: 24px; }
+  .hero-portrait {
+    width: 140px; height: 188px; border-radius: var(--radius-card);
+    background: linear-gradient(135deg, #c084fc, #6366f1);
+    box-shadow: 0 12px 36px rgba(0,0,0,0.55);
+    flex-shrink: 0;
+  }
+  .hero-eyebrow { font-size: 10.5px; color: #e288c8; text-transform: uppercase; letter-spacing: 0.14em; font-weight: 600; margin-bottom: 8px; }
+  .hero-name { font-size: 28px; font-weight: 600; letter-spacing: -0.02em; color: var(--text); margin-bottom: 8px; line-height: 1.1; }
+  .hero-stats { display: flex; gap: 14px; color: var(--text-dim); font-size: 12px; margin-bottom: 12px; }
+  .hero-stats b { color: var(--text); font-weight: 600; font-family: var(--font-mono); }
+</style>
+</head>
+<body>
+
+<div class="ds-page">
+
+  <!-- ── TOC ───────────────────────────────────────────────────────── -->
+  <aside class="ds-toc">
+    <h1>Design System <span class="v">v1</span></h1>
+    <a href="#tokens">Tokens</a>
+    <a href="#typography">Typography</a>
+    <a href="#buttons">Buttons</a>
+    <a href="#chips">Chips</a>
+    <a href="#pills">Pills · badges · kbd</a>
+    <a href="#inputs">Inputs · ⌘K</a>
+    <a href="#cards">Cards</a>
+    <a href="#rail">Rail item</a>
+    <a href="#topbar">Topbar</a>
+    <a href="#statusbar">Status bar</a>
+    <a href="#table">Table row</a>
+    <a href="#inspector">Inspector</a>
+    <a href="#hero">Hero band</a>
+    <a href="#forms">Form groups</a>
+    <a href="#modal">Modal</a>
+    <a href="#popover">Popover</a>
+    <a href="#empty">Empty state</a>
+    <a href="#skeleton">Skeleton</a>
+    <a href="#toast">Toast</a>
+    <a href="#tooltip">Tooltip</a>
+    <a href="#sort">Sort header</a>
+    <a href="#tabs">Tab strip</a>
+    <a href="#motion">Motion</a>
+    <div class="toc-meta">
+      spec/<a href="javascript:void(0)">DESIGN_SYSTEM.md</a><br>
+      reference/ui-mockups/<br><a href="/../reference/ui-mockups/mockup-recommended.html">mockup-recommended.html</a>
+    </div>
+  </aside>
+
+  <!-- ── Sections ──────────────────────────────────────────────────── -->
+  <main class="ds-main">
+
+    <!-- Tokens ───────────────────────────────────────────────────── -->
+    <section class="ds-section" id="tokens">
+      <h2>Tokens</h2>
+
+      <div class="ds-label">Surfaces</div>
+      <div class="ds-grid ds-grid-5" style="margin-bottom:24px">
+        <div class="swatch"><div class="swatch-block" style="background:var(--bg)"></div><div class="swatch-name">--bg</div><div class="swatch-val">#0d0d10</div></div>
+        <div class="swatch"><div class="swatch-block" style="background:var(--bg-rail)"></div><div class="swatch-name">--bg-rail</div><div class="swatch-val">#08080b</div></div>
+        <div class="swatch"><div class="swatch-block" style="background:var(--bg-panel)"></div><div class="swatch-name">--bg-panel</div><div class="swatch-val">#14141a</div></div>
+        <div class="swatch"><div class="swatch-block" style="background:var(--bg-hover)"></div><div class="swatch-name">--bg-hover</div><div class="swatch-val">#1c1c24</div></div>
+        <div class="swatch"><div class="swatch-block" style="background:var(--bg-active)"></div><div class="swatch-name">--bg-active</div><div class="swatch-val">#232330</div></div>
+      </div>
+
+      <div class="ds-label">Text</div>
+      <div class="ds-grid ds-grid-3" style="margin-bottom:24px">
+        <div class="swatch"><div class="swatch-block" style="background:var(--text)"></div><div class="swatch-name">--text</div><div class="swatch-val">#e0e0e6</div></div>
+        <div class="swatch"><div class="swatch-block" style="background:var(--text-dim)"></div><div class="swatch-name">--text-dim</div><div class="swatch-val">#8a8a96</div></div>
+        <div class="swatch"><div class="swatch-block" style="background:var(--text-faint)"></div><div class="swatch-name">--text-faint</div><div class="swatch-val">#54545e</div></div>
+      </div>
+
+      <div class="ds-label">Accent (THE one accent color)</div>
+      <div class="ds-grid ds-grid-3" style="margin-bottom:24px">
+        <div class="swatch"><div class="swatch-block" style="background:var(--accent)"></div><div class="swatch-name">--accent</div><div class="swatch-val">#93c5fd</div></div>
+        <div class="swatch"><div class="swatch-block" style="background:var(--accent-bg)"></div><div class="swatch-name">--accent-bg</div><div class="swatch-val">rgba(147,197,253,0.10)</div></div>
+        <div class="swatch"><div class="swatch-block" style="background:var(--accent-fg)"></div><div class="swatch-name">--accent-fg</div><div class="swatch-val">#c8dffd</div></div>
+      </div>
+
+      <div class="ds-label">Status semantics</div>
+      <div class="ds-grid ds-grid-3" style="margin-bottom:24px">
+        <div class="swatch"><div class="swatch-block" style="background:var(--ok)"></div><div class="swatch-name">--ok</div><div class="swatch-val">#6ee7b7</div></div>
+        <div class="swatch"><div class="swatch-block" style="background:var(--warn)"></div><div class="swatch-name">--warn</div><div class="swatch-val">#fbbf24</div></div>
+        <div class="swatch"><div class="swatch-block" style="background:var(--error)"></div><div class="swatch-name">--error</div><div class="swatch-val">#f87171</div></div>
+      </div>
+
+      <div class="ds-label">Borders, radii, durations, dimensions</div>
+      <div class="ds-spec">
+        <b>--border</b> #1c1c22 &nbsp;·&nbsp; <b>--border-strong</b> #2a2a34<br>
+        <b>--radius</b> 5px &nbsp;·&nbsp; <b>--radius-card</b> 8px<br>
+        <b>--dur-fast</b> 120ms &nbsp;·&nbsp; <b>--dur-base</b> 180ms &nbsp;·&nbsp; <b>--dur-slow</b> 260ms<br>
+        <b>--ease-out</b> cubic-bezier(0.16, 1, 0.3, 1)<br>
+        <b>--rail-w</b> 214px &nbsp;·&nbsp; <b>--inspector-w</b> 320px &nbsp;·&nbsp; <b>--topbar-h</b> 40px &nbsp;·&nbsp; <b>--status-h</b> 24px
+      </div>
+    </section>
+
+    <!-- Typography ───────────────────────────────────────────────── -->
+    <section class="ds-section" id="typography">
+      <h2>Typography</h2>
+      <div class="ds-row">
+        <div>
+          <div class="ds-label">--font-ui (system) — prose, names, headings</div>
+          <div style="font-family:var(--font-ui)">
+            <div style="font-size:32px;font-weight:600;letter-spacing:-0.02em">Yuma Asami</div>
+            <div style="font-size:18px;font-weight:500">A Beautiful Woman's First Time</div>
+            <div style="font-size:14px;color:var(--text-dim)">Standard body text.</div>
+            <div style="font-size:11px;color:var(--text-faint);text-transform:uppercase;letter-spacing:0.12em">Section label</div>
+          </div>
+        </div>
+        <div>
+          <div class="ds-label">--font-mono — codes, paths, sizes, counts</div>
+          <div style="font-family:var(--font-mono);font-size:13px;line-height:1.7">
+            <div>SOE-803</div>
+            <div>qnap_4 / S / soe</div>
+            <div>4.2 GB · 2h 41m</div>
+            <div>2012-06-19 · 12s ago</div>
+            <div>38% · 142/372</div>
+            <div>0.97 confidence</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Buttons ──────────────────────────────────────────────────── -->
+    <section class="ds-section" id="buttons">
+      <h2>Buttons</h2>
+      <div class="ds-row">
+        <div>
+          <div class="ds-label">.btn variants</div>
+          <div class="ds-row" style="gap:8px;align-items:center">
+            <button class="btn">Default</button>
+            <button class="btn primary">Primary</button>
+            <button class="btn danger">Danger</button>
+          </div>
+        </div>
+        <div>
+          <div class="ds-label">.btn with icons</div>
+          <div class="ds-row" style="gap:8px;align-items:center">
+            <button class="btn"><svg viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4z"/></svg>Edit</button>
+            <button class="btn primary"><svg viewBox="0 0 24 24"><polygon points="12 2 15 9 22 9 17 14 18 21 12 17 6 21 7 14 2 9 9 9"/></svg>Favorite</button>
+            <button class="btn danger"><svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>Trash</button>
+          </div>
+        </div>
+        <div>
+          <div class="ds-label">.icon-btn</div>
+          <div class="ds-row" style="gap:4px;align-items:center">
+            <button class="icon-btn"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></button>
+            <button class="icon-btn on"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="15" y1="3" x2="15" y2="21"/></svg></button>
+            <button class="icon-btn"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></button>
+          </div>
+        </div>
+      </div>
+      <div class="ds-spec"><b>Hover:</b> bg/border lighten + transform stays · <b>Active:</b> translateY(1px), 60ms · <b>Primary:</b> filter brightness(1.05)</div>
+    </section>
+
+    <!-- Chips ────────────────────────────────────────────────────── -->
+    <section class="ds-section" id="chips">
+      <h2>Chips</h2>
+      <div class="ds-row">
+        <div>
+          <div class="ds-label">Filter chips (off / on)</div>
+          <div class="ds-row" style="gap:6px">
+            <span class="chip on">All</span>
+            <span class="chip">Recent</span>
+            <span class="chip">Untagged</span>
+            <span class="chip">Favorites</span>
+            <span class="chip">Has duplicate</span>
+          </div>
+        </div>
+      </div>
+      <div class="ds-spec"><b>Use:</b> filter scope, view modes, palette scopes. Replace ALL custom toggle switches with chips.</div>
+    </section>
+
+    <!-- Pills · badges · kbd ─────────────────────────────────────── -->
+    <section class="ds-section" id="pills">
+      <h2>Pills · badges · kbd</h2>
+      <div class="ds-row">
+        <div>
+          <div class="ds-label">Status pills (mono, lowercase)</div>
+          <div class="ds-row" style="gap:6px;align-items:center">
+            <span class="pill">neutral</span>
+            <span class="pill ok">ok</span>
+            <span class="pill warn">dup?</span>
+            <span class="pill warn">retag</span>
+            <span class="pill error">failed</span>
+          </div>
+        </div>
+        <div>
+          <div class="ds-label">Badges (rail counts)</div>
+          <div class="ds-row" style="gap:6px;align-items:center">
+            <span class="badge">28k</span>
+            <span class="badge">47</span>
+            <span class="badge warn">12</span>
+            <span class="badge error">3</span>
+          </div>
+        </div>
+        <div>
+          <div class="ds-label">Kbd</div>
+          <div class="ds-row" style="gap:6px;align-items:center">
+            <span class="kbd">esc</span>
+            <span class="kbd">↵</span>
+            <span class="kbd">tab</span>
+            <span class="kbd accent">⌘K</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Inputs ───────────────────────────────────────────────────── -->
+    <section class="ds-section" id="inputs">
+      <h2>Inputs · ⌘K</h2>
+      <div class="ds-row">
+        <div>
+          <div class="ds-label">Standard input</div>
+          <input class="input" type="text" placeholder="Type here…">
+        </div>
+        <div>
+          <div class="ds-label">⌘K trigger (canonical — gravitational center of chrome)</div>
+          <button class="cmdk-trigger">
+            <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            <span class="cmdk-trigger-text">Search or jump to…</span>
+            <span class="kbd accent">⌘K</span>
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Cards ────────────────────────────────────────────────────── -->
+    <section class="ds-section" id="cards">
+      <h2>Cards</h2>
+      <div class="ds-row">
+        <div>
+          <div class="ds-label">Title card (cover-led, 3:2)</div>
+          <div class="card-title">
+            <div class="card-title-cover"><span class="card-title-status">ok</span></div>
+            <div class="card-title-code">SOE-803</div>
+            <div class="card-title-name">A Beautiful Woman's First Time</div>
+            <div class="card-title-meta">Yuma Asami<span class="dot"></span><span class="year">2012</span></div>
+          </div>
+          <div class="ds-spec">Hover: 3px lift + accent halo. Press: settle to 1px. Status pip top-right.</div>
+        </div>
+        <div>
+          <div class="ds-label">Actress card (portrait, 3:4)</div>
+          <div class="card-actress">
+            <div class="card-actress-portrait"><span class="card-actress-tier">goddess</span></div>
+            <div class="card-actress-name">Yuma Asami</div>
+            <div class="card-actress-meta">165 titles</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Rail ─────────────────────────────────────────────────────── -->
+    <section class="ds-section" id="rail">
+      <h2>Rail item</h2>
+      <div class="ds-row">
+        <div class="rail-mock">
+          <div class="rail-section">Library</div>
+          <div class="rail-item">
+            <svg viewBox="0 0 24 24"><circle cx="12" cy="7" r="4"/><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/></svg>
+            Actresses <span class="badge">1.2k</span>
+          </div>
+          <div class="rail-item active">
+            <svg viewBox="0 0 24 24"><rect x="2" y="2" width="20" height="20" rx="2"/><line x1="2" y1="12" x2="22" y2="12"/><line x1="12" y1="2" x2="12" y2="22"/></svg>
+            Titles <span class="badge">28k</span>
+          </div>
+          <div class="rail-section">Tools</div>
+          <div class="rail-item">
+            <svg viewBox="0 0 24 24"><path d="M5 8l6 6 6-6"/><path d="M5 16h14"/></svg>
+            Translation <span class="badge warn">12</span>
+          </div>
+          <div class="rail-item">
+            <svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
+            Trash <span class="badge">47</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Topbar ───────────────────────────────────────────────────── -->
+    <section class="ds-section" id="topbar">
+      <h2>Topbar</h2>
+      <div class="topbar-mock">
+        <div class="topbar-left">
+          <div class="crumb">Titles<span class="sep">›</span><b>All</b></div>
+        </div>
+        <button class="cmdk-trigger">
+          <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <span class="cmdk-trigger-text">Search or jump to…</span>
+          <span class="kbd accent">⌘K</span>
+        </button>
+        <div class="topbar-right">
+          <button class="icon-btn"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg></button>
+          <button class="icon-btn"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="15" y1="3" x2="15" y2="21"/></svg></button>
+        </div>
+      </div>
+      <div class="ds-spec">3-column grid: <b>[crumb left] [⌘K centered] [actions right]</b>. Single 40px row. ⌘K is the visual gravity well.</div>
+    </section>
+
+    <!-- Status bar ───────────────────────────────────────────────── -->
+    <section class="ds-section" id="statusbar">
+      <h2>Status bar</h2>
+      <div class="status-mock">
+        <span class="item"><span class="dot live"></span><svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><polyline points="21 3 21 8 16 8"/></svg><b>sync</b> ok · qnap_4 · 12s</span>
+        <span class="item"><span class="dot warn"></span><b>translation</b> 12 pending</span>
+        <span class="item"><span class="dot idle"></span><b>backup</b> idle · 2d ago</span>
+        <span class="spacer"></span>
+        <span class="task"><b>refresh-filmography</b><span class="bar"><span class="bar-fill"></span></span><span style="font-variant-numeric:tabular-nums">38% · 142/372</span></span>
+      </div>
+      <div class="ds-spec">Mono. Persistent. Replaces floating task pill + bg-thumbnails chip. <b>Live dots pulse</b>; idle dots are static. Active task progress shimmers.</div>
+    </section>
+
+    <!-- Table ────────────────────────────────────────────────────── -->
+    <section class="ds-section" id="table">
+      <h2>Table row (workbench mode)</h2>
+      <div style="border:1px solid var(--border);border-radius:var(--radius-card);overflow:hidden">
+        <div class="row header">
+          <span></span><span>Code</span><span>Name</span><span class="num">Year</span><span>Status</span>
+        </div>
+        <div class="row">
+          <span style="color:var(--text-faint);font-size:10px">▸</span>
+          <span class="code">SOE-803</span>
+          <span style="color:var(--text)">A Beautiful Woman's First Time</span>
+          <span class="num">2012</span>
+          <span><span class="pill ok">ok</span></span>
+        </div>
+        <div class="row sel">
+          <span style="color:var(--text-faint);font-size:10px">▾</span>
+          <span class="code">SOE-690</span>
+          <span style="color:var(--text)">Forbidden Encounters</span>
+          <span class="num">2011</span>
+          <span><span class="pill warn">dup?</span></span>
+        </div>
+        <div class="row">
+          <span style="color:var(--text-faint);font-size:10px">▸</span>
+          <span class="code">SNIS-441</span>
+          <span style="color:var(--text)">Reunion After 5 Years</span>
+          <span class="num">2013</span>
+          <span><span class="pill ok">ok</span></span>
+        </div>
+      </div>
+      <div class="ds-spec"><b>Selection:</b> accent-bg + 2px accent left border. <b>Keyboard:</b> ↑↓ nav, ↵ open, i toggle inspector.</div>
+    </section>
+
+    <!-- Inspector ────────────────────────────────────────────────── -->
+    <section class="ds-section" id="inspector">
+      <h2>Inspector</h2>
+      <div class="ds-row">
+        <div class="insp-mock">
+          <div class="insp-cover"></div>
+          <div class="insp-head">
+            <div class="insp-eyebrow">Title · selected · 1 of 28,114</div>
+            <div class="insp-title">A Beautiful Woman's First Time</div>
+          </div>
+          <div class="insp-section" style="display:flex;gap:6px;flex-wrap:wrap">
+            <button class="btn primary"><svg viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"/></svg>Play</button>
+            <button class="btn">Edit</button>
+            <button class="btn danger">Trash</button>
+          </div>
+          <div class="insp-section">
+            <div class="insp-label">Metadata</div>
+            <div class="insp-kv">
+              <span class="k">code</span>     <span class="v mono">SOE-803</span>
+              <span class="k">label</span>    <span class="v">S1 (SOE)</span>
+              <span class="k">date</span>     <span class="v mono">2012-06-19</span>
+              <span class="k">runtime</span>  <span class="v mono">2h 41m</span>
+              <span class="k">cast</span>     <span class="v">Yuma Asami</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Hero ─────────────────────────────────────────────────────── -->
+    <section class="ds-section" id="hero">
+      <h2>Hero band (library mode — detail pages)</h2>
+      <div class="hero-mock">
+        <div class="hero-row">
+          <div class="hero-portrait"></div>
+          <div>
+            <div class="hero-eyebrow">Goddess tier · Actress</div>
+            <h1 class="hero-name">Yuma Asami</h1>
+            <div class="hero-stats"><span><b>165</b> titles</span><span><b>S1</b> primary label</span><span><b>2005–2014</b></span></div>
+            <div style="display:flex;gap:6px">
+              <button class="btn primary"><svg viewBox="0 0 24 24"><polygon points="12 2 15 9 22 9 17 14 18 21 12 17 6 21 7 14 2 9 9 9"/></svg>Favorite</button>
+              <button class="btn"><svg viewBox="0 0 24 24"><path d="M19 21l-7-5-7 5V3a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>Bookmark</button>
+              <button class="btn">Edit profile</button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="ds-spec">Future polish: extract dominant color from portrait/cover → tinted gradient (per spec §4.1).</div>
+    </section>
+
+    <!-- Form groups ──────────────────────────────────────────────── -->
+    <section class="ds-section" id="forms">
+      <h2>Form groups</h2>
+      <div class="ds-row">
+        <div style="width:340px">
+          <div class="form-group">
+            <label class="form-label">Display name</label>
+            <input class="form-input" type="text" value="Yuma Asami">
+            <span class="form-help">Romaji preferred; kanji/kana supported.</span>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Slug</label>
+            <input class="form-input mono" type="text" value="yuma-asami">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Tier</label>
+            <select class="form-select">
+              <option>library</option><option>minor</option><option>popular</option>
+              <option>superstar</option><option selected>goddess</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Notes</label>
+            <textarea class="form-textarea">…</textarea>
+            <span class="form-error">Required: short biographical note.</span>
+          </div>
+        </div>
+      </div>
+      <div class="ds-spec">Used in modals + inspector edit panes. <b>.mono</b> on inputs that hold codes/IDs.</div>
+    </section>
+
+    <!-- Modal ────────────────────────────────────────────────────── -->
+    <section class="ds-section" id="modal">
+      <h2>Modal</h2>
+      <div class="ds-row">
+        <!-- Inline preview (NOT actually portaled — this is just the modal markup) -->
+        <div style="position:relative;width:100%;height:380px;border:1px dashed var(--border);border-radius:var(--radius-card);background:var(--bg);overflow:hidden">
+          <div style="position:absolute;inset:0;background:rgba(0,0,0,0.5);backdrop-filter:blur(8px);display:flex;align-items:flex-start;justify-content:center;padding:48px 16px">
+            <div class="modal" style="animation:none">
+              <header class="modal-header">
+                <span class="modal-title">Edit actress profile</span>
+                <button class="modal-close" aria-label="Close">×</button>
+              </header>
+              <div class="modal-body">
+                <div class="form-group">
+                  <label class="form-label">Display name</label>
+                  <input class="form-input" type="text" value="Yuma Asami">
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Tier</label>
+                  <select class="form-select"><option>goddess</option></select>
+                </div>
+              </div>
+              <footer class="modal-footer">
+                <button class="btn ghost">Cancel</button>
+                <button class="btn primary">Save changes</button>
+              </footer>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="ds-spec">Sizes: <b>.sm</b> 380px · default 520px · <b>.lg</b> 760px · <b>.xl</b> 1040px. Backdrop blur. Esc closes. Body scrolls.</div>
+    </section>
+
+    <!-- Popover ──────────────────────────────────────────────────── -->
+    <section class="ds-section" id="popover">
+      <h2>Popover</h2>
+      <div class="ds-row">
+        <div style="position:relative;height:240px;width:280px">
+          <button class="btn">Filter ▾</button>
+          <div class="popover" style="top:38px;left:0;animation:none">
+            <div class="popover-section-label">Sort by</div>
+            <div class="popover-item selected">Recently added <span class="kbd">↵</span></div>
+            <div class="popover-item">Title code (asc)</div>
+            <div class="popover-item">Year (desc)</div>
+            <div class="popover-divider"></div>
+            <div class="popover-section-label">Filter</div>
+            <div class="popover-item">Untagged only</div>
+            <div class="popover-item">Has duplicate</div>
+          </div>
+        </div>
+      </div>
+      <div class="ds-spec">Used for filter dropdowns, sort menus, action menus. Position absolute relative to trigger. Sections labeled, dividers split groups.</div>
+    </section>
+
+    <!-- Empty state ──────────────────────────────────────────────── -->
+    <section class="ds-section" id="empty">
+      <h2>Empty state</h2>
+      <div class="ds-frame">
+        <div class="empty-state">
+          <div class="empty-state-icon">
+            <svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+          </div>
+          <div class="empty-state-title">No translations pending</div>
+          <div class="empty-state-body">All titles are up to date. New translations queue automatically as titles arrive.</div>
+          <button class="btn">View translation history</button>
+        </div>
+      </div>
+      <div class="ds-spec">Use when the dataset is genuinely empty (vs. filtered-empty, which gets its own copy). Icon · title · body · single CTA.</div>
+    </section>
+
+    <!-- Skeleton ─────────────────────────────────────────────────── -->
+    <section class="ds-section" id="skeleton">
+      <h2>Skeleton</h2>
+      <div class="ds-row">
+        <div style="width:170px">
+          <div class="skeleton skeleton-card" style="aspect-ratio:3/2;height:auto;margin-bottom:9px"></div>
+          <div class="skeleton skeleton-text sm" style="width:40%"></div>
+          <div class="skeleton skeleton-text"></div>
+          <div class="skeleton skeleton-text" style="width:60%"></div>
+        </div>
+        <div style="display:flex;align-items:center;gap:12px">
+          <div class="skeleton skeleton-circle" style="width:48px"></div>
+          <div style="flex:1;min-width:200px">
+            <div class="skeleton skeleton-text lg" style="width:50%"></div>
+            <div class="skeleton skeleton-text"></div>
+          </div>
+        </div>
+      </div>
+      <div class="ds-spec">Use during initial page load only (≥200ms). For incremental updates, prefer in-place spinners. Shimmer respects reduced-motion.</div>
+    </section>
+
+    <!-- Toast ────────────────────────────────────────────────────── -->
+    <section class="ds-section" id="toast">
+      <h2>Toast</h2>
+      <div class="ds-row">
+        <div class="toast" style="animation:none">
+          <span>Saved profile for <b>Yuma Asami</b></span>
+          <button class="toast-close" aria-label="Dismiss">×</button>
+        </div>
+        <div class="toast ok" style="animation:none">
+          <span><b>14</b> titles re-tagged successfully</span>
+          <button class="toast-close" aria-label="Dismiss">×</button>
+        </div>
+        <div class="toast warn" style="animation:none">
+          <span><b>3</b> translations stalled — open log?</span>
+          <button class="toast-close" aria-label="Dismiss">×</button>
+        </div>
+        <div class="toast error" style="animation:none">
+          <span>Sync failed — qnap_4 unreachable</span>
+          <button class="toast-close" aria-label="Dismiss">×</button>
+        </div>
+      </div>
+      <div class="ds-spec">Anchored bottom-right above the status bar. Auto-dismiss 4s (default), 6s (warn), persistent (error).</div>
+    </section>
+
+    <!-- Tooltip ──────────────────────────────────────────────────── -->
+    <section class="ds-section" id="tooltip">
+      <h2>Tooltip</h2>
+      <div class="ds-row">
+        <div class="tooltip" data-tooltip="Toggle inspector (i)" tabindex="0">
+          <button class="icon-btn"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="15" y1="3" x2="15" y2="21"/></svg></button>
+        </div>
+        <div class="tooltip" data-tooltip="Open command palette (⌘K)" tabindex="0">
+          <button class="icon-btn"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></button>
+        </div>
+        <div class="tooltip" data-tooltip="Trash this title — sweeps in 24h" tabindex="0">
+          <button class="btn danger sm">Trash</button>
+        </div>
+      </div>
+      <div class="ds-spec">CSS-only via <code>data-tooltip</code> + <code>.tooltip</code>. Hover or focus-visible. Use sparingly — labels are better when there's room.</div>
+    </section>
+
+    <!-- Sort header ──────────────────────────────────────────────── -->
+    <section class="ds-section" id="sort">
+      <h2>Sort header (workbench tables)</h2>
+      <div style="border:1px solid var(--border);border-radius:var(--radius-card);overflow:hidden">
+        <div class="row header">
+          <span></span>
+          <span><button class="sort-header" aria-sort="ascending">Code <span class="sort-arrow"></span></button></span>
+          <span><button class="sort-header" aria-sort="none">Name <span class="sort-arrow"></span></button></span>
+          <span class="num"><button class="sort-header" aria-sort="descending">Year <span class="sort-arrow"></span></button></span>
+          <span><button class="sort-header" aria-sort="none">Status <span class="sort-arrow"></span></button></span>
+        </div>
+      </div>
+      <div class="ds-spec"><code>aria-sort</code> drives the arrow + accent color. Cycle: none → asc → desc → none.</div>
+    </section>
+
+    <!-- Tab strip ────────────────────────────────────────────────── -->
+    <section class="ds-section" id="tabs">
+      <h2>Tab strip</h2>
+      <div class="tabs">
+        <button class="tab active">Queue <span class="badge">12</span></button>
+        <button class="tab">Failures <span class="badge">3</span></button>
+        <button class="tab">Names <span class="badge">847</span></button>
+        <button class="tab">Sweeper <span class="badge"></span></button>
+      </div>
+      <div style="padding:12px 0;color:var(--text-dim);font-size:13px">
+        Active panel content goes here.
+      </div>
+      <div class="ds-spec">Use only for genuinely peer/parallel content within a feature page (Translation tabs, Actress detail tabs). Prefer mode-switches over tabs where one panel is dominant. Empty <code>.badge</code> hides automatically when count is zero.</div>
+    </section>
+
+    <!-- Motion ───────────────────────────────────────────────────── -->
+    <section class="ds-section" id="motion">
+      <h2>Motion</h2>
+      <div class="ds-row">
+        <div>
+          <div class="ds-label">Card hover (lift + halo)</div>
+          <div class="card-title">
+            <div class="card-title-cover" style="background:linear-gradient(135deg,#0e7490,#164e63)"><span class="card-title-status">ok</span></div>
+            <div class="card-title-code">DEMO-001</div>
+            <div class="card-title-name">Hover me</div>
+          </div>
+        </div>
+        <div>
+          <div class="ds-label">Status dot pulse (live)</div>
+          <div style="display:flex;align-items:center;gap:8px;font-family:var(--font-mono);font-size:11px;color:var(--text-faint)">
+            <span class="status-mock" style="display:inline-flex;width:auto"><span class="item"><span class="dot live"></span><b>sync</b> running</span></span>
+          </div>
+        </div>
+        <div>
+          <div class="ds-label">Task progress shimmer</div>
+          <div class="status-mock" style="width:auto">
+            <span class="task"><b>task-name</b><span class="bar"><span class="bar-fill"></span></span><span>38%</span></span>
+          </div>
+        </div>
+      </div>
+      <div class="ds-spec">All transitions respect <b>prefers-reduced-motion</b>; global override sets duration to 0.01ms when reduced motion is requested.</div>
+    </section>
+
+  </main>
+</div>
+
+</body>
+</html>

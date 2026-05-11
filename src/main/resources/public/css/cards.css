@@ -1,0 +1,238 @@
+/* ─────────────────────────────────────────────────────────────────────
+   cards.css — shared card primitives for v2
+
+   Title cards:   .tcv2-*  prefix  (standard + compact variant)
+   Actress cards: .acv2-*  prefix  (standard + compact variant)
+
+   NOTE: The existing .card-title* and .card-actress* rules in
+   primitives.css are v2 legacy — do not delete them. This file is
+   additive; consumers are migrated module-by-module.
+   ───────────────────────────────────────────────────────────────────── */
+
+/* ── Title card ─────────────────────────────────────────────────────── */
+
+.tcv2-card {
+  display: block;
+  cursor: pointer;
+  width: 170px;
+  text-decoration: none;
+  color: inherit;
+}
+
+.tcv2-cover {
+  aspect-ratio: 2/3;
+  border-radius: var(--radius-card);
+  background: linear-gradient(135deg, #7c3aed, #312e81);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.35);
+  margin-bottom: 9px;
+  transition: transform var(--dur-base) var(--ease-out),
+              box-shadow var(--dur-base) var(--ease-out);
+  position: relative;
+  overflow: hidden;
+}
+
+.tcv2-card:hover .tcv2-cover {
+  transform: translateY(-3px);
+  box-shadow: 0 10px 24px rgba(0,0,0,0.6), 0 0 0 1px var(--accent-bg);
+}
+
+.tcv2-card:active .tcv2-cover {
+  transform: translateY(-1px);
+  transition-duration: var(--dur-fast);
+}
+
+.tcv2-cover--empty {
+  /* placeholder gradient already applied; no further styles needed */
+}
+
+/* Grade badge — top-right corner */
+.tcv2-status {
+  position: absolute;
+  top: 7px;
+  right: 7px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* Watched checkmark — bottom-right corner */
+.tcv2-watched-mark {
+  position: absolute;
+  bottom: 7px;
+  right: 8px;
+  font-size: 11px;
+  color: var(--ok, #4ade80);
+  line-height: 1;
+  background: rgba(0,0,0,0.55);
+  backdrop-filter: blur(4px);
+  border-radius: 50%;
+  width: 18px;
+  height: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Aging badge — appended to .tcv2-cover by JS */
+.tcv2-aging {
+  position: absolute;
+  bottom: 7px;
+  left: 7px;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--accent-fg, #93c5fd);
+  background: rgba(0,0,0,0.62);
+  backdrop-filter: blur(4px);
+  padding: 2px 5px;
+  border-radius: 3px;
+}
+
+.tcv2-code {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-faint);
+  margin-bottom: 2px;
+}
+
+.tcv2-name {
+  font-size: 13px;
+  color: var(--text);
+  line-height: 1.35;
+  margin-bottom: 4px;
+  transition: color var(--dur-fast) var(--ease-out);
+}
+
+.tcv2-card:hover .tcv2-name {
+  color: var(--accent-fg);
+}
+
+.tcv2-meta {
+  font-size: 11.5px;
+  color: var(--text-dim);
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.tcv2-dot {
+  width: 2px;
+  height: 2px;
+  border-radius: 50%;
+  background: var(--text-faint);
+}
+
+.tcv2-year {
+  font-family: var(--font-mono);
+}
+
+
+/* ── Actress card ───────────────────────────────────────────────────── */
+
+.acv2-card {
+  display: block;
+  cursor: pointer;
+  text-align: center;
+  width: 160px;
+  text-decoration: none;
+  color: inherit;
+}
+
+.acv2-portrait {
+  aspect-ratio: 3/4;
+  border-radius: var(--radius-card);
+  background: linear-gradient(135deg, #c084fc 0%, #6366f1 100%);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.35);
+  margin-bottom: 10px;
+  transition: transform var(--dur-base) var(--ease-out),
+              box-shadow var(--dur-base) var(--ease-out);
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.acv2-card:hover .acv2-portrait {
+  transform: translateY(-3px);
+  box-shadow: 0 10px 24px rgba(0,0,0,0.6);
+}
+
+.acv2-card:active .acv2-portrait {
+  transform: translateY(-1px);
+  transition-duration: var(--dur-fast);
+}
+
+/* Monogram fallback — centered in portrait when no image */
+.acv2-monogram {
+  font-size: 28px;
+  font-weight: 700;
+  color: rgba(255,255,255,0.55);
+  letter-spacing: 0.04em;
+  user-select: none;
+  pointer-events: none;
+}
+
+/* Tier badge — top-left corner */
+.acv2-tier-badge {
+  position: absolute;
+  top: 7px;
+  left: 7px;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  border-radius: 3px;
+  padding: 2px 6px;
+  background: rgba(0,0,0,0.5);
+  backdrop-filter: blur(4px);
+  color: #e288c8; /* default; tier-specific rules override */
+}
+
+.acv2-tier-library   { color: var(--tier-library); }
+.acv2-tier-minor     { color: var(--tier-minor); }
+.acv2-tier-popular   { color: var(--tier-popular); }
+.acv2-tier-superstar { color: var(--tier-superstar); }
+.acv2-tier-goddess   {
+  color: var(--tier-goddess);
+  box-shadow: var(--tier-goddess-glow);
+}
+
+.acv2-name {
+  font-size: 13px;
+  color: var(--text);
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: color var(--dur-fast) var(--ease-out);
+}
+
+.acv2-card:hover .acv2-name {
+  color: var(--accent-fg);
+}
+
+.acv2-meta {
+  font-size: 11px;
+  color: var(--text-dim);
+  font-family: var(--font-mono);
+}
+
+/* ── Compact variants ───────────────────────────────────────────────── */
+
+/* Compact title card — narrower/simpler (no actress, no grade) */
+.tcv2-card.tcv2-card--compact {
+  /* width inherits from .tcv2-card */
+}
+
+/* Compact actress card — portrait only + tight name */
+.acv2-card.acv2-card--compact .acv2-portrait {
+  aspect-ratio: 1/1;
+  border-radius: calc(var(--radius-card) - 1px);
+  margin-bottom: 6px;
+}
+
+.acv2-card.acv2-card--compact .acv2-name {
+  font-size: 11.5px;
+}
