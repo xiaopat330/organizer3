@@ -250,9 +250,13 @@ export function mountDraft(paneEl, state, {
     const container = paneEl.querySelector('#un-cast-container');
     if (!container) return;
     _castHandle = mountCastPane(container, state, {
-      onUnlink: async (javdbSlug, idx) => {
-        await _patchUnlink(javdbSlug, idx);
+      onResolve: async (javdbSlug, resolution, extra, idx, afterSuccess) => {
+        await _patchResolution(javdbSlug, resolution, extra, idx, afterSuccess);
       },
+      onUnlink: async (javdbSlug, idx) => {
+        await _patchResolution(javdbSlug, 'unresolved', {}, idx);
+      },
+      onReload: () => { _reloadDraft(); },
     });
     _castHandle.renderCast();
   }
@@ -312,20 +316,20 @@ export function mountDraft(paneEl, state, {
     }
   }
 
-  // ── PATCH unlink — clear a slot's resolution back to unresolved ─────
-  async function _patchUnlink(javdbSlug, idx) {
+  // ── PATCH cast resolution (pick / create_new / skip / sentinel:N / unresolved) ──
+  async function _patchResolution(javdbSlug, resolution, extra, idx, afterSuccess) {
     if (state.currentId == null || !state.draft) return;
-    _setStatus('Unlinking…', '');
+    const isUnlink = resolution === 'unresolved';
+    _setStatus(isUnlink ? 'Unlinking…' : 'Saving…', '');
 
-    // The PATCH endpoint uses 'unresolved' to clear a previously resolved slot.
     const payload = {
       expectedUpdatedAt: state.draft.updatedAt,
       castResolutions: [{
         javdbSlug,
-        resolution:       'unresolved',
-        linkToExistingId: null,
-        englishLastName:  null,
-        englishFirstName: null,
+        resolution,
+        linkToExistingId: extra?.linkToExistingId ?? null,
+        englishLastName:  extra?.englishLastName  ?? null,
+        englishFirstName: extra?.englishFirstName ?? null,
       }],
       newActresses: [],
     };
@@ -337,32 +341,41 @@ export function mountDraft(paneEl, state, {
         body:    JSON.stringify(payload),
       });
       if (res.status === 409) {
-        _setStatus('Conflict — reloading…', 'warn');
+        _setStatus('Conflict — draft was updated elsewhere. Reloading…', 'warn');
         await _reloadDraft();
         return;
       }
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
         const msg = body.errors?.join(', ') || body.error || ('HTTP ' + res.status);
-        _setStatus('Unlink failed: ' + msg, 'error');
+        _setStatus((isUnlink ? 'Unlink' : 'Save') + ' failed: ' + msg, 'error');
         return;
       }
       const data = await res.json();
       state.draft.updatedAt = data.updatedAt;
-      // Optimistic local update so we don't pay a round-trip
+
+      // Optimistic local update so we don't pay a round-trip.
       const slot = state.draft.cast?.[idx];
       if (slot) {
-        slot.resolution = 'unresolved';
-        slot.linkToExistingId = null;
-        slot.linkedActressName = null;
-        slot.linkedActressAvatarUrl = null;
-        slot.englishLastName = null;
-        slot.englishFirstName = null;
+        if (isUnlink) {
+          slot.resolution = 'unresolved';
+          slot.linkToExistingId = null;
+          slot.linkedActressName = null;
+          slot.linkedActressAvatarUrl = null;
+          slot.englishLastName = null;
+          slot.englishFirstName = null;
+        } else {
+          slot.resolution = resolution;
+          if (extra?.linkToExistingId != null) slot.linkToExistingId = extra.linkToExistingId;
+          if (extra?.englishLastName  != null) slot.englishLastName  = extra.englishLastName;
+          if (extra?.englishFirstName != null) slot.englishFirstName = extra.englishFirstName;
+        }
       }
       _renderCast();
       _setStatus('', '');
+      if (typeof afterSuccess === 'function') afterSuccess();
     } catch (err) {
-      _setStatus('Unlink error: ' + (err.message || err), 'error');
+      _setStatus((isUnlink ? 'Unlink' : 'Save') + ' error: ' + (err.message || err), 'error');
     }
   }
 
@@ -480,7 +493,9 @@ export function mountDraft(paneEl, state, {
     _coverHandle = null;
     _castHandle  = null;
     clearTimeout(_tagSaveTimer);
-    // Wave 4: clear stage-name polling timers here.
+    // Stage-name polling timers + dirty/suppress sets are cleared inside
+    // _castHandle.destroy() above (state.pollTimers, state.dirtySlots,
+    // state.suppressInput live on shared state; see cast-pane.js).
   }
 
   return { destroy };

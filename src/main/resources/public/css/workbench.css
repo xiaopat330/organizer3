@@ -5069,3 +5069,146 @@
   font-style: italic;
   padding: 6px 0;
 }
+
+/* ── Wave 4: cast picker ────────────────────────────────────────────── */
+.un-cast-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 4px;
+}
+.un-cast-picker-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+.un-cast-picker-search {
+  position: relative;
+  flex: 1 1 180px;
+  min-width: 160px;
+}
+.un-cast-picker-input {
+  width: 100%;
+  background: var(--bg);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 4px 8px;
+  font-size: 12px;
+  height: 26px;
+  box-sizing: border-box;
+}
+.un-cast-picker-input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+.un-cast-picker-sentinel {
+  width: 130px;
+  flex: 0 0 auto;
+}
+.un-cast-picker-suggest {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  z-index: 50;
+  background: var(--bg-raised, var(--bg));
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  margin-top: 2px;
+  max-height: 240px;
+  overflow-y: auto;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.35);
+}
+.un-cast-picker-suggest-item {
+  padding: 5px 8px;
+  font-size: 12px;
+  cursor: pointer;
+  color: var(--text);
+}
+.un-cast-picker-suggest-item:hover {
+  background: var(--bg-hover);
+}
+.un-cast-picker-create-form {
+  display: none;
+  flex-direction: column;
+  gap: 4px;
+  padding: 6px 8px;
+  background: var(--bg-hover);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+}
+.un-cast-picker-create-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.un-cast-picker-create-row label {
+  flex: 0 0 38px;
+  font-size: 11.5px;
+  color: var(--text-dim);
+}
+.un-cast-picker-name-input {
+  flex: 1 1 auto;
+  background: var(--bg);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 4px 8px;
+  font-size: 12px;
+  height: 26px;
+  box-sizing: border-box;
+}
+.un-cast-picker-name-input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+/* ── Wave 4: stage-name translation badges ──────────────────────────── */
+.sn-translating-badge {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 1px 6px;
+  font-size: 10.5px;
+  border-radius: 3px;
+  background: rgba(147,197,253,0.15);
+  color: var(--accent-fg);
+  border: 1px solid rgba(147,197,253,0.28);
+  font-style: italic;
+}
+.sn-autofill-cue {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 1px 6px;
+  font-size: 10.5px;
+  border-radius: 3px;
+  background: rgba(110,231,183,0.10);
+  color: var(--ok);
+  border: 1px solid rgba(110,231,183,0.28);
+  font-style: italic;
+}
+
+/* ── Wave 4: near-miss "?" badge on unresolved slots ────────────────── */
+.nm-row-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: 6px;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border-radius: 50%;
+  background: var(--bg-hover);
+  color: var(--text-dim);
+  border: 1px solid var(--border);
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  line-height: 1;
+}
+.nm-row-badge:hover {
+  background: var(--accent-bg);
+  color: var(--accent-fg);
+  border-color: rgba(147,197,253,0.4);
+}
