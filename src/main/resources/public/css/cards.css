@@ -20,7 +20,7 @@
 }
 
 .tcv2-cover {
-  aspect-ratio: 3/2;
+  aspect-ratio: 2/3;
   border-radius: var(--radius-card);
   background: linear-gradient(135deg, #7c3aed, #312e81);
   box-shadow: 0 2px 8px rgba(0,0,0,0.35);

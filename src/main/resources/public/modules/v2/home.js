@@ -43,7 +43,7 @@ async function renderRecentlyViewed(slot, dashItems) {
         <a class="home-thumb-chip" href="/v2-title-detail.html?code=${encodeURIComponent(code)}"
            title="${escapeHtml(code + (name && name !== code ? ' — ' + name : ''))}">
           <div class="home-thumb-chip-cover"
-               style="${cover ? `background-image:url('${escapeHtml(cover)}');background-size:cover;background-position:center` : ''}"></div>
+               style="${cover ? `background-image:url('${escapeHtml(cover)}');background-size:cover;background-position:right center` : ''}"></div>
         </a>
       `;
     }).join('')

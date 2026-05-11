@@ -221,15 +221,15 @@
 }
 .hero-actions { display: flex; gap: 6px; flex-wrap: wrap; }
 
-/* Title-variant hero — wider cover at 3:2 */
+/* Title-variant hero — wider cover at 3:2; right-anchor crops to the front of the DVD scan */
 .hero-band-title .hero-cover {
-  width: 320px;
-  aspect-ratio: 3 / 2;
+  width: 160px;
+  aspect-ratio: 2 / 3;
   height: auto;
   border-radius: var(--radius-card);
   background: linear-gradient(135deg, #7c3aed, #312e81);
   background-size: cover;
-  background-position: center;
+  background-position: right center;
   box-shadow: 0 12px 36px rgba(0,0,0,0.55);
   flex-shrink: 0;
 }
@@ -515,14 +515,14 @@
 
 .ad-cover {
   width: 100%;
-  aspect-ratio: 3 / 2;
+  aspect-ratio: 2 / 3;
   background: var(--bg-panel);
   border-radius: var(--radius-card);
   border: 1px solid var(--border);
   overflow: hidden;
   display: flex; align-items: center; justify-content: center;
 }
-.ad-cover-img { width: 100%; height: 100%; object-fit: cover; transition: opacity var(--dur-base) var(--ease-out); }
+.ad-cover-img { width: 100%; height: 100%; object-fit: cover; object-position: right center; transition: opacity var(--dur-base) var(--ease-out); }
 .ad-cover-placeholder { font-size: 32px; color: var(--text-faint); font-family: var(--font-mono); }
 
 .ad-sidebar { display: flex; flex-direction: column; gap: 14px; }
@@ -1901,13 +1901,13 @@ button.ad-alias-badge.ad-alias-link:hover { color: var(--accent); border-color: 
 
 /* Actress hero showing a fallback cover image: switch to 3:2 */
 .dash-hero-cover-fallback {
-  width: 240px;
-  aspect-ratio: 3 / 2;
+  width: 160px;
+  aspect-ratio: 2 / 3;
   height: auto;
   border-radius: var(--radius-card);
   background: linear-gradient(135deg, #7c3aed, #312e81);
   background-size: cover;
-  background-position: center;
+  background-position: right center;
   box-shadow: 0 12px 36px rgba(0,0,0,0.55);
   flex-shrink: 0;
   position: relative;
@@ -2490,6 +2490,6 @@ button.ad-alias-badge.ad-alias-link:hover { color: var(--accent); border-color: 
   height: 100%;
   background: linear-gradient(135deg, #7c3aed, #312e81);
   background-size: cover;
-  background-position: center;
+  background-position: right center;
 }
 

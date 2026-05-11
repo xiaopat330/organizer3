@@ -103,7 +103,7 @@ export function renderTitleCard(t, opts = {}) {
   if (compact) {
     el.innerHTML = `
       <div class="tcv2-cover${cover ? '' : ' tcv2-cover--empty'}"
-           style="${cover ? `background-image:url('${esc(cover)}');background-size:cover;background-position:center` : ''}">
+           style="${cover ? `background-image:url('${esc(cover)}');background-size:cover;background-position:right center` : ''}">
       </div>
       <div class="tcv2-code">${esc(code)}</div>
       <div class="tcv2-meta">
@@ -115,7 +115,7 @@ export function renderTitleCard(t, opts = {}) {
   } else {
     el.innerHTML = `
       <div class="tcv2-cover${cover ? '' : ' tcv2-cover--empty'}"
-           style="${cover ? `background-image:url('${esc(cover)}');background-size:cover;background-position:center` : ''}">
+           style="${cover ? `background-image:url('${esc(cover)}');background-size:cover;background-position:right center` : ''}">
         ${gradeHtml ? `<div class="tcv2-status">${gradeHtml}</div>` : ''}
         ${watchedHtml}
       </div>

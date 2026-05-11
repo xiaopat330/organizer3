@@ -72,9 +72,11 @@ export function renderHeroBand({
   // If we fell back to a cover image (and kind=actress), switch to cover aspect
   const usingFallbackCover = !primaryImage && fallbackImages.length > 0 && kind === 'actress';
 
-  // Portrait/cover element
+  // Portrait headshots use center-top; full DVD cover scans crop to right (front).
+  const isCoverImage = kind === 'title' || usingFallbackCover;
+  const bgPos = isCoverImage ? 'right center' : 'center top';
   const imgStyle = resolvedImage
-    ? `background-image:url('${esc(resolvedImage)}');background-size:cover;background-position:center top`
+    ? `background-image:url('${esc(resolvedImage)}');background-size:cover;background-position:${bgPos}`
     : '';
   const monogramHtml = !resolvedImage
     ? `<div class="dash-hero-monogram">${esc(monogram(name || eyebrow))}</div>`
