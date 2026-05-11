@@ -40,7 +40,7 @@ function statusMarker(row) {
  * @param {HTMLElement} rootEl       — container to render into
  * @param {object}      callbacks
  * @param {Function}    callbacks.onSelect        — called with titleId when a row is clicked
- * @param {Function}    callbacks.onCountsChange  — called with { pending, bulkCandidates }
+ * @param {Function}    callbacks.onCountsChange  — called with { pending, bulkCandidates, queueRows, showComplete }
  *                                                  where pending = !complete, bulkCandidates = visible && !complete
  * @returns {{ reload, setSelectedId }}
  */
@@ -89,8 +89,8 @@ export function mountQueue(rootEl, { onSelect, onCountsChange }) {
     // KPI meta line
     metaEl.textContent = `${queueRows.length} eligible · ${complete} complete`;
 
-    // Report counts up
-    onCountsChange?.({ pending, bulkCandidates });
+    // Report counts up (include queueRows + showComplete so index can compute nextIdAfter)
+    onCountsChange?.({ pending, bulkCandidates, queueRows, showComplete });
 
     // Render rows
     listEl.innerHTML = '';

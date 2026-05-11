@@ -1,33 +1,27 @@
 /* ─────────────────────────────────────────────────────────────────────
-   unprocessed/index.js — Wave 1 mount entry point.
+   unprocessed/index.js — mount entry point.
 
-   What's here vs deferred:
-     WAVE 1  — Page chrome, KPI strip, Bulk Enrich button (render + count
-               only; modal deferred to Wave 5), sidebar queue fully
-               functional (load, status markers, DRAFT pills, "Show
-               complete" toggle, empty state).
-     WAVE 2  — No-draft editor pane (actress typeahead, descriptor, cover,
-               tag panel, Save flow).
-     WAVE 3  — Draft metadata block, scratch cover, Validate/Promote/Discard.
-     WAVE 4  — Cast picker, stage-name translation polling.
-     WAVE 5  — Bulk Enrich modal + task-center SSE wiring.
-
-   State is kept inline here; Wave 2 will extract a state.js factory.
+   Wave 1  — Page chrome, KPI strip, Bulk Enrich button (count only),
+             sidebar queue fully functional.
+   Wave 2  — No-draft editor (actress typeahead, descriptor, cover,
+             tag panel, Save flow, duplicate-mode, enrich button).
+   Wave 3  — Draft metadata block, scratch cover, Validate/Promote/Discard.
+   Wave 4  — Cast picker, stage-name translation polling.
+   Wave 5  — Bulk Enrich modal + task-center SSE wiring.
    ───────────────────────────────────────────────────────────────────── */
 
-import { mountQueue } from './queue.js';
-
-function esc(s) {
-  return String(s ?? '').replace(/[&<>"']/g, c => ({
-    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
-  }[c]));
-}
+import { mountQueue }       from './queue.js';
+import { createState, buildEditorState } from './state.js';
+import { mountEditor }      from './editor.js';
 
 /**
  * Mount the Unprocessed workbench into rootEl.
  * @param {HTMLElement} rootEl
  */
 export async function mountUnprocessed(rootEl) {
+  // ── Shared state ─────────────────────────────────────────────────────
+  const state = createState();
+
   // ── Page shell ───────────────────────────────────────────────────────
   rootEl.innerHTML = `
     <div class="un-wb">
@@ -66,17 +60,14 @@ export async function mountUnprocessed(rootEl) {
   const sidebarEl     = rootEl.querySelector('#un-sidebar');
   const editorPaneEl  = rootEl.querySelector('#un-editor-pane');
 
-  // ── Rail badge (current page only — cross-page is a future chrome enhancement) ──
+  // ── Rail badge ────────────────────────────────────────────────────────
   const railBadge = document.getElementById('rail-un-count');
 
-  // ── Counts state ──────────────────────────────────────────────────────
+  // ── KPI + bulk-enrich counts ──────────────────────────────────────────
   let _pending        = 0;
   let _bulkCandidates = 0;
 
   function updateKpi() {
-    // KPI strip — updated when queue reports counts
-    // Note: "with drafts" count is not yet tracked at index level (Wave 1);
-    // surfaced as pending count for now.
     kpiEl.textContent = `${_pending} pending`;
   }
 
@@ -87,8 +78,6 @@ export async function mountUnprocessed(rootEl) {
       bulkEnrichBtn.style.display = '';
       bulkEnrichBtn.textContent = `Enrich ${_bulkCandidates} visible`;
     }
-
-    // Update rail badge with pending count
     if (railBadge) {
       if (_pending > 0) {
         railBadge.textContent = String(_pending);
@@ -99,15 +88,128 @@ export async function mountUnprocessed(rootEl) {
     }
   }
 
+  // ── Tags catalog (fetched once; shared by editor pane) ────────────────
+  async function ensureTagsCatalog() {
+    if (state.tagsCatalog) return;
+    try {
+      const res = await fetch('/api/tags');
+      if (res.ok) state.tagsCatalog = await res.json();
+    } catch (err) {
+      console.warn('[unprocessed] tags catalog fetch failed', err);
+    }
+  }
+
+  // ── Editor handle ─────────────────────────────────────────────────────
+  let _editorHandle = null;
+
+  function destroyEditor() {
+    _editorHandle?.destroy();
+    _editorHandle = null;
+  }
+
+  // ── loadDetail — fetch detail + draft in parallel ─────────────────────
+  async function loadDetail(titleId) {
+    await ensureTagsCatalog();
+    try {
+      const [detailRes, draftRes] = await Promise.all([
+        fetch(`/api/unsorted/titles/${titleId}`),
+        fetch(`/api/drafts/${titleId}`),
+      ]);
+
+      if (!detailRes.ok) {
+        console.error('[unprocessed] detail fetch failed', detailRes.status);
+        showEmpty();
+        return;
+      }
+
+      state.detail = await detailRes.json();
+
+      const hasDraft = draftRes.status === 200;
+      if (hasDraft) {
+        state.draft       = await draftRes.json();
+        state.isDraftMode = true;
+        state.editorState = null;
+      } else {
+        state.draft       = null;
+        state.isDraftMode = false;
+        state.editorState = buildEditorState(state.detail);
+      }
+
+      // Tear down old editor, build fresh
+      destroyEditor();
+      _editorHandle = mountEditor(editorPaneEl, state, {
+        onSaveSuccess,
+        loadDetail,
+        queueReload: () => queue.reload(),
+      });
+      _editorHandle.renderEditor();
+
+    } catch (err) {
+      console.error('[unprocessed] loadDetail error', err);
+      showEmpty();
+    }
+  }
+
+  function showEmpty() {
+    destroyEditor();
+    state.detail      = null;
+    state.draft       = null;
+    state.isDraftMode = false;
+    state.editorState = null;
+    editorPaneEl.innerHTML = `
+      <div class="dis-empty">
+        <span class="un-empty-glyph">◌</span>
+        Select a title to begin curation.
+      </div>
+    `;
+  }
+
+  // ── nextIdAfter — advance-after-save ──────────────────────────────────
+  function nextIdAfter(savedId) {
+    // Queue visible rows are owned by the queue module; use the state snapshot.
+    const visible = state.showComplete ? state.queueRows : state.queueRows.filter(r => !r.complete);
+    if (!visible.length) return null;
+    const idx = visible.findIndex(r => r.titleId === savedId);
+    if (idx < 0) return visible[0].titleId;
+    return idx + 1 < visible.length ? visible[idx + 1].titleId : null;
+  }
+
+  // ── onSaveSuccess — advance logic ─────────────────────────────────────
+  async function onSaveSuccess(savedId, advance) {
+    if (advance) {
+      const nextId = nextIdAfter(savedId);
+      if (nextId != null) {
+        state.currentId = nextId;
+        queue.setSelectedId(nextId);
+        await loadDetail(nextId);
+      } else {
+        showEmpty();
+      }
+    } else {
+      await loadDetail(savedId);
+    }
+  }
+
   // ── Queue mount ──────────────────────────────────────────────────────
   const queue = mountQueue(sidebarEl, {
     onSelect(titleId) {
-      // Wave 2 will wire the editor pane; for Wave 1 the empty state remains.
-      // (No action needed — empty state message stays.)
+      // Navigation guard: check dirty state before leaving current title
+      if (state.currentId != null && titleId !== state.currentId) {
+        if (_editorHandle && !_editorHandle.canNavigateAway()) {
+          // Veto: restore selection to current
+          queue.setSelectedId(state.currentId);
+          return;
+        }
+      }
+      state.currentId = titleId;
+      loadDetail(titleId);
     },
-    onCountsChange({ pending, bulkCandidates }) {
+    onCountsChange({ pending, bulkCandidates, queueRows, showComplete }) {
       _pending        = pending;
       _bulkCandidates = bulkCandidates;
+      // Keep state in sync for nextIdAfter
+      if (queueRows)  state.queueRows  = queueRows;
+      if (showComplete !== undefined) state.showComplete = showComplete;
       updateKpi();
       updateBulkEnrichBtn();
     },
@@ -116,8 +218,6 @@ export async function mountUnprocessed(rootEl) {
   // ── Bulk Enrich button ────────────────────────────────────────────────
   // Wave 1: render + count only. Modal wired in Wave 5.
   bulkEnrichBtn.addEventListener('click', () => {
-    // Wave 5 will open the preview modal here.
-    // For now: no-op stub so the button is clickable without errors.
     console.info('[unprocessed] Bulk Enrich modal — wired in Wave 5');
   });
 }
