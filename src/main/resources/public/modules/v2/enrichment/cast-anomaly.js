@@ -51,7 +51,7 @@ function renderCastAnomalyContent(panel, row, reload) {
   if (castEntries.length === 0) {
     panel.innerHTML = `
       <div class="er-picker-missing">
-        <span>No cast JSON available for this title — cast_anomaly cannot be triaged inline.</span>
+        <span>No cast JSON available for this title — cast anomaly cannot be triaged inline.</span>
       </div>
     `;
     return;

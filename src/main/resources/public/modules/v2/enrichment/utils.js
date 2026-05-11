@@ -6,6 +6,18 @@ export function esc(s) {
   }[c]));
 }
 
+/**
+ * Convert a snake_case or kebab-case enum identifier to a sentence-case human label.
+ * e.g. "recode_candidate" → "Recode candidate"
+ *      "actress_rename_candidate" → "Actress rename candidate"
+ *      "cast_anomaly" → "Cast anomaly"
+ */
+export function humanizeEnumLabel(s) {
+  if (!s) return '';
+  const spaced = String(s).replace(/[_-]+/g, ' ').toLowerCase();
+  return spaced.charAt(0).toUpperCase() + spaced.slice(1);
+}
+
 export function formatRelative(isoStr) {
   if (!isoStr) return '—';
   try {
@@ -20,13 +32,14 @@ export function formatRelative(isoStr) {
 }
 
 const RESOLVER_SOURCE_LABELS = {
-  actress_filmography:   'Actress filmography',
-  code_search_fallback:  'Code search',
-  sentinel_short_circuit:'Short-circuit',
+  actress_filmography:    'Actress filmography',
+  code_search_fallback:   'Code search',
+  sentinel_short_circuit: 'Short-circuit',
 };
 
 export function resolverSourceLabel(src) {
-  return RESOLVER_SOURCE_LABELS[src] || src || '—';
+  if (!src) return '—';
+  return RESOLVER_SOURCE_LABELS[src] || humanizeEnumLabel(src);
 }
 
 // ── Cover lightbox ────────────────────────────────────────────────────────────

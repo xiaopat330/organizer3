@@ -4,7 +4,7 @@
 //   renderPills(state, pillsEl, reload)
 //   renderTable(state, tableBody, emptyEl, reload)
 
-import { esc, formatRelative, resolverSourceLabel, openLightbox } from './utils.js';
+import { esc, formatRelative, resolverSourceLabel, openLightbox, humanizeEnumLabel } from './utils.js';
 import { resolveRow, doForceEnrich, confirmOrphanDelete } from './actions.js';
 import { togglePicker } from './picker.js';
 import { toggleCastAnomalyPanel } from './cast-anomaly.js';
@@ -25,7 +25,8 @@ const ALL_REASONS = [
 export function renderPills(state, pillsEl, reload) {
   pillsEl.innerHTML = '';
 
-  const allBtn = makePill('All', state.activeReason === null, () => {
+  const total = Object.values(state.counts).reduce((a, b) => a + b, 0);
+  const allBtn = makePill(`All · ${total}`, state.activeReason === null, () => {
     state.activeReason = null;
     reload();
   });
@@ -33,7 +34,9 @@ export function renderPills(state, pillsEl, reload) {
 
   ALL_REASONS.forEach(r => {
     const count = state.counts[r] || 0;
-    const btn = makePill(`${r}: ${count}`, state.activeReason === r, () => {
+    if (count === 0) return; // hide zero-count chips
+    const label = `${humanizeEnumLabel(r)} · ${count}`;
+    const btn = makePill(label, state.activeReason === r, () => {
       state.activeReason = r;
       reload();
     });
@@ -55,6 +58,11 @@ function makePill(label, selected, onClick) {
 export function renderTable(state, tableBody, emptyEl, reload) {
   if (state.rows.length === 0) {
     tableBody.innerHTML = '';
+    const total = Object.values(state.counts).reduce((a, b) => a + b, 0);
+    const isFilterMismatch = state.activeReason !== null && total > 0;
+    emptyEl.innerHTML = isFilterMismatch
+      ? '◌<br>No items match this filter.'
+      : '◌<br>Nothing to review.';
     emptyEl.style.display = '';
     return;
   }
@@ -96,8 +104,8 @@ function makeRow(row, tableBody, reload) {
       ? `<div class="er-detail-hint">Orphan: <b>${orphanCode}</b> → New: <b>${newCode}</b> <span class="er-match-type">(${matchType})</span></div>`
       : '';
     actionsHtml = `
-      <button type="button" class="er-action-btn er-hint-btn" data-id="${row.id}">Resolve via recode_title</button>
-      <button type="button" class="er-action-btn er-resolve-btn" data-id="${row.id}" data-res="dismissed">Dismiss</button>
+      <button type="button" class="er-action-btn er-hint-btn" data-id="${row.id}">Resolve via recode title</button>
+      <button type="button" class="er-action-btn er-resolve-btn er-dismiss-btn" data-id="${row.id}" data-res="dismissed">Dismiss</button>
     `;
   } else if (isActressRename) {
     const candidateName = detail ? esc(detail.candidate_canonical_name || '') : '';
@@ -106,7 +114,7 @@ function makeRow(row, tableBody, reload) {
       ? `<div class="er-detail-hint">Existing: <b>${candidateName}</b> → Observed: <b>${observedName}</b></div>`
       : '';
     actionsHtml = `
-      <button type="button" class="er-action-btn er-resolve-btn" data-id="${row.id}" data-res="dismissed">Dismiss</button>
+      <button type="button" class="er-action-btn er-resolve-btn er-dismiss-btn" data-id="${row.id}" data-res="dismissed">Dismiss</button>
     `;
   } else if (isCastAnomaly) {
     actionsHtml = `
@@ -143,7 +151,7 @@ function makeRow(row, tableBody, reload) {
       ${isAmbiguous
         ? `<button type="button" class="er-action-btn er-picker-btn" data-id="${row.id}">Open picker</button>`
         : `<button type="button" class="er-action-btn er-override-btn" data-id="${row.id}">Override slug…</button>`}
-      <button type="button" class="er-action-btn er-resolve-btn" data-id="${row.id}" data-res="marked_resolved">Mark resolved</button>
+      <button type="button" class="er-action-btn er-resolve-btn er-dismiss-btn" data-id="${row.id}" data-res="marked_resolved">Mark resolved</button>
     `;
   }
 
@@ -154,7 +162,7 @@ function makeRow(row, tableBody, reload) {
   tr.innerHTML = `
     <td class="er-col-code">${codeCell}${detailHtml}</td>
     <td class="er-col-slug">${esc(row.slug || '—')}</td>
-    <td class="er-col-reason"><span class="er-reason er-reason-${esc(row.reason || '')}">${esc(row.reason || '')}</span></td>
+    <td class="er-col-reason"><span class="er-reason er-reason-${esc(row.reason || '')}">${esc(humanizeEnumLabel(row.reason))}</span></td>
     <td class="er-col-source">${esc(resolverSourceLabel(row.resolverSource))}</td>
     <td class="er-col-created">${formatRelative(row.createdAt)}</td>
     <td class="er-col-actions">${actionsHtml}</td>

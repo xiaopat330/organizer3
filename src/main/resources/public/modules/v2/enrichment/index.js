@@ -40,7 +40,10 @@ export async function mountEnrichmentReview(rootEl) {
   rootEl.innerHTML = `
     <div class="er-wb wb-page">
       <div class="er-wb-head">
-        <h1 class="wb-page-title er-wb-title" id="er-header">Enrichment Review Queue</h1>
+        <div class="er-title-group">
+          <span class="er-page-title">Enrichment Review</span>
+          <span class="er-kpi-strip" id="er-kpi-strip">loading…</span>
+        </div>
         <div class="er-pills" id="er-pills"></div>
       </div>
 
@@ -58,12 +61,12 @@ export async function mountEnrichmentReview(rootEl) {
           </thead>
           <tbody id="er-table-body"></tbody>
         </table>
-        <div class="er-empty" id="er-empty" style="display:none">Queue is empty — nothing to review.</div>
+        <div class="er-empty" id="er-empty" style="display:none">◌<br>Nothing to review.</div>
       </div>
     </div>
   `;
 
-  _headerEl  = rootEl.querySelector('#er-header');
+  _headerEl  = rootEl.querySelector('#er-kpi-strip');
   _pillsEl   = rootEl.querySelector('#er-pills');
   _tableBody = rootEl.querySelector('#er-table-body');
   _emptyEl   = rootEl.querySelector('#er-empty');
@@ -87,7 +90,7 @@ export function focusReviewItem(id) {
 // ── Data loading ──────────────────────────────────────────────────────────────
 
 async function reload() {
-  if (_headerEl) _headerEl.textContent = 'Enrichment Review Queue — loading…';
+  if (_headerEl) _headerEl.textContent = 'loading…';
   try {
     const params = new URLSearchParams({ limit: 500 });
     if (state.activeReason) params.set('reason', state.activeReason);
@@ -98,7 +101,7 @@ async function reload() {
     state.rows   = data.rows   || [];
     render();
   } catch (err) {
-    if (_headerEl) _headerEl.textContent = 'Enrichment Review Queue — failed to load';
+    if (_headerEl) _headerEl.textContent = 'failed to load';
     console.error('EnrichmentReview: load failed', err);
   }
 }
@@ -107,9 +110,29 @@ function totalOpen() {
   return Object.values(state.counts).reduce((a, b) => a + b, 0);
 }
 
+function oldestDays() {
+  let max = 0;
+  state.rows.forEach(r => {
+    if (r.createdAt) {
+      const d = Math.floor((Date.now() - new Date(r.createdAt).getTime()) / 86400000);
+      if (d > max) max = d;
+    }
+  });
+  return max;
+}
+
 function render() {
   const total = totalOpen();
-  if (_headerEl) _headerEl.textContent = `Enrichment Review Queue (${total} open)`;
+  if (_headerEl) {
+    if (total === 0) {
+      _headerEl.textContent = '0 open';
+    } else {
+      const oldest = oldestDays();
+      const parts = [`${total} open`];
+      if (oldest > 0) parts.push(`oldest: ${oldest}d ago`);
+      _headerEl.textContent = parts.join(' · ');
+    }
+  }
   if (_pillsEl)  renderPills(state, _pillsEl, reload);
   if (_tableBody && _emptyEl) renderTable(state, _tableBody, _emptyEl, reload);
 }
