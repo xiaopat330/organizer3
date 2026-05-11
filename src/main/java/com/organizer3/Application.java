@@ -1210,6 +1210,7 @@ public class Application {
                 mcpTools.register(new com.organizer3.mcp.tools.RestoreTrashedTool(taskRunner));
                 mcpTools.register(new com.organizer3.mcp.tools.WriteTextFileTool(session, curationLog));
                 mcpTools.register(new com.organizer3.mcp.tools.DeleteEmptyFolderTool(session, jdbi, curationLog));
+                mcpTools.register(new com.organizer3.mcp.tools.DeleteLooseFilesTool(session, curationLog));
                 mcpTools.register(new com.organizer3.mcp.tools.RenameTitleFolderTool(session, titleRepo, titleLocationRepo, curationLog));
                 mcpTools.register(new com.organizer3.mcp.tools.RenameActressFolderTool(session, actressRepo, jdbi, curationLog));
                 mcpTools.register(new com.organizer3.mcp.tools.MoveTitleFolderTool(session, titleRepo, titleLocationRepo, actressRepo, config.libraryOrDefaults(), curationLog));
