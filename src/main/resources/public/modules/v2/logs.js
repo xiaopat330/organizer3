@@ -41,22 +41,21 @@ export async function mountLogs(rootEl) {
     <div class="wb-page">
       <h1 class="wb-page-title">Logs</h1>
       <div class="wb-page-subtitle">Live tail of <code>logs/organizer3.log</code>. Polls every ${POLL_MS}ms.</div>
+      <div class="dis-kpi-strip" id="result-meta">connecting…</div>
 
-      <div class="filter-bar">
+      <div class="lg-toolbar">
         <button class="btn sm" id="btn-pause">Pause</button>
         <button class="btn sm" id="btn-clear">Clear view</button>
-        <div class="filter-group" style="margin-left:6px">
-          <span class="filter-label">Level:</span>
+        <div class="lg-filter-group">
+          <span class="lg-filter-label">Level:</span>
           <span class="chip on" data-lvl="">All</span>
           <span class="chip" data-lvl="info">Info+</span>
           <span class="chip" data-lvl="warn">Warn+</span>
           <span class="chip" data-lvl="error">Error</span>
         </div>
-        <label style="display:inline-flex;align-items:center;gap:5px;font-size:12px;color:var(--text-dim);margin-left:12px">
+        <label class="lg-follow-label">
           <input type="checkbox" id="cb-follow" checked> Follow tail
         </label>
-        <div class="filter-spacer"></div>
-        <div class="filter-meta" id="result-meta">connecting…</div>
       </div>
 
       <div class="logtail" id="logtail"></div>
@@ -99,6 +98,16 @@ export async function mountLogs(rootEl) {
     state.bytesInView -= removed;
   };
 
+  const showEmptyIfNeeded = () => {
+    const hasLines = tail.querySelector('.line');
+    const hasEmpty = tail.querySelector('.lg-log-empty');
+    if (!hasLines && !hasEmpty) {
+      tail.insertAdjacentHTML('beforeend', '<div class="dis-empty lg-log-empty">◌<br>No log lines to show.</div>');
+    } else if (hasLines && hasEmpty) {
+      hasEmpty.remove();
+    }
+  };
+
   const appendChunk = (text) => {
     if (!text) return;
     const lines = text.split('\n');
@@ -113,6 +122,10 @@ export async function mountLogs(rootEl) {
       html += formatLine(ln);
     }
     if (!html) return;
+
+    // Remove empty placeholder before appending real lines.
+    const existing = tail.querySelector('.lg-log-empty');
+    if (existing) existing.remove();
 
     tail.insertAdjacentHTML('beforeend', html);
     state.bytesInView += text.length;
@@ -141,6 +154,7 @@ export async function mountLogs(rootEl) {
       state.bytesInView = 0;
     }
     appendChunk(r.content);
+    showEmptyIfNeeded();
     state.offset = r.offset;
     state.size   = r.size;
     meta.textContent = `${(r.size / 1024).toFixed(1)} KB · cursor ${r.offset}${state.paused ? ' · paused' : ''}`;
@@ -170,6 +184,7 @@ export async function mountLogs(rootEl) {
       }
     });
     tail.innerHTML = keep.join('');
+    showEmptyIfNeeded();
   }));
 
   await poll();

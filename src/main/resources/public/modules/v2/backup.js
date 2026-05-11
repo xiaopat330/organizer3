@@ -116,7 +116,26 @@ async function refreshSnapshots() {
   renderList();
 }
 
+function renderKpi() {
+  const kpi = rootEl?.querySelector('#bk-kpi');
+  if (!kpi) return;
+  if (snapshots.length === 0) {
+    kpi.textContent = '0 snapshots';
+    return;
+  }
+  const latest = snapshots.find(s => s.latest) || snapshots[0];
+  const latestAge = latest?.timestamp ? formatRelative(new Date(latest.timestamp)) : '—';
+  const totalBytes = snapshots.reduce((sum, s) => sum + (s.sizeBytes || 0), 0);
+  const totalSize = totalBytes > 1024 * 1024
+      ? (totalBytes / (1024 * 1024)).toFixed(1) + ' MB'
+      : totalBytes > 1024
+      ? (totalBytes / 1024).toFixed(1) + ' kB'
+      : totalBytes + ' B';
+  kpi.textContent = `${snapshots.length} snapshot${snapshots.length === 1 ? '' : 's'} · latest ${latestAge} · ${totalSize}`;
+}
+
 function renderList() {
+  renderKpi();
   const ul = listEl();
   if (!ul) return;
   ul.innerHTML = '';
@@ -128,6 +147,7 @@ function renderList() {
   } else {
     for (const s of snapshots) {
       const li = document.createElement('li');
+      li.className = 'snapshot-row';
       if (s.name === selectedName) li.classList.add('selected');
       li.addEventListener('click', () => {
         selectedName = s.name;
@@ -570,12 +590,23 @@ function formatMs(ms) {
 function buildPageHTML() {
   return `
     <div class="wb-page bk-wb">
+      <!-- Page heading row -->
+      <div class="bk-page-head">
+        <div class="bk-page-title-group">
+          <h1 class="bk-page-title">Backup</h1>
+          <div class="dis-kpi-strip" id="bk-kpi">Loading…</div>
+        </div>
+        <div class="bk-page-actions">
+          <button type="button" id="bk-backup-now" class="btn primary sm">Back up now</button>
+        </div>
+      </div>
+      <p class="bk-page-subtitle">Database snapshots. Restore one to roll back, or back up now.</p>
+
       <div class="bk-layout">
         <!-- Left: snapshot picker -->
         <aside class="bk-sidebar">
           <div class="bk-sidebar-head">
             <span>Snapshots</span>
-            <button type="button" id="bk-backup-now" class="btn primary sm">Back up now</button>
           </div>
           <ul class="bk-picker-list" id="bk-list"></ul>
         </aside>
@@ -583,13 +614,9 @@ function buildPageHTML() {
         <!-- Right: detail / run / visualize / empty panes -->
         <div class="bk-main">
           <!-- Empty state -->
-          <div id="bk-empty" class="bk-detail-empty">
-            <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-              <polyline points="7 10 12 15 17 10"/>
-              <line x1="12" y1="15" x2="12" y2="3"/>
-            </svg>
-            <div>Select a snapshot to view details, or back up now.</div>
+          <div id="bk-empty" class="dis-empty">
+            <span class="bk-empty-glyph">◌</span>
+            <span>Select a snapshot to view details.</span>
           </div>
 
           <!-- Detail pane -->
