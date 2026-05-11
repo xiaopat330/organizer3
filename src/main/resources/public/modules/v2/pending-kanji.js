@@ -37,23 +37,21 @@ function timeAgo(iso) {
 }
 
 function suggestionPill(s) {
-  if (!s || !s.status) return `<span class="pill">unknown</span>`;
+  if (!s || !s.status) return `<span class="pk-sug pk-sug--missing">missing</span>`;
   const status = String(s.status).toLowerCase();
-  let cls = '';
-  if (status.includes('translated') || status.includes('mapped'))   cls = 'ok';
-  else if (status.includes('pending') || status.includes('queued')) cls = 'warn';
-  else if (status.includes('failed') || status.includes('error'))   cls = 'error';
+  const isReady = status === 'ready';
+  const modCls = isReady ? 'pk-sug--ready' : 'pk-sug--missing';
   const romaji = s.romaji ? ` · ${escapeHtml(s.romaji)}` : '';
-  return `<span class="pill ${cls}">${escapeHtml(status)}${romaji}</span>`;
+  return `<span class="pk-sug ${modCls}">${escapeHtml(status)}${romaji}</span>`;
 }
 
 export async function mountPendingKanji(rootEl) {
   rootEl.innerHTML = `
     <div class="wb-page">
       <h1 class="wb-page-title">Pending Kanji</h1>
-      <div class="wb-page-subtitle">Kanji strings seen during enrichment that need a canonical English translation.</div>
+      <div class="dis-kpi-strip" id="pk-kpi-strip">— kanji · — ready · — missing</div>
 
-      <div class="filter-bar">
+      <div class="pk-filter-bar">
         <button class="btn sm" id="btn-refresh">
           <svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2">
             <polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/>
@@ -61,7 +59,7 @@ export async function mountPendingKanji(rootEl) {
           </svg>
           Refresh
         </button>
-        <input class="form-input" id="kanji-search" placeholder="Filter…" style="max-width:240px;margin-left:12px">
+        <input class="form-input" id="kanji-search" placeholder="Filter…">
         <div class="filter-spacer"></div>
         <div class="filter-meta" id="result-meta"></div>
       </div>
@@ -70,18 +68,19 @@ export async function mountPendingKanji(rootEl) {
     </div>
   `;
 
-  const content = rootEl.querySelector('#content');
-  const meta    = rootEl.querySelector('#result-meta');
-  const search  = rootEl.querySelector('#kanji-search');
-  let allRows   = [];
+  const content  = rootEl.querySelector('#content');
+  const meta     = rootEl.querySelector('#result-meta');
+  const search   = rootEl.querySelector('#kanji-search');
+  const kpiStrip = rootEl.querySelector('#pk-kpi-strip');
+  let allRows    = [];
 
   const renderTable = (rows) => {
     if (rows.length === 0) {
-      content.innerHTML = `
-        <div class="empty-state">
-          <div class="empty-state-title">No pending kanji</div>
-          <div class="empty-state-body">All seen kanji strings have a canonical translation.</div>
-        </div>`;
+      const q = search.value.trim();
+      const msg = q
+        ? `No kanji matching "${escapeHtml(q)}"`
+        : 'No pending kanji<br>All seen kanji strings have a canonical translation.';
+      content.innerHTML = `<div class="dis-empty">${msg}</div>`;
       return;
     }
     content.innerHTML = `
@@ -115,6 +114,13 @@ export async function mountPendingKanji(rootEl) {
       : allRows;
     renderTable(filtered);
     meta.textContent = `${filtered.length}${q ? ` of ${allRows.length}` : ''} kanji`;
+    // Update KPI strip from full dataset (not filtered)
+    if (kpiStrip) {
+      const total   = allRows.length;
+      const ready   = allRows.filter(r => r.suggestion && String(r.suggestion.status).toLowerCase() === 'ready').length;
+      const missing = total - ready;
+      kpiStrip.textContent = `${total} kanji · ${ready} ready · ${missing} missing`;
+    }
   };
 
   const load = async () => {

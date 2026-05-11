@@ -1,8 +1,9 @@
 // modules/chrome/status-bar.js
-// Polls sync + translation APIs and rewrites .app-status on every v2 page.
+// Polls sync + translation + javdb APIs and rewrites .app-status on every v2 page.
 
 const SYNC_INTERVAL_MS        = 10_000;
 const TRANSLATION_INTERVAL_MS = 15_000;
+const JAVDB_INTERVAL_MS       = 15_000;
 
 const SYNC_ICON = '<svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><polyline points="21 3 21 8 16 8"/></svg>';
 
@@ -12,8 +13,9 @@ export function mountStatusBar() {
   const footer = document.querySelector('.app-status');
   if (!footer) return;
 
-  let syncState  = { dot: 'ok',   text: 'sync …' };
-  let transState = { dot: 'idle', text: 'translation …' };
+  let syncState   = { dot: 'ok',   text: 'sync …' };
+  let transState  = { dot: 'idle', text: 'translation …' };
+  let javdbState  = { dot: 'idle', text: 'idle' };
 
   function render() {
     footer.innerHTML =
@@ -25,6 +27,10 @@ export function mountStatusBar() {
       `<span class="status-item">` +
         `<span class="status-dot ${transState.dot}"></span>` +
         `<b>translation</b> ${transState.text}` +
+      `</span>` +
+      `<span class="status-item">` +
+        `<span class="status-dot ${javdbState.dot}"></span>` +
+        `<b>javdb</b> ${javdbState.text}` +
       `</span>` +
       `<span class="status-spacer"></span>`;
   }
@@ -77,9 +83,33 @@ export function mountStatusBar() {
     render();
   }
 
+  async function pollJavdb() {
+    try {
+      const res = await fetch('/api/javdb/discovery/queue', { cache: 'no-cache' });
+      if (!res.ok) return;
+      const { pending, inFlight, failed, paused } = await res.json();
+      let dot, text;
+      if (paused) {
+        dot = 'warn'; text = 'paused';
+      } else if (inFlight > 0) {
+        dot = 'live'; text = `${inFlight} in flight`;
+      } else if (failed > 0) {
+        dot = 'warn'; text = `${pending + inFlight} pending · ${failed} failed`;
+      } else if (pending > 0) {
+        dot = 'warn'; text = `${pending} pending`;
+      } else {
+        dot = 'idle'; text = 'idle';
+      }
+      javdbState = { dot, text };
+    } catch { /* keep last-known state */ }
+    render();
+  }
+
   render(); // immediate placeholder render
   pollSync();
   pollTranslation();
+  pollJavdb();
   setInterval(pollSync,        SYNC_INTERVAL_MS);
   setInterval(pollTranslation, TRANSLATION_INTERVAL_MS);
+  setInterval(pollJavdb,       JAVDB_INTERVAL_MS);
 }

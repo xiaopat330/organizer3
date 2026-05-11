@@ -21,6 +21,30 @@
   margin-bottom: 20px;
 }
 
+/* ── Shared page-chrome utilities (also defined in javdb-discovery.css for
+   discovery pages — workbench pages only load workbench.css) ─────────── */
+.dis-kpi-strip {
+  font-size: 11px;
+  color: var(--text-faint, #64748b);
+  white-space: nowrap;
+  line-height: 1.3;
+  margin-bottom: 12px;
+}
+.dis-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 240px;
+  color: var(--text-faint, #475569);
+  font-size: 13px;
+  font-style: italic;
+  text-align: center;
+  gap: 8px;
+  padding: 32px;
+  line-height: 1.6;
+}
+
 /* ── Volume picker (reusable per-volume scope picker) ───────────────── */
 .volpick { position: relative; display: inline-block; }
 .volpick-trigger {
@@ -4100,3 +4124,37 @@
 }
 .aca-subview-aliases .aca-right { padding: 0; overflow: hidden; }
 .al-detail { height: 100%; overflow-y: auto; padding: 24px 28px; }
+
+/* ── Pending Kanji page ──────────────────────────────────────────────── */
+.pk-filter-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 8px 10px;
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  margin-bottom: 12px;
+}
+.pk-filter-bar .form-input { max-width: 240px; }
+
+/* Suggestion chips */
+.pk-sug {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 10px;
+  border: 1px solid transparent;
+}
+.pk-sug--ready {
+  color: var(--accent);
+  background: var(--accent-bg);
+  border-color: var(--accent);
+}
+.pk-sug--missing {
+  color: var(--warn);
+  background: color-mix(in srgb, var(--warn) 10%, transparent);
+  border-color: color-mix(in srgb, var(--warn) 30%, transparent);
+}

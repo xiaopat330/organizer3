@@ -84,7 +84,7 @@ function buildHTML() {
   <div class="jd-header dis-header">
     <div class="dis-title-group">
       <span class="wb-page-title dis-page-title">Discovery</span>
-      <span class="dis-kpi-strip">Source: javdb<span class="jd-queue-badge" id="jd-queue-badge" style="display:none"></span></span>
+      <span class="dis-kpi-strip">Source: javdb</span>
     </div>
     <div class="jd-tabs">
       <button type="button" class="jd-tab jd-tab-enrich selected" data-jd-tab="enrich" title="Actress-driven enrichment">
@@ -290,7 +290,6 @@ export async function mountDiscovery(rootEl) {
   state = createState();
 
   // DOM refs (resolved after innerHTML set).
-  const queueBadge      = document.getElementById('jd-queue-badge');
   const rateLimitBanner = document.getElementById('jd-rate-limit-banner');
   const pauseBtn        = document.getElementById('jd-pause-btn');
   const cancelAllBtn    = document.getElementById('jd-cancel-all-btn');
@@ -375,17 +374,6 @@ export async function mountDiscovery(rootEl) {
       state.paused = paused;
       state.rateLimitPausedUntil = rateLimitPausedUntil || null;
       const activeTotal = pending + inFlight;
-      const total = activeTotal + failed + (pausedItems || 0);
-      if (total === 0) {
-        queueBadge.style.display = 'none';
-      } else {
-        const parts = [];
-        if (activeTotal > 0) parts.push(`${activeTotal} pending`);
-        if (pausedItems > 0) parts.push(`${pausedItems} paused`);
-        if (failed > 0) parts.push(`<span class="jd-badge-failed">${failed} failed</span>`);
-        queueBadge.innerHTML = ' · ' + parts.join(' · ');
-        queueBadge.style.display = '';
-      }
       pauseBtn.textContent = paused ? 'Resume' : 'Pause';
       pauseBtn.classList.toggle('jd-paused', paused);
 

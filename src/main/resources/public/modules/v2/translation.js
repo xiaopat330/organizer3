@@ -10,6 +10,8 @@
    stats 5s, queue 5s, activity 2s.
    ───────────────────────────────────────────────────────────────────── */
 
+import { humanizeEnumLabel } from './enrichment/utils.js';
+
 const QUEUE_LIMIT       = 15;
 const FAILURE_LIMIT     = 50;
 const STATS_POLL_MS     = 5000;
@@ -161,12 +163,17 @@ function renderStatCards(stats, sweeper, strategies, health, expanded) {
       `<div class="trans-model-loaded">${escapeHtml(typeof m === 'string' ? m : (m.name || m.model || ''))}</div>`
     ).join('');
 
+    const currentModel = stats.currentModelId
+      ? `<div class="trans-model-row trans-model-current"><span class="trans-model-role-label">Model</span><span class="trans-model-name">${escapeHtml(stats.currentModelId)}</span></div>`
+      : '';
+
     return `
       <div class="trans-card trans-card-models">
         <div class="trans-card-title">AI</div>
         ${ollamaPill}
         ${primaryRow}
         ${fallbackRow}
+        ${currentModel}
         ${loaded ? `<div class="trans-loaded-list">${loaded}</div>` : ''}
       </div>
     `;
@@ -247,7 +254,7 @@ function renderQueueRow(r) {
   const inFlight = r.status === 'IN_FLIGHT';
   return `
     <li class="trans-queue-row ${inFlight ? 'inflight' : 'pending'}">
-      <span class="pill ${inFlight ? 'warn' : ''}">${escapeHtml(String(r.status || '').toLowerCase())}</span>
+      <span class="pill ${inFlight ? 'warn' : ''}">${escapeHtml(humanizeEnumLabel(r.status || ''))}</span>
       <span class="trans-queue-code">${r.titleCode
         ? `<a href="/v2-title-detail.html?code=${encodeURIComponent(r.titleCode)}" style="color:var(--accent-fg);text-decoration:none">${escapeHtml(r.titleCode)}</a>`
         : '<span style="color:var(--text-faint)">—</span>'}</span>
@@ -260,7 +267,7 @@ function renderQueueRow(r) {
 function renderActivityRow(r) {
   const failed = !!r.failureReason;
   const status = failed
-    ? `<span class="pill error" title="${escapeHtml(r.failureReason)}">${escapeHtml(truncate(r.failureReason, 14))}</span>`
+    ? `<span class="pill error" title="${escapeHtml(r.failureReason)}">${escapeHtml(truncate(humanizeEnumLabel(r.failureReason), 14))}</span>`
     : `<span class="pill ok">ok</span>`;
   const titleCell = r.titleCode
     ? `<a href="/v2-title-detail.html?code=${encodeURIComponent(r.titleCode)}" style="color:var(--accent-fg);text-decoration:none">${escapeHtml(r.titleCode)}</a>`
@@ -383,7 +390,7 @@ function renderDashQueue() {
   const meta    = dashState.panel.querySelector('#dash-queue-meta');
   if (!queueEl) return;
   if (dashState.queue.length === 0) {
-    queueEl.innerHTML = `<li class="trans-empty">Queue is empty.</li>`;
+    queueEl.innerHTML = `<li class="trans-empty dis-empty">Queue is empty.</li>`;
   } else {
     queueEl.innerHTML = dashState.queue.map(renderQueueRow).join('');
   }
@@ -396,7 +403,7 @@ function renderDashActivity() {
   const meta = dashState.panel.querySelector('#dash-activity-meta');
   if (!list) return;
   if (dashState.activity.length === 0) {
-    list.innerHTML = `<li class="trans-empty">Waiting for first event…</li>`;
+    list.innerHTML = `<li class="trans-empty dis-empty">Waiting for first event…</li>`;
   } else {
     list.innerHTML = dashState.activity.map(renderActivityRow).join('');
   }
@@ -462,9 +469,7 @@ async function loadFailuresTab(panel) {
   panel.innerHTML = `<div class="shelf-loading">Loading…</div>`;
   const rows = await fetchJson(`/api/translation/recent-failures?limit=${FAILURE_LIMIT}`, []);
   if (!rows || rows.length === 0) {
-    panel.innerHTML = `<div class="empty-state">
-      <div class="empty-state-title">No recent failures</div>
-      <div class="empty-state-body">The translation pipeline is clean.</div></div>`;
+    panel.innerHTML = `<div class="dis-empty">No recent failures<br>The translation pipeline is clean.</div>`;
     return rows;
   }
   panel.innerHTML = `
@@ -480,7 +485,7 @@ async function loadFailuresTab(panel) {
         <tbody>
           ${rows.map(r => `
             <tr title="${escapeHtml(r.failureReason || '')}">
-              <td><span class="pill error">${escapeHtml(truncate(r.failureReason || 'unknown', 18))}</span></td>
+              <td><span class="pill error">${escapeHtml(truncate(humanizeEnumLabel(r.failureReason || 'unknown'), 18))}</span></td>
               <td class="mono">${r.titleCode
                 ? `<a href="/v2-title-detail.html?code=${encodeURIComponent(r.titleCode)}" style="color:var(--accent-fg);text-decoration:none">${escapeHtml(r.titleCode)}</a>`
                 : '<span style="color:var(--text-faint)">—</span>'}</td>
@@ -502,9 +507,7 @@ async function loadNamesTab(panel) {
   const map = await fetchJson('/api/translation/stage-name-map', {});
   const entries = Object.entries(map || {});
   if (entries.length === 0) {
-    panel.innerHTML = `<div class="empty-state">
-      <div class="empty-state-title">No stage-name mappings</div>
-      <div class="empty-state-body">No kanji → English actress name mappings have been registered.</div></div>`;
+    panel.innerHTML = `<div class="dis-empty">No stage-name mappings<br>No kanji → English actress name mappings have been registered.</div>`;
     return entries;
   }
   entries.sort((a, b) => String(a[1]).localeCompare(String(b[1])));
@@ -557,18 +560,26 @@ function updateBadgesFromStats() {
     const v = t.badge ? t.badge() : null;
     el.textContent = (v == null || v === 0) ? '' : String(v);
   }
+  // Update the KPI strip below the page title
+  const strip = document.getElementById('trans-kpi-strip');
+  if (strip && dashState.stats) {
+    const s = dashState.stats;
+    const thr      = N(s.throughputLastHour);
+    const pending  = N(s.queuePending);
+    const inFlight = N(s.queueInFlight);
+    const tier2    = N(s.queueTier2Pending);
+    strip.textContent = `${fmt(thr)}/hr · ${fmt(pending)} pending · ${fmt(inFlight)} in flight · ${fmt(tier2)} tier-2`;
+  }
 }
 
 export async function mountTranslation(rootEl) {
   rootEl.innerHTML = `
     <div class="wb-page">
       <h1 class="wb-page-title">Translation</h1>
-      <div class="wb-page-subtitle">Local-LLM translation pipeline — live.</div>
+      <div class="dis-kpi-strip" id="trans-kpi-strip">—/hr · — pending · — in flight · — tier-2</div>
 
       <div class="filter-bar">
         <button class="btn sm" id="btn-refresh">Refresh now</button>
-        <div class="filter-spacer"></div>
-        <div class="filter-meta" id="model-meta"></div>
       </div>
 
       <div class="tabs" role="tablist">
@@ -586,7 +597,6 @@ export async function mountTranslation(rootEl) {
 
   const tabsEl = rootEl.querySelector('.tabs');
   const panels = Object.fromEntries(TABS.map(t => [t.id, rootEl.querySelector(`[data-panel="${t.id}"]`)]));
-  const modelMeta = rootEl.querySelector('#model-meta');
 
   const loaded = {};
   const activate = async (id) => {
@@ -597,9 +607,6 @@ export async function mountTranslation(rootEl) {
       const tab = TABS.find(t => t.id === id);
       await tab.load(panels[id]);
       loaded[id] = true;
-    }
-    if (dashState.stats?.currentModelId) {
-      modelMeta.textContent = `model · ${dashState.stats.currentModelId}`;
     }
   };
 
