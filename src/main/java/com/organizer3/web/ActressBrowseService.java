@@ -8,6 +8,7 @@ import com.organizer3.model.Label;
 import com.organizer3.model.StudioGroup;
 import com.organizer3.model.Title;
 import com.organizer3.model.TitleSortSpec;
+import com.organizer3.organize.ActressClassifierService;
 import com.organizer3.rating.RatingCurve;
 import com.organizer3.rating.RatingCurveRepository;
 import com.organizer3.rating.RatingScoreCalculator;
@@ -544,7 +545,12 @@ public class ActressBrowseService {
 
         List<String> folderPaths = titles.stream()
                 .flatMap(t -> t.getLocations().stream())
-                .filter(loc -> loc.getPartitionId() != null && loc.getPartitionId().startsWith("stars"))
+                .filter(loc -> {
+                    String pid = loc.getPartitionId();
+                    if (pid == null) return false;
+                    // Accept both legacy path-style ("stars/popular") and canonical short form ("popular")
+                    return pid.startsWith("stars/") || ActressClassifierService.TIER_ORDER.contains(pid);
+                })
                 .map(loc -> {
                     Path actressFolder = loc.getPath().getParent();
                     if (actressFolder == null) return null;
