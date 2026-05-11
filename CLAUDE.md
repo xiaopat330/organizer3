@@ -16,6 +16,7 @@ Before answering design or implementation questions, always read:
 - **No Spring.** All dependencies are wired manually in `Application.java`.
 - **Testing is mandatory.** All new code must be modularized for testability. Repository tests use real in-memory SQLite. Command tests use mocks via Mockito.
 - **File operations are always intra-volume.** Moves are atomic; no cross-share operations needed.
+- **Legacy UI is protected.** Files in `src/main/resources/public/modules/` outside `v2/` and `chrome/` belong to the legacy UI surface. Do not modify them without explicit user approval. The legacy UI must keep working until v2 reaches functional parity. See `src/main/resources/public/modules/LEGACY.md` for boundaries.
 
 ## Package Structure
 
