@@ -55,7 +55,15 @@ export function badgeHTML(v) {
   }
   const errors = (v.health || []).filter(h => h.level === 'error').length;
   const warns  = (v.health || []).filter(h => h.level === 'warn').length;
-  if (errors > 0) return `<span class="vol-badge error"><span class="vol-badge-dot"></span>${errors}</span>`;
-  if (warns > 0)  return `<span class="vol-badge warn"><span class="vol-badge-dot"></span>${warns}</span>`;
+  if (errors > 0) {
+    const label = `${errors} issue${errors !== 1 ? 's' : ''}`;
+    const title = `${errors} unresolved Health issue${errors !== 1 ? 's' : ''}`;
+    return `<span class="vol-badge error vol-badge--issues" title="${title}">${label}</span>`;
+  }
+  if (warns > 0) {
+    const label = `${warns} issue${warns !== 1 ? 's' : ''}`;
+    const title = `${warns} unresolved Health issue${warns !== 1 ? 's' : ''}`;
+    return `<span class="vol-badge warn vol-badge--issues" title="${title}">${label}</span>`;
+  }
   return `<span class="vol-badge healthy"><span class="vol-badge-dot"></span>healthy</span>`;
 }

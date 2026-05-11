@@ -215,10 +215,10 @@ function showDetail(volumeId) {
       </div>
       <div class="vol-detail-path">${esc(v.smbPath || '')}</div>
     </div>
-    <div class="vol-detail-stats">
-      <div><span class="vol-stat-label">Titles</span><span class="vol-stat-value">${v.titleCount || 0}</span></div>
-      <div><span class="vol-stat-label">Structure</span><span class="vol-stat-value">${esc(v.structureType || '—')}</span></div>
-      <div><span class="vol-stat-label">Last synced</span><span class="vol-stat-value">${esc(formatLastSynced(v.lastSyncedAt))}</span></div>
+    <div class="vol-kpi-strip">
+      ${(v.titleCount || 0).toLocaleString()} titles
+      · ${esc(v.structureType || '—')} structure
+      · ${esc(formatLastSynced(v.lastSyncedAt))}
     </div>
     <nav class="vol-tab-bar">
       <button type="button" class="vol-tab${activeTab === 'health'   ? ' selected' : ''}" data-tab="health">
@@ -432,8 +432,8 @@ function buildPageHTML() {
         <!-- Right: detail / run / visualize / empty panes -->
         <div class="vol-main">
           <!-- Empty state -->
-          <div id="vol-detail-empty" class="vol-detail-empty">
-            <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.4"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v6c0 1.66 4 3 9 3s9-1.34 9-3V5"/><path d="M3 11v6c0 1.66 4 3 9 3s9-1.34 9-3v-6"/></svg>
+          <div id="vol-detail-empty" class="vol-empty">
+            <span class="vol-empty-glyph">◌</span>
             <div>Select a volume to view details and operations.</div>
           </div>
 

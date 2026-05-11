@@ -155,12 +155,21 @@ function renderShell() {
             <button type="button" class="btn sm" id="hl-recompute-ratings">Recompute ratings</button>
           </div>
         </div>
+        <div class="hl-status-legend">
+          <span class="hl-status-legend-item hl-status-legend--clean">
+            <span class="hl-status-legend-dot"></span>clean
+          </span>
+          <span class="hl-status-legend-item hl-status-legend--warn">
+            <span class="hl-status-legend-dot"></span>needs attention
+          </span>
+        </div>
         <ul class="hl-list" id="hl-list"></ul>
       </div>
 
       <!-- Right: empty state / detail -->
       <div class="hl-right">
         <div class="hl-empty" id="hl-empty" style="display:none">
+          <span class="hl-empty-glyph">◌</span>
           <div class="hl-empty-title" id="hl-empty-title">Run a scan to see health findings</div>
           <div class="hl-empty-sub"   id="hl-empty-sub">Each check reports a count; click a check to see details.</div>
         </div>

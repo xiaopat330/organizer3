@@ -739,6 +739,8 @@
 .vol-badge.warn    { color: var(--warn); background: rgba(251,191,36,0.10); }
 .vol-badge.error   { color: var(--error); background: rgba(248,113,113,0.10); }
 .vol-badge.offline { color: var(--text-faint); background: var(--bg-hover); }
+/* Issue-count modifier — replaces dot with text label; extra horizontal room */
+.vol-badge--issues { padding: 1px 7px; }
 
 /* ── Right-side panes ─────────────────────────────────────────────────── */
 .vol-main {
@@ -755,6 +757,26 @@
   height: 300px;
   color: var(--text-faint);
   font-size: 13px;
+}
+/* Shared empty-state for the volumes right pane */
+.vol-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 240px;
+  color: var(--text-faint);
+  font-size: 13px;
+  font-style: italic;
+  text-align: center;
+  gap: 8px;
+  padding: 32px;
+  line-height: 1.6;
+}
+.vol-empty-glyph {
+  font-size: 22px;
+  font-style: normal;
+  opacity: 0.4;
 }
 
 /* ── Detail pane ─────────────────────────────────────────────────────── */
@@ -776,6 +798,7 @@
   word-break: break-all;
 }
 
+/* Legacy tile stats — superseded by vol-kpi-strip but kept for fallback */
 .vol-detail-stats {
   display: flex; gap: 24px;
   padding: 10px 16px;
@@ -793,6 +816,15 @@
   font-family: var(--font-mono);
   font-size: 13px;
   color: var(--text);
+}
+/* KPI strip — single-line mid-dot summary replacing the tile grid */
+.vol-kpi-strip {
+  font-size: 11px;
+  color: var(--text-faint);
+  white-space: nowrap;
+  padding: 7px 16px;
+  border-bottom: 1px solid var(--border);
+  line-height: 1.3;
 }
 
 /* ── Tab bar ─────────────────────────────────────────────────────────── */
@@ -2020,26 +2052,30 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 4px 2px;
+  justify-content: center;
+  padding: 6px 4px;
+  min-height: 48px;
   background: var(--bg-card);
   border-radius: 3px;
 }
 
 .hl-reconcile-count .n {
-  font-size: 14px;
-  font-weight: 600;
+  font-size: 15px;
+  font-weight: 700;
   color: var(--text-dim);
   font-variant-numeric: tabular-nums;
+  line-height: 1.1;
 }
 
 .hl-reconcile-count .n.warn { color: var(--warn, #f59e0b); }
 .hl-reconcile-count .n.bad  { color: var(--error, #f87171); }
 
 .hl-reconcile-count .lbl {
-  font-size: 9px;
+  font-size: 10px;
   color: var(--text-faint);
   text-transform: uppercase;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.06em;
+  margin-top: 2px;
 }
 
 .hl-reconcile-actions {
@@ -2047,6 +2083,30 @@
   gap: 6px;
 }
 .hl-reconcile-actions button { flex: 1; }
+
+/* ── Status legend ──────────────────────────────────────────────────── */
+.hl-status-legend {
+  display: flex;
+  gap: 12px;
+  padding: 5px 14px 4px;
+  border-bottom: 1px solid var(--border);
+}
+.hl-status-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 10.5px;
+  color: var(--text-faint);
+}
+.hl-status-legend-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--border);
+  flex-shrink: 0;
+}
+.hl-status-legend--clean .hl-status-legend-dot { background: var(--ok, #4ade80); }
+.hl-status-legend--warn  .hl-status-legend-dot { background: var(--warn, #fbbf24); }
 
 /* ── Check list ────────────────────────────────────────────────────── */
 .hl-list {
@@ -2073,6 +2133,7 @@
   background: var(--bg-active);
   border-left-color: var(--accent);
 }
+.hl-row.selected .hl-row-label { color: var(--text); }
 
 .hl-row-dot {
   width: 8px;
@@ -2126,11 +2187,22 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  min-height: 300px;
+  min-height: 240px;
   text-align: center;
+  gap: 8px;
+  padding: 32px;
+  line-height: 1.6;
+  font-style: italic;
+  color: var(--text-faint);
+  font-size: 13px;
 }
-.hl-empty-title { font-size: 16px; color: var(--text-dim); margin-bottom: 4px; }
-.hl-empty-sub   { font-size: 13px; color: var(--text-faint); }
+.hl-empty-glyph {
+  font-size: 22px;
+  font-style: normal;
+  opacity: 0.4;
+}
+.hl-empty-title { font-size: 15px; color: var(--text-dim); margin-bottom: 0; font-style: normal; }
+.hl-empty-sub   { font-size: 12px; color: var(--text-faint); }
 
 .hl-detail {
   display: flex;
