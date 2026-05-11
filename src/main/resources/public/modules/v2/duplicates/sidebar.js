@@ -139,7 +139,7 @@ export function renderActressSidebar(state, sidebarEl, onSelectActress) {
       : '';
 
     const row = document.createElement('div');
-    row.className = 'dup-actress-row' + (key === state.currentActressKey ? ' selected' : '');
+    row.className = 'dup-actress-row' + (key === state.currentActressKey ? ' selected dup-actress-row-selected' : '');
     row.innerHTML = `
       <div class="dup-actress-portrait">
         <div class="dup-portrait-fallback">${esc(group.name.charAt(0).toUpperCase())}</div>

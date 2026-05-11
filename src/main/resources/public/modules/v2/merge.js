@@ -34,19 +34,19 @@ export async function mountMerge(rootEl) {
     <div class="mc-wb">
       <div class="mc-wb-head">
         <div class="mc-wb-title-row">
-          <h1 class="mc-wb-title">Merge Candidates</h1>
+          <h1 class="mc-wb-title">Merge</h1>
+          <div class="mc-header-divider"></div>
           <div class="mc-actions">
             <button type="button" class="btn sm" id="mc-detect-btn">Detect</button>
             <button type="button" class="btn sm" id="mc-execute-btn">Execute Merges</button>
           </div>
         </div>
+        <div class="dis-kpi-strip" id="mc-headline">Loading…</div>
         <div class="mc-wb-subtitle">
           Title-code pairs that share a base code. Pick a winner for each pair or dismiss.
           Nothing is destroyed until you Execute.
         </div>
       </div>
-
-      <div id="mc-headline" class="mc-headline">Loading…</div>
       <div id="mc-list"    class="mc-list"></div>
     </div>
   `;
@@ -122,7 +122,7 @@ export async function mountMerge(rootEl) {
 
   async function reload() {
     headlineEl.textContent = 'Loading…';
-    listEl.innerHTML = '<div class="mc-loading">Fetching candidates…</div>';
+    listEl.innerHTML = '<div class="mc-loading dis-empty">◌<br>Fetching candidates…</div>';
     try {
       const res = await fetch('/api/tools/merge-candidates');
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -140,12 +140,12 @@ export async function mountMerge(rootEl) {
   function render() {
     const n = candidates.length;
     headlineEl.textContent =
-      n === 0 ? 'No pending merge candidates'
-      : n === 1 ? '1 pending merge candidate'
-      : `${n} pending merge candidates`;
+      n === 0 ? 'No pending candidates'
+      : n === 1 ? '1 pending · pick a winner or dismiss'
+      : `${n} pending · pick a winner or dismiss`;
 
     if (n === 0) {
-      listEl.innerHTML = '<div class="mc-empty">All caught up — no pending decisions.</div>';
+      listEl.innerHTML = '<div class="dis-empty">◌<br>All caught up — no pending decisions.</div>';
       return;
     }
 
@@ -176,10 +176,10 @@ export async function mountMerge(rootEl) {
       </div>
       <span class="mc-badge ${badgeClass}">${esc(badgeLabel)}</span>
       <div class="mc-btns">
-        <button type="button" class="mc-merge-a-btn mc-btn-merge" title="Keep ${esc(c.titleCodeA)}, delete ${esc(c.titleCodeB)}">
+        <button type="button" class="mc-merge-a-btn mc-btn-merge mc-btn-merge-primary" title="Keep ${esc(c.titleCodeA)}, delete ${esc(c.titleCodeB)}">
           Merge → ${esc(c.titleCodeA)}
         </button>
-        <button type="button" class="mc-merge-b-btn mc-btn-merge" title="Keep ${esc(c.titleCodeB)}, delete ${esc(c.titleCodeA)}">
+        <button type="button" class="mc-merge-b-btn mc-btn-merge mc-btn-merge-primary" title="Keep ${esc(c.titleCodeB)}, delete ${esc(c.titleCodeA)}">
           Merge → ${esc(c.titleCodeB)}
         </button>
         <button type="button" class="mc-dismiss-btn mc-btn-dismiss">Dismiss</button>

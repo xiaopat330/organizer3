@@ -89,8 +89,10 @@ export async function mountNoMatch(rootEl) {
 
     if (S.rows.length === 0) {
       const empty = document.createElement('div');
-      empty.className = 'nm-empty';
-      empty.textContent = S.orphanOnly ? 'No orphan rows.' : 'No no-match rows. All clear!';
+      empty.className = 'dis-empty';
+      empty.innerHTML = S.orphanOnly
+        ? '◌<br>No orphan rows.'
+        : '◌<br>No no-match rows. All clear!';
       list.appendChild(empty);
       return;
     }
@@ -197,7 +199,7 @@ export async function mountNoMatch(rootEl) {
 
     const slugBtn = document.createElement('button');
     slugBtn.type = 'button';
-    slugBtn.className = 'nm-action-btn nm-manual-btn';
+    slugBtn.className = 'nm-action-btn nm-manual-btn nm-apply-slug-btn';
     slugBtn.textContent = 'Apply slug';
     slugBtn.addEventListener('click', () => doManualSlug(row.titleId, slugInput, slugBtn, card));
     manualSection.appendChild(slugBtn);
@@ -362,13 +364,13 @@ function buildPageHTML() {
       <div class="nm-wb-head">
         <h1 class="nm-wb-title">No-Match Triage</h1>
         <div class="nm-wb-subtitle">
-          Titles whose JavDB enrichment returned <code>no_match_in_filmography</code>.
+          Titles whose JavDB enrichment returned no match in filmography.
           Resolve each via a candidate actress, a manual slug, or mark as unresolvable.
         </div>
       </div>
 
       <div class="nm-toolbar">
-        <div id="nm-header" class="nm-header">Loading…</div>
+        <div id="nm-header" class="nm-header dis-kpi-strip">Loading…</div>
         <label class="nm-filter-label">
           <input type="checkbox" id="nm-filter-orphan" class="nm-filter-check">
           Orphan only

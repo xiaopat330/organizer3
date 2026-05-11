@@ -1317,6 +1317,23 @@
                    .tit-*, .vol-*, .dup-*)
    ══════════════════════════════════════════════════════════════════════ */
 
+/* ── Filter bar (volume picker + meta) ──────────────────────────────── */
+.tr-filter-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 8px 10px;
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  margin-bottom: 12px;
+}
+
+/* ── Status pill overrides ───────────────────────────────────────────── */
+/* 'held' — neutral default (base .pill style is fine; minor dim override) */
+.tr-pill-held { color: var(--text-faint); }
+
 /* ── Toolbar (bulk-select actions) ───────────────────────────────────── */
 .tr-toolbar {
   display: flex;
@@ -1777,6 +1794,27 @@
 .dup-dec-keep.active    { color: var(--ok);    background: rgba(110,231,183,0.12); border-color: rgba(110,231,183,0.35); }
 .dup-dec-trash.active   { color: var(--error); background: rgba(248,113,113,0.12); border-color: rgba(248,113,113,0.35); }
 .dup-dec-variant.active { color: var(--warn);  background: rgba(251,191,36,0.12);  border-color: rgba(251,191,36,0.35); }
+
+/* Pill shape for decision buttons + semantic default tints */
+.dup-dec-btn-pill { border-radius: 999px; }
+.dup-dec-keep    { color: #34d399; border-color: rgba(52,211,153,0.30); }
+.dup-dec-keep:hover:not(:disabled) { color: #34d399; border-color: rgba(52,211,153,0.55); background: rgba(52,211,153,0.06); }
+.dup-dec-trash   { color: var(--error); border-color: rgba(248,113,113,0.30); }
+.dup-dec-trash:hover:not(:disabled) { color: var(--error); border-color: rgba(248,113,113,0.55); background: rgba(248,113,113,0.06); }
+
+/* Identical-copies decision hint notice */
+.dup-decision-hint {
+  padding: 6px 10px;
+  background: rgba(var(--accent-rgb, 99,102,241), 0.06);
+  border-left: 2px solid var(--accent);
+  border-radius: 0 var(--radius) var(--radius) 0;
+  font-size: 12px;
+}
+
+/* Stronger selected-state on actress sidebar rows */
+.dup-actress-row-selected {
+  box-shadow: inset 2px 0 0 var(--accent);
+}
 
 /* ── Cover hover tooltip ──────────────────────────────────────────────── */
 .dup-cover-tip {
@@ -2439,20 +2477,21 @@
 .mc-actions { display: flex; gap: 6px; margin-left: auto; }
 .mc-wb-subtitle { font-size: 13px; color: var(--text-faint); }
 
+/* .mc-headline now uses .dis-kpi-strip inline; override block-margin */
 .mc-headline {
   font-size: 13px; font-weight: 600;
   color: var(--text-dim);
-  margin-bottom: 14px;
+  margin-bottom: 6px;
 }
 
 .mc-list { display: flex; flex-direction: column; gap: 10px; }
 
-.mc-loading,
-.mc-empty {
+.mc-loading {
   font-size: 13px;
   color: var(--text-faint);
   padding: 20px 0;
 }
+/* .mc-empty replaced by .dis-empty */
 
 .mc-card {
   background: var(--bg-panel);
@@ -2524,6 +2563,31 @@
               border-color var(--dur-fast) var(--ease-out);
 }
 .mc-btn-dismiss:hover { color: var(--text); border-color: var(--border-strong); }
+
+/* Primary-style Merge buttons */
+.mc-btn-merge-primary {
+  color: var(--accent-fg);
+  border-color: var(--accent);
+  background: var(--accent-bg);
+}
+.mc-btn-merge-primary:hover {
+  background: rgba(var(--accent-rgb, 99,102,241), 0.18);
+  border-color: var(--accent);
+}
+
+/* Vertical divider between title and actions */
+.mc-header-divider {
+  width: 1px;
+  align-self: stretch;
+  background: var(--border);
+  margin: 0 4px;
+}
+
+/* mc-headline inside wb-head — override margin/size to match kpi-strip */
+.mc-wb-head .dis-kpi-strip {
+  display: block;
+  margin-bottom: 6px;
+}
 
 /* ══════════════════════════════════════════════════════════════════════
    No-Match Triage (v2)  — .nm-*

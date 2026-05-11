@@ -100,7 +100,7 @@ function makeDecisionBtn(decision, active) {
   btn.type = 'button';
   btn.title = TOOLTIPS[decision];
   btn.innerHTML = `<span class="dup-btn-icon">${ICONS[decision]}</span>${LABELS[decision]}`;
-  btn.className = `dup-dec-btn dup-dec-${decision.toLowerCase()}` + (active ? ' active' : '');
+  btn.className = `dup-dec-btn dup-dec-btn-pill dup-dec-${decision.toLowerCase()}` + (active ? ' active' : '');
   return btn;
 }
 
@@ -250,7 +250,7 @@ export async function buildTitleCard(state, title, onDecisionChange) {
 
   if (rank.rationale) {
     const rat = document.createElement('div');
-    rat.className = 'dup-rationale' + (rank.suggestedIndex === null ? ' dup-rationale-identical' : '');
+    rat.className = 'dup-rationale' + (rank.suggestedIndex === null ? ' dup-rationale-identical dup-decision-hint' : '');
     rat.textContent = rank.rationale;
     card.appendChild(rat);
   }

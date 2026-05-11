@@ -96,7 +96,7 @@ function statusCellHtml(item) {
   if (item.scheduledDeletionAt) {
     return scheduledStatusHtml(item.scheduledDeletionAt);
   }
-  return `<span class="pill">held</span>`;
+  return `<span class="pill tr-pill-held">held</span>`;
 }
 
 // ── Row HTML ──────────────────────────────────────────────────────────
@@ -184,7 +184,7 @@ export async function mountTrash(rootEl) {
       <h1 class="wb-page-title">Trash</h1>
       <div class="wb-page-subtitle">Items pending deletion. Restore puts them back at their original path; re-sync the volume after restore to reindex.</div>
 
-      <div class="filter-bar">
+      <div class="tr-filter-bar">
         <div class="filter-group">
           <span class="filter-label">Volume:</span>
           <div id="vol-picker"></div>
@@ -300,12 +300,10 @@ export async function mountTrash(rootEl) {
     state.total = total;
 
     if (items.length === 0) {
-      tbody.innerHTML = `<tr><td colspan="7"><div class="empty-state">
-        <div class="empty-state-title">Trash is empty</div>
-        <div class="empty-state-body">${state.volumeId
-          ? `No items pending deletion on <code>${esc(state.volumeId)}</code>.`
-          : 'No items pending deletion across any volume.'}</div>
-      </div></td></tr>`;
+      const emptyMsg = state.volumeId
+        ? `No items pending deletion on ${esc(state.volumeId)}.`
+        : 'Trash is empty.';
+      tbody.innerHTML = `<tr><td colspan="7"><div class="dis-empty">◌<br>${emptyMsg}</div></td></tr>`;
       statusEl.innerHTML = '';
       return;
     }
