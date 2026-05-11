@@ -4274,3 +4274,196 @@
   flex: 1;
   font-size: 12px;
 }
+
+/* ── Unprocessed workbench (.un-*) ──────────────────────────────────────
+   Master/detail layout: fixed ~300px sidebar queue, fluid editor pane.
+   Mirrors dup-layout / dup-actress-sidebar pattern.
+   Uses .wb-page-title / .wb-page-subtitle from above for the eyebrow.
+   Uses .dis-empty / .dis-kpi-strip from above for empty + KPI states.
+   ─────────────────────────────────────────────────────────────────────── */
+
+.un-wb { padding: 20px 24px 48px; max-width: 1600px; }
+.un-wb-head { margin-bottom: 14px; }
+
+/* ── Toolbar ──────────────────────────────────────────────────────────── */
+.un-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+.un-toolbar-left  { display: flex; align-items: center; gap: 12px; flex: 1; }
+.un-toolbar-right { flex-shrink: 0; }
+
+/* ── Master/detail layout ─────────────────────────────────────────────── */
+.un-layout {
+  display: grid;
+  grid-template-columns: 300px 1fr;
+  gap: 16px;
+  min-height: 400px;
+}
+
+/* ── Sidebar ──────────────────────────────────────────────────────────── */
+.un-sidebar {
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  overflow-y: auto;
+  max-height: calc(100vh - 200px);
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+}
+
+.un-queue-header {
+  padding: 10px 12px 8px;
+  border-bottom: 1px solid var(--border);
+  position: sticky;
+  top: 0;
+  background: var(--bg-panel);
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+/* Wrapper div for the Show complete checkbox area */
+.un-queue-toggle { display: flex; }
+
+/* Loading placeholder text inside sidebar before queue mounts */
+.un-sidebar-inner {
+  padding: 16px 12px;
+  font-size: 12px;
+  color: var(--text-faint);
+}
+
+.un-toggle-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11.5px;
+  color: var(--text-dim);
+  cursor: pointer;
+  user-select: none;
+}
+
+.un-toggle-cb { cursor: pointer; }
+
+.un-queue-meta {
+  font-size: 10.5px;
+  color: var(--text-faint);
+  font-family: var(--font-mono);
+}
+
+/* ── Queue list ───────────────────────────────────────────────────────── */
+.un-queue-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.un-queue-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 9px 12px;
+  border-bottom: 1px solid var(--border);
+  cursor: pointer;
+  transition: background var(--dur-fast) var(--ease-out);
+  position: relative;
+}
+.un-queue-row:hover    { background: var(--bg-hover); }
+.un-queue-row.un-row-selected {
+  background: var(--accent-bg);
+  box-shadow: inset 2px 0 0 var(--accent);
+}
+.un-row-complete { opacity: 0.55; }
+
+/* ── Status marker (●/◐/○) ────────────────────────────────────────────── */
+.un-status-marker {
+  flex-shrink: 0;
+  font-size: 11px;
+  margin-top: 2px;
+  width: 12px;
+  text-align: center;
+}
+.un-status-complete { color: var(--ok); }
+.un-status-partial  { color: var(--accent-fg); }
+.un-status-empty    { color: var(--text-faint); }
+
+/* ── Row body ─────────────────────────────────────────────────────────── */
+.un-row-body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1;
+}
+.un-row-top {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  flex-wrap: wrap;
+}
+.un-code {
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--text);
+  white-space: nowrap;
+}
+.un-folder-name {
+  font-size: 11px;
+  color: var(--text-faint);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.un-actress-count {
+  font-size: 10px;
+  color: var(--text-faint);
+  font-family: var(--font-mono);
+}
+
+/* ── DRAFT pill ───────────────────────────────────────────────────────── */
+.un-draft-pill {
+  display: inline-block;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--accent-fg);
+  background: var(--accent-bg);
+  border: 1px solid rgba(147,197,253,0.28);
+  border-radius: 3px;
+  padding: 1px 4px;
+  line-height: 1.4;
+  vertical-align: middle;
+}
+
+/* ── Loading / error states ───────────────────────────────────────────── */
+.un-queue-loading,
+.un-queue-error {
+  list-style: none;
+  padding: 16px 12px;
+  font-size: 12px;
+  color: var(--text-faint);
+}
+.un-queue-error { color: var(--error); }
+.un-queue-empty { list-style: none; padding: 0; }
+
+/* ── Empty glyph inside .dis-empty ───────────────────────────────────── */
+.un-empty-glyph {
+  font-size: 28px;
+  color: var(--text-faint);
+  line-height: 1;
+}
+
+/* ── Editor pane ──────────────────────────────────────────────────────── */
+.un-editor-pane {
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  overflow-y: auto;
+  max-height: calc(100vh - 200px);
+  display: flex;
+  flex-direction: column;
+}
