@@ -82,8 +82,10 @@ function buildHTML() {
 
   <!-- ── Discovery header ──────────────────────────────────────────────── -->
   <div class="jd-header dis-header">
-    <span class="jd-title">javdb Discovery</span>
-    <span class="jd-queue-badge" id="jd-queue-badge" style="display:none"></span>
+    <div class="dis-title-group">
+      <span class="wb-page-title dis-page-title">Discovery</span>
+      <span class="dis-kpi-strip">Source: javdb<span class="jd-queue-badge" id="jd-queue-badge" style="display:none"></span></span>
+    </div>
     <div class="jd-tabs">
       <button type="button" class="jd-tab jd-tab-enrich selected" data-jd-tab="enrich" title="Actress-driven enrichment">
         <svg class="jd-tab-icon" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 20v-1a8 8 0 0 1 16 0v1"/></svg>
@@ -103,9 +105,9 @@ function buildHTML() {
       </button>
     </div>
     <a class="hl-sync-link" href="/v2-enrichment.html">Enrichment Review →</a>
-    <div class="jd-header-actions">
+    <div class="jd-header-actions dis-header-actions">
       <button type="button" id="jd-pause-btn" class="jd-action-btn jd-pause-btn">Pause</button>
-      <button type="button" id="jd-cancel-all-btn" class="jd-action-btn jd-danger-btn">⏹ Stop All Enrichment</button>
+      <button type="button" id="jd-cancel-all-btn" class="jd-action-btn jd-danger-outline-btn">⏹ Stop All Enrichment</button>
     </div>
   </div>
 
@@ -128,7 +130,7 @@ function buildHTML() {
     </aside>
 
     <section class="jd-detail" id="jd-detail">
-      <div class="jd-empty" id="jd-empty">Select an actress to view enrichment status.</div>
+      <div class="jd-empty dis-empty" id="jd-empty">◌<br>Select an actress to view enrichment status.</div>
       <div class="jd-actress-panel" id="jd-actress-panel" style="display:none">
         <div class="jd-subnav">
           <button type="button" class="jd-subtab selected" data-tab="titles">
@@ -171,7 +173,11 @@ function buildHTML() {
       </div>
     </div>
     <div class="jd-titles-chips" id="jd-titles-chips"></div>
-    <div class="jd-titles-empty" id="jd-titles-empty" style="display:none">No unenriched titles for this source.</div>
+    <div class="dis-cast-legend">
+      <span class="dis-cast-legend-item"><span class="jd-titles-elig-dot jd-titles-elig-yes"></span>Will chain a profile fetch</span>
+      <span class="dis-cast-legend-item"><span class="jd-titles-elig-dot jd-titles-elig-no"></span>Title-only fetch (no profile chain)</span>
+    </div>
+    <div class="jd-titles-empty dis-empty" id="jd-titles-empty" style="display:none">No unenriched titles for this source.</div>
     <div class="jd-titles-table-wrap" id="jd-titles-table-wrap" style="display:none">
       <table class="jd-titles-table" id="jd-titles-table">
         <thead>
@@ -206,7 +212,12 @@ function buildHTML() {
         <div class="jd-filter-autocomplete" id="jd-collections-filter-autocomplete"></div>
       </div>
     </div>
-    <div class="jd-collections-empty" id="jd-collections-empty" style="display:none">No unenriched multi-cast titles.</div>
+    <div class="dis-cast-legend">
+      <span class="jd-cast-chip jd-cast-chip-elig"><span class="jd-cast-chip-icon">✓</span>Will chain a profile fetch</span>
+      <span class="jd-cast-chip jd-cast-chip-sentinel"><span class="jd-cast-chip-icon">✗</span>Sentinel actress (no chain)</span>
+      <span class="jd-cast-chip jd-cast-chip-below"><span class="jd-cast-chip-icon">◌</span>Below threshold (no chain)</span>
+    </div>
+    <div class="jd-collections-empty dis-empty" id="jd-collections-empty" style="display:none">No unenriched multi-cast titles.</div>
     <div class="jd-collections-table-wrap" id="jd-collections-table-wrap" style="display:none">
       <table class="jd-titles-table jd-collections-table" id="jd-collections-table">
         <thead>
@@ -233,7 +244,7 @@ function buildHTML() {
 
   <!-- ── Queue tab body ────────────────────────────────────────────────── -->
   <div class="jd-queue-body" id="jd-queue-body" style="display:none">
-    <div class="jd-queue-empty" id="jd-queue-empty" style="display:none">No active jobs in the enrichment queue.</div>
+    <div class="jd-queue-empty dis-empty" id="jd-queue-empty" style="display:none">No active jobs in the enrichment queue.</div>
     <div class="jd-queue-table-wrap" id="jd-queue-table-wrap" style="display:none">
       <table class="jd-queue-table" id="jd-queue-table">
         <thead>
@@ -372,7 +383,7 @@ export async function mountDiscovery(rootEl) {
         if (activeTotal > 0) parts.push(`${activeTotal} pending`);
         if (pausedItems > 0) parts.push(`${pausedItems} paused`);
         if (failed > 0) parts.push(`<span class="jd-badge-failed">${failed} failed</span>`);
-        queueBadge.innerHTML = parts.join(' · ');
+        queueBadge.innerHTML = ' · ' + parts.join(' · ');
         queueBadge.style.display = '';
       }
       pauseBtn.textContent = paused ? 'Resume' : 'Pause';

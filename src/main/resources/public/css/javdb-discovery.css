@@ -1121,3 +1121,136 @@ button.jd-status:hover { filter: brightness(1.15); }
   line-height: 1;
 }
 
+/* ── v2 Discovery page polish ────────────────────────────────────────────── */
+
+/* Item 1 — title group + KPI strip ─────────────────────────────────────── */
+.dis-title-group {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  flex-shrink: 0;
+  gap: 1px;
+  padding: 6px 0;
+}
+/* Tighten the wb-page-title size inside the header (18px is fine but header is 44px tall) */
+.dis-page-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text, #e2e8f0);
+  line-height: 1.2;
+  margin: 0;
+}
+.dis-kpi-strip {
+  font-size: 11px;
+  color: #64748b;
+  white-space: nowrap;
+  line-height: 1.3;
+}
+/* Badge inside the KPI strip — inline (no pill box) */
+.dis-kpi-strip .jd-queue-badge {
+  display: inline !important;
+  background: none;
+  border: none;
+  border-radius: 0;
+  padding: 0;
+  font-size: 11px;
+  color: inherit;
+}
+.dis-kpi-strip .jd-badge-failed { color: #f87171; }
+
+/* Vertical divider before the action group */
+.dis-header-actions {
+  border-left: 1px solid #1e293b;
+  padding-left: 12px;
+  margin-left: 4px;
+}
+
+/* Danger-outline variant (Stop All Enrichment) */
+.jd-danger-outline-btn {
+  background: transparent;
+  color: #f87171;
+  border-color: #7f1d1d;
+}
+.jd-danger-outline-btn:hover:not(:disabled) {
+  background: rgba(248, 113, 113, 0.08);
+  color: #fca5a5;
+  border-color: #b91c1c;
+}
+
+/* Item 2 — Burst-break banner as accent notice ──────────────────────────── */
+/* The base .jd-rate-limit-banner has padding:8px 16px; override here.
+   The banner appears as a full-width inset notice between header and body. */
+.jd-banner-burst {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 16px;
+  background: rgba(56, 189, 248, 0.06);
+  border-bottom: 1px solid rgba(56, 189, 248, 0.2);
+  color: #7dd3fc;
+  font-size: 12px;
+  line-height: 1.5;
+}
+.jd-banner-burst .jd-banner-time { color: #38bdf8; font-weight: 600; }
+.jd-banner-burst .jd-banner-resume-btn {
+  margin-left: auto;
+  padding: 2px 8px;
+  font-size: 11px;
+  border: 1px solid rgba(56, 189, 248, 0.4);
+  background: transparent;
+  color: #38bdf8;
+  border-radius: 3px;
+  cursor: pointer;
+  opacity: 0.85;
+}
+.jd-banner-burst .jd-banner-resume-btn:hover { opacity: 1; background: rgba(56, 189, 248, 0.1); }
+
+/* Item 3 — Cast-chip legend strip ──────────────────────────────────────── */
+.dis-cast-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  padding: 4px 0 8px;
+  font-size: 11px;
+  color: #475569;
+}
+/* When used with chips (Collections tab), reduce chip size for legend use */
+.dis-cast-legend .jd-cast-chip {
+  padding: 1px 6px;
+  font-size: 10px;
+  pointer-events: none;
+  opacity: 0.75;
+}
+/* When used with dot items (Titles tab) */
+.dis-cast-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  color: #475569;
+}
+
+/* Item 4 — Queue row control button click target ────────────────────────── */
+
+/* Item 5 — Shared empty state ───────────────────────────────────────────── */
+.dis-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 240px;
+  color: var(--text-faint, #475569);
+  font-size: 13px;
+  font-style: italic;
+  text-align: center;
+  gap: 8px;
+  padding: 32px;
+  line-height: 1.6;
+}
+/* The jd-empty variant sits inside a flex detail pane — override margin:auto */
+.jd-detail .dis-empty {
+  margin: 0;
+  flex: 1;
+}
+
