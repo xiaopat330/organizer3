@@ -110,7 +110,7 @@ class SearchServiceTest {
         service.search("yua", true, false);
 
         verify(actressRepo).searchForFederated("yua", true, 5);
-        verify(titleRepo).searchByTitleName("yua", true, 3);
+        verify(titleRepo).searchByTitleName("yua", true, 10);
         verify(labelRepo).searchLabels("yua", true, 2);
         verify(labelRepo).searchCompanies("yua", true, 2);
     }
@@ -309,7 +309,7 @@ class SearchServiceTest {
         FederatedTitleResult codeRow = new FederatedTitleResult(
                 100L, "STAR-129", "原題", "Unrelated Name", "STAR", "STAR-00129", "2024-01-01",
                 null, null, false, false);
-        when(titleRepo.searchByCodePrefix("STAR", 3)).thenReturn(List.of(codeRow));
+        when(titleRepo.searchByCodePrefix("STAR", 10)).thenReturn(List.of(codeRow));
         when(coverPath.find(any())).thenReturn(Optional.empty());
 
         @SuppressWarnings("unchecked")
@@ -317,7 +317,7 @@ class SearchServiceTest {
 
         assertEquals(1, titles.size());
         assertEquals("STAR-129", titles.get(0).get("code"));
-        verify(titleRepo).searchByCodePrefix("STAR", 3);
+        verify(titleRepo).searchByCodePrefix("STAR", 10);
     }
 
     @Test
@@ -326,13 +326,13 @@ class SearchServiceTest {
         FederatedTitleResult codeRow = new FederatedTitleResult(
                 101L, "STAR-129", null, null, "STAR", "STAR-00129", null,
                 null, null, false, false);
-        when(titleRepo.searchByCodePrefix("STAR-1", 3)).thenReturn(List.of(codeRow));
+        when(titleRepo.searchByCodePrefix("STAR-1", 10)).thenReturn(List.of(codeRow));
         when(coverPath.find(any())).thenReturn(Optional.empty());
 
         service.search("star-1", false, false);
 
         // Service should uppercase the query before passing to searchByCodePrefix.
-        verify(titleRepo).searchByCodePrefix("STAR-1", 3);
+        verify(titleRepo).searchByCodePrefix("STAR-1", 10);
     }
 
     @Test
@@ -344,7 +344,7 @@ class SearchServiceTest {
                 200L, "SNIS-100", null, "SNIS Special", "SNIS", "SNIS-00100", null,
                 null, null, false, false);
         when(titleRepo.searchByTitleName(eq("SNIS"), anyBoolean(), anyInt())).thenReturn(List.of(shared));
-        when(titleRepo.searchByCodePrefix("SNIS", 3)).thenReturn(List.of(shared));
+        when(titleRepo.searchByCodePrefix("SNIS", 10)).thenReturn(List.of(shared));
         when(coverPath.find(any())).thenReturn(Optional.empty());
 
         @SuppressWarnings("unchecked")
@@ -366,7 +366,7 @@ class SearchServiceTest {
                 301L, "OTHER-1", null, "STAR mention only", "OTHER", "OTHER-00001", null,
                 null, null, false, false);
         when(titleRepo.searchByTitleName(eq("STAR"), anyBoolean(), anyInt())).thenReturn(List.of(nameOnly));
-        when(titleRepo.searchByCodePrefix("STAR", 3)).thenReturn(List.of(codeOnly));
+        when(titleRepo.searchByCodePrefix("STAR", 10)).thenReturn(List.of(codeOnly));
         when(coverPath.find(any())).thenReturn(Optional.empty());
 
         @SuppressWarnings("unchecked")

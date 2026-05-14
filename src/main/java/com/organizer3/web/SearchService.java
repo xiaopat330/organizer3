@@ -27,7 +27,7 @@ import java.util.regex.Pattern;
 public class SearchService {
 
     private static final int MAX_ACTRESS_RESULTS    = 5;
-    private static final int MAX_TITLE_RESULTS      = 3;
+    private static final int MAX_TITLE_RESULTS      = 10;
     private static final int MAX_LABEL_RESULTS      = 2;
     private static final int MAX_COMPANY_RESULTS    = 2;
     private static final int MAX_AV_ACTRESS_RESULTS = 5;
