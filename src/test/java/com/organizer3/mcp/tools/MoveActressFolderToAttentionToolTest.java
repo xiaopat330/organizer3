@@ -132,6 +132,44 @@ class MoveActressFolderToAttentionToolTest {
         assertTrue(content.contains("Asusa Misaki"), "sidecar body must mention old name");
     }
 
+    /**
+     * Bug 4 regression: the MCP tool exposes an optional includeCanonical flag. With it set,
+     * a canonically-named folder is moved to /attention/ for inspection.
+     */
+    @Test
+    void includeCanonical_movesCanonicalNamedFolder() {
+        Actress a = seedActressWithMisnamedFolder("Kozue Minami", "Kozue Minamoto",
+                "IPX-100", "/stars/minor/Kozue Minami/Kozue Minami (IPX-100)", "a");
+
+        ObjectNode args = M.createObjectNode();
+        args.put("actress_id", a.getId());
+        args.put("dryRun", false);
+        args.put("includeCanonical", true);
+
+        var r = (MoveActressFolderToAttentionTool.Result) tool.call(args);
+
+        assertEquals("moved", r.status());
+        assertEquals(1, r.moved().size());
+        assertEquals("/stars/minor/Kozue Minami", r.moved().get(0).actressFolderFrom());
+        assertEquals("/attention/Kozue Minami", r.moved().get(0).actressFolderTo());
+        assertEquals(1, fs.moveCalls.size());
+    }
+
+    /**
+     * Bug 4 regression: without includeCanonical, a canonical-named folder is still a no-op.
+     * Guards against the default flipping.
+     */
+    @Test
+    void canonicalNamedFolder_defaultStaysNoOp() {
+        Actress a = seedActressWithMisnamedFolder("Kozue Minami", "Kozue Minamoto",
+                "IPX-100", "/stars/minor/Kozue Minami/Kozue Minami (IPX-100)", "a");
+
+        var r = (MoveActressFolderToAttentionTool.Result) tool.call(args(a.getId(), false));
+
+        assertEquals("nothing-to-do", r.status());
+        assertTrue(fs.moveCalls.isEmpty());
+    }
+
     @Test
     void nothingToDo_whenFolderAlreadyUsesCanonicalName() {
         Actress a = seedActressWithMisnamedFolder("Azusa Misaki", "Asusa Misaki",

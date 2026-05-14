@@ -72,6 +72,11 @@ public class MoveActressFolderToAttentionTool implements Tool {
                 .prop("actress_id", "integer", "Actress id. Either this or 'name' is required.")
                 .prop("name",       "string",  "Canonical name or alias to resolve. Either this or 'actress_id' is required.")
                 .prop("dryRun",     "boolean", "If true (default), return the plan without moving.", true)
+                .prop("includeCanonical", "boolean",
+                        "If true, also move actress-level folders whose basename already matches "
+                      + "the canonical name (use to curate a correctly-named folder to /attention/). "
+                      + "Default false preserves the legacy behavior of only acting on alias-named folders.",
+                        false)
                 .build();
     }
 
@@ -80,6 +85,7 @@ public class MoveActressFolderToAttentionTool implements Tool {
         long idArg     = Schemas.optLong(args, "actress_id", -1);
         String nameArg = Schemas.optString(args, "name", null);
         boolean dryRun = Schemas.optBoolean(args, "dryRun", true);
+        boolean includeCanonical = Schemas.optBoolean(args, "includeCanonical", false);
 
         if (idArg < 0 && (nameArg == null || nameArg.isBlank())) {
             throw new IllegalArgumentException("Must provide either 'actress_id' or 'name'");
@@ -95,10 +101,11 @@ public class MoveActressFolderToAttentionTool implements Tool {
         VolumeConnection conn  = session.getActiveConnection();
         VolumeFileSystem fs    = (conn != null && conn.isConnected()) ? conn.fileSystem() : null;
 
-        ActressFolderPlan plan = mergeService.planActressFolderMoveFor(actress, mountedVolumeId);
+        ActressFolderPlan plan = mergeService.planActressFolderMoveFor(actress, mountedVolumeId, includeCanonical);
 
         Map<String, Object> curationInputs = Map.of(
-                "actressId", actress.getId(), "canonical", actress.getCanonicalName(), "dryRun", dryRun);
+                "actressId", actress.getId(), "canonical", actress.getCanonicalName(),
+                "dryRun", dryRun, "includeCanonical", includeCanonical);
 
         if (plan.entries().isEmpty()) {
             emitLog(mountedVolumeId, curationInputs, 0, "nothing-to-do", List.of());
@@ -176,10 +183,16 @@ public class MoveActressFolderToAttentionTool implements Tool {
     private static String buildSidecarBody(String canonicalName, String oldName,
                                             String volumeId, String aliases) {
         StringBuilder sb = new StringBuilder();
-        sb.append("Actress folder was filed under the old name '").append(oldName)
-          .append("' on volume '").append(volumeId).append("'. ");
-        sb.append("The title folders inside have already been renamed to use the canonical name '")
-          .append(canonicalName).append("'. ");
+        if (canonicalName.equalsIgnoreCase(oldName)) {
+            sb.append("Actress folder for '").append(canonicalName)
+              .append("' was routed from volume '").append(volumeId)
+              .append("' for inspection. ");
+        } else {
+            sb.append("Actress folder was filed under the old name '").append(oldName)
+              .append("' on volume '").append(volumeId).append("'. ");
+            sb.append("The title folders inside have already been renamed to use the canonical name '")
+              .append(canonicalName).append("'. ");
+        }
         sb.append("This folder has been moved here so the parent can be inspected and the volume re-synced. ");
         if (!aliases.isBlank()) {
             sb.append("Known aliases: ").append(aliases).append(". ");

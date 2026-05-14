@@ -316,9 +316,20 @@ public class ActressMergeService {
      * <p>Returns an empty plan (no entries) when all folders already use the canonical name.
      */
     public ActressFolderPlan planActressFolderMoveFor(Actress actress, String volumeId) {
+        return planActressFolderMoveFor(actress, volumeId, false);
+    }
+
+    /**
+     * Variant of {@link #planActressFolderMoveFor(Actress, String)} that optionally includes
+     * actress-level folders whose basename already matches the canonical name. Use this when
+     * deliberately curating a correctly-named actress folder to {@code /attention/} for
+     * inspection.
+     */
+    public ActressFolderPlan planActressFolderMoveFor(Actress actress, String volumeId, boolean includeCanonical) {
         if (volumeId == null) return new ActressFolderPlan(actress, List.of());
 
         String canonical = actress.getCanonicalName();
+        String canonicalLower = canonical.toLowerCase();
 
         List<String> aliasNames = new ArrayList<>();
         for (ActressAlias a : actressRepo.findAliases(actress.getId())) {
@@ -345,7 +356,9 @@ public class ActressMergeService {
             Path parent = Path.of(row.path()).getParent();
             if (parent == null) continue;
             String parentBasename = parent.getFileName().toString().toLowerCase();
-            if (aliasNames.contains(parentBasename)) {
+            boolean matches = aliasNames.contains(parentBasename)
+                    || (includeCanonical && canonicalLower.equals(parentBasename));
+            if (matches) {
                 byParent.computeIfAbsent(parent, k -> new ArrayList<>()).add(row);
             }
         }

@@ -585,6 +585,62 @@ class ActressMergeServiceTest {
                 "partition_id must be normalised to short form after rename");
     }
 
+    // ── planActressFolderMoveFor — Bug 4 regression ──────────────────────────
+
+    /**
+     * Bug 4 regression: default behavior (no includeCanonical) — a folder whose basename
+     * already matches the canonical name must NOT be planned for move.
+     */
+    @Test
+    void planActressFolderMoveFor_defaultExcludesCanonicalNamedParent() {
+        Actress canonical = actressRepo.save(mkActress("Kozue Minami"));
+        addAlias(canonical.getId(), "Kozue Minamoto");
+        saveTitleFiled("IPX-100", canonical.getId(),
+                "/stars/minor/Kozue Minami/Kozue Minami (IPX-100)", "pool");
+
+        ActressMergeService.ActressFolderPlan plan =
+                service.planActressFolderMoveFor(canonical, "pool");
+
+        assertTrue(plan.entries().isEmpty(),
+                "canonical-named parent must not be included when includeCanonical=false");
+    }
+
+    /**
+     * Bug 4 regression: includeCanonical=true admits canonical-named parents to the plan.
+     */
+    @Test
+    void planActressFolderMoveFor_includeCanonicalAdmitsCanonicalNamedParent() {
+        Actress canonical = actressRepo.save(mkActress("Kozue Minami"));
+        addAlias(canonical.getId(), "Kozue Minamoto");
+        saveTitleFiled("IPX-100", canonical.getId(),
+                "/stars/minor/Kozue Minami/Kozue Minami (IPX-100)", "pool");
+
+        ActressMergeService.ActressFolderPlan plan =
+                service.planActressFolderMoveFor(canonical, "pool", true);
+
+        assertEquals(1, plan.entries().size());
+        assertEquals(Path.of("/stars/minor/Kozue Minami"), plan.entries().get(0).actressFolder());
+        assertEquals("Kozue Minami", plan.entries().get(0).oldName());
+    }
+
+    @Test
+    void planActressFolderMoveFor_aliasNamedParentIncludedInBothModes() {
+        Actress canonical = actressRepo.save(mkActress("Azusa Misaki"));
+        addAlias(canonical.getId(), "Asusa Misaki");
+        saveTitleFiled("IPX-001", canonical.getId(),
+                "/stars/minor/Asusa Misaki/Azusa Misaki (IPX-001)", "pool");
+
+        ActressMergeService.ActressFolderPlan defaultPlan =
+                service.planActressFolderMoveFor(canonical, "pool");
+        assertEquals(1, defaultPlan.entries().size(),
+                "alias-named parent included in default mode");
+
+        ActressMergeService.ActressFolderPlan inclusivePlan =
+                service.planActressFolderMoveFor(canonical, "pool", true);
+        assertEquals(1, inclusivePlan.entries().size(),
+                "alias-named parent still included when includeCanonical=true");
+    }
+
     // ── MergeActressCommand arg parsing ──────────────────────────────────────
 
     @Test
