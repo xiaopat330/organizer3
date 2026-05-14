@@ -210,10 +210,8 @@ public class ActressMergeService {
                         JOIN title_locations tl ON tl.title_id = t.id
                         WHERE t.actress_id = :actressId
                           AND tl.stale_since IS NULL
-                          AND instr(LOWER(tl.path), LOWER(:canonical)) = 0
                         """)
                         .bind("actressId", actressId)
-                        .bind("canonical", canonical)
                         .map((rs, ctx) -> new FilingRow(
                                 rs.getLong("id"),
                                 rs.getString("volume_id"),
@@ -225,6 +223,18 @@ public class ActressMergeService {
         List<UnresolvedPath> unresolved = new ArrayList<>();
         for (FilingRow row : rows) {
             Path current = Path.of(row.path());
+            // Skip rows whose LEAF folder is already canonical. Previously this was a SQL filter
+            // on the full path, which incorrectly excluded title leaves carrying the old name
+            // when a parent folder had already been renamed to canonical.
+            String leaf = current.getFileName() != null ? current.getFileName().toString() : "";
+            boolean leafAlreadyCanonical = leaf.equalsIgnoreCase(canonical)
+                    || (leaf.length() > canonical.length()
+                        && leaf.regionMatches(true, 0, canonical, 0, canonical.length())
+                        && leaf.charAt(canonical.length()) == ' ');
+            if (leafAlreadyCanonical) {
+                continue;
+            }
+
             Path newPath = null;
             for (String alias : aliasNames) {
                 newPath = computeNewPath(current, alias, canonical);

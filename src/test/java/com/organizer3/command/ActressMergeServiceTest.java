@@ -304,7 +304,9 @@ class ActressMergeServiceTest {
     }
 
     @Test
-    void planRenamesFor_excludesFolderAlreadyContainingCanonical() {
+    void planRenamesFor_skipsLeafAlreadyCanonical() {
+        // Leaf folder name already starts with the canonical name → no-op
+        // (neither in renames nor unresolved).
         Actress canonical = actressRepo.save(mkActress("Rin Hachimitsu"));
         addAlias(canonical.getId(), "Rin Hatchimitsu");
         saveTitleFiled("FNS-052", canonical.getId(), "/queue/Rin Hachimitsu (FNS-052)", "pool");
@@ -313,6 +315,46 @@ class ActressMergeServiceTest {
 
         assertEquals(0, plan.renames().size());
         assertEquals(0, plan.unresolved().size());
+    }
+
+    /**
+     * Bug 3 regression: when the parent actress folder has been renamed to canonical but
+     * child title leaves still carry the old name, the child must enter the rename plan.
+     * The old SQL filter (instr on full path) silently excluded these rows.
+     */
+    @Test
+    void planRenamesFor_includesChildWhenParentAlreadyCanonical() {
+        Actress canonical = actressRepo.save(mkActress("Mion Sakuragi"));
+        addAlias(canonical.getId(), "Mion Sakaragi");
+        // Parent is canonical; leaf still uses the misspelled alias.
+        saveTitleFiled("APAA-434", canonical.getId(),
+                "/stars/library/Mion Sakuragi/Mion Sakaragi (APAA-434)", "pool");
+
+        ActressMergeService.RenamePlan plan = service.planRenamesFor(canonical);
+
+        assertEquals(1, plan.renames().size(),
+                "leaf still carries old name even though parent is canonical");
+        assertEquals(0, plan.unresolved().size());
+        assertEquals(Path.of("/stars/library/Mion Sakuragi/Mion Sakuragi (APAA-434)"),
+                plan.renames().get(0).newPath());
+    }
+
+    /**
+     * Bug 3 regression: a leaf that is already canonical must be a silent no-op —
+     * not in renames, not in unresolved, even when the SQL filter is gone.
+     */
+    @Test
+    void planRenamesFor_canonicalLeafIsSilentNoOp() {
+        Actress canonical = actressRepo.save(mkActress("Mion Sakuragi"));
+        addAlias(canonical.getId(), "Mion Sakaragi");
+        saveTitleFiled("APAA-434", canonical.getId(),
+                "/stars/library/Mion Sakuragi/Mion Sakuragi (APAA-434)", "pool");
+
+        ActressMergeService.RenamePlan plan = service.planRenamesFor(canonical);
+
+        assertEquals(0, plan.renames().size());
+        assertEquals(0, plan.unresolved().size(),
+                "canonical leaf is a no-op, not unresolved");
     }
 
     @Test
