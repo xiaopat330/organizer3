@@ -197,7 +197,7 @@ final class UiTestFixture {
     static JavdbDiscoveryService.TagHealthReport sampleTagHealthReport() {
         // surface=true, curatedAlias=null, libraryPct=0.05 → passes library.js filter (>= 0.01, <= 0.50)
         JavdbDiscoveryService.TagHealthRow row = new JavdbDiscoveryService.TagHealthRow(
-                1L, "compilation", null, 5, 0.05, true);
+                1L, "compilation", null, 5, 0.05, true, null);
         JavdbDiscoveryService.TagHealthSummary summary =
                 new JavdbDiscoveryService.TagHealthSummary(100, 1, 0, 1, 0);
         return new JavdbDiscoveryService.TagHealthReport(summary, List.of(row));

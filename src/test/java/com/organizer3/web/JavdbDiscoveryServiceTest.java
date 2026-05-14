@@ -758,4 +758,27 @@ class JavdbDiscoveryServiceTest {
         assertNotNull(d);
         assertTrue(d.tags().isEmpty());
     }
+
+    // ── getTagHealthReport: category exposure (v58) ──────────────────────────
+
+    @Test
+    void tagHealth_exposesCategoryFromCuratedAlias() {
+        jdbi.useHandle(h -> {
+            h.execute("INSERT OR IGNORE INTO tags(name, category) VALUES('breast-large', 'body')");
+            h.execute("INSERT OR IGNORE INTO tags(name, category) VALUES('pov',          'production_style')");
+            h.execute("INSERT INTO enrichment_tag_definitions(name, curated_alias, category) VALUES('Big Tits', 'breast-large', 'body')");
+            h.execute("INSERT INTO enrichment_tag_definitions(name, curated_alias, category) VALUES('POV',      'pov',          'production_style')");
+            h.execute("INSERT INTO enrichment_tag_definitions(name)                          VALUES('Unmapped')");
+        });
+
+        var report = service.getTagHealthReport();
+        var byName = report.definitions().stream().collect(
+                java.util.stream.Collectors.toMap(
+                        JavdbDiscoveryService.TagHealthRow::name, r -> r));
+
+        assertEquals("body",             byName.get("Big Tits").category());
+        assertEquals("production_style", byName.get("POV").category());
+        assertNull(byName.get("Unmapped").category(),
+                "unmapped enrichment-tag row should expose category=null");
+    }
 }

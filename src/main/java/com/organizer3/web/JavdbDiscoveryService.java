@@ -393,7 +393,8 @@ public class JavdbDiscoveryService {
             String curatedAlias,    // nullable
             int titleCount,
             double libraryPct,      // 0.0–1.0; titleCount / totalEnrichmentRows
-            boolean surface
+            boolean surface,
+            String category         // nullable; mirrors curated tags.category for mapped rows
     ) {}
 
     public record TagHealthReport(TagHealthSummary summary, List<TagHealthRow> definitions) {}
@@ -407,7 +408,7 @@ public class JavdbDiscoveryService {
             int suppressed = h.createQuery("SELECT COUNT(*) FROM enrichment_tag_definitions WHERE surface = 0").mapTo(Integer.class).one();
             double safeTotal = totalRows > 0 ? (double) totalRows : 1.0;
             List<TagHealthRow> rows = h.createQuery("""
-                    SELECT id, name, curated_alias, title_count, surface
+                    SELECT id, name, curated_alias, title_count, surface, category
                     FROM enrichment_tag_definitions
                     ORDER BY title_count DESC, name
                     """)
@@ -417,7 +418,8 @@ public class JavdbDiscoveryService {
                             rs.getString("curated_alias"),
                             rs.getInt("title_count"),
                             rs.getInt("title_count") / safeTotal,
-                            rs.getInt("surface") != 0
+                            rs.getInt("surface") != 0,
+                            rs.getString("category")
                     ))
                     .list();
             return new TagHealthReport(
