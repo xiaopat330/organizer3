@@ -173,7 +173,7 @@ public class RenameActressTool implements Tool {
                     .toList();
             // Any planned rename not in renamedPaths ended up in skipped (other volume)
             List<SkippedRow> skipped = result.skipped().stream()
-                    .map(s -> new SkippedRow(s.volumeId(), s.currentPath().toString(), s.newPath().toString()))
+                    .map(s -> new SkippedRow(s.volumeId(), s.currentPath().toString(), s.newPath().toString(), s.reason()))
                     .toList();
             List<UnresolvedRow> unresolvable = result.unresolved().stream()
                     .map(u -> new UnresolvedRow(u.volumeId(), u.currentPath().toString()))
@@ -241,7 +241,7 @@ public class RenameActressTool implements Tool {
     }
 
     public record DiskRenameRow(String volumeId, String oldPath, String newPath) {}
-    public record SkippedRow(String volumeId, String currentPath, String newPath) {}
+    public record SkippedRow(String volumeId, String currentPath, String newPath, String reason) {}
     public record UnresolvedRow(String volumeId, String currentPath) {}
     public record Result(
             long actressId,

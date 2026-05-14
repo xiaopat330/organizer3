@@ -438,6 +438,44 @@ class ActressMergeServiceTest {
     }
 
     @Test
+    void renameOnly_skipsWithVolumeNotMountedReason_whenLocationVolumeDiffersFromMounted() throws Exception {
+        Actress canonical = actressRepo.save(mkActress("Rin Hachimitsu"));
+        addAlias(canonical.getId(), "Rin Hatchimitsu");
+        // Location is on 'pool' but session mounts 'r'
+        saveTitleFiled("FNS-052", canonical.getId(), "/queue/Rin Hatchimitsu (FNS-052)", "pool");
+
+        FakeFs fs = new FakeFs();
+        ActressMergeService.RenamePlan plan = service.planRenamesFor(canonical);
+        ActressMergeService.RenameResult result = service.renameOnly(plan, "r", fs, false);
+
+        assertEquals(1, result.skipped().size());
+        assertEquals(ActressMergeService.SkipReason.VOLUME_NOT_MOUNTED,
+                result.skipped().get(0).reason());
+        assertEquals("pool", result.skipped().get(0).volumeId());
+    }
+
+    @Test
+    void renameOnly_skipsWithFsRenameFailedReason_whenFileSystemRenameThrows() throws Exception {
+        Actress canonical = actressRepo.save(mkActress("Rin Hachimitsu"));
+        addAlias(canonical.getId(), "Rin Hatchimitsu");
+        saveTitleFiled("FNS-052", canonical.getId(), "/queue/Rin Hatchimitsu (FNS-052)", "pool");
+
+        VolumeFileSystem fs = org.mockito.Mockito.mock(VolumeFileSystem.class);
+        org.mockito.Mockito.doThrow(new java.io.IOException("boom"))
+                .when(fs).rename(org.mockito.ArgumentMatchers.any(Path.class),
+                        org.mockito.ArgumentMatchers.anyString());
+        ActressMergeService.RenamePlan plan = service.planRenamesFor(canonical);
+        ActressMergeService.RenameResult result = service.renameOnly(plan, "pool", fs, false);
+
+        assertEquals(0, result.renamedPaths().size());
+        assertEquals(1, result.skipped().size());
+        String reason = result.skipped().get(0).reason();
+        assertTrue(reason.startsWith("fs rename failed: "),
+                "reason should start with 'fs rename failed: ' but was: " + reason);
+        assertTrue(reason.contains("boom"), "reason should contain underlying error: " + reason);
+    }
+
+    @Test
     void renameOnly_propagatesUnresolved() throws Exception {
         Actress canonical = actressRepo.save(mkActress("Rin Hachimitsu"));
         addAlias(canonical.getId(), "Rin Hatchimitsu");

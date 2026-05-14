@@ -108,7 +108,7 @@ public class RenameActressFoldersTool implements Tool {
         List<RenamedRow> renamed = result.renamedPaths().stream()
                 .map(p -> new RenamedRow(p.toString())).toList();
         List<SkippedRow> skipped = result.skipped().stream()
-                .map(r -> new SkippedRow(r.volumeId(), r.currentPath().toString(), r.newPath().toString()))
+                .map(r -> new SkippedRow(r.volumeId(), r.currentPath().toString(), r.newPath().toString(), r.reason()))
                 .toList();
         List<UnresolvedRow> unresolvable = result.unresolved().stream()
                 .map(u -> new UnresolvedRow(u.volumeId(), u.currentPath().toString()))
@@ -124,7 +124,7 @@ public class RenameActressFoldersTool implements Tool {
     }
 
     public record RenamedRow(String newPath) {}
-    public record SkippedRow(String volumeId, String currentPath, String newPath) {}
+    public record SkippedRow(String volumeId, String currentPath, String newPath, String reason) {}
     public record UnresolvedRow(String volumeId, String currentPath) {}
     public record Result(
             long actressId,

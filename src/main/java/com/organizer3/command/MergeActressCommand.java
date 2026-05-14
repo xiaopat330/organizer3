@@ -4,6 +4,7 @@ import com.organizer3.config.AppConfig;
 import com.organizer3.command.ActressMergeService.LocationRename;
 import com.organizer3.command.ActressMergeService.MergePreview;
 import com.organizer3.command.ActressMergeService.MergeResult;
+import com.organizer3.command.ActressMergeService.SkippedRename;
 import com.organizer3.filesystem.VolumeFileSystem;
 import com.organizer3.model.Actress;
 import com.organizer3.repository.ActressRepository;
@@ -142,10 +143,10 @@ public class MergeActressCommand implements Command {
 
         if (!result.skipped().isEmpty()) {
             io.println("");
-            io.println("  Folders NOT renamed (volume not mounted — mount and sync to update paths):");
-            for (LocationRename r : result.skipped()) {
+            io.println("  Folders NOT renamed:");
+            for (SkippedRename r : result.skipped()) {
                 String smbBase = resolveSmbBase(r.volumeId());
-                io.println("    " + smbBase + r.currentPath());
+                io.println("    " + smbBase + r.currentPath() + "  [" + r.reason() + "]");
             }
         }
     }
