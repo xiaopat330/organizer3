@@ -6,15 +6,16 @@ import org.bytedeco.javacpp.BytePointer;
 import org.bytedeco.javacv.FFmpegLogCallback;
 
 /**
- * Routes FFmpeg's native log output to SLF4J so messages like
- * {@code [http @ ...] Stream ends prematurely ...} and
- * {@code [mp3float @ ...] Header missing} no longer pollute stderr. They
- * instead land in {@code logs/organizer3.log} alongside the app's own logs
- * and are visible from the in-app Logs viewer.
+ * Clamps FFmpeg's native log level so its stderr chatter (e.g.
+ * {@code [http @ ...] Stream ends prematurely ...},
+ * {@code [mp3float @ ...] Header missing},
+ * {@code [h264 @ ...] Invalid NAL unit size ...}) no longer pollutes the
+ * console. FFmpeg lines are NOT routed to SLF4J — the custom callback that
+ * would do that is intentionally uninstalled (see {@link #install()} for the
+ * 2026-04-21 JNI-crash rationale).
  *
  * <p>Install once on startup via {@link #install()}. Idempotent — subsequent
- * calls are no-ops. FFmpeg's native log level is clamped to WARNING so
- * info/verbose/debug chatter is dropped at the source.
+ * calls are no-ops.
  */
 @Slf4j
 public final class FFmpegSlf4jBridge {
@@ -24,14 +25,16 @@ public final class FFmpegSlf4jBridge {
 
     public static synchronized void install() {
         if (installed) return;
-        // Clamp at WARNING to drop info/verbose/debug chatter at the source. We deliberately
-        // do NOT install a custom LogCallback here: FFmpeg calls the callback from arbitrary
-        // native threads at very high volume during frame extraction, and any exception
-        // (e.g. a BytePointer.getString() decode failure or an SLF4J hiccup) crosses the
-        // JNI boundary into C++ and SIGABRT's the entire JVM. Leaving the default callback
-        // lets FFmpeg write to stderr only — we lose Logs-viewer integration for FFmpeg
-        // lines but the app stays alive. See incident 2026-04-21 (av screenshots Jenna Haze).
-        avutil.av_log_set_level(avutil.AV_LOG_WARNING);
+        // Clamp at FATAL to drop all non-fatal chatter at the source (info/verbose/debug AND
+        // warning/error) — the constant h264 NAL/decode noise from damaged inputs is not
+        // actionable. We deliberately do NOT install a custom LogCallback here: FFmpeg calls
+        // the callback from arbitrary native threads at very high volume during frame
+        // extraction, and any exception (e.g. a BytePointer.getString() decode failure or an
+        // SLF4J hiccup) crosses the JNI boundary into C++ and SIGABRT's the entire JVM.
+        // Leaving the default callback lets FFmpeg write to stderr only — we lose Logs-viewer
+        // integration for FFmpeg lines but the app stays alive. See incident 2026-04-21
+        // (av screenshots Jenna Haze).
+        avutil.av_log_set_level(avutil.AV_LOG_FATAL);
         installed = true;
     }
 
