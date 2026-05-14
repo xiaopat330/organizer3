@@ -81,6 +81,7 @@ function flattenSearchResult(data, filters) {
       items.push({
         section: 'Titles',
         icon: 'film',
+        thumbUrl: t.coverUrl || null,
         label: `${t.code} · ${t.normalizedTitle || t.titleEn || t.titleJa || t.title || ''}`.trim(),
         meta: t.code || '',
         href: `/v2-title-detail.html?code=${encodeURIComponent(t.code)}`,
@@ -193,8 +194,11 @@ export function createPalette({ rootEl, onSelect, defaultFilters } = {}) {
         lastSection = it.section;
       }
       const ic = ICONS[it.icon] || ICONS.go;
+      const iconHtml = it.thumbUrl
+        ? `<span class="palette-item-icon palette-item-thumb"><img src="${escapeHtml(it.thumbUrl)}" alt="" loading="lazy"></span>`
+        : `<span class="palette-item-icon">${ic}</span>`;
       html += `<div class="palette-item${i === cursor ? ' cursor' : ''}" data-i="${i}" role="option">`
-           +  `  <span class="palette-item-icon">${ic}</span>`
+           +  `  ${iconHtml}`
            +  `  <span class="palette-item-label">${escapeHtml(it.label)}</span>`
            +  (it.meta ? `<span class="palette-item-meta">${escapeHtml(it.meta)}</span>` : '')
            +  `</div>`;
