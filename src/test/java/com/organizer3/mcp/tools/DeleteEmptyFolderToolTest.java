@@ -252,6 +252,50 @@ class DeleteEmptyFolderToolTest {
         assertFalse(result.deleted());
     }
 
+    // ── allowOrphanLocation ──────────────────────────────────────────────────
+
+    @Test
+    void allowOrphanLocation_dropsDanglingRowAndDeletesFolder() {
+        seedLocation("s", "/queue/Old Name (LABEL-001)");
+        Path folder = Path.of("/queue/Old Name (LABEL-001)");
+        fs.directories.add(folder);
+
+        var result = (DeleteEmptyFolderTool.Result) tool.call(argsOrphan("s", folder.toString()));
+        assertEquals("ok", result.status());
+        assertEquals(1, result.locationsDropped());
+
+        // DB row is gone
+        Integer remaining = jdbi.withHandle(h -> h.createQuery(
+                "SELECT COUNT(*) FROM title_locations WHERE path = ?")
+                .bind(0, folder.toString())
+                .mapTo(Integer.class).one());
+        assertEquals(0, remaining);
+        assertTrue(fs.deleteCalls.contains(folder));
+    }
+
+    @Test
+    void allowOrphanLocation_surfacesOrphanedTitle() {
+        seedLocation("s", "/queue/Old Name (LABEL-001)");
+        Path folder = Path.of("/queue/Old Name (LABEL-001)");
+        fs.directories.add(folder);
+
+        var result = (DeleteEmptyFolderTool.Result) tool.call(argsOrphan("s", folder.toString()));
+        assertEquals("ok", result.status());
+        assertEquals(1, result.orphanedTitles().size());
+        assertEquals("LABEL-001", result.orphanedTitles().get(0).titleCode());
+    }
+
+    @Test
+    void allowOrphanLocation_falseStillRefuses() {
+        seedLocation("s", "/queue/Old Name (LABEL-001)");
+        Path folder = Path.of("/queue/Old Name (LABEL-001)");
+        fs.directories.add(folder);
+
+        // explicit false — same as default; behaviour unchanged
+        var result = (DeleteEmptyFolderTool.Result) tool.call(args("s", folder.toString(), true));
+        assertEquals("refused", result.status());
+    }
+
     // ── SQL guard: segment-aware prefix (no false-positives) ─────────────────
 
     @Test
@@ -288,6 +332,12 @@ class DeleteEmptyFolderToolTest {
 
     private static ObjectNode argsNoSidecars(String volumeId, String path) {
         return args(volumeId, path, false);
+    }
+
+    private static ObjectNode argsOrphan(String volumeId, String path) {
+        ObjectNode n = args(volumeId, path, true);
+        n.put("allowOrphanLocation", true);
+        return n;
     }
 
     private static final class FakeConnection implements VolumeConnection {

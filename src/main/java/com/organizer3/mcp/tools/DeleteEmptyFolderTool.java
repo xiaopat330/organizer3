@@ -60,15 +60,18 @@ public class DeleteEmptyFolderTool implements Tool {
         return "Deletes an empty (or sidecar-only) folder from the mounted volume. "
              + "Refuses if the folder contains non-sidecar files, is a protected tier root, "
              + "or still appears as a title_locations path prefix on this volume. "
-             + "Default allowSidecars:true.";
+             + "Default allowSidecars:true. Pass allowOrphanLocation:true to drop dangling "
+             + "title_location rows for the folder instead of refusing — surfaces any titles "
+             + "left with no remaining locations in the result (does not auto-delete them).";
     }
 
     @Override
     public JsonNode inputSchema() {
         return Schemas.object()
-                .prop("volumeId",      "string",  "Volume identifier — must match the mounted volume.")
-                .prop("path",          "string",  "Volume-relative folder path, e.g. /queue/Old Name (LABEL-001)")
-                .prop("allowSidecars", "boolean", "If true (default), ignore sidecar files when checking emptiness.", true)
+                .prop("volumeId",            "string",  "Volume identifier — must match the mounted volume.")
+                .prop("path",                "string",  "Volume-relative folder path, e.g. /queue/Old Name (LABEL-001)")
+                .prop("allowSidecars",       "boolean", "If true (default), ignore sidecar files when checking emptiness.", true)
+                .prop("allowOrphanLocation", "boolean", "If true, drop dangling title_location rows for this path instead of refusing.", false)
                 .require("volumeId", "path")
                 .build();
     }
@@ -77,12 +80,14 @@ public class DeleteEmptyFolderTool implements Tool {
     public Object call(JsonNode args) {
         String volumeIdArg   = Schemas.requireString(args, "volumeId");
         String pathArg       = Schemas.requireString(args, "path");
-        boolean allowSidecars = Schemas.optBoolean(args, "allowSidecars", true);
+        boolean allowSidecars       = Schemas.optBoolean(args, "allowSidecars", true);
+        boolean allowOrphanLocation = Schemas.optBoolean(args, "allowOrphanLocation", false);
 
         Map<String, Object> inputs = Map.of(
-                "volumeId",      volumeIdArg,
-                "path",          pathArg,
-                "allowSidecars", allowSidecars
+                "volumeId",            volumeIdArg,
+                "path",                pathArg,
+                "allowSidecars",       allowSidecars,
+                "allowOrphanLocation", allowOrphanLocation
         );
 
         String mountedVolumeId = session.getMountedVolumeId();
@@ -119,11 +124,17 @@ public class DeleteEmptyFolderTool implements Tool {
         }
 
         // ── Title-locations prefix check ────────────────────────────────────
-        int locationCount = countLocationsByPrefix(mountedVolumeId, pathArg);
-        if (locationCount > 0) {
-            return refused(volumeIdArg, inputs,
-                    "folder is still referenced by " + locationCount
-                    + " title_location row(s) on volume " + mountedVolumeId);
+        List<Long> matchingLocationIds = findLocationIdsByPrefix(mountedVolumeId, pathArg);
+        List<OrphanedTitle> orphanedTitles = List.of();
+        if (!matchingLocationIds.isEmpty()) {
+            if (!allowOrphanLocation) {
+                return refused(volumeIdArg, inputs,
+                        "folder is still referenced by " + matchingLocationIds.size()
+                        + " title_location row(s) on volume " + mountedVolumeId);
+            }
+            orphanedTitles = dropLocationsAndFindOrphans(matchingLocationIds);
+            log.info("delete_empty_folder dropping {} dangling title_location row(s) volume={} path={}",
+                    matchingLocationIds.size(), volumeIdArg, pathArg);
         }
 
         // ── Emptiness check ─────────────────────────────────────────────────
@@ -156,17 +167,19 @@ public class DeleteEmptyFolderTool implements Tool {
             }
             fs.delete(folderPath);
 
-            log.info("delete_empty_folder volume={} path={} deletedSidecars={}",
-                    volumeIdArg, pathArg, children.size());
+            log.info("delete_empty_folder volume={} path={} deletedSidecars={} droppedLocations={}",
+                    volumeIdArg, pathArg, children.size(), matchingLocationIds.size());
             CurationLogRecord record = new CurationLogRecord(
                     Instant.now(), name(), "mcp", sessionId(),
                     inputs, null,
-                    Map.of("path", pathArg, "sidecarsDeleted", children.size()),
+                    Map.of("path", pathArg,
+                           "sidecarsDeleted", children.size(),
+                           "locationsDropped", matchingLocationIds.size()),
                     Map.of("path", pathArg, "deleted", true),
                     "ok", List.of());
             curationLog.append(volumeIdArg, record);
 
-            return new Result(pathArg, true, "ok", null);
+            return new Result(pathArg, true, "ok", null, matchingLocationIds.size(), orphanedTitles);
 
         } catch (IOException e) {
             log.warn("delete_empty_folder failed volume={} path={}: {}", volumeIdArg, pathArg, e.getMessage());
@@ -175,7 +188,7 @@ public class DeleteEmptyFolderTool implements Tool {
                     inputs, null, null, null,
                     "failed", List.of(e.getMessage()));
             curationLog.append(volumeIdArg, record);
-            return new Result(pathArg, false, "failed", e.getMessage());
+            return new Result(pathArg, false, "failed", e.getMessage(), matchingLocationIds.size(), orphanedTitles);
         }
     }
 
@@ -206,17 +219,40 @@ public class DeleteEmptyFolderTool implements Tool {
         return false;
     }
 
-    private int countLocationsByPrefix(String volumeId, String path) {
+    private List<Long> findLocationIdsByPrefix(String volumeId, String path) {
         return jdbi.withHandle(h -> h.createQuery("""
-                        SELECT COUNT(*) FROM title_locations
+                        SELECT id FROM title_locations
                         WHERE volume_id = :v
                           AND stale_since IS NULL
                           AND (path = :p OR path LIKE :p || '/%')
                         """)
                 .bind("v", volumeId)
                 .bind("p", path)
-                .mapTo(Integer.class)
-                .one());
+                .mapTo(Long.class)
+                .list());
+    }
+
+    private List<OrphanedTitle> dropLocationsAndFindOrphans(List<Long> locationIds) {
+        return jdbi.inTransaction(h -> {
+            List<Long> titleIds = h.createQuery("SELECT DISTINCT title_id FROM title_locations WHERE id IN (<ids>)")
+                    .bindList("ids", locationIds)
+                    .mapTo(Long.class)
+                    .list();
+            h.createUpdate("DELETE FROM title_locations WHERE id IN (<ids>)")
+                    .bindList("ids", locationIds)
+                    .execute();
+            if (titleIds.isEmpty()) return List.<OrphanedTitle>of();
+            return h.createQuery("""
+                            SELECT t.id, t.code
+                            FROM titles t
+                            WHERE t.id IN (<ids>)
+                              AND NOT EXISTS (SELECT 1 FROM title_locations tl WHERE tl.title_id = t.id)
+                            ORDER BY t.code
+                            """)
+                    .bindList("ids", titleIds)
+                    .map((rs, ctx) -> new OrphanedTitle(rs.getLong("id"), rs.getString("code")))
+                    .list();
+        });
     }
 
     private Result refused(String volumeId, Map<String, Object> inputs, String reason) {
@@ -227,10 +263,17 @@ public class DeleteEmptyFolderTool implements Tool {
                 inputs, null, null, null,
                 "failed", List.of("refused: " + reason));
         curationLog.append(logVolume, record);
-        return new Result(inputs.getOrDefault("path", "").toString(), false, "refused", reason);
+        return new Result(inputs.getOrDefault("path", "").toString(), false, "refused", reason, 0, List.of());
     }
 
     private String sessionId() { return "mcp-" + Thread.currentThread().getName(); }
 
-    public record Result(String path, boolean deleted, String status, String error) {}
+    public record OrphanedTitle(long titleId, String titleCode) {}
+
+    public record Result(String path, boolean deleted, String status, String error,
+                         int locationsDropped, List<OrphanedTitle> orphanedTitles) {
+        public Result(String path, boolean deleted, String status, String error) {
+            this(path, deleted, status, error, 0, List.of());
+        }
+    }
 }
