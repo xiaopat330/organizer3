@@ -485,8 +485,7 @@ async function loadMoreFromActress(t, container) {
 
 /* ── Bootstrap ─────────────────────────────────────────────────────── */
 async function loadAndRender(rootEl, code) {
-  const list = await fetchJson(`/api/titles?code=${encodeURIComponent(code)}&limit=1`, []);
-  const t = Array.isArray(list) && list.length ? list[0] : null;
+  const t = await fetchJson(`/api/titles/by-code/${encodeURIComponent(code)}`, null);
   if (!t) {
     rootEl.querySelector('#hero-slot').innerHTML = `
       <div class="empty-state">

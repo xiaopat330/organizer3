@@ -62,9 +62,8 @@ duplicateViewBtn.addEventListener('click', async () => {
   // Fetch the full title record so the detail page has cover, actresses, tags, etc.
   // Passing a bare { code } object leaves the page half-rendered.
   try {
-    const res = await fetch(`/api/titles?code=${encodeURIComponent(d.code)}&limit=1`);
-    const rows = await res.json();
-    const full = Array.isArray(rows) ? rows[0] : null;
+    const res = await fetch(`/api/titles/by-code/${encodeURIComponent(d.code)}`);
+    const full = res.ok ? await res.json() : null;
     openTitleDetail(full || { code: d.code, label: d.label });
   } catch (err) {
     console.error('Failed to fetch title for duplicate link', err);
