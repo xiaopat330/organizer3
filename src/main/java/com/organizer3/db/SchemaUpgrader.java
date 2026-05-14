@@ -1,6 +1,7 @@
 package com.organizer3.db;
 
 import com.organizer3.repository.StageNameNormalizer;
+import com.organizer3.sync.TitleCodeParser;
 import com.organizer3.translation.TranslationNormalization;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -23,7 +24,7 @@ import java.util.List;
 public class SchemaUpgrader {
 
     /** Must match the version stamped by {@link SchemaInitializer}. */
-    private static final int CURRENT_VERSION = 58;
+    private static final int CURRENT_VERSION = 59;
 
     private final Jdbi jdbi;
 
@@ -315,6 +316,11 @@ public class SchemaUpgrader {
         if (version < 58) {
             applyV58();
             setVersion(58);
+        }
+
+        if (version < 59) {
+            applyV59();
+            setVersion(59);
         }
 
         log.info("Schema upgrade complete");
@@ -1959,6 +1965,101 @@ public class SchemaUpgrader {
             log.info("Schema v58: backfilled category on {} enrichment_tag_definitions rows", backfilled);
         });
     }
+
+    /**
+     * v59: re-parse titles whose label is NULL — fixes the prior {@link TitleCodeParser} bug
+     * that rejected codes with a letter-prefixed sequence (e.g., {@code MKBD-S119},
+     * {@code CPZ69-H005}). Those titles were synced with the raw folder name as both
+     * {@code code} and {@code base_code} and a NULL {@code label}/{@code seq_num}.
+     *
+     * <p>For each {@code label IS NULL} row, the migration loads the leaf folder name of
+     * any associated {@code title_locations.path} and re-runs the (now-fixed) parser. If
+     * it now matches, the row's {@code code}/{@code base_code}/{@code label}/{@code seq_num}
+     * are updated. Rows without a path, or whose leaf still doesn't parse, are left alone
+     * (a separate triage problem). Collisions on the unique {@code code} index are skipped
+     * defensively and logged.
+     *
+     * <p>Idempotent: re-runs find no remaining {@code label IS NULL} rows that newly parse.
+     */
+    private void applyV59() {
+        log.info("Applying migration v59: re-parse titles with NULL label via fixed TitleCodeParser");
+        TitleCodeParser parser = new TitleCodeParser();
+        jdbi.useTransaction(h -> {
+            List<TitleToReparse> rows = h.createQuery("""
+                    SELECT t.id AS id,
+                           (SELECT tl.path FROM title_locations tl
+                             WHERE tl.title_id = t.id
+                             LIMIT 1) AS path
+                      FROM titles t
+                     WHERE t.label IS NULL
+                    """).map((rs, ctx) -> new TitleToReparse(
+                            rs.getLong("id"),
+                            rs.getString("path")))
+                    .list();
+
+            int reparsed = 0;
+            int skipped = 0;
+            for (TitleToReparse row : rows) {
+                if (row.path == null || row.path.isBlank()) {
+                    skipped++;
+                    continue;
+                }
+                String leaf = leafOf(row.path);
+                TitleCodeParser.ParsedCode parsed = parser.parse(leaf);
+                if (parsed.label() == null) {
+                    skipped++;
+                    continue;
+                }
+                // Collision check: skip if another title already owns the parsed code.
+                boolean collision = h.createQuery(
+                                "SELECT COUNT(*) FROM titles WHERE code = :code AND id != :id")
+                        .bind("code", parsed.code())
+                        .bind("id", row.id)
+                        .mapTo(Integer.class)
+                        .one() > 0;
+                if (collision) {
+                    log.warn("Schema v59: skipping title id={} — another title already has code={}",
+                            row.id, parsed.code());
+                    skipped++;
+                    continue;
+                }
+                int updated = h.createUpdate("""
+                        UPDATE titles
+                           SET code = :code,
+                               base_code = :baseCode,
+                               label = :label,
+                               seq_num = :seqNum
+                         WHERE id = :id
+                           AND label IS NULL
+                        """)
+                        .bind("code", parsed.code())
+                        .bind("baseCode", parsed.baseCode())
+                        .bind("label", parsed.label())
+                        .bind("seqNum", parsed.seqNum())
+                        .bind("id", row.id)
+                        .execute();
+                if (updated > 0) {
+                    reparsed++;
+                } else {
+                    skipped++;
+                }
+            }
+            log.info("Schema v59: re-parsed {} titles (skipped {} with no matching code)",
+                    reparsed, skipped);
+        });
+    }
+
+    private static String leafOf(String path) {
+        if (path == null) return null;
+        String trimmed = path;
+        while (trimmed.endsWith("/")) {
+            trimmed = trimmed.substring(0, trimmed.length() - 1);
+        }
+        int idx = trimmed.lastIndexOf('/');
+        return idx >= 0 ? trimmed.substring(idx + 1) : trimmed;
+    }
+
+    private record TitleToReparse(long id, String path) {}
 
     private int getVersion() {
         return jdbi.withHandle(h ->
