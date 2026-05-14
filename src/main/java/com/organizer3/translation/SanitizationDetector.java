@@ -35,9 +35,10 @@ public final class SanitizationDetector {
      * by ExplicitTermSubstitutor that do not appear in the original score.sh set.
      */
     static final Pattern EXPLICIT_EN = Pattern.compile(
-            "creampie|gangbang|rape|molest|cum|semen|breed|outdoor sex|pov sex|squirt|lewd|perver" +
-            "|fetish|bdsm|bondage|fuck|nasty|kinky|whore|infidel|cuckold|submissive" +
-            "|aphrodisiac|drug-fueled|incest|dirty talk|deep throat|irrumatio",
+            "creampie|gang.?bang|rape|rapist|molest|cum|semen|breed|outdoor sex|pov sex|squirt|lewd|perver" +
+            "|fetish|bdsm|bondage|cock|fuck|nasty|kinky|whore|infidel|cuckold|submissive" +
+            "|aphrodisiac|drug-fueled|incest|dirty talk|deep throat|irrumatio" +
+            "|orgasm|ejaculation|lust|impregnat|climax|copulat",
             Pattern.CASE_INSENSITIVE
     );
 

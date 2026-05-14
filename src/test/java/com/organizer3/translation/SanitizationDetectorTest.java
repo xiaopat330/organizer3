@@ -165,6 +165,70 @@ class SanitizationDetectorTest {
     }
 
     // -------------------------------------------------------------------------
+    // Round 4 additions to EXPLICIT_EN
+    // -------------------------------------------------------------------------
+
+    @Test
+    void orgasm_notSanitized() {
+        // 射精 → model may output "orgasm" rather than "cum"
+        assertFalse(SanitizationDetector.isSanitized("射精しても止まらない", "Unstoppable Orgasm"));
+    }
+
+    @Test
+    void ejaculation_notSanitized() {
+        // 射精 → model may output "ejaculation"
+        assertFalse(SanitizationDetector.isSanitized("連続射精", "Consecutive Ejaculation"));
+    }
+
+    @Test
+    void lust_notSanitized() {
+        // 淫欲 → substituted to "lust"; model keeps it
+        assertFalse(SanitizationDetector.isSanitized("淫欲にまみれた", "Drenched in Lust"));
+    }
+
+    @Test
+    void impregnation_notSanitized() {
+        // 孕ませ → substituted to "impregnation"; model keeps it
+        assertFalse(SanitizationDetector.isSanitized("孕ませプレス", "Impregnation Press"));
+    }
+
+    @Test
+    void impregnated_notSanitized() {
+        // model may conjugate to "impregnated" — impregnati prefix covers both
+        assertFalse(SanitizationDetector.isSanitized("種付けされちゃう", "She Gets Impregnated"));
+    }
+
+    @Test
+    void gangBangTwoWords_notSanitized() {
+        // 輪● → substituted to "gangbang"; model may output two-word "gang bang"
+        assertFalse(SanitizationDetector.isSanitized("輪●パーティー", "Gang Bang Party"));
+    }
+
+    @Test
+    void cock_notSanitized() {
+        // チ○ポ substituted to "cock"; model keeps it
+        assertFalse(SanitizationDetector.isSanitized("チ○ポの虜", "Captive to His Cock"));
+    }
+
+    @Test
+    void climax_notSanitized() {
+        // 絶頂 → substituted to "climax"; model keeps it
+        assertFalse(SanitizationDetector.isSanitized("絶頂RUSH", "Climax Rush"));
+    }
+
+    @Test
+    void rapist_notSanitized() {
+        // レイプ犯 → substituted to "rapist"; 'rape' is not a substring of 'rapist'
+        assertFalse(SanitizationDetector.isSanitized("レイプ犯からのビデオレター", "Video Letter from a Rapist"));
+    }
+
+    @Test
+    void copulation_notSanitized() {
+        // 交姦 was formerly "copulation"; verify copulat* still passes if model uses it
+        assertFalse(SanitizationDetector.isSanitized("交姦ドラマ", "Copulation Drama"));
+    }
+
+    // -------------------------------------------------------------------------
     // Boundary: very short output (not empty) with explicit JP
     // -------------------------------------------------------------------------
 
