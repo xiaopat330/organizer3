@@ -301,6 +301,135 @@ class SearchServiceTest {
         assertNull(av.get(0).get("headshotUrl"));
     }
 
+    // ── Code-prefix integration into search() ─────────────────────────────
+
+    @Test
+    void search_includesCodePrefixHitsWhenQueryLooksLikeCode() {
+        stubEmpty();
+        FederatedTitleResult codeRow = new FederatedTitleResult(
+                100L, "STAR-129", "原題", "Unrelated Name", "STAR", "STAR-00129", "2024-01-01",
+                null, null, false, false);
+        when(titleRepo.searchByCodePrefix("STAR", 3)).thenReturn(List.of(codeRow));
+        when(coverPath.find(any())).thenReturn(Optional.empty());
+
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> titles = (List<Map<String, Object>>) service.search("STAR", false, false).get("titles");
+
+        assertEquals(1, titles.size());
+        assertEquals("STAR-129", titles.get(0).get("code"));
+        verify(titleRepo).searchByCodePrefix("STAR", 3);
+    }
+
+    @Test
+    void search_codePrefix_handlesPartialAndUpperCases() {
+        stubEmpty();
+        FederatedTitleResult codeRow = new FederatedTitleResult(
+                101L, "STAR-129", null, null, "STAR", "STAR-00129", null,
+                null, null, false, false);
+        when(titleRepo.searchByCodePrefix("STAR-1", 3)).thenReturn(List.of(codeRow));
+        when(coverPath.find(any())).thenReturn(Optional.empty());
+
+        service.search("star-1", false, false);
+
+        // Service should uppercase the query before passing to searchByCodePrefix.
+        verify(titleRepo).searchByCodePrefix("STAR-1", 3);
+    }
+
+    @Test
+    void search_dedupesWhenTitleMatchesByBothNameAndCode() {
+        when(actressRepo.searchForFederated(anyString(), anyBoolean(), anyInt())).thenReturn(List.of());
+        when(labelRepo.searchLabels(anyString(), anyBoolean(), anyInt())).thenReturn(List.of());
+        when(labelRepo.searchCompanies(anyString(), anyBoolean(), anyInt())).thenReturn(List.of());
+        FederatedTitleResult shared = new FederatedTitleResult(
+                200L, "SNIS-100", null, "SNIS Special", "SNIS", "SNIS-00100", null,
+                null, null, false, false);
+        when(titleRepo.searchByTitleName(eq("SNIS"), anyBoolean(), anyInt())).thenReturn(List.of(shared));
+        when(titleRepo.searchByCodePrefix("SNIS", 3)).thenReturn(List.of(shared));
+        when(coverPath.find(any())).thenReturn(Optional.empty());
+
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> titles = (List<Map<String, Object>>) service.search("SNIS", false, false).get("titles");
+
+        assertEquals(1, titles.size(), "shared row should appear only once after dedupe");
+        assertEquals("SNIS-100", titles.get(0).get("code"));
+    }
+
+    @Test
+    void search_codePrefixHitsListedBeforeNameOnlyHits() {
+        when(actressRepo.searchForFederated(anyString(), anyBoolean(), anyInt())).thenReturn(List.of());
+        when(labelRepo.searchLabels(anyString(), anyBoolean(), anyInt())).thenReturn(List.of());
+        when(labelRepo.searchCompanies(anyString(), anyBoolean(), anyInt())).thenReturn(List.of());
+        FederatedTitleResult codeOnly = new FederatedTitleResult(
+                300L, "STAR-129", null, "Foo", "STAR", "STAR-00129", null,
+                null, null, false, false);
+        FederatedTitleResult nameOnly = new FederatedTitleResult(
+                301L, "OTHER-1", null, "STAR mention only", "OTHER", "OTHER-00001", null,
+                null, null, false, false);
+        when(titleRepo.searchByTitleName(eq("STAR"), anyBoolean(), anyInt())).thenReturn(List.of(nameOnly));
+        when(titleRepo.searchByCodePrefix("STAR", 3)).thenReturn(List.of(codeOnly));
+        when(coverPath.find(any())).thenReturn(Optional.empty());
+
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> titles = (List<Map<String, Object>>) service.search("STAR", false, false).get("titles");
+
+        assertEquals(2, titles.size());
+        assertEquals(300L, titles.get(0).get("id"), "code-prefix hits should come first");
+        assertEquals(301L, titles.get(1).get("id"));
+    }
+
+    @Test
+    void search_doesNotInvokeCodeSearchForNonCodeQuery() {
+        stubEmpty();
+
+        service.search("Yua Aida", false, false);
+
+        verify(titleRepo, never()).searchByCodePrefix(anyString(), anyInt());
+    }
+
+    @Test
+    void search_doesNotInvokeCodeSearchForSingleLetter() {
+        stubEmpty();
+
+        service.search("S", false, false);
+
+        verify(titleRepo, never()).searchByCodePrefix(anyString(), anyInt());
+    }
+
+    @Test
+    void search_doesNotInvokeCodeSearchForKanji() {
+        stubEmpty();
+
+        service.search("原題", false, false); // 原題
+
+        verify(titleRepo, never()).searchByCodePrefix(anyString(), anyInt());
+    }
+
+    @Test
+    void looksLikeCode_acceptsAndRejectsExpectedShapes() {
+        // Accepts
+        assertTrue(SearchService.looksLikeCode("STAR"));
+        assertTrue(SearchService.looksLikeCode("STAR-"));
+        assertTrue(SearchService.looksLikeCode("STAR-1"));
+        assertTrue(SearchService.looksLikeCode("STAR-129"));
+        assertTrue(SearchService.looksLikeCode("SNIS001"));
+        assertTrue(SearchService.looksLikeCode("FC2PPV"));
+        assertTrue(SearchService.looksLikeCode("FC2PPV-"));
+        assertTrue(SearchService.looksLikeCode("FC2PPV-12345"));
+        assertTrue(SearchService.looksLikeCode("star-129"), "lowercase should be accepted (uppercased first)");
+        assertTrue(SearchService.looksLikeCode("  STAR-129  "), "leading/trailing whitespace trimmed");
+
+        // Rejects
+        assertFalse(SearchService.looksLikeCode("S"), "single letter");
+        assertFalse(SearchService.looksLikeCode("原題"), "kanji");
+        assertFalse(SearchService.looksLikeCode("Yua Aida"), "contains whitespace");
+        assertFalse(SearchService.looksLikeCode("STAR 129"), "internal whitespace");
+        assertFalse(SearchService.looksLikeCode("123STAR"), "starts with digit");
+        assertFalse(SearchService.looksLikeCode("-STAR"), "starts with hyphen");
+        assertFalse(SearchService.looksLikeCode(""), "empty");
+        assertFalse(SearchService.looksLikeCode("   "), "whitespace only");
+        assertFalse(SearchService.looksLikeCode(null), "null");
+    }
+
     // ── searchByCodePrefix ─────────────────────────────────────────────────
 
     @Test

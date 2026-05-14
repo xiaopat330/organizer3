@@ -8,9 +8,13 @@ import com.organizer3.repository.LabelRepository;
 import com.organizer3.repository.TitleRepository;
 import lombok.RequiredArgsConstructor;
 
+import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.regex.Pattern;
 
 /**
  * Backing service for the federated search overlay.
@@ -58,11 +62,24 @@ public class SearchService {
                 .map(this::toActressMap)
                 .toList();
 
-        List<Map<String, Object>> titles = titleRepo
-                .searchByTitleName(query, startsWith, MAX_TITLE_RESULTS)
-                .stream()
-                .map(this::toTitleMap)
-                .toList();
+        List<TitleRepository.FederatedTitleResult> nameHits =
+                titleRepo.searchByTitleName(query, startsWith, MAX_TITLE_RESULTS);
+        List<TitleRepository.FederatedTitleResult> codeHits = looksLikeCode(query)
+                ? titleRepo.searchByCodePrefix(query.trim().toUpperCase(), MAX_TITLE_RESULTS)
+                : List.of();
+
+        // Merge with code-prefix hits first (more specific), dedupe by id, cap at MAX_TITLE_RESULTS.
+        List<TitleRepository.FederatedTitleResult> merged = new ArrayList<>(MAX_TITLE_RESULTS);
+        Set<Long> seenIds = new HashSet<>();
+        for (TitleRepository.FederatedTitleResult r : codeHits) {
+            if (merged.size() >= MAX_TITLE_RESULTS) break;
+            if (seenIds.add(r.id())) merged.add(r);
+        }
+        for (TitleRepository.FederatedTitleResult r : nameHits) {
+            if (merged.size() >= MAX_TITLE_RESULTS) break;
+            if (seenIds.add(r.id())) merged.add(r);
+        }
+        List<Map<String, Object>> titles = merged.stream().map(this::toTitleMap).toList();
 
         List<Map<String, Object>> labels = labelRepo
                 .searchLabels(query, startsWith, MAX_LABEL_RESULTS)
@@ -90,6 +107,21 @@ public class SearchService {
         result.put("companies",   companies);
         result.put("avActresses", avActresses);
         return result;
+    }
+
+    /**
+     * Visible for testing. Returns true when {@code query} looks like a JAV product code
+     * or code prefix — letters-only or letters+digits/hyphens, starting with at least two
+     * letters and containing no whitespace. Examples: STAR, STAR-, STAR-129, SNIS001, FC2PPV-12345.
+     */
+    static final Pattern CODE_SHAPE = Pattern.compile("^[A-Z]{2,}[A-Z0-9-]*$");
+
+    static boolean looksLikeCode(String query) {
+        if (query == null) return false;
+        String trimmed = query.trim();
+        if (trimmed.isEmpty()) return false;
+        if (trimmed.chars().anyMatch(Character::isWhitespace)) return false;
+        return CODE_SHAPE.matcher(trimmed.toUpperCase()).matches();
     }
 
     private Map<String, Object> toActressMap(ActressRepository.FederatedActressResult r) {
