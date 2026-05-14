@@ -23,7 +23,7 @@ import java.util.List;
 public class SchemaUpgrader {
 
     /** Must match the version stamped by {@link SchemaInitializer}. */
-    private static final int CURRENT_VERSION = 57;
+    private static final int CURRENT_VERSION = 58;
 
     private final Jdbi jdbi;
 
@@ -310,6 +310,11 @@ public class SchemaUpgrader {
         if (version < 57) {
             applyV57();
             setVersion(57);
+        }
+
+        if (version < 58) {
+            applyV58();
+            setVersion(58);
         }
 
         log.info("Schema upgrade complete");
@@ -1924,6 +1929,34 @@ public class SchemaUpgrader {
             h.execute("""
                     CREATE INDEX IF NOT EXISTS idx_alias_capture_events_kind
                         ON alias_capture_events(kind)""");
+        });
+    }
+
+    /**
+     * v58: {@code category} column on {@code enrichment_tag_definitions}, mirroring the
+     * curated {@code tags.category} taxonomy so the Library filter panel can group
+     * enrichment tags by category (format, production_style, setting, role, theme, act, body).
+     *
+     * <p>Free-text column (no CHECK constraint) — matches the existing curated
+     * {@code tags.category} design. The 41 rows with a {@code curated_alias} mapping
+     * are backfilled in-place via JOIN-UPDATE against the curated {@code tags} table;
+     * the ~188 unmapped rows are left NULL for a later seed slice.
+     *
+     * <p>Idempotent via {@code addColumnIfMissing}; the backfill is filtered on
+     * {@code category IS NULL} so re-running is a no-op.
+     */
+    private void applyV58() {
+        log.info("Applying migration v58: category column on enrichment_tag_definitions");
+        jdbi.useHandle(h -> {
+            addColumnIfMissing(h, "enrichment_tag_definitions", "category", "TEXT");
+            int backfilled = h.createUpdate("""
+                    UPDATE enrichment_tag_definitions
+                       SET category = (SELECT t.category FROM tags t
+                                        WHERE t.name = enrichment_tag_definitions.curated_alias)
+                     WHERE curated_alias IS NOT NULL
+                       AND category IS NULL
+                    """).execute();
+            log.info("Schema v58: backfilled category on {} enrichment_tag_definitions rows", backfilled);
         });
     }
 

@@ -480,7 +480,8 @@ public class SchemaInitializer {
                         name            TEXT NOT NULL UNIQUE,
                         curated_alias   TEXT REFERENCES tags(name),
                         title_count     INTEGER NOT NULL DEFAULT 0,
-                        surface         INTEGER NOT NULL DEFAULT 1
+                        surface         INTEGER NOT NULL DEFAULT 1,
+                        category        TEXT
                     )""");
             h.execute("CREATE INDEX IF NOT EXISTS idx_etd_title_count ON enrichment_tag_definitions(title_count)");
 
@@ -803,7 +804,7 @@ public class SchemaInitializer {
             // leave the version alone and let SchemaUpgrader apply any missing migrations.
             int currentVersion = h.createQuery("PRAGMA user_version").mapTo(Integer.class).one();
             if (currentVersion == 0) {
-                h.execute("PRAGMA user_version = 57");
+                h.execute("PRAGMA user_version = 58");
             }
         });
         log.info("Schema initialization complete");
