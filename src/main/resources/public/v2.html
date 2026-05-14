@@ -88,10 +88,6 @@
 
   const palette = createPalette({
     rootEl: document.getElementById('palette-root'),
-    onSelect: (item) => {
-      // Wave 2: log only. Future waves wire this to real routes.
-      console.log('[v2] palette selected:', item);
-    },
   });
   document.getElementById('palette-trigger').addEventListener('click', palette.open);
 

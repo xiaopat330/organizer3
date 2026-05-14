@@ -350,5 +350,18 @@ export function mountTitles(rootEl) {
   io.observe(sentinel);
 
   // ── Initial mode ──
-  selectMode('dashboard');
+  // Honor URL params from cross-page links (e.g. ⌘K palette label/company hits).
+  // Defaults to dashboard when no recognized params are present.
+  const urlParams = new URLSearchParams(location.search);
+  const urlCode    = urlParams.get('code');
+  const urlCompany = urlParams.get('company');
+  const urlTags    = urlParams.get('tags');
+  if (urlCode || urlCompany || urlTags) {
+    if (urlCode)    state.libraryCode    = urlCode;
+    if (urlCompany) state.libraryCompany = urlCompany;
+    if (urlTags)    state.activeTags     = new Set(urlTags.split(',').map(s => s.trim()).filter(Boolean));
+    selectMode('library');
+  } else {
+    selectMode('dashboard');
+  }
 }

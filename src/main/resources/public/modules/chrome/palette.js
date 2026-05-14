@@ -95,7 +95,7 @@ function flattenSearchResult(data, filters) {
         icon: 'tag',
         label: l.name || code,
         meta: code,
-        href: `/v2-titles.html?label=${encodeURIComponent(code)}`,
+        href: `/v2-titles.html?code=${encodeURIComponent(code)}`,
       });
     }
   }
