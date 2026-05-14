@@ -85,10 +85,55 @@ class TitleCodeParserTest {
     }
 
     @Test
-    void actressNameWithAlphanumCode_fallsBackToFolderName() {
-        var result = parser.parse("Aoi Mizuno (MKBD-S91)");
-        assertEquals("Aoi Mizuno (MKBD-S91)", result.code());
-        assertEquals("Aoi Mizuno (MKBD-S91)", result.baseCode());
+    void seqPrefix_maxingBoxSet_parsed() {
+        var result = parser.parse("Yua Ariga (MKBD-S119)");
+        assertEquals("MKBD-S119", result.code());
+        assertEquals("MKBD-S00119", result.baseCode());
+        assertEquals("MKBD", result.label());
+        assertEquals(119, result.seqNum());
+    }
+
+    @Test
+    void seqPrefix_dlmkd_parsed() {
+        var result = parser.parse("Ayumi Shinoda (DLMKD-S147)");
+        assertEquals("DLMKD-S147", result.code());
+        assertEquals("DLMKD-S00147", result.baseCode());
+        assertEquals("DLMKD", result.label());
+        assertEquals(147, result.seqNum());
+    }
+
+    @Test
+    void seqPrefix_tokyoHotCpz69_parsed() {
+        var result = parser.parse("Mea Amami (CPZ69-H005)");
+        assertEquals("CPZ69-H005", result.code());
+        assertEquals("CPZ69-H00005", result.baseCode());
+        assertEquals("CPZ69", result.label());
+        assertEquals(5, result.seqNum());
+    }
+
+    @Test
+    void seqPrefix_withSuffix_preserved() {
+        var result = parser.parse("Foo (MKBD-S119_4K)");
+        assertEquals("MKBD-S119_4K", result.code());
+        assertEquals("MKBD-S00119", result.baseCode());
+        assertEquals("MKBD", result.label());
+        assertEquals(119, result.seqNum());
+    }
+
+    @Test
+    void noDash_fallsBackToFolderName() {
+        var result = parser.parse("(GVG797)");
+        assertEquals("(GVG797)", result.code());
+        assertEquals("(GVG797)", result.baseCode());
+        assertNull(result.label());
+        assertNull(result.seqNum());
+    }
+
+    @Test
+    void caribDateCode_fallsBackToFolderName() {
+        var result = parser.parse("(011020-001-CARIB)");
+        assertEquals("(011020-001-CARIB)", result.code());
+        assertEquals("(011020-001-CARIB)", result.baseCode());
         assertNull(result.label());
         assertNull(result.seqNum());
     }
