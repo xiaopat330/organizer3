@@ -43,6 +43,23 @@ public class ActressMergeService {
             Path newPath
     ) {}
 
+    /**
+     * A {@link LocationRename} that was skipped during fs execution, with a human-readable
+     * reason. See {@link SkipReason} for the canonical reason strings.
+     */
+    public record SkippedRename(LocationRename rename, String reason) {
+        public String volumeId()    { return rename.volumeId(); }
+        public Path   currentPath() { return rename.currentPath(); }
+        public Path   newPath()     { return rename.newPath(); }
+    }
+
+    /** Canonical reason strings attached to {@link SkippedRename}. */
+    public static final class SkipReason {
+        public static final String VOLUME_NOT_MOUNTED = "volume not mounted on session";
+        public static String fsRenameFailed(String detail) { return "fs rename failed: " + detail; }
+        private SkipReason() {}
+    }
+
     public record MergePreview(
             Actress suspect,
             Actress canonical,
@@ -55,7 +72,7 @@ public class ActressMergeService {
             int castTitlesReassigned,
             int filingTitlesUpdated,
             List<Path> renamedPaths,
-            List<LocationRename> skipped
+            List<SkippedRename> skipped
     ) {}
 
     public record UnresolvedPath(long locationId, String volumeId, Path currentPath) {}
@@ -68,7 +85,7 @@ public class ActressMergeService {
 
     public record RenameResult(
             List<Path> renamedPaths,
-            List<LocationRename> skipped,
+            List<SkippedRename> skipped,
             List<UnresolvedPath> unresolved
     ) {}
 
@@ -263,16 +280,18 @@ public class ActressMergeService {
 
     // ── Shared FS rename loop ────────────────────────────────────────────────
 
-    private record FsRenameOutcome(List<Path> renamed, List<LocationRename> skipped) {}
+    private record FsRenameOutcome(List<Path> renamed, List<SkippedRename> skipped) {}
 
     private FsRenameOutcome performFsRenames(List<LocationRename> renames, String mountedVolumeId,
                                              VolumeFileSystem fs, boolean dry) throws IOException {
         List<Path> renamed = new ArrayList<>();
-        List<LocationRename> skipped = new ArrayList<>();
+        List<SkippedRename> skipped = new ArrayList<>();
         for (LocationRename rename : renames) {
             boolean onMountedVolume = rename.volumeId().equals(mountedVolumeId) && fs != null;
             if (!onMountedVolume) {
-                skipped.add(rename);
+                log.info("Skipping rename {} → {}: volume '{}' is not mounted (session mounted='{}').",
+                        rename.currentPath(), rename.newPath(), rename.volumeId(), mountedVolumeId);
+                skipped.add(new SkippedRename(rename, SkipReason.VOLUME_NOT_MOUNTED));
                 continue;
             }
             if (dry) {
@@ -286,7 +305,7 @@ public class ActressMergeService {
                     log.info("Renamed folder: {} → {}", rename.currentPath(), rename.newPath());
                 } catch (IOException e) {
                     log.warn("Failed to rename {}: {}", rename.currentPath(), e.getMessage());
-                    skipped.add(rename);
+                    skipped.add(new SkippedRename(rename, SkipReason.fsRenameFailed(e.getMessage())));
                 }
             }
         }
