@@ -79,17 +79,26 @@ public class SetActressAliasesTool implements Tool {
             if (!v.isBlank() && !proposed.contains(v)) proposed.add(v);
         }
 
-        // Conflict check
+        // Conflict check — only validate newly-added aliases (keepers can't conflict with
+        // self, and previously-attached aliases already passed validation when first set).
+        // Also compare ids with .equals() — getId() returns Long and `!=` on boxed Longs
+        // is reference equality, which falsely flagged self-owned aliases as conflicts.
+        List<String> existing = actressRepo.findAliases(actress.getId()).stream()
+                .map(ActressAlias::aliasName)
+                .toList();
+        long targetId = actress.getId();
+
         List<String> conflicts = new ArrayList<>();
         for (String alias : proposed) {
+            if (existing.contains(alias)) continue; // keeper — already owned by this actress
             Optional<Actress> byCanonical = actressRepo.findByCanonicalName(alias);
-            if (byCanonical.isPresent() && byCanonical.get().getId() != actress.getId()) {
+            if (byCanonical.isPresent() && byCanonical.get().getId() != targetId) {
                 conflicts.add("'" + alias + "' is the canonical name of another actress ("
                         + byCanonical.get().getCanonicalName() + ")");
                 continue;
             }
             Optional<Actress> byAlias = actressRepo.resolveByName(alias);
-            if (byAlias.isPresent() && byAlias.get().getId() != actress.getId()) {
+            if (byAlias.isPresent() && byAlias.get().getId() != targetId) {
                 conflicts.add("'" + alias + "' is already an alias for another actress ("
                         + byAlias.get().getCanonicalName() + ")");
             }

@@ -105,6 +105,26 @@ class SetActressAliasesToolTest {
     }
 
     @Test
+    void selectiveAliasRemovalDoesNotSelfConflict() {
+        // Regression: when dropping one alias from [A, B, C] by passing [B, C], the
+        // tool used to refuse with self-conflicts on B and C. Keepers must not be
+        // checked against the actress's own existing aliases.
+        long id = actress("Kanon Tachibana");
+        actressRepo.saveAlias(new ActressAlias(id, "Kanon Tachinbana")); // typo to drop
+        actressRepo.saveAlias(new ActressAlias(id, "Ririko Shiina"));
+        actressRepo.saveAlias(new ActressAlias(id, "Satomi Sugihara"));
+
+        var r = (SetActressAliasesTool.Result) tool.call(
+                args(id, List.of("Ririko Shiina", "Satomi Sugihara"), false));
+
+        assertTrue(r.ok(), "expected selective removal to succeed, got conflicts: " + r.conflicts());
+        assertTrue(r.conflicts().isEmpty());
+        List<String> stored = actressRepo.findAliases(id).stream()
+                .map(ActressAlias::aliasName).sorted().toList();
+        assertEquals(List.of("Ririko Shiina", "Satomi Sugihara"), stored);
+    }
+
+    @Test
     void resolveByNameWorks() {
         long id = actress("Aya Sazanami");
 

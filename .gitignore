@@ -28,3 +28,6 @@ data/
 
 # AI-only sandbox (audit reports, scratch)
 _sandbox/
+
+# Reference materials (research artifacts, audit reports, mockups)
+reference/
