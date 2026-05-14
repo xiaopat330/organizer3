@@ -779,12 +779,31 @@ public class SchemaInitializer {
                     CREATE INDEX IF NOT EXISTS idx_reconcile_reports_generated_at
                         ON reconcile_reports(generated_at DESC)""");
 
+            // alias_capture_events (v57): durable Phase 6d measurement events that survive
+            // logback rotation. See spec/PROPOSAL_TRANSLATION_PHASE_6.md §5.4.
+            h.execute("""
+                    CREATE TABLE IF NOT EXISTS alias_capture_events (
+                        id          INTEGER PRIMARY KEY AUTOINCREMENT,
+                        ts          TEXT NOT NULL,
+                        kind        TEXT NOT NULL,
+                        actress_id  INTEGER,
+                        title_id    INTEGER,
+                        via         TEXT,
+                        needs       TEXT
+                    )""");
+            h.execute("""
+                    CREATE INDEX IF NOT EXISTS idx_alias_capture_events_ts
+                        ON alias_capture_events(ts)""");
+            h.execute("""
+                    CREATE INDEX IF NOT EXISTS idx_alias_capture_events_kind
+                        ON alias_capture_events(kind)""");
+
             // Only stamp version on fresh installs (user_version = 0).
             // On an existing DB the CREATE TABLE statements above are all no-ops, so we must
             // leave the version alone and let SchemaUpgrader apply any missing migrations.
             int currentVersion = h.createQuery("PRAGMA user_version").mapTo(Integer.class).one();
             if (currentVersion == 0) {
-                h.execute("PRAGMA user_version = 56");
+                h.execute("PRAGMA user_version = 57");
             }
         });
         log.info("Schema initialization complete");

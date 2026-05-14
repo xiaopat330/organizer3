@@ -356,7 +356,7 @@ class UiNearMissTest {
         var curationRoutes = new CurationRoutes(
                 resolveService, draftActressRepo, actressRepo,
                 actressFuzzyMatcher, lookupRepo, suggestionRepo, queueRepo,
-                translationService);
+                translationService, jdbi);
 
         var populator        = mock(DraftPopulator.class);
         var imageFetcher     = mock(ImageFetcher.class);

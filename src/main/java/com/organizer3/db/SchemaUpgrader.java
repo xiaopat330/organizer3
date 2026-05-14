@@ -23,7 +23,7 @@ import java.util.List;
 public class SchemaUpgrader {
 
     /** Must match the version stamped by {@link SchemaInitializer}. */
-    private static final int CURRENT_VERSION = 56;
+    private static final int CURRENT_VERSION = 57;
 
     private final Jdbi jdbi;
 
@@ -305,6 +305,11 @@ public class SchemaUpgrader {
         if (version < 56) {
             applyV56();
             setVersion(56);
+        }
+
+        if (version < 57) {
+            applyV57();
+            setVersion(57);
         }
 
         log.info("Schema upgrade complete");
@@ -1882,6 +1887,43 @@ public class SchemaUpgrader {
             }
             log.info("Schema v56: normalized {} stage_names ({} rows scanned, {} skipped as already-normal)",
                     changed, rows.size(), skipped);
+        });
+    }
+
+    /**
+     * v57: {@code alias_capture_events} — durable persistence for Phase 6d Slice C
+     * measurement events (alias-capture modal triggers/dismissals and draft-editor opens).
+     *
+     * <p>Logback rolls at 10MB×4 files (~2h retention), so log-only measurement loses
+     * data before the 7-day window closes. This table captures the same events as the
+     * existing {@code alias-capture:} / {@code draft-editor:} log lines so the measurement
+     * window can be restarted. The log lines remain as a redundant signal.
+     *
+     * <p>{@code kind} ∈ {trigger, dismissed, editor_open}. For {@code trigger}, {@code needs}
+     * holds the comma-joined needs list. For {@code dismissed}, {@code via} records the
+     * dismissal path. For {@code editor_open}, only {@code title_id} is populated.
+     *
+     * <p>See spec/PROPOSAL_TRANSLATION_PHASE_6.md §5.4.
+     */
+    private void applyV57() {
+        log.info("Applying migration v57: alias_capture_events table");
+        jdbi.useHandle(h -> {
+            h.execute("""
+                    CREATE TABLE IF NOT EXISTS alias_capture_events (
+                        id          INTEGER PRIMARY KEY AUTOINCREMENT,
+                        ts          TEXT NOT NULL,
+                        kind        TEXT NOT NULL,
+                        actress_id  INTEGER,
+                        title_id    INTEGER,
+                        via         TEXT,
+                        needs       TEXT
+                    )""");
+            h.execute("""
+                    CREATE INDEX IF NOT EXISTS idx_alias_capture_events_ts
+                        ON alias_capture_events(ts)""");
+            h.execute("""
+                    CREATE INDEX IF NOT EXISTS idx_alias_capture_events_kind
+                        ON alias_capture_events(kind)""");
         });
     }
 

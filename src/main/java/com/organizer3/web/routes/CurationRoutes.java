@@ -14,7 +14,9 @@ import com.organizer3.translation.repository.StageNameSuggestionRepository;
 import com.organizer3.translation.repository.TranslationQueueRepository;
 import io.javalin.Javalin;
 import lombok.extern.slf4j.Slf4j;
+import org.jdbi.v3.core.Jdbi;
 
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -42,6 +44,7 @@ public class CurationRoutes {
     private final StageNameSuggestionRepository stageNameSuggestionRepo;
     private final TranslationQueueRepository translationQueueRepo;
     private final TranslationService translationService;
+    private final Jdbi jdbi;
 
     public CurationRoutes(NearMissResolveService resolveService,
                            DraftActressRepository draftActressRepo,
@@ -50,7 +53,8 @@ public class CurationRoutes {
                            StageNameLookupRepository stageNameLookupRepo,
                            StageNameSuggestionRepository stageNameSuggestionRepo,
                            TranslationQueueRepository translationQueueRepo,
-                           TranslationService translationService) {
+                           TranslationService translationService,
+                           Jdbi jdbi) {
         this.resolveService        = resolveService;
         this.draftActressRepo      = draftActressRepo;
         this.actressRepo           = actressRepo;
@@ -59,6 +63,7 @@ public class CurationRoutes {
         this.stageNameSuggestionRepo = stageNameSuggestionRepo;
         this.translationQueueRepo  = translationQueueRepo;
         this.translationService    = translationService;
+        this.jdbi                  = jdbi;
     }
 
     public void register(Javalin app) {
@@ -218,11 +223,15 @@ public class CurationRoutes {
                     @SuppressWarnings("unchecked")
                     List<String> needs = body.get("needs") instanceof List<?> l
                             ? (List<String>) l : List.of();
-                    String needsPart = needs.isEmpty() ? "" : " needs=" + String.join(",", needs);
+                    String needsJoined = String.join(",", needs);
+                    String needsPart = needs.isEmpty() ? "" : " needs=" + needsJoined;
                     log.info("alias-capture: trigger actressId={}{}", actressId, needsPart);
+                    insertAliasCaptureEvent("trigger", actressId, null, null,
+                            needs.isEmpty() ? null : needsJoined);
                 } else if ("dismissed".equals(type)) {
                     String via = asString(body, "via");
                     log.info("alias-capture: dismissed actressId={} via={}", actressId, via);
+                    insertAliasCaptureEvent("dismissed", actressId, null, via, null);
                 } else {
                     ctx.status(400).json(Map.of("error", "type must be trigger or dismissed"));
                     return;
@@ -253,6 +262,7 @@ public class CurationRoutes {
                 }
                 long titleId = ((Number) titleIdRaw).longValue();
                 log.info("draft-editor: open titleId={}", titleId);
+                insertAliasCaptureEvent("editor_open", null, titleId, null, null);
                 ctx.status(204);
             } catch (Exception e) {
                 log.error("POST /api/curation/editor-session-open failed", e);
@@ -355,5 +365,35 @@ public class CurationRoutes {
         Object val = map.get(key);
         if (val instanceof Number n) return n.longValue();
         return null;
+    }
+
+    /**
+     * Persist a Phase 6d alias-capture / draft-editor measurement event. See
+     * {@code SchemaUpgrader#applyV57} and spec/PROPOSAL_TRANSLATION_PHASE_6.md §5.4.
+     *
+     * <p>The redundant {@code log.info(...)} call at each call site remains; this row
+     * gives us a durable signal that survives logback rotation (10MB×4) so the 7-day
+     * measurement window can be restarted at any time.
+     */
+    private void insertAliasCaptureEvent(String kind, Long actressId, Long titleId,
+                                          String via, String needs) {
+        if (jdbi == null) return;
+        try {
+            jdbi.useHandle(h -> h.createUpdate("""
+                    INSERT INTO alias_capture_events (ts, kind, actress_id, title_id, via, needs)
+                    VALUES (:ts, :kind, :actressId, :titleId, :via, :needs)
+                    """)
+                    .bind("ts",         Instant.now().toString())
+                    .bind("kind",       kind)
+                    .bind("actressId",  actressId)
+                    .bind("titleId",    titleId)
+                    .bind("via",        via)
+                    .bind("needs",      needs)
+                    .execute());
+        } catch (Exception e) {
+            // Measurement is a best-effort signal — never fail the request because of it.
+            log.warn("alias_capture_events insert failed kind={} actressId={} titleId={}",
+                    kind, actressId, titleId, e);
+        }
     }
 }

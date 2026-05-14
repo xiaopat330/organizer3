@@ -5,6 +5,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.organizer3.curation.NearMissResolveService;
 import com.organizer3.curation.NearMissResolveService.Outcome;
 import com.organizer3.curation.NearMissResolveService.ResolveResult;
+import com.organizer3.db.SchemaInitializer;
+import com.organizer3.db.SchemaUpgrader;
 import com.organizer3.javdb.draft.DraftActressRepository;
 import com.organizer3.javdb.draft.DraftActressRepository.PendingKanjiRow;
 import com.organizer3.model.Actress;
@@ -17,6 +19,7 @@ import com.organizer3.translation.repository.StageNameLookupRepository;
 import com.organizer3.translation.repository.StageNameSuggestionRepository;
 import com.organizer3.translation.repository.TranslationQueueRepository;
 import com.organizer3.web.WebServer;
+import org.jdbi.v3.core.Jdbi;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -26,6 +29,8 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.sql.Connection;
+import java.sql.DriverManager;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -45,11 +50,13 @@ class CurationRoutesTest {
     private StageNameSuggestionRepository suggestionRepo;
     private TranslationQueueRepository queueRepo;
     private TranslationService translationService;
+    private Connection connection;
+    private Jdbi jdbi;
     private final ObjectMapper mapper = new ObjectMapper();
     private final HttpClient http = HttpClient.newHttpClient();
 
     @BeforeEach
-    void setUp() {
+    void setUp() throws Exception {
         resolveService      = mock(NearMissResolveService.class);
         draftActressRepo    = mock(DraftActressRepository.class);
         actressRepo         = mock(ActressRepository.class);
@@ -59,17 +66,23 @@ class CurationRoutesTest {
         queueRepo           = mock(TranslationQueueRepository.class);
         translationService  = mock(TranslationService.class);
 
+        connection = DriverManager.getConnection("jdbc:sqlite::memory:");
+        jdbi = Jdbi.create(connection);
+        new SchemaInitializer(jdbi).initialize();
+        new SchemaUpgrader(jdbi).upgrade();
+
         server = new WebServer(0);
         server.registerCuration(new CurationRoutes(
                 resolveService, draftActressRepo, actressRepo,
                 actressFuzzyMatcher, lookupRepo, suggestionRepo, queueRepo,
-                translationService));
+                translationService, jdbi));
         server.start();
     }
 
     @AfterEach
-    void tearDown() {
+    void tearDown() throws Exception {
         if (server != null) server.stop();
+        if (connection != null) connection.close();
     }
 
     private String base() { return "http://localhost:" + server.port(); }
@@ -339,6 +352,16 @@ class CurationRoutesTest {
                 "needs", List.of("kanji", "romaji")
         ));
         assertEquals(204, res.statusCode());
+
+        Map<String, Object> row = jdbi.withHandle(h ->
+                h.createQuery("SELECT kind, actress_id, title_id, via, needs FROM alias_capture_events")
+                        .mapToMap()
+                        .one());
+        assertEquals("trigger", row.get("kind"));
+        assertEquals(42L, ((Number) row.get("actress_id")).longValue());
+        assertNull(row.get("title_id"));
+        assertNull(row.get("via"));
+        assertEquals("kanji,romaji", row.get("needs"));
     }
 
     @Test
@@ -349,6 +372,25 @@ class CurationRoutesTest {
                 "via", "skip"
         ));
         assertEquals(204, res.statusCode());
+
+        Map<String, Object> row = jdbi.withHandle(h ->
+                h.createQuery("SELECT kind, actress_id, title_id, via, needs FROM alias_capture_events")
+                        .mapToMap()
+                        .one());
+        assertEquals("dismissed", row.get("kind"));
+        assertEquals(42L, ((Number) row.get("actress_id")).longValue());
+        assertNull(row.get("title_id"));
+        assertEquals("skip", row.get("via"));
+        assertNull(row.get("needs"));
+    }
+
+    @Test
+    void v57_migrationCreatesAliasCaptureEventsTable() {
+        Integer count = jdbi.withHandle(h ->
+                h.createQuery("SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='alias_capture_events'")
+                        .mapTo(Integer.class)
+                        .one());
+        assertEquals(1, count);
     }
 
     @Test
@@ -375,6 +417,16 @@ class CurationRoutesTest {
                 "titleId", 99
         ));
         assertEquals(204, res.statusCode());
+
+        Map<String, Object> row = jdbi.withHandle(h ->
+                h.createQuery("SELECT kind, actress_id, title_id, via, needs FROM alias_capture_events")
+                        .mapToMap()
+                        .one());
+        assertEquals("editor_open", row.get("kind"));
+        assertNull(row.get("actress_id"));
+        assertEquals(99L, ((Number) row.get("title_id")).longValue());
+        assertNull(row.get("via"));
+        assertNull(row.get("needs"));
     }
 
     @Test
