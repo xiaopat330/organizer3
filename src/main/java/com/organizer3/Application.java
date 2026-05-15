@@ -1210,6 +1210,7 @@ public class Application {
             if (mcpConfig.mutationsAllowed() && mcpConfig.fileOpsAllowed()) {
                 mcpTools.register(new com.organizer3.mcp.tools.TrashDuplicateCoverTool(session, jdbi, config));
                 mcpTools.register(new com.organizer3.mcp.tools.TrashDuplicateVideoTool(session, jdbi, config, videoRepo));
+                mcpTools.register(new com.organizer3.mcp.tools.TrashTitleLocationTool(session, jdbi, config, videoRepo, curationLog));
                 mcpTools.register(new com.organizer3.mcp.tools.MoveCoverToBaseTool(session, jdbi));
                 mcpTools.register(new com.organizer3.mcp.tools.SandboxWriteTestTool(session, config));
                 mcpTools.register(new com.organizer3.mcp.tools.FixTitleTimestampsTool(session, jdbi, titleTimestampService));
