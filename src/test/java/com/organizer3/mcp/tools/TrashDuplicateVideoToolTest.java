@@ -142,6 +142,96 @@ class TrashDuplicateVideoToolTest {
                 () -> t.call(args("MIDE-456", 1L, true)));
     }
 
+    // ── allowOrphanLocation cascade ──────────────────────────────────────────
+
+    @Test
+    void allowOrphanLocation_dropsLocationWithNoRemainingVideos() {
+        // Title has TWO locations on the mounted volume:
+        //   /q/keep/PRED-001    — keeper lives here
+        //   /q/dup/PRED-001     — duplicate lives here, will be trashed → location goes empty
+        long tid = titleRepo.save(title("PRED-001")).getId();
+        Video keep  = videoRepo.save(video(tid, "keep.mkv", "/q/keep/PRED-001/keep.mkv", 3_000_000_000L));
+        Video other = videoRepo.save(video(tid, "dup.mkv",  "/q/dup/PRED-001/dup.mkv",   800_000_000L));
+        fs.file(keep.getPath().toString());
+        fs.file(other.getPath().toString());
+        seedLocation(tid, "a", "/q/keep/PRED-001");
+        seedLocation(tid, "a", "/q/dup/PRED-001");
+
+        var r = (TrashDuplicateVideoTool.Result) tool.call(argsOrphan("PRED-001", keep.getId()));
+        assertEquals(1, r.trashed().size());
+        assertEquals(1, r.locationsDropped(), "duplicate location should be dropped");
+
+        // /q/dup/PRED-001 row gone; /q/keep/PRED-001 row kept
+        Integer dupRows = jdbi.withHandle(h -> h.createQuery(
+                "SELECT COUNT(*) FROM title_locations WHERE path = ?")
+                .bind(0, "/q/dup/PRED-001").mapTo(Integer.class).one());
+        Integer keepRows = jdbi.withHandle(h -> h.createQuery(
+                "SELECT COUNT(*) FROM title_locations WHERE path = ?")
+                .bind(0, "/q/keep/PRED-001").mapTo(Integer.class).one());
+        assertEquals(0, dupRows);
+        assertEquals(1, keepRows);
+    }
+
+    @Test
+    void allowOrphanLocation_keepsLocationStillHostingKeeper() {
+        // Single location holding both videos — the keeper's path is under it, so the
+        // location must NOT be dropped even with the flag on.
+        long tid = titleRepo.save(title("PRED-002")).getId();
+        Video keep  = videoRepo.save(video(tid, "keep.mkv", "/q/PRED-002/keep.mkv", 3_000_000_000L));
+        Video other = videoRepo.save(video(tid, "dup.mkv",  "/q/PRED-002/dup.mkv",  800_000_000L));
+        fs.file(keep.getPath().toString());
+        fs.file(other.getPath().toString());
+        seedLocation(tid, "a", "/q/PRED-002");
+
+        var r = (TrashDuplicateVideoTool.Result) tool.call(argsOrphan("PRED-002", keep.getId()));
+        assertEquals(1, r.trashed().size());
+        assertEquals(0, r.locationsDropped(), "keeper's location must be preserved");
+
+        Integer rows = jdbi.withHandle(h -> h.createQuery(
+                "SELECT COUNT(*) FROM title_locations WHERE path = ?")
+                .bind(0, "/q/PRED-002").mapTo(Integer.class).one());
+        assertEquals(1, rows);
+    }
+
+    @Test
+    void allowOrphanLocation_flagFalsePreservesExistingBehavior() {
+        // Same setup as drop-test, but no flag — location must NOT be dropped.
+        long tid = titleRepo.save(title("PRED-003")).getId();
+        Video keep  = videoRepo.save(video(tid, "keep.mkv", "/q/keep/PRED-003/keep.mkv", 3_000_000_000L));
+        Video other = videoRepo.save(video(tid, "dup.mkv",  "/q/dup/PRED-003/dup.mkv",   800_000_000L));
+        fs.file(keep.getPath().toString());
+        fs.file(other.getPath().toString());
+        seedLocation(tid, "a", "/q/keep/PRED-003");
+        seedLocation(tid, "a", "/q/dup/PRED-003");
+
+        var r = (TrashDuplicateVideoTool.Result) tool.call(args("PRED-003", keep.getId(), false));
+        assertEquals(1, r.trashed().size());
+        assertEquals(0, r.locationsDropped());
+
+        Integer dupRows = jdbi.withHandle(h -> h.createQuery(
+                "SELECT COUNT(*) FROM title_locations WHERE path = ?")
+                .bind(0, "/q/dup/PRED-003").mapTo(Integer.class).one());
+        assertEquals(1, dupRows, "dup location preserved when flag is off");
+    }
+
+    @Test
+    void allowOrphanLocation_surfacesOrphanedTitleWhenAllLocationsGo() {
+        // Only one location, and the keeper actually lives outside any location row
+        // (edge case): all locations on this volume become empty.
+        long tid = titleRepo.save(title("PRED-004")).getId();
+        Video keep  = videoRepo.save(video(tid, "keep.mkv", "/elsewhere/keep.mkv", 3_000_000_000L));
+        Video other = videoRepo.save(video(tid, "dup.mkv",  "/q/dup/PRED-004/dup.mkv", 800_000_000L));
+        fs.file(keep.getPath().toString());
+        fs.file(other.getPath().toString());
+        seedLocation(tid, "a", "/q/dup/PRED-004");
+
+        var r = (TrashDuplicateVideoTool.Result) tool.call(argsOrphan("PRED-004", keep.getId()));
+        assertEquals(1, r.trashed().size());
+        assertEquals(1, r.locationsDropped());
+        assertEquals(1, r.orphanedTitles().size());
+        assertEquals("PRED-004", r.orphanedTitles().get(0).titleCode());
+    }
+
     // ── fixtures ──────────────────────────────────────────────────────────────
 
     private static Title title(String code) {
@@ -172,6 +262,19 @@ class TrashDuplicateVideoToolTest {
         n.put("keepVideoId", keepVideoId);
         n.put("dryRun",      dryRun);
         return n;
+    }
+
+    private static ObjectNode argsOrphan(String titleCode, long keepVideoId) {
+        ObjectNode n = args(titleCode, keepVideoId, false);
+        n.put("allowOrphanLocation", true);
+        return n;
+    }
+
+    private void seedLocation(long titleId, String volumeId, String path) {
+        jdbi.useHandle(h -> h.execute("""
+                INSERT INTO title_locations (title_id, volume_id, partition_id, path, last_seen_at)
+                VALUES (?, ?, 'queue', ?, '2024-01-01')
+                """, titleId, volumeId, path));
     }
 
     // ── in-memory helpers ─────────────────────────────────────────────────────
