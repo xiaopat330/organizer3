@@ -24,7 +24,7 @@ import java.util.List;
 public class SchemaUpgrader {
 
     /** Must match the version stamped by {@link SchemaInitializer}. */
-    private static final int CURRENT_VERSION = 60;
+    private static final int CURRENT_VERSION = 61;
 
     private final Jdbi jdbi;
 
@@ -326,6 +326,11 @@ public class SchemaUpgrader {
         if (version < 60) {
             applyV60();
             setVersion(60);
+        }
+
+        if (version < 61) {
+            applyV61();
+            setVersion(61);
         }
 
         log.info("Schema upgrade complete");
@@ -2069,6 +2074,75 @@ public class SchemaUpgrader {
             h.execute("""
                     CREATE INDEX IF NOT EXISTS idx_notes_entity_type
                         ON notes(entity_type)""");
+        });
+    }
+
+    /**
+     * v61: one-shot cleanup of accumulated FK-orphan rows across 7 child tables.
+     *
+     * <p>SQLite's foreign-key enforcement requires {@code PRAGMA foreign_keys = ON} per
+     * connection, which the JDBI pool does not currently set. As a result, deletes on
+     * parent tables (actresses, titles, draft_titles, title_javdb_enrichment) have
+     * historically left orphan rows in the corresponding child tables despite their
+     * declared {@code ON DELETE CASCADE}. Production databases were cleaned manually;
+     * this migration replays that cleanup on any other DB copy so it converges to a
+     * clean state on startup.
+     *
+     * <p>Each DELETE is idempotent — re-running on a clean DB is a no-op (0 deletions).
+     * This migration does NOT change the foreign_keys pragma or add ON DELETE CASCADE;
+     * those structural fixes are deferred. Until then, future orphans may still
+     * accumulate; this migration only addresses the existing backlog.
+     *
+     * <p>Intentionally excluded: {@code title_path_history}. That table has no FK on
+     * {@code title_id} by design (V46) — orphan rows survive title deletion and serve
+     * as the re-add recovery mechanism for the sync matcher. Deleting them would
+     * destroy a feature's data store, not clean up an FK leak.
+     */
+    private void applyV61() {
+        log.info("Applying migration v61: delete accumulated FK-orphan rows across 7 child tables");
+        jdbi.useHandle(h -> {
+            int n;
+            n = h.createUpdate("""
+                    DELETE FROM actress_companies
+                     WHERE actress_id NOT IN (SELECT id FROM actresses)
+                    """).execute();
+            log.info("Schema v61: deleted {} orphan actress_companies rows", n);
+
+            n = h.createUpdate("""
+                    DELETE FROM title_tags
+                     WHERE title_id NOT IN (SELECT id FROM titles)
+                    """).execute();
+            log.info("Schema v61: deleted {} orphan title_tags rows", n);
+
+            n = h.createUpdate("""
+                    DELETE FROM title_effective_tags
+                     WHERE title_id NOT IN (SELECT id FROM titles)
+                    """).execute();
+            log.info("Schema v61: deleted {} orphan title_effective_tags rows", n);
+
+            n = h.createUpdate("""
+                    DELETE FROM title_enrichment_tags
+                     WHERE title_id NOT IN (SELECT title_id FROM title_javdb_enrichment)
+                    """).execute();
+            log.info("Schema v61: deleted {} orphan title_enrichment_tags rows", n);
+
+            n = h.createUpdate("""
+                    DELETE FROM draft_title_actresses
+                     WHERE draft_title_id NOT IN (SELECT id FROM draft_titles)
+                    """).execute();
+            log.info("Schema v61: deleted {} orphan draft_title_actresses rows", n);
+
+            n = h.createUpdate("""
+                    DELETE FROM draft_title_javdb_enrichment
+                     WHERE draft_title_id NOT IN (SELECT id FROM draft_titles)
+                    """).execute();
+            log.info("Schema v61: deleted {} orphan draft_title_javdb_enrichment rows", n);
+
+            n = h.createUpdate("""
+                    DELETE FROM revalidation_pending
+                     WHERE title_id NOT IN (SELECT id FROM titles)
+                    """).execute();
+            log.info("Schema v61: deleted {} orphan revalidation_pending rows", n);
         });
     }
 
