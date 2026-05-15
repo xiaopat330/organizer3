@@ -1085,6 +1085,14 @@ public class Application {
                 actressFuzzyMatcher, stageNameLookupRepo, stageNameSuggestionRepo,
                 translationQueueRepo, translationService, jdbi));
 
+        // Notes: user-curated per-entity annotations (spec/PROPOSAL_POST_IT_NOTES.md).
+        com.organizer3.notes.NoteRepository noteRepo =
+                new com.organizer3.repository.jdbi.JdbiNoteRepository(jdbi);
+        com.organizer3.notes.NoteService noteService =
+                new com.organizer3.notes.NoteService(noteRepo,
+                        new com.organizer3.notes.JdbiEntityResolver(jdbi));
+        webServer.registerNotes(new com.organizer3.web.routes.NoteRoutes(noteService));
+
         // MCP (Model Context Protocol) server — read-only diagnostic tools mounted on
         // the existing Javalin instance. See spec/PROPOSAL_MCP_SERVER.md.
         com.organizer3.mcp.McpConfig mcpConfig = AppConfig.get().volumes().mcp() != null
