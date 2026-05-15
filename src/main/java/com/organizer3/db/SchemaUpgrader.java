@@ -24,7 +24,7 @@ import java.util.List;
 public class SchemaUpgrader {
 
     /** Must match the version stamped by {@link SchemaInitializer}. */
-    private static final int CURRENT_VERSION = 59;
+    private static final int CURRENT_VERSION = 60;
 
     private final Jdbi jdbi;
 
@@ -321,6 +321,11 @@ public class SchemaUpgrader {
         if (version < 59) {
             applyV59();
             setVersion(59);
+        }
+
+        if (version < 60) {
+            applyV60();
+            setVersion(60);
         }
 
         log.info("Schema upgrade complete");
@@ -2046,6 +2051,24 @@ public class SchemaUpgrader {
             }
             log.info("Schema v59: re-parsed {} titles (skipped {} with no matching code)",
                     reparsed, skipped);
+        });
+    }
+
+    private void applyV60() {
+        log.info("Applying migration v60: create notes table + idx_notes_entity_type index");
+        jdbi.useHandle(h -> {
+            h.execute("""
+                    CREATE TABLE IF NOT EXISTS notes (
+                        entity_type TEXT    NOT NULL CHECK (entity_type IN ('actress','title')),
+                        entity_id   TEXT    NOT NULL,
+                        body        TEXT    NOT NULL,
+                        created_at  INTEGER NOT NULL,
+                        updated_at  INTEGER NOT NULL,
+                        PRIMARY KEY (entity_type, entity_id)
+                    )""");
+            h.execute("""
+                    CREATE INDEX IF NOT EXISTS idx_notes_entity_type
+                        ON notes(entity_type)""");
         });
     }
 

@@ -799,12 +799,26 @@ public class SchemaInitializer {
                     CREATE INDEX IF NOT EXISTS idx_alias_capture_events_kind
                         ON alias_capture_events(kind)""");
 
+            // notes: user-curated per-entity annotations (v60).
+            h.execute("""
+                    CREATE TABLE IF NOT EXISTS notes (
+                        entity_type TEXT    NOT NULL CHECK (entity_type IN ('actress','title')),
+                        entity_id   TEXT    NOT NULL,
+                        body        TEXT    NOT NULL,
+                        created_at  INTEGER NOT NULL,
+                        updated_at  INTEGER NOT NULL,
+                        PRIMARY KEY (entity_type, entity_id)
+                    )""");
+            h.execute("""
+                    CREATE INDEX IF NOT EXISTS idx_notes_entity_type
+                        ON notes(entity_type)""");
+
             // Only stamp version on fresh installs (user_version = 0).
             // On an existing DB the CREATE TABLE statements above are all no-ops, so we must
             // leave the version alone and let SchemaUpgrader apply any missing migrations.
             int currentVersion = h.createQuery("PRAGMA user_version").mapTo(Integer.class).one();
             if (currentVersion == 0) {
-                h.execute("PRAGMA user_version = 59");
+                h.execute("PRAGMA user_version = 60");
             }
         });
         log.info("Schema initialization complete");

@@ -286,6 +286,11 @@ public class WebServer {
         routes.register(app);
     }
 
+    /** Mounts the user notes endpoints ({@code /api/notes/*}). */
+    public void registerNotes(com.organizer3.web.routes.NoteRoutes routes) {
+        routes.register(app);
+    }
+
     /**
      * Escape hatch for test fixtures: register arbitrary inline routes before {@link #start()}.
      * Not for production use — call only from test fixture builders.
