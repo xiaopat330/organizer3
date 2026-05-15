@@ -143,7 +143,7 @@ async function toggleBrowseTagsPanel(state, allTitlesGrid) {
   panel.style.display = '';
 }
 
-export async function showBrowseFilterBar(state, allTitlesGrid, applyTitleGridCols, onNotesChipClick) {
+export async function showBrowseFilterBar(state, allTitlesGrid, applyTitleGridCols) {
   if (!state.allCompanies) {
     try {
       const res = await fetch('/api/companies');
@@ -156,9 +156,9 @@ export async function showBrowseFilterBar(state, allTitlesGrid, applyTitleGridCo
   const bar = document.getElementById('title-browse-filter-bar');
   if (!bar) return;
 
-  const notesVal    = state.notesFilter || '';
-  const notesLabel  = notesVal === 'has_note' ? 'Notes: Has' : notesVal === 'no_note' ? 'Notes: None' : 'Notes: Any';
-  const notesActive = notesVal ? ' title-notes-chip-active' : '';
+  // NOTE: Notes filter chip is intentionally omitted here.
+  // /api/pool/{id}/titles and /api/collections/titles do not support ?notes= filtering.
+  // The chip is only rendered for modes that use /api/titles (favorites, bookmarks, library, default).
 
   bar.innerHTML = `
     <select class="detail-company-select" id="browse-company-select">
@@ -169,7 +169,6 @@ export async function showBrowseFilterBar(state, allTitlesGrid, applyTitleGridCo
     <button type="button" class="detail-tags-btn" id="browse-tags-btn">
       Tags<span class="detail-tags-count" id="browse-tags-count" style="display:none"></span>
     </button>
-    <button type="button" class="title-notes-filter-chip${notesActive}" id="title-notes-filter-chip" data-notes-value="${notesVal}" title="Filter by note">${notesLabel}</button>
     ${colsSliderHtml(effectiveCols(), 'title-cols-control', 'title-cols-slider', 'title-cols-label')}`;
   bar.style.display = '';
 
@@ -187,9 +186,4 @@ export async function showBrowseFilterBar(state, allTitlesGrid, applyTitleGridCo
     scheduleBrowseFilteredQuery(state, allTitlesGrid);
   });
   document.getElementById('browse-tags-btn').addEventListener('click', () => toggleBrowseTagsPanel(state, allTitlesGrid));
-
-  const notesChip = document.getElementById('title-notes-filter-chip');
-  if (notesChip && onNotesChipClick) {
-    notesChip.addEventListener('click', () => onNotesChipClick());
-  }
 }
