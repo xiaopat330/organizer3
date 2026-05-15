@@ -245,6 +245,166 @@ class TrashTitleLocationToolTest {
         assertFalse(r.titleOrphaned(), "title still has another location");
     }
 
+    // ── 11. Orphan actress detection (flag only, no cascade) ──────────────────
+
+    @Test
+    void trashOnlyLocation_orphansSingleActress_flagOnly() {
+        long tid = titleRepo.save(title("ORF-001")).getId();
+        locationRepo.save(location(tid, "a", "/queue/ORF-001"));
+        Video v = videoRepo.save(video(tid, "orf001.mkv", "/queue/ORF-001/video/orf001.mkv"));
+        fs.file(v.getPath().toString());
+        fs.dir("/queue/ORF-001"); fs.dir("/queue/ORF-001/video");
+
+        long aId = seedActress("Yui Takshiro");
+        seedAlias(aId, "TakshiroYui");
+        linkActress(tid, aId);
+
+        var r = (TrashTitleLocationTool.Result) tool.call(argsWithCascade("a", "/queue/ORF-001", false, false));
+        assertEquals("ok", r.status());
+        assertEquals(1, r.orphanedActresses().size(), "actress reported as orphaned");
+        assertEquals(aId, r.orphanedActresses().get(0).id());
+        assertEquals("Yui Takshiro", r.orphanedActresses().get(0).canonicalName());
+        assertEquals(0, r.cascadedActresses(), "no cascade fired");
+
+        // actress + alias rows still in DB
+        assertEquals(1, countWhere("actresses", "id", aId));
+        assertEquals(1, countWhere("actress_aliases", "actress_id", aId));
+    }
+
+    // ── 12. Orphan actress detection (cascade=true) ───────────────────────────
+
+    @Test
+    void trashOnlyLocation_orphansSingleActress_cascade() {
+        long tid = titleRepo.save(title("ORF-002")).getId();
+        locationRepo.save(location(tid, "a", "/queue/ORF-002"));
+        Video v = videoRepo.save(video(tid, "orf002.mkv", "/queue/ORF-002/video/orf002.mkv"));
+        fs.file(v.getPath().toString());
+        fs.dir("/queue/ORF-002"); fs.dir("/queue/ORF-002/video");
+
+        long aId = seedActress("Ghost Star");
+        seedAlias(aId, "GhostStarAlias");
+        seedCompany(aId, "GhostCorp");
+        linkActress(tid, aId);
+
+        var r = (TrashTitleLocationTool.Result) tool.call(argsWithCascade("a", "/queue/ORF-002", false, true));
+        assertEquals("ok", r.status());
+        assertEquals(1, r.orphanedActresses().size());
+        assertEquals(1, r.cascadedActresses());
+
+        // all rows gone
+        assertEquals(0, countWhere("actresses", "id", aId));
+        assertEquals(0, countWhere("actress_aliases", "actress_id", aId));
+        assertEquals(0, countWhere("actress_companies", "actress_id", aId));
+        assertEquals(0, countWhere("title_actresses", "actress_id", aId));
+    }
+
+    // ── 13. Other locations exist → no orphan ─────────────────────────────────
+
+    @Test
+    void trashOneLocation_otherLocationsExist_noOrphan() {
+        long tid = titleRepo.save(title("ORF-003")).getId();
+        locationRepo.save(location(tid, "a", "/queue/ORF-003"));
+        jdbi.useHandle(h -> h.createUpdate(
+                "INSERT INTO title_locations (title_id, volume_id, partition_id, path, last_seen_at) VALUES (:tid, 'a', 'default', '/stars/a/ORF-003', '2026-01-01')")
+                .bind("tid", tid).execute());
+        Video v = videoRepo.save(video(tid, "orf003.mkv", "/queue/ORF-003/video/orf003.mkv"));
+        fs.file(v.getPath().toString());
+        fs.dir("/queue/ORF-003"); fs.dir("/queue/ORF-003/video");
+
+        long aId = seedActress("Multi Loc");
+        linkActress(tid, aId);
+
+        var r = (TrashTitleLocationTool.Result) tool.call(argsWithCascade("a", "/queue/ORF-003", false, true));
+        assertEquals("ok", r.status());
+        assertTrue(r.orphanedActresses().isEmpty());
+        assertEquals(0, r.cascadedActresses());
+        assertEquals(1, countWhere("actresses", "id", aId));
+    }
+
+    // ── 14. Actress has other titles with surviving locations → no orphan ────
+
+    @Test
+    void trashLocation_actressHasOtherTitles_noOrphan() {
+        long tA = titleRepo.save(title("ORF-004")).getId();
+        long tB = titleRepo.save(title("ORF-005")).getId();
+        locationRepo.save(location(tA, "a", "/queue/ORF-004"));
+        locationRepo.save(location(tB, "a", "/queue/ORF-005"));
+        Video v = videoRepo.save(video(tA, "orf004.mkv", "/queue/ORF-004/video/orf004.mkv"));
+        fs.file(v.getPath().toString());
+        fs.dir("/queue/ORF-004"); fs.dir("/queue/ORF-004/video");
+
+        long aId = seedActress("Two Titles");
+        linkActress(tA, aId);
+        linkActress(tB, aId);
+
+        var r = (TrashTitleLocationTool.Result) tool.call(argsWithCascade("a", "/queue/ORF-004", false, true));
+        assertEquals("ok", r.status());
+        assertTrue(r.orphanedActresses().isEmpty(), "actress still has title B with surviving location");
+        assertEquals(1, countWhere("actresses", "id", aId));
+        // ghost link to A is retained — that's fine
+        assertEquals(2, countTitleActresses(aId));
+    }
+
+    // ── 15. Mixed: some actresses orphaned, others not ────────────────────────
+
+    @Test
+    void trashLocation_multipleActresses_someOrphanedSomeNot() {
+        long tA = titleRepo.save(title("ORF-006")).getId();
+        long tB = titleRepo.save(title("ORF-007")).getId();
+        locationRepo.save(location(tA, "a", "/queue/ORF-006"));
+        locationRepo.save(location(tB, "a", "/queue/ORF-007"));
+        Video v = videoRepo.save(video(tA, "orf006.mkv", "/queue/ORF-006/video/orf006.mkv"));
+        fs.file(v.getPath().toString());
+        fs.dir("/queue/ORF-006"); fs.dir("/queue/ORF-006/video");
+
+        long aX = seedActress("Only On A");
+        long aY = seedActress("On A And B");
+        linkActress(tA, aX);
+        linkActress(tA, aY);
+        linkActress(tB, aY);
+
+        var r = (TrashTitleLocationTool.Result) tool.call(argsWithCascade("a", "/queue/ORF-006", false, true));
+        assertEquals("ok", r.status());
+        assertEquals(1, r.orphanedActresses().size());
+        assertEquals(aX, r.orphanedActresses().get(0).id());
+        assertEquals(1, r.cascadedActresses());
+
+        // X gone, Y survives
+        assertEquals(0, countWhere("actresses", "id", aX));
+        assertEquals(1, countWhere("actresses", "id", aY));
+    }
+
+    // ── 16. Cascade does not touch unrelated actresses ────────────────────────
+
+    @Test
+    void cascadePreservesAliasesAndCompaniesForSurvivingActresses() {
+        long tA = titleRepo.save(title("ORF-008")).getId();
+        long tB = titleRepo.save(title("ORF-009")).getId();
+        locationRepo.save(location(tA, "a", "/queue/ORF-008"));
+        locationRepo.save(location(tB, "a", "/queue/ORF-009"));
+        Video v = videoRepo.save(video(tA, "orf008.mkv", "/queue/ORF-008/video/orf008.mkv"));
+        fs.file(v.getPath().toString());
+        fs.dir("/queue/ORF-008"); fs.dir("/queue/ORF-008/video");
+
+        long orphan   = seedActress("To Be Cascaded");
+        long survivor = seedActress("Untouched Star");
+        seedAlias(orphan, "OrphanAlias");
+        seedAlias(survivor, "SurvivorAlias");
+        seedCompany(survivor, "SurvivorCorp");
+        linkActress(tA, orphan);
+        linkActress(tB, survivor);
+
+        var r = (TrashTitleLocationTool.Result) tool.call(argsWithCascade("a", "/queue/ORF-008", false, true));
+        assertEquals("ok", r.status());
+        assertEquals(1, r.cascadedActresses());
+
+        // Survivor & its dependents untouched
+        assertEquals(1, countWhere("actresses", "id", survivor));
+        assertEquals(1, countWhere("actress_aliases", "actress_id", survivor));
+        assertEquals(1, countWhere("actress_companies", "actress_id", survivor));
+        assertEquals(1, countTitleActresses(survivor));
+    }
+
     // ── fixtures ──────────────────────────────────────────────────────────────
 
     private static Title title(String code) {
@@ -285,6 +445,49 @@ class TrashTitleLocationToolTest {
         n.put("path",     path);
         n.put("dryRun",   dryRun);
         return n;
+    }
+
+    private static ObjectNode argsWithCascade(String volumeId, String path, boolean dryRun, boolean cascade) {
+        ObjectNode n = args(volumeId, path, dryRun);
+        n.put("cascadeOrphanActresses", cascade);
+        return n;
+    }
+
+    private long seedActress(String canonical) {
+        return jdbi.withHandle(h -> h.createUpdate("""
+                INSERT INTO actresses (canonical_name, tier, first_seen_at, is_sentinel)
+                VALUES (?, 'LIBRARY', '2024-01-01', 0)
+                """)
+                .bind(0, canonical)
+                .executeAndReturnGeneratedKeys("id").mapTo(Long.class).one());
+    }
+
+    private void seedAlias(long actressId, String alias) {
+        jdbi.useHandle(h -> h.createUpdate(
+                "INSERT INTO actress_aliases (actress_id, alias_name) VALUES (?, ?)")
+                .bind(0, actressId).bind(1, alias).execute());
+    }
+
+    private void seedCompany(long actressId, String company) {
+        jdbi.useHandle(h -> h.createUpdate(
+                "INSERT INTO actress_companies (actress_id, company) VALUES (?, ?)")
+                .bind(0, actressId).bind(1, company).execute());
+    }
+
+    private void linkActress(long titleId, long actressId) {
+        jdbi.useHandle(h -> h.createUpdate(
+                "INSERT INTO title_actresses (title_id, actress_id) VALUES (?, ?)")
+                .bind(0, titleId).bind(1, actressId).execute());
+    }
+
+    private int countWhere(String table, String col, long value) {
+        return jdbi.withHandle(h -> h.createQuery(
+                        "SELECT COUNT(*) FROM " + table + " WHERE " + col + " = :v")
+                .bind("v", value).mapTo(Integer.class).one());
+    }
+
+    private int countTitleActresses(long actressId) {
+        return countWhere("title_actresses", "actress_id", actressId);
     }
 
     private int locationCount(long titleId) {

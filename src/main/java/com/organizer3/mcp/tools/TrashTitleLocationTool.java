@@ -102,6 +102,10 @@ public class TrashTitleLocationTool implements Tool {
                 .prop("volumeId", "string",  "Volume identifier — must match the mounted volume.")
                 .prop("path",     "string",  "Volume-relative folder path, e.g. /queue/Old Name (LABEL-001)")
                 .prop("dryRun",   "boolean", "If true (default), return the plan without doing anything.", true)
+                .prop("cascadeOrphanActresses", "boolean",
+                        "If true, delete actresses left with no titles having any surviving location "
+                        + "(plus their title_actresses, actress_aliases, actress_companies rows). "
+                        + "Default false — orphans are reported only.", false)
                 .require("volumeId", "path")
                 .build();
     }
@@ -111,11 +115,13 @@ public class TrashTitleLocationTool implements Tool {
         String volumeIdArg = Schemas.requireString(args, "volumeId");
         String pathArg     = Schemas.requireString(args, "path");
         boolean dryRun     = Schemas.optBoolean(args, "dryRun", true);
+        boolean cascadeOrphans = Schemas.optBoolean(args, "cascadeOrphanActresses", false);
 
         Map<String, Object> inputs = Map.of(
                 "volumeId", volumeIdArg,
                 "path",     pathArg,
-                "dryRun",   dryRun
+                "dryRun",   dryRun,
+                "cascadeOrphanActresses", cascadeOrphans
         );
 
         String mountedVolumeId = session.getMountedVolumeId();
@@ -191,7 +197,8 @@ public class TrashTitleLocationTool implements Tool {
                     null, "dry-run", List.of());
             curationLog.append(volumeIdArg, record);
             return new Result(pathArg, loc.titleId(), true, "dry-run", null,
-                    videoPaths, List.of(), List.of(), false);
+                    videoPaths, List.of(), List.of(), false,
+                    List.of(), 0);
         }
 
         // ── Live run ─────────────────────────────────────────────────────────
@@ -272,14 +279,24 @@ public class TrashTitleLocationTool implements Tool {
         // ── Check for orphaned title ──────────────────────────────────────────
         boolean orphaned = isOrphaned(loc.titleId());
 
-        log.info("trash_title_location volume={} path={} titleId={} videos={} failed={} orphaned={}",
-                volumeIdArg, pathArg, loc.titleId(), trashed.size(), failed.size(), orphaned);
+        // ── Detect orphaned actresses (and optionally cascade-delete) ─────────
+        List<OrphanActress> orphanedActresses = findOrphanedActresses(loc.titleId());
+        int cascadedActresses = 0;
+        if (cascadeOrphans && !orphanedActresses.isEmpty()) {
+            cascadedActresses = cascadeDeleteActresses(orphanedActresses);
+        }
+
+        log.info("trash_title_location volume={} path={} titleId={} videos={} failed={} orphaned={} orphanActresses={} cascaded={}",
+                volumeIdArg, pathArg, loc.titleId(), trashed.size(), failed.size(), orphaned,
+                orphanedActresses.size(), cascadedActresses);
 
         CurationLogRecord record = new CurationLogRecord(
                 Instant.now(), name(), "mcp", sessionId(),
                 inputs, null,
                 Map.of("titleId", loc.titleId(), "trashed", trashed, "failed", failed,
-                        "orphaned", orphaned),
+                        "orphaned", orphaned,
+                        "orphanedActresses", orphanedActresses,
+                        "cascadedActresses", cascadedActresses),
                 Map.of("path", pathArg, "deleted", true),
                 failed.isEmpty() ? "ok" : "partial",
                 failed.isEmpty() ? List.of() : List.of("some operations failed: " + failed));
@@ -288,7 +305,8 @@ public class TrashTitleLocationTool implements Tool {
         return new Result(pathArg, loc.titleId(), false,
                 failed.isEmpty() ? "ok" : "partial",
                 failed.isEmpty() ? null : "some operations failed: " + failed,
-                List.of(), trashed, failed, orphaned);
+                List.of(), trashed, failed, orphaned,
+                orphanedActresses, cascadedActresses);
     }
 
     // ── helpers ──────────────────────────────────────────────────────────────
@@ -342,6 +360,50 @@ public class TrashTitleLocationTool implements Tool {
                 .toList();
     }
 
+    /**
+     * Returns the list of actresses credited on {@code trashedTitleId} who, after the trash op,
+     * have NO surviving titles with at least one {@code title_locations} row. Deterministic order
+     * (by actress id ascending) so cascade behavior is reproducible.
+     */
+    private List<OrphanActress> findOrphanedActresses(long trashedTitleId) {
+        return jdbi.withHandle(h -> h.createQuery("""
+                        SELECT a.id, a.canonical_name FROM actresses a
+                        JOIN title_actresses ta ON ta.actress_id = a.id
+                        WHERE ta.title_id = :tid
+                          AND NOT EXISTS (
+                              SELECT 1 FROM title_actresses ta2
+                              JOIN title_locations tl ON tl.title_id = ta2.title_id
+                              WHERE ta2.actress_id = a.id
+                                AND tl.stale_since IS NULL
+                          )
+                        ORDER BY a.id
+                        """)
+                .bind("tid", trashedTitleId)
+                .map((rs, ctx) -> new OrphanActress(rs.getLong("id"), rs.getString("canonical_name")))
+                .list());
+    }
+
+    /**
+     * Deletes the given orphan actresses and their dependent rows
+     * (title_actresses, actress_aliases, actress_companies, actresses).
+     * Returns the number of actresses fully deleted.
+     */
+    private int cascadeDeleteActresses(List<OrphanActress> orphans) {
+        int deleted = 0;
+        for (OrphanActress oa : orphans) {
+            jdbi.useTransaction(h -> {
+                h.createUpdate("DELETE FROM title_actresses  WHERE actress_id = :id").bind("id", oa.id()).execute();
+                h.createUpdate("DELETE FROM actress_aliases  WHERE actress_id = :id").bind("id", oa.id()).execute();
+                h.createUpdate("DELETE FROM actress_companies WHERE actress_id = :id").bind("id", oa.id()).execute();
+                h.createUpdate("DELETE FROM actresses        WHERE id = :id").bind("id", oa.id()).execute();
+            });
+            log.info("trash_title_location: cascaded orphan actress id={} canonical_name={}",
+                    oa.id(), oa.canonicalName());
+            deleted++;
+        }
+        return deleted;
+    }
+
     private boolean isOrphaned(long titleId) {
         return jdbi.withHandle(h -> h.createQuery(
                         "SELECT COUNT(*) FROM title_locations WHERE title_id = :tid")
@@ -381,7 +443,8 @@ public class TrashTitleLocationTool implements Tool {
                 "refused", List.of("refused: " + reason));
         curationLog.append(logVolume, record);
         return new Result(inputs.getOrDefault("path", "").toString(), 0L, false,
-                "refused", reason, List.of(), List.of(), List.of(), false);
+                "refused", reason, List.of(), List.of(), List.of(), false,
+                List.of(), 0);
     }
 
     private Result partialResult(String volumeId, Map<String, Object> inputs, String path,
@@ -393,12 +456,15 @@ public class TrashTitleLocationTool implements Tool {
                 Map.of("trashed", trashed, "failed", failed),
                 null, "partial", List.of(error));
         curationLog.append(volumeId, record);
-        return new Result(path, titleId, false, "partial", error, List.of(), trashed, failed, false);
+        return new Result(path, titleId, false, "partial", error, List.of(), trashed, failed, false,
+                List.of(), 0);
     }
 
     private String sessionId() { return "mcp-" + Thread.currentThread().getName(); }
 
     record LocationRow(long locationId, long titleId) {}
+
+    public record OrphanActress(long id, String canonicalName) {}
 
     public record Result(
             String path,
@@ -409,6 +475,8 @@ public class TrashTitleLocationTool implements Tool {
             List<String> plannedVideos,
             List<String> trashed,
             List<String> failed,
-            boolean titleOrphaned
+            boolean titleOrphaned,
+            List<OrphanActress> orphanedActresses,
+            int cascadedActresses
     ) {}
 }
