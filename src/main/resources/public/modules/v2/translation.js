@@ -97,6 +97,78 @@ function failureRow(label, count, reasonKey, hint) {
   `;
 }
 
+/* ── Ollama status pill — 4-state rich version ─────────────────────── */
+function renderOllamaPill(health) {
+  if (!health) {
+    return `<span class="pill muted">
+      <svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px;margin-right:3px"><circle cx="12" cy="12" r="9"/><path d="M12 8v4M12 16h.01"/></svg>Checking…</span>`;
+  }
+  const p95Ms = health.latencyP95Ms;
+  const p95   = (p95Ms != null && p95Ms > 0) ? ` · ${(p95Ms / 1000).toFixed(1)}s` : '';
+  if (!health.overall) {
+    return `<span class="pill error">
+      <svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px;margin-right:3px"><circle cx="12" cy="12" r="9"/><line x1="8" y1="8" x2="16" y2="16"/><line x1="16" y1="8" x2="8" y2="16"/></svg>${escapeHtml(health.message || 'Unreachable')}</span>`;
+  }
+  if (!health.latencyOk) {
+    return `<span class="pill warn">
+      <svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px;margin-right:3px"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>Slow${escapeHtml(p95)}</span>`;
+  }
+  return `<span class="pill ok">
+    <svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px;margin-right:3px"><polyline points="5 12 10 17 19 7"/></svg>Working${escapeHtml(p95)}</span>`;
+}
+
+/** Pretty memory size in GB. Returns "—" for 0/null. */
+function fmtGb(bytes) {
+  if (!bytes) return '—';
+  return `${(bytes / 1073741824).toFixed(1)} GB`;
+}
+
+/** Live TTL string from an ISO expiry. Returns null if expired/missing. */
+function fmtTtl(iso) {
+  if (!iso) return null;
+  const ms = new Date(iso).getTime() - Date.now();
+  if (ms <= 0) return null;
+  const m = Math.floor(ms / 60000);
+  const s = Math.floor((ms % 60000) / 1000);
+  if (m >= 60) return `${Math.floor(m / 60)}h ${m % 60}m`;
+  if (m > 0)   return `${m}m ${String(s).padStart(2, '0')}s`;
+  return `${s}s`;
+}
+
+/** Loaded-models block with header, per-model TTL bars, and empty state. */
+function renderLoadedModels(health) {
+  const list = (health && health.loadedModels) || [];
+  if (!list.length) {
+    return `<div class="trans-loaded-empty">No models loaded</div>`;
+  }
+  const TTL_FULL_MS = 5 * 60 * 1000;
+  let totalBytes = 0;
+  const rows = list.map(m => {
+    totalBytes += (m.sizeBytes || 0);
+    const ttlText = fmtTtl(m.expiresAtIso) || 'pinned';
+    let pct = 0;
+    if (m.expiresAtIso) {
+      const remaining = new Date(m.expiresAtIso).getTime() - Date.now();
+      pct = Math.max(0, Math.min(100, (remaining / TTL_FULL_MS) * 100));
+    } else {
+      pct = 100;
+    }
+    return `<div class="trans-loaded-row">
+      <span class="trans-loaded-name">${escapeHtml(m.name)}</span>
+      <span class="trans-loaded-size">${escapeHtml(fmtGb(m.sizeBytes))}</span>
+      <span class="trans-loaded-ttl-bar"><span style="width:${pct.toFixed(1)}%"></span></span>
+      <span class="trans-loaded-ttl-text">${escapeHtml(ttlText)}</span>
+    </div>`;
+  }).join('');
+  return `<div class="trans-loaded-block">
+    <div class="trans-loaded-header">
+      <span>Loaded now</span>
+      <span class="trans-loaded-total">${escapeHtml(fmtGb(totalBytes))} resident</span>
+    </div>
+    ${rows}
+  </div>`;
+}
+
 /* ── Dashboard stat cards ──────────────────────────────────────────── */
 function renderStatCards(stats, sweeper, strategies, health, expanded) {
   if (!stats) return `<div class="shelf-loading">Stats unavailable.</div>`;
@@ -137,8 +209,7 @@ function renderStatCards(stats, sweeper, strategies, health, expanded) {
 
   // Models card content
   const modelsCard = (() => {
-    const ollamaUp = health?.ollamaReachable === true || health?.healthy === true;
-    const ollamaPill = `<span class="pill ${ollamaUp ? 'ok' : 'error'}">${ollamaUp ? 'Ollama online' : 'Ollama offline'}</span>`;
+    const ollamaPill = renderOllamaPill(health);
     const current = stats.currentModelId || null;
 
     let primaryRow = `<div class="trans-model-row"><span class="trans-model-role-label">Primary</span><span class="trans-model-missing">loading…</span></div>`;
@@ -159,22 +230,13 @@ function renderStatCards(stats, sweeper, strategies, health, expanded) {
       fallbackRow = row('Fallback', fallback);
     }
 
-    const loaded = (health?.loadedModels || []).map(m =>
-      `<div class="trans-model-loaded">${escapeHtml(typeof m === 'string' ? m : (m.name || m.model || ''))}</div>`
-    ).join('');
-
-    const currentModel = stats.currentModelId
-      ? `<div class="trans-model-row trans-model-current"><span class="trans-model-role-label">Model</span><span class="trans-model-name">${escapeHtml(stats.currentModelId)}</span></div>`
-      : '';
-
     return `
       <div class="trans-card trans-card-models">
         <div class="trans-card-title">AI</div>
         ${ollamaPill}
         ${primaryRow}
         ${fallbackRow}
-        ${currentModel}
-        ${loaded ? `<div class="trans-loaded-list">${loaded}</div>` : ''}
+        ${renderLoadedModels(health)}
       </div>
     `;
   })();
