@@ -263,7 +263,7 @@ public final class UtilitiesRoutes {
                 ctx.status(400); ctx.json(Map.of("error", "resolution is required")); return;
             }
             java.util.Set<String> allowed =
-                    java.util.Set.of("accepted_gap", "marked_resolved", "marked_moved", "confirmed_delete");
+                    java.util.Set.of("accepted_gap", "marked_resolved", "marked_moved", "confirmed_delete", "dismissed");
             if (!allowed.contains(resolution)) {
                 ctx.status(400);
                 ctx.json(Map.of("error", "resolution must be one of " + allowed));

@@ -3365,6 +3365,13 @@
 }
 .er-orphan-delete-btn:hover:not(:disabled) { background: rgba(248,113,113,0.15); }
 
+.er-recode-btn {
+  background: rgba(251,191,36,0.08);
+  color: #fbbf24;
+  border: 1px solid rgba(251,191,36,0.3);
+}
+.er-recode-btn:hover:not(:disabled) { background: rgba(251,191,36,0.15); }
+
 .er-cast-alias-btn {
   background: var(--bg-active);
   color: var(--text-dim);

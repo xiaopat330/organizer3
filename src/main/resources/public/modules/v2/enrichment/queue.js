@@ -5,7 +5,7 @@
 //   renderTable(state, tableBody, emptyEl, reload)
 
 import { esc, formatRelative, resolverSourceLabel, openLightbox, humanizeEnumLabel } from './utils.js';
-import { resolveRow, doForceEnrich, confirmOrphanDelete } from './actions.js';
+import { resolveRow, doForceEnrich, confirmOrphanDelete, startRecodeFlow } from './actions.js';
 import { togglePicker } from './picker.js';
 import { toggleCastAnomalyPanel } from './cast-anomaly.js';
 
@@ -104,7 +104,7 @@ function makeRow(row, tableBody, reload) {
       ? `<div class="er-detail-hint">Orphan: <b>${orphanCode}</b> → New: <b>${newCode}</b> <span class="er-match-type">(${matchType})</span></div>`
       : '';
     actionsHtml = `
-      <button type="button" class="er-action-btn er-hint-btn" data-id="${row.id}">Resolve via recode title</button>
+      <button type="button" class="er-action-btn er-recode-btn" data-id="${row.id}">Recode to ${newCode}</button>
       <button type="button" class="er-action-btn er-resolve-btn er-dismiss-btn" data-id="${row.id}" data-res="dismissed">Dismiss</button>
     `;
   } else if (isActressRename) {
@@ -183,8 +183,8 @@ function makeRow(row, tableBody, reload) {
     tr.querySelector('.er-orphan-delete-btn').addEventListener('click', () =>
       confirmOrphanDelete(row.id, tr, reload));
   } else if (isRecode) {
-    tr.querySelector('.er-hint-btn').addEventListener('click', () =>
-      showRecodeTitleHint(row, tr, tableBody));
+    tr.querySelector('.er-recode-btn').addEventListener('click', () =>
+      startRecodeFlow(row, tr, tableBody, reload));
   } else if (isAmbiguous) {
     tr.querySelector('.er-picker-btn').addEventListener('click', () =>
       togglePicker(row, tr, tableBody, reload));
@@ -200,37 +200,6 @@ function makeRow(row, tableBody, reload) {
   }
 
   return tr;
-}
-
-// ── Recode hint row ───────────────────────────────────────────────────────────
-
-function showRecodeTitleHint(row, tr, tableBody) {
-  const next = tr.nextElementSibling;
-  if (next && next.classList.contains('er-recode-hint-row')) {
-    next.remove();
-    return;
-  }
-  tableBody.querySelectorAll('.er-recode-hint-row').forEach(r => r.remove());
-
-  let detail = null;
-  try { detail = row.detail ? JSON.parse(row.detail) : null; } catch {}
-  const orphanCode = detail ? detail.orphan_code    || '' : '';
-  const newCode    = detail ? detail.new_folder_code || '' : '';
-
-  const hintTr = document.createElement('tr');
-  hintTr.className = 'er-recode-hint-row';
-  const td = document.createElement('td');
-  td.colSpan = 6;
-  td.innerHTML = `
-    <div class="er-recode-hint">
-      <b>To resolve:</b> use <code>recode_title</code> to rename the orphan title
-      <b>${esc(orphanCode)}</b> to the new code <b>${esc(newCode)}</b>,
-      then dismiss this queue entry.
-      <br>Example: <code>recode_title(title_id=&lt;orphan_id&gt;, new_code="${esc(newCode)}")</code>
-    </div>
-  `;
-  hintTr.appendChild(td);
-  tr.insertAdjacentElement('afterend', hintTr);
 }
 
 // ── Override slug form ────────────────────────────────────────────────────────
