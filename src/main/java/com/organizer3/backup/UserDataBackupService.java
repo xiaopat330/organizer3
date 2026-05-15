@@ -5,6 +5,8 @@ import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.organizer3.avstars.repository.AvActressRepository;
 import com.organizer3.avstars.repository.AvVideoRepository;
+import com.organizer3.notes.EntityType;
+import com.organizer3.notes.NoteRepository;
 import com.organizer3.repository.ActressRepository;
 import com.organizer3.repository.TitleRepository;
 import com.organizer3.repository.WatchHistoryRepository;
@@ -36,7 +38,7 @@ import java.util.stream.Stream;
 @RequiredArgsConstructor
 public class UserDataBackupService {
 
-    public static final int CURRENT_BACKUP_VERSION = 2;
+    public static final int CURRENT_BACKUP_VERSION = 3;
 
     private static final ObjectMapper MAPPER = new ObjectMapper()
             .registerModule(new JavaTimeModule())
@@ -48,6 +50,7 @@ public class UserDataBackupService {
     private final WatchHistoryRepository watchHistoryRepo;
     private final AvActressRepository avActressRepo;
     private final AvVideoRepository avVideoRepo;
+    private final NoteRepository noteRepo;
 
     /**
      * Build a {@link UserDataBackup} from the current database state.
@@ -82,8 +85,14 @@ public class UserDataBackupService {
                         r.favorite(), r.bookmark(), r.watched(), r.watchCount(), r.lastWatchedAt()))
                 .toList();
 
+        List<NoteBackupEntry> notes = noteRepo.findAll().stream()
+                .map(n -> new NoteBackupEntry(
+                        n.entityType().wireValue(), n.entityId(), n.body(),
+                        n.createdAt(), n.updatedAt()))
+                .toList();
+
         return new UserDataBackup(CURRENT_BACKUP_VERSION, LocalDateTime.now(),
-                actresses, titles, watchHistory, avActresses, avVideos);
+                actresses, titles, watchHistory, avActresses, avVideos, notes);
     }
 
     /**
@@ -95,9 +104,10 @@ public class UserDataBackupService {
         MAPPER.writeValue(path.toFile(), backup);
         List<AvActressBackupEntry> avA = backup.avActresses() != null ? backup.avActresses() : List.of();
         List<AvVideoBackupEntry>   avV = backup.avVideos()    != null ? backup.avVideos()    : List.of();
-        log.info("Backup written: {} actresses, {} titles, {} watch history, {} av-actresses, {} av-videos → {}",
+        List<NoteBackupEntry>       n  = backup.notes()       != null ? backup.notes()       : List.of();
+        log.info("Backup written: {} actresses, {} titles, {} watch history, {} av-actresses, {} av-videos, {} notes → {}",
                 backup.actresses().size(), backup.titles().size(), backup.watchHistory().size(),
-                avA.size(), avV.size(), path);
+                avA.size(), avV.size(), n.size(), path);
     }
 
     /**
@@ -191,10 +201,23 @@ public class UserDataBackupService {
             }
         }
 
+        // Notes: replay all entries directly via restoreNote (bypasses NoteService validation
+        // intentionally — backup restore is a trusted path that must preserve orphan rows).
+        int notesRestored = 0;
+        List<NoteBackupEntry> notes = backup.notes() != null ? backup.notes() : List.of();
+        for (NoteBackupEntry entry : notes) {
+            noteRepo.restoreNote(
+                    EntityType.fromWireValue(entry.entityType()),
+                    entry.entityId(), entry.body(),
+                    entry.createdAt(), entry.updatedAt());
+            notesRestored++;
+        }
+
         return new RestoreResult(actressesRestored, actressesSkipped,
                 titlesRestored, titlesSkipped, watchHistoryInserted,
                 avActressesRestored, avActressesSkipped,
-                avVideosRestored, avVideosSkipped);
+                avVideosRestored, avVideosSkipped,
+                notesRestored);
     }
 
     /** Convenience: export and immediately write to {@code path}. Used by auto-backup. */
@@ -291,14 +314,25 @@ public class UserDataBackupService {
             }
         }
 
+        // ── Notes ───────────────────────────────────────────────────────────────
+        // Notes are always replayed unconditionally (orphans preserved per spec §8.1).
+        // All entries are counted as "would insert/update"; existence check skipped.
+        java.util.List<NoteBackupEntry> backupNotes =
+                backup.notes() != null ? backup.notes() : java.util.List.of();
+        java.util.List<String> notesSample = backupNotes.stream()
+                .limit(SAMPLE_CAP)
+                .map(e -> e.entityType() + ":" + e.entityId())
+                .collect(java.util.stream.Collectors.toList());
+
         return new RestorePreview(
                 backup.version(),
                 backup.exportedAt() != null ? backup.exportedAt().toString() : null,
-                new RestorePreview.Category("actresses",     aExisting,   aMissing,   0,        aSample),
-                new RestorePreview.Category("titles",        tExisting,   tMissing,   0,        tSample),
-                new RestorePreview.Category("watchHistory",  whExisting,  0,          whInsert, whSample),
-                new RestorePreview.Category("avActresses",   avaExisting, avaMissing, 0,        avaSample),
-                new RestorePreview.Category("avVideos",      avvExisting, avvMissing, 0,        avvSample));
+                new RestorePreview.Category("actresses",     aExisting,            aMissing,   0,                   aSample),
+                new RestorePreview.Category("titles",        tExisting,            tMissing,   0,                   tSample),
+                new RestorePreview.Category("watchHistory",  whExisting,           0,          whInsert,            whSample),
+                new RestorePreview.Category("avActresses",   avaExisting,          avaMissing, 0,                   avaSample),
+                new RestorePreview.Category("avVideos",      avvExisting,          avvMissing, 0,                   avvSample),
+                new RestorePreview.Category("notes",         0,                    0,          backupNotes.size(),  notesSample));
     }
 
     /**
@@ -310,6 +344,7 @@ public class UserDataBackupService {
         long fileSize = Files.exists(path) ? Files.size(path) : 0L;
         int avA = backup.avActresses() != null ? backup.avActresses().size() : 0;
         int avV = backup.avVideos()    != null ? backup.avVideos().size()    : 0;
+        int n   = backup.notes()       != null ? backup.notes().size()       : 0;
         return new SnapshotDetail(
                 path.getFileName().toString(),
                 fileSize,
@@ -319,7 +354,8 @@ public class UserDataBackupService {
                 backup.titles().size(),
                 backup.watchHistory().size(),
                 avA,
-                avV);
+                avV,
+                n);
     }
 
     public record SnapshotDetail(String name,
@@ -330,7 +366,8 @@ public class UserDataBackupService {
                                  int titles,
                                  int watchHistory,
                                  int avActresses,
-                                 int avVideos) {}
+                                 int avVideos,
+                                 int notes) {}
 
     // ── Snapshot support ─────────────────────────────────────────────────────
 

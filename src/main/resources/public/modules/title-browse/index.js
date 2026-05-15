@@ -11,6 +11,10 @@ import { renderTitleDashboard, titleSpotlightRotator } from './dashboard.js';
 import { renderLibraryFilterPanel, hideTagsPanel, scheduleLibraryQuery } from './library.js';
 import { enterUnsortedMode as enterUnsortedModeImpl, enterArchiveMode as enterArchiveModeImpl, showBrowseFilterBar, hideBrowseFilterBar, resetBrowseFilters } from './pool.js';
 import { loadAndRenderStudioGroupRow, selectStudioGroup, showStudioGroupRow, hideStudioGroupRow } from './studio.js';
+import { injectNotesTokens, decorateWithNotesIcon, scheduleBatchHydration } from './notes.js';
+
+// Inject the post-it design tokens once at module load time.
+injectNotesTokens();
 
 // ── DOM refs ──────────────────────────────────────────────────────────────
 export const titlesBrowseBtn    = document.getElementById('titles-browse-btn');
@@ -35,12 +39,40 @@ function applyTitleGridCols(cols) {
   if (grid) grid.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
 }
 
+function notesFilterChipHtml(currentFilter) {
+  const val   = currentFilter || '';
+  const label = val === 'has_note' ? 'Notes: Has' : val === 'no_note' ? 'Notes: None' : 'Notes: Any';
+  const activeClass = val ? ' title-notes-chip-active' : '';
+  return `<button type="button" class="title-notes-filter-chip${activeClass}" id="title-notes-filter-chip" data-notes-value="${val}" title="Filter by note">${label}</button>`;
+}
+
+function cycleNotesFilter() {
+  const cycle = [null, 'has_note', 'no_note'];
+  const current = state.notesFilter;
+  const idx = cycle.indexOf(current);
+  state.notesFilter = cycle[(idx + 1) % cycle.length];
+  runTitleBrowseQuery();
+  // Re-render the whole bar so chip label + active class update
+  if (FILTERABLE_MODES.has(state.mode)) {
+    showBrowseFilterBar(state, allTitlesGrid, applyTitleGridCols, cycleNotesFilter);
+  } else {
+    showColsOnlyFilterBar();
+  }
+}
+
+function wireNotesFilterChip(chipEl) {
+  chipEl.addEventListener('click', cycleNotesFilter);
+}
+
 function showColsOnlyFilterBar() {
   const bar = document.getElementById('title-browse-filter-bar');
   if (!bar) return;
-  bar.innerHTML = colsSliderHtml(effectiveCols(), 'title-cols-control', 'title-cols-slider', 'title-cols-label');
+  bar.innerHTML = notesFilterChipHtml(state.notesFilter)
+    + colsSliderHtml(effectiveCols(), 'title-cols-control', 'title-cols-slider', 'title-cols-label');
   bar.style.display = '';
   wireColsSlider('title-cols-slider', 'title-cols-label', applyTitleGridCols);
+  const chip = document.getElementById('title-notes-filter-chip');
+  if (chip) wireNotesFilterChip(chip);
 }
 
 // ── State ─────────────────────────────────────────────────────────────────
@@ -74,6 +106,8 @@ function createTitleBrowseState() {
     browseTagsForMode: null,
     allCompanies: null,
     selectedStudioSlug: null,
+    /** Tri-state notes filter: null = Any, 'has_note' = Has note, 'no_note' = No note */
+    notesFilter: null,
     /** Clears collections/unsorted/archive filter state only. */
     resetBrowse() {
       this.browseCompanyFilter = null;
@@ -104,26 +138,35 @@ const FILTERABLE_MODES = new Set(['collections', 'unsorted', 'archive-pool']);
 export const allTitlesGrid = new ScrollingGrid(
   document.getElementById('titles-browse-grid'),
   (o, l) => {
-    if (state.mode === 'favorites')
-      return `/api/titles?favorites=true&offset=${o}&limit=${l}`;
-    if (state.mode === 'bookmarks')
-      return `/api/titles?bookmarks=true&offset=${o}&limit=${l}`;
+    if (state.mode === 'favorites') {
+      let url = `/api/titles?favorites=true&offset=${o}&limit=${l}`;
+      if (state.notesFilter) url += `&notes=${encodeURIComponent(state.notesFilter)}`;
+      return url;
+    }
+    if (state.mode === 'bookmarks') {
+      let url = `/api/titles?bookmarks=true&offset=${o}&limit=${l}`;
+      if (state.notesFilter) url += `&notes=${encodeURIComponent(state.notesFilter)}`;
+      return url;
+    }
     if (state.mode === 'collections') {
       let url = `/api/collections/titles?offset=${o}&limit=${l}`;
       if (state.browseCompanyFilter) url += `&company=${encodeURIComponent(state.browseCompanyFilter)}`;
       if (state.browseActiveTags.size > 0) url += `&tags=${encodeURIComponent([...state.browseActiveTags].join(','))}`;
+      if (state.notesFilter) url += `&notes=${encodeURIComponent(state.notesFilter)}`;
       return url;
     }
     if (state.mode === 'unsorted') {
       let url = `/api/pool/${encodeURIComponent(state.poolVolumeId)}/titles?offset=${o}&limit=${l}`;
       if (state.browseCompanyFilter) url += `&company=${encodeURIComponent(state.browseCompanyFilter)}`;
       if (state.browseActiveTags.size > 0) url += `&tags=${encodeURIComponent([...state.browseActiveTags].join(','))}`;
+      if (state.notesFilter) url += `&notes=${encodeURIComponent(state.notesFilter)}`;
       return url;
     }
     if (state.mode === 'archive-pool') {
       let url = `/api/pool/${encodeURIComponent(state.archivePoolVolumeId)}/titles?offset=${o}&limit=${l}`;
       if (state.browseCompanyFilter) url += `&company=${encodeURIComponent(state.browseCompanyFilter)}`;
       if (state.browseActiveTags.size > 0) url += `&tags=${encodeURIComponent([...state.browseActiveTags].join(','))}`;
+      if (state.notesFilter) url += `&notes=${encodeURIComponent(state.notesFilter)}`;
       return url;
     }
     if (state.mode === 'library') {
@@ -134,9 +177,14 @@ export const allTitlesGrid = new ScrollingGrid(
       if (state.activeEnrichmentTagIds.size > 0)    params.set('enrichmentTagIds', [...state.activeEnrichmentTagIds].join(','));
       if (state.librarySort !== 'addedDate')         params.set('sort',             state.librarySort);
       if (state.libraryOrder !== 'desc')             params.set('order',            state.libraryOrder);
+      if (state.notesFilter)                         params.set('notes',            state.notesFilter);
       return `/api/titles?${params}`;
     }
-    return `/api/titles?offset=${o}&limit=${l}`;
+    {
+      let url = `/api/titles?offset=${o}&limit=${l}`;
+      if (state.notesFilter) url += `&notes=${encodeURIComponent(state.notesFilter)}`;
+      return url;
+    }
   },
   t => {
     if (state.mode === 'unsorted' && state.poolSmbPath) {
@@ -146,7 +194,10 @@ export const allTitlesGrid = new ScrollingGrid(
       if (t.location)  t.location  = state.archivePoolSmbPath + t.location;
       if (t.locations) t.locations = t.locations.map(p => state.archivePoolSmbPath + p);
     }
-    return makeTitleCard(t);
+    const card = makeTitleCard(t);
+    decorateWithNotesIcon(card, t);
+    scheduleBatchHydration([t.code]);
+    return card;
   },
   'no titles',
   { getMax: () => MAX_TOTAL }
@@ -251,7 +302,7 @@ export function selectTitleBrowseMode(modeKey) {
   hideStudioGroupRow(state, titleStudioDivider, titleStudioGroupRow, titleStudioLabelsEl);
   hideTagsPanel(state, titleTagsPanel);
   if (FILTERABLE_MODES.has(modeKey)) {
-    showBrowseFilterBar(state, allTitlesGrid, applyTitleGridCols);
+    showBrowseFilterBar(state, allTitlesGrid, applyTitleGridCols, cycleNotesFilter);
   }
   runTitleBrowseQuery();
 }
@@ -273,6 +324,7 @@ export function showTitlesBrowse() {
   state.libraryCompany = null;
   state.librarySort    = 'addedDate';
   state.libraryOrder   = 'desc';
+  state.notesFilter    = null;
   resetBrowseFilters(state);
   hideStudioGroupRow(state, titleStudioDivider, titleStudioGroupRow, titleStudioLabelsEl);
   hideTagsPanel(state, titleTagsPanel);

@@ -143,7 +143,7 @@ async function toggleBrowseTagsPanel(state, allTitlesGrid) {
   panel.style.display = '';
 }
 
-export async function showBrowseFilterBar(state, allTitlesGrid, applyTitleGridCols) {
+export async function showBrowseFilterBar(state, allTitlesGrid, applyTitleGridCols, onNotesChipClick) {
   if (!state.allCompanies) {
     try {
       const res = await fetch('/api/companies');
@@ -156,6 +156,10 @@ export async function showBrowseFilterBar(state, allTitlesGrid, applyTitleGridCo
   const bar = document.getElementById('title-browse-filter-bar');
   if (!bar) return;
 
+  const notesVal    = state.notesFilter || '';
+  const notesLabel  = notesVal === 'has_note' ? 'Notes: Has' : notesVal === 'no_note' ? 'Notes: None' : 'Notes: Any';
+  const notesActive = notesVal ? ' title-notes-chip-active' : '';
+
   bar.innerHTML = `
     <select class="detail-company-select" id="browse-company-select">
       <option value="">All Companies</option>
@@ -165,6 +169,7 @@ export async function showBrowseFilterBar(state, allTitlesGrid, applyTitleGridCo
     <button type="button" class="detail-tags-btn" id="browse-tags-btn">
       Tags<span class="detail-tags-count" id="browse-tags-count" style="display:none"></span>
     </button>
+    <button type="button" class="title-notes-filter-chip${notesActive}" id="title-notes-filter-chip" data-notes-value="${notesVal}" title="Filter by note">${notesLabel}</button>
     ${colsSliderHtml(effectiveCols(), 'title-cols-control', 'title-cols-slider', 'title-cols-label')}`;
   bar.style.display = '';
 
@@ -182,4 +187,9 @@ export async function showBrowseFilterBar(state, allTitlesGrid, applyTitleGridCo
     scheduleBrowseFilteredQuery(state, allTitlesGrid);
   });
   document.getElementById('browse-tags-btn').addEventListener('click', () => toggleBrowseTagsPanel(state, allTitlesGrid));
+
+  const notesChip = document.getElementById('title-notes-filter-chip');
+  if (notesChip && onNotesChipClick) {
+    notesChip.addEventListener('click', () => onNotesChipClick());
+  }
 }

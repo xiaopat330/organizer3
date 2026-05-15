@@ -16,6 +16,16 @@ import {
   resetBrowseFilters,
 } from './pool.js';
 import { mountStudio, unmountStudio } from './studio.js';
+import {
+  injectNotesTokens,
+  decorateWithNotesIcon,
+  scheduleBatchHydration,
+  notesChipHtml,
+  wireNotesChip,
+} from './notes.js';
+
+// Inject post-it design tokens once at module load time.
+injectNotesTokens();
 
 const PAGE_LIMIT = 36;
 const COLS_DEFAULT = 5;
@@ -69,31 +79,42 @@ function createState() {
     _cols: COLS_DEFAULT,
     // Caches
     _labelCache: null,
+    /** Tri-state notes filter: null = Any, 'has_note' = Has note, 'no_note' = No note */
+    notesFilter: null,
   };
 }
 
 // ── URL builder ───────────────────────────────────────────────────────────
 function buildUrl(state, offset, limit) {
-  if (state.mode === 'favorites')
-    return `/api/titles?favorites=true&offset=${offset}&limit=${limit}`;
-  if (state.mode === 'bookmarks')
-    return `/api/titles?bookmarks=true&offset=${offset}&limit=${limit}`;
+  if (state.mode === 'favorites') {
+    let url = `/api/titles?favorites=true&offset=${offset}&limit=${limit}`;
+    if (state.notesFilter) url += `&notes=${encodeURIComponent(state.notesFilter)}`;
+    return url;
+  }
+  if (state.mode === 'bookmarks') {
+    let url = `/api/titles?bookmarks=true&offset=${offset}&limit=${limit}`;
+    if (state.notesFilter) url += `&notes=${encodeURIComponent(state.notesFilter)}`;
+    return url;
+  }
   if (state.mode === 'collections') {
     let url = `/api/collections/titles?offset=${offset}&limit=${limit}`;
     if (state.browseCompanyFilter) url += `&company=${encodeURIComponent(state.browseCompanyFilter)}`;
     if (state.browseActiveTags.size > 0) url += `&tags=${encodeURIComponent([...state.browseActiveTags].join(','))}`;
+    if (state.notesFilter) url += `&notes=${encodeURIComponent(state.notesFilter)}`;
     return url;
   }
   if (state.mode === 'unsorted') {
     let url = `/api/pool/${encodeURIComponent(state.poolVolumeId)}/titles?offset=${offset}&limit=${limit}`;
     if (state.browseCompanyFilter) url += `&company=${encodeURIComponent(state.browseCompanyFilter)}`;
     if (state.browseActiveTags.size > 0) url += `&tags=${encodeURIComponent([...state.browseActiveTags].join(','))}`;
+    if (state.notesFilter) url += `&notes=${encodeURIComponent(state.notesFilter)}`;
     return url;
   }
   if (state.mode === 'archive-pool') {
     let url = `/api/pool/${encodeURIComponent(state.archivePoolVolumeId)}/titles?offset=${offset}&limit=${limit}`;
     if (state.browseCompanyFilter) url += `&company=${encodeURIComponent(state.browseCompanyFilter)}`;
     if (state.browseActiveTags.size > 0) url += `&tags=${encodeURIComponent([...state.browseActiveTags].join(','))}`;
+    if (state.notesFilter) url += `&notes=${encodeURIComponent(state.notesFilter)}`;
     return url;
   }
   if (state.mode === 'library') {
@@ -104,6 +125,7 @@ function buildUrl(state, offset, limit) {
     if (state.activeEnrichmentTagIds.size > 0) params.set('enrichmentTagIds', [...state.activeEnrichmentTagIds].join(','));
     if (state.librarySort !== 'addedDate')      params.set('sort',             state.librarySort);
     if (state.libraryOrder !== 'desc')          params.set('order',            state.libraryOrder);
+    if (state.notesFilter)                      params.set('notes',            state.notesFilter);
     return `/api/titles?${params}`;
   }
   return `/api/titles?offset=${offset}&limit=${limit}`;
@@ -216,7 +238,12 @@ export function mountTitles(rootEl) {
       return;
     }
 
-    list.forEach(t => grid.appendChild(renderTitleCard(t, { watched: true })));
+    list.forEach(t => {
+      const card = renderTitleCard(t, { watched: true });
+      decorateWithNotesIcon(card, t);
+      scheduleBatchHydration([t.code]);
+      grid.appendChild(card);
+    });
     gridState.offset += list.length;
     gridState.count  += list.length;
     metaEl.textContent = `${gridState.count} loaded`;
@@ -241,12 +268,21 @@ export function mountTitles(rootEl) {
 
   // ── Cols-only filter bar for Favorites / Bookmarks ──
   function showSimpleFilterBar() {
-    simpleFiltBar.innerHTML = `<span class="tit-cols-ctrl">
+    simpleFiltBar.innerHTML = notesChipHtml(state.notesFilter) + `<span class="tit-cols-ctrl">
       <span class="tit-cols-caption">Cols</span>
       <input type="range" class="tit-cols-slider" id="tit-simple-cols-slider" min="2" max="10" step="1" value="${state._cols}">
       <span class="tit-cols-label" id="tit-simple-cols-label">${state._cols}</span>
     </span>`;
     simpleFiltBar.style.display = '';
+    const chip = simpleFiltBar.querySelector('#tcv2-notes-chip');
+    if (chip) {
+      wireNotesChip(chip, state, () => {
+        // Re-render the bar so chip label + active class update, then reload
+        showSimpleFilterBar();
+        resetGrid();
+        loadMore();
+      });
+    }
     const sl = simpleFiltBar.querySelector('#tit-simple-cols-slider');
     const lb = simpleFiltBar.querySelector('#tit-simple-cols-label');
     if (sl && lb) {

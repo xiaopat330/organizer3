@@ -13,5 +13,7 @@ export function createState() {
     sortField:          'count',    // 'count' | 'name'
     sortDir:            'desc',     // 'asc'   | 'desc'
     volumeId:           '',         // volume filter (retained from v2 volume-picker)
+    notesByCode:        new Map(),  // titleCode → NoteState | null  (post-it notes §5e)
+    notesCachedKey:     null,       // actressKey whose notes are in notesByCode
   };
 }

@@ -12,6 +12,7 @@ import {
 } from './actress-admin/index.js';
 import { openCustomAvatarEditor } from './custom-avatar-editor.js';
 import { renderTitleCard } from './cards/title-card.js';
+import { mountActressNotePanel } from './actress-detail-notes.js';
 
 const PAGE_LIMIT = 24;
 const FILTER_DEBOUNCE_MS = 350;
@@ -960,6 +961,9 @@ async function loadAndRender(rootEl) {
 
   wireIdentityActions(rootEl, a);
   renderFilterBar(rootEl.querySelector('#ad-filter-bar'), a);
+
+  // Mount the sticky-note panel as the last child of the left rail (aside.ad-rail).
+  mountActressNotePanel(actressId);
 
   // Portfolio + infinite scroll
   const grid = rootEl.querySelector('#ad-portfolio-grid');

@@ -296,6 +296,7 @@ export async function renderLibraryFilterPanel(state, titleTagsPanel, applyTitle
       </select>
       <button type="button" id="library-tags-toggle-btn" class="library-tags-toggle-btn">Tags</button>
       <button type="button" id="library-order-btn" class="library-order-btn">${state.libraryOrder === 'asc' ? 'A–Z' : 'Z–A'}</button>
+      <button type="button" id="library-notes-filter-chip" class="title-notes-filter-chip${state.notesFilter ? ' title-notes-chip-active' : ''}" data-notes-value="${state.notesFilter || ''}" title="Filter by note">${state.notesFilter === 'has_note' ? 'Notes: Has' : state.notesFilter === 'no_note' ? 'Notes: None' : 'Notes: Any'}</button>
       ${colsSliderHtml(effectiveCols(), 'title-cols-control', 'title-cols-slider', 'title-cols-label')}
     </div>
     <div class="library-tags-bar" id="library-tags-bar" style="display:none">
@@ -369,6 +370,21 @@ export async function renderLibraryFilterPanel(state, titleTagsPanel, applyTitle
   }
 
   wireColsSlider('title-cols-slider', 'title-cols-label', applyTitleGridCols);
+
+  const notesChip = document.getElementById('library-notes-filter-chip');
+  if (notesChip) {
+    notesChip.addEventListener('click', () => {
+      const cycle = [null, 'has_note', 'no_note'];
+      const idx = cycle.indexOf(state.notesFilter);
+      state.notesFilter = cycle[(idx + 1) % cycle.length];
+      state._scheduleQuery();
+      // Update chip label + active class in place (no full re-render needed here)
+      const val = state.notesFilter || '';
+      notesChip.dataset.notesValue = val;
+      notesChip.textContent = val === 'has_note' ? 'Notes: Has' : val === 'no_note' ? 'Notes: None' : 'Notes: Any';
+      notesChip.classList.toggle('title-notes-chip-active', !!val);
+    });
+  }
 
   document.getElementById('library-tags-toggle-btn')?.addEventListener('click', () => toggleTagsSection(state));
 

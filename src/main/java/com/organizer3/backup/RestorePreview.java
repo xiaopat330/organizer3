@@ -19,7 +19,8 @@ public record RestorePreview(
         Category titles,
         Category watchHistory,
         Category avActresses,
-        Category avVideos) {
+        Category avVideos,
+        Category notes) {
 
     /**
      * @param name          human label, e.g. "actresses"

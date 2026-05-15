@@ -235,10 +235,24 @@ public interface TitleRepository {
     List<Title> findByVolumeFiltered(String volumeId, List<String> labels, List<String> tags, int limit, int offset);
 
     /**
+     * Like {@link #findByVolumeFiltered} but also filters by notes presence.
+     * Pass {@code null} notesFilter for no notes filter.
+     */
+    List<Title> findByVolumeFiltered(String volumeId, List<String> labels, List<String> tags, int limit, int offset,
+                                      com.organizer3.notes.NotesFilter notesFilter);
+
+    /**
      * Find titles in a volume+partition, optionally restricted to label codes and/or requiring
      * all tags. Pass empty lists to skip that dimension. Ordered by favorite → bookmark → newest first.
      */
     List<Title> findByVolumeAndPartitionFiltered(String volumeId, String partitionId, List<String> labels, List<String> tags, int limit, int offset);
+
+    /**
+     * Like {@link #findByVolumeAndPartitionFiltered} but also filters by notes presence.
+     * Pass {@code null} notesFilter for no notes filter.
+     */
+    List<Title> findByVolumeAndPartitionFiltered(String volumeId, String partitionId, List<String> labels, List<String> tags, int limit, int offset,
+                                                  com.organizer3.notes.NotesFilter notesFilter);
 
     /** Returns all distinct tags (direct + label-derived) for titles on the given volume, sorted. */
     List<String> findTagsByVolume(String volumeId);
@@ -382,20 +396,33 @@ public interface TitleRepository {
      * @param enrichmentTagIds   raw enrichment_tag_definition IDs that must ALL be present (empty = no filter)
      * @param sort               "productCode" | "actressName" | "addedDate" (null → addedDate)
      * @param asc                true for ascending, false for descending
+     * @param notesFilter        {@link com.organizer3.notes.NotesFilter#HAS_NOTE} / {@code NO_NOTE}
+     *                           to filter by notes presence, or {@code null} for no filter
      */
     List<Title> findLibraryPaged(String labelPrefix, String seqPrefix,
                                   List<String> companyLabels, List<String> tags,
                                   List<Long> enrichmentTagIds,
                                   String sort, boolean asc,
-                                  int limit, int offset);
+                                  int limit, int offset,
+                                  com.organizer3.notes.NotesFilter notesFilter);
 
-    /** Convenience overload that forwards with an empty enrichmentTagIds list. */
+    /** Convenience overload that forwards with an empty enrichmentTagIds list and no notes filter. */
     default List<Title> findLibraryPaged(String labelPrefix, String seqPrefix,
                                           List<String> companyLabels, List<String> tags,
                                           String sort, boolean asc,
                                           int limit, int offset) {
         return findLibraryPaged(labelPrefix, seqPrefix, companyLabels, tags,
-                List.of(), sort, asc, limit, offset);
+                List.of(), sort, asc, limit, offset, null);
+    }
+
+    /** Convenience overload with no notes filter (backwards compat for callers that don't need it). */
+    default List<Title> findLibraryPaged(String labelPrefix, String seqPrefix,
+                                          List<String> companyLabels, List<String> tags,
+                                          List<Long> enrichmentTagIds,
+                                          String sort, boolean asc,
+                                          int limit, int offset) {
+        return findLibraryPaged(labelPrefix, seqPrefix, companyLabels, tags,
+                enrichmentTagIds, sort, asc, limit, offset, null);
     }
 
     /**

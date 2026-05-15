@@ -1,0 +1,202 @@
+/* ── Actress detail — sticky-note panel ───────────────────────────────────
+   Appended as last child of .actress-detail-left, below #detail-sidebar.
+   Tokens imported from modules/notes/tokens.css (loaded via index.html).
+──────────────────────────────────────────────────────────────────────── */
+
+/* Container: always-present wrapper positioned below the sidebar */
+.actress-note-panel {
+  margin-top: 16px;
+  width: 100%;
+
+  /* Sticky-note visual treatment */
+  background: var(--postit-yellow);
+  color: var(--postit-ink);
+  box-shadow: var(--postit-shadow);
+  transform: rotate(var(--postit-rotation, -1deg));
+  border-radius: 2px;
+
+  /* Consistent interior padding */
+  padding: 12px 14px 10px;
+  box-sizing: border-box;
+
+  /* Subtle transition for view switches */
+  transition: background 0.1s;
+}
+
+/* ── Loading state ─────────────────────────────────────────────────────── */
+.actress-note-panel--loading {
+  min-height: 44px;
+  opacity: 0.5;
+}
+
+/* ── Error state ───────────────────────────────────────────────────────── */
+.actress-note-error {
+  font-size: 12px;
+  color: var(--postit-ink);
+  opacity: 0.6;
+}
+
+/* ── Empty state ───────────────────────────────────────────────────────── */
+.actress-note-panel--empty {
+  background: transparent;
+  box-shadow: none;
+  /* Dashed outline signals "click to add" */
+  border: 2px dashed var(--postit-empty-outline, #BDBDBD);
+  /* Keep rotation even in empty state */
+}
+
+.actress-note-empty-label {
+  display: block;
+  font-size: 13px;
+  color: #757575;
+  text-align: center;
+  padding: 10px 4px;
+  cursor: pointer;
+  user-select: none;
+  line-height: 1.4;
+}
+
+.actress-note-empty-label:hover {
+  color: #424242;
+}
+
+/* ── Present state ─────────────────────────────────────────────────────── */
+.actress-note-panel--present {
+  position: relative;
+}
+
+.actress-note-present {
+  position: relative;
+}
+
+/* Edit button — top-right corner of the sticky */
+.actress-note-edit-btn {
+  position: absolute;
+  top: 0;
+  right: 0;
+  background: transparent;
+  border: none;
+  font-size: 11px;
+  color: var(--postit-ink);
+  cursor: pointer;
+  padding: 0 2px;
+  opacity: 0.55;
+  font-family: inherit;
+  line-height: 1;
+}
+
+.actress-note-edit-btn:hover {
+  opacity: 1;
+  text-decoration: underline;
+}
+
+/* Note body — preformatted, wrapping */
+.actress-note-body {
+  margin: 0;
+  padding: 0 0 20px;  /* bottom padding for edited-at line */
+  font-size: 13px;
+  line-height: 1.5;
+  font-family: inherit;
+  white-space: pre-wrap;
+  word-break: break-word;
+  color: var(--postit-ink);
+}
+
+/* Edited-at line — bottom-right, muted */
+.actress-note-edited-at {
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  font-size: 10px;
+  color: var(--postit-ink);
+  opacity: 0.5;
+  white-space: nowrap;
+  cursor: default;
+}
+
+/* ── Edit state ────────────────────────────────────────────────────────── */
+.actress-note-panel--editing {
+  /* Straighten slightly when actively editing — easier to type in */
+  transform: rotate(0deg);
+}
+
+.actress-note-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.actress-note-textarea {
+  width: 100%;
+  box-sizing: border-box;
+  resize: vertical;
+  min-height: 80px;
+  background: transparent;
+  border: 1px solid rgba(0, 0, 0, 0.2);
+  border-radius: 2px;
+  padding: 6px 8px;
+  font-size: 13px;
+  line-height: 1.5;
+  font-family: inherit;
+  color: var(--postit-ink);
+  outline: none;
+}
+
+.actress-note-textarea:focus {
+  border-color: rgba(0, 0, 0, 0.4);
+}
+
+/* Char counter */
+.actress-note-counter {
+  font-size: 11px;
+  color: var(--postit-counter-ok, #1A1A1A);
+  text-align: right;
+  line-height: 1;
+}
+
+.actress-note-counter.over-limit {
+  color: var(--postit-counter-over, #D32F2F);
+  font-weight: 600;
+}
+
+/* Action buttons row */
+.actress-note-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  align-items: center;
+}
+
+.actress-note-actions button {
+  background: transparent;
+  border: none;
+  font-size: 12px;
+  font-family: inherit;
+  color: var(--postit-ink);
+  cursor: pointer;
+  padding: 2px 4px;
+  opacity: 0.75;
+  border-radius: 2px;
+  line-height: 1.4;
+}
+
+.actress-note-actions button:hover {
+  opacity: 1;
+  text-decoration: underline;
+}
+
+.actress-note-actions button:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+  text-decoration: none;
+}
+
+/* Clear button — leftmost, slightly muted */
+.actress-note-clear-btn {
+  margin-right: auto;  /* push to far left */
+}
+
+/* Save button — slightly more prominent */
+.actress-note-save-btn {
+  font-weight: 600;
+}

@@ -8,6 +8,7 @@ import com.organizer3.model.Label;
 import com.organizer3.model.StudioGroup;
 import com.organizer3.model.Title;
 import com.organizer3.model.TitleSortSpec;
+import com.organizer3.notes.NotesFilter;
 import com.organizer3.organize.ActressClassifierService;
 import com.organizer3.rating.RatingCurve;
 import com.organizer3.rating.RatingCurveRepository;
@@ -163,7 +164,17 @@ public class ActressBrowseService {
 
     /** Paginated all-actresses query. */
     public List<ActressSummary> findAllPaged(int offset, int limit) {
-        return toSummaries(actressRepo.findAllPaged(limit, offset), "all");
+        return findAllPaged(offset, limit, null);
+    }
+
+    /**
+     * Paginated all-actresses query with optional notes-presence filter.
+     *
+     * @param notesFilter {@link NotesFilter#HAS_NOTE} / {@link NotesFilter#NO_NOTE}
+     *                    to restrict results, or {@code null} for no filter
+     */
+    public List<ActressSummary> findAllPaged(int offset, int limit, NotesFilter notesFilter) {
+        return toSummaries(actressRepo.findAllPaged(limit, offset, notesFilter), "all");
     }
 
     /** Paginated favorites query. */

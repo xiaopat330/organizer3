@@ -11,6 +11,7 @@
 
 import { openTitleTagEditor } from './title-tag-editor.js';
 import { renderTitleCard }   from './cards/title-card.js';
+import { getNote, putNote, deleteNote, attachCharCounter } from '/modules/notes/index.js';
 
 const COVER_ROOT = '/covers';
 const THUMB_RATIOS = [
@@ -106,7 +107,10 @@ function renderHero(t) {
 
   return `
     <div class="hero-band hero-band-title">
-      <div class="hero-cover" id="hero-cover" style="background-image:url('${escapeHtml(cover)}');cursor:zoom-in" title="Click to enlarge"></div>
+      <div class="hero-cover-col">
+        <div class="hero-cover" id="hero-cover" style="background-image:url('${escapeHtml(cover)}');cursor:zoom-in" title="Click to enlarge"></div>
+        <div id="v2-title-note-panel"></div>
+      </div>
       <div class="hero-content">
         ${eyebrowHtml}
         <h1 class="hero-name hero-name-code">${escapeHtml(titleCode)}${llmBadge}</h1>
@@ -483,6 +487,315 @@ async function loadMoreFromActress(t, container) {
   container.appendChild(section);
 }
 
+/* ── Post-It Notes: sticky panel (§5.3) ───────────────────────────── */
+
+const V2_NOTE_TOKENS_LINK_ID = 'v2-notes-tokens-css';
+const V2_NOTE_PANEL_STYLE_ID = 'v2-title-detail-note-panel-styles';
+const V2_NOTE_PANEL_ID       = 'v2-title-note-panel';
+const V2_NOTE_MAX_CHARS      = 280;
+
+/** Injects notes design tokens (idempotent). */
+function v2EnsureNoteTokens() {
+  if (document.getElementById(V2_NOTE_TOKENS_LINK_ID)) return;
+  const link = document.createElement('link');
+  link.id   = V2_NOTE_TOKENS_LINK_ID;
+  link.rel  = 'stylesheet';
+  link.href = '/modules/notes/tokens.css';
+  document.head.appendChild(link);
+}
+
+/** Injects v2 panel-specific styles (idempotent). */
+function v2EnsureNotePanelStyles() {
+  if (document.getElementById(V2_NOTE_PANEL_STYLE_ID)) return;
+  const style = document.createElement('style');
+  style.id = V2_NOTE_PANEL_STYLE_ID;
+  style.textContent = `
+/* ── v2 title-detail cover column ─────────────────────────────────── */
+.hero-cover-col {
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  width: 160px;
+  align-items: stretch;
+}
+
+/* ── v2 title-detail sticky-note panel (§5.3) ─────────────────────── */
+#${V2_NOTE_PANEL_ID} {
+  background: var(--postit-yellow, #FFF59D);
+  color: var(--postit-ink, #1A1A1A);
+  border-radius: 2px;
+  box-shadow: var(--postit-shadow, 0 2px 4px rgba(0,0,0,.15));
+  transform: rotate(var(--postit-rotation, -1deg));
+  padding: 12px 14px 10px;
+  margin-top: 14px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+/* Empty state */
+#${V2_NOTE_PANEL_ID}.v2tdnp-empty {
+  background: transparent;
+  border: 2px dashed var(--postit-empty-outline, #BDBDBD);
+  box-shadow: none;
+  color: #757575;
+  cursor: pointer;
+  font-size: 0.84rem;
+  text-align: center;
+  padding: 14px;
+  transform: none;
+}
+
+#${V2_NOTE_PANEL_ID}.v2tdnp-empty:hover {
+  border-color: var(--postit-yellow-edge, #FFEB3B);
+  color: var(--postit-ink, #1A1A1A);
+}
+
+/* Present state: note body */
+.v2tdnp-body {
+  font-size: 0.88rem;
+  line-height: 1.55;
+  white-space: pre-wrap;
+  word-break: break-word;
+  margin: 0 0 6px;
+  font-family: inherit;
+}
+
+/* Edit affordance */
+.v2tdnp-edit-btn {
+  float: right;
+  background: none;
+  border: none;
+  color: var(--postit-ink, #1A1A1A);
+  font-family: inherit;
+  font-size: 0.75rem;
+  cursor: pointer;
+  padding: 0 0 4px 8px;
+  opacity: 0.6;
+  margin: 0;
+}
+.v2tdnp-edit-btn:hover { opacity: 1; text-decoration: underline; }
+
+/* Edited-at line */
+.v2tdnp-edited-at {
+  display: block;
+  text-align: right;
+  font-size: 0.72rem;
+  color: rgba(26,26,26,0.5);
+  margin-top: 6px;
+}
+
+/* Edit mode */
+.v2tdnp-textarea {
+  width: 100%;
+  box-sizing: border-box;
+  background: transparent;
+  border: 1px solid var(--postit-yellow-edge, #FFEB3B);
+  border-radius: 2px;
+  color: var(--postit-ink, #1A1A1A);
+  font-family: inherit;
+  font-size: 0.88rem;
+  line-height: 1.5;
+  padding: 6px;
+  resize: vertical;
+  outline: none;
+  min-height: 72px;
+}
+.v2tdnp-textarea:focus { border-color: var(--postit-ink, #1A1A1A); }
+.v2tdnp-textarea::placeholder { color: rgba(26,26,26,0.4); }
+
+.v2tdnp-counter {
+  font-size: 0.75rem;
+  color: var(--postit-counter-ok, #1A1A1A);
+  text-align: right;
+  margin: 2px 0 6px;
+}
+.v2tdnp-counter.over-limit {
+  color: var(--postit-counter-over, #D32F2F);
+  font-weight: 600;
+}
+
+.v2tdnp-actions {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 8px;
+}
+
+.v2tdnp-btn {
+  background: none;
+  border: none;
+  color: var(--postit-ink, #1A1A1A);
+  font-family: inherit;
+  font-size: 0.82rem;
+  cursor: pointer;
+  padding: 3px 5px;
+  border-radius: 2px;
+}
+.v2tdnp-btn:hover { text-decoration: underline; }
+.v2tdnp-btn:disabled { opacity: 0.4; cursor: not-allowed; text-decoration: none; }
+.v2tdnp-btn-clear { margin-right: auto; }
+`;
+  document.head.appendChild(style);
+}
+
+/**
+ * Converts epoch millis to a relative-time string.
+ * Mirrors v1 title-detail.js#relativeMillis.
+ */
+function v2RelativeMillis(ms) {
+  const seconds = Math.floor((Date.now() - ms) / 1000);
+  if (seconds < 60)    return 'just now';
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60)    return minutes === 1 ? '1 minute ago' : `${minutes} minutes ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24)      return hours === 1 ? '1 hour ago' : `${hours} hours ago`;
+  const days = Math.floor(hours / 24);
+  if (days < 14)       return days === 1 ? '1 day ago' : `${days} days ago`;
+  const weeks = Math.floor(days / 7);
+  if (weeks < 9)       return weeks === 1 ? '1 week ago' : `${weeks} weeks ago`;
+  const months = Math.floor(days / 30);
+  if (months <= 3)     return months === 1 ? '1 month ago' : `${months} months ago`;
+  return 'more than 3 months ago';
+}
+
+/**
+ * Renders the sticky-note panel into #v2-title-note-panel.
+ * @param {string} titleCode
+ * @param {{body:string, createdAt:number, updatedAt:number}|null} note
+ */
+function v2RenderTitleNotePanel(titleCode, note) {
+  const panel = document.getElementById(V2_NOTE_PANEL_ID);
+  if (!panel) return;
+
+  // Reset
+  panel.innerHTML = '';
+  panel.className = '';
+  panel.removeAttribute('id');
+  panel.id = V2_NOTE_PANEL_ID;
+
+  if (!note) {
+    panel.classList.add('v2tdnp-empty');
+    panel.textContent = 'No note yet — click to add';
+    panel.addEventListener('click', () => v2ActivateEditMode(panel, titleCode, null));
+    return;
+  }
+
+  v2RenderPresentState(panel, titleCode, note);
+}
+
+function v2RenderPresentState(panel, titleCode, note) {
+  panel.className = '';
+  panel.id = V2_NOTE_PANEL_ID;
+  panel.innerHTML = '';
+
+  const editBtn = document.createElement('button');
+  editBtn.type = 'button';
+  editBtn.className = 'v2tdnp-edit-btn';
+  editBtn.textContent = 'Edit';
+  editBtn.addEventListener('click', () => v2ActivateEditMode(panel, titleCode, note));
+
+  const body = document.createElement('pre');
+  body.className = 'v2tdnp-body';
+  body.textContent = note.body;
+
+  const editedAt = document.createElement('span');
+  editedAt.className = 'v2tdnp-edited-at';
+  editedAt.textContent = `edited ${v2RelativeMillis(note.updatedAt)}`;
+  editedAt.title = new Date(note.updatedAt).toLocaleString();
+
+  panel.appendChild(editBtn);
+  panel.appendChild(body);
+  panel.appendChild(editedAt);
+}
+
+function v2ActivateEditMode(panel, titleCode, currentNote) {
+  panel.className = '';
+  panel.id = V2_NOTE_PANEL_ID;
+  panel.innerHTML = '';
+
+  const textarea = document.createElement('textarea');
+  textarea.className = 'v2tdnp-textarea';
+  textarea.rows = 4;
+  textarea.placeholder = 'Add a note…';
+  textarea.value = currentNote ? currentNote.body : '';
+
+  const counter = document.createElement('div');
+  counter.className = 'v2tdnp-counter';
+
+  const detachCounter = attachCharCounter(textarea, counter, { max: V2_NOTE_MAX_CHARS });
+
+  const actions = document.createElement('div');
+  actions.className = 'v2tdnp-actions';
+
+  const saveBtn = document.createElement('button');
+  saveBtn.type = 'button';
+  saveBtn.className = 'v2tdnp-btn';
+  saveBtn.textContent = 'Save';
+
+  const cancelBtn = document.createElement('button');
+  cancelBtn.type = 'button';
+  cancelBtn.className = 'v2tdnp-btn';
+  cancelBtn.textContent = 'Cancel';
+
+  function updateSaveState() {
+    saveBtn.disabled = textarea.value.length > V2_NOTE_MAX_CHARS;
+  }
+  textarea.addEventListener('input', updateSaveState);
+  updateSaveState();
+
+  if (currentNote) {
+    const clearBtn = document.createElement('button');
+    clearBtn.type = 'button';
+    clearBtn.className = 'v2tdnp-btn v2tdnp-btn-clear';
+    clearBtn.textContent = 'Clear';
+    clearBtn.addEventListener('click', async () => {
+      detachCounter();
+      try { await deleteNote('title', titleCode); } catch (e) { console.error('notes: deleteNote failed', e); }
+      v2RenderTitleNotePanel(titleCode, null);
+    });
+    actions.appendChild(clearBtn);
+  }
+
+  actions.appendChild(cancelBtn);
+  actions.appendChild(saveBtn);
+
+  cancelBtn.addEventListener('click', () => {
+    detachCounter();
+    v2RenderTitleNotePanel(titleCode, currentNote);
+  });
+
+  saveBtn.addEventListener('click', async () => {
+    let result;
+    try {
+      result = await putNote('title', titleCode, textarea.value);
+    } catch (e) {
+      console.error('notes: putNote failed', e);
+      return;
+    }
+    detachCounter();
+    v2RenderTitleNotePanel(titleCode, result);
+  });
+
+  panel.appendChild(textarea);
+  panel.appendChild(counter);
+  panel.appendChild(actions);
+  textarea.focus();
+  textarea.setSelectionRange(textarea.value.length, textarea.value.length);
+}
+
+/** Fetches the note for this title and hydrates the panel. */
+async function v2LoadTitleNote(titleCode) {
+  v2EnsureNoteTokens();
+  v2EnsureNotePanelStyles();
+  let note = null;
+  try {
+    note = await getNote('title', titleCode);
+  } catch (e) {
+    console.error('notes: getNote failed', e);
+  }
+  v2RenderTitleNotePanel(titleCode, note);
+}
+
 /* ── Bootstrap ─────────────────────────────────────────────────────── */
 async function loadAndRender(rootEl, code) {
   const t = await fetchJson(`/api/titles/by-code/${encodeURIComponent(code)}`, null);
@@ -544,6 +857,7 @@ async function loadAndRender(rootEl, code) {
   loadEnrichmentTags(titleCode);
   renderVideosSection(titleCode, rootEl.querySelector('#videos-slot'));
   loadMoreFromActress(t, rootEl.querySelector('#more-slot'));
+  v2LoadTitleNote(titleCode);
 
   // Auto visit
   fetch(`/api/titles/${encodeURIComponent(titleCode)}/visit`, { method: 'POST' }).catch(() => {});

@@ -5,6 +5,7 @@ import com.organizer3.db.SchemaInitializer;
 import com.organizer3.avstars.repository.jdbi.JdbiAvActressRepository;
 import com.organizer3.avstars.repository.jdbi.JdbiAvVideoRepository;
 import com.organizer3.repository.jdbi.JdbiActressRepository;
+import com.organizer3.repository.jdbi.JdbiNoteRepository;
 import com.organizer3.repository.jdbi.JdbiTitleLocationRepository;
 import com.organizer3.repository.jdbi.JdbiTitleRepository;
 import com.organizer3.repository.jdbi.JdbiVolumeRepository;
@@ -47,7 +48,8 @@ class BackupCatalogServiceTest {
                 new JdbiTitleRepository(jdbi, locationRepo),
                 new JdbiWatchHistoryRepository(jdbi),
                 new JdbiAvActressRepository(jdbi),
-                new JdbiAvVideoRepository(jdbi));
+                new JdbiAvVideoRepository(jdbi),
+                new JdbiNoteRepository(jdbi));
 
         basePath = tempDir.resolve("backups").resolve("user-data-backup.json");
         catalog  = new BackupCatalogService(backupService, basePath);

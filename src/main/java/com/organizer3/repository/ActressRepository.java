@@ -89,6 +89,16 @@ public interface ActressRepository {
     /** Paginated: all actresses ordered by canonical name. */
     List<Actress> findAllPaged(int limit, int offset);
 
+    /**
+     * Paginated: all actresses ordered by canonical name, optionally filtered by notes presence.
+     *
+     * @param notesFilter {@link com.organizer3.notes.NotesFilter#HAS_NOTE} to return only
+     *                    actresses that have a note, {@link com.organizer3.notes.NotesFilter#NO_NOTE}
+     *                    to return only those without, or {@code null} for no filter (same as
+     *                    {@link #findAllPaged(int, int)}).
+     */
+    List<Actress> findAllPaged(int limit, int offset, com.organizer3.notes.NotesFilter notesFilter);
+
     /** Paginated: only favorite actresses ordered by canonical name. */
     List<Actress> findFavoritesPaged(int limit, int offset);
 

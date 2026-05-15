@@ -298,6 +298,11 @@ public class Application {
         AvTagDefinitionRepository avTagDefRepo    = new JdbiAvTagDefinitionRepository(jdbi);
         AvVideoTagRepository      avVideoTagRepo  = new JdbiAvVideoTagRepository(jdbi);
 
+        // Notes repository — created here so it can be shared by both UserDataBackupService
+        // (export/restore path) and NoteService (HTTP API + validation path).
+        com.organizer3.notes.NoteRepository noteRepo =
+                new com.organizer3.repository.jdbi.JdbiNoteRepository(jdbi);
+
         // Seed actress aliases from aliases.yaml
         try (var aliasStream = Application.class.getResourceAsStream("/aliases.yaml")) {
             if (aliasStream != null) {
@@ -370,7 +375,7 @@ public class Application {
                 ? backupCfg.autoBackupIntervalMinutes() : 0;
         int snapshotCount = (backupCfg != null && backupCfg.snapshotCount() != null)
                 ? backupCfg.snapshotCount() : 0;
-        UserDataBackupService backupService = new UserDataBackupService(actressRepo, titleRepo, watchHistoryRepo, avActressRepo, avVideoRepo);
+        UserDataBackupService backupService = new UserDataBackupService(actressRepo, titleRepo, watchHistoryRepo, avActressRepo, avVideoRepo, noteRepo);
         commands.add(new BackupCommand(backupService, backupPath, snapshotCount));
         commands.add(new RestoreCommand(backupService, backupPath));
         commands.add(new ExportAliasesCommand(actressRepo, dataDir));
@@ -1085,6 +1090,14 @@ public class Application {
                 actressFuzzyMatcher, stageNameLookupRepo, stageNameSuggestionRepo,
                 translationQueueRepo, translationService, jdbi));
 
+        // Notes: user-curated per-entity annotations (spec/PROPOSAL_POST_IT_NOTES.md).
+        com.organizer3.notes.NoteService noteService =
+                new com.organizer3.notes.NoteService(noteRepo,
+                        new com.organizer3.notes.JdbiEntityResolver(jdbi));
+        com.organizer3.notes.OrphanNoteFinder orphanNoteFinder =
+                new com.organizer3.notes.OrphanNoteFinder(jdbi);
+        webServer.registerNotes(new com.organizer3.web.routes.NoteRoutes(noteService));
+
         // MCP (Model Context Protocol) server — read-only diagnostic tools mounted on
         // the existing Javalin instance. See spec/PROPOSAL_MCP_SERVER.md.
         com.organizer3.mcp.McpConfig mcpConfig = AppConfig.get().volumes().mcp() != null
@@ -1113,13 +1126,14 @@ public class Application {
                     .register(new com.organizer3.mcp.tools.FindEnrichmentCastMismatchesTool(jdbi))
                     .register(new com.organizer3.mcp.tools.BackfillActressSlugsFromCastTool(jdbi, enrichmentReviewQueueRepo))
                     .register(new com.organizer3.mcp.tools.FindStaleLocationsTool(jdbi))
+                    .register(new com.organizer3.mcp.NoteToolHandlers.FindOrphanNotes(orphanNoteFinder))
                     .register(new com.organizer3.mcp.tools.ListActressesWithMisnamedFoldersTool(jdbi))
                     .register(new com.organizer3.mcp.tools.FindMisnamedFoldersForActressTool(jdbi, actressRepo))
                     .register(new com.organizer3.mcp.tools.ListActressLocationsTool(actressRepo, jdbi))
                     .register(new com.organizer3.mcp.tools.FindFsOnlyTitlesTool(session, jdbi))
                     .register(new com.organizer3.mcp.tools.FindActressFolderCandidatesTool(session, actressRepo, jdbi, config))
                     .register(new com.organizer3.mcp.tools.FindMultiActressFolderDriftTool(session, actressRepo, jdbi))
-                    .register(new com.organizer3.mcp.tools.VolumeCurationReportTool(session, actressRepo, jdbi))
+                    .register(new com.organizer3.mcp.tools.VolumeCurationReportTool(session, actressRepo, jdbi, orphanNoteFinder))
                     .register(new com.organizer3.mcp.tools.ListMultiVideoTitlesTool(jdbi))
                     .register(new com.organizer3.mcp.tools.AnalyzeTitleVideosTool(titleRepo, videoRepo))
                     .register(new com.organizer3.mcp.tools.FindDuplicateCandidatesTool(jdbi))
@@ -1169,6 +1183,7 @@ public class Application {
                 mcpTools.register(new com.organizer3.mcp.tools.MergeActressesTool(jdbi, actressRepo, curationLog));
                 mcpTools.register(new com.organizer3.mcp.tools.DeleteTitleTool(jdbi, titleRepo, enrichmentHistoryRepo));
                 mcpTools.register(new com.organizer3.mcp.tools.PruneStaleLocationsTool(jdbi));
+                mcpTools.register(new com.organizer3.mcp.NoteToolHandlers.PruneOrphanNotes(orphanNoteFinder));
                 mcpTools.register(new com.organizer3.mcp.tools.RevalidateEnrichmentTool(revalidationService, revalidationPendingRepo));
                 mcpTools.register(new com.organizer3.mcp.tools.SetDuplicateDecisionTool(dupDecisionRepo));
                 mcpTools.register(new com.organizer3.mcp.tools.DecideMergeCandidateTool(mergeCandidateRepo));

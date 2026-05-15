@@ -19,6 +19,9 @@ import java.util.List;
  *
  * <p>v2 added {@code avActresses} and {@code avVideos}. v1 files deserialised with these
  * fields as {@code null}; callers must null-check before iterating.
+ *
+ * <p>v3 added {@code notes}. v1/v2 files deserialise with {@code notes} as {@code null};
+ * callers must null-check before iterating.
  */
 public record UserDataBackup(
         int version,
@@ -27,5 +30,6 @@ public record UserDataBackup(
         List<TitleBackupEntry> titles,
         List<WatchHistoryEntry> watchHistory,
         List<AvActressBackupEntry> avActresses,   // null in v1 files
-        List<AvVideoBackupEntry> avVideos         // null in v1 files
+        List<AvVideoBackupEntry> avVideos,        // null in v1 files
+        List<NoteBackupEntry> notes               // null in v1/v2 files
 ) {}

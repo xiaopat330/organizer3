@@ -9,6 +9,7 @@ import { openCustomAvatarEditor } from './custom-avatar-editor.js';
 import { mountAdmin, unmountAdmin } from './actress-detail-admin/index.js';
 import { confirmDiscardIfStaged } from './actress-detail-admin/nav-guard.js';
 import { displayPath, installPathClickToCopy } from './path-utils.js';
+import { mountActressNotePanel } from './actress-detail/notes-panel.js';
 
 // ── State ─────────────────────────────────────────────────────────────────
 export let detailActressId    = null;
@@ -117,6 +118,7 @@ export async function openActressDetail(actressId) {
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();
     renderDetailPanel(data);
+    mountActressNotePanel(data.id);   // §5.3 sticky-note panel (Phase 4b)
     crumbs[crumbs.length - 1] = { label: data.canonicalName };
     updateBreadcrumb(crumbs);
 
