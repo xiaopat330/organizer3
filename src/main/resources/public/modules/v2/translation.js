@@ -97,6 +97,24 @@ function failureRow(label, count, reasonKey, hint) {
   `;
 }
 
+/* ── Strategy helpers ─────────────────────────────────────────────── */
+/** Returns {primary, fallback} model-id strings from the active-strategies array.
+ *  A strategy whose id is referenced by another strategy's tier2StrategyId is
+ *  the fallback; everything else is primary. Mirrors v1 summarizeStrategies. */
+function summarizeStrategies(strategies) {
+  if (!strategies || !strategies.length) return { primary: null, fallback: null };
+  const tier2Ids = new Set();
+  strategies.forEach(s => { if (s.tier2StrategyId != null) tier2Ids.add(s.tier2StrategyId); });
+  const primarySet  = new Set();
+  const fallbackSet = new Set();
+  strategies.forEach(s => {
+    if (tier2Ids.has(s.id)) fallbackSet.add(s.modelId);
+    else                    primarySet.add(s.modelId);
+  });
+  const join = set => set.size ? Array.from(set).join(', ') : null;
+  return { primary: join(primarySet), fallback: join(fallbackSet) };
+}
+
 /* ── Ollama status pill — 4-state rich version ─────────────────────── */
 function renderOllamaPill(health) {
   if (!health) {
@@ -216,9 +234,7 @@ function renderStatCards(stats, sweeper, strategies, health, expanded) {
     let fallbackRow = `<div class="trans-model-row"><span class="trans-model-role-label">Fallback</span><span class="trans-model-missing">loading…</span></div>`;
 
     if (strategies) {
-      // strategies shape varies; try a few common keys
-      const primary  = strategies.primary?.modelId || strategies.primaryModelId || strategies.tier1?.modelId || null;
-      const fallback = strategies.fallback?.modelId || strategies.fallbackModelId || strategies.tier2?.modelId || null;
+      const { primary, fallback } = summarizeStrategies(strategies);
       const row = (label, modelId) => {
         const isActive = modelId && current && String(modelId).split(',').map(s => s.trim()).includes(current);
         return `<div class="trans-model-row ${isActive ? 'is-active' : ''}">
@@ -313,7 +329,7 @@ function renderStatCards(stats, sweeper, strategies, health, expanded) {
 
 /* ── Queue preview row + Activity row ──────────────────────────────── */
 function renderQueueRow(r) {
-  const inFlight = r.status === 'IN_FLIGHT';
+  const inFlight = r.status === 'in_flight';
   return `
     <li class="trans-queue-row ${inFlight ? 'inflight' : 'pending'}">
       <span class="pill ${inFlight ? 'warn' : ''}">${escapeHtml(humanizeEnumLabel(r.status || ''))}</span>

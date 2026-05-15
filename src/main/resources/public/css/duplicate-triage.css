@@ -987,6 +987,12 @@
   border-color: #9f1239;
   border-bottom-color: #fb7185;
 }
+.tools-section-tab-actress-enrichment.selected {
+  color: #fcd34d;
+  background: #1f1405;
+  border-color: #b45309;
+  border-bottom-color: #f59e0b;
+}
 .tools-section-tab-actress-admin.selected {
   color: #a5b4fc;
   background: #0f0c2a;
