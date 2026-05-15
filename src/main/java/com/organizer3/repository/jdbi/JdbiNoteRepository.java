@@ -15,6 +15,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
+
 /**
  * JDBI-backed implementation of {@link NoteRepository}.
  *
@@ -71,6 +72,14 @@ public class JdbiNoteRepository implements NoteRepository {
     }
 
     @Override
+    public List<Note> findAll() {
+        return jdbi.withHandle(h ->
+                h.createQuery("SELECT * FROM notes ORDER BY entity_type, entity_id")
+                        .map(MAPPER)
+                        .list());
+    }
+
+    @Override
     public void upsert(EntityType type, String id, String body) {
         long now = Instant.now().toEpochMilli();
         jdbi.useHandle(h -> h.createUpdate("""
@@ -83,6 +92,24 @@ public class JdbiNoteRepository implements NoteRepository {
                 .bind("id", id)
                 .bind("body", body)
                 .bind("now", now)
+                .execute());
+    }
+
+    @Override
+    public void restoreNote(EntityType type, String id, String body, long createdAt, long updatedAt) {
+        jdbi.useHandle(h -> h.createUpdate("""
+                        INSERT INTO notes (entity_type, entity_id, body, created_at, updated_at)
+                        VALUES (:type, :id, :body, :createdAt, :updatedAt)
+                        ON CONFLICT(entity_type, entity_id)
+                        DO UPDATE SET body = excluded.body,
+                                      created_at = excluded.created_at,
+                                      updated_at = excluded.updated_at
+                        """)
+                .bind("type", type.wireValue())
+                .bind("id", id)
+                .bind("body", body)
+                .bind("createdAt", createdAt)
+                .bind("updatedAt", updatedAt)
                 .execute());
     }
 

@@ -297,7 +297,7 @@ class UtilitiesRoutesTest {
     @Test
     void getBackupSnapshot_returnsDetailWhenFound() throws Exception {
         var fakeDetail = new UserDataBackupService.SnapshotDetail(
-                "snap-1.json", 1024L, 1, "2024-01-01T00:00:00Z", 10, 100, 0, 0, 0);
+                "snap-1.json", 1024L, 1, "2024-01-01T00:00:00Z", 10, 100, 0, 0, 0, 0);
         var tmpPath = java.nio.file.Path.of("/tmp/snap-1.json");
         when(backupCatalog.resolve("snap-1")).thenReturn(Optional.of(tmpPath));
         when(backupService.snapshotDetail(tmpPath)).thenReturn(fakeDetail);

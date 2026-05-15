@@ -9,7 +9,10 @@ import com.organizer3.model.Actress;
 import com.organizer3.model.Title;
 import com.organizer3.model.Volume;
 import com.organizer3.model.TitleLocation;
+import com.organizer3.notes.EntityType;
+import com.organizer3.notes.Note;
 import com.organizer3.repository.jdbi.JdbiActressRepository;
+import com.organizer3.repository.jdbi.JdbiNoteRepository;
 import com.organizer3.repository.jdbi.JdbiTitleLocationRepository;
 import com.organizer3.repository.jdbi.JdbiTitleRepository;
 import com.organizer3.repository.jdbi.JdbiVolumeRepository;
@@ -42,6 +45,7 @@ class UserDataBackupServiceTest {
     private JdbiWatchHistoryRepository watchHistoryRepo;
     private JdbiAvActressRepository avActressRepo;
     private JdbiAvVideoRepository avVideoRepo;
+    private JdbiNoteRepository noteRepo;
     private UserDataBackupService service;
 
     @BeforeEach
@@ -57,7 +61,8 @@ class UserDataBackupServiceTest {
         watchHistoryRepo = new JdbiWatchHistoryRepository(jdbi);
         avActressRepo = new JdbiAvActressRepository(jdbi);
         avVideoRepo = new JdbiAvVideoRepository(jdbi);
-        service = new UserDataBackupService(actressRepo, titleRepo, watchHistoryRepo, avActressRepo, avVideoRepo);
+        noteRepo = new JdbiNoteRepository(jdbi);
+        service = new UserDataBackupService(actressRepo, titleRepo, watchHistoryRepo, avActressRepo, avVideoRepo, noteRepo);
 
         // Seed a volume so title locations can be created
         volumeRepo.save(new Volume("vol-a", "conventional"));
@@ -238,7 +243,7 @@ class UserDataBackupServiceTest {
         // Write a valid file then manually bump the version field
         UserDataBackup backup = new UserDataBackup(
                 UserDataBackupService.CURRENT_BACKUP_VERSION + 1,
-                LocalDateTime.now(), List.of(), List.of(), List.of(), List.of(), List.of());
+                LocalDateTime.now(), List.of(), List.of(), List.of(), List.of(), List.of(), List.of());
         Path backupFile = tempDir.resolve("future.json");
         service.write(backup, backupFile);
 
@@ -261,7 +266,7 @@ class UserDataBackupServiceTest {
                 LocalDateTime.now(),
                 List.of(new ActressBackupEntry("Airi Suzumura", true, false, null, "A+", false, 7,
                         LocalDateTime.of(2026, 2, 10, 18, 0))),
-                List.of(), List.of(), List.of(), List.of());
+                List.of(), List.of(), List.of(), List.of(), List.of());
 
         RestoreResult result = service.restore(backup);
 
@@ -285,7 +290,7 @@ class UserDataBackupServiceTest {
                 LocalDateTime.now(), List.of(),
                 List.of(new TitleBackupEntry("SSIS-001", true, false, null, "S", false, 3,
                         LocalDateTime.of(2026, 3, 1, 20, 0), "Excellent solo.")),
-                List.of(), List.of(), List.of());
+                List.of(), List.of(), List.of(), List.of());
 
         RestoreResult result = service.restore(backup);
 
@@ -305,7 +310,7 @@ class UserDataBackupServiceTest {
                 UserDataBackupService.CURRENT_BACKUP_VERSION,
                 LocalDateTime.now(),
                 List.of(new ActressBackupEntry("Unknown Actress", true, false, null, null, false, 0, null)),
-                List.of(), List.of(), List.of(), List.of());
+                List.of(), List.of(), List.of(), List.of(), List.of());
 
         RestoreResult result = service.restore(backup);
 
@@ -319,7 +324,7 @@ class UserDataBackupServiceTest {
                 UserDataBackupService.CURRENT_BACKUP_VERSION,
                 LocalDateTime.now(), List.of(),
                 List.of(new TitleBackupEntry("GHOST-999", true, false, null, null, false, 0, null, null)),
-                List.of(), List.of(), List.of());
+                List.of(), List.of(), List.of(), List.of());
 
         RestoreResult result = service.restore(backup);
 
@@ -337,7 +342,7 @@ class UserDataBackupServiceTest {
                 List.of(
                         new WatchHistoryEntry("ABP-001", LocalDateTime.of(2026, 1, 1, 12, 0)),  // already exists
                         new WatchHistoryEntry("ABP-001", LocalDateTime.of(2026, 2, 1, 20, 0))   // new
-                ), List.of(), List.of());
+                ), List.of(), List.of(), List.of());
 
         RestoreResult result = service.restore(backup);
 
@@ -559,7 +564,7 @@ class UserDataBackupServiceTest {
                 UserDataBackupService.CURRENT_BACKUP_VERSION, LocalDateTime.now(),
                 List.of(), List.of(), List.of(),
                 List.of(new AvActressBackupEntry("av_vol", "lela_star", true, false, false, "A", "Great performer.", 3, null)),
-                List.of());
+                List.of(), List.of());
 
         RestoreResult result = service.restore(backup);
 
@@ -578,7 +583,7 @@ class UserDataBackupServiceTest {
                 UserDataBackupService.CURRENT_BACKUP_VERSION, LocalDateTime.now(),
                 List.of(), List.of(), List.of(),
                 List.of(new AvActressBackupEntry("av_vol", "ghost_folder", true, false, false, null, null, 0, null)),
-                List.of());
+                List.of(), List.of());
 
         RestoreResult result = service.restore(backup);
 
@@ -637,7 +642,7 @@ class UserDataBackupServiceTest {
                 UserDataBackupService.CURRENT_BACKUP_VERSION, LocalDateTime.now(),
                 List.of(), List.of(), List.of(), List.of(),
                 List.of(new AvVideoBackupEntry("av_vol", "lela_star", "lela_star/scene.mp4",
-                        true, false, true, 2, null)));
+                        true, false, true, 2, null)), List.of());
 
         RestoreResult result = service.restore(backup);
 
@@ -651,7 +656,7 @@ class UserDataBackupServiceTest {
                 UserDataBackupService.CURRENT_BACKUP_VERSION, LocalDateTime.now(),
                 List.of(), List.of(), List.of(), List.of(),
                 List.of(new AvVideoBackupEntry("av_vol", "ghost_folder", "ghost_folder/scene.mp4",
-                        true, false, false, 0, null)));
+                        true, false, false, 0, null)), List.of());
 
         RestoreResult result = service.restore(backup);
 
@@ -698,6 +703,7 @@ class UserDataBackupServiceTest {
 
         assertNull(backup.avActresses());
         assertNull(backup.avVideos());
+        assertNull(backup.notes());
 
         // Restoring should not throw — null lists treated as empty
         RestoreResult result = service.restore(backup);
@@ -705,5 +711,79 @@ class UserDataBackupServiceTest {
         assertEquals(0, result.avActressesSkipped());
         assertEquals(0, result.avVideosRestored());
         assertEquals(0, result.avVideosSkipped());
+        assertEquals(0, result.notesRestored());
+    }
+
+    // ── Notes backup round-trip ──────────────────────────────────────────────
+
+    /**
+     * Regression: export→wipe→import preserves ALL note rows including orphans.
+     *
+     * An orphan note is one whose entity_id no longer refers to a canonical actress or title.
+     * Per spec §8.1, backup round-trips must preserve orphan rows — the import path bypasses
+     * NoteService.upsert() (which validates canonical existence) and calls
+     * NoteRepository.restoreNote() directly with original timestamps.
+     */
+    @Test
+    void notesRoundTripPreservesAllRowsIncludingOrphans() throws Exception {
+        // Seed a canonical actress note
+        actressRepo.save(Actress.builder()
+                .canonicalName("Yua Mikami").tier(Actress.Tier.GODDESS)
+                .firstSeenAt(LocalDate.now()).build());
+        long actressCreatedAt = 1_700_000_000_000L;
+        long actressUpdatedAt = 1_700_010_000_000L;
+        noteRepo.restoreNote(EntityType.ACTRESS, "yua-mikami", "Check cover art.", actressCreatedAt, actressUpdatedAt);
+
+        // Seed a canonical title note
+        titleRepo.save(Title.builder().code("SSIS-001").baseCode("SSIS-00001").label("SSIS").build());
+        long titleCreatedAt = 1_710_000_000_000L;
+        long titleUpdatedAt = 1_710_005_000_000L;
+        noteRepo.restoreNote(EntityType.TITLE, "SSIS-001", "Favorite scene at 42:18.", titleCreatedAt, titleUpdatedAt);
+
+        // Seed an ORPHAN note — entity_id refers to a deleted actress (not in DB)
+        long orphanCreatedAt = 1_720_000_000_000L;
+        long orphanUpdatedAt = 1_720_001_000_000L;
+        noteRepo.restoreNote(EntityType.ACTRESS, "deleted-actress-slug", "Merge candidate — verify before acting.", orphanCreatedAt, orphanUpdatedAt);
+
+        // Export
+        Path backupFile = tempDir.resolve("notes-roundtrip.json");
+        service.write(service.export(), backupFile);
+
+        // Wipe notes table
+        noteRepo.delete(EntityType.ACTRESS, "yua-mikami");
+        noteRepo.delete(EntityType.TITLE, "SSIS-001");
+        noteRepo.delete(EntityType.ACTRESS, "deleted-actress-slug");
+        assertEquals(0, noteRepo.findAll().size(), "Notes table should be empty after wipe");
+
+        // Import — must restore ALL rows including the orphan, bypassing canonical validation
+        UserDataBackup backup = service.read(backupFile);
+        RestoreResult result = service.restore(backup);
+
+        assertEquals(3, result.notesRestored());
+
+        // Verify canonical actress note restored with original timestamps
+        Note actressNote = noteRepo.find(EntityType.ACTRESS, "yua-mikami").orElseThrow(
+                () -> new AssertionError("Actress note not restored"));
+        assertEquals("Check cover art.", actressNote.body());
+        assertEquals(actressCreatedAt, actressNote.createdAt(), "createdAt must be preserved exactly");
+        assertEquals(actressUpdatedAt, actressNote.updatedAt(), "updatedAt must be preserved exactly");
+
+        // Verify canonical title note restored with original timestamps
+        Note titleNote = noteRepo.find(EntityType.TITLE, "SSIS-001").orElseThrow(
+                () -> new AssertionError("Title note not restored"));
+        assertEquals("Favorite scene at 42:18.", titleNote.body());
+        assertEquals(titleCreatedAt, titleNote.createdAt());
+        assertEquals(titleUpdatedAt, titleNote.updatedAt());
+
+        // Verify ORPHAN note restored — this is the critical invariant per spec §8.1
+        Note orphanNote = noteRepo.find(EntityType.ACTRESS, "deleted-actress-slug").orElseThrow(
+                () -> new AssertionError("Orphan note not restored — backup must preserve orphans per spec §8.1"));
+        assertEquals("Merge candidate — verify before acting.", orphanNote.body());
+        assertEquals(orphanCreatedAt, orphanNote.createdAt());
+        assertEquals(orphanUpdatedAt, orphanNote.updatedAt());
+
+        // Verify export captured all 3 notes
+        List<NoteBackupEntry> exportedNotes = backup.notes();
+        assertEquals(3, exportedNotes.size());
     }
 }

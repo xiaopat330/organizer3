@@ -10,5 +10,6 @@ public record RestoreResult(
         int avActressesRestored,
         int avActressesSkipped,
         int avVideosRestored,
-        int avVideosSkipped
+        int avVideosSkipped,
+        int notesRestored
 ) {}
