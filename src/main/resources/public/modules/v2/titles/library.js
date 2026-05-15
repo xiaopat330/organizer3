@@ -186,6 +186,16 @@ function colsSliderHtml(current) {
   </span>`;
 }
 
+// ── Notes chip HTML ───────────────────────────────────────────────────────
+function notesChipHtmlLib(currentFilter) {
+  const val   = currentFilter || '';
+  const label = val === 'has_note' ? 'Notes: Has'
+               : val === 'no_note'  ? 'Notes: None'
+               :                      'Notes: Any';
+  const activeClass = val ? ' tcv2-notes-chip--active' : '';
+  return `<button type="button" class="tcv2-notes-chip${activeClass}" id="tcv2-notes-chip" data-notes-value="${val}" title="Filter by note">${label}</button>`;
+}
+
 // ── Main render ───────────────────────────────────────────────────────────
 export async function renderLibraryPanel(panelEl, state, onColsChange) {
   let companies = [];
@@ -264,6 +274,7 @@ export async function renderLibraryPanel(panelEl, state, onColsChange) {
       </select>
       <button type="button" id="tit-lib-order-btn" class="btn sm tit-lib-order-btn">${state.libraryOrder === 'asc' ? 'A–Z' : 'Z–A'}</button>
       <button type="button" id="tit-lib-tags-btn" class="btn sm${state.tagsBarOpen ? ' on' : ''}">Tags</button>
+      ${notesChipHtmlLib(state.notesFilter)}
       ${colsSliderHtml(colsNow)}
     </div>
     <div class="tit-lib-chips-bar" id="tit-lib-chips-bar" style="display:none">
@@ -327,6 +338,24 @@ export async function renderLibraryPanel(panelEl, state, onColsChange) {
 
   // ── Wire tags toggle ──
   panelEl.querySelector('#tit-lib-tags-btn')?.addEventListener('click', () => toggleTagsSection(panelEl, state));
+
+  // ── Wire notes chip ──
+  const notesChipEl = panelEl.querySelector('#tcv2-notes-chip');
+  if (notesChipEl) {
+    notesChipEl.addEventListener('click', () => {
+      const cycle = [null, 'has_note', 'no_note'];
+      const idx = cycle.indexOf(state.notesFilter);
+      state.notesFilter = cycle[(idx + 1) % cycle.length];
+      // Update chip appearance in place without full re-render
+      const val = state.notesFilter || '';
+      notesChipEl.dataset.notesValue = val;
+      notesChipEl.textContent = val === 'has_note' ? 'Notes: Has'
+                               : val === 'no_note'  ? 'Notes: None'
+                               :                      'Notes: Any';
+      notesChipEl.classList.toggle('tcv2-notes-chip--active', !!val);
+      state._scheduleQuery();
+    });
+  }
 
   // ── Wire cols slider ──
   const slider = panelEl.querySelector('#tit-cols-slider');
