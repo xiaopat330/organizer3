@@ -1181,6 +1181,7 @@ public class Application {
                 mcpTools.register(new com.organizer3.mcp.tools.ImportFilmographyBackupTool(filmographyBackupWriter, filmographyRepo, slugResolver));
                 mcpTools.register(new com.organizer3.mcp.tools.SetActressAliasesTool(actressRepo));
                 mcpTools.register(new com.organizer3.mcp.tools.MergeActressesTool(jdbi, actressRepo, curationLog));
+                mcpTools.register(new com.organizer3.mcp.tools.BulkMergeActressesTool(jdbi, actressRepo, curationLog));
                 mcpTools.register(new com.organizer3.mcp.tools.DeleteTitleTool(jdbi, titleRepo, enrichmentHistoryRepo));
                 mcpTools.register(new com.organizer3.mcp.tools.PruneStaleLocationsTool(jdbi));
                 mcpTools.register(new com.organizer3.mcp.NoteToolHandlers.PruneOrphanNotes(orphanNoteFinder));
