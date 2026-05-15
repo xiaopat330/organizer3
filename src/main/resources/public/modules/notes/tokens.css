@@ -1,0 +1,24 @@
+/* ── Post-It Notes design tokens ─────────────────────────────────────────
+   Shared by v1 and v2 surfaces. Import this file once from the host page's
+   <head> (or via @import in your root stylesheet) to activate the tokens.
+
+   Usage:
+     <link rel="stylesheet" href="/modules/notes/tokens.css">
+   or from a stylesheet:
+     @import '/modules/notes/tokens.css';
+──────────────────────────────────────────────────────────────────────── */
+
+:root {
+  /* ── Core sticky-note palette ────────────────────────────────────────── */
+  --postit-yellow:        #FFF59D;   /* main body fill                      */
+  --postit-yellow-edge:   #FFEB3B;   /* accent — folded corner, edge stripe  */
+  --postit-ink:           #1A1A1A;   /* body text, counter, buttons on yellow */
+  --postit-shadow:        0 2px 4px rgba(0, 0, 0, 0.15);  /* card/detail shadow */
+  --postit-shadow-modal:  0 4px 16px rgba(0, 0, 0, 0.25); /* elevated modal shadow */
+  --postit-empty-outline: #BDBDBD;   /* empty-state icon stroke / dashed border */
+  --postit-rotation:      -1deg;     /* slight tilt for detail-page sticky     */
+
+  /* ── Counter state ───────────────────────────────────────────────────── */
+  --postit-counter-ok:    #1A1A1A;   /* at or under limit                  */
+  --postit-counter-over:  #D32F2F;   /* past limit — red                   */
+}
