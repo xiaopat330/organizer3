@@ -54,7 +54,7 @@ function cycleNotesFilter() {
   runTitleBrowseQuery();
   // Re-render the whole bar so chip label + active class update
   if (FILTERABLE_MODES.has(state.mode)) {
-    showBrowseFilterBar(state, allTitlesGrid, applyTitleGridCols);
+    showBrowseFilterBar(state, allTitlesGrid, applyTitleGridCols, cycleNotesFilter);
   } else {
     showColsOnlyFilterBar();
   }
@@ -152,21 +152,21 @@ export const allTitlesGrid = new ScrollingGrid(
       let url = `/api/collections/titles?offset=${o}&limit=${l}`;
       if (state.browseCompanyFilter) url += `&company=${encodeURIComponent(state.browseCompanyFilter)}`;
       if (state.browseActiveTags.size > 0) url += `&tags=${encodeURIComponent([...state.browseActiveTags].join(','))}`;
-      // NOTE: /api/collections/titles does not support ?notes= filtering (server-side gap).
+      if (state.notesFilter) url += `&notes=${encodeURIComponent(state.notesFilter)}`;
       return url;
     }
     if (state.mode === 'unsorted') {
       let url = `/api/pool/${encodeURIComponent(state.poolVolumeId)}/titles?offset=${o}&limit=${l}`;
       if (state.browseCompanyFilter) url += `&company=${encodeURIComponent(state.browseCompanyFilter)}`;
       if (state.browseActiveTags.size > 0) url += `&tags=${encodeURIComponent([...state.browseActiveTags].join(','))}`;
-      // NOTE: /api/pool/{id}/titles does not support ?notes= filtering (server-side gap).
+      if (state.notesFilter) url += `&notes=${encodeURIComponent(state.notesFilter)}`;
       return url;
     }
     if (state.mode === 'archive-pool') {
       let url = `/api/pool/${encodeURIComponent(state.archivePoolVolumeId)}/titles?offset=${o}&limit=${l}`;
       if (state.browseCompanyFilter) url += `&company=${encodeURIComponent(state.browseCompanyFilter)}`;
       if (state.browseActiveTags.size > 0) url += `&tags=${encodeURIComponent([...state.browseActiveTags].join(','))}`;
-      // NOTE: /api/pool/{id}/titles does not support ?notes= filtering (server-side gap).
+      if (state.notesFilter) url += `&notes=${encodeURIComponent(state.notesFilter)}`;
       return url;
     }
     if (state.mode === 'library') {
@@ -302,7 +302,7 @@ export function selectTitleBrowseMode(modeKey) {
   hideStudioGroupRow(state, titleStudioDivider, titleStudioGroupRow, titleStudioLabelsEl);
   hideTagsPanel(state, titleTagsPanel);
   if (FILTERABLE_MODES.has(modeKey)) {
-    showBrowseFilterBar(state, allTitlesGrid, applyTitleGridCols);
+    showBrowseFilterBar(state, allTitlesGrid, applyTitleGridCols, cycleNotesFilter);
   }
   runTitleBrowseQuery();
 }

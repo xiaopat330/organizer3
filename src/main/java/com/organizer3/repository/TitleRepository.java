@@ -235,10 +235,24 @@ public interface TitleRepository {
     List<Title> findByVolumeFiltered(String volumeId, List<String> labels, List<String> tags, int limit, int offset);
 
     /**
+     * Like {@link #findByVolumeFiltered} but also filters by notes presence.
+     * Pass {@code null} notesFilter for no notes filter.
+     */
+    List<Title> findByVolumeFiltered(String volumeId, List<String> labels, List<String> tags, int limit, int offset,
+                                      com.organizer3.notes.NotesFilter notesFilter);
+
+    /**
      * Find titles in a volume+partition, optionally restricted to label codes and/or requiring
      * all tags. Pass empty lists to skip that dimension. Ordered by favorite → bookmark → newest first.
      */
     List<Title> findByVolumeAndPartitionFiltered(String volumeId, String partitionId, List<String> labels, List<String> tags, int limit, int offset);
+
+    /**
+     * Like {@link #findByVolumeAndPartitionFiltered} but also filters by notes presence.
+     * Pass {@code null} notesFilter for no notes filter.
+     */
+    List<Title> findByVolumeAndPartitionFiltered(String volumeId, String partitionId, List<String> labels, List<String> tags, int limit, int offset,
+                                                  com.organizer3.notes.NotesFilter notesFilter);
 
     /** Returns all distinct tags (direct + label-derived) for titles on the given volume, sorted. */
     List<String> findTagsByVolume(String volumeId);
