@@ -191,7 +191,11 @@ export function makeActressCardWithNotes(a) {
   if (nameEl) {
     // Stub: start with outline (no note); batch hydration fills it in.
     const wrapper = _makeIconWrapper(a.id, null);
-    nameEl.appendChild(wrapper);
+    // Insert before the first-name span so the icon sits adjacent to the
+    // bm-btn / fav icon block, not floating past the tier badge at the end.
+    const firstNameEl = nameEl.querySelector('.actress-first-name');
+    if (firstNameEl) nameEl.insertBefore(wrapper, firstNameEl);
+    else nameEl.appendChild(wrapper);
 
     // Register for the pending batch.
     _pending.set(a.id, wrapper);
