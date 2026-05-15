@@ -298,6 +298,11 @@ public class Application {
         AvTagDefinitionRepository avTagDefRepo    = new JdbiAvTagDefinitionRepository(jdbi);
         AvVideoTagRepository      avVideoTagRepo  = new JdbiAvVideoTagRepository(jdbi);
 
+        // Notes repository — created here so it can be shared by both UserDataBackupService
+        // (export/restore path) and NoteService (HTTP API + validation path).
+        com.organizer3.notes.NoteRepository noteRepo =
+                new com.organizer3.repository.jdbi.JdbiNoteRepository(jdbi);
+
         // Seed actress aliases from aliases.yaml
         try (var aliasStream = Application.class.getResourceAsStream("/aliases.yaml")) {
             if (aliasStream != null) {
@@ -370,7 +375,7 @@ public class Application {
                 ? backupCfg.autoBackupIntervalMinutes() : 0;
         int snapshotCount = (backupCfg != null && backupCfg.snapshotCount() != null)
                 ? backupCfg.snapshotCount() : 0;
-        UserDataBackupService backupService = new UserDataBackupService(actressRepo, titleRepo, watchHistoryRepo, avActressRepo, avVideoRepo);
+        UserDataBackupService backupService = new UserDataBackupService(actressRepo, titleRepo, watchHistoryRepo, avActressRepo, avVideoRepo, noteRepo);
         commands.add(new BackupCommand(backupService, backupPath, snapshotCount));
         commands.add(new RestoreCommand(backupService, backupPath));
         commands.add(new ExportAliasesCommand(actressRepo, dataDir));
@@ -1086,8 +1091,6 @@ public class Application {
                 translationQueueRepo, translationService, jdbi));
 
         // Notes: user-curated per-entity annotations (spec/PROPOSAL_POST_IT_NOTES.md).
-        com.organizer3.notes.NoteRepository noteRepo =
-                new com.organizer3.repository.jdbi.JdbiNoteRepository(jdbi);
         com.organizer3.notes.NoteService noteService =
                 new com.organizer3.notes.NoteService(noteRepo,
                         new com.organizer3.notes.JdbiEntityResolver(jdbi));
