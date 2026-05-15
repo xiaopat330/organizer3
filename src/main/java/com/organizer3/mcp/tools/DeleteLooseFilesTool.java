@@ -10,6 +10,7 @@ import com.organizer3.shell.SessionContext;
 import com.organizer3.smb.VolumeConnection;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.jdbi.v3.core.Jdbi;
 
 import java.io.IOException;
 import java.nio.file.Path;
@@ -69,6 +70,7 @@ public class DeleteLooseFilesTool implements Tool {
 
     private final SessionContext session;
     private final CurationLog curationLog;
+    private final Jdbi jdbi;
 
     @Override public String name() { return "delete_loose_files"; }
 
@@ -77,29 +79,34 @@ public class DeleteLooseFilesTool implements Tool {
         return "Deletes allowlisted noise files (Thumbs.db, .DS_Store, REASON.txt, *.jpg/jpeg/png) "
              + "from a folder on the mounted volume. "
              + "Allowed path prefixes: /attention/, /_attention/, /queue/, /stars/, /_sandbox/, /recent/, /archive/. "
-             + "Default dryRun:true — returns the plan without deleting.";
+             + "Default dryRun:true — returns the plan without deleting. "
+             + "Pass allowOrphanLocation:true to drop dangling title_location rows for the folder "
+             + "if it becomes empty after the delete (surfaces titles left with no locations).";
     }
 
     @Override
     public JsonNode inputSchema() {
         return Schemas.object()
-                .prop("volumeId", "string",  "Volume identifier — must match the mounted volume.")
-                .prop("path",     "string",  "Volume-relative folder path, e.g. /attention/Actress Name (LABEL-001)")
-                .prop("dryRun",   "boolean", "If true (default), return the plan without deleting.", true)
+                .prop("volumeId",            "string",  "Volume identifier — must match the mounted volume.")
+                .prop("path",                "string",  "Volume-relative folder path, e.g. /attention/Actress Name (LABEL-001)")
+                .prop("dryRun",              "boolean", "If true (default), return the plan without deleting.", true)
+                .prop("allowOrphanLocation", "boolean", "If true, drop title_location rows for this path when the folder is empty after the delete.", false)
                 .require("volumeId", "path")
                 .build();
     }
 
     @Override
     public Object call(JsonNode args) {
-        String volumeIdArg = Schemas.requireString(args, "volumeId");
-        String pathArg     = Schemas.requireString(args, "path");
-        boolean dryRun     = Schemas.optBoolean(args, "dryRun", true);
+        String volumeIdArg          = Schemas.requireString(args, "volumeId");
+        String pathArg              = Schemas.requireString(args, "path");
+        boolean dryRun              = Schemas.optBoolean(args, "dryRun", true);
+        boolean allowOrphanLocation = Schemas.optBoolean(args, "allowOrphanLocation", false);
 
         Map<String, Object> inputs = Map.of(
-                "volumeId", volumeIdArg,
-                "path",     pathArg,
-                "dryRun",   dryRun
+                "volumeId",            volumeIdArg,
+                "path",                pathArg,
+                "dryRun",              dryRun,
+                "allowOrphanLocation", allowOrphanLocation
         );
 
         String mountedVolumeId = session.getMountedVolumeId();
@@ -197,19 +204,36 @@ public class DeleteLooseFilesTool implements Tool {
         boolean nowEmpty = toSkip.isEmpty() && failed.isEmpty();
         String status = failed.isEmpty() ? "ok" : "partial";
 
-        log.info("delete_loose_files volume={} path={} deleted={} skipped={} failed={}",
-                volumeIdArg, pathArg, deleted.size(), toSkip.size(), failed.size());
+        // ── Optional orphan-location cascade ────────────────────────────────
+        // When the folder is now empty and the flag is set, drop any title_location
+        // rows whose path exactly matches this folder on the mounted volume.
+        int locationsDropped = 0;
+        List<OrphanedTitle> orphanedTitles = List.of();
+        if (allowOrphanLocation && nowEmpty) {
+            var cascade = dropLocationsByExactPath(mountedVolumeId, pathArg);
+            locationsDropped = cascade.locationsDropped();
+            orphanedTitles   = cascade.orphanedTitles();
+            if (locationsDropped > 0) {
+                log.info("delete_loose_files cascade: dropped {} location(s) volume={} path={}",
+                        locationsDropped, volumeIdArg, pathArg);
+            }
+        }
+
+        log.info("delete_loose_files volume={} path={} deleted={} skipped={} failed={} droppedLocations={}",
+                volumeIdArg, pathArg, deleted.size(), toSkip.size(), failed.size(), locationsDropped);
 
         CurationLogRecord record = new CurationLogRecord(
                 Instant.now(), name(), "mcp", sessionId(),
                 inputs, null,
                 Map.of("deleted", deleted, "skipped", toSkip, "failed", failed),
-                Map.of("path", pathArg, "deletedCount", deleted.size(), "nowEmpty", nowEmpty),
+                Map.of("path", pathArg, "deletedCount", deleted.size(), "nowEmpty", nowEmpty,
+                       "locationsDropped", locationsDropped),
                 status, failed.isEmpty() ? List.of() : List.of("some deletes failed: " + failed));
         curationLog.append(volumeIdArg, record);
 
         String errorMsg = failed.isEmpty() ? null : "some files could not be deleted: " + failed;
-        return new Result(pathArg, false, deleted, toSkip, nowEmpty, status, errorMsg);
+        return new Result(pathArg, false, deleted, toSkip, nowEmpty, status, errorMsg,
+                locationsDropped, orphanedTitles);
     }
 
     // ── helpers ──────────────────────────────────────────────────────────────
@@ -238,6 +262,51 @@ public class DeleteLooseFilesTool implements Tool {
         return depth == 1;
     }
 
+    /**
+     * Drops title_location rows whose path exactly matches the given folder on the volume,
+     * then surfaces any titles left with no remaining locations at all.
+     */
+    private CascadeResult dropLocationsByExactPath(String volumeId, String path) {
+        return jdbi.inTransaction(h -> {
+            List<Long> matchingIds = h.createQuery("""
+                            SELECT id FROM title_locations
+                            WHERE volume_id = :v
+                              AND stale_since IS NULL
+                              AND path = :p
+                            """)
+                    .bind("v", volumeId)
+                    .bind("p", path)
+                    .mapTo(Long.class)
+                    .list();
+            if (matchingIds.isEmpty()) return new CascadeResult(0, List.of());
+
+            List<Long> titleIds = h.createQuery(
+                    "SELECT DISTINCT title_id FROM title_locations WHERE id IN (<ids>)")
+                    .bindList("ids", matchingIds)
+                    .mapTo(Long.class)
+                    .list();
+
+            h.createUpdate("DELETE FROM title_locations WHERE id IN (<ids>)")
+                    .bindList("ids", matchingIds)
+                    .execute();
+
+            if (titleIds.isEmpty()) return new CascadeResult(matchingIds.size(), List.of());
+
+            List<OrphanedTitle> orphaned = h.createQuery("""
+                            SELECT t.id, t.code
+                            FROM titles t
+                            WHERE t.id IN (<ids>)
+                              AND NOT EXISTS (SELECT 1 FROM title_locations tl WHERE tl.title_id = t.id)
+                            ORDER BY t.code
+                            """)
+                    .bindList("ids", titleIds)
+                    .map((rs, ctx) -> new OrphanedTitle(rs.getLong("id"), rs.getString("code")))
+                    .list();
+
+            return new CascadeResult(matchingIds.size(), orphaned);
+        });
+    }
+
     private Result refused(String volumeId, Map<String, Object> inputs, String reason) {
         log.info("delete_loose_files refused volume={} reason={}", volumeId, reason);
         String logVolume = volumeId != null ? volumeId : "unknown";
@@ -248,10 +317,13 @@ public class DeleteLooseFilesTool implements Tool {
         curationLog.append(logVolume, record);
         return new Result(
                 inputs.getOrDefault("path", "").toString(),
-                false, List.of(), List.of(), false, "refused", reason);
+                false, List.of(), List.of(), false, "refused", reason, 0, List.of());
     }
 
     private String sessionId() { return "mcp-" + Thread.currentThread().getName(); }
+
+    public record OrphanedTitle(long titleId, String titleCode) {}
+    private record CascadeResult(int locationsDropped, List<OrphanedTitle> orphanedTitles) {}
 
     public record Result(
             String path,
@@ -260,6 +332,14 @@ public class DeleteLooseFilesTool implements Tool {
             List<String> skipped,
             boolean emptyAfter,
             String status,
-            String error
-    ) {}
+            String error,
+            int locationsDropped,
+            List<OrphanedTitle> orphanedTitles
+    ) {
+        /** Backwards-compat constructor for callers that don't need orphan info. */
+        public Result(String path, boolean dryRun, List<String> deleted, List<String> skipped,
+                      boolean emptyAfter, String status, String error) {
+            this(path, dryRun, deleted, skipped, emptyAfter, status, error, 0, List.of());
+        }
+    }
 }

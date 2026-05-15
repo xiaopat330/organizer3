@@ -4,10 +4,13 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.organizer3.config.volume.VolumeConfig;
 import com.organizer3.curation.CurationLog;
+import com.organizer3.db.SchemaInitializer;
 import com.organizer3.filesystem.FileTimestamps;
 import com.organizer3.filesystem.VolumeFileSystem;
 import com.organizer3.shell.SessionContext;
 import com.organizer3.smb.VolumeConnection;
+import org.jdbi.v3.core.Jdbi;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -16,6 +19,8 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.sql.Connection;
+import java.sql.DriverManager;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.ArrayList;
@@ -34,20 +39,30 @@ class DeleteLooseFilesToolTest {
 
     private static final ObjectMapper M = new ObjectMapper();
 
+    private Connection connection;
+    private Jdbi jdbi;
     private SessionContext session;
     private FakeFs fs;
     private CurationLog curationLog;
     private DeleteLooseFilesTool tool;
 
     @BeforeEach
-    void setUp() {
+    void setUp() throws Exception {
+        connection = DriverManager.getConnection("jdbc:sqlite::memory:");
+        jdbi       = Jdbi.create(connection);
+        new SchemaInitializer(jdbi).initialize();
+        jdbi.useHandle(h -> h.execute("INSERT INTO volumes (id, structure_type) VALUES ('s', 'conventional')"));
+
         fs          = new FakeFs();
         curationLog = new CurationLog(logDir);
         session     = new SessionContext();
         session.setMountedVolume(new VolumeConfig("s", "//host/s", "conventional", "host", null));
         session.setActiveConnection(new FakeConnection(fs));
-        tool = new DeleteLooseFilesTool(session, curationLog);
+        tool = new DeleteLooseFilesTool(session, curationLog, jdbi);
     }
+
+    @AfterEach
+    void tearDown() throws Exception { connection.close(); }
 
     // ── dry-run (default) ─────────────────────────────────────────────────────
 
@@ -378,7 +393,120 @@ class DeleteLooseFilesToolTest {
         assertEquals("refused", parsed.get("status").asText());
     }
 
+    // ── allowOrphanLocation cascade ──────────────────────────────────────────
+
+    @Test
+    void allowOrphanLocation_dropsRowWhenFolderBecomesEmpty() {
+        Path folder = Path.of("/attention/Actress (LABEL-001)");
+        Path thumbs = folder.resolve("Thumbs.db");
+        fs.directories.add(folder);
+        fs.children.put(folder, List.of(thumbs));
+        seedLocation("s", folder.toString());
+
+        var result = (DeleteLooseFilesTool.Result) tool.call(argsOrphan("s", folder.toString()));
+        assertEquals("ok", result.status());
+        assertTrue(result.emptyAfter());
+        assertEquals(1, result.locationsDropped());
+
+        Integer remaining = jdbi.withHandle(h -> h.createQuery(
+                "SELECT COUNT(*) FROM title_locations WHERE path = ?")
+                .bind(0, folder.toString())
+                .mapTo(Integer.class).one());
+        assertEquals(0, remaining);
+    }
+
+    @Test
+    void allowOrphanLocation_surfacesOrphanedTitle() {
+        Path folder = Path.of("/attention/Actress (LABEL-001)");
+        Path thumbs = folder.resolve("Thumbs.db");
+        fs.directories.add(folder);
+        fs.children.put(folder, List.of(thumbs));
+        seedLocation("s", folder.toString());
+
+        var result = (DeleteLooseFilesTool.Result) tool.call(argsOrphan("s", folder.toString()));
+        assertEquals(1, result.orphanedTitles().size());
+        assertEquals("LABEL-001", result.orphanedTitles().get(0).titleCode());
+    }
+
+    @Test
+    void allowOrphanLocation_keepsRowWhenFolderStillHasContent() {
+        Path folder = Path.of("/attention/Actress (LABEL-001)");
+        Path thumbs = folder.resolve("Thumbs.db");
+        Path video  = folder.resolve("LABEL-001.mkv");
+        fs.directories.add(folder);
+        fs.children.put(folder, List.of(thumbs, video));
+        seedLocation("s", folder.toString());
+
+        var result = (DeleteLooseFilesTool.Result) tool.call(argsOrphan("s", folder.toString()));
+        assertEquals("ok", result.status());
+        assertFalse(result.emptyAfter()); // video remains
+        assertEquals(0, result.locationsDropped());
+
+        Integer remaining = jdbi.withHandle(h -> h.createQuery(
+                "SELECT COUNT(*) FROM title_locations WHERE path = ?")
+                .bind(0, folder.toString())
+                .mapTo(Integer.class).one());
+        assertEquals(1, remaining);
+    }
+
+    @Test
+    void allowOrphanLocation_falsePreservesExistingBehavior() {
+        Path folder = Path.of("/attention/Actress (LABEL-001)");
+        Path thumbs = folder.resolve("Thumbs.db");
+        fs.directories.add(folder);
+        fs.children.put(folder, List.of(thumbs));
+        seedLocation("s", folder.toString());
+
+        // dryRun:false, allowOrphanLocation defaults to false
+        var result = (DeleteLooseFilesTool.Result) tool.call(args("s", folder.toString(), false));
+        assertEquals("ok", result.status());
+        assertTrue(result.emptyAfter());
+        assertEquals(0, result.locationsDropped());
+
+        // row should still be there
+        Integer remaining = jdbi.withHandle(h -> h.createQuery(
+                "SELECT COUNT(*) FROM title_locations WHERE path = ?")
+                .bind(0, folder.toString())
+                .mapTo(Integer.class).one());
+        assertEquals(1, remaining);
+    }
+
+    @Test
+    void allowOrphanLocation_doesNotMatchOtherVolume() {
+        Path folder = Path.of("/attention/Actress (LABEL-001)");
+        Path thumbs = folder.resolve("Thumbs.db");
+        fs.directories.add(folder);
+        fs.children.put(folder, List.of(thumbs));
+        // location is on volume 'r', not 's' — must not be touched
+        seedLocation("r", folder.toString());
+
+        var result = (DeleteLooseFilesTool.Result) tool.call(argsOrphan("s", folder.toString()));
+        assertEquals("ok", result.status());
+        assertEquals(0, result.locationsDropped());
+    }
+
     // ── helpers ───────────────────────────────────────────────────────────────
+
+    private void seedLocation(String volumeId, String path) {
+        jdbi.useHandle(h -> {
+            long titleId = h.createQuery(
+                    "INSERT INTO titles (code, actress_id) VALUES ('LABEL-001', NULL) RETURNING id")
+                    .mapTo(Long.class).one();
+            h.execute("""
+                    INSERT INTO title_locations (title_id, volume_id, partition_id, path, last_seen_at)
+                    VALUES (?, ?, 'attention', ?, '2024-01-01')
+                    """, titleId, volumeId, path);
+        });
+    }
+
+    private static ObjectNode argsOrphan(String volumeId, String path) {
+        ObjectNode n = M.createObjectNode();
+        n.put("volumeId",            volumeId);
+        n.put("path",                path);
+        n.put("dryRun",              false);
+        n.put("allowOrphanLocation", true);
+        return n;
+    }
 
     private static ObjectNode args(String volumeId, String path, boolean dryRun) {
         ObjectNode n = M.createObjectNode();
