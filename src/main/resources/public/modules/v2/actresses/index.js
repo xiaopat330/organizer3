@@ -26,7 +26,11 @@
 // Single mount point: mountActresses(rootEl).
 
 import { mountAdminTab, unmountAdminTab } from './admin.js';
-import { renderActressCard } from '../cards/actress-card.js';
+import {
+  renderActressCardWithNotes,
+  resetNotesState,
+  buildNotesFilterRow,
+} from './notes.js';
 import { renderActressDashboard } from './dashboard.js';
 import {
   renderStudioGroupRow,
@@ -84,37 +88,44 @@ function createState() {
     // Config (loaded from /api/config)
     exhibitionVolumes: '',
     archiveVolumes:    '',
+    // Post-It Notes filter: null | 'has_note' | 'no_note'
+    notesFilter: null,
   };
 }
 
 // ── URL builder for grid modes ────────────────────────────────────────────
 
+function appendNotesParam(url, state) {
+  if (state.notesFilter) url += `&notes=${encodeURIComponent(state.notesFilter)}`;
+  return url;
+}
+
 function buildGridUrl(state, offset, limit) {
   if (state.mode === 'favorites')
-    return `/api/actresses?favorites=true&offset=${offset}&limit=${limit}`;
+    return appendNotesParam(`/api/actresses?favorites=true&offset=${offset}&limit=${limit}`, state);
   if (state.mode === 'bookmarks')
-    return `/api/actresses?bookmarks=true&offset=${offset}&limit=${limit}`;
+    return appendNotesParam(`/api/actresses?bookmarks=true&offset=${offset}&limit=${limit}`, state);
   if (state.mode === 'exhibition-volumes') {
     let url = `/api/actresses?volumes=${encodeURIComponent(state.exhibitionVolumes)}&offset=${offset}&limit=${limit}`;
     if (state.exhibitionCompany) url += `&company=${encodeURIComponent(state.exhibitionCompany)}`;
-    return url;
+    return appendNotesParam(url, state);
   }
   if (state.mode === 'archive-volumes') {
     let url = `/api/actresses?volumes=${encodeURIComponent(state.archiveVolumes)}&offset=${offset}&limit=${limit}`;
     if (state.archivesCompany) url += `&company=${encodeURIComponent(state.archivesCompany)}`;
-    return url;
+    return appendNotesParam(url, state);
   }
   if (state.mode && state.mode.startsWith('tier-')) {
     const tier = state.mode.slice(5);
     let url = `/api/actresses?tier=${encodeURIComponent(tier)}&offset=${offset}&limit=${limit}`;
     if (state.tierCompany) url += `&company=${encodeURIComponent(state.tierCompany)}`;
-    return url;
+    return appendNotesParam(url, state);
   }
   if (state.mode && state.mode.startsWith('studio-group:')) {
     const slug = state.mode.slice('studio-group:'.length);
     let url = `/api/actresses?studioGroup=${encodeURIComponent(slug)}&offset=${offset}&limit=${limit}`;
     if (state.studioGroupCompany) url += `&company=${encodeURIComponent(state.studioGroupCompany)}`;
-    return url;
+    return appendNotesParam(url, state);
   }
   return null; // dashboard / studio — no grid
 }
@@ -240,6 +251,20 @@ export function mountActresses(rootEl) {
   const gridStatusEl  = rootEl.querySelector('#act-grid-status');
   const sentinelEl    = rootEl.querySelector('#act-sentinel');
 
+  // ── Notes filter chip row ────────────────────────────────────────────────
+  // Injected before the grid element; shown only when a scrollable grid mode
+  // is active (dashboard and studio modes hide it).
+
+  const notesFilter = buildNotesFilterRow(
+    gridEl.parentNode,
+    gridEl,
+    state,
+    () => {
+      resetGrid();
+      loadMore();
+    }
+  );
+
   // ── Config fetch ──────────────────────────────────────────────────────────
   fetchJson('/api/config').then(cfg => {
     if (!cfg) return;
@@ -261,6 +286,7 @@ export function mountActresses(rootEl) {
     gridEl.innerHTML = '';
     gridStatusEl.style.display = 'none';
     gridStatusEl.innerHTML = '';
+    resetNotesState();
   }
 
   function ensureSentinel() {
@@ -290,7 +316,7 @@ export function mountActresses(rootEl) {
     }
 
     state.items.push(...list);
-    list.forEach(a => gridEl.appendChild(renderActressCard(a)));
+    list.forEach(a => gridEl.appendChild(renderActressCardWithNotes(a)));
     state.offset += list.length;
 
     if (list.length < PAGE_LIMIT) {
@@ -430,6 +456,7 @@ export function mountActresses(rootEl) {
       hideAllSubRows();
       hideStudio();
       hideGridHeader();
+      notesFilter.hide();
       state.studioGroupName    = null;
       state.studioGroupCompany = null;
       gridEl.style.display     = 'none';
@@ -447,6 +474,7 @@ export function mountActresses(rootEl) {
     if (modeKey === 'studio') {
       hideAllSubRows();
       hideGridHeader();
+      notesFilter.hide();
       state.studioGroupName    = null;
       state.studioGroupCompany = null;
       gridEl.style.display     = 'none';
@@ -544,6 +572,7 @@ export function mountActresses(rootEl) {
     updateSubnavSelection();
     gridEl.style.display = '';
     gridStatusEl.style.display = '';
+    notesFilter.show();
     attachColsSliderForMode();
     resetGrid();
     loadMore();
