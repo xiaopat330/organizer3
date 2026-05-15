@@ -13,6 +13,7 @@ import {
 import { openCustomAvatarEditor } from './custom-avatar-editor.js';
 import { renderTitleCard } from './cards/title-card.js';
 import { mountActressNotePanel } from './actress-detail-notes.js';
+import { mountTitlesPanel, mountProfilePanel } from './discovery/enrich-panels.js';
 
 const PAGE_LIMIT = 24;
 const FILTER_DEBOUNCE_MS = 350;
@@ -838,6 +839,44 @@ function scheduleRefresh() {
   }, FILTER_DEBOUNCE_MS);
 }
 
+// ── Enrichment tab sub-tab state ──────────────────────────────────────────
+let enrichSubtab = 'titles';  // 'titles' | 'profile'
+
+function mountEnrichmentTab(panelEl) {
+  // Guard: wire click listeners only once per panel lifetime.  The panel DOM
+  // is rebuilt on actress switch (rootEl.innerHTML rebuild), so a new panel
+  // element is always a fresh element.
+  if (panelEl.dataset.mounted === 'true') return;
+  panelEl.dataset.mounted = 'true';
+
+  const titlesContainer  = panelEl.querySelector('.ad-enrich-titles-view');
+  const profileContainer = panelEl.querySelector('.ad-enrich-profile-view');
+  const subtabBtns = panelEl.querySelectorAll('.ad-enrich-subtab');
+
+  function applySubtab(tab) {
+    enrichSubtab = tab;
+    subtabBtns.forEach(b => b.classList.toggle('selected', b.dataset.subtab === tab));
+    titlesContainer.style.display  = tab === 'titles'  ? '' : 'none';
+    profileContainer.style.display = tab === 'profile' ? '' : 'none';
+    if (tab === 'titles' && titlesContainer.innerHTML === '') {
+      mountTitlesPanel(titlesContainer, {
+        actressId,
+        hooks: {
+          switchToProfile: () => applySubtab('profile'),
+        },
+      });
+    } else if (tab === 'profile' && profileContainer.innerHTML === '') {
+      mountProfilePanel(profileContainer, { actressId });
+    }
+  }
+
+  subtabBtns.forEach(btn => {
+    btn.addEventListener('click', () => applySubtab(btn.dataset.subtab));
+  });
+
+  applySubtab(enrichSubtab);
+}
+
 // ── Tabs ──────────────────────────────────────────────────────────────────
 async function selectTab(tab) {
   if (tab === currentTab) return;
@@ -853,10 +892,12 @@ async function selectTab(tab) {
   document.querySelectorAll('.ad-tab').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
   document.querySelectorAll('.ad-tab-panel').forEach(p => p.classList.toggle('active', p.dataset.tab === tab));
 
-  // Mount the admin workbench when switching to the admin tab.
   if (tab === 'admin') {
     const panelEl = document.querySelector('.ad-tab-panel[data-tab="admin"]');
     if (panelEl) await mountAdminTab(panelEl, actressId);
+  } else if (tab === 'enrichment') {
+    const panelEl = document.querySelector('.ad-tab-panel[data-tab="enrichment"]');
+    if (panelEl) mountEnrichmentTab(panelEl);
   }
 }
 
@@ -904,6 +945,7 @@ export async function mountActressDetail(rootEl, id) {
       <section class="ad-pane">
         <div class="tabs ad-tabs">
           <button class="tab ad-tab active" data-tab="catalog">Catalog</button>
+          <button class="tab ad-tab" data-tab="enrichment">Enrichment</button>
           <button class="tab ad-tab" data-tab="admin">Admin</button>
         </div>
         <div class="ad-tab-panel active" data-tab="catalog">
@@ -913,6 +955,20 @@ export async function mountActressDetail(rootEl, id) {
           <div class="grid-status" id="ad-portfolio-status"></div>
           <div class="shelf-meta" id="ad-portfolio-meta" style="margin-top:8px"></div>
           <div id="ad-sentinel" style="height:1px"></div>
+        </div>
+        <div class="ad-tab-panel" data-tab="enrichment">
+          <div class="jd-subnav ad-enrich-subnav">
+            <button type="button" class="jd-subtab ad-enrich-subtab selected" data-subtab="titles">
+              <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="20" height="20" rx="2"/><line x1="2" y1="12" x2="22" y2="12"/></svg>
+              Titles
+            </button>
+            <button type="button" class="jd-subtab ad-enrich-subtab" data-subtab="profile">
+              <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 20v-1a8 8 0 0 1 16 0v1"/></svg>
+              Profile
+            </button>
+          </div>
+          <div class="ad-enrich-titles-view"></div>
+          <div class="ad-enrich-profile-view" style="display:none"></div>
         </div>
         <div class="ad-tab-panel" data-tab="admin">
           <!-- Admin workbench mounts here when the Admin tab is selected.

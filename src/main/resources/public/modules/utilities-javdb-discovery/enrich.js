@@ -5,14 +5,15 @@
 //
 // state.activeTab here means the actress-panel sub-tab (titles/profile/conflicts/errors),
 // distinct from the top-level subtab dispatched by index.js.
+// Titles and Profile subview rendering is delegated to enrich-panels.js.
 
 import { esc } from '../utils.js';
 import {
   formatRelative,
-  fmtDate,
   parseCast,
   showJdCoverModal,
 } from './shared.js';
+import { mountTitlesPanel, mountProfilePanel } from './enrich-panels.js';
 
 const BUCKET_THRESHOLD = 30;
 
@@ -28,22 +29,6 @@ const ERROR_REASON_LABELS = {
   unknown_job_type:          'Unknown job type',
   title_not_in_db:           'Title not in DB',
   slug_conflict:             'Slug conflict',
-};
-
-// Mirror of queue.js QUEUE_FAIL_META used by titles-tab status rendering. Kept
-// duplicated rather than imported since enrich uses only a small subset and
-// duplicating these label/icon/cls rows is cheaper than another shared.js entry.
-const QUEUE_FAIL_META_INLINE = {
-  ambiguous:               { label: 'ambiguous',           icon: '⚠', cls: 'jd-qi-failed-resolvable' },
-  cast_anomaly:            { label: 'cast anomaly',        icon: '⚠', cls: 'jd-qi-failed-resolvable' },
-  sentinel_actress:        { label: 'needs actress',       icon: '⚠', cls: 'jd-qi-failed-resolvable' },
-  not_found:               { label: 'not on javdb',        icon: '⊘', cls: 'jd-qi-failed-deadend'    },
-  no_match_in_filmography: { label: 'not in filmography',  icon: '⊘', cls: 'jd-qi-failed-deadend'    },
-  title_not_in_db:         { label: 'orphaned job',        icon: '⊘', cls: 'jd-qi-failed-deadend'    },
-  unknown_job_type:        { label: 'internal error',      icon: '⊘', cls: 'jd-qi-failed-deadend'    },
-  fetch_failed:            { label: 'fetch failed',        icon: '↻', cls: 'jd-qi-failed'            },
-  no_slug:                 { label: 'no slug',             icon: '↻', cls: 'jd-qi-failed'            },
-  slug_conflict:           { label: 'slug conflict',       icon: '⚠', cls: 'jd-qi-failed-resolvable' },
 };
 
 function errorReasonLabel(raw) {
@@ -115,14 +100,12 @@ export function initEnrich(state, hooks) {
   const titlesActionBar   = document.getElementById('jd-titles-action-bar');
   const subtabBtns        = panel?.querySelectorAll('.jd-subtab') ?? [];
   const titlesView        = document.getElementById('jd-subview-titles');
+  // Handle returned by mountTitlesPanel; reset on actress switch so the
+  // panel mounts fresh for the new actress.
+  let titlesHandle = null;
   const profileView       = document.getElementById('jd-subview-profile');
   const conflictsView     = document.getElementById('jd-subview-conflicts');
   const errorsView        = document.getElementById('jd-subview-errors');
-  const enrichModalOverlay = document.getElementById('jd-enrich-modal-overlay');
-  const enrichModalBody    = document.getElementById('jd-enrich-modal-body');
-  const enrichModalHeading = document.getElementById('jd-enrich-modal-heading');
-  const enrichModalClose   = document.getElementById('jd-enrich-modal-close');
-
   // Computed once per data load; each entry: { label, key, test(canonicalName) }.
   let alphaBuckets = [{ label: 'All', key: 'All', test: () => true }];
 
@@ -344,6 +327,9 @@ export function initEnrich(state, hooks) {
   async function selectActress(id) {
     state.selectedId = id;
     state.titleFilter = { tags: [], minRatingAvg: null, minRatingCount: null };
+    // Force a fresh panel mount for the new actress.
+    if (titlesView) titlesView.innerHTML = '';
+    titlesHandle = null;
     highlightSelected(id);
     emptyMsg.style.display = 'none';
     panel.style.display = '';
@@ -363,527 +349,60 @@ export function initEnrich(state, hooks) {
   }
 
   async function renderTitlesTab() {
-    titlesView.style.display    = '';
+    titlesView.style.display      = '';
     titlesActionBar.style.display = '';
-    profileView.style.display   = 'none';
-    conflictsView.style.display = 'none';
-    errorsView.style.display    = 'none';
-    titlesView.innerHTML = '<div class="jd-loading">Loading…</div>';
-    await fetchAndRenderTitles();
+    profileView.style.display     = 'none';
+    conflictsView.style.display   = 'none';
+    errorsView.style.display      = 'none';
+    // Mount once per actress selection; subsequent subtab switches only toggle
+    // display.  titlesHandle is cleared in selectActress() on actress change.
+    if (!titlesHandle) {
+      titlesHandle = mountTitlesPanel(titlesView, {
+        actressId: state.selectedId,
+        showActionBar: false,
+        hooks: {
+          refreshQueue:  hooks.refreshQueue,
+          loadActresses: hooks.loadActresses,
+          switchToProfile: () => {
+            subtabBtns.forEach(b => b.classList.toggle('selected', b.dataset.tab === 'profile'));
+            state.activeTab = 'profile';
+            renderActiveTab();
+          },
+        },
+      });
+    }
   }
 
   async function renderTitlesTabSilent() {
     if (titlesView.style.display === 'none') return;
-    await fetchAndRenderTitles();
-  }
-
-  function buildFilterQueryString() {
-    const f = state.titleFilter;
-    const parts = [];
-    if (f.tags.length > 0)              parts.push(`tags=${encodeURIComponent(f.tags.join(','))}`);
-    if (f.minRatingAvg   !== null)      parts.push(`minRatingAvg=${f.minRatingAvg}`);
-    if (f.minRatingCount !== null)      parts.push(`minRatingCount=${f.minRatingCount}`);
-    return parts.length > 0 ? '?' + parts.join('&') : '';
-  }
-
-  function isFilterActive() {
-    const f = state.titleFilter;
-    return f.tags.length > 0 || f.minRatingAvg !== null || f.minRatingCount !== null;
-  }
-
-  async function fetchAndRenderTitles() {
-    try {
-      const qs = buildFilterQueryString();
-      const [titlesRes, facetsRes] = await Promise.all([
-        fetch(`/api/javdb/discovery/actresses/${state.selectedId}/titles${qs}`),
-        fetch(`/api/javdb/discovery/actresses/${state.selectedId}/tag-facets${qs}`),
-      ]);
-      if (!titlesRes.ok) { titlesView.innerHTML = '<div class="jd-error">Failed to load titles.</div>'; return; }
-      const titles = await titlesRes.json();
-      const facets = facetsRes.ok ? await facetsRes.json() : [];
-      titlesView.innerHTML = filterBarHtml(facets, titles.length) + titlesTableHtml(titles);
-      wireFilterBar();
-      wireReenrichButtons();
-      wireEnrichmentDetailTriggers();
-      wireFailureBadges();
-      wireCoverLinks(titlesView);
-    } catch (_) {
-      titlesView.innerHTML = '<div class="jd-error">Network error.</div>';
-    }
-  }
-
-  function filterBarHtml(facets, matchCount) {
-    const f = state.titleFilter;
-    const selectedTagsSet = new Set(f.tags);
-    const facetOrder = [
-      ...facets.filter(x => selectedTagsSet.has(x.name)),
-      ...facets.filter(x => !selectedTagsSet.has(x.name)),
-    ];
-    const tagChips = facetOrder.slice(0, 30).map(x => {
-      const sel = selectedTagsSet.has(x.name);
-      return `<button type="button" class="jd-tag-chip${sel ? ' selected' : ''}" data-tag="${esc(x.name)}">
-        ${esc(x.name)} <span class="jd-tag-count">${x.count}</span>
-      </button>`;
-    }).join('');
-    const summary = isFilterActive()
-      ? `<span class="jd-filter-summary">${matchCount} matching</span>`
-      : '';
-    const clearBtn = isFilterActive()
-      ? `<button type="button" id="jd-filter-clear" class="jd-filter-clear">Clear filters</button>`
-      : '';
-    return `
-      <div class="jd-filter-bar">
-        <div class="jd-filter-row">
-          <label class="jd-filter-label">Min rating</label>
-          <input id="jd-min-avg" type="number" step="0.1" min="0" max="5" placeholder="e.g. 4.2"
-                 value="${f.minRatingAvg ?? ''}" class="jd-filter-num">
-          <label class="jd-filter-label">Min votes</label>
-          <input id="jd-min-cnt" type="number" step="1" min="0" placeholder="e.g. 50"
-                 value="${f.minRatingCount ?? ''}" class="jd-filter-num">
-          ${summary}
-          ${clearBtn}
-        </div>
-        <div class="jd-filter-row jd-tag-chips">${tagChips || '<span class="jd-filter-hint">No tags on this actress\'s enriched titles.</span>'}</div>
-      </div>
-    `;
-  }
-
-  function titlesTableHtml(titles) {
-    if (titles.length === 0) {
-      return '<div class="jd-empty-tab">No titles match the current filter.</div>';
-    }
-    return `
-      <table class="jd-titles-table">
-        <thead><tr>
-          <th>Code</th><th>Status</th><th>Original Title</th><th>Release</th><th>Maker</th><th>Rating</th><th></th>
-        </tr></thead>
-        <tbody>${titles.map(titleRow).join('')}</tbody>
-      </table>
-    `;
-  }
-
-  function wireFilterBar() {
-    const minAvg = document.getElementById('jd-min-avg');
-    const minCnt = document.getElementById('jd-min-cnt');
-    if (minAvg) minAvg.addEventListener('change', () => {
-      const v = minAvg.value.trim();
-      state.titleFilter.minRatingAvg = v === '' ? null : parseFloat(v);
-      fetchAndRenderTitles();
-    });
-    if (minCnt) minCnt.addEventListener('change', () => {
-      const v = minCnt.value.trim();
-      state.titleFilter.minRatingCount = v === '' ? null : parseInt(v, 10);
-      fetchAndRenderTitles();
-    });
-    document.querySelectorAll('.jd-tag-chip').forEach(chip => {
-      chip.addEventListener('click', () => {
-        const tag = chip.dataset.tag;
-        const idx = state.titleFilter.tags.indexOf(tag);
-        if (idx >= 0) state.titleFilter.tags.splice(idx, 1);
-        else state.titleFilter.tags.push(tag);
-        fetchAndRenderTitles();
-      });
-    });
-    const clearBtn = document.getElementById('jd-filter-clear');
-    if (clearBtn) clearBtn.addEventListener('click', () => {
-      state.titleFilter = { tags: [], minRatingAvg: null, minRatingCount: null };
-      fetchAndRenderTitles();
-    });
-  }
-
-  function wireCoverLinks(container) {
-    container.querySelectorAll('.jd-cover-link[data-cover-url]').forEach(btn => {
-      btn.addEventListener('click', () => showJdCoverModal(btn.dataset.coverUrl, btn.dataset.code));
-    });
-  }
-
-  function wireReenrichButtons() {
-    titlesView.querySelectorAll('.jd-reenrich-btn').forEach(btn => {
-      btn.addEventListener('click', async () => {
-        const titleId = btn.dataset.titleId;
-        const original = btn.textContent;
-        btn.textContent = '⌛';
-        btn.disabled = true;
-        btn.classList.add('jd-btn-busy');
-        try {
-          const r = await fetch(`/api/javdb/discovery/actresses/${state.selectedId}/titles/${titleId}/reenrich`, { method: 'POST' });
-          if (!r.ok) throw new Error('http ' + r.status);
-          btn.classList.remove('jd-btn-busy');
-          btn.classList.add('jd-btn-success');
-          btn.textContent = '✓';
-          btn.title = 'Queued — see Queue tab';
-          setTimeout(() => { renderTitlesTabSilent(); }, 800);
-        } catch (e) {
-          btn.classList.remove('jd-btn-busy');
-          btn.classList.add('jd-btn-error');
-          btn.textContent = '✗';
-          setTimeout(() => {
-            btn.classList.remove('jd-btn-error');
-            btn.textContent = original;
-            btn.disabled = false;
-          }, 2500);
-        }
-      });
-    });
-  }
-
-  function wireEnrichmentDetailTriggers() {
-    titlesView.querySelectorAll('.jd-enrich-detail-btn, .jd-status-clickable').forEach(el => {
-      el.addEventListener('click', e => {
-        e.stopPropagation();
-        openEnrichmentModal(Number(el.dataset.titleId));
-      });
-    });
-  }
-
-  function wireFailureBadges() {
-    titlesView.querySelectorAll('.jd-titles-review-link[data-review-id]').forEach(btn => {
-      btn.addEventListener('click', () => {
-        document.dispatchEvent(new CustomEvent('navigate-to-review-item', {
-          detail: { reviewQueueId: parseInt(btn.dataset.reviewId, 10) }
-        }));
-      });
-    });
-    titlesView.querySelectorAll('.jd-titles-profile-link').forEach(btn => {
-      btn.addEventListener('click', () => {
-        document.dispatchEvent(new CustomEvent('navigate-to-discovery-actress-profile', {
-          detail: { actressId: state.selectedId }
-        }));
-      });
-    });
-  }
-
-  // ── Enrichment detail modal ──────────────────────────────────────────────
-
-  function closeEnrichmentModal() {
-    enrichModalOverlay.style.display = 'none';
-    enrichModalBody.innerHTML = '';
-  }
-
-  async function openEnrichmentModal(titleId) {
-    enrichModalHeading.innerHTML = '<span class="jd-enrich-modal-code">Loading…</span>';
-    enrichModalBody.innerHTML = '<div class="jd-loading">Loading…</div>';
-    enrichModalOverlay.style.display = 'flex';
-    try {
-      const res = await fetch(`/api/javdb/discovery/titles/${titleId}/enrichment`);
-      if (!res.ok) { enrichModalBody.innerHTML = '<div class="jd-error">Failed to load enrichment data.</div>'; return; }
-      const d = await res.json();
-      renderEnrichmentModal(d);
-    } catch (_) {
-      enrichModalBody.innerHTML = '<div class="jd-error">Network error.</div>';
-    }
-  }
-
-  function renderEnrichmentModal(d) {
-    enrichModalHeading.innerHTML = `
-      <span class="jd-enrich-modal-code">${esc(d.code)}</span>
-      ${d.titleOriginal ? `<span class="jd-enrich-modal-title">${esc(d.titleOriginal)}</span>` : ''}
-    `;
-
-    const metaRows = [];
-    if (d.releaseDate)      metaRows.push(['Release', fmtDate(d.releaseDate)]);
-    if (d.durationMinutes)  metaRows.push(['Duration', `${d.durationMinutes} min`]);
-    if (d.maker)            metaRows.push(['Maker', esc(d.maker)]);
-    if (d.publisher && d.publisher !== d.maker) metaRows.push(['Publisher', esc(d.publisher)]);
-    if (d.series)           metaRows.push(['Series', esc(d.series)]);
-    if (d.ratingAvg != null) {
-      const votes = d.ratingCount != null ? ` · ${d.ratingCount} votes` : '';
-      metaRows.push(['Rating', `${d.ratingAvg.toFixed(2)} / 5${votes}`]);
-    }
-
-    const metaHtml = metaRows.length > 0
-      ? `<div>
-          <div class="jd-enrich-section-label">Details</div>
-          <div class="jd-enrich-meta-grid">
-            ${metaRows.map(([k, v]) => `<span class="jd-enrich-meta-label">${k}</span><span class="jd-enrich-meta-value">${v}</span>`).join('')}
-          </div>
-        </div>`
-      : '';
-
-    const cast = parseCast(d.castJson);
-    const castHtml = cast.length > 0
-      ? `<div>
-          <div class="jd-enrich-section-label">Cast</div>
-          <div class="jd-enrich-cast-list">
-            ${cast.map(e => `<span class="jd-enrich-cast-name">${esc(e.name)}</span>`).join('')}
-          </div>
-        </div>`
-      : '';
-
-    const tagsHtml = d.tags && d.tags.length > 0
-      ? `<div>
-          <div class="jd-enrich-section-label">Tags from javdb</div>
-          <div class="jd-enrich-tag-list">
-            ${d.tags.map(t => `<span class="jd-enrich-tag">${esc(t)}</span>`).join('')}
-          </div>
-        </div>`
-      : '';
-
-    const javdbUrl = d.javdbSlug ? `https://javdb.com/v/${esc(d.javdbSlug)}` : null;
-    const footerHtml = `
-      <div class="jd-enrich-footer">
-        ${javdbUrl ? `<a class="jd-enrich-source-link" href="${javdbUrl}" target="_blank" rel="noopener">View on javdb ↗</a>` : '<span></span>'}
-        ${d.fetchedAt ? `<span class="jd-enrich-fetched-at">Fetched ${fmtDate(d.fetchedAt.slice(0, 10))}</span>` : ''}
-      </div>
-    `;
-
-    enrichModalBody.innerHTML = metaHtml + castHtml + tagsHtml + footerHtml;
-  }
-
-  function titleEffectiveStatus(t) {
-    if (t.queueStatus === 'in_flight') return { key: 'in_flight', label: '⟳ In Progress' };
-    if (t.queueStatus === 'pending')   return { key: 'pending',   label: '◌ Queued' };
-    if (t.status === 'fetched')        return { key: 'fetched',   label: '✓ Enriched' };
-    if (t.queueStatus === 'failed') {
-      const meta  = QUEUE_FAIL_META_INLINE[t.lastError];
-      const icon  = meta?.icon  ?? '✗';
-      const label = meta?.label ?? (t.lastError ? t.lastError.replace(/_/g, ' ') : 'failed');
-      const cls   = meta?.cls   ?? 'jd-qi-failed';
-      return { key: 'failed', label: `${icon} ${label}`, cls, lastError: t.lastError, reviewQueueId: t.reviewQueueId };
-    }
-    if (t.status === 'slug_only')      return { key: 'slug_only', label: '⌁ Slug Only' };
-    if (t.queueStatus === 'done')      return { key: 'done',      label: '✓ Done' };
-    return { key: 'none', label: '— Not Started' };
-  }
-
-  function titleRow(t) {
-    const st = titleEffectiveStatus(t);
-    const { key, label } = st;
-    const isEnriched = key === 'fetched';
-
-    let statusCell;
-    if (isEnriched) {
-      statusCell = `<span class="jd-status jd-status-${key} jd-status-clickable" data-title-id="${t.titleId}" title="View enrichment details">${label}</span>`;
-    } else if (key === 'failed') {
-      const cls     = st.cls;
-      const tooltip = esc(st.lastError || '');
-      if (st.reviewQueueId != null) {
-        statusCell = `<button class="jd-status ${cls} jd-titles-review-link" data-review-id="${st.reviewQueueId}" title="${tooltip}">${label}</button>`;
-      } else if (st.lastError === 'no_slug') {
-        statusCell = `<button class="jd-status ${cls} jd-titles-profile-link" title="${tooltip}">${label}</button>`;
-      } else {
-        statusCell = `<span class="jd-status ${cls}" title="${tooltip}">${label}</span>`;
-      }
+    if (titlesHandle) {
+      // Panel already mounted for this actress — just refresh data.
+      titlesHandle.refresh();
     } else {
-      statusCell = `<span class="jd-status jd-status-${key}">${label}</span>`;
+      // Actress was just selected and titles tab is visible; mount fresh.
+      titlesHandle = mountTitlesPanel(titlesView, {
+        actressId: state.selectedId,
+        showActionBar: false,
+        hooks: {
+          refreshQueue:  hooks.refreshQueue,
+          loadActresses: hooks.loadActresses,
+        },
+      });
     }
-
-    const canReenrich = isEnriched || key === 'done' || key === 'failed' || t.status === 'not_found';
-    const infoBtn = isEnriched
-      ? `<button class="jd-enrich-detail-btn" data-title-id="${t.titleId}" title="View enrichment details">ⓘ</button>`
-      : '';
-    const reenrichBtn = canReenrich
-      ? `<button class="jd-reenrich-btn" data-title-id="${t.titleId}" title="Force re-enrich">↺</button>`
-      : '';
-    const rating = (t.ratingAvg != null)
-      ? `<span class="jd-rating">${t.ratingAvg.toFixed(2)}<span class="jd-rating-count"> · ${t.ratingCount ?? 0}</span></span>`
-      : '—';
-    const codeCell = t.localCoverUrl
-      ? `<button class="jd-cover-link" data-cover-url="${esc(t.localCoverUrl)}" data-code="${esc(t.code)}">${esc(t.code)}</button>`
-      : esc(t.code);
-    return `<tr>
-      <td class="jd-code">${codeCell}</td>
-      <td>${statusCell}</td>
-      <td>${t.titleOriginal ? esc(t.titleOriginal) : '—'}</td>
-      <td>${fmtDate(t.releaseDate)}</td>
-      <td>${t.maker ? esc(t.maker) : '—'}</td>
-      <td class="jd-rating-cell">${rating}</td>
-      <td class="jd-action-cell">${infoBtn}${reenrichBtn}</td>
-    </tr>`;
   }
 
   // ── Profile tab ──────────────────────────────────────────────────────────
 
   async function renderProfileTab() {
-    profileView.style.display   = '';
-    titlesView.style.display    = 'none';
+    profileView.style.display     = '';
+    titlesView.style.display      = 'none';
     titlesActionBar.style.display = 'none';
-    conflictsView.style.display = 'none';
-    errorsView.style.display    = 'none';
-    profileView.innerHTML = '<div class="jd-loading">Loading…</div>';
-    try {
-      const res = await fetch(`/api/javdb/discovery/actresses/${state.selectedId}/profile`);
-      if (res.status === 404) {
-        const selected = state.actresses?.find(a => a.id === state.selectedId);
-        const enriched = selected?.enrichedTitles ?? 0;
-        const canDerive = enriched > 0;
-        profileView.innerHTML = `
-          <div class="jd-empty-tab">
-            <div>No staging profile yet.</div>
-            ${canDerive ? `
-              <div class="jd-derive-help">
-                ${enriched} title(s) enriched but no slug recorded. Derive the slug from her co-stars'
-                cast lists and queue a profile fetch:
-              </div>
-              <div class="jd-profile-actions">
-                <button id="jd-derive-slug-btn" class="jd-action-btn jd-muted-btn">⚡ Find Slug from Titles</button>
-              </div>
-              <div id="jd-derive-result"></div>
-            ` : `
-              <div class="jd-derive-help">No enriched titles yet — no cast data to derive a slug from.</div>
-            `}
-          </div>`;
-        const dBtn = document.getElementById('jd-derive-slug-btn');
-        if (dBtn) {
-          dBtn.addEventListener('click', () => deriveSlugForSelected(dBtn));
-        }
-        return;
-      }
-      if (!res.ok) { profileView.innerHTML = '<div class="jd-error">Failed to load profile.</div>'; return; }
-      const p = await res.json();
-      profileView.innerHTML = `
-        <div class="jd-profile">
-          ${(p.localAvatarUrl || p.avatarUrl) ? `<img class="jd-avatar" src="${esc(p.localAvatarUrl || p.avatarUrl)}" alt="avatar">` : ''}
-          <dl class="jd-profile-fields">
-            <dt>Slug</dt><dd>${p.javdbSlug ? esc(p.javdbSlug) : '—'}</dd>
-            <dt>Status</dt><dd><span class="jd-status jd-status-${esc(p.status ?? 'none')}">${esc(p.status ?? '—')}</span></dd>
-            <dt>Fetched at</dt><dd>${p.rawFetchedAt ? esc(p.rawFetchedAt) : '—'}</dd>
-            <dt>Title count</dt><dd>${p.titleCount != null ? p.titleCount : '—'}</dd>
-            <dt>Twitter</dt><dd>${p.twitterHandle ? esc(p.twitterHandle) : '—'}</dd>
-            <dt>Instagram</dt><dd>${p.instagramHandle ? esc(p.instagramHandle) : '—'}</dd>
-            ${p.nameVariantsJson ? `<dt>Name variants</dt><dd class="jd-variants">${esc(p.nameVariantsJson)}</dd>` : ''}
-          </dl>
-          <div class="jd-profile-actions">
-            <button id="jd-refetch-profile-btn" class="jd-action-btn jd-muted-btn">↺ Re-fetch Profile</button>
-            ${(p.avatarUrl && !p.localAvatarUrl)
-              ? `<button id="jd-download-avatar-btn" class="jd-action-btn jd-muted-btn">⬇ Download Avatar</button>`
-              : ''}
-          </div>
-        </div>
-      `;
-      document.getElementById('jd-refetch-profile-btn').addEventListener('click', async () => {
-        const btn = document.getElementById('jd-refetch-profile-btn');
-        const original = btn.textContent;
-        btn.textContent = '⌛ Enqueuing…';
-        btn.disabled = true;
-        btn.classList.add('jd-btn-busy');
-        try {
-          const r = await fetch(`/api/javdb/discovery/actresses/${state.selectedId}/profile/reenrich`, { method: 'POST' });
-          if (!r.ok) throw new Error('http ' + r.status);
-          btn.classList.remove('jd-btn-busy');
-          btn.classList.add('jd-btn-success');
-          btn.textContent = '✓ Queued — see Queue tab';
-          setTimeout(() => {
-            btn.classList.remove('jd-btn-success');
-            btn.textContent = original;
-            btn.disabled = false;
-          }, 2500);
-        } catch (e) {
-          btn.classList.remove('jd-btn-busy');
-          btn.classList.add('jd-btn-error');
-          btn.textContent = '✗ Failed';
-          setTimeout(() => {
-            btn.classList.remove('jd-btn-error');
-            btn.textContent = original;
-            btn.disabled = false;
-          }, 2500);
-        }
-      });
-      const dlBtn = document.getElementById('jd-download-avatar-btn');
-      if (dlBtn) {
-        dlBtn.addEventListener('click', async () => {
-          const original = dlBtn.textContent;
-          dlBtn.textContent = '⌛ Downloading…';
-          dlBtn.disabled = true;
-          dlBtn.classList.add('jd-btn-busy');
-          try {
-            const r = await fetch(`/api/javdb/discovery/actresses/${state.selectedId}/avatar/download`, { method: 'POST' });
-            const body = await r.json().catch(() => ({}));
-            if (!r.ok) {
-              const reason = body.status === 'no_url'  ? 'no avatar URL on profile'
-                           : body.status === 'failed'  ? 'CDN download failed'
-                           : body.status === 'no_profile' ? 'no profile yet'
-                           : `error (${r.status})`;
-              dlBtn.classList.remove('jd-btn-busy');
-              dlBtn.classList.add('jd-btn-error');
-              dlBtn.textContent = `✗ ${reason}`;
-              setTimeout(() => {
-                dlBtn.classList.remove('jd-btn-error');
-                dlBtn.textContent = original;
-                dlBtn.disabled = false;
-              }, 2500);
-              return;
-            }
-            dlBtn.classList.remove('jd-btn-busy');
-            dlBtn.classList.add('jd-btn-success');
-            dlBtn.textContent = '✓ Downloaded';
-            setTimeout(() => { renderProfileTab(); }, 700);
-          } catch (e) {
-            dlBtn.classList.remove('jd-btn-busy');
-            dlBtn.classList.add('jd-btn-error');
-            dlBtn.textContent = '✗ network error';
-            setTimeout(() => {
-              dlBtn.classList.remove('jd-btn-error');
-              dlBtn.textContent = original;
-              dlBtn.disabled = false;
-            }, 2500);
-          }
-        });
-      }
-    } catch (_) {
-      profileView.innerHTML = '<div class="jd-error">Network error.</div>';
-    }
-  }
-
-  async function deriveSlugForSelected(btn) {
-    const original = btn.textContent;
-    btn.textContent = '⌛ Deriving…';
-    btn.disabled = true;
-    btn.classList.add('jd-btn-busy');
-    const out = document.getElementById('jd-derive-result');
-    try {
-      const r = await fetch(`/api/javdb/discovery/actresses/${state.selectedId}/profile/derive-slug`, { method: 'POST' });
-      const body = await r.json().catch(() => ({}));
-      if (r.ok) {
-        btn.classList.remove('jd-btn-busy');
-        btn.classList.add('jd-btn-success');
-        btn.textContent = body.status === 'already_resolved' ? '✓ Already had slug — re-queued' : '✓ Slug found — queued';
-        if (out) {
-          out.innerHTML = `
-            <div class="jd-derive-success">
-              Picked slug <code>${esc(body.chosenSlug)}</code>${body.chosenName ? ` (${esc(body.chosenName)})` : ''}
-              ${body.chosenTitleCount ? ` — appears in ${body.chosenTitleCount} of her ${body.totalEnrichedTitles} enriched titles.` : ''}
-              See Queue tab for fetch progress.
-            </div>`;
-        }
-        setTimeout(() => renderProfileTab(), 1500);
-        return;
-      }
-      btn.classList.remove('jd-btn-busy');
-      btn.classList.add('jd-btn-error');
-      if (body.status === 'ambiguous' && out) {
-        const rows = (body.candidates || []).slice(0, 5).map(c =>
-          `<tr><td><code>${esc(c.slug)}</code></td><td>${esc(c.name || '—')}</td><td>${c.titleCount}</td></tr>`).join('');
-        btn.textContent = '✗ Ambiguous';
-        out.innerHTML = `
-          <div class="jd-derive-error">
-            Top candidates are tied. Manual selection needed:
-            <table class="jd-derive-candidates">
-              <thead><tr><th>Slug</th><th>Name</th><th>Title count</th></tr></thead>
-              <tbody>${rows}</tbody>
-            </table>
-          </div>`;
-      } else if (body.status === 'no_data') {
-        btn.textContent = '✗ No cast data';
-        if (out) out.innerHTML = `<div class="jd-derive-error">Enriched titles have no cast data with slugs.</div>`;
-      } else {
-        btn.textContent = `✗ Error (${r.status})`;
-      }
-      setTimeout(() => {
-        btn.classList.remove('jd-btn-error');
-        btn.textContent = original;
-        btn.disabled = false;
-      }, 3500);
-    } catch (e) {
-      btn.classList.remove('jd-btn-busy');
-      btn.classList.add('jd-btn-error');
-      btn.textContent = '✗ Network error';
-      setTimeout(() => {
-        btn.classList.remove('jd-btn-error');
-        btn.textContent = original;
-        btn.disabled = false;
-      }, 2500);
-    }
+    conflictsView.style.display   = 'none';
+    errorsView.style.display      = 'none';
+    mountProfilePanel(profileView, {
+      actressId: state.selectedId,
+      hooks: { refreshQueue: hooks.refreshQueue },
+    });
   }
 
   // ── Conflicts tab ────────────────────────────────────────────────────────
@@ -1350,14 +869,6 @@ export function initEnrich(state, hooks) {
   }
 
   // ── Wiring ───────────────────────────────────────────────────────────────
-
-  enrichModalClose.addEventListener('click', closeEnrichmentModal);
-  enrichModalOverlay.addEventListener('click', e => {
-    if (e.target === enrichModalOverlay) closeEnrichmentModal();
-  });
-  document.addEventListener('keydown', e => {
-    if (e.key === 'Escape' && enrichModalOverlay.style.display !== 'none') closeEnrichmentModal();
-  });
 
   enrichBtn.addEventListener('click', enrichActress);
   cancelActressBtn.addEventListener('click', cancelActress);
