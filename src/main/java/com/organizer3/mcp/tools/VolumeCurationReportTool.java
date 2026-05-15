@@ -5,6 +5,7 @@ import com.organizer3.mcp.Schemas;
 import com.organizer3.mcp.Tool;
 import com.organizer3.model.Actress;
 import com.organizer3.model.ActressAlias;
+import com.organizer3.notes.OrphanNoteFinder;
 import com.organizer3.repository.ActressRepository;
 import com.organizer3.shell.SessionContext;
 import com.organizer3.smb.VolumeConnection;
@@ -46,13 +47,22 @@ public class VolumeCurationReportTool implements Tool {
     private final SessionContext session;
     private final ActressRepository actressRepo;
     private final Jdbi jdbi;
+    private final OrphanNoteFinder orphanNoteFinder;
 
     public VolumeCurationReportTool(SessionContext session,
                                      ActressRepository actressRepo,
                                      Jdbi jdbi) {
-        this.session     = session;
-        this.actressRepo = actressRepo;
-        this.jdbi        = jdbi;
+        this(session, actressRepo, jdbi, null);
+    }
+
+    public VolumeCurationReportTool(SessionContext session,
+                                     ActressRepository actressRepo,
+                                     Jdbi jdbi,
+                                     OrphanNoteFinder orphanNoteFinder) {
+        this.session          = session;
+        this.actressRepo      = actressRepo;
+        this.jdbi             = jdbi;
+        this.orphanNoteFinder = orphanNoteFinder;
     }
 
     @Override public String name() { return "volume_curation_report"; }
@@ -112,20 +122,22 @@ public class VolumeCurationReportTool implements Tool {
                 buildQueueResidents(effectiveVolumeId, limitPerSection);
         DuplicateBaseCodesSection duplicateBaseCodes =
                 buildDuplicateBaseCodes(effectiveVolumeId, limitPerSection);
+        OrphanNotesSection orphanNotes = buildOrphanNotes();
 
-        log.info("volume_curation_report done volume={} misnamedParents={} drifts={} fsOnly={} queue={} dupCodes={}",
+        log.info("volume_curation_report done volume={} misnamedParents={} drifts={} fsOnly={} queue={} dupCodes={} orphanNotes={}",
                 effectiveVolumeId,
                 misnamedParents.total(),
                 driftedMultiActress.total(),
                 fsOnlyTitles.total(),
                 queueResidents.total(),
-                duplicateBaseCodes.total());
+                duplicateBaseCodes.total(),
+                orphanNotes.count());
 
         return new Report(
                 effectiveVolumeId,
                 generatedAt,
                 new Sections(misnamedParents, driftedMultiActress, fsOnlyTitles,
-                             queueResidents, duplicateBaseCodes));
+                             queueResidents, duplicateBaseCodes, orphanNotes));
     }
 
     // ── Section 1: misnamed actress parent folders ───────────────────────────
@@ -421,6 +433,21 @@ public class VolumeCurationReportTool implements Tool {
         return new DuplicateBaseCodesSection(total, List.copyOf(results));
     }
 
+    // ── Section 6: orphan notes ──────────────────────────────────────────────
+
+    private OrphanNotesSection buildOrphanNotes() {
+        if (orphanNoteFinder == null) {
+            return new OrphanNotesSection(0, List.of());
+        }
+        List<OrphanNoteFinder.OrphanNote> orphans = orphanNoteFinder.findAll();
+        int count = orphans.size();
+        List<OrphanNotesPeekRow> peek = orphans.stream()
+                .limit(5)
+                .map(o -> new OrphanNotesPeekRow(o.entityType().wireValue(), o.entityId(), o.body()))
+                .toList();
+        return new OrphanNotesSection(count, peek);
+    }
+
     // ── Output records ────────────────────────────────────────────────────────
 
     public record MisnamedParentRow(
@@ -464,12 +491,17 @@ public class VolumeCurationReportTool implements Tool {
 
     public record DuplicateBaseCodesSection(int total, List<DuplicateBaseCodeRow> results) {}
 
+    public record OrphanNotesPeekRow(String entityType, String entityId, String body) {}
+
+    public record OrphanNotesSection(int count, List<OrphanNotesPeekRow> peek) {}
+
     public record Sections(
             MisnamedParentsSection misnamedParents,
             DriftedMultiActressSection driftedMultiActress,
             FsOnlyTitlesSection fsOnlyTitles,
             QueueResidentsSection queueResidents,
-            DuplicateBaseCodesSection duplicateBaseCodes
+            DuplicateBaseCodesSection duplicateBaseCodes,
+            OrphanNotesSection orphanNotes
     ) {}
 
     public record Report(

@@ -1091,6 +1091,8 @@ public class Application {
         com.organizer3.notes.NoteService noteService =
                 new com.organizer3.notes.NoteService(noteRepo,
                         new com.organizer3.notes.JdbiEntityResolver(jdbi));
+        com.organizer3.notes.OrphanNoteFinder orphanNoteFinder =
+                new com.organizer3.notes.OrphanNoteFinder(jdbi);
         webServer.registerNotes(new com.organizer3.web.routes.NoteRoutes(noteService));
 
         // MCP (Model Context Protocol) server — read-only diagnostic tools mounted on
@@ -1121,13 +1123,14 @@ public class Application {
                     .register(new com.organizer3.mcp.tools.FindEnrichmentCastMismatchesTool(jdbi))
                     .register(new com.organizer3.mcp.tools.BackfillActressSlugsFromCastTool(jdbi, enrichmentReviewQueueRepo))
                     .register(new com.organizer3.mcp.tools.FindStaleLocationsTool(jdbi))
+                    .register(new com.organizer3.mcp.NoteToolHandlers.FindOrphanNotes(orphanNoteFinder))
                     .register(new com.organizer3.mcp.tools.ListActressesWithMisnamedFoldersTool(jdbi))
                     .register(new com.organizer3.mcp.tools.FindMisnamedFoldersForActressTool(jdbi, actressRepo))
                     .register(new com.organizer3.mcp.tools.ListActressLocationsTool(actressRepo, jdbi))
                     .register(new com.organizer3.mcp.tools.FindFsOnlyTitlesTool(session, jdbi))
                     .register(new com.organizer3.mcp.tools.FindActressFolderCandidatesTool(session, actressRepo, jdbi, config))
                     .register(new com.organizer3.mcp.tools.FindMultiActressFolderDriftTool(session, actressRepo, jdbi))
-                    .register(new com.organizer3.mcp.tools.VolumeCurationReportTool(session, actressRepo, jdbi))
+                    .register(new com.organizer3.mcp.tools.VolumeCurationReportTool(session, actressRepo, jdbi, orphanNoteFinder))
                     .register(new com.organizer3.mcp.tools.ListMultiVideoTitlesTool(jdbi))
                     .register(new com.organizer3.mcp.tools.AnalyzeTitleVideosTool(titleRepo, videoRepo))
                     .register(new com.organizer3.mcp.tools.FindDuplicateCandidatesTool(jdbi))
@@ -1177,6 +1180,7 @@ public class Application {
                 mcpTools.register(new com.organizer3.mcp.tools.MergeActressesTool(jdbi, actressRepo, curationLog));
                 mcpTools.register(new com.organizer3.mcp.tools.DeleteTitleTool(jdbi, titleRepo, enrichmentHistoryRepo));
                 mcpTools.register(new com.organizer3.mcp.tools.PruneStaleLocationsTool(jdbi));
+                mcpTools.register(new com.organizer3.mcp.NoteToolHandlers.PruneOrphanNotes(orphanNoteFinder));
                 mcpTools.register(new com.organizer3.mcp.tools.RevalidateEnrichmentTool(revalidationService, revalidationPendingRepo));
                 mcpTools.register(new com.organizer3.mcp.tools.SetDuplicateDecisionTool(dupDecisionRepo));
                 mcpTools.register(new com.organizer3.mcp.tools.DecideMergeCandidateTool(mergeCandidateRepo));
