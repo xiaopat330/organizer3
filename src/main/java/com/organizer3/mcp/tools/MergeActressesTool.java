@@ -16,6 +16,8 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 /**
  * Fold one actress record ({@code from}) into another ({@code into}) as a single-transaction
@@ -71,6 +73,8 @@ public class MergeActressesTool implements Tool {
                 .prop("into",   "integer", "Actress id to keep. All data from 'from' is folded into this record.")
                 .prop("from",   "integer", "Actress id to fold in. This record is deleted after merge.")
                 .prop("dryRun", "boolean", "If true (default), return the plan without committing.", true)
+                .propArray("dropAliases", "Optional. Aliases to remove from the canonical actress after merge (case-insensitive). "
+                        + "Empty/omitted = no aliases dropped beyond standard merge-fold behavior.")
                 .require("into", "from")
                 .build();
     }
@@ -80,16 +84,28 @@ public class MergeActressesTool implements Tool {
         long intoId = Schemas.requireLong(args, "into");
         long fromId = Schemas.requireLong(args, "from");
         boolean dryRun = Schemas.optBoolean(args, "dryRun", true);
-        Result result = merge(jdbi, actressRepo, intoId, fromId, dryRun);
+        List<String> dropAliases = parseStringArray(args, "dropAliases");
+        Result result = merge(jdbi, actressRepo, intoId, fromId, dryRun, dropAliases);
         // Emit curation log — merge is DB-only, no volumeId; use "unknown"
         String status = dryRun ? "dry-run" : "ok";
         CurationLogRecord rec = new CurationLogRecord(
                 Instant.now(), name(), "mcp", "mcp-" + Thread.currentThread().getName(),
-                Map.of("into", intoId, "from", fromId, "dryRun", dryRun),
+                Map.of("into", intoId, "from", fromId, "dryRun", dryRun, "dropAliases", dropAliases),
                 null, null,
                 dryRun ? null : Map.of("summary", result.plan().summary()),
                 status, List.of());
         curationLog.append("unknown", rec);
+        return result;
+    }
+
+    private static List<String> parseStringArray(JsonNode args, String field) {
+        JsonNode node = args.get(field);
+        if (node == null || !node.isArray()) return List.of();
+        List<String> result = new ArrayList<>();
+        for (JsonNode item : node) {
+            String v = item.asText("").trim();
+            if (!v.isBlank()) result.add(v);
+        }
         return result;
     }
 
@@ -101,6 +117,18 @@ public class MergeActressesTool implements Tool {
      */
     public static Result merge(Jdbi jdbi, ActressRepository actressRepo,
                                long intoId, long fromId, boolean dryRun) {
+        return merge(jdbi, actressRepo, intoId, fromId, dryRun, List.of());
+    }
+
+    /**
+     * Core merge entry-point with optional alias drops. After the merge, aliases in
+     * {@code dropAliases} are removed from the canonical actress (case-insensitive match).
+     *
+     * @throws IllegalArgumentException if {@code intoId == fromId} or either id is unknown
+     */
+    public static Result merge(Jdbi jdbi, ActressRepository actressRepo,
+                               long intoId, long fromId, boolean dryRun,
+                               List<String> dropAliases) {
         if (intoId == fromId) {
             throw new IllegalArgumentException("'into' and 'from' must be different actress ids");
         }
@@ -110,13 +138,19 @@ public class MergeActressesTool implements Tool {
         Actress fromActress = actressRepo.findById(fromId).orElseThrow(
                 () -> new IllegalArgumentException("No actress with id " + fromId + " (from)"));
 
-        log.info("ActressMerge: start — into={}/\"{}\" from={}/\"{}\" dryRun={}",
-                intoId, intoActress.getCanonicalName(), fromId, fromActress.getCanonicalName(), dryRun);
+        log.info("ActressMerge: start — into={}/\"{}\" from={}/\"{}\" dryRun={} dropAliases={}",
+                intoId, intoActress.getCanonicalName(), fromId, fromActress.getCanonicalName(),
+                dryRun, dropAliases);
 
         MergedFlags merged = mergeFlags(intoActress, fromActress);
 
-        return jdbi.inTransaction(h -> {
-            Plan plan = buildPlan(h, intoActress, fromActress, merged);
+        // Normalise dropAliases to lowercase set for fast case-insensitive matching
+        Set<String> dropLower = dropAliases.stream()
+                .map(String::toLowerCase)
+                .collect(Collectors.toSet());
+
+        Result baseResult = jdbi.inTransaction(h -> {
+            Plan plan = buildPlan(h, intoActress, fromActress, merged, dropLower);
             log.info("ActressMerge: plan — {}", plan.summary());
             if (!dryRun) {
                 execute(h, intoId, fromId, fromActress.getCanonicalName(), merged);
@@ -124,13 +158,55 @@ public class MergeActressesTool implements Tool {
             } else {
                 log.info("ActressMerge: dry-run only — no changes committed");
             }
-            return new Result(dryRun, plan);
+            return new Result(dryRun, plan, List.of(), List.of());
         });
+
+        if (dropLower.isEmpty()) {
+            return baseResult;
+        }
+
+        // Apply alias drops (or compute planned drops for dry-run)
+        List<com.organizer3.model.ActressAlias> currentAliases = actressRepo.findAliases(intoId);
+        List<String> currentNames = currentAliases.stream()
+                .map(com.organizer3.model.ActressAlias::aliasName)
+                .toList();
+
+        List<String> actualDropped = new ArrayList<>();
+        List<String> notFound = new ArrayList<>();
+        List<String> keepList = new ArrayList<>();
+
+        for (String alias : currentNames) {
+            if (dropLower.contains(alias.toLowerCase())) {
+                actualDropped.add(alias);
+            } else {
+                keepList.add(alias);
+            }
+        }
+        for (String requested : dropAliases) {
+            boolean matched = currentNames.stream()
+                    .anyMatch(a -> a.equalsIgnoreCase(requested));
+            if (!matched) {
+                notFound.add(requested);
+                log.info("ActressMerge dropAliases: '{}' not present in alias list — no-op", requested);
+            }
+        }
+
+        if (!dryRun && !actualDropped.isEmpty()) {
+            actressRepo.replaceAllAliases(intoId, keepList);
+            log.info("ActressMerge dropAliases: dropped {} alias(es) from into={} — {}",
+                    actualDropped.size(), intoId, actualDropped);
+        } else if (dryRun && !actualDropped.isEmpty()) {
+            log.info("ActressMerge dropAliases: dry-run — would drop {} alias(es) from into={} — {}",
+                    actualDropped.size(), intoId, actualDropped);
+        }
+
+        return new Result(dryRun, baseResult.plan(), actualDropped, notFound);
     }
 
     // ── plan computation (pure SELECT queries) ──────────────────────────────
 
-    private static Plan buildPlan(Handle h, Actress into, Actress from, MergedFlags merged) {
+    private static Plan buildPlan(Handle h, Actress into, Actress from, MergedFlags merged,
+                                  Set<String> dropLower) {
         long intoId = into.getId();
         long fromId = from.getId();
 
@@ -196,9 +272,34 @@ public class MergeActressesTool implements Tool {
                 fromId, from.getCanonicalName(), intoId, into.getCanonicalName(),
                 titlesReassigned + junctionMigrate, aliasCanonicalInsert + aliasMigrate);
 
+        // Compute which aliases would be dropped: gather all alias names that will exist on into
+        // after merge, then intersect with dropLower.
+        List<String> plannedDrops = List.of();
+        if (!dropLower.isEmpty()) {
+            List<String> postMergeAliases = h.createQuery("""
+                    SELECT alias_name FROM actress_aliases WHERE actress_id = :into
+                    UNION
+                    SELECT :fromCanonical
+                    UNION
+                    SELECT alias_name FROM actress_aliases WHERE actress_id = :from
+                      AND LOWER(alias_name) NOT IN (
+                          SELECT LOWER(alias_name) FROM actress_aliases WHERE actress_id = :into
+                      )
+                    """)
+                    .bind("into", intoId)
+                    .bind("fromCanonical", from.getCanonicalName())
+                    .bind("from", fromId)
+                    .mapTo(String.class)
+                    .list();
+            plannedDrops = postMergeAliases.stream()
+                    .filter(a -> dropLower.contains(a.toLowerCase()))
+                    .sorted()
+                    .toList();
+        }
+
         return new Plan(summary, changes, new FlagsAfter(
                 merged.favorite, merged.bookmark, merged.grade == null ? null : merged.grade.name(),
-                merged.rejected, merged.visitCount));
+                merged.rejected, merged.visitCount), plannedDrops);
     }
 
     // ── execution ───────────────────────────────────────────────────────────
@@ -316,6 +417,13 @@ public class MergeActressesTool implements Tool {
     public record Change(String op, String table, int rows, String predicate, String setting) {}
     public record FlagsAfter(boolean favorite, boolean bookmark, String grade,
                              boolean rejected, int visitCount) {}
-    public record Plan(String summary, List<Change> changes, FlagsAfter flagsAfter) {}
-    public record Result(boolean dryRun, Plan plan) {}
+    public record Plan(String summary, List<Change> changes, FlagsAfter flagsAfter,
+                       List<String> plannedAliasDrops) {}
+    public record Result(boolean dryRun, Plan plan, List<String> droppedAliases,
+                         List<String> dropAliasesNotFound) {
+        /** Backward-compat constructor used by callers that don't need drop info. */
+        public Result(boolean dryRun, Plan plan) {
+            this(dryRun, plan, List.of(), List.of());
+        }
+    }
 }
