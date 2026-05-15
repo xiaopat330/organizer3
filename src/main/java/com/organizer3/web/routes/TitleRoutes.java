@@ -7,6 +7,7 @@ import com.organizer3.config.volume.ServerConfig;
 import com.organizer3.config.volume.VolumeConfig;
 import com.organizer3.model.Title;
 import com.organizer3.model.Video;
+import com.organizer3.notes.NotesFilter;
 import com.organizer3.repository.TitleRepository;
 import com.organizer3.repository.VideoRepository;
 import com.organizer3.smb.SmbConnectionFactory;
@@ -82,11 +83,13 @@ public class TitleRoutes {
             String company             = ctx.queryParam("company");
             String sort                = ctx.queryParam("sort");
             String order               = ctx.queryParam("order");
+            String notesParam          = ctx.queryParam("notes");
             int offset = ctx.queryParamAsClass("offset", Integer.class).getOrDefault(0);
             int limit  = ctx.queryParamAsClass("limit",  Integer.class).getOrDefault(24);
             offset = Math.max(offset, 0);
             limit  = Math.max(1, limit);
             boolean hasEnrichTags = enrichTagIdsParam != null && !enrichTagIdsParam.isBlank();
+            NotesFilter notesFilter = ActressRoutes.parseNotesFilter(notesParam);
             if (search != null && !search.isBlank()) {
                 ctx.json(browseService.searchByCodePaged(search.trim(), offset, limit));
             } else if ("true".equals(favorites)) {
@@ -94,7 +97,8 @@ public class TitleRoutes {
             } else if ("true".equals(bookmarks)) {
                 ctx.json(browseService.findBookmarksPaged(offset, limit));
             } else if (codeParam != null || company != null || sort != null || order != null
-                       || (tagsParam != null && !tagsParam.isBlank()) || hasEnrichTags) {
+                       || (tagsParam != null && !tagsParam.isBlank()) || hasEnrichTags
+                       || notesFilter != null) {
                 List<String> tags = (tagsParam != null && !tagsParam.isBlank())
                         ? List.of(tagsParam.split(",")) : List.of();
                 List<Long> enrichmentTagIds = (enrichTagIdsParam != null && !enrichTagIdsParam.isBlank())
@@ -102,7 +106,7 @@ public class TitleRoutes {
                             .map(String::trim).filter(s -> !s.isEmpty())
                             .map(Long::parseLong).toList()
                         : List.of();
-                ctx.json(browseService.findLibraryPaged(codeParam, company, tags, enrichmentTagIds, sort, order, offset, limit));
+                ctx.json(browseService.findLibraryPaged(codeParam, company, tags, enrichmentTagIds, sort, order, offset, limit, notesFilter));
             } else {
                 ctx.json(browseService.findRecent(offset, limit));
             }

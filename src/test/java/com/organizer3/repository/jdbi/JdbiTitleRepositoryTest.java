@@ -9,6 +9,7 @@ import com.organizer3.model.Actress;
 import com.organizer3.model.Title;
 import com.organizer3.model.TitleLocation;
 import com.organizer3.model.TitleSortSpec;
+import com.organizer3.notes.NotesFilter;
 import org.jdbi.v3.core.Jdbi;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -1559,5 +1560,62 @@ class JdbiTitleRepositoryTest {
                         .bind(0, t.getId()).mapToMap().one());
         assertNull(row.get("grade"), "null grade should clear the grade column");
         assertEquals("enrichment", row.get("grade_source"), "grade_source must not change when enrichTitle grade is null");
+    }
+
+    // ── notes-filter regression tests ─────────────────────────────────────────
+
+    /**
+     * SQL predicate regression: findLibraryPaged with NotesFilter.HAS_NOTE returns only the
+     * title that has a note; NO_NOTE returns only those without; null (Any) returns all three.
+     *
+     * <p>Notes are seeded directly into the {@code notes} table to exercise the EXISTS
+     * predicate in isolation. For titles, entity_id is already TEXT (the title code).
+     */
+    @Test
+    void findLibraryPagedNotesFilterHasNote_returnsOnlyTitleWithNote() {
+        Title noted   = saveWithLocation(titleFull("ABP-001", "ABP", 1), "vol-a", "stars/library", "/p1");
+        saveWithLocation(titleFull("ABP-002", "ABP", 2), "vol-a", "stars/library", "/p2");
+        saveWithLocation(titleFull("ABP-003", "ABP", 3), "vol-a", "stars/library", "/p3");
+
+        // entity_id for titles is the title code (per JdbiNoteRepository / JdbiEntityResolver)
+        jdbi.useHandle(h -> h.execute(
+                "INSERT INTO notes (entity_type, entity_id, body, created_at, updated_at) VALUES ('title', '"
+                + noted.getCode() + "', 'test note', 0, 0)"));
+
+        List<Title> result = titleRepo.findLibraryPaged("", "", List.of(), List.of(), List.of(), null, false, 100, 0, NotesFilter.HAS_NOTE);
+        assertEquals(1, result.size(), "HAS_NOTE must return exactly the noted title");
+        assertEquals(noted.getCode(), result.get(0).getCode());
+    }
+
+    @Test
+    void findLibraryPagedNotesFilterNoNote_returnsOnlyTitlesWithoutNote() {
+        Title noted    = saveWithLocation(titleFull("ABP-001", "ABP", 1), "vol-a", "stars/library", "/p1");
+        Title unnoted1 = saveWithLocation(titleFull("ABP-002", "ABP", 2), "vol-a", "stars/library", "/p2");
+        Title unnoted2 = saveWithLocation(titleFull("ABP-003", "ABP", 3), "vol-a", "stars/library", "/p3");
+
+        jdbi.useHandle(h -> h.execute(
+                "INSERT INTO notes (entity_type, entity_id, body, created_at, updated_at) VALUES ('title', '"
+                + noted.getCode() + "', 'test note', 0, 0)"));
+
+        List<Title> result = titleRepo.findLibraryPaged("", "", List.of(), List.of(), List.of(), null, false, 100, 0, NotesFilter.NO_NOTE);
+        assertEquals(2, result.size(), "NO_NOTE must return exactly the two unnoted titles");
+        var codes = result.stream().map(Title::getCode).toList();
+        assertTrue(codes.contains(unnoted1.getCode()));
+        assertTrue(codes.contains(unnoted2.getCode()));
+        assertFalse(codes.contains(noted.getCode()));
+    }
+
+    @Test
+    void findLibraryPagedNotesFilterNull_returnsAllTitles() {
+        Title noted    = saveWithLocation(titleFull("ABP-001", "ABP", 1), "vol-a", "stars/library", "/p1");
+        saveWithLocation(titleFull("ABP-002", "ABP", 2), "vol-a", "stars/library", "/p2");
+        saveWithLocation(titleFull("ABP-003", "ABP", 3), "vol-a", "stars/library", "/p3");
+
+        jdbi.useHandle(h -> h.execute(
+                "INSERT INTO notes (entity_type, entity_id, body, created_at, updated_at) VALUES ('title', '"
+                + noted.getCode() + "', 'test note', 0, 0)"));
+
+        List<Title> result = titleRepo.findLibraryPaged("", "", List.of(), List.of(), List.of(), null, false, 100, 0, (NotesFilter) null);
+        assertEquals(3, result.size(), "null notesFilter (Any) must return all titles");
     }
 }

@@ -382,20 +382,33 @@ public interface TitleRepository {
      * @param enrichmentTagIds   raw enrichment_tag_definition IDs that must ALL be present (empty = no filter)
      * @param sort               "productCode" | "actressName" | "addedDate" (null → addedDate)
      * @param asc                true for ascending, false for descending
+     * @param notesFilter        {@link com.organizer3.notes.NotesFilter#HAS_NOTE} / {@code NO_NOTE}
+     *                           to filter by notes presence, or {@code null} for no filter
      */
     List<Title> findLibraryPaged(String labelPrefix, String seqPrefix,
                                   List<String> companyLabels, List<String> tags,
                                   List<Long> enrichmentTagIds,
                                   String sort, boolean asc,
-                                  int limit, int offset);
+                                  int limit, int offset,
+                                  com.organizer3.notes.NotesFilter notesFilter);
 
-    /** Convenience overload that forwards with an empty enrichmentTagIds list. */
+    /** Convenience overload that forwards with an empty enrichmentTagIds list and no notes filter. */
     default List<Title> findLibraryPaged(String labelPrefix, String seqPrefix,
                                           List<String> companyLabels, List<String> tags,
                                           String sort, boolean asc,
                                           int limit, int offset) {
         return findLibraryPaged(labelPrefix, seqPrefix, companyLabels, tags,
-                List.of(), sort, asc, limit, offset);
+                List.of(), sort, asc, limit, offset, null);
+    }
+
+    /** Convenience overload with no notes filter (backwards compat for callers that don't need it). */
+    default List<Title> findLibraryPaged(String labelPrefix, String seqPrefix,
+                                          List<String> companyLabels, List<String> tags,
+                                          List<Long> enrichmentTagIds,
+                                          String sort, boolean asc,
+                                          int limit, int offset) {
+        return findLibraryPaged(labelPrefix, seqPrefix, companyLabels, tags,
+                enrichmentTagIds, sort, asc, limit, offset, null);
     }
 
     /**

@@ -366,13 +366,38 @@ public class JdbiActressRepository implements ActressRepository {
 
     @Override
     public List<Actress> findAllPaged(int limit, int offset) {
+        return findAllPaged(limit, offset, null);
+    }
+
+    @Override
+    public List<Actress> findAllPaged(int limit, int offset, com.organizer3.notes.NotesFilter notesFilter) {
+        String noteClause = buildActressNotesClause(notesFilter);
+        String sql = "SELECT * FROM actresses"
+                + (noteClause.isEmpty() ? "" : " WHERE " + noteClause)
+                + " ORDER BY canonical_name LIMIT :limit OFFSET :offset";
         return jdbi.withHandle(h ->
-                h.createQuery("SELECT * FROM actresses ORDER BY canonical_name LIMIT :limit OFFSET :offset")
+                h.createQuery(sql)
                         .bind("limit", limit)
                         .bind("offset", offset)
                         .map(ACTRESS_MAPPER)
                         .list()
         );
+    }
+
+    /**
+     * Returns the SQL fragment (no leading "AND") for a notes-presence filter on actresses,
+     * or an empty string when no filter is needed.
+     *
+     * <p>Uses {@code CAST(actresses.id AS TEXT)} to match the {@code notes.entity_id} TEXT column,
+     * mirroring the same cast used in {@link com.organizer3.repository.jdbi.JdbiNoteRepository#sweepOrphans()}.
+     */
+    private static String buildActressNotesClause(com.organizer3.notes.NotesFilter notesFilter) {
+        if (notesFilter == null) return "";
+        String exists = "EXISTS (SELECT 1 FROM notes WHERE entity_type='actress' AND entity_id = CAST(actresses.id AS TEXT))";
+        return switch (notesFilter) {
+            case HAS_NOTE -> exists;
+            case NO_NOTE  -> "NOT " + exists;
+        };
     }
 
     @Override

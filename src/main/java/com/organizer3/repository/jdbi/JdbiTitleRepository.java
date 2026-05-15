@@ -1506,7 +1506,8 @@ public class JdbiTitleRepository implements TitleRepository {
                                          List<String> companyLabels, List<String> tags,
                                          List<Long> enrichmentTagIds,
                                          String sort, boolean asc,
-                                         int limit, int offset) {
+                                         int limit, int offset,
+                                         com.organizer3.notes.NotesFilter notesFilter) {
         String safeLabel   = labelPrefix   != null ? labelPrefix   : "";
         String safeSeq     = seqPrefix     != null ? seqPrefix     : "";
         List<String> safeCompany       = companyLabels    != null ? companyLabels    : List.of();
@@ -1541,6 +1542,15 @@ public class JdbiTitleRepository implements TitleRepository {
         }
         if (hasCompany) {
             sql.append("AND UPPER(t.label) IN (<companyLabels>)\n");
+        }
+        if (notesFilter != null) {
+            // entity_id for titles is the title code (t.code), per JdbiNoteRepository.sweepOrphans()
+            String exists = "EXISTS (SELECT 1 FROM notes WHERE entity_type='title' AND entity_id = t.code)";
+            if (notesFilter == com.organizer3.notes.NotesFilter.HAS_NOTE) {
+                sql.append("AND ").append(exists).append("\n");
+            } else {
+                sql.append("AND NOT ").append(exists).append("\n");
+            }
         }
         sql.append("GROUP BY t.id\n");
         if (hasTags || hasEnrichmentTags) {

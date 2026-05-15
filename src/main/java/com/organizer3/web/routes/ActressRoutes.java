@@ -1,5 +1,6 @@
 package com.organizer3.web.routes;
 
+import com.organizer3.notes.NotesFilter;
 import com.organizer3.web.ActressBrowseService;
 import com.organizer3.web.TitleBrowseService;
 import io.javalin.Javalin;
@@ -55,10 +56,12 @@ public class ActressRoutes {
             String favorites    = ctx.queryParam("favorites");
             String bookmarks    = ctx.queryParam("bookmarks");
             String search       = ctx.queryParam("search");
+            String notesParam   = ctx.queryParam("notes");
             int offset = ctx.queryParamAsClass("offset", Integer.class).getOrDefault(0);
             int limit  = ctx.queryParamAsClass("limit",  Integer.class).getOrDefault(24);
             offset = Math.max(offset, 0);
             limit  = Math.max(1, limit);
+            NotesFilter notesFilter = parseNotesFilter(notesParam);
             if (idsParam != null && !idsParam.isBlank()) {
                 List<Long> ids = List.of(idsParam.split(",")).stream()
                         .map(String::trim).filter(s -> !s.isEmpty())
@@ -88,7 +91,7 @@ public class ActressRoutes {
             } else if (studioGroup != null && !studioGroup.isBlank()) {
                 ctx.json(actressBrowseService.findByStudioGroupPaged(studioGroup, company, offset, limit));
             } else if ("true".equals(all)) {
-                ctx.json(actressBrowseService.findAllPaged(offset, limit));
+                ctx.json(actressBrowseService.findAllPaged(offset, limit, notesFilter));
             } else if ("true".equals(favorites)) {
                 ctx.json(actressBrowseService.findFavoritesPaged(offset, limit));
             } else if ("true".equals(bookmarks)) {
@@ -310,5 +313,21 @@ public class ActressRoutes {
                     () -> ctx.status(404).json(Map.of("error", "Actress not found"))
             );
         });
+    }
+
+    /**
+     * Parses the {@code notes} query parameter into a {@link NotesFilter}.
+     *
+     * <p>Accepted values: {@code "has_note"} or {@code "HAS_NOTE"} → {@link NotesFilter#HAS_NOTE};
+     * {@code "no_note"} or {@code "NO_NOTE"} → {@link NotesFilter#NO_NOTE}; anything else
+     * (including null/blank) → {@code null} (no filter).
+     */
+    static NotesFilter parseNotesFilter(String param) {
+        if (param == null || param.isBlank()) return null;
+        return switch (param.toUpperCase()) {
+            case "HAS_NOTE" -> NotesFilter.HAS_NOTE;
+            case "NO_NOTE"  -> NotesFilter.NO_NOTE;
+            default         -> null;
+        };
     }
 }

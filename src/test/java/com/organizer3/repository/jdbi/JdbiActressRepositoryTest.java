@@ -4,6 +4,7 @@ import com.organizer3.config.alias.AliasYamlEntry;
 import com.organizer3.db.SchemaInitializer;
 import com.organizer3.model.ActressAlias;
 import com.organizer3.model.Actress;
+import com.organizer3.notes.NotesFilter;
 import com.organizer3.repository.ActressRepository;
 import org.jdbi.v3.core.Jdbi;
 import org.junit.jupiter.api.AfterEach;
@@ -27,12 +28,13 @@ class JdbiActressRepositoryTest {
 
     private JdbiActressRepository repo;
     private Connection connection;
+    private Jdbi jdbi;
 
     @BeforeEach
     void setUp() throws Exception {
         // Bind JDBI to a single connection so the in-memory SQLite DB persists across handles
         connection = DriverManager.getConnection("jdbc:sqlite::memory:");
-        Jdbi jdbi = Jdbi.create(connection);
+        jdbi = Jdbi.create(connection);
         new SchemaInitializer(jdbi).initialize();
         repo = new JdbiActressRepository(jdbi);
     }
@@ -1650,5 +1652,63 @@ class JdbiActressRepositoryTest {
         var ids = result.stream().map(Actress::getId).toList();
         assertTrue(ids.contains(live.getId()),   "actress with live location must appear");
         assertFalse(ids.contains(stale.getId()), "actress with only stale location must be hidden");
+    }
+
+    // ── notes-filter regression tests ─────────────────────────────────────────
+
+    /**
+     * SQL predicate regression: findAllPaged(NotesFilter.HAS_NOTE) returns only the actress
+     * that has a note; findAllPaged(NotesFilter.NO_NOTE) returns only those without; null
+     * (Any) returns all three.
+     *
+     * <p>Notes are seeded directly into the {@code notes} table (not via JdbiNoteRepository)
+     * to exercise the EXISTS predicate in isolation.
+     */
+    @Test
+    void findAllPagedNotesFilterHasNote_returnsOnlyActressWithNote() {
+        Actress noted   = repo.save(actress("Noted Actress"));
+        repo.save(actress("Unnoted Actress A"));
+        repo.save(actress("Unnoted Actress B"));
+
+        // Seed a note directly — entity_id for actresses is CAST(id AS TEXT)
+        jdbi.useHandle(h -> h.execute(
+                "INSERT INTO notes (entity_type, entity_id, body, created_at, updated_at) VALUES ('actress', '"
+                + noted.getId() + "', 'test note', 0, 0)"));
+
+        List<Actress> result = repo.findAllPaged(100, 0, NotesFilter.HAS_NOTE);
+        assertEquals(1, result.size(), "HAS_NOTE must return exactly the noted actress");
+        assertEquals(noted.getId(), result.get(0).getId());
+    }
+
+    @Test
+    void findAllPagedNotesFilterNoNote_returnsOnlyActressesWithoutNote() {
+        Actress noted   = repo.save(actress("Noted Actress"));
+        Actress unnoted1 = repo.save(actress("Unnoted Actress A"));
+        Actress unnoted2 = repo.save(actress("Unnoted Actress B"));
+
+        jdbi.useHandle(h -> h.execute(
+                "INSERT INTO notes (entity_type, entity_id, body, created_at, updated_at) VALUES ('actress', '"
+                + noted.getId() + "', 'test note', 0, 0)"));
+
+        List<Actress> result = repo.findAllPaged(100, 0, NotesFilter.NO_NOTE);
+        assertEquals(2, result.size(), "NO_NOTE must return exactly the two unnoted actresses");
+        var ids = result.stream().map(Actress::getId).toList();
+        assertTrue(ids.contains(unnoted1.getId()));
+        assertTrue(ids.contains(unnoted2.getId()));
+        assertFalse(ids.contains(noted.getId()));
+    }
+
+    @Test
+    void findAllPagedNotesFilterNull_returnsAllActresses() {
+        Actress noted    = repo.save(actress("Noted Actress"));
+        Actress unnoted1 = repo.save(actress("Unnoted Actress A"));
+        Actress unnoted2 = repo.save(actress("Unnoted Actress B"));
+
+        jdbi.useHandle(h -> h.execute(
+                "INSERT INTO notes (entity_type, entity_id, body, created_at, updated_at) VALUES ('actress', '"
+                + noted.getId() + "', 'test note', 0, 0)"));
+
+        List<Actress> result = repo.findAllPaged(100, 0, (NotesFilter) null);
+        assertEquals(3, result.size(), "null notesFilter (Any) must return all actresses");
     }
 }

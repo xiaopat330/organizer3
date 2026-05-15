@@ -4,6 +4,7 @@ import com.organizer3.covers.CoverPath;
 import com.organizer3.model.Label;
 import com.organizer3.model.StudioGroup;
 import com.organizer3.model.Title;
+import com.organizer3.notes.NotesFilter;
 import com.organizer3.repository.ActressRepository;
 import com.organizer3.repository.LabelRepository;
 import com.organizer3.repository.TitleActressRepository;
@@ -176,6 +177,20 @@ public class TitleBrowseService {
                                                 List<String> tags, List<Long> enrichmentTagIds,
                                                 String sort, String order,
                                                 int offset, int limit) {
+        return findLibraryPaged(code, company, tags, enrichmentTagIds, sort, order, offset, limit, null);
+    }
+
+    /**
+     * Full-library paged query with all optional filters, including an optional notes-presence filter.
+     *
+     * @param notesFilter {@link NotesFilter#HAS_NOTE} / {@link NotesFilter#NO_NOTE}
+     *                    to restrict results, or {@code null} for no filter
+     */
+    public List<TitleSummary> findLibraryPaged(String code, String company,
+                                                List<String> tags, List<Long> enrichmentTagIds,
+                                                String sort, String order,
+                                                int offset, int limit,
+                                                NotesFilter notesFilter) {
         limit = cappedLimit(limit);
         com.organizer3.sync.TitleCodeQuery.ParsedQuery parsed =
                 com.organizer3.sync.TitleCodeQuery.parse(code);
@@ -187,7 +202,7 @@ public class TitleBrowseService {
                 parsed.labelPrefix(), parsed.seqPrefix(),
                 companyLabels, tags != null ? tags : List.of(),
                 enrichmentTagIds != null ? enrichmentTagIds : List.of(),
-                sort, asc, limit, offset));
+                sort, asc, limit, offset, notesFilter));
     }
 
     /** Returns a map of curated tag name → distinct title count from {@code title_effective_tags}. */
