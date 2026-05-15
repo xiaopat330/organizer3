@@ -257,6 +257,89 @@ class MoveTitleFolderToolTest {
         assertTrue(fs.moveCalls.isEmpty(), "same-path move should be a no-op");
     }
 
+    // ── fromPath disambiguator ───────────────────────────────────────────────
+
+    @Test
+    void fromPath_singleLocation_noFromPath_passes() {
+        seedTitle("MIDE-800", null, "s", "/queue/Foo (MIDE-800)");
+        var result = (MoveTitleFolderTool.Result) tool.call(argsAbsPath("MIDE-800", "/attention", false));
+        assertEquals("ok", result.status());
+    }
+
+    @Test
+    void fromPath_multipleLocations_withMatch_picksCorrectRow() {
+        long titleId = jdbi.withHandle(h ->
+                h.createQuery("INSERT INTO titles (code) VALUES ('MIDE-801') RETURNING id")
+                        .mapTo(Long.class).one());
+        jdbi.useHandle(h -> {
+            h.execute("INSERT INTO title_locations (title_id, volume_id, partition_id, path, last_seen_at) VALUES (?, 's', 'queue', '/queue/Bare (MIDE-801)', '2024-01-01')", titleId);
+            h.execute("INSERT INTO title_locations (title_id, volume_id, partition_id, path, last_seen_at) VALUES (?, 's', 'queue', '/queue/Demosaiced (MIDE-801)', '2024-01-01')", titleId);
+        });
+        ObjectNode a = argsAbsPath("MIDE-801", "/attention/Review", false);
+        a.put("fromPath", "/queue/Demosaiced (MIDE-801)");
+        var result = (MoveTitleFolderTool.Result) tool.call(a);
+
+        assertEquals("ok", result.status());
+        assertEquals("/queue/Demosaiced (MIDE-801)", result.from());
+        assertEquals("/attention/Review/Demosaiced (MIDE-801)", result.to());
+
+        List<String> paths = jdbi.withHandle(h ->
+                h.createQuery("SELECT path FROM title_locations WHERE title_id = ? ORDER BY path")
+                        .bind(0, titleId).mapTo(String.class).list());
+        assertTrue(paths.contains("/queue/Bare (MIDE-801)"));
+        assertTrue(paths.contains("/attention/Review/Demosaiced (MIDE-801)"));
+    }
+
+    @Test
+    void fromPath_multipleLocations_noMatch_errors() {
+        long titleId = jdbi.withHandle(h ->
+                h.createQuery("INSERT INTO titles (code) VALUES ('MIDE-802') RETURNING id")
+                        .mapTo(Long.class).one());
+        jdbi.useHandle(h -> {
+            h.execute("INSERT INTO title_locations (title_id, volume_id, partition_id, path, last_seen_at) VALUES (?, 's', 'queue', '/queue/A (MIDE-802)', '2024-01-01')", titleId);
+            h.execute("INSERT INTO title_locations (title_id, volume_id, partition_id, path, last_seen_at) VALUES (?, 's', 'queue', '/queue/B (MIDE-802)', '2024-01-01')", titleId);
+        });
+        ObjectNode a = argsAbsPath("MIDE-802", "/attention", false);
+        a.put("fromPath", "/queue/Typo (MIDE-802)");
+        var result = (MoveTitleFolderTool.Result) tool.call(a);
+        assertEquals("failed", result.status());
+        assertTrue(result.error().contains("fromPath"));
+        assertTrue(result.error().contains("/queue/Typo (MIDE-802)"));
+    }
+
+    @Test
+    void fromPath_multipleLocations_noFromPath_preservesAmbiguityError() {
+        long titleId = jdbi.withHandle(h ->
+                h.createQuery("INSERT INTO titles (code) VALUES ('MIDE-803') RETURNING id")
+                        .mapTo(Long.class).one());
+        jdbi.useHandle(h -> {
+            h.execute("INSERT INTO title_locations (title_id, volume_id, partition_id, path, last_seen_at) VALUES (?, 's', 'queue', '/queue/A (MIDE-803)', '2024-01-01')", titleId);
+            h.execute("INSERT INTO title_locations (title_id, volume_id, partition_id, path, last_seen_at) VALUES (?, 's', 'queue', '/queue/B (MIDE-803)', '2024-01-01')", titleId);
+        });
+        var result = (MoveTitleFolderTool.Result) tool.call(argsAbsPath("MIDE-803", "/attention", false));
+        assertEquals("failed", result.status());
+        assertTrue(result.error().contains("ambiguous"));
+    }
+
+    @Test
+    void fromPath_singleLocation_withMatch_passes() {
+        seedTitle("MIDE-804", null, "s", "/queue/Single (MIDE-804)");
+        ObjectNode a = argsAbsPath("MIDE-804", "/attention", false);
+        a.put("fromPath", "/queue/Single (MIDE-804)");
+        var result = (MoveTitleFolderTool.Result) tool.call(a);
+        assertEquals("ok", result.status());
+    }
+
+    @Test
+    void fromPath_singleLocation_mismatch_errors() {
+        seedTitle("MIDE-805", null, "s", "/queue/Real (MIDE-805)");
+        ObjectNode a = argsAbsPath("MIDE-805", "/attention", false);
+        a.put("fromPath", "/queue/Wrong (MIDE-805)");
+        var result = (MoveTitleFolderTool.Result) tool.call(a);
+        assertEquals("failed", result.status());
+        assertTrue(result.error().contains("fromPath"));
+    }
+
     // ── helpers ───────────────────────────────────────────────────────────────
 
     private Actress seedActress(String canonical, int extraTitles) {

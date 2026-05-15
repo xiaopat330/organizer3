@@ -83,6 +83,7 @@ public class MoveTitleFolderTool implements Tool {
                 .prop("titleCode",      "string",  "Product code of the title (e.g. 'MIDE-123'). Case-insensitive.")
                 .prop("toActressId",    "integer", "Destination: actress id — resolves to /stars/<tier>/<name>/. Mutually exclusive with toAbsolutePath.")
                 .prop("toAbsolutePath", "string",  "Destination: explicit volume-relative parent path. Mutually exclusive with toActressId.")
+                .prop("fromPath",       "string",  "Optional disambiguator: volume-relative path of the specific location to move (e.g. '/queue/Foo (BAR-123)'). Required when the title has >1 location on the mounted volume; if provided when only one location exists it must match.")
                 .prop("dryRun",         "boolean", "If true (default), return the plan without moving.", true)
                 .require("titleCode")
                 .build();
@@ -93,6 +94,8 @@ public class MoveTitleFolderTool implements Tool {
         String titleCode    = Schemas.requireString(args, "titleCode").trim().toUpperCase();
         long toActressId    = Schemas.optLong(args, "toActressId", -1);
         String toAbsPath    = Schemas.optString(args, "toAbsolutePath", null);
+        String fromPathRaw  = Schemas.optString(args, "fromPath", null);
+        String fromPath     = (fromPathRaw == null || fromPathRaw.isBlank()) ? null : fromPathRaw.trim();
         boolean dryRun      = Schemas.optBoolean(args, "dryRun", true);
 
         // ── Mutual exclusion ────────────────────────────────────────────────
@@ -132,13 +135,28 @@ public class MoveTitleFolderTool implements Tool {
             return failed(mountedVolumeId, Map.of("titleCode", titleCode, "dryRun", dryRun),
                     "title '" + titleCode + "' has no live location on volume '" + mountedVolumeId + "'");
         }
-        if (locations.size() > 1) {
+
+        TitleLocation location;
+        if (fromPath != null) {
+            List<TitleLocation> matches = locations.stream()
+                    .filter(l -> l.getPath().toString().equals(fromPath))
+                    .toList();
+            if (matches.isEmpty()) {
+                String available = locations.stream()
+                        .map(l -> l.getPath().toString())
+                        .reduce((a, b) -> a + ", " + b).orElse("");
+                return failed(mountedVolumeId, buildInputs(titleCode, toActressId, toAbsPath, fromPath, dryRun),
+                        "fromPath '" + fromPath + "' does not match any location of title '"
+                        + titleCode + "' on volume '" + mountedVolumeId + "' (available: " + available + ")");
+            }
+            location = matches.get(0);
+        } else if (locations.size() > 1) {
             return failed(mountedVolumeId, Map.of("titleCode", titleCode, "dryRun", dryRun),
                     "title '" + titleCode + "' has " + locations.size()
-                    + " locations on volume '" + mountedVolumeId + "' — ambiguous");
+                    + " locations on volume '" + mountedVolumeId + "' — ambiguous (pass fromPath to disambiguate)");
+        } else {
+            location = locations.get(0);
         }
-
-        TitleLocation location = locations.get(0);
         Path currentPath = location.getPath();
         String folderBasename = currentPath.getFileName().toString();
 
@@ -160,7 +178,7 @@ public class MoveTitleFolderTool implements Tool {
 
         Path targetPath = destParent.resolve(folderBasename);
 
-        Map<String, Object> inputs = buildInputs(titleCode, toActressId, toAbsPath, dryRun);
+        Map<String, Object> inputs = buildInputs(titleCode, toActressId, toAbsPath, fromPath, dryRun);
         Map<String, Object> plan   = Map.of(
                 "from", currentPath.toString(),
                 "to",   targetPath.toString(),
@@ -239,11 +257,12 @@ public class MoveTitleFolderTool implements Tool {
     }
 
     private Map<String, Object> buildInputs(String titleCode, long toActressId,
-                                             String toAbsPath, boolean dryRun) {
+                                             String toAbsPath, String fromPath, boolean dryRun) {
         var m = new java.util.LinkedHashMap<String, Object>();
         m.put("titleCode", titleCode);
         if (toActressId >= 0) m.put("toActressId", toActressId);
         if (toAbsPath != null) m.put("toAbsolutePath", toAbsPath);
+        if (fromPath != null) m.put("fromPath", fromPath);
         m.put("dryRun", dryRun);
         return java.util.Collections.unmodifiableMap(m);
     }
