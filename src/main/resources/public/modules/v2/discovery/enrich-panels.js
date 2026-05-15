@@ -395,29 +395,33 @@ export function mountTitlesPanel(containerEl, { actressId, hooks = {}, showActio
 
   // ── Action bar ──────────────────────────────────────────────────────────
 
-  enrichBtn.addEventListener('click', async () => {
-    const original = enrichBtn.textContent;
-    enrichBtn.disabled = true;
-    enrichBtn.textContent = 'Enqueueing…';
-    try {
-      const res = await fetch(`/api/javdb/discovery/actresses/${actressId}/enqueue`, { method: 'POST' });
-      if (res.ok) {
-        const { enqueued } = await res.json();
-        enrichBtn.textContent = `Enqueued ${enqueued} ✓`;
-        await Promise.all([loadActresses(), refreshQueue()]);
-        fetchAndRender();
-        setTimeout(() => { enrichBtn.textContent = original; enrichBtn.disabled = false; }, 1500);
-        return;
-      }
-    } catch (_) { /* fall through */ }
-    enrichBtn.textContent = original;
-    enrichBtn.disabled = false;
-  });
+  if (enrichBtn) {
+    enrichBtn.addEventListener('click', async () => {
+      const original = enrichBtn.textContent;
+      enrichBtn.disabled = true;
+      enrichBtn.textContent = 'Enqueueing…';
+      try {
+        const res = await fetch(`/api/javdb/discovery/actresses/${actressId}/enqueue`, { method: 'POST' });
+        if (res.ok) {
+          const { enqueued } = await res.json();
+          enrichBtn.textContent = `Enqueued ${enqueued} ✓`;
+          await Promise.all([loadActresses(), refreshQueue()]);
+          fetchAndRender();
+          setTimeout(() => { enrichBtn.textContent = original; enrichBtn.disabled = false; }, 1500);
+          return;
+        }
+      } catch (_) { /* fall through */ }
+      enrichBtn.textContent = original;
+      enrichBtn.disabled = false;
+    });
+  }
 
-  cancelBtn.addEventListener('click', async () => {
-    await fetch(`/api/javdb/discovery/actresses/${actressId}/queue`, { method: 'DELETE' });
-    await refreshQueue();
-  });
+  if (cancelBtn) {
+    cancelBtn.addEventListener('click', async () => {
+      await fetch(`/api/javdb/discovery/actresses/${actressId}/queue`, { method: 'DELETE' });
+      await refreshQueue();
+    });
+  }
 
   // Initial load.
   titlesView.innerHTML = '<div class="jd-loading">Loading…</div>';
