@@ -6,6 +6,7 @@ import { esc } from './utils.js';
 import { updateBreadcrumb } from './grid.js';
 import { rankLocations } from './duplicate-ranker.js';
 import * as taskCenter from './task-center.js';
+import { notesIcon, openStickyModal, batchNotes } from './notes/index.js';
 
 // ── Cover tooltip ─────────────────────────────────────────────────────────────
 let _coverTip   = null;
@@ -62,6 +63,11 @@ let sortField = 'count'; // 'count' | 'name'
 let sortDir   = 'desc';  // 'asc'  | 'desc'
 let taskCenterUnsub = null;
 
+// ── Notes state ───────────────────────────────────────────────────────────────
+// Cache notes by title code. Re-fetched when the active actress changes.
+let notesByCode = new Map();   // titleCode → NoteState | null
+let notesCachedKey = null;     // actressKey that was current when cache was last filled
+
 export async function showDupTriageView() {
   viewEl().style.display = 'flex';
   updateBreadcrumb([{ label: 'Tools' }, { label: 'Duplicate Triage' }]);
@@ -102,6 +108,9 @@ async function loadAll() {
     allDuplicates = all;
     buildActressGroups();
     await loadDecisions();
+    // Reset notes cache so renderGroups re-fetches on next actress display
+    notesByCode    = new Map();
+    notesCachedKey = null;
     renderHeadline();
     // Restore or default actress selection
     if (!currentActressKey || !actressGroups.has(currentActressKey)) {
@@ -415,6 +424,21 @@ async function renderGroups() {
   const group = actressGroups.get(currentActressKey);
   if (!group || group.titles.length === 0) return;
 
+  // Batch-hydrate notes when actress selection changes (one fetch per actress).
+  if (notesCachedKey !== currentActressKey) {
+    notesCachedKey = currentActressKey;
+    notesByCode = new Map();
+    try {
+      const codes = group.titles.map(t => t.code);
+      const map   = await batchNotes('title', codes);
+      for (const t of group.titles) {
+        notesByCode.set(t.code, map[t.code] ?? null);
+      }
+    } catch (err) {
+      console.warn('dup-triage: batchNotes failed', err);
+    }
+  }
+
   // Closure badge
   const allResolved = group.titles.every(t => {
     const dec = decisions.get(t.code);
@@ -469,6 +493,31 @@ async function buildTitleCard(title) {
     <span class="dt-loc-count">${locs.length} locations</span>
   `;
   header.appendChild(titleInfo);
+
+  // Notes icon — filled (yellow) when a note exists, outline (gray) otherwise.
+  // Placed after titleInfo so it sits at the trailing end of the header.
+  // On save/clear the icon swaps in place without a full group re-render.
+  function buildNoteIcon() {
+    const note    = notesByCode.get(title.code) ?? null;
+    const filled  = !!note;
+    const el      = notesIcon({ filled, title: filled ? note.body : 'Add note' });
+    el.classList.add('dt-note-icon');
+    el.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      const result = await openStickyModal({
+        entityType:  'title',
+        entityId:    title.code,
+        entityName:  title.titleEnglish || title.code,
+        initialNote: notesByCode.get(title.code) ?? null,
+      });
+      // Update cache and swap icon in place
+      notesByCode.set(title.code, result);
+      el.replaceWith(buildNoteIcon());
+    });
+    return el;
+  }
+  header.appendChild(buildNoteIcon());
+
   card.appendChild(header);
 
   // Fetch videos for each location
