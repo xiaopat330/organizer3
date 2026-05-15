@@ -812,37 +812,39 @@ class WebServerTest {
     void titleFavoritePostTogglesFavorite() throws IOException, InterruptedException {
         TitleBrowseService browse = mock(TitleBrowseService.class);
         TitleRepository titleRepo = mock(TitleRepository.class);
-        Title t = Title.builder().id(1L).code("ABP-001").favorite(false).build();
-        when(titleRepo.findByCode("ABP-001")).thenReturn(Optional.of(t));
+        when(browse.toggleFavorite("ABP-001")).thenReturn(
+                new TitleBrowseService.FlagResult.Ok(
+                        new TitleBrowseService.TitleFlagState("ABP-001", true, false, false)));
 
         server = new WebServer(0, browse, null, null, null, null, null, null, titleRepo, null);
         server.start();
 
         HttpResponse<String> response = post("/api/titles/ABP-001/favorite");
         assertEquals(200, response.statusCode());
-        verify(titleRepo).toggleFavorite(1L, true);
+        verify(browse).toggleFavorite("ABP-001");
     }
 
     @Test
     void titleBookmarkPostRespectsValueParam() throws IOException, InterruptedException {
         TitleBrowseService browse = mock(TitleBrowseService.class);
         TitleRepository titleRepo = mock(TitleRepository.class);
-        Title t = Title.builder().id(1L).code("ABP-001").build();
-        when(titleRepo.findByCode("ABP-001")).thenReturn(Optional.of(t));
+        when(browse.toggleBookmark("ABP-001")).thenReturn(
+                new TitleBrowseService.FlagResult.Ok(
+                        new TitleBrowseService.TitleFlagState("ABP-001", false, true, false)));
 
         server = new WebServer(0, browse, null, null, null, null, null, null, titleRepo, null);
         server.start();
 
         HttpResponse<String> response = post("/api/titles/ABP-001/bookmark?value=true");
         assertEquals(200, response.statusCode());
-        verify(titleRepo).toggleBookmark(1L, true);
+        verify(browse).toggleBookmark("ABP-001");
     }
 
     @Test
     void titleFavoritePostReturns404WhenMissing() throws IOException, InterruptedException {
         TitleBrowseService browse = mock(TitleBrowseService.class);
         TitleRepository titleRepo = mock(TitleRepository.class);
-        when(titleRepo.findByCode("NOPE")).thenReturn(Optional.empty());
+        when(browse.toggleFavorite("NOPE")).thenReturn(new TitleBrowseService.FlagResult.NotFound());
 
         server = new WebServer(0, browse, null, null, null, null, null, null, titleRepo, null);
         server.start();
