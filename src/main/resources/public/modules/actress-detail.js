@@ -1,4 +1,5 @@
 import { esc, fmtDate, isStale, setStatus, splitName, timeAgo, agePillTier } from './utils.js';
+import { mountTitlesPanel, mountProfilePanel } from './utilities-javdb-discovery/enrich-panels.js';
 import { ICON_FAV_LG, ICON_BM_LG, ICON_REJ_LG, gradeBadgeHtml } from './icons.js';
 import { showView, setActiveGrid, ensureActressDetailSentinel, ScrollingGrid, updateBreadcrumb, mode } from './grid.js';
 import { makeTitleCard, updateActressCardIndicators } from './cards.js';
@@ -85,6 +86,20 @@ export async function openActressDetail(actressId) {
   detailSortDir                = 'desc';
   detailActressTags            = null;
   detailEnrichmentTags         = null;
+  detailEnrichSubtab           = 'titles';
+  // Clear enrichment panel content so it remounts fresh for the new actress.
+  const enrichView = document.getElementById('actress-detail-enrichment-view');
+  if (enrichView) {
+    const tv = enrichView.querySelector('.ad-enrich-titles-view');
+    const pv = enrichView.querySelector('.ad-enrich-profile-view');
+    if (tv) tv.innerHTML = '';
+    if (pv) pv.innerHTML = '';
+    enrichView.querySelectorAll('.ad-enrich-subtab').forEach((b, i) => {
+      b.classList.toggle('selected', i === 0);
+    });
+    if (pv) pv.style.display = 'none';
+    if (tv) tv.style.display = '';
+  }
   showView('actress-detail');
   selectActressDetailTab('catalog');
   setActiveGrid(actressDetailGrid);
@@ -960,11 +975,51 @@ export function setDetailCompanyFilter(company) {
   scheduleFilteredQuery();
 }
 
-// ── Right-panel tabs (Catalog | Admin) ────────────────────────────────────
+// ── Right-panel tabs (Catalog | Enrichment | Admin) ──────────────────────
 const ACTRESS_DETAIL_TABS = {
-  catalog: { btn: 'actress-detail-catalog-tab', view: 'actress-detail-catalog-view' },
-  admin:   { btn: 'actress-detail-admin-tab',   view: 'actress-detail-admin-view'   },
+  catalog:    { btn: 'actress-detail-catalog-tab',    view: 'actress-detail-catalog-view'    },
+  enrichment: { btn: 'actress-detail-enrichment-tab', view: 'actress-detail-enrichment-view' },
+  admin:      { btn: 'actress-detail-admin-tab',      view: 'actress-detail-admin-view'      },
 };
+
+// Per-session enrichment subtab state.
+let detailEnrichSubtab = 'titles';
+
+function mountEnrichmentTab(viewEl) {
+  // Static DOM in index.html: this element is reused across actress switches.
+  // We clear inner content on actress change, then call mountEnrichmentTab
+  // again.  The guard below ensures click listeners are wired only once; the
+  // initial applySubtab() call at the bottom runs every time so the freshly-
+  // cleared containers are populated for the new actress.
+  const titlesContainer  = viewEl.querySelector('.ad-enrich-titles-view');
+  const profileContainer = viewEl.querySelector('.ad-enrich-profile-view');
+
+  function applySubtab(tab) {
+    detailEnrichSubtab = tab;
+    viewEl.querySelectorAll('.ad-enrich-subtab').forEach(b =>
+      b.classList.toggle('selected', b.dataset.subtab === tab));
+    titlesContainer.style.display  = tab === 'titles'  ? '' : 'none';
+    profileContainer.style.display = tab === 'profile' ? '' : 'none';
+    if (tab === 'titles' && titlesContainer.innerHTML === '') {
+      mountTitlesPanel(titlesContainer, {
+        actressId: detailActressId,
+        hooks: { switchToProfile: () => applySubtab('profile') },
+      });
+    } else if (tab === 'profile' && profileContainer.innerHTML === '') {
+      mountProfilePanel(profileContainer, { actressId: detailActressId });
+    }
+  }
+
+  // Wire click listeners only once per element lifetime.
+  if (viewEl.dataset.mounted !== 'true') {
+    viewEl.querySelectorAll('.ad-enrich-subtab').forEach(btn => {
+      btn.addEventListener('click', () => applySubtab(btn.dataset.subtab));
+    });
+    viewEl.dataset.mounted = 'true';
+  }
+
+  applySubtab(detailEnrichSubtab);
+}
 
 // Internal: snap to a tab without any guard. Used by openActressDetail,
 // initial mount, and selectActressDetailTab once the guard has cleared.
@@ -975,8 +1030,15 @@ function applyTabSelection(tab) {
     if (btn)  btn.classList.toggle('selected', key === tab);
     if (view) view.style.display = (key === tab) ? '' : 'none';
   }
-  if (tab === 'admin') mountAdmin(detailActressId);
-  else                 unmountAdmin();
+  if (tab === 'admin') {
+    mountAdmin(detailActressId);
+  } else if (tab === 'enrichment') {
+    const viewEl = document.getElementById('actress-detail-enrichment-view');
+    if (viewEl) mountEnrichmentTab(viewEl);
+    unmountAdmin();
+  } else {
+    unmountAdmin();
+  }
 }
 
 export async function selectActressDetailTab(tab) {
