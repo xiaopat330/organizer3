@@ -67,6 +67,7 @@ public class RenameTitleFolderTool implements Tool {
         return Schemas.object()
                 .prop("titleCode",     "string",  "Product code, e.g. 'MIDE-123'. Case-insensitive.")
                 .prop("newFolderName", "string",  "New folder basename (no slashes).")
+                .prop("fromPath",      "string",  "Optional disambiguator: volume-relative path of the specific location to rename (e.g. '/queue/Foo (BAR-123)'). Required when the title has >1 location on the mounted volume; if provided when only one location exists it must match.")
                 .prop("dryRun",        "boolean", "If true (default), return the plan without renaming.", true)
                 .require("titleCode", "newFolderName")
                 .build();
@@ -76,15 +77,17 @@ public class RenameTitleFolderTool implements Tool {
     public Object call(JsonNode args) {
         String titleCode    = Schemas.requireString(args, "titleCode").trim().toUpperCase();
         String newFolderNameRaw = Schemas.optString(args, "newFolderName", "").trim();
+        String fromPathRaw  = Schemas.optString(args, "fromPath", null);
+        String fromPath     = (fromPathRaw == null || fromPathRaw.isBlank()) ? null : fromPathRaw.trim();
         boolean dryRun      = Schemas.optBoolean(args, "dryRun", true);
         // defer blank validation so we can return a Result instead of throwing
         String newFolderName = newFolderNameRaw;
 
-        Map<String, Object> inputs = Map.of(
-                "titleCode",     titleCode,
-                "newFolderName", newFolderName,
-                "dryRun",        dryRun
-        );
+        java.util.LinkedHashMap<String, Object> inputs = new java.util.LinkedHashMap<>();
+        inputs.put("titleCode",     titleCode);
+        inputs.put("newFolderName", newFolderName);
+        if (fromPath != null) inputs.put("fromPath", fromPath);
+        inputs.put("dryRun",        dryRun);
 
         // ── Validate newFolderName ──────────────────────────────────────────
         if (newFolderName.contains("/") || newFolderName.contains("\\")) {
@@ -120,13 +123,29 @@ public class RenameTitleFolderTool implements Tool {
             return failed(mountedVolumeId, inputs, dryRun,
                     "title '" + titleCode + "' has no live location on volume '" + mountedVolumeId + "'");
         }
-        if (locations.size() > 1) {
+
+        TitleLocation location;
+        if (fromPath != null) {
+            // Caller specified the exact location — must match one row regardless of count.
+            List<TitleLocation> matches = locations.stream()
+                    .filter(l -> l.getPath().toString().equals(fromPath))
+                    .toList();
+            if (matches.isEmpty()) {
+                String available = locations.stream()
+                        .map(l -> l.getPath().toString())
+                        .reduce((a, b) -> a + ", " + b).orElse("");
+                return failed(mountedVolumeId, inputs, dryRun,
+                        "fromPath '" + fromPath + "' does not match any location of title '"
+                        + titleCode + "' on volume '" + mountedVolumeId + "' (available: " + available + ")");
+            }
+            location = matches.get(0);
+        } else if (locations.size() > 1) {
             return failed(mountedVolumeId, inputs, dryRun,
                     "title '" + titleCode + "' has " + locations.size()
-                    + " locations on volume '" + mountedVolumeId + "' — ambiguous");
+                    + " locations on volume '" + mountedVolumeId + "' — ambiguous (pass fromPath to disambiguate)");
+        } else {
+            location = locations.get(0);
         }
-
-        TitleLocation location = locations.get(0);
         Path currentPath = location.getPath();
         Path parent      = currentPath.getParent();
         Path newPath     = (parent != null) ? parent.resolve(newFolderName) : Path.of(newFolderName);
