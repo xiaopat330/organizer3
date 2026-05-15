@@ -3,6 +3,7 @@ import { ICON_FAV_LG, ICON_BM_LG, ICON_REJ_LG, gradeBadgeHtml, tagBadgeHtml, tag
 import { showView, updateBreadcrumb, mode } from './grid.js';
 import { makeTitleCard, updateCardIndicators } from './cards.js';
 import { getActressBrowseMode, actressBrowseLabel, selectActressBrowseMode, showActressLanding } from './actress-browse.js';
+import { getNote, putNote, deleteNote, attachCharCounter } from './notes/index.js';
 // ── Thumbnail size preference (discrete fractional ratios of the 240px source) ──
 // Slider value is an index into THUMB_RATIOS (1..N).
 const THUMB_SOURCE_WIDTH = 240;
@@ -154,6 +155,318 @@ async function loadEnrichmentTags(code) {
   } catch { /* ignore */ }
 }
 
+// ── Post-It Notes: sticky panel helpers ──────────────────────────────────
+
+const NOTE_TOKENS_LINK_ID  = 'notes-tokens-css';
+const NOTE_PANEL_STYLE_ID  = 'title-detail-note-panel-styles';
+const NOTE_PANEL_WRAP_ID   = 'title-detail-note-panel';
+const NOTE_MAX_CHARS       = 280;
+
+/** Injects the shared notes design tokens (idempotent). */
+function ensureNoteTokens() {
+  if (document.getElementById(NOTE_TOKENS_LINK_ID)) return;
+  const link = document.createElement('link');
+  link.id   = NOTE_TOKENS_LINK_ID;
+  link.rel  = 'stylesheet';
+  link.href = '/modules/notes/tokens.css';
+  document.head.appendChild(link);
+}
+
+/** Injects panel-specific styles (idempotent). */
+function ensureNotePanelStyles() {
+  if (document.getElementById(NOTE_PANEL_STYLE_ID)) return;
+  const style = document.createElement('style');
+  style.id = NOTE_PANEL_STYLE_ID;
+  style.textContent = `
+/* ── Title-detail sticky-note panel (title-detail.js §5.3) ───────────── */
+
+#${NOTE_PANEL_WRAP_ID} {
+  background: var(--postit-yellow, #FFF59D);
+  color: var(--postit-ink, #1A1A1A);
+  border-radius: 2px;
+  box-shadow: var(--postit-shadow, 0 2px 4px rgba(0,0,0,.15));
+  transform: rotate(var(--postit-rotation, -1deg));
+  padding: 12px 14px 10px;
+  margin-top: 14px;
+  /* width follows the left column naturally */
+}
+
+/* Empty state */
+#${NOTE_PANEL_WRAP_ID}.tdnp-empty {
+  background: transparent;
+  border: 2px dashed var(--postit-empty-outline, #BDBDBD);
+  box-shadow: none;
+  color: #757575;
+  cursor: pointer;
+  font-size: 0.84rem;
+  text-align: center;
+  padding: 14px;
+  transform: none;
+}
+
+#${NOTE_PANEL_WRAP_ID}.tdnp-empty:hover {
+  border-color: var(--postit-yellow-edge, #FFEB3B);
+  color: var(--postit-ink, #1A1A1A);
+}
+
+/* Present state: note body */
+.tdnp-body {
+  font-size: 0.88rem;
+  line-height: 1.55;
+  white-space: pre-wrap;
+  word-break: break-word;
+  margin: 0 0 6px;
+}
+
+/* Edit affordance (small, top-right corner) */
+.tdnp-edit-btn {
+  float: right;
+  background: none;
+  border: none;
+  color: var(--postit-ink, #1A1A1A);
+  font-family: inherit;
+  font-size: 0.75rem;
+  cursor: pointer;
+  padding: 0 0 4px 8px;
+  opacity: 0.6;
+  margin: 0;
+}
+.tdnp-edit-btn:hover { opacity: 1; text-decoration: underline; }
+
+/* Edited-at line */
+.tdnp-edited-at {
+  display: block;
+  text-align: right;
+  font-size: 0.72rem;
+  color: rgba(26,26,26,0.5);
+  margin-top: 6px;
+}
+
+/* Edit mode */
+.tdnp-textarea {
+  width: 100%;
+  box-sizing: border-box;
+  background: transparent;
+  border: 1px solid var(--postit-yellow-edge, #FFEB3B);
+  border-radius: 2px;
+  color: var(--postit-ink, #1A1A1A);
+  font-family: inherit;
+  font-size: 0.88rem;
+  line-height: 1.5;
+  padding: 6px;
+  resize: vertical;
+  outline: none;
+  min-height: 72px;
+}
+.tdnp-textarea:focus { border-color: var(--postit-ink, #1A1A1A); }
+.tdnp-textarea::placeholder { color: rgba(26,26,26,0.4); }
+
+.tdnp-counter {
+  font-size: 0.75rem;
+  color: var(--postit-counter-ok, #1A1A1A);
+  text-align: right;
+  margin: 2px 0 6px;
+}
+.tdnp-counter.over-limit {
+  color: var(--postit-counter-over, #D32F2F);
+  font-weight: 600;
+}
+
+.tdnp-actions {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 8px;
+}
+
+.tdnp-btn {
+  background: none;
+  border: none;
+  color: var(--postit-ink, #1A1A1A);
+  font-family: inherit;
+  font-size: 0.82rem;
+  cursor: pointer;
+  padding: 3px 5px;
+  border-radius: 2px;
+}
+.tdnp-btn:hover { text-decoration: underline; }
+.tdnp-btn:disabled { opacity: 0.4; cursor: not-allowed; text-decoration: none; }
+.tdnp-btn-clear { margin-right: auto; }
+`;
+  document.head.appendChild(style);
+}
+
+/**
+ * Converts epoch millis to a relative-time string like "just now" / "3 days ago".
+ * Mirrors the breakpoints in utils.js#timeAgo but accepts millis, not ISO strings.
+ */
+function relativeMillis(ms) {
+  const seconds = Math.floor((Date.now() - ms) / 1000);
+  if (seconds < 60)    return 'just now';
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60)    return minutes === 1 ? '1 minute ago' : `${minutes} minutes ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24)      return hours === 1 ? '1 hour ago' : `${hours} hours ago`;
+  const days = Math.floor(hours / 24);
+  if (days < 14)       return days === 1 ? '1 day ago' : `${days} days ago`;
+  const weeks = Math.floor(days / 7);
+  if (weeks < 9)       return weeks === 1 ? '1 week ago' : `${weeks} weeks ago`;
+  const months = Math.floor(days / 30);
+  if (months <= 3)     return months === 1 ? '1 month ago' : `${months} months ago`;
+  return 'more than 3 months ago';
+}
+
+/**
+ * Renders the sticky-note panel in the title-detail left column.
+ * Appended as the last child of .title-detail-left; idempotent across navigations.
+ *
+ * @param {string}          titleCode
+ * @param {{body:string, createdAt:number, updatedAt:number}|null} note
+ */
+function renderTitleNotePanel(titleCode, note) {
+  // Remove stale panel from a previous navigation before re-rendering.
+  const existing = document.getElementById(NOTE_PANEL_WRAP_ID);
+  if (existing) existing.remove();
+
+  const leftCol = document.querySelector('.title-detail-left');
+  if (!leftCol) return;
+
+  const panel = document.createElement('div');
+  panel.id = NOTE_PANEL_WRAP_ID;
+
+  if (!note) {
+    // ── Empty state ─────────────────────────────────────────────────────
+    panel.classList.add('tdnp-empty');
+    panel.textContent = 'No note yet — click to add';
+    panel.addEventListener('click', () => activateEditMode(panel, titleCode, null));
+    leftCol.appendChild(panel);
+    return;
+  }
+
+  // ── Present state ──────────────────────────────────────────────────────
+  renderPresentState(panel, titleCode, note);
+  leftCol.appendChild(panel);
+}
+
+/** Renders the read (present) state inside the panel element. */
+function renderPresentState(panel, titleCode, note) {
+  panel.className = '';       // clear any empty-state class
+  panel.id = NOTE_PANEL_WRAP_ID;
+  panel.innerHTML = '';
+
+  const editBtn = document.createElement('button');
+  editBtn.type = 'button';
+  editBtn.className = 'tdnp-edit-btn';
+  editBtn.textContent = 'Edit';
+  editBtn.addEventListener('click', () => activateEditMode(panel, titleCode, note));
+
+  const body = document.createElement('pre');
+  body.className = 'tdnp-body';
+  body.textContent = note.body;
+
+  const editedAt = document.createElement('span');
+  editedAt.className = 'tdnp-edited-at';
+  editedAt.textContent = `edited ${relativeMillis(note.updatedAt)}`;
+  editedAt.title = new Date(note.updatedAt).toLocaleString();
+
+  panel.appendChild(editBtn);
+  panel.appendChild(body);
+  panel.appendChild(editedAt);
+}
+
+/** Converts the panel to edit mode (textarea + Save/Cancel[/Clear]). */
+function activateEditMode(panel, titleCode, currentNote) {
+  panel.className = '';
+  panel.id = NOTE_PANEL_WRAP_ID;
+  panel.innerHTML = '';
+
+  const textarea = document.createElement('textarea');
+  textarea.className = 'tdnp-textarea';
+  textarea.rows = 4;
+  textarea.placeholder = 'Add a note…';
+  textarea.value = currentNote ? currentNote.body : '';
+
+  const counter = document.createElement('div');
+  counter.className = 'tdnp-counter';
+
+  const detachCounter = attachCharCounter(textarea, counter, { max: NOTE_MAX_CHARS });
+
+  const actions = document.createElement('div');
+  actions.className = 'tdnp-actions';
+
+  const saveBtn = document.createElement('button');
+  saveBtn.type = 'button';
+  saveBtn.className = 'tdnp-btn';
+  saveBtn.textContent = 'Save';
+
+  const cancelBtn = document.createElement('button');
+  cancelBtn.type = 'button';
+  cancelBtn.className = 'tdnp-btn';
+  cancelBtn.textContent = 'Cancel';
+
+  function updateSaveState() {
+    saveBtn.disabled = textarea.value.length > NOTE_MAX_CHARS;
+  }
+  textarea.addEventListener('input', updateSaveState);
+  updateSaveState();
+
+  // Clear button only if a note already exists.
+  if (currentNote) {
+    const clearBtn = document.createElement('button');
+    clearBtn.type = 'button';
+    clearBtn.className = 'tdnp-btn tdnp-btn-clear';
+    clearBtn.textContent = 'Clear';
+    clearBtn.addEventListener('click', async () => {
+      detachCounter();
+      try { await deleteNote('title', titleCode); } catch (e) { console.error('notes: deleteNote failed', e); }
+      renderTitleNotePanel(titleCode, null);
+    });
+    actions.appendChild(clearBtn);
+  }
+
+  actions.appendChild(cancelBtn);
+  actions.appendChild(saveBtn);
+
+  cancelBtn.addEventListener('click', () => {
+    detachCounter();
+    renderTitleNotePanel(titleCode, currentNote);
+  });
+
+  saveBtn.addEventListener('click', async () => {
+    let result;
+    try {
+      result = await putNote('title', titleCode, textarea.value);
+    } catch (e) {
+      console.error('notes: putNote failed', e);
+      return; // leave edit mode open on error (mirrors sticky-modal.js)
+    }
+    detachCounter();
+    // result is null when server deleted (empty body), NoteState otherwise.
+    renderTitleNotePanel(titleCode, result);
+  });
+
+  panel.appendChild(textarea);
+  panel.appendChild(counter);
+  panel.appendChild(actions);
+  textarea.focus();
+  textarea.setSelectionRange(textarea.value.length, textarea.value.length);
+}
+
+/** Fetches the note for this title and renders the panel. */
+async function loadTitleNote(titleCode) {
+  ensureNoteTokens();
+  ensureNotePanelStyles();
+  let note = null;
+  try {
+    note = await getNote('title', titleCode);
+  } catch (e) {
+    console.error('notes: getNote failed', e);
+  }
+  // Guard against stale responses if the user navigated away quickly.
+  if (_currentDetailCode !== titleCode) return;
+  renderTitleNotePanel(titleCode, note);
+}
+
 // ── Open title detail ─────────────────────────────────────────────────────
 export async function openTitleDetail(t) {
   _currentDetailCode = t.code;
@@ -191,6 +504,7 @@ export async function openTitleDetail(t) {
   loadLastWatched(t.code);
   loadTitleVideos(t.code);
   loadMoreFromActress(t);
+  loadTitleNote(t.code);
 
   // Start the 5-second visit timer for this title.
   const titleCode = t.code;
