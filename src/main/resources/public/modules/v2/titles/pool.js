@@ -169,6 +169,9 @@ export async function showBrowseFilterBar(filterBarEl, tagsPanel, state, onColsC
   }
 
   const colsNow = state._cols || COLS_DEFAULT;
+  const notesVal    = state.notesFilter || '';
+  const notesLabel  = notesVal === 'has_note' ? 'Notes: Has' : notesVal === 'no_note' ? 'Notes: None' : 'Notes: Any';
+  const notesActive = notesVal ? ' on' : '';
 
   filterBarEl.innerHTML = `
     <select class="tit-lib-select" id="tit-pool-company">
@@ -179,6 +182,7 @@ export async function showBrowseFilterBar(filterBarEl, tagsPanel, state, onColsC
     <button type="button" id="tit-pool-tags-btn" class="btn sm">
       Tags<span class="badge" id="tit-pool-tags-count" style="display:none"></span>
     </button>
+    <button type="button" id="tit-pool-notes-chip" class="btn sm${notesActive}" title="Filter by note">${notesLabel}</button>
     ${colsSliderHtml(colsNow)}`;
   filterBarEl.style.display = '';
 
@@ -200,6 +204,20 @@ export async function showBrowseFilterBar(filterBarEl, tagsPanel, state, onColsC
   filterBarEl.querySelector('#tit-pool-tags-btn').addEventListener('click', () => {
     toggleTagsPanel(tagsPanel, filterBarEl, state, resetAndLoad);
   });
+
+  // ── Notes chip ──
+  const notesChipEl = filterBarEl.querySelector('#tit-pool-notes-chip');
+  if (notesChipEl) {
+    notesChipEl.addEventListener('click', () => {
+      const cycle = [null, 'has_note', 'no_note'];
+      const idx = cycle.indexOf(state.notesFilter);
+      state.notesFilter = cycle[(idx + 1) % cycle.length];
+      const nv = state.notesFilter || '';
+      notesChipEl.textContent = nv === 'has_note' ? 'Notes: Has' : nv === 'no_note' ? 'Notes: None' : 'Notes: Any';
+      notesChipEl.classList.toggle('on', !!state.notesFilter);
+      resetAndLoad();
+    });
+  }
 
   // ── Cols slider ──
   const slider = filterBarEl.querySelector('#tit-cols-slider');

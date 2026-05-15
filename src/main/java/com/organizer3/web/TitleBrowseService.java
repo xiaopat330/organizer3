@@ -260,14 +260,24 @@ public class TitleBrowseService {
      * Pass {@code null}/{@code ""} company and empty tags to use the unfiltered path.
      */
     public List<TitleSummary> findByVolumePagedFiltered(String volumeId, String company, List<String> tags, int offset, int limit) {
+        return findByVolumePagedFiltered(volumeId, company, tags, offset, limit, null);
+    }
+
+    /**
+     * Like {@link #findByVolumePagedFiltered} but also filters by notes presence.
+     * Pass {@code null} notesFilter for no notes filter.
+     */
+    public List<TitleSummary> findByVolumePagedFiltered(String volumeId, String company, List<String> tags, int offset, int limit,
+                                                         NotesFilter notesFilter) {
         limit = cappedLimit(limit);
         Map<String, Label> labelMap = labelRepo.findAllAsMap();
         List<String> matchingLabels = resolveCompanyLabels(labelMap, company);
         if (company != null && !company.isBlank() && matchingLabels.isEmpty()) return List.of();
-        boolean hasTags   = tags != null && !tags.isEmpty();
-        boolean hasLabels = !matchingLabels.isEmpty();
-        List<Title> titles = (hasTags || hasLabels)
-                ? titleRepo.findByVolumeFiltered(volumeId, matchingLabels, hasTags ? tags : List.of(), limit, offset)
+        boolean hasTags       = tags != null && !tags.isEmpty();
+        boolean hasLabels     = !matchingLabels.isEmpty();
+        boolean hasNotesFilter = notesFilter != null;
+        List<Title> titles = (hasTags || hasLabels || hasNotesFilter)
+                ? titleRepo.findByVolumeFiltered(volumeId, matchingLabels, hasTags ? tags : List.of(), limit, offset, notesFilter)
                 : titleRepo.findByVolumePaged(volumeId, limit, offset);
         return toSummaries(titles);
     }
@@ -277,14 +287,25 @@ public class TitleBrowseService {
      * Preserves actress inference for unattributed pool titles.
      */
     public List<TitleSummary> findByVolumePartitionFiltered(String volumeId, String partition, String company, List<String> tags, int offset, int limit) {
+        return findByVolumePartitionFiltered(volumeId, partition, company, tags, offset, limit, null);
+    }
+
+    /**
+     * Like {@link #findByVolumePartitionFiltered} but also filters by notes presence.
+     * Pass {@code null} notesFilter for no notes filter.
+     * Preserves actress inference for unattributed pool titles.
+     */
+    public List<TitleSummary> findByVolumePartitionFiltered(String volumeId, String partition, String company, List<String> tags, int offset, int limit,
+                                                             NotesFilter notesFilter) {
         limit = cappedLimit(limit);
         Map<String, Label> labelMap = labelRepo.findAllAsMap();
         List<String> matchingLabels = resolveCompanyLabels(labelMap, company);
         if (company != null && !company.isBlank() && matchingLabels.isEmpty()) return List.of();
-        boolean hasTags   = tags != null && !tags.isEmpty();
-        boolean hasLabels = !matchingLabels.isEmpty();
-        List<Title> titles = (hasTags || hasLabels)
-                ? titleRepo.findByVolumeAndPartitionFiltered(volumeId, partition, matchingLabels, hasTags ? tags : List.of(), limit, offset)
+        boolean hasTags       = tags != null && !tags.isEmpty();
+        boolean hasLabels     = !matchingLabels.isEmpty();
+        boolean hasNotesFilter = notesFilter != null;
+        List<Title> titles = (hasTags || hasLabels || hasNotesFilter)
+                ? titleRepo.findByVolumeAndPartitionFiltered(volumeId, partition, matchingLabels, hasTags ? tags : List.of(), limit, offset, notesFilter)
                 : titleRepo.findByVolumeAndPartition(volumeId, partition, limit, offset);
         return toSummaries(inferActresses(titles));
     }

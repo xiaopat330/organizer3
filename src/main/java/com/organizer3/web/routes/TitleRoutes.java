@@ -188,8 +188,9 @@ public class TitleRoutes {
             String tagsParam = ctx.queryParam("tags");
             List<String> tags = (tagsParam != null && !tagsParam.isBlank())
                     ? List.of(tagsParam.split(",")) : List.of();
-            if ((company != null && !company.isBlank()) || !tags.isEmpty()) {
-                ctx.json(browseService.findByVolumePartitionFiltered(volumeId, "pool", company, tags, offset, limit));
+            NotesFilter notesFilter = ActressRoutes.parseNotesFilter(ctx.queryParam("notes"));
+            if ((company != null && !company.isBlank()) || !tags.isEmpty() || notesFilter != null) {
+                ctx.json(browseService.findByVolumePartitionFiltered(volumeId, "pool", company, tags, offset, limit, notesFilter));
             } else {
                 ctx.json(browseService.findByVolumePartition(volumeId, "pool", offset, limit));
             }
@@ -209,8 +210,9 @@ public class TitleRoutes {
             String tagsParam = ctx.queryParam("tags");
             List<String> tags = (tagsParam != null && !tagsParam.isBlank())
                     ? List.of(tagsParam.split(",")) : List.of();
-            if ((company != null && !company.isBlank()) || !tags.isEmpty()) {
-                ctx.json(browseService.findByVolumePagedFiltered("collections", company, tags, offset, limit));
+            NotesFilter notesFilter = ActressRoutes.parseNotesFilter(ctx.queryParam("notes"));
+            if ((company != null && !company.isBlank()) || !tags.isEmpty() || notesFilter != null) {
+                ctx.json(browseService.findByVolumePagedFiltered("collections", company, tags, offset, limit, notesFilter));
             } else {
                 ctx.json(browseService.findByVolumePaged("collections", offset, limit));
             }

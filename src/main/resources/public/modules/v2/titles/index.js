@@ -100,18 +100,21 @@ function buildUrl(state, offset, limit) {
     let url = `/api/collections/titles?offset=${offset}&limit=${limit}`;
     if (state.browseCompanyFilter) url += `&company=${encodeURIComponent(state.browseCompanyFilter)}`;
     if (state.browseActiveTags.size > 0) url += `&tags=${encodeURIComponent([...state.browseActiveTags].join(','))}`;
+    if (state.notesFilter) url += `&notes=${encodeURIComponent(state.notesFilter)}`;
     return url;
   }
   if (state.mode === 'unsorted') {
     let url = `/api/pool/${encodeURIComponent(state.poolVolumeId)}/titles?offset=${offset}&limit=${limit}`;
     if (state.browseCompanyFilter) url += `&company=${encodeURIComponent(state.browseCompanyFilter)}`;
     if (state.browseActiveTags.size > 0) url += `&tags=${encodeURIComponent([...state.browseActiveTags].join(','))}`;
+    if (state.notesFilter) url += `&notes=${encodeURIComponent(state.notesFilter)}`;
     return url;
   }
   if (state.mode === 'archive-pool') {
     let url = `/api/pool/${encodeURIComponent(state.archivePoolVolumeId)}/titles?offset=${offset}&limit=${limit}`;
     if (state.browseCompanyFilter) url += `&company=${encodeURIComponent(state.browseCompanyFilter)}`;
     if (state.browseActiveTags.size > 0) url += `&tags=${encodeURIComponent([...state.browseActiveTags].join(','))}`;
+    if (state.notesFilter) url += `&notes=${encodeURIComponent(state.notesFilter)}`;
     return url;
   }
   if (state.mode === 'library') {

@@ -757,7 +757,7 @@ class WebServerTest {
     @Test
     void poolTitlesEndpointUsesFilteredWhenCompanyProvided() throws IOException, InterruptedException {
         TitleBrowseService browse = mock(TitleBrowseService.class);
-        when(browse.findByVolumePartitionFiltered(anyString(), anyString(), anyString(), anyList(), anyInt(), anyInt()))
+        when(browse.findByVolumePartitionFiltered(anyString(), anyString(), anyString(), anyList(), anyInt(), anyInt(), any()))
                 .thenReturn(List.of());
 
         server = new WebServer(0, browse, null, null, null, null, null, null, null, null);
@@ -765,7 +765,7 @@ class WebServerTest {
 
         HttpResponse<String> response = get("/api/pool/vol-a/titles?company=Prestige");
         assertEquals(200, response.statusCode());
-        verify(browse).findByVolumePartitionFiltered("vol-a", "pool", "Prestige", List.of(), 0, 24);
+        verify(browse).findByVolumePartitionFiltered("vol-a", "pool", "Prestige", List.of(), 0, 24, null);
     }
 
     @Test
