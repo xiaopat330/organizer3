@@ -159,7 +159,7 @@ function makeRow(row) {
       ? `<div class="er-detail-hint">Orphan: <b>${orphanCode}</b> → New: <b>${newCode}</b> <span class="er-match-type">(${matchType})</span></div>`
       : '';
     actionsHtml = `
-      <button type="button" class="er-action-btn er-hint-btn" data-id="${row.id}">Resolve via recode_title</button>
+      <button type="button" class="er-action-btn er-recode-btn" data-id="${row.id}">Recode to ${newCode}</button>
       <button type="button" class="er-action-btn er-resolve-btn" data-id="${row.id}" data-res="dismissed">Dismiss</button>
     `;
   } else if (isActressRename) {
@@ -232,7 +232,7 @@ function makeRow(row) {
   if (isOrphan) {
     tr.querySelector('.er-orphan-delete-btn').addEventListener('click', () => confirmOrphanDelete(row.id, tr));
   } else if (isRecode) {
-    tr.querySelector('.er-hint-btn').addEventListener('click', () => showRecodeTitleHint(row, tr));
+    tr.querySelector('.er-recode-btn').addEventListener('click', () => startRecodeFlow(row, tr));
   } else if (isAmbiguous) {
     tr.querySelector('.er-picker-btn').addEventListener('click', () => togglePicker(row, tr));
   } else if (isCastAnomaly) {
@@ -243,33 +243,129 @@ function makeRow(row) {
   return tr;
 }
 
-function showRecodeTitleHint(row, tr) {
-  const next = tr.nextElementSibling;
-  if (next && next.classList.contains('er-recode-hint-row')) {
-    next.remove();
+async function startRecodeFlow(row, tr) {
+  const existing = tr.nextElementSibling;
+  if (existing && existing.classList.contains('er-recode-preview-row')) {
+    existing.remove();
     return;
   }
-  tableBody.querySelectorAll('.er-recode-hint-row').forEach(r => r.remove());
+  tableBody.querySelectorAll('.er-recode-preview-row').forEach(r => r.remove());
 
   let detail = null;
   try { detail = row.detail ? JSON.parse(row.detail) : null; } catch {}
-  const orphanCode = detail ? detail.orphan_code || '' : '';
-  const newCode    = detail ? detail.new_folder_code || '' : '';
+  const orphanId = detail ? detail.orphan_id       : null;
+  const newCode  = detail ? detail.new_folder_code : null;
 
-  const hintTr = document.createElement('tr');
-  hintTr.className = 'er-recode-hint-row';
+  if (!orphanId || !newCode) {
+    alert('Recode: missing orphan_id or new_folder_code in queue row detail.');
+    return;
+  }
+
+  const previewTr = document.createElement('tr');
+  previewTr.className = 'er-recode-preview-row';
   const td = document.createElement('td');
   td.colSpan = 6;
-  td.innerHTML = `
-    <div class="er-recode-hint">
-      <b>To resolve:</b> use <code>recode_title</code> to rename the orphan title
-      <b>${esc(orphanCode)}</b> to the new code <b>${esc(newCode)}</b>,
-      then dismiss this queue entry.
-      <br>Example: <code>recode_title(title_id=&lt;orphan_id&gt;, new_code="${esc(newCode)}")</code>
+  td.innerHTML = '<div class="er-recode-preview-panel"><span class="er-recode-loading">Loading preview…</span></div>';
+  previewTr.appendChild(td);
+  tr.insertAdjacentElement('afterend', previewTr);
+
+  const panel = td.querySelector('.er-recode-preview-panel');
+
+  try {
+    const res = await fetch(`/api/utilities/title/${orphanId}/recode`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ newCode, dryRun: true, renameDisk: true }),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      panel.innerHTML = `<span class="er-recode-error">Preview failed: ${data.error || res.statusText}</span>
+        <button type="button" class="er-recode-cancel-btn er-action-btn">Cancel</button>`;
+      panel.querySelector('.er-recode-cancel-btn').addEventListener('click', () => previewTr.remove());
+      return;
+    }
+    renderRecodePreview(panel, data, orphanId, newCode, row.id, tr, previewTr);
+  } catch (err) {
+    console.error('EnrichmentReview: recode preview failed', err);
+    panel.innerHTML = `<span class="er-recode-error">Preview failed: ${err.message}</span>
+      <button type="button" class="er-recode-cancel-btn er-action-btn">Cancel</button>`;
+    panel.querySelector('.er-recode-cancel-btn').addEventListener('click', () => previewTr.remove());
+  }
+}
+
+function renderRecodePreview(panel, dryRunResult, orphanId, newCode, queueRowId, tr, previewTr) {
+  const locations = dryRunResult.locations || [];
+  const pathLines = locations.map(l => {
+    const oldBase = l.oldPath.split(/[\\/]/).pop();
+    const newBase = l.newPath.split(/[\\/]/).pop();
+    return `<div class="er-recode-path-row">
+      <span class="er-recode-old" title="${l.oldPath}">${oldBase}</span>
+      <span class="er-recode-arrow">→</span>
+      <span class="er-recode-new" title="${l.newPath}">${newBase}</span>
+    </div>`;
+  }).join('');
+
+  panel.innerHTML = `
+    <div class="er-recode-preview-summary">
+      Will recode <b>${dryRunResult.oldCode}</b> → <b>${dryRunResult.newCode}</b>,
+      updating ${locations.length} location path${locations.length !== 1 ? 's' : ''}.
     </div>
+    <div class="er-recode-paths">${pathLines || '<span class="er-recode-no-paths">No location paths to rename.</span>'}</div>
+    <div class="er-recode-preview-actions">
+      <button type="button" class="er-recode-commit-btn er-action-btn">Commit</button>
+      <button type="button" class="er-recode-cancel-btn er-action-btn">Cancel</button>
+    </div>
+    <div class="er-recode-commit-error" style="display:none"></div>
   `;
-  hintTr.appendChild(td);
-  tr.insertAdjacentElement('afterend', hintTr);
+
+  panel.querySelector('.er-recode-cancel-btn').addEventListener('click', () => previewTr.remove());
+  panel.querySelector('.er-recode-commit-btn').addEventListener('click', () =>
+    commitRecode(panel, orphanId, newCode, queueRowId, tr, previewTr));
+}
+
+async function commitRecode(panel, orphanId, newCode, queueRowId, tr, previewTr) {
+  const commitBtn = panel.querySelector('.er-recode-commit-btn');
+  const cancelBtn = panel.querySelector('.er-recode-cancel-btn');
+  const errorEl   = panel.querySelector('.er-recode-commit-error');
+  commitBtn.disabled = true;
+  cancelBtn.disabled = true;
+  commitBtn.textContent = 'Committing…';
+  errorEl.style.display = 'none';
+
+  try {
+    const recodeRes = await fetch(`/api/utilities/title/${orphanId}/recode`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ newCode, dryRun: false, renameDisk: true }),
+    });
+    const recodeData = await recodeRes.json();
+    if (!recodeRes.ok || recodeData.partialFailure) {
+      const msg = recodeData.errorMessage || recodeData.error || recodeRes.statusText;
+      errorEl.textContent = 'Recode failed: ' + msg;
+      errorEl.style.display = '';
+      commitBtn.disabled = false;
+      cancelBtn.disabled = false;
+      commitBtn.textContent = 'Commit';
+      return;
+    }
+
+    const resolveRes = await fetch(`/api/utilities/enrichment-review/queue/${queueRowId}/resolve`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ resolution: 'marked_resolved' }),
+    });
+    if (!resolveRes.ok) {
+      console.warn('EnrichmentReview: recode succeeded but queue resolve failed', await resolveRes.text());
+    }
+    await reload();
+  } catch (err) {
+    console.error('EnrichmentReview: recode commit failed', err);
+    errorEl.textContent = 'Commit failed: ' + err.message;
+    errorEl.style.display = '';
+    commitBtn.disabled = false;
+    cancelBtn.disabled = false;
+    commitBtn.textContent = 'Commit';
+  }
 }
 
 // ── Picker panel ──────────────────────────────────────────────────────────────

@@ -158,6 +158,145 @@ export async function confirmOrphanDelete(queueRowId, tr, reload) {
   }
 }
 
+// ── Recode title (recode_candidate rows) ─────────────────────────────────────
+
+/**
+ * Dry-run the recode, show an inline preview row, then offer Commit / Cancel.
+ *
+ * @param {object}      row         queue row (needs row.id, detail.orphan_id, detail.new_folder_code)
+ * @param {HTMLElement} tr          the <tr> for this queue row
+ * @param {HTMLElement} tableBody   the <tbody> (to close any other open preview rows)
+ * @param {Function}    reload
+ */
+export async function startRecodeFlow(row, tr, tableBody, reload) {
+  // Toggle: close if already open.
+  const existing = tr.nextElementSibling;
+  if (existing && existing.classList.contains('er-recode-preview-row')) {
+    existing.remove();
+    return;
+  }
+  tableBody.querySelectorAll('.er-recode-preview-row').forEach(r => r.remove());
+
+  let detail = null;
+  try { detail = row.detail ? JSON.parse(row.detail) : null; } catch {}
+  const orphanId  = detail ? detail.orphan_id        : null;
+  const newCode   = detail ? detail.new_folder_code  : null;
+
+  if (!orphanId || !newCode) {
+    alert('Recode: missing orphan_id or new_folder_code in queue row detail.');
+    return;
+  }
+
+  // Insert a loading row immediately for responsiveness.
+  const previewTr = document.createElement('tr');
+  previewTr.className = 'er-recode-preview-row';
+  const td = document.createElement('td');
+  td.colSpan = 6;
+  td.innerHTML = '<div class="er-recode-preview-panel"><span class="er-recode-loading">Loading preview…</span></div>';
+  previewTr.appendChild(td);
+  tr.insertAdjacentElement('afterend', previewTr);
+
+  const panel = td.querySelector('.er-recode-preview-panel');
+
+  try {
+    const res = await fetch(`/api/utilities/title/${orphanId}/recode`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ newCode, dryRun: true, renameDisk: true }),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      panel.innerHTML = `<span class="er-recode-error">Preview failed: ${data.error || res.statusText}</span>
+        <button type="button" class="er-recode-cancel-btn er-action-btn">Cancel</button>`;
+      panel.querySelector('.er-recode-cancel-btn').addEventListener('click', () => previewTr.remove());
+      return;
+    }
+    renderRecodePreview(panel, data, orphanId, newCode, row.id, tr, previewTr, reload);
+  } catch (err) {
+    console.error('EnrichmentReview: recode preview failed', err);
+    panel.innerHTML = `<span class="er-recode-error">Preview failed: ${err.message}</span>
+      <button type="button" class="er-recode-cancel-btn er-action-btn">Cancel</button>`;
+    panel.querySelector('.er-recode-cancel-btn').addEventListener('click', () => previewTr.remove());
+  }
+}
+
+function renderRecodePreview(panel, dryRunResult, orphanId, newCode, queueRowId, tr, previewTr, reload) {
+  const locations = dryRunResult.locations || [];
+  const pathLines = locations.map(l => {
+    const oldBase = l.oldPath.split(/[\\/]/).pop();
+    const newBase = l.newPath.split(/[\\/]/).pop();
+    return `<div class="er-recode-path-row">
+      <span class="er-recode-old" title="${l.oldPath}">${oldBase}</span>
+      <span class="er-recode-arrow">→</span>
+      <span class="er-recode-new" title="${l.newPath}">${newBase}</span>
+    </div>`;
+  }).join('');
+
+  panel.innerHTML = `
+    <div class="er-recode-preview-summary">
+      Will recode <b>${dryRunResult.oldCode}</b> → <b>${dryRunResult.newCode}</b>,
+      updating ${locations.length} location path${locations.length !== 1 ? 's' : ''}.
+    </div>
+    <div class="er-recode-paths">${pathLines || '<span class="er-recode-no-paths">No location paths to rename.</span>'}</div>
+    <div class="er-recode-preview-actions">
+      <button type="button" class="er-recode-commit-btn er-action-btn">Commit</button>
+      <button type="button" class="er-recode-cancel-btn er-action-btn">Cancel</button>
+    </div>
+    <div class="er-recode-commit-error" style="display:none"></div>
+  `;
+
+  panel.querySelector('.er-recode-cancel-btn').addEventListener('click', () => previewTr.remove());
+  panel.querySelector('.er-recode-commit-btn').addEventListener('click', () =>
+    commitRecode(panel, orphanId, newCode, queueRowId, tr, previewTr, reload));
+}
+
+async function commitRecode(panel, orphanId, newCode, queueRowId, tr, previewTr, reload) {
+  const commitBtn = panel.querySelector('.er-recode-commit-btn');
+  const cancelBtn = panel.querySelector('.er-recode-cancel-btn');
+  const errorEl   = panel.querySelector('.er-recode-commit-error');
+  commitBtn.disabled = true;
+  cancelBtn.disabled = true;
+  commitBtn.textContent = 'Committing…';
+  errorEl.style.display = 'none';
+
+  try {
+    const recodeRes = await fetch(`/api/utilities/title/${orphanId}/recode`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ newCode, dryRun: false, renameDisk: true }),
+    });
+    const recodeData = await recodeRes.json();
+    if (!recodeRes.ok || recodeData.partialFailure) {
+      const msg = recodeData.errorMessage || recodeData.error || recodeRes.statusText;
+      errorEl.textContent = 'Recode failed: ' + msg;
+      errorEl.style.display = '';
+      commitBtn.disabled = false;
+      cancelBtn.disabled = false;
+      commitBtn.textContent = 'Commit';
+      return;
+    }
+
+    // Recode succeeded — now mark the queue row resolved.
+    const resolveRes = await fetch(`/api/utilities/enrichment-review/queue/${queueRowId}/resolve`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ resolution: 'marked_resolved' }),
+    });
+    if (!resolveRes.ok) {
+      // Recode done but queue row is stale — log and reload anyway.
+      console.warn('EnrichmentReview: recode succeeded but queue resolve failed', await resolveRes.text());
+    }
+    await reload();
+  } catch (err) {
+    console.error('EnrichmentReview: recode commit failed', err);
+    errorEl.textContent = 'Commit failed: ' + err.message;
+    errorEl.style.display = '';
+    commitBtn.disabled = false;
+    cancelBtn.disabled = false;
+    commitBtn.textContent = 'Commit';
+  }
+}
+
 // ── Add alias (cast-anomaly) ──────────────────────────────────────────────────
 
 /**

@@ -411,3 +411,69 @@
 }
 .er-code-cover-btn:hover { color: #bae6fd; text-decoration-color: rgba(186, 230, 253, 0.6); }
 
+/* ── Recode action button ──────────────────────────────────────── */
+.er-recode-btn {
+  background: #1c1a08;
+  color: #fde68a;
+  border: 1px solid #92400e;
+}
+.er-recode-btn:hover:not(:disabled) { background: #3d2500; color: #fef3c7; }
+
+/* ── Recode preview row ────────────────────────────────────────── */
+.er-recode-preview-row td { padding: 0 !important; background: #0a0f1a; border-bottom: 1px solid #1e293b; }
+
+.er-recode-preview-panel {
+  padding: 14px 20px 16px;
+  background: #0c1221;
+  border-top: 1px solid #1e3a5f;
+  font-size: 12px;
+  color: #cbd5e1;
+}
+
+.er-recode-loading { color: #64748b; }
+.er-recode-error   { color: #fca5a5; }
+
+.er-recode-preview-summary {
+  margin-bottom: 10px;
+  color: #e2e8f0;
+}
+
+.er-recode-paths {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 12px;
+  font-family: monospace;
+  font-size: 11px;
+}
+
+.er-recode-path-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.er-recode-old   { color: #fca5a5; }
+.er-recode-arrow { color: #64748b; }
+.er-recode-new   { color: #86efac; }
+.er-recode-no-paths { color: #64748b; }
+
+.er-recode-preview-actions {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+
+.er-recode-commit-btn {
+  background: #052e16;
+  color: #4ade80;
+  border: 1px solid #166534;
+}
+.er-recode-commit-btn:hover:not(:disabled) { background: #14532d; color: #86efac; }
+
+.er-recode-commit-error {
+  color: #fca5a5;
+  font-size: 11px;
+  margin-top: 4px;
+}
+
