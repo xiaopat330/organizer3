@@ -34,7 +34,21 @@ function esc(s) {
   }[c]));
 }
 
+// ── Post-It Notes token injection ─────────────────────────────────────────
+// tokens.css defines --postit-yellow / --postit-yellow-edge / --postit-ink.
+// v1 loads it via index.html; v2 pages do not, so inject once here.
+function ensureNoteTokens() {
+  const LINK_ID = 'notes-tokens-css';
+  if (document.getElementById(LINK_ID)) return;
+  const link = document.createElement('link');
+  link.id   = LINK_ID;
+  link.rel  = 'stylesheet';
+  link.href = '/modules/notes/tokens.css';
+  document.head.appendChild(link);
+}
+
 export async function mountDuplicates(rootEl) {
+  ensureNoteTokens();
   rootEl.innerHTML = `
     <div class="dup-wb">
       <div class="dup-wb-head">
@@ -140,6 +154,9 @@ export async function mountDuplicates(rootEl) {
       state.allDuplicates  = all;
       state.actressGroups  = buildActressGroups(all);
       state.decisions      = await loadAllDecisions(all);
+      // Reset notes cache so renderGroups re-fetches for the new title set.
+      state.notesByCode    = new Map();
+      state.notesCachedKey = null;
 
       // Restore or default actress selection
       if (!state.currentActressKey || !state.actressGroups.has(state.currentActressKey)) {

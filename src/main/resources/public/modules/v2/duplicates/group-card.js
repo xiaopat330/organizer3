@@ -6,6 +6,7 @@
 import { rankLocations } from '../../duplicate-ranker.js';
 import { openInspectModal } from './inspect-modal.js';
 import { applyDecision, isLastNonTrashed } from './decision.js';
+import { notesIcon, openStickyModal, batchNotes } from '../../notes/index.js';
 
 // ── Icons ─────────────────────────────────────────────────────────────
 
@@ -239,6 +240,30 @@ export async function buildTitleCard(state, title, onDecisionChange) {
     <span class="dup-loc-count">${locs.length} locations</span>
   `;
   header.appendChild(titleInfo);
+
+  // Post-it notes icon — one per title card (one note entity per title, §5e).
+  // Filled (yellow) when a note exists, outline (gray) when empty.
+  // Swaps icon in place on save/clear — does NOT trigger onDecisionChange.
+  function buildNoteIcon() {
+    const note   = state.notesByCode.get(title.code) ?? null;
+    const filled = !!note;
+    const el     = notesIcon({ filled, title: filled ? note.body : 'Add note' });
+    el.classList.add('dup-note-icon');
+    el.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      const result = await openStickyModal({
+        entityType:  'title',
+        entityId:    title.code,
+        entityName:  title.titleEnglish || title.code,
+        initialNote: state.notesByCode.get(title.code) ?? null,
+      });
+      state.notesByCode.set(title.code, result);
+      el.replaceWith(buildNoteIcon());
+    });
+    return el;
+  }
+  header.appendChild(buildNoteIcon());
+
   card.appendChild(header);
 
   // Fetch videos per location
@@ -286,6 +311,22 @@ export async function renderGroups(state, groupsEl, onDecisionChange) {
     done.className = 'dup-closure';
     done.textContent = `✓ ${group.name} — all duplicates resolved`;
     groupsEl.appendChild(done);
+  }
+
+  // Batch-hydrate notes for this actress group (one fetch, not N+1).
+  // Guard on notesCachedKey so repeated onDecisionChange calls don't re-fetch.
+  if (state.notesCachedKey !== state.currentActressKey) {
+    state.notesCachedKey = state.currentActressKey;
+    state.notesByCode    = new Map();
+    try {
+      const codes = group.titles.map(t => t.code);
+      const map   = await batchNotes('title', codes);
+      for (const t of group.titles) {
+        state.notesByCode.set(t.code, map[t.code] ?? null);
+      }
+    } catch (err) {
+      console.warn('[duplicates] batchNotes failed', err);
+    }
   }
 
   const total = group.titles.length;
