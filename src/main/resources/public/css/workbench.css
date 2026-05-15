@@ -391,6 +391,79 @@
 }
 .trans-model-loaded { font-family: var(--font-mono); }
 
+/* ── Loaded-models rich block (v2 Ollama panel) ─────────────────────── */
+.trans-loaded-block {
+  margin-top: 10px;
+  border-top: 1px solid var(--border);
+  padding-top: 8px;
+}
+.trans-loaded-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--text-faint);
+  margin-bottom: 6px;
+}
+.trans-loaded-total {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-dim);
+}
+.trans-loaded-row {
+  display: grid;
+  grid-template-columns: 1fr 52px 60px 48px;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 0;
+}
+.trans-loaded-name {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.trans-loaded-size {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-faint);
+  text-align: right;
+}
+.trans-loaded-ttl-bar {
+  display: block;
+  height: 4px;
+  background: var(--border);
+  border-radius: 2px;
+  overflow: hidden;
+}
+.trans-loaded-ttl-bar > span {
+  display: block;
+  height: 100%;
+  background: var(--warn);
+  border-radius: 2px;
+  transition: width 1s linear;
+}
+.trans-loaded-ttl-text {
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  color: var(--text-faint);
+  text-align: right;
+}
+.trans-loaded-empty {
+  margin-top: 10px;
+  font-size: 11px;
+  color: var(--text-faint);
+  font-style: italic;
+  border-top: 1px solid var(--border);
+  padding-top: 8px;
+}
+/* ── Pill muted state (ollama "Checking…" / unknown) ─────────────────── */
+.pill.muted { color: var(--text-faint); }
+
 /* Queue + activity lists */
 .trans-queue, .trans-activity {
   list-style: none;
