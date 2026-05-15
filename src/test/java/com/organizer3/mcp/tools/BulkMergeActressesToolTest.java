@@ -177,6 +177,87 @@ class BulkMergeActressesToolTest {
         }
     }
 
+    // ── 4b. Explicit confirming test: bulk dry-run returns per-pair plans ────
+
+    /**
+     * Confirms the existing top-level {@code dryRun:true} on {@code bulk_merge_actresses}
+     * already aggregates per-pair plans (one full {@link MergeActressesTool.Result} per pair)
+     * and does not mutate any DB state. Verifies the documented use-case of previewing N
+     * pending merges in a single call.
+     */
+    @Test
+    @SuppressWarnings("unchecked")
+    void bulkDryRun_returnsPerPairPlansWithoutMutating() throws Exception {
+        // 3 pairs — matches the report sample shape
+        long into1 = actressRepo.save(mk("Canon 1")).getId();
+        long from1 = actressRepo.save(mk("Typo 1")).getId();
+        long into2 = actressRepo.save(mk("Canon 2")).getId();
+        long from2 = actressRepo.save(mk("Typo 2")).getId();
+        long into3 = actressRepo.save(mk("Canon 3")).getId();
+        long from3 = actressRepo.save(mk("Typo 3")).getId();
+
+        // Seed a title on each 'from' to give the plan something to describe
+        titleRepo.save(title("ABP-101", from1));
+        titleRepo.save(title("ABP-102", from2));
+        titleRepo.save(title("ABP-103", from3));
+
+        // Snapshot pre-call state for strict no-mutation assertions
+        int actressesBefore = jdbi.withHandle(h ->
+                h.createQuery("SELECT COUNT(*) FROM actresses").mapTo(Integer.class).one());
+        int titlesBefore = jdbi.withHandle(h ->
+                h.createQuery("SELECT COUNT(*) FROM titles").mapTo(Integer.class).one());
+
+        ObjectNode args = args(true, pair(into1, from1), pair(into2, from2), pair(into3, from3));
+        Map<String, Object> result = call(args);
+
+        // Top-level shape
+        assertTrue((Boolean) result.get("dryRun"));
+        assertEquals(3, result.get("totalMerges"));
+        assertEquals(3, result.get("successful"));
+        assertEquals(0, result.get("failed"));
+
+        // Per-pair plans
+        List<Map<String, Object>> results = (List<Map<String, Object>>) result.get("results");
+        assertEquals(3, results.size());
+        long[] expectedInto = {into1, into2, into3};
+        long[] expectedFrom = {from1, from2, from3};
+        for (int i = 0; i < 3; i++) {
+            Map<String, Object> entry = results.get(i);
+            assertEquals(i, entry.get("index"));
+            assertEquals(expectedInto[i], ((Number) entry.get("into")).longValue());
+            assertEquals(expectedFrom[i], ((Number) entry.get("from")).longValue());
+            assertTrue((Boolean) entry.get("ok"));
+            Object plan = entry.get("result");
+            assertNotNull(plan, "dry-run entry must include the merge Result");
+            assertTrue(plan instanceof MergeActressesTool.Result,
+                    "per-pair result should be a MergeActressesTool.Result");
+            MergeActressesTool.Result mr = (MergeActressesTool.Result) plan;
+            assertTrue(mr.dryRun(), "inner Result.dryRun must be true");
+            assertNotNull(mr.plan(), "inner Plan must be present");
+            assertNotNull(mr.plan().summary(), "Plan.summary must be present");
+            assertNotNull(mr.plan().changes(), "Plan.changes must be present");
+        }
+
+        // Strict no-mutation: every 'from' survives, every title still points to its 'from'
+        assertTrue(actressRepo.findById(from1).isPresent(), "from1 must survive dry-run");
+        assertTrue(actressRepo.findById(from2).isPresent(), "from2 must survive dry-run");
+        assertTrue(actressRepo.findById(from3).isPresent(), "from3 must survive dry-run");
+        assertEquals(1, titleRepo.findByActress(from1).size(), "from1 title must not move");
+        assertEquals(1, titleRepo.findByActress(from2).size(), "from2 title must not move");
+        assertEquals(1, titleRepo.findByActress(from3).size(), "from3 title must not move");
+        assertTrue(titleRepo.findByActress(into1).isEmpty(), "into1 must not gain titles");
+        assertTrue(titleRepo.findByActress(into2).isEmpty(), "into2 must not gain titles");
+        assertTrue(titleRepo.findByActress(into3).isEmpty(), "into3 must not gain titles");
+
+        // Row counts unchanged
+        int actressesAfter = jdbi.withHandle(h ->
+                h.createQuery("SELECT COUNT(*) FROM actresses").mapTo(Integer.class).one());
+        int titlesAfter = jdbi.withHandle(h ->
+                h.createQuery("SELECT COUNT(*) FROM titles").mapTo(Integer.class).one());
+        assertEquals(actressesBefore, actressesAfter, "actresses row count must not change");
+        assertEquals(titlesBefore, titlesAfter, "titles row count must not change");
+    }
+
     // ── 5. Empty merges array returns zero-result without error ──────────────
 
     @Test
