@@ -6,6 +6,7 @@ import com.organizer3.mcp.Tool;
 import org.jdbi.v3.core.Jdbi;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 /**
@@ -56,7 +57,11 @@ public class FindStaleLocationsTool implements Tool {
         return jdbi.withHandle(h -> {
             StringBuilder sql = new StringBuilder("""
                     SELECT tl.id, tl.title_id, t.code, tl.volume_id, tl.path,
-                           tl.last_seen_at, v.last_synced_at
+                           tl.last_seen_at, v.last_synced_at,
+                           (SELECT group_concat(a.canonical_name, '|')
+                              FROM title_actresses ta
+                              JOIN actresses a ON a.id = ta.actress_id
+                             WHERE ta.title_id = tl.title_id) AS actresses
                     FROM title_locations tl
                     JOIN volumes v ON v.id = tl.volume_id
                     JOIN titles  t ON t.id = tl.title_id
@@ -72,20 +77,28 @@ public class FindStaleLocationsTool implements Tool {
             if (volumeId != null && !volumeId.isBlank()) q.bind("vol", volumeId);
 
             List<Row> rows = new ArrayList<>();
-            q.map((rs, ctx) -> new Row(
-                    rs.getLong("id"),
-                    rs.getLong("title_id"),
-                    rs.getString("code"),
-                    rs.getString("volume_id"),
-                    rs.getString("path"),
-                    rs.getString("last_seen_at"),
-                    rs.getString("last_synced_at")))
+            q.map((rs, ctx) -> {
+                String joined = rs.getString("actresses");
+                List<String> actresses = (joined == null || joined.isEmpty())
+                        ? List.of()
+                        : Arrays.asList(joined.split("\\|"));
+                return new Row(
+                        rs.getLong("id"),
+                        rs.getLong("title_id"),
+                        rs.getString("code"),
+                        rs.getString("volume_id"),
+                        rs.getString("path"),
+                        rs.getString("last_seen_at"),
+                        rs.getString("last_synced_at"),
+                        actresses);
+            })
              .forEach(rows::add);
             return new Result(rows.size(), rows);
         });
     }
 
     public record Row(long locationId, long titleId, String titleCode, String volumeId,
-                      String path, String lastSeenAt, String volumeLastSyncedAt) {}
+                      String path, String lastSeenAt, String volumeLastSyncedAt,
+                      List<String> actresses) {}
     public record Result(int count, List<Row> staleLocations) {}
 }
