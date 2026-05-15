@@ -233,6 +233,101 @@ class MergeActressesToolTest {
         assertThrows(IllegalArgumentException.class, () -> tool.call(args(9999L, 9998L, true)));
     }
 
+    // ── dropAliases ─────────────────────────────────────────────────────────
+
+    @Test
+    void dropAliasesRemovesListedAliasesAfterMerge() throws Exception {
+        long into = actressRepo.save(mk("Nami Aino")).getId();
+        long from = actressRepo.save(mk("Aino Nami")).getId();
+        actressRepo.saveAlias(new ActressAlias(from, "Typo Variant"));
+        actressRepo.saveAlias(new ActressAlias(from, "Keep Me"));
+
+        var r = (MergeActressesTool.Result) tool.call(argsWithDrops(into, from, false, "Typo Variant"));
+        assertFalse(r.dryRun());
+        assertEquals(List.of("Typo Variant"), r.droppedAliases());
+
+        List<String> aliases = actressRepo.findAliases(into).stream()
+                .map(ActressAlias::aliasName).toList();
+        assertFalse(aliases.contains("Typo Variant"));
+        assertTrue(aliases.contains("Keep Me"));
+        assertTrue(aliases.contains("Aino Nami"), "from-canonical fold still happens");
+    }
+
+    @Test
+    void dropAliasesIsCaseInsensitive() throws Exception {
+        long into = actressRepo.save(mk("Nami Aino")).getId();
+        long from = actressRepo.save(mk("Aino Nami")).getId();
+        actressRepo.saveAlias(new ActressAlias(from, "Typo Variant"));
+
+        tool.call(argsWithDrops(into, from, false, "typo variant"));
+
+        List<String> aliases = actressRepo.findAliases(into).stream()
+                .map(ActressAlias::aliasName).toList();
+        assertFalse(aliases.contains("Typo Variant"));
+    }
+
+    @Test
+    void dropAliasesEmptyPreservesBehavior() throws Exception {
+        long into = actressRepo.save(mk("Nami Aino")).getId();
+        long from = actressRepo.save(mk("Aino Nami")).getId();
+        actressRepo.saveAlias(new ActressAlias(from, "Some Alias"));
+
+        var r = (MergeActressesTool.Result) tool.call(args(into, from, false));
+        assertTrue(r.droppedAliases().isEmpty());
+
+        List<String> aliases = actressRepo.findAliases(into).stream()
+                .map(ActressAlias::aliasName).toList();
+        assertTrue(aliases.contains("Some Alias"), "no dropAliases → standard merge behavior");
+        assertTrue(aliases.contains("Aino Nami"));
+    }
+
+    @Test
+    void dropAliasesCanDropFromCanonicalIfExplicitlyListed() throws Exception {
+        // Explicit power: if the user wants the from-canonical removed, dropAliases honors it.
+        long into = actressRepo.save(mk("Nami Aino")).getId();
+        long from = actressRepo.save(mk("Aino Nami")).getId();
+
+        var r = (MergeActressesTool.Result) tool.call(argsWithDrops(into, from, false, "Aino Nami"));
+        assertEquals(List.of("Aino Nami"), r.droppedAliases());
+
+        List<String> aliases = actressRepo.findAliases(into).stream()
+                .map(ActressAlias::aliasName).toList();
+        assertFalse(aliases.contains("Aino Nami"));
+    }
+
+    @Test
+    void dropAliasesDryRunReportsPlanWithoutApplying() throws Exception {
+        long into = actressRepo.save(mk("Nami Aino")).getId();
+        long from = actressRepo.save(mk("Aino Nami")).getId();
+        actressRepo.saveAlias(new ActressAlias(from, "Typo Variant"));
+
+        var r = (MergeActressesTool.Result) tool.call(argsWithDrops(into, from, true, "Typo Variant"));
+        assertTrue(r.dryRun());
+        assertTrue(r.plan().plannedAliasDrops().contains("Typo Variant"));
+
+        // No mutations happened
+        assertTrue(actressRepo.findById(from).isPresent(), "from still exists in dry-run");
+        // Drop result list also empty in dry-run (since nothing was actually applied)
+        assertTrue(r.droppedAliases().isEmpty());
+    }
+
+    @Test
+    void dropAliasesUnknownEntryIsNoOpNotError() throws Exception {
+        long into = actressRepo.save(mk("Nami Aino")).getId();
+        long from = actressRepo.save(mk("Aino Nami")).getId();
+        actressRepo.saveAlias(new ActressAlias(from, "Real Alias"));
+
+        var r = (MergeActressesTool.Result) tool.call(
+                argsWithDrops(into, from, false, "Does Not Exist", "Real Alias"));
+        // both real and bogus listed — real should be dropped, bogus reported as not-found
+        assertEquals(List.of("Real Alias"), r.droppedAliases());
+        assertEquals(List.of("Does Not Exist"), r.dropAliasesNotFound());
+
+        List<String> aliases = actressRepo.findAliases(into).stream()
+                .map(ActressAlias::aliasName).toList();
+        assertFalse(aliases.contains("Real Alias"));
+    }
+
     // ── helpers ─────────────────────────────────────────────────────────────
 
     private static Actress mk(String name) {
@@ -264,6 +359,13 @@ class MergeActressesToolTest {
         n.put("into", into);
         n.put("from", from);
         n.put("dryRun", dryRun);
+        return n;
+    }
+
+    private static ObjectNode argsWithDrops(long into, long from, boolean dryRun, String... drops) {
+        ObjectNode n = args(into, from, dryRun);
+        var arr = n.putArray("dropAliases");
+        for (String d : drops) arr.add(d);
         return n;
     }
 }
