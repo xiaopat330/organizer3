@@ -116,6 +116,62 @@ class FindStaleLocationsToolTest {
         assertEquals("vol-a", r.staleLocations().get(0).volumeId());
     }
 
+    @Test
+    void staleLocation_singleActress() throws Exception {
+        jdbi.useHandle(h -> {
+            h.execute("INSERT INTO volumes (id, structure_type, last_synced_at) VALUES ('vol-a', 'conventional', '2024-06-01')");
+            h.execute("INSERT INTO actresses(id, canonical_name, tier, first_seen_at) VALUES (1, 'Yui Hatano', 'S', '2024-01-01')");
+        });
+        long tid = titleRepo.save(title("STALE-001")).getId();
+        jdbi.useHandle(h -> h.execute("INSERT INTO title_actresses(title_id, actress_id) VALUES (" + tid + ", 1)"));
+        locationRepo.save(TitleLocation.builder()
+                .titleId(tid).volumeId("vol-a").partitionId("p1")
+                .path(Path.of("/stale")).lastSeenAt(LocalDate.of(2024, 5, 1)).build());
+
+        var r = (FindStaleLocationsTool.Result) tool.call(args(null, 100));
+        assertEquals(1, r.count());
+        assertEquals(java.util.List.of("Yui Hatano"), r.staleLocations().get(0).actresses());
+    }
+
+    @Test
+    void staleLocation_multipleActresses() throws Exception {
+        jdbi.useHandle(h -> {
+            h.execute("INSERT INTO volumes (id, structure_type, last_synced_at) VALUES ('vol-a', 'conventional', '2024-06-01')");
+            h.execute("INSERT INTO actresses(id, canonical_name, tier, first_seen_at) VALUES (1, 'Yui Hatano', 'S', '2024-01-01')");
+            h.execute("INSERT INTO actresses(id, canonical_name, tier, first_seen_at) VALUES (2, 'Maria Ozawa', 'S', '2024-01-01')");
+        });
+        long tid = titleRepo.save(title("STALE-002")).getId();
+        jdbi.useHandle(h -> {
+            h.execute("INSERT INTO title_actresses(title_id, actress_id) VALUES (" + tid + ", 1)");
+            h.execute("INSERT INTO title_actresses(title_id, actress_id) VALUES (" + tid + ", 2)");
+        });
+        locationRepo.save(TitleLocation.builder()
+                .titleId(tid).volumeId("vol-a").partitionId("p1")
+                .path(Path.of("/stale")).lastSeenAt(LocalDate.of(2024, 5, 1)).build());
+
+        var r = (FindStaleLocationsTool.Result) tool.call(args(null, 100));
+        assertEquals(1, r.count());
+        var names = r.staleLocations().get(0).actresses();
+        assertEquals(2, names.size());
+        assertTrue(names.contains("Yui Hatano"));
+        assertTrue(names.contains("Maria Ozawa"));
+    }
+
+    @Test
+    void staleLocation_noActresses() throws Exception {
+        jdbi.useHandle(h -> h.execute(
+                "INSERT INTO volumes (id, structure_type, last_synced_at) VALUES ('vol-a', 'conventional', '2024-06-01')"));
+        long tid = titleRepo.save(title("STALE-003")).getId();
+        locationRepo.save(TitleLocation.builder()
+                .titleId(tid).volumeId("vol-a").partitionId("p1")
+                .path(Path.of("/stale")).lastSeenAt(LocalDate.of(2024, 5, 1)).build());
+
+        var r = (FindStaleLocationsTool.Result) tool.call(args(null, 100));
+        assertEquals(1, r.count());
+        assertNotNull(r.staleLocations().get(0).actresses());
+        assertTrue(r.staleLocations().get(0).actresses().isEmpty());
+    }
+
     private static Title title(String code) {
         return Title.builder()
                 .code(code)
