@@ -182,7 +182,7 @@ function buildHTML() {
       <table class="jd-titles-table" id="jd-titles-table">
         <thead>
           <tr>
-            <th class="jd-titles-cb-col"></th>
+            <th class="jd-titles-cb-col"><input type="checkbox" id="jd-titles-select-all" title="Select all on this page"></th>
             <th>Code</th>
             <th>Title</th>
             <th>Actress</th>
@@ -222,7 +222,7 @@ function buildHTML() {
       <table class="jd-titles-table jd-collections-table" id="jd-collections-table">
         <thead>
           <tr>
-            <th class="jd-titles-cb-col"></th>
+            <th class="jd-titles-cb-col"><input type="checkbox" id="jd-collections-select-all" title="Select all on this page"></th>
             <th>Code</th>
             <th>Title</th>
             <th>Cast</th>
