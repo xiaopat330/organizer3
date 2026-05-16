@@ -209,6 +209,176 @@ class MoveVideoFileToolTest {
         assertNull(sizeInDb);
     }
 
+    // ── Existing-videos-row update behavior (data-integrity fix) ──────────────
+
+    @Test
+    void updatesExistingVideosRowAtSourcePathWhenAddAsLocationOfOmitted() {
+        long titleId = seedTitle("EBOD-185");
+        seedLocation(titleId, "s", "/queue/EBOD-185_Uncensored");
+        long existingVideoId = seedVideo(titleId, "s", "/queue/EBOD-185_Uncensored/video/EBOD-185_Uncensored.mp4");
+
+        fs.existingPaths.add(Path.of("/queue/EBOD-185_Uncensored/video/EBOD-185_Uncensored.mp4"));
+        fs.existingPaths.add(Path.of("/stars/goddess/Sora Aoi/Sora Aoi (EBOD-185)/video"));
+
+        var result = (MoveVideoFileTool.Result) tool.call(args(
+                "s",
+                "/queue/EBOD-185_Uncensored/video/EBOD-185_Uncensored.mp4",
+                "/stars/goddess/Sora Aoi/Sora Aoi (EBOD-185)/video/EBOD-185_Uncensored.mp4",
+                null, false));
+
+        assertEquals("ok", result.status());
+        assertEquals("updated_existing", result.dbAction());
+        assertNotNull(result.dbInserts());
+        assertEquals(existingVideoId, result.dbInserts().videoId());
+        assertNull(result.dbInserts().locationId());
+
+        String pathInDb = jdbi.withHandle(h -> h.createQuery(
+                "SELECT path FROM videos WHERE id = " + existingVideoId)
+                .mapTo(String.class).one());
+        assertEquals("/stars/goddess/Sora Aoi/Sora Aoi (EBOD-185)/video/EBOD-185_Uncensored.mp4", pathInDb);
+
+        long countAtOld = jdbi.withHandle(h -> h.createQuery(
+                "SELECT COUNT(*) FROM videos WHERE path = '/queue/EBOD-185_Uncensored/video/EBOD-185_Uncensored.mp4'")
+                .mapTo(Long.class).one());
+        assertEquals(0, countAtOld);
+    }
+
+    @Test
+    void noExistingRowAndNoAddAsLocationOfYieldsDbActionNone() {
+        fs.existingPaths.add(Path.of("/attention/folder/h265/MIMK-001.mkv"));
+        fs.existingPaths.add(Path.of("/stars/goddess/Saki/Saki (MIMK-001)/h265"));
+
+        var result = (MoveVideoFileTool.Result) tool.call(args(
+                "s",
+                "/attention/folder/h265/MIMK-001.mkv",
+                "/stars/goddess/Saki/Saki (MIMK-001)/h265/MIMK-001.mkv",
+                null, false));
+
+        assertEquals("ok", result.status());
+        assertEquals("none", result.dbAction());
+        assertNull(result.dbInserts());
+
+        long videoCount = jdbi.withHandle(h -> h.createQuery("SELECT COUNT(*) FROM videos").mapTo(Long.class).one());
+        assertEquals(0, videoCount);
+    }
+
+    @Test
+    void existingRowPlusMatchingAddAsLocationOfUpdatesNotInserts() {
+        long titleId = seedTitle("MIMK-190");
+        seedLocation(titleId, "s", "/stars/goddess/Saki Okuda/Saki Okuda (MIMK-190)");
+        long existingVideoId = seedVideo(titleId, "s",
+                "/attention/Saki Okuda (MIMK-190_4K)/h265/MIMK-190_4K-h265.mkv");
+
+        fs.existingPaths.add(Path.of("/attention/Saki Okuda (MIMK-190_4K)/h265/MIMK-190_4K-h265.mkv"));
+        fs.existingPaths.add(Path.of("/stars/goddess/Saki Okuda/Saki Okuda (MIMK-190)/h265"));
+
+        var result = (MoveVideoFileTool.Result) tool.call(args(
+                "s",
+                "/attention/Saki Okuda (MIMK-190_4K)/h265/MIMK-190_4K-h265.mkv",
+                "/stars/goddess/Saki Okuda/Saki Okuda (MIMK-190)/h265/MIMK-190_4K-h265.mkv",
+                "MIMK-190", false));
+
+        assertEquals("ok", result.status());
+        assertEquals("updated_existing", result.dbAction());
+        assertEquals(existingVideoId, result.dbInserts().videoId());
+
+        long videoCount = jdbi.withHandle(h -> h.createQuery("SELECT COUNT(*) FROM videos").mapTo(Long.class).one());
+        assertEquals(1, videoCount, "should not have inserted a second videos row");
+    }
+
+    @Test
+    void existingRowPlusMismatchedAddAsLocationOfFailsBeforeMove() {
+        long titleA = seedTitle("AAA-001");
+        long titleB = seedTitle("BBB-002");
+        seedLocation(titleA, "s", "/queue/A");
+        seedVideo(titleA, "s", "/queue/A/AAA-001.mkv");
+
+        fs.existingPaths.add(Path.of("/queue/A/AAA-001.mkv"));
+        fs.existingPaths.add(Path.of("/stars/star/B/B (BBB-002)"));
+
+        var result = (MoveVideoFileTool.Result) tool.call(args(
+                "s",
+                "/queue/A/AAA-001.mkv",
+                "/stars/star/B/B (BBB-002)/AAA-001.mkv",
+                "BBB-002", false));
+
+        assertEquals("failed", result.status());
+        assertEquals("none", result.dbAction());
+        assertTrue(result.error().contains("title_id"), "error: " + result.error());
+        assertTrue(fs.moveCalls.isEmpty(), "must refuse before moving");
+
+        String pathStillThere = jdbi.withHandle(h -> h.createQuery(
+                "SELECT path FROM videos WHERE title_id = " + titleA).mapTo(String.class).one());
+        assertEquals("/queue/A/AAA-001.mkv", pathStillThere);
+    }
+
+    @Test
+    void multipleExistingRowsAtSourcePathFailsBeforeMove() {
+        long titleId = seedTitle("DUP-001");
+        seedLocation(titleId, "s", "/queue/dup");
+        seedVideo(titleId, "s", "/queue/dup/DUP-001.mkv");
+        seedVideo(titleId, "s", "/queue/dup/DUP-001.mkv");
+
+        fs.existingPaths.add(Path.of("/queue/dup/DUP-001.mkv"));
+        fs.existingPaths.add(Path.of("/stars/star/D/D (DUP-001)"));
+
+        var result = (MoveVideoFileTool.Result) tool.call(args(
+                "s",
+                "/queue/dup/DUP-001.mkv",
+                "/stars/star/D/D (DUP-001)/DUP-001.mkv",
+                null, false));
+
+        assertEquals("failed", result.status());
+        assertEquals("none", result.dbAction());
+        assertTrue(result.error().contains("2 videos rows"), "error: " + result.error());
+        assertTrue(fs.moveCalls.isEmpty(), "must refuse before moving");
+    }
+
+    @Test
+    void dryRunReportsPlannedDbAction() {
+        long titleId = seedTitle("EBOD-185");
+        seedLocation(titleId, "s", "/queue");
+        seedVideo(titleId, "s", "/queue/EBOD-185.mp4");
+
+        fs.existingPaths.add(Path.of("/queue/EBOD-185.mp4"));
+        fs.existingPaths.add(Path.of("/stars/goddess/X/X (EBOD-185)"));
+
+        var result = (MoveVideoFileTool.Result) tool.call(args(
+                "s",
+                "/queue/EBOD-185.mp4",
+                "/stars/goddess/X/X (EBOD-185)/EBOD-185.mp4",
+                null, true));
+
+        assertEquals("dry-run", result.status());
+        assertEquals("updated_existing", result.dbAction());
+
+        String pathInDb = jdbi.withHandle(h -> h.createQuery(
+                "SELECT path FROM videos WHERE title_id = " + titleId).mapTo(String.class).one());
+        assertEquals("/queue/EBOD-185.mp4", pathInDb);
+    }
+
+    @Test
+    void existingDbInsertedNewResponseFieldOnFreshInsert() {
+        long titleId = seedTitle("NEWC-001");
+        fs.existingPaths.add(Path.of("/queue/NEWC-001.mp4"));
+        fs.existingPaths.add(Path.of("/stars/star/Actress/Actress (NEWC-001)"));
+        fs.sizes.put(Path.of("/stars/star/Actress/Actress (NEWC-001)/NEWC-001.mp4"), 1_000_000L);
+
+        var result = (MoveVideoFileTool.Result) tool.call(args(
+                "s",
+                "/queue/NEWC-001.mp4",
+                "/stars/star/Actress/Actress (NEWC-001)/NEWC-001.mp4",
+                "NEWC-001", false));
+
+        assertEquals("ok", result.status());
+        assertEquals("inserted_new", result.dbAction());
+        assertNotNull(result.dbInserts());
+        assertTrue(result.dbInserts().videoId() > 0);
+        // suppress unused warning
+        assertNotNull(titleRepo.findByCode("NEWC-001").orElseThrow());
+        assertTrue(titleId > 0);
+    }
+
     // ── Refusal cases ─────────────────────────────────────────────────────────
 
     @Test
@@ -338,6 +508,16 @@ class MoveVideoFileToolTest {
                 h.createQuery("INSERT INTO titles (code) VALUES (?) RETURNING id")
                         .bind(0, code)
                         .mapTo(Long.class).one());
+    }
+
+    private long seedVideo(long titleId, String volumeId, String path) {
+        String filename = path.substring(path.lastIndexOf('/') + 1);
+        return jdbi.withHandle(h -> h.createQuery("""
+                INSERT INTO videos (title_id, volume_id, filename, path, last_seen_at)
+                VALUES (?, ?, ?, ?, '2024-01-01') RETURNING id
+                """)
+                .bind(0, titleId).bind(1, volumeId).bind(2, filename).bind(3, path)
+                .mapTo(Long.class).one());
     }
 
     private void seedLocation(long titleId, String volumeId, String path) {
