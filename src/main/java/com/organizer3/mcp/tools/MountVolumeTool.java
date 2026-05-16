@@ -63,13 +63,6 @@ public class MountVolumeTool implements Tool {
                     session.getIndex() != null ? session.getIndex().titleCount() : 0);
         }
 
-        // Drop any prior connection
-        VolumeConnection prior = session.getActiveConnection();
-        if (prior != null) {
-            prior.close();
-            session.setActiveConnection(null);
-        }
-
         ServerConfig server = config.findServerById(volume.server()).orElseThrow(() ->
                 new IllegalStateException("No server config for id: " + volume.server()));
 
@@ -80,10 +73,13 @@ public class MountVolumeTool implements Tool {
             throw new IllegalStateException("SMB connection failed: " + e.getMessage(), e);
         }
 
-        session.setActiveConnection(conn);
-        session.setMountedVolume(volume);
         VolumeIndex index = indexLoader.load(volumeId);
-        session.setIndex(index);
+
+        VolumeConnection prior = session.getActiveConnection();
+        session.setMount(volume, conn, index);
+        if (prior != null) {
+            prior.close();
+        }
         return new Result(true, volumeId, "mounted", index.titleCount());
     }
 

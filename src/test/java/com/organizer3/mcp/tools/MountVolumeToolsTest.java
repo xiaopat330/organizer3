@@ -134,6 +134,27 @@ class MountVolumeToolsTest {
         assertThrows(IllegalStateException.class, () -> mountTool.call(args("a")));
     }
 
+    @Test
+    void mountFailureWhileSwitchingPreservesPriorMount() {
+        mountTool.call(args("a"));
+        FakeConnection first = connector.lastConnection;
+        connector.failNext = true;
+        assertThrows(IllegalStateException.class, () -> mountTool.call(args("b")));
+        assertEquals("a", session.getMountedVolumeId(), "prior mount preserved when new connect fails");
+        assertSame(first, session.getActiveConnection());
+        assertFalse(first.closed, "prior connection not closed when new connect fails");
+        assertTrue(session.isConnected());
+    }
+
+    @Test
+    void mountFailureFromNoMountLeavesSessionClean() {
+        connector.failNext = true;
+        assertThrows(IllegalStateException.class, () -> mountTool.call(args("a")));
+        assertNull(session.getMountedVolumeId());
+        assertNull(session.getActiveConnection());
+        assertFalse(session.isConnected());
+    }
+
     // ── unmount_volume ─────────────────────────────────────────────────────
 
     @Test
