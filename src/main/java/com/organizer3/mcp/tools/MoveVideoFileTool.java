@@ -26,10 +26,15 @@ import java.util.Optional;
 /**
  * Moves a single video file from one location to another on the same mounted volume.
  *
+ * <p>If a {@code videos} row already exists at {@code sourcePath}, its {@code path}
+ * is updated to {@code destPath} (the bug guard against silent stale rows).
+ *
  * <p>Optionally registers the destination in the DB via {@code addAsLocationOf}: if
- * the title code is provided, a {@code videos} row is inserted at the new path.
- * A {@code title_locations} row is also inserted if no existing location for the
- * title is an ancestor of (or equals) the destination's parent directory.
+ * the title code is provided and no row already exists at the source, a {@code videos}
+ * row is inserted at the new path. A {@code title_locations} row is also inserted if
+ * no existing location for the title is an ancestor of (or equals) the destination's
+ * parent directory. If both an existing row and {@code addAsLocationOf} are present,
+ * the codes must agree or the tool refuses before moving.
  *
  * <p>Default {@code dryRun: true}.
  * All calls (ok / dry-run / failed) are appended to the curation log.
@@ -64,8 +69,10 @@ public class MoveVideoFileTool implements Tool {
     public String description() {
         return "Moves a single video file from sourcePath to destPath on the mounted volume. "
              + "The destination parent directory must already exist — the tool will not create it. "
+             + "If a videos row already exists at sourcePath, its path is updated in place. "
              + "Optional addAsLocationOf inserts a videos row (and, if needed, a title_locations row) "
-             + "after the move. Default dryRun:true.";
+             + "after the move when no existing row matches. Default dryRun:true. "
+             + "Response field 'dbAction' is one of: updated_existing, inserted_new, none.";
     }
 
     @Override
@@ -128,10 +135,39 @@ public class MoveVideoFileTool implements Tool {
             titleId = titleOpt.get().getId();
         }
 
+        // ── Look up existing videos row at sourcePath ───────────────────────────
+        List<ExistingVideo> existing = jdbi.withHandle(h -> h.createQuery(
+                "SELECT id, title_id FROM videos WHERE path = :path")
+                .bind("path", sourcePath)
+                .map((rs, ctx) -> new ExistingVideo(rs.getLong("id"), rs.getLong("title_id")))
+                .list());
+        if (existing.size() > 1) {
+            return failed(mountedVolumeId, inputs,
+                    "found " + existing.size() + " videos rows at sourcePath '" + sourcePath
+                    + "' — refusing to move; reconcile DB first");
+        }
+        ExistingVideo existingRow = existing.isEmpty() ? null : existing.get(0);
+        if (existingRow != null && titleId != null && existingRow.titleId() != titleId) {
+            return failed(mountedVolumeId, inputs,
+                    "existing videos row at sourcePath belongs to title_id=" + existingRow.titleId()
+                    + " but addAsLocationOf='" + addAsLocationOf + "' resolves to title_id=" + titleId
+                    + " — refusing to move; reconcile DB first");
+        }
+
+        String plannedDbAction;
+        if (existingRow != null) {
+            plannedDbAction = "updated_existing";
+        } else if (titleId != null) {
+            plannedDbAction = "inserted_new";
+        } else {
+            plannedDbAction = "none";
+        }
+
         Map<String, Object> plan = Map.of(
                 "from", sourcePath,
                 "to",   destPath,
-                "addAsLocationOf", addAsLocationOf != null ? addAsLocationOf : "<none>"
+                "addAsLocationOf", addAsLocationOf != null ? addAsLocationOf : "<none>",
+                "dbAction", plannedDbAction
         );
 
         // ── Dry-run ─────────────────────────────────────────────────────────────
@@ -139,7 +175,7 @@ public class MoveVideoFileTool implements Tool {
             String status = (fs == null && !dryRun) ? "no-volume-mounted" : "dry-run";
             curationLog.append(mountedVolumeId, new CurationLogRecord(
                     Instant.now(), name(), "mcp", sessionId(), inputs, plan, null, null, status, List.of()));
-            return new Result(sourcePath, destPath, status, null, null);
+            return new Result(sourcePath, destPath, status, null, plannedDbAction, null);
         }
 
         // ── FS existence checks ─────────────────────────────────────────────────
@@ -168,12 +204,21 @@ public class MoveVideoFileTool implements Tool {
             curationLog.append(mountedVolumeId, new CurationLogRecord(
                     Instant.now(), name(), "mcp", sessionId(), inputs, plan, null, null,
                     "failed", List.of(e.getMessage())));
-            return new Result(sourcePath, destPath, "failed", null, e.getMessage());
+            return new Result(sourcePath, destPath, "failed", null, plannedDbAction, e.getMessage());
         }
 
         // ── DB integration ──────────────────────────────────────────────────────
         DbInserts dbInserts = null;
-        if (titleId != null) {
+        String actualDbAction = "none";
+        if (existingRow != null) {
+            actualDbAction = "updated_existing";
+            final long videoId = existingRow.id();
+            final long effectiveTitleId = existingRow.titleId();
+            final String resolvedCode = addAsLocationOf;
+            dbInserts = updateExistingRow(mountedVolumeId, videoId, effectiveTitleId, resolvedCode,
+                    sourcePath, dest, destParent, fs);
+        } else if (titleId != null) {
+            actualDbAction = "inserted_new";
             final Long resolvedTitleId = titleId;
             final String resolvedCode  = addAsLocationOf;
             dbInserts = insertDbRows(mountedVolumeId, resolvedTitleId, resolvedCode, dest, destParent, fs);
@@ -184,8 +229,70 @@ public class MoveVideoFileTool implements Tool {
                 Map.of("path", sourcePath),
                 Map.of("path", destPath),
                 "ok", List.of()));
-        return new Result(sourcePath, destPath, "ok", dbInserts, null);
+        return new Result(sourcePath, destPath, "ok", dbInserts, actualDbAction, null);
     }
+
+    /**
+     * Updates an existing videos row's path from sourcePath to destPath. If
+     * addAsLocationOf was provided, also conditionally inserts a title_locations row
+     * for the new parent directory.
+     */
+    private DbInserts updateExistingRow(String volumeId, long videoId, long titleId, String titleCode,
+                                        String sourcePath, java.nio.file.Path dest,
+                                        java.nio.file.Path destParent, VolumeFileSystem fs) {
+        String filename = dest.getFileName().toString();
+        return jdbi.inTransaction(h -> {
+            int rows = h.createUpdate("""
+                    UPDATE videos
+                       SET path = :path,
+                           filename = :filename,
+                           last_seen_at = :lastSeenAt
+                     WHERE id = :id
+                    """)
+                    .bind("path", dest.toString())
+                    .bind("filename", filename)
+                    .bind("lastSeenAt", LocalDate.now().toString())
+                    .bind("id", videoId)
+                    .execute();
+            log.info("move_video_file: updated videos row id={} rows={} from={} to={}",
+                    videoId, rows, sourcePath, dest);
+
+            Long locationId = null;
+            if (titleCode != null) {
+                List<TitleLocation> liveLocations = locationRepo.findByTitle(titleId);
+                boolean alreadyCovered = liveLocations.stream()
+                        .filter(l -> volumeId.equals(l.getVolumeId()))
+                        .anyMatch(l -> isAncestorOrEqual(l.getPath(), destParent));
+                if (!alreadyCovered) {
+                    String partitionId = derivePartitionId(destParent);
+                    locationId = h.createUpdate("""
+                            INSERT INTO title_locations
+                                (title_id, volume_id, partition_id, path, last_seen_at, added_date, stale_since)
+                            VALUES (:titleId, :volumeId, :partitionId, :path, :lastSeenAt, :addedDate, NULL)
+                            ON CONFLICT(title_id, volume_id, path)
+                            DO UPDATE SET
+                                stale_since  = NULL,
+                                last_seen_at = excluded.last_seen_at,
+                                partition_id = excluded.partition_id
+                            """)
+                            .bind("titleId", titleId)
+                            .bind("volumeId", volumeId)
+                            .bind("partitionId", partitionId)
+                            .bind("path", destParent.toString())
+                            .bind("lastSeenAt", LocalDate.now().toString())
+                            .bind("addedDate", LocalDate.now().toString())
+                            .executeAndReturnGeneratedKeys("id")
+                            .mapTo(Long.class)
+                            .one();
+                    log.info("move_video_file: inserted title_locations row id={} titleCode={} path={}",
+                            locationId, titleCode, destParent);
+                }
+            }
+            return new DbInserts(videoId, locationId);
+        });
+    }
+
+    private record ExistingVideo(long id, long titleId) {}
 
     // ── DB integration helpers ──────────────────────────────────────────────
 
@@ -323,7 +430,7 @@ public class MoveVideoFileTool implements Tool {
         curationLog.append(logVolume, new CurationLogRecord(
                 Instant.now(), name(), "mcp", sessionId(), inputs, null, null, null,
                 "failed", List.of(reason)));
-        return new Result(null, null, "failed", null, reason);
+        return new Result(null, null, "failed", null, "none", reason);
     }
 
     private Map<String, Object> buildInputs(String volumeId, String sourcePath,
@@ -348,5 +455,6 @@ public class MoveVideoFileTool implements Tool {
         public boolean insertedLocation() { return locationId != null; }
     }
 
-    public record Result(String from, String to, String status, DbInserts dbInserts, String error) {}
+    public record Result(String from, String to, String status, DbInserts dbInserts,
+                         String dbAction, String error) {}
 }
