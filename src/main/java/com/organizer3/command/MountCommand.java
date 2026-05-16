@@ -67,13 +67,6 @@ public class MountCommand implements Command {
             return;
         }
 
-        // Close existing connection before switching volumes
-        VolumeConnection existing = ctx.getActiveConnection();
-        if (existing != null) {
-            existing.close();
-            ctx.setActiveConnection(null);
-        }
-
         ServerConfig server = config.findServerById(volume.server()).orElseThrow(() ->
                 new IllegalStateException("No server config found for id: " + volume.server()));
 
@@ -85,20 +78,18 @@ public class MountCommand implements Command {
             return;
         }
 
-        ctx.setActiveConnection(connection);
-        ctx.setMountedVolume(volume);
-        loadIndex(volumeId, ctx, io);
-        io.println("Connected. Volume '" + volumeId + "' is now active.");
-    }
-
-    private void loadIndex(String volumeId, SessionContext ctx, CommandIO io) {
         VolumeIndex index = indexLoader.load(volumeId);
-        ctx.setIndex(index);
+        VolumeConnection existing = ctx.getActiveConnection();
+        ctx.setMount(volume, connection, index);
+        if (existing != null) {
+            existing.close();
+        }
         if (index.titleCount() == 0) {
             io.println("No index found for volume '" + volumeId + "' — run 'sync all' to build it.");
         } else {
             io.println("Loaded index: " + index.titleCount() + " title(s), "
                     + index.actressCount() + " actress(es).");
         }
+        io.println("Connected. Volume '" + volumeId + "' is now active.");
     }
 }
