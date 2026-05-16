@@ -32,6 +32,24 @@ export function initTitles(state) {
   const titlesFilterInput = document.getElementById('jd-titles-filter-input');
   const titlesFilterClearBtn = document.getElementById('jd-titles-filter-clear');
   const titlesFilterAutocomplete = document.getElementById('jd-titles-filter-autocomplete');
+  const titlesSelectAllCb = document.getElementById('jd-titles-select-all');
+
+  function updateSelectAllHeader() {
+    if (!titlesSelectAllCb) return;
+    const t = state.titles;
+    const enabled = t.rows.filter(r => r.queueStatus !== 'pending' && r.queueStatus !== 'in_flight');
+    const selectedOnPage = enabled.filter(r => t.selected.has(r.titleId)).length;
+    if (enabled.length === 0 || selectedOnPage === 0) {
+      titlesSelectAllCb.checked = false;
+      titlesSelectAllCb.indeterminate = false;
+    } else if (selectedOnPage === enabled.length) {
+      titlesSelectAllCb.checked = true;
+      titlesSelectAllCb.indeterminate = false;
+    } else {
+      titlesSelectAllCb.checked = false;
+      titlesSelectAllCb.indeterminate = true;
+    }
+  }
 
   function renderTitlesChips() {
     const t = state.titles;
@@ -88,6 +106,7 @@ export function initTitles(state) {
         <td>${statusCell}</td>
       </tr>`;
     }).join('');
+    updateSelectAllHeader();
   }
 
   function renderTitlesPager() {
@@ -179,7 +198,25 @@ export function initTitles(state) {
     if (cb.checked) state.titles.selected.add(id);
     else            state.titles.selected.delete(id);
     renderTitlesFooter();
+    updateSelectAllHeader();
   });
+
+  // Header select-all checkbox.
+  if (titlesSelectAllCb) {
+    titlesSelectAllCb.addEventListener('click', () => {
+      const t = state.titles;
+      const enabledIds = t.rows
+        .filter(r => r.queueStatus !== 'pending' && r.queueStatus !== 'in_flight')
+        .map(r => r.titleId);
+      if (titlesSelectAllCb.checked) {
+        enabledIds.forEach(id => t.selected.add(id));
+      } else {
+        enabledIds.forEach(id => t.selected.delete(id));
+      }
+      renderTitlesTable();
+      renderTitlesFooter();
+    });
+  }
 
   // Event delegation: code click → open peek modal.
   titlesTableBody.addEventListener('click', async e => {

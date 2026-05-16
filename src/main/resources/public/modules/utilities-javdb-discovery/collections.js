@@ -47,6 +47,24 @@ export function initCollections(state) {
   const collectionsFilterInput    = document.getElementById('jd-collections-filter-input');
   const collectionsFilterClearBtn = document.getElementById('jd-collections-filter-clear');
   const collectionsFilterAutocomplete = document.getElementById('jd-collections-filter-autocomplete');
+  const collectionsSelectAllCb = document.getElementById('jd-collections-select-all');
+
+  function updateSelectAllHeader() {
+    if (!collectionsSelectAllCb) return;
+    const c = state.collections;
+    const enabled = c.rows.filter(r => r.queueStatus !== 'pending' && r.queueStatus !== 'in_flight');
+    const selectedOnPage = enabled.filter(r => c.selected.has(r.titleId)).length;
+    if (enabled.length === 0 || selectedOnPage === 0) {
+      collectionsSelectAllCb.checked = false;
+      collectionsSelectAllCb.indeterminate = false;
+    } else if (selectedOnPage === enabled.length) {
+      collectionsSelectAllCb.checked = true;
+      collectionsSelectAllCb.indeterminate = false;
+    } else {
+      collectionsSelectAllCb.checked = false;
+      collectionsSelectAllCb.indeterminate = true;
+    }
+  }
 
   function renderCollectionsTable() {
     const c = state.collections;
@@ -77,6 +95,7 @@ export function initCollections(state) {
         <td>${statusCell}</td>
       </tr>`;
     }).join('');
+    updateSelectAllHeader();
   }
 
   function renderCollectionsPager() {
@@ -131,7 +150,25 @@ export function initCollections(state) {
     if (cb.checked) state.collections.selected.add(id);
     else            state.collections.selected.delete(id);
     renderCollectionsFooter();
+    updateSelectAllHeader();
   });
+
+  // Header select-all checkbox.
+  if (collectionsSelectAllCb) {
+    collectionsSelectAllCb.addEventListener('click', () => {
+      const c = state.collections;
+      const enabledIds = c.rows
+        .filter(r => r.queueStatus !== 'pending' && r.queueStatus !== 'in_flight')
+        .map(r => r.titleId);
+      if (collectionsSelectAllCb.checked) {
+        enabledIds.forEach(id => c.selected.add(id));
+      } else {
+        enabledIds.forEach(id => c.selected.delete(id));
+      }
+      renderCollectionsTable();
+      renderCollectionsFooter();
+    });
+  }
 
   // Event delegation: code click → open title peek modal.
   collectionsTableBody.addEventListener('click', async e => {
