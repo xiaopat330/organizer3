@@ -1117,6 +1117,7 @@ public class Application {
                     .register(new com.organizer3.mcp.tools.ListTitlesForActressTool(actressRepo, titleRepo))
                     .register(new com.organizer3.mcp.tools.FindSimilarActressesTool(actressRepo, jdbi))
                     .register(new com.organizer3.mcp.tools.FindLongVowelActressVariantsTool(actressRepo, jdbi))
+                    .register(new com.organizer3.mcp.tools.FindLev1ActressPairsTool(actressRepo, jdbi))
                     .register(new com.organizer3.mcp.tools.FindNameOrderVariantsTool(actressRepo))
                     .register(new com.organizer3.mcp.tools.FindSuspectCreditsTool(jdbi))
                     .register(new com.organizer3.mcp.tools.FindAliasConflictsTool(actressRepo))
