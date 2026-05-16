@@ -319,6 +319,10 @@ class MoveTitleFolderToolTest {
         var result = (MoveTitleFolderTool.Result) tool.call(argsAbsPath("MIDE-803", "/attention", false));
         assertEquals("failed", result.status());
         assertTrue(result.error().contains("ambiguous"));
+        assertTrue(result.error().contains("/queue/A (MIDE-803)"),
+                "ambiguity error should list candidate paths");
+        assertTrue(result.error().contains("/queue/B (MIDE-803)"),
+                "ambiguity error should list candidate paths");
     }
 
     @Test

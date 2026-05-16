@@ -140,9 +140,13 @@ public class RenameTitleFolderTool implements Tool {
             }
             location = matches.get(0);
         } else if (locations.size() > 1) {
+            String available = locations.stream()
+                    .map(l -> l.getPath().toString())
+                    .reduce((a, b) -> a + ", " + b).orElse("");
             return failed(mountedVolumeId, inputs, dryRun,
                     "title '" + titleCode + "' has " + locations.size()
-                    + " locations on volume '" + mountedVolumeId + "' — ambiguous (pass fromPath to disambiguate)");
+                    + " locations on volume '" + mountedVolumeId + "' — ambiguous (pass fromPath to disambiguate; candidates: "
+                    + available + ")");
         } else {
             location = locations.get(0);
         }

@@ -279,6 +279,10 @@ class RenameTitleFolderToolTest {
         var result = (RenameTitleFolderTool.Result) tool.call(args("MIDE-702", "X (MIDE-702)", false));
         assertEquals("failed", result.status());
         assertTrue(result.error().contains("ambiguous"));
+        assertTrue(result.error().contains("/queue/A (MIDE-702)"),
+                "ambiguity error should list candidate paths");
+        assertTrue(result.error().contains("/queue/B (MIDE-702)"),
+                "ambiguity error should list candidate paths");
     }
 
     @Test
