@@ -183,6 +183,44 @@ class TrashTitleLocationToolTest {
         assertTrue(r.error().contains("not allowed"));
     }
 
+    // ── 6b. Extended allowlist: new/duos/__later are accepted ────────────────
+
+    @Test
+    void allowsNewPrefix() {
+        long tid = titleRepo.save(title("NEW-001")).getId();
+        locationRepo.save(location(tid, "a", "/new/Foo (NEW-001)"));
+        fs.dir("/new/Foo (NEW-001)");
+        var r = (TrashTitleLocationTool.Result) tool.call(args("a", "/new/Foo (NEW-001)", false));
+        assertEquals("ok", r.status(), "expected /new/... to be accepted; error=" + r.error());
+    }
+
+    @Test
+    void allowsDuosPrefix() {
+        long tid = titleRepo.save(title("DUO-001")).getId();
+        locationRepo.save(location(tid, "a", "/duos/Foo (DUO-001)"));
+        fs.dir("/duos/Foo (DUO-001)");
+        var r = (TrashTitleLocationTool.Result) tool.call(args("a", "/duos/Foo (DUO-001)", false));
+        assertEquals("ok", r.status(), "expected /duos/... to be accepted; error=" + r.error());
+    }
+
+    @Test
+    void allowsLaterPrefix() {
+        long tid = titleRepo.save(title("LATE-001")).getId();
+        locationRepo.save(location(tid, "a", "/__later/Foo (LATE-001)"));
+        fs.dir("/__later/Foo (LATE-001)");
+        var r = (TrashTitleLocationTool.Result) tool.call(args("a", "/__later/Foo (LATE-001)", false));
+        assertEquals("ok", r.status(), "expected /__later/... to be accepted; error=" + r.error());
+    }
+
+    @Test
+    void refusesTrashPrefix() {
+        // Sanity check: trashing inside /_trash must remain refused (not in allowlist).
+        var r = (TrashTitleLocationTool.Result) tool.call(args("a", "/_trash/anything", false));
+        assertEquals("refused", r.status());
+        assertTrue(r.error().contains("not allowed"),
+                "expected 'not allowed' refusal; got: " + r.error());
+    }
+
     // ── 7. Refuses protected tier root ───────────────────────────────────────
 
     @Test

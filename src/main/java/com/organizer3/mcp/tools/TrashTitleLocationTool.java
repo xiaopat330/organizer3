@@ -50,7 +50,8 @@ public class TrashTitleLocationTool implements Tool {
      * Allowed top-level folders (volume-relative path must start with one of these).
      */
     private static final Set<String> ALLOWED_PREFIXES = Set.of(
-            "attention", "_attention", "queue", "stars", "_sandbox", "recent", "archive"
+            "attention", "_attention", "queue", "stars", "_sandbox", "recent", "archive",
+            "__later", "new", "duos"
     );
 
     /**

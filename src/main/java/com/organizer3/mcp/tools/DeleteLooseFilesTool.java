@@ -57,7 +57,8 @@ public class DeleteLooseFilesTool implements Tool {
      * Mirror of write_text_file but with stars/recent/archive added.
      */
     private static final Set<String> ALLOWED_PREFIXES = Set.of(
-            "attention", "_attention", "queue", "stars", "_sandbox", "recent", "archive"
+            "attention", "_attention", "queue", "stars", "_sandbox", "recent", "archive",
+            "__later", "new", "duos"
     );
 
     /**

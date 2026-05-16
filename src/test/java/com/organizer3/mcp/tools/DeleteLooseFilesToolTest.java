@@ -265,6 +265,41 @@ class DeleteLooseFilesToolTest {
         assertTrue(result.error().contains("not allowed"));
     }
 
+    @Test
+    void allowsNewPrefix() {
+        Path folder = Path.of("/new/Foo (CODE-001)");
+        fs.directories.add(folder);
+        var result = (DeleteLooseFilesTool.Result) tool.call(args("s", folder.toString(), false));
+        assertEquals("ok", result.status(), "expected /new/... accepted; error=" + result.error());
+    }
+
+    @Test
+    void allowsDuosPrefix() {
+        Path folder = Path.of("/duos/Foo (CODE-001)");
+        fs.directories.add(folder);
+        var result = (DeleteLooseFilesTool.Result) tool.call(args("s", folder.toString(), false));
+        assertEquals("ok", result.status(), "expected /duos/... accepted; error=" + result.error());
+    }
+
+    @Test
+    void allowsLaterPrefix() {
+        Path folder = Path.of("/__later/Foo (CODE-001)");
+        fs.directories.add(folder);
+        var result = (DeleteLooseFilesTool.Result) tool.call(args("s", folder.toString(), false));
+        assertEquals("ok", result.status(), "expected /__later/... accepted; error=" + result.error());
+    }
+
+    @Test
+    void refusesTrashPrefix() {
+        // Sanity check: /_trash/... is NOT in the allowlist and must remain refused.
+        Path folder = Path.of("/_trash/anything");
+        fs.directories.add(folder);
+        var result = (DeleteLooseFilesTool.Result) tool.call(args("s", folder.toString(), false));
+        assertEquals("refused", result.status());
+        assertTrue(result.error().contains("not allowed"),
+                "expected 'not allowed' refusal; got: " + result.error());
+    }
+
     // ── tier-root protection ──────────────────────────────────────────────────
 
     @Test
