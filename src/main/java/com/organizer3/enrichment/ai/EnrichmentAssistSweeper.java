@@ -10,8 +10,13 @@ import com.organizer3.utilities.task.TaskInputs;
 import com.organizer3.utilities.task.TaskSpec;
 import lombok.extern.slf4j.Slf4j;
 
+import java.time.Clock;
 import java.time.Instant;
+import java.time.LocalDate;
+import java.time.ZoneOffset;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 
 /**
@@ -65,13 +70,29 @@ public final class EnrichmentAssistSweeper implements Task {
     private final EnrichmentReviewQueueRepository queueRepo;
     private final EnsembleAssistCaller caller;
     private final EnrichmentAssistConfig config;
+    private final Clock clock;
+
+    // Daily-summary rollup state — updated on the sweeper thread only, so no synchronization needed.
+    // Outcome keys mirror EnsembleAssistCaller.vote(): agreed, phi4_only, gemma_only, conflict, both_abstain, error.
+    private final Map<String, Integer> outcomeCounts = new LinkedHashMap<>();
+    private int processedToday = 0;
+    private LocalDate dayBucketStart = null;
 
     public EnrichmentAssistSweeper(EnrichmentReviewQueueRepository queueRepo,
                                    EnsembleAssistCaller caller,
                                    EnrichmentAssistConfig config) {
+        this(queueRepo, caller, config, Clock.systemUTC());
+    }
+
+    /** Test-friendly constructor: inject a Clock so daily-rollup boundaries can be advanced. */
+    public EnrichmentAssistSweeper(EnrichmentReviewQueueRepository queueRepo,
+                                   EnsembleAssistCaller caller,
+                                   EnrichmentAssistConfig config,
+                                   Clock clock) {
         this.queueRepo = Objects.requireNonNull(queueRepo, "queueRepo");
         this.caller    = Objects.requireNonNull(caller, "caller");
         this.config    = Objects.requireNonNull(config, "config");
+        this.clock     = Objects.requireNonNull(clock, "clock");
     }
 
     @Override
@@ -120,6 +141,7 @@ public final class EnrichmentAssistSweeper implements Task {
                         Instant.now());
 
                 processed++;
+                recordOutcome(result.outcome());
                 log.info("[ai-assist] {} → {} ({})",
                         row.titleCode(),
                         result.outcome(),
@@ -129,6 +151,7 @@ public final class EnrichmentAssistSweeper implements Task {
                                 + " slug=" + (result.suggestedSlug() != null ? result.suggestedSlug() : "-"));
             } catch (Exception e) {
                 errors++;
+                recordOutcome("error");
                 String msg = e.getMessage() != null ? e.getMessage() : e.getClass().getSimpleName();
                 log.warn("[ai-assist] failed code={} : {}", row.titleCode(), msg);
                 // Persist a sentinel so this row is not re-tried forever. The
@@ -173,6 +196,43 @@ public final class EnrichmentAssistSweeper implements Task {
         }
         return !io.isCancellationRequested();
     }
+
+    /**
+     * Records one outcome for the daily-summary rollup. If the UTC date has rolled forward
+     * since the bucket started, emits an INFO summary line for the prior day and resets the
+     * counters before recording the new outcome under the new day. The in-progress day is
+     * intentionally NOT flushed on sweeper stop (Phase 1 / cron-style behavior).
+     */
+    void recordOutcome(String outcome) {
+        LocalDate today = LocalDate.ofInstant(clock.instant(), ZoneOffset.UTC);
+        if (dayBucketStart == null) {
+            dayBucketStart = today;
+        } else if (today.isAfter(dayBucketStart)) {
+            emitDailySummary(dayBucketStart);
+            outcomeCounts.clear();
+            processedToday = 0;
+            dayBucketStart = today;
+        }
+        outcomeCounts.merge(outcome == null ? "unknown" : outcome, 1, Integer::sum);
+        processedToday++;
+    }
+
+    private void emitDailySummary(LocalDate day) {
+        log.info("[ai-assist] daily summary: processed={} agreed={} phi4_only={} gemma_only={}"
+                        + " conflict={} both_abstain={} error={}",
+                processedToday,
+                outcomeCounts.getOrDefault("agreed", 0),
+                outcomeCounts.getOrDefault("phi4_only", 0),
+                outcomeCounts.getOrDefault("gemma_only", 0),
+                outcomeCounts.getOrDefault("conflict", 0),
+                outcomeCounts.getOrDefault("both_abstain", 0),
+                outcomeCounts.getOrDefault("error", 0));
+    }
+
+    // Package-private accessors for tests.
+    Map<String, Integer> outcomeCountsForTest() { return outcomeCounts; }
+    int processedTodayForTest() { return processedToday; }
+    LocalDate dayBucketStartForTest() { return dayBucketStart; }
 
     private static String truncate(String s) {
         if (s == null) return null;

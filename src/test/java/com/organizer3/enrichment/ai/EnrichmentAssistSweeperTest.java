@@ -1,5 +1,9 @@
 package com.organizer3.enrichment.ai;
 
+import ch.qos.logback.classic.Level;
+import ch.qos.logback.classic.Logger;
+import ch.qos.logback.classic.spi.ILoggingEvent;
+import ch.qos.logback.core.read.ListAppender;
 import com.organizer3.config.EnrichmentAssistConfig;
 import com.organizer3.db.SchemaInitializer;
 import com.organizer3.javdb.enrichment.EnrichmentReviewQueueRepository;
@@ -9,9 +13,14 @@ import org.jdbi.v3.core.Jdbi;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.slf4j.LoggerFactory;
 
 import java.sql.Connection;
 import java.sql.DriverManager;
+import java.time.Clock;
+import java.time.Instant;
+import java.time.ZoneOffset;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -221,6 +230,76 @@ class EnrichmentAssistSweeperTest {
     }
 
     // ── 5. atomic-operations rule: listOpenAwaitingAi(1) ──────────────────────
+
+    // ── 6. J1 — daily-summary line emitted at UTC day rollover ──────────────────
+
+    /** Mutable Clock that exposes setNow() for test-driven advancement. */
+    private static final class MutableClock extends Clock {
+        private Instant now;
+        MutableClock(Instant start) { this.now = start; }
+        void setNow(Instant t) { this.now = t; }
+        @Override public java.time.ZoneId getZone() { return ZoneOffset.UTC; }
+        @Override public Clock withZone(java.time.ZoneId zone) { return this; }
+        @Override public Instant instant() { return now; }
+    }
+
+    @Test
+    void recordOutcome_atUtcDayRollover_emitsDailySummaryWithPriorDayCounts() {
+        // Start at noon on day A so we have a clean UTC date.
+        Instant dayA = Instant.parse("2026-05-17T12:00:00Z");
+        MutableClock clock = new MutableClock(dayA);
+
+        EnrichmentAssistSweeper sweeper =
+                new EnrichmentAssistSweeper(repo, caller, configWith("shadow"), clock);
+
+        Logger sweeperLogger = (Logger) LoggerFactory.getLogger(EnrichmentAssistSweeper.class);
+        ListAppender<ILoggingEvent> appender = new ListAppender<>();
+        appender.start();
+        sweeperLogger.addAppender(appender);
+        Level prior = sweeperLogger.getLevel();
+        sweeperLogger.setLevel(Level.INFO);
+        try {
+            // 3 outcomes on day A: 2 agreed + 1 conflict.
+            sweeper.recordOutcome("agreed");
+            sweeper.recordOutcome("agreed");
+            sweeper.recordOutcome("conflict");
+            // No summary yet — still day A.
+            assertTrue(appender.list.stream().noneMatch(e -> e.getFormattedMessage().contains("daily summary")),
+                    "no rollover yet, no summary should have been emitted");
+            assertEquals(3, sweeper.processedTodayForTest());
+
+            // Advance to day B (just past midnight UTC), then record 2 more outcomes.
+            // The first record() call on day B is what triggers the prior-day summary flush.
+            clock.setNow(dayA.plus(1, ChronoUnit.DAYS).plus(1, ChronoUnit.MINUTES));
+            sweeper.recordOutcome("both_abstain");
+            sweeper.recordOutcome("error");
+
+            // Exactly one daily-summary line should have been emitted, with day-A counts.
+            List<String> summaryLines = appender.list.stream()
+                    .filter(e -> e.getLevel() == Level.INFO)
+                    .map(ILoggingEvent::getFormattedMessage)
+                    .filter(m -> m.contains("daily summary"))
+                    .toList();
+            assertEquals(1, summaryLines.size(),
+                    "exactly one daily-summary line should have been emitted on rollover");
+            String line = summaryLines.get(0);
+            assertTrue(line.contains("processed=3"),  "expected processed=3 in: " + line);
+            assertTrue(line.contains("agreed=2"),     "expected agreed=2 in: "    + line);
+            assertTrue(line.contains("conflict=1"),   "expected conflict=1 in: "  + line);
+            assertTrue(line.contains("phi4_only=0"),  "expected phi4_only=0 in: " + line);
+            assertTrue(line.contains("gemma_only=0"), "expected gemma_only=0 in: "+ line);
+            assertTrue(line.contains("both_abstain=0"), "day-A summary should NOT include day-B counts: " + line);
+            assertTrue(line.contains("error=0"),      "day-A summary should NOT include day-B error count: " + line);
+
+            // Counters were reset and now reflect day-B outcomes only.
+            assertEquals(2, sweeper.processedTodayForTest());
+            assertEquals(Integer.valueOf(1), sweeper.outcomeCountsForTest().get("both_abstain"));
+            assertEquals(Integer.valueOf(1), sweeper.outcomeCountsForTest().get("error"));
+        } finally {
+            sweeperLogger.detachAppender(appender);
+            sweeperLogger.setLevel(prior);
+        }
+    }
 
     @Test
     void listOpenAwaitingAi_alwaysCalledWithLimitOne() {

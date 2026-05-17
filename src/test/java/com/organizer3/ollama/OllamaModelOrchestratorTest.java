@@ -1,11 +1,16 @@
 package com.organizer3.ollama;
 
+import ch.qos.logback.classic.Level;
+import ch.qos.logback.classic.Logger;
+import ch.qos.logback.classic.spi.ILoggingEvent;
+import ch.qos.logback.core.read.ListAppender;
 import com.organizer3.translation.ollama.HttpOllamaAdapter;
 import com.organizer3.translation.ollama.OllamaRequest;
 import com.organizer3.translation.ollama.OllamaResponse;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.slf4j.LoggerFactory;
 
 import java.time.Clock;
 import java.time.Duration;
@@ -191,6 +196,57 @@ class OllamaModelOrchestratorTest {
         orch.submit("modelA", req("modelA")).get(5, TimeUnit.SECONDS);
         assertEquals(1, seen.size());
         assertEquals("15m", seen.get(0).keepAlive());
+    }
+
+    @Test
+    void modelSwitch_incrementsMetric_andEmitsInfoLogLine() throws Exception {
+        // Slow adapter so a small modelB queue can pile up while modelA is active,
+        // forcing a real A -> B switch when modelA drains.
+        when(adapter.generate(any(OllamaRequest.class))).thenAnswer(inv -> {
+            Thread.sleep(5);
+            return new OllamaResponse("ok", 0L, 0, 0, 0L);
+        });
+        orch = new OllamaModelOrchestrator(adapter, OrchestratorConfig.defaults());
+
+        Logger orchLogger = (Logger) LoggerFactory.getLogger(OllamaModelOrchestrator.class);
+        ListAppender<ILoggingEvent> appender = new ListAppender<>();
+        appender.start();
+        orchLogger.addAppender(appender);
+        Level prior = orchLogger.getLevel();
+        orchLogger.setLevel(Level.INFO);
+        try {
+            orch.start();
+
+            // Submit 3 modelA items first, then 2 modelB items. The scheduler will run
+            // modelA to drain, then switch to modelB.
+            List<CompletableFuture<OllamaResponse>> futures = new ArrayList<>();
+            for (int i = 0; i < 3; i++) futures.add(orch.submit("modelA", req("modelA")));
+            for (int i = 0; i < 2; i++) futures.add(orch.submit("modelB", req("modelB")));
+
+            CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]))
+                    .get(10, TimeUnit.SECONDS);
+
+            assertEquals(1L, orch.metrics().modelSwitches(),
+                    "exactly one A->B switch expected");
+            assertEquals(3L, orch.metrics().callsByModel().get("modelA"));
+            assertEquals(2L, orch.metrics().callsByModel().get("modelB"));
+
+            List<String> switchLines = appender.list.stream()
+                    .filter(e -> e.getLevel() == Level.INFO)
+                    .map(ILoggingEvent::getFormattedMessage)
+                    .filter(m -> m.contains("orchestrator switched"))
+                    .toList();
+            assertEquals(1, switchLines.size(),
+                    "exactly one orchestrator-switch INFO line expected, saw: " + switchLines);
+            String line = switchLines.get(0);
+            assertTrue(line.contains("modelA -> modelB"),
+                    "switch line should show direction, got: " + line);
+            assertTrue(line.contains("after 3 items"),
+                    "switch line should report 3 items completed on modelA, got: " + line);
+        } finally {
+            orchLogger.detachAppender(appender);
+            orchLogger.setLevel(prior);
+        }
     }
 
     /** Minimal mutable clock for fairness testing. */

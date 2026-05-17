@@ -61,6 +61,8 @@ public class OllamaModelOrchestrator {
 
     private volatile String activeModel = null;
     private Instant activeModelStartedAt = null;
+    // Items processed on activeModel since it became active. Reset on every switch.
+    private long itemsOnActiveModel = 0L;
     private volatile boolean stopped = false;
     private volatile boolean accepting = true;
 
@@ -175,10 +177,12 @@ public class OllamaModelOrchestrator {
                 if (!pick.equals(activeModel)) {
                     if (activeModel != null) {
                         modelSwitches.incrementAndGet();
-                        log.debug("ollama-orchestrator: switch {} -> {}", activeModel, pick);
+                        log.info("[ai-assist] orchestrator switched: {} -> {} (after {} items)",
+                                activeModel, pick, itemsOnActiveModel);
                     }
                     activeModel = pick;
                     activeModelStartedAt = clock.instant();
+                    itemsOnActiveModel = 0L;
                 }
                 next = queuesByModel.get(pick).pollFirst();
             } finally {
@@ -196,6 +200,7 @@ public class OllamaModelOrchestrator {
                 long elapsed = System.nanoTime() - startNanos;
                 callsByModel.computeIfAbsent(activeModel, k -> new AtomicLong()).incrementAndGet();
                 totalNanosByModel.computeIfAbsent(activeModel, k -> new AtomicLong()).addAndGet(elapsed);
+                itemsOnActiveModel++;
             }
         }
     }
