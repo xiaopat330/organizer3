@@ -8,6 +8,7 @@ import org.junit.jupiter.api.Test;
 
 import java.sql.Connection;
 import java.sql.DriverManager;
+import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 
@@ -464,5 +465,117 @@ class EnrichmentReviewQueueRepositoryTest {
                 h.createQuery("SELECT resolution FROM enrichment_review_queue WHERE title_id = 1")
                         .mapTo(String.class).one());
         assertEquals("marked_resolved", resolution, "existing resolution must not be overwritten");
+    }
+
+    // ── AI suggestion (Wave 2.D) ──────────────────────────────────────────────
+
+    @Test
+    void setAiSuggestion_persistsAllFourColumns_andExcludesRowFromAwaitingAi() {
+        repo.enqueue(1L, "slug1", "ambiguous", "sentinel_short_circuit");
+        long id = jdbi.withHandle(h ->
+                h.createQuery("SELECT id FROM enrichment_review_queue WHERE title_id = 1")
+                        .mapTo(Long.class).one());
+
+        // Before: row appears in awaiting list with no AI fields set.
+        List<EnrichmentReviewQueueRepository.OpenRow> before = repo.listOpenAwaitingAi(10);
+        assertEquals(1, before.size());
+        assertNull(before.get(0).aiSuggestionSlug());
+        assertNull(before.get(0).aiSuggestionAt());
+        assertFalse(before.get(0).aiAutoApplied());
+
+        Instant at = Instant.parse("2026-05-17T12:00:00Z");
+        repo.setAiSuggestion(id, "abc123", "high", "matched code prefix", at);
+
+        // After: row is excluded from awaiting list.
+        assertTrue(repo.listOpenAwaitingAi(10).isEmpty(),
+                "row with ai_suggestion_at set must be excluded from awaiting-AI list");
+
+        // Round-trip via findOpenById which now includes AI columns.
+        EnrichmentReviewQueueRepository.OpenRow row = repo.findOpenById(id).orElseThrow();
+        assertEquals("abc123", row.aiSuggestionSlug());
+        assertEquals("high",   row.aiSuggestionConfidence());
+        assertEquals("matched code prefix", row.aiSuggestionReason());
+        assertEquals(at.toString(), row.aiSuggestionAt());
+        assertFalse(row.aiAutoApplied());
+    }
+
+    @Test
+    void setAiSuggestion_nullSlug_persistsAbstainCleanly() {
+        repo.enqueue(1L, "slug1", "ambiguous", "sentinel_short_circuit");
+        long id = jdbi.withHandle(h ->
+                h.createQuery("SELECT id FROM enrichment_review_queue WHERE title_id = 1")
+                        .mapTo(Long.class).one());
+
+        Instant at = Instant.parse("2026-05-17T12:00:00Z");
+        repo.setAiSuggestion(id, null, "abstain", "no confident match", at);
+
+        EnrichmentReviewQueueRepository.OpenRow row = repo.findOpenById(id).orElseThrow();
+        assertNull(row.aiSuggestionSlug(), "slug should persist as null for abstain");
+        assertEquals("abstain", row.aiSuggestionConfidence());
+        assertEquals("no confident match", row.aiSuggestionReason());
+        assertEquals(at.toString(), row.aiSuggestionAt());
+
+        // ai_suggestion_at IS NOT NULL, so abstained row is also excluded from awaiting list.
+        assertTrue(repo.listOpenAwaitingAi(10).isEmpty());
+    }
+
+    @Test
+    void markAiAutoApplied_setsFlagToOne() {
+        repo.enqueue(1L, "slug1", "ambiguous", "sentinel_short_circuit");
+        long id = jdbi.withHandle(h ->
+                h.createQuery("SELECT id FROM enrichment_review_queue WHERE title_id = 1")
+                        .mapTo(Long.class).one());
+
+        repo.markAiAutoApplied(id);
+
+        int flag = jdbi.withHandle(h ->
+                h.createQuery("SELECT ai_auto_applied FROM enrichment_review_queue WHERE id = :id")
+                        .bind("id", id).mapTo(Integer.class).one());
+        assertEquals(1, flag);
+    }
+
+    @Test
+    void listOpenAwaitingAi_returnsOnlyAmbiguousOpenRowsWithoutAiSuggestion() {
+        // ambiguous, no AI suggestion → should appear
+        repo.enqueue(1L, "slug1", "ambiguous", "sentinel_short_circuit");
+
+        // cast_anomaly row → wrong reason, excluded
+        jdbi.useHandle(h -> h.execute(
+                "INSERT INTO titles(id, code, base_code, label, seq_num) VALUES (2, 'T-2', 'T', 'T', 2)"));
+        repo.enqueue(2L, "slug2", "cast_anomaly", "actress_filmography");
+
+        // ambiguous + resolved → excluded
+        jdbi.useHandle(h -> h.execute(
+                "INSERT INTO titles(id, code, base_code, label, seq_num) VALUES (3, 'T-3', 'T', 'T', 3)"));
+        repo.enqueue(3L, "slug3", "ambiguous", "sentinel_short_circuit");
+        jdbi.useHandle(h -> h.execute(
+                "UPDATE enrichment_review_queue SET resolved_at = '2026-04-29T00:00:00Z' WHERE title_id = 3"));
+
+        List<EnrichmentReviewQueueRepository.OpenRow> rows = repo.listOpenAwaitingAi(10);
+        assertEquals(1, rows.size());
+        assertEquals(1L, rows.get(0).titleId());
+        assertEquals("ambiguous", rows.get(0).reason());
+    }
+
+    @Test
+    void listOpenAwaitingAi_respectsLimit_andAscendingCreatedAtOrder() {
+        // Three ambiguous open rows, controlled created_at so order is deterministic.
+        jdbi.useHandle(h -> {
+            h.execute("INSERT INTO titles(id, code, base_code, label, seq_num) VALUES (2, 'T-2', 'T', 'T', 2)");
+            h.execute("INSERT INTO titles(id, code, base_code, label, seq_num) VALUES (3, 'T-3', 'T', 'T', 3)");
+        });
+        repo.enqueue(1L, "slug1", "ambiguous", "sentinel_short_circuit");
+        repo.enqueue(2L, "slug2", "ambiguous", "sentinel_short_circuit");
+        repo.enqueue(3L, "slug3", "ambiguous", "sentinel_short_circuit");
+        jdbi.useHandle(h -> {
+            h.execute("UPDATE enrichment_review_queue SET created_at = '2026-05-01T00:00:00Z' WHERE title_id = 1");
+            h.execute("UPDATE enrichment_review_queue SET created_at = '2026-05-02T00:00:00Z' WHERE title_id = 2");
+            h.execute("UPDATE enrichment_review_queue SET created_at = '2026-05-03T00:00:00Z' WHERE title_id = 3");
+        });
+
+        List<EnrichmentReviewQueueRepository.OpenRow> rows = repo.listOpenAwaitingAi(2);
+        assertEquals(2, rows.size(), "limit must be honored");
+        assertEquals(1L, rows.get(0).titleId(), "oldest first");
+        assertEquals(2L, rows.get(1).titleId());
     }
 }

@@ -128,7 +128,9 @@ public class EnrichmentReviewQueueRepository {
         return jdbi.withHandle(h -> {
             String sql = """
                     SELECT q.id, q.title_id, t.code AS title_code, q.slug,
-                           q.reason, q.resolver_source, q.created_at, q.detail
+                           q.reason, q.resolver_source, q.created_at, q.detail,
+                           q.ai_suggestion_slug, q.ai_suggestion_confidence,
+                           q.ai_suggestion_reason, q.ai_suggestion_at, q.ai_auto_applied
                     FROM enrichment_review_queue q
                     JOIN titles t ON t.id = q.title_id
                     WHERE q.resolved_at IS NULL
@@ -139,17 +141,98 @@ public class EnrichmentReviewQueueRepository {
                     .bind("limit",  limit)
                     .bind("offset", offset);
             if (reason != null) q = q.bind("reason", reason);
-            return q.map((rs, ctx) -> new OpenRow(
-                    rs.getLong("id"),
-                    rs.getLong("title_id"),
-                    rs.getString("title_code"),
-                    rs.getString("slug"),
-                    rs.getString("reason"),
-                    rs.getString("resolver_source"),
-                    rs.getString("created_at"),
-                    rs.getString("detail")
-            )).list();
+            return q.map((rs, ctx) -> mapOpenRow(rs)).list();
         });
+    }
+
+    private static OpenRow mapOpenRow(java.sql.ResultSet rs) throws java.sql.SQLException {
+        return new OpenRow(
+                rs.getLong("id"),
+                rs.getLong("title_id"),
+                rs.getString("title_code"),
+                rs.getString("slug"),
+                rs.getString("reason"),
+                rs.getString("resolver_source"),
+                rs.getString("created_at"),
+                rs.getString("detail"),
+                rs.getString("ai_suggestion_slug"),
+                rs.getString("ai_suggestion_confidence"),
+                rs.getString("ai_suggestion_reason"),
+                rs.getString("ai_suggestion_at"),
+                rs.getInt("ai_auto_applied") != 0
+        );
+    }
+
+    /**
+     * Lists open {@code ambiguous} queue rows that have not yet had an AI suggestion attached
+     * (i.e. {@code ai_suggestion_at IS NULL}), ordered by {@code created_at ASC} so the oldest
+     * untried rows are handed to the sweeper first.
+     *
+     * <p>Used by the AI picker-assist sweeper (Phase 1) to find rows it should attempt to
+     * suggest a slug for. Joins {@code titles} to include the product code (LEFT JOIN so
+     * orphan rows whose title was deleted are still surfaced).
+     *
+     * @param limit maximum number of rows to return
+     */
+    public List<OpenRow> listOpenAwaitingAi(int limit) {
+        return jdbi.withHandle(h ->
+                h.createQuery("""
+                        SELECT q.id, q.title_id, t.code AS title_code, q.slug,
+                               q.reason, q.resolver_source, q.created_at, q.detail,
+                               q.ai_suggestion_slug, q.ai_suggestion_confidence,
+                               q.ai_suggestion_reason, q.ai_suggestion_at, q.ai_auto_applied
+                        FROM enrichment_review_queue q
+                        LEFT JOIN titles t ON t.id = q.title_id
+                        WHERE q.resolved_at IS NULL
+                          AND q.reason = 'ambiguous'
+                          AND q.ai_suggestion_at IS NULL
+                        ORDER BY q.created_at ASC
+                        LIMIT :limit
+                        """)
+                        .bind("limit", limit)
+                        .map((rs, ctx) -> mapOpenRow(rs))
+                        .list());
+    }
+
+    /**
+     * Records an AI suggestion against an open queue row. Writes all four
+     * {@code ai_suggestion_*} columns atomically. Passing {@code null} for {@code slug}
+     * persists an explicit abstain (the row has been considered but no suggestion offered).
+     *
+     * @param queueRowId the row id
+     * @param slug       the suggested javdb slug, or null for an abstain
+     * @param confidence the model's confidence label (e.g. {@code high}, {@code medium}, {@code low}, {@code abstain})
+     * @param reason     short rationale string from the model
+     * @param at         when the suggestion was produced
+     */
+    public void setAiSuggestion(long queueRowId, String slug, String confidence, String reason, Instant at) {
+        jdbi.useHandle(h ->
+                h.createUpdate("""
+                        UPDATE enrichment_review_queue
+                        SET ai_suggestion_slug       = :slug,
+                            ai_suggestion_confidence = :confidence,
+                            ai_suggestion_reason     = :reason,
+                            ai_suggestion_at         = :at
+                        WHERE id = :id
+                        """)
+                        .bind("slug",       slug)
+                        .bind("confidence", confidence)
+                        .bind("reason",     reason)
+                        .bind("at",         at != null ? at.toString() : null)
+                        .bind("id",         queueRowId)
+                        .execute());
+    }
+
+    /** Marks the given queue row as auto-applied by the AI sweeper ({@code ai_auto_applied = 1}). */
+    public void markAiAutoApplied(long queueRowId) {
+        jdbi.useHandle(h ->
+                h.createUpdate("""
+                        UPDATE enrichment_review_queue
+                        SET ai_auto_applied = 1
+                        WHERE id = :id
+                        """)
+                        .bind("id", queueRowId)
+                        .execute());
     }
 
     /**
@@ -163,22 +246,15 @@ public class EnrichmentReviewQueueRepository {
         return jdbi.withHandle(h ->
                 h.createQuery("""
                         SELECT q.id, q.title_id, t.code AS title_code, q.slug,
-                               q.reason, q.resolver_source, q.created_at, q.detail
+                               q.reason, q.resolver_source, q.created_at, q.detail,
+                               q.ai_suggestion_slug, q.ai_suggestion_confidence,
+                               q.ai_suggestion_reason, q.ai_suggestion_at, q.ai_auto_applied
                         FROM enrichment_review_queue q
                         LEFT JOIN titles t ON t.id = q.title_id
                         WHERE q.id = :id AND q.resolved_at IS NULL
                         """)
                         .bind("id", queueRowId)
-                        .map((rs, ctx) -> new OpenRow(
-                                rs.getLong("id"),
-                                rs.getLong("title_id"),
-                                rs.getString("title_code"),
-                                rs.getString("slug"),
-                                rs.getString("reason"),
-                                rs.getString("resolver_source"),
-                                rs.getString("created_at"),
-                                rs.getString("detail")
-                        ))
+                        .map((rs, ctx) -> mapOpenRow(rs))
                         .findOne());
     }
 
@@ -463,8 +539,23 @@ public class EnrichmentReviewQueueRepository {
     /** One side of a slug conflict — the claimant or incumbent actress. */
     public record ConflictActress(long id, String canonicalName, String stageName, String tier) {}
 
-    /** A single open queue row returned by {@link #listOpen} and {@link #findOpenById}. */
+    /**
+     * A single open queue row returned by {@link #listOpen}, {@link #findOpenById},
+     * and {@link #listOpenAwaitingAi}. The {@code aiSuggestion*} fields are null when no
+     * AI suggestion has been attached yet.
+     */
     public record OpenRow(long id, long titleId, String titleCode, String slug,
                           String reason, String resolverSource, String createdAt,
-                          String detail) {}
+                          String detail,
+                          String aiSuggestionSlug, String aiSuggestionConfidence,
+                          String aiSuggestionReason, String aiSuggestionAt,
+                          boolean aiAutoApplied) {
+
+        /** Convenience overload preserving the pre-AI-picker call signature for existing tests/callers. */
+        public OpenRow(long id, long titleId, String titleCode, String slug,
+                       String reason, String resolverSource, String createdAt, String detail) {
+            this(id, titleId, titleCode, slug, reason, resolverSource, createdAt, detail,
+                    null, null, null, null, false);
+        }
+    }
 }
