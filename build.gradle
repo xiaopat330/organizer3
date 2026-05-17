@@ -127,6 +127,33 @@ tasks.register('uiTest', Test) {
     shouldRunAfter test
 }
 
+// ── Ollama Picker POC ──────────────────────────────────────────────────────
+// AI-only sandbox — not wired into production paths.
+// Source lives under _sandbox/ollama-picker-poc/src/ (gitignored).
+// Run: ./gradlew runOllamaPickerPoc [-PsampleSize=30] [-PdbPath=/path/to/organizer.db]
+sourceSets {
+    sandboxOllamaPicker {
+        java.srcDirs = ['_sandbox/ollama-picker-poc/src']
+        compileClasspath += sourceSets.main.output + configurations.runtimeClasspath
+        runtimeClasspath  += output + compileClasspath
+    }
+}
+
+tasks.register('runOllamaPickerPoc', JavaExec) {
+    group       = 'organizer'
+    description = 'Run the Ollama disambiguation picker POC against the prod SQLite DB (read-only).'
+    classpath   = sourceSets.sandboxOllamaPicker.runtimeClasspath
+    mainClass   = 'sandbox.ollamapicker.Main'
+
+    def sz    = project.findProperty('sampleSize')        ?: '100'
+    def db    = project.findProperty('dbPath')            ?: "${System.getProperty('user.home')}/.organizer3/organizer.db"
+    def mdl   = project.findProperty('ollamaModel')       ?: 'qwen2.5:7b'
+    def doOnly = project.findProperty('disagreementsOnly') ?: 'false'
+    def codes = project.findProperty('targetCodes')       ?: ''
+    jvmArgs "-DsampleSize=${sz}", "-DdbPath=${db}", "-DollamaModel=${mdl}",
+            "-DdisagreementsOnly=${doOnly}", "-DtargetCodes=${codes}"
+}
+
 tasks.register('dropDb') {
     group = 'organizer'
     description = 'Delete the local organizer3 SQLite database (~/.organizer3/organizer.db)'
