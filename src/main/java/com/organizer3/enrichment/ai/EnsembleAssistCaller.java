@@ -1,0 +1,329 @@
+package com.organizer3.enrichment.ai;
+
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.organizer3.config.EnrichmentAssistConfig;
+import com.organizer3.javdb.enrichment.EnrichmentReviewQueueRepository;
+import com.organizer3.ollama.OllamaModelOrchestrator;
+import com.organizer3.translation.ollama.OllamaRequest;
+import com.organizer3.translation.ollama.OllamaResponse;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.time.Duration;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Objects;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
+
+/**
+ * Two-model ensemble caller for the AI picker assist (Wave 3 Track F).
+ *
+ * <p>Materializes a prompt from a queue row's snapshot, dispatches it to the configured
+ * primary (e.g. {@code phi4}) and secondary (e.g. {@code gemma3:12b}) models through
+ * {@link OllamaModelOrchestrator}, parses each model's JSON reply, and applies the
+ * 5-outcome voting policy:
+ *
+ * <pre>
+ *   phi4    gemma   outcome
+ *   ------  ------  --------------
+ *   i       i       agreed         (suggestedSlug = candidate[i-1])
+ *   i       null    phi4_only
+ *   null    j       gemma_only
+ *   i       j (≠)   conflict       (suggestedSlug = null)
+ *   null    null    both_abstain   (suggestedSlug = null)
+ * </pre>
+ *
+ * <p><b>Robustness</b>: any failure of one model (HTTP error, timeout, malformed JSON,
+ * out-of-range index) is treated as an abstain for that model. The other model still
+ * gets consulted and the voting policy is applied normally. The only condition that
+ * throws is a structurally invalid row (zero candidates after parsing) — those are
+ * surfaced to the sweeper as an {@link IllegalStateException}.
+ *
+ * <p><b>Reachability gaps</b> from {@link EnrichmentReviewQueueRepository.OpenRow}: the
+ * row carries the {@code detail} snapshot (code, linked_slugs, candidates) and the
+ * {@code title_code}, but not the on-disk folder path or the linked actresses'
+ * canonical romaji names. {@link AssistPromptBuilder.Input} accepts {@code null} for
+ * those fields, so this caller passes nulls. A follow-up track can wire in a richer
+ * context resolver if measured pick quality demands it.
+ */
+public class EnsembleAssistCaller {
+
+    private static final Logger log = LoggerFactory.getLogger(EnsembleAssistCaller.class);
+
+    /** Per-model wait budget. Matches the POC's generous timeout for cold-load + generate. */
+    private static final Duration MODEL_FUTURE_TIMEOUT = Duration.ofMinutes(5);
+
+    private final OllamaModelOrchestrator orchestrator;
+    private final EnrichmentAssistConfig config;
+    private final ObjectMapper objectMapper;
+
+    public EnsembleAssistCaller(OllamaModelOrchestrator orchestrator,
+                                EnrichmentAssistConfig config,
+                                ObjectMapper objectMapper) {
+        this.orchestrator = Objects.requireNonNull(orchestrator, "orchestrator");
+        this.config = Objects.requireNonNull(config, "config");
+        this.objectMapper = Objects.requireNonNull(objectMapper, "objectMapper");
+    }
+
+    public AssistResult evaluate(EnrichmentReviewQueueRepository.OpenRow row) {
+        Objects.requireNonNull(row, "row");
+        AssistPromptBuilder.Input input = materializeInput(row);
+        if (input.candidates() == null || input.candidates().isEmpty()) {
+            throw new IllegalStateException(
+                    "EnsembleAssistCaller: row " + row.id() + " (code=" + row.titleCode()
+                            + ") has zero candidates after parsing detail snapshot");
+        }
+
+        String userPrompt = AssistPromptBuilder.buildUserPrompt(input);
+        String systemPrompt = AssistPromptBuilder.SYSTEM;
+
+        ModelReply phi4Reply  = callModel(config.primaryModel(),   systemPrompt, userPrompt, row.titleCode(), input.candidates().size());
+        ModelReply gemmaReply = callModel(config.secondaryModel(), systemPrompt, userPrompt, row.titleCode(), input.candidates().size());
+
+        AssistResult result = vote(phi4Reply, gemmaReply, input.candidates());
+
+        log.info("[ai-assist] code={} outcome={} confidence={} phi4={} gemma={}",
+                row.titleCode(), result.outcome(), result.confidence(),
+                result.phi4Pick(), result.gemmaPick());
+        return result;
+    }
+
+    // ------------------------------------------------------------------ prompt input
+
+    private AssistPromptBuilder.Input materializeInput(EnrichmentReviewQueueRepository.OpenRow row) {
+        List<String> linkedSlugs = new ArrayList<>();
+        List<AssistPromptBuilder.Input.Candidate> candidates = new ArrayList<>();
+        String code = row.titleCode();
+        String label = parseLabelFromCode(code);
+
+        if (row.detail() != null && !row.detail().isBlank()) {
+            try {
+                JsonNode snap = objectMapper.readTree(row.detail());
+                JsonNode slugsNode = snap.path("linked_slugs");
+                if (slugsNode.isArray()) {
+                    for (JsonNode s : slugsNode) {
+                        if (s.isTextual()) linkedSlugs.add(s.asText());
+                    }
+                }
+                JsonNode candsNode = snap.path("candidates");
+                if (candsNode.isArray()) {
+                    for (JsonNode c : candsNode) {
+                        candidates.add(toCandidate(c));
+                    }
+                }
+                // Prefer code from snapshot if row's titleCode is null (orphan/deleted title).
+                if (code == null) {
+                    JsonNode codeNode = snap.path("code");
+                    if (codeNode.isTextual()) code = codeNode.asText();
+                }
+            } catch (Exception e) {
+                log.warn("[ai-assist] failed to parse detail JSON for row {} (code={}): {}",
+                        row.id(), row.titleCode(), e.getMessage());
+            }
+        }
+
+        // folderPath and actressNames are not reachable from OpenRow alone — pass null.
+        // AssistPromptBuilder.buildUserPrompt handles null gracefully (omits those hint lines).
+        return new AssistPromptBuilder.Input(
+                code,
+                label,
+                /* folderPath */    null,
+                /* actressNames */  null,
+                linkedSlugs,
+                candidates);
+    }
+
+    private AssistPromptBuilder.Input.Candidate toCandidate(JsonNode c) {
+        List<String> castNames = new ArrayList<>();
+        JsonNode castNode = c.path("cast");
+        if (castNode.isArray()) {
+            for (JsonNode ce : castNode) {
+                JsonNode name = ce.path("name");
+                if (name.isTextual()) castNames.add(name.asText());
+            }
+        }
+        return new AssistPromptBuilder.Input.Candidate(
+                textOrNull(c.path("slug")),
+                textOrNull(c.path("title_original")),
+                textOrNull(c.path("release_date")),
+                textOrNull(c.path("maker")),
+                castNames,
+                intOrNull(c.path("duration_minutes")),
+                doubleOrNull(c.path("rating_avg")),
+                intOrNull(c.path("rating_count")));
+    }
+
+    private static String textOrNull(JsonNode n) {
+        return (n == null || n.isMissingNode() || n.isNull() || !n.isTextual()) ? null : n.asText();
+    }
+
+    private static Integer intOrNull(JsonNode n) {
+        return (n == null || n.isMissingNode() || n.isNull() || !n.isNumber()) ? null : n.asInt();
+    }
+
+    private static Double doubleOrNull(JsonNode n) {
+        return (n == null || n.isMissingNode() || n.isNull() || !n.isNumber()) ? null : n.asDouble();
+    }
+
+    private static String parseLabelFromCode(String code) {
+        if (code == null) return null;
+        int dash = code.indexOf('-');
+        return dash > 0 ? code.substring(0, dash) : null;
+    }
+
+    // ------------------------------------------------------------------ model dispatch
+
+    /** Result of one model call. Any failure mode is encoded as an abstain (pick=null). */
+    private record ModelReply(Integer pick, String confidence, String reason) {
+        static ModelReply abstain(String reason) { return new ModelReply(null, null, reason); }
+    }
+
+    private ModelReply callModel(String model, String systemPrompt, String userPrompt,
+                                 String code, int numCandidates) {
+        OllamaRequest req = new OllamaRequest(
+                model, userPrompt, systemPrompt,
+                /* options */ null,
+                /* timeout */ MODEL_FUTURE_TIMEOUT,
+                /* formatJson */ true,
+                /* keepAlive  */ "15m");
+
+        CompletableFuture<OllamaResponse> future;
+        try {
+            future = orchestrator.submit(model, req);
+        } catch (RuntimeException submitError) {
+            log.warn("[ai-assist] model {} submission failed for code={}: {}",
+                    model, code, submitError.getMessage());
+            return ModelReply.abstain("submit_failed");
+        }
+
+        OllamaResponse resp;
+        try {
+            resp = future.get(MODEL_FUTURE_TIMEOUT.toMillis(), TimeUnit.MILLISECONDS);
+        } catch (TimeoutException te) {
+            log.warn("[ai-assist] model {} timed out after {}s for code={}",
+                    model, MODEL_FUTURE_TIMEOUT.toSeconds(), code);
+            future.cancel(true);
+            return ModelReply.abstain("timeout");
+        } catch (ExecutionException ee) {
+            log.warn("[ai-assist] model {} call failed for code={}: {}",
+                    model, code, ee.getCause() != null ? ee.getCause().toString() : ee.getMessage());
+            return ModelReply.abstain("call_failed");
+        } catch (InterruptedException ie) {
+            Thread.currentThread().interrupt();
+            log.warn("[ai-assist] model {} call interrupted for code={}", model, code);
+            return ModelReply.abstain("interrupted");
+        }
+
+        return parseReply(model, code, resp != null ? resp.responseText() : null, numCandidates);
+    }
+
+    private ModelReply parseReply(String model, String code, String raw, int numCandidates) {
+        if (raw == null || raw.isBlank()) {
+            log.warn("[ai-assist] model {} returned empty response for code={}", model, code);
+            return ModelReply.abstain("empty_response");
+        }
+        try {
+            JsonNode node = objectMapper.readTree(raw);
+            Integer pick = null;
+            JsonNode pickNode = node.has("pick") ? node.get("pick") : node.path("pick_slug");
+            if (pickNode != null && !pickNode.isNull() && !pickNode.isMissingNode()) {
+                if (pickNode.isInt() || pickNode.isLong()) {
+                    pick = pickNode.asInt();
+                } else if (pickNode.isTextual()) {
+                    try { pick = Integer.parseInt(pickNode.asText().trim()); }
+                    catch (NumberFormatException nfe) { pick = null; }
+                }
+            }
+            // Validate range — out of [1, N] becomes abstain.
+            if (pick != null && (pick < 1 || pick > numCandidates)) {
+                log.warn("[ai-assist] model {} returned out-of-range pick={} for code={} (N={})",
+                        model, pick, code, numCandidates);
+                pick = null;
+            }
+            String confidence = textOrNull(node.path("confidence"));
+            String reason = textOrNull(node.path("reason"));
+            return new ModelReply(pick, confidence, reason);
+        } catch (Exception e) {
+            log.warn("[ai-assist] model {} JSON parse failed for code={}: {}",
+                    model, code, e.getMessage());
+            return ModelReply.abstain("parse_error");
+        }
+    }
+
+    // ------------------------------------------------------------------ voting
+
+    private AssistResult vote(ModelReply phi4, ModelReply gemma,
+                              List<AssistPromptBuilder.Input.Candidate> candidates) {
+        Integer p = phi4.pick();
+        Integer g = gemma.pick();
+
+        // both abstained
+        if (p == null && g == null) {
+            return new AssistResult("both_abstain", null, null, "both abstained", null, null);
+        }
+        // phi4 only
+        if (p != null && g == null) {
+            return new AssistResult("phi4_only", phi4.confidence(),
+                    candidates.get(p - 1).slug(),
+                    firstNonBlank(phi4.reason(), gemma.reason(), "phi4 only"),
+                    p, null);
+        }
+        // gemma only
+        if (p == null) {
+            return new AssistResult("gemma_only", gemma.confidence(),
+                    candidates.get(g - 1).slug(),
+                    firstNonBlank(gemma.reason(), phi4.reason(), "gemma only"),
+                    null, g);
+        }
+        // both picked
+        if (p.equals(g)) {
+            String agreedConfidence = minConfidence(phi4.confidence(), gemma.confidence());
+            return new AssistResult("agreed", agreedConfidence,
+                    candidates.get(p - 1).slug(),
+                    firstNonBlank(phi4.reason(), gemma.reason(), "agreed"),
+                    p, g);
+        }
+        // conflict
+        return new AssistResult("conflict", null, null,
+                firstNonBlank(phi4.reason(), gemma.reason(), "conflict"),
+                p, g);
+    }
+
+    /** Returns min(a, b) on the high>medium>low ordering. Nulls treated as unknown (lowest). */
+    private static String minConfidence(String a, String b) {
+        int ra = confidenceRank(a);
+        int rb = confidenceRank(b);
+        int min = Math.min(ra, rb);
+        return rankToConfidence(min);
+    }
+
+    private static int confidenceRank(String c) {
+        if (c == null) return 0;
+        return switch (c.toLowerCase()) {
+            case "high"   -> 3;
+            case "medium" -> 2;
+            case "low"    -> 1;
+            default       -> 0;
+        };
+    }
+
+    private static String rankToConfidence(int r) {
+        return switch (r) {
+            case 3  -> "high";
+            case 2  -> "medium";
+            case 1  -> "low";
+            default -> null;
+        };
+    }
+
+    private static String firstNonBlank(String... candidates) {
+        for (String s : candidates) {
+            if (s != null && !s.isBlank()) return s;
+        }
+        return null;
+    }
+}
