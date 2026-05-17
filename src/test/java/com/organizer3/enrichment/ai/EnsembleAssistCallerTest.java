@@ -217,6 +217,41 @@ class EnsembleAssistCallerTest {
         assertEquals(Integer.valueOf(2), result.gemmaPick());
     }
 
+    // ------------------------------------------------------------------ Track G overload
+
+    @Test
+    void evaluateOverload_threadsFolderPathAndActressNamesIntoPromptInput() {
+        AssistPromptBuilder.Input input = caller.materializeInput(
+                sampleRow(),
+                "/Volumes/x/Yu Tano/ABC-123",
+                java.util.List.of("Yu Tano", "Mika Azuma"));
+
+        assertEquals("/Volumes/x/Yu Tano/ABC-123", input.folderPath());
+        assertEquals(java.util.List.of("Yu Tano", "Mika Azuma"), input.actressNames());
+        assertEquals("ABC-123", input.code());
+        // user prompt must include both hints (folder name + filed-under actress)
+        String user = AssistPromptBuilder.buildUserPrompt(input);
+        org.junit.jupiter.api.Assertions.assertTrue(user.contains("Folder name: ABC-123"),
+                "user prompt must show the trailing folder segment");
+        org.junit.jupiter.api.Assertions.assertTrue(user.contains("Filed under actress(es): Yu Tano, Mika Azuma"),
+                "user prompt must list the romaji actresses for the kanji bridge");
+    }
+
+    @Test
+    void evaluateOverload_nullFolderEmptyNames_omitsHintLines() {
+        AssistPromptBuilder.Input input = caller.materializeInput(
+                sampleRow(), null, java.util.List.of());
+
+        assertNull(input.folderPath());
+        assertNull(input.actressNames(),
+                "empty list collapses to null so the prompt omits the Filed-under line");
+        String user = AssistPromptBuilder.buildUserPrompt(input);
+        org.junit.jupiter.api.Assertions.assertFalse(user.contains("Folder name:"),
+                "no folder hint when path is null");
+        org.junit.jupiter.api.Assertions.assertFalse(user.contains("Filed under actress(es):"),
+                "no actress hint when names are empty");
+    }
+
     @Test
     void zeroCandidatesAfterParsing_throwsIllegalStateException() {
         String emptyDetail = """

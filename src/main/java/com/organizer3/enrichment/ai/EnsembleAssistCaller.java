@@ -70,8 +70,21 @@ public class EnsembleAssistCaller {
     }
 
     public AssistResult evaluate(EnrichmentReviewQueueRepository.OpenRow row) {
+        return evaluate(row, null, List.of());
+    }
+
+    /**
+     * Track G overload: threads {@code folderPath} and the linked actresses' canonical
+     * (romaji) names into the prompt input. Both hints are passed through to
+     * {@link AssistPromptBuilder.Input}, which handles {@code null} / empty gracefully.
+     * The folder hint shows only the trailing path segment; the actress hint feeds the
+     * kanji-bridge rule in the system prompt.
+     */
+    public AssistResult evaluate(EnrichmentReviewQueueRepository.OpenRow row,
+                                 String folderPath,
+                                 List<String> actressNames) {
         Objects.requireNonNull(row, "row");
-        AssistPromptBuilder.Input input = materializeInput(row);
+        AssistPromptBuilder.Input input = materializeInput(row, folderPath, actressNames);
         if (input.candidates() == null || input.candidates().isEmpty()) {
             throw new IllegalStateException(
                     "EnsembleAssistCaller: row " + row.id() + " (code=" + row.titleCode()
@@ -94,7 +107,13 @@ public class EnsembleAssistCaller {
 
     // ------------------------------------------------------------------ prompt input
 
-    private AssistPromptBuilder.Input materializeInput(EnrichmentReviewQueueRepository.OpenRow row) {
+    AssistPromptBuilder.Input materializeInput(EnrichmentReviewQueueRepository.OpenRow row) {
+        return materializeInput(row, null, List.of());
+    }
+
+    AssistPromptBuilder.Input materializeInput(EnrichmentReviewQueueRepository.OpenRow row,
+                                               String folderPath,
+                                               List<String> actressNames) {
         List<String> linkedSlugs = new ArrayList<>();
         List<AssistPromptBuilder.Input.Candidate> candidates = new ArrayList<>();
         String code = row.titleCode();
@@ -126,13 +145,18 @@ public class EnsembleAssistCaller {
             }
         }
 
-        // folderPath and actressNames are not reachable from OpenRow alone — pass null.
-        // AssistPromptBuilder.buildUserPrompt handles null gracefully (omits those hint lines).
+        // Track G: folderPath and actressNames are supplied by the sweeper via
+        // EnrichmentReviewQueueRepository.findContextForAssist(titleId). Both are
+        // null-safe in AssistPromptBuilder.buildUserPrompt — the hint lines are
+        // simply omitted when missing.
+        List<String> safeActressNames = (actressNames == null || actressNames.isEmpty())
+                ? null
+                : List.copyOf(actressNames);
         return new AssistPromptBuilder.Input(
                 code,
                 label,
-                /* folderPath */    null,
-                /* actressNames */  null,
+                folderPath,
+                safeActressNames,
                 linkedSlugs,
                 candidates);
     }

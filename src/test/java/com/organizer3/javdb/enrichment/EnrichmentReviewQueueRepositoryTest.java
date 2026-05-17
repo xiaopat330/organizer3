@@ -578,4 +578,56 @@ class EnrichmentReviewQueueRepositoryTest {
         assertEquals(1L, rows.get(0).titleId(), "oldest first");
         assertEquals(2L, rows.get(1).titleId());
     }
+
+    // ── findContextForAssist ──────────────────────────────────────────────────
+
+    @Test
+    void findContextForAssist_returnsLivePathAndCanonicalNames() {
+        jdbi.useHandle(h -> {
+            h.execute("INSERT INTO volumes(id, structure_type) VALUES ('vol-a', 'flat')");
+            // One live location + one stale location — only the live one is returned.
+            h.execute("INSERT INTO title_locations(title_id, volume_id, partition_id, path, last_seen_at) "
+                    + "VALUES (1, 'vol-a', 'p1', '/live/Yu Tano/T-1', '2026-05-17T00:00:00Z')");
+            h.execute("INSERT INTO title_locations(title_id, volume_id, partition_id, path, last_seen_at, stale_since) "
+                    + "VALUES (1, 'vol-a', 'p1', '/stale/old/T-1', '2026-04-01T00:00:00Z', '2026-04-02T00:00:00Z')");
+            // Two linked actresses + one sentinel — sentinel must be excluded, names sorted.
+            h.execute("INSERT INTO actresses(id, canonical_name, tier, first_seen_at, is_sentinel) "
+                    + "VALUES (10, 'Yu Tano', 'A', '2026-01-01T00:00:00Z', 0)");
+            h.execute("INSERT INTO actresses(id, canonical_name, tier, first_seen_at, is_sentinel) "
+                    + "VALUES (11, 'Mika Azuma', 'A', '2026-01-01T00:00:00Z', 0)");
+            h.execute("INSERT INTO actresses(id, canonical_name, tier, first_seen_at, is_sentinel) "
+                    + "VALUES (12, 'Various', 'A', '2026-01-01T00:00:00Z', 1)");
+            h.execute("INSERT INTO title_actresses(title_id, actress_id) VALUES (1, 10)");
+            h.execute("INSERT INTO title_actresses(title_id, actress_id) VALUES (1, 11)");
+            h.execute("INSERT INTO title_actresses(title_id, actress_id) VALUES (1, 12)");
+        });
+
+        var ctx = repo.findContextForAssist(1L);
+
+        assertEquals("/live/Yu Tano/T-1", ctx.folderPath());
+        assertEquals(List.of("Mika Azuma", "Yu Tano"), ctx.actressNames(),
+                "sentinel actress must be excluded; results sorted by canonical_name");
+    }
+
+    @Test
+    void findContextForAssist_orphanTitle_nullPathButReturnsActresses() {
+        // Title 1 has no title_locations at all. Still return any linked actress names.
+        jdbi.useHandle(h -> {
+            h.execute("INSERT INTO actresses(id, canonical_name, tier, first_seen_at, is_sentinel) "
+                    + "VALUES (20, 'Hana Ito', 'A', '2026-01-01T00:00:00Z', 0)");
+            h.execute("INSERT INTO title_actresses(title_id, actress_id) VALUES (1, 20)");
+        });
+
+        var ctx = repo.findContextForAssist(1L);
+
+        assertNull(ctx.folderPath(), "no live location → null path");
+        assertEquals(List.of("Hana Ito"), ctx.actressNames());
+    }
+
+    @Test
+    void findContextForAssist_unknownTitle_returnsEmptyContext() {
+        var ctx = repo.findContextForAssist(9999L);
+        assertNull(ctx.folderPath());
+        assertTrue(ctx.actressNames().isEmpty());
+    }
 }

@@ -199,10 +199,17 @@ public class EnrichmentReviewQueueRepository {
      * {@code ai_suggestion_*} columns atomically. Passing {@code null} for {@code slug}
      * persists an explicit abstain (the row has been considered but no suggestion offered).
      *
+     * <p><b>{@code confidence} column contents</b> (TEXT, no CHECK constraint): the sweeper
+     * (Track G) writes the ensemble {@link com.organizer3.enrichment.ai.AssistResult#outcome()
+     * outcome} string here — one of {@code agreed}, {@code phi4_only}, {@code gemma_only},
+     * {@code conflict}, {@code both_abstain}, or the sentinel {@code error} when caller
+     * evaluation throws. (The plan doc described this column as model "confidence";
+     * Phase 1 reuses it for the richer outcome label since the column is not constrained.)
+     *
      * @param queueRowId the row id
      * @param slug       the suggested javdb slug, or null for an abstain
-     * @param confidence the model's confidence label (e.g. {@code high}, {@code medium}, {@code low}, {@code abstain})
-     * @param reason     short rationale string from the model
+     * @param confidence the assist outcome label; see allowed values above
+     * @param reason     short rationale string from the model (or the error message for {@code error})
      * @param at         when the suggestion was produced
      */
     public void setAiSuggestion(long queueRowId, String slug, String confidence, String reason, Instant at) {
@@ -221,6 +228,58 @@ public class EnrichmentReviewQueueRepository {
                         .bind("at",         at != null ? at.toString() : null)
                         .bind("id",         queueRowId)
                         .execute());
+    }
+
+    /**
+     * Resolves the prompt-context companions to {@link OpenRow} that aren't carried in the
+     * row itself: the title's active (non-stale) folder path on disk and the canonical
+     * (romaji) names of the linked, non-sentinel actresses.
+     *
+     * <p>Used by the AI picker-assist sweeper to give the ensemble caller richer hints than
+     * what's snapshotted in {@code detail}, matching the POC's 87.5% agreement input.
+     *
+     * <p>Determinism:
+     * <ul>
+     *   <li>{@code folderPath} — a title can have multiple live locations; we pick the
+     *       lexicographically first {@code (volume_id, path)} so repeated calls return the
+     *       same value. {@code null} when the title has no live location (orphan).</li>
+     *   <li>{@code actressNames} — empty list if the title has no linked non-sentinel
+     *       actresses; ordered by canonical_name for stable prompts.</li>
+     * </ul>
+     *
+     * <p>Returns {@code AssistContext(null, List.of())} when the title id doesn't exist.
+     *
+     * @param titleId the canonical title id (from {@link OpenRow#titleId()})
+     */
+    public AssistContext findContextForAssist(long titleId) {
+        return jdbi.withHandle(h -> {
+            String folderPath = h.createQuery("""
+                    SELECT path FROM title_locations
+                    WHERE title_id = :titleId
+                      AND stale_since IS NULL
+                    ORDER BY volume_id, path
+                    LIMIT 1
+                    """)
+                    .bind("titleId", titleId)
+                    .mapTo(String.class)
+                    .findOne()
+                    .orElse(null);
+
+            List<String> actressNames = h.createQuery("""
+                    SELECT a.canonical_name
+                    FROM title_actresses ta
+                    JOIN actresses a ON a.id = ta.actress_id
+                    WHERE ta.title_id = :titleId
+                      AND COALESCE(a.is_sentinel, 0) = 0
+                      AND a.canonical_name IS NOT NULL
+                    ORDER BY a.canonical_name
+                    """)
+                    .bind("titleId", titleId)
+                    .mapTo(String.class)
+                    .list();
+
+            return new AssistContext(folderPath, actressNames);
+        });
     }
 
     /** Marks the given queue row as auto-applied by the AI sweeper ({@code ai_auto_applied = 1}). */
@@ -525,6 +584,19 @@ public class EnrichmentReviewQueueRepository {
             if (claimant == null || incumbent == null) return java.util.Optional.empty();
             return java.util.Optional.of(new SlugConflictContext(claimant, incumbent));
         });
+    }
+
+    /**
+     * Prompt-context companion to {@link OpenRow}: the title's live folder path and the
+     * canonical (romaji) names of its linked non-sentinel actresses. Returned by
+     * {@link #findContextForAssist(long)}. Either field may be empty for orphan / unjoined
+     * titles; both are passed through to {@link com.organizer3.enrichment.ai.AssistPromptBuilder}
+     * which handles missing hints gracefully.
+     */
+    public record AssistContext(String folderPath, List<String> actressNames) {
+        public AssistContext {
+            actressNames = actressNames == null ? List.of() : List.copyOf(actressNames);
+        }
     }
 
     /** Enrichment context for a cast_anomaly row's title: raw cast JSON + linked actresses. */
