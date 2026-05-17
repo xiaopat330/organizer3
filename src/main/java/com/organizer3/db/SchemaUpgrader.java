@@ -24,7 +24,7 @@ import java.util.List;
 public class SchemaUpgrader {
 
     /** Must match the version stamped by {@link SchemaInitializer}. */
-    private static final int CURRENT_VERSION = 61;
+    private static final int CURRENT_VERSION = 62;
 
     private final Jdbi jdbi;
 
@@ -331,6 +331,11 @@ public class SchemaUpgrader {
         if (version < 61) {
             applyV61();
             setVersion(61);
+        }
+
+        if (version < 62) {
+            applyV62();
+            setVersion(62);
         }
 
         log.info("Schema upgrade complete");
@@ -2143,6 +2148,32 @@ public class SchemaUpgrader {
                      WHERE title_id NOT IN (SELECT id FROM titles)
                     """).execute();
             log.info("Schema v61: deleted {} orphan revalidation_pending rows", n);
+        });
+    }
+
+    /**
+     * v62: adds AI picker assist columns to {@code enrichment_review_queue}.
+     *
+     * <p>Shadow-mode infrastructure for Phase 1 of the AI Picker Assist proposal
+     * ({@code spec/PROPOSAL_AI_PICKER_ASSIST.md}). The new columns capture the
+     * dual-model suggestion ({@code ai_suggestion_slug}), its confidence bucket
+     * ({@code ai_suggestion_confidence} — one of {@code agreed}, {@code phi4_only},
+     * {@code gemma_only}, {@code conflict}, {@code both_abstain}), a free-form
+     * {@code ai_suggestion_reason}, the {@code ai_suggestion_at} timestamp, and an
+     * {@code ai_auto_applied} flag toggled when the orchestrator auto-applies the
+     * suggestion.
+     *
+     * <p>All five columns are additive and nullable (the flag defaults to 0).
+     * Idempotent via {@link #addColumnIfMissing}.
+     */
+    private void applyV62() {
+        log.info("Applying migration v62: AI picker assist columns on enrichment_review_queue");
+        jdbi.useHandle(h -> {
+            addColumnIfMissing(h, "enrichment_review_queue", "ai_suggestion_slug", "TEXT");
+            addColumnIfMissing(h, "enrichment_review_queue", "ai_suggestion_confidence", "TEXT");
+            addColumnIfMissing(h, "enrichment_review_queue", "ai_suggestion_reason", "TEXT");
+            addColumnIfMissing(h, "enrichment_review_queue", "ai_suggestion_at", "TEXT");
+            addColumnIfMissing(h, "enrichment_review_queue", "ai_auto_applied", "INTEGER DEFAULT 0");
         });
     }
 

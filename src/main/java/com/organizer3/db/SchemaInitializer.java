@@ -531,16 +531,21 @@ public class SchemaInitializer {
 
             h.execute("""
                     CREATE TABLE IF NOT EXISTS enrichment_review_queue (
-                        id              INTEGER PRIMARY KEY AUTOINCREMENT,
-                        title_id        INTEGER NOT NULL REFERENCES titles(id) ON DELETE CASCADE,
-                        slug            TEXT,
-                        reason          TEXT    NOT NULL,
-                        resolver_source TEXT,
-                        created_at      TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
-                        last_seen_at    TEXT,
-                        detail          TEXT,
-                        resolved_at     TEXT,
-                        resolution      TEXT
+                        id                       INTEGER PRIMARY KEY AUTOINCREMENT,
+                        title_id                 INTEGER NOT NULL REFERENCES titles(id) ON DELETE CASCADE,
+                        slug                     TEXT,
+                        reason                   TEXT    NOT NULL,
+                        resolver_source          TEXT,
+                        created_at               TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+                        last_seen_at             TEXT,
+                        detail                   TEXT,
+                        resolved_at              TEXT,
+                        resolution               TEXT,
+                        ai_suggestion_slug       TEXT,
+                        ai_suggestion_confidence TEXT,
+                        ai_suggestion_reason     TEXT,
+                        ai_suggestion_at         TEXT,
+                        ai_auto_applied          INTEGER DEFAULT 0
                     )""");
             h.execute("CREATE INDEX IF NOT EXISTS idx_erq_title ON enrichment_review_queue(title_id)");
             h.execute("CREATE INDEX IF NOT EXISTS idx_erq_open  ON enrichment_review_queue(reason) WHERE resolved_at IS NULL");
@@ -818,7 +823,7 @@ public class SchemaInitializer {
             // leave the version alone and let SchemaUpgrader apply any missing migrations.
             int currentVersion = h.createQuery("PRAGMA user_version").mapTo(Integer.class).one();
             if (currentVersion == 0) {
-                h.execute("PRAGMA user_version = 61");
+                h.execute("PRAGMA user_version = 62");
             }
         });
         log.info("Schema initialization complete");
