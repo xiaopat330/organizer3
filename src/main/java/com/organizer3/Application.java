@@ -911,6 +911,35 @@ public class Application {
         com.organizer3.utilities.task.javdb.BulkEnrichToDraftTask bulkEnrichToDraftTask =
                 new com.organizer3.utilities.task.javdb.BulkEnrichToDraftTask(jdbi, draftPopulator);
 
+        // ── AI Picker Assist (Phase 1, shadow mode) ──────────────────────────────
+        // Sweeper fills ai_suggestion_* columns on ambiguous review-queue rows using
+        // a phi4+gemma3 ensemble. Gated entirely by enrichment.assist.mode; when "off"
+        // the sweeper exits at start. Auto-pull runs only when mode != off.
+        com.organizer3.config.EnrichmentAssistConfig assistConfig =
+                config.enrichmentOrDefaults().assistOrDefaults();
+        com.organizer3.ollama.OllamaModelOrchestrator ollamaOrchestrator =
+                new com.organizer3.ollama.OllamaModelOrchestrator(
+                        ollamaAdapter, com.organizer3.ollama.OrchestratorConfig.defaults());
+        ollamaOrchestrator.start();
+        if (!"off".equals(assistConfig.mode())) {
+            com.organizer3.ollama.OllamaModelBootstrap assistBootstrap =
+                    new com.organizer3.ollama.OllamaModelBootstrap(
+                            java.net.http.HttpClient.newHttpClient(),
+                            translationConfig.ollamaBaseUrlOrDefault());
+            boolean ready = assistBootstrap.ensureModelsReady(
+                    java.util.List.of(assistConfig.primaryModel(), assistConfig.secondaryModel()));
+            if (!ready) {
+                log.warn("AI assist enabled (mode={}) but Ollama models not ready — sweeper will surface errors",
+                        assistConfig.mode());
+            }
+        }
+        com.organizer3.enrichment.ai.EnsembleAssistCaller ensembleAssistCaller =
+                new com.organizer3.enrichment.ai.EnsembleAssistCaller(
+                        ollamaOrchestrator, assistConfig, jsonMapper);
+        com.organizer3.enrichment.ai.EnrichmentAssistSweeper enrichmentAssistSweeper =
+                new com.organizer3.enrichment.ai.EnrichmentAssistSweeper(
+                        enrichmentReviewQueueRepo, ensembleAssistCaller, assistConfig);
+
         // Coherent multi-volume sync — defers global orphan prune until all volumes are scanned.
         com.organizer3.sync.SyncPruneService syncPruneService =
                 new com.organizer3.sync.SyncPruneService(titleRepo, videoRepo, actressRepo,
@@ -956,7 +985,8 @@ public class Application {
                                 organizeAllPreviewTask, organizeAllTask,
                                 fixTimestampsPreviewTask, fixTimestampsTask,
                                 recomputeRatingCurveTask, enrichmentClearMismatchedTask,
-                                bulkEnrichToDraftTask, autoPromoteRule3SweepTask));
+                                bulkEnrichToDraftTask, autoPromoteRule3SweepTask,
+                                enrichmentAssistSweeper));
         com.organizer3.utilities.task.TaskRunner taskRunner =
                 new com.organizer3.utilities.task.TaskRunner(taskRegistry);
         // Set the forward reference so SyncCoherentCommand can call taskRunner.start(...).
@@ -1275,6 +1305,7 @@ public class Application {
         translationWorkerExecutor.shutdownNow();
         translationSweeperExecutor.shutdownNow();
         tier2SweeperExecutor.shutdownNow();
+        ollamaOrchestrator.stop();
         if (mcpRoDb != null) mcpRoDb.close();
         log.info("Organizer3 exiting");
     }
