@@ -20,8 +20,20 @@ public record OllamaRequest(
         String systemMessage,
         /** Maps directly to Ollama's {@code options} object (temperature, num_predict, etc.). */
         Map<String, Object> options,
-        Duration timeout
+        Duration timeout,
+        /**
+         * When {@code true}, sets top-level {@code "format": "json"} in the request body so the
+         * model is constrained to emit valid JSON. Default {@code false} for translation pipeline
+         * back-compat.
+         */
+        boolean formatJson
 ) {
+    /** Back-compat constructor: defaults {@code formatJson} to {@code false}. */
+    public OllamaRequest(String modelId, String prompt, String systemMessage,
+                         Map<String, Object> options, Duration timeout) {
+        this(modelId, prompt, systemMessage, options, timeout, false);
+    }
+
     /**
      * Whether to suppress model thinking/reasoning output.
      * Always {@code false} for translation requests — set at the top level of the JSON body.

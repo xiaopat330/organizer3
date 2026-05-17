@@ -56,6 +56,10 @@ public class HttpOllamaAdapter implements OllamaAdapter {
         body.put("stream", false);
         // think: false is ALWAYS at top level — never in options — to suppress qwen3 CoT output
         body.put("think", false);
+        // format: "json" goes at top level (NOT in options) per Ollama API
+        if (req.formatJson()) {
+            body.put("format", "json");
+        }
 
         if (req.options() != null && !req.options().isEmpty()) {
             ObjectNode opts = json.createObjectNode();
