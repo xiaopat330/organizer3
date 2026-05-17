@@ -25,8 +25,17 @@ import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CancellationException;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Future;
+import java.util.concurrent.SynchronousQueue;
+import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicLong;
 import lombok.extern.slf4j.Slf4j;
 
 /**
@@ -54,6 +63,12 @@ public class SmbConnectionFactory {
     private final SMBClient client;
     private final NasAvailabilityMonitor monitor;
     private final Map<String, PooledShare> pool = new ConcurrentHashMap<>();
+    private final Map<String, CompletableFuture<PooledShare>> inFlightDials = new ConcurrentHashMap<>();
+    private final ExecutorService dialExecutor;
+    private volatile long dialTimeoutMillis;
+    // Visible for testing.
+    void setDialTimeoutMillisForTesting(long millis) { this.dialTimeoutMillis = millis; }
+    private volatile boolean shutdown = false;
 
     public SmbConnectionFactory(OrganizerConfig config) {
         this(config, new SMBClient(buildSmbConfig(config.smbOrDefaults())), null);
@@ -72,6 +87,25 @@ public class SmbConnectionFactory {
         this.config = config;
         this.client = client;
         this.monitor = monitor;
+        this.dialExecutor = newDialExecutor();
+        // Outer dial budget — guards against authenticate()/sendAndReceive() parking forever
+        // when smbj's own transactTimeout fails to surface. Matches transactTimeout so the
+        // smbj-side timeout (if working) fires first; the Future wrapper is the backstop.
+        this.dialTimeoutMillis = TimeUnit.MINUTES.toMillis(
+                config.smbOrDefaults().transactTimeoutMinutesOrDefault());
+    }
+
+    private static ExecutorService newDialExecutor() {
+        AtomicLong seq = new AtomicLong();
+        return new ThreadPoolExecutor(
+                0, Integer.MAX_VALUE,
+                60L, TimeUnit.SECONDS,
+                new SynchronousQueue<>(),
+                r -> {
+                    Thread t = new Thread(r, "smb-dial-" + seq.incrementAndGet());
+                    t.setDaemon(true);
+                    return t;
+                });
     }
 
     /** Operation over an SMB share that may produce a result and may throw IOException. */
@@ -137,7 +171,7 @@ public class SmbConnectionFactory {
     }
 
     /** Removes a volume's pooled connection so the next {@link #open} dials fresh. */
-    public synchronized void evict(String volumeId) {
+    public void evict(String volumeId) {
         PooledShare stale = pool.remove(volumeId);
         if (stale != null) {
             stale.closeQuietly();
@@ -146,7 +180,14 @@ public class SmbConnectionFactory {
     }
 
     /** Closes all pooled connections and the underlying SMBClient. */
-    public synchronized void shutdown() {
+    public void shutdown() {
+        shutdown = true;
+        // Cancel any in-flight dials so callers waiting on them unblock.
+        for (CompletableFuture<PooledShare> f : inFlightDials.values()) {
+            f.cancel(true);
+        }
+        inFlightDials.clear();
+        dialExecutor.shutdownNow();
         for (PooledShare p : pool.values()) p.closeQuietly();
         pool.clear();
         try { client.close(); } catch (Exception e) { /* ignore */ }
@@ -156,21 +197,81 @@ public class SmbConnectionFactory {
         PooledShare existing = pool.get(volumeId);
         if (existing != null && existing.isHealthy()) return existing;
 
-        synchronized (this) {
+        // Coalesce concurrent dials for the same volume; different volumes never block each other.
+        CompletableFuture<PooledShare> mine = new CompletableFuture<>();
+        CompletableFuture<PooledShare> inFlight = inFlightDials.putIfAbsent(volumeId, mine);
+        if (inFlight != null) {
+            return awaitInFlight(volumeId, inFlight);
+        }
+        try {
+            // Re-check under our own slot (avoid duplicate dial if a previous owner just finished).
             existing = pool.get(volumeId);
-            if (existing != null && existing.isHealthy()) return existing;
+            if (existing != null && existing.isHealthy()) {
+                mine.complete(existing);
+                return existing;
+            }
             if (existing != null) {
                 log.info("SMB connection to volume {} is stale; reconnecting", volumeId);
                 existing.closeQuietly();
-                pool.remove(volumeId);
+                pool.remove(volumeId, existing);
             }
-            PooledShare fresh = dial(volumeId);
+            if (shutdown) throw new IOException("SmbConnectionFactory is shut down");
+            PooledShare fresh = dialWithTimeout(volumeId);
             pool.put(volumeId, fresh);
+            mine.complete(fresh);
             return fresh;
+        } catch (Throwable t) {
+            mine.completeExceptionally(t);
+            if (t instanceof IOException ioe) throw ioe;
+            if (t instanceof RuntimeException re) throw re;
+            throw new IOException("Dial failed for volume " + volumeId + ": " + t.getMessage(), t);
+        } finally {
+            inFlightDials.remove(volumeId, mine);
         }
     }
 
-    private PooledShare dial(String volumeId) throws IOException {
+    private PooledShare awaitInFlight(String volumeId, CompletableFuture<PooledShare> inFlight)
+            throws IOException {
+        try {
+            return inFlight.get(dialTimeoutMillis, TimeUnit.MILLISECONDS);
+        } catch (TimeoutException e) {
+            throw new IOException("Timed out waiting for in-flight dial of volume " + volumeId, e);
+        } catch (CancellationException e) {
+            throw new IOException("In-flight dial of volume " + volumeId + " was cancelled", e);
+        } catch (ExecutionException e) {
+            Throwable cause = e.getCause() != null ? e.getCause() : e;
+            if (cause instanceof IOException ioe) throw ioe;
+            if (cause instanceof RuntimeException re) throw re;
+            throw new IOException("Dial failed for volume " + volumeId + ": " + cause.getMessage(), cause);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new IOException("Interrupted while waiting for dial of volume " + volumeId, e);
+        }
+    }
+
+    private PooledShare dialWithTimeout(String volumeId) throws IOException {
+        Future<PooledShare> future = dialExecutor.submit(() -> dial(volumeId));
+        try {
+            return future.get(dialTimeoutMillis, TimeUnit.MILLISECONDS);
+        } catch (TimeoutException e) {
+            future.cancel(true);
+            log.warn("SMB dial for volume {} timed out after {} ms; cancelled", volumeId, dialTimeoutMillis);
+            throw new IOException("Dial timed out for volume " + volumeId
+                    + " after " + dialTimeoutMillis + " ms", e);
+        } catch (ExecutionException e) {
+            Throwable cause = e.getCause() != null ? e.getCause() : e;
+            if (cause instanceof IOException ioe) throw ioe;
+            if (cause instanceof RuntimeException re) throw re;
+            throw new IOException("Dial failed for volume " + volumeId + ": " + cause.getMessage(), cause);
+        } catch (InterruptedException e) {
+            future.cancel(true);
+            Thread.currentThread().interrupt();
+            throw new IOException("Interrupted while dialling volume " + volumeId, e);
+        }
+    }
+
+    /** Visible for testing — override to simulate dial outcomes. */
+    protected PooledShare dial(String volumeId) throws IOException {
         VolumeConfig volume = config.findById(volumeId)
                 .orElseThrow(() -> new IOException("Unknown volume: " + volumeId));
         ServerConfig server = config.findServerById(volume.server())
@@ -311,7 +412,7 @@ public class SmbConnectionFactory {
         }
     }
 
-    private static final class PooledShare {
+    static class PooledShare {
         final Connection connection;
         final Session session;
         final DiskShare share;
@@ -324,14 +425,22 @@ public class SmbConnectionFactory {
             this.subPath = subPath;
         }
 
+        /** Test-only constructor — for stubbing in unit tests without real smbj objects. */
+        PooledShare(String subPath) {
+            this.connection = null;
+            this.session = null;
+            this.share = null;
+            this.subPath = subPath;
+        }
+
         boolean isHealthy() {
-            return connection.isConnected();
+            return connection != null && connection.isConnected();
         }
 
         void closeQuietly() {
-            try { share.close(); } catch (Exception ignored) { /* ignore */ }
-            try { session.close(); } catch (Exception ignored) { /* ignore */ }
-            try { connection.close(); } catch (Exception ignored) { /* ignore */ }
+            if (share != null)      try { share.close();      } catch (Exception ignored) { /* ignore */ }
+            if (session != null)    try { session.close();    } catch (Exception ignored) { /* ignore */ }
+            if (connection != null) try { connection.close(); } catch (Exception ignored) { /* ignore */ }
         }
     }
 
