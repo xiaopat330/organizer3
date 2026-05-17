@@ -122,6 +122,54 @@ class HttpOllamaAdapterTest {
                 "request body must not include 'format' when formatJson=false (translation back-compat)");
     }
 
+    @Test
+    @SuppressWarnings("unchecked")
+    void generate_keepAlive_setsTopLevelKeepAliveInBody() throws Exception {
+        HttpClient mockHttp = mock(HttpClient.class);
+        HttpResponse<String> mockResp = mock(HttpResponse.class);
+        when(mockResp.statusCode()).thenReturn(200);
+        when(mockResp.body()).thenReturn("{\"response\":\"hi\"}");
+        ArgumentCaptor<HttpRequest> reqCap = ArgumentCaptor.forClass(HttpRequest.class);
+        when(mockHttp.send(reqCap.capture(), any(HttpResponse.BodyHandler.class)))
+                .thenReturn(mockResp);
+
+        HttpOllamaAdapter adapter = new HttpOllamaAdapter("http://localhost:11434", mockHttp, json);
+
+        OllamaRequest req = new OllamaRequest("gemma4:e4b", "x", null, null,
+                Duration.ofSeconds(5), false, "15m");
+
+        adapter.generate(req);
+
+        JsonNode body = json.readTree(captureBody(reqCap.getValue()));
+        assertEquals("15m", body.path("keep_alive").asText(), "expected top-level keep_alive=15m");
+        assertFalse(body.path("options").has("keep_alive"),
+                "'keep_alive' must be at top level, not in options");
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void generate_keepAliveNull_omitsKeepAliveKey() throws Exception {
+        HttpClient mockHttp = mock(HttpClient.class);
+        HttpResponse<String> mockResp = mock(HttpResponse.class);
+        when(mockResp.statusCode()).thenReturn(200);
+        when(mockResp.body()).thenReturn("{\"response\":\"hi\"}");
+        ArgumentCaptor<HttpRequest> reqCap = ArgumentCaptor.forClass(HttpRequest.class);
+        when(mockHttp.send(reqCap.capture(), any(HttpResponse.BodyHandler.class)))
+                .thenReturn(mockResp);
+
+        HttpOllamaAdapter adapter = new HttpOllamaAdapter("http://localhost:11434", mockHttp, json);
+
+        // 5-arg back-compat constructor → keepAlive defaults to null
+        OllamaRequest req = new OllamaRequest("gemma4:e4b", "x", null, null,
+                Duration.ofSeconds(5));
+
+        adapter.generate(req);
+
+        JsonNode body = json.readTree(captureBody(reqCap.getValue()));
+        assertFalse(body.has("keep_alive"),
+                "request body must not include 'keep_alive' when keepAlive=null (translation back-compat)");
+    }
+
     /** Extracts the JSON body string from an HttpRequest by draining its BodyPublisher. */
     private static String captureBody(HttpRequest req) {
         AtomicReference<String> captured = new AtomicReference<>();

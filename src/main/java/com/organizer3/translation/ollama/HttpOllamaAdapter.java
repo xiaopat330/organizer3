@@ -60,6 +60,10 @@ public class HttpOllamaAdapter implements OllamaAdapter {
         if (req.formatJson()) {
             body.put("format", "json");
         }
+        // keep_alive: top-level — instructs Ollama to retain the model in memory
+        if (req.keepAlive() != null && !req.keepAlive().isEmpty()) {
+            body.put("keep_alive", req.keepAlive());
+        }
 
         if (req.options() != null && !req.options().isEmpty()) {
             ObjectNode opts = json.createObjectNode();

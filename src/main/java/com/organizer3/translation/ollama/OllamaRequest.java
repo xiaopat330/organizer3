@@ -26,12 +26,24 @@ public record OllamaRequest(
          * model is constrained to emit valid JSON. Default {@code false} for translation pipeline
          * back-compat.
          */
-        boolean formatJson
+        boolean formatJson,
+        /**
+         * When non-null and non-empty, sets top-level {@code "keep_alive"} in the request body so
+         * Ollama keeps the model loaded for the specified duration (e.g. {@code "15m"}). Default
+         * {@code null} → key is omitted and Ollama uses its server-side default.
+         */
+        String keepAlive
 ) {
-    /** Back-compat constructor: defaults {@code formatJson} to {@code false}. */
+    /** Back-compat constructor: defaults {@code formatJson} to {@code false} and {@code keepAlive} to null. */
     public OllamaRequest(String modelId, String prompt, String systemMessage,
                          Map<String, Object> options, Duration timeout) {
-        this(modelId, prompt, systemMessage, options, timeout, false);
+        this(modelId, prompt, systemMessage, options, timeout, false, null);
+    }
+
+    /** Back-compat constructor: defaults {@code keepAlive} to null. */
+    public OllamaRequest(String modelId, String prompt, String systemMessage,
+                         Map<String, Object> options, Duration timeout, boolean formatJson) {
+        this(modelId, prompt, systemMessage, options, timeout, formatJson, null);
     }
 
     /**
