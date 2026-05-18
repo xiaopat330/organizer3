@@ -954,6 +954,10 @@ public class Application {
         com.organizer3.enrichment.ai.EnrichmentAssistSweeper enrichmentAssistSweeper =
                 new com.organizer3.enrichment.ai.EnrichmentAssistSweeper(
                         enrichmentReviewQueueRepo, ensembleAssistCaller, assistConfig, enrichmentAutoApplier);
+        // Phase 4 Track C — one-shot historical accuracy backfill.
+        com.organizer3.utilities.task.javdb.AiAssistBackfillTask aiAssistBackfillTask =
+                new com.organizer3.utilities.task.javdb.AiAssistBackfillTask(
+                        enrichmentReviewQueueRepo, ensembleAssistCaller, jsonMapper, dataDir);
 
         // Coherent multi-volume sync — defers global orphan prune until all volumes are scanned.
         com.organizer3.sync.SyncPruneService syncPruneService =
@@ -1001,7 +1005,7 @@ public class Application {
                                 fixTimestampsPreviewTask, fixTimestampsTask,
                                 recomputeRatingCurveTask, enrichmentClearMismatchedTask,
                                 bulkEnrichToDraftTask, autoPromoteRule3SweepTask,
-                                enrichmentAssistSweeper));
+                                enrichmentAssistSweeper, aiAssistBackfillTask));
         com.organizer3.utilities.task.TaskRunner taskRunner =
                 new com.organizer3.utilities.task.TaskRunner(taskRegistry);
         // Set the forward reference so SyncCoherentCommand can call taskRunner.start(...).

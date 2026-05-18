@@ -269,6 +269,46 @@ public class EnrichmentReviewQueueRepository {
     }
 
     /**
+     * Lists already-resolved ambiguous queue rows for the AI-assist historical backfill task
+     * (Phase 4 Track C). Joins {@code title_javdb_enrichment} to surface the ground-truth
+     * slug that was ultimately written for the title — used to score the ensemble's
+     * historical accuracy.
+     *
+     * <p>Predicate: {@code resolved_at IS NOT NULL AND reason='ambiguous' AND detail IS NOT NULL}
+     * AND a {@code title_javdb_enrichment.javdb_slug} exists for the same {@code title_id}.
+     * Ordered by {@code id ASC} for deterministic processing.
+     *
+     * @param limit maximum rows; pass {@link Integer#MAX_VALUE} for unlimited
+     */
+    public List<BackfillCandidate> listResolvedAmbiguousForBackfill(int limit) {
+        return jdbi.withHandle(h ->
+                h.createQuery("""
+                        SELECT q.id              AS id,
+                               q.title_id        AS title_id,
+                               t.code            AS title_code,
+                               q.detail          AS detail,
+                               e.javdb_slug      AS ground_truth_slug
+                        FROM enrichment_review_queue q
+                        JOIN title_javdb_enrichment e ON e.title_id = q.title_id
+                        LEFT JOIN titles t ON t.id = q.title_id
+                        WHERE q.resolved_at IS NOT NULL
+                          AND q.reason = 'ambiguous'
+                          AND q.detail IS NOT NULL
+                          AND e.javdb_slug IS NOT NULL
+                        ORDER BY q.id ASC
+                        LIMIT :limit
+                        """)
+                        .bind("limit", limit)
+                        .map((rs, ctx) -> new BackfillCandidate(
+                                rs.getLong("id"),
+                                rs.getLong("title_id"),
+                                rs.getString("title_code"),
+                                rs.getString("detail"),
+                                rs.getString("ground_truth_slug")))
+                        .list());
+    }
+
+    /**
      * Resolves the prompt-context companions to {@link OpenRow} that aren't carried in the
      * row itself: the title's active (non-stale) folder path on disk and the canonical
      * (romaji) names of the linked, non-sentinel actresses.
@@ -671,6 +711,14 @@ public class EnrichmentReviewQueueRepository {
 
     /** One side of a slug conflict — the claimant or incumbent actress. */
     public record ConflictActress(long id, String canonicalName, String stageName, String tier) {}
+
+    /**
+     * Row returned by {@link #listResolvedAmbiguousForBackfill(int)} — an already-resolved
+     * ambiguous queue row paired with the slug eventually written to
+     * {@code title_javdb_enrichment} (the human-picked ground truth).
+     */
+    public record BackfillCandidate(long id, long titleId, String titleCode,
+                                    String detail, String groundTruthSlug) {}
 
     /**
      * A single open queue row returned by {@link #listOpen}, {@link #findOpenById},
