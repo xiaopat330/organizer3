@@ -70,6 +70,17 @@ final class UiTestFixture {
      * stocked server as {@link #buildStockedServer()} but accepts a customizer for the JavDB mocks.
      */
     static WebServer buildJavdbStockedServer(java.util.function.Consumer<JavdbDiscoveryService> customize) {
+        return buildJavdbStockedServer(customize, null);
+    }
+
+    /**
+     * Variant accepting customizers for BOTH the discovery service and the enrichment action service.
+     * The picker UI (Errors tab) reads from {@link JavdbEnrichmentActionService#getErrorsForActress(long)},
+     * so tests that exercise the picker need to stub that service too.
+     */
+    static WebServer buildJavdbStockedServer(
+            java.util.function.Consumer<JavdbDiscoveryService> customize,
+            java.util.function.Consumer<JavdbEnrichmentActionService> actionCustomize) {
         TitleBrowseService titleBrowse = mock(TitleBrowseService.class);
         ActressBrowseService actressBrowse = mock(ActressBrowseService.class);
         SearchService searchService = mock(SearchService.class);
@@ -86,6 +97,7 @@ final class UiTestFixture {
         // Sane defaults — caller can override via customize.
         stubJavdbDefaults(javdbService);
         if (customize != null) customize.accept(javdbService);
+        if (actionCustomize != null) actionCustomize.accept(javdbActions);
         server.registerJavdbDiscovery(new JavdbDiscoveryRoutes(javdbService, javdbActions));
 
         server.start();

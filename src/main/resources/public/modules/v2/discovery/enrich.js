@@ -582,6 +582,9 @@ export function initEnrich(state, hooks) {
       await doErrorRefreshCandidates(panelEl, job, li, pickerLi);
     });
 
+    const aiBanner = buildAiSuggestionBanner(job, panelEl, detail, li, pickerLi);
+    if (aiBanner) panelEl.appendChild(aiBanner);
+
     const cards = document.createElement('div');
     cards.className = 'er-candidate-cards';
     if (job.coverUrl) {
@@ -636,9 +639,117 @@ export function initEnrich(state, hooks) {
     return card;
   }
 
+  function buildAiSuggestionBanner(job, panelEl, detail, li, pickerLi) {
+    const conf = job.aiSuggestionConfidence;
+    const at = job.aiSuggestionAt;
+    // Pending state — no row at all yet.
+    if (!at && !conf) {
+      const banner = document.createElement('div');
+      banner.className = 'er-picker-ai-banner er-picker-ai-banner-pending';
+      const text = document.createElement('span');
+      text.className = 'er-picker-ai-banner-text';
+      text.textContent = 'AI assist pending';
+      banner.appendChild(text);
+
+      const refresh = document.createElement('button');
+      refresh.type = 'button';
+      refresh.className = 'er-picker-ai-refresh';
+      refresh.textContent = 'Refresh';
+      refresh.addEventListener('click', async () => {
+        refresh.disabled = true;
+        try {
+          const res = await fetch(`/api/utilities/review-queue/${job.reviewQueueId}/ai-suggestion`);
+          if (!res.ok) { refresh.disabled = false; return; }
+          const data = await res.json();
+          if (data && data.at) {
+            job.aiSuggestionSlug = data.slug;
+            job.aiSuggestionConfidence = data.confidence;
+            job.aiSuggestionReason = data.reason;
+            job.aiSuggestionAt = data.at;
+            // Re-render the picker content in place.
+            renderErrorPickerContent(panelEl, job, detail, li, pickerLi);
+          } else {
+            refresh.disabled = false;
+          }
+        } catch (err) {
+          console.error('AI suggestion refresh failed', err);
+          refresh.disabled = false;
+        }
+      });
+      banner.appendChild(refresh);
+      banner.appendChild(buildAiDismissBtn(banner));
+      return banner;
+    }
+    // Suggestion is "error" outcome — render nothing.
+    if (conf === 'error') return null;
+    // Anything else requires a confidence value.
+    if (!conf) return null;
+
+    let modifier;
+    let textContent;
+    const slug = job.aiSuggestionSlug;
+    const reason = job.aiSuggestionReason || '';
+    switch (conf) {
+      case 'agreed':
+        modifier = 'er-picker-ai-banner-agreed';
+        textContent = `AI suggests: ${slug} (both models agreed) — ${reason}`;
+        break;
+      case 'phi4_only':
+        modifier = 'er-picker-ai-banner-single';
+        textContent = `AI suggests: ${slug} (phi4 only) — ${reason}`;
+        break;
+      case 'gemma_only':
+        modifier = 'er-picker-ai-banner-single';
+        textContent = `AI suggests: ${slug} (gemma only) — ${reason}`;
+        break;
+      case 'conflict':
+        modifier = 'er-picker-ai-banner-neutral';
+        textContent = `AI couldn't pick — phi4 and gemma3 disagreed`;
+        break;
+      case 'both_abstain':
+        modifier = 'er-picker-ai-banner-neutral';
+        textContent = `AI abstained — both models couldn't pick`;
+        break;
+      default:
+        return null;
+    }
+
+    const banner = document.createElement('div');
+    banner.className = `er-picker-ai-banner ${modifier}`;
+    const text = document.createElement('span');
+    text.className = 'er-picker-ai-banner-text';
+    text.textContent = textContent;
+    banner.appendChild(text);
+    banner.appendChild(buildAiDismissBtn(banner));
+    return banner;
+  }
+
+  function buildAiDismissBtn(banner) {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'er-picker-ai-dismiss';
+    btn.setAttribute('aria-label', 'Dismiss AI suggestion');
+    btn.textContent = '×';
+    btn.addEventListener('click', () => { banner.style.display = 'none'; });
+    return btn;
+  }
+
   function buildErrorCandidateCard(job, candidate, linkedSlugs, li, pickerLi) {
     const card = document.createElement('div');
     card.className = 'er-candidate-card';
+    const isAiPick = job.aiSuggestionSlug
+        && candidate.slug === job.aiSuggestionSlug
+        && (job.aiSuggestionConfidence === 'agreed'
+            || job.aiSuggestionConfidence === 'phi4_only'
+            || job.aiSuggestionConfidence === 'gemma_only');
+    if (isAiPick) {
+      card.classList.add('er-candidate-card-ai-pick');
+      const pill = document.createElement('span');
+      pill.className = 'er-ai-pick-pill';
+      pill.textContent = job.aiSuggestionConfidence === 'agreed' ? 'AI pick ✓' : 'AI pick';
+      if (job.aiSuggestionReason) pill.setAttribute('title', job.aiSuggestionReason);
+      card.appendChild(pill);
+    }
 
     const cover = document.createElement('div');
     cover.className = 'er-candidate-cover';
