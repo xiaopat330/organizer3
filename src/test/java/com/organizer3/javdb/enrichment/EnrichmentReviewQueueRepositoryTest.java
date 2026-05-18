@@ -301,6 +301,40 @@ class EnrichmentReviewQueueRepositoryTest {
         assertTrue(repo.findOpenById(9999L).isEmpty());
     }
 
+    // ── findById (open + resolved) ────────────────────────────────────────────
+
+    @Test
+    void findById_returnsOpenRow() {
+        repo.enqueue(1L, "slug1", "ambiguous", "code_search_fallback");
+        long id = jdbi.withHandle(h ->
+                h.createQuery("SELECT id FROM enrichment_review_queue WHERE title_id = 1")
+                        .mapTo(Long.class).one());
+
+        var found = repo.findById(id);
+
+        assertTrue(found.isPresent());
+        assertEquals(1L, found.get().titleId());
+        assertEquals("ambiguous", found.get().reason());
+    }
+
+    @Test
+    void findById_returnsResolvedRow() {
+        repo.enqueue(1L, "slug1", "ambiguous", "code_search_fallback");
+        long id = jdbi.withHandle(h ->
+                h.createQuery("SELECT id FROM enrichment_review_queue WHERE title_id = 1")
+                        .mapTo(Long.class).one());
+        repo.resolveOne(id, "accepted_gap");
+
+        var found = repo.findById(id);
+        assertTrue(found.isPresent(), "findById must return resolved rows too");
+        assertEquals(1L, found.get().titleId());
+    }
+
+    @Test
+    void findById_returnsEmpty_forNonExistentId() {
+        assertTrue(repo.findById(9999L).isEmpty());
+    }
+
     // ── updateDetail ──────────────────────────────────────────────────────────
 
     @Test

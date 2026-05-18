@@ -559,6 +559,61 @@ class UtilitiesRoutesTest {
         assertEquals("Himari Kinoshita", conflictCtx.get("incumbent").get("canonicalName").asText());
     }
 
+    // ── AI suggestion refresh (Phase 2 Track B) ────────────────────────────────
+
+    @Test
+    void getAiSuggestion_returnsFieldsWhenPopulated() throws Exception {
+        var row = new EnrichmentReviewQueueRepository.OpenRow(
+                42L, 10L, "ABP-001", "slugY", "ambiguous", "code_search_fallback",
+                Instant.now().toString(), "{}",
+                "ai-slug", "high", "matched on cast", "2026-05-17T12:34:56Z", true);
+        when(reviewQueueRepo.findById(42L)).thenReturn(Optional.of(row));
+
+        var resp = get("/api/utilities/review-queue/42/ai-suggestion");
+        assertEquals(200, resp.statusCode());
+        JsonNode body = mapper.readTree(resp.body());
+        assertEquals("ai-slug",          body.get("slug").asText());
+        assertEquals("high",             body.get("confidence").asText());
+        assertEquals("matched on cast",  body.get("reason").asText());
+        assertEquals("2026-05-17T12:34:56Z", body.get("at").asText());
+        assertTrue(body.get("auto_applied").asBoolean());
+    }
+
+    @Test
+    void getAiSuggestion_returnsNullsWhenNotYetProcessed() throws Exception {
+        // Uses the convenience OpenRow constructor that leaves ai_suggestion_* null + auto=false.
+        var row = new EnrichmentReviewQueueRepository.OpenRow(
+                5L, 10L, "ABP-001", "slugY", "ambiguous", "code_search_fallback",
+                Instant.now().toString(), "{}");
+        when(reviewQueueRepo.findById(5L)).thenReturn(Optional.of(row));
+
+        var resp = get("/api/utilities/review-queue/5/ai-suggestion");
+        assertEquals(200, resp.statusCode());
+        JsonNode body = mapper.readTree(resp.body());
+        assertTrue(body.has("slug"));
+        assertTrue(body.get("slug").isNull());
+        assertTrue(body.get("confidence").isNull());
+        assertTrue(body.get("reason").isNull());
+        assertTrue(body.get("at").isNull());
+        assertFalse(body.get("auto_applied").asBoolean());
+    }
+
+    @Test
+    void getAiSuggestion_404WhenRowMissing() throws Exception {
+        when(reviewQueueRepo.findById(999L)).thenReturn(Optional.empty());
+
+        var resp = get("/api/utilities/review-queue/999/ai-suggestion");
+        assertEquals(404, resp.statusCode());
+        JsonNode body = mapper.readTree(resp.body());
+        assertEquals("not found", body.get("error").asText());
+    }
+
+    @Test
+    void getAiSuggestion_400OnNonNumericId() throws Exception {
+        var resp = get("/api/utilities/review-queue/abc/ai-suggestion");
+        assertEquals(400, resp.statusCode());
+    }
+
     // ── Identity tools ─────────────────────────────────────────────────────────
 
     @Test

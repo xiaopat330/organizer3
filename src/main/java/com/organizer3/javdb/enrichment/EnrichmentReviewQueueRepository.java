@@ -318,6 +318,29 @@ public class EnrichmentReviewQueueRepository {
     }
 
     /**
+     * Returns a single queue row by id regardless of resolved state. Used by lightweight
+     * read-only endpoints (e.g. the AI suggestion refresh poll) that need to surface the
+     * latest {@code ai_suggestion_*} columns even after a row has been resolved.
+     *
+     * <p>Like {@link #findOpenById}, uses LEFT JOIN on titles so orphan rows still come back.
+     */
+    public java.util.Optional<OpenRow> findById(long queueRowId) {
+        return jdbi.withHandle(h ->
+                h.createQuery("""
+                        SELECT q.id, q.title_id, t.code AS title_code, q.slug,
+                               q.reason, q.resolver_source, q.created_at, q.detail,
+                               q.ai_suggestion_slug, q.ai_suggestion_confidence,
+                               q.ai_suggestion_reason, q.ai_suggestion_at, q.ai_auto_applied
+                        FROM enrichment_review_queue q
+                        LEFT JOIN titles t ON t.id = q.title_id
+                        WHERE q.id = :id
+                        """)
+                        .bind("id", queueRowId)
+                        .map((rs, ctx) -> mapOpenRow(rs))
+                        .findOne());
+    }
+
+    /**
      * Inserts an open review-queue entry with a candidate snapshot in {@code detail}.
      * If an equivalent open entry already exists (same title_id + reason), the INSERT is
      * a no-op but the detail is updated if it was previously NULL.

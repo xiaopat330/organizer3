@@ -357,6 +357,28 @@ public final class UtilitiesRoutes {
             }
         });
 
+        // Lightweight read-only refresh for the UI's "AI assist pending" banner.
+        // Returns just the ai_suggestion_* fields for a single queue row (open or resolved).
+        // Phase 2 Track B of the AI Picker Assist plan.
+        app.get("/api/utilities/review-queue/{id}/ai-suggestion", ctx -> {
+            long id;
+            try { id = Long.parseLong(ctx.pathParam("id")); }
+            catch (NumberFormatException e) {
+                ctx.status(400); ctx.json(Map.of("error", "id must be a long integer")); return;
+            }
+            reviewQueueRepo.findById(id).ifPresentOrElse(
+                    row -> {
+                        var m = new LinkedHashMap<String, Object>();
+                        m.put("slug",         row.aiSuggestionSlug());
+                        m.put("confidence",   row.aiSuggestionConfidence());
+                        m.put("reason",       row.aiSuggestionReason());
+                        m.put("at",           row.aiSuggestionAt());
+                        m.put("auto_applied", row.aiAutoApplied());
+                        ctx.json(m);
+                    },
+                    () -> { ctx.status(404); ctx.json(Map.of("error", "not found")); });
+        });
+
         // Identity tools — rename actress and recode title (Wave 4B Phase 2)
         app.post("/api/utilities/actress/{id}/rename", ctx -> {
             long id;
