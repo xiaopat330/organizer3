@@ -194,6 +194,38 @@ class JavdbEnrichmentActionServiceTest {
     }
 
     @Test
+    void getErrorsForActress_surfacesAiSuggestionColumns() {
+        long titleId = insertTitle("AIS-001");
+        long actressId = 30L;
+        // Insert a failed queue row with a specific last_error
+        jdbi.useHandle(h ->
+                h.execute("INSERT INTO javdb_enrichment_queue " +
+                          "(job_type, target_id, actress_id, status, attempts, last_error, " +
+                          " next_attempt_at, created_at, updated_at) " +
+                          "VALUES ('fetch_title', ?, ?, 'failed', 1, 'AMBIGUOUS', " +
+                          " '2024-01-01T00:00:00Z', '2024-01-01T00:00:00Z', '2024-01-01T00:00:00Z')",
+                        titleId, actressId));
+        // Insert a matching open review_queue row with ai_suggestion_* populated
+        jdbi.useHandle(h ->
+                h.execute("INSERT INTO enrichment_review_queue " +
+                          "(title_id, reason, detail, created_at, " +
+                          " ai_suggestion_slug, ai_suggestion_confidence, " +
+                          " ai_suggestion_reason, ai_suggestion_at) " +
+                          "VALUES (?, 'AMBIGUOUS', 'detail-text', '2024-01-01T00:00:00Z', " +
+                          " 'ais-001-jp', 'agreed', 'both models agreed', '2024-01-02T00:00:00Z')",
+                        titleId));
+
+        List<EnrichmentQueue.FailedJobSummary> errors = service.getErrorsForActress(actressId);
+
+        assertEquals(1, errors.size());
+        EnrichmentQueue.FailedJobSummary e = errors.get(0);
+        assertEquals("ais-001-jp",          e.aiSuggestionSlug());
+        assertEquals("agreed",              e.aiSuggestionConfidence());
+        assertEquals("both models agreed",  e.aiSuggestionReason());
+        assertEquals("2024-01-02T00:00:00Z", e.aiSuggestionAt());
+    }
+
+    @Test
     void getErrorsForActress_doesNotReturnOtherActressErrors() {
         long t1 = insertTitle("GGG-001");
         long t2 = insertTitle("GGG-002");

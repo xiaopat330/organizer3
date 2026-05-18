@@ -382,7 +382,8 @@ class JavdbDiscoveryRoutesTest {
     void getErrorsForActress_returnsList() throws Exception {
         EnrichmentQueue.FailedJobSummary fj = new EnrichmentQueue.FailedJobSummary(
                 1L, 100L, "ABP-001", "timeout", 3, "2024-01-01T00:00:00Z",
-                null, null, "ABP", "ABP-00001", null);
+                null, null, "ABP", "ABP-00001", null,
+                null, null, null, null);
         when(actionService.getErrorsForActress(1L)).thenReturn(List.of(fj));
 
         var resp = get("/api/javdb/discovery/actresses/1/errors");

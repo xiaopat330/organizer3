@@ -91,7 +91,9 @@ public class JavdbEnrichmentActionService {
                     return new EnrichmentQueue.FailedJobSummary(
                             s.jobId(), s.titleId(), s.titleCode(), s.lastError(), s.attempts(),
                             s.updatedAt(), s.reviewQueueId(), s.reviewDetail(),
-                            s.titleLabel(), s.titleBaseCode(), coverUrl
+                            s.titleLabel(), s.titleBaseCode(), coverUrl,
+                            s.aiSuggestionSlug(), s.aiSuggestionConfidence(),
+                            s.aiSuggestionReason(), s.aiSuggestionAt()
                     );
                 })
                 .toList();

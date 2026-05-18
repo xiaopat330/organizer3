@@ -444,7 +444,11 @@ public class EnrichmentQueue {
                        q.attempts,
                        q.updated_at,
                        erq.id     AS review_queue_id,
-                       erq.detail AS review_detail
+                       erq.detail AS review_detail,
+                       erq.ai_suggestion_slug       AS ai_suggestion_slug,
+                       erq.ai_suggestion_confidence AS ai_suggestion_confidence,
+                       erq.ai_suggestion_reason     AS ai_suggestion_reason,
+                       erq.ai_suggestion_at         AS ai_suggestion_at
                 FROM javdb_enrichment_queue q
                 LEFT JOIN titles t
                        ON t.id = q.target_id AND q.job_type = 'fetch_title'
@@ -472,7 +476,11 @@ public class EnrichmentQueue {
                             rs.getString("review_detail"),
                             rs.getString("title_label"),
                             rs.getString("title_base_code"),
-                            null   // coverUrl resolved by service layer
+                            null,  // coverUrl resolved by service layer
+                            rs.getString("ai_suggestion_slug"),
+                            rs.getString("ai_suggestion_confidence"),
+                            rs.getString("ai_suggestion_reason"),
+                            rs.getString("ai_suggestion_at")
                     );
                 })
                 .list());
@@ -490,7 +498,11 @@ public class EnrichmentQueue {
             String reviewDetail,
             String titleLabel,
             String titleBaseCode,
-            String coverUrl   // nullable; populated by service layer after cover-path probe
+            String coverUrl,  // nullable; populated by service layer after cover-path probe
+            String aiSuggestionSlug,
+            String aiSuggestionConfidence,
+            String aiSuggestionReason,
+            String aiSuggestionAt
     ) {}
 
     /** Resets all failed jobs for the actress back to pending so they will be retried. */
