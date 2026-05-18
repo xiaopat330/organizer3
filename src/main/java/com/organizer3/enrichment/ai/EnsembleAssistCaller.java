@@ -60,13 +60,23 @@ public class EnsembleAssistCaller {
     private final OllamaModelOrchestrator orchestrator;
     private final EnrichmentAssistConfig config;
     private final ObjectMapper objectMapper;
+    private final PostProcessingRules postProcessing;
 
+    /** Test-friendly constructor — wires a disabled {@link PostProcessingRules} layer. */
     public EnsembleAssistCaller(OllamaModelOrchestrator orchestrator,
                                 EnrichmentAssistConfig config,
                                 ObjectMapper objectMapper) {
+        this(orchestrator, config, objectMapper, new PostProcessingRules(false));
+    }
+
+    public EnsembleAssistCaller(OllamaModelOrchestrator orchestrator,
+                                EnrichmentAssistConfig config,
+                                ObjectMapper objectMapper,
+                                PostProcessingRules postProcessing) {
         this.orchestrator = Objects.requireNonNull(orchestrator, "orchestrator");
         this.config = Objects.requireNonNull(config, "config");
         this.objectMapper = Objects.requireNonNull(objectMapper, "objectMapper");
+        this.postProcessing = Objects.requireNonNull(postProcessing, "postProcessing");
     }
 
     public AssistResult evaluate(EnrichmentReviewQueueRepository.OpenRow row) {
@@ -84,12 +94,22 @@ public class EnsembleAssistCaller {
                                  String folderPath,
                                  List<String> actressNames) {
         Objects.requireNonNull(row, "row");
-        AssistPromptBuilder.Input input = materializeInput(row, folderPath, actressNames);
-        if (input.candidates() == null || input.candidates().isEmpty()) {
+        AssistPromptBuilder.Input rawInput = materializeInput(row, folderPath, actressNames);
+        if (rawInput.candidates() == null || rawInput.candidates().isEmpty()) {
             throw new IllegalStateException(
                     "EnsembleAssistCaller: row " + row.id() + " (code=" + row.titleCode()
                             + ") has zero candidates after parsing detail snapshot");
         }
+
+        // Phase 4 Track B — Java-side prefilter (rules 3 + 2). Empty-list safe: returns the
+        // original candidate list unchanged if a rule would remove everything.
+        List<AssistPromptBuilder.Input.Candidate> filtered =
+                postProcessing.prefilterCandidates(rawInput, rawInput.candidates());
+        AssistPromptBuilder.Input input = (filtered == rawInput.candidates())
+                ? rawInput
+                : new AssistPromptBuilder.Input(
+                        rawInput.code(), rawInput.label(), rawInput.folderPath(),
+                        rawInput.actressNames(), rawInput.linkedSlugs(), filtered);
 
         String userPrompt = AssistPromptBuilder.buildUserPrompt(input);
         String systemPrompt = AssistPromptBuilder.SYSTEM;
@@ -97,7 +117,11 @@ public class EnsembleAssistCaller {
         ModelReply phi4Reply  = callModel(config.primaryModel(),   systemPrompt, userPrompt, row.titleCode(), input.candidates().size());
         ModelReply gemmaReply = callModel(config.secondaryModel(), systemPrompt, userPrompt, row.titleCode(), input.candidates().size());
 
-        AssistResult result = vote(phi4Reply, gemmaReply, input.candidates());
+        AssistResult preOverride = vote(phi4Reply, gemmaReply, input.candidates());
+
+        // Phase 4 Track B — post-ensemble override (rule 1). Operates on the same candidate
+        // list that the ensemble voted on, so slug references stay consistent.
+        AssistResult result = postProcessing.applyOverrides(input, preOverride, input.candidates());
 
         log.info("[ai-assist] code={} outcome={} confidence={} phi4={} gemma={}",
                 row.titleCode(), result.outcome(), result.confidence(),

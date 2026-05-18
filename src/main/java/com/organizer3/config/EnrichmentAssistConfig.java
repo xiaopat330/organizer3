@@ -17,6 +17,9 @@ import com.fasterxml.jackson.annotation.JsonProperty;
  * @param maxAutoApplyAttempts    after this many consecutive auto-apply failures the row is
  *                                excluded from the sweeper's auto-apply queue (stays open for
  *                                human picker resolution); defaults to 3
+ * @param postProcessingEnabled   when true (default), the {@link com.organizer3.enrichment.ai.PostProcessingRules}
+ *                                layer runs pre/post the LLM ensemble. Set to false to disable
+ *                                the entire Java-side rules layer if it regresses anything.
  */
 public record EnrichmentAssistConfig(
         @JsonProperty("mode")                    String mode,
@@ -25,9 +28,10 @@ public record EnrichmentAssistConfig(
         @JsonProperty("sweeperIntervalSeconds")  int sweeperIntervalSeconds,
         @JsonProperty("autoApplyDelaySeconds")   int autoApplyDelaySeconds,
         @JsonProperty("promptVersion")           String promptVersion,
-        @JsonProperty("maxAutoApplyAttempts")    int maxAutoApplyAttempts
+        @JsonProperty("maxAutoApplyAttempts")    int maxAutoApplyAttempts,
+        @JsonProperty("postProcessingEnabled")   boolean postProcessingEnabled
 ) {
     public static EnrichmentAssistConfig defaults() {
-        return new EnrichmentAssistConfig("off", "phi4", "gemma3:12b", 60, 60, "v7-kanji-bridge", 3);
+        return new EnrichmentAssistConfig("off", "phi4", "gemma3:12b", 60, 60, "v7-kanji-bridge", 3, true);
     }
 }

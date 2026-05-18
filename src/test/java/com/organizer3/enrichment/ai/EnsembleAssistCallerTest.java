@@ -252,6 +252,69 @@ class EnsembleAssistCallerTest {
                 "no actress hint when names are empty");
     }
 
+    // ------------------------------------------------------------------ Phase 4 Track B: post-processing rules integration
+
+    /** Detail JSON where the linked actress appears in BOTH candidates and the agreed
+     *  candidate's title strictly contains the other's title (bonus-version pattern). */
+    private static final String BONUS_PATTERN_DETAIL = """
+            {
+              "code": "ABC-123",
+              "linked_slugs": ["yu-tano"],
+              "candidates": [
+                { "slug": "abc-123-short",
+                  "title_original": "ABC-123 Canonical Edition",
+                  "cast": [ {"slug": "yu-tano", "name": "Yu Tano"} ] },
+                { "slug": "abc-123-bonus",
+                  "title_original": "ABC-123 Canonical Edition Bonus Extra Long Cut",
+                  "cast": [ {"slug": "yu-tano", "name": "Yu Tano"} ] }
+              ],
+              "fetched_at": "2026-05-17T10:00:00Z"
+            }
+            """;
+
+    private EnrichmentReviewQueueRepository.OpenRow bonusRow() {
+        return new EnrichmentReviewQueueRepository.OpenRow(
+                42L, 100L, "ABC-123", null,
+                "ambiguous", "javdb_search", "2026-05-17T00:00:00Z",
+                BONUS_PATTERN_DETAIL);
+    }
+
+    @Test
+    void postProcessing_enabled_rule1OverridesAgreedBonusPickToShorterCanonical() {
+        EnsembleAssistCaller withRules = new EnsembleAssistCaller(
+                orchestrator, config, objectMapper,
+                new PostProcessingRules(true));
+
+        // Both models agree on candidate 2 (the bonus version).
+        stub(PHI4,  resp(pickJson(2, "high", "matches")));
+        stub(GEMMA, resp(pickJson(2, "high", "matches")));
+
+        AssistResult result = withRules.evaluate(bonusRow(),
+                "/Volumes/x/Yu Tano/ABC-123", java.util.List.of("Yu Tano"));
+
+        assertEquals("agreed_with_override", result.outcome());
+        assertEquals("abc-123-short", result.suggestedSlug());
+        // Pick indices preserved — record what the models actually said.
+        assertEquals(Integer.valueOf(2), result.phi4Pick());
+        assertEquals(Integer.valueOf(2), result.gemmaPick());
+    }
+
+    @Test
+    void postProcessing_disabled_noOverrideEvenWhenRule1Conditions() {
+        EnsembleAssistCaller withoutRules = new EnsembleAssistCaller(
+                orchestrator, config, objectMapper,
+                new PostProcessingRules(false));
+
+        stub(PHI4,  resp(pickJson(2, "high", "matches")));
+        stub(GEMMA, resp(pickJson(2, "high", "matches")));
+
+        AssistResult result = withoutRules.evaluate(bonusRow(),
+                "/Volumes/x/Yu Tano/ABC-123", java.util.List.of("Yu Tano"));
+
+        assertEquals("agreed", result.outcome());
+        assertEquals("abc-123-bonus", result.suggestedSlug());
+    }
+
     @Test
     void zeroCandidatesAfterParsing_throwsIllegalStateException() {
         String emptyDetail = """

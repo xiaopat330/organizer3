@@ -262,9 +262,10 @@ public class EnrichmentReviewQueueRepository {
      *
      * <p><b>{@code confidence} column contents</b> (TEXT, no CHECK constraint): the sweeper
      * (Track G) writes the ensemble {@link com.organizer3.enrichment.ai.AssistResult#outcome()
-     * outcome} string here — one of {@code agreed}, {@code phi4_only}, {@code gemma_only},
-     * {@code conflict}, {@code both_abstain}, or the sentinel {@code error} when caller
-     * evaluation throws. (The plan doc described this column as model "confidence";
+     * outcome} string here — one of {@code agreed}, {@code agreed_with_override} (Phase 4
+     * Track B; see {@link com.organizer3.enrichment.ai.PostProcessingRules}), {@code phi4_only},
+     * {@code gemma_only}, {@code conflict}, {@code both_abstain}, or the sentinel {@code error}
+     * when caller evaluation throws. (The plan doc described this column as model "confidence";
      * Phase 1 reuses it for the richer outcome label since the column is not constrained.)
      *
      * @param queueRowId the row id

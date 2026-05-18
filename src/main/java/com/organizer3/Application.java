@@ -939,9 +939,11 @@ public class Application {
                         assistConfig.mode());
             }
         }
+        com.organizer3.enrichment.ai.PostProcessingRules assistPostProcessingRules =
+                new com.organizer3.enrichment.ai.PostProcessingRules(assistConfig.postProcessingEnabled());
         com.organizer3.enrichment.ai.EnsembleAssistCaller ensembleAssistCaller =
                 new com.organizer3.enrichment.ai.EnsembleAssistCaller(
-                        ollamaOrchestrator, assistConfig, jsonMapper);
+                        ollamaOrchestrator, assistConfig, jsonMapper, assistPostProcessingRules);
         // PickReviewCandidateTool is also referenced below by MCP wiring; build it once here so
         // both the sweeper's EnrichmentAutoApplier and the MCP layer share the same instance.
         com.organizer3.mcp.tools.PickReviewCandidateTool pickReviewCandidateTool =
