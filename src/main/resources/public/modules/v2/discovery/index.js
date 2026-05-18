@@ -442,6 +442,7 @@ export async function mountDiscovery(rootEl) {
       const data = await res.json();
       const running = data.active && data.taskId === AI_ASSIST_TASK_ID && data.status === 'running';
       if (running !== aiAssistRunning) renderAiAssistPill(running);
+      else if (aiAssistPill.style.display === 'none') renderAiAssistPill(running);
     } catch (_) { /* ignore */ }
   }
 
