@@ -117,8 +117,16 @@ public class EnsembleAssistCaller {
         String userPrompt = AssistPromptBuilder.buildUserPrompt(input);
         String systemPrompt = AssistPromptBuilder.SYSTEM;
 
-        ModelReply phi4Reply  = callModel(config.primaryModel(),   systemPrompt, userPrompt, row.titleCode(), input.candidates().size());
-        ModelReply gemmaReply = callModel(config.secondaryModel(), systemPrompt, userPrompt, row.titleCode(), input.candidates().size());
+        ModelReply phi4Reply;
+        ModelReply gemmaReply;
+        if (shouldRunParallel()) {
+            ModelReply[] replies = callBothParallel(input, row.titleCode());
+            phi4Reply  = replies[0];
+            gemmaReply = replies[1];
+        } else {
+            phi4Reply  = callModel(config.primaryModel(),   systemPrompt, userPrompt, row.titleCode(), input.candidates().size());
+            gemmaReply = callModel(config.secondaryModel(), systemPrompt, userPrompt, row.titleCode(), input.candidates().size());
+        }
 
         AssistResult preOverride = vote(
                 phi4Reply.pick(),  phi4Reply.confidence(),  phi4Reply.reason(),
@@ -343,6 +351,78 @@ public class EnsembleAssistCaller {
             return ModelReply.abstain("interrupted");
         }
 
+        return parseReply(model, code, resp != null ? resp.responseText() : null, numCandidates);
+    }
+
+    // ------------------------------------------------------------------ parallel-ensemble (Phase 5 Track B)
+
+    /**
+     * Phase 5 Track B — gate check for the parallel-dispatch path. The flag must be on
+     * AND Ollama's current loaded-model footprint must fit within the configured budget.
+     * On memory pressure the call falls back to the serial path with a WARN log.
+     */
+    boolean shouldRunParallel() {
+        if (!config.parallelEnsemble()) return false;
+        int loadedMb = orchestrator.currentLoadedModelMb();
+        if (loadedMb > config.parallelEnsembleMemoryBudgetMb()) {
+            log.warn("[ai-assist] parallel disabled (loaded={}MB > budget {}MB); falling back to serial",
+                    loadedMb, config.parallelEnsembleMemoryBudgetMb());
+            return false;
+        }
+        return true;
+    }
+
+    /**
+     * Phase 5 Track B — fire both model calls concurrently via
+     * {@link OllamaModelOrchestrator#submitParallel}, then await both with the same
+     * timeout the serial path uses. Either side failing (timeout, submit failure,
+     * execution exception, parse failure) is encoded as an abstain for that model;
+     * the other model's reply is still applied normally by {@link #vote}.
+     *
+     * @return a 2-element array {@code [phi4Reply, gemmaReply]}, never null
+     */
+    private ModelReply[] callBothParallel(AssistPromptBuilder.Input input, String code) {
+        String primary   = config.primaryModel();
+        String secondary = config.secondaryModel();
+        int numCandidates = input.candidates().size();
+
+        OllamaRequest phi4Req  = buildRequest(primary,   input, true, KEEP_ALIVE_DEFAULT);
+        OllamaRequest gemmaReq = buildRequest(secondary, input, true, KEEP_ALIVE_DEFAULT);
+
+        CompletableFuture<OllamaResponse> phi4F;
+        CompletableFuture<OllamaResponse> gemmaF;
+        try {
+            phi4F  = orchestrator.submitParallel(primary,   phi4Req);
+            gemmaF = orchestrator.submitParallel(secondary, gemmaReq);
+        } catch (RuntimeException submitError) {
+            log.warn("[ai-assist] parallel submission failed for code={}: {}", code, submitError.getMessage());
+            return new ModelReply[]{ ModelReply.abstain("submit_failed"), ModelReply.abstain("submit_failed") };
+        }
+
+        ModelReply phi4Reply  = awaitReply(phi4F,  primary,   code, numCandidates);
+        ModelReply gemmaReply = awaitReply(gemmaF, secondary, code, numCandidates);
+        return new ModelReply[]{ phi4Reply, gemmaReply };
+    }
+
+    private ModelReply awaitReply(CompletableFuture<OllamaResponse> future,
+                                  String model, String code, int numCandidates) {
+        OllamaResponse resp;
+        try {
+            resp = future.get(MODEL_FUTURE_TIMEOUT.toMillis(), TimeUnit.MILLISECONDS);
+        } catch (TimeoutException te) {
+            log.warn("[ai-assist] model {} timed out after {}s for code={} (parallel)",
+                    model, MODEL_FUTURE_TIMEOUT.toSeconds(), code);
+            future.cancel(true);
+            return ModelReply.abstain("timeout");
+        } catch (ExecutionException ee) {
+            log.warn("[ai-assist] model {} call failed for code={} (parallel): {}",
+                    model, code, ee.getCause() != null ? ee.getCause().toString() : ee.getMessage());
+            return ModelReply.abstain("call_failed");
+        } catch (InterruptedException ie) {
+            Thread.currentThread().interrupt();
+            log.warn("[ai-assist] model {} call interrupted for code={} (parallel)", model, code);
+            return ModelReply.abstain("interrupted");
+        }
         return parseReply(model, code, resp != null ? resp.responseText() : null, numCandidates);
     }
 
