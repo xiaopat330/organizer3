@@ -195,6 +195,44 @@ public class EnrichmentReviewQueueRepository {
     }
 
     /**
+     * Lists open {@code ambiguous} queue rows that are eligible for AI auto-apply: the
+     * ensemble agreed on a non-null slug, the row has not yet been auto-applied, and the
+     * suggestion has aged at least {@code minAgeSeconds} seconds (a soak window so a human
+     * has had a chance to intervene before the sweeper acts).
+     *
+     * <p>Ordered by {@code ai_suggestion_at ASC} (oldest first). LEFT JOIN on {@code titles}
+     * so orphan rows are still surfaced. Uses {@code julianday()} on the ISO-8601 TEXT
+     * {@code ai_suggestion_at} column to compute age in seconds.
+     *
+     * @param limit         maximum number of rows to return
+     * @param minAgeSeconds minimum age (in seconds) of {@code ai_suggestion_at} for the row to be eligible
+     */
+    public List<OpenRow> listAutoApplyReady(int limit, int minAgeSeconds) {
+        return jdbi.withHandle(h ->
+                h.createQuery("""
+                        SELECT q.id, q.title_id, t.code AS title_code, q.slug,
+                               q.reason, q.resolver_source, q.created_at, q.detail,
+                               q.ai_suggestion_slug, q.ai_suggestion_confidence,
+                               q.ai_suggestion_reason, q.ai_suggestion_at, q.ai_auto_applied
+                        FROM enrichment_review_queue q
+                        LEFT JOIN titles t ON t.id = q.title_id
+                        WHERE q.resolved_at IS NULL
+                          AND q.reason = 'ambiguous'
+                          AND q.ai_suggestion_confidence = 'agreed'
+                          AND q.ai_suggestion_slug IS NOT NULL
+                          AND q.ai_auto_applied = 0
+                          AND q.ai_suggestion_at IS NOT NULL
+                          AND (julianday('now') - julianday(q.ai_suggestion_at)) * 86400 >= :minAgeSeconds
+                        ORDER BY q.ai_suggestion_at ASC
+                        LIMIT :limit
+                        """)
+                        .bind("limit",         limit)
+                        .bind("minAgeSeconds", minAgeSeconds)
+                        .map((rs, ctx) -> mapOpenRow(rs))
+                        .list());
+    }
+
+    /**
      * Records an AI suggestion against an open queue row. Writes all four
      * {@code ai_suggestion_*} columns atomically. Passing {@code null} for {@code slug}
      * persists an explicit abstain (the row has been considered but no suggestion offered).

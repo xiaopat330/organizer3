@@ -664,4 +664,119 @@ class EnrichmentReviewQueueRepositoryTest {
         assertNull(ctx.folderPath());
         assertTrue(ctx.actressNames().isEmpty());
     }
+
+    // ── listAutoApplyReady (Phase 3 Track A) ──────────────────────────────────
+
+    /** Sets ai_suggestion_* columns on a queue row, with ai_suggestion_at backdated by N seconds. */
+    private void setAgedSuggestion(long titleId, String slug, String confidence, int ageSeconds) {
+        long id = jdbi.withHandle(h ->
+                h.createQuery("SELECT id FROM enrichment_review_queue WHERE title_id = :tid")
+                        .bind("tid", titleId).mapTo(Long.class).one());
+        String at = Instant.now().minusSeconds(ageSeconds).toString();
+        jdbi.useHandle(h -> h.createUpdate("""
+                        UPDATE enrichment_review_queue
+                        SET ai_suggestion_slug = :slug,
+                            ai_suggestion_confidence = :confidence,
+                            ai_suggestion_reason = 'test',
+                            ai_suggestion_at = :at
+                        WHERE id = :id
+                        """)
+                .bind("slug",       slug)
+                .bind("confidence", confidence)
+                .bind("at",         at)
+                .bind("id",         id)
+                .execute());
+    }
+
+    @Test
+    void listAutoApplyReady_returnsEligibleAgedAgreedRow() {
+        repo.enqueue(1L, "slug1", "ambiguous", "sentinel_short_circuit");
+        setAgedSuggestion(1L, "abc123", "agreed", 600); // 10 min old
+
+        List<EnrichmentReviewQueueRepository.OpenRow> rows = repo.listAutoApplyReady(10, 300);
+        assertEquals(1, rows.size());
+        assertEquals(1L, rows.get(0).titleId());
+        assertEquals("abc123", rows.get(0).aiSuggestionSlug());
+    }
+
+    @Test
+    void listAutoApplyReady_excludesRowYoungerThanMinAge() {
+        repo.enqueue(1L, "slug1", "ambiguous", "sentinel_short_circuit");
+        setAgedSuggestion(1L, "abc123", "agreed", 60); // 1 min old
+
+        assertTrue(repo.listAutoApplyReady(10, 300).isEmpty(),
+                "row younger than minAgeSeconds must be excluded");
+    }
+
+    @Test
+    void listAutoApplyReady_excludesConflictOutcome() {
+        repo.enqueue(1L, "slug1", "ambiguous", "sentinel_short_circuit");
+        setAgedSuggestion(1L, "abc123", "conflict", 600);
+
+        assertTrue(repo.listAutoApplyReady(10, 300).isEmpty(),
+                "confidence='conflict' must be excluded");
+    }
+
+    @Test
+    void listAutoApplyReady_excludesPhi4OnlyOutcome() {
+        repo.enqueue(1L, "slug1", "ambiguous", "sentinel_short_circuit");
+        setAgedSuggestion(1L, "abc123", "phi4_only", 600);
+
+        assertTrue(repo.listAutoApplyReady(10, 300).isEmpty(),
+                "confidence='phi4_only' must be excluded");
+    }
+
+    @Test
+    void listAutoApplyReady_excludesAlreadyAppliedRow() {
+        repo.enqueue(1L, "slug1", "ambiguous", "sentinel_short_circuit");
+        setAgedSuggestion(1L, "abc123", "agreed", 600);
+        long id = jdbi.withHandle(h ->
+                h.createQuery("SELECT id FROM enrichment_review_queue WHERE title_id = 1")
+                        .mapTo(Long.class).one());
+        repo.markAiAutoApplied(id);
+
+        assertTrue(repo.listAutoApplyReady(10, 300).isEmpty(),
+                "ai_auto_applied=1 must be excluded");
+    }
+
+    @Test
+    void listAutoApplyReady_excludesResolvedRow() {
+        repo.enqueue(1L, "slug1", "ambiguous", "sentinel_short_circuit");
+        setAgedSuggestion(1L, "abc123", "agreed", 600);
+        jdbi.useHandle(h -> h.execute(
+                "UPDATE enrichment_review_queue SET resolved_at = '2026-05-17T00:00:00Z' WHERE title_id = 1"));
+
+        assertTrue(repo.listAutoApplyReady(10, 300).isEmpty(),
+                "resolved row must be excluded");
+    }
+
+    @Test
+    void listAutoApplyReady_excludesAgreedRowWithNullSlug() {
+        repo.enqueue(1L, "slug1", "ambiguous", "sentinel_short_circuit");
+        // Defensive: ai_suggestion_slug NULL but confidence='agreed' shouldn't happen,
+        // but the predicate must still reject it.
+        setAgedSuggestion(1L, null, "agreed", 600);
+
+        assertTrue(repo.listAutoApplyReady(10, 300).isEmpty(),
+                "ai_suggestion_slug IS NULL must be excluded");
+    }
+
+    @Test
+    void listAutoApplyReady_honorsLimit_andOrdersBySuggestionAtAsc() {
+        jdbi.useHandle(h -> {
+            h.execute("INSERT INTO titles(id, code, base_code, label, seq_num) VALUES (2, 'T-2', 'T', 'T', 2)");
+            h.execute("INSERT INTO titles(id, code, base_code, label, seq_num) VALUES (3, 'T-3', 'T', 'T', 3)");
+        });
+        repo.enqueue(1L, "slug1", "ambiguous", "sentinel_short_circuit");
+        repo.enqueue(2L, "slug2", "ambiguous", "sentinel_short_circuit");
+        repo.enqueue(3L, "slug3", "ambiguous", "sentinel_short_circuit");
+        setAgedSuggestion(1L, "a1", "agreed", 900); // oldest
+        setAgedSuggestion(2L, "a2", "agreed", 600);
+        setAgedSuggestion(3L, "a3", "agreed", 400); // youngest
+
+        List<EnrichmentReviewQueueRepository.OpenRow> rows = repo.listAutoApplyReady(2, 300);
+        assertEquals(2, rows.size(), "limit must be honored");
+        assertEquals(1L, rows.get(0).titleId(), "oldest ai_suggestion_at first");
+        assertEquals(2L, rows.get(1).titleId());
+    }
 }
