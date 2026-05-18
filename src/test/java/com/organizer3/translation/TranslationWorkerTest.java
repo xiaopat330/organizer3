@@ -4,7 +4,9 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.organizer3.db.SchemaInitializer;
 import com.organizer3.javdb.draft.DraftActress;
 import com.organizer3.javdb.draft.DraftActressRepository;
-import com.organizer3.translation.ollama.OllamaAdapter;
+import com.organizer3.ollama.OllamaModelOrchestrator;
+import com.organizer3.ollama.OrchestratorConfig;
+import com.organizer3.translation.ollama.HttpOllamaAdapter;
 import com.organizer3.translation.ollama.OllamaException;
 import com.organizer3.translation.ollama.OllamaResponse;
 import com.organizer3.translation.repository.jdbi.JdbiStageNameSuggestionRepository;
@@ -35,7 +37,8 @@ import static org.mockito.Mockito.*;
 /**
  * Unit tests for {@link TranslationWorker}.
  *
- * <p>Uses mocked {@link OllamaAdapter} + real in-memory SQLite.
+ * <p>Uses mocked {@link HttpOllamaAdapter} wrapped by a real
+ * {@link OllamaModelOrchestrator} + real in-memory SQLite.
  * Tests call {@link TranslationWorker#processOne()} directly — no background threads.
  */
 @ExtendWith(MockitoExtension.class)
@@ -45,7 +48,8 @@ class TranslationWorkerTest {
             DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'").withZone(ZoneOffset.UTC);
 
     @Mock
-    private OllamaAdapter ollamaAdapter;
+    private HttpOllamaAdapter ollamaAdapter;
+    private OllamaModelOrchestrator orchestrator;
 
     private TranslationWorker worker;
     private JdbiTranslationStrategyRepository strategyRepo;
@@ -71,13 +75,17 @@ class TranslationWorkerTest {
 
         callbackDispatcher = new CallbackDispatcher(jdbi);
 
+        orchestrator = new OllamaModelOrchestrator(ollamaAdapter, OrchestratorConfig.defaults());
+        orchestrator.start();
+
         worker = new TranslationWorker(
-                ollamaAdapter, strategyRepo, cacheRepo, queueRepo,
+                orchestrator, ollamaAdapter, strategyRepo, cacheRepo, queueRepo,
                 callbackDispatcher, TranslationConfig.DEFAULTS, new ObjectMapper());
     }
 
     @AfterEach
     void tearDown() throws Exception {
+        if (orchestrator != null) orchestrator.stop();
         connection.close();
     }
 
@@ -327,7 +335,7 @@ class TranslationWorkerTest {
 
         // Wire stageNameSuggestionRepo into worker
         worker = new TranslationWorker(
-                ollamaAdapter, strategyRepo, cacheRepo, queueRepo,
+                orchestrator, ollamaAdapter, strategyRepo, cacheRepo, queueRepo,
                 callbackDispatcher, TranslationConfig.DEFAULTS, new ObjectMapper(),
                 new OllamaModelState(), new HealthGate(ollamaAdapter, cacheRepo, TranslationConfig.DEFAULTS),
                 suggRepo);
@@ -370,7 +378,7 @@ class TranslationWorkerTest {
         callbackDispatcher.registerStageNameFanOut(suggRepo, draftRepo);
 
         worker = new TranslationWorker(
-                ollamaAdapter, strategyRepo, cacheRepo, queueRepo,
+                orchestrator, ollamaAdapter, strategyRepo, cacheRepo, queueRepo,
                 callbackDispatcher, TranslationConfig.DEFAULTS, new ObjectMapper(),
                 new OllamaModelState(), new HealthGate(ollamaAdapter, cacheRepo, TranslationConfig.DEFAULTS),
                 suggRepo);
@@ -399,7 +407,7 @@ class TranslationWorkerTest {
         callbackDispatcher.registerStageNameFanOut(suggRepo, draftRepo);
 
         worker = new TranslationWorker(
-                ollamaAdapter, strategyRepo, cacheRepo, queueRepo,
+                orchestrator, ollamaAdapter, strategyRepo, cacheRepo, queueRepo,
                 callbackDispatcher, TranslationConfig.DEFAULTS, new ObjectMapper(),
                 new OllamaModelState(), new HealthGate(ollamaAdapter, cacheRepo, TranslationConfig.DEFAULTS),
                 suggRepo);
@@ -500,7 +508,7 @@ class TranslationWorkerTest {
         // Build a worker with the actressRepo wired (default fixture worker doesn't have it).
         JdbiActressRepository actressRepo = new JdbiActressRepository(jdbi);
         TranslationWorker workerWithActress = new TranslationWorker(
-                ollamaAdapter, strategyRepo, cacheRepo, queueRepo,
+                orchestrator, ollamaAdapter, strategyRepo, cacheRepo, queueRepo,
                 callbackDispatcher, TranslationConfig.DEFAULTS, new ObjectMapper(),
                 new OllamaModelState(), new HealthGate(ollamaAdapter, cacheRepo, TranslationConfig.DEFAULTS), null,
                 ExplicitTermSubstitutor.EMPTY, actressRepo);
@@ -536,7 +544,7 @@ class TranslationWorkerTest {
 
         JdbiActressRepository actressRepo = new JdbiActressRepository(jdbi);
         TranslationWorker workerWithActress = new TranslationWorker(
-                ollamaAdapter, strategyRepo, cacheRepo, queueRepo,
+                orchestrator, ollamaAdapter, strategyRepo, cacheRepo, queueRepo,
                 callbackDispatcher, TranslationConfig.DEFAULTS, new ObjectMapper(),
                 new OllamaModelState(), new HealthGate(ollamaAdapter, cacheRepo, TranslationConfig.DEFAULTS), null,
                 ExplicitTermSubstitutor.EMPTY, actressRepo);

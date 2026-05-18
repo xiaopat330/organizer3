@@ -2,7 +2,9 @@ package com.organizer3.translation;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.organizer3.db.SchemaInitializer;
-import com.organizer3.translation.ollama.OllamaAdapter;
+import com.organizer3.ollama.OllamaModelOrchestrator;
+import com.organizer3.ollama.OrchestratorConfig;
+import com.organizer3.translation.ollama.HttpOllamaAdapter;
 import com.organizer3.translation.ollama.OllamaResponse;
 import com.organizer3.translation.repository.jdbi.JdbiTranslationCacheRepository;
 import com.organizer3.translation.repository.jdbi.JdbiTranslationQueueRepository;
@@ -28,13 +30,15 @@ import static org.mockito.Mockito.*;
  * End-to-end test: queue row goes through tier-1 (refused) → tier_2_pending →
  * tier-2 batch drain (success or failure) → done/failed.
  *
- * <p>Uses mocked {@link OllamaAdapter} and real in-memory SQLite.
+ * <p>Uses a mocked {@link HttpOllamaAdapter} wrapped by a real
+ * {@link OllamaModelOrchestrator} and real in-memory SQLite.
  */
 @ExtendWith(MockitoExtension.class)
 class TranslationTier2EndToEndTest {
 
     @Mock
-    private OllamaAdapter ollamaAdapter;
+    private HttpOllamaAdapter ollamaAdapter;
+    private OllamaModelOrchestrator orchestrator;
 
     private TranslationWorker worker;
     private Tier2BatchSweeper sweeper;
@@ -63,21 +67,25 @@ class TranslationTier2EndToEndTest {
 
         TranslationConfig config = TranslationConfig.DEFAULTS;
 
+        orchestrator = new OllamaModelOrchestrator(ollamaAdapter, OrchestratorConfig.defaults());
+        orchestrator.start();
+
         worker = new TranslationWorker(
-                ollamaAdapter, strategyRepo, cacheRepo, queueRepo,
+                orchestrator, ollamaAdapter, strategyRepo, cacheRepo, queueRepo,
                 callbackDispatcher, config, new ObjectMapper(), modelState);
 
         sweeper = new Tier2BatchSweeper(
-                ollamaAdapter, strategyRepo, cacheRepo, queueRepo,
+                orchestrator, strategyRepo, cacheRepo, queueRepo,
                 callbackDispatcher, config, new ObjectMapper(), modelState);
 
         service = new TranslationServiceImpl(
-                ollamaAdapter, strategyRepo, cacheRepo, queueRepo,
+                orchestrator, ollamaAdapter, strategyRepo, cacheRepo, queueRepo,
                 config, callbackDispatcher);
     }
 
     @AfterEach
     void tearDown() throws Exception {
+        if (orchestrator != null) orchestrator.stop();
         connection.close();
     }
 

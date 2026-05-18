@@ -1,7 +1,9 @@
 package com.organizer3.translation;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.organizer3.translation.ollama.OllamaAdapter;
+import com.organizer3.ollama.OllamaModelOrchestrator;
+import com.organizer3.ollama.OrchestratorConfig;
+import com.organizer3.translation.ollama.HttpOllamaAdapter;
 import com.organizer3.translation.ollama.OllamaException;
 import com.organizer3.translation.ollama.OllamaResponse;
 import com.organizer3.translation.repository.StageNameLookupRepository;
@@ -27,7 +29,8 @@ import static org.mockito.Mockito.*;
 @ExtendWith(MockitoExtension.class)
 class TranslationServiceImplTest {
 
-    @Mock private OllamaAdapter ollamaAdapter;
+    @Mock private HttpOllamaAdapter ollamaAdapter;
+    private OllamaModelOrchestrator orchestrator;
     @Mock private TranslationStrategyRepository strategyRepo;
     @Mock private TranslationCacheRepository cacheRepo;
     @Mock private TranslationQueueRepository queueRepo;
@@ -47,11 +50,18 @@ class TranslationServiceImplTest {
 
     @BeforeEach
     void setUp() {
+        orchestrator = new OllamaModelOrchestrator(ollamaAdapter, OrchestratorConfig.defaults());
+        orchestrator.start();
         service = new TranslationServiceImpl(
-                ollamaAdapter, strategyRepo, cacheRepo, queueRepo,
+                orchestrator, ollamaAdapter, strategyRepo, cacheRepo, queueRepo,
                 TranslationConfig.DEFAULTS, callbackDispatcher,
                 healthGate, new ObjectMapper(),
                 stageNameLookupRepo, stageNameSuggestionRepo);
+    }
+
+    @org.junit.jupiter.api.AfterEach
+    void tearDown() {
+        if (orchestrator != null) orchestrator.stop();
     }
 
     // ── Curated hit returns synchronously ────────────────────────────────────

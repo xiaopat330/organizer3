@@ -195,6 +195,12 @@ public class Application {
         com.organizer3.translation.ollama.HttpOllamaAdapter ollamaAdapter =
                 new com.organizer3.translation.ollama.HttpOllamaAdapter(
                         translationConfig.ollamaBaseUrlOrDefault(), translationJsonMapper);
+        // Shared model orchestrator — batches generate calls by model across translation +
+        // AI-assist subsystems. Phase 4 Track A: translation now routes through this too.
+        com.organizer3.ollama.OllamaModelOrchestrator ollamaOrchestrator =
+                new com.organizer3.ollama.OllamaModelOrchestrator(
+                        ollamaAdapter, com.organizer3.ollama.OrchestratorConfig.defaults());
+        ollamaOrchestrator.start();
         com.organizer3.translation.CallbackDispatcher translationCallbackDispatcher =
                 new com.organizer3.translation.CallbackDispatcher(jdbi);
         // Shared model state tracker (Phase 3: currently-loaded model awareness)
@@ -209,7 +215,8 @@ public class Application {
                         dbDir.resolve("explicit-substitutions.properties"));
         com.organizer3.translation.TranslationService translationService =
                 new com.organizer3.translation.TranslationServiceImpl(
-                        ollamaAdapter, translationStrategyRepo, translationCacheRepo,
+                        ollamaOrchestrator, ollamaAdapter,
+                        translationStrategyRepo, translationCacheRepo,
                         translationQueueRepo, translationConfig, translationCallbackDispatcher,
                         translationHealthGate, translationJsonMapper,
                         stageNameLookupRepo, stageNameSuggestionRepo,
@@ -218,7 +225,8 @@ public class Application {
         ActressRepository translationActressRepo = new JdbiActressRepository(jdbi);
         com.organizer3.translation.TranslationWorker translationWorker =
                 new com.organizer3.translation.TranslationWorker(
-                        ollamaAdapter, translationStrategyRepo, translationCacheRepo,
+                        ollamaOrchestrator, ollamaAdapter,
+                        translationStrategyRepo, translationCacheRepo,
                         translationQueueRepo, translationCallbackDispatcher,
                         translationConfig, translationJsonMapper, ollamaModelState,
                         translationHealthGate, stageNameSuggestionRepo,
@@ -247,7 +255,8 @@ public class Application {
         // Tier-2 batch sweeper (Phase 3)
         com.organizer3.translation.Tier2BatchSweeper tier2BatchSweeper =
                 new com.organizer3.translation.Tier2BatchSweeper(
-                        ollamaAdapter, translationStrategyRepo, translationCacheRepo,
+                        ollamaOrchestrator,
+                        translationStrategyRepo, translationCacheRepo,
                         translationQueueRepo, translationCallbackDispatcher,
                         translationConfig, translationJsonMapper, ollamaModelState,
                         explicitTermSubstitutor, translationActressRepo);
@@ -917,10 +926,7 @@ public class Application {
         // the sweeper exits at start. Auto-pull runs only when mode != off.
         com.organizer3.config.EnrichmentAssistConfig assistConfig =
                 config.enrichmentOrDefaults().assistOrDefaults();
-        com.organizer3.ollama.OllamaModelOrchestrator ollamaOrchestrator =
-                new com.organizer3.ollama.OllamaModelOrchestrator(
-                        ollamaAdapter, com.organizer3.ollama.OrchestratorConfig.defaults());
-        ollamaOrchestrator.start();
+        // Orchestrator already constructed + started near the top (shared with translation).
         if (!"off".equals(assistConfig.mode())) {
             com.organizer3.ollama.OllamaModelBootstrap assistBootstrap =
                     new com.organizer3.ollama.OllamaModelBootstrap(

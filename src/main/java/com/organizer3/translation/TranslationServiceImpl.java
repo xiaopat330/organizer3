@@ -2,6 +2,7 @@ package com.organizer3.translation;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.organizer3.ollama.OllamaModelOrchestrator;
 import com.organizer3.translation.ollama.OllamaAdapter;
 import com.organizer3.translation.ollama.OllamaException;
 import com.organizer3.translation.ollama.OllamaRequest;
@@ -19,6 +20,9 @@ import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
@@ -41,6 +45,12 @@ public class TranslationServiceImpl implements TranslationService {
     public static final String SANITIZED_BOTH_TIERS = "sanitized_both_tiers";
 
     final OllamaAdapter ollamaAdapter;
+    /**
+     * Orchestrator that batches {@code generate} calls by model. ALL {@code generate} traffic
+     * is routed through it (Phase 4 Track A). The adapter ref above is retained only for
+     * {@link HealthGate} construction in convenience constructors.
+     */
+    final OllamaModelOrchestrator orchestrator;
     final TranslationStrategyRepository strategyRepo;
     final TranslationCacheRepository cacheRepo;
     final TranslationQueueRepository queueRepo;
@@ -58,7 +68,8 @@ public class TranslationServiceImpl implements TranslationService {
     private final AtomicLong cacheLookupMisses = new AtomicLong();
 
     /** Full constructor including HealthGate, ObjectMapper, stage-name repos, and term substitutor. */
-    public TranslationServiceImpl(OllamaAdapter ollamaAdapter,
+    public TranslationServiceImpl(OllamaModelOrchestrator orchestrator,
+                                   OllamaAdapter ollamaAdapter,
                                    TranslationStrategyRepository strategyRepo,
                                    TranslationCacheRepository cacheRepo,
                                    TranslationQueueRepository queueRepo,
@@ -69,6 +80,7 @@ public class TranslationServiceImpl implements TranslationService {
                                    StageNameLookupRepository stageNameLookupRepo,
                                    StageNameSuggestionRepository stageNameSuggestionRepo,
                                    ExplicitTermSubstitutor explicitTermSubstitutor) {
+        this.orchestrator            = orchestrator;
         this.ollamaAdapter           = ollamaAdapter;
         this.strategyRepo            = strategyRepo;
         this.cacheRepo               = cacheRepo;
@@ -84,7 +96,8 @@ public class TranslationServiceImpl implements TranslationService {
     }
 
     /** Backward-compat: without explicitTermSubstitutor (uses EMPTY). */
-    public TranslationServiceImpl(OllamaAdapter ollamaAdapter,
+    public TranslationServiceImpl(OllamaModelOrchestrator orchestrator,
+                                   OllamaAdapter ollamaAdapter,
                                    TranslationStrategyRepository strategyRepo,
                                    TranslationCacheRepository cacheRepo,
                                    TranslationQueueRepository queueRepo,
@@ -94,19 +107,21 @@ public class TranslationServiceImpl implements TranslationService {
                                    ObjectMapper objectMapper,
                                    StageNameLookupRepository stageNameLookupRepo,
                                    StageNameSuggestionRepository stageNameSuggestionRepo) {
-        this(ollamaAdapter, strategyRepo, cacheRepo, queueRepo, config, callbackDispatcher,
-                healthGate, objectMapper, stageNameLookupRepo, stageNameSuggestionRepo,
-                ExplicitTermSubstitutor.EMPTY);
+        this(orchestrator, ollamaAdapter, strategyRepo, cacheRepo, queueRepo, config,
+                callbackDispatcher, healthGate, objectMapper, stageNameLookupRepo,
+                stageNameSuggestionRepo, ExplicitTermSubstitutor.EMPTY);
     }
 
     /** Backward-compatible constructor: creates a default HealthGate and ObjectMapper; no stage-name repos. */
-    public TranslationServiceImpl(OllamaAdapter ollamaAdapter,
+    public TranslationServiceImpl(OllamaModelOrchestrator orchestrator,
+                                   OllamaAdapter ollamaAdapter,
                                    TranslationStrategyRepository strategyRepo,
                                    TranslationCacheRepository cacheRepo,
                                    TranslationQueueRepository queueRepo,
                                    TranslationConfig config,
                                    CallbackDispatcher callbackDispatcher) {
-        this(ollamaAdapter, strategyRepo, cacheRepo, queueRepo, config, callbackDispatcher,
+        this(orchestrator, ollamaAdapter, strategyRepo, cacheRepo, queueRepo, config,
+                callbackDispatcher,
                 new HealthGate(ollamaAdapter, cacheRepo, config),
                 new ObjectMapper(),
                 null, null,
@@ -382,7 +397,7 @@ public class TranslationServiceImpl implements TranslationService {
         OllamaResponse ollamaResp = null;
 
         try {
-            ollamaResp = ollamaAdapter.generate(ollamaReq);
+            ollamaResp = callOllama(ollamaReq);
             String raw = ollamaResp.responseText().trim();
             if (raw.startsWith("English:")) raw = raw.substring("English:".length()).trim();
             String cleaned = raw.isEmpty() ? null : raw;
@@ -491,7 +506,7 @@ public class TranslationServiceImpl implements TranslationService {
         OllamaResponse ollamaResp = null;
 
         try {
-            ollamaResp = ollamaAdapter.generate(ollamaReq);
+            ollamaResp = callOllama(ollamaReq);
             String raw = ollamaResp.responseText().trim();
             if (raw.startsWith("English:")) raw = raw.substring("English:".length()).trim();
             String cleaned = raw.isEmpty() ? null : raw;
@@ -561,5 +576,30 @@ public class TranslationServiceImpl implements TranslationService {
         }
 
         return Optional.of(englishText);
+    }
+
+    /**
+     * Route a generate call through the {@link OllamaModelOrchestrator}, unwrapping orchestrator
+     * exceptions so existing {@code catch (OllamaException ...)} blocks see the same semantics
+     * they saw when calling {@link OllamaAdapter#generate} directly. The {@code .get(...)} timeout
+     * is the request's own timeout plus a 30-second cushion.
+     */
+    private OllamaResponse callOllama(OllamaRequest req) {
+        long timeoutSeconds = req.timeout() != null
+                ? req.timeout().plusSeconds(30).getSeconds()
+                : 330L;
+        try {
+            return orchestrator.submit(req.modelId(), req).get(timeoutSeconds, TimeUnit.SECONDS);
+        } catch (ExecutionException e) {
+            Throwable cause = e.getCause();
+            if (cause instanceof OllamaException oe) throw oe;
+            if (cause instanceof RuntimeException re) throw re;
+            throw new OllamaException("orchestrator failure", cause != null ? cause : e);
+        } catch (TimeoutException e) {
+            throw new OllamaException("orchestrator timeout after " + timeoutSeconds + "s", e);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new OllamaException("orchestrator interrupted", e);
+        }
     }
 }

@@ -2,7 +2,9 @@ package com.organizer3.translation;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.organizer3.db.SchemaInitializer;
-import com.organizer3.translation.ollama.OllamaAdapter;
+import com.organizer3.ollama.OllamaModelOrchestrator;
+import com.organizer3.ollama.OrchestratorConfig;
+import com.organizer3.translation.ollama.HttpOllamaAdapter;
 import com.organizer3.translation.ollama.OllamaException;
 import com.organizer3.translation.ollama.OllamaResponse;
 import com.organizer3.translation.repository.jdbi.JdbiStageNameLookupRepository;
@@ -29,7 +31,8 @@ import static org.mockito.Mockito.*;
 /**
  * Service tests for {@link TranslationServiceImpl}.
  *
- * <p>Uses mocked {@link OllamaAdapter} (Mockito) + real in-memory SQLite repositories.
+ * <p>Uses a mocked {@link HttpOllamaAdapter} wrapped by a real
+ * {@link OllamaModelOrchestrator} + real in-memory SQLite repositories.
  * Phase 2: {@link #requestTranslation} is async — we call {@link TranslationWorker#processOne()}
  * directly to process queue rows without starting a background thread.
  */
@@ -37,7 +40,8 @@ import static org.mockito.Mockito.*;
 class TranslationServiceTest {
 
     @Mock
-    private OllamaAdapter ollamaAdapter;
+    private HttpOllamaAdapter ollamaAdapter;
+    private OllamaModelOrchestrator orchestrator;
 
     private TranslationServiceImpl service;
     private TranslationWorker worker;
@@ -67,20 +71,24 @@ class TranslationServiceTest {
 
         callbackDispatcher = new CallbackDispatcher(jdbi);
 
+        orchestrator = new OllamaModelOrchestrator(ollamaAdapter, OrchestratorConfig.defaults());
+        orchestrator.start();
+
         HealthGate healthGate = new HealthGate(ollamaAdapter, cacheRepo, TranslationConfig.DEFAULTS);
         service = new TranslationServiceImpl(
-                ollamaAdapter, strategyRepo, cacheRepo, queueRepo,
+                orchestrator, ollamaAdapter, strategyRepo, cacheRepo, queueRepo,
                 TranslationConfig.DEFAULTS, callbackDispatcher,
                 healthGate, new ObjectMapper(),
                 stageNameLookupRepo, stageNameSuggestionRepo);
 
         worker = new TranslationWorker(
-                ollamaAdapter, strategyRepo, cacheRepo, queueRepo,
+                orchestrator, ollamaAdapter, strategyRepo, cacheRepo, queueRepo,
                 callbackDispatcher, TranslationConfig.DEFAULTS, new ObjectMapper());
     }
 
     @AfterEach
     void tearDown() throws Exception {
+        if (orchestrator != null) orchestrator.stop();
         connection.close();
     }
 

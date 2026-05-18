@@ -2,6 +2,7 @@ package com.organizer3.translation;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.organizer3.ollama.OllamaModelOrchestrator;
 import com.organizer3.repository.ActressRepository;
 import com.organizer3.translation.ollama.OllamaAdapter;
 import com.organizer3.translation.ollama.OllamaException;
@@ -18,6 +19,9 @@ import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 /**
  * Batched sweeper that drains {@code tier_2_pending} queue rows through the tier-2 (qwen2.5:14b)
@@ -47,7 +51,7 @@ public class Tier2BatchSweeper implements Runnable {
     private static final DateTimeFormatter ISO_UTC =
             DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'").withZone(ZoneOffset.UTC);
 
-    private final OllamaAdapter ollamaAdapter;
+    private final OllamaModelOrchestrator orchestrator;
     private final TranslationStrategyRepository strategyRepo;
     private final TranslationCacheRepository cacheRepo;
     private final TranslationQueueRepository queueRepo;
@@ -60,7 +64,7 @@ public class Tier2BatchSweeper implements Runnable {
     /** Optional — null in tests. When set, per-title actress stage names are substituted. */
     private final ActressRepository actressRepo;
 
-    public Tier2BatchSweeper(OllamaAdapter ollamaAdapter,
+    public Tier2BatchSweeper(OllamaModelOrchestrator orchestrator,
                               TranslationStrategyRepository strategyRepo,
                               TranslationCacheRepository cacheRepo,
                               TranslationQueueRepository queueRepo,
@@ -68,11 +72,11 @@ public class Tier2BatchSweeper implements Runnable {
                               TranslationConfig config,
                               ObjectMapper json,
                               OllamaModelState modelState) {
-        this(ollamaAdapter, strategyRepo, cacheRepo, queueRepo, callbackDispatcher,
+        this(orchestrator, strategyRepo, cacheRepo, queueRepo, callbackDispatcher,
                 config, json, modelState, ExplicitTermSubstitutor.EMPTY);
     }
 
-    public Tier2BatchSweeper(OllamaAdapter ollamaAdapter,
+    public Tier2BatchSweeper(OllamaModelOrchestrator orchestrator,
                               TranslationStrategyRepository strategyRepo,
                               TranslationCacheRepository cacheRepo,
                               TranslationQueueRepository queueRepo,
@@ -81,11 +85,11 @@ public class Tier2BatchSweeper implements Runnable {
                               ObjectMapper json,
                               OllamaModelState modelState,
                               ExplicitTermSubstitutor explicitTermSubstitutor) {
-        this(ollamaAdapter, strategyRepo, cacheRepo, queueRepo, callbackDispatcher,
+        this(orchestrator, strategyRepo, cacheRepo, queueRepo, callbackDispatcher,
                 config, json, modelState, explicitTermSubstitutor, null);
     }
 
-    public Tier2BatchSweeper(OllamaAdapter ollamaAdapter,
+    public Tier2BatchSweeper(OllamaModelOrchestrator orchestrator,
                               TranslationStrategyRepository strategyRepo,
                               TranslationCacheRepository cacheRepo,
                               TranslationQueueRepository queueRepo,
@@ -95,7 +99,7 @@ public class Tier2BatchSweeper implements Runnable {
                               OllamaModelState modelState,
                               ExplicitTermSubstitutor explicitTermSubstitutor,
                               ActressRepository actressRepo) {
-        this.ollamaAdapter      = ollamaAdapter;
+        this.orchestrator       = orchestrator;
         this.strategyRepo       = strategyRepo;
         this.cacheRepo          = cacheRepo;
         this.queueRepo          = queueRepo;
@@ -219,7 +223,7 @@ public class Tier2BatchSweeper implements Runnable {
         OllamaResponse ollamaResp = null;
 
         try {
-            ollamaResp = ollamaAdapter.generate(ollamaReq);
+            ollamaResp = callOllama(ollamaReq);
             modelState.setCurrentModelId(tier2Strategy.modelId());
 
             String raw = ollamaResp.responseText().trim();
@@ -291,6 +295,31 @@ public class Tier2BatchSweeper implements Runnable {
     private static boolean isRefusal(String text) {
         if (text == null || text.isBlank()) return true;
         return text.length() <= 80 && REFUSAL_PATTERN.matcher(text).find();
+    }
+
+    /**
+     * Route a generate call through the {@link OllamaModelOrchestrator}, unwrapping orchestrator
+     * exceptions so existing {@code catch (OllamaException ...)} blocks see the same semantics
+     * they saw when calling {@link OllamaAdapter#generate} directly. The {@code .get(...)} timeout
+     * is the request's own timeout plus a 30-second cushion.
+     */
+    private OllamaResponse callOllama(OllamaRequest req) {
+        long timeoutSeconds = req.timeout() != null
+                ? req.timeout().plusSeconds(30).getSeconds()
+                : 330L;
+        try {
+            return orchestrator.submit(req.modelId(), req).get(timeoutSeconds, TimeUnit.SECONDS);
+        } catch (ExecutionException e) {
+            Throwable cause = e.getCause();
+            if (cause instanceof OllamaException oe) throw oe;
+            if (cause instanceof RuntimeException re) throw re;
+            throw new OllamaException("orchestrator failure", cause != null ? cause : e);
+        } catch (TimeoutException e) {
+            throw new OllamaException("orchestrator timeout after " + timeoutSeconds + "s", e);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new OllamaException("orchestrator interrupted", e);
+        }
     }
 
     private static final java.util.regex.Pattern REFUSAL_PATTERN = java.util.regex.Pattern.compile(

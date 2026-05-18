@@ -2,6 +2,7 @@ package com.organizer3.translation;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.organizer3.ollama.OllamaModelOrchestrator;
 import com.organizer3.translation.ollama.OllamaAdapter;
 import com.organizer3.translation.ollama.OllamaException;
 import com.organizer3.translation.ollama.OllamaRequest;
@@ -18,6 +19,9 @@ import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.regex.Pattern;
 
 /**
@@ -27,7 +31,7 @@ import java.util.regex.Pattern;
  * <ol>
  *   <li>Claim one {@code pending} row ({@link #processOne} returns false if none).</li>
  *   <li>Pre-flight: check the cache. If already cached, skip Ollama and dispatch callback.</li>
- *   <li>Call {@link OllamaAdapter#generate} synchronously.</li>
+ *   <li>Call Ollama via {@link OllamaModelOrchestrator} synchronously.</li>
  *   <li>On success: write to cache, dispatch callback, mark queue row {@code done}.</li>
  *   <li>On failure: increment attempt count. If under {@code maxAttempts}, re-queue (pending).
  *       Else mark {@code failed}.</li>
@@ -80,6 +84,13 @@ public class TranslationWorker implements Runnable {
     }
 
     private final OllamaAdapter ollamaAdapter;
+    /**
+     * Orchestrator that batches {@code generate} calls by model. ALL traffic from this worker
+     * is routed through it (Phase 4 Track A). The {@link OllamaAdapter} ref is retained ONLY
+     * for constructing {@link HealthGate} in convenience constructors — never used for
+     * {@code generate} calls directly.
+     */
+    private final OllamaModelOrchestrator orchestrator;
     private final TranslationStrategyRepository strategyRepo;
     private final TranslationCacheRepository cacheRepo;
     private final TranslationQueueRepository queueRepo;
@@ -95,18 +106,20 @@ public class TranslationWorker implements Runnable {
     /** Optional — null in tests. When set, per-title actress stage names are substituted. */
     private final ActressRepository actressRepo;
 
-    public TranslationWorker(OllamaAdapter ollamaAdapter,
+    public TranslationWorker(OllamaModelOrchestrator orchestrator,
+                              OllamaAdapter ollamaAdapter,
                               TranslationStrategyRepository strategyRepo,
                               TranslationCacheRepository cacheRepo,
                               TranslationQueueRepository queueRepo,
                               CallbackDispatcher callbackDispatcher,
                               TranslationConfig config,
                               ObjectMapper json) {
-        this(ollamaAdapter, strategyRepo, cacheRepo, queueRepo, callbackDispatcher, config, json,
-                new OllamaModelState());
+        this(orchestrator, ollamaAdapter, strategyRepo, cacheRepo, queueRepo,
+                callbackDispatcher, config, json, new OllamaModelState());
     }
 
-    public TranslationWorker(OllamaAdapter ollamaAdapter,
+    public TranslationWorker(OllamaModelOrchestrator orchestrator,
+                              OllamaAdapter ollamaAdapter,
                               TranslationStrategyRepository strategyRepo,
                               TranslationCacheRepository cacheRepo,
                               TranslationQueueRepository queueRepo,
@@ -114,12 +127,13 @@ public class TranslationWorker implements Runnable {
                               TranslationConfig config,
                               ObjectMapper json,
                               OllamaModelState modelState) {
-        this(ollamaAdapter, strategyRepo, cacheRepo, queueRepo, callbackDispatcher, config, json,
-                modelState,
+        this(orchestrator, ollamaAdapter, strategyRepo, cacheRepo, queueRepo,
+                callbackDispatcher, config, json, modelState,
                 new HealthGate(ollamaAdapter, cacheRepo, config));
     }
 
-    public TranslationWorker(OllamaAdapter ollamaAdapter,
+    public TranslationWorker(OllamaModelOrchestrator orchestrator,
+                              OllamaAdapter ollamaAdapter,
                               TranslationStrategyRepository strategyRepo,
                               TranslationCacheRepository cacheRepo,
                               TranslationQueueRepository queueRepo,
@@ -128,11 +142,12 @@ public class TranslationWorker implements Runnable {
                               ObjectMapper json,
                               OllamaModelState modelState,
                               HealthGate healthGate) {
-        this(ollamaAdapter, strategyRepo, cacheRepo, queueRepo, callbackDispatcher, config, json,
-                modelState, healthGate, null);
+        this(orchestrator, ollamaAdapter, strategyRepo, cacheRepo, queueRepo,
+                callbackDispatcher, config, json, modelState, healthGate, null);
     }
 
-    public TranslationWorker(OllamaAdapter ollamaAdapter,
+    public TranslationWorker(OllamaModelOrchestrator orchestrator,
+                              OllamaAdapter ollamaAdapter,
                               TranslationStrategyRepository strategyRepo,
                               TranslationCacheRepository cacheRepo,
                               TranslationQueueRepository queueRepo,
@@ -142,11 +157,13 @@ public class TranslationWorker implements Runnable {
                               OllamaModelState modelState,
                               HealthGate healthGate,
                               StageNameSuggestionRepository stageNameSuggestionRepo) {
-        this(ollamaAdapter, strategyRepo, cacheRepo, queueRepo, callbackDispatcher, config, json,
-                modelState, healthGate, stageNameSuggestionRepo, ExplicitTermSubstitutor.EMPTY);
+        this(orchestrator, ollamaAdapter, strategyRepo, cacheRepo, queueRepo,
+                callbackDispatcher, config, json, modelState, healthGate,
+                stageNameSuggestionRepo, ExplicitTermSubstitutor.EMPTY);
     }
 
-    public TranslationWorker(OllamaAdapter ollamaAdapter,
+    public TranslationWorker(OllamaModelOrchestrator orchestrator,
+                              OllamaAdapter ollamaAdapter,
                               TranslationStrategyRepository strategyRepo,
                               TranslationCacheRepository cacheRepo,
                               TranslationQueueRepository queueRepo,
@@ -157,11 +174,13 @@ public class TranslationWorker implements Runnable {
                               HealthGate healthGate,
                               StageNameSuggestionRepository stageNameSuggestionRepo,
                               ExplicitTermSubstitutor explicitTermSubstitutor) {
-        this(ollamaAdapter, strategyRepo, cacheRepo, queueRepo, callbackDispatcher, config, json,
-                modelState, healthGate, stageNameSuggestionRepo, explicitTermSubstitutor, null);
+        this(orchestrator, ollamaAdapter, strategyRepo, cacheRepo, queueRepo,
+                callbackDispatcher, config, json, modelState, healthGate,
+                stageNameSuggestionRepo, explicitTermSubstitutor, null);
     }
 
-    public TranslationWorker(OllamaAdapter ollamaAdapter,
+    public TranslationWorker(OllamaModelOrchestrator orchestrator,
+                              OllamaAdapter ollamaAdapter,
                               TranslationStrategyRepository strategyRepo,
                               TranslationCacheRepository cacheRepo,
                               TranslationQueueRepository queueRepo,
@@ -173,6 +192,7 @@ public class TranslationWorker implements Runnable {
                               StageNameSuggestionRepository stageNameSuggestionRepo,
                               ExplicitTermSubstitutor explicitTermSubstitutor,
                               ActressRepository actressRepo) {
+        this.orchestrator            = orchestrator;
         this.ollamaAdapter           = ollamaAdapter;
         this.strategyRepo            = strategyRepo;
         this.cacheRepo               = cacheRepo;
@@ -324,7 +344,7 @@ public class TranslationWorker implements Runnable {
         String tier2Reason = null;
 
         try {
-            ollamaResp = ollamaAdapter.generate(ollamaReq);
+            ollamaResp = callOllama(ollamaReq);
             // Update model state tracking
             modelState.setCurrentModelId(strategy.modelId());
 
@@ -441,6 +461,34 @@ public class TranslationWorker implements Runnable {
                 log.debug("TranslationWorker: row={} attempt={} failed, re-queued",
                         row.id(), nextAttempt);
             }
+        }
+    }
+
+    /**
+     * Route a generate call through the {@link OllamaModelOrchestrator}, unwrapping orchestrator
+     * exceptions so existing {@code catch (OllamaException ...)} blocks see the same semantics
+     * they saw when calling {@link OllamaAdapter#generate} directly.
+     *
+     * <p>The {@code .get(...)} timeout is set to the request's own timeout plus a 30-second
+     * cushion so we never time out the future while the adapter is still mid-call honoring its
+     * own per-call timeout.
+     */
+    private OllamaResponse callOllama(OllamaRequest req) {
+        long timeoutSeconds = req.timeout() != null
+                ? req.timeout().plusSeconds(30).getSeconds()
+                : 330L;
+        try {
+            return orchestrator.submit(req.modelId(), req).get(timeoutSeconds, TimeUnit.SECONDS);
+        } catch (ExecutionException e) {
+            Throwable cause = e.getCause();
+            if (cause instanceof OllamaException oe) throw oe;
+            if (cause instanceof RuntimeException re) throw re;
+            throw new OllamaException("orchestrator failure", cause != null ? cause : e);
+        } catch (TimeoutException e) {
+            throw new OllamaException("orchestrator timeout after " + timeoutSeconds + "s", e);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new OllamaException("orchestrator interrupted", e);
         }
     }
 

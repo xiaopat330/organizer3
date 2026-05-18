@@ -66,11 +66,17 @@ class TranslationSmokeIT {
                 2, 3, 600, 300, 10, 60, 300, true, 300, 50, true, 600);
 
         CallbackDispatcher callbackDispatcher = new CallbackDispatcher(jdbi);
+
+        com.organizer3.ollama.OllamaModelOrchestrator orchestrator =
+                new com.organizer3.ollama.OllamaModelOrchestrator(
+                        adapter, com.organizer3.ollama.OrchestratorConfig.defaults());
+        orchestrator.start();
+
         TranslationService service = new TranslationServiceImpl(
-                adapter, strategyRepo, cacheRepo, queueRepo, config, callbackDispatcher);
+                orchestrator, adapter, strategyRepo, cacheRepo, queueRepo, config, callbackDispatcher);
 
         TranslationWorker worker = new TranslationWorker(
-                adapter, strategyRepo, cacheRepo, queueRepo,
+                orchestrator, adapter, strategyRepo, cacheRepo, queueRepo,
                 callbackDispatcher, config, jsonMapper);
 
         // Start the background worker

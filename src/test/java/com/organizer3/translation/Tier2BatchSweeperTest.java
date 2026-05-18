@@ -2,7 +2,9 @@ package com.organizer3.translation;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.organizer3.db.SchemaInitializer;
-import com.organizer3.translation.ollama.OllamaAdapter;
+import com.organizer3.ollama.OllamaModelOrchestrator;
+import com.organizer3.ollama.OrchestratorConfig;
+import com.organizer3.translation.ollama.HttpOllamaAdapter;
 import com.organizer3.translation.ollama.OllamaResponse;
 import com.organizer3.translation.repository.jdbi.JdbiTranslationCacheRepository;
 import com.organizer3.translation.repository.jdbi.JdbiTranslationQueueRepository;
@@ -27,7 +29,8 @@ import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.Mockito.*;
 
 /**
- * Tests for {@link Tier2BatchSweeper} using mocked {@link OllamaAdapter} + real in-memory SQLite.
+ * Tests for {@link Tier2BatchSweeper} using a mocked {@link HttpOllamaAdapter} wrapped by a
+ * real {@link OllamaModelOrchestrator} + real in-memory SQLite.
  *
  * <p>Tests validate:
  * <ul>
@@ -47,7 +50,8 @@ class Tier2BatchSweeperTest {
             DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'").withZone(ZoneOffset.UTC);
 
     @Mock
-    private OllamaAdapter ollamaAdapter;
+    private HttpOllamaAdapter ollamaAdapter;
+    private OllamaModelOrchestrator orchestrator;
 
     private Tier2BatchSweeper sweeper;
     private JdbiTranslationStrategyRepository strategyRepo;
@@ -83,13 +87,17 @@ class Tier2BatchSweeperTest {
                 true, 600      // retryFailedSweeper: enabled, intervalSeconds
         );
 
+        orchestrator = new OllamaModelOrchestrator(ollamaAdapter, OrchestratorConfig.defaults());
+        orchestrator.start();
+
         sweeper = new Tier2BatchSweeper(
-                ollamaAdapter, strategyRepo, cacheRepo, queueRepo,
+                orchestrator, strategyRepo, cacheRepo, queueRepo,
                 callbackDispatcher, config, new ObjectMapper(), new OllamaModelState());
     }
 
     @AfterEach
     void tearDown() throws Exception {
+        if (orchestrator != null) orchestrator.stop();
         connection.close();
     }
 
