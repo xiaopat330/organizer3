@@ -11,11 +11,6 @@ enrichment:
     promptVersion: v7-kanji-bridge
     # Backfill task batch size — chunk size for batched ensemble calls (Phase 5 Track A).
     backfillBatchSize: 20
-    # Parallel ensemble (Phase 5 Track B) — run phi4 + gemma3 concurrently per row.
-    # OFF by default. Memory guard auto-falls-back to serial when current loaded
-    # model bytes exceed parallelEnsembleMemoryBudgetMb.
-    parallelEnsemble: false
-    parallelEnsembleMemoryBudgetMb: 22000
 
 backup:
   autoBackupIntervalMinutes: 10080

@@ -96,7 +96,7 @@ class AiAssistBackfillTaskTest {
 
     private AiAssistBackfillTask buildTask(int batchSize) {
         EnrichmentAssistConfig cfg = new EnrichmentAssistConfig(
-                "off", PHI4, GEMMA, 60, 60, "v7-kanji-bridge", 3, false, batchSize, false, 22000);
+                "off", PHI4, GEMMA, 60, 60, "v7-kanji-bridge", 3, false, batchSize);
         return new AiAssistBackfillTask(spyRepo, orchestrator, cfg, postProcessing, mapper, tempDir);
     }
 

@@ -23,15 +23,6 @@ import com.fasterxml.jackson.annotation.JsonProperty;
  * @param backfillBatchSize                 Phase 5 Track A — chunk size used by the backfill task to
  *                                          batch ensemble calls by model (N rows of primary, then N
  *                                          rows of secondary). Defaults to 20.
- * @param parallelEnsemble                  Phase 5 Track B — when true, the per-row sweeper path
- *                                          dispatches phi4 + gemma3 concurrently (bypassing the
- *                                          orchestrator's serial scheduler) provided current loaded
- *                                          Ollama model bytes are within
- *                                          {@link #parallelEnsembleMemoryBudgetMb}. Defaults to false.
- * @param parallelEnsembleMemoryBudgetMb    Phase 5 Track B — memory headroom guard, in MB. When
- *                                          Ollama's currently loaded model bytes (sum of VRAM /
- *                                          system RAM per {@code /api/ps}) exceed this budget, the
- *                                          per-row path falls back to serial. Defaults to 22000 (22 GB).
  */
 public record EnrichmentAssistConfig(
         @JsonProperty("mode")                            String mode,
@@ -42,12 +33,10 @@ public record EnrichmentAssistConfig(
         @JsonProperty("promptVersion")                   String promptVersion,
         @JsonProperty("maxAutoApplyAttempts")            int maxAutoApplyAttempts,
         @JsonProperty("postProcessingEnabled")           boolean postProcessingEnabled,
-        @JsonProperty("backfillBatchSize")               int backfillBatchSize,
-        @JsonProperty("parallelEnsemble")                boolean parallelEnsemble,
-        @JsonProperty("parallelEnsembleMemoryBudgetMb")  int parallelEnsembleMemoryBudgetMb
+        @JsonProperty("backfillBatchSize")               int backfillBatchSize
 ) {
     public static EnrichmentAssistConfig defaults() {
         return new EnrichmentAssistConfig(
-                "off", "phi4", "gemma3:12b", 60, 60, "v7-kanji-bridge", 3, true, 20, false, 22000);
+                "off", "phi4", "gemma3:12b", 60, 60, "v7-kanji-bridge", 3, true, 20);
     }
 }

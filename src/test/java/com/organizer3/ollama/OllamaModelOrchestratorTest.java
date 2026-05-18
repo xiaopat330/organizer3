@@ -5,8 +5,6 @@ import ch.qos.logback.classic.Logger;
 import ch.qos.logback.classic.spi.ILoggingEvent;
 import ch.qos.logback.core.read.ListAppender;
 import com.organizer3.translation.ollama.HttpOllamaAdapter;
-import com.organizer3.translation.ollama.LoadedOllamaModel;
-import com.organizer3.translation.ollama.OllamaException;
 import com.organizer3.translation.ollama.OllamaRequest;
 import com.organizer3.translation.ollama.OllamaResponse;
 import org.junit.jupiter.api.AfterEach;
@@ -249,61 +247,6 @@ class OllamaModelOrchestratorTest {
             orchLogger.detachAppender(appender);
             orchLogger.setLevel(prior);
         }
-    }
-
-    // ──────────────────────────────────────────────────────────────────────────
-    // Phase 5 Track B — currentLoadedModelMb cache + parity with /api/ps
-    // ──────────────────────────────────────────────────────────────────────────
-
-    @Test
-    void currentLoadedModelMb_sumsVramAcrossEntries() {
-        orch = new OllamaModelOrchestrator(adapter, OrchestratorConfig.defaults());
-        // 1024 * 1024 * 1024 = 1024 MB. Two entries totalling 3072 MB.
-        when(adapter.psModels()).thenReturn(List.of(
-                new LoadedOllamaModel("phi4:latest",   2L * 1024 * 1024 * 1024, 1L * 1024 * 1024 * 1024, null),
-                new LoadedOllamaModel("gemma3:12b",    4L * 1024 * 1024 * 1024, 2L * 1024 * 1024 * 1024, null)
-        ));
-        assertEquals(3072, orch.currentLoadedModelMb());
-    }
-
-    @Test
-    void currentLoadedModelMb_returnsZeroWhenNoModelsLoaded() {
-        orch = new OllamaModelOrchestrator(adapter, OrchestratorConfig.defaults());
-        when(adapter.psModels()).thenReturn(Collections.emptyList());
-        assertEquals(0, orch.currentLoadedModelMb());
-    }
-
-    @Test
-    void currentLoadedModelMb_returnsMaxValueOnFailure() {
-        orch = new OllamaModelOrchestrator(adapter, OrchestratorConfig.defaults());
-        when(adapter.psModels()).thenThrow(new OllamaException("ollama down"));
-        assertEquals(Integer.MAX_VALUE, orch.currentLoadedModelMb());
-    }
-
-    @Test
-    void currentLoadedModelMb_fallsBackToSizeBytesWhenVramIsZero() {
-        // Apple Silicon unified memory: Ollama reports vramBytes=0; we must sum sizeBytes.
-        orch = new OllamaModelOrchestrator(adapter, OrchestratorConfig.defaults());
-        when(adapter.psModels()).thenReturn(List.of(
-                new LoadedOllamaModel("phi4:latest", 1024L * 1024 * 1024, 0L, null)
-        ));
-        assertEquals(1024, orch.currentLoadedModelMb());
-    }
-
-    @Test
-    void currentLoadedModelMb_cachesWithin30Seconds() {
-        orch = new OllamaModelOrchestrator(adapter, OrchestratorConfig.defaults());
-        when(adapter.psModels()).thenReturn(List.of(
-                new LoadedOllamaModel("phi4:latest", 1024L * 1024 * 1024, 0L, null)
-        ));
-        int first  = orch.currentLoadedModelMb();
-        int second = orch.currentLoadedModelMb();
-        int third  = orch.currentLoadedModelMb();
-        assertEquals(1024, first);
-        assertEquals(first, second);
-        assertEquals(first, third);
-        // Exactly one HTTP-equivalent call despite three reads.
-        verify(adapter, times(1)).psModels();
     }
 
     /** Minimal mutable clock for fairness testing. */

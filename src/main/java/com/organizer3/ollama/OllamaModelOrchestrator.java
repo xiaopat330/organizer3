@@ -1,7 +1,6 @@
 package com.organizer3.ollama;
 
 import com.organizer3.translation.ollama.HttpOllamaAdapter;
-import com.organizer3.translation.ollama.LoadedOllamaModel;
 import com.organizer3.translation.ollama.OllamaRequest;
 import com.organizer3.translation.ollama.OllamaResponse;
 import lombok.extern.slf4j.Slf4j;
@@ -11,11 +10,8 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
@@ -73,20 +69,6 @@ public class OllamaModelOrchestrator {
 
     private Thread schedulerThread;
 
-    // Phase 5 Track B — parallel-ensemble fast path. Lazily initialised; bounded to 2
-    // workers so one phi4 + one gemma3 call can run concurrently against Ollama while
-    // larger workloads still flow through the per-model serial queues above.
-    private volatile ExecutorService parallelExecutor;
-    private final Object parallelExecutorLock = new Object();
-
-    // Phase 5 Track B — 30-second cache of /api/ps total VRAM (falling back to system RAM
-    // when VRAM is 0, e.g. Apple Silicon unified memory). Benign race on the volatiles is
-    // fine; worst case is one redundant /api/ps call right around the TTL boundary.
-    private static final long PS_CACHE_TTL_MS = 30_000L;
-    private volatile long psCacheFetchedAtMs = 0L;
-    private volatile int  psCacheValueMb     = 0;
-    private volatile boolean psWarnedOnce    = false;
-
     // Metrics
     private final AtomicLong modelSwitches = new AtomicLong();
     private final Map<String, AtomicLong> callsByModel = new HashMap<>();
@@ -142,20 +124,6 @@ public class OllamaModelOrchestrator {
             }
         } finally {
             lock.unlock();
-        }
-        // Phase 5 Track B — tear down the parallel-ensemble executor if it was ever used.
-        ExecutorService pe = parallelExecutor;
-        if (pe != null) {
-            pe.shutdown();
-            try {
-                if (!pe.awaitTermination(5, TimeUnit.SECONDS)) {
-                    pe.shutdownNow();
-                }
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-                pe.shutdownNow();
-            }
-            parallelExecutor = null;
         }
     }
 
@@ -281,90 +249,6 @@ public class OllamaModelOrchestrator {
             }
         }
         return best;
-    }
-
-    // ──────────────────────────────────────────────────────────────────────────
-    // Phase 5 Track B — parallel ensemble support
-    // ──────────────────────────────────────────────────────────────────────────
-
-    /**
-     * Phase 5 Track B — current total bytes used by Ollama's resident models, in MB.
-     *
-     * <p>Queries {@code /api/ps} via the underlying adapter and sums {@code vramBytes}
-     * across all loaded models (falling back to {@code sizeBytes} on hosts where Ollama
-     * reports VRAM as 0 — e.g. Apple Silicon unified memory).
-     *
-     * <p>Result is cached for {@value #PS_CACHE_TTL_MS}ms to avoid hammering Ollama when
-     * the sweeper makes many memory-gate decisions in quick succession.
-     *
-     * <p>On HTTP / parse / unreachable errors: returns {@link Integer#MAX_VALUE}. This is
-     * pessimistic by design — callers treat it as "memory pressure, fall back to serial".
-     * A WARN is logged once per process lifetime (subsequent failures are silent).
-     */
-    public int currentLoadedModelMb() {
-        long now = System.currentTimeMillis();
-        if (now - psCacheFetchedAtMs < PS_CACHE_TTL_MS && psCacheFetchedAtMs != 0L) {
-            return psCacheValueMb;
-        }
-        try {
-            List<LoadedOllamaModel> loaded = adapter.psModels();
-            long totalBytes = 0L;
-            for (LoadedOllamaModel m : loaded) {
-                long bytes = m.vramBytes() > 0 ? m.vramBytes() : m.sizeBytes();
-                totalBytes += bytes;
-            }
-            int mb = (int) Math.min((long) Integer.MAX_VALUE, totalBytes / 1_048_576L);
-            psCacheValueMb = mb;
-            psCacheFetchedAtMs = now;
-            return mb;
-        } catch (Throwable t) {
-            if (!psWarnedOnce) {
-                psWarnedOnce = true;
-                log.warn("[ai-assist] /api/ps unreachable; parallel-ensemble guard will fall back to serial: {}",
-                        t.getMessage());
-            }
-            // Cache the failure briefly too — avoids hammering on a long Ollama outage.
-            psCacheFetchedAtMs = now;
-            psCacheValueMb = Integer.MAX_VALUE;
-            return Integer.MAX_VALUE;
-        }
-    }
-
-    /**
-     * Phase 5 Track B — bypass the per-model serial scheduler and dispatch the request
-     * directly to the underlying {@link HttpOllamaAdapter} on a bounded 2-thread pool.
-     *
-     * <p><b>Why not {@link #submit}</b>: the standard {@code submit} path serialises
-     * work through a single scheduler thread that processes one model's queue at a time
-     * — perfect for batched throughput, useless for halving per-row latency. The parallel
-     * path is gated by the {@code parallelEnsemble} flag and a memory-budget guard
-     * ({@link #currentLoadedModelMb}); callers should only land here when both models
-     * are expected to fit warm-resident in Ollama.
-     *
-     * <p>{@code keep_alive} is applied identically to the serial path so model residency
-     * decisions are consistent across both code paths.
-     */
-    public CompletableFuture<OllamaResponse> submitParallel(String model, OllamaRequest request) {
-        if (model == null || model.isEmpty()) {
-            CompletableFuture<OllamaResponse> f = new CompletableFuture<>();
-            f.completeExceptionally(new IllegalArgumentException("model must be non-empty"));
-            return f;
-        }
-        ExecutorService exec = parallelExecutor;
-        if (exec == null) {
-            synchronized (parallelExecutorLock) {
-                if (parallelExecutor == null) {
-                    parallelExecutor = Executors.newFixedThreadPool(2, r -> {
-                        Thread t = new Thread(r, "ollama-parallel-ensemble");
-                        t.setDaemon(true);
-                        return t;
-                    });
-                }
-                exec = parallelExecutor;
-            }
-        }
-        final OllamaRequest effective = applyKeepAlive(request);
-        return CompletableFuture.supplyAsync(() -> adapter.generate(effective), exec);
     }
 
     public Metrics metrics() {

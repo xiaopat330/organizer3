@@ -87,11 +87,11 @@ class EnrichmentAssistSweeperTest {
 
     private EnrichmentAssistConfig configWith(String mode) {
         // sweeperIntervalSeconds=1 so idle-sleep is short; values don't otherwise matter.
-        return new EnrichmentAssistConfig(mode, "phi4", "gemma3:12b", 1, 60, "v7-kanji-bridge", 3, true, 20, false, 22000);
+        return new EnrichmentAssistConfig(mode, "phi4", "gemma3:12b", 1, 60, "v7-kanji-bridge", 3, true, 20);
     }
 
     private EnrichmentAssistConfig configWith(String mode, int autoApplyDelaySeconds) {
-        return new EnrichmentAssistConfig(mode, "phi4", "gemma3:12b", 1, autoApplyDelaySeconds, "v7-kanji-bridge", 3, true, 20, false, 22000);
+        return new EnrichmentAssistConfig(mode, "phi4", "gemma3:12b", 1, autoApplyDelaySeconds, "v7-kanji-bridge", 3, true, 20);
     }
 
     /** Enqueues an open ambiguous row for an existing title with the given snapshot. */
