@@ -936,9 +936,18 @@ public class Application {
         com.organizer3.enrichment.ai.EnsembleAssistCaller ensembleAssistCaller =
                 new com.organizer3.enrichment.ai.EnsembleAssistCaller(
                         ollamaOrchestrator, assistConfig, jsonMapper);
+        // PickReviewCandidateTool is also referenced below by MCP wiring; build it once here so
+        // both the sweeper's EnrichmentAutoApplier and the MCP layer share the same instance.
+        com.organizer3.mcp.tools.PickReviewCandidateTool pickReviewCandidateTool =
+                new com.organizer3.mcp.tools.PickReviewCandidateTool(
+                        jdbi, enrichmentReviewQueueRepo, javdbEnrichmentRepo,
+                        javdbStagingRepo, revalidationPendingRepo, enrichmentQueue);
+        com.organizer3.enrichment.ai.EnrichmentAutoApplier enrichmentAutoApplier =
+                new com.organizer3.enrichment.ai.EnrichmentAutoApplier(
+                        enrichmentReviewQueueRepo, pickReviewCandidateTool, jsonMapper);
         com.organizer3.enrichment.ai.EnrichmentAssistSweeper enrichmentAssistSweeper =
                 new com.organizer3.enrichment.ai.EnrichmentAssistSweeper(
-                        enrichmentReviewQueueRepo, ensembleAssistCaller, assistConfig);
+                        enrichmentReviewQueueRepo, ensembleAssistCaller, assistConfig, enrichmentAutoApplier);
 
         // Coherent multi-volume sync — defers global orphan prune until all volumes are scanned.
         com.organizer3.sync.SyncPruneService syncPruneService =
@@ -1001,10 +1010,7 @@ public class Application {
                         new com.organizer3.javdb.enrichment.JavdbExtractor(),
                         javdbStagingRepo, javdbEnrichmentRepo,
                         enrichmentReviewQueueRepo, revalidationPendingRepo, enrichmentQueue);
-        com.organizer3.mcp.tools.PickReviewCandidateTool pickReviewCandidateTool =
-                new com.organizer3.mcp.tools.PickReviewCandidateTool(
-                        jdbi, enrichmentReviewQueueRepo, javdbEnrichmentRepo,
-                        javdbStagingRepo, revalidationPendingRepo, enrichmentQueue);
+        // pickReviewCandidateTool was constructed earlier to feed EnrichmentAutoApplier.
         com.organizer3.mcp.tools.RefreshReviewCandidatesTool refreshReviewCandidatesTool =
                 new com.organizer3.mcp.tools.RefreshReviewCandidatesTool(
                         enrichmentReviewQueueRepo, titleRepo, disambiguationSnapshotter);

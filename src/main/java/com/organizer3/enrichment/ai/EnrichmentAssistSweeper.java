@@ -30,11 +30,13 @@ import java.util.Objects;
  * asks the {@link EnsembleAssistCaller}, and writes the result to the four
  * {@code ai_suggestion_*} columns.
  *
- * <p><b>Phase 1 scope</b>: this sweeper does <i>not</i> auto-apply suggestions even
- * when {@link EnrichmentAssistConfig#mode() mode}={@code auto}. It only fills the
- * suggestion columns. Phase 3 will add an auto-apply timer over the same data.
- * The mode check at the top of the loop exits only on {@code off}; {@code shadow},
- * {@code suggest}, and {@code auto} behave identically here.
+ * <p><b>Phase 3 scope</b>: when {@link EnrichmentAssistConfig#mode() mode}={@code auto},
+ * each iteration also drains a single aged agreed suggestion via
+ * {@link EnrichmentReviewQueueRepository#listAutoApplyReady} and applies it through
+ * {@link EnrichmentAutoApplier}. Phase A (write a new suggestion) wins over Phase B
+ * (auto-apply) when both queues have work, so the writer keeps moving and the applier
+ * processes on the trailing edge. In {@code shadow} / {@code suggest} modes only
+ * Phase A runs; on {@code off} the sweeper exits.
  *
  * <p><b>Failure handling</b>: if the caller throws (e.g.
  * {@link IllegalStateException} for a row with zero candidates), we still write a
@@ -61,15 +63,16 @@ public final class EnrichmentAssistSweeper implements Task {
             ID,
             "AI assist — review queue sweeper",
             "Continuously drains open ambiguous review-queue rows by submitting them to the "
-                    + "two-model ensemble (phi4 + gemma3) and recording the suggestion. Does NOT "
-                    + "auto-apply suggestions in Phase 1; sweeper exits cleanly when mode=off or "
-                    + "the task is cancelled.",
+                    + "two-model ensemble (phi4 + gemma3) and recording the suggestion. In mode=auto "
+                    + "also auto-applies aged agreed suggestions via EnrichmentAutoApplier. Sweeper "
+                    + "exits cleanly when mode=off or the task is cancelled.",
             List.of()
     );
 
     private final EnrichmentReviewQueueRepository queueRepo;
     private final EnsembleAssistCaller caller;
     private final EnrichmentAssistConfig config;
+    private final EnrichmentAutoApplier autoApplier;
     private final Clock clock;
 
     // Daily-summary rollup state — updated on the sweeper thread only, so no synchronization needed.
@@ -80,19 +83,22 @@ public final class EnrichmentAssistSweeper implements Task {
 
     public EnrichmentAssistSweeper(EnrichmentReviewQueueRepository queueRepo,
                                    EnsembleAssistCaller caller,
-                                   EnrichmentAssistConfig config) {
-        this(queueRepo, caller, config, Clock.systemUTC());
+                                   EnrichmentAssistConfig config,
+                                   EnrichmentAutoApplier autoApplier) {
+        this(queueRepo, caller, config, autoApplier, Clock.systemUTC());
     }
 
     /** Test-friendly constructor: inject a Clock so daily-rollup boundaries can be advanced. */
     public EnrichmentAssistSweeper(EnrichmentReviewQueueRepository queueRepo,
                                    EnsembleAssistCaller caller,
                                    EnrichmentAssistConfig config,
+                                   EnrichmentAutoApplier autoApplier,
                                    Clock clock) {
-        this.queueRepo = Objects.requireNonNull(queueRepo, "queueRepo");
-        this.caller    = Objects.requireNonNull(caller, "caller");
-        this.config    = Objects.requireNonNull(config, "config");
-        this.clock     = Objects.requireNonNull(clock, "clock");
+        this.queueRepo   = Objects.requireNonNull(queueRepo, "queueRepo");
+        this.caller      = Objects.requireNonNull(caller, "caller");
+        this.config      = Objects.requireNonNull(config, "config");
+        this.autoApplier = Objects.requireNonNull(autoApplier, "autoApplier");
+        this.clock       = Objects.requireNonNull(clock, "clock");
     }
 
     @Override
@@ -113,67 +119,115 @@ public final class EnrichmentAssistSweeper implements Task {
 
         int processed = 0;
         int errors    = 0;
+        int autoApplied = 0;
+        int autoApplyFailed = 0;
 
+        // NOTE: Reads config.mode() per iteration so a live-swap of the config reference
+        // would take effect immediately. However, EnrichmentAssistConfig is loaded
+        // once at boot today; flipping mode in YAML requires app restart. To pause
+        // auto-apply without restart, cancel this task via the Utilities task runner.
         while (!io.isCancellationRequested()) {
+            // PHASE A — write a new suggestion for an open ambiguous row.
             // One row at a time per the atomic-operations rule.
             List<OpenRow> rows = queueRepo.listOpenAwaitingAi(1);
 
-            if (rows.isEmpty()) {
-                log.info("[ai-assist] no work, sleeping {}s", intervalSec);
-                io.phaseProgress("sweep", processed, -1,
-                        "idle — " + processed + " processed, " + errors + " error(s)");
-                if (!sleepInterruptible(intervalSec * 1000L, io)) break;
+            if (!rows.isEmpty()) {
+                OpenRow row = rows.get(0);
+                ProcessOutcome po = processOneRow(row, io);
+                if (po == ProcessOutcome.ERROR) errors++; else processed++;
+                if (!sleepInterruptible(INTER_ROW_DELAY_MS, io)) break;
                 continue;
             }
 
-            OpenRow row = rows.get(0);
-            try {
-                AssistContext ctx = queueRepo.findContextForAssist(row.titleId());
-                AssistResult result = caller.evaluate(row, ctx.folderPath(), ctx.actressNames());
-
-                queueRepo.setAiSuggestion(
-                        row.id(),
-                        result.suggestedSlug(),
-                        // Phase 1 stores the ensemble outcome label in the confidence column —
-                        // see setAiSuggestion javadoc. The column is unconstrained TEXT.
-                        result.outcome(),
-                        truncate(result.reason()),
-                        Instant.now());
-
-                processed++;
-                recordOutcome(result.outcome());
-                log.info("[ai-assist] {} → {} ({})",
-                        row.titleCode(),
-                        result.outcome(),
-                        truncate60(result.reason()));
-                io.phaseLog("sweep",
-                        "ok code=" + row.titleCode() + " outcome=" + result.outcome()
-                                + " slug=" + (result.suggestedSlug() != null ? result.suggestedSlug() : "-"));
-            } catch (Exception e) {
-                errors++;
-                recordOutcome("error");
-                String msg = e.getMessage() != null ? e.getMessage() : e.getClass().getSimpleName();
-                log.warn("[ai-assist] failed code={} : {}", row.titleCode(), msg);
-                // Persist a sentinel so this row is not re-tried forever. The
-                // listOpenAwaitingAi filter excludes rows whose ai_suggestion_at is non-null.
-                try {
-                    queueRepo.setAiSuggestion(row.id(), null, "error", truncate(msg), Instant.now());
-                } catch (RuntimeException sentinelErr) {
-                    log.error("[ai-assist] failed to write error sentinel for row {} — row may re-trigger",
-                            row.id(), sentinelErr);
+            // PHASE B — apply an aged agreed suggestion (mode=auto only).
+            if ("auto".equals(config.mode())) {
+                List<OpenRow> aged = queueRepo.listAutoApplyReady(1, config.autoApplyDelaySeconds());
+                if (!aged.isEmpty()) {
+                    OpenRow row = aged.get(0);
+                    boolean ok;
+                    try {
+                        ok = autoApplier.apply(row);
+                    } catch (Exception e) {
+                        ok = false;
+                        log.warn("[ai-assist] auto-apply threw code={}: {}",
+                                row.titleCode(), e.getMessage());
+                    }
+                    if (ok) {
+                        autoApplied++;
+                        recordOutcome("auto_applied");
+                        io.phaseLog("sweep",
+                                "auto-applied code=" + row.titleCode()
+                                        + " slug=" + row.aiSuggestionSlug());
+                    } else {
+                        autoApplyFailed++;
+                        recordOutcome("auto_apply_failed");
+                        io.phaseLog("sweep",
+                                "auto-apply failed code=" + row.titleCode());
+                    }
+                    if (!sleepInterruptible(INTER_ROW_DELAY_MS, io)) break;
+                    continue;
                 }
-                io.phaseLog("sweep",
-                        "ERR code=" + row.titleCode() + " : " + truncate60(msg));
             }
 
-            // Brief delay between rows so the sweeper never hogs the orchestrator.
-            if (!sleepInterruptible(INTER_ROW_DELAY_MS, io)) break;
+            // Both queues empty — idle sleep.
+            log.info("[ai-assist] no work, sleeping {}s", intervalSec);
+            io.phaseProgress("sweep", processed, -1,
+                    "idle — " + processed + " processed, " + errors + " error(s)"
+                            + (autoApplied > 0 ? ", " + autoApplied + " auto-applied" : ""));
+            if (!sleepInterruptible(intervalSec * 1000L, io)) break;
         }
 
         String summary = processed + " suggestion(s) written"
                 + (errors > 0 ? " · " + errors + " error(s)" : "")
+                + (autoApplied > 0 ? " · " + autoApplied + " auto-applied" : "")
+                + (autoApplyFailed > 0 ? " · " + autoApplyFailed + " auto-apply failed" : "")
                 + (io.isCancellationRequested() ? " (cancelled)" : "");
         io.phaseEnd("sweep", "ok", summary);
+    }
+
+    /** Outcome of one Phase-A row attempt — used only to bump processed-vs-errors counters. */
+    private enum ProcessOutcome { OK, ERROR }
+
+    /** Phase-A row body: ask the ensemble + persist suggestion / error sentinel. */
+    private ProcessOutcome processOneRow(OpenRow row, TaskIO io) {
+        try {
+            AssistContext ctx = queueRepo.findContextForAssist(row.titleId());
+            AssistResult result = caller.evaluate(row, ctx.folderPath(), ctx.actressNames());
+
+            queueRepo.setAiSuggestion(
+                    row.id(),
+                    result.suggestedSlug(),
+                    // Phase 1 stores the ensemble outcome label in the confidence column —
+                    // see setAiSuggestion javadoc. The column is unconstrained TEXT.
+                    result.outcome(),
+                    truncate(result.reason()),
+                    Instant.now());
+
+            recordOutcome(result.outcome());
+            log.info("[ai-assist] {} → {} ({})",
+                    row.titleCode(),
+                    result.outcome(),
+                    truncate60(result.reason()));
+            io.phaseLog("sweep",
+                    "ok code=" + row.titleCode() + " outcome=" + result.outcome()
+                            + " slug=" + (result.suggestedSlug() != null ? result.suggestedSlug() : "-"));
+            return ProcessOutcome.OK;
+        } catch (Exception e) {
+            recordOutcome("error");
+            String msg = e.getMessage() != null ? e.getMessage() : e.getClass().getSimpleName();
+            log.warn("[ai-assist] failed code={} : {}", row.titleCode(), msg);
+            // Persist a sentinel so this row is not re-tried forever. The
+            // listOpenAwaitingAi filter excludes rows whose ai_suggestion_at is non-null.
+            try {
+                queueRepo.setAiSuggestion(row.id(), null, "error", truncate(msg), Instant.now());
+            } catch (RuntimeException sentinelErr) {
+                log.error("[ai-assist] failed to write error sentinel for row {} — row may re-trigger",
+                        row.id(), sentinelErr);
+            }
+            io.phaseLog("sweep",
+                    "ERR code=" + row.titleCode() + " : " + truncate60(msg));
+            return ProcessOutcome.ERROR;
+        }
     }
 
     /**
@@ -219,14 +273,16 @@ public final class EnrichmentAssistSweeper implements Task {
 
     private void emitDailySummary(LocalDate day) {
         log.info("[ai-assist] daily summary: processed={} agreed={} phi4_only={} gemma_only={}"
-                        + " conflict={} both_abstain={} error={}",
+                        + " conflict={} both_abstain={} error={} auto_applied={} auto_apply_failed={}",
                 processedToday,
                 outcomeCounts.getOrDefault("agreed", 0),
                 outcomeCounts.getOrDefault("phi4_only", 0),
                 outcomeCounts.getOrDefault("gemma_only", 0),
                 outcomeCounts.getOrDefault("conflict", 0),
                 outcomeCounts.getOrDefault("both_abstain", 0),
-                outcomeCounts.getOrDefault("error", 0));
+                outcomeCounts.getOrDefault("error", 0),
+                outcomeCounts.getOrDefault("auto_applied", 0),
+                outcomeCounts.getOrDefault("auto_apply_failed", 0));
     }
 
     // Package-private accessors for tests.
