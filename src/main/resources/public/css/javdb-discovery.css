@@ -83,17 +83,19 @@
 .jd-ai-assist-pill {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  padding: 4px 10px;
-  margin: 6px 16px;
-  border-radius: 12px;
-  border: 1px solid var(--border-strong, #334155);
+  gap: 6px;
+  padding: 3px 8px 3px 10px;
+  border-radius: 4px;
+  border: 1px solid #4c3a14;
   font-size: 12px;
+  font-weight: 500;
   line-height: 1.4;
+  white-space: nowrap;
 }
 .jd-ai-assist-off {
-  color: var(--text-faint, #64748b);
-  background: transparent;
+  color: #f59e0b;
+  background: #1c1508;
+  border-color: #4c3a14;
 }
 .jd-ai-assist-running {
   color: var(--ok, #4ade80);
@@ -107,16 +109,17 @@
 }
 .jd-ai-assist-label { flex: 1; }
 .jd-ai-assist-start-btn {
-  background: transparent;
-  border: 1px solid currentColor;
-  color: inherit;
   font-size: 11px;
-  padding: 1px 8px;
-  border-radius: 8px;
+  font-weight: 500;
+  padding: 2px 8px;
+  border-radius: 4px;
+  border: 1px solid #4c3a14;
+  background: #2a1f08;
+  color: #f59e0b;
   cursor: pointer;
-  opacity: 0.85;
+  transition: background 0.15s, color 0.15s;
 }
-.jd-ai-assist-start-btn:hover:not(:disabled) { opacity: 1; background: rgba(255,255,255,0.06); }
+.jd-ai-assist-start-btn:hover:not(:disabled) { background: #3a2c0e; color: #fbbf24; border-color: #78520f; }
 .jd-ai-assist-start-btn:disabled { opacity: 0.4; cursor: not-allowed; }
 
 .jd-body {
