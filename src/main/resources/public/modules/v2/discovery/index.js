@@ -112,6 +112,7 @@ function buildHTML() {
   </div>
 
   <div id="jd-rate-limit-banner" class="jd-rate-limit-banner" style="display:none"></div>
+  <div id="jd-ai-assist-pill" class="jd-ai-assist-pill" style="display:none"></div>
 
   <!-- ── Enrich tab body ───────────────────────────────────────────────── -->
   <div class="jd-body">
@@ -290,8 +291,9 @@ export async function mountDiscovery(rootEl) {
   state = createState();
 
   // DOM refs (resolved after innerHTML set).
-  const rateLimitBanner = document.getElementById('jd-rate-limit-banner');
-  const pauseBtn        = document.getElementById('jd-pause-btn');
+  const rateLimitBanner  = document.getElementById('jd-rate-limit-banner');
+  const aiAssistPill     = document.getElementById('jd-ai-assist-pill');
+  const pauseBtn         = document.getElementById('jd-pause-btn');
   const cancelAllBtn    = document.getElementById('jd-cancel-all-btn');
   const controlsToggle  = document.getElementById('jd-controls-toggle');
   const controlsPanel   = document.getElementById('jd-controls');
@@ -412,6 +414,82 @@ export async function mountDiscovery(rootEl) {
     } catch (_) { /* ignore */ }
   }
 
+  // ── AI Assist pill ────────────────────────────────────────────────────
+
+  const AI_ASSIST_TASK_ID = 'enrichment.ai_assist_sweeper';
+  let aiAssistRunning = false;
+  let aiAssistPollTimer = null;
+
+  function renderAiAssistPill(running) {
+    aiAssistRunning = running;
+    if (running) {
+      aiAssistPill.className = 'jd-ai-assist-pill jd-ai-assist-running';
+      aiAssistPill.innerHTML = '<span class="jd-ai-assist-label">AI assist: running</span>';
+    } else {
+      aiAssistPill.className = 'jd-ai-assist-pill jd-ai-assist-off';
+      aiAssistPill.innerHTML =
+        '<span class="jd-ai-assist-label">AI assist: off</span>' +
+        '<button type="button" class="jd-ai-assist-start-btn">Start</button>';
+      aiAssistPill.querySelector('.jd-ai-assist-start-btn').addEventListener('click', startAiAssist);
+    }
+    aiAssistPill.style.display = '';
+  }
+
+  async function pollAiAssistState() {
+    try {
+      const res = await fetch('/api/utilities/active');
+      if (!res.ok) return;
+      const data = await res.json();
+      const running = data.active && data.taskId === AI_ASSIST_TASK_ID && data.status === 'running';
+      if (running !== aiAssistRunning) renderAiAssistPill(running);
+    } catch (_) { /* ignore */ }
+  }
+
+  async function startAiAssist() {
+    const btn = aiAssistPill.querySelector('.jd-ai-assist-start-btn');
+    if (btn) { btn.disabled = true; btn.textContent = 'Starting…'; }
+    try {
+      const res = await fetch(`/api/utilities/tasks/${AI_ASSIST_TASK_ID}/run`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: '{}',
+      });
+      if (res.ok) {
+        renderAiAssistPill(true);
+      } else if (res.status === 409) {
+        // Another task already in flight — treat as running
+        renderAiAssistPill(true);
+      } else {
+        const data = await res.json().catch(() => ({}));
+        showAiAssistError(data.error || `HTTP ${res.status}`);
+        if (btn) { btn.disabled = false; btn.textContent = 'Start'; }
+      }
+    } catch (err) {
+      showAiAssistError(err.message);
+      if (btn) { btn.disabled = false; btn.textContent = 'Start'; }
+    }
+  }
+
+  function showAiAssistError(msg) {
+    aiAssistPill.className = 'jd-ai-assist-pill jd-ai-assist-error';
+    aiAssistPill.innerHTML =
+      `<span class="jd-ai-assist-label">AI assist error: ${esc(msg)}</span>` +
+      '<button type="button" class="jd-ai-assist-start-btn">Retry</button>';
+    aiAssistPill.querySelector('.jd-ai-assist-start-btn').addEventListener('click', startAiAssist);
+  }
+
+  function startAiAssistPoll() {
+    stopAiAssistPoll();
+    aiAssistPollTimer = setInterval(pollAiAssistState, 10_000);
+  }
+
+  function stopAiAssistPoll() {
+    if (aiAssistPollTimer !== null) {
+      clearInterval(aiAssistPollTimer);
+      aiAssistPollTimer = null;
+    }
+  }
+
   // ── Polling ───────────────────────────────────────────────────────────
 
   function startQueuePoll() {
@@ -472,6 +550,7 @@ export async function mountDiscovery(rootEl) {
   // Store cleanup refs on rootEl for unmount.
   rootEl._disCleanup = () => {
     stopQueuePoll();
+    stopAiAssistPoll();
     queueApi.stopQueueItemsPoll();
     document.removeEventListener('navigate-to-discovery-actress-profile', onNavigateToActressProfile);
   };
@@ -481,8 +560,9 @@ export async function mountDiscovery(rootEl) {
   controlsPanel.classList.add('collapsed');
   controlsToggle.classList.add('collapsed');
   switchJdTab('enrich');
-  await Promise.all([loadActresses(), refreshQueue()]);
+  await Promise.all([loadActresses(), refreshQueue(), pollAiAssistState()]);
   startQueuePoll();
+  startAiAssistPoll();
 }
 
 export function unmountDiscovery(rootEl) {

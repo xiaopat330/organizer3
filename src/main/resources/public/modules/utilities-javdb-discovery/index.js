@@ -71,6 +71,7 @@ const state = createState();
 const view              = document.getElementById('tools-javdb-discovery-view');
 const queueBadge        = document.getElementById('jd-queue-badge');
 const rateLimitBanner   = document.getElementById('jd-rate-limit-banner');
+const aiAssistPill      = document.getElementById('jd-ai-assist-pill');
 const pauseBtn          = document.getElementById('jd-pause-btn');
 const cancelAllBtn      = document.getElementById('jd-cancel-all-btn');
 const controlsToggle    = document.getElementById('jd-controls-toggle');
@@ -111,13 +112,15 @@ export async function showJavdbDiscoveryView() {
   controlsPanel.classList.add('collapsed');
   controlsToggle.classList.add('collapsed');
   switchJdTab('enrich');
-  await Promise.all([loadActresses(), refreshQueue()]);
+  await Promise.all([loadActresses(), refreshQueue(), pollAiAssistState()]);
   startQueuePoll();
+  startAiAssistPoll();
 }
 
 export function hideJavdbDiscoveryView() {
   view.style.display = 'none';
   stopQueuePoll();
+  stopAiAssistPoll();
   queueApi.stopQueueItemsPoll();
 }
 
@@ -201,6 +204,79 @@ async function refreshQueue() {
     }
     state.lastActiveTotal = activeTotal;
   } catch (_) { /* ignore */ }
+}
+
+// ── AI Assist pill ────────────────────────────────────────────────────────
+
+const AI_ASSIST_TASK_ID = 'enrichment.ai_assist_sweeper';
+let aiAssistRunning = false;
+let aiAssistPollTimer = null;
+
+function renderAiAssistPill(running) {
+  aiAssistRunning = running;
+  if (running) {
+    aiAssistPill.className = 'jd-ai-assist-pill jd-ai-assist-running';
+    aiAssistPill.innerHTML = '<span class="jd-ai-assist-label">AI assist: running</span>';
+  } else {
+    aiAssistPill.className = 'jd-ai-assist-pill jd-ai-assist-off';
+    aiAssistPill.innerHTML =
+      '<span class="jd-ai-assist-label">AI assist: off</span>' +
+      '<button type="button" class="jd-ai-assist-start-btn">Start</button>';
+    aiAssistPill.querySelector('.jd-ai-assist-start-btn').addEventListener('click', startAiAssist);
+  }
+  aiAssistPill.style.display = '';
+}
+
+async function pollAiAssistState() {
+  try {
+    const res = await fetch('/api/utilities/active');
+    if (!res.ok) return;
+    const data = await res.json();
+    const running = data.active && data.taskId === AI_ASSIST_TASK_ID && data.status === 'running';
+    if (running !== aiAssistRunning) renderAiAssistPill(running);
+    else if (aiAssistPill.style.display === 'none') renderAiAssistPill(running);
+  } catch (_) { /* ignore */ }
+}
+
+async function startAiAssist() {
+  const btn = aiAssistPill.querySelector('.jd-ai-assist-start-btn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Starting…'; }
+  try {
+    const res = await fetch(`/api/utilities/tasks/${AI_ASSIST_TASK_ID}/run`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: '{}',
+    });
+    if (res.ok || res.status === 409) {
+      renderAiAssistPill(true);
+    } else {
+      const data = await res.json().catch(() => ({}));
+      const msg = data.error || `HTTP ${res.status}`;
+      aiAssistPill.className = 'jd-ai-assist-pill jd-ai-assist-error';
+      aiAssistPill.innerHTML =
+        `<span class="jd-ai-assist-label">AI assist error: ${esc(msg)}</span>` +
+        '<button type="button" class="jd-ai-assist-start-btn">Retry</button>';
+      aiAssistPill.querySelector('.jd-ai-assist-start-btn').addEventListener('click', startAiAssist);
+    }
+  } catch (err) {
+    aiAssistPill.className = 'jd-ai-assist-pill jd-ai-assist-error';
+    aiAssistPill.innerHTML =
+      `<span class="jd-ai-assist-label">AI assist error: ${esc(err.message)}</span>` +
+      '<button type="button" class="jd-ai-assist-start-btn">Retry</button>';
+    aiAssistPill.querySelector('.jd-ai-assist-start-btn').addEventListener('click', startAiAssist);
+  }
+}
+
+function startAiAssistPoll() {
+  if (aiAssistPollTimer !== null) clearInterval(aiAssistPollTimer);
+  aiAssistPollTimer = setInterval(pollAiAssistState, 10_000);
+}
+
+function stopAiAssistPoll() {
+  if (aiAssistPollTimer !== null) {
+    clearInterval(aiAssistPollTimer);
+    aiAssistPollTimer = null;
+  }
 }
 
 function startQueuePoll() {

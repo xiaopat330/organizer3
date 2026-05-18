@@ -79,6 +79,46 @@
 .jd-banner-resume-btn:hover { opacity: 1; background: #052e16; }
 .jd-banner-resume-btn:disabled { opacity: 0.4; cursor: default; }
 
+/* ── AI Assist pill ───────────────────────────────────────────────────────── */
+.jd-ai-assist-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 10px;
+  margin: 6px 16px;
+  border-radius: 12px;
+  border: 1px solid var(--border-strong, #334155);
+  font-size: 12px;
+  line-height: 1.4;
+}
+.jd-ai-assist-off {
+  color: var(--text-faint, #64748b);
+  background: transparent;
+}
+.jd-ai-assist-running {
+  color: var(--ok, #4ade80);
+  border-color: var(--ok, #4ade80);
+  background: rgba(74, 222, 128, 0.06);
+}
+.jd-ai-assist-error {
+  color: var(--danger, #f87171);
+  border-color: var(--danger, #f87171);
+  background: rgba(248, 113, 113, 0.06);
+}
+.jd-ai-assist-label { flex: 1; }
+.jd-ai-assist-start-btn {
+  background: transparent;
+  border: 1px solid currentColor;
+  color: inherit;
+  font-size: 11px;
+  padding: 1px 8px;
+  border-radius: 8px;
+  cursor: pointer;
+  opacity: 0.85;
+}
+.jd-ai-assist-start-btn:hover:not(:disabled) { opacity: 1; background: rgba(255,255,255,0.06); }
+.jd-ai-assist-start-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
 .jd-body {
   display: flex;
   flex: 1;
