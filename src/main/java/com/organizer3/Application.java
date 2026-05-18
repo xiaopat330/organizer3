@@ -959,7 +959,8 @@ public class Application {
         // Phase 4 Track C — one-shot historical accuracy backfill.
         com.organizer3.utilities.task.javdb.AiAssistBackfillTask aiAssistBackfillTask =
                 new com.organizer3.utilities.task.javdb.AiAssistBackfillTask(
-                        enrichmentReviewQueueRepo, ensembleAssistCaller, jsonMapper, dataDir);
+                        enrichmentReviewQueueRepo, ollamaOrchestrator, assistConfig,
+                        assistPostProcessingRules, jsonMapper, dataDir);
 
         // Coherent multi-volume sync — defers global orphan prune until all volumes are scanned.
         com.organizer3.sync.SyncPruneService syncPruneService =

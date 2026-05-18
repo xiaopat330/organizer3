@@ -2,10 +2,13 @@ package com.organizer3.utilities.task.javdb;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.organizer3.config.EnrichmentAssistConfig;
 import com.organizer3.db.SchemaInitializer;
-import com.organizer3.enrichment.ai.AssistResult;
-import com.organizer3.enrichment.ai.EnsembleAssistCaller;
+import com.organizer3.enrichment.ai.PostProcessingRules;
 import com.organizer3.javdb.enrichment.EnrichmentReviewQueueRepository;
+import com.organizer3.ollama.OllamaModelOrchestrator;
+import com.organizer3.translation.ollama.OllamaRequest;
+import com.organizer3.translation.ollama.OllamaResponse;
 import com.organizer3.utilities.task.TaskIO;
 import com.organizer3.utilities.task.TaskInputs;
 import org.jdbi.v3.core.Jdbi;
@@ -23,14 +26,15 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyList;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.Mockito.atLeastOnce;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
@@ -38,22 +42,27 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
- * Integration test for {@link AiAssistBackfillTask}. Uses real in-memory SQLite for
- * the review-queue repo and a Mockito-mocked {@link EnsembleAssistCaller}.
+ * Integration test for the Phase 5 Track A batched backfill task. Uses an in-memory
+ * SQLite repo and a mocked {@link OllamaModelOrchestrator}; the
+ * {@link PostProcessingRules} layer is constructed disabled so rules can't perturb
+ * scripted outcomes.
  */
 class AiAssistBackfillTaskTest {
+
+    private static final String PHI4  = "phi4";
+    private static final String GEMMA = "gemma3:12b";
 
     @TempDir Path tempDir;
 
     private Connection connection;
     private Jdbi jdbi;
     private EnrichmentReviewQueueRepository spyRepo;
-    private EnsembleAssistCaller caller;
+    private OllamaModelOrchestrator orchestrator;
     private ObjectMapper mapper;
-    private AiAssistBackfillTask task;
+    private PostProcessingRules postProcessing;
 
-    /** Stable per-title results keyed by titleCode. */
-    private final Map<String, AssistResult> scriptedResults = new HashMap<>();
+    /** Scripted JSON-reply text keyed by (model, titleCode). */
+    private final Map<String, String> scripted = new HashMap<>();
 
     @BeforeEach
     void setUp() throws Exception {
@@ -61,20 +70,22 @@ class AiAssistBackfillTaskTest {
         jdbi       = Jdbi.create(connection);
         new SchemaInitializer(jdbi).initialize();
 
-        spyRepo = spy(new EnrichmentReviewQueueRepository(jdbi));
-        caller  = mock(EnsembleAssistCaller.class);
-        mapper  = new ObjectMapper();
-        task    = new AiAssistBackfillTask(spyRepo, caller, mapper, tempDir);
+        spyRepo        = spy(new EnrichmentReviewQueueRepository(jdbi));
+        orchestrator   = mock(OllamaModelOrchestrator.class);
+        mapper         = new ObjectMapper();
+        postProcessing = new PostProcessingRules(false);
 
-        when(caller.evaluate(any(EnrichmentReviewQueueRepository.OpenRow.class),
-                             any(), anyList()))
+        // Default: respond based on the scripted-reply table; the request's model and
+        // prompt body together identify the row (the prompt embeds the title code).
+        when(orchestrator.submit(anyString(), any(OllamaRequest.class)))
                 .thenAnswer(inv -> {
-                    EnrichmentReviewQueueRepository.OpenRow row = inv.getArgument(0);
-                    AssistResult r = scriptedResults.get(row.titleCode());
-                    if (r == null) {
-                        throw new IllegalStateException("no scripted result for " + row.titleCode());
-                    }
-                    return r;
+                    String model = inv.getArgument(0);
+                    OllamaRequest req = inv.getArgument(1);
+                    String code = extractCodeFromPrompt(req.prompt());
+                    String key = model + "|" + code;
+                    String reply = scripted.getOrDefault(key, pickJson(null, "low", "no-script"));
+                    return CompletableFuture.completedFuture(
+                            new OllamaResponse(reply, 0L, 0, 0, 0L));
                 });
     }
 
@@ -83,7 +94,13 @@ class AiAssistBackfillTaskTest {
         if (connection != null) connection.close();
     }
 
-    // ── Helpers ───────────────────────────────────────────────────────────────
+    private AiAssistBackfillTask buildTask(int batchSize) {
+        EnrichmentAssistConfig cfg = new EnrichmentAssistConfig(
+                "off", PHI4, GEMMA, 60, 60, "v7-kanji-bridge", 3, false, batchSize);
+        return new AiAssistBackfillTask(spyRepo, orchestrator, cfg, postProcessing, mapper, tempDir);
+    }
+
+    // ── Helpers ────────────────────────────────────────────────────────────────
 
     private long insertTitle(String code) {
         return jdbi.withHandle(h ->
@@ -101,8 +118,14 @@ class AiAssistBackfillTaskTest {
                 titleId, slug, Instant.now().toString()));
     }
 
-    /** Insert a resolved ambiguous queue row pointing at {@code titleId}. */
-    private long insertResolvedAmbiguous(long titleId) {
+    /** Insert a resolved ambiguous queue row with the given 2-candidate snapshot. */
+    private long insertResolvedAmbiguous(long titleId, String code, String slug1, String slug2) {
+        String detail = ("{\"code\":\"" + code + "\","
+                + "\"linked_slugs\":[],"
+                + "\"candidates\":["
+                + "{\"slug\":\"" + slug1 + "\",\"title_original\":\"T1\"},"
+                + "{\"slug\":\"" + slug2 + "\",\"title_original\":\"T2\"}"
+                + "]}");
         return jdbi.withHandle(h ->
                 h.createUpdate("""
                         INSERT INTO enrichment_review_queue
@@ -110,55 +133,79 @@ class AiAssistBackfillTaskTest {
                         VALUES (:t, 'ambiguous', :d, :r, 'picked')
                         """)
                         .bind("t", titleId)
-                        .bind("d", "{\"candidates\":[{\"slug\":\"x\"}]}")
+                        .bind("d", detail)
                         .bind("r", Instant.now().toString())
                         .executeAndReturnGeneratedKeys("id").mapTo(Long.class).one());
     }
 
-    private void scriptResult(String code, String outcome, String slug) {
-        scriptedResults.put(code, new AssistResult(
-                outcome,
-                outcome.equals("agreed") || outcome.equals("agreed_with_override") ? "high" : null,
-                slug,
-                "scripted",
-                slug != null ? 1 : null,
-                slug != null && outcome.equals("agreed") ? 1 : null));
+    /** Convenience to set up a full row (title + enrichment + queue) with default 2 candidates. */
+    private long[] setupRow(String code, String groundTruth) {
+        long t = insertTitle(code);
+        insertEnrichment(t, groundTruth);
+        // Always emit 2 candidates: alpha + beta; let scripts choose by index.
+        long q = insertResolvedAmbiguous(t, code, code.toLowerCase() + "-a", code.toLowerCase() + "-b");
+        return new long[]{t, q};
     }
 
-    // ── Test ──────────────────────────────────────────────────────────────────
+    private void script(String model, String code, Integer pick, String confidence, String reason) {
+        scripted.put(model + "|" + code, pickJson(pick, confidence, reason));
+    }
+
+    private static String pickJson(Integer pick, String confidence, String reason) {
+        String pickPart = (pick == null) ? "null" : pick.toString();
+        return "{\"pick\":" + pickPart
+                + ",\"confidence\":\"" + (confidence == null ? "low" : confidence) + "\""
+                + ",\"reason\":\"" + (reason == null ? "" : reason) + "\"}";
+    }
+
+    /** Pull the title code back out of the user prompt; the prompt embeds "Product code: XYZ". */
+    private static String extractCodeFromPrompt(String prompt) {
+        if (prompt == null) return "";
+        for (String line : prompt.split("\\R")) {
+            String l = line.trim();
+            if (l.startsWith("Product code:")) {
+                return l.substring("Product code:".length()).trim();
+            }
+        }
+        return "";
+    }
+
+    // ── Tests ──────────────────────────────────────────────────────────────────
 
     @Test
     void backfill_recordsCountsMatchesAndMismatches() throws Exception {
         // 3 rows where ensemble agrees with the human:
-        long t1 = insertTitle("ABC-001"); insertEnrichment(t1, "slug-1"); long q1 = insertResolvedAmbiguous(t1);
-        long t2 = insertTitle("ABC-002"); insertEnrichment(t2, "slug-2"); long q2 = insertResolvedAmbiguous(t2);
-        long t3 = insertTitle("ABC-003"); insertEnrichment(t3, "slug-3"); long q3 = insertResolvedAmbiguous(t3);
-        scriptResult("ABC-001", "agreed", "slug-1");
-        scriptResult("ABC-002", "agreed", "slug-2");
-        scriptResult("ABC-003", "agreed", "slug-3");
+        long[] r1 = setupRow("ABC-001", "abc-001-a");
+        long[] r2 = setupRow("ABC-002", "abc-002-a");
+        long[] r3 = setupRow("ABC-003", "abc-003-a");
+        for (String c : new String[]{"ABC-001", "ABC-002", "ABC-003"}) {
+            script(PHI4,  c, 1, "high", "match");
+            script(GEMMA, c, 1, "high", "match");
+        }
 
-        // 1 conflict (no slug — counted as n=1 in conflict bucket, matches=0):
-        long t4 = insertTitle("ABC-004"); insertEnrichment(t4, "slug-4"); long q4 = insertResolvedAmbiguous(t4);
-        scriptResult("ABC-004", "conflict", null);
+        // 1 conflict (no slug — counted in conflict bucket):
+        long[] r4 = setupRow("ABC-004", "abc-004-a");
+        script(PHI4,  "ABC-004", 1, "medium", "alpha");
+        script(GEMMA, "ABC-004", 2, "high",   "beta");
 
-        // 1 mismatch (phi4_only picks a different slug than ground truth):
-        long t5 = insertTitle("ABC-005"); insertEnrichment(t5, "slug-5-truth"); long q5 = insertResolvedAmbiguous(t5);
-        scriptResult("ABC-005", "phi4_only", "slug-5-WRONG");
+        // 1 mismatch (phi4 picks slug-2; ground truth is slug-1):
+        long[] r5 = setupRow("ABC-005", "abc-005-a");
+        script(PHI4,  "ABC-005", 2, "high", "ph picks beta");
+        script(GEMMA, "ABC-005", null, "low", "gemma abstains");
+        long q5 = r5[1];
 
+        AiAssistBackfillTask task = buildTask(/* batchSize */ 5);
         CapturingIO io = new CapturingIO();
         task.run(new TaskInputs(Map.of()), io);
 
         // setAiSuggestion called exactly 5 times — once per row.
         verify(spyRepo, times(5)).setAiSuggestion(
-                org.mockito.ArgumentMatchers.anyLong(),
-                org.mockito.ArgumentMatchers.any(),
-                anyString(),
-                org.mockito.ArgumentMatchers.any(),
-                any(Instant.class));
+                anyLong(), any(), anyString(), any(), any(Instant.class));
 
-        // evaluate called 5 times.
-        verify(caller, times(5)).evaluate(any(EnrichmentReviewQueueRepository.OpenRow.class),
-                                          any(), anyList());
+        // Orchestrator received exactly 5 phi4 submissions and 5 gemma3 submissions
+        // (single chunk of 5).
+        verify(orchestrator, times(5)).submit(eq(PHI4),  any(OllamaRequest.class));
+        verify(orchestrator, times(5)).submit(eq(GEMMA), any(OllamaRequest.class));
 
         // Report exists and has expected shape.
         List<Path> reports;
@@ -193,11 +240,135 @@ class AiAssistBackfillTaskTest {
         JsonNode mm = mismatches.get(0);
         assertEquals(q5, mm.path("queue_row_id").asLong());
         assertEquals("ABC-005", mm.path("title_code").asText());
-        assertEquals("slug-5-WRONG", mm.path("ai_slug").asText());
-        assertEquals("slug-5-truth", mm.path("ground_truth_slug").asText());
+        assertEquals("abc-005-b", mm.path("ai_slug").asText());
+        assertEquals("abc-005-a", mm.path("ground_truth_slug").asText());
 
-        // Sanity: phase ended OK.
         assertTrue(io.endStatuses.contains("ok"));
+    }
+
+    /**
+     * Phase 5 Track A — 7 rows + batchSize=3 produces chunks of 3+3+1. The orchestrator
+     * must receive exactly 7 phi4 submissions and 7 gemma3 submissions in total, and
+     * (because each chunk submits all phi4 before any gemma3) the phi4 calls for chunk N
+     * complete before any gemma3 calls for chunk N. We assert the totals plus the
+     * chunk-boundary log lines.
+     */
+    @Test
+    void backfill_batchedByModel_threeChunksFor7RowsBatch3() throws Exception {
+        for (int i = 1; i <= 7; i++) {
+            String code = String.format("ABC-%03d", i);
+            setupRow(code, code.toLowerCase() + "-a");
+            script(PHI4,  code, 1, "high", "ok");
+            script(GEMMA, code, 1, "high", "ok");
+        }
+
+        AiAssistBackfillTask task = buildTask(/* batchSize */ 3);
+        CapturingIO io = new CapturingIO();
+        task.run(new TaskInputs(Map.of()), io);
+
+        verify(orchestrator, times(7)).submit(eq(PHI4),  any(OllamaRequest.class));
+        verify(orchestrator, times(7)).submit(eq(GEMMA), any(OllamaRequest.class));
+
+        // Three chunks → three "Batch chunk=" log lines.
+        long chunkLogs = io.logs.stream()
+                .filter(l -> l.startsWith("Batch chunk="))
+                .count();
+        assertEquals(3, chunkLogs, "expected 3 chunk-boundary log lines for 7 rows / batch 3");
+
+        // All 7 setAiSuggestion calls.
+        verify(spyRepo, times(7)).setAiSuggestion(
+                anyLong(), any(), anyString(), any(), any(Instant.class));
+    }
+
+    /**
+     * Phase 5 Track A — cancellation between chunks halts further processing, but the
+     * partial report still gets written and no crash occurs.
+     */
+    @Test
+    void backfill_cancellationBetweenChunks_writesPartialReport() throws Exception {
+        for (int i = 1; i <= 5; i++) {
+            String code = String.format("ABC-%03d", i);
+            setupRow(code, code.toLowerCase() + "-a");
+            script(PHI4,  code, 1, "high", "ok");
+            script(GEMMA, code, 1, "high", "ok");
+        }
+
+        AiAssistBackfillTask task = buildTask(/* batchSize */ 2);
+
+        // Cancel after the FIRST chunk completes (2 rows processed).
+        CancelAfterIO io = new CancelAfterIO(/* cancelAfterNCalls */ 2);
+        task.run(new TaskInputs(Map.of()), io);
+
+        // First chunk of 2 rows processed fully; second chunk's pre-check triggers cancel.
+        verify(orchestrator, times(2)).submit(eq(PHI4),  any(OllamaRequest.class));
+        verify(orchestrator, times(2)).submit(eq(GEMMA), any(OllamaRequest.class));
+
+        List<Path> reports;
+        try (var stream = Files.list(tempDir)) {
+            reports = stream.filter(p -> p.getFileName().toString()
+                    .startsWith("ai-assist-backfill-")).toList();
+        }
+        assertEquals(1, reports.size());
+        JsonNode root = mapper.readTree(reports.get(0).toFile());
+        assertEquals(true, root.path("cancelled").asBoolean());
+        assertEquals(2, root.path("processed").asInt());
+        assertTrue(io.endStatuses.contains("ok"));
+    }
+
+    /**
+     * Phase 5 Track A — when a phi4 future completes exceptionally, the row is treated
+     * as a phi4 abstain (gemma_only or both_abstain). The batch continues; no row
+     * poisons another.
+     */
+    @Test
+    void backfill_phi4FutureFailure_abstainsForThatRow_batchContinues() throws Exception {
+        long[] r1 = setupRow("ABC-001", "abc-001-a");
+        long[] r2 = setupRow("ABC-002", "abc-002-a");
+        long[] r3 = setupRow("ABC-003", "abc-003-a");
+
+        // Row 1 + Row 3 = ordinary agree. Row 2 = phi4 fails, gemma picks index 1.
+        script(PHI4,  "ABC-001", 1, "high", "ok");
+        script(GEMMA, "ABC-001", 1, "high", "ok");
+        script(GEMMA, "ABC-002", 1, "high", "gemma picks slug-1");
+        script(PHI4,  "ABC-003", 1, "high", "ok");
+        script(GEMMA, "ABC-003", 1, "high", "ok");
+
+        // Custom phi4 stub that fails the ABC-002 future.
+        when(orchestrator.submit(eq(PHI4), any(OllamaRequest.class)))
+                .thenAnswer(inv -> {
+                    OllamaRequest req = inv.getArgument(1);
+                    String code = extractCodeFromPrompt(req.prompt());
+                    if ("ABC-002".equals(code)) {
+                        CompletableFuture<OllamaResponse> f = new CompletableFuture<>();
+                        f.completeExceptionally(new RuntimeException("simulated phi4 outage"));
+                        return f;
+                    }
+                    String reply = scripted.getOrDefault(PHI4 + "|" + code,
+                            pickJson(null, "low", "no-script"));
+                    return CompletableFuture.completedFuture(
+                            new OllamaResponse(reply, 0L, 0, 0, 0L));
+                });
+
+        AiAssistBackfillTask task = buildTask(/* batchSize */ 5);
+        CapturingIO io = new CapturingIO();
+        task.run(new TaskInputs(Map.of()), io);
+
+        // All 3 persisted.
+        verify(spyRepo, times(3)).setAiSuggestion(
+                anyLong(), any(), anyString(), any(), any(Instant.class));
+
+        // Report: 2 agreed + 1 gemma_only.
+        List<Path> reports;
+        try (var stream = Files.list(tempDir)) {
+            reports = stream.filter(p -> p.getFileName().toString()
+                    .startsWith("ai-assist-backfill-")).toList();
+        }
+        JsonNode root = mapper.readTree(reports.get(0).toFile());
+        JsonNode byOutcome = root.path("by_outcome");
+        assertEquals(2, byOutcome.path("agreed").path("n").asInt());
+        assertEquals(1, byOutcome.path("gemma_only").path("n").asInt());
+        // The gemma_only row matched truth (gemma picked slug-1 = abc-002-a).
+        assertEquals(1, byOutcome.path("gemma_only").path("matches").asInt());
     }
 
     // ── CapturingIO ───────────────────────────────────────────────────────────
@@ -215,5 +386,15 @@ class AiAssistBackfillTaskTest {
             endStatuses.add(status);
         }
         @Override public boolean isCancellationRequested() { return false; }
+    }
+
+    /** Returns {@code true} from {@code isCancellationRequested()} after N invocations. */
+    static class CancelAfterIO extends CapturingIO {
+        private final int n;
+        private int calls = 0;
+        CancelAfterIO(int cancelAfterNCalls) { this.n = cancelAfterNCalls; }
+        @Override public boolean isCancellationRequested() {
+            return ++calls > n;
+        }
     }
 }

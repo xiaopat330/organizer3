@@ -1,10 +1,16 @@
 package com.organizer3.utilities.task.javdb;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.organizer3.config.EnrichmentAssistConfig;
+import com.organizer3.enrichment.ai.AssistPromptBuilder;
 import com.organizer3.enrichment.ai.AssistResult;
 import com.organizer3.enrichment.ai.EnsembleAssistCaller;
+import com.organizer3.enrichment.ai.PostProcessingRules;
 import com.organizer3.javdb.enrichment.EnrichmentReviewQueueRepository;
 import com.organizer3.javdb.enrichment.EnrichmentReviewQueueRepository.BackfillCandidate;
+import com.organizer3.ollama.OllamaModelOrchestrator;
+import com.organizer3.translation.ollama.OllamaRequest;
+import com.organizer3.translation.ollama.OllamaResponse;
 import com.organizer3.utilities.task.Task;
 import com.organizer3.utilities.task.TaskIO;
 import com.organizer3.utilities.task.TaskInputs;
@@ -23,26 +29,33 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 /**
- * Phase 4 Track C — one-shot historical accuracy backfill for the AI picker assist.
+ * Phase 4 Track C / Phase 5 Track A — one-shot historical accuracy backfill for
+ * the AI picker assist.
  *
- * <p>Replays the {@link EnsembleAssistCaller} against every already-resolved
+ * <p>Replays the ensemble (primary + secondary models) against every already-resolved
  * {@code ambiguous} review-queue row that has a corresponding
  * {@code title_javdb_enrichment.javdb_slug} (the human-picked ground truth). Persists
  * the resulting AI suggestion to the same {@code ai_suggestion_*} columns and writes
- * a final JSON report at {@code <dataDir>/ai-assist-backfill-{date}.json} containing
- * per-outcome counts, match counts against ground truth, and a list of mismatches.
+ * a final JSON report at {@code <dataDir>/ai-assist-backfill-{date}.json}.
  *
- * <p><b>Not a permanent task</b>: this runs once to measure historical accuracy of the
- * ensemble against the corpus of human-resolved rows. Re-running it is harmless but
- * just overwrites the {@code ai_suggestion_*} columns with a fresh suggestion (slower,
- * because the models will repeat the work).
+ * <p><b>Phase 5 Track A — batched-by-model</b>: rather than calling the ensemble
+ * row-by-row (phi → gemma → phi → gemma) this task now processes N rows of the
+ * primary model first, then N rows of the secondary, votes inline, persists, and
+ * advances to the next chunk. The orchestrator therefore performs at most
+ * {@code 2 * ceil(rows / batchSize)} model switches instead of {@code 2 * rows}.
+ * Chunk size is configurable via {@code enrichment.assist.backfillBatchSize}
+ * (default 20).
  *
- * <p><b>Runtime</b>: on the live corpus (~1,100+ resolved ambiguous rows × ~25s/row for
- * the two-model ensemble) the full sweep takes many hours. The task respects
- * cancellation between rows and finalises the JSON report on the way out, so a
- * partial run is still usable.
+ * <p><b>Robustness</b>: per-row submission / parse failures are encoded as abstain
+ * for that model and never poison the batch. The vote then routes the row as
+ * {@code phi4_only}, {@code gemma_only}, or {@code both_abstain} as appropriate.
+ * Cancellation is checked at chunk boundaries; partial reports are always written.
  */
 @Slf4j
 public final class AiAssistBackfillTask implements Task {
@@ -64,31 +77,40 @@ public final class AiAssistBackfillTask implements Task {
             Set.of("agreed", "phi4_only", "gemma_only", "agreed_with_override");
 
     private final EnrichmentReviewQueueRepository reviewQueueRepo;
-    private final EnsembleAssistCaller ensembleAssistCaller;
+    private final OllamaModelOrchestrator orchestrator;
+    private final EnrichmentAssistConfig assistConfig;
+    private final PostProcessingRules postProcessing;
     private final ObjectMapper objectMapper;
     private final Path dataDir;
 
     public AiAssistBackfillTask(EnrichmentReviewQueueRepository reviewQueueRepo,
-                                EnsembleAssistCaller ensembleAssistCaller,
+                                OllamaModelOrchestrator orchestrator,
+                                EnrichmentAssistConfig assistConfig,
+                                PostProcessingRules postProcessing,
                                 ObjectMapper objectMapper,
                                 Path dataDir) {
-        this.reviewQueueRepo      = Objects.requireNonNull(reviewQueueRepo, "reviewQueueRepo");
-        this.ensembleAssistCaller = Objects.requireNonNull(ensembleAssistCaller, "ensembleAssistCaller");
-        this.objectMapper         = Objects.requireNonNull(objectMapper, "objectMapper");
-        this.dataDir              = Objects.requireNonNull(dataDir, "dataDir");
+        this.reviewQueueRepo = Objects.requireNonNull(reviewQueueRepo, "reviewQueueRepo");
+        this.orchestrator    = Objects.requireNonNull(orchestrator, "orchestrator");
+        this.assistConfig    = Objects.requireNonNull(assistConfig, "assistConfig");
+        this.postProcessing  = Objects.requireNonNull(postProcessing, "postProcessing");
+        this.objectMapper    = Objects.requireNonNull(objectMapper, "objectMapper");
+        this.dataDir         = Objects.requireNonNull(dataDir, "dataDir");
     }
 
     @Override
     public TaskSpec spec() { return SPEC; }
 
     @Override
-    public void run(TaskInputs inputs, TaskIO io) throws Exception {
+    public void run(TaskInputs taskInputs, TaskIO io) throws Exception {
         io.phaseStart("backfill", "Replaying ensemble on resolved ambiguous rows");
 
         List<BackfillCandidate> rows =
                 reviewQueueRepo.listResolvedAmbiguousForBackfill(Integer.MAX_VALUE);
         int total = rows.size();
         io.phaseLog("backfill", "Loaded " + total + " resolved ambiguous row(s) with ground truth");
+
+        int batchSize = Math.max(1, assistConfig.backfillBatchSize());
+        io.phaseLog("backfill", "Batch size = " + batchSize);
 
         // Per-outcome counters (preserves insertion order in the report).
         Map<String, int[]> byOutcome = new LinkedHashMap<>();
@@ -102,70 +124,179 @@ public final class AiAssistBackfillTask implements Task {
         int processed = 0;
         boolean cancelled = false;
         Path reportPath = reportPath();
+        String primaryModel = assistConfig.primaryModel();
+        String secondaryModel = assistConfig.secondaryModel();
 
         try {
-            for (int i = 0; i < total; i++) {
+            for (int chunkStart = 0; chunkStart < total; chunkStart += batchSize) {
                 if (io.isCancellationRequested()) {
-                    io.phaseLog("backfill", "Cancelled after " + i + " of " + total + " row(s)");
+                    io.phaseLog("backfill", "Cancelled after " + processed + " of " + total + " row(s)");
                     cancelled = true;
                     break;
                 }
-                BackfillCandidate row = rows.get(i);
-                io.phaseProgress("backfill", i, total,
-                        "queue_row_id=" + row.id() + " code=" + row.titleCode());
 
-                AssistResult result;
-                String outcomeKey;
-                try {
+                int chunkEnd = Math.min(chunkStart + batchSize, total);
+                List<BackfillCandidate> chunk = rows.subList(chunkStart, chunkEnd);
+                int chunkSize = chunk.size();
+
+                log.info("[ai-assist] backfill batch: chunk={}..{}/{}",
+                        chunkStart + 1, chunkEnd, total);
+                io.phaseLog("backfill", "Batch chunk=" + (chunkStart + 1) + ".." + chunkEnd + "/" + total);
+
+                // ── Build rowInputs for the chunk (prefilter applied per row). ───────
+                List<AssistPromptBuilder.Input> rowInputs = new ArrayList<>(chunkSize);
+                // null entry = row is structurally invalid (zero candidates); skipped in all phases.
+                List<Boolean> invalid = new ArrayList<>(chunkSize);
+
+                for (BackfillCandidate row : chunk) {
                     EnrichmentReviewQueueRepository.OpenRow openRow = synthesizeOpenRow(row);
                     EnrichmentReviewQueueRepository.AssistContext ctx =
                             reviewQueueRepo.findContextForAssist(row.titleId());
-                    result = ensembleAssistCaller.evaluate(
-                            openRow, ctx.folderPath(), ctx.actressNames());
-                    outcomeKey = result.outcome();
-                } catch (Exception e) {
-                    log.warn("[ai-assist] backfill: evaluate failed for queue_row_id={} code={}: {}",
-                            row.id(), row.titleCode(), e.getMessage());
-                    result = new AssistResult(
-                            "error",
-                            null,
-                            null,
-                            "evaluate_failed: " + e.getMessage(),
-                            null,
-                            null);
-                    outcomeKey = "error";
+
+                    AssistPromptBuilder.Input rawInput;
+                    try {
+                        rawInput = EnsembleAssistCaller.materializeInput(
+                                objectMapper, openRow, ctx.folderPath(), ctx.actressNames());
+                    } catch (Exception e) {
+                        log.warn("[ai-assist] backfill: materialize failed for queue_row_id={} code={}: {}",
+                                row.id(), row.titleCode(), e.getMessage());
+                        rowInputs.add(null);
+                        invalid.add(true);
+                        continue;
+                    }
+
+                    if (rawInput.candidates() == null || rawInput.candidates().isEmpty()) {
+                        log.warn("[ai-assist] backfill: zero-candidate row queue_row_id={} code={}",
+                                row.id(), row.titleCode());
+                        rowInputs.add(null);
+                        invalid.add(true);
+                        continue;
+                    }
+
+                    List<AssistPromptBuilder.Input.Candidate> filtered =
+                            postProcessing.prefilterCandidates(rawInput, rawInput.candidates());
+                    AssistPromptBuilder.Input input = (filtered == rawInput.candidates())
+                            ? rawInput
+                            : new AssistPromptBuilder.Input(
+                                    rawInput.code(), rawInput.label(), rawInput.folderPath(),
+                                    rawInput.actressNames(), rawInput.linkedSlugs(), filtered);
+                    rowInputs.add(input);
+                    invalid.add(false);
                 }
 
-                // Persist the suggestion (overwrites whatever was there).
-                try {
-                    reviewQueueRepo.setAiSuggestion(
-                            row.id(),
-                            result.suggestedSlug(),
-                            result.outcome(),
-                            result.reason(),
-                            Instant.now());
-                } catch (Exception e) {
-                    log.warn("[ai-assist] backfill: setAiSuggestion failed for queue_row_id={}: {}",
-                            row.id(), e.getMessage());
+                // ── PHASE 1: submit all primary-model prompts, collect responses. ─
+                List<CompletableFuture<OllamaResponse>> phi4Futures = new ArrayList<>(chunkSize);
+                for (int i = 0; i < chunkSize; i++) {
+                    AssistPromptBuilder.Input in = rowInputs.get(i);
+                    if (in == null) { phi4Futures.add(null); continue; }
+                    phi4Futures.add(safeSubmit(primaryModel, in, chunk.get(i).titleCode()));
+                }
+                List<Integer> phi4Picks = new ArrayList<>(chunkSize);
+                List<String>  phi4Confs = new ArrayList<>(chunkSize);
+                List<String>  phi4Reasons = new ArrayList<>(chunkSize);
+                for (int i = 0; i < chunkSize; i++) {
+                    if (rowInputs.get(i) == null) {
+                        phi4Picks.add(null); phi4Confs.add(null); phi4Reasons.add(null);
+                        continue;
+                    }
+                    Object[] parsed = awaitAndParse(phi4Futures.get(i), primaryModel,
+                            chunk.get(i).titleCode(), rowInputs.get(i).candidates().size());
+                    phi4Picks.add((Integer) parsed[0]);
+                    phi4Confs.add((String) parsed[1]);
+                    phi4Reasons.add((String) parsed[2]);
                 }
 
-                int[] bucket = byOutcome.computeIfAbsent(outcomeKey, k -> new int[]{0, 0});
-                bucket[0] += 1;
-                String aiSlug = result.suggestedSlug();
-                String truth  = row.groundTruthSlug();
-                if (aiSlug != null && aiSlug.equals(truth)) {
-                    bucket[1] += 1;
-                } else if (aiSlug != null && !aiSlug.equals(truth)) {
-                    Map<String, Object> entry = new LinkedHashMap<>();
-                    entry.put("queue_row_id",      row.id());
-                    entry.put("title_code",        row.titleCode());
-                    entry.put("ai_slug",           aiSlug);
-                    entry.put("ground_truth_slug", truth);
-                    entry.put("reason",            result.reason());
-                    mismatches.add(entry);
+                if (io.isCancellationRequested()) {
+                    io.phaseLog("backfill", "Cancelled mid-chunk after primary phase");
+                    cancelled = true;
+                    break;
                 }
 
-                processed++;
+                // ── PHASE 2: submit all secondary-model prompts, collect responses.
+                List<CompletableFuture<OllamaResponse>> gemmaFutures = new ArrayList<>(chunkSize);
+                for (int i = 0; i < chunkSize; i++) {
+                    AssistPromptBuilder.Input in = rowInputs.get(i);
+                    if (in == null) { gemmaFutures.add(null); continue; }
+                    gemmaFutures.add(safeSubmit(secondaryModel, in, chunk.get(i).titleCode()));
+                }
+                List<Integer> gemmaPicks = new ArrayList<>(chunkSize);
+                List<String>  gemmaConfs = new ArrayList<>(chunkSize);
+                List<String>  gemmaReasons = new ArrayList<>(chunkSize);
+                for (int i = 0; i < chunkSize; i++) {
+                    if (rowInputs.get(i) == null) {
+                        gemmaPicks.add(null); gemmaConfs.add(null); gemmaReasons.add(null);
+                        continue;
+                    }
+                    Object[] parsed = awaitAndParse(gemmaFutures.get(i), secondaryModel,
+                            chunk.get(i).titleCode(), rowInputs.get(i).candidates().size());
+                    gemmaPicks.add((Integer) parsed[0]);
+                    gemmaConfs.add((String) parsed[1]);
+                    gemmaReasons.add((String) parsed[2]);
+                }
+
+                // ── PHASE 3: vote + apply post-processing + persist + accumulate. ─
+                for (int i = 0; i < chunkSize; i++) {
+                    BackfillCandidate row = chunk.get(i);
+                    io.phaseProgress("backfill", chunkStart + i, total,
+                            "queue_row_id=" + row.id() + " code=" + row.titleCode());
+
+                    AssistResult result;
+                    String outcomeKey;
+                    if (rowInputs.get(i) == null) {
+                        result = new AssistResult("error", null, null,
+                                "materialize_failed_or_zero_candidates", null, null);
+                        outcomeKey = "error";
+                    } else {
+                        try {
+                            AssistPromptBuilder.Input input = rowInputs.get(i);
+                            AssistResult preOverride = EnsembleAssistCaller.vote(
+                                    phi4Picks.get(i), phi4Confs.get(i), phi4Reasons.get(i),
+                                    gemmaPicks.get(i), gemmaConfs.get(i), gemmaReasons.get(i),
+                                    input.candidates());
+                            result = postProcessing.applyOverrides(input, preOverride, input.candidates());
+                            outcomeKey = result.outcome();
+                            log.info("[ai-assist] code={} outcome={} confidence={} phi4={} gemma={}",
+                                    row.titleCode(), result.outcome(), result.confidence(),
+                                    result.phi4Pick(), result.gemmaPick());
+                        } catch (Exception e) {
+                            log.warn("[ai-assist] backfill: vote/override failed for queue_row_id={} code={}: {}",
+                                    row.id(), row.titleCode(), e.getMessage());
+                            result = new AssistResult("error", null, null,
+                                    "vote_failed: " + e.getMessage(), null, null);
+                            outcomeKey = "error";
+                        }
+                    }
+
+                    try {
+                        reviewQueueRepo.setAiSuggestion(
+                                row.id(),
+                                result.suggestedSlug(),
+                                result.outcome(),
+                                result.reason(),
+                                Instant.now());
+                    } catch (Exception e) {
+                        log.warn("[ai-assist] backfill: setAiSuggestion failed for queue_row_id={}: {}",
+                                row.id(), e.getMessage());
+                    }
+
+                    int[] bucket = byOutcome.computeIfAbsent(outcomeKey, k -> new int[]{0, 0});
+                    bucket[0] += 1;
+                    String aiSlug = result.suggestedSlug();
+                    String truth  = row.groundTruthSlug();
+                    if (aiSlug != null && aiSlug.equals(truth)) {
+                        bucket[1] += 1;
+                    } else if (aiSlug != null && !aiSlug.equals(truth)) {
+                        Map<String, Object> entry = new LinkedHashMap<>();
+                        entry.put("queue_row_id",      row.id());
+                        entry.put("title_code",        row.titleCode());
+                        entry.put("ai_slug",           aiSlug);
+                        entry.put("ground_truth_slug", truth);
+                        entry.put("reason",            result.reason());
+                        mismatches.add(entry);
+                    }
+
+                    processed++;
+                }
             }
         } finally {
             // ALWAYS finalize the report — even on cancellation or unexpected throw upstream —
@@ -193,17 +324,59 @@ public final class AiAssistBackfillTask implements Task {
 
     // ------------------------------------------------------------------ helpers
 
+    /** Submit one Ollama request; encode submit-time failures as a null future (abstain). */
+    private CompletableFuture<OllamaResponse> safeSubmit(String model,
+                                                         AssistPromptBuilder.Input input,
+                                                         String code) {
+        try {
+            OllamaRequest req = EnsembleAssistCaller.buildRequest(
+                    model, input, /* formatJson */ true,
+                    EnsembleAssistCaller.KEEP_ALIVE_DEFAULT);
+            return orchestrator.submit(model, req);
+        } catch (RuntimeException e) {
+            log.warn("[ai-assist] backfill: model {} submission failed for code={}: {}",
+                    model, code, e.getMessage());
+            return null;
+        }
+    }
+
+    /** Await one model future and parse the JSON reply. Any failure → abstain triple. */
+    private Object[] awaitAndParse(CompletableFuture<OllamaResponse> future,
+                                   String model, String code, int numCandidates) {
+        if (future == null) return new Object[]{null, null, "submit_failed"};
+        OllamaResponse resp;
+        try {
+            resp = future.get(EnsembleAssistCaller.MODEL_FUTURE_TIMEOUT.toMillis(),
+                    TimeUnit.MILLISECONDS);
+        } catch (TimeoutException te) {
+            log.warn("[ai-assist] backfill: model {} timed out for code={}", model, code);
+            future.cancel(true);
+            return new Object[]{null, null, "timeout"};
+        } catch (ExecutionException ee) {
+            log.warn("[ai-assist] backfill: model {} call failed for code={}: {}",
+                    model, code,
+                    ee.getCause() != null ? ee.getCause().toString() : ee.getMessage());
+            return new Object[]{null, null, "call_failed"};
+        } catch (InterruptedException ie) {
+            Thread.currentThread().interrupt();
+            log.warn("[ai-assist] backfill: model {} interrupted for code={}", model, code);
+            return new Object[]{null, null, "interrupted"};
+        }
+        String raw = resp != null ? resp.responseText() : null;
+        return EnsembleAssistCaller.parseReply(objectMapper, model, code, raw, numCandidates);
+    }
+
     /**
      * Builds a minimal {@link EnrichmentReviewQueueRepository.OpenRow} from a backfill candidate
-     * so we can reuse {@link EnsembleAssistCaller#evaluate}. The caller only reads
-     * {@code id}, {@code titleCode}, and {@code detail} from the row.
+     * so {@link EnsembleAssistCaller#materializeInput} can read {@code id}, {@code titleCode},
+     * and {@code detail}.
      */
     private static EnrichmentReviewQueueRepository.OpenRow synthesizeOpenRow(BackfillCandidate c) {
         return new EnrichmentReviewQueueRepository.OpenRow(
                 c.id(),
                 c.titleId(),
                 c.titleCode(),
-                null,                   // slug — unused by EnsembleAssistCaller
+                null,                   // slug — unused
                 "ambiguous",
                 null,                   // resolverSource — unused
                 null,                   // createdAt — unused

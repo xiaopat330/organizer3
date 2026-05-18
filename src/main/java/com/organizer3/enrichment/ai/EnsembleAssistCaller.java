@@ -55,7 +55,10 @@ public class EnsembleAssistCaller {
     private static final Logger log = LoggerFactory.getLogger(EnsembleAssistCaller.class);
 
     /** Per-model wait budget. Matches the POC's generous timeout for cold-load + generate. */
-    private static final Duration MODEL_FUTURE_TIMEOUT = Duration.ofMinutes(5);
+    public static final Duration MODEL_FUTURE_TIMEOUT = Duration.ofMinutes(5);
+
+    /** Default keep-alive hint passed to Ollama on every assist request. */
+    public static final String KEEP_ALIVE_DEFAULT = "15m";
 
     private final OllamaModelOrchestrator orchestrator;
     private final EnrichmentAssistConfig config;
@@ -117,7 +120,10 @@ public class EnsembleAssistCaller {
         ModelReply phi4Reply  = callModel(config.primaryModel(),   systemPrompt, userPrompt, row.titleCode(), input.candidates().size());
         ModelReply gemmaReply = callModel(config.secondaryModel(), systemPrompt, userPrompt, row.titleCode(), input.candidates().size());
 
-        AssistResult preOverride = vote(phi4Reply, gemmaReply, input.candidates());
+        AssistResult preOverride = vote(
+                phi4Reply.pick(),  phi4Reply.confidence(),  phi4Reply.reason(),
+                gemmaReply.pick(), gemmaReply.confidence(), gemmaReply.reason(),
+                input.candidates());
 
         // Phase 4 Track B — post-ensemble override (rule 1). Operates on the same candidate
         // list that the ensemble voted on, so slug references stay consistent.
@@ -132,12 +138,24 @@ public class EnsembleAssistCaller {
     // ------------------------------------------------------------------ prompt input
 
     AssistPromptBuilder.Input materializeInput(EnrichmentReviewQueueRepository.OpenRow row) {
-        return materializeInput(row, null, List.of());
+        return materializeInput(objectMapper, row, null, List.of());
     }
 
     AssistPromptBuilder.Input materializeInput(EnrichmentReviewQueueRepository.OpenRow row,
                                                String folderPath,
                                                List<String> actressNames) {
+        return materializeInput(objectMapper, row, folderPath, actressNames);
+    }
+
+    /**
+     * Phase 5 Track A — static accessor reused by {@code AiAssistBackfillTask}'s
+     * batched path. Equivalent to the instance helper but with the JSON mapper
+     * threaded in explicitly.
+     */
+    public static AssistPromptBuilder.Input materializeInput(ObjectMapper objectMapper,
+                                                             EnrichmentReviewQueueRepository.OpenRow row,
+                                                             String folderPath,
+                                                             List<String> actressNames) {
         List<String> linkedSlugs = new ArrayList<>();
         List<AssistPromptBuilder.Input.Candidate> candidates = new ArrayList<>();
         String code = row.titleCode();
@@ -185,7 +203,7 @@ public class EnsembleAssistCaller {
                 candidates);
     }
 
-    private AssistPromptBuilder.Input.Candidate toCandidate(JsonNode c) {
+    private static AssistPromptBuilder.Input.Candidate toCandidate(JsonNode c) {
         List<String> castNames = new ArrayList<>();
         JsonNode castNode = c.path("cast");
         if (castNode.isArray()) {
@@ -230,6 +248,65 @@ public class EnsembleAssistCaller {
         static ModelReply abstain(String reason) { return new ModelReply(null, null, reason); }
     }
 
+    /**
+     * Phase 5 Track A — public static builder reused by the batched backfill path.
+     * Mirrors the request shape that {@link #callModel} constructs internally.
+     */
+    public static OllamaRequest buildRequest(String model,
+                                             AssistPromptBuilder.Input input,
+                                             boolean formatJson,
+                                             String keepAlive) {
+        String userPrompt = AssistPromptBuilder.buildUserPrompt(input);
+        return new OllamaRequest(
+                model, userPrompt, AssistPromptBuilder.SYSTEM,
+                /* options */ null,
+                /* timeout */ MODEL_FUTURE_TIMEOUT,
+                /* formatJson */ formatJson,
+                /* keepAlive  */ keepAlive);
+    }
+
+    /**
+     * Phase 5 Track A — public static reply parser. Translates an Ollama response
+     * body into a triple of {@code (pick, confidence, reason)}. Any failure mode
+     * (null/blank body, JSON parse error, out-of-range pick) is encoded as an
+     * abstain — {@code pick = null}. The {@code candidates} array shape is used
+     * solely to validate the returned index.
+     *
+     * @return a 3-element array: {@code [Integer pick, String confidence, String reason]}
+     */
+    public static Object[] parseReply(ObjectMapper objectMapper, String model, String code,
+                                      String raw, int numCandidates) {
+        if (raw == null || raw.isBlank()) {
+            log.warn("[ai-assist] model {} returned empty response for code={}", model, code);
+            return new Object[]{null, null, "empty_response"};
+        }
+        try {
+            JsonNode node = objectMapper.readTree(raw);
+            Integer pick = null;
+            JsonNode pickNode = node.has("pick") ? node.get("pick") : node.path("pick_slug");
+            if (pickNode != null && !pickNode.isNull() && !pickNode.isMissingNode()) {
+                if (pickNode.isInt() || pickNode.isLong()) {
+                    pick = pickNode.asInt();
+                } else if (pickNode.isTextual()) {
+                    try { pick = Integer.parseInt(pickNode.asText().trim()); }
+                    catch (NumberFormatException nfe) { pick = null; }
+                }
+            }
+            if (pick != null && (pick < 1 || pick > numCandidates)) {
+                log.warn("[ai-assist] model {} returned out-of-range pick={} for code={} (N={})",
+                        model, pick, code, numCandidates);
+                pick = null;
+            }
+            String confidence = textOrNull(node.path("confidence"));
+            String reason     = textOrNull(node.path("reason"));
+            return new Object[]{pick, confidence, reason};
+        } catch (Exception e) {
+            log.warn("[ai-assist] model {} JSON parse failed for code={}: {}",
+                    model, code, e.getMessage());
+            return new Object[]{null, null, "parse_error"};
+        }
+    }
+
     private ModelReply callModel(String model, String systemPrompt, String userPrompt,
                                  String code, int numCandidates) {
         OllamaRequest req = new OllamaRequest(
@@ -237,7 +314,7 @@ public class EnsembleAssistCaller {
                 /* options */ null,
                 /* timeout */ MODEL_FUTURE_TIMEOUT,
                 /* formatJson */ true,
-                /* keepAlive  */ "15m");
+                /* keepAlive  */ KEEP_ALIVE_DEFAULT);
 
         CompletableFuture<OllamaResponse> future;
         try {
@@ -304,41 +381,58 @@ public class EnsembleAssistCaller {
 
     // ------------------------------------------------------------------ voting
 
-    private AssistResult vote(ModelReply phi4, ModelReply gemma,
-                              List<AssistPromptBuilder.Input.Candidate> candidates) {
-        Integer p = phi4.pick();
-        Integer g = gemma.pick();
+    /**
+     * Phase 5 Track A — public static voting helper extracted from {@code evaluate()}.
+     * Backfill's batched path calls this directly after collecting both models' replies
+     * for a chunk; {@code evaluate()} delegates here per-row. Any failure mode of a
+     * model is encoded as a {@code null} pick (abstain).
+     *
+     * @param phi4Pick        primary model's 1-based candidate index, or {@code null} for abstain
+     * @param phi4Confidence  primary model's reported confidence (high|medium|low or null)
+     * @param phi4Reason      primary model's reason text
+     * @param gemmaPick       secondary model's 1-based candidate index, or {@code null} for abstain
+     * @param gemmaConfidence secondary model's reported confidence
+     * @param gemmaReason     secondary model's reason text
+     * @param candidates      the candidate list the picks index into (the prefiltered list,
+     *                        so slug references stay consistent)
+     * @return an {@link AssistResult} with one of the 5 outcomes (or
+     *         {@code agreed_with_override} only after post-processing runs)
+     */
+    public static AssistResult vote(
+            Integer phi4Pick, String phi4Confidence, String phi4Reason,
+            Integer gemmaPick, String gemmaConfidence, String gemmaReason,
+            List<AssistPromptBuilder.Input.Candidate> candidates) {
 
         // both abstained
-        if (p == null && g == null) {
+        if (phi4Pick == null && gemmaPick == null) {
             return new AssistResult("both_abstain", null, null, "both abstained", null, null);
         }
         // phi4 only
-        if (p != null && g == null) {
-            return new AssistResult("phi4_only", phi4.confidence(),
-                    candidates.get(p - 1).slug(),
-                    firstNonBlank(phi4.reason(), gemma.reason(), "phi4 only"),
-                    p, null);
+        if (phi4Pick != null && gemmaPick == null) {
+            return new AssistResult("phi4_only", phi4Confidence,
+                    candidates.get(phi4Pick - 1).slug(),
+                    firstNonBlank(phi4Reason, gemmaReason, "phi4 only"),
+                    phi4Pick, null);
         }
         // gemma only
-        if (p == null) {
-            return new AssistResult("gemma_only", gemma.confidence(),
-                    candidates.get(g - 1).slug(),
-                    firstNonBlank(gemma.reason(), phi4.reason(), "gemma only"),
-                    null, g);
+        if (phi4Pick == null) {
+            return new AssistResult("gemma_only", gemmaConfidence,
+                    candidates.get(gemmaPick - 1).slug(),
+                    firstNonBlank(gemmaReason, phi4Reason, "gemma only"),
+                    null, gemmaPick);
         }
         // both picked
-        if (p.equals(g)) {
-            String agreedConfidence = minConfidence(phi4.confidence(), gemma.confidence());
+        if (phi4Pick.equals(gemmaPick)) {
+            String agreedConfidence = minConfidence(phi4Confidence, gemmaConfidence);
             return new AssistResult("agreed", agreedConfidence,
-                    candidates.get(p - 1).slug(),
-                    firstNonBlank(phi4.reason(), gemma.reason(), "agreed"),
-                    p, g);
+                    candidates.get(phi4Pick - 1).slug(),
+                    firstNonBlank(phi4Reason, gemmaReason, "agreed"),
+                    phi4Pick, gemmaPick);
         }
         // conflict
         return new AssistResult("conflict", null, null,
-                firstNonBlank(phi4.reason(), gemma.reason(), "conflict"),
-                p, g);
+                firstNonBlank(phi4Reason, gemmaReason, "conflict"),
+                phi4Pick, gemmaPick);
     }
 
     /** Returns min(a, b) on the high>medium>low ordering. Nulls treated as unknown (lowest). */

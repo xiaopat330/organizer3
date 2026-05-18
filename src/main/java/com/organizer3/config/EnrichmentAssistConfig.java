@@ -20,6 +20,9 @@ import com.fasterxml.jackson.annotation.JsonProperty;
  * @param postProcessingEnabled   when true (default), the {@link com.organizer3.enrichment.ai.PostProcessingRules}
  *                                layer runs pre/post the LLM ensemble. Set to false to disable
  *                                the entire Java-side rules layer if it regresses anything.
+ * @param backfillBatchSize       Phase 5 Track A — chunk size used by the backfill task to
+ *                                batch ensemble calls by model (N rows of primary, then N
+ *                                rows of secondary). Defaults to 20.
  */
 public record EnrichmentAssistConfig(
         @JsonProperty("mode")                    String mode,
@@ -29,9 +32,10 @@ public record EnrichmentAssistConfig(
         @JsonProperty("autoApplyDelaySeconds")   int autoApplyDelaySeconds,
         @JsonProperty("promptVersion")           String promptVersion,
         @JsonProperty("maxAutoApplyAttempts")    int maxAutoApplyAttempts,
-        @JsonProperty("postProcessingEnabled")   boolean postProcessingEnabled
+        @JsonProperty("postProcessingEnabled")   boolean postProcessingEnabled,
+        @JsonProperty("backfillBatchSize")       int backfillBatchSize
 ) {
     public static EnrichmentAssistConfig defaults() {
-        return new EnrichmentAssistConfig("off", "phi4", "gemma3:12b", 60, 60, "v7-kanji-bridge", 3, true);
+        return new EnrichmentAssistConfig("off", "phi4", "gemma3:12b", 60, 60, "v7-kanji-bridge", 3, true, 20);
     }
 }

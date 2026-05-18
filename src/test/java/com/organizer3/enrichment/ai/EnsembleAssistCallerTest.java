@@ -327,4 +327,81 @@ class EnsembleAssistCallerTest {
 
         assertThrows(IllegalStateException.class, () -> caller.evaluate(row));
     }
+
+    // ------------------------------------------------------------------ Phase 5 Track A — vote(...) direct tests
+
+    /**
+     * Build a 3-candidate fixture; only the {@code slug()} field is consulted by {@code vote()}.
+     */
+    private static java.util.List<AssistPromptBuilder.Input.Candidate> threeCandidates() {
+        return java.util.List.of(
+                new AssistPromptBuilder.Input.Candidate("alpha", "T1", null, null, java.util.List.of(), null, null, null),
+                new AssistPromptBuilder.Input.Candidate("beta",  "T2", null, null, java.util.List.of(), null, null, null),
+                new AssistPromptBuilder.Input.Candidate("gamma", "T3", null, null, java.util.List.of(), null, null, null));
+    }
+
+    @Test
+    void vote_bothPickSameIndex_returnsAgreedMinConfidence() {
+        AssistResult r = EnsembleAssistCaller.vote(
+                2, "high",   "rA",
+                2, "medium", "rB",
+                threeCandidates());
+        assertEquals("agreed", r.outcome());
+        assertEquals("medium", r.confidence());
+        assertEquals("beta", r.suggestedSlug());
+        assertEquals(Integer.valueOf(2), r.phi4Pick());
+        assertEquals(Integer.valueOf(2), r.gemmaPick());
+    }
+
+    @Test
+    void vote_phi4OnlyAbstainsGemma_returnsPhi4Only() {
+        AssistResult r = EnsembleAssistCaller.vote(
+                1, "high", "rA",
+                null, null, null,
+                threeCandidates());
+        assertEquals("phi4_only", r.outcome());
+        assertEquals("high", r.confidence());
+        assertEquals("alpha", r.suggestedSlug());
+        assertEquals(Integer.valueOf(1), r.phi4Pick());
+        assertNull(r.gemmaPick());
+    }
+
+    @Test
+    void vote_gemmaOnly_returnsGemmaOnly() {
+        AssistResult r = EnsembleAssistCaller.vote(
+                null, null, null,
+                3, "medium", "rB",
+                threeCandidates());
+        assertEquals("gemma_only", r.outcome());
+        assertEquals("medium", r.confidence());
+        assertEquals("gamma", r.suggestedSlug());
+        assertNull(r.phi4Pick());
+        assertEquals(Integer.valueOf(3), r.gemmaPick());
+    }
+
+    @Test
+    void vote_conflict_returnsConflictWithNullSlug() {
+        AssistResult r = EnsembleAssistCaller.vote(
+                1, "medium", "rA",
+                2, "high",   "rB",
+                threeCandidates());
+        assertEquals("conflict", r.outcome());
+        assertNull(r.confidence());
+        assertNull(r.suggestedSlug());
+        assertEquals(Integer.valueOf(1), r.phi4Pick());
+        assertEquals(Integer.valueOf(2), r.gemmaPick());
+    }
+
+    @Test
+    void vote_bothAbstain_returnsBothAbstain() {
+        AssistResult r = EnsembleAssistCaller.vote(
+                null, null, null,
+                null, null, null,
+                threeCandidates());
+        assertEquals("both_abstain", r.outcome());
+        assertNull(r.confidence());
+        assertNull(r.suggestedSlug());
+        assertNull(r.phi4Pick());
+        assertNull(r.gemmaPick());
+    }
 }

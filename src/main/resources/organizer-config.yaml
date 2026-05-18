@@ -9,6 +9,8 @@ enrichment:
     sweeperIntervalSeconds: 60
     autoApplyDelaySeconds: 600
     promptVersion: v7-kanji-bridge
+    # Backfill task batch size — chunk size for batched ensemble calls (Phase 5 Track A).
+    backfillBatchSize: 20
 
 backup:
   autoBackupIntervalMinutes: 10080
