@@ -545,7 +545,8 @@ public class SchemaInitializer {
                         ai_suggestion_confidence TEXT,
                         ai_suggestion_reason     TEXT,
                         ai_suggestion_at         TEXT,
-                        ai_auto_applied          INTEGER DEFAULT 0
+                        ai_auto_applied          INTEGER DEFAULT 0,
+                        ai_auto_apply_attempts   INTEGER DEFAULT 0
                     )""");
             h.execute("CREATE INDEX IF NOT EXISTS idx_erq_title ON enrichment_review_queue(title_id)");
             h.execute("CREATE INDEX IF NOT EXISTS idx_erq_open  ON enrichment_review_queue(reason) WHERE resolved_at IS NULL");
@@ -823,7 +824,7 @@ public class SchemaInitializer {
             // leave the version alone and let SchemaUpgrader apply any missing migrations.
             int currentVersion = h.createQuery("PRAGMA user_version").mapTo(Integer.class).one();
             if (currentVersion == 0) {
-                h.execute("PRAGMA user_version = 62");
+                h.execute("PRAGMA user_version = 63");
             }
         });
         log.info("Schema initialization complete");

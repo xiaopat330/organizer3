@@ -14,6 +14,9 @@ import com.fasterxml.jackson.annotation.JsonProperty;
  * @param sweeperIntervalSeconds  poll interval between sweeper iterations
  * @param autoApplyDelaySeconds   grace period before {@code auto} mode applies an agreed suggestion
  * @param promptVersion           tracked for telemetry / regression analysis
+ * @param maxAutoApplyAttempts    after this many consecutive auto-apply failures the row is
+ *                                excluded from the sweeper's auto-apply queue (stays open for
+ *                                human picker resolution); defaults to 3
  */
 public record EnrichmentAssistConfig(
         @JsonProperty("mode")                    String mode,
@@ -21,9 +24,10 @@ public record EnrichmentAssistConfig(
         @JsonProperty("secondaryModel")          String secondaryModel,
         @JsonProperty("sweeperIntervalSeconds")  int sweeperIntervalSeconds,
         @JsonProperty("autoApplyDelaySeconds")   int autoApplyDelaySeconds,
-        @JsonProperty("promptVersion")           String promptVersion
+        @JsonProperty("promptVersion")           String promptVersion,
+        @JsonProperty("maxAutoApplyAttempts")    int maxAutoApplyAttempts
 ) {
     public static EnrichmentAssistConfig defaults() {
-        return new EnrichmentAssistConfig("off", "phi4", "gemma3:12b", 60, 60, "v7-kanji-bridge");
+        return new EnrichmentAssistConfig("off", "phi4", "gemma3:12b", 60, 60, "v7-kanji-bridge", 3);
     }
 }

@@ -693,7 +693,7 @@ class EnrichmentReviewQueueRepositoryTest {
         repo.enqueue(1L, "slug1", "ambiguous", "sentinel_short_circuit");
         setAgedSuggestion(1L, "abc123", "agreed", 600); // 10 min old
 
-        List<EnrichmentReviewQueueRepository.OpenRow> rows = repo.listAutoApplyReady(10, 300);
+        List<EnrichmentReviewQueueRepository.OpenRow> rows = repo.listAutoApplyReady(10, 300, Integer.MAX_VALUE);
         assertEquals(1, rows.size());
         assertEquals(1L, rows.get(0).titleId());
         assertEquals("abc123", rows.get(0).aiSuggestionSlug());
@@ -704,7 +704,7 @@ class EnrichmentReviewQueueRepositoryTest {
         repo.enqueue(1L, "slug1", "ambiguous", "sentinel_short_circuit");
         setAgedSuggestion(1L, "abc123", "agreed", 60); // 1 min old
 
-        assertTrue(repo.listAutoApplyReady(10, 300).isEmpty(),
+        assertTrue(repo.listAutoApplyReady(10, 300, Integer.MAX_VALUE).isEmpty(),
                 "row younger than minAgeSeconds must be excluded");
     }
 
@@ -713,7 +713,7 @@ class EnrichmentReviewQueueRepositoryTest {
         repo.enqueue(1L, "slug1", "ambiguous", "sentinel_short_circuit");
         setAgedSuggestion(1L, "abc123", "conflict", 600);
 
-        assertTrue(repo.listAutoApplyReady(10, 300).isEmpty(),
+        assertTrue(repo.listAutoApplyReady(10, 300, Integer.MAX_VALUE).isEmpty(),
                 "confidence='conflict' must be excluded");
     }
 
@@ -722,7 +722,7 @@ class EnrichmentReviewQueueRepositoryTest {
         repo.enqueue(1L, "slug1", "ambiguous", "sentinel_short_circuit");
         setAgedSuggestion(1L, "abc123", "phi4_only", 600);
 
-        assertTrue(repo.listAutoApplyReady(10, 300).isEmpty(),
+        assertTrue(repo.listAutoApplyReady(10, 300, Integer.MAX_VALUE).isEmpty(),
                 "confidence='phi4_only' must be excluded");
     }
 
@@ -735,7 +735,7 @@ class EnrichmentReviewQueueRepositoryTest {
                         .mapTo(Long.class).one());
         repo.markAiAutoApplied(id);
 
-        assertTrue(repo.listAutoApplyReady(10, 300).isEmpty(),
+        assertTrue(repo.listAutoApplyReady(10, 300, Integer.MAX_VALUE).isEmpty(),
                 "ai_auto_applied=1 must be excluded");
     }
 
@@ -746,7 +746,7 @@ class EnrichmentReviewQueueRepositoryTest {
         jdbi.useHandle(h -> h.execute(
                 "UPDATE enrichment_review_queue SET resolved_at = '2026-05-17T00:00:00Z' WHERE title_id = 1"));
 
-        assertTrue(repo.listAutoApplyReady(10, 300).isEmpty(),
+        assertTrue(repo.listAutoApplyReady(10, 300, Integer.MAX_VALUE).isEmpty(),
                 "resolved row must be excluded");
     }
 
@@ -757,7 +757,7 @@ class EnrichmentReviewQueueRepositoryTest {
         // but the predicate must still reject it.
         setAgedSuggestion(1L, null, "agreed", 600);
 
-        assertTrue(repo.listAutoApplyReady(10, 300).isEmpty(),
+        assertTrue(repo.listAutoApplyReady(10, 300, Integer.MAX_VALUE).isEmpty(),
                 "ai_suggestion_slug IS NULL must be excluded");
     }
 
@@ -774,9 +774,83 @@ class EnrichmentReviewQueueRepositoryTest {
         setAgedSuggestion(2L, "a2", "agreed", 600);
         setAgedSuggestion(3L, "a3", "agreed", 400); // youngest
 
-        List<EnrichmentReviewQueueRepository.OpenRow> rows = repo.listAutoApplyReady(2, 300);
+        List<EnrichmentReviewQueueRepository.OpenRow> rows = repo.listAutoApplyReady(2, 300, Integer.MAX_VALUE);
         assertEquals(2, rows.size(), "limit must be honored");
         assertEquals(1L, rows.get(0).titleId(), "oldest ai_suggestion_at first");
         assertEquals(2L, rows.get(1).titleId());
+    }
+
+    // ── Phase 4 Track D: ai_auto_apply_attempts max-attempt guard ─────────────
+
+    private long queueRowIdForTitle(long titleId) {
+        return jdbi.withHandle(h ->
+                h.createQuery("SELECT id FROM enrichment_review_queue WHERE title_id = :tid")
+                        .bind("tid", titleId).mapTo(Long.class).one());
+    }
+
+    private int attemptsForTitle(long titleId) {
+        return jdbi.withHandle(h ->
+                h.createQuery("SELECT ai_auto_apply_attempts FROM enrichment_review_queue WHERE title_id = :tid")
+                        .bind("tid", titleId).mapTo(Integer.class).one());
+    }
+
+    @Test
+    void listAutoApplyReady_attemptsZero_isEligibleWithMaxAttemptsThree() {
+        repo.enqueue(1L, "slug1", "ambiguous", "sentinel_short_circuit");
+        setAgedSuggestion(1L, "abc123", "agreed", 600);
+
+        var rows = repo.listAutoApplyReady(10, 300, 3);
+        assertEquals(1, rows.size(), "row with attempts=0 must be eligible under maxAttempts=3");
+        assertEquals(0, rows.get(0).aiAutoApplyAttempts());
+    }
+
+    @Test
+    void listAutoApplyReady_attemptsTwo_isStillEligibleWithMaxAttemptsThree() {
+        repo.enqueue(1L, "slug1", "ambiguous", "sentinel_short_circuit");
+        setAgedSuggestion(1L, "abc123", "agreed", 600);
+        long id = queueRowIdForTitle(1L);
+        repo.incrementAutoApplyAttempts(id);
+        repo.incrementAutoApplyAttempts(id);
+
+        assertEquals(2, attemptsForTitle(1L));
+        var rows = repo.listAutoApplyReady(10, 300, 3);
+        assertEquals(1, rows.size(), "row with attempts=2 must still be eligible under maxAttempts=3");
+    }
+
+    @Test
+    void listAutoApplyReady_attemptsAtMax_isExcluded() {
+        repo.enqueue(1L, "slug1", "ambiguous", "sentinel_short_circuit");
+        setAgedSuggestion(1L, "abc123", "agreed", 600);
+        long id = queueRowIdForTitle(1L);
+        repo.incrementAutoApplyAttempts(id);
+        repo.incrementAutoApplyAttempts(id);
+        repo.incrementAutoApplyAttempts(id);
+
+        assertEquals(3, attemptsForTitle(1L));
+        assertTrue(repo.listAutoApplyReady(10, 300, 3).isEmpty(),
+                "row with attempts=3 must be excluded under maxAttempts=3");
+    }
+
+    @Test
+    void incrementAutoApplyAttempts_walksZeroToThree_andRowDropsOutAtMax() {
+        repo.enqueue(1L, "slug1", "ambiguous", "sentinel_short_circuit");
+        setAgedSuggestion(1L, "abc123", "agreed", 600);
+        long id = queueRowIdForTitle(1L);
+
+        assertEquals(0, attemptsForTitle(1L));
+        assertFalse(repo.listAutoApplyReady(10, 300, 3).isEmpty(), "eligible at attempts=0");
+
+        repo.incrementAutoApplyAttempts(id);
+        assertEquals(1, attemptsForTitle(1L));
+        assertFalse(repo.listAutoApplyReady(10, 300, 3).isEmpty(), "eligible at attempts=1");
+
+        repo.incrementAutoApplyAttempts(id);
+        assertEquals(2, attemptsForTitle(1L));
+        assertFalse(repo.listAutoApplyReady(10, 300, 3).isEmpty(), "eligible at attempts=2");
+
+        repo.incrementAutoApplyAttempts(id);
+        assertEquals(3, attemptsForTitle(1L));
+        assertTrue(repo.listAutoApplyReady(10, 300, 3).isEmpty(),
+                "ineligible at attempts=3 (reached maxAttempts)");
     }
 }

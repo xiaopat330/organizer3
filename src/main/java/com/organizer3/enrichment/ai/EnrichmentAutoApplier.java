@@ -59,6 +59,7 @@ public class EnrichmentAutoApplier {
         try {
             pickTool.call(args);
         } catch (Exception e) {
+            queueRepo.incrementAutoApplyAttempts(row.id());
             LOG.warn("[ai-assist] auto-apply failed code={}: {}", codeLabel, e.getMessage());
             return false;
         }

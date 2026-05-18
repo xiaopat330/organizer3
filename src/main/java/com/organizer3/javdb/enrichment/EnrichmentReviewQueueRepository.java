@@ -130,7 +130,8 @@ public class EnrichmentReviewQueueRepository {
                     SELECT q.id, q.title_id, t.code AS title_code, q.slug,
                            q.reason, q.resolver_source, q.created_at, q.detail,
                            q.ai_suggestion_slug, q.ai_suggestion_confidence,
-                           q.ai_suggestion_reason, q.ai_suggestion_at, q.ai_auto_applied
+                           q.ai_suggestion_reason, q.ai_suggestion_at, q.ai_auto_applied,
+                           q.ai_auto_apply_attempts
                     FROM enrichment_review_queue q
                     JOIN titles t ON t.id = q.title_id
                     WHERE q.resolved_at IS NULL
@@ -159,7 +160,8 @@ public class EnrichmentReviewQueueRepository {
                 rs.getString("ai_suggestion_confidence"),
                 rs.getString("ai_suggestion_reason"),
                 rs.getString("ai_suggestion_at"),
-                rs.getInt("ai_auto_applied") != 0
+                rs.getInt("ai_auto_applied") != 0,
+                rs.getInt("ai_auto_apply_attempts")
         );
     }
 
@@ -180,7 +182,8 @@ public class EnrichmentReviewQueueRepository {
                         SELECT q.id, q.title_id, t.code AS title_code, q.slug,
                                q.reason, q.resolver_source, q.created_at, q.detail,
                                q.ai_suggestion_slug, q.ai_suggestion_confidence,
-                               q.ai_suggestion_reason, q.ai_suggestion_at, q.ai_auto_applied
+                               q.ai_suggestion_reason, q.ai_suggestion_at, q.ai_auto_applied,
+                           q.ai_auto_apply_attempts
                         FROM enrichment_review_queue q
                         LEFT JOIN titles t ON t.id = q.title_id
                         WHERE q.resolved_at IS NULL
@@ -207,13 +210,14 @@ public class EnrichmentReviewQueueRepository {
      * @param limit         maximum number of rows to return
      * @param minAgeSeconds minimum age (in seconds) of {@code ai_suggestion_at} for the row to be eligible
      */
-    public List<OpenRow> listAutoApplyReady(int limit, int minAgeSeconds) {
+    public List<OpenRow> listAutoApplyReady(int limit, int minAgeSeconds, int maxAttempts) {
         return jdbi.withHandle(h ->
                 h.createQuery("""
                         SELECT q.id, q.title_id, t.code AS title_code, q.slug,
                                q.reason, q.resolver_source, q.created_at, q.detail,
                                q.ai_suggestion_slug, q.ai_suggestion_confidence,
-                               q.ai_suggestion_reason, q.ai_suggestion_at, q.ai_auto_applied
+                               q.ai_suggestion_reason, q.ai_suggestion_at, q.ai_auto_applied,
+                               q.ai_auto_apply_attempts
                         FROM enrichment_review_queue q
                         LEFT JOIN titles t ON t.id = q.title_id
                         WHERE q.resolved_at IS NULL
@@ -222,14 +226,33 @@ public class EnrichmentReviewQueueRepository {
                           AND q.ai_suggestion_slug IS NOT NULL
                           AND q.ai_auto_applied = 0
                           AND q.ai_suggestion_at IS NOT NULL
+                          AND q.ai_auto_apply_attempts < :maxAttempts
                           AND (julianday('now') - julianday(q.ai_suggestion_at)) * 86400 >= :minAgeSeconds
                         ORDER BY q.ai_suggestion_at ASC
                         LIMIT :limit
                         """)
                         .bind("limit",         limit)
                         .bind("minAgeSeconds", minAgeSeconds)
+                        .bind("maxAttempts",   maxAttempts)
                         .map((rs, ctx) -> mapOpenRow(rs))
                         .list());
+    }
+
+    /**
+     * Increments the {@code ai_auto_apply_attempts} counter for a queue row. Called by
+     * {@link com.organizer3.enrichment.ai.EnrichmentAutoApplier} on every auto-apply
+     * failure so a persistently-failing slug eventually drops out of the sweeper's
+     * auto-apply queue (see {@link #listAutoApplyReady(int, int, int)}).
+     */
+    public void incrementAutoApplyAttempts(long queueRowId) {
+        jdbi.useHandle(h ->
+                h.createUpdate("""
+                        UPDATE enrichment_review_queue
+                        SET ai_auto_apply_attempts = ai_auto_apply_attempts + 1
+                        WHERE id = :id
+                        """)
+                        .bind("id", queueRowId)
+                        .execute());
     }
 
     /**
@@ -385,7 +408,8 @@ public class EnrichmentReviewQueueRepository {
                         SELECT q.id, q.title_id, t.code AS title_code, q.slug,
                                q.reason, q.resolver_source, q.created_at, q.detail,
                                q.ai_suggestion_slug, q.ai_suggestion_confidence,
-                               q.ai_suggestion_reason, q.ai_suggestion_at, q.ai_auto_applied
+                               q.ai_suggestion_reason, q.ai_suggestion_at, q.ai_auto_applied,
+                           q.ai_auto_apply_attempts
                         FROM enrichment_review_queue q
                         LEFT JOIN titles t ON t.id = q.title_id
                         WHERE q.id = :id AND q.resolved_at IS NULL
@@ -408,7 +432,8 @@ public class EnrichmentReviewQueueRepository {
                         SELECT q.id, q.title_id, t.code AS title_code, q.slug,
                                q.reason, q.resolver_source, q.created_at, q.detail,
                                q.ai_suggestion_slug, q.ai_suggestion_confidence,
-                               q.ai_suggestion_reason, q.ai_suggestion_at, q.ai_auto_applied
+                               q.ai_suggestion_reason, q.ai_suggestion_at, q.ai_auto_applied,
+                           q.ai_auto_apply_attempts
                         FROM enrichment_review_queue q
                         LEFT JOIN titles t ON t.id = q.title_id
                         WHERE q.id = :id
@@ -730,13 +755,25 @@ public class EnrichmentReviewQueueRepository {
                           String detail,
                           String aiSuggestionSlug, String aiSuggestionConfidence,
                           String aiSuggestionReason, String aiSuggestionAt,
-                          boolean aiAutoApplied) {
+                          boolean aiAutoApplied,
+                          int aiAutoApplyAttempts) {
 
         /** Convenience overload preserving the pre-AI-picker call signature for existing tests/callers. */
         public OpenRow(long id, long titleId, String titleCode, String slug,
                        String reason, String resolverSource, String createdAt, String detail) {
             this(id, titleId, titleCode, slug, reason, resolverSource, createdAt, detail,
-                    null, null, null, null, false);
+                    null, null, null, null, false, 0);
+        }
+
+        /** Convenience overload preserving the pre-Phase-4 (Track D) call signature. */
+        public OpenRow(long id, long titleId, String titleCode, String slug,
+                       String reason, String resolverSource, String createdAt, String detail,
+                       String aiSuggestionSlug, String aiSuggestionConfidence,
+                       String aiSuggestionReason, String aiSuggestionAt,
+                       boolean aiAutoApplied) {
+            this(id, titleId, titleCode, slug, reason, resolverSource, createdAt, detail,
+                    aiSuggestionSlug, aiSuggestionConfidence, aiSuggestionReason, aiSuggestionAt,
+                    aiAutoApplied, 0);
         }
     }
 }

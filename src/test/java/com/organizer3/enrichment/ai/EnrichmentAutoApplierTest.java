@@ -105,6 +105,7 @@ class EnrichmentAutoApplierTest {
         assertFalse(result);
         verify(pickTool).call(any());
         verify(queueRepo, never()).markAiAutoApplied(anyLong());
+        verify(queueRepo).incrementAutoApplyAttempts(7L);
 
         List<String> warns = messagesAt(Level.WARN);
         assertEquals(1, warns.size(), "expected exactly one WARN log line; got: " + warns);

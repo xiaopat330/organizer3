@@ -141,7 +141,8 @@ public final class EnrichmentAssistSweeper implements Task {
 
             // PHASE B — apply an aged agreed suggestion (mode=auto only).
             if ("auto".equals(config.mode())) {
-                List<OpenRow> aged = queueRepo.listAutoApplyReady(1, config.autoApplyDelaySeconds());
+                List<OpenRow> aged = queueRepo.listAutoApplyReady(
+                        1, config.autoApplyDelaySeconds(), config.maxAutoApplyAttempts());
                 if (!aged.isEmpty()) {
                     OpenRow row = aged.get(0);
                     boolean ok;

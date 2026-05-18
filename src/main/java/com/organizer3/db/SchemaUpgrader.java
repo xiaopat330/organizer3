@@ -24,7 +24,7 @@ import java.util.List;
 public class SchemaUpgrader {
 
     /** Must match the version stamped by {@link SchemaInitializer}. */
-    private static final int CURRENT_VERSION = 62;
+    private static final int CURRENT_VERSION = 63;
 
     private final Jdbi jdbi;
 
@@ -336,6 +336,11 @@ public class SchemaUpgrader {
         if (version < 62) {
             applyV62();
             setVersion(62);
+        }
+
+        if (version < 63) {
+            applyV63();
+            setVersion(63);
         }
 
         log.info("Schema upgrade complete");
@@ -2175,6 +2180,23 @@ public class SchemaUpgrader {
             addColumnIfMissing(h, "enrichment_review_queue", "ai_suggestion_at", "TEXT");
             addColumnIfMissing(h, "enrichment_review_queue", "ai_auto_applied", "INTEGER DEFAULT 0");
         });
+    }
+
+    /**
+     * v63: {@code ai_auto_apply_attempts} column on {@code enrichment_review_queue}.
+     *
+     * <p>Tracks how many times the auto-apply sweeper has failed to apply a row's AI
+     * suggestion. The sweeper increments this counter on each failure; once it reaches
+     * {@code EnrichmentAssistConfig.maxAutoApplyAttempts} the row is excluded from
+     * {@code listAutoApplyReady} (it stays open for human picker resolution).
+     *
+     * <p>Idempotent via {@code addColumnIfMissing}.
+     */
+    private void applyV63() {
+        log.info("Applying migration v63: ai_auto_apply_attempts on enrichment_review_queue");
+        jdbi.useHandle(h ->
+                addColumnIfMissing(h, "enrichment_review_queue",
+                        "ai_auto_apply_attempts", "INTEGER DEFAULT 0"));
     }
 
     private static String leafOf(String path) {
