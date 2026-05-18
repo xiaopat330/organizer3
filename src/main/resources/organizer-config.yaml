@@ -1,5 +1,15 @@
 appName: "JAV Helper"
 
+# AI Picker Assist — Phase 1 shadow mode (writes ai_suggestion_* columns only).
+enrichment:
+  assist:
+    mode: shadow
+    primaryModel: phi4
+    secondaryModel: gemma3:12b
+    sweeperIntervalSeconds: 60
+    autoApplyDelaySeconds: 60
+    promptVersion: v7-kanji-bridge
+
 backup:
   autoBackupIntervalMinutes: 10080
   snapshotCount: 10
