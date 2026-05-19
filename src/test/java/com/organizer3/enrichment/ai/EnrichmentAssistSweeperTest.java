@@ -110,7 +110,8 @@ class EnrichmentAssistSweeperTest {
         return jdbi.withHandle(h ->
                 h.createQuery("""
                         SELECT ai_suggestion_slug, ai_suggestion_confidence,
-                               ai_suggestion_reason, ai_suggestion_at
+                               ai_suggestion_reason, ai_suggestion_at,
+                               ai_phi4_slug, ai_gemma_slug
                         FROM enrichment_review_queue WHERE id = :id
                         """)
                         .bind("id", rowId)
@@ -120,6 +121,8 @@ class EnrichmentAssistSweeperTest {
                             m.put("confidence", rs.getString("ai_suggestion_confidence"));
                             m.put("reason",     rs.getString("ai_suggestion_reason"));
                             m.put("at",         rs.getString("ai_suggestion_at"));
+                            m.put("phi4Slug",   rs.getString("ai_phi4_slug"));
+                            m.put("gemmaSlug",  rs.getString("ai_gemma_slug"));
                             return m;
                         })
                         .one());
@@ -173,9 +176,9 @@ class EnrichmentAssistSweeperTest {
         long id3 = enqueueAmbiguous(3L, "ABC-3");
 
         when(caller.evaluate(any(), any(), any())).thenReturn(
-                new AssistResult("agreed", "high", "abc-1-alpha", "matches cast", 1, 1),
-                new AssistResult("phi4_only", "medium", "abc-2-alpha", "phi4 picks alpha", 1, null),
-                new AssistResult("both_abstain", null, null, "no clear winner", null, null)
+                new AssistResult("agreed", "high", "abc-1-alpha", "matches cast", 1, 1, "abc-1-alpha", "abc-1-alpha"),
+                new AssistResult("phi4_only", "medium", "abc-2-alpha", "phi4 picks alpha", 1, null, "abc-2-alpha", null),
+                new AssistResult("both_abstain", null, null, "no clear winner", null, null, null, null)
         );
 
         EnrichmentAssistSweeper sweeper =
@@ -193,15 +196,21 @@ class EnrichmentAssistSweeperTest {
         assertEquals("agreed",      a.get("confidence"));
         assertEquals("matches cast", a.get("reason"));
         assertNotNull(a.get("at"));
+        assertEquals("abc-1-alpha", a.get("phi4Slug"));
+        assertEquals("abc-1-alpha", a.get("gemmaSlug"));
 
         Map<String, Object> b = readAiCols(id2);
         assertEquals("abc-2-alpha", b.get("slug"));
         assertEquals("phi4_only",   b.get("confidence"));
+        assertEquals("abc-2-alpha", b.get("phi4Slug"));
+        assertNull(b.get("gemmaSlug"), "gemma abstained — gemmaSlug must be null");
 
         Map<String, Object> c = readAiCols(id3);
         assertNull(c.get("slug"), "both_abstain has null suggestedSlug");
         assertEquals("both_abstain", c.get("confidence"));
         assertNotNull(c.get("at"), "even abstain writes the timestamp so the row is not retried");
+        assertNull(c.get("phi4Slug"), "both abstained — phi4Slug must be null");
+        assertNull(c.get("gemmaSlug"), "both abstained — gemmaSlug must be null");
 
         verify(caller, times(3)).evaluate(any(), any(), any());
         // After processing, listOpenAwaitingAi must return 0 — the atomic-1 contract held.

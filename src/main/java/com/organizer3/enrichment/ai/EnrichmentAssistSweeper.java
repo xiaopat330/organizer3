@@ -202,7 +202,9 @@ public final class EnrichmentAssistSweeper implements Task {
                     // see setAiSuggestion javadoc. The column is unconstrained TEXT.
                     result.outcome(),
                     truncate(result.reason()),
-                    Instant.now());
+                    Instant.now(),
+                    result.phi4Slug(),
+                    result.gemmaSlug());
 
             recordOutcome(result.outcome());
             log.info("[ai-assist] {} → {} ({})",
