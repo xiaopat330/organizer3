@@ -507,10 +507,26 @@
   <div class="sh-card">
     <div class="sh-card-head">Reconcile signals</div>
     <div class="sh-rc-counts">
-      <div class="sh-rc-count"><span class="sh-n" id="sh-rc-dup">—</span><span class="sh-rc-lbl">dup live</span></div>
-      <div class="sh-rc-count"><span class="sh-n" id="sh-rc-pending">—</span><span class="sh-rc-lbl">pending grace</span></div>
-      <div class="sh-rc-count"><span class="sh-n" id="sh-rc-past">—</span><span class="sh-rc-lbl">past grace</span></div>
-      <div class="sh-rc-count"><span class="sh-n" id="sh-rc-mismatch">—</span><span class="sh-rc-lbl">mismatches</span></div>
+      <div class="sh-rc-count" id="sh-rc-count-dupLive" role="button" tabindex="-1">
+        <span class="sh-n" id="sh-rc-dup">—</span>
+        <span class="sh-rc-lbl">dup live</span>
+        <span class="sh-rc-chevron" id="sh-rc-chevron-dupLive">▼</span>
+      </div>
+      <div class="sh-rc-count" id="sh-rc-count-pendingGrace" role="button" tabindex="-1">
+        <span class="sh-n" id="sh-rc-pending">—</span>
+        <span class="sh-rc-lbl">pending grace</span>
+        <span class="sh-rc-chevron" id="sh-rc-chevron-pendingGrace">▼</span>
+      </div>
+      <div class="sh-rc-count" id="sh-rc-count-pastGrace" role="button" tabindex="-1">
+        <span class="sh-n" id="sh-rc-past">—</span>
+        <span class="sh-rc-lbl">past grace</span>
+        <span class="sh-rc-chevron" id="sh-rc-chevron-pastGrace">▼</span>
+      </div>
+      <div class="sh-rc-count" id="sh-rc-count-mismatch" role="button" tabindex="-1">
+        <span class="sh-n" id="sh-rc-mismatch">—</span>
+        <span class="sh-rc-lbl">mismatches</span>
+        <span class="sh-rc-chevron" id="sh-rc-chevron-mismatch">▼</span>
+      </div>
     </div>
     <div class="sh-rc-actions">
       <button type="button" id="sh-rc-run" class="sh-btn-secondary">Run reconcile</button>
@@ -518,6 +534,9 @@
     </div>
     <div id="sh-reconcile-age" class="sh-reconcile-age">Last reconcile: never run</div>
   </div>
+
+  <!-- Drilldown detail panel (inline below signals card) -->
+  <div id="sh-detail-panel" class="sh-detail-panel" style="display:none"></div>
 
   <!-- Recent reports card -->
   <div class="sh-card">

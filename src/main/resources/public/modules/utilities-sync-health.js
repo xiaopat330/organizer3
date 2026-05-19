@@ -6,6 +6,7 @@
 
 import { esc } from './utils.js';
 import * as taskCenter from './task-center.js';
+import * as drilldown from './utilities-sync-health-drilldown.js';
 
 const viewEl = () => document.getElementById('tools-sync-health-view');
 
@@ -37,12 +38,17 @@ export async function showSyncHealthView() {
     loadLatestReconcile(),
     loadLastCoherentRun(),
   ]);
+
+  // Mount drilldown; onActionSuccess re-loads counts and refreshes cards.
+  drilldown.mount({ onActionSuccess: refreshCounts });
+
   renderCoherentSyncAge();
   renderReconcile();
   renderReportsTable();
   renderVolumeActions();
   if (!buttonsWired) {
     wireButtons();
+    wireSignalCards();
     buttonsWired = true;
   }
 
@@ -66,6 +72,7 @@ export async function showSyncHealthView() {
 
 export function hideSyncHealthView() {
   viewEl().style.display = 'none';
+  drilldown.clearPanel();
 }
 
 // ── Data loading ──────────────────────────────────────────────────────────────
@@ -148,6 +155,10 @@ function renderReconcile() {
   setReconcileNum(document.getElementById('sh-rc-past'),     r?.pastGraceStragglers,      1);
   setReconcileNum(document.getElementById('sh-rc-mismatch'), r?.actressFolderMismatches,  1);
 
+  // Propagate detail data (may be present if report has detailJson from a previous verbose run)
+  drilldown.updateDetailCache(lastReconcile, false);
+  renderSignalCardStates();
+
   const ageEl = document.getElementById('sh-reconcile-age');
   if (!ageEl) return;
   if (!r || !r.generatedAt) {
@@ -158,6 +169,63 @@ function renderReconcile() {
   const t = new Date(r.generatedAt);
   ageEl.textContent = 'Last reconcile: ' + formatAge(t);
   ageEl.title = t.toLocaleString();
+}
+
+/** Update cursor + chevron visibility on the four signal count cards. */
+function renderSignalCardStates() {
+  const signalMap = {
+    dupLive:      lastReconcile?.duplicateLiveLocations ?? 0,
+    pendingGrace: lastReconcile?.pendingGrace           ?? 0,
+    pastGrace:    lastReconcile?.pastGraceStragglers    ?? 0,
+    mismatch:     lastReconcile?.actressFolderMismatches ?? 0,
+  };
+  for (const [sig, count] of Object.entries(signalMap)) {
+    const card    = document.getElementById(`sh-rc-count-${sig}`);
+    const chevron = document.getElementById(`sh-rc-chevron-${sig}`);
+    if (!card) continue;
+    const clickable = count > 0;
+    card.classList.toggle('sh-rc-count--clickable', clickable);
+    if (chevron) chevron.style.visibility = clickable ? 'visible' : 'hidden';
+  }
+  drilldown.updateCardChevrons();
+}
+
+/**
+ * Wire click handlers on the four signal count cards.
+ * Called once from showSyncHealthView (guarded by buttonsWired).
+ */
+function wireSignalCards() {
+  const signalIds = {
+    'sh-rc-count-dupLive':      'dupLive',
+    'sh-rc-count-pendingGrace': 'pendingGrace',
+    'sh-rc-count-pastGrace':    'pastGrace',
+    'sh-rc-count-mismatch':     'mismatch',
+  };
+  for (const [id, sig] of Object.entries(signalIds)) {
+    const card = document.getElementById(id);
+    if (!card) continue;
+    card.addEventListener('click', () => {
+      drilldown.handleSignalClick(sig, lastReconcile).then(() => {
+        drilldown.updateCardChevrons();
+      });
+    });
+  }
+}
+
+/**
+ * Refresh counts and detail cache after a drilldown action succeeds.
+ * Does not do a full page reload — just refreshes the reconcile data.
+ */
+async function refreshCounts() {
+  try {
+    await Promise.all([loadLatestReconcile(), loadLastCoherentRun()]);
+    renderReconcile();
+    renderReportsTable();
+    renderCoherentSyncAge();
+    renderVolumeActions();
+  } catch (e) {
+    console.error('sync-health: refreshCounts failed', e);
+  }
 }
 
 function renderReportsTable() {
