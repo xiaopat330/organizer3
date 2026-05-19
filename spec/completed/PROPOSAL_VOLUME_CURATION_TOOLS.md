@@ -1,7 +1,7 @@
 # Proposal: MCP Tools for AI-Driven Volume Curation
 
-**Status:** Draft v2 — hardened, ready for build planning
-**Last updated:** 2026-05-09
+**Status:** Phase 1 SHIPPED 2026-05; Layer D ABANDONED 2026-05-19 — manual curation is sufficient. Will revisit only if real friction emerges.
+**Last updated:** 2026-05-19
 **Source incidents:** Volume `s` actress-typo cleanup session 2026-05-08 (`memory/project_volume_s_typo_session_2026_05_08.md`) + cross-volume backlog (tasks #2–#11)
 **Estimated total effort:** ~28 dev-days across 5 phases
 
