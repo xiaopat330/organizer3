@@ -34,15 +34,20 @@ public class ClassifyActressTool implements Tool {
 
     @Override public String name()        { return "classify_actress"; }
     @Override public String description() {
-        return "Move an actress's folder to her correct tier based on current title count. "
-             + "Upward-only; skips favorites/archive. Default dryRun:true.";
+        return "Move an actress's folder to her correct tier based on current title count (upward-only). "
+             + "When reconcileFromDisk:true, instead reconciles actresses.tier in the DB to match "
+             + "where the folder already lives on disk (no file moves). "
+             + "Skips favorites/archive. Default dryRun:true.";
     }
 
     @Override
     public JsonNode inputSchema() {
         return Schemas.object()
-                .prop("actressId", "integer", "Actress id (from lookup_actress or list_actresses).")
-                .prop("dryRun",    "boolean", "If true (default), return the plan without touching files or DB.", true)
+                .prop("actressId",         "integer", "Actress id (from lookup_actress or list_actresses).")
+                .prop("dryRun",            "boolean", "If true (default), return the plan without touching files or DB.", true)
+                .prop("reconcileFromDisk", "boolean",
+                      "When true, update actresses.tier to match the folder's actual on-disk tier "
+                    + "(upward only; no file moves). Use after manual folder promotions. Default false.", false)
                 .require("actressId")
                 .build();
     }
@@ -51,6 +56,7 @@ public class ClassifyActressTool implements Tool {
     public Object call(JsonNode args) {
         long actressId = Schemas.requireLong(args, "actressId");
         boolean dryRun = Schemas.optBoolean(args, "dryRun", true);
+        boolean reconcileFromDisk = Schemas.optBoolean(args, "reconcileFromDisk", false);
 
         String volumeId = session.getMountedVolumeId();
         if (volumeId == null) {
@@ -64,6 +70,9 @@ public class ClassifyActressTool implements Tool {
                 () -> new IllegalArgumentException("Volume not in config: " + volumeId));
 
         VolumeFileSystem fs = conn.fileSystem();
+        if (reconcileFromDisk) {
+            return service.reconcileFromDisk(fs, volumeConfig, jdbi, actressId, dryRun);
+        }
         return service.classify(fs, volumeConfig, jdbi, actressId, dryRun);
     }
 }
