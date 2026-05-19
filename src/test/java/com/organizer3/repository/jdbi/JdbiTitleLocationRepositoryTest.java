@@ -11,8 +11,11 @@ import org.junit.jupiter.api.Test;
 import java.nio.file.Path;
 import java.sql.Connection;
 import java.sql.DriverManager;
+import java.time.Instant;
 import java.time.LocalDate;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
+import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -132,6 +135,86 @@ class JdbiTitleLocationRepositoryTest {
         locationRepo.deleteById(99_999L);
 
         assertEquals(1, locationRepo.findByVolume("vol-a").size());
+    }
+
+    // --- findById ---
+
+    @Test
+    void findByIdReturnsRowWhenPresent() {
+        long tid = titleRepo.save(title("A-001")).getId();
+        TitleLocation saved = locationRepo.save(location(tid, "vol-a", "queue"));
+
+        Optional<TitleLocation> found = locationRepo.findById(saved.getId());
+
+        assertTrue(found.isPresent());
+        assertEquals(saved.getId(), found.get().getId());
+        assertEquals("vol-a", found.get().getVolumeId());
+    }
+
+    @Test
+    void findByIdReturnsEmptyForUnknownId() {
+        Optional<TitleLocation> found = locationRepo.findById(99_999L);
+        assertTrue(found.isEmpty());
+    }
+
+    @Test
+    void findByIdIncludesStaleRows() {
+        long tid = titleRepo.save(title("A-001")).getId();
+        TitleLocation saved = locationRepo.save(location(tid, "vol-a", "queue"));
+        // save() clears stale_since; stamp it directly with ISO-8601 so the mapper's Instant.parse() works.
+        Jdbi jdbi = Jdbi.create(connection);
+        jdbi.useHandle(h -> h.execute(
+                "UPDATE title_locations SET stale_since = ? WHERE id = ?",
+                Instant.now().minus(180, ChronoUnit.DAYS).toString(), saved.getId()));
+
+        Optional<TitleLocation> found = locationRepo.findById(saved.getId());
+
+        assertTrue(found.isPresent(), "findById must include stale rows");
+        assertNotNull(found.get().getStaleSince());
+    }
+
+    // --- SQL-predicate regression: grace-boundary check for sweep-row ---
+
+    /**
+     * Grace-check SQL regression. A row whose stale_since is exactly (now - graceDays + 1 day)
+     * is still inside the grace window and must NOT be returned by findStaleOlderThan.
+     * This is the "false-positive guard" for the sweep-row drilldown endpoint.
+     */
+    @Test
+    void findStaleOlderThan_doesNotReturnRowInsideGrace() {
+        long tid = titleRepo.save(title("A-001")).getId();
+        TitleLocation saved = locationRepo.save(location(tid, "vol-a", "queue"));
+        Jdbi jdbi = Jdbi.create(connection);
+        // stale_since = now - 89 days  →  still inside the 90-day grace window
+        // Use ISO-8601 so the MAPPER's Instant.parse() does not throw.
+        jdbi.useHandle(h -> h.execute(
+                "UPDATE title_locations SET stale_since = ? WHERE id = ?",
+                Instant.now().minus(89, ChronoUnit.DAYS).toString(), saved.getId()));
+
+        List<TitleLocation> stale = locationRepo.findStaleOlderThan(90);
+
+        assertTrue(stale.isEmpty(), "Row inside the grace window must NOT appear in findStaleOlderThan");
+    }
+
+    /**
+     * Grace-check SQL regression — happy path: a row past grace (now - (graceDays + 1) days)
+     * MUST be returned.
+     */
+    @Test
+    void findStaleOlderThan_returnsRowPastGrace() {
+        long tid = titleRepo.save(title("A-001")).getId();
+        TitleLocation saved = locationRepo.save(location(tid, "vol-a", "queue"));
+        Jdbi jdbi = Jdbi.create(connection);
+        // stale_since = now - 91 days  →  past the 90-day grace window
+        // Use ISO-8601 so the MAPPER's Instant.parse() does not throw.
+        jdbi.useHandle(h -> h.execute(
+                "UPDATE title_locations SET stale_since = ? WHERE id = ?",
+                Instant.now().minus(91, ChronoUnit.DAYS).toString(), saved.getId()));
+
+        List<TitleLocation> stale = locationRepo.findStaleOlderThan(90);
+
+        assertEquals(1, stale.size(), "Row past grace must appear in findStaleOlderThan");
+        assertEquals(saved.getId(), stale.get(0).getId());
     }
 
     // --- helpers ---

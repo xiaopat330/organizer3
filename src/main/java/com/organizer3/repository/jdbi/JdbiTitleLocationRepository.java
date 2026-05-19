@@ -252,6 +252,16 @@ public class JdbiTitleLocationRepository implements TitleLocationRepository {
     }
 
     @Override
+    public java.util.Optional<TitleLocation> findById(long locationId) {
+        return jdbi.withHandle(h ->
+                h.createQuery("SELECT * FROM title_locations WHERE id = :id")
+                        .bind("id", locationId)
+                        .map(MAPPER)
+                        .findFirst()
+        );
+    }
+
+    @Override
     public void deleteById(long locationId) {
         jdbi.useHandle(h ->
                 h.createUpdate("DELETE FROM title_locations WHERE id = :id")
