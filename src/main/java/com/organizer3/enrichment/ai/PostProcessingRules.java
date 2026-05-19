@@ -188,7 +188,9 @@ public class PostProcessingRules {
                 best.slug(),
                 reason,
                 original.phi4Pick(),
-                original.gemmaPick());
+                original.gemmaPick(),
+                original.phi4Slug(),
+                original.gemmaSlug());
     }
 
     // ------------------------------------------------------------------ helpers

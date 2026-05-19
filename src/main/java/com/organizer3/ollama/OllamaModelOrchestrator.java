@@ -14,6 +14,7 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
@@ -68,6 +69,9 @@ public class OllamaModelOrchestrator {
     private volatile boolean accepting = true;
 
     private Thread schedulerThread;
+
+    // Tracks items currently being processed by adapter.generate() (not yet complete).
+    private final AtomicInteger processing = new AtomicInteger(0);
 
     // Metrics
     private final AtomicLong modelSwitches = new AtomicLong();
@@ -192,12 +196,14 @@ public class OllamaModelOrchestrator {
             if (next == null) continue;
 
             long startNanos = System.nanoTime();
+            processing.incrementAndGet();
             try {
                 OllamaResponse resp = adapter.generate(next.request);
                 next.future.complete(resp);
             } catch (Throwable t) {
                 next.future.completeExceptionally(t);
             } finally {
+                processing.decrementAndGet();
                 long elapsed = System.nanoTime() - startNanos;
                 callsByModel.computeIfAbsent(activeModel, k -> new AtomicLong()).incrementAndGet();
                 totalNanosByModel.computeIfAbsent(activeModel, k -> new AtomicLong()).addAndGet(elapsed);
@@ -250,6 +256,31 @@ public class OllamaModelOrchestrator {
         }
         return best;
     }
+
+    /**
+     * Returns a snapshot of the orchestrator's current queue load. Both counts are taken under the
+     * lock so they are consistent with each other.
+     *
+     * <p>{@code inFlight} is 1 when the scheduler thread is actively processing an item (i.e.
+     * {@code activeModel} is non-null and an item has been polled from that queue). 0 otherwise.
+     *
+     * <p>{@code queued} is the total number of items still waiting across all per-model queues.
+     * Items already polled by the scheduler thread but not yet completed are counted as
+     * {@code inFlight}, not {@code queued}.
+     */
+    public QueueDepths getQueueDepths() {
+        // processing counter is atomic — no lock needed for it.
+        int inFlight = processing.get();
+        lock.lock();
+        try {
+            int queued = queuesByModel.values().stream().mapToInt(java.util.Deque::size).sum();
+            return new QueueDepths(inFlight, queued);
+        } finally {
+            lock.unlock();
+        }
+    }
+
+    public record QueueDepths(int inFlight, int queued) {}
 
     public Metrics metrics() {
         Map<String, Long> calls = new HashMap<>();

@@ -1,0 +1,433 @@
+/* workflow.css — Enrichment Workflow surface */
+
+/* ── Layout ───────────────────────────────────────────────────────────────── */
+
+.wf-header {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+  padding: 0.75rem 0;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 1rem;
+}
+
+.wf-header-kpis {
+  display: flex;
+  gap: 1.25rem;
+  font-size: 0.8125rem;
+  color: var(--text-dim);
+}
+
+.wf-header-kpis strong {
+  color: var(--text);
+}
+
+#wf-bulk-btn { margin-left: auto; }
+
+/* ── Table ────────────────────────────────────────────────────────────────── */
+
+.wf-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+}
+
+.wf-table th {
+  text-align: left;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-dim);
+  padding: 0.25rem 0.5rem 0.5rem;
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+}
+
+/* ── Row ──────────────────────────────────────────────────────────────────── */
+
+.wf-row {
+  border-bottom: 1px solid var(--border);
+  vertical-align: middle;
+}
+
+.wf-row:last-child {
+  border-bottom: none;
+}
+
+.wf-row td {
+  padding: 0.5rem;
+  vertical-align: middle;
+}
+
+/* ── Code pill ────────────────────────────────────────────────────────────── */
+
+.wf-row-code {
+  white-space: nowrap;
+}
+
+.wf-code-pill {
+  display: inline-block;
+  font-family: var(--font-mono);
+  font-size: 0.8125rem;
+  padding: 0.15rem 0.45rem;
+  border-radius: 3px;
+  background: color-mix(in srgb, var(--accent-fg) 12%, transparent);
+  color: var(--accent-fg);
+}
+
+/* ── Actress chips ────────────────────────────────────────────────────────── */
+
+.wf-row-actresses {
+  max-width: 200px;
+}
+
+.wf-actress-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+}
+
+.wf-actress-chip {
+  font-size: 0.75rem;
+  padding: 0.1rem 0.35rem;
+  border-radius: 3px;
+  background: color-mix(in srgb, var(--text) 8%, transparent);
+  color: var(--text-dim);
+  white-space: nowrap;
+}
+
+/* ── State badge ──────────────────────────────────────────────────────────── */
+
+.wf-row-state {
+  white-space: nowrap;
+}
+
+.wf-state {
+  display: inline-block;
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 0.15rem 0.4rem;
+  border-radius: 3px;
+}
+
+.wf-state-decision      { background: #fef3c7; color: #92400e; }
+.wf-state-ai_suggested  { background: #dbeafe; color: #1e40af; }
+.wf-state-pending       { background: color-mix(in srgb, var(--text) 8%, transparent); color: var(--text-dim); }
+.wf-state-in_flight     { background: #d1fae5; color: #065f46; }
+.wf-state-ai_queued     { background: color-mix(in srgb, var(--text) 8%, transparent); color: var(--text-dim); }
+.wf-state-judging       { background: #d1fae5; color: #065f46; animation: wf-pulse 1.4s ease-in-out infinite; }
+
+@keyframes wf-pulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.55; }
+}
+
+/* ── Title cover (reference image) ───────────────────────────────────────── */
+
+.wf-cover-thumb {
+  width: 50px;
+  height: 70px;
+  border-radius: 2px;
+  flex-shrink: 0;
+  background-color: color-mix(in srgb, var(--text) 6%, transparent);
+  background-size: 200% 100%;
+  background-position: right center;
+  cursor: zoom-in;
+}
+
+.wf-cover-empty {
+  cursor: default;
+}
+
+/* ── Candidate thumbs ─────────────────────────────────────────────────────── */
+
+.wf-row-candidates {
+  white-space: nowrap;
+}
+
+.wf-candidate-thumbs {
+  display: flex;
+  gap: 0.35rem;
+  align-items: flex-start;
+}
+
+.wf-candidate-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.15rem;
+}
+
+/* No <img> tag — CSS background crop of the right half of a DVD cover. */
+.wf-candidate-thumb {
+  width: 50px;
+  height: 70px;
+  border-radius: 2px;
+  flex-shrink: 0;
+  background-color: color-mix(in srgb, var(--text) 6%, transparent);
+  /* background-image, background-position, background-size are set inline per thumb */
+  cursor: zoom-in;
+  box-sizing: border-box;
+}
+
+.wf-candidate-empty {
+  cursor: default;
+}
+
+.wf-candidate-count {
+  font-size: 0.75rem;
+  color: var(--text-faint);
+}
+
+/* ── Pick button (below each candidate thumb) ────────────────────────────── */
+
+.wf-pick-btn {
+  width: 50px;
+  padding: 2px 0;
+  font-size: 0.6875rem;
+  line-height: 1.2;
+  border: 1px solid var(--border);
+  background: transparent;
+  border-radius: 3px;
+  cursor: pointer;
+  color: var(--text-faint);
+  white-space: nowrap;
+  margin-top: 2px;
+}
+
+.wf-pick-btn:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--text) 5%, transparent);
+  color: var(--text-dim);
+}
+
+.wf-pick-btn:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+/* Judge-vote modifier classes on the pick button — solid fill + white text for contrast. */
+.wf-pick-phi4 {
+  background: #f59e0b;
+  border-color: #f59e0b;
+  color: #fff;
+  font-weight: 600;
+}
+.wf-pick-phi4:hover:not(:disabled) {
+  background: #d97706;
+}
+
+.wf-pick-gemma {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+  font-weight: 600;
+}
+.wf-pick-gemma:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--accent) 80%, #000);
+}
+
+.wf-pick-agreed {
+  background: var(--ok);
+  border-color: var(--ok);
+  color: #0b1f15;
+  font-weight: 700;
+}
+.wf-pick-agreed:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--ok) 85%, #000);
+}
+
+/* ── Judge vote rows (in judge-votes column) ──────────────────────────────── */
+
+.wf-row-judges {
+  white-space: nowrap;
+}
+
+.wf-judge-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.wf-judge-row + .wf-judge-row {
+  margin-top: 4px;
+}
+
+.wf-judge-row svg {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+}
+
+.wf-judge-status-vote {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  display: inline-block;
+  flex-shrink: 0;
+}
+
+.wf-judge-status-vote.wf-vote-phi4  { background: #f59e0b; }
+.wf-judge-status-vote.wf-vote-gemma { background: var(--accent); }
+
+.wf-judge-status-abstain { color: var(--error); }
+.wf-judge-status-unknown { color: #facc15; }
+
+/* ── Candidate card highlight modifiers ───────────────────────────────────── */
+
+.wf-candidate-wrap.wf-card-agreed {
+  border-radius: 4px;
+  padding: 2px;
+  background: color-mix(in srgb, var(--ok) 12%, transparent);
+  box-shadow: 0 0 0 1.5px var(--ok);
+}
+
+.wf-candidate-wrap.wf-card-phi4 {
+  border-radius: 4px;
+  padding: 2px;
+  background: color-mix(in srgb, #f59e0b 10%, transparent);
+  box-shadow: 0 0 0 1.5px #f59e0b;
+}
+
+.wf-candidate-wrap.wf-card-gemma {
+  border-radius: 4px;
+  padding: 2px;
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+  box-shadow: 0 0 0 1.5px var(--accent);
+}
+
+.wf-candidate-wrap.wf-card-desaturated {
+  filter: grayscale(100%);
+  opacity: 0.55;
+}
+
+.wf-candidate-wrap.wf-card-desaturated .wf-pick-btn {
+  pointer-events: auto;
+}
+
+/* ── Action area ──────────────────────────────────────────────────────────── */
+
+.wf-row-actions {
+  white-space: nowrap;
+  text-align: right;
+}
+
+.wf-ai-btn {
+  padding: 0.3rem 0.65rem;
+  font-size: 0.8125rem;
+  border: 1px solid var(--border);
+  background: transparent;
+  border-radius: 4px;
+  cursor: pointer;
+  color: var(--text);
+}
+
+.wf-ai-btn:hover { background: color-mix(in srgb, var(--text) 5%, transparent); }
+.wf-ai-btn:disabled { opacity: 0.5; cursor: default; }
+
+.wf-retry-btn { font-size: 0.75rem; border-color: transparent; color: var(--text-faint); }
+
+.wf-ai-pending {
+  font-size: 0.8125rem;
+  color: var(--text-faint);
+  font-style: italic;
+}
+
+/* ── Overflow action menu ─────────────────────────────────────────────────── */
+
+.wf-actions-wrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  position: relative;
+}
+
+.wf-actions-more-btn {
+  padding: 0.2rem 0.4rem;
+  font-size: 1rem;
+  line-height: 1;
+  border: 1px solid var(--border);
+  background: transparent;
+  border-radius: 4px;
+  cursor: pointer;
+  color: var(--text-dim);
+}
+
+.wf-actions-more-btn:hover {
+  background: color-mix(in srgb, var(--text) 5%, transparent);
+  color: var(--text);
+}
+
+.wf-action-menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  min-width: 160px;
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.18);
+  z-index: 200;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.wf-action-menu-item {
+  display: block;
+  width: 100%;
+  padding: 0.45rem 0.75rem;
+  text-align: left;
+  font-size: 0.8125rem;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  color: var(--text);
+  white-space: nowrap;
+}
+
+.wf-action-menu-item:hover {
+  background: color-mix(in srgb, var(--text) 6%, transparent);
+}
+
+/* ── Override-slug inline input ───────────────────────────────────────────── */
+
+.wf-override-input-row {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin-top: 0.4rem;
+  flex-wrap: wrap;
+}
+
+.wf-override-input {
+  padding: 0.2rem 0.4rem;
+  font-size: 0.8125rem;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--bg);
+  color: var(--text);
+  width: 130px;
+}
+
+.wf-override-cancel {
+  color: var(--text-faint);
+  border-color: transparent;
+  background: transparent;
+}
+
+.wf-override-err {
+  font-size: 0.75rem;
+  color: var(--error);
+  flex-basis: 100%;
+}
+
+/* ── Empty state ──────────────────────────────────────────────────────────── */
+
+.wf-empty {
+  text-align: center;
+  padding: 3rem 1rem;
+  color: var(--text-faint);
+  font-size: 0.9rem;
+}

@@ -131,7 +131,8 @@ public class EnrichmentReviewQueueRepository {
                            q.reason, q.resolver_source, q.created_at, q.detail,
                            q.ai_suggestion_slug, q.ai_suggestion_confidence,
                            q.ai_suggestion_reason, q.ai_suggestion_at, q.ai_auto_applied,
-                           q.ai_auto_apply_attempts
+                           q.ai_auto_apply_attempts,
+                           q.ai_phi4_slug, q.ai_gemma_slug
                     FROM enrichment_review_queue q
                     JOIN titles t ON t.id = q.title_id
                     WHERE q.resolved_at IS NULL
@@ -161,7 +162,9 @@ public class EnrichmentReviewQueueRepository {
                 rs.getString("ai_suggestion_reason"),
                 rs.getString("ai_suggestion_at"),
                 rs.getInt("ai_auto_applied") != 0,
-                rs.getInt("ai_auto_apply_attempts")
+                rs.getInt("ai_auto_apply_attempts"),
+                rs.getString("ai_phi4_slug"),
+                rs.getString("ai_gemma_slug")
         );
     }
 
@@ -183,7 +186,8 @@ public class EnrichmentReviewQueueRepository {
                                q.reason, q.resolver_source, q.created_at, q.detail,
                                q.ai_suggestion_slug, q.ai_suggestion_confidence,
                                q.ai_suggestion_reason, q.ai_suggestion_at, q.ai_auto_applied,
-                           q.ai_auto_apply_attempts
+                               q.ai_auto_apply_attempts,
+                               q.ai_phi4_slug, q.ai_gemma_slug
                         FROM enrichment_review_queue q
                         LEFT JOIN titles t ON t.id = q.title_id
                         WHERE q.resolved_at IS NULL
@@ -217,7 +221,8 @@ public class EnrichmentReviewQueueRepository {
                                q.reason, q.resolver_source, q.created_at, q.detail,
                                q.ai_suggestion_slug, q.ai_suggestion_confidence,
                                q.ai_suggestion_reason, q.ai_suggestion_at, q.ai_auto_applied,
-                               q.ai_auto_apply_attempts
+                               q.ai_auto_apply_attempts,
+                               q.ai_phi4_slug, q.ai_gemma_slug
                         FROM enrichment_review_queue q
                         LEFT JOIN titles t ON t.id = q.title_id
                         WHERE q.resolved_at IS NULL
@@ -275,19 +280,36 @@ public class EnrichmentReviewQueueRepository {
      * @param at         when the suggestion was produced
      */
     public void setAiSuggestion(long queueRowId, String slug, String confidence, String reason, Instant at) {
+        setAiSuggestion(queueRowId, slug, confidence, reason, at, null, null);
+    }
+
+    /**
+     * Records an AI suggestion and the per-model slugs (V64+). {@code phi4Slug} and
+     * {@code gemmaSlug} are the individual javdb slugs each model voted for, or {@code null}
+     * when that model abstained. Passing both as {@code null} is fine for error sentinels.
+     *
+     * @param phi4Slug  slug phi4 voted for, or null if it abstained
+     * @param gemmaSlug slug gemma3 voted for, or null if it abstained
+     */
+    public void setAiSuggestion(long queueRowId, String slug, String confidence, String reason,
+                                Instant at, String phi4Slug, String gemmaSlug) {
         jdbi.useHandle(h ->
                 h.createUpdate("""
                         UPDATE enrichment_review_queue
                         SET ai_suggestion_slug       = :slug,
                             ai_suggestion_confidence = :confidence,
                             ai_suggestion_reason     = :reason,
-                            ai_suggestion_at         = :at
+                            ai_suggestion_at         = :at,
+                            ai_phi4_slug             = :phi4Slug,
+                            ai_gemma_slug            = :gemmaSlug
                         WHERE id = :id
                         """)
                         .bind("slug",       slug)
                         .bind("confidence", confidence)
                         .bind("reason",     reason)
                         .bind("at",         at != null ? at.toString() : null)
+                        .bind("phi4Slug",   phi4Slug)
+                        .bind("gemmaSlug",  gemmaSlug)
                         .bind("id",         queueRowId)
                         .execute());
     }
@@ -410,7 +432,8 @@ public class EnrichmentReviewQueueRepository {
                                q.reason, q.resolver_source, q.created_at, q.detail,
                                q.ai_suggestion_slug, q.ai_suggestion_confidence,
                                q.ai_suggestion_reason, q.ai_suggestion_at, q.ai_auto_applied,
-                           q.ai_auto_apply_attempts
+                               q.ai_auto_apply_attempts,
+                               q.ai_phi4_slug, q.ai_gemma_slug
                         FROM enrichment_review_queue q
                         LEFT JOIN titles t ON t.id = q.title_id
                         WHERE q.id = :id AND q.resolved_at IS NULL
@@ -434,7 +457,8 @@ public class EnrichmentReviewQueueRepository {
                                q.reason, q.resolver_source, q.created_at, q.detail,
                                q.ai_suggestion_slug, q.ai_suggestion_confidence,
                                q.ai_suggestion_reason, q.ai_suggestion_at, q.ai_auto_applied,
-                           q.ai_auto_apply_attempts
+                               q.ai_auto_apply_attempts,
+                               q.ai_phi4_slug, q.ai_gemma_slug
                         FROM enrichment_review_queue q
                         LEFT JOIN titles t ON t.id = q.title_id
                         WHERE q.id = :id
@@ -749,7 +773,9 @@ public class EnrichmentReviewQueueRepository {
     /**
      * A single open queue row returned by {@link #listOpen}, {@link #findOpenById},
      * and {@link #listOpenAwaitingAi}. The {@code aiSuggestion*} fields are null when no
-     * AI suggestion has been attached yet.
+     * AI suggestion has been attached yet. {@code aiPhi4Slug} / {@code aiGemmaSlug} are
+     * populated when the ensemble caller records per-model picks (V64+); null means the
+     * model abstained or AI has not run yet.
      */
     public record OpenRow(long id, long titleId, String titleCode, String slug,
                           String reason, String resolverSource, String createdAt,
@@ -757,13 +783,15 @@ public class EnrichmentReviewQueueRepository {
                           String aiSuggestionSlug, String aiSuggestionConfidence,
                           String aiSuggestionReason, String aiSuggestionAt,
                           boolean aiAutoApplied,
-                          int aiAutoApplyAttempts) {
+                          int aiAutoApplyAttempts,
+                          String aiPhi4Slug,
+                          String aiGemmaSlug) {
 
         /** Convenience overload preserving the pre-AI-picker call signature for existing tests/callers. */
         public OpenRow(long id, long titleId, String titleCode, String slug,
                        String reason, String resolverSource, String createdAt, String detail) {
             this(id, titleId, titleCode, slug, reason, resolverSource, createdAt, detail,
-                    null, null, null, null, false, 0);
+                    null, null, null, null, false, 0, null, null);
         }
 
         /** Convenience overload preserving the pre-Phase-4 (Track D) call signature. */
@@ -774,7 +802,18 @@ public class EnrichmentReviewQueueRepository {
                        boolean aiAutoApplied) {
             this(id, titleId, titleCode, slug, reason, resolverSource, createdAt, detail,
                     aiSuggestionSlug, aiSuggestionConfidence, aiSuggestionReason, aiSuggestionAt,
-                    aiAutoApplied, 0);
+                    aiAutoApplied, 0, null, null);
+        }
+
+        /** Convenience overload preserving the pre-V64 (ai_auto_apply_attempts) call signature. */
+        public OpenRow(long id, long titleId, String titleCode, String slug,
+                       String reason, String resolverSource, String createdAt, String detail,
+                       String aiSuggestionSlug, String aiSuggestionConfidence,
+                       String aiSuggestionReason, String aiSuggestionAt,
+                       boolean aiAutoApplied, int aiAutoApplyAttempts) {
+            this(id, titleId, titleCode, slug, reason, resolverSource, createdAt, detail,
+                    aiSuggestionSlug, aiSuggestionConfidence, aiSuggestionReason, aiSuggestionAt,
+                    aiAutoApplied, aiAutoApplyAttempts, null, null);
         }
     }
 }

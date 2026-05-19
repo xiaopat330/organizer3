@@ -403,36 +403,40 @@ public class EnsembleAssistCaller {
             Integer gemmaPick, String gemmaConfidence, String gemmaReason,
             List<AssistPromptBuilder.Input.Candidate> candidates) {
 
+        // Resolve per-model slugs upfront; null when a model abstained.
+        String phi4Slug  = phi4Pick  != null ? candidates.get(phi4Pick  - 1).slug() : null;
+        String gemmaSlug = gemmaPick != null ? candidates.get(gemmaPick - 1).slug() : null;
+
         // both abstained
         if (phi4Pick == null && gemmaPick == null) {
-            return new AssistResult("both_abstain", null, null, "both abstained", null, null);
+            return new AssistResult("both_abstain", null, null, "both abstained", null, null, null, null);
         }
         // phi4 only
         if (phi4Pick != null && gemmaPick == null) {
             return new AssistResult("phi4_only", phi4Confidence,
-                    candidates.get(phi4Pick - 1).slug(),
+                    phi4Slug,
                     firstNonBlank(phi4Reason, gemmaReason, "phi4 only"),
-                    phi4Pick, null);
+                    phi4Pick, null, phi4Slug, null);
         }
         // gemma only
         if (phi4Pick == null) {
             return new AssistResult("gemma_only", gemmaConfidence,
-                    candidates.get(gemmaPick - 1).slug(),
+                    gemmaSlug,
                     firstNonBlank(gemmaReason, phi4Reason, "gemma only"),
-                    null, gemmaPick);
+                    null, gemmaPick, null, gemmaSlug);
         }
         // both picked
         if (phi4Pick.equals(gemmaPick)) {
             String agreedConfidence = minConfidence(phi4Confidence, gemmaConfidence);
             return new AssistResult("agreed", agreedConfidence,
-                    candidates.get(phi4Pick - 1).slug(),
+                    phi4Slug,
                     firstNonBlank(phi4Reason, gemmaReason, "agreed"),
-                    phi4Pick, gemmaPick);
+                    phi4Pick, gemmaPick, phi4Slug, gemmaSlug);
         }
-        // conflict
+        // conflict — both voted but disagreed; surface both slugs so the UI can show borders
         return new AssistResult("conflict", null, null,
                 firstNonBlank(phi4Reason, gemmaReason, "conflict"),
-                phi4Pick, gemmaPick);
+                phi4Pick, gemmaPick, phi4Slug, gemmaSlug);
     }
 
     /** Returns min(a, b) on the high>medium>low ordering. Nulls treated as unknown (lowest). */

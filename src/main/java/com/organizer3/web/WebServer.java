@@ -180,6 +180,19 @@ public class WebServer {
         routes.register(app);
     }
 
+    /** Mounts the enrichment workflow endpoints ({@code /api/enrichment/workflow/*}). */
+    public void registerWorkflow(com.organizer3.web.routes.WorkflowRoutes routes) {
+        routes.register(app);
+    }
+
+    /**
+     * Mounts the AI-assist queue-depth endpoint ({@code GET /api/enrichment/assist/queue}).
+     * Used by the status-bar progress widget.
+     */
+    public void registerEnrichmentAssistQueue(com.organizer3.web.routes.EnrichmentAssistQueueRoutes routes) {
+        routes.register(app);
+    }
+
     /** Mounts the no-match enrichment triage endpoints ({@code /api/triage/no-match/*}). */
     public void registerNoMatchTriage(com.organizer3.web.routes.NoMatchTriageRoutes routes) {
         routes.register(app);

@@ -554,6 +554,39 @@ class EnrichmentReviewQueueRepositoryTest {
     }
 
     @Test
+    void setAiSuggestion_withPerModelSlugs_persistsPhiAndGemmaColumns() {
+        repo.enqueue(1L, "slug1", "ambiguous", "sentinel_short_circuit");
+        long id = jdbi.withHandle(h ->
+                h.createQuery("SELECT id FROM enrichment_review_queue WHERE title_id = 1")
+                        .mapTo(Long.class).one());
+
+        Instant at = Instant.parse("2026-05-18T10:00:00Z");
+        repo.setAiSuggestion(id, "phi-slug", "phi4_only", "phi4 picked uniquely", at,
+                "phi-slug", null);
+
+        EnrichmentReviewQueueRepository.OpenRow row = repo.findOpenById(id).orElseThrow();
+        assertEquals("phi-slug", row.aiSuggestionSlug());
+        assertEquals("phi-slug", row.aiPhi4Slug(),  "phi4 slug must persist");
+        assertNull(row.aiGemmaSlug(),               "gemma slug must be null (abstained)");
+    }
+
+    @Test
+    void setAiSuggestion_withBothModelSlugs_persistsBothColumns() {
+        repo.enqueue(1L, "slug1", "ambiguous", "sentinel_short_circuit");
+        long id = jdbi.withHandle(h ->
+                h.createQuery("SELECT id FROM enrichment_review_queue WHERE title_id = 1")
+                        .mapTo(Long.class).one());
+
+        Instant at = Instant.parse("2026-05-18T10:00:00Z");
+        repo.setAiSuggestion(id, "agreed-slug", "agreed", "both agreed", at,
+                "agreed-slug", "agreed-slug");
+
+        EnrichmentReviewQueueRepository.OpenRow row = repo.findOpenById(id).orElseThrow();
+        assertEquals("agreed-slug", row.aiPhi4Slug());
+        assertEquals("agreed-slug", row.aiGemmaSlug());
+    }
+
+    @Test
     void markAiAutoApplied_setsFlagToOne() {
         repo.enqueue(1L, "slug1", "ambiguous", "sentinel_short_circuit");
         long id = jdbi.withHandle(h ->

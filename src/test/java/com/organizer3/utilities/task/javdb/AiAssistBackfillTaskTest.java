@@ -198,9 +198,9 @@ class AiAssistBackfillTaskTest {
         CapturingIO io = new CapturingIO();
         task.run(new TaskInputs(Map.of()), io);
 
-        // setAiSuggestion called exactly 5 times — once per row.
+        // setAiSuggestion called exactly 5 times — once per row (7-arg form with per-model slugs).
         verify(spyRepo, times(5)).setAiSuggestion(
-                anyLong(), any(), anyString(), any(), any(Instant.class));
+                anyLong(), any(), anyString(), any(), any(Instant.class), any(), any());
 
         // Orchestrator received exactly 5 phi4 submissions and 5 gemma3 submissions
         // (single chunk of 5).
@@ -275,9 +275,9 @@ class AiAssistBackfillTaskTest {
                 .count();
         assertEquals(3, chunkLogs, "expected 3 chunk-boundary log lines for 7 rows / batch 3");
 
-        // All 7 setAiSuggestion calls.
+        // All 7 setAiSuggestion calls (7-arg form with per-model slugs).
         verify(spyRepo, times(7)).setAiSuggestion(
-                anyLong(), any(), anyString(), any(), any(Instant.class));
+                anyLong(), any(), anyString(), any(), any(Instant.class), any(), any());
     }
 
     /**
@@ -353,9 +353,9 @@ class AiAssistBackfillTaskTest {
         CapturingIO io = new CapturingIO();
         task.run(new TaskInputs(Map.of()), io);
 
-        // All 3 persisted.
+        // All 3 persisted (7-arg form with per-model slugs).
         verify(spyRepo, times(3)).setAiSuggestion(
-                anyLong(), any(), anyString(), any(), any(Instant.class));
+                anyLong(), any(), anyString(), any(), any(Instant.class), any(), any());
 
         // Report: 2 agreed + 1 gemma_only.
         List<Path> reports;

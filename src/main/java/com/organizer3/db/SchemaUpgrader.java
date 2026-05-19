@@ -24,7 +24,7 @@ import java.util.List;
 public class SchemaUpgrader {
 
     /** Must match the version stamped by {@link SchemaInitializer}. */
-    private static final int CURRENT_VERSION = 63;
+    private static final int CURRENT_VERSION = 64;
 
     private final Jdbi jdbi;
 
@@ -341,6 +341,11 @@ public class SchemaUpgrader {
         if (version < 63) {
             applyV63();
             setVersion(63);
+        }
+
+        if (version < 64) {
+            applyV64();
+            setVersion(64);
         }
 
         log.info("Schema upgrade complete");
@@ -2197,6 +2202,14 @@ public class SchemaUpgrader {
         jdbi.useHandle(h ->
                 addColumnIfMissing(h, "enrichment_review_queue",
                         "ai_auto_apply_attempts", "INTEGER DEFAULT 0"));
+    }
+
+    private void applyV64() {
+        log.info("Applying migration v64: ai_phi4_slug + ai_gemma_slug on enrichment_review_queue");
+        jdbi.useHandle(h -> {
+            addColumnIfMissing(h, "enrichment_review_queue", "ai_phi4_slug",  "TEXT");
+            addColumnIfMissing(h, "enrichment_review_queue", "ai_gemma_slug", "TEXT");
+        });
     }
 
     private static String leafOf(String path) {

@@ -1,14 +1,14 @@
 // modules/chrome/status-bar.js
-// Polls sync + translation + javdb APIs and rewrites .app-status on every v2 page.
+// Polls sync + translation + javdb + AI-assist APIs and rewrites .app-status on every v2 page.
 
 const SYNC_INTERVAL_MS        = 10_000;
 const TRANSLATION_INTERVAL_MS = 15_000;
 const JAVDB_INTERVAL_MS       = 15_000;
+const AI_ASSIST_INTERVAL_MS   = 5_000;
 
 const SYNC_ICON = '<svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><polyline points="21 3 21 8 16 8"/></svg>';
 
 const SYNC_TASK_IDS   = new Set(['volume.sync', 'volume.sync_coherent', 'volume.clean_stale_locations']);
-const AI_SWEEPER_ID   = 'enrichment.ai_assist_sweeper';
 
 export function mountStatusBar() {
   const footer = document.querySelector('.app-status');
@@ -17,16 +17,14 @@ export function mountStatusBar() {
   let syncState     = { dot: 'ok',   text: 'sync …' };
   let transState    = { dot: 'idle', text: 'translation …' };
   let javdbState    = { dot: 'idle', text: 'idle' };
-  let aiAssistState = { running: false };
+  let aiAssistState = { inFlight: 0, queued: 0 };
 
   function renderAiAssist() {
-    if (!aiAssistState.running) return '';
-    const { current, total } = aiAssistState;
-    const determinate = typeof current === 'number' && typeof total === 'number' && total > 0;
-    const text = determinate ? `${current}/${total}` : 'idle';
+    const total = aiAssistState.inFlight + aiAssistState.queued;
+    if (total <= 0) return '';
     return `<span class="status-item">` +
       `<span class="status-task">` +
-        `<b>ai</b> ${text}` +
+        `<b>ai</b> ${aiAssistState.inFlight}/${total}` +
         `<span class="bar"><span class="bar-fill"></span></span>` +
       `</span>` +
     `</span>`;
@@ -78,19 +76,17 @@ export function mountStatusBar() {
         const dot = ageMs > 86_400_000 ? 'warn' : 'ok';
         syncState = { dot, text: `ok · ${latest.id} · ${timeStr}` };
       }
-
-      // Derive AI sweeper state from the same active payload — no extra network call.
-      if (active?.active && active.taskId === AI_SWEEPER_ID) {
-        aiAssistState = {
-          running:    true,
-          phaseLabel: active.phaseLabel ?? null,
-          current:    active.current    ?? null,
-          total:      active.total      ?? null,
-        };
-      } else {
-        aiAssistState = { running: false };
-      }
     } catch { /* keep last-known state — no console spam */ }
+    render();
+  }
+
+  async function pollAiAssist() {
+    try {
+      const res = await fetch('/api/enrichment/assist/queue', { cache: 'no-cache' });
+      if (!res.ok) return;
+      const { inFlight, queued } = await res.json();
+      aiAssistState = { inFlight: inFlight ?? 0, queued: queued ?? 0 };
+    } catch { /* keep last-known state */ }
     render();
   }
 
@@ -137,7 +133,9 @@ export function mountStatusBar() {
   pollSync();
   pollTranslation();
   pollJavdb();
+  pollAiAssist();
   setInterval(pollSync,        SYNC_INTERVAL_MS);
   setInterval(pollTranslation, TRANSLATION_INTERVAL_MS);
   setInterval(pollJavdb,       JAVDB_INTERVAL_MS);
+  setInterval(pollAiAssist,    AI_ASSIST_INTERVAL_MS);
 }

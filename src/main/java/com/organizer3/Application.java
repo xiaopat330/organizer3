@@ -962,6 +962,12 @@ public class Application {
                         enrichmentReviewQueueRepo, ollamaOrchestrator, assistConfig,
                         assistPostProcessingRules, jsonMapper, dataDir);
 
+        // Batched ensemble processor shared by both the backfill task and the bulk workflow endpoint.
+        com.organizer3.enrichment.ai.BatchedEnsembleProcessor batchedEnsembleProcessor =
+                new com.organizer3.enrichment.ai.BatchedEnsembleProcessor(
+                        enrichmentReviewQueueRepo, ollamaOrchestrator, assistConfig,
+                        assistPostProcessingRules, jsonMapper, enrichmentAutoApplier);
+
         // Coherent multi-volume sync — defers global orphan prune until all volumes are scanned.
         com.organizer3.sync.SyncPruneService syncPruneService =
                 new com.organizer3.sync.SyncPruneService(titleRepo, videoRepo, actressRepo,
@@ -1146,6 +1152,11 @@ public class Application {
         com.organizer3.notes.OrphanNoteFinder orphanNoteFinder =
                 new com.organizer3.notes.OrphanNoteFinder(jdbi);
         webServer.registerNotes(new com.organizer3.web.routes.NoteRoutes(noteService));
+        webServer.registerWorkflow(new com.organizer3.web.routes.WorkflowRoutes(
+                enrichmentReviewQueueRepo, ensembleAssistCaller, enrichmentAutoApplier,
+                batchedEnsembleProcessor, jdbi, coverPath));
+        webServer.registerEnrichmentAssistQueue(
+                new com.organizer3.web.routes.EnrichmentAssistQueueRoutes(ollamaOrchestrator));
 
         // MCP (Model Context Protocol) server — read-only diagnostic tools mounted on
         // the existing Javalin instance. See spec/PROPOSAL_MCP_SERVER.md.
