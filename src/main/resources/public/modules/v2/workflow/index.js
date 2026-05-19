@@ -46,10 +46,10 @@ export async function mountWorkflow(rootEl) {
             <tr>
               <th>Code</th>
               <th>Actresses</th>
-              <th>State</th>
+              <th class="wf-col-state">State</th>
               <th>Cover</th>
-              <th>Candidates</th>
-              <th>Judge votes</th>
+              <th class="wf-col-candidates">Candidates</th>
+              <th class="wf-col-judges">AI Vote</th>
               <th></th>
             </tr>
           </thead>
@@ -94,21 +94,20 @@ function render() {
 
 function renderKpis() {
   if (!_kpiEl) return;
-  const total     = _rows.length;
-  const decision  = _rows.filter(r => r.state === 'decision').length;
-  const suggested = _rows.filter(r => r.state === 'ai_suggested').length;
-  const inflight  = _rows.filter(r => r.state === 'in_flight').length;
+  const total       = _rows.length;
+  const ambiguous   = _rows.filter(r => r.state === 'ambiguous').length;
+  const inconclusive = _rows.filter(r =>
+    r.state === 'split_decision' || r.state === 'partial_vote' || r.state === 'no_verdict').length;
+  const judging     = _rows.filter(r => r.state === 'judging').length;
 
   const parts = [`<strong>${total}</strong> open`];
-  if (decision  > 0) parts.push(`<strong>${decision}</strong> need decision`);
-  if (suggested > 0) parts.push(`<strong>${suggested}</strong> AI suggested`);
-  if (inflight  > 0) parts.push(`<strong>${inflight}</strong> in flight`);
+  if (ambiguous   > 0) parts.push(`<strong>${ambiguous}</strong> ambiguous`);
+  if (inconclusive > 0) parts.push(`<strong>${inconclusive}</strong> inconclusive`);
+  if (judging     > 0) parts.push(`<strong>${judging}</strong> judging`);
   _kpiEl.innerHTML = parts.join(' · ');
 
-  // Enable bulk button only when there are ambiguous rows that are not already queued or running.
-  const hasAmbiguousAwaitingAi = _rows.some(
-    r => r.reason === 'ambiguous' && !r.aiSuggestionAt
-         && r.state !== 'ai_queued' && r.state !== 'judging');
+  // Enable bulk button only when there are ambiguous rows (pre-AI).
+  const hasAmbiguousAwaitingAi = _rows.some(r => r.state === 'ambiguous');
   if (_bulkBtn) {
     _bulkBtn.disabled = !hasAmbiguousAwaitingAi;
   }
@@ -139,8 +138,8 @@ function makeRow(row) {
     ? '<span class="wf-actress-chip">—</span>'
     : (row.actresses || []).map(n => `<span class="wf-actress-chip">${esc(n)}</span>`).join('');
 
-  const stateLabel  = humanizeState(row.state);
-  const stateClass  = `wf-state wf-state-${esc(row.state || 'decision')}`;
+  const stateLabel  = humanizeState(row.state, row.reason);
+  const stateClass  = `wf-state wf-state-${esc(row.state || 'other_intervention')}`;
 
   const titleCoverHtml  = buildTitleCoverHtml(row);
   const candidatesHtml  = buildCandidatesHtml(row);
@@ -298,8 +297,8 @@ function renderStatus(status, judgeKey) {
 }
 
 function buildJudgeVotesHtml(row) {
-  if (row.state === 'judging')   return '<span class="wf-ai-pending">judging…</span>';
-  if (row.state === 'ai_queued') return '<span class="wf-ai-pending">queued…</span>';
+  if (row.state === 'judging')        return '<span class="wf-ai-pending">judging…</span>';
+  if (row.state === 'queued_for_ai')  return '<span class="wf-ai-pending">queued…</span>';
 
   const phi4Status  = derivePhi4Status(row);
   const gemmaStatus = deriveGemmaStatus(row);
@@ -322,7 +321,7 @@ function availableActions(row) {
 }
 
 function buildActionsHtml(row) {
-  if (row.state === 'judging' || row.state === 'ai_queued') {
+  if (row.state === 'judging' || row.state === 'queued_for_ai') {
     return `<button type="button" class="wf-ai-btn" disabled>AI Assist</button>`;
   }
 
@@ -554,14 +553,17 @@ function esc(s) {
     .replace(/"/g, '&quot;');
 }
 
-function humanizeState(state) {
+function humanizeState(state, reason) {
   switch (state) {
-    case 'in_flight':    return 'In Flight';
-    case 'pending':      return 'Pending';
-    case 'ai_suggested': return 'AI Suggested';
-    case 'decision':     return 'Decision';
-    case 'ai_queued':    return 'Queued for AI';
-    case 'judging':      return 'Judging';
-    default:             return state || 'Unknown';
+    case 'queued':              return 'queued';
+    case 'fetching':            return 'fetching';
+    case 'ambiguous':           return 'ambiguous';
+    case 'queued_for_ai':       return 'queued for AI';
+    case 'judging':             return 'judging…';
+    case 'split_decision':      return 'split decision';
+    case 'partial_vote':        return 'single voter';
+    case 'no_verdict':          return 'no verdict';
+    case 'other_intervention':  return reason ? reason.replace(/_/g, ' ') : 'needs intervention';
+    default:                    return state || 'unknown';
   }
 }

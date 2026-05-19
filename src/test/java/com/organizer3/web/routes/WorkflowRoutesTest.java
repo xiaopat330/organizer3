@@ -345,6 +345,97 @@ class WorkflowRoutesTest {
         assertNull(workflowRoutes.aiProcessing.get(), "aiProcessing should be null after executor completes");
     }
 
+    // ── deriveState unit tests ────────────────────────────────────────────────
+
+    @Test
+    void deriveState_fetchInFlight_returnsFetching() {
+        assertEquals("fetching", WorkflowRoutes.deriveState("in_flight", "ambiguous", null, null));
+    }
+
+    @Test
+    void deriveState_fetchPending_returnsQueued() {
+        assertEquals("queued", WorkflowRoutes.deriveState("pending", "ambiguous", null, null));
+    }
+
+    @Test
+    void deriveState_fetchPaused_returnsQueued() {
+        assertEquals("queued", WorkflowRoutes.deriveState("paused", "ambiguous", null, null));
+    }
+
+    @Test
+    void deriveState_ambiguousNoAi_returnsAmbiguous() {
+        assertEquals("ambiguous", WorkflowRoutes.deriveState(null, "ambiguous", null, null));
+    }
+
+    @Test
+    void deriveState_ambiguousAiConflict_returnsSplitDecision() {
+        assertEquals("split_decision",
+                WorkflowRoutes.deriveState(null, "ambiguous", "2026-01-01T00:00:00Z", "conflict"));
+    }
+
+    @Test
+    void deriveState_ambiguousPhi4Only_returnsPartialVote() {
+        assertEquals("partial_vote",
+                WorkflowRoutes.deriveState(null, "ambiguous", "2026-01-01T00:00:00Z", "phi4_only"));
+    }
+
+    @Test
+    void deriveState_ambiguousGemmaOnly_returnsPartialVote() {
+        assertEquals("partial_vote",
+                WorkflowRoutes.deriveState(null, "ambiguous", "2026-01-01T00:00:00Z", "gemma_only"));
+    }
+
+    @Test
+    void deriveState_ambiguousBothAbstain_returnsNoVerdict() {
+        assertEquals("no_verdict",
+                WorkflowRoutes.deriveState(null, "ambiguous", "2026-01-01T00:00:00Z", "both_abstain"));
+    }
+
+    @Test
+    void deriveState_ambiguousError_returnsNoVerdict() {
+        assertEquals("no_verdict",
+                WorkflowRoutes.deriveState(null, "ambiguous", "2026-01-01T00:00:00Z", "error"));
+    }
+
+    @Test
+    void deriveState_ambiguousAgreedSlipThrough_returnsAmbiguous() {
+        // 'agreed' rows should have auto-applied; if one slips through, treat as ambiguous.
+        assertEquals("ambiguous",
+                WorkflowRoutes.deriveState(null, "ambiguous", "2026-01-01T00:00:00Z", "agreed"));
+    }
+
+    @Test
+    void deriveState_ambiguousUnknownOutcome_returnsNoVerdict() {
+        assertEquals("no_verdict",
+                WorkflowRoutes.deriveState(null, "ambiguous", "2026-01-01T00:00:00Z", null));
+    }
+
+    @Test
+    void deriveState_castAnomaly_returnsOtherIntervention() {
+        assertEquals("other_intervention",
+                WorkflowRoutes.deriveState(null, "cast_anomaly", null, null));
+    }
+
+    @Test
+    void deriveState_noMatch_returnsOtherIntervention() {
+        assertEquals("other_intervention",
+                WorkflowRoutes.deriveState(null, "no_match", null, null));
+    }
+
+    @Test
+    void deriveState_fetchFailed_returnsOtherIntervention() {
+        assertEquals("other_intervention",
+                WorkflowRoutes.deriveState(null, "fetch_failed", null, null));
+    }
+
+    @Test
+    void aiQueued_derivesStateQueued_forAi() {
+        workflowRoutes.aiQueued.add(99L);
+        // aiQueued check happens in queryWorkflowRows; verify the tracking set directly.
+        assertTrue(workflowRoutes.aiQueued.contains(99L));
+        workflowRoutes.aiQueued.remove(99L);
+    }
+
     // ── Helpers ───────────────────────────────────────────────────────────────
 
     private static OpenRow makeRow(long id, long titleId, String code, String reason) {

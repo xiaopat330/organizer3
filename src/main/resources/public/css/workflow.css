@@ -98,9 +98,10 @@
 
 /* ── State badge ──────────────────────────────────────────────────────────── */
 
-.wf-row-state {
-  white-space: nowrap;
-}
+.wf-col-state, .wf-row-state { width: 1%; white-space: nowrap; }
+.wf-col-judges, .wf-row-judges { width: 1%; white-space: nowrap; }
+.wf-col-candidates, .wf-row-candidates { width: auto; }
+.wf-state { font-size: 0.65rem; padding: 0.1rem 0.3rem; }
 
 .wf-state {
   display: inline-block;
@@ -112,12 +113,15 @@
   border-radius: 3px;
 }
 
-.wf-state-decision      { background: #fef3c7; color: #92400e; }
-.wf-state-ai_suggested  { background: #dbeafe; color: #1e40af; }
-.wf-state-pending       { background: color-mix(in srgb, var(--text) 8%, transparent); color: var(--text-dim); }
-.wf-state-in_flight     { background: #d1fae5; color: #065f46; }
-.wf-state-ai_queued     { background: color-mix(in srgb, var(--text) 8%, transparent); color: var(--text-dim); }
-.wf-state-judging       { background: #d1fae5; color: #065f46; animation: wf-pulse 1.4s ease-in-out infinite; }
+.wf-state-queued             { background: color-mix(in srgb, var(--text) 8%, transparent); color: var(--text-faint); }
+.wf-state-fetching           { background: #d1fae5; color: #065f46; }
+.wf-state-ambiguous          { background: #fef3c7; color: #92400e; }
+.wf-state-queued_for_ai      { background: color-mix(in srgb, var(--text) 8%, transparent); color: var(--text-faint); }
+.wf-state-judging            { background: #d1fae5; color: #065f46; animation: wf-pulse 1.4s ease-in-out infinite; }
+.wf-state-split_decision     { background: #fef3c7; color: #92400e; }
+.wf-state-partial_vote       { background: #fff7ed; color: #9a3412; }
+.wf-state-no_verdict         { background: color-mix(in srgb, var(--error) 12%, transparent); color: var(--error); }
+.wf-state-other_intervention { background: color-mix(in srgb, var(--text) 8%, transparent); color: var(--text-faint); }
 
 @keyframes wf-pulse {
   0%, 100% { opacity: 1; }

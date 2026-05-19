@@ -214,10 +214,15 @@ public class WorkflowRoutes {
      *
      * <p>State derivation (in priority order):
      * <ol>
-     *   <li>{@code in_flight} — fetch queue has an in_flight job for this title</li>
-     *   <li>{@code pending}   — fetch queue has a pending job</li>
-     *   <li>{@code decision}  — open review-queue row (ambiguous, no_match, fetch_failed, …)</li>
-     *   <li>{@code enriched}  — title_javdb_enrichment row exists, no open issues</li>
+     *   <li>{@code judging}            — row is currently being evaluated by AI (aiProcessing)</li>
+     *   <li>{@code queued_for_ai}      — row is queued for AI evaluation (aiQueued)</li>
+     *   <li>{@code fetching}           — fetch queue has an in_flight job for this title</li>
+     *   <li>{@code queued}             — fetch queue has a pending/paused job</li>
+     *   <li>{@code ambiguous}          — reason is 'ambiguous', AI has not run yet (or agreed slip-through)</li>
+     *   <li>{@code split_decision}     — AI ran, models disagreed (conflict)</li>
+     *   <li>{@code partial_vote}       — AI ran, only one model voted (phi4_only / gemma_only)</li>
+     *   <li>{@code no_verdict}         — AI ran but both abstained or errored</li>
+     *   <li>{@code other_intervention} — reason is anything other than 'ambiguous'</li>
      * </ol>
      *
      * <p>Actress names are fetched in one batched query to avoid N+1.
@@ -291,10 +296,11 @@ public class WorkflowRoutes {
                 if (Long.valueOf(queueId).equals(aiProcessing.get())) {
                     state = "judging";
                 } else if (aiQueued.contains(queueId)) {
-                    state = "ai_queued";
+                    state = "queued_for_ai";
                 } else {
                     state = deriveState(fetchStatus, reason,
-                            (String) r.get("ai_suggestion_at"));
+                            (String) r.get("ai_suggestion_at"),
+                            (String) r.get("ai_suggestion_confidence"));
                 }
 
                 Map<String, Object> row = new LinkedHashMap<>();
@@ -360,26 +366,37 @@ public class WorkflowRoutes {
     }
 
     /**
-     * Derives the UI state string from the fetch-queue status and review-queue reason.
+     * Derives the UI state string from the fetch-queue status, review-queue reason, and AI outcome.
      *
      * <ul>
-     *   <li>{@code in_flight} — fetch is actively running</li>
-     *   <li>{@code pending}   — fetch is queued</li>
-     *   <li>{@code ai_ready}  — ambiguous row with an agreed AI suggestion (ai_suggestion_at != null,
-     *       confidence = agreed / agreed_with_override)</li>
-     *   <li>{@code ai_suggested} — ambiguous row with a non-agreed AI suggestion</li>
-     *   <li>{@code decision}  — needs manual resolution (ambiguous with no AI yet, or other reasons)</li>
+     *   <li>{@code queued}           — fetch queue has a pending/paused job for this title</li>
+     *   <li>{@code fetching}         — fetch HTTP call is in flight</li>
+     *   <li>{@code ambiguous}        — reason is 'ambiguous', AI has not run yet</li>
+     *   <li>{@code split_decision}   — AI ran, outcome is 'conflict'</li>
+     *   <li>{@code partial_vote}     — AI ran, outcome is 'phi4_only' or 'gemma_only'</li>
+     *   <li>{@code no_verdict}       — AI ran, outcome is 'both_abstain', 'error', or unrecognised</li>
+     *   <li>{@code other_intervention} — reason is anything other than 'ambiguous'</li>
      * </ul>
+     *
+     * <p>'agreed' rows should have auto-applied out of the queue; if one slips through it is
+     * treated as {@code ambiguous} so the user can act on it.
      */
-    private static String deriveState(String fetchStatus, String reason, String aiSuggestionAt) {
-        if ("in_flight".equals(fetchStatus)) return "in_flight";
-        if ("pending".equals(fetchStatus) || "paused".equals(fetchStatus)) return "pending";
+    static String deriveState(String fetchStatus, String reason,
+                              String aiSuggestionAt, String aiOutcome) {
+        if ("in_flight".equals(fetchStatus)) return "fetching";
+        if ("pending".equals(fetchStatus) || "paused".equals(fetchStatus)) return "queued";
 
         if ("ambiguous".equals(reason)) {
-            if (aiSuggestionAt != null) return "ai_suggested";
-            return "decision";
+            if (aiSuggestionAt == null) return "ambiguous";
+            // AI has run — map outcome to state.
+            if ("conflict".equals(aiOutcome))                     return "split_decision";
+            if ("phi4_only".equals(aiOutcome)
+                    || "gemma_only".equals(aiOutcome))            return "partial_vote";
+            if ("agreed".equals(aiOutcome))                       return "ambiguous"; // defensive: should have auto-applied
+            // both_abstain, error, null, or unknown
+            return "no_verdict";
         }
-        return "decision";
+        return "other_intervention";
     }
 
     // ── Background AI assist ──────────────────────────────────────────────────────
