@@ -2,6 +2,7 @@
 // age, four signal tiles, 30-row history table, Run / Run+Sweep buttons, and
 // per-volume row state machine for coherent sync tracking.
 // Mirrors utilities-sync-health.js reconcile + volume-actions logic verbatim; endpoints unchanged.
+// Drilldown: signal tiles are clickable when count > 0; detail panel renders inline below tiles.
 
 import * as taskCenter from '../../task-center.js';
 import { esc, formatLastSynced } from './cards.js';
@@ -9,6 +10,18 @@ import { esc, formatLastSynced } from './cards.js';
 // ── Module-level state ────────────────────────────────────────────────────────
 let lastReconcile   = null;  // most recent PersistedReport from /api/reconcile/recent?limit=1
 let lastCoherentRun = null;  // PersistedReport or null from /api/reconcile/last?trigger=coherent_sync
+
+// Drilldown state
+let selectedSignal  = null;  // 'dupLive' | 'pendingGrace' | 'pastGrace' | 'mismatch' | null
+let cachedDetails   = null;  // parsed detail object from a verbose reconcile run
+let liveMode        = false; // true when details came from a live verbose run
+
+const SIGNALS = {
+  dupLive:      { countField: 'duplicateLiveLocations', label: 'Duplicate live locations', detailKey: 'duplicateLive' },
+  pendingGrace: { countField: 'pendingGrace',            label: 'Pending grace',             detailKey: 'pendingGrace'  },
+  pastGrace:    { countField: 'pastGraceStragglers',     label: 'Past-grace stragglers',     detailKey: 'pastGrace'     },
+  mismatch:     { countField: 'actressFolderMismatches', label: 'Actress folder mismatches', detailKey: 'mismatches'    },
+};
 
 // Per-volume run-state during a coherent sync.
 // Map<volumeId, { state: 'idle'|'queued'|'scanning'|'cancelling'|'done'|'failed'|'skipped',
@@ -90,23 +103,30 @@ export function renderReconcilePanel() {
       </div>
 
       <div class="vol-rc-tiles">
-        <div class="vol-rc-tile">
+        <div class="vol-rc-tile" id="vol-rc-tile-dupLive">
           <div class="vol-rc-tile-label">Duplicate live locations</div>
           <div class="vol-rc-tile-val">${numCell(r?.duplicateLiveLocations, 1)}</div>
+          <div class="vol-rc-tile-chevron" id="vol-rc-chevron-dupLive">▼</div>
         </div>
-        <div class="vol-rc-tile">
+        <div class="vol-rc-tile" id="vol-rc-tile-pendingGrace">
           <div class="vol-rc-tile-label">Pending grace</div>
           <div class="vol-rc-tile-val">${numCell(r?.pendingGrace, 1)}</div>
+          <div class="vol-rc-tile-chevron" id="vol-rc-chevron-pendingGrace">▼</div>
         </div>
-        <div class="vol-rc-tile">
+        <div class="vol-rc-tile" id="vol-rc-tile-pastGrace">
           <div class="vol-rc-tile-label">Past-grace stragglers</div>
           <div class="vol-rc-tile-val">${numCell(r?.pastGraceStragglers, 1)}</div>
+          <div class="vol-rc-tile-chevron" id="vol-rc-chevron-pastGrace">▼</div>
         </div>
-        <div class="vol-rc-tile">
+        <div class="vol-rc-tile" id="vol-rc-tile-mismatch">
           <div class="vol-rc-tile-label">Actress folder mismatches</div>
           <div class="vol-rc-tile-val">${numCell(r?.actressFolderMismatches, 1)}</div>
+          <div class="vol-rc-tile-chevron" id="vol-rc-chevron-mismatch">▼</div>
         </div>
       </div>
+
+      <!-- Drilldown detail panel (inline below tiles) -->
+      <div id="vol-rc-detail-panel" class="vol-rc-detail-panel" style="display:none"></div>
 
       <div class="vol-rc-actions">
         <button type="button" class="btn sm" id="vol-rc-run"${taskCenter.isRunning() ? ' disabled' : ''}>Run reconcile</button>
@@ -147,6 +167,11 @@ export function wireReconcilePanel(el, onRefresh) {
     runReconcile(true, el, onRefresh);
   });
 
+  // Wire drilldown tile clicks
+  updateDetailCacheFromReport(lastReconcile, false);
+  wireTileClicks(el, onRefresh);
+  updateTileStates(el);
+
   loadReportsTable();
 }
 
@@ -166,6 +191,12 @@ async function runReconcile(sweep, el, onRefresh) {
     if (!res.ok) { alert(`Reconcile failed (${res.status})`); return; }
     const body = await res.json();
     lastReconcile = body;
+    // Invalidate drilldown cache after a new reconcile run
+    cachedDetails = null;
+    liveMode = false;
+    selectedSignal = null;
+    hideDrilldownPanel();
+    updateTileStates(el);
     if (onRefresh) onRefresh();
     loadReportsTable();
     if (sweep) {
@@ -178,6 +209,539 @@ async function runReconcile(sweep, el, onRefresh) {
     if (runBtn)   { runBtn.textContent   = origRun;   runBtn.disabled   = false; }
     if (sweepBtn) { sweepBtn.textContent = origSweep; sweepBtn.disabled = false; }
   }
+}
+
+// ── Drilldown helpers (v2 reconcile) ─────────────────────────────────────────
+
+function updateDetailCacheFromReport(report, isLive) {
+  if (!report || !report.detailJson) {
+    cachedDetails = null;
+    liveMode = false;
+    return;
+  }
+  try {
+    cachedDetails = JSON.parse(report.detailJson);
+    liveMode = !!isLive;
+  } catch (e) {
+    console.warn('vol-reconcile: failed to parse detailJson', e);
+    cachedDetails = null;
+    liveMode = false;
+  }
+}
+
+function updateTileStates(parentEl) {
+  const signalMap = {
+    dupLive:      lastReconcile?.duplicateLiveLocations  ?? 0,
+    pendingGrace: lastReconcile?.pendingGrace             ?? 0,
+    pastGrace:    lastReconcile?.pastGraceStragglers      ?? 0,
+    mismatch:     lastReconcile?.actressFolderMismatches  ?? 0,
+  };
+  for (const [sig, count] of Object.entries(signalMap)) {
+    const tile    = (parentEl || document).querySelector(`#vol-rc-tile-${sig}`);
+    const chevron = (parentEl || document).querySelector(`#vol-rc-chevron-${sig}`);
+    if (!tile) continue;
+    const clickable = count > 0;
+    tile.classList.toggle('vol-rc-tile--clickable', clickable);
+    tile.classList.toggle('vol-rc-tile--open', selectedSignal === sig);
+    if (chevron) {
+      chevron.style.visibility = clickable ? 'visible' : 'hidden';
+      chevron.textContent = selectedSignal === sig ? '▲' : '▼';
+    }
+  }
+}
+
+function wireTileClicks(parentEl, onRefresh) {
+  const signalIds = {
+    'vol-rc-tile-dupLive':      'dupLive',
+    'vol-rc-tile-pendingGrace': 'pendingGrace',
+    'vol-rc-tile-pastGrace':    'pastGrace',
+    'vol-rc-tile-mismatch':     'mismatch',
+  };
+  for (const [id, sig] of Object.entries(signalIds)) {
+    const tile = (parentEl || document).querySelector(`#${id}`);
+    if (!tile) continue;
+    tile.addEventListener('click', async () => {
+      const count = (lastReconcile?.[SIGNALS[sig].countField] ?? 0);
+      if (!count) return;
+      if (selectedSignal === sig) {
+        selectedSignal = null;
+        hideDrilldownPanel();
+        updateTileStates(parentEl);
+        return;
+      }
+      selectedSignal = sig;
+      updateTileStates(parentEl);
+      if (cachedDetails && liveMode) {
+        renderDrilldownPanel(parentEl);
+        return;
+      }
+      renderDrilldownLoading(sig);
+      try {
+        await runVerboseReconcileForDrilldown(parentEl, onRefresh);
+      } catch (e) {
+        renderDrilldownError('Failed to load details: ' + e.message);
+        return;
+      }
+      renderDrilldownPanel(parentEl);
+    });
+  }
+}
+
+async function runVerboseReconcileForDrilldown(parentEl, onRefresh) {
+  const res = await fetch('/api/reconcile/run', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ verbose: true }),
+  });
+  if (!res.ok) throw new Error(`Reconcile returned ${res.status}`);
+
+  const recentRes = await fetch('/api/reconcile/recent?limit=1');
+  if (!recentRes.ok) throw new Error('Could not retrieve report details');
+  const list = await recentRes.json();
+  const report = Array.isArray(list) && list.length > 0 ? list[0] : null;
+  if (report) {
+    lastReconcile = report;
+    updateDetailCacheFromReport(report, true);
+  }
+  updateTileStates(parentEl);
+  if (onRefresh) onRefresh();
+}
+
+function getDrilldownPanelEl() {
+  return document.getElementById('vol-rc-detail-panel');
+}
+
+function hideDrilldownPanel() {
+  const el = getDrilldownPanelEl();
+  if (el) { el.style.display = 'none'; el.innerHTML = ''; }
+}
+
+function renderDrilldownLoading(signal) {
+  const el = getDrilldownPanelEl();
+  if (!el) return;
+  const meta = SIGNALS[signal] || {};
+  el.style.display = '';
+  el.innerHTML = `
+    <div class="vol-rc-dp-card">
+      <div class="vol-rc-dp-head">
+        <span class="vol-rc-dp-title">${esc(meta.label || signal)}</span>
+        <button type="button" class="vol-rc-dp-close">×</button>
+      </div>
+      <div class="vol-rc-dp-body"><div class="vol-rc-dp-loading">Running reconcile to load details…</div></div>
+    </div>
+  `;
+  el.querySelector('.vol-rc-dp-close')?.addEventListener('click', () => {
+    selectedSignal = null;
+    hideDrilldownPanel();
+    updateTileStates(null);
+  });
+}
+
+function renderDrilldownError(msg) {
+  const el = getDrilldownPanelEl();
+  if (!el) return;
+  el.style.display = '';
+  el.innerHTML = `
+    <div class="vol-rc-dp-card vol-rc-dp-card--error">
+      <div class="vol-rc-dp-head">
+        <span class="vol-rc-dp-title">Error</span>
+        <button type="button" class="vol-rc-dp-close">×</button>
+      </div>
+      <div class="vol-rc-dp-body"><div class="vol-rc-dp-error">${esc(msg)}</div></div>
+    </div>
+  `;
+  el.querySelector('.vol-rc-dp-close')?.addEventListener('click', () => {
+    selectedSignal = null;
+    hideDrilldownPanel();
+    updateTileStates(null);
+  });
+}
+
+function renderDrilldownPanel(parentEl) {
+  const el = getDrilldownPanelEl();
+  if (!el || !selectedSignal || !cachedDetails) return;
+
+  const meta = SIGNALS[selectedSignal];
+  if (!meta) return;
+
+  const rows = cachedDetails[meta.detailKey] || [];
+  const PAGE = 50;
+  const displayRows = rows.slice(0, PAGE);
+  const truncated = rows.length > PAGE;
+
+  let bodyHtml;
+  switch (selectedSignal) {
+    case 'dupLive':
+      bodyHtml = renderDupLiveRows(displayRows, truncated, rows.length);
+      break;
+    case 'pendingGrace':
+      bodyHtml = renderGraceRows(displayRows, truncated, rows.length, 'pending');
+      break;
+    case 'pastGrace':
+      bodyHtml = renderGraceRows(displayRows, truncated, rows.length, 'past');
+      break;
+    case 'mismatch':
+      bodyHtml = renderMismatchRows(displayRows, truncated, rows.length);
+      break;
+    default:
+      bodyHtml = '';
+  }
+
+  el.style.display = '';
+  el.innerHTML = `
+    <div class="vol-rc-dp-card">
+      <div class="vol-rc-dp-head">
+        <span class="vol-rc-dp-title">${esc(meta.label)}</span>
+        <span class="vol-rc-dp-count">${rows.length} row${rows.length === 1 ? '' : 's'}</span>
+        <button type="button" class="vol-rc-dp-close">×</button>
+      </div>
+      ${!liveMode ? '<div class="vol-rc-dp-readonly-banner">Historical report — actions unavailable. Run a new reconcile to enable actions.</div>' : ''}
+      <div class="vol-rc-dp-body">
+        ${rows.length === 0
+          ? '<div class="vol-rc-dp-empty">No rows to show.</div>'
+          : bodyHtml
+        }
+      </div>
+    </div>
+  `;
+
+  el.querySelector('.vol-rc-dp-close')?.addEventListener('click', () => {
+    selectedSignal = null;
+    hideDrilldownPanel();
+    updateTileStates(parentEl);
+  });
+
+  wireDrilldownActions(el, parentEl);
+}
+
+function wireDrilldownActions(el, parentEl) {
+  el.querySelectorAll('[data-dp-action]').forEach(btn => {
+    btn.addEventListener('click', () => handleDrilldownAction(btn, parentEl));
+  });
+}
+
+async function handleDrilldownAction(btn, parentEl) {
+  const action = btn.dataset.dpAction;
+  switch (action) {
+    case 'trust-volume':
+      await handleDpTrustVolume(btn, parentEl);
+      break;
+    case 'sweep-row':
+      await handleDpSweepRow(btn, parentEl);
+      break;
+    case 'sync-vol':
+      await handleDpSyncVol(btn, parentEl);
+      break;
+    case 'open-title':
+      await handleDpOpenTitle(btn);
+      break;
+    case 'open-actress':
+      await handleDpOpenActress(btn);
+      break;
+    case 'load-more':
+      handleDpLoadMore();
+      break;
+  }
+}
+
+// Row renderers for v2
+
+function renderDupLiveRows(rows, truncated, total) {
+  const rowsHtml = rows.map(r => {
+    const locs = r.locations || [];
+    const locsHtml = locs.map(l =>
+      `<span class="vol-rc-dp-loc">vol-${esc(l.volumeId)}<span class="vol-rc-dp-loc-path" title="${esc(l.path)}">${esc(shortenPath(l.path))}</span></span>`
+    ).join('<span class="vol-rc-dp-loc-sep">·</span>');
+
+    const actionsHtml = liveMode ? locs.map(l =>
+      `<button type="button" class="vol-rc-dp-btn vol-rc-dp-btn--trust"
+         data-dp-action="trust-volume"
+         data-title-id="${esc(r.titleId)}"
+         data-trust-vol="${esc(l.volumeId)}"
+         data-other-vols="${esc(locs.filter(x => x.volumeId !== l.volumeId).map(x => x.volumeId).join(','))}">Trust vol-${esc(l.volumeId)}</button>`
+    ).join('') : '';
+
+    return `<div class="vol-rc-dp-row">
+      <div class="vol-rc-dp-row-left">
+        <span class="vol-rc-dp-code">${esc(r.code)}</span>
+        <span class="vol-rc-dp-locs">${locsHtml}</span>
+      </div>
+      <div class="vol-rc-dp-row-actions">
+        ${actionsHtml}
+        <button type="button" class="vol-rc-dp-btn vol-rc-dp-btn--open"
+          data-dp-action="open-title" data-code="${esc(r.code)}">Open title</button>
+      </div>
+    </div>`;
+  }).join('');
+  return rowsHtml + renderDpTruncatedNote(truncated, total);
+}
+
+function renderGraceRows(rows, truncated, total, kind) {
+  const rowsHtml = rows.map(r => {
+    const daysLabel  = r.daysStale != null ? `${r.daysStale}d stale` : '';
+    const staleClass = kind === 'past' ? 'vol-rc-dp-days--warn' : 'vol-rc-dp-days--pending';
+    const actionsHtml = liveMode
+      ? (kind === 'past'
+          ? `<button type="button" class="vol-rc-dp-btn vol-rc-dp-btn--sweep"
+               data-dp-action="sweep-row"
+               data-location-id="${esc(r.locationId)}"
+               data-code="${esc(r.code)}">Sweep this row</button>`
+          : `<button type="button" class="vol-rc-dp-btn vol-rc-dp-btn--sync"
+               data-dp-action="sync-vol"
+               data-vol="${esc(r.volumeId)}"
+               data-code="${esc(r.code)}">Sync vol-${esc(r.volumeId)}</button>`)
+      : '';
+    return `<div class="vol-rc-dp-row">
+      <div class="vol-rc-dp-row-left">
+        <span class="vol-rc-dp-code">${esc(r.code)}</span>
+        <span class="vol-rc-dp-vol">vol-${esc(r.volumeId)}</span>
+        <span class="vol-rc-dp-path" title="${esc(r.path)}">${esc(shortenPath(r.path))}</span>
+        ${daysLabel ? `<span class="vol-rc-dp-days ${staleClass}">${esc(daysLabel)}</span>` : ''}
+      </div>
+      <div class="vol-rc-dp-row-actions">
+        ${actionsHtml}
+        <button type="button" class="vol-rc-dp-btn vol-rc-dp-btn--open"
+          data-dp-action="open-title" data-code="${esc(r.code)}">Open title</button>
+      </div>
+    </div>`;
+  }).join('');
+  return rowsHtml + renderDpTruncatedNote(truncated, total);
+}
+
+function renderMismatchRows(rows, truncated, total) {
+  const rowsHtml = rows.map(r => {
+    const actionsHtml = liveMode
+      ? `<button type="button" class="vol-rc-dp-btn vol-rc-dp-btn--actress"
+           data-dp-action="open-actress"
+           data-actress-id="${esc(r.actressId)}"
+           data-actress-name="${esc(r.actressName)}">Open in Misnamed Folders</button>`
+      : '';
+    return `<div class="vol-rc-dp-row">
+      <div class="vol-rc-dp-row-left">
+        <span class="vol-rc-dp-code">${esc(r.code)}</span>
+        <span class="vol-rc-dp-actress">${esc(r.actressName)}</span>
+        <span class="vol-rc-dp-vol">vol-${esc(r.volumeId)}</span>
+        <span class="vol-rc-dp-path" title="${esc(r.path)}">${esc(shortenPath(r.path))}</span>
+      </div>
+      <div class="vol-rc-dp-row-actions">
+        ${actionsHtml}
+        <button type="button" class="vol-rc-dp-btn vol-rc-dp-btn--open"
+          data-dp-action="open-title" data-code="${esc(r.code)}">Open title</button>
+      </div>
+    </div>`;
+  }).join('');
+  return rowsHtml + renderDpTruncatedNote(truncated, total);
+}
+
+function renderDpTruncatedNote(truncated, total) {
+  if (!truncated) return '';
+  return `<div class="vol-rc-dp-truncated">Showing 50 of ${total} rows.
+    <button type="button" class="vol-rc-dp-load-more" data-dp-action="load-more">Show all</button>
+  </div>`;
+}
+
+function handleDpLoadMore() {
+  if (!selectedSignal || !cachedDetails) return;
+  const meta = SIGNALS[selectedSignal];
+  if (!meta) return;
+  const rows = cachedDetails[meta.detailKey] || [];
+  let bodyHtml;
+  switch (selectedSignal) {
+    case 'dupLive':      bodyHtml = renderDupLiveRows(rows, false, rows.length);   break;
+    case 'pendingGrace': bodyHtml = renderGraceRows(rows, false, rows.length, 'pending'); break;
+    case 'pastGrace':    bodyHtml = renderGraceRows(rows, false, rows.length, 'past');    break;
+    case 'mismatch':     bodyHtml = renderMismatchRows(rows, false, rows.length);  break;
+    default:             bodyHtml = '';
+  }
+  const el = getDrilldownPanelEl();
+  const body = el?.querySelector('.vol-rc-dp-body');
+  if (body) {
+    body.innerHTML = bodyHtml;
+    wireDrilldownActions(el, null);
+  }
+}
+
+async function handleDpTrustVolume(btn, parentEl) {
+  const titleId    = btn.dataset.titleId;
+  const trustVolId = btn.dataset.trustVol;
+  const otherVols  = (btn.dataset.otherVols || '').split(',').filter(Boolean);
+  const syncVolId  = otherVols[0] || '(other)';
+
+  const confirmed = await showVolTrustModal(trustVolId, syncVolId);
+  if (!confirmed) return;
+
+  if (taskCenter.isRunning()) { showVolToast('Another task is already running.', 'error'); return; }
+
+  btn.disabled = true;
+  btn.textContent = 'Starting…';
+  try {
+    const res = await fetch(
+      `/api/reconcile/trust-volume?titleId=${encodeURIComponent(titleId)}&trustVolumeId=${encodeURIComponent(trustVolId)}`,
+      { method: 'POST' }
+    );
+    if (res.status === 202) {
+      const body = await res.json();
+      taskCenter.start({ taskId: body.taskId, runId: body.runId, label: `Syncing vol-${body.otherVolumeId} (trust-volume)` });
+      subscribeToVolRun(body.runId, parentEl);
+      showVolToast(`Sync of vol-${body.otherVolumeId} started.`);
+    } else if (res.status === 409) {
+      const body = await res.json().catch(() => ({}));
+      showVolToast(body.error || 'Cannot trust volume: conflict.', 'error');
+    } else {
+      const body = await res.json().catch(() => ({}));
+      showVolToast(body.error || `Unexpected status ${res.status}`, 'error');
+    }
+  } catch (e) {
+    showVolToast('Request failed: ' + e.message, 'error');
+  } finally {
+    if (btn.isConnected) { btn.disabled = false; btn.textContent = `Trust vol-${trustVolId}`; }
+  }
+}
+
+async function handleDpSweepRow(btn, parentEl) {
+  const locationId = btn.dataset.locationId;
+  const code = btn.dataset.code;
+  btn.disabled = true;
+  btn.textContent = 'Sweeping…';
+  try {
+    const res = await fetch(`/api/reconcile/sweep-row?id=${encodeURIComponent(locationId)}`, { method: 'POST' });
+    if (res.ok) {
+      showVolToast(`Swept row for ${code}.`);
+      cachedDetails = null; liveMode = false; selectedSignal = null;
+      hideDrilldownPanel(); updateTileStates(parentEl);
+    } else if (res.status === 409) {
+      const body = await res.json().catch(() => ({}));
+      const staleTxt = body.staleDays != null ? `${body.staleDays}d stale` : 'not stale';
+      showVolToast(`Row not past grace (${staleTxt}, grace=${body.graceDays}d).`, 'error');
+    } else if (res.status === 404) {
+      showVolToast('Row not found (may have already been swept).', 'error');
+    } else {
+      showVolToast(`Unexpected status ${res.status}`, 'error');
+    }
+  } catch (e) {
+    showVolToast('Request failed: ' + e.message, 'error');
+  } finally {
+    if (btn.isConnected) { btn.disabled = false; btn.textContent = 'Sweep this row'; }
+  }
+}
+
+async function handleDpSyncVol(btn, parentEl) {
+  const volumeId = btn.dataset.vol;
+  if (taskCenter.isRunning()) { showVolToast('Another task is already running.', 'error'); return; }
+  btn.disabled = true;
+  btn.textContent = 'Starting…';
+  try {
+    const res = await fetch('/api/utilities/tasks/volume.sync/run', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ volumeId }),
+    });
+    if (res.status === 409) {
+      const body = await res.json().catch(() => ({}));
+      showVolToast(body.error || 'Task already running.', 'error');
+    } else if (res.ok) {
+      const { runId } = await res.json();
+      taskCenter.start({ taskId: 'volume.sync', runId, label: `Syncing vol-${volumeId}` });
+      subscribeToVolRun(runId, parentEl);
+      showVolToast(`Sync of vol-${volumeId} started.`);
+    } else {
+      showVolToast(`Sync failed (${res.status})`, 'error');
+    }
+  } catch (e) {
+    showVolToast('Request failed: ' + e.message, 'error');
+  } finally {
+    if (btn.isConnected) { btn.disabled = false; btn.textContent = `Sync vol-${volumeId}`; }
+  }
+}
+
+async function handleDpOpenTitle(btn) {
+  const code = btn.dataset.code;
+  if (!code) return;
+  try {
+    const { openTitleDetail } = await import('../../title-detail.js');
+    await openTitleDetail({ code });
+  } catch (e) {
+    console.error('vol-reconcile drilldown: openTitle failed', e);
+  }
+}
+
+async function handleDpOpenActress(btn) {
+  const actressId = Number(btn.dataset.actressId);
+  try {
+    const { openActressDetail } = await import('../../actress-detail.js');
+    await openActressDetail(actressId);
+  } catch (e) {
+    console.error('vol-reconcile drilldown: openActress failed', e);
+  }
+}
+
+function subscribeToVolRun(runId, parentEl) {
+  const es = new EventSource(`/api/utilities/runs/${encodeURIComponent(runId)}/events`);
+  es.addEventListener('task.ended', e => {
+    const ev = JSON.parse(e.data);
+    taskCenter.finish({ status: ev.status, summary: ev.summary });
+    es.close();
+    cachedDetails = null;
+    liveMode = false;
+  });
+  es.onerror = () => { es.close(); };
+}
+
+// ── Trust-volume modal (v2) ───────────────────────────────────────────────────
+
+function showVolTrustModal(trustVolId, syncVolId) {
+  return new Promise(resolve => {
+    document.getElementById('vol-trust-modal')?.remove();
+    const backdrop = document.createElement('div');
+    backdrop.id = 'vol-trust-modal';
+    backdrop.className = 'sh-modal-backdrop';
+    backdrop.innerHTML = `
+      <div class="sh-modal" role="dialog" aria-modal="true">
+        <div class="sh-modal-head">Trust vol-${esc(trustVolId)}?</div>
+        <div class="sh-modal-body">
+          <p>Trusting <strong>vol-${esc(trustVolId)}</strong> means the system believes that volume holds the
+          canonical copy of this title.</p>
+          <p>A <strong>full volume sync of vol-${esc(syncVolId)}</strong> will be started — this syncs the
+          entire other volume, not just the affected partition.</p>
+          <p class="sh-modal-note">The task lock will be held while the sync completes.</p>
+        </div>
+        <div class="sh-modal-actions">
+          <button type="button" class="sh-modal-btn sh-modal-btn--cancel" id="vol-modal-cancel">Cancel</button>
+          <button type="button" class="sh-modal-btn sh-modal-btn--confirm" id="vol-modal-confirm">Sync vol-${esc(syncVolId)} now</button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(backdrop);
+    const cleanup = (r) => {
+      backdrop.remove();
+      document.removeEventListener('keydown', kh);
+      resolve(r);
+    };
+    const kh = (e) => { if (e.key === 'Escape') cleanup(false); };
+    document.addEventListener('keydown', kh);
+    backdrop.addEventListener('click', e => { if (e.target === backdrop) cleanup(false); });
+    document.getElementById('vol-modal-cancel').addEventListener('click',  () => cleanup(false));
+    document.getElementById('vol-modal-confirm').addEventListener('click', () => cleanup(true));
+  });
+}
+
+// ── Toast (v2) ────────────────────────────────────────────────────────────────
+
+function showVolToast(msg, kind = 'success') {
+  const t = document.createElement('div');
+  t.className = 'sh-toast' + (kind === 'error' ? ' sh-toast--error' : '');
+  t.textContent = msg;
+  document.body.appendChild(t);
+  setTimeout(() => t.remove(), 4000);
+}
+
+// ── Utility ───────────────────────────────────────────────────────────────────
+
+function shortenPath(path) {
+  if (!path) return '';
+  const parts = path.replace(/\\/g, '/').split('/').filter(Boolean);
+  if (parts.length <= 2) return path;
+  return '…/' + parts.slice(-2).join('/');
 }
 
 function loadReportsTable() {
