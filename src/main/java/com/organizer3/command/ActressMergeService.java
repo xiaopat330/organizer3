@@ -240,14 +240,12 @@ public class ActressMergeService {
         List<UnresolvedPath> unresolved = new ArrayList<>();
         for (FilingRow row : rows) {
             Path current = Path.of(row.path());
-            // Skip rows whose LEAF folder is already canonical. Previously this was a SQL filter
-            // on the full path, which incorrectly excluded title leaves carrying the old name
-            // when a parent folder had already been renamed to canonical.
+            // Skip rows whose LEAF folder is already canonical. Use the same bounded-name check
+            // so mid-position canonical occurrences (e.g. "Yuki, Sora Arakawa (CODE)") are also
+            // recognized and don't surface as spurious unresolvable entries.
             String leaf = current.getFileName() != null ? current.getFileName().toString() : "";
-            boolean leafAlreadyCanonical = leaf.equalsIgnoreCase(canonical)
-                    || (leaf.length() > canonical.length()
-                        && leaf.regionMatches(true, 0, canonical, 0, canonical.length())
-                        && leaf.charAt(canonical.length()) == ' ');
+            boolean leafAlreadyCanonical = findBoundedName(leaf, canonical) >= 0
+                    || leaf.equalsIgnoreCase(canonical);
             if (leafAlreadyCanonical) {
                 continue;
             }
@@ -533,17 +531,60 @@ public class ActressMergeService {
     }
 
     /**
-     * Replaces the suspect actress name prefix in the last path segment with the canonical name.
-     * Matches only if the segment starts with {@code suspectName} followed by a space or end.
-     * Returns {@code null} if the segment doesn't match (no rename needed or not recognized).
+     * Replaces the suspect actress name in the last path segment with the canonical name.
+     *
+     * <p>Matches the name in any position (lead, mid, trailing) provided it is delimited by
+     * actress-list separators:
+     * <ul>
+     *   <li>Left boundary: start-of-string, or {@code ", "} (comma-space) immediately before</li>
+     *   <li>Right boundary: end-of-string, or {@code ", "} immediately after, or {@code " ("}
+     *       (space + open-paren, the code suffix pattern) immediately after</li>
+     * </ul>
+     *
+     * <p>Returns {@code null} if the segment doesn't contain a bounded match.
      */
     static Path computeNewPath(Path currentPath, String suspectName, String canonicalName) {
         String folderName = currentPath.getFileName().toString();
-        if (!folderName.startsWith(suspectName + " ") && !folderName.equals(suspectName)) {
-            return null;
-        }
-        String newFolderName = canonicalName + folderName.substring(suspectName.length());
+        int idx = findBoundedName(folderName, suspectName);
+        if (idx < 0) return null;
+        String newFolderName = folderName.substring(0, idx) + canonicalName
+                + folderName.substring(idx + suspectName.length());
         Path parent = currentPath.getParent();
         return parent != null ? parent.resolve(newFolderName) : Path.of(newFolderName);
+    }
+
+    /**
+     * Returns the start index of {@code name} inside {@code text} if it occurs at a valid
+     * actress-list boundary, or {@code -1} if no such occurrence exists.
+     *
+     * <p>Valid left boundary: index 0, or the two characters before are {@code ", "}.
+     * Valid right boundary: end-of-string, or a space character (e.g. before a code suffix
+     * or extra token in a lead-position single-actress folder), or the next two characters
+     * are {@code ", "} or {@code " ("}.
+     *
+     * <p>Allowing a trailing space preserves backward-compatible matching for lead-position
+     * single-actress folders like {@code "Rin Hatchimitsu X (CODE-001)"} while still
+     * rejecting sub-name matches like {@code "Aki"} inside {@code "Akina"} (where the char
+     * after "Aki" is {@code 'n'}, not a space or separator).
+     */
+    static int findBoundedName(String text, String name) {
+        int nameLen = name.length();
+        int searchFrom = 0;
+        while (searchFrom <= text.length() - nameLen) {
+            int idx = text.indexOf(name, searchFrom);
+            if (idx < 0) break;
+            // Left boundary check
+            boolean leftOk = (idx == 0) || (idx >= 2 && text.charAt(idx - 2) == ','
+                    && text.charAt(idx - 1) == ' ');
+            // Right boundary check
+            int after = idx + nameLen;
+            boolean rightOk = (after == text.length())
+                    || text.charAt(after) == ' '
+                    || (after + 1 < text.length() && text.charAt(after) == ','
+                            && text.charAt(after + 1) == ' ');
+            if (leftOk && rightOk) return idx;
+            searchFrom = idx + 1;
+        }
+        return -1;
     }
 }

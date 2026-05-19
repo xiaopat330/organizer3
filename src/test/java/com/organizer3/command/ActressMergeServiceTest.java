@@ -85,6 +85,90 @@ class ActressMergeServiceTest {
         assertEquals(Path.of("/queue/Rin Hachimitsu X (FNS-052)"), result);
     }
 
+    // ── computeNewPath — multi-actress position variants ────────────────────
+
+    @Test
+    void computeNewPath_midPosition() {
+        // Actress in the middle: "Erika, Sora Amakawa, Yuki (CODE-001)"
+        Path result = ActressMergeService.computeNewPath(
+                Path.of("/queue/Erika, Sora Amakawa, Yuki (CODE-001)"),
+                "Sora Amakawa", "Sora Arakawa");
+        assertEquals(Path.of("/queue/Erika, Sora Arakawa, Yuki (CODE-001)"), result);
+    }
+
+    @Test
+    void computeNewPath_trailingPosition() {
+        // Actress at the end before code: "Yuki, Sora Amakawa (CODE-001)"
+        Path result = ActressMergeService.computeNewPath(
+                Path.of("/queue/Yuki, Sora Amakawa (CODE-001)"),
+                "Sora Amakawa", "Sora Arakawa");
+        assertEquals(Path.of("/queue/Yuki, Sora Arakawa (CODE-001)"), result);
+    }
+
+    @Test
+    void computeNewPath_leadPosition_multiActress() {
+        // Actress at the lead (existing behavior): "Sora Amakawa, Yuki (CODE-001)"
+        Path result = ActressMergeService.computeNewPath(
+                Path.of("/queue/Sora Amakawa, Yuki (CODE-001)"),
+                "Sora Amakawa", "Sora Arakawa");
+        assertEquals(Path.of("/queue/Sora Arakawa, Yuki (CODE-001)"), result);
+    }
+
+    @Test
+    void computeNewPath_noFalseMatchSubstring() {
+        // "Aki" must NOT match inside "Akina" — the name boundary check must reject this
+        Path result = ActressMergeService.computeNewPath(
+                Path.of("/queue/Akina, Yuki (CODE-001)"),
+                "Aki", "Aki Fixed");
+        assertNull(result);
+    }
+
+    @Test
+    void computeNewPath_codeStrippedVariant() {
+        // Code with suffix: "(CODE-001-X)" — right boundary is " (" so should still match
+        Path result = ActressMergeService.computeNewPath(
+                Path.of("/queue/Yuki, Sora Amakawa (CODE-001-X)"),
+                "Sora Amakawa", "Sora Arakawa");
+        assertEquals(Path.of("/queue/Yuki, Sora Arakawa (CODE-001-X)"), result);
+    }
+
+    // ── findBoundedName ───────────────────────────────────────────────────────
+
+    @Test
+    void findBoundedName_leadWithCode() {
+        assertEquals(0, ActressMergeService.findBoundedName("Sora Amakawa (CODE-001)", "Sora Amakawa"));
+    }
+
+    @Test
+    void findBoundedName_midWithCommas() {
+        int idx = ActressMergeService.findBoundedName("Erika, Sora Amakawa, Yuki (CODE-001)", "Sora Amakawa");
+        assertEquals("Erika, ".length(), idx);
+    }
+
+    @Test
+    void findBoundedName_trailing() {
+        int idx = ActressMergeService.findBoundedName("Yuki, Sora Amakawa (CODE-001)", "Sora Amakawa");
+        assertEquals("Yuki, ".length(), idx);
+    }
+
+    @Test
+    void findBoundedName_noMatchWhenSubstring() {
+        // "Aki" inside "Akina" — 'n' after "Aki" is not a valid right boundary
+        assertEquals(-1, ActressMergeService.findBoundedName("Akina, Yuki (CODE-001)", "Aki"));
+    }
+
+    @Test
+    void findBoundedName_exactName_noCode() {
+        assertEquals(0, ActressMergeService.findBoundedName("Sora Amakawa", "Sora Amakawa"));
+    }
+
+    @Test
+    void findBoundedName_trailingExactNoCode() {
+        // Last name without any code: "Yuki, Sora Amakawa"
+        int idx = ActressMergeService.findBoundedName("Yuki, Sora Amakawa", "Sora Amakawa");
+        assertEquals("Yuki, ".length(), idx);
+    }
+
     // ── preview ──────────────────────────────────────────────────────────────
 
     @Test
