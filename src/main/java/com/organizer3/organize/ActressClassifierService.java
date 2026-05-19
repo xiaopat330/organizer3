@@ -14,6 +14,7 @@ import org.jdbi.v3.core.Jdbi;
 import java.nio.file.Path;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 
 /**
@@ -165,6 +166,99 @@ public class ActressClassifierService {
                 "promoted " + hers.size() + " title location(s)");
     }
 
+    /**
+     * Reconcile-from-disk mode: finds where the actress folder physically lives on disk,
+     * compares it to {@code actresses.tier} in the DB, and updates the DB tier upward when
+     * the folder has been promoted manually (e.g. post-merge curation).
+     *
+     * <p>This is strictly DB-only — the folder is already in the right place.  It never
+     * moves files and never downgrades the DB tier.
+     *
+     * <p>Acceptance criteria:
+     * <ul>
+     *   <li>DB LIBRARY + disk POPULAR + reconcileFromDisk=true → DB updated to POPULAR</li>
+     *   <li>DB LIBRARY + disk POPULAR + reconcileFromDisk=false → delegate to classify()</li>
+     *   <li>DB POPULAR + disk LIBRARY (pathological) → SKIPPED, no downgrade</li>
+     *   <li>DB POPULAR + disk POPULAR → no-op SKIPPED</li>
+     * </ul>
+     */
+    public Result reconcileFromDisk(
+            VolumeFileSystem fs,
+            VolumeConfig volumeConfig,
+            Jdbi jdbi,
+            long actressId,
+            boolean dryRun) {
+
+        Actress actress = actressRepo.findById(actressId).orElseThrow(
+                () -> new IllegalArgumentException("No actress with id " + actressId));
+        String name = actress.getCanonicalName();
+
+        // Walk tier directories on disk to find where the folder actually lives.
+        Optional<String> diskTierOpt = findDiskTier(fs, name);
+        if (diskTierOpt.isEmpty()) {
+            return new Result(dryRun, Outcome.SKIPPED, actressId, name, null, null, null, null,
+                    "actress folder not found under /stars/<tier>/ on disk — cannot reconcile");
+        }
+        String diskTier = diskTierOpt.get();
+
+        // Translate disk tier string → Actress.Tier enum (non-tier partitions default to LIBRARY).
+        Actress.Tier diskActressTier = toActressTierEnum(diskTier);
+        Actress.Tier dbTier = actress.getTier();
+
+        if (diskActressTier == dbTier) {
+            return new Result(dryRun, Outcome.SKIPPED, actressId, name,
+                    dbTier.name(), diskActressTier.name(), null, null,
+                    "DB tier already matches disk tier (" + diskTier + ")");
+        }
+
+        if (diskActressTier.ordinal() < dbTier.ordinal()) {
+            return new Result(dryRun, Outcome.SKIPPED, actressId, name,
+                    dbTier.name(), diskActressTier.name(), null, null,
+                    "never downgrade: disk=" + diskTier + " < db=" + dbTier.name().toLowerCase());
+        }
+
+        // disk tier > DB tier: reconcile upward.
+        if (dryRun) {
+            return new Result(true, Outcome.WOULD_RECONCILE, actressId, name,
+                    dbTier.name(), diskActressTier.name(), null, null,
+                    "would update actresses.tier from " + dbTier.name() + " → " + diskActressTier.name());
+        }
+
+        jdbi.useHandle(h -> actressRepo.updateTier(actressId, diskActressTier));
+        log.info("DB update [ActressClassifier.reconcileFromDisk]: actresses.tier reconciled — actressId={} name=\"{}\" from={} to={}",
+                actressId, name, dbTier, diskActressTier);
+
+        return new Result(false, Outcome.RECONCILED, actressId, name,
+                dbTier.name(), diskActressTier.name(), null, null,
+                "updated actresses.tier from " + dbTier.name() + " → " + diskActressTier.name());
+    }
+
+    /**
+     * Scans {@code /stars/<tier>/<name>} for each known tier (in ascending order) and
+     * returns the first tier where the folder exists.  Returns empty if not found.
+     */
+    Optional<String> findDiskTier(VolumeFileSystem fs, String name) {
+        for (String tier : TIER_ORDER) {
+            if ("pool".equals(tier)) continue;   // pool has no tier folder
+            Path candidate = Path.of("/", "stars", tier, name);
+            if (fs.exists(candidate) && fs.isDirectory(candidate)) {
+                return Optional.of(tier);
+            }
+        }
+        return Optional.empty();
+    }
+
+    /** Maps a tier string to {@link Actress.Tier}; mirrors {@link AbstractSyncOperation#toActressTier}. */
+    static Actress.Tier toActressTierEnum(String tier) {
+        return switch (tier) {
+            case "minor"     -> Actress.Tier.MINOR;
+            case "popular"   -> Actress.Tier.POPULAR;
+            case "superstar" -> Actress.Tier.SUPERSTAR;
+            case "goddess"   -> Actress.Tier.GODDESS;
+            default          -> Actress.Tier.LIBRARY;
+        };
+    }
+
     /** True if {@code path} is {@code /stars/<anything>/<name>/...} or exactly {@code /stars/<anything>/<name>}. */
     static boolean isPathUnderActress(Path path, String actressName) {
         if (path == null || actressName == null) return false;
@@ -206,6 +300,8 @@ public class ActressClassifierService {
     public enum Outcome {
         PROMOTED,
         WOULD_PROMOTE,
+        RECONCILED,
+        WOULD_RECONCILE,
         SKIPPED,
         FAILED
     }

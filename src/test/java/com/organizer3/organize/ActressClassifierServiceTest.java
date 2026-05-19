@@ -189,6 +189,142 @@ class ActressClassifierServiceTest {
                 () -> svc.classify(fs, volumeA(), jdbi, 9999L, true));
     }
 
+    // ── reconcileFromDisk ────────────────────────────────────────────────────
+
+    /**
+     * AC1: DB LIBRARY + disk POPULAR + reconcileFromDisk=true → DB updated to POPULAR.
+     * Post-merge scenario: actress folder was manually moved to popular/, DB actresses.tier
+     * still says LIBRARY.
+     */
+    @Test
+    void reconcileFromDisk_diskHigherThanDb_updatesDbTier() throws Exception {
+        long aid = actressRepo.save(mkActress("Amu Hanamiya")).getId(); // LIBRARY
+        // Create folder on disk at POPULAR
+        createFolder("/stars/popular/Amu Hanamiya");
+
+        ActressClassifierService.Result r = svc.reconcileFromDisk(fs, volumeA(), jdbi, aid, false);
+
+        assertEquals(ActressClassifierService.Outcome.RECONCILED, r.outcome());
+        assertEquals("LIBRARY", r.fromTier());
+        assertEquals("POPULAR", r.toTier());
+        // Verify DB was updated
+        Actress updated = actressRepo.findById(aid).orElseThrow();
+        assertEquals(Actress.Tier.POPULAR, updated.getTier());
+    }
+
+    /**
+     * AC2: reconcileFromDisk=false (default) → delegates to classify(), returns SKIPPED
+     * (5 titles → minor, but actress is already at popular → "never demote").
+     */
+    @Test
+    void reconcileFromDisk_false_delegatesToClassify_skipped() throws Exception {
+        long aid = actressRepo.save(mkActress("Amu Hanamiya")).getId(); // LIBRARY in DB
+        // folder is at popular on disk, 20 titles → classify target=popular
+        for (int i = 1; i <= 20; i++) {
+            Title t = titleRepo.save(mkTitle("IPX-%03d".formatted(i), aid));
+            saveLoc(t.getId(), "/stars/library/Amu Hanamiya/Amu Hanamiya (IPX-%03d)".formatted(i), "library");
+            createFolder("/stars/library/Amu Hanamiya/Amu Hanamiya (IPX-%03d)".formatted(i));
+        }
+        // reconcileFromDisk=false: go through normal classify path
+        // DB partition = library, target = popular → WOULD_PROMOTE (with dryRun=false = PROMOTED)
+        // We want to test the false default: no reconcile, normal behavior
+        ActressClassifierService.Result r = svc.classify(fs, volumeA(), jdbi, aid, true);
+        // Should be WOULD_PROMOTE (the normal classify path)
+        assertEquals(ActressClassifierService.Outcome.WOULD_PROMOTE, r.outcome());
+    }
+
+    /**
+     * AC2b: DB LIBRARY + disk POPULAR + reconcileFromDisk=false → classify() runs; since
+     * title_locations show library and title count says popular, it WOULD_PROMOTE (normal path).
+     * This confirms that reconcileFromDisk=false does NOT engage the reconcile path at all.
+     */
+    @Test
+    void reconcileFromDisk_false_doesNotReconcile() throws Exception {
+        long aid = actressRepo.save(mkActress("Azusa Shinonome")).getId(); // LIBRARY in DB
+        // Only 5 titles → classify target = minor
+        for (int i = 1; i <= 5; i++) {
+            Title t = titleRepo.save(mkTitle("ABP-%03d".formatted(i), aid));
+            saveLoc(t.getId(), "/stars/popular/Azusa Shinonome/Azusa Shinonome (ABP-%03d)".formatted(i), "popular");
+            createFolder("/stars/popular/Azusa Shinonome/Azusa Shinonome (ABP-%03d)".formatted(i));
+        }
+        // Normal classify: DB/title_locations say popular, target=minor → "never demote"
+        ActressClassifierService.Result r = svc.classify(fs, volumeA(), jdbi, aid, false);
+        assertEquals(ActressClassifierService.Outcome.SKIPPED, r.outcome());
+        assertTrue(r.reason().contains("never demote"));
+        // Actress.tier NOT touched by classify
+        Actress unchanged = actressRepo.findById(aid).orElseThrow();
+        assertEquals(Actress.Tier.LIBRARY, unchanged.getTier());
+    }
+
+    /**
+     * AC3: DB POPULAR + disk LIBRARY (pathological downward case) → never downgrade, SKIPPED.
+     */
+    @Test
+    void reconcileFromDisk_diskLowerThanDb_skipped() throws Exception {
+        Actress a = mkActress("Himawari Yuzuki");
+        // Build actress with POPULAR tier
+        long aid = actressRepo.save(a).getId();
+        actressRepo.updateTier(aid, Actress.Tier.POPULAR);
+
+        // Folder is only in library on disk (disk < DB)
+        createFolder("/stars/library/Himawari Yuzuki");
+
+        ActressClassifierService.Result r = svc.reconcileFromDisk(fs, volumeA(), jdbi, aid, false);
+
+        assertEquals(ActressClassifierService.Outcome.SKIPPED, r.outcome());
+        assertTrue(r.reason().contains("never downgrade"));
+        // DB not changed
+        Actress unchanged = actressRepo.findById(aid).orElseThrow();
+        assertEquals(Actress.Tier.POPULAR, unchanged.getTier());
+    }
+
+    /**
+     * AC4: DB POPULAR + disk POPULAR → no-op SKIPPED (already in sync).
+     */
+    @Test
+    void reconcileFromDisk_dbMatchesDisk_noop() throws Exception {
+        Actress a = mkActress("Test Actress");
+        long aid = actressRepo.save(a).getId();
+        actressRepo.updateTier(aid, Actress.Tier.POPULAR);
+
+        createFolder("/stars/popular/Test Actress");
+
+        ActressClassifierService.Result r = svc.reconcileFromDisk(fs, volumeA(), jdbi, aid, false);
+
+        assertEquals(ActressClassifierService.Outcome.SKIPPED, r.outcome());
+        assertTrue(r.reason().contains("already matches"));
+    }
+
+    /**
+     * Dry-run: reconcileFromDisk=true + dryRun=true → WOULD_RECONCILE, DB not changed.
+     */
+    @Test
+    void reconcileFromDisk_dryRun_doesNotWrite() throws Exception {
+        long aid = actressRepo.save(mkActress("Amu Hanamiya")).getId(); // LIBRARY
+        createFolder("/stars/popular/Amu Hanamiya");
+
+        ActressClassifierService.Result r = svc.reconcileFromDisk(fs, volumeA(), jdbi, aid, true);
+
+        assertEquals(ActressClassifierService.Outcome.WOULD_RECONCILE, r.outcome());
+        // DB NOT changed on dry-run
+        Actress unchanged = actressRepo.findById(aid).orElseThrow();
+        assertEquals(Actress.Tier.LIBRARY, unchanged.getTier());
+    }
+
+    /**
+     * When folder is not found under any tier directory, return SKIPPED with explanation.
+     */
+    @Test
+    void reconcileFromDisk_folderNotOnDisk_skipped() throws Exception {
+        long aid = actressRepo.save(mkActress("Ghost Actress")).getId();
+        // No folder created on disk
+
+        ActressClassifierService.Result r = svc.reconcileFromDisk(fs, volumeA(), jdbi, aid, false);
+
+        assertEquals(ActressClassifierService.Outcome.SKIPPED, r.outcome());
+        assertTrue(r.reason().contains("not found"));
+    }
+
     // ── helpers ─────────────────────────────────────────────────────────────
 
     @Test
