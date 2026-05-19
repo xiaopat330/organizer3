@@ -133,6 +133,13 @@ public interface TitleLocationRepository {
     @Deprecated
     void deleteByVolumeAndPartition(String volumeId, String partitionId);
 
+    /**
+     * Find a single {@code title_locations} row by its primary key.
+     * Returns {@link java.util.Optional#empty()} if no row exists with that id.
+     * Includes stale rows (the caller determines whether the row is eligible for actions).
+     */
+    java.util.Optional<TitleLocation> findById(long locationId);
+
     /** Delete a single title_location row. No-op if the id does not exist. */
     void deleteById(long locationId);
 

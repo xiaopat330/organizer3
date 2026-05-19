@@ -1,5 +1,6 @@
 package com.organizer3.sync;
 
+import com.organizer3.model.TitleLocation;
 import com.organizer3.repository.ReconcileReportRepository;
 import com.organizer3.repository.TitleLocationRepository;
 import com.organizer3.repository.TitleLocationRepository.DuplicateLiveLocation;
@@ -9,8 +10,10 @@ import com.organizer3.repository.TitleRepository.ActressMismatch;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
+import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
+import java.util.Optional;
 
 /**
  * Executes the reconcile-only pass: a read-mostly DB examination that detects
@@ -93,6 +96,109 @@ public class ReconcileService {
      */
     public long persist(ReconcileReport report, String triggeredBy, String detailJson) {
         return reportRepo.save(report, triggeredBy, detailJson);
+    }
+
+    /** Returns the configured grace-period days used by this service. */
+    public int graceDays() { return graceDays; }
+
+    // -------------------------------------------------------------------------
+    // Single-row sweep (drilldown endpoint)
+    // -------------------------------------------------------------------------
+
+    /**
+     * Attempts to delete a single {@code title_locations} row by id. The row is only deleted
+     * if it exists and its {@code stale_since} is past the grace window.
+     *
+     * @param locationId the primary key of the row to sweep
+     * @return a {@link SweepRowResult} discriminating 404 / 409-in-grace / 200-deleted
+     */
+    public SweepRowResult sweepRow(long locationId) {
+        Optional<TitleLocation> found = locationRepo.findById(locationId);
+        if (found.isEmpty()) {
+            return new SweepRowResult.NotFound();
+        }
+        TitleLocation loc = found.get();
+
+        if (loc.getStaleSince() == null) {
+            // Row has no stale_since — not eligible
+            return new SweepRowResult.InGrace(null, graceDays);
+        }
+
+        long staleDays = Duration.between(loc.getStaleSince(), Instant.now()).toDays();
+        if (staleDays < graceDays) {
+            return new SweepRowResult.InGrace((int) staleDays, graceDays);
+        }
+
+        locationRepo.deleteById(locationId);
+        log.info("Drilldown sweep: deleted past-grace row id={} titleId={} volume={} path={}",
+                locationId, loc.getTitleId(), loc.getVolumeId(), loc.getPath());
+        return new SweepRowResult.Deleted(loc.getTitleId(), loc.getVolumeId(), loc.getPath().toString());
+    }
+
+    /** Sealed result type for {@link #sweepRow(long)}. */
+    public sealed interface SweepRowResult {
+        record Deleted(long titleId, String volumeId, String path) implements SweepRowResult {}
+        record NotFound() implements SweepRowResult {}
+        /** staleDays is null when stale_since is null (not stale at all). */
+        record InGrace(Integer staleDays, int graceDays) implements SweepRowResult {}
+    }
+
+    // -------------------------------------------------------------------------
+    // Trust-volume (drilldown endpoint)
+    // -------------------------------------------------------------------------
+
+    /**
+     * Validates the trust-volume request and identifies the other volume that should be synced.
+     *
+     * <p>Does NOT trigger the sync — that is the caller's responsibility (the route layer holds
+     * the TaskRunner). Returns a {@link TrustVolumeResult} describing what should happen.
+     *
+     * @param titleId       the title with duplicate live locations
+     * @param trustVolumeId the volume the user is asserting as canonical
+     * @return a {@link TrustVolumeResult} discriminating not-found / too-few-locations /
+     *         trust-volume-not-found / too-many-volumes / ok
+     */
+    public TrustVolumeResult resolveTrustVolume(long titleId, String trustVolumeId) {
+        // Live locations only (stale_since IS NULL)
+        List<TitleLocation> liveLocations = locationRepo.findByTitle(titleId);
+
+        if (liveLocations.isEmpty()) {
+            // Check if the title exists at all (stale-only or truly not-found)
+            List<TitleLocation> all = locationRepo.findByTitle(titleId, true);
+            return all.isEmpty()
+                    ? new TrustVolumeResult.TitleNotFound()
+                    : new TrustVolumeResult.InsufficientLocations(all.size());
+        }
+
+        long distinctVolumes = liveLocations.stream().map(TitleLocation::getVolumeId).distinct().count();
+
+        if (distinctVolumes < 2) {
+            return new TrustVolumeResult.InsufficientLocations((int) distinctVolumes);
+        }
+        if (distinctVolumes > 2) {
+            return new TrustVolumeResult.TooManyVolumes((int) distinctVolumes);
+        }
+
+        // Exactly 2 distinct volumes
+        boolean trustVolPresent = liveLocations.stream().anyMatch(l -> trustVolumeId.equals(l.getVolumeId()));
+        if (!trustVolPresent) {
+            return new TrustVolumeResult.TrustVolumeNotInLocations();
+        }
+
+        TitleLocation otherLoc = liveLocations.stream()
+                .filter(l -> !trustVolumeId.equals(l.getVolumeId()))
+                .findFirst()
+                .orElseThrow(); // safe: we have exactly 2 distinct volumes
+        return new TrustVolumeResult.Ok(otherLoc.getVolumeId(), otherLoc.getPartitionId());
+    }
+
+    /** Sealed result type for {@link #resolveTrustVolume(long, String)}. */
+    public sealed interface TrustVolumeResult {
+        record Ok(String otherVolumeId, String otherPartitionId) implements TrustVolumeResult {}
+        record TitleNotFound() implements TrustVolumeResult {}
+        record InsufficientLocations(int liveVolumeCount) implements TrustVolumeResult {}
+        record TrustVolumeNotInLocations() implements TrustVolumeResult {}
+        record TooManyVolumes(int volumeCount) implements TrustVolumeResult {}
     }
 
     /**
