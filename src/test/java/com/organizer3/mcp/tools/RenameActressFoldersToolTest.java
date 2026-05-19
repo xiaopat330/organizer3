@@ -182,6 +182,86 @@ class RenameActressFoldersToolTest {
         assertEquals("Yuzu Ogura (YUM-001)", fs.renameCalls.get(0).newName());
     }
 
+    // ── multi-actress folder position tests ──────────────────────────────────
+
+    @Test
+    void renamesWhenActressIsInMidPosition() {
+        // "Erika, Sora Amakawa, Yuki (CODE-001)" → "Erika, Sora Arakawa, Yuki (CODE-001)"
+        Actress a = seedActressWithMisnamedFolder("Sora Arakawa", "Sora Amakawa",
+                "CODE-001", "/queue/Erika, Sora Amakawa, Yuki (CODE-001)", "pool");
+
+        var r = (RenameActressFoldersTool.Result) tool.call(args(a.getId(), false));
+
+        assertEquals(1, r.renamedCount());
+        assertEquals(0, r.unresolvableCount());
+        assertEquals("Erika, Sora Arakawa, Yuki (CODE-001)", fs.renameCalls.get(0).newName());
+    }
+
+    @Test
+    void renamesWhenActressIsInTrailingPosition() {
+        // "Yuki, Sora Amakawa (CODE-001)" → "Yuki, Sora Arakawa (CODE-001)"
+        Actress a = seedActressWithMisnamedFolder("Sora Arakawa", "Sora Amakawa",
+                "CODE-002", "/queue/Yuki, Sora Amakawa (CODE-002)", "pool");
+
+        var r = (RenameActressFoldersTool.Result) tool.call(args(a.getId(), false));
+
+        assertEquals(1, r.renamedCount());
+        assertEquals(0, r.unresolvableCount());
+        assertEquals("Yuki, Sora Arakawa (CODE-002)", fs.renameCalls.get(0).newName());
+    }
+
+    @Test
+    void renamesWhenActressIsInLeadPositionMultiActress() {
+        // "Sora Amakawa, Yuki (CODE-003)" → "Sora Arakawa, Yuki (CODE-003)" — existing behavior preserved
+        Actress a = seedActressWithMisnamedFolder("Sora Arakawa", "Sora Amakawa",
+                "CODE-003", "/queue/Sora Amakawa, Yuki (CODE-003)", "pool");
+
+        var r = (RenameActressFoldersTool.Result) tool.call(args(a.getId(), false));
+
+        assertEquals(1, r.renamedCount());
+        assertEquals(0, r.unresolvableCount());
+        assertEquals("Sora Arakawa, Yuki (CODE-003)", fs.renameCalls.get(0).newName());
+    }
+
+    @Test
+    void doesNotFalseMatchSubstringOfLargerName() {
+        // Renaming "Aki" must NOT match a folder starting with "Akina"
+        Actress a = seedActressWithMisnamedFolder("Aki Fixed", "Aki",
+                "CODE-004", "/queue/Akina, Yuki (CODE-004)", "pool");
+
+        var r = (RenameActressFoldersTool.Result) tool.call(args(a.getId(), true));
+
+        assertEquals(0, r.renamedCount());
+        // Folder doesn't start with canonical either, so it should be unresolvable
+        assertEquals(1, r.unresolvableCount());
+    }
+
+    @Test
+    void renamesWhenCodeHasSuffix() {
+        // Code variant: "(CODE-001-X)" — the " (" boundary still applies
+        Actress a = seedActressWithMisnamedFolder("Sora Arakawa", "Sora Amakawa",
+                "CODE-001-X", "/queue/Yuki, Sora Amakawa (CODE-001-X)", "pool");
+
+        var r = (RenameActressFoldersTool.Result) tool.call(args(a.getId(), false));
+
+        assertEquals(1, r.renamedCount());
+        assertEquals(0, r.unresolvableCount());
+        assertEquals("Yuki, Sora Arakawa (CODE-001-X)", fs.renameCalls.get(0).newName());
+    }
+
+    @Test
+    void doesNotRenameWhenCanonicalAlreadyInMidPosition() {
+        // Folder already uses canonical in non-lead position: must be skipped, not unresolvable
+        Actress a = seedActressWithMisnamedFolder("Sora Arakawa", "Sora Amakawa",
+                "CODE-005", "/queue/Yuki, Sora Arakawa (CODE-005)", "pool");
+        // No alias set — canonical is already in folder, nothing to rename
+        var r = (RenameActressFoldersTool.Result) tool.call(args(a.getId(), true));
+
+        // canonically-named folders should not appear as unresolvable
+        assertEquals(0, r.unresolvableCount());
+        assertEquals(0, r.renamedCount());
+    }
+
     @Test
     void rejectsWhenNoIdAndNoName() {
         ObjectNode args = M.createObjectNode();
