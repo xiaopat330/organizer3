@@ -443,6 +443,156 @@ class TrashTitleLocationToolTest {
         assertEquals(1, countTitleActresses(survivor));
     }
 
+    // ── Fix #3: root-level path normalization ────────────────────────────────
+
+    /**
+     * Pool volumes store title folders at volume root (e.g. /Various (JUR-031)).
+     * Path.of("/Various (JUR-031)").getName(0) returns "Various (JUR-031)" — not a prefix —
+     * so the old prefix check would refuse it. The fix bypasses the allowlist for single-segment
+     * paths (the folder IS its own root).
+     */
+    @Test
+    void fix3_rootLevelLocationTrashesSuccessfully() {
+        long tid = titleRepo.save(title("JUR-031")).getId();
+        locationRepo.save(location(tid, "a", "/Various (JUR-031)"));
+        fs.dir("/Various (JUR-031)");
+
+        var r = (TrashTitleLocationTool.Result) tool.call(args("a", "/Various (JUR-031)", false));
+        assertEquals("ok", r.status(), "root-level pool path should be trashable; error=" + r.error());
+        assertEquals(0, locationCount(tid), "location row should be dropped");
+    }
+
+    @Test
+    void fix3_rootLevelWithVideoTrashesSuccessfully() {
+        long tid = titleRepo.save(title("MIAB-088")).getId();
+        locationRepo.save(location(tid, "a", "/Hikaru Minazuki (MIAB-088)"));
+        Video v = videoRepo.save(video(tid, "miab088.mkv", "/Hikaru Minazuki (MIAB-088)/video/miab088.mkv"));
+        fs.file(v.getPath().toString());
+        fs.dir("/Hikaru Minazuki (MIAB-088)");
+        fs.dir("/Hikaru Minazuki (MIAB-088)/video");
+
+        var r = (TrashTitleLocationTool.Result) tool.call(args("a", "/Hikaru Minazuki (MIAB-088)", false));
+        assertEquals("ok", r.status(), "root-level path with video should trash cleanly; error=" + r.error());
+        assertEquals(1, r.trashed().size());
+    }
+
+    /**
+     * Fix #3 false-positive guard: a 2-segment path with a non-allowlisted prefix must
+     * still be refused. The relaxation applies only to single-segment (depth-1) paths.
+     */
+    @Test
+    void fix3_deepPathWithNonAllowedPrefixIsStillRefused() {
+        var r = (TrashTitleLocationTool.Result) tool.call(
+                args("a", "/random_tier/Foo (LAB-001)", false));
+        assertEquals("refused", r.status(),
+                "deep path under non-allowlisted prefix must still be refused");
+        assertTrue(r.error().contains("not allowed"));
+    }
+
+    // ── Fix #4: force flag for unregistered videos ───────────────────────────
+
+    /**
+     * When force=false (default) and a video file is not in the videos table, the tool
+     * returns partial — preserving the current safety behavior.
+     */
+    @Test
+    void fix4_unregisteredVideoBlocksTrashByDefault() {
+        long tid = titleRepo.save(title("DLDSS-137")).getId();
+        locationRepo.save(location(tid, "a", "/queue/DLDSS-137"));
+        // file exists on disk but is NOT registered in videos table
+        fs.file("/queue/DLDSS-137/dldss137.mp4");
+        fs.dir("/queue/DLDSS-137");
+
+        var r = (TrashTitleLocationTool.Result) tool.call(args("a", "/queue/DLDSS-137", false));
+        assertEquals("partial", r.status(), "unregistered video without force should return partial");
+        assertTrue(r.error().contains("non-noise files remain"), "error should name the blocking file");
+        // file still present
+        assertTrue(fs.exists(Path.of("/queue/DLDSS-137/dldss137.mp4")), "unregistered video untouched");
+    }
+
+    /**
+     * When force=true, an unregistered video (no DB row) is trashed by extension and the
+     * folder is fully cleaned up.
+     */
+    @Test
+    void fix4_forceTrashes_unregisteredVideo() {
+        long tid = titleRepo.save(title("DLDSS-138")).getId();
+        locationRepo.save(location(tid, "a", "/queue/DLDSS-138"));
+        // unregistered video on disk
+        fs.file("/queue/DLDSS-138/dldss138.mp4");
+        fs.dir("/queue/DLDSS-138");
+
+        ObjectNode argsNode = args("a", "/queue/DLDSS-138", false);
+        argsNode.put("force", true);
+        var r = (TrashTitleLocationTool.Result) tool.call(argsNode);
+
+        assertEquals("ok", r.status(), "force=true should trash unregistered video; error=" + r.error());
+        assertFalse(fs.exists(Path.of("/queue/DLDSS-138/dldss138.mp4")), "file should be moved to trash");
+        assertTrue(fs.exists(Path.of("/_trash/queue/DLDSS-138/dldss138.mp4")), "file should appear in trash");
+        assertEquals(0, locationCount(tid), "location row dropped");
+    }
+
+    /**
+     * force=true should trash both a registered video (via folderService.trashVideo) and an
+     * unregistered one (via force path), leaving the folder fully clean.
+     */
+    @Test
+    void fix4_forceTrashes_mixedRegisteredAndUnregisteredVideos() {
+        long tid = titleRepo.save(title("DLDSS-139")).getId();
+        locationRepo.save(location(tid, "a", "/queue/DLDSS-139"));
+        Video registered = videoRepo.save(video(tid, "dldss139.mkv", "/queue/DLDSS-139/video/dldss139.mkv"));
+        fs.file(registered.getPath().toString());
+        fs.dir("/queue/DLDSS-139");
+        fs.dir("/queue/DLDSS-139/video");
+        // unregistered extra video
+        fs.file("/queue/DLDSS-139/dldss139_bonus.mp4");
+
+        ObjectNode argsNode = args("a", "/queue/DLDSS-139", false);
+        argsNode.put("force", true);
+        var r = (TrashTitleLocationTool.Result) tool.call(argsNode);
+
+        assertEquals("ok", r.status(), "force=true with mixed videos should succeed; error=" + r.error());
+        assertFalse(fs.exists(registered.getPath()), "registered video removed");
+        assertFalse(fs.exists(Path.of("/queue/DLDSS-139/dldss139_bonus.mp4")), "unregistered video removed");
+    }
+
+    // ── Fix #7: Thumbs.db sidecar regression test ───────────────────────────
+
+    /**
+     * Regression test: Thumbs.db (mixed case, Windows-origin) must be treated as noise and
+     * deleted during the cleanup pass. The NOISE_NAMES check uses toLowerCase(), so both
+     * "Thumbs.db" and "thumbs.db" match. This test guards against regressions that would
+     * leave the file behind and cause a partial result.
+     */
+    @Test
+    void fix7_thumbsDbIsDeletedAsNoise() {
+        long tid = titleRepo.save(title("CLASSIC-001")).getId();
+        locationRepo.save(location(tid, "a", "/queue/CLASSIC-001"));
+        // Registered video + Thumbs.db sidecar (common on Windows-written volumes)
+        Video v = videoRepo.save(video(tid, "classic001.mkv", "/queue/CLASSIC-001/video/classic001.mkv"));
+        fs.file(v.getPath().toString());
+        fs.file("/queue/CLASSIC-001/Thumbs.db");
+        fs.dir("/queue/CLASSIC-001");
+        fs.dir("/queue/CLASSIC-001/video");
+
+        var r = (TrashTitleLocationTool.Result) tool.call(args("a", "/queue/CLASSIC-001", false));
+        assertEquals("ok", r.status(), "Thumbs.db should be treated as noise; error=" + r.error());
+        assertFalse(fs.exists(Path.of("/queue/CLASSIC-001/Thumbs.db")), "Thumbs.db should be deleted");
+        assertEquals(0, locationCount(tid), "location row dropped");
+    }
+
+    @Test
+    void fix7_thumbsDbLowercaseIsDeletedAsNoise() {
+        long tid = titleRepo.save(title("CLASSIC-002")).getId();
+        locationRepo.save(location(tid, "a", "/queue/CLASSIC-002"));
+        fs.file("/queue/CLASSIC-002/thumbs.db");
+        fs.dir("/queue/CLASSIC-002");
+
+        var r = (TrashTitleLocationTool.Result) tool.call(args("a", "/queue/CLASSIC-002", false));
+        assertEquals("ok", r.status(), "thumbs.db (lowercase) should be treated as noise; error=" + r.error());
+        assertFalse(fs.exists(Path.of("/queue/CLASSIC-002/thumbs.db")));
+    }
+
     // ── fixtures ──────────────────────────────────────────────────────────────
 
     private static Title title(String code) {

@@ -13,6 +13,7 @@ import com.organizer3.model.Video;
 import com.organizer3.repository.VideoRepository;
 import com.organizer3.shell.SessionContext;
 import com.organizer3.smb.VolumeConnection;
+import com.organizer3.sync.MediaExtensions;
 import com.organizer3.titlefolder.TitleFolderService;
 import com.organizer3.trash.Trash;
 import lombok.extern.slf4j.Slf4j;
@@ -103,6 +104,10 @@ public class TrashTitleLocationTool implements Tool {
                 .prop("volumeId", "string",  "Volume identifier — must match the mounted volume.")
                 .prop("path",     "string",  "Volume-relative folder path, e.g. /queue/Old Name (LABEL-001)")
                 .prop("dryRun",   "boolean", "If true (default), return the plan without doing anything.", true)
+                .prop("force",    "boolean",
+                        "If true, also trash video files not registered in the videos table "
+                        + "(identified by extension). Default false — unregistered videos block the trash "
+                        + "and return partial. Use with care.", false)
                 .prop("cascadeOrphanActresses", "boolean",
                         "If true, delete actresses left with no titles having any surviving location "
                         + "(plus their title_actresses, actress_aliases, actress_companies rows). "
@@ -116,12 +121,14 @@ public class TrashTitleLocationTool implements Tool {
         String volumeIdArg = Schemas.requireString(args, "volumeId");
         String pathArg     = Schemas.requireString(args, "path");
         boolean dryRun     = Schemas.optBoolean(args, "dryRun", true);
+        boolean force      = Schemas.optBoolean(args, "force", false);
         boolean cascadeOrphans = Schemas.optBoolean(args, "cascadeOrphanActresses", false);
 
         Map<String, Object> inputs = Map.of(
                 "volumeId", volumeIdArg,
                 "path",     pathArg,
                 "dryRun",   dryRun,
+                "force",    force,
                 "cascadeOrphanActresses", cascadeOrphans
         );
 
@@ -150,7 +157,12 @@ public class TrashTitleLocationTool implements Tool {
             return refused(volumeIdArg, inputs, "path must not be the volume root");
         }
         String topLevel = folderPath.getName(0).toString();
-        if (!ALLOWED_PREFIXES.contains(topLevel)) {
+        // Fix #3: root-level locations (e.g. /Various (JUR-031)) have nameCount == 1, meaning
+        // the folder itself is the title folder — there is no top-level "prefix" to check.
+        // We skip the allowlist check for these and let the tier-root guard below protect against
+        // targeting the raw volume root or known protected tier roots.
+        boolean isRootLevel = folderPath.getNameCount() == 1;
+        if (!isRootLevel && !ALLOWED_PREFIXES.contains(topLevel)) {
             return refused(volumeIdArg, inputs,
                     "top-level folder '" + topLevel + "' is not allowed; must be one of " + ALLOWED_PREFIXES);
         }
@@ -240,14 +252,46 @@ public class TrashTitleLocationTool implements Tool {
         }
 
         List<Path> nonNoise = children.stream().filter(p -> !isNoise(p)).toList();
-        if (!nonNoise.isEmpty()) {
-            String names = nonNoise.stream()
+
+        // Fix #4: when force=true, trash any unregistered file with a known video extension
+        // (files that aren't in the videos table — never probed or stale registration).
+        // This handles cases like DLDSS-137/138 where a video exists on disk but has no DB row.
+        if (force && !nonNoise.isEmpty()) {
+            List<Path> unregisteredVideos = nonNoise.stream()
+                    .filter(p -> !fs.isDirectory(p) && MediaExtensions.isVideo(p))
+                    .toList();
+            for (Path videoPath : unregisteredVideos) {
+                try {
+                    trash.trashItem(videoPath, reason);
+                    log.info("trash_title_location: force-trashed unregistered video path={}", videoPath);
+                    trashed.add(videoPath + " → trashed (unregistered)");
+                } catch (IOException e) {
+                    log.warn("trash_title_location: force-trash failed path={} error={}", videoPath, e.getMessage());
+                    failed.add(videoPath.getFileName().toString() + " → " + e.getMessage());
+                }
+            }
+            // Recompute nonNoise after force-trashing
+            List<Path> afterForce;
+            try {
+                afterForce = fs.exists(folderPath) ? fs.listDirectory(folderPath) : List.of();
+            } catch (IOException e) {
+                return partialResult(volumeIdArg, inputs, pathArg, loc.titleId(), trashed, failed,
+                        "could not re-list directory after force-trashing unregistered videos: " + e.getMessage());
+            }
+            // Recompute children for noise-deletion pass below
+            children = afterForce;
+        }
+
+        // Recompute nonNoise after any force-trashing (children may have changed)
+        List<Path> remainingNonNoise = children.stream().filter(p -> !isNoise(p)).toList();
+        if (!remainingNonNoise.isEmpty()) {
+            String names = remainingNonNoise.stream()
                     .map(p -> p.getFileName().toString())
                     .limit(5)
                     .reduce((a, b) -> a + ", " + b)
                     .orElse("(unknown)");
             String msg = "non-noise files remain after trashing videos: [" + names + "]"
-                    + (nonNoise.size() > 5 ? " +" + (nonNoise.size() - 5) + " more" : "");
+                    + (remainingNonNoise.size() > 5 ? " +" + (remainingNonNoise.size() - 5) + " more" : "");
             log.warn("trash_title_location: {} volume={} path={}", msg, volumeIdArg, pathArg);
             return partialResult(volumeIdArg, inputs, pathArg, loc.titleId(), trashed, failed, msg);
         }
