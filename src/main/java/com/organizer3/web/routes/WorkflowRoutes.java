@@ -329,6 +329,23 @@ public class WorkflowRoutes {
                 row.put("aiPhi4Slug",  r.get("ai_phi4_slug"));
                 row.put("aiGemmaSlug", r.get("ai_gemma_slug"));
 
+                // cast_anomaly rows carry inline triage context: raw cast JSON and the
+                // linked actresses (id + name) needed to render the alias-pairing panel.
+                if ("cast_anomaly".equals(reason)) {
+                    reviewQueueRepo.findCastAnomalyContext(titleId).ifPresent(ctx -> {
+                        row.put("castJson", ctx.castJson());
+                        // Serialise as a list of {id, canonicalName} objects for the JS layer.
+                        List<Map<String, Object>> actressMaps = new ArrayList<>();
+                        for (var la : ctx.linkedActresses()) {
+                            Map<String, Object> am = new LinkedHashMap<>();
+                            am.put("id", la.id());
+                            am.put("canonicalName", la.canonicalName());
+                            actressMaps.add(am);
+                        }
+                        row.put("linkedActresses", actressMaps);
+                    });
+                }
+
                 result.add(row);
             }
             return result;

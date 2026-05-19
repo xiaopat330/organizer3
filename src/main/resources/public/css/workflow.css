@@ -346,6 +346,13 @@
   gap: 0.35rem;
   position: relative;
 }
+.wf-actions-stack {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.25rem;
+}
+.wf-actions-stack > button { width: 100%; }
 
 .wf-actions-more-btn {
   padding: 0.2rem 0.4rem;
@@ -426,6 +433,274 @@
   color: var(--error);
   flex-basis: 100%;
 }
+
+/* ── Refresh button (ambiguous rows) ──────────────────────────────────────── */
+
+.wf-refresh-btn {
+  padding: 0.2rem 0.45rem;
+  font-size: 0.75rem;
+  border: 1px solid var(--border);
+  background: transparent;
+  border-radius: 4px;
+  cursor: pointer;
+  color: var(--text-faint);
+}
+
+.wf-refresh-btn:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--text) 5%, transparent);
+  color: var(--text-dim);
+}
+
+.wf-refresh-btn:disabled { opacity: 0.5; cursor: default; }
+
+/* ── Cast-anomaly inline panel ────────────────────────────────────────────── */
+
+.wf-cast-pairings {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  min-width: 200px;
+  max-width: 320px;
+}
+
+.wf-cast-block {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.wf-cast-label {
+  font-size: 0.75rem;
+  color: var(--text-dim);
+}
+
+.wf-cast-slug {
+  font-size: 0.7rem;
+  color: var(--text-faint);
+}
+
+.wf-cast-alias-btn {
+  padding: 0.2rem 0.5rem;
+  font-size: 0.75rem;
+  border: 1px solid var(--border);
+  background: transparent;
+  border-radius: 3px;
+  cursor: pointer;
+  color: var(--text);
+  text-align: left;
+}
+
+.wf-cast-alias-btn:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--text) 5%, transparent);
+}
+
+.wf-cast-alias-btn:disabled { opacity: 0.5; cursor: default; }
+
+.wf-cast-error {
+  font-size: 0.75rem;
+  color: var(--error);
+  margin-bottom: 0.25rem;
+}
+
+.wf-cast-note {
+  font-size: 0.75rem;
+  color: var(--text-faint);
+  font-style: italic;
+}
+
+/* ── Orphan inline panel ──────────────────────────────────────────────────── */
+
+.wf-orphan-note {
+  font-size: 0.75rem;
+  color: var(--text-faint);
+  margin: 0 0 0.35rem;
+  font-style: italic;
+}
+
+.wf-orphan-btns {
+  display: flex;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+}
+
+.wf-orphan-moved-btn {
+  padding: 0.25rem 0.55rem;
+  font-size: 0.75rem;
+  border: 1px solid var(--border);
+  background: transparent;
+  border-radius: 3px;
+  cursor: pointer;
+  color: var(--text);
+}
+
+.wf-orphan-moved-btn:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--text) 5%, transparent);
+}
+
+.wf-orphan-moved-btn:disabled { opacity: 0.5; cursor: default; }
+
+.wf-orphan-delete-btn {
+  padding: 0.25rem 0.55rem;
+  font-size: 0.75rem;
+  border: 1px solid color-mix(in srgb, var(--error) 40%, transparent);
+  background: color-mix(in srgb, var(--error) 8%, transparent);
+  border-radius: 3px;
+  cursor: pointer;
+  color: var(--error);
+}
+
+.wf-orphan-delete-btn:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--error) 14%, transparent);
+}
+
+.wf-orphan-delete-btn:disabled { opacity: 0.5; cursor: default; }
+
+/* Pending-confirm state: slightly more prominent tint. */
+.wf-orphan-delete-btn.wf-orphan-delete-pending {
+  background: color-mix(in srgb, var(--error) 18%, transparent);
+  border-color: var(--error);
+  font-weight: 600;
+}
+
+/* ── Recode inline panel ──────────────────────────────────────────────────── */
+
+.wf-recode-summary {
+  font-size: 0.8rem;
+  margin-bottom: 0.3rem;
+}
+
+.wf-recode-match-type {
+  display: inline-block;
+  font-size: 0.68rem;
+  color: var(--text-faint);
+  margin-left: 0.3rem;
+  padding: 0 0.25rem;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+}
+
+.wf-recode-btn-row {
+  display: flex;
+  gap: 0.35rem;
+  margin-bottom: 0.3rem;
+}
+
+.wf-recode-btn {
+  padding: 0.25rem 0.55rem;
+  font-size: 0.75rem;
+  border: 1px solid var(--border);
+  background: transparent;
+  border-radius: 3px;
+  cursor: pointer;
+  color: var(--text);
+}
+
+.wf-recode-btn:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--text) 5%, transparent);
+}
+
+.wf-recode-btn:disabled { opacity: 0.5; cursor: default; }
+
+.wf-recode-dismiss-btn {
+  padding: 0.25rem 0.55rem;
+  font-size: 0.75rem;
+  border: 1px solid transparent;
+  background: transparent;
+  border-radius: 3px;
+  cursor: pointer;
+  color: var(--text-faint);
+}
+
+.wf-recode-dismiss-btn:hover:not(:disabled) { color: var(--text); }
+.wf-recode-dismiss-btn:disabled { opacity: 0.5; cursor: default; }
+
+.wf-recode-preview {
+  margin-top: 0.3rem;
+}
+
+.wf-recode-paths {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  margin-bottom: 0.3rem;
+  font-size: 0.72rem;
+}
+
+.wf-recode-path-row {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  color: var(--text-dim);
+}
+
+.wf-recode-old  { text-decoration: line-through; color: var(--text-faint); }
+.wf-recode-arrow { color: var(--text-faint); }
+.wf-recode-new  { color: var(--ok); }
+.wf-recode-no-paths { font-size: 0.72rem; color: var(--text-faint); font-style: italic; }
+
+.wf-recode-commit-row {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  flex-wrap: wrap;
+}
+
+.wf-recode-commit-btn {
+  padding: 0.25rem 0.55rem;
+  font-size: 0.75rem;
+  border: 1px solid var(--ok);
+  background: color-mix(in srgb, var(--ok) 10%, transparent);
+  border-radius: 3px;
+  cursor: pointer;
+  color: var(--ok);
+}
+
+.wf-recode-commit-btn:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--ok) 18%, transparent);
+}
+
+.wf-recode-commit-btn:disabled { opacity: 0.5; cursor: default; }
+
+.wf-recode-cancel-btn {
+  padding: 0.25rem 0.55rem;
+  font-size: 0.75rem;
+  border: 1px solid transparent;
+  background: transparent;
+  border-radius: 3px;
+  cursor: pointer;
+  color: var(--text-faint);
+}
+
+.wf-recode-cancel-btn:hover:not(:disabled) { color: var(--text); }
+.wf-recode-cancel-btn:disabled { opacity: 0.5; cursor: default; }
+
+.wf-recode-error {
+  font-size: 0.72rem;
+  color: var(--error);
+}
+
+.wf-recode-note { font-size: 0.75rem; color: var(--text-faint); font-style: italic; }
+
+/* ── Actress-rename panel ─────────────────────────────────────────────────── */
+
+.wf-rename-note {
+  font-size: 0.75rem;
+  color: var(--text-dim);
+  margin-bottom: 0.3rem;
+}
+
+.wf-rename-dismiss-btn {
+  padding: 0.25rem 0.55rem;
+  font-size: 0.75rem;
+  border: 1px solid var(--border);
+  background: transparent;
+  border-radius: 3px;
+  cursor: pointer;
+  color: var(--text-faint);
+}
+
+.wf-rename-dismiss-btn:hover:not(:disabled) { color: var(--text); }
+.wf-rename-dismiss-btn:disabled { opacity: 0.5; cursor: default; }
 
 /* ── Empty state ──────────────────────────────────────────────────────────── */
 
