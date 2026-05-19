@@ -5,7 +5,7 @@
 // populated by WorkflowRoutes.queryWorkflowRows when reason === 'cast_anomaly'.
 
 import { esc } from './utils.js';
-import { handleAddAlias } from './actions.js';
+import { handleAddAlias, handleResolve } from './actions.js';
 
 /**
  * Renders the cast-anomaly inline panel into the given container element.
@@ -27,11 +27,13 @@ export function renderCastAnomalyPanel(container, row, reload) {
 
   if (castEntries.length === 0) {
     container.innerHTML = `<span class="wf-cast-note">No cast JSON — cannot triage inline.</span>`;
+    appendResolveButton(container, row, reload);
     return;
   }
 
   if (linkedActresses.length === 0) {
     container.innerHTML = `<span class="wf-cast-note">No linked actresses — nothing to alias.</span>`;
+    appendResolveButton(container, row, reload);
     return;
   }
 
@@ -71,4 +73,26 @@ export function renderCastAnomalyPanel(container, row, reload) {
 
     pairings.appendChild(block);
   });
+
+  appendResolveButton(container, row, reload, errorEl);
+}
+
+function appendResolveButton(container, row, reload, errorEl) {
+  const resolveBtn = document.createElement('button');
+  resolveBtn.type = 'button';
+  resolveBtn.className = 'wf-cast-alias-btn wf-cast-resolve-btn';
+  resolveBtn.textContent = 'Mark resolved';
+  resolveBtn.addEventListener('click', async () => {
+    resolveBtn.disabled = true;
+    try {
+      await handleResolve(row.queueId, 'marked_resolved', reload);
+    } catch (err) {
+      if (errorEl) {
+        errorEl.textContent = `Mark resolved failed: ${err.message}`;
+        errorEl.style.display = '';
+      }
+      resolveBtn.disabled = false;
+    }
+  });
+  container.appendChild(resolveBtn);
 }

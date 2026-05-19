@@ -702,6 +702,72 @@
 .wf-rename-dismiss-btn:hover:not(:disabled) { color: var(--text); }
 .wf-rename-dismiss-btn:disabled { opacity: 0.5; cursor: default; }
 
+/* ── Slug-conflict panel ─────────────────────────────────────────────────── */
+
+.wf-slug-conflict-panel {
+  font-size: 0.75rem;
+  color: var(--text-dim);
+  margin-bottom: 0.4rem;
+}
+
+.wf-slug-conflict-row {
+  margin-bottom: 0.15rem;
+}
+
+.wf-actress-id {
+  font-size: 0.7rem;
+  color: var(--text-faint);
+}
+
+.wf-slug-conflict-hint {
+  margin-top: 0.3rem;
+  color: var(--text-faint);
+  font-style: italic;
+}
+
+/* ── Stage-name-conflict panel ───────────────────────────────────────────── */
+
+.wf-stage-conflict-panel {
+  font-size: 0.75rem;
+  color: var(--text-dim);
+  margin-bottom: 0.4rem;
+}
+
+.wf-stage-conflict-label {
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-faint);
+  margin-bottom: 0.2rem;
+}
+
+.wf-stage-conflict-row {
+  margin-bottom: 0.15rem;
+}
+
+.wf-stage-variant-chip {
+  display: inline-block;
+  padding: 0.1rem 0.35rem;
+  font-size: 0.72rem;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  background: color-mix(in srgb, var(--text) 4%, transparent);
+  color: var(--text-dim);
+}
+
+.wf-stage-conflict-hint {
+  margin-top: 0.3rem;
+  color: var(--text-faint);
+  font-style: italic;
+}
+
+/* ── Cast-anomaly resolve button ──────────────────────────────────────────── */
+
+.wf-cast-resolve-btn {
+  margin-top: 0.4rem;
+}
+
 /* ── Empty state ──────────────────────────────────────────────────────────── */
 
 .wf-empty {

@@ -7,9 +7,11 @@ import { esc, humanizeState, openLightbox } from './utils.js';
 import {
   handlePick, handleAiAssist, handleResolve, handleForceEnrich, handleRefreshCandidates,
 } from './actions.js';
-import { renderCastAnomalyPanel } from './cast-anomaly.js';
-import { renderOrphanPanel }      from './orphan.js';
-import { renderRecodePanel }      from './recode.js';
+import { renderCastAnomalyPanel }    from './cast-anomaly.js';
+import { renderOrphanPanel }         from './orphan.js';
+import { renderRecodePanel }         from './recode.js';
+import { renderSlugConflictPanel }   from './slug-conflict.js';
+import { renderStageNameConflictPanel } from './stage-name-conflict.js';
 
 // ── SVG icons ─────────────────────────────────────────────────────────────────
 
@@ -43,6 +45,7 @@ function availableActions(row) {
     case 'no_match':                 return ['mark_resolved', 'accept_gap', 'override_slug'];
     case 'fetch_failed':             return ['mark_resolved', 'accept_gap', 'override_slug'];
     case 'slug_conflict':            return ['mark_resolved'];
+    case 'stage_name_conflict':      return ['mark_resolved'];
     case 'orphan_enriched':          return ['mark_resolved'];
     case 'recode_candidate':         return ['dismiss'];
     case 'actress_rename_candidate': return ['dismiss'];
@@ -57,11 +60,13 @@ export function makeRow(row, reload) {
   tr.className = 'wf-row';
   tr.dataset.id = row.queueId;
 
-  const isAmbiguous     = row.reason === 'ambiguous';
-  const isCastAnomaly   = row.reason === 'cast_anomaly';
-  const isOrphan        = row.reason === 'orphan_enriched';
-  const isRecode        = row.reason === 'recode_candidate';
-  const isActressRename = row.reason === 'actress_rename_candidate';
+  const isAmbiguous          = row.reason === 'ambiguous';
+  const isCastAnomaly        = row.reason === 'cast_anomaly';
+  const isOrphan             = row.reason === 'orphan_enriched';
+  const isRecode             = row.reason === 'recode_candidate';
+  const isActressRename      = row.reason === 'actress_rename_candidate';
+  const isSlugConflict       = row.reason === 'slug_conflict';
+  const isStageNameConflict  = row.reason === 'stage_name_conflict';
 
   const stateLabel = humanizeState(row.state, row.reason);
   const stateClass = `wf-state wf-state-${esc(row.state || 'other_intervention')}`;
@@ -86,6 +91,10 @@ export function makeRow(row, reload) {
     renderRecodePanel(candidatesCell, row, reload);
   } else if (isActressRename) {
     renderActressRenamePanel(candidatesCell, row, reload);
+  } else if (isSlugConflict) {
+    renderSlugConflictPanel(candidatesCell, row, reload);
+  } else if (isStageNameConflict) {
+    renderStageNameConflictPanel(candidatesCell, row, reload);
   } else {
     candidatesCell.innerHTML = buildCandidatesHtml(row);
     // Wire candidate pick buttons.

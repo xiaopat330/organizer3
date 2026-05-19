@@ -8,11 +8,14 @@ import com.organizer3.enrichment.ai.EnsembleAssistCaller;
 import com.organizer3.enrichment.ai.EnrichmentAutoApplier;
 import com.organizer3.javdb.enrichment.EnrichmentReviewQueueRepository;
 import com.organizer3.javdb.enrichment.EnrichmentReviewQueueRepository.AssistContext;
+import com.organizer3.javdb.enrichment.EnrichmentReviewQueueRepository.ConflictActress;
 import com.organizer3.javdb.enrichment.EnrichmentReviewQueueRepository.OpenRow;
+import com.organizer3.javdb.enrichment.EnrichmentReviewQueueRepository.SlugConflictContext;
 import com.organizer3.web.WebServer;
 import org.jdbi.v3.core.Handle;
 import org.jdbi.v3.core.HandleCallback;
 import org.jdbi.v3.core.Jdbi;
+import org.jdbi.v3.core.statement.Query;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -273,6 +276,75 @@ class WorkflowRoutesTest {
         assertEquals(200, res.statusCode());
         JsonNode body = mapper.readTree(res.body());
         assertTrue(body.isArray());
+    }
+
+    @Test
+    void getRows_slugConflictRowIncludesSlugConflictContext() throws Exception {
+        // Arrange: a single slug_conflict row with detail JSON and resolved actress context.
+        String detailJson = "{\"slug\":\"mako-iga\",\"claimant_actress_id\":10,\"incumbent_actress_id\":20," +
+                "\"source_title_code\":\"STAR-001\"}";
+
+        Map<String, Object> rawRow = new java.util.LinkedHashMap<>();
+        rawRow.put("q_id",    1L);
+        rawRow.put("title_id", 99L);
+        rawRow.put("title_code", "STAR-001");
+        rawRow.put("slug",   "mako-iga");
+        rawRow.put("reason", "slug_conflict");
+        rawRow.put("resolver_source", "code_search");
+        rawRow.put("created_at", "2026-01-01T00:00:00Z");
+        rawRow.put("detail",  detailJson);
+        rawRow.put("ai_suggestion_slug", null);
+        rawRow.put("ai_suggestion_confidence", null);
+        rawRow.put("ai_suggestion_reason", null);
+        rawRow.put("ai_suggestion_at", null);
+        rawRow.put("ai_auto_applied", null);
+        rawRow.put("ai_auto_apply_attempts", null);
+        rawRow.put("ai_phi4_slug", null);
+        rawRow.put("ai_gemma_slug", null);
+        rawRow.put("fetch_status", null);
+
+        // Build hand-rolled Handle stubs to avoid RETURNS_DEEP_STUBS ordering surprises.
+        // createQuery(sql) returns a Query mock; the first invocation (review-queue select)
+        // returns rawRow; the second (batchFetchActressNames) returns an empty list.
+        // The review-queue select calls .bind("limit", int) before .mapToMap().list().
+        // batchFetchActressNames calls .bind(int, long) in a loop — we let RETURNS_DEEP_STUBS
+        // handle that chain automatically (it returns empty collections by default).
+        Query query1 = mock(Query.class, RETURNS_DEEP_STUBS);
+        when(query1.bind(anyString(), anyInt()).mapToMap().list()).thenReturn(List.of(rawRow));
+
+        Handle handle = mock(Handle.class, RETURNS_DEEP_STUBS);
+        when(handle.createQuery(anyString())).thenReturn(query1);
+
+        reset(jdbi);
+        doAnswer(inv -> {
+            @SuppressWarnings("unchecked")
+            HandleCallback<Object, Exception> cb = inv.getArgument(0);
+            return cb.withHandle(handle);
+        }).when(jdbi).withHandle(any());
+
+        SlugConflictContext ctx = new SlugConflictContext(
+                new ConflictActress(10L, "Mako Iga", "伊賀まこ", "a"),
+                new ConflictActress(20L, "Mako Yoshida", "吉田まこ", "s")
+        );
+        when(reviewQueueRepo.findSlugConflictContext(10L, 20L)).thenReturn(Optional.of(ctx));
+
+        // Act
+        HttpResponse<String> res = get("/api/enrichment/workflow/rows");
+
+        // Assert
+        assertEquals(200, res.statusCode());
+        JsonNode body = mapper.readTree(res.body());
+        assertTrue(body.isArray());
+        assertEquals(1, body.size());
+        JsonNode row = body.get(0);
+        assertEquals("slug_conflict", row.get("reason").asText());
+        assertTrue(row.has("slugConflictContext"), "row should include slugConflictContext");
+        JsonNode scc = row.get("slugConflictContext");
+        assertEquals("Mako Iga",    scc.get("claimant").get("canonicalName").asText());
+        assertEquals("Mako Yoshida", scc.get("incumbent").get("canonicalName").asText());
+        assertEquals(10L, scc.get("claimant").get("id").asLong());
+        assertEquals(20L, scc.get("incumbent").get("id").asLong());
+        assertEquals("伊賀まこ", scc.get("claimant").get("stageName").asText());
     }
 
     @Test
