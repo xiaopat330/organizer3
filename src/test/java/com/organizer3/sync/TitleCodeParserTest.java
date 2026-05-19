@@ -145,4 +145,64 @@ class TitleCodeParserTest {
         assertEquals("PRED", result.label());
         assertEquals(456, result.seqNum());
     }
+
+    // Regression tests for FC2PPV 8-digit code truncation bug.
+    // Before the fix, digit limit of {2,6} caused FC2PPV-1040032 and FC2PPV-1040038
+    // to both produce base code FC2PPV-104003, colliding on the same 7-digit prefix.
+
+    @Test
+    void fc2ppv_8digitCode_notTruncated_first() {
+        // FC2-PPV-1040032 → after replacelist rewrite → FC2PPV-1040032
+        var result = parser.parse("FC2PPV-1040032");
+        assertEquals("FC2PPV-1040032", result.code());
+        assertEquals("FC2PPV-1040032", result.baseCode());
+        assertEquals("FC2PPV", result.label());
+        assertEquals(1040032, result.seqNum());
+    }
+
+    @Test
+    void fc2ppv_8digitCode_notTruncated_second() {
+        // FC2-PPV-1040038 → after replacelist rewrite → FC2PPV-1040038
+        var result = parser.parse("FC2PPV-1040038");
+        assertEquals("FC2PPV-1040038", result.code());
+        assertEquals("FC2PPV-1040038", result.baseCode());
+        assertEquals("FC2PPV", result.label());
+        assertEquals(1040038, result.seqNum());
+    }
+
+    @Test
+    void fc2ppv_8digitCodes_doNotCollide() {
+        // Both codes must produce distinct base codes — the regression that triggered this fix.
+        var result1 = parser.parse("FC2PPV-1040032");
+        var result2 = parser.parse("FC2PPV-1040038");
+        assertNotEquals(result1.baseCode(), result2.baseCode(),
+                "FC2PPV-1040032 and FC2PPV-1040038 must not share the same base code");
+    }
+
+    @Test
+    void fc2ppv_6digitCode_stillParses() {
+        var result = parser.parse("FC2PPV-123456");
+        assertEquals("FC2PPV-123456", result.code());
+        assertEquals("FC2PPV-123456", result.baseCode());
+        assertEquals("FC2PPV", result.label());
+        assertEquals(123456, result.seqNum());
+    }
+
+    @Test
+    void fc2ppv_5digitCode_stillParses() {
+        var result = parser.parse("FC2PPV-12345");
+        assertEquals("FC2PPV-12345", result.code());
+        assertEquals("FC2PPV-12345", result.baseCode());
+        assertEquals("FC2PPV", result.label());
+        assertEquals(12345, result.seqNum());
+    }
+
+    @Test
+    void fc2ppv_9digitCode_parsesFullTail() {
+        var result = parser.parse("FC2PPV-123456789");
+        assertEquals("FC2PPV-123456789", result.code());
+        assertEquals("FC2PPV-123456789", result.baseCode());
+        assertEquals("FC2PPV", result.label());
+        assertEquals(123456789, result.seqNum());
+    }
 }

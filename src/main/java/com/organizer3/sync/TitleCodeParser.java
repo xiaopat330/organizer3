@@ -24,9 +24,9 @@ public class TitleCodeParser {
 
     // Label: letter followed by up to 9 alphanumeric chars.
     // Optional single-letter seq prefix (e.g., MKBD-S119, CPZ69-H005).
-    // Number: 2-6 digits.
+    // Number: 2+ digits (unbounded upper limit — FC2PPV IDs reach 7-8+ digits).
     private static final Pattern CODE = Pattern.compile(
-            "([A-Za-z][A-Za-z0-9]{0,9})-([A-Za-z]?)(\\d{2,6})");
+            "([A-Za-z][A-Za-z0-9]{0,9})-([A-Za-z]?)(\\d{2,})");
 
     // A suffix immediately after the number, like _U or _4K
     private static final Pattern SUFFIX = Pattern.compile(
