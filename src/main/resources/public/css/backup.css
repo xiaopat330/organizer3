@@ -1304,8 +1304,7 @@
 
 /* ── Detail panel ─────────────────────────────────────────────────────────── */
 .sh-detail-panel {
-  /* sits between the signals card and the reports card */
-  order: 1; /* flexbox order — rendered just after the signals card in column flex */
+  /* sits between the signals card and the reports card via document order */
 }
 .sh-dp-card {
   background: #0a1120;
