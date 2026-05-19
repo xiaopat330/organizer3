@@ -551,12 +551,14 @@ public final class UtilitiesRoutes {
             var running = runner.currentlyRunning();
             if (running.isEmpty()) { ctx.json(Map.of("active", false)); return; }
             TaskRun r = running.get();
-            ctx.json(Map.of(
-                    "active",  true,
-                    "taskId",  r.taskId(),
-                    "runId",   r.runId(),
-                    "status",  r.status().name().toLowerCase(),
-                    "cancelRequested", r.isCancellationRequested()));
+            Map<String, Object> resp = new LinkedHashMap<>();
+            resp.put("active",           true);
+            resp.put("taskId",           r.taskId());
+            resp.put("runId",            r.runId());
+            resp.put("status",           r.status().name().toLowerCase());
+            resp.put("cancelRequested",  r.isCancellationRequested());
+            activeProgressFields(r).forEach(resp::put);
+            ctx.json(resp);
         });
 
         app.post("/api/utilities/runs/{runId}/cancel", ctx -> {
@@ -667,6 +669,64 @@ public final class UtilitiesRoutes {
             checks.add(row);
         });
         out.put("checks", checks);
+        return out;
+    }
+
+    /**
+     * Derives the latest-progress snapshot from a running {@link TaskRun} for the
+     * {@code /api/utilities/active} response. Walks the event list in reverse to find
+     * the most recent open phase (a {@link TaskEvent.PhaseStarted} whose phaseId has
+     * not yet appeared in a {@link TaskEvent.PhaseEnded}), then finds the most recent
+     * {@link TaskEvent.PhaseProgress} for that phase.
+     *
+     * <p>Returns an empty map if no phase has started yet, keeping the existing
+     * {@code active} response fields unchanged in the no-progress case.
+     */
+    private static Map<String, Object> activeProgressFields(TaskRun run) {
+        List<TaskEvent> events = run.eventSnapshot();
+
+        // Collect ended phaseIds so we can skip them.
+        java.util.Set<String> endedPhaseIds = new java.util.HashSet<>();
+        for (TaskEvent e : events) {
+            if (e instanceof TaskEvent.PhaseEnded pe) {
+                endedPhaseIds.add(pe.phaseId());
+            }
+        }
+
+        // Walk in reverse to find the latest open PhaseStarted.
+        TaskEvent.PhaseStarted latestPhase = null;
+        for (int i = events.size() - 1; i >= 0; i--) {
+            if (events.get(i) instanceof TaskEvent.PhaseStarted ps
+                    && !endedPhaseIds.contains(ps.phaseId())) {
+                latestPhase = ps;
+                break;
+            }
+        }
+        if (latestPhase == null) return Map.of();
+
+        String phaseId = latestPhase.phaseId();
+
+        // Walk in reverse to find the latest PhaseProgress for this phase.
+        TaskEvent.PhaseProgress latestProgress = null;
+        for (int i = events.size() - 1; i >= 0; i--) {
+            if (events.get(i) instanceof TaskEvent.PhaseProgress pp
+                    && phaseId.equals(pp.phaseId())) {
+                latestProgress = pp;
+                break;
+            }
+        }
+
+        Map<String, Object> out = new LinkedHashMap<>();
+        out.put("phaseLabel", latestPhase.label());
+        if (latestProgress != null) {
+            out.put("current", latestProgress.current());
+            out.put("total",   latestProgress.total());
+            out.put("detail",  latestProgress.detail());
+        } else {
+            out.put("current", null);
+            out.put("total",   null);
+            out.put("detail",  null);
+        }
         return out;
     }
 

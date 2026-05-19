@@ -9,6 +9,14 @@ enrichment:
     sweeperIntervalSeconds: 60
     autoApplyDelaySeconds: 600
     promptVersion: v7-kanji-bridge
+    # Max consecutive auto-apply failures before a row drops from the sweeper's
+    # Phase B queue and waits for human resolution. Must be > 0 — Jackson populates
+    # the primitive int as 0 when omitted, which makes the `attempts < N` SQL filter
+    # match no rows and the sweeper reports "no work" even with eligible rows.
+    maxAutoApplyAttempts: 3
+    # Java-side post-processing rules run before/after the LLM ensemble. Omitting
+    # this falls back to `false` (primitive boolean) — keep it explicit.
+    postProcessingEnabled: true
     # Backfill task batch size — chunk size for batched ensemble calls (Phase 5 Track A).
     backfillBatchSize: 20
 

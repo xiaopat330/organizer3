@@ -7,15 +7,30 @@ const JAVDB_INTERVAL_MS       = 15_000;
 
 const SYNC_ICON = '<svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><polyline points="21 3 21 8 16 8"/></svg>';
 
-const SYNC_TASK_IDS = new Set(['volume.sync', 'volume.sync_coherent', 'volume.clean_stale_locations']);
+const SYNC_TASK_IDS   = new Set(['volume.sync', 'volume.sync_coherent', 'volume.clean_stale_locations']);
+const AI_SWEEPER_ID   = 'enrichment.ai_assist_sweeper';
 
 export function mountStatusBar() {
   const footer = document.querySelector('.app-status');
   if (!footer) return;
 
-  let syncState   = { dot: 'ok',   text: 'sync …' };
-  let transState  = { dot: 'idle', text: 'translation …' };
-  let javdbState  = { dot: 'idle', text: 'idle' };
+  let syncState     = { dot: 'ok',   text: 'sync …' };
+  let transState    = { dot: 'idle', text: 'translation …' };
+  let javdbState    = { dot: 'idle', text: 'idle' };
+  let aiAssistState = { running: false };
+
+  function renderAiAssist() {
+    if (!aiAssistState.running) return '';
+    const { current, total } = aiAssistState;
+    const determinate = typeof current === 'number' && typeof total === 'number' && total > 0;
+    const text = determinate ? `${current}/${total}` : 'idle';
+    return `<span class="status-item">` +
+      `<span class="status-task">` +
+        `<b>ai</b> ${text}` +
+        `<span class="bar"><span class="bar-fill"></span></span>` +
+      `</span>` +
+    `</span>`;
+  }
 
   function render() {
     footer.innerHTML =
@@ -32,6 +47,7 @@ export function mountStatusBar() {
         `<span class="status-dot ${javdbState.dot}"></span>` +
         `<b>javdb</b> ${javdbState.text}` +
       `</span>` +
+      renderAiAssist() +
       `<span class="status-spacer"></span>`;
   }
 
@@ -61,6 +77,18 @@ export function mountStatusBar() {
                       :                  Math.floor(ageSec / 3600)  + 'h';
         const dot = ageMs > 86_400_000 ? 'warn' : 'ok';
         syncState = { dot, text: `ok · ${latest.id} · ${timeStr}` };
+      }
+
+      // Derive AI sweeper state from the same active payload — no extra network call.
+      if (active?.active && active.taskId === AI_SWEEPER_ID) {
+        aiAssistState = {
+          running:    true,
+          phaseLabel: active.phaseLabel ?? null,
+          current:    active.current    ?? null,
+          total:      active.total      ?? null,
+        };
+      } else {
+        aiAssistState = { running: false };
       }
     } catch { /* keep last-known state — no console spam */ }
     render();

@@ -823,6 +823,121 @@ class UtilitiesRoutesTest {
         assertFalse(body.get("active").asBoolean());
     }
 
+    @Test
+    void getActive_includesPhaseProgressWhenTaskEmitsProgress() throws Exception {
+        // Stand up a real TaskRunner with a blocking task so we can query mid-run.
+        java.util.concurrent.CountDownLatch progressEmitted = new java.util.concurrent.CountDownLatch(1);
+        java.util.concurrent.CountDownLatch releaseTask     = new java.util.concurrent.CountDownLatch(1);
+
+        com.organizer3.utilities.task.TaskSpec spec = new com.organizer3.utilities.task.TaskSpec(
+                "enrichment.ai_assist_sweeper", "AI Sweep", "test", List.of());
+        com.organizer3.utilities.task.Task task = new com.organizer3.utilities.task.Task() {
+            @Override public com.organizer3.utilities.task.TaskSpec spec() { return spec; }
+            @Override public void run(com.organizer3.utilities.task.TaskInputs inputs,
+                                      com.organizer3.utilities.task.TaskIO io) {
+                io.phaseStart("batch", "Processing titles");
+                io.phaseProgress("batch", 3, 10, "item 3");
+                progressEmitted.countDown();
+                try { releaseTask.await(5, java.util.concurrent.TimeUnit.SECONDS); } catch (InterruptedException ignored) {}
+                io.phaseEnd("batch", "ok", "done");
+            }
+        };
+        com.organizer3.utilities.task.TaskRegistry realRegistry =
+                new com.organizer3.utilities.task.TaskRegistry(List.of(task));
+        com.organizer3.utilities.task.TaskRunner realRunner =
+                new com.organizer3.utilities.task.TaskRunner(realRegistry);
+
+        // Start the task and wait for progress to be emitted before querying.
+        realRunner.start("enrichment.ai_assist_sweeper",
+                new com.organizer3.utilities.task.TaskInputs(Map.of()));
+        assertTrue(progressEmitted.await(5, java.util.concurrent.TimeUnit.SECONDS));
+
+        // Spin up a separate WebServer wired to the real runner.
+        WebServer realServer = new WebServer(0);
+        realServer.registerUtilities(new UtilitiesRoutes(
+                volumeState, staleLocations, actressCatalog, actressLoader,
+                backupCatalog, backupService, healthService, orphanedCoversService,
+                ratingCurveRepo, reviewQueueRepo, forceEnrichTool, pickCandidateTool,
+                refreshCandidatesTool, confirmOrphanDeleteTool, renameActressTool,
+                recodeTitleTool, realRegistry, realRunner, coverPath));
+        realServer.start();
+
+        try {
+            var resp = http.send(
+                    HttpRequest.newBuilder()
+                            .uri(URI.create("http://localhost:" + realServer.port() + "/api/utilities/active"))
+                            .GET().build(),
+                    HttpResponse.BodyHandlers.ofString());
+            assertEquals(200, resp.statusCode());
+            JsonNode body = mapper.readTree(resp.body());
+            assertTrue(body.get("active").asBoolean());
+            assertEquals("enrichment.ai_assist_sweeper", body.get("taskId").asText());
+            assertEquals("Processing titles", body.get("phaseLabel").asText());
+            assertEquals(3,  body.get("current").asInt());
+            assertEquals(10, body.get("total").asInt());
+            assertEquals("item 3", body.get("detail").asText());
+        } finally {
+            releaseTask.countDown();
+            realRunner.shutdown();
+            realServer.stop();
+        }
+    }
+
+    @Test
+    void getActive_includesPhaseLabelButNullProgressWhenNoProgressYet() throws Exception {
+        java.util.concurrent.CountDownLatch phaseStarted = new java.util.concurrent.CountDownLatch(1);
+        java.util.concurrent.CountDownLatch releaseTask  = new java.util.concurrent.CountDownLatch(1);
+
+        com.organizer3.utilities.task.TaskSpec spec = new com.organizer3.utilities.task.TaskSpec(
+                "enrichment.ai_assist_sweeper", "AI Sweep", "test", List.of());
+        com.organizer3.utilities.task.Task task = new com.organizer3.utilities.task.Task() {
+            @Override public com.organizer3.utilities.task.TaskSpec spec() { return spec; }
+            @Override public void run(com.organizer3.utilities.task.TaskInputs inputs,
+                                      com.organizer3.utilities.task.TaskIO io) {
+                io.phaseStart("init", "Initialising");
+                phaseStarted.countDown();
+                try { releaseTask.await(5, java.util.concurrent.TimeUnit.SECONDS); } catch (InterruptedException ignored) {}
+                io.phaseEnd("init", "ok", "done");
+            }
+        };
+        com.organizer3.utilities.task.TaskRegistry realRegistry =
+                new com.organizer3.utilities.task.TaskRegistry(List.of(task));
+        com.organizer3.utilities.task.TaskRunner realRunner =
+                new com.organizer3.utilities.task.TaskRunner(realRegistry);
+
+        realRunner.start("enrichment.ai_assist_sweeper",
+                new com.organizer3.utilities.task.TaskInputs(Map.of()));
+        assertTrue(phaseStarted.await(5, java.util.concurrent.TimeUnit.SECONDS));
+
+        WebServer realServer = new WebServer(0);
+        realServer.registerUtilities(new UtilitiesRoutes(
+                volumeState, staleLocations, actressCatalog, actressLoader,
+                backupCatalog, backupService, healthService, orphanedCoversService,
+                ratingCurveRepo, reviewQueueRepo, forceEnrichTool, pickCandidateTool,
+                refreshCandidatesTool, confirmOrphanDeleteTool, renameActressTool,
+                recodeTitleTool, realRegistry, realRunner, coverPath));
+        realServer.start();
+
+        try {
+            var resp = http.send(
+                    HttpRequest.newBuilder()
+                            .uri(URI.create("http://localhost:" + realServer.port() + "/api/utilities/active"))
+                            .GET().build(),
+                    HttpResponse.BodyHandlers.ofString());
+            assertEquals(200, resp.statusCode());
+            JsonNode body = mapper.readTree(resp.body());
+            assertTrue(body.get("active").asBoolean());
+            assertEquals("Initialising", body.get("phaseLabel").asText());
+            assertTrue(body.get("current").isNull());
+            assertTrue(body.get("total").isNull());
+            assertTrue(body.get("detail").isNull());
+        } finally {
+            releaseTask.countDown();
+            realRunner.shutdown();
+            realServer.stop();
+        }
+    }
+
     // ── Cancel run ─────────────────────────────────────────────────────────────
 
     @Test
