@@ -42,6 +42,7 @@ function renderStatusBadge(r) {
  *   inspectorHandle: object,        — { setTitle, setContent, showEmpty }
  *   initialPool?: string|null,
  *   initialFilter?: string|null,
+ *   onUrlChange?: (params: object) => void,
  * }} opts
  * @returns {{
  *   load(): Promise<void>,
@@ -53,7 +54,9 @@ export function mountTitles(containerEl, {
   inspectorHandle,
   initialPool,
   initialFilter,
+  onUrlChange,
 }) {
+  const doUrlChange = onUrlChange ?? (() => {});
   // Apply deep-link params.
   if (initialPool && !pivotState.poolVolumeId) {
     pivotState.source = 'pool';
@@ -170,8 +173,10 @@ export function mountTitles(containerEl, {
     const t = pivotState;
     if (btn.dataset.chip === 'recent') {
       t.source = 'recent'; t.poolVolumeId = null;
+      doUrlChange({ pool: null });
     } else {
       t.source = 'pool'; t.poolVolumeId = btn.dataset.volumeId;
+      doUrlChange({ pool: btn.dataset.volumeId });
     }
     t.page = 0; t.selected.clear();
     renderChips();
@@ -234,16 +239,20 @@ export function mountTitles(containerEl, {
           t.selected.add(r.titleId);
         }
       }
+      refreshBulkInspector();
     } else if (e.metaKey || e.ctrlKey) {
       if (t.selected.has(titleId)) t.selected.delete(titleId);
       else t.selected.add(titleId);
       _lastClickedIdx = idx;
+      refreshBulkInspector();
     } else {
       t.selected.clear();
       t.selected.add(titleId);
       _lastClickedIdx = idx;
-      // Show title peek in inspector.
-      await showTitlePeek(t.rows[idx]);
+      // Show title peek in inspector + write URL.
+      const row = t.rows[idx];
+      doUrlChange({ code: row?.code ?? null });
+      await showTitlePeek(row);
     }
     renderTable();
     renderFooter();
@@ -257,6 +266,54 @@ export function mountTitles(containerEl, {
     inspectorHandle.setContent(buildTitlePeekHtml(t, row.code));
   }
 
+  // ── Bulk inspector (N>1 selected) ─────────────────────────────────
+
+  /**
+   * Re-derive eligibility rollup from currently-visible rows for selected IDs.
+   * Only rows currently rendered are known; selected-but-paged-away rows
+   * are counted as unknown eligibility.
+   */
+  function refreshBulkInspector() {
+    const n = pivotState.selected.size;
+    if (n === 0) { inspectorHandle.showEmpty('Select a title to view details.'); return; }
+    if (n === 1) return; // single-select handled by showTitlePeek
+
+    const selectedIds = pivotState.selected;
+    const rows = pivotState.rows.filter(r => selectedIds.has(r.titleId));
+
+    let eligible = 0, sentinel = 0, belowThreshold = 0, noActress = 0;
+    for (const r of rows) {
+      if (!r.actress) { noActress++; continue; }
+      if (r.actress.eligibility === 'eligible')  { eligible++; }
+      else if (r.actress.eligibility === 'sentinel') { sentinel++; }
+      else { belowThreshold++; }
+    }
+    const unknown = n - rows.length; // selected but not on current page
+
+    const statLines = [
+      `<div class="dr-bulk-stat"><span class="dr-bulk-stat-label">Will chain profile fetch</span><span class="dr-bulk-stat-value">${eligible}</span></div>`,
+      sentinel > 0       ? `<div class="dr-bulk-stat"><span class="dr-bulk-stat-label">Sentinel actress</span><span class="dr-bulk-stat-value">${sentinel}</span></div>` : '',
+      belowThreshold > 0 ? `<div class="dr-bulk-stat"><span class="dr-bulk-stat-label">Below threshold (no chain)</span><span class="dr-bulk-stat-value">${belowThreshold}</span></div>` : '',
+      noActress > 0      ? `<div class="dr-bulk-stat"><span class="dr-bulk-stat-label">No primary actress</span><span class="dr-bulk-stat-value">${noActress}</span></div>` : '',
+      unknown > 0        ? `<div class="dr-bulk-stat"><span class="dr-bulk-stat-label">Selected (other pages)</span><span class="dr-bulk-stat-value">${unknown}</span></div>` : '',
+    ].filter(Boolean).join('');
+
+    inspectorHandle.setTitle(`${n} titles selected`);
+    inspectorHandle.setContent(`
+      <div class="dr-bulk-inspector">
+        <div class="dr-bulk-stat"><span class="dr-bulk-stat-label">Selected</span><span class="dr-bulk-stat-value">${n}</span></div>
+        ${statLines}
+        <div class="dr-bulk-actions">
+          <button type="button" class="dr-btn dr-btn-primary" id="dr-titles-bulk-enqueue-btn">▶ Enqueue Selected</button>
+        </div>
+      </div>
+    `);
+    // Wire the inspector bulk enqueue button.
+    const pageEl = containerEl.closest('.dr-page') ?? containerEl.parentElement;
+    const bulkBtn = pageEl?.querySelector('#dr-titles-bulk-enqueue-btn');
+    if (bulkBtn) bulkBtn.addEventListener('click', () => enqueueBtn.click());
+  }
+
   // ── Checkbox column ───────────────────────────────────────────────
 
   tableBody.addEventListener('change', e => {
@@ -267,6 +324,7 @@ export function mountTitles(containerEl, {
     else            pivotState.selected.delete(id);
     renderFooter();
     updateSelectAll();
+    refreshBulkInspector();
   });
 
   if (selectAllCb) {
@@ -279,6 +337,7 @@ export function mountTitles(containerEl, {
       else                     enabledIds.forEach(id => t.selected.delete(id));
       renderTable();
       renderFooter();
+      refreshBulkInspector();
     });
   }
 
@@ -372,6 +431,7 @@ export function mountTitles(containerEl, {
   attachFilterHandlers(filterInput, filterClear, filterAuto,
     () => pivotState,
     async () => {
+      doUrlChange({ filter: pivotState.filter || null });
       await loadPage();
       renderChips();
     }

@@ -58,6 +58,7 @@ function renderStatusBadge(r) {
  *   pivotState: object,    — state.collections sub-object
  *   inspectorHandle: object,
  *   initialFilter?: string|null,
+ *   onUrlChange?: (params: object) => void,
  * }} opts
  * @returns {{ load(): Promise<void>, destroy(): void }}
  */
@@ -65,7 +66,10 @@ export function mountCollections(containerEl, {
   pivotState,
   inspectorHandle,
   initialFilter,
+  onUrlChange,
 }) {
+  const doUrlChange = onUrlChange ?? (() => {});
+
   if (initialFilter && !pivotState.filter) {
     pivotState.filter = initialFilter;
   }
@@ -198,15 +202,19 @@ export function mountCollections(containerEl, {
           c.selected.add(r.titleId);
         }
       }
+      refreshBulkInspector();
     } else if (e.metaKey || e.ctrlKey) {
       if (c.selected.has(titleId)) c.selected.delete(titleId);
       else c.selected.add(titleId);
       _lastClickedIdx = idx;
+      refreshBulkInspector();
     } else {
       c.selected.clear();
       c.selected.add(titleId);
       _lastClickedIdx = idx;
-      await showTitlePeek(c.rows[idx]);
+      const row = c.rows[idx];
+      doUrlChange({ code: row?.code ?? null });
+      await showTitlePeek(row);
     }
     renderTable();
     renderFooter();
@@ -220,6 +228,60 @@ export function mountCollections(containerEl, {
     inspectorHandle.setContent(buildTitlePeekHtml(t, row.code));
   }
 
+  // ── Bulk inspector (N>1 selected) ─────────────────────────────────
+
+  /**
+   * Compute cast eligibility rollup across all selected rows.
+   * Per-actress dedup: if same actress appears in multiple selected titles,
+   * count her once (use the eligibility from the first occurrence).
+   */
+  function refreshBulkInspector() {
+    const n = pivotState.selected.size;
+    if (n === 0) { inspectorHandle.showEmpty('Select a title to view details.'); return; }
+    if (n === 1) return;
+
+    const selectedIds = pivotState.selected;
+    const rows = pivotState.rows.filter(r => selectedIds.has(r.titleId));
+
+    const seenActresses = new Map(); // actressName → eligibility
+    for (const r of rows) {
+      if (!r.cast || !r.cast.length) continue;
+      for (const a of r.cast) {
+        if (!seenActresses.has(a.name)) seenActresses.set(a.name, a.eligibility);
+      }
+    }
+
+    let eligible = 0, sentinel = 0, below = 0;
+    for (const [, elig] of seenActresses) {
+      if (elig === 'eligible')  eligible++;
+      else if (elig === 'sentinel') sentinel++;
+      else below++;
+    }
+    const unknown = n - rows.length;
+
+    const statLines = [
+      `<div class="dr-bulk-stat"><span class="dr-bulk-stat-label">Unique actresses seen</span><span class="dr-bulk-stat-value">${seenActresses.size}</span></div>`,
+      `<div class="dr-bulk-stat"><span class="dr-bulk-stat-label">Will chain profile fetch</span><span class="dr-bulk-stat-value">${eligible}</span></div>`,
+      sentinel > 0 ? `<div class="dr-bulk-stat"><span class="dr-bulk-stat-label">Sentinel</span><span class="dr-bulk-stat-value">${sentinel}</span></div>` : '',
+      below > 0    ? `<div class="dr-bulk-stat"><span class="dr-bulk-stat-label">Below threshold</span><span class="dr-bulk-stat-value">${below}</span></div>` : '',
+      unknown > 0  ? `<div class="dr-bulk-stat"><span class="dr-bulk-stat-label">Selected (other pages)</span><span class="dr-bulk-stat-value">${unknown}</span></div>` : '',
+    ].filter(Boolean).join('');
+
+    inspectorHandle.setTitle(`${n} collection titles selected`);
+    inspectorHandle.setContent(`
+      <div class="dr-bulk-inspector">
+        <div class="dr-bulk-stat"><span class="dr-bulk-stat-label">Selected</span><span class="dr-bulk-stat-value">${n}</span></div>
+        ${statLines}
+        <div class="dr-bulk-actions">
+          <button type="button" class="dr-btn dr-btn-primary" id="dr-coll-bulk-enqueue-btn">▶ Enqueue Selected</button>
+        </div>
+      </div>
+    `);
+    const pageEl  = containerEl.closest('.dr-page') ?? containerEl.parentElement;
+    const bulkBtn = pageEl?.querySelector('#dr-coll-bulk-enqueue-btn');
+    if (bulkBtn) bulkBtn.addEventListener('click', () => enqueueBtn.click());
+  }
+
   tableBody.addEventListener('change', e => {
     const cb = e.target.closest('.dr-coll-cb');
     if (!cb) return;
@@ -228,6 +290,7 @@ export function mountCollections(containerEl, {
     else            pivotState.selected.delete(id);
     renderFooter();
     updateSelectAll();
+    refreshBulkInspector();
   });
 
   if (selectAllCb) {
@@ -240,6 +303,7 @@ export function mountCollections(containerEl, {
       else                     enabledIds.forEach(id => c.selected.delete(id));
       renderTable();
       renderFooter();
+      refreshBulkInspector();
     });
   }
 
@@ -319,7 +383,10 @@ export function mountCollections(containerEl, {
 
   attachFilterHandlers(filterInput, filterClear, filterAuto,
     () => pivotState,
-    async () => { await loadPage(); }
+    async () => {
+      doUrlChange({ filter: pivotState.filter || null });
+      await loadPage();
+    }
   );
 
   // ── Public API ────────────────────────────────────────────────────
