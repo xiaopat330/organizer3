@@ -84,7 +84,10 @@ function buildHTML() {
   <div class="jd-header dis-header">
     <div class="dis-title-group">
       <span class="wb-page-title dis-page-title">Discovery</span>
-      <span class="dis-kpi-strip">Source: javdb</span>
+      <div class="dis-kpi-row">
+        <span class="dis-kpi-strip">Source: javdb</span>
+        <div id="jd-rate-limit-pill" class="jd-rate-limit-pill" style="display:none"></div>
+      </div>
     </div>
     <div class="jd-tabs">
       <button type="button" class="jd-tab jd-tab-enrich selected" data-jd-tab="enrich" title="Actress-driven enrichment">
@@ -112,55 +115,81 @@ function buildHTML() {
     </div>
   </div>
 
-  <div id="jd-rate-limit-banner" class="jd-rate-limit-banner" style="display:none"></div>
-
   <!-- ── Enrich tab body ───────────────────────────────────────────────── -->
-  <div class="jd-body">
-    <aside class="jd-sidebar" id="jd-sidebar">
-      <div class="jd-sidebar-header">Actresses</div>
-      <div id="jd-filter-bar" class="jd-filter-bar"></div>
-      <div id="jd-sort-bar" class="jd-sort-bar"></div>
-      <div class="jd-alpha-header">
-        <span class="jd-alpha-label">A–Z filter</span>
-        <button type="button" id="jd-controls-toggle" class="jd-controls-toggle collapsed" title="Toggle A–Z filter">▾</button>
+  <div class="jd-body enrich-wb-body">
+
+    <!-- Left column: context strip + actress workbench table -->
+    <div class="enrich-wb-table-col">
+      <!-- Context strip: filters, sort, A–Z -->
+      <div class="enrich-wb-context-strip">
+        <div class="enrich-wb-strip-row">
+          <div id="jd-filter-bar" class="jd-filter-bar enrich-wb-filter-bar"></div>
+          <div id="jd-sort-bar" class="jd-sort-bar enrich-wb-sort-bar"></div>
+        </div>
+        <div class="enrich-wb-az-row">
+          <span class="jd-alpha-label enrich-wb-az-label">A–Z</span>
+          <button type="button" id="jd-controls-toggle" class="jd-controls-toggle collapsed" title="Toggle A–Z filter">▾</button>
+          <div id="jd-controls" class="jd-controls collapsed">
+            <div id="jd-alpha-bar" class="jd-alpha-bar"></div>
+          </div>
+        </div>
       </div>
-      <div id="jd-controls" class="jd-controls collapsed">
-        <div id="jd-alpha-bar" class="jd-alpha-bar"></div>
+
+      <!-- Actress workbench table -->
+      <div class="enrich-wb-table-wrap wb-table-wrap">
+        <table class="enrich-wb-table wb-table" id="jd-actress-table">
+          <thead>
+            <tr>
+              <th>Actress</th>
+              <th class="num">Enriched</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody id="jd-actress-list"></tbody>
+        </table>
       </div>
-      <ul class="jd-actress-list" id="jd-actress-list"></ul>
+      <div class="jd-empty dis-empty enrich-wb-table-empty" id="jd-empty" style="display:none">◌<br>No actresses match the current filter.</div>
+    </div>
+
+    <!-- Right column: inspector pane -->
+    <aside class="enrich-wb-inspector" id="jd-actress-panel" style="display:none">
+      <div class="enrich-wb-inspector-head">
+        <div class="enrich-wb-inspector-title" id="enrich-wb-inspector-title">—</div>
+        <div class="enrich-wb-inspector-actions">
+          <button type="button" id="jd-enrich-btn" class="jd-action-btn jd-enrich-btn">▶ Enrich</button>
+          <button type="button" id="jd-cancel-actress-btn" class="jd-action-btn jd-muted-btn">⏹ Stop</button>
+          <button type="button" id="enrich-wb-close-btn" class="enrich-wb-close-btn" aria-label="Close inspector" title="Close (Esc)">×</button>
+        </div>
+      </div>
+      <div class="jd-subnav">
+        <button type="button" class="jd-subtab selected" data-tab="titles">
+          <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="20" height="20" rx="2"/><line x1="2" y1="12" x2="22" y2="12"/></svg>
+          Titles
+        </button>
+        <button type="button" class="jd-subtab" data-tab="profile">
+          <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 20v-1a8 8 0 0 1 16 0v1"/></svg>
+          Profile
+        </button>
+        <button type="button" class="jd-subtab" data-tab="conflicts">
+          <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+          Conflicts
+        </button>
+        <button type="button" class="jd-subtab" data-tab="errors">
+          <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          Errors
+        </button>
+      </div>
+      <div class="jd-titles-action-bar" id="jd-titles-action-bar" style="display:none"></div>
+      <div class="jd-subview" id="jd-subview-titles"></div>
+      <div class="jd-subview" id="jd-subview-profile" style="display:none"></div>
+      <div class="jd-subview" id="jd-subview-conflicts" style="display:none"></div>
+      <div class="jd-subview" id="jd-subview-errors" style="display:none"></div>
     </aside>
 
-    <section class="jd-detail" id="jd-detail">
-      <div class="jd-empty dis-empty" id="jd-empty">◌<br>Select an actress to view enrichment status.</div>
-      <div class="jd-actress-panel" id="jd-actress-panel" style="display:none">
-        <div class="jd-subnav">
-          <button type="button" class="jd-subtab selected" data-tab="titles">
-            <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="20" height="20" rx="2"/><line x1="2" y1="12" x2="22" y2="12"/></svg>
-            Titles
-          </button>
-          <button type="button" class="jd-subtab" data-tab="profile">
-            <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 20v-1a8 8 0 0 1 16 0v1"/></svg>
-            Profile
-          </button>
-          <button type="button" class="jd-subtab" data-tab="conflicts">
-            <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-            Conflicts
-          </button>
-          <button type="button" class="jd-subtab" data-tab="errors">
-            <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-            Errors
-          </button>
-        </div>
-        <div class="jd-titles-action-bar" id="jd-titles-action-bar">
-          <button type="button" id="jd-enrich-btn" class="jd-action-btn jd-enrich-btn">▶ Enrich New Titles</button>
-          <button type="button" id="jd-cancel-actress-btn" class="jd-action-btn jd-muted-btn">⏹ Stop Enrichment</button>
-        </div>
-        <div class="jd-subview" id="jd-subview-titles"></div>
-        <div class="jd-subview" id="jd-subview-profile" style="display:none"></div>
-        <div class="jd-subview" id="jd-subview-conflicts" style="display:none"></div>
-        <div class="jd-subview" id="jd-subview-errors" style="display:none"></div>
-      </div>
-    </section>
+    <!-- Empty-selection state shown when inspector is closed -->
+    <div class="enrich-wb-no-selection dis-empty" id="enrich-wb-no-selection">
+      ◌<br>Select an actress to view enrichment details.
+    </div>
   </div>
 
   <!-- ── Titles tab body ───────────────────────────────────────────────── -->
@@ -268,16 +297,6 @@ function buildHTML() {
 
 </div>
 
-<!-- ── Enrichment detail modal (document-level) ──────────────────────────── -->
-<div id="jd-enrich-modal-overlay" class="jd-enrich-modal-overlay" style="display:none">
-  <div class="jd-enrich-modal" role="dialog" aria-modal="true">
-    <div class="jd-enrich-modal-header">
-      <div id="jd-enrich-modal-heading" class="jd-enrich-modal-heading"></div>
-      <button class="jd-enrich-modal-close" id="jd-enrich-modal-close" aria-label="Close">✕</button>
-    </div>
-    <div id="jd-enrich-modal-body" class="jd-enrich-modal-body"></div>
-  </div>
-</div>
   `;
 }
 
@@ -291,7 +310,7 @@ export async function mountDiscovery(rootEl) {
   state = createState();
 
   // DOM refs (resolved after innerHTML set).
-  const rateLimitBanner  = document.getElementById('jd-rate-limit-banner');
+  const rateLimitPill    = document.getElementById('jd-rate-limit-pill');
   const aiAssistPill     = document.getElementById('jd-ai-assist-pill');
   const pauseBtn         = document.getElementById('jd-pause-btn');
   const cancelAllBtn    = document.getElementById('jd-cancel-all-btn');
@@ -316,9 +335,45 @@ export async function mountDiscovery(rootEl) {
     navigateToActress: (id) => enrichApi.navigateToActress(id),
   };
 
+  // ── Inspector close + ESC ─────────────────────────────────────────────
+
+  const inspectorPanel  = document.getElementById('jd-actress-panel');
+  const noSelectionMsg  = document.getElementById('enrich-wb-no-selection');
+  const inspectorTitle  = document.getElementById('enrich-wb-inspector-title');
+  const inspectorClose  = document.getElementById('enrich-wb-close-btn');
+
+  function closeInspector() {
+    state.selectedId = null;
+    if (inspectorPanel)  inspectorPanel.style.display  = 'none';
+    if (noSelectionMsg)  noSelectionMsg.style.display  = '';
+    // Remove table row selection highlight.
+    document.querySelectorAll('#jd-actress-list tr.selected')
+      .forEach(tr => tr.classList.remove('selected'));
+  }
+
+  if (inspectorClose) {
+    inspectorClose.addEventListener('click', closeInspector);
+  }
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key !== 'Escape') return;
+    if (e.defaultPrevented) return;
+    // Only close inspector if no stacked overlay is visible.
+    const epModal = document.querySelector('.jd-ep-modal-overlay');
+    if (epModal && epModal.style.display !== 'none') return;
+    const coverOverlay = document.querySelector('.jd-cover-overlay');
+    if (coverOverlay) return;
+    const peekBackdrop = document.getElementById('jd-peek-backdrop');
+    if (peekBackdrop) return;
+    if (state.selectedId !== null) {
+      e.preventDefault();
+      closeInspector();
+    }
+  });
+
   // ── Init subtab modules ───────────────────────────────────────────────
 
-  enrichApi      = initEnrich(state, hooks);
+  enrichApi      = initEnrich(state, hooks, { inspectorPanel, noSelectionMsg, inspectorTitle });
   titlesApi      = initTitles(state);
   collectionsApi = initCollections(state);
   queueApi       = initQueue(state, hooks);
@@ -383,25 +438,24 @@ export async function mountDiscovery(rootEl) {
         const resumeTime = new Date(rateLimitPausedUntil);
         const resumeStr = resumeTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
         if (pauseType === 'burst') {
-          rateLimitBanner.className = 'jd-rate-limit-banner jd-banner-burst';
-          rateLimitBanner.innerHTML =
-            `↻ Taking a burst break — resuming at <span class="jd-banner-time">${esc(resumeStr)}</span>. ` +
-            `<button type="button" class="jd-banner-resume-btn" id="jd-force-resume-btn">▶ Resume Now</button>`;
+          rateLimitPill.className = 'jd-rate-limit-pill jd-rl-pill-burst';
+          rateLimitPill.innerHTML =
+            `<span class="jd-rl-pill-icon">↻</span>` +
+            `<span class="jd-rl-pill-text">Burst break — resumes <span class="jd-rl-pill-time">${esc(resumeStr)}</span></span>` +
+            `<button type="button" class="jd-rl-pill-resume" id="jd-force-resume-btn">▶</button>`;
         } else {
           const reason = rateLimitPauseReason || 'Rate limited';
-          const hitNote = consecutiveRateLimitHits > 1
-            ? ` (${consecutiveRateLimitHits} consecutive hits — pause doubled each time)`
-            : '';
-          rateLimitBanner.className = 'jd-rate-limit-banner jd-banner-rate-limit';
-          rateLimitBanner.innerHTML =
-            `⚠ Rate limited — ${esc(reason)}${esc(hitNote)}. Resuming at <strong class="jd-banner-time">${esc(resumeStr)}</strong>. ` +
-            `<span class="jd-banner-hint">Switch VPN then </span>` +
-            `<button type="button" class="jd-banner-resume-btn" id="jd-force-resume-btn">▶ Resume Now</button>`;
+          const hitNote = consecutiveRateLimitHits > 1 ? ` ×${consecutiveRateLimitHits}` : '';
+          rateLimitPill.className = 'jd-rate-limit-pill jd-rl-pill-limited';
+          rateLimitPill.innerHTML =
+            `<span class="jd-rl-pill-icon">⚠</span>` +
+            `<span class="jd-rl-pill-text">${esc(reason)}${esc(hitNote)} — resumes <span class="jd-rl-pill-time">${esc(resumeStr)}</span></span>` +
+            `<button type="button" class="jd-rl-pill-resume" id="jd-force-resume-btn">▶ Resume</button>`;
         }
-        rateLimitBanner.style.display = '';
+        rateLimitPill.style.display = '';
         document.getElementById('jd-force-resume-btn')?.addEventListener('click', forceResume);
       } else {
-        rateLimitBanner.style.display = 'none';
+        rateLimitPill.style.display = 'none';
       }
 
       if (activeTotal > 0 || state.lastActiveTotal > 0) {

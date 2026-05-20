@@ -1305,3 +1305,282 @@ button.jd-status:hover { filter: brightness(1.15); }
   margin: 0;
   flex: 1;
 }
+
+/* ── Bucket 2: Enrich tab workbench-table + inspector layout ─────────────── */
+
+/* Enrich tab body: override the old sidebar+detail flex layout */
+.jd-body.enrich-wb-body {
+  display: grid;
+  grid-template-columns: minmax(280px, 340px) 1fr;
+  grid-template-rows: 1fr;
+  overflow: hidden;
+}
+
+/* Left column: context strip + table */
+.enrich-wb-table-col {
+  grid-column: 1;
+  grid-row: 1;
+  display: flex;
+  flex-direction: column;
+  border-right: 1px solid var(--border);
+  overflow: hidden;
+  min-height: 0;
+}
+
+/* Context strip above the actress table */
+.enrich-wb-context-strip {
+  flex-shrink: 0;
+  background: var(--bg-panel);
+  border-bottom: 1px solid var(--border);
+}
+
+.enrich-wb-strip-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 5px 8px;
+  flex-wrap: wrap;
+}
+
+/* Inline filter+sort bars inside context strip — override sidebar-specific margins */
+.enrich-wb-filter-bar {
+  flex: 1;
+  border: none;
+  background: none;
+  padding: 0;
+  margin: 0;
+  border-bottom: none;
+}
+
+.enrich-wb-sort-bar {
+  flex-shrink: 0;
+  padding: 0;
+  border: none;
+  background: none;
+}
+
+.enrich-wb-az-row {
+  display: flex;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  padding: 4px 8px 4px 14px;
+  gap: 4px;
+  border-top: 1px solid var(--border);
+}
+
+/* Controls panel (A–Z bar) sits inline below the label row */
+.enrich-wb-az-row .jd-controls {
+  width: 100%;
+  flex-basis: 100%;
+  padding: 4px 0 2px;
+}
+
+.enrich-wb-az-row .jd-controls.collapsed {
+  display: none;
+}
+
+.enrich-wb-az-label {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-faint);
+  flex-shrink: 0;
+}
+
+/* Actress workbench table wrapper */
+.enrich-wb-table-wrap {
+  flex: 1;
+  overflow-y: auto;
+  min-height: 0;
+  border-radius: 0;
+  border: none;
+  border-right: none;
+}
+
+/* Actress name cell layout */
+.enrich-wb-name-cell {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+  overflow: hidden;
+  max-width: 200px;
+}
+.enrich-wb-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.enrich-wb-count-cell {
+  white-space: nowrap;
+  color: var(--text-dim);
+}
+
+/* Status pill in table */
+.enrich-wb-status {
+  display: inline-block;
+  font-size: 10.5px;
+  font-weight: 600;
+  padding: 1px 7px;
+  border-radius: 10px;
+  white-space: nowrap;
+}
+.enrich-status-done    { background: rgba(110,231,183,0.12); color: var(--ok); }
+.enrich-status-queued  { background: rgba(251,191,36,0.12);  color: var(--warn); }
+.enrich-status-partial { background: var(--accent-bg);        color: var(--accent-fg); }
+.enrich-status-none    { color: var(--text-faint); background: none; }
+
+/* Table-empty message (zero results) */
+.enrich-wb-table-empty {
+  min-height: 120px;
+  padding: 24px;
+  font-size: 12px;
+}
+
+/* ── Inspector (right pane) ─────────────────────────────────────────────── */
+
+.enrich-wb-inspector-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-panel);
+  flex-shrink: 0;
+}
+
+.enrich-wb-inspector-title {
+  flex: 1;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.enrich-wb-inspector-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+/* Close button */
+.enrich-wb-close-btn {
+  background: none;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+  color: var(--text-faint);
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 1;
+  padding: 2px 7px;
+  transition: color var(--dur-fast), border-color var(--dur-fast), background var(--dur-fast);
+}
+.enrich-wb-close-btn:hover {
+  color: var(--text);
+  border-color: var(--border-strong);
+  background: var(--bg-hover);
+}
+
+/* No-selection empty state — occupies right (inspector) column */
+.enrich-wb-no-selection {
+  grid-column: 2;
+  grid-row: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 200px;
+  color: var(--text-faint);
+  font-size: 13px;
+  font-style: italic;
+  text-align: center;
+  gap: 8px;
+  padding: 32px;
+  line-height: 1.6;
+}
+
+/* Inspector: right column, full height, flex column */
+.enrich-wb-inspector {
+  grid-column: 2;
+  grid-row: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--bg);
+  min-height: 0;
+}
+
+/* ── Rate-limit status pill (context-strip / header) ─────────────────────── */
+
+.dis-kpi-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.jd-rate-limit-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 11px;
+  font-weight: 500;
+  white-space: nowrap;
+  line-height: 1.4;
+}
+
+.jd-rl-pill-burst {
+  background: var(--accent-bg);
+  border: 1px solid rgba(147,197,253,0.3);
+  color: var(--accent);
+}
+
+.jd-rl-pill-limited {
+  background: rgba(251,191,36,0.08);
+  border: 1px solid rgba(251,191,36,0.3);
+  color: var(--warn);
+}
+
+.jd-rl-pill-icon { flex-shrink: 0; }
+.jd-rl-pill-text { flex: 1; }
+.jd-rl-pill-time { font-weight: 700; }
+
+.jd-rl-pill-resume {
+  background: transparent;
+  border: 1px solid currentColor;
+  border-radius: var(--radius);
+  color: inherit;
+  cursor: pointer;
+  font-size: 10px;
+  font-weight: 600;
+  padding: 1px 6px;
+  opacity: 0.85;
+  transition: opacity var(--dur-fast), background var(--dur-fast);
+}
+.jd-rl-pill-resume:hover { opacity: 1; background: rgba(255,255,255,0.08); }
+.jd-rl-pill-resume:disabled { opacity: 0.4; cursor: not-allowed; }
+
+/* ── Backdrop blur on transient overlays ─────────────────────────────────── */
+
+/* Cover lightbox */
+.jd-cover-overlay {
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+}
+
+/* Title peek modal backdrop */
+.jd-peek-backdrop {
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+}
+
+/* Per-actress title enrichment detail modal (from enrich-panels.js) */
+.jd-ep-modal-overlay {
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+}
