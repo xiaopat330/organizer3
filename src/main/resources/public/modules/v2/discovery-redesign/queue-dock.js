@@ -203,17 +203,34 @@ export function mountQueueDock(containerEl, { expanded, onExpandChange, onNaviga
 
   /**
    * Update the ticker text from a QueueStatus object.
+   *
+   * Collapsed-state copy rules (per D1):
+   *   inFlight > 0         → "N in flight · top: {code} · ETA ~Xs"
+   *   inFlight=0, pending  → "M pending"
+   *   inFlight=0, failed   → "K failed"
+   *   all zero             → "No jobs running"
+   *
    * @param {object} status
    */
   function updateSummary(status) {
     _lastStatus = status;
     if (!status) return;
-    const parts = [];
-    if (status.inFlight > 0) parts.push(`${status.inFlight} in-flight`);
-    if (status.pending  > 0) parts.push(`${status.pending} pending`);
-    if (status.failed   > 0) parts.push(`${status.failed} failed`);
-    if (status.paused)       parts.push('paused');
-    tickerEl.textContent = parts.length > 0 ? parts.join(' · ') : '— idle —';
+
+    if (status.inFlight > 0) {
+      const parts = [`${status.inFlight} in flight`];
+      if (status.topJobCode) parts.push(`top: ${status.topJobCode}`);
+      if (status.etaSeconds != null && status.etaSeconds > 0) {
+        parts.push(`ETA ~${status.etaSeconds}s`);
+      }
+      if (status.pending > 0) parts.push(`${status.pending} pending`);
+      tickerEl.textContent = parts.join(' · ');
+    } else if (status.pending > 0) {
+      tickerEl.textContent = `${status.pending} pending`;
+    } else if (status.failed > 0) {
+      tickerEl.textContent = `${status.failed} failed`;
+    } else {
+      tickerEl.textContent = 'No jobs running';
+    }
   }
 
   // ── Items table render ────────────────────────────────────────────

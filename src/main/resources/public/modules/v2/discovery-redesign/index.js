@@ -94,7 +94,7 @@ export function mountDiscoveryRedesign(rootEl) {
       // Switch to actresses pivot and navigate.
       if (state.currentPivot !== 'actresses') {
         state.currentPivot = 'actresses';
-        pivotStrip.setActivePivot('actresses');
+        pivotStrip.setPivot('actresses');
         writeUrlParams({ pivot: 'actresses', queueDockExpanded: state.queueDockExpanded, push: true });
         mountCurrentPivot();
       }
