@@ -149,12 +149,21 @@ export function mountDiscoveryRedesign(rootEl) {
           pivotState:       state.actresses,
           selection:        state.selection,
           onSelectionChange(_ids) {
-            // URL write is deferred to inspector interactions.
+            // URL write is delegated to onUrlChange.
           },
           inspectorHandle,
           refreshQueue:     () => poller.forceSummary(),
           initialActressId: state.initialActressId,
           initialPanel:     state.initialPanel,
+          onUrlChange({ id = null, panel = null, push = false } = {}) {
+            writeUrlParams({
+              pivot: 'actresses',
+              queueDockExpanded: state.queueDockExpanded,
+              actressId: id,
+              panel,
+              push,
+            });
+          },
         });
         _currentPivotHandle.load();
         break;
@@ -165,6 +174,15 @@ export function mountDiscoveryRedesign(rootEl) {
           inspectorHandle,
           initialPool:   state.initialPool,
           initialFilter: state.initialFilter,
+          onUrlChange({ code = null, pool = null, filter = null } = {}) {
+            writeUrlParams({
+              pivot: 'titles',
+              queueDockExpanded: state.queueDockExpanded,
+              code,
+              pool,
+              filter,
+            });
+          },
         });
         _currentPivotHandle.load();
         break;
@@ -174,6 +192,14 @@ export function mountDiscoveryRedesign(rootEl) {
           pivotState:    state.collections,
           inspectorHandle,
           initialFilter: state.initialFilter,
+          onUrlChange({ code = null, filter = null } = {}) {
+            writeUrlParams({
+              pivot: 'collections',
+              queueDockExpanded: state.queueDockExpanded,
+              code,
+              filter,
+            });
+          },
         });
         _currentPivotHandle.load();
         break;
