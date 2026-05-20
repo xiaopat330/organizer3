@@ -195,6 +195,59 @@ class MergeActressesToolTest {
         assertEquals(into, resolved.get().getId(), "must resolve to the surviving actress");
     }
 
+    // ── actress_companies migration ─────────────────────────────────────────
+
+    @Test
+    void executeMigratesActressCompaniesAndCascadesFromRow() throws Exception {
+        long into = actressRepo.save(mk("Nami Aino")).getId();
+        long from = actressRepo.save(mk("Aino Nami")).getId();
+
+        // into already has "Studio A"; from has "Studio A" (dup) + "Studio B" (new)
+        jdbi.useHandle(h -> {
+            h.execute("INSERT INTO actress_companies (actress_id, company) VALUES (?, ?)", into, "Studio A");
+            h.execute("INSERT INTO actress_companies (actress_id, company) VALUES (?, ?)", from, "Studio A");
+            h.execute("INSERT INTO actress_companies (actress_id, company) VALUES (?, ?)", from, "Studio B");
+        });
+
+        tool.call(args(into, from, false));
+
+        List<String> intoCompanies = jdbi.withHandle(h ->
+                h.createQuery("SELECT company FROM actress_companies WHERE actress_id = ?")
+                        .bind(0, into).mapTo(String.class).list());
+
+        assertTrue(intoCompanies.contains("Studio A"), "into should retain Studio A");
+        assertTrue(intoCompanies.contains("Studio B"), "into should gain Studio B from from");
+        assertEquals(2, intoCompanies.size(), "no duplicate companies on into");
+        assertTrue(actressRepo.findById(from).isEmpty(), "from actress row deleted");
+    }
+
+    @Test
+    void dryRunReportsActressCompaniesMigrationCount() throws Exception {
+        long into = actressRepo.save(mk("Nami Aino")).getId();
+        long from = actressRepo.save(mk("Aino Nami")).getId();
+
+        jdbi.useHandle(h -> {
+            h.execute("INSERT INTO actress_companies (actress_id, company) VALUES (?, ?)", into, "Studio A");
+            h.execute("INSERT INTO actress_companies (actress_id, company) VALUES (?, ?)", from, "Studio A");
+            h.execute("INSERT INTO actress_companies (actress_id, company) VALUES (?, ?)", from, "Studio B");
+        });
+
+        var r = (MergeActressesTool.Result) tool.call(args(into, from, true));
+        assertTrue(r.dryRun());
+
+        long companiesChange = r.plan().changes().stream()
+                .filter(c -> "actress_companies".equals(c.table()) && "insert".equals(c.op()))
+                .mapToLong(MergeActressesTool.Change::rows)
+                .sum();
+        assertEquals(1, companiesChange, "dry-run plan should report 1 net-new company for into");
+
+        // Confirm no mutation occurred
+        long fromCount = jdbi.withHandle(h ->
+                h.createQuery("SELECT COUNT(*) FROM actress_companies WHERE actress_id = ?")
+                        .bind(0, from).mapTo(Long.class).one());
+        assertEquals(2, fromCount, "from's companies must not be touched in dry-run");
+    }
+
     // ── false-positive guard ────────────────────────────────────────────────
 
     @Test

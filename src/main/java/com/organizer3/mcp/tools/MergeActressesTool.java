@@ -249,6 +249,12 @@ public class MergeActressesTool implements Tool {
                   )
                 """).bind("from", fromId).bind("into", intoId).mapTo(Integer.class).one();
 
+        int companiesMigrate = h.createQuery("""
+                SELECT COUNT(*) FROM actress_companies
+                WHERE actress_id = :from
+                  AND company NOT IN (SELECT company FROM actress_companies WHERE actress_id = :into)
+                """).bind("from", fromId).bind("into", intoId).mapTo(Integer.class).one();
+
         List<Change> changes = new ArrayList<>();
         changes.add(new Change("update", "titles", titlesReassigned,
                 "actress_id = " + fromId, "actress_id = " + intoId));
@@ -263,6 +269,9 @@ public class MergeActressesTool implements Tool {
                 "actress_id = " + intoId));
         changes.add(new Change("delete", "actress_aliases", aliasDropDup + aliasMigrate,
                 "actress_id = " + fromId, null));
+        changes.add(new Change("insert", "actress_companies", companiesMigrate,
+                "from actress_companies where actress_id = " + fromId + " (new to into)",
+                "actress_id = " + intoId));
         changes.add(new Change("update", "actresses", 1,
                 "id = " + intoId, "flags merged per policy"));
         changes.add(new Change("delete", "actresses", 1,
@@ -364,10 +373,17 @@ public class MergeActressesTool implements Tool {
                 merged.grade == null ? "null" : merged.grade.name(),
                 merged.rejected, merged.visitCount);
 
-        // 6. Delete from's row
+        // 6. Migrate from's actress_companies to into before cascade-delete wipes them
+        int companiesMigrated = h.createUpdate("""
+                INSERT OR IGNORE INTO actress_companies (actress_id, company)
+                SELECT :into, company FROM actress_companies WHERE actress_id = :from
+                """).bind("into", intoId).bind("from", fromId).execute();
+        log.info("ActressMerge step 6: actress_companies migrated — inserted={}", companiesMigrated);
+
+        // 7. Delete from's row (actress_companies for :from cascades away cleanly)
         h.createUpdate("DELETE FROM actresses WHERE id = :from")
                 .bind("from", fromId).execute();
-        log.info("ActressMerge step 6: deleted source actress id={}", fromId);
+        log.info("ActressMerge step 7: deleted source actress id={}", fromId);
     }
 
     // ── flag merge policy ───────────────────────────────────────────────────
