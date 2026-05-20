@@ -380,7 +380,15 @@ public class MergeActressesTool implements Tool {
                 """).bind("into", intoId).bind("from", fromId).execute();
         log.info("ActressMerge step 6: actress_companies migrated — inserted={}", companiesMigrated);
 
-        // 7. Delete from's row (actress_companies for :from cascades away cleanly)
+        // 6b. Explicitly clear from's actress_companies rows. We cannot rely on
+        // ON DELETE CASCADE because PRAGMA foreign_keys is OFF in production
+        // (observed 169 orphaned actress_companies rows in the wild).
+        int companiesDeleted = h.createUpdate(
+                "DELETE FROM actress_companies WHERE actress_id = :from")
+                .bind("from", fromId).execute();
+        log.info("ActressMerge step 6b: actress_companies cleared from from-row — deleted={}", companiesDeleted);
+
+        // 7. Delete from's row
         h.createUpdate("DELETE FROM actresses WHERE id = :from")
                 .bind("from", fromId).execute();
         log.info("ActressMerge step 7: deleted source actress id={}", fromId);

@@ -222,6 +222,36 @@ class MergeActressesToolTest {
     }
 
     @Test
+    void executeDeletesActressCompaniesEvenWhenForeignKeysOff() throws Exception {
+        // Production DB runs with PRAGMA foreign_keys = OFF; merge must not rely on cascade.
+        jdbi.useHandle(h -> h.execute("PRAGMA foreign_keys = OFF"));
+
+        long into = actressRepo.save(mk("Nami Aino")).getId();
+        long from = actressRepo.save(mk("Aino Nami")).getId();
+
+        jdbi.useHandle(h -> {
+            h.execute("INSERT INTO actress_companies (actress_id, company) VALUES (?, ?)", from, "Studio A");
+            h.execute("INSERT INTO actress_companies (actress_id, company) VALUES (?, ?)", from, "Studio B");
+        });
+
+        tool.call(args(into, from, false));
+
+        long fromRows = jdbi.withHandle(h ->
+                h.createQuery("SELECT COUNT(*) FROM actress_companies WHERE actress_id = ?")
+                        .bind(0, from).mapTo(Long.class).one());
+        assertEquals(0, fromRows, "from's actress_companies rows must be deleted explicitly (no cascade reliance)");
+
+        List<String> intoCompanies = jdbi.withHandle(h ->
+                h.createQuery("SELECT company FROM actress_companies WHERE actress_id = ?")
+                        .bind(0, into).mapTo(String.class).list());
+        assertTrue(intoCompanies.contains("Studio A"), "into should have migrated Studio A");
+        assertTrue(intoCompanies.contains("Studio B"), "into should have migrated Studio B");
+        assertEquals(2, intoCompanies.size());
+
+        assertTrue(actressRepo.findById(from).isEmpty(), "from actress row deleted");
+    }
+
+    @Test
     void dryRunReportsActressCompaniesMigrationCount() throws Exception {
         long into = actressRepo.save(mk("Nami Aino")).getId();
         long from = actressRepo.save(mk("Aino Nami")).getId();
