@@ -1216,7 +1216,8 @@ public class Application {
                     .register(new com.organizer3.mcp.tools.BackfillSizesBatchTool(session, videoRepo))
                     .register(new com.organizer3.mcp.tools.StartProbeJobTool(session, probeJobRunner))
                     .register(new com.organizer3.mcp.tools.ProbeJobStatusTool(probeJobRunner))
-                    .register(new com.organizer3.mcp.tools.CancelProbeJobTool(probeJobRunner));
+                    .register(new com.organizer3.mcp.tools.CancelProbeJobTool(probeJobRunner))
+                    .register(new com.organizer3.mcp.tools.VerifyActressTitlesViaJavdbTool(actressRepo, titleRepo, javdbClient));
             if (mcpConfig.networkOpsAllowed()) {
                 mcpTools.register(new com.organizer3.mcp.tools.MountVolumeTool(session, smbjConnector, indexLoader));
                 mcpTools.register(new com.organizer3.mcp.tools.UnmountVolumeTool(session));
