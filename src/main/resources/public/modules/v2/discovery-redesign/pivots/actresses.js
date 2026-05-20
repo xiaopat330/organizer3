@@ -438,8 +438,21 @@ export function mountActresses(containerEl, {
       selection.clear();
       selection.add(id);
       _lastClickedIdx = idx;
-      // Single-select: push URL history so back-button works per §4.5.
-      doUrlChange({ id, panel: activeInspectorTab, push: true });
+      // Single-select: replaceState (not push) — clicking around actresses
+      // shouldn't flood history; back-button navigates away from the pivot.
+      doUrlChange({ id, panel: activeInspectorTab });
+    }
+
+    // For multi-select (shift/ctrl), sync URL: clear id if >1 selected,
+    // write remaining id if exactly 1, or null if 0.
+    if (e.shiftKey || e.metaKey || e.ctrlKey) {
+      if (selection.size > 1) {
+        doUrlChange({ id: null, panel: null });
+      } else if (selection.size === 1) {
+        doUrlChange({ id: Array.from(selection)[0], panel: activeInspectorTab });
+      } else {
+        doUrlChange({ id: null, panel: null });
+      }
     }
 
     highlightSelection();
@@ -1590,6 +1603,12 @@ export function mountActresses(containerEl, {
     renderFilterBar();
     renderSortBar();
     renderActressList();
+    // Auto-select actress from ?id= URL param on first load.
+    if (initialActressId != null) {
+      const id = initialActressId;
+      initialActressId = null; // consume once — don't re-trigger on pivot re-mounts
+      await navigateToActress(id, initialPanel || 'titles');
+    }
   }
 
   // ── Public API ────────────────────────────────────────────────────
@@ -1615,7 +1634,7 @@ export function mountActresses(containerEl, {
     onSelectionChange([id]);
     activeInspectorId = null; // force refresh
     activeInspectorTab = tab || 'titles';
-    doUrlChange({ id, panel: activeInspectorTab, push: true });
+    doUrlChange({ id, panel: activeInspectorTab });
     await showActressInspector(id, activeInspectorTab);
     // Scroll into view.
     const li = actressListEl.querySelector(`.dr-actress-item[data-id="${id}"]`);
