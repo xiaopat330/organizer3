@@ -423,6 +423,12 @@ Exits the application. Ctrl+D also exits gracefully.
 
 ---
 
+## Discovery Workbench (Web UI)
+
+The Discovery Workbench at `/v2/discovery` is the primary curation surface. It presents a three-pivot layout — Actresses, Titles, and Collections — with a resizable inspector panel and a collapsible queue dock. Selecting one or more rows opens the inspector with enrichment controls, eligibility rollups, and enqueue actions. Deep-link URL parameters (`id`, `panel`, `code`, `pool`, `filter`) allow bookmarking or sharing a specific view. The legacy surface at `/v2-discovery.html` remains active during transition; both paths are accessible from the navigation rail.
+
+---
+
 ## Volumes Reference
 
 | ID | SMB Path | Structure | Content |
