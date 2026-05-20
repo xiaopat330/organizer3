@@ -320,6 +320,10 @@ public class WebServer {
                                 WatchHistoryRepository watchHistoryRepo,
                                 TitleRepository titleRepo,
                                 SearchService searchService) {
+        // ── Page aliases — pretty URLs for v2 surfaces served as static HTML ──
+        // /v2/discovery aliases /v2-discovery-redesign.html (D6: coexists with /v2-discovery.html)
+        app.get("/v2/discovery", ctx -> ctx.redirect("/v2-discovery-redesign.html"));
+
         app.get("/api/config", ctx -> {
             var cfg = AppConfig.get().volumes();
             String appName = cfg.appName();
