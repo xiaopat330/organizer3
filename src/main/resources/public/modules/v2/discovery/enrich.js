@@ -84,13 +84,15 @@ function makeBucket(letter, fromSecond, toSecond) {
   };
 }
 
-export function initEnrich(state, hooks) {
+export function initEnrich(state, hooks, inspectorRefs = {}) {
   const alphaBar          = document.getElementById('jd-alpha-bar');
   const filterBar         = document.getElementById('jd-filter-bar');
   const sortBar           = document.getElementById('jd-sort-bar');
   const actressList       = document.getElementById('jd-actress-list');
   const emptyMsg          = document.getElementById('jd-empty');
-  const panel             = document.getElementById('jd-actress-panel');
+  const panel             = inspectorRefs.inspectorPanel ?? document.getElementById('jd-actress-panel');
+  const noSelectionMsg    = inspectorRefs.noSelectionMsg  ?? null;
+  const inspectorTitle    = inspectorRefs.inspectorTitle  ?? null;
   const enrichBtn         = document.getElementById('jd-enrich-btn');
   const cancelActressBtn  = document.getElementById('jd-cancel-actress-btn');
   const titlesActionBar   = document.getElementById('jd-titles-action-bar');
@@ -184,16 +186,18 @@ export function initEnrich(state, hooks) {
       const first = visible[0] ?? null;
       if (first) {
         state.selectedId = first.id;
-        emptyMsg.style.display = 'none';
-        panel.style.display = '';
+        showInspector(first);
         await renderActiveTab();
       } else {
         state.selectedId = null;
-        emptyMsg.style.display = '';
-        panel.style.display = 'none';
+        hideInspector();
       }
     }
     renderActressList();
+    // Show/hide the table-empty message.
+    if (emptyMsg) {
+      emptyMsg.style.display = visible.length === 0 ? '' : 'none';
+    }
   }
 
   function renderAlphaBar() {
@@ -275,6 +279,23 @@ export function initEnrich(state, hooks) {
     sortBar.appendChild(dirBtn);
   }
 
+  // ── Inspector show/hide helpers ──────────────────────────────────────
+
+  function showInspector(actress) {
+    if (inspectorTitle) {
+      inspectorTitle.textContent = actress?.canonicalName ?? '—';
+    }
+    if (noSelectionMsg) noSelectionMsg.style.display = 'none';
+    if (panel) panel.style.display = '';
+  }
+
+  function hideInspector() {
+    if (panel) panel.style.display = 'none';
+    if (noSelectionMsg) noSelectionMsg.style.display = '';
+  }
+
+  // ────────────────────────────────────────────────────────────────────
+
   function actressStatusDot(a) {
     if (a.activeJobs > 0) {
       return `<span class="jd-dot jd-dot-queued" title="${a.activeJobs} job${a.activeJobs !== 1 ? 's' : ''} in queue"></span>`;
@@ -288,35 +309,37 @@ export function initEnrich(state, hooks) {
     return '<span class="jd-dot jd-dot-none" title="Not started"></span>';
   }
 
+  function actressStatusLabel(a) {
+    if (a.activeJobs > 0) return { text: `${a.activeJobs} queued`, cls: 'enrich-status-queued' };
+    if (a.enrichedTitles === a.totalTitles && a.totalTitles > 0) return { text: 'Done', cls: 'enrich-status-done' };
+    if (a.enrichedTitles > 0) return { text: 'Partial', cls: 'enrich-status-partial' };
+    return { text: '—', cls: 'enrich-status-none' };
+  }
+
   function renderActressList() {
     actressList.innerHTML = '';
-    for (const a of filteredActresses()) {
-      const li = document.createElement('li');
-      li.className = 'jd-actress-item';
-      li.dataset.id = a.id;
+    const sorted = filteredActresses();
+    for (const a of sorted) {
+      const tr = document.createElement('tr');
+      tr.dataset.id = a.id;
+      if (Number(a.id) === state.selectedId) tr.classList.add('selected');
 
-      const enrichedPct = a.totalTitles > 0
-        ? Math.round((a.enrichedTitles / a.totalTitles) * 100)
-        : 0;
+      const dot = actressStatusDot(a);
+      const status = actressStatusLabel(a);
 
-      const statusDot = actressStatusDot(a);
-
-      li.innerHTML = `
-        <span class="jd-actress-name">${statusDot}${esc(a.canonicalName)}</span>
-        <span class="jd-actress-counts">${a.enrichedTitles}/${a.totalTitles} (${enrichedPct}%)</span>
+      tr.innerHTML = `
+        <td class="enrich-wb-name-cell">${dot}<span class="enrich-wb-name">${esc(a.canonicalName)}</span></td>
+        <td class="num enrich-wb-count-cell">${a.enrichedTitles}/${a.totalTitles}</td>
+        <td><span class="enrich-wb-status ${status.cls}">${status.text}</span></td>
       `;
-      li.addEventListener('click', () => selectActress(a.id));
-      actressList.appendChild(li);
-    }
-
-    if (state.selectedId !== null) {
-      highlightSelected(state.selectedId);
+      tr.addEventListener('click', () => selectActress(a.id));
+      actressList.appendChild(tr);
     }
   }
 
   function highlightSelected(id) {
-    actressList.querySelectorAll('.jd-actress-item').forEach(li => {
-      li.classList.toggle('selected', Number(li.dataset.id) === id);
+    actressList.querySelectorAll('tr[data-id]').forEach(tr => {
+      tr.classList.toggle('selected', Number(tr.dataset.id) === id);
     });
   }
 
@@ -327,8 +350,8 @@ export function initEnrich(state, hooks) {
     if (titlesView) titlesView.innerHTML = '';
     titlesHandle = null;
     highlightSelected(id);
-    emptyMsg.style.display = 'none';
-    panel.style.display = '';
+    const actress = state.actresses.find(a => a.id === id) ?? null;
+    showInspector(actress);
     await renderActiveTab();
   }
 
@@ -964,8 +987,8 @@ export function initEnrich(state, hooks) {
     hooks.switchTopTab('enrich');
     resetFiltersToAll();
     await selectActress(actressId);
-    const li = actressList.querySelector(`.jd-actress-item[data-id="${actressId}"]`);
-    if (li) li.scrollIntoView({ block: 'nearest' });
+    const tr = actressList.querySelector(`tr[data-id="${actressId}"]`);
+    if (tr) tr.scrollIntoView({ block: 'nearest' });
   }
 
   async function navigateToActressProfile(actressId) {

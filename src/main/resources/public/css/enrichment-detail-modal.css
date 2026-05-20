@@ -159,34 +159,35 @@
   align-items: center;
   gap: 6px;
   padding: 5px 14px 6px;
-  background: #182030;
-  border: 1px solid #2a3a50;
+  background: var(--bg-panel);
+  border: 1px solid var(--border-strong);
   border-bottom: 3px solid transparent;
   border-radius: 5px 5px 0 0;
-  color: #64748b;
+  color: var(--text-faint);
   font-size: 12px;
   font-weight: 600;
   letter-spacing: 0.03em;
   text-transform: uppercase;
   cursor: pointer;
-  transition: color 0.15s, border-bottom-color 0.15s, background 0.15s;
+  transition: color var(--dur-fast), border-bottom-color var(--dur-fast), background var(--dur-fast);
   margin-bottom: -1px;
 }
 .jd-tab:hover:not(.selected) {
-  color: #94a3b8;
-  background: #1e2d42;
+  color: var(--text-dim);
+  background: var(--bg-hover);
 }
+/* Single accent — both Enrich and Queue tabs use --accent, no per-tab identity */
 .jd-tab-enrich.selected {
-  color: #c4b5fd;
-  background: #1e1b2e;
-  border-color: #3b2f6e;
-  border-bottom-color: #a78bfa;
+  color: var(--accent-fg);
+  background: var(--bg);
+  border-color: var(--border-strong);
+  border-bottom-color: var(--accent);
 }
 .jd-tab-queue.selected {
-  color: #fcd34d;
-  background: #1e1a0e;
-  border-color: #5a4a10;
-  border-bottom-color: #f59e0b;
+  color: var(--accent-fg);
+  background: var(--bg);
+  border-color: var(--border-strong);
+  border-bottom-color: var(--accent);
 }
 
 /* Queue tab body */
@@ -196,12 +197,12 @@
   flex: 1;
 }
 .jd-queue-empty {
-  color: #666;
+  color: var(--text-faint);
   font-size: 14px;
   padding: 24px 0;
   text-align: center;
 }
-.jd-queue-table-wrap { overflow-x: auto; }
+/* Queue table chrome inherits wb-table-wrap styles from javdb-discovery.css */
 .jd-queue-table {
   width: 100%;
   border-collapse: collapse;
@@ -209,31 +210,38 @@
 }
 .jd-queue-table th {
   text-align: left;
-  padding: 6px 12px;
-  border-bottom: 1px solid #2a2a2a;
-  color: #888;
-  font-weight: 500;
+  padding: 9px 12px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-rail);
+  color: var(--text-faint);
+  font-weight: 600;
+  font-size: 10.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
 }
 .jd-queue-table td {
-  padding: 6px 12px;
-  border-bottom: 1px solid #1e1e1e;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border);
   vertical-align: middle;
+  color: var(--text-dim);
 }
+.jd-queue-table tbody tr:last-child td { border-bottom: none; }
+.jd-queue-table tbody tr:hover td { background: var(--bg-hover); }
 .jd-qi-actress-link {
   background: none;
   border: none;
-  color: #7ba7e0;
+  color: var(--accent);
   cursor: pointer;
   padding: 0;
   font-size: 13px;
   text-align: left;
 }
-.jd-qi-actress-link:hover { text-decoration: underline; color: #a0c0f0; }
-.jd-qi-code { font-family: monospace; color: #aaa; }
-.jd-qi-age  { color: #666; font-size: 12px; }
+.jd-qi-actress-link:hover { text-decoration: underline; color: var(--accent-fg); }
+.jd-qi-code { font-family: var(--font-mono); color: var(--text-dim); }
+.jd-qi-age  { color: var(--text-faint); font-size: 12px; }
 .jd-qi-eta-cell { font-size: 12px; min-width: 56px; }
-.jd-qi-eta      { color: #7ca8d8; font-variant-numeric: tabular-nums; }
-.jd-qi-eta-soon { color: #4ade80; font-weight: 600; }
+.jd-qi-eta      { color: var(--text-dim); font-variant-numeric: tabular-nums; }
+.jd-qi-eta-soon { color: var(--ok); font-weight: 600; }
 .jd-qi-status {
   display: inline-block;
   padding: 1px 8px;
@@ -249,32 +257,33 @@ button.jd-qi-status.jd-qi-slug-link {
 }
 button.jd-qi-status.jd-qi-review-link:hover,
 button.jd-qi-status.jd-qi-slug-link:hover { filter: brightness(1.2); }
-.jd-qi-inflight          { background: #1a3a1a; color: #4ade80; }
-.jd-qi-pending           { background: #1a2a3a; color: #60a5fa; }
-.jd-qi-failed            { background: #3a1a1a; color: #f87171; }   /* transient — fetch_failed, no_slug */
-.jd-qi-failed-resolvable { background: #2d2200; color: #fbbf24; }   /* user can resolve — ambiguous, cast_anomaly, sentinel_actress */
-.jd-qi-failed-deadend    { background: #1c1c24; color: #64748b; }   /* dead end — not on javdb, orphaned */
-.jd-qi-paused            { background: #2a2a1a; color: #facc15; }
+/* Semantic status badges — use design system ok/warn/error */
+.jd-qi-inflight          { background: rgba(110,231,183,0.12); color: var(--ok); }
+.jd-qi-pending           { background: var(--accent-bg);       color: var(--accent-fg); }
+.jd-qi-failed            { background: rgba(248,113,113,0.12); color: var(--error); }   /* transient — fetch_failed, no_slug */
+.jd-qi-failed-resolvable { background: rgba(251,191,36,0.10);  color: var(--warn); }   /* user can resolve — ambiguous, cast_anomaly, sentinel_actress */
+.jd-qi-failed-deadend    { background: var(--bg-active);       color: var(--text-faint); }   /* dead end — not on javdb, orphaned */
+.jd-qi-paused            { background: rgba(251,191,36,0.08);  color: var(--warn); }
 
 .jd-qi-prio { font-size: 10px; font-weight: 700; letter-spacing: 0.04em; padding: 1px 5px; border-radius: 3px; display: inline-block; }
 .prio-normal  { visibility: hidden; }
-.prio-low     { background: #1a1a2a; color: #6b7280; border: 1px solid #374151; }
-.prio-high    { background: #1a2d1a; color: #4ade80; border: 1px solid #166534; }
-.prio-urgent  { background: #3a1a00; color: #fb923c; border: 1px solid #9a3412; font-style: italic; }
+.prio-low     { background: var(--bg-active); color: var(--text-faint); border: 1px solid var(--border-strong); }
+.prio-high    { background: rgba(110,231,183,0.10); color: var(--ok); border: 1px solid rgba(110,231,183,0.35); }
+.prio-urgent  { background: rgba(251,146,60,0.10); color: #fb923c; border: 1px solid rgba(251,146,60,0.35); font-style: italic; }
 
 .jd-qi-actions-cell { white-space: nowrap; padding: 4px 8px; }
 .jd-qi-actions { display: inline-flex; gap: 2px; }
 .jd-qi-action-btn {
   background: none;
-  border: 1px solid #333;
-  border-radius: 3px;
-  color: #888;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+  color: var(--text-faint);
   cursor: pointer;
   font-size: 11px;
   line-height: 1;
   padding: 5px 5px;
 }
-.jd-qi-action-btn:hover { border-color: #555; color: #bbb; background: #1e1e1e; }
+.jd-qi-action-btn:hover { border-color: var(--border-strong); color: var(--text-dim); background: var(--bg-hover); }
 
 .jd-enrich-fetched-at { color: #475569; }
 
