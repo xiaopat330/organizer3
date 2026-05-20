@@ -146,6 +146,7 @@ function computeTier(totalTitles) {
  *   refreshQueue?: () => void,
  *   initialActressId?: number|null,
  *   initialPanel?: string|null,
+ *   onUrlChange?: (params: object) => void, — notify index.js of URL-relevant state changes
  * }} opts
  * @returns {{
  *   load(): Promise<void>,
@@ -161,9 +162,11 @@ export function mountActresses(containerEl, {
   refreshQueue,
   initialActressId,
   initialPanel,
+  onUrlChange,
 }) {
   const noop = () => Promise.resolve();
   const doRefreshQueue = refreshQueue ?? noop;
+  const doUrlChange    = onUrlChange  ?? (() => {});
 
   let alphaBuckets = [{ label: 'All', key: 'All', test: () => true }];
   // Which actress is currently shown in the inspector.
@@ -183,6 +186,13 @@ export function mountActresses(containerEl, {
           <div class="dr-alpha-bar" id="dr-alpha-bar"></div>
           <div class="dr-filter-bar" id="dr-actress-filter-bar"></div>
           <div class="dr-sort-bar" id="dr-sort-bar"></div>
+          <div class="dr-actress-select-all-row" id="dr-actress-select-all-row" style="display:none">
+            <label class="dr-actress-select-all-label">
+              <input type="checkbox" id="dr-actress-select-all-cb">
+              <span id="dr-actress-select-all-txt">Select all visible</span>
+            </label>
+            <button type="button" class="dr-actress-clear-sel-btn" id="dr-actress-clear-sel">Clear</button>
+          </div>
         </div>
         <ul class="dr-actress-list" id="dr-actress-list"></ul>
         <div class="dr-actress-empty" id="dr-actress-empty" style="display:none">
@@ -192,11 +202,15 @@ export function mountActresses(containerEl, {
     </div>
   `;
 
-  const alphaBarEl    = containerEl.querySelector('#dr-alpha-bar');
-  const filterBarEl   = containerEl.querySelector('#dr-actress-filter-bar');
-  const sortBarEl     = containerEl.querySelector('#dr-sort-bar');
-  const actressListEl = containerEl.querySelector('#dr-actress-list');
-  const emptyMsgEl    = containerEl.querySelector('#dr-actress-empty');
+  const alphaBarEl       = containerEl.querySelector('#dr-alpha-bar');
+  const filterBarEl      = containerEl.querySelector('#dr-actress-filter-bar');
+  const sortBarEl        = containerEl.querySelector('#dr-sort-bar');
+  const actressListEl    = containerEl.querySelector('#dr-actress-list');
+  const emptyMsgEl       = containerEl.querySelector('#dr-actress-empty');
+  const selectAllRow     = containerEl.querySelector('#dr-actress-select-all-row');
+  const selectAllCb      = containerEl.querySelector('#dr-actress-select-all-cb');
+  const selectAllTxt     = containerEl.querySelector('#dr-actress-select-all-txt');
+  const clearSelBtn      = containerEl.querySelector('#dr-actress-clear-sel');
 
   // ── Filtering + sorting ──────────────────────────────────────────
 
@@ -328,6 +342,7 @@ export function mountActresses(containerEl, {
 
     if (visible.length === 0) {
       emptyMsgEl.style.display = '';
+      updateSelectAllState();
       return;
     }
     emptyMsgEl.style.display = 'none';
@@ -348,13 +363,57 @@ export function mountActresses(containerEl, {
       li.addEventListener('click', e => handleActressClick(a.id, e));
       actressListEl.appendChild(li);
     }
+    updateSelectAllState();
   }
 
   function highlightSelection() {
     actressListEl.querySelectorAll('.dr-actress-item').forEach(li => {
       li.classList.toggle('selected', selection.has(Number(li.dataset.id)));
     });
+    updateSelectAllState();
   }
+
+  // ── Select-all row ────────────────────────────────────────────────
+
+  function updateSelectAllState() {
+    const visible = filteredActresses();
+    const total   = selection.size;
+    // Show the row only when we have actresses to work with.
+    if (visible.length === 0) { selectAllRow.style.display = 'none'; return; }
+    selectAllRow.style.display = '';
+
+    const visibleSelected = visible.filter(a => selection.has(a.id)).length;
+    if (total === 0 || visibleSelected === 0) {
+      selectAllCb.checked = false; selectAllCb.indeterminate = false;
+      selectAllTxt.textContent = 'Select all visible';
+    } else if (visibleSelected === visible.length) {
+      selectAllCb.checked = true; selectAllCb.indeterminate = false;
+      selectAllTxt.textContent = `${total} selected`;
+    } else {
+      selectAllCb.checked = false; selectAllCb.indeterminate = true;
+      selectAllTxt.textContent = `${visibleSelected}/${visible.length} visible selected (${total} total)`;
+    }
+  }
+
+  selectAllCb.addEventListener('click', () => {
+    const visible = filteredActresses();
+    if (selectAllCb.checked) {
+      visible.forEach(a => selection.add(a.id));
+    } else {
+      visible.forEach(a => selection.delete(a.id));
+    }
+    highlightSelection();
+    onSelectionChange(Array.from(selection));
+    refreshInspector();
+  });
+
+  clearSelBtn.addEventListener('click', () => {
+    selection.clear();
+    highlightSelection();
+    onSelectionChange([]);
+    doUrlChange({ id: null, panel: null });
+    refreshInspector();
+  });
 
   // ── Click handling: click / Cmd-click / Shift-click ──────────────
 
@@ -379,6 +438,8 @@ export function mountActresses(containerEl, {
       selection.clear();
       selection.add(id);
       _lastClickedIdx = idx;
+      // Single-select: push URL history so back-button works per §4.5.
+      doUrlChange({ id, panel: activeInspectorTab, push: true });
     }
 
     highlightSelection();
@@ -387,13 +448,10 @@ export function mountActresses(containerEl, {
   }
 
   async function applyFilterChange() {
-    const visible = filteredActresses();
-    // Drop selected IDs that are no longer visible.
-    const visibleIds = new Set(visible.map(a => a.id));
-    for (const id of [...selection]) {
-      if (!visibleIds.has(id)) selection.delete(id);
-    }
+    // Per §4.3: selected-but-filtered-out rows stay selected (invisible).
+    // Only update the visual list and inspector; do NOT drop IDs from selection.
     renderActressList();
+    updateSelectAllState();
     refreshInspector();
   }
 
@@ -405,6 +463,7 @@ export function mountActresses(containerEl, {
       inspectorHandle.showEmpty('Select an actress to see enrichment details.');
       activeInspectorId = null;
       titlesHandle = null;
+      doUrlChange({ id: null, panel: null });
       return;
     }
     if (ids.length > 1) {
@@ -420,50 +479,105 @@ export function mountActresses(containerEl, {
   }
 
   function renderBulkInspector(ids) {
-    const rows = pivotState.rows.filter(a => ids.includes(a.id));
-    const totalTitles = rows.reduce((s, a) => s + a.totalTitles, 0);
-    const enriched    = rows.reduce((s, a) => s + a.enrichedTitles, 0);
-    const withJobs    = rows.filter(a => a.activeJobs > 0).length;
-    const eligible    = rows.filter(a => computeTier(a.totalTitles) !== null).length;
+    // Look up selected rows (some may not be in filtered view).
+    const rows     = pivotState.rows.filter(a => ids.includes(a.id));
+    const found    = rows.length; // may be < ids.length if some not yet loaded
+
+    const totalTitles  = rows.reduce((s, a) => s + a.totalTitles,    0);
+    const enriched     = rows.reduce((s, a) => s + a.enrichedTitles, 0);
+    const unenriched   = totalTitles - enriched;
+    const withJobs     = rows.filter(a => a.activeJobs > 0).length;
+    const pct          = totalTitles > 0 ? Math.round((enriched / totalTitles) * 100) : 0;
+
+    // Inline names: up to 10, then "+N more".
+    const MAX_NAMES = 10;
+    const nameList  = rows.slice(0, MAX_NAMES).map(a => esc(a.canonicalName)).join(', ');
+    const nameExtra = found > MAX_NAMES ? ` <span class="dr-muted">+${found - MAX_NAMES} more</span>` : '';
 
     inspectorHandle.setTitle(`${ids.length} actresses selected`);
     inspectorHandle.setContent(`
       <div class="dr-bulk-inspector">
+        <div class="dr-bulk-names">${nameList}${nameExtra}</div>
         <div class="dr-bulk-stat"><span class="dr-bulk-stat-label">Selected</span><span class="dr-bulk-stat-value">${ids.length}</span></div>
         <div class="dr-bulk-stat"><span class="dr-bulk-stat-label">Total titles</span><span class="dr-bulk-stat-value">${totalTitles}</span></div>
-        <div class="dr-bulk-stat"><span class="dr-bulk-stat-label">Enriched</span><span class="dr-bulk-stat-value">${enriched}</span></div>
+        <div class="dr-bulk-stat"><span class="dr-bulk-stat-label">Enriched</span><span class="dr-bulk-stat-value">${enriched} (${pct}%)</span></div>
+        <div class="dr-bulk-stat"><span class="dr-bulk-stat-label">Unenriched</span><span class="dr-bulk-stat-value">${unenriched}</span></div>
         <div class="dr-bulk-stat"><span class="dr-bulk-stat-label">With active jobs</span><span class="dr-bulk-stat-value">${withJobs}</span></div>
-        <div class="dr-bulk-stat"><span class="dr-bulk-stat-label">Eligible (≥20 titles)</span><span class="dr-bulk-stat-value">${eligible}</span></div>
         <div class="dr-bulk-actions">
           <button type="button" class="dr-btn dr-btn-primary" id="dr-bulk-enqueue-btn">
-            ▶ Enqueue All (${ids.length})
+            ▶ Enrich Selected (${ids.length} actresses, ${unenriched} unenriched titles)
           </button>
+        </div>
+        <div class="dr-bulk-clear">
+          <button type="button" class="dr-link-btn" id="dr-bulk-clear-btn">Clear selection</button>
         </div>
       </div>
     `);
 
-    // Wire bulk enqueue.
-    const enqueueBtn = inspectorHandle._bodyEl?.querySelector('#dr-bulk-enqueue-btn')
-      // Fall back to searching in the container since _bodyEl isn't exposed.
-      ?? containerEl.closest('.dr-page')?.querySelector('#dr-bulk-enqueue-btn');
-    if (enqueueBtn) {
-      enqueueBtn.addEventListener('click', () => bulkEnqueue(ids, enqueueBtn));
-    }
+    // Wire bulk enqueue — querySelector from pageEl since inspector body isn't directly accessible.
+    const pageEl     = containerEl.closest('.dr-page') ?? containerEl.parentElement;
+    const enqueueBtn = pageEl.querySelector('#dr-bulk-enqueue-btn');
+    if (enqueueBtn) enqueueBtn.addEventListener('click', () => bulkEnqueue(ids, enqueueBtn, pageEl));
+
+    const clearBtn = pageEl.querySelector('#dr-bulk-clear-btn');
+    if (clearBtn) clearBtn.addEventListener('click', () => {
+      selection.clear();
+      highlightSelection();
+      onSelectionChange([]);
+      doUrlChange({ id: null, panel: null });
+      refreshInspector();
+    });
   }
 
-  async function bulkEnqueue(ids, btn) {
+  /**
+   * Fan-out enqueue across N actresses, max 4 concurrent.
+   * Shows a toast summary on completion.
+   */
+  async function bulkEnqueue(ids, btn, pageEl) {
     btn.disabled = true;
-    btn.textContent = 'Enqueuing…';
-    let total = 0;
-    for (const id of ids) {
+    btn.textContent = `Enqueuing ${ids.length} actresses…`;
+
+    const CONCURRENCY = 4;
+    let enqueued  = 0;
+    let failures  = 0;
+    let done      = 0;
+
+    async function enqueueOne(id) {
       try {
         const res = await fetch(`/api/javdb/discovery/actresses/${id}/enqueue`, { method: 'POST' });
-        if (res.ok) { const d = await res.json(); total += d.enqueued || 0; }
-      } catch (_) { /* skip */ }
+        if (res.ok) { const d = await res.json(); enqueued += d.enqueued || 0; }
+        else        { failures++; }
+      } catch (_) { failures++; }
+      done++;
+      if (btn.isConnected) btn.textContent = `Enqueuing… (${done}/${ids.length})`;
     }
-    btn.textContent = `Enqueued ${total} ✓`;
+
+    // Chunk into batches of CONCURRENCY.
+    for (let i = 0; i < ids.length; i += CONCURRENCY) {
+      await Promise.all(ids.slice(i, i + CONCURRENCY).map(id => enqueueOne(id)));
+    }
+
+    const summary = failures > 0
+      ? `Enqueued ${enqueued} titles (${failures} actress${failures !== 1 ? 'es' : ''} failed)`
+      : `Enqueued ${enqueued} titles across ${ids.length} actress${ids.length !== 1 ? 'es' : ''}`;
+
+    if (btn.isConnected) {
+      btn.textContent = `${summary} ✓`;
+    }
+    showBulkToast(pageEl, summary, failures > 0 ? 'error' : 'success');
     await doRefreshQueue();
     setTimeout(() => load(), 1000);
+  }
+
+  /**
+   * Show a transient toast anchored to the workbench page element.
+   */
+  function showBulkToast(pageEl, msg, kind = 'success') {
+    const t = document.createElement('div');
+    t.className = 'dr-toast' + (kind === 'error' ? ' dr-toast--error' : '');
+    t.textContent = msg;
+    (pageEl ?? document.body).appendChild(t);
+    setTimeout(() => t.remove(), 4500);
   }
 
   // ── Single-actress inspector ──────────────────────────────────────
@@ -501,6 +615,8 @@ export function mountActresses(containerEl, {
       btn.addEventListener('click', async () => {
         activeInspectorTab = btn.dataset.tab;
         pageEl.querySelectorAll('.dr-inspector-subtab').forEach(b => b.classList.toggle('active', b === btn));
+        // Write URL for single-select panel change (replaceState per §4.5).
+        doUrlChange({ id: actressId, panel: activeInspectorTab });
         await loadInspectorTab(actressId, activeInspectorTab, pageEl);
       });
     });
@@ -1499,6 +1615,7 @@ export function mountActresses(containerEl, {
     onSelectionChange([id]);
     activeInspectorId = null; // force refresh
     activeInspectorTab = tab || 'titles';
+    doUrlChange({ id, panel: activeInspectorTab, push: true });
     await showActressInspector(id, activeInspectorTab);
     // Scroll into view.
     const li = actressListEl.querySelector(`.dr-actress-item[data-id="${id}"]`);

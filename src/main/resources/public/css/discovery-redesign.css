@@ -886,10 +886,50 @@
 /* ── Bulk inspector ─────────────────────────────────────────────────── */
 
 .dr-bulk-inspector { display: flex; flex-direction: column; gap: 10px; }
+.dr-bulk-names { font-size: 12px; color: var(--text-dim); padding: 4px 0 6px; border-bottom: 1px solid var(--border); line-height: 1.5; }
 .dr-bulk-stat { display: flex; justify-content: space-between; align-items: center; padding: 6px 0; border-bottom: 1px solid var(--border); }
 .dr-bulk-stat-label { font-size: 12px; color: var(--text-dim); }
 .dr-bulk-stat-value { font-family: var(--font-mono); font-size: 13px; font-weight: 600; color: var(--text); }
 .dr-bulk-actions { padding-top: 8px; }
+.dr-bulk-clear { padding-top: 6px; text-align: center; }
+
+/* ── Link button ────────────────────────────────────────────────────── */
+.dr-link-btn {
+  background: none; border: none; padding: 0; cursor: pointer;
+  color: var(--accent-fg); font-size: 12px; text-decoration: underline;
+}
+.dr-link-btn:hover { color: var(--accent); }
+
+/* ── Select-all row (Actresses pivot toolbar) ───────────────────────── */
+.dr-actress-select-all-row {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 4px 0; border-bottom: 1px solid var(--border); margin-bottom: 4px;
+}
+.dr-actress-select-all-label {
+  display: flex; align-items: center; gap: 6px; cursor: pointer; user-select: none;
+  font-size: 12px; color: var(--text-dim);
+}
+.dr-actress-clear-sel-btn {
+  font-size: 11px; padding: 2px 8px; background: none;
+  border: 1px solid var(--border); border-radius: var(--radius);
+  cursor: pointer; color: var(--text-dim);
+}
+.dr-actress-clear-sel-btn:hover { color: var(--text); border-color: var(--border-strong); }
+
+/* ── Toast notifications ────────────────────────────────────────────── */
+.dr-toast {
+  position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
+  background: var(--bg-elevated); border: 1px solid var(--border-strong);
+  color: var(--text); font-size: 13px; padding: 8px 18px;
+  border-radius: var(--radius-card); box-shadow: 0 4px 16px rgba(0,0,0,.18);
+  z-index: 9000; pointer-events: none; white-space: nowrap;
+  animation: dr-toast-in 0.2s ease;
+}
+.dr-toast--error { border-color: var(--err); color: var(--err); }
+@keyframes dr-toast-in {
+  from { opacity: 0; transform: translateX(-50%) translateY(8px); }
+  to   { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
 
 /* ── Inspector titles sub-tab ───────────────────────────────────────── */
 
