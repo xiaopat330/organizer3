@@ -255,6 +255,8 @@ public class RenameActressFolderTool implements Tool {
             Path titleFolder   = Path.of(row.path());
             Path actressFolder = titleFolder.getParent();
             if (actressFolder == null) continue;
+            // Title sits at volume root (no per-actress parent folder). Nothing to rename.
+            if (actressFolder.getFileName() == null) continue;
 
             String folderName = actressFolder.getFileName().toString();
             // Skip if already canonical

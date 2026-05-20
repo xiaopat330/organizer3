@@ -267,6 +267,28 @@ class RenameActressFolderToolTest {
                 "partition_id must be normalised to short form (not 'stars/minor')");
     }
 
+    /**
+     * Regression: actress titles living at the volume root (no per-actress parent folder)
+     * must yield a clean no-op rather than throwing NPE on {@code getFileName()}.
+     */
+    @Test
+    void rootLevelTitleLocationsYieldNoOpInsteadOfNpe() {
+        Actress a = actressRepo.save(Actress.builder()
+                .canonicalName("Shion Fujimoto").tier(Actress.Tier.LIBRARY)
+                .firstSeenAt(LocalDate.now()).build());
+        actressRepo.saveAlias(new ActressAlias(a.getId(), "Shien Fujimoto"));
+        // Title sits at volume root — parent path has no filename segment
+        seedTitleAt(a, "MIDE-001", "s", "/Shien Fujimoto (MIDE-001)");
+
+        var result = assertDoesNotThrow(() ->
+                (RenameActressFolderTool.Result) tool.call(args(a.getId(), false)));
+        assertEquals("nothing-to-do", result.status());
+        assertTrue(fs.renameCalls.isEmpty());
+        assertTrue(result.from().isEmpty());
+        assertTrue(result.to().isEmpty());
+        assertTrue(result.updatedPaths().isEmpty());
+    }
+
     @Test
     void returnsPartialOnIoException() {
         Actress a = actressRepo.save(Actress.builder()
