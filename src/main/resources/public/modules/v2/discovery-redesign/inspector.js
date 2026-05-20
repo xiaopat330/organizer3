@@ -1,7 +1,7 @@
 /* ─────────────────────────────────────────────────────────────────────
    discovery-redesign/inspector.js — inspector panel.
 
-   Phase B: panel receives HTML content from pivot modules via setContent().
+   Receives HTML content from pivot modules via setContent().
    The title is updated via setTitle().
    showEmpty() reverts to the contextual empty-state.
 

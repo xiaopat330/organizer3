@@ -27,12 +27,10 @@ export function renderLayout(rootEl, inspectorWidth) {
 
       <!-- Global controls strip -->
       <div class="dr-global-strip" id="dr-global-strip">
-        <!-- rate-limit pill, AI assist pill, pause-all toggle — Phase B -->
       </div>
 
       <!-- Pivot strip -->
       <div class="dr-pivot-strip" id="dr-pivot-strip">
-        <!-- pivot buttons + context filters — Phase B -->
         <div class="dr-pivot-strip-spacer"></div>
       </div>
 
@@ -41,7 +39,6 @@ export function renderLayout(rootEl, inspectorWidth) {
 
         <div class="dr-table-pane" id="dr-table-pane">
           <div class="dr-table-pane-inner" id="dr-table-inner">
-            <!-- pivot content — Phase B -->
           </div>
         </div>
 

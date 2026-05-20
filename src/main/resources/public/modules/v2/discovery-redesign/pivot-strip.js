@@ -1,8 +1,6 @@
 /* ─────────────────────────────────────────────────────────────────────
    discovery-redesign/pivot-strip.js — pivot toggle (Actresses / Titles / Collections).
-
-   Phase A: renders three buttons, handles pivot switch + URL update.
-   Does NOT load any pivot content — that's Phase B.
+   Renders three buttons and handles pivot switch + URL update.
    ───────────────────────────────────────────────────────────────────── */
 
 const PIVOTS = [

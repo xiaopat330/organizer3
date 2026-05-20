@@ -1,18 +1,5 @@
 /* ─────────────────────────────────────────────────────────────────────
    discovery-redesign/index.js — Discovery Workbench entry point.
-
-   Phase B:
-     - Per-pivot content modules mounted into tableInnerEl.
-     - Inspector driven by pivot selection.
-     - Consolidated poll loop (poller.js).
-     - Global strip wired to real endpoints.
-     - Queue dock wired to items + summary.
-     - URL deep-link params (B9).
-     - ESC handler precedence (B10):
-         lightbox (handled by its own AbortController, capture=true)
-         → queue dock expanded → inspector content → clear selection
-         → clear filter → no-op
-     - Auto-collapse dock at <1200px viewport when inspector showing content.
    ───────────────────────────────────────────────────────────────────── */
 
 import { createState, saveInspectorWidth, INSPECTOR_WIDTH_BOUNDS } from './state.js';
