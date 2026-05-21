@@ -1288,6 +1288,7 @@ public class Application {
                 mcpTools.register(new com.organizer3.mcp.tools.RestructureTitleTool(session, jdbi, titleRestructurerService));
                 mcpTools.register(new com.organizer3.mcp.tools.SortTitleTool(session, jdbi, config, titleSorterService));
                 mcpTools.register(new com.organizer3.mcp.tools.ClassifyActressTool(session, jdbi, config, actressClassifierService));
+                mcpTools.register(new com.organizer3.mcp.tools.ReconcileActressTierFoldersTool(session, jdbi, config, actressClassifierService));
                 mcpTools.register(new com.organizer3.mcp.tools.OrganizeVolumeTool(session, jdbi, config, organizeVolumeService));
                 mcpTools.register(new com.organizer3.mcp.tools.PrepFreshVideosTool(session, config, freshPrepService));
                 mcpTools.register(new com.organizer3.mcp.tools.RenameActressFoldersTool(session, actressRepo, actressMergeService, curationLog));
