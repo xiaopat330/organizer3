@@ -12,6 +12,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.jdbi.v3.core.Jdbi;
 
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
@@ -234,6 +235,153 @@ public class ActressClassifierService {
     }
 
     /**
+     * Treats {@code actresses.tier} as authoritative and moves the actress's on-disk tier
+     * folder to match — in EITHER direction (up or down). Rebases only the title_locations
+     * that live under the moved source folder; queue, comp, pool, and other-partition
+     * locations are left untouched.
+     *
+     * <p>Guards:
+     * <ul>
+     *   <li>Folder not found under any /stars tier → SKIPPED.</li>
+     *   <li>Folder already at correct tier → SKIPPED.</li>
+     *   <li>Folder found under more than one non-target tier → SKIPPED (manual review).</li>
+     *   <li>Target tier folder already exists (collision) → FAILED (never blindly merge).</li>
+     * </ul>
+     *
+     * <p>Default {@code dryRun:true} — returns the plan without touching files or DB.
+     */
+    public Result reconcileTierFolders(
+            VolumeFileSystem fs,
+            VolumeConfig volumeConfig,
+            Jdbi jdbi,
+            long actressId,
+            boolean dryRun) {
+
+        Actress actress = actressRepo.findById(actressId).orElseThrow(
+                () -> new IllegalArgumentException("No actress with id " + actressId));
+        String name = actress.getCanonicalName();
+        String volumeId = volumeConfig.id();
+
+        Actress.Tier dbTierEnum = actress.getTier();
+        String targetTier = dbTierEnum.name().toLowerCase();
+
+        // Collect all tier directories on disk where the folder exists.
+        List<String> matchedTiers = findAllDiskTiers(fs, name);
+
+        if (matchedTiers.isEmpty()) {
+            return new Result(dryRun, Outcome.SKIPPED, actressId, name, null, targetTier, null, null,
+                    "folder not found under /stars/<tier>/ on disk");
+        }
+        if (matchedTiers.equals(List.of(targetTier))) {
+            return new Result(dryRun, Outcome.SKIPPED, actressId, name, targetTier, targetTier, null, null,
+                    "already at correct tier (" + targetTier + ")");
+        }
+        if (matchedTiers.contains(targetTier)) {
+            // Target exists alongside at least one other — collision.
+            return new Result(dryRun, Outcome.FAILED, actressId, name,
+                    String.join("+", matchedTiers), targetTier, null,
+                    Path.of("/", "stars", targetTier, name).toString(),
+                    "target tier folder already exists (collision) — manual review needed");
+        }
+        if (matchedTiers.size() > 1) {
+            return new Result(dryRun, Outcome.SKIPPED, actressId, name,
+                    String.join("+", matchedTiers), targetTier, null, null,
+                    "folder under multiple tiers — manual review needed");
+        }
+
+        // Exactly one non-target tier matched.
+        String sourceTier = matchedTiers.get(0);
+        Path sourceFolder = Path.of("/", "stars", sourceTier, name);
+        Path targetFolder = Path.of("/", "stars", targetTier, name);
+
+        // Collect only the title_locations under the source folder on this volume.
+        List<TitleLocation> volLocs = titleLocationRepo.findByVolume(volumeId);
+        List<TitleLocation> toMove = volLocs.stream()
+                .filter(l -> l.getPath() != null && l.getPath().startsWith(sourceFolder))
+                .toList();
+
+        if (dryRun) {
+            return new Result(true, Outcome.WOULD_MOVE, actressId, name, sourceTier, targetTier,
+                    sourceFolder.toString(), targetFolder.toString(),
+                    "would move " + toMove.size() + " title location(s) from " + sourceTier + " → " + targetTier);
+        }
+
+        try {
+            jdbi.useTransaction(h -> {
+                fs.createDirectories(targetFolder.getParent());
+                fs.move(sourceFolder, targetFolder);
+                for (TitleLocation l : toMove) {
+                    Path newPath = rebase(l.getPath(), sourceTier, targetTier, name);
+                    titleLocationRepo.updatePathAndPartition(l.getId(), newPath, targetTier);
+                }
+            });
+            log.info("FS mutation [ActressClassifier.reconcileTierFolders]: moved actress tier folder — actressId={} name=\"{}\" from={} to={} folderFrom={} folderTo={} titleLocations={}",
+                    actressId, name, sourceTier, targetTier, sourceFolder, targetFolder, toMove.size());
+        } catch (Exception e) {
+            log.warn("FS mutation [ActressClassifier.reconcileTierFolders] failed — actressId={} name=\"{}\" from={} to={} error={}",
+                    actressId, name, sourceFolder, targetFolder, describe(e));
+            return new Result(false, Outcome.FAILED, actressId, name, sourceTier, targetTier,
+                    sourceFolder.toString(), targetFolder.toString(),
+                    "apply failed: " + describe(e));
+        }
+
+        return new Result(false, Outcome.MOVED, actressId, name, sourceTier, targetTier,
+                sourceFolder.toString(), targetFolder.toString(),
+                "moved " + toMove.size() + " title location(s) from " + sourceTier + " → " + targetTier);
+    }
+
+    /**
+     * Batch mode: reconciles every actress on the mounted volume whose on-disk tier folder
+     * does not match her {@code actresses.tier}. Runs {@link #reconcileTierFolders} for each
+     * stranded actress and collects per-actress Results.  Per-actress guards (skips, collisions)
+     * are reported in the list and are never fatal to the batch.
+     *
+     * @param dryRun if true, compute the plan only — no file or DB mutations
+     * @return list of Results, one per actress where a mis-tier was detected (or a skip/fail occurred)
+     */
+    public List<Result> reconcileTierFoldersOnVolume(
+            VolumeFileSystem fs,
+            VolumeConfig volumeConfig,
+            Jdbi jdbi,
+            boolean dryRun) {
+
+        List<Actress> all = actressRepo.findAll();
+        List<Result> results = new ArrayList<>();
+
+        for (Actress actress : all) {
+            String name = actress.getCanonicalName();
+            String targetTier = actress.getTier().name().toLowerCase();
+
+            List<String> matchedTiers = findAllDiskTiers(fs, name);
+            // Fast-path: no folder or already correct — include in results only if mismatch.
+            if (matchedTiers.isEmpty()) continue;
+            if (matchedTiers.equals(List.of(targetTier))) continue;
+
+            Result r = reconcileTierFolders(fs, volumeConfig, jdbi, actress.getId(), dryRun);
+            results.add(r);
+        }
+
+        return results;
+    }
+
+    /**
+     * Walks all real /stars tier directories (excluding pool) and returns every tier where
+     * {@code /stars/<tier>/<name>} exists as a directory. Unlike {@link #findDiskTier}, this
+     * collects ALL matches so the caller can detect multi-tier collisions.
+     */
+    List<String> findAllDiskTiers(VolumeFileSystem fs, String name) {
+        List<String> found = new ArrayList<>();
+        for (String tier : TIER_ORDER) {
+            if ("pool".equals(tier)) continue;
+            Path candidate = Path.of("/", "stars", tier, name);
+            if (fs.exists(candidate) && fs.isDirectory(candidate)) {
+                found.add(tier);
+            }
+        }
+        return found;
+    }
+
+    /**
      * Scans {@code /stars/<tier>/<name>} for each known tier (in ascending order) and
      * returns the first tier where the folder exists.  Returns empty if not found.
      */
@@ -302,6 +450,8 @@ public class ActressClassifierService {
         WOULD_PROMOTE,
         RECONCILED,
         WOULD_RECONCILE,
+        MOVED,
+        WOULD_MOVE,
         SKIPPED,
         FAILED
     }
