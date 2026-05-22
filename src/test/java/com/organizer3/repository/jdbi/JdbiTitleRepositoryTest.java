@@ -147,6 +147,47 @@ class JdbiTitleRepositoryTest {
         assertEquals("ABP-001", results.get(0).getCode());
     }
 
+    /**
+     * Regression: titles credited via title_actresses (many-to-many) were missing entirely
+     * from findByActressIncludingAliases when the actress was not also the filing actress_id.
+     * This is the common case for compilation/multi-actress titles.
+     */
+    @Test
+    void findByActressIncludingAliasesIncludesTitlesCreditedViaTitleActresses() {
+        // Actress A: the one we query for.
+        Actress actressA = actressRepo.save(actress("Aya Sazanami"));
+        // Actress B: the filing actress on the compilation title.
+        Actress actressB = actressRepo.save(actress("Hibiki Otsuki"));
+
+        // A title filed under B, but with A credited in title_actresses.
+        Title compilation = saveWithLocation(
+                title("COMP-001", actressB.getId()),
+                "vol-collections", "compilation", "/mnt/vol-collections/compilation/COMP-001");
+        titleActressRepo.link(compilation.getId(), actressA.getId());
+
+        // A title filed directly under A (baseline — must still resolve).
+        saveWithLocation(title("ABP-001", actressA.getId()), "vol-a", "stars/library", "/mnt/vol-a/stars/library/ABP-001");
+
+        List<Title> results = titleRepo.findByActressIncludingAliases(actressA.getId());
+
+        assertEquals(2, results.size());
+        assertTrue(results.stream().anyMatch(t -> t.getCode().equals("ABP-001")),
+                "Filing-actress title must be included");
+        assertTrue(results.stream().anyMatch(t -> t.getCode().equals("COMP-001")),
+                "title_actresses-credited title must be included (was missing before fix)");
+    }
+
+    @Test
+    void findByActressIncludingAliasesDedupesWhenActressIsBothFilingAndCredited() {
+        // A title where the actress is both actress_id (filing) AND has a title_actresses row.
+        Actress aya = actressRepo.save(actress("Aya Sazanami"));
+        Title t = saveWithLocation(title("ABP-001", aya.getId()), "vol-a", "stars/library", "/mnt/vol-a/stars/library/ABP-001");
+        titleActressRepo.link(t.getId(), aya.getId());
+
+        List<Title> results = titleRepo.findByActressIncludingAliases(aya.getId());
+        assertEquals(1, results.size(), "UNION must deduplicate a title that appears in both arms");
+    }
+
     // --- findByAliasesOnly ---
 
     @Test

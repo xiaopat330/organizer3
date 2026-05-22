@@ -254,6 +254,10 @@ public class JdbiTitleRepository implements TitleRepository {
                             JOIN actresses a ON t.actress_id = a.id
                             JOIN actress_aliases aa ON a.canonical_name = aa.alias_name
                         WHERE aa.actress_id = :actressId
+                        UNION
+                        SELECT t.* FROM titles t
+                            JOIN title_actresses ta ON t.id = ta.title_id
+                        WHERE ta.actress_id = :actressId
                         ORDER BY code
                         """)
                         .bind("actressId", actressId)
