@@ -434,6 +434,56 @@ class ReconcileActressTierFoldersTest {
         assertTrue(fs.exists(Path.of("/stars/minor/Ambi Star")));
     }
 
+    // ── zero-location / case-mismatch guard ───────────────────────────────────
+
+    @Test
+    void caseMismatch_folderFoundButNoLocationsRebase_skipped() throws Exception {
+        // DB canonical is "FooBar"; on-disk folder + location use a different case ("Foobar").
+        // findAllDiskTiers (case-insensitive, like SMB) matches the folder, but the case-SENSITIVE
+        // Path.startsWith filter rebases zero rows — applying would orphan every location.
+        long aid = actressRepo.save(mkActress("FooBar", Actress.Tier.MINOR)).getId();
+        Title t = titleRepo.save(mkTitle("FB-001", aid));
+        saveLoc(t.getId(), "/stars/library/Foobar/Foobar (FB-001)", "library");
+        createFolder("/stars/library/FooBar");   // canonical case → findAllDiskTiers matches on any FS
+
+        ActressClassifierService.Result r = svc.reconcileTierFolders(fs, volumeA(), jdbi, aid, false);
+
+        assertEquals(ActressClassifierService.Outcome.SKIPPED, r.outcome());
+        assertTrue(r.reason().contains("no title_locations rebase under it"), "reason: " + r.reason());
+        // Nothing moved; the location row is untouched.
+        assertFalse(fs.exists(Path.of("/stars/minor/FooBar")));
+        List<TitleLocation> locs = locationRepo.findByVolume("a");
+        assertEquals(1, locs.size());
+        assertEquals(Path.of("/stars/library/Foobar/Foobar (FB-001)"), locs.get(0).getPath());
+        assertEquals("library", locs.get(0).getPartitionId());
+    }
+
+    // ── rejected-actress guard ─────────────────────────────────────────────────
+
+    @Test
+    void rejectedActress_skipped_evenWithRealMismatch() throws Exception {
+        // Genuine mismatch (folder at library, DB says MINOR) but actress is rejected → skip, no move.
+        long aid = actressRepo.save(
+                Actress.builder()
+                        .canonicalName("Rejected Lady")
+                        .tier(Actress.Tier.MINOR)
+                        .rejected(true)
+                        .firstSeenAt(LocalDate.of(2024, 1, 1))
+                        .build()).getId();
+        for (int i = 1; i <= 3; i++) {
+            Title t = titleRepo.save(mkTitle("RJ-%03d".formatted(i), aid));
+            saveLoc(t.getId(), "/stars/library/Rejected Lady/Rejected Lady (RJ-%03d)".formatted(i), "library");
+            createFolder("/stars/library/Rejected Lady/Rejected Lady (RJ-%03d)".formatted(i));
+        }
+
+        ActressClassifierService.Result r = svc.reconcileTierFolders(fs, volumeA(), jdbi, aid, false);
+
+        assertEquals(ActressClassifierService.Outcome.SKIPPED, r.outcome());
+        assertTrue(r.reason().contains("rejected"), "reason: " + r.reason());
+        assertTrue(fs.exists(Path.of("/stars/library/Rejected Lady")));
+        assertFalse(fs.exists(Path.of("/stars/minor/Rejected Lady")));
+    }
+
     // ── findAllDiskTiers ─────────────────────────────────────────────────────
 
     @Test

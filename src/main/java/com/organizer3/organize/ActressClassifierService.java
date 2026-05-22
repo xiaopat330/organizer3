@@ -268,6 +268,12 @@ public class ActressClassifierService {
         Actress.Tier dbTierEnum = actress.getTier();
         String targetTier = dbTierEnum.name().toLowerCase();
 
+        // Rejected actresses are not curated by classify/reconcile — skip cheaply before any FS walk.
+        if (actress.isRejected()) {
+            return new Result(dryRun, Outcome.SKIPPED, actressId, name, null, targetTier, null, null,
+                    "actress is rejected — tier reconcile skipped");
+        }
+
         // Collect all tier directories on disk where the folder exists.
         List<String> matchedTiers = findAllDiskTiers(fs, name);
 
@@ -302,6 +308,14 @@ public class ActressClassifierService {
         List<TitleLocation> toMove = volLocs.stream()
                 .filter(l -> l.getPath() != null && l.getPath().startsWith(sourceFolder))
                 .toList();
+
+        // Path.startsWith is case-SENSITIVE while SMB/findAllDiskTiers are case-INSENSITIVE: if the
+        // on-disk folder matched but no locations rebase under it, moving would orphan every DB row.
+        if (toMove.isEmpty()) {
+            return new Result(dryRun, Outcome.SKIPPED, actressId, name, sourceTier, targetTier,
+                    sourceFolder.toString(), targetFolder.toString(),
+                    "folder found on disk but no title_locations rebase under it on this volume (likely canonical-name case mismatch with the on-disk folder, or a stale stray folder) — manual review");
+        }
 
         if (dryRun) {
             return new Result(true, Outcome.WOULD_MOVE, actressId, name, sourceTier, targetTier,
