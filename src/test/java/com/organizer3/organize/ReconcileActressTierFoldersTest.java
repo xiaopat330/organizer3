@@ -326,8 +326,11 @@ class ReconcileActressTierFoldersTest {
 
     @Test
     void batch_perActressFailures_doNotAbortBatch() throws Exception {
-        // Actress with collision — should produce FAILED but not abort
-        actressRepo.save(mkActress("Collision Actress", Actress.Tier.GODDESS));
+        // Actress with collision — should produce FAILED but not abort.
+        // (Needs a title_location so the DB-derived prefilter discovers her.)
+        long aidC = actressRepo.save(mkActress("Collision Actress", Actress.Tier.GODDESS)).getId();
+        Title ct = titleRepo.save(mkTitle("COL-001", aidC));
+        saveLoc(ct.getId(), "/stars/superstar/Collision Actress/Collision Actress (COL-001)", "superstar");
         createFolder("/stars/superstar/Collision Actress");
         createFolder("/stars/goddess/Collision Actress");  // collision
 
@@ -347,6 +350,88 @@ class ReconcileActressTierFoldersTest {
         long moved  = results.stream().filter(r -> r.outcome() == ActressClassifierService.Outcome.MOVED).count();
         assertEquals(1, failed);
         assertEquals(1, moved);
+    }
+
+    // ── prefilter coverage ─────────────────────────────────────────────────────
+
+    @Test
+    void batch_prefilter_mixedFixture_matchesExpectedResultSet() throws Exception {
+        // 1. Real mismatch — DB POPULAR, folder at minor → WOULD_MOVE
+        long aidMove = actressRepo.save(mkActress("Move Me", Actress.Tier.POPULAR)).getId();
+        Title tm = titleRepo.save(mkTitle("MV-001", aidMove));
+        saveLoc(tm.getId(), "/stars/minor/Move Me/Move Me (MV-001)", "minor");
+        createFolder("/stars/minor/Move Me/Move Me (MV-001)");
+
+        // 2. Already correct — DB LIBRARY, folder at library → no Result
+        long aidOk = actressRepo.save(mkActress("Already Ok", Actress.Tier.LIBRARY)).getId();
+        Title to = titleRepo.save(mkTitle("OK-001", aidOk));
+        saveLoc(to.getId(), "/stars/library/Already Ok/Already Ok (OK-001)", "library");
+        createFolder("/stars/library/Already Ok/Already Ok (OK-001)");
+
+        // 3. Ambiguous canonical name — two phantom-dup actresses differing only in case
+        //    (canonical_name UNIQUE is case-sensitive; the NOCASE map collapses them) → SKIPPED, no move
+        long aidDup = actressRepo.save(mkActress("Dup Name", Actress.Tier.POPULAR)).getId();
+        actressRepo.save(mkActress("dup name", Actress.Tier.SUPERSTAR));
+        Title td = titleRepo.save(mkTitle("DUP-001", aidDup));
+        saveLoc(td.getId(), "/stars/minor/Dup Name/Dup Name (DUP-001)", "minor");
+        createFolder("/stars/minor/Dup Name/Dup Name (DUP-001)");
+
+        // 4. Pool-only folder — must never be proposed
+        long aidPool = actressRepo.save(mkActress("Pool Lady", Actress.Tier.POPULAR)).getId();
+        Title tp = titleRepo.save(mkTitle("PL-001", aidPool));
+        saveLoc(tp.getId(), "/stars/pool/Pool Lady/Pool Lady (PL-001)", "pool");
+
+        // 5. Documented gap — folder exists on disk but no title_location on volume → no Result
+        actressRepo.save(mkActress("No Locs", Actress.Tier.SUPERSTAR));
+        createFolder("/stars/minor/No Locs");
+
+        List<ActressClassifierService.Result> results =
+                svc.reconcileTierFoldersOnVolume(fs, volumeA(), jdbi, true);
+
+        // Exactly two Results: the mismatch (WOULD_MOVE) and the ambiguous name (SKIPPED).
+        assertEquals(2, results.size(), "results: " + results);
+
+        ActressClassifierService.Result move = results.stream()
+                .filter(r -> r.actressName().equals("Move Me")).findFirst().orElseThrow();
+        assertEquals(ActressClassifierService.Outcome.WOULD_MOVE, move.outcome());
+        assertEquals("minor", move.fromTier());
+        assertEquals("popular", move.toTier());
+
+        ActressClassifierService.Result amb = results.stream()
+                .filter(r -> r.actressName().equals("Dup Name")).findFirst().orElseThrow();
+        assertEquals(ActressClassifierService.Outcome.SKIPPED, amb.outcome());
+        assertTrue(amb.reason().contains("ambiguous canonical name"), "reason: " + amb.reason());
+
+        // No Result for the already-correct, pool-only, or no-locs actresses.
+        assertTrue(results.stream().noneMatch(r -> r.actressName().equals("Already Ok")));
+        assertTrue(results.stream().noneMatch(r -> r.actressName().equals("Pool Lady")));
+        assertTrue(results.stream().noneMatch(r -> r.actressName().equals("No Locs")));
+    }
+
+    @Test
+    void batch_ambiguousName_isSkipped_neverProposesMove() throws Exception {
+        // Two phantom-dup actresses share a canonical name (case-only difference); folder is mis-tiered.
+        long aidAmbi = actressRepo.save(mkActress("Ambi Star", Actress.Tier.POPULAR)).getId();
+        actressRepo.save(mkActress("ambi star", Actress.Tier.GODDESS));
+        Title t = titleRepo.save(mkTitle("AMB-001", aidAmbi));
+        saveLoc(t.getId(), "/stars/minor/Ambi Star/Ambi Star (AMB-001)", "minor");
+        createFolder("/stars/minor/Ambi Star/Ambi Star (AMB-001)");
+
+        List<ActressClassifierService.Result> results =
+                svc.reconcileTierFoldersOnVolume(fs, volumeA(), jdbi, false);
+
+        assertEquals(1, results.size());
+        ActressClassifierService.Result r = results.get(0);
+        assertEquals(ActressClassifierService.Outcome.SKIPPED, r.outcome());
+        assertEquals("Ambi Star", r.actressName());
+        assertEquals(-1L, r.actressId());
+        assertTrue(r.reason().contains("ambiguous canonical name"), "reason: " + r.reason());
+
+        // No move proposed and nothing on disk changed.
+        assertTrue(results.stream().noneMatch(x ->
+                x.outcome() == ActressClassifierService.Outcome.WOULD_MOVE
+                        || x.outcome() == ActressClassifierService.Outcome.MOVED));
+        assertTrue(fs.exists(Path.of("/stars/minor/Ambi Star")));
     }
 
     // ── findAllDiskTiers ─────────────────────────────────────────────────────

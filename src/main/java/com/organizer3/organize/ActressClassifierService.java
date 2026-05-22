@@ -13,8 +13,11 @@ import org.jdbi.v3.core.Jdbi;
 
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 
@@ -332,9 +335,15 @@ public class ActressClassifierService {
 
     /**
      * Batch mode: reconciles every actress on the mounted volume whose on-disk tier folder
-     * does not match her {@code actresses.tier}. Runs {@link #reconcileTierFolders} for each
-     * stranded actress and collects per-actress Results.  Per-actress guards (skips, collisions)
-     * are reported in the list and are never fatal to the batch.
+     * does not match her {@code actresses.tier}. Candidates are derived purely from the DB
+     * (the {@code title_locations} for this volume + the actress name map) — no FS walk — and
+     * each candidate is then handed to {@link #reconcileTierFolders}, which performs the FS
+     * verification and all per-actress guards (collision→FAILED, multi-tier→SKIPPED, etc).
+     * Per-actress guards are reported in the list and are never fatal to the batch.
+     *
+     * <p>Coverage tradeoff: an actress whose folder is stranded on disk but has ZERO
+     * {@code title_locations} rows on this volume will not appear in the DB-derived prefilter
+     * and is therefore not reconciled by this batch.
      *
      * @param dryRun if true, compute the plan only — no file or DB mutations
      * @return list of Results, one per actress where a mis-tier was detected (or a skip/fail occurred)
@@ -345,17 +354,46 @@ public class ActressClassifierService {
             Jdbi jdbi,
             boolean dryRun) {
 
-        List<Actress> all = actressRepo.findAll();
+        String volumeId = volumeConfig.id();
         List<Result> results = new ArrayList<>();
 
-        for (Actress actress : all) {
-            String name = actress.getCanonicalName();
-            String targetTier = actress.getTier().name().toLowerCase();
+        // 1. Map each on-disk actress folder-name → the set of /stars tier folders it sits under,
+        //    derived purely from title_locations on this volume (no FS calls).
+        Map<String, Set<String>> folderTiersByName = new LinkedHashMap<>();
+        for (TitleLocation loc : titleLocationRepo.findByVolume(volumeId)) {
+            Path path = loc.getPath();
+            if (path == null || path.getNameCount() < 3) continue;
+            if (!"stars".equals(path.getName(0).toString())) continue;
+            String tier = path.getName(1).toString();
+            if ("pool".equals(tier)) continue;   // findAllDiskTiers excludes pool — prefilter must too
+            String folderName = path.getName(2).toString();
+            folderTiersByName.computeIfAbsent(folderName, k -> new HashSet<>()).add(tier);
+        }
 
-            List<String> matchedTiers = findAllDiskTiers(fs, name);
-            // Fast-path: no folder or already correct — include in results only if mismatch.
-            if (matchedTiers.isEmpty()) continue;
-            if (matchedTiers.equals(List.of(targetTier))) continue;
+        // 2. Group actresses by canonical name (case-insensitive, matching the COLLATE NOCASE
+        //    semantics of the repository lookups). Phantom dups end up grouped together.
+        Map<String, List<Actress>> actressesByName = new HashMap<>();
+        for (Actress a : actressRepo.findAll()) {
+            actressesByName.computeIfAbsent(a.getCanonicalName().toLowerCase(), k -> new ArrayList<>()).add(a);
+        }
+
+        // 3. For each distinct on-disk folder-name, resolve the actress and reconcile if needed.
+        for (var entry : folderTiersByName.entrySet()) {
+            String folderName = entry.getKey();
+            Set<String> folderTiers = entry.getValue();
+            List<Actress> matches = actressesByName.get(folderName.toLowerCase());
+
+            if (matches == null || matches.isEmpty()) continue;   // no actress for this folder
+            if (matches.size() > 1) {
+                results.add(new Result(dryRun, Outcome.SKIPPED, -1L, folderName, null, null, null, null,
+                        "ambiguous canonical name in DB — manual review"));
+                continue;
+            }
+
+            Actress actress = matches.get(0);
+            String targetTier = actress.getTier().name().toLowerCase();
+            // Already at correct tier (and only that tier) — not a candidate.
+            if (folderTiers.equals(Set.of(targetTier))) continue;
 
             Result r = reconcileTierFolders(fs, volumeConfig, jdbi, actress.getId(), dryRun);
             results.add(r);
