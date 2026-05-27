@@ -213,23 +213,23 @@ function renderRecentRow(r) {
   const codeLink = r.code
     ? `<a href="/v2-title-detail.html?code=${encodeURIComponent(r.code)}" style="color:var(--accent-fg);text-decoration:none">${escapeHtml(r.code)}</a>`
     : '<span style="color:var(--text-faint)">—</span>';
-  const slugCell = r.slug
-    ? `<span class="aia-recent-slug" style="color:var(--text-faint);font-size:0.85em">${escapeHtml(r.slug)}</span>`
+  // Always emit all 5 cells so grid placement is invariant regardless of data.
+  // Cell 3: reason — empty span when absent (keeps column alignment).
+  const reasonContent = r.reason
+    ? `${escapeHtml(truncate(r.reason, 70))}`
     : '';
-  const autoAppliedBadge = r.autoApplied
-    ? `<span class="aia-applied-badge" style="background:var(--ok,#22c55e);color:#fff;font-size:0.72em;padding:1px 5px;border-radius:3px;vertical-align:middle">auto</span>`
-    : '';
-  const reasonCell = r.reason
-    ? `<span class="aia-recent-reason" title="${escapeHtml(r.reason)}" style="color:var(--text-faint);font-size:0.85em">${escapeHtml(truncate(r.reason, 70))}</span>`
+  const reasonTitle = r.reason ? ` title="${escapeHtml(r.reason)}"` : '';
+  // Cell 4: auto badge — empty span when not auto-applied (keeps column alignment).
+  const badgeContent = r.autoApplied
+    ? `<span class="aia-applied-badge">auto</span>`
     : '';
   return `
-    <li class="trans-activity-row">
-      ${outcomeChip(r.outcome)}
-      <span class="trans-activity-code">${codeLink}</span>
-      ${slugCell}
-      ${reasonCell}
-      ${autoAppliedBadge}
-      <span class="trans-activity-meta">${escapeHtml(timeAgo(r.at))}</span>
+    <li class="aia-recent-row">
+      <span class="aia-recent-code">${codeLink}</span>
+      <span class="aia-recent-status">${outcomeChip(r.outcome)}</span>
+      <span class="aia-recent-reason"${reasonTitle}>${reasonContent}</span>
+      <span class="aia-recent-badge">${badgeContent}</span>
+      <span class="aia-recent-time">${escapeHtml(timeAgo(r.at))}</span>
     </li>
   `;
 }
@@ -246,6 +246,58 @@ function renderDashShell(panel) {
       .aia-bar-count { font-size: 0.82em; color: var(--text); text-align: right; }
       .aia-bar-pct   { color: var(--text-faint); }
       .aia-bar-sub   { grid-column: 2 / 4; font-size: 0.78em; color: var(--text-faint); margin-top: -4px; padding-left: 0; }
+
+      /* ── Recently processed feed rows ─────────────────────────────── */
+      .aia-recent-row {
+        display: grid;
+        grid-template-columns: 110px 150px 1fr auto 90px;
+        align-items: center;
+        gap: 10px;
+        padding: 4px 12px;
+        border-bottom: 1px solid var(--border, rgba(255,255,255,0.06));
+        min-width: 0;
+      }
+      .aia-recent-row:last-child { border-bottom: none; }
+      .aia-recent-code {
+        font-family: var(--font-mono, monospace);
+        font-size: 0.82em;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .aia-recent-status {
+        white-space: nowrap;
+        overflow: hidden;
+      }
+      .aia-recent-reason {
+        font-size: 0.83em;
+        color: var(--text-faint);
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        min-width: 0;
+      }
+      .aia-recent-badge {
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        white-space: nowrap;
+      }
+      .aia-applied-badge {
+        background: var(--ok, #22c55e);
+        color: #fff;
+        font-size: 0.72em;
+        padding: 1px 5px;
+        border-radius: 3px;
+        white-space: nowrap;
+      }
+      .aia-recent-time {
+        font-family: var(--font-mono, monospace);
+        font-size: 0.80em;
+        color: var(--text-faint);
+        text-align: right;
+        white-space: nowrap;
+      }
     </style>
 
     <div id="dash-cards"><div class="shelf-loading">Loading…</div></div>
