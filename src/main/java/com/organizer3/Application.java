@@ -1160,6 +1160,8 @@ public class Application {
                 batchedEnsembleProcessor, jdbi, coverPath));
         webServer.registerEnrichmentAssistQueue(
                 new com.organizer3.web.routes.EnrichmentAssistQueueRoutes(ollamaOrchestrator));
+        webServer.registerAiAssistDashboard(
+                new com.organizer3.web.routes.AiAssistDashboardRoutes(ollamaOrchestrator, enrichmentReviewQueueRepo));
 
         // MCP (Model Context Protocol) server — read-only diagnostic tools mounted on
         // the existing Javalin instance. See spec/PROPOSAL_MCP_SERVER.md.

@@ -886,4 +886,196 @@ class EnrichmentReviewQueueRepositoryTest {
         assertTrue(repo.listAutoApplyReady(10, 300, 3).isEmpty(),
                 "ineligible at attempts=3 (reached maxAttempts)");
     }
+
+    // ── AI-assist dashboard aggregates ───────────────────────────────────────
+
+    /** Helper: insert a title, enqueue an ambiguous row, then set an AI suggestion. */
+    private long insertTitleWithSuggestion(long titleId, String code, String confidence, String slug, String at,
+                                           boolean autoApplied) {
+        jdbi.useHandle(h -> h.createUpdate(
+                "INSERT OR IGNORE INTO titles(id, code, base_code, label, seq_num) VALUES (:id, :code, :bc, :bc, :id)")
+                .bind("id",   titleId)
+                .bind("code", code)
+                .bind("bc",   code)
+                .execute());
+        repo.enqueue(titleId, slug, "ambiguous", "sentinel_short_circuit");
+        long rowId = jdbi.withHandle(h ->
+                h.createQuery("SELECT id FROM enrichment_review_queue WHERE title_id = :tid")
+                        .bind("tid", titleId).mapTo(Long.class).one());
+        jdbi.useHandle(h -> h.createUpdate("""
+                UPDATE enrichment_review_queue
+                SET ai_suggestion_slug       = :slug,
+                    ai_suggestion_confidence = :confidence,
+                    ai_suggestion_reason     = 'test',
+                    ai_suggestion_at         = :at,
+                    ai_auto_applied          = :applied
+                WHERE id = :id
+                """)
+                .bind("slug",       slug)
+                .bind("confidence", confidence)
+                .bind("at",         at)
+                .bind("applied",    autoApplied ? 1 : 0)
+                .bind("id",         rowId)
+                .execute());
+        return rowId;
+    }
+
+    @Test
+    void countAwaitingAi_returnsOnlyAmbiguousOpenRowsWithNoSuggestion() {
+        // title 1: ambiguous + open + no suggestion → counts
+        repo.enqueue(1L, "slug1", "ambiguous", "sentinel_short_circuit");
+
+        // title 2: ambiguous + open + suggestion already set → does NOT count
+        jdbi.useHandle(h -> h.execute(
+                "INSERT INTO titles(id, code, base_code, label, seq_num) VALUES (2, 'T-2', 'T', 'T', 2)"));
+        insertTitleWithSuggestion(2L, "T-2", "agreed", "s2", "2026-05-01T12:00:00Z", false);
+
+        // title 3: cast_anomaly (wrong reason) → does NOT count
+        jdbi.useHandle(h -> h.execute(
+                "INSERT OR IGNORE INTO titles(id, code, base_code, label, seq_num) VALUES (3, 'T-3', 'T', 'T', 3)"));
+        repo.enqueue(3L, "slug3", "cast_anomaly", "actress_filmography");
+
+        assertEquals(1, repo.countAwaitingAi());
+    }
+
+    @Test
+    void countAwaitingAi_excludesResolvedRows() {
+        repo.enqueue(1L, "slug1", "ambiguous", "sentinel_short_circuit");
+        jdbi.useHandle(h -> h.execute(
+                "UPDATE enrichment_review_queue SET resolved_at = '2026-05-01T00:00:00Z' WHERE title_id = 1"));
+
+        assertEquals(0, repo.countAwaitingAi(), "resolved row must not count as awaiting");
+    }
+
+    @Test
+    void countProcessed_countsAllRowsWithSuggestionAt() {
+        // Two rows with suggestion; one open, one resolved
+        insertTitleWithSuggestion(2L, "T-2", "agreed",   "s2", "2026-05-01T10:00:00Z", false);
+        insertTitleWithSuggestion(3L, "T-3", "conflict", "s3", "2026-05-01T11:00:00Z", false);
+        jdbi.useHandle(h -> h.execute(
+                "INSERT OR IGNORE INTO titles(id, code, base_code, label, seq_num) VALUES (3, 'T-3', 'T', 'T', 3)"));
+        jdbi.useHandle(h -> h.execute(
+                "UPDATE enrichment_review_queue SET resolved_at = '2026-05-01T12:00:00Z' WHERE title_id = 3"));
+
+        // title 1 has no suggestion → excluded
+        repo.enqueue(1L, "slug1", "ambiguous", "sentinel_short_circuit");
+
+        assertEquals(2, repo.countProcessed());
+    }
+
+    @Test
+    void countAutoApplied_countsOnlyAutoAppliedRows() {
+        insertTitleWithSuggestion(2L, "T-2", "agreed", "s2", "2026-05-01T10:00:00Z", true);
+        insertTitleWithSuggestion(3L, "T-3", "agreed", "s3", "2026-05-01T11:00:00Z", false);
+
+        assertEquals(1, repo.countAutoApplied());
+    }
+
+    @Test
+    void outcomeCounts_groupsByConfidence_andMapsNullToUnknown() {
+        insertTitleWithSuggestion(2L, "T-2", "agreed",   "s2", "2026-05-01T10:00:00Z", false);
+        insertTitleWithSuggestion(3L, "T-3", "conflict", "s3", "2026-05-01T11:00:00Z", false);
+        // Insert a row whose confidence is NULL (simulate old/error row)
+        jdbi.useHandle(h -> {
+            h.execute("INSERT OR IGNORE INTO titles(id, code, base_code, label, seq_num) VALUES (4, 'T-4', 'T', 'T', 4)");
+            repo.enqueue(4L, "s4", "ambiguous", "sentinel_short_circuit");
+            h.execute("UPDATE enrichment_review_queue SET ai_suggestion_at = '2026-05-01T12:00:00Z', ai_suggestion_confidence = NULL WHERE title_id = 4");
+        });
+
+        Map<String, Integer> counts = repo.outcomeCounts();
+
+        assertEquals(1, counts.get("agreed"),   "agreed count");
+        assertEquals(1, counts.get("conflict"),  "conflict count");
+        assertEquals(1, counts.get("unknown"),   "null confidence mapped to 'unknown'");
+        assertNull(counts.get("phi4_only"),       "absent outcome must not appear");
+    }
+
+    @Test
+    void outcomeCounts_multipleRowsSameOutcome_aggregated() {
+        insertTitleWithSuggestion(2L, "T-2", "agreed", "s2", "2026-05-01T10:00:00Z", false);
+        insertTitleWithSuggestion(3L, "T-3", "agreed", "s3", "2026-05-01T11:00:00Z", false);
+
+        Map<String, Integer> counts = repo.outcomeCounts();
+        assertEquals(2, counts.get("agreed"));
+    }
+
+    @Test
+    void listRecentlyProcessed_orderedDescByAiSuggestionAt() {
+        insertTitleWithSuggestion(2L, "T-2", "agreed",   "s2", "2026-05-01T10:00:00Z", false);
+        insertTitleWithSuggestion(3L, "T-3", "conflict", "s3", "2026-05-02T10:00:00Z", false);
+
+        List<EnrichmentReviewQueueRepository.RecentProcessedRow> rows =
+                repo.listRecentlyProcessed(10, null);
+
+        assertEquals(2, rows.size());
+        assertEquals("T-3", rows.get(0).code(), "most recent first");
+        assertEquals("T-2", rows.get(1).code());
+    }
+
+    @Test
+    void listRecentlyProcessed_limitsResults() {
+        insertTitleWithSuggestion(2L, "T-2", "agreed", "s2", "2026-05-01T10:00:00Z", false);
+        insertTitleWithSuggestion(3L, "T-3", "agreed", "s3", "2026-05-02T10:00:00Z", false);
+
+        List<EnrichmentReviewQueueRepository.RecentProcessedRow> rows =
+                repo.listRecentlyProcessed(1, null);
+
+        assertEquals(1, rows.size(), "limit must be honored");
+        assertEquals("T-3", rows.get(0).code(), "most recent first even with limit");
+    }
+
+    @Test
+    void listRecentlyProcessed_sinceFilter_excludesOlderRows() {
+        insertTitleWithSuggestion(2L, "T-2", "agreed", "s2", "2026-05-01T10:00:00Z", false);
+        insertTitleWithSuggestion(3L, "T-3", "agreed", "s3", "2026-05-02T10:00:00Z", false);
+
+        // since = 2026-05-01T10:00:00Z means rows AFTER that timestamp only
+        List<EnrichmentReviewQueueRepository.RecentProcessedRow> rows =
+                repo.listRecentlyProcessed(10, "2026-05-01T10:00:00Z");
+
+        assertEquals(1, rows.size(), "only rows after since must be returned");
+        assertEquals("T-3", rows.get(0).code());
+    }
+
+    @Test
+    void listRecentlyProcessed_sinceBlank_treatedAsNoFilter() {
+        insertTitleWithSuggestion(2L, "T-2", "agreed", "s2", "2026-05-01T10:00:00Z", false);
+        insertTitleWithSuggestion(3L, "T-3", "agreed", "s3", "2026-05-02T10:00:00Z", false);
+
+        List<EnrichmentReviewQueueRepository.RecentProcessedRow> rows =
+                repo.listRecentlyProcessed(10, "  ");
+
+        assertEquals(2, rows.size(), "blank since must behave as no filter");
+    }
+
+    @Test
+    void listRecentlyProcessed_excludesRowsWithNoSuggestion() {
+        // title 1: no suggestion
+        repo.enqueue(1L, "slug1", "ambiguous", "sentinel_short_circuit");
+        insertTitleWithSuggestion(2L, "T-2", "agreed", "s2", "2026-05-01T10:00:00Z", false);
+
+        List<EnrichmentReviewQueueRepository.RecentProcessedRow> rows =
+                repo.listRecentlyProcessed(10, null);
+
+        assertEquals(1, rows.size());
+        assertEquals("T-2", rows.get(0).code());
+    }
+
+    @Test
+    void listRecentlyProcessed_recordFields_mappedCorrectly() {
+        insertTitleWithSuggestion(2L, "T-2", "agreed", "abc-slug", "2026-05-01T10:00:00Z", true);
+
+        List<EnrichmentReviewQueueRepository.RecentProcessedRow> rows =
+                repo.listRecentlyProcessed(10, null);
+
+        assertEquals(1, rows.size());
+        EnrichmentReviewQueueRepository.RecentProcessedRow r = rows.get(0);
+        assertEquals("T-2",              r.code());
+        assertEquals("agreed",           r.outcome());
+        assertEquals("abc-slug",         r.slug());
+        assertEquals("test",             r.reason());
+        assertTrue(r.autoApplied(),      "autoApplied must be true");
+        assertEquals("2026-05-01T10:00:00Z", r.at());
+        assertTrue(r.reviewQueueId() > 0, "reviewQueueId must be a positive db id");
+    }
 }

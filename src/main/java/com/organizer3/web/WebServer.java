@@ -193,6 +193,18 @@ public class WebServer {
         routes.register(app);
     }
 
+    /**
+     * Mounts the AI-assist dashboard endpoints:
+     * <ul>
+     *   <li>{@code GET /api/enrichment/assist/dashboard}</li>
+     *   <li>{@code GET /api/enrichment/assist/queue-preview}</li>
+     *   <li>{@code GET /api/enrichment/assist/recent}</li>
+     * </ul>
+     */
+    public void registerAiAssistDashboard(com.organizer3.web.routes.AiAssistDashboardRoutes routes) {
+        routes.register(app);
+    }
+
     /** Mounts the no-match enrichment triage endpoints ({@code /api/triage/no-match/*}). */
     public void registerNoMatchTriage(com.organizer3.web.routes.NoMatchTriageRoutes routes) {
         routes.register(app);
