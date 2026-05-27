@@ -83,11 +83,13 @@ volumes:
     server: pandora
     letters: [H, I, J]
 
+  # L has no volume of its own; folded into K (L/R are near-interchangeable in
+  # Japanese romanization, and L-initial names are rare).
   - id: k
     smbPath: //pandora.local/jav_K
     structureType: conventional
     server: pandora
-    letters: [K]
+    letters: [K, L]
 
   # "ma" holds Ma-prefixed actresses only (most-specific match).
   # "m" holds the rest of M (Mb-Mz) — the plain "M" prefix still matches Ma-names
