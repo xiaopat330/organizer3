@@ -462,7 +462,42 @@ function renderDashShell(panel) {
         text-align: right;
         white-space: nowrap;
       }
+      /* ── Sweeper on/off bar ──────────────────────────────────────── */
+      .aia-sweeper-bar {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 10px 14px;
+        margin-bottom: 16px;
+        border-radius: 8px;
+        background: var(--surface-2, rgba(255,255,255,0.05));
+      }
+      .aia-sweeper-dot {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        flex: none;
+        background: var(--text-faint, #888);
+      }
+      .aia-sweeper-bar[data-active="true"] .aia-sweeper-dot {
+        background: var(--ok, #22c55e);
+        animation: aia-pulse 1.8s ease-out infinite;
+      }
+      @keyframes aia-pulse {
+        0%   { box-shadow: 0 0 0 0 rgba(34,197,94,0.55); }
+        70%  { box-shadow: 0 0 0 7px rgba(34,197,94,0); }
+        100% { box-shadow: 0 0 0 0 rgba(34,197,94,0); }
+      }
+      .aia-sweeper-label { font-size: 0.9em; color: var(--text); }
+      .aia-sweeper-msg {
+        font-size: 0.82em;
+        color: var(--warn, #f59e0b);
+        margin-left: 8px;
+      }
+      .aia-sweeper-btn { margin-left: auto; }
     </style>
+
+    <div id="aia-sweeper-bar"></div>
 
     <div id="dash-cards"><div class="shelf-loading">Loading…</div></div>
 
@@ -494,6 +529,60 @@ function renderDashShell(panel) {
     dashState.activity = [];
     renderDashActivity();
   });
+}
+
+/* ── Sweeper bar ─────────────────────────────────────────────────── */
+function renderSweeperBar() {
+  if (!dashState.panel) return;
+  const bar = dashState.panel.querySelector('#aia-sweeper-bar');
+  if (!bar) return;
+  const active = !!(dashState.sweeper && dashState.sweeper.active);
+  bar.className = 'aia-sweeper-bar';
+  bar.dataset.active = String(active);
+  const label = active ? 'Active — draining queue' : 'Inactive';
+  const btnLabel = active ? 'Turn off' : 'Turn on';
+  const msg = dashState.sweeperMsg
+    ? `<span class="aia-sweeper-msg">${escapeHtml(dashState.sweeperMsg)}</span>`
+    : '';
+  bar.innerHTML = `
+    <span class="aia-sweeper-dot"></span>
+    <span class="aia-sweeper-label">${escapeHtml(label)}</span>
+    ${msg}
+    <button class="btn sm aia-sweeper-btn" id="aia-sweeper-btn"${dashState.sweeperBusy ? ' disabled' : ''}>${escapeHtml(btnLabel)}</button>
+  `;
+  const btn = bar.querySelector('#aia-sweeper-btn');
+  if (btn) btn.addEventListener('click', toggleSweeper);
+}
+
+async function loadSweeper() {
+  const s = await fetchJson('/api/enrichment/assist/sweeper', null);
+  if (s) dashState.sweeper = { active: !!s.active, runId: s.runId ?? null };
+  renderSweeperBar();
+}
+
+async function toggleSweeper() {
+  if (dashState.sweeperBusy) return;
+  const wasActive = !!(dashState.sweeper && dashState.sweeper.active);
+  dashState.sweeperBusy = true;
+  dashState.sweeperMsg = null;
+  renderSweeperBar();
+  try {
+    const url = wasActive
+      ? '/api/enrichment/assist/sweeper/stop'
+      : '/api/enrichment/assist/sweeper/start';
+    const res = await fetch(url, { method: 'POST', cache: 'no-cache' });
+    if (res.status === 409) {
+      const data = await res.json().catch(() => ({}));
+      const who = data.runningTaskId ? ` (${data.runningTaskId})` : '';
+      dashState.sweeperMsg = `Can't start — another utility task is running${who}`;
+      setTimeout(() => { dashState.sweeperMsg = null; renderSweeperBar(); }, 5000);
+    }
+  } catch (e) {
+    console.warn('[ai-assist] sweeper toggle failed:', e);
+  } finally {
+    dashState.sweeperBusy = false;
+    await loadSweeper();
+  }
 }
 
 /* ── Render helpers ─────────────────────────────────────────────── */
@@ -538,6 +627,9 @@ const dashState = {
   activity: [],         // newest first
   activitySince: null,  // high-water-mark: tracks newest `at` value seen
   paused: false,
+  sweeper: { active: false, runId: null },
+  sweeperBusy: false,   // true while a start/stop request is in flight
+  sweeperMsg: null,     // transient inline message (e.g. 409 conflict)
   timers: { stats: null, queue: null, activity: null },
 };
 
@@ -546,6 +638,8 @@ async function loadStats() {
   const stats = await fetchJson('/api/enrichment/assist/dashboard', null);
   dashState.stats = stats;
   renderDashCards();
+  // Piggyback the sweeper status poll on the 5s stats timer.
+  await loadSweeper();
 }
 
 async function loadQueue() {
@@ -591,13 +685,14 @@ export async function mountAiAssist(rootEl) {
   }
 
   // Render whatever we have cached (instant on re-mount)
+  renderSweeperBar();
   renderDashCards();
   renderDashQueue();
   renderDashActivity();
 
   // Start polling timers only if not already running
   if (!dashState.timers.stats) {
-    await Promise.all([loadStats(), loadQueue(), loadActivity()]);
+    await Promise.all([loadStats(), loadQueue(), loadActivity(), loadSweeper()]);
     dashState.timers.stats    = setInterval(loadStats,    STATS_POLL_MS);
     dashState.timers.queue    = setInterval(loadQueue,    QUEUE_POLL_MS);
     dashState.timers.activity = setInterval(loadActivity, ACTIVITY_POLL_MS);

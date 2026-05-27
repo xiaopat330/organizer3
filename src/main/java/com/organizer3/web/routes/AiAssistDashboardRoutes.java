@@ -1,21 +1,30 @@
 package com.organizer3.web.routes;
 
+import com.organizer3.enrichment.ai.EnrichmentAssistSweeper;
 import com.organizer3.javdb.enrichment.EnrichmentReviewQueueRepository;
 import com.organizer3.ollama.OllamaModelOrchestrator;
+import com.organizer3.utilities.task.TaskInputs;
+import com.organizer3.utilities.task.TaskRun;
+import com.organizer3.utilities.task.TaskRunner;
 import io.javalin.Javalin;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 /**
- * Exposes read-only AI-assist dashboard aggregates.
+ * Exposes read-only AI-assist dashboard aggregates plus the long-lived
+ * sweeper-task on/off control.
  *
  * <ul>
  *   <li>{@code GET /api/enrichment/assist/dashboard} — summary counts + outcome breakdown</li>
  *   <li>{@code GET /api/enrichment/assist/queue-preview} — next items awaiting AI (param: limit)</li>
  *   <li>{@code GET /api/enrichment/assist/recent} — recently processed rows (params: limit, since)</li>
+ *   <li>{@code GET /api/enrichment/assist/sweeper} — sweeper active/inactive state</li>
+ *   <li>{@code POST /api/enrichment/assist/sweeper/start} — start the sweeper (idempotent)</li>
+ *   <li>{@code POST /api/enrichment/assist/sweeper/stop} — stop the sweeper (idempotent)</li>
  * </ul>
  */
 @Slf4j
@@ -23,11 +32,14 @@ public class AiAssistDashboardRoutes {
 
     private final OllamaModelOrchestrator orchestrator;
     private final EnrichmentReviewQueueRepository reviewQueueRepo;
+    private final TaskRunner taskRunner;
 
     public AiAssistDashboardRoutes(OllamaModelOrchestrator orchestrator,
-                                   EnrichmentReviewQueueRepository reviewQueueRepo) {
+                                   EnrichmentReviewQueueRepository reviewQueueRepo,
+                                   TaskRunner taskRunner) {
         this.orchestrator    = orchestrator;
         this.reviewQueueRepo = reviewQueueRepo;
+        this.taskRunner      = taskRunner;
     }
 
     public void register(Javalin app) {
@@ -86,6 +98,56 @@ public class AiAssistDashboardRoutes {
                     .toList();
             ctx.json(rows);
         });
+
+        // GET /api/enrichment/assist/sweeper — { active, runId }
+        app.get("/api/enrichment/assist/sweeper", ctx -> {
+            Optional<TaskRun> sweeper = runningSweeper();
+            Map<String, Object> body = new LinkedHashMap<>();
+            body.put("active", sweeper.isPresent());
+            body.put("runId",  sweeper.map(TaskRun::runId).orElse(null));
+            ctx.json(body);
+        });
+
+        // POST /api/enrichment/assist/sweeper/start — idempotent
+        app.post("/api/enrichment/assist/sweeper/start", ctx -> {
+            Optional<TaskRun> existing = runningSweeper();
+            if (existing.isPresent()) {
+                // Already running — do not start a second one.
+                Map<String, Object> body = new LinkedHashMap<>();
+                body.put("active", true);
+                body.put("runId",  existing.get().runId());
+                ctx.json(body);
+                return;
+            }
+            try {
+                TaskRun run = taskRunner.start(EnrichmentAssistSweeper.ID, new TaskInputs(Map.of()));
+                Map<String, Object> body = new LinkedHashMap<>();
+                body.put("active", true);
+                body.put("runId",  run.runId());
+                ctx.json(body);
+            } catch (TaskRunner.TaskInFlightException e) {
+                // A DIFFERENT utility task is running.
+                Map<String, Object> body = new LinkedHashMap<>();
+                body.put("active", false);
+                body.put("error", "another task running");
+                body.put("runningTaskId", e.runningTaskId);
+                ctx.status(409).json(body);
+            }
+        });
+
+        // POST /api/enrichment/assist/sweeper/stop — idempotent
+        app.post("/api/enrichment/assist/sweeper/stop", ctx -> {
+            runningSweeper().ifPresent(run -> taskRunner.cancel(run.runId()));
+            Map<String, Object> body = new LinkedHashMap<>();
+            body.put("active", false);
+            ctx.json(body);
+        });
+    }
+
+    /** The currently-running task iff it is the AI-assist sweeper, else empty. */
+    private Optional<TaskRun> runningSweeper() {
+        return taskRunner.currentlyRunning()
+                .filter(run -> EnrichmentAssistSweeper.ID.equals(run.taskId()));
     }
 
     // ── helpers ───────────────────────────────────────────────────────────────
