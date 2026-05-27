@@ -20,12 +20,14 @@ export function mountStatusBar() {
   let aiAssistState = { inFlight: 0, queued: 0 };
 
   function renderAiAssist() {
-    const total = aiAssistState.inFlight + aiAssistState.queued;
-    if (total <= 0) return '';
+    const { inFlight, queued } = aiAssistState;
+    if (inFlight <= 0 && queued <= 0) return '';
+    const segments = [];
+    if (inFlight > 0) segments.push(`${inFlight} running`);
+    if (queued  > 0) segments.push(`${queued} queued`);
     return `<span class="status-item">` +
       `<span class="status-task">` +
-        `<b>ai</b> ${aiAssistState.inFlight}/${total}` +
-        `<span class="bar"><span class="bar-fill"></span></span>` +
+        `<b>ai</b> · ${segments.join(' · ')}` +
       `</span>` +
     `</span>`;
   }

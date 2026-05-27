@@ -44,6 +44,7 @@ export function mountGlobalStrip(containerEl, opts = {}) {
   const pauseToggleEl = containerEl.querySelector('#dr-pause-toggle');
 
   let _paused = false;
+  let _aiProgressInterval = null;
 
   // ── Pause toggle ───────────────────────────────────────────────────
 
@@ -75,16 +76,66 @@ export function mountGlobalStrip(containerEl, opts = {}) {
 
   // ── AI assist pill ────────────────────────────────────────────────
 
+  function _clearAiProgressInterval() {
+    if (_aiProgressInterval !== null) {
+      clearInterval(_aiProgressInterval);
+      _aiProgressInterval = null;
+    }
+  }
+
+  function _startAiProgressPoll() {
+    _clearAiProgressInterval();
+    _aiProgressInterval = setInterval(async () => {
+      try {
+        const res = await fetch('/api/enrichment/workflow/ai-assist-status');
+        if (!res.ok) return;
+        const data = await res.json();
+        if (data.active) {
+          const total     = data.batchTotal     || 0;
+          const processed = data.batchProcessed || 0;
+          aiPillEl.textContent = total > 0
+            ? `processing ${processed}/${total}…`
+            : 'processing…';
+          aiPillEl.dataset.state = 'processing';
+        } else {
+          // Batch finished.
+          _clearAiProgressInterval();
+          aiPillEl.textContent = 'done ✓';
+          aiPillEl.dataset.state = 'idle';
+          aiPillEl.disabled = false;
+          // Let the normal summary poll repaint after 2s.
+          setTimeout(() => {
+            aiPillEl.textContent = 'none';
+          }, 2000);
+        }
+      } catch (_) { /* ignore transient errors */ }
+    }, 1500);
+  }
+
   async function handleAiAssist() {
     aiPillEl.disabled = true;
-    const original = aiPillEl.textContent;
     aiPillEl.textContent = 'queuing…';
     try {
-      await fetch('/api/enrichment/workflow/ai-assist-all', { method: 'POST' });
-    } catch (_) { /* ignore */ }
-    // Reset label; status update will re-paint shortly.
-    aiPillEl.textContent = original;
-    aiPillEl.disabled = false;
+      const res  = await fetch('/api/enrichment/workflow/ai-assist-all', { method: 'POST' });
+      const data = res.ok ? await res.json() : null;
+      if (!data || data.queued === 0) {
+        // Nothing to do — show briefly then let the summary poll repaint.
+        aiPillEl.textContent = 'nothing to do';
+        aiPillEl.dataset.state = 'idle';
+        aiPillEl.disabled = false;
+        setTimeout(() => {
+          aiPillEl.textContent = 'none';
+        }, 2000);
+      } else {
+        // Batch queued — start progress polling; pill stays disabled until done.
+        aiPillEl.textContent = 'processing…';
+        aiPillEl.dataset.state = 'processing';
+        _startAiProgressPoll();
+      }
+    } catch (_) {
+      // On network error just re-enable.
+      aiPillEl.disabled = false;
+    }
   }
 
   aiPillEl.addEventListener('click', handleAiAssist);
@@ -125,7 +176,8 @@ export function mountGlobalStrip(containerEl, opts = {}) {
     }
 
     // AI assist pill: show open-review count if available.
-    if (status.ambiguous != null) {
+    // Skip repaint while the progress poll is active — it owns the pill.
+    if (status.ambiguous != null && _aiProgressInterval === null) {
       const n = status.ambiguous;
       aiPillEl.textContent = n > 0 ? `${n} open` : 'none';
       aiPillEl.dataset.state = n > 0 ? 'open' : 'idle';
@@ -143,6 +195,7 @@ export function mountGlobalStrip(containerEl, opts = {}) {
     destroy() {
       pauseToggleEl.removeEventListener('click', handlePauseToggle);
       aiPillEl.removeEventListener('click', handleAiAssist);
+      _clearAiProgressInterval();
     },
   };
 }
