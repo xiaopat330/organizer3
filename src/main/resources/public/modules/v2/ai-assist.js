@@ -285,7 +285,7 @@ function renderDashShell(panel) {
       }
       .aia-applied-badge {
         background: var(--ok, #22c55e);
-        color: #fff;
+        color: #000;
         font-size: 0.72em;
         padding: 1px 5px;
         border-radius: 3px;
