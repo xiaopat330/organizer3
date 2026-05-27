@@ -508,6 +508,103 @@ class WorkflowRoutesTest {
         workflowRoutes.aiQueued.remove(99L);
     }
 
+    // ── GET /api/enrichment/workflow/ai-assist-status ─────────────────────────
+
+    @Test
+    void aiAssistStatus_returnsIdleWhenNothingQueued() throws Exception {
+        HttpResponse<String> res = get("/api/enrichment/workflow/ai-assist-status");
+
+        assertEquals(200, res.statusCode());
+        JsonNode body = mapper.readTree(res.body());
+        assertFalse(body.get("active").asBoolean(), "should be inactive when nothing is queued");
+        assertEquals(0, body.get("queued").asInt());
+        assertTrue(body.get("processing").isNull(), "processing should be null when idle");
+        assertEquals(0, body.get("batchTotal").asInt());
+        assertEquals(0, body.get("batchProcessed").asInt());
+    }
+
+    @Test
+    void aiAssistStatus_reflectsActiveWhenRowsQueued() throws Exception {
+        // Manually add rows to aiQueued to simulate in-flight bulk run.
+        workflowRoutes.aiQueued.add(10L);
+        workflowRoutes.aiQueued.add(11L);
+        workflowRoutes.aiBatchTotal.set(2);
+        workflowRoutes.aiBatchProcessed.set(0);
+        try {
+            HttpResponse<String> res = get("/api/enrichment/workflow/ai-assist-status");
+
+            assertEquals(200, res.statusCode());
+            JsonNode body = mapper.readTree(res.body());
+            assertTrue(body.get("active").asBoolean(), "should be active when rows are queued");
+            assertEquals(2, body.get("queued").asInt());
+            assertEquals(2, body.get("batchTotal").asInt());
+            assertEquals(0, body.get("batchProcessed").asInt());
+        } finally {
+            workflowRoutes.aiQueued.clear();
+            workflowRoutes.aiBatchTotal.set(0);
+            workflowRoutes.aiBatchProcessed.set(0);
+        }
+    }
+
+    @Test
+    void aiAssistStatus_reflectsProcessingCodeWhenRowRunning() throws Exception {
+        workflowRoutes.aiProcessing.set(5L);
+        workflowRoutes.aiProcessingCode.set("STAR-005");
+        workflowRoutes.aiBatchTotal.set(3);
+        workflowRoutes.aiBatchProcessed.set(1);
+        try {
+            HttpResponse<String> res = get("/api/enrichment/workflow/ai-assist-status");
+
+            assertEquals(200, res.statusCode());
+            JsonNode body = mapper.readTree(res.body());
+            assertTrue(body.get("active").asBoolean());
+            assertEquals("STAR-005", body.get("processing").asText());
+            assertEquals(3, body.get("batchTotal").asInt());
+            assertEquals(1, body.get("batchProcessed").asInt());
+        } finally {
+            workflowRoutes.aiProcessing.set(null);
+            workflowRoutes.aiProcessingCode.set(null);
+            workflowRoutes.aiBatchTotal.set(0);
+            workflowRoutes.aiBatchProcessed.set(0);
+        }
+    }
+
+    @Test
+    void aiAssistAll_batchCountersSetAndClearedAfterCompletion() throws Exception {
+        CountDownLatch processCalled = new CountDownLatch(1);
+        CountDownLatch releaseProcess = new CountDownLatch(1);
+
+        OpenRow r1 = makeRow(1L, 10L, "STAR-001", "ambiguous");
+        OpenRow r2 = makeRow(2L, 11L, "STAR-002", "ambiguous");
+        when(reviewQueueRepo.listOpenAwaitingAi(anyInt())).thenReturn(List.of(r1, r2));
+
+        when(batchedProcessor.process(anyList(), any(), any())).thenAnswer(inv -> {
+            processCalled.countDown();
+            releaseProcess.await(5, TimeUnit.SECONDS);
+            return new BatchedEnsembleProcessor.ProcessingResult(2, 2, 2, 0);
+        });
+
+        // Fire the bulk route.
+        post("/api/enrichment/workflow/ai-assist-all");
+
+        // Wait for the executor to enter the processor — counters should be set by then.
+        assertTrue(processCalled.await(5, TimeUnit.SECONDS), "processor was not called");
+        assertEquals(2, workflowRoutes.aiBatchTotal.get(), "batchTotal should be set");
+        assertEquals(0, workflowRoutes.aiBatchProcessed.get(), "batchProcessed should start at 0");
+
+        // Release the processor to finish.
+        releaseProcess.countDown();
+
+        // After completion the finally block resets both counters.
+        long deadline = System.currentTimeMillis() + 5000;
+        while ((workflowRoutes.aiBatchTotal.get() != 0 || workflowRoutes.aiBatchProcessed.get() != 0)
+                && System.currentTimeMillis() < deadline) {
+            Thread.sleep(10);
+        }
+        assertEquals(0, workflowRoutes.aiBatchTotal.get(),     "batchTotal should reset after batch");
+        assertEquals(0, workflowRoutes.aiBatchProcessed.get(), "batchProcessed should reset after batch");
+    }
+
     // ── Helpers ───────────────────────────────────────────────────────────────
 
     private static OpenRow makeRow(long id, long titleId, String code, String reason) {

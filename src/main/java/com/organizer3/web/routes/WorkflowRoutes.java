@@ -25,6 +25,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -67,8 +68,16 @@ public class WorkflowRoutes {
     // Per-row AI assist tracking. aiQueued holds rows submitted but not yet running;
     // aiProcessing holds the single row currently being evaluated (null when idle).
     // Both are read by the /rows endpoint on every poll to derive live state.
-    final Set<Long>          aiQueued     = ConcurrentHashMap.newKeySet();
-    final AtomicReference<Long> aiProcessing = new AtomicReference<>(null);
+    final Set<Long>             aiQueued         = ConcurrentHashMap.newKeySet();
+    final AtomicReference<Long> aiProcessing     = new AtomicReference<>(null);
+
+    // Bulk-run progress counters for the ai-assist-status endpoint.
+    // aiBatchTotal is set to the batch size when a bulk run starts; aiBatchProcessed
+    // increments on each rowProcessed callback; both reset to 0 in the finally block.
+    final AtomicInteger          aiBatchTotal     = new AtomicInteger(0);
+    final AtomicInteger          aiBatchProcessed = new AtomicInteger(0);
+    // Human-readable title code of the row currently being evaluated; null when idle.
+    final AtomicReference<String> aiProcessingCode = new AtomicReference<>(null);
 
     public WorkflowRoutes(EnrichmentReviewQueueRepository reviewQueueRepo,
                           EnsembleAssistCaller ensembleAssistCaller,
@@ -168,6 +177,10 @@ public class WorkflowRoutes {
                     aiQueued.add(row.id());
                 }
 
+                // Reset batch progress counters before dispatching.
+                aiBatchTotal.set(count);
+                aiBatchProcessed.set(0);
+
                 // Dispatch one task for the entire batch — the processor handles chunking.
                 aiExecutor.submit(() -> {
                     BatchedEnsembleProcessor.ProgressSink sink =
@@ -176,10 +189,13 @@ public class WorkflowRoutes {
                                 public void rowStarted(long rowId, String code) {
                                     aiQueued.remove(rowId);
                                     aiProcessing.set(rowId);
+                                    aiProcessingCode.set(code);
                                 }
                                 @Override
                                 public void rowProcessed(long rowId, String code, AssistResult result) {
+                                    aiBatchProcessed.incrementAndGet();
                                     aiProcessing.set(null);
+                                    aiProcessingCode.set(null);
                                 }
                             };
                     BatchedEnsembleProcessor.CancellationCheck neverCancel = () -> false;
@@ -193,6 +209,9 @@ public class WorkflowRoutes {
                             aiQueued.remove(row.id());
                         }
                         aiProcessing.set(null);
+                        aiProcessingCode.set(null);
+                        aiBatchTotal.set(0);
+                        aiBatchProcessed.set(0);
                     }
                 });
             } else {
@@ -204,6 +223,21 @@ public class WorkflowRoutes {
 
             log.info("[workflow] ai-assist-all queued {} rows", count);
             ctx.status(202).json(Map.of("queued", count));
+        });
+
+        // GET /api/enrichment/workflow/ai-assist-status
+        // Lightweight polling endpoint for the bulk AI-assist progress pill.
+        // Returns: { active, queued, processing, batchTotal, batchProcessed }
+        // active=true while any row is queued or being evaluated.
+        app.get("/api/enrichment/workflow/ai-assist-status", ctx -> {
+            boolean active = aiProcessing.get() != null || !aiQueued.isEmpty();
+            Map<String, Object> body = new LinkedHashMap<>();
+            body.put("active",         active);
+            body.put("queued",         aiQueued.size());
+            body.put("processing",     aiProcessingCode.get());   // human-readable code or null
+            body.put("batchTotal",     aiBatchTotal.get());
+            body.put("batchProcessed", aiBatchProcessed.get());
+            ctx.json(body);
         });
     }
 
