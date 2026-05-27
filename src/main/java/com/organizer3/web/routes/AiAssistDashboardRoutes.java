@@ -43,6 +43,10 @@ public class AiAssistDashboardRoutes {
             body.put("processedTotal",       reviewQueueRepo.countProcessed());
             body.put("autoApplied",          reviewQueueRepo.countAutoApplied());
             body.put("outcomeCounts",        reviewQueueRepo.outcomeCounts());
+            body.put("openAmbiguous",        reviewQueueRepo.countOpen("ambiguous"));
+            body.put("openReviewTotal",      reviewQueueRepo.countOpen("ambiguous")
+                                           + reviewQueueRepo.countOpen("cast_anomaly")
+                                           + reviewQueueRepo.countOpen("fetch_failed"));
             ctx.json(body);
         });
 

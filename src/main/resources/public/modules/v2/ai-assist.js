@@ -1,6 +1,6 @@
 /* ─────────────────────────────────────────────────────────────────────
    AI Assist dashboard — single-page, no tabs.
-   Layout: stat cards → outcome breakdown → queue preview → recent feed.
+   Layout: top widget row (Queue + Throughput + Outcome mix) → queue preview → recent feed.
    Polling: stats+queue every 5s, recent feed every 2s (with since= HWM).
    API contract:
      GET /api/enrichment/assist/dashboard
@@ -103,95 +103,168 @@ function outcomeChip(outcome) {
   return `<span class="aia-chip aia-chip-${cat}" title="${escapeHtml(outcome || cat)}" style="color:${m.color};font-weight:600;font-size:0.8em;white-space:nowrap">${m.symbol} ${escapeHtml(m.label)}</span>`;
 }
 
-/* ── Stat cards ─────────────────────────────────────────────────────
-   4 cards mirroring translation's trans-cards layout.
+/* ── Outcome category defs (shared by donut + legend) ──────────────── */
+const OUTCOME_DEFS = [
+  { key: 'conclusive',   label: 'Conclusive',         color: 'var(--ok, #22c55e)'        },
+  { key: 'leaning',      label: 'Leaning (1 model)',  color: 'var(--accent, #60a5fa)'    },
+  { key: 'split',        label: 'Split (conflict)',   color: 'var(--warn, #f59e0b)'      },
+  { key: 'no-decision',  label: 'No decision',        color: 'var(--text-faint, #888)'   },
+];
+
+/* ── Outcome donut (donut ring + inline legend) ──────────────────────
+   Reused for the compact in-row tile. Geometry: viewBox 0 0 42 42,
+   radius chosen so circumference ≈ 100; sequential segments, skip-zero,
+   -90deg rotation applied via CSS.
    ─────────────────────────────────────────────────────────────────── */
+function renderOutcomeDonut(stats, { compact = false } = {}) {
+  const processedTotal = N(stats && stats.processedTotal);
+  const buckets        = bucketCounts(stats && stats.outcomeCounts);
+
+  const R = 15.91549430918954; // circumference = 2πR = 100
+  const CIRC = 100;
+  const STROKE = 5;
+
+  let acc = 0;
+  const segments = [];
+  if (processedTotal > 0) {
+    for (const def of OUTCOME_DEFS) {
+      const count = buckets[def.key] || 0;
+      if (count <= 0) continue;
+      const len = (count / processedTotal) * CIRC;
+      const offset = (CIRC - acc) % CIRC;
+      segments.push(`
+        <circle class="aia-donut-seg" cx="21" cy="21" r="${R}" fill="none"
+          stroke="${def.color}" stroke-width="${STROKE}"
+          stroke-dasharray="${len.toFixed(3)} ${(CIRC - len).toFixed(3)}"
+          stroke-dashoffset="${offset.toFixed(3)}"></circle>
+      `);
+      acc += len;
+    }
+  }
+
+  const svg = `
+    <svg class="aia-donut-svg" viewBox="0 0 42 42" role="img" aria-label="Outcome breakdown donut">
+      <circle cx="21" cy="21" r="${R}" fill="none"
+        stroke="var(--surface-2, rgba(255,255,255,0.08))" stroke-width="${STROKE}"></circle>
+      ${segments.join('')}
+    </svg>
+  `;
+
+  const center = processedTotal === 0
+    ? `<div class="aia-donut-center"><div class="aia-donut-note">No outcomes yet</div></div>`
+    : `<div class="aia-donut-center">
+         <div class="aia-donut-total">${fmt(processedTotal)}</div>
+       </div>`;
+
+  const legendRows = OUTCOME_DEFS.map(def => {
+    const count = buckets[def.key] || 0;
+    return `
+      <div class="aia-legend-row">
+        <span class="aia-legend-swatch" style="background:${def.color}"></span>
+        <span class="aia-legend-label">${escapeHtml(def.label)}</span>
+        <span class="aia-legend-count">${fmt(count)}</span>
+      </div>
+    `;
+  }).join('');
+
+  const wrapClass = compact ? 'aia-donut-wrap aia-donut-wrap-compact' : 'aia-donut-wrap';
+  const chartClass = compact ? 'aia-donut-chart aia-donut-chart-compact' : 'aia-donut-chart';
+
+  return `
+    <div class="${wrapClass}">
+      <div class="${chartClass}">
+        ${svg}
+        ${center}
+      </div>
+      <div class="aia-legend aia-legend-compact">
+        ${legendRows}
+      </div>
+    </div>
+  `;
+}
+
+/* ── Stat cards ─────────────────────────────────────────────────────
+   Top widget row: Queue + Throughput + wide Outcome-mix tile.
+   ─────────────────────────────────────────────────────────────────── */
+/* ── Throughput stacked meter (Processed tile) ──────────────────── */
+function renderThroughputMeter(stats) {
+  const processedTotal = N(stats.processedTotal);
+  const autoApplied    = N(stats.autoApplied);
+  const awaitingAi     = N(stats.awaitingAi);
+  const openAmbiguous  = N(stats.openAmbiguous);
+  const soak           = Math.max(0, openAmbiguous - awaitingAi);
+  const settled        = Math.max(0, processedTotal - autoApplied - soak);
+
+  if (processedTotal === 0) {
+    return `
+      <div class="aia-meter-track"></div>
+      <div class="aia-meter-note">Nothing processed yet</div>
+    `;
+  }
+
+  const segs = [
+    { label: 'Auto-applied',  count: autoApplied, color: 'var(--ok, #22c55e)' },
+    { label: 'Awaiting soak', count: soak,        color: 'var(--warn, #f59e0b)' },
+    { label: 'Settled',       count: settled,     color: 'var(--text-faint, #888)' },
+  ].filter(s => s.count > 0);
+
+  const bar = segs.map(s => {
+    const w = (s.count / processedTotal) * 100;
+    const tip = `${s.label}: ${fmt(s.count)} (${pct(s.count, processedTotal)})`;
+    return `<div class="aia-meter-seg" style="width:${w}%;background:${s.color}" title="${escapeHtml(tip)}"></div>`;
+  }).join('');
+
+  const legend = segs.map(s => `
+    <div class="aia-meter-key">
+      <span class="aia-meter-swatch" style="background:${s.color}"></span>
+      <span class="aia-meter-key-label">${escapeHtml(s.label)}</span>
+      <span class="aia-meter-key-count">${fmt(s.count)}</span>
+    </div>
+  `).join('');
+
+  return `
+    <div class="aia-meter-track">${bar}</div>
+    <div class="aia-meter-legend">${legend}</div>
+  `;
+}
+
 function renderStatCards(stats) {
   if (!stats) return `<div class="shelf-loading">Stats unavailable.</div>`;
 
-  const awaitingAi    = N(stats.awaitingAi);
-  const inFlight      = N(stats.inFlight);
+  const awaitingAi     = N(stats.awaitingAi);
+  const inFlight       = N(stats.inFlight);
   const processedTotal = N(stats.processedTotal);
-  const autoApplied   = N(stats.autoApplied);
-  const buckets       = bucketCounts(stats.outcomeCounts);
-  const conclusivePct = pct(buckets.conclusive, processedTotal);
-  const splitPct      = pct(buckets.split, processedTotal);
+  const autoApplied    = N(stats.autoApplied);
+  const openAmbiguous  = N(stats.openAmbiguous);
+  const openReviewTotal = N(stats.openReviewTotal);
+
+  const runningLine = inFlight > 0
+    ? `<div class="trans-card-sub">${fmt(inFlight)} running</div>`
+    : '';
 
   return `
-    <div class="trans-cards">
+    <div class="aia-cards">
 
       <div class="trans-card">
         <div class="trans-card-title">Queue</div>
         <div class="trans-card-headline">${fmt(awaitingAi)}</div>
-        <div class="trans-card-sub">${fmt(inFlight)} running</div>
+        <div class="aia-card-label">assistable</div>
+        <div class="trans-card-sub">of ${fmt(openReviewTotal)} open review items</div>
+        ${runningLine}
       </div>
 
       <div class="trans-card">
         <div class="trans-card-title">Processed</div>
         <div class="trans-card-headline">${fmt(processedTotal)}</div>
-        <div class="trans-card-sub">all-time</div>
+        ${renderThroughputMeter(stats)}
       </div>
 
-      <div class="trans-card">
-        <div class="trans-card-title">Auto-applied</div>
-        <div class="trans-card-headline">${fmt(autoApplied)}</div>
-        <div class="trans-card-sub">applied</div>
-      </div>
-
-      <div class="trans-card">
-        <div class="trans-card-title">Decision mix</div>
-        <div class="trans-card-headline">${conclusivePct}</div>
-        <div class="trans-card-sub">conclusive · ${splitPct} split</div>
+      <div class="trans-card aia-card-wide">
+        <div class="trans-card-title">Outcome mix</div>
+        ${renderOutcomeDonut(stats, { compact: true })}
       </div>
 
     </div>
-  `;
-}
-
-/* ── Outcome breakdown bars ─────────────────────────────────────────
-   Full-width shelf with one horizontal bar per category.
-   Bar fill = count / max(category counts).
-   ─────────────────────────────────────────────────────────────────── */
-function renderOutcomeBreakdown(stats) {
-  const processedTotal = N(stats && stats.processedTotal);
-  const autoApplied    = N(stats && stats.autoApplied);
-  const buckets        = bucketCounts(stats && stats.outcomeCounts);
-  const maxCount       = Math.max(1, ...Object.values(buckets));
-
-  const BAR_DEFS = [
-    { key: 'conclusive',   label: 'Conclusive',       color: 'var(--ok, #22c55e)',       subLine: `${fmt(autoApplied)} auto-applied` },
-    { key: 'leaning',      label: 'Leaning (1 model)', color: 'var(--accent, #60a5fa)',  subLine: null },
-    { key: 'split',        label: 'Split (conflict)',  color: 'var(--warn, #f59e0b)',     subLine: null },
-    { key: 'no-decision',  label: 'No decision',       color: 'var(--text-faint, #888)', subLine: null },
-  ];
-
-  const rows = BAR_DEFS.map(def => {
-    const count    = buckets[def.key] || 0;
-    const fillPct  = processedTotal === 0 ? 0 : Math.round((count / maxCount) * 100);
-    const sharePct = processedTotal === 0 ? '—' : Math.round((count / processedTotal) * 100) + '%';
-    const sub      = def.subLine ? `<div class="aia-bar-sub">${escapeHtml(def.subLine)}</div>` : '';
-    return `
-      <div class="aia-bar-row">
-        <div class="aia-bar-label">${escapeHtml(def.label)}</div>
-        <div class="aia-bar-track">
-          <div class="aia-bar-fill" style="width:${fillPct}%;background:${def.color}"></div>
-        </div>
-        <div class="aia-bar-count">${fmt(count)} <span class="aia-bar-pct">(${sharePct})</span></div>
-        ${sub}
-      </div>
-    `;
-  }).join('');
-
-  return `
-    <section class="shelf" style="margin-top:24px">
-      <div class="shelf-head">
-        <span class="shelf-title">Outcome breakdown</span>
-        <span class="shelf-meta">${fmt(processedTotal)} processed total</span>
-      </div>
-      <div class="aia-breakdown">
-        ${rows}
-      </div>
-    </section>
   `;
 }
 
@@ -238,14 +311,105 @@ function renderRecentRow(r) {
 function renderDashShell(panel) {
   panel.innerHTML = `
     <style>
-      .aia-breakdown { padding: 12px 16px; }
-      .aia-bar-row { display: grid; grid-template-columns: 160px 1fr 120px; align-items: center; gap: 10px; padding: 6px 0; }
-      .aia-bar-label { font-size: 0.85em; color: var(--text); white-space: nowrap; }
-      .aia-bar-track { height: 10px; background: var(--surface-2, rgba(255,255,255,0.06)); border-radius: 5px; overflow: hidden; }
-      .aia-bar-fill  { height: 100%; border-radius: 5px; transition: width 0.3s; min-width: 2px; }
-      .aia-bar-count { font-size: 0.82em; color: var(--text); text-align: right; }
-      .aia-bar-pct   { color: var(--text-faint); }
-      .aia-bar-sub   { grid-column: 2 / 4; font-size: 0.78em; color: var(--text-faint); margin-top: -4px; padding-left: 0; }
+      /* ── Top widget row grid (Queue + Throughput + wide Outcome) ──── */
+      .aia-cards {
+        display: grid;
+        gap: 14px;
+        grid-template-columns: repeat(4, 1fr);
+        margin-bottom: 8px;
+      }
+      .aia-card-wide { grid-column: span 2; }
+      .aia-card-label {
+        font-size: 0.78em;
+        color: var(--text-faint);
+        margin-top: -4px;
+      }
+      /* Narrow widths: collapse to a single column so the wide tile wraps. */
+      @media (max-width: 760px) {
+        .aia-cards { grid-template-columns: 1fr; }
+        .aia-card-wide { grid-column: auto; }
+      }
+
+      /* ── Throughput stacked meter (Processed tile) ──────────────── */
+      .aia-meter-track {
+        display: flex;
+        width: 100%;
+        height: 15px;
+        margin-top: 10px;
+        border-radius: 7px;
+        overflow: hidden;
+        background: var(--surface-2, rgba(255,255,255,0.08));
+      }
+      .aia-meter-seg {
+        height: 100%;
+        transition: width 0.3s ease;
+      }
+      .aia-meter-note {
+        font-size: 0.78em;
+        color: var(--text-faint);
+        margin-top: 6px;
+      }
+      .aia-meter-legend {
+        display: flex;
+        flex-direction: column;
+        gap: 3px;
+        margin-top: 8px;
+      }
+      .aia-meter-key {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 0.78em;
+      }
+      .aia-meter-swatch {
+        width: 9px;
+        height: 9px;
+        border-radius: 2px;
+        flex: none;
+      }
+      .aia-meter-key-label { color: var(--text-faint); }
+      .aia-meter-key-count { margin-left: auto; font-variant-numeric: tabular-nums; }
+
+      /* ── Outcome breakdown donut + legend ───────────────────────── */
+      .aia-donut-wrap {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: center;
+        gap: 32px;
+        padding: 16px;
+      }
+      .aia-donut-wrap-compact { gap: 18px; padding: 4px 0 0; justify-content: flex-start; }
+      .aia-donut-chart { position: relative; width: 160px; height: 160px; flex: 0 0 auto; }
+      .aia-donut-svg { width: 160px; height: 160px; transform: rotate(-90deg); }
+      .aia-donut-chart-compact { width: 90px; height: 90px; }
+      .aia-donut-chart-compact .aia-donut-svg { width: 90px; height: 90px; }
+      .aia-donut-seg { transition: stroke-dasharray 0.3s, stroke-dashoffset 0.3s; }
+      .aia-donut-center {
+        position: absolute; inset: 0;
+        display: flex; flex-direction: column;
+        align-items: center; justify-content: center;
+        pointer-events: none; text-align: center;
+      }
+      .aia-donut-total    { font-size: 1.9em; font-weight: 700; line-height: 1; color: var(--text); }
+      .aia-donut-chart-compact .aia-donut-total { font-size: 1.2em; }
+      .aia-donut-totlabel { font-size: 0.72em; color: var(--text-faint); margin-top: 3px; }
+      .aia-donut-note     { font-size: 0.82em; color: var(--text-faint); }
+      .aia-donut-chart-compact .aia-donut-note { font-size: 0.66em; }
+
+      .aia-legend { display: flex; flex-direction: column; gap: 8px; min-width: 220px; }
+      .aia-legend-compact { gap: 4px; min-width: 0; }
+      .aia-legend-row {
+        display: grid;
+        grid-template-columns: 14px 1fr auto;
+        align-items: center;
+        column-gap: 10px;
+      }
+      .aia-legend-swatch { width: 12px; height: 12px; border-radius: 3px; display: inline-block; }
+      .aia-legend-label  { font-size: 0.85em; color: var(--text); white-space: nowrap; }
+      .aia-legend-compact .aia-legend-label { font-size: 0.78em; }
+      .aia-legend-count  { font-size: 0.85em; color: var(--text); font-variant-numeric: tabular-nums; text-align: right; }
+      .aia-legend-compact .aia-legend-count { font-size: 0.78em; }
 
       /* ── Recently processed feed rows ─────────────────────────────── */
       .aia-recent-row {
@@ -302,8 +466,6 @@ function renderDashShell(panel) {
 
     <div id="dash-cards"><div class="shelf-loading">Loading…</div></div>
 
-    <div id="dash-outcome"></div>
-
     <section class="shelf" style="margin-top:24px">
       <div class="shelf-head">
         <span class="shelf-title">Queue (awaiting AI)</span>
@@ -340,13 +502,6 @@ function renderDashCards() {
   const cards = dashState.panel.querySelector('#dash-cards');
   if (!cards) return;
   cards.innerHTML = renderStatCards(dashState.stats);
-}
-
-function renderDashOutcome() {
-  if (!dashState.panel) return;
-  const el = dashState.panel.querySelector('#dash-outcome');
-  if (!el) return;
-  el.innerHTML = renderOutcomeBreakdown(dashState.stats);
 }
 
 function renderDashQueue() {
@@ -391,7 +546,6 @@ async function loadStats() {
   const stats = await fetchJson('/api/enrichment/assist/dashboard', null);
   dashState.stats = stats;
   renderDashCards();
-  renderDashOutcome();
 }
 
 async function loadQueue() {
@@ -438,7 +592,6 @@ export async function mountAiAssist(rootEl) {
 
   // Render whatever we have cached (instant on re-mount)
   renderDashCards();
-  renderDashOutcome();
   renderDashQueue();
   renderDashActivity();
 
