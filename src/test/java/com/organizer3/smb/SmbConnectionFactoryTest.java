@@ -5,6 +5,7 @@ import com.organizer3.config.SmbSettings;
 import com.organizer3.config.volume.OrganizerConfig;
 import com.organizer3.config.volume.ServerConfig;
 import com.organizer3.config.volume.VolumeConfig;
+import com.organizer3.smb.NasAvailabilityMonitor;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
@@ -20,6 +21,60 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
 class SmbConnectionFactoryTest {
+
+    // ---------- Dial timeout derivation ----------
+
+    /**
+     * Asserts that the factory derives {@code dialTimeoutMillis} from
+     * {@code dialTimeoutSeconds} (not from transactTimeoutMinutes).
+     * Default dialTimeoutSeconds=10 → 10_000 ms.
+     */
+    @Test
+    void dialTimeout_derivedFromDialTimeoutSeconds_default() {
+        OrganizerConfig config = mock(OrganizerConfig.class);
+        when(config.smbOrDefaults()).thenReturn(SmbSettings.DEFAULTS);
+        SmbConnectionFactory factory = new SmbConnectionFactory(config, mock(SMBClient.class));
+        assertEquals(10_000L, factory.dialTimeoutMillisForTesting(),
+                "default dialTimeoutSeconds=10 should produce dialTimeoutMillis=10000");
+        factory.shutdown();
+    }
+
+    @Test
+    void dialTimeout_derivedFromDialTimeoutSeconds_customValue() {
+        OrganizerConfig config = mock(OrganizerConfig.class);
+        // Custom: dialTimeoutSeconds=5; transactTimeoutMinutes=5 (300_000 ms) must NOT be used.
+        when(config.smbOrDefaults()).thenReturn(new SmbSettings(null, null, 5, null, null, 5));
+        SmbConnectionFactory factory = new SmbConnectionFactory(config, mock(SMBClient.class));
+        assertEquals(5_000L, factory.dialTimeoutMillisForTesting(),
+                "dialTimeoutSeconds=5 should produce dialTimeoutMillis=5000, not transact-minutes value");
+        factory.shutdown();
+    }
+
+    // ---------- isVolumeAvailable passthrough ----------
+
+    @Test
+    void isVolumeAvailable_nullMonitor_returnsTrue() {
+        OrganizerConfig config = mock(OrganizerConfig.class);
+        when(config.smbOrDefaults()).thenReturn(SmbSettings.DEFAULTS);
+        // Constructor that accepts null monitor (package-private 3-arg ctor)
+        SmbConnectionFactory factory = new SmbConnectionFactory(config, mock(SMBClient.class), null);
+        assertTrue(factory.isVolumeAvailable("any-volume"),
+                "null monitor should fail-open (return true)");
+        factory.shutdown();
+    }
+
+    @Test
+    void isVolumeAvailable_monitorReportsDown_returnsFalse() {
+        OrganizerConfig config = mock(OrganizerConfig.class);
+        when(config.smbOrDefaults()).thenReturn(SmbSettings.DEFAULTS);
+        NasAvailabilityMonitor monitor = mock(NasAvailabilityMonitor.class);
+        when(monitor.isVolumeAvailable("down-vol")).thenReturn(false);
+        when(monitor.isVolumeAvailable("up-vol")).thenReturn(true);
+        SmbConnectionFactory factory = new SmbConnectionFactory(config, mock(SMBClient.class), monitor);
+        assertFalse(factory.isVolumeAvailable("down-vol"), "monitor-down volume should return false");
+        assertTrue(factory.isVolumeAvailable("up-vol"), "monitor-up volume should return true");
+        factory.shutdown();
+    }
 
     @Test
     void throwsForUnknownVolume() {

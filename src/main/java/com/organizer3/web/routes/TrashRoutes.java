@@ -78,6 +78,11 @@ public final class TrashRoutes {
 
     private void handleCountItems(io.javalin.http.Context ctx) {
         String volumeId = ctx.pathParam("id");
+        // Fast-fail without dialling when the monitor knows the host is down.
+        if (!smbConnectionFactory.isVolumeAvailable(volumeId)) {
+            ctx.json(Map.of("count", -1, "unavailable", true));
+            return;
+        }
         try {
             int count = smbConnectionFactory.withRetry(volumeId, handle -> {
                 TrashListing listing = trashService.list(handle.fileSystem(), volumeId, TRASH_ROOT, 0, 0);

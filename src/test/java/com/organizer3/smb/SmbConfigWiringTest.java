@@ -22,7 +22,7 @@ class SmbConfigWiringTest {
 
     @Test
     void buildSmbConfig_factory_appliesReadTimeout() {
-        SmbSettings settings = new SmbSettings(3, 4, 6, 120, 30);
+        SmbSettings settings = new SmbSettings(3, 4, 6, 120, 30, null);
         SmbConfig config = SmbConnectionFactory.buildSmbConfig(settings);
 
         long expectedMs = TimeUnit.MINUTES.toMillis(3);
@@ -32,7 +32,7 @@ class SmbConfigWiringTest {
 
     @Test
     void buildSmbConfig_factory_appliesWriteTimeout() {
-        SmbSettings settings = new SmbSettings(3, 4, 6, 120, 30);
+        SmbSettings settings = new SmbSettings(3, 4, 6, 120, 30, null);
         SmbConfig config = SmbConnectionFactory.buildSmbConfig(settings);
 
         long expectedMs = TimeUnit.MINUTES.toMillis(4);
@@ -42,7 +42,7 @@ class SmbConfigWiringTest {
 
     @Test
     void buildSmbConfig_factory_appliesTransactTimeout() {
-        SmbSettings settings = new SmbSettings(3, 4, 6, 120, 30);
+        SmbSettings settings = new SmbSettings(3, 4, 6, 120, 30, null);
         SmbConfig config = SmbConnectionFactory.buildSmbConfig(settings);
 
         long expectedMs = TimeUnit.MINUTES.toMillis(6);
@@ -52,7 +52,7 @@ class SmbConfigWiringTest {
 
     @Test
     void buildSmbConfig_factory_appliesSoTimeout() {
-        SmbSettings settings = new SmbSettings(3, 4, 6, 120, 30);
+        SmbSettings settings = new SmbSettings(3, 4, 6, 120, 30, null);
         SmbConfig config = SmbConnectionFactory.buildSmbConfig(settings);
 
         // soTimeout mirrors readTimeout (backstop at TCP level)
@@ -63,7 +63,7 @@ class SmbConfigWiringTest {
 
     @Test
     void buildSmbConfig_connector_matchesFactory() {
-        SmbSettings settings = new SmbSettings(5, 5, 5, 120, 30);
+        SmbSettings settings = new SmbSettings(5, 5, 5, 120, 30, null);
         SmbConfig factoryConfig   = SmbConnectionFactory.buildSmbConfig(settings);
         SmbConfig connectorConfig = SmbjConnector.buildSmbConfig(settings);
 

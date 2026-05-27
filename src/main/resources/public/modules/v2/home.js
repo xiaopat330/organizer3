@@ -151,20 +151,28 @@ async function renderNeedsAttention(slot) {
       if (meta) meta.textContent = 'items pending sweep';
       return;
     }
-    // Fetch each volume count with a 5-second timeout
+    // Fetch each volume count with a 5-second timeout, in batches of 3 so an offline
+    // NAS doesn't saturate the server thread pool before the dial timeout fires.
+    const BATCH_SIZE = 3;
     const withTimeout = (p, ms) => Promise.race([
       p,
       new Promise(res => setTimeout(() => res({ count: 0 }), ms))
     ]);
-    const counts = await Promise.all(
-      volumes.map(v =>
-        withTimeout(
-          fetchJson(`/api/utilities/trash/volumes/${encodeURIComponent(v.id)}/count`, { count: 0 }),
-          5000
+    const counts = [];
+    for (let i = 0; i < volumes.length; i += BATCH_SIZE) {
+      const batch = volumes.slice(i, i + BATCH_SIZE);
+      const batchResults = await Promise.all(
+        batch.map(v =>
+          withTimeout(
+            fetchJson(`/api/utilities/trash/volumes/${encodeURIComponent(v.id)}/count`, { count: 0 }),
+            5000
+          )
         )
-      )
-    );
-    const total = Math.max(0, counts.reduce((s, c) => s + (c?.count ?? 0), 0));
+      );
+      counts.push(...batchResults);
+    }
+    // Treat count=-1 (down/unknown volume) as 0 so offline volumes don't break the sum.
+    const total = Math.max(0, counts.reduce((s, c) => s + Math.max(0, c?.count ?? 0), 0));
     const cls   = total > 0 ? 'warn' : 'ok';
     const el    = document.getElementById('kpi-trash-value');
     const meta  = document.getElementById('kpi-trash-meta');
