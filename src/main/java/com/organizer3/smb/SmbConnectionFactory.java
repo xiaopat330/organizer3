@@ -68,6 +68,8 @@ public class SmbConnectionFactory {
     private volatile long dialTimeoutMillis;
     // Visible for testing.
     void setDialTimeoutMillisForTesting(long millis) { this.dialTimeoutMillis = millis; }
+    // Visible for testing — read back the effective dial timeout after construction.
+    long dialTimeoutMillisForTesting() { return this.dialTimeoutMillis; }
     private volatile boolean shutdown = false;
 
     public SmbConnectionFactory(OrganizerConfig config) {
@@ -88,11 +90,13 @@ public class SmbConnectionFactory {
         this.client = client;
         this.monitor = monitor;
         this.dialExecutor = newDialExecutor();
-        // Outer dial budget — guards against authenticate()/sendAndReceive() parking forever
-        // when smbj's own transactTimeout fails to surface. Matches transactTimeout so the
-        // smbj-side timeout (if working) fires first; the Future wrapper is the backstop.
-        this.dialTimeoutMillis = TimeUnit.MINUTES.toMillis(
-                config.smbOrDefaults().transactTimeoutMinutesOrDefault());
+        // Outer dial budget — guards against TCP-connect + SMB session-setup hanging forever
+        // when the NAS host is reachable by ping but its SMB service is wedged. This is kept
+        // intentionally short (default 10 s) and distinct from the read/write/transact timeouts
+        // (which govern ongoing SMB I/O and stay in minutes). The Future wrapper is the backstop
+        // when smbj's own transactTimeout fails to surface during authentication.
+        this.dialTimeoutMillis = TimeUnit.SECONDS.toMillis(
+                config.smbOrDefaults().dialTimeoutSecondsOrDefault());
     }
 
     private static ExecutorService newDialExecutor() {
@@ -168,6 +172,20 @@ public class SmbConnectionFactory {
             evict(volumeId);
             return op.execute(open(volumeId));
         }
+    }
+
+    /**
+     * Returns {@code true} if the given volume's NAS host is currently considered reachable
+     * by the availability monitor, or {@code true} when no monitor is configured (fail-open).
+     *
+     * <p>Use this to short-circuit SMB operations before dialling when a fast availability
+     * check is cheaper than a full dial. Note that the monitor tracks host-level reachability
+     * (via ping), not SMB-service-level reachability — a "ping-up but SMB-wedged" host will
+     * still return {@code true} here; the dial timeout is the backstop for that case.
+     */
+    public boolean isVolumeAvailable(String volumeId) {
+        if (monitor == null) return true;
+        return monitor.isVolumeAvailable(volumeId);
     }
 
     /** Removes a volume's pooled connection so the next {@link #open} dials fresh. */

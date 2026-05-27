@@ -83,13 +83,11 @@ volumes:
     server: pandora
     letters: [H, I, J]
 
-  # L has no volume of its own; folded into K (L/R are near-interchangeable in
-  # Japanese romanization, and L-initial names are rare).
   - id: k
     smbPath: //pandora.local/jav_K
     structureType: conventional
     server: pandora
-    letters: [K, L]
+    letters: [K]
 
   # "ma" holds Ma-prefixed actresses only (most-specific match).
   # "m" holds the rest of M (Mb-Mz) — the plain "M" prefix still matches Ma-names
@@ -237,12 +235,17 @@ structures:
 # letter volume can take 30–60 min over slow SMB; the default 120 min budget
 # gives 2x headroom.
 #
+# dialTimeoutSeconds is intentionally short: TCP-connect + SMB session-setup on a
+# LAN should take well under a second; 10 s is a generous backstop that prevents
+# Jetty thread saturation when the NAS host pings fine but its SMB service is wedged.
+#
 # smb:
-#   readTimeoutMinutes: 5       # single SMB call read timeout (default 5)
-#   writeTimeoutMinutes: 5      # single SMB call write timeout (default 5)
-#   transactTimeoutMinutes: 5   # overall SMB request timeout (default 5)
+#   readTimeoutMinutes: 5         # single SMB call read timeout (default 5)
+#   writeTimeoutMinutes: 5        # single SMB call write timeout (default 5)
+#   transactTimeoutMinutes: 5     # overall SMB request timeout (default 5)
 #   perVolumeTimeoutMinutes: 120  # watchdog: max time per volume in coherent sync (default 120)
-#   unmountTimeoutSeconds: 30   # max time to wait for unmount before abandoning (default 30)
+#   unmountTimeoutSeconds: 30     # max time to wait for unmount before abandoning (default 30)
+#   dialTimeoutSeconds: 10        # TCP-connect + SMB auth timeout per dial attempt (default 10)
 
 # Sync reconciliation — see spec/PROPOSAL_SYNC_RECONCILIATION.md.
 # A title_locations row not observed during a sync is marked stale rather than

@@ -30,6 +30,7 @@ class SmbSettingsTest {
         assertEquals(SmbSettings.DEFAULT_TRANSACT_TIMEOUT_MINUTES,   settings.transactTimeoutMinutesOrDefault());
         assertEquals(SmbSettings.DEFAULT_PER_VOLUME_TIMEOUT_MINUTES, settings.perVolumeTimeoutMinutesOrDefault());
         assertEquals(SmbSettings.DEFAULT_UNMOUNT_TIMEOUT_SECONDS,    settings.unmountTimeoutSecondsOrDefault());
+        assertEquals(SmbSettings.DEFAULT_DIAL_TIMEOUT_SECONDS,       settings.dialTimeoutSecondsOrDefault());
     }
 
     @Test
@@ -40,13 +41,25 @@ class SmbSettingsTest {
         assertEquals(5,   SmbSettings.DEFAULT_TRANSACT_TIMEOUT_MINUTES);
         assertEquals(120, SmbSettings.DEFAULT_PER_VOLUME_TIMEOUT_MINUTES);
         assertEquals(30,  SmbSettings.DEFAULT_UNMOUNT_TIMEOUT_SECONDS);
+        assertEquals(10,  SmbSettings.DEFAULT_DIAL_TIMEOUT_SECONDS);
+    }
+
+    @Test
+    void dialTimeoutSeconds_defaultIs10() {
+        assertEquals(10, SmbSettings.DEFAULTS.dialTimeoutSecondsOrDefault());
+    }
+
+    @Test
+    void dialTimeoutSeconds_explicitValueOverridesDefault() {
+        SmbSettings settings = new SmbSettings(null, null, null, null, null, 30);
+        assertEquals(30, settings.dialTimeoutSecondsOrDefault());
     }
 
     // ── Explicit overrides ────────────────────────────────────────────────────
 
     @Test
     void explicitValues_overrideDefaults() {
-        SmbSettings settings = new SmbSettings(10, 15, 20, 60, 45);
+        SmbSettings settings = new SmbSettings(10, 15, 20, 60, 45, null);
 
         assertEquals(10, settings.readTimeoutMinutesOrDefault());
         assertEquals(15, settings.writeTimeoutMinutesOrDefault());
@@ -58,7 +71,7 @@ class SmbSettingsTest {
     @Test
     void partialOverride_unsetFieldsUseDefaults() {
         // Only readTimeoutMinutes is set; all others should fall back to defaults.
-        SmbSettings settings = new SmbSettings(3, null, null, null, null);
+        SmbSettings settings = new SmbSettings(3, null, null, null, null, null);
 
         assertEquals(3,   settings.readTimeoutMinutesOrDefault());
         assertEquals(SmbSettings.DEFAULT_WRITE_TIMEOUT_MINUTES,      settings.writeTimeoutMinutesOrDefault());
@@ -84,7 +97,7 @@ class SmbSettingsTest {
 
     @Test
     void smbOrDefaults_returnsConfiguredValues_whenSmbFieldPresent() {
-        SmbSettings custom = new SmbSettings(7, 8, 9, 45, 10);
+        SmbSettings custom = new SmbSettings(7, 8, 9, 45, 10, null);
         // Use the full canonical ctor with smb= custom
         OrganizerConfig config = new OrganizerConfig(
                 "test", "/tmp", null, null, null, null, null, null,
