@@ -10,7 +10,7 @@
 
 const QUEUE_LIMIT        = 15;
 const STATS_POLL_MS      = 5000;
-const QUEUE_POLL_MS      = 5000;
+const QUEUE_POLL_MS      = 2000;
 const ACTIVITY_POLL_MS   = 2000;
 const ACTIVITY_MAX_ROWS  = 200;
 
@@ -268,15 +268,33 @@ function renderStatCards(stats) {
   `;
 }
 
-/* ── Queue preview rows ─────────────────────────────────────────── */
-function renderQueueRow(r) {
+/* ── Queue preview rows ───────────────────────────────────────────
+   Per-row status is only meaningful while the sweeper is active:
+   - HEAD row (index 0) with inFlight > 0 → "in-flight" (amber, pulsing)
+   - any other row while sweeper active → "queued" (muted)
+   - sweeper inactive → no status badge at all
+   ─────────────────────────────────────────────────────────────────── */
+function renderQueueRow(r, index) {
   const codeLink = r.code
     ? `<a href="/v2-title-detail.html?code=${encodeURIComponent(r.code)}" style="color:var(--accent-fg);text-decoration:none">${escapeHtml(r.code)}</a>`
     : '<span style="color:var(--text-faint)">—</span>';
+
+  const sweeperActive = !!(dashState.sweeper && dashState.sweeper.active);
+  let status = '';
+  if (sweeperActive) {
+    const inFlight = N(dashState.stats && dashState.stats.inFlight);
+    if (index === 0 && inFlight > 0) {
+      status = `<span class="aia-q-status inflight">in-flight</span>`;
+    } else {
+      status = `<span class="aia-q-status queued">queued</span>`;
+    }
+  }
+
   return `
-    <li class="trans-queue-row">
-      ${codeLink}
-      <span class="trans-queue-time">${escapeHtml(timeAgo(r.createdAt))}</span>
+    <li class="aia-q-row">
+      <span class="aia-q-code">${codeLink}</span>
+      <span class="aia-q-statuscell">${status}</span>
+      <span class="aia-q-time">${escapeHtml(timeAgo(r.createdAt))}</span>
     </li>
   `;
 }
@@ -296,8 +314,12 @@ function renderRecentRow(r) {
   const badgeContent = r.autoApplied
     ? `<span class="aia-applied-badge">auto</span>`
     : '';
+  const isNew = dashState.lastNewIds
+    && r.reviewQueueId != null
+    && dashState.lastNewIds.has(r.reviewQueueId);
+  const newCls = isNew ? ' aia-recent-new' : '';
   return `
-    <li class="aia-recent-row">
+    <li class="aia-recent-row${newCls}">
       <span class="aia-recent-code">${codeLink}</span>
       <span class="aia-recent-status">${outcomeChip(r.outcome)}</span>
       <span class="aia-recent-reason"${reasonTitle}>${reasonContent}</span>
@@ -462,6 +484,71 @@ function renderDashShell(panel) {
         text-align: right;
         white-space: nowrap;
       }
+      /* ── Queue rows (code | status | time) ───────────────────────── */
+      .aia-q-row {
+        display: grid;
+        grid-template-columns: 1fr auto auto;
+        align-items: center;
+        gap: 10px;
+        padding: 4px 12px;
+        border-bottom: 1px solid var(--border, rgba(255,255,255,0.06));
+        min-width: 0;
+      }
+      .aia-q-row:last-child { border-bottom: none; }
+      .aia-q-code {
+        font-family: var(--font-mono, monospace);
+        font-size: 0.85em;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        min-width: 0;
+      }
+      .aia-q-statuscell { white-space: nowrap; }
+      .aia-q-time {
+        font-family: var(--font-mono, monospace);
+        font-size: 0.80em;
+        color: var(--text-faint);
+        text-align: right;
+        white-space: nowrap;
+      }
+      .aia-q-status {
+        font-size: 0.7em;
+        text-transform: uppercase;
+        letter-spacing: 0.03em;
+        padding: 1px 6px;
+        border-radius: 8px;
+        border: 1px solid transparent;
+        white-space: nowrap;
+      }
+      .aia-q-status.queued {
+        color: var(--text-faint, #888);
+        border-color: var(--text-faint, #888);
+      }
+      .aia-q-status.inflight {
+        color: var(--warn, #f59e0b);
+        border-color: var(--warn, #f59e0b);
+        animation: aia-pulse 1.8s ease-out infinite;
+      }
+
+      /* ── Reusable live dot (queue + activity headers when active) ── */
+      .aia-live-dot {
+        display: inline-block;
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        margin-right: 6px;
+        vertical-align: middle;
+        background: var(--ok, #22c55e);
+        animation: aia-pulse 1.8s ease-out infinite;
+      }
+
+      /* ── New-row flash in Recently processed ─────────────────────── */
+      .aia-recent-new { animation: aia-flash 1.2s ease-out 1; }
+      @keyframes aia-flash {
+        0%   { background: rgba(96,165,250,0.22); }
+        100% { background: transparent; }
+      }
+
       /* ── Sweeper on/off bar ──────────────────────────────────────── */
       .aia-sweeper-bar {
         display: flex;
@@ -598,12 +685,20 @@ function renderDashQueue() {
   const queueEl = dashState.panel.querySelector('#dash-queue');
   const meta    = dashState.panel.querySelector('#dash-queue-meta');
   if (!queueEl) return;
-  if (!dashState.queue || dashState.queue.length === 0) {
+  const count = (dashState.queue || []).length;
+  if (count === 0) {
     queueEl.innerHTML = `<li class="trans-empty dis-empty">Queue is empty.</li>`;
   } else {
-    queueEl.innerHTML = dashState.queue.map(renderQueueRow).join('');
+    queueEl.innerHTML = dashState.queue.map((r, i) => renderQueueRow(r, i)).join('');
   }
-  if (meta) meta.textContent = `${(dashState.queue || []).length} shown`;
+  if (meta) {
+    const active = !!(dashState.sweeper && dashState.sweeper.active);
+    if (active) {
+      meta.innerHTML = `<span class="aia-live-dot"></span>live · ${count} shown`;
+    } else {
+      meta.innerHTML = `<span style="color:var(--text-faint)">${count} pending · sweeper off</span>`;
+    }
+  }
 }
 
 function renderDashActivity() {
@@ -616,7 +711,12 @@ function renderDashActivity() {
   } else {
     list.innerHTML = dashState.activity.map(renderRecentRow).join('');
   }
-  if (meta) meta.textContent = `${dashState.activity.length} events${dashState.paused ? ' · paused' : ' · polling every 2s'}`;
+  if (meta) {
+    const active = !!(dashState.sweeper && dashState.sweeper.active);
+    const dot = (active && !dashState.paused) ? `<span class="aia-live-dot"></span>` : '';
+    const tail = dashState.paused ? ' · paused' : (active ? ' · live' : ' · polling every 2s');
+    meta.innerHTML = `${dot}${dashState.activity.length} events${tail}`;
+  }
 }
 
 /* ── State ───────────────────────────────────────────────────────── */
@@ -626,6 +726,7 @@ const dashState = {
   queue: [],
   activity: [],         // newest first
   activitySince: null,  // high-water-mark: tracks newest `at` value seen
+  lastNewIds: new Set(), // reviewQueueIds prepended this poll → flash once
   paused: false,
   sweeper: { active: false, runId: null },
   sweeperBusy: false,   // true while a start/stop request is in flight
@@ -654,6 +755,8 @@ async function loadActivity() {
     : `/api/enrichment/assist/recent?limit=50`;
   const events = await fetchJson(url, []);
   if (!events || events.length === 0) {
+    // No new rows this cycle → nothing flashes.
+    dashState.lastNewIds = new Set();
     renderDashActivity();
     return;
   }
@@ -661,6 +764,10 @@ async function loadActivity() {
   events.sort((a, b) => (b.at || '').localeCompare(a.at || ''));
   // Advance high-water mark to the newest `at` seen
   dashState.activitySince = events[0].at;
+  // Record the freshly-prepended ids so only these rows flash this render.
+  dashState.lastNewIds = new Set(
+    events.map(e => e.reviewQueueId).filter(id => id != null)
+  );
   dashState.activity = [...events, ...dashState.activity].slice(0, ACTIVITY_MAX_ROWS);
   renderDashActivity();
 }
