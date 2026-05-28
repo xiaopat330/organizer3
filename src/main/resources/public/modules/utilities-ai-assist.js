@@ -114,6 +114,20 @@ async function openByCode(code) {
 
 // Delegated click handler: any [data-aia1-code] inside the subview opens the title.
 function onBodyClick(ev) {
+  // C-glue: pending-apply badge → switch hub to Workflow + focus this row.
+  // Dynamic import avoids a static circular import (the hub statically imports
+  // this module). focusWorkflow(queueId) is async; fire-and-forget is fine here.
+  const focus = ev.target.closest('[data-aia1-focus-id]');
+  if (focus && S.body && S.body.contains(focus)) {
+    ev.preventDefault();
+    ev.stopPropagation();
+    const raw = focus.dataset.aia1FocusId;
+    const queueId = Number(raw);
+    import('./utilities-enrichment-hub.js')
+      .then(m => m.focusWorkflow(Number.isNaN(queueId) ? raw : queueId))
+      .catch(e => console.warn('[v1-ai-assist] focusWorkflow failed:', e));
+    return;
+  }
   const link = ev.target.closest('[data-aia1-code]');
   if (link && S.body && S.body.contains(link)) {
     ev.preventDefault();
@@ -364,12 +378,12 @@ function renderRecentRow(r) {
   } else if (r.resolved) {
     badgeContent = `<span class="aia1-resolved-badge">resolved</span>`;
   } else if (classifyOutcome(r.outcome) === 'conclusive') {
-    // C-glue: wire pending-apply -> Workflow focus. The v2 version deep-links to
-    // /v2-workflow.html?focus=<reviewQueueId>; v1's Workflow subtab + its focus
-    // wiring are owned by Track B / the hub module (switchTab not exported, hub
-    // is off-limits to this track). Rendered as a non-interactive visual badge
-    // for now; the deferred serial-tail step will rewire it to the Workflow tab.
-    badgeContent = `<span class="aia1-pending-badge" title="Conclusive, awaiting apply">pending apply</span>`;
+    // C-glue: clickable → switch the hub to the Workflow subtab and focus/flash
+    // this row. The handler lives in onBodyClick (delegated, because the feed
+    // re-renders its innerHTML every poll). data-aia1-focus-id carries the queue
+    // id; the hub's focusWorkflow(queueId) flashes the matching tr[data-id].
+    const fid = r.reviewQueueId != null ? ` data-aia1-focus-id="${escapeHtml(String(r.reviewQueueId))}"` : '';
+    badgeContent = `<span class="aia1-pending-badge aia1-pending-badge-link"${fid} role="button" tabindex="0" title="Conclusive, awaiting apply — open in Workflow">pending apply</span>`;
   }
 
   const isNew = S.lastNewIds && r.reviewQueueId != null && S.lastNewIds.has(r.reviewQueueId);
@@ -619,6 +633,23 @@ function clearApplyPoll() {
   }
 }
 
+// ── Visibility self-guard ─────────────────────────────────────────────────────
+// The v1 SPA navigates between top-level views (Tools/action, title-detail,
+// actress-detail, …) by toggling display:none on container divs — WITHOUT calling
+// hideAiAssistView. So a code-link click that opens title-detail would leave these
+// poll timers firing in the background. `tick` wraps each interval callback: if the
+// subview root is no longer on-screen (offsetParent === null ⇒ an ancestor is
+// display:none — reliable here because the subview is a normal block element, not
+// position:fixed), it tears itself down before issuing any fetch. When the user
+// returns to the tab, showAiAssistView re-runs (teardown-first) and restarts a
+// single set of timers, so this never double-registers.
+function tick(fn) {
+  return () => {
+    if (!S.active || !S.body || S.body.offsetParent === null) { teardown(); return; }
+    fn();
+  };
+}
+
 // ── Poll functions ────────────────────────────────────────────────────────────
 async function loadStats() {
   const stats = await fetchJson('/api/enrichment/assist/dashboard', null);
@@ -714,10 +745,10 @@ export async function showAiAssistView() {
   ]);
   if (!S.active) return;   // hidden while the initial fetch fan-out was in flight
 
-  S.timers.stats    = setInterval(loadStats,         STATS_POLL_MS);
-  S.timers.queue    = setInterval(loadQueue,         QUEUE_POLL_MS);
-  S.timers.activity = setInterval(loadActivity,      ACTIVITY_POLL_MS);
-  S.timers.batch    = setInterval(loadBatchProgress, BATCH_POLL_MS);
+  S.timers.stats    = setInterval(tick(loadStats),         STATS_POLL_MS);
+  S.timers.queue    = setInterval(tick(loadQueue),         QUEUE_POLL_MS);
+  S.timers.activity = setInterval(tick(loadActivity),      ACTIVITY_POLL_MS);
+  S.timers.batch    = setInterval(tick(loadBatchProgress), BATCH_POLL_MS);
 }
 
 export function hideAiAssistView() {

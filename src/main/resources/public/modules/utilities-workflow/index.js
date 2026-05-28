@@ -106,6 +106,13 @@ export function hideWorkflowView() {
 
 async function reload() {
   if (!_active) return;
+  // Visibility self-guard: the v1 SPA hides top-level views with display:none
+  // WITHOUT calling hideWorkflowView (e.g. a code-link click that opens
+  // title-detail). offsetParent === null ⇒ an ancestor is display:none (reliable:
+  // the subview is a normal block element, not position:fixed). Stop the poll loop
+  // and null the timer before issuing any fetch; showWorkflowView restarts a single
+  // timer on re-entry (it clears _pollTimer first), so this never double-registers.
+  if (!_root || _root.offsetParent === null) { hideWorkflowView(); return; }
   try {
     const res = await fetch('/api/enrichment/workflow/rows?limit=200');
     if (!res.ok) throw new Error(await res.text());

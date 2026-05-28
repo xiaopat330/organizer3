@@ -503,3 +503,14 @@
   border-color: color-mix(in srgb, var(--warn) 50%, transparent);
   background: color-mix(in srgb, var(--warn) 8%, transparent);
 }
+/* C-glue: clickable pending-apply badge → jumps to the Workflow subtab. */
+.aia1-pending-badge-link {
+  cursor: pointer;
+  transition: background 0.12s ease, border-color 0.12s ease;
+}
+.aia1-pending-badge-link:hover,
+.aia1-pending-badge-link:focus-visible {
+  background: color-mix(in srgb, var(--warn) 18%, transparent);
+  border-color: color-mix(in srgb, var(--warn) 70%, transparent);
+  outline: none;
+}
