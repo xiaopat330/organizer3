@@ -296,33 +296,31 @@ function renderStatCards(stats) {
   const openReviewTotal = N(stats.openReviewTotal);
 
   const runningLine = inFlight > 0
-    ? `<div class="aia1-card-sub">${fmt(inFlight)} running</div>`
+    ? `<div class="trans-card-sub">${fmt(inFlight)} running</div>`
     : '';
   const sharePct = openReviewTotal > 0
-    ? `<div class="aia1-card-sub">${pct(awaitingAi, openReviewTotal)} of open review</div>`
+    ? `<div class="trans-card-sub">${pct(awaitingAi, openReviewTotal)} of open review</div>`
     : '';
 
   return `
-    <div class="aia1-cards">
+    <div class="trans-stats-grid">
 
-      <div class="aia1-card">
-        <div class="aia1-card-title">Queue</div>
-        <div class="aia1-card-headline">${fmt(awaitingAi)}</div>
-        <div class="aia1-card-label">assistable</div>
-        <div class="aia1-card-sub">of ${fmt(openReviewTotal)} open review items</div>
+      <div class="trans-card">
+        <div class="trans-card-title">Queue</div>
+        <div class="trans-card-headline">${fmt(awaitingAi)}<span class="trans-card-unit">assistable</span></div>
+        <div class="trans-card-sub">of ${fmt(openReviewTotal)} open review items</div>
         ${sharePct}
         ${runningLine}
       </div>
 
-      <div class="aia1-card">
-        <div class="aia1-card-title">Processed</div>
-        <div class="aia1-card-headline">${fmt(processedTotal)}</div>
-        <div class="aia1-card-label">${fmt(autoApplied)} auto-applied</div>
+      <div class="trans-card">
+        <div class="trans-card-title">Processed</div>
+        <div class="trans-card-headline">${fmt(processedTotal)}<span class="trans-card-unit">${fmt(autoApplied)} auto-applied</span></div>
         ${renderThroughputMeter(stats)}
       </div>
 
-      <div class="aia1-card aia1-card-wide">
-        <div class="aia1-card-title">Outcome mix</div>
+      <div class="trans-card aia1-outcome-card">
+        <div class="trans-card-title">Outcome mix</div>
         ${renderOutcomeDonut(stats)}
         <div class="aia1-outcome-caption">Conclusive = both models agreed · applied after a ~10-min soak. Applied: ${fmt(autoApplied)}.</div>
       </div>
@@ -433,8 +431,8 @@ function renderShell() {
       <div class="aia1-shelf-head">
         <span class="aia1-shelf-title">Recently processed</span>
         <span class="aia1-shelf-meta" id="aia1-activity-meta">polling every 2s</span>
-        <button class="btn sm" id="aia1-pause">Pause</button>
-        <button class="btn sm" id="aia1-clear">Clear</button>
+        <button class="aia1-btn" id="aia1-pause">Pause</button>
+        <button class="aia1-btn" id="aia1-clear">Clear</button>
       </div>
       <ul class="aia1-activity" id="aia1-activity"><li class="aia1-empty">Connecting…</li></ul>
     </section>
@@ -487,8 +485,8 @@ function renderSweeperBar() {
     <span class="aia1-sweeper-dot"></span>
     <span class="aia1-sweeper-label">${escapeHtml(label)}</span>
     ${msg}
-    <button class="btn sm aia1-sweeper-btn" id="aia1-sweeper-btn"${S.sweeperBusy ? ' disabled' : ''}>${escapeHtml(btnLabel)}</button>
-    <button class="btn sm primary" id="aia1-apply-agreed-btn"${applyDisabled ? ' disabled' : ''}>${escapeHtml(applyLabel)}</button>
+    <button class="aia1-btn aia1-sweeper-btn" id="aia1-sweeper-btn"${S.sweeperBusy ? ' disabled' : ''}>${escapeHtml(btnLabel)}</button>
+    <button class="aia1-btn aia1-btn-primary" id="aia1-apply-agreed-btn"${applyDisabled ? ' disabled' : ''}>${escapeHtml(applyLabel)}</button>
   `;
   const btn = bar.querySelector('#aia1-sweeper-btn');
   if (btn) btn.addEventListener('click', toggleSweeper);

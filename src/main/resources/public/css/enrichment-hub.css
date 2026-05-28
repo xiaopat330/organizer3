@@ -61,57 +61,56 @@
 .ehub-empty-sub { font-size: 13px; color: var(--text-faint); }
 
 /* ── AI Assist prototype stat cards ───────────────────────────────────── */
+/* Cards reuse the v1 Translation dashboard families (.trans-stats-grid,
+   .trans-card, .trans-card-title/-headline/-unit/-sub) so the three tiles are
+   visually identical to the Translation cards. Only the unique Outcome-card
+   override lives here. */
 .aia1-loading {
   color: var(--text-dim);
   font-size: 13px;
   padding: 24px 4px;
 }
 
-.aia1-cards {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(180px, 1fr)) minmax(280px, 1.4fr);
-  gap: 14px;
-  align-items: stretch;
-}
+/* Outcome-mix card holds a donut + legend + caption — give it the full second
+   row span so the legend isn't cramped against the 280px equal-column min. */
+.aia1-outcome-card { grid-column: 1 / -1; }
 @media (max-width: 880px) {
-  .aia1-cards { grid-template-columns: 1fr; }
+  .aia1-outcome-card { grid-column: auto; }
 }
 
-.aia1-card {
-  background: var(--bg-panel);
-  border: 1px solid #26262f;
-  border-radius: var(--radius-card);
-  padding: 14px 16px;
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-}
-.aia1-card-wide { min-width: 0; }
-
-.aia1-card-title {
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--text-dim);
-  margin-bottom: 6px;
-}
-.aia1-card-headline {
-  font-size: 30px;
-  font-weight: 700;
-  line-height: 1.05;
+/* ── v1 action buttons (mirror .trans-sweep-btn idiom) ────────────────── */
+.aia1-btn {
+  padding: 3px 10px;
+  font-size: 0.75rem;
+  font-weight: 400;
+  letter-spacing: 0.02em;
+  background: var(--bg-hover);
   color: var(--text);
-  font-variant-numeric: tabular-nums;
+  border: 1px solid var(--border-strong);
+  border-radius: 3px;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.12s ease, border-color 0.12s ease, color 0.12s ease;
 }
-.aia1-card-label {
-  font-size: 12px;
-  color: var(--accent-fg);
-  margin-top: 2px;
+.aia1-btn:hover:not(:disabled) {
+  background: var(--bg-active, #2a2a33);
+  border-color: var(--text-dim);
+  color: var(--text);
 }
-.aia1-card-sub {
-  font-size: 12px;
-  color: var(--text-dim);
-  margin-top: 2px;
+.aia1-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+/* Primary variant ("Apply all agreed") — violet tint matches the hub accent. */
+.aia1-btn-primary {
+  background: #16121f;
+  color: #c4b5fd;
+  border-color: #5b21b6;
+}
+.aia1-btn-primary:hover:not(:disabled) {
+  background: #1f1730;
+  color: #ddd0ff;
+  border-color: #a78bfa;
 }
 
 /* ── Throughput meter ─────────────────────────────────────────────────── */
@@ -173,7 +172,7 @@
   position: absolute;
   inset: 14px;
   border-radius: 50%;
-  background: var(--bg-panel);
+  background: #1d1d1d;   /* match .trans-card bg so the ring hole is invisible */
 }
 .aia1-donut-center {
   position: absolute;
@@ -248,16 +247,16 @@
 
 .aia1-meta-off { color: var(--text-faint); }
 
-/* ── Sweeper control bar ──────────────────────────────────────────────── */
+/* ── Sweeper control bar (v1 toolbar/panel) ───────────────────────────── */
 .aia1-sweeper-bar {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 10px 14px;
+  padding: 10px 16px;
   margin-bottom: 16px;
-  border-radius: var(--radius-card);
-  border: 1px solid var(--border-strong);
-  background: var(--bg-panel);
+  border-radius: 6px;
+  border: 1px solid #262626;
+  background: #161616;
 }
 .aia1-sweeper-dot {
   width: 10px;
@@ -290,10 +289,13 @@
   border-bottom: 1px solid var(--border);
   margin-bottom: 2px;
 }
+/* Uppercase small-caps section label, mirroring .trans-section h3. */
 .aia1-shelf-title {
-  font-size: 13px;
+  font-size: 0.85rem;
   font-weight: 600;
-  color: var(--text);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-dim);
 }
 .aia1-shelf-meta {
   font-size: 11.5px;
@@ -302,7 +304,7 @@
 }
 /* When the head also has buttons (Recent shelf), the meta keeps margin-left:auto
    and the first button gets its own auto-margin so meta+buttons cluster right. */
-.aia1-shelf-head .btn:first-of-type { margin-left: 10px; }
+.aia1-shelf-head .aia1-btn:first-of-type { margin-left: 10px; }
 
 .aia1-queue,
 .aia1-activity {
