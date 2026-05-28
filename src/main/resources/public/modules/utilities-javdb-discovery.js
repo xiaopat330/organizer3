@@ -4,5 +4,4 @@ export {
   showJavdbDiscoveryView,
   hideJavdbDiscoveryView,
   navigateToActressProfile,
-  navigateToReviewItem,
 } from './utilities-javdb-discovery/index.js';

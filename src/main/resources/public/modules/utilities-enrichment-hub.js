@@ -1,21 +1,16 @@
-// v1 Tools → Enrichment hub shell (Phase 0).
+// v1 Tools → Enrichment hub shell.
 //
 // A section-tabs screen with three subtabs: AI Assist · Workflow · Review.
 //   - AI Assist → hosts the Phase 0 prototype slice (utilities-ai-assist.js).
-//   - Workflow  → placeholder empty-state ("Coming in Phase 2").
-//   - Review    → RE-HOMES the existing v1 Enrichment Review view. Its module
-//                 (utilities-enrichment-review.js) is NOT modified; we only call
-//                 its exported show/hide functions.
-//
-// Re-home mechanism: the #tools-enrichment-review-view div is physically nested
-// inside #tools-javdb-discovery-view (legacy, must not edit). So instead of
-// moving it in index.html, we REPARENT it at runtime into this hub's Review
-// subview while the hub is showing the Review tab, then return it to its
-// original parent when leaving. This keeps the legacy Sources → Review tab path
-// working untouched.
+//   - Workflow  → the v1 enrichment workflow surface.
+//   - Review    → the Enrichment Review view. Its markup
+//                 (#tools-enrichment-review-view) now lives permanently inside
+//                 this hub's Review subview (#ehub-review-subview) in index.html,
+//                 so the Review subtab simply shows/hides the subview in place
+//                 and calls the review module's exported show/hide functions.
 
 import { showAiAssistView, hideAiAssistView } from './utilities-ai-assist.js';
-import { showEnrichmentReviewView, hideEnrichmentReviewView } from './utilities-enrichment-review.js';
+import { showEnrichmentReviewView, hideEnrichmentReviewView, focusReviewItem } from './utilities-enrichment-review.js';
 import { showWorkflowView, hideWorkflowView } from './utilities-workflow/index.js';
 
 const TABS = ['ai-assist', 'workflow', 'review'];
@@ -29,32 +24,12 @@ let activeTab = null;
 // passes it to showWorkflowView, which scrolls + flashes that row once.
 let pendingFocus = null;
 
-// Saved "home" location of the review div, captured the first time we borrow it.
-let reviewHome = null;   // { parent, nextSibling }
-let reviewBorrowed = false;
+// Deep-link focus for the Review subtab (Sources-Queue / enrich-panels links).
+// focusReview(queueId) stashes the id; the next switch to the Review tab passes
+// it to focusReviewItem, which scrolls that row into view and flashes it once.
+let pendingReviewFocus = null;
 
 function el(id) { return document.getElementById(id); }
-
-function borrowReviewDiv() {
-  const reviewDiv = el('tools-enrichment-review-view');
-  const host      = el('ehub-review-subview');
-  if (!reviewDiv || !host || reviewBorrowed) return;
-  reviewHome = { parent: reviewDiv.parentNode, nextSibling: reviewDiv.nextSibling };
-  host.appendChild(reviewDiv);
-  reviewBorrowed = true;
-}
-
-function returnReviewDiv() {
-  if (!reviewBorrowed || !reviewHome) return;
-  const reviewDiv = el('tools-enrichment-review-view');
-  if (reviewDiv) {
-    // hide before returning so the legacy discovery tab controls visibility itself
-    hideEnrichmentReviewView();
-    reviewHome.parent.insertBefore(reviewDiv, reviewHome.nextSibling);
-  }
-  reviewBorrowed = false;
-  reviewHome = null;
-}
 
 function setActiveTabStyling(tab) {
   TABS.forEach(t => {
@@ -69,7 +44,7 @@ async function switchTab(tab) {
   // Tear down whatever we're leaving.
   if (activeTab === 'ai-assist') hideAiAssistView();
   if (activeTab === 'review') {
-    returnReviewDiv();
+    hideEnrichmentReviewView();
     const host = el('ehub-review-subview');
     if (host) host.style.display = 'none';
   }
@@ -89,8 +64,10 @@ async function switchTab(tab) {
   } else if (tab === 'review') {
     const host = el('ehub-review-subview');
     if (host) host.style.display = '';
-    borrowReviewDiv();
     await showEnrichmentReviewView();
+    const focusId = pendingReviewFocus;
+    pendingReviewFocus = null;
+    if (focusId != null) focusReviewItem(focusId);
   }
 }
 
@@ -114,10 +91,10 @@ export async function showEnrichmentHubView() {
 }
 
 export function hideEnrichmentHubView() {
-  // Stop all subtab work and restore the borrowed review div to its home.
+  // Stop all subtab work.
   hideAiAssistView();
   hideWorkflowView();
-  returnReviewDiv();
+  hideEnrichmentReviewView();
   const rh = el('ehub-review-subview');
   if (rh) rh.style.display = 'none';
   activeTab = null;
@@ -132,4 +109,13 @@ export function hideEnrichmentHubView() {
 export async function focusWorkflow(queueId) {
   pendingFocus = queueId;
   await switchTab('workflow');
+}
+
+// Deep-link entry point for the Review subtab: a caller (e.g. action.js's
+// navigate-to-review-item handler from the Sources Queue) hands a reviewQueueId,
+// then this switches to the Review tab which scrolls that row into view and
+// flashes it. Works whether or not the hub is already open / on the Review tab.
+export async function focusReview(queueId) {
+  pendingReviewFocus = queueId;
+  await switchTab('review');
 }

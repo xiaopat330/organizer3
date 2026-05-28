@@ -680,10 +680,6 @@
         <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><circle cx="8" cy="8" r="6.5"/><path d="M8 4.5V8l2.5 2"/></svg>
         Queue
       </button>
-      <button type="button" class="jd-tab jd-tab-review" data-jd-tab="review">
-        <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M2 4h12M2 8h12M2 12h8"/><circle cx="13" cy="12" r="2.5"/><path d="M11.5 12h-.01M13 10.5v-.01"/></svg>
-        Review
-      </button>
     </div>
     <div class="jd-header-actions">
       <div id="jd-ai-assist-pill" class="jd-ai-assist-pill" style="display:none"></div>
@@ -828,30 +824,6 @@
       </table>
     </div>
   </div>
-  <div id="tools-enrichment-review-view" class="tools-enrichment-review-view" style="display:none">
-    <div class="er-header-bar">
-      <h2 id="er-header" class="er-title">Enrichment Review Queue</h2>
-      <div id="er-pills" class="er-pills"></div>
-    </div>
-    <div class="er-table-wrap">
-      <table class="er-table">
-        <thead>
-          <tr>
-            <th class="er-col-code">Code</th>
-            <th class="er-col-slug">Slug</th>
-            <th class="er-col-reason">Reason</th>
-            <th class="er-col-source">Found via</th>
-            <th class="er-col-created">Created</th>
-            <th class="er-col-actions">Actions</th>
-          </tr>
-        </thead>
-        <tbody id="er-table-body"></tbody>
-      </table>
-      <div id="er-empty" class="er-empty" style="display:none">
-        No open review queue rows. The write-time gate hasn&rsquo;t flagged any new traffic.
-      </div>
-    </div>
-  </div>
 </div>
 
 <!-- Enrichment hub tool content (AI Assist / Workflow / Review) -->
@@ -875,7 +847,32 @@
   </div>
   <div id="ehub-ai-assist-subview" class="ehub-subview"></div>
   <div id="ehub-workflow-subview" class="ehub-subview" style="display:none"></div>
-  <div id="ehub-review-subview" class="ehub-subview" style="display:none"></div>
+  <div id="ehub-review-subview" class="ehub-subview" style="display:none">
+    <div id="tools-enrichment-review-view" class="tools-enrichment-review-view" style="display:none">
+      <div class="er-header-bar">
+        <h2 id="er-header" class="er-title">Enrichment Review Queue</h2>
+        <div id="er-pills" class="er-pills"></div>
+      </div>
+      <div class="er-table-wrap">
+        <table class="er-table">
+          <thead>
+            <tr>
+              <th class="er-col-code">Code</th>
+              <th class="er-col-slug">Slug</th>
+              <th class="er-col-reason">Reason</th>
+              <th class="er-col-source">Found via</th>
+              <th class="er-col-created">Created</th>
+              <th class="er-col-actions">Actions</th>
+            </tr>
+          </thead>
+          <tbody id="er-table-body"></tbody>
+        </table>
+        <div id="er-empty" class="er-empty" style="display:none">
+          No open review queue rows. The write-time gate hasn&rsquo;t flagged any new traffic.
+        </div>
+      </div>
+    </div>
+  </div>
 </div>
 
 <!-- Title Editor (Queue) tool content -->
