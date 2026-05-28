@@ -266,11 +266,42 @@ export async function renderLibraryFilterPanel(state, titleTagsPanel, applyTitle
     </div>`;
   }).join('');
 
-  const enrichmentGroupHtml = enrichmentDefs.length === 0 ? '' : `
-    <div class="tags-group tags-group--enrichment">
-      <div class="tags-group-label">Enrichment <span class="tags-group-sublabel">% of enriched titles</span></div>
-      <div class="tags-row">${enrichmentDefs.map(enrichmentTagHtml).join('')}</div>
+  // Enrichment definitions grouped by category, mirroring the curated section's
+  // group labels (kept in sync with TagCatalogLoader.CATEGORY_LABELS). Groups
+  // render in fixed category order; the "Other" bucket (null/unknown) comes last.
+  const ENRICHMENT_CATEGORY_LABELS = {
+    format:           'Format / Production',
+    production_style: 'Production Style',
+    setting:          'Setting / Location',
+    role:             'Role / Character',
+    theme:            'Theme / Scenario',
+    act:              'Act / Focus',
+    body:             'Body / Aesthetic',
+  };
+  const ENRICHMENT_CATEGORY_ORDER = ['format', 'production_style', 'setting', 'role', 'theme', 'act', 'body'];
+
+  const enrichmentByCategory = new Map();
+  for (const cat of ENRICHMENT_CATEGORY_ORDER) enrichmentByCategory.set(cat, []);
+  enrichmentByCategory.set('__other__', []);
+  for (const d of enrichmentDefs) {
+    const key = ENRICHMENT_CATEGORY_LABELS[d.category] ? d.category : '__other__';
+    enrichmentByCategory.get(key).push(d);
+  }
+
+  let firstEnrichmentGroup = true;
+  const enrichmentGroupHtml = [...ENRICHMENT_CATEGORY_ORDER, '__other__'].map(cat => {
+    const defs = enrichmentByCategory.get(cat) || [];
+    if (defs.length === 0) return '';
+    const tagsHtml = defs.map(enrichmentTagHtml).join('');
+    if (!tagsHtml) return '';
+    const label = cat === '__other__' ? 'Other' : ENRICHMENT_CATEGORY_LABELS[cat];
+    const sublabel = firstEnrichmentGroup ? ' <span class="tags-group-sublabel">% of enriched titles</span>' : '';
+    firstEnrichmentGroup = false;
+    return `<div class="tags-group tags-group--enrichment">
+      <div class="tags-group-label">${esc(label)}${sublabel}</div>
+      <div class="tags-row">${tagsHtml}</div>
     </div>`;
+  }).join('');
 
   const sortOptions = [
     { value: 'addedDate',   label: 'Added Date' },
