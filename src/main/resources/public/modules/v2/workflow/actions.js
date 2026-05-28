@@ -81,6 +81,76 @@ export async function handleBulkAssist(bulkBtn, reload) {
   }
 }
 
+// ── Apply all agreed (bulk auto-resolve) ──────────────────────────────────────
+
+export async function handleApplyAgreed(btn, reload) {
+  if (!btn) return;
+  if (btn.dataset.busy === '1') return;
+
+  // Determine the count to surface in the confirm prompt.
+  let n = 0;
+  try {
+    const dash = await fetch('/api/enrichment/assist/dashboard').then(r => r.ok ? r.json() : null);
+    n = dash && dash.agreedPending != null ? Number(dash.agreedPending) : 0;
+  } catch (err) {
+    console.warn('[workflow] apply-agreed count fetch failed', err);
+  }
+  if (n === 0) return;
+
+  const ok = window.confirm(
+    `Resolve ${n} title(s) with the AI-picked slug?\n\n` +
+    `This applies every pick both models agreed on. It cannot be auto-undone.`
+  );
+  if (!ok) return;
+
+  btn.dataset.busy = '1';
+  btn.disabled = true;
+  try {
+    const res = await fetch('/api/enrichment/assist/apply-agreed', { method: 'POST' });
+    if (res.status === 200) {
+      // {total:0} — nothing to do.
+      btn.dataset.busy = '';
+      await reload();
+      return;
+    }
+    if (res.status === 202 || res.status === 409) {
+      await pollApplyAgreed(btn, reload);
+      return;
+    }
+    console.warn('[workflow] apply-agreed unexpected status', res.status);
+    btn.dataset.busy = '';
+    await reload();
+  } catch (err) {
+    console.error('[workflow] apply-agreed error', err);
+    btn.dataset.busy = '';
+    await reload();
+  }
+}
+
+function pollApplyAgreed(btn, reload) {
+  return new Promise(resolve => {
+    const timer = setInterval(async () => {
+      let status = null;
+      try {
+        status = await fetch('/api/enrichment/assist/apply-agreed/status').then(r => r.ok ? r.json() : null);
+      } catch (err) {
+        console.warn('[workflow] apply-agreed status poll failed', err);
+      }
+      if (status && status.running) {
+        const applied = Number(status.applied || 0) + Number(status.failed || 0);
+        btn.textContent = `Applying… ${applied}/${Number(status.total || 0)}`;
+        btn.disabled = true;
+        return;
+      }
+      // Done (or status unavailable) → stop polling, refresh.
+      clearInterval(timer);
+      btn.dataset.busy = '';
+      await reload();
+      resolve();
+    }, 1500);
+  });
+}
+
 // ── Override slug (force-enrich) ──────────────────────────────────────────────
 
 export async function handleForceEnrich(queueId, slug, applyBtn, reload) {

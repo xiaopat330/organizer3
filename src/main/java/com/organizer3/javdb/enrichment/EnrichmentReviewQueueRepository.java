@@ -800,6 +800,21 @@ public class EnrichmentReviewQueueRepository {
     }
 
     /**
+     * Count of rows currently eligible for bulk "apply all agreed" — mirrors the apply-set
+     * predicate of {@link #listAutoApplyReady} but without any age/attempts gate (the bulk
+     * apply button uses {@code minAgeSeconds=0, maxAttempts=Integer.MAX_VALUE}).
+     */
+    public int countAgreedReadyToApply() {
+        return jdbi.withHandle(h -> h.createQuery("""
+                SELECT COUNT(*) FROM enrichment_review_queue
+                WHERE resolved_at IS NULL AND reason='ambiguous'
+                  AND ai_suggestion_confidence='agreed'
+                  AND ai_suggestion_slug IS NOT NULL
+                  AND ai_auto_applied=0
+                """).mapTo(Integer.class).one());
+    }
+
+    /**
      * Returns a map of {@code ai_suggestion_confidence} → count for all rows that have been
      * processed ({@code ai_suggestion_at IS NOT NULL}). A null confidence value is mapped to
      * the key {@code "unknown"}. Results are returned in a {@link LinkedHashMap} in insertion

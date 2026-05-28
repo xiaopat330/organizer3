@@ -670,14 +670,92 @@ function renderSweeperBar() {
   const msg = dashState.sweeperMsg
     ? `<span class="aia-sweeper-msg">${escapeHtml(dashState.sweeperMsg)}</span>`
     : '';
+  // Apply-all-agreed button (sits to the right of the sweeper toggle).
+  const aa = dashState.applyAgreed || { running: false, total: 0, applied: 0, failed: 0 };
+  const agreedN = N(dashState.stats && dashState.stats.agreedPending);
+  let applyLabel, applyDisabled;
+  if (aa.running) {
+    applyLabel = `Applying… ${N(aa.applied) + N(aa.failed)}/${N(aa.total)}`;
+    applyDisabled = true;
+  } else {
+    applyLabel = `Apply all agreed (${agreedN})`;
+    applyDisabled = agreedN === 0 || !!dashState.applyBusy;
+  }
+
   bar.innerHTML = `
     <span class="aia-sweeper-dot"></span>
     <span class="aia-sweeper-label">${escapeHtml(label)}</span>
     ${msg}
     <button class="btn sm aia-sweeper-btn" id="aia-sweeper-btn"${dashState.sweeperBusy ? ' disabled' : ''}>${escapeHtml(btnLabel)}</button>
+    <button class="btn sm" id="aia-apply-agreed-btn" style="margin-left:8px"${applyDisabled ? ' disabled' : ''}>${escapeHtml(applyLabel)}</button>
   `;
   const btn = bar.querySelector('#aia-sweeper-btn');
   if (btn) btn.addEventListener('click', toggleSweeper);
+  const applyBtn = bar.querySelector('#aia-apply-agreed-btn');
+  if (applyBtn) applyBtn.addEventListener('click', applyAllAgreed);
+}
+
+async function loadApplyStatus() {
+  const s = await fetchJson('/api/enrichment/assist/apply-agreed/status', null);
+  if (s) {
+    dashState.applyAgreed = {
+      running: !!s.running,
+      total:   N(s.total),
+      applied: N(s.applied),
+      failed:  N(s.failed),
+    };
+  }
+  renderSweeperBar();
+}
+
+async function applyAllAgreed() {
+  if (dashState.applyBusy || (dashState.applyAgreed && dashState.applyAgreed.running)) return;
+  const n = N(dashState.stats && dashState.stats.agreedPending);
+  if (n === 0) return;
+
+  const ok = window.confirm(
+    `Resolve ${n} title(s) with the AI-picked slug?\n\n` +
+    `This applies every pick both models agreed on. It cannot be auto-undone.`
+  );
+  if (!ok) return;
+
+  dashState.applyBusy = true;
+  renderSweeperBar();
+  try {
+    const res = await fetch('/api/enrichment/assist/apply-agreed', { method: 'POST', cache: 'no-cache' });
+    if (res.status === 200) {
+      // {total:0} — nothing to do.
+      dashState.applyBusy = false;
+      await loadApplyStatus();
+      return;
+    }
+    // 202 (started here) or 409 (already running elsewhere) → poll for progress.
+    if (res.status === 202 || res.status === 409) {
+      beginApplyPoll();
+    } else {
+      console.warn('[ai-assist] apply-agreed unexpected status', res.status);
+      dashState.applyBusy = false;
+      await loadApplyStatus();
+    }
+  } catch (e) {
+    console.warn('[ai-assist] apply-agreed failed:', e);
+    dashState.applyBusy = false;
+    await loadApplyStatus();
+  }
+}
+
+function beginApplyPoll() {
+  if (dashState.applyPollTimer) return;
+  dashState.applyPollTimer = setInterval(async () => {
+    await loadApplyStatus();
+    if (!dashState.applyAgreed || !dashState.applyAgreed.running) {
+      clearInterval(dashState.applyPollTimer);
+      dashState.applyPollTimer = null;
+      dashState.applyBusy = false;
+      // Refresh the whole dashboard so queue/recent/cards reflect the applied rows.
+      await Promise.all([loadStats(), loadQueue(), loadActivity()]);
+    }
+  }, 1500);
 }
 
 async function loadSweeper() {
@@ -770,6 +848,9 @@ const dashState = {
   sweeper: { active: false, runId: null },
   sweeperBusy: false,   // true while a start/stop request is in flight
   sweeperMsg: null,     // transient inline message (e.g. 409 conflict)
+  applyAgreed: { running: false, total: 0, applied: 0, failed: 0 },
+  applyBusy: false,     // true while an apply-agreed POST is in flight
+  applyPollTimer: null, // fast progress poll while a run is active
   timers: { stats: null, queue: null, activity: null },
 };
 
@@ -778,8 +859,9 @@ async function loadStats() {
   const stats = await fetchJson('/api/enrichment/assist/dashboard', null);
   dashState.stats = stats;
   renderDashCards();
-  // Piggyback the sweeper status poll on the 5s stats timer.
+  // Piggyback the sweeper + apply-agreed status polls on the 5s stats timer.
   await loadSweeper();
+  await loadApplyStatus();
 }
 
 async function loadQueue() {
@@ -838,7 +920,7 @@ export async function mountAiAssist(rootEl) {
 
   // Start polling timers only if not already running
   if (!dashState.timers.stats) {
-    await Promise.all([loadStats(), loadQueue(), loadActivity(), loadSweeper()]);
+    await Promise.all([loadStats(), loadQueue(), loadActivity(), loadSweeper(), loadApplyStatus()]);
     dashState.timers.stats    = setInterval(loadStats,    STATS_POLL_MS);
     dashState.timers.queue    = setInterval(loadQueue,    QUEUE_POLL_MS);
     dashState.timers.activity = setInterval(loadActivity, ACTIVITY_POLL_MS);

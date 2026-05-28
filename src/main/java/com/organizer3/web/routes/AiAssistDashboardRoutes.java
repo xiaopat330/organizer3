@@ -1,7 +1,9 @@
 package com.organizer3.web.routes;
 
 import com.organizer3.enrichment.ai.EnrichmentAssistSweeper;
+import com.organizer3.enrichment.ai.EnrichmentAutoApplier;
 import com.organizer3.javdb.enrichment.EnrichmentReviewQueueRepository;
+import com.organizer3.javdb.enrichment.EnrichmentReviewQueueRepository.OpenRow;
 import com.organizer3.ollama.OllamaModelOrchestrator;
 import com.organizer3.utilities.task.TaskInputs;
 import com.organizer3.utilities.task.TaskRun;
@@ -13,6 +15,10 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * Exposes read-only AI-assist dashboard aggregates plus the long-lived
@@ -30,16 +36,31 @@ import java.util.Optional;
 @Slf4j
 public class AiAssistDashboardRoutes {
 
+    private static final int APPLY_MAX_LIMIT = 5000;
+
     private final OllamaModelOrchestrator orchestrator;
     private final EnrichmentReviewQueueRepository reviewQueueRepo;
     private final TaskRunner taskRunner;
+    private final EnrichmentAutoApplier autoApplier;
+
+    private final ExecutorService applyExecutor = Executors.newSingleThreadExecutor(r -> {
+        Thread t = new Thread(r, "apply-agreed");
+        t.setDaemon(true);
+        return t;
+    });
+    private final AtomicBoolean applyRunning = new AtomicBoolean(false);
+    private final AtomicInteger applyTotal   = new AtomicInteger(0);
+    private final AtomicInteger applyApplied = new AtomicInteger(0);
+    private final AtomicInteger applyFailed  = new AtomicInteger(0);
 
     public AiAssistDashboardRoutes(OllamaModelOrchestrator orchestrator,
                                    EnrichmentReviewQueueRepository reviewQueueRepo,
-                                   TaskRunner taskRunner) {
+                                   TaskRunner taskRunner,
+                                   EnrichmentAutoApplier autoApplier) {
         this.orchestrator    = orchestrator;
         this.reviewQueueRepo = reviewQueueRepo;
         this.taskRunner      = taskRunner;
+        this.autoApplier     = autoApplier;
     }
 
     public void register(Javalin app) {
@@ -59,6 +80,7 @@ public class AiAssistDashboardRoutes {
             body.put("openReviewTotal",      reviewQueueRepo.countOpen("ambiguous")
                                            + reviewQueueRepo.countOpen("cast_anomaly")
                                            + reviewQueueRepo.countOpen("fetch_failed"));
+            body.put("agreedPending",        reviewQueueRepo.countAgreedReadyToApply());
             ctx.json(body);
         });
 
@@ -142,6 +164,65 @@ public class AiAssistDashboardRoutes {
             Map<String, Object> body = new LinkedHashMap<>();
             body.put("active", false);
             ctx.json(body);
+        });
+
+        // POST /api/enrichment/assist/apply-agreed — bulk auto-resolve every agreed row.
+        app.post("/api/enrichment/assist/apply-agreed", ctx -> {
+            if (applyRunning.get()) {
+                ctx.status(409).json(Map.of(
+                        "running", true,
+                        "total",   applyTotal.get(),
+                        "applied", applyApplied.get(),
+                        "failed",  applyFailed.get()));
+                return;
+            }
+
+            List<OpenRow> rows = reviewQueueRepo.listAutoApplyReady(APPLY_MAX_LIMIT, 0, Integer.MAX_VALUE);
+            if (rows.isEmpty()) {
+                ctx.status(200).json(Map.of("total", 0, "applied", 0, "failed", 0));
+                return;
+            }
+
+            // Reset stats on a NEW start only — leave the prior run's tally intact on completion.
+            applyTotal.set(rows.size());
+            applyApplied.set(0);
+            applyFailed.set(0);
+            applyRunning.set(true);
+
+            applyExecutor.submit(() -> {
+                try {
+                    for (OpenRow row : rows) {
+                        try {
+                            // Re-check liveness: a concurrent sweeper may have resolved this row
+                            // between selection and now. Skip without counting to keep tallies honest.
+                            if (reviewQueueRepo.findOpenById(row.id()).isEmpty()) continue;
+                            if (autoApplier.apply(row)) {
+                                applyApplied.incrementAndGet();
+                            } else {
+                                applyFailed.incrementAndGet();
+                            }
+                        } catch (Exception e) {
+                            applyFailed.incrementAndGet();
+                            String codeLabel = row.titleCode() != null ? row.titleCode() : ("id=" + row.id());
+                            log.warn("[ai-assist] apply-agreed failed code={} id={}: {}",
+                                    codeLabel, row.id(), e.getMessage());
+                        }
+                    }
+                } finally {
+                    applyRunning.set(false);
+                }
+            });
+
+            ctx.status(202).json(Map.of("total", rows.size()));
+        });
+
+        // GET /api/enrichment/assist/apply-agreed/status — { running, total, applied, failed }
+        app.get("/api/enrichment/assist/apply-agreed/status", ctx -> {
+            ctx.json(Map.of(
+                    "running", applyRunning.get(),
+                    "total",   applyTotal.get(),
+                    "applied", applyApplied.get(),
+                    "failed",  applyFailed.get()));
         });
     }
 

@@ -920,6 +920,85 @@ class EnrichmentReviewQueueRepositoryTest {
         return rowId;
     }
 
+    // ── Bulk "apply all agreed" selection set (guards against widening) ───────
+
+    /**
+     * Inserts a title + queue row with the given reason and AI-suggestion columns, then
+     * optionally resolves it / marks it auto-applied. Returns the queue row id.
+     */
+    private long insertMatrixRow(long titleId, String reason, String confidence, String slug,
+                                 boolean resolved, boolean autoApplied) {
+        jdbi.useHandle(h -> h.createUpdate(
+                "INSERT OR IGNORE INTO titles(id, code, base_code, label, seq_num) VALUES (:id, :code, :bc, :bc, :id)")
+                .bind("id",   titleId)
+                .bind("code", "M-" + titleId)
+                .bind("bc",   "M")
+                .execute());
+        repo.enqueue(titleId, slug, reason, "sentinel_short_circuit");
+        long rowId = jdbi.withHandle(h ->
+                h.createQuery("SELECT id FROM enrichment_review_queue WHERE title_id = :tid")
+                        .bind("tid", titleId).mapTo(Long.class).one());
+        jdbi.useHandle(h -> h.createUpdate("""
+                UPDATE enrichment_review_queue
+                SET ai_suggestion_slug       = :slug,
+                    ai_suggestion_confidence = :confidence,
+                    ai_suggestion_reason     = 'test',
+                    ai_suggestion_at         = '2026-05-20T10:00:00Z',
+                    ai_auto_applied          = :applied,
+                    resolved_at              = :resolvedAt
+                WHERE id = :id
+                """)
+                .bind("slug",       slug)
+                .bind("confidence", confidence)
+                .bind("applied",    autoApplied ? 1 : 0)
+                .bind("resolvedAt", resolved ? "2026-05-20T11:00:00Z" : null)
+                .bind("id",         rowId)
+                .execute());
+        return rowId;
+    }
+
+    @Test
+    void bulkApplySelection_pinsExactlyAgreedUnresolvedUnappliedAmbiguousRows() {
+        java.util.Set<Long> expected = new java.util.HashSet<>();
+
+        // Eligible: agreed + ambiguous + unresolved + not-applied + slug set.
+        expected.add(insertMatrixRow(100L, "ambiguous", "agreed", "s100", false, false));
+
+        // Excluded by outcome (all ambiguous, unresolved, not-applied, slug set):
+        insertMatrixRow(101L, "ambiguous", "agreed_with_override", "s101", false, false);
+        insertMatrixRow(102L, "ambiguous", "conflict",             "s102", false, false);
+        insertMatrixRow(103L, "ambiguous", "both_abstain",         "s103", false, false);
+        insertMatrixRow(104L, "ambiguous", "phi4_only",            "s104", false, false);
+        insertMatrixRow(105L, "ambiguous", "gemma_only",           "s105", false, false);
+        insertMatrixRow(106L, "ambiguous", "error",                "s106", false, false);
+
+        // Excluded by state (agreed + ambiguous + slug set):
+        long resolvedAgreed = insertMatrixRow(107L, "ambiguous", "agreed", "s107", true,  false);
+        long appliedAgreed  = insertMatrixRow(108L, "ambiguous", "agreed", "s108", false, true);
+
+        // Excluded by reason gating: agreed but reason='cast_anomaly'.
+        long castAnomalyAgreed = insertMatrixRow(109L, "cast_anomaly", "agreed", "s109", false, false);
+
+        // Defensive: agreed + ambiguous + unresolved + not-applied but NULL slug → excluded.
+        insertMatrixRow(110L, "ambiguous", "agreed", null, false, false);
+
+        List<EnrichmentReviewQueueRepository.OpenRow> rows =
+                repo.listAutoApplyReady(1000, 0, Integer.MAX_VALUE);
+        java.util.Set<Long> returned = new java.util.HashSet<>();
+        rows.forEach(r -> returned.add(r.id()));
+
+        assertEquals(expected, returned,
+                "apply set must be exactly the agreed + unresolved + not-applied + ambiguous + slug rows");
+
+        // Explicit absence assertions for the high-risk near-misses.
+        assertFalse(returned.contains(resolvedAgreed),    "resolved agreed row must be absent");
+        assertFalse(returned.contains(appliedAgreed),     "already-applied agreed row must be absent");
+        assertFalse(returned.contains(castAnomalyAgreed), "cast_anomaly agreed row must be absent");
+
+        assertEquals(expected.size(), repo.countAgreedReadyToApply(),
+                "countAgreedReadyToApply must match the apply-set size");
+    }
+
     @Test
     void countAwaitingAi_returnsOnlyAmbiguousOpenRowsWithNoSuggestion() {
         // title 1: ambiguous + open + no suggestion → counts

@@ -3,8 +3,10 @@ package com.organizer3.web.routes;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.organizer3.db.SchemaInitializer;
+import com.organizer3.enrichment.ai.EnrichmentAutoApplier;
 import com.organizer3.javdb.enrichment.EnrichmentReviewQueueRepository;
 import com.organizer3.ollama.OllamaModelOrchestrator;
+import com.organizer3.utilities.task.TaskRunner;
 import com.organizer3.web.WebServer;
 import org.jdbi.v3.core.Jdbi;
 import org.junit.jupiter.api.AfterEach;
@@ -48,8 +50,12 @@ class AiAssistDashboardRoutesTest {
         when(orchestrator.getQueueDepths())
                 .thenReturn(new OllamaModelOrchestrator.QueueDepths(2, 5));
 
+        TaskRunner taskRunner = mock(TaskRunner.class);
+        EnrichmentAutoApplier autoApplier = mock(EnrichmentAutoApplier.class);
+
         server = new WebServer(0);
-        server.registerAiAssistDashboard(new AiAssistDashboardRoutes(orchestrator, reviewQueueRepo));
+        server.registerAiAssistDashboard(
+                new AiAssistDashboardRoutes(orchestrator, reviewQueueRepo, taskRunner, autoApplier));
         server.start();
     }
 

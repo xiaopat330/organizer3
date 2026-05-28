@@ -2,7 +2,7 @@
 // Entry point: call mountWorkflow(rootEl) from the HTML page.
 
 import { makeRow }        from './row.js';
-import { handleBulkAssist } from './actions.js';
+import { handleBulkAssist, handleApplyAgreed } from './actions.js';
 
 const POLL_INTERVAL_MS = 3000;
 
@@ -10,6 +10,7 @@ let _tableBody = null;
 let _emptyEl   = null;
 let _kpiEl     = null;
 let _bulkBtn   = null;
+let _applyBtn  = null;
 let _pollTimer = null;
 let _rows      = [];
 
@@ -20,6 +21,7 @@ export async function mountWorkflow(rootEl) {
         <span class="wf-header-title wb-section-title">Enrichment Workflow</span>
         <div class="wf-header-kpis" id="wf-kpis"></div>
         <button type="button" class="btn sm" id="wf-bulk-btn" disabled>Queue all ambiguous</button>
+        <button type="button" class="btn sm" id="wf-apply-agreed-btn" disabled>Apply all agreed</button>
       </div>
       <div class="wf-table-wrap wb-table-wrap">
         <table class="wf-table wb-table">
@@ -45,8 +47,10 @@ export async function mountWorkflow(rootEl) {
   _emptyEl   = rootEl.querySelector('#wf-empty');
   _kpiEl     = rootEl.querySelector('#wf-kpis');
   _bulkBtn   = rootEl.querySelector('#wf-bulk-btn');
+  _applyBtn  = rootEl.querySelector('#wf-apply-agreed-btn');
 
   _bulkBtn.addEventListener('click', () => handleBulkAssist(_bulkBtn, reload));
+  _applyBtn.addEventListener('click', () => handleApplyAgreed(_applyBtn, reload));
 
   await reload();
   _pollTimer = setInterval(reload, POLL_INTERVAL_MS);
@@ -62,6 +66,34 @@ async function reload() {
     render();
   } catch (err) {
     console.error('[workflow] load failed', err);
+  }
+  refreshApplyAgreedBtn();
+}
+
+// Refresh the "Apply all agreed" button label/disabled state from the shared
+// AI-assist endpoints. While a run is in progress (here or on the dashboard) the
+// button is disabled and shows live progress; handleApplyAgreed owns the label
+// during a run it started, so we skip relabeling when _applyBtn.dataset.busy is set.
+async function refreshApplyAgreedBtn() {
+  if (!_applyBtn) return;
+  if (_applyBtn.dataset.busy === '1') return;
+  try {
+    const [dash, status] = await Promise.all([
+      fetch('/api/enrichment/assist/dashboard').then(r => r.ok ? r.json() : null).catch(() => null),
+      fetch('/api/enrichment/assist/apply-agreed/status').then(r => r.ok ? r.json() : null).catch(() => null),
+    ]);
+    const n = dash && dash.agreedPending != null ? Number(dash.agreedPending) : 0;
+    const running = !!(status && status.running);
+    if (running) {
+      const applied = Number(status.applied || 0) + Number(status.failed || 0);
+      _applyBtn.textContent = `Applying… ${applied}/${Number(status.total || 0)}`;
+      _applyBtn.disabled = true;
+    } else {
+      _applyBtn.textContent = `Apply all agreed (${n})`;
+      _applyBtn.disabled = n === 0;
+    }
+  } catch (err) {
+    console.warn('[workflow] apply-agreed refresh failed', err);
   }
 }
 
