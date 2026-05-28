@@ -40,8 +40,8 @@ function buildShell() {
     <div class="wf1-page">
       <div class="wf1-header">
         <div class="wf1-header-kpis" id="wf1-kpis"></div>
-        <button type="button" class="btn sm" id="wf1-bulk-btn" disabled>Queue all ambiguous</button>
-        <button type="button" class="btn sm" id="wf1-apply-agreed-btn" disabled>Apply all agreed</button>
+        <button type="button" class="aia1-btn" id="wf1-bulk-btn" disabled>Queue all ambiguous</button>
+        <button type="button" class="aia1-btn aia1-btn-primary" id="wf1-apply-agreed-btn" disabled>Apply all agreed</button>
       </div>
       <div class="wf1-table-wrap">
         <table class="wf1-table">
