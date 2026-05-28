@@ -60,9 +60,14 @@ export function openLightbox(src) {
   img.src = src;
   img.className = 'wf1-lightbox-img';
   overlay.appendChild(img);
-  overlay.addEventListener('click', () => overlay.remove());
-  document.addEventListener('keydown', function onKey(e) {
-    if (e.key === 'Escape') { overlay.remove(); document.removeEventListener('keydown', onKey); }
-  });
+  function onKey(e) {
+    if (e.key === 'Escape') close();
+  }
+  function close() {
+    overlay.remove();
+    document.removeEventListener('keydown', onKey);
+  }
+  overlay.addEventListener('click', close);
+  document.addEventListener('keydown', onKey);
   document.body.appendChild(overlay);
 }
