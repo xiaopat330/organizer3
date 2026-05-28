@@ -42,6 +42,7 @@ public class AiAssistDashboardRoutes {
     private final EnrichmentReviewQueueRepository reviewQueueRepo;
     private final TaskRunner taskRunner;
     private final EnrichmentAutoApplier autoApplier;
+    private final EnrichmentAssistSweeper sweeper;
 
     private final ExecutorService applyExecutor = Executors.newSingleThreadExecutor(r -> {
         Thread t = new Thread(r, "apply-agreed");
@@ -56,11 +57,13 @@ public class AiAssistDashboardRoutes {
     public AiAssistDashboardRoutes(OllamaModelOrchestrator orchestrator,
                                    EnrichmentReviewQueueRepository reviewQueueRepo,
                                    TaskRunner taskRunner,
-                                   EnrichmentAutoApplier autoApplier) {
+                                   EnrichmentAutoApplier autoApplier,
+                                   EnrichmentAssistSweeper sweeper) {
         this.orchestrator    = orchestrator;
         this.reviewQueueRepo = reviewQueueRepo;
         this.taskRunner      = taskRunner;
         this.autoApplier     = autoApplier;
+        this.sweeper         = sweeper;
     }
 
     public void register(Javalin app) {
@@ -128,6 +131,19 @@ public class AiAssistDashboardRoutes {
             Map<String, Object> body = new LinkedHashMap<>();
             body.put("active", sweeper.isPresent());
             body.put("runId",  sweeper.map(TaskRun::runId).orElse(null));
+            ctx.json(body);
+        });
+
+        // GET /api/enrichment/assist/batch-progress — live 2-pass batch cursor.
+        app.get("/api/enrichment/assist/batch-progress", ctx -> {
+            com.organizer3.enrichment.ai.AiAssistBatchProgress.Snapshot snap = sweeper.batchProgressSnapshot();
+            Map<String, Object> body = new LinkedHashMap<>();
+            body.put("active",       snap.active());
+            body.put("chunkRowIds",  snap.chunkRowIds());
+            body.put("pass",         snap.pass());
+            body.put("currentRowId", snap.currentRowId());
+            body.put("currentCode",  snap.currentCode());
+            body.put("currentModel", snap.currentModel());
             ctx.json(body);
         });
 

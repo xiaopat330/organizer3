@@ -3,6 +3,7 @@ package com.organizer3.web.routes;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.organizer3.db.SchemaInitializer;
+import com.organizer3.enrichment.ai.EnrichmentAssistSweeper;
 import com.organizer3.enrichment.ai.EnrichmentAutoApplier;
 import com.organizer3.javdb.enrichment.EnrichmentReviewQueueRepository;
 import com.organizer3.ollama.OllamaModelOrchestrator;
@@ -52,10 +53,11 @@ class AiAssistDashboardRoutesTest {
 
         TaskRunner taskRunner = mock(TaskRunner.class);
         EnrichmentAutoApplier autoApplier = mock(EnrichmentAutoApplier.class);
+        EnrichmentAssistSweeper sweeper = mock(EnrichmentAssistSweeper.class);
 
         server = new WebServer(0);
         server.registerAiAssistDashboard(
-                new AiAssistDashboardRoutes(orchestrator, reviewQueueRepo, taskRunner, autoApplier));
+                new AiAssistDashboardRoutes(orchestrator, reviewQueueRepo, taskRunner, autoApplier, sweeper));
         server.start();
     }
 

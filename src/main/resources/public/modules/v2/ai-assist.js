@@ -270,29 +270,60 @@ function renderStatCards(stats) {
 }
 
 /* ── Queue preview rows ───────────────────────────────────────────
-   Per-row status is only meaningful while the sweeper is active:
-   - HEAD row (index 0) with inFlight > 0 → "in-flight" (amber, pulsing)
-   - any other row while sweeper active → "queued" (muted)
-   - sweeper inactive → no status badge at all
+   Reflects the sweeper's 2-pass batched processing:
+   - row in the active batch → highlighted <li> (.aia-q-active-batch)
+   - the single row currently being processed → ONE pass pill
+     ("<model> · pass N"), colored by pass (1=primary, 2=secondary)
+   - a row that has finished pass 1 (phi4) but isn't current → interim
+     "✓ <pass-1 model>" pill (.aia-q-pass-done), dimmed, no pulse
+   - a row that has finished BOTH passes (pass 2, before the cursor) but
+     hasn't been persisted yet → "✓ done" pill (.aia-q-both-done), green,
+     no pulse — clearly distinct from the pass-1-done pill
+   - other rows in the active batch not yet examined → muted "in batch" chip
+   - sweeper active but row not in batch → muted "queued"
+   - sweeper inactive → no status chip
    ─────────────────────────────────────────────────────────────────── */
-function renderQueueRow(r, index) {
+function renderQueueRow(r, index, chunkSet) {
   const codeLink = r.code
     ? `<a href="/v2-title-detail.html?code=${encodeURIComponent(r.code)}" style="color:var(--accent-fg);text-decoration:none">${escapeHtml(r.code)}</a>`
     : '<span style="color:var(--text-faint)">—</span>';
 
+  const bp = dashState.batchProgress || {};
   const sweeperActive = !!(dashState.sweeper && dashState.sweeper.active);
+  const inBatch = !!(bp.active && chunkSet && chunkSet.has(r.reviewQueueId));
+  const isCurrent = bp.active && r.reviewQueueId != null && r.reviewQueueId === bp.currentRowId;
+
   let status = '';
-  if (sweeperActive) {
-    const inFlight = N(dashState.stats && dashState.stats.inFlight);
-    if (index === 0 && inFlight > 0) {
-      status = `<span class="aia-q-status inflight">in-flight</span>`;
+  if (isCurrent && bp.pass) {
+    const model = bp.currentModel ? escapeHtml(bp.currentModel) : `pass ${bp.pass}`;
+    status = `<span class="aia-q-pass aia-q-pass-${bp.pass}">${model} · pass ${bp.pass}</span>`;
+  } else if (inBatch) {
+    // Processing order = chunkRowIds order. Rows before the cursor in pass 1 have
+    // finished phi4; in pass 2 every batch row has finished phi4.
+    const ids = Array.isArray(bp.chunkRowIds) ? bp.chunkRowIds : [];
+    const idx = ids.indexOf(r.reviewQueueId);
+    const curIdx = ids.indexOf(bp.currentRowId);
+    const pass1Model = dashState.passModels && dashState.passModels[1]
+      ? escapeHtml(dashState.passModels[1]) : 'pass 1';
+    // pass 2 + before cursor → both passes done, awaiting persist.
+    const bothDone = bp.pass === 2 && curIdx !== -1 && idx < curIdx;
+    // pass 1 + before cursor (phi4 done), OR pass 2 + after cursor (phi4 done, gemma pending).
+    const pass1Done = (bp.pass === 1 && curIdx !== -1 && idx < curIdx)
+      || (bp.pass === 2 && (curIdx === -1 || idx > curIdx));
+    if (bothDone) {
+      status = `<span class="aia-q-both-done">✓ done</span>`;
+    } else if (pass1Done) {
+      status = `<span class="aia-q-pass-done">✓ ${pass1Model}</span>`;
     } else {
-      status = `<span class="aia-q-status queued">queued</span>`;
+      status = `<span class="aia-q-status aia-q-inbatch">in batch</span>`;
     }
+  } else if (sweeperActive) {
+    status = `<span class="aia-q-status queued">queued</span>`;
   }
 
+  const liCls = inBatch ? 'aia-q-row aia-q-active-batch' : 'aia-q-row';
   return `
-    <li class="aia-q-row">
+    <li class="${liCls}">
       <span class="aia-q-code">${codeLink}</span>
       <span class="aia-q-statuscell">${status}</span>
       <span class="aia-q-time">${escapeHtml(timeAgo(r.createdAt))}</span>
@@ -568,6 +599,58 @@ function renderDashShell(panel) {
         border-color: var(--warn, #f59e0b);
         animation: aia-pulse 1.8s ease-out infinite;
       }
+      .aia-q-status.aia-q-inbatch {
+        color: var(--text-faint, #888);
+        border-color: var(--border, rgba(255,255,255,0.18));
+      }
+      /* ── Active batch highlight + per-row pass pill ──────────────── */
+      .aia-q-active-batch {
+        background: rgba(96,165,250,0.08);
+        border-left: 3px solid var(--accent, #60a5fa);
+        padding-left: 9px; /* 12px - 3px border so text doesn't shift */
+      }
+      .aia-q-pass {
+        font-size: 0.7em;
+        text-transform: uppercase;
+        letter-spacing: 0.03em;
+        padding: 1px 6px;
+        border-radius: 8px;
+        border: 1px solid transparent;
+        white-space: nowrap;
+        animation: aia-pulse 1.8s ease-out infinite;
+      }
+      .aia-q-pass-1 {
+        color: var(--accent, #60a5fa);
+        border-color: var(--accent, #60a5fa);
+      }
+      .aia-q-pass-2 {
+        color: #a78bfa;
+        border-color: #a78bfa;
+      }
+      /* Interim "pass-1 done, not current" pill: dimmed pass-1 color, no pulse */
+      .aia-q-pass-done {
+        font-size: 0.7em;
+        text-transform: uppercase;
+        letter-spacing: 0.03em;
+        padding: 1px 6px;
+        border-radius: 8px;
+        white-space: nowrap;
+        color: color-mix(in srgb, var(--accent, #60a5fa) 60%, transparent);
+        border: 1px solid color-mix(in srgb, var(--accent, #60a5fa) 35%, transparent);
+        background: color-mix(in srgb, var(--accent, #60a5fa) 8%, transparent);
+      }
+      /* "Both passes done, awaiting persist" pill: green, complete, no pulse */
+      .aia-q-both-done {
+        font-size: 0.7em;
+        text-transform: uppercase;
+        letter-spacing: 0.03em;
+        padding: 1px 6px;
+        border-radius: 8px;
+        white-space: nowrap;
+        color: var(--ok, #22c55e);
+        border: 1px solid color-mix(in srgb, var(--ok, #22c55e) 40%, transparent);
+        background: color-mix(in srgb, var(--ok, #22c55e) 10%, transparent);
+      }
 
       /* ── Reusable live dot (queue + activity headers when active) ── */
       .aia-live-dot {
@@ -806,7 +889,9 @@ function renderDashQueue() {
   if (count === 0) {
     queueEl.innerHTML = `<li class="trans-empty dis-empty">Queue is empty.</li>`;
   } else {
-    queueEl.innerHTML = dashState.queue.map((r, i) => renderQueueRow(r, i)).join('');
+    const bp = dashState.batchProgress || {};
+    const chunkSet = new Set(bp.active && Array.isArray(bp.chunkRowIds) ? bp.chunkRowIds : []);
+    queueEl.innerHTML = dashState.queue.map((r, i) => renderQueueRow(r, i, chunkSet)).join('');
   }
   if (meta) {
     const active = !!(dashState.sweeper && dashState.sweeper.active);
@@ -851,7 +936,9 @@ const dashState = {
   applyAgreed: { running: false, total: 0, applied: 0, failed: 0 },
   applyBusy: false,     // true while an apply-agreed POST is in flight
   applyPollTimer: null, // fast progress poll while a run is active
-  timers: { stats: null, queue: null, activity: null },
+  batchProgress: { active: false, chunkRowIds: [], pass: 0, currentRowId: null, currentCode: null, currentModel: null },
+  passModels: {},       // { 1: '<phi4 model>', 2: '<gemma model>' } — cached per pass for interim "done" pills
+  timers: { stats: null, queue: null, activity: null, batch: null },
 };
 
 /* ── Poll functions ─────────────────────────────────────────────── */
@@ -866,6 +953,17 @@ async function loadStats() {
 
 async function loadQueue() {
   dashState.queue = (await fetchJson(`/api/enrichment/assist/queue-preview?limit=${QUEUE_LIMIT}`, [])) || [];
+  renderDashQueue();
+}
+
+async function loadBatchProgress() {
+  const bp = await fetchJson('/api/enrichment/assist/batch-progress', null);
+  dashState.batchProgress = bp || { active: false, chunkRowIds: [], pass: 0, currentRowId: null, currentCode: null, currentModel: null };
+  // Cache the model name observed for each pass so interim "done" pills can label
+  // the model even after the cursor moves on. Persists across polls.
+  if (bp && (bp.pass === 1 || bp.pass === 2) && bp.currentModel) {
+    dashState.passModels[bp.pass] = bp.currentModel;
+  }
   renderDashQueue();
 }
 
@@ -920,9 +1018,10 @@ export async function mountAiAssist(rootEl) {
 
   // Start polling timers only if not already running
   if (!dashState.timers.stats) {
-    await Promise.all([loadStats(), loadQueue(), loadActivity(), loadSweeper(), loadApplyStatus()]);
+    await Promise.all([loadStats(), loadQueue(), loadActivity(), loadSweeper(), loadApplyStatus(), loadBatchProgress()]);
     dashState.timers.stats    = setInterval(loadStats,    STATS_POLL_MS);
     dashState.timers.queue    = setInterval(loadQueue,    QUEUE_POLL_MS);
     dashState.timers.activity = setInterval(loadActivity, ACTIVITY_POLL_MS);
+    dashState.timers.batch    = setInterval(loadBatchProgress, 1000);
   }
 }

@@ -64,6 +64,15 @@ public class BatchedEnsembleProcessor {
          * {@code result} is never null; error rows have outcome {@code "error"}.
          */
         default void rowProcessed(long rowId, String code, AssistResult result) {}
+
+        /** Fired once per chunk after inputs are materialized, before pass 1. */
+        default void chunkStarted(java.util.List<Long> rowIds) {}
+
+        /** Fired right before awaiting each row's result in a pass (pass=1 primary, pass=2 secondary). */
+        default void passRow(int pass, String model, long rowId, String code) {}
+
+        /** Fired when the processor finishes or aborts — clear-to-idle signal. */
+        default void chunkEnded() {}
     }
 
     /** Returns {@code true} when the caller wants to abort the batch. */
@@ -129,6 +138,7 @@ public class BatchedEnsembleProcessor {
         String primary   = assistConfig.primaryModel();
         String secondary = assistConfig.secondaryModel();
 
+        try {
         for (int chunkStart = 0; chunkStart < total; chunkStart += effectiveChunk) {
             if (cancelled.isCancelled()) break;
 
@@ -168,6 +178,11 @@ public class BatchedEnsembleProcessor {
                                 rawInput.actressNames(), rawInput.linkedSlugs(), filtered));
             }
 
+            // Snapshot chunk row ids (in order) for batch-progress observers.
+            List<Long> chunkRowIds = new ArrayList<>(n);
+            for (OpenRow row : chunk) chunkRowIds.add(row.id());
+            sink.chunkStarted(chunkRowIds);
+
             // ── Pass 1: submit all primary-model prompts. ─────────────────────
             List<CompletableFuture<OllamaResponse>> phi4Futures = new ArrayList<>(n);
             for (int i = 0; i < n; i++) {
@@ -177,6 +192,7 @@ public class BatchedEnsembleProcessor {
             List<Object[]> phi4Results = new ArrayList<>(n);
             for (int i = 0; i < n; i++) {
                 if (inputs.get(i) == null) { phi4Results.add(abstain("invalid")); continue; }
+                sink.passRow(1, primary, chunk.get(i).id(), chunk.get(i).titleCode());
                 phi4Results.add(awaitAndParse(phi4Futures.get(i), primary,
                         chunk.get(i).titleCode(), inputs.get(i).candidates().size()));
             }
@@ -192,6 +208,7 @@ public class BatchedEnsembleProcessor {
             List<Object[]> gemmaResults = new ArrayList<>(n);
             for (int i = 0; i < n; i++) {
                 if (inputs.get(i) == null) { gemmaResults.add(abstain("invalid")); continue; }
+                sink.passRow(2, secondary, chunk.get(i).id(), chunk.get(i).titleCode());
                 gemmaResults.add(awaitAndParse(gemmaFutures.get(i), secondary,
                         chunk.get(i).titleCode(), inputs.get(i).candidates().size()));
             }
@@ -264,6 +281,9 @@ public class BatchedEnsembleProcessor {
                 sink.rowProcessed(row.id(), row.titleCode(), result);
                 sink.update(processed, total, "id=" + row.id() + " code=" + row.titleCode());
             }
+        }
+        } finally {
+            sink.chunkEnded();
         }
 
         return new ProcessingResult(processed, agreed, autoApplied, errors);
