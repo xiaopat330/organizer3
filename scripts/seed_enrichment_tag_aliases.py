@@ -243,8 +243,11 @@ def apply_aliases(db_path: Path, proposal_path: Path, only_section: Optional[str
             if alias not in curated_names:
                 missing_curated.append((enr, alias))
             r = con.execute(
-                "UPDATE enrichment_tag_definitions SET curated_alias = ? WHERE name = ?",
-                (alias, enr)).rowcount
+                "UPDATE enrichment_tag_definitions "
+                "SET curated_alias = ?, "
+                "    category = (SELECT category FROM tags WHERE name = ?) "
+                "WHERE name = ?",
+                (alias, alias, enr)).rowcount
             if r:
                 applied += 1
             else:
