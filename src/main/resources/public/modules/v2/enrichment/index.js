@@ -18,6 +18,15 @@
 
 import { renderPills, renderTable } from './queue.js';
 
+const POLL_INTERVAL_MS = 5000;
+
+// Selector matching "a sub-panel is currently open" — inline sub-panels are
+// inserted as sibling <tr> rows (picker, cast-anomaly alias, recode preview)
+// or appended inside the actions cell (slug-override form). If any of these is
+// present a background refresh must bail so it doesn't collapse a mid-edit panel.
+const OPEN_PANEL_SELECTOR =
+  '.er-picker-row, .er-cast-anomaly-row, .er-recode-preview-row, .er-slug-form';
+
 // Module-level state — one instance per page mount.
 const state = {
   activeReason: null,   // null = All
@@ -29,6 +38,12 @@ let _tableBody = null;
 let _emptyEl   = null;
 let _headerEl  = null;
 let _pillsEl   = null;
+let _pollTimer = null;
+let _visWired  = false;
+
+function onVisibilityChange() {
+  if (document.visibilityState === 'visible') reload({ background: true });
+}
 
 /**
  * Mount the Enrichment Review workbench into rootEl.
@@ -71,7 +86,26 @@ export async function mountEnrichmentReview(rootEl) {
   _tableBody = rootEl.querySelector('#er-table-body');
   _emptyEl   = rootEl.querySelector('#er-empty');
 
+  // Clear any stale timer from a previous mount so re-mounts don't stack polls.
+  if (_pollTimer) clearInterval(_pollTimer);
+
   await reload();
+
+  // Deep-link: if ?focus=<id> is present, scroll to + highlight that row once
+  // on mount. The initial reload uses the default (All) view with no reason
+  // filter, so unresolved rows are present in the DOM.
+  const focusId = new URLSearchParams(location.search).get('focus');
+  if (focusId) focusReviewItem(focusId);
+
+  // Background auto-refresh — silent, and skips ticks while a panel is open.
+  _pollTimer = setInterval(() => reload({ background: true }), POLL_INTERVAL_MS);
+
+  // Refresh immediately when the tab regains visibility. Guard against
+  // double-registration across re-mounts via the named handler + flag.
+  if (!_visWired) {
+    document.addEventListener('visibilitychange', onVisibilityChange);
+    _visWired = true;
+  }
 }
 
 /**
@@ -89,8 +123,14 @@ export function focusReviewItem(id) {
 
 // ── Data loading ──────────────────────────────────────────────────────────────
 
-async function reload() {
-  if (_headerEl) _headerEl.textContent = 'loading…';
+async function reload({ background = false } = {}) {
+  if (background) {
+    // Skip this tick if any inline sub-panel is open (mid-edit) — a silent
+    // re-render would collapse the picker/alias/recode/slug-form.
+    if (_tableBody && _tableBody.querySelector(OPEN_PANEL_SELECTOR)) return;
+  } else {
+    if (_headerEl) _headerEl.textContent = 'loading…';
+  }
   try {
     const params = new URLSearchParams({ limit: 500 });
     if (state.activeReason) params.set('reason', state.activeReason);
@@ -101,7 +141,7 @@ async function reload() {
     state.rows   = data.rows   || [];
     render();
   } catch (err) {
-    if (_headerEl) _headerEl.textContent = 'failed to load';
+    if (!background && _headerEl) _headerEl.textContent = 'failed to load';
     console.error('EnrichmentReview: load failed', err);
   }
 }

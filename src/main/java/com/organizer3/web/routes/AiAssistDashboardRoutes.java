@@ -92,6 +92,7 @@ public class AiAssistDashboardRoutes {
                         m.put("slug",          row.slug());
                         m.put("reason",        row.reason());
                         m.put("autoApplied",   row.autoApplied());
+                        m.put("resolved",      row.resolvedAt() != null);
                         m.put("at",            row.at());
                         return m;
                     })

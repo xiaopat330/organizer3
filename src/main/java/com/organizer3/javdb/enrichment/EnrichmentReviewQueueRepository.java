@@ -840,7 +840,8 @@ public class EnrichmentReviewQueueRepository {
                            q.ai_suggestion_slug AS slug,
                            q.ai_suggestion_reason AS ai_reason,
                            q.ai_auto_applied AS auto_applied,
-                           q.ai_suggestion_at AS at
+                           q.ai_suggestion_at AS at,
+                           q.resolved_at AS resolved_at
                     FROM enrichment_review_queue q
                     LEFT JOIN titles t ON t.id = q.title_id
                     WHERE q.ai_suggestion_at IS NOT NULL
@@ -856,7 +857,8 @@ public class EnrichmentReviewQueueRepository {
                     rs.getString("slug"),
                     rs.getString("ai_reason"),
                     rs.getInt("auto_applied") != 0,
-                    rs.getString("at")))
+                    rs.getString("at"),
+                    rs.getString("resolved_at")))
                     .list();
         });
     }
@@ -867,7 +869,8 @@ public class EnrichmentReviewQueueRepository {
      * {@code ai_suggestion_at}.
      */
     public record RecentProcessedRow(long reviewQueueId, String code, String outcome,
-                                     String slug, String reason, boolean autoApplied, String at) {}
+                                     String slug, String reason, boolean autoApplied, String at,
+                                     String resolvedAt) {}
 
     /**
      * Row returned by {@link #listResolvedAmbiguousForBackfill(int)} — an already-resolved

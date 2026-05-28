@@ -262,6 +262,7 @@ function renderStatCards(stats) {
       <div class="trans-card aia-card-wide">
         <div class="trans-card-title">Outcome mix</div>
         ${renderOutcomeDonut(stats, { compact: true })}
+        <div class="aia-outcome-caption">Conclusive = both models agreed · applied after a ~10-min soak. Applied: ${fmt(N(stats.autoApplied))}.</div>
       </div>
 
     </div>
@@ -310,10 +311,19 @@ function renderRecentRow(r) {
     ? `${escapeHtml(truncate(r.reason, 70))}`
     : '';
   const reasonTitle = r.reason ? ` title="${escapeHtml(r.reason)}"` : '';
-  // Cell 4: auto badge — empty span when not auto-applied (keeps column alignment).
-  const badgeContent = r.autoApplied
-    ? `<span class="aia-applied-badge">auto</span>`
-    : '';
+  // Cell 4: apply-state badge (three-state).
+  //  - autoApplied             → green "applied" (auto-apply fired post-soak)
+  //  - resolved (other means)  → neutral "resolved" (manual pick / cascade resolve — DONE)
+  //  - conclusive, not applied → amber "pending apply" deep-link (genuinely actionable)
+  //  - otherwise               → empty (keeps column alignment)
+  let badgeContent = '';
+  if (r.autoApplied) {
+    badgeContent = `<span class="aia-applied-badge">applied</span>`;
+  } else if (r.resolved) {
+    badgeContent = `<span class="aia-resolved-badge">resolved</span>`;
+  } else if (classifyOutcome(r.outcome) === 'conclusive') {
+    badgeContent = `<a class="aia-pending-badge" href="/v2-enrichment.html?focus=${encodeURIComponent(r.reviewQueueId)}" title="Open in Enrichment Review">pending apply</a>`;
+  }
   const isNew = dashState.lastNewIds
     && r.reviewQueueId != null
     && dashState.lastNewIds.has(r.reviewQueueId);
@@ -341,6 +351,12 @@ function renderDashShell(panel) {
         margin-bottom: 8px;
       }
       .aia-card-wide { grid-column: span 2; }
+      .aia-outcome-caption {
+        font-size: 0.76em;
+        color: var(--text-faint);
+        margin-top: 6px;
+        line-height: 1.3;
+      }
       .aia-card-label {
         font-size: 0.78em;
         color: var(--text-faint);
@@ -472,6 +488,29 @@ function renderDashShell(panel) {
       .aia-applied-badge {
         background: var(--ok, #22c55e);
         color: #000;
+        font-size: 0.72em;
+        padding: 1px 5px;
+        border-radius: 3px;
+        white-space: nowrap;
+      }
+      .aia-pending-badge {
+        background: transparent;
+        color: var(--warn, #f59e0b);
+        border: 1px solid var(--warn, #f59e0b);
+        font-size: 0.72em;
+        padding: 1px 5px;
+        border-radius: 3px;
+        white-space: nowrap;
+      }
+      a.aia-pending-badge {
+        text-decoration: none;
+        cursor: pointer;
+        display: inline-block;
+      }
+      .aia-resolved-badge {
+        background: transparent;
+        color: var(--text-faint, #888);
+        border: 1px solid var(--border, rgba(128,128,128,0.3));
         font-size: 0.72em;
         padding: 1px 5px;
         border-radius: 3px;
