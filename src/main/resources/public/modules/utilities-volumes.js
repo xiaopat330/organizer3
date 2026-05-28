@@ -9,6 +9,13 @@ import * as taskCenter from './task-center.js';
 
 const SELECTION_KEY = 'utilities.volumes.selection';
 
+// Continuous background daemons that run via the atomic TaskRunner (so they
+// appear in /api/utilities/active) but emit no phases/progress and never end
+// until manually stopped. These must NOT be adopted into the global foreground
+// task pill — their status is surfaced on their own dashboards (e.g. the AI
+// Assist sweeper toggle/bar).
+const PILL_EXCLUDED_TASK_IDS = new Set(['enrichment.ai_assist_sweeper']);
+
 const ORGANIZE_ACTIONS = [
   {
     id: 'prep', label: 'Prep',
@@ -119,6 +126,9 @@ taskCenter.onOpenRequested((state) => {
     if (!res.ok) return;
     const body = await res.json();
     if (!body.active) return;
+    // Ignore continuous background daemons (e.g. the AI Assist sweeper). They
+    // never end and have no progress, so adopting them leaves a stuck pill.
+    if (PILL_EXCLUDED_TASK_IDS.has(body.taskId)) return;
     // Best-effort: we don't know the originating volumeId for arbitrary tasks,
     // but volume.sync encodes it in the run's first PhaseStarted. For now we
     // adopt the run and let the SSE stream populate phases; if the user opens

@@ -11,7 +11,6 @@
 // Sibling subtab modules never import each other — they import only `shared.js`.
 
 import { esc } from '../utils.js';
-import { focusReviewItem, showEnrichmentReviewView } from '../utilities-enrichment-review.js';
 
 import { initEnrich }      from './enrich.js';
 import { initTitles }      from './titles.js';
@@ -76,13 +75,11 @@ const pauseBtn          = document.getElementById('jd-pause-btn');
 const cancelAllBtn      = document.getElementById('jd-cancel-all-btn');
 const controlsToggle    = document.getElementById('jd-controls-toggle');
 const controlsPanel     = document.getElementById('jd-controls');
-const reviewBody        = document.getElementById('tools-enrichment-review-view');
 
 const enrichTab      = view.querySelector('[data-jd-tab="enrich"]');
 const titlesTab      = view.querySelector('[data-jd-tab="titles"]');
 const collectionsTab = view.querySelector('[data-jd-tab="collections"]');
 const queueTab       = view.querySelector('[data-jd-tab="queue"]');
-const reviewTab      = view.querySelector('[data-jd-tab="review"]');
 const jdBody         = view.querySelector('.jd-body');
 const queueBody      = document.getElementById('jd-queue-body');
 const titlesBody     = document.getElementById('jd-titles-body');
@@ -126,12 +123,6 @@ export function hideJavdbDiscoveryView() {
 
 export async function navigateToActressProfile(actressId) {
   await enrichApi.navigateToActressProfile(actressId);
-}
-
-export async function navigateToReviewItem(id) {
-  switchJdTab('review');
-  await showEnrichmentReviewView();
-  focusReviewItem(id);
 }
 
 // ── Data loading (header / actresses) ─────────────────────────────────────
@@ -298,12 +289,10 @@ function switchJdTab(tab) {
   titlesTab.classList.toggle('selected',      tab === 'titles');
   collectionsTab.classList.toggle('selected', tab === 'collections');
   queueTab.classList.toggle('selected',       tab === 'queue');
-  reviewTab.classList.toggle('selected',      tab === 'review');
   jdBody.style.display          = tab === 'enrich'      ? '' : 'none';
   titlesBody.style.display      = tab === 'titles'      ? '' : 'none';
   collectionsBody.style.display = tab === 'collections' ? '' : 'none';
   queueBody.style.display       = tab === 'queue'       ? '' : 'none';
-  reviewBody.style.display      = tab === 'review'      ? '' : 'none';
   if (tab === 'queue') {
     queueApi.loadQueueItems();
     queueApi.startQueueItemsPoll();
@@ -318,7 +307,6 @@ enrichTab.addEventListener('click',      () => switchJdTab('enrich'));
 titlesTab.addEventListener('click',      () => switchJdTab('titles'));
 collectionsTab.addEventListener('click', () => switchJdTab('collections'));
 queueTab.addEventListener('click',       () => switchJdTab('queue'));
-reviewTab.addEventListener('click',      () => { switchJdTab('review'); showEnrichmentReviewView(); });
 
 // ── Header / global controls ──────────────────────────────────────────────
 

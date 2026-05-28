@@ -1,0 +1,511 @@
+/* ── v1 Enrichment hub (Phase 0) ──────────────────────────────────────
+   Hub shell uses the shared .tools-section-* classes for the header/tabs
+   (defined in duplicate-triage.css). Only hub-specific layout lives here,
+   namespaced .ehub-*. The AI Assist prototype stat cards are .aia1-*
+   (distinct from the v2 .aia-* classes in the same /css/ dir). All colors
+   use v1 base.css tokens. */
+
+.tools-enrichment-hub-view {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* The three subview containers fill the area below the section header. */
+.ehub-subview {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+/* AI Assist subview gets padding; Review supplies its own. */
+#ehub-ai-assist-subview { padding: 16px; }
+
+/* ── Per-tab active accent (Enrichment hub = violet) ──────────────────── */
+.tools-section-tab-ehub-ai-assist.selected {
+  color: #c4b5fd;
+  background: #16121f;
+  border-color: #5b21b6;
+  border-bottom-color: #a78bfa;
+}
+.tools-section-tab-ehub-workflow.selected {
+  color: #c4b5fd;
+  background: #16121f;
+  border-color: #5b21b6;
+  border-bottom-color: #a78bfa;
+}
+.tools-section-tab-ehub-review.selected {
+  color: #c4b5fd;
+  background: #16121f;
+  border-color: #5b21b6;
+  border-bottom-color: #a78bfa;
+}
+
+/* ── Workflow placeholder empty-state ─────────────────────────────────── */
+.ehub-empty {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 48px 16px;
+  color: var(--text-dim);
+}
+.ehub-empty-icon { color: var(--text-faint); margin-bottom: 16px; }
+.ehub-empty-title { font-size: 16px; color: var(--text-dim); margin-bottom: 4px; }
+.ehub-empty-sub { font-size: 13px; color: var(--text-faint); }
+
+/* ── AI Assist prototype stat cards ───────────────────────────────────── */
+/* Cards reuse the v1 Translation dashboard families (.trans-stats-grid,
+   .trans-card, .trans-card-title/-headline/-unit/-sub) so the three tiles are
+   visually identical to the Translation cards. Only the unique Outcome-card
+   override lives here. */
+.aia1-loading {
+  color: var(--text-dim);
+  font-size: 13px;
+  padding: 24px 4px;
+}
+
+/* ── v1 action buttons (mirror .trans-sweep-btn idiom) ────────────────── */
+.aia1-btn {
+  padding: 3px 10px;
+  font-size: 0.75rem;
+  font-weight: 400;
+  letter-spacing: 0.02em;
+  background: var(--bg-hover);
+  color: var(--text);
+  border: 1px solid var(--border-strong);
+  border-radius: 3px;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.12s ease, border-color 0.12s ease, color 0.12s ease;
+}
+.aia1-btn:hover:not(:disabled) {
+  background: var(--bg-active, #2a2a33);
+  border-color: var(--text-dim);
+  color: var(--text);
+}
+.aia1-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+/* Primary variant ("Apply all agreed") — violet tint matches the hub accent. */
+.aia1-btn-primary {
+  background: #16121f;
+  color: #c4b5fd;
+  border-color: #5b21b6;
+}
+.aia1-btn-primary:hover:not(:disabled) {
+  background: #1f1730;
+  color: #ddd0ff;
+  border-color: #a78bfa;
+}
+
+/* ── Throughput meter ─────────────────────────────────────────────────── */
+.aia1-meter-track {
+  display: flex;
+  height: 8px;
+  border-radius: 4px;
+  overflow: hidden;
+  background: var(--bg-hover);
+  margin-top: 12px;
+}
+.aia1-meter-seg { height: 100%; }
+.aia1-meter-note {
+  font-size: 12px;
+  color: var(--text-faint);
+  margin-top: 8px;
+}
+.aia1-meter-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  margin-top: 10px;
+}
+.aia1-meter-key {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--text-dim);
+}
+.aia1-meter-swatch {
+  width: 9px;
+  height: 9px;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+.aia1-meter-key-count {
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Outcome donut ────────────────────────────────────────────────────── */
+.aia1-donut-wrap {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  margin-top: 6px;
+}
+.aia1-donut-chart {
+  position: relative;
+  width: 92px;
+  height: 92px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+/* punch the hole to make it a ring */
+.aia1-donut-chart::after {
+  content: '';
+  position: absolute;
+  inset: 14px;
+  border-radius: 50%;
+  background: #1d1d1d;   /* match .trans-card bg so the ring hole is invisible */
+}
+.aia1-donut-center {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1;
+}
+.aia1-donut-total {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+.aia1-donut-note {
+  font-size: 10px;
+  color: var(--text-faint);
+  text-align: center;
+  max-width: 56px;
+  line-height: 1.2;
+}
+.aia1-legend {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  min-width: 0;
+}
+.aia1-legend-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--text-dim);
+}
+.aia1-legend-swatch {
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+.aia1-legend-label { flex: 1; white-space: nowrap; }
+.aia1-legend-count {
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+
+.aia1-outcome-caption {
+  font-size: 11px;
+  color: var(--text-faint);
+  line-height: 1.35;
+  margin-top: 10px;
+}
+
+/* ── Pulse keyframe (re-tinted to v1 mint --ok) ───────────────────────── */
+@keyframes aia1-pulse {
+  0%   { box-shadow: 0 0 0 0 rgba(110,231,183,0.50); }
+  70%  { box-shadow: 0 0 0 6px rgba(110,231,183,0); }
+  100% { box-shadow: 0 0 0 0 rgba(110,231,183,0); }
+}
+
+.aia1-live-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin-right: 6px;
+  vertical-align: middle;
+  background: var(--ok);
+  animation: aia1-pulse 1.8s ease-out infinite;
+}
+
+.aia1-meta-off { color: var(--text-faint); }
+
+/* ── Sweeper control bar (v1 toolbar/panel) ───────────────────────────── */
+.aia1-sweeper-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 16px;
+  margin-bottom: 16px;
+  border-radius: 6px;
+  border: 1px solid #262626;
+  background: #161616;
+}
+.aia1-sweeper-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  background: var(--text-faint);
+}
+.aia1-sweeper-bar[data-active="true"] .aia1-sweeper-dot {
+  background: var(--ok);
+  animation: aia1-pulse 1.8s ease-out infinite;
+}
+.aia1-sweeper-label {
+  font-size: 13px;
+  color: var(--text);
+}
+.aia1-sweeper-msg {
+  font-size: 12px;
+  color: var(--warn);
+}
+.aia1-sweeper-btn { margin-left: auto; }
+
+/* ── Shelves (Queue + Recently processed) ─────────────────────────────── */
+.aia1-shelf { margin-top: 24px; }
+.aia1-shelf-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 2px 8px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 2px;
+}
+/* Uppercase small-caps section label, mirroring .trans-section h3. */
+.aia1-shelf-title {
+  font-size: 0.85rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
+.aia1-shelf-meta {
+  font-size: 11.5px;
+  color: var(--text-dim);
+  margin-left: auto;
+}
+/* When the head also has buttons (Recent shelf), the meta keeps margin-left:auto
+   and the first button gets its own auto-margin so meta+buttons cluster right. */
+.aia1-shelf-head .aia1-btn:first-of-type { margin-left: 10px; }
+
+.aia1-queue,
+.aia1-activity {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.aia1-empty {
+  list-style: none;
+  padding: 16px 4px;
+  font-size: 12.5px;
+  color: var(--text-faint);
+}
+
+/* ── Code links ───────────────────────────────────────────────────────── */
+.aia1-code-link {
+  font-family: var(--font-mono);
+  color: var(--accent-fg);
+  text-decoration: none;
+  cursor: pointer;
+}
+.aia1-code-link:hover { text-decoration: underline; }
+.aia1-code-empty { color: var(--text-faint); }
+
+/* ── Queue rows (code | status | time) ────────────────────────────────── */
+.aia1-q-row {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  align-items: center;
+  gap: 10px;
+  padding: 5px 12px;
+  border-bottom: 1px solid var(--border);
+  min-width: 0;
+}
+.aia1-q-row:last-child { border-bottom: none; }
+.aia1-q-code {
+  font-size: 12.5px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+.aia1-q-statuscell { white-space: nowrap; }
+.aia1-q-time {
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  color: var(--text-faint);
+  text-align: right;
+  white-space: nowrap;
+}
+
+.aia1-q-status {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  padding: 1px 6px;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  white-space: nowrap;
+}
+.aia1-q-queued {
+  color: var(--text-faint);
+  border-color: var(--text-faint);
+}
+.aia1-q-inbatch {
+  color: var(--text-dim);
+  border-color: var(--border-strong);
+}
+
+/* Active-batch highlight + per-row pass pill */
+.aia1-q-active-batch {
+  background: var(--accent-bg);
+  border-left: 3px solid var(--accent);
+  padding-left: 9px;   /* 12px - 3px border so text doesn't shift */
+}
+.aia1-q-pass {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  padding: 1px 6px;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  white-space: nowrap;
+  animation: aia1-pulse 1.8s ease-out infinite;
+}
+.aia1-q-pass-1 {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+.aia1-q-pass-2 {
+  color: #c4b5fd;
+  border-color: #a78bfa;
+}
+/* Interim "pass-1 done, not current" pill: dimmed accent, no pulse */
+.aia1-q-pass-done {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  padding: 1px 6px;
+  border-radius: 8px;
+  white-space: nowrap;
+  color: color-mix(in srgb, var(--accent) 65%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent) 35%, transparent);
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+}
+/* "Both passes done, awaiting persist" pill: mint, complete, no pulse */
+.aia1-q-both-done {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  padding: 1px 6px;
+  border-radius: 8px;
+  white-space: nowrap;
+  color: var(--ok);
+  border: 1px solid color-mix(in srgb, var(--ok) 45%, transparent);
+  background: color-mix(in srgb, var(--ok) 10%, transparent);
+}
+
+/* ── Recently-processed feed rows ─────────────────────────────────────── */
+.aia1-recent-row {
+  display: grid;
+  grid-template-columns: 110px 150px 1fr auto 86px;
+  align-items: center;
+  gap: 10px;
+  padding: 5px 12px;
+  border-bottom: 1px solid var(--border);
+  min-width: 0;
+}
+.aia1-recent-row:last-child { border-bottom: none; }
+.aia1-recent-code {
+  font-size: 12px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.aia1-recent-status { white-space: nowrap; overflow: hidden; }
+.aia1-recent-reason {
+  font-size: 12px;
+  color: var(--text-faint);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+.aia1-recent-badge {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  white-space: nowrap;
+}
+.aia1-recent-time {
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  color: var(--text-faint);
+  text-align: right;
+  white-space: nowrap;
+}
+
+/* New-row flash */
+.aia1-recent-new { animation: aia1-flash 1.2s ease-out 1; }
+@keyframes aia1-flash {
+  0%   { background: var(--accent-bg); }
+  100% { background: transparent; }
+}
+
+/* ── Outcome chips (recent-feed status cell) ──────────────────────────── */
+.aia1-chip {
+  font-size: 11.5px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.aia1-chip-conclusive  { color: var(--ok); }
+.aia1-chip-leaning     { color: var(--accent); }
+.aia1-chip-split       { color: var(--warn); }
+.aia1-chip-no-decision { color: var(--text-faint); }
+
+/* ── Apply-state badges ───────────────────────────────────────────────── */
+.aia1-applied-badge,
+.aia1-resolved-badge,
+.aia1-pending-badge {
+  font-size: 10.5px;
+  padding: 1px 6px;
+  border-radius: 4px;
+  white-space: nowrap;
+  border: 1px solid transparent;
+}
+.aia1-applied-badge {
+  color: var(--ok);
+  border-color: color-mix(in srgb, var(--ok) 45%, transparent);
+  background: color-mix(in srgb, var(--ok) 10%, transparent);
+}
+.aia1-resolved-badge {
+  color: var(--text-faint);
+  border-color: var(--border-strong);
+}
+.aia1-pending-badge {
+  color: var(--warn);
+  border-color: color-mix(in srgb, var(--warn) 50%, transparent);
+  background: color-mix(in srgb, var(--warn) 8%, transparent);
+}
+/* C-glue: clickable pending-apply badge → jumps to the Workflow subtab. */
+.aia1-pending-badge-link {
+  cursor: pointer;
+  transition: background 0.12s ease, border-color 0.12s ease;
+}
+.aia1-pending-badge-link:hover,
+.aia1-pending-badge-link:focus-visible {
+  background: color-mix(in srgb, var(--warn) 18%, transparent);
+  border-color: color-mix(in srgb, var(--warn) 70%, transparent);
+  outline: none;
+}

@@ -1,8 +1,28 @@
 # PROPOSAL — Backport AI Assist + Workflow to the v1 UI ("Enrichment" hub)
 
-**Status:** PLAN (no implementation started)
+**Status:** ✅ COMPLETE — Phase 0 + Track A (AI Assist) + Track B (Workflow) + serial
+tail all shipped, v1-restyled, and verified live; merged to main 2026-05-28.
 **Date:** 2026-05-28
-**Owner:** (TBD)
+**Branch:** `feature/v1-enrichment-hub-backport` (merged to main)
+
+## 0. Completion summary (2026-05-28)
+- **Phase 0** (`9933bdf6`): hub shell + nav + section-tabs + Review re-home + AI Assist prototype.
+- **Track A** — full AI Assist dashboard (queue preview, activity feed w/ HWM polling + pause/clear,
+  sweeper toggle, apply-all-agreed, batch pass-pills, code-links → `openTitleDetail`).
+- **Track B** — full Workflow (9 modules: table+state+judge-viz+candidates+bulk+`?focus`,
+  6 inline reason panels, overflow ⋮ menu, override-slug, recode dry-run, lightbox).
+- **Serial tail** — cross-screen deep-link glue, shared poll-leak fix, `grid.js` hub registration.
+- **QA** — `UiEnrichmentHubTest` (Java Playwright, 5/5) + badge keyboard a11y.
+- **v1 "retro" restyle** — AI Assist + Workflow reskinned to v1 design language (trans-card
+  family, `.aia1-btn`/`.trans-sweep-btn` buttons, uppercase table headers); fixed broken v2
+  `btn sm` action buttons on both screens.
+- **Review consolidation** — Review tab removed from Sources; review view relocated permanently
+  into the hub (reparent machinery deleted, orphan edge eliminated); `navigate-to-review-item`
+  deep-link repointed to the hub's `focusReview`.
+- **Bugfix** — excluded the continuous AI Assist sweeper from the v1 global task pill (`93d083b1`).
+- **Backend untouched throughout.** Remaining optional/deferred items: inline reason panels never
+  exercised on real data (queue lacked qualifying rows); sweeper holds the atomic utility-task slot
+  (backend, affects v1+v2) — separate decision.
 
 ## 1. Goal
 
@@ -83,63 +103,99 @@ two-click destructive confirms, reason-gated ⋮ menu, lightbox); **QA/polish �
 ## 4. File plan (new, v1-namespaced to avoid clashing with v2 assets)
 
 - `modules/utilities-enrichment-hub.js` — hub shell: section-tabs + show/hide of the
-  three subtab views; routes AI Assist's "pending apply" → Workflow tab focus.
+  three subtab views; routes AI Assist's "pending apply" → Workflow tab focus. *(Phase 0
+  done; Track B extends it to mount the real Workflow view in place of the placeholder.)*
 - `modules/utilities-ai-assist.js` — single-file dashboard (forked from v2 `ai-assist.js`).
+  *(Phase 0 prototype done; Track A extends it.)*
 - `modules/utilities-workflow/` — multi-file dir mirroring v2's 9 siblings
   (`index, row, actions, cast-anomaly, orphan, recode, slug-conflict,
-  stage-name-conflict, utils`), forked + reskinned.
-- `css/enrichment-hub.css` (+ `css/ai-assist-tools.css`, `css/workflow-tools.css`
-  or one combined file). **New class prefixes** (`.ehub-`, `.aia1-`, `.wf1-`) so v1
-  rules never collide with the v2 `.aia-`/`.wf-` files in the shared `/css/` dir.
+  stage-name-conflict, utils`), forked + reskinned. *(Track B, new.)*
+- CSS — **one file per track to keep the two parallel tracks merge-clean:**
+  `css/enrichment-hub.css` (Phase 0; `.ehub-` + `.aia1-` — owned by **Track A** from here),
+  and a **separate** `css/workflow-tools.css` (`.wf1-` — owned by **Track B**). New class
+  prefixes (`.ehub-`, `.aia1-`, `.wf1-`) so v1 rules never collide with the v2
+  `.aia-`/`.wf-` files in the shared `/css/` dir.
 - **Re-home** existing `utilities-enrichment-review.js` view as the Review subtab
-  (no logic change).
+  (no logic change). *(Phase 0 done.)*
 - Edits to `index.html` (button + view container + CSS links) and `action.js`
-  (nav wiring).
+  (nav wiring). *(Phase 0 did the button/nav; remaining index.html edits — the Workflow
+  subview mount + `workflow-tools.css` link — are **Track B-owned**.)*
 
-## 5. Phased plan
+### 4.1 File-ownership matrix (prevents the two tracks from colliding)
 
-### Phase 0 — Foundation + thin prototype slice (de-risk)
-- Build the **Enrichment hub shell**: new Tools button, view container, section-tabs
-  (AI Assist · Workflow · Review), and re-home the existing Review view as the third
-  tab (verifies the hub plumbing with a known-good screen).
-- **Prototype slice:** skin **only** the AI Assist top stat-card row (Queue / Processed
-  meter / outcome donut) in v1 idiom. Validates the token map, design-language fit,
-  and effort calibration in ~1 hour.
-- **Exit criteria:** hub navigable; Review works inside it; stat-card row looks native
-  to v1. Surprises here change the plan cheaply.
+| File | Track A (AI Assist) | Track B (Workflow) |
+|------|---------------------|--------------------|
+| `modules/utilities-ai-assist.js` | **owns** | — |
+| `css/enrichment-hub.css` | **owns** (`.aia1-` additions) | — |
+| `modules/utilities-workflow/*` | — | **owns** (new dir) |
+| `css/workflow-tools.css` | — | **owns** (new file) |
+| `modules/utilities-enrichment-hub.js` | — | **owns** (Workflow-tab mount) |
+| `index.html` (Workflow subview + CSS link) | — | **owns** |
 
-### Phase 1 — AI Assist (full)
-- Port the full dashboard: queue preview, recently-processed activity feed (with
-  `since=` HWM polling, pause/clear), sweeper on/off toggle, **Apply all agreed**
-  (202 + `/status` progress polling), batch-progress pass pills, KPIs.
-- Rewire code-links → `openTitleDetail(byCode)`; "pending apply" → Workflow subtab focus.
-- Stop all polling on hide.
-- **Exit criteria:** functional + visual parity with v2 AI Assist, v1-styled.
+The AI-Assist→Workflow deep-link is the ONE shared concern; it is deferred to the
+serial integration step (§5, Track C-glue), not built inside either track.
 
-### Phase 2 — Workflow (core, vertical slices)
-- **2a — Table & basics:** rows from `/workflow/rows` with state derivation
+## 5. Plan (parallelized into two tracks + a serial tail)
+
+Phase 0 is **done** (foundation + de-risk). The remaining work splits into two
+independent tracks that run **concurrently in separate git worktrees** (one Sonnet
+agent each), then collapse into a short serial tail. The §4.1 ownership matrix keeps
+them merge-clean; the one shared concern (cross-screen deep-link) is deferred to the tail.
+
+### Phase 0 — Foundation + thin prototype slice — ✅ DONE
+- Hub shell (new Tools button, section-tabs AI Assist · Workflow · Review), Review
+  re-home (runtime reparent), AI Assist prototype stat-card row.
+- Verified live; commit `9933bdf6` on `feature/v1-enrichment-hub-backport`.
+- De-risk outcomes: token map holds (only `--surface-2` gap), v1 design fit confirmed,
+  reparent quirk isolated to the Review re-home.
+
+### ▶ Track A — AI Assist (full) — *parallel; ~1 day*
+Owns `utilities-ai-assist.js` + `.aia1-` CSS in `enrichment-hub.css`. Extends the Phase 0
+prototype to full parity:
+- Queue preview; recently-processed activity feed (`since=` HWM polling, pause/clear).
+- Sweeper on/off toggle; **Apply all agreed** (202 + `/status` progress polling);
+  batch-progress pass pills; KPIs.
+- Code-links → `openTitleDetail(byCode)`. Stop all polling on hide.
+- **Does NOT** wire the "pending apply → Workflow tab" deep-link (tail step) — for now it
+  may no-op or switch to the Workflow tab without focus.
+- **Exit:** functional + visual parity with v2 AI Assist, v1-styled, no leaked intervals.
+
+### ▶ Track B — Workflow (full) — *parallel; ~3–5 days (critical path)*
+Owns the new `modules/utilities-workflow/` dir, `css/workflow-tools.css`, the hub's
+Workflow-tab mount (`utilities-enrichment-hub.js`), and the Workflow `index.html` edits.
+Internally **sequential** vertical slices (each builds on the prior):
+- **B1 — Table & basics:** rows from `/workflow/rows` with state derivation
   (queued/fetching/ambiguous/judging/split_decision/partial_vote/no_verdict/
   other_intervention), code pill, actress chips, cover thumb, candidate thumbs + Pick
   buttons, the **two-robot judge visualization**, header KPIs, **Queue all ambiguous**,
-  **Apply all agreed**, 3s polling, `?focus`/deep-link scroll-highlight.
-- **2b — Inline reason panels:** cast_anomaly (add-alias), orphan (mark moved / two-click
+  **Apply all agreed**, 3s polling, and the `?focus` scroll-highlight *hook* (consumes a
+  focus id handed in by the hub).
+- **B2 — Inline reason panels:** cast_anomaly (add-alias), orphan (mark moved / two-click
   confirm delete), recode (dry-run preview → commit), slug_conflict (claimant/incumbent
   info), stage_name_conflict (info), actress_rename (dismiss).
-- **2c — Overflow ⋮ menu + extras:** reason-gated actions (mark resolved / accept gap /
+- **B3 — Overflow ⋮ menu + extras:** reason-gated actions (mark resolved / accept gap /
   override-slug input / dismiss / refresh) + lightbox for covers/candidates.
-- **Exit criteria:** all 9 reasons & states behave as in v2, v1-styled.
+- Replaces the hub's "Coming in Phase 2" placeholder with the real mount.
+- **Exit:** all 9 reasons & states behave as in v2, v1-styled.
 
-### Phase 3 — Parity QA + polish
-- Run the 12-item Workflow smoke-test (see v2 memory checklist) + the AI Assist feature
-  list, v1 vs v2 side-by-side.
-- Design-language review against v1 (buttons, tables, chips, pills, empty states).
-- Polling-cleanup verification on tab/hub switches (no leaked intervals).
-- Playwright safety-net coverage (repo convention for JS surfaces).
+### ◇ Serial tail (after both tracks merge)
+- **C-glue — cross-screen deep-link (~15 min):** wire AI Assist's "pending apply" badge →
+  switch to the Workflow subtab and focus/scroll-highlight the target row (uses Track B's
+  `?focus` hook). The only file both tracks would have touched; isolated here on purpose.
+- **Phase 3 — Parity QA + polish:** 12-item Workflow smoke-test (v2 memory checklist) +
+  AI Assist feature list, v1 vs v2 side-by-side; design-language review; polling-cleanup
+  on tab/hub switches; Playwright safety net (AI Assist coverage may start once Track A
+  merges).
+- **Phase 4 — Integration & cleanup:** docs (USAGE/spec) + memory; optional lightweight
+  assist-queue surface in v1 (no status bar); confirm existing Review untouched/reachable.
 
-### Phase 4 — Integration & cleanup
-- Docs: note the hub in USAGE/spec; update memory.
-- Optional: surface assist-queue depth somewhere lightweight in v1 (no status bar).
-- Confirm existing Review untouched and reachable.
+### 5.1 Merge & worktree mechanics
+- Two worktrees off `feature/v1-enrichment-hub-backport` (or two sub-branches), one per
+  track. Each Sonnet agent runs `installDist` in its own tree; the user restarts to verify.
+- Merge order: **Track A first** (smaller, no hub edits), then **Track B** (carries the hub
+  + index.html edits). Then the C-glue + QA on the integrated branch.
+- Critical path ≈ Track B (~3–5 days); Track A finishes inside that window. Net wall-clock
+  ~3–5 days vs ~5–7 serial.
 
 ## 6. Risks / watch-items
 - **Volume, not novelty** — Workflow's 9 modules are the bulk; budget accordingly.

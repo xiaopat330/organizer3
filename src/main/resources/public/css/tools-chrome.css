@@ -184,6 +184,16 @@
 }
 .tools-javdb-discovery-btn.selected svg { stroke: #7dd3fc; }
 
+.tools-enrichment-btn        { color: #a78bfa; }
+.tools-enrichment-btn svg    { stroke: #a78bfa; }
+.tools-enrichment-btn:hover,
+.tools-enrichment-btn.selected {
+  color: #c4b5fd;
+  background: #16121f;
+  border-color: #5b21b6;
+}
+.tools-enrichment-btn.selected svg { stroke: #c4b5fd; }
+
 .tools-aliases-btn        { color: #2dd4bf; }
 .tools-aliases-btn svg    { stroke: #2dd4bf; }
 .tools-aliases-btn:hover,
