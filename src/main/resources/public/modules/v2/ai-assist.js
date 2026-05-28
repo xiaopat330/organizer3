@@ -353,7 +353,7 @@ function renderRecentRow(r) {
   } else if (r.resolved) {
     badgeContent = `<span class="aia-resolved-badge">resolved</span>`;
   } else if (classifyOutcome(r.outcome) === 'conclusive') {
-    badgeContent = `<a class="aia-pending-badge" href="/v2-enrichment.html?focus=${encodeURIComponent(r.reviewQueueId)}" title="Open in Enrichment Review">pending apply</a>`;
+    badgeContent = `<a class="aia-pending-badge" href="/v2-workflow.html?focus=${encodeURIComponent(r.reviewQueueId)}" title="Open in Enrichment Review">pending apply</a>`;
   }
   const isNew = dashState.lastNewIds
     && r.reviewQueueId != null

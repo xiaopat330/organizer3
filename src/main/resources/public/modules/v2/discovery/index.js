@@ -12,8 +12,9 @@
 // NOTE: The Review tab formerly embedded the legacy utilities-enrichment-review
 // module, which has top-level DOM queries (e.g. getElementById('cover-lightbox'))
 // that throw on any page missing those IDs — crashing module load entirely.
-// Under Option C, Enrichment Review is its own dedicated page (/v2-enrichment.html).
-// The Review sub-tab has been removed; a header link points users there instead.
+// Enrichment review now lives on the v2 Workflow page (/v2-workflow.html), which
+// replaced the retired v2 Enrichment Review surface. The Review sub-tab has been
+// removed; a header link points users to the Workflow page instead.
 
 import { esc } from '../../utils.js';
 
@@ -107,7 +108,7 @@ function buildHTML() {
         Queue
       </button>
     </div>
-    <a class="hl-sync-link" href="/v2-enrichment.html">Enrichment Review →</a>
+    <a class="hl-sync-link" href="/v2-workflow.html">Enrichment Workflow →</a>
     <div class="jd-header-actions dis-header-actions">
       <button type="button" id="jd-pause-btn" class="jd-action-btn jd-pause-btn">Pause</button>
       <button type="button" id="jd-cancel-all-btn" class="jd-action-btn jd-danger-outline-btn">⏹ Stop All Enrichment</button>
