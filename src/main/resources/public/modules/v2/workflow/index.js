@@ -14,6 +14,12 @@ let _applyBtn  = null;
 let _pollTimer = null;
 let _rows      = [];
 
+// Deep-link focus (e.g. /v2-workflow.html?focus=<queueId> from the AI Assist
+// dashboard "pending apply" badge). Consumed once after the first render that
+// contains the target row; never re-triggered on subsequent poll refreshes.
+let _focusId        = null;
+let _focusConsumed  = false;
+
 export async function mountWorkflow(rootEl) {
   rootEl.innerHTML = `
     <div class="wf-page wb-page">
@@ -51,6 +57,9 @@ export async function mountWorkflow(rootEl) {
 
   _bulkBtn.addEventListener('click', () => handleBulkAssist(_bulkBtn, reload));
   _applyBtn.addEventListener('click', () => handleApplyAgreed(_applyBtn, reload));
+
+  _focusId = new URLSearchParams(location.search).get('focus');
+  _focusConsumed = !_focusId;
 
   await reload();
   _pollTimer = setInterval(reload, POLL_INTERVAL_MS);
@@ -135,4 +144,18 @@ function renderTable() {
   for (const row of _rows) {
     _tableBody.appendChild(makeRow(row, reload));
   }
+  maybeApplyFocus();
+}
+
+// Deep-link focus: scroll the targeted row into view and flash a highlight, once.
+// If the row isn't present (already resolved / filtered out), consume the intent
+// silently so we don't keep scanning on every poll.
+function maybeApplyFocus() {
+  if (_focusConsumed || !_focusId || !_tableBody) return;
+  _focusConsumed = true;
+  const tr = _tableBody.querySelector(`tr[data-id="${CSS.escape(_focusId)}"]`);
+  if (!tr) return; // row gone; nothing to do
+  tr.scrollIntoView({ block: 'center', behavior: 'smooth' });
+  tr.classList.add('wf-row-focused');
+  setTimeout(() => tr.classList.remove('wf-row-focused'), 2500);
 }

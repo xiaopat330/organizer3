@@ -54,6 +54,14 @@
   border-bottom: none;
 }
 
+/* Deep-link focus highlight: a row scrolled into view via ?focus=<queueId>.
+   Brief accent flash (added then removed after ~2.5s by index.js). */
+.wf-row-focused {
+  background: color-mix(in srgb, var(--accent-fg) 10%, transparent);
+  box-shadow: inset 3px 0 0 0 var(--accent-fg);
+  transition: background 0.4s ease, box-shadow 0.4s ease;
+}
+
 .wf-row td {
   padding: 0.5rem;
   vertical-align: middle;
