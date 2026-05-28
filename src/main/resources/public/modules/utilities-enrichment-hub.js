@@ -16,12 +16,18 @@
 
 import { showAiAssistView, hideAiAssistView } from './utilities-ai-assist.js';
 import { showEnrichmentReviewView, hideEnrichmentReviewView } from './utilities-enrichment-review.js';
+import { showWorkflowView, hideWorkflowView } from './utilities-workflow/index.js';
 
 const TABS = ['ai-assist', 'workflow', 'review'];
 const DEFAULT_TAB = 'ai-assist';
 
 let view = null;
 let activeTab = null;
+
+// Deep-link focus handed across from AI Assist's "pending apply" affordance.
+// focusWorkflow(queueId) stashes the id; the next switch to the Workflow tab
+// passes it to showWorkflowView, which scrolls + flashes that row once.
+let pendingFocus = null;
 
 // Saved "home" location of the review div, captured the first time we borrow it.
 let reviewHome = null;   // { parent, nextSibling }
@@ -68,8 +74,7 @@ async function switchTab(tab) {
     if (host) host.style.display = 'none';
   }
   if (activeTab === 'workflow') {
-    const wf = el('ehub-workflow-subview');
-    if (wf) wf.style.display = 'none';
+    hideWorkflowView();
   }
 
   activeTab = tab;
@@ -78,8 +83,9 @@ async function switchTab(tab) {
   if (tab === 'ai-assist') {
     await showAiAssistView();
   } else if (tab === 'workflow') {
-    const wf = el('ehub-workflow-subview');
-    if (wf) wf.style.display = '';
+    const focusId = pendingFocus;
+    pendingFocus = null;
+    await showWorkflowView({ focusId });
   } else if (tab === 'review') {
     const host = el('ehub-review-subview');
     if (host) host.style.display = '';
@@ -110,11 +116,20 @@ export async function showEnrichmentHubView() {
 export function hideEnrichmentHubView() {
   // Stop all subtab work and restore the borrowed review div to its home.
   hideAiAssistView();
+  hideWorkflowView();
   returnReviewDiv();
   const rh = el('ehub-review-subview');
   if (rh) rh.style.display = 'none';
-  const wf = el('ehub-workflow-subview');
-  if (wf) wf.style.display = 'none';
   activeTab = null;
   if (view) view.style.display = 'none';
+}
+
+// Deep-link entry point: AI Assist (or any caller) hands a queueId, then this
+// switches to the Workflow tab which scrolls that row into view and flashes it.
+// Contract for Track A / serial-tail glue: call focusWorkflow(queueId) from
+// inside the hub (the hub is already showing). Safe to call when the Workflow
+// tab is already active — it re-switches and re-applies focus.
+export async function focusWorkflow(queueId) {
+  pendingFocus = queueId;
+  await switchTab('workflow');
 }
