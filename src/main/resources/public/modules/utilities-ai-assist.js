@@ -135,6 +135,22 @@ function onBodyClick(ev) {
   }
 }
 
+// Delegated keydown handler: Enter/Space on the role=button pending-apply badge
+// activates the same focusWorkflow path as a click (a11y parity with role=button
+// /tabindex=0). preventDefault on Space avoids the page scrolling.
+function onBodyKeydown(ev) {
+  if (ev.key !== 'Enter' && ev.key !== ' ' && ev.key !== 'Spacebar') return;
+  const focus = ev.target.closest('[data-aia1-focus-id]');
+  if (!focus || !S.body || !S.body.contains(focus)) return;
+  ev.preventDefault();
+  ev.stopPropagation();
+  const raw = focus.dataset.aia1FocusId;
+  const queueId = Number(raw);
+  import('./utilities-enrichment-hub.js')
+    .then(m => m.focusWorkflow(Number.isNaN(queueId) ? raw : queueId))
+    .catch(e => console.warn('[v1-ai-assist] focusWorkflow failed:', e));
+}
+
 function codeLinkHtml(code) {
   if (!code) return '<span class="aia1-code-empty">—</span>';
   return `<a href="#" class="aia1-code-link" data-aia1-code="${escapeHtml(code)}">${escapeHtml(code)}</a>`;
@@ -715,7 +731,10 @@ function teardown() {
   clearApplyPoll();
   S.sweeperBusy = false;
   S.applyBusy = false;
-  if (S.body) S.body.removeEventListener('click', onBodyClick);
+  if (S.body) {
+    S.body.removeEventListener('click', onBodyClick);
+    S.body.removeEventListener('keydown', onBodyKeydown);
+  }
 }
 
 // ── Lifecycle ──────────────────────────────────────────────────────────────────
@@ -731,6 +750,7 @@ export async function showAiAssistView() {
 
   renderShell();
   S.body.addEventListener('click', onBodyClick);
+  S.body.addEventListener('keydown', onBodyKeydown);
 
   // Render whatever we have cached (instant on re-show).
   renderSweeperBar();
