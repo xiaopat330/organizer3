@@ -1,9 +1,28 @@
 # PROPOSAL — Backport AI Assist + Workflow to the v1 UI ("Enrichment" hub)
 
-**Status:** IN PROGRESS — Phase 0 done (`9933bdf6`); remaining work parallelized into
-Track A (AI Assist) ‖ Track B (Workflow) + serial tail. See §5.
+**Status:** ✅ COMPLETE — Phase 0 + Track A (AI Assist) + Track B (Workflow) + serial
+tail all shipped, v1-restyled, and verified live; merged to main 2026-05-28.
 **Date:** 2026-05-28
-**Branch:** `feature/v1-enrichment-hub-backport`
+**Branch:** `feature/v1-enrichment-hub-backport` (merged to main)
+
+## 0. Completion summary (2026-05-28)
+- **Phase 0** (`9933bdf6`): hub shell + nav + section-tabs + Review re-home + AI Assist prototype.
+- **Track A** — full AI Assist dashboard (queue preview, activity feed w/ HWM polling + pause/clear,
+  sweeper toggle, apply-all-agreed, batch pass-pills, code-links → `openTitleDetail`).
+- **Track B** — full Workflow (9 modules: table+state+judge-viz+candidates+bulk+`?focus`,
+  6 inline reason panels, overflow ⋮ menu, override-slug, recode dry-run, lightbox).
+- **Serial tail** — cross-screen deep-link glue, shared poll-leak fix, `grid.js` hub registration.
+- **QA** — `UiEnrichmentHubTest` (Java Playwright, 5/5) + badge keyboard a11y.
+- **v1 "retro" restyle** — AI Assist + Workflow reskinned to v1 design language (trans-card
+  family, `.aia1-btn`/`.trans-sweep-btn` buttons, uppercase table headers); fixed broken v2
+  `btn sm` action buttons on both screens.
+- **Review consolidation** — Review tab removed from Sources; review view relocated permanently
+  into the hub (reparent machinery deleted, orphan edge eliminated); `navigate-to-review-item`
+  deep-link repointed to the hub's `focusReview`.
+- **Bugfix** — excluded the continuous AI Assist sweeper from the v1 global task pill (`93d083b1`).
+- **Backend untouched throughout.** Remaining optional/deferred items: inline reason panels never
+  exercised on real data (queue lacked qualifying rows); sweeper holds the atomic utility-task slot
+  (backend, affects v1+v2) — separate decision.
 
 ## 1. Goal
 
