@@ -10,7 +10,12 @@
    stats 5s, queue 5s, activity 2s.
    ───────────────────────────────────────────────────────────────────── */
 
-import { humanizeEnumLabel } from './enrichment/utils.js';
+// Inlined from the retired v2/enrichment/utils.js (translation was its sole consumer).
+function humanizeEnumLabel(s) {
+  if (!s) return '';
+  const spaced = String(s).replace(/[_-]+/g, ' ').toLowerCase();
+  return spaced.charAt(0).toUpperCase() + spaced.slice(1);
+}
 
 const QUEUE_LIMIT       = 15;
 const FAILURE_LIMIT     = 50;
