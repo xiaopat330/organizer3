@@ -103,20 +103,36 @@ public class BatchedEnsembleProcessor {
     public ProcessingResult process(List<OpenRow> rows,
                                     ProgressSink sink,
                                     CancellationCheck cancelled) {
+        return process(rows, sink, cancelled, assistConfig.backfillBatchSize());
+    }
+
+    /**
+     * Process all {@code rows} in batched two-pass fashion with an explicit chunk size.
+     *
+     * @param rows       rows to process; must be non-null (may be empty)
+     * @param sink       progress + lifecycle callbacks; use a no-op instance if unwanted
+     * @param cancelled  checked at chunk boundaries; abort is cooperative
+     * @param chunkSize  rows per model-affinity chunk; clamped to {@code >= 1}
+     * @return aggregate counts over the entire run
+     */
+    public ProcessingResult process(List<OpenRow> rows,
+                                    ProgressSink sink,
+                                    CancellationCheck cancelled,
+                                    int chunkSize) {
         int total     = rows.size();
         int processed = 0;
         int agreed    = 0;
         int autoApplied = 0;
         int errors    = 0;
 
-        int chunkSize    = Math.max(1, assistConfig.backfillBatchSize());
+        int effectiveChunk = Math.max(1, chunkSize);
         String primary   = assistConfig.primaryModel();
         String secondary = assistConfig.secondaryModel();
 
-        for (int chunkStart = 0; chunkStart < total; chunkStart += chunkSize) {
+        for (int chunkStart = 0; chunkStart < total; chunkStart += effectiveChunk) {
             if (cancelled.isCancelled()) break;
 
-            int chunkEnd = Math.min(chunkStart + chunkSize, total);
+            int chunkEnd = Math.min(chunkStart + effectiveChunk, total);
             List<OpenRow> chunk = rows.subList(chunkStart, chunkEnd);
             int n = chunk.size();
 

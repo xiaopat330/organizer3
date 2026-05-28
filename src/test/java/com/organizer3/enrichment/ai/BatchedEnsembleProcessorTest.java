@@ -43,7 +43,7 @@ class BatchedEnsembleProcessorTest {
         mapper          = new ObjectMapper();
 
         EnrichmentAssistConfig cfg = new EnrichmentAssistConfig(
-                "suggest", PHI4, GEMMA, 60, 60, "v7-kanji-bridge", 3, false, /* batchSize */ 10);
+                "suggest", PHI4, GEMMA, 60, 60, "v7-kanji-bridge", 3, false, /* batchSize */ 10, 10);
 
         processor = new BatchedEnsembleProcessor(
                 reviewQueueRepo, orchestrator, cfg,
@@ -186,7 +186,7 @@ class BatchedEnsembleProcessorTest {
     @Test
     void process_nullAutoApplier_agreedNotAutoApplied() throws Exception {
         EnrichmentAssistConfig cfg = new EnrichmentAssistConfig(
-                "suggest", PHI4, GEMMA, 60, 60, "v7-kanji-bridge", 3, false, 10);
+                "suggest", PHI4, GEMMA, 60, 60, "v7-kanji-bridge", 3, false, 10, 10);
         BatchedEnsembleProcessor noApplyProcessor = new BatchedEnsembleProcessor(
                 reviewQueueRepo, orchestrator, cfg,
                 new PostProcessingRules(false), mapper, null /* no auto-apply */);
@@ -210,7 +210,7 @@ class BatchedEnsembleProcessorTest {
     @Test
     void process_cancellation_stopsAtChunkBoundary() throws Exception {
         EnrichmentAssistConfig cfg = new EnrichmentAssistConfig(
-                "suggest", PHI4, GEMMA, 60, 60, "v7-kanji-bridge", 3, false, 2 /* chunk=2 */);
+                "suggest", PHI4, GEMMA, 60, 60, "v7-kanji-bridge", 3, false, 2 /* chunk=2 */, 10);
         BatchedEnsembleProcessor smallChunkProcessor = new BatchedEnsembleProcessor(
                 reviewQueueRepo, orchestrator, cfg,
                 new PostProcessingRules(false), mapper, null /* no auto-apply needed */);

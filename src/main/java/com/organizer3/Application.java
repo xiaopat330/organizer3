@@ -953,9 +953,16 @@ public class Application {
         com.organizer3.enrichment.ai.EnrichmentAutoApplier enrichmentAutoApplier =
                 new com.organizer3.enrichment.ai.EnrichmentAutoApplier(
                         enrichmentReviewQueueRepo, pickReviewCandidateTool, jsonMapper);
+        // Sweeper-dedicated processor with a NULL auto-applier: the sweeper writes suggestions
+        // in batched 2-pass fashion but must NOT auto-apply inline — the soak window is enforced
+        // by the sweeper's Phase B (listAutoApplyReady + enrichmentAutoApplier.apply).
+        com.organizer3.enrichment.ai.BatchedEnsembleProcessor sweeperBatchedProcessor =
+                new com.organizer3.enrichment.ai.BatchedEnsembleProcessor(
+                        enrichmentReviewQueueRepo, ollamaOrchestrator, assistConfig,
+                        assistPostProcessingRules, jsonMapper, null);
         com.organizer3.enrichment.ai.EnrichmentAssistSweeper enrichmentAssistSweeper =
                 new com.organizer3.enrichment.ai.EnrichmentAssistSweeper(
-                        enrichmentReviewQueueRepo, ensembleAssistCaller, assistConfig, enrichmentAutoApplier);
+                        enrichmentReviewQueueRepo, sweeperBatchedProcessor, assistConfig, enrichmentAutoApplier);
         // Phase 4 Track C — one-shot historical accuracy backfill.
         com.organizer3.utilities.task.javdb.AiAssistBackfillTask aiAssistBackfillTask =
                 new com.organizer3.utilities.task.javdb.AiAssistBackfillTask(

@@ -23,6 +23,9 @@ import com.fasterxml.jackson.annotation.JsonProperty;
  * @param backfillBatchSize                 Phase 5 Track A — chunk size used by the backfill task to
  *                                          batch ensemble calls by model (N rows of primary, then N
  *                                          rows of secondary). Defaults to 20.
+ * @param sweeperBatchSize                  chunk size for the continuous sweeper's batched 2-pass
+ *                                          evaluation (N rows of primary, then N rows of secondary
+ *                                          per chunk). Defaults to 10.
  */
 public record EnrichmentAssistConfig(
         @JsonProperty("mode")                            String mode,
@@ -33,10 +36,13 @@ public record EnrichmentAssistConfig(
         @JsonProperty("promptVersion")                   String promptVersion,
         @JsonProperty("maxAutoApplyAttempts")            int maxAutoApplyAttempts,
         @JsonProperty("postProcessingEnabled")           boolean postProcessingEnabled,
-        @JsonProperty("backfillBatchSize")               int backfillBatchSize
+        @JsonProperty("backfillBatchSize")               int backfillBatchSize,
+        @JsonProperty("sweeperBatchSize")                int sweeperBatchSize
 ) {
+    public int sweeperBatchSizeOrDefault() { return sweeperBatchSize > 0 ? sweeperBatchSize : 10; }
+
     public static EnrichmentAssistConfig defaults() {
         return new EnrichmentAssistConfig(
-                "off", "phi4", "gemma3:12b", 60, 60, "v7-kanji-bridge", 3, true, 20);
+                "off", "phi4", "gemma3:12b", 60, 60, "v7-kanji-bridge", 3, true, 20, 10);
     }
 }

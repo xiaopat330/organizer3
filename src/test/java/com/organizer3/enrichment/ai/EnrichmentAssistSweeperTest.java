@@ -7,6 +7,7 @@ import ch.qos.logback.core.read.ListAppender;
 import com.organizer3.config.EnrichmentAssistConfig;
 import com.organizer3.db.SchemaInitializer;
 import com.organizer3.javdb.enrichment.EnrichmentReviewQueueRepository;
+import com.organizer3.javdb.enrichment.EnrichmentReviewQueueRepository.OpenRow;
 import com.organizer3.utilities.task.TaskIO;
 import com.organizer3.utilities.task.TaskInputs;
 import org.jdbi.v3.core.Jdbi;
@@ -22,7 +23,6 @@ import java.time.Instant;
 import java.time.ZoneOffset;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -31,19 +31,21 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
 /**
- * Tests for {@link EnrichmentAssistSweeper}: mode gating, atomic single-row processing,
- * persistence side-effects, and the error-sentinel invariant that prevents thrown rows
- * from being re-tried on every sweep.
+ * Tests for {@link EnrichmentAssistSweeper}: mode gating, batched Phase-A delegation to the
+ * {@link BatchedEnsembleProcessor}, and the soak-gated Phase-B auto-apply path.
  *
- * <p>Uses a real in-memory SQLite repo (matches {@code EnrichmentReviewQueueRepositoryTest})
- * and a Mockito-stubbed {@link EnsembleAssistCaller}.
+ * <p>The sweeper no longer talks to the ensemble directly — Phase A delegates to a mocked
+ * {@link BatchedEnsembleProcessor} (which owns persistence + per-row error sentinels; those
+ * are covered by {@code BatchedEnsembleProcessorTest}). Phase B (auto-apply of aged agreed
+ * suggestions) is exercised against a real in-memory SQLite repo + a mocked
+ * {@link EnrichmentAutoApplier}.
  */
 class EnrichmentAssistSweeperTest {
 
     private Jdbi jdbi;
     private Connection connection;
     private EnrichmentReviewQueueRepository repo;
-    private EnsembleAssistCaller caller;
+    private BatchedEnsembleProcessor batchedProcessor;
     private EnrichmentAutoApplier autoApplier;
 
     @BeforeEach
@@ -52,7 +54,7 @@ class EnrichmentAssistSweeperTest {
         jdbi = Jdbi.create(connection);
         new SchemaInitializer(jdbi).initialize();
         repo = new EnrichmentReviewQueueRepository(jdbi);
-        caller = mock(EnsembleAssistCaller.class);
+        batchedProcessor = mock(BatchedEnsembleProcessor.class);
         autoApplier = mock(EnrichmentAutoApplier.class);
     }
 
@@ -86,12 +88,12 @@ class EnrichmentAssistSweeperTest {
     }
 
     private EnrichmentAssistConfig configWith(String mode) {
-        // sweeperIntervalSeconds=1 so idle-sleep is short; values don't otherwise matter.
-        return new EnrichmentAssistConfig(mode, "phi4", "gemma3:12b", 1, 60, "v7-kanji-bridge", 3, true, 20);
+        // sweeperIntervalSeconds=1 so idle-sleep is short; sweeperBatchSize=10 (default).
+        return new EnrichmentAssistConfig(mode, "phi4", "gemma3:12b", 1, 60, "v7-kanji-bridge", 3, true, 20, 10);
     }
 
     private EnrichmentAssistConfig configWith(String mode, int autoApplyDelaySeconds) {
-        return new EnrichmentAssistConfig(mode, "phi4", "gemma3:12b", 1, autoApplyDelaySeconds, "v7-kanji-bridge", 3, true, 20);
+        return new EnrichmentAssistConfig(mode, "phi4", "gemma3:12b", 1, autoApplyDelaySeconds, "v7-kanji-bridge", 3, true, 20, 10);
     }
 
     /** Enqueues an open ambiguous row for an existing title with the given snapshot. */
@@ -116,7 +118,7 @@ class EnrichmentAssistSweeperTest {
                         """)
                         .bind("id", rowId)
                         .map((rs, ctx) -> {
-                            Map<String, Object> m = new HashMap<>();
+                            Map<String, Object> m = new java.util.HashMap<>();
                             m.put("slug",       rs.getString("ai_suggestion_slug"));
                             m.put("confidence", rs.getString("ai_suggestion_confidence"));
                             m.put("reason",     rs.getString("ai_suggestion_reason"));
@@ -128,19 +130,25 @@ class EnrichmentAssistSweeperTest {
                         .one());
     }
 
+    /** Convenience for stubbing the batched processor's 4-arg process(...). */
+    private void stubProcess(int processed, int errors) {
+        when(batchedProcessor.process(anyList(), any(), any(), anyInt()))
+                .thenReturn(new BatchedEnsembleProcessor.ProcessingResult(processed, 0, 0, errors));
+    }
+
     // ── 1. mode=off ───────────────────────────────────────────────────────────
 
     @Test
-    void modeOff_exitsImmediately_withoutTouchingRepoOrCaller() {
+    void modeOff_exitsImmediately_withoutTouchingRepoOrProcessor() {
         long rowId = enqueueAmbiguous(1L, "ABC-1");
         EnrichmentAssistSweeper sweeper =
-                new EnrichmentAssistSweeper(repo, caller, configWith("off"), autoApplier);
+                new EnrichmentAssistSweeper(repo, batchedProcessor, configWith("off"), autoApplier);
 
         FakeTaskIO io = new FakeTaskIO(/* cancelAfterPolls */ Integer.MAX_VALUE);
         sweeper.run(new TaskInputs(Map.of()), io);
 
         assertEquals("ok", io.status);
-        verifyNoInteractions(caller);
+        verifyNoInteractions(batchedProcessor);
         Map<String, Object> cols = readAiCols(rowId);
         assertNull(cols.get("at"), "row must not have an AI suggestion written");
     }
@@ -150,7 +158,7 @@ class EnrichmentAssistSweeperTest {
     @Test
     void modeShadow_emptyQueue_sleepsAndExitsOnCancellation() {
         EnrichmentAssistSweeper sweeper =
-                new EnrichmentAssistSweeper(repo, caller, configWith("shadow"), autoApplier);
+                new EnrichmentAssistSweeper(repo, batchedProcessor, configWith("shadow"), autoApplier);
 
         // Allow a few cancellation polls so the sweeper enters the idle-sleep slice,
         // then flip to cancelled. With sleeperIntervalSeconds=1 and 250ms slices,
@@ -163,88 +171,73 @@ class EnrichmentAssistSweeperTest {
 
         assertEquals("ok", io.status, "cancelled sweeper still ends the phase cleanly");
         assertTrue(io.summary.contains("cancelled"), "summary should mention cancellation");
-        verifyNoInteractions(caller);
+        verifyNoInteractions(batchedProcessor);
         assertTrue(elapsed < 5000L, "cancellation should be responsive; took " + elapsed + "ms");
     }
 
-    // ── 3. mode=shadow, 3 rows → all get setAiSuggestion ─────────────────────
+    // ── 3. mode=shadow, pending rows → sweeper delegates to the batched processor ──
 
     @Test
-    void modeShadow_processesAllRowsOneAtATime_writesSuggestions() {
-        long id1 = enqueueAmbiguous(1L, "ABC-1");
-        long id2 = enqueueAmbiguous(2L, "ABC-2");
-        long id3 = enqueueAmbiguous(3L, "ABC-3");
+    void modeShadow_pendingRows_delegatesToBatchedProcessor() {
+        enqueueAmbiguous(1L, "ABC-1");
+        enqueueAmbiguous(2L, "ABC-2");
+        enqueueAmbiguous(3L, "ABC-3");
 
-        when(caller.evaluate(any(), any(), any())).thenReturn(
-                new AssistResult("agreed", "high", "abc-1-alpha", "matches cast", 1, 1, "abc-1-alpha", "abc-1-alpha"),
-                new AssistResult("phi4_only", "medium", "abc-2-alpha", "phi4 picks alpha", 1, null, "abc-2-alpha", null),
-                new AssistResult("both_abstain", null, null, "no clear winner", null, null, null, null)
-        );
+        stubProcess(/* processed */ 3, /* errors */ 0);
 
         EnrichmentAssistSweeper sweeper =
-                new EnrichmentAssistSweeper(repo, caller, configWith("shadow"), autoApplier);
+                new EnrichmentAssistSweeper(repo, batchedProcessor, configWith("shadow"), autoApplier);
 
-        // Allow enough cancellation polls that 3 rows process before we cancel during
-        // the next idle-sleep. Each row body polls cancellation ~5x (loop entry + the
-        // 4x250ms inter-row sleep slices); generous budget keeps this robust.
-        FakeTaskIO io = new FakeTaskIO(/* cancelAfterPolls */ 100);
+        // First iteration: rows present → process(...) once. Cancel quickly so we don't loop
+        // forever (the mocked processor doesn't clear ai_suggestion_at, so rows stay pending).
+        FakeTaskIO io = new FakeTaskIO(/* cancelAfterPolls */ 2);
         sweeper.run(new TaskInputs(Map.of()), io);
 
-        // All three rows now have AI suggestions written.
-        Map<String, Object> a = readAiCols(id1);
-        assertEquals("abc-1-alpha", a.get("slug"));
-        assertEquals("agreed",      a.get("confidence"));
-        assertEquals("matches cast", a.get("reason"));
-        assertNotNull(a.get("at"));
-        assertEquals("abc-1-alpha", a.get("phi4Slug"));
-        assertEquals("abc-1-alpha", a.get("gemmaSlug"));
-
-        Map<String, Object> b = readAiCols(id2);
-        assertEquals("abc-2-alpha", b.get("slug"));
-        assertEquals("phi4_only",   b.get("confidence"));
-        assertEquals("abc-2-alpha", b.get("phi4Slug"));
-        assertNull(b.get("gemmaSlug"), "gemma abstained — gemmaSlug must be null");
-
-        Map<String, Object> c = readAiCols(id3);
-        assertNull(c.get("slug"), "both_abstain has null suggestedSlug");
-        assertEquals("both_abstain", c.get("confidence"));
-        assertNotNull(c.get("at"), "even abstain writes the timestamp so the row is not retried");
-        assertNull(c.get("phi4Slug"), "both abstained — phi4Slug must be null");
-        assertNull(c.get("gemmaSlug"), "both abstained — gemmaSlug must be null");
-
-        verify(caller, times(3)).evaluate(any(), any(), any());
-        // After processing, listOpenAwaitingAi must return 0 — the atomic-1 contract held.
-        assertTrue(repo.listOpenAwaitingAi(10).isEmpty(),
-                "all rows must have ai_suggestion_at set so they drop out of the awaiting-ai list");
+        // The sweeper delegated the whole batch to the processor with the configured chunk size (10).
+        verify(batchedProcessor, atLeastOnce())
+                .process(anyList(), any(), any(), eq(10));
+        assertEquals("ok", io.status);
     }
 
-    // ── 4. caller throws → sentinel suggestion persisted ──────────────────────
+    // ── 4. Phase A: sweeper requests a batch (limit = sweeperBatchSize), never limit 0 ──
 
     @Test
-    void callerThrows_persistsErrorSentinel_soRowNotRetried() {
-        long rowId = enqueueAmbiguous(1L, "ABC-1");
+    void modeShadow_phaseA_requestsBatchSizedQueue() {
+        enqueueAmbiguous(1L, "ABC-1");
+        enqueueAmbiguous(2L, "ABC-2");
 
-        when(caller.evaluate(any(), any(), any()))
-                .thenThrow(new IllegalStateException("zero candidates after parsing"));
+        stubProcess(2, 0);
 
+        EnrichmentReviewQueueRepository spied = spy(repo);
         EnrichmentAssistSweeper sweeper =
-                new EnrichmentAssistSweeper(repo, caller, configWith("shadow"), autoApplier);
-        FakeTaskIO io = new FakeTaskIO(/* cancelAfterPolls */ 100);
+                new EnrichmentAssistSweeper(spied, batchedProcessor, configWith("shadow"), autoApplier);
+        FakeTaskIO io = new FakeTaskIO(/* cancelAfterPolls */ 2);
         sweeper.run(new TaskInputs(Map.of()), io);
 
-        Map<String, Object> cols = readAiCols(rowId);
-        assertNull(cols.get("slug"), "error sentinel has no suggested slug");
-        assertEquals("error", cols.get("confidence"), "error sentinel marks the column");
-        assertNotNull(cols.get("reason"));
-        assertTrue(((String) cols.get("reason")).contains("zero candidates"),
-                "reason carries the truncated exception message");
-        assertNotNull(cols.get("at"), "ai_suggestion_at must be non-null so listOpenAwaitingAi skips it");
-
-        assertTrue(repo.listOpenAwaitingAi(10).isEmpty(),
-                "errored row must not re-appear in the awaiting-ai backlog");
+        // Phase A pulls a batch sized by sweeperBatchSize (default 10), never 0.
+        verify(spied, atLeastOnce()).listOpenAwaitingAi(10);
+        verify(spied, never()).listOpenAwaitingAi(0);
     }
 
-    // ── 5. atomic-operations rule: listOpenAwaitingAi(1) ──────────────────────
+    // ── 5. Phase A survives a processor exception (does not crash the sweeper loop) ──
+
+    @Test
+    void modeShadow_processorThrows_sweeperSurvivesAndEndsCleanly() {
+        enqueueAmbiguous(1L, "ABC-1");
+        when(batchedProcessor.process(anyList(), any(), any(), anyInt()))
+                .thenThrow(new IllegalStateException("processor boom"));
+
+        EnrichmentAssistSweeper sweeper =
+                new EnrichmentAssistSweeper(repo, batchedProcessor, configWith("shadow"), autoApplier);
+        FakeTaskIO io = new FakeTaskIO(/* cancelAfterPolls */ 5);
+
+        // A process()-level throw must NOT kill the long-lived sweeper (parity with the prior
+        // per-row try/catch behaviour). The task ends cleanly via cancellation, not by throwing.
+        sweeper.run(new TaskInputs(Map.of()), io);
+
+        assertEquals("ok", io.status, "sweeper survives a processor throw and ends the phase cleanly");
+        verify(batchedProcessor, atLeastOnce()).process(anyList(), any(), any(), anyInt());
+    }
 
     // ── 6. J1 — daily-summary line emitted at UTC day rollover ──────────────────
 
@@ -265,7 +258,7 @@ class EnrichmentAssistSweeperTest {
         MutableClock clock = new MutableClock(dayA);
 
         EnrichmentAssistSweeper sweeper =
-                new EnrichmentAssistSweeper(repo, caller, configWith("shadow"), autoApplier, clock);
+                new EnrichmentAssistSweeper(repo, batchedProcessor, configWith("shadow"), autoApplier, clock);
 
         Logger sweeperLogger = (Logger) LoggerFactory.getLogger(EnrichmentAssistSweeper.class);
         ListAppender<ILoggingEvent> appender = new ListAppender<>();
@@ -316,28 +309,6 @@ class EnrichmentAssistSweeperTest {
         }
     }
 
-    @Test
-    void listOpenAwaitingAi_alwaysCalledWithLimitOne() {
-        // Three pending rows + a mock that records the limit argument used.
-        enqueueAmbiguous(1L, "ABC-1");
-        enqueueAmbiguous(2L, "ABC-2");
-
-        EnrichmentReviewQueueRepository spied = spy(repo);
-        when(caller.evaluate(any(), any(), any()))
-                .thenReturn(new AssistResult("agreed", "high", "x", "ok", 1, 1));
-
-        EnrichmentAssistSweeper sweeper =
-                new EnrichmentAssistSweeper(spied, caller, configWith("shadow"), autoApplier);
-        FakeTaskIO io = new FakeTaskIO(/* cancelAfterPolls */ 60);
-        sweeper.run(new TaskInputs(Map.of()), io);
-
-        // Every call must pass limit=1 per the atomic-operations rule.
-        verify(spied, atLeastOnce()).listOpenAwaitingAi(1);
-        verify(spied, never()).listOpenAwaitingAi(0);
-        verify(spied, never()).listOpenAwaitingAi(2);
-        verify(spied, never()).listOpenAwaitingAi(10);
-    }
-
     // ── Phase B (auto-apply) tests ────────────────────────────────────────────
 
     /**
@@ -358,13 +329,13 @@ class EnrichmentAssistSweeperTest {
         when(autoApplier.apply(any())).thenReturn(true);
 
         EnrichmentAssistSweeper sweeper =
-                new EnrichmentAssistSweeper(repo, caller, configWith("auto", 0), autoApplier);
+                new EnrichmentAssistSweeper(repo, batchedProcessor, configWith("auto", 0), autoApplier);
         FakeTaskIO io = new FakeTaskIO(/* cancelAfterPolls */ 30);
         sweeper.run(new TaskInputs(Map.of()), io);
 
         verify(autoApplier, atLeastOnce()).apply(argThat(r -> r != null && r.id() == rowId));
-        // Caller never invoked (Phase A had nothing pending — ai_suggestion_at already set).
-        verifyNoInteractions(caller);
+        // Phase A had nothing to process (ai_suggestion_at already set) → processor untouched.
+        verifyNoInteractions(batchedProcessor);
         // The mock does not flip ai_auto_applied, so the same row may be re-picked across
         // iterations until cancellation. Assert at least one success was recorded.
         assertTrue(sweeper.outcomeCountsForTest().getOrDefault("auto_applied", 0) >= 1,
@@ -374,26 +345,24 @@ class EnrichmentAssistSweeperTest {
     @Test
     void modeAuto_bothQueuesNonEmpty_phaseAWins_phaseBDoesNotRun() {
         // One pending suggestion to write AND one aged agreed row in different rows.
-        long pendingId = enqueueAmbiguous(1L, "ABC-1");
+        enqueueAmbiguous(1L, "ABC-1");
         enqueueAgedAgreed(2L, "ABC-2", "abc-2-alpha");
 
-        // Caller stub for Phase A.
-        when(caller.evaluate(any(), any(), any()))
-                .thenReturn(new AssistResult("conflict", null, null, "no winner", 1, 2));
+        stubProcess(1, 0);
 
-        // Cancel after one Phase A iteration so Phase B never gets a chance.
-        // Each iteration polls cancellation roughly: top-of-loop + inter-row sleep slices (4).
-        FakeTaskIO io = new FakeTaskIO(/* cancelAfterPolls */ 3);
+        // Cancel after one Phase A iteration so Phase B never gets a chance. Phase A delegates
+        // to the (mocked) processor — zero polls consumed there — so the next top-of-loop check
+        // (and the inter-row sleep before it) must trip cancellation.
+        FakeTaskIO io = new FakeTaskIO(/* cancelAfterPolls */ 1);
 
         EnrichmentReviewQueueRepository spied = spy(repo);
         EnrichmentAssistSweeper sweeper =
-                new EnrichmentAssistSweeper(spied, caller, configWith("auto", 0), autoApplier);
+                new EnrichmentAssistSweeper(spied, batchedProcessor, configWith("auto", 0), autoApplier);
         sweeper.run(new TaskInputs(Map.of()), io);
 
-        // Phase A processed the pending row.
-        Map<String, Object> cols = readAiCols(pendingId);
-        assertNotNull(cols.get("at"));
-        // listAutoApplyReady never consulted because Phase A's continue short-circuited.
+        // Phase A ran (processor invoked). listAutoApplyReady never consulted because Phase A's
+        // continue short-circuited then cancellation tripped.
+        verify(batchedProcessor, atLeastOnce()).process(anyList(), any(), any(), anyInt());
         verify(spied, never()).listAutoApplyReady(anyInt(), anyInt(), anyInt());
         verifyNoInteractions(autoApplier);
     }
@@ -403,12 +372,13 @@ class EnrichmentAssistSweeperTest {
         enqueueAgedAgreed(1L, "ABC-1", "abc-1-alpha");
 
         EnrichmentAssistSweeper sweeper =
-                new EnrichmentAssistSweeper(repo, caller, configWith("shadow"), autoApplier);
+                new EnrichmentAssistSweeper(repo, batchedProcessor, configWith("shadow"), autoApplier);
         FakeTaskIO io = new FakeTaskIO(/* cancelAfterPolls */ 30);
         sweeper.run(new TaskInputs(Map.of()), io);
 
-        // Phase B gated to auto mode only.
+        // Phase B gated to auto mode only. Phase A had nothing pending (ai_suggestion_at set).
         verifyNoInteractions(autoApplier);
+        verifyNoInteractions(batchedProcessor);
     }
 
     @Test
@@ -417,7 +387,7 @@ class EnrichmentAssistSweeperTest {
         when(autoApplier.apply(any())).thenReturn(false);
 
         EnrichmentAssistSweeper sweeper =
-                new EnrichmentAssistSweeper(repo, caller, configWith("auto", 0), autoApplier);
+                new EnrichmentAssistSweeper(repo, batchedProcessor, configWith("auto", 0), autoApplier);
         FakeTaskIO io = new FakeTaskIO(/* cancelAfterPolls */ 30);
         sweeper.run(new TaskInputs(Map.of()), io);
 
@@ -426,27 +396,5 @@ class EnrichmentAssistSweeperTest {
                 "no successful applies should be recorded");
         assertTrue(sweeper.outcomeCountsForTest().getOrDefault("auto_apply_failed", 0) >= 1,
                 "at least one auto_apply_failed outcome should be recorded");
-    }
-
-    @Test
-    void modeAuto_cancellationAfterPhaseA_phaseBDoesNotRun() {
-        // Both queues have work; cancellation hits between A and B by exhausting polls.
-        long pendingId = enqueueAmbiguous(1L, "ABC-1");
-        enqueueAgedAgreed(2L, "ABC-2", "abc-2-alpha");
-
-        when(caller.evaluate(any(), any(), any()))
-                .thenReturn(new AssistResult("phi4_only", "medium", "abc-1-alpha", "one model", 1, null));
-
-        EnrichmentReviewQueueRepository spied = spy(repo);
-        // cancelAfterPolls=2 → after Phase A's row body, the next iteration's top-of-loop check trips.
-        FakeTaskIO io = new FakeTaskIO(/* cancelAfterPolls */ 2);
-
-        EnrichmentAssistSweeper sweeper =
-                new EnrichmentAssistSweeper(spied, caller, configWith("auto", 0), autoApplier);
-        sweeper.run(new TaskInputs(Map.of()), io);
-
-        // Phase A wrote the pending row, then cancellation took over before Phase B could run.
-        assertNotNull(readAiCols(pendingId).get("at"));
-        verifyNoInteractions(autoApplier);
     }
 }
