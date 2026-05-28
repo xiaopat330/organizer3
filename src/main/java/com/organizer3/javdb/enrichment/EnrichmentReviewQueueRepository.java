@@ -762,6 +762,131 @@ public class EnrichmentReviewQueueRepository {
     /** One side of a slug conflict — the claimant or incumbent actress. */
     public record ConflictActress(long id, String canonicalName, String stageName, String tier) {}
 
+    // ── AI-assist dashboard aggregates ───────────────────────────────────────
+
+    /**
+     * Count of open (unresolved) ambiguous rows that have not yet received an AI suggestion.
+     * Mirrors the WHERE clause of {@link #listOpenAwaitingAi}: {@code resolved_at IS NULL
+     * AND reason='ambiguous' AND ai_suggestion_at IS NULL}.
+     */
+    public int countAwaitingAi() {
+        return jdbi.withHandle(h ->
+                h.createQuery("""
+                        SELECT COUNT(*) FROM enrichment_review_queue
+                        WHERE resolved_at IS NULL
+                          AND reason = 'ambiguous'
+                          AND ai_suggestion_at IS NULL
+                        """)
+                        .mapTo(Integer.class).one());
+    }
+
+    /**
+     * Total count of rows that have had an AI suggestion recorded ({@code ai_suggestion_at IS NOT NULL}).
+     * Includes both open and resolved rows.
+     */
+    public int countProcessed() {
+        return jdbi.withHandle(h ->
+                h.createQuery("SELECT COUNT(*) FROM enrichment_review_queue WHERE ai_suggestion_at IS NOT NULL")
+                        .mapTo(Integer.class).one());
+    }
+
+    /**
+     * Total count of rows where {@code ai_auto_applied = 1}.
+     */
+    public int countAutoApplied() {
+        return jdbi.withHandle(h ->
+                h.createQuery("SELECT COUNT(*) FROM enrichment_review_queue WHERE ai_auto_applied = 1")
+                        .mapTo(Integer.class).one());
+    }
+
+    /**
+     * Count of rows currently eligible for bulk "apply all agreed" — mirrors the apply-set
+     * predicate of {@link #listAutoApplyReady} but without any age/attempts gate (the bulk
+     * apply button uses {@code minAgeSeconds=0, maxAttempts=Integer.MAX_VALUE}).
+     */
+    public int countAgreedReadyToApply() {
+        return jdbi.withHandle(h -> h.createQuery("""
+                SELECT COUNT(*) FROM enrichment_review_queue
+                WHERE resolved_at IS NULL AND reason='ambiguous'
+                  AND ai_suggestion_confidence='agreed'
+                  AND ai_suggestion_slug IS NOT NULL
+                  AND ai_auto_applied=0
+                """).mapTo(Integer.class).one());
+    }
+
+    /**
+     * Returns a map of {@code ai_suggestion_confidence} → count for all rows that have been
+     * processed ({@code ai_suggestion_at IS NOT NULL}). A null confidence value is mapped to
+     * the key {@code "unknown"}. Results are returned in a {@link LinkedHashMap} in insertion
+     * order (driven by GROUP BY on SQLite, which is stable for practical purposes).
+     */
+    public Map<String, Integer> outcomeCounts() {
+        return jdbi.withHandle(h -> {
+            var rows = h.createQuery("""
+                    SELECT COALESCE(ai_suggestion_confidence, 'unknown') AS outcome,
+                           COUNT(*) AS cnt
+                    FROM enrichment_review_queue
+                    WHERE ai_suggestion_at IS NOT NULL
+                    GROUP BY ai_suggestion_confidence
+                    """)
+                    .map((rs, ctx) -> Map.entry(rs.getString("outcome"), rs.getInt("cnt")))
+                    .list();
+            Map<String, Integer> out = new LinkedHashMap<>();
+            rows.forEach(e -> out.put(e.getKey(), e.getValue()));
+            return out;
+        });
+    }
+
+    /**
+     * Lists recently processed rows ({@code ai_suggestion_at IS NOT NULL}), optionally
+     * filtered to rows processed after {@code sinceIso} (exclusive). Ordered by
+     * {@code ai_suggestion_at DESC}. Joins {@code titles} for the product code.
+     *
+     * @param limit     maximum number of rows
+     * @param sinceIso  ISO-8601 string lower bound (exclusive); pass {@code null} or blank to disable
+     */
+    public List<RecentProcessedRow> listRecentlyProcessed(int limit, String sinceIso) {
+        return jdbi.withHandle(h -> {
+            boolean hasSince = sinceIso != null && !sinceIso.isBlank();
+            String sql = """
+                    SELECT q.id AS review_queue_id,
+                           t.code AS title_code,
+                           q.ai_suggestion_confidence AS outcome,
+                           q.ai_suggestion_slug AS slug,
+                           q.ai_suggestion_reason AS ai_reason,
+                           q.ai_auto_applied AS auto_applied,
+                           q.ai_suggestion_at AS at,
+                           q.resolved_at AS resolved_at
+                    FROM enrichment_review_queue q
+                    LEFT JOIN titles t ON t.id = q.title_id
+                    WHERE q.ai_suggestion_at IS NOT NULL
+                    """ + (hasSince ? "AND q.ai_suggestion_at > :since\n" : "")
+                    + "ORDER BY q.ai_suggestion_at DESC\n"
+                    + "LIMIT :limit";
+            var q = h.createQuery(sql).bind("limit", limit);
+            if (hasSince) q = q.bind("since", sinceIso);
+            return q.map((rs, ctx) -> new RecentProcessedRow(
+                    rs.getLong("review_queue_id"),
+                    rs.getString("title_code"),
+                    rs.getString("outcome"),
+                    rs.getString("slug"),
+                    rs.getString("ai_reason"),
+                    rs.getInt("auto_applied") != 0,
+                    rs.getString("at"),
+                    rs.getString("resolved_at")))
+                    .list();
+        });
+    }
+
+    /**
+     * Row returned by {@link #listRecentlyProcessed}: a processed queue row with AI-suggestion
+     * summary fields. {@code outcome} is {@code ai_suggestion_confidence}; {@code at} is
+     * {@code ai_suggestion_at}.
+     */
+    public record RecentProcessedRow(long reviewQueueId, String code, String outcome,
+                                     String slug, String reason, boolean autoApplied, String at,
+                                     String resolvedAt) {}
+
     /**
      * Row returned by {@link #listResolvedAmbiguousForBackfill(int)} — an already-resolved
      * ambiguous queue row paired with the slug eventually written to

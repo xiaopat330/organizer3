@@ -19,6 +19,8 @@ enrichment:
     postProcessingEnabled: true
     # Backfill task batch size — chunk size for batched ensemble calls (Phase 5 Track A).
     backfillBatchSize: 20
+    # chunk size for the continuous sweeper's 2-pass batched evaluation
+    sweeperBatchSize: 10
 
 backup:
   autoBackupIntervalMinutes: 10080

@@ -2,7 +2,6 @@ package com.organizer3.enrichment.ai;
 
 import com.organizer3.config.EnrichmentAssistConfig;
 import com.organizer3.javdb.enrichment.EnrichmentReviewQueueRepository;
-import com.organizer3.javdb.enrichment.EnrichmentReviewQueueRepository.AssistContext;
 import com.organizer3.javdb.enrichment.EnrichmentReviewQueueRepository.OpenRow;
 import com.organizer3.utilities.task.Task;
 import com.organizer3.utilities.task.TaskIO;
@@ -11,7 +10,6 @@ import com.organizer3.utilities.task.TaskSpec;
 import lombok.extern.slf4j.Slf4j;
 
 import java.time.Clock;
-import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
 import java.util.LinkedHashMap;
@@ -56,9 +54,6 @@ public final class EnrichmentAssistSweeper implements Task {
     /** Hardcoded for Phase 1 — see report; not exposed as a config knob. */
     static final long INTER_ROW_DELAY_MS = 1000L;
 
-    /** Cap on the reason/error string persisted to the suggestion column. */
-    static final int REASON_MAX_LEN = 240;
-
     private static final TaskSpec SPEC = new TaskSpec(
             ID,
             "AI assist — review queue sweeper",
@@ -70,10 +65,14 @@ public final class EnrichmentAssistSweeper implements Task {
     );
 
     private final EnrichmentReviewQueueRepository queueRepo;
-    private final EnsembleAssistCaller caller;
+    private final BatchedEnsembleProcessor batchedProcessor;
     private final EnrichmentAssistConfig config;
     private final EnrichmentAutoApplier autoApplier;
     private final Clock clock;
+
+    // Live batch-progress cursor for the dashboard. Internal state — driven by the Phase-A
+    // ProgressSink; not a constructor param, so the constructor signature stays unchanged.
+    private final AiAssistBatchProgress batchProgress = new AiAssistBatchProgress();
 
     // Daily-summary rollup state — updated on the sweeper thread only, so no synchronization needed.
     // Outcome keys mirror EnsembleAssistCaller.vote(): agreed, phi4_only, gemma_only, conflict, both_abstain, error.
@@ -82,27 +81,30 @@ public final class EnrichmentAssistSweeper implements Task {
     private LocalDate dayBucketStart = null;
 
     public EnrichmentAssistSweeper(EnrichmentReviewQueueRepository queueRepo,
-                                   EnsembleAssistCaller caller,
+                                   BatchedEnsembleProcessor batchedProcessor,
                                    EnrichmentAssistConfig config,
                                    EnrichmentAutoApplier autoApplier) {
-        this(queueRepo, caller, config, autoApplier, Clock.systemUTC());
+        this(queueRepo, batchedProcessor, config, autoApplier, Clock.systemUTC());
     }
 
     /** Test-friendly constructor: inject a Clock so daily-rollup boundaries can be advanced. */
     public EnrichmentAssistSweeper(EnrichmentReviewQueueRepository queueRepo,
-                                   EnsembleAssistCaller caller,
+                                   BatchedEnsembleProcessor batchedProcessor,
                                    EnrichmentAssistConfig config,
                                    EnrichmentAutoApplier autoApplier,
                                    Clock clock) {
-        this.queueRepo   = Objects.requireNonNull(queueRepo, "queueRepo");
-        this.caller      = Objects.requireNonNull(caller, "caller");
-        this.config      = Objects.requireNonNull(config, "config");
+        this.queueRepo        = Objects.requireNonNull(queueRepo, "queueRepo");
+        this.batchedProcessor = Objects.requireNonNull(batchedProcessor, "batchedProcessor");
+        this.config           = Objects.requireNonNull(config, "config");
         this.autoApplier = Objects.requireNonNull(autoApplier, "autoApplier");
         this.clock       = Objects.requireNonNull(clock, "clock");
     }
 
     @Override
     public TaskSpec spec() { return SPEC; }
+
+    /** Live snapshot of the current batch-processing cursor for the dashboard. */
+    public AiAssistBatchProgress.Snapshot batchProgressSnapshot() { return batchProgress.snapshot(); }
 
     @Override
     public void run(TaskInputs inputs, TaskIO io) {
@@ -126,15 +128,62 @@ public final class EnrichmentAssistSweeper implements Task {
         // would take effect immediately. However, EnrichmentAssistConfig is loaded
         // once at boot today; flipping mode in YAML requires app restart. To pause
         // auto-apply without restart, cancel this task via the Utilities task runner.
+        try {
         while (!io.isCancellationRequested()) {
-            // PHASE A — write a new suggestion for an open ambiguous row.
-            // One row at a time per the atomic-operations rule.
-            List<OpenRow> rows = queueRepo.listOpenAwaitingAi(1);
+            // PHASE A — write new suggestions for a batch of open ambiguous rows via the
+            // two-pass model-affinity processor (all primary, then all secondary per chunk).
+            int batch = Math.max(1, config.sweeperBatchSizeOrDefault());
+            List<OpenRow> rows = queueRepo.listOpenAwaitingAi(batch);
 
             if (!rows.isEmpty()) {
-                OpenRow row = rows.get(0);
-                ProcessOutcome po = processOneRow(row, io);
-                if (po == ProcessOutcome.ERROR) errors++; else processed++;
+                BatchedEnsembleProcessor.ProgressSink sink = new BatchedEnsembleProcessor.ProgressSink() {
+                    @Override
+                    public void rowProcessed(long rowId, String code, AssistResult result) {
+                        recordOutcome(result.outcome());
+                        io.phaseLog("sweep", "code=" + code + " outcome=" + result.outcome());
+                    }
+
+                    @Override
+                    public void log(String line) {
+                        io.phaseLog("sweep", line);
+                    }
+
+                    @Override
+                    public void update(int done, int total, String detail) {
+                        io.phaseProgress("sweep", done, total, detail);
+                    }
+
+                    @Override
+                    public void chunkStarted(List<Long> rowIds) {
+                        batchProgress.startChunk(rowIds);
+                    }
+
+                    @Override
+                    public void passRow(int pass, String model, long rowId, String code) {
+                        batchProgress.setPass(pass, model, rowId, code);
+                    }
+
+                    @Override
+                    public void chunkEnded() {
+                        batchProgress.clear();
+                    }
+                };
+                // NULL-applier processor → no immediate auto-apply; the soak window is
+                // preserved by Phase B below, which remains the only auto-apply path.
+                // The processor catches per-row failures internally; a process()-level
+                // throw is unexpected but must not kill the long-lived sweeper task —
+                // log it, count the chunk as errors, and keep sweeping.
+                try {
+                    BatchedEnsembleProcessor.ProcessingResult pr =
+                            batchedProcessor.process(rows, sink, () -> io.isCancellationRequested(), batch);
+                    processed += pr.processed();
+                    errors    += pr.errors();
+                } catch (Exception e) {
+                    errors += rows.size();
+                    String msg = e.getMessage() != null ? e.getMessage() : e.getClass().getSimpleName();
+                    log.warn("[ai-assist] batch process failed ({} row(s)): {}", rows.size(), msg);
+                    io.phaseLog("sweep", "ERR batch process failed: " + msg);
+                }
                 if (!sleepInterruptible(INTER_ROW_DELAY_MS, io)) break;
                 continue;
             }
@@ -170,12 +219,17 @@ public final class EnrichmentAssistSweeper implements Task {
                 }
             }
 
-            // Both queues empty — idle sleep.
+            // Both queues empty — clear the batch cursor so the UI returns to idle.
+            batchProgress.clear();
             log.info("[ai-assist] no work, sleeping {}s", intervalSec);
             io.phaseProgress("sweep", processed, -1,
                     "idle — " + processed + " processed, " + errors + " error(s)"
                             + (autoApplied > 0 ? ", " + autoApplied + " auto-applied" : ""));
             if (!sleepInterruptible(intervalSec * 1000L, io)) break;
+        }
+        } finally {
+            // Guarantees clear-to-idle when the sweeper stops, is cancelled, or throws.
+            batchProgress.clear();
         }
 
         String summary = processed + " suggestion(s) written"
@@ -184,53 +238,6 @@ public final class EnrichmentAssistSweeper implements Task {
                 + (autoApplyFailed > 0 ? " · " + autoApplyFailed + " auto-apply failed" : "")
                 + (io.isCancellationRequested() ? " (cancelled)" : "");
         io.phaseEnd("sweep", "ok", summary);
-    }
-
-    /** Outcome of one Phase-A row attempt — used only to bump processed-vs-errors counters. */
-    private enum ProcessOutcome { OK, ERROR }
-
-    /** Phase-A row body: ask the ensemble + persist suggestion / error sentinel. */
-    private ProcessOutcome processOneRow(OpenRow row, TaskIO io) {
-        try {
-            AssistContext ctx = queueRepo.findContextForAssist(row.titleId());
-            AssistResult result = caller.evaluate(row, ctx.folderPath(), ctx.actressNames());
-
-            queueRepo.setAiSuggestion(
-                    row.id(),
-                    result.suggestedSlug(),
-                    // Phase 1 stores the ensemble outcome label in the confidence column —
-                    // see setAiSuggestion javadoc. The column is unconstrained TEXT.
-                    result.outcome(),
-                    truncate(result.reason()),
-                    Instant.now(),
-                    result.phi4Slug(),
-                    result.gemmaSlug());
-
-            recordOutcome(result.outcome());
-            log.info("[ai-assist] {} → {} ({})",
-                    row.titleCode(),
-                    result.outcome(),
-                    truncate60(result.reason()));
-            io.phaseLog("sweep",
-                    "ok code=" + row.titleCode() + " outcome=" + result.outcome()
-                            + " slug=" + (result.suggestedSlug() != null ? result.suggestedSlug() : "-"));
-            return ProcessOutcome.OK;
-        } catch (Exception e) {
-            recordOutcome("error");
-            String msg = e.getMessage() != null ? e.getMessage() : e.getClass().getSimpleName();
-            log.warn("[ai-assist] failed code={} : {}", row.titleCode(), msg);
-            // Persist a sentinel so this row is not re-tried forever. The
-            // listOpenAwaitingAi filter excludes rows whose ai_suggestion_at is non-null.
-            try {
-                queueRepo.setAiSuggestion(row.id(), null, "error", truncate(msg), Instant.now());
-            } catch (RuntimeException sentinelErr) {
-                log.error("[ai-assist] failed to write error sentinel for row {} — row may re-trigger",
-                        row.id(), sentinelErr);
-            }
-            io.phaseLog("sweep",
-                    "ERR code=" + row.titleCode() + " : " + truncate60(msg));
-            return ProcessOutcome.ERROR;
-        }
     }
 
     /**
@@ -292,14 +299,4 @@ public final class EnrichmentAssistSweeper implements Task {
     Map<String, Integer> outcomeCountsForTest() { return outcomeCounts; }
     int processedTodayForTest() { return processedToday; }
     LocalDate dayBucketStartForTest() { return dayBucketStart; }
-
-    private static String truncate(String s) {
-        if (s == null) return null;
-        return s.length() <= REASON_MAX_LEN ? s : s.substring(0, REASON_MAX_LEN);
-    }
-
-    private static String truncate60(String s) {
-        if (s == null) return "";
-        return s.length() <= 60 ? s : s.substring(0, 60);
-    }
 }

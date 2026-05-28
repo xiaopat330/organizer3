@@ -34,6 +34,7 @@ const NAV_ITEMS = [
   { label: 'Duplicates',    href: '/v2-duplicates.html',   icon: 'go' },
   { label: 'Trash',         href: '/v2-trash.html',        icon: 'go' },
   { label: 'Translation',   href: '/v2-translation.html',  icon: 'go' },
+  { label: 'AI Assist',    href: '/v2-ai-assist.html',    icon: 'go' },
   { label: 'Pending Kanji', href: '/v2-pending-kanji.html', icon: 'go' },
   { label: 'Volumes',       href: '/v2-volumes.html',      icon: 'go' },
   { label: 'Logs',          href: '/v2-logs.html',         icon: 'go' },
