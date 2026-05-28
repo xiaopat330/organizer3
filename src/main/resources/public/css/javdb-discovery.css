@@ -413,6 +413,7 @@
   overflow: hidden;
   background: var(--bg-panel);
   overflow-x: auto;
+  flex-shrink: 0;
 }
 
 .jd-titles-table {
