@@ -25,6 +25,7 @@
   <link rel="stylesheet" href="/css/enrichment-detail-modal.css">
   <link rel="stylesheet" href="/css/title-peek.css">
   <link rel="stylesheet" href="/css/enrichment-review.css">
+  <link rel="stylesheet" href="/css/enrichment-hub.css">
   <link rel="stylesheet" href="/css/screenshot-queue.css">
   <link rel="stylesheet" href="/css/no-match-triage.css">
   <link rel="stylesheet" href="/css/title-editor.css">
@@ -262,6 +263,10 @@
     <button type="button" id="tools-javdb-discovery-btn" class="action-tool-btn tools-javdb-discovery-btn">
       <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
       Sources
+    </button>
+    <button type="button" id="tools-enrichment-btn" class="action-tool-btn tools-enrichment-btn">
+      <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z"/><path d="M19 16l.6 1.7L21 18l-1.4.3L19 20l-.6-1.7L17 18l1.4-.3z"/></svg>
+      Enrichment
     </button>
     <button type="button" id="tools-queue-btn" class="action-tool-btn tools-queue-btn">
       <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.64 3.64-1.28-1.28a1.21 1.21 0 0 0-1.72 0L2.36 18.64a1.21 1.21 0 0 0 0 1.72l1.28 1.28a1.2 1.2 0 0 0 1.72 0L21.64 5.36a1.2 1.2 0 0 0 0-1.72Z"/><path d="m14 7 3 3"/><path d="M5 6v4"/><path d="M19 14v4"/><path d="M10 2v2"/><path d="M7 8H3"/><path d="M21 16h-4"/><path d="M11 3H9"/></svg>
@@ -846,6 +851,36 @@
       </div>
     </div>
   </div>
+</div>
+
+<!-- Enrichment hub tool content (AI Assist / Workflow / Review) -->
+<div id="tools-enrichment-hub-view" class="tools-enrichment-hub-view" style="display:none">
+  <div class="tools-section-header">
+    <span class="tools-section-title">Enrichment</span>
+    <div class="tools-section-tabs">
+      <button type="button" id="ehub-tab-ai-assist" class="tools-section-tab tools-section-tab-ehub-ai-assist selected">
+        <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z"/></svg>
+        AI Assist
+      </button>
+      <button type="button" id="ehub-tab-workflow" class="tools-section-tab tools-section-tab-ehub-workflow">
+        <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
+        Workflow
+      </button>
+      <button type="button" id="ehub-tab-review" class="tools-section-tab tools-section-tab-ehub-review">
+        <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+        Review
+      </button>
+    </div>
+  </div>
+  <div id="ehub-ai-assist-subview" class="ehub-subview"></div>
+  <div id="ehub-workflow-subview" class="ehub-subview" style="display:none">
+    <div class="ehub-empty">
+      <svg class="ehub-empty-icon" viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+      <div class="ehub-empty-title">Workflow</div>
+      <div class="ehub-empty-sub">Coming in Phase 2.</div>
+    </div>
+  </div>
+  <div id="ehub-review-subview" class="ehub-subview" style="display:none"></div>
 </div>
 
 <!-- Title Editor (Queue) tool content -->

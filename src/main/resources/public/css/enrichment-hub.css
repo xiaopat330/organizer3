@@ -1,0 +1,222 @@
+/* ── v1 Enrichment hub (Phase 0) ──────────────────────────────────────
+   Hub shell uses the shared .tools-section-* classes for the header/tabs
+   (defined in duplicate-triage.css). Only hub-specific layout lives here,
+   namespaced .ehub-*. The AI Assist prototype stat cards are .aia1-*
+   (distinct from the v2 .aia-* classes in the same /css/ dir). All colors
+   use v1 base.css tokens. */
+
+.tools-enrichment-hub-view {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* The three subview containers fill the area below the section header. */
+.ehub-subview {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+/* AI Assist subview gets padding; Review supplies its own. */
+#ehub-ai-assist-subview { padding: 16px; }
+
+/* ── Per-tab active accent (Enrichment hub = violet) ──────────────────── */
+.tools-section-tab-ehub-ai-assist.selected {
+  color: #c4b5fd;
+  background: #16121f;
+  border-color: #5b21b6;
+  border-bottom-color: #a78bfa;
+}
+.tools-section-tab-ehub-workflow.selected {
+  color: #c4b5fd;
+  background: #16121f;
+  border-color: #5b21b6;
+  border-bottom-color: #a78bfa;
+}
+.tools-section-tab-ehub-review.selected {
+  color: #c4b5fd;
+  background: #16121f;
+  border-color: #5b21b6;
+  border-bottom-color: #a78bfa;
+}
+
+/* ── Workflow placeholder empty-state ─────────────────────────────────── */
+.ehub-empty {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 48px 16px;
+  color: var(--text-dim);
+}
+.ehub-empty-icon { color: var(--text-faint); margin-bottom: 16px; }
+.ehub-empty-title { font-size: 16px; color: var(--text-dim); margin-bottom: 4px; }
+.ehub-empty-sub { font-size: 13px; color: var(--text-faint); }
+
+/* ── AI Assist prototype stat cards ───────────────────────────────────── */
+.aia1-loading {
+  color: var(--text-dim);
+  font-size: 13px;
+  padding: 24px 4px;
+}
+
+.aia1-cards {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(180px, 1fr)) minmax(280px, 1.4fr);
+  gap: 14px;
+  align-items: stretch;
+}
+@media (max-width: 880px) {
+  .aia1-cards { grid-template-columns: 1fr; }
+}
+
+.aia1-card {
+  background: var(--bg-panel);
+  border: 1px solid #26262f;
+  border-radius: var(--radius-card);
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.aia1-card-wide { min-width: 0; }
+
+.aia1-card-title {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  margin-bottom: 6px;
+}
+.aia1-card-headline {
+  font-size: 30px;
+  font-weight: 700;
+  line-height: 1.05;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+.aia1-card-label {
+  font-size: 12px;
+  color: var(--accent-fg);
+  margin-top: 2px;
+}
+.aia1-card-sub {
+  font-size: 12px;
+  color: var(--text-dim);
+  margin-top: 2px;
+}
+
+/* ── Throughput meter ─────────────────────────────────────────────────── */
+.aia1-meter-track {
+  display: flex;
+  height: 8px;
+  border-radius: 4px;
+  overflow: hidden;
+  background: var(--bg-hover);
+  margin-top: 12px;
+}
+.aia1-meter-seg { height: 100%; }
+.aia1-meter-note {
+  font-size: 12px;
+  color: var(--text-faint);
+  margin-top: 8px;
+}
+.aia1-meter-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  margin-top: 10px;
+}
+.aia1-meter-key {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--text-dim);
+}
+.aia1-meter-swatch {
+  width: 9px;
+  height: 9px;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+.aia1-meter-key-count {
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Outcome donut ────────────────────────────────────────────────────── */
+.aia1-donut-wrap {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  margin-top: 6px;
+}
+.aia1-donut-chart {
+  position: relative;
+  width: 92px;
+  height: 92px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+/* punch the hole to make it a ring */
+.aia1-donut-chart::after {
+  content: '';
+  position: absolute;
+  inset: 14px;
+  border-radius: 50%;
+  background: var(--bg-panel);
+}
+.aia1-donut-center {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1;
+}
+.aia1-donut-total {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+.aia1-donut-note {
+  font-size: 10px;
+  color: var(--text-faint);
+  text-align: center;
+  max-width: 56px;
+  line-height: 1.2;
+}
+.aia1-legend {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  min-width: 0;
+}
+.aia1-legend-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--text-dim);
+}
+.aia1-legend-swatch {
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+.aia1-legend-label { flex: 1; white-space: nowrap; }
+.aia1-legend-count {
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
