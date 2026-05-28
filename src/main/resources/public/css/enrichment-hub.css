@@ -71,13 +71,6 @@
   padding: 24px 4px;
 }
 
-/* Outcome-mix card holds a donut + legend + caption — give it the full second
-   row span so the legend isn't cramped against the 280px equal-column min. */
-.aia1-outcome-card { grid-column: 1 / -1; }
-@media (max-width: 880px) {
-  .aia1-outcome-card { grid-column: auto; }
-}
-
 /* ── v1 action buttons (mirror .trans-sweep-btn idiom) ────────────────── */
 .aia1-btn {
   padding: 3px 10px;
