@@ -26,6 +26,13 @@ public interface ActressRepository {
     Optional<Actress> findByCanonicalName(String name);
 
     /**
+     * Resolve an actress by exact kanji {@code stage_name} (COLLATE NOCASE). Returns empty if none
+     * or if more than one non-rejected actress shares the stage_name (under-link is safer than
+     * mis-link).
+     */
+    Optional<Actress> findByStageName(String stageName);
+
+    /**
      * Resolve any name — canonical or alias — to the canonical {@link Actress}.
      * Returns empty if no actress or alias matches.
      */
