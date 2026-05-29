@@ -399,6 +399,55 @@ class DraftPopulatorTest {
         assertEquals("Tanaka", result.englishLast());
     }
 
+    // ── pass 2.5 (kanji stage_name) unit tests ───────────────────────────────
+
+    @Test
+    void autoLinkActress_pass2_5StageNameMatch_returnsActressId() {
+        // javdb cast name is kanji; the actress's canonical_name is romaji, so Pass 1/2 miss,
+        // but her stage_name carries the kanji → Pass 2.5 resolves her.
+        var entry = new TitleExtract.CastEntry("slug-stage", "森日向子", "F");
+        when(actressRepo.resolveByName(any())).thenReturn(Optional.empty());
+        Actress matched = Actress.builder().id(321L).canonicalName("Hinako Mori")
+                .stageName("森日向子").build();
+        when(actressRepo.findByStageName("森日向子")).thenReturn(Optional.of(matched));
+
+        DraftPopulator.AutoLinkResult result = populator.autoLinkActress(entry);
+
+        assertEquals(321L, result.actressId());
+        assertNull(result.englishFirst());
+        assertNull(result.englishLast());
+        // Pass 2.5 short-circuits before the slug / translation passes.
+        verify(stagingRepo, never()).findActressIdByJavdbSlug(anyString());
+        verify(translationService, never()).resolveOrSuggestStageName(anyString());
+    }
+
+    @Test
+    void autoLinkActress_pass1Wins_stageNamePassNotConsulted() {
+        // When Pass 1 (resolveByName) matches, the kanji stage_name pass must never be queried.
+        var entry = new TitleExtract.CastEntry("slug-p1", "Aika", "F");
+        Actress actress = Actress.builder().id(42L).canonicalName("Aika").build();
+        when(actressRepo.resolveByName("aika")).thenReturn(Optional.of(actress));
+
+        DraftPopulator.AutoLinkResult result = populator.autoLinkActress(entry);
+
+        assertEquals(42L, result.actressId());
+        verify(actressRepo, never()).findByStageName(any());
+    }
+
+    @Test
+    void autoLinkActress_stageNameMiss_fallsThroughToLaterPasses() {
+        // Kanji name matches no stage_name (and all other passes empty) → returns EMPTY as before.
+        var entry = new TitleExtract.CastEntry("slug-miss", "誰でもない", "F");
+        when(actressRepo.resolveByName(any())).thenReturn(Optional.empty());
+        when(actressRepo.findByStageName("誰でもない")).thenReturn(Optional.empty());
+        when(stagingRepo.findActressIdByJavdbSlug("slug-miss")).thenReturn(Optional.empty());
+        when(translationService.resolveOrSuggestStageName("誰でもない")).thenReturn(Optional.empty());
+
+        DraftPopulator.AutoLinkResult result = populator.autoLinkActress(entry);
+
+        assertSame(DraftPopulator.AutoLinkResult.EMPTY, result);
+    }
+
     @Test
     void autoLinkActress_pass5b_enqueuedReturnsEmpty() {
         var entry = new TitleExtract.CastEntry("slug-5b", "木村花子", "F");

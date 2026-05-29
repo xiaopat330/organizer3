@@ -832,6 +832,66 @@ class JdbiActressRepositoryTest {
                 "setStageName must trim and strip internal spaces before persisting");
     }
 
+    // --- findByStageName ---
+
+    @Test
+    void findByStageNameMatchesExactKanji() {
+        Actress saved = repo.save(actress("Hinako Mori"));
+        repo.setStageName(saved.getId(), "森日向子");
+
+        Optional<Actress> found = repo.findByStageName("森日向子");
+        assertTrue(found.isPresent());
+        assertEquals(saved.getId(), found.get().getId());
+        assertEquals("Hinako Mori", found.get().getCanonicalName());
+    }
+
+    @Test
+    void findByStageNameIsCaseInsensitive() {
+        // Kanji has no case, so exercise COLLATE NOCASE with an ASCII stage_name.
+        Actress saved = repo.save(actress("Maria Ozawa"));
+        repo.setStageName(saved.getId(), "Maria");
+
+        assertTrue(repo.findByStageName("maria").isPresent());
+        assertEquals(saved.getId(), repo.findByStageName("MARIA").orElseThrow().getId());
+    }
+
+    @Test
+    void findByStageNameReturnsEmptyWhenNoMatch() {
+        repo.save(actress("Someone Else"));
+        assertTrue(repo.findByStageName("存在しない").isEmpty());
+    }
+
+    @Test
+    void findByStageNameReturnsEmptyForNullOrBlank() {
+        assertTrue(repo.findByStageName(null).isEmpty());
+        assertTrue(repo.findByStageName("   ").isEmpty());
+    }
+
+    @Test
+    void findByStageNameReturnsEmptyWhenTwoNonRejectedShareIt() {
+        // Ambiguous: two live actresses share the stage_name → under-link (empty).
+        Actress a = repo.save(actress("Hinako Mori"));
+        Actress b = repo.save(actress("Hinako Morinichi"));
+        repo.setStageName(a.getId(), "森日向子");
+        repo.setStageName(b.getId(), "森日向子");
+
+        assertTrue(repo.findByStageName("森日向子").isEmpty());
+    }
+
+    @Test
+    void findByStageNameExcludesRejectedAndResolvesSurvivor() {
+        // Two rows share the stage_name; the rejected one is filtered out, leaving exactly one.
+        Actress live = repo.save(actress("Hinako Mori"));
+        Actress rejected = repo.save(actress("Phantom Mori"));
+        repo.setStageName(live.getId(), "森日向子");
+        repo.setStageName(rejected.getId(), "森日向子");
+        repo.toggleRejected(rejected.getId(), true);
+
+        Optional<Actress> found = repo.findByStageName("森日向子");
+        assertTrue(found.isPresent());
+        assertEquals(live.getId(), found.get().getId());
+    }
+
     // --- recalcTiers ---
 
     @Test

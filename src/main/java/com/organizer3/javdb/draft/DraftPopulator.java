@@ -300,6 +300,7 @@ public class DraftPopulator {
      * <ul>
      *   <li>Pass 1: exact match on normalized {@code actresses.canonical_name}
      *   <li>Pass 2: exact match on normalized {@code actress_aliases.alias_name}
+     *   <li>Pass 2.5: exact match on kanji {@code actresses.stage_name} (cast names from javdb are kanji)
      *   <li>Pass 3: slug-anchored match via {@code javdb_actress_staging.javdb_slug}
      *   <li>Pass 4: curated stage-name lookup returns romaji + fuzzy Actress match
      *   <li>Pass 5a: curated romaji present but no fuzzy match → pre-fill english first/last
@@ -313,6 +314,15 @@ public class DraftPopulator {
             Optional<Actress> byName = actressRepo.resolveByName(normalizedName);
             if (byName.isPresent() && !byName.get().isRejected()) {
                 return new AutoLinkResult(byName.get().getId(), null, null);
+            }
+        }
+
+        // Pass 2.5: exact match on kanji stage_name (cast names from javdb are kanji)
+        String rawName = entry.name() == null ? null : entry.name().trim();
+        if (rawName != null && !rawName.isEmpty()) {
+            Optional<Actress> byStage = actressRepo.findByStageName(rawName);
+            if (byStage.isPresent()) {
+                return new AutoLinkResult(byStage.get().getId(), null, null);
             }
         }
 

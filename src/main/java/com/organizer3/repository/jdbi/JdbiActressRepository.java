@@ -145,6 +145,20 @@ public class JdbiActressRepository implements ActressRepository {
     }
 
     @Override
+    public Optional<Actress> findByStageName(String stageName) {
+        if (stageName == null || stageName.isBlank()) return Optional.empty();
+        List<Actress> matches = jdbi.withHandle(h ->
+                h.createQuery("SELECT * FROM actresses WHERE stage_name = :name COLLATE NOCASE")
+                        .bind("name", stageName)
+                        .map(ACTRESS_MAPPER)
+                        .list()
+        );
+        List<Actress> live = matches.stream().filter(a -> !a.isRejected()).toList();
+        // Exactly one non-rejected match → link. 0 matches or an ambiguous >1 share → under-link.
+        return live.size() == 1 ? Optional.of(live.get(0)) : Optional.empty();
+    }
+
+    @Override
     public Optional<Actress> resolveByName(String name) {
         return jdbi.withHandle(h -> {
             Optional<Actress> byCanonical = h
