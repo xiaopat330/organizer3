@@ -125,6 +125,51 @@ class JdbiTitleActressRepositoryTest {
         assertEquals(List.of(yui.getId()), repo.findActressIdsByTitle(t2.getId()));
     }
 
+    // --- unlink ---
+
+    @Test
+    void unlinkRemovesExactRowAndReturnsOne() {
+        Actress aika = saveActress("Aika");
+        Actress yui = saveActress("Yui Hatano");
+        Title title = saveTitle("HMN-102");
+        repo.linkAll(title.getId(), List.of(aika.getId(), yui.getId()));
+
+        int deleted = repo.unlink(title.getId(), aika.getId());
+
+        assertEquals(1, deleted);
+        assertEquals(List.of(yui.getId()), repo.findActressIdsByTitle(title.getId()),
+                "only Aika's credit should be removed; Yui survives");
+    }
+
+    @Test
+    void unlinkReturnsZeroWhenNoSuchCredit() {
+        Actress aika = saveActress("Aika");
+        Actress yui = saveActress("Yui Hatano");
+        Title title = saveTitle("HMN-102");
+        repo.link(title.getId(), aika.getId());
+
+        int deleted = repo.unlink(title.getId(), yui.getId());
+
+        assertEquals(0, deleted, "no row should be deleted when the credit is absent");
+        assertEquals(List.of(aika.getId()), repo.findActressIdsByTitle(title.getId()));
+    }
+
+    @Test
+    void unlinkDoesNotTouchOtherTitlesCredits() {
+        Actress aika = saveActress("Aika");
+        Title t1 = saveTitle("HMN-102");
+        Title t2 = saveTitle("PRED-390");
+        repo.link(t1.getId(), aika.getId());
+        repo.link(t2.getId(), aika.getId());
+
+        int deleted = repo.unlink(t1.getId(), aika.getId());
+
+        assertEquals(1, deleted);
+        assertTrue(repo.findActressIdsByTitle(t1.getId()).isEmpty());
+        assertEquals(List.of(aika.getId()), repo.findActressIdsByTitle(t2.getId()),
+                "the same actress's credit on a different title must survive");
+    }
+
     // --- deleteOrphaned ---
 
     @Test
