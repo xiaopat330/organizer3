@@ -528,7 +528,7 @@ public class JavdbDiscoveryService {
                   q.priority,
                   erq.id AS review_queue_id
                 FROM javdb_enrichment_queue q
-                JOIN actresses a ON a.id = q.actress_id
+                LEFT JOIN actresses a ON a.id = q.actress_id
                 LEFT JOIN titles t ON t.id = q.target_id AND q.job_type = 'fetch_title'
                 LEFT JOIN enrichment_review_queue erq
                        ON erq.title_id = q.target_id
