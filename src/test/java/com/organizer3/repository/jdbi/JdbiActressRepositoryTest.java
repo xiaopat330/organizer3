@@ -737,6 +737,94 @@ class JdbiActressRepositoryTest {
         assertEquals("Aya Sazanami", results.get(0).getCanonicalName());
     }
 
+    // --- searchByNamePrefix / searchByNamePrefixPaged: alias matching ---
+
+    @Test
+    void searchByNamePrefixMatchesAlias() {
+        // Canonical shares no token with the alias, so a match can only come via the alias.
+        Actress a = repo.save(actress("Natsuki Aoi"));
+        repo.saveAlias(new ActressAlias(a.getId(), "Minami Natsumi"));
+
+        List<Actress> results = repo.searchByNamePrefix("minami");
+        assertEquals(1, results.size());
+        assertEquals("Natsuki Aoi", results.get(0).getCanonicalName());
+    }
+
+    @Test
+    void searchByNamePrefixPagedMatchesAliasSingleToken() {
+        // Canonical "Natsuki Aoi" does not match "minami"; only the alias does.
+        Actress a = repo.save(actress("Natsuki Aoi"));
+        repo.saveAlias(new ActressAlias(a.getId(), "Minami Natsumi"));
+        repo.save(actress("Yua Mikami")); // unrelated, must not appear
+
+        List<Actress> results = repo.searchByNamePrefixPaged("minami", 10, 0);
+        assertEquals(1, results.size());
+        assertEquals("Natsuki Aoi", results.get(0).getCanonicalName());
+    }
+
+    @Test
+    void searchByNamePrefixPagedMatchesAliasOnLaterWord() {
+        // Single-token form must also match a later word of an alias ("% natsumi%").
+        Actress a = repo.save(actress("Natsuki Aoi"));
+        repo.saveAlias(new ActressAlias(a.getId(), "Minami Natsumi"));
+
+        List<Actress> results = repo.searchByNamePrefixPaged("natsumi", 10, 0);
+        assertEquals(1, results.size());
+        assertEquals("Natsuki Aoi", results.get(0).getCanonicalName());
+    }
+
+    @Test
+    void searchByNamePrefixPagedCompoundMatchesAlias() {
+        // Compound form: first="minami" (canonical "Natsuki Aoi" fails this prefix),
+        // second="nat" — the alias "Minami Natsumi" satisfies BOTH on the same row.
+        Actress a = repo.save(actress("Natsuki Aoi"));
+        repo.saveAlias(new ActressAlias(a.getId(), "Minami Natsumi"));
+        repo.save(actress("Sakura Nomiya")); // unrelated, must not appear
+
+        List<Actress> results = repo.searchByNamePrefixPaged("Minami Nat", 10, 0);
+        assertEquals(1, results.size());
+        assertEquals("Natsuki Aoi", results.get(0).getCanonicalName());
+    }
+
+    @Test
+    void searchByNamePrefixPagedNoDuplicateWhenCanonicalAndAliasBothMatch() {
+        // Canonical "Natsuki Minami" matches "minami" via "% minami%" AND the alias
+        // "Minami Natsumi" matches via "minami%" — EXISTS dedup must yield exactly one row.
+        Actress a = repo.save(actress("Natsuki Minami"));
+        repo.saveAlias(new ActressAlias(a.getId(), "Minami Natsumi"));
+
+        List<Actress> results = repo.searchByNamePrefixPaged("minami", 10, 0);
+        assertEquals(1, results.size());
+        assertEquals("Natsuki Minami", results.get(0).getCanonicalName());
+    }
+
+    @Test
+    void searchByNamePrefixPagedNoDuplicateAcrossMultipleMatchingAliases() {
+        // Two aliases both match the query; the actress must still appear exactly once.
+        Actress a = repo.save(actress("Natsuki Aoi"));
+        repo.saveAlias(new ActressAlias(a.getId(), "Minami Natsumi"));
+        repo.saveAlias(new ActressAlias(a.getId(), "Minami Sakura"));
+
+        List<Actress> results = repo.searchByNamePrefixPaged("minami", 10, 0);
+        assertEquals(1, results.size());
+        assertEquals("Natsuki Aoi", results.get(0).getCanonicalName());
+    }
+
+    @Test
+    void searchByNamePrefixPagedCanonicalStillMatchesAndUnrelatedReturnsNothing() {
+        // No regression: canonical still matches; an aliased-only term must not pull in others.
+        Actress a = repo.save(actress("Natsuki Aoi"));
+        repo.saveAlias(new ActressAlias(a.getId(), "Minami Natsumi"));
+
+        // Canonical search still works.
+        List<Actress> byCanonical = repo.searchByNamePrefixPaged("natsuki", 10, 0);
+        assertEquals(1, byCanonical.size());
+        assertEquals("Natsuki Aoi", byCanonical.get(0).getCanonicalName());
+
+        // Unrelated query (matches neither canonical nor any alias) returns nothing.
+        assertTrue(repo.searchByNamePrefixPaged("zzz", 10, 0).isEmpty());
+    }
+
     // --- findBookmarksPaged ---
 
     @Test

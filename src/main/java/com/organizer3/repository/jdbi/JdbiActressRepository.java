@@ -217,6 +217,9 @@ public class JdbiActressRepository implements ActressRepository {
                         SELECT * FROM actresses
                         WHERE canonical_name LIKE :startsWith COLLATE NOCASE
                            OR canonical_name LIKE :wordStartsWith COLLATE NOCASE
+                           OR EXISTS (SELECT 1 FROM actress_aliases aa WHERE aa.actress_id = actresses.id
+                                      AND (aa.alias_name LIKE :startsWith COLLATE NOCASE
+                                           OR aa.alias_name LIKE :wordStartsWith COLLATE NOCASE))
                         ORDER BY canonical_name
                         """)
                         .bind("startsWith", prefix + "%")
@@ -239,8 +242,11 @@ public class JdbiActressRepository implements ActressRepository {
                 return jdbi.withHandle(h ->
                         h.createQuery("""
                                 SELECT * FROM actresses
-                                WHERE canonical_name LIKE :first COLLATE NOCASE
-                                  AND canonical_name LIKE :second COLLATE NOCASE
+                                WHERE (canonical_name LIKE :first COLLATE NOCASE
+                                       AND canonical_name LIKE :second COLLATE NOCASE)
+                                   OR EXISTS (SELECT 1 FROM actress_aliases aa WHERE aa.actress_id = actresses.id
+                                              AND aa.alias_name LIKE :first COLLATE NOCASE
+                                              AND aa.alias_name LIKE :second COLLATE NOCASE)
                                 ORDER BY favorite DESC, bookmark DESC, canonical_name
                                 LIMIT :limit OFFSET :offset
                                 """)
@@ -259,6 +265,9 @@ public class JdbiActressRepository implements ActressRepository {
                         SELECT * FROM actresses
                         WHERE canonical_name LIKE :startsWith COLLATE NOCASE
                            OR canonical_name LIKE :wordStartsWith COLLATE NOCASE
+                           OR EXISTS (SELECT 1 FROM actress_aliases aa WHERE aa.actress_id = actresses.id
+                                      AND (aa.alias_name LIKE :startsWith COLLATE NOCASE
+                                           OR aa.alias_name LIKE :wordStartsWith COLLATE NOCASE))
                         ORDER BY favorite DESC, bookmark DESC, canonical_name
                         LIMIT :limit OFFSET :offset
                         """)
