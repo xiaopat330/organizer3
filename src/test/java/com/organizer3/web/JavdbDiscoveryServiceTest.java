@@ -112,6 +112,15 @@ class JavdbDiscoveryServiceTest {
                         titleId, actressId, status, lastError));
     }
 
+    /** Enqueues a fetch_title job with a NULL actress_id (collection/multi-cast job shape). */
+    private void insertNullActressTitleQueueRow(long titleId, String status, String source) {
+        jdbi.useHandle(h ->
+                h.execute("INSERT INTO javdb_enrichment_queue " +
+                          "(job_type, target_id, actress_id, status, source, attempts, next_attempt_at, created_at, updated_at) " +
+                          "VALUES ('fetch_title', ?, NULL, ?, ?, 0, '2024-01-01T00:00:00Z', '2024-01-01T00:00:00Z', '2024-01-01T00:00:00Z')",
+                        titleId, status, source));
+    }
+
     private long insertReviewQueueRow(long titleId, String reason) {
         return jdbi.withHandle(h ->
                 h.createUpdate("INSERT INTO enrichment_review_queue (title_id, reason, created_at) " +
@@ -447,6 +456,46 @@ class JavdbDiscoveryServiceTest {
         assertEquals(0, s.pending());
         assertEquals(0, s.inFlight());
         assertEquals(0, s.failed());
+    }
+
+    // ── getActiveQueueItems: NULL-actress rows (LEFT JOIN regression) ─────────
+
+    @Test
+    void getActiveQueueItems_includesNullActressCollectionJob() {
+        // Collection (and multi-/zero-cast title) jobs enqueue fetch_title rows with
+        // actress_id = NULL. The old INNER JOIN actresses silently dropped these.
+        long t = insertTitle("COLL-001");
+        insertNullActressTitleQueueRow(t, "pending", "collection");
+
+        List<JavdbDiscoveryService.QueueItem> items = service.getActiveQueueItems();
+
+        assertEquals(1, items.size(), "NULL-actress fetch_title row must appear in the Queue tab");
+        JavdbDiscoveryService.QueueItem item = items.get(0);
+        assertEquals("fetch_title", item.jobType());
+        assertEquals("pending",     item.status());
+        assertEquals(0L,            item.actressId(), "NULL actress_id maps to primitive 0");
+        assertNull(item.actressName(), "no joined actress → null name");
+        assertEquals("COLL-001",    item.titleCode());
+    }
+
+    @Test
+    void getActiveQueueItems_includesBothNullAndActressDrivenRows() {
+        // NULL-actress collection job.
+        long tColl = insertTitle("COLL-002");
+        insertNullActressTitleQueueRow(tColl, "pending", "collection");
+        // Normal actress-driven title job — must still appear (LEFT join didn't break it).
+        long a = insertActress("Queued One", "Q1");
+        long tActr = insertTitle("ACTR-001");
+        linkActressTitle(a, tActr);
+        insertTitleQueueRow(tActr, a, "pending");
+
+        List<JavdbDiscoveryService.QueueItem> items = service.getActiveQueueItems();
+
+        assertEquals(2, items.size());
+        assertTrue(items.stream().anyMatch(i -> "COLL-002".equals(i.titleCode()) && i.actressName() == null),
+                "NULL-actress row present");
+        assertTrue(items.stream().anyMatch(i -> "ACTR-001".equals(i.titleCode()) && "Queued One".equals(i.actressName())),
+                "actress-driven row still present with joined name");
     }
 
     // ── filtered getActressTitles + tag facets (Phase 3 surfacing) ────────────

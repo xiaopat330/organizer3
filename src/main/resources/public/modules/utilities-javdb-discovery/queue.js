@@ -117,19 +117,23 @@ export function initQueue(state, hooks) {
       const codeCell = (!isProfile && item.coverUrl)
         ? `<button class="jd-qi-cover-link" data-cover-url="${esc(item.coverUrl)}" data-code="${esc(titleCell)}">${esc(titleCell)}</button>`
         : esc(titleCell);
+      const hasActress = !!item.actressId && !!item.actressName;
       const canReview  = item.status === 'failed' && item.reviewQueueId != null;
-      const canAddSlug = item.status === 'failed' && item.lastError === 'no_slug';
+      const canAddSlug = item.status === 'failed' && item.lastError === 'no_slug' && hasActress;
       const statusCell = canReview
         ? `<button class="jd-qi-status ${statusClass} jd-qi-review-link" data-review-id="${item.reviewQueueId}" title="Click to review in Review Queue">${statusLabel}</button>`
         : canAddSlug
         ? `<button class="jd-qi-status ${statusClass} jd-qi-slug-link" data-actress-id="${item.actressId}" title="Click to assign slug in Discovery">${statusLabel}</button>`
         : `<span class="jd-qi-status ${statusClass}" title="${esc(item.lastError || '')}">${statusLabel}</span>`;
+      const actressCell = hasActress
+        ? `<button class="jd-qi-actress-link" data-actress-id="${item.actressId}">${esc(item.actressName)}</button>`
+        : '—';
       const prio = item.priority || 'NORMAL';
       const prioCell = prio !== 'NORMAL'
         ? `<span class="jd-qi-prio prio-${prio.toLowerCase()}">${prio}</span>`
         : `<span class="jd-qi-prio prio-normal"></span>`;
       return `<tr>
-        <td><button class="jd-qi-actress-link" data-actress-id="${item.actressId}">${esc(item.actressName)}</button></td>
+        <td>${actressCell}</td>
         <td class="jd-qi-code">${codeCell}</td>
         <td>${typeLabel}</td>
         <td>${prioCell}</td>
