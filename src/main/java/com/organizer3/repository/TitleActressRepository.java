@@ -24,6 +24,9 @@ public interface TitleActressRepository {
     /** Returns all actress ids linked to the given title. */
     List<Long> findActressIdsByTitle(long titleId);
 
+    /** Removes a single cast credit. Returns rows deleted (0 if no such credit). */
+    int unlink(long titleId, long actressId);
+
     /**
      * Removes junction rows whose title no longer exists in the {@code titles} table.
      * Called after {@code TitleRepository.deleteOrphaned()} to keep the junction table clean.

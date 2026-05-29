@@ -51,6 +51,19 @@ public class JdbiTitleActressRepository implements TitleActressRepository {
     }
 
     @Override
+    public int unlink(long titleId, long actressId) {
+        return jdbi.withHandle(h ->
+                h.createUpdate("""
+                        DELETE FROM title_actresses
+                        WHERE title_id = :titleId AND actress_id = :actressId
+                        """)
+                        .bind("titleId", titleId)
+                        .bind("actressId", actressId)
+                        .execute()
+        );
+    }
+
+    @Override
     public void deleteOrphaned() {
         jdbi.useHandle(h ->
                 h.createUpdate("""
