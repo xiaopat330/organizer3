@@ -498,6 +498,40 @@ class JavdbDiscoveryServiceTest {
                 "actress-driven row still present with joined name");
     }
 
+    /** Inserts a queue row with explicit job_type, priority, sort_order, and status. */
+    private void insertQueueRowFull(String jobType, long targetId, long actressId,
+                                    String priority, long sortOrder, String status) {
+        jdbi.useHandle(h ->
+                h.execute("INSERT INTO javdb_enrichment_queue " +
+                          "(job_type, target_id, actress_id, priority, status, attempts, " +
+                          "next_attempt_at, created_at, updated_at, sort_order) " +
+                          "VALUES (?, ?, ?, ?, ?, 0, '2024-01-01T00:00:00Z', '2024-01-01T00:00:00Z', '2024-01-01T00:00:00Z', ?)",
+                        jobType, targetId, actressId, priority, status, sortOrder));
+    }
+
+    @Test
+    void getActiveQueueItems_ordersPendingByPriorityThenSortOrder() {
+        // Mirrors the live bug: a HIGH actress-profile (large sort_order) must rank
+        // above a NORMAL title (small sort_order), matching worker claim order.
+        long a = insertActress("Prio Person", "PP");
+        long tNormal = insertTitle("NORM-001");
+        linkActressTitle(a, tNormal);
+        // NORMAL title at LOW sort_order (would be "top of pile" by insertion order)
+        insertQueueRowFull("fetch_title", tNormal, a, "NORMAL", 478, "pending");
+        // HIGH profile at HIGH sort_order (bottom of pile by insertion order)
+        insertQueueRowFull("fetch_actress_profile", a, a, "HIGH", 948, "pending");
+
+        List<JavdbDiscoveryService.QueueItem> items = service.getActiveQueueItems();
+
+        assertEquals(2, items.size());
+        // HIGH must be first despite larger sort_order.
+        assertEquals("HIGH", items.get(0).priority());
+        assertEquals("fetch_actress_profile", items.get(0).jobType());
+        assertEquals(1, items.get(0).queuePosition(), "HIGH profile is position 1");
+        assertEquals("NORMAL", items.get(1).priority());
+        assertEquals(2, items.get(1).queuePosition());
+    }
+
     // ── filtered getActressTitles + tag facets (Phase 3 surfacing) ────────────
 
     /** Seeds an enrichment row + tag assignments. Refreshes title_count denorm. */
