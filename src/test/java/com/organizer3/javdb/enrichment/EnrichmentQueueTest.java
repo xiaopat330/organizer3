@@ -693,6 +693,24 @@ class EnrichmentQueueTest {
     }
 
     @Test
+    void enqueueActressProfile_noArg_defaultsToHigh() {
+        // Auto-queued actress profiles must land in the HIGH lane, not NORMAL.
+        queue.enqueueActressProfile(10L);
+        EnrichmentJob job = queue.claimNextJob().get();
+        assertEquals(Priority.HIGH, job.priority());
+    }
+
+    @Test
+    void enqueueActressProfile_noArg_claimedBeforePendingNormalTitle() {
+        // A pre-existing NORMAL title is in the queue; an auto-queued profile must be claimed first.
+        queue.enqueueTitle(EnrichmentJob.SOURCE_ACTRESS, 1L, 20L, Priority.NORMAL);
+        queue.enqueueActressProfile(10L);
+        EnrichmentJob first = queue.claimNextJob().get();
+        assertEquals(EnrichmentJob.FETCH_ACTRESS_PROFILE, first.jobType());
+        assertEquals(10L, first.actressId());
+    }
+
+    @Test
     void enqueueTitleForce_withUrgentPriority_storesUrgent() {
         queue.enqueueTitleForce(1L, 10L, Priority.URGENT);
         // claimNextJob excludes URGENT; read priority directly from DB.
