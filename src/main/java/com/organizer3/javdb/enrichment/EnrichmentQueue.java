@@ -109,9 +109,13 @@ public class EnrichmentQueue {
         });
     }
 
-    /** Enqueues a fetch_actress_profile job at NORMAL priority if no active/done one already exists. */
+    /**
+     * Enqueues a fetch_actress_profile job at HIGH priority if no active/done one already exists.
+     * This no-arg form is the auto-queue convenience used by EnrichmentRunner, and auto-discovered
+     * actress profiles must jump ahead of the NORMAL title backlog.
+     */
     public void enqueueActressProfile(long actressId) {
-        enqueueActressProfile(actressId, Priority.NORMAL);
+        enqueueActressProfile(actressId, Priority.HIGH);
     }
 
     /** Enqueues a fetch_actress_profile job at the specified priority if no active/done one already exists. */

@@ -704,6 +704,7 @@ public class EnrichmentRunner {
         // enqueueActressProfile's SQL is already idempotent (checks for existing pending/done jobs).
         // Do NOT gate on countPendingForActress — that would delay the profile fetch until all
         // title jobs finish. Fire on first slug discovery.
+        // Enqueued at HIGH priority so the profile fetch jumps ahead of the NORMAL title backlog.
         queue.enqueueActressProfile(actressId);
         log.info("javdb: enqueued fetch_actress_profile for actress {}", actressId);
     }
