@@ -538,6 +538,8 @@ public class JavdbDiscoveryService {
                    OR (q.status = 'failed' AND q.updated_at > datetime('now', '-24 hours'))
                 ORDER BY
                   CASE q.status WHEN 'in_flight' THEN 0 WHEN 'pending' THEN 1 WHEN 'paused' THEN 2 ELSE 3 END,
+                  -- Priority tier mirrors EnrichmentQueue.claimNextJob order so ETA/position reflect true claim order.
+                  CASE q.priority WHEN 'URGENT' THEN 0 WHEN 'HIGH' THEN 1 WHEN 'NORMAL' THEN 2 WHEN 'LOW' THEN 3 ELSE 4 END,
                   COALESCE(q.sort_order, 9223372036854775807) ASC,
                   q.id ASC
                 """)
