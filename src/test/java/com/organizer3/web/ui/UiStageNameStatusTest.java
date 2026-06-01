@@ -338,6 +338,53 @@ class UiStageNameStatusTest {
         assertConsoleClean();
     }
 
+    // ── Pin 6: prefilled romaji at render time → v1 legacy surface ────────
+    // Targets the v1 legacy surface (/ → #tools-queue-view / #queue-draft-pane).
+
+    @Test
+    void pin6_prefilledRomaji_populatesInputsOnInitialRender_v1Legacy() {
+        // Seed a DraftActress that already has english names (backend blocking-wait path).
+        // No queued translation row → needsPoll is false; the v1 UI must surface names directly
+        // via the _fillCreateNew helper called from renderCastSlots.
+        jdbi.useHandle(h -> h.createUpdate("""
+                UPDATE draft_actresses
+                   SET english_first_name = 'Sora',
+                       english_last_name  = 'Aoi',
+                       updated_at         = :now
+                 WHERE javdb_slug = :slug
+                """)
+                .bind("slug", SLUG)
+                .bind("now",  now())
+                .execute());
+
+        navigateToDraftEditor();
+
+        // No translating badge — the romaji was already ready at render time.
+        assertEquals(0, page.locator(".sn-translating-badge").count(),
+                "Expected no translating badge when romaji is pre-filled");
+
+        // Autofill cue must appear synchronously on initial render (no poll).
+        page.waitForCondition(() -> page.locator(".sn-autofill-cue").count() > 0);
+
+        String cueText = page.locator(".sn-autofill-cue").first().textContent();
+        assertTrue(cueText.contains("filled") || cueText.contains("accept"),
+                "Expected autofill cue text, got: " + cueText);
+
+        // Last-name input must contain "Aoi".
+        String lastVal = (String) page.locator(".queue-cast-picker-name-input[data-name-field='last']")
+                .first().evaluate("el => el.value");
+        assertEquals("Aoi", lastVal,
+                "Expected last-name input to be 'Aoi', got: " + lastVal);
+
+        // First-name input must contain "Sora".
+        String firstVal = (String) page.locator(".queue-cast-picker-name-input[data-name-field='first']")
+                .first().evaluate("el => el.value");
+        assertEquals("Sora", firstVal,
+                "Expected first-name input to be 'Sora', got: " + firstVal);
+
+        assertConsoleClean();
+    }
+
     // ── Seed helpers ───────────────────────────────────────────────────────
 
     private void seedTitle() {

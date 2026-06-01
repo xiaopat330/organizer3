@@ -140,10 +140,11 @@ function startPollForSlot(slot, headerEl, pickerEl) {
 }
 
 /**
- * Auto-fills first/last name inputs in the Create-new form and shows an
- * "accepted or edit" cue. Skips inputs that already have a value.
+ * Shared DOM helper: populates the create-new Last/First inputs in pickerEl,
+ * opens the create-new form, and appends the autofill cue to headerEl.
+ * Called both from applyAutoFill (poll path) and renderCastSlots (prefilled path).
  */
-function applyAutoFill(headerEl, pickerEl, slot, romaji) {
+function _fillCreateNew(headerEl, pickerEl, slot, first, last) {
   if (!pickerEl) return;
   const lastInput  = pickerEl.querySelector('.queue-cast-picker-name-input[data-name-field="last"]');
   const firstInput = pickerEl.querySelector('.queue-cast-picker-name-input[data-name-field="first"]');
@@ -151,8 +152,6 @@ function applyAutoFill(headerEl, pickerEl, slot, romaji) {
 
   // Treat pre-populated inputs as dirty — don't overwrite
   if ((lastInput && lastInput.value) || (firstInput && firstInput.value)) return;
-
-  const { first, last } = splitRomaji(romaji);
 
   _suppressInput.add(slot.javdbSlug);
   try {
@@ -173,14 +172,22 @@ function applyAutoFill(headerEl, pickerEl, slot, romaji) {
   if (createForm) createForm.style.display = 'flex';
 
   // Show cue in the header (similar position to the B1 badge)
-  const existingCue = headerEl.querySelector(`.sn-autofill-cue[data-slug="${slot.javdbSlug}"]`);
-  if (!existingCue) {
+  if (!headerEl.querySelector(`.sn-autofill-cue[data-slug="${slot.javdbSlug}"]`)) {
     const cue = document.createElement('span');
     cue.className = 'sn-autofill-cue';
     cue.dataset.slug = slot.javdbSlug;
     cue.textContent = 'filled by translation — accept or edit';
     headerEl.appendChild(cue);
   }
+}
+
+/**
+ * Auto-fills first/last name inputs in the Create-new form and shows an
+ * "accepted or edit" cue. Skips inputs that already have a value.
+ */
+function applyAutoFill(headerEl, pickerEl, slot, romaji) {
+  const { first, last } = splitRomaji(romaji);
+  _fillCreateNew(headerEl, pickerEl, slot, first, last);
 }
 
 function ensureBadge(headerEl, slug) {
@@ -343,12 +350,20 @@ function renderCastSlots() {
     li.appendChild(content);
     castList.appendChild(li);
 
+    const isUnresolved = !slot.resolution || slot.resolution === 'unresolved';
     const needsPoll = !slot.englishFirstName && !slot.englishLastName
       && slot.stageName && hasJpChar(slot.stageName);
     if (needsPoll) {
       const headerEl = li.querySelector('.queue-cast-slot-header');
       const pickerEl = li.querySelector('.queue-cast-picker');
       if (headerEl) startPollForSlot(slot, headerEl, pickerEl);
+    } else if (isUnresolved && slot.englishLastName != null && !_dirtySlots.has(slot.javdbSlug)) {
+      // Romaji already pre-filled by backend — surface it immediately using the
+      // same DOM path as the poll's applyAutoFill, without splitRomaji (names
+      // are already split into first/last by the server).
+      const headerEl = li.querySelector('.queue-cast-slot-header');
+      const pickerEl = li.querySelector('.queue-cast-picker');
+      if (headerEl) _fillCreateNew(headerEl, pickerEl, slot, slot.englishFirstName, slot.englishLastName);
     }
   }
 }
