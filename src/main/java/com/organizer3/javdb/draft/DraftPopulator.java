@@ -270,10 +270,13 @@ public class DraftPopulator {
         public static final AutoLinkResult EMPTY = new AutoLinkResult(null, null, null);
     }
 
-    /** Atomically writes draft_actresses (upsert) and draft_title_actresses for each cast entry. */
+    /** Atomically writes draft_actresses (upsert) and draft_title_actresses for each cast entry.
+     *  Only female entries (gender == "F") become slots; males/unknowns are skipped entirely.
+     *  The stored cast_json in draft_title_javdb_enrichment retains the full cast. */
     private void writeCastSlots(long draftId, List<TitleExtract.CastEntry> castList, String nowIso) {
         List<DraftTitleActress> slots = new ArrayList<>(castList.size());
         for (TitleExtract.CastEntry entry : castList) {
+            if (!"F".equals(entry.gender())) continue;  // skip male / unknown / missing gender
             AutoLinkResult linkResult = autoLinkActress(entry);
             String normalizedStageName = TranslationNormalization.normalize(entry.name());
             DraftActress draftActress = DraftActress.builder()

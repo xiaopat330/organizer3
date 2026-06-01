@@ -8,6 +8,7 @@ import com.organizer3.enrichment.ai.AssistResult;
 import com.organizer3.enrichment.ai.BatchedEnsembleProcessor;
 import com.organizer3.enrichment.ai.EnsembleAssistCaller;
 import com.organizer3.enrichment.ai.EnrichmentAutoApplier;
+import com.organizer3.javdb.enrichment.CastJsonFilter;
 import com.organizer3.javdb.enrichment.EnrichmentReviewQueueRepository;
 import com.organizer3.javdb.enrichment.EnrichmentReviewQueueRepository.AssistContext;
 import com.organizer3.javdb.enrichment.EnrichmentReviewQueueRepository.OpenRow;
@@ -348,7 +349,11 @@ public class WorkflowRoutes {
                 row.put("state",     state);
                 row.put("reason",    reason);
                 row.put("slug",      r.get("slug"));
-                row.put("detail",    r.get("detail"));
+                // Filter detail.candidates[].cast[] to females only before serving to picker UI.
+                Object rawDetail = r.get("detail");
+                String filteredDetail = (rawDetail instanceof String s)
+                        ? CastJsonFilter.femaleOnlyDetailCandidateCast(s) : null;
+                row.put("detail",    filteredDetail);
 
                 // Title's local cover image (null if none on disk).
                 row.put("coverUrl", resolveCoverUrl(titleCode));

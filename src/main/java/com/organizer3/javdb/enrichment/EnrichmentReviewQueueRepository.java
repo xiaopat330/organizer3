@@ -688,7 +688,9 @@ public class EnrichmentReviewQueueRepository {
                     .list();
 
             if (castJson == null && actresses.isEmpty()) return java.util.Optional.empty();
-            return java.util.Optional.of(new CastAnomalyContext(castJson, actresses));
+            // Filter cast to females only at the UI-serve boundary; stored cast_json stays full.
+            String filteredCast = CastJsonFilter.femaleOnlyCast(castJson);
+            return java.util.Optional.of(new CastAnomalyContext(filteredCast, actresses));
         });
     }
 

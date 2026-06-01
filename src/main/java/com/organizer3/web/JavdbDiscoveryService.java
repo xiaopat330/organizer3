@@ -1,6 +1,7 @@
 package com.organizer3.web;
 
 import com.organizer3.covers.CoverPath;
+import com.organizer3.javdb.enrichment.CastJsonFilter;
 import com.organizer3.javdb.enrichment.EnrichmentRunner;
 import com.organizer3.model.Title;
 import org.jdbi.v3.core.Jdbi;
@@ -368,10 +369,12 @@ public class JavdbDiscoveryService {
                     .mapTo(String.class)
                     .list();
 
+            // Filter cast to females only at the UI-serve boundary; stored cast_json stays full.
+            String filteredCast = CastJsonFilter.femaleOnlyCast(row.castJson());
             return new TitleEnrichmentDetail(
                     row.titleId(), row.code(), row.javdbSlug(), row.titleOriginal(),
                     row.releaseDate(), row.durationMinutes(), row.maker(), row.publisher(),
-                    row.series(), row.ratingAvg(), row.ratingCount(), row.castJson(),
+                    row.series(), row.ratingAvg(), row.ratingCount(), filteredCast,
                     tags, row.fetchedAt()
             );
         });
@@ -499,12 +502,14 @@ public class JavdbDiscoveryService {
                                 .map(p -> "/covers/" + label.toUpperCase() + "/" + p.getFileName())
                                 .orElse(null);
                     }
+                    // Filter cast to females only at the UI-serve boundary; stored cast_json stays full.
+                    String filteredCast = CastJsonFilter.femaleOnlyCast(rs.getString("cast_json"));
                     return new ConflictRow(
                             rs.getLong("title_id"),
                             rs.getString("code"),
                             rs.getString("our_actress_name"),
                             rs.getString("our_javdb_slug"),
-                            rs.getString("cast_json"),
+                            filteredCast,
                             coverUrl
                     );
                 })

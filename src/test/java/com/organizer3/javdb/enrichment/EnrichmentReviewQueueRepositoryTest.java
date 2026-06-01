@@ -1157,4 +1157,31 @@ class EnrichmentReviewQueueRepositoryTest {
         assertEquals("2026-05-01T10:00:00Z", r.at());
         assertTrue(r.reviewQueueId() > 0, "reviewQueueId must be a positive db id");
     }
+
+    // ── findCastAnomalyContext — cast gender filter ───────────────────────────
+
+    @Test
+    void findCastAnomalyContext_maleEntriesFilteredFromReturnedCastJson() {
+        // Seed a mixed cast_json with 1 female + 2 males into title_javdb_enrichment.
+        String mixedCast = "[" +
+                "{\"slug\":\"f-slug\",\"name\":\"Female One\",\"gender\":\"F\"}," +
+                "{\"slug\":\"m-slug\",\"name\":\"Male One\",\"gender\":\"M\"}" +
+                "]";
+        jdbi.useHandle(h ->
+                h.execute("INSERT INTO title_javdb_enrichment(title_id, javdb_slug, cast_json, fetched_at) " +
+                           "VALUES(1, 'tst-slug', ?, '2026-01-01T00:00:00Z')", mixedCast));
+
+        var ctx = repo.findCastAnomalyContext(1L);
+        assertTrue(ctx.isPresent());
+
+        String returnedCast = ctx.get().castJson();
+        assertTrue(returnedCast.contains("f-slug"),  "female slug must be present");
+        assertFalse(returnedCast.contains("m-slug"), "male slug must be filtered out");
+
+        // Stored row must be untouched.
+        String storedCast = jdbi.withHandle(h ->
+                h.createQuery("SELECT cast_json FROM title_javdb_enrichment WHERE title_id = 1")
+                        .mapTo(String.class).one());
+        assertTrue(storedCast.contains("m-slug"), "stored cast_json must retain male entry");
+    }
 }
