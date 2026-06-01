@@ -685,7 +685,7 @@ class JavdbDiscoveryServiceTest {
                    cast_json)
                 VALUES (?, 'AbCd01', '2026-04-25T10:00:00Z', 'テストタイトル', '2024-03-15',
                         120, 'Test Maker', 'Test Publisher', 'Test Series', 4.25, 182,
-                        '[{"slug":"s1","name":"Alice","gender":"f"}]')
+                        '[{"slug":"s1","name":"Alice","gender":"F"}]')
                 """).bind(0, titleId).execute());
         jdbi.useHandle(h -> {
             h.createUpdate("INSERT OR IGNORE INTO enrichment_tag_definitions(name) VALUES('Big Tits')").execute();
@@ -863,5 +863,69 @@ class JavdbDiscoveryServiceTest {
         assertEquals("production_style", byName.get("POV").category());
         assertNull(byName.get("Unmapped").category(),
                 "unmapped enrichment-tag row should expose category=null");
+    }
+
+    // ── cast gender filter: UI-serve paths return females only ─────────────────
+
+    /** Helper to seed a title_javdb_enrichment row with an explicit cast_json. */
+    private void insertTitleEnrichmentWithCast(long titleId, String javdbSlug, String castJson) {
+        jdbi.useHandle(h ->
+                h.execute("INSERT INTO title_javdb_enrichment (title_id, javdb_slug, cast_json, fetched_at) " +
+                           "VALUES (?, ?, ?, '2026-01-01T00:00:00Z')",
+                        titleId, javdbSlug, castJson));
+    }
+
+    @Test
+    void getTitleEnrichmentDetail_maleEntriesFilteredFromCastJson() {
+        long titleId = insertTitle("TST-001");
+        String mixedCast = "[" +
+                "{\"slug\":\"f1\",\"name\":\"Female One\",\"gender\":\"F\"}," +
+                "{\"slug\":\"m1\",\"name\":\"Male One\",\"gender\":\"M\"}," +
+                "{\"slug\":\"m2\",\"name\":\"Male Two\",\"gender\":\"M\"}" +
+                "]";
+        insertTitleEnrichmentWithCast(titleId, "tst-abc", mixedCast);
+
+        JavdbDiscoveryService.TitleEnrichmentDetail detail = service.getTitleEnrichmentDetail(titleId);
+        assertNotNull(detail);
+
+        String returnedCast = detail.castJson();
+        assertTrue(returnedCast.contains("\"f1\""), "female slug must be present");
+        assertFalse(returnedCast.contains("\"m1\""), "male slug m1 must be filtered out");
+        assertFalse(returnedCast.contains("\"m2\""), "male slug m2 must be filtered out");
+
+        // Verify stored cast_json is untouched.
+        String storedCast = jdbi.withHandle(h ->
+                h.createQuery("SELECT cast_json FROM title_javdb_enrichment WHERE title_id = ?")
+                        .bind(0, titleId).mapTo(String.class).one());
+        assertTrue(storedCast.contains("\"m1\""), "stored cast_json must retain male entries");
+    }
+
+    @Test
+    void getActressConflicts_maleEntriesFilteredFromCastJson() {
+        long actressId = insertActress("Test Actress", null);
+        long titleId   = insertTitle("TST-002");
+        linkActressTitle(actressId, titleId);
+
+        // Seed a staging row with a different slug so all titles qualify as conflicts.
+        insertActressStaging(actressId, "actress-slug", "fetched");
+
+        String mixedCast = "[" +
+                "{\"slug\":\"other-slug\",\"name\":\"Other Actress\",\"gender\":\"F\"}," +
+                "{\"slug\":\"male-actor\",\"name\":\"Male Actor\",\"gender\":\"M\"}" +
+                "]";
+        insertTitleEnrichmentWithCast(titleId, "tst-xyz", mixedCast);
+
+        List<JavdbDiscoveryService.ConflictRow> conflicts = service.getActressConflicts(actressId);
+        assertFalse(conflicts.isEmpty(), "there should be at least one conflict row");
+
+        String returnedCast = conflicts.get(0).castJson();
+        assertTrue(returnedCast.contains("other-slug"), "female entry must be present");
+        assertFalse(returnedCast.contains("male-actor"), "male entry must be filtered out");
+
+        // Stored cast_json must still contain the male entry.
+        String storedCast = jdbi.withHandle(h ->
+                h.createQuery("SELECT cast_json FROM title_javdb_enrichment WHERE title_id = ?")
+                        .bind(0, titleId).mapTo(String.class).one());
+        assertTrue(storedCast.contains("male-actor"), "stored cast_json must retain male entries");
     }
 }

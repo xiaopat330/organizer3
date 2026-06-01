@@ -460,6 +460,60 @@ class DraftPopulatorTest {
         assertSame(DraftPopulator.AutoLinkResult.EMPTY, result);
     }
 
+    // ── gender filter: only F entries become cast slots ───────────────────────
+
+    /**
+     * Cast with 1 female + 2 males: only the female produces a draft_title_actresses slot
+     * and a draft_actresses row, but the stored cast_json in draft_title_javdb_enrichment
+     * must retain all 3 entries.
+     */
+    @Test
+    void writeCastSlots_maleGenderEntriesSkipped_onlyFemaleBecomesSlot() throws Exception {
+        when(titleRepo.findById(1L)).thenReturn(Optional.of(stubTitle(1L, "TST-1")));
+        stubSlugSuccess("TST-1", "tst-1");
+        when(javdbClient.fetchTitlePage("tst-1")).thenReturn("<html/>");
+
+        var cast = List.of(
+                new TitleExtract.CastEntry("female-slug", "Female Actress", "F"),
+                new TitleExtract.CastEntry("male-slug-1", "Male Actor 1",   "M"),
+                new TitleExtract.CastEntry("male-slug-2", "Male Actor 2",   "M"));
+        when(extractor.extractTitle("<html/>", "TST-1", "tst-1")).thenReturn(stubExtract("TST-1", "tst-1", cast));
+
+        // Only female-slug will be auto-linked; the males should never reach autoLinkActress.
+        when(actressRepo.resolveByName(any())).thenReturn(Optional.empty());
+        when(stagingRepo.findActressIdByJavdbSlug("female-slug")).thenReturn(Optional.empty());
+        when(translationService.resolveOrSuggestStageName(any())).thenReturn(Optional.empty());
+        when(imageFetcher.fetch(anyString())).thenReturn(new ImageFetcher.Fetched(new byte[]{1}, "jpg"));
+
+        var result = populator.populate(1L);
+        assertEquals(DraftPopulator.Status.CREATED, result.status());
+        long draftId = result.draftTitleId();
+
+        // Exactly 1 draft_title_actresses slot — the female.
+        var slots = draftCastRepo.findByDraftTitleId(draftId);
+        assertEquals(1, slots.size(), "only the female entry should produce a slot");
+        assertEquals("female-slug", slots.get(0).getJavdbSlug());
+
+        // Exactly 1 draft_actresses row — the female.
+        assertNotNull(draftActressRepo.findBySlug("female-slug").orElse(null));
+        assertTrue(draftActressRepo.findBySlug("male-slug-1").isEmpty(),
+                "male actor must NOT have a draft_actresses row");
+        assertTrue(draftActressRepo.findBySlug("male-slug-2").isEmpty(),
+                "male actor must NOT have a draft_actresses row");
+
+        // The stored cast_json in draft_title_javdb_enrichment retains all 3 entries.
+        var enr = draftEnrichRepo.findByDraftId(draftId).orElseThrow();
+        String storedCast = enr.getCastJson();
+        assertNotNull(storedCast);
+        assertTrue(storedCast.contains("female-slug"), "stored cast_json must contain female slug");
+        assertTrue(storedCast.contains("male-slug-1"), "stored cast_json must still contain male slug 1");
+        assertTrue(storedCast.contains("male-slug-2"), "stored cast_json must still contain male slug 2");
+
+        // Males must never have reached autoLinkActress (i.e., slug lookup never called for them).
+        verify(stagingRepo, org.mockito.Mockito.never()).findActressIdByJavdbSlug("male-slug-1");
+        verify(stagingRepo, org.mockito.Mockito.never()).findActressIdByJavdbSlug("male-slug-2");
+    }
+
     @Test
     void writeCastSlots_nfkcNormalizesStageName() throws Exception {
         // Full-width digit in stage name should be NFKC-normalized to half-width.

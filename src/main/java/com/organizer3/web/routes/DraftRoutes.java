@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.organizer3.javdb.draft.DraftActress;
 import com.organizer3.javdb.draft.DraftActressRepository;
+import com.organizer3.javdb.enrichment.CastJsonFilter;
 import com.organizer3.javdb.draft.DraftCoverScratchStore;
 import com.organizer3.javdb.draft.DraftNotFoundException;
 import com.organizer3.javdb.draft.DraftPatchService;
@@ -473,7 +474,8 @@ public final class DraftRoutes {
                 enrichmentMap.put("maker",       e.getMaker());
                 enrichmentMap.put("series",      e.getSeries());
                 enrichmentMap.put("tagsJson",    e.getTagsJson());
-                enrichmentMap.put("castJson",    e.getCastJson());
+                // Filter cast to females only at the UI-serve boundary; stored cast_json stays full.
+                enrichmentMap.put("castJson",    CastJsonFilter.femaleOnlyCast(e.getCastJson()));
                 enrichmentMap.put("ratingAvg",   e.getRatingAvg());
                 enrichmentMap.put("ratingCount", e.getRatingCount());
                 enrichmentMap.put("coverUrl",    e.getCoverUrl());

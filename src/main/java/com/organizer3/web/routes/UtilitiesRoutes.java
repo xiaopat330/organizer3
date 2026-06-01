@@ -1,6 +1,7 @@
 package com.organizer3.web.routes;
 
 import com.organizer3.covers.CoverPath;
+import com.organizer3.javdb.enrichment.CastJsonFilter;
 import com.organizer3.javdb.enrichment.EnrichmentReviewQueueRepository;
 import com.organizer3.mcp.tools.ForceEnrichTitleTool;
 import com.organizer3.rating.RatingCurveRepository;
@@ -195,7 +196,8 @@ public final class UtilitiesRoutes {
                 m.put("reason",         r.reason());
                 m.put("resolverSource", r.resolverSource());
                 m.put("createdAt",      r.createdAt());
-                m.put("detail",         r.detail());
+                // Filter detail.candidates[].cast[] to females only before serving to picker UI.
+                m.put("detail", CastJsonFilter.femaleOnlyDetailCandidateCast(r.detail()));
                 m.put("coverUrl", coverPath.findByCode(r.titleCode())
                         .map(p -> {
                             int dash = r.titleCode() != null ? r.titleCode().indexOf('-') : -1;
