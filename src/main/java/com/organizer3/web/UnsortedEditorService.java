@@ -102,15 +102,11 @@ public class UnsortedEditorService {
      * {@code "Nao Wakana - Demosaiced (ABP-527)"}. Returns empty string when there is no
      * {@code " - "} separator before the code. The prefix (actress / title stub) is discarded
      * — we only keep the text that would sit after the primary actress on a rewrite.
+     *
+     * <p>Delegates to {@link TitleFolderRenamer#extractDescriptor} — single source of truth.
      */
     static String extractDescriptor(String folderName, String code) {
-        if (folderName == null || code == null) return "";
-        String suffix = " (" + code + ")";
-        if (!folderName.endsWith(suffix)) return "";
-        String prefix = folderName.substring(0, folderName.length() - suffix.length());
-        int sep = prefix.indexOf(" - ");
-        if (sep < 0) return "";
-        return prefix.substring(sep + 3).trim();
+        return TitleFolderRenamer.extractDescriptor(folderName, code);
     }
 
     private boolean coverExists(String label, String baseCode) {

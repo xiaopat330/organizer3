@@ -69,25 +69,72 @@ public class TitleFolderRenamer {
         }
         String currentPath = currentPathOpt.get();
 
-        // Step 2 — require a primary name.
+        // Steps 2-6 — delegate to core (path already resolved).
+        return renameWithKnownPath(titleId, primaryActressName, descriptor, code, currentPath);
+    }
+
+    /**
+     * Renames the title's staging folder while preserving whatever descriptor is already
+     * embedded in the current folder name (e.g. "Demosaiced").
+     *
+     * <p>Resolves the current staging path once, extracts the descriptor via
+     * {@link #extractDescriptor}, then delegates to the same rename logic as
+     * {@link #renameIfNeeded}.
+     *
+     * <p>Called by {@code DraftPromotionService} post-commit (best-effort). On any failure
+     * the caller is expected to log WARN and return {@code folderRenamed=false} — this method
+     * propagates {@link IllegalStateException} on collision and {@link RuntimeException} on
+     * SMB/IO failure, exactly as {@link #renameIfNeeded} does.
+     *
+     * @param titleId            the title to rename.
+     * @param primaryActressName canonical name of the primary actress (may be null → no-op).
+     * @param code               the title code (e.g. "ABP-527").
+     * @return the outcome, including the effective path and whether an actual rename occurred.
+     */
+    public RenameOutcome renamePreservingDescriptor(long titleId, String primaryActressName,
+                                                    String code) {
+        // Resolve the live staging path.
+        Optional<String> currentPathOpt = repo.findStagingPath(titleId, volumeId);
+        if (currentPathOpt.isEmpty()) {
+            return new RenameOutcome(null, false);
+        }
+        String currentPath = currentPathOpt.get();
+
+        // Parse the descriptor from the current folder name.
+        String descriptor = extractDescriptor(basename(currentPath), code);
+
+        // Delegate to the core rename logic (path already resolved — avoid a second DB call
+        // by inlining the logic so we can reuse the currentPath we already have).
+        return renameWithKnownPath(titleId, primaryActressName, descriptor, code,
+                currentPath);
+    }
+
+    /**
+     * Core rename logic that accepts an already-resolved {@code currentPath}.
+     * Extracted so {@link #renamePreservingDescriptor} can reuse it without a second DB round-trip.
+     */
+    private RenameOutcome renameWithKnownPath(long titleId, String primaryActressName,
+                                              String descriptor, String code,
+                                              String currentPath) {
+        // Require a primary name.
         if (primaryActressName == null || primaryActressName.isBlank()) {
             return new RenameOutcome(currentPath, false);
         }
 
-        // Step 3 — build target name.
+        // Build target name.
         String desc = descriptor == null ? "" : descriptor.trim();
         String base = desc.isEmpty()
                 ? primaryActressName + " (" + code + ")"
                 : primaryActressName + " - " + desc + " (" + code + ")";
         String targetName = sanitizeFolderName(base);
 
-        // Step 4 — no-op if already correct.
+        // No-op if already correct.
         String currentName = basename(currentPath);
         if (targetName.equals(currentName)) {
             return new RenameOutcome(currentPath, false);
         }
 
-        // Step 5 — SMB rename with collision check.
+        // SMB rename with collision check.
         String parent  = parentPath(currentPath);
         String newPath = parent.isEmpty() ? targetName : parent + "/" + targetName;
 
@@ -108,9 +155,28 @@ public class TitleFolderRenamer {
             throw new RuntimeException("Folder rename failed: " + e.getMessage() + " / " + rootCause, e);
         }
 
-        // Step 6 — rewrite BOTH title_locations.path AND videos.path (load-bearing dual rewrite).
+        // Rewrite BOTH title_locations.path AND videos.path (load-bearing dual rewrite).
         repo.renameFolderInDb(titleId, volumeId, currentPath, newPath);
         return new RenameOutcome(newPath, true);
+    }
+
+    /**
+     * Pulls the folder-name descriptor (e.g. "Demosaiced") out of a basename like
+     * {@code "Nao Wakana - Demosaiced (ABP-527)"}. Returns empty string when there is no
+     * {@code " - "} separator before the code. The prefix (actress / title stub) is discarded
+     * — we only keep the text that would sit after the primary actress on a rewrite.
+     *
+     * <p>This is the single source of truth for descriptor extraction.
+     * {@link UnsortedEditorService#extractDescriptor} delegates to this method.
+     */
+    public static String extractDescriptor(String folderName, String code) {
+        if (folderName == null || code == null) return "";
+        String suffix = " (" + code + ")";
+        if (!folderName.endsWith(suffix)) return "";
+        String prefix = folderName.substring(0, folderName.length() - suffix.length());
+        int sep = prefix.indexOf(" - ");
+        if (sep < 0) return "";
+        return prefix.substring(sep + 3).trim();
     }
 
     // ── Static helpers (single source of truth; UnsortedEditorService delegates to these) ──

@@ -369,13 +369,15 @@ class DraftRoutesTest {
     @Test
     void promote_200OnSuccess() throws Exception {
         long draftId = insertDraft(1L, "TST-1");
-        when(promotionService.promote(draftId, "token123")).thenReturn(1L);
+        when(promotionService.promote(draftId, "token123"))
+                .thenReturn(new DraftPromotionService.PromotionResult(1L, true));
 
         var resp = postJson("/api/drafts/1/promote",
                 "{\"expectedUpdatedAt\":\"token123\"}");
         assertEquals(200, resp.statusCode());
         JsonNode body = mapper.readTree(resp.body());
         assertEquals(1, body.get("titleId").asInt());
+        assertTrue(body.get("folderRenamed").asBoolean());
     }
 
     @Test

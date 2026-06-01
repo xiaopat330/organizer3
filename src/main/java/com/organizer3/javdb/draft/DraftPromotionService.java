@@ -12,6 +12,7 @@ import com.organizer3.repository.ActressRepository;
 import com.organizer3.repository.TitleRepository;
 import com.organizer3.translation.NameComposer;
 import com.organizer3.translation.repository.StageNameSuggestionRepository;
+import com.organizer3.web.TitleFolderRenamer;
 import lombok.extern.slf4j.Slf4j;
 import org.jdbi.v3.core.Handle;
 import org.jdbi.v3.core.Jdbi;
@@ -54,6 +55,15 @@ import java.util.stream.Collectors;
 @Slf4j
 public class DraftPromotionService {
 
+    // ── Result record ─────────────────────────────────────────────────────────
+
+    /**
+     * Return type of {@link #promote}. Carries the canonical title id and whether the
+     * staging folder was successfully renamed post-commit (best-effort; may be false on
+     * collision or SMB failure without affecting the committed metadata).
+     */
+    public record PromotionResult(long titleId, boolean folderRenamed) {}
+
     // ── Dependencies ──────────────────────────────────────────────────────────
 
     private final Jdbi                          jdbi;
@@ -73,6 +83,9 @@ public class DraftPromotionService {
     private final JavdbStagingRepository        javdbStagingRepo;
     // FIX 1: actress repo — used to read/backfill stage_name on promoted actresses.
     private final ActressRepository             actressRepo;
+    // Phase 2: staging volume id + folder renamer for post-commit best-effort rename.
+    private final String                        unsortedVolumeId;
+    private final TitleFolderRenamer            renamer;
 
     /** Seam for cover-copy — injectable in tests to simulate COMMIT-failure. */
     private CoverCopier coverCopier;
@@ -96,10 +109,11 @@ public class DraftPromotionService {
             StageNameSuggestionRepository suggestionRepo) {
         this(jdbi, draftTitleRepo, draftActressRepo, draftCastRepo, draftEnrichRepo,
                 coverStore, coverPath, castValidator, titleRepo, historyRepo, effectiveTags,
-                json, suggestionRepo, null, null);
+                json, suggestionRepo, null, null, null, null);
     }
 
-    /** Full constructor including FIX 1 dependencies (javdbStagingRepo, actressRepo). */
+    /** Full constructor including FIX 1 dependencies (javdbStagingRepo, actressRepo)
+     *  and Phase 2 dependencies (unsortedVolumeId, renamer). */
     @SuppressWarnings("checkstyle:ParameterNumber")
     public DraftPromotionService(
             Jdbi                          jdbi,
@@ -116,7 +130,9 @@ public class DraftPromotionService {
             ObjectMapper                  json,
             StageNameSuggestionRepository suggestionRepo,
             JavdbStagingRepository        javdbStagingRepo,
-            ActressRepository             actressRepo) {
+            ActressRepository             actressRepo,
+            String                        unsortedVolumeId,
+            TitleFolderRenamer            renamer) {
         this.jdbi             = jdbi;
         this.draftTitleRepo   = draftTitleRepo;
         this.draftActressRepo = draftActressRepo;
@@ -132,6 +148,8 @@ public class DraftPromotionService {
         this.suggestionRepo   = suggestionRepo;
         this.javdbStagingRepo = javdbStagingRepo;
         this.actressRepo      = actressRepo;
+        this.unsortedVolumeId = unsortedVolumeId;
+        this.renamer          = renamer;
         this.coverCopier      = this::defaultCoverCopy;
     }
 
@@ -256,17 +274,19 @@ public class DraftPromotionService {
      * Promotes a draft to canonical state in one DB transaction.
      *
      * <p>Steps 1-9 per §4.2. Cover copy (step 8) runs inside the lambda before COMMIT;
-     * COMMIT-failure compensation deletes the copied file.
+     * COMMIT-failure compensation deletes the copied file. Step 10 (folder rename) runs
+     * post-commit, best-effort.
      *
      * @param draftTitleId    the {@code draft_titles.id} to promote.
      * @param expectedUpdatedAt  optimistic-lock token.
-     * @return the canonical {@code titles.id} of the promoted title.
+     * @return a {@link PromotionResult} with the canonical title id and whether the folder
+     *         was renamed post-commit.
      * @throws DraftNotFoundException   if no draft exists.
      * @throws PreFlightFailedException if pre-flight checks fail.
      * @throws OptimisticLockException  if the lock token doesn't match.
      * @throws PromotionException       on transaction-level failure.
      */
-    public long promote(long draftTitleId, String expectedUpdatedAt) {
+    public PromotionResult promote(long draftTitleId, String expectedUpdatedAt) {
         // Load draft upfront to fail fast before opening transaction
         DraftTitle draftCheck = draftTitleRepo.findById(draftTitleId)
                 .orElseThrow(() -> new DraftNotFoundException(draftTitleId));
@@ -280,11 +300,13 @@ public class DraftPromotionService {
 
         // Side-channel for COMMIT-failure compensation (§4.3)
         final Path[] destCoverHolder = {null};
+        // Side-channel for post-commit rename (mirrors destCoverHolder pattern)
+        final Long[] primaryHolder = {null};
 
         long titleId;
         try {
             titleId = jdbi.inTransaction(h -> executePromotionTransaction(
-                    h, draftTitleId, expectedUpdatedAt, destCoverHolder));
+                    h, draftTitleId, expectedUpdatedAt, destCoverHolder, primaryHolder));
         } catch (DraftNotFoundException | PreFlightFailedException | OptimisticLockException e) {
             // COMMIT-failure compensation: remove the cover that was copied before COMMIT
             compensateCover(destCoverHolder[0]);
@@ -317,15 +339,39 @@ public class DraftPromotionService {
             log.warn("promote: failed to delete scratch cover for draft {} (non-fatal)", draftTitleId, e);
         }
 
-        log.info("draft promoted: draftId={} → titleId={}", draftTitleId, titleId);
-        return titleId;
+        // Post-commit Step 10: best-effort folder rename (Phase 2).
+        boolean folderRenamed = false;
+        if (primaryHolder[0] != null && renamer != null) {
+            try {
+                String primaryName = actressRepo.findById(primaryHolder[0])
+                        .map(a -> a.getCanonicalName())
+                        .orElse(null);
+                if (primaryName != null) {
+                    TitleFolderRenamer.RenameOutcome outcome =
+                            renamer.renamePreservingDescriptor(titleId, primaryName, draftCheck.getCode());
+                    folderRenamed = outcome.renamed();
+                } else {
+                    log.warn("promote: actress id={} not found for rename (titleId={}, code={}); skipping rename",
+                            primaryHolder[0], titleId, draftCheck.getCode());
+                }
+            } catch (IllegalStateException e) {
+                log.warn("promote: folder rename skipped — collision (titleId={}, code={}): {}",
+                        titleId, draftCheck.getCode(), e.getMessage());
+            } catch (Exception e) {
+                log.warn("promote: folder rename failed post-commit (titleId={}, code={}): {}",
+                        titleId, draftCheck.getCode(), e.getMessage(), e);
+            }
+        }
+
+        log.info("draft promoted: draftId={} → titleId={} folderRenamed={}", draftTitleId, titleId, folderRenamed);
+        return new PromotionResult(titleId, folderRenamed);
     }
 
     // ── Transaction body ─────────────────────────────────────────────────────
 
     private long executePromotionTransaction(
             Handle h, long draftTitleId, String expectedUpdatedAt,
-            Path[] destCoverHolder) throws IOException {
+            Path[] destCoverHolder, Long[] primaryHolder) throws IOException {
 
         // ── Step 1: Re-run pre-flight inside the txn (race protection) ──────────
         DraftTitle draft = h.createQuery("SELECT * FROM draft_titles WHERE id = :id")
@@ -353,9 +399,9 @@ public class DraftPromotionService {
                 .orElseThrow(() -> new PromotionException("missing_enrichment",
                         "No enrichment row for draft id=" + draftTitleId));
 
-        // Load cast slots
+        // Load cast slots in deterministic rowid order (for primary-actress selection).
         List<DraftTitleActress> slots = h.createQuery(
-                "SELECT * FROM draft_title_actresses WHERE draft_title_id = :id")
+                "SELECT * FROM draft_title_actresses WHERE draft_title_id = :id ORDER BY rowid")
                 .bind("id", draftTitleId)
                 .map(DraftTitleActressesRepository.ROW_MAPPER)
                 .list();
@@ -370,6 +416,31 @@ public class DraftPromotionService {
         // ── Step 2: INSERT new actresses for create_new resolutions ─────────────
         Map<String, Long> newActressIds = insertNewActresses(h, slots, nowIso);
 
+        // ── Primary actress selection (Phase 2) ──────────────────────────────────
+        // Iterate slots in rowid order; prefer the first non-sentinel resolved slot
+        // (pick or create_new); fall back to the first sentinel slot; skip/unresolved → null.
+        Long primaryActressId = null;
+        Long firstSentinelId  = null;
+        for (DraftTitleActress slot : slots) {
+            String res = slot.getResolution();
+            if (res == null) continue;
+            if ("skip".equals(res)) continue;
+            Long resolved = resolveActressId(slot, res, newActressIds);
+            if (resolved == null) continue;
+            if (res.startsWith("sentinel:")) {
+                if (firstSentinelId == null) firstSentinelId = resolved;
+            } else {
+                // pick or create_new — non-sentinel preferred
+                primaryActressId = resolved;
+                break;
+            }
+        }
+        if (primaryActressId == null) {
+            primaryActressId = firstSentinelId; // may still be null if all-skip (not reachable in production)
+        }
+        // Publish to the side-channel for post-commit use (mirrors destCoverHolder pattern)
+        primaryHolder[0] = primaryActressId;
+
         // ── Step 3: UPDATE titles row from draft ─────────────────────────────────
         h.createUpdate("""
                 UPDATE titles SET
@@ -378,15 +449,17 @@ public class DraftPromotionService {
                     release_date   = :releaseDate,
                     notes          = :notes,
                     grade          = :grade,
-                    grade_source   = 'enrichment'
+                    grade_source   = 'enrichment',
+                    actress_id     = COALESCE(:primaryActressId, actress_id)
                 WHERE id = :id
                 """)
-                .bind("titleOriginal", draft.getTitleOriginal())
-                .bind("titleEnglish",  draft.getTitleEnglish())
-                .bind("releaseDate",   draft.getReleaseDate())
-                .bind("notes",         draft.getNotes())
-                .bind("grade",         draft.getGrade())
-                .bind("id",            canonicalTitleId)
+                .bind("titleOriginal",    draft.getTitleOriginal())
+                .bind("titleEnglish",     draft.getTitleEnglish())
+                .bind("releaseDate",      draft.getReleaseDate())
+                .bind("notes",            draft.getNotes())
+                .bind("grade",            draft.getGrade())
+                .bind("primaryActressId", primaryActressId)
+                .bind("id",               canonicalTitleId)
                 .execute();
 
         // ── Step 4: Replace title_actresses cast ─────────────────────────────────

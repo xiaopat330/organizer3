@@ -202,6 +202,59 @@ class TitleFolderRenamerTest {
         verifyNoInteractions(smbFactory);
     }
 
+    // ── extractDescriptor (moved from UnsortedEditorService) ─────────────
+
+    @Test
+    void extractDescriptor_noSeparator_returnsEmpty() {
+        assertEquals("", TitleFolderRenamer.extractDescriptor("Mana Sakura (ABP-527)", "ABP-527"));
+    }
+
+    @Test
+    void extractDescriptor_withDescriptor_returnsDescriptor() {
+        assertEquals("Demosaiced",
+                TitleFolderRenamer.extractDescriptor("Mana Sakura - Demosaiced (ABP-527)", "ABP-527"));
+    }
+
+    @Test
+    void extractDescriptor_wrongCode_returnsEmpty() {
+        assertEquals("", TitleFolderRenamer.extractDescriptor("Mana Sakura - Demosaiced (ABP-527)", "WRONG-1"));
+    }
+
+    @Test
+    void extractDescriptor_nullInputs_returnsEmpty() {
+        assertEquals("", TitleFolderRenamer.extractDescriptor(null, "ABP-527"));
+        assertEquals("", TitleFolderRenamer.extractDescriptor("Name (ABP-527)", null));
+    }
+
+    // ── renamePreservingDescriptor (Phase 2 entry point) ─────────────────
+
+    @Test
+    void renamePreservingDescriptor_happyPath_preservesDescriptor() throws IOException {
+        // Current folder: "queue/Old - Demosaiced (TST-010)"
+        String oldFolder = "queue/Old - Demosaiced (TST-010)";
+        long titleId = seedTitle("TST-010", oldFolder, oldFolder + "/video/a.mp4");
+
+        TitleFolderRenamer.RenameOutcome outcome =
+                renamer.renamePreservingDescriptor(titleId, "New Name", "TST-010");
+
+        assertTrue(outcome.renamed());
+        // Descriptor "Demosaiced" must be preserved in the new name
+        assertEquals("queue/New Name - Demosaiced (TST-010)", outcome.newPath());
+    }
+
+    @Test
+    void renamePreservingDescriptor_noDescriptor_omitsDescriptor() throws IOException {
+        // Current folder has no descriptor: "queue/Old (TST-011)"
+        String oldFolder = "queue/Old (TST-011)";
+        long titleId = seedTitle("TST-011", oldFolder, oldFolder + "/video/a.mp4");
+
+        TitleFolderRenamer.RenameOutcome outcome =
+                renamer.renamePreservingDescriptor(titleId, "New Actress", "TST-011");
+
+        assertTrue(outcome.renamed());
+        assertEquals("queue/New Actress (TST-011)", outcome.newPath());
+    }
+
     // ── Static helper parity tests ────────────────────────────────────
 
     @Test
