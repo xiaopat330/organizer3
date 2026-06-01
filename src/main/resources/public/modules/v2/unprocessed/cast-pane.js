@@ -207,14 +207,23 @@ export function mountCastPane(containerEl, state, { onResolve, onUnlink, onReloa
     headerEl.querySelector(`.sn-autofill-cue[data-slug="${slug}"]`)?.remove();
   }
 
-  function applyAutoFill(headerEl, pickerEl, slot, romaji) {
+  /**
+   * Shared DOM helper: populates the create-new Last/First inputs in pickerEl,
+   * opens the create-new form, and appends the autofill cue to headerEl.
+   * Called both from applyAutoFill (poll path) and renderCast (prefilled path).
+   * @param {HTMLElement} headerEl
+   * @param {HTMLElement} pickerEl
+   * @param {object}      slot
+   * @param {string|null} first
+   * @param {string|null} last
+   */
+  function _fillCreateNew(headerEl, pickerEl, slot, first, last) {
     if (!pickerEl) return;
     const lastInput  = pickerEl.querySelector('.un-cast-picker-name-input[data-name-field="last"]');
     const firstInput = pickerEl.querySelector('.un-cast-picker-name-input[data-name-field="first"]');
     if (!lastInput && !firstInput) return;
     if ((lastInput && lastInput.value) || (firstInput && firstInput.value)) return;
 
-    const { first, last } = splitRomaji(romaji);
     state.suppressInput.add(slot.javdbSlug);
     try {
       if (last != null && lastInput && !lastInput.value) {
@@ -239,6 +248,11 @@ export function mountCastPane(containerEl, state, { onResolve, onUnlink, onReloa
       cue.textContent = 'filled by translation — accept or edit';
       headerEl.appendChild(cue);
     }
+  }
+
+  function applyAutoFill(headerEl, pickerEl, slot, romaji) {
+    const { first, last } = splitRomaji(romaji);
+    _fillCreateNew(headerEl, pickerEl, slot, first, last);
   }
 
   function startPollForSlot(slot, headerEl, pickerEl) {
@@ -309,10 +323,22 @@ export function mountCastPane(containerEl, state, { onResolve, onUnlink, onReloa
       // Start polling if Japanese stage name and no english parts yet.
       const needsPoll = !slot.englishFirstName && !slot.englishLastName
                         && slot.stageName && hasJpChar(slot.stageName);
+      const isUnresolved = !slot.resolution || slot.resolution === 'unresolved';
       if (needsPoll) {
         const headerEl = li.querySelector('.un-cast-slot-header');
         const pickerEl = li.querySelector('.un-cast-picker');
         if (headerEl) startPollForSlot(slot, headerEl, pickerEl);
+      } else if (isUnresolved && slot.englishLastName != null
+                 && !state.dirtySlots.has(slot.javdbSlug)) {
+        // Romaji already pre-filled by backend — surface it immediately using the
+        // same DOM path as the poll's applyAutoFill, without splitRomaji (names
+        // are already split into first/last by the server).
+        const headerEl = li.querySelector('.un-cast-slot-header');
+        const pickerEl = li.querySelector('.un-cast-picker');
+        if (headerEl) {
+          _fillCreateNew(headerEl, pickerEl, slot,
+                         slot.englishFirstName, slot.englishLastName);
+        }
       }
     });
   }

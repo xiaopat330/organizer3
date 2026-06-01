@@ -291,6 +291,53 @@ class UiStageNameStatusTest {
         assertConsoleClean();
     }
 
+    // ── Pin 5: prefilled romaji at render time → inputs populated, no poll ──
+    // Targets the v2 unprocessed surface (/v2-unprocessed.html → cast-pane.js).
+
+    @Test
+    void pin5_prefilledRomaji_populatesInputsOnInitialRender() {
+        // Seed a DraftActress that already has english names (backend blocking-wait path).
+        // No queued translation row → needsPoll is false; the UI must surface names directly
+        // via the _fillCreateNew helper called from renderCast.
+        jdbi.useHandle(h -> h.createUpdate("""
+                UPDATE draft_actresses
+                   SET english_first_name = 'Sora',
+                       english_last_name  = 'Aoi',
+                       updated_at         = :now
+                 WHERE javdb_slug = :slug
+                """)
+                .bind("slug", SLUG)
+                .bind("now",  now())
+                .execute());
+
+        navigateToV2DraftEditor();
+
+        // No translating badge — the romaji was already ready at render time.
+        assertEquals(0, page.locator(".sn-translating-badge").count(),
+                "Expected no translating badge when romaji is pre-filled");
+
+        // Autofill cue must appear synchronously on initial render (no poll).
+        page.waitForCondition(() -> page.locator(".sn-autofill-cue").count() > 0);
+
+        String cueText = page.locator(".sn-autofill-cue").first().textContent();
+        assertTrue(cueText.contains("filled") || cueText.contains("accept"),
+                "Expected autofill cue text, got: " + cueText);
+
+        // Last-name input must contain "Aoi".
+        String lastVal = (String) page.locator(".un-cast-picker-name-input[data-name-field='last']")
+                .first().evaluate("el => el.value");
+        assertEquals("Aoi", lastVal,
+                "Expected last-name input to be 'Aoi', got: " + lastVal);
+
+        // First-name input must contain "Sora".
+        String firstVal = (String) page.locator(".un-cast-picker-name-input[data-name-field='first']")
+                .first().evaluate("el => el.value");
+        assertEquals("Sora", firstVal,
+                "Expected first-name input to be 'Sora', got: " + firstVal);
+
+        assertConsoleClean();
+    }
+
     // ── Seed helpers ───────────────────────────────────────────────────────
 
     private void seedTitle() {
@@ -355,6 +402,20 @@ class UiStageNameStatusTest {
     }
 
     // ── Navigation ─────────────────────────────────────────────────────────
+
+    /**
+     * Navigate to the v2 unprocessed surface and open the draft editor for the
+     * seeded title. Targets /v2-unprocessed.html which mounts cast-pane.js.
+     */
+    private void navigateToV2DraftEditor() {
+        page.navigate(baseUrl() + "/v2-unprocessed.html");
+        // Wait for the sidebar to render at least one row.
+        page.waitForCondition(() -> page.locator(".un-queue-row").count() > 0);
+        // Click the first row to load the draft.
+        page.locator(".un-queue-row").first().click();
+        // Wait for the cast section to appear inside the editor pane.
+        page.waitForCondition(() -> page.locator(".un-cast-section").count() > 0);
+    }
 
     private void navigateToDraftEditor() {
         page.navigate(baseUrl() + "/");
